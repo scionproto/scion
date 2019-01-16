@@ -221,8 +221,6 @@ func TestComputeDestination(t *testing.T) {
 
 func MustPackL4Header(t *testing.T, header l4.L4Header) common.RawBytes {
 	b, err := header.Pack(false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	xtest.FailOnErr(t, err)
 	return b
 }
