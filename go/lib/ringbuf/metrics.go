@@ -21,25 +21,27 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-var WriteCalls *prometheus.CounterVec
-var ReadCalls *prometheus.CounterVec
-var WritesBlocked *prometheus.CounterVec
-var ReadsBlocked *prometheus.CounterVec
-var WriteEntries *prometheus.HistogramVec
-var ReadEntries *prometheus.HistogramVec
-var MaxEntries *prometheus.GaugeVec
-var UsedEntries *prometheus.GaugeVec
+var (
+	WriteCalls    *prometheus.CounterVec
+	ReadCalls     *prometheus.CounterVec
+	WritesBlocked *prometheus.CounterVec
+	ReadsBlocked  *prometheus.CounterVec
+	WriteEntries  *prometheus.HistogramVec
+	ReadEntries   *prometheus.HistogramVec
+	MaxEntries    *prometheus.GaugeVec
+	UsedEntries   *prometheus.GaugeVec
+)
 
-func InitMetrics(namespace string, constLabels prometheus.Labels, labelNames []string) {
+func InitMetrics(namespace string, labelNames []string) {
 	lNames := append(labelNames, "desc")
 	newCVec := func(name, help string) *prometheus.CounterVec {
-		return prom.NewCounterVec(namespace, "ringbuf", name, help, constLabels, lNames)
+		return prom.NewCounterVec(namespace, "ringbuf", name, help, lNames)
 	}
 	newGVec := func(name, help string) *prometheus.GaugeVec {
-		return prom.NewGaugeVec(namespace, "ringbuf", name, help, constLabels, lNames)
+		return prom.NewGaugeVec(namespace, "ringbuf", name, help, lNames)
 	}
 	newHVec := func(name, help string, buckets []float64) *prometheus.HistogramVec {
-		return prom.NewHistogramVec(namespace, "ringbuf", name, help, constLabels, lNames, buckets)
+		return prom.NewHistogramVec(namespace, "ringbuf", name, help, lNames, buckets)
 	}
 	WriteCalls = newCVec("write_calls_total", "Number of calls to Write.")
 	ReadCalls = newCVec("read_calls_total", "Number of calls to Read.")
