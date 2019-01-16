@@ -46,15 +46,13 @@ type posixLoc struct{}
 func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	oldCtx *rctx.Ctx) error {
 
-	// No old context. This happens during startup of the router.
-	if oldCtx != nil {
-		if ctx.Conf.Net.LocAddr.Equal(oldCtx.Conf.Net.LocAddr) {
-			log.Debug("No change detected for local socket.")
-			// Nothing changed. Copy I/O functions from old context.
-			ctx.LocSockIn = oldCtx.LocSockIn
-			ctx.LocSockOut = oldCtx.LocSockOut
-			return nil
-		}
+	// Check if the existing socket can be reused. On startup, oldCtx is nil.
+	if oldCtx != nil && ctx.Conf.Net.LocAddr.Equal(oldCtx.Conf.Net.LocAddr) {
+		log.Debug("No change detected for local socket.")
+		// Nothing changed. Copy I/O functions from old context.
+		ctx.LocSockIn = oldCtx.LocSockIn
+		ctx.LocSockOut = oldCtx.LocSockOut
+		return nil
 	}
 	// New bind address. Configure Posix I/O.
 	// Get Bind address if set, Public otherwise
