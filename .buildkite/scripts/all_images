@@ -8,7 +8,7 @@ TAG="$BUILDKITE_BUILD_NUMBER"
 
 $BASE/scripts/registry_login &>/dev/null
 
-images="border dispatcher sig beacon_py cert cert_py path path_py sciond sciond_py tester sig_acceptance"
+images="border dispatcher dispatcher_go sig beacon_py cert cert_py path path_py sciond sciond_py tester sig_acceptance"
 
 if [ "${1:?}" == "push" ]; then
     # Tag local apps and push to remote
