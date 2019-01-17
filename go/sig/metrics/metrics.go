@@ -54,15 +54,15 @@ var ConfigVersion uint64
 // Ensure all metrics are registered.
 func Init(elem string) {
 	namespace := "sig"
-	constLabels := prometheus.Labels{"elem": elem}
 	iaLabels := []string{"IA", "sessId"}
+	prom.UseDefaultRegWithElem(elem)
 
 	// Some closures to reduce boiler-plate.
 	newC := func(name, help string) prometheus.Counter {
-		return prom.NewCounter(namespace, "", name, help, constLabels)
+		return prom.NewCounter(namespace, "", name, help)
 	}
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
-		return prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
+		return prom.NewCounterVec(namespace, "", name, help, lNames)
 	}
 	// FIXME(kormat): these metrics should probably have more informative labels
 	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", iaLabels)
@@ -82,7 +82,7 @@ func Init(elem string) {
 		"Egress packets dropped due to full queues.", []string{"IA"})
 
 	// Initialize ringbuf metrics.
-	ringbuf.InitMetrics("sig", constLabels, []string{"ringId", "sessId"})
+	ringbuf.InitMetrics("sig", []string{"ringId", "sessId"})
 	// Add handler for ConfigVersion
 	http.HandleFunc("/configversion", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, atomic.LoadUint64(&ConfigVersion))

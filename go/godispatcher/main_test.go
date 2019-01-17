@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,7 +83,7 @@ func buildClientConfigs(settings *TestSettings) []*ClientConfig {
 }
 
 func InitTestSettings(t *testing.T) TestSettings {
-	ringbuf.InitMetrics("dispatcher", nil, nil)
+	ringbuf.InitMetrics("dispatcher", nil)
 	socketName, err := getSocketName("/tmp")
 	if err != nil {
 		t.Fatal(err)
