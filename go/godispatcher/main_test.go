@@ -48,7 +48,7 @@ type TestSettings struct {
 	OverlayPort       int
 }
 
-func InitTestSettings(t *testing.T) TestSettings {
+func InitTestSettings(t *testing.T) *TestSettings {
 	ringbuf.InitMetrics("dispatcher", nil)
 	socketName, err := getSocketName("/tmp")
 	if err != nil {

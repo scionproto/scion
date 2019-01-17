@@ -45,7 +45,6 @@ type Packet struct {
 
 	// buffer contains the raw slice that other fields reference
 	buffer common.RawBytes
-	data   common.RawBytes
 
 	mtx      sync.Mutex
 	refCount *int
