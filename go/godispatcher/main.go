@@ -25,7 +25,6 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/godispatcher/network"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
@@ -95,7 +94,7 @@ func setupBasic() error {
 
 func RunDispatcher(applicationSocket string, overlayPort int) error {
 	dispatcher := &network.Dispatcher{
-		RoutingTable:      registration.NewIATable(1024, 65535),
+		RoutingTable:      network.NewIATable(1024, 65535),
 		OverlaySocket:     fmt.Sprintf(":%d", overlayPort),
 		ApplicationSocket: applicationSocket,
 	}

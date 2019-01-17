@@ -103,6 +103,9 @@ func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
 	if svc == addr.SvcNone {
 		return nil, common.NewBasicError(ErrSvcNone, nil)
 	}
+	// save a copy of the address to prevent callers from later affecting table
+	// state
+	address = copyUDPAddr(address)
 
 	if _, ok := t.m[svc]; !ok {
 		t.m[svc] = make(unicastIpTable)

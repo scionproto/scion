@@ -17,13 +17,12 @@ package network
 import (
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 type Dispatcher struct {
-	RoutingTable      registration.IATable
+	RoutingTable      *IATable
 	OverlaySocket     string
 	ApplicationSocket string
 }

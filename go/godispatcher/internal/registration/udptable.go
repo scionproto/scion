@@ -79,6 +79,7 @@ func (t *UDPPortTable) Insert(address *net.UDPAddr, value interface{}) (*net.UDP
 	if value == nil {
 		return nil, common.NewBasicError(ErrNoValue, nil)
 	}
+	address = copyUDPAddr(address)
 	newAddress, err := t.computeAddressWithPort(address)
 	if err != nil {
 		return nil, err
@@ -89,7 +90,6 @@ func (t *UDPPortTable) Insert(address *net.UDPAddr, value interface{}) (*net.UDP
 
 func (t *UDPPortTable) computeAddressWithPort(address *net.UDPAddr) (*net.UDPAddr, error) {
 	var err error
-	address = copyUDPAddr(address)
 	if address.Port == 0 {
 		address.Port, err = t.allocator.Allocate(address.IP, t)
 	}

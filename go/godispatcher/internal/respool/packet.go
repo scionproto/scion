@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package network implements the SCION dispatcher dataplane.
-package network
+package respool
 
 import (
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/bufpool"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/hpkt"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
+
+var packetPool = sync.Pool{
+	New: func() interface{} {
+		return newPacket()
+	},
+}
+
+func GetPacket() *Packet {
+	pkt := packetPool.Get().(*Packet)
+	*pkt.refCount = 1
+	return pkt
+}
 
 // Packet describes a SCION packet. Fields might reference each other
 // (including hidden fields), so callers should only write to freshly created
 // packets, and readers should take care never to mutate data.
 type Packet struct {
-	Data          common.RawBytes
 	Info          spkt.ScnPkt
 	OverlayRemote *net.UDPAddr
 
@@ -39,10 +50,10 @@ type Packet struct {
 	refCount *int
 }
 
-func NewPacket() *Packet {
+func newPacket() *Packet {
 	refCount := 1
 	return &Packet{
-		buffer:   bufpool.Get(),
+		buffer:   GetBuffer(),
 		refCount: &refCount,
 	}
 }
@@ -72,12 +83,46 @@ func (pkt *Packet) Free() {
 	}
 	*pkt.refCount--
 	if *pkt.refCount == 0 {
-		bufpool.Put(pkt.buffer)
-		// Prevent use after free bugs
-		pkt.OverlayRemote = nil
-		pkt.buffer = nil
-		pkt.Data = nil
-		pkt.Info = spkt.ScnPkt{}
+		pkt.reset()
+		pkt.mtx.Unlock()
+		packetPool.Put(pkt)
+	} else {
+		pkt.mtx.Unlock()
 	}
-	pkt.mtx.Unlock()
+}
+
+func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
+	n, readExtra, err := conn.ReadFrom(pkt.buffer)
+	if err != nil {
+		return err
+	}
+	pkt.buffer = pkt.buffer[:n]
+
+	if readExtra == nil {
+		return common.NewBasicError("missing next-hop", nil)
+	}
+	switch address := readExtra.(type) {
+	case *net.UDPAddr:
+		pkt.OverlayRemote = address
+	case *overlay.OverlayAddr:
+		pkt.OverlayRemote = address.ToUDPAddr()
+	default:
+		return common.NewBasicError("unsupported next-hop type", nil, "address", address)
+	}
+
+	if err := hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
+		return common.NewBasicError("parse error", err)
+	}
+	return nil
+}
+
+func (pkt *Packet) SendOnConn(conn net.PacketConn, address net.Addr) error {
+	_, err := conn.WriteTo(pkt.buffer, address)
+	return err
+}
+
+func (pkt *Packet) reset() {
+	pkt.buffer = pkt.buffer[:cap(pkt.buffer)]
+	pkt.Info = spkt.ScnPkt{}
+	pkt.OverlayRemote = nil
 }

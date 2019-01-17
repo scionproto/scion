@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package buffers contains the Dispatcher's pool of free buffers.
+// Package respool contains the Dispatcher's pool of free buffers/packets.
 //
-// FIXME(scrye): Currently the pool is elastic, but this is not ideal for
-// traffic bursts. It should probably be replaced with a fixed-sized list.
-package bufpool
+// FIXME(scrye): Currently the pools are elastic, but this is not ideal for
+// traffic bursts. Consider converting these to fixed-size lists.
+package respool
 
 import (
 	"sync"
@@ -24,19 +24,19 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-var pool = sync.Pool{
+var bufferPool = sync.Pool{
 	New: func() interface{} {
 		return make(common.RawBytes, common.MaxMTU)
 	},
 }
 
-func Get() common.RawBytes {
-	b := pool.Get().(common.RawBytes)
+func GetBuffer() common.RawBytes {
+	b := bufferPool.Get().(common.RawBytes)
 	return b[:cap(b)]
 }
 
-func Put(b common.RawBytes) {
+func PutBuffer(b common.RawBytes) {
 	if cap(b) == common.MaxMTU {
-		pool.Put(b)
+		bufferPool.Put(b)
 	}
 }
