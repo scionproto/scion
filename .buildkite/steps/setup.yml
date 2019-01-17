@@ -4,4 +4,7 @@
       - docker tag scion $SCION_BUILD_IMG
       - $BASE/scripts/registry_login
       - docker push $SCION_BUILD_IMG
+  retry:
+    automatic:
+      exit_status: -1
 - wait

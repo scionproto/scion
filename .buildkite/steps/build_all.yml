@@ -7,4 +7,7 @@
   - make -C docker/perapp apps
   - ./docker.sh tester
   - $BASE/scripts/all_images push
+  retry:
+    automatic:
+      exit_status: -1
 - wait
