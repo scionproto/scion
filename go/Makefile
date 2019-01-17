@@ -66,7 +66,7 @@ proto: deps
 	$(MAKE) -C proto
 
 bin: deps_proto
-	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
+	GOPATH=$(GOPATH) GOBIN=$(GOPATH)/bin ./gobuild.sh
 
 libs: deps_proto
 	govendor install --tags "$(GOTAGS)" -v +local,^program

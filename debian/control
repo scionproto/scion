@@ -8,37 +8,37 @@ Homepage: https://scion-architecture.net
 Vcs-Git: git://github.com/scionproto/scion.git
 Vcs-Browser: https://github.com/scionproto/scion.git
 
-Package: libscion0
-Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
-Description: SCION base library
- Basic library for scion
+#Package: libscion0
+#Architecture: amd64 i386
+#Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
+#Description: SCION base library
+# Basic library for scion
 
-Package: libscion0-dev
-Section: libdevel
-Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog-dev
-Description: SCION base library - development files
- Basic library for scion, headers and static library
+#Package: libscion0-dev
+#Section: libdevel
+#Architecture: amd64 i386
+#Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog-dev
+#Description: SCION base library - development files
+# Basic library for scion, headers and static library
 
-Package: libfilter0
-Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog1
-Description: SCION filter library
- Library for filtering packets
+#Package: libfilter0
+#Architecture: amd64 i386
+#Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog1
+#Description: SCION filter library
+# Library for filtering packets
 
-Package: libfilter0-dev
-Section: libdevel
-Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev, libfilter0, libzlog-dev
-Description: SCION filter library - development files
- Library for filtering packets
+#Package: libfilter0-dev
+#Section: libdevel
+#Architecture: amd64 i386
+#Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev, libfilter0, libzlog-dev
+#Description: SCION filter library - development files
+# Library for filtering packets
 
-Package: libtcpmw0
-Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog1
-Description: SCION tcp library
- supportive library for scion
+#Package: libtcpmw0
+#Architecture: amd64 i386
+#Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog1
+#Description: SCION tcp library
+# supportive library for scion
 
 # libtcpmw0-dev is not viable
 # It requires packing the lwip headers in a very obscure way.
@@ -52,16 +52,16 @@ Description: SCION tcp library
 #Description: SCION tcp library - development files
 # supportive library for scion
 
-Package: scion-dispatcher
-Section: net
-Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
-Description: SCION dispatcher service
- supportive scion service
+#Package: scion-dispatcher
+#Section: net
+#Architecture: amd64 i386
+#Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
+#Description: SCION dispatcher service
+# supportive scion service
 
 Package: scion-daemons
 Section: net
-Architecture: amd64 i386
+Architecture: amd64 i386 arm64 armhf
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: SCION daemons
  All golang daemons of scion

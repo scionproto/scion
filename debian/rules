@@ -1,8 +1,20 @@
 #!/usr/bin/make -f
 # See debhelper(7) (uncomment to enable)
 # output every command that modifies files on the build system.
-#export DH_VERBOSE = 1
+export DH_VERBOSE = 1
 
+include /usr/share/dpkg/architecture.mk
+
+$(info Building on $(DEB_BUILD_GNU_TYPE))
+$(info Building for $(DEB_HOST_GNU_TYPE))
+$(info Host Arch $(DEB_HOST_ARCH))
+$(info Host OS   $(DEB_HOST_ARCH_OS))
+$(info Host CPU  $(DEB_HOST_ARCH_CPU))
+$(info Using CC  $(CC))
+$(info Using CXX $(CXX))
+
+CC=$(DEB_HOST_GNU_TYPE)-gcc
+CXX=$(DEB_HOST_GNU_TYPE)-g++
 
 # see FEATURE AREAS in dpkg-buildflags(1)
 #export DEB_BUILD_MAINT_OPTIONS = hardening=+all
@@ -19,51 +31,53 @@ DESTDIR := ${CURDIR}/${BUILDDIR}
 	dh $@ 
 
 override_dh_auto_clean:
-	make libfilter target=clean
-	make libscion target=clean
-	make libtcpmw target=clean
-	make dispatcher target=clean
+	#make libfilter target=clean
+	#make libscion target=clean
+	#make libtcpmw target=clean
+	#make dispatcher target=clean
 	rm -rf bin/*
 
 override_dh_auto_build:
-	make libscion
-	make libfilter
-	make liblwip
-	make libtcpmw
-	make dispatcher
-	./build-in-tmp.sh
+	echo 'build'
+	#make libscion #CC=$(CC) CXX=$(CXX)
+	#make libfilter #CC=$(CC) CXX=$(CXX)
+	#make liblwip #CC=$(CC) CXX=$(CXX)
+	#make libtcpmw #CC=$(CC) CXX=$(CXX)
+	#make dispatcher #CC=$(CC) CXX=$(CXX)
+	CC=$(CC) CROSS_GOOS=$(DEB_HOST_ARCH_OS) CROSS_GOARCH=$(DEB_HOST_ARCH_CPU) ./build-in-tmp.sh
 
 override_dh_auto_install:
-	make libscion target=install DESTDIR=${DESTDIR} PREFIX=/usr
-	cp ${DESTDIR}/usr/lib/libscion.so debian/libscion0/usr/lib/libscion.so
-	ln -s libscion.so debian/libscion0/usr/lib/libscion.so.0
+	#make libscion target=install DESTDIR=${DESTDIR} PREFIX=/usr
+	#cp ${DESTDIR}/usr/lib/libscion.so debian/libscion0/usr/lib/libscion.so
+	#ln -s libscion.so debian/libscion0/usr/lib/libscion.so.0
 	
-	cp ${DESTDIR}/usr/lib/pkgconfig/scion.pc debian/libscion0-dev/usr/lib/pkgconfig/scion.pc
-	cp ${DESTDIR}/usr/lib/libscion.a debian/libscion0-dev/usr/lib/libscion.a
-	cp -r ${DESTDIR}/usr/include/scion/* debian/libscion0-dev/usr/include/scion
+	#cp ${DESTDIR}/usr/lib/pkgconfig/scion.pc debian/libscion0-dev/usr/lib/pkgconfig/scion.pc
+	#cp ${DESTDIR}/usr/lib/libscion.a debian/libscion0-dev/usr/lib/libscion.a
+	#cp -r ${DESTDIR}/usr/include/scion/* debian/libscion0-dev/usr/include/scion
 	
-	make libfilter target=install DESTDIR=${DESTDIR} PREFIX=/usr
-	cp ${DESTDIR}/usr/lib/libfilter.so debian/libfilter0/usr/lib/libfilter.so
-	ln -s libfilter.so debian/libfilter0/usr/lib/libfilter.so.0
+	#make libfilter target=install DESTDIR=${DESTDIR} PREFIX=/usr
+	#cp ${DESTDIR}/usr/lib/libfilter.so debian/libfilter0/usr/lib/libfilter.so
+	#ln -s libfilter.so debian/libfilter0/usr/lib/libfilter.so.0
 	
-	cp ${DESTDIR}/usr/lib/pkgconfig/scion-filter.pc debian/libfilter0-dev/usr/lib/pkgconfig/scion-filter.pc
-	cp ${DESTDIR}/usr/lib/libfilter.a debian/libfilter0-dev/usr/lib/libfilter.a
-	cp -r ${DESTDIR}/usr/include/scion-filter/* debian/libscion0-dev/usr/include/scion-filter
+	#cp ${DESTDIR}/usr/lib/pkgconfig/scion-filter.pc debian/libfilter0-dev/usr/lib/pkgconfig/scion-filter.pc
+	#cp ${DESTDIR}/usr/lib/libfilter.a debian/libfilter0-dev/usr/lib/libfilter.a
+	#cp -r ${DESTDIR}/usr/include/scion-filter/* debian/libscion0-dev/usr/include/scion-filter
 	
-	make libtcpmw target=install DESTDIR=${DESTDIR} PREFIX=/usr
-	cp ${DESTDIR}/usr/lib/libtcpmw.so debian/libtcpmw0/usr/lib/libtcpmw.so
-	cp ${DESTDIR}/usr/lib/liblwip.so debian/libtcpmw0/usr/lib/liblwip.so
-	ln -s libtcpmw.so debian/libtcpmw0/usr/lib/libtcpmw.so.0
-	ln -s liblwip.so debian/libtcpmw0/usr/lib/liblwip.so.0
+	#make libtcpmw target=install DESTDIR=${DESTDIR} PREFIX=/usr
+	#cp ${DESTDIR}/usr/lib/libtcpmw.so debian/libtcpmw0/usr/lib/libtcpmw.so
+	#cp ${DESTDIR}/usr/lib/liblwip.so debian/libtcpmw0/usr/lib/liblwip.so
+	#ln -s libtcpmw.so debian/libtcpmw0/usr/lib/libtcpmw.so.0
+	#ln -s liblwip.so debian/libtcpmw0/usr/lib/liblwip.so.0
 	
-	make dispatcher target=install DESTDIR=${DESTDIR} PREFIX=/usr
-	cp ${DESTDIR}/usr/bin/dispatcher debian/scion-dispatcher/usr/bin/dispatcher
-	cp ${DESTDIR}/etc/scion/dispatcher.conf debian/scion-dispatcher/etc/scion/dispatcher.conf
-	
+	#make dispatcher target=install DESTDIR=${DESTDIR} PREFIX=/usr
+	#cp ${DESTDIR}/usr/bin/dispatcher debian/scion-dispatcher/usr/bin/dispatcher
+	#cp ${DESTDIR}/etc/scion/dispatcher.conf debian/scion-dispatcher/etc/scion/dispatcher.conf
+	#mkdir -p debian/scion-daemons/usr/bin/
 	cp bin/* debian/scion-daemons/usr/bin/
+	#dh $@
 
-override_dh_shlibdeps:
-	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/debian/libscion0/usr/lib:$(pwd)/debian/libfilter0/usr/lib:$(pwd)/debian/libtcpmw0/usr/lib dh_shlibdeps --dpkg-shlibdeps-params="--ignore-missing-info"
+#override_dh_shlibdeps:
+#	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/debian/libscion0/usr/lib:$(pwd)/debian/libfilter0/usr/lib:$(pwd)/debian/libtcpmw0/usr/lib dh_shlibdeps --dpkg-shlibdeps-params="--ignore-missing-info"
 
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )
