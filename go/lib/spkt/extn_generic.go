@@ -27,7 +27,9 @@ type UnknownExtension struct {
 }
 
 func (o UnknownExtension) Write(b common.RawBytes) error {
-	copy(b, make(common.RawBytes, o.Length))
+	for i := 0; i < o.Length; i++ {
+		b[i] = 0
+	}
 	return nil
 }
 
@@ -53,14 +55,13 @@ func (o UnknownExtension) Len() int {
 }
 
 func (o UnknownExtension) Class() common.L4ProtocolType {
-	// FIXME(scrye): unknown class, use None
-	return 0
+	return common.L4None
 }
 
 func (o UnknownExtension) Type() common.ExtnType {
 	return common.ExtnType{Type: o.TypeField}
 }
 
-func (o *UnknownExtension) String() string {
+func (o UnknownExtension) String() string {
 	return "Unknown"
 }
