@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -77,6 +78,7 @@ func WithMetrics(dbName string, pathDB PathDB) PathDB {
 	}
 }
 
+// metricsPathDB is a PathDB wrapper that exports the counts of operations as prometheus metrics.
 type metricsPathDB struct {
 	pathDB  PathDB
 	metrics *dbCounters
@@ -104,13 +106,14 @@ func (db *metricsPathDB) Delete(ctx context.Context, params *query.Params) (int,
 	db.incErr(err)
 	return cnt, err
 }
-func (db *metricsPathDB) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 
+func (db *metricsPathDB) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	db.incWrite()
 	cnt, err := db.pathDB.DeleteExpired(ctx, now)
 	db.incErr(err)
 	return cnt, err
 }
+
 func (db *metricsPathDB) Get(ctx context.Context,
 	params *query.Params) ([]*query.Result, error) {
 
@@ -119,6 +122,7 @@ func (db *metricsPathDB) Get(ctx context.Context,
 	db.incErr(err)
 	return res, err
 }
+
 func (db *metricsPathDB) InsertNextQuery(ctx context.Context,
 	dst addr.IA, nextQuery time.Time) (bool, error) {
 
@@ -127,6 +131,7 @@ func (db *metricsPathDB) InsertNextQuery(ctx context.Context,
 	db.incErr(err)
 	return ok, err
 }
+
 func (db *metricsPathDB) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
 	db.incRead()
 	t, err := db.pathDB.GetNextQuery(ctx, dst)
@@ -150,5 +155,11 @@ func (db *metricsPathDB) incErr(err error) {
 }
 
 func errDesc(err error) string {
-	return "err_any"
+	// TODO(lukedirtwalker): categorize error better.
+	switch {
+	case common.IsTimeoutErr(err):
+		return "err_timeout"
+	default:
+		return "err_any"
+	}
 }
