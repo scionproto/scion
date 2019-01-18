@@ -64,6 +64,10 @@ Necessary steps in order to run SCION:
     ```
     This requires a go version >= 1.9.4 to be available on the system. If no sufficiently up-to-date version is available in the system repositories refer to [golang.org/dl](https://golang.org/dl) for installation instructions.
 
+1. Install `docker` and `docker-compose`. Please follow the instructions for
+   [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/) and
+   [docker-compose](https://docs.docker.com/compose/install/).
+
 1. Create the topology and configuration files (according to
    `topology/Default.topo`):
 
