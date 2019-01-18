@@ -62,7 +62,15 @@ Necessary steps in order to run SCION:
     ```
     ./env/deps
     ```
-    This requires a go version >= 1.9.4 to be available on the system. If no sufficiently up-to-date version is available in the system repositories refer to [golang.org/dl](https://golang.org/dl) for installation instructions.
+    This requires a go version >= 1.9.4 to be available on the system. If no sufficiently
+    up-to-date version is available in the system repositories refer to
+    [golang.org/dl](https://golang.org/dl) for installation instructions.
+
+1. Install `docker` and `docker-compose`. Please follow the instructions for
+   [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/) and
+   [docker-compose](https://docs.docker.com/compose/install/). Add your user to the docker group:
+   `sudo usermod -a -G docker $LOGNAME`. Log out and log back in so that your group membership is
+   re-evaluated.
 
 1. Create the topology and configuration files (according to
    `topology/Default.topo`):
