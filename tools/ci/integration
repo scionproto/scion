@@ -44,6 +44,7 @@ run_tests() {
     else
         echo "========> ($(date -u --rfc-3339=seconds)) $result integration tests failed"
     fi
+    return $result
 }
 
 ./docker.sh exec "set -x; ./scion.sh topology ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}"
