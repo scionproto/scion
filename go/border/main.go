@@ -118,6 +118,7 @@ func setup() error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
+	config.BR.InitDefaults()
 	environment = env.SetupEnv(func() {
 		if r == nil {
 			log.Error("Unable to reload config", "err", "router not set")

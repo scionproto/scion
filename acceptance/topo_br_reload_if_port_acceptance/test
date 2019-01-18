@@ -48,7 +48,6 @@ check_change_local_port() {
 
 check_change_remote_port() {
     # Connectivity is broken at this point
-    unblock_socket
     jq '.BorderRouters[].Interfaces[].RemoteOverlay.OverlayPort = 42424' $DST_TOPO | sponge $DST_TOPO
     ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
     sleep 2
@@ -58,20 +57,11 @@ check_change_remote_port() {
 
 check_change_initial_port() {
     check_connectivity "Start check_change_initial_port"
-    unblock_socket
     jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_src" $SRC_TOPO | sponge $SRC_TOPO
     jq ".BorderRouters[].Interfaces[].RemoteOverlay = $orig_src" $DST_TOPO | sponge $DST_TOPO
     ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
     ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
     check_connectivity "End check_change_initial_port"
-}
-
-unblock_socket() {
-    # FIXME(roosd): This is a work around to get the BR to reload the config.
-    # When https://github.com/scionproto/scion/issues/2254 is fixed, this part shall be removed.
-    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42425' $DST_TOPO | sponge $DST_TOPO
-    ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
-    jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_dst" $DST_TOPO | sponge $DST_TOPO
 }
 
 test_teardown() {
