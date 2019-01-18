@@ -29,8 +29,7 @@ revocation() {
 
 run_tests() {
     result=0
-    go_infra
-    result=$((result+$?))
+    [ -z "$DOCKER_BE" ] && { go_infra; result=$((result+$?)); }
     go_integration
     result=$((result+$?))
     if [ -n "$ALL" ]; then
