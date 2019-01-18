@@ -17,6 +17,8 @@ package main
 import (
 	"path/filepath"
 
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
@@ -83,6 +85,7 @@ func initState(cfg *config.Config) error {
 	if err != nil {
 		return common.NewBasicError("Unable to initialize trustDB", err)
 	}
+	trustDB = trustdb.WithMetrics("std", trustDB)
 	trustConf := &trust.Config{
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_cs,
