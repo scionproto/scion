@@ -98,9 +98,7 @@ type Transaction interface {
 	Read
 	Write
 	// Commit commits the transaction.
-	// Returns the underlying TrustDB connection.
 	Commit() error
 	// Rollback rollbacks the transaction.
-	// Returns the underlying TrustDB connection.
 	Rollback() error
 }
