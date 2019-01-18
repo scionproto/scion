@@ -181,7 +181,7 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.UDPReference) {
 		// let the GC take care of this situation as they should be fairly
 		// rare.
 
-		if err := pkt.DecodeFromConn(h.Conn); err != nil {
+		if err := pkt.DecodeFromReliableConn(h.Conn); err != nil {
 			if err == io.EOF {
 				h.Logger.Info("[app->network] EOF received from client")
 			} else {

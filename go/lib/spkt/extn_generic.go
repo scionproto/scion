@@ -1,4 +1,4 @@
-// Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,20 +18,22 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-var _ common.Extension = (*OneHopPath)(nil)
+var _ common.Extension = (*UnknownExtension)(nil)
 
-type OneHopPath struct{}
+type UnknownExtension struct {
+	// Length, in bytes, including 3-byte extension header
+	Length    int
+	TypeField uint8
+}
 
-const OneHopPathLen = common.ExtnFirstLineLen
-
-func (o OneHopPath) Write(b common.RawBytes) error {
-	for i := 0; i < OneHopPathLen; i++ {
+func (o UnknownExtension) Write(b common.RawBytes) error {
+	for i := 0; i < o.Length; i++ {
 		b[i] = 0
 	}
 	return nil
 }
 
-func (o OneHopPath) Pack() (common.RawBytes, error) {
+func (o UnknownExtension) Pack() (common.RawBytes, error) {
 	b := make(common.RawBytes, o.Len())
 	if err := o.Write(b); err != nil {
 		return nil, err
@@ -39,27 +41,27 @@ func (o OneHopPath) Pack() (common.RawBytes, error) {
 	return b, nil
 }
 
-func (o OneHopPath) Copy() common.Extension {
-	return &OneHopPath{}
+func (o UnknownExtension) Copy() common.Extension {
+	return &UnknownExtension{Length: o.Length}
 }
 
-func (o OneHopPath) Reverse() (bool, error) {
+func (o UnknownExtension) Reverse() (bool, error) {
 	// Reversing removes the extension.
 	return false, nil
 }
 
-func (o OneHopPath) Len() int {
-	return OneHopPathLen
+func (o UnknownExtension) Len() int {
+	return o.Length
 }
 
-func (o OneHopPath) Class() common.L4ProtocolType {
-	return common.HopByHopClass
+func (o UnknownExtension) Class() common.L4ProtocolType {
+	return common.L4None
 }
 
-func (o OneHopPath) Type() common.ExtnType {
-	return common.ExtnOneHopPathType
+func (o UnknownExtension) Type() common.ExtnType {
+	return common.ExtnType{Type: o.TypeField}
 }
 
-func (o OneHopPath) String() string {
-	return "OneHopPath"
+func (o UnknownExtension) String() string {
+	return "Unknown"
 }
