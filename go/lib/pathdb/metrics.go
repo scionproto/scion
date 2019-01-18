@@ -30,9 +30,12 @@ import (
 const (
 	promSubsyst = "pathdb"
 
-	promQuery  = "query"
+	promOp     = "op"
 	promDBName = "db"
 	promError  = "err"
+
+	promErrAny     = "err_any"
+	promErrTimeout = "err_timeout"
 )
 
 var (
@@ -43,13 +46,14 @@ var (
 type dbCounters struct {
 	readQueriesTotal  prometheus.Counter
 	writeQueriesTotal prometheus.Counter
-	errorsTotal       *prometheus.CounterVec
+	errAnyTotal       prometheus.Counter
+	errTimeoutTotal   prometheus.Counter
 }
 
 // InitMetrics prepares the usage of metrics in the pathdb module.
 func InitMetrics(namespace string) {
 	queriesTotal = prom.NewCounterVec(namespace, promSubsyst, "queries_total",
-		"Total queries to the database.", []string{promDBName, promQuery})
+		"Total queries to the database.", []string{promDBName, promOp})
 	errorsTotal = prom.NewCounterVec(namespace, promSubsyst, "errors_total",
 		"Amount of pathdb errors.", []string{promDBName, promError})
 }
@@ -65,14 +69,19 @@ func WithMetrics(dbName string, pathDB PathDB) PathDB {
 		metrics: &dbCounters{
 			readQueriesTotal: queriesTotal.With(prometheus.Labels{
 				promDBName: dbName,
-				promQuery:  "read",
+				promOp:     "read",
 			}),
 			writeQueriesTotal: queriesTotal.With(prometheus.Labels{
 				promDBName: dbName,
-				promQuery:  "write",
+				promOp:     "write",
 			}),
-			errorsTotal: errorsTotal.MustCurryWith(prometheus.Labels{
+			errAnyTotal: errorsTotal.With(prometheus.Labels{
 				promDBName: dbName,
+				promError:  promErrAny,
+			}),
+			errTimeoutTotal: errorsTotal.With(prometheus.Labels{
+				promDBName: dbName,
+				promError:  promErrTimeout,
 			}),
 		},
 	}
@@ -151,15 +160,11 @@ func (db *metricsPathDB) incErr(err error) {
 	if err == nil {
 		return
 	}
-	db.metrics.errorsTotal.With(prometheus.Labels{promError: errDesc(err)}).Inc()
-}
-
-func errDesc(err error) string {
 	// TODO(lukedirtwalker): categorize error better.
 	switch {
 	case common.IsTimeoutErr(err):
-		return "err_timeout"
+		db.metrics.errTimeoutTotal.Inc()
 	default:
-		return "err_any"
+		db.metrics.errAnyTotal.Inc()
 	}
 }
