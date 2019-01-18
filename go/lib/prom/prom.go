@@ -22,6 +22,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+const (
+	// LabelErr is the label for error classifications.
+	LabelErr = "err"
+	// LabelElem is the label for the element id that is added to all metrics.
+	LabelElem = "elem"
+
+	// ErrAny is any error not further classified.
+	ErrAny = "err_any"
+	// ErrTimeout is a timeout error.
+	ErrTimeout = "err_timeout"
+)
+
 func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 	l := make(prometheus.Labels)
 	for k, v := range labels {
@@ -35,7 +47,7 @@ func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 // Note this should be called before any other interaction with prometheus.
 // See also: https://github.com/prometheus/client_golang/issues/515
 func UseDefaultRegWithElem(elemId string) {
-	labels := prometheus.Labels{"elem": elemId}
+	labels := prometheus.Labels{LabelElem: elemId}
 	reg := prometheus.NewRegistry()
 	prometheus.DefaultRegisterer = prometheus.WrapRegistererWith(labels, reg)
 	prometheus.DefaultGatherer = reg

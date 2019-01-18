@@ -25,10 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func init() {
-	pathdb.InitMetrics("test")
-}
-
 func TestMetricWrapperFunctionality(t *testing.T) {
 	Convey("Test metrics wrapper functions normally", t, func() {
 		pathdbtest.TestPathDB(t,
