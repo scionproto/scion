@@ -66,7 +66,8 @@ Necessary steps in order to run SCION:
 
 1. Install `docker` and `docker-compose`. Please follow the instructions for
    [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/) and
-   [docker-compose](https://docs.docker.com/compose/install/).
+   [docker-compose](https://docs.docker.com/compose/install/). Make sure your user is in the docker
+   group `sudo usermod -a -G docker $LOGNAME`.
 
 1. Create the topology and configuration files (according to
    `topology/Default.topo`):

@@ -4,4 +4,4 @@
       - "artifacts.out/**/*"
   retry:
     automatic:
-      exit_status: -1
+      exit_status: 255

@@ -6,5 +6,5 @@
       - docker push $SCION_BUILD_IMG
   retry:
     automatic:
-      exit_status: -1
+      exit_status: 255
 - wait
