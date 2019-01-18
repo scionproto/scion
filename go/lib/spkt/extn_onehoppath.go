@@ -25,7 +25,9 @@ type OneHopPath struct{}
 const OneHopPathLen = common.ExtnFirstLineLen
 
 func (o OneHopPath) Write(b common.RawBytes) error {
-	copy(b, make(common.RawBytes, OneHopPathLen))
+	for i := 0; i < OneHopPathLen; i++ {
+		b[i] = 0
+	}
 	return nil
 }
 
@@ -58,6 +60,6 @@ func (o OneHopPath) Type() common.ExtnType {
 	return common.ExtnOneHopPathType
 }
 
-func (o *OneHopPath) String() string {
+func (o OneHopPath) String() string {
 	return "OneHopPath"
 }
