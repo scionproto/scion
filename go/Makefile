@@ -71,7 +71,7 @@ lint: vendor/.deps.stamp
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
 	@echo "======> misspell"
-	misspell ${LOCAL_DIRS}
+	misspell -error ${LOCAL_DIRS}
 
 deps_gen: deps proto
 
