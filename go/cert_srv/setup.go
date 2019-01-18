@@ -17,8 +17,6 @@ package main
 import (
 	"path/filepath"
 
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
-
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
@@ -33,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
