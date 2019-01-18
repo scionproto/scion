@@ -12,9 +12,21 @@ DYNAMIC = libscion.so
 BINARY = checksum_bench
 TARGETS = $(STATIC) $(DYNAMIC) $(BINARY)
 
-ifeq ($(PREFIX),)
-	PREFIX := /usr/local
-endif
+# High level variables, these might be set from outside to
+# use a custom target directory
+DESTDIR?=
+PREFIX?=/usr/local
+LIBRARY_PATH?=lib
+INCLUDE_PATH?=include
+
+# Low level variables.
+# ONLY SET THOSE IF YOU KNOW WHAT YOU'RE DOING
+LIB_SHORT_PATH?=$(PREFIX)/$(LIBRARY_PATH)
+LIB_PATH?=$(DESTDIR)$(LIB_SHORT_PATH)
+INC_SHORT_PATH?=$(PREFIX)/$(INCLUDE_PATH)
+INC_PATH?=$(DESTDIR)$(INC_SHORT_PATH)
+PKGCONFIG_PATH?=$(LIB_PATH)/pkgconfig
+PKGCONFIG_NAME?=scion.pc
 
 all: $(TARGETS)
 
@@ -37,18 +49,21 @@ $(BINARY): $(BINARY).c $(DYNAMIC)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MMD -o $@ $< -L. -lscion
 
 install: $(TARGETS)
-	install -d $(DESTDIR)$(PREFIX)/lib/pkgconfig/
-	install -m 644 $(STATIC) $(DESTDIR)$(PREFIX)/lib/
-	install -m 755 $(DYNAMIC) $(DESTDIR)$(PREFIX)/lib/
-	install -d $(DESTDIR)$(PREFIX)/include/scion/
-	install -m 644 $(HDRS) $(DESTDIR)$(PREFIX)/include/scion/
-	$(eval TMP := $(shell mktemp -d))
-	sed 's@$$PREFIX@'"$(PREFIX)"'@' scion.pc.in > $(TMP)/scion.pc
-	install -m 644 $(TMP)/scion.pc $(DESTDIR)$(PREFIX)/lib/pkgconfig/
-	rm -rf $(TMP)
+	# Create directories
+	install -d $(LIB_PATH)/
+	install -d $(INC_PATH)/scion/
+	install -d $(PKGCONFIG_PATH)/
+	# Install files
+	install -m 644 $(STATIC) $(LIB_PATH)/
+	install -m 755 $(DYNAMIC) $(LIB_PATH)/
+	install -m 644 $(HDRS) $(INC_PATH)/scion/
+	# Create pkg-config file
+	echo 'libdir=$(LIB_SHORT_PATH)' > $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
+	echo 'includedir=$(INC_SHORT_PATH)' >> $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
+	cat $(PKGCONFIG_NAME) >> $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/lib/$(STATIC)
-	rm -f $(DESTDIR)$(PREFIX)/lib/$(DYNAMIC)
-	rm -rf $(DESTDIR)$(PREFIX)/include/scion
-	rm -f $(DESTDIR)$(PREFIX)/lib/pkgconfig/scion.pc
+	rm -f $(LIB_PATH)/$(STATIC)
+	rm -f $(LIB_PATH)/$(DYNAMIC)
+	rm -rf $(INC_PATH)/scion
+	rm -f $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)

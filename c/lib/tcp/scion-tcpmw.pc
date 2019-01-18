@@ -1,8 +1,3 @@
-prefix=$PREFIX
-exec_prefix=${prefix}
-includedir=${prefix}/include
-libdir=${prefix}/lib
-
 Name: scion-tcpmw
 Description: SCION lwip tcp library
 Version: 0.1

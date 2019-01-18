@@ -11,8 +11,12 @@ INC = -I$(LIB_DIR) -I$(LWIPDIR) -I$(LWIPDIR)/scion -I$(LWIPDIR)/ipv4
 INC += -I$(LWIPPORTDIR)/include -I$(LWIPPORTDIR)/proj/scion
 
 TARGETS = dispatcher
-INSTALL = ../../bin/dispatcher
-PREFIX = ..
+
+# High level variables, these might be set from outside to
+# use a custom target directory
+DESTDIR?=
+PREFIX?=..
+
 all: $(TARGETS)
 
 clean:

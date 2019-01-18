@@ -16,9 +16,23 @@ OBJS = $(SRCS:.c=.o)
 STATIC = libtcpmw.a
 DYNAMIC = libtcpmw.so
 TARGETS = $(STATIC) $(DYNAMIC)
-ifeq ($(PREFIX),)
-	PREFIX = /usr/local
-endif
+
+# High level variables, these might be set from outside to
+# use a custom target directory
+DESTDIR?=
+PREFIX?=/usr/local
+LIBRARY_PATH?=lib
+INCLUDE_PATH?=include
+
+# Low level variables.
+# ONLY SET THOSE IF YOU KNOW WHAT YOU'RE DOING
+LIB_SHORT_PATH?=$(PREFIX)/$(LIBRARY_PATH)
+LIB_PATH?=$(DESTDIR)$(LIB_SHORT_PATH)
+INC_SHORT_PATH?=$(PREFIX)/$(INCLUDE_PATH)
+INC_PATH?=$(DESTDIR)$(INC_SHORT_PATH)
+PKGCONFIG_PATH?=$(LIB_PATH)/pkgconfig
+PKGCONFIG_NAME?=scion-tcpmw.pc
+
 
 all: $(TARGETS)
 
@@ -38,22 +52,25 @@ $(DYNAMIC): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(EXTRA_LDFLAGS)
 
 install: $(TARGETS)
-	install -d $(DESTDIR)$(PREFIX)/lib/pkgconfig/
-	install -m 644 $(STATIC) $(DESTDIR)$(PREFIX)/lib/
-	install -m 755 $(DYNAMIC) $(DESTDIR)$(PREFIX)/lib/
-	install -m 644 $(LWIPPORT_DIR)/proj/scion/liblwip.a $(DESTDIR)$(PREFIX)/lib/
-	install -m 755 $(LWIPPORT_DIR)/proj/scion/liblwip.so $(DESTDIR)$(PREFIX)/lib/
-	install -d $(DESTDIR)$(PREFIX)/include/scion-tcpmw/
-	install -m 644 $(HDRS) $(DESTDIR)$(PREFIX)/include/scion-tcpmw/
-	$(eval TMP:= $(shell mktemp -d))
-	sed 's@$$PREFIX@'"$(PREFIX)"'@' scion-tcpmw.pc.in > $(TMP)/scion-tcpmw.pc
-	install -m 644 $(TMP)/scion-tcpmw.pc $(DESTDIR)$(PREFIX)/lib/pkgconfig/
-	rm -rf $(TMP)
+	# Create directories
+	install -d $(LIB_PATH)/
+	install -d $(INC_PATH)/scion-tcpmw/
+	install -d $(PKGCONFIG_PATH)/
+	# Install files
+	install -m 644 $(STATIC) $(LIB_PATH)/
+	install -m 755 $(DYNAMIC) $(LIB_PATH)/
+	install -m 644 $(LWIPPORT_DIR)/proj/scion/liblwip.a $(LIB_PATH)
+	install -m 755 $(LWIPPORT_DIR)/proj/scion/liblwip.so $(LIB_PATH)
+	install -m 644 $(HDRS) $(INC_PATH)/scion-tcpmw/
+	# Create pkg-config file
+	echo 'libdir=$(LIB_SHORT_PATH)' > $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
+	echo 'includedir=$(INC_SHORT_PATH)' >> $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
+	cat $(PKGCONFIG_NAME) >> $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/lib/$(STATIC)
-	rm -f $(DESTDIR)$(PREFIX)/lib/$(DYNAMIC)
-	rm -f $(DESTDIR)$(PREFIX)/lib/liblwip.a
-	rm -f $(DESTDIR)$(PREFIX)/lib/liblwip.so
-	rm -rf $(DESTDIR)$(PREFIX)/include/scion-tcpmw/
-	rm -f $(DESTDIR)$(PREFIX)/lib/pkgconfig/scion-tcpmw.pc
+	rm -f $(LIB_PATH)/$(STATIC)
+	rm -f $(LIB_PATH)/$(DYNAMIC)
+	rm -f $(LIB_PATH)/liblwip.a
+	rm -f $(LIB_PATH)/liblwip.so
+	rm -rf $(INC_PATH)/scion
+	rm -f $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)

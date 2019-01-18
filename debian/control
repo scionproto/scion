@@ -8,18 +8,20 @@ Homepage: https://scion-architecture.net
 Vcs-Git: git://github.com/scionproto/scion.git
 Vcs-Browser: https://github.com/scionproto/scion.git
 
-#Package: libscion0
-#Architecture: amd64 i386
-#Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
-#Description: SCION base library
-# Basic library for scion
+Package: libscion0
+Architecture: amd64 i386 arm64 armhf
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
+Description: SCION base library
+ Basic library for scion
 
-#Package: libscion0-dev
-#Section: libdevel
-#Architecture: amd64 i386
-#Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog-dev
-#Description: SCION base library - development files
-# Basic library for scion, headers and static library
+Package: libscion0-dev
+Section: libdevel
+Architecture: amd64 i386 arm64 armhf
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog-dev
+Description: SCION base library - development files
+ Basic library for scion, headers and static library
 
 #Package: libfilter0
 #Architecture: amd64 i386
