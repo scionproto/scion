@@ -54,7 +54,7 @@ override_dh_auto_build:
 	make liblwip CC=$(CC) CXX=$(CXX)
 	make libtcpmw CC=$(CC) CXX=$(CXX)
 	make dispatcher CC=$(CC) CXX=$(CXX)
-#	CC=$(CC) CROSS_GOOS=$(DEB_HOST_ARCH_OS) CROSS_GOARCH=$(DEB_HOST_ARCH_CPU) ./build-in-tmp.sh
+	CC=$(CC) CROSS_GOOS=$(DEB_HOST_ARCH_OS) CROSS_GOARCH=$(DEB_HOST_ARCH_CPU) ./build-in-tmp.sh
 
 override_dh_auto_install:
 	# Make debian build directory

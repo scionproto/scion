@@ -28,21 +28,12 @@ echo 'Architectures'
 echo "$GOHOSTOS -> $TARGETGOOS"
 echo "$GOHOSTARCH -> $TARGETGOARCH"
 
-echo 'READ'
-read
-
 echo "Installing govendor"
 go get -u github.com/kardianos/govendor
-
-echo 'READ'
-read
 
 echo "Copying source code"
 cp -r $SRC_DIR/* $GOPATH/src/github.com/scionproto/scion
 ls $GOPATH/src/github.com/scionproto/scion
-
-echo 'READ'
-read
 
 export GOOS=$TARGETGOOS
 export GOARCH=$TARGETGOARCH
@@ -52,22 +43,13 @@ export HOSTCC=$(which cc)
 # We need to compile deps and proto for the native architecture (e.g. to have a valid capnp binary)
 # Then switch over to our cross compile target and compile for this.
 echo "Compiling code"
-(cd $GOPATH/src/github.com/scionproto/scion/go && GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH CC=$HOSTCC make deps_proto && set && read && make bin GOBIN=$GOBIN GOPATH=$GOPATH GOOS=$TARGETGOOS GOARCH=$TARGETGOARCH)
-
-echo 'READ'
-read
+(cd $GOPATH/src/github.com/scionproto/scion/go && GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH CC=$HOSTCC make deps_proto && make bin GOBIN=$GOBIN GOPATH=$GOPATH GOOS=$TARGETGOOS GOARCH=$TARGETGOARCH)
 
 echo "Copying back binaries"
 (cd $GOPATH/src/github.com/scionproto/scion/bin && cp * $SRC_DIR/bin)
 
-echo 'READ'
-read
-
 echo "Copying back go.capnp"
 (cd $GOPATH/src/github.com/scionproto/scion/go && cp vendor/zombiezen.com/go/capnproto2/std/go.capnp $SRC_DIR/proto/go.capnp)
-
-echo 'READ'
-read
 
 echo "Cleaning up"
 rm -rf $TMPDIR
