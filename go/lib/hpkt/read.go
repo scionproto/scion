@@ -183,19 +183,13 @@ func (p *parseCtx) E2EAllExtsParser() error {
 }
 
 func (p *parseCtx) DefaultHBHExtParser() error {
-	if len(p.b[p.offset:]) < common.LineLen {
-		return common.NewBasicError("Truncated extension", nil)
+	extnInfo, err := p.baseExtParser()
+	if err != nil {
+		return err
 	}
 
-	// Parse 3-byte extension header first
-	// We know the type of the next header, so we save it for the protocol loop
-	p.nextHdr = common.L4ProtocolType(p.b[p.offset])
-	hdrLen := p.b[p.offset+1]
-	extnType := p.b[p.offset+2]
-	// Advance end of extensions headers offset
-	p.extHdrOffsets.end += int(hdrLen * common.LineLen)
-
 	// Parse the rest of the extension header, depending on extension type
+	extnType := extnInfo.TypeField
 	switch extnType {
 	case common.ExtnSCMPType.Type:
 		if p.hbhCounter != 1 {
@@ -225,7 +219,29 @@ func (p *parseCtx) DefaultHBHExtParser() error {
 }
 
 func (p *parseCtx) DefaultE2EExtParser() error {
-	return common.NewBasicError("Not implemented", nil)
+	extnInfo, err := p.baseExtParser()
+	if err != nil {
+		return err
+	}
+	// FIXME(scrye): for now we just skip E2E extensions
+	p.s.E2EExt = append(p.s.E2EExt, extnInfo)
+	return nil
+}
+
+func (p *parseCtx) baseExtParser() (*spkt.UnknownExtension, error) {
+	if len(p.b[p.offset:]) < common.LineLen {
+		return nil, common.NewBasicError("Truncated extension", nil)
+	}
+
+	// Parse 3-byte extension header first
+	// We know the type of the next header, so we save it for the protocol loop
+	p.nextHdr = common.L4ProtocolType(p.b[p.offset])
+	hdrLen := p.b[p.offset+1]
+	extnType := p.b[p.offset+2]
+	// Advance end of extensions headers offset
+	p.extHdrOffsets.end += int(hdrLen * common.LineLen)
+	extnInfo := &spkt.UnknownExtension{Length: int(hdrLen) * common.LineLen, TypeField: extnType}
+	return extnInfo, nil
 }
 
 func (p *parseCtx) DefaultAddrHdrParser() error {

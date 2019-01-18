@@ -98,21 +98,31 @@ func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 	}
 	pkt.buffer = pkt.buffer[:n]
 
+	pkt.OverlayRemote = readExtra.(*net.UDPAddr)
+	if err = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
+	n, readExtra, err := conn.ReadFrom(pkt.buffer)
+	if err != nil {
+		return err
+	}
+	pkt.buffer = pkt.buffer[:n]
+
 	if readExtra == nil {
 		return common.NewBasicError("missing next-hop", nil)
 	}
-	switch address := readExtra.(type) {
-	case *net.UDPAddr:
-		pkt.OverlayRemote = address
-	case *overlay.OverlayAddr:
-		pkt.OverlayRemote = address.ToUDPAddr()
-	default:
-		return common.NewBasicError("unsupported next-hop type", nil, "address", address)
-	}
+	pkt.OverlayRemote = readExtra.(*overlay.OverlayAddr).ToUDPAddr()
 
-	if err := hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
-		return common.NewBasicError("parse error", err)
-	}
+	// XXX(scrye): We ignore the return value of packet parsing on egress
+	// because some tests (e.g., the Python SCMP error test) rely on being able
+	// to dump bad SCION packets on the network. If the error here is taken
+	// into account, the dispatcher drops the packet and the SCMP error reply
+	// never comes back from the BR.
+	_ = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer)
 	return nil
 }
 
