@@ -16,6 +16,8 @@ package trustdbtest
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,7 +33,8 @@ import (
 )
 
 var (
-	Timeout = time.Second
+	Timeout         = time.Second
+	TestDataRelPath = "../trustdbtest/testdata"
 )
 
 type rwTrustDB interface {
@@ -98,7 +101,7 @@ func testTRC(t *testing.T, db rwTrustDB) {
 		ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
 		defer cancelF()
 
-		trcobj, err := trc.TRCFromFile("../trustdbtest/testdata/ISD1-V1.trc", false)
+		trcobj, err := trc.TRCFromFile(filePath("ISD1-V1.trc"), false)
 		SoMsg("err trc", err, ShouldBeNil)
 		SoMsg("trc", trcobj, ShouldNotBeNil)
 		Convey("Insert into database", func() {
@@ -148,14 +151,14 @@ func testTRCGetAll(t *testing.T, db rwTrustDB) {
 			SoMsg("trcs", trcs, ShouldBeNil)
 		})
 		Convey("GetAllTRCs on DB with 1 entry does not fail and returns entry", func() {
-			trcObj := insertTRCFromFile(t, ctx, "testdata/ISD1-V1.trc", db)
+			trcObj := insertTRCFromFile(t, ctx, "ISD1-V1.trc", db)
 			trcs, err := db.GetAllTRCs(ctx)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("trcs", trcs, ShouldResemble, []*trc.TRC{trcObj})
 		})
 		Convey("GetAllTRCs on DB with 2 entries does not fail and returns entries", func() {
-			trcObj := insertTRCFromFile(t, ctx, "testdata/ISD1-V1.trc", db)
-			trcObj2 := insertTRCFromFile(t, ctx, "testdata/ISD2-V1.trc", db)
+			trcObj := insertTRCFromFile(t, ctx, "ISD1-V1.trc", db)
+			trcObj2 := insertTRCFromFile(t, ctx, "ISD2-V1.trc", db)
 			trcs, err := db.GetAllTRCs(ctx)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("trcs", trcs, ShouldResemble, []*trc.TRC{trcObj, trcObj2})
@@ -166,7 +169,7 @@ func testTRCGetAll(t *testing.T, db rwTrustDB) {
 func insertTRCFromFile(t *testing.T, ctx context.Context,
 	fName string, db rwTrustDB) *trc.TRC {
 
-	trcobj, err := trc.TRCFromFile("../trustdbtest/"+fName, false)
+	trcobj, err := trc.TRCFromFile(filePath(fName), false)
 	xtest.FailOnErr(t, err)
 	_, err = db.InsertTRC(ctx, trcobj)
 	xtest.FailOnErr(t, err)
@@ -178,7 +181,7 @@ func testIssCert(t *testing.T, db rwTrustDB) {
 		ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
 		defer cancelF()
 
-		chain, err := cert.ChainFromFile("../trustdbtest/testdata/ISD1-ASff00_0_311-V1.crt", false)
+		chain, err := cert.ChainFromFile(filePath("ISD1-ASff00_0_311-V1.crt"), false)
 		if err != nil {
 			t.Fatalf("Unable to load certificate chain")
 		}
@@ -227,7 +230,7 @@ func testLeafCert(t *testing.T, db rwTrustDB) {
 		ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
 		defer cancelF()
 
-		chain, err := cert.ChainFromFile("../trustdbtest/testdata/ISD1-ASff00_0_311-V1.crt", false)
+		chain, err := cert.ChainFromFile(filePath("ISD1-ASff00_0_311-V1.crt"), false)
 		if err != nil {
 			t.Fatalf("Unable to load certificate chain")
 		}
@@ -276,7 +279,7 @@ func testChain(t *testing.T, db rwTrustDB) {
 		ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
 		defer cancelF()
 
-		chain, err := cert.ChainFromFile("../trustdbtest/testdata/ISD1-ASff00_0_311-V1.crt", false)
+		chain, err := cert.ChainFromFile(filePath("ISD1-ASff00_0_311-V1.crt"), false)
 		xtest.FailOnErr(t, err)
 		ia := addr.IA{I: 1, A: 0xff0000000311}
 		Convey("Insert into database", func() {
@@ -325,14 +328,14 @@ func testChainGetAll(t *testing.T, db rwTrustDB) {
 			SoMsg("chains", chains, ShouldBeNil)
 		})
 		Convey("GetAllChains on DB with 1 entry does not fails and returns entry", func() {
-			chain := insertChainFromFile(t, ctx, "testdata/ISD1-ASff00_0_311-V1.crt", db)
+			chain := insertChainFromFile(t, ctx, "ISD1-ASff00_0_311-V1.crt", db)
 			chains, err := db.GetAllChains(ctx)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("chains", chains, ShouldResemble, []*cert.Chain{chain})
 		})
 		Convey("GetAllChains on DB with 2 entries does not fails and returns entries", func() {
-			chain := insertChainFromFile(t, ctx, "testdata/ISD1-ASff00_0_311-V1.crt", db)
-			chain2 := insertChainFromFile(t, ctx, "testdata/ISD2-ASff00_0_212-V1.crt", db)
+			chain := insertChainFromFile(t, ctx, "ISD1-ASff00_0_311-V1.crt", db)
+			chain2 := insertChainFromFile(t, ctx, "ISD2-ASff00_0_212-V1.crt", db)
 			chains, err := db.GetAllChains(ctx)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("chains", chains, ShouldResemble, []*cert.Chain{chain, chain2})
@@ -401,7 +404,7 @@ func testRollback(t *testing.T, db trustdb.TrustDB) {
 		defer cancelF()
 		tx, err := db.BeginTransaction(ctx, nil)
 		SoMsg("Transaction begin should not fail", err, ShouldBeNil)
-		trcobj, err := trc.TRCFromFile("../trustdbtest/testdata/ISD1-V1.trc", false)
+		trcobj, err := trc.TRCFromFile(filePath("ISD1-V1.trc"), false)
 		SoMsg("err trc", err, ShouldBeNil)
 		SoMsg("trc", trcobj, ShouldNotBeNil)
 		cnt, err := tx.InsertTRC(ctx, trcobj)
@@ -418,9 +421,13 @@ func testRollback(t *testing.T, db trustdb.TrustDB) {
 func insertChainFromFile(t *testing.T, ctx context.Context,
 	fName string, db rwTrustDB) *cert.Chain {
 
-	chain, err := cert.ChainFromFile("../trustdbtest/"+fName, false)
+	chain, err := cert.ChainFromFile(filePath(fName), false)
 	xtest.FailOnErr(t, err)
 	_, err = db.InsertChain(ctx, chain)
 	xtest.FailOnErr(t, err)
 	return chain
+}
+
+func filePath(fName string) string {
+	return fmt.Sprintf("%s/%s", strings.TrimSuffix(TestDataRelPath, "/"), fName)
 }
