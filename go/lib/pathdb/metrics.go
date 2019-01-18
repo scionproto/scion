@@ -28,20 +28,23 @@ import (
 )
 
 const (
-	promSubsyst = "pathdb"
+	promNamespace = "pathdb"
 
 	promOp     = "op"
 	promDBName = "db"
-	promError  = "err"
-
-	promErrAny     = "err_any"
-	promErrTimeout = "err_timeout"
 )
 
 var (
 	queriesTotal *prometheus.CounterVec
 	errorsTotal  *prometheus.CounterVec
 )
+
+func init() {
+	queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
+		"Total queries to the database.", []string{promDBName, promOp})
+	errorsTotal = prom.NewCounterVec(promNamespace, "", "errors_total",
+		"Amount of pathdb errors.", []string{promDBName, prom.LabelErr})
+}
 
 type dbCounters struct {
 	readQueriesTotal  prometheus.Counter
@@ -50,20 +53,10 @@ type dbCounters struct {
 	errTimeoutTotal   prometheus.Counter
 }
 
-// InitMetrics prepares the usage of metrics in the pathdb module.
-func InitMetrics(namespace string) {
-	queriesTotal = prom.NewCounterVec(namespace, promSubsyst, "queries_total",
-		"Total queries to the database.", []string{promDBName, promOp})
-	errorsTotal = prom.NewCounterVec(namespace, promSubsyst, "errors_total",
-		"Amount of pathdb errors.", []string{promDBName, promError})
-}
-
 // WithMetrics wraps the given PathDB into one that also exports metrics.
 // InitMetrics must have been called previously, otherwise this method panics.
 func WithMetrics(dbName string, pathDB PathDB) PathDB {
-	if queriesTotal == nil || errorsTotal == nil {
-		panic("Must call InitMetrics first!")
-	}
+
 	return &metricsPathDB{
 		pathDB: pathDB,
 		metrics: &dbCounters{
@@ -76,12 +69,12 @@ func WithMetrics(dbName string, pathDB PathDB) PathDB {
 				promOp:     "write",
 			}),
 			errAnyTotal: errorsTotal.With(prometheus.Labels{
-				promDBName: dbName,
-				promError:  promErrAny,
+				promDBName:    dbName,
+				prom.LabelErr: prom.ErrAny,
 			}),
 			errTimeoutTotal: errorsTotal.With(prometheus.Labels{
-				promDBName: dbName,
-				promError:  promErrTimeout,
+				promDBName:    dbName,
+				prom.LabelErr: prom.ErrTimeout,
 			}),
 		},
 	}
