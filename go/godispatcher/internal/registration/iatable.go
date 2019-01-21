@@ -41,7 +41,7 @@ type UDPReference interface {
 	// when the reference is freed. Registering another ID does not overwrite
 	// the previous; instead, multiple IDs get associated with the reference.
 	// SCMP messages targeted at the ID will get sent to the socket associated
-	// with the reference.
+	// with the reference. The IA of the id is set to the IA of the reference.
 	RegisterID(id uint64) error
 }
 
@@ -89,7 +89,7 @@ type IATable interface {
 	// The ID is used for SCMP Echo, TraceRoute, and RecordPath functionality.
 	// If an entry is found, the returned boolean is set to true. Otherwise, it
 	// is set to false.
-	LookupID(id uint64) (interface{}, bool)
+	LookupID(ia addr.IA, id uint64) (interface{}, bool)
 }
 
 // NewIATable creates a new UDP/IP port registration table.
@@ -111,22 +111,13 @@ type iaTable struct {
 	maxPort int
 
 	scmpLock sync.RWMutex
-	// XXX(scrye): This is implemented here to achieve feature parity with the
-	// C-dispatcher, where SCMP General IDs are globally scoped (i.e., all IAs
-	// and all hosts share the same ID namespace, and thus can collide with
-	// each other). Because the IDs are random, it is very unlikely for a
-	// collision to occur (although faulty coding can increase the chance,
-	// e.g., if apps start with an ID of 1 and increment from there). We should
-	// revisit if SCMP General IDs should be scoped to IAs and/or IPs.
-	scmpTable *SCMPTable
 }
 
 func newIATable(minPort, maxPort int) *iaTable {
 	return &iaTable{
-		ia:        make(map[addr.IA]*Table),
-		minPort:   minPort,
-		maxPort:   maxPort,
-		scmpTable: NewSCMPTable(),
+		ia:      make(map[addr.IA]*Table),
+		minPort: minPort,
+		maxPort: maxPort,
 	}
 }
 
@@ -176,22 +167,13 @@ func (t *iaTable) LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) []int
 	return nil
 }
 
-func (t *iaTable) LookupID(id uint64) (interface{}, bool) {
+func (t *iaTable) LookupID(ia addr.IA, id uint64) (interface{}, bool) {
 	t.scmpLock.RLock()
 	defer t.scmpLock.RUnlock()
-	return t.scmpTable.Lookup(id)
-}
-
-func (t *iaTable) registerID(id uint64, value interface{}) error {
-	t.scmpLock.Lock()
-	defer t.scmpLock.Unlock()
-	return t.scmpTable.Register(id, value)
-}
-
-func (t *iaTable) removeID(id uint64) {
-	t.scmpLock.Lock()
-	defer t.scmpLock.Unlock()
-	t.scmpTable.Remove(id)
+	if table, ok := t.ia[ia]; ok {
+		return table.LookupID(id)
+	}
+	return nil, false
 }
 
 var _ UDPReference = (*iaTableReference)(nil)
@@ -202,7 +184,6 @@ type iaTableReference struct {
 	entryRef *TableReference
 	// value is the main table information associated with this reference
 	value interface{}
-	ids   []uint64
 }
 
 func (r *iaTableReference) Free() {
@@ -212,9 +193,6 @@ func (r *iaTableReference) Free() {
 	if r.table.ia[r.ia].Size() == 0 {
 		delete(r.table.ia, r.ia)
 	}
-	for _, id := range r.ids {
-		r.table.removeID(id)
-	}
 }
 
 func (r *iaTableReference) UDPAddr() *net.UDPAddr {
@@ -222,10 +200,7 @@ func (r *iaTableReference) UDPAddr() *net.UDPAddr {
 }
 
 func (r *iaTableReference) RegisterID(id uint64) error {
-	err := r.table.registerID(id, r.value)
-	if err != nil {
-		return err
-	}
-	r.ids = append(r.ids, id)
-	return nil
+	r.table.scmpLock.Lock()
+	defer r.table.scmpLock.Unlock()
+	return r.entryRef.RegisterID(id, r.value)
 }

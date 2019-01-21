@@ -188,7 +188,7 @@ type SCMPAppDestination struct {
 }
 
 func (d *SCMPAppDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
-	routingEntry, ok := dp.RoutingTable.LookupID(d.ID)
+	routingEntry, ok := dp.RoutingTable.LookupID(pkt.Info.DstIA, d.ID)
 	if !ok {
 		log.Warn("destination address not found", "SCMP", d.ID)
 		return

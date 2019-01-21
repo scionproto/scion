@@ -125,7 +125,7 @@ func TestIATableSCMPRegistration(t *testing.T) {
 		ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
 		xtest.FailOnErr(t, err)
 		Convey("Performing SCMP lookup fails", func() {
-			value, ok := table.LookupID(42)
+			value, ok := table.LookupID(ia, 42)
 			SoMsg("ok", ok, ShouldBeFalse)
 			SoMsg("value", value, ShouldBeNil)
 		})
@@ -146,14 +146,19 @@ func TestIATableSCMPExistingRegistration(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		err = ref.RegisterID(42)
 		xtest.FailOnErr(t, err)
-		Convey("Performing SCMP lookup succeeds", func() {
-			retValue, ok := table.LookupID(42)
+		Convey("Performing an SCMP lookup succeeds", func() {
+			retValue, ok := table.LookupID(ia, 42)
 			SoMsg("ok", ok, ShouldBeTrue)
 			SoMsg("value", retValue, ShouldEqual, value)
 		})
+		Convey("Performing an SCMP lookup on a different IA fails", func() {
+			retValue, ok := table.LookupID(xtest.MustParseIA("1-ff00:0:2"), 42)
+			SoMsg("ok", ok, ShouldBeFalse)
+			SoMsg("value", retValue, ShouldBeNil)
+		})
 		Convey("Freeing the reference makes lookup fail", func() {
 			ref.Free()
-			value, ok := table.LookupID(42)
+			value, ok := table.LookupID(ia, 42)
 			SoMsg("ok", ok, ShouldBeFalse)
 			SoMsg("value", value, ShouldBeNil)
 		})
@@ -162,7 +167,7 @@ func TestIATableSCMPExistingRegistration(t *testing.T) {
 			So(err, ShouldBeNil)
 			Convey("Freeing the reference makes lookup on first registered id fail", func() {
 				ref.Free()
-				value, ok := table.LookupID(42)
+				value, ok := table.LookupID(ia, 42)
 				SoMsg("ok", ok, ShouldBeFalse)
 				SoMsg("value", value, ShouldBeNil)
 			})
