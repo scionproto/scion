@@ -59,26 +59,34 @@ func init() {
 }
 
 type dbCounters struct {
-	readQueriesTotal  prometheus.Counter
-	writeQueriesTotal prometheus.Counter
-	errAnyTotal       prometheus.Counter
-	errTimeoutTotal   prometheus.Counter
+	opCounters      map[promOp]prometheus.Counter
+	errAnyTotal     prometheus.Counter
+	errTimeoutTotal prometheus.Counter
 }
 
 // WithMetrics wraps the given PathDB into one that also exports metrics.
-// dbName will be added as a label to all metrics, so that multiple path DBs can be differentiatetd.
+// dbName will be added as a label to all metrics, so that multiple path DBs can be differentiated.
 func WithMetrics(dbName string, pathDB PathDB) PathDB {
+	opCounters := make(map[promOp]prometheus.Counter)
+	allOps := []promOp{
+		promOpInsert,
+		promOpInsertHpCfg,
+		promOpDelete,
+		promOpDeleteExpired,
+		promOpGet,
+		promOpInsertNextQuery,
+		promOpGetNextQuery,
+	}
+	for _, op := range allOps {
+		opCounters[op] = queriesTotal.With(prometheus.Labels{
+			promDBName:  dbName,
+			promOpLabel: string(op),
+		})
+	}
 	return &metricsPathDB{
 		pathDB: pathDB,
 		metrics: &dbCounters{
-			readQueriesTotal: queriesTotal.With(prometheus.Labels{
-				promDBName:  dbName,
-				promOpLabel: "read",
-			}),
-			writeQueriesTotal: queriesTotal.With(prometheus.Labels{
-				promDBName:  dbName,
-				promOpLabel: "write",
-			}),
+			opCounters: opCounters,
 			errAnyTotal: errorsTotal.With(prometheus.Labels{
 				promDBName:    dbName,
 				prom.LabelErr: prom.ErrNotClassified,
@@ -100,7 +108,7 @@ type metricsPathDB struct {
 }
 
 func (db *metricsPathDB) Insert(ctx context.Context, meta *seg.Meta) (int, error) {
-	db.incWrite()
+	db.incOp(promOpInsert)
 	cnt, err := db.pathDB.Insert(ctx, meta)
 	db.incErr(err)
 	return cnt, err
@@ -109,21 +117,21 @@ func (db *metricsPathDB) Insert(ctx context.Context, meta *seg.Meta) (int, error
 func (db *metricsPathDB) InsertWithHPCfgIDs(ctx context.Context,
 	meta *seg.Meta, hpCfgIds []*query.HPCfgID) (int, error) {
 
-	db.incWrite()
+	db.incOp(promOpInsertHpCfg)
 	cnt, err := db.pathDB.InsertWithHPCfgIDs(ctx, meta, hpCfgIds)
 	db.incErr(err)
 	return cnt, err
 }
 
 func (db *metricsPathDB) Delete(ctx context.Context, params *query.Params) (int, error) {
-	db.incWrite()
+	db.incOp(promOpDelete)
 	cnt, err := db.pathDB.Delete(ctx, params)
 	db.incErr(err)
 	return cnt, err
 }
 
 func (db *metricsPathDB) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
-	db.incWrite()
+	db.incOp(promOpDeleteExpired)
 	cnt, err := db.pathDB.DeleteExpired(ctx, now)
 	db.incErr(err)
 	return cnt, err
@@ -132,7 +140,7 @@ func (db *metricsPathDB) DeleteExpired(ctx context.Context, now time.Time) (int,
 func (db *metricsPathDB) Get(ctx context.Context,
 	params *query.Params) ([]*query.Result, error) {
 
-	db.incRead()
+	db.incOp(promOpGet)
 	res, err := db.pathDB.Get(ctx, params)
 	db.incErr(err)
 	return res, err
@@ -141,25 +149,21 @@ func (db *metricsPathDB) Get(ctx context.Context,
 func (db *metricsPathDB) InsertNextQuery(ctx context.Context,
 	dst addr.IA, nextQuery time.Time) (bool, error) {
 
-	db.incWrite()
+	db.incOp(promOpInsertNextQuery)
 	ok, err := db.pathDB.InsertNextQuery(ctx, dst, nextQuery)
 	db.incErr(err)
 	return ok, err
 }
 
 func (db *metricsPathDB) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
-	db.incRead()
+	db.incOp(promOpGetNextQuery)
 	t, err := db.pathDB.GetNextQuery(ctx, dst)
 	db.incErr(err)
 	return t, err
 }
 
-func (db *metricsPathDB) incRead() {
-	db.metrics.readQueriesTotal.Inc()
-}
-
-func (db *metricsPathDB) incWrite() {
-	db.metrics.writeQueriesTotal.Inc()
+func (db *metricsPathDB) incOp(op promOp) {
+	db.metrics.opCounters[op].Inc()
 }
 
 func (db *metricsPathDB) incErr(err error) {
