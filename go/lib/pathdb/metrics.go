@@ -16,6 +16,7 @@ package pathdb
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -65,15 +66,19 @@ var (
 		prom.ErrNotClassified,
 		prom.ErrTimeout,
 	}
+
+	initMetricsOnce sync.Once
 )
 
-func init() {
-	// Cardinality: X (dbName) * 7 (len(allOps))
-	queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
-		"Total queries to the database.", []string{promDBName, promOpLabel})
-	// Cardinality: X (dbNmae) * 7 (len(allOps)) * 3 (len(allResults))
-	resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
-		"The results of the pathdb ops.", []string{promDBName, prom.LabelResult, promOpLabel})
+func initMetrics() {
+	initMetricsOnce.Do(func() {
+		// Cardinality: X (dbName) * 7 (len(allOps))
+		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
+			"Total queries to the database.", []string{promDBName, promOpLabel})
+		// Cardinality: X (dbNmae) * 7 (len(allOps)) * 3 (len(allResults))
+		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
+			"The results of the pathdb ops.", []string{promDBName, prom.LabelResult, promOpLabel})
+	})
 }
 
 type dbCounters struct {
@@ -84,6 +89,7 @@ type dbCounters struct {
 // WithMetrics wraps the given PathDB into one that also exports metrics.
 // dbName will be added as a label to all metrics, so that multiple path DBs can be differentiated.
 func WithMetrics(dbName string, pathDB PathDB) PathDB {
+	initMetrics()
 	return &metricsPathDB{
 		pathDB: pathDB,
 		metrics: &dbCounters{
