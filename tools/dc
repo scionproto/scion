@@ -86,7 +86,7 @@ dc() {
     local project="$1"
     local dc_file="gen/$1-dc.yml"
     shift
-    is_running_in_docker && project="$1_docker"
+    is_running_in_docker && project="${project}_docker"
     COMPOSE_FILE="$dc_file" docker-compose -p "$project" --no-ansi "$@"
 }
 
