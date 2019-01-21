@@ -12,6 +12,8 @@
 TEST_NAME="topo_br_reload_rollback"
 TEST_TOPOLOGY="acceptance/topo_br_reload_util/Tinier.topo"
 
+TMP_TOPO=$TMP_TOPO
+
 . acceptance/topo_br_reload_util/util.sh
 
 test_setup() {
@@ -20,13 +22,9 @@ test_setup() {
 
 test_run() {
     set -e
-    cp $SRC_TOPO "${SRC_TOPO}.tmp"
-    local orig_int=$(jq '.BorderRouters[].InternalAddrs.IPv4.PublicOverlay' $SRC_TOPO)
-    local orig_src=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $SRC_TOPO)
-    local orig_dst=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $DST_TOPO)
-
+    cp $SRC_TOPO $TMP_TOPO
     check_internal_fail
-    cp "${SRC_TOPO}.tmp" $SRC_TOPO
+    cp $TMP_TOPO $SRC_TOPO
     check_if_local_fail
 }
 
@@ -47,7 +45,7 @@ check_if_local_fail() {
 
 test_teardown() {
     base_teardown
-    rm "${SRC_TOPO}.tmp"
+    rm $TMP_TOPO
 }
 
 PROGRAM=`basename "$0"`

@@ -17,7 +17,7 @@ check_logs() {
 }
 
 check_connectivity() {
-    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass. $1" ; return 1; }
+    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass. step=( $1 )" ; return 1; }
 }
 
 unqoute() {
