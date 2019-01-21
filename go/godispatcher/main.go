@@ -61,8 +61,11 @@ func realMain() int {
 	ringbuf.InitMetrics("dispatcher", nil)
 	go func() {
 		defer log.LogPanicAndExit()
-		deleteSocket(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.DeleteSocket)
-		err := RunDispatcher(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.OverlayPort)
+		err := RunDispatcher(
+			cfg.Dispatcher.DeleteSocket,
+			cfg.Dispatcher.ApplicationSocket,
+			cfg.Dispatcher.OverlayPort,
+		)
 		if err != nil {
 			fatal.Fatal(err)
 		}
@@ -80,11 +83,10 @@ func realMain() int {
 	cfg.Metrics.StartPrometheus()
 	select {
 	case <-environment.AppShutdownSignal:
-		// XXX(scrye): the dispatcher getting torn down is a very rare event,
-		// and it always means the whole stack on top the dispatcher is also
-		// shutting down. Cleaning up gracefully does not give us anything in
-		// this case. We just clean up the sockets and let the application
-		// close.
+		// XXX(scrye): if the dispatcher is shut down on purpose, it is usually
+		// done together with the whole stack on top the dispatcher. Cleaning
+		// up gracefully does not give us anything in this case. We just clean
+		// up the sockets and let the application close.
 		if err := os.Remove(cfg.Dispatcher.ApplicationSocket); err != nil {
 			log.Warn("Unable to delete UNIX socket", "err", err)
 			return 1
@@ -110,20 +112,10 @@ func setupBasic() error {
 	return nil
 }
 
-func deleteSocket(socket string, deleteFlag bool) error {
-	if deleteFlag {
-		if _, err := os.Stat(socket); err != nil {
-			// File does not exist, or we can't read it, nothing to delete
-			return nil
-		}
-		if err := os.Remove(socket); err != nil {
-			fatal.Fatal(err)
-		}
+func RunDispatcher(deleteSocketFlag bool, applicationSocket string, overlayPort int) error {
+	if deleteSocketFlag {
+		deleteSocket(cfg.Dispatcher.ApplicationSocket)
 	}
-	return nil
-}
-
-func RunDispatcher(applicationSocket string, overlayPort int) error {
 	dispatcher := &network.Dispatcher{
 		RoutingTable:      network.NewIATable(1024, 65535),
 		OverlaySocket:     fmt.Sprintf(":%d", overlayPort),
@@ -131,4 +123,14 @@ func RunDispatcher(applicationSocket string, overlayPort int) error {
 	}
 	log.Debug("Dispatcher starting", "appSocket", applicationSocket, "overlayPort", overlayPort)
 	return dispatcher.ListenAndServe()
+}
+
+func deleteSocket(socket string) {
+	if _, err := os.Stat(socket); err != nil {
+		// File does not exist, or we can't read it, nothing to delete
+		return
+	}
+	if err := os.Remove(socket); err != nil {
+		fatal.Fatal(err)
+	}
 }
