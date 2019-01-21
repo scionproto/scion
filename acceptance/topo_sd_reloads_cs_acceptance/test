@@ -31,7 +31,7 @@ test_run() {
     ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
     local topo_file="gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
     jq '.CertificateService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
-    ./tools/dc dc kill -s HUP scion_sd$SRC_IA_FILE
+    ./tools/dc scion kill -s HUP scion_sd$SRC_IA_FILE
     sqlite3 gen-cache/sd$SRC_IA_FILE.trust.db "delete from chains"
     sleep 1
     ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true

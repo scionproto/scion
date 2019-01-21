@@ -35,7 +35,7 @@ test_run() {
 check_change_local_port() {
     check_connectivity "Start check_change_local_port"
     jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42424' $SRC_TOPO | sponge $SRC_TOPO
-    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
     sleep 2
     check_logs "posixOutput starting addr=[$addr_src]:42424" $SRC_IA_FILE
     check_logs "posixInput starting addr=[$addr_src]:42424"  $SRC_IA_FILE
@@ -49,7 +49,7 @@ check_change_local_port() {
 check_change_remote_port() {
     # Connectivity is broken at this point
     jq '.BorderRouters[].Interfaces[].RemoteOverlay.OverlayPort = 42424' $DST_TOPO | sponge $DST_TOPO
-    ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
+    ./tools/dc scion kill -s HUP scion_br"$DST_IA_FILE"-1
     sleep 2
     check_logs "RemoteAddr:[$addr_src]:42424" $DST_IA_FILE
     check_connectivity "End check_change_remote_port"
@@ -59,8 +59,8 @@ check_change_initial_port() {
     check_connectivity "Start check_change_initial_port"
     jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_src" $SRC_TOPO | sponge $SRC_TOPO
     jq ".BorderRouters[].Interfaces[].RemoteOverlay = $orig_src" $DST_TOPO | sponge $DST_TOPO
-    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
-    ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
+    ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
+    ./tools/dc scion kill -s HUP scion_br"$DST_IA_FILE"-1
     check_connectivity "End check_change_initial_port"
 }
 

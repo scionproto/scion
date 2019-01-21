@@ -28,8 +28,8 @@ test_run() {
 }
 
 reload_sig() {
-    id="$(./tools/dc dc exec -T scion_sig_$1 pgrep -x sig)"
-    ./tools/dc dc exec -T scion_sig_"$1" kill -SIGHUP "$id"
+    id="$(./tools/dc scion exec -T scion_sig_$1 pgrep -x sig)"
+    ./tools/dc scion exec -T scion_sig_"$1" kill -SIGHUP "$id"
 }
 
 shift
