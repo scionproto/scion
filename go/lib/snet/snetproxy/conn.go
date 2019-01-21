@@ -318,7 +318,7 @@ func addressesEq(x, y net.Addr) bool {
 	}
 	xSnet := x.(*snet.Addr)
 	ySnet := y.(*snet.Addr)
-	return xSnet.EqAddr(ySnet)
+	return xSnet.EqualAddr(ySnet)
 }
 
 func returnOnDeadline(deadline time.Time) <-chan time.Time {
