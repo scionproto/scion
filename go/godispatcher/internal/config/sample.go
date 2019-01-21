@@ -29,6 +29,10 @@ const Sample = `
   # the server is not started.
   # PerfData = "127.0.0.1:6060"
 
+  # Set DeleteSock to true to have the Dispatcher remove the socket file (if it
+  # exists) on start (default false)
+  DeleteSocket = false
+
 [logging]
   [logging.file]
     # Location of the logging file.

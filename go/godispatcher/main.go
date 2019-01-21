@@ -33,7 +33,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
-var cfg config.Config
+var (
+	cfg         config.Config
+	environment *env.Env
+)
 
 func main() {
 	os.Exit(realMain())
@@ -58,6 +61,7 @@ func realMain() int {
 	ringbuf.InitMetrics("dispatcher", nil)
 	go func() {
 		defer log.LogPanicAndExit()
+		deleteSocket(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.DeleteSocket)
 		err := RunDispatcher(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.OverlayPort)
 		if err != nil {
 			fatal.Fatal(err)
@@ -72,9 +76,23 @@ func realMain() int {
 		}()
 	}
 
+	environment = env.SetupEnv(nil)
 	cfg.Metrics.StartPrometheus()
-	<-fatal.Chan()
-	return 1
+	select {
+	case <-environment.AppShutdownSignal:
+		// XXX(scrye): the dispatcher getting torn down is a very rare event,
+		// and it always means the whole stack on top the dispatcher is also
+		// shutting down. Cleaning up gracefully does not give us anything in
+		// this case. We just clean up the sockets and let the application
+		// close.
+		if err := os.Remove(cfg.Dispatcher.ApplicationSocket); err != nil {
+			log.Warn("Unable to delete UNIX socket", "err", err)
+			return 1
+		}
+		return 0
+	case <-fatal.Chan():
+		return 1
+	}
 }
 
 func setupBasic() error {
@@ -89,6 +107,19 @@ func setupBasic() error {
 	}
 	cfg.InitDefaults()
 	env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
+	return nil
+}
+
+func deleteSocket(socket string, deleteFlag bool) error {
+	if deleteFlag {
+		if _, err := os.Stat(socket); err != nil {
+			// File does not exist, or we can't read it, nothing to delete
+			return nil
+		}
+		if err := os.Remove(socket); err != nil {
+			fatal.Fatal(err)
+		}
+	}
 	return nil
 }
 
