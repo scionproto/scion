@@ -27,11 +27,11 @@ func (a *AppAddr) Copy() *AppAddr {
 	return &AppAddr{L3: a.L3.Copy(), L4: a.L4.Copy()}
 }
 
-func (a *AppAddr) Eq(o *AppAddr) bool {
+func (a *AppAddr) Equal(o *AppAddr) bool {
 	if (a == nil) || (o == nil) {
 		return a == o
 	}
-	return a.L3.Eq(o.L3) && a.L4.Eq(o.L4)
+	return a.L3.Equal(o.L3) && a.L4.Equal(o.L4)
 }
 
 func (a *AppAddr) EqType(o *AppAddr) bool {

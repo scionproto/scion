@@ -531,7 +531,7 @@ func checkSameHpCfgs(msg string, actual, expected []*query.HPCfgID) {
 	sort.Slice(actual, func(i, j int) bool {
 		return actual[i].IA.I < actual[j].IA.I ||
 			actual[i].IA.I == actual[j].IA.I && actual[i].IA.A < actual[j].IA.A ||
-			actual[i].IA.Eq(actual[j].IA) && actual[i].ID < actual[j].ID
+			actual[i].IA.Equal(actual[j].IA) && actual[i].ID < actual[j].ID
 	})
 	SoMsg(msg, actual, ShouldResemble, expected)
 }

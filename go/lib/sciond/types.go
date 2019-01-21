@@ -360,7 +360,7 @@ func (iface *PathInterface) ISD_AS() addr.IA {
 	return iface.RawIsdas.IA()
 }
 
-func (iface *PathInterface) Eq(other *PathInterface) bool {
+func (iface *PathInterface) Equal(other *PathInterface) bool {
 	if iface == nil || other == nil {
 		return iface == other
 	}

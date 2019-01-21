@@ -125,7 +125,7 @@ func asFromDir(dir string) (addr.AS, error) {
 
 func Contains(ases []addr.IA, as addr.IA) bool {
 	for _, ia := range ases {
-		if ia.Eq(as) {
+		if ia.Equal(as) {
 			return true
 		}
 	}

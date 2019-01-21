@@ -37,7 +37,7 @@ func (rp *RtrPkt) Parse() error {
 	if _, err := rp.DstIA(); err != nil {
 		return err
 	}
-	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
+	if rp.dstIA.Equal(rp.Ctx.Conf.IA) {
 		// If the destination is local, parse the destination host as well.
 		if _, err := rp.DstHost(); err != nil {
 			return err

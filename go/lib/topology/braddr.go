@@ -75,7 +75,7 @@ func (t *TopoBRAddr) fromRaw(s RawBRAddrMap) error {
 					"AddrType", hostType, "Addr", ob.BindOverlay)
 			}
 			// Check PublicOverlay and BindOverlay are not the same address
-			if ob.PublicOverlay.Eq(ob.BindOverlay) {
+			if ob.PublicOverlay.Equal(ob.BindOverlay) {
 				return common.NewBasicError(ErrBindAddrEqPubAddr, nil,
 					"BindOverlayAddr", ob.BindOverlay, "PublicOverlayAddr", ob.PublicOverlay)
 			}
@@ -111,13 +111,16 @@ func (t *TopoBRAddr) getAddr(ot overlay.Type) *overBindAddr {
 }
 
 func (t *TopoBRAddr) Equal(o *TopoBRAddr) bool {
+	if t == nil || o == nil {
+		return t == o
+	}
 	if t.Overlay != o.Overlay {
 		return false
 	}
-	if !t.IPv4.equal(o.IPv4) {
+	if !t.IPv4.Equal(o.IPv4) {
 		return false
 	}
-	if !t.IPv6.equal(o.IPv6) {
+	if !t.IPv6.Equal(o.IPv6) {
 		return false
 	}
 	return true
@@ -171,17 +174,17 @@ func (t *overBindAddr) BindOrPublicOverlay() *overlay.OverlayAddr {
 	return t.PublicOverlay
 }
 
-func (t1 *overBindAddr) equal(t2 *overBindAddr) bool {
+func (t1 *overBindAddr) Equal(t2 *overBindAddr) bool {
 	if (t1 == nil) && (t2 == nil) {
 		return true
 	}
 	if (t1 == nil) != (t2 == nil) {
 		return false
 	}
-	if !t1.PublicOverlay.Eq(t2.PublicOverlay) {
+	if !t1.PublicOverlay.Equal(t2.PublicOverlay) {
 		return false
 	}
-	if !t1.BindOverlay.Eq(t2.BindOverlay) {
+	if !t1.BindOverlay.Equal(t2.BindOverlay) {
 		return false
 	}
 	return true

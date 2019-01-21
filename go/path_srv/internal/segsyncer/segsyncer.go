@@ -60,7 +60,7 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 	}
 	segSyncers := make([]*periodic.Runner, 0, len(trc.CoreASes)-1)
 	for coreAS := range trc.CoreASes {
-		if coreAS.Eq(args.IA) {
+		if coreAS.Equal(args.IA) {
 			continue
 		}
 		syncer := &SegSyncer{

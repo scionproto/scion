@@ -54,7 +54,7 @@ func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
 // false otherwise.
 func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
 	// No validation on source here!
-	if segReq.DstIA().IsZero() || segReq.DstIA().I == 0 || segReq.DstIA().Eq(h.localIA) {
+	if segReq.DstIA().IsZero() || segReq.DstIA().I == 0 || segReq.DstIA().Equal(h.localIA) {
 		logger := log.FromCtx(h.request.Context())
 		logger.Warn("[segReqHandler] Drop, invalid dstIA", "dstIA", segReq.DstIA())
 		return false

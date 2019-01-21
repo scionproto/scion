@@ -138,8 +138,8 @@ func Test_ScnPkt_Write(t *testing.T) {
 		c := &spkt.ScnPkt{}
 		err = ParseScnPkt(c, b[:n])
 		SoMsg("Read error", err, ShouldBeNil)
-		SoMsg("Dst IAs must match", s.DstIA.Eq(c.DstIA), ShouldBeTrue)
-		SoMsg("Src IAs must match", s.SrcIA.Eq(c.SrcIA), ShouldBeTrue)
+		SoMsg("Dst IAs must match", s.DstIA.Equal(c.DstIA), ShouldBeTrue)
+		SoMsg("Src IAs must match", s.SrcIA.Equal(c.SrcIA), ShouldBeTrue)
 		SoMsg("Dst host types must match", s.DstHost.Type(), ShouldEqual, c.DstHost.Type())
 		SoMsg("Dst host IPs must match", s.DstHost.IP().Equal(c.DstHost.IP()), ShouldBeTrue)
 		SoMsg("Raw paths must match", s.Path.Raw, ShouldResemble, c.Path.Raw)

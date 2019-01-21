@@ -124,7 +124,7 @@ func ChainFromDir(dir string, ia addr.IA, f func(err error)) (*Chain, error) {
 			f(common.NewBasicError("Unable to read Chain file", err))
 			continue
 		}
-		if !chain.Leaf.Subject.Eq(ia) {
+		if !chain.Leaf.Subject.Equal(ia) {
 			return nil, common.NewBasicError("IA mismatch", nil, "expected", ia,
 				"found", chain.Leaf.Subject)
 		}
@@ -147,7 +147,7 @@ func ChainFromSlice(certs []*Certificate) (*Chain, error) {
 		return nil, common.NewBasicError("Certificates must not be nil", nil, "leaf", certs[0],
 			"iss", certs[1])
 	}
-	if !certs[0].Issuer.Eq(certs[1].Subject) {
+	if !certs[0].Issuer.Equal(certs[1].Subject) {
 		return nil, common.NewBasicError("Leaf not signed by issuer", nil, "expected",
 			certs[0].Issuer, "actual", certs[1].Subject)
 	}
@@ -235,8 +235,11 @@ func (c *Chain) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, (*Alias)(c))
 }
 
-func (c *Chain) Eq(o *Chain) bool {
-	return c.Leaf.Eq(o.Leaf) && c.Issuer.Eq(o.Issuer)
+func (c *Chain) Equal(o *Chain) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
+	return c.Leaf.Equal(o.Leaf) && c.Issuer.Equal(o.Issuer)
 }
 
 func (c *Chain) IAVer() (addr.IA, uint64) {

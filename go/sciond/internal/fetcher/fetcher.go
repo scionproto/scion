@@ -104,7 +104,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if req.Src.IA().IsZero() {
 		req.Src = f.topology.ISD_AS.IAInt()
 	}
-	if !req.Src.IA().Eq(f.topology.ISD_AS) {
+	if !req.Src.IA().Equal(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
@@ -125,7 +125,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadDstIA),
 			common.NewBasicError("Bad destination AS", nil, "ia", req.Dst.IA())
 	}
-	if req.Dst.IA().Eq(f.topology.ISD_AS) {
+	if req.Dst.IA().Equal(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorOk), nil
 	}
 	// A ISD-0 destination should not require a TRC lookup in sciond, it could lead to a

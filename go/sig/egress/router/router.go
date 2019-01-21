@@ -120,5 +120,8 @@ func newCanonNet(ipnet *net.IPNet) *canonNet {
 }
 
 func (cn *canonNet) Equal(other *canonNet) bool {
+	if cn == nil || other == nil {
+		return cn == other
+	}
 	return cn.Mask.String() == other.Mask.String() && cn.IP.Equal(other.IP)
 }

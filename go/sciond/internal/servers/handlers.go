@@ -118,7 +118,7 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 		// the future.
 		asInfoReply.Entries = []sciond.ASInfoReplyEntry{}
 	}
-	if reqIA.IsZero() || reqIA.Eq(topo.ISD_AS) {
+	if reqIA.IsZero() || reqIA.Equal(topo.ISD_AS) {
 		// Requested AS is us
 		asInfoReply.Entries = []sciond.ASInfoReplyEntry{
 			{
