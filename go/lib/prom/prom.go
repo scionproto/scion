@@ -22,6 +22,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+const (
+	// LabelResult is the label for result classifications.
+	LabelResult = "result"
+	// LabelElem is the label for the element id that is added to all metrics.
+	LabelElem = "elem"
+
+	// ResultOk is no error.
+	ResultOk = "ok"
+	// ErrNotClassified is an error that is not further classified.
+	ErrNotClassified = "err_not_classified"
+	// ErrTimeout is a timeout error.
+	ErrTimeout = "err_timeout"
+)
+
 func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 	l := make(prometheus.Labels)
 	for k, v := range labels {

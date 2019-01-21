@@ -26,7 +26,6 @@ import (
 )
 
 func init() {
-	trustdb.InitMetrics("test")
 	trustdbtest.TestDataRelPath = "trustdbtest/testdata"
 }
 
