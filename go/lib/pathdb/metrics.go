@@ -30,8 +30,20 @@ import (
 const (
 	promNamespace = "pathdb"
 
-	promOp     = "op"
-	promDBName = "db"
+	promOpLabel = "op"
+	promDBName  = "db"
+)
+
+type promOp string
+
+const (
+	promOpInsert          promOp = "insert"
+	promOpInsertHpCfg     promOp = "insert_with_hpcfg"
+	promOpDelete          promOp = "delete"
+	promOpDeleteExpired   promOp = "delete_expired"
+	promOpGet             promOp = "get"
+	promOpInsertNextQuery promOp = "insert_next_query"
+	promOpGetNextQuery    promOp = "get_next_query"
 )
 
 var (
@@ -41,7 +53,7 @@ var (
 
 func init() {
 	queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
-		"Total queries to the database.", []string{promDBName, promOp})
+		"Total queries to the database.", []string{promDBName, promOpLabel})
 	errorsTotal = prom.NewCounterVec(promNamespace, "", "errors_total",
 		"Amount of pathdb errors.", []string{promDBName, prom.LabelErr})
 }
@@ -60,12 +72,12 @@ func WithMetrics(dbName string, pathDB PathDB) PathDB {
 		pathDB: pathDB,
 		metrics: &dbCounters{
 			readQueriesTotal: queriesTotal.With(prometheus.Labels{
-				promDBName: dbName,
-				promOp:     "read",
+				promDBName:  dbName,
+				promOpLabel: "read",
 			}),
 			writeQueriesTotal: queriesTotal.With(prometheus.Labels{
-				promDBName: dbName,
-				promOp:     "write",
+				promDBName:  dbName,
+				promOpLabel: "write",
 			}),
 			errAnyTotal: errorsTotal.With(prometheus.Labels{
 				promDBName:    dbName,
