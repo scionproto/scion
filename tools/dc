@@ -25,14 +25,23 @@ cmd_help() {
 	        Stops containers
 	    $PROGRAM down
 	        Stops and removes all containers, networks and volumes
-	    $PROGRAM run <SERVICE>
+	    $PROGRAM run [SERVICE]
 	        Runs the service and removes its container afterwards
 	    $PROGRAM [GROUP] [COMMAND]
 	        Run the docker compose command COMMAND for the service group GROUP.
-	    $PROGRAM exec_tester <IA> <COMMAND>
+	    $PROGRAM exec_tester [IA] [COMMAND]
 	        Exec a command in the specified service.
         $PROGRAM collect_logs [GROUP] [LOG_DIR]
             Collect logs from all services in the service group GROUP to the log directory LOG_DIR
+	Options:
+	    - [SERVICE]: As scion service glob, e.g. cs1*.
+	    - [GROUP]:
+	        - scion:    For all scion services.
+	        - zk:       For the zookeeper service.
+	        - prom:     For the prometheus service.
+	    - [COMMAND]: A docker-compose command like 'up -d' or 'down'
+	    - [IA]: An IA number like 1-ff00:0:110
+	    - [LOG_DIR]: A folder.
 	_EOF
 }
 
