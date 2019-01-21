@@ -23,7 +23,7 @@ CORE_IA_FILE="$(ia_file $CORE_IA)"
 
 test_setup() {
     set -e
-  #  ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go -cs=go
+    ./scion.sh topology -c $TEST_TOPOLOGY -d -cs=go
     for cfg in gen/ISD1/*/cs*/csconfig.toml; do
         sed -i -e 's/Level = .*$/Level = "trace"/g' \
             -e '/\[logging\.file\]/a FlushInterval = 1' \
@@ -33,7 +33,7 @@ test_setup() {
             -e 's/ReissueRate.\+/ReissueRate = "1s"/' \
             -e 's/ReissueTimeout.\+/ReissueTimeout = "5s"/' "$cfg"
     done
-   # ./scion.sh run nobuild
+   ./scion.sh run nobuild
 }
 
 test_run() {
