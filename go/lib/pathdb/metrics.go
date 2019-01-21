@@ -81,11 +81,6 @@ func initMetrics() {
 	})
 }
 
-type dbCounters struct {
-	opCounters     map[promOp]prometheus.Counter
-	resultCounters map[promOp]map[string]prometheus.Counter
-}
-
 // WithMetrics wraps the given PathDB into one that also exports metrics.
 // dbName will be added as a label to all metrics, so that multiple path DBs can be differentiated.
 func WithMetrics(dbName string, pathDB PathDB) PathDB {
@@ -125,6 +120,27 @@ func resultCounters(dbName string) map[promOp]map[string]prometheus.Counter {
 	return resultCounters
 }
 
+type dbCounters struct {
+	opCounters     map[promOp]prometheus.Counter
+	resultCounters map[promOp]map[string]prometheus.Counter
+}
+
+func (c *dbCounters) incOp(op promOp) {
+	c.opCounters[op].Inc()
+}
+
+func (c *dbCounters) incResult(op promOp, err error) {
+	// TODO(lukedirtwalker): categorize error better.
+	switch {
+	case err == nil:
+		c.resultCounters[op][prom.ResultOk].Inc()
+	case common.IsTimeoutErr(err):
+		c.resultCounters[op][prom.ErrTimeout].Inc()
+	default:
+		c.resultCounters[op][prom.ErrNotClassified].Inc()
+	}
+}
+
 var _ (PathDB) = (*metricsPathDB)(nil)
 
 // metricsPathDB is a PathDB wrapper that exports the counts of operations as prometheus metrics.
@@ -134,72 +150,56 @@ type metricsPathDB struct {
 }
 
 func (db *metricsPathDB) Insert(ctx context.Context, meta *seg.Meta) (int, error) {
-	db.incOp(promOpInsert)
+	db.metrics.incOp(promOpInsert)
 	cnt, err := db.pathDB.Insert(ctx, meta)
-	db.incErr(promOpInsert, err)
+	db.metrics.incResult(promOpInsert, err)
 	return cnt, err
 }
 
 func (db *metricsPathDB) InsertWithHPCfgIDs(ctx context.Context,
 	meta *seg.Meta, hpCfgIds []*query.HPCfgID) (int, error) {
 
-	db.incOp(promOpInsertHpCfg)
+	db.metrics.incOp(promOpInsertHpCfg)
 	cnt, err := db.pathDB.InsertWithHPCfgIDs(ctx, meta, hpCfgIds)
-	db.incErr(promOpInsertHpCfg, err)
+	db.metrics.incResult(promOpInsertHpCfg, err)
 	return cnt, err
 }
 
 func (db *metricsPathDB) Delete(ctx context.Context, params *query.Params) (int, error) {
-	db.incOp(promOpDelete)
+	db.metrics.incOp(promOpDelete)
 	cnt, err := db.pathDB.Delete(ctx, params)
-	db.incErr(promOpDelete, err)
+	db.metrics.incResult(promOpDelete, err)
 	return cnt, err
 }
 
 func (db *metricsPathDB) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
-	db.incOp(promOpDeleteExpired)
+	db.metrics.incOp(promOpDeleteExpired)
 	cnt, err := db.pathDB.DeleteExpired(ctx, now)
-	db.incErr(promOpDeleteExpired, err)
+	db.metrics.incResult(promOpDeleteExpired, err)
 	return cnt, err
 }
 
 func (db *metricsPathDB) Get(ctx context.Context,
 	params *query.Params) ([]*query.Result, error) {
 
-	db.incOp(promOpGet)
+	db.metrics.incOp(promOpGet)
 	res, err := db.pathDB.Get(ctx, params)
-	db.incErr(promOpGet, err)
+	db.metrics.incResult(promOpGet, err)
 	return res, err
 }
 
 func (db *metricsPathDB) InsertNextQuery(ctx context.Context,
 	dst addr.IA, nextQuery time.Time) (bool, error) {
 
-	db.incOp(promOpInsertNextQuery)
+	db.metrics.incOp(promOpInsertNextQuery)
 	ok, err := db.pathDB.InsertNextQuery(ctx, dst, nextQuery)
-	db.incErr(promOpInsertNextQuery, err)
+	db.metrics.incResult(promOpInsertNextQuery, err)
 	return ok, err
 }
 
 func (db *metricsPathDB) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
-	db.incOp(promOpGetNextQuery)
+	db.metrics.incOp(promOpGetNextQuery)
 	t, err := db.pathDB.GetNextQuery(ctx, dst)
-	db.incErr(promOpGetNextQuery, err)
+	db.metrics.incResult(promOpGetNextQuery, err)
 	return t, err
-}
-
-func (db *metricsPathDB) incOp(op promOp) {
-	db.metrics.opCounters[op].Inc()
-}
-
-func (db *metricsPathDB) incErr(op promOp, err error) {
-	// TODO(lukedirtwalker): categorize error better.
-	switch {
-	case err == nil:
-		db.metrics.resultCounters[op][prom.ResultOk].Inc()
-	case common.IsTimeoutErr(err):
-		db.metrics.resultCounters[op][prom.ErrTimeout].Inc()
-	default:
-		db.metrics.resultCounters[op][prom.ErrNotClassified].Inc()
-	}
 }
