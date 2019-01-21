@@ -23,11 +23,13 @@ import (
 )
 
 const (
-	// LabelErr is the label for error classifications.
-	LabelErr = "err"
+	// LabelResult is the label for result classifications.
+	LabelResult = "result"
 	// LabelElem is the label for the element id that is added to all metrics.
 	LabelElem = "elem"
 
+	// ResultOk is no error.
+	ResultOk = "ok"
 	// ErrNotClassified is an error that is not further classified.
 	ErrNotClassified = "err_not_classified"
 	// ErrTimeout is a timeout error.
