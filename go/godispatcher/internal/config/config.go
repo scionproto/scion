@@ -33,6 +33,9 @@ type Config struct {
 		// PerfData starts the pprof HTTP server on the specified address. If not set,
 		// the server is not started.
 		PerfData string
+		// DeleteSocket specifies whether the dispatcher should delete the
+		// socket file prior to attempting to create a new one.
+		DeleteSocket bool
 	}
 	Logging env.Logging
 	Metrics env.Metrics
