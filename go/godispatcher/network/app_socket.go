@@ -19,6 +19,7 @@ import (
 	"io"
 	"net"
 
+	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/godispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -91,6 +92,8 @@ func (h *AppConnHandler) Handle() {
 		return
 	}
 	defer ref.Free()
+	metrics.OpenSockets.WithLabelValues(metrics.GetOpenConnectionLabel(ref.SVCAddr())).Inc()
+	defer metrics.OpenSockets.WithLabelValues(metrics.GetOpenConnectionLabel(ref.SVCAddr())).Dec()
 
 	go func() {
 		defer log.LogPanicAndExit()
@@ -99,7 +102,7 @@ func (h *AppConnHandler) Handle() {
 	h.RunAppToNetDataplane(ref)
 }
 
-func (h *AppConnHandler) doRegExchange() (registration.UDPReference, *TableEntry, error) {
+func (h *AppConnHandler) doRegExchange() (registration.RegReference, *TableEntry, error) {
 	b := respool.GetBuffer()
 	defer respool.PutBuffer(b)
 
@@ -120,7 +123,7 @@ func (h *AppConnHandler) doRegExchange() (registration.UDPReference, *TableEntry
 		return nil, nil, common.NewBasicError("registration table error", nil, "err", err)
 	}
 
-	udpRef := ref.(registration.UDPReference)
+	udpRef := ref.(registration.RegReference)
 	port := uint16(udpRef.UDPAddr().Port)
 	if err := h.sendConfirmation(b, &reliable.Confirmation{Port: port}); err != nil {
 		// Need to release stale state from the table
@@ -174,7 +177,7 @@ func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirm
 
 // RunAppToNetDataplane moves packets from the application's socket to the
 // overlay socket.
-func (h *AppConnHandler) RunAppToNetDataplane(ref registration.UDPReference) {
+func (h *AppConnHandler) RunAppToNetDataplane(ref registration.RegReference) {
 	for {
 		pkt := respool.GetPacket()
 		// XXX(scrye): we don't release the reference on error conditions, and
@@ -194,14 +197,18 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.UDPReference) {
 			log.Warn("SCMP Request ID error, packet still sent", "err", err)
 		}
 
-		if err := pkt.SendOnConn(h.OverlayConn, pkt.OverlayRemote); err != nil {
+		n, err := pkt.SendOnConn(h.OverlayConn, pkt.OverlayRemote)
+		if err != nil {
 			h.Logger.Error("[app->network] Overlay socket error", "err", err)
+		} else {
+			metrics.OutgoingBytesTotal.Add(float64(n))
+			metrics.OutgoingPacketsTotal.Inc()
 		}
 		pkt.Free()
 	}
 }
 
-func registerIfSCMPRequest(ref registration.UDPReference, packet *spkt.ScnPkt) error {
+func registerIfSCMPRequest(ref registration.RegReference, packet *spkt.ScnPkt) error {
 	if scmpHdr, ok := packet.L4.(*scmp.Hdr); ok {
 		if !isSCMPGeneralRequest(scmpHdr) {
 			return nil
@@ -229,7 +236,7 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 				h.Logger.Warn("[network->app] Unable to encode overlay address.", "err", err)
 				continue
 			}
-			if err := pkt.SendOnConn(h.Conn, overlayAddr); err != nil {
+			if _, err := pkt.SendOnConn(h.Conn, overlayAddr); err != nil {
 				h.Logger.Error("[network->app] App connection error.", "err", err)
 				h.Conn.Close()
 				return
