@@ -33,10 +33,13 @@ type Reference interface {
 	Free()
 }
 
-type UDPReference interface {
+type RegReference interface {
 	Reference
 	// UDPAddr returns the UDP address associated with this reference
 	UDPAddr() *net.UDPAddr
+	// SVCAddr returns the SVC address associated with this reference. If no
+	// SVC address is associated, it returns SvcNone.
+	SVCAddr() addr.HostSVC
 	// RegisterID attaches an SCMP ID to this reference. The ID is released
 	// when the reference is freed. Registering another ID does not overwrite
 	// the previous; instead, multiple IDs get associated with the reference.
@@ -67,7 +70,7 @@ type IATable interface {
 	//
 	// To unregister from the table, free the returned reference.
 	Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
-		value interface{}) (UDPReference, error)
+		value interface{}) (RegReference, error)
 	// LookupPublic returns the value associated with the selected public
 	// address. Wildcard addresses are supported. If an entry is found, the
 	// returned boolean is set to true. Otherwise, it is set to false.
@@ -120,7 +123,7 @@ func newIATable(minPort, maxPort int) *iaTable {
 }
 
 func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
-	value interface{}) (UDPReference, error) {
+	value interface{}) (RegReference, error) {
 
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
@@ -143,6 +146,7 @@ func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc add
 		table:    t,
 		ia:       ia,
 		entryRef: reference,
+		svc:      svc,
 		value:    value,
 	}, nil
 }
@@ -174,12 +178,13 @@ func (t *iaTable) LookupID(ia addr.IA, id uint64) (interface{}, bool) {
 	return nil, false
 }
 
-var _ UDPReference = (*iaTableReference)(nil)
+var _ RegReference = (*iaTableReference)(nil)
 
 type iaTableReference struct {
 	table    *iaTable
 	ia       addr.IA
 	entryRef *TableReference
+	svc      addr.HostSVC
 	// value is the main table information associated with this reference
 	value interface{}
 }
@@ -195,6 +200,10 @@ func (r *iaTableReference) Free() {
 
 func (r *iaTableReference) UDPAddr() *net.UDPAddr {
 	return r.entryRef.UDPAddr()
+}
+
+func (r *iaTableReference) SVCAddr() addr.HostSVC {
+	return r.svc
 }
 
 func (r *iaTableReference) RegisterID(id uint64) error {

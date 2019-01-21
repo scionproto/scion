@@ -252,26 +252,29 @@ func (h HostSVC) Equal(o HostAddr) bool {
 }
 
 func (h HostSVC) String() string {
-	var name string
-	switch h.Base() {
-	case SvcBS:
-		name = "BS"
-	case SvcPS:
-		name = "PS"
-	case SvcCS:
-		name = "CS"
-	case SvcSB:
-		name = "SB"
-	case SvcSIG:
-		name = "SIG"
-	default:
-		name = "UNKNOWN"
-	}
+	name := h.BaseString()
 	cast := 'A'
 	if h.IsMulticast() {
 		cast = 'M'
 	}
 	return fmt.Sprintf("%v %c (0x%04x)", name, cast, uint16(h))
+}
+
+func (h HostSVC) BaseString() string {
+	switch h.Base() {
+	case SvcBS:
+		return "BS"
+	case SvcPS:
+		return "PS"
+	case SvcCS:
+		return "CS"
+	case SvcSB:
+		return "SB"
+	case SvcSIG:
+		return "SIG"
+	default:
+		return "UNKNOWN"
+	}
 }
 
 func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {

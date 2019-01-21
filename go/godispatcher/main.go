@@ -25,12 +25,11 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
+	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/godispatcher/network"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 var (
@@ -57,8 +56,6 @@ func realMain() int {
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.LogPanicAndExit()
 
-	prom.UseDefaultRegWithElem(cfg.Dispatcher.ID)
-	ringbuf.InitMetrics("dispatcher", nil)
 	go func() {
 		defer log.LogPanicAndExit()
 		err := RunDispatcher(
@@ -112,6 +109,7 @@ func setupBasic() error {
 		return err
 	}
 	cfg.InitDefaults()
+	metrics.Init(cfg.Dispatcher.ID)
 	env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
 	return nil
 }

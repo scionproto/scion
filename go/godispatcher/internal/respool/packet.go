@@ -18,6 +18,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -97,9 +98,11 @@ func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 		return err
 	}
 	pkt.buffer = pkt.buffer[:n]
+	metrics.IncomingBytesTotal.Add(float64(n))
 
 	pkt.OverlayRemote = readExtra.(*net.UDPAddr)
 	if err = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
+		metrics.IncomingPackets.WithLabelValues(metrics.PacketOutcomeParseError).Inc()
 		return err
 	}
 	return nil
@@ -126,9 +129,8 @@ func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
 	return nil
 }
 
-func (pkt *Packet) SendOnConn(conn net.PacketConn, address net.Addr) error {
-	_, err := conn.WriteTo(pkt.buffer, address)
-	return err
+func (pkt *Packet) SendOnConn(conn net.PacketConn, address net.Addr) (int, error) {
+	return conn.WriteTo(pkt.buffer, address)
 }
 
 func (pkt *Packet) reset() {
