@@ -15,7 +15,6 @@
 package metrics
 
 import (
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
@@ -26,5 +25,4 @@ const (
 // Init initializes the metrics for the CS.
 func Init(elem string) {
 	prom.UseDefaultRegWithElem(elem)
-	trustdb.InitMetrics(namespace)
 }
