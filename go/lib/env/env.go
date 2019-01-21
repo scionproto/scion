@@ -160,9 +160,7 @@ func (e *Env) setupSignals(reloadF func()) {
 			defer log.LogPanicAndExit()
 			for range sighupC {
 				log.Info("Received config reload signal")
-				if reloadF != nil {
-					reloadF()
-				}
+				reloadF()
 			}
 		}()
 	}
