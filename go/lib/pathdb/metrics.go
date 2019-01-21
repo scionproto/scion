@@ -54,9 +54,8 @@ type dbCounters struct {
 }
 
 // WithMetrics wraps the given PathDB into one that also exports metrics.
-// InitMetrics must have been called previously, otherwise this method panics.
+// dbName will be added as a label to all metrics, so that multiple path DBs can be differentiatetd.
 func WithMetrics(dbName string, pathDB PathDB) PathDB {
-
 	return &metricsPathDB{
 		pathDB: pathDB,
 		metrics: &dbCounters{
@@ -70,7 +69,7 @@ func WithMetrics(dbName string, pathDB PathDB) PathDB {
 			}),
 			errAnyTotal: errorsTotal.With(prometheus.Labels{
 				promDBName:    dbName,
-				prom.LabelErr: prom.ErrAny,
+				prom.LabelErr: prom.ErrNotClassified,
 			}),
 			errTimeoutTotal: errorsTotal.With(prometheus.Labels{
 				promDBName:    dbName,
@@ -79,6 +78,8 @@ func WithMetrics(dbName string, pathDB PathDB) PathDB {
 		},
 	}
 }
+
+var _ (PathDB) = (*metricsPathDB)(nil)
 
 // metricsPathDB is a PathDB wrapper that exports the counts of operations as prometheus metrics.
 type metricsPathDB struct {
