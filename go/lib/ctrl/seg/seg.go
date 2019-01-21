@@ -169,7 +169,7 @@ func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool 
 				// is possible to extract the hop field.
 				panic(err)
 			}
-			if asEntry.IA().Eq(ia) && (hf.ConsEgress == ifid || hf.ConsIngress == ifid) {
+			if asEntry.IA().Equal(ia) && (hf.ConsEgress == ifid || hf.ConsIngress == ifid) {
 				return true
 			}
 		}

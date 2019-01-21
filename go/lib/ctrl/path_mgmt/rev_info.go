@@ -122,7 +122,10 @@ func (r *RevInfo) RelativeTTL(reference time.Time) time.Duration {
 	return expiration.Sub(reference)
 }
 
-func (r *RevInfo) Eq(other *RevInfo) bool {
+func (r *RevInfo) Equal(other *RevInfo) bool {
+	if r == nil || other == nil {
+		return r == other
+	}
 	return r.SameIntf(other) &&
 		r.RawTimestamp == other.RawTimestamp &&
 		r.RawTTL == other.RawTTL

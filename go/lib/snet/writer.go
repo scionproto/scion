@@ -171,7 +171,7 @@ func (r *remoteAddressResolver) resolveAddr(address *Addr) (*Addr, error) {
 	if address.Host == nil {
 		return nil, common.NewBasicError(ErrNoApplicationAddress, nil)
 	}
-	if r.localIA.Eq(address.IA) {
+	if r.localIA.Equal(address.IA) {
 		return r.resolveLocalDestination(address)
 	}
 	return r.resolveRemoteDestination(address)

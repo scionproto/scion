@@ -109,9 +109,14 @@ func (a *AddrHdr) Write(b common.RawBytes) int {
 	return offset + addrPad
 }
 
-func (a *AddrHdr) Eq(o *AddrHdr) bool {
-	return a.DstIA.Eq(o.DstIA) && a.SrcIA.Eq(o.SrcIA) &&
-		a.DstHost.Eq(o.DstHost) && a.SrcHost.Eq(o.SrcHost)
+func (a *AddrHdr) Equal(o *AddrHdr) bool {
+	if a == nil || o == nil {
+		return a == o
+	}
+	return a.DstIA.Equal(o.DstIA) &&
+		a.SrcIA.Equal(o.SrcIA) &&
+		a.DstHost.Equal(o.DstHost) &&
+		a.SrcHost.Equal(o.SrcHost)
 }
 
 func (a *AddrHdr) String() string {

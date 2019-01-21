@@ -272,7 +272,7 @@ func (c *client) Close() error {
 }
 
 func (c client) setupPath() {
-	if !remote.IA.Eq(local.IA) {
+	if !remote.IA.Equal(local.IA) {
 		pathEntry := choosePath(*interactive)
 		if pathEntry == nil {
 			LogFatal("No paths available to remote destination")

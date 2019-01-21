@@ -61,15 +61,15 @@ func (a *Addr) Desc() string {
 	return fmt.Sprintf("%s Path: %t NextHop: %v", a, a.Path != nil, a.NextHop)
 }
 
-// EqAddr compares the IA/Host/L4port values with the supplied Addr
-func (a *Addr) EqAddr(o *Addr) bool {
+// EqualAddr compares the IA/Host/L4port values with the supplied Addr
+func (a *Addr) EqualAddr(o *Addr) bool {
 	if a == nil || o == nil {
 		return a == o
 	}
-	if !a.IA.Eq(o.IA) {
+	if !a.IA.Equal(o.IA) {
 		return false
 	}
-	return a.Host.Eq(o.Host)
+	return a.Host.Equal(o.Host)
 }
 
 func (a *Addr) Copy() *Addr {

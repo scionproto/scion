@@ -162,7 +162,10 @@ func (h *HopField) expTimeIfIdsPack() uint32 {
 	return uint32(h.ExpTime)<<24 | uint32(h.ConsIngress&0xFFF)<<12 | uint32(h.ConsEgress&0xFFF)
 }
 
-func (h *HopField) Eq(o *HopField) bool {
+func (h *HopField) Equal(o *HopField) bool {
+	if h == nil || o == nil {
+		return h == o
+	}
 	return h.Xover == o.Xover && h.VerifyOnly == o.VerifyOnly && h.ExpTime == o.ExpTime &&
 		h.ConsIngress == o.ConsIngress && h.ConsEgress == o.ConsEgress && bytes.Equal(h.Mac, o.Mac)
 }

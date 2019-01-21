@@ -556,7 +556,7 @@ func (m *Messenger) verifySignedPld(ctx context.Context, signedPld *ctrl.SignedP
 	if err := ctrl.VerifySig(ctx, signedPld, verifier); err != nil {
 		return common.NewBasicError("Unable to verify signature", err)
 	}
-	if !addr.IA.Eq(src.IA) {
+	if !addr.IA.Equal(src.IA) {
 		return common.NewBasicError("Sender IA does not match signed src IA", nil,
 			"expected", src.IA, "actual", addr.IA)
 	}

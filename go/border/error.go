@@ -80,7 +80,7 @@ func (r *Router) doPktError(rp *rpkt.RtrPkt, perr error) {
 		return
 	}
 	// Certain errors are not respondable to if the source lies in a remote AS.
-	if !srcIA.Eq(rp.Ctx.Conf.IA) {
+	if !srcIA.Equal(rp.Ctx.Conf.IA) {
 		switch serr.CT.Class {
 		case scmp.C_CmnHdr:
 			switch serr.CT.Type {

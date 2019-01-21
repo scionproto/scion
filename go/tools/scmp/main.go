@@ -82,7 +82,7 @@ func main() {
 
 	// If remote is not in local AS, we need a path!
 	var pathStr string
-	if !cmn.Remote.IA.Eq(cmn.Local.IA) {
+	if !cmn.Remote.IA.Equal(cmn.Local.IA) {
 		cmn.Mtu = setPathAndMtu()
 		pathStr = cmn.PathEntry.Path.String()
 	} else {

@@ -191,65 +191,65 @@ func Test_Certificate_JSON(t *testing.T) {
 	})
 }
 
-func Test_Certificate_Eq(t *testing.T) {
+func Test_Certificate_Equal(t *testing.T) {
 	Convey("Load Certificate from Raw", t, func() {
 		c1 := loadCert(fnLeaf, t)
 		c2 := loadCert(fnLeaf, t)
 
 		Convey("Certificates are equal", func() {
-			SoMsg("Eq", c1.Eq(c2), ShouldBeTrue)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeTrue)
 		})
 		Convey("Certificates are unequal (CanIssue)", func() {
 			c1.CanIssue = true
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (Comment)", func() {
 			c1.Comment = "Nope"
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (EncAlgorithm)", func() {
 			c1.EncAlgorithm = "Caesar Cipher"
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (ExpirationTime)", func() {
 			c1.ExpirationTime = 0
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (Issuer)", func() {
 			c1.Issuer = addr.IA{I: 13, A: 37}
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (IssuingTime)", func() {
 			c1.IssuingTime = 0
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (SignAlgorithm)", func() {
 			c1.SignAlgorithm = "ByHand"
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (Signature)", func() {
 			c1.Signature[0] ^= 0xFF
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (Subject)", func() {
 			c1.Subject = addr.IA{I: 13, A: 37}
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (SubjectEncKey)", func() {
 			c1.SubjectEncKey[0] ^= 0xFF
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (SubjectSigKey)", func() {
 			c1.SubjectSignKey[0] ^= 0xFF
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (TRCVersion)", func() {
 			c1.TRCVersion = 10
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (Version)", func() {
 			c1.Version = 10
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 	})
 }
