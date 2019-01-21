@@ -195,7 +195,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 		return nil, err
 	}
 	// Only (potentially) call IncPath if the dest is not in the local AS.
-	if !dstIA.Eq(rp.Ctx.Conf.IA) {
+	if !dstIA.Equal(rp.Ctx.Conf.IA) {
 		hopF, err := reply.HopF()
 		if err != nil {
 			return nil, err
@@ -232,7 +232,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 // address to use when replying to a packet.
 func (rp *RtrPkt) replyEgress(dir rcmn.Dir, dst *overlay.OverlayAddr, ifid common.IFIDType) error {
 	// Destination is the local AS
-	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
+	if rp.dstIA.Equal(rp.Ctx.Conf.IA) {
 		// Write to local socket
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 		return nil

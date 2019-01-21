@@ -252,7 +252,7 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	if conn.laddr.IA.IsZero() {
 		conn.laddr.IA = n.IA()
 	}
-	if !conn.laddr.IA.Eq(conn.scionNet.localIA) {
+	if !conn.laddr.IA.Equal(conn.scionNet.localIA) {
 		return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
 			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA, "type", "public")
 	}
@@ -264,7 +264,7 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		if err != nil {
 			return nil, common.NewBasicError("Unable to construct overlay bind address", err)
 		}
-		if !conn.baddr.IA.Eq(conn.scionNet.localIA) {
+		if !conn.baddr.IA.Equal(conn.scionNet.localIA) {
 			return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
 		}

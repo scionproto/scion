@@ -31,7 +31,7 @@ import (
 // forward a packet (e.g. resolve an SVC destination address).
 func (rp *RtrPkt) NeedsLocalProcessing() error {
 	// Check if SVC packet to local AS
-	if rp.dstIA.Eq(rp.Ctx.Conf.IA) && rp.CmnHdr.DstType == addr.HostTypeSVC {
+	if rp.dstIA.Equal(rp.Ctx.Conf.IA) && rp.CmnHdr.DstType == addr.HostTypeSVC {
 		// SVC address needs to be resolved for delivery.
 		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
 	} else {
@@ -196,7 +196,7 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 		if len(rp.Ctx.Conf.Topo.PS) > 0 {
 			args.Addrs = append(args.Addrs, addr.SvcPS)
 		}
-	} else if rp.dstIA.Eq(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.Topo.PS) > 0 {
+	} else if rp.dstIA.Equal(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.Topo.PS) > 0 {
 		// Case 3
 		args.Addrs = append(args.Addrs, addr.SvcPS)
 	}

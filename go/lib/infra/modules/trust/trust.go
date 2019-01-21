@@ -303,7 +303,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	if err != nil || chain != nil {
 		return chain, err
 	}
-	if store.config.MustHaveLocalChain && store.ia.Eq(ia) {
+	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
 		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
 			"requested_ia", ia)
 	}
@@ -349,7 +349,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 		return chain, err
 	}
 	// If we're authoritative for the requested IA, error out now.
-	if store.config.MustHaveLocalChain && store.ia.Eq(ia) {
+	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
 		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
 			"requested ia", ia)
 	}
@@ -543,7 +543,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 			return err
 		case fileChain.Leaf.Version == dbChain.Leaf.Version:
 			// Because it is the same version, check if the chains match
-			if !fileChain.Eq(dbChain) {
+			if !fileChain.Equal(dbChain) {
 				return common.NewBasicError("Conflicting chains found for same version", nil,
 					"db", dbChain, "file", fileChain)
 			}
@@ -627,7 +627,7 @@ func (store *Store) isLocal(address net.Addr) error {
 		case !ok:
 			return common.NewBasicError("Unable to determine AS of address",
 				nil, "addr", address)
-		case !store.ia.Eq(saddr.IA):
+		case !store.ia.Equal(saddr.IA):
 			return common.NewBasicError("Object not found in DB, and recursion not "+
 				"allowed for clients outside AS", nil, "addr", address)
 		}

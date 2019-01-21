@@ -91,7 +91,7 @@ func (h *segReqNonCoreHandler) Handle() {
 
 func (h *segReqNonCoreHandler) validSrcDst(segReq *path_mgmt.SegReq) bool {
 	logger := log.FromCtx(h.request.Context())
-	if !segReq.SrcIA().IsZero() && !segReq.SrcIA().Eq(h.localIA) {
+	if !segReq.SrcIA().IsZero() && !segReq.SrcIA().Equal(h.localIA) {
 		logger.Warn("[segReqHandler] Drop, invalid srcIA",
 			"srcIA", segReq.SrcIA())
 		return false
@@ -128,7 +128,7 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 	// Add a limit of cores we query.
 	for _, src := range upSegs.FirstIAs() {
-		if !src.Eq(dst) {
+		if !src.Equal(dst) {
 			res, err := h.fetchCoreSegs(ctx, msger, src, dst, segReq.Flags.CacheOnly)
 			if err != nil {
 				logger.Error("[segReqHandler] Failed to find core segs", "err", err)
@@ -185,7 +185,7 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 		// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 		// Add a limit of cores we query.
 		for _, src := range upSegs.FirstIAs() {
-			if src.Eq(dst) {
+			if src.Equal(dst) {
 				connUpFirstIAs[src] = struct{}{}
 				connDownFirstIAs[dst] = struct{}{}
 				continue

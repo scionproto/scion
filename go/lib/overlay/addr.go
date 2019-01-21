@@ -75,25 +75,25 @@ func (a *OverlayAddr) Copy() *OverlayAddr {
 	return &OverlayAddr{l3: a.l3.Copy(), l4: a.l4.Copy()}
 }
 
-func (a *OverlayAddr) Eq(o *OverlayAddr) bool {
+func (a *OverlayAddr) Equal(o *OverlayAddr) bool {
 	if (a == nil) || (o == nil) {
 		return a == o
 	}
 	if a.l3 != nil {
-		if !a.l3.Eq(o.l3) {
+		if !a.l3.Equal(o.l3) {
 			return false
 		}
 	} else if o.l3 != nil {
-		if !o.l3.Eq(a.l3) {
+		if !o.l3.Equal(a.l3) {
 			return false
 		}
 	}
 	if a.l4 != nil {
-		if !a.l4.Eq(o.l4) {
+		if !a.l4.Equal(o.l4) {
 			return false
 		}
 	} else if o.l4 != nil {
-		if !o.l4.Eq(a.l4) {
+		if !o.l4.Equal(a.l4) {
 			return false
 		}
 	}

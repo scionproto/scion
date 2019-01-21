@@ -239,7 +239,7 @@ func (ia IA) IsZero() bool {
 	return ia.I == 0 && ia.A == 0
 }
 
-func (ia IA) Eq(other IA) bool {
+func (ia IA) Equal(other IA) bool {
 	return ia.I == other.I && ia.A == other.A
 }
 

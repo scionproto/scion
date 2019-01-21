@@ -129,7 +129,7 @@ func (h *Handler) validateSign(ctx context.Context, addr *snet.Addr,
 			"expected", verChain.Leaf.SignAlgorithm, "actual", signed.Sign.Type)
 	}
 	// Verify that the requester matches the signer
-	if !verChain.Leaf.Subject.Eq(addr.IA) {
+	if !verChain.Leaf.Subject.Equal(addr.IA) {
 		return nil, common.NewBasicError("Origin AS does not match signer", nil,
 			"signer", verChain.Leaf.Subject, "origin", addr.IA)
 	}
@@ -141,7 +141,7 @@ func (h *Handler) validateSign(ctx context.Context, addr *snet.Addr,
 func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 	vChain, maxChain *cert.Chain) error {
 
-	if !c.Subject.Eq(vChain.Leaf.Subject) {
+	if !c.Subject.Equal(vChain.Leaf.Subject) {
 		return common.NewBasicError("Requester does not match subject", nil, "ia",
 			vChain.Leaf.Subject, "sub", c.Subject)
 	}
@@ -149,7 +149,7 @@ func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 		return common.NewBasicError("Invalid version", nil, "expected", maxChain.Leaf.Version+1,
 			"actual", c.Version)
 	}
-	if !c.Issuer.Eq(h.IA) {
+	if !c.Issuer.Equal(h.IA) {
 		return common.NewBasicError("Requested Issuer is not this AS", nil, "iss",
 			c.Issuer, "expected", h.IA)
 	}

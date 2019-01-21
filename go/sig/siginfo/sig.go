@@ -38,12 +38,12 @@ func (s *Sig) EncapSnetAddr() *snet.Addr {
 	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: l4}}
 }
 
-func (s *Sig) Eq(x *Sig) bool {
+func (s *Sig) Equal(x *Sig) bool {
 	if s == nil || x == nil {
 		return s == x
 	}
 	return s.IA == x.IA &&
-		s.Host.Eq(x.Host) &&
+		s.Host.Equal(x.Host) &&
 		s.CtrlL4Port == x.CtrlL4Port &&
 		s.EncapL4Port == x.EncapL4Port
 }

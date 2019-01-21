@@ -109,7 +109,7 @@ func (l *ScionLayer) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopack
 		return nil, fmt.Errorf("Common header mismatch\nExpected %v\nActual   %v",
 			&l.CmnHdr, &scn.CmnHdr)
 	}
-	if !l.AddrHdr.Eq(&scn.AddrHdr) {
+	if !l.AddrHdr.Equal(&scn.AddrHdr) {
 		return nil, fmt.Errorf("Address header mismatch\nExpected %v\nActual   %v",
 			&l.AddrHdr, &scn.AddrHdr)
 	}

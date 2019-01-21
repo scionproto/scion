@@ -75,7 +75,7 @@ type HostAddr interface {
 	Pack() common.RawBytes
 	IP() net.IP
 	Copy() HostAddr
-	Eq(HostAddr) bool
+	Equal(HostAddr) bool
 	fmt.Stringer
 }
 
@@ -103,7 +103,7 @@ func (h HostNone) Copy() HostAddr {
 	return HostNone{}
 }
 
-func (h HostNone) Eq(o HostAddr) bool {
+func (h HostNone) Equal(o HostAddr) bool {
 	_, ok := o.(HostNone)
 	return ok
 }
@@ -137,7 +137,7 @@ func (h HostIPv4) Copy() HostAddr {
 	return HostIPv4(append(net.IP(nil), h...))
 }
 
-func (h HostIPv4) Eq(o HostAddr) bool {
+func (h HostIPv4) Equal(o HostAddr) bool {
 	ha, ok := o.(HostIPv4)
 	return ok && net.IP(h).Equal(net.IP(ha))
 }
@@ -170,7 +170,7 @@ func (h HostIPv6) Copy() HostAddr {
 	return HostIPv6(append(net.IP(nil), h...))
 }
 
-func (h HostIPv6) Eq(o HostAddr) bool {
+func (h HostIPv6) Equal(o HostAddr) bool {
 	ha, ok := o.(HostIPv6)
 	return ok && net.IP(h).Equal(net.IP(ha))
 }
@@ -246,7 +246,7 @@ func (h HostSVC) Copy() HostAddr {
 	return h
 }
 
-func (h HostSVC) Eq(o HostAddr) bool {
+func (h HostSVC) Equal(o HostAddr) bool {
 	ha, ok := o.(HostSVC)
 	return ok && h == ha
 }

@@ -171,7 +171,7 @@ func generateAllSrcDst(hostAddr HostAddr, unique bool) []IAPair {
 	pairs := make([]IAPair, 0, len(srcASes)*len(dstASes))
 	for _, src := range srcASes {
 		for _, dst := range dstASes {
-			if !unique || !src.IA.Eq(dst.IA) {
+			if !unique || !src.IA.Equal(dst.IA) {
 				pairs = append(pairs, IAPair{src, dst})
 			}
 		}

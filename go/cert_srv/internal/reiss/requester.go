@@ -140,7 +140,7 @@ func (r *Requester) validateRep(ctx context.Context, chain *cert.Chain) error {
 		return err
 	}
 	issuer := chain.Leaf.Issuer
-	if !chain.Leaf.Issuer.Eq(issuer) {
+	if !chain.Leaf.Issuer.Equal(issuer) {
 		return common.NewBasicError("Invalid Issuer", nil, "expected",
 			issuer, "actual", chain.Leaf.Issuer)
 	}

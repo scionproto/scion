@@ -107,7 +107,7 @@ func Test_FilterSegments(t *testing.T) {
 			Name:     "First IA core 1_110",
 			Segs:     []*PathSegment{seg110_120, seg120_110},
 			Filtered: []*PathSegment{seg120_110},
-			KeepF:    func(s *PathSegment) bool { return core1_120.Eq(s.FirstIA()) },
+			KeepF:    func(s *PathSegment) bool { return core1_120.Equal(s.FirstIA()) },
 		},
 	}
 	Convey("Test filtering segments", t, func() {

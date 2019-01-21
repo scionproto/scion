@@ -30,8 +30,11 @@ type HPCfgID struct {
 	ID uint64
 }
 
-func (h *HPCfgID) Eq(other *HPCfgID) bool {
-	return h.IA.Eq(other.IA) && h.ID == other.ID
+func (h *HPCfgID) Equal(other *HPCfgID) bool {
+	if h == nil || other == nil {
+		return h == other
+	}
+	return h.IA.Equal(other.IA) && h.ID == other.ID
 }
 
 var NullHpCfgID = HPCfgID{IA: addr.IAInt(0).IA(), ID: 0}

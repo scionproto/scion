@@ -278,7 +278,7 @@ func dropRevoked(aps spathmeta.AppPathSet, pi sciond.PathInterface) spathmeta.Ap
 
 func matches(path *spathmeta.AppPath, predicatePI sciond.PathInterface) bool {
 	for _, pi := range path.Entry.Path.Interfaces {
-		if pi.Eq(&predicatePI) {
+		if pi.Equal(&predicatePI) {
 			return true
 		}
 	}

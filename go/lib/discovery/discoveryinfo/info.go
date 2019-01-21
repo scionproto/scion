@@ -57,7 +57,7 @@ func New(key string, addr *addr.AppAddr) *Info {
 func (h *Info) Update(a *addr.AppAddr) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if !a.Eq(h.addr) {
+	if !a.Equal(h.addr) {
 		h.addr = a.Copy()
 		h.failCount = 0
 		h.lastFail = time.Now()

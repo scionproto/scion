@@ -114,7 +114,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	// extensions that replace the path header.
 	var onLastSeg = rp.CmnHdr.InfoFOffBytes()+int(rp.infoF.Hops+1)*common.LineLen ==
 		rp.CmnHdr.HdrLenBytes()
-	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
+	if onLastSeg && rp.dstIA.Equal(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
 		l4 := addr.NewL4UDPInfo(overlay.EndhostPort)
 		dst, err := overlay.NewOverlayAddr(rp.dstHost, l4)

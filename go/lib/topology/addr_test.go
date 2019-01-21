@@ -221,7 +221,7 @@ func newOverlay(rapo *RawAddrPortOverlay) *overlay.OverlayAddr {
 }
 
 func shouldEqPubBindAddr(actual interface{}, expected ...interface{}) string {
-	if actual.(*pubBindAddr).equal(expected[0].(*pubBindAddr)) {
+	if actual.(*pubBindAddr).Equal(expected[0].(*pubBindAddr)) {
 		return ""
 	}
 	return fmt.Sprintf("Expected:\n\t%+v\nActual:\n\t%+v", expected[0], actual)

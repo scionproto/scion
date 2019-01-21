@@ -99,7 +99,7 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 // associated signature algorithm. Further, it verifies that the certificate belongs to the given
 // subject, and that it is valid at the current time.
 func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlgo string) error {
-	if !subject.Eq(c.Subject) {
+	if !subject.Equal(c.Subject) {
 		return common.NewBasicError(InvalidSubject, nil,
 			"expected", c.Subject, "actual", subject)
 	}
@@ -223,15 +223,18 @@ func (c *Certificate) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, (*Alias)(c))
 }
 
-func (c *Certificate) Eq(o *Certificate) bool {
+func (c *Certificate) Equal(o *Certificate) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
 	return c.CanIssue == o.CanIssue &&
 		c.Comment == o.Comment &&
 		c.ExpirationTime == o.ExpirationTime &&
 		c.IssuingTime == o.IssuingTime &&
 		c.TRCVersion == o.TRCVersion &&
 		c.Version == o.Version &&
-		c.Issuer.Eq(o.Issuer) &&
-		c.Subject.Eq(o.Subject) &&
+		c.Issuer.Equal(o.Issuer) &&
+		c.Subject.Equal(o.Subject) &&
 		c.SignAlgorithm == o.SignAlgorithm &&
 		c.EncAlgorithm == o.EncAlgorithm &&
 		bytes.Equal(c.SubjectEncKey, o.SubjectEncKey) &&

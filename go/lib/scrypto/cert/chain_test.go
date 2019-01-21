@@ -46,12 +46,12 @@ func Test_ChainFromRaw(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 		Convey("Leaf Certificate is parsed correctly", func() {
 			cert := loadCert(fnLeaf, t)
-			SoMsg("Leaf", chain.Leaf.Eq(cert), ShouldBeTrue)
+			SoMsg("Leaf", chain.Leaf.Equal(cert), ShouldBeTrue)
 		})
 
 		Convey("Issuer Certificate is parsed correctly", func() {
 			cert := loadCert(fnCore, t)
-			SoMsg("Issuer", chain.Issuer.Eq(cert), ShouldBeTrue)
+			SoMsg("Issuer", chain.Issuer.Equal(cert), ShouldBeTrue)
 		})
 	})
 
@@ -130,7 +130,7 @@ func Test_Chain_Compress(t *testing.T) {
 		comp, err := chain.Compress()
 		SoMsg("err", err, ShouldBeNil)
 		pChain, _ := ChainFromRaw(comp, true)
-		SoMsg("Compare", pChain.Eq(chain), ShouldBeTrue)
+		SoMsg("Compare", pChain.Equal(chain), ShouldBeTrue)
 	})
 }
 
@@ -155,7 +155,7 @@ func Test_Chain_IAVer(t *testing.T) {
 	Convey("IA version tuple is returned correctly", t, func() {
 		chain := loadChain(fnChain, t)
 		ia, ver := chain.IAVer()
-		SoMsg("IA", ia.Eq(addr.IA{I: 1, A: 0xff0000000311}), ShouldBeTrue)
+		SoMsg("IA", ia.Equal(addr.IA{I: 1, A: 0xff0000000311}), ShouldBeTrue)
 		SoMsg("Ver", ver, ShouldEqual, 1)
 	})
 }
@@ -166,15 +166,15 @@ func Test_Chain_Eq(t *testing.T) {
 		c2 := loadChain(fnChain, t)
 
 		Convey("Chains are equal", func() {
-			SoMsg("Eq", c1.Eq(c2), ShouldBeTrue)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeTrue)
 		})
 		Convey("Chains are unequal (Leaf)", func() {
 			c1.Leaf.CanIssue = true
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 		Convey("Chains are unequal (Issuer)", func() {
 			c1.Issuer.CanIssue = false
-			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+			SoMsg("Eq", c1.Equal(c2), ShouldBeFalse)
 		})
 	})
 }

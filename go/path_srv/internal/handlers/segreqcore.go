@@ -109,11 +109,11 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 	}
 	var coreSegs []*seg.PathSegment
 	// if request came from same AS also return core segs, to start of down segs.
-	if segReq.SrcIA().Eq(h.localIA) {
+	if segReq.SrcIA().Equal(h.localIA) {
 		ias := downSegs.FirstIAs()
 		downIAs := ias[:0]
 		for _, ia := range ias {
-			if !ia.Eq(h.localIA) {
+			if !ia.Equal(h.localIA) {
 				downIAs = append(downIAs, ia)
 			}
 		}

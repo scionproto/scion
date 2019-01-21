@@ -154,7 +154,7 @@ func (c client) ping(n int) error {
 }
 
 func (c client) getRemote(n int) error {
-	if remote.IA.Eq(integration.Local.IA) {
+	if remote.IA.Equal(integration.Local.IA) {
 		return nil
 	}
 	// Get paths from sciond

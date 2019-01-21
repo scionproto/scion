@@ -25,7 +25,7 @@ type L4Info interface {
 	Type() common.L4ProtocolType
 	Port() uint16
 	Copy() L4Info
-	Eq(L4Info) bool
+	Equal(L4Info) bool
 	String() string
 }
 
@@ -62,7 +62,7 @@ func (l *l4AddrInfo) Copy() L4Info {
 	return &l4AddrInfo{pType: l.pType, port: l.port}
 }
 
-func (a *l4AddrInfo) Eq(other L4Info) bool {
+func (a *l4AddrInfo) Equal(other L4Info) bool {
 	o, ok := other.(*l4AddrInfo)
 	return ok && a.pType == o.pType && a.port == o.port
 }

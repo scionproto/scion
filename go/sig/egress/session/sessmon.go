@@ -230,7 +230,7 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 			"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)
 		return
 	}
-	if !sm.sess.IA().Eq(rpld.Addr.IA) {
+	if !sm.sess.IA().Equal(rpld.Addr.IA) {
 		sm.Error("sessMonitor: SIGPollRep from wrong IA",
 			"expected", sm.sess.IA(), "actual", rpld.Addr.IA)
 		return
@@ -248,7 +248,7 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 		}
 		// Update session's remote, if needed.
 		sessRemote := sm.sess.Remote()
-		if sessRemote == nil || !sm.smRemote.Sig.Eq(sessRemote.Sig) {
+		if sessRemote == nil || !sm.smRemote.Sig.Equal(sessRemote.Sig) {
 			sm.Info("sessMonitor: updating remote Info", "msgId", rpld.Id, "remote", sm.smRemote)
 			sm.sess.currRemote.Store(sm.smRemote)
 		}

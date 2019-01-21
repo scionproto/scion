@@ -114,7 +114,7 @@ func (c client) requestCert() (*cert.Chain, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse chain", err)
 	}
-	if !chain.Leaf.Subject.Eq(remoteIA) {
+	if !chain.Leaf.Subject.Equal(remoteIA) {
 		return nil, common.NewBasicError("Invalid subject", nil,
 			"expected", remoteIA, "actual", chain.Leaf.Subject)
 	}

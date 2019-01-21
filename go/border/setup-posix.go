@@ -189,7 +189,7 @@ func (p posixExt) Teardown(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, ol
 func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bool {
 	return (newIntf.Id != oldIntf.Id ||
 		!newIntf.IFAddr.Equal(oldIntf.IFAddr) ||
-		!newIntf.RemoteAddr.Eq(oldIntf.RemoteAddr))
+		!newIntf.RemoteAddr.Equal(oldIntf.RemoteAddr))
 }
 
 // Create a set of labels for ringbuf with `sock` renamed to `ringId`.
