@@ -5,6 +5,7 @@
   retry:
     automatic:
       exit_status: 255
+  timeout_in_minutes: 10
 - label: Build code and push "$SCION_IMG"
   command:
   - $BASE/scripts/registry_login
@@ -20,4 +21,5 @@
   retry:
     automatic:
       exit_status: 255
+  timeout_in_minutes: 10
 - wait

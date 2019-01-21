@@ -104,10 +104,6 @@ check_change_initial_ip() {
     check_connectivity "End check_change_initial_ip"
 }
 
-test_teardown() {
-    base_teardown
-}
-
 PROGRAM=`basename "$0"`
 COMMAND="$1"
 

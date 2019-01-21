@@ -10,4 +10,5 @@
   retry:
     automatic:
       exit_status: 255
+  timeout_in_minutes: 10
 - wait

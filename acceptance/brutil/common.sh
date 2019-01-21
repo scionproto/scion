@@ -4,6 +4,7 @@ export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 DEVINFO_FN=${TEST_ARTIFACTS_DIR}/devinfo.txt
 
 . acceptance/brutil/util.sh
+. acceptance/common.sh
 
 # Following are the functions required by the acceptance framework
 
@@ -26,6 +27,7 @@ test_setup() {
     sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
 
     docker-compose -f $BRUTIL/docker-compose.yml --no-ansi up --detach $BRID
+    docker_status
 }
 
 test_run() {
@@ -40,6 +42,7 @@ test_teardown() {
     del_veths
     rm -f $DEVINFO_FN
     rm_docker_ns_link
+    docker_status
     docker-compose -f $BRUTIL/docker-compose.yml --no-ansi down
 }
 

@@ -2,6 +2,6 @@
   command:
   - $BASE/scripts/all_images pull
   - $BASE/run_step integration -d -a
-  timeout_in_minutes: 30
+  timeout_in_minutes: 10
   artifact_paths:
   - "artifacts.out/**/*"

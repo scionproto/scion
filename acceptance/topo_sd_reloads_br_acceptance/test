@@ -24,6 +24,7 @@ test_setup() {
     done
     ./scion.sh run nobuild
     ./tools/dc start tester_$SRC_IA_FILE
+    docker_status
 }
 
 test_run() {
@@ -36,10 +37,6 @@ test_run() {
     sleep 2
     grep -q "NextHop=\[127\.42\.42\.42\]:39999" "logs/sd$SRC_IA_FILE.log" || \
         { echo "SD Path reply with next-hop 127.42.42.42:39999 not found in logs"; return 1; }
-}
-
-test_teardown() {
-    ./tools/dc down
 }
 
 print_help() {
