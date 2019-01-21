@@ -72,7 +72,7 @@ if [ -n "$DOCKER_BE" ]; then
     ./docker.sh exec "set -eo pipefail; ./tools/dc down |& tee -a logs/integration.run"
 fi
 
-./docker.sh exec "./tools/dc zk logs zookeeper &> logs/zookeeper.log"
+./docker.sh exec "./tools/dc collect_logs zk logs"
 ./docker.sh exec "./tools/dc zk down"
 
 exit $result

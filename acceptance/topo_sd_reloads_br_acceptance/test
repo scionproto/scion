@@ -31,7 +31,7 @@ test_run() {
     set -e
     local topo_file="gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
     jq '.BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: "127.42.42.42", OverlayPort: 39999}' $topo_file | sponge $topo_file
-    ./tools/dc dc kill -s HUP scion_sd$SRC_IA_FILE
+    ./tools/dc scion kill -s HUP scion_sd$SRC_IA_FILE
     sleep 6
     ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
     sleep 2

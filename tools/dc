@@ -25,70 +25,92 @@ cmd_help() {
 	        Stops containers
 	    $PROGRAM down
 	        Stops and removes all containers, networks and volumes
-	    $PROGRAM run <SERVICE>
+	    $PROGRAM run [SERVICE]
 	        Runs the service and removes its container afterwards
-	    $PROGRAM dc [COMMAND]
-	        Run a docker compose command
-	    $PROGRAM exec_tester <IA> <COMMAND>
+	    $PROGRAM [GROUP] [COMMAND]
+	        Run the docker compose command COMMAND for the service group GROUP.
+	    $PROGRAM exec_tester [IA] [COMMAND]
 	        Exec a command in the specified service.
-	    $PROGRAM zk [docker-compose command]
-	        Run docker-compose command for zookeeper services.
+        $PROGRAM collect_logs [GROUP] [LOG_DIR]
+            Collect logs from all services in the service group GROUP to the log directory LOG_DIR
+	Options:
+	    - [SERVICE]: As scion service glob, e.g. cs1*.
+	    - [GROUP]:
+	        - scion:    For all scion services.
+	        - zk:       For the zookeeper service.
+	        - prom:     For the prometheus service.
+	    - [COMMAND]: A docker-compose command like 'up -d' or 'down'
+	    - [IA]: An IA number like 1-ff00:0:110
+	    - [LOG_DIR]: A folder.
 	_EOF
 }
 
 cmd_start() {
     services="$(glob_docker "$@")"
     if [ -n "$services" ]; then
-        cmd_dc up -d $services < /dev/null
+        cmd_scion up -d $services < /dev/null
     fi
 }
 
 cmd_stop() {
     services="$(glob_docker "$@")"
     if [ -n "$services" ]; then
-        cmd_dc stop $services
+        cmd_scion stop $services
     fi
 }
 
 cmd_down() {
     cmd_stop "*"
     cmd_run utils_cleaner
-    cmd_dc down
+    cmd_scion down
 }
 
 cmd_run() {
-    cmd_dc run --rm "$@"
+    cmd_scion run --rm "$@"
 }
 
-cmd_dc() {
-    local project="scion"
-    is_running_in_docker && project="scion_docker"
-    COMPOSE_FILE="gen/scion-dc.yml" docker-compose  -p "$project" --no-ansi "$@"
+cmd_scion() {
+    dc "scion" "$@"
 }
 
 cmd_zk() {
-    local project="zk"
-    is_running_in_docker && project="zk_docker"
-    COMPOSE_FILE="gen/zk-dc.yml" docker-compose -p "$project" --no-ansi "$@"
+    dc "zk" "$@"
 }
 
 cmd_prom() {
-    local project="prom"
-    is_running_in_docker && project="prom_docker"
-    COMPOSE_FILE="gen/prom-dc.yml" docker-compose -p "$project" --no-ansi "$@"
+    dc "prom" "$@"
+}
+
+# Runs docker compose for the given project
+dc() {
+    local project="$1"
+    local dc_file="gen/$1-dc.yml"
+    shift
+    is_running_in_docker && project="$1_docker"
+    COMPOSE_FILE="$dc_file" docker-compose -p "$project" --no-ansi "$@"
+}
+
+cmd_collect_logs() {
+    [ $# -ge 2 ] || { cmd_help; exit 1; }
+    local group="$1"
+    local out_dir="$2"
+    mkdir -p "$out_dir"
+    for svc in $(cmd_$group config --services); do
+        $(cmd_$group logs $svc &> $out_dir/$svc.log)
+    done
 }
 
 exec_tester() {
     local service="tester_$1"
     shift
     service_running "$service" || cmd_start "$service" &>/dev/null
-    cmd_dc exec -T -u scion "$service" bash -l -c "$*"
+    cmd_scion exec -T -u scion "$service" bash -l -c "$*"
 }
 
 glob_docker() {
     [ $# -ge 1 ] || set -- '*'
     matches=
-    for proc in $(cmd_dc config --services); do
+    for proc in $(cmd_scion config --services); do
         for spec in "$@"; do
             if glob_match $proc "$spec"; then
                 matches="$matches $proc"
@@ -108,7 +130,7 @@ glob_match() {
 }
 
 service_running() {
-    cntr="$(cmd_dc ps -q $1)"
+    cntr="$(cmd_scion ps -q $1)"
     [ -n "$cntr" ] && [ -n "$(docker ps -q --no-trunc | grep $cntr)" ]
 }
 
@@ -121,7 +143,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    start|stop|down|run|dc|zk|prom)
+    start|stop|down|run|scion|zk|prom|collect_logs)
         "cmd_$COMMAND" "$@" ;;
     exec_tester)
         "exec_tester" "$@" ;;

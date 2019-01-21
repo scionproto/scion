@@ -55,7 +55,7 @@ test_run() {
 check_change_invalid_local_ip() {
     check_connectivity "Start check_change_invalid_local_ip"
     jq '.BorderRouters[].Interfaces[].PublicOverlay.Addr = "172.20.255.0"' $SRC_TOPO | sponge $SRC_TOPO
-    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
     sleep 2
     check_logs "Unable to reload config" $SRC_IA_FILE
     check_connectivity "End check_change_invalid_local_ip"
@@ -74,7 +74,7 @@ check_change_local_ip() {
 
 change_local_ip() {
     jq ".BorderRouters[].Interfaces[].PublicOverlay.Addr = $3" $1 | sponge $1
-    ./tools/dc dc kill -s HUP scion_br"$2"-1
+    ./tools/dc scion kill -s HUP scion_br"$2"-1
     sleep 2
     check_logs "posixOutput starting addr=[$(unqoute $3)]" $2
     check_logs "posixInput starting addr=[$(unqoute $3)]"  $2
@@ -90,7 +90,7 @@ check_change_remote_ip() {
 change_remote_ip() {
     # Connectivity is broken at this point
     jq ".BorderRouters[].Interfaces[].RemoteOverlay.Addr = $3" $1 | sponge $1
-    ./tools/dc dc kill -s HUP scion_br"$2"-1
+    ./tools/dc scion kill -s HUP scion_br"$2"-1
     sleep 2
     check_logs "RemoteAddr:[$(unqoute $3)]" $2
 }
@@ -100,7 +100,7 @@ check_change_initial_ip() {
     local pre=".BorderRouters[].Interfaces[]"
     jq "$pre.PublicOverlay = $orig_src | $pre.RemoteOverlay = $orig_dst" $SRC_TOPO | sponge $SRC_TOPO
     jq "$pre.PublicOverlay = $orig_dst | $pre.RemoteOverlay = $orig_src" $DST_TOPO | sponge $DST_TOPO
-    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1 scion_br"$DST_IA_FILE"-1
+    ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1 scion_br"$DST_IA_FILE"-1
     check_connectivity "End check_change_initial_ip"
 }
 
