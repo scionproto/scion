@@ -191,7 +191,7 @@ func Test_Certificate_JSON(t *testing.T) {
 	})
 }
 
-func Test_Certificate_Eq(t *testing.T) {
+func Test_Certificate_Equal(t *testing.T) {
 	Convey("Load Certificate from Raw", t, func() {
 		c1 := loadCert(fnLeaf, t)
 		c2 := loadCert(fnLeaf, t)

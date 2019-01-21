@@ -62,12 +62,12 @@ func Test_ChainFromRaw(t *testing.T) {
 
 	//	Convey("Leaf Certificate is parsed correctly", func() {
 	//		cert := loadCert(fnLeaf, t)
-	//		SoMsg("Leaf", chain.Leaf.Eq(cert), ShouldBeTrue)
+	//		SoMsg("Leaf", chain.Leaf.Equal(cert), ShouldBeTrue)
 	//	})
 
 	//	Convey("Issuer Certificate is parsed correctly", func() {
 	//		cert := loadCert(fnCore, t)
-	//		SoMsg("Issuer", chain.Issuer.Eq(cert), ShouldBeTrue)
+	//		SoMsg("Issuer", chain.Issuer.Equal(cert), ShouldBeTrue)
 	//	})
 	//})
 
@@ -160,7 +160,7 @@ func Test_Chain_IAVer(t *testing.T) {
 	})
 }
 
-func Test_Chain_Eq(t *testing.T) {
+func Test_Chain_Equal(t *testing.T) {
 	Convey("Load Certificate from Raw", t, func() {
 		c1 := loadChain(fnChain, t)
 		c2 := loadChain(fnChain, t)

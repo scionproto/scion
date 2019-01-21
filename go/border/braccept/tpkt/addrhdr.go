@@ -113,8 +113,10 @@ func (a *AddrHdr) Equal(o *AddrHdr) bool {
 	if a == nil || o == nil {
 		return a == o
 	}
-	return a.DstIA.Equal(o.DstIA) && a.SrcIA.Equal(o.SrcIA) &&
-		a.DstHost.Equal(o.DstHost) && a.SrcHost.Equal(o.SrcHost)
+	return a.DstIA.Equal(o.DstIA) &&
+		a.SrcIA.Equal(o.SrcIA) &&
+		a.DstHost.Equal(o.DstHost) &&
+		a.SrcHost.Equal(o.SrcHost)
 }
 
 func (a *AddrHdr) String() string {
