@@ -7,11 +7,14 @@
 TEST_NAME="reconnecting"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
+. acceptance/common.sh
+
 test_setup() {
     set -e
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
     ./scion.sh run nobuild
     ./tools/dc start tester_1-ff00_0_112 tester_1-ff00_0_110
+    docker_status
 }
 
 test_run() {
@@ -23,10 +26,6 @@ test_run() {
     sqlite3 gen-cache/sd1-ff00_0_112.path.db "delete from segments;"
     sleep 10
     bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -d
-}
-
-test_teardown() {
-    ./tools/dc down
 }
 
 print_help() {

@@ -10,6 +10,7 @@ DST_IA_FILE=$(echo $DST_IA | sed -e "s/:/_/g")
 DST_AS_FILE=$(echo $DST_IA_FILE | cut -d '-' -f 2)
 DST_TOPO="gen/ISD1/AS$DST_AS_FILE/br$DST_IA_FILE-1/topology.json"
 
+. acceptance/common.sh
 
 check_logs() {
     fgrep -q "$1" "logs/br$2-1.log" || { echo "Not found: $1"; return 1; }
@@ -41,10 +42,7 @@ base_run_topo() {
     ./scion.sh run nobuild
     ./tools/dc start tester_$SRC_IA_FILE
     sleep 5
-}
-
-base_teardown() {
-    ./tools/dc down
+    docker_status
 }
 
 print_help() {

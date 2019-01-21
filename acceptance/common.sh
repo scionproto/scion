@@ -56,3 +56,19 @@ collect_elem_metrics() {
         curl "$ip:${2:-$topo_port}/metrics" -o "$METRICS_DIR/$elem" -s -S --connect-timeout 2 || true
     done
 }
+
+#######################################
+# Print docker container status
+#######################################
+docker_status() {
+    echo "$(date -u +"%F %T.%6N%z") Docker containers:"
+    docker ps -a -s
+}
+
+#######################################
+# Generic test_teardown, prints docker status and stops all containers
+#######################################
+test_teardown() {
+    docker_status
+    ./tools/dc down
+}

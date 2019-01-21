@@ -20,6 +20,7 @@ test_setup() {
         sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done
     ./scion.sh run nobuild
+    docker_status
 }
 
 test_run() {
@@ -33,10 +34,6 @@ test_run() {
     sleep 31
     grep -q "\[INFO\].*Sent crypto to CS.*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \
         { echo "Crypto material push to 127.42.42.42:39999 not found in logs"; return 1; }
-}
-
-test_teardown() {
-    ./tools/dc down
 }
 
 print_help() {

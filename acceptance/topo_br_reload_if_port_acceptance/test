@@ -64,10 +64,6 @@ check_change_initial_port() {
     check_connectivity "End check_change_initial_port"
 }
 
-test_teardown() {
-    base_teardown
-}
-
 PROGRAM=`basename "$0"`
 COMMAND="$1"
 
