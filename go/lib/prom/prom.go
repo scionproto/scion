@@ -28,8 +28,8 @@ const (
 	// LabelElem is the label for the element id that is added to all metrics.
 	LabelElem = "elem"
 
-	// ErrAny is any error not further classified.
-	ErrAny = "err_any"
+	// ErrNotClassified is an error that is not further classified.
+	ErrNotClassified = "err_not_classified"
 	// ErrTimeout is a timeout error.
 	ErrTimeout = "err_timeout"
 )
