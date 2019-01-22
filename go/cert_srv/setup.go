@@ -61,7 +61,7 @@ func setup() error {
 	if err := env.InitGeneral(&cfg.General); err != nil {
 		return common.NewBasicError("Unable to initialize General config", err)
 	}
-	itopo.SetCurrentTopology(cfg.General.Topology)
+	itopo.InitSvc(cfg.General.ID, proto.ServiceType_cs, cfg.General.Topology, nil)
 	env.InitSciondClient(&cfg.Sciond)
 	if err := cfg.Init(cfg.General.ConfigDir); err != nil {
 		return common.NewBasicError("Unable to initialize CS config", err)

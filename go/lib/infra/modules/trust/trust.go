@@ -639,7 +639,7 @@ func (store *Store) isLocal(address net.Addr) error {
 // ChooseServer builds a CS address for crypto material regarding the
 // destination AS.
 func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.Addr, error) {
-	topo := itopo.GetCurrentTopology()
+	topo := itopo.Get()
 	if store.config.ServiceType != proto.ServiceType_cs {
 		svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
 		if err != nil {

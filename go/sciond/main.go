@@ -172,7 +172,7 @@ func setup() error {
 	if err := env.InitGeneral(&cfg.General); err != nil {
 		return err
 	}
-	itopo.SetCurrentTopology(cfg.General.Topology)
+	itopo.Init(cfg.General.Topology, nil)
 	environment = infraenv.InitInfraEnvironment(cfg.General.TopologyPath)
 	cfg.InitDefaults()
 	return cfg.SD.CreateSocketDirs()
