@@ -40,7 +40,7 @@ from topology.common import (
 from topology.prometheus import (
     BS_PROM_PORT,
     CS_PROM_PORT,
-    PS_PROM_PORT
+    PS_PROM_PORT,
 )
 
 
