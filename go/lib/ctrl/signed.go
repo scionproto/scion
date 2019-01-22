@@ -33,7 +33,7 @@ type SignedPld struct {
 	pld  *Pld
 }
 
-func newSignedPld(cpld *Pld, sign *proto.SignS, key common.RawBytes) (*SignedPld, error) {
+func NewSignedPld(cpld *Pld, sign *proto.SignS, key common.RawBytes) (*SignedPld, error) {
 	// Make a copy of signer, so the caller can re-use it.
 	spld := &SignedPld{Sign: sign.Copy()}
 	if spld.Sign == nil && assert.On {

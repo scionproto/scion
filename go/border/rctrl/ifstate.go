@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -51,7 +52,7 @@ func genIFStateReq() {
 		logger.Error("Generating IFStateReq Ctrl payload", "err", err)
 		return
 	}
-	scpld, err := cpld.SignedPld(ctrl.NullSigner)
+	scpld, err := cpld.SignedPld(trust.NullSigner)
 	if err != nil {
 		logger.Error("Generating IFStateReq signed Ctrl payload", "err", err)
 		return
