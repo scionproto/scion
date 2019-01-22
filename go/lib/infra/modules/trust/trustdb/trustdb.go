@@ -32,8 +32,7 @@ import (
 // Read and Write interactions with this interface have to happen in individual transactions
 // (either explicit or implicit).
 type TrustDB interface {
-	Read
-	Write
+	ReadWrite
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 	io.Closer
 }
@@ -91,16 +90,19 @@ type Write interface {
 		key common.RawBytes, oldVersion uint64) error
 }
 
+// ReadWrite contains all read and write operations of the trust DB.
+type ReadWrite interface {
+	Read
+	Write
+}
+
 // Transaction represents a trust DB transaction with an ongoing transaction.
 // To end the transaction either Rollback or Commit should be called. Calling Commit or Rollback
 // multiple times will result in an error.
 type Transaction interface {
-	Read
-	Write
+	ReadWrite
 	// Commit commits the transaction.
-	// Returns the underlying TrustDB connection.
 	Commit() error
 	// Rollback rollbacks the transaction.
-	// Returns the underlying TrustDB connection.
 	Rollback() error
 }
