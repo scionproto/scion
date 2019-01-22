@@ -106,7 +106,7 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
 	// will at most contain one element).
 	reqIA := pld.AsInfoReq.Isdas.IA()
-	topo := itopo.GetCurrentTopology()
+	topo := itopo.Get()
 	if reqIA.IsZero() {
 		reqIA = topo.ISD_AS
 	}
@@ -167,7 +167,7 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 	logger.Debug("[IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
 	ifInfoReply := &sciond.IFInfoReply{}
-	topo := itopo.GetCurrentTopology()
+	topo := itopo.Get()
 	if len(ifInfoRequest.IfIDs) == 0 {
 		// Reply with all the IFIDs we know
 		for ifid, ifInfo := range topo.IFInfoMap {
@@ -221,7 +221,7 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Tran
 		"request", &pld.ServiceInfoRequest)
 	svcInfoRequest := pld.ServiceInfoRequest
 	svcInfoReply := &sciond.ServiceInfoReply{}
-	topo := itopo.GetCurrentTopology()
+	topo := itopo.Get()
 	for _, t := range svcInfoRequest.ServiceTypes {
 		var hostInfos []sciond.HostInfo
 		hostInfos = makeHostInfos(topo, t)
