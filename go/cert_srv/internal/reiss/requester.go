@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -42,7 +41,7 @@ var _ periodic.Task = (*Requester)(nil)
 // Requester requests reissued certificate chains before
 // expiration of the currently active certificate chain.
 type Requester struct {
-	Msgr     *messenger.Messenger
+	Msgr     infra.Messenger
 	State    *config.State
 	IA       addr.IA
 	LeafTime time.Duration
@@ -119,7 +118,7 @@ func (r *Requester) handleRep(ctx context.Context, rep *cert_mgmt.ChainIssRep) (
 	if err != nil {
 		return true, common.NewBasicError("Unable to set new signer", err)
 	}
-	signer := ctrl.NewBasicSigner(sign, r.State.GetSigningKey())
+	signer := trust.NewBasicSigner(sign, r.State.GetSigningKey())
 	r.State.SetSigner(signer)
 	r.Msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
 	log.Info("[reiss.Requester] Updated certificate chain", "chain", chain)

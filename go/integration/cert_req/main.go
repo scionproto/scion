@@ -19,6 +19,8 @@ import (
 	"flag"
 	"os"
 
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+
 	"github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -67,13 +69,14 @@ func (c client) run() int {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
 	log.Debug("Send on", "local", c.conn.LocalAddr())
+	ts, _ := trust.NewStore(nil, addr.IA{}, nil, log.Root())
 	c.msgr = messenger.New(
 		integration.Local.IA,
 		disp.New(
 			transport.NewPacketTransport(c.conn),
 			messenger.DefaultAdapter,
 			log.Root(),
-		), nil, log.Root(), nil,
+		), ts, log.Root(), nil,
 	)
 	if err = getRemote(); err != nil {
 		integration.LogFatal("Error finding remote address", err)
