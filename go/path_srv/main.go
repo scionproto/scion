@@ -92,7 +92,7 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
-	topo := itopo.GetCurrentTopology()
+	topo := itopo.Get()
 	trustConf := &trust.Config{
 		ServiceType: proto.ServiceType_ps,
 	}
@@ -243,7 +243,7 @@ func setup() error {
 	if err := env.InitGeneral(&cfg.General); err != nil {
 		return err
 	}
-	itopo.SetCurrentTopology(cfg.General.Topology)
+	itopo.InitSvc(cfg.General.ID, proto.ServiceType_ps, cfg.General.Topology, nil)
 	environment = infraenv.InitInfraEnvironment(cfg.General.TopologyPath)
 	cfg.InitDefaults()
 	return nil
