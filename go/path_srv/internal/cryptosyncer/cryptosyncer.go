@@ -66,7 +66,7 @@ func (c *Syncer) Run(ctx context.Context) {
 }
 
 func (c *Syncer) chooseServer() (net.Addr, error) {
-	topo := itopo.GetCurrentTopology()
+	topo := itopo.Get()
 	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
 	if err != nil {
 		return nil, err
