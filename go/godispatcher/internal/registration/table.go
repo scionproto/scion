@@ -28,12 +28,21 @@ type Table struct {
 	udpPortTable *UDPPortTable
 	svcTable     SVCTable
 	size         int
+	ids          []uint64
+	// XXX(scrye): Note that SCMP General IDs are globally scoped inside an IA
+	// (i.e., all all hosts share the same ID namespace, and thus can collide
+	// with each other). Because the IDs are random, it is very unlikely for a
+	// collision to occur (although faulty coding can increase the chance,
+	// e.g., if apps start with an ID of 1 and increment from there). We should
+	// revisit if SCMP General IDs should be scoped to IPs.
+	scmpTable *SCMPTable
 }
 
 func NewTable(minPort, maxPort int) *Table {
 	return &Table{
 		udpPortTable: NewUDPPortTable(minPort, maxPort),
 		svcTable:     NewSVCTable(),
+		scmpTable:    NewSCMPTable(),
 	}
 }
 
@@ -87,11 +96,24 @@ func (t *Table) Size() int {
 	return t.size
 }
 
+func (t *Table) LookupID(id uint64) (interface{}, bool) {
+	return t.scmpTable.Lookup(id)
+}
+
+func (t *Table) registerID(id uint64, value interface{}) error {
+	return t.scmpTable.Register(id, value)
+}
+
+func (t *Table) removeID(id uint64) {
+	t.scmpTable.Remove(id)
+}
+
 type TableReference struct {
 	table   *Table
 	freed   bool
 	address *net.UDPAddr
 	svcRef  Reference
+	ids     []uint64
 }
 
 func (r *TableReference) Free() {
@@ -104,8 +126,19 @@ func (r *TableReference) Free() {
 		r.svcRef.Free()
 	}
 	r.table.size--
+	for _, id := range r.ids {
+		r.table.removeID(id)
+	}
 }
 
 func (r *TableReference) UDPAddr() *net.UDPAddr {
 	return r.address
+}
+
+func (r *TableReference) RegisterID(id uint64, value interface{}) error {
+	if err := r.table.registerID(id, value); err != nil {
+		return err
+	}
+	r.ids = append(r.ids, id)
+	return nil
 }

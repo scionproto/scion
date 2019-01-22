@@ -71,8 +71,8 @@ func (t *IATable) LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) []*Ta
 	return entries
 }
 
-func (t *IATable) LookupID(id uint64) (*TableEntry, bool) {
-	e, ok := t.IATable.LookupID(id)
+func (t *IATable) LookupID(ia addr.IA, id uint64) (*TableEntry, bool) {
+	e, ok := t.IATable.LookupID(ia, id)
 	if !ok {
 		return nil, false
 	}
