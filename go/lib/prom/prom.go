@@ -27,6 +27,8 @@ const (
 	LabelResult = "result"
 	// LabelElem is the label for the element id that is added to all metrics.
 	LabelElem = "elem"
+	// LabelOperation is the label for the name of an executed operation.
+	LabelOperation = "op"
 
 	// ResultOk is no error.
 	ResultOk = "ok"
