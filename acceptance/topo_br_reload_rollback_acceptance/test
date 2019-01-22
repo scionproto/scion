@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Whenever a BR's addresses in the topology file are changed to invalid values,
+# and the BR's process receives a SIGHUP, it will try to reload the topology and
+# handle the errors correctly. In code, this is done by rolling back changes.
+# This acceptance tests checks that the rollback works as expected.
+#
+# This test checks the following:
+# 1. Invalid internal address -> ignore changes; expect traffic to pass
+# 2. Invalid interface address (local) -> ignore changes; expect traffic to pass
+
+TEST_NAME="topo_br_reload_rollback"
+TEST_TOPOLOGY="acceptance/topo_br_reload_util/Tinier.topo"
+
+TMP_TOPO="${SRC_TOPO}.tmp"
+
+. acceptance/topo_br_reload_util/util.sh
+
+test_setup() {
+    base_setup
+}
+
+test_run() {
+    set -e
+    cp $SRC_TOPO $TMP_TOPO
+    check_internal_fail
+    cp $TMP_TOPO $SRC_TOPO
+    check_if_local_fail
+}
+
+check_internal_fail() {
+    check_connectivity "Start check_internal_fail"
+    jq '.BorderRouters[].InternalAddrs.IPv4.PublicOverlay.Addr = "172.220.42.42"' $SRC_TOPO | sponge $SRC_TOPO
+    ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
+    check_connectivity "End check_internal_fail"
+}
+
+check_if_local_fail() {
+    check_connectivity "Start check_if_local_fail"
+    jq '.BorderRouters[].InternalAddrs.IPv4.PublicOverlay.OverlayPort = 42424' $SRC_TOPO | sponge $SRC_TOPO
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.Addr = "172.220.42.42"' $SRC_TOPO | sponge $SRC_TOPO
+    ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
+    check_connectivity "End check_if_local_fail"
+}
+
+test_teardown() {
+    base_teardown
+    rm $TMP_TOPO
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
+
