@@ -100,7 +100,7 @@ func realMain() int {
 func reload() error {
 	// FIXME(roosd): KeyConf reloading is not yet supported.
 	// https://github.com/scionproto/scion/issues/2077
-	cfg.General.Topology = itopo.GetCurrentTopology()
+	cfg.General.Topology = itopo.Get()
 	var newConf config.Config
 	// Load new config to get the CS parameters.
 	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {

@@ -172,7 +172,7 @@ func ReloadTopology(topologyPath string) {
 		log.Error("Unable to reload topology", "err", err)
 		return
 	}
-	itopo.SetCurrentTopology(topo)
+	itopo.SetStatic(topo, true)
 	log.Info("Reloaded topology")
 }
 

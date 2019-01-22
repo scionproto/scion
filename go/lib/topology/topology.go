@@ -227,6 +227,9 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			}
 			t.IFInfoMap[ifid] = ifinfo
 		}
+		sort.Slice(brInfo.IFIDs, func(i, j int) bool {
+			return brInfo.IFIDs[i] < brInfo.IFIDs[j]
+		})
 		t.BR[name] = brInfo
 		t.BRNames = append(t.BRNames, name)
 	}
@@ -271,6 +274,18 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 func (t *Topo) Active(now time.Time) bool {
 	return !now.Before(t.Timestamp) && (t.TTL == 0 ||
 		now.Before(t.Timestamp.Add(t.TTL)))
+}
+
+func (t *Topo) GetTopoAddrs(id string, svc proto.ServiceType) (*TopoAddr, error) {
+	svcInfo, err := t.GetSvcInfo(svc)
+	if err != nil {
+		return nil, err
+	}
+	topoAddr := svcInfo.idTopoAddrMap.GetById(id)
+	if topoAddr == nil {
+		return nil, common.NewBasicError("Element not found", nil, "id", id)
+	}
+	return topoAddr, nil
 }
 
 func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
