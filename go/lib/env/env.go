@@ -133,6 +133,8 @@ type Env struct {
 	AppShutdownSignal chan struct{}
 }
 
+// SetupEnv initializes a basic environment for applications. If reloadF is not
+// nil, the application will call reloadF whenever it receives a SIGHUP signal.
 func SetupEnv(reloadF func()) *Env {
 	e := &Env{}
 	e.setupSignals(reloadF)
@@ -140,7 +142,8 @@ func SetupEnv(reloadF func()) *Env {
 }
 
 // setupSignals sets up a goroutine that closes AppShutdownSignal on received
-// SIGTERM/SIGINT signals, and calls reloadF on SIGHUP.
+// SIGTERM/SIGINT signals. If reloadF is not nil, setupSignals also calls
+// reloadF on SIGHUP.
 func (e *Env) setupSignals(reloadF func()) {
 	e.AppShutdownSignal = make(chan struct{})
 	sig := make(chan os.Signal, 2)
@@ -152,15 +155,15 @@ func (e *Env) setupSignals(reloadF func()) {
 		log.Info("Received signal, exiting...", "signal", s)
 		close(e.AppShutdownSignal)
 	}()
-	go func() {
-		defer log.LogPanicAndExit()
-		for range sighupC {
-			log.Info("Received config reload signal")
-			if reloadF != nil {
+	if reloadF != nil {
+		go func() {
+			defer log.LogPanicAndExit()
+			for range sighupC {
+				log.Info("Received config reload signal")
 				reloadF()
 			}
-		}
-	}()
+		}()
+	}
 }
 
 func ReloadTopology(topologyPath string) {

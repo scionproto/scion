@@ -33,7 +33,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
-var cfg config.Config
+var (
+	cfg         config.Config
+	environment *env.Env
+)
 
 func main() {
 	os.Exit(realMain())
@@ -58,7 +61,11 @@ func realMain() int {
 	ringbuf.InitMetrics("dispatcher", nil)
 	go func() {
 		defer log.LogPanicAndExit()
-		err := RunDispatcher(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.OverlayPort)
+		err := RunDispatcher(
+			cfg.Dispatcher.DeleteSocket,
+			cfg.Dispatcher.ApplicationSocket,
+			cfg.Dispatcher.OverlayPort,
+		)
 		if err != nil {
 			fatal.Fatal(err)
 		}
@@ -72,9 +79,26 @@ func realMain() int {
 		}()
 	}
 
+	environment = env.SetupEnv(nil)
 	cfg.Metrics.StartPrometheus()
-	<-fatal.Chan()
-	return 1
+
+	returnCode := waitForTeardown()
+	// XXX(scrye): if the dispatcher is shut down on purpose, it is usually
+	// done together with the whole stack on top the dispatcher. Cleaning
+	// up gracefully does not give us anything in this case. We just clean
+	// up the sockets and let the application close.
+	errDelete := deleteSocket(cfg.Dispatcher.ApplicationSocket)
+	if errDelete != nil {
+		log.Warn("Unable to delete socket when shutting down", errDelete)
+	}
+	switch {
+	case returnCode != 0:
+		return returnCode
+	case errDelete != nil:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func setupBasic() error {
@@ -92,7 +116,12 @@ func setupBasic() error {
 	return nil
 }
 
-func RunDispatcher(applicationSocket string, overlayPort int) error {
+func RunDispatcher(deleteSocketFlag bool, applicationSocket string, overlayPort int) error {
+	if deleteSocketFlag {
+		if err := deleteSocket(cfg.Dispatcher.ApplicationSocket); err != nil {
+			return err
+		}
+	}
 	dispatcher := &network.Dispatcher{
 		RoutingTable:      network.NewIATable(1024, 65535),
 		OverlaySocket:     fmt.Sprintf(":%d", overlayPort),
@@ -100,4 +129,24 @@ func RunDispatcher(applicationSocket string, overlayPort int) error {
 	}
 	log.Debug("Dispatcher starting", "appSocket", applicationSocket, "overlayPort", overlayPort)
 	return dispatcher.ListenAndServe()
+}
+
+func deleteSocket(socket string) error {
+	if _, err := os.Stat(socket); err != nil {
+		// File does not exist, or we can't read it, nothing to delete
+		return nil
+	}
+	if err := os.Remove(socket); err != nil {
+		return err
+	}
+	return nil
+}
+
+func waitForTeardown() int {
+	select {
+	case <-environment.AppShutdownSignal:
+		return 0
+	case <-fatal.Chan():
+		return 1
+	}
 }
