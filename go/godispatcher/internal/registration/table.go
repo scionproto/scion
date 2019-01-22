@@ -29,13 +29,12 @@ type Table struct {
 	svcTable     SVCTable
 	size         int
 	ids          []uint64
-	// XXX(scrye): This is implemented here to achieve feature parity with the
-	// C-dispatcher, where SCMP General IDs are globally scoped (i.e., all IAs
-	// and all hosts share the same ID namespace, and thus can collide with
-	// each other). Because the IDs are random, it is very unlikely for a
+	// XXX(scrye): Note that SCMP General IDs are globally scoped inside an IA
+	// (i.e., all all hosts share the same ID namespace, and thus can collide
+	// with each other). Because the IDs are random, it is very unlikely for a
 	// collision to occur (although faulty coding can increase the chance,
 	// e.g., if apps start with an ID of 1 and increment from there). We should
-	// revisit if SCMP General IDs should be scoped to IAs and/or IPs.
+	// revisit if SCMP General IDs should be scoped to IPs.
 	scmpTable *SCMPTable
 }
 
@@ -137,8 +136,7 @@ func (r *TableReference) UDPAddr() *net.UDPAddr {
 }
 
 func (r *TableReference) RegisterID(id uint64, value interface{}) error {
-	err := r.table.registerID(id, value)
-	if err != nil {
+	if err := r.table.registerID(id, value); err != nil {
 		return err
 	}
 	r.ids = append(r.ids, id)

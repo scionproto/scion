@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -518,6 +519,6 @@ func MustPackQuotedSCMPL4Header(header *scmp.Hdr, meta *scmp.Meta, info scmp.Inf
 }
 
 func TestMain(m *testing.M) {
-	//log.Root().SetHandler(log.DiscardHandler())
+	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }
