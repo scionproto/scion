@@ -38,6 +38,7 @@ BS_PROM_PORT = 30452
 CS_PROM_PORT = 30454
 SCIOND_PROM_PORT = 30455
 SIG_PROM_PORT = 30456
+DISP_PROM_PORT = 30457
 DEFAULT_BR_PROM_PORT = 30442
 
 PROM_DC_FILE = "prom-dc.yml"
@@ -94,6 +95,7 @@ class PrometheusGenerator(object):
             config_dict[topo_id] = ele_dict
         self._write_config_files(config_dict)
         self._write_dc_file()
+        self._write_disp_file()
 
     def _write_config_files(self, config_dict):
         targets_paths = defaultdict(list)
@@ -107,6 +109,7 @@ class PrometheusGenerator(object):
                 as_local_targets_path[self.JOB_NAMES[ele_type]] = [local_path]
                 self._write_target_file(base, target_list, ele_type)
             self._write_config_file(os.path.join(base, PROM_FILE), as_local_targets_path)
+        targets_paths["dispatcher"] = [os.path.join("dispatcher", "prometheus", "disp.yml")]
         self._write_config_file(os.path.join(self.args.output_dir, PROM_FILE), targets_paths)
 
     def _write_config_file(self, config_path, job_dict):
@@ -131,6 +134,12 @@ class PrometheusGenerator(object):
     def _write_target_file(self, base_path, target_addrs, ele_type):
         targets_path = os.path.join(base_path, self.PROM_DIR, self.TARGET_FILES[ele_type])
         target_config = [{'targets': target_addrs}]
+        write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
+
+    def _write_disp_file(self):
+        targets_path = os.path.join(self.args.output_dir, "dispatcher",
+                                    PrometheusGenerator.PROM_DIR, "disp.yml")
+        target_config = [{'targets': ['[127.0.0.1]:%d' % DISP_PROM_PORT]}]
         write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
 
     def _write_dc_file(self):
