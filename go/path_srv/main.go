@@ -86,6 +86,7 @@ func realMain() int {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
+	pathDB = pathdb.WithMetrics("std", pathDB)
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
 		log.Crit("Unable to initialize trustDB", "err", err)
