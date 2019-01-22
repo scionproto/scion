@@ -43,6 +43,7 @@ from topology.prometheus import (
     DEFAULT_BR_PROM_PORT,
     PS_PROM_PORT,
     SCIOND_PROM_PORT,
+    DISP_PROM_PORT,
 )
 
 
@@ -207,6 +208,9 @@ class GoGenerator(object):
                 'ID': name,
             },
             'logging': self._log_entry("dispatcher"),
+            'metrics': {
+                'Prometheus': '127.0.0.1:%d' % DISP_PROM_PORT,
+            },
         }
 
     def _log_entry(self, name):
