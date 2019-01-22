@@ -12,7 +12,7 @@
 TEST_NAME="topo_br_reload_rollback"
 TEST_TOPOLOGY="acceptance/topo_br_reload_util/Tinier.topo"
 
-TMP_TOPO=$TMP_TOPO
+TMP_TOPO="${SRC_TOPO}.tmp"
 
 . acceptance/topo_br_reload_util/util.sh
 
