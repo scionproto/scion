@@ -27,7 +27,7 @@ var brBCtrlScionHdr = tpkt.NewGenCmnHdr(
 
 var IgnoredPacketsBrB = []*tpkt.ExpPkt{
 	{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
-		tpkt.GenOverlayIP4UDP("192.1680.12", 30041, "192.168.0.61", 30041),
+		tpkt.GenOverlayIP4UDP("192.168.0.12", 30041, "192.168.0.61", 30041),
 		brBCtrlScionHdr,
 		tpkt.NewUDP(20002, 0, &brBCtrlScionHdr.ScionLayer, ifStateReq),
 		ifStateReq,

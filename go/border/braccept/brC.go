@@ -56,7 +56,7 @@ func genTestsBrC(hMac hash.Hash) []*BRTest {
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
 				}}},
-			Ignore: IgnoredPacketsBrB,
+			Ignore: IgnoredPacketsBrC,
 		},
 		{
 			Desc: "Single IFID parent - local/parent",
@@ -79,7 +79,7 @@ func genTestsBrC(hMac hash.Hash) []*BRTest {
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
 				}}},
-			Ignore: IgnoredPacketsBrB,
+			Ignore: IgnoredPacketsBrC,
 		},
 		{
 			Desc: "Single IFID parent - parent/child",
@@ -102,7 +102,7 @@ func genTestsBrC(hMac hash.Hash) []*BRTest {
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
 				}}},
-			Ignore: IgnoredPacketsBrB,
+			Ignore: IgnoredPacketsBrC,
 		},
 		{
 			Desc: "Single IFID parent - child/parent",
@@ -125,7 +125,7 @@ func genTestsBrC(hMac hash.Hash) []*BRTest {
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
 				}}},
-			Ignore: IgnoredPacketsBrB,
+			Ignore: IgnoredPacketsBrC,
 		},
 	}
 }
