@@ -17,6 +17,6 @@ cleanup() {
     res=$((res+$?))
     $BASE/scripts/clean_env &>> "$STEP_LOG"
     res=$((res+$?))
-    rm -r $SCION_MOUNT
+    rm -r --interactive=never $SCION_MOUNT
     return $res
 }
