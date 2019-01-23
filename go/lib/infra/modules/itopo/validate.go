@@ -17,14 +17,32 @@ package itopo
 import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/proto"
 )
+
+func validatorFactory(svc proto.ServiceType) validator {
+	switch svc {
+	case proto.ServiceType_unset:
+		return &generalValidator{}
+	case proto.ServiceType_br:
+		// FIXME(roosd): add validator for border router.
+		return &generalValidator{}
+	default:
+		// FIMXE(roosd): add validator for service.
+		return &generalValidator{}
+	}
+}
 
 // validator is used to validate that the topology update is permissible.
 type validator interface {
+	// General checks that the topology is generally valid.
 	General(topo *topology.Topo) error
+	// Immutable checks that the immutable parts of the topology update are valid.
 	Immutable(topo, oldTopo *topology.Topo) error
+	// SemiMutable checks that the semi-mutable parts of the topology update are valid.
 	SemiMutable(topo, oldTopo *topology.Topo, allowed bool) error
-	DropDynamic(topo, oldTopo *topology.Topo) bool
+	// MustDropDynamic indicates whether the dynamic topology shall be dropped.
+	MustDropDynamic(topo, oldTopo *topology.Topo) bool
 }
 
 var _ validator = (*generalValidator)(nil)
@@ -42,6 +60,9 @@ func (v *generalValidator) General(topo *topology.Topo) error {
 }
 
 func (v *generalValidator) Immutable(topo, oldTopo *topology.Topo) error {
+	if oldTopo == nil {
+		return nil
+	}
 	if !topo.ISD_AS.Equal(oldTopo.ISD_AS) {
 		return common.NewBasicError("IA is immutable", nil,
 			"expected", oldTopo.ISD_AS, "actual", topo.ISD_AS)
@@ -64,6 +85,6 @@ func (*generalValidator) SemiMutable(_, _ *topology.Topo, _ bool) error {
 	return nil
 }
 
-func (*generalValidator) DropDynamic(_, _ *topology.Topo) bool {
+func (*generalValidator) MustDropDynamic(_, _ *topology.Topo) bool {
 	return false
 }
