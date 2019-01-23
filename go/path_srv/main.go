@@ -243,7 +243,10 @@ func setup() error {
 	if err := env.InitGeneral(&cfg.General); err != nil {
 		return err
 	}
-	itopo.InitSvc(cfg.General.ID, proto.ServiceType_ps, cfg.General.Topology, nil)
+	itopo.Init(proto.ServiceType_ps, itopo.Clbks{})
+	if _, _, err := itopo.SetStatic(cfg.General.Topology, false); err != nil {
+		return common.NewBasicError("Unable to set initial static topology", err)
+	}
 	environment = infraenv.InitInfraEnvironment(cfg.General.TopologyPath)
 	cfg.InitDefaults()
 	return nil
