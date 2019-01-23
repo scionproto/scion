@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
@@ -290,7 +291,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
 				Interfaces: path.Interfaces,
 				ExpTime:    uint32(path.ComputeExpTime().Unix()),
 			},
-			HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
+			HostInfo: hostinfo.FromTopoBRAddr(*ifInfo.InternalAddrs),
 		})
 		if maxPaths != 0 && len(entries) == int(maxPaths) {
 			break

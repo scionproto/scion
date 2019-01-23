@@ -19,20 +19,20 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*Addr)(nil)
 
 type Addr struct {
-	Ctrl      *sciond.HostInfo
+	Ctrl      *hostinfo.HostInfo
 	EncapPort uint16
 }
 
 func NewAddr(host addr.HostAddr, ctrlPort, encapPort uint16) *Addr {
 	return &Addr{
-		Ctrl:      sciond.HostInfoFromHostAddr(host, ctrlPort),
+		Ctrl:      hostinfo.FromHostAddr(host, ctrlPort),
 		EncapPort: encapPort,
 	}
 }

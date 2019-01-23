@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -104,7 +105,7 @@ func (m *MockConn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 					Interfaces: pathInterfaces,
 					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
 				},
-				HostInfo: HostInfo{
+				HostInfo: hostinfo.HostInfo{
 				// TODO(scrye): leave nil for now since no tests use this
 				},
 			},
