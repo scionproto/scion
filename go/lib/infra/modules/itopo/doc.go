@@ -1,4 +1,3 @@
-// Copyright 2018 ETH Zurich
 // Copyright 2019 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
