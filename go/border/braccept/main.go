@@ -47,10 +47,9 @@ type ifInfo struct {
 }
 
 const (
-	snapshot_len int32 = 1024
-	promiscuous  bool  = true
-	//timeout      time.Duration = 1 * time.Second
-	timeout time.Duration = 60 * time.Second
+	snapshot_len int32         = 1024
+	promiscuous  bool          = true
+	timeout      time.Duration = 1 * time.Second
 )
 
 var (
