@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
@@ -173,7 +174,7 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 		for ifid, ifInfo := range topo.IFInfoMap {
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
+				HostInfo: hostinfo.FromTopoBRAddr(*ifInfo.InternalAddrs),
 			})
 		}
 	} else {
@@ -186,7 +187,7 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
+				HostInfo: hostinfo.FromTopoBRAddr(*ifInfo.InternalAddrs),
 			})
 		}
 	}
@@ -223,7 +224,7 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Tran
 	svcInfoReply := &sciond.ServiceInfoReply{}
 	topo := itopo.GetCurrentTopology()
 	for _, t := range svcInfoRequest.ServiceTypes {
-		var hostInfos []sciond.HostInfo
+		var hostInfos []hostinfo.HostInfo
 		hostInfos = makeHostInfos(topo, t)
 		replyEntry := sciond.ServiceInfoReplyEntry{
 			ServiceType: t,
@@ -250,8 +251,8 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Tran
 	logger.Trace("Sent reply", "svcInfo", svcInfoReply)
 }
 
-func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []sciond.HostInfo {
-	var hostInfos []sciond.HostInfo
+func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.HostInfo {
+	var hostInfos []hostinfo.HostInfo
 	addresses, err := topo.GetAllTopoAddrs(t)
 	if err != nil {
 		// FIXME(lukedirtwalker): inform client about this:
@@ -259,7 +260,7 @@ func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []sciond.HostInfo {
 		return hostInfos
 	}
 	for _, a := range addresses {
-		hostInfos = append(hostInfos, sciond.HostInfoFromTopoAddr(a))
+		hostInfos = append(hostInfos, hostinfo.FromTopoAddr(a))
 	}
 	return hostInfos
 }

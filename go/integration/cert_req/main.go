@@ -23,11 +23,11 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -152,7 +152,7 @@ func (c client) requestTRC(chain *cert.Chain) error {
 
 func getRemote() error {
 	// Fetch address of service
-	var hostInfo *sciond.HostInfo
+	var hostInfo *hostinfo.HostInfo
 	var err error
 	if hostInfo, err = getSVCAddress(); err != nil {
 		return err
@@ -165,7 +165,7 @@ func getRemote() error {
 	return nil
 }
 
-func getSVCAddress() (*sciond.HostInfo, error) {
+func getSVCAddress() (*hostinfo.HostInfo, error) {
 	connector := snet.DefNetwork.Sciond()
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
 	defer cancelF()
