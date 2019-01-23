@@ -20,32 +20,65 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-func validatorFactory(svc proto.ServiceType) validator {
-	switch svc {
-	case proto.ServiceType_unset:
-		return &generalValidator{}
-	case proto.ServiceType_br:
-		// FIXME(roosd): add validator for border router.
-		return &generalValidator{}
-	default:
-		// FIMXE(roosd): add validator for service.
-		return &generalValidator{}
-	}
+type dynDropper interface {
+	// MustDropDynamic indicates whether the dynamic topology shall be dropped.
+	MustDropDynamic(topo, oldTopo *topology.Topo) bool
 }
 
 // validator is used to validate that the topology update is permissible.
 type validator interface {
-	// General checks that the topology is generally valid.
+	dynDropper
+	// Validate checks that the topology update is valid according to the mutability rules.
+	// The validation rules differ between service types. However, at the very least, it
+	// is checked that topo is not nil and the immutable parts do not change.
+	Validate(topo, oldTopo *topology.Topo, allowed bool) error
+}
+
+func validatorFactory(svc proto.ServiceType) validator {
+	switch svc {
+	case proto.ServiceType_unset:
+		return &validatorWrap{&generalValidator{}}
+	case proto.ServiceType_br:
+		// FIXME(roosd): add validator for border router.
+		return &validatorWrap{&generalValidator{}}
+	default:
+		// FIMXE(roosd): add validator for service.
+		return &validatorWrap{&generalValidator{}}
+	}
+}
+
+// validatorWrap wraps the internalValidator and only exposes Validate and MustDropDynamic.
+type validatorWrap struct {
+	internalValidator
+}
+
+// Validate checks that the topology update is valid.
+func (v *validatorWrap) Validate(topo, oldTopo *topology.Topo, allowed bool) error {
+	if err := v.General(topo); err != nil {
+		return err
+	}
+	if err := v.Immutable(topo, oldTopo); err != nil {
+		return err
+	}
+	if err := v.SemiMutable(topo, oldTopo, allowed); err != nil {
+		return err
+	}
+	return nil
+}
+
+type internalValidator interface {
+	dynDropper
+	// General checks that the topology is generally valid. The exact check is implementation
+	// specific to the validator. However, at the very least, this check ensures that the
+	// provided topology is non-nil.
 	General(topo *topology.Topo) error
 	// Immutable checks that the immutable parts of the topology update are valid.
 	Immutable(topo, oldTopo *topology.Topo) error
 	// SemiMutable checks that the semi-mutable parts of the topology update are valid.
 	SemiMutable(topo, oldTopo *topology.Topo, allowed bool) error
-	// MustDropDynamic indicates whether the dynamic topology shall be dropped.
-	MustDropDynamic(topo, oldTopo *topology.Topo) bool
 }
 
-var _ validator = (*generalValidator)(nil)
+var _ internalValidator = (*generalValidator)(nil)
 
 // generalValidator is used to validate updates if no specific element information
 // is set. It only checks that the topology is non-nil and the immutable fields are
