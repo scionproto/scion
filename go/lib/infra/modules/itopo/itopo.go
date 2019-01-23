@@ -103,25 +103,11 @@ func newState(svc proto.ServiceType, clbks Clbks) *state {
 func (s *state) setStatic(static *topology.Topo, allowed bool) (*topology.Topo, bool, error) {
 	s.Lock()
 	defer s.Unlock()
-	if err := s.validate(static, allowed); err != nil {
+	if err := s.validator.Validate(static, s.topo.static, allowed); err != nil {
 		return nil, false, err
 	}
 	updated := s.updateStatic(static)
 	return s.topo.curr(), updated, nil
-}
-
-// validate validates that the new topology is valid given the currently active topology.
-func (s *state) validate(static *topology.Topo, allowed bool) error {
-	if err := s.validator.General(static); err != nil {
-		return err
-	}
-	if err := s.validator.Immutable(static, s.topo.static); err != nil {
-		return err
-	}
-	if err := s.validator.SemiMutable(static, s.topo.static, allowed); err != nil {
-		return err
-	}
-	return nil
 }
 
 // updateStatic updates the static topology, if necessary, and calls the corresponding callbacks.
