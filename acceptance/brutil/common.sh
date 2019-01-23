@@ -11,6 +11,11 @@ DEVINFO_FN=${TEST_ARTIFACTS_DIR}/devinfo.txt
 # Each test should have its own set_veths function for specific setup
 test_setup() {
     set -e
+
+    local disp_dir="/run/shm/dispatcher"
+    [ -d "$disp_dir" ] || mkdir "$disp_dir"
+    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
+
     sudo -p "Setup docker containers and virtual interfaces - [sudo] password for %p: " true
     # Bring up the dispatcher container and add new veth interfaces
     # This approach currently works because the dispatcher binds to 0.0.0.0 address.

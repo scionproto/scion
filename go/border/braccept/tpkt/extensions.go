@@ -80,6 +80,7 @@ func (l *baseExtension) LengthBytes() int {
 	return int(l.Length) * common.LineLen
 }
 
+var _ LayerBuilder = (*ScionSCMPExtn)(nil)
 var _ LayerMatcher = (*ScionSCMPExtn)(nil)
 
 var LayerTypeScionHBHSCMP = gopacket.RegisterLayerType(
@@ -94,6 +95,17 @@ type ScionSCMPExtn struct {
 	layers.BaseLayer
 	baseExtension
 	scmp.Extn
+}
+
+func NewSCMPExtn(nh common.L4ProtocolType, ext scmp.Extn) *ScionSCMPExtn {
+	return &ScionSCMPExtn{
+		baseExtension: baseExtension{NextHdr: nh, Length: 1, Type: common.ExtnSCMPType.Type},
+		Extn:          ext,
+	}
+}
+
+func (l *ScionSCMPExtn) Build() ([]gopacket.SerializableLayer, error) {
+	return []gopacket.SerializableLayer{l}, nil
 }
 
 func (l *ScionSCMPExtn) Match(pktLayers []gopacket.Layer,

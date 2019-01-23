@@ -17,9 +17,11 @@ package tpkt
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/gopacket"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -95,4 +97,27 @@ func (l *PathMgmtPld) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopac
 			common.TypeOf(l.Instance), common.TypeOf(u))
 	}
 	return nil, nil
+}
+
+func MustSRevInfo(ifid int, iaStr, linkStr string, ts uint32, ttl int) *path_mgmt.SignedRevInfo {
+	ia, err := addr.IAFromString(iaStr)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to parse IA %s\n", iaStr))
+	}
+	lt := proto.LinkTypeFromString(linkStr)
+	if lt == 0 && linkStr != "unset" {
+		panic(fmt.Sprintf("Failed to parse Link Type %s\n", linkStr))
+	}
+	revInfo := &path_mgmt.RevInfo{
+		IfID:         common.IFIDType(ifid),
+		RawIsdas:     ia.IAInt(),
+		LinkType:     lt,
+		RawTimestamp: ts,
+		RawTTL:       uint32((time.Duration(ttl) * time.Second).Seconds()),
+	}
+	sRevInfo, err := path_mgmt.NewSignedRevInfo(revInfo, nil)
+	if err != nil {
+		panic("Failed to generate SRevInfo")
+	}
+	return sRevInfo
 }
