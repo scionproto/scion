@@ -276,6 +276,14 @@ func (t *Topo) Active(now time.Time) bool {
 		now.Before(t.Timestamp.Add(t.TTL)))
 }
 
+// Expiry returns the expiration time of the topology. If TTL is zero, the zero value is returned.
+func (t *Topo) Expiry() time.Time {
+	if t.TTL == 0 {
+		return time.Time{}
+	}
+	return t.Timestamp.Add(t.TTL)
+}
+
 func (t *Topo) GetTopoAddrs(id string, svc proto.ServiceType) (*TopoAddr, error) {
 	svcInfo, err := t.GetSvcInfo(svc)
 	if err != nil {
