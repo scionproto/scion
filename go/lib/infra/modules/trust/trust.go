@@ -672,16 +672,8 @@ func (store *Store) NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer {
 	return NewBasicSigner(s, key)
 }
 
-func (store *Store) NullSigner() ctrl.Signer {
-	return NullSigner
-}
-
 func (store *Store) NewSigVerifier() ctrl.SigVerifier {
 	return NewBasicSigVerifier(store)
-}
-
-func (store *Store) NullSigVerifier() ctrl.SigVerifier {
-	return NullSigVerifier
 }
 
 // wrapErr build a dedupe.Response object containing nil data and error err.

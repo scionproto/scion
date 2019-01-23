@@ -93,24 +93,10 @@ func VerifyChain(subject addr.IA, chain *cert.Chain, store infra.TrustStore) err
 func GetChainForSign(ctx context.Context, s *ctrl.SignSrcDef,
 	tStore infra.TrustStore) (*cert.Chain, error) {
 
-	t, err := tStore.GetTRC(ctx, s.IA.I, s.TRCVer)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to get TRC", err)
-	}
 	c, err := tStore.GetChain(ctx, s.IA, s.ChainVer)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to get certificate chain", err)
+		return nil, err
 	}
-	maxTRC, err := tStore.GetValidTRC(ctx, t.ISD, nil)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to get maxTRC", err)
-	}
-	if err := t.IsActive(maxTRC); err != nil {
-		// The certificate chain might still be verifiable with the max TRC
-		t = maxTRC
-	}
-	if err := c.Verify(c.Leaf.Subject, t); err != nil {
-		return nil, common.NewBasicError("Unable to verify certificate chain", err)
-	}
-	return c, nil
+	err = VerifyChain(s.IA, c, tStore)
+	return c, err
 }

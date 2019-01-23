@@ -248,7 +248,28 @@ type TrustStore interface {
 
 type MsgVerificationFactory interface {
 	NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer
-	NullSigner() ctrl.Signer
 	NewSigVerifier() ctrl.SigVerifier
-	NullSigVerifier() ctrl.SigVerifier
+}
+
+var (
+	// NullSigner is a Signer that creates SignedPld's with no signature.
+	NullSigner ctrl.Signer = &nullSigner{}
+	// NullSigVerifier ignores signatures on all messages.
+	NullSigVerifier ctrl.SigVerifier = &nullSigVerifier{}
+)
+
+var _ ctrl.Signer = (*nullSigner)(nil)
+
+type nullSigner struct{}
+
+func (*nullSigner) Sign(pld *ctrl.Pld) (*ctrl.SignedPld, error) {
+	return ctrl.NewSignedPld(pld, nil, nil)
+}
+
+var _ ctrl.SigVerifier = (*nullSigVerifier)(nil)
+
+type nullSigVerifier struct{}
+
+func (*nullSigVerifier) Verify(context.Context, *ctrl.SignedPld) error {
+	return nil
 }

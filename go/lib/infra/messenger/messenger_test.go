@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet/rpt"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -91,8 +90,7 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *messenger.Mes
 	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, messenger.DefaultAdapter, log.New("name", name))
 	config := &messenger.Config{DisableSignatureVerification: true}
-	ts, _ := trust.NewStore(nil, addr.IA{}, nil, nil)
-	return messenger.New(ia, dispatcher, ts, log.Root().New("name", name), config)
+	return messenger.New(ia, dispatcher, nil, log.Root().New("name", name), config)
 }
 
 func TestMain(m *testing.M) {

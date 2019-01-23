@@ -19,7 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
@@ -263,8 +263,8 @@ func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 	revBsScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "BS",
 		nil, common.L4UDP)
 	revPld := &tpkt.PathMgmtPld{
-		Signer:      ctrl.NullSigner,
-		SigVerifier: ctrl.NullSigVerifier,
+		Signer:      infra.NullSigner,
+		SigVerifier: infra.NullSigVerifier,
 		Instance:    sRevInfo,
 	}
 

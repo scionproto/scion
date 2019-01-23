@@ -31,13 +31,6 @@ const (
 	SignatureValidity = 2 * time.Second
 )
 
-var (
-	// NullSigner is a Signer that creates SignedPld's with no signature.
-	NullSigner ctrl.Signer = NewBasicSigner(nil, nil)
-	// NullSigVerifier ignores signatures on all messages.
-	NullSigVerifier ctrl.SigVerifier = &nullSigVerifier{}
-)
-
 var _ ctrl.Signer = (*BasicSigner)(nil)
 
 // BasicSigner is a simple implementation of Signer.
@@ -126,12 +119,4 @@ func (v *BasicSigVerifier) getVerifyKeyForSign(ctx context.Context,
 		return nil, err
 	}
 	return chain.Leaf.SubjectSignKey, nil
-}
-
-var _ ctrl.SigVerifier = (*nullSigVerifier)(nil)
-
-type nullSigVerifier struct{}
-
-func (_ *nullSigVerifier) Verify(_ context.Context, p *ctrl.SignedPld) error {
-	return nil
 }
