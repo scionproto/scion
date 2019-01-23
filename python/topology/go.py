@@ -33,6 +33,7 @@ from topology.common import (
     prom_addr_br,
     prom_addr_infra,
     prom_addr_sciond,
+    prom_addr_dispatcher,
     PS_CONFIG_NAME,
     sciond_name,
     SD_CONFIG_NAME,
@@ -199,17 +200,19 @@ class GoGenerator(object):
             for elem in ["disp", "disp_br"]:
                 elem = "%s_%s" % (elem, topo_id.file_fmt())
                 elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
-                disp_conf = self._build_disp_conf(elem)
+                disp_conf = self._build_disp_conf(elem, topo_id)
                 write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
 
-    def _build_disp_conf(self, name):
+    def _build_disp_conf(self, name, topo_id=None):
+        prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
+                                               self.args.networks, DISP_PROM_PORT, name)
         return {
             'dispatcher': {
                 'ID': name,
             },
             'logging': self._log_entry("dispatcher"),
             'metrics': {
-                'Prometheus': '127.0.0.1:%d' % DISP_PROM_PORT,
+                'Prometheus': prometheus_addr,
             },
         }
 
