@@ -46,7 +46,7 @@ func TestGeneralValidatorImmutable(t *testing.T) {
 	})
 }
 
-func testGenImmutable(v validator, topo, oldTopo *topology.Topo, t *testing.T) {
+func testGenImmutable(v internalValidator, topo, oldTopo *topology.Topo, t *testing.T) {
 	t.Helper()
 	Convey("Updating the IA is not allowed", func() {
 		topo.ISD_AS.I = 0
