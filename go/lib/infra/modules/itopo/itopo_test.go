@@ -19,47 +19,56 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/proto"
 )
 
-func TestSetStatic(t *testing.T) {
-	Convey("When itopo is initialized with no specific element", t, func() {
-		staticTopo = nil
+func TestInit(t *testing.T) {
+	Convey("Initializing itopo twice should panic", t, func() {
+		SoMsg("first", func() { Init(0, Clbks{}) }, ShouldNotPanic)
+		SoMsg("second", func() { Init(0, Clbks{}) }, ShouldPanic)
+	})
+}
+
+func TestStateSetStatic(t *testing.T) {
+	Convey("When state is initialized with no specific element", t, func() {
 		called := clbkCalled{}
-		err := Init(loadTopo(fn, t), called.clbks())
-		SoMsg("err", err, ShouldBeNil)
-		dynamicTopo = staticTopo
+		s := newState(proto.ServiceType_unset, called.clbks())
+		s.topo.static = loadTopo(fn, t)
+		// Set dynamic such that drop dynamic might possibly be called.
+		s.topo.dynamic = loadTopo(fn, t)
 		topo := loadTopo(fn, t)
 		Convey("Calling with modified topo should succeed", func() {
 			ifinfo := topo.IFInfoMap[1]
 			ifinfo.MTU = 42
 			topo.IFInfoMap[1] = ifinfo
-			newTopo, updated, err := SetStatic(topo, true)
+			newTopo, updated, err := s.setStatic(topo, true)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
 			SoMsg("topo", newTopo, ShouldEqual, topo)
 			called.check(false, false, true)
 		})
-		testNilTopo(&called, t)
-		testNoModified(&called, t)
+		testNilTopo(s, &called, t)
+		testNoModified(s, &called, t)
 	})
 }
 
-func testNilTopo(called *clbkCalled, t *testing.T) {
+func testNilTopo(s *state, called *clbkCalled, t *testing.T) {
 	Convey("Calling with nil topo should fail", func() {
-		_, updated, err := SetStatic(nil, true)
+		_, updated, err := s.setStatic(nil, true)
 		SoMsg("err", err, ShouldNotBeNil)
 		SoMsg("updated", updated, ShouldBeFalse)
 		called.check(false, false, false)
 	})
 }
 
-func testNoModified(called *clbkCalled, t *testing.T) {
+func testNoModified(s *state, called *clbkCalled, t *testing.T) {
 	t.Helper()
 	Convey("Calling with non-modified topo should succeed", func() {
 		topo := loadTopo(fn, t)
 		Convey("No update without time changes", func() {
-			prevTopo := staticTopo
-			newTopo, updated, err := SetStatic(topo, true)
+			prevTopo := s.topo.static
+			newTopo, updated, err := s.setStatic(topo, true)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
 			SoMsg("topo", newTopo, ShouldEqual, prevTopo)
@@ -68,8 +77,8 @@ func testNoModified(called *clbkCalled, t *testing.T) {
 		Convey("No update if expires earlier", func() {
 			topo.Timestamp = topo.Timestamp.Add(time.Second)
 			topo.TTL -= 2 * time.Second
-			prevTopo := staticTopo
-			newTopo, updated, err := SetStatic(topo, true)
+			prevTopo := s.topo.static
+			newTopo, updated, err := s.setStatic(topo, true)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
 			SoMsg("topo", newTopo, ShouldEqual, prevTopo)
@@ -77,7 +86,7 @@ func testNoModified(called *clbkCalled, t *testing.T) {
 		})
 		Convey("Update if expires later", func() {
 			topo.Timestamp = topo.Timestamp.Add(time.Second)
-			newTopo, updated, err := SetStatic(topo, true)
+			newTopo, updated, err := s.setStatic(topo, true)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
 			SoMsg("topo", newTopo, ShouldEqual, topo)
@@ -100,8 +109,8 @@ func (c *clbkCalled) check(clean, drop, update bool) {
 	SoMsg("clbk update", c.update, ShouldEqual, update)
 }
 
-func (c *clbkCalled) clbks() *Clbks {
-	return &Clbks{
+func (c *clbkCalled) clbks() Clbks {
+	return Clbks{
 		CleanDynamic: func() { c.clean = true },
 		DropDynamic:  func() { c.drop = true },
 		UpdateStatic: func() { c.update = true },
