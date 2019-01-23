@@ -113,6 +113,27 @@ def prom_addr_sciond(docker, topo_id, networks, port):
     return None
 
 
+def prom_addr_dispatcher(docker, topo_id, networks, port, name):
+    if not docker:
+        return "[127.0.0.1]:%s" % port
+    if name.find('br') != -1:
+        ips = []
+        for i, net in enumerate(networks):
+            for prog, ip_net in networks[net].items():
+                if prog.find('ctrl') != -1 and prog.startswith("br" + str(topo_id.file_fmt())):
+                    # XXX(scrye): this is a workaround to make IP selection
+                    # deterministic. This should go away once
+                    # https://github.com/scionproto/scion/issues/2382 is fixed.
+                    ips.append(str(ip_net.ip))
+        return '[%s]:%s' % (max(ips), port)
+    else:
+        for i, net in enumerate(networks):
+            for prog, ip_net in networks[net].items():
+                if prog.startswith('disp') and prog.endswith(str(topo_id.file_fmt())):
+                    return '[%s]:%s' % (ip_net.ip, port)
+    return None
+
+
 def get_pub(topo_addr):
     pub = topo_addr.get('IPv6')
     if pub is not None:
