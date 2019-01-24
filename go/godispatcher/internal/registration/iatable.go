@@ -109,8 +109,6 @@ type iaTable struct {
 	ia      map[addr.IA]*Table
 	minPort int
 	maxPort int
-
-	scmpLock sync.RWMutex
 }
 
 func newIATable(minPort, maxPort int) *iaTable {
@@ -168,8 +166,8 @@ func (t *iaTable) LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) []int
 }
 
 func (t *iaTable) LookupID(ia addr.IA, id uint64) (interface{}, bool) {
-	t.scmpLock.RLock()
-	defer t.scmpLock.RUnlock()
+	t.mtx.RLock()
+	defer t.mtx.RUnlock()
 	if table, ok := t.ia[ia]; ok {
 		return table.LookupID(id)
 	}
@@ -200,7 +198,7 @@ func (r *iaTableReference) UDPAddr() *net.UDPAddr {
 }
 
 func (r *iaTableReference) RegisterID(id uint64) error {
-	r.table.scmpLock.Lock()
-	defer r.table.scmpLock.Unlock()
+	r.table.mtx.Lock()
+	defer r.table.mtx.Unlock()
 	return r.entryRef.RegisterID(id, r.value)
 }
