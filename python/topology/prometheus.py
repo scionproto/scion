@@ -31,6 +31,7 @@ from topology.common import (
     prom_addr_br,
     prom_addr_infra,
     prom_addr_sciond,
+    prom_addr_dispatcher,
 )
 
 PS_PROM_PORT = 30453
@@ -38,6 +39,7 @@ BS_PROM_PORT = 30452
 CS_PROM_PORT = 30454
 SCIOND_PROM_PORT = 30455
 SIG_PROM_PORT = 30456
+DISP_PROM_PORT = 30441
 DEFAULT_BR_PROM_PORT = 30442
 
 PROM_DC_FILE = "prom-dc.yml"
@@ -57,6 +59,7 @@ class PrometheusGenerator(object):
         "CertificateService": "cs.yml",
         "PathService": "ps.yml",
         "Sciond": "sd.yml",
+        "Dispatcher": "disp.yml",
     }
     JOB_NAMES = {
         "BorderRouters": "BR",
@@ -64,6 +67,7 @@ class PrometheusGenerator(object):
         "CertificateService": "CS",
         "PathService": "PS",
         "Sciond": "SD",
+        "Dispatcher": "dispatcher",
     }
 
     def __init__(self, args):
@@ -88,12 +92,19 @@ class PrometheusGenerator(object):
             for elem_id, elem in as_topo["CertificateService"].items():
                 prom_addr = prom_addr_infra(self.args.docker, elem_id, elem, CS_PROM_PORT)
                 ele_dict["CertificateService"].append(prom_addr)
+            if self.args.docker:
+                host_dispatcher = prom_addr_dispatcher(self.args.docker, topo_id,
+                                                       self.args.networks, DISP_PROM_PORT, "")
+                br_dispatcher = prom_addr_dispatcher(self.args.docker, topo_id,
+                                                     self.args.networks, DISP_PROM_PORT, "br")
+                ele_dict["Dispatcher"] = [host_dispatcher, br_dispatcher]
             sd_prom_addr = prom_addr_sciond(self.args.docker, topo_id,
                                             self.args.networks, SCIOND_PROM_PORT)
             ele_dict["Sciond"].append(sd_prom_addr)
             config_dict[topo_id] = ele_dict
         self._write_config_files(config_dict)
         self._write_dc_file()
+        self._write_disp_file()
 
     def _write_config_files(self, config_dict):
         targets_paths = defaultdict(list)
@@ -107,6 +118,8 @@ class PrometheusGenerator(object):
                 as_local_targets_path[self.JOB_NAMES[ele_type]] = [local_path]
                 self._write_target_file(base, target_list, ele_type)
             self._write_config_file(os.path.join(base, PROM_FILE), as_local_targets_path)
+        if not self.args.docker:
+            targets_paths["dispatcher"] = [os.path.join("dispatcher", "prometheus", "disp.yml")]
         self._write_config_file(os.path.join(self.args.output_dir, PROM_FILE), targets_paths)
 
     def _write_config_file(self, config_path, job_dict):
@@ -131,6 +144,15 @@ class PrometheusGenerator(object):
     def _write_target_file(self, base_path, target_addrs, ele_type):
         targets_path = os.path.join(base_path, self.PROM_DIR, self.TARGET_FILES[ele_type])
         target_config = [{'targets': target_addrs}]
+        write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
+
+    def _write_disp_file(self):
+        if self.args.docker:
+            return
+        targets_path = os.path.join(self.args.output_dir, "dispatcher",
+                                    PrometheusGenerator.PROM_DIR, "disp.yml")
+        target_config = [{'targets': [prom_addr_dispatcher(False, None, None,
+                                                           DISP_PROM_PORT, None)]}]
         write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
 
     def _write_dc_file(self):

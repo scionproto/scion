@@ -263,9 +263,11 @@ class DockerGenerator(object):
     def _br_dispatcher(self, entry, topo_id, topo, base):
         # Create dispatcher for BR Ctrl Port
         for k in topo.get("BorderRouters", {}):
-            ctrl_net = self.elem_networks[k + "_ctrl"][0]
-            ctrl_ip = str(ctrl_net['ipv4'])
-            entry['networks'][self.bridges[ctrl_net['net']]] = {'ipv4_address': ctrl_ip}
+            if k.endswith('-1'):
+                ctrl_net = self.elem_networks[k + "_ctrl"][0]
+                ctrl_ip = str(ctrl_net['ipv4'])
+                break
+        entry['networks'][self.bridges[ctrl_net['net']]] = {'ipv4_address': ctrl_ip}
         entry['container_name'] = '%sdisp_br_%s' % (self.prefix, topo_id.file_fmt())
         vol = 'vol_%sdisp_br_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
         entry['volumes'].append(vol)

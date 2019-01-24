@@ -113,6 +113,22 @@ def prom_addr_sciond(docker, topo_id, networks, port):
     return None
 
 
+def prom_addr_dispatcher(docker, topo_id, networks, port, name):
+    if not docker:
+        return "[127.0.0.1]:%s" % port
+    if name == 'br':
+        br_name = 'br%s-1_ctrl' % topo_id.file_fmt()
+        for i, net in enumerate(networks):
+            if br_name in networks[net]:
+                return '[%s]:%s' % (networks[net][br_name].ip, port)
+    else:
+        disp_name = 'disp%s' % topo_id.file_fmt()
+        for i, net in enumerate(networks):
+            if disp_name in networks[net]:
+                return '[%s]:%s' % (networks[net][disp_name].ip, port)
+    return None
+
+
 def get_pub(topo_addr):
     pub = topo_addr.get('IPv6')
     if pub is not None:
