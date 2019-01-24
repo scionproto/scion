@@ -90,16 +90,28 @@ func NewInfo(ifID common.IFIDType, active bool, srev *path_mgmt.SignedRevInfo,
 	return i
 }
 
+func (i *Info) String() string {
+	desc := fmt.Sprintf("IfID: %v, Active: %v", i.IfID, i.Active)
+	if i.SRevInfo != nil {
+		desc += fmt.Sprintf(", SRevInfo: %s", i.SRevInfo)
+	}
+	return desc
+}
+
 // Process processes Interface State updates from the beacon service.
 func Process(ifStates *path_mgmt.IFStateInfos) {
 	for _, info := range ifStates.Infos {
 		var rawSRev common.RawBytes
 		ifid := common.IFIDType(info.IfID)
-		if info.SRevInfo != nil {
+		if !info.Active {
+			if info.SRevInfo == nil {
+				log.Warn("IFState: Ignoring intf deactivated without a Revocation", "info", info)
+				return
+			}
 			var err error
 			rawSRev, err = proto.PackRoot(info.SRevInfo)
 			if err != nil {
-				log.Error("Unable to pack SRevInfo", "err", err)
+				log.Error("IFState: Unable to pack SRevInfo", "err", err)
 				return
 			}
 		}
@@ -121,6 +133,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 				log.Info("IFState: intf deactivated", "ifid", ifid)
 			}
 		}
+		log.Debug("IFState:", "info", stateInfo)
 		atomic.StorePointer(&s.info, unsafe.Pointer(stateInfo))
 	}
 }
