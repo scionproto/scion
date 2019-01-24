@@ -39,7 +39,7 @@ BS_PROM_PORT = 30452
 CS_PROM_PORT = 30454
 SCIOND_PROM_PORT = 30455
 SIG_PROM_PORT = 30456
-DISP_PROM_PORT = 30446
+DISP_PROM_PORT = 30441
 DEFAULT_BR_PROM_PORT = 30442
 
 PROM_DC_FILE = "prom-dc.yml"
@@ -92,11 +92,12 @@ class PrometheusGenerator(object):
             for elem_id, elem in as_topo["CertificateService"].items():
                 prom_addr = prom_addr_infra(self.args.docker, elem_id, elem, CS_PROM_PORT)
                 ele_dict["CertificateService"].append(prom_addr)
-            host_dispatcher = prom_addr_dispatcher(self.args.docker, topo_id,
-                                                   self.args.networks, DISP_PROM_PORT, "")
-            br_dispatcher = prom_addr_dispatcher(self.args.docker, topo_id,
-                                                 self.args.networks, DISP_PROM_PORT, "br")
-            ele_dict["Dispatcher"] = [host_dispatcher, br_dispatcher]
+            if self.args.docker:
+                host_dispatcher = prom_addr_dispatcher(self.args.docker, topo_id,
+                                                       self.args.networks, DISP_PROM_PORT, "")
+                br_dispatcher = prom_addr_dispatcher(self.args.docker, topo_id,
+                                                     self.args.networks, DISP_PROM_PORT, "br")
+                ele_dict["Dispatcher"] = [host_dispatcher, br_dispatcher]
             sd_prom_addr = prom_addr_sciond(self.args.docker, topo_id,
                                             self.args.networks, SCIOND_PROM_PORT)
             ele_dict["Sciond"].append(sd_prom_addr)
@@ -150,7 +151,8 @@ class PrometheusGenerator(object):
             return
         targets_path = os.path.join(self.args.output_dir, "dispatcher",
                                     PrometheusGenerator.PROM_DIR, "disp.yml")
-        target_config = [{'targets': ['[127.0.0.1]:%d' % DISP_PROM_PORT]}]
+        target_config = [{'targets': [prom_addr_dispatcher(False, None, None,
+                                                           DISP_PROM_PORT, None)]}]
         write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
 
     def _write_dc_file(self):
