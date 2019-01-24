@@ -11,9 +11,8 @@ for test in ./acceptance/*_acceptance; do
             RUN_HOST=y
         fi
     done
-
-    echo "- label: Acceptance - $name"
     if [ "$RUN_HOST" = "y" ]; then
+        echo "- label: Acceptance - $name"
         echo "  env:"
         echo "    ACCEPTANCE_ARTIFACTS: \$SCION_MOUNT/logs/acceptance"
         echo "    DOCKER_ARGS: \"-e ACCEPTANCE_ARTIFACTS=logs/acceptance --privileged --network=host -h $HOSTNAME\""
