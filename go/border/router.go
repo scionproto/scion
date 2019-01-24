@@ -134,6 +134,8 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		return
 	}
 	if !valid {
+		// The packet is "valid" but should be discarded, ie. filtering hook
+		rp.Error("Discarded packet", "pkt", rp)
 		return
 	}
 	// Check if the packet needs to be processed locally, and if so register
@@ -156,6 +158,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		return
 	}
 	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
+	rp.Debug("Route packet", "pkt", rp)
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
 	}
