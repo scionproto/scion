@@ -61,7 +61,7 @@ func setup() error {
 	if err := env.InitGeneral(&cfg.General); err != nil {
 		return common.NewBasicError("Unable to initialize General config", err)
 	}
-	itopo.Init(proto.ServiceType_cs, itopo.Clbks{})
+	itopo.Init(proto.ServiceType_cs, itopo.Callbacks{})
 	if _, _, err := itopo.SetStatic(cfg.General.Topology, false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
