@@ -25,8 +25,8 @@ import (
 
 func TestInit(t *testing.T) {
 	Convey("Initializing itopo twice should panic", t, func() {
-		SoMsg("first", func() { Init(0, Clbks{}) }, ShouldNotPanic)
-		SoMsg("second", func() { Init(0, Clbks{}) }, ShouldPanic)
+		SoMsg("first", func() { Init(0, Callbacks{}) }, ShouldNotPanic)
+		SoMsg("second", func() { Init(0, Callbacks{}) }, ShouldPanic)
 	})
 }
 
@@ -109,8 +109,8 @@ func (c *clbkCalled) check(clean, drop, update bool) {
 	SoMsg("clbk update", c.update, ShouldEqual, update)
 }
 
-func (c *clbkCalled) clbks() Clbks {
-	return Clbks{
+func (c *clbkCalled) clbks() Callbacks {
+	return Callbacks{
 		CleanDynamic: func() { c.clean = true },
 		DropDynamic:  func() { c.drop = true },
 		UpdateStatic: func() { c.update = true },

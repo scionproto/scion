@@ -32,8 +32,8 @@ var s struct {
 	state *state
 }
 
-// Clbks are callbacks to respond to specific topology update events.
-type Clbks struct {
+// Callbacks are callbacks to respond to specific topology update events.
+type Callbacks struct {
 	// CleanDynamic is called whenever dynamic topology is dropped due to expiration.
 	CleanDynamic func()
 	// DropDynamic is called whenever dynamic topology is dropped due to static update.
@@ -44,7 +44,7 @@ type Clbks struct {
 
 // Init initializes itopo with the particular validator. A topology must be
 // initialized by calling SetStatic.
-func Init(svc proto.ServiceType, clbks Clbks) {
+func Init(svc proto.ServiceType, clbks Callbacks) {
 	s.Lock()
 	defer s.Unlock()
 	if s.state != nil {
@@ -62,8 +62,9 @@ func Get() *topology.Topo {
 
 // SetStatic atomically sets the static topology. Whether semi-mutable fields are
 // allowed to change can be specified using semiMutAllowed. The returned
-// topology is a pointer to the currently active topology. It might differ from
-// the input topology. The second return value indicates whether the in-memory
+// topology is a pointer to the currently active topology at the end of the function call.
+// It might differ from the input topology (same contents as existing static,
+// or dynamic set and still valid). The second return value indicates whether the in-memory
 // copy of the static topology has been updated.
 func SetStatic(static *topology.Topo, semiMutAllowed bool) (*topology.Topo, bool, error) {
 	return s.state.setStatic(static, semiMutAllowed)
@@ -88,10 +89,10 @@ type state struct {
 	sync.RWMutex
 	topo      topo
 	validator validator
-	clbks     Clbks
+	clbks     Callbacks
 }
 
-func newState(svc proto.ServiceType, clbks Clbks) *state {
+func newState(svc proto.ServiceType, clbks Callbacks) *state {
 	s := &state{
 		validator: validatorFactory(svc),
 		clbks:     clbks,
@@ -112,7 +113,7 @@ func (s *state) setStatic(static *topology.Topo, allowed bool) (*topology.Topo, 
 
 // updateStatic updates the static topology, if necessary, and calls the corresponding callbacks.
 func (s *state) updateStatic(static *topology.Topo) bool {
-	// Only update static topology if the new one is different or longer valid for.
+	// Only update static topology if the new one is different or valid for longer.
 	if cmp.Equal(static, s.topo.static, cmpopts.IgnoreFields(topology.Topo{},
 		"Timestamp", "TimestampHuman", "TTL")) && !expiresLater(static, s.topo.static) {
 		return false

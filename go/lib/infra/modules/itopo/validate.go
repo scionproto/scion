@@ -47,7 +47,7 @@ func validatorFactory(svc proto.ServiceType) validator {
 	}
 }
 
-// validatorWrap wraps the internalValidator and only exposes Validate and MustDropDynamic.
+// validatorWrap wraps the internalValidator and implements validator.
 type validatorWrap struct {
 	internalValidator
 }
@@ -72,7 +72,7 @@ type internalValidator interface {
 	// specific to the validator. However, at the very least, this check ensures that the
 	// provided topology is non-nil.
 	General(topo *topology.Topo) error
-	// Immutable checks that the immutable parts of the topology update are valid.
+	// Immutable checks that the immutable parts of the topology do not change.
 	Immutable(topo, oldTopo *topology.Topo) error
 	// SemiMutable checks that the semi-mutable parts of the topology update are valid.
 	SemiMutable(topo, oldTopo *topology.Topo, allowed bool) error
