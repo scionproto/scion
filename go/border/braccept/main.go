@@ -276,6 +276,7 @@ func sendPkt(pkt *tpkt.Pkt, to bool) error {
 func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
 	timerCh := time.After(timeout)
+	log.Info("Setting in seconds:", "timeout", timeout)
 	// Add timeout channel as the last select case.
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
 	expPkts := append([]*tpkt.ExpPkt(nil), t.Out...)
@@ -290,6 +291,8 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 		}
 		if idx == timerIdx {
 			// Timeout receiving packets
+			to := pktV.Interface().(time.Time)
+			log.Info("Expired", "timeout", to)
 			if len(expPkts) > 0 {
 				errStr = append(errStr, fmt.Sprintf("Timeout receiving packets"))
 			}
