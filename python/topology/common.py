@@ -116,7 +116,6 @@ def prom_addr_sciond(docker, topo_id, networks, port):
 def prom_addr_dispatcher(docker, topo_id, networks, port, name):
     if not docker:
         return "[127.0.0.1]:%s" % port
-    print(name)
     if name == 'br':
         ips = []
         br_name = 'br%s-1_ctrl' % topo_id.file_fmt()
