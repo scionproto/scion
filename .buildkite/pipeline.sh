@@ -39,6 +39,26 @@ if [ "$RUN_ALL_TESTS" = "y" ]; then
     #cat "$STEPS/docker-integration.yml"
     # acceptance testing
     "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
+    "$STEPS/acceptance"
 fi
 
 # deploy

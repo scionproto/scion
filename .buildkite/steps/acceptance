@@ -1,6 +1,7 @@
 #!/bin/bash
 
-host_acceptance="brA brB brC brD core_brA core_brB core_brC"
+#host_acceptance="brA brB brC brD core_brA core_brB core_brC"
+host_acceptance="brD"
 
 #for test in ./acceptance/*_acceptance; do
 for test in ./acceptance/*_acceptance; do
