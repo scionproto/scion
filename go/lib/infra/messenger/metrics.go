@@ -64,32 +64,6 @@ var (
 	resultsTotal *prometheus.CounterVec
 	latency      *prometheus.HistogramVec
 
-	allOps = []promOp{
-		promOpSendAck,
-		promOpGetTRC,
-		promOpSendTRC,
-		promOpGetCrtChain,
-		promOpSendCrtChain,
-		promOpSendIfId,
-		promOpSendIfStateInfo,
-		promOpSendSeg,
-		promOpGetSegs,
-		promOpSendSegReply,
-		promOpSendSegSync,
-		promOpGetSegChangesId,
-		promOpSendSegChangesIdReply,
-		promOpGetSegChanges,
-		promOpSendSegChanges,
-		promOpRequestChainIssue,
-		promOpSendChainIssue,
-	}
-
-	allResults = []string{
-		prom.ResultOk,
-		prom.ErrTimeout,
-		prom.ErrNotClassified,
-	}
-
 	initMetricsOnce sync.Once
 )
 
@@ -113,65 +87,37 @@ func initMetrics() {
 func WithMetrics(msger infra.Messenger) infra.Messenger {
 	initMetrics()
 	return &metricsMsger{
-		msger: msger,
-		metrics: &metrics{
-			opCounters: opCounters(),
-			results:    resultCounters(),
-		},
+		msger:   msger,
+		metrics: &metrics{},
 	}
-}
-
-func opCounters() map[promOp]prometheus.Counter {
-	opCounters := make(map[promOp]prometheus.Counter)
-	for _, op := range allOps {
-		opCounters[op] = callsTotal.With(prometheus.Labels{
-			prom.LabelOperation: string(op),
-		})
-	}
-	return opCounters
-}
-
-func resultCounters() map[promOp]map[string]prometheus.Counter {
-	results := make(map[promOp]map[string]prometheus.Counter)
-	for _, op := range allOps {
-		results[op] = make(map[string]prometheus.Counter)
-		for _, res := range allResults {
-			results[op][res] = resultsTotal.With(prometheus.Labels{
-				prom.LabelOperation: string(op),
-				prom.LabelResult:    res,
-			})
-		}
-	}
-	return results
 }
 
 type metrics struct {
-	opCounters map[promOp]prometheus.Counter
-	results    map[promOp]map[string]prometheus.Counter
 }
 
 func (m *metrics) startOp(op promOp) opMetrics {
-	m.opCounters[op].Inc()
+	callsTotal.With(prometheus.Labels{
+		prom.LabelOperation: string(op),
+	}).Inc()
 	return opMetrics{
-		op:        op,
-		resultMap: m.results[op],
-		begin:     time.Now(),
+		op:    op,
+		begin: time.Now(),
 	}
 }
 
 type opMetrics struct {
-	op        promOp
-	resultMap map[string]prometheus.Counter
-	begin     time.Time
+	op    promOp
+	begin time.Time
 }
 
 func (m *opMetrics) observeResult(err error) {
 	resLabel := errorToResultLabel(err)
-	latency.With(prometheus.Labels{
+	resLabels := prometheus.Labels{
 		prom.LabelOperation: string(m.op),
 		prom.LabelResult:    resLabel,
-	}).Observe(time.Since(m.begin).Seconds())
-	m.resultMap[resLabel].Inc()
+	}
+	latency.With(resLabels).Observe(time.Since(m.begin).Seconds())
+	resultsTotal.With(resLabels).Inc()
 }
 
 func errorToResultLabel(err error) string {
