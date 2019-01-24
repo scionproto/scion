@@ -117,12 +117,10 @@ def prom_addr_dispatcher(docker, topo_id, networks, port, name):
     if not docker:
         return "[127.0.0.1]:%s" % port
     if name == 'br':
-        ips = []
         br_name = 'br%s-1_ctrl' % topo_id.file_fmt()
         for i, net in enumerate(networks):
             if br_name in networks[net]:
                 return '[%s]:%s' % (networks[net][br_name].ip, port)
-        return '[%s]:%s' % (max(ips), port)
     else:
         disp_name = 'disp%s' % topo_id.file_fmt()
         for i, net in enumerate(networks):
