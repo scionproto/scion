@@ -49,7 +49,8 @@ type ifInfo struct {
 const (
 	snapshot_len int32         = 1024
 	promiscuous  bool          = true
-	timeout      time.Duration = 250 * time.Millisecond
+	recvTimeout  time.Duration = 250 * time.Millisecond
+	sendTimeout  time.Duration = 1 * time.Millisecond
 )
 
 var (
@@ -264,7 +265,7 @@ func sendPkt(pkt *tpkt.Pkt, to bool) error {
 		return err
 	}
 	if to {
-		defer time.Sleep(timeout)
+		defer time.Sleep(sendTimeout)
 	}
 	log.Info("Sending packet")
 	return devInfo.handle.WritePacketData(raw)
@@ -278,11 +279,11 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
 	var timerCh <-chan time.Time
 	if len(t.Out) > 1 {
-		timerCh = time.After(2 * timeout)
+		timerCh = time.After(2 * recvTimeout)
 	} else {
-		timerCh = time.After(timeout)
+		timerCh = time.After(recvTimeout)
 	}
-	log.Info("Setting in seconds:", "now", time.Now(), "timeout", timeout)
+	log.Info("Setting in seconds:", "now", time.Now(), "timeout", recvTimeout)
 	// Add timeout channel as the last select case.
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
 	expPkts := append([]*tpkt.ExpPkt(nil), t.Out...)
