@@ -118,9 +118,9 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 		stateInfo := NewInfo(ifid, info.Active, info.SRevInfo, rawSRev)
 		s, ok := states.Load(ifid)
 		if !ok {
-			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
 			s = &state{info: unsafe.Pointer(stateInfo)}
 			states.Store(ifid, s)
+			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
 			continue
 		}
 		oldInfo := (*Info)(atomic.LoadPointer(&s.info))
