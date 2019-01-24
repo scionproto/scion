@@ -65,6 +65,7 @@ func genTestsBrA(hMac hash.Hash) []*BRTest {
 		},
 		// XXX should we check both segments have Peer flag set? currently not required
 		{
+			Go:   "I want version 1.11",
 			Desc: "Single IFID peer - Xover local/peer",
 			In: &tpkt.Pkt{
 				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
