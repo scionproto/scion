@@ -276,14 +276,14 @@ func sendPkt(pkt *tpkt.Pkt, to bool) error {
 func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
 	timerCh := time.After(timeout)
-	log.Info("Setting in seconds:", "timeout", timeout)
+	log.Info("Setting in seconds:", "now", time.Now(), "timeout", timeout)
 	// Add timeout channel as the last select case.
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
 	expPkts := append([]*tpkt.ExpPkt(nil), t.Out...)
 	var errStr []string
 	for {
 		idx, pktV, ok := reflect.Select(cases)
-		log.Info("After select")
+		log.Info("After select", "now", time.Now())
 		if !ok {
 			cases[idx].Chan = reflect.ValueOf(nil)
 			errStr = append(errStr, fmt.Sprintf("Unexpected interface %s/%s closed",
@@ -293,7 +293,7 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 		if idx == timerIdx {
 			// Timeout receiving packets
 			to := pktV.Interface().(time.Time)
-			log.Info("Expired", "timeout", to)
+			log.Info("Expired", "now", time.Now(), "timeout", to)
 			if len(expPkts) > 0 {
 				errStr = append(errStr, fmt.Sprintf("Timeout receiving packets"))
 			}
