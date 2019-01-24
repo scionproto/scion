@@ -21,7 +21,7 @@ cat "$STEPS/setup.yml"
 cat "$STEPS/build.yml"
 
 # Unit tests
-cat "$STEPS/test.yml"
+#cat "$STEPS/test.yml"
 
 # build images together with unit tests
 if [ "$RUN_ALL_TESTS" = "y" ]; then
@@ -29,15 +29,15 @@ if [ "$RUN_ALL_TESTS" = "y" ]; then
 fi
 
 # integration testing
-"$STEPS/integration"
+#"$STEPS/integration"
 
 # conditionally run more tests
 if [ "$RUN_ALL_TESTS" = "y" ]; then
     # docker integration testing
-    cat "$STEPS/docker-integration.yml"
+    #cat "$STEPS/docker-integration.yml"
     # acceptance testing
     "$STEPS/acceptance"
 fi
 
 # deploy
-cat "$STEPS/deploy.yml"
+#cat "$STEPS/deploy.yml"
