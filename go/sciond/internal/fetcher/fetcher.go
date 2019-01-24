@@ -75,7 +75,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 
 	handler := &fetcherHandler{
 		Fetcher:  f,
-		topology: itopo.GetCurrentTopology(),
+		topology: itopo.Get(),
 		logger:   logger,
 	}
 	return handler.GetPaths(ctx, req, earlyReplyInterval)

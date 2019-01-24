@@ -20,6 +20,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -66,6 +67,9 @@ var (
 	}
 	tmpDir string
 )
+
+// itopoOnce makes sure that itopo is only initialized once.
+var itopoOnce sync.Once
 
 func TestMain(m *testing.M) {
 	var cleanF func()
@@ -759,7 +763,11 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	topo := topology.NewTopo()
 	topotestutil.AddServer(topo, proto.ServiceType_cs, "foo",
 		topology.TestTopoAddr(nil, nil, nil, nil))
-	itopo.SetCurrentTopology(topo)
+	itopoOnce.Do(func() {
+		itopo.Init(proto.ServiceType_unset, itopo.Callbacks{})
+	})
+	_, _, err = itopo.SetStatic(topo, false)
+	xtest.FailOnErr(t, err)
 	store, err := NewStore(db, ia, &Config{}, log.Root())
 	xtest.FailOnErr(t, err)
 	// Enable fake network access for trust database

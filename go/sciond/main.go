@@ -172,7 +172,10 @@ func setup() error {
 	if err := env.InitGeneral(&cfg.General); err != nil {
 		return err
 	}
-	itopo.SetCurrentTopology(cfg.General.Topology)
+	itopo.Init(proto.ServiceType_unset, itopo.Callbacks{})
+	if _, _, err := itopo.SetStatic(cfg.General.Topology, false); err != nil {
+		return common.NewBasicError("Unable to set initial static topology", err)
+	}
 	environment = infraenv.InitInfraEnvironment(cfg.General.TopologyPath)
 	cfg.InitDefaults()
 	return cfg.SD.CreateSocketDirs()

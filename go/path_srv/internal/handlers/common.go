@@ -67,7 +67,7 @@ func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 		trustStore: args.TrustStore,
 		retryInt:   time.Second,
 		config:     args.Config,
-		topology:   itopo.GetCurrentTopology(),
+		topology:   itopo.Get(),
 	}
 }
 

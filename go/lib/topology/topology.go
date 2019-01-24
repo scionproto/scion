@@ -227,6 +227,9 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			}
 			t.IFInfoMap[ifid] = ifinfo
 		}
+		sort.Slice(brInfo.IFIDs, func(i, j int) bool {
+			return brInfo.IFIDs[i] < brInfo.IFIDs[j]
+		})
 		t.BR[name] = brInfo
 		t.BRNames = append(t.BRNames, name)
 	}
@@ -271,6 +274,14 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 func (t *Topo) Active(now time.Time) bool {
 	return !now.Before(t.Timestamp) && (t.TTL == 0 ||
 		now.Before(t.Timestamp.Add(t.TTL)))
+}
+
+// Expiry returns the expiration time of the topology. If TTL is zero, the zero value is returned.
+func (t *Topo) Expiry() time.Time {
+	if t.TTL == 0 {
+		return time.Time{}
+	}
+	return t.Timestamp.Add(t.TTL)
 }
 
 func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {

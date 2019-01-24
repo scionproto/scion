@@ -1,0 +1,41 @@
+{
+    "Timestamp": 168570123,
+    "TimestampHuman": "1975-05-06 01:02:03.000000+0000",
+    "TTL": 3600,
+    "ISD_AS": "1-ff00:0:311",
+    "MTU": 1472,
+    "Overlay": "IPv4+6",
+    "Core": false,
+    "BorderRouters": {
+        "br1-ff00:0:311-1": {
+            "InternalAddrs": {
+                "IPv4": {"PublicOverlay": {"Addr": "10.1.0.1"}},
+                "IPv6": {"PublicOverlay": {"Addr": "2001:db8:a0b:12f0::1"}}
+            },
+            "CtrlAddr": {
+                "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30098}},
+                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098}}
+            },
+            "Interfaces": {
+                "1": {
+                    "Overlay": "UDP/IPv4",
+                    "BindOverlay": {"Addr": "10.0.0.1"},
+                    "PublicOverlay": {"Addr": "192.0.2.1", "OverlayPort": 44997},
+                    "RemoteOverlay": {"Addr": "192.0.2.2", "OverlayPort": 44998},
+                    "Bandwidth": 1000,
+                    "ISD_AS": "1-ff00:0:312",
+                    "LinkTo": "PARENT",
+                    "MTU": 1472
+                }
+            }
+        }
+    },
+    "CertificateService": {
+        "cs1-ff00:0:311-1": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.66", "L4Port": 30081},
+                     "Bind": {"Addr": "127.0.0.67", "L4Port": 30081}}}
+        },
+        "cs1-ff00:0:311-2": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.67", "L4Port": 30073}}}}
+    }
+}

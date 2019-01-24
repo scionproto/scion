@@ -109,7 +109,7 @@ func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
 	var cPs net.Addr
 	// select a seg to reach the dst
 	for _, ps := range coreSegs {
-		cPs, err = addrutil.GetPath(addr.SvcPS, ps, ps.FirstIA(), itopo.GetCurrentTopology())
+		cPs, err = addrutil.GetPath(addr.SvcPS, ps, ps.FirstIA(), itopo.Get())
 		if err == nil {
 			return cPs, nil
 		}
