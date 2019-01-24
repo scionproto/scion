@@ -10,7 +10,7 @@ if [ -z "$RUN_ALL_TESTS" ]; then
     [ "$BUILDKITE_PULL_REQUEST" = "false" ] && export RUN_ALL_TESTS=y
 fi
 
-[ "$BUILDKITE_PULL_REQUEST" = "false" ] && export RUN_ALL_TESTS=y
+export RUN_ALL_TESTS=y
 
 # begin the pipeline.yml file
 "$BASE/common.sh"
