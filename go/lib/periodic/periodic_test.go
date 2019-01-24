@@ -106,3 +106,27 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 		r.Kill()
 	})
 }
+
+func TestTriggerNow(t *testing.T) {
+	Convey("TestTriggerNow", t, func() {
+		done := make(chan struct{})
+		cnt := 0
+		fn := taskFunc(func(ctx context.Context) {
+			cnt++
+			done <- struct{}{}
+		})
+		tickC := make(chan time.Time)
+		ticker := &testTicker{C: tickC}
+		r := StartPeriodicTask(fn, ticker, time.Microsecond)
+		r.TriggerRun()
+		xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
+		tickC <- time.Now()
+		xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
+		r.TriggerRun()
+		xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
+		r.Stop()
+		// check that a trigger after stop doesn't do anything.
+		r.TriggerRun()
+		SoMsg("Must have executed 3 times", cnt, ShouldEqual, 3)
+	})
+}
