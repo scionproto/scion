@@ -229,8 +229,8 @@ func (s *SCMP) compareHdr(o *SCMP, lc *LayerCache) error {
 		// The timestamp of the expected packet was not specified, likely because it is not know
 		// at the time of the test definition, ie. the BR generates this packet.
 		now := time.Now()
-		// XXX allow up to 2 seconds time difference
-		min := now.Add(-2 * time.Second)
+		// XXX allow up to 5 seconds time difference
+		min := now.Add(-5 * time.Second)
 		if actTS.After(now) || actTS.Before(min) {
 			return fmt.Errorf("SCMP timestamp check failed\nExpected between (%s, %s)\nActual   %s",
 				min.Format(timeFormat), now.Format(timeFormat), actTS.Format(timeFormat))
