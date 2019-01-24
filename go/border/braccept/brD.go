@@ -290,7 +290,7 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 	}
 
 	revLocalFork = &BRTest{
-		Desc: "Multiple IFIDs - Revocation received on parent ifid, fork to PS",
+		Desc: "Multiple IFIDs - Local ISD revocation on parent ifid, fork to PS and BS",
 		In: &tpkt.Pkt{
 			Dev: "ifid_171", Layers: []tpkt.LayerBuilder{
 				tpkt.GenOverlayIP4UDP("192.168.17.3", 40000, "192.168.17.2", 50000),

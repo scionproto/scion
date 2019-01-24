@@ -269,7 +269,7 @@ func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 	}
 
 	revLocalFork := &BRTest{
-		Desc: "Single IFID core - Revocation to local destination, fork to PS and BS",
+		Desc: "Single IFID core - Local ISD revocation, fork to PS and BS",
 		In: &tpkt.Pkt{
 			Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
 				tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
