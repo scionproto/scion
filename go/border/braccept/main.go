@@ -276,10 +276,11 @@ func sendPkt(pkt *tpkt.Pkt, to bool) error {
 // can check that only the expected packets were received.
 func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
+	var timerCh <-chan time.Time
 	if len(t.Out) > 1 {
-		timerCh := time.After(2 * timeout)
+		timerCh = time.After(2 * timeout)
 	} else {
-		timerCh := time.After(timeout)
+		timerCh = time.After(timeout)
 	}
 	log.Info("Setting in seconds:", "now", time.Now(), "timeout", timeout)
 	// Add timeout channel as the last select case.
