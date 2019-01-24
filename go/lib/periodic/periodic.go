@@ -16,6 +16,7 @@ package periodic
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
@@ -50,13 +51,16 @@ type Task interface {
 
 // Runner runs a task periodically.
 type Runner struct {
-	task    Task
-	ticker  Ticker
-	timeout time.Duration
-	stop    chan struct{}
-	stopped chan struct{}
-	ctx     context.Context
-	cancelF context.CancelFunc
+	mtx      sync.Mutex
+	task     Task
+	ticker   Ticker
+	timeout  time.Duration
+	stop     chan struct{}
+	stopped  chan struct{}
+	ctx      context.Context
+	cancelF  context.CancelFunc
+	trigger  chan struct{}
+	stoppedB bool
 }
 
 // StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
@@ -73,6 +77,7 @@ func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner 
 		stopped: make(chan struct{}),
 		ctx:     ctx,
 		cancelF: cancelF,
+		trigger: make(chan struct{}),
 	}
 	go func() {
 		defer log.LogPanicAndExit()
@@ -84,6 +89,9 @@ func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner 
 // Stop stops the peridioc execution of the Runner.
 // If the task is currently running this method will block until it is done.
 func (r *Runner) Stop() {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	r.stoppedB = true
 	r.ticker.Stop()
 	close(r.stop)
 	<-r.stopped
@@ -91,10 +99,27 @@ func (r *Runner) Stop() {
 
 // Kill is like stop but it also cancels the context of the current running method.
 func (r *Runner) Kill() {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	r.stoppedB = true
 	r.ticker.Stop()
 	close(r.stop)
 	r.cancelF()
 	<-r.stopped
+}
+
+// TriggerRun triggers the periodic task to run now.
+// This does not impact the normal periodicity of this task.
+// That means if the periodicity is 5m and you call TriggerNow() after 2 minutes,
+// the next execution will be in 3 minutes.
+//
+// If the task is currently running this function will block until the trigger was received.
+func (r *Runner) TriggerRun() {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	if !r.stoppedB {
+		r.trigger <- struct{}{}
+	}
 }
 
 func (r *Runner) runLoop() {
@@ -105,16 +130,22 @@ func (r *Runner) runLoop() {
 		case <-r.stop:
 			return
 		case <-r.ticker.Chan():
-			select {
-			// Make sure that stop case is evaluated first,
-			// so that when we kill and both channels are ready we always go into stop first.
-			case <-r.stop:
-				return
-			default:
-				ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
-				r.task.Run(ctx)
-				cancelF()
-			}
+			r.onTick()
+		case <-r.trigger:
+			r.onTick()
 		}
+	}
+}
+
+func (r *Runner) onTick() {
+	select {
+	// Make sure that stop case is evaluated first,
+	// so that when we kill and both channels are ready we always go into stop first.
+	case <-r.stop:
+		return
+	default:
+		ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
+		r.task.Run(ctx)
+		cancelF()
 	}
 }
