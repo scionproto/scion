@@ -27,10 +27,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var s struct {
-	sync.Mutex
-	state *state
-}
+var st *state
 
 // Callbacks are callbacks to respond to specific topology update events.
 type Callbacks struct {
@@ -45,19 +42,17 @@ type Callbacks struct {
 // Init initializes itopo with the particular validator. A topology must be
 // initialized by calling SetStatic.
 func Init(svc proto.ServiceType, clbks Callbacks) {
-	s.Lock()
-	defer s.Unlock()
-	if s.state != nil {
+	if st != nil {
 		panic("Must not re-initialize itopo")
 	}
-	s.state = newState(svc, clbks)
+	st = newState(svc, clbks)
 }
 
 // Get atomically gets the pointer to the current topology.
 func Get() *topology.Topo {
-	s.state.RLock()
-	defer s.state.RUnlock()
-	return s.state.topo.curr()
+	st.RLock()
+	defer st.RUnlock()
+	return st.topo.curr()
 }
 
 // SetStatic atomically sets the static topology. Whether semi-mutable fields are
@@ -67,7 +62,7 @@ func Get() *topology.Topo {
 // or dynamic set and still valid). The second return value indicates whether the in-memory
 // copy of the static topology has been updated.
 func SetStatic(static *topology.Topo, semiMutAllowed bool) (*topology.Topo, bool, error) {
-	return s.state.setStatic(static, semiMutAllowed)
+	return st.setStatic(static, semiMutAllowed)
 }
 
 // topo stores the currently active static and dynamic topologies.

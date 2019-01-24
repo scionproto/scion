@@ -23,10 +23,9 @@ For more information see lib/discovery.
 
 Initialization
 
-The package must be initialized with Init or InitSvc. In subsequent
-updates through SetStatic or SetDynamic, the new topology is checked
-whether it is compatible with the previous version. The rules differ
-between services.
+The package must be initialized with Init. In subsequent updates through
+SetStatic or SetDynamic, the new topology is checked whether it is
+compatible with the previous version. The rules differ between services.
 
 If the dynamic topology is set, the initializing client should start
 the periodic cleaner to evict expired dynamic topologies.

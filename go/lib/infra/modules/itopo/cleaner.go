@@ -33,12 +33,12 @@ type cleaner struct{}
 
 // Run deletes expired dynamic topologies and calls the dropFunc passed to Init.
 func (c cleaner) Run(ctx context.Context) {
-	s.state.Lock()
-	defer s.state.Unlock()
-	if s.state.topo.dynamic != nil && !s.state.topo.dynamic.Active(time.Now()) {
+	st.Lock()
+	defer st.Unlock()
+	if st.topo.dynamic != nil && !st.topo.dynamic.Active(time.Now()) {
 		log.Info("[itopo.Cleaner] Dropping expired dynamic topology",
-			"ts", s.state.topo.dynamic.Timestamp, "ttl", s.state.topo.dynamic.TTL,
-			"expired", s.state.topo.dynamic.Expiry())
-		call(s.state.clbks.DropDynamic)
+			"ts", st.topo.dynamic.Timestamp, "ttl", st.topo.dynamic.TTL,
+			"expired", st.topo.dynamic.Expiry())
+		call(st.clbks.DropDynamic)
 	}
 }
