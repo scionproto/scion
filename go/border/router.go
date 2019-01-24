@@ -77,7 +77,7 @@ func (r *Router) ReloadConfig() error {
 	if config, err = r.loadNewConfig(); err != nil {
 		return common.NewBasicError("Unable to load config", err)
 	}
-	if err := r.setupNewContext(config); err != nil {
+	if err := r.setupCtxFromConfig(config); err != nil {
 		return common.NewBasicError("Unable to set up new context", err)
 	}
 	return nil
