@@ -266,6 +266,7 @@ func sendPkt(pkt *tpkt.Pkt, to bool) error {
 	if to {
 		defer time.Sleep(timeout)
 	}
+	log.Info("Sending packet")
 	return devInfo.handle.WritePacketData(raw)
 }
 
