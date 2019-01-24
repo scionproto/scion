@@ -15,6 +15,8 @@
 package itopo
 
 import (
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -40,7 +42,7 @@ func validatorFactory(id string, svc proto.ServiceType) validator {
 		return &validatorWrap{&generalValidator{}}
 	case proto.ServiceType_br:
 		// FIXME(roosd): add validator for border router.
-		return &validatorWrap{&generalValidator{}}
+		return &validatorWrap{&brValidator{id: id}}
 	default:
 		// FIMXE(roosd): add validator for service.
 		return &validatorWrap{&svcValidator{id: id, svc: svc}}
@@ -158,4 +160,85 @@ func (v *svcValidator) Immutable(topo, oldTopo *topology.Topo) error {
 			"id", v.id, "svc", v.svc, "expected", oAddr, "actual", nAddr)
 	}
 	return nil
+}
+
+var _ internalValidator = (*brValidator)(nil)
+
+// brValidator is used to validate updates if the element is a border router.
+// It checks that the border router is present, and only permissible updates
+// are done.
+type brValidator struct {
+	generalValidator
+	id string
+}
+
+func (v *brValidator) General(topo *topology.Topo) error {
+	if err := v.generalValidator.General(topo); err != nil {
+		return err
+	}
+	if _, ok := topo.BR[v.id]; !ok {
+		return common.NewBasicError("Topo must contain border router", nil, "id", v.id)
+	}
+	return nil
+}
+
+func (v *brValidator) Immutable(topo, oldTopo *topology.Topo) error {
+	if oldTopo == nil {
+		return nil
+	}
+	if err := v.generalValidator.Immutable(topo, oldTopo); err != nil {
+		return err
+	}
+	if !topo.BR[v.id].InternalAddrs.Equal(oldTopo.BR[v.id].InternalAddrs) {
+		return common.NewBasicError("InternalAddrs is immutable", nil, "expected",
+			oldTopo.BR[v.id].InternalAddrs, "actual", topo.BR[v.id].InternalAddrs)
+	}
+	if !topo.BR[v.id].CtrlAddrs.Equal(oldTopo.BR[v.id].CtrlAddrs) {
+		return common.NewBasicError("CtrlAddrs is immutable", nil, "expected",
+			oldTopo.BR[v.id].CtrlAddrs, "actual", topo.BR[v.id].CtrlAddrs)
+	}
+	return nil
+}
+
+func (v *brValidator) SemiMutable(topo, oldTopo *topology.Topo, allowed bool) error {
+	if oldTopo == nil {
+		return nil
+	}
+	if !allowed && v.interfacesChanged(topo, oldTopo) {
+		return common.NewBasicError("IFID set changed", nil, "expected",
+			oldTopo.BR[v.id].IFIDs, "actual", topo.BR[v.id].IFIDs)
+	}
+	return nil
+}
+
+func (v *brValidator) MustDropDynamic(topo, oldTopo *topology.Topo) bool {
+	if oldTopo == nil {
+		return false
+	}
+	return v.interfacesChanged(topo, oldTopo)
+}
+
+func (v *brValidator) interfacesChanged(topo, oldTopo *topology.Topo) bool {
+	if v.interfaceSetChanged(topo, oldTopo) {
+		return true
+	}
+	for _, ifid := range topo.BR[v.id].IFIDs {
+		if !cmp.Equal(topo.IFInfoMap[ifid], oldTopo.IFInfoMap[ifid]) {
+			return true
+		}
+	}
+	return false
+}
+
+func (v *brValidator) interfaceSetChanged(topo, oldTopo *topology.Topo) bool {
+	if len(topo.BR[v.id].IFIDs) != len(oldTopo.BR[v.id].IFIDs) {
+		return true
+	}
+	// The interfaces are sorted.
+	for i, ifid := range topo.BR[v.id].IFIDs {
+		if ifid != oldTopo.BR[v.id].IFIDs[i] {
+			return true
+		}
+	}
+	return false
 }

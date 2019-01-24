@@ -31,8 +31,10 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type locSockOps interface {
@@ -71,8 +73,13 @@ func (r *Router) setup() error {
 	if conf, err = r.loadNewConfig(); err != nil {
 		return err
 	}
+	// Initialize itopo.
+	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{})
+	if _, _, err := itopo.SetStatic(conf.Topo, true); err != nil {
+		return err
+	}
 	// Setup new context.
-	if err = r.setupNewContext(conf); err != nil {
+	if err = r.setupCtxFromConfig(conf); err != nil {
 		return err
 	}
 	// Clear capabilities after setting up the network.
@@ -109,12 +116,32 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 	return config, nil
 }
 
+// setupCtxFromConfig sets up a new router context from the loaded config.
+// This method is called on initial start and when a sighup is received.
+func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
+	log.Debug("====> Setting up new context from config")
+	defer log.Debug("====> Done setting up new context from config")
+	// Set the static topology with new version from disk.
+	topo, _, err := itopo.SetStatic(config.Topo, true)
+	if err != nil {
+		return err
+	}
+	// Set config to used the appropriate topology.
+	newConf, err := brconf.WithNewTopo(r.Id, topo, config)
+	if err != nil {
+		return err
+	}
+	if err := r.setupNewContext(rctx.New(newConf)); err != nil {
+		// Make sure itopo is consistent with topo in rctx.
+		itopo.SetStatic(rctx.Get().Conf.Topo, true)
+		return err
+	}
+	return nil
+}
+
 // setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(config *brconf.Conf) error {
-	log.Debug("====> Setting up new context")
-	defer log.Debug("====> Done setting up new context")
+func (r *Router) setupNewContext(ctx *rctx.Ctx) error {
 	oldCtx := rctx.Get()
-	ctx := rctx.New(config)
 	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
 	sockConf := brconf.SockConf{Default: PosixSock}
 	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
