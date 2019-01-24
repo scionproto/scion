@@ -28,8 +28,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -40,7 +40,7 @@ var (
 	state       *config.State
 	environment *env.Env
 	reissRunner *periodic.Runner
-	msgr        *messenger.Messenger
+	msgr        infra.Messenger
 )
 
 func init() {

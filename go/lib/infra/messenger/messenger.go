@@ -169,8 +169,8 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 		ia:         ia,
 		config:     config,
 		dispatcher: dispatcher,
-		signer:     ctrl.NullSigner,
-		verifier:   ctrl.NullSigVerifier,
+		signer:     infra.NullSigner,
+		verifier:   infra.NullSigVerifier,
 		trustStore: store,
 		handlers:   make(map[infra.MessageType]infra.Handler),
 		closeChan:  make(chan struct{}),
@@ -731,7 +731,7 @@ func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
 func (m *Messenger) getRequester(reqT, respT infra.MessageType) *pathingRequester {
 	m.cryptoLock.RLock()
 	defer m.cryptoLock.RUnlock()
-	signer := ctrl.NullSigner
+	signer := infra.NullSigner
 	if _, ok := m.signMask[reqT]; ok {
 		signer = m.signer
 	}

@@ -19,8 +19,8 @@ import (
 
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 )
 
 var (
@@ -61,7 +61,7 @@ var (
 )
 
 var ifStateReq = &tpkt.PathMgmtPld{
-	Signer:      ctrl.NullSigner,
-	SigVerifier: ctrl.NullSigVerifier,
+	Signer:      infra.NullSigner,
+	SigVerifier: infra.NullSigVerifier,
 	Instance:    &path_mgmt.IFStateReq{},
 }

@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
@@ -221,6 +222,8 @@ type Messenger interface {
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
 		id uint64) error
+	UpdateSigner(signer ctrl.Signer, types []MessageType)
+	UpdateVerifier(verifier ctrl.SigVerifier)
 	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
 	CloseServer() error
@@ -240,4 +243,33 @@ type TrustStore interface {
 	NewTRCReqHandler(recurseAllowed bool) Handler
 	NewChainReqHandler(recurseAllowed bool) Handler
 	SetMessenger(msger Messenger)
+	MsgVerificationFactory
+}
+
+type MsgVerificationFactory interface {
+	NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer
+	NewSigVerifier() ctrl.SigVerifier
+}
+
+var (
+	// NullSigner is a Signer that creates SignedPld's with no signature.
+	NullSigner ctrl.Signer = &nullSigner{}
+	// NullSigVerifier ignores signatures on all messages.
+	NullSigVerifier ctrl.SigVerifier = &nullSigVerifier{}
+)
+
+var _ ctrl.Signer = (*nullSigner)(nil)
+
+type nullSigner struct{}
+
+func (*nullSigner) Sign(pld *ctrl.Pld) (*ctrl.SignedPld, error) {
+	return ctrl.NewSignedPld(pld, nil, nil)
+}
+
+var _ ctrl.SigVerifier = (*nullSigVerifier)(nil)
+
+type nullSigVerifier struct{}
+
+func (*nullSigVerifier) Verify(context.Context, *ctrl.SignedPld) error {
+	return nil
 }

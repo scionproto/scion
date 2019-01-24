@@ -21,9 +21,7 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -39,7 +37,7 @@ var _ periodic.Task = (*Self)(nil)
 // on an issuer AS before the old one expires.
 type Self struct {
 	// Msgr is used to propagate key updates to the messenger, and not for network traffic
-	Msgr     *messenger.Messenger
+	Msgr     infra.Messenger
 	State    *config.State
 	IA       addr.IA
 	IssTime  time.Duration
@@ -110,7 +108,7 @@ func (s *Self) createLeafCert(ctx context.Context, leaf *cert.Certificate) error
 	if err != nil {
 		log.Error("[reiss.Self] Unable to set create new sign", "err", err)
 	}
-	signer := ctrl.NewBasicSigner(sign, s.State.GetSigningKey())
+	signer := trust.NewBasicSigner(sign, s.State.GetSigningKey())
 	s.State.SetSigner(signer)
 	s.Msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueReply})
 	return nil

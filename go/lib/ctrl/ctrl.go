@@ -119,7 +119,7 @@ func (p *Pld) SignedPld(signer Signer) (*SignedPld, error) {
 }
 
 func (p *Pld) WritePld(b common.RawBytes) (int, error) {
-	sp, err := newSignedPld(p, nil, nil)
+	sp, err := NewSignedPld(p, nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -127,7 +127,7 @@ func (p *Pld) WritePld(b common.RawBytes) (int, error) {
 }
 
 func (p *Pld) PackPld() (common.RawBytes, error) {
-	sp, err := newSignedPld(p, nil, nil)
+	sp, err := NewSignedPld(p, nil, nil)
 	if err != nil {
 		return nil, err
 	}

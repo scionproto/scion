@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -120,7 +121,7 @@ func (h *Handler) validateSign(ctx context.Context, addr *snet.Addr,
 	if err != nil {
 		return nil, err
 	}
-	verChain, err := ctrl.GetChainForSign(ctx, src, h.State.Store)
+	verChain, err := trust.GetChainForSign(ctx, src, h.State.Store)
 	if err != nil {
 		return nil, err
 	}

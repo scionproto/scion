@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
@@ -665,6 +666,14 @@ func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.
 	}
 	a := &snet.Addr{IA: destination, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	return a, nil
+}
+
+func (store *Store) NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer {
+	return NewBasicSigner(s, key)
+}
+
+func (store *Store) NewSigVerifier() ctrl.SigVerifier {
+	return NewBasicSigVerifier(store)
 }
 
 // wrapErr build a dedupe.Response object containing nil data and error err.

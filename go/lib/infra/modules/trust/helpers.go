@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -88,4 +89,14 @@ func VerifyChain(subject addr.IA, chain *cert.Chain, store infra.TrustStore) err
 		}
 	}
 	return nil
+}
+
+func GetChainForSign(ctx context.Context, s *ctrl.SignSrcDef,
+	tStore infra.TrustStore) (*cert.Chain, error) {
+
+	c, err := tStore.GetChain(ctx, s.IA, s.ChainVer)
+	if err != nil {
+		return nil, err
+	}
+	return c, VerifyChain(s.IA, c, tStore)
 }

@@ -19,8 +19,8 @@ import (
 
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
@@ -229,8 +229,8 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 	revPsScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.104", "1-ff00:0:1", "PS",
 		nil, common.L4UDP)
 	revPsPld := &tpkt.PathMgmtPld{
-		Signer:      ctrl.NullSigner,
-		SigVerifier: ctrl.NullSigVerifier,
+		Signer:      infra.NullSigner,
+		SigVerifier: infra.NullSigVerifier,
 		Instance:    sRevInfo,
 	}
 
@@ -284,8 +284,8 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 	revBsScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.104", "1-ff00:0:1", "BS",
 		nil, common.L4UDP)
 	revPsPld = &tpkt.PathMgmtPld{
-		Signer:      ctrl.NullSigner,
-		SigVerifier: ctrl.NullSigVerifier,
+		Signer:      infra.NullSigner,
+		SigVerifier: infra.NullSigVerifier,
 		Instance:    sRevInfo,
 	}
 
@@ -383,15 +383,15 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 	signedRevInfo := tpkt.MustSRevInfo(161, "1-ff00:0:1", "parent", tsNow32, 60)
 
 	ifStateInfoDown := &tpkt.PathMgmtPld{
-		Signer:      ctrl.NullSigner,
-		SigVerifier: ctrl.NullSigVerifier,
+		Signer:      infra.NullSigner,
+		SigVerifier: infra.NullSigVerifier,
 		Instance: &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{
 			{IfID: 161, Active: false, SRevInfo: signedRevInfo},
 		}},
 	}
 	ifStateInfoUp := &tpkt.PathMgmtPld{
-		Signer:      ctrl.NullSigner,
-		SigVerifier: ctrl.NullSigVerifier,
+		Signer:      infra.NullSigner,
+		SigVerifier: infra.NullSigVerifier,
 		Instance: &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{
 			{IfID: 161, Active: true, SRevInfo: nil},
 		}},

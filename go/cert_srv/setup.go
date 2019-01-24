@@ -24,11 +24,9 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -121,8 +119,8 @@ func setDefaultSignerVerifier(c *config.State, pubIA addr.IA) error {
 	if err != nil {
 		return err
 	}
-	c.SetSigner(ctrl.NewBasicSigner(sign, c.GetSigningKey()))
-	c.SetVerifier(ctrl.NewBasicSigVerifier(c.Store))
+	c.SetSigner(trust.NewBasicSigner(sign, c.GetSigningKey()))
+	c.SetVerifier(trust.NewBasicSigVerifier(c.Store))
 	return nil
 }
 
@@ -133,7 +131,8 @@ func setMessenger(cfg *config.Config) error {
 	if topoAddress == nil {
 		return common.NewBasicError("Unable to find topo address", nil)
 	}
-	msgrI, err := infraenv.InitMessengerWithSciond(
+	var err error
+	msgr, err = infraenv.InitMessengerWithSciond(
 		cfg.General.Topology.ISD_AS,
 		env.GetPublicSnetAddress(cfg.General.Topology.ISD_AS, topoAddress),
 		env.GetBindSnetAddress(cfg.General.Topology.ISD_AS, topoAddress),
@@ -149,13 +148,6 @@ func setMessenger(cfg *config.Config) error {
 	// Remove when https://github.com/scionproto/scion/issues/2029 is resolved.
 	if err := snet.Init(cfg.General.Topology.ISD_AS, cfg.Sciond.Path, ""); err != nil {
 		return common.NewBasicError("Unable to initialize snet", err)
-	}
-	// FIXME(roosd): We need the actual type to set the signer and verifier.
-	// Remove when https://github.com/scionproto/scion/issues/2030 is resolved.
-	var ok bool
-	if msgr, ok = msgrI.(*messenger.Messenger); !ok {
-		return common.NewBasicError("Unsupported messenger type", nil,
-			"msgrI", common.TypeOf(msgrI))
 	}
 	msgr.AddHandler(infra.ChainRequest, state.Store.NewChainReqHandler(true))
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))

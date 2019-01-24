@@ -19,8 +19,8 @@ import (
 
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
@@ -161,15 +161,15 @@ func genTestsBrA(hMac hash.Hash) []*BRTest {
 	signedRevInfo := tpkt.MustSRevInfo(121, "1-ff00:0:1", "peer", tsNow32, 60)
 
 	ifStateInfoDown := &tpkt.PathMgmtPld{
-		Signer:      ctrl.NullSigner,
-		SigVerifier: ctrl.NullSigVerifier,
+		Signer:      infra.NullSigner,
+		SigVerifier: infra.NullSigVerifier,
 		Instance: &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{
 			{IfID: 121, Active: false, SRevInfo: signedRevInfo},
 		}},
 	}
 	ifStateInfoUp := &tpkt.PathMgmtPld{
-		Signer:      ctrl.NullSigner,
-		SigVerifier: ctrl.NullSigVerifier,
+		Signer:      infra.NullSigner,
+		SigVerifier: infra.NullSigVerifier,
 		Instance: &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{
 			{IfID: 121, Active: true, SRevInfo: nil},
 		}},
