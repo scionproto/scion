@@ -1,5 +1,6 @@
-version: "3.4"
+version: "2"
 x-br: &br
+  cpuset: "1"
   environment:
     SU_EXEC_USERSPEC: "$LOGNAME"
   image: scion_border
@@ -12,6 +13,7 @@ x-br: &br
     - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
 services:
   dispatcher:
+    cpuset: "2"
     image: scion_dispatcher
     network_mode: none
     environment:
