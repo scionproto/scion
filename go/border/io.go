@@ -243,6 +243,7 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 			}
 			bytes += msg.N
 			outputPktSize.Observe(float64(msg.N))
+			rp.Debug("Output", "ifid", s.Ifid, "pkt", rp)
 			rp.Release()   // Release inner RtrPkt entry
 			epkts[i] = nil // Clear EgressRtrPkt reference
 		}
