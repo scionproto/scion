@@ -283,6 +283,7 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	var errStr []string
 	for {
 		idx, pktV, ok := reflect.Select(cases)
+		log.Info("After select")
 		if !ok {
 			cases[idx].Chan = reflect.ValueOf(nil)
 			errStr = append(errStr, fmt.Sprintf("Unexpected interface %s/%s closed",
