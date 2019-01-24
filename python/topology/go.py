@@ -204,8 +204,9 @@ class GoGenerator(object):
                 write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
 
     def _build_disp_conf(self, name, topo_id=None):
+        disp_type = "br" if name.startswith("disp_br") else ""
         prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
-                                               self.args.networks, DISP_PROM_PORT, name)
+                                               self.args.networks, DISP_PROM_PORT, disp_type)
         return {
             'dispatcher': {
                 'ID': name,

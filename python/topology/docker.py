@@ -262,17 +262,12 @@ class DockerGenerator(object):
 
     def _br_dispatcher(self, entry, topo_id, topo, base):
         # Create dispatcher for BR Ctrl Port
-        ips = []
         for k in topo.get("BorderRouters", {}):
-            ctrl_net = self.elem_networks[k + "_ctrl"][0]
-            ctrl_ip = str(ctrl_net['ipv4'])
-            # XXX(scrye): this is a workaround to make IP selection
-            # deterministic. This should go away once
-            # https://github.com/scionproto/scion/issues/2382 is fixed.
-            ips.append((ctrl_net, ctrl_ip))
-
-        (best_net, best_ip) = max(ips, key=lambda x: x[1])
-        entry['networks'][self.bridges[best_net['net']]] = {'ipv4_address': best_ip}
+            if k.endswith('-1'):
+                ctrl_net = self.elem_networks[k + "_ctrl"][0]
+                ctrl_ip = str(ctrl_net['ipv4'])
+                break
+        entry['networks'][self.bridges[ctrl_net['net']]] = {'ipv4_address': ctrl_ip}
         entry['container_name'] = '%sdisp_br_%s' % (self.prefix, topo_id.file_fmt())
         vol = 'vol_%sdisp_br_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
         entry['volumes'].append(vol)
