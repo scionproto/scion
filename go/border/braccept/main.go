@@ -49,7 +49,7 @@ type ifInfo struct {
 const (
 	snapshot_len   int32         = 1024
 	promiscuous    bool          = true
-	defaultTimeout time.Duration = 500 * time.Millisecond
+	defaultTimeout time.Duration = 30 * time.Second
 	sendTimeout    time.Duration = 1 * time.Second
 )
 
@@ -315,6 +315,10 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 		if e != nil {
 			errStr = append(errStr, fmt.Sprintf("%s", e))
 			continue
+		}
+		if len(expPkts) == 1 {
+			// We got a match and we only expect one packet, thus we can quit
+			break
 		}
 		// Remove matched packet from expected packets
 		expPkts = append(expPkts[:i], expPkts[i+1:]...)
