@@ -17,11 +17,14 @@ package trust
 import (
 	"context"
 
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -52,13 +55,20 @@ func (h *trcReqHandler) Handle() {
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+
+	var trcObj *trc.TRC
+	var err error
 	// Only allow network traffic to be sent out if recursion is enabled and
 	// CacheOnly is not requested.
 	// FIXME(scrye): when protocol support is in, the below needs to select
 	// between verified/unverified retrieval based on message content. For now,
 	// call getTRC instead of getValidTRC.
-	trcObj, err := h.store.getTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
-		h.recurse, trcReq.CacheOnly, h.request.Peer, nil)
+	if trcReq.CacheOnly {
+		trcObj, err = h.store.trustdb.GetTRCVersion(h.request.Context(), trcReq.ISD, trcReq.Version)
+	} else {
+		trcObj, err = h.store.getTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
+			h.recurse, h.request.Peer, nil)
+	}
 	if err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
 		return
@@ -110,13 +120,21 @@ func (h *chainReqHandler) Handle() {
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+
+	var chain *cert.Chain
+	var err error
 	// Only allow network traffic to be sent out if recursion is enabled and
 	// CacheOnly is not requested.
 	// FIXME(scrye): when protocol support is in, the below needs to select
 	// between verified/unverified retrieval based on message content. For now,
 	// call getChain instead of getValidChain.
-	chain, err := h.store.getChain(h.request.Context(), chainReq.IA(), chainReq.Version,
-		h.recurse, chainReq.CacheOnly, h.request.Peer)
+	if chainReq.CacheOnly {
+		chain, err = h.store.trustdb.GetChainVersion(h.request.Context(),
+			chainReq.IA(), chainReq.Version)
+	} else {
+		chain, err = h.store.getChain(h.request.Context(), chainReq.IA(), chainReq.Version,
+			h.recurse, h.request.Peer)
+	}
 	if err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
 		return

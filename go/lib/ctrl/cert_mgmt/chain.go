@@ -45,8 +45,5 @@ func (c *Chain) String() string {
 	if err != nil {
 		return fmt.Sprintf("Invalid CertificateChain: %v", err)
 	}
-	if chain == nil {
-		return "Chain{nil}"
-	}
 	return chain.String()
 }

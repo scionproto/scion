@@ -45,8 +45,5 @@ func (t *TRC) String() string {
 	if err != nil {
 		return fmt.Sprintf("Invalid TRC: %v", err)
 	}
-	if u == nil {
-		return "TRC{nil}"
-	}
 	return u.String()
 }
