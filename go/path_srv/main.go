@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -124,7 +123,6 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
-	msger = messenger.WithMetrics(msger)
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	// TODO(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.

@@ -15,21 +15,11 @@
 package messenger
 
 import (
-	"context"
-	"net"
-	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/ack"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/ifid"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
@@ -63,39 +53,21 @@ var (
 	callsTotal   *prometheus.CounterVec
 	resultsTotal *prometheus.CounterVec
 	latency      *prometheus.HistogramVec
-
-	initMetricsOnce sync.Once
 )
 
-func initMetrics() {
-	// TODO(lukedirtwalker): add latency metric
-	initMetricsOnce.Do(func() {
-		// Cardinality: 17 (len(allOps))
-		callsTotal = prom.NewCounterVec(promNamespace, "", "calls_total",
-			"Total calls on the messenger.", []string{prom.LabelOperation})
-		// Cardinality: X (len(allResults) * 17 (len(allOps))
-		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
-			"The results of messenger calls", []string{prom.LabelResult, prom.LabelOperation})
-		latency = prom.NewHistogramVec(promNamespace, "", "calls_latency",
-			"Histogram of call latency in seconds.",
-			[]string{prom.LabelResult, prom.LabelOperation},
-			[]float64{0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0})
-	})
+func init() {
+	// Cardinality: 17 (len(allOps))
+	callsTotal = prom.NewCounterVec(promNamespace, "", "calls_total",
+		"Total calls on the messenger.", []string{prom.LabelOperation})
+	// Cardinality: X (len(allResults) * 17 (len(allOps))
+	resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
+		"The results of messenger calls", []string{prom.LabelResult, prom.LabelOperation})
+	latency = prom.NewHistogramVec(promNamespace, "", "calls_latency",
+		"Histogram of call latency in seconds.", []string{prom.LabelResult, prom.LabelOperation},
+		[]float64{0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 1.28, 2.56, 5.12, 10.24})
 }
 
-// WithMetrics returns the given messenger with metrics.
-func WithMetrics(msger infra.Messenger) infra.Messenger {
-	initMetrics()
-	return &metricsMsger{
-		msger:   msger,
-		metrics: &metrics{},
-	}
-}
-
-type metrics struct {
-}
-
-func (m *metrics) startOp(op promOp) opMetrics {
+func metricStartOp(op promOp) opMetrics {
 	callsTotal.With(prometheus.Labels{
 		prom.LabelOperation: string(op),
 	}).Inc()
@@ -110,7 +82,7 @@ type opMetrics struct {
 	begin time.Time
 }
 
-func (m *opMetrics) observeResult(err error) {
+func (m *opMetrics) publishResult(err error) {
 	resLabel := errorToResultLabel(err)
 	resLabels := prometheus.Labels{
 		prom.LabelOperation: string(m.op),
@@ -130,182 +102,4 @@ func errorToResultLabel(err error) string {
 	default:
 		return prom.ErrNotClassified
 	}
-}
-
-var _ infra.Messenger = (*metricsMsger)(nil)
-
-type metricsMsger struct {
-	msger   infra.Messenger
-	metrics *metrics
-}
-
-func (m *metricsMsger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error {
-	om := m.metrics.startOp(promOpSendAck)
-	err := m.msger.SendAck(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
-	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
-
-	om := m.metrics.startOp(promOpGetTRC)
-	trc, err := m.msger.GetTRC(ctx, msg, a, id)
-	om.observeResult(err)
-	return trc, err
-}
-
-func (m *metricsMsger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendTRC)
-	err := m.msger.SendTRC(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
-	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
-
-	om := m.metrics.startOp(promOpGetCrtChain)
-	chain, err := m.msger.GetCertChain(ctx, msg, a, id)
-	om.observeResult(err)
-	return chain, err
-}
-
-func (m *metricsMsger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendCrtChain)
-	err := m.msger.SendCertChain(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) SendIfId(ctx context.Context, msg *ifid.IFID,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendIfId)
-	err := m.msger.SendIfId(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendIfStateInfo)
-	err := m.msger.SendIfStateInfos(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) SendSeg(ctx context.Context, msg *seg.PathSegment,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendSeg)
-	err := m.msger.SendSeg(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
-	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
-
-	om := m.metrics.startOp(promOpGetSegs)
-	reply, err := m.msger.GetSegs(ctx, msg, a, id)
-	om.observeResult(err)
-	return reply, err
-}
-
-func (m *metricsMsger) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendSegReply)
-	err := m.msger.SendSegReply(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendSegSync)
-	err := m.msger.SendSegSync(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
-	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
-
-	om := m.metrics.startOp(promOpGetSegChangesId)
-	reply, err := m.msger.GetSegChangesIds(ctx, msg, a, id)
-	om.observeResult(err)
-	return reply, err
-}
-
-func (m *metricsMsger) SendSegChangesIdReply(ctx context.Context, msg *path_mgmt.SegChangesIdReply,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendSegChangesIdReply)
-	err := m.msger.SendSegChangesIdReply(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
-	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
-
-	om := m.metrics.startOp(promOpGetSegChanges)
-	reply, err := m.msger.GetSegChanges(ctx, msg, a, id)
-	om.observeResult(err)
-	return reply, err
-}
-
-func (m *metricsMsger) SendSegChangesReply(ctx context.Context, msg *path_mgmt.SegChangesReply,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendSegChanges)
-	err := m.msger.SendSegChangesReply(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq,
-	a net.Addr, id uint64) (*cert_mgmt.ChainIssRep, error) {
-
-	om := m.metrics.startOp(promOpRequestChainIssue)
-	reply, err := m.msger.RequestChainIssue(ctx, msg, a, id)
-	om.observeResult(err)
-	return reply, err
-}
-
-func (m *metricsMsger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep,
-	a net.Addr, id uint64) error {
-
-	om := m.metrics.startOp(promOpSendChainIssue)
-	err := m.msger.SendChainIssueReply(ctx, msg, a, id)
-	om.observeResult(err)
-	return err
-}
-
-func (m *metricsMsger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
-	m.msger.UpdateSigner(signer, types)
-}
-
-func (m *metricsMsger) UpdateVerifier(verifier ctrl.SigVerifier) {
-	m.msger.UpdateVerifier(verifier)
-}
-
-func (m *metricsMsger) AddHandler(msgType infra.MessageType, h infra.Handler) {
-	m.msger.AddHandler(msgType, h)
-}
-
-func (m *metricsMsger) ListenAndServe() {
-	m.msger.ListenAndServe()
-}
-
-func (m *metricsMsger) CloseServer() error {
-	return m.msger.CloseServer()
 }
