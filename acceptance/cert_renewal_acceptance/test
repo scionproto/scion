@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# Check that certificate chains can be renewed automatically.
+# The certificate service automatically starts requesting a
+# renewed certificate, when the certificates remaining validity
+# time is less than ReissueLeadTime. This test sets the lead
+# time to 10 seconds less than the entire certificate validity
+# period and checks if the certificates can be renewed.
+# Default Issuer cert validity time: 363 * 24* 60 * 60 seconds
+# Default Leaf cert validity time: 364 * 24* 60 * 60 seconds
+
+. acceptance/common.sh
+
+TEST_NAME="cert_renewal"
+TEST_TOPOLOGY="topology/Tiny.topo"
+
+IA=${IA:-1-ff00:0:112}
+IA_FILE="$(ia_file $IA)"
+
+CORE_IA=${CORE_IA:-1-ff00:0:110}
+CORE_IA_FILE="$(ia_file $CORE_IA)"
+
+
+test_setup() {
+    set -e
+    ./scion.sh topology -c $TEST_TOPOLOGY -d -cs=go
+    for cfg in gen/ISD1/*/cs*/csconfig.toml; do
+        sed -i -e 's/Level = .*$/Level = "trace"/g' \
+            -e '/\[logging\.file\]/a FlushInterval = 1' \
+            -e '/\[cs\]/a AutomaticRenewal = true' \
+            -e "s/LeafReissueLeadTime.\+/LeafReissueLeadTime = \"$((363 * 24* 60 * 60 - 10))s\"/" \
+            -e "s/IssuerReissueLeadTime.\+/IssuerReissueLeadTime = \"$((364 * 24* 60 * 60 - 10))s\"/" \
+            -e 's/ReissueRate.\+/ReissueRate = "1s"/' \
+            -e 's/ReissueTimeout.\+/ReissueTimeout = "5s"/' "$cfg"
+    done
+   ./scion.sh run nobuild
+}
+
+test_run() {
+    set -e
+    sleep 10
+    bin/end2end_integration -src $IA -dst $CORE_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass." ; return 1; }
+    # Make sure a reissue cycle has passed.
+    sleep 10
+    # Check that reissued certificates appear in the logs.
+    grep -q '\[reiss.Self\] Created issuer certificate cert="Certificate' "logs/cs$CORE_IA_FILE-1.log" || \
+        { echo "Issuer certificate updated for $CORE_IA not found in logs"; return 1; }
+    grep -q "\[reiss.Self\] Created certificate chain chain=\"CertificateChain $CORE_IA" "logs/cs$CORE_IA_FILE-1.log" || \
+        { echo "Certificate chain updated for $CORE_IA not found in logs"; return 1; }
+    grep -q "\[reiss.Requester\] Updated certificate chain chain=\"CertificateChain $IA" "logs/cs$IA_FILE-1.log" || \
+        { echo "Certificate chain updated for $IA not found in logs"; return 1; }
+}
+
+test_teardown() {
+    ./tools/dc down
+}
+
+print_help() {
+    echo
+	cat <<-_EOF
+	    $PROGRAM name
+	        return the name of this test
+	    $PROGRAM setup
+	        execute only the setup phase.
+	    $PROGRAM run
+	        execute only the run phase.
+	    $PROGRAM teardown
+	        execute only the teardown phase.
+	_EOF
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
+
