@@ -16,7 +16,6 @@ package periodic
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
@@ -51,16 +50,14 @@ type Task interface {
 
 // Runner runs a task periodically.
 type Runner struct {
-	mtx      sync.Mutex
-	task     Task
-	ticker   Ticker
-	timeout  time.Duration
-	stop     chan struct{}
-	stopped  chan struct{}
-	ctx      context.Context
-	cancelF  context.CancelFunc
-	trigger  chan struct{}
-	stoppedB bool
+	task         Task
+	ticker       Ticker
+	timeout      time.Duration
+	stop         chan struct{}
+	loopFinished chan struct{}
+	ctx          context.Context
+	cancelF      context.CancelFunc
+	trigger      chan struct{}
 }
 
 // StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
@@ -70,14 +67,14 @@ type Runner struct {
 func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
 	runner := &Runner{
-		task:    task,
-		ticker:  ticker,
-		timeout: timeout,
-		stop:    make(chan struct{}),
-		stopped: make(chan struct{}),
-		ctx:     ctx,
-		cancelF: cancelF,
-		trigger: make(chan struct{}),
+		task:         task,
+		ticker:       ticker,
+		timeout:      timeout,
+		stop:         make(chan struct{}),
+		loopFinished: make(chan struct{}),
+		ctx:          ctx,
+		cancelF:      cancelF,
+		trigger:      make(chan struct{}),
 	}
 	go func() {
 		defer log.LogPanicAndExit()
@@ -89,23 +86,17 @@ func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner 
 // Stop stops the peridioc execution of the Runner.
 // If the task is currently running this method will block until it is done.
 func (r *Runner) Stop() {
-	r.mtx.Lock()
-	defer r.mtx.Unlock()
-	r.stoppedB = true
 	r.ticker.Stop()
 	close(r.stop)
-	<-r.stopped
+	<-r.loopFinished
 }
 
 // Kill is like stop but it also cancels the context of the current running method.
 func (r *Runner) Kill() {
-	r.mtx.Lock()
-	defer r.mtx.Unlock()
-	r.stoppedB = true
 	r.ticker.Stop()
 	close(r.stop)
 	r.cancelF()
-	<-r.stopped
+	<-r.loopFinished
 }
 
 // TriggerRun triggers the periodic task to run now.
@@ -115,15 +106,15 @@ func (r *Runner) Kill() {
 //
 // If the task is currently running this function will block until the trigger was received.
 func (r *Runner) TriggerRun() {
-	r.mtx.Lock()
-	defer r.mtx.Unlock()
-	if !r.stoppedB {
-		r.trigger <- struct{}{}
+	select {
+	// Either we were stopped or we can put something in the trigger channel.
+	case <-r.stop:
+	case r.trigger <- struct{}{}:
 	}
 }
 
 func (r *Runner) runLoop() {
-	defer close(r.stopped)
+	defer close(r.loopFinished)
 	defer r.cancelF()
 	for {
 		select {
