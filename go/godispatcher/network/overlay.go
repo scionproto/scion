@@ -17,6 +17,7 @@ package network
 import (
 	"net"
 
+	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/godispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -61,8 +62,10 @@ func (dp *NetToRingDataplane) Run() error {
 		dst, err := ComputeDestination(&pkt.Info)
 		if err != nil {
 			log.Warn("unable to route packet", "err", err)
+			metrics.IncomingPackets.WithLabelValues(metrics.PacketOutcomeRouteNotFound).Inc()
 			continue
 		}
+		metrics.IncomingPackets.WithLabelValues(metrics.PacketOutcomeOk).Inc()
 		dst.Send(dp, pkt)
 	}
 }
