@@ -41,10 +41,11 @@ var _ periodic.Task = (*Requester)(nil)
 // Requester requests reissued certificate chains before
 // expiration of the currently active certificate chain.
 type Requester struct {
-	Msgr     infra.Messenger
-	State    *config.State
-	IA       addr.IA
-	LeafTime time.Duration
+	Msgr       infra.Messenger
+	State      *config.State
+	IA         addr.IA
+	LeafTime   time.Duration
+	CorePusher *periodic.Runner
 }
 
 // Run requests reissued certificate chains from the issuer AS.
@@ -122,6 +123,7 @@ func (r *Requester) handleRep(ctx context.Context, rep *cert_mgmt.ChainIssRep) (
 	r.State.SetSigner(signer)
 	r.Msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
 	log.Info("[reiss.Requester] Updated certificate chain", "chain", chain)
+	r.CorePusher.TriggerRun()
 	return false, nil
 }
 
