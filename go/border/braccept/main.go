@@ -49,7 +49,7 @@ type ifInfo struct {
 const (
 	snapshot_len   int32         = 1024
 	promiscuous    bool          = true
-	defaultTimeout time.Duration = 250 * time.Millisecond
+	defaultTimeout time.Duration = 500 * time.Millisecond
 	sendTimeout    time.Duration = 1 * time.Second
 )
 
