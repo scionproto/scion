@@ -58,16 +58,19 @@ func (h *trcReqHandler) Handle() {
 	// between verified/unverified retrieval based on message content. For now,
 	// call getTRC instead of getValidTRC.
 	trcObj, err := h.store.getTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
-		h.recurse && !trcReq.CacheOnly, h.request.Peer, nil)
+		h.recurse, trcReq.CacheOnly, h.request.Peer, nil)
 	if err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
 		return
 	}
-	// FIXME(scrye): avoid recompressing this for every request
-	rawTRC, err := trcObj.Compress()
-	if err != nil {
-		logger.Warn("[TrustStore:trcReqHandler] Unable to compress TRC", "err", err)
-		return
+	var rawTRC common.RawBytes
+	if trcObj != nil {
+		// FIXME(scrye): avoid recompressing this for every request
+		rawTRC, err = trcObj.Compress()
+		if err != nil {
+			logger.Warn("[TrustStore:trcReqHandler] Unable to compress TRC", "err", err)
+			return
+		}
 	}
 	trcMessage := &cert_mgmt.TRC{
 		RawTRC: rawTRC,
@@ -113,16 +116,18 @@ func (h *chainReqHandler) Handle() {
 	// between verified/unverified retrieval based on message content. For now,
 	// call getChain instead of getValidChain.
 	chain, err := h.store.getChain(h.request.Context(), chainReq.IA(), chainReq.Version,
-		h.recurse && !chainReq.CacheOnly, h.request.Peer)
+		h.recurse, chainReq.CacheOnly, h.request.Peer)
 	if err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
 		return
 	}
-
-	rawChain, err := chain.Compress()
-	if err != nil {
-		logger.Error("[TrustStore:chainReqHandler] Unable to compress Chain", "err", err)
-		return
+	var rawChain common.RawBytes
+	if chain != nil {
+		rawChain, err = chain.Compress()
+		if err != nil {
+			logger.Error("[TrustStore:chainReqHandler] Unable to compress Chain", "err", err)
+			return
+		}
 	}
 	chainMessage := &cert_mgmt.Chain{
 		RawChain: rawChain,
@@ -157,7 +162,7 @@ func (h *trcPushHandler) Handle() {
 		"peer", h.request.Peer)
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
-		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
+		logger.Warn("[TrustStore:trcPushHandler] Unable to service request, no Messenger found")
 		return
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
@@ -168,6 +173,11 @@ func (h *trcPushHandler) Handle() {
 	trcObj, err := trcPush.TRC()
 	if err != nil {
 		logger.Error("[TrustStore:trcPushHandler] Unable to extract TRC from TRC push", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		return
+	}
+	if trcObj == nil {
+		logger.Warn("[TrustStore:trcPushHandler] Empty chain received")
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return
 	}
@@ -211,6 +221,11 @@ func (h *chainPushHandler) Handle() {
 	if err != nil {
 		logger.Error("[TrustStore:chainPushHandler] Unable to extract chain from chain push",
 			"err", err)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		return
+	}
+	if chain == nil {
+		logger.Warn("[TrustStore:chainPushHandler] Empty chain received")
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return
 	}

@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +30,9 @@ type Chain struct {
 }
 
 func (c *Chain) Chain() (*cert.Chain, error) {
+	if c.RawChain == nil {
+		return nil, nil
+	}
 	return cert.ChainFromRaw(c.RawChain, true)
 }
 
@@ -40,6 +44,9 @@ func (c *Chain) String() string {
 	chain, err := c.Chain()
 	if err != nil {
 		return fmt.Sprintf("Invalid CertificateChain: %v", err)
+	}
+	if chain == nil {
+		return "Chain{nil}"
 	}
 	return chain.String()
 }

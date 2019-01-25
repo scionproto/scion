@@ -565,6 +565,9 @@ class SCIONElement(object):
         cmgt = cpld.union
         rep = cmgt.union
         assert isinstance(rep, TRCReply), type(rep)
+        if not rep.trc:
+            logging.debug("Empty TRC reply received.")
+            return
         isd, ver = rep.trc.get_isd_ver()
         logging.info("TRC reply received for %sv%s from %s [id: %s]",
                      isd, ver, meta, cpld.req_id_str())
@@ -623,6 +626,9 @@ class SCIONElement(object):
         rep = cmgt.union
         assert isinstance(rep, CertChainReply), type(rep)
         meta.close()
+        if not rep.chain:
+            logging.debug("Empty cert chain reply received")
+            return
         isd_as, ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s from %s [id: %s]",
                      isd_as, ver, meta, cpld.req_id_str())

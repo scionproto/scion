@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -115,6 +116,9 @@ func (c client) requestCert() (*cert.Chain, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse chain", err)
 	}
+	if chain == nil {
+		return nil, common.NewBasicError("Empty reply", nil)
+	}
 	if !chain.Leaf.Subject.Equal(remoteIA) {
 		return nil, common.NewBasicError("Invalid subject", nil,
 			"expected", remoteIA, "actual", chain.Leaf.Subject)
@@ -139,6 +143,9 @@ func (c client) requestTRC(chain *cert.Chain) error {
 	trc, err := rawTrc.TRC()
 	if err != nil {
 		return common.NewBasicError("Unable to parse trc", err)
+	}
+	if trc == nil {
+		return common.NewBasicError("Empty reply", nil)
 	}
 	if trc.ISD != remoteIA.I {
 		return common.NewBasicError("Invalid ISD", nil,
