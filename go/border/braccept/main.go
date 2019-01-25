@@ -27,8 +27,8 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/crypto/pbkdf2"
 
@@ -43,7 +43,7 @@ type ifInfo struct {
 	hostDev string
 	contDev string
 	mac     net.HardwareAddr
-	handle  *pcap.Handle
+	handle  *afpacket.TPacket
 }
 
 const (
@@ -103,12 +103,13 @@ func realMain() int {
 	cases := make([]reflect.SelectCase, timerIdx+1)
 	for i, ifi := range devList {
 		var err error
-		ifi.handle, err = pcap.OpenLive(ifi.hostDev, snapshot_len, promiscuous, pcap.BlockForever)
+		ifi.handle, err = afpacket.NewTPacket(
+			afpacket.OptInterface(ifi.hostDev))
 		if err != nil {
 			log.Crit("", "err", err)
 			return 1
 		}
-		packetSource := gopacket.NewPacketSource(ifi.handle, ifi.handle.LinkType())
+		packetSource := gopacket.NewPacketSource(ifi.handle, layers.LinkTypeEthernet)
 		ch := packetSource.Packets()
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 		defer ifi.handle.Close()
@@ -281,7 +282,18 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	if timeout == time.Duration(0) {
 		timeout = defaultTimeout
 	}
-	timerCh := time.After(timeout)
+	//timerCh := time.After(timeout)
+	timerCh := make(chan time.Time)
+	go func(d time.Duration, ch chan time.Time) {
+		timeout := time.Now().Add(d)
+		for {
+			now := time.Now()
+			if now.After(timeout) {
+				ch <- now
+				return
+			}
+		}
+	}(timeout, timerCh)
 	log.Info("", "timeout", timeout)
 	// Add timeout channel as the last select case.
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
