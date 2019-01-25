@@ -116,6 +116,7 @@ func (v *generalValidator) Immutable(topo, oldTopo *topology.Topo) error {
 	}
 	return nil
 }
+
 func (*generalValidator) SemiMutable(_, _ *topology.Topo, _ bool) error {
 	return nil
 }
@@ -166,7 +167,7 @@ func (v *brValidator) SemiMutable(topo, oldTopo *topology.Topo, allowed bool) er
 	if oldTopo == nil {
 		return nil
 	}
-	if !allowed && v.intfsChanged(topo, oldTopo) {
+	if !allowed && v.interfacesChanged(topo, oldTopo) {
 		return common.NewBasicError("IFID set changed", nil, "expected",
 			oldTopo.BR[v.id].IFIDs, "actual", topo.BR[v.id].IFIDs)
 	}
@@ -177,11 +178,11 @@ func (v *brValidator) MustDropDynamic(topo, oldTopo *topology.Topo) bool {
 	if oldTopo == nil {
 		return false
 	}
-	return v.intfsChanged(topo, oldTopo)
+	return v.interfacesChanged(topo, oldTopo)
 }
 
-func (v *brValidator) intfsChanged(topo, oldTopo *topology.Topo) bool {
-	if v.intfSetChanged(topo, oldTopo) {
+func (v *brValidator) interfacesChanged(topo, oldTopo *topology.Topo) bool {
+	if v.interfaceSetChanged(topo, oldTopo) {
 		return true
 	}
 	for _, ifid := range topo.BR[v.id].IFIDs {
@@ -192,7 +193,7 @@ func (v *brValidator) intfsChanged(topo, oldTopo *topology.Topo) bool {
 	return false
 }
 
-func (v *brValidator) intfSetChanged(topo, oldTopo *topology.Topo) bool {
+func (v *brValidator) interfaceSetChanged(topo, oldTopo *topology.Topo) bool {
 	if len(topo.BR[v.id].IFIDs) != len(oldTopo.BR[v.id].IFIDs) {
 		return true
 	}
