@@ -50,13 +50,14 @@ type Task interface {
 
 // Runner runs a task periodically.
 type Runner struct {
-	task    Task
-	ticker  Ticker
-	timeout time.Duration
-	stop    chan struct{}
-	stopped chan struct{}
-	ctx     context.Context
-	cancelF context.CancelFunc
+	task         Task
+	ticker       Ticker
+	timeout      time.Duration
+	stop         chan struct{}
+	loopFinished chan struct{}
+	ctx          context.Context
+	cancelF      context.CancelFunc
+	trigger      chan struct{}
 }
 
 // StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
@@ -66,13 +67,14 @@ type Runner struct {
 func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
 	runner := &Runner{
-		task:    task,
-		ticker:  ticker,
-		timeout: timeout,
-		stop:    make(chan struct{}),
-		stopped: make(chan struct{}),
-		ctx:     ctx,
-		cancelF: cancelF,
+		task:         task,
+		ticker:       ticker,
+		timeout:      timeout,
+		stop:         make(chan struct{}),
+		loopFinished: make(chan struct{}),
+		ctx:          ctx,
+		cancelF:      cancelF,
+		trigger:      make(chan struct{}),
 	}
 	go func() {
 		defer log.LogPanicAndExit()
@@ -86,7 +88,7 @@ func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner 
 func (r *Runner) Stop() {
 	r.ticker.Stop()
 	close(r.stop)
-	<-r.stopped
+	<-r.loopFinished
 }
 
 // Kill is like stop but it also cancels the context of the current running method.
@@ -94,27 +96,48 @@ func (r *Runner) Kill() {
 	r.ticker.Stop()
 	close(r.stop)
 	r.cancelF()
-	<-r.stopped
+	<-r.loopFinished
+}
+
+// TriggerRun triggers the periodic task to run now.
+// This does not impact the normal periodicity of this task.
+// That means if the periodicity is 5m and you call TriggerNow() after 2 minutes,
+// the next execution will be in 3 minutes.
+//
+// The method blocks until either the triggered run was started or the runner was stopped,
+// in which case the triggered run will not be executed.
+func (r *Runner) TriggerRun() {
+	select {
+	// Either we were stopped or we can put something in the trigger channel.
+	case <-r.stop:
+	case r.trigger <- struct{}{}:
+	}
 }
 
 func (r *Runner) runLoop() {
-	defer close(r.stopped)
+	defer close(r.loopFinished)
 	defer r.cancelF()
 	for {
 		select {
 		case <-r.stop:
 			return
 		case <-r.ticker.Chan():
-			select {
-			// Make sure that stop case is evaluated first,
-			// so that when we kill and both channels are ready we always go into stop first.
-			case <-r.stop:
-				return
-			default:
-				ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
-				r.task.Run(ctx)
-				cancelF()
-			}
+			r.onTick()
+		case <-r.trigger:
+			r.onTick()
 		}
+	}
+}
+
+func (r *Runner) onTick() {
+	select {
+	// Make sure that stop case is evaluated first,
+	// so that when we kill and both channels are ready we always go into stop first.
+	case <-r.stop:
+		return
+	default:
+		ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
+		r.task.Run(ctx)
+		cancelF()
 	}
 }
