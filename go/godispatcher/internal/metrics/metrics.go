@@ -75,7 +75,7 @@ func initMetrics(elem string) {
 	OutgoingPacketsTotal = prom.NewCounter(namespace, "", "outgoing_packets_total",
 		"Total packets sent on the network.")
 	IncomingBytesTotal = prom.NewCounter(namespace, "", "incoming_bytes_total",
-		"Total bytes received from the network.")
+		"Total bytes received from the network irrespective of packet outcome.")
 	IncomingPackets = prom.NewCounterVec(namespace, "", "incoming_packets_total",
 		"Total packets received from the network.", []string{IncomingPacketOutcome})
 	OpenSockets = prom.NewGaugeVec(namespace, "", "open_application_connections",
