@@ -181,6 +181,13 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 }
 
 func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error {
+	opMetric := metricStartOp(promOpSendAck)
+	err := m.sendAck(ctx, msg, a, id)
+	opMetric.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error {
 	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return err
@@ -193,6 +200,15 @@ func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id ui
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
 // reply and returns the reply.
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
+	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
+
+	opMetric := metricStartOp(promOpGetTRC)
+	trc, err := m.getTRC(ctx, msg, a, id)
+	opMetric.publishResult(err)
+	return trc, err
+}
+
+func (m *Messenger) getTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
 	logger := log.FromCtx(ctx)
@@ -221,6 +237,13 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 
 // SendTRC sends a reliable cert_mgmt.TRC to address a.
 func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error {
+	opMetrics := metricStartOp(promOpSendTRC)
+	err := m.sendTRC(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error {
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return err
@@ -233,6 +256,15 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
 // receives a reply and returns the reply.
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
+	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
+
+	opMetrics := metricStartOp(promOpGetCrtChain)
+	chain, err := m.getCertChain(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return chain, err
+}
+
+func (m *Messenger) getCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
 	logger := log.FromCtx(ctx)
@@ -263,6 +295,15 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
 	id uint64) error {
 
+	opMetrics := metricStartOp(promOpSendCrtChain)
+	err := m.sendCertChain(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
+	id uint64) error {
+
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return err
@@ -274,11 +315,27 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 
 // SendIfId sends a reliable ifid.IFID to address a.
 func (m *Messenger) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error {
+	opMetrics := metricStartOp(promOpSendIfId)
+	err := m.sendIfId(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error {
 	return m.sendBasePld(ctx, msg, a, id, infra.IfId)
 }
 
 // SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
 func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
+	a net.Addr, id uint64) error {
+
+	opMetrics := metricStartOp(promOpSendIfStateInfo)
+	err := m.sendIfStateInfos(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
 	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
@@ -294,12 +351,30 @@ func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFState
 func (m *Messenger) SendSeg(ctx context.Context, msg *seg.PathSegment,
 	a net.Addr, id uint64) error {
 
+	opMetrics := metricStartOp(promOpSendSeg)
+	err := m.sendSeg(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendSeg(ctx context.Context, msg *seg.PathSegment,
+	a net.Addr, id uint64) error {
+
 	return m.sendBasePld(ctx, msg, a, id, infra.Seg)
 }
 
 // GetSegs asks the server at the remote address for the path segments that
 // satisfy msg, and returns a verified reply.
 func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
+	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
+
+	opMetrics := metricStartOp(promOpGetSegs)
+	reply, err := m.getSegs(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return reply, err
+}
+
+func (m *Messenger) getSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
 	logger := log.FromCtx(ctx)
@@ -331,8 +406,17 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 }
 
 // SendSegReply sends a reliable path_mgmt.SegReply to address a.
-func (m *Messenger) SendSegReply(ctx context.Context,
-	msg *path_mgmt.SegReply, a net.Addr, id uint64) error {
+func (m *Messenger) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
+	a net.Addr, id uint64) error {
+
+	opMetrics := metricStartOp(promOpSendSegReply)
+	err := m.sendSegReply(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
+	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
@@ -344,8 +428,17 @@ func (m *Messenger) SendSegReply(ctx context.Context,
 }
 
 // SendSegSync sends a reliable path_mgmt.SegSync to address a.
-func (m *Messenger) SendSegSync(ctx context.Context,
-	msg *path_mgmt.SegSync, a net.Addr, id uint64) error {
+func (m *Messenger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
+	a net.Addr, id uint64) error {
+
+	opMetrics := metricStartOp(promOpSendSegSync)
+	err := m.sendSegSync(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
+	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
@@ -357,6 +450,15 @@ func (m *Messenger) SendSegSync(ctx context.Context,
 }
 
 func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
+	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
+
+	opMetrics := metricStartOp(promOpGetSegChangesId)
+	reply, err := m.getSegChangesIds(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return reply, err
+}
+
+func (m *Messenger) getSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
 	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
 
 	logger := log.FromCtx(ctx)
@@ -384,8 +486,17 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	return reply, nil
 }
 
-func (m *Messenger) SendSegChangesIdReply(ctx context.Context,
-	msg *path_mgmt.SegChangesIdReply, a net.Addr, id uint64) error {
+func (m *Messenger) SendSegChangesIdReply(ctx context.Context, msg *path_mgmt.SegChangesIdReply,
+	a net.Addr, id uint64) error {
+
+	opMetrics := metricStartOp(promOpSendSegChangesIdReply)
+	err := m.sendSegChangesIdReply(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendSegChangesIdReply(ctx context.Context, msg *path_mgmt.SegChangesIdReply,
+	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
@@ -398,6 +509,15 @@ func (m *Messenger) SendSegChangesIdReply(ctx context.Context,
 }
 
 func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
+	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
+
+	opMetrics := metricStartOp(promOpGetSegChanges)
+	reply, err := m.getSegChanges(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return reply, err
+}
+
+func (m *Messenger) getSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
 	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
 
 	logger := log.FromCtx(ctx)
@@ -428,8 +548,17 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	return reply, nil
 }
 
-func (m *Messenger) SendSegChangesReply(ctx context.Context,
-	msg *path_mgmt.SegChangesReply, a net.Addr, id uint64) error {
+func (m *Messenger) SendSegChangesReply(ctx context.Context, msg *path_mgmt.SegChangesReply,
+	a net.Addr, id uint64) error {
+
+	opMetrics := metricStartOp(promOpSendSegChanges)
+	err := m.sendSegChangesReply(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendSegChangesReply(ctx context.Context, msg *path_mgmt.SegChangesReply,
+	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
@@ -441,7 +570,16 @@ func (m *Messenger) SendSegChangesReply(ctx context.Context,
 	return m.getRequester(infra.SegChangesReply, infra.None).Notify(ctx, pld, a)
 }
 
-func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
+func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq,
+	a net.Addr, id uint64) (*cert_mgmt.ChainIssRep, error) {
+
+	opMetrics := metricStartOp(promOpRequestChainIssue)
+	reply, err := m.requestChainIssue(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return reply, err
+}
+
+func (m *Messenger) requestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
 	logger := log.FromCtx(ctx)
@@ -470,6 +608,15 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 }
 
 func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep,
+	a net.Addr, id uint64) error {
+
+	opMetrics := metricStartOp(promOpSendChainIssue)
+	err := m.sendChainIssueReply(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *Messenger) sendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep,
 	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})

@@ -31,8 +31,7 @@ import (
 const (
 	promNamespace = "pathdb"
 
-	promOpLabel = "op"
-	promDBName  = "db"
+	promDBName = "db"
 )
 
 type promOp string
@@ -74,10 +73,11 @@ func initMetrics() {
 	initMetricsOnce.Do(func() {
 		// Cardinality: X (dbName) * 7 (len(allOps))
 		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
-			"Total queries to the database.", []string{promDBName, promOpLabel})
+			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
 		// Cardinality: X (dbNmae) * 7 (len(allOps)) * 3 (len(allResults))
 		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
-			"The results of the pathdb ops.", []string{promDBName, prom.LabelResult, promOpLabel})
+			"The results of the pathdb ops.",
+			[]string{promDBName, prom.LabelResult, prom.LabelOperation})
 	})
 }
 
@@ -98,8 +98,8 @@ func opCounters(dbName string) map[promOp]prometheus.Counter {
 	opCounters := make(map[promOp]prometheus.Counter)
 	for _, op := range allOps {
 		opCounters[op] = queriesTotal.With(prometheus.Labels{
-			promDBName:  dbName,
-			promOpLabel: string(op),
+			promDBName:          dbName,
+			prom.LabelOperation: string(op),
 		})
 	}
 	return opCounters
@@ -111,9 +111,9 @@ func resultCounters(dbName string) map[promOp]map[string]prometheus.Counter {
 		resultCounters[op] = make(map[string]prometheus.Counter)
 		for _, res := range allResults {
 			resultCounters[op][res] = resultsTotal.With(prometheus.Labels{
-				promDBName:       dbName,
-				promOpLabel:      string(op),
-				prom.LabelResult: res,
+				promDBName:          dbName,
+				prom.LabelOperation: string(op),
+				prom.LabelResult:    res,
 			})
 		}
 	}

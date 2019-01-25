@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package messenger_test
+package messenger
 
 import (
 	"context"
@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet/rpt"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -46,7 +45,7 @@ func MockTRCHandler(request *infra.Request) {
 		log.Warn("Unable to service request, no Messenger interface found")
 		return
 	}
-	messenger, ok := messengerI.(*messenger.Messenger)
+	messenger, ok := messengerI.(*Messenger)
 	if !ok {
 		log.Warn("Unable to service request, bad Messenger value found")
 		return
@@ -86,11 +85,11 @@ func TestTRCExchange(t *testing.T) {
 	})
 }
 
-func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *messenger.Messenger {
+func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *Messenger {
 	transport := rpt.New(conn, log.New("name", name))
-	dispatcher := disp.New(transport, messenger.DefaultAdapter, log.New("name", name))
-	config := &messenger.Config{DisableSignatureVerification: true}
-	return messenger.New(ia, dispatcher, nil, log.Root().New("name", name), config)
+	dispatcher := disp.New(transport, DefaultAdapter, log.New("name", name))
+	config := &Config{DisableSignatureVerification: true}
+	return New(ia, dispatcher, nil, log.Root().New("name", name), config)
 }
 
 func TestMain(m *testing.M) {

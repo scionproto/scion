@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/hostinfo"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
@@ -57,7 +58,7 @@ func addFlags() {
 
 type client struct {
 	conn snet.Conn
-	msgr *messenger.Messenger
+	msgr infra.Messenger
 }
 
 func (c client) run() int {
