@@ -1,5 +1,7 @@
 # This is a base file included/sourced by each border router acceptance test
 
+set -x
+
 export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 DEVINFO_FN=${TEST_ARTIFACTS_DIR}/devinfo.txt
 
@@ -14,7 +16,11 @@ test_setup() {
 
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
+    echo "Before fixing dispatcher dir ownership"
+    ls -l /run/shm/
     [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
+    echo "After fixing dispatcher dir ownership"
+    ls -l /run/shm/
 
     sudo -p "Setup docker containers and virtual interfaces - [sudo] password for %p: " true
     # Bring up the dispatcher container and add new veth interfaces

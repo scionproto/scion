@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kormat/fmt15"
 	"github.com/mattn/go-isatty"
@@ -42,6 +43,8 @@ type BRTest struct {
 	Post *tpkt.Pkt
 	// Ignore is the list of packets that should be ignored.
 	Ignore []*tpkt.ExpPkt
+	// Timeout specifies the timeout to received packets for the test
+	Timeout time.Duration
 }
 
 func (t *BRTest) Summary(testPass bool) string {

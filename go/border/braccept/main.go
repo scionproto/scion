@@ -47,10 +47,10 @@ type ifInfo struct {
 }
 
 const (
-	snapshot_len int32         = 1024
-	promiscuous  bool          = true
-	recvTimeout  time.Duration = 250 * time.Millisecond
-	sendTimeout  time.Duration = 1 * time.Millisecond
+	snapshot_len   int32         = 1024
+	promiscuous    bool          = true
+	defaultTimeout time.Duration = 250 * time.Millisecond
+	sendTimeout    time.Duration = 1 * time.Second
 )
 
 var (
@@ -277,20 +277,19 @@ func sendPkt(pkt *tpkt.Pkt, to bool) error {
 // can check that only the expected packets were received.
 func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
-	var timerCh <-chan time.Time
-	if len(t.Out) > 1 {
-		timerCh = time.After(2 * recvTimeout)
-	} else {
-		timerCh = time.After(recvTimeout)
+	timeout := t.Timeout
+	if timeout == time.Duration(0) {
+		timeout = defaultTimeout
 	}
-	log.Info("Setting in seconds:", "now", time.Now(), "timeout", recvTimeout)
+	timerCh := time.After(timeout)
+	log.Info("", "timeout", timeout)
 	// Add timeout channel as the last select case.
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
 	expPkts := append([]*tpkt.ExpPkt(nil), t.Out...)
 	var errStr []string
 	for {
 		idx, pktV, ok := reflect.Select(cases)
-		log.Info("After select", "now", time.Now())
+		log.Info("After select")
 		if !ok {
 			cases[idx].Chan = reflect.ValueOf(nil)
 			errStr = append(errStr, fmt.Sprintf("Unexpected interface %s/%s closed",
@@ -300,7 +299,7 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 		if idx == timerIdx {
 			// Timeout receiving packets
 			to := pktV.Interface().(time.Time)
-			log.Info("Expired", "now", time.Now(), "timeout", to)
+			log.Info("Timeout Expired", "time", to)
 			if len(expPkts) > 0 {
 				errStr = append(errStr, fmt.Sprintf("Timeout receiving packets"))
 			}
