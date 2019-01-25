@@ -22,12 +22,22 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var st *state
+
+// CheckInfo stores the state for a topology check. It allows the caller to get
+// a view which topology will be valid if it commits to setting the topology
+// provided during the check.
+type CheckInfo struct {
+	topo
+	prevStatic *topology.Topo
+	newStatic  *topology.Topo
+}
 
 // Callbacks are callbacks to respond to specific topology update events.
 type Callbacks struct {
@@ -52,7 +62,7 @@ func Init(id string, svc proto.ServiceType, clbks Callbacks) {
 func Get() *topology.Topo {
 	st.RLock()
 	defer st.RUnlock()
-	return st.topo.curr()
+	return st.topo.Current()
 }
 
 // SetStatic atomically sets the static topology. Whether semi-mutable fields are
@@ -65,14 +75,26 @@ func SetStatic(static *topology.Topo, semiMutAllowed bool) (*topology.Topo, bool
 	return st.setStatic(static, semiMutAllowed)
 }
 
+// CheckStatic checks whether setting the static topology is permissible. The returned
+// info can be used in SetStaticFromCheck to actually set the static topology.
+func CheckStatic(static *topology.Topo, semiMutAllowed bool) (CheckInfo, error) {
+	return st.checkStatic(static, semiMutAllowed)
+}
+
+// SetStaticFromCheck sets the topology based on the info from a previous check.
+// An error is returned, if the current static topology changed in the meantime.
+func SetStaticFromCheck(info CheckInfo) error {
+	return st.setStaticFromCheck(info)
+}
+
 // topo stores the currently active static and dynamic topologies.
 type topo struct {
 	static  *topology.Topo
 	dynamic *topology.Topo
 }
 
-// curr returns the currently active topology.
-func (t *topo) curr() *topology.Topo {
+// Current returns the currently active topology.
+func (t *topo) Current() *topology.Topo {
 	if t.dynamic != nil && t.dynamic.Active(time.Now()) {
 		return t.dynamic
 	}
@@ -102,17 +124,52 @@ func (s *state) setStatic(static *topology.Topo, allowed bool) (*topology.Topo, 
 	if err := s.validator.Validate(static, s.topo.static, allowed); err != nil {
 		return nil, false, err
 	}
-	updated := s.updateStatic(static)
-	return s.topo.curr(), updated, nil
+	// Only update static topology if the new one is different or valid for longer.
+	if keepOld(static, s.topo.static) {
+		return s.topo.Current(), false, nil
+	}
+	s.updateStatic(static)
+	return s.topo.Current(), true, nil
+}
+
+func (s *state) checkStatic(static *topology.Topo, allowed bool) (CheckInfo, error) {
+	s.Lock()
+	defer s.Unlock()
+	if err := s.validator.Validate(static, s.topo.static, allowed); err != nil {
+		return CheckInfo{}, err
+	}
+	info := CheckInfo{
+		topo:       s.topo,
+		prevStatic: s.topo.static,
+		newStatic:  static,
+	}
+	if keepOld(info.newStatic, info.prevStatic) {
+		return info, nil
+	}
+	if s.validator.MustDropDynamic(info.newStatic, info.prevStatic) {
+		info.dynamic = nil
+	}
+	info.static = static
+	return info, nil
+}
+
+// SetFromCheck atomically sets the static topology if the pointer of the current
+// static topology is the same as during creation time of info.
+func (s *state) setStaticFromCheck(info CheckInfo) error {
+	s.Lock()
+	defer s.Unlock()
+	if info.prevStatic != s.topo.static {
+		return common.NewBasicError("Static topology changed in the meantime", nil)
+	}
+	// Update the static topology if necessary.
+	if info.static != s.topo.static {
+		s.updateStatic(info.newStatic)
+	}
+	return nil
 }
 
 // updateStatic updates the static topology, if necessary, and calls the corresponding callbacks.
-func (s *state) updateStatic(static *topology.Topo) bool {
-	// Only update static topology if the new one is different or valid for longer.
-	if cmp.Equal(static, s.topo.static, cmpopts.IgnoreFields(topology.Topo{},
-		"Timestamp", "TimestampHuman", "TTL")) && !expiresLater(static, s.topo.static) {
-		return false
-	}
+func (s *state) updateStatic(static *topology.Topo) {
 	// Drop dynamic topology if necessary.
 	if s.validator.MustDropDynamic(static, s.topo.static) && s.topo.dynamic != nil {
 		s.topo.dynamic = nil
@@ -120,7 +177,15 @@ func (s *state) updateStatic(static *topology.Topo) bool {
 	}
 	s.topo.static = static
 	call(s.clbks.UpdateStatic)
-	return true
+}
+
+func keepOld(newTopo, oldTopo *topology.Topo) bool {
+	return topoEq(newTopo, oldTopo) && !expiresLater(newTopo, oldTopo)
+}
+
+func topoEq(newTopo, oldTopo *topology.Topo) bool {
+	return cmp.Equal(newTopo, oldTopo, cmpopts.IgnoreFields(
+		topology.Topo{}, "Timestamp", "TimestampHuman", "TTL"))
 }
 
 func expiresLater(newTopo, oldTopo *topology.Topo) bool {

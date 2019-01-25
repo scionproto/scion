@@ -120,31 +120,32 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 // This method is called on initial start and when a sighup is received.
 func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	log.Debug("====> Setting up new context from config")
-	defer log.Debug("====> Done setting up new context from config")
-	// Set the static topology with new version from disk.
-	topo, _, err := itopo.SetStatic(config.Topo, true)
+	// We want to keep itopo and the context that is set in sync.
+	// We attempt to set the context with the topology that will be current
+	// after setting itopo. If setting itopo fails in the end, we can rollback the context.
+	info, err := itopo.CheckStatic(config.Topo, true)
 	if err != nil {
 		return err
 	}
-	// Set config to used the appropriate topology.
-	newConf, err := brconf.WithNewTopo(r.Id, topo, config)
+	// Set config to used the appropriate topology. The returned topology is
+	// not necessarily the same as config.Topo. It can be an other static
+	// or dynamic topology.
+	newConf, err := brconf.WithNewTopo(r.Id, info.Current(), config)
 	if err != nil {
 		return err
 	}
-	if err := r.setupNewContext(rctx.New(newConf)); err != nil {
-		// Make sure itopo is consistent with topo in rctx.
-		itopo.SetStatic(rctx.Get().Conf.Topo, true)
+	if err := r.setupNewContext(rctx.New(newConf), info); err != nil {
 		return err
 	}
 	return nil
 }
 
 // setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(ctx *rctx.Ctx) error {
+func (r *Router) setupNewContext(ctx *rctx.Ctx, info itopo.CheckInfo) error {
 	oldCtx := rctx.Get()
 	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
 	sockConf := brconf.SockConf{Default: PosixSock}
-	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
+	if err := r.setupNetAndTopo(ctx, oldCtx, info, sockConf); err != nil {
 		r.rollbackNet(ctx, oldCtx, sockConf, handleRollbackErr)
 		return err
 	}
@@ -152,6 +153,19 @@ func (r *Router) setupNewContext(ctx *rctx.Ctx) error {
 	startSocks(ctx)
 	// Tear down sockets for removed interfaces
 	r.teardownNet(ctx, oldCtx, sockConf)
+	return nil
+}
+
+// setupNetAndTopo sets up the net context and set the topology in itopo.
+func (r *Router) setupNetAndTopo(ctx *rctx.Ctx, oldCtx *rctx.Ctx, info itopo.CheckInfo,
+	sockConf brconf.SockConf) error {
+
+	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
+		return err
+	}
+	if err := itopo.SetStaticFromCheck(info); err != nil {
+		return err
+	}
 	return nil
 }
 
