@@ -104,7 +104,7 @@ func (r *Runner) Kill() {
 // That means if the periodicity is 5m and you call TriggerNow() after 2 minutes,
 // the next execution will be in 3 minutes.
 //
-// The methods blocks until either the triggered run was started or the runner was stopped,
+// The method blocks until either the triggered run was started or the runner was stopped,
 // in which case the triggered run will not be executed.
 func (r *Runner) TriggerRun() {
 	select {
