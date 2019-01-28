@@ -34,9 +34,12 @@ var st *state
 // a view which topology will be valid if it commits to setting the topology
 // provided during the check.
 type CheckInfo struct {
+	// topo contains the view of the static and dynamic topologies.
 	topo
+	// prevStatic stores the currently active topology during the check.
 	prevStatic *topology.Topo
-	newStatic  *topology.Topo
+	// newStatic stores the provided static topology during the check.
+	newStatic *topology.Topo
 }
 
 // Callbacks are callbacks to respond to specific topology update events.
@@ -83,6 +86,8 @@ func CheckStatic(static *topology.Topo, semiMutAllowed bool) (CheckInfo, error) 
 
 // SetStaticFromCheck sets the topology based on the info from a previous check.
 // An error is returned, if the current static topology changed in the meantime.
+// The dynamic topology is allowed to change in the meantime, but will be dropped
+// when necessary.
 func SetStaticFromCheck(info CheckInfo) error {
 	return st.setStaticFromCheck(info)
 }
