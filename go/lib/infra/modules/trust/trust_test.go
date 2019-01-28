@@ -764,7 +764,7 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	topotestutil.AddServer(topo, proto.ServiceType_cs, "foo",
 		topology.TestTopoAddr(nil, nil, nil, nil))
 	itopoOnce.Do(func() {
-		itopo.Init(proto.ServiceType_unset, itopo.Callbacks{})
+		itopo.Init("", proto.ServiceType_unset, itopo.Callbacks{})
 	})
 	_, _, err = itopo.SetStatic(topo, false)
 	xtest.FailOnErr(t, err)
