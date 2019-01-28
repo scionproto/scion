@@ -17,7 +17,6 @@ package pathmgr
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/pathpol"
@@ -40,12 +39,12 @@ func NewWatchFactory(timers Timers) *WatchFactory {
 	}
 }
 
-func (factory *WatchFactory) New(sp *SyncPaths, bq *queryConfig) *WatchReference {
+func (factory *WatchFactory) New(sp *SyncPaths, bq *queryConfig, pp PollingPolicy) *WatchReference {
 	ref := &WatchReference{parent: factory}
 	factory.instances[ref] = &WatchRunner{
 		sp:      sp,
 		querier: bq,
-		pp:      NewPollingPolicy(bq.filter != nil, factory.timers),
+		pp:      pp,
 		closeC:  make(chan struct{}),
 	}
 	return ref
@@ -65,11 +64,11 @@ func (factory *WatchFactory) length() int {
 	return len(factory.instances)
 }
 
-func (factory *WatchFactory) apply(f func(*SyncPaths)) {
+func (factory *WatchFactory) apply(f func(*WatchRunner)) {
 	factory.mtx.RLock()
 	defer factory.mtx.RUnlock()
 	for _, w := range factory.instances {
-		f(w.sp)
+		f(w)
 	}
 }
 
@@ -121,12 +120,12 @@ type WatchRunner struct {
 
 func (w *WatchRunner) Run() {
 	for {
-		timer := w.pp.ArmNextTrigger(w.sp.Load().APS)
+		w.pp.UpdateState(w.sp.Load().APS)
 		select {
 		case <-w.closeC:
-			timer.Stop()
+			w.pp.Destroy()
 			return
-		case flags := <-w.pp.Drainer():
+		case flags := <-w.pp.PollC():
 			ctx, cancelF := context.WithTimeout(context.Background(), DefaultQueryTimeout)
 			w.sp.update(w.querier.Do(ctx, flags))
 			cancelF()
@@ -140,58 +139,6 @@ func (w *WatchRunner) Stop() {
 	default:
 		close(w.closeC)
 	}
-}
-
-// PollingPolicy describes how SCIOND should be polled, taking into account
-// various aspects such as number of paths and the existence of a filtering
-// policy. The PollingPolicy decides when SCIOND should be queried next, and
-// which flags to be set.
-type PollingPolicy interface {
-	// ArmNextTrigger schedules the next tick, as dictated by the policy. Use
-	// the returned timer to clean up any resources.
-	ArmNextTrigger(availablePaths spathmeta.AppPathSet) *time.Timer
-	// Drainer returns the channel that is written to whenever the policy
-	// dictates a new execution. Ticks can be dropped if the channel is full.
-	// Callers should make sure that the policy is reevaluated after every
-	// drain, thus ensuring that a new tick will arrive in the future.
-	Drainer() <-chan sciond.PathReqFlags
-}
-
-func NewPollingPolicy(haveFilter bool, timers Timers) PollingPolicy {
-	return &DefaultPollingPolicy{
-		haveFilter:    haveFilter,
-		timers:        timers,
-		signalingChan: make(chan sciond.PathReqFlags, 1),
-	}
-}
-
-type DefaultPollingPolicy struct {
-	haveFilter    bool
-	timers        Timers
-	signalingChan chan sciond.PathReqFlags
-}
-
-func (pp *DefaultPollingPolicy) ArmNextTrigger(availablePaths spathmeta.AppPathSet) *time.Timer {
-	noPaths := len(availablePaths) == 0
-	waitDuration := pp.timers.GetWait(noPaths)
-	timer := time.AfterFunc(waitDuration, func() {
-		flags := sciond.PathReqFlags{}
-		if noPaths && pp.haveFilter {
-			flags.Refresh = true
-		}
-		select {
-		case pp.signalingChan <- flags:
-		default:
-			// A tick already exists in the channel. This means that the reader
-			// is guaranteed to drain the channel, and re-enter this function
-			// in the future, so it is safe to discard.
-		}
-	})
-	return timer
-}
-
-func (pp *DefaultPollingPolicy) Drainer() <-chan sciond.PathReqFlags {
-	return pp.signalingChan
 }
 
 // queryConfig describes the persistent query information associated with a
