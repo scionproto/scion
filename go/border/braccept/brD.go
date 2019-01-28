@@ -16,6 +16,7 @@ package main
 
 import (
 	"hash"
+	"time"
 
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
@@ -235,7 +236,8 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 	}
 
 	revLocalFork := &BRTest{
-		Desc: "Multiple IFIDs - Revocation to local destination, fork to PS",
+		Desc:    "Multiple IFIDs - Revocation to local destination, fork to PS",
+		Timeout: 1 * time.Second, // Control packets need to go through the dispatcher
 		In: &tpkt.Pkt{
 			Dev: "ifid_151", Layers: []tpkt.LayerBuilder{
 				tpkt.GenOverlayIP4UDP("192.168.15.3", 40000, "192.168.15.2", 50000),
@@ -290,7 +292,8 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 	}
 
 	revLocalFork = &BRTest{
-		Desc: "Multiple IFIDs - Revocation received on parent ifid, fork to PS",
+		Desc:    "Multiple IFIDs - Local ISD revocation on parent ifid, fork to PS and BS",
+		Timeout: 1 * time.Second, // Control packets need to go through the dispatcher
 		In: &tpkt.Pkt{
 			Dev: "ifid_171", Layers: []tpkt.LayerBuilder{
 				tpkt.GenOverlayIP4UDP("192.168.17.3", 40000, "192.168.17.2", 50000),
