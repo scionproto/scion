@@ -54,13 +54,9 @@ func (factory *WatchFactory) New(sp *SyncPaths, bq *queryConfig) *WatchReference
 func (factory *WatchFactory) destroy(ref *WatchReference) {
 	factory.mtx.Lock()
 	defer factory.mtx.Unlock()
+	watch := factory.instances[ref]
+	watch.Stop()
 	delete(factory.instances, ref)
-}
-
-func (factory *WatchFactory) load(ref *WatchReference) *SyncPaths {
-	factory.mtx.RLock()
-	defer factory.mtx.RUnlock()
-	return factory.instances[ref].sp
 }
 
 func (factory *WatchFactory) length() int {
@@ -78,8 +74,8 @@ func (factory *WatchFactory) apply(f func(*SyncPaths)) {
 }
 
 func (factory *WatchFactory) run(ref *WatchReference) {
-	// Run needs to run outside the lock
-	watch := factory.runInternal(ref)
+	// Run must execute outside the lock, because it is a long-running worker.
+	watch := factory.getRunner(ref)
 	if watch != nil {
 		// The caller destroyed the reference before it got to run. Because the
 		// polling loop usually runs in its own goroutine, this can happen if
@@ -88,7 +84,7 @@ func (factory *WatchFactory) run(ref *WatchReference) {
 	}
 }
 
-func (factory *WatchFactory) runInternal(ref *WatchReference) *WatchRunner {
+func (factory *WatchFactory) getRunner(ref *WatchReference) *WatchRunner {
 	factory.mtx.RLock()
 	defer factory.mtx.RUnlock()
 	return factory.instances[ref]
