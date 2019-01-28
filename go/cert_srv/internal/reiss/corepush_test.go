@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/xtest/matchers"
 )
 
 func init() {
@@ -97,23 +98,23 @@ func TestNonExistingChainsArePushed(t *testing.T) {
 	defer ctrl.Finish()
 
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_110), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_110), gomock.Any()).Return(
 		emptyChainMsg, nil,
 	)
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_120), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_120), gomock.Any()).Return(
 		emptyChainMsg, nil,
 	)
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
 		emptyChainMsg, nil,
 	)
 	msger.EXPECT().SendCertChain(
-		gomock.Any(), matchesChain(rawChain1), xtest.IsSnetAddrWithIA(core1_110), gomock.Any())
+		gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_110), gomock.Any())
 	msger.EXPECT().SendCertChain(
-		gomock.Any(), matchesChain(rawChain1), xtest.IsSnetAddrWithIA(core1_120), gomock.Any())
+		gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_120), gomock.Any())
 	msger.EXPECT().SendCertChain(
-		gomock.Any(), matchesChain(rawChain1), xtest.IsSnetAddrWithIA(core1_130), gomock.Any())
+		gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_130), gomock.Any())
 	pusher.Run(ctx)
 }
 
@@ -124,19 +125,19 @@ func TestExistingChainsAreNotRequested(t *testing.T) {
 	defer ctrl.Finish()
 
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_110), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_110), gomock.Any()).Return(
 		chain1Msg, nil,
 	)
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_120), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_120), gomock.Any()).Return(
 		chain1Msg, nil,
 	)
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
 		emptyChainMsg, nil,
 	)
 	msger.EXPECT().SendCertChain(
-		gomock.Any(), matchesChain(rawChain1), xtest.IsSnetAddrWithIA(core1_130), gomock.Any())
+		gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_130), gomock.Any())
 	pusher.Run(ctx)
 }
 
@@ -147,27 +148,27 @@ func TestErrDuringSendIsRetried(t *testing.T) {
 	defer ctrl.Finish()
 
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_110), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_110), gomock.Any()).Return(
 		chain1Msg, nil,
 	)
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_120), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_120), gomock.Any()).Return(
 		chain1Msg, nil,
 	)
 	msger.EXPECT().GetCertChain(
-		gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
+		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
 		emptyChainMsg, nil,
 	)
 	gomock.InOrder(
 		msger.EXPECT().SendCertChain(
-			gomock.Any(), matchesChain(rawChain1), xtest.IsSnetAddrWithIA(core1_130),
+			gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_130),
 			gomock.Any()).Return(common.NewBasicError("test error", nil)),
 		msger.EXPECT().GetCertChain(
-			gomock.Any(), gomock.Any(), xtest.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
+			gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
 			emptyChainMsg, nil,
 		),
 		msger.EXPECT().SendCertChain(
-			gomock.Any(), matchesChain(rawChain1), xtest.IsSnetAddrWithIA(core1_130), gomock.Any()),
+			gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()),
 	)
 	pusher.Run(ctx)
 }
