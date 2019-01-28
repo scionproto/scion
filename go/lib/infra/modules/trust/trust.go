@@ -50,6 +50,7 @@ var (
 	ErrNotFoundLocally      = "Chain/TRC not found locally"
 	ErrMissingAuthoritative = "Trust store is authoritative for requested object," +
 		" and object was not found"
+	ErrNotFound = "Chain/TRC not found"
 )
 
 var _ infra.TrustStore = (*Store)(nil)
@@ -127,6 +128,9 @@ func (store *Store) trcRequestFunc(ctx context.Context, request dedupe.Request) 
 	if err != nil {
 		return wrapErr(common.NewBasicError("Unable to parse TRC message", err, "msg", trcMsg))
 	}
+	if trcObj == nil {
+		return dedupe.Response{Data: nil}
+	}
 
 	if req.version != scrypto.LatestVer && trcObj.Version != req.version {
 		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
@@ -154,6 +158,9 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 	chain, err := chainMsg.Chain()
 	if err != nil {
 		return wrapErr(common.NewBasicError("Unable to parse CertChain message", err))
+	}
+	if chain == nil {
+		return dedupe.Response{Data: nil}
 	}
 	if req.version != scrypto.LatestVer && chain.Leaf.Version != req.version {
 		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
@@ -207,7 +214,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 	if err != nil || trcObj != nil {
 		return trcObj, err
 	}
-	if recurse == false {
+	if !recurse {
 		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "isd", isd, "version", version,
 			"client", client)
 	}
@@ -237,6 +244,9 @@ func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*tr
 	case response := <-responseC:
 		if response.Error != nil {
 			return nil, response.Error
+		}
+		if response.Data == nil {
+			return nil, common.NewBasicError(ErrNotFound, nil)
 		}
 		return response.Data.(*trc.TRC), nil
 	case <-ctx.Done():
@@ -314,8 +324,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	if err != nil {
 		return nil, err
 	}
-
-	if recurse == false {
+	if !recurse {
 		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
@@ -351,10 +360,9 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	}
 	// If we're authoritative for the requested IA, error out now.
 	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
-		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
-			"requested ia", ia)
+		return nil, common.NewBasicError(ErrMissingAuthoritative, nil, "requested ia", ia)
 	}
-	if recurse == false {
+	if !recurse {
 		return nil, common.NewBasicError("Chain not found in DB, and recursion disabled", nil,
 			"ia", ia, "version", version, "client", client)
 	}
@@ -448,6 +456,9 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 	case response := <-responseC:
 		if response.Error != nil {
 			return nil, response.Error
+		}
+		if response.Data == nil {
+			return nil, common.NewBasicError(ErrNotFound, nil)
 		}
 		return response.Data.(*cert.Chain), nil
 	case <-ctx.Done():

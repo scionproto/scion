@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +30,9 @@ type TRC struct {
 }
 
 func (t *TRC) TRC() (*trc.TRC, error) {
+	if t.RawTRC == nil {
+		return nil, nil
+	}
 	return trc.TRCFromRaw(t.RawTRC, true)
 }
 

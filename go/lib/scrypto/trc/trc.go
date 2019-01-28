@@ -413,6 +413,9 @@ func (t *TRC) UnmarshalJSON(b []byte) error {
 }
 
 func (t *TRC) String() string {
+	if t == nil {
+		return "TRC <nil>"
+	}
 	return fmt.Sprintf("TRC %dv%d", t.ISD, t.Version)
 }
 

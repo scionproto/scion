@@ -506,13 +506,13 @@ func TestTRCReqHandler(t *testing.T) {
 		{
 			Name: "ask for unknown isd=2, version=max, cache-only, recursive",
 			ISD:  2, Version: scrypto.LatestVer,
-			ExpData: nil, ExpError: true,
+			ExpData: nil, ExpError: false,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown isd=2, version=max, cache-only, non-recursive",
 			ISD:  2, Version: scrypto.LatestVer,
-			ExpData: nil, ExpError: true,
+			ExpData: nil, ExpError: false,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
@@ -536,7 +536,7 @@ func TestTRCReqHandler(t *testing.T) {
 		{
 			Name: "ask for bogus isd=42, version=max, cache-only=true, non-recursive",
 			ISD:  42, Version: scrypto.LatestVer,
-			ExpData: nil, ExpError: true,
+			ExpData: nil, ExpError: false,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 	}
@@ -648,13 +648,13 @@ func TestChainReqHandler(t *testing.T) {
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only, recursive",
 			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: scrypto.LatestVer,
-			ExpData: nil, ExpError: true,
+			ExpData: nil, ExpError: false,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only, non-recursive",
 			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: scrypto.LatestVer,
-			ExpData: nil, ExpError: true,
+			ExpData: nil, ExpError: false,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
