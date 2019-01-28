@@ -269,7 +269,6 @@ func sendPkt(pkt *tpkt.Pkt, delay time.Duration) error {
 	if err != nil {
 		return err
 	}
-	// A negative or zero duration causes Sleep to return immediately.
 	defer time.Sleep(delay)
 	return devInfo.handle.WritePacketData(raw)
 }
