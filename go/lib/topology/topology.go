@@ -284,7 +284,7 @@ func (t *Topo) Expiry() time.Time {
 	return t.Timestamp.Add(t.TTL)
 }
 
-func (t *Topo) GetTopoAddrs(id string, svc proto.ServiceType) (*TopoAddr, error) {
+func (t *Topo) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, error) {
 	svcInfo, err := t.GetSvcInfo(svc)
 	if err != nil {
 		return nil, err
