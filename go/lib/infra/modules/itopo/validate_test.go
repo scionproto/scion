@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var fn = "testdata/topo.json"
@@ -43,6 +44,43 @@ func TestGeneralValidatorImmutable(t *testing.T) {
 		oldTopo := loadTopo(fn, t)
 		topo := loadTopo(fn, t)
 		testGenImmutable(&generalValidator{}, topo, oldTopo, t)
+	})
+}
+
+func TestSvcValidatorGeneral(t *testing.T) {
+	Convey("Given a service validator", t, func() {
+		v := &svcValidator{id: "cs1-ff00:0:311-1", svc: proto.ServiceType_cs}
+		Convey("A nil topology is not valid", func() {
+			SoMsg("err", v.General(nil), ShouldNotBeNil)
+		})
+		Convey("The topology is only valid if it contains the service", func() {
+			topo := loadTopo(fn, t)
+			SoMsg("Err contained", v.General(topo), ShouldBeNil)
+			v.id = "missing"
+			SoMsg("Err missing", v.General(topo), ShouldNotBeNil)
+		})
+	})
+}
+
+func TestSvcValidatorImmutable(t *testing.T) {
+	Convey("Given a service validator", t, func() {
+		v := &svcValidator{id: "cs1-ff00:0:311-1", svc: proto.ServiceType_cs}
+		other := "cs1-ff00:0:311-2"
+		oldTopo := loadTopo(fn, t)
+		topo := loadTopo(fn, t)
+		testGenImmutable(v, topo, oldTopo, t)
+		Convey("Modifying a different service of the same type is allowed", func() {
+			svcInfo := topo.CS[other]
+			svcInfo.Overlay = overlay.IPv6
+			topo.CS[other] = svcInfo
+			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
+		})
+		Convey("Modifying the own service entry is not allowed", func() {
+			svcInfo := topo.CS[v.id]
+			svcInfo.Overlay = overlay.IPv6
+			topo.CS[v.id] = svcInfo
+			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
+		})
 	})
 }
 
