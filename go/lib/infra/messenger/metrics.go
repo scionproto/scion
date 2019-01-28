@@ -64,7 +64,7 @@ func init() {
 		"The results of messenger calls", []string{prom.LabelResult, prom.LabelOperation})
 	latency = prom.NewHistogramVec(promNamespace, "", "calls_latency",
 		"Histogram of call latency in seconds.", []string{prom.LabelResult, prom.LabelOperation},
-		[]float64{0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 1.28, 2.56, 5.12, 10.24})
+		prom.DefaultLatencyBuckets)
 }
 
 func metricStartOp(op promOp) opMetrics {

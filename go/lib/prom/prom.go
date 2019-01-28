@@ -25,10 +25,14 @@ import (
 const (
 	// LabelResult is the label for result classifications.
 	LabelResult = "result"
+	// LabelStatus for latency status classifications, possible values are prefixed with Status*.
+	LabelStatus = "status"
 	// LabelElem is the label for the element id that is added to all metrics.
 	LabelElem = "elem"
 	// LabelOperation is the label for the name of an executed operation.
 	LabelOperation = "op"
+	// LabelSrc is the label for the src of a request.
+	LabelSrc = "src"
 
 	// ResultOk is no error.
 	ResultOk = "ok"
@@ -36,6 +40,16 @@ const (
 	ErrNotClassified = "err_not_classified"
 	// ErrTimeout is a timeout error.
 	ErrTimeout = "err_timeout"
+
+	StatusOk      = "ok"
+	StatusErr     = "err"
+	StatusTimeout = "err_timeout"
+)
+
+var (
+	// DefaultLatencyBuckets 10ms, 20ms, 40ms, ... 5.12s, 10.24s.
+	DefaultLatencyBuckets = []float64{0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64,
+		1.28, 2.56, 5.12, 10.24}
 )
 
 func CopyLabels(labels prometheus.Labels) prometheus.Labels {
