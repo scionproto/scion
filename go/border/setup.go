@@ -122,7 +122,7 @@ func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	log.Debug("====> Setting up new context from config")
 	// We want to keep itopo and the context that is set in sync.
 	// We attempt to set the context with the topology that will be current
-	// after setting itopo. If setting itopo fails in the end, we can rollback the context.
+	// after setting itopo. If setting itopo fails in the end, we rollback the context.
 	info, err := itopo.CheckStatic(config.Topo, true)
 	if err != nil {
 		return err
