@@ -14,7 +14,7 @@
 
 // File matchers contains matchers for gomock.
 
-package xtest
+package matchers
 
 import (
 	"fmt"
