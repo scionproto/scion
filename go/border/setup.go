@@ -134,10 +134,7 @@ func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	if err != nil {
 		return err
 	}
-	if err := r.setupNewContext(rctx.New(newConf), tx); err != nil {
-		return err
-	}
-	return nil
+	return r.setupNewContext(rctx.New(newConf), tx)
 }
 
 // setupNewContext sets up a new router context.
@@ -163,10 +160,7 @@ func (r *Router) setupNetAndTopo(ctx *rctx.Ctx, oldCtx *rctx.Ctx,
 	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
 		return err
 	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	return tx.Commit()
 }
 
 // setupNet configures networking for the router, using any setup hooks that
