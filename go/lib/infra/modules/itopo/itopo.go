@@ -30,18 +30,6 @@ import (
 
 var st *state
 
-// CheckInfo stores the state for a topology check. It allows the caller to get
-// a view which topology will be valid if it commits to setting the topology
-// provided during the check.
-type CheckInfo struct {
-	// topo contains the view of the static and dynamic topologies.
-	topo
-	// prevStatic stores the currently active topology during the check.
-	prevStatic *topology.Topo
-	// newStatic stores the provided static topology during the check.
-	newStatic *topology.Topo
-}
-
 // Callbacks are callbacks to respond to specific topology update events.
 type Callbacks struct {
 	// CleanDynamic is called whenever dynamic topology is dropped due to expiration.
@@ -65,7 +53,7 @@ func Init(id string, svc proto.ServiceType, clbks Callbacks) {
 func Get() *topology.Topo {
 	st.RLock()
 	defer st.RUnlock()
-	return st.topo.Current()
+	return st.topo.Get()
 }
 
 // SetStatic atomically sets the static topology. Whether semi-mutable fields are
@@ -78,18 +66,37 @@ func SetStatic(static *topology.Topo, semiMutAllowed bool) (*topology.Topo, bool
 	return st.setStatic(static, semiMutAllowed)
 }
 
-// CheckStatic checks whether setting the static topology is permissible. The returned
-// info can be used in SetStaticFromCheck to actually set the static topology.
-func CheckStatic(static *topology.Topo, semiMutAllowed bool) (CheckInfo, error) {
-	return st.checkStatic(static, semiMutAllowed)
+// BeginSetStatic checks whether setting the static topology is permissible. The returned
+// transaction provides a view on which topology would be active, if committed.
+func BeginSetStatic(static *topology.Topo, semiMutAllowed bool) (Transaction, error) {
+	return st.beginSetStatic(static, semiMutAllowed)
 }
 
-// SetStaticFromCheck sets the topology based on the info from a previous check.
-// An error is returned, if the current static topology changed in the meantime.
-// The dynamic topology is allowed to change in the meantime, but will be dropped
-// when necessary.
-func SetStaticFromCheck(info CheckInfo) error {
-	return st.setStaticFromCheck(info)
+// Transaction allows to get a view on which topology will be active without committing
+// to the topology update yet.
+type Transaction struct {
+	// topo contains the view of the static and dynamic topologies.
+	topo
+	// state is the state that the transaction is associated with.
+	state *state
+	// prevStatic stores the currently active topology during the check.
+	prevStatic *topology.Topo
+	// newStatic stores the provided static topology during the check.
+	newStatic *topology.Topo
+}
+
+// Commit commits the change. An error is returned, if the static topology changed in the meantime.
+func (tx *Transaction) Commit() error {
+	tx.state.Lock()
+	defer tx.state.Unlock()
+	if tx.prevStatic != tx.state.topo.static {
+		return common.NewBasicError("Static topology changed in the meantime", nil)
+	}
+	// Update the static topology if necessary.
+	if tx.static != tx.state.topo.static {
+		tx.state.updateStatic(tx.newStatic)
+	}
+	return nil
 }
 
 // topo stores the currently active static and dynamic topologies.
@@ -98,8 +105,9 @@ type topo struct {
 	dynamic *topology.Topo
 }
 
-// Current returns the currently active topology.
-func (t *topo) Current() *topology.Topo {
+// Get returns the dynamic topology if it is set and has not expired. Otherwise,
+// the static topology is returned.
+func (t *topo) Get() *topology.Topo {
 	if t.dynamic != nil && t.dynamic.Active(time.Now()) {
 		return t.dynamic
 	}
@@ -131,46 +139,32 @@ func (s *state) setStatic(static *topology.Topo, allowed bool) (*topology.Topo, 
 	}
 	// Only update static topology if the new one is different or valid for longer.
 	if keepOld(static, s.topo.static) {
-		return s.topo.Current(), false, nil
+		return s.topo.Get(), false, nil
 	}
 	s.updateStatic(static)
-	return s.topo.Current(), true, nil
+	return s.topo.Get(), true, nil
 }
 
-func (s *state) checkStatic(static *topology.Topo, allowed bool) (CheckInfo, error) {
+func (s *state) beginSetStatic(static *topology.Topo, allowed bool) (Transaction, error) {
 	s.Lock()
 	defer s.Unlock()
 	if err := s.validator.Validate(static, s.topo.static, allowed); err != nil {
-		return CheckInfo{}, err
+		return Transaction{}, err
 	}
-	info := CheckInfo{
+	tx := Transaction{
 		topo:       s.topo,
+		state:      s,
 		prevStatic: s.topo.static,
 		newStatic:  static,
 	}
-	if keepOld(info.newStatic, info.prevStatic) {
-		return info, nil
+	if keepOld(tx.newStatic, tx.prevStatic) {
+		return tx, nil
 	}
-	if s.validator.MustDropDynamic(info.newStatic, info.prevStatic) {
-		info.dynamic = nil
+	if s.validator.MustDropDynamic(tx.newStatic, tx.prevStatic) {
+		tx.dynamic = nil
 	}
-	info.static = static
-	return info, nil
-}
-
-// SetFromCheck atomically sets the static topology if the pointer of the current
-// static topology is the same as during creation time of info.
-func (s *state) setStaticFromCheck(info CheckInfo) error {
-	s.Lock()
-	defer s.Unlock()
-	if info.prevStatic != s.topo.static {
-		return common.NewBasicError("Static topology changed in the meantime", nil)
-	}
-	// Update the static topology if necessary.
-	if info.static != s.topo.static {
-		s.updateStatic(info.newStatic)
-	}
-	return nil
+	tx.static = static
+	return tx, nil
 }
 
 // updateStatic updates the static topology, if necessary, and calls the corresponding callbacks.
