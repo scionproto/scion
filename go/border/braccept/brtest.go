@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kormat/fmt15"
 	"github.com/mattn/go-isatty"
@@ -42,6 +43,11 @@ type BRTest struct {
 	Post *tpkt.Pkt
 	// Ignore is the list of packets that should be ignored.
 	Ignore []*tpkt.ExpPkt
+	// Delay is the amount of time to wait after sending a packet. This is useful when sending
+	// control packets to the BR in the Pre stage to allow for its processing.
+	Delay time.Duration
+	// Timeout is the time to wait for packets from the BR.
+	Timeout time.Duration
 }
 
 func (t *BRTest) Summary(testPass bool) string {
