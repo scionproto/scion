@@ -65,6 +65,17 @@ const Sample = `[general]
   # Connection for the trust database
   Connection = "/var/lib/scion/spki/ps-1.trust.db"
 
+[discovery]
+  [discovery.dynamic]
+    # Enable periodic fetching of the dynamic topology. (default false)
+    Enable = false
+
+    # Time between two consecutive dynamic topology query. (default 5s)
+    Interval = "5s"
+
+    # Timeout for querying the dynamic topology.  (default 1s)
+    Timeout = "1s"
+
 [ps]
   # Enable the "old" replication of down segments between cores using SegSync
   # messages (default false)

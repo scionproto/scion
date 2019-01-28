@@ -27,10 +27,12 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -182,6 +184,10 @@ type periodicTasks struct {
 	pathDBCleaner *periodic.Runner
 	cryptosyncer  *periodic.Runner
 	rcCleaner     *periodic.Runner
+	topoFetcher   struct {
+		dynamic *periodic.Runner
+		cleaner *periodic.Runner
+	}
 }
 
 func (t *periodicTasks) Start() {
@@ -198,6 +204,14 @@ func (t *periodicTasks) Start() {
 		if err != nil {
 			fatal.Fatal(common.NewBasicError("Unable to start seg syncer", err))
 		}
+	}
+	if cfg.Discovery.Dynamic.Enable {
+		t.topoFetcher.dynamic, t.topoFetcher.cleaner, err = idiscovery.StartDynamic(
+			cfg.Discovery.Dynamic, discovery.Full, nil)
+		if err != nil {
+			fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
+		}
+		log.Info("Started dynamic topology fetching")
 	}
 	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
@@ -221,6 +235,10 @@ func (t *periodicTasks) Kill() {
 	for i := range t.segSyncers {
 		syncer := t.segSyncers[i]
 		syncer.Kill()
+	}
+	if t.topoFetcher.dynamic != nil {
+		t.topoFetcher.cleaner.Kill()
+		t.topoFetcher.dynamic.Kill()
 	}
 	t.pathDBCleaner.Kill()
 	t.cryptosyncer.Kill()
