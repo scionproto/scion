@@ -114,6 +114,7 @@ func (v *generalValidator) Immutable(topo, oldTopo *topology.Topo) error {
 	}
 	return nil
 }
+
 func (*generalValidator) SemiMutable(_, _ *topology.Topo, _ bool) error {
 	return nil
 }
@@ -136,7 +137,7 @@ func (v *svcValidator) General(topo *topology.Topo) error {
 	if err := v.generalValidator.General(topo); err != nil {
 		return err
 	}
-	if _, err := topo.GetTopoAddrs(v.id, v.svc); err != nil {
+	if _, err := topo.GetTopoAddr(v.id, v.svc); err != nil {
 		return common.NewBasicError("Topo must contain service", nil, "id", v.id, "svc", v.svc)
 	}
 	return nil
@@ -150,8 +151,8 @@ func (v *svcValidator) Immutable(topo, oldTopo *topology.Topo) error {
 		return err
 	}
 	// We already checked that the service is in the map.
-	nAddr, _ := topo.GetTopoAddrs(v.id, v.svc)
-	oAddr, _ := oldTopo.GetTopoAddrs(v.id, v.svc)
+	nAddr, _ := topo.GetTopoAddr(v.id, v.svc)
+	oAddr, _ := oldTopo.GetTopoAddr(v.id, v.svc)
 	if !nAddr.Equal(oAddr) {
 		return common.NewBasicError("Local service entry must not change", nil,
 			"id", v.id, "svc", v.svc, "expected", oAddr, "actual", nAddr)
