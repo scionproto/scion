@@ -186,7 +186,11 @@ func (store *Store) GetValidTRC(ctx context.Context, isd addr.ISD,
 // GetValidCachedTRC asks the trust store to return a valid TRC for isd without
 // accessing the network.
 func (store *Store) GetValidCachedTRC(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
-	return store.getTRC(ctx, isd, scrypto.LatestVer, false, nil, nil)
+	trcObj, err := store.getTRC(ctx, isd, scrypto.LatestVer, false, nil, nil)
+	if err != nil {
+		return nil, common.NewBasicError(ErrNotFoundLocally, err)
+	}
+	return trcObj, nil
 }
 
 // GetTRC asks the trust store to return a TRC of the requested
@@ -224,17 +228,13 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 				"isd", isd, "version", version)
 		}
 	}
-	trcObj, err = store.getTRCFromNetwork(ctx, &trcRequest{
+	return store.getTRCFromNetwork(ctx, &trcRequest{
 		isd:      isd,
 		version:  version,
 		id:       messenger.NextId(),
 		server:   server,
 		postHook: store.insertTRCHook(),
 	})
-	if trcObj == nil && err == nil {
-		return nil, common.NewBasicError(ErrNotFound, nil)
-	}
-	return trcObj, err
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
@@ -246,7 +246,7 @@ func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*tr
 			return nil, response.Error
 		}
 		if response.Data == nil {
-			return nil, nil
+			return nil, common.NewBasicError(ErrNotFound, nil)
 		}
 		return response.Data.(*trc.TRC), nil
 	case <-ctx.Done():
@@ -304,11 +304,7 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 			return nil, err
 		}
 	}
-	chain, err := store.getValidChain(ctx, ia, true, nil, server)
-	if chain == nil && err == nil {
-		return nil, common.NewBasicError(ErrNotFound, nil)
-	}
-	return chain, err
+	return store.getValidChain(ctx, ia, true, nil, server)
 }
 
 func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
@@ -329,7 +325,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 		return nil, err
 	}
 	if !recurse {
-		return nil, nil
+		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
@@ -378,17 +374,13 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 		return nil, common.NewBasicError("Error determining server to query", err,
 			"requested_ia", ia, "requested_version", version)
 	}
-	chain, err = store.getChainFromNetwork(ctx, &chainRequest{
+	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
 		version:  version,
 		id:       messenger.NextId(),
 		server:   server,
 		postHook: nil,
 	})
-	if chain == nil && err == nil {
-		return nil, common.NewBasicError(ErrNotFound, nil)
-	}
-	return chain, err
 }
 
 func (store *Store) newChainValidator(validator *trc.TRC) ValidateChainFunc {
@@ -466,7 +458,7 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 			return nil, response.Error
 		}
 		if response.Data == nil {
-			return nil, nil
+			return nil, common.NewBasicError(ErrNotFound, nil)
 		}
 		return response.Data.(*cert.Chain), nil
 	case <-ctx.Done():
