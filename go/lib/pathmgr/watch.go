@@ -28,7 +28,7 @@ import (
 // WatchFactory creates and tracks path watches, i.e., path polling goroutines.
 type WatchFactory struct {
 	timers Timers
-	// mtx protects map operations on mtx
+	// mtx protects the map operations below
 	mtx       sync.RWMutex
 	instances map[*WatchReference]*WatchRunner
 }
@@ -53,66 +53,62 @@ func (factory *WatchFactory) New(sp *SyncPaths, bq *queryConfig) *WatchReference
 
 func (factory *WatchFactory) destroy(ref *WatchReference) {
 	factory.mtx.Lock()
+	defer factory.mtx.Unlock()
 	delete(factory.instances, ref)
-	factory.mtx.Unlock()
 }
 
 func (factory *WatchFactory) load(ref *WatchReference) *SyncPaths {
 	factory.mtx.RLock()
-	sp := factory.instances[ref].sp
-	factory.mtx.RUnlock()
-	return sp
+	defer factory.mtx.RUnlock()
+	return factory.instances[ref].sp
 }
 
 func (factory *WatchFactory) length() int {
 	factory.mtx.RLock()
-	length := len(factory.instances)
-	factory.mtx.RUnlock()
-	return length
+	defer factory.mtx.RUnlock()
+	return len(factory.instances)
 }
 
 func (factory *WatchFactory) apply(f func(*SyncPaths)) {
 	factory.mtx.RLock()
+	defer factory.mtx.RUnlock()
 	for _, w := range factory.instances {
 		f(w.sp)
 	}
-	factory.mtx.RUnlock()
 }
 
 func (factory *WatchFactory) run(ref *WatchReference) {
+	// Run needs to run outside the lock
+	watch := factory.runInternal(ref)
+	if watch != nil {
+		// The caller destroyed the reference before it got to run. Because the
+		// polling loop usually runs in its own goroutine, this can happen if
+		// the caller quickly calls destroy.
+		watch.Run()
+	}
+}
+
+func (factory *WatchFactory) runInternal(ref *WatchReference) *WatchRunner {
 	factory.mtx.RLock()
-	watch := factory.instances[ref]
-	factory.mtx.RUnlock()
-	watch.Run()
+	defer factory.mtx.RUnlock()
+	return factory.instances[ref]
 }
 
 // WatchReference is a reference to an internal Watch managed by the
 // PathManager. Call Run to start the goroutine associated with the watch, and
 // call Destroy to stop it.
 //
-// A WatchReference can be safely used concurrently from multiple goroutines.
+// Calling Run after a reference has been destroyed will result in a no-op.
 type WatchReference struct {
-	mtx       sync.Mutex
-	parent    *WatchFactory
-	destroyed bool
+	parent *WatchFactory
 }
 
 func (ref *WatchReference) Run() {
-	ref.mtx.Lock()
-	shouldRun := !ref.destroyed
-	ref.mtx.Unlock()
-	if shouldRun {
-		ref.parent.run(ref)
-	}
+	ref.parent.run(ref)
 }
 
 func (ref *WatchReference) Destroy() {
-	ref.mtx.Lock()
-	if !ref.destroyed {
-		ref.parent.destroy(ref)
-	}
-	ref.destroyed = true
-	ref.mtx.Unlock()
+	ref.parent.destroy(ref)
 }
 
 // WatchRunner polls SCIOND in accordance to a polling policy, updating a
