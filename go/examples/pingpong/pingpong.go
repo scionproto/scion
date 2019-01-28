@@ -93,12 +93,6 @@ func main() {
 	initNetwork()
 	switch *mode {
 	case ModeClient:
-		if remote.Host == nil {
-			LogFatal("Missing remote address")
-		}
-		if remote.Host.L4.Port() == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
-		}
 		c := newClient()
 		setSignalHandler(c)
 		c.run()
@@ -114,6 +108,12 @@ func validateFlags() {
 	}
 	if *mode == ModeClient && remote.Host == nil {
 		LogFatal("Missing remote address")
+	}
+	if *mode == ModeClient && remote.Host.L4 == nil {
+		LogFatal("Missing remote port")
+	}
+	if *mode == ModeClient && remote.Host.L4.Port() == 0 {
+		LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
 	}
 	if local.Host == nil {
 		LogFatal("Missing local address")
