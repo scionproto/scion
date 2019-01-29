@@ -117,20 +117,23 @@ type Resolver interface {
 
 type resolver struct {
 	sciondConn   sciond.Connector
+	timers       Timers
 	logger       log.Logger
 	watchFactory *WatchFactory
 }
 
-// New connects to SCIOND and spawns the asynchronous path resolver. Parameter
-// timers can be used to customize path manager behavior; if any timer is left
-// uninitialized, it is assigned the corresponding default value (see package
-// constants). When a query for a path older than maxAge reaches the resolver,
-// SCIOND is used to refresh the path. New returns with an error if a
-// connection to SCIOND could not be established.
+// New creates a new path management context.
+//
+// Parameter timers can be used to customize path manager behavior; if any
+// timer is left uninitialized, it is assigned the corresponding default value
+// (see package constants). When a query for a path older than maxAge reaches
+// the resolver, SCIOND is used to refresh the path. New returns with an error
+// if a connection to SCIOND could not be established.
 func New(conn sciond.Connector, timers Timers, logger log.Logger) Resolver {
 	timers.initDefaults()
 	r := &resolver{
 		sciondConn:   conn,
+		timers:       timers,
 		watchFactory: NewWatchFactory(timers),
 		logger:       getLogger(logger),
 	}
@@ -178,7 +181,8 @@ func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
 		dst:     dst,
 		filter:  filter,
 	}
-	w := r.watchFactory.New(sp, query)
+	pp := NewPollingPolicy(filter != nil, r.timers)
+	w := r.watchFactory.New(sp, query, pp)
 	sp.setDestructor(w.Destroy)
 
 	go func() {
@@ -224,10 +228,13 @@ func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo
 		// immediately from each cache.
 		pi := sciond.PathInterface{RawIsdas: revInfo.IA().IAInt(),
 			IfID: common.IFIDType(revInfo.IfID)}
-		f := func(sp *SyncPaths) {
-			aps := sp.Load().APS
-			aps = dropRevoked(aps, pi)
-			sp.update(aps)
+		f := func(w *WatchRunner) {
+			pathsBeforeRev := w.sp.Load().APS
+			pathsAfterRev := dropRevoked(pathsBeforeRev, pi)
+			w.sp.update(pathsAfterRev)
+			if len(pathsAfterRev) == 0 && len(pathsBeforeRev) > 0 {
+				w.pp.PollNow()
+			}
 		}
 		r.watchFactory.apply(f)
 	case sciond.RevStale:

@@ -255,6 +255,44 @@ func TestWatchFilter(t *testing.T) {
 	})
 }
 
+func TestRevokeFastRecovery(t *testing.T) {
+	src := xtest.MustParseIA("1-ff00:0:111")
+	dst := xtest.MustParseIA("1-ff00:0:110")
+	Convey("Given a path manager with a long normal timer and very small error timer", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		sd := mock_sciond.NewMockConnector(ctrl)
+		// First SCIOND query populates the watch
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+			), nil,
+		)
+
+		pr := New(sd, Timers{NormalRefire: getDuration(100), ErrorRefire: getDuration(1)}, nil)
+		_, err := pr.Watch(context.Background(), src, dst)
+		xtest.FailOnErr(t, err)
+
+		Convey("A revocation that deletes everything triggers an immediate requery", func() {
+			// Once everything is revoked a fast request is immediately
+			// triggered. We check for at least 2 iterations to make sure we
+			// are in error recovery mode, and the aggressive timer is used.
+			gomock.InOrder(
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					&sciond.RevReply{Result: sciond.RevValid}, nil,
+				),
+				sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(),
+					gomock.Any()).Return(
+					buildSDAnswer(), nil,
+				).MinTimes(2),
+			)
+			pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+			time.Sleep(getDuration(5))
+		})
+	})
+}
+
 func TestRevoke(t *testing.T) {
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:110")
@@ -269,6 +307,10 @@ func TestRevoke(t *testing.T) {
 					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
 				), nil,
 			)
+			// Attempts to recover from all paths getting revoked do not yield new paths
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(), nil,
+			).AnyTimes()
 			sp, err := pr.Watch(context.Background(), src, dst)
 			xtest.FailOnErr(t, err)
 			Convey("revoking an IFID that matches the path", func() {
