@@ -269,9 +269,6 @@ func TestRevokeFastRecovery(t *testing.T) {
 				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
 			), nil,
 		)
-		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-			&sciond.RevReply{Result: sciond.RevValid}, nil,
-		)
 
 		pr := New(sd, Timers{NormalRefire: getDuration(100), ErrorRefire: getDuration(1)}, nil)
 		_, err := pr.Watch(context.Background(), src, dst)
@@ -281,10 +278,15 @@ func TestRevokeFastRecovery(t *testing.T) {
 			// Once everything is revoked a fast request is immediately
 			// triggered. We check for at least 2 iterations to make sure we
 			// are in error recovery mode, and the aggressive timer is used.
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(),
-				gomock.Any()).Return(
-				buildSDAnswer(), nil,
-			).MinTimes(2)
+			gomock.InOrder(
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					&sciond.RevReply{Result: sciond.RevValid}, nil,
+				),
+				sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(),
+					gomock.Any()).Return(
+					buildSDAnswer(), nil,
+				).MinTimes(2),
+			)
 			pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
 			time.Sleep(getDuration(5))
 		})
