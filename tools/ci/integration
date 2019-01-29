@@ -2,15 +2,6 @@
 
 . tools/ci/common.sh
 
-go_infra() {
-    if [ -z "$DOCKER_BE" ]; then
-        ./docker.sh exec "set -eo pipefail; integration/go_infra |& tee -a logs/integration.run"
-    else
-        echo "Error: Cannot run go_infra tests with docker backend!"
-        return 1
-    fi
-}
-
 go_integration() {
     ./docker.sh exec "set -eo pipefail; integration/go_integration |& tee -a logs/integration.run"
 }
@@ -29,7 +20,6 @@ revocation() {
 
 run_tests() {
     result=0
-    [ -z "$DOCKER_BE" ] && { go_infra; result=$((result+$?)); }
     go_integration
     result=$((result+$?))
     if [ -n "$ALL" ]; then
@@ -59,7 +49,7 @@ sleep 20
 COMMAND="$1"
 shift
 case "$COMMAND" in
-    go_infra|go_integration|py_integration|revocation)
+    go_integration|py_integration|revocation)
         "$COMMAND"; result=$? ;;
     *) run_tests; result=$? ;;
 esac

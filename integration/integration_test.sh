@@ -50,12 +50,6 @@ fi
 sleep 10
 result=0
 
-if [ -z "$DOCKER_ARGS" ]; then
-    # Run go infra test
-    integration/go_infra
-    result=$((result+$?))
-fi
-
 # Run go integration tests
 integration/go_integration
 result=$((result+$?))
