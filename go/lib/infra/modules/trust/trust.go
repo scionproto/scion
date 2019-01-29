@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/topology"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -375,11 +377,12 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 			"requested_ia", ia, "requested_version", version)
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
-		ia:       ia,
-		version:  version,
-		id:       messenger.NextId(),
-		server:   server,
-		postHook: nil,
+		ia:        ia,
+		version:   version,
+		id:        messenger.NextId(),
+		server:    server,
+		postHook:  nil,
+		cacheOnly: true,
 	})
 }
 
@@ -649,30 +652,70 @@ func (store *Store) isLocal(address net.Addr) error {
 
 // ChooseServer builds a CS address for crypto material regarding the
 // destination AS.
+//
+// For non CSes this selects an AS-local CS.
+// For CSes this selects
+//  * a local core CS if destination is isd-local or any core CS.
+//  * a remote core CS if destination is remote isd.
 func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.Addr, error) {
 	topo := itopo.Get()
 	if store.config.ServiceType != proto.ServiceType_cs {
-		svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
-		if err != nil {
-			return nil, err
-		}
-		topoAddr := svcInfo.GetAnyTopoAddr()
-		if topoAddr == nil {
-			return nil, common.NewBasicError("Failed to look up CS in topology", nil)
-		}
-		csAddr := topoAddr.PublicAddr(topo.Overlay)
-		csOverlayAddr := topoAddr.OverlayAddr(topo.Overlay)
-		return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
+		return store.chooseASLocalCS(ctx, destination, topo)
 	}
-	pathSet := snet.DefNetwork.PathResolver().Query(ctx, store.ia, addr.IA{I: destination.I},
+	destISD, err := store.chooseDestCSIsd(ctx, destination, topo)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to determine dest ISD to query", err)
+	}
+	pathSet := snet.DefNetwork.PathResolver().Query(ctx, store.ia, addr.IA{I: destISD},
 		sciond.PathReqFlags{})
 	path := pathSet.GetAppPath("")
 	if path == nil {
 		return nil, common.NewBasicError("Unable to find path to any core AS", nil,
-			"isd", destination.I)
+			"isd", destISD)
 	}
 	a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	return a, nil
+}
+
+// chooseDestCSIsd selects the CS to ask for crypto material, using the following strategy:
+//  * a local core CS if destination is isd-local or any core CS.
+//  * a remote core CS if destination is remote isd.
+func (store *Store) chooseDestCSIsd(ctx context.Context, destination addr.IA,
+	topo *topology.Topo) (addr.ISD, error) {
+
+	// For isd-local dests use local core.
+	if destination.I == topo.ISD_AS.I {
+		return topo.ISD_AS.I, nil
+	}
+	// For wildcards or any core dest use local core.
+	if destination.A == 0 {
+		return topo.ISD_AS.I, nil
+	}
+	trc, err := store.GetTRC(ctx, destination.I, scrypto.LatestVer)
+	if err != nil {
+		return 0, err
+	}
+	if trc.CoreASes.Contains(destination) {
+		return topo.ISD_AS.I, nil
+	}
+	// For non-core dests in a remote isd use remote core.
+	return destination.I, nil
+}
+
+func (store *Store) chooseASLocalCS(ctx context.Context, destination addr.IA,
+	topo *topology.Topo) (net.Addr, error) {
+
+	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
+	if err != nil {
+		return nil, err
+	}
+	topoAddr := svcInfo.GetAnyTopoAddr()
+	if topoAddr == nil {
+		return nil, common.NewBasicError("Failed to look up CS in topology", nil)
+	}
+	csAddr := topoAddr.PublicAddr(topo.Overlay)
+	csOverlayAddr := topoAddr.OverlayAddr(topo.Overlay)
+	return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 }
 
 func (store *Store) NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer {
