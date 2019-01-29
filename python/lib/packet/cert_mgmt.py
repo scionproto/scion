@@ -1,4 +1,5 @@
 # Copyright 2015 ETH Zurich
+# Copyright 2019 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -70,7 +71,9 @@ class CertChainReply(Cerealizable):  # pragma: no cover
 
     def __init__(self, p):
         super().__init__(p)
-        self.chain = CertificateChain.from_raw(p.chain, lz4_=True)
+        self.chain = None
+        if p.chain:
+            self.chain = CertificateChain.from_raw(p.chain, lz4_=True)
 
     @classmethod
     def from_values(cls, chain):
@@ -108,7 +111,9 @@ class TRCReply(Cerealizable):  # pragma: no cover
 
     def __init__(self, p):
         super().__init__(p)
-        self.trc = TRC.from_raw(p.trc, lz4_=True)
+        self.trc = None
+        if p.trc:
+            self.trc = TRC.from_raw(p.trc, lz4_=True)
 
     @classmethod
     def from_values(cls, trc):
