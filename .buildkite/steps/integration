@@ -2,7 +2,7 @@
 
 set -e
 
-TESTS="revocation go_integration go_infra"
+TESTS="revocation go_integration"
 
 run_test() {
     echo "- label: Integration - ${1:?}"
