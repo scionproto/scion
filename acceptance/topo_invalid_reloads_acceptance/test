@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Whenever immutable fields in the topology file of an infra element is
+# changed, if the process receives a SIGHUP it will fail to reload the config.
+
+. acceptance/common.sh
+
+TEST_NAME="topo_invalid_reloads"
+TEST_TOPOLOGY="topology/Tiny.topo"
+
+IA=${IA:-1-ff00:0:112}
+IA_FILE="$(ia_file $IA)"
+SRC_AS_FILE="$(as_file $IA)"
+
+TOPO="gen/ISD1/AS$SRC_AS_FILE/topology.json"
+
+test_setup() {
+    set -e
+    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
+    for sd in gen/ISD1/*/*/*.toml; do
+        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
+    done
+    ./tools/dc start scion_ps$IA_FILE-1 scion_sd$IA_FILE
+    docker_status
+}
+
+test_run() {
+    set -e
+    cp "gen/ISD1/AS$SRC_AS_FILE/ps$IA_FILE-1/topology.json" "gen/ISD1/AS$SRC_AS_FILE/"
+    test_ps_immutable "ps1-ff00_0_111-1" "gen/ISD1/AS$SRC_AS_FILE/ps$IA_FILE-1/topology.json"
+    test_immutable "sd1-ff00_0_111" "gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
+
+}
+
+test_ps_immutable() {
+    test_immutable $1 $2
+    jq '.PathService[].Addrs.IPv4.Public.Addr = "242.42.42.42"' $TOPO | sponge $2
+    check_no_reload $1 "Addr"
+    jq '.PathService[].Addrs.IPv4.Public.L4Port = 42424' $TOPO | sponge $2
+    check_no_reload $1 "L4Port"
+}
+
+test_immutable() {
+    jq '.ISD_AS = "1-ff00:0:111"' $TOPO | sponge $2
+    check_no_reload "$1" "ISD_AS"
+    jq '.Core = true' $TOPO | sponge $2
+    check_no_reload "$1" "Core"
+    jq '.Overlay = "IPv6"' $TOPO | sponge $2
+    check_no_reload "$1" "Overlay"
+    jq '.MTU = 42' $TOPO | sponge $2
+    check_no_reload "$1" "MTU"
+}
+
+check_no_reload() {
+    ./tools/dc scion kill -s HUP scion_"$1"
+    sleep 1
+    grep -q "Reloaded topology" "logs/$1.log" || local failed=$?
+    if [ -z ${failed+x} ]; then
+        echo "FAIL: Successful reload should not be possible. step=( $2 )"
+        return 1
+    fi
+}
+
+print_help() {
+    echo
+	cat <<-_EOF
+	    $PROGRAM name
+	        return the name of this test
+	    $PROGRAM setup
+	        execute only the setup phase.
+	    $PROGRAM run
+	        execute only the run phase.
+	    $PROGRAM teardown
+	        execute only the teardown phase.
+	_EOF
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
+
