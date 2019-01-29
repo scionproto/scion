@@ -27,12 +27,13 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var (
-	RetrySleep = time.Second
+	// SleepAfterFailure is the base time to sleep after a failed attempt to push the chain.
+	// The actual sleep time is: attempts * SleepAfterFailure.
+	SleepAfterFailure = time.Second
 )
 
 var _ periodic.Task = (*CorePusher)(nil)
@@ -46,29 +47,26 @@ type CorePusher struct {
 }
 
 // Run makes sure all core CS have the chain of the local AS.
-// Run implements periodic.Task.Run.
 func (p *CorePusher) Run(ctx context.Context) {
 	chain, err := p.TrustDB.GetChainMaxVersion(ctx, p.LocalIA)
 	if err != nil {
 		log.Error("[corePusher] Failed to get local chain from DB", "err", err)
 		return
 	}
-	coreMap, err := p.coreASes(ctx)
+	allCores, err := p.coreASes(ctx)
 	if err != nil {
 		log.Error("[corePusher] Failed to determine core ASes", "err", err)
 		return
 	}
-	cores := coreMap.ASList()
+	cores := allCores
 	for syncTries := 0; syncTries < 3 && ctx.Err() == nil; syncTries++ {
-		time.Sleep(time.Duration(syncTries) * RetrySleep)
+		time.Sleep(time.Duration(syncTries) * SleepAfterFailure)
 		cores, err = p.syncCores(ctx, chain, cores)
 		if err == nil {
-			log.Info("[corePusher] Successfully pushed chain to cores", "cores", len(coreMap))
+			log.Info("[corePusher] Successfully pushed chain to cores", "cores", len(allCores))
 			return
 		}
-		if err != nil {
-			log.Error("[corePusher] Failed to sync cores", "err", err, "remaining", cores)
-		}
+		log.Error("[corePusher] Failed to sync all cores", "err", err)
 	}
 }
 
@@ -76,35 +74,33 @@ func (p *CorePusher) Run(ctx context.Context) {
 func (p *CorePusher) syncCores(ctx context.Context, chain *cert.Chain,
 	cores []addr.IA) ([]addr.IA, error) {
 
-	checkErrors := 0
-	sendErrors := 0
+	var checkErrors []addr.IA
 	var remainingCores []addr.IA
 	for _, coreIA := range cores {
 		hasChain, err := p.hasChain(ctx, coreIA, chain)
 		if err != nil {
-			checkErrors++
+			checkErrors = append(checkErrors, coreIA)
 			// fall-through explicitly, we just assume the core doesn't have it and send it.
 		}
-		if err != nil || !hasChain {
+		if !hasChain {
 			if err = p.sendChain(ctx, coreIA, chain); err != nil {
 				remainingCores = append(remainingCores, coreIA)
-				sendErrors++
 			}
 		}
 	}
-	if checkErrors > 0 || sendErrors > 0 {
+	if len(checkErrors) > 0 || len(remainingCores) > 0 {
 		return remainingCores, common.NewBasicError("Sync error", nil,
-			"checkErrors", checkErrors, "sendErrors", sendErrors)
+			"checkErrors", checkErrors, "remainingCores", remainingCores)
 	}
 	return nil, nil
 }
 
-func (p *CorePusher) coreASes(ctx context.Context) (trc.CoreASMap, error) {
+func (p *CorePusher) coreASes(ctx context.Context) ([]addr.IA, error) {
 	trc, err := p.TrustDB.GetTRCMaxVersion(ctx, p.LocalIA.I)
 	if err != nil {
-		return nil, common.NewBasicError("Failed to get TRC for localIA", err)
+		return nil, common.NewBasicError("Unable to get TRC for local ISD", err)
 	}
-	return trc.CoreASes, err
+	return trc.CoreASes.ASList(), err
 }
 
 func (p *CorePusher) hasChain(ctx context.Context, coreAS addr.IA,

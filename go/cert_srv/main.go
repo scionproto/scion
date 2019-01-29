@@ -129,7 +129,7 @@ func startReissRunner() {
 				Msger:   msgr,
 			},
 			periodic.NewTicker(time.Hour),
-			59*time.Minute,
+			time.Minute,
 		)
 		corePusher.TriggerRun()
 	}
