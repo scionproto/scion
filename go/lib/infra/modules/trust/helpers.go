@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reiss
+package trust
 
 import (
 	"context"
@@ -28,6 +28,10 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
 )
+
+// FIXME(scrye): Reconsider whether these functions should access the trust
+// store directly, as that means propagating the context all the way here.
+// Callers already know what crypto is needed, so they can pass it in.
 
 func CreateSign(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB) (*proto.SignS, error) {
 	c, err := trustDB.GetChainMaxVersion(ctx, ia)
@@ -95,5 +99,5 @@ func GetChainForSign(ctx context.Context, s *ctrl.SignSrcDef,
 	if err != nil {
 		return nil, err
 	}
-	return c, VerifyChain(s.IA, c, tStore)
+	return c, VerifyChain(ctx, s.IA, c, tStore)
 }
