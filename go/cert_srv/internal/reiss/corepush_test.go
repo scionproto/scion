@@ -34,21 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest/matchers"
 )
 
-func init() {
-	var err error
-	chain1, err = cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
-	if err != nil {
-		panic(err)
-	}
-	rawChain1, err = chain1.Compress()
-	if err != nil {
-		panic(err)
-	}
-	chain1Msg = &cert_mgmt.Chain{RawChain: rawChain1}
-
-	RetrySleep = 0
-}
-
 var (
 	localIA  = xtest.MustParseIA("1-ff00:0:311")
 	localISD = localIA.I
@@ -57,7 +42,7 @@ var (
 	core1_130 = xtest.MustParseIA("1-ff00:0:130")
 	core1_120 = xtest.MustParseIA("1-ff00:0:120")
 
-	trc1 = &trc.TRC{
+	trcISD1 = &trc.TRC{
 		CoreASes: trc.CoreASMap{
 			core1_110: nil,
 			core1_120: nil,
@@ -65,14 +50,9 @@ var (
 		},
 	}
 
-	chain1 = &cert.Chain{
-		Leaf: &cert.Certificate{
-			Subject: localIA,
-			Version: uint64(1),
-		},
-	}
-	rawChain1 common.RawBytes
-	chain1Msg *cert_mgmt.Chain
+	chain    *cert.Chain
+	rawChain common.RawBytes
+	chainMsg *cert_mgmt.Chain
 
 	emptyChainMsg = &cert_mgmt.Chain{RawChain: nil}
 )
@@ -86,8 +66,17 @@ func setup(t *testing.T) (*gomock.Controller, *mock_infra.MockMessenger, periodi
 		TrustDB: trustDB,
 		Msger:   msger,
 	}
-	trustDB.EXPECT().GetTRCMaxVersion(gomock.Any(), gomock.Eq(localISD)).Return(trc1, nil)
-	trustDB.EXPECT().GetChainMaxVersion(gomock.Any(), gomock.Eq(localIA)).Return(chain1, nil)
+	var err error
+	chain, err = cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
+	xtest.FailOnErr(t, err)
+	rawChain, err = chain.Compress()
+	xtest.FailOnErr(t, err)
+	chainMsg = &cert_mgmt.Chain{RawChain: rawChain}
+	SleepAfterFailure = 0
+
+	trustDB.EXPECT().GetTRCMaxVersion(gomock.Any(), gomock.Eq(localISD)).Return(trcISD1, nil)
+	trustDB.EXPECT().GetChainMaxVersion(gomock.Any(), gomock.Eq(localIA)).Return(chain, nil)
+
 	return ctrl, msger, pusher
 }
 
@@ -110,15 +99,15 @@ func TestNonExistingChainsArePushed(t *testing.T) {
 		emptyChainMsg, nil,
 	)
 	msger.EXPECT().SendCertChain(
-		gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_110), gomock.Any())
+		gomock.Any(), matchesChain(rawChain), matchers.IsSnetAddrWithIA(core1_110), gomock.Any())
 	msger.EXPECT().SendCertChain(
-		gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_120), gomock.Any())
+		gomock.Any(), matchesChain(rawChain), matchers.IsSnetAddrWithIA(core1_120), gomock.Any())
 	msger.EXPECT().SendCertChain(
-		gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_130), gomock.Any())
+		gomock.Any(), matchesChain(rawChain), matchers.IsSnetAddrWithIA(core1_130), gomock.Any())
 	pusher.Run(ctx)
 }
 
-func TestExistingChainsAreNotRequested(t *testing.T) {
+func TestExistingChainsAreNotPushed(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	ctrl, msger, pusher := setup(t)
@@ -126,18 +115,18 @@ func TestExistingChainsAreNotRequested(t *testing.T) {
 
 	msger.EXPECT().GetCertChain(
 		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_110), gomock.Any()).Return(
-		chain1Msg, nil,
+		chainMsg, nil,
 	)
 	msger.EXPECT().GetCertChain(
 		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_120), gomock.Any()).Return(
-		chain1Msg, nil,
+		chainMsg, nil,
 	)
 	msger.EXPECT().GetCertChain(
 		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
 		emptyChainMsg, nil,
 	)
 	msger.EXPECT().SendCertChain(
-		gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_130), gomock.Any())
+		gomock.Any(), matchesChain(rawChain), matchers.IsSnetAddrWithIA(core1_130), gomock.Any())
 	pusher.Run(ctx)
 }
 
@@ -149,11 +138,11 @@ func TestErrDuringSendIsRetried(t *testing.T) {
 
 	msger.EXPECT().GetCertChain(
 		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_110), gomock.Any()).Return(
-		chain1Msg, nil,
+		chainMsg, nil,
 	)
 	msger.EXPECT().GetCertChain(
 		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_120), gomock.Any()).Return(
-		chain1Msg, nil,
+		chainMsg, nil,
 	)
 	msger.EXPECT().GetCertChain(
 		gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
@@ -161,14 +150,15 @@ func TestErrDuringSendIsRetried(t *testing.T) {
 	)
 	gomock.InOrder(
 		msger.EXPECT().SendCertChain(
-			gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_130),
+			gomock.Any(), matchesChain(rawChain), matchers.IsSnetAddrWithIA(core1_130),
 			gomock.Any()).Return(common.NewBasicError("test error", nil)),
 		msger.EXPECT().GetCertChain(
 			gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
 			emptyChainMsg, nil,
 		),
 		msger.EXPECT().SendCertChain(
-			gomock.Any(), matchesChain(rawChain1), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()),
+			gomock.Any(), matchesChain(rawChain),
+			matchers.IsSnetAddrWithIA(core1_130), gomock.Any()),
 	)
 	pusher.Run(ctx)
 }
