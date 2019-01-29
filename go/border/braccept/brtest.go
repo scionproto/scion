@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kormat/fmt15"
 	"github.com/mattn/go-isatty"
@@ -26,10 +27,11 @@ import (
 
 // BRTest defines a single test
 type BRTest struct {
+	// Desc is a brief description of the test
 	Desc string
 	// Pre is the packet to be sent before the actual test packets.
 	// An example of this packet would be an IFState to deactivate the interface when testing
-	// for a revoked interface.
+	// for a revoked interface (OPTIONAL)
 	Pre *tpkt.Pkt
 	// In is the packet being sent to the border router
 	In *tpkt.Pkt
@@ -40,8 +42,13 @@ type BRTest struct {
 	// An example for this post packet would be an IFStateInfo to activate the interface and keep
 	// the border router in a known state.
 	Post *tpkt.Pkt
-	// Ignore is the list of packets that should be ignored.
+	// Ignore is the list of packets that should be ignored (OPTIONAL)
 	Ignore []*tpkt.ExpPkt
+	// Delay is the amount of time to wait after sending a packet. This is useful when sending
+	// control packets to the BR in the Pre stage to allow for its processing (OPTIONAL)
+	Delay time.Duration
+	// Timeout is the time to wait for packets from the BR (OPTIONAL)
+	Timeout time.Duration
 }
 
 func (t *BRTest) Summary(testPass bool) string {

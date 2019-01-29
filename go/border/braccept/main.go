@@ -27,8 +27,8 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/crypto/pbkdf2"
 
@@ -43,13 +43,14 @@ type ifInfo struct {
 	hostDev string
 	contDev string
 	mac     net.HardwareAddr
-	handle  *pcap.Handle
+	handle  *afpacket.TPacket
 }
 
 const (
-	snapshot_len int32         = 1024
-	promiscuous  bool          = true
-	timeout      time.Duration = 1 * time.Second
+	snapshot_len   int32         = 1024
+	promiscuous    bool          = true
+	defaultTimeout time.Duration = 250 * time.Millisecond
+	defaultDelay   time.Duration = 1 * time.Second
 )
 
 var (
@@ -102,12 +103,12 @@ func realMain() int {
 	cases := make([]reflect.SelectCase, timerIdx+1)
 	for i, ifi := range devList {
 		var err error
-		ifi.handle, err = pcap.OpenLive(ifi.hostDev, snapshot_len, promiscuous, pcap.BlockForever)
+		ifi.handle, err = afpacket.NewTPacket(afpacket.OptInterface(ifi.hostDev))
 		if err != nil {
 			log.Crit("", "err", err)
 			return 1
 		}
-		packetSource := gopacket.NewPacketSource(ifi.handle, ifi.handle.LinkType())
+		packetSource := gopacket.NewPacketSource(ifi.handle, layers.LinkTypeEthernet)
 		ch := packetSource.Packets()
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 		defer ifi.handle.Close()
@@ -232,16 +233,21 @@ func registerScionPorts() {
 func doTest(t *BRTest, cases []reflect.SelectCase) error {
 	var errStr []string
 	var err error
-	if err = sendPkt(t.Pre, true); err != nil {
+	noDelay := time.Duration(0)
+	delay := defaultDelay
+	if t.Delay != noDelay {
+		delay = t.Delay
+	}
+	if err = sendPkt(t.Pre, delay); err != nil {
 		errStr = append(errStr, err.Error())
 	}
-	if err = sendPkt(t.In, false); err == nil {
+	if err = sendPkt(t.In, noDelay); err == nil {
 		err = checkRecvPkts(t, cases)
 	}
 	if err != nil {
 		errStr = append(errStr, err.Error())
 	}
-	err = sendPkt(t.Post, true)
+	err = sendPkt(t.Post, delay)
 	if err != nil {
 		errStr = append(errStr, err.Error())
 	}
@@ -251,7 +257,7 @@ func doTest(t *BRTest, cases []reflect.SelectCase) error {
 	return nil
 }
 
-func sendPkt(pkt *tpkt.Pkt, to bool) error {
+func sendPkt(pkt *tpkt.Pkt, delay time.Duration) error {
 	if pkt == nil {
 		return nil
 	}
@@ -263,9 +269,7 @@ func sendPkt(pkt *tpkt.Pkt, to bool) error {
 	if err != nil {
 		return err
 	}
-	if to {
-		defer time.Sleep(timeout)
-	}
+	defer time.Sleep(delay)
 	return devInfo.handle.WritePacketData(raw)
 }
 
@@ -275,6 +279,10 @@ func sendPkt(pkt *tpkt.Pkt, to bool) error {
 // can check that only the expected packets were received.
 func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
+	timeout := defaultTimeout
+	if t.Timeout != time.Duration(0) {
+		timeout = t.Timeout
+	}
 	timerCh := time.After(timeout)
 	// Add timeout channel as the last select case.
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
