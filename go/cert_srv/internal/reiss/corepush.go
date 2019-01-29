@@ -100,7 +100,17 @@ func (p *CorePusher) coreASes(ctx context.Context) ([]addr.IA, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get TRC for local ISD", err)
 	}
-	return trc.CoreASes.ASList(), err
+	return p.filterLocalIA(trc.CoreASes.ASList()), nil
+}
+
+func (p *CorePusher) filterLocalIA(allCores []addr.IA) []addr.IA {
+	cores := make([]addr.IA, 0, len(allCores))
+	for _, coreIA := range allCores {
+		if !p.LocalIA.Equal(coreIA) {
+			cores = append(cores, coreIA)
+		}
+	}
+	return cores
 }
 
 func (p *CorePusher) hasChain(ctx context.Context, coreAS addr.IA,

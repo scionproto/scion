@@ -37,11 +37,12 @@ var _ periodic.Task = (*Self)(nil)
 // on an issuer AS before the old one expires.
 type Self struct {
 	// Msgr is used to propagate key updates to the messenger, and not for network traffic
-	Msgr     infra.Messenger
-	State    *config.State
-	IA       addr.IA
-	IssTime  time.Duration
-	LeafTime time.Duration
+	Msgr       infra.Messenger
+	State      *config.State
+	IA         addr.IA
+	IssTime    time.Duration
+	LeafTime   time.Duration
+	CorePusher *periodic.Runner
 }
 
 // Run issues certificate chains for the local AS.
@@ -77,6 +78,7 @@ func (s *Self) run(ctx context.Context) error {
 			return common.NewBasicError("Unable to issue certificate chain", err)
 		}
 	}
+	s.CorePusher.TriggerRun()
 	return nil
 }
 
