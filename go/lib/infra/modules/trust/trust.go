@@ -376,12 +376,11 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 			"requested_ia", ia, "requested_version", version)
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
-		ia:        ia,
-		version:   version,
-		id:        messenger.NextId(),
-		server:    server,
-		postHook:  nil,
-		cacheOnly: true,
+		ia:       ia,
+		version:  version,
+		id:       messenger.NextId(),
+		server:   server,
+		postHook: nil,
 	})
 }
 
