@@ -205,7 +205,7 @@ func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx,
 		handleErr(common.NewBasicError("Unable to rollback local interface", err))
 	}
 	if oldCtx != nil {
-		// Start sockets that are possibly created in rollback.
+		// Start sockets that are possibly created by rollback.
 		startSocks(oldCtx)
 	}
 }
