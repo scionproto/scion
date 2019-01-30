@@ -53,18 +53,18 @@ var _ net.PacketConn = (*SCIONConn)(nil)
 var _ Conn = (*SCIONConn)(nil)
 
 type SCIONConn struct {
-	conn net.PacketConn
-	*scionConnBase
-	*scionConnWriter
-	*scionConnReader
+	conn *RawSCIONConn
+	scionConnBase
+	scionConnWriter
+	scionConnReader
 }
 
-func newSCIONConn(base *scionConnBase, pr pathmgr.Resolver, conn net.PacketConn) *SCIONConn {
+func newSCIONConn(base *scionConnBase, pr pathmgr.Resolver, conn *RawSCIONConn) *SCIONConn {
 	return &SCIONConn{
 		conn:            conn,
-		scionConnBase:   base,
-		scionConnWriter: newScionConnWriter(base, pr, conn),
-		scionConnReader: newScionConnReader(base, conn),
+		scionConnBase:   *base,
+		scionConnWriter: *newScionConnWriter(base, pr, conn),
+		scionConnReader: *newScionConnReader(base, conn),
 	}
 }
 
