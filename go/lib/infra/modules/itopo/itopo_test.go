@@ -159,6 +159,66 @@ func TestStateSetStatic(t *testing.T) {
 	})
 }
 
+func TestStateSetDynamic(t *testing.T) {
+	Convey("When state is initialized with no specific element", t, func() {
+		called := clbkCalled{}
+		s := newState("", proto.ServiceType_unset, called.clbks())
+		s.topo.static = loadTopo(fn, t)
+		// Set dynamic such that drop dynamic might possibly be called.
+		s.topo.dynamic = loadTopo(fn, t)
+		topo := loadTopo(fn, t)
+		topo.Timestamp = time.Now()
+		Convey("Calling with modified topo should succeed", func() {
+			ifinfo := topo.IFInfoMap[1]
+			ifinfo.MTU = 42
+			topo.IFInfoMap[1] = ifinfo
+			newTopo, updated, err := s.setDynamic(topo)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("updated", updated, ShouldBeTrue)
+			SoMsg("topo", newTopo, ShouldEqual, topo)
+			called.check(false, false, false)
+		})
+		testNilTopo(s, &called, t)
+		testNoModified(s, &called, t)
+	})
+	Convey("When itopo is initialized with a service element", t, func() {
+		called := clbkCalled{}
+		id := "cs1-ff00:0:311-1"
+		s := newState(id, proto.ServiceType_cs, called.clbks())
+		s.topo.static = loadTopo(fn, t)
+		// Set dynamic such that drop dynamic might possibly be called.
+		s.topo.dynamic = loadTopo(fn, t)
+		topo := loadTopo(fn, t)
+		topo.Timestamp = time.Now()
+		Convey("Modification without touching the element's entry should be allowed", func() {
+			// Modify border router
+			ifinfo := topo.IFInfoMap[1]
+			ifinfo.MTU = 42
+			topo.IFInfoMap[1] = ifinfo
+			// modify other cs
+			cs := topo.CS["cs1-ff00:0:311-2"]
+			cs.Overlay = overlay.IPv6
+			topo.CS["cs1-ff00:0:311-2"] = cs
+			newTopo, updated, err := s.setDynamic(topo)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("updated", updated, ShouldBeTrue)
+			SoMsg("topo", newTopo, ShouldEqual, topo)
+			called.check(false, false, false)
+		})
+		Convey("Modifying the element's entry should not be allowed", func() {
+			cs := topo.CS[id]
+			cs.Overlay = overlay.IPv6
+			topo.CS[id] = cs
+			_, updated, err := s.setDynamic(topo)
+			SoMsg("err", err, ShouldNotBeNil)
+			SoMsg("updated", updated, ShouldBeFalse)
+			called.check(false, false, false)
+		})
+		testNilTopo(s, &called, t)
+		testNoModified(s, &called, t)
+	})
+}
+
 func testNilTopo(s *state, called *clbkCalled, t *testing.T) {
 	Convey("Calling with nil topo should fail", func() {
 		_, updated, err := s.setStatic(nil, true)
