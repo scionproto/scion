@@ -128,7 +128,7 @@ func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 		return err
 	}
 	// Set config to use the appropriate topology. The returned topology is
-	// not necessarily the same as config.Topo. It can be an other static
+	// not necessarily the same as config.Topo. It can be another static
 	// or dynamic topology.
 	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), config)
 	if err != nil {
@@ -142,7 +142,7 @@ func (r *Router) setupNewContext(ctx *rctx.Ctx, tx itopo.Transaction) error {
 	oldCtx := rctx.Get()
 	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
 	sockConf := brconf.SockConf{Default: PosixSock}
-	if err := r.setupNetAndTopo(ctx, oldCtx, tx, sockConf); err != nil {
+	if err := r.setupNetAndTopo(ctx, oldCtx, sockConf, tx); err != nil {
 		r.rollbackNet(ctx, oldCtx, sockConf, handleRollbackErr)
 		return err
 	}
@@ -155,7 +155,7 @@ func (r *Router) setupNewContext(ctx *rctx.Ctx, tx itopo.Transaction) error {
 
 // setupNetAndTopo sets up the net context and set the topology in itopo.
 func (r *Router) setupNetAndTopo(ctx *rctx.Ctx, oldCtx *rctx.Ctx,
-	tx itopo.Transaction, sockConf brconf.SockConf) error {
+	sockConf brconf.SockConf, tx itopo.Transaction) error {
 
 	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
 		return err
@@ -205,7 +205,7 @@ func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx,
 		handleErr(common.NewBasicError("Unable to rollback local interface", err))
 	}
 	if oldCtx != nil {
-		// Start sockets that are possible created in rollback.
+		// Start sockets that are possibly created in rollback.
 		startSocks(oldCtx)
 	}
 }
