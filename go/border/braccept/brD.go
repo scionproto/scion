@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
 
@@ -242,14 +243,14 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 			Dev: "ifid_151", Layers: []tpkt.LayerBuilder{
 				tpkt.GenOverlayIP4UDP("192.168.15.3", 40000, "192.168.15.2", 50000),
 				revScionHdr,
-				tpkt.NewSCMPExtn(common.L4SCMP, scmp.Extn{Error: true, HopByHop: true}),
+				tpkt.NewSCMPExtn(common.L4SCMP, layers.ExtnSCMP{Error: true, HopByHop: true}),
 				revScmpHdrPld,
 			}},
 		Out: []*tpkt.ExpPkt{
 			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 				tpkt.GenOverlayIP4UDP("192.168.0.14", 30004, "192.168.0.71", 30041),
 				revScionHdr,
-				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
+				&tpkt.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true, HopByHop: true}},
 				revScmpHdrPld,
 			}},
 			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
@@ -298,7 +299,7 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 			Dev: "ifid_171", Layers: []tpkt.LayerBuilder{
 				tpkt.GenOverlayIP4UDP("192.168.17.3", 40000, "192.168.17.2", 50000),
 				revScionHdr,
-				tpkt.NewSCMPExtn(common.L4SCMP, scmp.Extn{Error: true, HopByHop: true}),
+				tpkt.NewSCMPExtn(common.L4SCMP, layers.ExtnSCMP{Error: true, HopByHop: true}),
 				revScmpHdrPld,
 			}},
 		Out: []*tpkt.ExpPkt{
@@ -309,7 +310,7 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 						segment("(C__)[0.711][171.151][511.0]", hMac, 1)},
 					),
 					common.HopByHopClass),
-				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
+				&tpkt.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true, HopByHop: true}},
 				revScmpHdrPld,
 			}},
 			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
@@ -351,7 +352,7 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 			Dev: "ifid_171", Layers: []tpkt.LayerBuilder{
 				tpkt.GenOverlayIP4UDP("192.168.17.3", 40000, "192.168.17.2", 50000),
 				revScionHdr,
-				tpkt.NewSCMPExtn(common.L4SCMP, scmp.Extn{Error: true, HopByHop: true}),
+				tpkt.NewSCMPExtn(common.L4SCMP, layers.ExtnSCMP{Error: true, HopByHop: true}),
 				revScmpHdrPld,
 			}},
 		Out: []*tpkt.ExpPkt{
@@ -362,7 +363,7 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 						segment("(C__)[0.711][171.151][511.0]", hMac, 1)},
 					),
 					common.HopByHopClass),
-				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
+				&tpkt.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true, HopByHop: true}},
 				revScmpHdrPld,
 			}}},
 		Ignore: IgnoredPacketsBrD,
@@ -417,7 +418,7 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 			{Dev: "ifid_151", Layers: []tpkt.LayerMatcher{
 				tpkt.GenOverlayIP4UDP("192.168.15.2", 50000, "192.168.15.3", 40000),
 				revScmpScionHdr,
-				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
+				&tpkt.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true, HopByHop: true}},
 				tpkt.NewSCMP(scmp.C_Path, scmp.T_P_RevokedIF, noTime,
 					&revScmpScionHdr.ScionLayer,
 					[]tpkt.LayerBuilder{

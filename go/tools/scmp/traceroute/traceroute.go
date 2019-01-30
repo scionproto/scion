@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -46,7 +47,7 @@ func Run() {
 		path.InitOffsets()
 		total += uint(len(cmn.PathEntry.Path.Interfaces))
 		hopOff = hopPktOff(path.HopOff)
-		ext = &scmp.Extn{Error: false, HopByHop: true}
+		ext = &layers.ExtnSCMP{Error: false, HopByHop: true}
 	}
 	id = cmn.Rand()
 	info := &scmp.InfoTraceRoute{Id: id, HopOff: hopOff}
