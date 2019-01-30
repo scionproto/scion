@@ -18,10 +18,10 @@ import (
 	"fmt"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	golayers "github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/layers"
 )
 
 var extnLayerID = 1360
@@ -92,15 +92,15 @@ var LayerTypeScionHBHSCMP = gopacket.RegisterLayerType(
 )
 
 type ScionSCMPExtn struct {
-	layers.BaseLayer
+	golayers.BaseLayer
 	baseExtension
-	scmp.Extn
+	layers.ExtnSCMP
 }
 
-func NewSCMPExtn(nh common.L4ProtocolType, ext scmp.Extn) *ScionSCMPExtn {
+func NewSCMPExtn(nh common.L4ProtocolType, ext layers.ExtnSCMP) *ScionSCMPExtn {
 	return &ScionSCMPExtn{
 		baseExtension: baseExtension{NextHdr: nh, Length: 1, Type: common.ExtnSCMPType.Type},
-		Extn:          ext,
+		ExtnSCMP:      ext,
 	}
 }
 
@@ -116,7 +116,7 @@ func (l *ScionSCMPExtn) Match(pktLayers []gopacket.Layer,
 		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
 			LayerTypeScionHBHSCMP, pktLayers[0].LayerType())
 	}
-	if l.Extn != e.Extn {
+	if l.ExtnSCMP != e.ExtnSCMP {
 		return nil, fmt.Errorf("SCMP HopByHop extension does not match\nExpected %s\nActual   %s",
 			gopacket.LayerString(l), gopacket.LayerString(e))
 	}
@@ -136,7 +136,7 @@ func (l *ScionSCMPExtn) SerializeTo(b gopacket.SerializeBuffer,
 		return err
 	}
 	l.baseExtension.SerializeTo(buf)
-	if err := l.Extn.Write(buf[common.ExtnSubHdrLen:]); err != nil {
+	if err := l.ExtnSCMP.Write(buf[common.ExtnSubHdrLen:]); err != nil {
 		return err
 	}
 	return nil
@@ -145,11 +145,11 @@ func (l *ScionSCMPExtn) SerializeTo(b gopacket.SerializeBuffer,
 func (l *ScionSCMPExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	// data length is at least common.LineLen
 	l.baseExtension.decodeFromBytes(data)
-	e, err := scmp.ExtnFromRaw(data[3:])
+	e, err := layers.ExtnSCMPFromRaw(data[3:])
 	if err != nil {
 		return err
 	}
-	l.Extn = *e
+	l.ExtnSCMP = *e
 	length := l.LengthBytes()
 	padding := data[4:length]
 	if _, res := isZeroMemory(padding); !res {

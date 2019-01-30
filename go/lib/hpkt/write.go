@@ -20,16 +20,18 @@
 package hpkt
 
 import (
+	"github.com/google/gopacket"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
 func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	var err error
-	var lastNextHdr *uint8
 	offset := 0
 
 	if s.E2EExt != nil {
@@ -82,18 +84,26 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 		cmnHdr.CurrHopF = uint8((offset + s.Path.HopOff) / common.LineLen)
 		offset += copy(b[offset:], s.Path.Raw)
 	}
-	// HBH extensions
-	if len(s.HBHExt) > 0 {
-		l, nh, err := writeScnPktExtn(s, b[offset:])
-		if err != nil {
-			return 0, err
-		}
-		lastNextHdr = nh
-		*lastNextHdr = uint8(cmnHdr.NextHdr)
-		cmnHdr.NextHdr = common.HopByHopClass
-		cmnHdr.TotalLen += uint16(l)
-		offset += l
+
+	buffer := gopacket.NewSerializeBuffer()
+	switch s.L4.L4Type() {
+	case common.L4UDP:
+		buffer.PushLayer(layers.LayerTypeSCIONUDP)
+	case common.L4SCMP:
+		buffer.PushLayer(layers.LayerTypeSCMP)
+	default:
+		return 0, common.NewBasicError("Unsupported L4", nil, "type", s.L4.L4Type())
 	}
+	if err := writeExtensionHeaders(s, buffer); err != nil {
+		return 0, err
+	}
+	bytes := buffer.Bytes()
+	offset += copy(b[offset:], bytes)
+	cmnHdr.NextHdr, err = getNextHeaderType(buffer)
+	if err != nil {
+		return 0, err
+	}
+	cmnHdr.TotalLen += uint16(len(bytes))
 
 	// Write the common header at the start of the buffer
 	cmnHdr.Write(b)
@@ -118,36 +128,47 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	return offset, nil
 }
 
-func writeScnPktExtn(s *spkt.ScnPkt, b common.RawBytes) (int, *uint8, error) {
-	var extHdrLen, offset int
-	max := 3
-	l4Type := s.L4.L4Type()
-	for i, ext := range s.HBHExt {
-		if ext.Type() == common.ExtnSCMPType {
-			if i != 0 {
-				// This also triggers if there are multiple SCMP extensions
-				return 0, nil, common.NewBasicError("HBH SCMP extension has to be the first one",
-					nil, "index", i)
-			}
-			if l4Type != common.L4SCMP {
-				return 0, nil, common.NewBasicError("HBH SCMP extension for a non SCMP packet",
-					nil, "ext", s.HBHExt)
-			}
-			max += 1
-		}
-		if i > max {
-			return 0, nil, common.NewBasicError("Too many HBH extensions",
-				nil, "max", max, "actual", i)
-		}
-		// Set all nextHdr fields as HBH, later we update last extension and common header
-		b[offset] = uint8(common.HopByHopClass)
-		extHdrLen = common.ExtnSubHdrLen + ext.Len()
-		b[offset+1] = uint8(extHdrLen / common.LineLen)
-		b[offset+2] = ext.Type().Type
-		ext.Write(b[offset+common.ExtnSubHdrLen:])
-		offset += extHdrLen
+func writeExtensionHeaders(s *spkt.ScnPkt, buffer gopacket.SerializeBuffer) error {
+	if err := writeExtensions(s.E2EExt, buffer); err != nil {
+		return err
 	}
-	return offset, &b[offset-extHdrLen], nil
+	return writeExtensions(s.HBHExt, buffer)
+}
+
+func writeExtensions(extensions []common.Extension, buffer gopacket.SerializeBuffer) error {
+	for i := len(extensions) - 1; i >= 0; i-- {
+		nextHeaderType, err := getNextHeaderType(buffer)
+		if err != nil {
+			return err
+		}
+		extn, err := layers.ExtensionDataToExtensionLayer(nextHeaderType, extensions[i])
+		if err != nil {
+			return err
+		}
+		err = extn.SerializeTo(buffer, gopacket.SerializeOptions{FixLengths: true})
+		if err != nil {
+			return err
+		}
+		switch extensions[i].Class() {
+		case common.HopByHopClass:
+			buffer.PushLayer(layers.LayerTypeHopByHopExtension)
+		case common.End2EndClass:
+			buffer.PushLayer(layers.LayerTypeEndToEndExtension)
+		default:
+			return common.NewBasicError("cannot push unknown layer", nil)
+		}
+	}
+	return nil
+}
+
+func getNextHeaderType(buffer gopacket.SerializeBuffer) (common.L4ProtocolType, error) {
+	serializedLayers := buffer.Layers()
+	lastLayer := serializedLayers[len(serializedLayers)-1]
+	nextHdr, ok := layers.LayerToHeaderMap[lastLayer]
+	if !ok {
+		return 0, common.NewBasicError("unknown header", nil, "gopacket_type", lastLayer)
+	}
+	return nextHdr, nil
 }
 
 func isZeroMemory(b common.RawBytes) (int, bool) {

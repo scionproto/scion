@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
 
@@ -192,7 +193,7 @@ func genTestsBrA(hMac hash.Hash) []*BRTest {
 			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 				tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.13", 30003),
 				revScmpScionHdr,
-				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
+				&tpkt.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true, HopByHop: true}},
 				tpkt.NewSCMP(scmp.C_Path, scmp.T_P_RevokedIF, noTime,
 					&revScmpScionHdr.ScionLayer,
 					[]tpkt.LayerBuilder{

@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
@@ -38,7 +39,7 @@ func Run() {
 	cmn.SetupSignals(nil)
 	if cmn.PathEntry != nil {
 		n = len(cmn.PathEntry.Path.Interfaces)
-		ext = &scmp.Extn{Error: false, HopByHop: true}
+		ext = &layers.ExtnSCMP{Error: false, HopByHop: true}
 	}
 	entries := make([]*scmp.RecordPathEntry, 0, n)
 	id = cmn.Rand()
