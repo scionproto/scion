@@ -1,0 +1,32 @@
+#!/bin/bash
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="discovery_ps_fetches_dynamic"
+
+. acceptance/common.sh
+. acceptance/discovery_util/util.sh
+
+test_setup() {
+    set -e
+    base_setup
+
+    local cfg="gen/ISD1/AS$AS_FILE/ps$IA_FILE-1/psconfig.toml"
+    set_log_lvl "$cfg"
+    set_interval "$cfg" "dynamic"
+
+    ./scion.sh run nobuild
+    ./tools/dc start tester_$IA_FILE
+}
+
+test_run() {
+    set -e
+    # Start serving dynamic topology.
+    jq '.BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: "127.42.42.42", OverlayPort: 39999}' $TOPO | sponge $DYNAMIC_FULL
+    sleep 6
+    grep -q "\[discovery\] Set topology .* Mode=dynamic" "logs/ps$IA_FILE-1.log" || \
+        { echo "Setting dynamic topology not found in logs"; return 1; }
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"
