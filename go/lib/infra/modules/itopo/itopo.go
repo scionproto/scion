@@ -41,11 +41,11 @@ type Callbacks struct {
 
 // Init initializes itopo with the particular validator. A topology must be
 // initialized by calling SetStatic.
-func Init(svc proto.ServiceType, clbks Callbacks) {
+func Init(id string, svc proto.ServiceType, clbks Callbacks) {
 	if st != nil {
 		panic("Must not re-initialize itopo")
 	}
-	st = newState(svc, clbks)
+	st = newState(id, svc, clbks)
 }
 
 // Get atomically gets the pointer to the current topology.
@@ -87,9 +87,9 @@ type state struct {
 	clbks     Callbacks
 }
 
-func newState(svc proto.ServiceType, clbks Callbacks) *state {
+func newState(id string, svc proto.ServiceType, clbks Callbacks) *state {
 	s := &state{
-		validator: validatorFactory(svc),
+		validator: validatorFactory(id, svc),
 		clbks:     clbks,
 	}
 	return s

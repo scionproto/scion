@@ -284,6 +284,18 @@ func (t *Topo) Expiry() time.Time {
 	return t.Timestamp.Add(t.TTL)
 }
 
+func (t *Topo) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, error) {
+	svcInfo, err := t.GetSvcInfo(svc)
+	if err != nil {
+		return nil, err
+	}
+	topoAddr := svcInfo.idTopoAddrMap.GetById(id)
+	if topoAddr == nil {
+		return nil, common.NewBasicError("Element not found", nil, "id", id)
+	}
+	return topoAddr, nil
+}
+
 func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
 	svcInfo, err := t.GetSvcInfo(svc)
 	if err != nil {

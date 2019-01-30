@@ -34,7 +34,7 @@ type validator interface {
 	Validate(topo, oldTopo *topology.Topo, allowed bool) error
 }
 
-func validatorFactory(svc proto.ServiceType) validator {
+func validatorFactory(id string, svc proto.ServiceType) validator {
 	switch svc {
 	case proto.ServiceType_unset:
 		return &validatorWrap{&generalValidator{}}
@@ -43,7 +43,7 @@ func validatorFactory(svc proto.ServiceType) validator {
 		return &validatorWrap{&generalValidator{}}
 	default:
 		// FIMXE(roosd): add validator for service.
-		return &validatorWrap{&generalValidator{}}
+		return &validatorWrap{&svcValidator{id: id, svc: svc}}
 	}
 }
 
@@ -114,10 +114,48 @@ func (v *generalValidator) Immutable(topo, oldTopo *topology.Topo) error {
 	}
 	return nil
 }
+
 func (*generalValidator) SemiMutable(_, _ *topology.Topo, _ bool) error {
 	return nil
 }
 
 func (*generalValidator) MustDropDynamic(_, _ *topology.Topo) bool {
 	return false
+}
+
+var _ internalValidator = (*svcValidator)(nil)
+
+// svcValidator is used to validate updates if the element is a infra service.
+// It checks that the service is present, and only permissible updates are done.
+type svcValidator struct {
+	generalValidator
+	id  string
+	svc proto.ServiceType
+}
+
+func (v *svcValidator) General(topo *topology.Topo) error {
+	if err := v.generalValidator.General(topo); err != nil {
+		return err
+	}
+	if _, err := topo.GetTopoAddr(v.id, v.svc); err != nil {
+		return common.NewBasicError("Topo must contain service", nil, "id", v.id, "svc", v.svc)
+	}
+	return nil
+}
+
+func (v *svcValidator) Immutable(topo, oldTopo *topology.Topo) error {
+	if oldTopo == nil {
+		return nil
+	}
+	if err := v.generalValidator.Immutable(topo, oldTopo); err != nil {
+		return err
+	}
+	// We already checked that the service is in the map.
+	nAddr, _ := topo.GetTopoAddr(v.id, v.svc)
+	oAddr, _ := oldTopo.GetTopoAddr(v.id, v.svc)
+	if !nAddr.Equal(oAddr) {
+		return common.NewBasicError("Local service entry must not change", nil,
+			"id", v.id, "svc", v.svc, "expected", oAddr, "actual", nAddr)
+	}
+	return nil
 }
