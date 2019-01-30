@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -31,15 +32,13 @@ import (
 // FIXME(scrye): Reconsider whether these functions should access the trust
 // store directly, as that means propagating the context all the way here.
 // Callers already know what crypto is needed, so they can pass it in.
-// Also, change context.TODO() to something that does not risk blocking
-// forever.
 
-func CreateSign(ia addr.IA, store infra.TrustStore) (*proto.SignS, error) {
-	c, err := store.GetValidChain(context.TODO(), ia, nil)
+func CreateSign(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB) (*proto.SignS, error) {
+	c, err := trustDB.GetChainMaxVersion(ctx, ia)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local certificate chain", err)
 	}
-	t, err := store.GetValidTRC(context.TODO(), ia.I, nil)
+	t, err := trustDB.GetTRCMaxVersion(ctx, ia.I)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local TRC", err)
 	}
@@ -59,8 +58,10 @@ func CreateSign(ia addr.IA, store infra.TrustStore) (*proto.SignS, error) {
 }
 
 // VerifyChain verifies the chain based on the TRCs present in the store.
-func VerifyChain(subject addr.IA, chain *cert.Chain, store infra.TrustStore) error {
-	maxTrc, err := store.GetValidTRC(context.TODO(), chain.Issuer.Issuer.I, nil)
+func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
+	store infra.TrustStore) error {
+
+	maxTrc, err := store.GetValidTRC(ctx, chain.Issuer.Issuer.I, nil)
 	if err != nil {
 		return common.NewBasicError("Unable to find TRC", nil, "isd", chain.Issuer.Issuer.I)
 	}
@@ -70,7 +71,7 @@ func VerifyChain(subject addr.IA, chain *cert.Chain, store infra.TrustStore) err
 	if err := chain.Verify(subject, maxTrc); err != nil {
 		var graceTrc *trc.TRC
 		if maxTrc.Version > 1 {
-			graceTrc, err = store.GetTRC(context.TODO(), maxTrc.ISD, maxTrc.Version-1)
+			graceTrc, err = store.GetTRC(ctx, maxTrc.ISD, maxTrc.Version-1)
 			if err != nil {
 				return err
 			}
@@ -98,5 +99,5 @@ func GetChainForSign(ctx context.Context, s *ctrl.SignSrcDef,
 	if err != nil {
 		return nil, err
 	}
-	return c, VerifyChain(s.IA, c, tStore)
+	return c, VerifyChain(ctx, s.IA, c, tStore)
 }
