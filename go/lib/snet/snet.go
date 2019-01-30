@@ -278,8 +278,9 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		// Update port
 		conn.laddr.Host.L4 = addr.NewL4UDPInfo(port)
 	}
+	rawConn := NewRawSCIONConn(rconn, SerializationOptions{})
 	log.Debug("Registered with dispatcher", "addr", conn.laddr)
-	return newSCIONConn(conn, n.pathResolver, rconn), nil
+	return newSCIONConn(conn, n.pathResolver, rawConn), nil
 }
 
 // PathResolver returns the pathmgr.PR that the network is using.

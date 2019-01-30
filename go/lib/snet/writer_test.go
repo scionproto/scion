@@ -172,10 +172,11 @@ func TestSetDeadline(t *testing.T) {
 		).AnyTimes()
 		connMock := mock_net.NewMockPacketConn(ctrl)
 		connMock.EXPECT().SetWriteDeadline(gomock.Any()).AnyTimes().Return(nil)
+		rawConn := NewRawSCIONConn(connMock, SerializationOptions{})
 
 		conn := newScionConnWriter(&scionConnBase{
 			laddr: MustParseAddr("2-ff00:0:1,[127.0.0.1]:80"),
-		}, resolverMock, connMock)
+		}, resolverMock, rawConn)
 		Convey("And writes to multiple destinations for which path resolution is slow", func() {
 			addresses := []*Addr{
 				MustParseAddr("1-ff00:0:1,[127.0.0.1]:80"),
