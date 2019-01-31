@@ -16,7 +16,6 @@ test_setup() {
     set_interval "$cfg" "dynamic"
 
     ./scion.sh run nobuild
-    ./tools/dc start tester_$IA_FILE
 }
 
 test_run() {
