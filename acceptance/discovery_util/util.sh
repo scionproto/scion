@@ -51,6 +51,10 @@ quoteSubst() {
     printf %s "${REPLY%$'\n'}"
 }
 
+check_file() {
+    curl -f "$( jq -r '.DiscoveryService[].Addrs[].Public | "\(.Addr):\(.L4Port)"' "$TOPO" )/discovery/v1/$1/full.json" > /dev/null
+}
+
 print_help() {
     echo
 	cat <<-_EOF

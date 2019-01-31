@@ -23,6 +23,7 @@ test_run() {
     # Start serving dynamic topology.
     jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $DYNAMIC_FULL
     sleep 6
+    check_file "dynamic"
     grep -q "\[discovery\] Set topology .* Mode=dynamic" "logs/ps$IA_FILE-1.log" || \
         { echo "Setting dynamic topology not found in logs"; return 1; }
     grep -q "\[itopo.Cleaner\] Dropping expired dynamic topology" "logs/ps$IA_FILE-1.log" || \
