@@ -76,6 +76,9 @@ const Sample = `[general]
     # Timeout for querying the dynamic topology.  (default 1s)
     Timeout = "1s"
 
+    # Require https connection. (default false)
+    Https = false
+
 [ps]
   # Enable the "old" replication of down segments between cores using SegSync
   # messages (default false)
