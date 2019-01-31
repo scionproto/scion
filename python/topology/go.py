@@ -82,6 +82,7 @@ class GoGenerator(object):
             'metrics': {
                 'Prometheus': prom_addr_br(name, v, DEFAULT_BR_PROM_PORT),
             },
+            'discovery': self._discovery_entry(),
             'br': {
                 'Profile': False,
             },

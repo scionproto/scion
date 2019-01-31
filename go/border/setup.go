@@ -21,6 +21,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/gocapability/capability"
@@ -34,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -55,6 +57,12 @@ type extSockOps interface {
 var registeredLocSockOps = map[brconf.SockType]locSockOps{}
 var registeredExtSockOps = map[brconf.SockType]extSockOps{}
 
+// setCtxMtx serializes modifications to the router context. Topology updates
+// can either be caused by a sighup reload, receiving an updated dynamic or
+// static topology from the discovery service, or from dropping an expired
+// dynamic topology.
+var setCtxMtx sync.Mutex
+
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
 func (r *Router) setup() error {
@@ -74,7 +82,7 @@ func (r *Router) setup() error {
 		return err
 	}
 	// Initialize itopo.
-	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{})
+	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{CleanDynamic: r.setupCtxOnClean})
 	if _, _, err := itopo.SetStatic(conf.Topo, true); err != nil {
 		return err
 	}
@@ -120,6 +128,8 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 // This method is called on initial start and when a sighup is received.
 func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	log.Debug("====> Setting up new context from config")
+	setCtxMtx.Lock()
+	defer setCtxMtx.Unlock()
 	// We want to keep in sync itopo and the context that is set.
 	// We attempt to set the context with the topology that will be current
 	// after setting itopo. If setting itopo fails in the end, we rollback the context.
@@ -134,11 +144,46 @@ func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	if err != nil {
 		return err
 	}
-	return r.setupNewContext(rctx.New(newConf), tx)
+	return r.setupNewContext(rctx.New(newConf), &tx)
+}
+
+// setupCtxFromDynamic sets up a new router context after receiving a updated
+// dynamic topology from the discovey service.
+func (r *Router) setupCtxFromDynamic(topo *topology.Topo) (bool, error) {
+	setCtxMtx.Lock()
+	defer setCtxMtx.Unlock()
+	tx, err := itopo.BeginSetDynamic(topo)
+	if err != nil {
+		return false, err
+	}
+	if !tx.IsUpdate() {
+		return false, nil
+	}
+	log.Trace("====> Setting up new context from dynamic topology update")
+	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), rctx.Get().Conf)
+	if err != nil {
+		return false, err
+	}
+	return true, r.setupNewContext(rctx.New(newConf), &tx)
+}
+
+// setupCtxOnClean sets up a new router context after the dynamic topology has expired.
+func (r *Router) setupCtxOnClean() {
+	log.Trace("====> Setting up new context on dynamic topology cleanup")
+	setCtxMtx.Lock()
+	defer setCtxMtx.Unlock()
+	newConf, err := brconf.WithNewTopo(r.Id, itopo.Get(), rctx.Get().Conf)
+	if err != nil {
+		log.Error("Unable to create new conf on dynamic cleanup", "err", err)
+		return
+	}
+	if err := r.setupNewContext(rctx.New(newConf), nil); err != nil {
+		log.Error("Unable to set context on dynamic cleanup", "err", err)
+	}
 }
 
 // setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(ctx *rctx.Ctx, tx itopo.Transaction) error {
+func (r *Router) setupNewContext(ctx *rctx.Ctx, tx *itopo.Transaction) error {
 	oldCtx := rctx.Get()
 	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
 	sockConf := brconf.SockConf{Default: PosixSock}
@@ -155,12 +200,15 @@ func (r *Router) setupNewContext(ctx *rctx.Ctx, tx itopo.Transaction) error {
 
 // setupNetAndTopo sets up the net context and set the topology in itopo.
 func (r *Router) setupNetAndTopo(ctx *rctx.Ctx, oldCtx *rctx.Ctx,
-	sockConf brconf.SockConf, tx itopo.Transaction) error {
+	sockConf brconf.SockConf, tx *itopo.Transaction) error {
 
 	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if tx != nil {
+		return tx.Commit()
+	}
+	return nil
 }
 
 // setupNet configures networking for the router, using any setup hooks that
