@@ -64,6 +64,12 @@ func SetDynamic(static *topology.Topo) (*topology.Topo, bool, error) {
 	return st.setDynamic(static)
 }
 
+// BeginSetDynamic checks whether setting the dynamic topology is permissible. The returned
+// transaction provides a view on which topology would be active, if committed.
+func BeginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
+	return st.beginSetDynamic(dynamic)
+}
+
 // SetStatic atomically sets the static topology. Whether semi-mutable fields are
 // allowed to change can be specified using semiMutAllowed. The returned
 // topology is a pointer to the currently active topology at the end of the function call.
@@ -87,10 +93,12 @@ type Transaction struct {
 	topo
 	// state is the state that the transaction is associated with.
 	state *state
-	// prevStatic stores the currently active topology during the check.
+	// prevStatic stores the currently active static topology when starting the transaction.
 	prevStatic *topology.Topo
-	// newStatic stores the provided static topology during the check.
+	// newStatic stores the provided static topology.
 	newStatic *topology.Topo
+	// newDynamic stores the provided dynamic topology.
+	newDynamic *topology.Topo
 }
 
 // Commit commits the change. An error is returned, if the static topology changed in the meantime.
@@ -100,11 +108,25 @@ func (tx *Transaction) Commit() error {
 	if tx.prevStatic != tx.state.topo.static {
 		return common.NewBasicError("Static topology changed in the meantime", nil)
 	}
-	// Update the static topology if necessary.
-	if tx.static != tx.state.topo.static {
-		tx.state.updateStatic(tx.newStatic)
+	if !tx.IsUpdate() {
+		return nil
 	}
+	// Do transaction for static topology updated.
+	if tx.newStatic != nil {
+		tx.state.updateStatic(tx.newStatic)
+		return nil
+	}
+	// Do transaction from dynamic topology update.
+	tx.state.topo.dynamic = tx.newDynamic
 	return nil
+}
+
+// IsUpdate indicates whether the transaction will cause an updated.
+func (tx *Transaction) IsUpdate() bool {
+	if tx.newStatic != nil {
+		return tx.topo.static == tx.newStatic
+	}
+	return tx.topo.dynamic == tx.newDynamic
 }
 
 // topo stores the currently active static and dynamic topologies.
@@ -142,8 +164,8 @@ func newState(id string, svc proto.ServiceType, clbks Callbacks) *state {
 func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error) {
 	s.Lock()
 	defer s.Unlock()
-	if s.topo.static == nil {
-		return nil, false, common.NewBasicError("Static topology must be set", nil)
+	if err := s.dynamicPreCheck(dynamic); err != nil {
+		return nil, false, err
 	}
 	if err := s.validator.Validate(dynamic, s.topo.static, false); err != nil {
 		return nil, false, err
@@ -153,6 +175,38 @@ func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error)
 	}
 	s.topo.dynamic = dynamic
 	return s.topo.Get(), true, nil
+}
+
+func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
+	s.Lock()
+	defer s.Unlock()
+	if err := s.dynamicPreCheck(dynamic); err != nil {
+		return Transaction{}, err
+	}
+	if err := s.validator.Validate(dynamic, s.topo.static, false); err != nil {
+		return Transaction{}, err
+	}
+	tx := Transaction{
+		topo:       s.topo,
+		state:      s,
+		prevStatic: s.topo.static,
+		newDynamic: dynamic,
+	}
+	if !keepOld(tx.newDynamic, tx.dynamic) {
+		tx.dynamic = dynamic
+	}
+	return tx, nil
+}
+
+func (s *state) dynamicPreCheck(dynamic *topology.Topo) error {
+	if s.topo.static == nil {
+		return common.NewBasicError("Static topology must be set", nil)
+	}
+	if !dynamic.Active(time.Now()) {
+		return common.NewBasicError("Dynamic topology must be active", nil,
+			"ts", dynamic.Timestamp, "expiry", dynamic.Expiry())
+	}
+	return nil
 }
 
 // setStatic atomically sets the static topology.

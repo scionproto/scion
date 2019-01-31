@@ -19,7 +19,7 @@ const Sample = `[general]
   # topology file for some services.
   ID = "br-1"
 
-  # Directory for loading AS information, certs, keys, path policy, topology. 
+  # Directory for loading AS information, certs, keys, path policy, topology.
   ConfigDir = "/etc/scion"
 
   # Topology file. If not specified, topology.json is loaded from the config
@@ -56,11 +56,25 @@ const Sample = `[general]
   # exported.
   # Prometheus = "127.0.0.1:8000"
 
+[discovery]
+  [discovery.dynamic]
+    # Enable periodic fetching of the dynamic topology. (default false)
+    Enable = false
+
+    # Time between two consecutive dynamic topology query. (default 5s)
+    Interval = "5s"
+
+    # Timeout for querying the dynamic topology.  (default 1s)
+    Timeout = "1s"
+
+    # Require https connection. (default false)
+    Https = false
+
 [br]
   # Enable cpu and memory profiling. (default false)
   Profile = false
 
   # Action that should be taken when an error occurres during a context rollback.
-  # (Fatal | Continue) (default Fatal) 
+  # (Fatal | Continue) (default Fatal)
   RollbackFailAction = "Fatal"
 `
