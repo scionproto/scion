@@ -60,6 +60,7 @@ func StartRunners(cfg Config, file discovery.File, client *http.Client) (Runners
 		if err := startDynamic(&r, cfg.Dynamic, file, client); err != nil {
 			return Runners{}, err
 		}
+		r.Cleaner = itopo.StartCleaner(1*time.Second, 1*time.Second)
 		log.Info("[idiscovery] Started dynamic topology fetcher")
 	}
 	return r, nil
@@ -103,7 +104,6 @@ func startDynamic(r *Runners, cfg FetchConfig, file discovery.File, client *http
 	}
 	r.Dynamic = periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
 		cfg.Timeout.Duration)
-	r.Cleaner = itopo.StartCleaner(1*time.Second, 1*time.Second)
 	return nil
 }
 

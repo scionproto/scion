@@ -34,9 +34,7 @@ type Config struct {
 }
 
 func (c *Config) InitDefaults() {
-	if c.Dynamic.Enable {
-		c.Dynamic.InitDefaults()
-	}
+	c.Dynamic.InitDefaults()
 }
 
 type FetchConfig struct {
