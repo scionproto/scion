@@ -33,7 +33,8 @@ base_setup() {
     # Modify docker compose file to contain discovery.
     local network=$(awk '/  scion_disp_1-ff00_0_111:/,/ volumes/ {if (f=="networks:") {gsub(":", "",$1); print $1}} {f=$1}' gen/scion-dc.yml)
     local ip=$( echo $addr | awk '{printf $1}' )
-    local dc_cfg="$( quoteSubst "$( sed -e "s/REPLACE_NETWORK/$network/" -e "s/REPLACE_IP/$ip/" "$UTIL_PATH/dc.tmpl")" )"
+    local base_dir=$( quoteSubst "$( grep -oh '\/.*\/gen' gen/scion-dc.yml | grep -v ':' -m 1 )" ) 
+    local dc_cfg="$( quoteSubst "$( sed -e "s/REPLACE_NETWORK/$network/" -e "s/REPLACE_IP/$ip/" -e "s/REPLACE_BASE_DIR/$base_dir/" "$UTIL_PATH/dc.tmpl")" )"
     sed -i -e "/services:/a \  $dc_cfg" "gen/scion-dc.yml"
 }
 
