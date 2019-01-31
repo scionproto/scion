@@ -57,7 +57,18 @@ type Runners struct {
 func StartRunners(cfg Config, file discovery.File, client *http.Client) (Runners, error) {
 	r := Runners{}
 	if cfg.Dynamic.Enable {
-		if err := startDynamic(&r, cfg.Dynamic, file, client); err != nil {
+		var err error
+		r.Dynamic, err = startPeriodic(
+			cfg.Dynamic,
+			dynamicSetter,
+			discovery.FetchParams{
+				Mode:  discovery.Dynamic,
+				Https: cfg.Dynamic.Https,
+				File:  file,
+			},
+			client,
+		)
+		if err != nil {
 			return Runners{}, err
 		}
 		r.Cleaner = itopo.StartCleaner(1*time.Second, 1*time.Second)
@@ -86,25 +97,17 @@ func (r *Runners) Kill() {
 	}
 }
 
-// startDynamic starts two periodic runners. The first runner periodically fetches
-// the dynamic topology and sets it in itopo. The second runner periodically cleans
-// the expired dynamic topologies from itopo.
-func startDynamic(r *Runners, cfg FetchConfig, file discovery.File, client *http.Client) error {
-	fetcher, err := NewFetcher(
-		dynamicSetter,
-		discovery.FetchParams{
-			Mode:  discovery.Dynamic,
-			File:  file,
-			Https: cfg.Https,
-		},
-		client,
-	)
+// startPeriodic starts a runner that periodically fetches the topology.
+func startPeriodic(cfg FetchConfig, handler TopoHandler,
+	params discovery.FetchParams, client *http.Client) (*periodic.Runner, error) {
+
+	fetcher, err := NewFetcher(handler, params, client)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	r.Dynamic = periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
+	runner := periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
 		cfg.Timeout.Duration)
-	return nil
+	return runner, nil
 }
 
 // task is a periodic.Task that fetches the topology from the discovery service.
