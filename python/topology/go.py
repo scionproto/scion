@@ -110,7 +110,7 @@ class GoGenerator(object):
             'infra': {
                 'Type': "PS"
             },
-            'Discovery': self._discovery_entry(),
+            'discovery': self._discovery_entry(),
             'ps': {
                 'PathDB': {
                     'Backend': 'sqlite',

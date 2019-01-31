@@ -184,10 +184,7 @@ type periodicTasks struct {
 	pathDBCleaner *periodic.Runner
 	cryptosyncer  *periodic.Runner
 	rcCleaner     *periodic.Runner
-	topoFetcher   struct {
-		dynamic *periodic.Runner
-		cleaner *periodic.Runner
-	}
+	discovery     idiscovery.Runners
 }
 
 func (t *periodicTasks) Start() {
@@ -205,13 +202,9 @@ func (t *periodicTasks) Start() {
 			fatal.Fatal(common.NewBasicError("Unable to start seg syncer", err))
 		}
 	}
-	if cfg.Discovery.Dynamic.Enable {
-		t.topoFetcher.dynamic, t.topoFetcher.cleaner, err = idiscovery.StartDynamic(
-			cfg.Discovery.Dynamic, discovery.Full, nil)
-		if err != nil {
-			fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
-		}
-		log.Info("Started dynamic topology fetching")
+	t.discovery, err = idiscovery.StartRunners(cfg.Discovery, discovery.Full, nil)
+	if err != nil {
+		fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
 	}
 	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
@@ -236,10 +229,7 @@ func (t *periodicTasks) Kill() {
 		syncer := t.segSyncers[i]
 		syncer.Kill()
 	}
-	if t.topoFetcher.dynamic != nil {
-		t.topoFetcher.cleaner.Kill()
-		t.topoFetcher.dynamic.Kill()
-	}
+	t.discovery.Kill()
 	t.pathDBCleaner.Kill()
 	t.cryptosyncer.Kill()
 	t.rcCleaner.Kill()

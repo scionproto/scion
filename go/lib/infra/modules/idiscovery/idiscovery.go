@@ -14,12 +14,12 @@
 
 // Package idiscovery fetches the topology from the discovery service.
 //
-// Client packages can start a periodic.Runner with StartDynamic that
-// periodically fetches a dynamic topology from the discovery service.
+// Client packages can start a periodic.Runner with StartRunners that
+// periodically fetches the dynamic topology from the discovery service.
 // The received topology is set in itopo.
 //
 // A periodic.Taks with a customized TopoHandler can be created with
-// NewFetcher, if the client package requires more control.
+// NewFetcher, when the client package requires more control.
 package idiscovery
 
 import (
@@ -46,15 +46,49 @@ func dynamicSetter(topo *topology.Topo) (bool, error) {
 	return updated, err
 }
 
-// StartDynamic starts two periodic runners. The first runner periodically fetches
+type Runners struct {
+	// Dynamic periodically fetches the dynamic topology and sets it in itopo.
+	Dynamic *periodic.Runner
+	// Cleaner periodically cleans the expired dynamic topology in itopo.
+	Cleaner *periodic.Runner
+}
+
+// StartRunners starts the runners for the specified configuration.
+func StartRunners(cfg Config, file discovery.File, client *http.Client) (Runners, error) {
+	r := Runners{}
+	if cfg.Dynamic.Enable {
+		if err := startDynamic(&r, cfg.Dynamic, file, client); err != nil {
+			return Runners{}, err
+		}
+		log.Info("[idiscovery] Started dynamic topology fetcher")
+	}
+	return r, nil
+}
+
+// Stop stops all runners.
+func (r *Runners) Stop() {
+	if r.Dynamic != nil {
+		r.Dynamic.Stop()
+	}
+	if r.Cleaner != nil {
+		r.Cleaner.Stop()
+	}
+}
+
+// Kill kills all runners.
+func (r *Runners) Kill() {
+	if r.Dynamic != nil {
+		r.Dynamic.Kill()
+	}
+	if r.Cleaner != nil {
+		r.Cleaner.Kill()
+	}
+}
+
+// startDynamic starts two periodic runners. The first runner periodically fetches
 // the dynamic topology and sets it in itopo. The second runner periodically cleans
 // the expired dynamic topologies from itopo.
-func StartDynamic(cfg FetchConfig, file discovery.File,
-	client *http.Client) (*periodic.Runner, *periodic.Runner, error) {
-
-	if !cfg.Enable {
-		return nil, nil, common.NewBasicError("Fetching not enabled", nil)
-	}
+func startDynamic(r *Runners, cfg FetchConfig, file discovery.File, client *http.Client) error {
 	fetcher, err := NewFetcher(
 		dynamicSetter,
 		discovery.FetchParams{
@@ -65,13 +99,12 @@ func StartDynamic(cfg FetchConfig, file discovery.File,
 		client,
 	)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-	fetcherRunner := periodic.StartPeriodicTask(fetcher,
-		periodic.NewTicker(cfg.Interval.Duration), cfg.Timeout.Duration,
-	)
-	itopoCleaner := itopo.StartCleaner(1*time.Second, 1*time.Second)
-	return fetcherRunner, itopoCleaner, nil
+	r.Dynamic = periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
+		cfg.Timeout.Duration)
+	r.Cleaner = itopo.StartCleaner(1*time.Second, 1*time.Second)
+	return nil
 }
 
 // task is a periodic.Task that fetches the topology from the discovery service.

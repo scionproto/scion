@@ -39,14 +39,13 @@ import (
 )
 
 var (
-	cfg           config.Config
-	state         *config.State
-	environment   *env.Env
-	reissRunner   *periodic.Runner
-	dynTopoRunner *periodic.Runner
-	itopoCleaner  *periodic.Runner
-	corePusher    *periodic.Runner
-	msgr          infra.Messenger
+	cfg         config.Config
+	state       *config.State
+	environment *env.Env
+	reissRunner *periodic.Runner
+	discRunners idiscovery.Runners
+	corePusher  *periodic.Runner
+	msgr        infra.Messenger
 )
 
 func init() {
@@ -172,14 +171,9 @@ func startReissRunner() {
 }
 
 func startDiscovery() {
-	if cfg.Discovery.Dynamic.Enable {
-		var err error
-		dynTopoRunner, itopoCleaner, err = idiscovery.StartDynamic(cfg.Discovery.Dynamic,
-			discovery.Full, nil)
-		if err != nil {
-			fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
-		}
-		log.Info("Started dynamic topology fetching")
+	var err error
+	if discRunners, err = idiscovery.StartRunners(cfg.Discovery, discovery.Full, nil); err != nil {
+		fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
 	}
 }
 
@@ -194,5 +188,6 @@ func stopReissRunner() {
 
 func stop() {
 	stopReissRunner()
+	discRunners.Stop()
 	msgr.CloseServer()
 }
