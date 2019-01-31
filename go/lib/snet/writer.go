@@ -102,8 +102,8 @@ func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 	pkt := &SCIONPacket{
 		Bytes: Bytes(c.buffer),
 		SCIONPacketInfo: SCIONPacketInfo{
-			Destination: NodeAddress{IA: raddr.IA, Host: raddr.Host.L3},
-			Source:      NodeAddress{IA: c.base.laddr.IA, Host: c.base.laddr.Host.L3},
+			Destination: SCIONAddress{IA: raddr.IA, Host: raddr.Host.L3},
+			Source:      SCIONAddress{IA: c.base.laddr.IA, Host: c.base.laddr.Host.L3},
 			Path:        raddr.Path,
 			L4Header: &l4.UDP{
 				SrcPort:  c.base.laddr.Host.L4.Port(),

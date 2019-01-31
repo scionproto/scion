@@ -38,7 +38,7 @@ import (
 // After a packet has been serialized/decoded, the length of Contents will be
 // equal to the size of the entire packet data. The capacity remains unchanged.
 //
-// If the Bytes is unitialized, space will be allocated during
+// If Bytes is not initialized, space will be allocated during
 // serialization/decoding.
 type Bytes common.RawBytes
 
@@ -67,10 +67,10 @@ type SCIONPacket struct {
 // serialization might fail due to some violation of SCION protocol rules.
 type SCIONPacketInfo struct {
 	// Destination contains the destination address.
-	Destination NodeAddress
+	Destination SCIONAddress
 	// Source contains the source address. If it is an SVC address, packet
 	// serialization will return an error.
-	Source NodeAddress
+	Source SCIONAddress
 	// Path contains a SCION forwarding path. The field must be nil or an empty
 	// path if the source and destination are inside the same AS.
 	//
@@ -95,8 +95,8 @@ type SCIONPacketInfo struct {
 	Payload  common.Payload
 }
 
-// NodeAddress is the fully-specified SCION address of a host.
-type NodeAddress struct {
+// SCIONAddress is the fully-specified address of a host.
+type SCIONAddress struct {
 	IA   addr.IA
 	Host addr.HostAddr
 }
@@ -105,8 +105,6 @@ type NodeAddress struct {
 // packets.
 type RawSCIONConn struct {
 	conn net.PacketConn
-	rawSCIONConnWriter
-	rawSCIONConnReader
 }
 
 // NewRawSCIONConn implements reading and writing SCION packets on a
@@ -116,12 +114,6 @@ type RawSCIONConn struct {
 func NewRawSCIONConn(conn net.PacketConn, _ SerializationOptions) *RawSCIONConn {
 	return &RawSCIONConn{
 		conn: conn,
-		rawSCIONConnWriter: rawSCIONConnWriter{
-			conn: conn,
-		},
-		rawSCIONConnReader: rawSCIONConnReader{
-			conn: conn,
-		},
 	}
 }
 
@@ -133,11 +125,7 @@ func (c *RawSCIONConn) Close() error {
 	return c.conn.Close()
 }
 
-type rawSCIONConnWriter struct {
-	conn net.PacketConn
-}
-
-func (c *rawSCIONConnWriter) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+func (c *RawSCIONConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
 	// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
 	// absorbed by the easier to use SCIONPacket structure in this package.
 	scnPkt := &spkt.ScnPkt{
@@ -149,7 +137,7 @@ func (c *rawSCIONConnWriter) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) 
 		L4:      pkt.L4Header,
 		Pld:     pkt.Payload,
 	}
-	pkt.Bytes.Prepare()
+	pkt.Prepare()
 	n, err := hpkt.WriteScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
 	if err != nil {
 		return common.NewBasicError("Unable to serialize SCION packet", err)
@@ -163,16 +151,12 @@ func (c *rawSCIONConnWriter) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) 
 	return nil
 }
 
-func (c *rawSCIONConnWriter) SetWriteDeadline(d time.Time) error {
+func (c *RawSCIONConn) SetWriteDeadline(d time.Time) error {
 	return c.conn.SetWriteDeadline(d)
 }
 
-type rawSCIONConnReader struct {
-	conn net.PacketConn
-}
-
-func (c *rawSCIONConnReader) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
-	pkt.Bytes.Prepare()
+func (c *RawSCIONConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+	pkt.Prepare()
 	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		return common.NewBasicError("Reliable socket read error", err)
@@ -198,8 +182,8 @@ func (c *rawSCIONConnReader) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr)
 		return common.NewBasicError("SCION packet parse error", err)
 	}
 
-	pkt.Destination = NodeAddress{IA: scnPkt.DstIA, Host: scnPkt.DstHost}
-	pkt.Source = NodeAddress{IA: scnPkt.SrcIA, Host: scnPkt.SrcHost}
+	pkt.Destination = SCIONAddress{IA: scnPkt.DstIA, Host: scnPkt.DstHost}
+	pkt.Source = SCIONAddress{IA: scnPkt.SrcIA, Host: scnPkt.SrcHost}
 	pkt.Path = scnPkt.Path
 	pkt.L4Header = scnPkt.L4
 	pkt.Payload = scnPkt.Pld
@@ -207,7 +191,7 @@ func (c *rawSCIONConnReader) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr)
 	return nil
 }
 
-func (c *rawSCIONConnReader) SetReadDeadline(d time.Time) error {
+func (c *RawSCIONConn) SetReadDeadline(d time.Time) error {
 	return c.conn.SetReadDeadline(d)
 }
 
