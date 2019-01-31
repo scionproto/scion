@@ -56,6 +56,14 @@ func Get() *topology.Topo {
 	return st.topo.Get()
 }
 
+// SetDynamic atomically sets the dynamic topology. The returned topology is a pointer
+// to the currently active topology at the end of the function call. It might differ from
+// the input topology. The second return value indicates whether the in-memory
+// copy of the dynamic topology has been updated.
+func SetDynamic(static *topology.Topo) (*topology.Topo, bool, error) {
+	return st.setDynamic(static)
+}
+
 // SetStatic atomically sets the static topology. Whether semi-mutable fields are
 // allowed to change can be specified using semiMutAllowed. The returned
 // topology is a pointer to the currently active topology at the end of the function call.
@@ -128,6 +136,23 @@ func newState(id string, svc proto.ServiceType, clbks Callbacks) *state {
 		clbks:     clbks,
 	}
 	return s
+}
+
+// setDynamic atomically sets the dynamic topology.
+func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error) {
+	s.Lock()
+	defer s.Unlock()
+	if s.topo.static == nil {
+		return nil, false, common.NewBasicError("Static topology must be set", nil)
+	}
+	if err := s.validator.Validate(dynamic, s.topo.static, false); err != nil {
+		return nil, false, err
+	}
+	if keepOld(dynamic, s.topo.dynamic) {
+		return s.topo.Get(), true, nil
+	}
+	s.topo.dynamic = dynamic
+	return s.topo.Get(), true, nil
 }
 
 // setStatic atomically sets the static topology.

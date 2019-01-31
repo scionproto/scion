@@ -110,6 +110,7 @@ class GoGenerator(object):
             'infra': {
                 'Type': "PS"
             },
+            'discovery': self._discovery_entry(),
             'ps': {
                 'PathDB': {
                     'Backend': 'sqlite',
@@ -177,6 +178,7 @@ class GoGenerator(object):
             'infra': {
                 'Type': "CS"
             },
+            'discovery': self._discovery_entry(),
             'cs': {
                 'LeafReissueLeadTime': "6h",
                 'IssuerReissueLeadTime': "3d",
@@ -216,6 +218,14 @@ class GoGenerator(object):
                 'Prometheus': prometheus_addr,
             },
         }
+
+    def _discovery_entry(self):
+        entry = {
+            "dynamic": {
+                "Enable": self.args.discovery,
+            }
+        }
+        return entry
 
     def _log_entry(self, name):
         entry = {

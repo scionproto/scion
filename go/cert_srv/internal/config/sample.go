@@ -72,6 +72,17 @@ const Sample = `[general]
   # Connection for the trust database
   Connection = "/var/lib/scion/spki/cs-1.trust.db"
 
+[discovery]
+  [discovery.dynamic]
+    # Enable periodic fetching of the dynamic topology. (default false)
+    Enable = false
+
+    # Time between two consecutive dynamic topology query. (default 5s)
+    Interval = "5s"
+
+    # Timeout for querying the dynamic topology.  (default 1s)
+    Timeout = "1s"
+
 [cs]
   # Time between starting reissue requests and leaf cert expiration. If not
   # specified, this is set to PathSegmentTTL.
