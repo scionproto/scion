@@ -84,6 +84,165 @@ func TestSvcValidatorImmutable(t *testing.T) {
 	})
 }
 
+func TestBrValidatorGeneral(t *testing.T) {
+	Convey("Given a border router validator", t, func() {
+		v := brValidator{id: "br1-ff00:0:311-1"}
+		Convey("A nil topology is not valid", func() {
+			SoMsg("err", v.General(nil), ShouldNotBeNil)
+		})
+		Convey("The topology is only valid if it contains the border router", func() {
+			topo := loadTopo(fn, t)
+			SoMsg("Err contained", v.General(topo), ShouldBeNil)
+			v.id = "missing"
+			SoMsg("Err missing", v.General(topo), ShouldNotBeNil)
+		})
+	})
+}
+
+func TestBrValidatorImmutable(t *testing.T) {
+	Convey("Given a border router validator", t, func() {
+		v := &brValidator{id: "br1-ff00:0:311-1"}
+		other := "br1-ff00:0:311-2"
+		oldTopo := loadTopo(fn, t)
+		topo := loadTopo(fn, t)
+		testGenImmutable(v, topo, oldTopo, t)
+		Convey("Modifying a different br's internal address is allowed", func() {
+			brInfo := topo.BR[other]
+			brInfo.InternalAddrs.Overlay = overlay.IPv6
+			topo.BR[other] = brInfo
+			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
+		})
+		Convey("Modifying a different br's control address is allowed", func() {
+			brInfo := topo.BR[other]
+			brInfo.CtrlAddrs.Overlay = overlay.IPv6
+			topo.BR[other] = brInfo
+			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
+		})
+		Convey("Modifying the own internal address is not allowed", func() {
+			brInfo := topo.BR[v.id]
+			brInfo.InternalAddrs.Overlay = overlay.IPv6
+			topo.BR[v.id] = brInfo
+			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
+		})
+		Convey("Modifying the own control address is not allowed", func() {
+			brInfo := topo.BR[v.id]
+			brInfo.CtrlAddrs.Overlay = overlay.IPv6
+			topo.BR[v.id] = brInfo
+			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
+		})
+	})
+}
+
+func TestBrValidatorSemiMutable(t *testing.T) {
+	Convey("Given a border router validator", t, func() {
+		v := &brValidator{id: "br1-ff00:0:311-1"}
+		other := "br1-ff00:0:311-2"
+		oldTopo := loadTopo(fn, t)
+		topo := loadTopo(fn, t)
+		Convey("And semi-mutation is allowed", func() {
+			Convey("Adding a new interface is allowed", func() {
+				brInfo := topo.BR[v.id]
+				brInfo.IFIDs = append(brInfo.IFIDs, 42)
+				topo.BR[v.id] = brInfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, true), ShouldBeNil)
+			})
+			Convey("Modifying an interface is allowed", func() {
+				ifinfo := topo.IFInfoMap[1]
+				ifinfo.MTU = 42
+				topo.IFInfoMap[1] = ifinfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, true), ShouldBeNil)
+			})
+			Convey("Deleting an interface is allowed", func() {
+				brInfo := topo.BR[v.id]
+				brInfo.IFIDs = brInfo.IFIDs[1:]
+				topo.BR[v.id] = brInfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, true), ShouldBeNil)
+			})
+			Convey("Adding and deleting an interface is allowed", func() {
+				brInfo := topo.BR[v.id]
+				brInfo.IFIDs = append(brInfo.IFIDs, 42)
+				brInfo.IFIDs = brInfo.IFIDs[1:]
+				topo.BR[v.id] = brInfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, true), ShouldBeNil)
+			})
+			Convey("No modification is allowed", func() {
+				SoMsg("err", v.SemiMutable(topo, oldTopo, true), ShouldBeNil)
+			})
+			Convey("Modification of different br is allowed", func() {
+				brInfo := topo.BR[other]
+				brInfo.IFIDs = append(brInfo.IFIDs, 42)
+				brInfo.IFIDs = brInfo.IFIDs[1:]
+				topo.BR[other] = brInfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, true), ShouldBeNil)
+			})
+		})
+		Convey("And semi-mutation is not allowed", func() {
+			Convey("Adding a new interface is not allowed", func() {
+				brInfo := topo.BR[v.id]
+				brInfo.IFIDs = append(brInfo.IFIDs, 42)
+				topo.BR[v.id] = brInfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, false), ShouldNotBeNil)
+			})
+			Convey("Modifying an interface is not allowed", func() {
+				ifinfo := topo.IFInfoMap[1]
+				ifinfo.MTU = 42
+				topo.IFInfoMap[1] = ifinfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, false), ShouldNotBeNil)
+			})
+			Convey("Deleting an interface is not allowed", func() {
+				brInfo := topo.BR[v.id]
+				brInfo.IFIDs = brInfo.IFIDs[1:]
+				topo.BR[v.id] = brInfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, false), ShouldNotBeNil)
+			})
+			Convey("Adding and deleting an interface is not allowed", func() {
+				brInfo := topo.BR[v.id]
+				brInfo.IFIDs = append(brInfo.IFIDs, 42)
+				brInfo.IFIDs = brInfo.IFIDs[1:]
+				topo.BR[v.id] = brInfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, false), ShouldNotBeNil)
+			})
+			Convey("No modification is allowed", func() {
+				SoMsg("err", v.SemiMutable(topo, oldTopo, false), ShouldBeNil)
+			})
+			Convey("Modification of different br is allowed", func() {
+				brInfo := topo.BR[other]
+				brInfo.IFIDs = append(brInfo.IFIDs, 42)
+				brInfo.IFIDs = brInfo.IFIDs[1:]
+				topo.BR[other] = brInfo
+				SoMsg("err", v.SemiMutable(topo, oldTopo, false), ShouldBeNil)
+			})
+		})
+	})
+}
+
+func TestBrValidatorMustDropDynamic(t *testing.T) {
+	Convey("Given a border router validator", t, func() {
+		v := &brValidator{id: "br1-ff00:0:311-1"}
+		oldTopo := loadTopo(fn, t)
+		topo := loadTopo(fn, t)
+
+		Convey("Adding a new interface forces a drop", func() {
+			brInfo := topo.BR[v.id]
+			brInfo.IFIDs = append(brInfo.IFIDs, 42)
+			topo.BR[v.id] = brInfo
+			SoMsg("drop", v.MustDropDynamic(topo, oldTopo), ShouldBeTrue)
+		})
+		Convey("Modifying an interface forces a drop", func() {
+			ifinfo := topo.IFInfoMap[1]
+			ifinfo.MTU = 42
+			topo.IFInfoMap[1] = ifinfo
+			SoMsg("drop", v.MustDropDynamic(topo, oldTopo), ShouldBeTrue)
+		})
+		Convey("Deleting an interface forces a drop", func() {
+			brInfo := topo.BR[v.id]
+			brInfo.IFIDs = brInfo.IFIDs[1:]
+			topo.BR[v.id] = brInfo
+			SoMsg("drop", v.MustDropDynamic(topo, oldTopo), ShouldBeTrue)
+		})
+	})
+}
+
 func testGenImmutable(v internalValidator, topo, oldTopo *topology.Topo, t *testing.T) {
 	t.Helper()
 	Convey("Updating the IA is not allowed", func() {

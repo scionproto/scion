@@ -31,8 +31,10 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type locSockOps interface {
@@ -71,8 +73,13 @@ func (r *Router) setup() error {
 	if conf, err = r.loadNewConfig(); err != nil {
 		return err
 	}
+	// Initialize itopo.
+	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{})
+	if _, _, err := itopo.SetStatic(conf.Topo, true); err != nil {
+		return err
+	}
 	// Setup new context.
-	if err = r.setupNewContext(conf); err != nil {
+	if err = r.setupCtxFromConfig(conf); err != nil {
 		return err
 	}
 	// Clear capabilities after setting up the network.
@@ -109,15 +116,33 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 	return config, nil
 }
 
+// setupCtxFromConfig sets up a new router context from the loaded config.
+// This method is called on initial start and when a sighup is received.
+func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
+	log.Debug("====> Setting up new context from config")
+	// We want to keep in sync itopo and the context that is set.
+	// We attempt to set the context with the topology that will be current
+	// after setting itopo. If setting itopo fails in the end, we rollback the context.
+	tx, err := itopo.BeginSetStatic(config.Topo, true)
+	if err != nil {
+		return err
+	}
+	// Set config to use the appropriate topology. The returned topology is
+	// not necessarily the same as config.Topo. It can be another static
+	// or dynamic topology.
+	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), config)
+	if err != nil {
+		return err
+	}
+	return r.setupNewContext(rctx.New(newConf), tx)
+}
+
 // setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(config *brconf.Conf) error {
-	log.Debug("====> Setting up new context")
-	defer log.Debug("====> Done setting up new context")
+func (r *Router) setupNewContext(ctx *rctx.Ctx, tx itopo.Transaction) error {
 	oldCtx := rctx.Get()
-	ctx := rctx.New(config)
 	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
 	sockConf := brconf.SockConf{Default: PosixSock}
-	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
+	if err := r.setupNetAndTopo(ctx, oldCtx, sockConf, tx); err != nil {
 		r.rollbackNet(ctx, oldCtx, sockConf, handleRollbackErr)
 		return err
 	}
@@ -126,6 +151,16 @@ func (r *Router) setupNewContext(config *brconf.Conf) error {
 	// Tear down sockets for removed interfaces
 	r.teardownNet(ctx, oldCtx, sockConf)
 	return nil
+}
+
+// setupNetAndTopo sets up the net context and set the topology in itopo.
+func (r *Router) setupNetAndTopo(ctx *rctx.Ctx, oldCtx *rctx.Ctx,
+	sockConf brconf.SockConf, tx itopo.Transaction) error {
+
+	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // setupNet configures networking for the router, using any setup hooks that
@@ -169,8 +204,10 @@ func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx,
 	if err != nil {
 		handleErr(common.NewBasicError("Unable to rollback local interface", err))
 	}
-	// Start sockets that are possible created in rollback.
-	startSocks(oldCtx)
+	if oldCtx != nil {
+		// Start sockets that are possibly created by rollback.
+		startSocks(oldCtx)
+	}
 }
 
 // teardownOldNet tears down the sockets of removed external interfaces.
