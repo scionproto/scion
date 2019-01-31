@@ -27,9 +27,9 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-// BaseLayer contains the raw slices of data related to a packet. Most callers
+// Bytes contains the raw slices of data related to a packet. Most callers
 // can safely ignore it. For performance-critical applications, callers should
-// manually allocate/recycle the BaseLayer.
+// manually allocate/recycle the Bytes.
 //
 // Prior to serialization/decoding, the internal slice is reset to its full
 // capacity, so be careful about passing in slices that have runoff data after
@@ -38,27 +38,25 @@ import (
 // After a packet has been serialized/decoded, the length of Contents will be
 // equal to the size of the entire packet data. The capacity remains unchanged.
 //
-// If the BaseLayer is unitialized, space will be allocated during
+// If the Bytes is unitialized, space will be allocated during
 // serialization/decoding.
-type BaseLayer struct {
-	Contents common.RawBytes
-}
+type Bytes common.RawBytes
 
-// Prepare readies a layer for use.
+// Prepare readies a layer's storage for use.
 //
 // If the layer is not allocated, a backing buffer of maximum packet size is
 // allocated.
 //
 // If the layer is already allocated, its length is reset to its capacity.
-func (layer *BaseLayer) Prepare() {
-	if layer.Contents == nil {
-		layer.Contents = make(common.RawBytes, common.MaxMTU)
+func (b *Bytes) Prepare() {
+	if *b == nil {
+		*b = make(Bytes, common.MaxMTU)
 	}
-	layer.Contents = layer.Contents[:cap(layer.Contents)]
+	*b = (*b)[:cap(*b)]
 }
 
 type SCIONPacket struct {
-	BaseLayer
+	Bytes
 	SCIONPacketInfo
 }
 
@@ -151,14 +149,14 @@ func (c *rawSCIONConnWriter) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) 
 		L4:      pkt.L4Header,
 		Pld:     pkt.Payload,
 	}
-	pkt.BaseLayer.Prepare()
-	n, err := hpkt.WriteScnPkt(scnPkt, pkt.Contents)
+	pkt.Bytes.Prepare()
+	n, err := hpkt.WriteScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
 	if err != nil {
 		return common.NewBasicError("Unable to serialize SCION packet", err)
 	}
-	pkt.Contents = pkt.Contents[:n]
+	pkt.Bytes = pkt.Bytes[:n]
 	// Send message
-	_, err = c.conn.WriteTo(pkt.Contents, ov)
+	_, err = c.conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {
 		return common.NewBasicError("Reliable socket write error", err)
 	}
@@ -174,12 +172,12 @@ type rawSCIONConnReader struct {
 }
 
 func (c *rawSCIONConnReader) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
-	pkt.BaseLayer.Prepare()
-	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Contents)
+	pkt.Bytes.Prepare()
+	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		return common.NewBasicError("Reliable socket read error", err)
 	}
-	pkt.Contents = pkt.Contents[:n]
+	pkt.Bytes = pkt.Bytes[:n]
 	var lastHop *overlay.OverlayAddr
 
 	var ok bool
@@ -195,7 +193,7 @@ func (c *rawSCIONConnReader) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr)
 		DstIA: addr.IA{},
 		SrcIA: addr.IA{},
 	}
-	err = hpkt.ParseScnPkt(scnPkt, pkt.Contents)
+	err = hpkt.ParseScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
 	if err != nil {
 		return common.NewBasicError("SCION packet parse error", err)
 	}

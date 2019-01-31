@@ -17,6 +17,7 @@ package snet
 import (
 	"context"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -30,12 +31,16 @@ import (
 type scionConnReader struct {
 	base *scionConnBase
 	conn *RawSCIONConn
+
+	mtx    sync.Mutex
+	buffer common.RawBytes
 }
 
 func newScionConnReader(base *scionConnBase, conn *RawSCIONConn) *scionConnReader {
 	return &scionConnReader{
-		base: base,
-		conn: conn,
+		base:   base,
+		conn:   conn,
+		buffer: make(common.RawBytes, common.MaxMTU),
 	}
 }
 
@@ -43,28 +48,32 @@ func newScionConnReader(base *scionConnBase, conn *RawSCIONConn) *scionConnReade
 // address of the sender. If the remote address for the connection is already
 // known, ReadFromSCION returns an error.
 func (c *scionConnReader) ReadFromSCION(b []byte) (int, *Addr, error) {
-	return c.read(b, true)
+	return c.read(b)
 }
 
 func (c *scionConnReader) ReadFrom(b []byte) (int, net.Addr, error) {
-	return c.read(b, true)
+	return c.read(b)
 }
 
 // Read reads data into b from a connection with a fixed remote address. If the
 // remote address for the connection is unknown, Read returns an error.
 func (c *scionConnReader) Read(b []byte) (int, error) {
-	n, _, err := c.read(b, false)
+	n, _, err := c.read(b)
 	return n, err
 }
 
 // read returns the number of bytes read, the address that sent the bytes and
 // an error (if one occurred).
-func (c *scionConnReader) read(b []byte, from bool) (int, *Addr, error) {
+func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 	if c.base.scionNet == nil {
 		return 0, nil, common.NewBasicError("SCION network not initialized", nil)
 	}
 
-	var pkt SCIONPacket
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	pkt := SCIONPacket{
+		Bytes: Bytes(c.buffer),
+	}
 	var lastHop overlay.OverlayAddr
 	err := c.conn.ReadFrom(&pkt, &lastHop)
 	if err != nil {

@@ -17,6 +17,7 @@ package snet
 import (
 	"context"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -48,6 +49,9 @@ type scionConnWriter struct {
 	base     *scionConnBase
 	conn     *RawSCIONConn
 	resolver *remoteAddressResolver
+
+	mtx    sync.Mutex
+	buffer common.RawBytes
 }
 
 func newScionConnWriter(base *scionConnBase, pr pathmgr.Resolver,
@@ -61,6 +65,7 @@ func newScionConnWriter(base *scionConnBase, pr pathmgr.Resolver,
 			pathResolver: pathsource.NewPathSource(pr),
 			monitor:      ctxmonitor.NewMonitor(),
 		},
+		buffer: make(common.RawBytes, common.MaxMTU),
 	}
 }
 
@@ -92,7 +97,10 @@ func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
 }
 
 func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	pkt := &SCIONPacket{
+		Bytes: Bytes(c.buffer),
 		SCIONPacketInfo: SCIONPacketInfo{
 			Destination: NodeAddress{IA: raddr.IA, Host: raddr.Host.L3},
 			Source:      NodeAddress{IA: c.base.laddr.IA, Host: c.base.laddr.Host.L3},
