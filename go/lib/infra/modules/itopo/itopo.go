@@ -142,6 +142,9 @@ func newState(id string, svc proto.ServiceType, clbks Callbacks) *state {
 func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error) {
 	s.Lock()
 	defer s.Unlock()
+	if s.topo.static == nil {
+		return nil, false, common.NewBasicError("Static topology must be set", nil)
+	}
 	if err := s.validator.Validate(dynamic, s.topo.static, false); err != nil {
 		return nil, false, err
 	}
