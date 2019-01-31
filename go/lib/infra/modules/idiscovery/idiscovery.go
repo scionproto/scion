@@ -123,7 +123,7 @@ func NewFetcher(handler TopoHandler, params discovery.FetchParams,
 		return nil, common.NewBasicError("handler must not be nil", nil)
 	}
 	t := &task{
-		Logger:  log.New("Part", "Discovery", "Mode", params.Mode),
+		Logger:  log.New("Module", "Discovery", "Mode", params.Mode),
 		handler: handler,
 	}
 	var err error
