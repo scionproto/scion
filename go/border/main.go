@@ -33,15 +33,17 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/profile"
 )
 
 type Config struct {
-	General env.General
-	Logging env.Logging
-	Metrics env.Metrics
-	BR      brconf.BR
+	General   env.General
+	Logging   env.Logging
+	Metrics   env.Metrics
+	Discovery idiscovery.Config
+	BR        brconf.BR
 }
 
 var (
@@ -118,6 +120,7 @@ func setup() error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
+	config.Discovery.InitDefaults()
 	config.BR.InitDefaults()
 	environment = env.SetupEnv(func() {
 		if r == nil {
