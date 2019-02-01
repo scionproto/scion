@@ -40,6 +40,6 @@ func (c cleaner) Run(ctx context.Context) {
 			"ts", st.topo.dynamic.Timestamp, "ttl", st.topo.dynamic.TTL,
 			"expired", st.topo.dynamic.Expiry())
 		st.topo.dynamic = nil
-		call(st.clbks.DropDynamic)
+		call(st.clbks.CleanDynamic)
 	}
 }
