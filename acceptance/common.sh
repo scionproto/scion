@@ -1,4 +1,6 @@
-# Acceptance tests common functions
+# Acceptance tests common definitions.
+
+export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 
 #######################################
 # Converts ISD-AS representation to its file format

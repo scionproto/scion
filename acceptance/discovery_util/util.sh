@@ -10,7 +10,7 @@ TOPO="gen/ISD1/AS$AS_FILE/br$IA_FILE-1/topology.json"
 UTIL_PATH="acceptance/discovery_util"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
-export DISC_DIR="${TEST_ARTIFACTS_DIR:-$( pwd )}/gen/discovery_acceptance"
+export DISC_DIR="$TEST_ARTIFACTS_DIR/gen/discovery_acceptance"
 STATIC_DIR="$DISC_DIR/discovery/v1/dynamic"
 STATIC_FULL="$STATIC_DIR/full.json"
 DYNAMIC_DIR="$DISC_DIR/discovery/v1/dynamic"
@@ -22,6 +22,8 @@ base_setup() {
     # Create topology setup all necessary config files.
     ./scion.sh topology -c "$TEST_TOPOLOGY" -d -ds
     # Create the topology directories for serving.
+    echo "$DISC_DIR"
+    echo "$DYNAMIC_DIR"
     mkdir -p "$STATIC_DIR"
     mkdir -p "$DYNAMIC_DIR"
 
