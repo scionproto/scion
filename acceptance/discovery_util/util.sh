@@ -24,18 +24,17 @@ base_setup() {
     # Create the topology directories for serving.
     mkdir -p "$STATIC_DIR"
     mkdir -p "$DYNAMIC_DIR"
-    
+
     # Get ip and port for the discovery service.
     local addr=$( jq -r '.DiscoveryService[].Addrs[].Public | "\(.Addr) \(.L4Port)"' "$TOPO" )
-    
+
     # Build mock discovery service container.
     docker build -f "$UTIL_PATH/Dockerfile" -t "scion_discovery_test:latest" $UTIL_PATH --build-arg port=$( echo $addr | awk '{printf $2}' )
-    
+
     # Modify docker compose file to contain discovery.
     export DISC_IP=$( echo $addr | awk '{printf $1}' )
     local network=$(awk '/  scion_disp_1-ff00_0_111:/,/ volumes/ {if (f=="networks:") {gsub(":", "",$1); print $1}} {f=$1}' gen/scion-dc.yml)
-    local base_dir=$( quoteSubst "$( grep -oh '\/.*\/gen' gen/scion-dc.yml | grep -v ':' -m 1 )" ) 
-    local dc_cfg="$( quoteSubst "$( sed -e "s/REPLACE_NETWORK/$network/" -e "s/REPLACE_BASE_DIR/$base_dir/" "$UTIL_PATH/dc.tmpl")" )"
+    local dc_cfg="$( quoteSubst "$( sed -e "s/REPLACE_NETWORK/$network/" "$UTIL_PATH/dc.tmpl")" )"
     sed -i -e "/services:/a \  $dc_cfg" "gen/scion-dc.yml"
 }
 
