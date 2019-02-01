@@ -22,13 +22,11 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
 	"github.com/scionproto/scion/go/lib/snet/internal/pathsource"
-	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 // Possible write errors
@@ -48,26 +46,26 @@ const (
 )
 
 type scionConnWriter struct {
-	base *scionConnBase
-	conn net.PacketConn
-
-	mtx      sync.Mutex
-	buffer   common.RawBytes
+	base     *scionConnBase
+	conn     *RawSCIONConn
 	resolver *remoteAddressResolver
+
+	mtx    sync.Mutex
+	buffer common.RawBytes
 }
 
 func newScionConnWriter(base *scionConnBase, pr pathmgr.Resolver,
-	conn net.PacketConn) *scionConnWriter {
+	conn *RawSCIONConn) *scionConnWriter {
 
 	return &scionConnWriter{
-		base:   base,
-		buffer: make(common.RawBytes, BufSize),
-		conn:   conn,
+		base: base,
+		conn: conn,
 		resolver: &remoteAddressResolver{
 			localIA:      base.laddr.IA,
 			pathResolver: pathsource.NewPathSource(pr),
 			monitor:      ctxmonitor.NewMonitor(),
 		},
+		buffer: make(common.RawBytes, common.MaxMTU),
 	}
 }
 
@@ -101,30 +99,24 @@ func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
 func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	pkt := &spkt.ScnPkt{
-		DstIA:   raddr.IA,
-		SrcIA:   c.base.laddr.IA,
-		DstHost: raddr.Host.L3,
-		SrcHost: c.base.laddr.Host.L3,
-		Path:    raddr.Path,
-		L4: &l4.UDP{
-			SrcPort:  c.base.laddr.Host.L4.Port(),
-			DstPort:  raddr.Host.L4.Port(),
-			TotalLen: uint16(l4.UDPLen + len(b)),
+	pkt := &SCIONPacket{
+		Bytes: Bytes(c.buffer),
+		SCIONPacketInfo: SCIONPacketInfo{
+			Destination: SCIONAddress{IA: raddr.IA, Host: raddr.Host.L3},
+			Source:      SCIONAddress{IA: c.base.laddr.IA, Host: c.base.laddr.Host.L3},
+			Path:        raddr.Path,
+			L4Header: &l4.UDP{
+				SrcPort:  c.base.laddr.Host.L4.Port(),
+				DstPort:  raddr.Host.L4.Port(),
+				TotalLen: uint16(l4.UDPLen + len(b)),
+			},
+			Payload: common.RawBytes(b),
 		},
-		Pld: common.RawBytes(b),
 	}
-	// Serialize packet to internal buffer
-	n, err := hpkt.WriteScnPkt(pkt, c.buffer)
-	if err != nil {
-		return 0, common.NewBasicError("Unable to serialize SCION packet", err)
+	if err := c.conn.WriteTo(pkt, raddr.NextHop); err != nil {
+		return 0, err
 	}
-	// Send message
-	n, err = c.conn.WriteTo(c.buffer[:n], raddr.NextHop)
-	if err != nil {
-		return 0, common.NewBasicError("Dispatcher write error", err)
-	}
-	return pkt.Pld.Len(), nil
+	return len(b), nil
 }
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
