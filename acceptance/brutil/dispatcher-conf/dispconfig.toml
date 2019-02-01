@@ -1,0 +1,9 @@
+[dispatcher]
+ID = "dispatcher"
+
+[logging.file]
+Level = "debug"
+Path = "/share/logs/dispatcher.log"
+
+[logging.console]
+Level = "crit"
