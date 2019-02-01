@@ -1,6 +1,5 @@
 # This is a base file included/sourced by each border router acceptance test
 
-export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 DEVINFO_FN=${TEST_ARTIFACTS_DIR}/devinfo.txt
 
 . acceptance/brutil/util.sh
