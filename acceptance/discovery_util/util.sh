@@ -38,9 +38,8 @@ base_setup() {
 
     # Get the network AS 1-ff00_0_111 is on. And replace it in the template.
     local network=$(awk '/  scion_disp_1-ff00_0_111:/,/ volumes/ {if (f=="networks:") {gsub(":", "",$1); print $1}} {f=$1}' gen/scion-dc.yml)
-    local dc_cfg="$( quoteSubst "$( sed -e "s/REPLACE_NETWORK/$network/" "$UTIL_PATH/dc.tmpl")" )"
     # Modify docker compose file to contain mock discovery service.
-    sed -i -e "/services:/a \  $dc_cfg" "gen/scion-dc.yml"
+    echo "$( sed -e "s/REPLACE_NETWORK/$network/" "$UTIL_PATH/dc.tmpl")" | sed -i -e "/services:/r /dev/stdin" "gen/scion-dc.yml"
 }
 
 set_log_lvl() {
@@ -49,12 +48,6 @@ set_log_lvl() {
 
 set_interval() {
     sed -i -e "/\[discovery.$2]/a Interval = \"1s\"" "$1"
-}
-
-quoteSubst() {
-    # Copied from https://stackoverflow.com/a/29613573
-    IFS= read -d '' -r < <(sed -e ':a' -e '$!{N;ba' -e '}' -e 's/[&/\]/\\&/g; s/\n/\\&/g' <<<"$1")
-    printf %s "${REPLY%$'\n'}"
 }
 
 check_file() {
