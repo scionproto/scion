@@ -171,7 +171,7 @@ func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error)
 		return nil, false, err
 	}
 	if keepOld(dynamic, s.topo.dynamic) {
-		return s.topo.Get(), true, nil
+		return s.topo.Get(), false, nil
 	}
 	s.topo.dynamic = dynamic
 	return s.topo.Get(), true, nil
@@ -199,12 +199,16 @@ func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
 }
 
 func (s *state) dynamicPreCheck(dynamic *topology.Topo) error {
+	if dynamic == nil {
+		return common.NewBasicError("Provided topology must not be nil", nil)
+	}
 	if s.topo.static == nil {
 		return common.NewBasicError("Static topology must be set", nil)
 	}
-	if !dynamic.Active(time.Now()) {
+	now := time.Now()
+	if !dynamic.Active(now) {
 		return common.NewBasicError("Dynamic topology must be active", nil,
-			"ts", dynamic.Timestamp, "expiry", dynamic.Expiry())
+			"ts", dynamic.Timestamp, "now", now, "expiry", dynamic.Expiry())
 	}
 	return nil
 }
