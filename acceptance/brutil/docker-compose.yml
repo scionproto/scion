@@ -12,7 +12,7 @@ x-br: &br
     - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
 services:
   dispatcher:
-    image: scion_dispatcher
+    image: scion_dispatcher_go
     network_mode: none
     environment:
       SU_EXEC_USERSPEC: "$LOGNAME"
