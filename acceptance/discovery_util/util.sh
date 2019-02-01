@@ -10,20 +10,18 @@ TOPO="gen/ISD1/AS$AS_FILE/br$IA_FILE-1/topology.json"
 UTIL_PATH="acceptance/discovery_util"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
-export DISC_DIR="$TEST_ARTIFACTS_DIR/gen/discovery_acceptance"
-STATIC_DIR="$DISC_DIR/discovery/v1/dynamic"
+HTTP_DIR="gen/discovery_acceptance"
+STATIC_DIR="$HTTP_DIR/discovery/v1/dynamic"
 STATIC_FULL="$STATIC_DIR/full.json"
-DYNAMIC_DIR="$DISC_DIR/discovery/v1/dynamic"
+DYNAMIC_DIR="$HTTP_DIR/discovery/v1/dynamic"
 DYNAMIC_FULL="$DYNAMIC_DIR/full.json"
 
 
 base_setup() {
-    set -e
+    set -ex
     # Create topology setup all necessary config files.
     ./scion.sh topology -c "$TEST_TOPOLOGY" -d -ds
     # Create the topology directories for serving.
-    echo "$DISC_DIR"
-    echo "$DYNAMIC_DIR"
     mkdir -p "$STATIC_DIR"
     mkdir -p "$DYNAMIC_DIR"
 
@@ -35,6 +33,10 @@ base_setup() {
 
     # Modify docker compose file to contain discovery.
     export DISC_IP=$( echo $addr | awk '{printf $1}' )
+    # Find absolute path of the scion dir in the docker compose file.
+    # This allows the test to work locally and on the CI.
+    export DISC_DIR="$( grep -oh '\/.*\/gen' gen/scion-dc.yml | grep -v ':' -m 1 )/discovery_acceptance"
+    echo $DISC_DIR
     local network=$(awk '/  scion_disp_1-ff00_0_111:/,/ volumes/ {if (f=="networks:") {gsub(":", "",$1); print $1}} {f=$1}' gen/scion-dc.yml)
     local dc_cfg="$( quoteSubst "$( sed -e "s/REPLACE_NETWORK/$network/" "$UTIL_PATH/dc.tmpl")" )"
     sed -i -e "/services:/a \  $dc_cfg" "gen/scion-dc.yml"
