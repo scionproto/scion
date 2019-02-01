@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This test checks that the path server fetches the dynamic topology
+# This test checks that the infra services fetche the dynamic topology
 # from the discovery service, and that an expired dynamic topology is dropped.
 
 PROGRAM=`basename "$0"`
@@ -14,9 +14,10 @@ test_setup() {
     set -e
     base_setup
 
-    local cfg="gen/ISD1/AS$AS_FILE/ps$IA_FILE-1/psconfig.toml"
-    set_log_lvl "$cfg"
-    set_interval "$cfg" "dynamic"
+    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps}config.toml; do
+        set_log_lvl "$cfg"
+        set_interval "$cfg" "dynamic"
+    done
 
     ./scion.sh run nobuild
 }
@@ -27,10 +28,15 @@ test_run() {
     jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $DYNAMIC_FULL
     sleep 6
     check_file "dynamic"
-    grep -q "\[discovery\] Set topology .* Mode=dynamic" "logs/ps$IA_FILE-1.log" || \
-        { echo "Setting dynamic topology not found in logs"; return 1; }
-    grep -q "\[itopo.Cleaner\] Dropping expired dynamic topology" "logs/ps$IA_FILE-1.log" || \
-        { echo "Setting dynamic topology not found in logs"; return 1; }
+    check_logs "ps$IA_FILE-1"
+    check_logs "cs$IA_FILE-1"
+}
+
+check_logs() {
+    grep -q "\[discovery\] Set topology .* Mode=dynamic" "logs/$1.log" || \
+        { echo "Setting dynamic topology not found in logs. id=$1"; return 1; }
+    grep -q "\[itopo.Cleaner\] Dropping expired dynamic topology" "logs/$1.log" || \
+        { echo "Setting dynamic topology not found in logs. id=$1"; return 1; }
 }
 
 shift
