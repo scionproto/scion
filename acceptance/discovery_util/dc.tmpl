@@ -1,7 +1,7 @@
 scion_ds1-ff00_0_111-1:
     image: scion_discovery_test
     volumes:
-    - REPLACE_BASE_DIR/discovery_acceptance:/var/www/localhost/htdocs:ro
+    - ${DISC_DIR}:/var/www/localhost/htdocs:ro
     networks:
       REPLACE_NETWORK:
-        ipv4_address: REPLACE_IP
+        ipv4_address: ${DISC_IP}

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This test checks that the certificate server fetches the dynamic topology
+# from the discovery service, and that an expired dynamic topology is dropped.
+
 PROGRAM=`basename "$0"`
 COMMAND="$1"
 TEST_NAME="discovery_cs_fetches_dynamic"
