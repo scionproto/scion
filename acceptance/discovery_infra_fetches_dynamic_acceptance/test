@@ -5,7 +5,7 @@
 
 PROGRAM=`basename "$0"`
 COMMAND="$1"
-TEST_NAME="discovery_ps_fetches_dynamic"
+TEST_NAME="discovery_infra_fetches_dynamic"
 
 . acceptance/common.sh
 . acceptance/discovery_util/util.sh

@@ -18,7 +18,7 @@ DYNAMIC_FULL="$DYNAMIC_DIR/full.json"
 
 
 base_setup() {
-    set -ex
+    set -e
     # Create topology setup all necessary config files.
     ./scion.sh topology -c "$TEST_TOPOLOGY" -d -ds
     # Create the topology directories for serving.
@@ -31,14 +31,15 @@ base_setup() {
     # Build mock discovery service container.
     docker build -f "$UTIL_PATH/Dockerfile" -t "scion_discovery_test:latest" $UTIL_PATH --build-arg port=$( echo $addr | awk '{printf $2}' )
 
-    # Modify docker compose file to contain discovery.
     export DISC_IP=$( echo $addr | awk '{printf $1}' )
     # Find absolute path of the scion dir in the docker compose file.
     # This allows the test to work locally and on the CI.
     export DISC_DIR="$( grep -oh '\/.*\/gen' gen/scion-dc.yml | grep -v ':' -m 1 )/discovery_acceptance"
-    echo $DISC_DIR
+
+    # Get the network AS 1-ff00_0_111 is on. And replace it in the template.
     local network=$(awk '/  scion_disp_1-ff00_0_111:/,/ volumes/ {if (f=="networks:") {gsub(":", "",$1); print $1}} {f=$1}' gen/scion-dc.yml)
     local dc_cfg="$( quoteSubst "$( sed -e "s/REPLACE_NETWORK/$network/" "$UTIL_PATH/dc.tmpl")" )"
+    # Modify docker compose file to contain mock discovery service.
     sed -i -e "/services:/a \  $dc_cfg" "gen/scion-dc.yml"
 }
 
