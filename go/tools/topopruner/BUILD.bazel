@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["topopruner.go"],
+    importpath = "github.com/scionproto/scion/go/tools/topopruner",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/env:go_default_library",
+        "//go/lib/topology:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "topopruner",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

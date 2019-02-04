@@ -24,12 +24,11 @@ __pycache__
 
 # Go generated files #
 #########################
-/proto/go.capnp
 /go/proto/*.capnp.go
 /go/proto/*.gen.go
 /go/vendor/*/
 /go/vendor/.deps.stamp
-/go/**/mock_*/
+/go/**/mock_*/*.go
 
 # vim generated files #
 #########################
@@ -76,3 +75,5 @@ __pycache__
 ##########################
 tags
 
+# bazel artifacts
+/bazel-*

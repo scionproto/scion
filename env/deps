@@ -6,8 +6,7 @@ BASE=$(dirname "$0")
 . $BASE/common.sh
 
 "$BASE/debian/deps"
+"$BASE/bazel/deps"
 "$BASE/pip3/deps"
 "$BASE/pip2/deps"
 "$BASE/zlog/deps"
-"$BASE/go/deps"
-( cd go && make deps )
