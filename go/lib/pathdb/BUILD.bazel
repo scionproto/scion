@@ -1,0 +1,34 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "cleaner.go",
+        "metrics.go",
+        "pathdb.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/pathdb",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/pathdb/query:go_default_library",
+        "//go/lib/periodic:go_default_library",
+        "//go/lib/prom:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["metrics_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/pathdb/pathdbtest:go_default_library",
+        "//go/lib/pathdb/sqlite:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

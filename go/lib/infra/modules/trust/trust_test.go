@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
+	"os/exec"
 	"sync"
 	"testing"
 	"time"
@@ -44,7 +44,6 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/topology/topotestutil"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/loader"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -75,43 +74,15 @@ func TestMain(m *testing.M) {
 	var cleanF func()
 	tmpDir, cleanF = xtest.MustTempDir("", "test-trust")
 	defer cleanF()
-	if err := regenerateCrypto(); err != nil {
+	cmd := exec.Command("tar", "-x", "-f", "testdata/crypto.tar", "-C", tmpDir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println(string(out))
 		fmt.Println(err)
 		os.Exit(1)
 	}
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
-}
-
-func regenerateCrypto() error {
-	b := &loader.Binary{
-		Target: "github.com/scionproto/scion/go/tools/scion-pki",
-		Dir:    tmpDir,
-	}
-	if err := b.Build(); err != nil {
-		panic(err)
-	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	confDir := filepath.Join(wd, "/testdata")
-	cmd := b.Cmd("keys", "gen", "-d", confDir, "-o", tmpDir, "*-*")
-	if msg, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("scion-pki: %s", msg)
-	}
-
-	cmd = b.Cmd("trc", "gen", "-d", confDir, "-o", tmpDir, "*")
-	if msg, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("scion-pki: %s", msg)
-	}
-
-	cmd = b.Cmd("certs", "gen", "-d", confDir, "-o", tmpDir, "*-*")
-	if msg, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("scion-pki: %s", msg)
-	}
-	return nil
 }
 
 func newMessengerMock(ctrl *gomock.Controller,

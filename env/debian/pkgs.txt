@@ -44,6 +44,7 @@ python3-setuptools
 python3-wheel
 python3-yaml
 screen
+software-properties-common
 sqlite3
 sudo
 tzdata

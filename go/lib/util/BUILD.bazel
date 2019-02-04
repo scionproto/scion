@@ -1,0 +1,43 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "aslist.go",
+        "checksum.go",
+        "debugid.go",
+        "docker.go",
+        "duration.go",
+        "duration_wrap.go",
+        "file.go",
+        "padding.go",
+        "raw.go",
+        "sync.go",
+        "time.go",
+        "yaml.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/util",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "@com_github_burntsushi_toml//:go_default_library",
+        "@in_gopkg_yaml_v2//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "checksum_test.go",
+        "duration_test.go",
+        "padding_test.go",
+        "yaml_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@in_gopkg_yaml_v2//:go_default_library",
+    ],
+)

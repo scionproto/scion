@@ -1,0 +1,34 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "addrhdr.go",
+        "ctrl.go",
+        "extensions.go",
+        "overlay.go",
+        "scionlayer.go",
+        "scmp.go",
+        "scnpath.go",
+        "tpkt.go",
+        "valid.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/border/braccept/tpkt",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl:go_default_library",
+        "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/hpkt:go_default_library",
+        "//go/lib/l4:go_default_library",
+        "//go/lib/layers:go_default_library",
+        "//go/lib/scmp:go_default_library",
+        "//go/lib/spath:go_default_library",
+        "//go/lib/spkt:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/proto:go_default_library",
+        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_google_gopacket//layers:go_default_library",
+    ],
+)
