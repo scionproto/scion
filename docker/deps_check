@@ -16,7 +16,6 @@ check() {
 for f in env/*/check; do
     check "$f"
 done
-check bash -c "cd go && govendor sync -n"
 
 if [ $ret -ne 0 ]; then
     echo "============================================================"

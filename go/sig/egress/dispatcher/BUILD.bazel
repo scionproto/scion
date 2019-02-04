@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["dispatcher.go"],
+    importpath = "github.com/scionproto/scion/go/sig/egress/dispatcher",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/ringbuf:go_default_library",
+        "//go/sig/egress:go_default_library",
+        "//go/sig/metrics:go_default_library",
+        "//go/sig/mgmt:go_default_library",
+    ],
+)

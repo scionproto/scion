@@ -21,31 +21,31 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*poll)(nil)
+var _ proto.Cerealizable = (*Poll)(nil)
 
-type poll struct {
+type Poll struct {
 	Addr    *Addr
 	Session SessionType
 }
 
-func newPoll(a *Addr, s SessionType) *poll {
-	return &poll{Addr: a, Session: s}
+func newPoll(a *Addr, s SessionType) *Poll {
+	return &Poll{Addr: a, Session: s}
 }
 
-func (p *poll) ProtoId() proto.ProtoIdType {
+func (p *Poll) ProtoId() proto.ProtoIdType {
 	return proto.SIGPoll_TypeID
 }
 
-func (p *poll) Write(b common.RawBytes) (int, error) {
+func (p *Poll) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(p, b)
 }
 
-func (p *poll) String() string {
+func (p *Poll) String() string {
 	return fmt.Sprintf("%s Session: %s", p.Addr, p.Session)
 }
 
 type PollReq struct {
-	*poll
+	*Poll
 }
 
 func NewPollReq(a *Addr, s SessionType) *PollReq {
@@ -53,7 +53,7 @@ func NewPollReq(a *Addr, s SessionType) *PollReq {
 }
 
 type PollRep struct {
-	*poll
+	*Poll
 }
 
 func NewPollRep(a *Addr, s SessionType) *PollRep {

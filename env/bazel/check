@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+
+BASE=$(dirname "$0")
+. $(dirname "$BASE")/common.sh
+
+if type -p bazel &> /dev/null; then
+    ver=$(bazel version 2>/dev/null | grep "Build label" | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+")
+    VERSION="0.22.0"
+    [ "$ver" = "$VERSION" ] || echo "bazel version: expected $VERSION, got $ver"
+else
+    echo "bazel not found in \$PATH"
+fi
+
