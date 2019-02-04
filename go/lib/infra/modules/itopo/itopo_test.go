@@ -152,7 +152,7 @@ func TestStateSetStatic(t *testing.T) {
 				called.check(false, false, false)
 			})
 		})
-		Convey("Modifying an interfaces is only allowed if semi-mutations are allowed", func() {
+		Convey("Modifying an interface is only allowed if semi-mutations are allowed", func() {
 			ifinfo := topo.IFInfoMap[1]
 			ifinfo.MTU = 42
 			topo.IFInfoMap[1] = ifinfo

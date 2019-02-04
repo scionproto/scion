@@ -191,7 +191,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 // discoveryClient returns a client with the source address set to the internal address.
 func discoveryClient(brinfo *topology.BRInfo) (*http.Client, error) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0",
-		brinfo.InternalAddrs.PublicOverlay(brinfo.InternalAddrs.Overlay).L3().String()))
+		brinfo.InternalAddrs.PublicOverlay(brinfo.InternalAddrs.Overlay).L3()))
 	if err != nil {
 		return nil, err
 	}
