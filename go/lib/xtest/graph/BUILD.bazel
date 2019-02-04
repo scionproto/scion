@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "default_gen.go",
+        "graph.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/xtest/graph",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/spath:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/proto:go_default_library",
+    ],
+)

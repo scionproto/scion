@@ -14,20 +14,17 @@ RUN usermod -u ${SCION_UID:?} scion
 RUN groupmod -g ${SCION_GID:?} scion
 # Make sure the docker group has the same GID as the group on the host
 RUN groupmod -g ${DOCKER_GID:?} docker
-RUN chown -R scion: ~scion
+RUN find ~scion -not -user scion -execdir chown scion {} \+
 
 USER scion
 # Now copy over the current branch
 COPY --chown=scion:scion . $BASE/
 
-# Restore the go dependency cache from scion_base
-RUN tar xf ~/go_vendor.tar.gz -C go/vendor/
-
 # Restore the python dependency cache from scion_base
 RUN tar xf ~/python_local.tar.gz -C ~
 
+# Restore the cache of Bazel dependencies
+RUN tar xf ~/bazel_cache.tar.gz -C ~
+
 # Make sure dependencies haven't been changed since scion_base was rebuilt
 RUN docker/deps_check
-
-# Syncing should be a no-op, just need installation to run
-RUN make -sC go deps

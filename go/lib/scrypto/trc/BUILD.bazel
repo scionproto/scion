@@ -1,0 +1,34 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "entries.go",
+        "json.go",
+        "trc.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/scrypto/trc",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/util:go_default_library",
+        "@com_github_pierrec_lz4//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["trc_test.go"],
+    data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

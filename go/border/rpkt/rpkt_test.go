@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-var rawUdpPkt = MustLoad("testdata/udp-scion.bin")
+var rawUdpPkt = "testdata/udp-scion.bin"
 
 func MustLoad(path string) common.RawBytes {
 	data, err := ioutil.ReadFile(path)
@@ -45,7 +45,7 @@ func MustLoad(path string) common.RawBytes {
 // Prepare the packet from raw
 func prepareRtrPacketSample() *RtrPkt {
 	r := NewRtrPkt()
-	r.Raw = rawUdpPkt
+	r.Raw = MustLoad(rawUdpPkt)
 	// Set some other data that are required for the parsing to succeed:
 	var config = &brconf.Conf{
 		IA: addr.IA{I: 1, A: 2},

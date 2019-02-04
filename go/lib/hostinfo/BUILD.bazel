@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["hostinfo.go"],
+    importpath = "github.com/scionproto/scion/go/lib/hostinfo",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/overlay:go_default_library",
+        "//go/lib/topology:go_default_library",
+    ],
+)

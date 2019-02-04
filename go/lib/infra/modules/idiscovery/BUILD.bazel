@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "idiscovery.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/infra/modules/idiscovery",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/discovery:go_default_library",
+        "//go/lib/discovery/topofetcher:go_default_library",
+        "//go/lib/fatal:go_default_library",
+        "//go/lib/infra/modules/itopo:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/periodic:go_default_library",
+        "//go/lib/topology:go_default_library",
+        "//go/lib/util:go_default_library",
+    ],
+)

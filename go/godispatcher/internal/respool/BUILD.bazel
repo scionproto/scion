@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "buffer.go",
+        "packet.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/godispatcher/internal/respool",
+    visibility = ["//go/godispatcher:__subpackages__"],
+    deps = [
+        "//go/godispatcher/internal/metrics:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/hpkt:go_default_library",
+        "//go/lib/overlay:go_default_library",
+        "//go/lib/spkt:go_default_library",
+    ],
+)

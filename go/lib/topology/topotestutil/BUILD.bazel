@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["topotestutil.go"],
+    importpath = "github.com/scionproto/scion/go/lib/topology/topotestutil",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/topology:go_default_library",
+        "//go/proto:go_default_library",
+    ],
+)
