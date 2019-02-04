@@ -351,7 +351,7 @@ function parse_cmn_hdr(buffer, tree, meta)
     if ch.totalLen ~= meta.pkt:len() then
         subt:add_tvb_expert_info(scion_ch_totallen_expert, buffer(2, 2),
             string.format("Total length field (%dB) != length of SCION packet (%dB)",
-            ch.totalLen, pktlen))
+            ch.totalLen, meta.pkt:len()))
     end
     -- hdr length
     ch["rawHdrLen"] = buffer(4, 1):uint()
