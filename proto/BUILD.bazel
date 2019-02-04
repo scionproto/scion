@@ -1,0 +1,15 @@
+# gazelle:ignore
+
+filegroup(
+    name = "sources",
+    srcs = glob(["*.capnp"]),
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "go_capnp_copy",
+    srcs = ["@com_zombiezen_go_capnproto2//std:go.capnp"],
+    outs = ["go.capnp"],
+    cmd = "cp $(location @com_zombiezen_go_capnproto2//std:go.capnp) $(@D)",
+    visibility = ["//visibility:public"],
+)

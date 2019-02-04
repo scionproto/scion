@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-var rawUdpPkt = MustLoad("testdata/udp-scion.bin")
+var rawUdpPkt = MustLoad("go/border/rpkt/testdata/udp-scion.bin")
 
 func MustLoad(path string) common.RawBytes {
 	data, err := ioutil.ReadFile(path)

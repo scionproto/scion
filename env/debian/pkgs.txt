@@ -24,6 +24,8 @@ net-tools
 netcat-openbsd
 ntp
 openssh-client
+pkg-config
+python
 python-flake8
 python-minimal
 python-pip
@@ -47,5 +49,8 @@ screen
 sqlite3
 sudo
 tzdata
+unzip
 uthash-dev
 vim-common
+zip
+zlib1g-dev

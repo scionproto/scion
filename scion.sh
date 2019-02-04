@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PYTHONPATH=python/:.
+export PYTHONPATH=python/:bazel-genfiles/proto:.
 
 EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
@@ -223,19 +223,14 @@ cmd_test(){
     local ret=0
     case "$1" in
         py) shift; py_test "$@"; ret=$((ret+$?));;
-        go) shift; go_test "$@"; ret=$((ret+$?));;
-        *) py_test; ret=$((ret+$?)); go_test; ret=$((ret+$?));;
+        go) shift; bazel test //go/... ; ret=$((ret+$?));;
+        *) py_test; ret=$((ret+$?)); bazel_test; ret=$((ret+$?));;
     esac
     return $ret
 }
 
 py_test() {
     nosetests3 ${EXTRA_NOSE_ARGS} "$@"
-}
-
-go_test() {
-    # `make -C go` breaks if there are symlinks in $PWD
-    ( cd go && make -s test )
 }
 
 cmd_coverage(){

@@ -24,12 +24,18 @@ import (
 )
 
 var (
-	mstr0, _  = keyconf.LoadKey("testdata/keys/master0.key", keyconf.RawKey)
-	mstr1, _  = keyconf.LoadKey("testdata/keys/master1.key", keyconf.RawKey)
-	dcrpt, _  = keyconf.LoadKey("testdata/keys/as-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
-	asSig, _  = keyconf.LoadKey("testdata/keys/as-sig.seed", scrypto.Ed25519)
-	issSig, _ = keyconf.LoadKey("testdata/keys/core-sig.seed", scrypto.Ed25519)
-	online, _ = keyconf.LoadKey("testdata/keys/online-root.seed", scrypto.Ed25519)
+	mstr0, _ = keyconf.LoadKey("go/cert_srv/internal/config/testdata/keys/master0.key",
+		keyconf.RawKey)
+	mstr1, _ = keyconf.LoadKey("go/cert_srv/internal/config/testdata/keys/master1.key",
+		keyconf.RawKey)
+	dcrpt, _ = keyconf.LoadKey("go/cert_srv/internal/config/testdata/keys/as-decrypt.key",
+		scrypto.Curve25519xSalsa20Poly1305)
+	asSig, _ = keyconf.LoadKey("go/cert_srv/internal/config/testdata/keys/as-sig.seed",
+		scrypto.Ed25519)
+	issSig, _ = keyconf.LoadKey("go/cert_srv/internal/config/testdata/keys/core-sig.seed",
+		scrypto.Ed25519)
+	online, _ = keyconf.LoadKey("go/cert_srv/internal/config/testdata/keys/online-root.seed",
+		scrypto.Ed25519)
 )
 
 func TestLoadState(t *testing.T) {

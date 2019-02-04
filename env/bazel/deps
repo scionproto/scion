@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -e
+
+BASE=$(dirname "$0")
+. $(dirname "$BASE")/common.sh
+
+[ -z "$("$BASE/check")" ] && exit
+
+tmpdir=$(mktemp -d /tmp/bazel.XXXXXXX)
+cd "${tmpdir:?}"
+curl -L $CURL_PARAM https://github.com/bazelbuild/bazel/releases/download/0.22.0/bazel-0.22.0-installer-linux-x86_64.sh > bazel.sh
+chmod +x bazel.sh
+sudo ./bazel.sh
+cd -
+rm -r "${tmpdir:?}"

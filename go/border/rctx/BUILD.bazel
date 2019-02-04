@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "io.go",
+        "rctx.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/border/rctx",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/border/brconf:go_default_library",
+        "//go/border/rcmn:go_default_library",
+        "//go/lib/addr:go_default_library",
+        "//go/lib/assert:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/overlay:go_default_library",
+        "//go/lib/overlay/conn:go_default_library",
+        "//go/lib/ringbuf:go_default_library",
+        "//go/lib/scmp:go_default_library",
+        "//go/lib/topology:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)

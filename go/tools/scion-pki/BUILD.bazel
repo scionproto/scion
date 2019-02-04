@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/go/tools/scion-pki",
+    visibility = ["//visibility:private"],
+    deps = ["//go/tools/scion-pki/internal/cmd:go_default_library"],
+)
+
+go_binary(
+    name = "scion-pki",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

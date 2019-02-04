@@ -31,8 +31,8 @@ import (
 )
 
 var (
-	rawUdpPkt  = MustLoad("testdata/udp-scion.bin")
-	rawScmpPkt = MustLoad("testdata/scmp-rev.bin")
+	rawUdpPkt  = MustLoad("go/lib/hpkt/testdata/udp-scion.bin")
+	rawScmpPkt = MustLoad("go/lib/hpkt/testdata/scmp-rev.bin")
 )
 
 func MustLoad(path string) common.RawBytes {

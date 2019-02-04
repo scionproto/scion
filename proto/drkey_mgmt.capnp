@@ -1,6 +1,6 @@
 @0xf85d2602085656c1;
 
-using Go = import "go.capnp";
+using Go = import "/go.capnp";
 $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
