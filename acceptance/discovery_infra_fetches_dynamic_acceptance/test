@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# This test checks that the infra services fetch the dynamic topology
+# from the discovery service, and that an expired dynamic topology is dropped.
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="discovery_infra_fetches_dynamic"
+
+. acceptance/common.sh
+. acceptance/discovery_util/util.sh
+
+test_setup() {
+    set -e
+    base_setup
+
+    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps}config.toml; do
+        set_log_lvl "$cfg"
+        set_interval "$cfg" "dynamic"
+    done
+
+    ./scion.sh run nobuild
+}
+
+test_run() {
+    set -e
+    # Start serving dynamic topology.
+    jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $DYNAMIC_FULL
+    sleep 6
+    check_file "dynamic"
+    check_logs "ps$IA_FILE-1"
+    check_logs "cs$IA_FILE-1"
+}
+
+check_logs() {
+    grep -q "\[discovery\] Set topology .* Mode=dynamic" "logs/$1.log" || \
+        { echo "Setting dynamic topology not found in logs. id=$1"; return 1; }
+    grep -q "\[itopo.Cleaner\] Dropping expired dynamic topology" "logs/$1.log" || \
+        { echo "Setting dynamic topology not found in logs. id=$1"; return 1; }
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"
