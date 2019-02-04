@@ -89,44 +89,49 @@ func BeginSetStatic(static *topology.Topo, semiMutAllowed bool) (Transaction, er
 // Transaction allows to get a view on which topology will be active without committing
 // to the topology update yet.
 type Transaction struct {
-	// topo contains the view of the static and dynamic topologies.
-	topo
-	// state is the state that the transaction is associated with.
-	state *state
-	// prevStatic stores the currently active static topology when starting the transaction.
-	prevStatic *topology.Topo
-	// newStatic stores the provided static topology.
-	newStatic *topology.Topo
-	// newDynamic stores the provided dynamic topology.
-	newDynamic *topology.Topo
+	// candidateTopo contains the view of what the static and dynamic topologies
+	// will be when the transaction is successfully committed.
+	candidateTopo topo
+	// staticAtTxStart stores a snapshot of the currently active static
+	// topology at transaction start.
+	staticAtTxStart *topology.Topo
+	// inputStatic stores the provided static topology.
+	inputStatic *topology.Topo
+	// inputDynamic stores the provided dynamic topology.
+	inputDynamic *topology.Topo
 }
 
 // Commit commits the change. An error is returned, if the static topology changed in the meantime.
 func (tx *Transaction) Commit() error {
-	tx.state.Lock()
-	defer tx.state.Unlock()
-	if tx.prevStatic != tx.state.topo.static {
+	st.Lock()
+	defer st.Unlock()
+	if tx.staticAtTxStart != st.topo.static {
 		return common.NewBasicError("Static topology changed in the meantime", nil)
 	}
 	if !tx.IsUpdate() {
 		return nil
 	}
 	// Do transaction for static topology updated.
-	if tx.newStatic != nil {
-		tx.state.updateStatic(tx.newStatic)
+	if tx.inputStatic != nil {
+		st.updateStatic(tx.inputStatic)
 		return nil
 	}
 	// Do transaction from dynamic topology update.
-	tx.state.topo.dynamic = tx.newDynamic
+	st.topo.dynamic = tx.inputDynamic
 	return nil
 }
 
-// IsUpdate indicates whether the transaction will cause an updated.
+// Get returns the topology that will be active if the transaction is committed.
+func (tx *Transaction) Get() *topology.Topo {
+	return tx.candidateTopo.Get()
+}
+
+// IsUpdate indicates whether the transaction will cause an update.
 func (tx *Transaction) IsUpdate() bool {
-	if tx.newStatic != nil {
-		return tx.topo.static == tx.newStatic
+	if tx.inputStatic != nil {
+		return tx.candidateTopo.static == tx.inputStatic
 	}
-	return tx.topo.dynamic == tx.newDynamic
+	return tx.candidateTopo.dynamic == tx.inputDynamic
 }
 
 // topo stores the currently active static and dynamic topologies.
@@ -187,13 +192,13 @@ func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
 		return Transaction{}, err
 	}
 	tx := Transaction{
-		topo:       s.topo,
-		state:      s,
-		prevStatic: s.topo.static,
-		newDynamic: dynamic,
+		candidateTopo:   s.topo,
+		staticAtTxStart: s.topo.static,
+		inputDynamic:    dynamic,
 	}
-	if !keepOld(tx.newDynamic, tx.dynamic) {
-		tx.dynamic = dynamic
+	if !keepOld(tx.inputDynamic, tx.candidateTopo.dynamic) {
+		// The dynamic topology is only updated if it differs and is valid longer.
+		tx.candidateTopo.dynamic = dynamic
 	}
 	return tx, nil
 }
@@ -235,18 +240,18 @@ func (s *state) beginSetStatic(static *topology.Topo, allowed bool) (Transaction
 		return Transaction{}, err
 	}
 	tx := Transaction{
-		topo:       s.topo,
-		state:      s,
-		prevStatic: s.topo.static,
-		newStatic:  static,
+		candidateTopo:   s.topo,
+		staticAtTxStart: s.topo.static,
+		inputStatic:     static,
 	}
-	if keepOld(tx.newStatic, tx.prevStatic) {
+	if keepOld(tx.inputStatic, tx.staticAtTxStart) {
 		return tx, nil
 	}
-	if s.validator.MustDropDynamic(tx.newStatic, tx.prevStatic) {
-		tx.dynamic = nil
+	// Drop dynamic from candidate topo if it will be dropped when committing the transaction.
+	if s.validator.MustDropDynamic(tx.inputStatic, tx.staticAtTxStart) {
+		tx.candidateTopo.dynamic = nil
 	}
-	tx.static = static
+	tx.candidateTopo.static = static
 	return tx, nil
 }
 
