@@ -16,8 +16,7 @@ RUN set -e; mkdir su-exec; \
 
 # Collect go licenses
 RUN set -e; mkdir /rootfs/LICENSES/go; \
-    cd /home/scion/go/src/github.com/scionproto/scion/go/vendor; \
-    find . -iregex '.*\(LICENSE\|COPYING\).*' -exec cp --parents '{}' /rootfs/LICENSES/go ';'
+    find /home/scion/.cache/bazel/_bazel_scion -iregex '.*\(LICENSE\|COPYING\).*' -exec cp --parents '{}' /rootfs/LICENSES/go ';'
 
 RUN mkdir -m 1777 /rootfs/tmp
 RUN mkdir -p /rootfs/usr/share/zoneinfo/; cp -L /usr/share/zoneinfo/UTC /rootfs/usr/share/zoneinfo/UTC

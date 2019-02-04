@@ -1,0 +1,41 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "acl.go",
+        "hop_pred.go",
+        "policy.go",
+        "sequence.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/pathpol",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/pathpol/sequence:go_default_library",
+        "//go/lib/sciond:go_default_library",
+        "//go/lib/spath/spathmeta:go_default_library",
+        "@com_github_antlr_antlr4//runtime/Go/antlr:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "acl_test.go",
+        "hop_pred_test.go",
+        "policy_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/sciond:go_default_library",
+        "//go/lib/spath/spathmeta:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "//go/lib/xtest/graph:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

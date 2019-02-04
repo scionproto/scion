@@ -32,6 +32,8 @@ Necessary steps in order to run SCION:
 
 1. Make sure that you are using a clean and recently updated **Ubuntu 16.04**.
 
+1. Install [Bazel](https://bazel.build).
+
 1. Make sure that you have a
    [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
    `~/.local/bin`, and `$GOPATH/bin` can be found in your `$PATH` variable. For example:
@@ -60,9 +62,6 @@ Necessary steps in order to run SCION:
     ```
     ./env/deps
     ```
-    This requires a go version >= 1.9.4 to be available on the system. If no sufficiently
-    up-to-date version is available in the system repositories refer to
-    [golang.org/dl](https://golang.org/dl) for installation instructions.
 
 1. Install `docker` and `docker-compose`. Please follow the instructions for
    [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/) and

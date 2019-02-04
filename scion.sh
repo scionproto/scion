@@ -223,8 +223,8 @@ cmd_test(){
     local ret=0
     case "$1" in
         py) shift; py_test "$@"; ret=$((ret+$?));;
-        go) shift; go_test "$@"; ret=$((ret+$?));;
-        *) py_test; ret=$((ret+$?)); go_test; ret=$((ret+$?));;
+        go) shift; bazel_test ; ret=$((ret+$?));;
+        *) py_test; ret=$((ret+$?)); bazel_test; ret=$((ret+$?));;
     esac
     return $ret
 }
@@ -233,9 +233,8 @@ py_test() {
     nosetests3 ${EXTRA_NOSE_ARGS} "$@"
 }
 
-go_test() {
-    # `make -C go` breaks if there are symlinks in $PWD
-    ( cd go && make -s test )
+bazel_test() {
+    bazel test //go/...
 }
 
 cmd_coverage(){
@@ -282,7 +281,26 @@ py_lint() {
 }
 
 go_lint() {
-    ( cd go && make -s lint )
+    local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
+    local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
+    echo "======> Building lint tools"
+    bazel build //:lint
+    tar -xf bazel-bin/lint.tar -C $TMPDIR
+    echo "======> impi"
+    # Skip CGO (https://github.com/pavius/impi/issues/5) files.
+    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' ./go/...
+    echo "======> gofmt"
+    # FIXME(sustrik): This uses the locally installed version of Go tools (gofmt/go vet).
+    # We want to use the tools from the SDK downloaded by Bazel.
+    out=$(gofmt -d -s $LOCAL_DIRS); if [ -n "$out" ]; then echo "$out"; exit 1; fi
+    echo "======> linelen (lll)"
+    out=$(find go -type f -iname '*.go' -a '!' '(' -ipath 'go/lib/pathpol/sequence/*' ')' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:'); if [ -n "$out" ]; then echo "$out"; exit 1; fi
+    echo "======> go vet"
+    for PKG in $LOCAL_DIRS; do go vet ./$PKG/...; done
+    echo "======> misspell"
+    $TMPDIR/misspell -error $LOCAL_DIRS
+    # Clean up the binaries
+    rm -rf $TMPDIR
 }
 
 cmd_version() {

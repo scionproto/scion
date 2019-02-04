@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/go/tools/logdog",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/env:go_default_library",
+        "//go/lib/log/logparse:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "logdog",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

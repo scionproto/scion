@@ -1,0 +1,27 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["segsyncer.go"],
+    importpath = "github.com/scionproto/scion/go/path_srv/internal/segsyncer",
+    visibility = ["//go/path_srv:__subpackages__"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/infra:go_default_library",
+        "//go/lib/infra/messenger:go_default_library",
+        "//go/lib/infra/modules/itopo:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/pathdb:go_default_library",
+        "//go/lib/pathdb/query:go_default_library",
+        "//go/lib/periodic:go_default_library",
+        "//go/lib/revcache:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/path_srv/internal/addrutil:go_default_library",
+        "//go/path_srv/internal/handlers:go_default_library",
+        "//go/path_srv/internal/segutil:go_default_library",
+        "//go/proto:go_default_library",
+    ],
+)

@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "metrics.go",
+        "trustdb.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/prom:go_default_library",
+        "//go/lib/scrypto/cert:go_default_library",
+        "//go/lib/scrypto/trc:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["metrics_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/infra/modules/trust/trustdb/trustdbsqlite:go_default_library",
+        "//go/lib/infra/modules/trust/trustdb/trustdbtest:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

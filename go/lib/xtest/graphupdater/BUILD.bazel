@@ -1,0 +1,35 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "graph.go",
+        "main.go",
+        "updater.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/xtest/graphupdater",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/xtest/graph:go_default_library",
+        "@in_gopkg_yaml_v2//:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "graphupdater",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["main_test.go"],
+    data = ["//topology:default"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/xtest:go_default_library",
+        "//go/lib/xtest/graph:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

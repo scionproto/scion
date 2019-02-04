@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["ifstate.go"],
+    importpath = "github.com/scionproto/scion/go/border/ifstate",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/border/metrics:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/proto:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)

@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["msg.go"],
+    importpath = "github.com/scionproto/scion/go/lib/ctrl/ctrl_msg",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl:go_default_library",
+        "//go/lib/infra/disp:go_default_library",
+        "//go/proto:go_default_library",
+    ],
+)
