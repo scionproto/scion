@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["xnet.go"],
+    importpath = "github.com/scionproto/scion/go/sig/xnet",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "@com_github_songgao_water//:go_default_library",
+        "@com_github_vishvananda_netlink//:go_default_library",
+    ],
+)

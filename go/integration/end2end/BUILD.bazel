@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/go/integration/end2end",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/integration:go_default_library",
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/integration:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/sciond:go_default_library",
+        "//go/lib/snet:go_default_library",
+        "//go/lib/spath:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "end2end",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

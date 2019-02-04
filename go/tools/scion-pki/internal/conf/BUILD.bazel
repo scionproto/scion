@@ -1,0 +1,34 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "as.go",
+        "isd.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/conf",
+    visibility = ["//go/tools/scion-pki:__subpackages__"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/tools/scion-pki/internal/pkicmn:go_default_library",
+        "@com_github_go_ini_ini//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "as_test.go",
+        "isd_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

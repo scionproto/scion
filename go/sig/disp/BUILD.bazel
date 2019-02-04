@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["disp.go"],
+    importpath = "github.com/scionproto/scion/go/sig/disp",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/pktdisp:go_default_library",
+        "//go/lib/snet:go_default_library",
+        "//go/sig/mgmt:go_default_library",
+    ],
+)
