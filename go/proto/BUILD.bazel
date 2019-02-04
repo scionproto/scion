@@ -1,0 +1,64 @@
+# gazelle:ignore
+
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "cereal.go",
+        "doc.go",
+	"sign.go",
+	":structs",
+	":capnp",
+    ],
+    importpath = "github.com/scionproto/scion/go/proto",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/util:go_default_library",
+        "@com_zombiezen_go_capnproto2//:go_default_library",
+	"@com_zombiezen_go_capnproto2//encoding/text:go_default_library",
+        "@com_zombiezen_go_capnproto2//pogs:go_default_library",
+	"@com_zombiezen_go_capnproto2//schemas:go_default_library",
+    ],
+)
+
+genrule(
+    name = "structs",
+    srcs = [],
+    outs = ["structs.gen.go"],
+    cmd = "./$(location structs_gen_go.sh) > \"$@\"",
+    tools = ["structs_gen_go.sh"],
+    visibility = ["//visibility:public"],
+)
+
+# This rule builds the go capnp code.
+# TODO(sustrik): go.capnp was manually copied to go/proto directory.
+# In theory using something like -I$$(dirname \"$(location @com_zombiezen_go_capnproto2//std:go.capnp)\")
+# should work, but it doesn't.
+genrule(
+    name = "capnp",
+    srcs = ["//proto:sources"],
+    outs = [
+        "ack.capnp.go",
+        "asm_exts.capnp.go",
+        "cert_mgmt.capnp.go",
+        "common.capnp.go",
+        "ctrl_extn.capnp.go",
+        "ctrl_pld.capnp.go",
+        "drkey_mgmt.capnp.go",
+        "if_state.capnp.go",
+        "ifid.capnp.go",
+        "path_mgmt.capnp.go",
+        "path_seg.capnp.go",
+        "rev_info.capnp.go",
+        "sciond.capnp.go",
+        "sibra.capnp.go",
+        "sig.capnp.go",
+        "sign.capnp.go",
+        "zkid.capnp.go",
+    ],
+    cmd = "capnp compile -o$(location @com_zombiezen_go_capnproto2//capnpc-go:capnpc-go):$(@D) --src-prefix=proto $(locations //proto:sources)",
+    tools = ["@com_zombiezen_go_capnproto2//capnpc-go:capnpc-go"],
+)

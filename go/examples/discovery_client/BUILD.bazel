@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["client.go"],
+    importpath = "github.com/scionproto/scion/go/examples/discovery_client",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/discovery:go_default_library",
+        "//go/lib/discovery/topofetcher:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/periodic:go_default_library",
+        "//go/lib/topology:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "discovery_client",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

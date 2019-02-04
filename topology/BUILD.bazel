@@ -1,0 +1,19 @@
+# gazelle:ignore
+
+filegroup(
+    name = "default",
+    srcs = ["Default.topo"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "tiny",
+    srcs = ["Tiny.topo"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "wide",
+    srcs = ["Wide.topo"],
+    visibility = ["//visibility:public"],
+)
