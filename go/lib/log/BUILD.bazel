@@ -1,0 +1,38 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "context.go",
+        "flags.go",
+        "log.go",
+        "syncbuf.go",
+        "wrappers.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/log",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "@com_github_inconshreveable_log15//:go_default_library",
+        "@com_github_inconshreveable_log15//ext:go_default_library",
+        #"@com_github_inconshreveable_log15_ext//:go_default_library",
+        "@com_github_kormat_fmt15//:go_default_library",
+        "@com_github_mattn_go_isatty//:go_default_library",
+        "@in_gopkg_natefinch_lumberjack_v2//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "context_test.go",
+        "log_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/log/mock_log:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+        "@com_github_inconshreveable_log15//:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

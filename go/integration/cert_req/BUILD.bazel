@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/go/integration/cert_req",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/integration:go_default_library",
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/cert_mgmt:go_default_library",
+        "//go/lib/hostinfo:go_default_library",
+        "//go/lib/infra:go_default_library",
+        "//go/lib/infra/disp:go_default_library",
+        "//go/lib/infra/messenger:go_default_library",
+        "//go/lib/infra/transport:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/scrypto/cert:go_default_library",
+        "//go/lib/snet:go_default_library",
+        "//go/proto:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "cert_req",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

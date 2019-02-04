@@ -1,0 +1,46 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "brA.go",
+        "brB.go",
+        "brC.go",
+        "brD.go",
+        "brtest.go",
+        "common_tests.go",
+        "core_brA.go",
+        "core_brB.go",
+        "core_brC.go",
+        "main.go",
+        "segments.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/border/braccept",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/border/braccept/tpkt:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/infra:go_default_library",
+        "//go/lib/keyconf:go_default_library",
+        "//go/lib/l4:go_default_library",
+        "//go/lib/layers:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/scmp:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/spath:go_default_library",
+        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_google_gopacket//afpacket:go_default_library",
+        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_kormat_fmt15//:go_default_library",
+        "@com_github_mattn_go_isatty//:go_default_library",
+        "@com_github_syndtr_gocapability//capability:go_default_library",
+        "@org_golang_x_crypto//pbkdf2:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "braccept",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,20 @@
+#!/bin/bash
+
+set -ex
+
+[ $(id -u) -eq 0 ] || { echo "Error: this script should be run as root" && exit 1; }
+
+# OpenJDK is mentioned as a prereq here:
+# https://docs.bazel.build/versions/master/install-ubuntu.html#install-on-ubuntu
+# However, it seems that it's not really needed.
+# DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
+
+# Add bazel apt repo.
+if ! grep -Rq "http://storage.googleapis.com/bazel-apt" /etc/apt/sources.list.d/; then
+    curl -fsSL https://bazel.build/bazel-release.pub.gpg | apt-key add -
+    add-apt-repository "deb [arch=$(dpkg --print-architecture)] http://storage.googleapis.com/bazel-apt stable jdk1.8"
+    apt-get update
+fi
+
+# Install the package
+DEBIAN_FRONTEND=noninteractive apt-get install -y bazel

@@ -1,0 +1,36 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "schema.go",
+        "sqlite.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/pathdb/sqlite",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/pathdb:go_default_library",
+        "//go/lib/pathdb/query:go_default_library",
+        "//go/lib/sqlite:go_default_library",
+        "//go/proto:go_default_library",
+        "@com_github_mattn_go_sqlite3//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["sqlite_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/pathdb:go_default_library",
+        "//go/lib/pathdb/pathdbtest:go_default_library",
+        "//go/lib/pathdb/query:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "//go/proto:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)
