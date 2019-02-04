@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "metrics.go",
+        "ringbuf.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/ringbuf",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/prom:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)

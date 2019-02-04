@@ -223,8 +223,8 @@ cmd_test(){
     local ret=0
     case "$1" in
         py) shift; py_test "$@"; ret=$((ret+$?));;
-        go) shift; go_test "$@"; ret=$((ret+$?));;
-        *) py_test; ret=$((ret+$?)); go_test; ret=$((ret+$?));;
+        go) shift; bazel_test ; ret=$((ret+$?));;
+        *) py_test; ret=$((ret+$?)); bazel_test; ret=$((ret+$?));;
     esac
     return $ret
 }
@@ -233,9 +233,8 @@ py_test() {
     nosetests3 ${EXTRA_NOSE_ARGS} "$@"
 }
 
-go_test() {
-    # `make -C go` breaks if there are symlinks in $PWD
-    ( cd go && make -s test )
+bazel_test() {
+    bazel test //go/...
 }
 
 cmd_coverage(){
@@ -282,6 +281,7 @@ py_lint() {
 }
 
 go_lint() {
+    make WORKSPACE
     ( cd go && make -s lint )
 }
 

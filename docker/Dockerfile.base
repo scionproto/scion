@@ -29,15 +29,17 @@ RUN sudo chown -R scion: $HOME
 ## Install dependencies
 #################################################################################
 
-COPY env/common.sh env/
+# Get a copy of the entire source tree.
+# It will be needed for figuring out what the bazel dependencies are.
+COPY . .
 
 # Debian packages
-COPY env/debian env/debian
 RUN sudo apt-get update && APTARGS=-y env/debian/deps && sudo apt-get clean
 
+# Bazel
+RUN env/bazel/deps
+
 # Pip packages
-COPY env/pip3 env/pip3
-COPY env/pip2 env/pip2
 RUN set -ex; \
     env/pip2/deps; \
     env/pip3/deps; \
@@ -45,31 +47,18 @@ RUN set -ex; \
     rm -r ~/.cache/pip ~/.local
 
 # Pip2 packages
-COPY env/pip2 env/pip2
 RUN env/pip2/deps && rm -r ~/.cache/pip
 
 # zlog packages
-COPY env/zlog env/zlog
 RUN eatmydata env/zlog/deps
 
-# Go version check, and govendor
-COPY env/go env/go
-RUN GO_INSTALL=y eatmydata env/go/deps && rm -r ~/go/pkg/
-
-# Cleanup
-RUN sudo rm -r env
-
-# Vendored go packages
-COPY go/vendor/ go/vendor
-RUN sudo chown -R scion .
-RUN set -ex; \
-    cd go; \
-    eatmydata govendor sync -v; \
-    eatmydata govendor install ./vendor/...; \
-    cd vendor; \
-    tar caf ~/go_vendor.tar.gz --owner=scion $(find * -maxdepth 0 -type d); \
-    cd ../../; \
-    rm -r go ~/go/.cache ~/go/pkg/
+# Dependencies managed by Bazel.
+# We need an entire source tree to figure out which dependencies are used.
+# However, once dependencies are fetched (to /home/scion/.cache/bazel)
+# the source tree can be deleted so that it doesn't bloat the docker image.
+RUN bazel fetch //:scion //:lint ; \
+    rm -rf /home/scion/.cache/bazel/_bazel_scion/*/external/*/\.git ; \
+    sudo rm -r ./*
 
 # Install docker and docker-compose
 COPY tools/install_docker install_docker
