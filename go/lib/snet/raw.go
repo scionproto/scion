@@ -16,6 +16,7 @@ package snet
 
 import (
 	"net"
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -84,7 +85,8 @@ type SCIONPacketInfo struct {
 	// to reorder the extensions, depending on their type, in the correct
 	// order. If the number of extensions is over the limit allowed by SCION,
 	// serialization will fail. Whenever multiple orders are valid, the stable
-	// sorting is preferred.
+	// sorting is preferred. The extensions are sorted in place, so callers
+	// should expect the order to change after a write.
 	//
 	// The SCMP HBH extension needs to be manually included by calling code,
 	// even when the L4Header and Payload demand one (as is the case, for
@@ -126,6 +128,11 @@ func (c *RawSCIONConn) Close() error {
 }
 
 func (c *RawSCIONConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+	StableSortExtensions(pkt.Extensions)
+	hbh, e2e, err := hpkt.ValidateExtensions(pkt.Extensions)
+	if err != nil {
+		return common.NewBasicError("Bad extension list", err)
+	}
 	// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
 	// absorbed by the easier to use SCIONPacket structure in this package.
 	scnPkt := &spkt.ScnPkt{
@@ -133,6 +140,8 @@ func (c *RawSCIONConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error 
 		SrcIA:   pkt.Source.IA,
 		DstHost: pkt.Destination.Host,
 		SrcHost: pkt.Source.Host,
+		E2EExt:  e2e,
+		HBHExt:  hbh,
 		Path:    pkt.Path,
 		L4:      pkt.L4Header,
 		Pld:     pkt.Payload,
@@ -185,6 +194,8 @@ func (c *RawSCIONConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error
 	pkt.Destination = SCIONAddress{IA: scnPkt.DstIA, Host: scnPkt.DstHost}
 	pkt.Source = SCIONAddress{IA: scnPkt.SrcIA, Host: scnPkt.SrcHost}
 	pkt.Path = scnPkt.Path
+	pkt.Extensions = append(pkt.Extensions, scnPkt.HBHExt...)
+	pkt.Extensions = append(pkt.Extensions, scnPkt.E2EExt...)
 	pkt.L4Header = scnPkt.L4
 	pkt.Payload = scnPkt.Pld
 	*ov = *lastHop
@@ -208,4 +219,37 @@ type SerializationOptions struct {
 	// previous offsets. If it is set to false, then the fields are left
 	// unchanged.
 	InitializePaths bool
+}
+
+// StableSortExtensions sorts the extensions in data in place. The sort is stable.
+//
+// SCMP extensions are moved to the start of the slice, followed by HBH
+// extensions and finally E2E extensions.
+//
+// StableSortExtensions performs no validations on the number and/or types of
+// extensions.
+//
+// The function panics if data is nil.
+func StableSortExtensions(data []common.Extension) {
+	sort.SliceStable(data, func(i, j int) bool {
+		return compareExtensions(data[i], data[j])
+	})
+}
+
+func compareExtensions(x, y common.Extension) bool {
+	return getPriority(x) < getPriority(y)
+}
+
+func getPriority(x common.Extension) int {
+	switch x.Class() {
+	case common.HopByHopClass:
+		if x.Type() == common.ExtnSCMPType {
+			return 10
+		}
+		return 20
+	case common.End2EndClass:
+		return 30
+	default:
+		return 100
+	}
 }
