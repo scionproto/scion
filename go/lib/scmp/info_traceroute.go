@@ -22,18 +22,24 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
+var _ Info = (*InfoTraceRoute)(nil)
+
+const (
+	traceRouteLen = 26
+)
+
 // Trace Route packet format:
 //
 //  0B       1        2        3        4        5        6        7
-// +--------+--------+--------+--------+--------+--------+--------+--------+
-// |                                  Id                                   |
-// +--------+--------+--------+--------+--------+--------+--------+--------+
-// |                                  IA                                   |
-// +--------+--------+--------+--------+--------+--------+--------+--------+
-// |                                 IfID                                  |
-// +--------+--------+--------+--------+--------+--------+--------+--------+
-// | HopOff |   In   |                       Unused                        |
-// +--------+--------+--------+--------+--------+--------+--------+--------+
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  |                                  Id                                   |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  |                                  IA                                   |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  |                                 IfID                                  |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  | HopOff |   In   |                       Unused                        |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 // The Requester should fill the ID, HopOff and In.
 // When a BR process a TraceRoute REQUEST, it checks whether the HopOff matches
@@ -41,12 +47,6 @@ import (
 // (In is true for Ingress). In such a case the BR generates a REPLY filling
 // the IA and IfID fields.
 //
-var _ Info = (*InfoTraceRoute)(nil)
-
-const (
-	traceRouteLen = 26
-)
-
 type InfoTraceRoute struct {
 	Id     uint64
 	IA     addr.IA
