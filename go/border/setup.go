@@ -21,6 +21,9 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/gocapability/capability"
@@ -30,10 +33,13 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -74,7 +80,7 @@ func (r *Router) setup() error {
 		return err
 	}
 	// Initialize itopo.
-	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{})
+	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{CleanDynamic: r.setupCtxOnClean})
 	if _, _, err := itopo.SetStatic(conf.Topo, true); err != nil {
 		return err
 	}
@@ -120,6 +126,8 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 // This method is called on initial start and when a sighup is received.
 func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	log.Debug("====> Setting up new context from config")
+	r.setCtxMtx.Lock()
+	defer r.setCtxMtx.Unlock()
 	// We want to keep in sync itopo and the context that is set.
 	// We attempt to set the context with the topology that will be current
 	// after setting itopo. If setting itopo fails in the end, we rollback the context.
@@ -134,11 +142,46 @@ func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	if err != nil {
 		return err
 	}
-	return r.setupNewContext(rctx.New(newConf), tx)
+	return r.setupNewContext(rctx.New(newConf), &tx)
+}
+
+// setupCtxFromDynamic sets up a new router context after receiving a updated
+// dynamic topology from the discovey service.
+func (r *Router) setupCtxFromDynamic(topo *topology.Topo) (bool, error) {
+	r.setCtxMtx.Lock()
+	defer r.setCtxMtx.Unlock()
+	tx, err := itopo.BeginSetDynamic(topo)
+	if err != nil {
+		return false, err
+	}
+	if !tx.IsUpdate() {
+		return false, nil
+	}
+	log.Trace("====> Setting up new context from dynamic topology update")
+	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), rctx.Get().Conf)
+	if err != nil {
+		return false, err
+	}
+	return true, r.setupNewContext(rctx.New(newConf), &tx)
+}
+
+// setupCtxOnClean sets up a new router context after the dynamic topology has expired.
+func (r *Router) setupCtxOnClean() {
+	log.Trace("====> Setting up new context on dynamic topology cleanup")
+	r.setCtxMtx.Lock()
+	defer r.setCtxMtx.Unlock()
+	newConf, err := brconf.WithNewTopo(r.Id, itopo.Get(), rctx.Get().Conf)
+	if err != nil {
+		log.Error("Unable to create new conf on dynamic cleanup", "err", err)
+		return
+	}
+	if err := r.setupNewContext(rctx.New(newConf), nil); err != nil {
+		log.Error("Unable to set context on dynamic cleanup", "err", err)
+	}
 }
 
 // setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(ctx *rctx.Ctx, tx itopo.Transaction) error {
+func (r *Router) setupNewContext(ctx *rctx.Ctx, tx *itopo.Transaction) error {
 	oldCtx := rctx.Get()
 	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
 	sockConf := brconf.SockConf{Default: PosixSock}
@@ -155,12 +198,15 @@ func (r *Router) setupNewContext(ctx *rctx.Ctx, tx itopo.Transaction) error {
 
 // setupNetAndTopo sets up the net context and set the topology in itopo.
 func (r *Router) setupNetAndTopo(ctx *rctx.Ctx, oldCtx *rctx.Ctx,
-	sockConf brconf.SockConf, tx itopo.Transaction) error {
+	sockConf brconf.SockConf, tx *itopo.Transaction) error {
 
 	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if tx != nil {
+		return tx.Commit()
+	}
+	return nil
 }
 
 // setupNet configures networking for the router, using any setup hooks that
@@ -219,6 +265,51 @@ func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
 	for _, intf := range oldCtx.Conf.Net.IFs {
 		registeredExtSockOps[sockConf.Ext(intf.Id)].Teardown(r, ctx, intf, oldCtx)
 	}
+}
+
+// startDiscovery starts automatic topology fetching from the discovery service if enabled.
+func (r *Router) startDiscovery() error {
+	var err error
+	var client *http.Client
+	if config.Discovery.Dynamic.Enable {
+		if client, err = r.discoveryClient(); err != nil {
+			return common.NewBasicError("Unable to create discovery client", err)
+		}
+	}
+	handlers := idiscovery.TopoHandlers{Dynamic: r.setupCtxFromDynamic}
+	_, err = idiscovery.StartRunners(config.Discovery, discovery.Full, handlers, client)
+	if err != nil {
+		return common.NewBasicError("Unable to start discovery runners", err)
+	}
+	return nil
+}
+
+// discoveryClient returns a client with the source address set to the internal address.
+func (r *Router) discoveryClient() (*http.Client, error) {
+	internalAddr := rctx.Get().Conf.BR.InternalAddrs
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0",
+		internalAddr.PublicOverlay(internalAddr.Overlay).L3()))
+	if err != nil {
+		return nil, err
+	}
+	// The border router needs to use the correct source address to make sure
+	// it is on the ACL. The local address is set to internal address of the border router.
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				LocalAddr: tcpAddr,
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	return client, nil
 }
 
 // startSocks starts all sockets for the given context.

@@ -18,7 +18,7 @@
 // periodically fetches the dynamic topology from the discovery service.
 // The received topology is set in itopo.
 //
-// A periodic.Taks with a customized TopoHandler can be created with
+// A periodic.Task with a customized TopoHandler can be created with
 // NewFetcher, when the client package requires more control.
 package idiscovery
 
@@ -46,6 +46,19 @@ func dynamicSetter(topo *topology.Topo) (bool, error) {
 	return updated, err
 }
 
+// TopoHandlers contains custom topology handlers.
+type TopoHandlers struct {
+	// Dynamic handles the dynamic topology.
+	Dynamic TopoHandler
+}
+
+func (t *TopoHandlers) dynamic() TopoHandler {
+	if t.Dynamic != nil {
+		return t.Dynamic
+	}
+	return dynamicSetter
+}
+
 type Runners struct {
 	// Dynamic periodically fetches the dynamic topology and sets it in itopo.
 	Dynamic *periodic.Runner
@@ -53,14 +66,17 @@ type Runners struct {
 	Cleaner *periodic.Runner
 }
 
-// StartRunners starts the runners for the specified configuration.
-func StartRunners(cfg Config, file discovery.File, client *http.Client) (Runners, error) {
+// StartRunners starts the runners for the specified configuration. In case the topo handler
+// function is not set, StartRunners defaults to setting the topology in itopo.
+func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
+	client *http.Client) (Runners, error) {
+
 	r := Runners{}
 	if cfg.Dynamic.Enable {
 		var err error
 		r.Dynamic, err = startPeriodic(
 			cfg.Dynamic,
-			dynamicSetter,
+			handlers.dynamic(),
 			discovery.FetchParams{
 				Mode:  discovery.Dynamic,
 				Https: cfg.Dynamic.Https,

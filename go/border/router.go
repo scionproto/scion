@@ -18,6 +18,8 @@
 package main
 
 import (
+	"sync"
+
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -26,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
@@ -44,6 +47,11 @@ type Router struct {
 	sRevInfoQ chan rpkt.RawSRevCallbackArgs
 	// pktErrorQ is a channel for handling packet errors
 	pktErrorQ chan pktErrorArgs
+	// setCtxMtx serializes modifications to the router context. Topology updates
+	// can either be caused by a sighup reload, receiving an updated dynamic or
+	// static topology from the discovery service, or from dropping an expired
+	// dynamic topology.
+	setCtxMtx sync.Mutex
 }
 
 func NewRouter(id, confDir string) (*Router, error) {
@@ -66,8 +74,9 @@ func (r *Router) Start() {
 		defer log.LogPanicAndExit()
 		rctrl.Control(r.sRevInfoQ)
 	}()
-	// TODO(shitz): Here should be some code to periodically check the discovery
-	// service for updated info.
+	if err := r.startDiscovery(); err != nil {
+		fatal.Fatal(common.NewBasicError("Unable to start discovery", err))
+	}
 }
 
 // ReloadConfig handles reloading the configuration when SIGHUP is received.

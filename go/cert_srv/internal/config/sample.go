@@ -83,6 +83,9 @@ const Sample = `[general]
     # Timeout for querying the dynamic topology.  (default 1s)
     Timeout = "1s"
 
+    # Require https connection. (default false)
+    Https = false
+
 [cs]
   # Time between starting reissue requests and leaf cert expiration. If not
   # specified, this is set to PathSegmentTTL.
