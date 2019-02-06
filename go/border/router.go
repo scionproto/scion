@@ -18,10 +18,7 @@
 package main
 
 import (
-	"fmt"
-	"net"
-	"net/http"
-	"time"
+	"sync"
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/metrics"
@@ -31,13 +28,10 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/fatal"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const processBufCnt = 128
@@ -53,6 +47,11 @@ type Router struct {
 	sRevInfoQ chan rpkt.RawSRevCallbackArgs
 	// pktErrorQ is a channel for handling packet errors
 	pktErrorQ chan pktErrorArgs
+	// setCtxMtx serializes modifications to the router context. Topology updates
+	// can either be caused by a sighup reload, receiving an updated dynamic or
+	// static topology from the discovery service, or from dropping an expired
+	// dynamic topology.
+	setCtxMtx sync.Mutex
 }
 
 func NewRouter(id, confDir string) (*Router, error) {
@@ -78,23 +77,6 @@ func (r *Router) Start() {
 	if err := r.startDiscovery(); err != nil {
 		fatal.Fatal(common.NewBasicError("Unable to start discovery", err))
 	}
-}
-
-// startDiscovery starts automatic topology fetching from the discovery service if enabled.
-func (r *Router) startDiscovery() error {
-	var err error
-	var client *http.Client
-	if config.Discovery.Dynamic.Enable {
-		if client, err = discoveryClient(rctx.Get().Conf.BR); err != nil {
-			return common.NewBasicError("Unable to create discovery client", err)
-		}
-	}
-	handlers := idiscovery.TopoHandlers{Dynamic: r.setupCtxFromDynamic}
-	_, err = idiscovery.StartRunners(config.Discovery, discovery.Full, handlers, client)
-	if err != nil {
-		return common.NewBasicError("Unable to start discovery runners", err)
-	}
-	return nil
 }
 
 // ReloadConfig handles reloading the configuration when SIGHUP is received.
@@ -186,31 +168,4 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
 	}
-}
-
-// discoveryClient returns a client with the source address set to the internal address.
-func discoveryClient(brinfo *topology.BRInfo) (*http.Client, error) {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0",
-		brinfo.InternalAddrs.PublicOverlay(brinfo.InternalAddrs.Overlay).L3()))
-	if err != nil {
-		return nil, err
-	}
-	// The border router needs to use the correct source address to make sure
-	// it is on the ACL. The local address is set to internal address of the border router.
-	client := &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				LocalAddr: tcpAddr,
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-				DualStack: true,
-			}).DialContext,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}
-	return client, nil
 }

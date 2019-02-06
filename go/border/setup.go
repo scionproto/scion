@@ -21,7 +21,9 @@ package main
 
 import (
 	"fmt"
-	"sync"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/gocapability/capability"
@@ -31,7 +33,9 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -57,11 +61,22 @@ type extSockOps interface {
 var registeredLocSockOps = map[brconf.SockType]locSockOps{}
 var registeredExtSockOps = map[brconf.SockType]extSockOps{}
 
-// setCtxMtx serializes modifications to the router context. Topology updates
-// can either be caused by a sighup reload, receiving an updated dynamic or
-// static topology from the discovery service, or from dropping an expired
-// dynamic topology.
-var setCtxMtx sync.Mutex
+// startDiscovery starts automatic topology fetching from the discovery service if enabled.
+func (r *Router) startDiscovery() error {
+	var err error
+	var client *http.Client
+	if config.Discovery.Dynamic.Enable {
+		if client, err = discoveryClient(rctx.Get().Conf.BR); err != nil {
+			return common.NewBasicError("Unable to create discovery client", err)
+		}
+	}
+	handlers := idiscovery.TopoHandlers{Dynamic: r.setupCtxFromDynamic}
+	_, err = idiscovery.StartRunners(config.Discovery, discovery.Full, handlers, client)
+	if err != nil {
+		return common.NewBasicError("Unable to start discovery runners", err)
+	}
+	return nil
+}
 
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
@@ -128,8 +143,8 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 // This method is called on initial start and when a sighup is received.
 func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	log.Debug("====> Setting up new context from config")
-	setCtxMtx.Lock()
-	defer setCtxMtx.Unlock()
+	r.setCtxMtx.Lock()
+	defer r.setCtxMtx.Unlock()
 	// We want to keep in sync itopo and the context that is set.
 	// We attempt to set the context with the topology that will be current
 	// after setting itopo. If setting itopo fails in the end, we rollback the context.
@@ -150,8 +165,8 @@ func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 // setupCtxFromDynamic sets up a new router context after receiving a updated
 // dynamic topology from the discovey service.
 func (r *Router) setupCtxFromDynamic(topo *topology.Topo) (bool, error) {
-	setCtxMtx.Lock()
-	defer setCtxMtx.Unlock()
+	r.setCtxMtx.Lock()
+	defer r.setCtxMtx.Unlock()
 	tx, err := itopo.BeginSetDynamic(topo)
 	if err != nil {
 		return false, err
@@ -170,8 +185,8 @@ func (r *Router) setupCtxFromDynamic(topo *topology.Topo) (bool, error) {
 // setupCtxOnClean sets up a new router context after the dynamic topology has expired.
 func (r *Router) setupCtxOnClean() {
 	log.Trace("====> Setting up new context on dynamic topology cleanup")
-	setCtxMtx.Lock()
-	defer setCtxMtx.Unlock()
+	r.setCtxMtx.Lock()
+	defer r.setCtxMtx.Unlock()
 	newConf, err := brconf.WithNewTopo(r.Id, itopo.Get(), rctx.Get().Conf)
 	if err != nil {
 		log.Error("Unable to create new conf on dynamic cleanup", "err", err)
@@ -349,4 +364,31 @@ func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 		}
 	}
 	return nil
+}
+
+// discoveryClient returns a client with the source address set to the internal address.
+func discoveryClient(brinfo *topology.BRInfo) (*http.Client, error) {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0",
+		brinfo.InternalAddrs.PublicOverlay(brinfo.InternalAddrs.Overlay).L3()))
+	if err != nil {
+		return nil, err
+	}
+	// The border router needs to use the correct source address to make sure
+	// it is on the ACL. The local address is set to internal address of the border router.
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				LocalAddr: tcpAddr,
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	return client, nil
 }

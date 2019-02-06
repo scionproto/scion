@@ -18,7 +18,7 @@
 // periodically fetches the dynamic topology from the discovery service.
 // The received topology is set in itopo.
 //
-// A periodic.Taks with a customized TopoHandler can be created with
+// A periodic.Task with a customized TopoHandler can be created with
 // NewFetcher, when the client package requires more control.
 package idiscovery
 
