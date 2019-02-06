@@ -34,8 +34,7 @@ func TestExtension(t *testing.T) {
 	}
 	testCases := []*TestCase{
 		{
-			Description:     "nil slice",
-			InputExtensions: []common.Extension{},
+			Description: "nil slice",
 		},
 		{
 			Description:     "empty slice",
