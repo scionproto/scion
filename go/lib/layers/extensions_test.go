@@ -62,12 +62,6 @@ func TestExtnSCMPDecodeFromLayer(t *testing.T) {
 	}
 	testCases := []*TestCase{
 		{
-			Description: "bad payload length",
-			Extension: mustCreateExtensionLayer([]byte{0, 2, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0}),
-			ExpectedError: true,
-		},
-		{
 			Description:       "good payload, no flags",
 			Extension:         mustCreateExtensionLayer([]byte{0, 1, 0, 0, 0, 0, 0, 0}),
 			ExpectedExtension: ExtnSCMP{},
