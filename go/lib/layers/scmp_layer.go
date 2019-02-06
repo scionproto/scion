@@ -1,4 +1,4 @@
-// Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,10 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
+)
+
+const (
+	SCMPHeaderAndMetaLength = 24
 )
 
 // FIXME(scrye): add checksum support
@@ -50,8 +54,7 @@ type SCMP struct {
 }
 
 func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
-	// Header + mandatory meta = 24 bytes
-	if len(data) < 24 {
+	if len(data) < SCMPHeaderAndMetaLength {
 		df.SetTruncated()
 		return common.NewBasicError("Invalid SCMP header, length too short", nil,
 			"actual", len(data), "wanted", 16)
@@ -74,7 +77,7 @@ func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 		return common.NewBasicError("Invalid SCMP message, length too short", nil,
 			"actual", len(data), "wanted", s.Length)
 	}
-	offset := 24
+	offset := SCMPHeaderAndMetaLength
 	infoBlockLength := getLength(s.InfoBlockLines)
 	commonHeaderLength := getLength(s.CommonHeaderLines)
 	addressHeaderLength := getLength(s.AddressHeaderLines)
@@ -83,10 +86,10 @@ func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	l4Length := getLength(s.L4Lines)
 	totalQuoteLength := infoBlockLength + commonHeaderLength + addressHeaderLength +
 		pathHeaderLength + extensionHeaderLength + l4Length
-	if int(s.Length)-24 < totalQuoteLength {
+	if int(s.Length) < totalQuoteLength+SCMPHeaderAndMetaLength {
 		df.SetTruncated()
 		return common.NewBasicError("Invalid SCMP data, quotes extend past total length", nil,
-			"actual", int(s.Length)-24, "wanted", totalQuoteLength)
+			"actual", int(s.Length)-SCMPHeaderAndMetaLength, "wanted", totalQuoteLength)
 	}
 	s.InfoBlock = data[offset : offset+infoBlockLength]
 	offset += infoBlockLength
@@ -105,10 +108,9 @@ func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 }
 
 func (s *SCMP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
-	// Header + mandatory meta = 24 bytes
 	totalQuoteLength := len(s.InfoBlock) + len(s.CommonHeaderBlock) + len(s.AddressHeaderBlock) +
 		len(s.PathHeaderBlock) + len(s.ExtensionHeaderBlock) + len(s.L4Block) + len(s.CustomPayload)
-	totalPacketLength := 24 + totalQuoteLength
+	totalPacketLength := SCMPHeaderAndMetaLength + totalQuoteLength
 	if totalPacketLength > 0xffff {
 		return common.NewBasicError("packet too large", nil, "length", totalPacketLength,
 			"max_allowed", uint16(0xffff))
@@ -156,7 +158,7 @@ func (s *SCMP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOp
 	bytes[21] = s.L4Lines
 	bytes[22] = byte(s.L4ProtoType)
 	bytes[23] = s.Padding
-	offset := 24
+	offset := SCMPHeaderAndMetaLength
 	offset += copy(bytes[offset:], s.InfoBlock)
 	offset += copy(bytes[offset:], s.CommonHeaderBlock)
 	offset += copy(bytes[offset:], s.AddressHeaderBlock)
