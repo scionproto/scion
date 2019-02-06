@@ -128,7 +128,7 @@ func (e *ExtnSCMP) DecodeFromLayer(extension *Extension) error {
 }
 
 func (e *ExtnSCMP) DecodeFromBytes(b []byte) error {
-	if len(b) != common.LineLen-3 {
+	if len(b) < common.LineLen-3 {
 		return common.NewBasicError("bad length for SCMP extension", nil,
 			"actual", len(b), "want", common.LineLen-3)
 	}
