@@ -71,7 +71,7 @@ func ValidateExtensions(extns []common.Extension) ([]common.Extension, []common.
 	}
 	if len(hbh) > limit {
 		return nil, nil, common.NewBasicError("too many HBH extensions", nil,
-			"count", len(hbh), "max", common.ExtnMaxHBH)
+			"count", len(hbh), "max", limit)
 	}
 	if len(hbh) == 0 {
 		hbh = nil

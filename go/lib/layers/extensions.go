@@ -201,7 +201,7 @@ type ExtnUnknown struct {
 	// implement the Class() method of the interface otherwise.
 	ClassField common.L4ProtocolType
 	TypeField  uint8
-	// Length, in bytes, including 3-byte extension header
+	// Length, in bytes, not including the 3-byte extension header
 	Length int
 }
 
