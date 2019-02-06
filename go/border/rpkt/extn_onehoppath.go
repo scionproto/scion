@@ -23,9 +23,9 @@ import (
 
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 var _ rExtension = (*rOneHopPath)(nil)
@@ -34,7 +34,7 @@ var _ rExtension = (*rOneHopPath)(nil)
 type rOneHopPath struct {
 	log.Logger
 	rp *RtrPkt
-	spkt.OneHopPath
+	layers.ExtnOHP
 }
 
 func rOneHopPathFromRaw(rp *RtrPkt) (*rOneHopPath, error) {
@@ -104,5 +104,5 @@ func (o *rOneHopPath) String() string {
 }
 
 func (o *rOneHopPath) GetExtn() (common.Extension, error) {
-	return &o.OneHopPath, nil
+	return &o.ExtnOHP, nil
 }

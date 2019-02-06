@@ -19,15 +19,15 @@ package rpkt
 
 import (
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scmp"
 )
 
 var _ rExtension = (*rSCMPExt)(nil)
 
 // rSCMPExt is the router's representation of the SCMP extension.
 type rSCMPExt struct {
-	*scmp.Extn
+	*layers.ExtnSCMP
 	rp  *RtrPkt
 	raw common.RawBytes
 	log.Logger
@@ -36,12 +36,12 @@ type rSCMPExt struct {
 func rSCMPExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPExt, error) {
 	var err error
 	s := &rSCMPExt{rp: rp, raw: rp.Raw[start:end]}
-	s.Extn, err = scmp.ExtnFromRaw(s.raw)
+	s.ExtnSCMP, err = layers.ExtnSCMPFromRaw(s.raw)
 	if err != nil {
 		return nil, err
 	}
 	s.Logger = rp.Logger.New("ext", "scmp")
-	if s.Extn.Error {
+	if s.ExtnSCMP.Error {
 		// SCMP Errors must never generate an error response.
 		rp.SCMPError = true
 	}
@@ -58,5 +58,5 @@ func (s *rSCMPExt) RegisterHooks(h *hooks) error {
 }
 
 func (s *rSCMPExt) GetExtn() (common.Extension, error) {
-	return s.Extn, nil
+	return s.ExtnSCMP, nil
 }
