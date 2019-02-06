@@ -61,23 +61,6 @@ type extSockOps interface {
 var registeredLocSockOps = map[brconf.SockType]locSockOps{}
 var registeredExtSockOps = map[brconf.SockType]extSockOps{}
 
-// startDiscovery starts automatic topology fetching from the discovery service if enabled.
-func (r *Router) startDiscovery() error {
-	var err error
-	var client *http.Client
-	if config.Discovery.Dynamic.Enable {
-		if client, err = discoveryClient(rctx.Get().Conf.BR); err != nil {
-			return common.NewBasicError("Unable to create discovery client", err)
-		}
-	}
-	handlers := idiscovery.TopoHandlers{Dynamic: r.setupCtxFromDynamic}
-	_, err = idiscovery.StartRunners(config.Discovery, discovery.Full, handlers, client)
-	if err != nil {
-		return common.NewBasicError("Unable to start discovery runners", err)
-	}
-	return nil
-}
-
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
 func (r *Router) setup() error {
@@ -284,6 +267,51 @@ func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
 	}
 }
 
+// startDiscovery starts automatic topology fetching from the discovery service if enabled.
+func (r *Router) startDiscovery() error {
+	var err error
+	var client *http.Client
+	if config.Discovery.Dynamic.Enable {
+		if client, err = r.discoveryClient(); err != nil {
+			return common.NewBasicError("Unable to create discovery client", err)
+		}
+	}
+	handlers := idiscovery.TopoHandlers{Dynamic: r.setupCtxFromDynamic}
+	_, err = idiscovery.StartRunners(config.Discovery, discovery.Full, handlers, client)
+	if err != nil {
+		return common.NewBasicError("Unable to start discovery runners", err)
+	}
+	return nil
+}
+
+// discoveryClient returns a client with the source address set to the internal address.
+func (r *Router) discoveryClient() (*http.Client, error) {
+	internalAddr := rctx.Get().Conf.BR.InternalAddrs
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0",
+		internalAddr.PublicOverlay(internalAddr.Overlay).L3()))
+	if err != nil {
+		return nil, err
+	}
+	// The border router needs to use the correct source address to make sure
+	// it is on the ACL. The local address is set to internal address of the border router.
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				LocalAddr: tcpAddr,
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	return client, nil
+}
+
 // startSocks starts all sockets for the given context.
 func startSocks(ctx *rctx.Ctx) {
 	// Start local input functions.
@@ -364,31 +392,4 @@ func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 		}
 	}
 	return nil
-}
-
-// discoveryClient returns a client with the source address set to the internal address.
-func discoveryClient(brinfo *topology.BRInfo) (*http.Client, error) {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0",
-		brinfo.InternalAddrs.PublicOverlay(brinfo.InternalAddrs.Overlay).L3()))
-	if err != nil {
-		return nil, err
-	}
-	// The border router needs to use the correct source address to make sure
-	// it is on the ACL. The local address is set to internal address of the border router.
-	client := &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				LocalAddr: tcpAddr,
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-				DualStack: true,
-			}).DialContext,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}
-	return client, nil
 }
