@@ -272,5 +272,6 @@ func loadTopo(filename string, t *testing.T) *topology.Topo {
 	if err != nil {
 		t.Fatalf("Error loading config from '%s': %v", filename, err)
 	}
+	topo.Timestamp = time.Now()
 	return topo
 }

@@ -172,7 +172,9 @@ func startReissRunner() {
 
 func startDiscovery() {
 	var err error
-	if discRunners, err = idiscovery.StartRunners(cfg.Discovery, discovery.Full, nil); err != nil {
+	discRunners, err = idiscovery.StartRunners(cfg.Discovery, discovery.Full,
+		idiscovery.TopoHandlers{}, nil)
+	if err != nil {
 		fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
 	}
 }

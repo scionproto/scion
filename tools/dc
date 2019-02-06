@@ -96,7 +96,7 @@ cmd_collect_logs() {
     local out_dir="$2"
     mkdir -p "$out_dir"
     for svc in $(cmd_$group config --services); do
-        $(cmd_$group logs $svc &> $out_dir/$svc.log)
+        cmd_$group logs $svc &> $out_dir/$svc.log
     done
 }
 

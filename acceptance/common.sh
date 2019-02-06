@@ -61,7 +61,7 @@ collect_elem_metrics() {
 # Print docker container status
 #######################################
 docker_status() {
-    echo "$(date -u +"%F %T.%6N%z") Docker containers:"
+    log "Docker containers:"
     docker ps -a -s
 }
 
@@ -71,4 +71,11 @@ docker_status() {
 test_teardown() {
     docker_status
     ./tools/dc down
+}
+
+#######################################
+# Log: Echo with a timestamp
+#######################################
+log() {
+    echo "$(date -u +"%F %T.%6N%z") $@"
 }
