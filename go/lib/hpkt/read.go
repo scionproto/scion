@@ -136,7 +136,6 @@ func (p *parseCtx) parseExtensions() ([]common.Extension, []common.Extension, er
 		if err != nil {
 			return nil, nil, common.NewBasicError("Unable to parse extensions", err)
 		}
-		p.offset += len(extn.Contents)
 
 		extnData, err := layers.ExtensionFactory(p.nextHdr, &extn)
 		if err != nil {
@@ -145,6 +144,7 @@ func (p *parseCtx) parseExtensions() ([]common.Extension, []common.Extension, er
 		extns = append(extns, extnData)
 
 		p.nextHdr = extn.NextHeader
+		p.offset += len(extn.Contents)
 	}
 	return ValidateExtensions(extns)
 }
