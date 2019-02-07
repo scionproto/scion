@@ -222,8 +222,11 @@ class GoGenerator(object):
 
     def _discovery_entry(self):
         entry = {
-            "dynamic": {
-                "Enable": self.args.discovery,
+            'static': {
+                'Enable': self.args.discovery,
+            },
+            'dynamic': {
+                'Enable': self.args.discovery,
             }
         }
         return entry

@@ -11,7 +11,7 @@ UTIL_PATH="acceptance/discovery_util"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
 HTTP_DIR="gen/discovery_acceptance"
-STATIC_DIR="$HTTP_DIR/discovery/v1/dynamic"
+STATIC_DIR="$HTTP_DIR/discovery/v1/static"
 STATIC_FULL="$STATIC_DIR/full.json"
 DYNAMIC_DIR="$HTTP_DIR/discovery/v1/dynamic"
 DYNAMIC_FULL="$DYNAMIC_DIR/full.json"

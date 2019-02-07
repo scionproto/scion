@@ -66,6 +66,19 @@ const Sample = `[general]
   Connection = "/var/lib/scion/spki/ps-1.trust.db"
 
 [discovery]
+  [discovery.static]
+    # Enable periodic fetching of the static topology. (default false)
+    Enable = false
+
+    # Time between two consecutive static topology query. (default 5m)
+    Interval = "5m"
+
+    # Timeout for querying the static topology.  (default 1s)
+    Timeout = "1s"
+
+    # Require https connection. (default false)
+    Https = false
+
   [discovery.dynamic]
     # Enable periodic fetching of the dynamic topology. (default false)
     Enable = false
