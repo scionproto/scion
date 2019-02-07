@@ -33,6 +33,7 @@ func TestSampleCorrect(t *testing.T) {
 		cfg.Discovery.Dynamic.Https = true
 		cfg.Discovery.Static.Enable = true
 		cfg.Discovery.Static.Https = true
+		cfg.Discovery.Static.Filename = "topology.json"
 		_, err := toml.Decode(Sample, &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
@@ -52,6 +53,7 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("Discovery.Static.Timeout correct", cfg.Discovery.Static.Timeout.Duration,
 			ShouldEqual, idiscovery.DefaultFetchTimeout)
 		SoMsg("Discovery.Static.Https correct", cfg.Discovery.Static.Https, ShouldBeFalse)
+		SoMsg("Discovery.Static.Filename correct", cfg.Discovery.Static.Filename, ShouldBeBlank)
 		SoMsg("Discovery.Dynamic.Enable correct", cfg.Discovery.Dynamic.Enable, ShouldBeFalse)
 		SoMsg("Discovery.Dynamic.Interval correct", cfg.Discovery.Dynamic.Interval.Duration,
 			ShouldEqual, idiscovery.DefaultDynamicFetchInterval)
