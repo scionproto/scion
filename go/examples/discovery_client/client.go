@@ -86,7 +86,7 @@ func realMain() int {
 			Update: func(topo *topology.Topo) {
 				log.Info("Fetched new topology", "ia", topo.ISD_AS, "ts", topo.Timestamp)
 			},
-			Raw: func(raw common.RawBytes) {
+			Raw: func(raw common.RawBytes, _ *topology.Topo) {
 				writeOnce.Do(func() {
 					fmt.Println(string(raw))
 					if *out == "" {
