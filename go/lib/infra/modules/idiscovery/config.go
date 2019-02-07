@@ -45,6 +45,9 @@ func (c *Config) InitDefaults() {
 
 type StaticConfig struct {
 	FetchConfig
+	// Filename indicates the file the static topology shall be written to on updates.
+	// The empty string indicates that the static topology is not written to the filesystem.
+	Filename string
 }
 
 func (s *StaticConfig) InitDefaults() {

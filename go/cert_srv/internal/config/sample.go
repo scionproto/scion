@@ -86,6 +86,10 @@ const Sample = `[general]
     # Require https connection. (default false)
     Https = false
 
+    # Filename where update static topologies are written to. In case
+    # of the empty string, the updated topology is not written. (default "")
+    Filename = ""
+
   [discovery.dynamic]
     # Enable periodic fetching of the dynamic topology. (default false)
     Enable = false
