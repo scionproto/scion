@@ -2,6 +2,13 @@
 
 # This test checks that the border router fetches the dynamic topology
 # from the discovery service, and that an expired dynamic topology is dropped.
+#
+# The test is structured as follows:
+# 1. Check connectivity
+# 2. Serve dynamic topology with invalid BS address -> link goes down
+# 3. Check connectivity is broken
+# 4. Let dynamic topology expire -> link goes up
+# 5. Check connectivity is up again
 
 PROGRAM=`basename "$0"`
 COMMAND="$1"
