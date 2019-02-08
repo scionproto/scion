@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# This test checks that the infra services fetch the static topology
+# from the discovery service.
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="discovery_infra_fetches_static"
+
+. acceptance/common.sh
+. acceptance/discovery_util/util.sh
+
+test_setup() {
+    set -e
+    base_setup
+
+    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps}config.toml; do
+        set_log_lvl "$cfg"
+        set_interval "$cfg" "static"
+    done
+
+    base_start_scion
+}
+
+test_run() {
+    set -e
+    # Start serving static topology.
+    jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $STATIC_FULL
+    sleep 6
+    check_file "static"
+    check_logs "ps$IA_FILE-1"
+    check_logs "cs$IA_FILE-1"
+}
+
+check_logs() {
+    grep -q "\[discovery\] Set topology .* Mode=static" "logs/$1.log" || \
+        { echo "Setting static topology not found in logs. id=$1"; return 1; }
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"

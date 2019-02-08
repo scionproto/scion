@@ -15,8 +15,11 @@
 // Package idiscovery fetches the topology from the discovery service.
 //
 // Client packages can start a periodic.Runner with StartRunners that
-// periodically fetches the dynamic topology from the discovery service.
-// The received topology is set in itopo.
+// periodically fetches the static and dynamic topology from the discovery
+// service. The received topology is set in itopo.
+//
+// By default changes to the semi-mutable section of static topologies is
+// not allowed. It can be enabled by providing a custom topo handler.
 //
 // A periodic.Task with a customized TopoHandler can be created with
 // NewFetcher, when the client package requires more control.
@@ -40,6 +43,11 @@ import (
 // returns whether the provided topology is an update.
 type TopoHandler func(topo *topology.Topo) (bool, error)
 
+func staticSetter(topo *topology.Topo) (bool, error) {
+	_, updated, err := itopo.SetStatic(topo, false)
+	return updated, err
+}
+
 // dynamicSetter sets the dynamic topology in itopo with the provided topology.
 func dynamicSetter(topo *topology.Topo) (bool, error) {
 	_, updated, err := itopo.SetDynamic(topo)
@@ -48,8 +56,17 @@ func dynamicSetter(topo *topology.Topo) (bool, error) {
 
 // TopoHandlers contains custom topology handlers.
 type TopoHandlers struct {
+	// Static handles the static topology.
+	Static TopoHandler
 	// Dynamic handles the dynamic topology.
 	Dynamic TopoHandler
+}
+
+func (t *TopoHandlers) static() TopoHandler {
+	if t.Static != nil {
+		return t.Static
+	}
+	return staticSetter
 }
 
 func (t *TopoHandlers) dynamic() TopoHandler {
@@ -60,6 +77,8 @@ func (t *TopoHandlers) dynamic() TopoHandler {
 }
 
 type Runners struct {
+	// Static periodically fetches the static topology and sets it in itopo.
+	Static *periodic.Runner
 	// Dynamic periodically fetches the dynamic topology and sets it in itopo.
 	Dynamic *periodic.Runner
 	// Cleaner periodically cleans the expired dynamic topology in itopo.
@@ -71,9 +90,24 @@ type Runners struct {
 func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 	client *http.Client) (Runners, error) {
 
+	var err error
 	r := Runners{}
+	if cfg.Static.Enable {
+		r.Static, err = startPeriodic(
+			cfg.Static.FetchConfig,
+			handlers.static(),
+			discovery.FetchParams{
+				Mode:  discovery.Static,
+				Https: cfg.Static.Https,
+				File:  file,
+			},
+			client,
+		)
+		if err != nil {
+			return Runners{}, err
+		}
+	}
 	if cfg.Dynamic.Enable {
-		var err error
 		r.Dynamic, err = startPeriodic(
 			cfg.Dynamic,
 			handlers.dynamic(),
@@ -85,6 +119,7 @@ func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 			client,
 		)
 		if err != nil {
+			r.Kill()
 			return Runners{}, err
 		}
 		r.Cleaner = itopo.StartCleaner(1*time.Second, 1*time.Second)
@@ -95,6 +130,9 @@ func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 
 // Stop stops all runners.
 func (r *Runners) Stop() {
+	if r.Static != nil {
+		r.Static.Stop()
+	}
 	if r.Dynamic != nil {
 		r.Dynamic.Stop()
 	}
@@ -105,6 +143,9 @@ func (r *Runners) Stop() {
 
 // Kill kills all runners.
 func (r *Runners) Kill() {
+	if r.Static != nil {
+		r.Static.Kill()
+	}
 	if r.Dynamic != nil {
 		r.Dynamic.Kill()
 	}

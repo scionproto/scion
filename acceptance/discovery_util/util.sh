@@ -11,7 +11,7 @@ UTIL_PATH="acceptance/discovery_util"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
 HTTP_DIR="gen/discovery_acceptance"
-STATIC_DIR="$HTTP_DIR/discovery/v1/dynamic"
+STATIC_DIR="$HTTP_DIR/discovery/v1/static"
 STATIC_FULL="$STATIC_DIR/full.json"
 DYNAMIC_DIR="$HTTP_DIR/discovery/v1/dynamic"
 DYNAMIC_FULL="$DYNAMIC_DIR/full.json"
@@ -40,6 +40,11 @@ base_setup() {
     local network=$(awk '/  scion_disp_1-ff00_0_111:/,/ volumes/ {if (f=="networks:") {gsub(":", "",$1); print $1}} {f=$1}' gen/scion-dc.yml)
     # Modify docker compose file to contain mock discovery service.
     sed -e "s/REPLACE_NETWORK/$network/" "$UTIL_PATH/dc.tmpl" | sed -i -e "/services:/r /dev/stdin" "gen/scion-dc.yml"
+}
+
+base_start_scion() {
+    ./scion.sh run nobuild
+    ./tools/dc scion up -d 'mock_ds1-ff00_0_111-1'
 }
 
 set_log_lvl() {
