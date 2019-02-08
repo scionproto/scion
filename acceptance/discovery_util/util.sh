@@ -42,6 +42,11 @@ base_setup() {
     sed -e "s/REPLACE_NETWORK/$network/" "$UTIL_PATH/dc.tmpl" | sed -i -e "/services:/r /dev/stdin" "gen/scion-dc.yml"
 }
 
+base_start_scion() {
+    ./scion.sh run nobuild
+    ./tools/dc scion up -d 'mock_ds1-ff00_0_111-1'
+}
+
 set_log_lvl() {
     sed -i -e 's/Level = .*$/Level = "trace"/g' -e '/\[logging\.file\]/a FlushInterval = 1' "$1"
 }

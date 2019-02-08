@@ -19,7 +19,7 @@ test_setup() {
         set_interval "$cfg" "dynamic"
     done
 
-    ./scion.sh run nobuild
+    base_start_scion
 }
 
 test_run() {
