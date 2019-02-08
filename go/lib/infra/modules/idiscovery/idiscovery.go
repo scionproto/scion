@@ -98,14 +98,15 @@ func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 	var err error
 	r := Runners{}
 	if cfg.Static.Enable {
-		r.Static, err = startPeriodicStaticFetcher(
-			cfg.Static,
+		r.Static, err = startPeriodicFetcher(
+			cfg.Static.FetchConfig,
 			handlers.static(),
 			discovery.FetchParams{
 				Mode:  discovery.Static,
 				Https: cfg.Static.Https,
 				File:  file,
 			},
+			cfg.Static.Filename,
 			client,
 		)
 		if err != nil {
@@ -121,6 +122,7 @@ func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 				Https: cfg.Dynamic.Https,
 				File:  file,
 			},
+			"",
 			client,
 		)
 		if err != nil {
@@ -133,35 +135,17 @@ func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 	return r, nil
 }
 
-// startPeriodicFetcherWriter starts a runner that periodically fetches the topology.
-// If a filename is specified, the topology is written to disk.
-func startPeriodicStaticFetcher(cfg StaticConfig, handler TopoHandler,
-	params discovery.FetchParams, client *http.Client) (*periodic.Runner, error) {
-
-	if cfg.Filename == "" {
-		return startPeriodicFetcher(cfg.FetchConfig, handler, params, client)
-	}
-	fetcher, err := NewWriteFetcher(handler, params, cfg.Filename, client)
-	if err != nil {
-		return nil, err
-	}
-	return startPeriodic(fetcher, cfg.FetchConfig), nil
-}
-
 // startPeriodicFetcher starts a runner that periodically fetches the topology.
-func startPeriodicFetcher(cfg FetchConfig, handler TopoHandler,
-	params discovery.FetchParams, client *http.Client) (*periodic.Runner, error) {
+func startPeriodicFetcher(cfg FetchConfig, handler TopoHandler, params discovery.FetchParams,
+	filename string, client *http.Client) (*periodic.Runner, error) {
 
-	fetcher, err := NewFetcher(handler, params, client)
+	fetcher, err := NewFetcher(handler, params, filename, client)
 	if err != nil {
 		return nil, err
 	}
-	return startPeriodic(fetcher, cfg), nil
-}
-
-func startPeriodic(fetcher *task, cfg FetchConfig) *periodic.Runner {
-	return periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
+	runner := periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
 		cfg.Timeout.Duration)
+	return runner, nil
 }
 
 // Stop stops all runners.
@@ -199,38 +183,10 @@ type task struct {
 }
 
 // NewFetcher creates a periodic.Task that fetches the topology from the discovery
-// service and calls the provided handler on the received topology.
+// service and calls the provided handler on the received topology. If the handler
+// indicates an update, and filename is set, the topology is written.
 func NewFetcher(handler TopoHandler, params discovery.FetchParams,
-	client *http.Client) (*task, error) {
-
-	if handler == nil {
-		return nil, common.NewBasicError("handler must not be nil", nil)
-	}
-	t := &task{
-		Logger:  log.New("Module", "Discovery", "Mode", params.Mode),
-		handler: handler,
-	}
-	var err error
-	t.fetcher, err = topofetcher.New(
-		itopo.Get().DS,
-		params,
-		topofetcher.Callbacks{
-			Error:  t.handleErr,
-			Update: t.handleTopo,
-		},
-		client,
-	)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to initialize fetcher", err)
-	}
-	return t, nil
-}
-
-// NewWriteFetcher creates a periodic.Task that fetches the topology from the discovery
-// service and calls the provided handler on the received topology. If the handler indiacates
-// an update, the topology is written to filename.
-func NewWriteFetcher(handler TopoHandler, params discovery.FetchParams, filename string,
-	client *http.Client) (*task, error) {
+	filename string, client *http.Client) (*task, error) {
 
 	if handler == nil {
 		return nil, common.NewBasicError("handler must not be nil", nil)
@@ -270,7 +226,7 @@ func (t *task) handleErr(err error) {
 
 func (t *task) handleRaw(raw common.RawBytes, topo *topology.Topo) {
 	updated, err := t.callHandler(topo)
-	if err != nil || !updated {
+	if err != nil || t.filename == "" || !updated {
 		return
 	}
 	if err := util.WriteFile(t.filename, raw, 0644); err != nil {
@@ -279,10 +235,6 @@ func (t *task) handleRaw(raw common.RawBytes, topo *topology.Topo) {
 	}
 	t.Trace("[discovery] Topology written to filesystem",
 		"file", t.filename, "params", t.fetcher.Params)
-}
-
-func (t *task) handleTopo(topo *topology.Topo) {
-	t.callHandler(topo)
 }
 
 func (t *task) callHandler(topo *topology.Topo) (bool, error) {
