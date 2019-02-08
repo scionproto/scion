@@ -34,7 +34,7 @@ test_setup() {
         done
     done
 
-    ./scion.sh run nobuild
+    base_start_scion
 }
 
 test_run() {
