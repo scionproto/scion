@@ -28,7 +28,7 @@ import (
 func TestSampleCorrect(t *testing.T) {
 	Convey("Load", t, func() {
 		var cfg Config
-		// Make sure AutomaticRenweal is set during decoding.
+		// Make sure AutomaticRenewal is set during decoding.
 		cfg.CS.AutomaticRenewal = true
 		cfg.Discovery.Dynamic.Enable = true
 		cfg.Discovery.Dynamic.Https = true
