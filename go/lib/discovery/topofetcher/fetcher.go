@@ -29,8 +29,8 @@ var _ discovery.Fetcher = (*Fetcher)(nil)
 // Callbacks are used to inform the client. The functions are called when
 // an associated event occurs. If the function is nil, it is ignored.
 type Callbacks struct {
-	// Raw is called with the raw body from the discovery service response.
-	Raw func(common.RawBytes)
+	// Raw is called with the raw body from the discovery service response and the parsed topology.
+	Raw func(common.RawBytes, *topology.Topo)
 	// Update is called with the parsed topology from the discovery service response.
 	Update func(*topology.Topo)
 	// Error is called with any error that occurs.
@@ -102,7 +102,7 @@ func (f *Fetcher) run(ctx context.Context) error {
 	}
 	// Notify the client.
 	if f.Callbacks.Raw != nil {
-		f.Callbacks.Raw(raw)
+		f.Callbacks.Raw(raw, topo)
 	}
 	if f.Callbacks.Update != nil {
 		f.Callbacks.Update(topo)

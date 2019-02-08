@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This test checks that the infra services fetch the static topology
-# from the discovery service.
+# from the discovery service, and that it writes the update to disk.
 
 PROGRAM=`basename "$0"`
 COMMAND="$1"
@@ -14,9 +14,12 @@ test_setup() {
     set -e
     base_setup
 
-    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps}config.toml; do
-        set_log_lvl "$cfg"
-        set_interval "$cfg" "static"
+    for elem in gen/ISD1/AS$AS_FILE/{cs,ps}*; do
+        for cfg in $elem/*.toml; do
+            set_log_lvl "$cfg"
+            set_interval "$cfg" "static"
+            sed -i -e "/\[discovery.static]/a Filename = \"/share/cache/${elem##*/}-topo.json\"" $cfg
+        done
     done
 
     base_start_scion
@@ -27,14 +30,25 @@ test_run() {
     # Start serving static topology.
     jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $STATIC_FULL
     sleep 6
+    # Check that the mock ds serves the file
     check_file "static"
+    # Check that the logs contain setting and writing the topo.
     check_logs "ps$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
+    # Check that the written file does not differ from the served file.
+    check_diff "ps$IA_FILE-1"
+    check_diff "cs$IA_FILE-1"
 }
 
 check_logs() {
     grep -q "\[discovery\] Set topology .* Mode=static" "logs/$1.log" || \
         { echo "Setting static topology not found in logs. id=$1"; return 1; }
+    grep -q "\[discovery\] Topology written to filesystem .* Mode=static" "logs/$1.log" || \
+        { echo "Writing static topology not found in logs. id=$1"; return 1; }
+}
+
+check_diff () {
+    diff -q $STATIC_FULL gen-cache/$1-topo.json
 }
 
 shift
