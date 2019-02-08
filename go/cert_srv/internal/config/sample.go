@@ -86,7 +86,7 @@ const Sample = `[general]
     # Require https connection. (default false)
     Https = false
 
-    # Filename where the updated static topologies are written. In case of the 
+    # Filename where the updated static topologies are written. In case of the
     # empty string, the updated topologies are not written. (default "")
     Filename = ""
 

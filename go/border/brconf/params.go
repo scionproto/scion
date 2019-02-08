@@ -14,7 +14,10 @@
 
 package brconf
 
-import "github.com/scionproto/scion/go/lib/common"
+import (
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
+)
 
 type BR struct {
 	// Profile enables cpu and memory profiling.
@@ -28,6 +31,13 @@ func (b *BR) InitDefaults() {
 	if b.RollbackFailAction != FailActionContinue {
 		b.RollbackFailAction = FailActionFatal
 	}
+}
+
+type Discovery struct {
+	idiscovery.Config
+	// AllowSemiMutable indicates whether changes to the semi-mutable
+	// section in the static topology are allowed.
+	AllowSemiMutable bool
 }
 
 type FailAction string
