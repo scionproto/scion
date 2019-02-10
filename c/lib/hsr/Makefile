@@ -46,7 +46,7 @@ LIBABIVER := 1
 SRCS-y := hsr_dpdk.c
 
 #CFLAGS += -O3 -w
-CFLAGS += -O3 -I$(S)/.. -I$(S)/../scion -Wall -fno-strict-aliasing -g
+CFLAGS += -O3 -I$(S)/.. -I$(S)/../scion -Wall -fno-strict-aliasing -g -Wno-unused-result
 #CFLAGS += $(WERROR_FLAGS)
 
 ifeq ($(D),1)

@@ -1,7 +1,7 @@
 .PHONY: all clean install uninstall
 LIB_DIR = ..
 
-EXTRA_CFLAGS = -Wall -Werror -fPIC -I$(LIB_DIR)
+EXTRA_CFLAGS = -Wall -Werror -fPIC -I$(LIB_DIR) -fno-strict-aliasing -Wno-unused-result
 EXTRA_LDFLAGS = -shared -Wl,-z,defs -Wl,-soname,libfilter.so.0 -lzlog -L$(LIB_DIR)/scion -lscion
 
 SRCS = $(wildcard *.c)
