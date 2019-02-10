@@ -1,0 +1,5 @@
+Name: scion-filter
+Description: SCION filter library
+Version: 0.1
+Cflags: -I${includedir}/scion-filter
+Libs: -L${libdir} -lfilter

@@ -248,7 +248,10 @@ void parse_cmdline(int argc, char **argv) {
 
 void unlink_socket() {
     char *sockpath = NULL;
-    asprintf(&sockpath, "%s/default.sock", DISPATCHER_DIR);
+    if (asprintf(&sockpath, "%s/default.sock", DISPATCHER_DIR) < 0) {
+        zlog_error(zc, "Failed to format socket path, this should never happen.");
+        exit(2);
+    }
     errno = 0;
     if (unlink(sockpath)) {
         if (errno == ENOENT) {

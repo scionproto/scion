@@ -1,50 +1,65 @@
 .PHONY: all clean install uninstall
-
-CC = clang
-CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared -Wl,-z,defs -lscion -lzlog
-
-ifeq ($(D),1)
-CFLAGS += -gdwarf-2 -O0
-endif
-
 LIB_DIR = ..
-INC = -I$(LIB_DIR)
+
+EXTRA_CFLAGS = -Wall -Werror -fPIC -I$(LIB_DIR)
+EXTRA_LDFLAGS = -shared -Wl,-z,defs -Wl,-soname,libfilter.so.0 -lzlog -L$(LIB_DIR)/scion -lscion
 
 SRCS = $(wildcard *.c)
+HDRS = $(wildcard *.h)
 OBJS = $(SRCS:.c=.o)
 STATIC = libfilter.a
 DYNAMIC = libfilter.so
 TARGETS = $(STATIC) $(DYNAMIC)
-PREFIX ?= /usr/local
+
+# High level variables, these might be set from outside to
+# use a custom target directory
+DESTDIR?=
+PREFIX?=/usr/local
+LIBRARY_PATH?=lib
+INCLUDE_PATH?=include
+
+# Low level variables.
+# ONLY SET THOSE IF YOU KNOW WHAT YOU'RE DOING
+LIB_SHORT_PATH?=$(PREFIX)/$(LIBRARY_PATH)
+LIB_PATH?=$(DESTDIR)$(LIB_SHORT_PATH)
+INC_SHORT_PATH?=$(PREFIX)/$(INCLUDE_PATH)
+INC_PATH?=$(DESTDIR)$(INC_SHORT_PATH)
+PKGCONFIG_PATH?=$(LIB_PATH)/pkgconfig
+PKGCONFIG_NAME?=scion-filter.pc
 
 all: $(TARGETS)
 
 clean:
-	rm -f *.d *.so *.a *.o .installstamp $(TARGETS)
+	rm -f *.d *.so *.a *.o $(TARGETS)
 
 # Compile .c files, while also automatically generating dependencies so they
 # can be recompiled if any of the included header files changed.
 -include *.d
 %.o: %.c
-	$(CC) $(CFLAGS) $(INC) -MMD -c -o $@ $<
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(INC) -MMD -c -o $@ $<
 
 $(STATIC): $(OBJS)
 	ar rcs $@ $(OBJS)
 
 $(DYNAMIC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+	$(CC) $(OBJS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@
 
-install: .installstamp
-
-.installstamp: $(TARGETS)
-	@sudo -p "c/lib/filter:install [sudo] password for %p: " true
-	sudo cp $(TARGETS) $(PREFIX)/lib/
-	sudo ldconfig
-	touch .installstamp
+install: $(TARGETS)
+	# Create directories
+	install -d $(LIB_PATH)/
+	install -d $(INC_PATH)/scion-filter/
+	install -d $(PKGCONFIG_PATH)/
+	# Install files
+	install -m 644 $(STATIC) $(LIB_PATH)/
+	install -m 755 $(DYNAMIC) $(LIB_PATH)/
+	install -m 644 $(HDRS) $(INC_PATH)/scion-filter/
+	# Create pkg-config file
+	echo 'libdir=$(LIB_SHORT_PATH)' > $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
+	echo 'includedir=$(INC_SHORT_PATH)' >> $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
+	cat $(PKGCONFIG_NAME) >> $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)
 
 uninstall:
-	@sudo -p "c/lib/filter:uninstall [sudo] password for %p: " true
-	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
-	sudo ldconfig
-	rm -f .installstamp
+	rm -f $(LIB_PATH)/$(STATIC)
+	rm -f $(LIB_PATH)/$(DYNAMIC)
+	rm -rf $(INC_PATH)/scion-filter/
+	rm -f $(PKGCONFIG_PATH)/$(PKGCONFIG_NAME)

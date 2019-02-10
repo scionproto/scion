@@ -1,0 +1,5 @@
+Name: scion
+Description: SCION base library
+Version: 0.1
+Cflags: -I${includedir}/scion
+Libs: -L${libdir} -lscion
