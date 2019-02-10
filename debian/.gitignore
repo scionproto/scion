@@ -1,0 +1,13 @@
+*.debhelper.log
+build
+debhelper-build-stamp
+libscion0/*
+libscion0-dev/*
+libfilter0/*
+libfilter0-dev/*
+libtcpmw0/*
+scion-dispatcher/*
+scion-daemons/*
+*.substvars
+.debhelper/*
+files

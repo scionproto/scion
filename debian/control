@@ -1,0 +1,77 @@
+Source: scion
+Section: net
+Priority: optional
+Maintainer: Martin Koppehel <mkoppehel@embedded.enterprises>
+Build-Depends: debhelper (>=9), libzlog-dev
+Standards-Version: 3.9.7
+Homepage: https://scion-architecture.net
+Vcs-Git: git://github.com/scionproto/scion.git
+Vcs-Browser: https://github.com/scionproto/scion.git
+
+Package: libscion0
+Section: libs
+Architecture: amd64 i386 arm64 armhf
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
+Description: SCION base library
+ Basic library for scion
+
+Package: libscion0-dev
+Section: libdevel
+Architecture: amd64 i386 arm64 armhf
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog-dev
+Description: SCION base library - development files
+ Basic library for scion, headers and static library
+
+Package: libfilter0
+Section: libs
+Architecture: amd64 i386 arm64 armhf
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog1
+Description: SCION filter library
+ Library for filtering packets
+
+Package: libfilter0-dev
+Section: libdevel
+Multi-Arch: same
+Architecture: amd64 i386 arm64 armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev, libfilter0, libzlog-dev
+Description: SCION filter library - development files
+ Library for filtering packets
+
+Package: libtcpmw0
+Section: libs
+Multi-Arch: same
+Architecture: amd64 i386 arm64 armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog1
+Description: SCION tcp library
+ supportive library for scion
+
+# libtcpmw0-dev is not viable
+# It requires packing the lwip headers in a very obscure way.
+# Since the static lib is available when we build in-source packages
+# There is no point in shipping a dedicated -dev package.
+
+#Package: libtcpmw0-dev
+#Section: libdevel
+#Architecture: amd64 i386
+#Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev, libtcpmw0
+#Description: SCION tcp library - development files
+# supportive library for scion
+
+Package: scion-dispatcher
+Section: net
+Multi-Arch: foreign
+Architecture: amd64 i386 arm64 armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
+Description: SCION dispatcher service
+ supportive scion service
+
+Package: scion-daemons
+Section: net
+Multi-Arch: foreign
+Architecture: amd64 i386 arm64 armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: SCION daemons
+ All golang daemons of scion

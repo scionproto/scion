@@ -129,6 +129,9 @@ endef
 $(foreach in,$(MOCK_STD_IN),$(eval $(call MOCK_STD_template,$(in))))
 
 bin: deps_gen
+	GOPATH=$(GOPATH) GOBIN=$(GOPATH)/bin ./gobuild.sh
+
+bin_native:
 	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -ldflags "$(LINK_FLAGS)" -v +local,program
 	@sudo -p "go:braccept [sudo] password for %p: " true
 	sudo setcap cap_net_admin,cap_net_raw+ep ../bin/braccept
