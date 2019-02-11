@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
@@ -82,5 +83,6 @@ func tickerMultiplier(multiplier time.Duration) time.Duration {
 func TestMain(m *testing.M) {
 	// Inject a smaller timeout s.t. tests run quickly
 	snetproxy.DefaultTickerInterval = 10 * time.Millisecond
+	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }
