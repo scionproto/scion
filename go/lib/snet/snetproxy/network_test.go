@@ -30,9 +30,9 @@ import (
 )
 
 func TestReconnect(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	Convey("Reconnections must conserve local and bind addresses", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		mockNetwork := mock_snet.NewMockNetwork(ctrl)
 		Convey("Given a mocked underlying connection with local and bind", func() {
 			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, svc)
@@ -139,9 +139,9 @@ func TestReconnect(t *testing.T) {
 }
 
 func TestNetworkFatalError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	Convey("Given a proxy network running over an underlying mocked network", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		err := common.NewBasicError("Not dispatcher dead error, e.g., malformed register msg", nil)
 		mockNetwork := mock_snet.NewMockNetwork(ctrl)
 		proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
@@ -163,10 +163,10 @@ func TestNetworkFatalError(t *testing.T) {
 }
 
 func TestNetworkDispatcherDeadError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	dispatcherError := &net.OpError{Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}
 	Convey("Listen and Dial should reattempt to connect on dispatcher down errors", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		mockNetwork := mock_snet.NewMockNetwork(ctrl)
 		proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
 		Convey("Dial tries to reconnect if no timeout set", func() {
@@ -188,7 +188,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 				mockNetwork.EXPECT().
 					DialSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any(), Any()).
 					Return(nil, dispatcherError).
-					MinTimes(3).MaxTimes(5),
+					MinTimes(2).MaxTimes(5),
 			)
 			_, err := proxyNetwork.DialSCIONWithBindSVC("udp4",
 				nil, nil, nil, addr.SvcNone, tickerMultiplier(4))

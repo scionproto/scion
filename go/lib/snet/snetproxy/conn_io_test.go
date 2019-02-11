@@ -165,9 +165,9 @@ func TestProxyConnIO(t *testing.T) {
 }
 
 func TestProxyConnAddrs(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		mockConn := mock_snet.NewMockConn(ctrl)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
 		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
@@ -195,9 +195,9 @@ func TestProxyConnAddrs(t *testing.T) {
 }
 
 func TestProxyConnReadWrite(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
 		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
@@ -292,9 +292,9 @@ func TestProxyConnConcurrentReadWrite(t *testing.T) {
 }
 
 func TestProxyConnClose(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
 		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
