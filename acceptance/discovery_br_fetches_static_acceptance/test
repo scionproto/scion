@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# This test checks that the border router fetches the static topology
+# from the discovery service, and that it writes the update to disk.
+#
+# The test is structured as follows:
+# 1. Check connectivity
+# 2. Serve static topology with invalid BS address -> link goes down
+# 3. Check connectivity is broken
+# 4. Check logs, and file diff
+# 4. Serve original static topology -> link goes up
+# 6. Check connectivity is up again
+
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="discovery_br_fetches_static"
+
+DST_IA=${DST_IA:-1-ff00:0:112}
+
+. acceptance/common.sh
+. acceptance/discovery_util/util.sh
+
+
+test_setup() {
+    set -e
+    base_setup
+
+    for elem in gen/ISD1/AS$AS_FILE/br*; do
+        for cfg in $elem/*.toml; do
+            set_log_lvl "$cfg"
+            set_interval "$cfg" "static"
+            sed -i -e "/\[discovery.static]/a Filename = \"/share/logs/${elem##*/}-topo.json\"" $cfg
+        done
+    done
+
+    base_start_scion
+}
+
+test_run() {
+    set -e
+    sleep 10
+    check_connectivity "initial check"
+
+    # Start serving dynamic topology with invalid beacon service.
+    jq ".BeaconService[].Addrs.IPv4.Public.Addr = \"127.42.42.42\" | .Timestamp = $( date +%s) | .TTL = 15" $TOPO | sponge $STATIC_FULL
+    sleep 5
+    check_connectivity_broken "invalid beacon service address"
+
+    # Check that the logs contain setting and writing the topo.
+    check_logs "br$IA_FILE-1"
+    # Check that the written file does not differ from the served file.
+    diff -q $STATIC_FULL logs/br$IA_FILE-1-topo.json
+
+    # Wait until dynamic topology expires.
+    cp $TOPO $STATIC_FULL
+    sleep 5
+    check_connectivity "serve original static topology"
+}
+
+check_connectivity_broken() {
+    bin/end2end_integration -src $IA -dst $DST_IA -attempts 1 -d -log.console=crit || local failed=$?
+    if [ -z ${failed+x} ]; then
+        echo "FAIL: Traffic still passes. step=( $1 )"
+        return 1
+    fi
+}
+
+check_connectivity() {
+    bin/end2end_integration -src $IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass. step=( $1 )" ; return 1; }
+}
+
+check_logs() {
+    grep -q "\[discovery\] Set topology .* Mode=static" "logs/$1.log" || \
+        { echo "Setting static topology not found in logs. id=$1"; return 1; }
+    grep -q "\[discovery\] Topology written to filesystem .* Mode=static" "logs/$1.log" || \
+        { echo "Writing static topology not found in logs. id=$1"; return 1; }
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"

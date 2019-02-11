@@ -73,13 +73,13 @@ const Sample = `[general]
     # Time between two consecutive static topology queries. (default 5m)
     Interval = "5m"
 
-    # Timeout for querying the static topology.  (default 1s)
+    # Timeout for querying the static topology. (default 1s)
     Timeout = "1s"
 
     # Require https connection. (default false)
     Https = false
 
-    # Filename where the updated static topologies are written. In case of the 
+    # Filename where the updated static topologies are written. In case of the
     # empty string, the updated topologies are not written. (default "")
     Filename = ""
 
@@ -90,7 +90,7 @@ const Sample = `[general]
     # Time between two consecutive dynamic topology queries. (default 5s)
     Interval = "5s"
 
-    # Timeout for querying the dynamic topology.  (default 1s)
+    # Timeout for querying the dynamic topology. (default 1s)
     Timeout = "1s"
 
     # Require https connection. (default false)

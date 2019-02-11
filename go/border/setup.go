@@ -145,19 +145,35 @@ func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 	return r.setupNewContext(rctx.New(newConf), &tx)
 }
 
-// setupCtxFromDynamic sets up a new router context after receiving a updated
+// setupCtxFromStatic sets up a new router context after receiving an updated
+// static topology from the discovey service.
+func (r *Router) setupCtxFromStatic(topo *topology.Topo) (bool, error) {
+	r.setCtxMtx.Lock()
+	defer r.setCtxMtx.Unlock()
+	tx, err := itopo.BeginSetStatic(topo, config.Discovery.AllowSemiMutable)
+	return r.setupCtxFromTopoUpdate(discovery.Static, tx, err)
+}
+
+// setupCtxFromDynamic sets up a new router context after receiving an updated
 // dynamic topology from the discovey service.
 func (r *Router) setupCtxFromDynamic(topo *topology.Topo) (bool, error) {
 	r.setCtxMtx.Lock()
 	defer r.setCtxMtx.Unlock()
 	tx, err := itopo.BeginSetDynamic(topo)
+	return r.setupCtxFromTopoUpdate(discovery.Dynamic, tx, err)
+}
+
+// setupCtxFromTopoUpdate sets up a new router context given a itopo.Transaction.
+func (r *Router) setupCtxFromTopoUpdate(mode discovery.Mode, tx itopo.Transaction,
+	err error) (bool, error) {
+
 	if err != nil {
 		return false, err
 	}
 	if !tx.IsUpdate() {
 		return false, nil
 	}
-	log.Trace("====> Setting up new context from dynamic topology update")
+	log.Trace("====> Setting up new context from topology update", "mode", mode)
 	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), rctx.Get().Conf)
 	if err != nil {
 		return false, err
@@ -276,8 +292,11 @@ func (r *Router) startDiscovery() error {
 			return common.NewBasicError("Unable to create discovery client", err)
 		}
 	}
-	handlers := idiscovery.TopoHandlers{Dynamic: r.setupCtxFromDynamic}
-	_, err = idiscovery.StartRunners(config.Discovery, discovery.Full, handlers, client)
+	handlers := idiscovery.TopoHandlers{
+		Static:  r.setupCtxFromStatic,
+		Dynamic: r.setupCtxFromDynamic,
+	}
+	_, err = idiscovery.StartRunners(config.Discovery.Config, discovery.Full, handlers, client)
 	if err != nil {
 		return common.NewBasicError("Unable to start discovery runners", err)
 	}
