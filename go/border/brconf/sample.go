@@ -65,10 +65,10 @@ const Sample = `[general]
     # Enable periodic fetching of the static topology. (default false)
     Enable = false
 
-    # Time between two consecutive static topology query. (default 5m)
+    # Time between two consecutive static topology queries. (default 5m)
     Interval = "5m"
 
-    # Timeout for querying the static topology.  (default 1s)
+    # Timeout for querying the static topology. (default 1s)
     Timeout = "1s"
 
     # Require https connection. (default false)
@@ -82,10 +82,10 @@ const Sample = `[general]
     # Enable periodic fetching of the dynamic topology. (default false)
     Enable = false
 
-    # Time between two consecutive dynamic topology query. (default 5s)
+    # Time between two consecutive dynamic topology queries. (default 5s)
     Interval = "5s"
 
-    # Timeout for querying the dynamic topology.  (default 1s)
+    # Timeout for querying the dynamic topology. (default 1s)
     Timeout = "1s"
 
     # Require https connection. (default false)
