@@ -107,7 +107,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
-	var coreSegs []*seg.PathSegment
+	var coreSegs seg.Segments
 	// if request came from same AS also return core segs, to start of down segs.
 	if segReq.SrcIA().Equal(h.localIA) {
 		ias := downSegs.FirstIAs()
@@ -128,17 +128,10 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 				return
 			}
 		}
-		// Remove disconnected down segs.
-		// Core segments can only end at the given down segs, thus do not need to be filtered.
-		coreDowns := segsToMap(coreSegs, (*seg.PathSegment).FirstIA)
-		// localIA is always a valid start point
-		coreDowns[h.localIA] = struct{}{}
-		downSegs.FilterSegs(func(s *seg.PathSegment) bool {
-			_, coreExists := coreDowns[s.FirstIA()]
-			return coreExists
-		})
 	}
 	logger.Debug("[segReqCoreHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
+	selectConnectedSegs(maxResSegs, nil, &coreSegs, &downSegs, segReq.SrcIA(), segReq.DstIA())
+	logger.Debug("[segReqCoreHandler] returning segs", "core", len(coreSegs), "down", len(downSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, downSegs, segReq)
 }
 
@@ -146,12 +139,15 @@ func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
 	msger infra.Messenger, segReq *path_mgmt.SegReq) {
 
 	logger := log.FromCtx(ctx)
+	var coreSegs seg.Segments
 	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{segReq.DstIA()}, !segReq.Flags.CacheOnly)
 	if err != nil {
 		logger.Error("Failed to find core segs", "err", err)
 		return
 	}
 	logger.Debug("[segReqHandler:handleCoreDst] found segs", "core", len(coreSegs))
+	selectConnectedSegs(maxResSegs, nil, &coreSegs, nil, segReq.SrcIA(), segReq.DstIA())
+	logger.Debug("[segReqHandler:handleCoreDst] returning segs", "core", len(coreSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, nil, segReq)
 }
 

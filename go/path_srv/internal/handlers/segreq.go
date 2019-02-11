@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -35,6 +36,10 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
+)
+
+const (
+	maxResSegs = 10 // Maximum total of segments returned in a reply to a segment request
 )
 
 type segReqHandler struct {
@@ -250,4 +255,189 @@ func segsToMap(segs []*seg.PathSegment,
 		res[key(s)] = struct{}{}
 	}
 	return res
+}
+
+// Combination of up, core and down segments (aka a Path).
+type connectedSegs struct {
+	Up, Core, Down *seg.PathSegment
+}
+
+func (p *connectedSegs) numHops() int {
+
+	n := 0
+	if p.Up != nil {
+		n += len(p.Up.ASEntries)
+	}
+	if p.Core != nil {
+		n += len(p.Core.ASEntries)
+	}
+	if p.Down != nil {
+		n += len(p.Down.ASEntries)
+	}
+	return n
+}
+
+// Filter upSegs, coreSegs and downSegs to include at most maxNumSegments segments. Ensures that the remaining segments can be connected to allow forming paths between srcIA and dstIA.
+func selectConnectedSegs(maxNumSegments int, upSegs, coreSegs, downSegs *seg.Segments, srcIA, dstIA addr.IA) {
+
+	plen := func(s *seg.Segments) int {
+		if s != nil {
+			return len(*s)
+		}
+		return 0
+	}
+
+	if plen(upSegs)+plen(coreSegs)+plen(downSegs) < maxNumSegments {
+		return
+	}
+
+	paths := allConnectedSegs(upSegs, coreSegs, downSegs, srcIA, dstIA)
+	// Sort by least number of hops for path
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i].numHops() < paths[j].numHops()
+	})
+
+	selSegs := make(map[*seg.PathSegment]struct{})
+	for _, path := range paths {
+		if len(selSegs) > maxNumSegments-3 {
+			break
+		}
+
+		if path.Up != nil {
+			selSegs[path.Up] = struct{}{}
+		}
+		if path.Core != nil {
+			selSegs[path.Core] = struct{}{}
+		}
+		if path.Down != nil {
+			selSegs[path.Down] = struct{}{}
+		}
+	}
+
+	selSegFunc := func(s *seg.PathSegment) bool {
+		_, selected := selSegs[s]
+		return selected
+	}
+	if upSegs != nil {
+		upSegs.FilterSegs(selSegFunc)
+	}
+	if coreSegs != nil {
+		coreSegs.FilterSegs(selSegFunc)
+	}
+	if downSegs != nil {
+		downSegs.FilterSegs(selSegFunc)
+	}
+}
+
+func matchReqIA(addr, req addr.IA) bool {
+	return addr.Eq(req) || (addr.I == req.I && req.A == 0)
+}
+
+// Helper for selectConnectedSegs.
+// Create all connected combinations of up-core-down segments, starting at srcIA, ending at dstIA.
+// Both upSegs and downSegs may be nil. Assumes that:
+// - if upSegs is present, upSegs start (==LastIA()) is srcIA,
+// - if downSegs is present, downSegs end (==LastIA()) in dstIA
+// - if upSegs are present, srcIA is not core
+// - if downSegs are present, dstIA is not core
+func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments, srcIA, dstIA addr.IA) []connectedSegs {
+
+	log.Trace("allConnectedSegs:")
+	paths := make([]connectedSegs, 0)
+
+	// Core direct
+	for _, coreSeg := range *coreSegs {
+		if matchReqIA(coreSeg.LastIA(), srcIA) && matchReqIA(coreSeg.FirstIA(), dstIA) {
+			paths = append(paths, connectedSegs{
+				Up:   nil,
+				Core: coreSeg,
+				Down: nil,
+			})
+		}
+	}
+	if upSegs != nil && downSegs != nil {
+		// Up-Down direct
+		for _, upSeg := range *upSegs {
+			for _, downSeg := range *downSegs {
+				if upSeg.FirstIA().Eq(downSeg.FirstIA()) {
+					paths = append(paths, connectedSegs{
+						Up:   upSeg,
+						Core: nil,
+						Down: downSeg,
+					})
+				}
+			}
+		}
+		// Up-Core-Down
+		for _, upSeg := range *upSegs {
+			for _, coreSeg := range *coreSegs {
+				if !upSeg.FirstIA().Eq(coreSeg.LastIA()) {
+					continue
+				}
+				for _, downSeg := range *downSegs {
+					if !coreSeg.FirstIA().Eq(downSeg.FirstIA()) {
+						continue
+					}
+					paths = append(paths, connectedSegs{
+						Up:   upSeg,
+						Core: coreSeg,
+						Down: downSeg,
+					})
+				}
+			}
+		}
+	} else if upSegs == nil {
+		// Down from src
+		for _, downSeg := range *downSegs {
+			log.Trace("down from src", "downFirst", downSeg.FirstIA(), "downLast", downSeg.LastIA(), "src", srcIA, "dst", dstIA)
+			if matchReqIA(downSeg.FirstIA(), srcIA) {
+				paths = append(paths, connectedSegs{
+					Up:   nil,
+					Core: nil,
+					Down: downSeg,
+				})
+			}
+		}
+		// Core-Down
+		for _, coreSeg := range *coreSegs {
+			for _, downSeg := range *downSegs {
+				log.Trace("core-down", "coreFirst", coreSeg.FirstIA(), "coreLast", coreSeg.LastIA(), "downFirst", downSeg.FirstIA(), "downLast", downSeg.LastIA(), "src", srcIA, "dst", dstIA)
+				if !coreSeg.LastIA().Eq(downSeg.FirstIA()) {
+					continue
+				}
+				paths = append(paths, connectedSegs{
+					Up:   nil,
+					Core: coreSeg,
+					Down: downSeg,
+				})
+			}
+		}
+	} else if downSegs == nil {
+		// Up to dst
+		for _, upSeg := range *upSegs {
+			log.Trace("up to dst", "upFirst", upSeg.FirstIA(), "upLast", upSeg.LastIA(), "src", srcIA, "dst", dstIA)
+			if matchReqIA(upSeg.FirstIA(), dstIA) {
+				paths = append(paths, connectedSegs{
+					Up:   upSeg,
+					Core: nil,
+					Down: nil,
+				})
+			}
+		}
+		// Up-Core
+		for _, upSeg := range *upSegs {
+			for _, coreSeg := range *coreSegs {
+				log.Trace("up-core:", "upFirst", upSeg.FirstIA(), "upLast", upSeg.LastIA(), "coreFirst", coreSeg.FirstIA(), "coreLast", coreSeg.LastIA(), "src", srcIA, "dst", dstIA)
+				if !upSeg.FirstIA().Eq(coreSeg.LastIA()) {
+					continue
+				}
+				paths = append(paths, connectedSegs{
+					Up:   upSeg,
+					Core: coreSeg,
+					Down: nil,
+				})
+			}
+		}
+	}
+	return paths
 }
