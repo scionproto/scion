@@ -67,14 +67,14 @@ check_connectivity_broken() {
 }
 
 check_connectivity() {
-    bin/end2end_integration -src $IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass. step=( $1 )" ; return 1; }
+    bin/end2end_integration -src $IA -dst $DST_IA -attempts 5 -d || fail "FAIL: Traffic does not pass. step=( $1 )"
 }
 
 check_logs() {
     grep -q "\[discovery\] Set topology .* Mode=static" "logs/$1.log" || \
-        { echo "Setting static topology not found in logs. id=$1"; return 1; }
+        fail "Setting static topology not found in logs. id=$1"
     grep -q "\[discovery\] Topology written to filesystem .* Mode=static" "logs/$1.log" || \
-        { echo "Writing static topology not found in logs. id=$1"; return 1; }
+        fail "Writing static topology not found in logs. id=$1"
 }
 
 shift

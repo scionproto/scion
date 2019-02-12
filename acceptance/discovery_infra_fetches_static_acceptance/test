@@ -42,9 +42,9 @@ test_run() {
 
 check_logs() {
     grep -q "\[discovery\] Set topology .* Mode=static" "logs/$1.log" || \
-        { echo "Setting static topology not found in logs. id=$1"; return 1; }
+        fail "Setting static topology not found in logs. id=$1"
     grep -q "\[discovery\] Topology written to filesystem .* Mode=static" "logs/$1.log" || \
-        { echo "Writing static topology not found in logs. id=$1"; return 1; }
+        fail "Writing static topology not found in logs. id=$1"
 }
 
 check_diff () {
