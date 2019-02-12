@@ -51,7 +51,31 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
 	for _, path := range paths {
 		pathSlice = append(pathSlice, path.GetFwdPathMetadata())
 	}
-	return FilterLongPaths(pathSlice)
+	shortPaths := FilterLongPaths(pathSlice)
+
+	// filter duplicates
+	var uniquePathSlice []*Path
+DUP:
+	for _, p1 := range shortPaths {
+		for _, p2 := range uniquePathSlice {
+			if pathsEqual(p1, p2) {
+				continue DUP
+			}
+		}
+		uniquePathSlice = append(uniquePathSlice, p1)
+	}
+	return uniquePathSlice
+}
+
+func pathsEqual(p1, p2 *Path) bool {
+	same_path := true
+	if len(p1.Interfaces) != len(p2.Interfaces) {
+		return false
+	}
+	for i := range p1.Interfaces {
+		same_path = same_path && (p1.Interfaces[i] == p2.Interfaces[i])
+	}
+	return same_path
 }
 
 // InputSegment is a local representation of a path segment that includes the
