@@ -140,6 +140,7 @@ class GoGenerator(object):
             },
             'logging': self._log_entry(name),
             'TrustDB': trust_db_conf_entry(self.args, name),
+            'discovery': self._discovery_entry(),
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
