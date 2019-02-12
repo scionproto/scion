@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -34,14 +35,16 @@ var (
 )
 
 type Config struct {
-	General env.General
-	Logging env.Logging
-	Metrics env.Metrics
-	TrustDB truststorage.TrustDBConf
-	SD      SDConfig
+	General   env.General
+	Logging   env.Logging
+	Metrics   env.Metrics
+	TrustDB   truststorage.TrustDBConf
+	Discovery idiscovery.Config
+	SD        SDConfig
 }
 
 func (c *Config) InitDefaults() {
+	c.Discovery.InitDefaults()
 	c.SD.initDefaults()
 }
 
