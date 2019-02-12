@@ -79,3 +79,11 @@ test_teardown() {
 log() {
     echo "$(date -u +"%F %T.%6N%z") $@"
 }
+
+#######################################
+# Fail: Echo with a timestamp to stderr and exit with 1
+#######################################
+fail() {
+    echo "$(date -u +'%F %T.%6N%z') $@" >&2
+    exit 1
+}

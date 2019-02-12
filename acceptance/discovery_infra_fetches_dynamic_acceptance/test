@@ -34,9 +34,9 @@ test_run() {
 
 check_logs() {
     grep -q "\[discovery\] Set topology .* Mode=dynamic" "logs/$1.log" || \
-        { echo "Setting dynamic topology not found in logs. id=$1"; return 1; }
+        fail "Setting dynamic topology not found in logs. id=$1"
     grep -q "\[itopo.Cleaner\] Dropping expired dynamic topology" "logs/$1.log" || \
-        { echo "Setting dynamic topology not found in logs. id=$1"; return 1; }
+        fail "Setting dynamic topology not found in logs. id=$1"
 }
 
 shift
