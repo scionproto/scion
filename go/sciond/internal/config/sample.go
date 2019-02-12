@@ -64,6 +64,37 @@ const Sample = `[general]
   # Connection for the trust database
   Connection = "/var/lib/scion/spki/sd.trust.db"
 
+[discovery]
+  [discovery.static]
+    # Enable periodic fetching of the static topology. (default false)
+    Enable = false
+
+    # Time between two consecutive static topology queries. (default 5m)
+    Interval = "5m"
+
+    # Timeout for querying the static topology. (default 1s)
+    Timeout = "1s"
+
+    # Require https connection. (default false)
+    Https = false
+
+    # Filename where the updated static topologies are written. In case of the
+    # empty string, the updated topologies are not written. (default "")
+    Filename = ""
+
+  [discovery.dynamic]
+    # Enable periodic fetching of the dynamic topology. (default false)
+    Enable = false
+
+    # Time between two consecutive dynamic topology queries. (default 5s)
+    Interval = "5s"
+
+    # Timeout for querying the dynamic topology. (default 1s)
+    Timeout = "1s"
+
+    # Require https connection. (default false)
+    Https = false
+
 [sd]
   # Address to listen on via the reliable socket protocol. If empty,
   # a reliable socket server on the default socket is started.
