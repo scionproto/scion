@@ -14,7 +14,7 @@ test_setup() {
     set -e
     base_setup
 
-    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps}config.toml; do
+    for cfg in gen/ISD1/AS$AS_FILE/*/{{cs,ps}config,sciond}.toml; do
         set_log_lvl "$cfg"
         set_interval "$cfg" "dynamic"
     done
@@ -24,12 +24,14 @@ test_setup() {
 
 test_run() {
     set -e
-    # Start serving dynamic topology.
+    # Start serving dynamic topology. Full for infra services, default for sciond.
     jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $DYNAMIC_FULL
+    cp $DYNAMIC_FULL $DYNAMIC_DEFAULT
     sleep 6
     check_file "dynamic"
     check_logs "ps$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
+    check_logs "sd$IA_FILE"
 }
 
 check_logs() {
