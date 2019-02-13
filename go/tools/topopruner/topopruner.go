@@ -29,8 +29,8 @@ import (
 var (
 	infn   = flag.String("in", "", "Input file name. Required.")
 	outfnf = flag.String("out", "", "Output file name for the full topology. Required.")
-	outfnr = flag.String("reduced", "",
-		"Output file name for the reduced topology. Defaults to not generating this output.")
+	outfnr = flag.String("endhost", "",
+		"Output file name for the endhost topology. Defaults to not generating this output.")
 	verbose = flag.Bool("verbose", false, "Be more verbose about what is going on")
 	version = flag.Bool("version", false, "Output version information and exit.")
 )
@@ -64,9 +64,9 @@ func main() {
 	}
 	if *outfnr != "" {
 		topology.StripServices(rt)
-		marshalAndWriteOrDie(rt, *outfnr, "reduced", finfo.Mode())
+		marshalAndWriteOrDie(rt, *outfnr, "endhost", finfo.Mode())
 		if *verbose {
-			fmt.Printf("Wrote pruned reduced topo to '%s'.\n", *outfnr)
+			fmt.Printf("Wrote pruned endhost topo to '%s'.\n", *outfnr)
 		}
 	}
 }
