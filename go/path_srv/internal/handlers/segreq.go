@@ -282,17 +282,6 @@ func (p *connectedSegs) numHops() int {
 func selectConnectedSegs(maxNumSegments int, upSegs, coreSegs, downSegs *seg.Segments,
 	srcIA, dstIA addr.IA) {
 
-	plen := func(s *seg.Segments) int {
-		if s != nil {
-			return len(*s)
-		}
-		return 0
-	}
-
-	if plen(upSegs)+plen(coreSegs)+plen(downSegs) < maxNumSegments {
-		return
-	}
-
 	paths := allConnectedSegs(upSegs, coreSegs, downSegs, srcIA, dstIA)
 	// Sort by least number of hops for path
 	sort.Slice(paths, func(i, j int) bool {
@@ -388,7 +377,7 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 				}
 			}
 		}
-	} else if upSegs == nil {
+	} else if downSegs != nil {
 		// Down from src
 		for _, downSeg := range *downSegs {
 			if matchReqIA(downSeg.FirstIA(), srcIA) {
@@ -412,7 +401,7 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 				})
 			}
 		}
-	} else if downSegs == nil {
+	} else if upSegs != nil {
 		// Up to dst
 		for _, upSeg := range *upSegs {
 			if matchReqIA(upSeg.FirstIA(), dstIA) {

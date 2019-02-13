@@ -134,7 +134,6 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 
 	logger.Debug("[segReqHandler] found segs", "up", len(upSegs), "core", len(coreSegs))
 	selectConnectedSegs(maxResSegs, &upSegs, &coreSegs, nil, h.localIA, dst)
-
 	logger.Debug("[segReqHandler] returning segs", "up", len(upSegs), "core", len(coreSegs))
 	h.sendReply(ctx, msger, upSegs, coreSegs, nil, segReq)
 }
