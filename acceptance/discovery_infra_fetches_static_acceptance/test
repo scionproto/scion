@@ -14,11 +14,13 @@ test_setup() {
     set -e
     base_setup
 
-    for elem in gen/ISD1/AS$AS_FILE/{cs,ps}*; do
+    for elem in gen/ISD1/AS$AS_FILE/{cs,ps,endhost}*; do
         for cfg in $elem/*.toml; do
             set_log_lvl "$cfg"
             set_interval "$cfg" "static"
-            sed -i -e "/\[discovery.static]/a Filename = \"/share/cache/${elem##*/}-topo.json\"" $cfg
+            elem=${elem##*/}
+            [ "$elem" != "endhost" ] || elem="sd$IA_FILE"
+            sed -i -e "/\[discovery.static]/a Filename = \"/share/cache/$elem-topo.json\"" $cfg
         done
     done
 
@@ -27,17 +29,20 @@ test_setup() {
 
 test_run() {
     set -e
-    # Start serving static topology.
+    # Start serving static topology. Full for infra services, default for sciond.
     jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $STATIC_FULL
+    cp $STATIC_FULL $STATIC_DEFAULT
     sleep 6
     # Check that the mock ds serves the file
     check_file "static"
     # Check that the logs contain setting and writing the topo.
     check_logs "ps$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
+    check_logs "sd$IA_FILE"
     # Check that the written file does not differ from the served file.
     check_diff "ps$IA_FILE-1"
     check_diff "cs$IA_FILE-1"
+    check_diff "sd$IA_FILE"
 }
 
 check_logs() {

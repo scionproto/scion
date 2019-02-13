@@ -13,8 +13,10 @@ TEST_TOPOLOGY="topology/Tiny.topo"
 HTTP_DIR="gen/discovery_acceptance"
 STATIC_DIR="$HTTP_DIR/discovery/v1/static"
 STATIC_FULL="$STATIC_DIR/full.json"
+STATIC_DEFAULT="$STATIC_DIR/default.json"
 DYNAMIC_DIR="$HTTP_DIR/discovery/v1/dynamic"
 DYNAMIC_FULL="$DYNAMIC_DIR/full.json"
+DYNAMIC_DEFAULT="$DYNAMIC_DIR/default.json"
 
 
 base_setup() {
@@ -57,6 +59,7 @@ set_interval() {
 
 check_file() {
     curl -f -s -S "$( jq -r '.DiscoveryService[].Addrs[].Public | "\(.Addr):\(.L4Port)"' "$TOPO" )/discovery/v1/$1/full.json" > /dev/null
+    curl -f -s -S "$( jq -r '.DiscoveryService[].Addrs[].Public | "\(.Addr):\(.L4Port)"' "$TOPO" )/discovery/v1/$1/default.json" > /dev/null
 }
 
 print_help() {
