@@ -105,7 +105,7 @@ cmd_mstart() {
 }
 
 run_setup() {
-    [ -n "$CIRCLECI" ] || python/integration/set_ipv6_addr.py -a
+    python/integration/set_ipv6_addr.py -a
      # Create dispatcher and sciond dirs or change owner
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"

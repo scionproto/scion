@@ -4,5 +4,6 @@ set -e
 
 BASE_IMG=${BASE_IMG:-d0df659466340dfc30f277f383ade9f0e1069ae2d2ac621f1a04d3eed258f388}
 
-./tools/ci/prepare_image "$BASE_IMG"
+docker pull scionproto/scion_base@sha256:$BASE_IMG
+docker tag scionproto/scion_base@sha256:$BASE_IMG scion_base:latest
 ./docker.sh build
