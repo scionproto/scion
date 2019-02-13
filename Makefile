@@ -9,7 +9,7 @@ clean:
 	cd go && $(MAKE) clean
 	rm -f bin/* tags
 
-go: libscion
+go:
 	@# `make -C go` breaks if there are symlinks in $PWD
 	cd go && $(MAKE)
 
