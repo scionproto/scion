@@ -277,8 +277,10 @@ func (p *connectedSegs) numHops() int {
 	return n
 }
 
-// Filter upSegs, coreSegs and downSegs to include at most maxNumSegments segments. Ensures that the remaining segments can be connected to allow forming paths between srcIA and dstIA.
-func selectConnectedSegs(maxNumSegments int, upSegs, coreSegs, downSegs *seg.Segments, srcIA, dstIA addr.IA) {
+// Filter upSegs, coreSegs and downSegs to include at most maxNumSegments segments. Ensures that the
+// remaining segments can be connected to allow forming paths between srcIA and dstIA.
+func selectConnectedSegs(maxNumSegments int, upSegs, coreSegs, downSegs *seg.Segments,
+	srcIA, dstIA addr.IA) {
 
 	plen := func(s *seg.Segments) int {
 		if s != nil {
@@ -340,9 +342,9 @@ func matchReqIA(addr, req addr.IA) bool {
 // - if downSegs is present, downSegs end (==LastIA()) in dstIA
 // - if upSegs are present, srcIA is not core
 // - if downSegs are present, dstIA is not core
-func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments, srcIA, dstIA addr.IA) []connectedSegs {
+func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
+	srcIA, dstIA addr.IA) []connectedSegs {
 
-	log.Trace("allConnectedSegs:")
 	paths := make([]connectedSegs, 0)
 
 	// Core direct
@@ -389,7 +391,6 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments, srcIA, dstIA add
 	} else if upSegs == nil {
 		// Down from src
 		for _, downSeg := range *downSegs {
-			log.Trace("down from src", "downFirst", downSeg.FirstIA(), "downLast", downSeg.LastIA(), "src", srcIA, "dst", dstIA)
 			if matchReqIA(downSeg.FirstIA(), srcIA) {
 				paths = append(paths, connectedSegs{
 					Up:   nil,
@@ -401,7 +402,6 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments, srcIA, dstIA add
 		// Core-Down
 		for _, coreSeg := range *coreSegs {
 			for _, downSeg := range *downSegs {
-				log.Trace("core-down", "coreFirst", coreSeg.FirstIA(), "coreLast", coreSeg.LastIA(), "downFirst", downSeg.FirstIA(), "downLast", downSeg.LastIA(), "src", srcIA, "dst", dstIA)
 				if !coreSeg.LastIA().Eq(downSeg.FirstIA()) {
 					continue
 				}
@@ -415,7 +415,6 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments, srcIA, dstIA add
 	} else if downSegs == nil {
 		// Up to dst
 		for _, upSeg := range *upSegs {
-			log.Trace("up to dst", "upFirst", upSeg.FirstIA(), "upLast", upSeg.LastIA(), "src", srcIA, "dst", dstIA)
 			if matchReqIA(upSeg.FirstIA(), dstIA) {
 				paths = append(paths, connectedSegs{
 					Up:   upSeg,
@@ -427,7 +426,6 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments, srcIA, dstIA add
 		// Up-Core
 		for _, upSeg := range *upSegs {
 			for _, coreSeg := range *coreSegs {
-				log.Trace("up-core:", "upFirst", upSeg.FirstIA(), "upLast", upSeg.LastIA(), "coreFirst", coreSeg.FirstIA(), "coreLast", coreSeg.LastIA(), "src", srcIA, "dst", dstIA)
 				if !upSeg.FirstIA().Eq(coreSeg.LastIA()) {
 					continue
 				}
