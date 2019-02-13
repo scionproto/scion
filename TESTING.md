@@ -36,7 +36,7 @@ topology, specify the `-d` flag.
 
 If you want to use `docker-compose` commands, `./tools/dc` might be helpful.
 
-### Circle-CI
-The SCION project uses Circle-CI as its continuous integration platform. To run a local version
-of Circle-CI first build a docker image as described in `docker/README.md` and then run
-`tools/ci/local`.
+### CI
+The SCION project uses Buildkite as its continuous integration platform. To run an approximated
+local version of the CI pipeline (does not include acceptance tests), first build a docker image
+as described in `docker/README.md` and then run `tools/ci/local`.

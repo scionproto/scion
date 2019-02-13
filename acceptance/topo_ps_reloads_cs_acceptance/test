@@ -33,7 +33,7 @@ test_run() {
     # Wait for 30 (PS crypto push interval) + 1 (logging flush interval) seconds to guarantee a push is seen
     sleep 31
     grep -q "\[INFO\].*Sent crypto to CS.*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \
-        { echo "Crypto material push to 127.42.42.42:39999 not found in logs"; return 1; }
+        fail "Crypto material push to 127.42.42.42:39999 not found in logs"
 }
 
 print_help() {

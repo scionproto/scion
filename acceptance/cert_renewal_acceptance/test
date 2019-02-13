@@ -39,16 +39,16 @@ test_setup() {
 test_run() {
     set -e
     sleep 10
-    bin/end2end_integration -src $IA -dst $CORE_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass." ; return 1; }
+    bin/end2end_integration -src $IA -dst $CORE_IA -attempts 5 -d || fail "FAIL: Traffic does not pass."
     # Make sure a reissue cycle has passed.
     sleep 10
     # Check that reissued certificates appear in the logs.
     grep -q '\[reiss.Self\] Created issuer certificate cert="Certificate' "logs/cs$CORE_IA_FILE-1.log" || \
-        { echo "Issuer certificate updated for $CORE_IA not found in logs"; return 1; }
+        fail "Issuer certificate updated for $CORE_IA not found in logs"
     grep -q "\[reiss.Self\] Created certificate chain chain=\"CertificateChain $CORE_IA" "logs/cs$CORE_IA_FILE-1.log" || \
-        { echo "Certificate chain updated for $CORE_IA not found in logs"; return 1; }
+        fail "Certificate chain updated for $CORE_IA not found in logs"
     grep -q "\[reiss.Requester\] Updated certificate chain chain=\"CertificateChain $IA" "logs/cs$IA_FILE-1.log" || \
-        { echo "Certificate chain updated for $IA not found in logs"; return 1; }
+        fail "Certificate chain updated for $IA not found in logs"
 }
 
 test_teardown() {

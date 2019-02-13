@@ -21,20 +21,42 @@ import (
 )
 
 var (
-	// DefaultFetchInterval is the default time between two queries.
-	DefaultFetchInterval = 5 * time.Second
+	// DefaultDynamicFetchInterval is the default time between two dynamic topology queries.
+	DefaultDynamicFetchInterval = 5 * time.Second
+	// DefaultStaticFetchInterval is the default time between two static topology queries.
+	DefaultStaticFetchInterval = 5 * time.Minute
 	// DefaultFetchTimeout is the default timeout for a query.
 	DefaultFetchTimeout = 1 * time.Second
 )
 
 type Config struct {
+	// Static contains the parameters for fetching the static
+	// topology from the discovery service.
+	Static StaticConfig
 	// Dynamic contains the parameters for fetching the dynamic
 	// topology from the discovery service.
 	Dynamic FetchConfig
 }
 
 func (c *Config) InitDefaults() {
+	c.Static.InitDefaults()
 	c.Dynamic.InitDefaults()
+}
+
+type StaticConfig struct {
+	FetchConfig
+	// Filename indicates the file that the static topology is written to on updates.
+	// The empty string indicates that the static topology is not written.
+	Filename string
+}
+
+func (s *StaticConfig) InitDefaults() {
+	if s.Interval.Duration == 0 {
+		s.Interval.Duration = DefaultStaticFetchInterval
+	}
+	if s.Timeout.Duration == 0 {
+		s.Timeout.Duration = DefaultFetchTimeout
+	}
 }
 
 type FetchConfig struct {
@@ -51,7 +73,7 @@ type FetchConfig struct {
 
 func (f *FetchConfig) InitDefaults() {
 	if f.Interval.Duration == 0 {
-		f.Interval.Duration = DefaultFetchInterval
+		f.Interval.Duration = DefaultDynamicFetchInterval
 	}
 	if f.Timeout.Duration == 0 {
 		f.Timeout.Duration = DefaultFetchTimeout

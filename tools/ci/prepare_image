@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set -ex
-
-docker pull scionproto/scion_base@sha256:${1:?"Image hash not specified!"}
-docker tag scionproto/scion_base@sha256:$1 scion_base:latest

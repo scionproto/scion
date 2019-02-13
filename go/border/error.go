@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
@@ -120,7 +121,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	oldHBH := sp.HBHExt
 	sp.HBHExt = make([]common.Extension, 0, common.ExtnMaxHBH+1)
 	// Add new SCMP HBH extension at the start.
-	ext := &scmp.Extn{Error: true}
+	ext := &layers.ExtnSCMP{Error: true}
 	if ct.Class == scmp.C_Path && ct.Type == scmp.T_P_RevokedIF {
 		// Revocation SCMP errors have to be inspected by intermediate routers.
 		ext.HopByHop = true

@@ -37,7 +37,7 @@ test_run() {
     ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
     sleep 2
     grep -q "\[TRACE\] \[Messenger\] Sending request .*req_type=ChainRequest .*$SRC_IA,\[127\.42\.42\.42\]:39999" "logs/sd$SRC_IA_FILE.log" || \
-        { echo "Certificate chain request to 127.42.42.42:39999 not found in logs"; return 1; }
+        fail "Certificate chain request to 127.42.42.42:39999 not found in logs"
 }
 
 print_help() {

@@ -36,7 +36,7 @@ test_run() {
     ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
     sleep 2
     grep -q "NextHop=\[127\.42\.42\.42\]:39999" "logs/ps$SRC_IA_FILE-1.log" || \
-        { echo "PS path request with next-hop 127.42.42.42:39999 not found in logs"; return 1; }
+        fail "PS path request with next-hop 127.42.42.42:39999 not found in logs"
 }
 
 print_help() {

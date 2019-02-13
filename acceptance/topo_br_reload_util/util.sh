@@ -13,11 +13,11 @@ DST_TOPO="gen/ISD1/AS$DST_AS_FILE/br$DST_IA_FILE-1/topology.json"
 . acceptance/common.sh
 
 check_logs() {
-    fgrep -q "$1" "logs/br$2-1.log" || { echo "Not found: $1"; return 1; }
+    fgrep -q "$1" "logs/br$2-1.log" || fail "Not found: $1"
 }
 
 check_connectivity() {
-    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass. step=( $1 )" ; return 1; }
+    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || fail "FAIL: Traffic does not pass. step=( $1 )"
 }
 
 unqoute() {
