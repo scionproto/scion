@@ -33,11 +33,11 @@
 //
 // Files
 //
-// There are two privilege versions of the topology file. The reduced version
+// There are two privilege versions of the topology file. The endhost version
 // is intended for end hosts and non-privileged entities. The full version is
-// only intended for privileged entites that need all topology information.
+// only intended for privileged entities that need all topology information.
 //
-// Reduced: The reduced version of the topology file contains all the
+// Endhost: The endhost version of the topology file contains all the
 // information necessary for end hosts. Unnecessary information is stripped
 // from the file (e.g. border router interface addresses or beacon service
 // addresses).
@@ -46,13 +46,19 @@
 // This file is only accessible by privileged entities (e.g infrastructure
 // elements).
 //
+// Default: When the default version of the topology file is requested, the
+// discovery service decides which version to serve based on the privilege
+// of the requester.
+//
 // Paths
 //
 // The topology files are fetched with a simple http get request. The path
 // is dependent on the mode and file version:
-//  static  && reduced:  /discovery/v1/static/reduced.json
+//  static  && default:  /discovery/v1/static/default.json
+//  static  && endhost:  /discovery/v1/static/endhost.json
 //  static  && full:     /discovery/v1/static/full.json
-//  dynamic && reduced:  /discovery/v1/dynamic/reduced.json
+//  dynamic && default:  /discovery/v1/dynamic/default.json
+//  dynamic && endhost:  /discovery/v1/dynamic/endhost.json
 //  dynamic && full:     /discovery/v1/dynamic/full.json
 package discovery
 
@@ -74,7 +80,7 @@ import (
 type FetchParams struct {
 	// Mode indicates whether the static or the dynamic topology is requested.
 	Mode Mode
-	// File indicates whether the full or the reduced topology is requested.
+	// File indicates whether the full, endhost or default topology is requested.
 	File File
 	// Https indicates whether https should be used.
 	Https bool
@@ -94,8 +100,11 @@ type File string
 const (
 	// Full is the full topology file, including all service information.
 	Full File = "full.json"
-	// Reduced is a stripped down topology file for non-privileged entities.
-	Reduced File = "reduced.json"
+	// Endhost is a stripped down topology file for non-privileged entities.
+	Endhost File = "endhost.json"
+	// Default is a topology file whose content is based on the privilege of
+	// the requester.
+	Default File = "default.json"
 )
 
 const (

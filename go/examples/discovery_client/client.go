@@ -160,5 +160,5 @@ func file() discovery.File {
 	if *full {
 		return discovery.Full
 	}
-	return discovery.Reduced
+	return discovery.Endhost
 }
