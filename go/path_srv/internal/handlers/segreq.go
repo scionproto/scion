@@ -332,7 +332,7 @@ func selectConnectedSegs(maxNumSegments int, upSegs, coreSegs, downSegs *seg.Seg
 }
 
 func matchReqIA(addr, req addr.IA) bool {
-	return addr.Eq(req) || (addr.I == req.I && req.A == 0)
+	return addr.Equal(req) || (addr.I == req.I && req.A == 0)
 }
 
 // Helper for selectConnectedSegs.
@@ -361,7 +361,7 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 		// Up-Down direct
 		for _, upSeg := range *upSegs {
 			for _, downSeg := range *downSegs {
-				if upSeg.FirstIA().Eq(downSeg.FirstIA()) {
+				if upSeg.FirstIA().Equal(downSeg.FirstIA()) {
 					paths = append(paths, connectedSegs{
 						Up:   upSeg,
 						Core: nil,
@@ -373,11 +373,11 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 		// Up-Core-Down
 		for _, upSeg := range *upSegs {
 			for _, coreSeg := range *coreSegs {
-				if !upSeg.FirstIA().Eq(coreSeg.LastIA()) {
+				if !upSeg.FirstIA().Equal(coreSeg.LastIA()) {
 					continue
 				}
 				for _, downSeg := range *downSegs {
-					if !coreSeg.FirstIA().Eq(downSeg.FirstIA()) {
+					if !coreSeg.FirstIA().Equal(downSeg.FirstIA()) {
 						continue
 					}
 					paths = append(paths, connectedSegs{
@@ -402,7 +402,7 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 		// Core-Down
 		for _, coreSeg := range *coreSegs {
 			for _, downSeg := range *downSegs {
-				if !coreSeg.LastIA().Eq(downSeg.FirstIA()) {
+				if !coreSeg.LastIA().Equal(downSeg.FirstIA()) {
 					continue
 				}
 				paths = append(paths, connectedSegs{
@@ -426,7 +426,7 @@ func allConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 		// Up-Core
 		for _, upSeg := range *upSegs {
 			for _, coreSeg := range *coreSegs {
-				if !upSeg.FirstIA().Eq(coreSeg.LastIA()) {
+				if !upSeg.FirstIA().Equal(coreSeg.LastIA()) {
 					continue
 				}
 				paths = append(paths, connectedSegs{
