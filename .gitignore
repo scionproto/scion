@@ -44,9 +44,8 @@ __pycache__
 .installstamp
 *.d
 
-# Documentation and Environment files
+# Environment files
 #########################
-/sphinx-doc/_build/
 /venv/
 
 # Docker working directory

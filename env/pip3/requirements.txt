@@ -2,8 +2,6 @@
 pycapnp==0.6.1 --hash=sha256:ea60837533307849e98bb3494555cea28a52ea0c301cfdf32bce661931940696 # Direct dependency
 # PyDbLite: licenses/BSD-3-Clause
 PyDbLite==3.0.4 --hash=sha256:79ed97d17b5954c6fa8927d9f36033cb4486d1304005057d506ac1dee999bad6 # Direct dependency
-# sphinxcontrib-napoleon: licenses/sphinxcontrib-napoleon
-sphinxcontrib-napoleon==0.5.3 --hash=sha256:a809ab437a5617442ae4f919e50a3f953faff1730e9234bcc502fdf594bbbfbb # Direct dependency
 # cryptography: licenses/cryptography
 cryptography==1.8.1 --hash=sha256:323524312bb467565ebca7e50c8ae5e9674e544951d28a2904a50012a8828190 # Direct dependency
 # pockets: licenses/BSD-3-Clause

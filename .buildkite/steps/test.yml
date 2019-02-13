@@ -1,4 +1,4 @@
-- label: Unit tests and Sphinx
+- label: Unit tests
   command: $BASE/run_step test
   artifact_paths:
       - "artifacts.out/**/*"

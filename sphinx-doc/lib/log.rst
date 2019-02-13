@@ -1,3 +1,0 @@
-
-.. automodule:: lib.log
-   :members:
