@@ -328,7 +328,7 @@ type clbkCalled struct {
 
 func (c *clbkCalled) check(clean, drop, update bool) {
 	// Wait for callbacks to be executed
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 	SoMsg("clbk clean", c.clean, ShouldEqual, clean)
 	SoMsg("clbk drop", c.drop, ShouldEqual, drop)
 	SoMsg("clbk update", c.update, ShouldEqual, update)
