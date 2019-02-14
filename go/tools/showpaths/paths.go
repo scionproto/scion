@@ -163,7 +163,7 @@ func getStatuses(paths []sciond.PathReplyEntry) map[string]string {
 	// with invalid address via the path. The border router at the destination
 	// is going to reply with SCMP error. Receiving the error means that
 	// the path is alive.
-	if err := snet.Init(srcIA, "", reliable.DefaultDispPath); err != nil {
+	if err := snet.Init(srcIA, "", reliable.NewDispatcherService("")); err != nil {
 		LogFatal("Initializing SNET", "err", err)
 	}
 	snetConn, err := snet.ListenSCION("udp4", &local)

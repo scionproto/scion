@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const (
@@ -95,7 +96,8 @@ func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
 	// done transparently and pushed to snet.NewNetwork.
 Top:
 	for {
-		if network, err = snet.NewNetwork(ia, sciond.Path, ""); err == nil || sciond.Path == "" {
+		network, err = snet.NewNetwork(ia, sciond.Path, reliable.NewDispatcherService(""))
+		if err == nil || sciond.Path == "" {
 			break
 		}
 		select {
