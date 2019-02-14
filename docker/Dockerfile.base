@@ -91,8 +91,9 @@ COPY docker/profile $HOME/.profile
 # Install basic screen config
 COPY docker/screenrc $HOME/.screenrc
 
-# Fix ownership one last time:
-RUN sudo chown -R scion: $HOME
+# Fix ownership one last time. Chown is an expensive operation in terms of docker
+# image size so chown only the files that belong to different users.
+RUN sudo find $HOME -not -user scion -execdir chown scion {} \+
 
 COPY docker/docker-entrypoint.sh /
 
