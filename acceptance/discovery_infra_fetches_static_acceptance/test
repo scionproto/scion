@@ -43,6 +43,8 @@ test_run() {
     check_diff "ps$IA_FILE-1"
     check_diff "cs$IA_FILE-1"
     check_diff "sd$IA_FILE"
+
+    check_infra_fail_action "static"
 }
 
 check_logs() {
