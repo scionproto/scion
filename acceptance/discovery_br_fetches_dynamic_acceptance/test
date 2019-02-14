@@ -44,6 +44,8 @@ test_run() {
     # Wait until dynamic topology expires.
     sleep 10
     check_connectivity "dynamic topology expired"
+
+    check_br_fail_action "dynamic"
 }
 
 check_connectivity() {
