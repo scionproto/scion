@@ -254,16 +254,36 @@ func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA
 func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 	src, dst addr.IA) {
 
-	opt := func(segs *seg.Segments) seg.Segments {
-		if segs != nil {
-			return *segs
-		}
-		return seg.Segments{}
+	var tmpUp, tmpCore, tmpDown seg.Segments
+	if upSegs != nil {
+		tmpUp = *upSegs
+	}
+	if coreSegs != nil {
+		tmpCore = *coreSegs
+	}
+	if downSegs != nil {
+		tmpDown = *downSegs
 	}
 
-	srcs := expandWildcard(opt(upSegs), opt(coreSegs), opt(downSegs), src)
-	dsts := expandWildcard(opt(upSegs), opt(coreSegs), opt(downSegs), dst)
-	graph := combinator.NewDMG(opt(upSegs), opt(coreSegs), opt(downSegs))
+	tmpUp, tmpCore, tmpDown = selectConnectedSegsImpl(tmpUp, tmpCore, tmpDown, src, dst)
+
+	if upSegs != nil {
+		*upSegs = tmpUp
+	}
+	if coreSegs != nil {
+		*coreSegs = tmpCore
+	}
+	if downSegs != nil {
+		*downSegs = tmpDown
+	}
+}
+
+func selectConnectedSegsImpl(upSegs, coreSegs, downSegs seg.Segments,
+	src, dst addr.IA) (seg.Segments, seg.Segments, seg.Segments) {
+
+	srcs := expandWildcard(upSegs, coreSegs, downSegs, src)
+	dsts := expandWildcard(upSegs, coreSegs, downSegs, dst)
+	graph := combinator.NewDMG(upSegs, coreSegs, downSegs)
 	var paths combinator.PathSolutionList
 	for _, s := range srcs {
 		for _, d := range dsts {
@@ -283,7 +303,7 @@ func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 		// check if the this path could fit.
 		numNew := 0
 		for _, seg := range segs {
-			if _, ok := selSegs[seg.PathSegment]; ok {
+			if _, ok := selSegs[seg.PathSegment]; !ok {
 				numNew++
 			}
 		}
@@ -300,15 +320,10 @@ func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 		_, selected := selSegs[s]
 		return selected
 	}
-	if upSegs != nil {
-		upSegs.FilterSegs(selSegFunc)
-	}
-	if coreSegs != nil {
-		coreSegs.FilterSegs(selSegFunc)
-	}
-	if downSegs != nil {
-		downSegs.FilterSegs(selSegFunc)
-	}
+	upSegs.FilterSegs(selSegFunc)
+	coreSegs.FilterSegs(selSegFunc)
+	downSegs.FilterSegs(selSegFunc)
+	return upSegs, coreSegs, downSegs
 }
 
 // Return all core AS matching wildcard ia.
