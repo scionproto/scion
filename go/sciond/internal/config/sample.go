@@ -82,6 +82,19 @@ const Sample = `[general]
     # empty string, the updated topologies are not written. (default "")
     Filename = ""
 
+    [discovery.static.connect]
+      # Maximum time spent attempting to fetch the topology from the
+      # discovery service on start. If no topology is successfully fetched
+      # in this period, the FailAction is executed. (default 20s)
+      InitialPeriod = "20s"
+
+      # The action to take if no topology is successfully fetched in
+      # the InitialPeriod.
+      # - Fatal: Exit process.
+      # - Continue: Log error and continue with execution.
+      # (Fatal | Continue) (default Continue)
+      FailAction = "Continue"
+
   [discovery.dynamic]
     # Enable periodic fetching of the dynamic topology. (default false)
     Enable = false
@@ -94,6 +107,18 @@ const Sample = `[general]
 
     # Require https connection. (default false)
     Https = false
+
+    [discovery.dynamic.connect]
+      # Maximum time spent attempting to fetch the topology from the
+      # discovery service on start. If no topology is successfully fetched
+      # in this period, the FailAction is executed. (default 20s)
+      InitialPeriod = "20s"
+
+      # The action to take if no topology is successfully fetched in InitialPeriod.
+      # - Fatal: Exit process.
+      # - Continue: Log error and continue with execution.
+      # (Fatal | Continue) (default Continue)
+      FailAction = "Continue"
 
 [sd]
   # Address to listen on via the reliable socket protocol. If empty,
