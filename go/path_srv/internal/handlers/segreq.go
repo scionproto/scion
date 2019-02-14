@@ -38,8 +38,11 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-const (
-	maxResSegs = 10 // Maximum total of segments returned in a reply to a segment request
+var (
+	// Maximum total of segments returned in a reply to a segment
+	// request. A value <= 0 is interpreted as unlimited, i.e. all segments will
+	// be returned.
+	MaxResSegs = 10
 )
 
 type segReqHandler struct {
@@ -245,10 +248,9 @@ func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA
 	return now.After(*nq), nil
 }
 
-// Filter upSegs, coreSegs and downSegs to include at most maxNumSegments segments. Ensures that the
+// Filter upSegs, coreSegs and downSegs to include at most MaxResSegs segments. Ensures that the
 // remaining segments can be connected to allow forming paths between src and dst.
-// Wildcard addresses are supported for dst, but not for src.
-func selectConnectedSegs(maxNumSegments int, upSegs, coreSegs, downSegs *seg.Segments,
+func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 	src, dst addr.IA) {
 
 	opt := func(segs *seg.Segments) seg.Segments {
@@ -258,12 +260,12 @@ func selectConnectedSegs(maxNumSegments int, upSegs, coreSegs, downSegs *seg.Seg
 		return seg.Segments{}
 	}
 
-	dmg := combinator.NewDMG(opt(upSegs), opt(coreSegs), opt(downSegs))
-	paths := dmg.GetPaths(combinator.VertexFromIA(src), combinator.VertexFromIA(dst))
+	graph := combinator.NewDMG(opt(upSegs), opt(coreSegs), opt(downSegs))
+	paths := graph.GetPaths(combinator.VertexFromIA(src), combinator.VertexFromIA(dst))
 
 	selSegs := make(map[*seg.PathSegment]struct{})
 	for _, p := range paths {
-		if len(selSegs) >= maxNumSegments {
+		if MaxResSegs > 0 && len(selSegs) >= MaxResSegs {
 			break
 		}
 		segs := p.Segments()
@@ -275,7 +277,7 @@ func selectConnectedSegs(maxNumSegments int, upSegs, coreSegs, downSegs *seg.Seg
 				numNew++
 			}
 		}
-		if len(selSegs)+numNew > maxNumSegments {
+		if MaxResSegs > 0 && len(selSegs)+numNew > MaxResSegs {
 			continue
 		}
 		// mark segs as used

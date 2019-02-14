@@ -133,7 +133,7 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	}
 
 	logger.Debug("[segReqHandler] found segs", "up", len(upSegs), "core", len(coreSegs))
-	selectConnectedSegs(maxResSegs, &upSegs, &coreSegs, nil, h.localIA, dst)
+	selectConnectedSegs(&upSegs, &coreSegs, nil, h.localIA, dst)
 	logger.Debug("[segReqHandler] returning segs", "up", len(upSegs), "core", len(coreSegs))
 	h.sendReply(ctx, msger, upSegs, coreSegs, nil, segReq)
 }
@@ -183,7 +183,7 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 	}
 	logger.Debug("[segReqHandler:handleNonCoreDst] found segs",
 		"up", len(upSegs), "core", len(coreSegs), "down", len(downSegs))
-	selectConnectedSegs(maxResSegs, &upSegs, &coreSegs, &downSegs, h.localIA, dstIA)
+	selectConnectedSegs(&upSegs, &coreSegs, &downSegs, h.localIA, dstIA)
 	logger.Debug("[segReqHandler:handleNonCoreDst] returning segs",
 		"up", len(upSegs), "core", len(coreSegs), "down", len(downSegs))
 	h.sendReply(ctx, msger, upSegs, coreSegs, downSegs, segReq)
