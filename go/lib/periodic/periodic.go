@@ -83,7 +83,7 @@ func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner 
 	return runner
 }
 
-// Stop stops the peridioc execution of the Runner.
+// Stop stops the periodic execution of the Runner.
 // If the task is currently running this method will block until it is done.
 func (r *Runner) Stop() {
 	r.ticker.Stop()
