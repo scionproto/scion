@@ -57,9 +57,65 @@ set_interval() {
     sed -i -e "/\[discovery.$2]/a Interval = \"1s\"" "$1"
 }
 
+set_connect() {
+    printf "\n[discovery.$2.Connect]\nInitialPeriod = \"$3\"" >> "$1"
+}
+
+set_fail_action() {
+    sed -i -e "/\[discovery.$2.Connect]/a FailAction = \"$3\"" "$1"
+}
+
 check_file() {
     curl -f -s -S "$( jq -r '.DiscoveryService[].Addrs[].Public | "\(.Addr):\(.L4Port)"' "$TOPO" )/discovery/v1/$1/full.json" > /dev/null
     curl -f -s -S "$( jq -r '.DiscoveryService[].Addrs[].Public | "\(.Addr):\(.L4Port)"' "$TOPO" )/discovery/v1/$1/default.json" > /dev/null
+}
+
+
+check_infra_fail_action() {
+    stop_mock_ds
+    # Check that services continue if fail action is not set.
+    for cfg in gen/ISD1/AS$AS_FILE/*/{{cs,ps}config,sciond}.toml; do
+        set_connect "$cfg" "$1" "5s"
+    done
+    ./tools/dc scion restart "scion_ps$IA_FILE-1" "scion_cs$IA_FILE-1" "scion_sd$IA_FILE"
+    sleep 10
+    local err="$( check_stopped_count "ps$IA_FILE-1" 1 )" || fail "Error: ps$IA_FILE-1 not running err=$err"
+    local err="$( check_stopped_count "cs$IA_FILE-1" 1 )" || fail "Error: cs$IA_FILE-1 not running err=$err"
+    local err="$( check_stopped_count "sd$IA_FILE" 1 )" || fail "Error: sd$IA_FILE not running err=$err"
+
+    # Check that services exit if fail action is fatal
+    for cfg in gen/ISD1/AS$AS_FILE/*/{{cs,ps}config,sciond}.toml; do
+        set_fail_action "$cfg" "$1" "Fatal"
+    done
+    ./tools/dc scion restart "scion_ps$IA_FILE-1" "scion_cs$IA_FILE-1" "scion_sd$IA_FILE"
+    sleep 10
+    local err="$( check_stopped_count "ps$IA_FILE-1" 3 )" || fail "Error: ps$IA_FILE-1 still running err=$err"
+    local err="$( check_stopped_count "cs$IA_FILE-1" 3 )" || fail "Error: cs$IA_FILE-1 still running err=$err"
+    local err="$( check_stopped_count "sd$IA_FILE" 3 )" || fail "Error: sd$IA_FILE still running err=$err"
+}
+
+check_br_fail_action() {
+    stop_mock_ds
+    # Check that services continue if fail action is not set.
+    set_connect "gen/ISD1/AS$AS_FILE/br$IA_FILE-1/brconfig.toml" "$1" "5s"
+    ./tools/dc scion restart "scion_br$IA_FILE-1"
+    sleep 10
+    local err="$( check_stopped_count "br$IA_FILE-1" 1 )" || fail "Error: br$IA_FILE-1 not running err=$err"
+
+    # Check that services exit if fail action is fatal
+    set_fail_action "gen/ISD1/AS$AS_FILE/br$IA_FILE-1/brconfig.toml" "$1" "Fatal"
+    ./tools/dc scion restart "scion_br$IA_FILE-1"
+    sleep 10
+    local err="$( check_stopped_count "br$IA_FILE-1" 3 )" || fail "Error: br$IA_FILE-1 still running err=$err"
+}
+
+stop_mock_ds() {
+    ./tools/dc scion stop 'mock_ds1-ff00_0_111-1'
+}
+
+check_stopped_count() {
+    local c="$( grep "\[INFO\] =====================> Service stopped" "logs/$1.log" | wc -l )"
+    [ "$c" == "$2" ] || echo "Invalid count expected=$2 actual=$c"
 }
 
 print_help() {

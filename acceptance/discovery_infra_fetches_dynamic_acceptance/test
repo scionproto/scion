@@ -32,6 +32,8 @@ test_run() {
     check_logs "ps$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
     check_logs "sd$IA_FILE"
+
+    check_infra_fail_action "dynamic"
 }
 
 check_logs() {
