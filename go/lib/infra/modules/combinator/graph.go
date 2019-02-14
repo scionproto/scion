@@ -172,7 +172,12 @@ func (g *DMG) AddEdge(src, dst Vertex, segment *InputSegment, edge *Edge) {
 // GetPaths returns all the paths from src to dst, sorted according to weight.
 func (g *DMG) GetPaths(src, dst Vertex) PathSolutionList {
 	var solutions PathSolutionList
-	queue := PathSolutionList{&PathSolution{currentVertex: src}}
+	queue := PathSolutionList{}
+	for vertex := range g.Adjacencies {
+		if src.Matches(vertex) {
+			queue = append(queue, &PathSolution{currentVertex: vertex})
+		}
+	}
 	for len(queue) > 0 {
 		currentPathSolution := queue[0]
 		queue = queue[1:]
@@ -202,7 +207,7 @@ func (g *DMG) GetPaths(src, dst Vertex) PathSolutionList {
 						dst:     nextVertex,
 					})
 
-				if nextVertex == dst {
+				if dst.Matches(nextVertex) {
 					solutions = append(solutions, newSolution)
 					// Do not break, because we want all solutions
 				} else {
@@ -215,9 +220,17 @@ func (g *DMG) GetPaths(src, dst Vertex) PathSolutionList {
 	return solutions
 }
 
+type vertexType int
+
+const (
+	vertexIA vertexType = iota
+	vertexPeering
+)
+
 // Vertex is a union-like type for the AS vertices and Peering link vertices in
 // a DMG that can be used as key in maps.
 type Vertex struct {
+	Type     vertexType
 	IA       addr.IA
 	UpIA     addr.IA
 	UpIFID   common.IFIDType
@@ -226,19 +239,35 @@ type Vertex struct {
 }
 
 func VertexFromIA(ia addr.IA) Vertex {
-	return Vertex{IA: ia}
+	return Vertex{Type: vertexIA, IA: ia}
 }
 
 func VertexFromPeering(upIA addr.IA, upIFID common.IFIDType,
 	downIA addr.IA, downIFID common.IFIDType) Vertex {
 
-	return Vertex{UpIA: upIA, UpIFID: upIFID, DownIA: downIA, DownIFID: downIFID}
+	return Vertex{Type: vertexPeering,
+		UpIA: upIA, UpIFID: upIFID, DownIA: downIA, DownIFID: downIFID}
 }
 
 // Reverse returns a new vertex that contains the peering information in
 // reverse. AS vertices remain unchanged.
 func (v Vertex) Reverse() Vertex {
-	return Vertex{IA: v.IA, UpIA: v.DownIA, UpIFID: v.DownIFID, DownIA: v.UpIA, DownIFID: v.UpIFID}
+	return Vertex{Type: v.Type,
+		IA:   v.IA,
+		UpIA: v.DownIA, UpIFID: v.DownIFID, DownIA: v.UpIA, DownIFID: v.UpIFID}
+}
+
+// Check if Vertex v is either equal to vertex w or is a IA-Vertex with a
+// wildcard address matching the address in vertex w.
+func (v Vertex) Matches(w Vertex) bool {
+
+	if v.Type != w.Type {
+		return false
+	}
+	if v.Type == vertexIA {
+		return (v.IA.I == 0 || v.IA.I == w.IA.I) && (v.IA.A == 0 || v.IA.A == w.IA.A)
+	}
+	return v == w
 }
 
 // EdgeMap is used to keep the set of edges going from one vertex to another.
@@ -352,6 +381,15 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	path.reverseDownSegment()
 	path.aggregateInterfaces()
 	return path
+}
+
+// Get the segments constituting this path
+func (solution *PathSolution) Segments() []*InputSegment {
+	segs := make([]*InputSegment, 0, len(solution.edges))
+	for _, e := range solution.edges {
+		segs = append(segs, e.segment)
+	}
+	return segs
 }
 
 // PathSolutionList is a sort.Interface implementation for a slice of solutions.

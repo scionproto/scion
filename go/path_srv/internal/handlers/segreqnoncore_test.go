@@ -51,6 +51,8 @@ var (
 	core1_110 = xtest.MustParseIA("1-ff00:0:110")
 	core1_130 = xtest.MustParseIA("1-ff00:0:130")
 	core1_120 = xtest.MustParseIA("1-ff00:0:120")
+	core1_any = xtest.MustParseIA("1-0")
+	as1_112   = xtest.MustParseIA("1-ff00:0:112")
 	as1_132   = xtest.MustParseIA("1-ff00:0:132")
 
 	core2_210 = xtest.MustParseIA("2-ff00:0:210")
@@ -59,10 +61,12 @@ var (
 	as2_221   = xtest.MustParseIA("2-ff00:0:221")
 	as2_222   = xtest.MustParseIA("2-ff00:0:222")
 
-	seg130_132 = g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X})
 	seg110_130 = g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
+	seg120_112 = g.Beacon([]common.IFIDType{graph.If_120_X_111_B, graph.If_111_A_112_X})
+	seg120_130 = g.Beacon([]common.IFIDType{graph.If_120_A_130_B})
 	seg120_210 = g.Beacon([]common.IFIDType{graph.If_120_B_220_X, graph.If_220_X_210_X})
 	seg120_220 = g.Beacon([]common.IFIDType{graph.If_120_B_220_X})
+	seg130_132 = g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X})
 
 	seg210_211 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A})
 	seg210_220 = g.Beacon([]common.IFIDType{graph.If_210_X_220_X})
@@ -202,6 +206,17 @@ func TestSegReqLocal(t *testing.T) {
 			Expected: expectedSegs([]*seg.PathSegment{seg130_132},
 				[]*seg.PathSegment{seg110_130}, nil),
 		},
+		/*
+			{
+				Name:  "CoreDST: Single up, dst: core local wildcard",
+				SrcIA: as1_132,
+				DstIA: core1_any,
+				Ups:   []*seg.PathSegment{seg130_132},
+				Cores: []*seg.PathSegment{seg110_130, seg120_130},
+				Expected: expectedSegs([]*seg.PathSegment{seg130_132},
+					[]*seg.PathSegment{seg110_130, seg120_130}, nil),
+			},
+		*/
 		{
 			Name:  "CoreDST: Single up, dst: core remote",
 			SrcIA: as1_132,
@@ -238,10 +253,10 @@ func TestSegReqLocal(t *testing.T) {
 		},
 		{
 			Name:     "NonCoreDST: Single up, no core, single down",
-			SrcIA:    as2_222,
-			DstIA:    as2_211,
-			Ups:      []*seg.PathSegment{seg220_222},
-			Downs:    []*seg.PathSegment{seg210_211},
+			SrcIA:    as1_132,
+			DstIA:    as1_112,
+			Ups:      []*seg.PathSegment{seg130_132},
+			Downs:    []*seg.PathSegment{seg120_112},
 			Expected: expectedSegs(nil, nil, nil),
 		},
 		{
@@ -253,6 +268,15 @@ func TestSegReqLocal(t *testing.T) {
 			Downs: []*seg.PathSegment{seg210_211},
 			Expected: expectedSegs([]*seg.PathSegment{seg220_222},
 				[]*seg.PathSegment{seg210_220}, []*seg.PathSegment{seg210_211}),
+		},
+		{
+			Name:  "NonCoreDST: Single up, no core, single down with peering",
+			SrcIA: as2_222,
+			DstIA: as2_211,
+			Ups:   []*seg.PathSegment{seg220_222},
+			Downs: []*seg.PathSegment{seg210_211},
+			Expected: expectedSegs([]*seg.PathSegment{seg220_222}, nil,
+				[]*seg.PathSegment{seg210_211}),
 		},
 		{
 			Name:  "NonCoreDst: On up path dst",
