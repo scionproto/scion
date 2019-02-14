@@ -206,17 +206,15 @@ func TestSegReqLocal(t *testing.T) {
 			Expected: expectedSegs([]*seg.PathSegment{seg130_132},
 				[]*seg.PathSegment{seg110_130}, nil),
 		},
-		/*
-			{
-				Name:  "CoreDST: Single up, dst: core local wildcard",
-				SrcIA: as1_132,
-				DstIA: core1_any,
-				Ups:   []*seg.PathSegment{seg130_132},
-				Cores: []*seg.PathSegment{seg110_130, seg120_130},
-				Expected: expectedSegs([]*seg.PathSegment{seg130_132},
-					[]*seg.PathSegment{seg110_130, seg120_130}, nil),
-			},
-		*/
+		{
+			Name:  "CoreDST: Single up, dst: core local wildcard",
+			SrcIA: as1_132,
+			DstIA: core1_any,
+			Ups:   []*seg.PathSegment{seg130_132},
+			Cores: []*seg.PathSegment{seg110_130, seg120_130},
+			Expected: expectedSegs([]*seg.PathSegment{seg130_132},
+				[]*seg.PathSegment{seg110_130, seg120_130}, nil),
+		},
 		{
 			Name:  "CoreDST: Single up, dst: core remote",
 			SrcIA: as1_132,

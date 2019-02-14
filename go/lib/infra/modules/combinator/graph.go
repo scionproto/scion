@@ -172,12 +172,7 @@ func (g *DMG) AddEdge(src, dst Vertex, segment *InputSegment, edge *Edge) {
 // GetPaths returns all the paths from src to dst, sorted according to weight.
 func (g *DMG) GetPaths(src, dst Vertex) PathSolutionList {
 	var solutions PathSolutionList
-	queue := PathSolutionList{}
-	for vertex := range g.Adjacencies {
-		if src.Matches(vertex) {
-			queue = append(queue, &PathSolution{currentVertex: vertex})
-		}
-	}
+	queue := PathSolutionList{&PathSolution{currentVertex: src}}
 	for len(queue) > 0 {
 		currentPathSolution := queue[0]
 		queue = queue[1:]
@@ -207,7 +202,7 @@ func (g *DMG) GetPaths(src, dst Vertex) PathSolutionList {
 						dst:     nextVertex,
 					})
 
-				if dst.Matches(nextVertex) {
+				if nextVertex == dst {
 					solutions = append(solutions, newSolution)
 					// Do not break, because we want all solutions
 				} else {
@@ -220,17 +215,9 @@ func (g *DMG) GetPaths(src, dst Vertex) PathSolutionList {
 	return solutions
 }
 
-type vertexType int
-
-const (
-	vertexIA vertexType = iota
-	vertexPeering
-)
-
 // Vertex is a union-like type for the AS vertices and Peering link vertices in
 // a DMG that can be used as key in maps.
 type Vertex struct {
-	Type     vertexType
 	IA       addr.IA
 	UpIA     addr.IA
 	UpIFID   common.IFIDType
@@ -239,35 +226,19 @@ type Vertex struct {
 }
 
 func VertexFromIA(ia addr.IA) Vertex {
-	return Vertex{Type: vertexIA, IA: ia}
+	return Vertex{IA: ia}
 }
 
 func VertexFromPeering(upIA addr.IA, upIFID common.IFIDType,
 	downIA addr.IA, downIFID common.IFIDType) Vertex {
 
-	return Vertex{Type: vertexPeering,
-		UpIA: upIA, UpIFID: upIFID, DownIA: downIA, DownIFID: downIFID}
+	return Vertex{UpIA: upIA, UpIFID: upIFID, DownIA: downIA, DownIFID: downIFID}
 }
 
 // Reverse returns a new vertex that contains the peering information in
 // reverse. AS vertices remain unchanged.
 func (v Vertex) Reverse() Vertex {
-	return Vertex{Type: v.Type,
-		IA:   v.IA,
-		UpIA: v.DownIA, UpIFID: v.DownIFID, DownIA: v.UpIA, DownIFID: v.UpIFID}
-}
-
-// Check if Vertex v is either equal to vertex w or is a IA-Vertex with a
-// wildcard address matching the address in vertex w.
-func (v Vertex) Matches(w Vertex) bool {
-
-	if v.Type != w.Type {
-		return false
-	}
-	if v.Type == vertexIA {
-		return (v.IA.I == 0 || v.IA.I == w.IA.I) && (v.IA.A == 0 || v.IA.A == w.IA.A)
-	}
-	return v == w
+	return Vertex{IA: v.IA, UpIA: v.DownIA, UpIFID: v.DownIFID, DownIA: v.UpIA, DownIFID: v.UpIFID}
 }
 
 // EdgeMap is used to keep the set of edges going from one vertex to another.

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -260,8 +261,17 @@ func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 		return seg.Segments{}
 	}
 
+	srcs := expandWildcard(opt(upSegs), opt(coreSegs), opt(downSegs), src)
+	dsts := expandWildcard(opt(upSegs), opt(coreSegs), opt(downSegs), dst)
 	graph := combinator.NewDMG(opt(upSegs), opt(coreSegs), opt(downSegs))
-	paths := graph.GetPaths(combinator.VertexFromIA(src), combinator.VertexFromIA(dst))
+	var paths combinator.PathSolutionList
+	for _, s := range srcs {
+		for _, d := range dsts {
+			sdpaths := graph.GetPaths(combinator.VertexFromIA(s), combinator.VertexFromIA(d))
+			paths = append(paths, sdpaths...)
+		}
+	}
+	sort.Sort(paths)
 
 	selSegs := make(map[*seg.PathSegment]struct{})
 	for _, p := range paths {
@@ -299,4 +309,28 @@ func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 	if downSegs != nil {
 		downSegs.FilterSegs(selSegFunc)
 	}
+}
+
+// Return all core AS matching wildcard ia.
+func expandWildcard(upSegs, coreSegs, downSegs seg.Segments, ia addr.IA) []addr.IA {
+	if !ia.IsWildcard() {
+		return []addr.IA{ia}
+	}
+	// Gather core ASes, i.e. the candidates for the wildcard
+	ias := upSegs.FirstIAs()
+	ias = append(ias, coreSegs.FirstIAs()...)
+	ias = append(ias, coreSegs.LastIAs()...)
+	ias = append(ias, downSegs.FirstIAs()...)
+	return getMatchingIAs(ias, ia)
+}
+
+// Get the IAs in ias matching the wildcard IA pat
+func getMatchingIAs(ias []addr.IA, pat addr.IA) []addr.IA {
+	ret := []addr.IA{}
+	for _, ia := range ias {
+		if (pat.I == 0 || ia.I == pat.I) && (pat.A == 0 || ia.A == pat.A) {
+			ret = append(ret, ia)
+		}
+	}
+	return ret
 }
