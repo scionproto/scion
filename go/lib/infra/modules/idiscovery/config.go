@@ -56,6 +56,7 @@ type StaticConfig struct {
 }
 
 func (s *StaticConfig) InitDefaults() {
+	s.Connect.InitDefaults()
 	if s.Interval.Duration == 0 {
 		s.Interval.Duration = DefaultStaticFetchInterval
 	}
