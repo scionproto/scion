@@ -47,7 +47,7 @@ const (
 
 type scionConnWriter struct {
 	base     *scionConnBase
-	conn     *RawSCIONConn
+	conn     PacketConn
 	resolver *remoteAddressResolver
 
 	mtx    sync.Mutex
@@ -55,7 +55,7 @@ type scionConnWriter struct {
 }
 
 func newScionConnWriter(base *scionConnBase, pr pathmgr.Resolver,
-	conn *RawSCIONConn) *scionConnWriter {
+	conn PacketConn) *scionConnWriter {
 
 	return &scionConnWriter{
 		base: base,

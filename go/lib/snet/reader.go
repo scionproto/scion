@@ -30,13 +30,13 @@ import (
 
 type scionConnReader struct {
 	base *scionConnBase
-	conn *RawSCIONConn
+	conn PacketConn
 
 	mtx    sync.Mutex
 	buffer common.RawBytes
 }
 
-func newScionConnReader(base *scionConnBase, conn *RawSCIONConn) *scionConnReader {
+func newScionConnReader(base *scionConnBase, conn PacketConn) *scionConnReader {
 	return &scionConnReader{
 		base:   base,
 		conn:   conn,
