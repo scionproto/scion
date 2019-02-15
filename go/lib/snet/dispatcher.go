@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-// PacketDispatcherService constructs SCION sockets were applications have
+// PacketDispatcherService constructs SCION sockets where applications have
 // fine-grained control over header fields.
 type PacketDispatcherService interface {
 	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,

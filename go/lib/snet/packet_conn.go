@@ -123,7 +123,7 @@ type SCIONPacketConn struct {
 
 // NewSCIONPacketConn creates a new conn with packet serialization/decoding
 // support that transfers data over conn.
-func NewSCIONPacketConn(conn net.PacketConn) PacketConn {
+func NewSCIONPacketConn(conn net.PacketConn) *SCIONPacketConn {
 	return &SCIONPacketConn{conn: conn}
 }
 
