@@ -114,7 +114,7 @@ stop_mock_ds() {
 }
 
 check_running() {
-    ./tools/dc scion top "scion_$1" >/dev/null 2>/dev/null
+    ./tools/dc scion top "scion_$1" # >/dev/null 2>/dev/null
 }
 
 check_not_running() {
