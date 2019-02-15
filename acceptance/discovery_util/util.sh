@@ -114,7 +114,10 @@ stop_mock_ds() {
 }
 
 check_running() {
-    ./tools/dc scion top "scion_$1" # >/dev/null 2>/dev/null
+    if is_running_in_docker; then
+            local docker="docker_"
+    fi
+    docker top "scion_${docker}$1"
 }
 
 check_not_running() {
