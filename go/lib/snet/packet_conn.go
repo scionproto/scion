@@ -28,6 +28,17 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
+// PacketConn gives applications easy access to writing and reading custom
+// SCION packets.
+type PacketConn interface {
+	ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error
+	WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error
+	SetReadDeadline(t time.Time) error
+	SetWriteDeadline(t time.Time) error
+	SetDeadline(t time.Time) error
+	Close() error
+}
+
 // Bytes contains the raw slices of data related to a packet. Most callers
 // can safely ignore it. For performance-critical applications, callers should
 // manually allocate/recycle the Bytes.
@@ -103,31 +114,28 @@ type SCIONAddress struct {
 	Host addr.HostAddr
 }
 
-// RawSCIONConn gives applications full control over the content of valid SCION
+// SCIONPacketConn gives applications full control over the content of valid SCION
 // packets.
-type RawSCIONConn struct {
+type SCIONPacketConn struct {
+	// conn is the connection to send/receive serialized packets on.
 	conn net.PacketConn
 }
 
-// NewRawSCIONConn implements reading and writing SCION packets on a
-// net.PacketConn. Usually, conn will be a SCION Dispatcher socket.
-//
-// SerializationOptions are not supported yet.
-func NewRawSCIONConn(conn net.PacketConn, _ SerializationOptions) *RawSCIONConn {
-	return &RawSCIONConn{
-		conn: conn,
-	}
+// NewSCIONPacketConn creates a new conn with packet serialization/decoding
+// support that transfers data over conn.
+func NewSCIONPacketConn(conn net.PacketConn) *SCIONPacketConn {
+	return &SCIONPacketConn{conn: conn}
 }
 
-func (c *RawSCIONConn) SetDeadline(d time.Time) error {
+func (c *SCIONPacketConn) SetDeadline(d time.Time) error {
 	return c.conn.SetDeadline(d)
 }
 
-func (c *RawSCIONConn) Close() error {
+func (c *SCIONPacketConn) Close() error {
 	return c.conn.Close()
 }
 
-func (c *RawSCIONConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+func (c *SCIONPacketConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
 	StableSortExtensions(pkt.Extensions)
 	hbh, e2e, err := hpkt.ValidateExtensions(pkt.Extensions)
 	if err != nil {
@@ -160,11 +168,11 @@ func (c *RawSCIONConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error 
 	return nil
 }
 
-func (c *RawSCIONConn) SetWriteDeadline(d time.Time) error {
+func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 	return c.conn.SetWriteDeadline(d)
 }
 
-func (c *RawSCIONConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
 	pkt.Prepare()
 	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {
@@ -202,7 +210,7 @@ func (c *RawSCIONConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error
 	return nil
 }
 
-func (c *RawSCIONConn) SetReadDeadline(d time.Time) error {
+func (c *SCIONPacketConn) SetReadDeadline(d time.Time) error {
 	return c.conn.SetReadDeadline(d)
 }
 
