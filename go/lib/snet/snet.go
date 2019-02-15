@@ -95,7 +95,7 @@ var _ Network = (*SCIONNetwork)(nil)
 // SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
 // Path resolver.
 type SCIONNetwork struct {
-	dispatcher reliable.DispatcherService
+	dispatcher PacketDispatcherService
 	// pathResolver references the default source of paths for a Network. This
 	// is set to nil when operating on a SCIOND-less Network.
 	pathResolver pathmgr.Resolver
@@ -107,8 +107,16 @@ type SCIONNetwork struct {
 func NewNetworkWithPR(ia addr.IA, dispatcher reliable.DispatcherService,
 	pr pathmgr.Resolver) *SCIONNetwork {
 
+	return NewCustomNetworkWithPR(ia, NewDefaultPacketDispatcherService(dispatcher), pr)
+}
+
+// NewCustomNetworkWithPR is similar to NewNetworkWithPR, while giving control
+// over packet processing via pktDispatcher.
+func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService,
+	pr pathmgr.Resolver) *SCIONNetwork {
+
 	return &SCIONNetwork{
-		dispatcher:   dispatcher,
+		dispatcher:   pktDispatcher,
 		pathResolver: pr,
 		localIA:      ia,
 	}
@@ -123,6 +131,16 @@ func NewNetworkWithPR(ia addr.IA, dispatcher reliable.DispatcherService,
 // for sent traffic.
 func NewNetwork(ia addr.IA, sciondPath string,
 	dispatcher reliable.DispatcherService) (*SCIONNetwork, error) {
+
+	return NewCustomNetwork(ia, sciondPath, NewDefaultPacketDispatcherService(dispatcher))
+}
+
+// NewCustomNetwork is similar to NewNetwork, except it gives control over the
+// packet processing socket in the snet backend. It can be used to implement
+// specialized sockets that implement firewall rules, custom SCMP handlers, or
+// custom network access (e.g., dispatcher bypass).
+func NewCustomNetwork(ia addr.IA, sciondPath string,
+	pktDispatcher PacketDispatcherService) (*SCIONNetwork, error) {
 
 	var pathResolver pathmgr.Resolver
 	if sciondPath != "" {
@@ -139,7 +157,7 @@ func NewNetwork(ia addr.IA, sciondPath string,
 			log.Root(),
 		)
 	}
-	return NewNetworkWithPR(ia, dispatcher, pathResolver), nil
+	return NewCustomNetworkWithPR(ia, pktDispatcher, pathResolver), nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
@@ -193,6 +211,7 @@ func (n *SCIONNetwork) ListenSCION(network string, laddr *Addr,
 // A timeout of 0 means infinite timeout.
 func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
+
 	// FIXME(scrye): If no local address is specified, we want to
 	// bind to the address of the outbound interface on a random
 	// free port. However, the current dispatcher version cannot
@@ -270,8 +289,8 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
 		}
 	}
-	rconn, port, err := conn.scionNet.dispatcher.RegisterTimeout(conn.laddr.IA, conn.laddr.Host,
-		bindAddr, svc, timeout)
+	packetConn, port, err := conn.scionNet.dispatcher.RegisterTimeout(conn.laddr.IA,
+		conn.laddr.Host, bindAddr, svc, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -279,9 +298,8 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		// Update port
 		conn.laddr.Host.L4 = addr.NewL4UDPInfo(port)
 	}
-	rawConn := NewRawSCIONConn(rconn, SerializationOptions{})
 	log.Debug("Registered with dispatcher", "addr", conn.laddr)
-	return newSCIONConn(conn, n.pathResolver, rawConn), nil
+	return newSCIONConn(conn, n.pathResolver, packetConn), nil
 }
 
 // PathResolver returns the pathmgr.PR that the network is using.
