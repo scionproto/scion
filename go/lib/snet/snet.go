@@ -65,8 +65,8 @@ var (
 )
 
 // Init initializes the default SCION networking context.
-func Init(ia addr.IA, sciondPath string, dispatcherPath string) error {
-	network, err := NewNetwork(ia, sciondPath, dispatcherPath)
+func Init(ia addr.IA, sciondPath string, dispatcher reliable.DispatcherService) error {
+	network, err := NewNetwork(ia, sciondPath, dispatcher)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ var _ Network = (*SCIONNetwork)(nil)
 // SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
 // Path resolver.
 type SCIONNetwork struct {
-	dispatcherPath string
+	dispatcher reliable.DispatcherService
 	// pathResolver references the default source of paths for a Network. This
 	// is set to nil when operating on a SCIOND-less Network.
 	pathResolver pathmgr.Resolver
@@ -104,14 +104,13 @@ type SCIONNetwork struct {
 
 // NewNetworkWithPR creates a new networking context with path resolver pr. A
 // nil path resolver means the Network will run without SCIOND.
-func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr pathmgr.Resolver) *SCIONNetwork {
-	if dispatcherPath == "" {
-		dispatcherPath = reliable.DefaultDispPath
-	}
+func NewNetworkWithPR(ia addr.IA, dispatcher reliable.DispatcherService,
+	pr pathmgr.Resolver) *SCIONNetwork {
+
 	return &SCIONNetwork{
-		dispatcherPath: dispatcherPath,
-		pathResolver:   pr,
-		localIA:        ia,
+		dispatcher:   dispatcher,
+		pathResolver: pr,
+		localIA:      ia,
 	}
 }
 
@@ -122,7 +121,9 @@ func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr pathmgr.Resolver) *S
 // If sciondPath is the empty string, the network will run without SCIOND. In
 // this mode of operation, the app is fully responsible with supplying paths
 // for sent traffic.
-func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*SCIONNetwork, error) {
+func NewNetwork(ia addr.IA, sciondPath string,
+	dispatcher reliable.DispatcherService) (*SCIONNetwork, error) {
+
 	var pathResolver pathmgr.Resolver
 	if sciondPath != "" {
 		sciondConn, err := sciond.NewService(sciondPath, true).Connect()
@@ -138,7 +139,7 @@ func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*SCIONNet
 			log.Root(),
 		)
 	}
-	return NewNetworkWithPR(ia, dispatcherPath, pathResolver), nil
+	return NewNetworkWithPR(ia, dispatcher, pathResolver), nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
@@ -269,8 +270,8 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
 		}
 	}
-	rconn, port, err := reliable.RegisterTimeout(conn.scionNet.dispatcherPath,
-		conn.laddr.IA, conn.laddr.Host, bindAddr, svc, timeout)
+	rconn, port, err := conn.scionNet.dispatcher.RegisterTimeout(conn.laddr.IA, conn.laddr.Host,
+		bindAddr, svc, timeout)
 	if err != nil {
 		return nil, err
 	}

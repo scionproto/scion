@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const (
@@ -78,7 +79,7 @@ func validateFlags() {
 
 func initNetwork() {
 	// Initialize default SCION networking context
-	if err := snet.Init(Local.IA, Sciond, ""); err != nil {
+	if err := snet.Init(Local.IA, Sciond, reliable.NewDispatcherService("")); err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")
