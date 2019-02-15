@@ -79,9 +79,9 @@ check_infra_fail_action() {
     done
     ./tools/dc scion restart "scion_ps$IA_FILE-1" "scion_cs$IA_FILE-1" "scion_sd$IA_FILE"
     sleep 10
-    local err="$( check_stopped_count "ps$IA_FILE-1" 1 )" || fail "Error: ps$IA_FILE-1 not running err=$err"
-    local err="$( check_stopped_count "cs$IA_FILE-1" 1 )" || fail "Error: cs$IA_FILE-1 not running err=$err"
-    local err="$( check_stopped_count "sd$IA_FILE" 1 )" || fail "Error: sd$IA_FILE not running err=$err"
+    check_running "ps$IA_FILE-1" || fail "Error: ps$IA_FILE-1 not running"
+    check_running "cs$IA_FILE-1" || fail "Error: cs$IA_FILE-1 not running"
+    check_running "sd$IA_FILE" || fail "Error: sd$IA_FILE not running"
 
     # Check that services exit if fail action is fatal
     for cfg in gen/ISD1/AS$AS_FILE/*/{{cs,ps}config,sciond}.toml; do
@@ -89,33 +89,37 @@ check_infra_fail_action() {
     done
     ./tools/dc scion restart "scion_ps$IA_FILE-1" "scion_cs$IA_FILE-1" "scion_sd$IA_FILE"
     sleep 10
-    local err="$( check_stopped_count "ps$IA_FILE-1" 3 )" || fail "Error: ps$IA_FILE-1 still running err=$err"
-    local err="$( check_stopped_count "cs$IA_FILE-1" 3 )" || fail "Error: cs$IA_FILE-1 still running err=$err"
-    local err="$( check_stopped_count "sd$IA_FILE" 3 )" || fail "Error: sd$IA_FILE still running err=$err"
+    check_not_running "ps$IA_FILE-1" || fail "Error: ps$IA_FILE-1 still running"
+    check_not_running "cs$IA_FILE-1" || fail "Error: cs$IA_FILE-1 still running"
+    check_not_running "sd$IA_FILE" || fail "Error: sd$IA_FILE still running"
 }
 
 check_br_fail_action() {
     stop_mock_ds
-    # Check that services continue if fail action is not set.
+    # Check that border router continues if fail action is not set.
     set_connect "gen/ISD1/AS$AS_FILE/br$IA_FILE-1/brconfig.toml" "$1" "5s"
     ./tools/dc scion restart "scion_br$IA_FILE-1"
     sleep 10
-    local err="$( check_stopped_count "br$IA_FILE-1" 1 )" || fail "Error: br$IA_FILE-1 not running err=$err"
+    check_running "br$IA_FILE-1" || fail "Error: br$IA_FILE-1 not running"
 
-    # Check that services exit if fail action is fatal
+    # Check that border router exits if fail action is fatal
     set_fail_action "gen/ISD1/AS$AS_FILE/br$IA_FILE-1/brconfig.toml" "$1" "Fatal"
     ./tools/dc scion restart "scion_br$IA_FILE-1"
     sleep 10
-    local err="$( check_stopped_count "br$IA_FILE-1" 3 )" || fail "Error: br$IA_FILE-1 still running err=$err"
+    check_not_running "br$IA_FILE-1" || fail "Error: br$IA_FILE-1 still running"
 }
 
 stop_mock_ds() {
     ./tools/dc scion stop 'mock_ds1-ff00_0_111-1'
 }
 
-check_stopped_count() {
-    local c="$( grep "\[INFO\] =====================> Service stopped" "logs/$1.log" | wc -l )"
-    [ "$c" == "$2" ] || echo "Invalid count expected=$2 actual=$c"
+check_running() {
+    docker top "scion_$1" >/dev/null 2>/dev/null
+}
+
+check_not_running() {
+    check_running $1 || local running="nope"
+    [ "$running" == "nope" ] || return 1
 }
 
 print_help() {
