@@ -89,7 +89,7 @@ fail() {
 }
 
 #######################################
-# Returns whether is running in docker
+# Returns whether this script is running in docker
 #######################################
 is_running_in_docker() {
     cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
