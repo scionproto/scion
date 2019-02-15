@@ -15,15 +15,12 @@
 package idiscoverytest
 
 import (
-	"testing"
-
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 )
 
-func InitTestConfig(t *testing.T, cfg *idiscovery.Config) {
-	t.Helper()
+func InitTestConfig(cfg *idiscovery.Config) {
 	cfg.Dynamic.Enable = true
 	cfg.Dynamic.Https = true
 	cfg.Static.Enable = true
@@ -31,19 +28,17 @@ func InitTestConfig(t *testing.T, cfg *idiscovery.Config) {
 	cfg.Static.Filename = "topology.json"
 }
 
-func CheckTestConfig(t *testing.T, cfg idiscovery.Config) {
-	t.Helper()
+func CheckTestConfig(cfg idiscovery.Config) {
 	Convey("The static part should be correct", func() {
-		checkCommon(t, cfg.Static.FetchConfig)
+		checkCommon(cfg.Static.FetchConfig)
 		SoMsg("Discovery.Static.Filename correct", cfg.Static.Filename, ShouldBeBlank)
 	})
 	Convey("The dynamic part should be correct", func() {
-		checkCommon(t, cfg.Dynamic)
+		checkCommon(cfg.Dynamic)
 	})
 }
 
-func checkCommon(t *testing.T, cfg idiscovery.FetchConfig) {
-	t.Helper()
+func checkCommon(cfg idiscovery.FetchConfig) {
 	SoMsg("Enable correct", cfg.Enable, ShouldBeFalse)
 	SoMsg("Timeout correct", cfg.Timeout.Duration, ShouldEqual, idiscovery.DefaultFetchTimeout)
 	SoMsg("Https correct", cfg.Https, ShouldBeFalse)
