@@ -87,3 +87,10 @@ fail() {
     echo "$(date -u +'%F %T.%6N%z') $@" >&2
     exit 1
 }
+
+#######################################
+# Returns whether this script is running in docker
+#######################################
+is_running_in_docker() {
+    cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
+}

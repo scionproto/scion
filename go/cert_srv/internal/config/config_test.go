@@ -22,7 +22,7 @@ import (
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 )
 
 func TestSampleCorrect(t *testing.T) {
@@ -30,11 +30,7 @@ func TestSampleCorrect(t *testing.T) {
 		var cfg Config
 		// Make sure AutomaticRenewal is set during decoding.
 		cfg.CS.AutomaticRenewal = true
-		cfg.Discovery.Dynamic.Enable = true
-		cfg.Discovery.Dynamic.Https = true
-		cfg.Discovery.Static.Enable = true
-		cfg.Discovery.Static.Https = true
-		cfg.Discovery.Static.Filename = "topology.json"
+		idiscoverytest.InitTestConfig(&cfg.Discovery)
 		_, err := toml.Decode(Sample, &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
@@ -48,19 +44,7 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("TrustDB.Backend correct", cfg.TrustDB.Backend, ShouldEqual, "sqlite")
 		SoMsg("TrustDB.Connection correct", cfg.TrustDB.Connection, ShouldEqual,
 			"/var/lib/scion/spki/cs-1.trust.db")
-		SoMsg("Discovery.Static.Enable correct", cfg.Discovery.Static.Enable, ShouldBeFalse)
-		SoMsg("Discovery.Static.Interval correct", cfg.Discovery.Static.Interval.Duration,
-			ShouldEqual, idiscovery.DefaultStaticFetchInterval)
-		SoMsg("Discovery.Static.Timeout correct", cfg.Discovery.Static.Timeout.Duration,
-			ShouldEqual, idiscovery.DefaultFetchTimeout)
-		SoMsg("Discovery.Static.Https correct", cfg.Discovery.Static.Https, ShouldBeFalse)
-		SoMsg("Discovery.Static.Filename correct", cfg.Discovery.Static.Filename, ShouldBeBlank)
-		SoMsg("Discovery.Dynamic.Enable correct", cfg.Discovery.Dynamic.Enable, ShouldBeFalse)
-		SoMsg("Discovery.Dynamic.Interval correct", cfg.Discovery.Dynamic.Interval.Duration,
-			ShouldEqual, idiscovery.DefaultDynamicFetchInterval)
-		SoMsg("Discovery.Dynamic.Timeout correct", cfg.Discovery.Dynamic.Timeout.Duration,
-			ShouldEqual, idiscovery.DefaultFetchTimeout)
-		SoMsg("Discovery.Dynamic.Https correct", cfg.Discovery.Dynamic.Https, ShouldBeFalse)
+		idiscoverytest.CheckTestConfig(cfg.Discovery)
 
 		// csconfig specific
 		SoMsg("LeafReissueLeadTime correct", cfg.CS.LeafReissueLeadTime.Duration,

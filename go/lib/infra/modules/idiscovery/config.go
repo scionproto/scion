@@ -15,8 +15,10 @@
 package idiscovery
 
 import (
+	"strings"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -27,6 +29,9 @@ var (
 	DefaultStaticFetchInterval = 5 * time.Minute
 	// DefaultFetchTimeout is the default timeout for a query.
 	DefaultFetchTimeout = 1 * time.Second
+	// DefaultInitialConnectPeriod is the default total amount of time spent attempting
+	// to connect to the discovery service on start.
+	DefaultInitialConnectPeriod = 20 * time.Second
 )
 
 type Config struct {
@@ -51,6 +56,7 @@ type StaticConfig struct {
 }
 
 func (s *StaticConfig) InitDefaults() {
+	s.Connect.InitDefaults()
 	if s.Interval.Duration == 0 {
 		s.Interval.Duration = DefaultStaticFetchInterval
 	}
@@ -65,17 +71,60 @@ type FetchConfig struct {
 	Enable bool
 	// Interval specifies the time between two queries.
 	Interval util.DurWrap
-	// Timeout specifies the timout for a single query.
+	// Timeout specifies the timeout for a single query.
 	Timeout util.DurWrap
 	// Https indicates whether https must be used to fetch the topology.
 	Https bool
+	// Connect contains the parameters for the initial connection
+	// check to the discovery service.
+	Connect ConnectParams
 }
 
 func (f *FetchConfig) InitDefaults() {
+	f.Connect.InitDefaults()
 	if f.Interval.Duration == 0 {
 		f.Interval.Duration = DefaultDynamicFetchInterval
 	}
 	if f.Timeout.Duration == 0 {
 		f.Timeout.Duration = DefaultFetchTimeout
 	}
+}
+
+type ConnectParams struct {
+	// InitialPeriod indicates for how long the process tries to get a valid
+	// response from the discovery service until FailAction is executed.
+	InitialPeriod util.DurWrap
+	// FailAction indicates the action that should be taken if no topology can
+	// be fetched from the discovery service within the InitialPeriod.
+	FailAction FailAction
+}
+
+func (c *ConnectParams) InitDefaults() {
+	if c.InitialPeriod.Duration == 0 {
+		c.InitialPeriod.Duration = DefaultInitialConnectPeriod
+	}
+	if c.FailAction != FailActionFatal {
+		c.FailAction = FailActionContinue
+	}
+}
+
+type FailAction string
+
+const (
+	// FailActionFatal indicates that the process exits on error.
+	FailActionFatal FailAction = "Fatal"
+	// FailActionContinue indicates that the process continues on error.
+	FailActionContinue FailAction = "Continue"
+)
+
+func (f *FailAction) UnmarshalText(text []byte) error {
+	switch strings.ToLower(string(text)) {
+	case strings.ToLower(string(FailActionFatal)):
+		*f = FailActionFatal
+	case strings.ToLower(string(FailActionContinue)):
+		*f = FailActionContinue
+	default:
+		return common.NewBasicError("Unknown FailAction", nil, "input", string(text))
+	}
+	return nil
 }
