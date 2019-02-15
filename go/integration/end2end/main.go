@@ -81,16 +81,18 @@ type server struct {
 }
 
 func (s server) run() {
+	log.Info("Starting server", "local", integration.Local)
 	conn, err := snet.ListenSCION("udp4", &integration.Local)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
+	log.Info("Conn established", "local", integration.Local)
 	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
 		fmt.Printf("Port=%d\n", conn.LocalAddr().(*snet.Addr).Host.L4.Port())
 		fmt.Printf("%s%s\n", libint.ReadySignal, integration.Local.IA)
 	}
-	log.Debug("Listening", "local", conn.LocalAddr())
+	log.Info("Listening", "local", conn.LocalAddr())
 	// Receive ping message
 	b := make(common.RawBytes, 1024)
 	for {

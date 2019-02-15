@@ -269,11 +269,13 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
 		}
 	}
+	log.Info("Registering with dispatcher", "laddr", laddr)
 	rconn, port, err := reliable.RegisterTimeout(conn.scionNet.dispatcherPath,
 		conn.laddr.IA, conn.laddr.Host, bindAddr, svc, timeout)
 	if err != nil {
 		return nil, err
 	}
+	log.Info("Registered with dispatcher", "laddr", laddr)
 	if port != conn.laddr.Host.L4.Port() {
 		// Update port
 		conn.laddr.Host.L4 = addr.NewL4UDPInfo(port)
