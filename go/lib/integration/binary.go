@@ -125,8 +125,10 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 		signal := fmt.Sprintf("%s%s", ReadySignal, dst.IA)
 		init := true
 		scanner := bufio.NewScanner(sp)
+		log.Info("Start waiting for ready")
 		for scanner.Scan() {
 			line := scanner.Text()
+			log.Info("Waiting for ready", "line", line)
 			if strings.HasPrefix(line, portString) {
 				serverPorts[dst.IA] = strings.TrimPrefix(line, portString)
 			}
@@ -138,6 +140,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
+		log.Info("Start logging stderr")
 		bi.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), ep)
 	}()
 	err = r.Start()
