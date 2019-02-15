@@ -29,7 +29,7 @@ func TestSampleCorrect(t *testing.T) {
 		var cfg Config
 		// Make sure SegSync is set.
 		cfg.PS.SegSync = true
-		idiscoverytest.InitTestConfig(t, &cfg.Discovery)
+		idiscoverytest.InitTestConfig(&cfg.Discovery)
 		_, err := toml.Decode(Sample, &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
@@ -43,7 +43,7 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("TrustDB.Backend correct", cfg.TrustDB.Backend, ShouldEqual, "sqlite")
 		SoMsg("TrustDB.Connection correct", cfg.TrustDB.Connection, ShouldEqual,
 			"/var/lib/scion/spki/ps-1.trust.db")
-		idiscoverytest.CheckTestConfig(t, cfg.Discovery)
+		idiscoverytest.CheckTestConfig(cfg.Discovery)
 
 		// psconfig specific
 		SoMsg("PathDB.Backend correct", cfg.PS.PathDB.Backend, ShouldEqual, "sqlite")

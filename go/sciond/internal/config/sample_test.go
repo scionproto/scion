@@ -29,7 +29,7 @@ func TestSampleCorrect(t *testing.T) {
 		var cfg Config
 		// Make sure DeleteSocket is set.
 		cfg.SD.DeleteSocket = true
-		idiscoverytest.InitTestConfig(t, &cfg.Discovery)
+		idiscoverytest.InitTestConfig(&cfg.Discovery)
 		_, err := toml.Decode(Sample, &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
@@ -43,7 +43,7 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("TrustDB.Backend correct", cfg.TrustDB.Backend, ShouldEqual, "sqlite")
 		SoMsg("TrustDB.Connection correct", cfg.TrustDB.Connection,
 			ShouldEqual, "/var/lib/scion/spki/sd.trust.db")
-		idiscoverytest.CheckTestConfig(t, cfg.Discovery)
+		idiscoverytest.CheckTestConfig(cfg.Discovery)
 
 		// sdconfig specific
 		SoMsg("PathDB.Backend correct", cfg.SD.PathDB.Backend, ShouldEqual, "sqlite")
