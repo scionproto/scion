@@ -173,56 +173,122 @@ func (r *Runners) Kill() {
 // every second a request is sent, until the configured initial period has passed,
 // or a topology has been fetched successfully.
 type Runner struct {
+	fetcherMtx sync.Mutex
 	// fetcher periodically fetches the topology.
 	fetcher *periodic.Runner
-	// checker periodically checks whether a topology has been successfully fetched.
-	checker *periodic.Runner
 	// rawHandler is the handler provided by the caller.
-	rawHandler      TopoHandler
-	stoppingChecker flag
-	fetched         flag
+	rawHandler TopoHandler
+	// stop is a channel to signal the initial period go routine to stop.
+	stop chan struct{}
+	// stopping indicates that the stopping process has started.
+	stopping bool
+	// fetched is used to communicate a successfully fetched topology.
+	fetched flag
+}
+
+// Stop stops the periodic execution of the Runner. If the task is currently running
+// this method will block until it is done.
+func (r *Runner) Stop() {
+	r.fetcherMtx.Lock()
+	defer r.fetcherMtx.Unlock()
+	r.stopping = true
+	close(r.stop)
+	if r.fetcher != nil {
+		r.fetcher.Stop()
+	}
+}
+
+// Kill is like stop but it also cancels the context of the current running method.
+func (r *Runner) Kill() {
+	r.fetcherMtx.Lock()
+	defer r.fetcherMtx.Unlock()
+	r.stopping = true
+	close(r.stop)
+	if r.fetcher != nil {
+		r.fetcher.Stop()
+	}
 }
 
 // startPeriodicFetcher starts a runner that periodically fetches the topology.
 // If during the InitialPeriod no topology is successfully fetched, the process takes
-// the configrued FailAction.
+// the configured FailAction.
 func startPeriodicFetcher(cfg FetchConfig, handler TopoHandler, params discovery.FetchParams,
 	filename string, client *http.Client) (*Runner, error) {
 
 	fatal.Check()
 	r := &Runner{
 		rawHandler: handler,
+		stop:       make(chan struct{}),
+		fetched: flag{
+			c: make(chan struct{}),
+		},
 	}
-	// Start periodic topology fetcher
 	fetcher, err := NewFetcher(r.handler, params, filename, client)
 	if err != nil {
 		return nil, err
 	}
-	r.fetcher = periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
-		cfg.Timeout.Duration)
-	// Start periodic checker and trigger immediate fetch from discovery service.
-	r.fetcher.TriggerRun()
-	r.checker = periodic.StartPeriodicTask(connChecker{runner: r}, periodic.NewTicker(time.Second),
-		time.Second)
-	// Kill periodic checker after initial period has passed.
-	time.AfterFunc(cfg.Connect.InitialPeriod.Duration, func() {
-		defer log.LogPanicAndExit()
-		r.execFailAction(cfg.Connect.FailAction)
-	})
+	r.startInitialPeriod(fetcher, cfg)
 	return r, nil
 }
 
-// Stop stops the periodic execution of the Runner. If the task is currently running
-// this method will block until it is done.
-func (r *Runner) Stop() {
-	r.fetcher.Stop()
-	r.stopChecker()
+// startInitialPeriod fetches the topology every second for the initial period,
+// or until the a topology has been fetched successfully.
+func (r *Runner) startInitialPeriod(fetcher *task, cfg FetchConfig) {
+	go func() {
+		defer log.LogPanicAndExit()
+		ticker := time.NewTicker(time.Second)
+		initialPeriod := time.NewTimer(cfg.Connect.InitialPeriod.Duration)
+		defer ticker.Stop()
+		defer initialPeriod.Stop()
+		r.startFetch(fetcher, cfg.Timeout.Duration)
+		for {
+			select {
+			case <-r.stop:
+				return
+			case <-initialPeriod.C:
+				r.execFailAction(fetcher, cfg)
+				return
+			case <-r.fetched.c:
+				r.startRegularFetcher(fetcher, cfg)
+				return
+			case <-ticker.C:
+				r.startFetch(fetcher, cfg.Timeout.Duration)
+			}
+		}
+	}()
 }
 
-// Kill is like stop but it also cancels the context of the current running method.
-func (r *Runner) Kill() {
-	r.fetcher.Kill()
-	r.stopChecker()
+// execFailAction executes the FailAction.
+func (r *Runner) execFailAction(fetcher *task, cfg FetchConfig) {
+	switch cfg.Connect.FailAction {
+	case FailActionContinue:
+		log.Warn("[discovery] Unable to get a valid initial topology, ignoring")
+		r.startRegularFetcher(fetcher, cfg)
+	default:
+		fatal.Fatal(common.NewBasicError("Unable to get a valid initial topology", nil))
+	}
+}
+
+// startRegularFetcher starts a periodic fetcher with the configured interval and timeout.
+// If the runner is in the process of stopping, no fetcher is started.
+func (r *Runner) startRegularFetcher(fetcher *task, cfg FetchConfig) {
+	r.fetcherMtx.Lock()
+	defer r.fetcherMtx.Unlock()
+	if r.stopping {
+		return
+	}
+	r.fetcher = periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
+		cfg.Timeout.Duration)
+}
+
+// startFetch starts a go routine that executes the fetch task.
+func (r *Runner) startFetch(fetcher *task, timeout time.Duration) {
+	go func() {
+		defer log.LogPanicAndExit()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		fetcher.Run(ctx)
+	}()
 }
 
 // handler wraps the handler provided by the caller and sets the set flag if a topology
@@ -234,45 +300,6 @@ func (r *Runner) handler(topo *topology.Topo) (bool, error) {
 	}
 	r.fetched.Set()
 	return updated, err
-}
-
-// waitAndKill waits for the InitialPeriod and executes the FailAction if no
-// topology has been set in the meantime.
-func (r *Runner) execFailAction(action FailAction) {
-	if r.fetched.IsSet() || r.stoppingChecker.IsSet() {
-		return
-	}
-	switch action {
-	case FailActionContinue:
-		log.Warn("[discovery] Unable to get a valid initial topology, ignoring")
-	default:
-		fatal.Fatal(common.NewBasicError("Unable to get a valid initial topology", nil))
-	}
-}
-
-func (r *Runner) stopChecker() {
-	alreadyStopping := r.stoppingChecker.TestAndSet()
-	if !alreadyStopping {
-		r.checker.Kill()
-	}
-}
-
-// connChecker checks whether a topology has been successfully fetched from the
-// discovery service. Otherwise, it triggers refetching.
-type connChecker struct {
-	runner *Runner
-}
-
-func (c connChecker) Run(_ context.Context) {
-	if c.runner.fetched.IsSet() {
-		// When calling Stop directly, the go routine deadlocks.
-		go func() {
-			defer log.LogPanicAndExit()
-			c.runner.stopChecker()
-		}()
-		return
-	}
-	c.runner.fetcher.TriggerRun()
 }
 
 // task is a periodic.Task that fetches the topology from the discovery service.
@@ -351,24 +378,14 @@ func (t *task) callHandler(topo *topology.Topo) (bool, error) {
 type flag struct {
 	sync.Mutex
 	set bool
+	c   chan struct{}
 }
 
 func (f *flag) Set() {
 	f.Lock()
 	defer f.Unlock()
+	if !f.set {
+		close(f.c)
+	}
 	f.set = true
-}
-
-func (f *flag) IsSet() bool {
-	f.Lock()
-	defer f.Unlock()
-	return f.set
-}
-
-func (f *flag) TestAndSet() bool {
-	f.Lock()
-	defer f.Unlock()
-	set := f.set
-	f.set = true
-	return set
 }

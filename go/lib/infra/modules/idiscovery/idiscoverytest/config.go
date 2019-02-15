@@ -19,10 +19,10 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	. "github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 )
 
-func InitTestConfig(t *testing.T, cfg *Config) {
+func InitTestConfig(t *testing.T, cfg *idiscovery.Config) {
 	t.Helper()
 	cfg.Dynamic.Enable = true
 	cfg.Dynamic.Https = true
@@ -31,7 +31,7 @@ func InitTestConfig(t *testing.T, cfg *Config) {
 	cfg.Static.Filename = "topology.json"
 }
 
-func CheckTestConfig(t *testing.T, cfg Config) {
+func CheckTestConfig(t *testing.T, cfg idiscovery.Config) {
 	t.Helper()
 	Convey("The static part should be correct", func() {
 		checkCommon(t, cfg.Static.FetchConfig)
@@ -42,13 +42,14 @@ func CheckTestConfig(t *testing.T, cfg Config) {
 	})
 }
 
-func checkCommon(t *testing.T, cfg FetchConfig) {
+func checkCommon(t *testing.T, cfg idiscovery.FetchConfig) {
 	t.Helper()
 	SoMsg("Enable correct", cfg.Enable, ShouldBeFalse)
-	SoMsg("Timeout correct", cfg.Timeout.Duration, ShouldEqual, DefaultFetchTimeout)
+	SoMsg("Timeout correct", cfg.Timeout.Duration, ShouldEqual, idiscovery.DefaultFetchTimeout)
 	SoMsg("Https correct", cfg.Https, ShouldBeFalse)
 	SoMsg("Connect.InitialPeriod correct", cfg.Connect.InitialPeriod.Duration, ShouldEqual,
-		DefaultInitialConnectPeriod)
-	SoMsg("Connect.FailAction correct", cfg.Connect.FailAction, ShouldEqual, FailActionContinue)
+		idiscovery.DefaultInitialConnectPeriod)
+	SoMsg("Connect.FailAction correct", cfg.Connect.FailAction, ShouldEqual,
+		idiscovery.FailActionContinue)
 
 }

@@ -71,13 +71,13 @@ type FetchConfig struct {
 	Enable bool
 	// Interval specifies the time between two queries.
 	Interval util.DurWrap
-	// Timeout specifies the timout for a single query.
+	// Timeout specifies the timeout for a single query.
 	Timeout util.DurWrap
 	// Https indicates whether https must be used to fetch the topology.
 	Https bool
 	// Connect contains the parameters for the initial connection
 	// check to the discovery service.
-	Connect Connect
+	Connect ConnectParams
 }
 
 func (f *FetchConfig) InitDefaults() {
@@ -90,7 +90,7 @@ func (f *FetchConfig) InitDefaults() {
 	}
 }
 
-type Connect struct {
+type ConnectParams struct {
 	// InitialPeriod indicates for how long the process tries to get a valid
 	// response from the discovery service until FailAction is executed.
 	InitialPeriod util.DurWrap
@@ -99,7 +99,7 @@ type Connect struct {
 	FailAction FailAction
 }
 
-func (c *Connect) InitDefaults() {
+func (c *ConnectParams) InitDefaults() {
 	if c.InitialPeriod.Duration == 0 {
 		c.InitialPeriod.Duration = DefaultInitialConnectPeriod
 	}
