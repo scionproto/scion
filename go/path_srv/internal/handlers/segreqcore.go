@@ -130,7 +130,8 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		}
 	}
 	logger.Debug("[segReqCoreHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
-	selectConnectedSegs(nil, &coreSegs, &downSegs, segReq.SrcIA(), segReq.DstIA())
+	selectConnectedSegs(&seg.Segments{}, &coreSegs, &downSegs,
+		segReq.SrcIA(), segReq.DstIA())
 	logger.Debug("[segReqCoreHandler] returning segs", "core", len(coreSegs), "down", len(downSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, downSegs, segReq)
 }
@@ -145,7 +146,8 @@ func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
 		return
 	}
 	logger.Debug("[segReqHandler:handleCoreDst] found segs", "core", len(coreSegs))
-	selectConnectedSegs(nil, (*seg.Segments)(&coreSegs), nil, segReq.SrcIA(), segReq.DstIA())
+	selectConnectedSegs(&seg.Segments{}, (*seg.Segments)(&coreSegs), &seg.Segments{},
+		segReq.SrcIA(), segReq.DstIA())
 	logger.Debug("[segReqHandler:handleCoreDst] returning segs", "core", len(coreSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, nil, segReq)
 }

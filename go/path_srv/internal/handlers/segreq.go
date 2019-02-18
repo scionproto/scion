@@ -256,40 +256,13 @@ func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA
 func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 	src, dst addr.IA) {
 
-	var tmpUp, tmpCore, tmpDown seg.Segments
-	if upSegs != nil {
-		tmpUp = *upSegs
-	}
-	if coreSegs != nil {
-		tmpCore = *coreSegs
-	}
-	if downSegs != nil {
-		tmpDown = *downSegs
-	}
-
-	tmpUp, tmpCore, tmpDown = selectConnectedSegsImpl(tmpUp, tmpCore, tmpDown, src, dst)
-
-	if upSegs != nil {
-		*upSegs = tmpUp
-	}
-	if coreSegs != nil {
-		*coreSegs = tmpCore
-	}
-	if downSegs != nil {
-		*downSegs = tmpDown
-	}
-}
-
-func selectConnectedSegsImpl(upSegs, coreSegs, downSegs seg.Segments,
-	src, dst addr.IA) (seg.Segments, seg.Segments, seg.Segments) {
-
 	if assert.On {
 		assert.Must(!src.IsWildcard(), "Wildcard not expected for src-IA")
 		assert.Must(dst.I != 0, "Wildcard not expected for dst-ISD")
 	}
 
-	dsts := expandWildcard(upSegs, coreSegs, downSegs, dst)
-	graph := combinator.NewDMG(upSegs, coreSegs, downSegs)
+	dsts := expandWildcard(*upSegs, *coreSegs, *downSegs, dst)
+	graph := combinator.NewDMG(*upSegs, *coreSegs, *downSegs)
 	var paths combinator.PathSolutionList
 	for _, d := range dsts {
 		sdpaths := graph.GetPaths(combinator.VertexFromIA(src), combinator.VertexFromIA(d))
@@ -327,7 +300,6 @@ func selectConnectedSegsImpl(upSegs, coreSegs, downSegs seg.Segments,
 	upSegs.FilterSegs(selSegFunc)
 	coreSegs.FilterSegs(selSegFunc)
 	downSegs.FilterSegs(selSegFunc)
-	return upSegs, coreSegs, downSegs
 }
 
 // expandWildcard returns all core AS matching wildcard ia.
