@@ -87,7 +87,6 @@ type Store struct {
 func NewStore(db trustdb.TrustDB, local addr.IA,
 	options *Config, logger log.Logger) (*Store, error) {
 
-	initMetrics()
 	if options == nil {
 		options = &Config{}
 	}

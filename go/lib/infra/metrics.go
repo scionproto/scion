@@ -15,8 +15,6 @@
 package infra
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/prom"
 )
@@ -27,13 +25,6 @@ const (
 	PromSrcISDRemote = "isd_remote"
 	PromSrcUnknown   = "unknown"
 )
-
-// HandlerMetrics contains the standard metrics for a handler.
-type HandlerMetrics struct {
-	RequestsTotal  *prometheus.CounterVec
-	RequestLatency *prometheus.HistogramVec
-	ResultsTotal   *prometheus.CounterVec
-}
 
 // HandlerResult contains a result label and a status label.
 type HandlerResult struct {
