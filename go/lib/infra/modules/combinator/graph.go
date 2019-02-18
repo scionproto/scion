@@ -354,7 +354,7 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	return path
 }
 
-// Get the segments constituting this path
+// Segments returns the segments in this path
 func (solution *PathSolution) Segments() []*InputSegment {
 	segs := make([]*InputSegment, 0, len(solution.edges))
 	for _, e := range solution.edges {

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -40,9 +41,9 @@ import (
 )
 
 var (
-	// Maximum total of segments returned in a reply to a segment
-	// request. A value <= 0 is interpreted as unlimited, i.e. all segments will
-	// be returned.
+	// MaxResSegs is the maximum total of segments returned in a reply to a
+	// segment request. A value <= 0 is interpreted as unlimited, i.e. all
+	// segments will be returned.
 	MaxResSegs = 10
 )
 
@@ -249,8 +250,9 @@ func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA
 	return now.After(*nq), nil
 }
 
-// Filter upSegs, coreSegs and downSegs to include at most MaxResSegs segments. Ensures that the
-// remaining segments can be connected to allow forming paths between src and dst.
+// selectConnectedSegs filters upSegs, coreSegs and downSegs to include at most
+// MaxResSegs segments. Ensures that the remaining segments can be connected to
+// allow forming paths between src and dst.
 func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 	src, dst addr.IA) {
 
@@ -281,15 +283,17 @@ func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 func selectConnectedSegsImpl(upSegs, coreSegs, downSegs seg.Segments,
 	src, dst addr.IA) (seg.Segments, seg.Segments, seg.Segments) {
 
-	srcs := expandWildcard(upSegs, coreSegs, downSegs, src)
+	if assert.On {
+		assert.Must(!src.IsWildcard(), "Wildcard not expected for src-IA")
+		assert.Must(dst.I != 0, "Wildcard not expected for dst-ISD")
+	}
+
 	dsts := expandWildcard(upSegs, coreSegs, downSegs, dst)
 	graph := combinator.NewDMG(upSegs, coreSegs, downSegs)
 	var paths combinator.PathSolutionList
-	for _, s := range srcs {
-		for _, d := range dsts {
-			sdpaths := graph.GetPaths(combinator.VertexFromIA(s), combinator.VertexFromIA(d))
-			paths = append(paths, sdpaths...)
-		}
+	for _, d := range dsts {
+		sdpaths := graph.GetPaths(combinator.VertexFromIA(src), combinator.VertexFromIA(d))
+		paths = append(paths, sdpaths...)
 	}
 	sort.Sort(paths)
 
@@ -326,7 +330,7 @@ func selectConnectedSegsImpl(upSegs, coreSegs, downSegs seg.Segments,
 	return upSegs, coreSegs, downSegs
 }
 
-// Return all core AS matching wildcard ia.
+// expandWildcard returns all core AS matching wildcard ia.
 func expandWildcard(upSegs, coreSegs, downSegs seg.Segments, ia addr.IA) []addr.IA {
 	if !ia.IsWildcard() {
 		return []addr.IA{ia}
@@ -339,11 +343,11 @@ func expandWildcard(upSegs, coreSegs, downSegs seg.Segments, ia addr.IA) []addr.
 	return getMatchingIAs(ias, ia)
 }
 
-// Get the IAs in ias matching the wildcard IA pat
+// getMatchingIAs returns the IAs in ias matching the IA pat with a wildcard AS.
 func getMatchingIAs(ias []addr.IA, pat addr.IA) []addr.IA {
-	ret := []addr.IA{}
+	var ret []addr.IA
 	for _, ia := range ias {
-		if (pat.I == 0 || ia.I == pat.I) && (pat.A == 0 || ia.A == pat.A) {
+		if ia.I == pat.I && (pat.A == 0 || ia.A == pat.A) {
 			ret = append(ret, ia)
 		}
 	}

@@ -139,14 +139,13 @@ func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
 	msger infra.Messenger, segReq *path_mgmt.SegReq) {
 
 	logger := log.FromCtx(ctx)
-	var coreSegs seg.Segments
 	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{segReq.DstIA()}, !segReq.Flags.CacheOnly)
 	if err != nil {
 		logger.Error("Failed to find core segs", "err", err)
 		return
 	}
 	logger.Debug("[segReqHandler:handleCoreDst] found segs", "core", len(coreSegs))
-	selectConnectedSegs(nil, &coreSegs, nil, segReq.SrcIA(), segReq.DstIA())
+	selectConnectedSegs(nil, (*seg.Segments)(&coreSegs), nil, segReq.SrcIA(), segReq.DstIA())
 	logger.Debug("[segReqHandler:handleCoreDst] returning segs", "core", len(coreSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, nil, segReq)
 }
