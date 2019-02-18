@@ -39,22 +39,24 @@ var (
 	mockTRC = &cert_mgmt.TRC{RawTRC: common.RawBytes("foobar")}
 )
 
-func MockTRCHandler(request *infra.Request) {
+func MockTRCHandler(request *infra.Request) *infra.HandlerResult {
 	messengerI, ok := infra.MessengerFromContext(request.Context())
 	if !ok {
 		log.Warn("Unable to service request, no Messenger interface found")
-		return
+		return infra.MetricsErrInternal
 	}
 	messenger, ok := messengerI.(*Messenger)
 	if !ok {
 		log.Warn("Unable to service request, bad Messenger value found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(request.Context(), 3*time.Second)
 	defer cancelF()
 	if err := messenger.SendTRC(subCtx, mockTRC, nil, request.ID); err != nil {
 		log.Error("Server error", "err", err)
+		return infra.MetricsErrInternal
 	}
+	return infra.MetricsResultOk
 }
 
 func TestTRCExchange(t *testing.T) {

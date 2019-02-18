@@ -54,11 +54,18 @@ var (
 	metricsErrTS        = &HandlerResult{Result: "err_truststore", Status: prom.StatusErr}
 	metricsErrTSTimeout = &HandlerResult{Result: "err_truststore_to", Status: prom.StatusTimeout}
 
+	metricsErrRevCache   = &HandlerResult{Result: "err_revcache", Status: prom.StatusErr}
+	metricsErrRevCacheTo = &HandlerResult{Result: "err_revcache_to", Status: prom.StatusTimeout}
+
 	MetricsResultOk = &HandlerResult{Result: prom.ResultOk, Status: prom.StatusOk}
 )
 
 func MetricsErrTrustDB(err error) *HandlerResult {
 	return metricsErrWithTimeout(err, metricsErrTrustDBTimeout, metricsErrTrustDB)
+}
+
+func MetricsErrRevCache(err error) *HandlerResult {
+	return metricsErrWithTimeout(err, metricsErrRevCacheTo, metricsErrRevCache)
 }
 
 func MetricsErrMsger(err error) *HandlerResult {

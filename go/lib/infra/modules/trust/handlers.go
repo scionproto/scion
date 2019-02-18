@@ -16,9 +16,6 @@ package trust
 
 import (
 	"context"
-	"time"
-
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -26,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -60,21 +56,7 @@ type trcReqHandler struct {
 	recurse bool
 }
 
-func (h *trcReqHandler) Handle() {
-	trcReqMetrics.RequestsTotal.With(prometheus.Labels{
-		prom.LabelSrc: promSrcValue(h.request, h.store.ia),
-	}).Inc()
-	start := time.Now()
-	result := h.handleInt()
-	trcReqMetrics.ResultsTotal.With(prometheus.Labels{
-		prom.LabelResult: result.Result,
-	})
-	trcReqMetrics.RequestLatency.With(prometheus.Labels{
-		prom.LabelStatus: result.Status,
-	}).Observe(time.Since(start).Seconds())
-}
-
-func (h *trcReqHandler) handleInt() *infra.HandlerResult {
+func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {
@@ -144,21 +126,7 @@ type chainReqHandler struct {
 	recurse bool
 }
 
-func (h *chainReqHandler) Handle() {
-	chainReqMetrics.RequestsTotal.With(prometheus.Labels{
-		prom.LabelSrc: promSrcValue(h.request, h.store.ia),
-	}).Inc()
-	start := time.Now()
-	result := h.handleInt()
-	chainReqMetrics.ResultsTotal.With(prometheus.Labels{
-		prom.LabelResult: result.Result,
-	})
-	chainReqMetrics.RequestLatency.With(prometheus.Labels{
-		prom.LabelStatus: result.Status,
-	}).Observe(time.Since(start).Seconds())
-}
-
-func (h *chainReqHandler) handleInt() *infra.HandlerResult {
+func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {
@@ -224,19 +192,7 @@ type trcPushHandler struct {
 	store   *Store
 }
 
-func (h *trcPushHandler) Handle() {
-	trcPushMetrics.RequestsTotal.With(prometheus.Labels{}).Inc()
-	start := time.Now()
-	result := h.handleInt()
-	trcPushMetrics.ResultsTotal.With(prometheus.Labels{
-		prom.LabelResult: result.Result,
-	})
-	trcPushMetrics.RequestLatency.With(prometheus.Labels{
-		prom.LabelStatus: result.Status,
-	}).Observe(time.Since(start).Seconds())
-}
-
-func (h *trcPushHandler) handleInt() *infra.HandlerResult {
+func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	// FIXME(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
@@ -289,19 +245,7 @@ type chainPushHandler struct {
 	store   *Store
 }
 
-func (h *chainPushHandler) Handle() {
-	chainPushMetrics.RequestsTotal.With(prometheus.Labels{}).Inc()
-	start := time.Now()
-	result := h.handleInt()
-	chainPushMetrics.ResultsTotal.With(prometheus.Labels{
-		prom.LabelResult: result.Result,
-	})
-	chainPushMetrics.RequestLatency.With(prometheus.Labels{
-		prom.LabelStatus: result.Status,
-	}).Observe(time.Since(start).Seconds())
-}
-
-func (h *chainPushHandler) handleInt() *infra.HandlerResult {
+func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {

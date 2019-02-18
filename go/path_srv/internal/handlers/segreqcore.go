@@ -36,7 +36,7 @@ type segReqCoreHandler struct {
 }
 
 func NewSegReqCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &segReqCoreHandler{
 			segReqHandler: segReqHandler{
 				baseHandler: newBaseHandler(r, args),
@@ -44,32 +44,34 @@ func NewSegReqCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra.Ha
 				segsDeduper: segsDeduper,
 			},
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
 
-func (h *segReqCoreHandler) Handle() {
+func (h *segReqCoreHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	segReq, ok := h.request.Message.(*path_mgmt.SegReq)
 	if !ok {
 		logger.Error("[segReqCoreHandler] wrong message type, expected path_mgmt.SegReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqCoreHandler] Received", "segReq", segReq)
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[segReqCoreHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	if !h.isValidDst(segReq) {
 		h.sendEmptySegReply(subCtx, segReq, msger)
-		return
+		return infra.MetricsErrInvalid
 	}
 	h.handleReq(subCtx, msger, segReq)
+	// TODO(lukedirtwalker): Handle errors
+	return infra.MetricsResultOk
 }
 
 func (h *segReqCoreHandler) handleReq(ctx context.Context,
