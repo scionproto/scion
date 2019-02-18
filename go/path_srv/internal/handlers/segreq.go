@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -256,17 +255,15 @@ func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA
 func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
 	src, dst addr.IA) {
 
-	if assert.On {
-		assert.Must(!src.IsWildcard(), "Wildcard not expected for src-IA")
-		assert.Must(dst.I != 0, "Wildcard not expected for dst-ISD")
-	}
-
+	srcs := expandWildcard(*upSegs, *coreSegs, *downSegs, src)
 	dsts := expandWildcard(*upSegs, *coreSegs, *downSegs, dst)
 	graph := combinator.NewDMG(*upSegs, *coreSegs, *downSegs)
 	var paths combinator.PathSolutionList
-	for _, d := range dsts {
-		sdpaths := graph.GetPaths(combinator.VertexFromIA(src), combinator.VertexFromIA(d))
-		paths = append(paths, sdpaths...)
+	for _, s := range srcs {
+		for _, d := range dsts {
+			sdpaths := graph.GetPaths(combinator.VertexFromIA(s), combinator.VertexFromIA(d))
+			paths = append(paths, sdpaths...)
+		}
 	}
 	sort.Sort(paths)
 
@@ -315,11 +312,11 @@ func expandWildcard(upSegs, coreSegs, downSegs seg.Segments, ia addr.IA) []addr.
 	return getMatchingIAs(ias, ia)
 }
 
-// getMatchingIAs returns the IAs in ias matching the IA pat with a wildcard AS.
+// getMatchingIAs returns the IAs in ias matching the wildcard IA pat
 func getMatchingIAs(ias []addr.IA, pat addr.IA) []addr.IA {
 	var ret []addr.IA
 	for _, ia := range ias {
-		if ia.I == pat.I && (pat.A == 0 || ia.A == pat.A) {
+		if (pat.I == 0 || ia.I == pat.I) && (pat.A == 0 || ia.A == pat.A) {
 			ret = append(ret, ia)
 		}
 	}
