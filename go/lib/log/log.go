@@ -34,6 +34,7 @@ import (
 
 func init() {
 	fmt15.TimeFmt = common.TimeFmt
+	SetupLogConsole(DefaultConsoleLevel)
 }
 
 var logBuf *syncBuf
