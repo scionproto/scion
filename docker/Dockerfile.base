@@ -52,9 +52,10 @@ RUN env/pip2/deps && rm -r ~/.cache/pip
 # zlog packages
 RUN eatmydata env/zlog/deps
 
-# Dependencies managed by Bazel
+# Dependencies managed by Bazel.
 # We need an entire source tree to figure out which dependencies are used.
-# However, let's delete git stuff to keep the image small.
+# However, once dependencies are fetched (to /home/scion/.cache/bazel)
+# the source tree can be deleted so that it doesn't bloat the docker image.
 RUN bazel fetch //:scion //:lint ; \
     rm -rf /home/scion/.cache/bazel/_bazel_scion/*/external/*/\.git ; \
     sudo rm -r ./*
