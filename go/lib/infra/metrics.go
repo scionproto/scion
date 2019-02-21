@@ -28,7 +28,11 @@ const (
 
 // HandlerResult contains a result label and a status label.
 type HandlerResult struct {
+	// Result is the label used for the result metric.
 	Result string
+	// Status is one of prom.StatusOk, prom.StatusErr, prom.StatusTimeout it is used for the latency
+	// histogram. This is a reduced view of the result, so that we don't get too many timeseries on
+	// the histogram.
 	Status string
 }
 
