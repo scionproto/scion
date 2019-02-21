@@ -1,4 +1,4 @@
-.PHONY: all clean clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean clibs libscion libfilter dispatcher uninstall tags vendor
 
 SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
@@ -11,7 +11,13 @@ clean:
 	bazel clean
 	rm -f bin/* tags
 
-bazel:
+vendor:
+	(cd go/vendor; ./vendor.sh)
+
+WORKSPACE:
+	./workspace.sh > WORKSPACE
+
+bazel: vendor WORKSPACE
 	# The second target is used provide python apps with go.capnp.
 	# TODO: Remove it once python stuff is built by Bazel.
 	bazel build //:scion //proto:go_capnp_copy

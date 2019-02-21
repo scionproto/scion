@@ -10,6 +10,7 @@ Thumbs.db
 
 # SCION generated files #
 #########################
+WORKSPACE
 /logs/*
 !/logs/.keepme
 /gen/
