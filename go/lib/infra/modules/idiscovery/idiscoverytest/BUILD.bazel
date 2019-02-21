@@ -7,6 +7,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/infra/modules/idiscovery:go_default_library",
-	"@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],
 )
