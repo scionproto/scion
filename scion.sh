@@ -223,7 +223,7 @@ cmd_test(){
     local ret=0
     case "$1" in
         py) shift; py_test "$@"; ret=$((ret+$?));;
-        go) shift; bazel test //go/... ; ret=$((ret+$?));;
+        go) shift; bazel_test ; ret=$((ret+$?));;
         *) py_test; ret=$((ret+$?)); bazel_test; ret=$((ret+$?));;
     esac
     return $ret
@@ -231,6 +231,10 @@ cmd_test(){
 
 py_test() {
     nosetests3 ${EXTRA_NOSE_ARGS} "$@"
+}
+
+bazel_test() {
+    bazel test //go/...
 }
 
 cmd_coverage(){
