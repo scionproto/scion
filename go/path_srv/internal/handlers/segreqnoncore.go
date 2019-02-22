@@ -37,7 +37,7 @@ type segReqNonCoreHandler struct {
 }
 
 func NewSegReqNonCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &segReqNonCoreHandler{
 			segReqHandler: segReqHandler{
 				baseHandler: newBaseHandler(r, args),
@@ -45,27 +45,27 @@ func NewSegReqNonCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra
 				segsDeduper: segsDeduper,
 			},
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
 
-func (h *segReqNonCoreHandler) Handle() {
+func (h *segReqNonCoreHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	segReq, ok := h.request.Message.(*path_mgmt.SegReq)
 	if !ok {
 		logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Received", "segReq", segReq)
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[segReqHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	if !h.validSrcDst(segReq) {
-		return
+		return infra.MetricsErrInvalid
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -74,19 +74,22 @@ func (h *segReqNonCoreHandler) Handle() {
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
 		h.sendEmptySegReply(subCtx, segReq, msger)
-		return
+		return infra.MetricsErrInvalid
 	}
 	coreASes, err := h.coreASes(subCtx)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find local core ASes", "err", err)
 		h.sendEmptySegReply(subCtx, segReq, msger)
-		return
+		// TODO(lukedirtwalker): Classify error better.
+		return infra.MetricsErrInternal
 	}
 	if dstCore {
 		h.handleCoreDst(subCtx, segReq, msger, segReq.DstIA(), coreASes.ASList())
 	} else {
 		h.handleNonCoreDst(subCtx, segReq, msger, segReq.DstIA(), coreASes.ASList())
 	}
+	// TODO(lukedirtwalker): the return value should come from the handle functions.
+	return infra.MetricsResultOk
 }
 
 func (h *segReqNonCoreHandler) validSrcDst(segReq *path_mgmt.SegReq) bool {

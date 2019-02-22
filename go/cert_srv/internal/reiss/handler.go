@@ -52,13 +52,15 @@ type Handler struct {
 	IA    addr.IA
 }
 
-func (h *Handler) Handle(r *infra.Request) {
+func (h *Handler) Handle(r *infra.Request) *infra.HandlerResult {
 	addr := r.Peer.(*snet.Addr)
 	req := r.Message.(*cert_mgmt.ChainIssReq)
 	if err := h.handle(r, addr, req); err != nil {
 		log.Error("[ReissHandler] Dropping certificate reissue request",
 			"addr", addr, "req", req, "err", err)
 	}
+	// TODO(lukedirtwalker): reflect error in metrics.
+	return infra.MetricsResultOk
 }
 
 // handle handles certificate chain reissue requests. If the requested

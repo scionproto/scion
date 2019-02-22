@@ -32,28 +32,28 @@ type syncHandler struct {
 }
 
 func NewSyncHandler(args HandlerArgs) infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &syncHandler{
 			baseHandler: newBaseHandler(r, args),
 			localIA:     args.IA,
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
 
-func (h *syncHandler) Handle() {
+func (h *syncHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	segSync, ok := h.request.Message.(*path_mgmt.SegSync)
 	if !ok {
 		logger.Error("[syncHandler] wrong message type, expected path_mgmt.SegSync",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Error("[syncHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -61,10 +61,11 @@ func (h *syncHandler) Handle() {
 	if err := segSync.ParseRaw(); err != nil {
 		logger.Error("[syncHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return
+		return infra.MetricsErrInvalid
 	}
 	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
 	h.verifyAndStore(subCtx, h.request.Peer, segSync.Recs, segSync.SRevInfos)
 	// TODO(lukedirtwalker): If all segments failed to verify the ack should also be negative here.
 	sendAck(proto.Ack_ErrCode_ok, "")
+	return infra.MetricsResultOk
 }

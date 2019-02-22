@@ -17,6 +17,7 @@ package trust
 import (
 	"context"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -24,8 +25,26 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
+
+func promSrcValue(r *infra.Request, localIA addr.IA) string {
+	if r == nil {
+		return infra.PromSrcUnknown
+	}
+	sAddr, ok := r.Peer.(*snet.Addr)
+	if !ok {
+		return infra.PromSrcUnknown
+	}
+	if localIA.Equal(sAddr.IA) {
+		return infra.PromSrcASLocal
+	}
+	if localIA.I == sAddr.IA.I {
+		return infra.PromSrcISDLocal
+	}
+	return infra.PromSrcISDRemote
+}
 
 // trcReqHandler contains the state of a handler for a specific TRC Request
 // message, received via the Messenger's ListenAndServe method.
@@ -37,20 +56,20 @@ type trcReqHandler struct {
 	recurse bool
 }
 
-func (h *trcReqHandler) Handle() {
+func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {
 		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	logger.Debug("[TrustStore:trcReqHandler] Received request", "trcReq", trcReq,
 		"peer", h.request.Peer)
 	messenger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcReqHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -64,13 +83,17 @@ func (h *trcReqHandler) Handle() {
 	// call getTRC instead of getValidTRC.
 	if trcReq.CacheOnly {
 		trcObj, err = h.store.trustdb.GetTRCVersion(h.request.Context(), trcReq.ISD, trcReq.Version)
+		if err != nil {
+			logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
+			return infra.MetricsErrTrustDB(err)
+		}
 	} else {
 		trcObj, err = h.store.getTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
 			h.recurse, h.request.Peer, nil)
-	}
-	if err != nil {
-		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
-		return
+		if err != nil {
+			logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
+			return infra.MetricsErrTrustStore(err)
+		}
 	}
 	var rawTRC common.RawBytes
 	if trcObj != nil {
@@ -78,7 +101,7 @@ func (h *trcReqHandler) Handle() {
 		rawTRC, err = trcObj.Compress()
 		if err != nil {
 			logger.Warn("[TrustStore:trcReqHandler] Unable to compress TRC", "err", err)
-			return
+			return infra.MetricsErrInternal
 		}
 	}
 	trcMessage := &cert_mgmt.TRC{
@@ -86,10 +109,11 @@ func (h *trcReqHandler) Handle() {
 	}
 	if err := messenger.SendTRC(subCtx, trcMessage, h.request.Peer, h.request.ID); err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Messenger error", "err", err)
-		return
+		return infra.MetricsErrMsger(err)
 	}
 	logger.Debug("[TrustStore:trcReqHandler] Replied with TRC",
 		"trc", trcObj, "peer", h.request.Peer)
+	return infra.MetricsResultOk
 }
 
 // chainReqHandler contains the state of a handler for a specific Certificate
@@ -102,20 +126,20 @@ type chainReqHandler struct {
 	recurse bool
 }
 
-func (h *chainReqHandler) Handle() {
+func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {
 		logger.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	logger.Debug("[TrustStore:chainReqHandler] Received request", "chainReq", chainReq,
 		"peer", h.request.Peer)
 	messenger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -130,20 +154,24 @@ func (h *chainReqHandler) Handle() {
 	if chainReq.CacheOnly {
 		chain, err = h.store.trustdb.GetChainVersion(h.request.Context(),
 			chainReq.IA(), chainReq.Version)
+		if err != nil {
+			logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
+			return infra.MetricsErrTrustDB(err)
+		}
 	} else {
 		chain, err = h.store.getChain(h.request.Context(), chainReq.IA(), chainReq.Version,
 			h.recurse, h.request.Peer)
-	}
-	if err != nil {
-		logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
-		return
+		if err != nil {
+			logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
+			return infra.MetricsErrTrustStore(err)
+		}
 	}
 	var rawChain common.RawBytes
 	if chain != nil {
 		rawChain, err = chain.Compress()
 		if err != nil {
 			logger.Error("[TrustStore:chainReqHandler] Unable to compress Chain", "err", err)
-			return
+			return infra.MetricsErrInternal
 		}
 	}
 	chainMessage := &cert_mgmt.Chain{
@@ -152,10 +180,11 @@ func (h *chainReqHandler) Handle() {
 	err = messenger.SendCertChain(subCtx, chainMessage, h.request.Peer, h.request.ID)
 	if err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Messenger API error", "err", err)
-		return
+		return infra.MetricsErrMsger(err)
 	}
 	logger.Debug("[TrustStore:chainReqHandler] Replied with chain",
 		"chain", chain, "peer", h.request.Peer)
+	return infra.MetricsResultOk
 }
 
 type trcPushHandler struct {
@@ -163,7 +192,7 @@ type trcPushHandler struct {
 	store   *Store
 }
 
-func (h *trcPushHandler) Handle() {
+func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	// FIXME(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
@@ -173,14 +202,14 @@ func (h *trcPushHandler) Handle() {
 	if !ok {
 		logger.Error("[TrustStore:trcPushHandler] Wrong message type, expected cert_mgmt.TRC",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	logger.Debug("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
 		"peer", h.request.Peer)
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcPushHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -191,23 +220,24 @@ func (h *trcPushHandler) Handle() {
 	if err != nil {
 		logger.Error("[TrustStore:trcPushHandler] Unable to extract TRC from TRC push", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return
+		return infra.MetricsErrInvalid
 	}
 	if trcObj == nil {
 		logger.Warn("[TrustStore:trcPushHandler] Empty chain received")
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return
+		return infra.MetricsErrInvalid
 	}
 	n, err := h.store.trustdb.InsertTRC(subCtx, trcObj)
 	if err != nil {
 		logger.Error("[TrustStore:trcPushHandler] Unable to insert TRC into DB", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
-		return
+		return infra.MetricsErrTrustDB(err)
 	}
 	if n != 0 {
 		logger.Debug("[TrustStore:trcPushHandler] Inserted TRC into DB", "trc", trcObj)
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
+	return infra.MetricsResultOk
 }
 
 type chainPushHandler struct {
@@ -215,20 +245,20 @@ type chainPushHandler struct {
 	store   *Store
 }
 
-func (h *chainPushHandler) Handle() {
+func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
 		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	logger.Debug("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
 		"peer", h.request.Peer)
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -239,21 +269,22 @@ func (h *chainPushHandler) Handle() {
 		logger.Error("[TrustStore:chainPushHandler] Unable to extract chain from chain push",
 			"err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return
+		return infra.MetricsErrInvalid
 	}
 	if chain == nil {
 		logger.Warn("[TrustStore:chainPushHandler] Empty chain received")
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return
+		return infra.MetricsErrInvalid
 	}
 	n, err := h.store.trustdb.InsertChain(subCtx, chain)
 	if err != nil {
 		logger.Error("[TrustStore:chainPushHandler] Unable to insert chain into DB", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
-		return
+		return infra.MetricsErrTrustDB(err)
 	}
 	if n != 0 {
 		logger.Debug("[TrustStore:chainPushHandler] Inserted chain into DB", "chain", chain)
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
+	return infra.MetricsResultOk
 }

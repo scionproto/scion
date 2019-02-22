@@ -52,18 +52,18 @@ type Transport interface {
 	Close(context.Context) error
 }
 
-// Interface Handler is implemented by objects that can handle a request coming
+// Handler is implemented by objects that can handle a request coming
 // from a remote SCION network node.
 type Handler interface {
-	Handle(*Request)
+	Handle(*Request) *HandlerResult
 }
 
 // Constructs a handler for request r. Handle() can be called on the
 // resulting object to process the message.
-type HandlerFunc func(r *Request)
+type HandlerFunc func(r *Request) *HandlerResult
 
-func (f HandlerFunc) Handle(r *Request) {
-	f(r)
+func (f HandlerFunc) Handle(r *Request) *HandlerResult {
+	return f(r)
 }
 
 // Request describes an object received from the network that is not part of an
@@ -192,6 +192,57 @@ func (mt MessageType) String() string {
 		return "Ack"
 	default:
 		return fmt.Sprintf("Unknown (%d)", mt)
+	}
+}
+
+// MetricLabel returns the label for metrics for a given message type.
+// The postfix for requests is always "req" and for replies and push messages it is always "push".
+func (mt MessageType) MetricLabel() string {
+	switch mt {
+	case None:
+		return "none"
+	case ChainRequest:
+		return "chain_req"
+	case Chain:
+		return "chain_push"
+	case TRCRequest:
+		return "trc_req"
+	case TRC:
+		return "trc_push"
+	case IfId:
+		return "ifid_push"
+	case IfStateInfos:
+		return "if_info_push"
+	case IfStateReq:
+		return "if_info_req"
+	case Seg:
+		return "pathseg_push"
+	case SegChangesReq:
+		return "seg_changes_req"
+	case SegChangesReply:
+		return "seg_changes_push"
+	case SegChangesIdReq:
+		return "seg_changes_id_req"
+	case SegChangesIdReply:
+		return "seg_changes_id_push"
+	case SegReg:
+		return "seg_reg_push"
+	case SegRequest:
+		return "seg_req"
+	case SegReply:
+		return "seg_push"
+	case SegRev:
+		return "seg_rev_push"
+	case SegSync:
+		return "seg_sync_push"
+	case ChainIssueRequest:
+		return "chain_issue_req"
+	case ChainIssueReply:
+		return "chain_issue_push"
+	case Ack:
+		return "ack_push"
+	default:
+		return "unknown_mt"
 	}
 }
 

@@ -32,28 +32,28 @@ type segRegHandler struct {
 }
 
 func NewSegRegHandler(args HandlerArgs) infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &segRegHandler{
 			baseHandler: newBaseHandler(r, args),
 			localIA:     args.IA,
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
 
-func (h *segRegHandler) Handle() {
+func (h *segRegHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	segReg, ok := h.request.Message.(*path_mgmt.SegReg)
 	if !ok {
 		logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Error("[segRegHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -61,10 +61,11 @@ func (h *segRegHandler) Handle() {
 	if err := segReg.ParseRaw(); err != nil {
 		logger.Error("[segRegHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return
+		return infra.MetricsErrInvalid
 	}
 	logSegRecs(logger, "[segRegHandler]", h.request.Peer, segReg.SegRecs)
 	h.verifyAndStore(subCtx, h.request.Peer, segReg.Recs, segReg.SRevInfos)
 	// TODO(lukedirtwalker): If all segments failed to verify the ack should also be negative here.
 	sendAck(proto.Ack_ErrCode_ok, "")
+	return infra.MetricsResultOk
 }

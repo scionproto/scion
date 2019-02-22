@@ -31,28 +31,28 @@ type revocHandler struct {
 }
 
 func NewRevocHandler(args HandlerArgs) infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &revocHandler{
 			baseHandler: newBaseHandler(r, args),
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
 
-func (h *revocHandler) Handle() {
+func (h *revocHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	logger = logger.New("from", h.request.Peer)
 	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
 		logger.Error("[revocHandler] wrong message type, expected path_mgmt.SignedRevInfo",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Error("[revocHandler] Unable to service request, no Messenger found")
-		return
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -63,7 +63,7 @@ func (h *revocHandler) Handle() {
 	if err != nil {
 		logger.Warn("[revocHandler] Couldn't parse revocation", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return
+		return infra.MetricsErrInvalid
 	}
 	logger = logger.New("revInfo", revInfo)
 	logger.Debug("[revocHandler] Received revocation")
@@ -72,14 +72,15 @@ func (h *revocHandler) Handle() {
 	if err != nil {
 		logger.Warn("Couldn't verify revocation", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
-		return
+		return infra.MetricsErrInvalid
 	}
 
 	_, err = h.revCache.Insert(subCtx, revocation)
 	if err != nil {
 		logger.Error("Failed to insert revInfo", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
-		return
+		return infra.MetricsErrRevCache(err)
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
+	return infra.MetricsResultOk
 }
