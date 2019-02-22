@@ -375,11 +375,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if (not self.ifid_state[in_if].is_active() and
                         not self._quiet_startup()):
                     continue
-            peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(), xover=True)
+            peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof())
             if peer_pcbm:
                 yield peer_pcbm
 
-    def _create_pcbm(self, in_if, out_if, ts, prev_hof, xover=False):
+    def _create_pcbm(self, in_if, out_if, ts, prev_hof):
         in_info = self._mk_if_info(in_if)
         if in_info["remote_ia"].int() and not in_info["remote_if"]:
             return None
@@ -390,7 +390,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if exp_time < 0:
             logging.error("Invalid hop field expiration time value: %s", exp_time)
             return None
-        hof = HopOpaqueField.from_values(exp_time, in_if, out_if, xover=xover)
+        hof = HopOpaqueField.from_values(exp_time, in_if, out_if)
         hof.set_mac(self.of_gen_key, ts, prev_hof)
         return PCBMarking.from_values(
             in_info["remote_ia"], in_info["remote_if"], in_info["mtu"],
