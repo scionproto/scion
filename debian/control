@@ -40,26 +40,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev, libfilter0, libzlog-
 Description: SCION filter library - development files
  Library for filtering packets
 
-Package: libtcpmw0
-Section: libs
-Multi-Arch: same
-Architecture: amd64 i386 arm64 armhf
-Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog1
-Description: SCION tcp library
- supportive library for scion
-
-# libtcpmw0-dev is not viable
-# It requires packing the lwip headers in a very obscure way.
-# Since the static lib is available when we build in-source packages
-# There is no point in shipping a dedicated -dev package.
-
-#Package: libtcpmw0-dev
-#Section: libdevel
-#Architecture: amd64 i386
-#Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev, libtcpmw0
-#Description: SCION tcp library - development files
-# supportive library for scion
-
 Package: scion-dispatcher
 Section: net
 Multi-Arch: foreign
