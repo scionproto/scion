@@ -26,10 +26,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -45,15 +43,14 @@ func TestNoRevokedHopIntf(t *testing.T) {
 		defer cancelF()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
+		revCache := mock_revcache.NewMockRevCache(ctrl)
 		Convey("Given an empty revcache", func() {
-			revCache := mock_revcache.NewMockRevCache(ctrl)
 			revCache.EXPECT().GetAll(gomock.Eq(ctx), gomock.Any())
 			noR, err := NoRevokedHopIntf(ctx, revCache, seg210_222_1)
 			SoMsg("No err expected", err, ShouldBeNil)
 			SoMsg("No revocation expected", noR, ShouldBeTrue)
 		})
 		Convey("Given a revcache with an on segment revocation", func() {
-			revCache := mock_revcache.NewMockRevCache(ctrl)
 			sRev := toSigned(t, defaultRevInfo(graph.If_210_X_211_A))
 			var err error
 			revCache.EXPECT().GetAll(gomock.Eq(ctx), gomock.Any()).Return(
@@ -64,7 +61,6 @@ func TestNoRevokedHopIntf(t *testing.T) {
 			SoMsg("Revocation expected", noR, ShouldBeFalse)
 		})
 		Convey("Given an error in the revache it is propagated", func() {
-			revCache := mock_revcache.NewMockRevCache(ctrl)
 			revCache.EXPECT().GetAll(gomock.Eq(ctx), gomock.Any()).Return(
 				nil, common.NewBasicError("TestError", nil),
 			)
@@ -81,8 +77,8 @@ func TestRelevantRevInfos(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		segs := []*seg.PathSegment{seg210_222_1}
+		revCache := mock_revcache.NewMockRevCache(ctrl)
 		Convey("Given an empty revcache", func() {
-			revCache := mock_revcache.NewMockRevCache(ctrl)
 			revCache.EXPECT().GetAll(gomock.Eq(ctx), gomock.Any())
 			revs, err := RelevantRevInfos(ctx, revCache, segs)
 			SoMsg("No err expected", err, ShouldBeNil)
@@ -90,7 +86,6 @@ func TestRelevantRevInfos(t *testing.T) {
 		})
 		// TODO(lukedirtwalker): Add test with revocations
 		Convey("Given an error in the revache it is propagated", func() {
-			revCache := mock_revcache.NewMockRevCache(ctrl)
 			revCache.EXPECT().GetAll(gomock.Eq(ctx), gomock.Any()).Return(
 				nil, common.NewBasicError("TestError", nil),
 			)
@@ -108,10 +103,7 @@ func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {
 
 func defaultRevInfo(ifId common.IFIDType) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         ifId,
-		RawIsdas:     xtest.MustParseIA("2-ff00:0:211").IAInt(),
-		LinkType:     proto.LinkType_core,
-		RawTimestamp: util.TimeToSecs(time.Now()),
-		RawTTL:       uint32((time.Duration(10) * time.Second).Seconds()),
+		IfID:     ifId,
+		RawIsdas: xtest.MustParseIA("2-ff00:0:211").IAInt(),
 	}
 }
