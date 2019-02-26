@@ -41,13 +41,35 @@ func (k Key) String() string {
 	return fmt.Sprintf("%s#%s", k.IA, k.IfId)
 }
 
-// RevCache is a cache for revocations.
+// KeySet is a set of keys.
+type KeySet map[Key]struct{}
+
+// SingleKey is a convenience function to return a KeySet with a single key.
+func SingleKey(ia addr.IA, ifId common.IFIDType) KeySet {
+	return KeySet{*NewKey(ia, ifId): {}}
+}
+
+// RevOrErr is either a revocation or an error.
+type RevOrErr struct {
+	Rev *path_mgmt.SignedRevInfo
+	Err error
+}
+
+// ResultChan is a channel of results.
+type ResultChan <-chan RevOrErr
+
+// RevCache is a cache for revocations. Revcache implementations must be safe for concurrent usage.
 type RevCache interface {
-	// Get item with key k from the cache. Returns the item or nil,
-	// and a bool indicating whether the key was found.
-	Get(ctx context.Context, k *Key) (*path_mgmt.SignedRevInfo, bool, error)
-	// GetAll gets all revocations for the given keys.
-	GetAll(ctx context.Context, keys map[Key]struct{}) ([]*path_mgmt.SignedRevInfo, error)
+	// Get items with the given keys from the cache. Returns all present requested items that are
+	// not expired or an error if the query failed.
+	Get(ctx context.Context, keys KeySet) (Revocations, error)
+	// GetAll returns a channel that will provide all items in the revocation cache. If the cache
+	// can't prepare the result channel a nil channel and the error are returned. If the querying
+	// succeeded the channel will contain the revocations in the cache, or an error if the stored
+	// data could not be parsed. Note that implementations can spawn a goroutine to fill the
+	// channel, which means the channel must be fully drained to guarantee the destruction of the
+	// goroutine.
+	GetAll(ctx context.Context) (ResultChan, error)
 	// Insert inserts or updates the given revocation into the cache.
 	// Returns whether an insert was performed.
 	Insert(ctx context.Context, rev *path_mgmt.SignedRevInfo) (bool, error)
@@ -58,35 +80,80 @@ type RevCache interface {
 	DeleteExpired(ctx context.Context) (int64, error)
 }
 
-// FilterNew filters the given revocations against the revCache, only the ones which are not in the
-// cache are returned.
-// Note: Modifies revocations slice.
-func FilterNew(ctx context.Context, revCache RevCache,
-	revocations []*path_mgmt.SignedRevInfo) ([]*path_mgmt.SignedRevInfo, error) {
+// Revocations is the map of revocations.
+type Revocations map[Key]*path_mgmt.SignedRevInfo
 
-	filtered := revocations[:0]
-	for _, r := range revocations {
-		info, err := r.RevInfo()
-		if err != nil {
-			panic(fmt.Sprintf("Revocation should have been sanitized, err: %s", err))
-		}
-		existingRev, ok, err := revCache.Get(ctx, NewKey(info.IA(), info.IfID))
+// RevocationToMap converts a slice of revocations to a revocation map. If extracting the info field
+// fails from a revocation, nil and the error is returned.
+func RevocationToMap(revs []*path_mgmt.SignedRevInfo) (Revocations, error) {
+	res := make(Revocations)
+	for _, rev := range revs {
+		info, err := rev.RevInfo()
 		if err != nil {
 			return nil, err
 		}
-		if !ok {
-			filtered = append(filtered, r)
-			continue
-		}
-		existingInfo, err := existingRev.RevInfo()
+		res[Key{IA: info.IA(), IfId: info.IfID}] = rev
+	}
+	return res, nil
+}
+
+// Keys returns the set of keys in this revocation map.
+func (r Revocations) Keys() KeySet {
+	keys := make(KeySet, len(r))
+	for key := range r {
+		keys[key] = struct{}{}
+	}
+	return keys
+}
+
+// ToSlice extracts the values from this revocation map.
+func (r Revocations) ToSlice() []*path_mgmt.SignedRevInfo {
+	res := make([]*path_mgmt.SignedRevInfo, 0, len(r))
+	for _, rev := range r {
+		res = append(res, rev)
+	}
+	return res
+}
+
+// FilterNew drops all revocations in r that are already in the revCache.
+func (r Revocations) FilterNew(ctx context.Context, revCache RevCache) error {
+	inCache, err := revCache.Get(ctx, r.Keys())
+	if err != nil {
+		return err
+	}
+	for key, rev := range r {
+		info, err := rev.RevInfo()
 		if err != nil {
-			panic("Revocation should be sanitized in cache")
+			panic(fmt.Sprintf("Revocation should have been sanitized, err: %s", err))
 		}
-		if newerInfo(info, existingInfo) {
-			filtered = append(filtered, r)
+		existingRev, exists := inCache[key]
+		if exists {
+			existingInfo, err := existingRev.RevInfo()
+			if err != nil {
+				panic("Revocation should be sanitized in cache")
+			}
+			if !newerInfo(existingInfo, info) {
+				delete(r, key)
+			}
 		}
 	}
-	return filtered, nil
+	return nil
+}
+
+// FilterNew filters the given revocations against the revCache, only the ones which are not in the
+// cache are returned. This is a convenience wrapper around the Revocations type and its filter new
+// method.
+func FilterNew(ctx context.Context, revCache RevCache,
+	revocations []*path_mgmt.SignedRevInfo) ([]*path_mgmt.SignedRevInfo, error) {
+
+	rMap, err := RevocationToMap(revocations)
+	if err != nil {
+		return nil, err
+	}
+	if err = rMap.FilterNew(ctx, revCache); err != nil {
+		return nil, err
+	}
+	return rMap.ToSlice(), nil
 }
 
 // newerInfo returns whether the received info is newer than the existing.
