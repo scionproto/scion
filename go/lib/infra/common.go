@@ -285,6 +285,16 @@ func MessengerFromContext(ctx context.Context) (Messenger, bool) {
 	return msger, ok
 }
 
+var _ error = (*Error)(nil)
+
+type Error struct {
+	Message *ack.Ack
+}
+
+func (e *Error) Error() string {
+	return e.Message.ErrDesc
+}
+
 type TrustStore interface {
 	GetValidChain(ctx context.Context, ia addr.IA, source net.Addr) (*cert.Chain, error)
 	GetValidTRC(ctx context.Context, isd addr.ISD, source net.Addr) (*trc.TRC, error)
