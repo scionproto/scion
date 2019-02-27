@@ -112,6 +112,9 @@ type Config struct {
 	// verification of the top level signature in received signed control
 	// payloads.
 	DisableSignatureVerification bool
+	// If WaitForAcks is set to true, notifications wait for Ack messages to be
+	// received before returning.
+	WaitForAcks bool
 }
 
 func (c *Config) loadDefaults() {
@@ -198,7 +201,7 @@ func (m *Messenger) sendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id ui
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Ack", "to", a, "id", id)
-	return m.getRequester(infra.Ack, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.Ack).Notify(ctx, pld, a)
 }
 
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
@@ -215,14 +218,14 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 func (m *Messenger) getTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
-	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending request", "req_type", infra.TRCRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest, infra.TRC).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -230,13 +233,16 @@ func (m *Messenger) getTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*cert_mgmt.TRC)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *cert_mgmt.TRC:
+		logger.Trace("[Messenger] Received reply", "reply", reply)
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	logger.Trace("[Messenger] Received reply", "reply", reply)
-	return reply, nil
 }
 
 // SendTRC sends a reliable cert_mgmt.TRC to address a.
@@ -252,9 +258,39 @@ func (m *Messenger) sendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 	if err != nil {
 		return err
 	}
+	if m.config.WaitForAcks {
+		return m.sendTRCWithAck(ctx, msg, a, id, pld)
+	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
-	return m.getRequester(infra.TRC, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.TRC).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) sendTRCWithAck(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
+	id uint64, pld *ctrl.Pld) error {
+
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending request", "req_type", infra.TRC,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, _, err := m.getRequester(infra.TRC).Request(ctx, pld, a)
+	if err != nil {
+		return common.NewBasicError("[Messenger] Request error", err)
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return common.NewBasicError("[Messenger] Reply validation failed", err)
+	}
+	switch reply := replyMsg.(type) {
+	case *ack.Ack:
+		logger.Trace("[Messenger] Received reply", "reply", reply)
+		if reply.Err != proto.Ack_ErrCode_ok {
+			return &infra.Error{Message: reply}
+		}
+		return nil
+	default:
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return common.NewBasicError("[Messenger] Type assertion failed", err)
+	}
 }
 
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
@@ -278,7 +314,7 @@ func (m *Messenger) getCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest, infra.Chain).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -314,7 +350,7 @@ func (m *Messenger) sendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
-	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.Chain).Notify(ctx, pld, a)
 }
 
 // SendIfId sends a reliable ifid.IFID to address a.
@@ -348,7 +384,7 @@ func (m *Messenger) sendIfStateInfos(ctx context.Context, msg *path_mgmt.IFState
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.IfStateInfos, "to", a, "id", id)
-	return m.getRequester(infra.IfStateInfos, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.IfStateInfos).Notify(ctx, pld, a)
 }
 
 // SendSeg sends a reliable seg.Pathsegment to a.
@@ -389,7 +425,7 @@ func (m *Messenger) getSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
-		m.getRequester(infra.SegRequest, infra.SegReply).Request(ctx, pld, a)
+		m.getRequester(infra.SegRequest).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -428,7 +464,7 @@ func (m *Messenger) sendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
-	return m.getRequester(infra.SegReply, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.SegReply).Notify(ctx, pld, a)
 }
 
 // SendSegSync sends a reliable path_mgmt.SegSync to address a.
@@ -450,7 +486,7 @@ func (m *Messenger) sendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
-	return m.getRequester(infra.SegSync, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.SegSync).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
@@ -472,8 +508,7 @@ func (m *Messenger) getSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq,
-		infra.SegChangesIdReply).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -509,7 +544,7 @@ func (m *Messenger) sendSegChangesIdReply(ctx context.Context, msg *path_mgmt.Se
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesIdReply, "to", a, "id", id)
-	return m.getRequester(infra.SegChangesIdReply, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.SegChangesIdReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
@@ -531,8 +566,7 @@ func (m *Messenger) getSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq,
-		infra.SegChangesIdReply).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -571,7 +605,7 @@ func (m *Messenger) sendSegChangesReply(ctx context.Context, msg *path_mgmt.SegC
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesReply, "to", a, "id", id)
-	return m.getRequester(infra.SegChangesReply, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.SegChangesReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq,
@@ -593,8 +627,7 @@ func (m *Messenger) requestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainIssueRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err :=
-		m.getRequester(infra.ChainIssueRequest, infra.ChainIssueReply).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.ChainIssueRequest).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -629,7 +662,7 @@ func (m *Messenger) sendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
-	return m.getRequester(infra.ChainIssueReply, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.ChainIssueReply).Notify(ctx, pld, a)
 }
 
 // AddHandler registers a handler for msgType.
@@ -839,7 +872,7 @@ func (m *Messenger) sendBasePld(ctx context.Context, msg proto.Cerealizable,
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", mt, "to", a, "id", id)
-	return m.getRequester(mt, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(mt).Notify(ctx, pld, a)
 }
 
 // CloseServer stops any running ListenAndServe functions, and cancels all running
@@ -889,10 +922,7 @@ func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
 //
 // If message type reqT is to be signed, the key is initialized from m.signer.
 // Otherwise it is set to a null signer.
-//
-// If message type respT is to be verified, the key is initialized from
-// m.verifier. Otherwise, it is set to a null verifier.
-func (m *Messenger) getRequester(reqT, respT infra.MessageType) *pathingRequester {
+func (m *Messenger) getRequester(reqT infra.MessageType) *pathingRequester {
 	m.cryptoLock.RLock()
 	defer m.cryptoLock.RUnlock()
 	signer := infra.NullSigner
