@@ -4,7 +4,7 @@ This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 - Author: Benjamin Rothenberger
-- Last updated: 2019-02-21
+- Last updated: 2019-02-28
 - Status: draft
 
 ## Overview
@@ -28,21 +28,22 @@ DRKey is used for:
 
     PRF_K (X)             pseudorandom function using key K and taking X as an input
     {X}_PK_A              public key encryption using public key of AS A
-    {}_PK_A^-1            public key signing using private key of AS A
+    {X}_PK_A^-1           public key signing using private key of AS A
 
     A                     autonomous system
     H_A                   end host identified by their IP address
     CS_A                  certificate server located in AS A
 
     SV_A                  AS A's local secret value
-    K_{A→B}               symmetric key between AS A and AS B
+    K_{A→B}               symmetric key between AS A and AS B with direct key derivation for AS A
     K_{A:H_A→B:H_B}^{p}   symmetric key between host H_A in AS A and host H_B in AS B for protocol 'p'
     DS_{A→B}^{p}          delegation secret between AS A and AS B for protocol 'p'
 
 Note that the arrow notation does *not* refer to the directionality of the key, but
 rather states for which entity the key derivation must be efficient. For example,
-`K_{A→B:H_B}` is directly derivable by AS A, whereas host `H_B` might be required
-to fetch a key from its local CS.
+`K_{A→B:H_B}` can be used in both direction of communication, but is directly
+derivable by AS A, whereas host `H_B` might be required to fetch a key from its
+local CS.
 
 ## Design
 
@@ -105,8 +106,8 @@ addresses. We distinguish between IPv4, IPv6 and service addresses.
 #### Epochs
 
 An epoch is an interval between a starting and end point in time. The length of
-epochs of can be chosen by a given AS and can change over time. However, no
-epochs must overlap. Thus, a secret value is associated with exactly one epoch.
+epochs of can be chosen by a given AS and can change over time. However, epochs
+must not overlap. Thus, a secret value is associated with exactly one epoch.
 
 #### Validity Periods
 
@@ -138,21 +139,23 @@ perform the key exchange protocol. The key exchange is initialized by CS\_B by
 sending the following request:
 
     token = A | val_time | timestamp
-    CS_B → CS A : A | B | token | {token}_PK_B^−1
+    CS_B → CS_A : A | B | token | {token}_PK_B^−1
 
 where `val_time` specifies a point in time at which the requested key is valid.
 The requested key may not be valid at the time of request, either because it
 already expired or because it will become valid in the future. For example,
 prefetching future keys allows for seamless transition to the new key. Thus,
 `val_time` is used to identify the epoch in which the requested key can be used.
+In case `val_time` is close to the end of the current epoch, the CS will also
+include the key for the next epoch.
 
-To obtain valid AS-level certificates to sign and encrypt the first level key
-exchange, we can use the SCION control-plane PKI. The request token is signed
-with B’s private key to prove authenticity of the request. Upon receiving the
-initial request, CS\_A checks the signature and timestamp for authenticity and
-expiration. If the request has not yet expired, the certificate server CS\_A
-will reply with an encrypted and signed first-level key derived from the local
-secret value SV\_A. SV\_A is chosen according to the epoch identified by
+To sign and encrypt the first level key exchange, AS-level certificate
+distributed using the SCION control-plane PKI are used. The request token is
+signed with B’s private key to prove authenticity of the request. Upon receiving
+the initial request, CS\_A checks the signature and timestamp for authenticity
+and expiration. If the request has not yet expired, the certificate server
+CS\_A will reply with an encrypted and signed first-level key derived from the
+local secret value SV\_A. SV\_A is chosen according to the epoch identified by
 `val_time`.
 
     K_{A→B} = PRF_{SV_A} (B)
@@ -289,7 +292,7 @@ SV\_A^j that is used to derive K_{A→B} at the current sequence j such that:
 The offset function is AS-specific. By default, we suggest to use a function
 that uniformely distributes the offset values in the following interval:
 
-    [0, minimum epoch length \ 2 )
+    [0, minimum epoch length / 2 )
 
 For prefetching of DRKeys, a `valTime` that exceeds the end of the current epoch
 can be selected. To allow seamless key rollover, an entity is required to store
