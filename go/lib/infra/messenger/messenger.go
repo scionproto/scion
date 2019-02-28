@@ -254,43 +254,11 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 }
 
 func (m *Messenger) sendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	pld, err := cert_mgmt.NewPld(msg, nil)
 	if err != nil {
 		return err
 	}
-	if m.config.WaitForAcks {
-		return m.sendTRCWithAck(ctx, msg, a, id, pld)
-	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
-	return m.getRequester(infra.TRC).Notify(ctx, pld, a)
-}
-
-func (m *Messenger) sendTRCWithAck(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
-	id uint64, pld *ctrl.Pld) error {
-
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending request", "req_type", infra.TRC,
-		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.TRC).Request(ctx, pld, a)
-	if err != nil {
-		return common.NewBasicError("[Messenger] Request error", err)
-	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
-	if err != nil {
-		return common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch reply := replyMsg.(type) {
-	case *ack.Ack:
-		logger.Trace("[Messenger] Received reply", "reply", reply)
-		if reply.Err != proto.Ack_ErrCode_ok {
-			return &infra.Error{Message: reply}
-		}
-		return nil
-	default:
-		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
-		return common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
+	return m.sendMessage(ctx, pld, a, id, infra.TRC)
 }
 
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
@@ -322,13 +290,16 @@ func (m *Messenger) getCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*cert_mgmt.Chain)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *cert_mgmt.Chain:
+		logger.Trace("[Messenger] Received reply", "reply", reply)
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*cert_mgmt.Chain", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	logger.Trace("[Messenger] Received reply", "reply", reply)
-	return reply, nil
 }
 
 // SendCertChain sends a reliable cert_mgmt.Chain to address a.
@@ -344,13 +315,11 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 func (m *Messenger) sendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
 	id uint64) error {
 
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	pld, err := cert_mgmt.NewPld(msg, nil)
 	if err != nil {
 		return err
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
-	return m.getRequester(infra.Chain).Notify(ctx, pld, a)
+	return m.sendMessage(ctx, pld, a, id, infra.Chain)
 }
 
 // SendIfId sends a reliable ifid.IFID to address a.
@@ -362,7 +331,7 @@ func (m *Messenger) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id
 }
 
 func (m *Messenger) sendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error {
-	return m.sendBasePld(ctx, msg, a, id, infra.IfId)
+	return m.sendMessage(ctx, msg, a, id, infra.IfId)
 }
 
 // SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
@@ -378,13 +347,11 @@ func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFState
 func (m *Messenger) sendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
 	a net.Addr, id uint64) error {
 
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	pld, err := path_mgmt.NewPld(msg, nil)
 	if err != nil {
 		return err
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.IfStateInfos, "to", a, "id", id)
-	return m.getRequester(infra.IfStateInfos).Notify(ctx, pld, a)
+	return m.sendMessage(ctx, pld, a, id, infra.IfStateInfos)
 }
 
 // SendSeg sends a reliable seg.Pathsegment to a.
@@ -400,7 +367,7 @@ func (m *Messenger) SendSeg(ctx context.Context, msg *seg.PathSegment,
 func (m *Messenger) sendSeg(ctx context.Context, msg *seg.PathSegment,
 	a net.Addr, id uint64) error {
 
-	return m.sendBasePld(ctx, msg, a, id, infra.Seg)
+	return m.sendMessage(ctx, msg, a, id, infra.Seg)
 }
 
 // GetSegs asks the server at the remote address for the path segments that
@@ -433,16 +400,19 @@ func (m *Messenger) getSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*path_mgmt.SegReply)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *path_mgmt.SegReply:
+		if err := reply.ParseRaw(); err != nil {
+			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
+		}
+		logger.Trace("[Messenger] Received reply")
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	if err := reply.ParseRaw(); err != nil {
-		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
-	}
-	logger.Trace("[Messenger] Received reply")
-	return reply, nil
 }
 
 // SendSegReply sends a reliable path_mgmt.SegReply to address a.
@@ -480,13 +450,11 @@ func (m *Messenger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
 func (m *Messenger) sendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
 	a net.Addr, id uint64) error {
 
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	pld, err := path_mgmt.NewPld(msg, nil)
 	if err != nil {
 		return err
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
-	return m.getRequester(infra.SegSync).Notify(ctx, pld, a)
+	return m.sendMessage(ctx, pld, a, id, infra.SegSync)
 }
 
 func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
@@ -516,13 +484,16 @@ func (m *Messenger) getSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*path_mgmt.SegChangesIdReply)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *path_mgmt.SegChangesIdReply:
+		logger.Trace("[Messenger] Received reply")
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*path_mgmt.SegChangesIdReply", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	logger.Trace("[Messenger] Received reply")
-	return reply, nil
 }
 
 func (m *Messenger) SendSegChangesIdReply(ctx context.Context, msg *path_mgmt.SegChangesIdReply,
@@ -574,16 +545,19 @@ func (m *Messenger) getSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*path_mgmt.SegChangesReply)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *path_mgmt.SegChangesReply:
+		if err := reply.ParseRaw(); err != nil {
+			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
+		}
+		logger.Trace("[Messenger] Received reply")
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*path_mgmt.SegChangesReply", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	if err := reply.ParseRaw(); err != nil {
-		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
-	}
-	logger.Trace("[Messenger] Received reply")
-	return reply, nil
 }
 
 func (m *Messenger) SendSegChangesReply(ctx context.Context, msg *path_mgmt.SegChangesReply,
@@ -635,13 +609,16 @@ func (m *Messenger) requestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*cert_mgmt.ChainIssRep)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *cert_mgmt.ChainIssRep:
+		logger.Trace("[Messenger] Received reply")
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*cert_mgmt.ChainIssRep", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	logger.Trace("[Messenger] Received reply")
-	return reply, nil
 }
 
 func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep,
@@ -663,6 +640,54 @@ func (m *Messenger) sendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
 	return m.getRequester(infra.ChainIssueReply).Notify(ctx, pld, a)
+}
+
+// sendMessage sends payload msg of type expectedType to address a, using id.
+// If waiting for Acks is disabled, sendMessage returns immediately after
+// sending the message on the network. If waiting for Acks is enabled,
+// sendMessage blocks until an Ack is received from the peer. If the Ack
+// contains an error, the returned error is non-nil. If the received message
+// is not an Ack, an error is returned.
+func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a net.Addr,
+	id uint64, expectedType infra.MessageType) error {
+
+	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	if m.config.WaitForAcks {
+		return m.sendWithAck(ctx, msg, a, id, pld, expectedType)
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", expectedType, "to", a, "id", id)
+	return m.getRequester(expectedType).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a net.Addr,
+	id uint64, pld *ctrl.Pld, expectedType infra.MessageType) error {
+
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending request", "req_type", expectedType,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, _, err := m.getRequester(infra.TRC).Request(ctx, pld, a)
+	if err != nil {
+		return common.NewBasicError("[Messenger] Request error", err)
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return common.NewBasicError("[Messenger] Reply validation failed", err)
+	}
+	switch reply := replyMsg.(type) {
+	case *ack.Ack:
+		logger.Trace("[Messenger] Received reply", "reply", reply)
+		if reply.Err != proto.Ack_ErrCode_ok {
+			return &infra.Error{Message: reply}
+		}
+		return nil
+	default:
+		err := newTypeAssertErr(expectedType.String(), replyMsg)
+		return common.NewBasicError("[Messenger] Type assertion failed", err)
+	}
 }
 
 // AddHandler registers a handler for msgType.
@@ -861,18 +886,6 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 		return infra.None, nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
 			nil, "capnp_which", pld.Which)
 	}
-}
-
-func (m *Messenger) sendBasePld(ctx context.Context, msg proto.Cerealizable,
-	a net.Addr, id uint64, mt infra.MessageType) error {
-
-	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
-	if err != nil {
-		return err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", mt, "to", a, "id", id)
-	return m.getRequester(mt).Notify(ctx, pld, a)
 }
 
 // CloseServer stops any running ListenAndServe functions, and cancels all running
