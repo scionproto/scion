@@ -84,6 +84,7 @@ gomock(
     interfaces = [
         "TrustStore",
         "Messenger",
+        "ResponseWriter",
     ],
     out = "mock_infra.go",
 )

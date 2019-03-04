@@ -40,14 +40,15 @@ const (
 )
 
 type Config struct {
-	General   env.General
-	Sciond    env.SciondClient `toml:"sd_client"`
-	Logging   env.Logging
-	Metrics   env.Metrics
-	TrustDB   truststorage.TrustDBConf
-	Infra     env.Infra
-	Discovery idiscovery.Config
-	CS        CSConfig
+	General        env.General
+	Sciond         env.SciondClient `toml:"sd_client"`
+	Logging        env.Logging
+	Metrics        env.Metrics
+	TrustDB        truststorage.TrustDBConf
+	Infra          env.Infra
+	Discovery      idiscovery.Config
+	CS             CSConfig
+	EnableQUICTest bool
 }
 
 func (c *Config) Init(confDir string) error {
