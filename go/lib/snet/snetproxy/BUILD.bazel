@@ -1,0 +1,45 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "conn.go",
+        "doc.go",
+        "errors.go",
+        "io.go",
+        "network.go",
+        "reconnecter.go",
+        "util.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/snet/snetproxy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/snet:go_default_library",
+        "//go/lib/sock/reliable:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "conn_io_test.go",
+        "main_test.go",
+        "network_test.go",
+        "reconnecter_test.go",
+        "util_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/snet:go_default_library",
+        "//go/lib/snet/mock_snet:go_default_library",
+        "//go/lib/snet/snetproxy/mock_snetproxy:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

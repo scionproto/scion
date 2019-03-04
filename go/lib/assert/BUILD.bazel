@@ -1,0 +1,11 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "assert.go",
+        "const_off.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/assert",
+    visibility = ["//visibility:public"],
+)

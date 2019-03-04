@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["worker.go"],
+    importpath = "github.com/scionproto/scion/go/sig/egress/worker",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/l4:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/ringbuf:go_default_library",
+        "//go/lib/sciond:go_default_library",
+        "//go/lib/spath:go_default_library",
+        "//go/lib/spkt:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/sig/egress:go_default_library",
+        "//go/sig/metrics:go_default_library",
+        "//go/sig/mgmt:go_default_library",
+        "//go/sig/sigcmn:go_default_library",
+        "//go/sig/siginfo:go_default_library",
+    ],
+)

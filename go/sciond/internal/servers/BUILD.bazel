@@ -1,0 +1,29 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "api.go",
+        "handlers.go",
+        "server.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/sciond/internal/servers",
+    visibility = ["//go/sciond:__subpackages__"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/hostinfo:go_default_library",
+        "//go/lib/infra:go_default_library",
+        "//go/lib/infra/modules/itopo:go_default_library",
+        "//go/lib/infra/modules/segverifier:go_default_library",
+        "//go/lib/infra/transport:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/revcache:go_default_library",
+        "//go/lib/sciond:go_default_library",
+        "//go/lib/sock/reliable:go_default_library",
+        "//go/lib/topology:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/proto:go_default_library",
+        "//go/sciond/internal/fetcher:go_default_library",
+    ],
+)

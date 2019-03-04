@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/go/acceptance/sig_ping_acceptance",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/acceptance:go_default_library",
+        "//go/lib/integration:go_default_library",
+        "//go/lib/log:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "sig_ping_acceptance",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

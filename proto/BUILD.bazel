@@ -1,0 +1,7 @@
+# gazelle:ignore
+
+filegroup(
+    name = "sources",
+    srcs = glob(["*.capnp"]),
+    visibility = ["//visibility:public"],
+)

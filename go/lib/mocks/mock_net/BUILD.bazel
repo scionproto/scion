@@ -1,0 +1,54 @@
+# gazelle:ignore
+
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+# This is a hack to make mocking of system packages possible.
+# For more info look at https://github.com/bazelbuild/rules_go/issues/1944.
+#
+# To mock more system interfaces, add a type alias into types.go
+# and a gomock rule here.
+
+go_library(
+    name = "types",
+    srcs = ["types.go"],
+    importpath = "github.com/scionproto/scion/go/lib/mocks/types",
+)
+
+gomock(
+    name = "mock_addr",
+    out = "addr.go",
+    interfaces = ["Addr"],
+    library = ":types",
+    package = "mock_net",
+)
+
+gomock(
+    name = "mock_conn",
+    out = "conn.go",
+    interfaces = ["Conn"],
+    library = ":types",
+    package = "mock_net",
+)
+
+gomock(
+    name = "mock_packetconn",
+    out = "packetconn.go",
+    interfaces = ["PacketConn"],
+    library = ":types",
+    package = "mock_net",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "addr.go",
+        "conn.go",
+        "packetconn.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/mocks/mock_net",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_golang_mock//gomock:go_default_library",
+    ],
+)

@@ -31,8 +31,8 @@ import (
 )
 
 var (
-	rawUdpPkt  = MustLoad("testdata/udp-scion.bin")
-	rawScmpPkt = MustLoad("testdata/scmp-rev.bin")
+	rawUdpPktFilename  = "testdata/udp-scion.bin"
+	rawScmpPktFilename = "testdata/scmp-rev.bin"
 )
 
 func MustLoad(path string) common.RawBytes {
@@ -44,6 +44,7 @@ func MustLoad(path string) common.RawBytes {
 }
 
 func Test_ParseScnPkt(t *testing.T) {
+	rawUdpPkt := MustLoad(rawUdpPktFilename)
 	Convey("ScnPkt.Parse should parse UDP/SCION packets correctly", t, func() {
 		s := &spkt.ScnPkt{
 			DstIA: addr.IA{},
@@ -86,6 +87,7 @@ func Test_ParseScnPkt(t *testing.T) {
 }
 
 func Test_ParseSCMPRev(t *testing.T) {
+	rawScmpPkt := MustLoad(rawScmpPktFilename)
 	Convey("ScnPkt.Parse should load SCMP revocation packets correctly", t, func() {
 		s := &spkt.ScnPkt{}
 		err := ParseScnPkt(s, rawScmpPkt)

@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "cmd.go",
+        "gen.go",
+        "verify.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/certs",
+    visibility = ["//go/tools/scion-pki:__subpackages__"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/keyconf:go_default_library",
+        "//go/lib/scrypto/cert:go_default_library",
+        "//go/lib/scrypto/trc:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/tools/scion-pki/internal/conf:go_default_library",
+        "//go/tools/scion-pki/internal/pkicmn:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+        "@org_golang_x_crypto//curve25519:go_default_library",
+        "@org_golang_x_crypto//ed25519:go_default_library",
+    ],
+)
