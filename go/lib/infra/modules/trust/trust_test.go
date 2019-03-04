@@ -532,7 +532,7 @@ func TestTRCReqHandler(t *testing.T) {
 
 		insertTRC(t, store, trcs[1])
 
-		c2s, s2c := p2p.New()
+		c2s, s2c := p2p.NewPacketConns()
 		// each test initiates a request from the client messenger
 		clientMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), c2s, nil, "client")
 		// the server messenger runs ListenAndServe, backed by the trust store
@@ -653,7 +653,7 @@ func TestChainReqHandler(t *testing.T) {
 		insertTRC(t, store, trcs[1])
 		insertChain(t, store, chains[xtest.MustParseIA("1-ff00:0:1")])
 
-		c2s, s2c := p2p.New()
+		c2s, s2c := p2p.NewPacketConns()
 		// each test initiates a request from the client messenger
 		clientMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), c2s, nil, "client")
 		// the server messenger runs ListenAndServe, backed by the trust store
