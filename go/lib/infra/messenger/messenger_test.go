@@ -61,7 +61,7 @@ func MockTRCHandler(request *infra.Request) *infra.HandlerResult {
 
 func TestTRCExchange(t *testing.T) {
 	Convey("Setup", t, func() {
-		c2s, s2c := p2p.New()
+		c2s, s2c := p2p.NewPacketConns()
 		clientMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), c2s, "client")
 		serverMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), s2c, "server")
 

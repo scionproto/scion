@@ -34,7 +34,7 @@ const (
 )
 
 func Setup() (*Dispatcher, *Dispatcher, *customObject, *customObject) {
-	a2b, b2a := p2p.New()
+	a2b, b2a := p2p.NewPacketConns()
 	dispA := New(transport.NewPacketTransport(a2b), testAdapter, log.Root())
 	dispB := New(transport.NewPacketTransport(b2a), testAdapter, log.Root())
 	request := &customObject{8, "request"}
@@ -48,7 +48,7 @@ func TestRequestReply(t *testing.T) {
 		Convey("Request and reply (Parallel)", xtest.Parallel(func(sc *xtest.SC) {
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 			defer cancelF()
-			recvReply, err := dispA.Request(ctx, request, &p2p.Addr{})
+			recvReply, err := dispA.Request(ctx, request, nil)
 			sc.SoMsg("a request err", err, ShouldBeNil)
 			sc.SoMsg("a request reply", recvReply, ShouldResemble, reply)
 		}, func(sc *xtest.SC) {
@@ -57,7 +57,7 @@ func TestRequestReply(t *testing.T) {
 			recvRequest, _, err := dispB.RecvFrom(ctx)
 			sc.SoMsg("b recv err", err, ShouldBeNil)
 			sc.SoMsg("b recv msg", recvRequest, ShouldResemble, request)
-			err = dispB.Notify(ctx, reply, &p2p.Addr{})
+			err = dispB.Notify(ctx, reply, nil)
 			sc.SoMsg("b notify err", err, ShouldBeNil)
 		}))
 	})
@@ -69,7 +69,7 @@ func TestRequestNoReceiver(t *testing.T) {
 		Convey("Request without receiver", func() {
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 			defer cancelF()
-			recvReply, err := dispA.Request(ctx, request, &p2p.Addr{})
+			recvReply, err := dispA.Request(ctx, request, nil)
 			SoMsg("a request err", err, ShouldNotBeNil)
 			SoMsg("a request err timeout", common.IsTimeoutErr(err), ShouldBeTrue)
 			SoMsg("a request reply", recvReply, ShouldBeNil)
@@ -83,7 +83,7 @@ func TestRequestBadReply(t *testing.T) {
 		Convey("Request, and receive bad reply (Parallel)", xtest.Parallel(func(sc *xtest.SC) {
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 			defer cancelF()
-			recvReply, err := dispA.Request(ctx, request, &p2p.Addr{})
+			recvReply, err := dispA.Request(ctx, request, nil)
 			sc.SoMsg("a request err", err, ShouldNotBeNil)
 			sc.SoMsg("a request err timeout", common.IsTimeoutErr(err), ShouldBeTrue)
 			sc.SoMsg("a request reply", recvReply, ShouldBeNil)
@@ -96,7 +96,7 @@ func TestRequestBadReply(t *testing.T) {
 			recvRequest, _, err := dispB.RecvFrom(ctx)
 			sc.SoMsg("b recv err", err, ShouldBeNil)
 			sc.SoMsg("b recv msg", recvRequest, ShouldResemble, request)
-			err = dispB.Notify(ctx, badReply, &p2p.Addr{})
+			err = dispB.Notify(ctx, badReply, nil)
 			sc.SoMsg("b notify err", err, ShouldBeNil)
 		}))
 	})
@@ -108,7 +108,7 @@ func TestNotifyOk(t *testing.T) {
 		Convey("Notify and receive (Parallel)", xtest.Parallel(func(sc *xtest.SC) {
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 			defer cancelF()
-			err := dispA.Notify(ctx, notification, &p2p.Addr{})
+			err := dispA.Notify(ctx, notification, nil)
 			sc.SoMsg("a notify err", err, ShouldBeNil)
 		}, func(sc *xtest.SC) {
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
@@ -122,15 +122,11 @@ func TestNotifyOk(t *testing.T) {
 
 func TestUnreliableNotify(t *testing.T) {
 	Convey("Setup", t, func() {
-		dispA, dispB, notification, _ := Setup()
+		dispA, _, notification, _ := Setup()
 		Convey("Unreliable notify and return immediately", func() {
-			// Close dispB to make sure its transport layer doesn't ACK
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 			defer cancelF()
-			dispB.Close(ctx)
-			ctx2, cancelF2 := context.WithTimeout(context.Background(), testCtxTimeout)
-			defer cancelF2()
-			err := dispA.NotifyUnreliable(ctx2, notification, &p2p.Addr{})
+			err := dispA.NotifyUnreliable(ctx, notification, nil)
 			SoMsg("a notify err", err, ShouldBeNil)
 		})
 	})
