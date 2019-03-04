@@ -120,6 +120,7 @@ class GoGenerator(object):
                 'SegSync': True,
             },
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 
@@ -152,7 +153,8 @@ class GoGenerator(object):
             'metrics': {
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
-            }
+            },
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 
@@ -188,6 +190,7 @@ class GoGenerator(object):
                 'ReissueTimeout': "5s",
             },
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 

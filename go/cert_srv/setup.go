@@ -146,6 +146,7 @@ func setMessenger(cfg *config.Config) error {
 		env.GetBindSnetAddress(cfg.General.Topology.ISD_AS, topoAddress),
 		addr.SvcCS,
 		cfg.General.ReconnectToDispatcher,
+		cfg.EnableQUICTest,
 		state.Store,
 		cfg.Sciond,
 	)

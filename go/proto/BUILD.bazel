@@ -57,6 +57,7 @@ genrule(
         "path_mgmt.capnp.go",
         "path_seg.capnp.go",
         "rev_info.capnp.go",
+        "rpc.capnp.go",
         "sciond.capnp.go",
         "sibra.capnp.go",
         "sig.capnp.go",

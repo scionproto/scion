@@ -30,13 +30,14 @@ var (
 )
 
 type Config struct {
-	General   env.General
-	Logging   env.Logging
-	Metrics   env.Metrics
-	TrustDB   truststorage.TrustDBConf
-	Infra     env.Infra
-	Discovery idiscovery.Config
-	PS        PSConfig
+	General        env.General
+	Logging        env.Logging
+	Metrics        env.Metrics
+	TrustDB        truststorage.TrustDBConf
+	Infra          env.Infra
+	Discovery      idiscovery.Config
+	PS             PSConfig
+	EnableQUICTest bool
 }
 
 func (c *Config) InitDefaults() {

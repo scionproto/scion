@@ -67,6 +67,8 @@ def add_arguments(parser):
                         help='Dispatcher implementation to use ("go or "c")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
+    parser.add_argument('-q', '--qtest', action='store_true',
+                        help='Enable QUIC test mode')
     parser.add_argument('--random-ifids', action='store_true',
                         help='Generate random IFIDs')
     parser.add_argument('--in-docker', action='store_true',
