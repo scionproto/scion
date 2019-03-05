@@ -649,27 +649,27 @@ func (m *Messenger) sendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 // contains an error, the returned error is non-nil. If the received message
 // is not an Ack, an error is returned.
 func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a net.Addr,
-	id uint64, expectedType infra.MessageType) error {
+	id uint64, msgType infra.MessageType) error {
 
 	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return err
 	}
 	if m.config.WaitForAcks {
-		return m.sendWithAck(ctx, msg, a, id, pld, expectedType)
+		return m.sendWithAck(ctx, msg, a, id, pld, msgType)
 	}
 	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", expectedType, "to", a, "id", id)
-	return m.getRequester(expectedType).Notify(ctx, pld, a)
+	logger.Trace("[Messenger] Sending Notify", "type", msgType, "to", a, "id", id)
+	return m.getRequester(msgType).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a net.Addr,
-	id uint64, pld *ctrl.Pld, expectedType infra.MessageType) error {
+	id uint64, pld *ctrl.Pld, msgType infra.MessageType) error {
 
 	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending request", "req_type", expectedType,
+	logger.Trace("[Messenger] Sending request", "req_type", msgType,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.TRC).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(msgType).Request(ctx, pld, a)
 	if err != nil {
 		return common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -685,7 +685,7 @@ func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a n
 		}
 		return nil
 	default:
-		err := newTypeAssertErr(expectedType.String(), replyMsg)
+		err := newTypeAssertErr(msgType.String(), replyMsg)
 		return common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 }
