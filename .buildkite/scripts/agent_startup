@@ -1,4 +1,14 @@
 #!/bin/bash
 
+DOCKER_VERSION="18.06.3-ce"
+DOCKER_RELEASE="stable"
+
 echo "buildkite-agent ALL=(ALL)NOPASSWD:ALL" | sudo tee --append /etc/sudoers > /dev/null
 sudo ln -s /dev/shm/ /run/shm
+
+# https://github.com/buildkite/elastic-ci-stack-for-aws/blob/master/packer/scripts/install-docker.sh
+curl -Lsf -o docker.tgz https://download.docker.com/linux/static/${DOCKER_RELEASE}/x86_64/docker-${DOCKER_VERSION}.tgz
+tar -xvzf docker.tgz
+sudo mv docker/* /usr/bin
+rm docker.tgz
+sudo systemctl restart docker
