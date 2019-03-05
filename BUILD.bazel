@@ -21,7 +21,6 @@ pkg_tar(
         "//go/examples/discovery_client:discovery_client",
         "//go/integration/end2end:end2end",
         "//go/integration/end2end_integration:end2end_integration",
-        "//go/lib/infra/example:example",
         "//go/godispatcher:godispatcher",
         "//go/lib/xtest/graphupdater:graphupdater",
         "//go/tools/logdog:logdog",
