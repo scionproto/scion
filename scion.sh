@@ -235,9 +235,6 @@ py_test() {
 
 bazel_test() {
     bazel test //go/... --print_relative_test_log_paths
-    local ret=$?
-    cp -rL bazel-testlogs logs
-    return $ret
 }
 
 cmd_coverage(){
