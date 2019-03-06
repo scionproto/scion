@@ -23,6 +23,18 @@ import (
 // MaxFailCount is the maximum fail count for a health info.
 const MaxFailCount = math.MaxUint16
 
+// Info keeps track of the fails for a key.
+type Info interface {
+	// Fail increases the fail count.
+	Fail()
+	// FailCount returns the fail count.
+	FailCount() int
+	// ResetCount resets the fail count to zero.
+	ResetCount()
+	// expireFails reduces the fail count.
+	expireFails(now time.Time, opts ExpireOptions)
+}
+
 var _ Info = (*info)(nil)
 
 // info is the private implementation for Info.
