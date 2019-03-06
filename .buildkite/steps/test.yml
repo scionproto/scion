@@ -6,3 +6,11 @@
     automatic:
       exit_status: 255
   timeout_in_minutes: 10
+- label: Lint
+  command: $BASE/run_step lint
+  artifact_paths:
+    - "artifacts.out/**/*"
+  retry:
+    automatic:
+      exit_status: 255
+  timeout_in_minutes: 10
