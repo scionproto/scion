@@ -14,13 +14,10 @@ fi
 "$BASE/common.sh"
 echo "steps:"
 
-# build scion image and push
+# build scion image and binaries
 cat "$STEPS/setup.yml"
 
-# do build and linting, then commit container and push
-cat "$STEPS/build.yml"
-
-# Unit tests
+# Linting and Unit tests
 cat "$STEPS/test.yml"
 
 # build images together with unit tests
