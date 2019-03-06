@@ -17,12 +17,17 @@ echo "steps:"
 # build scion image and binaries
 cat "$STEPS/setup.yml"
 
-# Linting and Unit tests
-cat "$STEPS/test.yml"
-
 # build images together with unit tests
 if [ "$RUN_ALL_TESTS" = "y" ]; then
     cat "$STEPS/build_all.yml"
+fi
+
+# Linting and Unit tests
+cat "$STEPS/test.yml"
+
+# we need to wait for the build_all step
+if [ "$RUN_ALL_TESTS" = "y" ]; then
+echo "- wait"
 fi
 
 # integration testing
