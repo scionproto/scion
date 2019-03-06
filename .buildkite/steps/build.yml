@@ -10,11 +10,10 @@
   command:
   - $BASE/scripts/registry_login
   - docker pull $SCION_BUILD_IMG
-  - SCION_IMG="$SCION_BUILD_IMG" ./docker.sh start
-  - ./tools/ci/build
-  - docker stop "$SCION_CNTR"
-  - docker commit "$SCION_CNTR" "$SCION_IMG"
-  - ./docker.sh stop
+  - docker tag $SCION_BUILD_IMG scion:latest
+  - mkdir docker/_build && touch docker/_build/scion.stamp
+  - make -C docker/perapp app_builder
+  - docker tag scion_app_builder "$SCION_IMG"
   - docker push $SCION_IMG
   artifact_paths:
     - "artifacts.out/**/*"
