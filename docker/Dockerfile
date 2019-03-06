@@ -21,11 +21,11 @@ USER scion
 COPY --chown=scion:scion . $BASE/
 
 # Restore the python dependency cache from scion_base
-RUN tar xf ~/python_local.tar.gz -C ~
+RUN tar xf /scioncache/python_local.tar.gz -C ~
 
 # Restore the cache of Bazel dependencies
 # Bazel creates timestamps 10 years in the future, so let's not warn about that.
-RUN tar xf ~/bazel_cache.tar.gz -C ~ --warning=no-timestamp
+RUN tar xf /scioncache/bazel.tar.gz -C ~ --warning=no-timestamp
 
 # Make sure dependencies haven't been changed since scion_base was rebuilt
 RUN docker/deps_check

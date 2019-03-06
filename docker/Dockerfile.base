@@ -39,13 +39,16 @@ RUN sudo apt-get update && APTARGS=-y env/debian/deps && sudo apt-get clean
 COPY tools/install_bazel install_bazel
 RUN sudo ./install_bazel && rm install_bazel
 
+# Prepare a directory for caching
+RUN sudo mkdir -p /scioncache;
+
 # Pip packages
 COPY env/pip3 env/pip3
 COPY env/pip2 env/pip2
 RUN set -ex; \
     env/pip2/deps; \
     env/pip3/deps; \
-    tar czf ~/python_local.tar.gz --owner=scion -C ~ .local; \
+    sudo tar czf /scioncache/python_local.tar.gz --owner=scion -C ~ .local; \
     rm -r ~/.cache/pip ~/.local
 
 # Pip2 packages
@@ -63,7 +66,7 @@ RUN set -ex ; \
     tools/fetch.sh > BUILD.bazel ; \
     bazel fetch --noshow_progress //:fetch 2>&1 ; \
     rm -rf /home/scion/.cache/bazel/_bazel_scion/*/external/*/\.git ; \
-    tar czf ~/bazel_cache.tar.gz --owner=scion -C ~ .cache/bazel; \
+    sudo tar czf /scioncache/bazel.tar.gz --owner=scion -C ~ .cache/bazel; \
     sudo rm -r ~/.cache/bazel; \
     sudo rm -r ./*
 
