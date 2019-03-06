@@ -42,53 +42,53 @@ func TestExpireFails(t *testing.T) {
 		initFails := uint16(64)
 		now := time.Now()
 		t := []struct {
+			desc     string
 			lastFail time.Time
 			lastExp  time.Time
 			opts     ExpireOptions
 			expFails uint16
-			key      string
 		}{
 			{
+				desc:     "No expiration when time since lastFail is less than start",
 				lastFail: now,
 				expFails: initFails,
-				key:      "No expiration when time since lastFail is less than start",
 			},
 			{
+				desc:     "Expiration when time since lastFail is equal to start",
 				lastFail: now.Add(-DefaultExpireStart),
 				expFails: initFails >> 1,
-				key:      "Expiration when time since lastFail is equal to start",
 			},
 			{
+				desc:     "Expiration when time since lastFail is equal to start + interval",
 				lastFail: now.Add(-(DefaultExpireStart + DefaultExpireInterval)),
 				expFails: initFails >> 2,
-				key:      "Expiration when time since lastFail is equal to start + interval",
 			},
 			{
+				desc:     "Expiration when time since lastFail is equal to start + 2 intervals",
 				lastFail: now.Add(-(DefaultExpireStart + 2*DefaultExpireInterval)),
 				expFails: initFails >> 3,
-				key:      "Expiration when time since lastFail is equal to start + 2 intervals",
 			},
 			{
+				desc:     "No expiration when time since lastExp less than interval",
 				lastFail: now.Add(-(DefaultExpireStart + 5*DefaultExpireInterval)),
 				lastExp:  now.Add(-DefaultExpireInterval + time.Second),
 				expFails: initFails,
-				key:      "Now expiration when time since lastExp less than interval",
 			},
 			{
+				desc:     "Expiration when time since lastExp is equal to interval",
 				lastFail: now.Add(-(DefaultExpireStart + 5*DefaultExpireInterval)),
 				lastExp:  now.Add(-DefaultExpireInterval),
 				expFails: initFails >> 1,
-				key:      "Expiration when time since lastExp is equal to interval",
 			},
 			{
+				desc:     "Expiration when time since lastExp is equal to 2 intervals",
 				lastFail: now.Add(-(DefaultExpireStart + 5*DefaultExpireInterval)),
 				lastExp:  now.Add(-2 * DefaultExpireInterval),
 				expFails: initFails >> 2,
-				key:      "Expiration when time since lastExp is equal to 2 intervals",
 			},
 		}
 		for _, v := range t {
-			Convey(v.key, func() {
+			Convey(v.desc, func() {
 				inf := &info{
 					lastFail: v.lastFail,
 					lastExp:  v.lastExp,
