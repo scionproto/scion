@@ -45,7 +45,8 @@ COPY env/pip2 env/pip2
 RUN set -ex; \
     env/pip2/deps; \
     env/pip3/deps; \
-    tar czf ~/python_local.tar.gz --owner=scion -C ~ .local; \
+    sudo mkdir -p /scion/cache; \
+    sudo tar czf /scion/cache/python_local.tar.gz --owner=scion -C ~ .local; \
     rm -r ~/.cache/pip ~/.local
 
 # Pip2 packages
@@ -63,7 +64,7 @@ RUN set -ex ; \
     tools/fetch.sh > BUILD.bazel ; \
     bazel fetch --noshow_progress //:fetch 2>&1 ; \
     rm -rf /home/scion/.cache/bazel/_bazel_scion/*/external/*/\.git ; \
-    tar czf ~/bazel_cache.tar.gz --owner=scion -C ~ .cache/bazel; \
+    sudo tar czf /scion/cache/bazel.tar.gz --owner=scion -C ~ .cache/bazel; \
     sudo rm -r ~/.cache/bazel; \
     sudo rm -r ./*
 
