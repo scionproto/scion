@@ -27,12 +27,14 @@ import (
 // executed.
 const ErrPoolClosed = "Pool closed"
 
-var _ Pool = (*pool)(nil)
+// InfoSet is a set of infos.
+type InfoSet map[Info]struct{}
 
-// pool is the Pool implementation.
-type pool struct {
+// Pool holds entries and their health. It allows to choose entries based
+// on their health.
+type Pool struct {
 	infosMtx sync.RWMutex
-	infos    InfoMap
+	infos    map[Info]Info
 	choose   func() (Info, error)
 	opts     PoolOptions
 	expirer  *periodic.Runner
@@ -40,16 +42,13 @@ type pool struct {
 }
 
 // NewPool creates a health pool that contains all entries provided in infos.
-func NewPool(infos InfoMap, opts PoolOptions) (Pool, error) {
-	p := &pool{
-		infos: make(InfoMap, len(infos)),
+func NewPool(infos map[Info]struct{}, opts PoolOptions) (*Pool, error) {
+	p := &Pool{
+		infos: make(map[Info]Info, len(infos)),
 		opts:  opts,
 	}
-	switch opts.algorithm() {
-	case MinFailCount:
-		p.choose = p.chooseMinFails
-	default:
-		return nil, common.NewBasicError("Invalid algorithm", nil, "algo", opts.algorithm())
+	if p.choose = opts.algorithm(p); p.choose == nil {
+		return nil, common.NewBasicError("Invalid algorithm", nil, "algo", opts.Algorithm)
 	}
 	if err := p.Update(infos); err != nil {
 		return nil, err
@@ -59,7 +58,12 @@ func NewPool(infos InfoMap, opts PoolOptions) (Pool, error) {
 	return p, nil
 }
 
-func (p *pool) Update(infos InfoMap) error {
+// Update updates the info entries in the pool. Entries in the pool that
+// are not in infos are removed. Entries in infos that are not in the pool
+// are added. However, if Options.AllowEmpty is not set, and the Update
+// causes an empty pool, the entries are not replaced and an error is
+// returned. If the pool is closed, an error is returned.
+func (p *Pool) Update(infos map[Info]struct{}) error {
 	if len(infos) == 0 && !p.opts.AllowEmpty {
 		return common.NewBasicError("Info must contain entry", nil, "opts", p.opts)
 	}
@@ -68,19 +72,21 @@ func (p *pool) Update(infos InfoMap) error {
 	if p.closed {
 		return common.NewBasicError(ErrPoolClosed, nil)
 	}
-	for k, info := range infos {
-		p.infos[k] = info
+	for info := range infos {
+		p.infos[info] = info
 	}
 	// Remove infos that are no longer present.
-	for k := range p.infos {
-		if _, ok := infos[k]; !ok {
-			delete(p.infos, k)
+	for info := range p.infos {
+		if _, ok := infos[info]; !ok {
+			delete(p.infos, info)
 		}
 	}
 	return nil
 }
 
-func (p *pool) Choose() (Info, error) {
+// Choose chooses info based on the configured algorithm. If the pool is
+// closed, an error is returned.
+func (p *Pool) Choose() (Info, error) {
 	p.infosMtx.RLock()
 	defer p.infosMtx.RUnlock()
 	if p.closed {
@@ -89,13 +95,21 @@ func (p *pool) Choose() (Info, error) {
 	return p.choose()
 }
 
-func (p *pool) Close() {
-	p.expirer.Stop()
+// Close closes the pool and stops the periodic fail expiration. After
+// closing the pool, Update and Choose will return errors. The pool is safe
+// to being closed multiple times.
+func (p *Pool) Close() {
+	p.infosMtx.Lock()
+	defer p.infosMtx.Unlock()
+	if !p.closed {
+		p.closed = true
+		p.expirer.Stop()
+	}
 }
 
 // chooseMinFails is a choosing algorithm which returns a info with minimum
 // fail count.
-func (p *pool) chooseMinFails() (Info, error) {
+func (p *Pool) chooseMinFails() (Info, error) {
 	var best Info
 	var minFail = -1
 	for _, info := range p.infos {
@@ -112,10 +126,10 @@ func (p *pool) chooseMinFails() (Info, error) {
 }
 
 // expirer is a wrapper to implement period.Task.
-type expirer pool
+type expirer Pool
 
 func (e *expirer) Run(_ context.Context) {
-	p := (*pool)(e)
+	p := (*Pool)(e)
 	p.infosMtx.RLock()
 	defer p.infosMtx.RUnlock()
 	now := time.Now()
