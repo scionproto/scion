@@ -101,7 +101,7 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 	pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
-	logger.Debug("[ASInfoRequestHandler] Received request", "request", &pld.AsInfoReq)
+	logger.Debug("[ASInfoRequestHandler] Received request", "req", pld.AsInfoReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
@@ -165,7 +165,7 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 	pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
-	logger.Debug("[IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
+	logger.Debug("[IFInfoRequestHandler] Received request", "req", pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
 	ifInfoReply := &sciond.IFInfoReply{}
 	topo := itopo.Get()
@@ -218,8 +218,7 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Tran
 	src net.Addr, pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
-	logger.Debug("[SVCInfoRequestHandler] Received request",
-		"request", &pld.ServiceInfoRequest)
+	logger.Debug("[SVCInfoRequestHandler] Received request", "req", pld.ServiceInfoRequest)
 	svcInfoRequest := pld.ServiceInfoRequest
 	svcInfoReply := &sciond.ServiceInfoReply{}
 	topo := itopo.Get()
