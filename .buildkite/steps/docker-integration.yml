@@ -1,4 +1,4 @@
-- label: Docker Integration Tests
+- label: Integration - docker
   command:
   - $BASE/scripts/all_images pull
   - $BASE/run_step integration -d -a
