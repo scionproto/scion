@@ -23,7 +23,9 @@ import (
 // MaxFailCount is the maximum fail count for a health info.
 const MaxFailCount = math.MaxUint16
 
-// Info keeps track of the fails for a key.
+// Info keeps track of the fails for a key. Implementations that want to
+// use healthpool should embed this interface and initialize it with the
+// constructor NewInfo. See healthpool/svcinstance for an example.
 type Info interface {
 	// Fail increases the fail count.
 	Fail()

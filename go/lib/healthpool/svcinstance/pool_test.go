@@ -26,19 +26,27 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-type testInfo struct {
-	key  string
-	addr *addr.AppAddr
-}
+const (
+	ds1        = "ds1-ff00_0_111-1"
+	ds1updated = "ds1-ff00_0_111-1-updated"
+	ds2        = "ds1-ff00_0_111-2"
+	ds3new     = "ds1-ff00_0_111-3-new"
+)
 
-var ds = []testInfo{
-	{"ds1-ff00_0_111-1", &addr.AppAddr{
+var dsInfos = map[string]*addr.AppAddr{
+	ds1: {
 		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
 		L4: addr.NewL4UDPInfo(30084)},
-	},
-	{"ds1-ff00_0_111-2", &addr.AppAddr{
+	ds2: {
 		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 80)),
 		L4: addr.NewL4UDPInfo(30085)},
+	ds3new: {
+		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
+		L4: addr.NewL4UDPInfo(30084),
+	},
+	ds1updated: {
+		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 21)),
+		L4: addr.NewL4UDPInfo(30084),
 	},
 }
 
@@ -47,7 +55,7 @@ func TestNewPool(t *testing.T) {
 		pool, err := NewPool(mustLoadSvcInfo(t), healthpool.PoolOptions{})
 		SoMsg("err", err, ShouldBeNil)
 		Convey("The pool should contain all discovery services", func() {
-			containsAll(pool, ds)
+			containsAll(pool, ds1, ds2)
 		})
 	})
 	Convey("Given an empty instance map, initialize only when AllowEmpty is set", t, func() {
@@ -63,50 +71,40 @@ func TestPoolUpdate(t *testing.T) {
 		pool := mustLoadPool(t)
 		svcInfo := mustLoadSvcInfo(t)
 		Convey("And an instance map containing an updated discovery service entry", func() {
-			svcInfo[ds[0].key].IPv4.PublicAddr().L3 = addr.HostFromIP(
-				net.IPv4(127, 0, 0, 21))
-			pool.infos[ds[0].key].Fail()
-			pool.Update(svcInfo)
+			svcInfo[ds1].IPv4.PublicAddr().L3 = dsInfos[ds1updated].L3
+			pool.infos[ds1].Fail()
+			err := pool.Update(svcInfo)
+			SoMsg("err", err, ShouldBeNil)
 			Convey("The pool should contain the updated and reset info", func() {
-				contains(pool, testInfo{
-					key: ds[0].key,
-					addr: &addr.AppAddr{
-						L3: addr.HostFromIP(net.IPv4(127, 0, 0, 21)),
-						L4: addr.NewL4UDPInfo(
-							svcInfo[ds[0].key].IPv4.PublicAddr().L4.Port()),
-					},
-				})
-				SoMsg("FailCount", pool.infos[ds[0].key].FailCount(), ShouldBeZeroValue)
+				contains(pool, ds1, dsInfos[ds1updated])
+				SoMsg("FailCount", pool.infos[ds1].FailCount(), ShouldBeZeroValue)
 			})
 		})
 		Convey("And an instance map containing new discovery service entries", func() {
-			svcInfo["ds-new"] = svcInfo[ds[0].key]
-			pool.Update(svcInfo)
+			svcInfo[ds3new] = svcInfo[ds1]
+			err := pool.Update(svcInfo)
+			SoMsg("err", err, ShouldBeNil)
 			Convey("The pool should contain all discovery services", func() {
-				infos := append(ds, testInfo{
-					key: "ds-new",
-					addr: &addr.AppAddr{
-						L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-						L4: addr.NewL4UDPInfo(30084)},
-				})
-				containsAll(pool, infos)
+				containsAll(pool, ds1, ds2, ds3new)
 			})
 		})
 		Convey("And an instance map with some removed discovery service", func() {
-			delete(svcInfo, ds[1].key)
-			pool.Update(svcInfo)
+			delete(svcInfo, ds2)
+			err := pool.Update(svcInfo)
+			SoMsg("err", err, ShouldBeNil)
 			Convey("The pool should contain all remaining discovery services", func() {
-				containsAll(pool, ds[:1])
+				containsAll(pool, ds1)
 			})
 			Convey("The pool should not contain the removed discovery service", func() {
-				_, ok := pool.infos[ds[1].key]
+				_, ok := pool.infos[ds2]
 				So(ok, ShouldBeFalse)
 			})
 		})
 		Convey("And an instance map with no discovery service", func() {
-			pool.Update(nil)
+			err := pool.Update(nil)
+			SoMsg("err", err, ShouldNotBeNil)
 			Convey("The pool should still contain all services", func() {
-				containsAll(pool, ds[:1])
+				containsAll(pool, ds1, ds2)
 			})
 		})
 	})
@@ -115,17 +113,17 @@ func TestPoolUpdate(t *testing.T) {
 func TestPoolChoose(t *testing.T) {
 	Convey("Given an initialized pool", t, func() {
 		p := mustLoadPool(t)
-		p.infos[ds[0].key].Fail()
+		p.infos[ds1].Fail()
 		i, err := p.Choose()
-		SoMsg("err ds1-ff00_0_111-2", err, ShouldBeNil)
-		SoMsg("Choose ds1-ff00_0_111-2", i.Addr().Equal(p.infos[ds[1].key].addr), ShouldBeTrue)
-		SoMsg("Name ds1-ff00_0_111-2", i.Name(), ShouldEqual, "ds1-ff00_0_111-2")
+		SoMsg("err first", err, ShouldBeNil)
+		SoMsg("Choose first", i.Addr().Equal(p.infos[ds2].addr), ShouldBeTrue)
+		SoMsg("Name first", i.Name(), ShouldEqual, ds2)
 		i.Fail()
 		i.Fail()
 		i, err = p.Choose()
-		SoMsg("err ds1-ff00_0_111-1", err, ShouldBeNil)
-		SoMsg("Choose ds1-ff00_0_111-1", i.Addr().Equal(p.infos[ds[0].key].addr), ShouldBeTrue)
-		SoMsg("Name ds1-ff00_0_111-1", i.Name(), ShouldEqual, "ds1-ff00_0_111-1")
+		SoMsg("err second", err, ShouldBeNil)
+		SoMsg("Choose second", i.Addr().Equal(p.infos[ds1].addr), ShouldBeTrue)
+		SoMsg("Name second", i.Name(), ShouldEqual, ds1)
 	})
 }
 
@@ -140,18 +138,18 @@ func TestPoolClose(t *testing.T) {
 	})
 }
 
-func containsAll(p *Pool, infos []testInfo) {
-	for _, v := range ds[:1] {
-		contains(p, v)
+func containsAll(p *Pool, names ...string) {
+	for _, name := range names {
+		contains(p, name, dsInfos[name])
 	}
 }
 
-func contains(p *Pool, v testInfo) {
-	Convey("The pool contains "+v.key, func() {
-		info, ok := p.infos[v.key]
+func contains(p *Pool, name string, a *addr.AppAddr) {
+	Convey("The pool contains "+name, func() {
+		info, ok := p.infos[name]
 		SoMsg("Not found", ok, ShouldBeTrue)
-		SoMsg("Ip", info.addr.L3.IP(), ShouldResemble, v.addr.L3.IP())
-		SoMsg("Port", info.addr.L4.Port(), ShouldEqual, v.addr.L4.Port())
+		SoMsg("Ip", info.addr.L3.IP(), ShouldResemble, a.L3.IP())
+		SoMsg("Port", info.addr.L4.Port(), ShouldEqual, a.L4.Port())
 	})
 }
 
