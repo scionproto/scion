@@ -126,7 +126,7 @@ type Config struct {
 	Logger log.Logger
 }
 
-func (c *Config) loadDefaults() {
+func (c *Config) InitDefaults() {
 	if c.HandlerTimeout == 0 {
 		c.HandlerTimeout = DefaultHandlerTimeout
 	}
@@ -175,7 +175,7 @@ func New(config *Config) *Messenger {
 	if config == nil {
 		config = &Config{}
 	}
-	config.loadDefaults()
+	config.InitDefaults()
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
