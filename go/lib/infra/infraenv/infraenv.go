@@ -52,15 +52,15 @@ func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostS
 		return nil, err
 	}
 	msger := messenger.New(
-		ia,
-		disp.New(
-			transport.NewPacketTransport(conn),
-			messenger.DefaultAdapter,
-			log.Root(),
-		),
-		store,
-		log.Root(),
-		nil,
+		&messenger.Config{
+			IA: ia,
+			Dispatcher: disp.New(
+				transport.NewPacketTransport(conn),
+				messenger.DefaultAdapter,
+				log.Root(),
+			),
+			TrustStore: store,
+		},
 	)
 	store.SetMessenger(msger)
 	return msger, nil

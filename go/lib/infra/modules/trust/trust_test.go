@@ -690,13 +690,18 @@ func TestChainReqHandler(t *testing.T) {
 }
 
 func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) infra.Messenger {
-	dispatcher := disp.New(
-		transport.NewPacketTransport(conn),
-		messenger.DefaultAdapter,
-		log.New("name", name),
-	)
-	config := &messenger.Config{DisableSignatureVerification: true}
-	return messenger.New(ia, dispatcher, store, log.Root().New("name", name), config)
+	config := &messenger.Config{
+		IA: ia,
+		Dispatcher: disp.New(
+			transport.NewPacketTransport(conn),
+			messenger.DefaultAdapter,
+			log.New("name", name),
+		),
+		TrustStore:                   store,
+		DisableSignatureVerification: true,
+		Logger:                       log.Root().New("name", name),
+	}
+	return messenger.New(config)
 }
 
 func loadCrypto(t *testing.T, isds []addr.ISD,

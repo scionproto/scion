@@ -103,6 +103,12 @@ const (
 
 // Config can be used to customize the behavior of the Messenger.
 type Config struct {
+	// IA is the local ISD-AS number.
+	IA addr.IA
+	// Dispatcher to use for associating requests with replies.
+	Dispatcher *disp.Dispatcher
+	// TrustStore stores and retrieves certificate chains and TRCs.
+	TrustStore infra.TrustStore
 	// HandlerTimeout is the amount of time allocated to the processing of a
 	// received message. This includes the time needed to verify the signature
 	// and the execution of a registered handler (if one exists). If the
@@ -115,11 +121,17 @@ type Config struct {
 	// If WaitForAcks is set to true, notifications wait for Ack messages to be
 	// received before returning.
 	WaitForAcks bool
+	// Logger is used for internal Messenger logging. If it is nil, the default
+	// root logger is used.
+	Logger log.Logger
 }
 
-func (c *Config) loadDefaults() {
+func (c *Config) InitDefaults() {
 	if c.HandlerTimeout == 0 {
 		c.HandlerTimeout = DefaultHandlerTimeout
+	}
+	if c.Logger == nil {
+		c.Logger = log.Root()
 	}
 }
 
@@ -156,16 +168,14 @@ type Messenger struct {
 	log log.Logger
 }
 
-// New creates a new Messenger that uses dispatcher for sending and receiving
-// messages, and trustStore as crypto information database.
-func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger,
-	config *Config) *Messenger {
+// New creates a new Messenger based on config.
+func New(config *Config) *Messenger {
 
 	initMetrics()
 	if config == nil {
 		config = &Config{}
 	}
-	config.loadDefaults()
+	config.InitDefaults()
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -173,17 +183,17 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
-		ia:         ia,
+		ia:         config.IA,
 		config:     config,
-		dispatcher: dispatcher,
+		dispatcher: config.Dispatcher,
 		signer:     infra.NullSigner,
 		verifier:   infra.NullSigVerifier,
-		trustStore: store,
+		trustStore: config.TrustStore,
 		handlers:   make(map[infra.MessageType]infra.Handler),
 		closeChan:  make(chan struct{}),
 		ctx:        ctx,
 		cancelF:    cancelF,
-		log:        logger,
+		log:        config.Logger,
 	}
 }
 
