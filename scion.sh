@@ -234,7 +234,7 @@ py_test() {
 }
 
 bazel_test() {
-    bazel test //go/... --print_relative_test_log_paths
+    bazel test //go/... --print_relative_test_log_paths --color no
 }
 
 cmd_coverage(){
