@@ -37,7 +37,7 @@ func TestLoadBase(t *testing.T) {
 		var cfg TestConfig
 
 		_, err := toml.DecodeFile("testdata/cs.toml", &cfg)
-		SoMsg("err", err, ShouldNotBeNil)
+		SoMsg("err", err, ShouldBeNil)
 
 		err = InitGeneral(&cfg.General)
 		SoMsg("err", err, ShouldBeNil)
