@@ -2,4 +2,4 @@
 
 set -ex
 
-./docker.sh exec "(set -o pipefail; ./scion.sh test |& tee test.log; ret=$?; cp -rL bazel-testlogs logs; exit $ret)"
+./docker.sh exec "./scion.sh test > logs/unittests.run; export ret=\$?; cat logs/unittests.run; cp -rL bazel-testlogs logs; exit \$ret"
