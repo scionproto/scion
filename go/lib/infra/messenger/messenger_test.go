@@ -88,13 +88,17 @@ func TestTRCExchange(t *testing.T) {
 }
 
 func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *Messenger {
-	dispatcher := disp.New(
-		transport.NewPacketTransport(conn),
-		DefaultAdapter,
-		log.New("name", name),
-	)
-	config := &Config{DisableSignatureVerification: true}
-	return New(ia, dispatcher, nil, log.Root().New("name", name), config)
+	config := &Config{
+		IA:                           ia,
+		DisableSignatureVerification: true,
+		Dispatcher: disp.New(
+			transport.NewPacketTransport(conn),
+			DefaultAdapter,
+			log.New("name", name),
+		),
+		Logger: log.Root().New("name", name),
+	}
+	return New(config)
 }
 
 func TestMain(m *testing.M) {
