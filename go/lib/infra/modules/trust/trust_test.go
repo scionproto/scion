@@ -36,11 +36,11 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
+	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
-	"github.com/scionproto/scion/go/lib/snet/rpt"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/topology/topotestutil"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -690,8 +690,11 @@ func TestChainReqHandler(t *testing.T) {
 }
 
 func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) infra.Messenger {
-	transport := rpt.New(conn, log.New("name", name))
-	dispatcher := disp.New(transport, messenger.DefaultAdapter, log.New("name", name))
+	dispatcher := disp.New(
+		transport.NewPacketTransport(conn),
+		messenger.DefaultAdapter,
+		log.New("name", name),
+	)
 	config := &messenger.Config{DisableSignatureVerification: true}
 	return messenger.New(ia, dispatcher, store, log.Root().New("name", name), config)
 }
