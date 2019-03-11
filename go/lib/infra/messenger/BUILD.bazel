@@ -6,6 +6,7 @@ go_library(
         "adapter.go",
         "counter.go",
         "messenger.go",
+        "messenger_with_metrics.go",
         "metrics.go",
         "utils.go",
     ],
