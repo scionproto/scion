@@ -31,13 +31,14 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-// MessengerWithMetrics exposes the API for sending and receiving CtrlPld messages.
+// MessengerWithMetrics exposes the API for sending and receiving CtrlPld
+// messages, while also reporting metrics via Prometheus.
 type MessengerWithMetrics struct {
 	messenger infra.Messenger
 	ia        addr.IA
 }
 
-// New creates a new Messenger based on config.
+// NewMessengerWithMetrics creates a Messenger that reports metrics via Prometheus.
 func NewMessengerWithMetrics(config *Config) *MessengerWithMetrics {
 	initMetrics()
 	return &MessengerWithMetrics{
@@ -55,8 +56,6 @@ func (m *MessengerWithMetrics) SendAck(ctx context.Context, msg *ack.Ack, a net.
 	return err
 }
 
-// GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
-// reply and returns the reply.
 func (m *MessengerWithMetrics) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
@@ -66,7 +65,6 @@ func (m *MessengerWithMetrics) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq
 	return trc, err
 }
 
-// SendTRC sends a reliable cert_mgmt.TRC to address a.
 func (m *MessengerWithMetrics) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 	id uint64) error {
 
@@ -76,8 +74,6 @@ func (m *MessengerWithMetrics) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, 
 	return err
 }
 
-// GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
-// receives a reply and returns the reply.
 func (m *MessengerWithMetrics) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
@@ -87,7 +83,6 @@ func (m *MessengerWithMetrics) GetCertChain(ctx context.Context, msg *cert_mgmt.
 	return chain, err
 }
 
-// SendCertChain sends a reliable cert_mgmt.Chain to address a.
 func (m *MessengerWithMetrics) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
 	id uint64) error {
 
@@ -97,7 +92,6 @@ func (m *MessengerWithMetrics) SendCertChain(ctx context.Context, msg *cert_mgmt
 	return err
 }
 
-// SendIfId sends a reliable ifid.IFID to address a.
 func (m *MessengerWithMetrics) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr,
 	id uint64) error {
 
@@ -107,7 +101,6 @@ func (m *MessengerWithMetrics) SendIfId(ctx context.Context, msg *ifid.IFID, a n
 	return err
 }
 
-// SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
 func (m *MessengerWithMetrics) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
 	a net.Addr, id uint64) error {
 
@@ -117,7 +110,6 @@ func (m *MessengerWithMetrics) SendIfStateInfos(ctx context.Context, msg *path_m
 	return err
 }
 
-// SendSeg sends a reliable seg.Pathsegment to a.
 func (m *MessengerWithMetrics) SendSeg(ctx context.Context, msg *seg.PathSegment,
 	a net.Addr, id uint64) error {
 
@@ -127,8 +119,6 @@ func (m *MessengerWithMetrics) SendSeg(ctx context.Context, msg *seg.PathSegment
 	return err
 }
 
-// GetSegs asks the server at the remote address for the path segments that
-// satisfy msg, and returns a verified reply.
 func (m *MessengerWithMetrics) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
@@ -138,7 +128,6 @@ func (m *MessengerWithMetrics) GetSegs(ctx context.Context, msg *path_mgmt.SegRe
 	return reply, err
 }
 
-// SendSegReply sends a reliable path_mgmt.SegReply to address a.
 func (m *MessengerWithMetrics) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
 	a net.Addr, id uint64) error {
 
@@ -148,7 +137,6 @@ func (m *MessengerWithMetrics) SendSegReply(ctx context.Context, msg *path_mgmt.
 	return err
 }
 
-// SendSegSync sends a reliable path_mgmt.SegSync to address a.
 func (m *MessengerWithMetrics) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
 	a net.Addr, id uint64) error {
 
