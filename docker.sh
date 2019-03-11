@@ -47,10 +47,7 @@ copy_tree() {
     mkdir -p "${build_dir:?}"
     # Just in case it's sitting there from a previous run
     rm -rf "${build_dir}/scion.git/"
-    {
-        git ls-files;
-        git submodule --quiet foreach 'git ls-files | sed "s|^|$path/|"';
-    } | rsync -a --files-from=- . "${build_dir}/scion.git/"
+    git ls-files | rsync -a --files-from=- . "${build_dir}/scion.git/"
     echo
 }
 
