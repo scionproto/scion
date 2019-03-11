@@ -22,7 +22,6 @@ Internet architecture.
     including all the necessary configuration, key, and certificate files
 * [proto/](/proto): the protocol definitions for use with [Cap’n
   Proto](https://capnproto.org/).
-* [sub/](/sub): the git submodules used by SCION
 * [supervisor/](/supervisor): the configuration for
   [supervisord](http://supervisord.org/)
 * [tools/](/tools): assorted support tools
