@@ -51,7 +51,7 @@ func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostS
 	if err != nil {
 		return nil, err
 	}
-	msger := messenger.New(
+	msger := messenger.NewMessengerWithMetrics(
 		&messenger.Config{
 			IA: ia,
 			Dispatcher: disp.New(

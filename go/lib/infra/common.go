@@ -248,18 +248,31 @@ func (mt MessageType) MetricLabel() string {
 
 type Messenger interface {
 	SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error
+	// GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
+	// reply and returns the reply.
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,
 		id uint64) (*cert_mgmt.TRC, error)
+	// SendTRC sends a reliable cert_mgmt.TRC to address a.
 	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error
+	// GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
+	// receives a reply and returns the reply.
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
 		id uint64) (*cert_mgmt.Chain, error)
+	// SendCertChain sends a reliable cert_mgmt.Chain to address a.
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
+	// SendIfId sends a reliable ifid.IFID to address a.
 	SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error
+	// SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
 	SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos, a net.Addr, id uint64) error
+	// SendSeg sends a reliable seg.Pathsegment to a.
 	SendSeg(ctx context.Context, msg *seg.PathSegment, a net.Addr, id uint64) error
+	// GetSegs asks the server at the remote address for the path segments that
+	// satisfy msg, and returns a verified reply.
 	GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
+	// SendSegReply sends a reliable path_mgmt.SegReply to address a.
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error
+	// SendSegSync sends a reliable path_mgmt.SegSync to address a.
 	SendSegSync(ctx context.Context, msg *path_mgmt.SegSync, a net.Addr, id uint64) error
 	GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
 		a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error)
