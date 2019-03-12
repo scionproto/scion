@@ -13,6 +13,7 @@ set -e
 echo "Generating fake external dependency tree in go/vendor"
 
 ROOTDIR=$(dirname "$0")/..
+OUTPUT_BASE=$(bazel info output_base)
 
 # First, remove the entire linkfarm so that we don't get stale
 # links laying around.
@@ -32,5 +33,5 @@ cat  $ROOTDIR/WORKSPACE \
     | while IFS=" " read -r NAME IMPORTPATH
     do
         mkdir -p $ROOTDIR/go/vendor/$(dirname "$IMPORTPATH")
-        ln -r -s $ROOTDIR/bazel-scion/external/$NAME $ROOTDIR/go/vendor/$IMPORTPATH
+        ln -s $OUTPUT_BASE/external/$NAME $ROOTDIR/go/vendor/$IMPORTPATH
     done
