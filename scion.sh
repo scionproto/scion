@@ -261,10 +261,8 @@ go_cover() {
 cmd_lint() {
     set -o pipefail
     local ret=0
-    py_lint
-    ret=$((ret+$?))
-    go_lint
-    ret=$((ret+$?))
+    py_lint || ret=1
+    go_lint || ret=1
     return $ret
 }
 
@@ -284,23 +282,33 @@ go_lint() {
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
     echo "======> Building lint tools"
-    bazel build //:lint
-    tar -xf bazel-bin/lint.tar -C $TMPDIR
+    bazel build //:lint || return 1
+    tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
+    # TODO(sustrik): At the moment there are no bazel rules for goftm and go vet.
+    # See: https://github.com/bazelbuild/rules_go/issues/511
+    # Instead we'll just run the commands from Go SDK directly.
+    GOSDK=$(bazel info output_base)/external/go_sdk/bin
+    local ret=0
     echo "======> impi"
     # Skip CGO (https://github.com/pavius/impi/issues/5) files.
-    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' ./go/...
+    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' ./go/... || ret=1
     echo "======> gofmt"
     # FIXME(sustrik): This uses the locally installed version of Go tools (gofmt/go vet).
     # We want to use the tools from the SDK downloaded by Bazel.
-    out=$(gofmt -d -s $LOCAL_DIRS); if [ -n "$out" ]; then echo "$out"; exit 1; fi
+    out=$($GOSDK/gofmt -d -s $LOCAL_DIRS);
+    if [ -n "$out" ]; then echo "$out"; ret=1; fi
     echo "======> linelen (lll)"
-    out=$(find go -type f -iname '*.go' -a '!' '(' -ipath 'go/lib/pathpol/sequence/*' ')' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:'); if [ -n "$out" ]; then echo "$out"; exit 1; fi
-    echo "======> go vet"
-    for PKG in $LOCAL_DIRS; do go vet ./$PKG/...; done
+    out=$(find go -type f -iname '*.go' -a '!' '(' -ipath 'go/lib/pathpol/sequence/*' ')' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
+    if [ -n "$out" ]; then echo "$out"; ret=1; fi
+    # TODO(sustrik): Go vet doesn't work well with Bazel.
+    # The plan is to replace it with https://github.com/bazelbuild/rules_go/blob/master/go/nogo.rst
+    #echo "======> go vet"
+    #for PKG in $LOCAL_DIRS; do $GOSDK/go vet ./$PKG/... || ret=1; done
     echo "======> misspell"
-    $TMPDIR/misspell -error $LOCAL_DIRS
+    $TMPDIR/misspell -error $LOCAL_DIRS || ret=1
     # Clean up the binaries
     rm -rf $TMPDIR
+    return $ret
 }
 
 cmd_version() {
