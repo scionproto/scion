@@ -11,6 +11,7 @@ clean:
 
 vendor:
 	./tools/vendor.sh
+	./tools/mocks.sh
 
 bazel: vendor
 	bazel build //:scion
