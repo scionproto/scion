@@ -34,7 +34,7 @@ type Sqler interface {
 // DoInTx executes the given action in a transaction. If db is already a transaction the action is
 // executed in the existing transaction, the transaction is not modified. If db is a "normal" db, a
 // transaction is created and action is executed in it. If action errors the created transaction is
-// rollbacked, otherwise it is commited.
+// rollbacked, otherwise it is committed.
 func DoInTx(ctx context.Context, db Sqler, action func(context.Context, *sql.Tx) error) error {
 	tx, ok := db.(*sql.Tx)
 	manageTx := !ok

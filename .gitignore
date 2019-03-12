@@ -22,13 +22,9 @@ Thumbs.db
 .mypy_cache/
 __pycache__
 
-# Go generated files #
+# Vendor linkfarm #
 #########################
-/go/proto/*.capnp.go
-/go/proto/*.gen.go
 /go/vendor/*/
-/go/vendor/.deps.stamp
-/go/**/mock_*/*.go
 
 # vim generated files #
 #########################
