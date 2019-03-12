@@ -224,7 +224,7 @@ func (h *Handler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain)
 	}
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
-		return common.NewBasicError("Unable to send reply, no messenger found", nil)
+		return common.NewBasicError("Unable to send reply, no response writer found", nil)
 	}
 	log.Trace("[ReissHandler] Sending reissued certificate chain", "chain", chain,
 		"addr", addr)
