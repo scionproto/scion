@@ -42,6 +42,7 @@ const (
 	promOpDelete          promOp = "delete"
 	promOpDeleteExpired   promOp = "delete_expired"
 	promOpGet             promOp = "get"
+	promOpGetAll          promOp = "get_all"
 	promOpInsertNextQuery promOp = "insert_next_query"
 	promOpGetNextQuery    promOp = "get_next_query"
 )
@@ -56,6 +57,7 @@ var (
 		promOpDelete,
 		promOpDeleteExpired,
 		promOpGet,
+		promOpGetAll,
 		promOpInsertNextQuery,
 		promOpGetNextQuery,
 	}
@@ -71,10 +73,10 @@ var (
 
 func initMetrics() {
 	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 7 (len(allOps))
+		// Cardinality: X (dbName) * 8 (len(allOps))
 		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
 			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbNmae) * 7 (len(allOps)) * 3 (len(allResults))
+		// Cardinality: X (dbNmae) * 8 (len(allOps)) * 3 (len(allResults))
 		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
 			"The results of the pathdb ops.",
 			[]string{promDBName, prom.LabelResult, prom.LabelOperation})
@@ -179,12 +181,17 @@ func (db *metricsPathDB) DeleteExpired(ctx context.Context, now time.Time) (int,
 	return cnt, err
 }
 
-func (db *metricsPathDB) Get(ctx context.Context,
-	params *query.Params) ([]*query.Result, error) {
-
+func (db *metricsPathDB) Get(ctx context.Context, params *query.Params) (query.Results, error) {
 	db.metrics.incOp(promOpGet)
 	res, err := db.pathDB.Get(ctx, params)
 	db.metrics.incResult(promOpGet, err)
+	return res, err
+}
+
+func (db *metricsPathDB) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error) {
+	db.metrics.incOp(promOpGetAll)
+	res, err := db.pathDB.GetAll(ctx)
+	db.metrics.incResult(promOpGetAll, err)
 	return res, err
 }
 

@@ -39,7 +39,15 @@ type PathDB interface {
 	// Returns the number of deleted segments.
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)
 	// Get returns all path segment(s) matching the parameters specified.
-	Get(context.Context, *query.Params) ([]*query.Result, error)
+	Get(context.Context, *query.Params) (query.Results, error)
+	// GetAll returns a channel that will provide all items in the path db. If the path db can't
+	// prepare the query a nil channel and the error are returned. If the querying succeeded the the
+	// channel will be filled with the segments in the database. If an error occurs during reading a
+	// segment the error is pushed in the channel and the operation is aborted, that means that the
+	// result might be incomplete. Note that implementations can spawn a goroutine to fill the
+	// channel, which means the channel must be fully drained to guarantee the destruction of the
+	// goroutine.
+	GetAll(context.Context) (<-chan query.ResultOrErr, error)
 	// InsertNextQuery inserts or updates the timestamp nextQuery for the given dst.
 	InsertNextQuery(ctx context.Context, dst addr.IA, nextQuery time.Time) (bool, error)
 	// GetNextQuery returns the nextQuery timestamp for the given dst,
