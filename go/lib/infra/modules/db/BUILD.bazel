@@ -2,8 +2,12 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["sqlite.go"],
-    importpath = "github.com/scionproto/scion/go/lib/sqlite",
+    srcs = [
+        "doc.go",
+        "sqler.go",
+        "sqlite.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/infra/modules/db",
     visibility = ["//visibility:public"],
     deps = ["//go/lib/common:go_default_library"],
 )

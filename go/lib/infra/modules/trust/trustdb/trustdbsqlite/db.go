@@ -27,11 +27,11 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
-	"github.com/scionproto/scion/go/lib/sqlite"
 )
 
 const (
@@ -183,12 +183,6 @@ const (
 	`
 )
 
-type sqler interface {
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
-	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
-}
-
 type tdb struct {
 	*executor
 	db *sql.DB
@@ -196,13 +190,13 @@ type tdb struct {
 
 func New(path string) (trustdb.TrustDB, error) {
 	var err error
-	db := &tdb{}
-	db.executor = &executor{}
-	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
+	tdb := &tdb{}
+	tdb.executor = &executor{}
+	if tdb.db, err = db.NewSqlite(path, Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
-	db.executor.db = db.db
-	return db, nil
+	tdb.executor.db = tdb.db
+	return tdb, nil
 }
 
 // Close closes the database connection.
@@ -230,7 +224,7 @@ func (db *tdb) BeginTransaction(ctx context.Context,
 
 type executor struct {
 	sync.RWMutex
-	db sqler
+	db db.Sqler
 }
 
 // GetIssCertVersion returns the specified version of the issuer certificate for
@@ -575,7 +569,7 @@ func (db *transaction) Rollback() error {
 	return nil
 }
 
-func insertIssCert(ctx context.Context, db sqler, crt *cert.Certificate) (int64, error) {
+func insertIssCert(ctx context.Context, db db.Sqler, crt *cert.Certificate) (int64, error) {
 	raw, err := crt.JSON(false)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to convert to JSON", err)
@@ -606,7 +600,7 @@ func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Cert
 	return crt, nil
 }
 
-func insertLeafCert(ctx context.Context, db sqler, crt *cert.Certificate) (int64, error) {
+func insertLeafCert(ctx context.Context, db db.Sqler, crt *cert.Certificate) (int64, error) {
 	raw, err := crt.JSON(false)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to convert to JSON", err)
@@ -645,7 +639,7 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 	return cert.ChainFromSlice(certs)
 }
 
-func getIssCertRowIDCtx(ctx context.Context, db sqler,
+func getIssCertRowIDCtx(ctx context.Context, db db.Sqler,
 	ia addr.IA, ver uint64) (int64, error) {
 
 	var rowId int64
