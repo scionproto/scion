@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/pathdbtest"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -44,41 +44,22 @@ var (
 	timeout = time.Second
 )
 
-func setupDB(t *testing.T) (*Backend, string) {
-	tmpFile := tempFilename(t)
-	b, err := New(tmpFile)
-	if err != nil {
-		t.Fatal("Failed to open DB", "err", err)
-	}
-	return b, tmpFile
+var _ pathdbtest.TestablePathDB = (*TestPathDB)(nil)
+
+type TestPathDB struct {
+	*Backend
 }
 
-func tempFilename(t *testing.T) string {
-	f, err := ioutil.TempFile("", "pathdb-sqlite-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-	return f.Name()
+func (b *TestPathDB) Prepare(t *testing.T, _ context.Context) {
+	db, err := New(":memory:")
+	xtest.FailOnErr(t, err)
+	b.Backend = db
 }
 
 func TestPathDBSuite(t *testing.T) {
+	tdb := &TestPathDB{}
 	Convey("PathDBSuite", t, func() {
-		var b *Backend
-		var tmpF string
-		pathdbtest.TestPathDB(t,
-			func() pathdb.PathDB {
-				b, tmpF = setupDB(t)
-				return b
-			},
-			func() {
-				if b != nil {
-					b.db.Close()
-				}
-				if tmpF != "" {
-					os.Remove(tmpF)
-				}
-			})
+		pathdbtest.TestPathDB(t, tdb)
 	})
 }
 
@@ -109,9 +90,7 @@ func TestOpenNewer(t *testing.T) {
 		defer os.Remove(tmpF)
 		// Write a newer version
 		_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		b.db.Close()
 		// Call
 		b, err = New(tmpF)
@@ -119,4 +98,17 @@ func TestOpenNewer(t *testing.T) {
 		SoMsg("Backend nil", b, ShouldBeNil)
 		SoMsg("Err returned", err, ShouldNotBeNil)
 	})
+}
+
+func setupDB(t *testing.T) (*Backend, string) {
+	tmpFile := tempFilename(t)
+	b, err := New(tmpFile)
+	xtest.FailOnErr(t, err, "Failed to open DB")
+	return b, tmpFile
+}
+
+func tempFilename(t *testing.T) string {
+	dir, err := ioutil.TempDir("", "pathdb-sqlite")
+	xtest.FailOnErr(t, err)
+	return path.Join(dir, t.Name())
 }
