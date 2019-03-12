@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sqlite
+package db
 
 import (
 	"database/sql"
@@ -21,10 +21,10 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// New returns a new SQLite backend opening a database at the given path. If
+// NewSqlite returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from schemaVersion, an error is returned.
-func New(path string, schema string, schemaVersion int) (*sql.DB, error) {
+func NewSqlite(path string, schema string, schemaVersion int) (*sql.DB, error) {
 	var err error
 	if path == "" {
 		return nil, common.NewBasicError("Empty path not allowed for sqlite", nil)

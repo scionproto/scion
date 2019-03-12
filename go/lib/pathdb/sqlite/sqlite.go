@@ -31,9 +31,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/sqlite"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -57,7 +57,7 @@ type Backend struct {
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
 func New(path string) (*Backend, error) {
-	db, err := sqlite.New(path, Schema, SchemaVersion)
+	db, err := db.NewSqlite(path, Schema, SchemaVersion)
 	if err != nil {
 		return nil, err
 	}
