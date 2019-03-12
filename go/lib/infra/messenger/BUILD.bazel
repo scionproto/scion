@@ -8,6 +8,7 @@ go_library(
         "messenger.go",
         "messenger_with_metrics.go",
         "metrics.go",
+        "udp_response_writer.go",
         "utils.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/infra/messenger",

@@ -88,7 +88,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 	}
 	if maxChain != nil && crt.Version <= maxChain.Leaf.Version {
 		log.Info("[ReissHandler] Resending certificate chain", "addr", addr, "req", req)
-		return h.sendRep(ctx, addr, maxChain, r.ID)
+		return h.sendRep(ctx, addr, maxChain)
 	}
 	// Get the verifying key from the customer mapping
 	verKey, verVersion, err := h.getVerifyingKey(ctx, addr.IA)
@@ -105,7 +105,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return common.NewBasicError("Unable to reissue certificate chain", err)
 	}
 	// Send issued certificate chain
-	if err := h.sendRep(ctx, addr, newChain, r.ID); err != nil {
+	if err := h.sendRep(ctx, addr, newChain); err != nil {
 		return common.NewBasicError("Unable to send reissued certificate chain", err)
 	}
 	return nil
@@ -216,20 +216,19 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	return chain, nil
 }
 
-func (h *Handler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain,
-	id uint64) error {
+func (h *Handler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain) error {
 
 	raw, err := chain.Compress()
 	if err != nil {
 		return err
 	}
-	msger, ok := infra.MessengerFromContext(ctx)
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
-		return common.NewBasicError("Unable to send reply, no messenger found", nil)
+		return common.NewBasicError("Unable to send reply, no response writer found", nil)
 	}
-	log.Trace("[ReissHandler] Sending reissued certificate chain",
-		"chain", chain, "addr", addr)
-	return msger.SendChainIssueReply(ctx, &cert_mgmt.ChainIssRep{RawChain: raw}, addr, id)
+	log.Trace("[ReissHandler] Sending reissued certificate chain", "chain", chain,
+		"addr", addr)
+	return rw.SendChainIssueReply(ctx, &cert_mgmt.ChainIssRep{RawChain: raw})
 }
 
 func (h *Handler) getIssuerCert(ctx context.Context) (*cert.Certificate, error) {
