@@ -49,7 +49,7 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
-	msger, ok := infra.MessengerFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Error("[revocHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
@@ -58,7 +58,7 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 	defer cancelF()
 	logger = logger.New("signer", revocation.Sign.Src)
 
-	sendAck := messenger.SendAckHelper(subCtx, msger, h.request.Peer, h.request.ID)
+	sendAck := messenger.SendAckHelper(subCtx, rw)
 	revInfo, err := revocation.RevInfo()
 	if err != nil {
 		logger.Warn("[revocHandler] Couldn't parse revocation", "err", err)

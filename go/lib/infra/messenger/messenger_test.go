@@ -40,19 +40,14 @@ var (
 )
 
 func MockTRCHandler(request *infra.Request) *infra.HandlerResult {
-	messengerI, ok := infra.MessengerFromContext(request.Context())
+	rw, ok := infra.ResponseWriterFromContext(request.Context())
 	if !ok {
-		log.Warn("Unable to service request, no Messenger interface found")
-		return infra.MetricsErrInternal
-	}
-	messenger, ok := messengerI.(*Messenger)
-	if !ok {
-		log.Warn("Unable to service request, bad Messenger value found")
+		log.Warn("Unable to service request, no resopnse writer found")
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(request.Context(), 3*time.Second)
 	defer cancelF()
-	if err := messenger.SendTRC(subCtx, mockTRC, nil, request.ID); err != nil {
+	if err := rw.SendTRCReply(subCtx, mockTRC); err != nil {
 		log.Error("Server error", "err", err)
 		return infra.MetricsErrInternal
 	}

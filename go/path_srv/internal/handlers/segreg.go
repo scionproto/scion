@@ -50,14 +50,14 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
-	msger, ok := infra.MessengerFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Error("[segRegHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
-	sendAck := messenger.SendAckHelper(subCtx, msger, h.request.Peer, h.request.ID)
+	sendAck := messenger.SendAckHelper(subCtx, rw)
 	if err := segReg.ParseRaw(); err != nil {
 		logger.Error("[segRegHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)

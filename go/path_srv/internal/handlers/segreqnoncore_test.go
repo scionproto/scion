@@ -306,9 +306,9 @@ func TestSegReqLocal(t *testing.T) {
 						CacheOnly: true,
 					},
 				}
-				msger := mock_infra.NewMockMessenger(ctrl)
+				rw := mock_infra.NewMockResponseWriter(ctrl)
 				req := infra.NewRequest(
-					infra.NewContextWithMessenger(context.Background(), msger),
+					infra.NewContextWithResponseWriter(context.Background(), rw),
 					segReq,
 					nil,
 					&snet.Addr{IA: addr.IA{}},
@@ -326,8 +326,7 @@ func TestSegReqLocal(t *testing.T) {
 						localIA: tc.SrcIA,
 					},
 				}
-				msger.EXPECT().SendSegReply(gomock.Any(), matchesSegsAndReq(segReq, tc.Expected),
-					gomock.Any(), gomock.Eq(req.ID))
+				rw.EXPECT().SendSegReply(gomock.Any(), matchesSegsAndReq(segReq, tc.Expected))
 				h.Handle()
 			})
 		}

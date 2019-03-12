@@ -58,55 +58,55 @@ func (h *segReqCoreHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqCoreHandler] Received", "segReq", segReq)
-	msger, ok := infra.MessengerFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
-		logger.Warn("[segReqCoreHandler] Unable to service request, no Messenger found")
+		logger.Warn("[segReqHandler] Unable to reply to client, no response writer found")
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	if !h.isValidDst(segReq) {
-		h.sendEmptySegReply(subCtx, segReq, msger)
+		rw.SendSegReply(subCtx, &path_mgmt.SegReply{Req: segReq})
 		return infra.MetricsErrInvalid
 	}
-	h.handleReq(subCtx, msger, segReq)
+	h.handleReq(subCtx, rw, segReq)
 	// TODO(lukedirtwalker): Handle errors
 	return infra.MetricsResultOk
 }
 
-func (h *segReqCoreHandler) handleReq(ctx context.Context,
-	msger infra.Messenger, segReq *path_mgmt.SegReq) {
+func (h *segReqCoreHandler) handleReq(ctx context.Context, rw infra.ResponseWriter,
+	segReq *path_mgmt.SegReq) {
 
 	logger := log.FromCtx(ctx)
 	dstISDLocal := segReq.DstIA().I == h.localIA.I
 	if dstISDLocal && segReq.DstIA().A == 0 {
-		h.sendEmptySegReply(ctx, segReq, msger)
+		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
-	dstCore, err := h.isCoreDst(ctx, msger, segReq)
+	dstCore, err := h.isCoreDst(ctx, segReq)
 	if err != nil {
 		logger.Error("[segReqCoreHandler] Failed to determine dest type", "err", err)
-		h.sendEmptySegReply(ctx, segReq, msger)
+		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
 	if dstCore {
-		h.handleCoreDst(ctx, msger, segReq)
+		h.handleCoreDst(ctx, rw, segReq)
 		return
 	}
 	var downSegs seg.Segments
 	if dstISDLocal || segReq.Flags.CacheOnly {
 		downSegs, err = h.fetchDownSegsFromDB(ctx, segReq.DstIA())
 	} else {
-		downSegs, err = h.fetchDownSegsFromRemoteCore(ctx, msger, segReq.DstIA())
+		downSegs, err = h.fetchDownSegsFromRemoteCore(ctx, segReq.DstIA())
 	}
 	if err != nil {
 		logger.Error("Failed to fetch down segments", "err", err)
-		h.sendEmptySegReply(ctx, segReq, msger)
+		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
 	if len(downSegs) == 0 {
 		logger.Debug("[segReqCoreHandler] no down segs found")
-		h.sendEmptySegReply(ctx, segReq, msger)
+		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
 	var coreSegs []*seg.PathSegment
@@ -126,7 +126,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 			coreSegs, err = h.fetchCoreSegsFromDB(ctx, downIAs, retry)
 			if err != nil {
 				logger.Error("[segReqCoreHandler] Failed to find core segs", "err", err)
-				h.sendEmptySegReply(ctx, segReq, msger)
+				rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 				return
 			}
 		}
@@ -141,11 +141,11 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		})
 	}
 	logger.Debug("[segReqCoreHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
-	h.sendReply(ctx, msger, nil, coreSegs, downSegs, segReq)
+	h.sendReply(ctx, rw, nil, coreSegs, downSegs, segReq)
 }
 
-func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
-	msger infra.Messenger, segReq *path_mgmt.SegReq) {
+func (h *segReqCoreHandler) handleCoreDst(ctx context.Context, rw infra.ResponseWriter,
+	segReq *path_mgmt.SegReq) {
 
 	logger := log.FromCtx(ctx)
 	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{segReq.DstIA()}, !segReq.Flags.CacheOnly)
@@ -154,7 +154,7 @@ func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
 		return
 	}
 	logger.Debug("[segReqHandler:handleCoreDst] found segs", "core", len(coreSegs))
-	h.sendReply(ctx, msger, nil, coreSegs, nil, segReq)
+	h.sendReply(ctx, rw, nil, coreSegs, nil, segReq)
 }
 
 func (h *segReqCoreHandler) fetchCoreSegsFromDB(ctx context.Context,
@@ -181,13 +181,13 @@ func (h *segReqCoreHandler) fetchDownSegsFromDB(ctx context.Context,
 	return h.fetchSegsFromDB(ctx, q)
 }
 
-func (h *segReqCoreHandler) fetchDownSegsFromRemoteCore(ctx context.Context, msger infra.Messenger,
+func (h *segReqCoreHandler) fetchDownSegsFromRemoteCore(ctx context.Context,
 	dstIA addr.IA) ([]*seg.PathSegment, error) {
 
 	cPSResolve := func() (net.Addr, error) {
 		return h.corePSAddr(ctx, dstIA.I)
 	}
-	downSegs, err := h.fetchDownSegs(ctx, msger, dstIA, cPSResolve, false)
+	downSegs, err := h.fetchDownSegs(ctx, dstIA, cPSResolve, false)
 	if err != nil {
 		return nil, err
 	}

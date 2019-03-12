@@ -66,7 +66,7 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	}
 	logger.Debug("[TrustStore:trcReqHandler] Received request", "trcReq", trcReq,
 		"peer", h.request.Peer)
-	messenger, ok := infra.MessengerFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcReqHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
@@ -107,7 +107,7 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	trcMessage := &cert_mgmt.TRC{
 		RawTRC: rawTRC,
 	}
-	if err := messenger.SendTRC(subCtx, trcMessage, h.request.Peer, h.request.ID); err != nil {
+	if err := rw.SendTRCReply(subCtx, trcMessage); err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Messenger error", "err", err)
 		return infra.MetricsErrMsger(err)
 	}
@@ -136,7 +136,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	}
 	logger.Debug("[TrustStore:chainReqHandler] Received request", "chainReq", chainReq,
 		"peer", h.request.Peer)
-	messenger, ok := infra.MessengerFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
@@ -177,7 +177,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	chainMessage := &cert_mgmt.Chain{
 		RawChain: rawChain,
 	}
-	err = messenger.SendCertChain(subCtx, chainMessage, h.request.Peer, h.request.ID)
+	err = rw.SendCertChainReply(subCtx, chainMessage)
 	if err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Messenger API error", "err", err)
 		return infra.MetricsErrMsger(err)
@@ -206,14 +206,14 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	}
 	logger.Debug("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
 		"peer", h.request.Peer)
-	msger, ok := infra.MessengerFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcPushHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
-	sendAck := messenger.SendAckHelper(subCtx, msger, h.request.Peer, h.request.ID)
+	sendAck := messenger.SendAckHelper(subCtx, rw)
 	// FIXME(scrye): Verify that the TRC is valid by using the trust store and
 	// known trust topology. Use h.Request.Peer to retrieve missing TRCs.
 	trcObj, err := trcPush.TRC()
@@ -255,14 +255,14 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	}
 	logger.Debug("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
 		"peer", h.request.Peer)
-	msger, ok := infra.MessengerFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
-	sendAck := messenger.SendAckHelper(subCtx, msger, h.request.Peer, h.request.ID)
+	sendAck := messenger.SendAckHelper(subCtx, rw)
 	// FIXME(scrye): Verify that the chain is valid by using the trust store.
 	chain, err := chainPush.Chain()
 	if err != nil {
