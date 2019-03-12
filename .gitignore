@@ -28,7 +28,6 @@ __pycache__
 /go/proto/*.gen.go
 /go/vendor/*/
 /go/vendor/.deps.stamp
-/go/**/mock_*/*.go
 
 # vim generated files #
 #########################

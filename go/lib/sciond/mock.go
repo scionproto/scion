@@ -106,7 +106,7 @@ func (m *MockConn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
 				},
 				HostInfo: hostinfo.HostInfo{
-				// TODO(scrye): leave nil for now since no tests use this
+					// TODO(scrye): leave nil for now since no tests use this
 				},
 			},
 		)
