@@ -60,6 +60,12 @@ type Result struct {
 	HpCfgIDs   []*HPCfgID
 }
 
+// ResultOrErr is either a result or an error.
+type ResultOrErr struct {
+	Result *Result
+	Err    error
+}
+
 // Results is a type for convenience methods on a slice of Results.
 type Results []*Result
 

@@ -59,27 +59,37 @@ var (
 	timeout = time.Second
 )
 
+// TestablePathDB extends the path db interface with methods that are needed for testing.
+type TestablePathDB interface {
+	pathdb.PathDB
+	// Prepare should reset the internal state so that the DB is empty and is ready to be tested.
+	Prepare(t *testing.T, ctx context.Context)
+}
+
 // TestPathDB should be used to test any implementation of the PathDB interface.
 // An implementation of the PathDB interface should at least have one test method that calls
 // this test-suite. The calling test code should have a top level Convey block.
 //
 // setup should return a PathDB in a clean state, i.e. no entries in the DB.
 // cleanup can be used to release any resources that have been allocated during setup.
-func TestPathDB(t *testing.T, setup func() pathdb.PathDB, cleanup func()) {
+func TestPathDB(t *testing.T, db TestablePathDB) {
 	testWrapper := func(test func(*testing.T, pathdb.PathDB)) func() {
 		return func() {
-			test(t, setup())
-			cleanup()
+			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
+			defer cancelF()
+			db.Prepare(t, prepareCtx)
+			test(t, db)
 		}
 	}
 
-	Convey("Delete", func() { testDelete(t, setup, cleanup) })
+	Convey("Delete", func() { testDelete(t, db) })
 	Convey("InsertWithHpCfgIDsFull", testWrapper(testInsertWithHpCfgIDsFull))
 	Convey("UpdateExisting", testWrapper(testUpdateExisting))
 	Convey("UpdateOlderIgnored", testWrapper(testUpdateOlderIgnored))
 	Convey("UpdateIntfToSeg", testWrapper(testUpdateIntfToSeg))
 	Convey("DeleteExpired", testWrapper(testDeleteExpired))
 	Convey("GetMixed", testWrapper(testGetMixed))
+	Convey("GetNilParams", testWrapper(testGetNilParams))
 	Convey("GetAll", testWrapper(testGetAll))
 	Convey("GetStartsAtEndsAt", testWrapper(testGetStartsAtEndsAt))
 	Convey("GetWithIntfs", testWrapper(testGetWithIntfs))
@@ -88,7 +98,7 @@ func TestPathDB(t *testing.T, setup func() pathdb.PathDB, cleanup func()) {
 	Convey("NextQuery", testWrapper(testNextQuery))
 }
 
-func testDelete(t *testing.T, setup func() pathdb.PathDB, cleanup func()) {
+func testDelete(t *testing.T, pathDB TestablePathDB) {
 	testCases := []struct {
 		Name        string
 		Setup       func(ctx context.Context, t *testing.T, pathDB pathdb.PathDB) *query.Params
@@ -122,10 +132,9 @@ func testDelete(t *testing.T, setup func() pathdb.PathDB, cleanup func()) {
 	Convey("Delete should correctly remove a path segment", func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				pathDB := setup()
-				defer cleanup()
 				ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 				defer cancelF()
+				pathDB.Prepare(t, ctx)
 
 				params := tc.Setup(ctx, t, pathDB)
 				// Call
@@ -285,7 +294,7 @@ func testGetMixed(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testGetAll(t *testing.T, pathDB pathdb.PathDB) {
+func testGetNilParams(t *testing.T, pathDB pathdb.PathDB) {
 	Convey("Get should return the all path segments", func() {
 		// Setup
 		TS := uint32(10)
@@ -307,6 +316,41 @@ func testGetAll(t *testing.T, pathDB pathdb.PathDB) {
 				checkSameHpCfgs("HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
 			} else {
 				t.Fatal("Unexpected result", "seg", r.Seg)
+			}
+		}
+	})
+}
+
+func testGetAll(t *testing.T, pathDB pathdb.PathDB) {
+	Convey("", func() {
+		// Setup
+		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+
+		// Empty db should return an empty chan
+		resChan, err := pathDB.GetAll(ctx)
+		SoMsg("No error expected", err, ShouldBeNil)
+		res, more := <-resChan
+		SoMsg("No result expected", res, ShouldResemble, query.ResultOrErr{})
+		SoMsg("No more entries expected", more, ShouldBeFalse)
+
+		pseg1, segID1 := AllocPathSegment(t, ifs1, TS)
+		pseg2, segID2 := AllocPathSegment(t, ifs2, TS)
+		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+
+		resChan, err = pathDB.GetAll(ctx)
+		SoMsg("No error expected", err, ShouldBeNil)
+		for r := range resChan {
+			SoMsg("No error expected", r.Err, ShouldBeNil)
+			resSegID, _ := r.Result.Seg.ID()
+			if bytes.Compare(resSegID, segID1) == 0 {
+				checkSameHpCfgs("HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs)
+			} else if bytes.Compare(resSegID, segID2) == 0 {
+				checkSameHpCfgs("HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs[:1])
+			} else {
+				t.Fatal("Unexpected result", "seg", r.Result.Seg)
 			}
 		}
 	})
