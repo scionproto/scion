@@ -574,8 +574,7 @@ func (m *Messenger) ListenAndServe() {
 			continue
 		}
 
-		serveCtx := infra.NewContextWithMessenger(m.ctx, m)
-		serveCtx, serveCancelF := context.WithTimeout(serveCtx, m.config.HandlerTimeout)
+		serveCtx, serveCancelF := context.WithTimeout(m.ctx, m.config.HandlerTimeout)
 		if !m.config.DisableSignatureVerification {
 			// FIXME(scrye): Always use default signature verifier here, as some
 			// functionality in the main ctrl libraries is still missing.
@@ -621,6 +620,13 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	signedPld *ctrl.SignedPld, address net.Addr) {
 
 	logger := log.FromCtx(ctx)
+	ctx = infra.NewContextWithResponseWriter(ctx,
+		&UDPResponseWriter{
+			Messenger: m,
+			Remote:    address,
+			ID:        pld.ReqId,
+		},
+	)
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
 	msgType, msg, err := m.validate(pld)

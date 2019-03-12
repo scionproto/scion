@@ -103,9 +103,9 @@ func (r *Request) Context() context.Context {
 }
 
 var (
-	// messengerContextKey is a context key. It can be used in SCION infra
-	// request handlers to access the messaging layer the message arrived on.
-	messengerContextKey = &contextKey{"infra-messenger"}
+	// responseWriterKey is a context key. It can be used in SCION infra
+	// request handlers to reply to a remote request.
+	responseWriterContextKey = &contextKey{"response-writer"}
 )
 
 type contextKey struct {
@@ -116,8 +116,8 @@ func (k *contextKey) String() string {
 	return "infra/messenger context value " + k.name
 }
 
-func NewContextWithMessenger(ctx context.Context, msger Messenger) context.Context {
-	return context.WithValue(ctx, messengerContextKey, msger)
+func NewContextWithResponseWriter(ctx context.Context, rw ResponseWriter) context.Context {
+	return context.WithValue(ctx, responseWriterContextKey, rw)
 }
 
 type MessageType int
@@ -293,9 +293,17 @@ type Messenger interface {
 	CloseServer() error
 }
 
-func MessengerFromContext(ctx context.Context) (Messenger, bool) {
-	msger, ok := ctx.Value(messengerContextKey).(Messenger)
-	return msger, ok
+type ResponseWriter interface {
+	SendAckReply(ctx context.Context, msg *ack.Ack) error
+	SendTRCReply(ctx context.Context, msg *cert_mgmt.TRC) error
+	SendCertChainReply(ctx context.Context, msg *cert_mgmt.Chain) error
+	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep) error
+	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error
+}
+
+func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {
+	rw, ok := ctx.Value(responseWriterContextKey).(ResponseWriter)
+	return rw, ok
 }
 
 var _ error = (*Error)(nil)

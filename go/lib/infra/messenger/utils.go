@@ -16,7 +16,6 @@ package messenger
 
 import (
 	"context"
-	"net"
 
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -33,16 +32,14 @@ const (
 // SendAckHelper binds the given arguments and returns a function that is convenient to call.
 // This is only to reduce boilerplate code in message handlers.
 // Note that ctx should have a logger attached.
-func SendAckHelper(ctx context.Context, msger infra.Messenger,
-	peer net.Addr, id uint64) func(proto.Ack_ErrCode, string) {
-
+func SendAckHelper(ctx context.Context, rw infra.ResponseWriter) func(proto.Ack_ErrCode, string) {
 	logger := log.FromCtx(ctx)
 	return func(errCode proto.Ack_ErrCode, errDesc string) {
 		a := &ack.Ack{
 			Err:     errCode,
 			ErrDesc: errDesc,
 		}
-		if err := msger.SendAck(ctx, a, peer, id); err != nil {
+		if err := rw.SendAckReply(ctx, a); err != nil {
 			logger.Error("Failed to send ack", "err", err)
 		}
 	}

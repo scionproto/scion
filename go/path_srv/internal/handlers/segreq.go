@@ -43,13 +43,6 @@ type segReqHandler struct {
 	segsDeduper dedupe.Deduper
 }
 
-func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
-	segReq *path_mgmt.SegReq, msger infra.Messenger) {
-
-	msger.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq, Recs: nil},
-		h.request.Peer, h.request.ID)
-}
-
 // isValidDst returns true if segReq contains a valid destination for segReq handlers,
 // false otherwise.
 func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
@@ -62,9 +55,7 @@ func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
 	return true
 }
 
-func (h *segReqHandler) isCoreDst(ctx context.Context, msger infra.Messenger,
-	segReq *path_mgmt.SegReq) (bool, error) {
-
+func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq) (bool, error) {
 	if segReq.DstIA().A == 0 {
 		return true, nil
 	}
@@ -83,8 +74,8 @@ func (h *segReqHandler) coreASes(ctx context.Context) (trc.CoreASMap, error) {
 	return srcTRC.CoreASes, nil
 }
 
-func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger,
-	dst addr.IA, cPSAddr func() (net.Addr, error), dbOnly bool) (seg.Segments, error) {
+func (h *segReqHandler) fetchDownSegs(ctx context.Context, dst addr.IA,
+	cPSAddr func() (net.Addr, error), dbOnly bool) (seg.Segments, error) {
 
 	// try local cache first
 	q := &query.Params{
@@ -113,15 +104,15 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger
 	}
 	logger := log.FromCtx(ctx)
 	logger.Debug("[segReqHandler] Fetch down segments", "dst", dst, "remote", cAddr)
-	if err = h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, cAddr); err != nil {
+	if err = h.fetchAndSaveSegs(ctx, addr.IA{}, dst, cAddr); err != nil {
 		return nil, err
 	}
 	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
 	return h.fetchSegsFromDB(ctx, q)
 }
 
-func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messenger,
-	src, dst addr.IA, cPSAddr net.Addr) error {
+func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
+	cPSAddr net.Addr) error {
 
 	logger := log.FromCtx(ctx)
 	queryTime := time.Now()
@@ -176,7 +167,7 @@ func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
 	}
 }
 
-func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
+func (h *segReqHandler) sendReply(ctx context.Context, rw infra.ResponseWriter,
 	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) {
 
 	logger := log.FromCtx(ctx)
@@ -193,8 +184,7 @@ func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 		Req:  segReq,
 		Recs: recs,
 	}
-	err = msger.SendSegReply(ctx, reply, h.request.Peer, h.request.ID)
-	if err != nil {
+	if err := rw.SendSegReply(ctx, reply); err != nil {
 		logger.Error("[segReqHandler] Failed to send reply!", "err", err)
 	}
 	logger.Debug("[segReqHandler] reply sent", "id", h.request.ID,

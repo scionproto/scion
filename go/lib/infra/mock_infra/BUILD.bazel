@@ -7,7 +7,7 @@ gomock(
     name = "mock_infra",
     library = "//go/lib/infra:go_default_library",
     package = "mock_infra",
-    interfaces = ["TrustStore", "Messenger"],
+    interfaces = ["TrustStore", "Messenger", "ResponseWriter"],
     out = "mock_infra.go",
 )
 
