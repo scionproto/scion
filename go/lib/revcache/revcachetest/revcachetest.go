@@ -103,7 +103,13 @@ func testGetMultikey(t *testing.T, revCache TestableRevCache) {
 	sr4 := toSigned(t, defaultRevInfo(ia120, common.IFIDType(10)))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	_, err := revCache.Insert(ctx, sr1)
+
+	// First test the empty cache
+	revs, err := revCache.Get(ctx, revcache.KeySet{})
+	SoMsg("Get should not err", err, ShouldBeNil)
+	SoMsg("Should return no revs", revs, ShouldBeEmpty)
+
+	_, err = revCache.Insert(ctx, sr1)
 	xtest.FailOnErr(t, err)
 	_, err = revCache.Insert(ctx, sr2)
 	xtest.FailOnErr(t, err)
@@ -113,7 +119,7 @@ func testGetMultikey(t *testing.T, revCache TestableRevCache) {
 	xtest.FailOnErr(t, err)
 
 	key1 := *revcache.NewKey(ia110, ifId15)
-	revs, err := revCache.Get(ctx, revcache.KeySet{key1: {}})
+	revs, err = revCache.Get(ctx, revcache.KeySet{key1: {}})
 	SoMsg("Get should not err", err, ShouldBeNil)
 	SoMsg("Should contain one rev", 1, ShouldEqual, len(revs))
 	MustParseRevInfo(t, revs[key1])
