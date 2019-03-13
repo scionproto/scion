@@ -73,7 +73,7 @@ type TestablePathDB interface {
 // setup should return a PathDB in a clean state, i.e. no entries in the DB.
 // cleanup can be used to release any resources that have been allocated during setup.
 func TestPathDB(t *testing.T, db TestablePathDB) {
-	testWrapper := func(test func(*testing.T, pathdb.PathDB)) func() {
+	testWrapper := func(test func(*testing.T, pathdb.ReadWrite)) func() {
 		return func() {
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
@@ -82,7 +82,7 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 		}
 	}
 
-	Convey("Delete", func() { testDelete(t, db) })
+	Convey("Delete", func() { testDelete(t, db, false) })
 	Convey("InsertWithHpCfgIDsFull", testWrapper(testInsertWithHpCfgIDsFull))
 	Convey("UpdateExisting", testWrapper(testUpdateExisting))
 	Convey("UpdateOlderIgnored", testWrapper(testUpdateOlderIgnored))
@@ -96,9 +96,43 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 	Convey("GetWithHpCfgIDs", testWrapper(testGetWithHpCfgIDs))
 	Convey("ModifiedIDs", testWrapper(testGetModifiedIDs))
 	Convey("NextQuery", testWrapper(testNextQuery))
+	txTestWrapper := func(test func(*testing.T, pathdb.ReadWrite)) func() {
+		return func() {
+			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+			defer cancelF()
+			db.Prepare(t, ctx)
+			tx, err := db.BeginTransaction(ctx, nil)
+			xtest.FailOnErr(t, err)
+			test(t, tx)
+			err = tx.Commit()
+			xtest.FailOnErr(t, err)
+		}
+	}
+	Convey("WithTransaction", func() {
+		Convey("Delete", func() { testDelete(t, db, true) })
+		Convey("InsertWithHpCfgIDsFull", txTestWrapper(testInsertWithHpCfgIDsFull))
+		Convey("UpdateExisting", txTestWrapper(testUpdateExisting))
+		Convey("UpdateOlderIgnored", txTestWrapper(testUpdateOlderIgnored))
+		Convey("UpdateIntfToSeg", txTestWrapper(testUpdateIntfToSeg))
+		Convey("DeleteExpired", txTestWrapper(testDeleteExpired))
+		Convey("GetMixed", txTestWrapper(testGetMixed))
+		Convey("GetNilParams", txTestWrapper(testGetNilParams))
+		Convey("GetAll", txTestWrapper(testGetAll))
+		Convey("GetStartsAtEndsAt", txTestWrapper(testGetStartsAtEndsAt))
+		Convey("GetWithIntfs", txTestWrapper(testGetWithIntfs))
+		Convey("GetWithHpCfgIDs", txTestWrapper(testGetWithHpCfgIDs))
+		Convey("ModifiedIDs", txTestWrapper(testGetModifiedIDs))
+		Convey("NextQuery", txTestWrapper(testNextQuery))
+		Convey("TestTransactionRollback", func() {
+			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
+			defer cancelF()
+			db.Prepare(t, prepareCtx)
+			testRollback(t, db)
+		})
+	})
 }
 
-func testDelete(t *testing.T, pathDB TestablePathDB) {
+func testDelete(t *testing.T, pathDB TestablePathDB, inTx bool) {
 	testCases := []struct {
 		Name        string
 		Setup       func(ctx context.Context, t *testing.T, pathDB pathdb.PathDB) *query.Params
@@ -137,8 +171,18 @@ func testDelete(t *testing.T, pathDB TestablePathDB) {
 				pathDB.Prepare(t, ctx)
 
 				params := tc.Setup(ctx, t, pathDB)
+				var deleted int
+				var err error
 				// Call
-				deleted, err := pathDB.Delete(ctx, params)
+				if inTx {
+					tx, err := pathDB.BeginTransaction(ctx, nil)
+					xtest.FailOnErr(t, err)
+					deleted, err = tx.Delete(ctx, params)
+					xtest.FailOnErr(t, err)
+					xtest.FailOnErr(t, tx.Commit())
+				} else {
+					deleted, err = pathDB.Delete(ctx, params)
+				}
 				xtest.FailOnErr(t, err)
 				// Check return value.
 				SoMsg("Deleted", deleted, ShouldEqual, tc.DeleteCount)
@@ -147,7 +191,7 @@ func testDelete(t *testing.T, pathDB TestablePathDB) {
 	})
 }
 
-func testInsertWithHpCfgIDsFull(t *testing.T, pathDB pathdb.PathDB) {
+func testInsertWithHpCfgIDsFull(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("InsertWithHpCfgID should correctly insert a new segment", func() {
 		TS := uint32(10)
 		pseg, segID := AllocPathSegment(t, ifs1, TS)
@@ -166,7 +210,7 @@ func testInsertWithHpCfgIDsFull(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testUpdateExisting(t *testing.T, pathDB pathdb.PathDB) {
+func testUpdateExisting(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("InsertWithHpCfgID should correctly update a new segment", func() {
 		oldTS := uint32(10)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -187,7 +231,7 @@ func testUpdateExisting(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testUpdateOlderIgnored(t *testing.T, pathDB pathdb.PathDB) {
+func testUpdateOlderIgnored(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("InsertWithHpCfgID should correctly ignore an older segment", func() {
 		newTS := uint32(20)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -208,7 +252,7 @@ func testUpdateOlderIgnored(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.PathDB) {
+func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("Updating a segment with new peer links should update interface to seg mapping", func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
@@ -246,7 +290,7 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testDeleteExpired(t *testing.T, pathDB pathdb.PathDB) {
+func testDeleteExpired(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("DeleteExpired should delete expired segments", func() {
 		ts1 := uint32(10)
 		ts2 := uint32(20)
@@ -270,7 +314,7 @@ func testDeleteExpired(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testGetMixed(t *testing.T, pathDB pathdb.PathDB) {
+func testGetMixed(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("Get should return the correct path segments", func() {
 		// Setup
 		TS := uint32(10)
@@ -294,7 +338,7 @@ func testGetMixed(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testGetNilParams(t *testing.T, pathDB pathdb.PathDB) {
+func testGetNilParams(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("Get should return the all path segments", func() {
 		// Setup
 		TS := uint32(10)
@@ -321,7 +365,7 @@ func testGetNilParams(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testGetAll(t *testing.T, pathDB pathdb.PathDB) {
+func testGetAll(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("", func() {
 		// Setup
 		TS := uint32(10)
@@ -356,7 +400,7 @@ func testGetAll(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testGetStartsAtEndsAt(t *testing.T, pathDB pathdb.PathDB) {
+func testGetStartsAtEndsAt(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("Get should return all path segments starting or ending at", func() {
 		// Setup
 		TS := uint32(10)
@@ -376,7 +420,7 @@ func testGetStartsAtEndsAt(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testGetWithIntfs(t *testing.T, pathDB pathdb.PathDB) {
+func testGetWithIntfs(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("Get should return all path segment with given ifIDs", func() {
 		// Setup
 		TS := uint32(10)
@@ -399,7 +443,7 @@ func testGetWithIntfs(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testGetWithHpCfgIDs(t *testing.T, pathDB pathdb.PathDB) {
+func testGetWithHpCfgIDs(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("Get should return all path segment with given HpCfgIDs", func() {
 		// Setup
 		TS := uint32(10)
@@ -419,7 +463,7 @@ func testGetWithHpCfgIDs(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testGetModifiedIDs(t *testing.T, pathDB pathdb.PathDB) {
+func testGetModifiedIDs(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("Get with MinLastUpdate should return only segs that have been modified", func() {
 		// Setup
 		TS := uint32(10)
@@ -456,7 +500,7 @@ func testGetModifiedIDs(t *testing.T, pathDB pathdb.PathDB) {
 	})
 }
 
-func testNextQuery(t *testing.T, pathDB pathdb.PathDB) {
+func testNextQuery(t *testing.T, pathDB pathdb.ReadWrite) {
 	Convey("NextQuery insert should always result in the latest timestamp", func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 		defer cancelF()
@@ -487,6 +531,24 @@ func testNextQuery(t *testing.T, pathDB pathdb.PathDB) {
 		defer cancelF()
 		_, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"))
 		SoMsg("Should error", err, ShouldNotBeNil)
+	})
+}
+
+func testRollback(t *testing.T, pathDB pathdb.PathDB) {
+	Convey("Test transaction rollback", func() {
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		tx, err := pathDB.BeginTransaction(ctx, nil)
+		SoMsg("Transaction begin should not fail", err, ShouldBeNil)
+		pseg, _ := AllocPathSegment(t, ifs1, uint32(10))
+		SoMsg("Insert should succeed", InsertSeg(t, ctx, tx, pseg, hpCfgIDs), ShouldEqual, 1)
+		err = tx.Rollback()
+		SoMsg("Rollback should not fail", err, ShouldBeNil)
+		segChan, err := pathDB.GetAll(ctx)
+		SoMsg("GetAll should work", err, ShouldBeNil)
+		res, more := <-segChan
+		SoMsg("No entries expected", res, ShouldResemble, query.ResultOrErr{})
+		SoMsg("No more entries expected", more, ShouldBeFalse)
 	})
 }
 
@@ -550,7 +612,7 @@ func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *seg.HopEntry {
 	}
 }
 
-func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.PathDB,
+func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite,
 	pseg *seg.PathSegment, hpCfgIDs []*query.HPCfgID) int {
 
 	inserted, err := pathDB.InsertWithHPCfgIDs(ctx, seg.NewMeta(pseg, segType), hpCfgIDs)
@@ -581,7 +643,7 @@ func checkSameHpCfgs(msg string, actual, expected []*query.HPCfgID) {
 }
 
 func checkInterfacesPresent(t *testing.T, ctx context.Context,
-	expectedHopEntries []*seg.ASEntry, pathDB pathdb.PathDB) {
+	expectedHopEntries []*seg.ASEntry, pathDB pathdb.ReadWrite) {
 
 	for _, asEntry := range expectedHopEntries {
 		for _, hopEntry := range asEntry.HopEntries {
@@ -598,7 +660,7 @@ func checkInterfacesPresent(t *testing.T, ctx context.Context,
 }
 
 func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.IFIDType,
-	pathDB pathdb.PathDB, present bool) {
+	pathDB pathdb.ReadWrite, present bool) {
 
 	r, err := pathDB.Get(ctx, &query.Params{
 		Intfs: []*query.IntfSpec{
