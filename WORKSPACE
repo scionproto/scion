@@ -17,7 +17,7 @@ go_download_sdk(
         "linux_amd64":  ("go1.11.5.linux-amd64.tar.gz", "ff54aafedff961eb94792487e827515da683d61a5f9482f668008832631e5d25"),
     },
 )
-go_register_toolchains()
+go_register_toolchains(nogo="@//:nogo")
 
 # Gazelle
 http_archive(
