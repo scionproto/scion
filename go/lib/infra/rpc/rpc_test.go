@@ -24,19 +24,19 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var _ Handler = (*handler)(nil)
 
-type handler struct{}
+type handler struct {
+	t testing.TB
+}
 
 func (h *handler) ServeRPC(rw ReplyWriter, request *Request) {
 	reply := &Reply{SignedPld: &ctrl.SignedPld{}}
 	err := rw.WriteReply(reply)
-	if err != nil {
-		log.Warn("serve error", "err", err)
-	}
+	xtest.FailOnErr(h.t, err)
 }
 
 const (
@@ -57,7 +57,7 @@ func TestServer(t *testing.T) {
 					MustLoadCertificate(defPemPath, defKeyPath),
 				},
 			},
-			Handler: &handler{},
+			Handler: &handler{t: t},
 		}
 		go server.ListenAndServe()
 		time.Sleep(40 * time.Millisecond)
@@ -77,18 +77,16 @@ func TestClientServer(t *testing.T) {
 		client, server, _ := getCliSrv(t, 60002, 60003)
 		go func() {
 			err := server.ListenAndServe()
-			if err != nil {
-				t.Fatalf("server err = %v\n", err)
-			}
+			xtest.FailOnErr(t, err)
 		}()
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
 		reply, err := client.Request(
-			context.Background(),
+			ctx,
 			&Request{SignedPld: &ctrl.SignedPld{}},
 			&net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: 60003},
 		)
-		if err != nil {
-			t.Fatalf("client err = %v\n", err)
-		}
+		xtest.FailOnErr(t, err)
 		So(reply, ShouldResemble, &Reply{SignedPld: &ctrl.SignedPld{}})
 	})
 }
@@ -119,19 +117,15 @@ func getCliSrv(t testing.TB, cliPort, srvPort int) (*Client, *Server, func()) {
 				MustLoadCertificate(defPemPath, defKeyPath),
 			},
 		},
-		Handler: &handler{},
+		Handler: &handler{t: t},
 	}
 	return client, server, cleaner
 }
 
 func getTestUDPConns(t testing.TB, cliPort, srvPort int) (net.PacketConn, net.PacketConn) {
 	srvConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: srvPort})
-	if err != nil {
-		t.Fatalf("server listen err = %v\n", err)
-	}
+	xtest.FailOnErr(t, err)
 	cliConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: cliPort})
-	if err != nil {
-		t.Fatalf("client listen err = %v\n", err)
-	}
+	xtest.FailOnErr(t, err)
 	return cliConn, srvConn
 }

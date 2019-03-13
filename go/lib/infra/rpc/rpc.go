@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package rpc implements SCION Infra RPC calls over QUIC.
 package rpc
 
 import (
@@ -32,6 +33,8 @@ import (
 )
 
 const (
+	// CtxTimedOutError is a custom QUIC error code that is used when canceling
+	// writes due to context expiration.
 	CtxTimedOutError = iota + 1
 )
 
@@ -64,11 +67,11 @@ func (s *Server) ListenAndServe() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				return err
 			}
-			log.Warn("server accept error", "err", err)
+			log.Warn("[quic] server accept error", "err", err)
 			continue
 		}
 		if err := s.handleQUICSession(session); err != nil {
-			log.Warn("server handler exited with error", "err", err)
+			log.Warn("[quic] server handler exited with error", "err", err)
 		}
 	}
 }
@@ -88,6 +91,8 @@ func (s *Server) initListener() error {
 	return nil
 }
 
+// Close closes the Server's listener. All active QUIC connections are
+// immediately torn down. It is safe to call close multiple times.
 func (s *Server) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -133,6 +138,9 @@ type Client struct {
 	QUICConfig *quic.Config
 }
 
+// Request sends the request to the host described by address, and blocks until
+// a reply is received (or the context times out). If a reply is received, it
+// is returned.
 func (c *Client) Request(ctx context.Context, request *Request, address net.Addr) (*Reply, error) {
 	addressStr := computeAddressStr(address)
 
@@ -148,6 +156,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 	}
 	go func() {
 		<-ctx.Done()
+		// it is safe to cancel the write even after the stream is closed
 		stream.CancelWrite(CtxTimedOutError)
 	}()
 
@@ -198,13 +207,17 @@ type Handler interface {
 }
 
 // ReplyWriter provides handlers a way to respond to requests. ReplyWriter
-// keeps a connection alive for replying. To force cleanup of the connection,
-// call Close.
+// keeps a connection alive for replying. Method WriteReply can block; to
+// unblock the method (and to close the connection ahead of time), call
+// Close.  ReplyWriter implementations must also close the connection whenever
+// they return from WriteReply.
 type ReplyWriter interface {
+	// WriteReply blocks until the Reply is sent back to the peer. The
+	// underlying connection is always closed before WriteReply returns.
 	WriteReply(*Reply) error
 	// Close closes any connections kept open by this writer, and unblocks an
 	// ongoing WriteReply. It is safe to call Close concurrently with
-	// WriteReply.
+	// WriteReply. Close can be safely called multiple times.
 	io.Closer
 }
 

@@ -27,7 +27,7 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/ctrl:go_default_library",
-        "//go/lib/log:go_default_library",
+        "//go/lib/xtest:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],
 )
