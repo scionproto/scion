@@ -38,7 +38,7 @@ var (
 	ifs1     = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	hpCfgIDs = []*query.HPCfgID{
 		&query.NullHpCfgID,
-		{ia330, 0xdeadbeef},
+		{IA: ia330, ID: 0xdeadbeef},
 	}
 	segType = proto.PathSegType_up
 	timeout = time.Second
