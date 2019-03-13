@@ -16,6 +16,7 @@ package pathdb
 
 import (
 	"context"
+	"database/sql"
 	"sync"
 	"time"
 
@@ -45,6 +46,10 @@ const (
 	promOpGetAll          promOp = "get_all"
 	promOpInsertNextQuery promOp = "insert_next_query"
 	promOpGetNextQuery    promOp = "get_next_query"
+
+	promOpBeginTx    promOp = "tx_begin"
+	promOpCommitTx   promOp = "tx_commit"
+	promOpRollbackTx promOp = "tx_rollback"
 )
 
 var (
@@ -60,6 +65,10 @@ var (
 		promOpGetAll,
 		promOpInsertNextQuery,
 		promOpGetNextQuery,
+
+		promOpBeginTx,
+		promOpCommitTx,
+		promOpRollbackTx,
 	}
 
 	allResults = []string{
@@ -73,10 +82,10 @@ var (
 
 func initMetrics() {
 	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 8 (len(allOps))
+		// Cardinality: X (dbName) * 11 (len(allOps))
 		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
 			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbNmae) * 8 (len(allOps)) * 3 (len(allResults))
+		// Cardinality: X (dbNmae) * 11 (len(allOps)) * 3 (len(allResults))
 		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
 			"The results of the pathdb ops.",
 			[]string{promDBName, prom.LabelResult, prom.LabelOperation})
@@ -88,11 +97,14 @@ func initMetrics() {
 func WithMetrics(dbName string, pathDB PathDB) PathDB {
 	initMetrics()
 	return &metricsPathDB{
-		pathDB: pathDB,
-		metrics: &dbCounters{
-			opCounters:     opCounters(dbName),
-			resultCounters: resultCounters(dbName),
+		metricsExecutor: &metricsExecutor{
+			pathDB: pathDB,
+			metrics: &dbCounters{
+				opCounters:     opCounters(dbName),
+				resultCounters: resultCounters(dbName),
+			},
 		},
+		db: pathDB,
 	}
 }
 
@@ -147,18 +159,65 @@ var _ (PathDB) = (*metricsPathDB)(nil)
 
 // metricsPathDB is a PathDB wrapper that exports the counts of operations as prometheus metrics.
 type metricsPathDB struct {
-	pathDB  PathDB
+	*metricsExecutor
+	// db is only needed to have BeginTransaction method.
+	db PathDB
+}
+
+func (db *metricsPathDB) BeginTransaction(ctx context.Context,
+	opts *sql.TxOptions) (Transaction, error) {
+
+	db.metricsExecutor.metrics.incOp(promOpBeginTx)
+	tx, err := db.db.BeginTransaction(ctx, opts)
+	db.metricsExecutor.metrics.incResult(promOpBeginTx, err)
+	if err != nil {
+		return nil, err
+	}
+	return &metricsTransaction{
+		tx: tx,
+		metricsExecutor: &metricsExecutor{
+			pathDB:  tx,
+			metrics: db.metricsExecutor.metrics,
+		},
+	}, err
+}
+
+var _ (Transaction) = (*metricsTransaction)(nil)
+
+type metricsTransaction struct {
+	*metricsExecutor
+	tx Transaction
+}
+
+func (tx *metricsTransaction) Commit() error {
+	tx.metrics.incOp(promOpCommitTx)
+	err := tx.tx.Commit()
+	tx.metrics.incResult(promOpCommitTx, err)
+	return err
+}
+
+func (tx *metricsTransaction) Rollback() error {
+	tx.metrics.incOp(promOpRollbackTx)
+	err := tx.tx.Rollback()
+	tx.metrics.incResult(promOpRollbackTx, err)
+	return err
+}
+
+var _ (ReadWrite) = (*metricsExecutor)(nil)
+
+type metricsExecutor struct {
+	pathDB  ReadWrite
 	metrics *dbCounters
 }
 
-func (db *metricsPathDB) Insert(ctx context.Context, meta *seg.Meta) (int, error) {
+func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (int, error) {
 	db.metrics.incOp(promOpInsert)
 	cnt, err := db.pathDB.Insert(ctx, meta)
 	db.metrics.incResult(promOpInsert, err)
 	return cnt, err
 }
 
-func (db *metricsPathDB) InsertWithHPCfgIDs(ctx context.Context,
+func (db *metricsExecutor) InsertWithHPCfgIDs(ctx context.Context,
 	meta *seg.Meta, hpCfgIds []*query.HPCfgID) (int, error) {
 
 	db.metrics.incOp(promOpInsertHpCfg)
@@ -167,35 +226,35 @@ func (db *metricsPathDB) InsertWithHPCfgIDs(ctx context.Context,
 	return cnt, err
 }
 
-func (db *metricsPathDB) Delete(ctx context.Context, params *query.Params) (int, error) {
+func (db *metricsExecutor) Delete(ctx context.Context, params *query.Params) (int, error) {
 	db.metrics.incOp(promOpDelete)
 	cnt, err := db.pathDB.Delete(ctx, params)
 	db.metrics.incResult(promOpDelete, err)
 	return cnt, err
 }
 
-func (db *metricsPathDB) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
+func (db *metricsExecutor) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	db.metrics.incOp(promOpDeleteExpired)
 	cnt, err := db.pathDB.DeleteExpired(ctx, now)
 	db.metrics.incResult(promOpDeleteExpired, err)
 	return cnt, err
 }
 
-func (db *metricsPathDB) Get(ctx context.Context, params *query.Params) (query.Results, error) {
+func (db *metricsExecutor) Get(ctx context.Context, params *query.Params) (query.Results, error) {
 	db.metrics.incOp(promOpGet)
 	res, err := db.pathDB.Get(ctx, params)
 	db.metrics.incResult(promOpGet, err)
 	return res, err
 }
 
-func (db *metricsPathDB) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error) {
+func (db *metricsExecutor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error) {
 	db.metrics.incOp(promOpGetAll)
 	res, err := db.pathDB.GetAll(ctx)
 	db.metrics.incResult(promOpGetAll, err)
 	return res, err
 }
 
-func (db *metricsPathDB) InsertNextQuery(ctx context.Context,
+func (db *metricsExecutor) InsertNextQuery(ctx context.Context,
 	dst addr.IA, nextQuery time.Time) (bool, error) {
 
 	db.metrics.incOp(promOpInsertNextQuery)
@@ -204,7 +263,7 @@ func (db *metricsPathDB) InsertNextQuery(ctx context.Context,
 	return ok, err
 }
 
-func (db *metricsPathDB) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
+func (db *metricsExecutor) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
 	db.metrics.incOp(promOpGetNextQuery)
 	t, err := db.pathDB.GetNextQuery(ctx, dst)
 	db.metrics.incResult(promOpGetNextQuery, err)
