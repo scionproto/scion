@@ -768,7 +768,7 @@ func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
 	if m.config.QUIC == nil {
 		return NewPathingRequester(signer, m.verifier, m.dispatcher, m.ia)
 	}
-	return &NullRequester{
+	return &QUICRequester{
 		QUICClientConfig: &rpc.Client{
 			Conn:       m.config.QUIC.Conn,
 			TLSConfig:  m.config.QUIC.TLSConfig,
@@ -839,14 +839,14 @@ type Requester interface {
 	NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
 }
 
-var _ Requester = (*NullRequester)(nil)
+var _ Requester = (*QUICRequester)(nil)
 
-type NullRequester struct {
+type QUICRequester struct {
 	QUICClientConfig *rpc.Client
 	LocalIA          addr.IA
 }
 
-func (rt *NullRequester) Request(ctx context.Context, pld *ctrl.Pld,
+func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
 
 	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
@@ -874,11 +874,11 @@ func (rt *NullRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	return replyPld, nil, nil
 }
 
-func (rt *NullRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+func (rt *QUICRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
 	return common.NewBasicError("transport type does not support Notify messages", nil)
 }
 
-func (rt *NullRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+func (rt *QUICRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
 	return common.NewBasicError("transport type does not support NotifyUnreliable message", nil)
 }
 
