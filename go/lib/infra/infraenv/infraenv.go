@@ -54,30 +54,21 @@ func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostS
 	if err != nil {
 		return nil, err
 	}
-	var quicConfig *messenger.QUICConfig
-	var infraDispatcher *disp.Dispatcher
+	msgerCfg := &messenger.Config{IA: ia, TrustStore: store}
 	if enableQUICTest {
 		var err error
-		quicConfig, err = buildQUICConfig(conn)
+		msgerCfg.QUIC, err = buildQUICConfig(conn)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		infraDispatcher = disp.New(
+		msgerCfg.Dispatcher = disp.New(
 			transport.NewPacketTransport(conn),
 			messenger.DefaultAdapter,
 			log.Root(),
 		)
 	}
-
-	msger := messenger.NewMessengerWithMetrics(
-		&messenger.Config{
-			IA:         ia,
-			Dispatcher: infraDispatcher,
-			TrustStore: store,
-			QUIC:       quicConfig,
-		},
-	)
+	msger := messenger.NewMessengerWithMetrics(msgerCfg)
 	store.SetMessenger(msger)
 	return msger, nil
 }
