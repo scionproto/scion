@@ -17,6 +17,8 @@ package handlers
 import (
 	"context"
 	"net"
+	"sort"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -25,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -128,16 +129,12 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	logger := log.FromCtx(ctx)
 	// verify and store the segments
 	var insertedSegmentIDs []string
+	var mtx sync.Mutex
+	verifiedSegs := make([]*seg.Meta, 0, len(recs))
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
-		wasInserted, err := segsaver.StoreSeg(ctx, s, h.pathDB)
-		if err != nil {
-			logger.Error("Unable to insert segment into path database",
-				"seg", s.Segment, "err", err)
-			return
-		}
-		if wasInserted {
-			insertedSegmentIDs = append(insertedSegmentIDs, s.Segment.GetLoggingID())
-		}
+		mtx.Lock()
+		defer mtx.Unlock()
+		verifiedSegs = append(verifiedSegs, s)
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
 		if _, err := h.revCache.Insert(ctx, rev); err != nil {
@@ -152,6 +149,32 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	}
 	segverifier.Verify(ctx, h.trustStore, src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
+
+	tx, err := h.pathDB.BeginTransaction(ctx, nil)
+	if err != nil {
+		logger.Error("Failed to create transaction", "err", err)
+		return
+	}
+	// sort to prevent sql deadlock
+	sort.Slice(verifiedSegs, func(i, j int) bool {
+		return verifiedSegs[i].Segment.GetLoggingID() < verifiedSegs[j].Segment.GetLoggingID()
+	})
+	for _, s := range verifiedSegs {
+		n, err := tx.Insert(ctx, s)
+		if err != nil {
+			logger.Error("Unable to insert segment into path database",
+				"seg", s.Segment, "err", err)
+			return
+		}
+		if wasInserted := n > 0; wasInserted {
+			insertedSegmentIDs = append(insertedSegmentIDs, s.Segment.GetLoggingID())
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		logger.Error("Failed to commit transaction", "err", err)
+		return
+	}
 	if len(insertedSegmentIDs) > 0 {
 		logger.Debug("Segments inserted in DB", "count", len(insertedSegmentIDs),
 			"segments", insertedSegmentIDs)

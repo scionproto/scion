@@ -48,9 +48,8 @@ type segMeta struct {
 var _ pathdb.PathDB = (*Backend)(nil)
 
 type Backend struct {
-	sync.RWMutex
 	db *sql.DB
-	tx *sql.Tx
+	*executor
 }
 
 // New returns a new SQLite backend opening a database at the given path. If
@@ -62,57 +61,66 @@ func New(path string) (*Backend, error) {
 		return nil, err
 	}
 	return &Backend{
+		executor: &executor{
+			db: db,
+		},
 		db: db,
 	}, nil
 }
 
-func (b *Backend) begin(ctx context.Context) error {
-	if b.tx != nil {
-		return common.NewBasicError("A transaction already exists", nil)
-	}
-	var err error
-	if b.tx, err = b.db.BeginTx(ctx, nil); err != nil {
-		return common.NewBasicError("Failed to create transaction", err)
-	}
-	return nil
-}
-
-func (b *Backend) commit() error {
-	if b.tx == nil {
-		return common.NewBasicError("No transaction to commit", nil)
-	}
-	if err := b.tx.Commit(); err != nil {
-		b.rollback()
-		b.tx = nil
-		return common.NewBasicError("Failed to commit transaction", err)
-	}
-	b.tx = nil
-	return nil
-}
-
-func (b *Backend) rollback() error {
-	if b.tx == nil {
-		return nil
-	}
-	defer func() {
-		b.tx = nil
-	}()
-	if err := b.tx.Rollback(); err != nil {
-		return common.NewBasicError("Failed to rollback the transaction", err)
-	}
-	return nil
-}
-
-func (b *Backend) Insert(ctx context.Context, segMeta *seg.Meta) (int, error) {
-	return b.InsertWithHPCfgIDs(ctx, segMeta, []*query.HPCfgID{&query.NullHpCfgID})
-}
-
-func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
-	hpCfgIDs []*query.HPCfgID) (int, error) {
+func (b *Backend) BeginTransaction(ctx context.Context,
+	opts *sql.TxOptions) (pathdb.Transaction, error) {
 
 	b.Lock()
 	defer b.Unlock()
-	if b.db == nil {
+	tx, err := b.db.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, common.NewBasicError("Failed to create transaction", err)
+	}
+	return &transaction{
+		executor: &executor{
+			db: tx,
+		},
+		tx: tx,
+	}, nil
+}
+
+var _ (pathdb.Transaction) = (*transaction)(nil)
+
+type transaction struct {
+	*executor
+	tx *sql.Tx
+}
+
+func (tx *transaction) Commit() error {
+	tx.Lock()
+	defer tx.Unlock()
+	return tx.tx.Commit()
+}
+
+func (tx *transaction) Rollback() error {
+	tx.Lock()
+	defer tx.Unlock()
+	return tx.tx.Rollback()
+}
+
+var _ (pathdb.ReadWrite) = (*executor)(nil)
+
+type executor struct {
+	sync.RWMutex
+	db db.Sqler
+}
+
+func (e *executor) Insert(ctx context.Context, segMeta *seg.Meta) (int, error) {
+	return e.InsertWithHPCfgIDs(ctx, segMeta, []*query.HPCfgID{&query.NullHpCfgID})
+}
+
+func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
+	hpCfgIDs []*query.HPCfgID) (int, error) {
+
+	e.Lock()
+	defer e.Unlock()
+	if e.db == nil {
 		return 0, common.NewBasicError("No database open", nil)
 	}
 	pseg := segMeta.Segment
@@ -129,7 +137,7 @@ func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 	if err != nil {
 		return 0, err
 	}
-	meta, err := b.get(ctx, segID)
+	meta, err := e.get(ctx, segID)
 	if err != nil {
 		return 0, err
 	}
@@ -140,7 +148,7 @@ func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 			// Update existing path segment.
 			meta.Seg = pseg
 			meta.LastUpdated = time.Now()
-			if err := b.updateExisting(ctx, meta, segMeta.Type, newFullId, hpCfgIDs); err != nil {
+			if err := e.updateExisting(ctx, meta, segMeta.Type, newFullId, hpCfgIDs); err != nil {
 				return 0, err
 			}
 			return 1, nil
@@ -148,15 +156,18 @@ func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 		return 0, nil
 	}
 	// Do full insert.
-	if err = b.insertFull(ctx, segMeta, hpCfgIDs); err != nil {
+	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+		return insertFull(ctx, tx, segMeta, hpCfgIDs)
+	})
+	if err != nil {
 		return 0, err
 	}
 	return 1, nil
 }
 
-func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, error) {
+func (e *executor) get(ctx context.Context, segID common.RawBytes) (*segMeta, error) {
 	query := "SELECT RowID, SegID, FullID, LastUpdated, Segment FROM Segments WHERE SegID=?"
-	rows, err := b.db.QueryContext(ctx, query, segID)
+	rows, err := e.db.QueryContext(ctx, query, segID)
 	if err != nil {
 		return nil, common.NewBasicError("Failed to lookup segment", err)
 	}
@@ -180,52 +191,42 @@ func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, err
 	return nil, nil
 }
 
-func (b *Backend) updateExisting(ctx context.Context, meta *segMeta,
+func (e *executor) updateExisting(ctx context.Context, meta *segMeta,
 	segType proto.PathSegType, newFullId common.RawBytes, hpCfgIDs []*query.HPCfgID) error {
 
-	// Create new transaction
-	if err := b.begin(ctx); err != nil {
-		return err
-	}
-	// Update segment.
-	if err := b.updateSeg(ctx, meta); err != nil {
-		b.rollback()
-		return err
-	}
-	// Make sure the existing segment is registered as the given type.
-	if err := b.insertType(ctx, meta.RowID, segType); err != nil {
-		b.rollback()
-		return err
-	}
-	// Check if the existing segment is registered with the given hpCfgIDs.
-	for _, hpCfgID := range hpCfgIDs {
-		if err := b.insertHPCfgID(ctx, meta.RowID, hpCfgID); err != nil {
-			b.rollback()
+	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+
+		// Update segment.
+		if err := updateSeg(ctx, tx, meta); err != nil {
 			return err
 		}
-	}
-	// Update the IntfToSeg table
-	if !bytes.Equal(newFullId, meta.FullID) {
-		// Delete all old interfaces and then insert the new ones.
-		// Calculating the actual diffset would be better, but this is way easier to implement.
-		_, err := b.tx.ExecContext(ctx, `DELETE FROM IntfToSeg WHERE SegRowID=?`, meta.RowID)
-		if err != nil {
-			b.rollback()
+		// Make sure the existing segment is registered as the given type.
+		if err := insertType(ctx, tx, meta.RowID, segType); err != nil {
 			return err
 		}
-		if err := b.insertInterfaces(ctx, meta.Seg.ASEntries, meta.RowID); err != nil {
-			b.rollback()
-			return err
+		// Check if the existing segment is registered with the given hpCfgIDs.
+		for _, hpCfgID := range hpCfgIDs {
+			if err := insertHPCfgID(ctx, tx, meta.RowID, hpCfgID); err != nil {
+				return err
+			}
 		}
-	}
-	// Commit transaction
-	if err := b.commit(); err != nil {
-		return err
-	}
-	return nil
+		// Update the IntfToSeg table
+		if !bytes.Equal(newFullId, meta.FullID) {
+			// Delete all old interfaces and then insert the new ones.
+			// Calculating the actual diffset would be better, but this is way easier to implement.
+			_, err := tx.ExecContext(ctx, `DELETE FROM IntfToSeg WHERE SegRowID=?`, meta.RowID)
+			if err != nil {
+				return err
+			}
+			if err := insertInterfaces(ctx, tx, meta.Seg.ASEntries, meta.RowID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
-func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
+func updateSeg(ctx context.Context, tx *sql.Tx, meta *segMeta) error {
 	packedSeg, err := meta.Seg.Pack()
 	if err != nil {
 		return err
@@ -241,7 +242,7 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 	}
 	stmtStr := `UPDATE Segments SET FullID=?, LastUpdated=?, InfoTs=?, Segment=?, MaxExpiry=?
 				WHERE RowID=?`
-	_, err = b.tx.ExecContext(ctx, stmtStr,
+	_, err = tx.ExecContext(ctx, stmtStr,
 		fullID, meta.LastUpdated.UnixNano(), info.Timestamp(), packedSeg, exp, meta.RowID)
 	if err != nil {
 		return common.NewBasicError("Failed to update segment", err)
@@ -249,10 +250,10 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 	return nil
 }
 
-func (b *Backend) insertType(ctx context.Context, segRowID int64,
+func insertType(ctx context.Context, tx *sql.Tx, segRowID int64,
 	segType proto.PathSegType) error {
 
-	_, err := b.tx.ExecContext(ctx, "INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
+	_, err := tx.ExecContext(ctx, "INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
 	if err != nil {
 		return common.NewBasicError("Failed to insert type", err)
@@ -260,10 +261,10 @@ func (b *Backend) insertType(ctx context.Context, segRowID int64,
 	return nil
 }
 
-func (b *Backend) insertHPCfgID(ctx context.Context, segRowID int64,
+func insertHPCfgID(ctx context.Context, tx *sql.Tx, segRowID int64,
 	hpCfgID *query.HPCfgID) error {
 
-	_, err := b.tx.ExecContext(ctx,
+	_, err := tx.ExecContext(ctx,
 		"INSERT INTO HpCfgIds (SegRowID, IsdID, AsID, CfgID) VALUES (?, ?, ?, ?)",
 		segRowID, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID)
 	if err != nil {
@@ -272,13 +273,9 @@ func (b *Backend) insertHPCfgID(ctx context.Context, segRowID int64,
 	return nil
 }
 
-func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
+func insertFull(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 	hpCfgIDs []*query.HPCfgID) error {
 
-	// Create new transaction
-	if err := b.begin(ctx); err != nil {
-		return err
-	}
 	pseg := segMeta.Segment
 	segID, err := pseg.ID()
 	if err != nil {
@@ -303,46 +300,37 @@ func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
 	inst := `INSERT INTO Segments (SegID, FullID, LastUpdated, InfoTs, Segment, MaxExpiry,
 			StartIsdID, StartAsID, EndIsdID, EndAsID)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	res, err := b.tx.ExecContext(ctx, inst, segID, fullID, time.Now().UnixNano(),
+	res, err := tx.ExecContext(ctx, inst, segID, fullID, time.Now().UnixNano(),
 		info.Timestamp().UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
 	if err != nil {
-		b.rollback()
 		return common.NewBasicError("Failed to insert path segment", err)
 	}
 	segRowID, err := res.LastInsertId()
 	if err != nil {
-		b.rollback()
 		return common.NewBasicError("Failed to retrieve segRowID of inserted segment", err)
 	}
 	// Insert all interfaces.
-	if err = b.insertInterfaces(ctx, pseg.ASEntries, segRowID); err != nil {
-		b.rollback()
+	if err = insertInterfaces(ctx, tx, pseg.ASEntries, segRowID); err != nil {
 		return err
 	}
 	// Insert segType information.
-	if err = b.insertType(ctx, segRowID, segMeta.Type); err != nil {
-		b.rollback()
+	if err = insertType(ctx, tx, segRowID, segMeta.Type); err != nil {
 		return err
 	}
 	// Insert hpCfgID information.
 	for _, hpCfgID := range hpCfgIDs {
-		if err = b.insertHPCfgID(ctx, segRowID, hpCfgID); err != nil {
-			b.rollback()
+		if err = insertHPCfgID(ctx, tx, segRowID, hpCfgID); err != nil {
 			return err
 		}
-	}
-	// Commit transaction
-	if err = b.commit(); err != nil {
-		return err
 	}
 	return nil
 }
 
-func (b *Backend) insertInterfaces(ctx context.Context,
+func insertInterfaces(ctx context.Context, tx *sql.Tx,
 	ases []*seg.ASEntry, segRowID int64) error {
 
 	stmtStr := `INSERT INTO IntfToSeg (IsdID, AsID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
-	stmt, err := b.tx.PrepareContext(ctx, stmtStr)
+	stmt, err := tx.PrepareContext(ctx, stmtStr)
 	if err != nil {
 		return common.NewBasicError("Failed to prepare insert into IntfToSeg", err)
 	}
@@ -372,52 +360,50 @@ func (b *Backend) insertInterfaces(ctx context.Context,
 	return nil
 }
 
-func (b *Backend) Delete(ctx context.Context, params *query.Params) (int, error) {
-	return b.deleteInTrx(ctx, func() (sql.Result, error) {
-		q, args := b.buildQuery(params)
-		query := fmt.Sprintf("DELETE FROM Segments WHERE RowId IN(SELECT RowID FROM (%s))", q)
-		return b.tx.ExecContext(ctx, query, args...)
+func (e *executor) Delete(ctx context.Context, params *query.Params) (int, error) {
+	q, args := e.buildQuery(params)
+	query := fmt.Sprintf("DELETE FROM Segments WHERE RowId IN(SELECT RowID FROM (%s))", q)
+	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		return tx.ExecContext(ctx, query, args...)
 	})
 }
 
-func (b *Backend) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
-	return b.deleteInTrx(ctx, func() (sql.Result, error) {
+func (e *executor) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
+	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
 		delStmt := `DELETE FROM Segments WHERE MaxExpiry < ?`
-		return b.tx.ExecContext(ctx, delStmt, now.Unix())
+		return tx.ExecContext(ctx, delStmt, now.Unix())
 	})
 }
 
-func (b *Backend) deleteInTrx(ctx context.Context, delete func() (sql.Result, error)) (int, error) {
-	b.Lock()
-	defer b.Unlock()
-	if b.db == nil {
+func (e *executor) deleteInTx(ctx context.Context,
+	delFunc func(tx *sql.Tx) (sql.Result, error)) (int, error) {
+
+	e.Lock()
+	defer e.Unlock()
+	if e.db == nil {
 		return 0, common.NewBasicError("No database open", nil)
 	}
-	// Create new transaction
-	if err := b.begin(ctx); err != nil {
-		return 0, err
-	}
-	res, err := delete()
+	var res sql.Result
+	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		res, err = delFunc(tx)
+		return err
+	})
 	if err != nil {
-		b.rollback()
-		return 0, common.NewBasicError("Failed to delete segments", err)
-	}
-	// Commit transaction
-	if err := b.commit(); err != nil {
 		return 0, err
 	}
 	deleted, _ := res.RowsAffected()
 	return int(deleted), nil
 }
 
-func (b *Backend) Get(ctx context.Context, params *query.Params) (query.Results, error) {
-	b.RLock()
-	defer b.RUnlock()
-	if b.db == nil {
+func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results, error) {
+	e.RLock()
+	defer e.RUnlock()
+	if e.db == nil {
 		return nil, common.NewBasicError("No database open", nil)
 	}
-	stmt, args := b.buildQuery(params)
-	rows, err := b.db.QueryContext(ctx, stmt, args...)
+	stmt, args := e.buildQuery(params)
+	rows, err := e.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, common.NewBasicError("Error looking up path segment", err, "q", stmt)
 	}
@@ -458,7 +444,7 @@ func (b *Backend) Get(ctx context.Context, params *query.Params) (query.Results,
 	return res, nil
 }
 
-func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
+func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 	var args []interface{}
 	query := []string{
 		"SELECT DISTINCT s.RowID, s.Segment, s.LastUpdated," +
@@ -545,14 +531,14 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 	return strings.Join(query, "\n"), args
 }
 
-func (b *Backend) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error) {
-	b.RLock()
-	defer b.RUnlock()
-	if b.db == nil {
+func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error) {
+	e.RLock()
+	defer e.RUnlock()
+	if e.db == nil {
 		return nil, common.NewBasicError("No database open", nil)
 	}
-	stmt, args := b.buildQuery(nil)
-	rows, err := b.db.QueryContext(ctx, stmt, args...)
+	stmt, args := e.buildQuery(nil)
+	rows, err := e.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, common.NewBasicError("Error looking up path segment", err, "q", stmt)
 	}
@@ -601,16 +587,13 @@ func (b *Backend) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error) 
 	return resCh, nil
 }
 
-func (b *Backend) InsertNextQuery(ctx context.Context, dst addr.IA,
+func (e *executor) InsertNextQuery(ctx context.Context, dst addr.IA,
 	nextQuery time.Time) (bool, error) {
 
-	b.Lock()
-	defer b.Unlock()
-	if b.db == nil {
+	e.Lock()
+	defer e.Unlock()
+	if e.db == nil {
 		return false, common.NewBasicError("No database open", nil)
-	}
-	if err := b.begin(ctx); err != nil {
-		return false, err
 	}
 	queryLines := []string{
 		"INSERT OR REPLACE INTO NextQuery",
@@ -622,26 +605,27 @@ func (b *Backend) InsertNextQuery(ctx context.Context, dst addr.IA,
 		"WHERE data.lq > NextQuery.NextQuery OR NextQuery.IsdID IS NULL;",
 	}
 	q := strings.Join(queryLines, "\n")
-	r, err := b.tx.ExecContext(ctx, q, dst.I, dst.A, nextQuery.UnixNano())
+	var r sql.Result
+	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		r, err = tx.ExecContext(ctx, q, dst.I, dst.A, nextQuery.UnixNano())
+		return err
+	})
 	if err != nil {
-		b.rollback()
 		return false, common.NewBasicError("Failed to execute statement", err)
-	}
-	if err := b.commit(); err != nil {
-		return false, err
 	}
 	n, err := r.RowsAffected()
 	return n > 0, err
 }
 
-func (b *Backend) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
-	b.RLock()
-	defer b.RUnlock()
-	if b.db == nil {
+func (e *executor) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
+	e.RLock()
+	defer e.RUnlock()
+	if e.db == nil {
 		return nil, common.NewBasicError("No database open", nil)
 	}
 	query := "SELECT NextQuery from NextQuery WHERE IsdID = ? AND AsID = ?"
-	rows, err := b.db.QueryContext(ctx, query, dst.I, dst.A)
+	rows, err := e.db.QueryContext(ctx, query, dst.I, dst.A)
 	if err != nil {
 		return nil, err
 	}
