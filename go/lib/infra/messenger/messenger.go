@@ -70,10 +70,13 @@ package messenger
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
 	"time"
+
+	quic "github.com/lucas-clemente/quic-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -86,6 +89,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -121,6 +125,16 @@ type Config struct {
 	// Logger is used for internal Messenger logging. If it is nil, the default
 	// root logger is used.
 	Logger log.Logger
+	// QUIC defines whether the Messenger should operate on top of QUIC instead
+	// of basic UDP. If QUIC is non-nil, Dispatcher is ignored and WaitForAcks
+	// is assumed to be true.
+	QUIC *QUICConfig
+}
+
+type QUICConfig struct {
+	Conn       net.PacketConn
+	TLSConfig  *tls.Config
+	QUICConfig *quic.Config
 }
 
 func (c *Config) InitDefaults() {
@@ -163,6 +177,9 @@ type Messenger struct {
 
 	ia  addr.IA
 	log log.Logger
+
+	quicServer  *rpc.Server
+	quicHandler *QUICHandler
 }
 
 // New creates a new Messenger based on config.
@@ -171,6 +188,22 @@ func New(config *Config) *Messenger {
 		config = &Config{}
 	}
 	config.InitDefaults()
+
+	var quicServer *rpc.Server
+	var quicHandler *QUICHandler
+	if config.QUIC != nil {
+		config.WaitForAcks = true
+		quicHandler = &QUICHandler{
+			handlers: make(map[infra.MessageType]infra.Handler),
+		}
+		quicServer = &rpc.Server{
+			Conn:       config.QUIC.Conn,
+			TLSConfig:  config.QUIC.TLSConfig,
+			QUICConfig: config.QUIC.QUICConfig,
+			Handler:    quicHandler,
+		}
+	}
+
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -178,17 +211,19 @@ func New(config *Config) *Messenger {
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
-		ia:         config.IA,
-		config:     config,
-		dispatcher: config.Dispatcher,
-		signer:     infra.NullSigner,
-		verifier:   infra.NullSigVerifier,
-		trustStore: config.TrustStore,
-		handlers:   make(map[infra.MessageType]infra.Handler),
-		closeChan:  make(chan struct{}),
-		ctx:        ctx,
-		cancelF:    cancelF,
-		log:        config.Logger,
+		ia:          config.IA,
+		config:      config,
+		dispatcher:  config.Dispatcher,
+		signer:      infra.NullSigner,
+		verifier:    infra.NullSigVerifier,
+		trustStore:  config.TrustStore,
+		handlers:    make(map[infra.MessageType]infra.Handler),
+		closeChan:   make(chan struct{}),
+		ctx:         ctx,
+		cancelF:     cancelF,
+		log:         config.Logger,
+		quicServer:  quicServer,
+		quicHandler: quicHandler,
 	}
 }
 
@@ -216,7 +251,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -254,7 +289,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -315,7 +350,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -370,7 +405,7 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -413,7 +448,7 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -459,7 +494,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -518,7 +553,7 @@ func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a n
 	if err != nil {
 		return common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -538,7 +573,11 @@ func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a n
 // AddHandler registers a handler for msgType.
 func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler) {
 	m.handlersLock.Lock()
-	m.handlers[msgType] = handler
+	if m.quicServer == nil {
+		m.handlers[msgType] = handler
+	} else {
+		m.quicHandler.Handle(msgType, handler)
+	}
 	m.handlersLock.Unlock()
 }
 
@@ -546,6 +585,20 @@ func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler)
 // interface. The function runs in the current goroutine. Multiple
 // ListenAndServe methods can run in parallel.
 func (m *Messenger) ListenAndServe() {
+	if m.config.QUIC == nil {
+		m.listenAndServeUDP()
+	} else {
+		m.listenAndServeQUIC()
+	}
+}
+
+func (m *Messenger) listenAndServeQUIC() {
+	m.log.Info("Started listening")
+	defer m.log.Info("Stopped listening")
+	m.quicServer.ListenAndServe()
+}
+
+func (m *Messenger) listenAndServeUDP() {
 	m.log.Info("Started listening")
 	defer m.log.Info("Stopped listening")
 	for {
@@ -629,7 +682,7 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	)
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
-	msgType, msg, err := m.validate(pld)
+	msgType, msg, err := validate(pld)
 	if err != nil {
 		logger.Error("Received message, but unable to validate message",
 			"from", address, "err", err)
@@ -658,11 +711,219 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	}()
 }
 
+// CloseServer stops any running ListenAndServe functions, and cancels all running
+// handlers. The server's Messenger layer is not closed.
+func (m *Messenger) CloseServer() error {
+	// Protect against concurrent Close calls
+	m.closeLock.Lock()
+	defer m.closeLock.Unlock()
+	select {
+	case <-m.closeChan:
+		// Already closed, so do nothing
+	default:
+		close(m.closeChan)
+		m.cancelF()
+	}
+	return nil
+}
+
+// UpdateSigner enables signing of messages with signer. Only the messages in
+// types are signed, the rest are left with a null signature. If types is nil,
+// only the signer is updated and the existing internal list of types is
+// unchanged. An empty slice of types disables signing for all messages.
+func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
+	m.cryptoLock.Lock()
+	defer m.cryptoLock.Unlock()
+	if types != nil {
+		m.signMask = make(map[infra.MessageType]struct{})
+		for _, t := range types {
+			m.signMask[t] = struct{}{}
+		}
+	}
+	m.signer = signer
+}
+
+// UpdateVerifier enables verifying of messages with verifier.
+//
+// FIXME(scrye): Verifiers are usually bound to a trust store to which the
+// messenger already holds a reference. We should decouple the trust store from
+// either one or the other.
+func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
+	m.cryptoLock.Lock()
+	defer m.cryptoLock.Unlock()
+	m.verifier = verifier
+}
+
+// getRequester returns a requester object with customized crypto keys.
+//
+// If message type reqT is to be signed, the key is initialized from m.signer.
+// Otherwise it is set to a null signer.
+func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
+	m.cryptoLock.RLock()
+	defer m.cryptoLock.RUnlock()
+	signer := infra.NullSigner
+	if _, ok := m.signMask[reqT]; ok {
+		signer = m.signer
+	}
+	if m.config.QUIC == nil {
+		return NewPathingRequester(signer, m.verifier, m.dispatcher, m.ia)
+	}
+	return &QUICRequester{
+		QUICClientConfig: &rpc.Client{
+			Conn:       m.config.QUIC.Conn,
+			TLSConfig:  m.config.QUIC.TLSConfig,
+			QUICConfig: m.config.QUIC.QUICConfig,
+		},
+		LocalIA: m.ia,
+	}
+}
+
+func newTypeAssertErr(typeStr string, msg interface{}) error {
+	errStr := fmt.Sprintf("Unable to type assert disp.Message to %s", typeStr)
+	return common.NewBasicError(errStr, nil, "msg", msg)
+}
+
+// pathingRequester is a requester with an attached local IA. It resolves the
+// SCION path to construct complete snet addresses that rarely block on writes.
+//
+// FIXME(scrye): This is just a hack to improve performance in the default
+// topology, by allowing each goroutine to issue a request to SCIOND in
+// parallel (as opposed of one goroutine waiting for another if the Path
+// Resolver were to be used). This logic should be moved to snet internals
+// once the path resolver has support for concurrent queries and context
+// awareness.
+type pathingRequester struct {
+	requester *ctrl_msg.Requester
+	local     addr.IA
+}
+
+func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher,
+	local addr.IA) Requester {
+
+	return &pathingRequester{
+		requester: ctrl_msg.NewRequester(signer, sigv, d),
+		local:     local,
+	}
+}
+
+func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
+	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
+
+	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pr.requester.Request(ctx, pld, newAddr)
+}
+
+func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	if err != nil {
+		return err
+	}
+	return pr.requester.Notify(ctx, pld, newAddr)
+}
+
+func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	if err != nil {
+		return err
+	}
+	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
+}
+
+type Requester interface {
+	// RoundTrip(ctx context.Context, request *Request) (*ctrl.SignedPld, error)
+	Request(ctx context.Context, pld *ctrl.Pld, a net.Addr) (*ctrl.Pld, *proto.SignS, error)
+	Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
+	NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
+}
+
+var _ Requester = (*QUICRequester)(nil)
+
+type QUICRequester struct {
+	QUICClientConfig *rpc.Client
+	LocalIA          addr.IA
+}
+
+func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
+	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
+
+	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
+	// additional verifications in the future.
+	newAddr, err := getBlockingPath(ctx, rt.LocalIA, a)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	b, err := proto.PackRoot(pld)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	request := &rpc.Request{SignedPld: &ctrl.SignedPld{Blob: b}}
+	reply, err := rt.QUICClientConfig.Request(ctx, request, newAddr)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	replyPld, err := reply.SignedPld.Pld()
+	if err != nil {
+		return nil, nil, err
+	}
+	return replyPld, nil, nil
+}
+
+func (rt *QUICRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	return common.NewBasicError("transport type does not support Notify messages", nil)
+}
+
+func (rt *QUICRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	return common.NewBasicError("transport type does not support NotifyUnreliable message", nil)
+}
+
+type Request struct {
+	Host    net.Addr
+	Payload *ctrl.SignedPld
+}
+
+func getBlockingPath(ctx context.Context, local addr.IA, a net.Addr) (net.Addr, error) {
+	// for SCIOND-less operation do not try to resolve paths
+	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
+		return a, nil
+	}
+	snetAddress := a.(*snet.Addr).Copy()
+	if snetAddress.IA == local {
+		return snetAddress, nil
+	}
+	if snetAddress.Path != nil {
+		return snetAddress, nil
+	}
+	conn := snet.DefNetwork.PathResolver().Sciond()
+	paths, err := conn.Paths(ctx, snetAddress.IA, local, 5, sciond.PathReqFlags{})
+	if err != nil {
+		return nil, err
+	}
+	if len(paths.Entries) == 0 {
+		return nil, common.NewBasicError("unable to find path", nil)
+	}
+	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
+	if err := snetAddress.Path.InitOffsets(); err != nil {
+		return nil, common.NewBasicError("unable to initialize path", err)
+	}
+	snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
+	if err != nil {
+		return nil, common.NewBasicError("unable to build next hop", err)
+	}
+	return snetAddress, nil
+
+}
+
 // validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
 // message type, the message (the inner proto.Cerealizable object), and an
 // error (if one occurred).
-func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
+func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 	// XXX(scrye): For now, only the messages in the top comment of this
 	// package are supported.
 	switch pld.Which {
@@ -724,146 +985,4 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 		return infra.None, nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
 			nil, "capnp_which", pld.Which)
 	}
-}
-
-// CloseServer stops any running ListenAndServe functions, and cancels all running
-// handlers. The server's Messenger layer is not closed.
-func (m *Messenger) CloseServer() error {
-	// Protect against concurrent Close calls
-	m.closeLock.Lock()
-	defer m.closeLock.Unlock()
-	select {
-	case <-m.closeChan:
-		// Already closed, so do nothing
-	default:
-		close(m.closeChan)
-		m.cancelF()
-	}
-	return nil
-}
-
-// UpdateSigner enables signing of messages with signer. Only the messages in
-// types are signed, the rest are left with a null signature. If types is nil,
-// only the signer is updated and the existing internal list of types is
-// unchanged. An empty slice of types disables signing for all messages.
-func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
-	m.cryptoLock.Lock()
-	defer m.cryptoLock.Unlock()
-	if types != nil {
-		m.signMask = make(map[infra.MessageType]struct{})
-		for _, t := range types {
-			m.signMask[t] = struct{}{}
-		}
-	}
-	m.signer = signer
-}
-
-// UpdateVerifier enables verifying of messages with verifier.
-//
-// FIXME(scrye): Verifiers are usually bound to a trust store to which the
-// messenger already holds a reference. We should decouple the trust store from
-// either one or the other.
-func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
-	m.cryptoLock.Lock()
-	defer m.cryptoLock.Unlock()
-	m.verifier = verifier
-}
-
-// getRequester returns a requester object with customized crypto keys.
-//
-// If message type reqT is to be signed, the key is initialized from m.signer.
-// Otherwise it is set to a null signer.
-func (m *Messenger) getRequester(reqT infra.MessageType) *pathingRequester {
-	m.cryptoLock.RLock()
-	defer m.cryptoLock.RUnlock()
-	signer := infra.NullSigner
-	if _, ok := m.signMask[reqT]; ok {
-		signer = m.signer
-	}
-	return NewPathingRequester(signer, m.verifier, m.dispatcher, m.ia)
-}
-
-func newTypeAssertErr(typeStr string, msg interface{}) error {
-	errStr := fmt.Sprintf("Unable to type assert disp.Message to %s", typeStr)
-	return common.NewBasicError(errStr, nil, "msg", msg)
-}
-
-// pathingRequester is a requester with an attached local IA. It resolves the
-// SCION path to construct complete snet addresses that rarely block on writes.
-//
-// FIXME(scrye): This is just a hack to improve performance in the default
-// topology, by allowing each goroutine to issue a request to SCIOND in
-// parallel (as opposed of one goroutine waiting for another if the Path
-// Resolver were to be used). This logic should be moved to snet internals
-// once the path resolver has support for concurrent queries and context
-// awareness.
-type pathingRequester struct {
-	requester *ctrl_msg.Requester
-	local     addr.IA
-}
-
-func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher,
-	local addr.IA) *pathingRequester {
-
-	return &pathingRequester{
-		requester: ctrl_msg.NewRequester(signer, sigv, d),
-		local:     local,
-	}
-}
-
-func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
-	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
-
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return nil, nil, err
-	}
-	return pr.requester.Request(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return err
-	}
-	return pr.requester.Notify(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return err
-	}
-	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) getBlockingPath(ctx context.Context, a net.Addr) (net.Addr, error) {
-	// for SCIOND-less operation do not try to resolve paths
-	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
-		return a, nil
-	}
-	snetAddress := a.(*snet.Addr).Copy()
-	if snetAddress.IA == pr.local {
-		return snetAddress, nil
-	}
-	if snetAddress.Path != nil {
-		return snetAddress, nil
-	}
-	conn := snet.DefNetwork.PathResolver().Sciond()
-	paths, err := conn.Paths(ctx, snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
-	if err != nil {
-		return nil, err
-	}
-	if len(paths.Entries) == 0 {
-		return nil, common.NewBasicError("unable to find path", nil)
-	}
-	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
-	if err := snetAddress.Path.InitOffsets(); err != nil {
-		return nil, common.NewBasicError("unable to initialize path", err)
-	}
-	snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
-	if err != nil {
-		return nil, common.NewBasicError("unable to build next hop", err)
-	}
-	return snetAddress, nil
 }

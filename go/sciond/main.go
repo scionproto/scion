@@ -112,6 +112,7 @@ func realMain() int {
 		cfg.SD.Bind,
 		addr.SvcNone,
 		cfg.General.ReconnectToDispatcher,
+		cfg.EnableQUICTest,
 		trustStore,
 	)
 	if err != nil {
