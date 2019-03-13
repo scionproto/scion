@@ -78,7 +78,7 @@ func MustTempDir(dir, prefix string) (string, func()) {
 }
 
 // FailOnErr causes t to exit with a fatal error if err is non-nil.
-func FailOnErr(t *testing.T, err error, desc ...string) {
+func FailOnErr(t testing.TB, err error, desc ...string) {
 	t.Helper()
 
 	if err != nil {
@@ -89,7 +89,7 @@ func FailOnErr(t *testing.T, err error, desc ...string) {
 // MustMarshalJSONToFile marshals v and writes the result to file
 // testdata/baseName. If the file exists, it is truncated; if it doesn't exist,
 // it is created. On errors, t.Fatal() is called.
-func MustMarshalJSONToFile(t *testing.T, v interface{}, baseName string) {
+func MustMarshalJSONToFile(t testing.TB, v interface{}, baseName string) {
 	t.Helper()
 
 	enc, err := json.MarshalIndent(v, "", "    ")
@@ -108,7 +108,7 @@ func MustMarshalJSONToFile(t *testing.T, v interface{}, baseName string) {
 // MustWriteToFile writes b to file testdata/baseName. If the file exists, it
 // is truncated; if it doesn't exist, it is created. On errors, t.Fatal() is
 // called.
-func MustWriteToFile(t *testing.T, b []byte, baseName string) {
+func MustWriteToFile(t testing.TB, b []byte, baseName string) {
 	t.Helper()
 
 	if err := ioutil.WriteFile(ExpandPath(baseName), b, 0644); err != nil {
@@ -118,7 +118,7 @@ func MustWriteToFile(t *testing.T, b []byte, baseName string) {
 
 // MustReadFromFile reads testdata/baseName and returns the raw content. On
 // errors, t.Fatal() is called.
-func MustReadFromFile(t *testing.T, baseName string) []byte {
+func MustReadFromFile(t testing.TB, baseName string) []byte {
 	t.Helper()
 
 	name := filepath.Join("testdata", baseName)
@@ -173,7 +173,7 @@ func MustParseHexString(s string) common.RawBytes {
 
 // AssertReadReturnsBetween will call t.Fatalf if the first read from the
 // channel doesn't happen between x and y.
-func AssertReadReturnsBetween(t *testing.T, ch <-chan struct{}, x, y time.Duration) {
+func AssertReadReturnsBetween(t testing.TB, ch <-chan struct{}, x, y time.Duration) {
 	AssertReadDoesNotReturnBefore(t, ch, x)
 	// Above aborts the test if it returns before x time passed, so if we get
 	// here x time has passed.
@@ -182,7 +182,7 @@ func AssertReadReturnsBetween(t *testing.T, ch <-chan struct{}, x, y time.Durati
 
 // AssertReadReturnsBefore will call t.Fatalf if the first read from the
 // channel doesn't happen before timeout.
-func AssertReadReturnsBefore(t *testing.T, ch <-chan struct{}, timeout time.Duration) {
+func AssertReadReturnsBefore(t testing.TB, ch <-chan struct{}, timeout time.Duration) {
 	select {
 	case <-ch:
 	case <-time.After(timeout):
@@ -192,7 +192,7 @@ func AssertReadReturnsBefore(t *testing.T, ch <-chan struct{}, timeout time.Dura
 
 // AssertChannelClosedBefore will call t.Fatalf if the first read from the
 // channel happens before timeout.
-func AssertReadDoesNotReturnBefore(t *testing.T, ch <-chan struct{}, timeout time.Duration) {
+func AssertReadDoesNotReturnBefore(t testing.TB, ch <-chan struct{}, timeout time.Duration) {
 	select {
 	case <-ch:
 		t.Fatalf("goroutine finished too quickly")
