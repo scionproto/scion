@@ -15,6 +15,7 @@
 package pathdb_test
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -25,14 +26,18 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
+type TestPathDB struct {
+	pathdb.PathDB
+}
+
+func (b *TestPathDB) Prepare(t *testing.T, _ context.Context) {
+	b.PathDB = setupDB(t)
+}
+
 func TestMetricWrapperFunctionality(t *testing.T) {
+	tdb := &TestPathDB{}
 	Convey("Test metrics wrapper functions normally", t, func() {
-		pathdbtest.TestPathDB(t,
-			func() pathdb.PathDB {
-				return setupDB(t)
-			},
-			func() {},
-		)
+		pathdbtest.TestPathDB(t, tdb)
 	})
 }
 

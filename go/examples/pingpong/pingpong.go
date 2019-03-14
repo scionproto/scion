@@ -41,6 +41,7 @@ import (
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -93,12 +94,6 @@ func main() {
 	initNetwork()
 	switch *mode {
 	case ModeClient:
-		if remote.Host == nil {
-			LogFatal("Missing remote address")
-		}
-		if remote.Host.L4.Port() == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
-		}
 		c := newClient()
 		setSignalHandler(c)
 		c.run()
@@ -112,8 +107,16 @@ func validateFlags() {
 	if *mode != ModeClient && *mode != ModeServer {
 		LogFatal("Unknown mode, must be either '" + ModeClient + "' or '" + ModeServer + "'")
 	}
-	if *mode == ModeClient && remote.Host == nil {
-		LogFatal("Missing remote address")
+	if *mode == ModeClient {
+		if remote.Host == nil {
+			LogFatal("Missing remote address")
+		}
+		if remote.Host.L4 == nil {
+			LogFatal("Missing remote port")
+		}
+		if remote.Host.L4.Port() == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
+		}
 	}
 	if local.Host == nil {
 		LogFatal("Missing local address")
@@ -152,7 +155,7 @@ func LogFatal(msg string, a ...interface{}) {
 
 func initNetwork() {
 	// Initialize default SCION networking context
-	if err := snet.Init(local.IA, *sciond, *dispatcher); err != nil {
+	if err := snet.Init(local.IA, *sciond, reliable.NewDispatcherService(*dispatcher)); err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")

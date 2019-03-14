@@ -1,4 +1,14 @@
 #!/bin/bash
 
+set -ex
+
 echo "buildkite-agent ALL=(ALL)NOPASSWD:ALL" | sudo tee --append /etc/sudoers > /dev/null
 sudo ln -s /dev/shm/ /run/shm
+
+# Install docker 18.06
+sudo yum install docker-18.06* -y
+sudo systemctl restart docker
+
+DOCKER_VERSION="$(docker version --format '{{.Server.Version}}')"
+sudo sed -i -r "s/\\<(docker=)[^,]+/\\1${DOCKER_VERSION}/" /etc/buildkite-agent/buildkite-agent.cfg
+sudo systemctl reload buildkite-agent@*

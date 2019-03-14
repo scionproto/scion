@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["fetcher.go"],
+    importpath = "github.com/scionproto/scion/go/lib/discovery/topofetcher",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/discovery:go_default_library",
+        "//go/lib/discovery/discoverypool:go_default_library",
+        "//go/lib/topology:go_default_library",
+    ],
+)

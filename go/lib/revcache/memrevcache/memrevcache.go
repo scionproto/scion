@@ -42,13 +42,31 @@ func New() *memRevCache {
 	}
 }
 
-func (c *memRevCache) Get(_ context.Context,
-	k *revcache.Key) (*path_mgmt.SignedRevInfo, bool, error) {
-
+func (c *memRevCache) Get(_ context.Context, keys revcache.KeySet) (revcache.Revocations, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	v, ok := c.get(k.String())
-	return v, ok, nil
+	revs := make(revcache.Revocations, len(keys))
+	for k := range keys {
+		if revInfo, ok := c.get(k.String()); ok {
+			revs[k] = revInfo
+		}
+	}
+	return revs, nil
+}
+
+func (c *memRevCache) GetAll(_ context.Context) (revcache.ResultChan, error) {
+	// Since we have everything in memory anyway we just fill the channel at the start.
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	items := c.c.Items()
+	resCh := make(chan revcache.RevOrErr, len(items))
+	for _, item := range items {
+		if rev, ok := item.Object.(*path_mgmt.SignedRevInfo); ok {
+			resCh <- revcache.RevOrErr{Rev: rev}
+		}
+	}
+	close(resCh)
+	return resCh, nil
 }
 
 func (c *memRevCache) get(key string) (*path_mgmt.SignedRevInfo, bool) {
@@ -57,20 +75,6 @@ func (c *memRevCache) get(key string) (*path_mgmt.SignedRevInfo, bool) {
 		return nil, false
 	}
 	return obj.(*path_mgmt.SignedRevInfo), true
-}
-
-func (c *memRevCache) GetAll(_ context.Context,
-	keys map[revcache.Key]struct{}) ([]*path_mgmt.SignedRevInfo, error) {
-
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	revs := make([]*path_mgmt.SignedRevInfo, 0, len(keys))
-	for k := range keys {
-		if revInfo, ok := c.get(k.String()); ok {
-			revs = append(revs, revInfo)
-		}
-	}
-	return revs, nil
 }
 
 func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.SignedRevInfo) (bool, error) {

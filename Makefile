@@ -1,17 +1,22 @@
-.PHONY: all clean go clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean clibs libscion libfilter dispatcher uninstall tags vendor
 
 SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
-all: tags clibs dispatcher go
+all: tags clibs dispatcher bazel
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
-	cd go && $(MAKE) clean
+	bazel clean
 	rm -f bin/* tags
 
-go:
-	@# `make -C go` breaks if there are symlinks in $PWD
-	cd go && $(MAKE)
+vendor:
+	./tools/vendor.sh
+
+bazel: vendor
+	bazel build //:scion
+	tar -xf bazel-bin/scion.tar -C bin
+	@sudo -p "go:braccept [sudo] password for %p: " true
+	sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
 
 # Order is important
 clibs: libscion libfilter

@@ -34,7 +34,6 @@ const (
 )
 
 var (
-	dispPath string = reliable.DefaultDispPath
 	snetConn snet.Conn
 	ia       addr.IA
 	logger   log.Logger
@@ -45,7 +44,7 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs) {
 	logger = log.New("Part", "Control")
 	ctx := rctx.Get()
 	ia = ctx.Conf.IA
-	if err = snet.Init(ia, "", dispPath); err != nil {
+	if err = snet.Init(ia, "", reliable.NewDispatcherService("")); err != nil {
 		logger.Error("Initializing SNET", "err", err)
 		return
 	}

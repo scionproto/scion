@@ -1,2 +1,2 @@
 FROM scion:latest
-RUN make -s
+RUN make -s all && bazel clean

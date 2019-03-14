@@ -4,7 +4,7 @@ BASE="discovery/v1"
 STATIC="static"
 DYNAMIC="dynamic"
 FULL="full.json"
-REDUCED="reduced.json"
+ENDHOST="endhost.json"
 
 ds_entry=$2
 if [ -z "$2" ]; then
@@ -16,7 +16,7 @@ temp_dir=$( mktemp -d )
 printf "Created temp dir: $temp_dir\n"
 mkdir -p "$temp_dir/$BASE/$STATIC"
 mkdir -p "$temp_dir/$BASE/$DYNAMIC"
-cat $1 | tee $temp_dir/$BASE/{$STATIC,$DYNAMIC}/{$FULL,$REDUCED} > /dev/null
+cat $1 | tee $temp_dir/$BASE/{$STATIC,$DYNAMIC}/{$FULL,$ENDHOST} > /dev/null
 
 count=$( jq -r '.DiscoveryService | length' $1 )
 printf "Using entry $ds_entry out of $count\n"

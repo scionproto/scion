@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
@@ -94,7 +95,8 @@ func initSNET(cfg sigconfig.Conf, sdCfg env.SciondClient) error {
 	defer timer.Stop()
 Top:
 	for {
-		if err = snet.Init(cfg.IA, sdCfg.Path, cfg.Dispatcher); err == nil {
+		err = snet.Init(cfg.IA, sdCfg.Path, reliable.NewDispatcherService(cfg.Dispatcher))
+		if err == nil {
 			break
 		}
 		select {

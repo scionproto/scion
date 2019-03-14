@@ -26,9 +26,9 @@ import (
 func NoRevokedHopIntf(ctx context.Context, revCache revcache.RevCache,
 	s *seg.PathSegment) (bool, error) {
 
-	revKeys := make(map[revcache.Key]struct{})
+	revKeys := make(revcache.KeySet)
 	addRevKeys([]*seg.PathSegment{s}, revKeys, true)
-	revs, err := revCache.GetAll(ctx, revKeys)
+	revs, err := revCache.Get(ctx, revKeys)
 	return len(revs) == 0, err
 }
 
@@ -36,16 +36,24 @@ func NoRevokedHopIntf(ctx context.Context, revCache revcache.RevCache,
 func RelevantRevInfos(ctx context.Context, revCache revcache.RevCache,
 	allSegs ...[]*seg.PathSegment) ([]*path_mgmt.SignedRevInfo, error) {
 
-	revKeys := make(map[revcache.Key]struct{})
+	revKeys := make(revcache.KeySet)
 	for _, segs := range allSegs {
 		addRevKeys(segs, revKeys, false)
 	}
-	return revCache.GetAll(ctx, revKeys)
+	revs, err := revCache.Get(ctx, revKeys)
+	if err != nil {
+		return nil, err
+	}
+	allRevs := make([]*path_mgmt.SignedRevInfo, 0, len(revs))
+	for _, rev := range revs {
+		allRevs = append(allRevs, rev)
+	}
+	return allRevs, nil
 }
 
 // addRevKeys adds all revocations keys for the given segments to the keys set.
 // If hopOnly is set, only the first hop entry is considered.
-func addRevKeys(segs []*seg.PathSegment, keys map[revcache.Key]struct{}, hopOnly bool) {
+func addRevKeys(segs []*seg.PathSegment, keys revcache.KeySet, hopOnly bool) {
 	for _, s := range segs {
 		for _, asEntry := range s.ASEntries {
 			for _, entry := range asEntry.HopEntries {

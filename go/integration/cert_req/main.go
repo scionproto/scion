@@ -70,12 +70,14 @@ func (c client) run() int {
 	}
 	log.Debug("Send on", "local", c.conn.LocalAddr())
 	c.msgr = messenger.New(
-		integration.Local.IA,
-		disp.New(
-			transport.NewPacketTransport(c.conn),
-			messenger.DefaultAdapter,
-			log.Root(),
-		), nil, log.Root(), nil,
+		&messenger.Config{
+			IA: integration.Local.IA,
+			Dispatcher: disp.New(
+				transport.NewPacketTransport(c.conn),
+				messenger.DefaultAdapter,
+				log.Root(),
+			),
+		},
 	)
 	if err = getRemote(); err != nil {
 		integration.LogFatal("Error finding remote address", err)

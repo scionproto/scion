@@ -1,0 +1,37 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "disp.go",
+        "message.go",
+        "wtable.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/infra/disp",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/infra:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/proto:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "common_test.go",
+        "disp_test.go",
+        "wtable_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/infra/transport:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "//go/lib/xtest/p2p:go_default_library",
+        "//go/proto:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

@@ -120,6 +120,7 @@ class GoGenerator(object):
                 'SegSync': True,
             },
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 
@@ -140,6 +141,7 @@ class GoGenerator(object):
             },
             'logging': self._log_entry(name),
             'TrustDB': trust_db_conf_entry(self.args, name),
+            'discovery': self._discovery_entry(),
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
@@ -151,7 +153,8 @@ class GoGenerator(object):
             'metrics': {
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
-            }
+            },
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 
@@ -187,6 +190,7 @@ class GoGenerator(object):
                 'ReissueTimeout': "5s",
             },
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 

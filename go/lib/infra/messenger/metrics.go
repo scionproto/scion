@@ -15,81 +15,96 @@
 package messenger
 
 import (
+	"net"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
 	promNamespace = "messenger"
 )
 
-type promOp string
-
-const (
-	promOpSendAck               promOp = "send_ack"
-	promOpGetTRC                promOp = "get_trc"
-	promOpSendTRC               promOp = "send_trc"
-	promOpGetCrtChain           promOp = "get_chain"
-	promOpSendCrtChain          promOp = "send_crt_chain"
-	promOpSendIfId              promOp = "send_ifid"
-	promOpSendIfStateInfo       promOp = "send_if_info"
-	promOpSendSeg               promOp = "send_seg"
-	promOpGetSegs               promOp = "get_segs"
-	promOpSendSegReply          promOp = "send_seg_reply"
-	promOpSendSegSync           promOp = "send_seg_sync"
-	promOpGetSegChangesId       promOp = "get_seg_changes_id"
-	promOpSendSegChangesIdReply promOp = "send_seg_change_reply"
-	promOpGetSegChanges         promOp = "get_seg_changes"
-	promOpSendSegChanges        promOp = "send_seg_changes"
-	promOpRequestChainIssue     promOp = "request_chain_issue"
-	promOpSendChainIssue        promOp = "send_chain_issue_reply"
-)
-
 var (
-	callsTotal   *prometheus.CounterVec
-	resultsTotal *prometheus.CounterVec
-	latency      *prometheus.HistogramVec
+	outCallsTotal   *prometheus.CounterVec
+	outResultsTotal *prometheus.CounterVec
+	outCallsLatency *prometheus.HistogramVec
+
+	inCallsTotal   *prometheus.CounterVec
+	inResultsTotal *prometheus.CounterVec
+	inCallsLatency *prometheus.HistogramVec
+
+	initOnce sync.Once
 )
 
-func init() {
-	// Cardinality: 17 (len(allOps))
-	callsTotal = prom.NewCounterVec(promNamespace, "", "calls_total",
-		"Total calls on the messenger.", []string{prom.LabelOperation})
-	// Cardinality: X (len(allResults) * 17 (len(allOps))
-	resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
-		"The results of messenger calls", []string{prom.LabelResult, prom.LabelOperation})
-	latency = prom.NewHistogramVec(promNamespace, "", "calls_latency",
-		"Histogram of call latency in seconds.", []string{prom.LabelResult, prom.LabelOperation},
-		[]float64{0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 1.28, 2.56, 5.12, 10.24})
+func initMetrics() {
+	initOnce.Do(func() {
+		// Cardinality: 17 (len(allOps))
+		outCallsTotal = prom.NewCounterVec(promNamespace, "", "out_calls_total",
+			"Total out calls on the messenger.", []string{prom.LabelOperation})
+		// Cardinality: X (len(allResults) * 17 (len(allOps))
+		outResultsTotal = prom.NewCounterVec(promNamespace, "", "out_results_total",
+			"The out results of messenger calls", []string{prom.LabelResult, prom.LabelOperation})
+		outCallsLatency = prom.NewHistogramVec(promNamespace, "", "out_calls_latency",
+			"Histogram of out call latency in seconds.",
+			[]string{prom.LabelResult, prom.LabelOperation},
+			prom.DefaultLatencyBuckets)
+
+		inCallsTotal = prom.NewCounterVec(promNamespace, "", "in_calls_total",
+			"Total in calls on the messenger.", []string{prom.LabelOperation, prom.LabelSrc})
+		inResultsTotal = prom.NewCounterVec(promNamespace, "", "in_results_total",
+			"The in results of messenger calls", []string{prom.LabelResult, prom.LabelOperation})
+		inCallsLatency = prom.NewHistogramVec(promNamespace, "", "in_calls_latency",
+			"Histogram of out call latency in seconds.",
+			[]string{prom.LabelStatus, prom.LabelOperation},
+			prom.DefaultLatencyBuckets)
+	})
 }
 
-func metricStartOp(op promOp) opMetrics {
-	callsTotal.With(prometheus.Labels{
-		prom.LabelOperation: string(op),
+func metricSrcValue(peer net.Addr, localIA addr.IA) string {
+	sAddr, ok := peer.(*snet.Addr)
+	if !ok {
+		return infra.PromSrcUnknown
+	}
+	if localIA.Equal(sAddr.IA) {
+		return infra.PromSrcASLocal
+	}
+	if localIA.I == sAddr.IA.I {
+		return infra.PromSrcISDLocal
+	}
+	return infra.PromSrcISDRemote
+}
+
+func metricStartOp(msgType infra.MessageType) opMetrics {
+	outCallsTotal.With(prometheus.Labels{
+		prom.LabelOperation: msgType.MetricLabel(),
 	}).Inc()
 	return opMetrics{
-		op:    op,
+		mt:    msgType,
 		begin: time.Now(),
 	}
 }
 
 type opMetrics struct {
-	op    promOp
+	mt    infra.MessageType
 	begin time.Time
 }
 
 func (m *opMetrics) publishResult(err error) {
 	resLabel := errorToResultLabel(err)
 	resLabels := prometheus.Labels{
-		prom.LabelOperation: string(m.op),
+		prom.LabelOperation: m.mt.MetricLabel(),
 		prom.LabelResult:    resLabel,
 	}
-	latency.With(resLabels).Observe(time.Since(m.begin).Seconds())
-	resultsTotal.With(resLabels).Inc()
+	outCallsLatency.With(resLabels).Observe(time.Since(m.begin).Seconds())
+	outResultsTotal.With(resLabels).Inc()
 }
 
 func errorToResultLabel(err error) string {

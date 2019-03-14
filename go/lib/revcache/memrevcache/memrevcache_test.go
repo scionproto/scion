@@ -51,15 +51,13 @@ func (c *testRevCache) InsertExpired(t *testing.T, _ context.Context,
 	time.Sleep(20 * time.Millisecond)
 }
 
+func (c *testRevCache) Prepare(t *testing.T, _ context.Context) {
+	// For this backend the easiest is to create a new backend.
+	c.memRevCache = New()
+}
+
 func TestRevCacheSuite(t *testing.T) {
 	Convey("RevCache Suite", t, func() {
-		revcachetest.TestRevCache(t,
-			func() revcachetest.TestableRevCache {
-				return &testRevCache{
-					memRevCache: New(),
-				}
-			},
-			func() {},
-		)
+		revcachetest.TestRevCache(t, &testRevCache{memRevCache: New()})
 	})
 }

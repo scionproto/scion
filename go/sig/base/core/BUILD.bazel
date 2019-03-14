@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "as.go",
+        "map.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/sig/base/core",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/ringbuf:go_default_library",
+        "//go/sig/base:go_default_library",
+        "//go/sig/config:go_default_library",
+        "//go/sig/egress:go_default_library",
+        "//go/sig/egress/dispatcher:go_default_library",
+        "//go/sig/egress/router:go_default_library",
+        "//go/sig/egress/session:go_default_library",
+        "//go/sig/egress/worker:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)

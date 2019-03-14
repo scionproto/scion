@@ -223,8 +223,8 @@ cmd_test(){
     local ret=0
     case "$1" in
         py) shift; py_test "$@"; ret=$((ret+$?));;
-        go) shift; go_test "$@"; ret=$((ret+$?));;
-        *) py_test; ret=$((ret+$?)); go_test; ret=$((ret+$?));;
+        go) shift; bazel_test ; ret=$((ret+$?));;
+        *) py_test; ret=$((ret+$?)); bazel_test; ret=$((ret+$?));;
     esac
     return $ret
 }
@@ -233,9 +233,8 @@ py_test() {
     nosetests3 ${EXTRA_NOSE_ARGS} "$@"
 }
 
-go_test() {
-    # `make -C go` breaks if there are symlinks in $PWD
-    ( cd go && make -s test )
+bazel_test() {
+    bazel test //go/... --print_relative_test_log_paths --color no
 }
 
 cmd_coverage(){
@@ -262,10 +261,8 @@ go_cover() {
 cmd_lint() {
     set -o pipefail
     local ret=0
-    py_lint
-    ret=$((ret+$?))
-    go_lint
-    ret=$((ret+$?))
+    py_lint || ret=1
+    go_lint || ret=1
     return $ret
 }
 
@@ -282,7 +279,30 @@ py_lint() {
 }
 
 go_lint() {
-    ( cd go && make -s lint )
+    local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
+    local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
+    echo "======> Building lint tools"
+    bazel build //:lint || return 1
+    tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
+    local ret=0
+    echo "======> impi"
+    # Skip CGO (https://github.com/pavius/impi/issues/5) files.
+    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' ./go/... || ret=1
+    echo "======> gofmt"
+    # TODO(sustrik): At the moment there are no bazel rules for gofmt.
+    # See: https://github.com/bazelbuild/rules_go/issues/511
+    # Instead we'll just run the commands from Go SDK directly.
+    GOSDK=$(bazel info output_base)/external/go_sdk/bin
+    out=$($GOSDK/gofmt -d -s $LOCAL_DIRS);
+    if [ -n "$out" ]; then echo "$out"; ret=1; fi
+    echo "======> linelen (lll)"
+    out=$(find go -type f -iname '*.go' -a '!' '(' -ipath 'go/lib/pathpol/sequence/*' ')' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
+    if [ -n "$out" ]; then echo "$out"; ret=1; fi
+    echo "======> misspell"
+    $TMPDIR/misspell -error $LOCAL_DIRS || ret=1
+    # Clean up the binaries
+    rm -rf $TMPDIR
+    return $ret
 }
 
 cmd_version() {

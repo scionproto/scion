@@ -82,6 +82,40 @@ const (
 	defBufSize      = 1 << 18
 )
 
+// DispatcherService controls how SCION applications open sockets in the SCION world.
+type DispatcherService interface {
+	Register(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
+		svc addr.HostSVC) (*Conn, uint16, error)
+	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
+		svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error)
+}
+
+// NewDispatcherService creates a new dispatcher API endpoint on top of a UNIX
+// STREAM reliable socket. If name is empty, the default dispatcher path is
+// chosen.
+func NewDispatcherService(name string) DispatcherService {
+	if name == "" {
+		name = DefaultDispPath
+	}
+	return &dispatcherService{Address: name}
+}
+
+type dispatcherService struct {
+	Address string
+}
+
+func (d *dispatcherService) Register(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
+	svc addr.HostSVC) (*Conn, uint16, error) {
+
+	return Register(d.Address, ia, public, bind, svc)
+}
+
+func (d *dispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
+	bind *overlay.OverlayAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
+
+	return RegisterTimeout(d.Address, ia, public, bind, svc, timeout)
+}
+
 var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
 

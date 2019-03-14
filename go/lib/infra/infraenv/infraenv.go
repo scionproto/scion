@@ -17,6 +17,8 @@
 package infraenv
 
 import (
+	"crypto/tls"
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -29,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const (
@@ -36,33 +39,56 @@ const (
 )
 
 func InitMessenger(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
-	reconnectToDispatcher bool, store infra.TrustStore) (infra.Messenger, error) {
+	reconnectToDispatcher bool, enableQUICTest bool,
+	store infra.TrustStore) (infra.Messenger, error) {
 
 	return InitMessengerWithSciond(ia, public, bind, svc, reconnectToDispatcher,
-		store, env.SciondClient{})
+		enableQUICTest, store, env.SciondClient{})
 }
 
 func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
-	reconnectToDispatcher bool, store infra.TrustStore,
+	reconnectToDispatcher bool, enableQUICTest bool, store infra.TrustStore,
 	sciond env.SciondClient) (infra.Messenger, error) {
 
 	conn, err := initNetworking(ia, public, bind, svc, reconnectToDispatcher, sciond)
 	if err != nil {
 		return nil, err
 	}
-	msger := messenger.New(
-		ia,
-		disp.New(
+	msgerCfg := &messenger.Config{IA: ia, TrustStore: store}
+	if enableQUICTest {
+		var err error
+		msgerCfg.QUIC, err = buildQUICConfig(conn)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		msgerCfg.Dispatcher = disp.New(
 			transport.NewPacketTransport(conn),
 			messenger.DefaultAdapter,
 			log.Root(),
-		),
-		store,
-		log.Root(),
-		nil,
-	)
+		)
+	}
+	msger := messenger.NewMessengerWithMetrics(msgerCfg)
 	store.SetMessenger(msger)
 	return msger, nil
+}
+
+func buildQUICConfig(conn net.PacketConn) (*messenger.QUICConfig, error) {
+	// FIXME(scrye): Hardcode the crypto for now, because this is only used for
+	// testing. To make QUIC RPC deployable, these need to be specified in the
+	// configuration file.
+	cert, err := tls.LoadX509KeyPair("gen-certs/tls.pem", "gen-certs/tls.key")
+	if err != nil {
+		return nil, err
+	}
+
+	return &messenger.QUICConfig{
+		Conn: conn,
+		TLSConfig: &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			InsecureSkipVerify: true,
+		},
+	}, nil
 }
 
 func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
@@ -95,7 +121,8 @@ func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
 	// done transparently and pushed to snet.NewNetwork.
 Top:
 	for {
-		if network, err = snet.NewNetwork(ia, sciond.Path, ""); err == nil || sciond.Path == "" {
+		network, err = snet.NewNetwork(ia, sciond.Path, reliable.NewDispatcherService(""))
+		if err == nil || sciond.Path == "" {
 			break
 		}
 		select {

@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -145,6 +146,7 @@ func setMessenger(cfg *config.Config) error {
 		env.GetBindSnetAddress(cfg.General.Topology.ISD_AS, topoAddress),
 		addr.SvcCS,
 		cfg.General.ReconnectToDispatcher,
+		cfg.EnableQUICTest,
 		state.Store,
 		cfg.Sciond,
 	)
@@ -153,7 +155,8 @@ func setMessenger(cfg *config.Config) error {
 	}
 	// FIXME(roosd): Hack to make Store.ChooseServer not panic.
 	// Remove when https://github.com/scionproto/scion/issues/2029 is resolved.
-	if err := snet.Init(cfg.General.Topology.ISD_AS, cfg.Sciond.Path, ""); err != nil {
+	err = snet.Init(cfg.General.Topology.ISD_AS, cfg.Sciond.Path, reliable.NewDispatcherService(""))
+	if err != nil {
 		return common.NewBasicError("Unable to initialize snet", err)
 	}
 	msgr.AddHandler(infra.ChainRequest, state.Store.NewChainReqHandler(true))
