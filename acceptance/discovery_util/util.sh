@@ -22,7 +22,7 @@ DYNAMIC_DEFAULT="$DYNAMIC_DIR/default.json"
 base_setup() {
     set -e
     # Create topology setup all necessary config files.
-    ./scion.sh topology -c "$TEST_TOPOLOGY" -d -ds
+    ./scion.sh topology nobuild -c "$TEST_TOPOLOGY" -d -ds
     # Create the topology directories for serving.
     mkdir -p "$STATIC_DIR"
     mkdir -p "$DYNAMIC_DIR"

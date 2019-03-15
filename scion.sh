@@ -9,6 +9,11 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 cmd_topology() {
     set -e
     local zkclean
+    local nobuild
+    if [ "$1" = "nobuild" ]; then
+        shift
+        nobuild="y"
+    fi
     if is_docker_be; then
         echo "Shutting down dockerized topology..."
         ./tools/quiet ./tools/dc down
@@ -22,8 +27,10 @@ cmd_topology() {
         shift
         zkclean="y"
     fi
-    echo "Compiling..."
-    cmd_build || exit 1
+    if [ -z "$nobuild" ]; then
+        echo "Compiling..."
+        cmd_build || exit 1
+    fi
     echo "Create topology, configuration, and execution files."
     is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
@@ -348,10 +355,11 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM topology [zkclean]
-	        Create topology, configuration, and execution files. With the
-	        'zkclean' option, also reset all local Zookeeper state. Another
-	        other arguments or options are passed to topology/generator.py
+	    $PROGRAM topology [nobuild] [zkclean]
+	        Create topology, configuration, and execution files. With the 'nobuild'
+            option, don't build the code. With the 'zkclean' option, also reset 
+            all local Zookeeper state. All other arguments or options are passed 
+            to topology/generator.py
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM sciond ISD-AS [ADDR]

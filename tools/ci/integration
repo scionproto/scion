@@ -36,7 +36,7 @@ run_tests() {
     return $result
 }
 
-./docker.sh exec "set -x; ./scion.sh topology ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}"
+./docker.sh exec "set -x; ./scion.sh topology nobuild ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}"
 ./docker.sh exec "set -eo pipefail; ./scion.sh run nobuild | grep -v "started" |& tee logs/integration.run"
 ./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee logs/integration.run"
 

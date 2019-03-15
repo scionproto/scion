@@ -16,7 +16,7 @@ TOPO="gen/ISD1/AS$AS_FILE/topology.json"
 
 test_setup() {
     set -e
-    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
+    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
     for sd in gen/ISD1/*/*/*.toml; do
         sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done

@@ -11,7 +11,7 @@ TEST_TOPOLOGY="topology/Tiny.topo"
 
 test_setup() {
     set -e
-    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
+    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
     ./scion.sh run nobuild
     ./tools/dc start tester_1-ff00_0_112 tester_1-ff00_0_110
     docker_status
