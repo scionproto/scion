@@ -45,7 +45,7 @@ var (
 
 	hpCfgIDs = []*query.HPCfgID{
 		&query.NullHpCfgID,
-		{ia330, 0xdeadbeef},
+		{IA: ia330, ID: 0xdeadbeef},
 	}
 	segType = proto.PathSegType_up
 
@@ -432,8 +432,8 @@ func testGetWithIntfs(t *testing.T, pathDB pathdb.ReadWrite) {
 		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 		params := &query.Params{
 			Intfs: []*query.IntfSpec{
-				{ia330, 5},
-				{ia332, 2},
+				{IA: ia330, IfID: 5},
+				{IA: ia332, IfID: 2},
 			},
 		}
 		// Call
