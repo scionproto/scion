@@ -16,7 +16,7 @@ AS_FILE="$(as_file $IA)"
 test_setup() {
     set -e
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    for sd in gen/ISD1/*/endhost/sciond.toml; do
+    for sd in gen/ISD1/*/endhost/sdconfig.toml; do
         sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done
     ./scion.sh run nobuild

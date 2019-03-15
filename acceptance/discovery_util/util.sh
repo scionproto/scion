@@ -74,7 +74,7 @@ check_file() {
 check_infra_fail_action() {
     stop_mock_ds
     # Check that services continue if fail action is not set.
-    for cfg in gen/ISD1/AS$AS_FILE/*/{{cs,ps}config,sciond}.toml; do
+    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps,sd}config.toml; do
         set_connect "$cfg" "$1" "5s"
     done
     ./tools/dc scion restart "scion_ps$IA_FILE-1" "scion_cs$IA_FILE-1" "scion_sd$IA_FILE"
@@ -84,7 +84,7 @@ check_infra_fail_action() {
     check_running "sd$IA_FILE" || fail "Error: sd$IA_FILE not running"
 
     # Check that services exit if fail action is fatal
-    for cfg in gen/ISD1/AS$AS_FILE/*/{{cs,ps}config,sciond}.toml; do
+    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps,sd}config.toml; do
         set_fail_action "$cfg" "$1" "Fatal"
     done
     ./tools/dc scion restart "scion_ps$IA_FILE-1" "scion_cs$IA_FILE-1" "scion_sd$IA_FILE"
