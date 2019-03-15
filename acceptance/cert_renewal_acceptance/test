@@ -23,7 +23,7 @@ CORE_IA_FILE="$(ia_file $CORE_IA)"
 
 test_setup() {
     set -e
-    ./scion.sh topology -c $TEST_TOPOLOGY -d -cs=go
+    ./scion.sh topology nobuild -c $TEST_TOPOLOGY -d -cs=go
     for cfg in gen/ISD1/*/cs*/csconfig.toml; do
         sed -i -e 's/Level = .*$/Level = "trace"/g' \
             -e '/\[logging\.file\]/a FlushInterval = 1' \

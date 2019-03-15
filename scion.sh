@@ -355,10 +355,11 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM topology [zkclean]
-	        Create topology, configuration, and execution files. With the
-	        'zkclean' option, also reset all local Zookeeper state. Another
-	        other arguments or options are passed to topology/generator.py
+	    $PROGRAM topology [nobuild] [zkclean]
+	        Create topology, configuration, and execution files. With the 'nobuild'
+            option, don't build the code. With the 'zkclean' option, also reset 
+            all local Zookeeper state. All other arguments or options are passed 
+            to topology/generator.py
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM sciond ISD-AS [ADDR]
