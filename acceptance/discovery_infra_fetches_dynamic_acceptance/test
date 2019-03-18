@@ -14,7 +14,7 @@ test_setup() {
     set -e
     base_setup
 
-    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps,sd}config.toml; do
+    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps,sd}.toml; do
         set_log_lvl "$cfg"
         set_interval "$cfg" "dynamic"
     done

@@ -32,7 +32,7 @@ base_setup() {
 
 base_gen_topo() {
     ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d
-    for sd in gen/ISD1/*/br*/brconfig.toml; do
+    for sd in gen/ISD1/*/br*/br.toml; do
         sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done
 }
