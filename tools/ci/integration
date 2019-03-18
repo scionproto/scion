@@ -6,8 +6,12 @@ go_integration() {
     ./docker.sh exec "set -eo pipefail; integration/go_integration |& tee -a logs/integration.run"
 }
 
-py_integration() {
-    ./docker.sh exec "set -eo pipefail; integration/py_integration |& tee -a logs/integration.run"
+py_ext_integration() {
+    ./docker.sh exec "set -eo pipefail; integration/py_ext_integration |& tee -a logs/integration.run"
+}
+
+py_scmp_integration() {
+    ./docker.sh exec "set -eo pipefail; integration/py_scmp_integration |& tee -a logs/integration.run"
 }
 
 revocation() {
@@ -23,7 +27,9 @@ run_tests() {
     go_integration
     result=$((result+$?))
     if [ -n "$ALL" ]; then
-        py_integration
+        py_ext_integration
+        result=$((result+$?))
+        py_scmp_integration
         result=$((result+$?))
     fi
     revocation
@@ -49,7 +55,7 @@ sleep 20
 COMMAND="$1"
 shift
 case "$COMMAND" in
-    go_integration|py_integration|revocation)
+    go_integration|py_ext_integration|py_scmp_integration|revocation)
         "$COMMAND"; result=$? ;;
     *) run_tests; result=$? ;;
 esac
