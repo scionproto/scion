@@ -14,7 +14,8 @@ run_test() {
 }
 
 if [ "$RUN_ALL_TESTS" = "y" ]; then
-    run_test "py_integration"
+    run_test "py_ext_integration"
+    run_test "py_scmp_integration"
 fi
 
 for test in $TESTS; do
