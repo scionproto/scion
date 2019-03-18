@@ -61,7 +61,7 @@ func TestSampleCorrect(t *testing.T) {
 func TestLoadConf(t *testing.T) {
 	Convey("Load Conf", t, func() {
 		var cfg Config
-		_, err := toml.DecodeFile("testdata/csconfig.toml", &cfg)
+		_, err := toml.DecodeFile("testdata/cs.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, 7*time.Hour)
 		SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, 2*24*time.Hour)
@@ -85,7 +85,7 @@ func TestLoadConf(t *testing.T) {
 func TestConfig_Init(t *testing.T) {
 	Convey("Load Conf", t, func() {
 		var cfg Config
-		_, err := toml.DecodeFile("testdata/csconfig.toml", &cfg)
+		_, err := toml.DecodeFile("testdata/cs.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
 		Convey("Init does not override values", func() {
