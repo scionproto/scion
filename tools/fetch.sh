@@ -12,6 +12,12 @@ ROOTDIR=$(dirname "$0")/..
 # Add any bazel packages to prefetch to the beginning of the following block.
 cat <<EOF
 load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+load("@io_bazel_rules_go//go:def.bzl", "nogo")
+
+nogo(
+    name = "nogo",
+    visibility = ["//visibility:public"],
+)
 
 genrule(
     name = "fetch",
