@@ -1,4 +1,10 @@
 {
+  "printf": {
+    "exclude_files": {
+      "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
+      "/com_github_lucas_clemente_quic_go/": ""
+    }
+  },
   "unreachable": {
     "exclude_files": {
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
