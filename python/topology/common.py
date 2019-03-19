@@ -35,6 +35,7 @@ CS_CONFIG_NAME = 'cs.toml'
 PS_CONFIG_NAME = 'ps.toml'
 SD_CONFIG_NAME = 'sd.toml'
 DISP_CONFIG_NAME = 'disp.toml'
+SIG_CONFIG_NAME = 'sig.toml'
 
 DOCKER_USR_VOL = ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
 
