@@ -3,8 +3,9 @@
   - $BASE/scripts/registry_login
   - docker pull $SCION_IMG
   - docker tag $SCION_IMG scion:latest
+  - ./docker.sh run -c "mkdir docker/_build && touch docker/_build/scion.stamp && make -C docker/perapp apps"
+  # To build the tester we have to make it clear that scion image is already built.
   - mkdir docker/_build && touch docker/_build/scion.stamp
-  - make -C docker/perapp apps
   - ./docker.sh tester
   - $BASE/scripts/all_images push
   retry:
