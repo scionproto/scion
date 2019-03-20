@@ -24,6 +24,8 @@ genrule(
     outs = ["dummy"],
     cmd = "touch dummy",
     tools = [
+        "@debian_stretch//file:Packages.json",
+        "@package_bundle//file:packages.bzl",
 EOF
 
 cat  $ROOTDIR/WORKSPACE \
