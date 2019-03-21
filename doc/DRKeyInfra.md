@@ -49,7 +49,7 @@ local CS.
 
 In the DRKey protocol, key establishment is offloaded to the certificate server
 (CS). Each certificate server selects a local secret value, which is only shared
-with trustworthy entities in the same AS, it is never shared outside the AS. The
+with trustworthy entities in the same AS; it is never shared outside the AS. The
 secret value will serve as the root of a symmetric key hierarchy, where keys of
 a level are derived from keys of the preceding level using an efficient
 Pseudo-Random Function (PRF). Thanks to the one-way property of the PRF, the
@@ -71,10 +71,10 @@ whereas a slower key fetch is required by a client to a local certificate server
 
 #### 0th-level
 
-On the zeroth level of the hierarchy, each AS A randomly generates a local
-secret symmetric and AS-specific secret value key SV\_A. The secret value
-represents the per-AS basis of the hierarchy and is renewed frequently.
-This is not shared with any entity outside the AS.
+On the zeroth level of the hierarchy, each AS A randomly generates a local and
+AS-specific secret value SV\_A. The secret value represents the per-AS basis of
+the hierarchy and is renewed frequently. This is not shared with any entity outside
+the AS.
 
 #### 1st-level
 
@@ -106,22 +106,21 @@ addresses. We distinguish between IPv4, IPv6 and service addresses.
 #### Epochs
 
 An epoch is an interval between a starting and end point in time. The length of
-epochs of can be chosen by a given AS and can change over time. However, epochs
+epochs can be chosen by a given AS and can change over time. However, epochs
 must not overlap. Thus, a secret value is associated with exactly one epoch.
 
 #### Validity Periods
 
 Secret values must be renewed for every epoch. Thus, also lower level keys
-must be renewed at the beginning of a new epoch. However, if a packet is
-authenticated immediately before a key expires, but arrives at destination when
-already the new key is used, a race condition occurs as the packet's authenticity
-cannot be verified. To avoid race conditions, the validity of second-level keys
-exceeds the epoch end time by a small extent. By default, we assume a epoch length
-of 24 hours and the following key validity periods:
+must be renewed at the beginning of a new epoch. However, if the key used to
+authenticate a packet expires while the packet is in transit, the packet could no
+longer be verified by the receiver. To avoid race conditions, the validity of
+second-level keys exceeds the epoch end time by a small extent. By default, we
+assume a epoch length of 24 hours and the following key validity periods:
 
 - Secret value: 24 hours
-- First-level keys: 24 hours (inherited) + maximum offset
-- Second-level keys: 24 (inherited) + maximum offset + 0.1 hours
+- First-level keys: 24 hours (inherited) + maximum offset (see Key Rollover)
+- Second-level keys: 24 (inherited) + maximum offset (see Key Rollover) + 0.1 hours
 
 First- and second-level keys are valid during the same time frame as the
 corresponding secret value. If a specific protocol requires shorter key expiration
@@ -172,7 +171,9 @@ The first-level key is accompanied by `epoch_begin` and `epoch_end` that denote
 the begin and end of the validity period of the corresponding key. These values
 are determined by the AS that issues the key. The beginning of an epoch must
 not overlap with the end of the previous epoch, as otherwise multiple
-DRKeys need to be checked for verification.
+DRKeys need to be checked for verification. Additionally, a packet that is
+authenticated using DRKey should contain a timestamp to avoid clock drift
+issues.
 
 First-level keys of frequently contacted ASes are prefetched such that
 second-level keys can be instantaneously derived. In case a certificate server
@@ -264,7 +265,7 @@ Consequently, the second-level key derivation is adapted:
     Key Derivation: K_{A→B:H_B}^prot = PRF_{DS_{A→B}^{prot}} ( H_B )
 
     3. end host → end host:
-    Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_DS_{A→B}^{prot}} ( H_A | H_B )
+    Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{DS_{A→B}^{prot}} ( H_A | H_B )
 
 Other protocols could also introduce other procedures to derive second-level
 keys. However, the CSes of both participating ASes must be upgraded to support
