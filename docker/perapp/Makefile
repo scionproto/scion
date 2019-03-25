@@ -44,7 +44,7 @@ APP_TARGETS = bazel dispatcher path_py beacon_py cert_py sciond_py
 apps: $(APP_TARGETS)
 
 bazel:
-	../../docker.sh run -c "bazel run //docker/perapp:prod"
+	cd ../..; ./docker.sh run -c "bazel run //docker/perapp:prod"
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build hashes/sig app/Dockerfile.sig
 
 dispatcher: hashes/dispatcher
