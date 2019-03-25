@@ -246,6 +246,17 @@ func (mt MessageType) MetricLabel() string {
 	}
 }
 
+// ResourceHealth indicates the health of a resource. A resource could for example be a database.
+// The resource health can be registered on the messenger, if any resource is not healthy it will
+// reply with an error to requests.
+type ResourceHealth interface {
+	// Name returns the name of this resource.
+	Name() string
+	// IsHealthy returns whether the resource is considered healthy currently.
+	// This method must not be blocking and should have the result cached and return ~immediately.
+	IsHealthy() bool
+}
+
 type Messenger interface {
 	SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error
 	// GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
@@ -289,6 +300,9 @@ type Messenger interface {
 	UpdateSigner(signer ctrl.Signer, types []MessageType)
 	UpdateVerifier(verifier ctrl.SigVerifier)
 	AddHandler(msgType MessageType, h Handler)
+	// RegisterResource registers the given resource with the messenger. If the resource is not
+	// healthy the messenger replies to all requests with an error.
+	RegisterResource(resource ResourceHealth)
 	ListenAndServe()
 	CloseServer() error
 }
