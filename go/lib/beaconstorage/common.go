@@ -18,8 +18,10 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/beaconstorage/beaconpol"
 	"github.com/scionproto/scion/go/lib/beaconstorage/readonly"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Store is the interface to interact with the beacon store.
@@ -31,7 +33,7 @@ type Store interface {
 	// SegmentsToRegister returns a channel that provides all beacons to
 	// register at the time of the call. The selections is based on the
 	// configured propagation policy for the requested segment type.
-	SegmentsToRegister(ctx *context.Context, segType SegmentType) <-chan BeaconOrErr
+	SegmentsToRegister(ctx *context.Context, segType proto.PathSegType) <-chan BeaconOrErr
 	// InsertBeacon adds verified beacons to the store. Beacons that
 	// contain revoked interfaces are not added and do not cause an error.
 	InsertBeacon(ctx *context.Context, beacon ...readonly.Beacon) error
@@ -42,7 +44,7 @@ type Store interface {
 	DeleteRevocation(ctx *context.Context, ia addr.IA, ifid common.IFIDType) error
 	// UpdatePolicy updates the policy. Beacons that are filtered by all
 	// policies after the update are removed.
-	UpdatePolicy(ctx *context.Context, policy Policy) error
+	UpdatePolicy(ctx *context.Context, policy beaconpol.Policy) error
 	// DeleteExpired deletes expired Beacons from the store.
 	DeleteExpiredBeacons(ctx *context.Context) (int, error)
 	// DeleteExpired deletes expired Revocations from the store.
