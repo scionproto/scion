@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
@@ -32,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // TestCase data
@@ -52,6 +54,44 @@ func MockTRCHandler(request *infra.Request) *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	return infra.MetricsResultOk
+}
+
+var _ infra.ResourceHealth = (*mockResource)(nil)
+
+type mockResource struct {
+	name    string
+	healthy bool
+}
+
+func (r *mockResource) Name() string {
+	return r.name
+}
+
+func (r *mockResource) IsHealthy() bool {
+	return r.healthy
+}
+
+func TestResourceHealth(t *testing.T) {
+	Convey("Unhealthy resource results in error replied", t, func() {
+		c2s, s2c := p2p.NewPacketConns()
+		clientMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), c2s, "client")
+		serverMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), s2c, "server")
+
+		serverMessenger.AddHandler(infra.TRCRequest, infra.HandlerFunc(MockTRCHandler))
+		serverMessenger.RegisterResource(&mockResource{name: "tstFail", healthy: false})
+		go serverMessenger.ListenAndServe()
+		defer serverMessenger.CloseServer()
+
+		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancelF()
+		msg := &cert_mgmt.TRCReq{ISD: 42, Version: 1337, CacheOnly: true}
+		trc, err := clientMessenger.GetTRC(ctx, msg, nil, 1337)
+		SoMsg("client request err", err, ShouldResemble, &infra.Error{Message: &ack.Ack{
+			Err:     proto.Ack_ErrCode_reject,
+			ErrDesc: "Resource tstFail not healthy.",
+		}})
+		SoMsg("client received trc", trc, ShouldBeNil)
+	})
 }
 
 func TestTRCExchange(t *testing.T) {
@@ -84,7 +124,7 @@ func TestTRCExchange(t *testing.T) {
 
 func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *Messenger {
 	config := &Config{
-		IA:                           ia,
+		IA: ia,
 		DisableSignatureVerification: true,
 		Dispatcher: disp.New(
 			transport.NewPacketTransport(conn),
