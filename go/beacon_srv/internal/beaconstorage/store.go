@@ -17,10 +17,10 @@ package beaconstorage
 import (
 	"context"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/beaconstorage/beaconpol"
-	"github.com/scionproto/scion/go/lib/beaconstorage/readonly"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -29,33 +29,28 @@ type Store interface {
 	// BeaconsToPropagate returns a channel that provides all beacons to
 	// propagate at the time of the call. The selection is based on the
 	// configured propagation policy.
-	BeaconsToPropagate(ctx *context.Context) <-chan BeaconOrErr
+	BeaconsToPropagate(ctx context.Context) (<-chan beacon.BeaconOrErr, error)
 	// SegmentsToRegister returns a channel that provides all beacons to
 	// register at the time of the call. The selections is based on the
 	// configured propagation policy for the requested segment type.
-	SegmentsToRegister(ctx *context.Context, segType proto.PathSegType) <-chan BeaconOrErr
-	// InsertBeacon adds verified beacons to the store. Beacons that
+	SegmentsToRegister(ctx context.Context, segType proto.PathSegType) (
+		<-chan beacon.BeaconOrErr, error)
+	// InsertBeacons adds verified beacons to the store. Beacons that
 	// contain revoked interfaces are not added and do not cause an error.
-	InsertBeacon(ctx *context.Context, beacon ...readonly.Beacon) error
-	// InsertRevocation inserts the revocation into the BeaconDB.
+	InsertBeacons(ctx context.Context, beacon ...beacon.Beacon) error
+	// InsertRevocations inserts the revocation into the BeaconDB.
 	// The provided revocation must be verified by the caller.
-	InsertRevocation(ctx *context.Context, rev ...readonly.Revocation) error
+	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
 	// DeleteRevocation deletes the revocation from the BeaconDB.
-	DeleteRevocation(ctx *context.Context, ia addr.IA, ifid common.IFIDType) error
+	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
 	// UpdatePolicy updates the policy. Beacons that are filtered by all
 	// policies after the update are removed.
-	UpdatePolicy(ctx *context.Context, policy beaconpol.Policy) error
+	UpdatePolicy(ctx context.Context, policy beacon.Policy) error
 	// DeleteExpired deletes expired Beacons from the store.
-	DeleteExpiredBeacons(ctx *context.Context) (int, error)
+	DeleteExpiredBeacons(ctx context.Context) (int, error)
 	// DeleteExpired deletes expired Revocations from the store.
-	DeleteExpiredRevocations(ctx *context.Context) (int, error)
+	DeleteExpiredRevocations(ctx context.Context) (int, error)
 	// DeleteRevokedBeacons deletes beacons containing revoked interfaces
 	// from the store.
-	DeleteRevokedBeacons(ctx *context.Context) (int, error)
-}
-
-// BeaconOrErr contains a read-only beacon or an error.
-type BeaconOrErr struct {
-	Beacon readonly.Beacon
-	Err    error
+	DeleteRevokedBeacons(ctx context.Context) (int, error)
 }

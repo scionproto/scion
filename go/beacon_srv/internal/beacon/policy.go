@@ -12,22 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beaconpol
+package beacon
 
 import "github.com/scionproto/scion/go/lib/addr"
 
-// Type is the policy type.
-type Type string
+// PolicyType is the policy type.
+type PolicyType string
 
 const (
 	// PropPolicy is the propagation policy.
-	PropPolicy Type = "Propagation"
+	PropPolicy PolicyType = "Propagation"
 	// UpRegPolicy is the registration policy for up segments.
-	UpRegPolicy Type = "UpSegmentRegistration"
+	UpRegPolicy PolicyType = "UpSegmentRegistration"
 	// DownRegPolicy is the registration policy for down segments.
-	DownRegPolicy Type = "DownSegmentRegistration"
+	DownRegPolicy PolicyType = "DownSegmentRegistration"
 	// CoreRegPolicy is the registration policy for core segments.
-	CoreRegPolicy Type = "CoreSegmentRegistration"
+	CoreRegPolicy PolicyType = "CoreSegmentRegistration"
 )
 
 const (
@@ -49,7 +49,7 @@ type Policy struct {
 	// Filter is the filter applied to segments.
 	Filter Filter `yaml:"Filter"`
 	// Type is the policy type.
-	Type Type `yaml:"Type"`
+	Type PolicyType `yaml:"Type"`
 }
 
 // InitDefaults initializes the default values for unset fields.
