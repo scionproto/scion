@@ -70,6 +70,8 @@ func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
 	return ISDFromString(s)
 }
 
+var _ encoding.TextUnmarshaler = (*AS)(nil)
+
 // AS is the Autonomous System idenifier. See formatting and allocations here:
 // https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering#as-numbers
 type AS uint64
@@ -153,6 +155,19 @@ func (as AS) fmt(sep byte) string {
 		b = append(b, s...)
 	}
 	return string(b)
+}
+
+func (as AS) MarshalText() ([]byte, error) {
+	return []byte(as.String()), nil
+}
+
+func (as *AS) UnmarshalText(text []byte) error {
+	newAS, err := ASFromString(string(text))
+	if err != nil {
+		return err
+	}
+	*as = newAS
+	return nil
 }
 
 var _ fmt.Stringer = IA{}
