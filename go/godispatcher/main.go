@@ -45,7 +45,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if returnCode, ok := env.CheckFlags(config.Sample); !ok {
+	if returnCode, ok := env.CheckFlags(&cfg); !ok {
 		return returnCode
 	}
 	if err := setupBasic(); err != nil {
@@ -55,6 +55,10 @@ func realMain() int {
 	defer log.Flush()
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.LogPanicAndExit()
+	if err := cfg.Validate(); err != nil {
+		log.Crit("Unable to validate config", "err", err)
+		return 1
+	}
 
 	go func() {
 		defer log.LogPanicAndExit()
@@ -102,16 +106,12 @@ func setupBasic() error {
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
+	cfg.InitDefaults()
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	cfg.InitDefaults()
 	metrics.Init(cfg.Dispatcher.ID)
-	env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
-	return nil
+	return env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
 }
 
 func RunDispatcher(deleteSocketFlag bool, applicationSocket string, overlayPort int) error {

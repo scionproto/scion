@@ -16,11 +16,13 @@
 package config
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
@@ -34,6 +36,8 @@ var (
 	DefaultQueryInterval = 5 * time.Minute
 )
 
+var _ config.Config = (*Config)(nil)
+
 type Config struct {
 	General        env.General
 	Logging        env.Logging
@@ -44,10 +48,44 @@ type Config struct {
 	EnableQUICTest bool
 }
 
-func (c *Config) InitDefaults() {
-	c.Discovery.InitDefaults()
-	c.SD.initDefaults()
+func (cfg *Config) InitDefaults() {
+	config.InitAll(
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.SD,
+	)
 }
+
+func (cfg *Config) Validate() error {
+	return config.ValidateAll(
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.SD,
+	)
+}
+
+func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.SD,
+	)
+}
+
+func (cfg *Config) ConfigName() string {
+	return "sd_config"
+}
+
+var _ config.Config = (*SDConfig)(nil)
 
 type SDConfig struct {
 	// Address to listen on via the reliable socket protocol. If empty,
@@ -73,29 +111,50 @@ type SDConfig struct {
 	QueryInterval util.DurWrap
 }
 
-func (c *SDConfig) initDefaults() {
-	if c.Reliable == "" {
-		c.Reliable = sciond.DefaultSCIONDPath
+func (cfg *SDConfig) InitDefaults() {
+	if cfg.Reliable == "" {
+		cfg.Reliable = sciond.DefaultSCIONDPath
 	}
-	if c.Unix == "" {
-		c.Unix = "/run/shm/sciond/default-unix.sock"
+	if cfg.Unix == "" {
+		cfg.Unix = "/run/shm/sciond/default-unix.sock"
 	}
-	if c.QueryInterval.Duration == 0 {
-		c.QueryInterval.Duration = DefaultQueryInterval
+	if cfg.QueryInterval.Duration == 0 {
+		cfg.QueryInterval.Duration = DefaultQueryInterval
 	}
-	c.PathDB.InitDefaults()
-	c.RevCache.InitDefaults()
+	config.InitAll(&cfg.PathDB, &cfg.RevCache)
 }
 
-func (c *SDConfig) CreateSocketDirs() error {
-	reliableDir := filepath.Dir(c.Reliable)
+func (cfg *SDConfig) Validate() error {
+	if cfg.Reliable == "" {
+		return common.NewBasicError("Reliable must be set", nil)
+	}
+	if cfg.Unix == "" {
+		return common.NewBasicError("Unix must be set", nil)
+	}
+	if cfg.QueryInterval.Duration == 0 {
+		return common.NewBasicError("QueryInterval must not be zero", nil)
+	}
+	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
+}
+
+func (cfg *SDConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, sdSample)
+	config.WriteSample(dst, path, ctx, &cfg.PathDB, &cfg.RevCache)
+}
+
+func (cfg *SDConfig) ConfigName() string {
+	return "sd"
+}
+
+func (cfg *SDConfig) CreateSocketDirs() error {
+	reliableDir := filepath.Dir(cfg.Reliable)
 	if _, err := os.Stat(reliableDir); os.IsNotExist(err) {
 		if err = os.MkdirAll(reliableDir, 0755); err != nil {
 			return common.NewBasicError("Cannot create reliable socket dir", err, "dir",
 				reliableDir)
 		}
 	}
-	unixDir := filepath.Dir(c.Unix)
+	unixDir := filepath.Dir(cfg.Unix)
 	if _, err := os.Stat(unixDir); os.IsNotExist(err) {
 		if err = os.MkdirAll(unixDir, 0755); err != nil {
 			return common.NewBasicError("Cannot create unix socket dir", err, "dir", unixDir)

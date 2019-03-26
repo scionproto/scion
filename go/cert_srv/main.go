@@ -61,7 +61,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if v, ok := env.CheckFlags(config.Sample); !ok {
+	if v, ok := env.CheckFlags(&cfg); !ok {
 		return v
 	}
 	if err := setupBasic(); err != nil {
@@ -86,7 +86,7 @@ func realMain() int {
 		msgr.ListenAndServe()
 	}()
 	// Set environment to listen for signals.
-	environment = infraenv.InitInfraEnvironmentFunc(cfg.General.TopologyPath, func() {
+	environment = infraenv.InitInfraEnvironmentFunc(cfg.General.Topology, func() {
 		if err := reload(); err != nil {
 			log.Error("Unable to reload", "err", err)
 		}
@@ -107,14 +107,14 @@ func realMain() int {
 func reload() error {
 	// FIXME(roosd): KeyConf reloading is not yet supported.
 	// https://github.com/scionproto/scion/issues/2077
-	cfg.General.Topology = itopo.Get()
 	var newConf config.Config
 	// Load new config to get the CS parameters.
 	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {
 		return err
 	}
-	if err := newConf.CS.Init(cfg.General.ConfigDir); err != nil {
-		return common.NewBasicError("Unable to initialize CS config", err)
+	newConf.InitDefaults()
+	if err := newConf.Validate(); err != nil {
+		return common.NewBasicError("Unable to validate new config", err)
 	}
 	cfg.CS = newConf.CS
 	// Restart the periodic reissue task to respect the fresh parameters.
@@ -128,7 +128,7 @@ func reload() error {
 func startReissRunner() {
 	corePusher = periodic.StartPeriodicTask(
 		&reiss.CorePusher{
-			LocalIA: cfg.General.Topology.ISD_AS,
+			LocalIA: itopo.Get().ISD_AS,
 			TrustDB: state.TrustDB,
 			Msger:   msgr,
 		},
@@ -140,13 +140,13 @@ func startReissRunner() {
 		log.Info("Reissue disabled, not starting reiss task.")
 		return
 	}
-	if cfg.General.Topology.Core {
+	if itopo.Get().Core {
 		log.Info("Starting periodic reiss.Self task")
 		reissRunner = periodic.StartPeriodicTask(
 			&reiss.Self{
 				Msgr:       msgr,
 				State:      state,
-				IA:         cfg.General.Topology.ISD_AS,
+				IA:         itopo.Get().ISD_AS,
 				IssTime:    cfg.CS.IssuerReissueLeadTime.Duration,
 				LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
 				CorePusher: corePusher,
@@ -161,7 +161,7 @@ func startReissRunner() {
 		&reiss.Requester{
 			Msgr:       msgr,
 			State:      state,
-			IA:         cfg.General.Topology.ISD_AS,
+			IA:         itopo.Get().ISD_AS,
 			LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
 			CorePusher: corePusher,
 		},

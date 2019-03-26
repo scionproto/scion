@@ -22,6 +22,7 @@ go_library(
         "//go/lib/pathstorage:go_default_library",
         "//go/lib/periodic:go_default_library",
         "//go/lib/revcache:go_default_library",
+        "//go/lib/topology:go_default_library",
         "//go/path_srv/internal/config:go_default_library",
         "//go/path_srv/internal/cryptosyncer:go_default_library",
         "//go/path_srv/internal/handlers:go_default_library",

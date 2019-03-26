@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -52,6 +53,7 @@ func setupBasic() error {
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
+	cfg.InitDefaults()
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
@@ -61,16 +63,16 @@ func setupBasic() error {
 
 // setup initializes the config and sets the messenger.
 func setup() error {
-	if err := env.InitGeneral(&cfg.General); err != nil {
-		return common.NewBasicError("Unable to initialize General config", err)
+	if err := cfg.Validate(); err != nil {
+		return common.NewBasicError("Unable to validate config", err)
 	}
 	itopo.Init(cfg.General.ID, proto.ServiceType_cs, itopo.Callbacks{})
-	if _, _, err := itopo.SetStatic(cfg.General.Topology, false); err != nil {
-		return common.NewBasicError("Unable to set initial static topology", err)
+	topo, err := topology.LoadFromFile(cfg.General.Topology)
+	if err != nil {
+		return common.NewBasicError("Unable to load topology", err)
 	}
-	env.InitSciondClient(&cfg.Sciond)
-	if err := cfg.Init(cfg.General.ConfigDir); err != nil {
-		return common.NewBasicError("Unable to initialize CS config", err)
+	if _, _, err := itopo.SetStatic(topo, false); err != nil {
+		return common.NewBasicError("Unable to set initial static topology", err)
 	}
 	// Load CS state.
 	if err := initState(&cfg); err != nil {
@@ -84,6 +86,7 @@ func setup() error {
 
 // initState sets the state.
 func initState(cfg *config.Config) error {
+	topo := itopo.Get()
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
 		return common.NewBasicError("Unable to initialize trustDB", err)
@@ -93,12 +96,12 @@ func initState(cfg *config.Config) error {
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_cs,
 	}
-	trustStore, err := trust.NewStore(trustDB, cfg.General.Topology.ISD_AS,
+	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
 		trustConf, log.Root())
 	if err != nil {
 		return common.NewBasicError("Unable to initialize trust store", err)
 	}
-	state, err = config.LoadState(cfg.General.ConfigDir, cfg.General.Topology.Core,
+	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core,
 		trustDB, trustStore)
 	if err != nil {
 		return common.NewBasicError("Unable to load CS state", err)
@@ -112,7 +115,7 @@ func initState(cfg *config.Config) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load local Chain", err)
 	}
-	if err = setDefaultSignerVerifier(state, cfg.General.Topology.ISD_AS); err != nil {
+	if err = setDefaultSignerVerifier(state, topo.ISD_AS); err != nil {
 		return common.NewBasicError("Unable to set default signer and verifier", err)
 	}
 	return nil
@@ -135,15 +138,16 @@ func setDefaultSignerVerifier(c *config.State, pubIA addr.IA) error {
 // setMessenger sets the messenger and the internal messenger of the store in
 // cfg.CS. This function may only be called once per config.
 func setMessenger(cfg *config.Config) error {
-	topoAddress := cfg.General.Topology.CS.GetById(cfg.General.ID)
+	topo := itopo.Get()
+	topoAddress := topo.CS.GetById(cfg.General.ID)
 	if topoAddress == nil {
 		return common.NewBasicError("Unable to find topo address", nil)
 	}
 	var err error
 	msgr, err = infraenv.InitMessengerWithSciond(
-		cfg.General.Topology.ISD_AS,
-		env.GetPublicSnetAddress(cfg.General.Topology.ISD_AS, topoAddress),
-		env.GetBindSnetAddress(cfg.General.Topology.ISD_AS, topoAddress),
+		topo.ISD_AS,
+		env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
+		env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
 		addr.SvcCS,
 		cfg.General.ReconnectToDispatcher,
 		cfg.EnableQUICTest,
@@ -155,7 +159,7 @@ func setMessenger(cfg *config.Config) error {
 	}
 	// FIXME(roosd): Hack to make Store.ChooseServer not panic.
 	// Remove when https://github.com/scionproto/scion/issues/2029 is resolved.
-	err = snet.Init(cfg.General.Topology.ISD_AS, cfg.Sciond.Path, reliable.NewDispatcherService(""))
+	err = snet.Init(topo.ISD_AS, cfg.Sciond.Path, reliable.NewDispatcherService(""))
 	if err != nil {
 		return common.NewBasicError("Unable to initialize snet", err)
 	}
@@ -166,10 +170,10 @@ func setMessenger(cfg *config.Config) error {
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(state.GetVerifier())
 	// Only core CS handles certificate reissuance requests.
-	if cfg.General.Topology.Core {
+	if topo.Core {
 		msgr.AddHandler(infra.ChainIssueRequest, &reiss.Handler{
 			State: state,
-			IA:    cfg.General.Topology.ISD_AS,
+			IA:    topo.ISD_AS,
 		})
 	}
 	return nil

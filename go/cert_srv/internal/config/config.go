@@ -15,10 +15,11 @@
 package config
 
 import (
-	"path/filepath"
+	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/as_conf"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -27,7 +28,10 @@ import (
 )
 
 const (
-	// IssuerReissTime is the default value for Conf.IssuerReissTime. It is larger
+	// LeafReissTime is the default value for CSConf.LeafReissTime. It is set to
+	// the default path segment TTL to provide optimal coverage.
+	LeafReissTime = 6 * time.Hour
+	// IssuerReissTime is the default value for CSConf.IssuerReissTime. It is larger
 	// than the leaf certificate validity period in order to provide optimal coverage.
 	IssuerReissTime = 1*time.Hour + cert.DefaultLeafCertValidity*time.Second
 	// ReissReqRate is the default interval between two consecutive reissue requests.
@@ -39,22 +43,60 @@ const (
 	ErrorCustomers = "Unable to load Customers"
 )
 
+var _ config.Config = (*Config)(nil)
+
 type Config struct {
 	General        env.General
-	Sciond         env.SciondClient `toml:"sd_client"`
 	Logging        env.Logging
 	Metrics        env.Metrics
+	Sciond         env.SciondClient `toml:"sd_client"`
 	TrustDB        truststorage.TrustDBConf
-	Infra          env.Infra
 	Discovery      idiscovery.Config
 	CS             CSConfig
 	EnableQUICTest bool
 }
 
-func (c *Config) Init(confDir string) error {
-	c.Discovery.InitDefaults()
-	return c.CS.Init(confDir)
+func (cfg *Config) InitDefaults() {
+	config.InitAll(
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Sciond,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.CS,
+	)
 }
+
+func (cfg *Config) Validate() error {
+	return config.ValidateAll(
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Sciond,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.CS,
+	)
+}
+
+func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.General,
+		&cfg.Sciond,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.CS,
+	)
+}
+
+func (cfg *Config) ConfigName() string {
+	return "cs_config"
+}
+
+var _ config.Config = (*CSConfig)(nil)
 
 type CSConfig struct {
 	// LeafReissueLeadTime indicates how long in advance of leaf cert expiration
@@ -71,35 +113,41 @@ type CSConfig struct {
 	AutomaticRenewal bool
 }
 
-// Init sets the uninitialized fields.
-func (c *CSConfig) Init(confDir string) error {
-	c.initDefaults()
-	if c.LeafReissueLeadTime.Duration == 0 {
-		if err := c.loadLeafReissTime(confDir); err != nil {
-			return err
-		}
+func (cfg *CSConfig) InitDefaults() {
+	if cfg.LeafReissueLeadTime.Duration == 0 {
+		cfg.LeafReissueLeadTime.Duration = LeafReissTime
+	}
+	if cfg.IssuerReissueLeadTime.Duration == 0 {
+		cfg.IssuerReissueLeadTime.Duration = IssuerReissTime
+	}
+	if cfg.ReissueRate.Duration == 0 {
+		cfg.ReissueRate.Duration = ReissReqRate
+	}
+	if cfg.ReissueTimeout.Duration == 0 {
+		cfg.ReissueTimeout.Duration = ReissueReqTimeout
+	}
+}
+
+func (cfg *CSConfig) Validate() error {
+	if cfg.LeafReissueLeadTime.Duration == 0 {
+		return common.NewBasicError("LeafReissueLeadTime must not be zero", nil)
+	}
+	if cfg.IssuerReissueLeadTime.Duration == 0 {
+		return common.NewBasicError("IssuerReissueLeadTime must not be zero", nil)
+	}
+	if cfg.ReissueRate.Duration == 0 {
+		return common.NewBasicError("ReissueRate must not be zero", nil)
+	}
+	if cfg.ReissueTimeout.Duration == 0 {
+		return common.NewBasicError("ReissueTimeout must not be zero", nil)
 	}
 	return nil
 }
 
-func (c *CSConfig) initDefaults() {
-	if c.IssuerReissueLeadTime.Duration == 0 {
-		c.IssuerReissueLeadTime.Duration = IssuerReissTime
-	}
-	if c.ReissueRate.Duration == 0 {
-		c.ReissueRate.Duration = ReissReqRate
-	}
-	if c.ReissueTimeout.Duration == 0 {
-		c.ReissueTimeout.Duration = ReissueReqTimeout
-	}
+func (cfg *CSConfig) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, csconfigSample)
 }
 
-// loadLeafReissTime loads the as conf and sets the LeafReissTime to the PathSegmentTTL
-// to provide optimal coverage.
-func (c *CSConfig) loadLeafReissTime(confDir string) error {
-	if err := as_conf.Load(filepath.Join(confDir, as_conf.CfgName)); err != nil {
-		return err
-	}
-	c.LeafReissueLeadTime.Duration = time.Duration(as_conf.CurrConf.PathSegmentTTL) * time.Second
-	return nil
+func (cfg *CSConfig) ConfigName() string {
+	return "cs"
 }

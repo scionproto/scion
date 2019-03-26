@@ -28,7 +28,7 @@ func InitTestConfig(cfg *idiscovery.Config) {
 	cfg.Static.Filename = "topology.json"
 }
 
-func CheckTestConfig(cfg idiscovery.Config) {
+func CheckTestConfig(cfg *idiscovery.Config) {
 	Convey("The static part should be correct", func() {
 		checkCommon(cfg.Static.FetchConfig)
 		SoMsg("Discovery.Static.Filename correct", cfg.Static.Filename, ShouldBeBlank)

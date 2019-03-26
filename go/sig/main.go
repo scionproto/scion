@@ -44,15 +44,8 @@ import (
 	"github.com/scionproto/scion/go/sig/xnet"
 )
 
-type Config struct {
-	Logging env.Logging
-	Metrics env.Metrics
-	Sciond  env.SciondClient `toml:"sd_client"`
-	Sig     sigconfig.Conf
-}
-
 var (
-	cfg Config
+	cfg sigconfig.Config
 )
 
 func init() {
@@ -67,7 +60,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if v, ok := env.CheckFlags(sigconfig.Sample); !ok {
+	if v, ok := env.CheckFlags(&cfg); !ok {
 		return v
 	}
 	if err := setupBasic(); err != nil {
@@ -123,6 +116,7 @@ func setupBasic() error {
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
+	cfg.InitDefaults()
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
@@ -130,11 +124,9 @@ func setupBasic() error {
 }
 
 func validateConfig() error {
-	if err := cfg.Sig.Validate(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		return err
 	}
-	env.InitSciondClient(&cfg.Sciond)
-	cfg.Sig.InitDefaults()
 	if cfg.Metrics.Prometheus == "" {
 		cfg.Metrics.Prometheus = "127.0.0.1:1281"
 	}

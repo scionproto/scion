@@ -14,69 +14,33 @@
 
 package sigconfig
 
-const Sample = `
-[sig]
-  # ID of the SIG (required)
-  ID = "sig4"
+const idSample = "sig4"
 
-  # The SIG config json file. (required)
-  SIGConfig = "/etc/scion/sig/sig.json"
+const sigSample = `
+# ID of the SIG. (required)
+ID = "%s"
 
-  # The local IA (required)
-  IA = "1-ff00:0:113"
+# The SIG config json file. (required)
+SIGConfig = "/etc/scion/sig/sig.json"
 
-  # The bind IP address (required)
-  IP = "192.0.2.100"
+# The local IA. (required)
+IA = "1-ff00:0:113"
 
-  # Control data port, e.g. keepalives. (default 10081)
-  CtrlPort = 10081
+# The bind IP address. (required)
+IP = "192.0.2.100"
 
-  # Encapsulation data port. (default 10080)
-  EncapPort = 10080
+# Control data port, e.g. keepalives. (default 10081)
+CtrlPort = 10081
 
-  # SCION dispatcher path. (default "")
-  Dispatcher = ""
+# Encapsulation data port. (default 10080)
+EncapPort = 10080
 
-  # Name of TUN device to create. (default DefaultTunName)
-  Tun = "sig"
+# SCION dispatcher path. (default "")
+Dispatcher = ""
 
-  # Id of the routing table (default 11)
-  TunRTableId = 11
+# Name of TUN device to create. (default DefaultTunName)
+Tun = "sig"
 
-[sd_client]
-  # Sciond path. It defaults to sciond.DefaultSCIONDPath.
-  Path = "/run/shm/sciond/default.sock"
-
-  # Maximum time spent attempting to connect to sciond on start. (default 20s)
-  InitialConnectPeriod = "20s"
-
-[logging]
-[logging.file]
-  # Location of the logging file.
-  Path = "/var/log/scion/sig4.log"
-
-  # File logging level (trace|debug|info|warn|error|crit) (default debug)
-  Level = "debug"
-
-  # Max size of log file in MiB (default 50)
-  # Size = 50
-
-  # Max age of log file in days (default 7)
-  # MaxAge = 7
-
-  # MaxBackups is the maximum number of log files to retain (default 10)
-  # MaxBackups = 10
-
-  # How frequently to flush to the log file, in seconds. If 0, all messages
-  # are immediately flushed. If negative, messages are never flushed
-  # automatically. (default 5)
-  FlushInterval = 5
-[logging.console]
-  # Console logging level (trace|debug|info|warn|error|crit) (default crit)
-  Level = "crit"
-
-[metrics]
-# The address to export prometheus metrics on. (default 127.0.0.1:1281)
-  Prometheus = "127.0.0.1:8000"
-
+# Id of the routing table. (default 11)
+TunRTableId = 11
 `

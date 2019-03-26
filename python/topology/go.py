@@ -107,13 +107,10 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
-            'infra': {
-                'Type': "PS"
-            },
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'ps': {
-                'PathDB': {
+                'pathDB': {
                     'Backend': 'sqlite',
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
@@ -140,13 +137,13 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
                 'Public': '%s,[127.0.0.1]:0' % ia,
-                'PathDB': {
+                'pathDB': {
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
             },
@@ -178,10 +175,7 @@ class GoGenerator(object):
                 'Path': get_default_sciond_path(topo_id),
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
-            'infra': {
-                'Type': "CS"
-            },
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'cs': {
                 'LeafReissueLeadTime': "6h",

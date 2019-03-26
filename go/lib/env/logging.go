@@ -16,10 +16,12 @@ package env
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -31,7 +33,10 @@ var (
 	StartupBuildChain string
 )
 
+var _ (config.Config) = (*Logging)(nil)
+
 type Logging struct {
+	config.NoValidator
 	File struct {
 		// Path is the location of the logging file. If unset, no file logging
 		// is performed.
@@ -55,9 +60,9 @@ type Logging struct {
 	}
 }
 
-// setDefaults populates unset fields in cfg to their default values (if they
+// InitDefaults populates unset fields in cfg to their default values (if they
 // have one).
-func (cfg *Logging) setDefaults() {
+func (cfg *Logging) InitDefaults() {
 	if cfg.Console.Level == "" {
 		cfg.Console.Level = log.DefaultConsoleLevel
 	}
@@ -79,9 +84,26 @@ func (cfg *Logging) setDefaults() {
 	}
 }
 
+func (cfg *Logging) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteSample(dst, path, nil,
+		config.StringSampler{
+			Text: fmt.Sprintf(loggingFileSample, ctx[config.ID]),
+			Name: "file",
+		},
+		config.StringSampler{
+			Text: loggingConsoleSample,
+			Name: "console",
+		},
+	)
+}
+
+func (cfg *Logging) ConfigName() string {
+	return "logging"
+}
+
 // InitLogging initializes logging and sets the root logger Log.
 func InitLogging(cfg *Logging) error {
-	cfg.setDefaults()
+	cfg.InitDefaults()
 	if err := setupFileLogging(cfg); err != nil {
 		return err
 	}

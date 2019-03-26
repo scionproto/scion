@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
@@ -6,12 +6,14 @@ go_library(
         "env.go",
         "flags.go",
         "logging.go",
+        "sample.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/env",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
+        "//go/lib/config:go_default_library",
         "//go/lib/fatal:go_default_library",
         "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/log:go_default_library",
@@ -22,17 +24,5 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
-    ],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["env_test.go"],
-    data = glob(["testdata/**"]),
-    embed = [":go_default_library"],
-    deps = [
-        "//go/lib/truststorage:go_default_library",
-        "@com_github_burntsushi_toml//:go_default_library",
-        "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],
 )

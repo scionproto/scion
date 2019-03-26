@@ -82,7 +82,7 @@ func (r *Router) Start() {
 // ReloadConfig handles reloading the configuration when SIGHUP is received.
 func (r *Router) ReloadConfig() error {
 	var err error
-	var config *brconf.Conf
+	var config *brconf.BRConf
 	if config, err = r.loadNewConfig(); err != nil {
 		return common.NewBasicError("Unable to load config", err)
 	}
