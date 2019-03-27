@@ -24,13 +24,17 @@ import (
 )
 
 func InitTestPathDBConf(cfg *pathstorage.PathDBConf) {
-	*cfg = make(pathstorage.PathDBConf)
+	if *cfg == nil {
+		*cfg = make(pathstorage.PathDBConf)
+	}
 	(*cfg)[pathstorage.MaxOpenConnsKey] = "maxOpenConns"
 	(*cfg)[pathstorage.MaxIdleConnsKey] = "maxIdleConns"
 }
 
 func InitTestRevCacheConf(cfg *pathstorage.RevCacheConf) {
-	*cfg = make(pathstorage.RevCacheConf)
+	if *cfg == nil {
+		*cfg = make(pathstorage.RevCacheConf)
+	}
 	(*cfg)[pathstorage.MaxOpenConnsKey] = "maxOpenConns"
 	(*cfg)[pathstorage.MaxIdleConnsKey] = "maxIdleConns"
 }

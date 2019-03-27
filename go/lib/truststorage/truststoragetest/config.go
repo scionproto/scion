@@ -24,7 +24,9 @@ import (
 )
 
 func InitTestConfig(cfg *truststorage.TrustDBConf) {
-	*cfg = make(truststorage.TrustDBConf)
+	if *cfg == nil {
+		*cfg = make(truststorage.TrustDBConf)
+	}
 	(*cfg)[truststorage.MaxOpenConnsKey] = "maxOpenConns"
 	(*cfg)[truststorage.MaxIdleConnsKey] = "maxIdleConns"
 }
@@ -36,7 +38,6 @@ func CheckTestConfig(cfg *truststorage.TrustDBConf, id string) {
 	SoMsg("Backend correct", cfg.Backend(), ShouldEqual, truststorage.BackendSqlite)
 	SoMsg("Connection correct", cfg.Connection(), ShouldEqual,
 		fmt.Sprintf("/var/lib/scion/spki/%s.trust.db", id))
-
 }
 
 func isSet(_ int, set bool) bool {
