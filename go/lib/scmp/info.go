@@ -20,6 +20,7 @@ import (
 	"gopkg.in/restruct.v1"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -232,8 +233,9 @@ func (r *InfoRevocation) Write(b common.RawBytes) (int, error) {
 }
 
 func (r *InfoRevocation) String() string {
-	return fmt.Sprintf("InfoF=%d HopF=%d IfID=%d Ingress=%v RawSRev=%v",
-		r.InfoF, r.HopF, r.IfID, r.Ingress, r.RawSRev)
+	sRevInfo, _ := path_mgmt.NewSignedRevInfoFromRaw(r.RawSRev)
+	return fmt.Sprintf("InfoF=%d HopF=%d IfID=%d Ingress=%v SRev=%v",
+		r.InfoF, r.HopF, r.IfID, r.Ingress, sRevInfo)
 }
 
 var _ Info = (*InfoExtIdx)(nil)
