@@ -87,7 +87,8 @@ func setup() error {
 // initState sets the state.
 func initState(cfg *config.Config) error {
 	topo := itopo.Get()
-	trustDB, err := cfg.TrustDB.New()
+	var err error
+	trustDB, err = cfg.TrustDB.New()
 	if err != nil {
 		return common.NewBasicError("Unable to initialize trustDB", err)
 	}

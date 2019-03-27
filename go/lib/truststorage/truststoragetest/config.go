@@ -23,11 +23,21 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-func InitTestConfig(cfg *truststorage.TrustDBConf) {}
+func InitTestConfig(cfg *truststorage.TrustDBConf) {
+	(*cfg)[truststorage.MaxOpenConnsKey] = "maxOpenConns"
+	(*cfg)[truststorage.MaxIdleConnsKey] = "maxIdleConns"
+}
 
 func CheckTestConfig(cfg *truststorage.TrustDBConf, id string) {
 	util.LowerKeys(*cfg)
+	SoMsg("MaxOpenConns", stripInt(cfg.MaxOpenConns()), ShouldBeFalse)
+	SoMsg("MaxIdleConns", stripInt(cfg.MaxIdleConns()), ShouldBeFalse)
 	SoMsg("Backend correct", cfg.Backend(), ShouldEqual, truststorage.BackendSqlite)
 	SoMsg("Connection correct", cfg.Connection(), ShouldEqual,
 		fmt.Sprintf("/var/lib/scion/spki/%s.trust.db", id))
+
+}
+
+func stripInt(_ int, set bool) bool {
+	return set
 }

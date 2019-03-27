@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 )
@@ -46,6 +47,7 @@ var (
 	discRunners idiscovery.Runners
 	corePusher  *periodic.Runner
 	msgr        infra.Messenger
+	trustDB     trustdb.TrustDB
 )
 
 func init() {
@@ -192,4 +194,5 @@ func stop() {
 	stopReissRunner()
 	discRunners.Stop()
 	msgr.CloseServer()
+	trustDB.Close()
 }

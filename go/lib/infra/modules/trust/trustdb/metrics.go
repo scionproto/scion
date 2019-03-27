@@ -203,6 +203,14 @@ func (db *metricsTrustDB) BeginTransaction(ctx context.Context,
 	}, err
 }
 
+func (db *metricsTrustDB) SetMaxOpenConns(maxOpenConns int) {
+	db.db.SetMaxOpenConns(maxOpenConns)
+}
+
+func (db *metricsTrustDB) SetMaxIdleConns(maxIdleConns int) {
+	db.db.SetMaxIdleConns(maxIdleConns)
+}
+
 func (db *metricsTrustDB) Close() error {
 	return db.db.Close()
 }

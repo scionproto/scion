@@ -12,20 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package truststorage
+package db
 
-const trustDbSample = `
-# The type of trustdb backend. (default sqlite)
-Backend = "sqlite"
-
-# Connection for the trust database.
-Connection = "/var/lib/scion/spki/%s.trust.db"
-
-# The maximum number of open connections to the database. In case of the
-# empty string, the limit is not set and uses the go default. (default "")
-MaxOpenConns = ""
-
-# The maximum number of idle connections to the database. In case of the
-# empty string, the limit is not set and uses the go default. (default "")
-MaxIdleConns = ""
-`
+// LimitSetter allows setting the database connection limits.
+type LimitSetter interface {
+	SetMaxOpenConns(maxOpenConns int)
+	SetMaxIdleConns(maxIdleConns int)
+}

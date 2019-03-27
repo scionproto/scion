@@ -199,6 +199,14 @@ func New(path string) (trustdb.TrustDB, error) {
 	return tdb, nil
 }
 
+func (db *tdb) SetMaxOpenConns(maxOpenConns int) {
+	db.db.SetMaxOpenConns(maxOpenConns)
+}
+
+func (db *tdb) SetMaxIdleConns(maxIdleConns int) {
+	db.db.SetMaxIdleConns(maxIdleConns)
+}
+
 // Close closes the database connection.
 func (db *tdb) Close() error {
 	return db.db.Close()

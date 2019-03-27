@@ -17,10 +17,12 @@ package revcache
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
 // Key denotes the key for the revocation cache.
@@ -78,6 +80,8 @@ type RevCache interface {
 	// ever growing cache.
 	// Returns the amount of deleted entries.
 	DeleteExpired(ctx context.Context) (int64, error)
+	db.LimitSetter
+	io.Closer
 }
 
 // Revocations is the map of revocations.

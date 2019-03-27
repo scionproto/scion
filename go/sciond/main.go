@@ -92,11 +92,14 @@ func realMain() int {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
+	defer pathDB.Close()
+	defer revCache.Close()
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
+	defer trustDB.Close()
 	trustStore, err := trust.NewStore(trustDB, itopo.Get().ISD_AS, nil, log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)

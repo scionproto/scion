@@ -164,6 +164,17 @@ type metricsPathDB struct {
 	db PathDB
 }
 
+func (db *metricsPathDB) Close() error {
+	return db.db.Close()
+}
+
+func (db *metricsPathDB) SetMaxOpenConns(maxOpenConns int) {
+	db.db.SetMaxOpenConns(maxOpenConns)
+}
+func (db *metricsPathDB) SetMaxIdleConns(maxIdleConns int) {
+	db.db.SetMaxIdleConns(maxIdleConns)
+}
+
 func (db *metricsPathDB) BeginTransaction(ctx context.Context,
 	opts *sql.TxOptions) (Transaction, error) {
 

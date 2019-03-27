@@ -68,6 +68,17 @@ func New(path string) (*Backend, error) {
 	}, nil
 }
 
+func (b *Backend) Close() error {
+	return b.db.Close()
+}
+
+func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
+	b.db.SetMaxOpenConns(maxOpenConns)
+}
+func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
+	b.db.SetMaxIdleConns(maxIdleConns)
+}
+
 func (b *Backend) BeginTransaction(ctx context.Context,
 	opts *sql.TxOptions) (pathdb.Transaction, error) {
 
