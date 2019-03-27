@@ -28,9 +28,8 @@ import (
 func TestConfigSample(t *testing.T) {
 	Convey("Sample correct", t, func() {
 		var sample bytes.Buffer
-		cfg := make(truststorage.TrustDBConf, 1)
+		var cfg truststorage.TrustDBConf
 		cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
-		SoMsg("n", cfg, ShouldNotBeNil)
 		InitTestConfig(&cfg)
 		meta, err := toml.Decode(sample.String(), &cfg)
 		SoMsg("err", err, ShouldBeNil)
