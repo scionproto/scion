@@ -15,10 +15,12 @@
 package idiscovery
 
 import (
+	"io"
 	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -34,6 +36,8 @@ var (
 	DefaultInitialConnectPeriod = 20 * time.Second
 )
 
+var _ config.Config = (*Config)(nil)
+
 type Config struct {
 	// Static contains the parameters for fetching the static
 	// topology from the discovery service.
@@ -43,10 +47,23 @@ type Config struct {
 	Dynamic FetchConfig
 }
 
-func (c *Config) InitDefaults() {
-	c.Static.InitDefaults()
-	c.Dynamic.InitDefaults()
+func (cfg *Config) InitDefaults() {
+	config.InitAll(&cfg.Static, &cfg.Dynamic)
 }
+
+func (cfg *Config) Validate() error {
+	return config.ValidateAll(&cfg.Static, &cfg.Dynamic)
+}
+
+func (cfg *Config) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteSample(dst, path, ctx, &cfg.Static, &cfg.Dynamic)
+}
+
+func (cfg *Config) ConfigName() string {
+	return "discovery"
+}
+
+var _ config.Config = (*StaticConfig)(nil)
 
 type StaticConfig struct {
 	FetchConfig
@@ -55,15 +72,26 @@ type StaticConfig struct {
 	Filename string
 }
 
-func (s *StaticConfig) InitDefaults() {
-	s.Connect.InitDefaults()
-	if s.Interval.Duration == 0 {
-		s.Interval.Duration = DefaultStaticFetchInterval
+func (cfg *StaticConfig) InitDefaults() {
+	cfg.Connect.InitDefaults()
+	if cfg.Interval.Duration == 0 {
+		cfg.Interval.Duration = DefaultStaticFetchInterval
 	}
-	if s.Timeout.Duration == 0 {
-		s.Timeout.Duration = DefaultFetchTimeout
+	if cfg.Timeout.Duration == 0 {
+		cfg.Timeout.Duration = DefaultFetchTimeout
 	}
 }
+
+func (cfg *StaticConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, staticSample)
+	config.WriteSample(dst, path, ctx, &cfg.Connect)
+}
+
+func (cfg *StaticConfig) ConfigName() string {
+	return "static"
+}
+
+var _ config.Config = (*FetchConfig)(nil)
 
 type FetchConfig struct {
 	// Enable indicates whether the discovery service is queried
@@ -80,15 +108,36 @@ type FetchConfig struct {
 	Connect ConnectParams
 }
 
-func (f *FetchConfig) InitDefaults() {
-	f.Connect.InitDefaults()
-	if f.Interval.Duration == 0 {
-		f.Interval.Duration = DefaultDynamicFetchInterval
+func (cfg *FetchConfig) InitDefaults() {
+	cfg.Connect.InitDefaults()
+	if cfg.Interval.Duration == 0 {
+		cfg.Interval.Duration = DefaultDynamicFetchInterval
 	}
-	if f.Timeout.Duration == 0 {
-		f.Timeout.Duration = DefaultFetchTimeout
+	if cfg.Timeout.Duration == 0 {
+		cfg.Timeout.Duration = DefaultFetchTimeout
 	}
 }
+
+func (cfg *FetchConfig) Validate() error {
+	if cfg.Interval.Duration == 0 {
+		return common.NewBasicError("Interval must not be zero", nil)
+	}
+	if cfg.Timeout.Duration == 0 {
+		return common.NewBasicError("Timeout must not be zero", nil)
+	}
+	return cfg.Connect.Validate()
+}
+
+func (cfg *FetchConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, dynamicSample)
+	config.WriteSample(dst, path, ctx, &cfg.Connect)
+}
+
+func (cfg *FetchConfig) ConfigName() string {
+	return "dynamic"
+}
+
+var _ config.Config = (*ConnectParams)(nil)
 
 type ConnectParams struct {
 	// InitialPeriod indicates for how long the process tries to get a valid
@@ -99,13 +148,28 @@ type ConnectParams struct {
 	FailAction FailAction
 }
 
-func (c *ConnectParams) InitDefaults() {
-	if c.InitialPeriod.Duration == 0 {
-		c.InitialPeriod.Duration = DefaultInitialConnectPeriod
+func (cfg *ConnectParams) InitDefaults() {
+	if cfg.InitialPeriod.Duration == 0 {
+		cfg.InitialPeriod.Duration = DefaultInitialConnectPeriod
 	}
-	if c.FailAction != FailActionFatal {
-		c.FailAction = FailActionContinue
+	if cfg.FailAction != FailActionFatal {
+		cfg.FailAction = FailActionContinue
 	}
+}
+
+func (cfg *ConnectParams) Validate() error {
+	if cfg.InitialPeriod.Duration == 0 {
+		return common.NewBasicError("InitialPeriod must not be zero", nil)
+	}
+	return cfg.FailAction.Validate()
+}
+
+func (cfg *ConnectParams) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, connectSample)
+}
+
+func (cfg *ConnectParams) ConfigName() string {
+	return "connect"
 }
 
 type FailAction string
@@ -116,6 +180,15 @@ const (
 	// FailActionContinue indicates that the process continues on error.
 	FailActionContinue FailAction = "Continue"
 )
+
+func (f *FailAction) Validate() error {
+	switch *f {
+	case FailActionContinue, FailActionFatal:
+		return nil
+	default:
+		return common.NewBasicError("Unknown FailAction", nil, "input", string(*f))
+	}
+}
 
 func (f *FailAction) UnmarshalText(text []byte) error {
 	switch strings.ToLower(string(text)) {

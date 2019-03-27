@@ -15,12 +15,17 @@
 package pathstorage
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	sqlitepathdb "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 type Backend string
@@ -31,52 +36,117 @@ const (
 	BackendMem    Backend = "mem"
 )
 
+const (
+	BackendKey    = "backend"
+	ConnectionKey = "connection"
+)
+
+var _ config.Config = (*PathDBConf)(nil)
+
 // PathDBConf is the configuration for the connection to the path database.
-type PathDBConf struct {
-	Backend    Backend
-	Connection string
+type PathDBConf map[string]string
+
+// InitDefaults choses the sqlite backend if no backend is set.
+func (cfg *PathDBConf) InitDefaults() {
+	if *cfg == nil {
+		*cfg = make(PathDBConf)
+	}
+	m := *cfg
+	util.LowerKeys(m)
+	if cfg.Backend() == BackendNone {
+		m[BackendKey] = string(BackendSqlite)
+	}
 }
 
-// InitDefaults choses the sqlite backend if no backned is set.
-func (c *PathDBConf) InitDefaults() {
-	if c.Backend == BackendNone {
-		c.Backend = BackendSqlite
-	}
+func (cfg *PathDBConf) Backend() Backend {
+	return Backend((*cfg)[BackendKey])
+}
+
+func (cfg *PathDBConf) Connection() string {
+	return (*cfg)[ConnectionKey]
 }
 
 // Validate validates the configuration, should be called after InitDefaults.
-func (c *PathDBConf) validate() error {
-	if c.Backend == BackendNone {
+func (cfg *PathDBConf) Validate() error {
+	switch cfg.Backend() {
+	case BackendSqlite:
+		return nil
+	case BackendNone:
 		return common.NewBasicError("No backend set", nil)
 	}
-	if c.Connection == "" {
+	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
+}
+
+func (cfg *PathDBConf) validate() error {
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	if cfg.Connection() == "" {
 		return common.NewBasicError("Empty connection not allowed", nil)
 	}
 	return nil
 }
+
+func (cfg *PathDBConf) Sample(dst io.Writer, _ config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(pathDbSample, ctx[config.ID]))
+}
+
+func (cfg *PathDBConf) ConfigName() string {
+	return "pathDB"
+}
+
+var _ config.Config = (*RevCacheConf)(nil)
 
 // RevCacheConf is the configuration for the connection to the revocation cache.
-type RevCacheConf struct {
-	Backend    Backend
-	Connection string
-}
+type RevCacheConf map[string]string
 
 // InitDefaults chooses the in-memory backend if no backend is set.
-func (c *RevCacheConf) InitDefaults() {
-	if c.Backend == BackendNone {
-		c.Backend = BackendMem
+func (cfg *RevCacheConf) InitDefaults() {
+	if *cfg == nil {
+		*cfg = make(RevCacheConf)
 	}
+	m := *cfg
+	util.LowerKeys(m)
+	if cfg.Backend() == BackendNone {
+		m[BackendKey] = string(BackendMem)
+	}
+}
+
+func (cfg *RevCacheConf) Backend() Backend {
+	return Backend((*cfg)[BackendKey])
+}
+
+func (cfg *RevCacheConf) Connection() string {
+	return (*cfg)[ConnectionKey]
 }
 
 // Validate validates the configuration, should be called after InitDefaults.
-func (c *RevCacheConf) validate() error {
-	if c.Backend == BackendNone {
+func (cfg *RevCacheConf) Validate() error {
+	switch cfg.Backend() {
+	case BackendSqlite, BackendMem:
+		return nil
+	case BackendNone:
 		return common.NewBasicError("No backend set", nil)
 	}
-	if c.Backend != BackendMem && c.Connection == "" {
+	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
+}
+
+func (cfg *RevCacheConf) validate() error {
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	if cfg.Backend() != BackendMem && cfg.Connection() == "" {
 		return common.NewBasicError("Empty connection not allowed", nil)
 	}
 	return nil
+}
+
+func (cfg *RevCacheConf) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
+	config.WriteString(dst, revSample)
+}
+
+func (cfg *RevCacheConf) ConfigName() string {
+	return "revCache"
 }
 
 // NewPathStorage creates a PathStorage from the given configs.
@@ -107,7 +177,7 @@ func NewPathStorage(pdbConf PathDBConf,
 }
 
 func sameBackend(pdbConf PathDBConf, rcConf RevCacheConf) bool {
-	return pdbConf.Backend == rcConf.Backend && pdbConf.Backend != BackendNone
+	return pdbConf.Backend() == rcConf.Backend() && pdbConf.Backend() != BackendNone
 }
 
 func newCombinedBackend(pdbConf PathDBConf,
@@ -117,25 +187,25 @@ func newCombinedBackend(pdbConf PathDBConf,
 }
 
 func newPathDB(conf PathDBConf) (pathdb.PathDB, error) {
-	log.Info("Connecting PathDB", "backend", conf.Backend, "connection", conf.Connection)
-	switch conf.Backend {
+	log.Info("Connecting PathDB", "backend", conf.Backend(), "connection", conf.Connection())
+	switch conf.Backend() {
 	case BackendSqlite:
-		return sqlitepathdb.New(conf.Connection)
+		return sqlitepathdb.New(conf.Connection())
 	case BackendNone:
 		return nil, nil
 	default:
-		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
+		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend())
 	}
 }
 
 func newRevCache(conf RevCacheConf) (revcache.RevCache, error) {
-	log.Info("Connecting RevCache", "backend", conf.Backend, "connection", conf.Connection)
-	switch conf.Backend {
+	log.Info("Connecting RevCache", "backend", conf.Backend(), "connection", conf.Connection())
+	switch conf.Backend() {
 	case BackendMem:
 		return memrevcache.New(), nil
 	case BackendNone:
 		return nil, nil
 	default:
-		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
+		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend())
 	}
 }

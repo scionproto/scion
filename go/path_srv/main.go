@@ -41,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
@@ -69,7 +70,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if v, ok := env.CheckFlags(config.Sample); !ok {
+	if v, ok := env.CheckFlags(&cfg); !ok {
 		return v
 	}
 	if err := setupBasic(); err != nil {
@@ -197,7 +198,7 @@ func (t *periodicTasks) Start() {
 		return
 	}
 	var err error
-	if cfg.PS.SegSync && cfg.General.Topology.Core {
+	if cfg.PS.SegSync && itopo.Get().Core {
 		t.segSyncers, err = segsyncer.StartAll(t.args, t.msger)
 		if err != nil {
 			fatal.Fatal(common.NewBasicError("Unable to start seg syncer", err))
@@ -242,6 +243,7 @@ func setupBasic() error {
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
+	cfg.InitDefaults()
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
@@ -250,14 +252,17 @@ func setupBasic() error {
 }
 
 func setup() error {
-	if err := env.InitGeneral(&cfg.General); err != nil {
-		return err
+	if err := cfg.Validate(); err != nil {
+		return common.NewBasicError("Unable to validate config", err)
 	}
 	itopo.Init(cfg.General.ID, proto.ServiceType_ps, itopo.Callbacks{})
-	if _, _, err := itopo.SetStatic(cfg.General.Topology, false); err != nil {
+	topo, err := topology.LoadFromFile(cfg.General.Topology)
+	if err != nil {
+		return common.NewBasicError("Unable to load topology", err)
+	}
+	if _, _, err := itopo.SetStatic(topo, false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
-	environment = infraenv.InitInfraEnvironment(cfg.General.TopologyPath)
-	cfg.InitDefaults()
+	environment = infraenv.InitInfraEnvironment(cfg.General.Topology)
 	return nil
 }

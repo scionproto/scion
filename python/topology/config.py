@@ -266,18 +266,21 @@ class ConfigGenerator(object):
             with open(script_name, 'w') as script:
                 script.write('#!/bin/bash\n\n')
                 for cust_dir, cs_name in cust_pk.items():
-                    conf_entry = trust_db_conf_entry(self.args, cs_name)
-                    # If we build the dockerized topology the directory is setup to be reachable
-                    # from docker, but the tool runs on the host, so we resolve the bind mount here.
-                    conf_entry['Connection'] = conf_entry['Connection'].replace('/share/cache',
-                                                                                'gen-cache')
+                    conf_entry = self._cust_db_conf_entry(cs_name)
                     script.write('cat > cfg.toml << EOL\n%sEOL\n\n'
-                                 % toml.dumps({'TrustDB': conf_entry}))
+                                 % toml.dumps({'trustDB': conf_entry}))
                     script.write('bin/scion-custpk-load -customers %s -config %s\n' % (cust_dir,
                                                                                        'cfg.toml'))
                 script.write('rm cfg.toml\n')
             st = os.stat(script_name)
             os.chmod(script_name, st.st_mode | stat.S_IEXEC)
+
+    def _cust_db_conf_entry(self, cs_name):
+        conf_entry = trust_db_conf_entry(self.args, cs_name)
+        # If we build the dockerized topology the directory is setup to be reachable
+        # from docker, but the tool runs on the host, so we resolve the bind mount here.
+        conf_entry['Connection'] = conf_entry['Connection'].replace('/share/cache', 'gen-cache')
+        return conf_entry
 
     def _write_conf_policies(self, topo_dicts):
         """

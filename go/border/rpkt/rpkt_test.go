@@ -47,7 +47,7 @@ func prepareRtrPacketSample() *RtrPkt {
 	r := NewRtrPkt()
 	r.Raw = MustLoad(rawUdpPkt)
 	// Set some other data that are required for the parsing to succeed:
-	var config = &brconf.Conf{
+	var config = &brconf.BRConf{
 		IA: addr.IA{I: 1, A: 2},
 		Net: &netconf.NetConf{
 			IFs: map[common.IFIDType]*netconf.Interface{5: nil},

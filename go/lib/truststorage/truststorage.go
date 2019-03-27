@@ -18,10 +18,15 @@
 package truststorage
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 type Backend string
@@ -31,26 +36,61 @@ const (
 	BackendSqlite Backend = "sqlite"
 )
 
-// TrustDBConf is the configuration for the connection to the trust database.
-type TrustDBConf struct {
-	// Backend is the type of backend for this db. If empty (BackendNone) the default is selected.
-	Backend    Backend
-	Connection string
-}
+const (
+	BackendKey    = "backend"
+	ConnectionKey = "connection"
+)
 
-// New creates a TrustDB from the config.
-func (c TrustDBConf) New() (trustdb.TrustDB, error) {
-	log.Info("Connecting TrustDB", "backend", c.Backend, "connection", c.Connection)
-	switch c.Backend {
-	case BackendSqlite:
-		return trustdbsqlite.New(c.Connection)
-	case BackendNone:
-		return defaultBackend(c.Connection)
-	default:
-		return nil, common.NewBasicError("Unsupported backend", nil, "backend", c.Backend)
+var _ (config.Config) = (*TrustDBConf)(nil)
+
+// TrustDBConf is the configuration for the connection to the trust database.
+type TrustDBConf map[string]string
+
+// InitDefaults choses the sqlite backend if no backend is set.
+func (cfg *TrustDBConf) InitDefaults() {
+	if *cfg == nil {
+		*cfg = make(TrustDBConf)
+	}
+	m := *cfg
+	util.LowerKeys(m)
+	if cfg.Backend() == BackendNone {
+		m[BackendKey] = string(BackendSqlite)
 	}
 }
 
-func defaultBackend(connection string) (trustdb.TrustDB, error) {
-	return trustdbsqlite.New(connection)
+func (cfg *TrustDBConf) Backend() Backend {
+	return Backend((*cfg)[BackendKey])
+}
+
+func (cfg *TrustDBConf) Connection() string {
+	return (*cfg)[ConnectionKey]
+}
+
+func (cfg *TrustDBConf) Validate() error {
+	switch cfg.Backend() {
+	case BackendSqlite:
+		return nil
+	case BackendNone:
+		return common.NewBasicError("No backend set", nil)
+	}
+	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
+}
+
+func (cfg *TrustDBConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(trustDbSample, ctx[config.ID]))
+}
+
+func (cfg *TrustDBConf) ConfigName() string {
+	return "trustDB"
+}
+
+// New creates a TrustDB from the config.
+func (cfg *TrustDBConf) New() (trustdb.TrustDB, error) {
+	log.Info("Connecting TrustDB", "backend", cfg.Backend(), "connection", cfg.Connection())
+	switch cfg.Backend() {
+	case BackendSqlite:
+		return trustdbsqlite.New(cfg.Connection())
+	default:
+		return nil, common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
+	}
 }

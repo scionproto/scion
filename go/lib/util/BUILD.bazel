@@ -10,6 +10,7 @@ go_library(
         "duration.go",
         "duration_wrap.go",
         "file.go",
+        "map.go",
         "padding.go",
         "raw.go",
         "sync.go",

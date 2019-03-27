@@ -15,56 +15,53 @@
 package sigconfig
 
 import (
+	"bytes"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-type TestConfig struct {
-	Logging env.Logging
-	Metrics env.Metrics
-	Sciond  env.SciondClient `toml:"sd_client"`
-	Sig     Conf
+func TestConfigSample(t *testing.T) {
+	Convey("Sample is correct", t, func() {
+		var sample bytes.Buffer
+		var cfg Config
+		cfg.Sample(&sample, nil, nil)
+
+		InitTestConfig(&cfg)
+		meta, err := toml.Decode(sample.String(), &cfg)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
+		CheckTestConfig(&cfg, idSample)
+	})
 }
 
-func TestSample(t *testing.T) {
-	Convey("Sample values are correct", t, func() {
-		var cfg TestConfig
-		// Set to wrong string to make sure value from file is taken.
-		cfg.Sig.Dispatcher = "wrong one"
-		_, err := toml.Decode(Sample, &cfg)
-		SoMsg("err", err, ShouldBeNil)
+func InitTestConfig(cfg *Config) {
+	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, &cfg.Sciond)
+	InitTestSigConf(&cfg.Sig)
+}
 
-		// Sig values
-		SoMsg("ID correct", cfg.Sig.ID, ShouldEqual, "sig4")
-		SoMsg("SIGConfig correct", cfg.Sig.SIGConfig, ShouldEqual, "/etc/scion/sig/sig.json")
-		SoMsg("IA correct", cfg.Sig.IA, ShouldResemble, xtest.MustParseIA("1-ff00:0:113"))
-		SoMsg("IP correct", cfg.Sig.IP, ShouldResemble, net.ParseIP("192.0.2.100"))
-		SoMsg("CtrlPort correct", cfg.Sig.CtrlPort, ShouldEqual, DefaultCtrlPort)
-		SoMsg("EncapPort correct", cfg.Sig.EncapPort, ShouldEqual, DefaultEncapPort)
-		SoMsg("Dispatcher correct", cfg.Sig.Dispatcher, ShouldEqual, "")
-		SoMsg("Tun correct", cfg.Sig.Tun, ShouldEqual, "sig")
-		SoMsg("TunRTableId correct", cfg.Sig.TunRTableId, ShouldEqual, DefaultTunRTableId)
+func InitTestSigConf(cfg *SigConf) {
 
-		// Sciond values
-		SoMsg("SCIOND Path correct", cfg.Sciond.Path, ShouldEqual, sciond.DefaultSCIONDPath)
-		SoMsg("SCIOND Reconnect duration correct", cfg.Sciond.InitialConnectPeriod.Duration,
-			ShouldEqual, 20*time.Second)
+}
 
-		// Logging values
-		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "/var/log/scion/sig4.log")
-		SoMsg("LogLvl correct", cfg.Logging.File.Level, ShouldEqual, "debug")
-		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 5)
-		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "crit")
+func CheckTestConfig(cfg *Config, id string) {
+	envtest.CheckTest(nil, &cfg.Logging, &cfg.Metrics, &cfg.Sciond, id)
+	CheckTestSigConf(&cfg.Sig, id)
+}
 
-		// Metrics
-		SoMsg("Prom correct", cfg.Metrics.Prometheus, ShouldEqual, "127.0.0.1:8000")
-	})
+func CheckTestSigConf(cfg *SigConf, id string) {
+	SoMsg("ID correct", cfg.ID, ShouldEqual, "sig4")
+	SoMsg("SIGConfig correct", cfg.SIGConfig, ShouldEqual, "/etc/scion/sig/sig.json")
+	SoMsg("IA correct", cfg.IA, ShouldResemble, xtest.MustParseIA("1-ff00:0:113"))
+	SoMsg("IP correct", cfg.IP, ShouldResemble, net.ParseIP("192.0.2.100"))
+	SoMsg("CtrlPort correct", cfg.CtrlPort, ShouldEqual, DefaultCtrlPort)
+	SoMsg("EncapPort correct", cfg.EncapPort, ShouldEqual, DefaultEncapPort)
+	SoMsg("Dispatcher correct", cfg.Dispatcher, ShouldEqual, "")
+	SoMsg("Tun correct", cfg.Tun, ShouldEqual, DefaultTunName)
+	SoMsg("TunRTableId correct", cfg.TunRTableId, ShouldEqual, DefaultTunRTableId)
 }

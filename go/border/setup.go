@@ -75,7 +75,7 @@ func (r *Router) setup() error {
 
 	// Load config.
 	var err error
-	var conf *brconf.Conf
+	var conf *brconf.BRConf
 	if conf, err = r.loadNewConfig(); err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (r *Router) setup() error {
 	if err = r.clearCapabilities(); err != nil {
 		return err
 	}
-	config.Metrics.StartPrometheus()
+	cfg.Metrics.StartPrometheus()
 	return nil
 }
 
@@ -111,8 +111,8 @@ func (r *Router) clearCapabilities() error {
 }
 
 // loadNewConfig loads a new brconf.Conf object from the configuration file.
-func (r *Router) loadNewConfig() (*brconf.Conf, error) {
-	var config *brconf.Conf
+func (r *Router) loadNewConfig() (*brconf.BRConf, error) {
+	var config *brconf.BRConf
 	var err error
 	if config, err = brconf.Load(r.Id, r.confDir); err != nil {
 		return nil, common.NewBasicError("Failed to load topology config", err, "dir", r.confDir)
@@ -124,7 +124,7 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 
 // setupCtxFromConfig sets up a new router context from the loaded config.
 // This method is called on initial start and when a sighup is received.
-func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
+func (r *Router) setupCtxFromConfig(config *brconf.BRConf) error {
 	log.Debug("====> Setting up new context from config")
 	r.setCtxMtx.Lock()
 	defer r.setCtxMtx.Unlock()
@@ -150,7 +150,7 @@ func (r *Router) setupCtxFromConfig(config *brconf.Conf) error {
 func (r *Router) setupCtxFromStatic(topo *topology.Topo) (bool, error) {
 	r.setCtxMtx.Lock()
 	defer r.setCtxMtx.Unlock()
-	tx, err := itopo.BeginSetStatic(topo, config.Discovery.AllowSemiMutable)
+	tx, err := itopo.BeginSetStatic(topo, cfg.Discovery.AllowSemiMutable)
 	return r.setupCtxFromTopoUpdate(discovery.Static, tx, err)
 }
 
@@ -287,7 +287,7 @@ func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
 func (r *Router) startDiscovery() error {
 	var err error
 	var client *http.Client
-	if config.Discovery.Dynamic.Enable {
+	if cfg.Discovery.Dynamic.Enable {
 		if client, err = r.discoveryClient(); err != nil {
 			return common.NewBasicError("Unable to create discovery client", err)
 		}
@@ -296,7 +296,7 @@ func (r *Router) startDiscovery() error {
 		Static:  r.setupCtxFromStatic,
 		Dynamic: r.setupCtxFromDynamic,
 	}
-	_, err = idiscovery.StartRunners(config.Discovery.Config, discovery.Full, handlers, client)
+	_, err = idiscovery.StartRunners(cfg.Discovery.Config, discovery.Full, handlers, client)
 	if err != nil {
 		return common.NewBasicError("Unable to start discovery runners", err)
 	}
@@ -348,7 +348,7 @@ func startSocks(ctx *rctx.Ctx) {
 }
 
 func handleRollbackErr(err error) {
-	if config.BR.RollbackFailAction != brconf.FailActionContinue {
+	if cfg.BR.RollbackFailAction != brconf.FailActionContinue {
 		fatal.Fatal(err)
 	}
 	log.Crit("Error in rollback", "err", err)
