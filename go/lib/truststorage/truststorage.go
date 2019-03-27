@@ -122,23 +122,28 @@ func (cfg *TrustDBConf) ConfigName() string {
 // New creates a TrustDB from the config.
 func (cfg *TrustDBConf) New() (trustdb.TrustDB, error) {
 	log.Info("Connecting TrustDB", "backend", cfg.Backend(), "connection", cfg.Connection())
+	var err error
+	var tdb trustdb.TrustDB
+
 	switch cfg.Backend() {
 	case BackendSqlite:
-		return cfg.withConnLimits(trustdbsqlite.New(cfg.Connection()))
+		tdb, err = trustdbsqlite.New(cfg.Connection())
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 	}
+
+	if err != nil {
+		return nil, err
+	}
+	setConnLimits(cfg, tdb)
+	return tdb, nil
 }
 
-func (cfg *TrustDBConf) withConnLimits(db trustdb.TrustDB, err error) (trustdb.TrustDB, error) {
-	if err != nil {
-		return db, err
-	}
+func setConnLimits(cfg *TrustDBConf, tdb trustdb.TrustDB) {
 	if m, ok := cfg.MaxOpenConns(); ok {
-		db.SetMaxOpenConns(m)
+		tdb.SetMaxOpenConns(m)
 	}
 	if m, ok := cfg.MaxIdleConns(); ok {
-		db.SetMaxIdleConns(m)
+		tdb.SetMaxIdleConns(m)
 	}
-	return db, err
 }

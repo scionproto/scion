@@ -14,6 +14,10 @@
 
 package db
 
+import "database/sql"
+
+var _ LimitSetter = (*sql.DB)(nil)
+
 // LimitSetter allows setting the database connection limits.
 type LimitSetter interface {
 	SetMaxOpenConns(maxOpenConns int)

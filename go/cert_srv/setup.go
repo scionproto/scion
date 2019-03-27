@@ -88,8 +88,7 @@ func setup() error {
 func initState(cfg *config.Config) error {
 	topo := itopo.Get()
 	var err error
-	trustDB, err = cfg.TrustDB.New()
-	if err != nil {
+	if trustDB, err = cfg.TrustDB.New(); err != nil {
 		return common.NewBasicError("Unable to initialize trustDB", err)
 	}
 	trustDB = trustdb.WithMetrics("std", trustDB)

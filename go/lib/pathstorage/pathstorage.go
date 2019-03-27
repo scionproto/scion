@@ -237,9 +237,9 @@ func newCombinedBackend(pdbConf PathDBConf,
 
 func newPathDB(conf PathDBConf) (pathdb.PathDB, error) {
 	log.Info("Connecting PathDB", "backend", conf.Backend(), "connection", conf.Connection())
-
 	var err error
 	var pdb pathdb.PathDB
+
 	switch conf.Backend() {
 	case BackendSqlite:
 		pdb, err = sqlitepathdb.New(conf.Connection())
@@ -248,8 +248,12 @@ func newPathDB(conf PathDBConf) (pathdb.PathDB, error) {
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend())
 	}
-	return pdb, setConnLimitsOrErr(&conf, pdb, err)
 
+	if err != nil {
+		return nil, err
+	}
+	setConnLimits(&conf, pdb)
+	return pdb, nil
 }
 
 func newRevCache(conf RevCacheConf) (revcache.RevCache, error) {
@@ -269,16 +273,11 @@ type limitConfig interface {
 	MaxIdleConns() (int, bool)
 }
 
-// setConnLimitsOrErr sets the connection limits or returns the error if non-nil
-func setConnLimitsOrErr(cfg limitConfig, db db.LimitSetter, err error) error {
-	if err != nil {
-		return err
-	}
+func setConnLimits(cfg limitConfig, db db.LimitSetter) {
 	if m, ok := cfg.MaxOpenConns(); ok {
 		db.SetMaxOpenConns(m)
 	}
 	if m, ok := cfg.MaxIdleConns(); ok {
 		db.SetMaxIdleConns(m)
 	}
-	return nil
 }
