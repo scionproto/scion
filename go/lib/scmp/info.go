@@ -233,9 +233,13 @@ func (r *InfoRevocation) Write(b common.RawBytes) (int, error) {
 }
 
 func (r *InfoRevocation) String() string {
-	sRevInfo, _ := path_mgmt.NewSignedRevInfoFromRaw(r.RawSRev)
-	return fmt.Sprintf("InfoF=%d HopF=%d IfID=%d Ingress=%v SRev=%v",
-		r.InfoF, r.HopF, r.IfID, r.Ingress, sRevInfo)
+	revStr := fmt.Sprintf("InfoF=%d HopF=%d IfID=%d Ingress=%v",
+		r.InfoF, r.HopF, r.IfID, r.Ingress)
+	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(r.RawSRev)
+	if err != nil {
+		return fmt.Sprintf("%s RawSRev=%v", revStr, r.RawSRev)
+	}
+	return fmt.Sprintf("%s SRev=%s", revStr, sRevInfo)
 }
 
 var _ Info = (*InfoExtIdx)(nil)
