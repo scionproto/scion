@@ -23,12 +23,26 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-func InitTestPathDBConf(cfg *pathstorage.PathDBConf) {}
+func InitTestPathDBConf(cfg *pathstorage.PathDBConf) {
+	if *cfg == nil {
+		*cfg = make(pathstorage.PathDBConf)
+	}
+	(*cfg)[pathstorage.MaxOpenConnsKey] = "maxOpenConns"
+	(*cfg)[pathstorage.MaxIdleConnsKey] = "maxIdleConns"
+}
 
-func InitTestRevCacheConf(cfg *pathstorage.RevCacheConf) {}
+func InitTestRevCacheConf(cfg *pathstorage.RevCacheConf) {
+	if *cfg == nil {
+		*cfg = make(pathstorage.RevCacheConf)
+	}
+	(*cfg)[pathstorage.MaxOpenConnsKey] = "maxOpenConns"
+	(*cfg)[pathstorage.MaxIdleConnsKey] = "maxIdleConns"
+}
 
 func CheckTestPathDBConf(cfg *pathstorage.PathDBConf, id string) {
 	util.LowerKeys(*cfg)
+	SoMsg("MaxOpenConns", isSet(cfg.MaxOpenConns()), ShouldBeFalse)
+	SoMsg("MaxIdleConns", isSet(cfg.MaxIdleConns()), ShouldBeFalse)
 	SoMsg("Backend correct", cfg.Backend(), ShouldEqual, pathstorage.BackendSqlite)
 	SoMsg("Connection correct", cfg.Connection(), ShouldEqual,
 		fmt.Sprintf("/var/lib/scion/pathdb/%s.path.db", id))
@@ -36,5 +50,11 @@ func CheckTestPathDBConf(cfg *pathstorage.PathDBConf, id string) {
 
 func CheckTestRevCacheConf(cfg *pathstorage.RevCacheConf) {
 	util.LowerKeys(*cfg)
+	SoMsg("MaxOpenConns", isSet(cfg.MaxOpenConns()), ShouldBeFalse)
+	SoMsg("MaxIdleConns", isSet(cfg.MaxIdleConns()), ShouldBeFalse)
 	SoMsg("Backend correct", cfg.Backend(), ShouldEqual, pathstorage.BackendMem)
+}
+
+func isSet(_ int, set bool) bool {
+	return set
 }

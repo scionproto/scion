@@ -18,10 +18,12 @@ package pathdb
 import (
 	"context"
 	"database/sql"
+	"io"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 )
 
@@ -77,4 +79,6 @@ type Transaction interface {
 type PathDB interface {
 	ReadWrite
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	db.LimitSetter
+	io.Closer
 }

@@ -89,12 +89,15 @@ func realMain() int {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
+	defer revCache.Close()
 	pathDB = pathdb.WithMetrics("std", pathDB)
+	defer pathDB.Close()
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
+	defer trustDB.Close()
 	topo := itopo.Get()
 	trustConf := &trust.Config{
 		ServiceType: proto.ServiceType_ps,

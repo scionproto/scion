@@ -11,6 +11,7 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
+        "//go/lib/infra/modules/db:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathdb:go_default_library",
         "//go/lib/pathdb/sqlite:go_default_library",

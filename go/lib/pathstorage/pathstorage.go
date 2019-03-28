@@ -17,9 +17,11 @@ package pathstorage
 import (
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	sqlitepathdb "github.com/scionproto/scion/go/lib/pathdb/sqlite"
@@ -37,8 +39,10 @@ const (
 )
 
 const (
-	BackendKey    = "backend"
-	ConnectionKey = "connection"
+	BackendKey      = "backend"
+	ConnectionKey   = "connection"
+	MaxOpenConnsKey = "maxopenconns"
+	MaxIdleConnsKey = "maxidleconns"
 )
 
 var _ config.Config = (*PathDBConf)(nil)
@@ -66,8 +70,21 @@ func (cfg *PathDBConf) Connection() string {
 	return (*cfg)[ConnectionKey]
 }
 
+func (cfg *PathDBConf) MaxOpenConns() (int, bool) {
+	val, ok, _ := parsedInt(*cfg, MaxOpenConnsKey)
+	return val, ok
+}
+
+func (cfg *PathDBConf) MaxIdleConns() (int, bool) {
+	val, ok, _ := parsedInt(*cfg, MaxIdleConnsKey)
+	return val, ok
+}
+
 // Validate validates the configuration, should be called after InitDefaults.
 func (cfg *PathDBConf) Validate() error {
+	if err := validateLimits(*cfg); err != nil {
+		return err
+	}
 	switch cfg.Backend() {
 	case BackendSqlite:
 		return nil
@@ -120,8 +137,21 @@ func (cfg *RevCacheConf) Connection() string {
 	return (*cfg)[ConnectionKey]
 }
 
+func (cfg *RevCacheConf) MaxOpenConns() (int, bool) {
+	val, ok, _ := parsedInt(*cfg, MaxOpenConnsKey)
+	return val, ok
+}
+
+func (cfg *RevCacheConf) MaxIdleConns() (int, bool) {
+	val, ok, _ := parsedInt(*cfg, MaxIdleConnsKey)
+	return val, ok
+}
+
 // Validate validates the configuration, should be called after InitDefaults.
 func (cfg *RevCacheConf) Validate() error {
+	if err := validateLimits(*cfg); err != nil {
+		return err
+	}
 	switch cfg.Backend() {
 	case BackendSqlite, BackendMem:
 		return nil
@@ -147,6 +177,25 @@ func (cfg *RevCacheConf) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
 
 func (cfg *RevCacheConf) ConfigName() string {
 	return "revCache"
+}
+
+func validateLimits(cfg map[string]string) error {
+	if _, _, err := parsedInt(cfg, MaxOpenConnsKey); err != nil {
+		return common.NewBasicError("Invalid MaxOpenConns", nil, "value", cfg[MaxOpenConnsKey])
+	}
+	if _, _, err := parsedInt(cfg, MaxIdleConnsKey); err != nil {
+		return common.NewBasicError("Invalid MaxIdleConns", nil, "value", cfg[MaxIdleConnsKey])
+	}
+	return nil
+}
+
+func parsedInt(cfg map[string]string, key string) (int, bool, error) {
+	val, ok := cfg[key]
+	if !ok || val == "" {
+		return 0, false, nil
+	}
+	i, err := strconv.Atoi(val)
+	return i, true, err
 }
 
 // NewPathStorage creates a PathStorage from the given configs.
@@ -188,14 +237,23 @@ func newCombinedBackend(pdbConf PathDBConf,
 
 func newPathDB(conf PathDBConf) (pathdb.PathDB, error) {
 	log.Info("Connecting PathDB", "backend", conf.Backend(), "connection", conf.Connection())
+	var err error
+	var pdb pathdb.PathDB
+
 	switch conf.Backend() {
 	case BackendSqlite:
-		return sqlitepathdb.New(conf.Connection())
+		pdb, err = sqlitepathdb.New(conf.Connection())
 	case BackendNone:
 		return nil, nil
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend())
 	}
+
+	if err != nil {
+		return nil, err
+	}
+	setConnLimits(&conf, pdb)
+	return pdb, nil
 }
 
 func newRevCache(conf RevCacheConf) (revcache.RevCache, error) {
@@ -207,5 +265,19 @@ func newRevCache(conf RevCacheConf) (revcache.RevCache, error) {
 		return nil, nil
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend())
+	}
+}
+
+type limitConfig interface {
+	MaxOpenConns() (int, bool)
+	MaxIdleConns() (int, bool)
+}
+
+func setConnLimits(cfg limitConfig, db db.LimitSetter) {
+	if m, ok := cfg.MaxOpenConns(); ok {
+		db.SetMaxOpenConns(m)
+	}
+	if m, ok := cfg.MaxIdleConns(); ok {
+		db.SetMaxIdleConns(m)
 	}
 }

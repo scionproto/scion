@@ -162,6 +162,9 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	for _, s := range verifiedSegs {
 		n, err := tx.Insert(ctx, s)
 		if err != nil {
+			if errRollback := tx.Rollback(); errRollback != nil {
+				err = common.NewBasicError("Unable to rollback", err, "rollbackErr", errRollback)
+			}
 			logger.Error("Unable to insert segment into path database",
 				"seg", s.Segment, "err", err)
 			return

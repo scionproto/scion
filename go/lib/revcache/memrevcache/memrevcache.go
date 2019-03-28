@@ -116,3 +116,9 @@ func (c *memRevCache) DeleteExpired(_ context.Context) (int64, error) {
 	c.c.DeleteExpired()
 	return cnt, nil
 }
+
+func (c *memRevCache) Close() error { return nil }
+
+func (c *memRevCache) SetMaxOpenConns(_ int) {}
+
+func (c *memRevCache) SetMaxIdleConns(_ int) {}
