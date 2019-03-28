@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# This script generates the build options for Bazel
+
+ROOTDIR=$(dirname "$0")/..
+
+# When building inside a docker container GIT_VERSION is set by the creator of the container.
+# When building locally, use the version reported by git.
+VERSION=${GIT_VERSION:-$($ROOTDIR/tools/git-version)}
+
+echo "STABLE_GIT_VERSION $VERSION"
