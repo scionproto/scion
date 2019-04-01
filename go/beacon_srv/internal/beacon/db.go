@@ -18,20 +18,24 @@ import (
 	"context"
 	"database/sql"
 	"io"
+
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
 // DBRead defines all read operations of the beacon DB.
 type DBRead interface {
 	// CandidateBeacons returns up to setSize beacons that are allowed for
 	// the given policy type. The result channel either carries beacons or
-	// errors. After sending the first error, the channel is closed.
+	// errors. After sending the first error, the channel is closed. The
+	// channel must be drained, since the db might spawn go routines to
+	// fill the channel.
 	CandidateBeacons(ctx context.Context, setSize int, policyType PolicyType) (
 		<-chan BeaconOrErr, error)
 }
 
 // DBWrite defines all write operations of the beacon DB.
 type DBWrite interface {
-	InsertBeacon(ctx context.Context, beacon Beacon, allowed Allowed) (int, error)
+	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (int, error)
 }
 
 // DBReadWrite defines all read an write operations of the beacon DB.
@@ -51,11 +55,12 @@ type Transaction interface {
 type DB interface {
 	DBReadWrite
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	db.LimitSetter
 	io.Closer
 }
 
-// Allowed indicates what the beacon is allowed to be used for according to the policies.
-type Allowed struct {
+// Usage indicates what the beacon is allowed to be used for according to the policies.
+type Usage struct {
 	// UpReg indicates whether the beacon can be used for up-segment registration.
 	UpReg bool
 	// DownReg indicates whether the beacon can be used for down-segment registration.
