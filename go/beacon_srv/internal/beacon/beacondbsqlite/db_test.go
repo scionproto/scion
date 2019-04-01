@@ -58,7 +58,7 @@ func TestOpenExisting(t *testing.T) {
 		defer os.Remove(tmpF)
 		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 		defer cancelF()
-		b := beacondbtest.InsertBeacon(t, db, beacondbtest.Info1, 2, 10, beacon.Allowed{Prop: true})
+		b := beacondbtest.InsertBeacon(t, db, beacondbtest.Info1, 2, 10, beacon.Usage{Prop: true})
 		db.Close()
 		// Open existing database
 		db, err := New(tmpF, testIA)

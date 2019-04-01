@@ -31,10 +31,7 @@ const (
 		InfoTime INTEGER NOT NULL,
 		ExpirationTime INTEGER NOT NULL,
 		LastUpdated INTEGER NOT NULL,
-		AllowUp INTEGER NOT NULL,
-		AllowDown INTEGER NOT NULL,
-		AllowCore INTEGER NOT NULL,
-		AllowProp INTEGER NOT NULL,
+		Usage INTEGER NOT NULL,
 		Beacon BLOB NOT NULL
 	);
 	CREATE TABLE IntfToBeacon(
@@ -42,7 +39,6 @@ const (
 		AsID INTEGER NOT NULL,
 		IntfID INTEGER NOT NULL,
 		BeaconRowID INTEGER NOT NULL,
-		IntfIndex INTEGER NOT NULL,
 		FOREIGN KEY (BeaconRowID) REFERENCES Beacons(RowID) ON DELETE CASCADE,
 		PRIMARY KEY (BeaconRowID, IsdID, AsID, IntfID)
 	);

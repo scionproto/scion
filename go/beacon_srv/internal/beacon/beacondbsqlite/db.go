@@ -17,7 +17,6 @@ package beacondbsqlite
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"sync"
 	"time"
 
@@ -52,6 +51,16 @@ func New(path string, ia addr.IA) (*Backend, error) {
 		},
 		db: db,
 	}, nil
+}
+
+// SetMaxOpenConns sets the maximum number of open connections.
+func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
+	b.db.SetMaxOpenConns(maxOpenConns)
+}
+
+// SetMaxIdleConns sets the maximum number of idle connections.
+func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
+	b.db.SetMaxIdleConns(maxIdleConns)
 }
 
 // BeginTransaction begins a transaction on the database.
@@ -119,17 +128,17 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
 	if e.db == nil {
 		return nil, common.NewBasicError("No database open", nil)
 	}
-	query := "SELECT Beacon, InIntfID FROM Beacons WHERE %s=1 ORDER BY HopsLength ASC LIMIT ?"
-	// Sqlite does not allow to parameterize the column name.
-	query = fmt.Sprintf(query, allowedFromPolicyType(policyType))
-	rows, err := e.db.QueryContext(ctx, query, setSize)
+	query := `SELECT Beacon, InIntfID FROM Beacons
+				WHERE ( Usage & ? ) == ? ORDER BY HopsLength ASC LIMIT ?`
+	flag := flagFromPolicyType(policyType)
+	rows, err := e.db.QueryContext(ctx, query, flag, flag, setSize)
 	if err != nil {
 		return nil, common.NewBasicError("Error selecting beacons", err)
 	}
 	defer rows.Close()
 	beacons := make([]beacon.Beacon, 0, setSize)
-	errors := make([]error, 0, setSize)
-	// Read all beacons that are available into memory first.
+	var errors []error
+	// Read all beacons that are available into memory first to free the lock.
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
 		var inIntfId common.IFIDType
@@ -163,7 +172,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
 // InsertBeacon inserts the beacon if it is new or updates the changed
 // information.
 func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
-	allowed beacon.Allowed) (int, error) {
+	usage beacon.Usage) (int, error) {
 
 	// Compute ids outside of the lock.
 	segId, err := b.Segment.ID()
@@ -182,18 +191,18 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 	defer e.Unlock()
 	meta, err := e.getBeaconMeta(ctx, segId)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	if meta != nil {
-		// Update the beacon data if it is newer.
+		// TODO(roosd): Implement updates.
 		if info.Timestamp().After(meta.InfoTime) {
-			return 0, common.NewBasicError("Updating beacons not supported", nil)
+			return 0, common.NewBasicError("Updating beacons not supported yet", nil)
 		}
 		return 0, nil
 	}
 	// Insert new beacon.
 	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		return insertNewBeacon(ctx, tx, b, allowed, e.ia, time.Now())
+		return insertNewBeacon(ctx, tx, b, usage, e.ia, time.Now())
 	})
 	if err != nil {
 		return 0, err
@@ -223,7 +232,7 @@ func (e *executor) getBeaconMeta(ctx context.Context, segID common.RawBytes) (*b
 }
 
 func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
-	allowed beacon.Allowed, localIA addr.IA, now time.Time) error {
+	usage beacon.Usage, localIA addr.IA, now time.Time) error {
 
 	segId, err := b.Segment.ID()
 	if err != nil {
@@ -248,11 +257,10 @@ func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 
 	// Insert path segment.
 	inst := `INSERT INTO Beacons (SegID, FullID, StartIsd, StartAs, InIntfID, HopsLength, InfoTime, 
-			ExpirationTime, LastUpdated, AllowUp, AllowDown, AllowCore, AllowProp, Beacon)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			ExpirationTime, LastUpdated, Usage, Beacon)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	res, err := tx.ExecContext(ctx, inst, segId, fullId, start.I, start.A, b.InIfId,
-		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, allowed.UpReg, allowed.DownReg,
-		allowed.CoreReg, allowed.Prop, packed)
+		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, flagsFromUsage(usage), packed)
 	if err != nil {
 		return common.NewBasicError("Failed to insert path segment", err)
 	}
@@ -270,14 +278,13 @@ func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 	rowId int64, localIA addr.IA) error {
 
-	stmtStr := `INSERT INTO IntfToBeacon (IsdID, AsID, IntfID, BeaconRowID, IntfIndex) 
-				VALUES (?, ?, ?, ?, ?)`
+	stmtStr := `INSERT INTO IntfToBeacon (IsdID, AsID, IntfID, BeaconRowID)
+				VALUES (?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, stmtStr)
 	if err != nil {
 		return common.NewBasicError("Failed to prepare insert into IntfToBeacon", err)
 	}
 	defer stmt.Close()
-	idx := 0
 	for _, as := range b.Segment.ASEntries {
 		ia := as.IA()
 		// Do not insert peering interfaces.
@@ -287,24 +294,22 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 		}
 		// Ignore the null interface of the first hop.
 		if hof.ConsIngress != 0 {
-			_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, rowId, idx)
+			_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, rowId)
 			if err != nil {
 				return common.NewBasicError("Failed to insert Ingress into IntfToSeg", err,
 					"ia", ia, "hof", hof)
 			}
-			idx++
 		}
 		// Ignore the null interface of the last hop
 		if hof.ConsEgress != 0 {
-			_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, rowId, idx)
+			_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, rowId)
 			if err != nil {
 				return common.NewBasicError("Failed to insert Egress into IntfToSeg", err,
 					"ia", ia, "hof", hof)
 			}
-			idx++
 		}
 	}
-	_, err = stmt.ExecContext(ctx, localIA.I, localIA.A, b.InIfId, rowId, idx)
+	_, err = stmt.ExecContext(ctx, localIA.I, localIA.A, b.InIfId, rowId)
 	if err != nil {
 		return common.NewBasicError("Failed to insert Ingress into IntfToSeg", err,
 			"ia", localIA, "inIfId", b.InIfId)
@@ -312,15 +317,39 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 	return nil
 }
 
-func allowedFromPolicyType(policyType beacon.PolicyType) string {
+const (
+	UpRegFlag   = 0x01
+	DownRegFlag = 0x02
+	CoreRegFlag = 0x04
+	PropFlag    = 0x08
+)
+
+func flagsFromUsage(usage beacon.Usage) int {
+	m := 0
+	if usage.UpReg {
+		m |= UpRegFlag
+	}
+	if usage.DownReg {
+		m |= DownRegFlag
+	}
+	if usage.CoreReg {
+		m |= CoreRegFlag
+	}
+	if usage.Prop {
+		m |= PropFlag
+	}
+	return m
+}
+
+func flagFromPolicyType(policyType beacon.PolicyType) int {
 	switch policyType {
 	case beacon.UpRegPolicy:
-		return "AllowUp"
+		return UpRegFlag
 	case beacon.DownRegPolicy:
-		return "AllowDown"
+		return DownRegFlag
 	case beacon.CoreRegPolicy:
-		return "AllowCore"
+		return CoreRegFlag
 	default:
-		return "AllowProp"
+		return PropFlag
 	}
 }

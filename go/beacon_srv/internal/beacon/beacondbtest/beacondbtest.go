@@ -39,19 +39,8 @@ var (
 
 	Info1 = []IfInfo{
 		{
-			IA:     ia330,
-			Egress: 5,
-		},
-		{
-			IA:      ia331,
-			Ingress: 2,
-			Egress:  3,
-			Peers:   []PeerEntry{{IA: ia311, Ingress: 6}},
-		},
-		{
-			IA:      ia332,
-			Ingress: 1,
-			Egress:  7,
+			IA:     ia311,
+			Egress: 10,
 		},
 	}
 
@@ -70,8 +59,19 @@ var (
 
 	Info3 = []IfInfo{
 		{
-			IA:     ia311,
-			Egress: 10,
+			IA:     ia330,
+			Egress: 5,
+		},
+		{
+			IA:      ia331,
+			Ingress: 2,
+			Egress:  3,
+			Peers:   []PeerEntry{{IA: ia311, Ingress: 6}},
+		},
+		{
+			IA:      ia332,
+			Ingress: 1,
+			Egress:  7,
 		},
 	}
 
@@ -98,7 +98,10 @@ func Test(t *testing.T, db Testable) {
 		}
 	}
 	Convey("InsertBeacon", testWrapper(testInsertBeacon))
+	// TODO(roosd): Convey("UpdateBeacon", testWrapper(testUpdateExisting))
+	// TODO(roosd): Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
 	Convey("CandidateBeacons", testWrapper(testCandidateBeacons))
+	// TODO(roosd): Convey("DeleteExpiredBeacons", testWrapper(testDeleteExpiredBeacons))
 	txTestWrapper := func(test func(*testing.T, beacon.DBReadWrite)) func() {
 		return func() {
 			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -113,12 +116,15 @@ func Test(t *testing.T, db Testable) {
 	}
 	Convey("WithTransaction", func() {
 		Convey("InsertBeacon", txTestWrapper(testInsertBeacon))
+		// TODO(roosd): Convey("UpdateBeacon", testWrapper(testUpdateExisting))
+		// TODO(roosd): Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
 		Convey("CandidateBeacons", txTestWrapper(testCandidateBeacons))
+		// TODO(roosd): Convey("DeleteExpiredBeacons", txTestWrapper(testDeleteExpiredBeacons))
 		Convey("TestTransactionRollback", func() {
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
 			db.Prepare(t, prepareCtx)
-			//	testRollback(t, db)
+			// TODO(roosd): testRollback(t, db)
 		})
 	})
 }
@@ -126,11 +132,11 @@ func Test(t *testing.T, db Testable) {
 func testInsertBeacon(t *testing.T, db beacon.DBReadWrite) {
 	Convey("InsertBeacon should correctly insert a new beacon", func() {
 		TS := uint32(10)
-		b, _ := AllocBeacon(t, Info1, 12, TS)
+		b, _ := AllocBeacon(t, Info3, 12, TS)
 
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
-		inserted, err := db.InsertBeacon(ctx, b, beacon.Allowed{Prop: true})
+		inserted, err := db.InsertBeacon(ctx, b, beacon.Usage{Prop: true})
 		SoMsg("Insert err", err, ShouldBeNil)
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Fetch the candidate beacons
@@ -167,10 +173,12 @@ func CheckResult(t *testing.T, results <-chan beacon.BeaconOrErr, expected beaco
 
 func testCandidateBeacons(t *testing.T, db beacon.DBReadWrite) {
 	Convey("InsertBeacon should correctly ignore an older beacon", func() {
-		// Insert beacons from longest to shortest path.
+		// Insert beacons from longest to shortest path such that the insertion
+		// order is not sorted the same as the expected outcome.
 		var beacons []beacon.Beacon
-		for i, info := range [][]IfInfo{Info1, Info2, Info3} {
-			b := InsertBeacon(t, db, info, 12, uint32(i), beacon.Allowed{Prop: true})
+		for i, info := range [][]IfInfo{Info3, Info2, Info1} {
+			b := InsertBeacon(t, db, info, 12, uint32(i), beacon.Usage{Prop: true})
+			// Prepend to get beacons sorted from shortest to longest path.
 			beacons = append([]beacon.Beacon{b}, beacons...)
 		}
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -197,7 +205,7 @@ func testCandidateBeacons(t *testing.T, db beacon.DBReadWrite) {
 }
 
 func InsertBeacon(t *testing.T, db beacon.DBReadWrite, ases []IfInfo, inIfId common.IFIDType,
-	infoTS uint32, allowed beacon.Allowed) beacon.Beacon {
+	infoTS uint32, allowed beacon.Usage) beacon.Beacon {
 	b, _ := AllocBeacon(t, ases, inIfId, infoTS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
