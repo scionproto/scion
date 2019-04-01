@@ -24,26 +24,33 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestLoadFromFile(t *testing.T) {
+var (
+	ia110 = xtest.MustParseIA("1-ff00:0:110")
+	ia111 = xtest.MustParseIA("1-ff00:0:111")
+	ia112 = xtest.MustParseIA("1-ff00:0:112")
+	ia113 = xtest.MustParseIA("1-ff00:0:113")
+	ia210 = xtest.MustParseIA("2-ff00:0:210")
+)
+
+func TestLoadFromYaml(t *testing.T) {
 	checkPolicy := func(p *Policy, t PolicyType) {
 		SoMsg("BestSetSize", p.BestSetSize, ShouldEqual, 6)
 		SoMsg("CandidateSetSize", p.CandidateSetSize, ShouldEqual, 20)
 		SoMsg("Type", p.Type, ShouldEqual, t)
 		SoMsg("MaxHopsLength", p.Filter.MaxHopsLength, ShouldEqual, 8)
-		SoMsg("AsBlackList", p.Filter.AsBlackList, ShouldResemble,
-			[]addr.AS{xtest.MustParseAS("ff00:0:110"), xtest.MustParseAS("ff00:0:111")})
+		SoMsg("AsBlackList", p.Filter.AsBlackList, ShouldResemble, []addr.AS{ia110.A, ia111.A})
 		SoMsg("IsdBlackList", p.Filter.IsdBlackList, ShouldResemble, []addr.ISD{1, 2, 3})
 
 	}
 	Convey("Given a policy file with policy type set", t, func() {
 		fn := "testdata/typedPolicy.yml"
 		Convey("The policy is parsed correctly if the type matches", func() {
-			p, err := LoadFromFile(fn, PropPolicy)
+			p, err := LoadFromYaml(fn, PropPolicy)
 			SoMsg("err", err, ShouldBeNil)
 			checkPolicy(p, PropPolicy)
 		})
 		Convey("An error is returned if the type does not match", func() {
-			_, err := LoadFromFile(fn, UpRegPolicy)
+			_, err := LoadFromYaml(fn, UpRegPolicy)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
@@ -51,7 +58,7 @@ func TestLoadFromFile(t *testing.T) {
 	Convey("Given a policy file with policy type unset", t, func() {
 		loadWithType := func(polType PolicyType) {
 			Convey(string("Load with type "+polType+" should succeed"), func() {
-				p, err := LoadFromFile("testdata/policy.yml", polType)
+				p, err := LoadFromYaml("testdata/policy.yml", polType)
 				SoMsg("err", err, ShouldBeNil)
 				checkPolicy(p, polType)
 			})
@@ -63,50 +70,46 @@ func TestLoadFromFile(t *testing.T) {
 }
 
 func TestFilterApply(t *testing.T) {
-	ia := func(raw string) addr.IA {
-		return xtest.MustParseIA(raw)
-	}
 	Convey("Given a filter", t, func() {
 		f := Filter{
 			MaxHopsLength: 2,
-			AsBlackList:   []addr.AS{xtest.MustParseAS("ff00:0:112")},
+			AsBlackList:   []addr.AS{ia112.A},
 			IsdBlackList:  []addr.ISD{2},
 		}
-		table := []struct {
+		testCases := []struct {
+			Name         string
 			Beacon       Beacon
 			ShouldFilter bool
-			Name         string
 		}{
 			{
-				Beacon:       newTestBeacon(ia("1-ff00:0:110"), ia("1-ff00:0:111")),
-				ShouldFilter: false,
 				Name:         "Accepted: [1-ff00:0:110, 1-ff00:0:111]",
+				Beacon:       newTestBeacon(ia110, ia111),
+				ShouldFilter: false,
 			},
 			{
-				Beacon: newTestBeacon(ia("1-ff00:0:110"), ia("1-ff00:0:111"),
-					ia("1-ff00:0:113")),
-				ShouldFilter: true,
 				Name:         "Too Long: [1-ff00:0:110, 1-ff00:0:111, 1-ff00:0:113]",
+				Beacon:       newTestBeacon(ia110, ia111, ia113),
+				ShouldFilter: true,
 			},
 			{
-				Beacon:       newTestBeacon(ia("1-ff00:0:112")),
-				ShouldFilter: true,
 				Name:         "Blacklisted AS: [1-ff00:0:112]",
+				Beacon:       newTestBeacon(ia112),
+				ShouldFilter: true,
 			},
 			{
-				Beacon:       newTestBeacon(ia("2-ff00:0:110")),
+				Name:         "Blacklisted ISD[2-ff00:0:210]",
+				Beacon:       newTestBeacon(ia210),
 				ShouldFilter: true,
-				Name:         "Blacklisted ISD[2-ff00:0:110]",
 			},
 		}
 
-		for _, entry := range table {
-			Convey(entry.Name, func() {
-				expected := ShouldBeNil
-				if entry.ShouldFilter {
-					expected = ShouldNotBeNil
+		for _, test := range testCases {
+			Convey(test.Name, func() {
+				if test.ShouldFilter {
+					SoMsg("filter", f.Apply(test.Beacon), ShouldNotBeNil)
+				} else {
+					SoMsg("filter", f.Apply(test.Beacon), ShouldBeNil)
 				}
-				SoMsg("filter", f.Apply(entry.Beacon), expected)
 			})
 		}
 	})

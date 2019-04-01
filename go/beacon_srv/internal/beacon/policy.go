@@ -70,8 +70,8 @@ func (p *Policy) InitDefaults() {
 	p.Filter.InitDefaults()
 }
 
-// Load loads the policy.
-func Load(b common.RawBytes, t PolicyType) (*Policy, error) {
+// ParseYaml parses the policy in yaml format and initializes the default values.
+func ParseYaml(b common.RawBytes, t PolicyType) (*Policy, error) {
 	p := &Policy{}
 	if err := yaml.Unmarshal(b, p); err != nil {
 		return nil, common.NewBasicError("Unable to parse policy", err)
@@ -87,13 +87,14 @@ func Load(b common.RawBytes, t PolicyType) (*Policy, error) {
 	return p, nil
 }
 
-// LoadFromFile loads the policy from the file.
-func LoadFromFile(path string, t PolicyType) (*Policy, error) {
+// LoadFromYaml loads the policy from a yaml file and initializes the
+// default values.
+func LoadFromYaml(path string, t PolicyType) (*Policy, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to read policy file", err, "path", path)
 	}
-	return Load(b, t)
+	return ParseYaml(b, t)
 }
 
 // Filter filters beacons.
