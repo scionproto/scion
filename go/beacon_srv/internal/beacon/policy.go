@@ -14,7 +14,14 @@
 
 package beacon
 
-import "github.com/scionproto/scion/go/lib/addr"
+import (
+	"io/ioutil"
+
+	yaml "gopkg.in/yaml.v2"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+)
 
 // PolicyType is the policy type.
 type PolicyType string
@@ -63,6 +70,33 @@ func (p *Policy) InitDefaults() {
 	p.Filter.InitDefaults()
 }
 
+// ParseYaml parses the policy in yaml format and initializes the default values.
+func ParseYaml(b common.RawBytes, t PolicyType) (*Policy, error) {
+	p := &Policy{}
+	if err := yaml.Unmarshal(b, p); err != nil {
+		return nil, common.NewBasicError("Unable to parse policy", err)
+	}
+	p.InitDefaults()
+	if p.Type == "" {
+		p.Type = t
+	}
+	if p.Type != t {
+		return nil, common.NewBasicError("Specified policy type does not match", nil,
+			"expected", t, "actual", p.Type)
+	}
+	return p, nil
+}
+
+// LoadFromYaml loads the policy from a yaml file and initializes the
+// default values.
+func LoadFromYaml(path string, t PolicyType) (*Policy, error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to read policy file", err, "path", path)
+	}
+	return ParseYaml(b, t)
+}
+
 // Filter filters beacons.
 type Filter struct {
 	// MaxHopsLength is the maximum number of hops a segment can have.
@@ -78,4 +112,26 @@ func (f *Filter) InitDefaults() {
 	if f.MaxHopsLength == 0 {
 		f.MaxHopsLength = DefaultMaxHopsLength
 	}
+}
+
+// Apply returns an error if the beacon is filtered.
+func (f Filter) Apply(beacon Beacon) error {
+	if len(beacon.Segment.ASEntries) > f.MaxHopsLength {
+		return common.NewBasicError("MaxHopsLength exceeded", nil, "max", f.MaxHopsLength,
+			"actual", len(beacon.Segment.ASEntries))
+	}
+	for _, entry := range beacon.Segment.ASEntries {
+		ia := entry.IA()
+		for _, as := range f.AsBlackList {
+			if ia.A == as {
+				return common.NewBasicError("Contains blacklisted AS", nil, "ia", ia)
+			}
+		}
+		for _, isd := range f.IsdBlackList {
+			if ia.I == isd {
+				return common.NewBasicError("Contains blacklisted ISD", nil, "isd", ia)
+			}
+		}
+	}
+	return nil
 }
