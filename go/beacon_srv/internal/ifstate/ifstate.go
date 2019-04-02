@@ -24,16 +24,13 @@ import (
 )
 
 const (
-	// KeepaliveInterval is the time between sending IFID keepalive packets
-	// to the neighbor.
-	KeepaliveInterval = time.Second
-	// KeepaliveTimeout specifies for how long an interface can receive no
-	// IFID keepalive packets until it is considered expired.
-	KeepaliveTimeout = 3 * KeepaliveInterval
+	// DefaultKeepaliveInterval is the default time between sending IFID
+	// keepalive packets to the neighbor.
+	DefaultKeepaliveInterval = time.Second
+	// DefaultKeepaliveTimeout specifies the default for how long an interface
+	// can receive no IFID keepalive packets until it is considered expired.
+	DefaultKeepaliveTimeout = 3 * DefaultKeepaliveInterval
 )
-
-// State is the state of an interface.
-type State string
 
 const (
 	// Inactive indicates that the interface has not been activated or
@@ -47,10 +44,39 @@ const (
 	Revoked State = "Revoked"
 )
 
+// State is the state of an interface.
+type State string
+
+// Config enables configuration of the interface infos.
+type Config struct {
+	// KeepaliveTimeout specifies for how long an interface can receive no
+	// IFID keepalive packets until it is considered expired.
+	KeepaliveTimeout time.Duration
+}
+
+// InitDefaults initializes the config fields that are not set to the
+// default values.
+func (c *Config) InitDefaults() {
+	if c.KeepaliveTimeout == 0 {
+		c.KeepaliveTimeout = DefaultKeepaliveTimeout
+	}
+}
+
 // Infos keeps track of all interfaces infos of the AS.
 type Infos struct {
 	mu    sync.RWMutex
 	intfs map[common.IFIDType]*Info
+	cfg   Config
+}
+
+// NewInfos initializes the the infos with the provided interfaces.
+func NewInfos(ifInfomap topology.IfInfoMap, cfg Config) *Infos {
+	infos := &Infos{
+		cfg: cfg,
+	}
+	infos.cfg.InitDefaults()
+	infos.Update(ifInfomap)
+	return infos
 }
 
 // Update updates the interface mapping. Interfaces no longer present in
@@ -69,6 +95,7 @@ func (infos *Infos) Update(ifInfomap topology.IfInfoMap) {
 				topoInfo:     info,
 				state:        Inactive,
 				lastActivate: time.Now(),
+				cfg:          infos.cfg,
 			}
 		}
 	}
@@ -109,9 +136,10 @@ type Info struct {
 	state        State
 	revocation   *path_mgmt.SignedRevInfo
 	lastActivate time.Time
+	cfg          Config
 }
 
-// Activate activates the interfaces the keep alive is received from when
+// Activate activates the interface the keep alive is received from when
 // necessary, and sets the remote interface id. The return value indicates
 // the previous state of the interface.
 func (inf *Info) Activate(remote common.IFIDType) State {
@@ -135,7 +163,7 @@ func (inf *Info) Expire() bool {
 	if inf.state == Expired || inf.state == Revoked {
 		return true
 	}
-	if time.Now().Sub(inf.lastActivate) > KeepaliveTimeout {
+	if time.Now().Sub(inf.lastActivate) > inf.cfg.KeepaliveTimeout {
 		inf.state = Expired
 		return true
 	}
@@ -144,8 +172,8 @@ func (inf *Info) Expire() bool {
 
 // Revoke changes the state of the interface to revoked and updates the
 // revocation, unless the current state is active. In that case, the
-// interface has been activated in the meantime. This is indicated through
-// an error.
+// interface has been activated in the meantime and should not be revoked.
+// This is indicated through an error.
 func (inf *Info) Revoke(rev *path_mgmt.SignedRevInfo) error {
 	inf.mu.Lock()
 	defer inf.mu.Unlock()
@@ -183,6 +211,7 @@ func (inf *Info) reset() {
 	defer inf.mu.Unlock()
 	inf.state = Inactive
 	inf.revocation = nil
+	// Set the starting point for the timeout interval.
 	inf.lastActivate = time.Now()
 }
 
