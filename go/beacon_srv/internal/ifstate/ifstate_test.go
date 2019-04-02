@@ -96,6 +96,7 @@ func TestInfoActivate(t *testing.T) {
 	for _, state := range []State{Inactive, Active, Expired, Revoked} {
 		Convey("Activate switches correctly from "+string(state), t, func() {
 			info := &Info{state: state, revocation: &path_mgmt.SignedRevInfo{}}
+			info.cfg.InitDefaults()
 			prev := info.Activate(11)
 			SoMsg("State", prev, ShouldEqual, state)
 			SoMsg("Active", info.state, ShouldEqual, Active)
@@ -123,6 +124,7 @@ func TestInfoExpire(t *testing.T) {
 					state:        test.PrevState,
 					lastActivate: time.Now().Add(-DefaultKeepaliveTimeout - time.Second),
 				}
+				info.cfg.InitDefaults()
 				expired := info.Expire()
 				SoMsg("Expired", expired, ShouldBeTrue)
 				SoMsg("State", info.State(), ShouldEqual, test.NextState)
@@ -136,8 +138,9 @@ func TestInfoExpire(t *testing.T) {
 			Convey("Test "+string(test), func() {
 				info := &Info{
 					state:        test,
-					lastActivate: time.Now().Add(-DefaultKeepaliveInterval - time.Second),
+					lastActivate: time.Now().Add(-DefaultKeepaliveTimeout + time.Second),
 				}
+				info.cfg.InitDefaults()
 				expired := info.Expire()
 				SoMsg("Expired", expired, ShouldEqual, test == Revoked || test == Expired)
 				SoMsg("State", info.State(), ShouldEqual, test)
@@ -163,6 +166,7 @@ func TestInfoRevoke(t *testing.T) {
 				info := &Info{
 					state: test.PrevState,
 				}
+				info.cfg.InitDefaults()
 				err := info.Revoke(&path_mgmt.SignedRevInfo{})
 				SoMsg("State", info.State(), ShouldEqual, test.NextState)
 				if test.Error {

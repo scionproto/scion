@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["ifstate.go"],
+    importpath = "github.com/scionproto/scion/go/beacon_srv/internal/ifstate",
+    visibility = ["//go/beacon_srv:__subpackages__"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/topology:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["ifstate_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/topology:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)
