@@ -27,7 +27,7 @@ import (
 // DBRead defines all read operations of the beacon DB.
 type DBRead interface {
 	// CandidateBeacons returns up to setSize beacons that are allowed for
-	// the given policy type. The result channel either carries beacons or
+	// the given usage. The result channel either carries beacons or
 	// errors. After sending the first error, the channel is closed. The
 	// channel must be drained, since the db might spawn go routines to
 	// fill the channel.
