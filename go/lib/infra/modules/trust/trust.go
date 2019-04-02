@@ -239,7 +239,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
-	responseC, cancelF := store.trcDeduper.Request(ctx, req)
+	responseC, cancelF := store.trcDeduper.Request(req)
 	defer cancelF()
 	select {
 	case response := <-responseC:
@@ -451,7 +451,7 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 func (store *Store) getChainFromNetwork(ctx context.Context,
 	req *chainRequest) (*cert.Chain, error) {
 
-	responseC, cancelF := store.chainDeduper.Request(ctx, req)
+	responseC, cancelF := store.chainDeduper.Request(req)
 	defer cancelF()
 	select {
 	case response := <-responseC:
