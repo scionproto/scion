@@ -121,36 +121,26 @@ func TestInfoExpire(t *testing.T) {
 			Convey("Test "+string(test.PrevState), func() {
 				info := &Info{
 					state:        test.PrevState,
-					lastActivate: time.Now().Add(-KeepaliveTimeout),
+					lastActivate: time.Now().Add(-DefaultKeepaliveTimeout - time.Second),
 				}
 				expired := info.Expire()
 				SoMsg("Expired", expired, ShouldBeTrue)
 				SoMsg("State", info.State(), ShouldEqual, test.NextState)
-				SoMsg("LastActivate", time.Now().Sub(info.lastActivate),
-					ShouldBeGreaterThanOrEqualTo, KeepaliveTimeout)
+				SoMsg("LastActivate", time.Now().Sub(info.lastActivate), ShouldBeGreaterThan,
+					DefaultKeepaliveTimeout)
 			})
 		}
 	})
 	Convey("Given the keepalive has been received in the last keepalive timeout", t, func() {
-		testCases := []struct {
-			PrevState State
-			NextState State
-			Expired   bool
-		}{
-			{PrevState: Inactive, NextState: Inactive, Expired: false},
-			{PrevState: Active, NextState: Active, Expired: false},
-			{PrevState: Expired, NextState: Expired, Expired: true},
-			{PrevState: Revoked, NextState: Revoked, Expired: true},
-		}
-		for _, test := range testCases {
-			Convey("Test "+string(test.PrevState), func() {
+		for _, test := range []State{Inactive, Active, Expired, Revoked} {
+			Convey("Test "+string(test), func() {
 				info := &Info{
-					state:        test.PrevState,
-					lastActivate: time.Now().Add(-KeepaliveInterval),
+					state:        test,
+					lastActivate: time.Now().Add(-DefaultKeepaliveInterval - time.Second),
 				}
 				expired := info.Expire()
-				SoMsg("Expired", expired, ShouldEqual, test.Expired)
-				SoMsg("State", info.State(), ShouldEqual, test.NextState)
+				SoMsg("Expired", expired, ShouldEqual, test == Revoked || test == Expired)
+				SoMsg("State", info.State(), ShouldEqual, test)
 			})
 		}
 	})
@@ -192,8 +182,7 @@ func initInfos() *Infos {
 		1: {BRName: "BR-1"},
 		2: {BRName: "BR-2"},
 	}
-	infos := &Infos{}
-	infos.Update(topoMap)
+	infos := NewInfos(topoMap, Config{})
 	infos.Get(1).Activate(11)
 	infos.Get(2).topoInfo.RemoteIFID = 22
 	infos.Get(2).Revoke(&path_mgmt.SignedRevInfo{})
