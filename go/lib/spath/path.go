@@ -16,10 +16,13 @@
 package spath
 
 import (
+	"hash"
 	"math"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -40,6 +43,31 @@ type Path struct {
 
 func New(raw common.RawBytes) *Path {
 	return &Path{Raw: raw}
+}
+
+// NewOneHop creates a new one hop path with. If necessary, the caller has
+// to initialize the offsets.
+func NewOneHop(isd addr.ISD, ifid common.IFIDType, ts time.Time, exp ExpTimeType,
+	hfmac hash.Hash) (*Path, error) {
+
+	info := InfoField{
+		ConsDir: true,
+		Hops:    2,
+		ISD:     uint16(isd),
+		TsInt:   util.TimeToSecs(ts),
+	}
+	hop := HopField{
+		ConsEgress: ifid,
+		ExpTime:    exp,
+	}
+	var err error
+	if hop.Mac, err = hop.CalcMac(hfmac, info.TsInt, nil); err != nil {
+		return nil, err
+	}
+	raw := make(common.RawBytes, InfoFieldLength+2*HopFieldLength)
+	info.Write(raw[:InfoFieldLength])
+	hop.Write(raw[InfoFieldLength:])
+	return New(raw), nil
 }
 
 func (p *Path) Copy() *Path {
