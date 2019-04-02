@@ -167,8 +167,7 @@ type Messenger struct {
 
 	handlersLock sync.RWMutex
 	// Handlers for received messages processing
-	handlers  map[infra.MessageType]infra.Handler
-	resources []infra.ResourceHealth
+	handlers map[infra.MessageType]infra.Handler
 
 	closeLock sync.Mutex
 	closeChan chan struct{}
@@ -582,19 +581,6 @@ func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler)
 	m.handlersLock.Unlock()
 }
 
-func (m *Messenger) RegisterResource(resource infra.ResourceHealth) {
-	if resource == nil {
-		return
-	}
-	m.handlersLock.Lock()
-	defer m.handlersLock.Unlock()
-	if m.quicServer == nil {
-		m.resources = append(m.resources, resource)
-	} else {
-		m.quicHandler.RegisterResource(resource)
-	}
-}
-
 // ListenAndServe starts listening and serving messages on srv's Messenger
 // interface. The function runs in the current goroutine. Multiple
 // ListenAndServe methods can run in parallel.
@@ -686,13 +672,14 @@ func (m *Messenger) verifySignedPld(ctx context.Context, signedPld *ctrl.SignedP
 func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *ctrl.Pld,
 	signedPld *ctrl.SignedPld, address net.Addr) {
 
-	rw := &UDPResponseWriter{
-		Messenger: m,
-		Remote:    address,
-		ID:        pld.ReqId,
-	}
 	logger := log.FromCtx(ctx)
-	ctx = infra.NewContextWithResponseWriter(ctx, rw)
+	ctx = infra.NewContextWithResponseWriter(ctx,
+		&UDPResponseWriter{
+			Messenger: m,
+			Remote:    address,
+			ID:        pld.ReqId,
+		},
+	)
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
 	msgType, msg, err := validate(pld)
@@ -714,14 +701,6 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 		}
 		logger.Error("Received message, but handler not found", "from", address,
 			"msgType", msgType, "id", pld.ReqId)
-		return
-	}
-	if err := m.allResourcesHealthy(); err != nil {
-		log.Warn("[Messenger] Not all resources healthy, can't handle request", "err", err)
-		rw.SendAckReply(ctx, &ack.Ack{
-			Err:     proto.Ack_ErrCode_reject,
-			ErrDesc: err.Error(),
-		})
 		return
 	}
 	go func() {
@@ -797,18 +776,6 @@ func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
 		},
 		LocalIA: m.ia,
 	}
-}
-
-func (m *Messenger) allResourcesHealthy() error {
-	m.handlersLock.RLock()
-	defer m.handlersLock.RUnlock()
-	for _, resource := range m.resources {
-		if !resource.IsHealthy() {
-			return common.NewBasicError(
-				fmt.Sprintf("Resource %s not healthy.", resource.Name()), nil)
-		}
-	}
-	return nil
 }
 
 func newTypeAssertErr(typeStr string, msg interface{}) error {

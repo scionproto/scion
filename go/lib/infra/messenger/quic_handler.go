@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,11 @@ package messenger
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var _ rpc.Handler = (*QUICHandler)(nil)
@@ -34,7 +30,6 @@ var _ rpc.Handler = (*QUICHandler)(nil)
 type QUICHandler struct {
 	handlersLock sync.RWMutex
 	handlers     map[infra.MessageType]infra.Handler
-	resources    []infra.ResourceHealth
 }
 
 func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
@@ -63,17 +58,12 @@ func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 	handler := h.handlers[messageType]
 	h.handlersLock.RUnlock()
 
-	qrw := &QUICResponseWriter{
-		ReplyWriter: rw,
-		ID:          pld.ReqId,
-	}
-	serveCtx := infra.NewContextWithResponseWriter(context.Background(), qrw)
-	if err := h.allResourcesHealthy(); err != nil {
-		qrw.SendAckReply(serveCtx, &ack.Ack{
-			Err:     proto.Ack_ErrCode_reject,
-			ErrDesc: err.Error(),
-		})
-	}
+	serveCtx := infra.NewContextWithResponseWriter(context.Background(),
+		&QUICResponseWriter{
+			ReplyWriter: rw,
+			ID:          pld.ReqId,
+		},
+	)
 	handler.Handle(infra.NewRequest(serveCtx, messageContent, signedPld, nil, pld.ReqId))
 }
 
@@ -82,22 +72,4 @@ func (h *QUICHandler) Handle(msgType infra.MessageType, handler infra.Handler) {
 	h.handlersLock.Lock()
 	h.handlers[msgType] = handler
 	h.handlersLock.Unlock()
-}
-
-func (h *QUICHandler) RegisterResource(resource infra.ResourceHealth) {
-	h.handlersLock.Lock()
-	defer h.handlersLock.Unlock()
-	h.resources = append(h.resources, resource)
-}
-
-func (h *QUICHandler) allResourcesHealthy() error {
-	h.handlersLock.RLock()
-	defer h.handlersLock.RUnlock()
-	for _, resource := range h.resources {
-		if !resource.IsHealthy() {
-			return common.NewBasicError(
-				fmt.Sprintf("Resource %s not healthy.", resource.Name()), nil)
-		}
-	}
-	return nil
 }

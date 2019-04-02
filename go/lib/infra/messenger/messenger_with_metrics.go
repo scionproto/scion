@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -220,10 +220,6 @@ func (m *MessengerWithMetrics) AddHandler(msgType infra.MessageType, handler inf
 		return result
 	}
 	m.messenger.AddHandler(msgType, infra.HandlerFunc(handlerWithMetrics))
-}
-
-func (m *MessengerWithMetrics) RegisterResource(resource infra.ResourceHealth) {
-	m.messenger.RegisterResource(resource)
 }
 
 func (m *MessengerWithMetrics) ListenAndServe() {
