@@ -124,7 +124,7 @@ func TestTRCExchange(t *testing.T) {
 
 func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *Messenger {
 	config := &Config{
-		IA: ia,
+		IA:                           ia,
 		DisableSignatureVerification: true,
 		Dispatcher: disp.New(
 			transport.NewPacketTransport(conn),
