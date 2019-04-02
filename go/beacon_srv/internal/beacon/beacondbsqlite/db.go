@@ -121,7 +121,7 @@ type beaconMeta struct {
 }
 
 func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
-	policyType beacon.PolicyType) (<-chan beacon.BeaconOrErr, error) {
+	usage beacon.Usage) (<-chan beacon.BeaconOrErr, error) {
 
 	e.RLock()
 	defer e.RUnlock()
@@ -129,9 +129,8 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
 		return nil, common.NewBasicError("No database open", nil)
 	}
 	query := `SELECT Beacon, InIntfID FROM Beacons
-				WHERE ( Usage & ? ) == ? ORDER BY HopsLength ASC LIMIT ?`
-	flag := flagFromPolicyType(policyType)
-	rows, err := e.db.QueryContext(ctx, query, flag, flag, setSize)
+				WHERE ( Usage & ?1 ) == ?1 ORDER BY HopsLength ASC LIMIT ?2`
+	rows, err := e.db.QueryContext(ctx, query, usage, setSize)
 	if err != nil {
 		return nil, common.NewBasicError("Error selecting beacons", err)
 	}
@@ -260,7 +259,7 @@ func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 			ExpirationTime, LastUpdated, Usage, Beacon)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	res, err := tx.ExecContext(ctx, inst, segId, fullId, start.I, start.A, b.InIfId,
-		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, flagsFromUsage(usage), packed)
+		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, usage, packed)
 	if err != nil {
 		return common.NewBasicError("Failed to insert path segment", err)
 	}
@@ -315,41 +314,4 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 			"ia", localIA, "inIfId", b.InIfId)
 	}
 	return nil
-}
-
-const (
-	UpRegFlag   = 0x01
-	DownRegFlag = 0x02
-	CoreRegFlag = 0x04
-	PropFlag    = 0x08
-)
-
-func flagsFromUsage(usage beacon.Usage) int {
-	m := 0
-	if usage.UpReg {
-		m |= UpRegFlag
-	}
-	if usage.DownReg {
-		m |= DownRegFlag
-	}
-	if usage.CoreReg {
-		m |= CoreRegFlag
-	}
-	if usage.Prop {
-		m |= PropFlag
-	}
-	return m
-}
-
-func flagFromPolicyType(policyType beacon.PolicyType) int {
-	switch policyType {
-	case beacon.UpRegPolicy:
-		return UpRegFlag
-	case beacon.DownRegPolicy:
-		return DownRegFlag
-	case beacon.CoreRegPolicy:
-		return CoreRegFlag
-	default:
-		return PropFlag
-	}
 }

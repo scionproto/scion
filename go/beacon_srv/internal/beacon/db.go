@@ -17,7 +17,9 @@ package beacon
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
@@ -29,7 +31,7 @@ type DBRead interface {
 	// errors. After sending the first error, the channel is closed. The
 	// channel must be drained, since the db might spawn go routines to
 	// fill the channel.
-	CandidateBeacons(ctx context.Context, setSize int, policyType PolicyType) (
+	CandidateBeacons(ctx context.Context, setSize int, usage Usage) (
 		<-chan BeaconOrErr, error)
 }
 
@@ -59,14 +61,49 @@ type DB interface {
 	io.Closer
 }
 
+const (
+	// UsageUpReg indicates the beacon is allowed to be registered as an up segment.
+	UsageUpReg Usage = 0x01
+	// UsageDownReg indicates the beacon is allowed to be registered as a down segment.
+	UsageDownReg Usage = 0x02
+	// UsageCoreReg indicates the beacon is allowed to be registered as a core segment.
+	UsageCoreReg Usage = 0x04
+	// UsageProp indicates the beacon is allowed to be propagated.
+	UsageProp Usage = 0x08
+)
+
 // Usage indicates what the beacon is allowed to be used for according to the policies.
-type Usage struct {
-	// UpReg indicates whether the beacon can be used for up-segment registration.
-	UpReg bool
-	// DownReg indicates whether the beacon can be used for down-segment registration.
-	DownReg bool
-	// CoreReg indicates whether the beacon can be used for core-segment registration.
-	CoreReg bool
-	// Prop indicates whether the beacon can be used for propagation.
-	Prop bool
+type Usage int
+
+// UsageFromPolicyType maps the policy type to the usage flag.
+func UsageFromPolicyType(policyType PolicyType) Usage {
+	switch policyType {
+	case UpRegPolicy:
+		return UsageUpReg
+	case DownRegPolicy:
+		return UsageDownReg
+	case CoreRegPolicy:
+		return UsageCoreReg
+	case PropPolicy:
+		return UsageProp
+	default:
+		panic(fmt.Sprintf("Invalid policyType: %v", policyType))
+	}
+}
+
+func (u Usage) String() string {
+	names := []string{}
+	if u&UsageUpReg != 0 {
+		names = append(names, "UpRegistration")
+	}
+	if u&UsageDownReg != 0 {
+		names = append(names, "UpRegistration")
+	}
+	if u&UsageCoreReg != 0 {
+		names = append(names, "UpRegistration")
+	}
+	if u&UsageProp != 0 {
+		names = append(names, "UpRegistration")
+	}
+	return fmt.Sprintf("Usage: [%s]", strings.Join(names, ","))
 }

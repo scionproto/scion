@@ -136,18 +136,18 @@ func testInsertBeacon(t *testing.T, db beacon.DBReadWrite) {
 
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
-		inserted, err := db.InsertBeacon(ctx, b, beacon.Usage{Prop: true})
+		inserted, err := db.InsertBeacon(ctx, b, beacon.UsageProp)
 		SoMsg("Insert err", err, ShouldBeNil)
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Fetch the candidate beacons
-		res, err := db.CandidateBeacons(ctx, 10, beacon.PropPolicy)
+		res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
 		SoMsg("CandidateBeacons err", err, ShouldBeNil)
 		// There should only be one candidate beacon, and it should match the inserted.
 		CheckResult(t, res, b)
-		for _, pol := range []beacon.PolicyType{beacon.UpRegPolicy, beacon.DownRegPolicy,
-			beacon.CoreRegPolicy} {
-			_, err = db.CandidateBeacons(ctx, 10, pol)
-			SoMsg("No beacon for "+string(pol), err, ShouldNotBeNil)
+		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
+			beacon.UsageCoreReg} {
+			_, err = db.CandidateBeacons(ctx, 10, usage)
+			SoMsg("No beacon for "+usage.String(), err, ShouldNotBeNil)
 		}
 	})
 }
@@ -177,13 +177,13 @@ func testCandidateBeacons(t *testing.T, db beacon.DBReadWrite) {
 		// order is not sorted the same as the expected outcome.
 		var beacons []beacon.Beacon
 		for i, info := range [][]IfInfo{Info3, Info2, Info1} {
-			b := InsertBeacon(t, db, info, 12, uint32(i), beacon.Usage{Prop: true})
+			b := InsertBeacon(t, db, info, 12, uint32(i), beacon.UsageProp)
 			// Prepend to get beacons sorted from shortest to longest path.
 			beacons = append([]beacon.Beacon{b}, beacons...)
 		}
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
-		results, err := db.CandidateBeacons(ctx, 10, beacon.PropPolicy)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
 		SoMsg("Err", err, ShouldBeNil)
 		for i, expected := range beacons {
 			select {
