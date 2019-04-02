@@ -150,7 +150,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
 func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
 	req *path_mgmt.SegReq, server net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
-	responseC, cancelF := h.segsDeduper.Request(ctx, &segReq{
+	responseC, cancelF := h.segsDeduper.Request(&segReq{
 		segReq: req,
 		server: server,
 		id:     id,
