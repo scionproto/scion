@@ -15,14 +15,13 @@
 package keepalive
 
 import (
-	"hash"
 	"net"
 	"sync"
 	"testing"
-	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -42,22 +41,25 @@ func TestSenderRun(t *testing.T) {
 		wconn, rconn := p2p.NewPacketConns()
 		// Create sender.
 		s := Sender{
-			Conn: snet.NewSCIONPacketConn(wconn),
-			Addr: &addr.AppAddr{
-				L3: addr.HostFromIPStr("127.0.0.1"),
-				L4: addr.NewL4UDPInfo(4242),
-			},
-			HFMacPool: &sync.Pool{
-				New: func() interface{} {
-					mac, _ := scrypto.InitMac(make(common.RawBytes, 16))
-					return mac
+			Sender: &onehop.Sender{
+				SrcIA: xtest.MustParseIA("1-ff00:0:111"),
+				Conn:  snet.NewSCIONPacketConn(wconn),
+				Addr: &addr.AppAddr{
+					L3: addr.HostFromIPStr("127.0.0.1"),
+					L4: addr.NewL4UDPInfo(4242),
+				},
+				HFMacPool: &sync.Pool{
+					New: func() interface{} {
+						mac, _ := scrypto.InitMac(make(common.RawBytes, 16))
+						return mac
+					},
 				},
 			},
 			Signer: testSigner{},
 		}
 		var pkts []*snet.SCIONPacket
 		done := make(chan struct{})
-		// Read packets from the connection to unblock.
+		// Read packets from the connection to unblock sender.
 		go func() {
 			conn := snet.NewSCIONPacketConn(&testConn{rconn})
 			for range itopo.Get().IFInfoMap {
@@ -71,14 +73,8 @@ func TestSenderRun(t *testing.T) {
 		s.Run(nil)
 		<-done
 		SoMsg("Pkts", len(pkts), ShouldEqual, len(itopo.Get().IFInfoMap))
-
 		// Check packets are correct.
 		for _, pkt := range pkts {
-			// Source
-			SoMsg("SrcIA", pkt.Source.IA, ShouldResemble, xtest.MustParseIA("1-ff00:0:111"))
-			SoMsg("SrcHost", pkt.Source.Host, ShouldResemble, addr.HostFromIPStr("127.0.0.1"))
-
-			// Payload
 			spld, err := ctrl.NewSignedPldFromRaw(pkt.Payload.(common.RawBytes))
 			SoMsg("SPldErr", err, ShouldBeNil)
 			pld, err := spld.Pld()
@@ -90,27 +86,8 @@ func TestSenderRun(t *testing.T) {
 			SoMsg("Src.IA", src.IA, ShouldResemble, xtest.MustParseIA("1-ff00:0:84"))
 			SoMsg("Src.ChainVer", src.ChainVer, ShouldEqual, 42)
 			SoMsg("Src.TrcVer", src.TRCVer, ShouldEqual, 21)
-
-			// Path
-			err = pkt.Path.InitOffsets()
-			SoMsg("InitOffsets", err, ShouldBeNil)
-			info, err := pkt.Path.GetInfoField(pkt.Path.InfOff)
-			SoMsg("InfoErr", err, ShouldBeNil)
-			SoMsg("Info.ISD", info.ISD, ShouldEqual, itopo.Get().ISD_AS.I)
-			SoMsg("Info.Timestamp", time.Now().Sub(info.Timestamp()), ShouldBeLessThan, time.Second)
-			hop, err := pkt.Path.GetHopField(pkt.Path.HopOff)
-			SoMsg("HopErr", err, ShouldBeNil)
-			SoMsg("Hop.Ifid", hop.ConsEgress, ShouldEqual, pld.IfID.OrigIfID)
-			SoMsg("Hop.Verify", hop.Verify(s.HFMacPool.Get().(hash.Hash), info.TsInt, nil),
-				ShouldBeNil)
-			err = pkt.Path.IncOffsets()
-			SoMsg("Path has second hop", err, ShouldBeNil)
-			err = pkt.Path.IncOffsets()
-			SoMsg("Path of length 2", err, ShouldNotBeNil)
 		}
-
 	})
-
 }
 
 func setupItopo(t *testing.T) {

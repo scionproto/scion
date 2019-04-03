@@ -16,32 +16,25 @@ package keepalive
 
 import (
 	"context"
-	"hash"
-	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 var _ periodic.Task = (*Sender)(nil)
 
 // Sender sends ifid keepalive messages on all border routers.
 type Sender struct {
-	Conn      *snet.SCIONPacketConn
-	Addr      *addr.AppAddr
-	HFMacPool *sync.Pool
-	Signer    ctrl.Signer
+	*onehop.Sender
+	Signer ctrl.Signer
 }
 
 // Run sends ifid keepalive messages on all border routers.
@@ -52,62 +45,20 @@ func (s *Sender) Run(_ context.Context) {
 		return
 	}
 	for ifid, intf := range topo.IFInfoMap {
-		pkt, err := s.createPkt(topo, ifid, intf, time.Now())
+		pld, err := s.createPld(ifid)
 		if err != nil {
-			log.Error("[KeepaliveSender] Unable to create packet", "err", err)
+			log.Error("[KeepaliveSender] Unable to create payload", "err", err)
 			continue
 		}
-		brAddr := intf.InternalAddrs
-		if err := s.Conn.WriteTo(pkt, brAddr.PublicOverlay(brAddr.Overlay)); err != nil {
+		dst := snet.SCIONAddress{
+			IA:   intf.ISD_AS,
+			Host: addr.SvcBS | addr.SVCMcast,
+		}
+		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
+		if err := s.Send(dst, ifid, ov, pld, time.Now()); err != nil {
 			log.Error("[KeepaliveSender] Unable to send packet", "err", err)
 		}
 	}
-}
-
-// createPkt creates a scion packet with a one-hop path and the ifid keepalive payload.
-func (s *Sender) createPkt(topo *topology.Topo, origIfid common.IFIDType, intf topology.IFInfo,
-	now time.Time) (*snet.SCIONPacket, error) {
-
-	path, err := s.createPath(topo.ISD_AS.I, origIfid, now)
-	if err != nil {
-		return nil, err
-	}
-	pld, err := s.createPld(origIfid)
-	if err != nil {
-		return nil, err
-	}
-	pkt := &snet.SCIONPacket{
-		SCIONPacketInfo: snet.SCIONPacketInfo{
-			Destination: snet.SCIONAddress{
-				IA:   intf.ISD_AS,
-				Host: addr.SvcBS | addr.SVCMcast,
-			},
-			Source: snet.SCIONAddress{
-				IA:   topo.ISD_AS,
-				Host: s.Addr.L3,
-			},
-			Path:       path,
-			Extensions: []common.Extension{layers.ExtnOHP{}},
-			L4Header: &l4.UDP{
-				SrcPort: s.Addr.L4.Port(),
-			},
-			Payload: pld,
-		},
-	}
-	return pkt, nil
-}
-
-// createPath creates the one-hop path and initializes it.
-func (s *Sender) createPath(isd addr.ISD, origIfid common.IFIDType,
-	now time.Time) (*spath.Path, error) {
-
-	mac := s.HFMacPool.Get().(hash.Hash)
-	defer s.HFMacPool.Put(mac)
-	path, err := spath.NewOneHop(isd, origIfid, time.Now(), spath.DefaultHopFExpiry, mac)
-	if err != nil {
-		return nil, err
-	}
-	return path, path.InitOffsets()
 }
 
 // createPld creates a ifid keepalive payload that is signed and packed.
