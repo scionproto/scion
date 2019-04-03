@@ -76,15 +76,3 @@ go_test(
         "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],
 )
-
-gomock(
-    name = "mock_infra",
-    library = "//go/lib/infra:go_default_library",
-    package = "handlers",
-    interfaces = [
-        "TrustStore",
-        "Messenger",
-        "ResponseWriter",
-    ],
-    out = "mock_infra.go",
-)
