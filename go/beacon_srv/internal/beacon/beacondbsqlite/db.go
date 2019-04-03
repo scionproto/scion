@@ -151,8 +151,8 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
 		}
 		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfId})
 	}
-	if len(beacons) == 0 {
-		return nil, common.NewBasicError("No parsebale beacons found", nil, "errs", errors)
+	if err := rows.Err(); err != nil {
+		errors = append(errors, err)
 	}
 	results := make(chan beacon.BeaconOrErr)
 	go func() {
@@ -193,9 +193,13 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 		return 0, err
 	}
 	if meta != nil {
-		// TODO(roosd): Implement updates.
+		// Update the beacon data if it is newer.
 		if info.Timestamp().After(meta.InfoTime) {
-			return 0, common.NewBasicError("Updating beacons not supported yet", nil)
+			meta.LastUpdated = time.Now()
+			if err := e.updateExistingBeacon(ctx, b, usage, meta.RowID, time.Now()); err != nil {
+				return 0, err
+			}
+			return 1, nil
 		}
 		return 0, nil
 	}
@@ -228,6 +232,36 @@ func (e *executor) getBeaconMeta(ctx context.Context, segID common.RawBytes) (*b
 		LastUpdated: time.Unix(0, lastUpdated),
 	}
 	return meta, nil
+}
+
+// updateExistingBeacon updates the changeable data for an existing beacon
+func (e *executor) updateExistingBeacon(ctx context.Context, b beacon.Beacon,
+	usage beacon.Usage, rowId int64, now time.Time) error {
+
+	fullId, err := b.Segment.FullId()
+	if err != nil {
+		return err
+	}
+	packedSeg, err := b.Segment.Pack()
+	if err != nil {
+		return err
+	}
+	info, err := b.Segment.InfoF()
+	if err != nil {
+		return err
+	}
+	infoTime := info.Timestamp().Unix()
+	lastUpdated := now.UnixNano()
+	expTime := b.Segment.MaxExpiry().Unix()
+	inst := `UPDATE Beacons SET FullID=?, InIntfID=?, HopsLength=?, InfoTime=?,
+			ExpirationTime=?, LastUpdated=?, Usage=?, Beacon=?
+			WHERE RowID=?`
+	_, err = e.db.ExecContext(ctx, inst, fullId, b.InIfId, len(b.Segment.ASEntries), infoTime,
+		expTime, lastUpdated, usage, packedSeg, rowId)
+	if err != nil {
+		return common.NewBasicError("Failed to update segment", err)
+	}
+	return nil
 }
 
 func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
@@ -314,4 +348,32 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 			"ia", localIA, "inIfId", b.InIfId)
 	}
 	return nil
+}
+
+func (e *executor) DeleteExpiredBeacons(ctx context.Context, now time.Time) (int, error) {
+	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		delStmt := `DELETE FROM Beacons WHERE ExpirationTime < ?`
+		return tx.ExecContext(ctx, delStmt, now.Unix())
+	})
+}
+
+func (e *executor) deleteInTx(ctx context.Context,
+	delFunc func(tx *sql.Tx) (sql.Result, error)) (int, error) {
+
+	e.Lock()
+	defer e.Unlock()
+	if e.db == nil {
+		return 0, common.NewBasicError("No database open", nil)
+	}
+	var res sql.Result
+	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		res, err = delFunc(tx)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	deleted, _ := res.RowsAffected()
+	return int(deleted), nil
 }
