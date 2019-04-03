@@ -248,8 +248,8 @@ func (mt MessageType) MetricLabel() string {
 }
 
 // ResourceHealth indicates the health of a resource. A resource could for example be a database.
-// The resource health can be registered on the messenger, if any resource is not healthy it will
-// reply with an error to requests.
+// The resource health can be added to a handler, so that the handler only replies if all it's
+// resources are healthy.
 type ResourceHealth interface {
 	// Name returns the name of this resource.
 	Name() string
@@ -327,9 +327,6 @@ type Messenger interface {
 	UpdateSigner(signer ctrl.Signer, types []MessageType)
 	UpdateVerifier(verifier ctrl.SigVerifier)
 	AddHandler(msgType MessageType, h Handler)
-	// RegisterResource registers the given resource with the messenger. If the resource is not
-	// healthy the messenger replies to all requests with an error.
-	RegisterResource(resource ResourceHealth)
 	ListenAndServe()
 	CloseServer() error
 }
