@@ -51,7 +51,7 @@ func TestResourceHealth(t *testing.T) {
 		})
 		rHandler := infra.NewResourceAwareHandler(handler, &mockResource{name: "tstFail", healthy: false})
 		rwMock := mock_infra.NewMockResponseWriter(ctrl)
-		ctx := infra.NewContextWithResponseWriter(context.TODO(), rwMock)
+		ctx := infra.NewContextWithResponseWriter(context.Background(), rwMock)
 		rwMock.EXPECT().SendAckReply(gomock.Eq(ctx), gomock.Eq(&ack.Ack{
 			Err:     proto.Ack_ErrCode_reject,
 			ErrDesc: "Resource tstFail not healthy",
