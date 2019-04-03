@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
@@ -244,6 +245,43 @@ func (mt MessageType) MetricLabel() string {
 	default:
 		return "unknown_mt"
 	}
+}
+
+// ResourceHealth indicates the health of a resource. A resource could for example be a database.
+// The resource health can be added to a handler, so that the handler only replies if all it's
+// resources are healthy.
+type ResourceHealth interface {
+	// Name returns the name of this resource.
+	Name() string
+	// IsHealthy returns whether the resource is considered healthy currently.
+	// This method must not be blocking and should have the result cached and return ~immediately.
+	IsHealthy() bool
+}
+
+// NewResourceAwareHandler creates a decorated handler that calls the underlying handler if all
+// resources are healthy, otherwise it replies with an error message.
+func NewResourceAwareHandler(handler Handler, resources ...ResourceHealth) Handler {
+	return HandlerFunc(func(r *Request) *HandlerResult {
+		ctx := r.Context()
+		for _, resource := range resources {
+			if !resource.IsHealthy() {
+				logger := log.FromCtx(ctx)
+				rwriter, ok := ResponseWriterFromContext(ctx)
+				if !ok {
+					logger.Error("No response writer found")
+					return MetricsErrInternal
+				}
+				logger.Warn("Resource not healthy, can't handle request",
+					"resource", resource.Name())
+				rwriter.SendAckReply(ctx, &ack.Ack{
+					Err:     proto.Ack_ErrCode_reject,
+					ErrDesc: fmt.Sprintf("Resource %s not healthy", resource.Name()),
+				})
+				return MetricsErrInternal
+			}
+		}
+		return handler.Handle(r)
+	})
 }
 
 type Messenger interface {
