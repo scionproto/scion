@@ -98,10 +98,10 @@ func Test(t *testing.T, db Testable) {
 		}
 	}
 	Convey("InsertBeacon", testWrapper(testInsertBeacon))
-	// TODO(roosd): Convey("UpdateBeacon", testWrapper(testUpdateExisting))
-	// TODO(roosd): Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
+	Convey("UpdateBeacon", testWrapper(testUpdateExisting))
+	Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
 	Convey("CandidateBeacons", testWrapper(testCandidateBeacons))
-	// TODO(roosd): Convey("DeleteExpiredBeacons", testWrapper(testDeleteExpiredBeacons))
+	Convey("DeleteExpiredBeacons", testWrapper(testDeleteExpiredBeacons))
 	txTestWrapper := func(test func(*testing.T, beacon.DBReadWrite)) func() {
 		return func() {
 			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -116,15 +116,15 @@ func Test(t *testing.T, db Testable) {
 	}
 	Convey("WithTransaction", func() {
 		Convey("InsertBeacon", txTestWrapper(testInsertBeacon))
-		// TODO(roosd): Convey("UpdateBeacon", testWrapper(testUpdateExisting))
-		// TODO(roosd): Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
+		Convey("UpdateBeacon", testWrapper(testUpdateExisting))
+		Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
 		Convey("CandidateBeacons", txTestWrapper(testCandidateBeacons))
-		// TODO(roosd): Convey("DeleteExpiredBeacons", txTestWrapper(testDeleteExpiredBeacons))
+		Convey("DeleteExpiredBeacons", txTestWrapper(testDeleteExpiredBeacons))
 		Convey("TestTransactionRollback", func() {
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
 			db.Prepare(t, prepareCtx)
-			// TODO(roosd): testRollback(t, db)
+			testRollback(t, db)
 		})
 	})
 }
@@ -144,6 +144,66 @@ func testInsertBeacon(t *testing.T, db beacon.DBReadWrite) {
 		SoMsg("CandidateBeacons err", err, ShouldBeNil)
 		// There should only be one candidate beacon, and it should match the inserted.
 		CheckResult(t, res, b)
+		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
+			beacon.UsageCoreReg} {
+			_, err = db.CandidateBeacons(ctx, 10, usage)
+			SoMsg("No beacon for "+usage.String(), err, ShouldNotBeNil)
+		}
+	})
+}
+
+func testUpdateExisting(t *testing.T, db beacon.DBReadWrite) {
+	Convey("InsertBeacon should correctly update a new beacon", func() {
+		oldTS := uint32(10)
+		oldB, oldId := AllocBeacon(t, Info3, 12, oldTS)
+
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		inserted, err := db.InsertBeacon(ctx, oldB, beacon.UsageProp)
+		SoMsg("Insert old err", err, ShouldBeNil)
+		SoMsg("Inserted old", inserted, ShouldEqual, 1)
+		newTS := uint32(20)
+		newB, newId := AllocBeacon(t, Info3, 12, newTS)
+		SoMsg("IDs should match", newId, ShouldResemble, oldId)
+		inserted, err = db.InsertBeacon(ctx, newB, beacon.UsageDownReg)
+		SoMsg("Insert new err", err, ShouldBeNil)
+		SoMsg("Inserted new", inserted, ShouldEqual, 1)
+		// Fetch the candidate beacons
+		res, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg)
+		SoMsg("CandidateBeacons err", err, ShouldBeNil)
+		// There should only be one candidate beacon, and it should match the inserted.
+		CheckResult(t, res, newB)
+		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageProp,
+			beacon.UsageCoreReg} {
+			_, err = db.CandidateBeacons(ctx, 10, usage)
+			SoMsg("No beacon for "+usage.String(), err, ShouldNotBeNil)
+		}
+	})
+}
+
+func testUpdateOlderIgnored(t *testing.T, db beacon.DBReadWrite) {
+	Convey("InsertBeacon should correctly ignore an older beacon", func() {
+		newTS := uint32(20)
+		newB, newId := AllocBeacon(t, Info3, 12, newTS)
+
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		inserted, err := db.InsertBeacon(ctx, newB, beacon.UsageProp)
+		SoMsg("Insert new err", err, ShouldBeNil)
+		SoMsg("Inserted new", inserted, ShouldEqual, 1)
+		oldTS := uint32(10)
+		oldB, oldId := AllocBeacon(t, Info3, 12, oldTS)
+		SoMsg("IDs should match", newId, ShouldResemble, oldId)
+		inserted, err = db.InsertBeacon(ctx, oldB, beacon.UsageDownReg)
+		SoMsg("Insert old err", err, ShouldBeNil)
+		SoMsg("Inserted old", inserted, ShouldEqual, 0)
+		// Fetch the candidate beacons
+		_, err = db.CandidateBeacons(ctx, 10, beacon.UsageDownReg)
+		SoMsg("No down beacon", err, ShouldNotBeNil)
+		res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		SoMsg("CandidateBeacons err", err, ShouldBeNil)
+		// There should only be one candidate beacon, and it should match the inserted.
+		CheckResult(t, res, newB)
 		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 			beacon.UsageCoreReg} {
 			_, err = db.CandidateBeacons(ctx, 10, usage)
@@ -201,6 +261,45 @@ func testCandidateBeacons(t *testing.T, db beacon.DBReadWrite) {
 				t.Fatalf("Beacon %d took too long", i)
 			}
 		}
+	})
+}
+
+func testDeleteExpiredBeacons(t *testing.T, db beacon.DBReadWrite) {
+	Convey("DeleteExpired should delete expired segments", func() {
+		ts1 := uint32(10)
+		ts2 := uint32(20)
+		// defaultExp is the default expiry of the hopfields.
+		defaultExp := spath.DefaultHopFExpiry.ToDuration()
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		InsertBeacon(t, db, Info3, 12, ts1, beacon.UsageProp)
+		InsertBeacon(t, db, Info2, 13, ts2, beacon.UsageProp)
+		deleted, err := db.DeleteExpiredBeacons(ctx, time.Unix(10, 0).Add(defaultExp))
+		xtest.FailOnErr(t, err)
+		SoMsg("Deleted", deleted, ShouldEqual, 0)
+		deleted, err = db.DeleteExpiredBeacons(ctx, time.Unix(20, 0).Add(defaultExp))
+		xtest.FailOnErr(t, err)
+		SoMsg("Deleted", deleted, ShouldEqual, 1)
+		deleted, err = db.DeleteExpiredBeacons(ctx, time.Unix(30, 0).Add(defaultExp))
+		xtest.FailOnErr(t, err)
+		SoMsg("Deleted", deleted, ShouldEqual, 1)
+	})
+}
+
+func testRollback(t *testing.T, db beacon.DB) {
+	Convey("Test transaction rollback", func() {
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		tx, err := db.BeginTransaction(ctx, nil)
+		SoMsg("Transaction begin should not fail", err, ShouldBeNil)
+		b, _ := AllocBeacon(t, Info3, 12, uint32(10))
+		inserted, err := tx.InsertBeacon(ctx, b, beacon.UsageProp)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("Insert should succeed", inserted, ShouldEqual, 1)
+		err = tx.Rollback()
+		SoMsg("Rollback should not fail", err, ShouldBeNil)
+		_, err = db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		SoMsg("No beacons should be found", err, ShouldNotBeNil)
 	})
 }
 
