@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tpkt
+package layers
 
 import (
 	"fmt"
@@ -23,8 +23,10 @@ import (
 )
 
 type AddrHdr struct {
-	DstIA, SrcIA     addr.IA
-	DstHost, SrcHost addr.HostAddr
+	DstIA   addr.IA
+	SrcIA   addr.IA
+	DstHost addr.HostAddr
+	SrcHost addr.HostAddr
 }
 
 func NewAddrHdr(srcIA, srcHost, dstIA, dstHost string) *AddrHdr {
@@ -88,7 +90,11 @@ func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, e
 }
 
 func (a *AddrHdr) Len() int {
-	return util.PaddedLen(2*addr.IABytes+a.DstHost.Size()+a.SrcHost.Size(), common.LineLen)
+	return util.PaddedLen(a.NoPaddedLen(), common.LineLen)
+}
+
+func (a *AddrHdr) NoPaddedLen() int {
+	return 2*addr.IABytes + a.DstHost.Size() + a.SrcHost.Size()
 }
 
 func (a *AddrHdr) Write(b common.RawBytes) int {

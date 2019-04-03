@@ -443,3 +443,9 @@ go_repository(
     commit = "ff6c20a9b6978c52b88b7a1e2e55b3b86e26685b",
     importpath = "github.com/jmhodges/bazel_gomock",
 )
+
+go_repository(
+    name = "com_github_sergi_go_diff",
+    commit = "da645544ed44df016359bd4c0e3dc60ee3a0da43",
+    importpath = "github.com/sergi/go-diff",  # diffmatchpatch
+)
