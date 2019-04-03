@@ -18,6 +18,9 @@ bazel: vendor
 	@sudo -p "go:braccept [sudo] password for %p: " true
 	sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
 
+gazelle:
+	gazelle update -index=false -external=external -exclude go/vendor ./go
+
 # Order is important
 clibs: libscion libfilter
 
