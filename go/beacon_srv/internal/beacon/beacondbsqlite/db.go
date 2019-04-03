@@ -151,8 +151,8 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
 		}
 		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfId})
 	}
-	if len(beacons) == 0 {
-		return nil, common.NewBasicError("No parsebale beacons found", nil, "errs", errors)
+	if err := rows.Err(); err != nil {
+		errors = append(errors, err)
 	}
 	results := make(chan beacon.BeaconOrErr)
 	go func() {
@@ -196,8 +196,7 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 		// Update the beacon data if it is newer.
 		if info.Timestamp().After(meta.InfoTime) {
 			meta.LastUpdated = time.Now()
-			err := e.updateExistingBeacon(ctx, b, usage, meta.RowID, time.Now())
-			if err != nil {
+			if err := e.updateExistingBeacon(ctx, b, usage, meta.RowID, time.Now()); err != nil {
 				return 0, err
 			}
 			return 1, nil

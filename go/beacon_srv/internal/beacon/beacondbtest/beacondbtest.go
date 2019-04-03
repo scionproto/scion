@@ -140,14 +140,14 @@ func testInsertBeacon(t *testing.T, db beacon.DBReadWrite) {
 		SoMsg("Insert err", err, ShouldBeNil)
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Fetch the candidate beacons
-		res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
 		SoMsg("CandidateBeacons err", err, ShouldBeNil)
 		// There should only be one candidate beacon, and it should match the inserted.
-		CheckResult(t, res, b)
+		CheckResult(t, results, b)
 		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 			beacon.UsageCoreReg} {
-			_, err = db.CandidateBeacons(ctx, 10, usage)
-			SoMsg("No beacon for "+usage.String(), err, ShouldNotBeNil)
+			results, err = db.CandidateBeacons(ctx, 10, usage)
+			CheckEmpty(t, usage.String(), results, err)
 		}
 	})
 }
@@ -169,14 +169,14 @@ func testUpdateExisting(t *testing.T, db beacon.DBReadWrite) {
 		SoMsg("Insert new err", err, ShouldBeNil)
 		SoMsg("Inserted new", inserted, ShouldEqual, 1)
 		// Fetch the candidate beacons
-		res, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg)
 		SoMsg("CandidateBeacons err", err, ShouldBeNil)
 		// There should only be one candidate beacon, and it should match the inserted.
-		CheckResult(t, res, newB)
+		CheckResult(t, results, newB)
 		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageProp,
 			beacon.UsageCoreReg} {
-			_, err = db.CandidateBeacons(ctx, 10, usage)
-			SoMsg("No beacon for "+usage.String(), err, ShouldNotBeNil)
+			results, err = db.CandidateBeacons(ctx, 10, usage)
+			CheckEmpty(t, usage.String(), results, err)
 		}
 	})
 }
@@ -198,16 +198,14 @@ func testUpdateOlderIgnored(t *testing.T, db beacon.DBReadWrite) {
 		SoMsg("Insert old err", err, ShouldBeNil)
 		SoMsg("Inserted old", inserted, ShouldEqual, 0)
 		// Fetch the candidate beacons
-		_, err = db.CandidateBeacons(ctx, 10, beacon.UsageDownReg)
-		SoMsg("No down beacon", err, ShouldNotBeNil)
-		res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
 		SoMsg("CandidateBeacons err", err, ShouldBeNil)
 		// There should only be one candidate beacon, and it should match the inserted.
-		CheckResult(t, res, newB)
+		CheckResult(t, results, newB)
 		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 			beacon.UsageCoreReg} {
-			_, err = db.CandidateBeacons(ctx, 10, usage)
-			SoMsg("No beacon for "+usage.String(), err, ShouldNotBeNil)
+			results, err = db.CandidateBeacons(ctx, 10, usage)
+			CheckEmpty(t, usage.String(), results, err)
 		}
 	})
 }
@@ -229,6 +227,14 @@ func CheckResult(t *testing.T, results <-chan beacon.BeaconOrErr, expected beaco
 	SoMsg("Beacon.Segment should match", beacons[0].Beacon.Segment, ShouldResemble,
 		expected.Segment)
 	SoMsg("Beacon.InIfId should match", beacons[0].Beacon.InIfId, ShouldEqual, expected.InIfId)
+}
+
+// CheckEmpty checks that no beacon is in the result channel.
+func CheckEmpty(t *testing.T, name string, results <-chan beacon.BeaconOrErr, err error) {
+	SoMsg(name+" err", err, ShouldBeNil)
+	for res := range results {
+		SoMsg("No beacon for "+name, res.Err, ShouldNotBeNil)
+	}
 }
 
 func testCandidateBeacons(t *testing.T, db beacon.DBReadWrite) {
@@ -298,8 +304,8 @@ func testRollback(t *testing.T, db beacon.DB) {
 		SoMsg("Insert should succeed", inserted, ShouldEqual, 1)
 		err = tx.Rollback()
 		SoMsg("Rollback should not fail", err, ShouldBeNil)
-		_, err = db.CandidateBeacons(ctx, 10, beacon.UsageProp)
-		SoMsg("No beacons should be found", err, ShouldNotBeNil)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		CheckEmpty(t, beacon.UsageProp.String(), results, err)
 	})
 }
 
