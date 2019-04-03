@@ -233,7 +233,8 @@ func CheckResult(t *testing.T, results <-chan beacon.BeaconOrErr, expected beaco
 func CheckEmpty(t *testing.T, name string, results <-chan beacon.BeaconOrErr, err error) {
 	SoMsg(name+" err", err, ShouldBeNil)
 	for res := range results {
-		SoMsg("No beacon for "+name, res.Err, ShouldNotBeNil)
+		// If we end up in this execution tree, the test failed.
+		SoMsg("Found beacon "+name, res, ShouldBeFalse)
 	}
 }
 
