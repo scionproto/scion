@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
@@ -38,6 +39,7 @@ type DBRead interface {
 // DBWrite defines all write operations of the beacon DB.
 type DBWrite interface {
 	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (int, error)
+	DeleteExpiredBeacons(ctx context.Context, now time.Time) (int, error)
 }
 
 // DBReadWrite defines all read an write operations of the beacon DB.
