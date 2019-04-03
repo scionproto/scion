@@ -14,203 +14,276 @@
 
 package main
 
-import (
-	"hash"
+import "fmt"
 
-	"github.com/scionproto/scion/go/border/braccept/tpkt"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/layers"
-	"github.com/scionproto/scion/go/lib/scmp"
-)
+func testsBrA() int {
+	var failures int
 
-var brACtrlScionHdr = tpkt.NewGenCmnHdr(
-	"1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "BS_M", nil, common.L4UDP)
+	pkt0 := AllocatePacket()
+	pkt0.SetDev("ifid_local")
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
+		IP4: Src=192.168.0.11 Dst=192.168.0.61 NextHdr=UDP Flags=DF Checksum=0
+		UDP: Src=30041 Dst=30041
+		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=BS_M
+		UDP_1: Src=20001 Dst=0
+		IFStateReq:
+	`)
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
 
-var IgnoredPacketsBrA = []*tpkt.ExpPkt{
-	{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
-		tpkt.GenOverlayIP4UDP("192.168.0.11", 30041, "192.168.0.61", 30041),
-		brACtrlScionHdr,
-		tpkt.NewUDP(20001, 0, &brACtrlScionHdr.ScionLayer, ifStateReq),
-		ifStateReq,
-	}}}
+	IgnoredPackets(pkt0)
 
-func genTestsBrA(hMac hash.Hash) []*BRTest {
-	tests := []*BRTest{
-		{
-			Desc: "Single IFID peer - Xover peer/local",
-			In: &tpkt.Pkt{
-				Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51",
-						tpkt.GenPath(1, 1, tpkt.Segments{
-							segment("(__P)[X_.261.0][X_.211.0][0.621]", nil),
-							segment("(C__)[0.611][X_.121.0][X_.161.0]", hMac, 1)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*tpkt.ExpPkt{
-				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
-					tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.51", 30041),
-					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51",
-						tpkt.GenPath(1, 1, tpkt.Segments{
-							segment("(__P)[X_.261.0][X_.211.0][0.621]", nil),
-							segment("(C__)[0.611][X_.121.0][X_.161.0]", hMac, 1)},
-						),
-						common.L4UDP),
-					tpkt.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsBrA,
-		},
-		// XXX should we check both segments have Peer flag set? currently not required
-		{
-			Desc: "Single IFID peer - Xover local/peer",
-			In: &tpkt.Pkt{
-				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.11", 30001),
-					tpkt.NewValidScion("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("(_SP)[X_.161.0][X_.121.0][_V.0.611]", hMac, 0, 1),
-							segment("(C__)[_V.0.621][X_.211.0][X_.261.0]", nil)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*tpkt.ExpPkt{
-				{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
-					tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
-					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(1, 1, tpkt.Segments{
-							segment("(_SP)[X_.161.0][X_.121.0][_V.0.611]", hMac, 0, 1),
-							segment("(C__)[_V.0.621][X_.211.0][X_.261.0]", nil)},
-						),
-						common.L4UDP),
-					tpkt.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsBrA,
-		},
-		{
-			Desc: "Single IFID peer - Xover peer/child",
-			In: &tpkt.Pkt{
-				Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(1, 1, tpkt.Segments{
-							segment("(__P)[X_.261.0][X_.211.0][0.621]", nil),
-							segment("(CSP)[0.612][X_.121.151][X_.162.151][511.0]", hMac, 1, 2)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*tpkt.ExpPkt{
-				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
-					tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.14", 30004),
-					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(1, 2, tpkt.Segments{
-							segment("(__P)[X_.261.0][X_.211.0][0.621]", nil),
-							segment("(CSP)[0.612][X_.121.151][X_.162.151][511.0]", hMac, 1, 2)},
-						),
-						common.L4UDP),
-					tpkt.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsBrA,
-		},
-		{
-			Desc: "Single IFID peer - Xover child/peer",
-			In: &tpkt.Pkt{
-				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.11", 30001),
-					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(0, 2, tpkt.Segments{
-							segment("(_SP)[511.0][X_.162.151][X_.121.151][_V.0.612]", hMac, 1, 2),
-							segment("(C__)[_V.0.621][X_.211.0][X_.261.0]", nil)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*tpkt.ExpPkt{
-				{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
-					tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
-					tpkt.NewGenCmnHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(1, 1, tpkt.Segments{
-							segment("(_SP)[511.0][X_.162.151][X_.121.151][_V.0.612]", hMac, 1, 2),
-							segment("(C__)[_V.0.621][X_.211.0][X_.261.0]", nil)},
-						),
-						common.L4UDP),
-					tpkt.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsBrA,
-		},
-	}
+	failures += xover_peer_local()
+	failures += xover_local_peer()
+	failures += xover_peer_child()
+	failures += xover_child_peer()
+	failures += revocation_owned_peer()
 
-	pktTriggerRev := tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-		tpkt.GenPath(0, 2, tpkt.Segments{
-			segment("(_SP)[511.0][X_.162.151][X_.121.151][_V.0.612]", hMac, 1, 2),
-			segment("(C__)[_V.0.621][X_.211.0][X_.261.0]", nil)},
-		), nil,
-		&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)
+	ClearIgnoredPackets()
 
-	revScmpScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:5", "172.16.5.1",
-		tpkt.GenPath(1, 2, tpkt.Segments{
-			segment("(___)[X_.261.0][X_.211.0][_V.0.621]", nil),
-			segment("(CSP)[_V.0.612][X_.121.151][X_.162.151][511.0]", hMac, 1, 2)},
-		),
-		common.HopByHopClass)
+	return failures
+}
 
-	brCtrlScionHdr := tpkt.NewGenCmnHdr(
-		"1-ff00:0:1", "192.168.0.61", "1-ff00:0:1", "192.168.0.101", nil, common.L4UDP)
+func xover_peer_local() int {
+	// Xover peer/local
+	pkt0 := AllocatePacket()
+	pkt0.SetDev("ifid_121")
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.12.3 Dst=192.168.12.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=UDP CurrInfoF=8 CurrHopF=10 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:2 Src=172.16.2.1 DstIA=1-ff00:0:1 Dst=192.168.0.51
+			IF_1: ISD=1 Hops=3 Flags=Peer
+				HF_1: ConsIngress=261 ConsEgress=0   Flags=Xover
+				HF_2: ConsIngress=211 ConsEgress=0   Flags=Xover
+				HF_3: ConsIngress=0   ConsEgress=621
+			IF_2: ISD=1 Hops=3 Flags=ConsDir
+				HF_4: ConsIngress=0   ConsEgress=611
+				HF_5: ConsIngress=121 ConsEgress=0   Flags=Xover
+				HF_6: ConsIngress=161 ConsEgress=0   Flags=Xover
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_2", "HF_5", "HF_4")
 
-	signedRevInfo := tpkt.MustSRevInfo(121, "1-ff00:0:1", "peer", tsNow32, 60)
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.11 Dst=192.168.0.51 Checksum=0
+		UDP: Src=30001 Dst=30041
+	`)
+	pkt1.SetDev("ifid_local")
+	pkt1.SetChecksum("UDP", "IP4")
 
-	ifStateInfoDown := &tpkt.PathMgmtPld{
-		Signer:      infra.NullSigner,
-		SigVerifier: infra.NullSigVerifier,
-		Instance: &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{
-			{IfID: 121, Active: false, SRevInfo: signedRevInfo},
-		}},
-	}
-	ifStateInfoUp := &tpkt.PathMgmtPld{
-		Signer:      infra.NullSigner,
-		SigVerifier: infra.NullSigVerifier,
-		Instance: &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{
-			{IfID: 121, Active: true, SRevInfo: nil},
-		}},
-	}
-	revTest := &BRTest{
-		Desc: "Single IFID peer - Revocation on interface owned",
-		Pre: &tpkt.Pkt{
-			Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
-				tpkt.GenOverlayIP4UDP("192.168.0.61", 20006, "192.168.0.11", 30041),
-				brCtrlScionHdr,
-				tpkt.NewUDP(20006, 20001, &brCtrlScionHdr.ScionLayer, ifStateInfoDown),
-				ifStateInfoDown,
-			}},
-		In: &tpkt.Pkt{
-			Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
-				tpkt.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.11", 30001),
-				pktTriggerRev,
-			}},
-		Out: []*tpkt.ExpPkt{
-			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
-				tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.13", 30003),
-				revScmpScionHdr,
-				&tpkt.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true, HopByHop: true}},
-				tpkt.NewSCMP(scmp.C_Path, scmp.T_P_RevokedIF, noTime,
-					&revScmpScionHdr.ScionLayer,
-					[]tpkt.LayerBuilder{
-						pktTriggerRev,
-					},
-					tpkt.NewRevocation(0, 2, 121, false, signedRevInfo),
-					common.L4UDP),
-			}}},
-		Post: &tpkt.Pkt{
-			Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
-				tpkt.GenOverlayIP4UDP("192.168.0.61", 20006, "192.168.0.11", 30041),
-				brCtrlScionHdr,
-				tpkt.NewUDP(20006, 20001, &brCtrlScionHdr.ScionLayer, ifStateInfoUp),
-				ifStateInfoUp,
-			}},
-		Ignore: IgnoredPacketsBrA,
-	}
-	tests = append(tests, revTest)
-	return tests
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Xover peer/local", defaultTimeout, pkt1)
+}
+
+func xover_local_peer() int {
+	// Xover local/peer
+	// XXX should we check both segments have Peer flag set? currently not required
+	pkt0 := AllocatePacket()
+	pkt0.SetDev("ifid_local")
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=30041 Dst=30001
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.51 DstIA=1-ff00:0:2 Dst=172.16.2.1
+			IF_1: ISD=1 Hops=3 Flags=Peer,Shortcut
+				HF_1: ConsIngress=161 ConsEgress=0   Flags=Xover
+				HF_2: ConsIngress=121 ConsEgress=0   Flags=Xover
+				HF_3: ConsIngress=0   ConsEgress=611 Flags=VerifyOnly
+			IF_2: ISD=1 Hops=3 Flags=ConsDir
+				HF_4: ConsIngress=0   ConsEgress=621 Flags=VerifyOnly
+				HF_5: ConsIngress=211 ConsEgress=0   Flags=Xover
+				HF_6: ConsIngress=261 ConsEgress=0   Flags=Xover
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_1", "HF_3")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.12.2 Dst=192.168.12.3 Checksum=0
+		UDP: Src=50000 Dst=40000
+		SCION: CurrInfoF=8 CurrHopF=10
+	`)
+	pkt1.SetDev("ifid_121")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Xover local/peer", defaultTimeout, pkt1)
+}
+
+func xover_peer_child() int {
+	// Xover peer/child
+	pkt0 := AllocatePacket()
+	pkt0.SetDev("ifid_121")
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.12.3 Dst=192.168.12.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=UDP CurrInfoF=8 CurrHopF=10 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:2 Src=172.16.2.1 DstIA=1-ff00:0:5 Dst=172.16.5.1
+			IF_1: ISD=1 Hops=3 Flags=Peer
+				HF_1: ConsIngress=261 ConsEgress=0   Flags=Xover
+				HF_2: ConsIngress=211 ConsEgress=0   Flags=Xover
+				HF_3: ConsIngress=0   ConsEgress=621
+			IF_2: ISD=1 Hops=4 Flags=ConsDir,Shortcut,Peer
+				HF_4: ConsIngress=0   ConsEgress=612
+				HF_5: ConsIngress=121 ConsEgress=151 Flags=Xover
+				HF_6: ConsIngress=162 ConsEgress=151 Flags=Xover
+				HF_7: ConsIngress=511 ConsEgress=0
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_2", "HF_6", "HF_4")
+	pkt0.GenerateMac("SCION", "IF_2", "HF_5", "HF_6")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.11 Dst=192.168.0.14 Checksum=0
+		UDP: Src=30001 Dst=30004
+		SCION: CurrHopF=11
+	`)
+	pkt1.SetDev("ifid_local")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Xover peer/child", defaultTimeout, pkt1)
+}
+
+func xover_child_peer() int {
+	// Xover child/peer
+	pkt0 := AllocatePacket()
+	pkt0.SetDev("ifid_local")
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.0.13 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=30003 Dst=30001
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=7 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:5 Src=172.16.5.1 DstIA=1-ff00:0:2 Dst=172.16.2.1
+			IF_1: ISD=1 Hops=4 Flags=Shortcut,Peer
+				HF_1: ConsIngress=511 ConsEgress=0
+				HF_2: ConsIngress=162 ConsEgress=151 Flags=Xover
+				HF_3: ConsIngress=121 ConsEgress=151 Flags=Xover
+				HF_4: ConsIngress=0   ConsEgress=612 Flags=VerifyOnly
+			IF_2: ISD=1 Hops=3 Flags=ConsDir
+				HF_5: ConsIngress=0   ConsEgress=621 Flags=VerifyOnly
+				HF_6: ConsIngress=211 ConsEgress=0   Flags=Xover
+				HF_7: ConsIngress=261 ConsEgress=0   Flags=Xover
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_4")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_3", "HF_2")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.12.2 Dst=192.168.12.3 Checksum=0
+		UDP: Src=50000 Dst=40000
+		SCION: CurrInfoF=9 CurrHopF=11
+	`)
+	pkt1.SetDev("ifid_121")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Xover child/peer", defaultTimeout, pkt1)
+}
+
+func revocation_owned_peer() int {
+	ifStateDown := AllocatePacket()
+	ifStateDown.SetDev("ifid_local")
+	ifStateDown.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.0.61 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=20006 Dst=30041
+		SCION: NextHdr=UDP SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.61 DstIA=1-ff00:0:1 Dst=192.168.0.101
+		UDP_1: Src=20006 Dst=20001
+		IFStateInfo: IfID=121 Active=false
+			SignedRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=10
+	`)
+	ifStateDown.SetChecksum("UDP", "IP4")
+	ifStateDown.SetChecksum("UDP_1", "SCION")
+
+	SendPackets(ifStateDown)
+	Sleep("250ms")
+
+	pkt0 := AllocatePacket()
+	pkt0.SetDev("ifid_local")
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.0.13 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=30003 Dst=30001
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=7 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:5 Src=172.16.5.1 DstIA=1-ff00:0:2 Dst=172.16.2.1
+			IF_1: ISD=1 Hops=4 Flags=Shortcut,Peer
+				HF_1: ConsIngress=511 ConsEgress=0
+				HF_2: ConsIngress=162 ConsEgress=151 Flags=Xover
+				HF_3: ConsIngress=121 ConsEgress=151 Flags=Xover
+				HF_4: ConsIngress=0   ConsEgress=612 Flags=VerifyOnly
+			IF_2: ISD=1 Hops=3 Flags=ConsDir
+				HF_5: ConsIngress=0   ConsEgress=621 Flags=VerifyOnly
+				HF_6: ConsIngress=211 ConsEgress=0   Flags=Xover
+				HF_7: ConsIngress=261 ConsEgress=0   Flags=Xover
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_4")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_3", "HF_4")
+
+	// SCMP revocation reply (reversed SCION header) from the BR to the source of the packet.
+	pkt1 := AllocatePacket()
+	pkt1.SetDev("ifid_local")
+	pkt1.ParsePacket(fmt.Sprintf(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
+		IP4: Src=192.168.0.11 Dst=192.168.0.13 NextHdr=UDP Flags=DF Checksum=0
+		UDP: Src=30001 Dst=30003 Checksum=0
+		SCION: NextHdr=HBH CurrInfoF=8 CurrHopF=11 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.11 DstIA=1-ff00:0:5 Dst=172.16.5.1
+			IF_1: ISD=1 Hops=3
+				HF_1: ConsIngress=261 ConsEgress=0   Flags=Xover
+				HF_2: ConsIngress=211 ConsEgress=0   Flags=Xover
+				HF_3: ConsIngress=0   ConsEgress=621 Flags=VerifyOnly
+			IF_2: ISD=1 Hops=4 Flags=ConsDir,Shortcut,Peer
+				HF_4: ConsIngress=0   ConsEgress=612 Flags=VerifyOnly
+				HF_5: ConsIngress=121 ConsEgress=151 Flags=Xover
+				HF_6: ConsIngress=162 ConsEgress=151 Flags=Xover
+				HF_7: ConsIngress=511 ConsEgress=0
+		HBH: NextHdr=SCMP Type=SCMP
+			HBH.SCMP: Flags=Error,HBH
+		SCMP: Class=PATH Type=REVOKED_IF Checksum=0
+			InfoRevocation: InfoF=4 HopF=7 IfID=121 Ingress=false
+				SignedRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=10
+			QUOTED: RawPkt=%s
+	`, pkt0.Serialize()))
+	pkt1.SetChecksum("SCMP", "SCION")
+	pkt1.GenerateMac("SCION", "IF_2", "HF_5", "HF_4")
+	pkt1.GenerateMac("SCION", "IF_2", "HF_6", "HF_4")
+
+	SendPackets(pkt0)
+
+	ret := ExpectedPackets("Revoked Peer Interface", defaultTimeout, pkt1)
+
+	ifStateUp := ifStateDown.CloneAndUpdate(`
+		IFStateInfo: Active=false
+	`)
+	SendPackets(ifStateUp)
+	Sleep("250ms")
+
+	return ret
 }

@@ -15,6 +15,7 @@ create_veth() {
     sudo ip link set $VETH_HOST up
     sudo ip link set $VETH_CONTAINER netns $NS
     sudo ip netns exec $NS sysctl -qw net.ipv6.conf.$VETH_CONTAINER.disable_ipv6=1
+    sudo ip netns exec $NS ethtool -K $VETH_CONTAINER rx off tx off 1>&2
     sudo ip netns exec $NS ip addr add $IP_CONTAINER dev $VETH_CONTAINER
     for ip in "$@"; do
         sudo ip netns exec $NS ip neigh add $ip lladdr f0:0d:ca:fe:be:ef nud permanent dev $VETH_CONTAINER

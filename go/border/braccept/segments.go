@@ -1,3 +1,5 @@
+// +build ignore
+//
 // Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +22,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/scionproto/scion/go/border/braccept/tpkt"
+	"github.com/scionproto/scion/go/border/braccept/layers"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -35,7 +37,7 @@ import (
 // Examples:
 //   (_S_)[211.0][X_.151.121][_V.511.0]
 //   (C__)[X_.0.141][411.0]
-func segment(input string, hashMac hash.Hash, hopIdxs ...int) *tpkt.Segment {
+func segment(input string, hashMac hash.Hash, hopIdxs ...int) *layers.Segment {
 	infoStr := regexp.MustCompile(`^\(...\)`).FindString(input)
 	if infoStr == "" {
 		panic(fmt.Sprintf("Bad segment syntax: %s", input))
@@ -55,9 +57,9 @@ func segment(input string, hashMac hash.Hash, hopIdxs ...int) *tpkt.Segment {
 	}
 	infoF.Hops = uint8(len(hops))
 	if len(hopIdxs) > 0 {
-		return tpkt.NewSegment(infoF, hops).Macs(hashMac, hopIdxs...)
+		return layers.NewSegment(infoF, hops).Macs(hashMac, hopIdxs...)
 	}
-	return tpkt.NewSegment(infoF, hops)
+	return layers.NewSegment(infoF, hops)
 }
 
 func decodeInfoF(str string) (*spath.InfoField, error) {
