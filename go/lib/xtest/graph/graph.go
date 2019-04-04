@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/xtest/nullsigner"
 )
 
 // Graph implements a graph of ASes and IFIDs for testing purposes. IFIDs
@@ -294,8 +294,7 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
 			}
 		}
-
-		segment.AddASEntry(asEntry, proto.SignType_none, common.RawBytes{})
+		segment.AddASEntry(asEntry, nullsigner.S{})
 		remoteInIF = outIF
 		inIF = remoteOutIF
 		inIA = currIA

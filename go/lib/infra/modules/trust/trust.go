@@ -25,7 +25,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
@@ -722,7 +721,7 @@ func (store *Store) NewSigner(key common.RawBytes,
 	return NewBasicSigner(key, meta)
 }
 
-func (store *Store) NewSigVerifier() ctrl.SigVerifier {
+func (store *Store) NewSigVerifier() infra.CPVerifier {
 	return NewBasicSigVerifier(store)
 }
 
