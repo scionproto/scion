@@ -17,7 +17,6 @@ package ctrl
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -33,20 +32,17 @@ type SignedPld struct {
 	pld  *Pld
 }
 
-func NewSignedPld(cpld *Pld, sign *proto.SignS, key common.RawBytes) (*SignedPld, error) {
+func NewSignedPld(cpld *Pld, signer Signer) (*SignedPld, error) {
 	// Make a copy of signer, so the caller can re-use it.
-	spld := &SignedPld{Sign: sign.Copy()}
-	if spld.Sign == nil && assert.On {
-		assert.Must(len(key) == 0, "If there's no Sign, key must be empty")
-	}
+	spld := &SignedPld{}
 	if err := spld.SetPld(cpld); err != nil {
 		return nil, err
 	}
-	if spld.Sign != nil {
-		if err := spld.Sign.SignAndSet(key, spld.Blob); err != nil {
-			return nil, err
-		}
+	sign, err := signer.Sign(spld.Blob)
+	if err != nil {
+		return nil, err
 	}
+	spld.Sign = sign
 	return spld, nil
 }
 

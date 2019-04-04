@@ -53,8 +53,6 @@ func (s *SignS) Copy() *SignS {
 
 func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 	switch s.Type {
-	case SignType_none:
-		return nil, nil
 	case SignType_ed25519:
 		return scrypto.Sign(s.sigPack(message, false), key, scrypto.Ed25519)
 	}
@@ -78,8 +76,6 @@ func (s *SignS) Time() time.Time {
 
 func (s *SignS) Verify(key, message common.RawBytes) error {
 	switch s.Type {
-	case SignType_none:
-		return nil
 	case SignType_ed25519:
 		err := scrypto.Verify(s.sigPack(message, false), s.Signature, key, scrypto.Ed25519)
 		if err != nil {

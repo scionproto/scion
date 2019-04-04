@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -31,21 +32,51 @@ const (
 	SignatureValidity = 2 * time.Second
 )
 
-var _ ctrl.Signer = (*BasicSigner)(nil)
+var _ infra.CPSigner = (*BasicSigner)(nil)
 
 // BasicSigner is a simple implementation of Signer.
 type BasicSigner struct {
-	s   *proto.SignS
-	key common.RawBytes
+	meta infra.CPSignerMeta
+	s    *proto.SignS
+	key  common.RawBytes
 }
 
-// NewBasicSigner creates a Signer that uses the supplied s and key to sign Pld's.
-func NewBasicSigner(s *proto.SignS, key common.RawBytes) *BasicSigner {
-	return &BasicSigner{s: s, key: key}
+// NewBasicSigner creates a Signer that uses the supplied meta to sign
+// messages.
+func NewBasicSigner(key common.RawBytes, meta infra.CPSignerMeta) (*BasicSigner, error) {
+	if meta.Src.IA.IsWildcard() {
+		return nil, common.NewBasicError("IA must not contain wildcard", nil, "ia", meta.Src.IA)
+	}
+	if meta.Src.ChainVer == scrypto.LatestVer {
+		return nil, common.NewBasicError("ChainVer must be valid", nil, "ver", meta.Src.ChainVer)
+	}
+	if meta.Src.TRCVer == scrypto.LatestVer {
+		return nil, common.NewBasicError("TRCVer must be valid", nil, "ver", meta.Src.TRCVer)
+	}
+	var signType proto.SignType
+	switch meta.Algo {
+	case scrypto.Ed25519:
+		signType = proto.SignType_ed25519
+	default:
+		return nil, common.NewBasicError("Unsupported signing algorithm", nil, "algo", meta.Algo)
+	}
+	signer := &BasicSigner{
+		meta: meta,
+		s:    proto.NewSignS(signType, meta.Src.Pack()),
+		key:  key,
+	}
+	return signer, nil
 }
 
-func (b *BasicSigner) Sign(pld *ctrl.Pld) (*ctrl.SignedPld, error) {
-	return ctrl.NewSignedPld(pld, b.s, b.key)
+// Sign signs the message.
+func (b *BasicSigner) Sign(msg common.RawBytes) (*proto.SignS, error) {
+	sign := b.s.Copy()
+	return sign, sign.SignAndSet(b.key, msg)
+}
+
+// Meta returns the meta data the signer uses when signing.
+func (b *BasicSigner) Meta() infra.CPSignerMeta {
+	return b.meta
 }
 
 var _ ctrl.SigVerifier = (*BasicSigVerifier)(nil)
