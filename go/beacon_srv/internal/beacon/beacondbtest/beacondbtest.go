@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/xtest/nullsigner"
 )
 
 var (
@@ -365,7 +365,7 @@ func AllocBeacon(t *testing.T, ases []IfInfo, inIfId common.IFIDType,
 	pseg, err := seg.NewSeg(info)
 	xtest.FailOnErr(t, err)
 	for _, entry := range entries {
-		err := pseg.AddASEntry(entry, proto.SignType_none, nil)
+		err := pseg.AddASEntry(entry, nullsigner.S{})
 		xtest.FailOnErr(t, err)
 	}
 	segID, err := pseg.ID()

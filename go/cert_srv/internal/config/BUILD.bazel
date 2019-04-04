@@ -12,8 +12,8 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
-        "//go/lib/ctrl:go_default_library",
         "//go/lib/env:go_default_library",
+        "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
         "//go/lib/infra/modules/trust:go_default_library",
         "//go/lib/infra/modules/trust/trustdb:go_default_library",

@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/xtest/nullsigner"
 )
 
 var (
@@ -69,7 +69,7 @@ func allocPathSegment(ias []addr.IA) *PathSegment {
 	}
 	pseg, _ := NewSeg(info)
 	for _, ase := range ases {
-		if err := pseg.AddASEntry(ase, proto.SignType_none, nil); err != nil {
+		if err := pseg.AddASEntry(ase, nullsigner.S{}); err != nil {
 			fmt.Printf("Error adding ASEntry: %v", err)
 		}
 	}
