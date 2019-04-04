@@ -115,11 +115,14 @@ func (r *Requester) handleRep(ctx context.Context, rep *cert_mgmt.ChainIssRep) (
 		return true, common.NewBasicError("Unable to insert reissued certificate chain in TrustDB",
 			err, "chain", chain)
 	}
-	sign, err := trust.CreateSign(ctx, r.IA, r.State.TrustDB)
+	meta, err := trust.CreateSignMeta(ctx, r.IA, r.State.TrustDB)
 	if err != nil {
-		return true, common.NewBasicError("Unable to set new signer", err)
+		return true, common.NewBasicError("Unable create sign meta", err)
 	}
-	signer := trust.NewBasicSigner(sign, r.State.GetSigningKey())
+	signer, err := trust.NewBasicSigner(r.State.GetSigningKey(), meta)
+	if err != nil {
+		return true, common.NewBasicError("Unable to create new signer", err)
+	}
 	r.State.SetSigner(signer)
 	r.Msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
 	log.Info("[reiss.Requester] Updated certificate chain", "chain", chain)
