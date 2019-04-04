@@ -716,8 +716,10 @@ func (store *Store) chooseASLocalCS(ctx context.Context, destination addr.IA,
 	return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 }
 
-func (store *Store) NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer {
-	return NewBasicSigner(s, key)
+func (store *Store) NewSigner(key common.RawBytes,
+	meta infra.CPSignerMeta) (infra.CPSigner, error) {
+
+	return NewBasicSigner(key, meta)
 }
 
 func (store *Store) NewSigVerifier() ctrl.SigVerifier {

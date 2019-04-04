@@ -354,6 +354,17 @@ func (e *Error) Error() string {
 	return e.Message.ErrDesc
 }
 
+type CPSignerMeta struct {
+	Src  ctrl.SignSrcDef
+	Algo string
+}
+
+// CPSigner is a signer leveraging the control-plane PKI certificates.
+type CPSigner interface {
+	ctrl.Signer
+	Meta() CPSignerMeta
+}
+
 type TrustStore interface {
 	GetValidChain(ctx context.Context, ia addr.IA, source net.Addr) (*cert.Chain, error)
 	GetValidTRC(ctx context.Context, isd addr.ISD, source net.Addr) (*trc.TRC, error)
@@ -367,29 +378,29 @@ type TrustStore interface {
 }
 
 type MsgVerificationFactory interface {
-	NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer
+	NewSigner(key common.RawBytes, meta CPSignerMeta) (CPSigner, error)
 	NewSigVerifier() ctrl.SigVerifier
 }
 
 var (
 	// NullSigner is a Signer that creates SignedPld's with no signature.
-	NullSigner ctrl.Signer = &nullSigner{}
+	NullSigner ctrl.Signer = nullSigner{}
 	// NullSigVerifier ignores signatures on all messages.
-	NullSigVerifier ctrl.SigVerifier = &nullSigVerifier{}
+	NullSigVerifier ctrl.SigVerifier = nullSigVerifier{}
 )
 
-var _ ctrl.Signer = (*nullSigner)(nil)
+var _ ctrl.Signer = nullSigner{}
 
 type nullSigner struct{}
 
-func (*nullSigner) Sign(pld *ctrl.Pld) (*ctrl.SignedPld, error) {
-	return ctrl.NewSignedPld(pld, nil, nil)
+func (nullSigner) Sign(raw common.RawBytes) (*proto.SignS, error) {
+	return nil, nil
 }
 
-var _ ctrl.SigVerifier = (*nullSigVerifier)(nil)
+var _ ctrl.SigVerifier = nullSigVerifier{}
 
 type nullSigVerifier struct{}
 
-func (*nullSigVerifier) Verify(context.Context, *ctrl.SignedPld) error {
+func (nullSigVerifier) Verify(context.Context, *ctrl.SignedPld) error {
 	return nil
 }

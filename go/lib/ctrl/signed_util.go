@@ -27,7 +27,7 @@ import (
 
 // Signer takes a Pld and signs it, producing a SignedPld.
 type Signer interface {
-	Sign(*Pld) (*SignedPld, error)
+	Sign(common.RawBytes) (*proto.SignS, error)
 }
 
 // SigVerifier verifies the signature of a SignedPld.

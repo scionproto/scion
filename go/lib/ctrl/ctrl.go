@@ -115,11 +115,11 @@ func (p *Pld) Write(b common.RawBytes) (int, error) {
 }
 
 func (p *Pld) SignedPld(signer Signer) (*SignedPld, error) {
-	return signer.Sign(p)
+	return NewSignedPld(p, signer)
 }
 
 func (p *Pld) WritePld(b common.RawBytes) (int, error) {
-	sp, err := NewSignedPld(p, nil, nil)
+	sp, err := NewSignedPld(p, nullSigner{})
 	if err != nil {
 		return 0, err
 	}
@@ -127,7 +127,7 @@ func (p *Pld) WritePld(b common.RawBytes) (int, error) {
 }
 
 func (p *Pld) PackPld() (common.RawBytes, error) {
-	sp, err := NewSignedPld(p, nil, nil)
+	sp, err := NewSignedPld(p, nullSigner{})
 	if err != nil {
 		return nil, err
 	}
@@ -153,4 +153,12 @@ func (p *Pld) String() string {
 type Data struct {
 	ReqId   uint64
 	TraceId common.RawBytes
+}
+
+var _ Signer = nullSigner{}
+
+type nullSigner struct{}
+
+func (nullSigner) Sign(raw common.RawBytes) (*proto.SignS, error) {
+	return nil, nil
 }
