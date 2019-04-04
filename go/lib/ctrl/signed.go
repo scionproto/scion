@@ -15,6 +15,7 @@
 package ctrl
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -34,8 +35,9 @@ type SignedPld struct {
 
 func NewSignedPld(cpld *Pld, signer Signer) (*SignedPld, error) {
 	// Make a copy of signer, so the caller can re-use it.
+	var err error
 	spld := &SignedPld{}
-	if err := spld.SetPld(cpld); err != nil {
+	if spld.Blob, err = proto.PackRoot(cpld); err != nil {
 		return nil, err
 	}
 	sign, err := signer.Sign(spld.Blob)
@@ -68,11 +70,18 @@ func (sp *SignedPld) Pld() (*Pld, error) {
 	return sp.pld, err
 }
 
-func (sp *SignedPld) SetPld(p *Pld) error {
+func (sp *SignedPld) UnsafePld() (*Pld, error) {
 	var err error
-	sp.pld = nil
-	sp.Blob, err = proto.PackRoot(p)
-	return err
+	if sp.pld == nil {
+		sp.pld, err = NewPldFromRaw(sp.Blob)
+	}
+	return sp.pld, err
+}
+
+func (sp *SignedPld) VerifiedPld(ctx context.Context, verifier SigVerifier) (*Pld, error) {
+	var err error
+	sp.pld, err = verifier.VerifyPld(ctx, sp)
+	return sp.pld, err
 }
 
 func (sp *SignedPld) Len() int {
