@@ -41,7 +41,7 @@ func NewRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher)
 
 func (r *Requester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
-	spld, err := r.signer.Sign(pld)
+	spld, err := pld.SignedPld(r.signer)
 	if err != nil {
 		return nil, nil, err
 	}
