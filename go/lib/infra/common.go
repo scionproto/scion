@@ -324,8 +324,8 @@ type Messenger interface {
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
 		id uint64) error
-	UpdateSigner(signer ctrl.Signer, types []MessageType)
-	UpdateVerifier(verifier ctrl.SigVerifier)
+	UpdateSigner(signer CPSigner, types []MessageType)
+	UpdateVerifier(verifier CPVerifier)
 	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
 	CloseServer() error
@@ -365,6 +365,11 @@ type CPSigner interface {
 	Meta() CPSignerMeta
 }
 
+type CPVerifier interface {
+	ctrl.SigVerifier
+	BindToRemote(addr.IA) ctrl.SigVerifier
+}
+
 type TrustStore interface {
 	GetValidChain(ctx context.Context, ia addr.IA, source net.Addr) (*cert.Chain, error)
 	GetValidTRC(ctx context.Context, isd addr.ISD, source net.Addr) (*trc.TRC, error)
@@ -379,28 +384,36 @@ type TrustStore interface {
 
 type MsgVerificationFactory interface {
 	NewSigner(key common.RawBytes, meta CPSignerMeta) (CPSigner, error)
-	NewSigVerifier() ctrl.SigVerifier
+	NewSigVerifier() CPVerifier
 }
 
 var (
 	// NullSigner is a Signer that creates SignedPld's with no signature.
-	NullSigner ctrl.Signer = nullSigner{}
+	NullSigner CPSigner = nullSigner{}
 	// NullSigVerifier ignores signatures on all messages.
-	NullSigVerifier ctrl.SigVerifier = nullSigVerifier{}
+	NullSigVerifier CPVerifier = nullSigVerifier{}
 )
 
-var _ ctrl.Signer = nullSigner{}
+var _ CPSigner = nullSigner{}
 
 type nullSigner struct{}
 
 func (nullSigner) Sign(raw common.RawBytes) (*proto.SignS, error) {
-	return nil, nil
+	return &proto.SignS{}, nil
+}
+
+func (nullSigner) Meta() CPSignerMeta {
+	return CPSignerMeta{}
 }
 
 var _ ctrl.SigVerifier = nullSigVerifier{}
 
 type nullSigVerifier struct{}
 
-func (nullSigVerifier) Verify(context.Context, *ctrl.SignedPld) error {
-	return nil
+func (nullSigVerifier) VerifyPld(_ context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
+	return spld.UnsafePld()
+}
+
+func (nullSigVerifier) BindToRemote(_ addr.IA) ctrl.SigVerifier {
+	return nullSigVerifier{}
 }

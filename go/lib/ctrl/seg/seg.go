@@ -32,6 +32,11 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+// Signer signs an ASEntry.
+type Signer interface {
+	Sign(common.RawBytes) (*proto.SignS, error)
+}
+
 var _ proto.Cerealizable = (*PathSegment)(nil)
 
 type PathSegment struct {
@@ -247,15 +252,18 @@ func (ps *PathSegment) WalkHopEntries() error {
 	return nil
 }
 
-func (ps *PathSegment) AddASEntry(ase *ASEntry, signType proto.SignType,
-	signSrc common.RawBytes) error {
+func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
 	rawASE, err := ase.Pack()
+	if err != nil {
+		return err
+	}
+	sign, err := signer.Sign(rawASE)
 	if err != nil {
 		return err
 	}
 	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{
 		Blob: rawASE,
-		Sign: proto.NewSignS(signType, signSrc),
+		Sign: sign,
 	})
 	ps.ASEntries = append(ps.ASEntries, ase)
 	ps.invalidateIds()
@@ -265,15 +273,6 @@ func (ps *PathSegment) AddASEntry(ase *ASEntry, signType proto.SignType,
 func (ps *PathSegment) invalidateIds() {
 	ps.id = nil
 	ps.fullId = nil
-}
-
-func (ps *PathSegment) SignLastASEntry(key common.RawBytes) error {
-	idx := ps.MaxAEIdx()
-	packed, err := ps.sigPack(idx)
-	if err != nil {
-		return err
-	}
-	return ps.RawASEntries[idx].Sign.SignAndSet(key, packed)
 }
 
 func (ps *PathSegment) VerifyASEntry(key common.RawBytes, idx int) error {

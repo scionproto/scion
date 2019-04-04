@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/xtest/nullsigner"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -277,7 +278,7 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.ReadWrite) {
 		asEntries := ps.ASEntries
 		asEntries[1].HopEntries = append(asEntries[1].HopEntries, he)
 		for _, asEntry := range asEntries {
-			err = newPs.AddASEntry(asEntry, proto.SignType_none, nil)
+			err = newPs.AddASEntry(asEntry, nullsigner.S{})
 			xtest.FailOnErr(t, err)
 		}
 		InsertSeg(t, ctx, pathDB, newPs, hpCfgIDs)
@@ -594,7 +595,7 @@ func AllocPathSegment(t *testing.T, ifs []uint64,
 	pseg, err := seg.NewSeg(info)
 	xtest.FailOnErr(t, err)
 	for _, ase := range ases {
-		err := pseg.AddASEntry(ase, proto.SignType_none, nil)
+		err := pseg.AddASEntry(ase, nullsigner.S{})
 		xtest.FailOnErr(t, err)
 	}
 	segID, err := pseg.ID()

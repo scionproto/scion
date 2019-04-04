@@ -156,11 +156,11 @@ type Messenger struct {
 
 	cryptoLock sync.RWMutex
 	// signer is used to sign selected outgoing messages
-	signer ctrl.Signer
+	signer infra.CPSigner
 	// signMask specifies which messages are signed when sent out
 	signMask map[infra.MessageType]struct{}
 	// verifier is used to verify selected incoming messages
-	verifier ctrl.SigVerifier
+	verifier infra.CPVerifier
 
 	// Source for crypto objects (certificates and TRCs)
 	trustStore infra.TrustStore
@@ -628,45 +628,25 @@ func (m *Messenger) listenAndServeUDP() {
 		}
 
 		serveCtx, serveCancelF := context.WithTimeout(m.ctx, m.config.HandlerTimeout)
+		var pld *ctrl.Pld
 		if !m.config.DisableSignatureVerification {
 			// FIXME(scrye): Always use default signature verifier here, as some
 			// functionality in the main ctrl libraries is still missing.
-			err = m.verifySignedPld(serveCtx, signedPld, m.verifier, address.(*snet.Addr))
-			if err != nil {
+			verifier := m.verifier.BindToRemote(address.(*snet.Addr).IA)
+			if pld, err = signedPld.VerifiedPld(serveCtx, verifier); err != nil {
 				logger.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
 				continue
 			}
-		}
-
-		pld, err := signedPld.Pld()
-		if err != nil {
-			logger.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
-			serveCancelF()
-			continue
+		} else {
+			if pld, err = signedPld.UnsafePld(); err != nil {
+				logger.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
+				serveCancelF()
+				continue
+			}
 		}
 		m.serve(log.CtxWith(serveCtx, logger), serveCancelF, pld, signedPld, address)
 	}
-}
-
-func (m *Messenger) verifySignedPld(ctx context.Context, signedPld *ctrl.SignedPld,
-	verifier ctrl.SigVerifier, addr *snet.Addr) error {
-
-	if signedPld.Sign == nil || signedPld.Sign.Type == proto.SignType_none {
-		return nil
-	}
-	src, err := ctrl.NewSignSrcDefFromRaw(signedPld.Sign.Src)
-	if err != nil {
-		return err
-	}
-	if err := ctrl.VerifySig(ctx, signedPld, verifier); err != nil {
-		return common.NewBasicError("Unable to verify signature", err)
-	}
-	if !addr.IA.Equal(src.IA) {
-		return common.NewBasicError("Sender IA does not match signed src IA", nil,
-			"expected", src.IA, "actual", addr.IA)
-	}
-	return nil
 }
 
 func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *ctrl.Pld,
@@ -731,7 +711,7 @@ func (m *Messenger) CloseServer() error {
 // types are signed, the rest are left with a null signature. If types is nil,
 // only the signer is updated and the existing internal list of types is
 // unchanged. An empty slice of types disables signing for all messages.
-func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
+func (m *Messenger) UpdateSigner(signer infra.CPSigner, types []infra.MessageType) {
 	m.cryptoLock.Lock()
 	defer m.cryptoLock.Unlock()
 	if types != nil {
@@ -748,7 +728,7 @@ func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) 
 // FIXME(scrye): Verifiers are usually bound to a trust store to which the
 // messenger already holds a reference. We should decouple the trust store from
 // either one or the other.
-func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
+func (m *Messenger) UpdateVerifier(verifier infra.CPVerifier) {
 	m.cryptoLock.Lock()
 	defer m.cryptoLock.Unlock()
 	m.verifier = verifier

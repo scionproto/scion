@@ -19,6 +19,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -79,30 +80,77 @@ func (b *BasicSigner) Meta() infra.CPSignerMeta {
 	return b.meta
 }
 
-var _ ctrl.SigVerifier = (*BasicSigVerifier)(nil)
+var _ infra.CPVerifier = (*BasicSigVerifier)(nil)
 
 // BasicSigVerifier is a SigVerifier that ignores signatures on cert_mgmt.TRC
 // and cert_mgmt.Chain messages, to avoid dependency cycles.
 type BasicSigVerifier struct {
-	tStore infra.TrustStore
+	store  *Store
+	remote addr.IA
 }
 
-func NewBasicSigVerifier(tStore infra.TrustStore) *BasicSigVerifier {
+func NewBasicSigVerifier(store *Store) *BasicSigVerifier {
 	return &BasicSigVerifier{
-		tStore: tStore,
+		store: store,
 	}
 }
 
-func (v *BasicSigVerifier) Verify(ctx context.Context, p *ctrl.SignedPld) error {
-	cpld, err := p.Pld()
-	if err != nil {
-		return err
+func (v *BasicSigVerifier) BindToRemote(ia addr.IA) ctrl.SigVerifier {
+	return &BasicSigVerifier{
+		store:  v.store,
+		remote: ia,
 	}
-	if v.ignoreSign(cpld) {
-		return nil
+}
+
+func (v *BasicSigVerifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
+	cpld, err := ctrl.NewPldFromRaw(spld.Blob)
+	if err != nil {
+		return nil, err
+	}
+	if v.ignoreSign(cpld, spld.Sign) {
+		return cpld, nil
+	}
+	if err := v.sanityChecks(spld); err != nil {
+		return nil, err
+	}
+	src, err := ctrl.NewSignSrcDefFromRaw(spld.Sign.Src)
+	if err != nil {
+		return nil, err
+	}
+	if err := v.checkRemote(src); err != nil {
+		return nil, err
+	}
+	vKey, err := v.getVerifyKeyForSign(ctx, src)
+	if err != nil {
+		return nil, err
+	}
+	return cpld, spld.Sign.Verify(vKey, spld.Blob)
+}
+
+func (v *BasicSigVerifier) ignoreSign(p *ctrl.Pld, sign *proto.SignS) bool {
+	u0, _ := p.Union()
+	outer, ok := u0.(*cert_mgmt.Pld)
+	if !ok {
+		return false
+	}
+	u1, _ := outer.Union()
+	switch u1.(type) {
+	case *cert_mgmt.Chain, *cert_mgmt.TRC:
+		return true
+	case *cert_mgmt.ChainReq, *cert_mgmt.TRCReq:
+		if sign == nil || sign.Type == proto.SignType_none {
+			return true
+		}
+	}
+	return false
+}
+
+func (v *BasicSigVerifier) sanityChecks(spld *ctrl.SignedPld) error {
+	if len(spld.Sign.Signature) == 0 {
+		return common.NewBasicError("SignedPld is missing signature", nil, "type", spld.Sign.Type)
 	}
 	now := time.Now()
-	ts := p.Sign.Time()
+	ts := spld.Sign.Time()
 	diff := now.Sub(ts)
 	if diff < 0 {
 		return common.NewBasicError("Invalid timestamp. Signature from future", nil,
@@ -113,39 +161,25 @@ func (v *BasicSigVerifier) Verify(ctx context.Context, p *ctrl.SignedPld) error 
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
 			"validity", SignatureValidity)
 	}
-	vKey, err := v.getVerifyKeyForSign(ctx, p.Sign)
-	if err != nil {
-		return err
-	}
-	return p.Sign.Verify(vKey, p.Blob)
+	return nil
 }
 
-func (v *BasicSigVerifier) ignoreSign(p *ctrl.Pld) bool {
-	u0, _ := p.Union()
-	outer, ok := u0.(*cert_mgmt.Pld)
-	if !ok {
-		return false
+func (v *BasicSigVerifier) checkRemote(src *ctrl.SignSrcDef) error {
+	if v.remote.A != 0 && src.IA.A != v.remote.A {
+		return common.NewBasicError("AS does not match remote", nil,
+			"src", src, "remote", v.remote)
 	}
-	u1, _ := outer.Union()
-	switch u1.(type) {
-	case *cert_mgmt.Chain, *cert_mgmt.TRC:
-		return true
-	default:
-		return false
+	if v.remote.I != 0 && src.IA.I != v.remote.I {
+		return common.NewBasicError("ISD does not match remote", nil,
+			"src", src, "remote", v.remote)
 	}
+	return nil
 }
 
 func (v *BasicSigVerifier) getVerifyKeyForSign(ctx context.Context,
-	s *proto.SignS) (common.RawBytes, error) {
+	src *ctrl.SignSrcDef) (common.RawBytes, error) {
 
-	if s.Type == proto.SignType_none {
-		return nil, nil
-	}
-	sigSrc, err := ctrl.NewSignSrcDefFromRaw(s.Src)
-	if err != nil {
-		return nil, err
-	}
-	chain, err := GetChainForSign(ctx, sigSrc, v.tStore)
+	chain, err := GetChainForSign(ctx, src, v.store)
 	if err != nil {
 		return nil, err
 	}

@@ -25,30 +25,14 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// Signer takes a Pld and signs it, producing a SignedPld.
+// Signer takes a message and signs it, producing a SignedPld.
 type Signer interface {
-	Sign(common.RawBytes) (*proto.SignS, error)
+	Sign(msg common.RawBytes) (*proto.SignS, error)
 }
 
-// SigVerifier verifies the signature of a SignedPld.
+// SigVerifier verifies the signature of a signed payload.
 type SigVerifier interface { // interfaces -> infra
-	Verify(context.Context, *SignedPld) error
-}
-
-// VerifySig does some sanity checks on p, and then verifies the signature using sigV.
-func VerifySig(ctx context.Context, p *SignedPld, sigV SigVerifier) error {
-	// Perform common checks before calling real checker.
-	if p.Sign.Type == proto.SignType_none && len(p.Sign.Signature) == 0 {
-		// Nothing to check.
-		return nil
-	}
-	if p.Sign.Type == proto.SignType_none {
-		return common.NewBasicError("SignedPld has signature of type none", nil)
-	}
-	if len(p.Sign.Signature) == 0 {
-		return common.NewBasicError("SignedPld is missing signature", nil, "type", p.Sign.Type)
-	}
-	return sigV.Verify(ctx, p)
+	VerifyPld(context.Context, *SignedPld) (*Pld, error)
 }
 
 const (
