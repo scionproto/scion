@@ -62,14 +62,6 @@ func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
 	return sp, proto.ParseFromRaw(sp, sp.ProtoId(), b[4:])
 }
 
-func (sp *SignedPld) Pld() (*Pld, error) {
-	var err error
-	if sp.pld == nil {
-		sp.pld, err = NewPldFromRaw(sp.Blob)
-	}
-	return sp.pld, err
-}
-
 func (sp *SignedPld) UnsafePld() (*Pld, error) {
 	var err error
 	if sp.pld == nil {

@@ -229,10 +229,10 @@ func (m *MessengerWithMetrics) CloseServer() error {
 	return m.messenger.CloseServer()
 }
 
-func (m *MessengerWithMetrics) UpdateSigner(signer infra.CPSigner, types []infra.MessageType) {
+func (m *MessengerWithMetrics) UpdateSigner(signer infra.Signer, types []infra.MessageType) {
 	m.messenger.UpdateSigner(signer, types)
 }
 
-func (m *MessengerWithMetrics) UpdateVerifier(verifier infra.CPVerifier) {
+func (m *MessengerWithMetrics) UpdateVerifier(verifier infra.Verifier) {
 	m.messenger.UpdateVerifier(verifier)
 }

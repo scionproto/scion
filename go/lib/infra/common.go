@@ -324,8 +324,8 @@ type Messenger interface {
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
 		id uint64) error
-	UpdateSigner(signer CPSigner, types []MessageType)
-	UpdateVerifier(verifier CPVerifier)
+	UpdateSigner(signer Signer, types []MessageType)
+	UpdateVerifier(verifier Verifier)
 	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
 	CloseServer() error
@@ -354,20 +354,27 @@ func (e *Error) Error() string {
 	return e.Message.ErrDesc
 }
 
-type CPSignerMeta struct {
+type SignerMeta struct {
 	Src  ctrl.SignSrcDef
 	Algo string
 }
 
-// CPSigner is a signer leveraging the control-plane PKI certificates.
-type CPSigner interface {
+// Signer is a signer leveraging the control-plane PKI certificates.
+type Signer interface {
 	ctrl.Signer
-	Meta() CPSignerMeta
+	Meta() SignerMeta
 }
 
-type CPVerifier interface {
+type Verifier interface {
 	ctrl.SigVerifier
-	BindToRemote(addr.IA) ctrl.SigVerifier
+	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
+	// BindToIA returns a verifier that only accepts signatures from the
+	// specified AS. Zero values are considered a wild card.
+	BindToIA(ia addr.IA) Verifier
+	// BindToSrc returns a verifier that is bound to the specified source.
+	// The verifies against the specified source, and not the value
+	// provided by the sign meta data.
+	BindToSrc(src ctrl.SignSrcDef) Verifier
 }
 
 type TrustStore interface {
@@ -383,18 +390,18 @@ type TrustStore interface {
 }
 
 type MsgVerificationFactory interface {
-	NewSigner(key common.RawBytes, meta CPSignerMeta) (CPSigner, error)
-	NewSigVerifier() CPVerifier
+	NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)
+	NewVerifier() Verifier
 }
 
 var (
 	// NullSigner is a Signer that creates SignedPld's with no signature.
-	NullSigner CPSigner = nullSigner{}
+	NullSigner Signer = nullSigner{}
 	// NullSigVerifier ignores signatures on all messages.
-	NullSigVerifier CPVerifier = nullSigVerifier{}
+	NullSigVerifier Verifier = nullSigVerifier{}
 )
 
-var _ CPSigner = nullSigner{}
+var _ Signer = nullSigner{}
 
 type nullSigner struct{}
 
@@ -402,18 +409,26 @@ func (nullSigner) Sign(raw common.RawBytes) (*proto.SignS, error) {
 	return &proto.SignS{}, nil
 }
 
-func (nullSigner) Meta() CPSignerMeta {
-	return CPSignerMeta{}
+func (nullSigner) Meta() SignerMeta {
+	return SignerMeta{}
 }
 
 var _ ctrl.SigVerifier = nullSigVerifier{}
 
 type nullSigVerifier struct{}
 
+func (nullSigVerifier) Verify(_ context.Context, _ common.RawBytes, _ *proto.SignS) error {
+	return nil
+}
+
 func (nullSigVerifier) VerifyPld(_ context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
 	return spld.UnsafePld()
 }
 
-func (nullSigVerifier) BindToRemote(_ addr.IA) ctrl.SigVerifier {
+func (nullSigVerifier) BindToIA(_ addr.IA) Verifier {
+	return nullSigVerifier{}
+}
+
+func (nullSigVerifier) BindToSrc(_ ctrl.SignSrcDef) Verifier {
 	return nullSigVerifier{}
 }

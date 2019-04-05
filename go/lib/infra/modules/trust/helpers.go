@@ -32,9 +32,9 @@ import (
 // Callers already know what crypto is needed, so they can pass it in.
 
 func CreateSignMeta(ctx context.Context, ia addr.IA,
-	trustDB trustdb.TrustDB) (infra.CPSignerMeta, error) {
+	trustDB trustdb.TrustDB) (infra.SignerMeta, error) {
 
-	meta := infra.CPSignerMeta{}
+	meta := infra.SignerMeta{}
 	c, err := trustDB.GetChainMaxVersion(ctx, ia)
 	if err != nil {
 		return meta, common.NewBasicError("Unable to find local certificate chain", err)
@@ -43,7 +43,7 @@ func CreateSignMeta(ctx context.Context, ia addr.IA,
 	if err != nil {
 		return meta, common.NewBasicError("Unable to find local TRC", err)
 	}
-	meta = infra.CPSignerMeta{
+	meta = infra.SignerMeta{
 		Algo: c.Leaf.SignAlgorithm,
 		Src: ctrl.SignSrcDef{
 			IA:       ia,
@@ -89,7 +89,7 @@ func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
 	return nil
 }
 
-func GetChainForSign(ctx context.Context, s *ctrl.SignSrcDef,
+func GetChainForSign(ctx context.Context, s ctrl.SignSrcDef,
 	tStore infra.TrustStore) (*cert.Chain, error) {
 
 	c, err := tStore.GetChain(ctx, s.IA, s.ChainVer)

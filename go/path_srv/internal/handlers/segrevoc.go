@@ -68,7 +68,8 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 	logger = logger.New("revInfo", revInfo)
 	logger.Debug("[revocHandler] Received revocation")
 
-	err = segverifier.VerifyRevInfo(subCtx, h.trustStore, h.request.Peer, revocation)
+	err = segverifier.VerifyRevInfo(subCtx, h.trustStore.NewVerifier(), h.request.Peer,
+		revocation)
 	if err != nil {
 		logger.Warn("Couldn't verify revocation", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)

@@ -18,6 +18,7 @@
 package seg
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -32,9 +33,16 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// Signer signs an ASEntry.
+// Signer signs path segments.
 type Signer interface {
-	Sign(common.RawBytes) (*proto.SignS, error)
+	// Sign signs the packed segment and returns the signature meta data.
+	Sign(packedSegment common.RawBytes) (*proto.SignS, error)
+}
+
+// Verifier verifies path segments.
+type Verifier interface {
+	// Verify verifies the packed segment based on the signature meta data.
+	Verify(ctx context.Context, packedSegment common.RawBytes, sign *proto.SignS) error
 }
 
 var _ proto.Cerealizable = (*PathSegment)(nil)
@@ -252,6 +260,7 @@ func (ps *PathSegment) WalkHopEntries() error {
 	return nil
 }
 
+// AddASEntry adds the AS entry and signs the resulting path segment.
 func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
 	rawASE, err := ase.Pack()
 	if err != nil {
@@ -275,12 +284,13 @@ func (ps *PathSegment) invalidateIds() {
 	ps.fullId = nil
 }
 
-func (ps *PathSegment) VerifyASEntry(key common.RawBytes, idx int) error {
+// VerifyASEntry verifies the AS Entry at the specified index.
+func (ps *PathSegment) VerifyASEntry(ctx context.Context, verifier Verifier, idx int) error {
 	packed, err := ps.sigPack(idx)
 	if err != nil {
 		return err
 	}
-	return ps.RawASEntries[idx].Sign.Verify(key, packed)
+	return verifier.Verify(ctx, packed, ps.RawASEntries[idx].Sign)
 }
 
 func (ps *PathSegment) sigPack(idx int) (common.RawBytes, error) {
