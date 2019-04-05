@@ -35,7 +35,7 @@ type QUICHandler struct {
 func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 	signedPld := request.SignedPld
 
-	pld, err := signedPld.Pld()
+	pld, err := signedPld.UnsafePld()
 	if err != nil {
 		// TODO(scrye): Right now we only log this because the UDP code behaved
 		// this way.  However, in the future we can also inform the remote end

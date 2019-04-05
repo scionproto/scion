@@ -33,18 +33,18 @@ const (
 	SignatureValidity = 2 * time.Second
 )
 
-var _ infra.CPSigner = (*BasicSigner)(nil)
+var _ infra.Signer = (*BasicSigner)(nil)
 
 // BasicSigner is a simple implementation of Signer.
 type BasicSigner struct {
-	meta infra.CPSignerMeta
+	meta infra.SignerMeta
 	s    *proto.SignS
 	key  common.RawBytes
 }
 
 // NewBasicSigner creates a Signer that uses the supplied meta to sign
 // messages.
-func NewBasicSigner(key common.RawBytes, meta infra.CPSignerMeta) (*BasicSigner, error) {
+func NewBasicSigner(key common.RawBytes, meta infra.SignerMeta) (*BasicSigner, error) {
 	if meta.Src.IA.IsWildcard() {
 		return nil, common.NewBasicError("IA must not contain wildcard", nil, "ia", meta.Src.IA)
 	}
@@ -71,38 +71,68 @@ func NewBasicSigner(key common.RawBytes, meta infra.CPSignerMeta) (*BasicSigner,
 
 // Sign signs the message.
 func (b *BasicSigner) Sign(msg common.RawBytes) (*proto.SignS, error) {
+	var err error
 	sign := b.s.Copy()
-	return sign, sign.SignAndSet(b.key, msg)
+	sign.Signature, err = scrypto.Sign(sign.SigPack(msg, true), b.key, b.meta.Algo)
+	return sign, err
 }
 
 // Meta returns the meta data the signer uses when signing.
-func (b *BasicSigner) Meta() infra.CPSignerMeta {
+func (b *BasicSigner) Meta() infra.SignerMeta {
 	return b.meta
 }
 
-var _ infra.CPVerifier = (*BasicSigVerifier)(nil)
+var _ infra.Verifier = (*BasicVerifier)(nil)
 
-// BasicSigVerifier is a SigVerifier that ignores signatures on cert_mgmt.TRC
+// BasicVerifier is a verifier that ignores signatures on cert_mgmt.TRC
 // and cert_mgmt.Chain messages, to avoid dependency cycles.
-type BasicSigVerifier struct {
-	store  *Store
-	remote addr.IA
+type BasicVerifier struct {
+	store *Store
+	ia    addr.IA
+	src   ctrl.SignSrcDef
 }
 
-func NewBasicSigVerifier(store *Store) *BasicSigVerifier {
-	return &BasicSigVerifier{
+// NewBasicVerifier creates a new verifier.
+func NewBasicVerifier(store *Store) *BasicVerifier {
+	return &BasicVerifier{
 		store: store,
 	}
 }
 
-func (v *BasicSigVerifier) BindToRemote(ia addr.IA) ctrl.SigVerifier {
-	return &BasicSigVerifier{
-		store:  v.store,
-		remote: ia,
+// BindToIA creates a verifier that is bound to the remote AS. Only
+// signatures created by that AS are accepted.
+func (v *BasicVerifier) BindToIA(ia addr.IA) infra.Verifier {
+	return &BasicVerifier{
+		store: v.store,
+		ia:    ia,
+		src:   v.src,
 	}
 }
 
-func (v *BasicSigVerifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
+// BindToSrc returns a verifier that is bound to the specified source. The
+// verifies against the specified source, and not the value provided by the
+// sign meta data.
+func (v *BasicVerifier) BindToSrc(src ctrl.SignSrcDef) infra.Verifier {
+	return &BasicVerifier{
+		store: v.store,
+		ia:    v.ia,
+		src:   src,
+	}
+}
+
+// Verify verifies the message based on the provided sign meta data.
+func (v *BasicVerifier) Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error {
+
+	if err := v.sanityChecks(sign, false); err != nil {
+		return err
+	}
+	return v.verify(ctx, msg, sign)
+}
+
+// VerifyPld verifies and unpacks the signed payload. In addition to the
+// regular checks, this also verifies that the signature is not older than
+// SignatureValidity.
+func (v *BasicVerifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
 	cpld, err := ctrl.NewPldFromRaw(spld.Blob)
 	if err != nil {
 		return nil, err
@@ -110,24 +140,16 @@ func (v *BasicSigVerifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) 
 	if v.ignoreSign(cpld, spld.Sign) {
 		return cpld, nil
 	}
-	if err := v.sanityChecks(spld); err != nil {
+	if err := v.sanityChecks(spld.Sign, true); err != nil {
 		return nil, err
 	}
-	src, err := ctrl.NewSignSrcDefFromRaw(spld.Sign.Src)
-	if err != nil {
+	if err := v.verify(ctx, spld.Blob, spld.Sign); err != nil {
 		return nil, err
 	}
-	if err := v.checkRemote(src); err != nil {
-		return nil, err
-	}
-	vKey, err := v.getVerifyKeyForSign(ctx, src)
-	if err != nil {
-		return nil, err
-	}
-	return cpld, spld.Sign.Verify(vKey, spld.Blob)
+	return cpld, nil
 }
 
-func (v *BasicSigVerifier) ignoreSign(p *ctrl.Pld, sign *proto.SignS) bool {
+func (v *BasicVerifier) ignoreSign(p *ctrl.Pld, sign *proto.SignS) bool {
 	u0, _ := p.Union()
 	outer, ok := u0.(*cert_mgmt.Pld)
 	if !ok {
@@ -145,18 +167,21 @@ func (v *BasicSigVerifier) ignoreSign(p *ctrl.Pld, sign *proto.SignS) bool {
 	return false
 }
 
-func (v *BasicSigVerifier) sanityChecks(spld *ctrl.SignedPld) error {
-	if len(spld.Sign.Signature) == 0 {
-		return common.NewBasicError("SignedPld is missing signature", nil, "type", spld.Sign.Type)
+func (v *BasicVerifier) sanityChecks(sign *proto.SignS, timeout bool) error {
+	if sign == nil {
+		return common.NewBasicError("SignS is unset", nil)
+	}
+	if len(sign.Signature) == 0 {
+		return common.NewBasicError("SignedPld is missing signature", nil, "type", sign.Type)
 	}
 	now := time.Now()
-	ts := spld.Sign.Time()
+	ts := sign.Time()
 	diff := now.Sub(ts)
 	if diff < 0 {
 		return common.NewBasicError("Invalid timestamp. Signature from future", nil,
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now))
 	}
-	if diff > SignatureValidity {
+	if timeout && diff > SignatureValidity {
 		return common.NewBasicError("Invalid timestamp. Signature expired", nil,
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
 			"validity", SignatureValidity)
@@ -164,24 +189,39 @@ func (v *BasicSigVerifier) sanityChecks(spld *ctrl.SignedPld) error {
 	return nil
 }
 
-func (v *BasicSigVerifier) checkRemote(src *ctrl.SignSrcDef) error {
-	if v.remote.A != 0 && src.IA.A != v.remote.A {
-		return common.NewBasicError("AS does not match remote", nil,
-			"src", src, "remote", v.remote)
+func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
+	sign *proto.SignS) error {
+
+	var err error
+	src := v.src
+	if src == (ctrl.SignSrcDef{}) {
+		if src, err = ctrl.NewSignSrcDefFromRaw(sign.Src); err != nil {
+			return err
+		}
 	}
-	if v.remote.I != 0 && src.IA.I != v.remote.I {
-		return common.NewBasicError("ISD does not match remote", nil,
-			"src", src, "remote", v.remote)
+	if err := v.checkSrc(src); err != nil {
+		return err
+	}
+	chain, err := GetChainForSign(ctx, src, v.store)
+	if err != nil {
+		return err
+	}
+	err = scrypto.Verify(sign.SigPack(msg, false), sign.Signature, chain.Leaf.SubjectSignKey,
+		chain.Leaf.SignAlgorithm)
+	if err != nil {
+		return common.NewBasicError("Verification failed", err)
 	}
 	return nil
 }
 
-func (v *BasicSigVerifier) getVerifyKeyForSign(ctx context.Context,
-	src *ctrl.SignSrcDef) (common.RawBytes, error) {
-
-	chain, err := GetChainForSign(ctx, src, v.store)
-	if err != nil {
-		return nil, err
+func (v *BasicVerifier) checkSrc(src ctrl.SignSrcDef) error {
+	if v.ia.A != 0 && src.IA.A != v.ia.A {
+		return common.NewBasicError("AS does not match bound source", nil,
+			"srcSet", v.src != ctrl.SignSrcDef{}, "expected", v.ia, "actual", src.IA)
 	}
-	return chain.Leaf.SubjectSignKey, nil
+	if v.ia.I != 0 && src.IA.I != v.ia.I {
+		return common.NewBasicError("ISD does not match bound source", nil,
+			"srcSet", v.src != ctrl.SignSrcDef{}, "expected", v.ia, "actual", src.IA)
+	}
+	return nil
 }

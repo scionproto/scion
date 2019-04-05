@@ -90,7 +90,7 @@ func processCtrlFromRaw(b common.RawBytes) error {
 	if err != nil {
 		return common.NewBasicError("Parsing signed ctrl pld", nil, "err", err)
 	}
-	cPld, err := scPld.Pld()
+	cPld, err := scPld.UnsafePld()
 	if err != nil {
 		return common.NewBasicError("Getting ctrl pld", nil, "err", err)
 	}
