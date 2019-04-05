@@ -17,6 +17,7 @@ package trust
 
 import (
 	"context"
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -87,42 +88,44 @@ var _ infra.Verifier = (*BasicVerifier)(nil)
 // BasicVerifier is a verifier that ignores signatures on cert_mgmt.TRC
 // and cert_mgmt.Chain messages, to avoid dependency cycles.
 type BasicVerifier struct {
-	store *Store
-	ia    addr.IA
-	src   ctrl.SignSrcDef
+	store  *Store
+	ia     addr.IA
+	src    ctrl.SignSrcDef
+	server net.Addr
 }
 
 // NewBasicVerifier creates a new verifier.
 func NewBasicVerifier(store *Store) *BasicVerifier {
-	return &BasicVerifier{
-		store: store,
-	}
+	return &BasicVerifier{store: store}
 }
 
-// BindToIA creates a verifier that is bound to the remote AS. Only
+// WithIA creates a verifier that is bound to the remote AS. Only
 // signatures created by that AS are accepted.
-func (v *BasicVerifier) BindToIA(ia addr.IA) infra.Verifier {
-	return &BasicVerifier{
-		store: v.store,
-		ia:    ia,
-		src:   v.src,
-	}
+func (v *BasicVerifier) WithIA(ia addr.IA) infra.Verifier {
+	verifier := *v
+	verifier.ia = ia
+	return &verifier
 }
 
-// BindToSrc returns a verifier that is bound to the specified source. The
+// WithSrc returns a verifier that is bound to the specified source. The
 // verifies against the specified source, and not the value provided by the
 // sign meta data.
-func (v *BasicVerifier) BindToSrc(src ctrl.SignSrcDef) infra.Verifier {
-	return &BasicVerifier{
-		store: v.store,
-		ia:    v.ia,
-		src:   src,
-	}
+func (v *BasicVerifier) WithSrc(src ctrl.SignSrcDef) infra.Verifier {
+	verifier := *v
+	verifier.src = src
+	return &verifier
+}
+
+// WithServer returns a verifier that requests the required crypto material
+// from the specified server.
+func (v *BasicVerifier) WithServer(server net.Addr) infra.Verifier {
+	verifier := *v
+	verifier.server = server
+	return &verifier
 }
 
 // Verify verifies the message based on the provided sign meta data.
 func (v *BasicVerifier) Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error {
-
 	if err := v.sanityChecks(sign, false); err != nil {
 		return err
 	}
@@ -202,7 +205,7 @@ func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
 	if err := v.checkSrc(src); err != nil {
 		return err
 	}
-	chain, err := GetChainForSign(ctx, src, v.store)
+	chain, err := GetChainForSign(ctx, src, v.store, v.server)
 	if err != nil {
 		return err
 	}
