@@ -2,9 +2,9 @@
 
 The control-plane PKI (CP-PKI) allows each isolation domain (ISD) to define its own roots of trust
 for routing-related decisions. Each ISD maintains its own trust root configuration (TRC), where the
-principal ASes of the ISD are specified along with public keys and policies for updating the TRC.
-Each version of the TRC must be signed by a number of ASes with voting power in the ISD, so that
-updates can be authenticated and validated against previous versions. The TRC can be seen as a
+primary ASes of the ISD are specified along with public keys and policies for updating the TRC. Each
+version of the TRC must be signed by a number of ASes with voting power in the ISD, so that updates
+can be authenticated and validated against previous versions. The TRC can be seen as a
 multi-self-signed root certificate.
 
 This document largely borrows from previous design documents and the SCION book, but also proposes
@@ -17,14 +17,17 @@ new concepts and simplifies some existing mechanisms.
 - __Trust anchor:__ certificate, public key, or set thereof that is considered valid axiomatically
   (unless expired or revoked). In other words, a cryptographic object for which trust is assumed
   rather than derived. In SCION, trust anchors are TRCs with a grace period of 0.
-- __Trust store:__ list of all trust anchors established and maintained by verifiers.
+- __Verifier:__ any entity holding at least one trust anchor and capable of verifying TRCs and AS
+  certificates. All SCION hosts are verifiers.
+- __Trust store:__ database of trust anchors established and maintained by verifiers.
 - __Trust reset:__ action of creating and announcing a new trust anchor for an existing ISD.
 - __TRC chain verification:__ process of verifying a series of TRCs with consecutive version numbers
   and the same ISD identifier, starting from a trust anchor.
 
 ### TRC Qualifiers
 
-Below are the different states in which a TRC can be (in increasing level of "trustworthiness"):
+Below are the different states in which a TRC can be (in increasing level of "trustworthiness"),
+from the perspective of a verifier:
 
 1. __Verified:__ a TRC whose format and contents are correct and consistent with previous versions.
    The verification of a TRC includes basic sanity checks as well as a TRC chain verification.
@@ -43,7 +46,7 @@ Other qualifiers for TRCs include the following:
 - __Expired:__ a TRC whose validity period has ended, or that has been replaced by an update whose
     grace period renders the previous TRC inactive.
 
-## Principal ASes
+## Primary ASes
 
 An ISD is made up of a number of ASes. There is an (open) set of attributes that each AS may have:
 
@@ -52,14 +55,14 @@ An ISD is made up of a number of ASes. There is an (open) set of attributes that
   for the local ISD.
 - `Issuing`: AS that issues AS certificates to other ASes in the ISD.
 
-__Principal AS:__ has at least one of the above attributes.
+__Primary AS:__ has at least one of the above attributes.
 
 An AS that has no core links is not a core AS. A voting AS must be a core AS (this ensures that it's
 reachable by other core ASes for bootstrap purposes), but an issuer AS doesn't have such a
 requirement. Voting ASes are required to have both offline and online keys. Non-voting ASes cannot
 have offline keys.
 
-All ASes with one or more attributes are considered principal ASes, and are listed in the TRC, along
+All ASes with one or more attributes are considered primary ASes, and are listed in the TRC, along
 with their relevant keys.
 
 ## Design Goals
@@ -94,8 +97,8 @@ forging TRCs for other ISDs.
 
 ### Uniqueness
 
-A TRC must never change after it has been issued. Moreover, there should not exist multiple valid
-TRCs with different contents for the same ISD and with the same version number; this kind of
+A TRC version must never change after it has been issued. Moreover, there should not exist multiple
+valid TRCs with different contents for the same ISD and with the same version number; this kind of
 behavior is considered malicious (commonly referred to as a "split-world attack" or "equivocation").
 Also, it is not possible to add multiple TRCs with the same ISD identifier to a trust store, unless
 a TRC chain verification has succeeded.
@@ -195,12 +198,12 @@ The following fields must be used to determine whether a TRC is *valid* (not to 
 - `NotBefore`: Time before which this TRC cannot be considered *valid*.
 - `NotAfter`: Time after which this TRC will no longer be considered *valid*.
 
-### TRC Section: `PrincipalASes`
+### TRC Section: `PrimaryASes`
 
-This is an object that maps principal AS identifiers to their attributes and keys:
+This is an object that maps primary AS identifiers to their attributes and keys:
 
 - `Attributes`: Set of AS attributes. Can be `Issuing`, `Voting`, and/or `Core`. The set of
-  attributes cannot be empty as the AS would not be considered a "principal AS".
+  attributes cannot be empty as the AS would not be considered a "primary AS".
 
 - `Keys`: Object that maps key types (strings such as `Online` or `Offline`) to an object with the
   following fields:
@@ -237,7 +240,7 @@ following:
             "NotBefore": 1510146554,
             "NotAfter": 1541682554
         },
-        "PrincipalASes": {
+        "PrimaryASes": {
             "ff00:0:110": {
                 "Attributes": ["Issuing", "Voting", "Core"],
                 "Keys": {
@@ -311,15 +314,12 @@ unsigned and formatted as decimal unless otherwise specified.
 
 - `Subject`: String. ISD and AS identifiers of the entity that owns the certificate and the
   corresponding key pair.
-- `Issuer`: String. ISD and AS identifiers of the entity that signed the certificate.
 - `TRCVersion`: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
 - `CertificateVersion`: 64-bit integer. Certificate version, starts at 1.
 - `FormatVersion`: 8-bit integer. Version of the TRC/certificate format (currently 1).
 - `Description`: String. Describes the certificate/AS.
-- `CanIssue`: Boolean. Describes whether the subject is allowed to issue certificates for other
-  ASes, i.e., `true` indicates an "issuer certificate" and `false` an "AS certificate".
-- `Signature`: Base64-encoded string representation of the issuer's signature over the certificate.
-- `SigningKeyVersion`: 64-bit integer. Version of the key used to produce the above signature.
+- `CertificateType`: String. Indicates whether the subject is allowed to issue certificates for
+  other ASes. Can be either "Issuer" (can issue certificate) or "AS" (cannot).
 - `CCRLDistributionPoints`: Array (optional). Distribution points of control-plane certificate
   revocation lists (CCRLs).
 
@@ -342,17 +342,22 @@ algorithm and the key.
   - `Key`: Base64-encoded string representation of the public key.
   - `KeyVersion`: 64-bit integer. Starts at 1, incremented every time the key is replaced.
 
+### AS Certificate Section: `Issuer`
+
+- `Identifier`: String. ISD and AS identifiers of the entity that signed the certificate.
+- `KeyVersion`: 64-bit integer. Version of the key used to produce the signature below.
+- `Signature`: Base64-encoded string representation of the issuer's signature over the certificate.
+
 ### Example of AS Certificate Chain
 
     [
         {
             "Subject": "1-ff00:0:130",
-            "Issuer": "1-ff00:0:130",
             "TRCVersion": 2,
             "CertificateVersion": 6,
             "FormatVersion": 1,
             "Description": "Issuer certificate",
-            "CanIssue": true,
+            "CertificateType": "Issuer",
             "Validity": {
                 "NotBefore": 1442862832,
                 "NotAfter": 1582463723
@@ -364,17 +369,19 @@ algorithm and the key.
                     "KeyVersion": 72
                 }
             }
-            "Signature": "kKzkmxSszVGAHnjPfk8wo/hPSHgBIh8J5nHPXt+aCrnQi1SHeF2...",
-            "SigningKeyVersion": 42
+            "Issuer": {
+                "Identifier": "1-ff00:0:130",
+                "KeyVersion": 42,
+                "Signature": "kKzkmxSszVGAHnjPfk8wo/hPSHgBIh8J5nHPXt+aCrnQi1SHeF2..."
+            }
         },
         {
             "Subject": "1-ff00:0:120",
-            "Issuer": "1-ff00:0:130",
             "TRCVersion": 2,
             "CertificateVersion": 1,
             "FormatVersion": 1,
             "Description": "AS certificate",
-            "CanIssue": false,
+            "CertificateType": "AS",
             "Validity": {
                 "NotBefore": 1480927723,
                 "NotAfter": 1512463723
@@ -391,8 +398,11 @@ algorithm and the key.
                     "KeyVersion": 21
                 }
             }
-            "Signature": "IdI4DeNqwa5TPkYwIeBDk3xN36O5EJ/837mYyND1JcfwIOumhBK...",
-            "SigningKeyVersion": 72
+            "Issuer": {
+                "Identifier": "1-ff00:0:130",
+                "KeyVersion": 72,
+                "Signature": "IdI4DeNqwa5TPkYwIeBDk3xN36O5EJ/837mYyND1JcfwIOumhBK...",
+            }
         }
     ]
 
@@ -405,12 +415,12 @@ AS certificates is an example of a fully automated operation that occurs every f
 requires online keys.
 
 The tables below give an overview of the different keys and certificates used in the CP-PKI. The TRC
-contains the offline and/or online keys of principal ASes and is signed with a quorum of root keys
+contains the offline and/or online keys of primary ASes and is signed with a quorum of root keys
 (online or offline, depending on the context); as such, it can be considered a self-signed root
 certificate, except that multiple parties are involved. Online and offline root keys are included in
-TRCs while other keys are authenticated via certificates. All ASes (including the principal ASes)
-use AS certificates to carry out their regular operations (such as signing beacons). Issuing ASes
-hold an additional certificate whose only purpose is to authenticate (other ASes' and their own) AS
+TRCs while other keys are authenticated via certificates. All ASes (including the primary ASes) use
+AS certificates to carry out their regular operations (such as signing beacons). Issuing ASes hold
+an additional certificate whose only purpose is to authenticate (other ASes' and their own) AS
 certificates.
 
 ### Table: Private Keys
@@ -439,14 +449,15 @@ certificates.
 ## Establishing and Modifying Trust Anchors
 
 All nodes must be pre-loaded with at least the TRC of their own ISD, and they must be able to obtain
-other trust anchors in an authenticated fashion. Initially, trust anchors are all fresh (i.e.,
-version 1) TRCs. A fresh TRC must respect the following conditions to be added to a trust store:
+other trust anchors in an authenticated fashion (as described below). Initially, trust anchors are
+all fresh (i.e., version 1) TRCs. A fresh TRC must respect the following conditions to be added to a
+trust store:
 
 - No TRC with the same `ISD` identifier must be in the trust store.
 - The `TRCVersion` field must be equal to 1.
 - The `NotAfter` validity field must be greater than the `NotBefore` field.
 - The TRC must be signed by all keys listed in it.
-- All principal ASes with the `Voting` attribute must also have the `Core` attribute.
+- All primary ASes with the `Voting` attribute must also have the `Core` attribute.
 - Voting ASes must have both offline and online keys.
 
 A numbering authority will coordinate the attribution of identifiers to ISDs globally. It is likely,
@@ -454,11 +465,19 @@ however, that this authority will delegate and allocate ISD ranges to regional a
 will then assign specific identifiers to ISDs in their region. These regional authorities must thus
 also act as "trust-anchor providers".
 
-Trust-anchor providers must maintain an append-only log of TRCs for their ISD range(s). All ASes
-then know there exists a small number of lists they need to fetch. Specifically, certificate servers
-regularly contact trust-anchor providers; end hosts and other servers obtain their trust anchors
-from certificate servers. This implies that the transmission of trust anchors must be authenticated
-by certificate servers.
+Although regional numbering authorities are the main trust-anchor providers, software vendors who
+pre-install TRCs on the devices they sell or populate/modify trust stores through software updates
+(similarly to how self-signed root CAs are pre-installed and updated by OS/browser vendors for
+HTTPS) are also considered trust-anchor providers. Nevertheless, these vendors must obtain their
+trust anchors from the regional authorities.
+
+Regional numbering authorities must maintain an append-only log of TRCs for their ISD range(s). All
+ASes then know there exists a small number of lists they need to fetch. Specifically, certificate
+servers regularly contact trust-anchor providers; end hosts and other servers obtain their trust
+anchors from certificate servers. This implies that the transmission of trust anchors by certificate
+servers must be authenticated. Certificate servers must also be able to authenticate paths to all
+regional numbering authorities. Therefore, the TRCs needed to authenticate these paths must be
+pre-installed on the certificate servers.
 
 Even with an append-only log, a split-world attack is still possible: a regional authority could
 provide different trust anchors for the same identifier to different clients. For this reason, TRC
@@ -474,8 +493,9 @@ prevents authorities from triggering a "kill switch" on ISDs who decided to set 
 
 ## Verifying TRC Updates
 
-In this section we describe how TRCs must be verified. This includes a policy check as well as other
-basic verifications. Note, however, that a verified TRC is not necessarily valid or active.
+In this section we describe how TRCs must be verified. This includes a verification of the TRC chain
+as well as other basic verifications. Note, however, that a *verified* TRC is not necessarily
+*valid* or *active*.
 
 For any kind of update, the following conditions must be met:
 
@@ -491,13 +511,10 @@ For any kind of update, the following conditions must be met:
 - The TRC must not be signed by non-voting ASes (unless their key(s) is/are new).
 - Keys can be updated only with a strictly increasing `KeyVersion` number.
 
-These conditions guarantee that a TRC cannot remain valid if signatures are removed from it or added
-to it (which would go against the "uniqueness" design goal).
-
 ### Regular TRC Update
 
-A regular update is an update that modifies neither the `PrinicipalASes` section nor the
-`VotingQuorum` parameter. It must be created using only online root keys.
+A regular update is an update that modifies neither the `PrimaryASes` section nor the `VotingQuorum`
+parameter. It must be created using only online root keys.
 
 ### Sensitive TRC Update
 
@@ -510,18 +527,20 @@ following conditions must be met:
   history, which shows a proof of possession (PoP) of the corresponding private key (considered a
   good practice in such a context, see the appendix).
 - `VotingQuorum` must be strictly smaller than the number of voting ASes defined in the TRC.
-- All principal ASes with the `Voting` attribute must also have the `Core` attribute.
+- All primary ASes with the `Voting` attribute must also have the `Core` attribute.
 - Voting ASes must have both offline and online keys.
 
 ## Fetching TRCs and Certificates
 
 All entities within an ISD must have a recent TRC of their own ISD. On startup, all servers and end
 hosts obtain the missing TRCs (if any, from the TRC they possess to the latest TRC) of their own ISD
-from a certificate server. TRCs are disseminated to other ISDs via SCION's beaconing process. If the
-TRC version number within a received beacon is higher than the locally stored TRC, the beacon server
-sends a request to the beacon server that sent the beacon. After a new TRC is accepted, it is
-submitted by the beacon server to a local certificate server. Path servers and end hosts learn about
-new remote TRCs through the path-segment registration and path lookup processes, respectively.
+from a certificate server.
+
+TRC updates are disseminated to other ISDs via SCION's beaconing process. If the TRC version number
+within a received beacon is higher than the locally stored TRC, the beacon server sends a request to
+the beacon server that sent the beacon. After a new TRC is accepted, it is submitted by the beacon
+server to a local certificate server. Path servers and end hosts learn about new remote TRCs through
+the path-segment registration and path lookup processes, respectively.
 
 ### Getting a TRC
 
@@ -581,7 +600,7 @@ fields:
 
 - `ISD`: The ISD identifier.
 - `TRCVersion`: The TRC version to indicate which keys were used during signing.
-- `RevokedASCerts`: Dictionary from leaf certificate identifiers to suicide note.
+- `RevokedASCerts`: Dictionary from AS certificate identifiers to suicide note.
 - `RevokedIssuerCerts`: Dictionary from issuer certificate identifiers to suicide note.
 
 ## Appendix
