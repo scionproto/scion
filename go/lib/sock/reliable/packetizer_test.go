@@ -20,7 +20,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/mocks/mock_net"
+	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 )
 
 func TestReadPacketizer(t *testing.T) {
