@@ -56,8 +56,8 @@ func (s *Sender) Run(_ context.Context) {
 				Host: addr.SvcBS | addr.SVCMcast,
 			},
 			Ifid:     ifid,
-			Pld:      pld,
 			InfoTime: time.Now(),
+			Pld:      pld,
 		}
 		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
 		if err := s.Send(msg, ov); err != nil {

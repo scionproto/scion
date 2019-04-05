@@ -93,8 +93,8 @@ func TestSenderCreatePkt(t *testing.T) {
 				Host: addr.SvcBS,
 			},
 			Ifid:     12,
-			Pld:      common.RawBytes{1, 2, 3, 4},
 			InfoTime: time.Now(),
+			Pld:      common.RawBytes{1, 2, 3, 4},
 		}
 		pkt, err := s.CreatePkt(msg)
 		SoMsg("err", err, ShouldBeNil)
@@ -127,8 +127,8 @@ func TestSenderSend(t *testing.T) {
 				Host: addr.SvcBS,
 			},
 			Ifid:     12,
-			Pld:      common.RawBytes{1, 2, 3, 4},
 			InfoTime: time.Now(),
+			Pld:      common.RawBytes{1, 2, 3, 4},
 		}
 		err := s.Send(msg, &overlay.OverlayAddr{})
 		SoMsg("err", err, ShouldBeNil)
