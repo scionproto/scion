@@ -16,7 +16,6 @@ package keepalive
 
 import (
 	"net"
-	"sync"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -38,22 +37,18 @@ import (
 func TestSenderRun(t *testing.T) {
 	setupItopo(t)
 	Convey("Run sends ifid packets on all interfaces", t, func() {
+		mac, err := scrypto.InitMac(make(common.RawBytes, 16))
+		xtest.FailOnErr(t, err)
 		wconn, rconn := p2p.NewPacketConns()
-		// Create sender.
 		s := Sender{
 			Sender: &onehop.Sender{
-				SrcIA: xtest.MustParseIA("1-ff00:0:111"),
-				Conn:  snet.NewSCIONPacketConn(wconn),
+				IA:   xtest.MustParseIA("1-ff00:0:111"),
+				Conn: snet.NewSCIONPacketConn(wconn),
 				Addr: &addr.AppAddr{
 					L3: addr.HostFromIPStr("127.0.0.1"),
 					L4: addr.NewL4UDPInfo(4242),
 				},
-				HFMacPool: &sync.Pool{
-					New: func() interface{} {
-						mac, _ := scrypto.InitMac(make(common.RawBytes, 16))
-						return mac
-					},
-				},
+				MAC: mac,
 			},
 			Signer: testSigner{},
 		}

@@ -16,7 +16,6 @@ package onehop
 
 import (
 	"hash"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -31,62 +30,51 @@ import (
 // Path is a one-hop path.
 type Path spath.Path
 
+// Msg defines the message payload and the path it is sent on.
+type Msg struct {
+	// Dst is the destination of the message.
+	Dst snet.SCIONAddress
+	// Ifid is the IFID the message is sent on.
+	Ifid common.IFIDType
+	// InfoTime is the timestamp set in the info field.
+	InfoTime time.Time
+	// Pld is the message payload.
+	Pld common.Payload
+}
+
 // Sender is used to send payloads on a one-hop path.
 type Sender struct {
-	// SrcIA is the ISD-AS of the local AS.
-	SrcIA addr.IA
+	// IA is the ISD-AS of the local AS.
+	IA addr.IA
 	// Addr is the address that is set as the source.
 	Addr *addr.AppAddr
-	// Conn is the connection to sent the packets.
+	// Conn is used to send the packets.
 	Conn *snet.SCIONPacketConn
-	// HFMacPool is the mac pool to issue hop fields.
-	HFMacPool *sync.Pool
+	// MAC is the mac to issue hop fields.
+	MAC hash.Hash
 }
 
 // Send sends the payload on a one-hop path.
-func (s *Sender) Send(dst snet.SCIONAddress, ifid common.IFIDType, nextHop *overlay.OverlayAddr,
-	pld common.Payload, infoTime time.Time) error {
-
-	pkt, err := s.Pkt(dst, ifid, pld, infoTime)
+func (s *Sender) Send(msg *Msg, nextHop *overlay.OverlayAddr) error {
+	pkt, err := s.CreatePkt(msg)
 	if err != nil {
 		return common.NewBasicError("Unable to create packet", err)
 	}
 	return s.Conn.WriteTo(pkt, nextHop)
 }
 
-// Pkt creates a scion packet with a one-hop path and the payload.
-func (s *Sender) Pkt(dst snet.SCIONAddress, ifid common.IFIDType, pld common.Payload,
-	now time.Time) (*snet.SCIONPacket, error) {
+// CreatePkt creates a scion packet with a one-hop path and the payload.
+func (s *Sender) CreatePkt(msg *Msg) (*snet.SCIONPacket, error) {
 
-	path, err := s.CreatePath(ifid, now)
+	path, err := s.CreatePath(msg.Ifid, msg.InfoTime)
 	if err != nil {
 		return nil, err
 	}
-	return s.CreatePkt(dst, path, pld), nil
-}
-
-// CreatePath creates the one-hop path and initializes it.
-func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) {
-
-	mac := s.HFMacPool.Get().(hash.Hash)
-	defer s.HFMacPool.Put(mac)
-	path, err := spath.NewOneHop(s.SrcIA.I, ifid, time.Now(), spath.DefaultHopFExpiry, mac)
-	if err != nil {
-		return nil, err
-	}
-	return (*Path)(path), path.InitOffsets()
-}
-
-// CreatePkt creates a scion packet with a one-hop extension, and the
-// provided path and payload.
-func (s *Sender) CreatePkt(dst snet.SCIONAddress, path *Path,
-	pld common.Payload) *snet.SCIONPacket {
-
 	pkt := &snet.SCIONPacket{
 		SCIONPacketInfo: snet.SCIONPacketInfo{
-			Destination: dst,
+			Destination: msg.Dst,
 			Source: snet.SCIONAddress{
-				IA:   s.SrcIA,
+				IA:   s.IA,
 				Host: s.Addr.L3,
 			},
 			Path:       (*spath.Path)(path),
@@ -94,8 +82,18 @@ func (s *Sender) CreatePkt(dst snet.SCIONAddress, path *Path,
 			L4Header: &l4.UDP{
 				SrcPort: s.Addr.L4.Port(),
 			},
-			Payload: pld,
+			Payload: msg.Pld,
 		},
 	}
-	return pkt
+	return pkt, nil
+}
+
+// CreatePath creates the one-hop path and initializes it.
+func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) {
+	s.MAC.Reset()
+	path, err := spath.NewOneHop(s.IA.I, ifid, time.Now(), spath.DefaultHopFExpiry, s.MAC)
+	if err != nil {
+		return nil, err
+	}
+	return (*Path)(path), path.InitOffsets()
 }

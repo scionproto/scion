@@ -17,7 +17,6 @@ package onehop
 import (
 	"hash"
 	"net"
-	"sync"
 	"testing"
 	"time"
 
@@ -39,13 +38,8 @@ import (
 func TestSenderCreatePath(t *testing.T) {
 	Convey("Create Path creates a correct path", t, func() {
 		s := &Sender{
-			SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-			HFMacPool: &sync.Pool{
-				New: func() interface{} {
-					mac, _ := scrypto.InitMac(make(common.RawBytes, 16))
-					return mac
-				},
-			},
+			IA:  xtest.MustParseIA("1-ff00:0:110"),
+			MAC: createMac(t),
 		}
 		now := time.Now()
 		oneHopPath, err := s.CreatePath(12, now)
@@ -55,7 +49,7 @@ func TestSenderCreatePath(t *testing.T) {
 		// Info check
 		info, err := path.GetInfoField(path.InfOff)
 		SoMsg("InfoErr", err, ShouldBeNil)
-		SoMsg("Info.ISD", info.ISD, ShouldEqual, s.SrcIA.I)
+		SoMsg("Info.ISD", info.ISD, ShouldEqual, s.IA.I)
 		SoMsg("Info.ConsDir", info.ConsDir, ShouldBeTrue)
 		SoMsg("Info.Shortcut", info.Shortcut, ShouldBeFalse)
 		SoMsg("Info.Peer", info.Peer, ShouldBeFalse)
@@ -71,7 +65,7 @@ func TestSenderCreatePath(t *testing.T) {
 		SoMsg("Hop.ExpTime", hop.ExpTime, ShouldEqual, spath.DefaultHopFExpiry)
 		SoMsg("Hop.ConsIngress", hop.ConsIngress, ShouldEqual, 0)
 		SoMsg("Hop.ConsEgress", hop.ConsEgress, ShouldEqual, 12)
-		SoMsg("Hop.Verify", hop.Verify(s.HFMacPool.Get().(hash.Hash), info.TsInt, nil), ShouldBeNil)
+		SoMsg("Hop.Verify", hop.Verify(s.MAC, info.TsInt, nil), ShouldBeNil)
 
 		// Second hop field set.
 		err = path.IncOffsets()
@@ -83,29 +77,28 @@ func TestSenderCreatePath(t *testing.T) {
 	})
 }
 
-func TestSenderPkt(t *testing.T) {
-	Convey("Pkt creates a correct packet", t, func() {
+func TestSenderCreatePkt(t *testing.T) {
+	Convey("CreatePkt creates a correct packet", t, func() {
 		s := &Sender{
-			SrcIA: xtest.MustParseIA("1-ff00:0:110"),
+			IA: xtest.MustParseIA("1-ff00:0:110"),
 			Addr: &addr.AppAddr{
 				L3: addr.HostFromIPStr("127.0.0.1"),
 				L4: addr.NewL4UDPInfo(4242),
 			},
-			HFMacPool: &sync.Pool{
-				New: func() interface{} {
-					mac, _ := scrypto.InitMac(make(common.RawBytes, 16))
-					return mac
-				},
+			MAC: createMac(t),
+		}
+		msg := &Msg{
+			Dst: snet.SCIONAddress{
+				IA:   xtest.MustParseIA("1-ff00:0:111"),
+				Host: addr.SvcBS,
 			},
+			Ifid:     12,
+			Pld:      common.RawBytes{1, 2, 3, 4},
+			InfoTime: time.Now(),
 		}
-		dst := snet.SCIONAddress{
-			IA:   xtest.MustParseIA("1-ff00:0:111"),
-			Host: addr.SvcBS,
-		}
-		now := time.Now()
-		pkt, err := s.Pkt(dst, 12, common.RawBytes{1, 2, 3, 4}, now)
+		pkt, err := s.CreatePkt(msg)
 		SoMsg("err", err, ShouldBeNil)
-		checkTestPkt(t, s, 12, dst, now, common.RawBytes{1, 2, 3, 4}, pkt)
+		checkTestPkt(t, s, msg, pkt)
 	})
 }
 
@@ -113,18 +106,13 @@ func TestSenderSend(t *testing.T) {
 	Convey("Send sends packet", t, func() {
 		wconn, rconn := p2p.NewPacketConns()
 		s := &Sender{
-			SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-			Conn:  snet.NewSCIONPacketConn(wconn),
+			IA:   xtest.MustParseIA("1-ff00:0:110"),
+			Conn: snet.NewSCIONPacketConn(wconn),
 			Addr: &addr.AppAddr{
 				L3: addr.HostFromIPStr("127.0.0.1"),
 				L4: addr.NewL4UDPInfo(4242),
 			},
-			HFMacPool: &sync.Pool{
-				New: func() interface{} {
-					mac, _ := scrypto.InitMac(make(common.RawBytes, 16))
-					return mac
-				},
-			},
+			MAC: createMac(t),
 		}
 		// Read from connection to unblock sender.
 		pkt := &snet.SCIONPacket{}
@@ -133,31 +121,33 @@ func TestSenderSend(t *testing.T) {
 			snet.NewSCIONPacketConn(&testConn{rconn}).ReadFrom(pkt, &overlay.OverlayAddr{})
 			close(done)
 		}()
-		// Create and send packet.
-		dst := snet.SCIONAddress{
-			IA:   xtest.MustParseIA("1-ff00:0:111"),
-			Host: addr.SvcBS,
+		msg := &Msg{
+			Dst: snet.SCIONAddress{
+				IA:   xtest.MustParseIA("1-ff00:0:111"),
+				Host: addr.SvcBS,
+			},
+			Ifid:     12,
+			Pld:      common.RawBytes{1, 2, 3, 4},
+			InfoTime: time.Now(),
 		}
-		now := time.Now()
-		err := s.Send(dst, 12, &overlay.OverlayAddr{}, common.RawBytes{1, 2, 3, 4}, now)
+		err := s.Send(msg, &overlay.OverlayAddr{})
 		SoMsg("err", err, ShouldBeNil)
 		<-done
-		checkTestPkt(t, s, 12, dst, now, common.RawBytes{1, 2, 3, 4}, pkt)
+		checkTestPkt(t, s, msg, pkt)
 	})
 }
 
-func checkTestPkt(t *testing.T, s *Sender, ifid common.IFIDType, dst snet.SCIONAddress,
-	now time.Time, pld common.Payload, pkt *snet.SCIONPacket) {
+func checkTestPkt(t *testing.T, s *Sender, msg *Msg, pkt *snet.SCIONPacket) {
 
-	SoMsg("dst", pkt.Destination, ShouldResemble, dst)
+	SoMsg("dst", pkt.Destination, ShouldResemble, msg.Dst)
 	SoMsg("src", pkt.Source, ShouldResemble, snet.SCIONAddress{
-		IA:   s.SrcIA,
+		IA:   s.IA,
 		Host: addr.HostFromIPStr("127.0.0.1"),
 	})
 	SoMsg("exts", pkt.Extensions, ShouldContain, &layers.ExtnOHP{})
 	SoMsg("l4", pkt.L4Header.(*l4.UDP).SrcPort, ShouldEqual, 4242)
-	SoMsg("pld", pkt.Payload, ShouldResemble, pld)
-	path, err := s.CreatePath(ifid, now)
+	SoMsg("pld", pkt.Payload, ShouldResemble, msg.Pld)
+	path, err := s.CreatePath(msg.Ifid, msg.InfoTime)
 	xtest.FailOnErr(t, err)
 	SoMsg("path", pkt.Path, ShouldResemble, (*spath.Path)(path))
 }
@@ -170,4 +160,10 @@ type testConn struct {
 func (conn *testConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, _, err := conn.PacketConn.ReadFrom(b)
 	return n, &overlay.OverlayAddr{}, err
+}
+
+func createMac(t *testing.T) hash.Hash {
+	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
+	xtest.FailOnErr(t, err)
+	return mac
 }

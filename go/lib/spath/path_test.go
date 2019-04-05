@@ -15,7 +15,6 @@
 package spath
 
 import (
-	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -139,12 +138,10 @@ func makeSeg(b common.RawBytes, consDir bool, isd uint16, hops []uint8) {
 }
 
 func TestNewOneHop(t *testing.T) {
-	// Compute the correct tag.
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
-	rawHop, err := hex.DecodeString("00000003000400000b00000000000000")
-	xtest.FailOnErr(t, err)
-	tag, err := scrypto.Mac(mac, rawHop)
+	// Compute the correct tag for the first hop field.
+	tag, err := (&HopField{ConsEgress: 11, ExpTime: 4}).CalcMac(mac, 3, nil)
 	xtest.FailOnErr(t, err)
 	mac.Reset()
 
@@ -186,6 +183,5 @@ func TestNewOneHop(t *testing.T) {
 		Convey("The second hop field is empty", func() {
 			SoMsg("hop", hop, ShouldResemble, &HopField{Mac: common.RawBytes{0, 0, 0}})
 		})
-
 	})
 }

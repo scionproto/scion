@@ -50,12 +50,17 @@ func (s *Sender) Run(_ context.Context) {
 			log.Error("[KeepaliveSender] Unable to create payload", "err", err)
 			continue
 		}
-		dst := snet.SCIONAddress{
-			IA:   intf.ISD_AS,
-			Host: addr.SvcBS | addr.SVCMcast,
+		msg := &onehop.Msg{
+			Dst: snet.SCIONAddress{
+				IA:   intf.ISD_AS,
+				Host: addr.SvcBS | addr.SVCMcast,
+			},
+			Ifid:     ifid,
+			Pld:      pld,
+			InfoTime: time.Now(),
 		}
 		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
-		if err := s.Send(dst, ifid, ov, pld, time.Now()); err != nil {
+		if err := s.Send(msg, ov); err != nil {
 			log.Error("[KeepaliveSender] Unable to send packet", "err", err)
 		}
 	}
