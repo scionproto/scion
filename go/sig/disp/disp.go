@@ -134,7 +134,7 @@ func dispFunc(dp *pktdisp.DispPkt) {
 		log.Error("Unable to parse signed ctrl payload", "src", src, "err", err)
 		return
 	}
-	cpld, err := scpld.Pld()
+	cpld, err := scpld.UnsafePld()
 	if err != nil {
 		log.Error("Unable to parse ctrl payload", "src", src, "err", err)
 		return

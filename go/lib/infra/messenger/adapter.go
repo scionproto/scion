@@ -59,7 +59,7 @@ func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
 	// XXX(scrye): For request/response matching based on ID, verification is
 	// not taken into account. This allows attackers to change the ID in a
 	// response to make it match any outstanding request.
-	ctrlPld, err := signedCtrlPld.Pld()
+	ctrlPld, err := signedCtrlPld.UnsafePld()
 	if err != nil {
 		log.Warn("Unable to extract CtrlPld from SignedCtrlPld", "err", err)
 		return ""

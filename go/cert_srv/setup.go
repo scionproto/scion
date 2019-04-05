@@ -135,7 +135,7 @@ func setDefaultSignerVerifier(c *config.State, pubIA addr.IA) error {
 		return err
 	}
 	c.SetSigner(signer)
-	c.SetVerifier(trust.NewBasicSigVerifier(c.Store))
+	c.SetVerifier(c.Store.NewVerifier())
 	return nil
 }
 
