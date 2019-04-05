@@ -1,19 +1,8 @@
-# gazelle:ignore
-
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
-load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
-
-gomock(
-    name = "mock_snetproxy",
-    library = "//go/lib/snet/snetproxy:go_default_library",
-    package = "mock_snetproxy",
-    interfaces = ["IOOperation", "Reconnecter"],
-    out = "mock_snetproxy.go",
-)
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["mock_snetproxy.go"],
+    srcs = ["snetproxy.go"],
     importpath = "github.com/scionproto/scion/go/lib/snet/snetproxy/mock_snetproxy",
     visibility = ["//visibility:public"],
     deps = [
@@ -21,4 +10,3 @@ go_library(
         "@com_github_golang_mock//gomock:go_default_library",
     ],
 )
-

@@ -24,7 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/mocks/mock_net"
+	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr/mock_pathmgr"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
