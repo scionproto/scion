@@ -297,13 +297,6 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 func (store *Store) GetValidChain(ctx context.Context, ia addr.IA, ver uint64,
 	server net.Addr) (*cert.Chain, error) {
 
-	if server == nil {
-		var err error
-		server, err = store.ChooseServer(ctx, ia)
-		if err != nil {
-			return nil, err
-		}
-	}
 	return store.getValidChain(ctx, ia, ver, true, nil, server)
 }
 
@@ -326,6 +319,13 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, ver uint64,
 	}
 	if !recurse {
 		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
+	}
+	if server == nil {
+		var err error
+		server, err = store.ChooseServer(ctx, ia)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
