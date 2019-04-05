@@ -294,7 +294,7 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 
 // GetValidChain asks the trust store to return a valid certificate chain for ia.
 // Server is queried over the network if the chain is not available locally.
-func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
+func (store *Store) GetValidChain(ctx context.Context, ia addr.IA, ver uint64,
 	server net.Addr) (*cert.Chain, error) {
 
 	if server == nil {
@@ -304,13 +304,13 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 			return nil, err
 		}
 	}
-	return store.getValidChain(ctx, ia, true, nil, server)
+	return store.getValidChain(ctx, ia, ver, true, nil, server)
 }
 
-func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
-	client, server net.Addr) (*cert.Chain, error) {
+func (store *Store) getValidChain(ctx context.Context, ia addr.IA, ver uint64,
+	recurse bool, client, server net.Addr) (*cert.Chain, error) {
 
-	chain, err := store.trustdb.GetChainMaxVersion(ctx, ia)
+	chain, err := store.trustdb.GetChainVersion(ctx, ia, ver)
 	if err != nil || chain != nil {
 		return chain, err
 	}
@@ -329,7 +329,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
-		version:  scrypto.LatestVer,
+		version:  ver,
 		id:       messenger.NextId(),
 		server:   server,
 		postHook: store.newChainValidator(trcObj),
@@ -534,7 +534,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	dbChain, err := store.getValidChain(ctx, store.ia, false, nil, nil)
+	dbChain, err := store.getValidChain(ctx, store.ia, scrypto.LatestVer, false, nil, nil)
 	switch {
 	case err != nil && common.GetErrorMsg(err) != ErrMissingAuthoritative:
 		// Unexpected error in trust store

@@ -17,6 +17,7 @@ package trust
 
 import (
 	"context"
+	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -89,12 +90,8 @@ func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
 	return nil
 }
 
-func GetChainForSign(ctx context.Context, s ctrl.SignSrcDef,
-	tStore infra.TrustStore) (*cert.Chain, error) {
+func GetChainForSign(ctx context.Context, src ctrl.SignSrcDef,
+	store infra.TrustStore, server net.Addr) (*cert.Chain, error) {
 
-	c, err := tStore.GetChain(ctx, s.IA, s.ChainVer)
-	if err != nil {
-		return nil, err
-	}
-	return c, VerifyChain(ctx, s.IA, c, tStore)
+	return store.GetValidChain(ctx, src.IA, src.ChainVer, server)
 }
