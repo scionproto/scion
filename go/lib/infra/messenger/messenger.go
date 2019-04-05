@@ -156,11 +156,11 @@ type Messenger struct {
 
 	cryptoLock sync.RWMutex
 	// signer is used to sign selected outgoing messages
-	signer infra.CPSigner
+	signer infra.Signer
 	// signMask specifies which messages are signed when sent out
 	signMask map[infra.MessageType]struct{}
 	// verifier is used to verify selected incoming messages
-	verifier infra.CPVerifier
+	verifier infra.Verifier
 
 	// Source for crypto objects (certificates and TRCs)
 	trustStore infra.TrustStore
@@ -632,7 +632,7 @@ func (m *Messenger) listenAndServeUDP() {
 		if !m.config.DisableSignatureVerification {
 			// FIXME(scrye): Always use default signature verifier here, as some
 			// functionality in the main ctrl libraries is still missing.
-			verifier := m.verifier.BindToRemote(address.(*snet.Addr).IA)
+			verifier := m.verifier.BindToIA(address.(*snet.Addr).IA)
 			if pld, err = signedPld.VerifiedPld(serveCtx, verifier); err != nil {
 				logger.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
@@ -711,7 +711,7 @@ func (m *Messenger) CloseServer() error {
 // types are signed, the rest are left with a null signature. If types is nil,
 // only the signer is updated and the existing internal list of types is
 // unchanged. An empty slice of types disables signing for all messages.
-func (m *Messenger) UpdateSigner(signer infra.CPSigner, types []infra.MessageType) {
+func (m *Messenger) UpdateSigner(signer infra.Signer, types []infra.MessageType) {
 	m.cryptoLock.Lock()
 	defer m.cryptoLock.Unlock()
 	if types != nil {
@@ -728,7 +728,7 @@ func (m *Messenger) UpdateSigner(signer infra.CPSigner, types []infra.MessageTyp
 // FIXME(scrye): Verifiers are usually bound to a trust store to which the
 // messenger already holds a reference. We should decouple the trust store from
 // either one or the other.
-func (m *Messenger) UpdateVerifier(verifier infra.CPVerifier) {
+func (m *Messenger) UpdateVerifier(verifier infra.Verifier) {
 	m.cryptoLock.Lock()
 	defer m.cryptoLock.Unlock()
 	m.verifier = verifier
@@ -847,7 +847,7 @@ func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 		return nil, nil, err
 	}
 
-	replyPld, err := reply.SignedPld.Pld()
+	replyPld, err := reply.SignedPld.UnsafePld()
 	if err != nil {
 		return nil, nil, err
 	}

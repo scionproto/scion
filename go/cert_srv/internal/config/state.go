@@ -35,11 +35,11 @@ type State struct {
 	// keyConfLock guards KeyConf.
 	keyConfLock sync.RWMutex
 	// signer is used to sign ctrl payloads.
-	signer infra.CPSigner
+	signer infra.Signer
 	// signerLock guards signer.
 	signerLock sync.RWMutex
 	// verifier is used to verify ctrl payloads.
-	verifier infra.CPVerifier
+	verifier infra.Verifier
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
 }
@@ -96,28 +96,28 @@ func (s *State) GetOnRootKey() common.RawBytes {
 }
 
 // GetSigner returns the signer of the current configuration.
-func (s *State) GetSigner() infra.CPSigner {
+func (s *State) GetSigner() infra.Signer {
 	s.signerLock.RLock()
 	defer s.signerLock.RUnlock()
 	return s.signer
 }
 
 // SetSigner sets the signer of the current configuration.
-func (s *State) SetSigner(signer infra.CPSigner) {
+func (s *State) SetSigner(signer infra.Signer) {
 	s.signerLock.Lock()
 	defer s.signerLock.Unlock()
 	s.signer = signer
 }
 
 // GetVerifier returns the verifier of the current configuration.
-func (s *State) GetVerifier() infra.CPVerifier {
+func (s *State) GetVerifier() infra.Verifier {
 	s.verifierLock.RLock()
 	defer s.verifierLock.RUnlock()
 	return s.verifier
 }
 
 // SetVerifier sets the verifier of the current configuration.
-func (s *State) SetVerifier(verifier infra.CPVerifier) {
+func (s *State) SetVerifier(verifier infra.Verifier) {
 	s.verifierLock.Lock()
 	defer s.verifierLock.Unlock()
 	s.verifier = verifier

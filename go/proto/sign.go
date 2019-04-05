@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -51,19 +50,9 @@ func (s *SignS) Copy() *SignS {
 	}
 }
 
-func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
-	switch s.Type {
-	case SignType_ed25519:
-		return scrypto.Sign(s.sigPack(message, false), key, scrypto.Ed25519)
-	}
-	return nil, common.NewBasicError("SignS.Sign: Unsupported SignType", nil, "type", s.Type)
-}
-
-func (s *SignS) SignAndSet(key, message common.RawBytes) error {
-	var err error
+// SetTimestamp sets the timestamp.
+func (s *SignS) SetTimestamp(now time.Time) {
 	s.Timestamp = util.TimeToSecs(time.Now())
-	s.Signature, err = s.Sign(key, message)
-	return err
 }
 
 // Time returns the timestamp. If the receiver is nil, the zero value is returned.
@@ -75,23 +64,23 @@ func (s *SignS) Time() time.Time {
 }
 
 func (s *SignS) Verify(key, message common.RawBytes) error {
-	switch s.Type {
-	case SignType_ed25519:
-		err := scrypto.Verify(s.sigPack(message, false), s.Signature, key, scrypto.Ed25519)
-		if err != nil {
-			return common.NewBasicError("SignS.Verify: Verification failed", err, "proto.Sign", s)
-		}
-		return nil
-	}
+	// FIXME(roosd) remove
 	return common.NewBasicError("SignS.Verify: Unsupported SignType", nil, "type", s.Type)
 }
 
 func (s *SignS) Pack() common.RawBytes {
-	return s.sigPack(nil, true)
+	return s.pack(nil, true)
+}
+
+func (s *SignS) SigPack(msg common.RawBytes, setTimestamp bool) common.RawBytes {
+	if setTimestamp {
+		s.SetTimestamp(time.Now())
+	}
+	return s.pack(msg, false)
 }
 
 // sigPack appends the type, src, signature (if needed) and timestamp fields to msg
-func (s *SignS) sigPack(msg common.RawBytes, inclSig bool) common.RawBytes {
+func (s *SignS) pack(msg common.RawBytes, inclSig bool) common.RawBytes {
 	msg = append(common.RawBytes(nil), msg...)
 	msg = append(msg, common.RawBytes(s.Type.String())...)
 	msg = append(msg, s.Src...)

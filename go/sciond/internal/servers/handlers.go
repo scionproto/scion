@@ -330,7 +330,7 @@ func (h *RevNotificationHandler) verifySRevInfo(ctx context.Context,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to extract RevInfo", nil)
 	}
-	err = segverifier.VerifyRevInfo(ctx, h.TrustStore, nil, sRevInfo)
+	err = segverifier.VerifyRevInfo(ctx, h.TrustStore.NewVerifier(), nil, sRevInfo)
 	return info, err
 }
 

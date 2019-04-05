@@ -30,7 +30,7 @@ func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, error) {
 	if err != nil {
 		return HookError, nil, err
 	}
-	cpld, err := scpld.Pld()
+	cpld, err := scpld.UnsafePld()
 	if err != nil {
 		return HookError, nil, err
 	}

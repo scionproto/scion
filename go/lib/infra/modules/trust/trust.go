@@ -715,14 +715,12 @@ func (store *Store) chooseASLocalCS(ctx context.Context, destination addr.IA,
 	return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 }
 
-func (store *Store) NewSigner(key common.RawBytes,
-	meta infra.CPSignerMeta) (infra.CPSigner, error) {
-
+func (store *Store) NewSigner(key common.RawBytes, meta infra.SignerMeta) (infra.Signer, error) {
 	return NewBasicSigner(key, meta)
 }
 
-func (store *Store) NewSigVerifier() infra.CPVerifier {
-	return NewBasicSigVerifier(store)
+func (store *Store) NewVerifier() infra.Verifier {
+	return NewBasicVerifier(store)
 }
 
 // wrapErr build a dedupe.Response object containing nil data and error err.

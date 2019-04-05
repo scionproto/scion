@@ -147,7 +147,7 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
 		logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
 	}
-	segverifier.Verify(ctx, h.trustStore, src, recs,
+	segverifier.Verify(ctx, h.trustStore.NewVerifier(), src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
 
 	tx, err := h.pathDB.BeginTransaction(ctx, nil)
