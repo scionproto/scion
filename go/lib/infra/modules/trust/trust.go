@@ -355,8 +355,11 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	recurse bool, client net.Addr) (*cert.Chain, error) {
 
 	chain, err := store.trustdb.GetChainVersion(ctx, ia, version)
-	if err != nil || chain != nil {
-		return chain, err
+	if err != nil {
+		return nil, common.NewBasicError("Error accessing trustdb", nil)
+	}
+	if chain != nil {
+		return chain, nil
 	}
 	// If we're authoritative for the requested IA, error out now.
 	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
