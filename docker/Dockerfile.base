@@ -35,13 +35,20 @@ COPY env/common.sh env/
 COPY env/debian env/debian
 RUN sudo apt-get update && APTARGS=-y env/debian/deps && sudo apt-get clean
 
+# Install Bazel
+COPY tools/install_bazel install_bazel
+RUN sudo ./install_bazel && rm install_bazel
+
+# Prepare a directory for caching
+RUN sudo mkdir -p /scioncache;
+
 # Pip packages
 COPY env/pip3 env/pip3
 COPY env/pip2 env/pip2
 RUN set -ex; \
     env/pip2/deps; \
     env/pip3/deps; \
-    tar czf ~/python_local.tar.gz --owner=scion -C ~ .local; \
+    sudo tar czf /scioncache/python_local.tar.gz --owner=scion -C ~ .local; \
     rm -r ~/.cache/pip ~/.local
 
 # Pip2 packages
@@ -52,24 +59,16 @@ RUN env/pip2/deps && rm -r ~/.cache/pip
 COPY env/zlog env/zlog
 RUN eatmydata env/zlog/deps
 
-# Go version check, and govendor
-COPY env/go env/go
-RUN GO_INSTALL=y eatmydata env/go/deps && rm -r ~/go/pkg/
-
-# Cleanup
-RUN sudo rm -r env
-
-# Vendored go packages
-COPY go/vendor/ go/vendor
-RUN sudo chown -R scion .
-RUN set -ex; \
-    cd go; \
-    eatmydata govendor sync -v; \
-    eatmydata govendor install ./vendor/...; \
-    cd vendor; \
-    tar caf ~/go_vendor.tar.gz --owner=scion $(find * -maxdepth 0 -type d); \
-    cd ../../; \
-    rm -r go ~/go/.cache ~/go/pkg/
+# Dependencies managed by Bazel.
+COPY WORKSPACE .
+COPY tools/fetch.sh tools/
+RUN set -ex ; \
+    tools/fetch.sh > BUILD.bazel ; \
+    bazel fetch --noshow_progress //:fetch 2>&1 ; \
+    rm -rf /home/scion/.cache/bazel/_bazel_scion/*/external/*/\.git ; \
+    sudo tar czf /scioncache/bazel.tar.gz --owner=scion -C ~ .cache/bazel; \
+    sudo rm -r ~/.cache/bazel; \
+    sudo rm -r ./*
 
 # Install docker and docker-compose
 COPY tools/install_docker install_docker
@@ -77,7 +76,7 @@ RUN sudo ./install_docker && rm install_docker && sudo usermod -aG docker scion
 
 # Install su-exec
 ARG SU_EXEC_COMMIT=e9664105e1f0b48024e52f454c6b78d15b5daa57
-RUN set -e; mkdir su-exec; \
+RUN set -ex; mkdir su-exec; \
     curl -SL https://github.com/anapaya/su-exec/archive/${SU_EXEC_COMMIT}.tar.gz | tar xz -C su-exec --strip-components=1; \
     make -C su-exec; sudo mv su-exec/su-exec /sbin/; \
     rm -r su-exec;

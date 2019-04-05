@@ -221,7 +221,7 @@ func TestDeduper(t *testing.T) {
 				chs := make(map[int]<-chan Response)
 				for i := range tc.requests {
 					<-time.After(time.Duration(tc.requests[i].Delay) * time.Millisecond)
-					ch, cancelF := deduper.Request(context.TODO(), &tc.requests[i])
+					ch, cancelF := deduper.Request(&tc.requests[i])
 					chs[i] = ch
 					defer cancelF()
 				}

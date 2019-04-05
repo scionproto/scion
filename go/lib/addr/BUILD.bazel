@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "appaddr.go",
+        "doc.go",
+        "host.go",
+        "isdas.go",
+        "l4info.go",
+        "util.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/addr",
+    visibility = ["//visibility:public"],
+    deps = ["//go/lib/common:go_default_library"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["isdas_test.go"],
+    embed = [":go_default_library"],
+    deps = ["@com_github_smartystreets_goconvey//convey:go_default_library"],
+)

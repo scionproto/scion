@@ -28,8 +28,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet/rpt"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
 )
@@ -39,27 +39,24 @@ var (
 	mockTRC = &cert_mgmt.TRC{RawTRC: common.RawBytes("foobar")}
 )
 
-func MockTRCHandler(request *infra.Request) {
-	messengerI, ok := infra.MessengerFromContext(request.Context())
+func MockTRCHandler(request *infra.Request) *infra.HandlerResult {
+	rw, ok := infra.ResponseWriterFromContext(request.Context())
 	if !ok {
-		log.Warn("Unable to service request, no Messenger interface found")
-		return
-	}
-	messenger, ok := messengerI.(*Messenger)
-	if !ok {
-		log.Warn("Unable to service request, bad Messenger value found")
-		return
+		log.Warn("Unable to service request, no resopnse writer found")
+		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(request.Context(), 3*time.Second)
 	defer cancelF()
-	if err := messenger.SendTRC(subCtx, mockTRC, nil, request.ID); err != nil {
+	if err := rw.SendTRCReply(subCtx, mockTRC); err != nil {
 		log.Error("Server error", "err", err)
+		return infra.MetricsErrInternal
 	}
+	return infra.MetricsResultOk
 }
 
 func TestTRCExchange(t *testing.T) {
 	Convey("Setup", t, func() {
-		c2s, s2c := p2p.New()
+		c2s, s2c := p2p.NewPacketConns()
 		clientMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), c2s, "client")
 		serverMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), s2c, "server")
 
@@ -86,10 +83,17 @@ func TestTRCExchange(t *testing.T) {
 }
 
 func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *Messenger {
-	transport := rpt.New(conn, log.New("name", name))
-	dispatcher := disp.New(transport, DefaultAdapter, log.New("name", name))
-	config := &Config{DisableSignatureVerification: true}
-	return New(ia, dispatcher, nil, log.Root().New("name", name), config)
+	config := &Config{
+		IA:                           ia,
+		DisableSignatureVerification: true,
+		Dispatcher: disp.New(
+			transport.NewPacketTransport(conn),
+			DefaultAdapter,
+			log.New("name", name),
+		),
+		Logger: log.Root().New("name", name),
+	}
+	return New(config)
 }
 
 func TestMain(m *testing.M) {

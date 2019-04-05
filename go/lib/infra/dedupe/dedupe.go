@@ -94,7 +94,10 @@ type Deduper interface {
 	// Objects written to the channel might share the same address space, so
 	// callers should copy the value drained from the channel if they want to have
 	// exclusive ownership.
-	Request(ctx context.Context, req Request) (<-chan Response, CancelFunc)
+	//
+	// Note this method explicitly takes no context, when waiting on the response
+	// you should always also read from the ctx.Done() channel.
+	Request(req Request) (<-chan Response, CancelFunc)
 }
 
 type deduper struct {
@@ -134,7 +137,7 @@ func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) Deduper 
 	}
 }
 
-func (dd *deduper) Request(ctx context.Context, req Request) (<-chan Response, CancelFunc) {
+func (dd *deduper) Request(req Request) (<-chan Response, CancelFunc) {
 	ch := make(chan Response, 1)
 	if ctx := dd.notifications.Add(req, ch, dd.dedupeLifetime); ctx != nil {
 		go func() {

@@ -16,13 +16,21 @@
 package config
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
+var _ config.Config = (*Config)(nil)
+
 type Config struct {
+	Logging    env.Logging
+	Metrics    env.Metrics
 	Dispatcher struct {
 		// ID of the Dispatcher (required)
 		ID string
@@ -37,15 +45,6 @@ type Config struct {
 		// socket file prior to attempting to create a new one.
 		DeleteSocket bool
 	}
-	Logging env.Logging
-	Metrics env.Metrics
-}
-
-func (cfg *Config) Validate() error {
-	if cfg.Dispatcher.ID == "" {
-		return common.NewBasicError("ID must be set", nil)
-	}
-	return nil
 }
 
 func (cfg *Config) InitDefaults() {
@@ -55,4 +54,33 @@ func (cfg *Config) InitDefaults() {
 	if cfg.Dispatcher.OverlayPort == 0 {
 		cfg.Dispatcher.OverlayPort = overlay.EndhostPort
 	}
+}
+
+func (cfg *Config) Validate() error {
+	if cfg.Dispatcher.ApplicationSocket == "" {
+		return common.NewBasicError("ApplicationSocket must be set", nil)
+	}
+	if cfg.Dispatcher.OverlayPort == 0 {
+		return common.NewBasicError("OverlayPort must be set", nil)
+	}
+	if cfg.Dispatcher.ID == "" {
+		return common.NewBasicError("ID must be set", nil)
+	}
+	return config.ValidateAll(&cfg.Logging, &cfg.Metrics)
+}
+
+func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	dispSampler := config.StringSampler{
+		Text: fmt.Sprintf(dispSample, idSample),
+		Name: "dispatcher",
+	}
+	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.Logging,
+		&cfg.Metrics,
+		dispSampler,
+	)
+}
+
+func (cfg *Config) ConfigName() string {
+	return "godispatcher_config"
 }

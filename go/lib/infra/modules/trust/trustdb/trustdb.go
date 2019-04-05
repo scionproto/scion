@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
@@ -34,6 +35,7 @@ import (
 type TrustDB interface {
 	ReadWrite
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	db.LimitSetter
 	io.Closer
 }
 

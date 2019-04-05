@@ -27,7 +27,8 @@ from topology.common import (
     DOCKER_USR_VOL,
     json_default,
     remote_nets,
-    sciond_svc_name
+    sciond_svc_name,
+    SIG_CONFIG_NAME
 )
 from topology.prometheus import SIG_PROM_PORT
 
@@ -161,7 +162,7 @@ class SIGGenerator(object):
                 'Prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             }
         }
-        path = os.path.join(topo_id.base_dir(self.args.output_dir), name, "sig.toml")
+        path = os.path.join(topo_id.base_dir(self.args.output_dir), name, SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))
 
     def _disp_vol(self, topo_id):

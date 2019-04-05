@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["ack.go"],
+    importpath = "github.com/scionproto/scion/go/lib/ctrl/ack",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/proto:go_default_library",
+    ],
+)

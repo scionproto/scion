@@ -14,49 +14,23 @@
 
 package config
 
-const Sample = `
-[dispatcher]
-  # ID of the Dispatcher (required)
-  ID = "disp"
+const idSample = "dispatcher"
 
-  # ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
-  ApplicationSocket = "/run/shm/dispatcher/default.sock"
+const dispSample = `
+# ID of the Dispatcher. (required)
+ID = "%s"
 
-  # OverlayPort is the native port opened by the dispatcher (default 30041)
-  OverlayPort = 30041
+# ApplicationSocket is the local API socket. (default /run/shm/dispatcher/default.sock)
+ApplicationSocket = "/run/shm/dispatcher/default.sock"
 
-  # PerfData starts the pprof HTTP server on the specified address. If not set,
-  # the server is not started.
-  # PerfData = "127.0.0.1:6060"
+# OverlayPort is the native port opened by the dispatcher. (default 30041)
+OverlayPort = 30041
 
-  # Set DeleteSock to true to have the Dispatcher remove the socket file (if it
-  # exists) on start (default false)
-  DeleteSocket = false
+# PerfData starts the pprof HTTP server on the specified address.
+# (host:port or ip:port or :port) If not set, the server is not started.
+PerfData = ""
 
-[logging]
-  [logging.file]
-    # Location of the logging file.
-    Path = "/var/log/scion/dispatcher.log"
-
-    # File logging level (trace|debug|info|warn|error|crit) (default debug)
-    Level = "debug"
-
-    # Max size of log file in MiB (default 50)
-    # Size = 50
-
-    # Max age of log file in days (default 7)
-    # MaxAge = 7
-
-    # How frequently to flush to the log file, in seconds. If 0, all messages
-    # are immediately flushed. If negative, messages are never flushed
-    # automatically. (default 5)
-    FlushInterval = 5
-  [logging.console]
-    # Console logging level (trace|debug|info|warn|error|crit) (default crit)
-    Level = "crit"
-
-[metrics]
-  # Prometheus is the address to export prometheus metrics on. If not set,
-  # metrics are not exported.
-  # Prometheus = "127.0.0.1:8000"
+# Set DeleteSock to true to have the Dispatcher remove the socket file (if it
+# exists) on start. (default false)
+DeleteSocket = false
 `

@@ -18,24 +18,26 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/scionproto/scion/go/lib/config"
 )
 
 var (
-	config     string
+	configFile string
 	helpConfig bool
 	version    bool
 )
 
 // AddFlags adds the config and sample flags.
 func AddFlags() {
-	flag.StringVar(&config, "config", "", "TOML config file.")
+	flag.StringVar(&configFile, "config", "", "TOML config file.")
 	flag.BoolVar(&helpConfig, "help-config", false, "Output sample commented config file.")
 	flag.BoolVar(&version, "version", false, "Output version information and exit.")
 }
 
 // ConfigFile returns the config file path passed through the flag.
 func ConfigFile() string {
-	return config
+	return configFile
 }
 
 // Usage outputs run-time help to stdout.
@@ -52,16 +54,16 @@ func Usage() {
 //
 // The first return value is the return code of the program. The second value
 // indicates whether the program can continue with its execution or should exit.
-func CheckFlags(sampleConfig string) (int, bool) {
+func CheckFlags(sampler config.Sampler) (int, bool) {
 	if helpConfig {
-		fmt.Print(sampleConfig)
+		sampler.Sample(os.Stdout, nil, nil)
 		return 0, false
 	}
 	if version {
 		fmt.Printf(VersionInfo())
 		return 0, false
 	}
-	if config == "" {
+	if configFile == "" {
 		fmt.Fprintln(os.Stderr, "Err: Missing config file")
 		flag.Usage()
 		return 1, false

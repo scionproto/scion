@@ -4,6 +4,9 @@ host_acceptance="brA brB brC brD core_brA core_brB core_brC"
 
 for test in ./acceptance/*_acceptance; do
     name="$(basename ${test%_acceptance})"
+    if [[ ! "$name" =~ "$ACCEPTANCE_TEST" ]]; then
+        continue
+    fi
     RUN_HOST=n
     for host in $host_acceptance; do
         if [ "$host" = "$name" ]; then

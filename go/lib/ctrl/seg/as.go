@@ -49,6 +49,9 @@ func (ase *ASEntry) IA() addr.IA {
 }
 
 func (ase *ASEntry) Validate(prevIA addr.IA, nextIA addr.IA) error {
+	if ase.IA().IsWildcard() {
+		return common.NewBasicError("ASEntry has wildcard IA", nil, "ia", ase.IA())
+	}
 	if len(ase.HopEntries) == 0 {
 		return common.NewBasicError("ASEntry has no HopEntries", nil, "ia", ase.IA())
 	}

@@ -107,19 +107,17 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
-            'infra': {
-                'Type': "PS"
-            },
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'ps': {
-                'PathDB': {
+                'pathDB': {
                     'Backend': 'sqlite',
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
                 'SegSync': True,
             },
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 
@@ -139,20 +137,21 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
                 'Public': '%s,[127.0.0.1]:0' % ia,
-                'PathDB': {
+                'pathDB': {
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
             },
             'metrics': {
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
-            }
+            },
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 
@@ -176,10 +175,7 @@ class GoGenerator(object):
                 'Path': get_default_sciond_path(topo_id),
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
-            'infra': {
-                'Type': "CS"
-            },
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'cs': {
                 'LeafReissueLeadTime': "6h",
@@ -188,6 +184,7 @@ class GoGenerator(object):
                 'ReissueTimeout': "5s",
             },
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 

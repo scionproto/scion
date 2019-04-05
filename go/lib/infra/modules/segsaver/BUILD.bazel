@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["segsaver.go"],
+    importpath = "github.com/scionproto/scion/go/lib/infra/modules/segsaver",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/pathdb:go_default_library",
+    ],
+)

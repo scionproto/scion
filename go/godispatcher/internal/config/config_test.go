@@ -15,31 +15,43 @@
 package config
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-func TestSampleCorrect(t *testing.T) {
-	Convey("Load", t, func() {
+func TestConfigSample(t *testing.T) {
+	Convey("Sample is correct", t, func() {
+		var sample bytes.Buffer
 		var cfg Config
-		_, err := toml.Decode(Sample, &cfg)
+		cfg.Sample(&sample, nil, nil)
+
+		InitTestConfig(&cfg)
+		meta, err := toml.Decode(sample.String(), &cfg)
 		SoMsg("err", err, ShouldBeNil)
-
-		SoMsg("logging.file.Path", cfg.Logging.File.Path, ShouldEqual,
-			"/var/log/scion/dispatcher.log")
-		SoMsg("logging.file.Level", cfg.Logging.File.Level, ShouldEqual, "debug")
-		SoMsg("logging.file.FlushInterval", *cfg.Logging.File.FlushInterval, ShouldEqual, 5)
-		SoMsg("logging.console.Level", cfg.Logging.Console.Level, ShouldEqual, "crit")
-
-		SoMsg("ID", cfg.Dispatcher.ID, ShouldEqual, "disp")
-		SoMsg("ApplicationSocket", cfg.Dispatcher.ApplicationSocket, ShouldEqual,
-			reliable.DefaultDispPath)
-		SoMsg("OverlayPort", cfg.Dispatcher.OverlayPort, ShouldEqual, overlay.EndhostPort)
-		SoMsg("DeleteSocket", cfg.Dispatcher.DeleteSocket, ShouldBeFalse)
+		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
+		CheckTestConfig(&cfg, idSample)
 	})
+}
+
+func InitTestConfig(cfg *Config) {
+	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, nil)
+	cfg.Dispatcher.DeleteSocket = true
+	cfg.Dispatcher.PerfData = "Invalid"
+}
+
+func CheckTestConfig(cfg *Config, id string) {
+	envtest.CheckTest(nil, &cfg.Logging, &cfg.Metrics, nil, id)
+	SoMsg("ID", cfg.Dispatcher.ID, ShouldEqual, id)
+	SoMsg("ApplicationSocket", cfg.Dispatcher.ApplicationSocket, ShouldEqual,
+		reliable.DefaultDispPath)
+	SoMsg("OverlayPort", cfg.Dispatcher.OverlayPort, ShouldEqual, overlay.EndhostPort)
+	SoMsg("PerfData", cfg.Dispatcher.PerfData, ShouldBeEmpty)
+	SoMsg("DeleteSocket", cfg.Dispatcher.DeleteSocket, ShouldBeFalse)
 }

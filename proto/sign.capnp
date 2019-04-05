@@ -13,7 +13,9 @@ struct Sign {
     type @0 :SignType;
     # Id (e.g. ISD-AS) of signer. Unset if signType is `none`.
     src @1 :Data;
-    # Signature over blob, using signType, created by src. Unset if signType is `none`.
+    # Signature over blob, type (represented as a UTF-8 string, e.g.,
+    # "ed25519"), src, and timestamp (represented in network-byte order) using
+    # signType, created by src. Unset if signType is `none`.
     signature @2 :Data;
     # Signature creation time. Seconds since Unix Epoch.
     timestamp @3 :UInt32;

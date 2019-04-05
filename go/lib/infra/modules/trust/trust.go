@@ -239,7 +239,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
-	responseC, cancelF := store.trcDeduper.Request(ctx, req)
+	responseC, cancelF := store.trcDeduper.Request(req)
 	defer cancelF()
 	select {
 	case response := <-responseC:
@@ -451,7 +451,7 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 func (store *Store) getChainFromNetwork(ctx context.Context,
 	req *chainRequest) (*cert.Chain, error) {
 
-	responseC, cancelF := store.chainDeduper.Request(ctx, req)
+	responseC, cancelF := store.chainDeduper.Request(req)
 	defer cancelF()
 	select {
 	case response := <-responseC:
@@ -573,13 +573,13 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 // allowed to issue new TRC requests over the network.  This method should only
 // be used when servicing requests coming from remote nodes.
 func (store *Store) NewTRCReqHandler(recurse bool) infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &trcReqHandler{
 			request: r,
 			store:   store,
 			recurse: recurse,
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
@@ -590,13 +590,13 @@ func (store *Store) NewTRCReqHandler(recurse bool) infra.Handler {
 // over the network. This method should only be used when servicing requests
 // coming from remote nodes.
 func (store *Store) NewChainReqHandler(recurse bool) infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := chainReqHandler{
 			request: r,
 			store:   store,
 			recurse: recurse,
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
@@ -605,12 +605,12 @@ func (store *Store) NewChainReqHandler(recurse bool) infra.Handler {
 // peer, backed by the trust store. TRCs are pushed by local BSes during
 // beaconing. Pushes are allowed from all local AS sources.
 func (store *Store) NewTRCPushHandler() infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := trcPushHandler{
 			request: r,
 			store:   store,
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
@@ -620,12 +620,12 @@ func (store *Store) NewTRCPushHandler() infra.Handler {
 // by other ASes during core registration. Pushes are allowed from all
 // local ISD sources.
 func (store *Store) NewChainPushHandler() infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := chainPushHandler{
 			request: r,
 			store:   store,
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }

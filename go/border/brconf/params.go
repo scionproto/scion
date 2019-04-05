@@ -15,10 +15,62 @@
 package brconf
 
 import (
+	"io"
+
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 )
 
+var _ config.Config = (*Config)(nil)
+
+// Config is the border router configuration that is loaded from file.
+type Config struct {
+	General   env.General
+	Logging   env.Logging
+	Metrics   env.Metrics
+	Discovery Discovery
+	BR        BR
+}
+
+func (cfg *Config) InitDefaults() {
+	config.InitAll(
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Discovery,
+		&cfg.BR,
+	)
+}
+
+func (cfg *Config) Validate() error {
+	return config.ValidateAll(
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Discovery,
+		&cfg.BR,
+	)
+}
+
+func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Discovery,
+		&cfg.BR,
+	)
+}
+
+func (cfg *Config) ConfigName() string {
+	return "br_config"
+}
+
+var _ config.Config = (*BR)(nil)
+
+// BR contains the border router specific parts of the configuration.
 type BR struct {
 	// Profile enables cpu and memory profiling.
 	Profile bool
@@ -27,17 +79,36 @@ type BR struct {
 	RollbackFailAction FailAction
 }
 
-func (b *BR) InitDefaults() {
-	if b.RollbackFailAction != FailActionContinue {
-		b.RollbackFailAction = FailActionFatal
+func (cfg *BR) InitDefaults() {
+	if cfg.RollbackFailAction != FailActionContinue {
+		cfg.RollbackFailAction = FailActionFatal
 	}
 }
+
+func (cfg *BR) Validate() error {
+	return cfg.RollbackFailAction.Validate()
+}
+
+func (cfg *BR) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, brSample)
+}
+
+func (cfg *BR) ConfigName() string {
+	return "br"
+}
+
+var _ config.Config = (*Discovery)(nil)
 
 type Discovery struct {
 	idiscovery.Config
 	// AllowSemiMutable indicates whether changes to the semi-mutable
 	// section in the static topology are allowed.
 	AllowSemiMutable bool
+}
+
+func (cfg *Discovery) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, discoverySample)
+	cfg.Config.Sample(dst, path, ctx)
 }
 
 type FailAction string
@@ -48,6 +119,15 @@ const (
 	// FailActionContinue indicates that the process continues on error.
 	FailActionContinue FailAction = "Continue"
 )
+
+func (f *FailAction) Validate() error {
+	switch *f {
+	case FailActionFatal, FailActionContinue:
+		return nil
+	default:
+		return common.NewBasicError("Unknown FailAction", nil, "input", *f)
+	}
+}
 
 func (f *FailAction) UnmarshalText(text []byte) error {
 	switch FailAction(text) {

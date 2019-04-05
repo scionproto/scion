@@ -29,32 +29,34 @@ type ifStateInfoHandler struct {
 }
 
 func NewIfStatInfoHandler(args HandlerArgs) infra.Handler {
-	f := func(r *infra.Request) {
+	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &ifStateInfoHandler{
 			baseHandler: newBaseHandler(r, args),
 		}
-		handler.Handle()
+		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
 
-func (h *ifStateInfoHandler) Handle() {
+func (h *ifStateInfoHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	ifStateInfo, ok := h.request.Message.(*path_mgmt.IFStateInfos)
 	if !ok {
 		logger.Error("[ifStateHandler] wrong message type, expected path_mgmt.IFStateInfos",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return infra.MetricsErrInternal
 	}
 	logger.Debug("[ifStateHandler] Received IfStateInfo", "ifStateInfo", ifStateInfo)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// TODO(lukedirtwalker): if all verifications fail we should reflect that in metrics.
 	for _, info := range ifStateInfo.Infos {
 		if !info.Active && info.SRevInfo != nil {
 			h.verifyAndStore(subCtx, info.SRevInfo)
 		}
 	}
 	logger.Debug("[ifStateHandler] done processing ifStateInfo")
+	return infra.MetricsResultOk
 }
 
 func (h *ifStateInfoHandler) verifyAndStore(ctx context.Context, rev *path_mgmt.SignedRevInfo) {

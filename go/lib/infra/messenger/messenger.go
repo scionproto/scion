@@ -70,10 +70,13 @@ package messenger
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
 	"time"
+
+	quic "github.com/lucas-clemente/quic-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -86,6 +89,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -100,6 +104,12 @@ const (
 
 // Config can be used to customize the behavior of the Messenger.
 type Config struct {
+	// IA is the local ISD-AS number.
+	IA addr.IA
+	// Dispatcher to use for associating requests with replies.
+	Dispatcher *disp.Dispatcher
+	// TrustStore stores and retrieves certificate chains and TRCs.
+	TrustStore infra.TrustStore
 	// HandlerTimeout is the amount of time allocated to the processing of a
 	// received message. This includes the time needed to verify the signature
 	// and the execution of a registered handler (if one exists). If the
@@ -109,11 +119,30 @@ type Config struct {
 	// verification of the top level signature in received signed control
 	// payloads.
 	DisableSignatureVerification bool
+	// If WaitForAcks is set to true, notifications wait for Ack messages to be
+	// received before returning.
+	WaitForAcks bool
+	// Logger is used for internal Messenger logging. If it is nil, the default
+	// root logger is used.
+	Logger log.Logger
+	// QUIC defines whether the Messenger should operate on top of QUIC instead
+	// of basic UDP. If QUIC is non-nil, Dispatcher is ignored and WaitForAcks
+	// is assumed to be true.
+	QUIC *QUICConfig
 }
 
-func (c *Config) loadDefaults() {
+type QUICConfig struct {
+	Conn       net.PacketConn
+	TLSConfig  *tls.Config
+	QUICConfig *quic.Config
+}
+
+func (c *Config) InitDefaults() {
 	if c.HandlerTimeout == 0 {
 		c.HandlerTimeout = DefaultHandlerTimeout
+	}
+	if c.Logger == nil {
+		c.Logger = log.Root()
 	}
 }
 
@@ -148,17 +177,33 @@ type Messenger struct {
 
 	ia  addr.IA
 	log log.Logger
+
+	quicServer  *rpc.Server
+	quicHandler *QUICHandler
 }
 
-// New creates a new Messenger that uses dispatcher for sending and receiving
-// messages, and trustStore as crypto information database.
-func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger,
-	config *Config) *Messenger {
-
+// New creates a new Messenger based on config.
+func New(config *Config) *Messenger {
 	if config == nil {
 		config = &Config{}
 	}
-	config.loadDefaults()
+	config.InitDefaults()
+
+	var quicServer *rpc.Server
+	var quicHandler *QUICHandler
+	if config.QUIC != nil {
+		config.WaitForAcks = true
+		quicHandler = &QUICHandler{
+			handlers: make(map[infra.MessageType]infra.Handler),
+		}
+		quicServer = &rpc.Server{
+			Conn:       config.QUIC.Conn,
+			TLSConfig:  config.QUIC.TLSConfig,
+			QUICConfig: config.QUIC.QUICConfig,
+			Handler:    quicHandler,
+		}
+	}
+
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -166,105 +211,71 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
-		ia:         ia,
-		config:     config,
-		dispatcher: dispatcher,
-		signer:     infra.NullSigner,
-		verifier:   infra.NullSigVerifier,
-		trustStore: store,
-		handlers:   make(map[infra.MessageType]infra.Handler),
-		closeChan:  make(chan struct{}),
-		ctx:        ctx,
-		cancelF:    cancelF,
-		log:        logger,
+		ia:          config.IA,
+		config:      config,
+		dispatcher:  config.Dispatcher,
+		signer:      infra.NullSigner,
+		verifier:    infra.NullSigVerifier,
+		trustStore:  config.TrustStore,
+		handlers:    make(map[infra.MessageType]infra.Handler),
+		closeChan:   make(chan struct{}),
+		ctx:         ctx,
+		cancelF:     cancelF,
+		log:         config.Logger,
+		quicServer:  quicServer,
+		quicHandler: quicHandler,
 	}
 }
 
 func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error {
-	opMetric := metricStartOp(promOpSendAck)
-	err := m.sendAck(ctx, msg, a, id)
-	opMetric.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error {
 	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return err
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Ack", "to", a, "id", id)
-	return m.getRequester(infra.Ack, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.Ack).Notify(ctx, pld, a)
 }
 
-// GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
-// reply and returns the reply.
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
-	opMetric := metricStartOp(promOpGetTRC)
-	trc, err := m.getTRC(ctx, msg, a, id)
-	opMetric.publishResult(err)
-	return trc, err
-}
-
-func (m *Messenger) getTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
-	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
-
-	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending request", "req_type", infra.TRCRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest, infra.TRC).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*cert_mgmt.TRC)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *cert_mgmt.TRC:
+		logger.Trace("[Messenger] Received reply", "reply", reply)
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	logger.Trace("[Messenger] Received reply", "reply", reply)
-	return reply, nil
 }
 
-// SendTRC sends a reliable cert_mgmt.TRC to address a.
 func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error {
-	opMetrics := metricStartOp(promOpSendTRC)
-	err := m.sendTRC(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	pld, err := cert_mgmt.NewPld(msg, nil)
 	if err != nil {
 		return err
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
-	return m.getRequester(infra.TRC, infra.None).Notify(ctx, pld, a)
+	return m.sendMessage(ctx, pld, a, id, infra.TRC)
 }
 
-// GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
-// receives a reply and returns the reply.
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
-	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
-
-	opMetrics := metricStartOp(promOpGetCrtChain)
-	chain, err := m.getCertChain(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return chain, err
-}
-
-func (m *Messenger) getCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
 	logger := log.FromCtx(ctx)
@@ -274,107 +285,57 @@ func (m *Messenger) getCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest, infra.Chain).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*cert_mgmt.Chain)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *cert_mgmt.Chain:
+		logger.Trace("[Messenger] Received reply", "reply", reply)
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*cert_mgmt.Chain", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	logger.Trace("[Messenger] Received reply", "reply", reply)
-	return reply, nil
 }
 
-// SendCertChain sends a reliable cert_mgmt.Chain to address a.
 func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
 	id uint64) error {
 
-	opMetrics := metricStartOp(promOpSendCrtChain)
-	err := m.sendCertChain(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
-	id uint64) error {
-
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	pld, err := cert_mgmt.NewPld(msg, nil)
 	if err != nil {
 		return err
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
-	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
+	return m.sendMessage(ctx, pld, a, id, infra.Chain)
 }
 
-// SendIfId sends a reliable ifid.IFID to address a.
 func (m *Messenger) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error {
-	opMetrics := metricStartOp(promOpSendIfId)
-	err := m.sendIfId(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
+	return m.sendMessage(ctx, msg, a, id, infra.IfId)
 }
 
-func (m *Messenger) sendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error {
-	return m.sendBasePld(ctx, msg, a, id, infra.IfId)
-}
-
-// SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
 func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
 	a net.Addr, id uint64) error {
 
-	opMetrics := metricStartOp(promOpSendIfStateInfo)
-	err := m.sendIfStateInfos(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
-	a net.Addr, id uint64) error {
-
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	pld, err := path_mgmt.NewPld(msg, nil)
 	if err != nil {
 		return err
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.IfStateInfos, "to", a, "id", id)
-	return m.getRequester(infra.IfStateInfos, infra.None).Notify(ctx, pld, a)
+	return m.sendMessage(ctx, pld, a, id, infra.IfStateInfos)
 }
 
-// SendSeg sends a reliable seg.Pathsegment to a.
 func (m *Messenger) SendSeg(ctx context.Context, msg *seg.PathSegment,
 	a net.Addr, id uint64) error {
 
-	opMetrics := metricStartOp(promOpSendSeg)
-	err := m.sendSeg(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
+	return m.sendMessage(ctx, msg, a, id, infra.Seg)
 }
 
-func (m *Messenger) sendSeg(ctx context.Context, msg *seg.PathSegment,
-	a net.Addr, id uint64) error {
-
-	return m.sendBasePld(ctx, msg, a, id, infra.Seg)
-}
-
-// GetSegs asks the server at the remote address for the path segments that
-// satisfy msg, and returns a verified reply.
 func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
-	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
-
-	opMetrics := metricStartOp(promOpGetSegs)
-	reply, err := m.getSegs(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return reply, err
-}
-
-func (m *Messenger) getSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
 	logger := log.FromCtx(ctx)
@@ -385,37 +346,30 @@ func (m *Messenger) getSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
-		m.getRequester(infra.SegRequest, infra.SegReply).Request(ctx, pld, a)
+		m.getRequester(infra.SegRequest).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*path_mgmt.SegReply)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *path_mgmt.SegReply:
+		if err := reply.ParseRaw(); err != nil {
+			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
+		}
+		logger.Trace("[Messenger] Received reply")
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	if err := reply.ParseRaw(); err != nil {
-		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
-	}
-	logger.Trace("[Messenger] Received reply")
-	return reply, nil
 }
 
-// SendSegReply sends a reliable path_mgmt.SegReply to address a.
 func (m *Messenger) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
-	a net.Addr, id uint64) error {
-
-	opMetrics := metricStartOp(promOpSendSegReply)
-	err := m.sendSegReply(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
 	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
@@ -424,41 +378,20 @@ func (m *Messenger) sendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
-	return m.getRequester(infra.SegReply, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.SegReply).Notify(ctx, pld, a)
 }
 
-// SendSegSync sends a reliable path_mgmt.SegSync to address a.
 func (m *Messenger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
 	a net.Addr, id uint64) error {
 
-	opMetrics := metricStartOp(promOpSendSegSync)
-	err := m.sendSegSync(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
-	a net.Addr, id uint64) error {
-
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	pld, err := path_mgmt.NewPld(msg, nil)
 	if err != nil {
 		return err
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
-	return m.getRequester(infra.SegSync, infra.None).Notify(ctx, pld, a)
+	return m.sendMessage(ctx, pld, a, id, infra.SegSync)
 }
 
 func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
-	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
-
-	opMetrics := metricStartOp(promOpGetSegChangesId)
-	reply, err := m.getSegChangesIds(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return reply, err
-}
-
-func (m *Messenger) getSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
 	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
 
 	logger := log.FromCtx(ctx)
@@ -468,34 +401,27 @@ func (m *Messenger) getSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq,
-		infra.SegChangesIdReply).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*path_mgmt.SegChangesIdReply)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *path_mgmt.SegChangesIdReply:
+		logger.Trace("[Messenger] Received reply")
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*path_mgmt.SegChangesIdReply", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	logger.Trace("[Messenger] Received reply")
-	return reply, nil
 }
 
 func (m *Messenger) SendSegChangesIdReply(ctx context.Context, msg *path_mgmt.SegChangesIdReply,
-	a net.Addr, id uint64) error {
-
-	opMetrics := metricStartOp(promOpSendSegChangesIdReply)
-	err := m.sendSegChangesIdReply(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendSegChangesIdReply(ctx context.Context, msg *path_mgmt.SegChangesIdReply,
 	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
@@ -505,19 +431,10 @@ func (m *Messenger) sendSegChangesIdReply(ctx context.Context, msg *path_mgmt.Se
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesIdReply, "to", a, "id", id)
-	return m.getRequester(infra.SegChangesIdReply, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.SegChangesIdReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
-	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
-
-	opMetrics := metricStartOp(promOpGetSegChanges)
-	reply, err := m.getSegChanges(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return reply, err
-}
-
-func (m *Messenger) getSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
 	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
 
 	logger := log.FromCtx(ctx)
@@ -527,37 +444,30 @@ func (m *Messenger) getSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq,
-		infra.SegChangesIdReply).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*path_mgmt.SegChangesReply)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *path_mgmt.SegChangesReply:
+		if err := reply.ParseRaw(); err != nil {
+			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
+		}
+		logger.Trace("[Messenger] Received reply")
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*path_mgmt.SegChangesReply", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	if err := reply.ParseRaw(); err != nil {
-		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
-	}
-	logger.Trace("[Messenger] Received reply")
-	return reply, nil
 }
 
 func (m *Messenger) SendSegChangesReply(ctx context.Context, msg *path_mgmt.SegChangesReply,
-	a net.Addr, id uint64) error {
-
-	opMetrics := metricStartOp(promOpSendSegChanges)
-	err := m.sendSegChangesReply(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendSegChangesReply(ctx context.Context, msg *path_mgmt.SegChangesReply,
 	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
@@ -567,19 +477,10 @@ func (m *Messenger) sendSegChangesReply(ctx context.Context, msg *path_mgmt.SegC
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesReply, "to", a, "id", id)
-	return m.getRequester(infra.SegChangesReply, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.SegChangesReply).Notify(ctx, pld, a)
 }
 
-func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq,
-	a net.Addr, id uint64) (*cert_mgmt.ChainIssRep, error) {
-
-	opMetrics := metricStartOp(promOpRequestChainIssue)
-	reply, err := m.requestChainIssue(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return reply, err
-}
-
-func (m *Messenger) requestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
+func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
 	logger := log.FromCtx(ctx)
@@ -589,34 +490,27 @@ func (m *Messenger) requestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainIssueRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err :=
-		m.getRequester(infra.ChainIssueRequest, infra.ChainIssueReply).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.ChainIssueRequest).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-	reply, ok := replyMsg.(*cert_mgmt.ChainIssRep)
-	if !ok {
+	switch reply := replyMsg.(type) {
+	case *cert_mgmt.ChainIssRep:
+		logger.Trace("[Messenger] Received reply")
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
 		err := newTypeAssertErr("*cert_mgmt.ChainIssRep", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
-	logger.Trace("[Messenger] Received reply")
-	return reply, nil
 }
 
 func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep,
-	a net.Addr, id uint64) error {
-
-	opMetrics := metricStartOp(promOpSendChainIssue)
-	err := m.sendChainIssueReply(ctx, msg, a, id)
-	opMetrics.publishResult(err)
-	return err
-}
-
-func (m *Messenger) sendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep,
 	a net.Addr, id uint64) error {
 
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
@@ -625,13 +519,65 @@ func (m *Messenger) sendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
-	return m.getRequester(infra.ChainIssueReply, infra.None).Notify(ctx, pld, a)
+	return m.getRequester(infra.ChainIssueReply).Notify(ctx, pld, a)
+}
+
+// sendMessage sends payload msg of type expectedType to address a, using id.
+// If waiting for Acks is disabled, sendMessage returns immediately after
+// sending the message on the network. If waiting for Acks is enabled,
+// sendMessage blocks until an Ack is received from the peer. If the Ack
+// contains an error, the returned error is non-nil. If the received message
+// is not an Ack, an error is returned.
+func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a net.Addr,
+	id uint64, msgType infra.MessageType) error {
+
+	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	if m.config.WaitForAcks {
+		return m.sendWithAck(ctx, msg, a, id, pld, msgType)
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", msgType, "to", a, "id", id)
+	return m.getRequester(msgType).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a net.Addr,
+	id uint64, pld *ctrl.Pld, msgType infra.MessageType) error {
+
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending request", "req_type", msgType,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, _, err := m.getRequester(msgType).Request(ctx, pld, a)
+	if err != nil {
+		return common.NewBasicError("[Messenger] Request error", err)
+	}
+	_, replyMsg, err := validate(replyCtrlPld)
+	if err != nil {
+		return common.NewBasicError("[Messenger] Reply validation failed", err)
+	}
+	switch reply := replyMsg.(type) {
+	case *ack.Ack:
+		logger.Trace("[Messenger] Received reply", "reply", reply)
+		if reply.Err != proto.Ack_ErrCode_ok {
+			return &infra.Error{Message: reply}
+		}
+		return nil
+	default:
+		err := newTypeAssertErr(msgType.String(), replyMsg)
+		return common.NewBasicError("[Messenger] Type assertion failed", err)
+	}
 }
 
 // AddHandler registers a handler for msgType.
 func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler) {
 	m.handlersLock.Lock()
-	m.handlers[msgType] = handler
+	if m.quicServer == nil {
+		m.handlers[msgType] = handler
+	} else {
+		m.quicHandler.Handle(msgType, handler)
+	}
 	m.handlersLock.Unlock()
 }
 
@@ -639,6 +585,20 @@ func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler)
 // interface. The function runs in the current goroutine. Multiple
 // ListenAndServe methods can run in parallel.
 func (m *Messenger) ListenAndServe() {
+	if m.config.QUIC == nil {
+		m.listenAndServeUDP()
+	} else {
+		m.listenAndServeQUIC()
+	}
+}
+
+func (m *Messenger) listenAndServeQUIC() {
+	m.log.Info("Started listening")
+	defer m.log.Info("Stopped listening")
+	m.quicServer.ListenAndServe()
+}
+
+func (m *Messenger) listenAndServeUDP() {
 	m.log.Info("Started listening")
 	defer m.log.Info("Stopped listening")
 	for {
@@ -667,8 +627,7 @@ func (m *Messenger) ListenAndServe() {
 			continue
 		}
 
-		serveCtx := infra.NewContextWithMessenger(m.ctx, m)
-		serveCtx, serveCancelF := context.WithTimeout(serveCtx, m.config.HandlerTimeout)
+		serveCtx, serveCancelF := context.WithTimeout(m.ctx, m.config.HandlerTimeout)
 		if !m.config.DisableSignatureVerification {
 			// FIXME(scrye): Always use default signature verifier here, as some
 			// functionality in the main ctrl libraries is still missing.
@@ -714,9 +673,16 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	signedPld *ctrl.SignedPld, address net.Addr) {
 
 	logger := log.FromCtx(ctx)
+	ctx = infra.NewContextWithResponseWriter(ctx,
+		&UDPResponseWriter{
+			Messenger: m,
+			Remote:    address,
+			ID:        pld.ReqId,
+		},
+	)
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
-	msgType, msg, err := m.validate(pld)
+	msgType, msg, err := validate(pld)
 	if err != nil {
 		logger.Error("Received message, but unable to validate message",
 			"from", address, "err", err)
@@ -740,16 +706,224 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	go func() {
 		defer log.LogPanicAndExit()
 		defer cancelF()
-		handler.Handle(
-			infra.NewRequest(log.CtxWith(ctx, logger), msg, signedPld, address, pld.ReqId))
+		handler.Handle(infra.NewRequest(log.CtxWith(ctx, logger),
+			msg, signedPld, address, pld.ReqId))
 	}()
+}
+
+// CloseServer stops any running ListenAndServe functions, and cancels all running
+// handlers. The server's Messenger layer is not closed.
+func (m *Messenger) CloseServer() error {
+	// Protect against concurrent Close calls
+	m.closeLock.Lock()
+	defer m.closeLock.Unlock()
+	select {
+	case <-m.closeChan:
+		// Already closed, so do nothing
+	default:
+		close(m.closeChan)
+		m.cancelF()
+	}
+	return nil
+}
+
+// UpdateSigner enables signing of messages with signer. Only the messages in
+// types are signed, the rest are left with a null signature. If types is nil,
+// only the signer is updated and the existing internal list of types is
+// unchanged. An empty slice of types disables signing for all messages.
+func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
+	m.cryptoLock.Lock()
+	defer m.cryptoLock.Unlock()
+	if types != nil {
+		m.signMask = make(map[infra.MessageType]struct{})
+		for _, t := range types {
+			m.signMask[t] = struct{}{}
+		}
+	}
+	m.signer = signer
+}
+
+// UpdateVerifier enables verifying of messages with verifier.
+//
+// FIXME(scrye): Verifiers are usually bound to a trust store to which the
+// messenger already holds a reference. We should decouple the trust store from
+// either one or the other.
+func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
+	m.cryptoLock.Lock()
+	defer m.cryptoLock.Unlock()
+	m.verifier = verifier
+}
+
+// getRequester returns a requester object with customized crypto keys.
+//
+// If message type reqT is to be signed, the key is initialized from m.signer.
+// Otherwise it is set to a null signer.
+func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
+	m.cryptoLock.RLock()
+	defer m.cryptoLock.RUnlock()
+	signer := infra.NullSigner
+	if _, ok := m.signMask[reqT]; ok {
+		signer = m.signer
+	}
+	if m.config.QUIC == nil {
+		return NewPathingRequester(signer, m.verifier, m.dispatcher, m.ia)
+	}
+	return &QUICRequester{
+		QUICClientConfig: &rpc.Client{
+			Conn:       m.config.QUIC.Conn,
+			TLSConfig:  m.config.QUIC.TLSConfig,
+			QUICConfig: m.config.QUIC.QUICConfig,
+		},
+		LocalIA: m.ia,
+	}
+}
+
+func newTypeAssertErr(typeStr string, msg interface{}) error {
+	errStr := fmt.Sprintf("Unable to type assert disp.Message to %s", typeStr)
+	return common.NewBasicError(errStr, nil, "msg", msg)
+}
+
+// pathingRequester is a requester with an attached local IA. It resolves the
+// SCION path to construct complete snet addresses that rarely block on writes.
+//
+// FIXME(scrye): This is just a hack to improve performance in the default
+// topology, by allowing each goroutine to issue a request to SCIOND in
+// parallel (as opposed of one goroutine waiting for another if the Path
+// Resolver were to be used). This logic should be moved to snet internals
+// once the path resolver has support for concurrent queries and context
+// awareness.
+type pathingRequester struct {
+	requester *ctrl_msg.Requester
+	local     addr.IA
+}
+
+func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher,
+	local addr.IA) Requester {
+
+	return &pathingRequester{
+		requester: ctrl_msg.NewRequester(signer, sigv, d),
+		local:     local,
+	}
+}
+
+func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
+	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
+
+	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pr.requester.Request(ctx, pld, newAddr)
+}
+
+func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	if err != nil {
+		return err
+	}
+	return pr.requester.Notify(ctx, pld, newAddr)
+}
+
+func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	if err != nil {
+		return err
+	}
+	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
+}
+
+type Requester interface {
+	// RoundTrip(ctx context.Context, request *Request) (*ctrl.SignedPld, error)
+	Request(ctx context.Context, pld *ctrl.Pld, a net.Addr) (*ctrl.Pld, *proto.SignS, error)
+	Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
+	NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
+}
+
+var _ Requester = (*QUICRequester)(nil)
+
+type QUICRequester struct {
+	QUICClientConfig *rpc.Client
+	LocalIA          addr.IA
+}
+
+func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
+	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
+
+	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
+	// additional verifications in the future.
+	newAddr, err := getBlockingPath(ctx, rt.LocalIA, a)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	b, err := proto.PackRoot(pld)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	request := &rpc.Request{SignedPld: &ctrl.SignedPld{Blob: b}}
+	reply, err := rt.QUICClientConfig.Request(ctx, request, newAddr)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	replyPld, err := reply.SignedPld.Pld()
+	if err != nil {
+		return nil, nil, err
+	}
+	return replyPld, nil, nil
+}
+
+func (rt *QUICRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	return common.NewBasicError("transport type does not support Notify messages", nil)
+}
+
+func (rt *QUICRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	return common.NewBasicError("transport type does not support NotifyUnreliable message", nil)
+}
+
+type Request struct {
+	Host    net.Addr
+	Payload *ctrl.SignedPld
+}
+
+func getBlockingPath(ctx context.Context, local addr.IA, a net.Addr) (net.Addr, error) {
+	// for SCIOND-less operation do not try to resolve paths
+	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
+		return a, nil
+	}
+	snetAddress := a.(*snet.Addr).Copy()
+	if snetAddress.IA == local {
+		return snetAddress, nil
+	}
+	if snetAddress.Path != nil {
+		return snetAddress, nil
+	}
+	conn := snet.DefNetwork.PathResolver().Sciond()
+	paths, err := conn.Paths(ctx, snetAddress.IA, local, 5, sciond.PathReqFlags{})
+	if err != nil {
+		return nil, err
+	}
+	if len(paths.Entries) == 0 {
+		return nil, common.NewBasicError("unable to find path", nil)
+	}
+	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
+	if err := snetAddress.Path.InitOffsets(); err != nil {
+		return nil, common.NewBasicError("unable to initialize path", err)
+	}
+	snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
+	if err != nil {
+		return nil, common.NewBasicError("unable to build next hop", err)
+	}
+	return snetAddress, nil
+
 }
 
 // validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
 // message type, the message (the inner proto.Cerealizable object), and an
 // error (if one occurred).
-func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
+func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 	// XXX(scrye): For now, only the messages in the top comment of this
 	// package are supported.
 	switch pld.Which {
@@ -811,161 +985,4 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 		return infra.None, nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
 			nil, "capnp_which", pld.Which)
 	}
-}
-
-func (m *Messenger) sendBasePld(ctx context.Context, msg proto.Cerealizable,
-	a net.Addr, id uint64, mt infra.MessageType) error {
-
-	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
-	if err != nil {
-		return err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", mt, "to", a, "id", id)
-	return m.getRequester(mt, infra.None).Notify(ctx, pld, a)
-}
-
-// CloseServer stops any running ListenAndServe functions, and cancels all running
-// handlers. The server's Messenger layer is not closed.
-func (m *Messenger) CloseServer() error {
-	// Protect against concurrent Close calls
-	m.closeLock.Lock()
-	defer m.closeLock.Unlock()
-	select {
-	case <-m.closeChan:
-		// Already closed, so do nothing
-	default:
-		close(m.closeChan)
-		m.cancelF()
-	}
-	return nil
-}
-
-// UpdateSigner enables signing of messages with signer. Only the messages in
-// types are signed, the rest are left with a null signature. If types is nil,
-// only the signer is updated and the existing internal list of types is
-// unchanged. An empty slice of types disables signing for all messages.
-func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
-	m.cryptoLock.Lock()
-	defer m.cryptoLock.Unlock()
-	if types != nil {
-		m.signMask = make(map[infra.MessageType]struct{})
-		for _, t := range types {
-			m.signMask[t] = struct{}{}
-		}
-	}
-	m.signer = signer
-}
-
-// UpdateVerifier enables verifying of messages with verifier.
-//
-// FIXME(scrye): Verifiers are usually bound to a trust store to which the
-// messenger already holds a reference. We should decouple the trust store from
-// either one or the other.
-func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
-	m.cryptoLock.Lock()
-	defer m.cryptoLock.Unlock()
-	m.verifier = verifier
-}
-
-// getRequester returns a requester object with customized crypto keys.
-//
-// If message type reqT is to be signed, the key is initialized from m.signer.
-// Otherwise it is set to a null signer.
-//
-// If message type respT is to be verified, the key is initialized from
-// m.verifier. Otherwise, it is set to a null verifier.
-func (m *Messenger) getRequester(reqT, respT infra.MessageType) *pathingRequester {
-	m.cryptoLock.RLock()
-	defer m.cryptoLock.RUnlock()
-	signer := infra.NullSigner
-	if _, ok := m.signMask[reqT]; ok {
-		signer = m.signer
-	}
-	return NewPathingRequester(signer, m.verifier, m.dispatcher, m.ia)
-}
-
-func newTypeAssertErr(typeStr string, msg interface{}) error {
-	errStr := fmt.Sprintf("Unable to type assert disp.Message to %s", typeStr)
-	return common.NewBasicError(errStr, nil, "msg", msg)
-}
-
-// pathingRequester is a requester with an attached local IA. It resolves the
-// SCION path to construct complete snet addresses that rarely block on writes.
-//
-// FIXME(scrye): This is just a hack to improve performance in the default
-// topology, by allowing each goroutine to issue a request to SCIOND in
-// parallel (as opposed of one goroutine waiting for another if the Path
-// Resolver were to be used). This logic should be moved to snet internals
-// once the path resolver has support for concurrent queries and context
-// awareness.
-type pathingRequester struct {
-	requester *ctrl_msg.Requester
-	local     addr.IA
-}
-
-func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher,
-	local addr.IA) *pathingRequester {
-
-	return &pathingRequester{
-		requester: ctrl_msg.NewRequester(signer, sigv, d),
-		local:     local,
-	}
-}
-
-func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
-	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
-
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return nil, nil, err
-	}
-	return pr.requester.Request(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return err
-	}
-	return pr.requester.Notify(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return err
-	}
-	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) getBlockingPath(ctx context.Context, a net.Addr) (net.Addr, error) {
-	// for SCIOND-less operation do not try to resolve paths
-	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
-		return a, nil
-	}
-	snetAddress := a.(*snet.Addr).Copy()
-	if snetAddress.IA == pr.local {
-		return snetAddress, nil
-	}
-	if snetAddress.Path != nil {
-		return snetAddress, nil
-	}
-	conn := snet.DefNetwork.PathResolver().Sciond()
-	paths, err := conn.Paths(ctx, snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
-	if err != nil {
-		return nil, err
-	}
-	if len(paths.Entries) == 0 {
-		return nil, common.NewBasicError("unable to find path", nil)
-	}
-	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
-	if err := snetAddress.Path.InitOffsets(); err != nil {
-		return nil, common.NewBasicError("unable to initialize path", err)
-	}
-	snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
-	if err != nil {
-		return nil, common.NewBasicError("unable to build next hop", err)
-	}
-	return snetAddress, nil
 }

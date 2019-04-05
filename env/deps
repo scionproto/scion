@@ -9,5 +9,3 @@ BASE=$(dirname "$0")
 "$BASE/pip3/deps"
 "$BASE/pip2/deps"
 "$BASE/zlog/deps"
-"$BASE/go/deps"
-( cd go && make deps )

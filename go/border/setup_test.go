@@ -357,7 +357,7 @@ func closeAllSocks(ctx *rctx.Ctx) {
 	}
 }
 
-func loadConfig(t *testing.T) *brconf.Conf {
+func loadConfig(t *testing.T) *brconf.BRConf {
 	topo := loadTopo(t)
 	topoBr, ok := topo.BR["br1-ff00_0_111-1"]
 	if !ok {
@@ -365,7 +365,7 @@ func loadConfig(t *testing.T) *brconf.Conf {
 	}
 	net, err := netconf.FromTopo(&topoBr, topo.IFInfoMap)
 	xtest.FailOnErr(t, err)
-	return &brconf.Conf{
+	return &brconf.BRConf{
 		Topo: topo,
 		IA:   topo.ISD_AS,
 		BR:   &topoBr,

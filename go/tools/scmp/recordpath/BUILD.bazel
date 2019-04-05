@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["recordpath.go"],
+    importpath = "github.com/scionproto/scion/go/tools/scmp/recordpath",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/hpkt:go_default_library",
+        "//go/lib/layers:go_default_library",
+        "//go/lib/sciond:go_default_library",
+        "//go/lib/scmp:go_default_library",
+        "//go/lib/spkt:go_default_library",
+        "//go/tools/scmp/cmn:go_default_library",
+    ],
+)

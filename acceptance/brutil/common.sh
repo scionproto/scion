@@ -28,8 +28,8 @@ test_setup() {
 
     cp -r "${BRUTIL:?}/${BRCONF_DIR:?}" "$TEST_ARTIFACTS_DIR/conf"
 
-    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
-    sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
+    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$TEST_ARTIFACTS_DIR/conf/br.toml"
+    sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$TEST_ARTIFACTS_DIR/conf/br.toml"
 
     docker-compose -f $BRUTIL/docker-compose.yml --no-ansi up --detach $BRID
     docker_status

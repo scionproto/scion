@@ -1,0 +1,87 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
+load("@io_bazel_rules_go//go:def.bzl", "nogo")
+
+# gazelle:prefix github.com/scionproto/scion
+gazelle(name = "gazelle")
+
+# This is SCION distributable package.
+# TODO(sustrik): At the moment it contains random stuff needed for
+# acceptance tests and such. We should remove that once we are fully
+# switched to bazel. Only binaries and tools should remain.
+pkg_tar(
+    name = "scion",
+    package_dir = "",
+    srcs = [
+        "//go/border:border",
+        "//go/border/braccept:braccept",
+        "//go/integration/cert_req:cert_req",
+        "//go/integration/cert_req_integration:cert_req_integration",
+        "//go/cert_srv:cert_srv",
+        "//go/integration/cli_srv_ext_pyintegration:cli_srv_ext_pyintegration",
+        "//go/examples/discovery_client:discovery_client",
+        "//go/integration/end2end:end2end",
+        "//go/integration/end2end_integration:end2end_integration",
+        "//go/godispatcher:godispatcher",
+        "//go/lib/xtest/graphupdater:graphupdater",
+        "//go/tools/logdog:logdog",
+        "//go/path_srv:path_srv",
+        "//go/examples/pingpong:pingpong",
+        "//go/examples/pingpong/pp_integration:pp_integration",
+        "//go/tools/scion-custpk-load:scion-custpk-load",
+        "//go/sciond:sciond",
+        "//go/tools/scion-pki:scion-pki",
+        "//go/tools/scmp:scmp",
+        "//go/integration/scmp_error_pyintegration:scmp_error_pyintegration",
+        "//go/tools/scmp/scmp_integration:scmp_integration",
+        "//go/tools/showpaths:showpaths",
+        "//go/sig:sig",
+        "//go/acceptance/sig_iperf_acceptance:sig_iperf_acceptance",
+        "//go/acceptance/sig_ping_acceptance:sig_ping_acceptance",
+        "//go/tools/topopruner:topopruner",
+    ],
+    mode = "0755",
+)
+
+# This is a package of tools used for linting the source code.
+pkg_tar(
+    name = "lint",
+    package_dir = "",
+    srcs = [
+        "@com_github_client9_misspell//cmd/misspell:misspell",
+        "@com_github_jeanmertz_lll//cmd/lll:lll",
+        "@com_github_pavius_impi//cmd/impi:impi",
+    ],
+    mode = "0755",
+)
+
+# Nogo - Go code analysis tool
+nogo(
+    name = "nogo",
+    config = "nogo.json",
+    deps = [
+        "@org_golang_x_tools//go/analysis/passes/asmdecl:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/assign:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/atomic:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/bools:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/buildtag:go_tool_library",
+        # This crashes the build of @com_github_vishvananda_netlink
+        # "@org_golang_x_tools//go/analysis/passes/cgocall:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/composite:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/copylock:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/httpresponse:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/loopclosure:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/lostcancel:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/nilfunc:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/printf:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/shift:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/stdmethods:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/structtag:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/tests:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/unmarshal:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/unreachable:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/unsafeptr:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/unusedresult:go_tool_library",
+    ],
+    visibility = ["//visibility:public"],
+)

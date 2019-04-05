@@ -15,10 +15,14 @@
 package sigconfig
 
 import (
+	"fmt"
+	"io"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/env"
 )
 
 const (
@@ -28,8 +32,50 @@ const (
 	DefaultTunRTableId = 11
 )
 
-// Conf contains the configuration specific to the SIG.
-type Conf struct {
+var _ config.Config = (*Config)(nil)
+
+type Config struct {
+	Logging env.Logging
+	Metrics env.Metrics
+	Sciond  env.SciondClient `toml:"sd_client"`
+	Sig     SigConf
+}
+
+func (cfg *Config) InitDefaults() {
+	config.InitAll(
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Sciond,
+		&cfg.Sig,
+	)
+}
+
+func (cfg *Config) Validate() error {
+	return config.ValidateAll(
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Sciond,
+		&cfg.Sig,
+	)
+}
+
+func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Sciond,
+		&cfg.Sig,
+	)
+}
+
+func (cfg *Config) ConfigName() string {
+	return "sig_config"
+}
+
+var _ config.Config = (*SigConf)(nil)
+
+// SigConf contains the configuration specific to the SIG.
+type SigConf struct {
 	// ID of the SIG (required)
 	ID string
 	// The SIG config json file. (required)
@@ -54,38 +100,46 @@ type Conf struct {
 	SrcIP6 net.IP
 }
 
+// InitDefaults sets the default values to unset values.
+func (cfg *SigConf) InitDefaults() {
+	if cfg.CtrlPort == 0 {
+		cfg.CtrlPort = DefaultCtrlPort
+	}
+	if cfg.EncapPort == 0 {
+		cfg.EncapPort = DefaultEncapPort
+	}
+	if cfg.Tun == "" {
+		cfg.Tun = DefaultTunName
+	}
+	if cfg.TunRTableId == 0 {
+		cfg.TunRTableId = DefaultTunRTableId
+	}
+}
+
 // Validate validate the config and returns an error if a value is not valid.
-func (c Conf) Validate() error {
-	if c.ID == "" {
+func (cfg *SigConf) Validate() error {
+	if cfg.ID == "" {
 		return common.NewBasicError("ID must be set!", nil)
 	}
-	if c.SIGConfig == "" {
+	if cfg.SIGConfig == "" {
 		return common.NewBasicError("Config must be set!", nil)
 	}
-	if c.IA.IsZero() {
+	if cfg.IA.IsZero() {
 		return common.NewBasicError("IA must be set", nil)
 	}
-	if c.IA.IsWildcard() {
+	if cfg.IA.IsWildcard() {
 		return common.NewBasicError("Wildcard IA not allowed", nil)
 	}
-	if c.IP.IsUnspecified() {
+	if cfg.IP.IsUnspecified() {
 		return common.NewBasicError("IP must be set", nil)
 	}
 	return nil
 }
 
-// InitDefaults sets the default values to unset values.
-func (c *Conf) InitDefaults() {
-	if c.CtrlPort == 0 {
-		c.CtrlPort = DefaultCtrlPort
-	}
-	if c.EncapPort == 0 {
-		c.EncapPort = DefaultEncapPort
-	}
-	if c.Tun == "" {
-		c.Tun = DefaultTunName
-	}
-	if c.TunRTableId == 0 {
-		c.TunRTableId = DefaultTunRTableId
-	}
+func (cfg *SigConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(sigSample, ctx[config.ID]))
+}
+
+func (cfg *SigConf) ConfigName() string {
+	return "sig"
 }

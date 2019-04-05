@@ -22,7 +22,6 @@ Internet architecture.
     including all the necessary configuration, key, and certificate files
 * [proto/](/proto): the protocol definitions for use with [Cap’n
   Proto](https://capnproto.org/).
-* [sub/](/sub): the git submodules used by SCION
 * [supervisor/](/supervisor): the configuration for
   [supervisord](http://supervisord.org/)
 * [tools/](/tools): assorted support tools
@@ -31,6 +30,8 @@ Internet architecture.
 Necessary steps in order to run SCION:
 
 1. Make sure that you are using a clean and recently updated **Ubuntu 16.04**.
+
+1. Install [Bazel](https://bazel.build).
 
 1. Make sure that you have a
    [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
@@ -60,9 +61,6 @@ Necessary steps in order to run SCION:
     ```
     ./env/deps
     ```
-    This requires a go version >= 1.9.4 to be available on the system. If no sufficiently
-    up-to-date version is available in the system repositories refer to
-    [golang.org/dl](https://golang.org/dl) for installation instructions.
 
 1. Install `docker` and `docker-compose`. Please follow the instructions for
    [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/) and

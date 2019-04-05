@@ -16,7 +16,6 @@ REGISTRY=${REGISTRY:-ci-registry.scionproto.net}
 echo "env:"
 echo "  SCION_MOUNT: /tmp/scion_out.$BUILDKITE_BUILD_NUMBER"
 echo "  SCION_CNTR: scion_ci_$BUILDKITE_BUILD_NUMBER"
-echo "  SCION_BUILD_IMG: $REGISTRY/scion_ci_build:${BUILDKITE_BUILD_NUMBER}"
 echo "  SCION_IMG: $REGISTRY/scion_ci:${BUILDKITE_BUILD_NUMBER}"
 echo "  ARTIFACTS: buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}"
 echo "  BASE: $BASE"

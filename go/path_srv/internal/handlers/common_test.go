@@ -23,10 +23,10 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -46,7 +46,7 @@ func TestFetchDB(t *testing.T) {
 			mPathDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]*query.Result{{
 				Seg: seg130_132,
 			}}, nil)
-			mRevCache.EXPECT().GetAll(gomock.Any(), gomock.Any()).AnyTimes()
+			mRevCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 			res, err := h.fetchSegsFromDB(context.Background(), nil)
 			xtest.FailOnErr(t, err)
 			SoMsg("Segments", res, ShouldResemble, []*seg.PathSegment{seg130_132})
@@ -55,8 +55,10 @@ func TestFetchDB(t *testing.T) {
 			mPathDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]*query.Result{{
 				Seg: seg130_132,
 			}}, nil)
-			mRevCache.EXPECT().GetAll(gomock.Any(), gomock.Any()).AnyTimes().Return(
-				[]*path_mgmt.SignedRevInfo{{}},
+			mRevCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes().Return(
+				revcache.Revocations{
+					revcache.Key{}: {}, // non empty map is enough.
+				},
 				nil,
 			)
 			res, err := h.fetchSegsFromDB(context.Background(), nil)
@@ -68,7 +70,7 @@ func TestFetchDB(t *testing.T) {
 				Seg: seg130_132,
 			}}, nil)
 			expErr := common.NewBasicError("TestError", nil)
-			mRevCache.EXPECT().GetAll(gomock.Any(), gomock.Any()).AnyTimes().Return(
+			mRevCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes().Return(
 				nil,
 				expErr,
 			)

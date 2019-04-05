@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
@@ -52,18 +53,18 @@ type Transport interface {
 	Close(context.Context) error
 }
 
-// Interface Handler is implemented by objects that can handle a request coming
+// Handler is implemented by objects that can handle a request coming
 // from a remote SCION network node.
 type Handler interface {
-	Handle(*Request)
+	Handle(*Request) *HandlerResult
 }
 
 // Constructs a handler for request r. Handle() can be called on the
 // resulting object to process the message.
-type HandlerFunc func(r *Request)
+type HandlerFunc func(r *Request) *HandlerResult
 
-func (f HandlerFunc) Handle(r *Request) {
-	f(r)
+func (f HandlerFunc) Handle(r *Request) *HandlerResult {
+	return f(r)
 }
 
 // Request describes an object received from the network that is not part of an
@@ -103,9 +104,9 @@ func (r *Request) Context() context.Context {
 }
 
 var (
-	// messengerContextKey is a context key. It can be used in SCION infra
-	// request handlers to access the messaging layer the message arrived on.
-	messengerContextKey = &contextKey{"infra-messenger"}
+	// responseWriterKey is a context key. It can be used in SCION infra
+	// request handlers to reply to a remote request.
+	responseWriterContextKey = &contextKey{"response-writer"}
 )
 
 type contextKey struct {
@@ -116,8 +117,8 @@ func (k *contextKey) String() string {
 	return "infra/messenger context value " + k.name
 }
 
-func NewContextWithMessenger(ctx context.Context, msger Messenger) context.Context {
-	return context.WithValue(ctx, messengerContextKey, msger)
+func NewContextWithResponseWriter(ctx context.Context, rw ResponseWriter) context.Context {
+	return context.WithValue(ctx, responseWriterContextKey, rw)
 }
 
 type MessageType int
@@ -195,20 +196,121 @@ func (mt MessageType) String() string {
 	}
 }
 
+// MetricLabel returns the label for metrics for a given message type.
+// The postfix for requests is always "req" and for replies and push messages it is always "push".
+func (mt MessageType) MetricLabel() string {
+	switch mt {
+	case None:
+		return "none"
+	case ChainRequest:
+		return "chain_req"
+	case Chain:
+		return "chain_push"
+	case TRCRequest:
+		return "trc_req"
+	case TRC:
+		return "trc_push"
+	case IfId:
+		return "ifid_push"
+	case IfStateInfos:
+		return "if_info_push"
+	case IfStateReq:
+		return "if_info_req"
+	case Seg:
+		return "pathseg_push"
+	case SegChangesReq:
+		return "seg_changes_req"
+	case SegChangesReply:
+		return "seg_changes_push"
+	case SegChangesIdReq:
+		return "seg_changes_id_req"
+	case SegChangesIdReply:
+		return "seg_changes_id_push"
+	case SegReg:
+		return "seg_reg_push"
+	case SegRequest:
+		return "seg_req"
+	case SegReply:
+		return "seg_push"
+	case SegRev:
+		return "seg_rev_push"
+	case SegSync:
+		return "seg_sync_push"
+	case ChainIssueRequest:
+		return "chain_issue_req"
+	case ChainIssueReply:
+		return "chain_issue_push"
+	case Ack:
+		return "ack_push"
+	default:
+		return "unknown_mt"
+	}
+}
+
+// ResourceHealth indicates the health of a resource. A resource could for example be a database.
+// The resource health can be added to a handler, so that the handler only replies if all it's
+// resources are healthy.
+type ResourceHealth interface {
+	// Name returns the name of this resource.
+	Name() string
+	// IsHealthy returns whether the resource is considered healthy currently.
+	// This method must not be blocking and should have the result cached and return ~immediately.
+	IsHealthy() bool
+}
+
+// NewResourceAwareHandler creates a decorated handler that calls the underlying handler if all
+// resources are healthy, otherwise it replies with an error message.
+func NewResourceAwareHandler(handler Handler, resources ...ResourceHealth) Handler {
+	return HandlerFunc(func(r *Request) *HandlerResult {
+		ctx := r.Context()
+		for _, resource := range resources {
+			if !resource.IsHealthy() {
+				logger := log.FromCtx(ctx)
+				rwriter, ok := ResponseWriterFromContext(ctx)
+				if !ok {
+					logger.Error("No response writer found")
+					return MetricsErrInternal
+				}
+				logger.Warn("Resource not healthy, can't handle request",
+					"resource", resource.Name())
+				rwriter.SendAckReply(ctx, &ack.Ack{
+					Err:     proto.Ack_ErrCode_reject,
+					ErrDesc: fmt.Sprintf("Resource %s not healthy", resource.Name()),
+				})
+				return MetricsErrInternal
+			}
+		}
+		return handler.Handle(r)
+	})
+}
+
 type Messenger interface {
 	SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error
+	// GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
+	// reply and returns the reply.
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,
 		id uint64) (*cert_mgmt.TRC, error)
+	// SendTRC sends a reliable cert_mgmt.TRC to address a.
 	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error
+	// GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
+	// receives a reply and returns the reply.
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
 		id uint64) (*cert_mgmt.Chain, error)
+	// SendCertChain sends a reliable cert_mgmt.Chain to address a.
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
+	// SendIfId sends a reliable ifid.IFID to address a.
 	SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error
+	// SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
 	SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos, a net.Addr, id uint64) error
+	// SendSeg sends a reliable seg.Pathsegment to a.
 	SendSeg(ctx context.Context, msg *seg.PathSegment, a net.Addr, id uint64) error
+	// GetSegs asks the server at the remote address for the path segments that
+	// satisfy msg, and returns a verified reply.
 	GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
+	// SendSegReply sends a reliable path_mgmt.SegReply to address a.
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error
+	// SendSegSync sends a reliable path_mgmt.SegSync to address a.
 	SendSegSync(ctx context.Context, msg *path_mgmt.SegSync, a net.Addr, id uint64) error
 	GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
 		a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error)
@@ -229,9 +331,27 @@ type Messenger interface {
 	CloseServer() error
 }
 
-func MessengerFromContext(ctx context.Context) (Messenger, bool) {
-	msger, ok := ctx.Value(messengerContextKey).(Messenger)
-	return msger, ok
+type ResponseWriter interface {
+	SendAckReply(ctx context.Context, msg *ack.Ack) error
+	SendTRCReply(ctx context.Context, msg *cert_mgmt.TRC) error
+	SendCertChainReply(ctx context.Context, msg *cert_mgmt.Chain) error
+	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep) error
+	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error
+}
+
+func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {
+	rw, ok := ctx.Value(responseWriterContextKey).(ResponseWriter)
+	return rw, ok
+}
+
+var _ error = (*Error)(nil)
+
+type Error struct {
+	Message *ack.Ack
+}
+
+func (e *Error) Error() string {
+	return e.Message.ErrDesc
 }
 
 type TrustStore interface {
