@@ -368,17 +368,20 @@ type Signer interface {
 type Verifier interface {
 	ctrl.SigVerifier
 	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
-	// BindToIA returns a verifier that only accepts signatures from the
+	// WithServer returns a verifier that fetches the necessary crypto
+	// objects from the specified server.
+	WithServer(server net.Addr) Verifier
+	// WithIA returns a verifier that only accepts signatures from the
 	// specified AS. Zero values are considered a wild card.
-	BindToIA(ia addr.IA) Verifier
-	// BindToSrc returns a verifier that is bound to the specified source.
+	WithIA(ia addr.IA) Verifier
+	// WithSrc returns a verifier that is bound to the specified source.
 	// The verifies against the specified source, and not the value
 	// provided by the sign meta data.
-	BindToSrc(src ctrl.SignSrcDef) Verifier
+	WithSrc(src ctrl.SignSrcDef) Verifier
 }
 
 type TrustStore interface {
-	GetValidChain(ctx context.Context, ia addr.IA, source net.Addr) (*cert.Chain, error)
+	GetValidChain(ctx context.Context, ia addr.IA, ver uint64, source net.Addr) (*cert.Chain, error)
 	GetValidTRC(ctx context.Context, isd addr.ISD, source net.Addr) (*trc.TRC, error)
 	GetValidCachedTRC(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
 	GetChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error)
@@ -425,10 +428,14 @@ func (nullSigVerifier) VerifyPld(_ context.Context, spld *ctrl.SignedPld) (*ctrl
 	return spld.UnsafePld()
 }
 
-func (nullSigVerifier) BindToIA(_ addr.IA) Verifier {
+func (nullSigVerifier) WithServer(_ net.Addr) Verifier {
 	return nullSigVerifier{}
 }
 
-func (nullSigVerifier) BindToSrc(_ ctrl.SignSrcDef) Verifier {
+func (nullSigVerifier) WithIA(_ addr.IA) Verifier {
+	return nullSigVerifier{}
+}
+
+func (nullSigVerifier) WithSrc(_ ctrl.SignSrcDef) Verifier {
 	return nullSigVerifier{}
 }
