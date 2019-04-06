@@ -232,6 +232,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 	}
 	results := make(chan beacon.BeaconOrErr)
 	go func() {
+		defer log.LogPanicAndExit()
 		defer close(results)
 		for _, b := range beacons {
 			results <- beacon.BeaconOrErr{Beacon: b}

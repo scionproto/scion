@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
@@ -36,7 +37,10 @@ var (
 func Run() {
 	cmn.SetupSignals(summary)
 	wg.Add(1)
-	go sendPkts()
+	go func() {
+		defer log.LogPanicAndExit()
+		sendPkts()
+	}()
 	recvPkts()
 	wg.Wait()
 	summary()

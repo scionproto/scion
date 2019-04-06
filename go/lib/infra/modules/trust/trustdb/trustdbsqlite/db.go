@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -277,6 +278,7 @@ func (db *executor) GetAllIssCerts(ctx context.Context) (<-chan trustdb.CertOrEr
 	}
 	certChan := make(chan trustdb.CertOrErr)
 	go func() {
+		defer log.LogPanicAndExit()
 		defer close(certChan)
 		defer rows.Close()
 		var raw common.RawBytes
@@ -374,6 +376,7 @@ func (db *executor) GetAllChains(ctx context.Context) (<-chan trustdb.ChainOrErr
 	}
 	chainChan := make(chan trustdb.ChainOrErr)
 	go func() {
+		defer log.LogPanicAndExit()
 		defer close(chainChan)
 		defer rows.Close()
 		var leafRaw common.RawBytes
@@ -521,6 +524,7 @@ func (db *executor) GetAllTRCs(ctx context.Context) (<-chan trustdb.TrcOrErr, er
 	}
 	trcChan := make(chan trustdb.TrcOrErr)
 	go func() {
+		defer log.LogPanicAndExit()
 		defer close(trcChan)
 		defer rows.Close()
 		var rawTRC common.RawBytes
@@ -567,6 +571,7 @@ func (db *executor) GetAllCustKeys(ctx context.Context) (<-chan trustdb.CustKeyO
 	}
 	custKeyChan := make(chan trustdb.CustKeyOrErr)
 	go func() {
+		defer log.LogPanicAndExit()
 		defer close(custKeyChan)
 		defer rows.Close()
 		for rows.Next() {
