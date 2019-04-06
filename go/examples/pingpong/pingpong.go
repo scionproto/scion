@@ -442,6 +442,7 @@ func setSignalHandler(closer io.Closer) {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
+		defer log.LogPanicAndExit()
 		<-c
 		closer.Close()
 		os.Exit(1)

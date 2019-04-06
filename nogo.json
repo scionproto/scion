@@ -31,5 +31,12 @@
     "exclude_files": {
       "/com_github_lucas_clemente_quic_go/": ""
     }
+  },
+  "gocall": {
+    "exclude_files": {
+      "(vendor|external)/*": "Only applies to internal files",
+      "xtest/*": "",
+      "_test.go": "Doesn't apply for test files"
+    }
   }
 }
