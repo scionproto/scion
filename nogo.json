@@ -26,5 +26,12 @@
       "/com_github_mattn_go_sqlite3/": "",
       "/com_github_google_gopacket/afpacket/": ""
     }
+  },
+  "gocall": {
+    "exclude_files": {
+      "(vendor|external)/*": "Only applies to internal files",
+      "xtest/*": "",
+      "_test.go": "Doesn't apply for test files"
+    }
   }
 }

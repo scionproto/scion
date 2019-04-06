@@ -79,6 +79,7 @@ func realMain() int {
 	}()
 	if cfg.Dispatcher.PerfData != "" {
 		go func() {
+			defer log.LogPanicAndExit()
 			err := http.ListenAndServe(cfg.Dispatcher.PerfData, nil)
 			if err != nil {
 				fatal.Fatal(err)

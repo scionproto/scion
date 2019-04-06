@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -143,6 +144,7 @@ func (c *reconnector) ctxAwareConnect(ctx context.Context) (Connector, error) {
 	}
 	barrier := make(chan returnValue, 1)
 	go func() {
+		defer log.LogPanicAndExit()
 		conn, err := connectTimeout(c.path, timeout)
 		barrier <- returnValue{conn: conn, err: err}
 	}()

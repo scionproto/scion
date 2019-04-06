@@ -155,6 +155,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 		return nil, err
 	}
 	go func() {
+		defer log.LogPanicAndExit()
 		<-ctx.Done()
 		// it is safe to cancel the write even after the stream is closed
 		stream.CancelWrite(CtxTimedOutError)
