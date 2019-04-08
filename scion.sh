@@ -282,6 +282,7 @@ py_lint() {
       echo "============================================="
       ( cd "$i" && $cmd --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     done
+    flake8 --config python/flake8.ini tools/gomocks || ((ret++))
     return $ret
 }
 
@@ -303,7 +304,7 @@ go_lint() {
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     echo "======> linelen (lll)"
-    out=$(find go -type f -iname '*.go' -a '!' '(' -ipath 'go/lib/pathpol/sequence/*' ')' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
+    out=$(find go -type f -iname '*.go' -a '!' -ipath 'go/proto/structs.gen.go' -a '!' -ipath 'go/proto/*.capnp.go' -a '!' -ipath '*mock_*' -a '!' -ipath 'go/lib/pathpol/sequence/*' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     echo "======> misspell"
     $TMPDIR/misspell -error $LOCAL_DIRS || ret=1
