@@ -18,10 +18,11 @@
 """
 
 import os.path
+from typing import Tuple
 
-from plumbum.cmd import mockgen,mkdir
+from plumbum.cmd import mockgen, mkdir
 
-MOCK_TARGETS= [
+MOCK_TARGETS = [
         ("net", "Addr,Conn,PacketConn"),
         ("github.com/scionproto/scion/go/lib/snet", "Conn,Network"),
         ("github.com/scionproto/scion/go/lib/snet/snetproxy", "IOOperation,Reconnecter"),
@@ -43,6 +44,7 @@ STD_LIB_MOCKS_DIRECTORY = os.path.join("go", "lib", "mocks")
 # Prefix of SCION packages
 SCION_PACKAGE_PREFIX = "github.com/scionproto/scion"
 
+
 def main():
     for (package, interfaces) in MOCK_TARGETS:
         (mock_dir, mock_file) = get_mock_file_path(package)
@@ -51,7 +53,8 @@ def main():
         (mockgen[package, interfaces] > mock_file)()
         print("Generated mocks for %s (%s)" % (package, interfaces))
 
-def get_mock_file_path(package):
+
+def get_mock_file_path(package: str) -> Tuple[str, str]:
     mock_parent_dir = get_relative_path(package)
     package_name = os.path.basename(mock_parent_dir)
 
@@ -59,17 +62,18 @@ def get_mock_file_path(package):
     mock_file = os.path.join(mock_dir, package_name + ".go")
     return (mock_dir, mock_file)
 
-def get_relative_path(target_package):
+
+def get_relative_path(target_package: str) -> str:
     if is_scion_package(target_package):
         return strip_scion_package_prefix(target_package)
     return os.path.join(STD_LIB_MOCKS_DIRECTORY, target_package)
 
-def is_scion_package(target_package):
-     return os.path.commonpath([SCION_PACKAGE_PREFIX, target_package]) == SCION_PACKAGE_PREFIX
 
-def strip_scion_package_prefix(target_package):
-     return target_package[len(SCION_PACKAGE_PREFIX)+1:]
+def is_scion_package(target_package: str) -> bool:
+    return os.path.commonpath([SCION_PACKAGE_PREFIX, target_package]) == SCION_PACKAGE_PREFIX
+
+def strip_scion_package_prefix(target_package: str) -> str:
+    return target_package[len(SCION_PACKAGE_PREFIX)+1:]
 
 if __name__ == "__main__":
     main()
-
