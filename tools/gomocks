@@ -1,0 +1,80 @@
+#!/usr/bin/python3
+# Copyright 2019 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+:mod: 'gomocks' --- Helper script to regenerate go mock files.
+==============================================================
+"""
+
+import os.path
+from typing import Tuple
+
+from plumbum.cmd import mockgen, mkdir
+
+# Prefix of SCION packages
+SCION_PACKAGE_PREFIX = "github.com/scionproto/scion"
+
+# Directory for standard library mocks
+STD_LIB_MOCKS_DIRECTORY = os.path.join("go", "lib", "mocks")
+
+MOCK_TARGETS = [
+        ("net", "Addr,Conn,PacketConn"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet", "Conn,Network"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet/snetproxy", "IOOperation,Reconnecter"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/ctxmonitor", "Monitor"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/pathsource", "PathSource"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Querier,Resolver"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/sciond", "Service,Connector"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
+]
+
+
+def main():
+    for (package, interfaces) in MOCK_TARGETS:
+        (mock_dir, mock_file) = get_mock_file_path(package)
+
+        mkdir("-p", mock_dir)
+        (mockgen[package, interfaces] > mock_file)()
+        print("Generated mocks for %s (%s)" % (package, interfaces))
+
+
+def get_mock_file_path(package: str) -> Tuple[str, str]:
+    mock_parent_dir = get_relative_path(package)
+    package_name = os.path.basename(mock_parent_dir)
+
+    mock_dir = os.path.join(mock_parent_dir, "mock_" + package_name)
+    mock_file = os.path.join(mock_dir, package_name + ".go")
+    return (mock_dir, mock_file)
+
+
+def get_relative_path(target_package: str) -> str:
+    if is_scion_package(target_package):
+        return strip_scion_package_prefix(target_package)
+    return os.path.join(STD_LIB_MOCKS_DIRECTORY, target_package)
+
+
+def is_scion_package(target_package: str) -> bool:
+    return os.path.commonpath([SCION_PACKAGE_PREFIX, target_package]) == SCION_PACKAGE_PREFIX
+
+
+def strip_scion_package_prefix(target_package: str) -> str:
+    return target_package[len(SCION_PACKAGE_PREFIX)+1:]
+
+if __name__ == "__main__":
+    main()

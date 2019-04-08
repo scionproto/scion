@@ -1,19 +1,8 @@
-# gazelle:ignore
-
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
-load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
-
-gomock(
-    name = "mock_pathmgr",
-    library = "//go/lib/pathmgr:go_default_library",
-    package = "mock_pathmgr",
-    interfaces = ["Querier", "Resolver"],
-    out = "mock_pathmgr.go",
-)
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["mock_pathmgr.go"],
+    srcs = ["pathmgr.go"],
     importpath = "github.com/scionproto/scion/go/lib/pathmgr/mock_pathmgr",
     visibility = ["//visibility:public"],
     deps = [
@@ -27,4 +16,3 @@ go_library(
         "@com_github_golang_mock//gomock:go_default_library",
     ],
 )
-

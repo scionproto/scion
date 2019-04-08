@@ -22,6 +22,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["metrics_test.go"],
+    data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
         "//go/lib/infra/modules/trust/trustdb/trustdbsqlite:go_default_library",
