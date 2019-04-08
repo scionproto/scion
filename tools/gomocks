@@ -22,28 +22,27 @@ from typing import Tuple
 
 from plumbum.cmd import mockgen, mkdir
 
-MOCK_TARGETS = [
-        ("net", "Addr,Conn,PacketConn"),
-        ("github.com/scionproto/scion/go/lib/snet", "Conn,Network"),
-        ("github.com/scionproto/scion/go/lib/snet/snetproxy", "IOOperation,Reconnecter"),
-        ("github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor", "Monitor"),
-        ("github.com/scionproto/scion/go/lib/snet/internal/pathsource", "PathSource"),
-        ("github.com/scionproto/scion/go/lib/pathmgr", "Querier,Resolver"),
-        ("github.com/scionproto/scion/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
-        ("github.com/scionproto/scion/go/lib/l4", "L4Header"),
-        ("github.com/scionproto/scion/go/lib/infra", "TrustStore,Messenger,ResponseWriter"),
-        ("github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb", "TrustDB"),
-        ("github.com/scionproto/scion/go/lib/sciond", "Service,Connector"),
-        ("github.com/scionproto/scion/go/lib/log", "Handler,Logger"),
-        ("github.com/scionproto/scion/go/lib/revcache", "RevCache"),
-]
+# Prefix of SCION packages
+SCION_PACKAGE_PREFIX = "github.com/scionproto/scion"
 
 # Directory for standard library mocks
 STD_LIB_MOCKS_DIRECTORY = os.path.join("go", "lib", "mocks")
 
-# Prefix of SCION packages
-SCION_PACKAGE_PREFIX = "github.com/scionproto/scion"
-
+MOCK_TARGETS = [
+        ("net", "Addr,Conn,PacketConn"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet", "Conn,Network"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet/snetproxy", "IOOperation,Reconnecter"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/ctxmonitor", "Monitor"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/pathsource", "PathSource"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Querier,Resolver"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/sciond", "Service,Connector"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
+]
 
 def main():
     for (package, interfaces) in MOCK_TARGETS:
@@ -71,6 +70,7 @@ def get_relative_path(target_package: str) -> str:
 
 def is_scion_package(target_package: str) -> bool:
     return os.path.commonpath([SCION_PACKAGE_PREFIX, target_package]) == SCION_PACKAGE_PREFIX
+
 
 def strip_scion_package_prefix(target_package: str) -> str:
     return target_package[len(SCION_PACKAGE_PREFIX)+1:]
