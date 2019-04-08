@@ -21,6 +21,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 type pathCase struct {
@@ -132,4 +135,53 @@ func makeSeg(b common.RawBytes, consDir bool, isd uint16, hops []uint8) {
 			b[InfoFieldLength+i*HopFieldLength+j] = hop
 		}
 	}
+}
+
+func TestNewOneHop(t *testing.T) {
+	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
+	xtest.FailOnErr(t, err)
+	// Compute the correct tag for the first hop field.
+	tag, err := (&HopField{ConsEgress: 11, ExpTime: 4}).CalcMac(mac, 3, nil)
+	xtest.FailOnErr(t, err)
+	mac.Reset()
+
+	Convey("The one hop path should be created correctly", t, func() {
+		p, err := NewOneHop(1, 11, util.SecsToTime(3), 4, mac)
+		SoMsg("err", err, ShouldBeNil)
+		err = p.InitOffsets()
+		SoMsg("InitOffsets", err, ShouldBeNil)
+		// Check the info field is set correctly.
+		info, err := p.GetInfoField(p.InfOff)
+		SoMsg("GetInfoField", err, ShouldBeNil)
+		Convey("The info field is correct", func() {
+			SoMsg("ConsDir", info.ConsDir, ShouldBeTrue)
+			SoMsg("Shortcut", info.Shortcut, ShouldBeFalse)
+			SoMsg("Peer", info.Peer, ShouldBeFalse)
+			SoMsg("TsInt", info.TsInt, ShouldEqual, 3)
+			SoMsg("ISD", info.ISD, ShouldEqual, 1)
+			SoMsg("Hops", info.Hops, ShouldEqual, 2)
+		})
+		// Check the first hop field is set correctly.
+		hop, err := p.GetHopField(p.HopOff)
+		SoMsg("GetHopField", err, ShouldBeNil)
+		Convey("The first hop field is correct", func() {
+			SoMsg("Xover", hop.Xover, ShouldBeFalse)
+			SoMsg("VerifyOnly", hop.VerifyOnly, ShouldBeFalse)
+			SoMsg("ExpTime", hop.ExpTime, ShouldEqual, 4)
+			SoMsg("ConsIngress", hop.ConsIngress, ShouldEqual, 0)
+			SoMsg("ConsEgress", hop.ConsEgress, ShouldEqual, 11)
+			SoMsg("Mac", hop.Mac, ShouldResemble, tag[:MacLen])
+		})
+		// Check the path has two hop fields.
+		oldInfoOff := p.InfOff
+		err = p.IncOffsets()
+		SoMsg("IncOffsets", err, ShouldBeNil)
+		SoMsg("Same info field", p.InfOff, ShouldEqual, oldInfoOff)
+		// Check the second hop field is empty.
+		hop, err = p.GetHopField(p.HopOff)
+		SoMsg("GetHopField", err, ShouldBeNil)
+		Convey("The second hop field is empty", func() {
+			SoMsg("hop", hop, ShouldResemble, &HopField{Mac: common.RawBytes{0, 0, 0}})
+		})
+	})
 }
