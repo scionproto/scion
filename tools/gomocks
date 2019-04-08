@@ -44,6 +44,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
 ]
 
+
 def main():
     for (package, interfaces) in MOCK_TARGETS:
         (mock_dir, mock_file) = get_mock_file_path(package)
