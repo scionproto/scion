@@ -74,6 +74,11 @@ func NewSignSrcDefFromRaw(b common.RawBytes) (SignSrcDef, error) {
 	return SignSrcDef{IA: ia, ChainVer: chainVer, TRCVer: trcVer}, nil
 }
 
+// IsUninitialized indicates whether the source is equal to the zero value.
+func (s *SignSrcDef) IsUninitialized() bool {
+	return *s == SignSrcDef{}
+}
+
 func (s *SignSrcDef) Pack() common.RawBytes {
 	return common.RawBytes(fmt.Sprintf("%sIA: %s CHAIN: %d TRC: %d", SrcDefaultPrefix,
 		s.IA, s.ChainVer, s.TRCVer))
