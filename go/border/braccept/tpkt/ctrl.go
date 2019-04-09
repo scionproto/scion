@@ -33,7 +33,7 @@ var _ LayerMatcher = (*PathMgmtPld)(nil)
 
 type PathMgmtPld struct {
 	Signer      ctrl.Signer
-	SigVerifier ctrl.SigVerifier
+	SigVerifier ctrl.Verifier
 	Instance    proto.Cerealizable
 }
 

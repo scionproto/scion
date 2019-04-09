@@ -777,7 +777,7 @@ type pathingRequester struct {
 	local     addr.IA
 }
 
-func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher,
+func NewPathingRequester(signer ctrl.Signer, sigv ctrl.Verifier, d *disp.Dispatcher,
 	local addr.IA) Requester {
 
 	return &pathingRequester{

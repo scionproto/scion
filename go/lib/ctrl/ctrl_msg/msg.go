@@ -31,11 +31,11 @@ type notifyF func(context.Context, proto.Cerealizable, net.Addr) error
 
 type Requester struct {
 	signer ctrl.Signer
-	sigv   ctrl.SigVerifier
+	sigv   ctrl.Verifier
 	d      *disp.Dispatcher
 }
 
-func NewRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher) *Requester {
+func NewRequester(signer ctrl.Signer, sigv ctrl.Verifier, d *disp.Dispatcher) *Requester {
 	return &Requester{signer: signer, sigv: sigv, d: d}
 }
 

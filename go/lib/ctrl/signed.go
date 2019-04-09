@@ -62,6 +62,7 @@ func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
 	return sp, proto.ParseFromRaw(sp, sp.ProtoId(), b[4:])
 }
 
+// UnsafePld extracts the control payload without verifying the payload.
 func (sp *SignedPld) UnsafePld() (*Pld, error) {
 	var err error
 	if sp.pld == nil {
@@ -70,10 +71,10 @@ func (sp *SignedPld) UnsafePld() (*Pld, error) {
 	return sp.pld, err
 }
 
-func (sp *SignedPld) VerifiedPld(ctx context.Context, verifier SigVerifier) (*Pld, error) {
-	var err error
-	sp.pld, err = verifier.VerifyPld(ctx, sp)
-	return sp.pld, err
+// VerifiedPld extracts the control payload and verifies it. If
+// verification fails, an error is returned instead.
+func (sp *SignedPld) VerifiedPld(ctx context.Context, verifier Verifier) (*Pld, error) {
+	return verifier.VerifyPld(ctx, sp)
 }
 
 func (sp *SignedPld) Len() int {
