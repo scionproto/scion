@@ -167,6 +167,12 @@ go_repository(
 )
 
 go_repository(
+    name = "com_github_golang_mock",
+    commit = "73dc87cad333b55a02058f4b3d872dbbafddc2b0",
+    importpath = "github.com/golang/mock",
+)
+
+go_repository(
     name = "com_github_dchest_cmac",
     commit = "62ff55a1048c485e83f1882466f535da624e944a",
     importpath = "github.com/dchest/cmac",

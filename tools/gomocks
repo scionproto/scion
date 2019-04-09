@@ -20,7 +20,8 @@
 import os.path
 from typing import Tuple
 
-from plumbum.cmd import mockgen, mkdir
+from plumbum import local
+from plumbum.cmd import mkdir
 
 # Prefix of SCION packages
 SCION_PACKAGE_PREFIX = "github.com/scionproto/scion"
@@ -46,6 +47,9 @@ MOCK_TARGETS = [
 
 
 def main():
+    mockgen = local[local.env["MOCKTOOL"]] if "MOCKTOOL" in local.env else local["mockgen"]
+    print("Generating mocks using tool", mockgen)
+
     for (package, interfaces) in MOCK_TARGETS:
         (mock_dir, mock_file) = get_mock_file_path(package)
 
