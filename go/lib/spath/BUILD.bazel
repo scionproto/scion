@@ -19,7 +19,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["path_test.go"],
+    srcs = [
+        "hop_test.go",
+        "path_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/common:go_default_library",
