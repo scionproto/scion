@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -354,8 +355,14 @@ func (e *Error) Error() string {
 	return e.Message.ErrDesc
 }
 
+// SignerMeta indicates what signature metadata the signer uses as a basis
+// when creating signatures.
 type SignerMeta struct {
-	Src  ctrl.SignSrcDef
+	// Src is the signature source, containing the certificate chain version.
+	Src ctrl.SignSrcDef
+	// ExpTime indicates the expiration time of the certificate chain.
+	ExpTime time.Time
+	// Algo indicates the signing algorithm.
 	Algo string
 }
 
@@ -365,6 +372,8 @@ type Signer interface {
 	Meta() SignerMeta
 }
 
+// Verifier is used to verify payloads signed with control-plane PKI
+// certificates.
 type Verifier interface {
 	ctrl.Verifier
 	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
@@ -372,10 +381,11 @@ type Verifier interface {
 	// objects from the specified server.
 	WithServer(server net.Addr) Verifier
 	// WithIA returns a verifier that only accepts signatures from the
-	// specified AS. Zero values are considered a wild card.
+	// specified AS. Zero values in the ISD-AS pair are considered a wild
+	// card.
 	WithIA(ia addr.IA) Verifier
 	// WithSrc returns a verifier that is bound to the specified source.
-	// The verifies against the specified source, and not the value
+	// It verifies against the specified source, and not the value
 	// provided by the sign meta data.
 	WithSrc(src ctrl.SignSrcDef) Verifier
 }
