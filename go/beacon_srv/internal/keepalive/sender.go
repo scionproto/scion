@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -34,7 +35,7 @@ var _ periodic.Task = (*Sender)(nil)
 // Sender sends ifid keepalive messages on all border routers.
 type Sender struct {
 	*onehop.Sender
-	Signer ctrl.Signer
+	Signer infra.Signer
 }
 
 // Run sends ifid keepalive messages on all border routers.
@@ -72,7 +73,7 @@ func (s *Sender) createPld(origIfid common.IFIDType) (common.Payload, error) {
 	if err != nil {
 		return nil, err
 	}
-	spld, err := s.Signer.Sign(pld)
+	spld, err := pld.SignedPld(s.Signer)
 	if err != nil {
 		return nil, err
 	}
