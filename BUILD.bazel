@@ -55,6 +55,16 @@ pkg_tar(
     mode = "0755",
 )
 
+# This is a package of tools used for generating Go mocks.
+pkg_tar(
+    name = "mocks",
+    package_dir = "",
+    srcs = [
+        "@com_github_golang_mock//mockgen:mockgen",
+    ],
+    mode = "0755",
+)
+
 # Nogo - Go code analysis tool
 nogo(
     name = "nogo",

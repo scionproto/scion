@@ -313,6 +313,17 @@ go_lint() {
     return $ret
 }
 
+cmd_mocks() {
+    set -o pipefail
+    local TMPDIR=$(mktemp -d /tmp/scion-mocks.XXXXXXX)
+    echo "======> Building mock tools"
+    bazel build //:mocks || return 1
+    tar -xf bazel-bin/mocks.tar -C $TMPDIR || return 1
+    echo "======> gomocks"
+    MOCKTOOL=$TMPDIR/mockgen tools/gomocks || return 1
+    return 0
+}
+
 cmd_version() {
 	cat <<-_EOF
 	============================================
@@ -381,6 +392,8 @@ cmd_help() {
 	        Run all unit tests.
 	    $PROGRAM coverage
 	        Create a html report with unit test code coverage.
+	    $PROGRAM mocks
+	        Generate source files for Go mocks.
 	    $PROGRAM help
 	        Show this text.
 	    $PROGRAM version
@@ -394,7 +407,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
+    coverage|help|lint|mocks|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;
