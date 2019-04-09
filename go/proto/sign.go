@@ -63,23 +63,25 @@ func (s *SignS) Time() time.Time {
 	return time.Time{}
 }
 
-func (s *SignS) Verify(key, message common.RawBytes) error {
-	// FIXME(roosd) remove
-	return common.NewBasicError("SignS.Verify: Unsupported SignType", nil, "type", s.Type)
-}
-
+// Pack serializes the signature metadata including the signature.
 func (s *SignS) Pack() common.RawBytes {
 	return s.pack(nil, true)
 }
 
-func (s *SignS) SigPack(msg common.RawBytes, setTimestamp bool) common.RawBytes {
+// SigInput serializes the signature metadata to the signature input
+// including the provided message. If setTimestamp is set, the timestamp of
+// the signature metadata is updated to the current time, before creating
+// the signature input. It should be true when signing to provide a recent
+// timestamp. When verifying, it should be false to guarantee the same
+// produce input.
+func (s *SignS) SigInput(msg common.RawBytes, setTimestamp bool) common.RawBytes {
 	if setTimestamp {
 		s.SetTimestamp(time.Now())
 	}
 	return s.pack(msg, false)
 }
 
-// sigPack appends the type, src, signature (if needed) and timestamp fields to msg
+// pack appends the type, src, signature (if needed) and timestamp fields to msg
 func (s *SignS) pack(msg common.RawBytes, inclSig bool) common.RawBytes {
 	msg = append(common.RawBytes(nil), msg...)
 	msg = append(msg, common.RawBytes(s.Type.String())...)
