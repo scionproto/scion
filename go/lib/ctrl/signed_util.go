@@ -25,13 +25,13 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// Signer takes a message and signs it, producing a SignedPld.
+// Signer takes a message and signs it, producing the signature metadata.
 type Signer interface {
 	Sign(msg common.RawBytes) (*proto.SignS, error)
 }
 
-// SigVerifier verifies the signature of a signed payload.
-type SigVerifier interface { // interfaces -> infra
+// Verifier verifies the signature of a signed payload.
+type Verifier interface {
 	VerifyPld(context.Context, *SignedPld) (*Pld, error)
 }
 
@@ -42,6 +42,10 @@ const (
 	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\S+) CHAIN: (\d+) TRC: (\d+)$`
 )
 
+// SignSrcDef is the default format for signature source. It states the
+// signing entity, and the certificate chain authenticating the public key.
+// The TRC version is a hint for the TRC that can currently be used to
+// verify the chain.
 type SignSrcDef struct {
 	IA       addr.IA
 	ChainVer uint64

@@ -6,7 +6,11 @@ package mock_infra
 
 import (
 	context "context"
+	net "net"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
+
 	addr "github.com/scionproto/scion/go/lib/addr"
 	common "github.com/scionproto/scion/go/lib/common"
 	ctrl "github.com/scionproto/scion/go/lib/ctrl"
@@ -19,8 +23,6 @@ import (
 	cert "github.com/scionproto/scion/go/lib/scrypto/cert"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc"
 	proto "github.com/scionproto/scion/go/proto"
-	net "net"
-	reflect "reflect"
 )
 
 // MockTrustStore is a mock of TrustStore interface
@@ -139,7 +141,7 @@ func (mr *MockTrustStoreMockRecorder) NewChainReqHandler(arg0 interface{}) *gomo
 func (m *MockTrustStore) NewSigVerifier() ctrl.SigVerifier {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewSigVerifier")
-	ret0, _ := ret[0].(ctrl.SigVerifier)
+	ret0, _ := ret[0].(ctrl.Verifier)
 	return ret0
 }
 
