@@ -71,17 +71,22 @@ func LoadCustomers(path string, trustDB trustdb.TrustDB) ([]string, []*CustKeyMe
 			return procFiles, addedKeys, common.NewBasicError("Unable to load key", err,
 				"file", file)
 		}
-		_, dbV, err := trustDB.GetCustKey(ctx, ia)
+		cKey, err := trustDB.GetCustKey(ctx, ia)
 		if err != nil {
 			return procFiles, addedKeys, common.NewBasicError("Failed to check DB cust key", err,
 				"ia", ia)
 		}
-		if dbV >= activeVers[ia] {
-			// db already contains a newer key.
-			procFiles = append(procFiles, file)
-			continue
+		var currentV uint64
+		if cKey != nil {
+			if cKey.Version >= activeVers[ia] {
+				// db already contains a newer key.
+				procFiles = append(procFiles, file)
+				continue
+			}
+			currentV = cKey.Version
 		}
-		err = trustDB.InsertCustKey(ctx, ia, activeVers[ia], key, dbV)
+		err = trustDB.InsertCustKey(ctx,
+			&trustdb.CustKey{IA: ia, Key: key, Version: activeVers[ia]}, currentV)
 		if err != nil {
 			return procFiles, addedKeys, common.NewBasicError("Failed to save customer key", err,
 				"file", file)

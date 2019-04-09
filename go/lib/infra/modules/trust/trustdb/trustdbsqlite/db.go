@@ -105,6 +105,9 @@ const (
 			SELECT Data FROM (SELECT *, MAX(Version) FROM IssuerCerts WHERE IsdID=? AND AsID=?)
 			WHERE Data IS NOT NULL
 		`
+	getAllIssCertsStr = `
+			SELECT Data, IsdID, AsID, Version FROM IssuerCerts
+		`
 	getIssCertRowIDStr = `
 			SELECT RowID FROM IssuerCerts WHERE IsdID=? AND AsID=? AND Version=?
 		`
@@ -170,6 +173,9 @@ const (
 	getCustKeyStr = `
 			SELECT Key, Version FROM CustKeys WHERE IsdID=? AND AsID=?
 	`
+	getAllCustKeyStr = `
+			SELECT Key, IsdID, AsID, Version FROM CustKeys
+	`
 	insertCustKeyStr = `
 			INSERT INTO CustKeys (IsdID, AsID, Version, Key) VALUES (?, ?, ?, ?)
 	`
@@ -183,14 +189,14 @@ const (
 	`
 )
 
-type tdb struct {
+type Backend struct {
 	*executor
 	db *sql.DB
 }
 
-func New(path string) (trustdb.TrustDB, error) {
+func New(path string) (*Backend, error) {
 	var err error
-	tdb := &tdb{}
+	tdb := &Backend{}
 	tdb.executor = &executor{}
 	if tdb.db, err = db.NewSqlite(path, Schema, SchemaVersion); err != nil {
 		return nil, err
@@ -199,21 +205,21 @@ func New(path string) (trustdb.TrustDB, error) {
 	return tdb, nil
 }
 
-func (db *tdb) SetMaxOpenConns(maxOpenConns int) {
+func (db *Backend) SetMaxOpenConns(maxOpenConns int) {
 	db.db.SetMaxOpenConns(maxOpenConns)
 }
 
-func (db *tdb) SetMaxIdleConns(maxIdleConns int) {
+func (db *Backend) SetMaxIdleConns(maxIdleConns int) {
 	db.db.SetMaxIdleConns(maxIdleConns)
 }
 
 // Close closes the database connection.
-func (db *tdb) Close() error {
+func (db *Backend) Close() error {
 	return db.db.Close()
 }
 
 // BeginTransaction starts a new transaction.
-func (db *tdb) BeginTransaction(ctx context.Context,
+func (db *Backend) BeginTransaction(ctx context.Context,
 	opts *sql.TxOptions) (trustdb.Transaction, error) {
 
 	db.Lock()
@@ -259,6 +265,34 @@ func (db *executor) GetIssCertMaxVersion(ctx context.Context,
 	var raw common.RawBytes
 	err := db.db.QueryRowContext(ctx, getIssCertMaxVersionStr, ia.I, ia.A).Scan(&raw)
 	return parseCert(raw, ia, scrypto.LatestVer, err)
+}
+
+func (db *executor) GetAllIssCerts(ctx context.Context) (<-chan trustdb.CertOrErr, error) {
+	db.RLock()
+	defer db.RUnlock()
+
+	rows, err := db.db.QueryContext(ctx, getAllIssCertsStr)
+	if err != nil {
+		return nil, err
+	}
+	certChan := make(chan trustdb.CertOrErr)
+	go func() {
+		defer close(certChan)
+		defer rows.Close()
+		var raw common.RawBytes
+		ia := addr.IA{}
+		var v uint64
+		for rows.Next() {
+			err = rows.Scan(&raw, &ia.I, &ia.A, &v)
+			crt, err := parseCert(raw, ia, v, err)
+			if err != nil {
+				certChan <- trustdb.CertOrErr{Err: err}
+				return
+			}
+			certChan <- trustdb.CertOrErr{Cert: crt}
+		}
+	}()
+	return certChan, nil
 }
 
 // InsertIssCert inserts the issuer certificate.
@@ -331,58 +365,66 @@ func (db *executor) GetChainMaxVersion(ctx context.Context, ia addr.IA) (*cert.C
 	return parseChain(rows, err)
 }
 
-func (db *executor) GetAllChains(ctx context.Context) ([]*cert.Chain, error) {
+func (db *executor) GetAllChains(ctx context.Context) (<-chan trustdb.ChainOrErr, error) {
 	db.RLock()
 	defer db.RUnlock()
 	rows, err := db.db.QueryContext(ctx, getAllChainsStr)
 	if err != nil {
 		return nil, common.NewBasicError("Database access error", err)
 	}
-	defer rows.Close()
-	var chains []*cert.Chain
-	var leafRaw common.RawBytes
-	var issCertRaw common.RawBytes
-	var orderKey int64
-	var lastOrderKey int64 = 1
-	currentCerts := make([]*cert.Certificate, 0, 2)
-	for rows.Next() {
-		err = rows.Scan(&orderKey, &issCertRaw, &leafRaw)
-		if err != nil {
-			return nil, err
-		}
-		// Wrap around means we start processing a new chain entry.
-		if orderKey <= lastOrderKey {
-			if len(currentCerts) > 0 {
-				chain, err := cert.ChainFromSlice(currentCerts)
-				if err != nil {
-					return nil, err
-				}
-				chains = append(chains, chain)
-				currentCerts = currentCerts[:0]
-			}
-			// While the leaf entry is in every result row,
-			// it has to be the first entry in the chain we are building.
-			crt, err := cert.CertificateFromRaw(leafRaw)
+	chainChan := make(chan trustdb.ChainOrErr)
+	go func() {
+		defer close(chainChan)
+		defer rows.Close()
+		var leafRaw common.RawBytes
+		var issCertRaw common.RawBytes
+		var orderKey int64
+		var lastOrderKey int64 = 1
+		currentCerts := make([]*cert.Certificate, 0, 2)
+		for rows.Next() {
+			err = rows.Scan(&orderKey, &issCertRaw, &leafRaw)
 			if err != nil {
-				return nil, err
+				chainChan <- trustdb.ChainOrErr{Err: err}
+				return
+			}
+			// Wrap around means we start processing a new chain entry.
+			if orderKey <= lastOrderKey {
+				if len(currentCerts) > 0 {
+					chain, err := cert.ChainFromSlice(currentCerts)
+					if err != nil {
+						chainChan <- trustdb.ChainOrErr{Err: err}
+						return
+					}
+					chainChan <- trustdb.ChainOrErr{Chain: chain}
+					currentCerts = currentCerts[:0]
+				}
+				// While the leaf entry is in every result row,
+				// it has to be the first entry in the chain we are building.
+				crt, err := cert.CertificateFromRaw(leafRaw)
+				if err != nil {
+					chainChan <- trustdb.ChainOrErr{Err: err}
+					return
+				}
+				currentCerts = append(currentCerts, crt)
+			}
+			crt, err := cert.CertificateFromRaw(issCertRaw)
+			if err != nil {
+				chainChan <- trustdb.ChainOrErr{Err: err}
+				return
 			}
 			currentCerts = append(currentCerts, crt)
+			lastOrderKey = orderKey
 		}
-		crt, err := cert.CertificateFromRaw(issCertRaw)
-		if err != nil {
-			return nil, err
+		if len(currentCerts) > 0 {
+			chain, err := cert.ChainFromSlice(currentCerts)
+			if err != nil {
+				chainChan <- trustdb.ChainOrErr{Err: err}
+				return
+			}
+			chainChan <- trustdb.ChainOrErr{Chain: chain}
 		}
-		currentCerts = append(currentCerts, crt)
-		lastOrderKey = orderKey
-	}
-	if len(currentCerts) > 0 {
-		chain, err := cert.ChainFromSlice(currentCerts)
-		if err != nil {
-			return nil, err
-		}
-		chains = append(chains, chain)
-	}
-	return chains, nil
+	}()
+	return chainChan, nil
 }
 
 // InsertChain inserts chain into the database. The first return value is the
@@ -470,77 +512,113 @@ func (db *executor) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, erro
 }
 
 // GetAllTRCs fetches all TRCs from the database.
-func (db *executor) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
+func (db *executor) GetAllTRCs(ctx context.Context) (<-chan trustdb.TrcOrErr, error) {
 	db.RLock()
 	defer db.RUnlock()
 	rows, err := db.db.QueryContext(ctx, getAllTRCsStr)
 	if err != nil {
 		return nil, common.NewBasicError("Database access error", err)
 	}
-	defer rows.Close()
-	var trcs []*trc.TRC
-	var rawTRC common.RawBytes
-	for rows.Next() {
-		err = rows.Scan(&rawTRC)
-		if err != nil {
-			return nil, common.NewBasicError("Failed to scan rows", err)
+	trcChan := make(chan trustdb.TrcOrErr)
+	go func() {
+		defer close(trcChan)
+		defer rows.Close()
+		var rawTRC common.RawBytes
+		for rows.Next() {
+			err = rows.Scan(&rawTRC)
+			if err != nil {
+				trcChan <- trustdb.TrcOrErr{Err: common.NewBasicError("Failed to scan rows", err)}
+				return
+			}
+			trcobj, err := trc.TRCFromRaw(rawTRC, false)
+			if err != nil {
+				trcChan <- trustdb.TrcOrErr{Err: common.NewBasicError("TRC parse error", err)}
+				return
+			}
+			trcChan <- trustdb.TrcOrErr{TRC: trcobj}
 		}
-		trcobj, err := trc.TRCFromRaw(rawTRC, false)
-		if err != nil {
-			return nil, common.NewBasicError("TRC parse error", err)
-		}
-		trcs = append(trcs, trcobj)
-	}
-	return trcs, nil
+	}()
+	return trcChan, nil
 }
 
 // GetCustKey gets the latest signing key and version for the specified customer AS.
-func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, uint64, error) {
+func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (*trustdb.CustKey, error) {
 	db.RLock()
 	defer db.RUnlock()
 	var key common.RawBytes
 	var version uint64
 	err := db.db.QueryRowContext(ctx, getCustKeyStr, ia.I, ia.A).Scan(&key, &version)
 	if err == sql.ErrNoRows {
-		return nil, 0, nil
+		return nil, nil
 	}
 	if err != nil {
-		return nil, 0, common.NewBasicError("Failed to look up cust key", err)
+		return nil, common.NewBasicError("Failed to look up cust key", err)
 	}
-	return key, version, nil
+	return &trustdb.CustKey{IA: ia, Key: key, Version: version}, nil
+}
+
+func (db *executor) GetAllCustKeys(ctx context.Context) (<-chan trustdb.CustKeyOrErr, error) {
+	db.RLock()
+	defer db.RUnlock()
+
+	rows, err := db.db.QueryContext(ctx, getAllCustKeyStr)
+	if err != nil {
+		return nil, err
+	}
+	custKeyChan := make(chan trustdb.CustKeyOrErr)
+	go func() {
+		defer close(custKeyChan)
+		defer rows.Close()
+		for rows.Next() {
+			custKey := trustdb.CustKey{}
+			err := rows.Scan(&custKey.Key, &custKey.IA.I, &custKey.IA.A, &custKey.Version)
+			if err != nil {
+				custKeyChan <- trustdb.CustKeyOrErr{Err: err}
+				return
+			}
+			custKeyChan <- trustdb.CustKeyOrErr{CustKey: &custKey}
+		}
+	}()
+	return custKeyChan, nil
 }
 
 // InsertCustKey implements trustdb.InsertCustKey.
-func (db *executor) InsertCustKey(ctx context.Context, ia addr.IA,
-	version uint64, key common.RawBytes, oldVersion uint64) error {
+func (db *executor) InsertCustKey(ctx context.Context,
+	key *trustdb.CustKey, oldVersion uint64) error {
 
-	if version == oldVersion {
+	if key == nil {
+		return common.NewBasicError("Inserting nil key not allowed", nil)
+	}
+	if key.Version == oldVersion {
 		return common.NewBasicError("Same version as oldVersion not allowed",
-			nil, "version", version)
+			nil, "version", key.Version)
 	}
 	db.Lock()
 	defer db.Unlock()
 	if oldVersion == 0 {
-		_, err := db.db.ExecContext(ctx, insertCustKeyStr, ia.I, ia.A, version, key)
+		_, err := db.db.ExecContext(ctx, insertCustKeyStr, key.IA.I, key.IA.A, key.Version, key.Key)
 		if err != nil {
-			return common.NewBasicError("Failed to insert cust key", err, "ia", ia, "ver", version)
+			return common.NewBasicError("Failed to insert cust key", err,
+				"ia", key.IA, "ver", key.Version)
 		}
 	} else {
-		res, err := db.db.ExecContext(ctx, updateCustKeyStr, version, key, ia.I, ia.A, oldVersion)
+		res, err := db.db.ExecContext(ctx, updateCustKeyStr,
+			key.Version, key.Key, key.IA.I, key.IA.A, oldVersion)
 		if err != nil {
-			return common.NewBasicError("Failed to update cust key", err, "ia", ia, "ver", version)
+			return common.NewBasicError("Failed to update cust key", err,
+				"ia", key.IA, "ver", key.Version)
 		}
 		n, err := res.RowsAffected()
 		if err != nil {
 			return common.NewBasicError("Unable to determine affected rows", err)
 		}
 		if n == 0 {
-			return common.NewBasicError("Cust keys has been modified", nil, "ia", ia,
-				"newVersion", version, "oldVersion", oldVersion)
+			return common.NewBasicError("Cust keys has been modified", nil, "ia", key.IA,
+				"newVersion", key.Version, "oldVersion", oldVersion)
 		}
 	}
 	// Insert in the log table.
-	_, err := db.db.ExecContext(ctx, insertCustKeyLogStr, ia.I, ia.A, version, key)
+	_, err := db.db.ExecContext(ctx, insertCustKeyLogStr, key.IA.I, key.IA.A, key.Version, key.Key)
 	return err
 }
 

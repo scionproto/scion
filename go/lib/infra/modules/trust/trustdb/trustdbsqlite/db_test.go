@@ -15,12 +15,12 @@
 package trustdbsqlite
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbtest"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -29,19 +29,24 @@ var (
 	ctxTimeout = time.Second
 )
 
+var _ trustdbtest.TestableTrustDB = (*TestTrustDB)(nil)
+
+type TestTrustDB struct {
+	*Backend
+}
+
+func (b *TestTrustDB) Prepare(t *testing.T, _ context.Context) {
+	b.Backend = newDatabase(t)
+}
+
 func TestTrustDBSuite(t *testing.T) {
-	setup := func() trustdb.TrustDB {
-		return newDatabase(t)
-	}
-	cleanup := func(db trustdb.TrustDB) {
-		db.Close()
-	}
+	tdb := &TestTrustDB{}
 	Convey("TrustDBTestSuite", t, func() {
-		trustdbtest.TestTrustDB(t, setup, cleanup)
+		trustdbtest.TestTrustDB(t, tdb)
 	})
 }
 
-func newDatabase(t *testing.T) trustdb.TrustDB {
+func newDatabase(t *testing.T) *Backend {
 	db, err := New(":memory:")
 	xtest.FailOnErr(t, err)
 	return db

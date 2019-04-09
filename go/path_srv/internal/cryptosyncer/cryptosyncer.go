@@ -47,22 +47,18 @@ func (c *Syncer) Run(ctx context.Context) {
 		log.Error("[CryptoSync] Failed to select remote CS", "err", err)
 		return
 	}
-	trcs, err := c.DB.GetAllTRCs(ctx)
+	trcChan, err := c.DB.GetAllTRCs(ctx)
 	if err != nil {
 		log.Error("[CryptoSync] Failed to read TRCs", "err", err)
 		return
 	}
-	for i := range trcs {
-		c.sendTRC(ctx, cs, trcs[i])
-	}
-	chains, err := c.DB.GetAllChains(ctx)
+	trcCount := c.sendTRCs(ctx, trcChan, cs)
+	chainChan, err := c.DB.GetAllChains(ctx)
 	if err != nil {
 		log.Error("[CryptoSync] Failed to read chains", "err", err)
 	}
-	for i := range chains {
-		c.sendChain(ctx, cs, chains[i])
-	}
-	log.Info("Sent crypto to CS", "cs", cs, "TRCs", len(trcs), "Chains", len(chains))
+	chainCount := c.sendChains(ctx, chainChan, cs)
+	log.Info("Sent crypto to CS", "cs", cs, "TRCs", trcCount, "Chains", chainCount)
 }
 
 func (c *Syncer) chooseServer() (net.Addr, error) {
@@ -80,6 +76,19 @@ func (c *Syncer) chooseServer() (net.Addr, error) {
 	return &snet.Addr{IA: c.IA, Host: csAddr, NextHop: csOverlayAddr}, nil
 }
 
+func (c *Syncer) sendTRCs(ctx context.Context, trcChan <-chan trustdb.TrcOrErr, cs net.Addr) int {
+	trcCount := 0
+	for r := range trcChan {
+		if r.Err != nil {
+			log.Error("[CryptoSync] Error while reading all TRCs", "err", r.Err)
+		} else {
+			c.sendTRC(ctx, cs, r.TRC)
+			trcCount++
+		}
+	}
+	return trcCount
+}
+
 func (c *Syncer) sendTRC(ctx context.Context, cs net.Addr, trcObj *trc.TRC) {
 	rawTRC, err := trcObj.Compress()
 	if err != nil {
@@ -92,6 +101,21 @@ func (c *Syncer) sendTRC(ctx context.Context, cs net.Addr, trcObj *trc.TRC) {
 	if err != nil {
 		log.Error("[CryptoSync] Failed to send TRC", "err", err)
 	}
+}
+
+func (c *Syncer) sendChains(ctx context.Context,
+	chainChan <-chan trustdb.ChainOrErr, cs net.Addr) int {
+
+	chainCount := 0
+	for r := range chainChan {
+		if r.Err != nil {
+			log.Error("[CryptoSync] Error while reading all Chains", "err", r.Err)
+		} else {
+			c.sendChain(ctx, cs, r.Chain)
+			chainCount++
+		}
+	}
+	return chainCount
 }
 
 func (c *Syncer) sendChain(ctx context.Context, cs net.Addr, chain *cert.Chain) {

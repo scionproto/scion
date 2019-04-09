@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -195,7 +196,8 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 		return nil, common.NewBasicError("Failed to create transaction", err)
 	}
 	// Set verifying key.
-	err = tx.InsertCustKey(ctx, c.Subject, c.Version, c.SubjectSignKey, verVersion)
+	newCustKey := &trustdb.CustKey{IA: c.Subject, Key: c.SubjectSignKey, Version: c.Version}
+	err = tx.InsertCustKey(ctx, newCustKey, verVersion)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -247,12 +249,12 @@ func (h *Handler) getIssuerCert(ctx context.Context) (*cert.Certificate, error) 
 func (h *Handler) getVerifyingKey(ctx context.Context,
 	ia addr.IA) (common.RawBytes, uint64, error) {
 
-	k, v, err := h.State.TrustDB.GetCustKey(ctx, ia)
+	k, err := h.State.TrustDB.GetCustKey(ctx, ia)
 	if err != nil {
 		return nil, 0, err
 	}
 	if k == nil {
 		return nil, 0, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
 	}
-	return k, v, nil
+	return k.Key, k.Version, nil
 }
