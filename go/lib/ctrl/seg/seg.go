@@ -32,6 +32,24 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+var _ proto.Cerealizable = (*Beacon)(nil)
+
+// Beacon is kept for compatibility with python code.
+type Beacon struct {
+	Segment *PathSegment `capnp:"pathSeg"`
+}
+
+func (b *Beacon) ProtoId() proto.ProtoIdType {
+	return proto.PCB_TypeID
+}
+
+func (b *Beacon) String() string {
+	if b == nil {
+		return "<nil>"
+	}
+	return b.Segment.String()
+}
+
 var _ proto.Cerealizable = (*PathSegment)(nil)
 
 type PathSegment struct {

@@ -83,7 +83,7 @@ func (p *Pld) GetCertMgmt() (*cert_mgmt.Pld, *Data, error) {
 	return certP, p.Data, nil
 }
 
-// GetCertMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
+// GetPathMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
 // If the union type is not PathMgmt, an error is returned.
 func (p *Pld) GetPathMgmt() (*path_mgmt.Pld, *Data, error) {
 	u, err := p.Union()
