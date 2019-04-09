@@ -177,10 +177,10 @@ func (h *HopField) Equal(o *HopField) bool {
 
 type ExpTimeType uint8
 
-// ExpTimeFromDuration converts the relative expiration time from a
-// duration. The duration is rounded down to the next unit. If the duration
-// is smaller as the unit, the returned value is 0. If it is larger than
-// the 255 * unit, 255 is returned.
+// ExpTimeFromDuration converts a time duration to the relative expiration
+// time. The duration is rounded down to the next unit. If the duration is
+// smaller than the unit, the returned value is 0. If it is larger than the
+// maximum value, 255 is returned.
 func ExpTimeFromDuration(duration time.Duration) ExpTimeType {
 	unit := time.Duration(ExpTimeUnit) * time.Second
 	if duration < unit {
