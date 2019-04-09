@@ -124,9 +124,9 @@ func (mr *MockTrustStoreMockRecorder) NewChainReqHandler(arg0 interface{}) *gomo
 }
 
 // NewSigVerifier mocks base method
-func (m *MockTrustStore) NewSigVerifier() ctrl.SigVerifier {
+func (m *MockTrustStore) NewSigVerifier() ctrl.Verifier {
 	ret := m.ctrl.Call(m, "NewSigVerifier")
-	ret0, _ := ret[0].(ctrl.SigVerifier)
+	ret0, _ := ret[0].(ctrl.Verifier)
 	return ret0
 }
 
@@ -445,7 +445,7 @@ func (mr *MockMessengerMockRecorder) UpdateSigner(arg0, arg1 interface{}) *gomoc
 }
 
 // UpdateVerifier mocks base method
-func (m *MockMessenger) UpdateVerifier(arg0 ctrl.SigVerifier) {
+func (m *MockMessenger) UpdateVerifier(arg0 ctrl.Verifier) {
 	m.ctrl.Call(m, "UpdateVerifier", arg0)
 }
 

@@ -366,7 +366,7 @@ type Signer interface {
 }
 
 type Verifier interface {
-	ctrl.SigVerifier
+	ctrl.Verifier
 	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
 	// WithServer returns a verifier that fetches the necessary crypto
 	// objects from the specified server.
@@ -416,7 +416,7 @@ func (nullSigner) Meta() SignerMeta {
 	return SignerMeta{}
 }
 
-var _ ctrl.SigVerifier = nullSigVerifier{}
+var _ Verifier = nullSigVerifier{}
 
 type nullSigVerifier struct{}
 
