@@ -15,6 +15,7 @@
 package trustdb_test
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -29,15 +30,18 @@ func init() {
 	trustdbtest.TestDataRelPath = "trustdbtest/testdata"
 }
 
+type TestTrustDB struct {
+	trustdb.TrustDB
+}
+
+func (b *TestTrustDB) Prepare(t *testing.T, _ context.Context) {
+	b.TrustDB = newDatabase(t)
+}
+
 func TestFunctionalityWorks(t *testing.T) {
-	setup := func() trustdb.TrustDB {
-		return newDatabase(t)
-	}
-	cleanup := func(db trustdb.TrustDB) {
-		db.Close()
-	}
+	tdb := &TestTrustDB{}
 	Convey("TestMetricsWrapper functions normally", t, func() {
-		trustdbtest.TestTrustDB(t, setup, cleanup)
+		trustdbtest.TestTrustDB(t, tdb)
 	})
 }
 

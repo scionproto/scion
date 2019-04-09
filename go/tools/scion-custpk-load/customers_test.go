@@ -21,6 +21,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/mock_trustdb"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -33,9 +34,9 @@ func TestLoadCustomers(t *testing.T) {
 		trustDB := mock_trustdb.NewMockTrustDB(ctrl)
 		ia := xtest.MustParseIA("1-ff00:0:110")
 		Convey("Given an empty DB: Load succeeds", func() {
-			trustDB.EXPECT().GetCustKey(gomock.Any(), gomock.Eq(ia)).Return(nil, uint64(0), nil)
-			trustDB.EXPECT().InsertCustKey(gomock.Any(), gomock.Eq(ia), uint64(1),
-				gomock.Eq(key), uint64(0))
+			trustDB.EXPECT().GetCustKey(gomock.Any(), gomock.Eq(ia)).Return(nil, nil)
+			expectedKey := &trustdb.CustKey{IA: ia, Key: key, Version: 1}
+			trustDB.EXPECT().InsertCustKey(gomock.Any(), gomock.Eq(expectedKey), uint64(0))
 			files, loadedCusts, err := LoadCustomers("testdata/customers", trustDB)
 			SoMsg("No err expected", err, ShouldBeNil)
 			SoMsg("Exactly the file in test data expected", files, ShouldResemble,
@@ -44,7 +45,8 @@ func TestLoadCustomers(t *testing.T) {
 				[]*CustKeyMeta{{IA: xtest.MustParseIA("1-ff00:0:110"), Version: uint64(1)}})
 		})
 		Convey("Given a key with a newer version is stored: No changes done", func() {
-			trustDB.EXPECT().GetCustKey(gomock.Any(), gomock.Eq(ia)).Return(nil, uint64(2), nil)
+			trustDB.EXPECT().GetCustKey(gomock.Any(), gomock.Eq(ia)).Return(
+				&trustdb.CustKey{Version: 2}, nil)
 			files, loadedCusts, err := LoadCustomers("testdata/customers", trustDB)
 			SoMsg("No err expected", err, ShouldBeNil)
 			SoMsg("Exactly the file in test data expected", files, ShouldResemble,

@@ -9,7 +9,6 @@ import (
 	sql "database/sql"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	common "github.com/scionproto/scion/go/lib/common"
 	trustdb "github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	cert "github.com/scionproto/scion/go/lib/scrypto/cert"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -65,9 +64,9 @@ func (mr *MockTrustDBMockRecorder) Close() *gomock.Call {
 }
 
 // GetAllChains mocks base method
-func (m *MockTrustDB) GetAllChains(arg0 context.Context) ([]*cert.Chain, error) {
+func (m *MockTrustDB) GetAllChains(arg0 context.Context) (<-chan trustdb.ChainOrErr, error) {
 	ret := m.ctrl.Call(m, "GetAllChains", arg0)
-	ret0, _ := ret[0].([]*cert.Chain)
+	ret0, _ := ret[0].(<-chan trustdb.ChainOrErr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -77,10 +76,36 @@ func (mr *MockTrustDBMockRecorder) GetAllChains(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllChains", reflect.TypeOf((*MockTrustDB)(nil).GetAllChains), arg0)
 }
 
+// GetAllCustKeys mocks base method
+func (m *MockTrustDB) GetAllCustKeys(arg0 context.Context) (<-chan trustdb.CustKeyOrErr, error) {
+	ret := m.ctrl.Call(m, "GetAllCustKeys", arg0)
+	ret0, _ := ret[0].(<-chan trustdb.CustKeyOrErr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllCustKeys indicates an expected call of GetAllCustKeys
+func (mr *MockTrustDBMockRecorder) GetAllCustKeys(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllCustKeys", reflect.TypeOf((*MockTrustDB)(nil).GetAllCustKeys), arg0)
+}
+
+// GetAllIssCerts mocks base method
+func (m *MockTrustDB) GetAllIssCerts(arg0 context.Context) (<-chan trustdb.CertOrErr, error) {
+	ret := m.ctrl.Call(m, "GetAllIssCerts", arg0)
+	ret0, _ := ret[0].(<-chan trustdb.CertOrErr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllIssCerts indicates an expected call of GetAllIssCerts
+func (mr *MockTrustDBMockRecorder) GetAllIssCerts(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllIssCerts", reflect.TypeOf((*MockTrustDB)(nil).GetAllIssCerts), arg0)
+}
+
 // GetAllTRCs mocks base method
-func (m *MockTrustDB) GetAllTRCs(arg0 context.Context) ([]*trc.TRC, error) {
+func (m *MockTrustDB) GetAllTRCs(arg0 context.Context) (<-chan trustdb.TrcOrErr, error) {
 	ret := m.ctrl.Call(m, "GetAllTRCs", arg0)
-	ret0, _ := ret[0].([]*trc.TRC)
+	ret0, _ := ret[0].(<-chan trustdb.TrcOrErr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -117,12 +142,11 @@ func (mr *MockTrustDBMockRecorder) GetChainVersion(arg0, arg1, arg2 interface{})
 }
 
 // GetCustKey mocks base method
-func (m *MockTrustDB) GetCustKey(arg0 context.Context, arg1 addr.IA) (common.RawBytes, uint64, error) {
+func (m *MockTrustDB) GetCustKey(arg0 context.Context, arg1 addr.IA) (*trustdb.CustKey, error) {
 	ret := m.ctrl.Call(m, "GetCustKey", arg0, arg1)
-	ret0, _ := ret[0].(common.RawBytes)
-	ret1, _ := ret[1].(uint64)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret0, _ := ret[0].(*trustdb.CustKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetCustKey indicates an expected call of GetCustKey
@@ -154,32 +178,6 @@ func (m *MockTrustDB) GetIssCertVersion(arg0 context.Context, arg1 addr.IA, arg2
 // GetIssCertVersion indicates an expected call of GetIssCertVersion
 func (mr *MockTrustDBMockRecorder) GetIssCertVersion(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIssCertVersion", reflect.TypeOf((*MockTrustDB)(nil).GetIssCertVersion), arg0, arg1, arg2)
-}
-
-// GetLeafCertMaxVersion mocks base method
-func (m *MockTrustDB) GetLeafCertMaxVersion(arg0 context.Context, arg1 addr.IA) (*cert.Certificate, error) {
-	ret := m.ctrl.Call(m, "GetLeafCertMaxVersion", arg0, arg1)
-	ret0, _ := ret[0].(*cert.Certificate)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetLeafCertMaxVersion indicates an expected call of GetLeafCertMaxVersion
-func (mr *MockTrustDBMockRecorder) GetLeafCertMaxVersion(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeafCertMaxVersion", reflect.TypeOf((*MockTrustDB)(nil).GetLeafCertMaxVersion), arg0, arg1)
-}
-
-// GetLeafCertVersion mocks base method
-func (m *MockTrustDB) GetLeafCertVersion(arg0 context.Context, arg1 addr.IA, arg2 uint64) (*cert.Certificate, error) {
-	ret := m.ctrl.Call(m, "GetLeafCertVersion", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*cert.Certificate)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetLeafCertVersion indicates an expected call of GetLeafCertVersion
-func (mr *MockTrustDBMockRecorder) GetLeafCertVersion(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeafCertVersion", reflect.TypeOf((*MockTrustDB)(nil).GetLeafCertVersion), arg0, arg1, arg2)
 }
 
 // GetTRCMaxVersion mocks base method
@@ -222,15 +220,15 @@ func (mr *MockTrustDBMockRecorder) InsertChain(arg0, arg1 interface{}) *gomock.C
 }
 
 // InsertCustKey mocks base method
-func (m *MockTrustDB) InsertCustKey(arg0 context.Context, arg1 addr.IA, arg2 uint64, arg3 common.RawBytes, arg4 uint64) error {
-	ret := m.ctrl.Call(m, "InsertCustKey", arg0, arg1, arg2, arg3, arg4)
+func (m *MockTrustDB) InsertCustKey(arg0 context.Context, arg1 *trustdb.CustKey, arg2 uint64) error {
+	ret := m.ctrl.Call(m, "InsertCustKey", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // InsertCustKey indicates an expected call of InsertCustKey
-func (mr *MockTrustDBMockRecorder) InsertCustKey(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertCustKey", reflect.TypeOf((*MockTrustDB)(nil).InsertCustKey), arg0, arg1, arg2, arg3, arg4)
+func (mr *MockTrustDBMockRecorder) InsertCustKey(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertCustKey", reflect.TypeOf((*MockTrustDB)(nil).InsertCustKey), arg0, arg1, arg2)
 }
 
 // InsertIssCert mocks base method
@@ -244,19 +242,6 @@ func (m *MockTrustDB) InsertIssCert(arg0 context.Context, arg1 *cert.Certificate
 // InsertIssCert indicates an expected call of InsertIssCert
 func (mr *MockTrustDBMockRecorder) InsertIssCert(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertIssCert", reflect.TypeOf((*MockTrustDB)(nil).InsertIssCert), arg0, arg1)
-}
-
-// InsertLeafCert mocks base method
-func (m *MockTrustDB) InsertLeafCert(arg0 context.Context, arg1 *cert.Certificate) (int64, error) {
-	ret := m.ctrl.Call(m, "InsertLeafCert", arg0, arg1)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// InsertLeafCert indicates an expected call of InsertLeafCert
-func (mr *MockTrustDBMockRecorder) InsertLeafCert(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertLeafCert", reflect.TypeOf((*MockTrustDB)(nil).InsertLeafCert), arg0, arg1)
 }
 
 // InsertTRC mocks base method

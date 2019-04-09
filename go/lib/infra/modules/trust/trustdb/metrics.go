@@ -37,23 +37,22 @@ const (
 type promOp string
 
 const (
-	promOpGetIssCert    promOp = "get_iss_cert"
-	promOpGetIssCertMV  promOp = "get_iss_cert_mv"
-	promOpGetLeafCert   promOp = "get_leaf_cert"
-	promOpGetLeafCertMV promOp = "get_leaf_cert_mv"
-	promOpGetChain      promOp = "get_chain"
-	promOpGetChainMV    promOp = "get_chain_mv"
-	promOpGetAllChains  promOp = "get_all_chains"
-	promOpGetTRC        promOp = "get_trc"
-	promOpGetTRCMV      promOp = "get_trc_mv"
-	promOpGetAllTRCs    promOp = "get_all_trcs"
-	promOpGetCustKey    promOp = "get_cust_key"
+	promOpGetIssCert     promOp = "get_iss_cert"
+	promOpGetIssCertMV   promOp = "get_iss_cert_mv"
+	promOpGetAllIssCerts promOp = "get_all_iss_certs"
+	promOpGetChain       promOp = "get_chain"
+	promOpGetChainMV     promOp = "get_chain_mv"
+	promOpGetAllChains   promOp = "get_all_chains"
+	promOpGetTRC         promOp = "get_trc"
+	promOpGetTRCMV       promOp = "get_trc_mv"
+	promOpGetAllTRCs     promOp = "get_all_trcs"
+	promOpGetCustKey     promOp = "get_cust_key"
+	promOpGetAllCustKeys promOp = "get_all_cust_keys"
 
-	promOpInsertIssCert  promOp = "insert_iss_cert"
-	promOpInsertLeafCert promOp = "insert_leaf_cert"
-	promOpInsertChain    promOp = "insert_chain"
-	promOpInsertTRC      promOp = "insert_trc"
-	promOpInsertCustKey  promOp = "insert_cust_key"
+	promOpInsertIssCert promOp = "insert_iss_cert"
+	promOpInsertChain   promOp = "insert_chain"
+	promOpInsertTRC     promOp = "insert_trc"
+	promOpInsertCustKey promOp = "insert_cust_key"
 
 	promOpBeginTx    promOp = "tx_begin"
 	promOpCommitTx   promOp = "tx_commit"
@@ -67,8 +66,7 @@ var (
 	allOps = []promOp{
 		promOpGetIssCert,
 		promOpGetIssCertMV,
-		promOpGetLeafCert,
-		promOpGetLeafCertMV,
+		promOpGetAllIssCerts,
 		promOpGetChain,
 		promOpGetChainMV,
 		promOpGetAllChains,
@@ -76,9 +74,9 @@ var (
 		promOpGetTRCMV,
 		promOpGetAllTRCs,
 		promOpGetCustKey,
+		promOpGetAllCustKeys,
 
 		promOpInsertIssCert,
-		promOpInsertLeafCert,
 		promOpInsertChain,
 		promOpInsertTRC,
 		promOpInsertCustKey,
@@ -99,10 +97,10 @@ var (
 
 func initMetrics() {
 	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 19 (len(allOps))
+		// Cardinality: X (dbName) * 18 (len(allOps))
 		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
 			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbName) * 19 (len(allOps)) * 3 (len(allResults))
+		// Cardinality: X (dbName) * 18 (len(allOps)) * 3 (len(allResults))
 		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
 			"Results of trustdb operations.",
 			[]string{promDBName, prom.LabelOperation, prom.LabelResult})
@@ -253,15 +251,6 @@ func (db *metricsExecutor) InsertIssCert(ctx context.Context,
 	return cnt, err
 }
 
-func (db *metricsExecutor) InsertLeafCert(ctx context.Context,
-	crt *cert.Certificate) (int64, error) {
-
-	db.metrics.incOp(promOpInsertLeafCert)
-	cnt, err := db.rwDB.InsertLeafCert(ctx, crt)
-	db.metrics.incResult(promOpInsertLeafCert, err)
-	return cnt, err
-}
-
 func (db *metricsExecutor) InsertChain(ctx context.Context, chain *cert.Chain) (int64, error) {
 	db.metrics.incOp(promOpInsertChain)
 	cnt, err := db.rwDB.InsertChain(ctx, chain)
@@ -276,11 +265,11 @@ func (db *metricsExecutor) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int6
 	return cnt, err
 }
 
-func (db *metricsExecutor) InsertCustKey(ctx context.Context, ia addr.IA, version uint64,
-	key common.RawBytes, oldVersion uint64) error {
+func (db *metricsExecutor) InsertCustKey(ctx context.Context, key *CustKey,
+	oldVersion uint64) error {
 
 	db.metrics.incOp(promOpInsertCustKey)
-	err := db.rwDB.InsertCustKey(ctx, ia, version, key, oldVersion)
+	err := db.rwDB.InsertCustKey(ctx, key, oldVersion)
 	db.metrics.incResult(promOpInsertCustKey, err)
 	return err
 }
@@ -303,21 +292,10 @@ func (db *metricsExecutor) GetIssCertMaxVersion(ctx context.Context,
 	return res, err
 }
 
-func (db *metricsExecutor) GetLeafCertVersion(ctx context.Context, ia addr.IA,
-	version uint64) (*cert.Certificate, error) {
-
-	db.metrics.incOp(promOpGetLeafCert)
-	res, err := db.rwDB.GetLeafCertVersion(ctx, ia, version)
-	db.metrics.incResult(promOpGetLeafCert, err)
-	return res, err
-}
-
-func (db *metricsExecutor) GetLeafCertMaxVersion(ctx context.Context,
-	ia addr.IA) (*cert.Certificate, error) {
-
-	db.metrics.incOp(promOpGetLeafCertMV)
-	res, err := db.rwDB.GetLeafCertMaxVersion(ctx, ia)
-	db.metrics.incResult(promOpGetLeafCertMV, err)
+func (db *metricsExecutor) GetAllIssCerts(ctx context.Context) (<-chan CertOrErr, error) {
+	db.metrics.incOp(promOpGetAllIssCerts)
+	res, err := db.rwDB.GetAllIssCerts(ctx)
+	db.metrics.incResult(promOpGetAllIssCerts, err)
 	return res, err
 }
 
@@ -339,7 +317,7 @@ func (db *metricsExecutor) GetChainMaxVersion(ctx context.Context,
 	return res, err
 }
 
-func (db *metricsExecutor) GetAllChains(ctx context.Context) ([]*cert.Chain, error) {
+func (db *metricsExecutor) GetAllChains(ctx context.Context) (<-chan ChainOrErr, error) {
 	db.metrics.incOp(promOpGetAllChains)
 	res, err := db.rwDB.GetAllChains(ctx)
 	db.metrics.incResult(promOpGetAllChains, err)
@@ -362,18 +340,23 @@ func (db *metricsExecutor) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (
 	return res, err
 }
 
-func (db *metricsExecutor) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
+func (db *metricsExecutor) GetAllTRCs(ctx context.Context) (<-chan TrcOrErr, error) {
 	db.metrics.incOp(promOpGetAllTRCs)
 	res, err := db.rwDB.GetAllTRCs(ctx)
 	db.metrics.incResult(promOpGetAllTRCs, err)
 	return res, err
 }
 
-func (db *metricsExecutor) GetCustKey(ctx context.Context,
-	ia addr.IA) (common.RawBytes, uint64, error) {
-
+func (db *metricsExecutor) GetCustKey(ctx context.Context, ia addr.IA) (*CustKey, error) {
 	db.metrics.incOp(promOpGetCustKey)
-	res, ver, err := db.rwDB.GetCustKey(ctx, ia)
+	res, err := db.rwDB.GetCustKey(ctx, ia)
 	db.metrics.incResult(promOpGetCustKey, err)
-	return res, ver, err
+	return res, err
+}
+
+func (db *metricsExecutor) GetAllCustKeys(ctx context.Context) (<-chan CustKeyOrErr, error) {
+	db.metrics.incOp(promOpGetAllCustKeys)
+	res, err := db.rwDB.GetAllCustKeys(ctx)
+	db.metrics.incResult(promOpGetAllCustKeys, err)
+	return res, err
 }
