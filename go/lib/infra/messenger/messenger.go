@@ -908,7 +908,7 @@ func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 	// package are supported.
 	switch pld.Which {
 	case proto.CtrlPld_Which_pcb:
-		return infra.Seg, pld.PathSegment, nil
+		return infra.Seg, pld.Beacon.Segment, nil
 	case proto.CtrlPld_Which_ifid:
 		return infra.IfId, pld.IfID, nil
 	case proto.CtrlPld_Which_certMgmt:
