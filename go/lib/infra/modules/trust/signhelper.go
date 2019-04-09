@@ -38,9 +38,10 @@ var _ infra.Signer = (*BasicSigner)(nil)
 
 // BasicSigner is a simple implementation of Signer.
 type BasicSigner struct {
-	meta infra.SignerMeta
-	s    *proto.SignS
-	key  common.RawBytes
+	meta      infra.SignerMeta
+	signType  proto.SignType
+	packedSrc common.RawBytes
+	key       common.RawBytes
 }
 
 // NewBasicSigner creates a Signer that uses the supplied meta to sign
@@ -55,17 +56,16 @@ func NewBasicSigner(key common.RawBytes, meta infra.SignerMeta) (*BasicSigner, e
 	if meta.Src.TRCVer == scrypto.LatestVer {
 		return nil, common.NewBasicError("TRCVer must be valid", nil, "ver", meta.Src.TRCVer)
 	}
-	var signType proto.SignType
+	signer := &BasicSigner{
+		meta:      meta,
+		key:       key,
+		packedSrc: meta.Src.Pack(),
+	}
 	switch meta.Algo {
 	case scrypto.Ed25519:
-		signType = proto.SignType_ed25519
+		signer.signType = proto.SignType_ed25519
 	default:
 		return nil, common.NewBasicError("Unsupported signing algorithm", nil, "algo", meta.Algo)
-	}
-	signer := &BasicSigner{
-		meta: meta,
-		s:    proto.NewSignS(signType, meta.Src.Pack()),
-		key:  key,
 	}
 	return signer, nil
 }
@@ -73,8 +73,8 @@ func NewBasicSigner(key common.RawBytes, meta infra.SignerMeta) (*BasicSigner, e
 // Sign signs the message.
 func (b *BasicSigner) Sign(msg common.RawBytes) (*proto.SignS, error) {
 	var err error
-	sign := b.s.Copy()
-	sign.Signature, err = scrypto.Sign(sign.SigPack(msg, true), b.key, b.meta.Algo)
+	sign := proto.NewSignS(b.signType, append(common.RawBytes(nil), b.packedSrc...))
+	sign.Signature, err = scrypto.Sign(sign.SigInput(msg, true), b.key, b.meta.Algo)
 	return sign, err
 }
 
@@ -197,7 +197,7 @@ func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
 
 	var err error
 	src := v.src
-	if src == (ctrl.SignSrcDef{}) {
+	if src.IsUninitialized() {
 		if src, err = ctrl.NewSignSrcDefFromRaw(sign.Src); err != nil {
 			return err
 		}
@@ -209,7 +209,7 @@ func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
 	if err != nil {
 		return err
 	}
-	err = scrypto.Verify(sign.SigPack(msg, false), sign.Signature, chain.Leaf.SubjectSignKey,
+	err = scrypto.Verify(sign.SigInput(msg, false), sign.Signature, chain.Leaf.SubjectSignKey,
 		chain.Leaf.SignAlgorithm)
 	if err != nil {
 		return common.NewBasicError("Verification failed", err)
@@ -220,11 +220,11 @@ func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
 func (v *BasicVerifier) checkSrc(src ctrl.SignSrcDef) error {
 	if v.ia.A != 0 && src.IA.A != v.ia.A {
 		return common.NewBasicError("AS does not match bound source", nil,
-			"srcSet", v.src != ctrl.SignSrcDef{}, "expected", v.ia, "actual", src.IA)
+			"srcSet", !v.src.IsUninitialized(), "expected", v.ia, "actual", src.IA)
 	}
 	if v.ia.I != 0 && src.IA.I != v.ia.I {
 		return common.NewBasicError("ISD does not match bound source", nil,
-			"srcSet", v.src != ctrl.SignSrcDef{}, "expected", v.ia, "actual", src.IA)
+			"srcSet", !v.src.IsUninitialized(), "expected", v.ia, "actual", src.IA)
 	}
 	return nil
 }
