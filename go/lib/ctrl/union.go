@@ -29,23 +29,23 @@ import (
 
 // union represents the contents of the unnamed capnp union.
 type union struct {
-	Which       proto.CtrlPld_Which
-	PathSegment *seg.PathSegment `capnp:"pcb"`
-	IfID        *ifid.IFID       `capnp:"ifid"`
-	CertMgmt    *cert_mgmt.Pld
-	PathMgmt    *path_mgmt.Pld
-	Sibra       []byte `capnp:"-"` // Omit for now
-	DRKeyMgmt   []byte `capnp:"-"` // Omit for now
-	Sig         *sigmgmt.Pld
-	Extn        *extn.CtrlExtnDataList
-	Ack         *ack.Ack
+	Which     proto.CtrlPld_Which
+	Beacon    *seg.Beacon `capnp:"pcb"`
+	IfID      *ifid.IFID  `capnp:"ifid"`
+	CertMgmt  *cert_mgmt.Pld
+	PathMgmt  *path_mgmt.Pld
+	Sibra     []byte `capnp:"-"` // Omit for now
+	DRKeyMgmt []byte `capnp:"-"` // Omit for now
+	Sig       *sigmgmt.Pld
+	Extn      *extn.CtrlExtnDataList
+	Ack       *ack.Ack
 }
 
 func (u *union) set(c proto.Cerealizable) error {
 	switch p := c.(type) {
-	case *seg.PathSegment:
+	case *seg.Beacon:
 		u.Which = proto.CtrlPld_Which_pcb
-		u.PathSegment = p
+		u.Beacon = p
 	case *ifid.IFID:
 		u.Which = proto.CtrlPld_Which_ifid
 		u.IfID = p
@@ -74,7 +74,7 @@ func (u *union) set(c proto.Cerealizable) error {
 func (u *union) get() (proto.Cerealizable, error) {
 	switch u.Which {
 	case proto.CtrlPld_Which_pcb:
-		return u.PathSegment, nil
+		return u.Beacon, nil
 	case proto.CtrlPld_Which_ifid:
 		return u.IfID, nil
 	case proto.CtrlPld_Which_pathMgmt:

@@ -149,11 +149,16 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	return tag[:MacLen], err
 }
 
-// WriteTo implements the io.WriterTo interface.
-func (h *HopField) WriteTo(w io.Writer) (int64, error) {
+// Pack packs the hop field.
+func (h *HopField) Pack() common.RawBytes {
 	b := make(common.RawBytes, HopFieldLength)
 	h.Write(b)
-	n, err := w.Write(b)
+	return b
+}
+
+// WriteTo implements the io.WriterTo interface.
+func (h *HopField) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(h.Pack())
 	return int64(n), err
 }
 
@@ -171,6 +176,21 @@ func (h *HopField) Equal(o *HopField) bool {
 }
 
 type ExpTimeType uint8
+
+// ExpTimeFromDuration converts the relative expiration time from a
+// duration. The duration is rounded down to the next unit. If the duration
+// is smaller as the unit, the returned value is 0. If it is larger than
+// the 255 * unit, 255 is returned.
+func ExpTimeFromDuration(duration time.Duration) ExpTimeType {
+	unit := time.Duration(ExpTimeUnit) * time.Second
+	if duration < unit {
+		return 0
+	}
+	if duration > 255*unit {
+		return 255
+	}
+	return ExpTimeType((duration / unit) - 1)
+}
 
 // ToDuration calculates the relative expiration time in seconds.
 // Note that for a 0 value ExpTime, the minimal duration is ExpTimeUnit.
