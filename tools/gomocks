@@ -48,7 +48,7 @@ MOCK_TARGETS = [
 
 def main():
     mockgen = local[local.env["MOCKTOOL"]] if "MOCKTOOL" in local.env else local["mockgen"]
-    print("Generating mocks using tool ", mockgen)
+    print("Generating mocks using tool", mockgen)
 
     for (package, interfaces) in MOCK_TARGETS:
         (mock_dir, mock_file) = get_mock_file_path(package)
