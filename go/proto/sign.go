@@ -73,7 +73,7 @@ func (s *SignS) Pack() common.RawBytes {
 // the signature metadata is updated to the current time, before creating
 // the signature input. It should be true when signing to provide a recent
 // timestamp. When verifying, it should be false to guarantee the same
-// produce input.
+// produced input.
 func (s *SignS) SigInput(msg common.RawBytes, setTimestamp bool) common.RawBytes {
 	if setTimestamp {
 		s.SetTimestamp(time.Now())
