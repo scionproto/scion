@@ -71,9 +71,9 @@ func (sp *SignedPld) UnsafePld() (*Pld, error) {
 	return sp.pld, err
 }
 
-// VerifiedPld extracts the control payload and verifies it. If
+// GetVerifiedPld extracts the control payload and verifies it. If
 // verification fails, an error is returned instead.
-func (sp *SignedPld) VerifiedPld(ctx context.Context, verifier Verifier) (*Pld, error) {
+func (sp *SignedPld) GetVerifiedPld(ctx context.Context, verifier Verifier) (*Pld, error) {
 	return verifier.VerifyPld(ctx, sp)
 }
 

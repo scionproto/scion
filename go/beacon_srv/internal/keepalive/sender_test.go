@@ -77,7 +77,7 @@ func TestSenderRun(t *testing.T) {
 		for _, pkt := range pkts {
 			spld, err := ctrl.NewSignedPldFromRaw(pkt.Payload.(common.RawBytes))
 			SoMsg("SPldErr", err, ShouldBeNil)
-			pld, err := spld.VerifiedPld(nil, testVerifier(pub))
+			pld, err := spld.GetVerifiedPld(nil, testVerifier(pub))
 			SoMsg("PldErr", err, ShouldBeNil)
 			_, ok := itopo.Get().IFInfoMap[pld.IfID.OrigIfID]
 			SoMsg("Intf", ok, ShouldBeTrue)
