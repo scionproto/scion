@@ -366,7 +366,10 @@ func AllocBeacon(t *testing.T, ases []IfInfo, inIfId common.IFIDType,
 	}
 	pseg, err := seg.NewSeg(info)
 	xtest.FailOnErr(t, err)
-	signer := mock_seg.NewMockSigner(gomock.NewController(t))
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	signer := mock_seg.NewMockSigner(ctrl)
 	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 		&proto.SignS{}, nil).AnyTimes()
 	for _, entry := range entries {

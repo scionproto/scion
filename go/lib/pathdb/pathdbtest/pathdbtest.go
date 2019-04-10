@@ -279,8 +279,10 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.ReadWrite) {
 		asEntries := ps.ASEntries
 		asEntries[1].HopEntries = append(asEntries[1].HopEntries, he)
 
+		ctrl, signer := mockSigner(t)
+		defer ctrl.Finish()
 		for _, asEntry := range asEntries {
-			err = newPs.AddASEntry(asEntry, mockSigner(t))
+			err = newPs.AddASEntry(asEntry, signer)
 			xtest.FailOnErr(t, err)
 		}
 		InsertSeg(t, ctx, pathDB, newPs, hpCfgIDs)
@@ -596,8 +598,10 @@ func AllocPathSegment(t *testing.T, ifs []uint64,
 	}
 	pseg, err := seg.NewSeg(info)
 	xtest.FailOnErr(t, err)
+	ctrl, signer := mockSigner(t)
+	defer ctrl.Finish()
 	for _, ase := range ases {
-		err := pseg.AddASEntry(ase, mockSigner(t))
+		err := pseg.AddASEntry(ase, signer)
 		xtest.FailOnErr(t, err)
 	}
 	segID, err := pseg.ID()
@@ -682,9 +686,10 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.I
 	}
 }
 
-func mockSigner(t *testing.T) seg.Signer {
-	signer := mock_seg.NewMockSigner(gomock.NewController(t))
+func mockSigner(t *testing.T) (*gomock.Controller, seg.Signer) {
+	ctrl := gomock.NewController(t)
+	signer := mock_seg.NewMockSigner(ctrl)
 	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 		&proto.SignS{}, nil).AnyTimes()
-	return signer
+	return ctrl, signer
 }
