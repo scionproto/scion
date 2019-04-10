@@ -300,7 +300,9 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
 			}
 		}
-		signer := mock_seg.NewMockSigner(gomock.NewController(g.t))
+		ctrl := gomock.NewController(g.t)
+		defer ctrl.Finish()
+		signer := mock_seg.NewMockSigner(ctrl)
 		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 			&proto.SignS{}, nil).AnyTimes()
 		segment.AddASEntry(asEntry, signer)
