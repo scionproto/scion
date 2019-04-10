@@ -42,6 +42,7 @@ func (m *MockQuerier) EXPECT() *MockQuerierMockRecorder {
 
 // Query mocks base method
 func (m *MockQuerier) Query(arg0 context.Context, arg1, arg2 addr.IA, arg3 sciond.PathReqFlags) spathmeta.AppPathSet {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Query", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(spathmeta.AppPathSet)
 	return ret0
@@ -49,6 +50,7 @@ func (m *MockQuerier) Query(arg0 context.Context, arg1, arg2 addr.IA, arg3 scion
 
 // Query indicates an expected call of Query
 func (mr *MockQuerierMockRecorder) Query(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockQuerier)(nil).Query), arg0, arg1, arg2, arg3)
 }
 
@@ -77,6 +79,7 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 
 // Query mocks base method
 func (m *MockResolver) Query(arg0 context.Context, arg1, arg2 addr.IA, arg3 sciond.PathReqFlags) spathmeta.AppPathSet {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Query", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(spathmeta.AppPathSet)
 	return ret0
@@ -84,11 +87,13 @@ func (m *MockResolver) Query(arg0 context.Context, arg1, arg2 addr.IA, arg3 scio
 
 // Query indicates an expected call of Query
 func (mr *MockResolverMockRecorder) Query(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockResolver)(nil).Query), arg0, arg1, arg2, arg3)
 }
 
 // QueryFilter mocks base method
 func (m *MockResolver) QueryFilter(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) spathmeta.AppPathSet {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryFilter", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(spathmeta.AppPathSet)
 	return ret0
@@ -96,31 +101,37 @@ func (m *MockResolver) QueryFilter(arg0 context.Context, arg1, arg2 addr.IA, arg
 
 // QueryFilter indicates an expected call of QueryFilter
 func (mr *MockResolverMockRecorder) QueryFilter(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryFilter", reflect.TypeOf((*MockResolver)(nil).QueryFilter), arg0, arg1, arg2, arg3)
 }
 
 // Revoke mocks base method
 func (m *MockResolver) Revoke(arg0 context.Context, arg1 *path_mgmt.SignedRevInfo) {
+	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Revoke", arg0, arg1)
 }
 
 // Revoke indicates an expected call of Revoke
 func (mr *MockResolverMockRecorder) Revoke(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockResolver)(nil).Revoke), arg0, arg1)
 }
 
 // RevokeRaw mocks base method
 func (m *MockResolver) RevokeRaw(arg0 context.Context, arg1 common.RawBytes) {
+	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "RevokeRaw", arg0, arg1)
 }
 
 // RevokeRaw indicates an expected call of RevokeRaw
 func (mr *MockResolverMockRecorder) RevokeRaw(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeRaw", reflect.TypeOf((*MockResolver)(nil).RevokeRaw), arg0, arg1)
 }
 
 // Sciond mocks base method
 func (m *MockResolver) Sciond() sciond.Connector {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Sciond")
 	ret0, _ := ret[0].(sciond.Connector)
 	return ret0
@@ -128,11 +139,13 @@ func (m *MockResolver) Sciond() sciond.Connector {
 
 // Sciond indicates an expected call of Sciond
 func (mr *MockResolverMockRecorder) Sciond() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sciond", reflect.TypeOf((*MockResolver)(nil).Sciond))
 }
 
 // Watch mocks base method
 func (m *MockResolver) Watch(arg0 context.Context, arg1, arg2 addr.IA) (*pathmgr.SyncPaths, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Watch", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*pathmgr.SyncPaths)
 	ret1, _ := ret[1].(error)
@@ -141,11 +154,13 @@ func (m *MockResolver) Watch(arg0 context.Context, arg1, arg2 addr.IA) (*pathmgr
 
 // Watch indicates an expected call of Watch
 func (mr *MockResolverMockRecorder) Watch(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Watch", reflect.TypeOf((*MockResolver)(nil).Watch), arg0, arg1, arg2)
 }
 
 // WatchCount mocks base method
 func (m *MockResolver) WatchCount() int {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WatchCount")
 	ret0, _ := ret[0].(int)
 	return ret0
@@ -153,11 +168,13 @@ func (m *MockResolver) WatchCount() int {
 
 // WatchCount indicates an expected call of WatchCount
 func (mr *MockResolverMockRecorder) WatchCount() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchCount", reflect.TypeOf((*MockResolver)(nil).WatchCount))
 }
 
 // WatchFilter mocks base method
 func (m *MockResolver) WatchFilter(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (*pathmgr.SyncPaths, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WatchFilter", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*pathmgr.SyncPaths)
 	ret1, _ := ret[1].(error)
@@ -166,5 +183,6 @@ func (m *MockResolver) WatchFilter(arg0 context.Context, arg1, arg2 addr.IA, arg
 
 // WatchFilter indicates an expected call of WatchFilter
 func (mr *MockResolverMockRecorder) WatchFilter(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchFilter", reflect.TypeOf((*MockResolver)(nil).WatchFilter), arg0, arg1, arg2, arg3)
 }

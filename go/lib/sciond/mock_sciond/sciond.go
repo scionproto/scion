@@ -41,6 +41,7 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 
 // Connect mocks base method
 func (m *MockService) Connect() (sciond.Connector, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Connect")
 	ret0, _ := ret[0].(sciond.Connector)
 	ret1, _ := ret[1].(error)
@@ -49,11 +50,13 @@ func (m *MockService) Connect() (sciond.Connector, error) {
 
 // Connect indicates an expected call of Connect
 func (mr *MockServiceMockRecorder) Connect() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockService)(nil).Connect))
 }
 
 // ConnectTimeout mocks base method
 func (m *MockService) ConnectTimeout(arg0 time.Duration) (sciond.Connector, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConnectTimeout", arg0)
 	ret0, _ := ret[0].(sciond.Connector)
 	ret1, _ := ret[1].(error)
@@ -62,6 +65,7 @@ func (m *MockService) ConnectTimeout(arg0 time.Duration) (sciond.Connector, erro
 
 // ConnectTimeout indicates an expected call of ConnectTimeout
 func (mr *MockServiceMockRecorder) ConnectTimeout(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectTimeout", reflect.TypeOf((*MockService)(nil).ConnectTimeout), arg0)
 }
 
@@ -90,6 +94,7 @@ func (m *MockConnector) EXPECT() *MockConnectorMockRecorder {
 
 // ASInfo mocks base method
 func (m *MockConnector) ASInfo(arg0 context.Context, arg1 addr.IA) (*sciond.ASInfoReply, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ASInfo", arg0, arg1)
 	ret0, _ := ret[0].(*sciond.ASInfoReply)
 	ret1, _ := ret[1].(error)
@@ -98,11 +103,13 @@ func (m *MockConnector) ASInfo(arg0 context.Context, arg1 addr.IA) (*sciond.ASIn
 
 // ASInfo indicates an expected call of ASInfo
 func (mr *MockConnectorMockRecorder) ASInfo(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ASInfo", reflect.TypeOf((*MockConnector)(nil).ASInfo), arg0, arg1)
 }
 
 // Close mocks base method
 func (m *MockConnector) Close(arg0 context.Context) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -110,11 +117,13 @@ func (m *MockConnector) Close(arg0 context.Context) error {
 
 // Close indicates an expected call of Close
 func (mr *MockConnectorMockRecorder) Close(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close), arg0)
 }
 
 // IFInfo mocks base method
 func (m *MockConnector) IFInfo(arg0 context.Context, arg1 []common.IFIDType) (*sciond.IFInfoReply, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IFInfo", arg0, arg1)
 	ret0, _ := ret[0].(*sciond.IFInfoReply)
 	ret1, _ := ret[1].(error)
@@ -123,11 +132,13 @@ func (m *MockConnector) IFInfo(arg0 context.Context, arg1 []common.IFIDType) (*s
 
 // IFInfo indicates an expected call of IFInfo
 func (mr *MockConnectorMockRecorder) IFInfo(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IFInfo", reflect.TypeOf((*MockConnector)(nil).IFInfo), arg0, arg1)
 }
 
 // Paths mocks base method
 func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 uint16, arg4 sciond.PathReqFlags) (*sciond.PathReply, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Paths", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(*sciond.PathReply)
 	ret1, _ := ret[1].(error)
@@ -136,11 +147,13 @@ func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 uin
 
 // Paths indicates an expected call of Paths
 func (mr *MockConnectorMockRecorder) Paths(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Paths", reflect.TypeOf((*MockConnector)(nil).Paths), arg0, arg1, arg2, arg3, arg4)
 }
 
 // RevNotification mocks base method
 func (m *MockConnector) RevNotification(arg0 context.Context, arg1 *path_mgmt.SignedRevInfo) (*sciond.RevReply, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RevNotification", arg0, arg1)
 	ret0, _ := ret[0].(*sciond.RevReply)
 	ret1, _ := ret[1].(error)
@@ -149,11 +162,13 @@ func (m *MockConnector) RevNotification(arg0 context.Context, arg1 *path_mgmt.Si
 
 // RevNotification indicates an expected call of RevNotification
 func (mr *MockConnectorMockRecorder) RevNotification(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevNotification", reflect.TypeOf((*MockConnector)(nil).RevNotification), arg0, arg1)
 }
 
 // RevNotificationFromRaw mocks base method
 func (m *MockConnector) RevNotificationFromRaw(arg0 context.Context, arg1 []byte) (*sciond.RevReply, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RevNotificationFromRaw", arg0, arg1)
 	ret0, _ := ret[0].(*sciond.RevReply)
 	ret1, _ := ret[1].(error)
@@ -162,11 +177,13 @@ func (m *MockConnector) RevNotificationFromRaw(arg0 context.Context, arg1 []byte
 
 // RevNotificationFromRaw indicates an expected call of RevNotificationFromRaw
 func (mr *MockConnectorMockRecorder) RevNotificationFromRaw(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevNotificationFromRaw", reflect.TypeOf((*MockConnector)(nil).RevNotificationFromRaw), arg0, arg1)
 }
 
 // SVCInfo mocks base method
 func (m *MockConnector) SVCInfo(arg0 context.Context, arg1 []proto.ServiceType) (*sciond.ServiceInfoReply, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SVCInfo", arg0, arg1)
 	ret0, _ := ret[0].(*sciond.ServiceInfoReply)
 	ret1, _ := ret[1].(error)
@@ -175,5 +192,6 @@ func (m *MockConnector) SVCInfo(arg0 context.Context, arg1 []proto.ServiceType) 
 
 // SVCInfo indicates an expected call of SVCInfo
 func (mr *MockConnectorMockRecorder) SVCInfo(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SVCInfo", reflect.TypeOf((*MockConnector)(nil).SVCInfo), arg0, arg1)
 }

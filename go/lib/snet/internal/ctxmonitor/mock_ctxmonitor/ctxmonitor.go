@@ -36,6 +36,7 @@ func (m *MockMonitor) EXPECT() *MockMonitorMockRecorder {
 
 // Count mocks base method
 func (m *MockMonitor) Count() int {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Count")
 	ret0, _ := ret[0].(int)
 	return ret0
@@ -43,21 +44,25 @@ func (m *MockMonitor) Count() int {
 
 // Count indicates an expected call of Count
 func (mr *MockMonitorMockRecorder) Count() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockMonitor)(nil).Count))
 }
 
 // SetDeadline mocks base method
 func (m *MockMonitor) SetDeadline(arg0 time.Time) {
+	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetDeadline", arg0)
 }
 
 // SetDeadline indicates an expected call of SetDeadline
 func (mr *MockMonitorMockRecorder) SetDeadline(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDeadline", reflect.TypeOf((*MockMonitor)(nil).SetDeadline), arg0)
 }
 
 // WithDeadline mocks base method
 func (m *MockMonitor) WithDeadline(arg0 context.Context, arg1 time.Time) (context.Context, context.CancelFunc) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WithDeadline", arg0, arg1)
 	ret0, _ := ret[0].(context.Context)
 	ret1, _ := ret[1].(context.CancelFunc)
@@ -66,11 +71,13 @@ func (m *MockMonitor) WithDeadline(arg0 context.Context, arg1 time.Time) (contex
 
 // WithDeadline indicates an expected call of WithDeadline
 func (mr *MockMonitorMockRecorder) WithDeadline(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithDeadline", reflect.TypeOf((*MockMonitor)(nil).WithDeadline), arg0, arg1)
 }
 
 // WithTimeout mocks base method
 func (m *MockMonitor) WithTimeout(arg0 context.Context, arg1 time.Duration) (context.Context, context.CancelFunc) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WithTimeout", arg0, arg1)
 	ret0, _ := ret[0].(context.Context)
 	ret1, _ := ret[1].(context.CancelFunc)
@@ -79,5 +86,6 @@ func (m *MockMonitor) WithTimeout(arg0 context.Context, arg1 time.Duration) (con
 
 // WithTimeout indicates an expected call of WithTimeout
 func (mr *MockMonitorMockRecorder) WithTimeout(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithTimeout", reflect.TypeOf((*MockMonitor)(nil).WithTimeout), arg0, arg1)
 }
