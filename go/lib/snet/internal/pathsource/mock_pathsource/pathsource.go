@@ -38,6 +38,7 @@ func (m *MockPathSource) EXPECT() *MockPathSourceMockRecorder {
 
 // Get mocks base method
 func (m *MockPathSource) Get(arg0 context.Context, arg1, arg2 addr.IA) (*overlay.OverlayAddr, *spath.Path, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*overlay.OverlayAddr)
 	ret1, _ := ret[1].(*spath.Path)
@@ -47,5 +48,6 @@ func (m *MockPathSource) Get(arg0 context.Context, arg1, arg2 addr.IA) (*overlay
 
 // Get indicates an expected call of Get
 func (mr *MockPathSourceMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockPathSource)(nil).Get), arg0, arg1, arg2)
 }

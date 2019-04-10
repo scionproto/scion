@@ -36,6 +36,7 @@ func (m *MockIOOperation) EXPECT() *MockIOOperationMockRecorder {
 
 // Do mocks base method
 func (m *MockIOOperation) Do(arg0 snet.Conn) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Do", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -43,11 +44,13 @@ func (m *MockIOOperation) Do(arg0 snet.Conn) error {
 
 // Do indicates an expected call of Do
 func (mr *MockIOOperationMockRecorder) Do(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockIOOperation)(nil).Do), arg0)
 }
 
 // IsWrite mocks base method
 func (m *MockIOOperation) IsWrite() bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsWrite")
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -55,6 +58,7 @@ func (m *MockIOOperation) IsWrite() bool {
 
 // IsWrite indicates an expected call of IsWrite
 func (mr *MockIOOperationMockRecorder) IsWrite() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsWrite", reflect.TypeOf((*MockIOOperation)(nil).IsWrite))
 }
 
@@ -83,6 +87,7 @@ func (m *MockReconnecter) EXPECT() *MockReconnecterMockRecorder {
 
 // Reconnect mocks base method
 func (m *MockReconnecter) Reconnect(arg0 time.Duration) (snet.Conn, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Reconnect", arg0)
 	ret0, _ := ret[0].(snet.Conn)
 	ret1, _ := ret[1].(error)
@@ -91,15 +96,18 @@ func (m *MockReconnecter) Reconnect(arg0 time.Duration) (snet.Conn, error) {
 
 // Reconnect indicates an expected call of Reconnect
 func (mr *MockReconnecterMockRecorder) Reconnect(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reconnect", reflect.TypeOf((*MockReconnecter)(nil).Reconnect), arg0)
 }
 
 // Stop mocks base method
 func (m *MockReconnecter) Stop() {
+	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Stop")
 }
 
 // Stop indicates an expected call of Stop
 func (mr *MockReconnecterMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockReconnecter)(nil).Stop))
 }
