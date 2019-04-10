@@ -19,24 +19,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/nullsigner"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var (
 	core1_110 = xtest.MustParseIA("1-ff00:0:110")
 	core1_120 = xtest.MustParseIA("1-ff00:0:120")
-
-	seg110_120 = allocPathSegment([]addr.IA{core1_110, core1_120})
-	seg120_110 = allocPathSegment([]addr.IA{core1_120, core1_110})
 )
 
-func allocPathSegment(ias []addr.IA) *PathSegment {
+func allocPathSegment(t *testing.T, ias []addr.IA) *PathSegment {
 	rawHops := make([][]byte, len(ias))
 	for i := 0; i < len(ias); i++ {
 		rawHops[i] = make([]byte, 8)
@@ -68,8 +67,11 @@ func allocPathSegment(ias []addr.IA) *PathSegment {
 		ISD:   uint16(ias[0].I),
 	}
 	pseg, _ := NewSeg(info)
+	signer := mock_seg.NewMockSigner(gomock.NewController(t))
+	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+		&proto.SignS{}, nil).AnyTimes()
 	for _, ase := range ases {
-		if err := pseg.AddASEntry(ase, nullsigner.S{}); err != nil {
+		if err := pseg.AddASEntry(ase, signer); err != nil {
 			fmt.Printf("Error adding ASEntry: %v", err)
 		}
 	}
@@ -85,6 +87,9 @@ func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *HopEntry {
 }
 
 func Test_FilterSegments(t *testing.T) {
+	seg110_120 := allocPathSegment(t, []addr.IA{core1_110, core1_120})
+	seg120_110 := allocPathSegment(t, []addr.IA{core1_120, core1_110})
+
 	testCases := []struct {
 		Name     string
 		Segs     []*PathSegment

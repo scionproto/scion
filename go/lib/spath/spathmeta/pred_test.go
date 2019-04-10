@@ -155,7 +155,7 @@ func MustParseIA(iaStr string) addr.IA {
 func testGetSCIONDConn(t *testing.T) sciond.Connector {
 	t.Helper()
 
-	g := graph.NewFromDescription(graph.DefaultGraphDescription)
+	g := graph.NewFromDescription(t, graph.DefaultGraphDescription)
 	g.RemoveLink(graph.If_120_B1_220_X)
 	service := sciond.NewMockService(g)
 	conn, err := service.Connect()

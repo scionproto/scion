@@ -857,7 +857,7 @@ func newSequence(t *testing.T, str string) *Sequence {
 func testGetSCIONDConn(t *testing.T) sciond.Connector {
 	t.Helper()
 
-	g := graph.NewDefaultGraph()
+	g := graph.NewDefaultGraph(t)
 	service := sciond.NewMockService(g)
 	conn, err := service.Connect()
 	if err != nil {

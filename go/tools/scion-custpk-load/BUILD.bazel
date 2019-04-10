@@ -34,6 +34,7 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/common:go_default_library",
+        "//go/lib/infra/modules/trust/trustdb:go_default_library",
         "//go/lib/infra/modules/trust/trustdb/mock_trustdb:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",

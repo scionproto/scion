@@ -22,16 +22,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/nullsigner"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -277,8 +278,9 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.ReadWrite) {
 		he := allocHopEntry(ia331, ia332, hfr)
 		asEntries := ps.ASEntries
 		asEntries[1].HopEntries = append(asEntries[1].HopEntries, he)
+
 		for _, asEntry := range asEntries {
-			err = newPs.AddASEntry(asEntry, nullsigner.S{})
+			err = newPs.AddASEntry(asEntry, mockSigner(t))
 			xtest.FailOnErr(t, err)
 		}
 		InsertSeg(t, ctx, pathDB, newPs, hpCfgIDs)
@@ -595,7 +597,7 @@ func AllocPathSegment(t *testing.T, ifs []uint64,
 	pseg, err := seg.NewSeg(info)
 	xtest.FailOnErr(t, err)
 	for _, ase := range ases {
-		err := pseg.AddASEntry(ase, nullsigner.S{})
+		err := pseg.AddASEntry(ase, mockSigner(t))
 		xtest.FailOnErr(t, err)
 	}
 	segID, err := pseg.ID()
@@ -678,4 +680,11 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.I
 		SoMsg(fmt.Sprintf("Interface should not be present: %v#%d", ia, ifId),
 			len(r), ShouldBeZeroValue)
 	}
+}
+
+func mockSigner(t *testing.T) seg.Signer {
+	signer := mock_seg.NewMockSigner(gomock.NewController(t))
+	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+		&proto.SignS{}, nil).AnyTimes()
+	return signer
 }

@@ -20,15 +20,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/nullsigner"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -364,8 +366,11 @@ func AllocBeacon(t *testing.T, ases []IfInfo, inIfId common.IFIDType,
 	}
 	pseg, err := seg.NewSeg(info)
 	xtest.FailOnErr(t, err)
+	signer := mock_seg.NewMockSigner(gomock.NewController(t))
+	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+		&proto.SignS{}, nil).AnyTimes()
 	for _, entry := range entries {
-		err := pseg.AddASEntry(entry, nullsigner.S{})
+		err := pseg.AddASEntry(entry, signer)
 		xtest.FailOnErr(t, err)
 	}
 	segID, err := pseg.ID()

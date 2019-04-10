@@ -33,6 +33,7 @@ import (
 )
 
 func TestFetchDB(t *testing.T) {
+	initGraph(t)
 	Convey("FetchDB", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -83,6 +84,7 @@ func TestFetchDB(t *testing.T) {
 }
 
 func TestFetchDBRetry(t *testing.T) {
+	initGraph(t)
 	Convey("FetchDBRetry", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
