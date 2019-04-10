@@ -74,7 +74,7 @@ func (l *PathMgmtPld) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopac
 	if err != nil {
 		return nil, err
 	}
-	cpld, err := spld.VerifiedPld(context.Background(), l.SigVerifier)
+	cpld, err := spld.GetVerifiedPld(context.Background(), l.SigVerifier)
 	if err != nil {
 		return nil, err
 	}

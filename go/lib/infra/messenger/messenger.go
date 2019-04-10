@@ -633,7 +633,7 @@ func (m *Messenger) listenAndServeUDP() {
 			// FIXME(scrye): Always use default signature verifier here, as some
 			// functionality in the main ctrl libraries is still missing.
 			verifier := m.verifier.WithIA(address.(*snet.Addr).IA)
-			if pld, err = signedPld.VerifiedPld(serveCtx, verifier); err != nil {
+			if pld, err = signedPld.GetVerifiedPld(serveCtx, verifier); err != nil {
 				logger.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
 				continue
