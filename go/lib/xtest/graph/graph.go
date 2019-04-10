@@ -25,14 +25,18 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"testing"
 	"time"
+
+	"github.com/golang/mock/gomock"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/lib/xtest/nullsigner"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Graph implements a graph of ASes and IFIDs for testing purposes. IFIDs
@@ -51,12 +55,14 @@ type Graph struct {
 	// maps ASes to a structure containing a slice of their IFIDs
 	ases map[addr.IA]*AS
 
+	t    *testing.T
 	lock sync.Mutex
 }
 
 // New allocates a new empty graph.
-func New() *Graph {
+func New(t *testing.T) *Graph {
 	return &Graph{
+		t:       t,
 		links:   make(map[common.IFIDType]common.IFIDType),
 		isPeer:  make(map[common.IFIDType]bool),
 		parents: make(map[common.IFIDType]addr.IA),
@@ -65,8 +71,8 @@ func New() *Graph {
 }
 
 // NewFromDescription initializes a new graph from description desc.
-func NewFromDescription(desc *Description) *Graph {
-	graph := New()
+func NewFromDescription(t *testing.T, desc *Description) *Graph {
+	graph := New(t)
 	for _, node := range desc.Nodes {
 		graph.Add(node)
 	}
@@ -294,7 +300,10 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
 			}
 		}
-		segment.AddASEntry(asEntry, nullsigner.S{})
+		signer := mock_seg.NewMockSigner(gomock.NewController(g.t))
+		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+			&proto.SignS{}, nil).AnyTimes()
+		segment.AddASEntry(asEntry, signer)
 		remoteInIF = outIF
 		inIF = remoteOutIF
 		inIA = currIA
@@ -390,6 +399,6 @@ type EdgeDesc struct {
 	Peer  bool
 }
 
-func NewDefaultGraph() *Graph {
-	return NewFromDescription(DefaultGraphDescription)
+func NewDefaultGraph(t *testing.T) *Graph {
+	return NewFromDescription(t, DefaultGraphDescription)
 }

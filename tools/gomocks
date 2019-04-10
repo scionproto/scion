@@ -31,18 +31,19 @@ STD_LIB_MOCKS_DIRECTORY = os.path.join("go", "lib", "mocks")
 
 MOCK_TARGETS = [
         ("net", "Addr,Conn,PacketConn"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/ctrl/seg", "Signer"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Querier,Resolver"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet", "Conn,Network"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/snetproxy", "IOOperation,Reconnecter"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/ctxmonitor", "Monitor"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/pathsource", "PathSource"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Querier,Resolver"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),
         (SCION_PACKAGE_PREFIX + "/go/lib/sciond", "Service,Connector"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
 ]
 
 

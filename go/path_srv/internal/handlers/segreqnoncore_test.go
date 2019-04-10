@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -45,7 +46,6 @@ import (
 )
 
 var (
-	g       = graph.NewDefaultGraph()
 	timeout = 100 * time.Millisecond
 
 	core1_110 = xtest.MustParseIA("1-ff00:0:110")
@@ -58,20 +58,6 @@ var (
 	core2_220 = xtest.MustParseIA("2-ff00:0:220")
 	as2_221   = xtest.MustParseIA("2-ff00:0:221")
 	as2_222   = xtest.MustParseIA("2-ff00:0:222")
-
-	seg130_132 = g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X})
-	seg110_130 = g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
-	seg120_210 = g.Beacon([]common.IFIDType{graph.If_120_B_220_X, graph.If_220_X_210_X})
-	seg120_220 = g.Beacon([]common.IFIDType{graph.If_120_B_220_X})
-
-	seg210_211 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A})
-	seg210_220 = g.Beacon([]common.IFIDType{graph.If_210_X_220_X})
-	seg210_222 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
-
-	seg220_130 = g.Beacon([]common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_130_B})
-	seg220_210 = g.Beacon([]common.IFIDType{graph.If_220_X_210_X})
-	seg220_221 = g.Beacon([]common.IFIDType{graph.If_220_X_221_X})
-	seg220_222 = g.Beacon([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X})
 
 	topoFiles = map[addr.IA]string{
 		as1_132: "topology_as1_132.json",
@@ -94,6 +80,46 @@ var (
 		},
 	}
 )
+
+var (
+	once = sync.Once{}
+
+	g *graph.Graph
+
+	seg130_132 *seg.PathSegment
+	seg110_130 *seg.PathSegment
+	seg120_210 *seg.PathSegment
+	seg120_220 *seg.PathSegment
+
+	seg210_211 *seg.PathSegment
+	seg210_220 *seg.PathSegment
+	seg210_222 *seg.PathSegment
+
+	seg220_130 *seg.PathSegment
+	seg220_210 *seg.PathSegment
+	seg220_221 *seg.PathSegment
+	seg220_222 *seg.PathSegment
+)
+
+func initGraph(t *testing.T) {
+	once.Do(func() {
+		g = graph.NewDefaultGraph(t)
+
+		seg130_132 = g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X})
+		seg110_130 = g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
+		seg120_210 = g.Beacon([]common.IFIDType{graph.If_120_B_220_X, graph.If_220_X_210_X})
+		seg120_220 = g.Beacon([]common.IFIDType{graph.If_120_B_220_X})
+
+		seg210_211 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A})
+		seg210_220 = g.Beacon([]common.IFIDType{graph.If_210_X_220_X})
+		seg210_222 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
+
+		seg220_130 = g.Beacon([]common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_130_B})
+		seg220_210 = g.Beacon([]common.IFIDType{graph.If_220_X_210_X})
+		seg220_221 = g.Beacon([]common.IFIDType{graph.If_220_X_221_X})
+		seg220_222 = g.Beacon([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X})
+	})
+}
 
 type testCase struct {
 	Name     string
@@ -191,6 +217,7 @@ func loadTopo(t *testing.T, ia addr.IA) *topology.Topo {
 }
 
 func TestSegReqLocal(t *testing.T) {
+	initGraph(t)
 	log.SetupLogConsole("debug")
 	testCases := []testCase{
 		{

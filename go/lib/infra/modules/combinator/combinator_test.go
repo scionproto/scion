@@ -37,7 +37,7 @@ var (
 func TestBadPeering(t *testing.T) {
 	// Test that paths are not constructed across peering links where the IFIDs
 	// on both ends do not match.
-	g := graph.NewDefaultGraph()
+	g := graph.NewDefaultGraph(t)
 	g.AddLink("1-ff00:0:111", 4001, "1-ff00:0:121", 4002, true)
 	g.DeleteInterface(4002) // Break 4001-4002 peering, only 4001 remains in up segment
 	// Break If_111_X_121_X - If_121_X_111_X peering,
@@ -88,7 +88,7 @@ func TestBadPeering(t *testing.T) {
 }
 
 func TestMultiPeering(t *testing.T) {
-	g := graph.NewDefaultGraph()
+	g := graph.NewDefaultGraph(t)
 
 	testCases := []struct {
 		Name     string
@@ -134,7 +134,7 @@ func TestMultiPeering(t *testing.T) {
 }
 
 func TestSameCoreParent(t *testing.T) {
-	g := graph.NewDefaultGraph()
+	g := graph.NewDefaultGraph(t)
 
 	testCases := []struct {
 		Name     string
@@ -177,7 +177,7 @@ func TestSameCoreParent(t *testing.T) {
 }
 
 func TestLoops(t *testing.T) {
-	g := graph.NewDefaultGraph()
+	g := graph.NewDefaultGraph(t)
 	testCases := []struct {
 		Name     string
 		FileName string
@@ -227,7 +227,7 @@ func TestLoops(t *testing.T) {
 }
 
 func TestComputePath(t *testing.T) {
-	g := graph.NewDefaultGraph()
+	g := graph.NewDefaultGraph(t)
 
 	testCases := []struct {
 		Name     string
