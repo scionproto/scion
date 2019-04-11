@@ -266,17 +266,25 @@ func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
 	if err != nil {
 		return err
 	}
-	sign, err := signer.Sign(rawASE)
+	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{Blob: rawASE})
+	ps.ASEntries = append(ps.ASEntries, ase)
+	packed, err := ps.sigPack(ps.MaxAEIdx())
 	if err != nil {
+		ps.popLastEntry()
 		return err
 	}
-	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{
-		Blob: rawASE,
-		Sign: sign,
-	})
-	ps.ASEntries = append(ps.ASEntries, ase)
+	ps.RawASEntries[ps.MaxAEIdx()].Sign, err = signer.Sign(packed)
+	if err != nil {
+		ps.popLastEntry()
+		return err
+	}
 	ps.invalidateIds()
 	return nil
+}
+
+func (ps *PathSegment) popLastEntry() {
+	ps.RawASEntries = ps.RawASEntries[:ps.MaxAEIdx()]
+	ps.ASEntries = ps.ASEntries[:ps.MaxAEIdx()]
 }
 
 func (ps *PathSegment) invalidateIds() {
