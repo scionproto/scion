@@ -1,4 +1,14 @@
 {
+  "assign": {
+    "exclude_files": {
+      "gazelle/walk/walk.go": ""
+    }
+  },
+  "composites": {
+    "exclude_files": {
+      "gazelle/language/go/resolve.go": ""
+    }
+  },
   "printf": {
     "exclude_files": {
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
