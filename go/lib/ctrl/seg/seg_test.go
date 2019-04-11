@@ -35,7 +35,7 @@ var (
 )
 
 func TestPathSegmentAddASEntry(t *testing.T) {
-	Convey("Adding AS entries results in a verifiable path segment", t, func() {
+	Convey("When constructing a path segment by adding multiple AS entries", t, func() {
 		asEntries := []*ASEntry{
 			{
 				RawIA:    as110.IAInt(),
@@ -82,39 +82,53 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 				},
 			},
 		}
-		var cryptographers []*cryptographer
+		var keyPairs []*keyPair
 		for range asEntries {
-			cryptographers = append(cryptographers, newCryptographer(t))
+			keyPairs = append(keyPairs, newKeyPair(t))
 		}
 		pseg, err := NewSeg(&spath.InfoField{ISD: 1, TsInt: 13})
 		xtest.FailOnErr(t, err)
 		for i, entry := range asEntries {
-			pseg.AddASEntry(entry, cryptographers[i])
+			pseg.AddASEntry(entry, keyPairs[i])
 		}
-		for i, cryptographer := range cryptographers {
-			err := pseg.VerifyASEntry(context.Background(), cryptographer, i)
-			SoMsg("Err "+asEntries[i].IA().String(), err, ShouldBeNil)
-		}
-
+		Convey("The segment should be verifiable", func() {
+			for i, keyPair := range keyPairs {
+				err := pseg.VerifyASEntry(context.Background(), keyPair, i)
+				SoMsg("Err "+asEntries[i].IA().String(), err, ShouldBeNil)
+			}
+		})
+		Convey("Modifying the first signature should render the segment unverifiable", func() {
+			pseg.RawASEntries[0].Sign.Signature[3] = 5
+			for i, keyPair := range keyPairs {
+				err := pseg.VerifyASEntry(context.Background(), keyPair, i)
+				SoMsg("Err "+asEntries[i].IA().String(), err, ShouldNotBeNil)
+			}
+		})
+		Convey("Modifying the first AS entry should render the segment unverifiable", func() {
+			pseg.RawASEntries[0].Blob[3] = 5
+			for i, keyPair := range keyPairs {
+				err := pseg.VerifyASEntry(context.Background(), keyPair, i)
+				SoMsg("Err "+asEntries[i].IA().String(), err, ShouldNotBeNil)
+			}
+		})
 	})
-
 }
 
-type cryptographer struct {
+type keyPair struct {
 	pubKey  common.RawBytes
 	privKey common.RawBytes
 }
 
-func newCryptographer(t *testing.T) *cryptographer {
+func newKeyPair(t *testing.T) *keyPair {
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	xtest.FailOnErr(t, err)
-	return &cryptographer{
+	return &keyPair{
 		pubKey:  pub,
 		privKey: priv,
 	}
 }
 
-func (t *cryptographer) Sign(packedSegment common.RawBytes) (*proto.SignS, error) {
+func (t *keyPair) Sign(packedSegment common.RawBytes) (*proto.SignS, error) {
 	sign := &proto.SignS{
 		Src: common.RawBytes{1, 4, 4, 2},
 	}
@@ -123,7 +137,7 @@ func (t *cryptographer) Sign(packedSegment common.RawBytes) (*proto.SignS, error
 	return sign, err
 }
 
-func (t *cryptographer) Verify(_ context.Context, msg common.RawBytes,
+func (t *keyPair) Verify(_ context.Context, msg common.RawBytes,
 	sign *proto.SignS) error {
 
 	if !bytes.Equal(sign.Src, common.RawBytes{1, 4, 4, 2}) {
