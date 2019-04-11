@@ -308,6 +308,8 @@ go_lint() {
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     echo "======> misspell"
     $TMPDIR/misspell -error $LOCAL_DIRS || ret=1
+    echo "======> bazel"
+    make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
     rm -rf $TMPDIR
     return $ret

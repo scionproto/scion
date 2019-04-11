@@ -1,5 +1,7 @@
 .PHONY: all clean clibs libscion libfilter dispatcher uninstall tags vendor
 
+GAZELLE_MODE?=fix
+
 SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
 all: tags clibs dispatcher bazel
@@ -19,7 +21,7 @@ bazel: vendor
 	sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
 
 gazelle:
-	gazelle update -index=false -external=external -exclude go/vendor ./go
+	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
 
 # Order is important
 clibs: libscion libfilter
