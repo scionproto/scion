@@ -61,6 +61,7 @@ genrule(
         "sibra.capnp.go",
         "sig.capnp.go",
         "sign.capnp.go",
+        "svc_resolution.capnp.go",
         "zkid.capnp.go",
     ],
     cmd = "capnp compile -o$(location @com_zombiezen_go_capnproto2//capnpc-go:capnpc-go):$(@D) --src-prefix=proto $(locations //proto:sources)",
