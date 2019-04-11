@@ -44,16 +44,16 @@ var (
 )
 
 func TestNewHandler(t *testing.T) {
-	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
-
 	Convey("NewHandler crates a correct handler", t, func() {
+		mctrl := gomock.NewController(t)
+		defer mctrl.Finish()
+
 		Convey("Non-active interface should cause tasks to execute", func() {
-			// Make sure all mocks are executed in the go routine exactly
-			// once. The wait group is to ensure all are finished before
+			// The wait group ensures all go routines are finished before
 			// the test finishes.
 			wg := &sync.WaitGroup{}
 			wg.Add(4)
+			// Make sure the mock is executed exactly once and updates the waitgroup.
 			set := func(call *gomock.Call) *gomock.Call {
 				return call.MinTimes(1).MaxTimes(1).Do(func(_ ...interface{}) { wg.Done() })
 			}
