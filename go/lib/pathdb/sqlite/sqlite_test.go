@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -65,12 +66,14 @@ func TestPathDBSuite(t *testing.T) {
 
 func TestOpenExisting(t *testing.T) {
 	Convey("New should not overwrite an existing database if versions match", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		b, tmpF := setupDB(t)
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
-		pseg1, _ := pathdbtest.AllocPathSegment(t, ifs1, TS)
+		pseg1, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs1, TS)
 		pathdbtest.InsertSeg(t, ctx, b, pseg1, hpCfgIDs)
 		b.db.Close()
 		// Call

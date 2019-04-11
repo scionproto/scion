@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
@@ -54,11 +55,13 @@ func TestBeaconDBSuite(t *testing.T) {
 
 func TestOpenExisting(t *testing.T) {
 	Convey("New should not overwrite an existing database if versions match", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		db, tmpF := setupDB(t)
 		defer os.Remove(tmpF)
 		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 		defer cancelF()
-		b := beacondbtest.InsertBeacon(t, db, beacondbtest.Info1, 2, 10, beacon.UsageProp)
+		b := beacondbtest.InsertBeacon(t, ctrl, db, beacondbtest.Info1, 2, 10, beacon.UsageProp)
 		db.Close()
 		// Open existing database
 		db, err := New(tmpF, testIA)

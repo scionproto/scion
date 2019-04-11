@@ -34,12 +34,12 @@ import (
 var timeout = time.Second
 
 func TestNoRevokedHopIntf(t *testing.T) {
-	seg210_222_1 := createSeg(t)
 	Convey("NoRevokedHopIntf", t, func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
+		seg210_222_1 := createSeg(ctrl)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		revCache := mock_revcache.NewMockRevCache(ctrl)
 		Convey("Given an empty revcache", func() {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any())
@@ -75,7 +75,7 @@ func TestRelevantRevInfos(t *testing.T) {
 		defer cancelF()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		segs := []*seg.PathSegment{createSeg(t)}
+		segs := []*seg.PathSegment{createSeg(ctrl)}
 		revCache := mock_revcache.NewMockRevCache(ctrl)
 		Convey("Given an empty revcache", func() {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any())
@@ -94,8 +94,8 @@ func TestRelevantRevInfos(t *testing.T) {
 	})
 }
 
-func createSeg(t *testing.T) *seg.PathSegment {
-	g := graph.NewDefaultGraph(t)
+func createSeg(ctrl *gomock.Controller) *seg.PathSegment {
+	g := graph.NewDefaultGraph(ctrl)
 	return g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
 }
 

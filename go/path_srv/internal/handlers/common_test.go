@@ -33,10 +33,10 @@ import (
 )
 
 func TestFetchDB(t *testing.T) {
-	initGraph(t)
 	Convey("FetchDB", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
+		g := newTestGraph(ctrl)
 		mPathDB := mock_pathdb.NewMockPathDB(ctrl)
 		mRevCache := mock_revcache.NewMockRevCache(ctrl)
 		h := baseHandler{
@@ -45,16 +45,16 @@ func TestFetchDB(t *testing.T) {
 		}
 		Convey("Segment returned if not expired or revoked", func() {
 			mPathDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]*query.Result{{
-				Seg: seg130_132,
+				Seg: g.seg130_132,
 			}}, nil)
 			mRevCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 			res, err := h.fetchSegsFromDB(context.Background(), nil)
 			xtest.FailOnErr(t, err)
-			SoMsg("Segments", res, ShouldResemble, []*seg.PathSegment{seg130_132})
+			SoMsg("Segments", res, ShouldResemble, []*seg.PathSegment{g.seg130_132})
 		})
 		Convey("No segments with on hop revocations returned", func() {
 			mPathDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]*query.Result{{
-				Seg: seg130_132,
+				Seg: g.seg130_132,
 			}}, nil)
 			mRevCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes().Return(
 				revcache.Revocations{
@@ -68,7 +68,7 @@ func TestFetchDB(t *testing.T) {
 		})
 		Convey("Error of revCache is handled", func() {
 			mPathDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]*query.Result{{
-				Seg: seg130_132,
+				Seg: g.seg130_132,
 			}}, nil)
 			expErr := common.NewBasicError("TestError", nil)
 			mRevCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes().Return(
@@ -84,10 +84,10 @@ func TestFetchDB(t *testing.T) {
 }
 
 func TestFetchDBRetry(t *testing.T) {
-	initGraph(t)
 	Convey("FetchDBRetry", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
+		g := newTestGraph(ctrl)
 		Convey("Fetching stops after context is cancelled", func() {
 			ctx, cancelF := context.WithCancel(context.Background())
 			m := mock_pathdb.NewMockPathDB(ctrl)
@@ -109,7 +109,7 @@ func TestFetchDBRetry(t *testing.T) {
 		Convey("Fetching stops after result is returned", func() {
 			m := mock_pathdb.NewMockPathDB(ctrl)
 			res := &query.Result{
-				Seg: seg130_132,
+				Seg: g.seg130_132,
 			}
 			gomock.InOrder(
 				m.EXPECT().Get(gomock.Any(), gomock.Any()).Times(2),

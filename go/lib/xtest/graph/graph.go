@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
@@ -55,14 +54,14 @@ type Graph struct {
 	// maps ASes to a structure containing a slice of their IFIDs
 	ases map[addr.IA]*AS
 
-	t    *testing.T
+	ctrl *gomock.Controller
 	lock sync.Mutex
 }
 
 // New allocates a new empty graph.
-func New(t *testing.T) *Graph {
+func New(ctrl *gomock.Controller) *Graph {
 	return &Graph{
-		t:       t,
+		ctrl:    ctrl,
 		links:   make(map[common.IFIDType]common.IFIDType),
 		isPeer:  make(map[common.IFIDType]bool),
 		parents: make(map[common.IFIDType]addr.IA),
@@ -71,8 +70,8 @@ func New(t *testing.T) *Graph {
 }
 
 // NewFromDescription initializes a new graph from description desc.
-func NewFromDescription(t *testing.T, desc *Description) *Graph {
-	graph := New(t)
+func NewFromDescription(ctrl *gomock.Controller, desc *Description) *Graph {
+	graph := New(ctrl)
 	for _, node := range desc.Nodes {
 		graph.Add(node)
 	}
@@ -300,9 +299,7 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
 			}
 		}
-		ctrl := gomock.NewController(g.t)
-		defer ctrl.Finish()
-		signer := mock_seg.NewMockSigner(ctrl)
+		signer := mock_seg.NewMockSigner(g.ctrl)
 		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 			&proto.SignS{}, nil).AnyTimes()
 		segment.AddASEntry(asEntry, signer)
@@ -401,6 +398,6 @@ type EdgeDesc struct {
 	Peer  bool
 }
 
-func NewDefaultGraph(t *testing.T) *Graph {
-	return NewFromDescription(t, DefaultGraphDescription)
+func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
+	return NewFromDescription(ctrl, DefaultGraphDescription)
 }
