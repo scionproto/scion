@@ -22,7 +22,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
@@ -230,10 +229,10 @@ func (m *MessengerWithMetrics) CloseServer() error {
 	return m.messenger.CloseServer()
 }
 
-func (m *MessengerWithMetrics) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
+func (m *MessengerWithMetrics) UpdateSigner(signer infra.Signer, types []infra.MessageType) {
 	m.messenger.UpdateSigner(signer, types)
 }
 
-func (m *MessengerWithMetrics) UpdateVerifier(verifier ctrl.SigVerifier) {
+func (m *MessengerWithMetrics) UpdateVerifier(verifier infra.Verifier) {
 	m.messenger.UpdateVerifier(verifier)
 }

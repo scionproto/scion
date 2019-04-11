@@ -45,7 +45,6 @@ import (
 )
 
 var (
-	g       = graph.NewDefaultGraph()
 	timeout = 100 * time.Millisecond
 
 	core1_110 = xtest.MustParseIA("1-ff00:0:110")
@@ -58,20 +57,6 @@ var (
 	core2_220 = xtest.MustParseIA("2-ff00:0:220")
 	as2_221   = xtest.MustParseIA("2-ff00:0:221")
 	as2_222   = xtest.MustParseIA("2-ff00:0:222")
-
-	seg130_132 = g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X})
-	seg110_130 = g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
-	seg120_210 = g.Beacon([]common.IFIDType{graph.If_120_B_220_X, graph.If_220_X_210_X})
-	seg120_220 = g.Beacon([]common.IFIDType{graph.If_120_B_220_X})
-
-	seg210_211 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A})
-	seg210_220 = g.Beacon([]common.IFIDType{graph.If_210_X_220_X})
-	seg210_222 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
-
-	seg220_130 = g.Beacon([]common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_130_B})
-	seg220_210 = g.Beacon([]common.IFIDType{graph.If_220_X_210_X})
-	seg220_221 = g.Beacon([]common.IFIDType{graph.If_220_X_221_X})
-	seg220_222 = g.Beacon([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X})
 
 	topoFiles = map[addr.IA]string{
 		as1_132: "topology_as1_132.json",
@@ -94,6 +79,45 @@ var (
 		},
 	}
 )
+
+type testGraph struct {
+	g *graph.Graph
+
+	seg130_132 *seg.PathSegment
+	seg110_130 *seg.PathSegment
+	seg120_210 *seg.PathSegment
+	seg120_220 *seg.PathSegment
+
+	seg210_211 *seg.PathSegment
+	seg210_220 *seg.PathSegment
+	seg210_222 *seg.PathSegment
+
+	seg220_130 *seg.PathSegment
+	seg220_210 *seg.PathSegment
+	seg220_221 *seg.PathSegment
+	seg220_222 *seg.PathSegment
+}
+
+func newTestGraph(ctrl *gomock.Controller) *testGraph {
+	g := graph.NewDefaultGraph(ctrl)
+
+	tg := &testGraph{
+		seg130_132: g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
+		seg110_130: g.Beacon([]common.IFIDType{graph.If_110_X_130_A}),
+		seg120_210: g.Beacon([]common.IFIDType{graph.If_120_B_220_X, graph.If_220_X_210_X}),
+		seg120_220: g.Beacon([]common.IFIDType{graph.If_120_B_220_X}),
+
+		seg210_211: g.Beacon([]common.IFIDType{graph.If_210_X_211_A}),
+		seg210_220: g.Beacon([]common.IFIDType{graph.If_210_X_220_X}),
+		seg210_222: g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X}),
+
+		seg220_130: g.Beacon([]common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_130_B}),
+		seg220_210: g.Beacon([]common.IFIDType{graph.If_220_X_210_X}),
+		seg220_221: g.Beacon([]common.IFIDType{graph.If_220_X_221_X}),
+		seg220_222: g.Beacon([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X}),
+	}
+	return tg
+}
 
 type testCase struct {
 	Name     string
@@ -191,97 +215,100 @@ func loadTopo(t *testing.T, ia addr.IA) *topology.Topo {
 }
 
 func TestSegReqLocal(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	g := newTestGraph(ctrl)
 	log.SetupLogConsole("debug")
 	testCases := []testCase{
 		{
 			Name:  "CoreDST: Single up, dst: core local",
 			SrcIA: as1_132,
 			DstIA: core1_110,
-			Ups:   []*seg.PathSegment{seg130_132},
-			Cores: []*seg.PathSegment{seg110_130},
-			Expected: expectedSegs([]*seg.PathSegment{seg130_132},
-				[]*seg.PathSegment{seg110_130}, nil),
+			Ups:   []*seg.PathSegment{g.seg130_132},
+			Cores: []*seg.PathSegment{g.seg110_130},
+			Expected: expectedSegs([]*seg.PathSegment{g.seg130_132},
+				[]*seg.PathSegment{g.seg110_130}, nil),
 		},
 		{
 			Name:  "CoreDST: Single up, dst: core remote",
 			SrcIA: as1_132,
 			DstIA: core2_220,
-			Ups:   []*seg.PathSegment{seg130_132},
-			Cores: []*seg.PathSegment{seg110_130, seg220_130},
-			Expected: expectedSegs([]*seg.PathSegment{seg130_132},
-				[]*seg.PathSegment{seg220_130}, nil),
+			Ups:   []*seg.PathSegment{g.seg130_132},
+			Cores: []*seg.PathSegment{g.seg110_130, g.seg220_130},
+			Expected: expectedSegs([]*seg.PathSegment{g.seg130_132},
+				[]*seg.PathSegment{g.seg220_130}, nil),
 		},
 		{
 			Name:     "CoreDST: No Up, single core, local",
 			SrcIA:    as1_132,
 			DstIA:    core1_110,
-			Cores:    []*seg.PathSegment{seg110_130},
+			Cores:    []*seg.PathSegment{g.seg110_130},
 			Expected: nil,
 		},
 		{
 			Name:  "CoreDST: Multi up, single core",
 			SrcIA: as2_222,
 			DstIA: core1_120,
-			Ups:   []*seg.PathSegment{seg210_222, seg220_222},
-			Cores: []*seg.PathSegment{seg120_220},
-			Expected: expectedSegs([]*seg.PathSegment{seg220_222},
-				[]*seg.PathSegment{seg120_220}, nil),
+			Ups:   []*seg.PathSegment{g.seg210_222, g.seg220_222},
+			Cores: []*seg.PathSegment{g.seg120_220},
+			Expected: expectedSegs([]*seg.PathSegment{g.seg220_222},
+				[]*seg.PathSegment{g.seg120_220}, nil),
 		},
 		{
 			Name:  "CoreDST: Multi up multi core",
 			SrcIA: as2_222,
 			DstIA: core1_120,
-			Ups:   []*seg.PathSegment{seg210_222, seg220_222},
-			Cores: []*seg.PathSegment{seg120_220, seg120_210},
-			Expected: expectedSegs([]*seg.PathSegment{seg210_222, seg220_222},
-				[]*seg.PathSegment{seg120_210, seg120_220}, nil),
+			Ups:   []*seg.PathSegment{g.seg210_222, g.seg220_222},
+			Cores: []*seg.PathSegment{g.seg120_220, g.seg120_210},
+			Expected: expectedSegs([]*seg.PathSegment{g.seg210_222, g.seg220_222},
+				[]*seg.PathSegment{g.seg120_210, g.seg120_220}, nil),
 		},
 		{
 			Name:     "NonCoreDST: Single up, no core, single down",
 			SrcIA:    as2_222,
 			DstIA:    as2_211,
-			Ups:      []*seg.PathSegment{seg220_222},
-			Downs:    []*seg.PathSegment{seg210_211},
+			Ups:      []*seg.PathSegment{g.seg220_222},
+			Downs:    []*seg.PathSegment{g.seg210_211},
 			Expected: expectedSegs(nil, nil, nil),
 		},
 		{
 			Name:  "NonCoreDst: Single up, core, down",
 			SrcIA: as2_222,
 			DstIA: as2_211,
-			Ups:   []*seg.PathSegment{seg220_222},
-			Cores: []*seg.PathSegment{seg210_220},
-			Downs: []*seg.PathSegment{seg210_211},
-			Expected: expectedSegs([]*seg.PathSegment{seg220_222},
-				[]*seg.PathSegment{seg210_220}, []*seg.PathSegment{seg210_211}),
+			Ups:   []*seg.PathSegment{g.seg220_222},
+			Cores: []*seg.PathSegment{g.seg210_220},
+			Downs: []*seg.PathSegment{g.seg210_211},
+			Expected: expectedSegs([]*seg.PathSegment{g.seg220_222},
+				[]*seg.PathSegment{g.seg210_220}, []*seg.PathSegment{g.seg210_211}),
 		},
 		{
 			Name:  "NonCoreDst: On up path dst",
 			SrcIA: as2_222,
 			DstIA: as2_221,
-			Ups:   []*seg.PathSegment{seg220_222},
-			Downs: []*seg.PathSegment{seg220_221},
-			Expected: expectedSegs([]*seg.PathSegment{seg220_222}, nil,
-				[]*seg.PathSegment{seg220_221}),
+			Ups:   []*seg.PathSegment{g.seg220_222},
+			Downs: []*seg.PathSegment{g.seg220_221},
+			Expected: expectedSegs([]*seg.PathSegment{g.seg220_222}, nil,
+				[]*seg.PathSegment{g.seg220_221}),
 		},
 		{
 			Name:  "NonCoreDst: Path with shortcut",
 			SrcIA: as2_222,
 			DstIA: as2_211,
-			Ups:   []*seg.PathSegment{seg220_222},
-			Cores: []*seg.PathSegment{seg210_220},
-			Downs: []*seg.PathSegment{seg210_211},
-			Expected: expectedSegs([]*seg.PathSegment{seg220_222}, []*seg.PathSegment{seg210_220},
-				[]*seg.PathSegment{seg210_211}),
+			Ups:   []*seg.PathSegment{g.seg220_222},
+			Cores: []*seg.PathSegment{g.seg210_220},
+			Downs: []*seg.PathSegment{g.seg210_211},
+			Expected: expectedSegs([]*seg.PathSegment{g.seg220_222},
+				[]*seg.PathSegment{g.seg210_220}, []*seg.PathSegment{g.seg210_211}),
 		},
 		{
 			Name:  "NonCoreDst: Path through same core and different",
 			SrcIA: as2_211,
 			DstIA: as2_222,
-			Ups:   []*seg.PathSegment{seg210_211},
-			Cores: []*seg.PathSegment{seg220_210},
-			Downs: []*seg.PathSegment{seg210_222, seg220_222},
-			Expected: expectedSegs([]*seg.PathSegment{seg210_211}, []*seg.PathSegment{seg220_210},
-				[]*seg.PathSegment{seg210_222, seg220_222}),
+			Ups:   []*seg.PathSegment{g.seg210_211},
+			Cores: []*seg.PathSegment{g.seg220_210},
+			Downs: []*seg.PathSegment{g.seg210_222, g.seg220_222},
+			Expected: expectedSegs([]*seg.PathSegment{g.seg210_211},
+				[]*seg.PathSegment{g.seg220_210}, []*seg.PathSegment{g.seg210_222, g.seg220_222}),
 		},
 		// TODO(lukedirtwalker): add tests with revocations.
 		// TODO(lukedirtwalker): add tests with expired segs.

@@ -42,7 +42,9 @@ func getDuration(units time.Duration) time.Duration {
 
 func TestQuery(t *testing.T) {
 	Convey("Query, we have 0 paths and SCIOND is asked again, receive 1 path", t, func() {
-		g := graph.NewDefaultGraph()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		g := graph.NewDefaultGraph(ctrl)
 		pm := NewPR(t, g, 0, 0)
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -75,7 +77,9 @@ var allowEntry = &pathpol.ACLEntry{Action: pathpol.Allow, Rule: pathpol.NewHopPr
 var denyEntry = &pathpol.ACLEntry{Action: pathpol.Deny, Rule: pathpol.NewHopPredicate()}
 
 func TestQueryFilter(t *testing.T) {
-	g := graph.NewDefaultGraph()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	g := graph.NewDefaultGraph(ctrl)
 	pm := NewPR(t, g, 0, 0)
 	srcIA := xtest.MustParseIA("1-ff00:0:133")
 	dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -119,7 +123,9 @@ func TestQueryFilter(t *testing.T) {
 
 func TestACLPolicyFilter(t *testing.T) {
 	Convey("Query with ACL policy filter", t, func() {
-		g := graph.NewDefaultGraph()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		g := graph.NewDefaultGraph(ctrl)
 		pm := NewPR(t, g, 0, 0)
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -135,7 +141,9 @@ func TestACLPolicyFilter(t *testing.T) {
 		SoMsg("aps len", len(aps), ShouldEqual, 2)
 	})
 	Convey("Query with longer ACL policy filter", t, func() {
-		g := graph.NewDefaultGraph()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		g := graph.NewDefaultGraph(ctrl)
 		pm := NewPR(t, g, 0, 0)
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")

@@ -9,7 +9,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	common "github.com/scionproto/scion/go/lib/common"
-	ctrl "github.com/scionproto/scion/go/lib/ctrl"
 	ack "github.com/scionproto/scion/go/lib/ctrl/ack"
 	cert_mgmt "github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	ifid "github.com/scionproto/scion/go/lib/ctrl/ifid"
@@ -18,7 +17,6 @@ import (
 	infra "github.com/scionproto/scion/go/lib/infra"
 	cert "github.com/scionproto/scion/go/lib/scrypto/cert"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc"
-	proto "github.com/scionproto/scion/go/proto"
 	net "net"
 	reflect "reflect"
 )
@@ -92,18 +90,18 @@ func (mr *MockTrustStoreMockRecorder) GetValidCachedTRC(arg0, arg1 interface{}) 
 }
 
 // GetValidChain mocks base method
-func (m *MockTrustStore) GetValidChain(arg0 context.Context, arg1 addr.IA, arg2 net.Addr) (*cert.Chain, error) {
+func (m *MockTrustStore) GetValidChain(arg0 context.Context, arg1 addr.IA, arg2 uint64, arg3 net.Addr) (*cert.Chain, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetValidChain", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetValidChain", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*cert.Chain)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetValidChain indicates an expected call of GetValidChain
-func (mr *MockTrustStoreMockRecorder) GetValidChain(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockTrustStoreMockRecorder) GetValidChain(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValidChain", reflect.TypeOf((*MockTrustStore)(nil).GetValidChain), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValidChain", reflect.TypeOf((*MockTrustStore)(nil).GetValidChain), arg0, arg1, arg2, arg3)
 }
 
 // GetValidTRC mocks base method
@@ -135,26 +133,13 @@ func (mr *MockTrustStoreMockRecorder) NewChainReqHandler(arg0 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewChainReqHandler", reflect.TypeOf((*MockTrustStore)(nil).NewChainReqHandler), arg0)
 }
 
-// NewSigVerifier mocks base method
-func (m *MockTrustStore) NewSigVerifier() ctrl.SigVerifier {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewSigVerifier")
-	ret0, _ := ret[0].(ctrl.SigVerifier)
-	return ret0
-}
-
-// NewSigVerifier indicates an expected call of NewSigVerifier
-func (mr *MockTrustStoreMockRecorder) NewSigVerifier() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewSigVerifier", reflect.TypeOf((*MockTrustStore)(nil).NewSigVerifier))
-}
-
 // NewSigner mocks base method
-func (m *MockTrustStore) NewSigner(arg0 *proto.SignS, arg1 common.RawBytes) ctrl.Signer {
+func (m *MockTrustStore) NewSigner(arg0 common.RawBytes, arg1 infra.SignerMeta) (infra.Signer, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewSigner", arg0, arg1)
-	ret0, _ := ret[0].(ctrl.Signer)
-	return ret0
+	ret0, _ := ret[0].(infra.Signer)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // NewSigner indicates an expected call of NewSigner
@@ -175,6 +160,20 @@ func (m *MockTrustStore) NewTRCReqHandler(arg0 bool) infra.Handler {
 func (mr *MockTrustStoreMockRecorder) NewTRCReqHandler(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewTRCReqHandler", reflect.TypeOf((*MockTrustStore)(nil).NewTRCReqHandler), arg0)
+}
+
+// NewVerifier mocks base method
+func (m *MockTrustStore) NewVerifier() infra.Verifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewVerifier")
+	ret0, _ := ret[0].(infra.Verifier)
+	return ret0
+}
+
+// NewVerifier indicates an expected call of NewVerifier
+func (mr *MockTrustStoreMockRecorder) NewVerifier() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewVerifier", reflect.TypeOf((*MockTrustStore)(nil).NewVerifier))
 }
 
 // SetMessenger mocks base method
@@ -495,7 +494,7 @@ func (mr *MockMessengerMockRecorder) SendTRC(arg0, arg1, arg2, arg3 interface{})
 }
 
 // UpdateSigner mocks base method
-func (m *MockMessenger) UpdateSigner(arg0 ctrl.Signer, arg1 []infra.MessageType) {
+func (m *MockMessenger) UpdateSigner(arg0 infra.Signer, arg1 []infra.MessageType) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "UpdateSigner", arg0, arg1)
 }
@@ -507,7 +506,7 @@ func (mr *MockMessengerMockRecorder) UpdateSigner(arg0, arg1 interface{}) *gomoc
 }
 
 // UpdateVerifier mocks base method
-func (m *MockMessenger) UpdateVerifier(arg0 ctrl.SigVerifier) {
+func (m *MockMessenger) UpdateVerifier(arg0 infra.Verifier) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "UpdateVerifier", arg0)
 }

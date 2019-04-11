@@ -15,9 +15,9 @@
 package ctrl
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -33,20 +33,18 @@ type SignedPld struct {
 	pld  *Pld
 }
 
-func NewSignedPld(cpld *Pld, sign *proto.SignS, key common.RawBytes) (*SignedPld, error) {
+func NewSignedPld(cpld *Pld, signer Signer) (*SignedPld, error) {
 	// Make a copy of signer, so the caller can re-use it.
-	spld := &SignedPld{Sign: sign.Copy()}
-	if spld.Sign == nil && assert.On {
-		assert.Must(len(key) == 0, "If there's no Sign, key must be empty")
-	}
-	if err := spld.SetPld(cpld); err != nil {
+	var err error
+	spld := &SignedPld{}
+	if spld.Blob, err = proto.PackRoot(cpld); err != nil {
 		return nil, err
 	}
-	if spld.Sign != nil {
-		if err := spld.Sign.SignAndSet(key, spld.Blob); err != nil {
-			return nil, err
-		}
+	sign, err := signer.Sign(spld.Blob)
+	if err != nil {
+		return nil, err
 	}
+	spld.Sign = sign
 	return spld, nil
 }
 
@@ -64,7 +62,8 @@ func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
 	return sp, proto.ParseFromRaw(sp, sp.ProtoId(), b[4:])
 }
 
-func (sp *SignedPld) Pld() (*Pld, error) {
+// UnsafePld extracts the control payload without verifying the payload.
+func (sp *SignedPld) UnsafePld() (*Pld, error) {
 	var err error
 	if sp.pld == nil {
 		sp.pld, err = NewPldFromRaw(sp.Blob)
@@ -72,11 +71,10 @@ func (sp *SignedPld) Pld() (*Pld, error) {
 	return sp.pld, err
 }
 
-func (sp *SignedPld) SetPld(p *Pld) error {
-	var err error
-	sp.pld = nil
-	sp.Blob, err = proto.PackRoot(p)
-	return err
+// GetVerifiedPld extracts the control payload and verifies it. If
+// verification fails, an error is returned instead.
+func (sp *SignedPld) GetVerifiedPld(ctx context.Context, verifier Verifier) (*Pld, error) {
+	return verifier.VerifyPld(ctx, sp)
 }
 
 func (sp *SignedPld) Len() int {

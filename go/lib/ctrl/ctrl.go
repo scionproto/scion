@@ -102,7 +102,7 @@ func (p *Pld) Len() int {
 	return -1
 }
 
-func (p *Pld) Copy() (common.Payload, error) {
+func (p *Pld) Copy() (*Pld, error) {
 	raw, err := proto.PackRoot(p)
 	if err != nil {
 		return nil, err
@@ -115,23 +115,7 @@ func (p *Pld) Write(b common.RawBytes) (int, error) {
 }
 
 func (p *Pld) SignedPld(signer Signer) (*SignedPld, error) {
-	return signer.Sign(p)
-}
-
-func (p *Pld) WritePld(b common.RawBytes) (int, error) {
-	sp, err := NewSignedPld(p, nil, nil)
-	if err != nil {
-		return 0, err
-	}
-	return sp.WritePld(b)
-}
-
-func (p *Pld) PackPld() (common.RawBytes, error) {
-	sp, err := NewSignedPld(p, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return sp.PackPld()
+	return NewSignedPld(p, signer)
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {

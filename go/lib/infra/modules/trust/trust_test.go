@@ -314,7 +314,7 @@ func TestGetValidChain(t *testing.T) {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
-				chain, err := store.GetValidChain(ctx, tc.IA, nil)
+				chain, err := store.GetValidChain(ctx, tc.IA, scrypto.LatestVer, nil)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", chain, ShouldResemble, tc.ExpData)
 

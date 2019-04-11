@@ -33,7 +33,7 @@ var _ LayerMatcher = (*PathMgmtPld)(nil)
 
 type PathMgmtPld struct {
 	Signer      ctrl.Signer
-	SigVerifier ctrl.SigVerifier
+	SigVerifier ctrl.Verifier
 	Instance    proto.Cerealizable
 }
 
@@ -70,24 +70,21 @@ func (l *PathMgmtPld) SerializeTo(b gopacket.SerializeBuffer,
 
 func (l *PathMgmtPld) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
 	b := pktLayers[0].(*gopacket.Payload)
-	scPld, err := ctrl.NewSignedPldFromRaw(b.Payload())
+	spld, err := ctrl.NewSignedPldFromRaw(b.Payload())
 	if err != nil {
 		return nil, err
 	}
-	if err := l.SigVerifier.Verify(context.Background(), scPld); err != nil {
-		return nil, err
-	}
-	cPld, err := scPld.Pld()
+	cpld, err := spld.GetVerifiedPld(context.Background(), l.SigVerifier)
 	if err != nil {
 		return nil, err
 	}
-	u, err := cPld.Union()
+	u, err := cpld.Union()
 	if err != nil {
 		return nil, err
 	}
 	pld, ok := u.(*path_mgmt.Pld)
 	if !ok {
-		return nil, fmt.Errorf("Not a PathMgmtPld, actual %s", common.TypeOf(cPld))
+		return nil, fmt.Errorf("Not a PathMgmtPld, actual %s", common.TypeOf(cpld))
 	}
 	if u, err = pld.Union(); err != nil {
 		return nil, err

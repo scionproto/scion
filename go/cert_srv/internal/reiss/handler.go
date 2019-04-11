@@ -124,7 +124,7 @@ func (h *Handler) validateSign(ctx context.Context, addr *snet.Addr,
 	if err != nil {
 		return nil, err
 	}
-	verChain, err := trust.GetChainForSign(ctx, src, h.State.Store)
+	verChain, err := trust.GetChainForSign(ctx, src, h.State.Store, nil)
 	if err != nil {
 		return nil, err
 	}

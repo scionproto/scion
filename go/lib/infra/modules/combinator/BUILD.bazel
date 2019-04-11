@@ -33,6 +33,7 @@ go_test(
         "//go/lib/spath:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/lib/xtest/graph:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],
 )

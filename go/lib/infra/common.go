@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -324,8 +325,8 @@ type Messenger interface {
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
 		id uint64) error
-	UpdateSigner(signer ctrl.Signer, types []MessageType)
-	UpdateVerifier(verifier ctrl.SigVerifier)
+	UpdateSigner(signer Signer, types []MessageType)
+	UpdateVerifier(verifier Verifier)
 	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
 	CloseServer() error
@@ -354,8 +355,43 @@ func (e *Error) Error() string {
 	return e.Message.ErrDesc
 }
 
+// SignerMeta indicates what signature metadata the signer uses as a basis
+// when creating signatures.
+type SignerMeta struct {
+	// Src is the signature source, containing the certificate chain version.
+	Src ctrl.SignSrcDef
+	// ExpTime indicates the expiration time of the certificate chain.
+	ExpTime time.Time
+	// Algo indicates the signing algorithm.
+	Algo string
+}
+
+// Signer is a signer leveraging the control-plane PKI certificates.
+type Signer interface {
+	ctrl.Signer
+	Meta() SignerMeta
+}
+
+// Verifier is used to verify payloads signed with control-plane PKI
+// certificates.
+type Verifier interface {
+	ctrl.Verifier
+	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
+	// WithServer returns a verifier that fetches the necessary crypto
+	// objects from the specified server.
+	WithServer(server net.Addr) Verifier
+	// WithIA returns a verifier that only accepts signatures from the
+	// specified AS. Zero values in the ISD-AS pair are considered a wild
+	// card.
+	WithIA(ia addr.IA) Verifier
+	// WithSrc returns a verifier that is bound to the specified source.
+	// It verifies against the specified source, and not the value
+	// provided by the sign meta data.
+	WithSrc(src ctrl.SignSrcDef) Verifier
+}
+
 type TrustStore interface {
-	GetValidChain(ctx context.Context, ia addr.IA, source net.Addr) (*cert.Chain, error)
+	GetValidChain(ctx context.Context, ia addr.IA, ver uint64, source net.Addr) (*cert.Chain, error)
 	GetValidTRC(ctx context.Context, isd addr.ISD, source net.Addr) (*trc.TRC, error)
 	GetValidCachedTRC(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
 	GetChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error)
@@ -367,29 +403,49 @@ type TrustStore interface {
 }
 
 type MsgVerificationFactory interface {
-	NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer
-	NewSigVerifier() ctrl.SigVerifier
+	NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)
+	NewVerifier() Verifier
 }
 
 var (
 	// NullSigner is a Signer that creates SignedPld's with no signature.
-	NullSigner ctrl.Signer = &nullSigner{}
+	NullSigner Signer = nullSigner{}
 	// NullSigVerifier ignores signatures on all messages.
-	NullSigVerifier ctrl.SigVerifier = &nullSigVerifier{}
+	NullSigVerifier Verifier = nullSigVerifier{}
 )
 
-var _ ctrl.Signer = (*nullSigner)(nil)
+var _ Signer = nullSigner{}
 
 type nullSigner struct{}
 
-func (*nullSigner) Sign(pld *ctrl.Pld) (*ctrl.SignedPld, error) {
-	return ctrl.NewSignedPld(pld, nil, nil)
+func (nullSigner) Sign(raw common.RawBytes) (*proto.SignS, error) {
+	return &proto.SignS{}, nil
 }
 
-var _ ctrl.SigVerifier = (*nullSigVerifier)(nil)
+func (nullSigner) Meta() SignerMeta {
+	return SignerMeta{}
+}
+
+var _ Verifier = nullSigVerifier{}
 
 type nullSigVerifier struct{}
 
-func (*nullSigVerifier) Verify(context.Context, *ctrl.SignedPld) error {
+func (nullSigVerifier) Verify(_ context.Context, _ common.RawBytes, _ *proto.SignS) error {
 	return nil
+}
+
+func (nullSigVerifier) VerifyPld(_ context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
+	return spld.UnsafePld()
+}
+
+func (nullSigVerifier) WithServer(_ net.Addr) Verifier {
+	return nullSigVerifier{}
+}
+
+func (nullSigVerifier) WithIA(_ addr.IA) Verifier {
+	return nullSigVerifier{}
+}
+
+func (nullSigVerifier) WithSrc(_ ctrl.SignSrcDef) Verifier {
+	return nullSigVerifier{}
 }

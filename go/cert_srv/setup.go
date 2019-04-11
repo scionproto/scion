@@ -126,12 +126,16 @@ func initState(cfg *config.Config) error {
 func setDefaultSignerVerifier(c *config.State, pubIA addr.IA) error {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	sign, err := trust.CreateSign(ctx, pubIA, c.TrustDB)
+	meta, err := trust.CreateSignMeta(ctx, pubIA, c.TrustDB)
 	if err != nil {
 		return err
 	}
-	c.SetSigner(trust.NewBasicSigner(sign, c.GetSigningKey()))
-	c.SetVerifier(trust.NewBasicSigVerifier(c.Store))
+	signer, err := trust.NewBasicSigner(c.GetSigningKey(), meta)
+	if err != nil {
+		return err
+	}
+	c.SetSigner(signer)
+	c.SetVerifier(c.Store.NewVerifier())
 	return nil
 }
 

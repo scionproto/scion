@@ -31,19 +31,15 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
-var (
-	g            = graph.NewDefaultGraph()
-	seg210_222_1 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
-
-	timeout = time.Second
-)
+var timeout = time.Second
 
 func TestNoRevokedHopIntf(t *testing.T) {
 	Convey("NoRevokedHopIntf", t, func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
+		seg210_222_1 := createSeg(ctrl)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		revCache := mock_revcache.NewMockRevCache(ctrl)
 		Convey("Given an empty revcache", func() {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any())
@@ -79,7 +75,7 @@ func TestRelevantRevInfos(t *testing.T) {
 		defer cancelF()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		segs := []*seg.PathSegment{seg210_222_1}
+		segs := []*seg.PathSegment{createSeg(ctrl)}
 		revCache := mock_revcache.NewMockRevCache(ctrl)
 		Convey("Given an empty revcache", func() {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any())
@@ -96,6 +92,11 @@ func TestRelevantRevInfos(t *testing.T) {
 			SoMsg("Err expected", err, ShouldNotBeNil)
 		})
 	})
+}
+
+func createSeg(ctrl *gomock.Controller) *seg.PathSegment {
+	g := graph.NewDefaultGraph(ctrl)
+	return g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
 }
 
 func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {

@@ -25,7 +25,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
@@ -295,23 +294,16 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 
 // GetValidChain asks the trust store to return a valid certificate chain for ia.
 // Server is queried over the network if the chain is not available locally.
-func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
+func (store *Store) GetValidChain(ctx context.Context, ia addr.IA, ver uint64,
 	server net.Addr) (*cert.Chain, error) {
 
-	if server == nil {
-		var err error
-		server, err = store.ChooseServer(ctx, ia)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return store.getValidChain(ctx, ia, true, nil, server)
+	return store.getValidChain(ctx, ia, ver, true, nil, server)
 }
 
-func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
-	client, server net.Addr) (*cert.Chain, error) {
+func (store *Store) getValidChain(ctx context.Context, ia addr.IA, ver uint64,
+	recurse bool, client, server net.Addr) (*cert.Chain, error) {
 
-	chain, err := store.trustdb.GetChainMaxVersion(ctx, ia)
+	chain, err := store.trustdb.GetChainVersion(ctx, ia, ver)
 	if err != nil || chain != nil {
 		return chain, err
 	}
@@ -328,9 +320,16 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	if !recurse {
 		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
 	}
+	if server == nil {
+		var err error
+		server, err = store.ChooseServer(ctx, ia)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
-		version:  scrypto.LatestVer,
+		version:  ver,
 		id:       messenger.NextId(),
 		server:   server,
 		postHook: store.newChainValidator(trcObj),
@@ -356,8 +355,11 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	recurse bool, client net.Addr) (*cert.Chain, error) {
 
 	chain, err := store.trustdb.GetChainVersion(ctx, ia, version)
-	if err != nil || chain != nil {
-		return chain, err
+	if err != nil {
+		return nil, common.NewBasicError("Error accessing trustdb", nil)
+	}
+	if chain != nil {
+		return chain, nil
 	}
 	// If we're authoritative for the requested IA, error out now.
 	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
@@ -535,7 +537,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	dbChain, err := store.getValidChain(ctx, store.ia, false, nil, nil)
+	dbChain, err := store.getValidChain(ctx, store.ia, scrypto.LatestVer, false, nil, nil)
 	switch {
 	case err != nil && common.GetErrorMsg(err) != ErrMissingAuthoritative:
 		// Unexpected error in trust store
@@ -716,12 +718,12 @@ func (store *Store) chooseASLocalCS(ctx context.Context, destination addr.IA,
 	return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 }
 
-func (store *Store) NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer {
-	return NewBasicSigner(s, key)
+func (store *Store) NewSigner(key common.RawBytes, meta infra.SignerMeta) (infra.Signer, error) {
+	return NewBasicSigner(key, meta)
 }
 
-func (store *Store) NewSigVerifier() ctrl.SigVerifier {
-	return NewBasicSigVerifier(store)
+func (store *Store) NewVerifier() infra.Verifier {
+	return NewBasicVerifier(store)
 }
 
 // wrapErr build a dedupe.Response object containing nil data and error err.

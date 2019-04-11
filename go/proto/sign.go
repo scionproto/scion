@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -51,21 +50,9 @@ func (s *SignS) Copy() *SignS {
 	}
 }
 
-func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
-	switch s.Type {
-	case SignType_none:
-		return nil, nil
-	case SignType_ed25519:
-		return scrypto.Sign(s.sigPack(message, false), key, scrypto.Ed25519)
-	}
-	return nil, common.NewBasicError("SignS.Sign: Unsupported SignType", nil, "type", s.Type)
-}
-
-func (s *SignS) SignAndSet(key, message common.RawBytes) error {
-	var err error
+// SetTimestamp sets the timestamp.
+func (s *SignS) SetTimestamp(now time.Time) {
 	s.Timestamp = util.TimeToSecs(time.Now())
-	s.Signature, err = s.Sign(key, message)
-	return err
 }
 
 // Time returns the timestamp. If the receiver is nil, the zero value is returned.
@@ -76,26 +63,26 @@ func (s *SignS) Time() time.Time {
 	return time.Time{}
 }
 
-func (s *SignS) Verify(key, message common.RawBytes) error {
-	switch s.Type {
-	case SignType_none:
-		return nil
-	case SignType_ed25519:
-		err := scrypto.Verify(s.sigPack(message, false), s.Signature, key, scrypto.Ed25519)
-		if err != nil {
-			return common.NewBasicError("SignS.Verify: Verification failed", err, "proto.Sign", s)
-		}
-		return nil
-	}
-	return common.NewBasicError("SignS.Verify: Unsupported SignType", nil, "type", s.Type)
-}
-
+// Pack serializes the signature metadata including the signature.
 func (s *SignS) Pack() common.RawBytes {
-	return s.sigPack(nil, true)
+	return s.pack(nil, true)
 }
 
-// sigPack appends the type, src, signature (if needed) and timestamp fields to msg
-func (s *SignS) sigPack(msg common.RawBytes, inclSig bool) common.RawBytes {
+// SigInput serializes the signature metadata to the signature input
+// including the provided message. If setTimestamp is set, the timestamp of
+// the signature metadata is updated to the current time, before creating
+// the signature input. It should be true when signing to provide a recent
+// timestamp. When verifying, it should be false to guarantee the same
+// produced input.
+func (s *SignS) SigInput(msg common.RawBytes, setTimestamp bool) common.RawBytes {
+	if setTimestamp {
+		s.SetTimestamp(time.Now())
+	}
+	return s.pack(msg, false)
+}
+
+// pack appends the type, src, signature (if needed) and timestamp fields to msg
+func (s *SignS) pack(msg common.RawBytes, inclSig bool) common.RawBytes {
 	msg = append(common.RawBytes(nil), msg...)
 	msg = append(msg, common.RawBytes(s.Type.String())...)
 	msg = append(msg, s.Src...)

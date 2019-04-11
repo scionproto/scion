@@ -20,12 +20,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
@@ -89,12 +91,14 @@ type Testable interface {
 // An implementation of the BeaconDB interface should at least have one test method that calls
 // this test-suite. The calling test code should have a top level Convey block.
 func Test(t *testing.T, db Testable) {
-	testWrapper := func(test func(*testing.T, beacon.DBReadWrite)) func() {
+	testWrapper := func(test func(*testing.T, *gomock.Controller, beacon.DBReadWrite)) func() {
 		return func() {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
 			db.Prepare(t, prepareCtx)
-			test(t, db)
+			test(t, ctrl, db)
 		}
 	}
 	Convey("InsertBeacon", testWrapper(testInsertBeacon))
@@ -102,14 +106,16 @@ func Test(t *testing.T, db Testable) {
 	Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
 	Convey("CandidateBeacons", testWrapper(testCandidateBeacons))
 	Convey("DeleteExpiredBeacons", testWrapper(testDeleteExpiredBeacons))
-	txTestWrapper := func(test func(*testing.T, beacon.DBReadWrite)) func() {
+	txTestWrapper := func(test func(*testing.T, *gomock.Controller, beacon.DBReadWrite)) func() {
 		return func() {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
 			db.Prepare(t, ctx)
 			tx, err := db.BeginTransaction(ctx, nil)
 			xtest.FailOnErr(t, err)
-			test(t, tx)
+			test(t, ctrl, tx)
 			err = tx.Commit()
 			xtest.FailOnErr(t, err)
 		}
@@ -121,18 +127,20 @@ func Test(t *testing.T, db Testable) {
 		Convey("CandidateBeacons", txTestWrapper(testCandidateBeacons))
 		Convey("DeleteExpiredBeacons", txTestWrapper(testDeleteExpiredBeacons))
 		Convey("TestTransactionRollback", func() {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
 			db.Prepare(t, prepareCtx)
-			testRollback(t, db)
+			testRollback(t, ctrl, db)
 		})
 	})
 }
 
-func testInsertBeacon(t *testing.T, db beacon.DBReadWrite) {
+func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
 	Convey("InsertBeacon should correctly insert a new beacon", func() {
 		TS := uint32(10)
-		b, _ := AllocBeacon(t, Info3, 12, TS)
+		b, _ := AllocBeacon(t, ctrl, Info3, 12, TS)
 
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
@@ -152,10 +160,10 @@ func testInsertBeacon(t *testing.T, db beacon.DBReadWrite) {
 	})
 }
 
-func testUpdateExisting(t *testing.T, db beacon.DBReadWrite) {
+func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
 	Convey("InsertBeacon should correctly update a new beacon", func() {
 		oldTS := uint32(10)
-		oldB, oldId := AllocBeacon(t, Info3, 12, oldTS)
+		oldB, oldId := AllocBeacon(t, ctrl, Info3, 12, oldTS)
 
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
@@ -163,7 +171,7 @@ func testUpdateExisting(t *testing.T, db beacon.DBReadWrite) {
 		SoMsg("Insert old err", err, ShouldBeNil)
 		SoMsg("Inserted old", inserted, ShouldEqual, 1)
 		newTS := uint32(20)
-		newB, newId := AllocBeacon(t, Info3, 12, newTS)
+		newB, newId := AllocBeacon(t, ctrl, Info3, 12, newTS)
 		SoMsg("IDs should match", newId, ShouldResemble, oldId)
 		inserted, err = db.InsertBeacon(ctx, newB, beacon.UsageDownReg)
 		SoMsg("Insert new err", err, ShouldBeNil)
@@ -181,10 +189,10 @@ func testUpdateExisting(t *testing.T, db beacon.DBReadWrite) {
 	})
 }
 
-func testUpdateOlderIgnored(t *testing.T, db beacon.DBReadWrite) {
+func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
 	Convey("InsertBeacon should correctly ignore an older beacon", func() {
 		newTS := uint32(20)
-		newB, newId := AllocBeacon(t, Info3, 12, newTS)
+		newB, newId := AllocBeacon(t, ctrl, Info3, 12, newTS)
 
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
@@ -192,7 +200,7 @@ func testUpdateOlderIgnored(t *testing.T, db beacon.DBReadWrite) {
 		SoMsg("Insert new err", err, ShouldBeNil)
 		SoMsg("Inserted new", inserted, ShouldEqual, 1)
 		oldTS := uint32(10)
-		oldB, oldId := AllocBeacon(t, Info3, 12, oldTS)
+		oldB, oldId := AllocBeacon(t, ctrl, Info3, 12, oldTS)
 		SoMsg("IDs should match", newId, ShouldResemble, oldId)
 		inserted, err = db.InsertBeacon(ctx, oldB, beacon.UsageDownReg)
 		SoMsg("Insert old err", err, ShouldBeNil)
@@ -238,13 +246,13 @@ func CheckEmpty(t *testing.T, name string, results <-chan beacon.BeaconOrErr, er
 	}
 }
 
-func testCandidateBeacons(t *testing.T, db beacon.DBReadWrite) {
+func testCandidateBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
 	Convey("InsertBeacon should correctly ignore an older beacon", func() {
 		// Insert beacons from longest to shortest path such that the insertion
 		// order is not sorted the same as the expected outcome.
 		var beacons []beacon.Beacon
 		for i, info := range [][]IfInfo{Info3, Info2, Info1} {
-			b := InsertBeacon(t, db, info, 12, uint32(i), beacon.UsageProp)
+			b := InsertBeacon(t, ctrl, db, info, 12, uint32(i), beacon.UsageProp)
 			// Prepend to get beacons sorted from shortest to longest path.
 			beacons = append([]beacon.Beacon{b}, beacons...)
 		}
@@ -271,7 +279,7 @@ func testCandidateBeacons(t *testing.T, db beacon.DBReadWrite) {
 	})
 }
 
-func testDeleteExpiredBeacons(t *testing.T, db beacon.DBReadWrite) {
+func testDeleteExpiredBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
 	Convey("DeleteExpired should delete expired segments", func() {
 		ts1 := uint32(10)
 		ts2 := uint32(20)
@@ -279,8 +287,8 @@ func testDeleteExpiredBeacons(t *testing.T, db beacon.DBReadWrite) {
 		defaultExp := spath.DefaultHopFExpiry.ToDuration()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
-		InsertBeacon(t, db, Info3, 12, ts1, beacon.UsageProp)
-		InsertBeacon(t, db, Info2, 13, ts2, beacon.UsageProp)
+		InsertBeacon(t, ctrl, db, Info3, 12, ts1, beacon.UsageProp)
+		InsertBeacon(t, ctrl, db, Info2, 13, ts2, beacon.UsageProp)
 		deleted, err := db.DeleteExpiredBeacons(ctx, time.Unix(10, 0).Add(defaultExp))
 		xtest.FailOnErr(t, err)
 		SoMsg("Deleted", deleted, ShouldEqual, 0)
@@ -293,13 +301,13 @@ func testDeleteExpiredBeacons(t *testing.T, db beacon.DBReadWrite) {
 	})
 }
 
-func testRollback(t *testing.T, db beacon.DB) {
+func testRollback(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	Convey("Test transaction rollback", func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 		defer cancelF()
 		tx, err := db.BeginTransaction(ctx, nil)
 		SoMsg("Transaction begin should not fail", err, ShouldBeNil)
-		b, _ := AllocBeacon(t, Info3, 12, uint32(10))
+		b, _ := AllocBeacon(t, ctrl, Info3, 12, uint32(10))
 		inserted, err := tx.InsertBeacon(ctx, b, beacon.UsageProp)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("Insert should succeed", inserted, ShouldEqual, 1)
@@ -310,9 +318,9 @@ func testRollback(t *testing.T, db beacon.DB) {
 	})
 }
 
-func InsertBeacon(t *testing.T, db beacon.DBReadWrite, ases []IfInfo, inIfId common.IFIDType,
-	infoTS uint32, allowed beacon.Usage) beacon.Beacon {
-	b, _ := AllocBeacon(t, ases, inIfId, infoTS)
+func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite, ases []IfInfo,
+	inIfId common.IFIDType, infoTS uint32, allowed beacon.Usage) beacon.Beacon {
+	b, _ := AllocBeacon(t, ctrl, ases, inIfId, infoTS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	_, err := db.InsertBeacon(ctx, b, allowed)
@@ -332,7 +340,7 @@ type IfInfo struct {
 	Peers   []PeerEntry
 }
 
-func AllocBeacon(t *testing.T, ases []IfInfo, inIfId common.IFIDType,
+func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId common.IFIDType,
 	infoTS uint32) (beacon.Beacon, common.RawBytes) {
 
 	entries := make([]*seg.ASEntry, len(ases))
@@ -364,8 +372,11 @@ func AllocBeacon(t *testing.T, ases []IfInfo, inIfId common.IFIDType,
 	}
 	pseg, err := seg.NewSeg(info)
 	xtest.FailOnErr(t, err)
+	signer := mock_seg.NewMockSigner(ctrl)
+	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+		&proto.SignS{}, nil).AnyTimes()
 	for _, entry := range entries {
-		err := pseg.AddASEntry(entry, proto.SignType_none, nil)
+		err := pseg.AddASEntry(entry, signer)
 		xtest.FailOnErr(t, err)
 	}
 	segID, err := pseg.ID()

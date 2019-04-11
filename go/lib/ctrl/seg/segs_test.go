@@ -19,10 +19,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
@@ -31,12 +33,9 @@ import (
 var (
 	core1_110 = xtest.MustParseIA("1-ff00:0:110")
 	core1_120 = xtest.MustParseIA("1-ff00:0:120")
-
-	seg110_120 = allocPathSegment([]addr.IA{core1_110, core1_120})
-	seg120_110 = allocPathSegment([]addr.IA{core1_120, core1_110})
 )
 
-func allocPathSegment(ias []addr.IA) *PathSegment {
+func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
 	rawHops := make([][]byte, len(ias))
 	for i := 0; i < len(ias); i++ {
 		rawHops[i] = make([]byte, 8)
@@ -68,8 +67,11 @@ func allocPathSegment(ias []addr.IA) *PathSegment {
 		ISD:   uint16(ias[0].I),
 	}
 	pseg, _ := NewSeg(info)
+	signer := mock_seg.NewMockSigner(ctrl)
+	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+		&proto.SignS{}, nil).AnyTimes()
 	for _, ase := range ases {
-		if err := pseg.AddASEntry(ase, proto.SignType_none, nil); err != nil {
+		if err := pseg.AddASEntry(ase, signer); err != nil {
 			fmt.Printf("Error adding ASEntry: %v", err)
 		}
 	}
@@ -85,32 +87,39 @@ func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *HopEntry {
 }
 
 func Test_FilterSegments(t *testing.T) {
-	testCases := []struct {
-		Name     string
-		Segs     []*PathSegment
-		Filtered []*PathSegment
-		KeepF    func(*PathSegment) bool
-	}{
-		{
-			Name:     "Keep all",
-			Segs:     []*PathSegment{seg110_120},
-			Filtered: []*PathSegment{seg110_120},
-			KeepF:    func(s *PathSegment) bool { return true },
-		},
-		{
-			Name:     "Drop all",
-			Segs:     []*PathSegment{seg110_120},
-			Filtered: []*PathSegment{},
-			KeepF:    func(s *PathSegment) bool { return false },
-		},
-		{
-			Name:     "First IA core 1_110",
-			Segs:     []*PathSegment{seg110_120, seg120_110},
-			Filtered: []*PathSegment{seg120_110},
-			KeepF:    func(s *PathSegment) bool { return core1_120.Equal(s.FirstIA()) },
-		},
-	}
 	Convey("Test filtering segments", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		seg110_120 := allocPathSegment(ctrl, []addr.IA{core1_110, core1_120})
+		seg120_110 := allocPathSegment(ctrl, []addr.IA{core1_120, core1_110})
+
+		testCases := []struct {
+			Name     string
+			Segs     []*PathSegment
+			Filtered []*PathSegment
+			KeepF    func(*PathSegment) bool
+		}{
+			{
+				Name:     "Keep all",
+				Segs:     []*PathSegment{seg110_120},
+				Filtered: []*PathSegment{seg110_120},
+				KeepF:    func(s *PathSegment) bool { return true },
+			},
+			{
+				Name:     "Drop all",
+				Segs:     []*PathSegment{seg110_120},
+				Filtered: []*PathSegment{},
+				KeepF:    func(s *PathSegment) bool { return false },
+			},
+			{
+				Name:     "First IA core 1_110",
+				Segs:     []*PathSegment{seg110_120, seg120_110},
+				Filtered: []*PathSegment{seg120_110},
+				KeepF:    func(s *PathSegment) bool { return core1_120.Equal(s.FirstIA()) },
+			},
+		}
+
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				segs := Segments(tc.Segs)

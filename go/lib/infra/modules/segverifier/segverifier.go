@@ -34,6 +34,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -63,11 +64,11 @@ type RevVerificationFailed func(*path_mgmt.SignedRevInfo, error)
 // Verify starts the verification for the given segMeta and sRevInfos.
 // The verifiedSeg and verifiedRev callbacks are called for verified segs/revs.
 // The segError/revError callbacks are called for verification errors.
-func Verify(ctx context.Context, store infra.TrustStore, server net.Addr, segMetas []*seg.Meta,
+func Verify(ctx context.Context, verifier infra.Verifier, server net.Addr, segMetas []*seg.Meta,
 	sRevInfos []*path_mgmt.SignedRevInfo, verifiedSeg SegVerified, verifiedRev RevVerified,
 	segError SegVerificationFailed, revError RevVerificationFailed) {
 
-	unitResultsC, units := StartVerification(ctx, store, server, segMetas, sRevInfos)
+	unitResultsC, units := StartVerification(ctx, verifier, server, segMetas, sRevInfos)
 Loop:
 	for numResults := 0; numResults < units; numResults++ {
 		select {
@@ -94,7 +95,7 @@ Loop:
 // StartVerification builds the units for the given segMetas and sRevInfos
 // and spawns verify method on the units.
 // StartVerification returns a channel for the UnitResult and the expected amount of results.
-func StartVerification(ctx context.Context, store infra.TrustStore, server net.Addr,
+func StartVerification(ctx context.Context, verifier infra.Verifier, server net.Addr,
 	segMetas []*seg.Meta, sRevInfos []*path_mgmt.SignedRevInfo) (chan UnitResult, int) {
 
 	units := BuildUnits(segMetas, sRevInfos)
@@ -103,7 +104,7 @@ func StartVerification(ctx context.Context, store infra.TrustStore, server net.A
 		unit := units[i]
 		go func() {
 			defer log.LogPanicAndExit()
-			unit.Verify(ctx, store, server, unitResultsC)
+			unit.Verify(ctx, verifier, server, unitResultsC)
 		}()
 	}
 	return unitResultsC, len(units)
@@ -143,19 +144,19 @@ func (u *Unit) Len() int {
 
 // Verify verifies a single unit, putting the results of verifications on
 // unitResults.
-func (u *Unit) Verify(ctx context.Context, store infra.TrustStore,
+func (u *Unit) Verify(ctx context.Context, verifier infra.Verifier,
 	server net.Addr, unitResults chan UnitResult) {
 
 	responses := make(chan ElemResult, u.Len())
 	go func() {
 		defer log.LogPanicAndExit()
-		verifySegment(ctx, store, server, u.SegMeta, responses)
+		verifySegment(ctx, verifier, server, u.SegMeta, responses)
 	}()
 	for i := range u.SRevInfos {
 		index := i
 		go func() {
 			defer log.LogPanicAndExit()
-			verifyRevInfo(ctx, store, server, index, u.SRevInfos[index], responses)
+			verifyRevInfo(ctx, verifier, server, index, u.SRevInfos[index], responses)
 		}()
 	}
 	// Response writers must guarantee that the for loop below returns before
@@ -192,10 +193,10 @@ type ElemResult struct {
 	Error error
 }
 
-func verifySegment(ctx context.Context, store infra.TrustStore, server net.Addr, segment *seg.Meta,
+func verifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr, segment *seg.Meta,
 	ch chan ElemResult) {
 
-	err := VerifySegment(ctx, store, server, segment)
+	err := VerifySegment(ctx, verifier, server, segment)
 	select {
 	case ch <- ElemResult{Index: segErrIndex, Error: err}:
 	default:
@@ -203,27 +204,28 @@ func verifySegment(ctx context.Context, store infra.TrustStore, server net.Addr,
 	}
 }
 
-func VerifySegment(ctx context.Context, store infra.TrustStore, server net.Addr,
+func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr,
 	segment *seg.Meta) error {
 
 	for i, asEntry := range segment.Segment.ASEntries {
-		chain, err := store.GetValidChain(ctx, asEntry.IA(), server)
-		if err != nil {
-			return err
-		}
-		err = segment.Segment.VerifyASEntry(chain.Leaf.SubjectSignKey, i)
-		if err != nil {
+		// Bind the verifier to the values specified in the AS Entry since
+		// the sign meta does not carry this information.
+		verifier := verifier.WithServer(server).WithSrc(ctrl.SignSrcDef{
+			IA:       asEntry.IA(),
+			ChainVer: asEntry.CertVer,
+		})
+		if err := segment.Segment.VerifyASEntry(ctx, verifier, i); err != nil {
 			return common.NewBasicError("segverifier.VerifySegment", err, "segment", segment,
-				"asEntry", asEntry)
+				"asEntry", asEntry, "sign", segment.Segment.RawASEntries[i].Sign)
 		}
 	}
 	return nil
 }
 
-func verifyRevInfo(ctx context.Context, store infra.TrustStore, server net.Addr, index int,
+func verifyRevInfo(ctx context.Context, verifier infra.Verifier, server net.Addr, index int,
 	signedRevInfo *path_mgmt.SignedRevInfo, ch chan ElemResult) {
 
-	err := VerifyRevInfo(ctx, store, server, signedRevInfo)
+	err := VerifyRevInfo(ctx, verifier, server, signedRevInfo)
 	select {
 	case ch <- ElemResult{Index: index, Error: err}:
 	default:
@@ -231,16 +233,8 @@ func verifyRevInfo(ctx context.Context, store infra.TrustStore, server net.Addr,
 	}
 }
 
-func VerifyRevInfo(ctx context.Context, store infra.TrustStore, server net.Addr,
+func VerifyRevInfo(ctx context.Context, verifier infra.Verifier, server net.Addr,
 	signedRevInfo *path_mgmt.SignedRevInfo) error {
 
-	revInfo, err := signedRevInfo.RevInfo()
-	if err != nil {
-		return err
-	}
-	chain, err := store.GetValidChain(ctx, revInfo.IA(), server)
-	if err != nil {
-		return err
-	}
-	return signedRevInfo.Sign.Verify(chain.Leaf.SubjectSignKey, signedRevInfo.Blob)
+	return verifier.WithServer(server).Verify(ctx, signedRevInfo.Blob, signedRevInfo.Sign)
 }

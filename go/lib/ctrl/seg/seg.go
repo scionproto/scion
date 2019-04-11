@@ -18,6 +18,7 @@
 package seg
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -31,6 +32,18 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
+
+// Signer signs path segments.
+type Signer interface {
+	// Sign signs the packed segment and returns the signature meta data.
+	Sign(packedSegment common.RawBytes) (*proto.SignS, error)
+}
+
+// Verifier verifies path segments.
+type Verifier interface {
+	// Verify verifies the packed segment based on the signature meta data.
+	Verify(ctx context.Context, packedSegment common.RawBytes, sign *proto.SignS) error
+}
 
 var _ proto.Cerealizable = (*PathSegment)(nil)
 
@@ -247,19 +260,31 @@ func (ps *PathSegment) WalkHopEntries() error {
 	return nil
 }
 
-func (ps *PathSegment) AddASEntry(ase *ASEntry, signType proto.SignType,
-	signSrc common.RawBytes) error {
+// AddASEntry adds the AS entry and signs the resulting path segment.
+func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
 	rawASE, err := ase.Pack()
 	if err != nil {
 		return err
 	}
-	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{
-		Blob: rawASE,
-		Sign: proto.NewSignS(signType, signSrc),
-	})
+	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{Blob: rawASE})
 	ps.ASEntries = append(ps.ASEntries, ase)
+	packed, err := ps.sigPack(ps.MaxAEIdx())
+	if err != nil {
+		ps.popLastEntry()
+		return err
+	}
+	ps.RawASEntries[ps.MaxAEIdx()].Sign, err = signer.Sign(packed)
+	if err != nil {
+		ps.popLastEntry()
+		return err
+	}
 	ps.invalidateIds()
 	return nil
+}
+
+func (ps *PathSegment) popLastEntry() {
+	ps.RawASEntries = ps.RawASEntries[:ps.MaxAEIdx()]
+	ps.ASEntries = ps.ASEntries[:ps.MaxAEIdx()]
 }
 
 func (ps *PathSegment) invalidateIds() {
@@ -267,21 +292,13 @@ func (ps *PathSegment) invalidateIds() {
 	ps.fullId = nil
 }
 
-func (ps *PathSegment) SignLastASEntry(key common.RawBytes) error {
-	idx := ps.MaxAEIdx()
+// VerifyASEntry verifies the AS Entry at the specified index.
+func (ps *PathSegment) VerifyASEntry(ctx context.Context, verifier Verifier, idx int) error {
 	packed, err := ps.sigPack(idx)
 	if err != nil {
 		return err
 	}
-	return ps.RawASEntries[idx].Sign.SignAndSet(key, packed)
-}
-
-func (ps *PathSegment) VerifyASEntry(key common.RawBytes, idx int) error {
-	packed, err := ps.sigPack(idx)
-	if err != nil {
-		return err
-	}
-	return ps.RawASEntries[idx].Sign.Verify(key, packed)
+	return verifier.Verify(ctx, packed, ps.RawASEntries[idx].Sign)
 }
 
 func (ps *PathSegment) sigPack(idx int) (common.RawBytes, error) {
