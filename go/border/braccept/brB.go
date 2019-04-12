@@ -24,6 +24,41 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 )
 
+func testsBrA() int {
+	var failures int
+
+	pkt0 := AllocatePacket()
+	pkt0.SetDev("ifid_local")
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
+		IP4: Src=192.168.0.11 Dst=192.168.0.61 NextHdr=UDP Flags=DF Checksum=0
+		UDP: Src=30041 Dst=30041
+		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=BS_M
+		UDP_1: Src=20001 Dst=0
+		IFStateReq:
+	`)
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+
+	IgnoredPackets(pkt0)
+
+	failures += child_local()
+	failures += local_child()
+	failures += child_parent()
+	failures += parent_child()
+
+	failures += xover_peer_local()
+	failures += xover_local_peer()
+	failures += xover_peer_child()
+	failures += xover_child_peer()
+	failures += revocation_owned_peer()
+
+	ClearIgnoredPackets()
+
+	return failures
+}
+
 var brBCtrlScionHdr = layers.NewGenCmnHdr(
 	"1-ff00:0:1", "192.168.0.102", "1-ff00:0:1", "BS_M", nil, common.L4UDP)
 

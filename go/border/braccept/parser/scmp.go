@@ -30,17 +30,26 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// SCMP packet parser
-var _ LayerParser = (*SCMPTaggedLayer)(nil)
 var _ TaggedLayer = (*SCMPTaggedLayer)(nil)
-
-var SCMPParser *SCMPTaggedLayer
 
 type SCMPTaggedLayer struct {
 	layers.SCMP
 	metaKVS propMap
 	tagged
 	options
+}
+
+func SCMPParser(lines []string) TaggedLayer {
+	// default SCMP layer values
+	s := &SCMPTaggedLayer{}
+	s.Pld = &scmp.Payload{}
+
+	//SerializeOptions
+	s.opts.ComputeChecksums = true
+	s.opts.FixLengths = true
+
+	s.Update(lines)
+	return s
 }
 
 func (s *SCMPTaggedLayer) Layer() gopacket.Layer {
@@ -56,30 +65,10 @@ func (s *SCMPTaggedLayer) String() string {
 	return gopacket.LayerString(&s.SCMP)
 }
 
-func (_scmp *SCMPTaggedLayer) ParseLayer(lines []string) TaggedLayer {
-	if _scmp != nil {
-		panic(fmt.Errorf("ParseLayer needs to be called on a type nil!\n"))
-	}
-	// default SCMP layer values
-	s := &SCMPTaggedLayer{}
-	s.Pld = &scmp.Payload{}
-
-	//SerializeOptions
-	s.opts.ComputeChecksums = true
-	s.opts.FixLengths = true
-
-	s.parse(lines)
-	return s
-}
-
 func (s *SCMPTaggedLayer) Update(lines []string) {
 	if s == nil {
 		panic(fmt.Errorf("SCMP Tagged Layer is nil!\n"))
 	}
-	s.parse(lines)
-}
-
-func (s *SCMPTaggedLayer) parse(lines []string) {
 	skip := 0
 	for i := range lines {
 		if skip > 0 {
