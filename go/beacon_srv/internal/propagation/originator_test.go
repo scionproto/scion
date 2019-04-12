@@ -112,6 +112,7 @@ func TestOriginatorRun(t *testing.T) {
 			SoMsg("pseg", pseg, ShouldNotBeNil)
 			err = pseg.ParseRaw(true)
 			SoMsg("ParseErr", err, ShouldBeNil)
+
 			// Check the as entry is verifiable and the source is set correctly.
 			err = pseg.VerifyASEntry(context.Background(), segVerifier(pub), 0)
 			SoMsg("VerifyErr", err, ShouldBeNil)
