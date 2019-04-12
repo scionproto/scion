@@ -86,16 +86,27 @@ func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
 	return ps, nil
 }
 
+// NewSegFromRaw creates a segment from raw data.
 func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
+	return newSegFromRaw(b, false)
+}
+
+// NewBeaconFromRaw creates a segment from raw data. The last AS entry is
+// not assumed to terminate the path segment.
+func NewBeaconFromRaw(b common.RawBytes) (*PathSegment, error) {
+	return newSegFromRaw(b, true)
+}
+
+func newSegFromRaw(b common.RawBytes, isBeacon bool) (*PathSegment, error) {
 	ps := &PathSegment{}
 	err := proto.ParseFromRaw(ps, ps.ProtoId(), b)
 	if err != nil {
 		return nil, err
 	}
-	return ps, ps.ParseRaw()
+	return ps, ps.ParseRaw(isBeacon)
 }
 
-func (ps *PathSegment) ParseRaw() error {
+func (ps *PathSegment) ParseRaw(isBeacon bool) error {
 	var err error
 	ps.SData, err = NewPathSegmentSignedDataFromRaw(ps.RawSData)
 	if err != nil {
@@ -108,7 +119,7 @@ func (ps *PathSegment) ParseRaw() error {
 			return err
 		}
 	}
-	return ps.Validate()
+	return ps.Validate(isBeacon)
 }
 
 // ID returns a hash of the segment covering all hops, except for peerings.
@@ -158,7 +169,7 @@ func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
 	return ps.SData.InfoF()
 }
 
-func (ps *PathSegment) Validate() error {
+func (ps *PathSegment) Validate(isBeacon bool) error {
 	if err := ps.SData.Validate(); err != nil {
 		return err
 	}
@@ -180,7 +191,10 @@ func (ps *PathSegment) Validate() error {
 		if i < len(ps.ASEntries)-1 {
 			nextIA = ps.ASEntries[i+1].IA()
 		}
-		if err := ps.ASEntries[i].Validate(prevIA, nextIA); err != nil {
+		// The last AS entry in a beacon should ignore whether the next IA
+		// matches, since it is not set yet.
+		ignoreNext := i == len(ps.ASEntries)-1 && isBeacon
+		if err := ps.ASEntries[i].Validate(prevIA, nextIA, ignoreNext); err != nil {
 			return err
 		}
 	}
