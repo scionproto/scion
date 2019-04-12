@@ -175,21 +175,45 @@ func (h *HopField) Equal(o *HopField) bool {
 		h.ConsIngress == o.ConsIngress && h.ConsEgress == o.ConsEgress && bytes.Equal(h.Mac, o.Mac)
 }
 
+// ExpTimeType describes the relative expiration time of the hop field.
 type ExpTimeType uint8
 
 // ExpTimeFromDuration converts a time duration to the relative expiration
-// time. The duration is rounded down to the next unit. If the duration is
-// smaller than the unit, the returned value is 0. If it is larger than the
-// maximum value, 255 is returned.
-func ExpTimeFromDuration(duration time.Duration) ExpTimeType {
+// time.
+//
+// Round Up Mode:
+//
+// When rounding up is enabled, the duration is rounded up to the next unit
+// minus one, e.g. 1.3 is rounded to 1. In case the requested duration
+// exceeds the maximum value for the expiration time (256*Unit) in this
+// mode, an error is returned.
+//
+// Round Down Mode:
+//
+// When rounding down is disabled, the duration is rounded down to the next
+// unit minus one, e.g. 1.3 is rounded to 0. In case the requested duration
+// is below the unit for the expiration time in this mode, an error is
+// returned.
+func ExpTimeFromDuration(duration time.Duration, roundUp bool) (ExpTimeType, error) {
 	unit := time.Duration(ExpTimeUnit) * time.Second
+	if duration > (time.Duration(MaxTTLField)+1)*unit {
+		if roundUp {
+			return 0, common.NewBasicError("Requested duration exceeds maximum value", nil,
+				"duration", duration, "max", MaxTTLField.ToDuration())
+		}
+		return MaxTTLField, nil
+	}
 	if duration < unit {
-		return 0
+		if !roundUp {
+			return 0, common.NewBasicError("Requested duration below minimum value", nil,
+				"duration", duration, "min", ExpTimeType(0).ToDuration())
+		}
+		return 0, nil
 	}
-	if duration > 255*unit {
-		return 255
+	if roundUp {
+		return ExpTimeType((duration - 1) / unit), nil
 	}
-	return ExpTimeType((duration / unit) - 1)
+	return ExpTimeType((duration / unit) - 1), nil
 }
 
 // ToDuration calculates the relative expiration time in seconds.
