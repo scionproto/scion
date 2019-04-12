@@ -183,17 +183,19 @@ type ExpTimeType uint8
 //
 // Round Up Mode:
 //
-// When rounding up is enabled, the duration is rounded up to the next unit
-// minus one, e.g. 1.3 is rounded to 1. In case the requested duration
-// exceeds the maximum value for the expiration time (256*Unit) in this
-// mode, an error is returned.
+// The round up mode guarantees that the resulting relative expiration time
+// is more than the provided duration. The duration is rounded up to the
+// next unit, and then 1 is subtracted from the result, e.g. 1.3 is rounded
+// to 1. In case the requested duration exceeds the maximum value for the
+// expiration time (256*Unit) in this mode, an error is returned.
 //
 // Round Down Mode:
 //
-// When rounding down is disabled, the duration is rounded down to the next
-// unit minus one, e.g. 1.3 is rounded to 0. In case the requested duration
-// is below the unit for the expiration time in this mode, an error is
-// returned.
+// The round down mode guarantees that the resulting relative expiration
+// time is less than the provided duration. The duration is rounded down to
+// the next unit, and then 1 is subtracted from the result, e.g. 1.3 is
+// rounded to 0. In case the requested duration is below the unit for the
+// expiration time in this mode, an error is returned.
 func ExpTimeFromDuration(duration time.Duration, roundUp bool) (ExpTimeType, error) {
 	unit := time.Duration(ExpTimeUnit) * time.Second
 	if duration > (time.Duration(MaxTTLField)+1)*unit {

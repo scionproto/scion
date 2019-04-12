@@ -121,23 +121,27 @@ func TestExpTimeType(t *testing.T) {
 			Rounded: true,
 		},
 	}
-	Convey("Test conversion from duration", t, func() {
+	Convey("Conversion from duration to relative expiration time should be correct", t, func() {
 		for _, test := range tests {
 			Convey(test.Name, func() {
-				expTime, err := ExpTimeFromDuration(test.Duration, true)
-				xtest.SoMsgError("Round Up err", err, test.RoundUp.ExpErr)
-				if !test.RoundUp.ExpErr {
-					SoMsg("Round Up ExpTime", expTime, ShouldEqual, test.RoundUp.ExpTime)
-				}
-				expTime, err = ExpTimeFromDuration(test.Duration, false)
-				xtest.SoMsgError("Round Down err", err, test.RoundDown.ExpErr)
-				if !test.RoundDown.ExpErr {
-					SoMsg("Round Down ExpTime", expTime, ShouldEqual, test.RoundDown.ExpTime)
-				}
+				Convey("Rounding up", func() {
+					expTime, err := ExpTimeFromDuration(test.Duration, true)
+					xtest.SoMsgError("err", err, test.RoundUp.ExpErr)
+					if !test.RoundUp.ExpErr {
+						SoMsg("ExpTime", expTime, ShouldEqual, test.RoundUp.ExpTime)
+					}
+				})
+				Convey("Rounding down", func() {
+					expTime, err := ExpTimeFromDuration(test.Duration, false)
+					xtest.SoMsgError("err", err, test.RoundDown.ExpErr)
+					if !test.RoundDown.ExpErr {
+						SoMsg("ExpTime", expTime, ShouldEqual, test.RoundDown.ExpTime)
+					}
+				})
 			})
 		}
 	})
-	Convey("Test conversion to duration", t, func() {
+	Convey("Conversion from relative expiration time to duration should be correct", t, func() {
 		for _, test := range tests {
 			if !test.Rounded {
 				Convey(test.Name, func() {
