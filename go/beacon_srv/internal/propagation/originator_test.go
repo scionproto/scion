@@ -101,13 +101,11 @@ func TestOriginatorRun(t *testing.T) {
 			SoMsg("SPldErr", err, ShouldBeNil)
 			pld, err := spld.UnsafePld()
 			SoMsg("PldErr", err, ShouldBeNil)
-			pseg := pld.Beacon.Segment
-			SoMsg("pseg", pseg, ShouldNotBeNil)
-			err = pseg.ParseRaw(true)
+			err = pld.Beacon.Parse()
 			SoMsg("ParseErr", err, ShouldBeNil)
 
 			// Check the as entry is verifiable and the source is set correctly.
-			err = pseg.VerifyASEntry(context.Background(), segVerifier(pub), 0)
+			err = pld.Beacon.Segment.VerifyASEntry(context.Background(), segVerifier(pub), 0)
 			SoMsg("VerifyErr", err, ShouldBeNil)
 			src, err := ctrl.NewSignSrcDefFromRaw(spld.Sign.Src)
 			SoMsg("Src err", err, ShouldBeNil)
@@ -116,7 +114,7 @@ func TestOriginatorRun(t *testing.T) {
 			SoMsg("Src.TrcVer", src.TRCVer, ShouldEqual, 84)
 
 			// Check the AS entry is set correctly.
-			entry := pseg.ASEntries[0]
+			entry := pld.Beacon.Segment.ASEntries[0]
 			SoMsg("ChainVer", entry.CertVer, ShouldEqual, 42)
 			SoMsg("TRCVer", entry.TrcVer, ShouldEqual, 84)
 			SoMsg("IfIDSize", entry.IfIDSize, ShouldEqual, DefaultIfidSize)
@@ -128,7 +126,7 @@ func TestOriginatorRun(t *testing.T) {
 			// Check the hop field is set correctly.
 			hopF, err := spath.HopFFromRaw(hop.RawHopField)
 			SoMsg("Parse hop field", err, ShouldBeNil)
-			infoF, err := pseg.InfoF()
+			infoF, err := pld.Beacon.Segment.InfoF()
 			SoMsg("Parse info field", err, ShouldBeNil)
 			SoMsg("hopF.ConsIngress", hopF.ConsIngress, ShouldBeZeroValue)
 			SoMsg("hopF.Mac", hopF.Verify(o.sender.MAC, infoF.TsInt, nil), ShouldBeNil)
