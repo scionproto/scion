@@ -149,11 +149,16 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	return tag[:MacLen], err
 }
 
-// WriteTo implements the io.WriterTo interface.
-func (h *HopField) WriteTo(w io.Writer) (int64, error) {
+// Pack packs the hop field.
+func (h *HopField) Pack() common.RawBytes {
 	b := make(common.RawBytes, HopFieldLength)
 	h.Write(b)
-	n, err := w.Write(b)
+	return b
+}
+
+// WriteTo implements the io.WriterTo interface.
+func (h *HopField) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(h.Pack())
 	return int64(n), err
 }
 
@@ -170,7 +175,48 @@ func (h *HopField) Equal(o *HopField) bool {
 		h.ConsIngress == o.ConsIngress && h.ConsEgress == o.ConsEgress && bytes.Equal(h.Mac, o.Mac)
 }
 
+// ExpTimeType describes the relative expiration time of the hop field.
 type ExpTimeType uint8
+
+// ExpTimeFromDuration converts a time duration to the relative expiration
+// time.
+//
+// Round Up Mode:
+//
+// The round up mode guarantees that the resulting relative expiration time
+// is more than the provided duration. The duration is rounded up to the
+// next unit, and then 1 is subtracted from the result, e.g. 1.3 is rounded
+// to 1. In case the requested duration exceeds the maximum value for the
+// expiration time (256*Unit) in this mode, an error is returned.
+//
+// Round Down Mode:
+//
+// The round down mode guarantees that the resulting relative expiration
+// time is less than the provided duration. The duration is rounded down to
+// the next unit, and then 1 is subtracted from the result, e.g. 1.3 is
+// rounded to 0. In case the requested duration is below the unit for the
+// expiration time in this mode, an error is returned.
+func ExpTimeFromDuration(duration time.Duration, roundUp bool) (ExpTimeType, error) {
+	unit := time.Duration(ExpTimeUnit) * time.Second
+	if duration > (time.Duration(MaxTTLField)+1)*unit {
+		if roundUp {
+			return 0, common.NewBasicError("Requested duration exceeds maximum value", nil,
+				"duration", duration, "max", MaxTTLField.ToDuration())
+		}
+		return MaxTTLField, nil
+	}
+	if duration < unit {
+		if !roundUp {
+			return 0, common.NewBasicError("Requested duration below minimum value", nil,
+				"duration", duration, "min", ExpTimeType(0).ToDuration())
+		}
+		return 0, nil
+	}
+	if roundUp {
+		return ExpTimeType((duration - 1) / unit), nil
+	}
+	return ExpTimeType((duration / unit) - 1), nil
+}
 
 // ToDuration calculates the relative expiration time in seconds.
 // Note that for a 0 value ExpTime, the minimal duration is ExpTimeUnit.
