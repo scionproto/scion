@@ -19,49 +19,121 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestExpTimeType(t *testing.T) {
+	type TimeErrPair struct {
+		ExpTime ExpTimeType
+		ExpErr  bool
+	}
 	tests := []struct {
-		Name     string
-		Duration time.Duration
-		ExpTime  ExpTimeType
-		Rounded  bool
+		Name      string
+		Duration  time.Duration
+		RoundUp   TimeErrPair
+		RoundDown TimeErrPair
+		Rounded   bool
 	}{
 		{
 			Name:     "Smaller than unit",
 			Duration: 300 * time.Second,
-			ExpTime:  0,
-			Rounded:  true,
+			RoundUp: TimeErrPair{
+				ExpTime: 0,
+			},
+			RoundDown: TimeErrPair{
+				ExpErr: true,
+			},
+			Rounded: true,
 		},
 		{
 			Name:     "Exactly the unit",
-			Duration: 337 * time.Second,
-			ExpTime:  0,
+			Duration: ExpTimeUnit * time.Second,
+			RoundUp: TimeErrPair{
+				ExpTime: 0,
+			},
+			RoundDown: TimeErrPair{
+				ExpTime: 0,
+			},
 		},
 		{
-			Name:     "Round down to unit",
+			Name:     "Slightly larger than unit",
 			Duration: 400 * time.Second,
-			ExpTime:  0,
-			Rounded:  true,
+			RoundUp: TimeErrPair{
+				ExpTime: 1,
+			},
+			RoundDown: TimeErrPair{
+				ExpTime: 0,
+			},
+			Rounded: true,
+		},
+		{
+			Name:     "Slightly smaller than two units",
+			Duration: 650 * time.Second,
+			RoundUp: TimeErrPair{
+				ExpTime: 1,
+			},
+			RoundDown: TimeErrPair{
+				ExpTime: 0,
+			},
+			Rounded: true,
+		},
+		{
+			Name:     "Exactly two units",
+			Duration: 2 * ExpTimeUnit * time.Second,
+			RoundUp: TimeErrPair{
+				ExpTime: 1,
+			},
+			RoundDown: TimeErrPair{
+				ExpTime: 1,
+			},
+		},
+		{
+			Name:     "Between units",
+			Duration: 840 * time.Second,
+			RoundUp: TimeErrPair{
+				ExpTime: 2,
+			},
+			RoundDown: TimeErrPair{
+				ExpTime: 1,
+			},
+			Rounded: true,
 		},
 		{
 			Name:     "Maximum expiration time",
-			Duration: 86272 * time.Second,
-			ExpTime:  255,
+			Duration: (time.Duration(MaxTTLField) + 1) * ExpTimeUnit * time.Second,
+			RoundUp: TimeErrPair{
+				ExpTime: MaxTTLField,
+			},
+			RoundDown: TimeErrPair{
+				ExpTime: MaxTTLField,
+			},
 		},
 		{
-			Name:     "Round down maximum expiration time",
+			Name:     "Larger than maximum relative expiration",
 			Duration: 87000 * time.Second,
-			ExpTime:  255,
-			Rounded:  true,
+			RoundUp: TimeErrPair{
+				ExpErr: true,
+			},
+			RoundDown: TimeErrPair{
+				ExpTime: MaxTTLField,
+			},
+			Rounded: true,
 		},
 	}
 	Convey("Test conversion from duration", t, func() {
 		for _, test := range tests {
 			Convey(test.Name, func() {
-				expTime := ExpTimeFromDuration(test.Duration)
-				SoMsg("ExpTime", expTime, ShouldEqual, test.ExpTime)
+				expTime, err := ExpTimeFromDuration(test.Duration, true)
+				xtest.SoMsgError("Round Up err", err, test.RoundUp.ExpErr)
+				if !test.RoundUp.ExpErr {
+					SoMsg("Round Up ExpTime", expTime, ShouldEqual, test.RoundUp.ExpTime)
+				}
+				expTime, err = ExpTimeFromDuration(test.Duration, false)
+				xtest.SoMsgError("Round Down err", err, test.RoundDown.ExpErr)
+				if !test.RoundDown.ExpErr {
+					SoMsg("Round Down ExpTime", expTime, ShouldEqual, test.RoundDown.ExpTime)
+				}
 			})
 		}
 	})
@@ -69,7 +141,7 @@ func TestExpTimeType(t *testing.T) {
 		for _, test := range tests {
 			if !test.Rounded {
 				Convey(test.Name, func() {
-					SoMsg("ExpTime", test.ExpTime.ToDuration(), ShouldEqual, test.Duration)
+					SoMsg("ExpTime", test.RoundUp.ExpTime.ToDuration(), ShouldEqual, test.Duration)
 				})
 			}
 		}
