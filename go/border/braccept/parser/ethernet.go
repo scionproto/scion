@@ -23,15 +23,24 @@ import (
 )
 
 // Ethernet packet parser
-var _ LayerParser = (*EthernetTaggedLayer)(nil)
 var _ TaggedLayer = (*EthernetTaggedLayer)(nil)
-
-var EthernetParser *EthernetTaggedLayer
 
 type EthernetTaggedLayer struct {
 	golayers.Ethernet
 	tagged
 	options
+}
+
+func EthernetParser(lines []string) TaggedLayer {
+	// default Ethernet layer values
+	ether := &EthernetTaggedLayer{}
+
+	//SerializeOptions
+	ether.opts.ComputeChecksums = true
+	ether.opts.FixLengths = true
+
+	ether.Update(lines)
+	return ether
 }
 
 func (ether *EthernetTaggedLayer) Layer() gopacket.Layer {
@@ -47,29 +56,10 @@ func (ether *EthernetTaggedLayer) String() string {
 	return gopacket.LayerString(&ether.Ethernet)
 }
 
-func (_ether *EthernetTaggedLayer) ParseLayer(lines []string) TaggedLayer {
-	if _ether != nil {
-		panic(fmt.Errorf("ParseLayer needs to be called on a type nil!\n"))
-	}
-	// default Ethernet layer values
-	ether := &EthernetTaggedLayer{}
-
-	//SerializeOptions
-	ether.opts.ComputeChecksums = true
-	ether.opts.FixLengths = true
-
-	ether.parse(lines)
-	return ether
-}
-
 func (ether *EthernetTaggedLayer) Update(lines []string) {
 	if ether == nil {
 		panic(fmt.Errorf("Ethernet Tagged Layer is nil!\n"))
 	}
-	ether.parse(lines)
-}
-
-func (ether *EthernetTaggedLayer) parse(lines []string) {
 	if len(lines) != 1 {
 		panic(fmt.Errorf("Bad Ethernet layer!\n%s\n", lines))
 	}

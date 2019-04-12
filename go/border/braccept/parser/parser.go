@@ -77,9 +77,7 @@ type TaggedLayer interface {
 	Update([]string)
 }
 
-type LayerParser interface {
-	ParseLayer(lines []string) TaggedLayer
-}
+type LayerParser func(lines []string) TaggedLayer
 
 var parserMap = map[string]LayerParser{
 	"Ethernet":    EthernetParser,
@@ -234,7 +232,7 @@ func ParsePacket(packetString string) TaggedLayers {
 		if !ok {
 			panic(fmt.Errorf("Unsupported Layer Type: %s\n", layerType))
 		}
-		taggedLayer := layerParser.ParseLayer(lines)
+		taggedLayer := layerParser(lines)
 		//fmt.Printf("%s\n", gopacket.LayerString(taggedLayer.Layer()))
 		tls = append(tls, taggedLayer)
 	}

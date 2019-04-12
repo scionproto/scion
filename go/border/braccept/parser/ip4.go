@@ -23,16 +23,27 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-// IP4 packet parser
-var _ LayerParser = (*IP4TaggedLayer)(nil)
 var _ TaggedLayer = (*IP4TaggedLayer)(nil)
-
-var IP4Parser *IP4TaggedLayer
 
 type IP4TaggedLayer struct {
 	layers.IPv4
 	tagged
 	options
+}
+
+func IP4Parser(lines []string) TaggedLayer {
+	// default IP4 layer values
+	ip := &IP4TaggedLayer{}
+	ip.Version = 4
+	ip.IHL = 5
+	ip.TTL = 64
+
+	//SerializeOptions
+	ip.opts.ComputeChecksums = true
+	ip.opts.FixLengths = true
+
+	ip.Update(lines)
+	return ip
 }
 
 func (ip *IP4TaggedLayer) Layer() gopacket.Layer {
@@ -48,32 +59,10 @@ func (ip *IP4TaggedLayer) String() string {
 	return gopacket.LayerString(&ip.IPv4)
 }
 
-func (_ip *IP4TaggedLayer) ParseLayer(lines []string) TaggedLayer {
-	if _ip != nil {
-		panic(fmt.Errorf("ParseLayer needs to be called on a type nil!\n"))
-	}
-	// default IP4 layer values
-	ip := &IP4TaggedLayer{}
-	ip.Version = 4
-	ip.IHL = 5
-	ip.TTL = 64
-
-	//SerializeOptions
-	ip.opts.ComputeChecksums = true
-	ip.opts.FixLengths = true
-
-	ip.parse(lines)
-	return ip
-}
-
 func (ip *IP4TaggedLayer) Update(lines []string) {
 	if ip == nil {
 		panic(fmt.Errorf("IP4 Tagged Layer is nil!\n"))
 	}
-	ip.parse(lines)
-}
-
-func (ip *IP4TaggedLayer) parse(lines []string) {
 	if len(lines) != 1 {
 		panic(fmt.Errorf("Bad IP4 layer!\n%s\n", lines))
 	}

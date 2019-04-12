@@ -31,11 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-// Scion packet parser
-var _ LayerParser = (*ScionTaggedLayer)(nil)
 var _ TaggedLayer = (*ScionTaggedLayer)(nil)
-
-var ScionParser *ScionTaggedLayer
 
 type ScionTaggedLayer struct {
 	layers.Scion
@@ -46,23 +42,7 @@ type ScionTaggedLayer struct {
 	tags map[string]interface{}
 }
 
-func (scn *ScionTaggedLayer) Layer() gopacket.Layer {
-	return &scn.Scion
-}
-
-func (scn *ScionTaggedLayer) Clone() TaggedLayer {
-	clone := *scn
-	return &clone
-}
-
-func (scn *ScionTaggedLayer) String() string {
-	return gopacket.LayerString(&scn.Scion)
-}
-
-func (_scn *ScionTaggedLayer) ParseLayer(lines []string) TaggedLayer {
-	if _scn != nil {
-		panic(fmt.Errorf("ParseLayer needs to be called on a type nil!\n"))
-	}
+func ScionParser(lines []string) TaggedLayer {
 	// default Scion layer values
 	scn := &ScionTaggedLayer{}
 	scn.tags = make(map[string]interface{})
@@ -90,6 +70,19 @@ func (_scn *ScionTaggedLayer) ParseLayer(lines []string) TaggedLayer {
 		}
 	}
 	return scn
+}
+
+func (scn *ScionTaggedLayer) Layer() gopacket.Layer {
+	return &scn.Scion
+}
+
+func (scn *ScionTaggedLayer) Clone() TaggedLayer {
+	clone := *scn
+	return &clone
+}
+
+func (scn *ScionTaggedLayer) String() string {
+	return gopacket.LayerString(&scn.Scion)
 }
 
 func (scn *ScionTaggedLayer) Update(lines []string) {

@@ -23,16 +23,24 @@ import (
 	"github.com/scionproto/scion/go/border/braccept/layers"
 )
 
-// UDP packet parser
-var _ LayerParser = (*UDPTaggedLayer)(nil)
 var _ TaggedLayer = (*UDPTaggedLayer)(nil)
-
-var UDPParser *UDPTaggedLayer
 
 type UDPTaggedLayer struct {
 	layers.UDP
 	tagged
 	options
+}
+
+func UDPParser(lines []string) TaggedLayer {
+	// default UDP layer values
+	udp := &UDPTaggedLayer{}
+
+	//SerializeOptions
+	udp.opts.ComputeChecksums = true
+	udp.opts.FixLengths = true
+
+	udp.Update(lines)
+	return udp
 }
 
 func (udp *UDPTaggedLayer) Layer() gopacket.Layer {
@@ -48,29 +56,10 @@ func (udp *UDPTaggedLayer) String() string {
 	return gopacket.LayerString(&udp.UDP)
 }
 
-func (_udp *UDPTaggedLayer) ParseLayer(lines []string) TaggedLayer {
-	if _udp != nil {
-		panic(fmt.Errorf("ParseLayer needs to be called on a type nil!\n"))
-	}
-	// default UDP layer values
-	udp := &UDPTaggedLayer{}
-
-	//SerializeOptions
-	udp.opts.ComputeChecksums = true
-	udp.opts.FixLengths = true
-
-	udp.parse(lines)
-	return udp
-}
-
 func (udp *UDPTaggedLayer) Update(lines []string) {
 	if udp == nil {
 		panic(fmt.Errorf("UDP Tagged Layer is nil!\n"))
 	}
-	udp.parse(lines)
-}
-
-func (udp *UDPTaggedLayer) parse(lines []string) {
 	if len(lines) != 1 {
 		panic(fmt.Errorf("Bad UDP layer!\n%s\n", lines))
 	}

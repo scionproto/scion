@@ -24,19 +24,25 @@ import (
 	"github.com/scionproto/scion/go/lib/layers"
 )
 
-// HBH packet parser
-var _ LayerParser = (*HBHTaggedLayer)(nil)
 var _ TaggedLayer = (*HBHTaggedLayer)(nil)
-
 var _ gopacket.Layer = (*HBHTaggedLayer)(nil)
-
-var HBHParser *HBHTaggedLayer
 
 type HBHTaggedLayer struct {
 	layers.Extension
 	ext common.Extension
 	tagged
 	options
+}
+
+func HBHParser(lines []string) TaggedLayer {
+	// default HBH layer values
+	hbh := &HBHTaggedLayer{}
+
+	//SerializeOptions
+	hbh.opts.FixLengths = true
+
+	hbh.Update(lines)
+	return hbh
 }
 
 // XXX layers.Extension is missing following method to implement gopacket.Layer
@@ -57,28 +63,10 @@ func (hbh *HBHTaggedLayer) String() string {
 	return gopacket.LayerString(hbh)
 }
 
-func (_hbh *HBHTaggedLayer) ParseLayer(lines []string) TaggedLayer {
-	if _hbh != nil {
-		panic(fmt.Errorf("ParseLayer needs to be called on a type nil!\n"))
-	}
-	// default HBH layer values
-	hbh := &HBHTaggedLayer{}
-
-	//SerializeOptions
-	hbh.opts.FixLengths = true
-
-	hbh.parse(lines)
-	return hbh
-}
-
 func (hbh *HBHTaggedLayer) Update(lines []string) {
 	if hbh == nil {
 		panic(fmt.Errorf("HBH Tagged Layer is nil!\n"))
 	}
-	hbh.parse(lines)
-}
-
-func (hbh *HBHTaggedLayer) parse(lines []string) {
 	if len(lines) != 2 {
 		panic(fmt.Errorf("Bad HBH layer!\n%s\n", strings.Join(lines, "\n")))
 	}

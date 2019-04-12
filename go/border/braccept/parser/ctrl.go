@@ -25,10 +25,16 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 )
 
-// IFStateReq packet parser
-var _ LayerParser = (*IFStateReqTaggedLayer)(nil)
+var _ TaggedLayer = (*IFStateReqTaggedLayer)(nil)
 
-// Expected syntax:
+type IFStateReqTaggedLayer struct {
+	gopacket.Payload
+	path_mgmt.IFStateReq
+	tagged
+	options
+}
+
+// IFStateReqParser parses an Interface State Request with the following syntax:
 //
 // IFStateReq: IfID=121 Active=true
 //
@@ -36,13 +42,12 @@ var _ LayerParser = (*IFStateReqTaggedLayer)(nil)
 //     SignRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=60
 //
 // The SignedRevInfo is optional.
-var IFStateReqParser *IFStateReqTaggedLayer
+func IFStateReqParser(lines []string) TaggedLayer {
+	// default IFStateReq layer values
+	i := &IFStateReqTaggedLayer{}
 
-type IFStateReqTaggedLayer struct {
-	gopacket.Payload
-	path_mgmt.IFStateReq
-	tagged
-	options
+	i.Update(lines)
+	return i
 }
 
 func (p *IFStateReqTaggedLayer) Layer() gopacket.Layer {
@@ -54,25 +59,10 @@ func (i *IFStateReqTaggedLayer) Clone() TaggedLayer {
 	return &clone
 }
 
-func (_i *IFStateReqTaggedLayer) ParseLayer(lines []string) TaggedLayer {
-	if _i != nil {
-		panic(fmt.Errorf("ParseLayer needs to be called on a type nil!\n"))
-	}
-	// default IFStateReq layer values
-	i := &IFStateReqTaggedLayer{}
-
-	i.parse(lines)
-	return i
-}
-
 func (i *IFStateReqTaggedLayer) Update(lines []string) {
 	if i == nil {
 		panic(fmt.Errorf("IFStateReq Tagged Layer is nil!\n"))
 	}
-	i.parse(lines)
-}
-
-func (i *IFStateReqTaggedLayer) parse(lines []string) {
 	// IFStateReq is either single line, or two lines with second being the revocation
 	if len(lines) != 1 {
 		panic(fmt.Errorf("Bad IFStateReq layer!\n%s\n", lines))
@@ -107,18 +97,7 @@ func (i *IFStateReqTaggedLayer) updateIFStateFields(kvs propMap) {
 	}
 }
 
-// IFStateInfo packet parser
-var _ LayerParser = (*IFStateInfoTaggedLayer)(nil)
-
-// Expected syntax:
-//
-// IFStateInfo: IfID=121 Active=true
-//
-// IFStateInfo: IfID=121 Active=false
-//     SignRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=60
-//
-// The SignedRevInfo is optional.
-var IFStateInfoParser *IFStateInfoTaggedLayer
+var _ TaggedLayer = (*IFStateInfoTaggedLayer)(nil)
 
 type IFStateInfoTaggedLayer struct {
 	gopacket.Payload
@@ -126,6 +105,22 @@ type IFStateInfoTaggedLayer struct {
 	RevInfo
 	tagged
 	options
+}
+
+// IFStateInfoParser parses an Interface State Info with the following syntax:
+//
+// IFStateInfo: IfID=121 Active=true
+//
+// IFStateInfo: IfID=121 Active=false
+//     SignRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=60
+//
+// The SignedRevInfo is optional.
+func IFStateInfoParser(lines []string) TaggedLayer {
+	// default IFStateInfo layer values
+	i := &IFStateInfoTaggedLayer{}
+
+	i.Update(lines)
+	return i
 }
 
 func (p *IFStateInfoTaggedLayer) Layer() gopacket.Layer {
@@ -137,25 +132,10 @@ func (i *IFStateInfoTaggedLayer) Clone() TaggedLayer {
 	return &clone
 }
 
-func (_i *IFStateInfoTaggedLayer) ParseLayer(lines []string) TaggedLayer {
-	if _i != nil {
-		panic(fmt.Errorf("ParseLayer needs to be called on a type nil!\n"))
-	}
-	// default IFStateInfo layer values
-	i := &IFStateInfoTaggedLayer{}
-
-	i.parse(lines)
-	return i
-}
-
 func (i *IFStateInfoTaggedLayer) Update(lines []string) {
 	if i == nil {
 		panic(fmt.Errorf("IFStateInfo Tagged Layer is nil!\n"))
 	}
-	i.parse(lines)
-}
-
-func (i *IFStateInfoTaggedLayer) parse(lines []string) {
 	// IFStateInfo is either single line, or two lines with second being the revocation
 	if len(lines) < 1 || len(lines) > 2 {
 		panic(fmt.Errorf("Bad IFStateInfo layer!\n%s\n", strings.Join(lines, "\n")))
