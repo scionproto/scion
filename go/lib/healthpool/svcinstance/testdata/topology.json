@@ -1,0 +1,26 @@
+{
+  "DiscoveryService": {
+    "ds1-ff00_0_111-1": {
+      "Addrs": {
+        "IPv4": {
+          "Public": {
+            "Addr": "127.0.0.22",
+            "L4Port": 30084
+          }
+        }
+      }
+    },
+    "ds1-ff00_0_111-2": {
+      "Addrs": {
+        "IPv4": {
+          "Public": {
+            "Addr": "127.0.0.80",
+            "L4Port": 30085
+          }
+        }
+      }
+    }
+  },
+  "Overlay": "UDP/IPv4",
+  "ISD_AS": "1-ff00:0:111"
+}
