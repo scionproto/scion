@@ -346,8 +346,8 @@ func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
 }
 
 func (ps *PathSegment) popLastEntry() {
-	ps.RawASEntries = ps.RawASEntries[:ps.MaxAEIdx()]
-	ps.ASEntries = ps.ASEntries[:ps.MaxAEIdx()]
+	ps.RawASEntries = ps.RawASEntries[:len(ps.RawASEntries)-1]
+	ps.ASEntries = ps.ASEntries[:len(ps.ASEntries)-1]
 }
 
 func (ps *PathSegment) invalidateIds() {
