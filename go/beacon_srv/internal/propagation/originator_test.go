@@ -89,7 +89,7 @@ func TestOriginatorRun(t *testing.T) {
 			}
 			close(done)
 		}()
-		intfs.Get(41).Activate(82)
+		intfs.Get(1129).Activate(82)
 		intfs.Get(42).Activate(84)
 		// Start beacon messages.
 		o.Run(nil)
