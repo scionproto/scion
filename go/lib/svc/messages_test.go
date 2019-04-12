@@ -28,7 +28,7 @@ func TestSVCResolutionSerialization(t *testing.T) {
 	// Sanity check to test that the decoder/serializer operate correctly.
 	Convey("Serializing and deserializing should return the initial object", t, func() {
 		message := Reply{
-			Transports: map[string]string{
+			Transports: map[Transport]string{
 				"foo": "bar",
 				"bar": "baz",
 			},
@@ -67,7 +67,7 @@ func TestReplyToProtoFormat(t *testing.T) {
 		},
 		{
 			Name:  "reply with empty map",
-			Reply: &Reply{Transports: make(map[string]string)},
+			Reply: &Reply{Transports: make(map[Transport]string)},
 			ExpectedProtoReply: &proto.SVCResolutionReply{
 				Transports: []proto.Transport{},
 			},
@@ -75,7 +75,7 @@ func TestReplyToProtoFormat(t *testing.T) {
 		{
 			Name: "reply with map with two elements",
 			Reply: &Reply{
-				Transports: map[string]string{
+				Transports: map[Transport]string{
 					"foo": "bar",
 					"bar": "baz",
 				},
@@ -92,7 +92,7 @@ func TestReplyToProtoFormat(t *testing.T) {
 	Convey("Replies should be converted to the correct proto objects", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				protoReply := tc.Reply.ToProtoFormat()
+				protoReply := tc.Reply.toProtoFormat()
 				So(protoReply, ShouldResemble, tc.ExpectedProtoReply)
 			})
 		}
@@ -110,14 +110,14 @@ func TestReplyFromProtoFormat(t *testing.T) {
 			Name:       "nil capnp object",
 			ProtoReply: nil,
 			ExpectedReply: &Reply{
-				Transports: make(map[string]string),
+				Transports: make(map[Transport]string),
 			},
 		},
 		{
 			Name:       "reply with nil slice",
 			ProtoReply: &proto.SVCResolutionReply{},
 			ExpectedReply: &Reply{
-				Transports: make(map[string]string),
+				Transports: make(map[Transport]string),
 			},
 		},
 		{
@@ -126,7 +126,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 				Transports: []proto.Transport{},
 			},
 			ExpectedReply: &Reply{
-				Transports: make(map[string]string),
+				Transports: make(map[Transport]string),
 			},
 		},
 		{
@@ -137,7 +137,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 				},
 			},
 			ExpectedReply: &Reply{
-				Transports: map[string]string{
+				Transports: map[Transport]string{
 					"foo": "bar",
 				},
 			},
@@ -151,7 +151,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 				},
 			},
 			ExpectedReply: &Reply{
-				Transports: map[string]string{
+				Transports: map[Transport]string{
 					"foo": "bar",
 					"bar": "baz",
 				},
@@ -172,7 +172,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				var reply Reply
-				err := reply.FromProtoFormat(tc.ProtoReply)
+				err := reply.fromProtoFormat(tc.ProtoReply)
 				xtest.SoMsgError("err", err, tc.ExpectedError)
 				if !tc.ExpectedError {
 					SoMsg("reply", &reply, ShouldResemble, tc.ExpectedReply)
@@ -182,12 +182,12 @@ func TestReplyFromProtoFormat(t *testing.T) {
 	})
 	Convey("Initializing from a proto object should reset state", t, func() {
 		reply := &Reply{
-			Transports: map[string]string{
+			Transports: map[Transport]string{
 				"foo": "bar",
 			},
 		}
-		err := reply.FromProtoFormat(nil)
+		err := reply.fromProtoFormat(nil)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("data", reply, ShouldResemble, &Reply{Transports: make(map[string]string)})
+		SoMsg("data", reply, ShouldResemble, &Reply{Transports: make(map[Transport]string)})
 	})
 }
