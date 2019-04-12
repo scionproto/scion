@@ -42,8 +42,7 @@ type Originator struct {
 	ifState *ifstate.Infos
 }
 
-// NewOriginator creates a new originator. It takes ownership of the
-// one-hop sender.
+// NewOriginator creates a new originator. It takes ownership of the one-hop sender.
 func NewOriginator(infos *ifstate.Infos, cfg Config, sender *onehop.Sender) (*Originator, error) {
 	cfg.InitDefaults()
 	if err := cfg.Validate(); err != nil {
@@ -151,7 +150,7 @@ func (o *Originator) createBeacon(ifid common.IFIDType, intf topology.IFInfo,
 		TrcVer:     meta.Src.TRCVer,
 		IfIDSize:   o.cfg.IfidSize,
 		MTU:        o.cfg.MTU,
-		HopEntries: hopEntries,
+		HopEntries: []*seg.HopEntry{hopEntries},
 	}
 	if err := bseg.AddASEntry(asEntry, o.cfg.Signer); err != nil {
 		return nil, err
@@ -160,7 +159,7 @@ func (o *Originator) createBeacon(ifid common.IFIDType, intf topology.IFInfo,
 }
 
 func (o *Originator) createHopEntry(ifid common.IFIDType, intf topology.IFInfo,
-	ts time.Time) ([]*seg.HopEntry, error) {
+	ts time.Time) (*seg.HopEntry, error) {
 
 	if intf.RemoteIFID == 0 {
 		return nil, common.NewBasicError("Remote ifid is not set", nil)
@@ -177,7 +176,7 @@ func (o *Originator) createHopEntry(ifid common.IFIDType, intf topology.IFInfo,
 		RawOutIA:    intf.ISD_AS.IAInt(),
 		RemoteOutIF: intf.RemoteIFID,
 	}
-	return []*seg.HopEntry{hop}, nil
+	return hop, nil
 }
 
 func (o *Originator) createRawHop(ifid common.IFIDType, ts time.Time) (common.RawBytes, error) {
@@ -193,8 +192,8 @@ func (o *Originator) createRawHop(ifid common.IFIDType, ts time.Time) (common.Ra
 		return nil, common.NewBasicError("Chain does not cover minimum hop expiration time", nil,
 			"minimumExpiration", min, "chainExpiration", meta.ExpTime, "src", meta.Src)
 	}
-	if expiry > spath.DefaultHopFExpiry {
-		expiry = spath.DefaultHopFExpiry
+	if expiry > o.cfg.maxExpTime {
+		expiry = o.cfg.maxExpTime
 	}
 	hop := &spath.HopField{
 		ConsEgress: ifid,

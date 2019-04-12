@@ -17,6 +17,7 @@ package propagation
 import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 const (
@@ -27,16 +28,25 @@ const (
 type Config struct {
 	// Signer is used to sign path segments.
 	Signer infra.Signer
-	// IfidSize is the bit-size of the ifid in the hop-fields.
-	IfidSize uint8
 	// MTU is the MTU value set in the AS entries.
 	MTU uint16
+	// IfidSize is the bit-size of the ifid in the hop-fields.
+	IfidSize uint8
+	// MaxExpTime is the maximum relative expiration time.
+	MaxExpTime *spath.ExpTimeType
+	// maxExpTime is a copy of MaxExpTime to avoid using the captured
+	// reference from the calling code.
+	maxExpTime spath.ExpTimeType
 }
 
 // InitDefaults initializes the default values, if not set.
 func (cfg *Config) InitDefaults() {
 	if cfg.IfidSize == 0 {
 		cfg.IfidSize = DefaultIfidSize
+	}
+	if cfg.MaxExpTime == nil {
+		expiry := spath.DefaultHopFExpiry
+		cfg.MaxExpTime = &expiry
 	}
 }
 
@@ -51,5 +61,9 @@ func (cfg *Config) Validate() error {
 	if cfg.MTU == 0 {
 		return common.NewBasicError("MTU must be set", nil)
 	}
+	if cfg.MaxExpTime == nil {
+		return common.NewBasicError("MaxExpTime must be set", nil)
+	}
+	cfg.maxExpTime = *cfg.MaxExpTime
 	return nil
 }

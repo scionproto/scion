@@ -42,49 +42,42 @@ import (
 
 func TestOriginatorRun(t *testing.T) {
 	setupItopo(t)
+	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
+	xtest.FailOnErr(t, err)
+	infos := ifstate.NewInfos(itopo.Get().IFInfoMap, ifstate.Config{})
+	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
+	xtest.FailOnErr(t, err)
+	wconn, rconn := p2p.NewPacketConns()
+
+	signer, err := trust.NewBasicSigner(priv, infra.SignerMeta{
+		Src: ctrl.SignSrcDef{
+			ChainVer: 42,
+			TRCVer:   84,
+			IA:       xtest.MustParseIA("1-ff00:0:110"),
+		},
+		Algo:    scrypto.Ed25519,
+		ExpTime: time.Now().Add(time.Hour),
+	})
+	xtest.FailOnErr(t, err)
+
+	o, err := NewOriginator(infos,
+		Config{
+			MTU:    uint16(itopo.Get().MTU),
+			Signer: signer,
+		},
+		&onehop.Sender{
+			IA:   xtest.MustParseIA("1-ff00:0:110"),
+			Conn: snet.NewSCIONPacketConn(wconn),
+			Addr: &addr.AppAddr{
+				L3: addr.HostFromIPStr("127.0.0.1"),
+				L4: addr.NewL4UDPInfo(4242),
+			},
+			MAC: mac,
+		},
+	)
+	xtest.FailOnErr(t, err)
+	var pkts []*snet.SCIONPacket
 	Convey("Run originates ifid packets on all core and child interfaces", t, func() {
-		mac, err := scrypto.InitMac(make(common.RawBytes, 16))
-		xtest.FailOnErr(t, err)
-		infos := ifstate.NewInfos(itopo.Get().IFInfoMap, ifstate.Config{})
-		pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-		xtest.FailOnErr(t, err)
-		wconn, rconn := p2p.NewPacketConns()
-
-		signer, err := trust.NewBasicSigner(priv, infra.SignerMeta{
-			Src: ctrl.SignSrcDef{
-				ChainVer: 42,
-				TRCVer:   84,
-				IA:       xtest.MustParseIA("1-ff00:0:110"),
-			},
-			Algo:    scrypto.Ed25519,
-			ExpTime: time.Now().Add(time.Hour),
-		})
-		xtest.FailOnErr(t, err)
-
-		msg := common.RawBytes{1, 2, 3, 4, 5}
-		sign, err := signer.Sign(msg)
-		signn, err := scrypto.Sign(msg, priv, scrypto.Ed25519)
-		xtest.FailOnErr(t, err)
-		err = segVerifier(pub).Verify(context.Background(), msg, sign)
-		xtest.FailOnErr(t, err)
-		err = scrypto.Verify(msg, signn, pub, scrypto.Ed25519)
-
-		o, err := NewOriginator(infos,
-			Config{
-				MTU:    uint16(itopo.Get().MTU),
-				Signer: signer,
-			},
-			&onehop.Sender{
-				IA:   xtest.MustParseIA("1-ff00:0:110"),
-				Conn: snet.NewSCIONPacketConn(wconn),
-				Addr: &addr.AppAddr{
-					L3: addr.HostFromIPStr("127.0.0.1"),
-					L4: addr.NewL4UDPInfo(4242),
-				},
-				MAC: mac,
-			},
-		)
-		var pkts []*snet.SCIONPacket
 		done := make(chan struct{})
 		// Read packets from the connection to unblock sender.
 		go func() {
