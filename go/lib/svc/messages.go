@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package svc implements support for SVC Resolution.
 package svc
 
 import (
@@ -28,39 +29,44 @@ type Reply struct {
 	// address strings (e.g., "192.168.1.1:80"). Applications should check if
 	// the transport keys are acceptable and must parse the address strings
 	// accordingly.
-	Transports map[string]string
+	Transports map[Transport]string
 }
 
-// DecodeFrom decodes a reply message from its capnp representation.
+// DecodeFrom decodes a reply message from its capnp representation. No
+// validation of transport keys is performed.
+//
+// If the returned error is non-nil, the state of Reply is unspecified.
 func (r *Reply) DecodeFrom(rd io.Reader) error {
 	var protoObject proto.SVCResolutionReply
 	if err := protoObject.DecodeFrom(rd); err != nil {
 		return err
 	}
-	return r.FromProtoFormat(&protoObject)
+	return r.fromProtoFormat(&protoObject)
 }
 
-// SerializeTo encodes a reply message into its capnp representation.
+// SerializeTo encodes a reply message into its capnp representation. No
+// validation of transport keys is performed.
 func (r *Reply) SerializeTo(wr io.Writer) error {
-	return r.ToProtoFormat().SerializeTo(wr)
+	return r.toProtoFormat().SerializeTo(wr)
 }
 
-// ToProtoFormat converts a reply message to a low-level format suitable for
+// toProtoFormat converts a reply message to a low-level format suitable for
 // network exchanges. The serializer uses this under the hood to convert the
 // reply message to a byte stream.
 //
 // A nil high-level object will produce a capnp object with an empty slice. A
 // high-level object with a nil or empty map will produce a capnp object with
-// an empty slice.
+// an empty slice. Unknown Transport keys are ignored.
 //
 // Elements of the slice are always sorted by Key in ascending order.
-func (r *Reply) ToProtoFormat() *proto.SVCResolutionReply {
+func (r *Reply) toProtoFormat() *proto.SVCResolutionReply {
 	protoReply := &proto.SVCResolutionReply{Transports: []proto.Transport{}}
 	if r == nil || len(r.Transports) == 0 {
 		return protoReply
 	}
 	for k, v := range r.Transports {
-		protoReply.Transports = append(protoReply.Transports, proto.Transport{Key: k, Value: v})
+		protoReply.Transports = append(protoReply.Transports,
+			proto.Transport{Key: string(k), Value: v})
 	}
 	sort.Slice(protoReply.Transports, func(i, j int) bool {
 		return protoReply.Transports[i].Key < protoReply.Transports[j].Key
@@ -68,7 +74,7 @@ func (r *Reply) ToProtoFormat() *proto.SVCResolutionReply {
 	return protoReply
 }
 
-// FromProtoFormat converts from a low-level format suitable for network
+// fromProtoFormat converts from a low-level format suitable for network
 // exchanges to a reply message. The decoder uses this under the hood to
 // convert a byte stream to a reply message.
 //
@@ -76,16 +82,26 @@ func (r *Reply) ToProtoFormat() *proto.SVCResolutionReply {
 // with a nil or empty slice will produce a reply with an empty map.
 // Duplicate keys will result in an error. Unknown keys are silently added to
 // the map.
-func (r *Reply) FromProtoFormat(protoReply *proto.SVCResolutionReply) error {
-	r.Transports = make(map[string]string)
+//
+// Calling this function always resets the internal state of the Reply, even if
+// an error is returned.
+func (r *Reply) fromProtoFormat(protoReply *proto.SVCResolutionReply) error {
+	r.Transports = make(map[Transport]string)
 	if protoReply == nil || len(protoReply.Transports) == 0 {
 		return nil
 	}
 	for _, transport := range protoReply.Transports {
-		if _, ok := r.Transports[transport.Key]; ok {
+		if _, ok := r.Transports[Transport(transport.Key)]; ok {
 			return common.NewBasicError("duplicate key not allowed", nil, "key", transport.Key)
 		}
-		r.Transports[transport.Key] = transport.Value
+		r.Transports[Transport(transport.Key)] = transport.Value
 	}
 	return nil
 }
+
+type Transport string
+
+const (
+	UDP  Transport = "UDP"
+	QUIC Transport = "QUIC"
+)
