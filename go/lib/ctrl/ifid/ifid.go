@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the Go representation of an IFID packet
-
+// Package ifid contains the Go representation of an IFID keepalive packet.
+//
+// IFID keepalive messages are sent from the beacon server on all links to the
+// neighboring ASes using a one-hop path. The keepalive contains origin IFID
+// which specifies the interface it was sent on. This allows beacon servers to
+// discover the remote IFIDs of links, a crucial information for the beaconing
+// process.
 package ifid
 
 import (
@@ -25,7 +31,9 @@ import (
 
 var _ proto.Cerealizable = (*IFID)(nil)
 
+// IFID is the ifid keepalive message.
 type IFID struct {
+	// OrigiIfid is the egress interface a keepalive was sent on.
 	OrigIfID common.IFIDType `capnp:"origIF"`
 }
 

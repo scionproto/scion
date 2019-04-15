@@ -17,6 +17,7 @@ package keepalive
 import (
 	"context"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -38,13 +40,19 @@ import (
 
 var (
 	localIF  = common.IFIDType(10)
-	remoteIF = common.IFIDType(11)
+	originIF = common.IFIDType(11)
 	localIA  = xtest.MustParseIA("1-ff00:0:110")
-	remoteIA = xtest.MustParseIA("1-ff00:0:111")
+	originIA = xtest.MustParseIA("1-ff00:0:111")
 )
 
+// Disable logging in all tests
+func TestMain(m *testing.M) {
+	log.Root().SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
+}
+
 func TestNewHandler(t *testing.T) {
-	Convey("NewHandler crates a correct handler", t, func() {
+	Convey("NewHandler creates a correct handler", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 
@@ -55,7 +63,7 @@ func TestNewHandler(t *testing.T) {
 			wg.Add(4)
 			// Make sure the mock is executed exactly once and updates the waitgroup.
 			set := func(call *gomock.Call) *gomock.Call {
-				return call.MinTimes(1).MaxTimes(1).Do(func(_ ...interface{}) { wg.Done() })
+				return call.Times(1).Do(func(_ ...interface{}) { wg.Done() })
 			}
 
 			pusher := mock_keepalive.NewMockIfStatePusher(mctrl)
@@ -64,15 +72,15 @@ func TestNewHandler(t *testing.T) {
 			set(pusher.EXPECT().Push(gomock.Any()))
 			set(beaconer.EXPECT().Beacon(gomock.Any(), localIF))
 			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), localIA, localIF)).Return(0, nil)
-			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), remoteIA, remoteIF)).Return(0, nil)
+			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), originIA, originIF)).Return(0, nil)
 
 			handler := NewHandler(localIA, initInfos(), StateChangeTasks{
 				IfStatePusher: pusher,
 				Beaconer:      beaconer,
 				RevDropper:    dropper,
 			})
-			req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: remoteIF}, nil,
-				&snet.Addr{IA: remoteIA, Path: testPath(localIF)}, 0)
+			req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+				&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
 			res := handler.Handle(req)
 			waitTimeout(wg)
 			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
@@ -81,8 +89,8 @@ func TestNewHandler(t *testing.T) {
 			infos := initInfos()
 			infos.Get(localIF).Activate(42)
 			handler := NewHandler(localIA, infos, zeroCallTasks(mctrl))
-			req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: remoteIF}, nil,
-				&snet.Addr{IA: remoteIA, Path: testPath(localIF)}, 0)
+			req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+				&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
 			res := handler.Handle(req)
 			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
 		})
@@ -91,30 +99,30 @@ func TestNewHandler(t *testing.T) {
 			handler := NewHandler(localIA, infos, zeroCallTasks(mctrl))
 			Convey("Wrong payload type", func() {
 				req := infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
-					&snet.Addr{IA: remoteIA, Path: testPath(localIF)}, 0)
+					&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
 				res := handler.Handle(req)
 				SoMsg("res", res, ShouldEqual, infra.MetricsErrInternal)
 			})
 			Convey("Invalid address type", func() {
-				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: remoteIF}, nil,
+				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
 					&net.UnixAddr{}, 0)
 				res := handler.Handle(req)
-				SoMsg("res", res, ShouldEqual, infra.MetricsErrInternal)
+				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 			})
 			Convey("Invalid path", func() {
-				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: remoteIF}, nil,
-					&snet.Addr{IA: remoteIA, Path: &spath.Path{}}, 0)
+				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+					&snet.Addr{IA: originIA, Path: &spath.Path{}}, 0)
 				res := handler.Handle(req)
 				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 			})
 			Convey("Invalid ConsIngress ifid", func() {
-				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: remoteIF}, nil,
-					&snet.Addr{IA: remoteIA, Path: testPath(remoteIF)}, 0)
+				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+					&snet.Addr{IA: originIA, Path: testPath(originIF)}, 0)
 				res := handler.Handle(req)
 				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 			})
 			Convey("Invalid IA", func() {
-				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: remoteIF}, nil,
+				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
 					&snet.Addr{IA: localIA, Path: testPath(localIF)}, 0)
 				res := handler.Handle(req)
 				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
@@ -124,23 +132,15 @@ func TestNewHandler(t *testing.T) {
 }
 
 func initInfos() *ifstate.Infos {
-	infoMap := topology.IfInfoMap{localIF: topology.IFInfo{ISD_AS: remoteIA}}
+	infoMap := topology.IfInfoMap{localIF: topology.IFInfo{ISD_AS: originIA}}
 	return ifstate.NewInfos(infoMap, ifstate.Config{})
 }
 
 func zeroCallTasks(mctrl *gomock.Controller) StateChangeTasks {
-	pusher := mock_keepalive.NewMockIfStatePusher(mctrl)
-	beaconer := mock_keepalive.NewMockBeaconer(mctrl)
-	dropper := mock_keepalive.NewMockRevDropper(mctrl)
-
-	pusher.EXPECT().Push(gomock.Any()).MaxTimes(0)
-	beaconer.EXPECT().Beacon(gomock.Any(), localIF).MaxTimes(0)
-	dropper.EXPECT().DeleteRevocation(gomock.Any(), localIA, localIF).MaxTimes(0)
-	dropper.EXPECT().DeleteRevocation(gomock.Any(), remoteIA, remoteIF).MaxTimes(0)
 	return StateChangeTasks{
-		IfStatePusher: pusher,
-		Beaconer:      beaconer,
-		RevDropper:    dropper,
+		IfStatePusher: mock_keepalive.NewMockIfStatePusher(mctrl),
+		Beaconer:      mock_keepalive.NewMockBeaconer(mctrl),
+		RevDropper:    mock_keepalive.NewMockRevDropper(mctrl),
 	}
 }
 
