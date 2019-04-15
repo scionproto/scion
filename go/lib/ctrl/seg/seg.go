@@ -224,7 +224,7 @@ func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 		}
 		// The last AS entry in a beacon should ignore whether the next IA
 		// matches, since it is not set yet.
-		ignoreNext := i == len(ps.ASEntries)-1 && (ValidateBeacon == ValidateBeacon)
+		ignoreNext := i == len(ps.ASEntries)-1 && (validationMethod == ValidateBeacon)
 		if err := ps.ASEntries[i].Validate(prevIA, nextIA, ignoreNext); err != nil {
 			return err
 		}
