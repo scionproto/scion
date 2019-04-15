@@ -34,7 +34,7 @@ type SegReply struct {
 
 func NewSegReplyFromRaw(b common.RawBytes) (*SegReply, error) {
 	s := &SegReply{}
-	return s, proto.ParseFromRaw(s, s.ProtoId(), b)
+	return s, proto.ParseFromRaw(s, b)
 }
 
 func (s *SegReply) ProtoId() proto.ProtoIdType {

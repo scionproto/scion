@@ -78,7 +78,7 @@ type Pld struct {
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{}
-	return p, proto.ParseFromRaw(p, p.ProtoId(), b)
+	return p, proto.ParseFromRaw(p, b)
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {

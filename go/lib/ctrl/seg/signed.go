@@ -37,7 +37,7 @@ func newPathSegmentSignedData(infoF *spath.InfoField) *PathSegmentSignedData {
 
 func NewPathSegmentSignedDataFromRaw(b common.RawBytes) (*PathSegmentSignedData, error) {
 	pss := &PathSegmentSignedData{}
-	return pss, proto.ParseFromRaw(pss, pss.ProtoId(), b)
+	return pss, proto.ParseFromRaw(pss, b)
 }
 
 func (pss *PathSegmentSignedData) InfoF() (*spath.InfoField, error) {

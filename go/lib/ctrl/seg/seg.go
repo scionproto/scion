@@ -127,7 +127,7 @@ func NewBeaconFromRaw(b common.RawBytes) (*PathSegment, error) {
 
 func newSegFromRaw(b common.RawBytes, validationMethod ValidationMethod) (*PathSegment, error) {
 	ps := &PathSegment{}
-	err := proto.ParseFromRaw(ps, ps.ProtoId(), b)
+	err := proto.ParseFromRaw(ps, b)
 	if err != nil {
 		return nil, err
 	}

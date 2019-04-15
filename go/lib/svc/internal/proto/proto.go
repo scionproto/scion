@@ -16,13 +16,13 @@
 package proto
 
 import (
+	"fmt"
 	"io"
-
-	capnp "zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/scionproto/scion/go/proto"
 )
+
+var _ proto.Cerealizable = (*SVCResolutionReply)(nil)
 
 // SVCResolutionReply is a pogs-compatible representation of a list of
 // SCION transport key-value pairs.
@@ -31,36 +31,19 @@ type SVCResolutionReply struct {
 }
 
 func (r *SVCResolutionReply) SerializeTo(wr io.Writer) error {
-	msg, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return err
-	}
-	root, err := proto.NewRootSVCResolutionResponse(arena)
-	if err != nil {
-		return err
-	}
-	if err := pogs.Insert(proto.SVCResolutionResponse_TypeID, root.Struct, r); err != nil {
-		return err
-	}
-	if err := capnp.NewEncoder(wr).Encode(msg); err != nil {
-		return err
-	}
-	return nil
+	return proto.SerializeTo(r, wr)
 }
 
 func (r *SVCResolutionReply) DecodeFrom(rd io.Reader) error {
-	msg, err := capnp.NewDecoder(rd).Decode()
-	if err != nil {
-		return err
-	}
-	root, err := msg.RootPtr()
-	if err != nil {
-		return err
-	}
-	if err := pogs.Extract(r, proto.SVCResolutionResponse_TypeID, root.Struct()); err != nil {
-		return err
-	}
-	return nil
+	return proto.ParseFromReader(r, rd)
+}
+
+func (*SVCResolutionReply) ProtoId() proto.ProtoIdType {
+	return proto.SVCResolutionReply_TypeID
+}
+
+func (r *SVCResolutionReply) String() string {
+	return fmt.Sprintf("SVCResolutionReply(%v)", r.Transports)
 }
 
 // Transport is a pogs-compatible representation of a protocol transport
@@ -68,4 +51,8 @@ func (r *SVCResolutionReply) DecodeFrom(rd io.Reader) error {
 type Transport struct {
 	Key   string
 	Value string
+}
+
+func (t Transport) String() string {
+	return fmt.Sprintf("%s:%s", t.Key, t.Value)
 }

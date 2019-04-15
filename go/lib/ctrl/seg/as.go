@@ -41,7 +41,7 @@ type ASEntry struct {
 
 func NewASEntryFromRaw(b common.RawBytes) (*ASEntry, error) {
 	ase := &ASEntry{}
-	return ase, proto.ParseFromRaw(ase, ase.ProtoId(), b)
+	return ase, proto.ParseFromRaw(ase, b)
 }
 
 func (ase *ASEntry) IA() addr.IA {

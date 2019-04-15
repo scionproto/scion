@@ -39,7 +39,7 @@ func NewAddr(host addr.HostAddr, ctrlPort, encapPort uint16) *Addr {
 
 func newAddrFromRaw(b common.RawBytes) (*Addr, error) {
 	a := &Addr{}
-	return a, proto.ParseFromRaw(a, a.ProtoId(), b)
+	return a, proto.ParseFromRaw(a, b)
 }
 
 func (a *Addr) ProtoId() proto.ProtoIdType {

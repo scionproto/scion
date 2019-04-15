@@ -61,7 +61,7 @@ func NewCertMgmtPld(u proto.Cerealizable, certD *cert_mgmt.Data, ctrlD *Data) (*
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{Data: &Data{}}
-	return p, proto.ParseFromRaw(p, proto.CtrlPld_TypeID, b)
+	return p, proto.ParseFromRaw(p, b)
 }
 
 func (p *Pld) Union() (proto.Cerealizable, error) {
