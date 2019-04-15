@@ -56,7 +56,7 @@ func (r *Reply) SerializeTo(wr io.Writer) error {
 //
 // A nil high-level object will produce a capnp object with an empty slice. A
 // high-level object with a nil or empty map will produce a capnp object with
-// an empty slice. Unknown Transport keys are ignored.
+// an empty slice. Unknown Transport keys are included in the Reply.
 //
 // Elements of the slice are always sorted by Key in ascending order.
 func (r *Reply) toProtoFormat() *proto.SVCResolutionReply {

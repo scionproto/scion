@@ -100,13 +100,11 @@ func cerealInsert(c Cerealizable) (*capnp.Message, error) {
 }
 
 // ParseFromRaw is a utility function, which reads a capnp message from b and parses it into c.
-// It is effectively a composition of ReadRootFromRaw and ParseStruct.
 func ParseFromRaw(c Cerealizable, b common.RawBytes) error {
 	return ParseFromReader(c, bytes.NewBuffer(b))
 }
 
 // ParseFromReader is a utility function, which reads a capnp message from r and parses it into c.
-// It is effectively a composition of ReadRootFromReader and ParseStruct.
 func ParseFromReader(c Cerealizable, r io.Reader) error {
 	s, err := readRootFromReader(r)
 	if err != nil {
