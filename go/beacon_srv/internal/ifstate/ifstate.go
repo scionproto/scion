@@ -130,6 +130,7 @@ func (intfs *Interfaces) Get(ifid common.IFIDType) *Interface {
 	return intfs.intfs[ifid]
 }
 
+// Interface keeps track of the interface state.
 type Interface struct {
 	mu           sync.RWMutex
 	topoInfo     topology.IFInfo
