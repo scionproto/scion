@@ -36,7 +36,7 @@ type BeaconInserter interface {
 
 // NewHandler returns an infra.Handler for beacon messages. Both the beacon
 // inserter and verifier must not be nil. Otherwise, the handler might panic.
-func NewHandler(ia addr.IA, infos *ifstate.Infos, beaconInserter BeaconInserter,
+func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, beaconInserter BeaconInserter,
 	verifier infra.Verifier) infra.Handler {
 
 	f := func(r *infra.Request) *infra.HandlerResult {
@@ -44,7 +44,7 @@ func NewHandler(ia addr.IA, infos *ifstate.Infos, beaconInserter BeaconInserter,
 			ia:       ia,
 			inserter: beaconInserter,
 			verifier: verifier,
-			infos:    infos,
+			intfs:    intfs,
 			request:  r,
 		}
 		return handler.Handle()
@@ -57,7 +57,7 @@ type handler struct {
 	ia       addr.IA
 	inserter BeaconInserter
 	verifier infra.Verifier
-	infos    *ifstate.Infos
+	intfs    *ifstate.Interfaces
 	request  *infra.Request
 }
 
@@ -83,11 +83,11 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 			"beacon", bseg)
 	}
 	logger.Debug("[BeaconHandler] Received", "beacon", bseg)
-	ifid, info, err := h.getIntfInfo()
+	ifid, intf, err := h.getIntfInfo()
 	if err != nil {
 		return infra.MetricsErrInvalid, err
 	}
-	err = h.validateASEntry(bseg.Segment.ASEntries[bseg.Segment.MaxAEIdx()], ifid, info)
+	err = h.validateASEntry(bseg.Segment.ASEntries[bseg.Segment.MaxAEIdx()], ifid, intf)
 	if err != nil {
 		return infra.MetricsErrInvalid, common.NewBasicError("Invalid last AS entry", err,
 			"entry", bseg.Segment.ASEntries[bseg.Segment.MaxAEIdx()])
@@ -103,7 +103,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	return infra.MetricsResultOk, nil
 }
 
-func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Info, error) {
+func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Interface, error) {
 	peer, ok := h.request.Peer.(*snet.Addr)
 	if !ok {
 		return 0, nil, common.NewBasicError("Invalid peer address type, expected *snet.Addr", nil,
@@ -113,18 +113,18 @@ func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Info, error) {
 	if err != nil {
 		return 0, nil, common.NewBasicError("Unable to extract hop field", err)
 	}
-	info := h.infos.Get(hopF.ConsIngress)
-	if info == nil {
+	intf := h.intfs.Get(hopF.ConsIngress)
+	if intf == nil {
 		return 0, nil, common.NewBasicError("Received beacon on non-existent ifid",
 			nil, "ifid", hopF.ConsIngress)
 	}
-	return hopF.ConsIngress, info, nil
+	return hopF.ConsIngress, intf, nil
 }
 
 func (h *handler) validateASEntry(asEntry *seg.ASEntry, ifid common.IFIDType,
-	info *ifstate.Info) error {
+	intf *ifstate.Interface) error {
 
-	topoInfo := info.TopoInfo()
+	topoInfo := intf.TopoInfo()
 	if topoInfo.LinkType != proto.LinkType_parent && topoInfo.LinkType != proto.LinkType_core {
 		return common.NewBasicError("Beacon received on invalid link", nil,
 			"ifid", ifid, "linkType", topoInfo.LinkType)
