@@ -50,7 +50,6 @@ func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, beaconInserter BeaconInse
 		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
-
 }
 
 type handler struct {
@@ -72,63 +71,74 @@ func (h *handler) Handle() *infra.HandlerResult {
 }
 
 func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
+	b, res, err := h.buildBeacon()
+	if err != nil {
+		return res, err
+	}
+	logger.Debug("[BeaconHandler] Received", "beacon", b)
+	if err := h.verifyBeacon(b); err != nil {
+		return infra.MetricsErrInvalid, err
+	}
+	if err := h.inserter.InsertBeacons(h.request.Context(), b); err != nil {
+		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
+	}
+	logger.Debug("[BeaconHandler] Successfully inserted", "beacon", b)
+	return infra.MetricsResultOk, nil
+}
+
+func (h *handler) buildBeacon() (beacon.Beacon, *infra.HandlerResult, error) {
 	bseg, ok := h.request.Message.(*seg.Beacon)
 	if !ok {
-		return infra.MetricsErrInternal, common.NewBasicError(
+		return beacon.Beacon{}, infra.MetricsErrInternal, common.NewBasicError(
 			"Wrong message type, expected seg.Beacon", nil,
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 	}
 	if err := bseg.Parse(); err != nil {
-		return infra.MetricsErrInvalid, common.NewBasicError("Unable to parse beacon", err,
-			"beacon", bseg)
+		return beacon.Beacon{}, infra.MetricsErrInvalid,
+			common.NewBasicError("Unable to parse beacon", err, "beacon", bseg)
 	}
-	logger.Debug("[BeaconHandler] Received", "beacon", bseg)
-	ifid, intf, err := h.getIntfInfo()
+	ifid, err := h.getIFID()
 	if err != nil {
-		return infra.MetricsErrInvalid, err
+		return beacon.Beacon{}, infra.MetricsErrInvalid, err
 	}
-	err = h.validateASEntry(bseg.Segment.ASEntries[bseg.Segment.MaxAEIdx()], ifid, intf)
-	if err != nil {
-		return infra.MetricsErrInvalid, common.NewBasicError("Invalid last AS entry", err,
-			"entry", bseg.Segment.ASEntries[bseg.Segment.MaxAEIdx()])
-	}
-	if err := h.verifySegment(bseg.Segment); err != nil {
-		return infra.MetricsErrInvalid, common.NewBasicError("Verification of beacon failed", err)
-	}
-	b := beacon.Beacon{Segment: bseg.Segment, InIfId: ifid}
-	if err := h.inserter.InsertBeacons(h.request.Context(), b); err != nil {
-		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
-	}
-	logger.Debug("[BeaconHandler] Successfully inserted", "beacon", bseg)
-	return infra.MetricsResultOk, nil
+	return beacon.Beacon{InIfId: ifid, Segment: bseg.Segment}, nil, nil
 }
 
-func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Interface, error) {
+func (h *handler) getIFID() (common.IFIDType, error) {
 	peer, ok := h.request.Peer.(*snet.Addr)
 	if !ok {
-		return 0, nil, common.NewBasicError("Invalid peer address type, expected *snet.Addr", nil,
+		return 0, common.NewBasicError("Invalid peer address type, expected *snet.Addr", nil,
 			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 	}
 	hopF, err := peer.Path.GetHopField(peer.Path.HopOff)
 	if err != nil {
-		return 0, nil, common.NewBasicError("Unable to extract hop field", err)
+		return 0, common.NewBasicError("Unable to extract hop field", err)
 	}
-	intf := h.intfs.Get(hopF.ConsIngress)
-	if intf == nil {
-		return 0, nil, common.NewBasicError("Received beacon on non-existent ifid",
-			nil, "ifid", hopF.ConsIngress)
-	}
-	return hopF.ConsIngress, intf, nil
+	return hopF.ConsIngress, nil
 }
 
-func (h *handler) validateASEntry(asEntry *seg.ASEntry, ifid common.IFIDType,
-	intf *ifstate.Interface) error {
+func (h *handler) verifyBeacon(b beacon.Beacon) error {
+	if err := h.validateASEntry(b); err != nil {
+		return common.NewBasicError("Invalid last AS entry", err,
+			"entry", b.Segment.ASEntries[b.Segment.MaxAEIdx()])
+	}
+	if err := h.verifySegment(b.Segment); err != nil {
+		return common.NewBasicError("Verification of beacon failed", err)
+	}
+	return nil
+}
 
+func (h *handler) validateASEntry(b beacon.Beacon) error {
+	intf := h.intfs.Get(b.InIfId)
+	if intf == nil {
+		return common.NewBasicError("Received beacon on non-existent ifid", nil, "ifid", b.InIfId)
+	}
 	topoInfo := intf.TopoInfo()
 	if topoInfo.LinkType != proto.LinkType_parent && topoInfo.LinkType != proto.LinkType_core {
 		return common.NewBasicError("Beacon received on invalid link", nil,
-			"ifid", ifid, "linkType", topoInfo.LinkType)
+			"ifid", b.InIfId, "linkType", topoInfo.LinkType)
 	}
+	asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
 	if !asEntry.IA().Equal(topoInfo.ISD_AS) {
 		return common.NewBasicError("Invalid remote IA", nil,
 			"expected", topoInfo.ISD_AS, "actual", asEntry.IA())
@@ -138,9 +148,9 @@ func (h *handler) validateASEntry(asEntry *seg.ASEntry, ifid common.IFIDType,
 			return common.NewBasicError("Out IA of hop entry does not match local IA", nil,
 				"index", i, "expected", h.ia, "actual", hopEntry.OutIA())
 		}
-		if hopEntry.RemoteOutIF != ifid {
+		if hopEntry.RemoteOutIF != b.InIfId {
 			return common.NewBasicError("RemoteOutIF of hop entry does not match ingress interface",
-				nil, "expected", ifid, "actual", hopEntry.RemoteOutIF)
+				nil, "expected", b.InIfId, "actual", hopEntry.RemoteOutIF)
 		}
 	}
 	return nil
