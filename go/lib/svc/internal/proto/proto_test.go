@@ -27,14 +27,8 @@ func TestSVCResolutionPogsSerialization(t *testing.T) {
 	Convey("Serializing and deserializing via pogs should return the initial object", t, func() {
 		message := SVCResolutionReply{
 			Transports: []Transport{
-				{
-					Key:   "foo",
-					Value: "bar",
-				},
-				{
-					Key:   "bar",
-					Value: "baz",
-				},
+				{Key: "foo", Value: "bar"},
+				{Key: "bar", Value: "baz"},
 			},
 		}
 		buffer := &bytes.Buffer{}
@@ -46,5 +40,17 @@ func TestSVCResolutionPogsSerialization(t *testing.T) {
 		err = newMessage.DecodeFrom(buffer)
 		SoMsg("decode error", err, ShouldBeNil)
 		SoMsg("data", newMessage, ShouldResemble, message)
+	})
+}
+
+func TestSVCResolutionReplyString(t *testing.T) {
+	Convey("String function should write correct data", t, func() {
+		message := SVCResolutionReply{
+			Transports: []Transport{
+				{Key: "foo", Value: "bar"},
+				{Key: "bar", Value: "baz"},
+			},
+		}
+		So(message.String(), ShouldEqual, "SVCResolutionReply([foo:bar bar:baz])")
 	})
 }

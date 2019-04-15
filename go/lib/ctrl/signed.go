@@ -59,7 +59,7 @@ func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
 		return nil, common.NewBasicError("Invalid ctrl payload length", nil,
 			"expected", n+4, "actual", len(b))
 	}
-	return sp, proto.ParseFromRaw(sp, sp.ProtoId(), b[4:])
+	return sp, proto.ParseFromRaw(sp, b[4:])
 }
 
 // UnsafePld extracts the control payload without verifying the payload.

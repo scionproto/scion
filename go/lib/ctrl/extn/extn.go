@@ -39,7 +39,7 @@ func NewCtrlExtnDataListFromValues(items []*CtrlExtnData) *CtrlExtnDataList {
 
 func NewCtrlExtnDataListFromRaw(b common.RawBytes) (*CtrlExtnDataList, error) {
 	edl := &CtrlExtnDataList{}
-	return edl, proto.ParseFromRaw(edl, edl.ProtoId(), b)
+	return edl, proto.ParseFromRaw(edl, b)
 }
 
 func (edl *CtrlExtnDataList) ProtoId() proto.ProtoIdType {
@@ -71,7 +71,7 @@ func NewCtrlExtnDataFromValues(e Extension, arenaSize int) (*CtrlExtnData, error
 
 func NewCtrlExtnDataFromRaw(b common.RawBytes) (*CtrlExtnData, error) {
 	ed := &CtrlExtnData{}
-	return ed, proto.ParseFromRaw(ed, ed.ProtoId(), b)
+	return ed, proto.ParseFromRaw(ed, b)
 }
 
 func (ed *CtrlExtnData) ProtoId() proto.ProtoIdType {

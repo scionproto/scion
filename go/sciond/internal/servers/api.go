@@ -65,7 +65,7 @@ func (srv *TransportHandler) Serve() error {
 
 func (srv *TransportHandler) Handle(b common.RawBytes, address net.Addr) {
 	p := &sciond.Pld{}
-	if err := proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, bytes.NewReader(b)); err != nil {
+	if err := proto.ParseFromReader(p, bytes.NewReader(b)); err != nil {
 		log.Error("capnp error", "err", err)
 		return
 	}
