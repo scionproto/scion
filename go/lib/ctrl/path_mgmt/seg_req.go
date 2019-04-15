@@ -60,5 +60,5 @@ func (s *SegReq) Write(b common.RawBytes) (int, error) {
 }
 
 func (s *SegReq) String() string {
-	return fmt.Sprintf("%s -> %s, Flags: %v", s.SrcIA(), s.DstIA(), s.Flags)
+	return fmt.Sprintf("%s -> %s, Flags: %+v", s.SrcIA(), s.DstIA(), s.Flags)
 }
