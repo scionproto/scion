@@ -64,12 +64,12 @@ type StateChangeTasks struct {
 
 // NewHandler returns an infra.Handler for IFID keepalive messages. The state
 // change tasks must all be set. Nil tasks will cause the handler to panic.
-func NewHandler(ia addr.IA, infos *ifstate.Infos, tasks StateChangeTasks) infra.Handler {
+func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, tasks StateChangeTasks) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &handler{
 			ia:      ia,
 			request: r,
-			infos:   infos,
+			intfs:   intfs,
 			tasks:   tasks,
 		}
 		return handler.Handle()
@@ -80,7 +80,7 @@ func NewHandler(ia addr.IA, infos *ifstate.Infos, tasks StateChangeTasks) infra.
 
 type handler struct {
 	ia    addr.IA
-	infos *ifstate.Infos
+	intfs *ifstate.Interfaces
 	tasks StateChangeTasks
 
 	request *infra.Request
@@ -120,7 +120,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	return infra.MetricsResultOk, nil
 }
 
-func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Info, error) {
+func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Interface, error) {
 	peer, ok := h.request.Peer.(*snet.Addr)
 	if !ok {
 		return 0, nil, common.NewBasicError("Invalid peer address type, expected *snet.Addr", nil,
@@ -130,7 +130,7 @@ func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Info, error) {
 	if err != nil {
 		return 0, nil, common.NewBasicError("Unable to extract hop field", err)
 	}
-	info := h.infos.Get(hopF.ConsIngress)
+	info := h.intfs.Get(hopF.ConsIngress)
 	if info == nil {
 		return 0, nil, common.NewBasicError("Received keepalive for non-existent ifid", nil,
 			"ifid", hopF.ConsIngress)

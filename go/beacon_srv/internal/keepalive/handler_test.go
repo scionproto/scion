@@ -74,7 +74,7 @@ func TestNewHandler(t *testing.T) {
 			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), localIA, localIF)).Return(0, nil)
 			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), originIA, originIF)).Return(0, nil)
 
-			handler := NewHandler(localIA, initInfos(), StateChangeTasks{
+			handler := NewHandler(localIA, testInterfaces(), StateChangeTasks{
 				IfStatePusher: pusher,
 				Beaconer:      beaconer,
 				RevDropper:    dropper,
@@ -86,17 +86,16 @@ func TestNewHandler(t *testing.T) {
 			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
 		})
 		Convey("Active interface should cause no tasks to execute", func() {
-			infos := initInfos()
-			infos.Get(localIF).Activate(42)
-			handler := NewHandler(localIA, infos, zeroCallTasks(mctrl))
+			intfs := testInterfaces()
+			intfs.Get(localIF).Activate(42)
+			handler := NewHandler(localIA, intfs, zeroCallTasks(mctrl))
 			req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
 				&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
 			res := handler.Handle(req)
 			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
 		})
 		Convey("Invalid requests cause an error", func() {
-			infos := initInfos()
-			handler := NewHandler(localIA, infos, zeroCallTasks(mctrl))
+			handler := NewHandler(localIA, testInterfaces(), zeroCallTasks(mctrl))
 			Convey("Wrong payload type", func() {
 				req := infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
 					&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
@@ -131,9 +130,9 @@ func TestNewHandler(t *testing.T) {
 	})
 }
 
-func initInfos() *ifstate.Infos {
+func testInterfaces() *ifstate.Interfaces {
 	infoMap := topology.IfInfoMap{localIF: topology.IFInfo{ISD_AS: originIA}}
-	return ifstate.NewInfos(infoMap, ifstate.Config{})
+	return ifstate.NewInterfaces(infoMap, ifstate.Config{})
 }
 
 func zeroCallTasks(mctrl *gomock.Controller) StateChangeTasks {
