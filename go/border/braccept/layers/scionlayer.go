@@ -65,7 +65,7 @@ func (l *Scion) NetworkFlow() gopacket.Flow {
 }
 
 func (l *Scion) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
-	scnLen := spkt.CmnHdrLen + l.AddrHdr.Len() + l.Path.Segs.Len()
+	scnLen := spkt.CmnHdrLen + l.AddrHdr.Len() + l.Path.Len()
 	buf, err := b.PrependBytes(scnLen)
 	if err != nil {
 		return err

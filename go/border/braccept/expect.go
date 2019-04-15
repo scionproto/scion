@@ -68,13 +68,6 @@ func ExpectedPackets(desc string, to string, pkts ...*DevTaggedLayers) int {
 			// Packet is to be ignored
 			continue
 		}
-		/*
-			else {
-				pktStr := fmt.Sprintf("%s", pkt)
-				ignStr := fmt.Sprintf("%s", IgnoredPkts[0].Pkt)
-				fmt.Printf("DEBUG expect ignored:\n%s\n", compareStrings(pktStr, ignStr))
-			}
-		*/
 		i, e := checkPkt(expPkts, idx, pkt)
 		if e != nil {
 			errStr = append(errStr, fmt.Sprintf("%s", e))
@@ -93,76 +86,6 @@ func ExpectedPackets(desc string, to string, pkts ...*DevTaggedLayers) int {
 	return errors
 }
 
-/*
-
-	golayers "github.com/google/gopacket/layers"
-	"github.com/scionproto/scion/go/border/braccept/layers"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
-func verifyIPUDPChecksum(pkt gopacket.Packet) (uint16, uint16) {
-	ip4 := pkt.Layer(golayers.LayerTypeIPv4)
-	udp := pkt.Layer(golayers.LayerTypeUDP).(*golayers.UDP)
-	pseudo := make(common.RawBytes, 20)
-	copy(pseudo, ip4.LayerContents()[12:])
-	pseudo[8] = 0
-	pseudo[9] = byte(common.L4UDP)
-	common.Order.PutUint16(pseudo[10:12], uint16(len(ip4.LayerPayload())))
-	fmt.Printf("DEBUG IP4UDP udp: %s", gopacket.LayerDump(udp))
-	copy(pseudo[12:], udp.LayerContents()[:6])
-	return udp.Checksum, util.Checksum(pseudo, udp.LayerPayload())
-}
-
-func verifyScionUDPChecksum(pkt gopacket.Packet) (uint16, uint16) {
-	scn := pkt.Layer(layers.LayerTypeScion).(*layers.Scion)
-	var udp *golayers.UDP
-	pktL := pkt.Layers()
-	max := len(pktL) - 1
-	for i := range pktL {
-		l := pktL[max-i]
-		if l.LayerType() == golayers.LayerTypeUDP {
-			udp = l.(*golayers.UDP)
-			break
-		}
-	}
-	scratchPad := make(common.RawBytes, scn.AddrHdr.Len()+2+6)
-	scratchPad[0] = 0
-	scratchPad[1] = uint8(common.L4UDP)
-	fmt.Printf("DEBUG ScionUDP udp: %s", gopacket.LayerDump(udp))
-	copy(scratchPad[2:], udp.LayerContents()[:6])
-	scn.AddrHdr.Write(scratchPad[8:])
-	return udp.Checksum, util.Checksum(scratchPad[:8+scn.AddrHdr.NoPaddedLen()], udp.LayerPayload())
-}
-
-func checkIgnoredPkts(expPkts []*DevPkt, devIdx int, pkt gopacket.Packet) (int, error) {
-	actCS, expCS := verifyIPUDPChecksum(pkt)
-	fmt.Printf("DEBUG IP4UDP act csum: Actual %x, Expected %x\n\n", actCS, expCS)
-	actCS, expCS = verifyScionUDPChecksum(pkt)
-	fmt.Printf("DEBUG ScionUDP act csum: Actual %x, Expected %x\n\n", actCS, expCS)
-	var errStr []string
-	dev := shared.DevList[devIdx].ContDev
-	for i := range expPkts {
-		actCS, expCS = verifyIPUDPChecksum(expPkts[i].Pkt)
-		fmt.Printf("DEBUG IP4UDP exp%d csum: Actual %x, Expected %x\n\n", i, actCS, expCS)
-		actCS, expCS = verifyScionUDPChecksum(expPkts[i].Pkt)
-		fmt.Printf("DEBUG ScionUDP exp%d csum: Actual %x, Expected %x\n\n", i, actCS, expCS)
-		if dev != expPkts[i].Dev {
-			continue
-		}
-		if err := ComparePackets(pkt, expPkts[i].Pkt); err != nil {
-			errStr = append(errStr, fmt.Sprintf("[ERROR] %s\n", err))
-			continue
-		}
-		// Packet matched!
-		return i, nil
-	}
-	if len(expPkts) == 0 {
-		errStr = append(errStr,
-			fmt.Sprintf("[ERROR] Packet received when no packet was expected\n"))
-	}
-	errStr = append(errStr, fmt.Sprintf("Unexpected packet on interface %s:\n\n%v", dev, pkt))
-	return -1, fmt.Errorf(strings.Join(errStr, "\n"))
-}
-*/
 // checkPkt compare a given packet against all the possible expected packets,
 // It returns the index of the expected packet matched or an error with a pretty-print
 // packet dump of the unmatched packet.

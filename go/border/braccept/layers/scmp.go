@@ -67,6 +67,10 @@ func (s *SCMP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOp
 		if err != nil {
 			return err
 		}
+		s.Checksum, err = l4.CalcCSum(&s.Hdr, rawAddrHdr, buf[scmp.HdrLen:])
+		if err != nil {
+			return err
+		}
 	}
 	if err := s.Hdr.Write(buf); err != nil {
 		return err

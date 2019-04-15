@@ -16,27 +16,82 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/go/border/braccept/shared"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/proto"
 )
 
-type RevInfo struct {
-	path_mgmt.RevInfo
+var _ TaggedLayer = (*SignedRevInfoTaggedLayer)(nil)
+
+type SignedRevInfoTaggedLayer struct {
+	gopacket.Payload
+	SRevInfo *path_mgmt.SignedRevInfo
+	RevInfo
+	tagged
+	options
 }
 
-func (i *RevInfo) parse(line string) {
-	layerType, _, kvStr := decodeLayerLine(line)
-	if layerType != "SignedRevInfo" {
-		panic(fmt.Errorf("Bad RevInfo layer!\n%s\n", line))
+// SignedRevInfoParser parses an Interface State Info with the following syntax:
+//
+// SignRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=60
+//
+func SignedRevInfoParser(lines []string) TaggedLayer {
+	// default SignedRevInfo layer values
+	i := &SignedRevInfoTaggedLayer{}
+
+	i.Update(lines)
+	return i
+}
+
+func (p *SignedRevInfoTaggedLayer) Layer() gopacket.Layer {
+	return &p.Payload
+}
+
+func (i *SignedRevInfoTaggedLayer) Clone() TaggedLayer {
+	clone := *i
+	return &clone
+}
+
+func (i *SignedRevInfoTaggedLayer) Update(lines []string) {
+	if i == nil {
+		panic(fmt.Errorf("SignedRevInfo Tagged Layer is nil!\n"))
 	}
+	if len(lines) != 1 {
+		panic(fmt.Errorf("Bad SignedRevInfo layer!\n%s\n", strings.Join(lines, "\n")))
+	}
+	layerType, tag, kvStr := decodeLayerLine(lines[0])
+	if layerType != "SignedRevInfo" {
+		panic(fmt.Errorf("Bad RevInfo layer!\n%s\n", lines[0]))
+	}
+	i.tag = tag
 
 	kvs := getKeyValueMap(kvStr)
 	i.updateFields(kvs)
+	srev := i.sign()
+
+	pmpld, err := path_mgmt.NewPld(srev, nil)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to generate PathMgmt payload: %s\n%s\n",
+			err, strings.Join(lines, "\n")))
+	}
+	blob, err := shared.CtrlCapnpEnc(infra.NullSigner, pmpld)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to Sign SignedRevInfo: %s\n%s\n", err, strings.Join(lines, "\n")))
+	}
+	i.Payload = make([]byte, len(blob))
+	copy(i.Payload, blob)
+}
+
+type RevInfo struct {
+	path_mgmt.RevInfo
 }
 
 func (i *RevInfo) sign() *path_mgmt.SignedRevInfo {

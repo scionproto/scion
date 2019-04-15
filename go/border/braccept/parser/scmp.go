@@ -42,7 +42,10 @@ type SCMPTaggedLayer struct {
 func SCMPParser(lines []string) TaggedLayer {
 	// default SCMP layer values
 	s := &SCMPTaggedLayer{}
+	// XXX Not having this empty slice makes restruct.Pack generate bad binary representation.
+	s.Checksum = make([]byte, 2)
 	s.Pld = &scmp.Payload{}
+	s.Pld.Meta = &scmp.Meta{}
 
 	//SerializeOptions
 	s.opts.ComputeChecksums = true
@@ -114,8 +117,15 @@ func (info *InfoRevocation) parse(lines []string) int {
 	ipo := &InfoPathOffsets{}
 	ipo.updateFields(kvs)
 	info.InfoPathOffsets = &ipo.InfoPathOffsets
+	// Parse RevInfo
 	rev := &RevInfo{}
-	rev.parse(lines[1])
+	layerType, _, kvStr := decodeLayerLine(lines[1])
+	if layerType != "SignedRevInfo" {
+		panic(fmt.Errorf("Bad SignedRevInfo layer!\n%s\n", lines[1]))
+	}
+	kvs = getKeyValueMap(kvStr)
+	rev.updateFields(kvs)
+
 	srev := rev.sign()
 	info.RawSRev, err = proto.PackRoot(srev)
 	if err != nil {
@@ -157,7 +167,7 @@ func (s *SCMPTaggedLayer) updateHeaderFields(kvs propMap) {
 			s.opts.FixLengths = false
 		case "Checksum":
 			s.Checksum = make(common.RawBytes, 2)
-			common.Order.PutUint16(s.Checksum, uint16(StrToInt(v)))
+			common.Order.PutUint16(s.Checksum, uint16(HexToInt(v)))
 			s.opts.ComputeChecksums = false
 		case "Timestamp":
 			var err error
@@ -168,7 +178,7 @@ func (s *SCMPTaggedLayer) updateHeaderFields(kvs propMap) {
 					panic(err)
 				}
 			}
-			s.Timestamp = uint64(t.UnixNano())
+			s.SetTime(t)
 		default:
 			panic(fmt.Errorf("Unknown SCMP field: %s", k))
 		}
@@ -323,7 +333,6 @@ func (s *SCMPTaggedLayer) generatePayload(rawPkt string) {
 	pkt := gopacket.NewPacket(raw, golayers.LayerTypeEthernet, gopacket.NoCopy)
 	// Find SCION layer
 	pktLayers := pkt.Layers()
-	//fmt.Printf("DEBUG:\n%s\n%s\n%s\n", rawPkt, raw, pkt)
 	for i := range pktLayers {
 		if pktLayers[i].LayerType() == layers.LayerTypeScion {
 			pktLayers = pktLayers[i:]

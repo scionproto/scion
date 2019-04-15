@@ -80,14 +80,15 @@ type TaggedLayer interface {
 type LayerParser func(lines []string) TaggedLayer
 
 var parserMap = map[string]LayerParser{
-	"Ethernet":    EthernetParser,
-	"IP4":         IP4Parser,
-	"UDP":         UDPParser,
-	"SCION":       ScionParser,
-	"HBH":         HBHParser,
-	"SCMP":        SCMPParser,
-	"IFStateReq":  IFStateReqParser,
-	"IFStateInfo": IFStateInfoParser,
+	"Ethernet":      EthernetParser,
+	"IP4":           IP4Parser,
+	"UDP":           UDPParser,
+	"SCION":         ScionParser,
+	"HBH":           HBHParser,
+	"SCMP":          SCMPParser,
+	"IFStateReq":    IFStateReqParser,
+	"IFStateInfo":   IFStateInfoParser,
+	"SignedRevInfo": SignedRevInfoParser,
 }
 
 type TaggedLayers []TaggedLayer
@@ -138,7 +139,6 @@ func (taggedLayers TaggedLayers) Serialize() common.RawBytes {
 func (taggedLayers TaggedLayers) GetTaggedLayer(tag string) TaggedLayer {
 	for i := range taggedLayers {
 		tl := taggedLayers[i]
-		//fmt.Printf("DEBUG GetTag: %s\n", tl.Tag())
 		if tl.Tag() == tag {
 			return tl
 		}
@@ -159,11 +159,8 @@ func (taggedLayers TaggedLayers) SetChecksum(l4Tag, l3Tag string) {
 	}
 
 	tl = taggedLayers.GetTaggedLayer(l4Tag)
-	//fmt.Printf("DEBUG tl %v\n", tl)
-	//fmt.Printf("DEBUG tl.Layer() %v\n", tl.Layer().LayerType())
 	switch l := tl.Layer().(type) {
 	case *layers.UDP:
-		//fmt.Printf("DEBUG tl.Layer() %v\n", l)
 		if err := l.SetNetworkLayerForChecksum(nl); err != nil {
 			panic(err)
 		}
@@ -172,7 +169,6 @@ func (taggedLayers TaggedLayers) SetChecksum(l4Tag, l3Tag string) {
 			panic(err)
 		}
 	default:
-		//fmt.Printf("DEBUG tl.Layer() %v\n", l)
 		panic(fmt.Errorf("SetChecksum: Invalid L4 network layer '%s'\n", l4Tag))
 	}
 }
@@ -192,7 +188,6 @@ func (taggedLayers TaggedLayers) String() string {
 	var str []string
 	for _, tl := range taggedLayers {
 		str = append(str, fmt.Sprintf("%s", tl))
-		//fmt.Printf("DEBUG tl.String()\n%s\n\n", tl)
 	}
 	return strings.Join(str, "\n")
 }

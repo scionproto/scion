@@ -111,20 +111,20 @@ func realMain() int {
 	switch borderID {
 	case "brA":
 		failures += testsBrA()
-		/*
-			case "core-brB":
-				brTests = genTestsCoreBrB(hashMac)
-			case "core-brC":
-				brTests = genTestsCoreBrC(hashMac)
-			case "brA":
-				brTests = genTestsBrA(hashMac)
-			case "brB":
-				brTests = genTestsBrB(hashMac)
-			case "brC":
-				brTests = genTestsBrC(hashMac)
-			case "brD":
-				brTests = genTestsBrD(hashMac)
-		*/
+	case "brB":
+		failures += testsBrB()
+	case "brC":
+		failures += testsBrC()
+	case "core-brA":
+		failures += testsBrCoreA()
+	/*
+		case "brD":
+			failures += testsBrD()
+		case "brCoreB":
+			failures += testsBrCoreB()
+		case "brCoreC":
+			failures += testsBrCoreC()
+	*/
 	default:
 		log.Crit("Wrong Border Router ID", "brID", borderID)
 		return 1

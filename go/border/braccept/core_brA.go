@@ -1,5 +1,3 @@
-// +build ignore
-//
 // Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,296 +14,251 @@
 
 package main
 
-import (
-	"hash"
+import "fmt"
 
-	"github.com/scionproto/scion/go/border/braccept/layers"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/layers"
-	"github.com/scionproto/scion/go/lib/scmp"
-)
+func testsBrCoreA() int {
+	var failures int
 
-var coreBrACtrlScionHdr = layers.NewGenCmnHdr(
-	"1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "BS_M", nil, common.L4UDP)
+	pkt0 := AllocatePacket()
+	pkt0.SetDev("ifid_local")
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
+		IP4: Src=192.168.0.11 Dst=192.168.0.61 NextHdr=UDP Flags=DF Checksum=0
+		UDP: Src=30041 Dst=30041
+		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=BS_M
+		UDP_1: Src=20001 Dst=0
+		IFStateReq:
+	`)
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
 
-var IgnoredPacketsCoreBrA = []*layers.ExpPkt{
-	{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-		layers.GenOverlayIP4UDP("192.168.0.11", 30041, "192.168.0.61", 30041),
-		coreBrACtrlScionHdr,
-		layers.NewUDP(20001, 0, &coreBrACtrlScionHdr.ScionLayer, ifStateReq),
-		ifStateReq,
-	}}}
+	IgnoredPackets(pkt0)
 
-func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
-	tests := []*BRTest{
-		{
-			Desc: "Single IFID core - external - local destination",
-			In: &layers.Pkt{
-				Dev: "ifid_121", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-					layers.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(C__)[0.211][121.0]", hMac, 1)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*layers.ExpPkt{
-				{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-					layers.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.51", 30041),
-					layers.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(C__)[0.211][121.0]", hMac, 1)},
-						),
-						common.L4UDP),
-					layers.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsCoreBrA,
-		},
-		{
-			Desc: "Single IFID core - internal - remote destination",
-			In: &layers.Pkt{
-				Dev: "ifid_local", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.11", 30001),
-					layers.NewValidScion("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1",
-						layers.GenPath(0, 0, layers.Segments{
-							segment("(C__)[0.121][211.0]", hMac, 0)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*layers.ExpPkt{
-				{Dev: "ifid_121", Layers: []layers.LayerMatcher{
-					layers.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
-					layers.NewGenCmnHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(C__)[0.121][211.0]", hMac, 0)},
-						),
-						common.L4UDP),
-					layers.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsCoreBrA,
-		},
-		{
-			Desc: "Single IFID core - Xover core/child",
-			In: &layers.Pkt{
-				Dev: "ifid_121", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-					layers.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(C__)[0.211][X_.121.0]", hMac, 1),
-							segment("(C__)[0.141][411.0]", hMac, 0)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*layers.ExpPkt{
-				{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-					layers.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.12", 30002),
-					layers.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1",
-						layers.GenPath(1, 0, layers.Segments{
-							segment("(C__)[0.211][X_.121.0]", hMac, 1),
-							segment("(C__)[0.141][411.0]", hMac, 0)},
-						),
-						common.L4UDP),
-					layers.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsCoreBrA,
-		},
-		{
-			Desc: "Single IFID core - Xover child/core",
-			In: &layers.Pkt{
-				Dev: "ifid_local", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.11", 30001),
-					layers.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-						layers.GenPath(1, 0, layers.Segments{
-							segment("(___)[411.0][X_.0.141]", hMac, 1),
-							segment("(___)[121.0][0.211]", hMac, 0)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*layers.ExpPkt{
-				{Dev: "ifid_121", Layers: []layers.LayerMatcher{
-					layers.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
-					layers.NewGenCmnHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-						layers.GenPath(1, 1, layers.Segments{
-							segment("(___)[411.0][X_.0.141]", hMac, 1),
-							segment("(___)[121.0][0.211]", hMac, 0)},
-						),
-						common.L4UDP),
-					layers.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsCoreBrA,
-		},
-		{
-			Desc: "Single IFID core - Empty overlay packet",
-			In: &layers.Pkt{
-				Dev: "ifid_121", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-				}},
-			Out:    []*layers.ExpPkt{},
-			Ignore: IgnoredPacketsCoreBrA,
-		},
-		{
-			Desc: "Single IFID core - Bad packet 7 Bytes",
-			In: &layers.Pkt{
-				Dev: "ifid_121", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-					layers.NewPld([]byte{1, 2, 3, 4, 5, 6, 7}),
-				}},
-			Out:    []*layers.ExpPkt{},
-			Ignore: IgnoredPacketsCoreBrA,
-		},
-	}
-	expScionHdr := layers.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:2", "172.16.2.1",
-		layers.GenPath(1, 0, layers.Segments{
-			segment("(___)[311.0][0.131]", hMac, 1),
-			segment("(___)[X_.121.0][0.211]", hMac, 0)},
-		),
-		common.HopByHopClass)
+	failures += core_if_core_local()
+	failures += core_if_local_core()
+	failures += core_if_xover_core_child()
+	failures += core_if_xover_child_core()
+	failures += core_if_revocation_to_local_isd()
 
-	expScmpHdrPld := layers.NewSCMP(scmp.C_Path, scmp.T_P_BadSegment, noTime,
-		&expScionHdr.ScionLayer, []layers.LayerBuilder{
-			layers.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-				layers.GenPath(1, 0, layers.Segments{
-					segment("(C__)[0.211][X_.121.0]", hMac, 1),
-					segment("(C__)[0.131][311.0]", hMac, 0)},
-				), nil,
-				&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)},
-		&scmp.InfoPathOffsets{InfoF: 1, HopF: 0, IfID: if_121, Ingress: true},
-		common.L4UDP)
+	ClearIgnoredPackets()
 
-	test := &BRTest{
-		Desc: "Single IFID core - Xover core-core - Bad Path",
-		In: &layers.Pkt{
-			Dev: "ifid_121", Layers: []layers.LayerBuilder{
-				layers.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-				layers.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-					layers.GenPath(0, 1, layers.Segments{
-						segment("(C__)[0.211][X_.121.0]", hMac, 1),
-						segment("(C__)[0.131][311.0]", hMac, 0)},
-					), nil,
-					&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-			}},
-		Out: []*layers.ExpPkt{
-			{Dev: "ifid_121", Layers: []layers.LayerMatcher{
-				layers.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
-				expScionHdr,
-				&layers.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true}},
-				expScmpHdrPld,
-			}}},
-		Ignore: IgnoredPacketsCoreBrA,
-	}
-	tests = append(tests, test)
+	return failures
+}
 
-	expScionHdr = layers.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:2", "172.16.2.1",
-		layers.GenPath(1, 0, layers.Segments{
-			segment("(___)[311.0][0.131]", hMac, 1),
-			segment("(___)[X_.121.0][0.211]", hMac, 0)},
-		),
-		common.HopByHopClass)
+func core_if_core_local() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.12.3 Dst=192.168.12.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:2 Src=172.16.2.1 DstIA=1-ff00:0:1 Dst=192.168.0.51
+			IF_1: ISD=1 Hops=2 Flags=ConsDir
+				HF_1: ConsIngress=0   ConsEgress=211
+				HF_2: ConsIngress=121 ConsEgress=0
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("ifid_121")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
 
-	expScmpHdrPld = layers.NewSCMP(scmp.C_Path, scmp.T_P_BadSegment, noTime,
-		&expScionHdr.ScionLayer, []layers.LayerBuilder{
-			layers.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-				layers.GenPath(1, 0, layers.Segments{
-					segment("(C__)[0.211][X_.121.0]", hMac, 1),
-					segment("(C__)[0.131][311.0]", hMac, 0)},
-				),
-				common.L4TCP),
-			layers.NewPld([]byte{1, 2, 3, 4, 5, 6, 7, 8})},
-		&scmp.InfoPathOffsets{InfoF: 1, HopF: 0, IfID: if_121, Ingress: true},
-		common.L4TCP)
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.11 Dst=192.168.0.51 Checksum=0
+		UDP: Src=30001 Dst=30041
+	`)
+	pkt1.SetDev("ifid_local")
+	pkt1.SetChecksum("UDP", "IP4")
 
-	test = &BRTest{
-		Desc: "Single IFID core - Xover core-core - Bad Path Unsupported L4",
-		In: &layers.Pkt{
-			Dev: "ifid_121", Layers: []layers.LayerBuilder{
-				layers.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-				layers.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-					layers.GenPath(0, 1, layers.Segments{
-						segment("(C__)[0.211][X_.121.0]", hMac, 1),
-						segment("(C__)[0.131][311.0]", hMac, 0)},
-					),
-					common.L4TCP),
-				layers.NewPld([]byte{1, 2, 3, 4, 5, 6, 7, 8}),
-			}},
-		Out: []*layers.ExpPkt{
-			{Dev: "ifid_121", Layers: []layers.LayerMatcher{
-				layers.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
-				expScionHdr,
-				&layers.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true}},
-				expScmpHdrPld,
-			}}},
-		Ignore: IgnoredPacketsCoreBrA,
-	}
-	tests = append(tests, test)
-	// We use a known IP ie. CS, so we already have ARP entry for it
-	revScionHdr := layers.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1",
-		layers.GenPath(0, 1, layers.Segments{
-			segment("(___)[211.0][X_.0.121]", hMac, 1),
-			segment("(C__)[X_.0.141][411.0]", hMac, 0)},
-		),
-		common.HopByHopClass)
+	SendPackets(pkt0)
 
-	sRevInfo := layers.MustSRevInfo(222, "1-ff00:0:2", "child", tsNow32, 60)
-	rev := layers.NewRevocation(0, 1, 222, false, sRevInfo)
+	return ExpectedPackets("Core IF - core/local", defaultTimeout, pkt1)
+}
 
-	revScmpHdrPld := layers.NewSCMP(scmp.C_Path, scmp.T_P_RevokedIF, now,
-		&revScionHdr.ScionLayer, []layers.LayerBuilder{
-			layers.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:9", "172.16.9.1",
-				layers.GenPath(1, 1, layers.Segments{
-					segment("(___)[411.0][X_.0.141]", hMac, 1),
-					segment("(C__)[X_.0.121][211.0]", hMac, 0)},
-				), nil,
-				&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)},
-		rev,
-		common.L4UDP)
+func core_if_local_core() int {
+	// XXX should we check both segments have Peer flag set? currently not required
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=30041 Dst=30001
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.51 DstIA=1-ff00:0:2 Dst=172.16.2.1
+			IF_1: ISD=1 Hops=2
+				HF_1: ConsIngress=121 ConsEgress=0
+				HF_2: ConsIngress=0   ConsEgress=211
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("ifid_local")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_1", "HF_2")
 
-	revPsScionHdr := layers.NewGenCmnHdr("1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "PS",
-		nil, common.L4UDP)
-	revBsScionHdr := layers.NewGenCmnHdr("1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "BS",
-		nil, common.L4UDP)
-	revPld := &layers.PathMgmtPld{
-		Signer:      infra.NullSigner,
-		SigVerifier: infra.NullSigVerifier,
-		Instance:    sRevInfo,
-	}
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.12.2 Dst=192.168.12.3 Checksum=0
+		UDP: Src=50000 Dst=40000
+		SCION: CurrHopF=6
+	`)
+	pkt1.SetDev("ifid_121")
+	pkt1.SetChecksum("UDP", "IP4")
 
-	revLocalFork := &BRTest{
-		Desc: "Single IFID core - Revocation to local destination, fork to PS and BS",
-		In: &layers.Pkt{
-			Dev: "ifid_121", Layers: []layers.LayerBuilder{
-				layers.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-				revScionHdr,
-				layers.NewSCMPExtn(common.L4SCMP, layers.ExtnSCMP{Error: true, HopByHop: true}),
-				revScmpHdrPld,
-			}},
-		Out: []*layers.ExpPkt{
-			{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-				layers.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.12", 30002),
-				layers.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1",
-					layers.GenPath(1, 0, layers.Segments{
-						segment("(___)[211.0][X_.0.121]", hMac, 1),
-						segment("(C__)[X_.0.141][411.0]", hMac, 0)},
-					),
-					common.HopByHopClass),
-				&layers.ScionSCMPExtn{ExtnSCMP: layers.ExtnSCMP{Error: true, HopByHop: true}},
-				revScmpHdrPld,
-			}},
-			{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-				layers.GenOverlayIP4UDP("192.168.0.11", 30041, "192.168.0.51", 30041),
-				revPsScionHdr,
-				layers.NewUDP(20001, 0, &revPsScionHdr.ScionLayer, revPld),
-				revPld,
-			}},
-			{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-				layers.GenOverlayIP4UDP("192.168.0.11", 30041, "192.168.0.61", 30041),
-				revBsScionHdr,
-				layers.NewUDP(20001, 0, &revBsScionHdr.ScionLayer, revPld),
-				revPld,
-			}}},
-		Ignore: IgnoredPacketsCoreBrA,
-	}
-	tests = append(tests, revLocalFork)
-	return tests
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Core IF - local/core", defaultTimeout, pkt1)
+}
+
+func core_if_xover_core_child() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.12.3 Dst=192.168.12.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:2 Src=172.16.2.1 DstIA=1-ff00:0:4 Dst=172.16.4.1
+			IF_1: ISD=1 Hops=2 Flags=ConsDir
+				HF_1: ConsIngress=0   ConsEgress=211
+				HF_2: ConsIngress=121 ConsEgress=0   Flags=Xover
+			IF_2: ISD=1 Hops=2 Flags=ConsDir
+				HF_3: ConsIngress=0   ConsEgress=141   Flags=Xover
+				HF_4: ConsIngress=411 ConsEgress=0
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("ifid_121")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+	pkt0.GenerateMac("SCION", "IF_2", "HF_3", "")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.11 Dst=192.168.0.12 Checksum=0
+		UDP: Src=30001 Dst=30002
+		SCION: CurrInfoF=7 CurrHopF=8
+	`)
+	pkt1.SetDev("ifid_local")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Core IF - Xover core/child", defaultTimeout, pkt1)
+}
+
+func core_if_xover_child_core() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.0.13 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=30003 Dst=30001
+		SCION: NextHdr=UDP CurrInfoF=7 CurrHopF=8 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:5 Src=172.16.5.1 DstIA=1-ff00:0:2 Dst=172.16.2.1
+			IF_1: ISD=1 Hops=2
+				HF_1: ConsIngress=411 ConsEgress=0
+				HF_2: ConsIngress=0   ConsEgress=141 Flags=Xover
+			IF_2: ISD=1 Hops=2
+				HF_3: ConsIngress=121 ConsEgress=0   Flags=Xover
+				HF_4: ConsIngress=0   ConsEgress=211
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("ifid_local")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "")
+	pkt0.GenerateMac("SCION", "IF_2", "HF_3", "HF_4")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.12.2 Dst=192.168.12.3 Checksum=0
+		UDP: Src=50000 Dst=40000
+		SCION: CurrHopF=9
+	`)
+	pkt1.SetDev("ifid_121")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Core IF - Xover child/core", defaultTimeout, pkt1)
+}
+
+func core_if_revocation_to_local_isd() int {
+	pktError := AllocatePacket()
+	pktError.ParsePacket(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=0.0.0.0 Dst=0.0.0.0 NextHdr=UDP Checksum=0
+		UDP: Dst=30041 Checksum=0
+		SCION: NextHdr=UDP CurrInfoF=7 CurrHopF=8 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:4 Src=172.16.4.1 DstIA=1-ff00:0:9 Dst=172.16.9.1
+			IF_1: ISD=1 Hops=2
+				HF_1: ConsIngress=411 ConsEgress=0
+				HF_2: ConsIngress=0   ConsEgress=141 Flags=Xover
+			IF_2: ISD=1 Hops=2
+				HF_3: ConsIngress=121 ConsEgress=0   Flags=Xover
+				HF_4: ConsIngress=0   ConsEgress=211
+		UDP_1: Src=40111 Dst=40222 Checksum=0
+	`)
+
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(fmt.Sprintf(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.12.3 Dst=192.168.12.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:2 Src=172.16.2.1 DstIA=1-ff00:0:4 Dst=172.16.4.1
+			IF_1: ISD=1 Hops=2 Flags=ConsDir
+				HF_1: ConsIngress=0   ConsEgress=211
+				HF_2: ConsIngress=121 ConsEgress=0   Flags=Xover
+			IF_2: ISD=1 Hops=2 Flags=ConsDir
+				HF_3: ConsIngress=0   ConsEgress=141 Flags=Xover
+				HF_4: ConsIngress=411 ConsEgress=0
+		HBH: NextHdr=SCMP Type=SCMP
+			HBH.SCMP: Flags=Error,HBH
+		SCMP: Class=PATH Type=REVOKED_IF Timestamp=now
+			InfoRevocation: InfoF=4 HopF=6 IfID=999 Ingress=false
+				SignedRevInfo: IfID=999 IA=1-ff00:0:9 Link=child TS=now TTL=10
+			QUOTED: RawPkt=%s
+	`, pktError.Serialize()))
+	pkt0.SetDev("ifid_121")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("SCMP", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+	pkt0.GenerateMac("SCION", "IF_2", "HF_3", "")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.11 Dst=192.168.0.12 Checksum=0
+		UDP: Src=30001 Dst=30002
+		SCION: CurrInfoF=7 CurrHopF=8
+	`)
+	pkt1.SetDev("ifid_local")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	pkt2 := AllocatePacket()
+	pkt2.ParsePacket(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
+		IP4: Src=192.168.0.11 Dst=192.168.0.51 NextHdr=UDP Flags=DF Checksum=0
+		UDP: Src=30041 Dst=30041
+		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=PS
+		UDP_1: Src=20001 Dst=0
+		SignedRevInfo: IfID=999 IA=1-ff00:0:9 Link=child TS=now TTL=10
+	`)
+	pkt2.SetDev("ifid_local")
+	pkt2.SetChecksum("UDP", "IP4")
+	pkt2.SetChecksum("UDP_1", "SCION")
+
+	pkt3 := pkt2.CloneAndUpdate(`
+		IP4: Dst=192.168.0.61
+		SCION:
+			ADDR: Dst=BS
+	`)
+	pkt3.SetDev("ifid_local")
+	pkt3.SetChecksum("UDP", "IP4")
+	pkt3.SetChecksum("UDP_1", "SCION")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Core IF - Revocation to local ISD, fork to PS and BS",
+		defaultTimeout, pkt1, pkt2, pkt3)
 }

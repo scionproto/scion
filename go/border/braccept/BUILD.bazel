@@ -5,7 +5,10 @@ go_library(
     name = "go_default_library",
     srcs = [
         "brA.go",
+        "brB.go",
+        "brC.go",
         "compare.go",
+        "core_brA.go",
         "dev_pkt.go",
         "dev_tagged_layers.go",
         "expect.go",
