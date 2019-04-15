@@ -34,7 +34,8 @@ type BeaconInserter interface {
 	InsertBeacons(ctx context.Context, beacon ...beacon.Beacon) error
 }
 
-// NewHandler returns an infra.Handler for PCB messages.
+// NewHandler returns an infra.Handler for beacon messages. Both the beacon
+// inserter and verifier must not be nil. Otherwise, the handler might panic.
 func NewHandler(ia addr.IA, infos *ifstate.Infos, beaconInserter BeaconInserter,
 	verifier infra.Verifier) infra.Handler {
 
@@ -60,6 +61,7 @@ type handler struct {
 	request  *infra.Request
 }
 
+// Handle handles a beacon.
 func (h *handler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	res, err := h.handle(logger)

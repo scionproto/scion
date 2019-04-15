@@ -17,6 +17,7 @@ package propagation
 import (
 	"context"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -43,9 +44,13 @@ var (
 	localIF = graph.If_110_X_120_A
 )
 
-func TestNewHandler(t *testing.T) {
-	// Disable logging in all tests
+// Disable logging in all tests
+func TestMain(m *testing.M) {
 	log.Root().SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
+}
+
+func TestNewHandler(t *testing.T) {
 	Convey("NewHandler crates a correct handler", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
