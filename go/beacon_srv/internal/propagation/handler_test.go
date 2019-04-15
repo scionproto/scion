@@ -69,7 +69,7 @@ func TestNewHandler(t *testing.T) {
 			verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
 				gomock.Any()).MaxTimes(2).Return(nil)
 
-			handler := NewHandler(localIA, testInfos(t), inserter, verifier)
+			handler := NewHandler(localIA, testInterfaces(t), inserter, verifier)
 			res := handler.Handle(defaultTestReq(bseg))
 			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
 		})
@@ -77,8 +77,8 @@ func TestNewHandler(t *testing.T) {
 			inserter := mock_propagation.NewMockBeaconInserter(mctrl)
 			verifier := mock_infra.NewMockVerifier(mctrl)
 
-			infos := testInfos(t)
-			handler := NewHandler(localIA, infos, inserter, verifier)
+			intfs := testInterfaces(t)
+			handler := NewHandler(localIA, intfs, inserter, verifier)
 			Convey("Wrong payload type", func() {
 				req := infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
 					&snet.Addr{Path: testPath(localIF)}, 0)
@@ -159,7 +159,7 @@ func TestNewHandler(t *testing.T) {
 					verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
 						gomock.Any()).MaxTimes(2).Return(common.NewBasicError("failed", nil))
 
-					handler := NewHandler(localIA, infos, inserter, verifier)
+					handler := NewHandler(localIA, intfs, inserter, verifier)
 					res := handler.Handle(defaultTestReq(bseg))
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 				})
@@ -174,7 +174,7 @@ func TestNewHandler(t *testing.T) {
 					verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
 						gomock.Any()).MaxTimes(2).Return(nil)
 
-					handler := NewHandler(localIA, infos, inserter, verifier)
+					handler := NewHandler(localIA, intfs, inserter, verifier)
 					res := handler.Handle(defaultTestReq(bseg))
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInternal)
 				})
@@ -205,10 +205,10 @@ func testPath(ingressIfid common.IFIDType) *spath.Path {
 	return path
 }
 
-func testInfos(t *testing.T) *ifstate.Infos {
-	infos := ifstate.NewInfos(testTopo(t).IFInfoMap, ifstate.Config{})
-	infos.Get(graph.If_110_X_120_A).Activate(graph.If_120_A_110_X)
-	return infos
+func testInterfaces(t *testing.T) *ifstate.Interfaces {
+	intfs := ifstate.NewInterfaces(testTopo(t).IFInfoMap, ifstate.Config{})
+	intfs.Get(graph.If_110_X_120_A).Activate(graph.If_120_A_110_X)
+	return intfs
 }
 
 func testTopo(t *testing.T) *topology.Topo {
