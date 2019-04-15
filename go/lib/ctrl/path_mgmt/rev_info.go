@@ -62,7 +62,7 @@ type RevInfo struct {
 
 func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
 	r := &RevInfo{}
-	return r, proto.ParseFromRaw(r, r.ProtoId(), b)
+	return r, proto.ParseFromRaw(r, b)
 }
 
 func (r *RevInfo) IA() addr.IA {
@@ -148,7 +148,7 @@ type SignedRevInfo struct {
 
 func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
 	sr := &SignedRevInfo{}
-	return sr, proto.ParseFromRaw(sr, sr.ProtoId(), b)
+	return sr, proto.ParseFromRaw(sr, b)
 }
 
 func NewSignedRevInfo(r *RevInfo, s *proto.SignS) (*SignedRevInfo, error) {

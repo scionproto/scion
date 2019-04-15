@@ -39,7 +39,7 @@ type IFID struct {
 
 func NewFromRaw(b common.RawBytes) (*IFID, error) {
 	i := &IFID{}
-	return i, proto.ParseFromRaw(i, i.ProtoId(), b)
+	return i, proto.ParseFromRaw(i, b)
 }
 
 func (i *IFID) ProtoId() proto.ProtoIdType {

@@ -70,6 +70,18 @@ func PackRoot(c Cerealizable) (common.RawBytes, error) {
 	return raw, nil
 }
 
+// SerializeTo writes a Cerealizable object to an io.Writer.
+func SerializeTo(c Cerealizable, wr io.Writer) error {
+	msg, err := cerealInsert(c)
+	if err != nil {
+		return err
+	}
+	if err := capnp.NewPackedEncoder(wr).Encode(msg); err != nil {
+		return err
+	}
+	return nil
+}
+
 func cerealInsert(c Cerealizable) (*capnp.Message, error) {
 	msg, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
@@ -87,13 +99,22 @@ func cerealInsert(c Cerealizable) (*capnp.Message, error) {
 	return msg, nil
 }
 
-// ReadRootFromRaw returns the root struct from a capnp message encoded in b.
-func ReadRootFromRaw(b common.RawBytes) (capnp.Struct, error) {
-	return ReadRootFromReader(bytes.NewBuffer(b))
+// ParseFromRaw is a utility function, which reads a capnp message from b and parses it into c.
+func ParseFromRaw(c Cerealizable, b common.RawBytes) error {
+	return ParseFromReader(c, bytes.NewBuffer(b))
 }
 
-// ReadRootFromReader returns the root struct from a capnp message read from r.
-func ReadRootFromReader(r io.Reader) (_ capnp.Struct, err error) {
+// ParseFromReader is a utility function, which reads a capnp message from r and parses it into c.
+func ParseFromReader(c Cerealizable, r io.Reader) error {
+	s, err := readRootFromReader(r)
+	if err != nil {
+		return err
+	}
+	return parseStruct(c, s)
+}
+
+// readRootFromReader returns the root struct from a capnp message read from r.
+func readRootFromReader(r io.Reader) (_ capnp.Struct, err error) {
 	// Convert capnp panics to errors
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -112,26 +133,10 @@ func ReadRootFromReader(r io.Reader) (_ capnp.Struct, err error) {
 	return rootPtr.Struct(), nil
 }
 
-// ParseStruct parses a capnp struct into a Cerealizable instance.
-func ParseStruct(c Cerealizable, pType ProtoIdType, s capnp.Struct) error {
-	if err := pogs.Extract(c, uint64(pType), s); err != nil {
+// parseStruct parses a capnp struct into a Cerealizable instance.
+func parseStruct(c Cerealizable, s capnp.Struct) error {
+	if err := pogs.Extract(c, uint64(c.ProtoId()), s); err != nil {
 		return common.NewBasicError("Failed to extract struct from capnp message", err)
 	}
 	return nil
-}
-
-// ParseFromRaw is a utility function, which reads a capnp message from b and parses it into c.
-// It is effectively a composition of ReadRootFromRaw and ParseStruct.
-func ParseFromRaw(c Cerealizable, pType ProtoIdType, b common.RawBytes) error {
-	return ParseFromReader(c, pType, bytes.NewBuffer(b))
-}
-
-// ParseFromReader is a utility function, which reads a capnp message from r and parses it into c.
-// It is effectively a composition of ReadRootFromReader and ParseStruct.
-func ParseFromReader(c Cerealizable, pType ProtoIdType, r io.Reader) error {
-	s, err := ReadRootFromReader(r)
-	if err != nil {
-		return err
-	}
-	return ParseStruct(c, pType, s)
 }
