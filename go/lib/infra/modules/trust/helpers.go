@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // FIXME(scrye): Reconsider whether these functions should access the trust
@@ -51,6 +52,7 @@ func CreateSignMeta(ctx context.Context, ia addr.IA,
 			ChainVer: c.Leaf.Version,
 			TRCVer:   t.Version,
 		},
+		ExpTime: util.SecsToTime(c.Leaf.ExpirationTime),
 	}
 	return meta, nil
 }

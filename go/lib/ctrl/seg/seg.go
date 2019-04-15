@@ -48,8 +48,17 @@ type Verifier interface {
 var _ proto.Cerealizable = (*Beacon)(nil)
 
 // Beacon is kept for compatibility with python code.
+// Before using the enclosed segment, the beacon should be parsed.
 type Beacon struct {
 	Segment *PathSegment `capnp:"pathSeg"`
+}
+
+// Parse parses and validates the enclosed path segment.
+func (b *Beacon) Parse() error {
+	if b.Segment == nil {
+		return common.NewBasicError("Beacon does not contain a segment", nil)
+	}
+	return b.Segment.ParseRaw(ValidateBeacon)
 }
 
 func (b *Beacon) ProtoId() proto.ProtoIdType {
@@ -62,6 +71,23 @@ func (b *Beacon) String() string {
 	}
 	return b.Segment.String()
 }
+
+// ValidationMethod is the method that is used during validation.
+type ValidationMethod bool
+
+const (
+	// ValidateSegment validates that remote ingress and egress ISD-AS for
+	// each AS entry are consistent with the segment. The ingress ISD-AS of
+	// the first entry, and the egress ISD-AS of the last entry must be the
+	// zero value. Additionally, it is validated that each hop field is
+	// parsable.
+	ValidateSegment ValidationMethod = false
+	// ValidateBeacon validates the segment in the same manner as
+	// ValidateSegment, except for the last AS entry. The egress values for
+	// the last AS entry are ignored, since they are under construction in
+	// a beacon.
+	ValidateBeacon ValidationMethod = true
+)
 
 var _ proto.Cerealizable = (*PathSegment)(nil)
 
@@ -76,6 +102,8 @@ type PathSegment struct {
 	fullId    common.RawBytes
 }
 
+// NewSeg creates a new path segment with the specified info field. The AS
+// entries are empty and should be added using AddASEntry.
 func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
 	pss := newPathSegmentSignedData(infoF)
 	rawPss, err := proto.PackRoot(pss)
@@ -86,16 +114,27 @@ func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
 	return ps, nil
 }
 
+// NewSegFromRaw creates a segment from raw data.
 func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
+	return newSegFromRaw(b, ValidateSegment)
+}
+
+// NewBeaconFromRaw creates a segment from raw data. The last AS entry is
+// not assumed to terminate the path segment.
+func NewBeaconFromRaw(b common.RawBytes) (*PathSegment, error) {
+	return newSegFromRaw(b, ValidateBeacon)
+}
+
+func newSegFromRaw(b common.RawBytes, validationMethod ValidationMethod) (*PathSegment, error) {
 	ps := &PathSegment{}
 	err := proto.ParseFromRaw(ps, ps.ProtoId(), b)
 	if err != nil {
 		return nil, err
 	}
-	return ps, ps.ParseRaw()
+	return ps, ps.ParseRaw(validationMethod)
 }
 
-func (ps *PathSegment) ParseRaw() error {
+func (ps *PathSegment) ParseRaw(validationMethod ValidationMethod) error {
 	var err error
 	ps.SData, err = NewPathSegmentSignedDataFromRaw(ps.RawSData)
 	if err != nil {
@@ -108,7 +147,7 @@ func (ps *PathSegment) ParseRaw() error {
 			return err
 		}
 	}
-	return ps.Validate()
+	return ps.Validate(validationMethod)
 }
 
 // ID returns a hash of the segment covering all hops, except for peerings.
@@ -158,7 +197,10 @@ func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
 	return ps.SData.InfoF()
 }
 
-func (ps *PathSegment) Validate() error {
+// Validate validates that remote ingress and egress ISD-AS for each AS
+// entry are consistent with the segment. In case a beacon is validated,
+// the egress ISD-AS of the last AS entry is ignored.
+func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 	if err := ps.SData.Validate(); err != nil {
 		return err
 	}
@@ -180,7 +222,10 @@ func (ps *PathSegment) Validate() error {
 		if i < len(ps.ASEntries)-1 {
 			nextIA = ps.ASEntries[i+1].IA()
 		}
-		if err := ps.ASEntries[i].Validate(prevIA, nextIA); err != nil {
+		// The last AS entry in a beacon should ignore whether the next IA
+		// matches, since it is not set yet.
+		ignoreNext := i == len(ps.ASEntries)-1 && (validationMethod == ValidateBeacon)
+		if err := ps.ASEntries[i].Validate(prevIA, nextIA, ignoreNext); err != nil {
 			return err
 		}
 	}

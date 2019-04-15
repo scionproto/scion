@@ -142,7 +142,7 @@ func insertSegs(t *testing.T, pathDB pathdb.PathDB, segs []*seg.PathSegment, st 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	for _, s := range segs {
-		err := s.Validate()
+		err := s.Validate(seg.ValidateSegment)
 		xtest.FailOnErr(t, err)
 		_, err = pathDB.Insert(ctx, seg.NewMeta(s, st))
 		xtest.FailOnErr(t, err)
