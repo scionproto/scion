@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package svc implements support for SVC Resolution.
 package svc
 
 import (
