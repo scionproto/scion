@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package onehop provides a sender for messages sent on a one-hop path.
 package onehop
 
 import (
