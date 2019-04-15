@@ -39,11 +39,13 @@ var _ periodic.Task = (*Originator)(nil)
 type Originator struct {
 	sender  *onehop.Sender
 	cfg     Config
-	ifState *ifstate.Infos
+	ifState *ifstate.Interfaces
 }
 
 // NewOriginator creates a new originator. It takes ownership of the one-hop sender.
-func NewOriginator(infos *ifstate.Infos, cfg Config, sender *onehop.Sender) (*Originator, error) {
+func NewOriginator(intfs *ifstate.Interfaces, cfg Config,
+	sender *onehop.Sender) (*Originator, error) {
+
 	cfg.InitDefaults()
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -51,25 +53,27 @@ func NewOriginator(infos *ifstate.Infos, cfg Config, sender *onehop.Sender) (*Or
 	o := &Originator{
 		sender:  sender,
 		cfg:     cfg,
-		ifState: infos,
+		ifState: intfs,
 	}
 	return o, nil
 }
 
 // Run originates core and downstream beacons.
 func (o *Originator) Run(_ context.Context) {
-	infos := o.ifState.All()
-	o.originateBeacons(infos, proto.LinkType_core)
-	o.originateBeacons(infos, proto.LinkType_child)
+	intfs := o.ifState.All()
+	o.originateBeacons(intfs, proto.LinkType_core)
+	o.originateBeacons(intfs, proto.LinkType_child)
 }
 
 // originateBeacons creates and sends a beacon for each active interface of
 // the specified link type.
-func (o *Originator) originateBeacons(infos map[common.IFIDType]*ifstate.Info, lt proto.LinkType) {
+func (o *Originator) originateBeacons(intfs map[common.IFIDType]*ifstate.Interface,
+	linkType proto.LinkType) {
+
 	infoF := o.createInfoF(time.Now())
-	for ifid, info := range infos {
+	for ifid, info := range intfs {
 		intf := info.TopoInfo()
-		if intf.LinkType != lt {
+		if intf.LinkType != linkType {
 			continue
 		}
 		state := info.State()

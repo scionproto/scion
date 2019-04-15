@@ -44,7 +44,7 @@ func TestOriginatorRun(t *testing.T) {
 	setupItopo(t)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
-	infos := ifstate.NewInfos(itopo.Get().IFInfoMap, ifstate.Config{})
+	intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	xtest.FailOnErr(t, err)
 	wconn, rconn := p2p.NewPacketConns()
@@ -60,7 +60,7 @@ func TestOriginatorRun(t *testing.T) {
 	})
 	xtest.FailOnErr(t, err)
 
-	o, err := NewOriginator(infos,
+	o, err := NewOriginator(intfs,
 		Config{
 			MTU:    uint16(itopo.Get().MTU),
 			Signer: signer,
@@ -89,8 +89,8 @@ func TestOriginatorRun(t *testing.T) {
 			}
 			close(done)
 		}()
-		infos.Get(41).Activate(82)
-		infos.Get(42).Activate(84)
+		intfs.Get(41).Activate(82)
+		intfs.Get(42).Activate(84)
 		// Start beacon messages.
 		o.Run(nil)
 		<-done
@@ -136,7 +136,7 @@ func TestOriginatorRun(t *testing.T) {
 			SoMsg("hopF.ExpTime", hopF.ExpTime, ShouldEqual, expiry)
 
 			// Check the hop entry is set correctly.
-			intf := infos.Get(hopF.ConsEgress)
+			intf := intfs.Get(hopF.ConsEgress)
 			SoMsg("Intf exists", intf, ShouldNotBeNil)
 			SoMsg("Hop.InIA", hop.InIA(), ShouldResemble, addr.IA{})
 			SoMsg("Hop.InIf", hop.RemoteInIF, ShouldBeZeroValue)
