@@ -53,22 +53,15 @@ func ScionParser(lines []string) TaggedLayer {
 	for i := range lines {
 		line := lines[i]
 
-		layerType, tag, kvStr := decodeLayerLine(line)
-		kvs := getKeyValueMap(kvStr)
+		layerType, tag, _ := decodeLayerLine(line)
 		switch layerType {
-		case "SCION":
-			scn.tag = tag
-			scn.updateCommon(kvs)
-		case "ADDR":
-			scn.updateAddr(kvs)
 		case "IF":
-			scn.newIF(tag, kvs)
+			scn.newIF(tag)
 		case "HF":
-			scn.newHF(tag, kvs)
-		default:
-			panic(fmt.Errorf("Unknown SCION sub layer type '%s'\n", layerType))
+			scn.newHF(tag)
 		}
 	}
+	scn.Update(lines)
 	return scn
 }
 
@@ -96,6 +89,7 @@ func (scn *ScionTaggedLayer) Update(lines []string) {
 		kvs := getKeyValueMap(kvStr)
 		switch layerType {
 		case "SCION":
+			scn.tag = tag
 			scn.updateCommon(kvs)
 		case "ADDR":
 			scn.updateAddr(kvs)
@@ -202,13 +196,12 @@ func (scn *ScionTaggedLayer) updateAddr(kvs propMap) {
 	}
 }
 
-func (scn *ScionTaggedLayer) newIF(tag string, kvs propMap) {
+func (scn *ScionTaggedLayer) newIF(tag string) {
 	seg := &layers.Segment{}
 	inf := &spath.InfoField{TsInt: shared.TsNow32}
 	seg.Inf = inf
 	scn.Path.Segs = append(scn.Path.Segs, seg)
 	scn.addTag(tag, inf)
-	updateFieldsIF(inf, kvs)
 }
 
 func (scn *ScionTaggedLayer) updateIF(tag string, kvs propMap) {
@@ -259,16 +252,15 @@ func updateFlagsIF(inf *spath.InfoField, flags string) {
 
 // Add Hop Field to the last segment of the path
 // Panic if there is no segment
-func (scn *ScionTaggedLayer) newHF(tag string, kvs propMap) {
+func (scn *ScionTaggedLayer) newHF(tag string) {
 	if len(scn.Path.Segs) == 0 {
-		panic(fmt.Errorf("No segment for HF"))
+		panic(fmt.Errorf("No segment for HF '%s'", tag))
 	}
 	seg := scn.Path.Segs[len(scn.Path.Segs)-1]
 	hf := &spath.HopField{}
 	hf.Mac = common.RawBytes{0xc0, 0xff, 0xee}
 	seg.Hops = append(seg.Hops, hf)
 	scn.addTag(tag, hf)
-	updateFieldsHF(hf, kvs)
 }
 
 func (scn *ScionTaggedLayer) updateHF(tag string, kvs propMap) {

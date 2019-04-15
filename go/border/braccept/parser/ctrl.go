@@ -36,12 +36,8 @@ type IFStateReqTaggedLayer struct {
 
 // IFStateReqParser parses an Interface State Request with the following syntax:
 //
-// IFStateReq: IfID=121 Active=true
+// IFStateReq: IfID=121
 //
-// IFStateReq: IfID=121 Active=false
-//     SignRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=60
-//
-// The SignedRevInfo is optional.
 func IFStateReqParser(lines []string) TaggedLayer {
 	// default IFStateReq layer values
 	i := &IFStateReqTaggedLayer{}
@@ -67,12 +63,11 @@ func (i *IFStateReqTaggedLayer) Update(lines []string) {
 	if len(lines) != 1 {
 		panic(fmt.Errorf("Bad IFStateReq layer!\n%s\n", lines))
 	}
-	line := lines[0]
-	_, tag, kvStr := decodeLayerLine(line)
+	_, tag, kvStr := decodeLayerLine(lines[0])
 	i.tag = tag
 
 	kvs := getKeyValueMap(kvStr)
-	i.updateIFStateFields(kvs)
+	i.updateFields(kvs)
 	pmpld, err := path_mgmt.NewPld(&i.IFStateReq, nil)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to generate PathMgmt payload: %s\n%s\n",
@@ -86,7 +81,7 @@ func (i *IFStateReqTaggedLayer) Update(lines []string) {
 	copy(i.Payload, blob)
 }
 
-func (i *IFStateReqTaggedLayer) updateIFStateFields(kvs propMap) {
+func (i *IFStateReqTaggedLayer) updateFields(kvs propMap) {
 	for k, v := range kvs {
 		switch k {
 		case "IfID":
@@ -115,6 +110,7 @@ type IFStateInfoTaggedLayer struct {
 //     SignRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=60
 //
 // The SignedRevInfo is optional.
+//
 func IFStateInfoParser(lines []string) TaggedLayer {
 	// default IFStateInfo layer values
 	i := &IFStateInfoTaggedLayer{}
@@ -145,9 +141,14 @@ func (i *IFStateInfoTaggedLayer) Update(lines []string) {
 	i.tag = tag
 
 	kvs := getKeyValueMap(kvStr)
-	i.updateIFStateFields(kvs)
+	i.updateFields(kvs)
 	if len(lines) == 2 {
-		i.RevInfo.parse(lines[1])
+		layerType, _, kvStr := decodeLayerLine(lines[1])
+		if layerType != "SignedRevInfo" {
+			panic(fmt.Errorf("Bad SignedRevInfo layer!\n%s\n", lines[1]))
+		}
+		kvs := getKeyValueMap(kvStr)
+		i.RevInfo.updateFields(kvs)
 		i.SRevInfo = i.RevInfo.sign()
 	}
 	infos := &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{&i.IFStateInfo}}
@@ -164,7 +165,7 @@ func (i *IFStateInfoTaggedLayer) Update(lines []string) {
 	copy(i.Payload, blob)
 }
 
-func (i *IFStateInfoTaggedLayer) updateIFStateFields(kvs propMap) {
+func (i *IFStateInfoTaggedLayer) updateFields(kvs propMap) {
 	for k, v := range kvs {
 		switch k {
 		case "IfID":

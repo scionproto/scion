@@ -20,7 +20,6 @@ func testsBrA() int {
 	var failures int
 
 	pkt0 := AllocatePacket()
-	pkt0.SetDev("ifid_local")
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
 		IP4: Src=192.168.0.11 Dst=192.168.0.61 NextHdr=UDP Flags=DF Checksum=0
@@ -30,15 +29,16 @@ func testsBrA() int {
 		UDP_1: Src=20001 Dst=0
 		IFStateReq:
 	`)
+	pkt0.SetDev("ifid_local")
 	pkt0.SetChecksum("UDP", "IP4")
 	pkt0.SetChecksum("UDP_1", "SCION")
 
 	IgnoredPackets(pkt0)
 
-	failures += xover_peer_local()
-	failures += xover_local_peer()
-	failures += xover_peer_child()
-	failures += xover_child_peer()
+	failures += peer_if_xover_peer_local()
+	failures += peer_if_xover_local_peer()
+	failures += peer_if_xover_peer_child()
+	failures += peer_if_xover_child_peer()
 	failures += revocation_owned_peer()
 
 	ClearIgnoredPackets()
@@ -46,10 +46,9 @@ func testsBrA() int {
 	return failures
 }
 
-func xover_peer_local() int {
+func peer_if_xover_peer_local() int {
 	// Xover peer/local
 	pkt0 := AllocatePacket()
-	pkt0.SetDev("ifid_121")
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
 		IP4: Src=192.168.12.3 Dst=192.168.12.2 NextHdr=UDP Flags=DF
@@ -66,6 +65,7 @@ func xover_peer_local() int {
 				HF_6: ConsIngress=161 ConsEgress=0   Flags=Xover
 		UDP_1: Src=40111 Dst=40222
 	`)
+	pkt0.SetDev("ifid_121")
 	pkt0.SetChecksum("UDP", "IP4")
 	pkt0.SetChecksum("UDP_1", "SCION")
 	pkt0.GenerateMac("SCION", "IF_2", "HF_5", "HF_4")
@@ -80,14 +80,13 @@ func xover_peer_local() int {
 
 	SendPackets(pkt0)
 
-	return ExpectedPackets("Xover peer/local", defaultTimeout, pkt1)
+	return ExpectedPackets("Peer IF - Xover peer/local", defaultTimeout, pkt1)
 }
 
-func xover_local_peer() int {
+func peer_if_xover_local_peer() int {
 	// Xover local/peer
 	// XXX should we check both segments have Peer flag set? currently not required
 	pkt0 := AllocatePacket()
-	pkt0.SetDev("ifid_local")
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
 		IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
@@ -104,6 +103,7 @@ func xover_local_peer() int {
 				HF_6: ConsIngress=261 ConsEgress=0   Flags=Xover
 		UDP_1: Src=40111 Dst=40222
 	`)
+	pkt0.SetDev("ifid_local")
 	pkt0.SetChecksum("UDP", "IP4")
 	pkt0.SetChecksum("UDP_1", "SCION")
 	pkt0.GenerateMac("SCION", "IF_1", "HF_1", "HF_3")
@@ -120,13 +120,12 @@ func xover_local_peer() int {
 
 	SendPackets(pkt0)
 
-	return ExpectedPackets("Xover local/peer", defaultTimeout, pkt1)
+	return ExpectedPackets("Peer IF - Xover local/peer", defaultTimeout, pkt1)
 }
 
-func xover_peer_child() int {
+func peer_if_xover_peer_child() int {
 	// Xover peer/child
 	pkt0 := AllocatePacket()
-	pkt0.SetDev("ifid_121")
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
 		IP4: Src=192.168.12.3 Dst=192.168.12.2 NextHdr=UDP Flags=DF
@@ -144,6 +143,7 @@ func xover_peer_child() int {
 				HF_7: ConsIngress=511 ConsEgress=0
 		UDP_1: Src=40111 Dst=40222
 	`)
+	pkt0.SetDev("ifid_121")
 	pkt0.SetChecksum("UDP", "IP4")
 	pkt0.SetChecksum("UDP_1", "SCION")
 	pkt0.GenerateMac("SCION", "IF_2", "HF_6", "HF_4")
@@ -160,13 +160,12 @@ func xover_peer_child() int {
 
 	SendPackets(pkt0)
 
-	return ExpectedPackets("Xover peer/child", defaultTimeout, pkt1)
+	return ExpectedPackets("Peer IF - Xover peer/child", defaultTimeout, pkt1)
 }
 
-func xover_child_peer() int {
+func peer_if_xover_child_peer() int {
 	// Xover child/peer
 	pkt0 := AllocatePacket()
-	pkt0.SetDev("ifid_local")
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
 		IP4: Src=192.168.0.13 Dst=192.168.0.11 NextHdr=UDP Flags=DF
@@ -184,6 +183,7 @@ func xover_child_peer() int {
 				HF_7: ConsIngress=261 ConsEgress=0   Flags=Xover
 		UDP_1: Src=40111 Dst=40222
 	`)
+	pkt0.SetDev("ifid_local")
 	pkt0.SetChecksum("UDP", "IP4")
 	pkt0.SetChecksum("UDP_1", "SCION")
 	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_4")
@@ -200,12 +200,11 @@ func xover_child_peer() int {
 
 	SendPackets(pkt0)
 
-	return ExpectedPackets("Xover child/peer", defaultTimeout, pkt1)
+	return ExpectedPackets("Peer IF - Xover child/peer", defaultTimeout, pkt1)
 }
 
 func revocation_owned_peer() int {
 	ifStateDown := AllocatePacket()
-	ifStateDown.SetDev("ifid_local")
 	ifStateDown.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
 		IP4: Src=192.168.0.61 Dst=192.168.0.11 NextHdr=UDP Flags=DF
@@ -216,6 +215,7 @@ func revocation_owned_peer() int {
 		IFStateInfo: IfID=121 Active=false
 			SignedRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=10
 	`)
+	ifStateDown.SetDev("ifid_local")
 	ifStateDown.SetChecksum("UDP", "IP4")
 	ifStateDown.SetChecksum("UDP_1", "SCION")
 
@@ -223,7 +223,6 @@ func revocation_owned_peer() int {
 	Sleep("250ms")
 
 	pkt0 := AllocatePacket()
-	pkt0.SetDev("ifid_local")
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
 		IP4: Src=192.168.0.13 Dst=192.168.0.11 NextHdr=UDP Flags=DF
@@ -241,6 +240,7 @@ func revocation_owned_peer() int {
 				HF_7: ConsIngress=261 ConsEgress=0   Flags=Xover
 		UDP_1: Src=40111 Dst=40222
 	`)
+	pkt0.SetDev("ifid_local")
 	pkt0.SetChecksum("UDP", "IP4")
 	pkt0.SetChecksum("UDP_1", "SCION")
 	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_4")
@@ -248,7 +248,6 @@ func revocation_owned_peer() int {
 
 	// SCMP revocation reply (reversed SCION header) from the BR to the source of the packet.
 	pkt1 := AllocatePacket()
-	pkt1.SetDev("ifid_local")
 	pkt1.ParsePacket(fmt.Sprintf(`
 		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
 		IP4: Src=192.168.0.11 Dst=192.168.0.13 NextHdr=UDP Flags=DF Checksum=0
@@ -271,13 +270,14 @@ func revocation_owned_peer() int {
 				SignedRevInfo: IfID=121 IA=1-ff00:0:1 Link=peer TS=now TTL=10
 			QUOTED: RawPkt=%s
 	`, pkt0.Serialize()))
+	pkt1.SetDev("ifid_local")
 	pkt1.SetChecksum("SCMP", "SCION")
 	pkt1.GenerateMac("SCION", "IF_2", "HF_5", "HF_4")
 	pkt1.GenerateMac("SCION", "IF_2", "HF_6", "HF_4")
 
 	SendPackets(pkt0)
 
-	ret := ExpectedPackets("Revoked Peer Interface", defaultTimeout, pkt1)
+	ret := ExpectedPackets("Peer IF - Revoked", defaultTimeout, pkt1)
 
 	ifStateUp := ifStateDown.CloneAndUpdate(`
 		IFStateInfo: Active=false

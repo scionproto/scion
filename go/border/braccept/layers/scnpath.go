@@ -23,77 +23,57 @@ import (
 )
 
 type ScnPath struct {
-	Segs Segments
+	Segs []*Segment
 	raw  common.RawBytes
 }
 
-func (p ScnPath) Parse(b common.RawBytes) error {
-	p.raw = b
-	_, err := p.Segs.Parse(b)
-	return err
-}
-
-func (p ScnPath) WriteTo(b common.RawBytes) error {
-	p.raw = b[:p.Len()]
-	_, err := p.Segs.WriteTo(b)
-	return err
-}
-
-func (p ScnPath) Len() int {
-	return p.Segs.Len()
-}
-
-func (p *ScnPath) String() string {
-	return p.Segs.String()
-}
-
-type Segments []*Segment
-
-func (segs Segments) Len() int {
-	l := 0
-	for i := range segs {
-		l += segs[i].Len()
-	}
-	return l
-}
-
-func (segs Segments) Parse(b common.RawBytes) (int, error) {
+func (p *ScnPath) Parse(b common.RawBytes) error {
 	if len(b) == 0 {
-		return 0, nil
+		return nil
 	}
+	p.raw = b
 	offset := 0
 	for offset < len(b) {
 		seg := &Segment{}
 		l, err := seg.Parse(b[offset:])
 		if err != nil {
-			return 0, err
+			return err
 		}
-		segs = append(segs, seg)
+		p.Segs = append(p.Segs, seg)
 		offset += l
 	}
-	return offset, nil
+	return nil
 }
 
-func (segs Segments) WriteTo(b common.RawBytes) (int, error) {
-	if segs == nil || len(segs) == 0 {
-		return 0, nil
+func (p *ScnPath) WriteTo(b common.RawBytes) error {
+	if p.Segs == nil || len(p.Segs) == 0 {
+		return nil
 	}
+	p.raw = b[:p.Len()]
 	offset := 0
-	for i := range segs {
-		n, err := segs[i].WriteTo(b[offset:])
+	for i := range p.Segs {
+		n, err := p.Segs[i].WriteTo(b[offset:])
 		if err != nil {
-			return offset, nil
+			return err
 		}
 		offset += n
 	}
-	return offset, nil
+	return nil
 }
 
-func (segs Segments) String() string {
-	return PrintSegments(segs, "", " ")
+func (p *ScnPath) Len() int {
+	l := 0
+	for i := range p.Segs {
+		l += p.Segs[i].Len()
+	}
+	return l
 }
 
-func PrintSegments(segs Segments, indent, sep string) string {
+func (p *ScnPath) String() string {
+	return PrintSegments(p.Segs, "", " ")
+}
+
+func PrintSegments(segs []*Segment, indent, sep string) string {
 	var str []string
 	for _, s := range segs {
 		str = append(str, fmt.Sprintf("%s%s", indent, s))

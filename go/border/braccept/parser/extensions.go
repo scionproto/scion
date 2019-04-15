@@ -29,7 +29,6 @@ var _ gopacket.Layer = (*HBHTaggedLayer)(nil)
 
 type HBHTaggedLayer struct {
 	layers.Extension
-	ext common.Extension
 	tagged
 	options
 }
@@ -45,11 +44,6 @@ func HBHParser(lines []string) TaggedLayer {
 	return hbh
 }
 
-// XXX layers.Extension is missing following method to implement gopacket.Layer
-func (hbh *HBHTaggedLayer) LayerType() gopacket.LayerType {
-	return layers.LayerTypeHopByHopExtension
-}
-
 func (hbh *HBHTaggedLayer) Layer() gopacket.Layer {
 	return hbh
 }
@@ -59,8 +53,24 @@ func (hbh *HBHTaggedLayer) Clone() TaggedLayer {
 	return &clone
 }
 
+// XXX layers.Extension is missing following method to implement gopacket.Layer
+func (hbh *HBHTaggedLayer) LayerType() gopacket.LayerType {
+	return layers.LayerTypeHopByHopExtension
+}
+
+/*
 func (hbh *HBHTaggedLayer) String() string {
 	return gopacket.LayerString(hbh)
+}
+*/
+
+func (hbh *HBHTaggedLayer) String() string {
+	e, err := layers.NewExtnSCMPFromLayer(&hbh.Extension)
+	if err != nil {
+		return fmt.Sprintf("NextHeader=%s NumLines=%d Type=%s Data=%x", hbh.NextHeader, hbh.NumLines,
+			common.ExtnType{Class: common.HopByHopClass, Type: hbh.Type}, hbh.Data)
+	}
+	return fmt.Sprintf("NextHeader=%s NumLines=%d { %s }", hbh.NextHeader, hbh.NumLines, e)
 }
 
 func (hbh *HBHTaggedLayer) Update(lines []string) {

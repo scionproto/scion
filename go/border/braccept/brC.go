@@ -1,5 +1,3 @@
-// +build ignore
-//
 // Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,118 +14,159 @@
 
 package main
 
-import (
-	"hash"
+func testsBrC() int {
+	var failures int
 
-	"github.com/scionproto/scion/go/border/braccept/layers"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
-)
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
+		IP4: Src=192.168.0.13 Dst=192.168.0.61 NextHdr=UDP Flags=DF Checksum=0
+		UDP: Src=30041 Dst=30041
+		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.103 DstIA=1-ff00:0:1 Dst=BS_M
+		UDP_1: Src=20003 Dst=0
+		IFStateReq:
+	`)
+	pkt0.SetDev("ifid_local")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
 
-var brCCtrlScionHdr = layers.NewGenCmnHdr(
-	"1-ff00:0:1", "192.168.0.103", "1-ff00:0:1", "BS_M", nil, common.L4UDP)
+	IgnoredPackets(pkt0)
 
-var IgnoredPacketsBrC = []*layers.ExpPkt{
-	{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-		layers.GenOverlayIP4UDP("192.168.0.13", 30041, "192.168.0.61", 30041),
-		brCCtrlScionHdr,
-		layers.NewUDP(20003, 0, &brCCtrlScionHdr.ScionLayer, ifStateReq),
-		ifStateReq,
-	}}}
+	failures += parent_if_parent_local()
+	failures += parent_if_local_parent()
+	failures += parent_if_parent_child()
+	failures += parent_if_child_parent()
 
-func genTestsBrC(hMac hash.Hash) []*BRTest {
-	return []*BRTest{
-		{
-			Desc: "Single IFID parent - parent/local",
-			In: &layers.Pkt{
-				Dev: "ifid_161", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.16.3", 40000, "192.168.16.2", 50000),
-					layers.NewValidScion("1-ff00:0:6", "172.16.6.1", "1-ff00:0:1", "192.168.0.51",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(___)[611.0][0.161]", hMac, 1)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*layers.ExpPkt{
-				{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-					layers.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.51", 30041),
-					layers.NewGenCmnHdr("1-ff00:0:6", "172.16.6.1", "1-ff00:0:1", "192.168.0.51",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(___)[611.0][0.161]", hMac, 1)},
-						),
-						common.L4UDP),
-					layers.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsBrC,
-		},
-		{
-			Desc: "Single IFID parent - local/parent",
-			In: &layers.Pkt{
-				Dev: "ifid_local", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.13", 30003),
-					layers.NewValidScion("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1",
-						layers.GenPath(0, 0, layers.Segments{
-							segment("(C__)[0.161][611.0]", hMac, 0)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*layers.ExpPkt{
-				{Dev: "ifid_161", Layers: []layers.LayerMatcher{
-					layers.GenOverlayIP4UDP("192.168.16.2", 50000, "192.168.16.3", 40000),
-					layers.NewGenCmnHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(C__)[0.161][611.0]", hMac, 0)},
-						),
-						common.L4UDP),
-					layers.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsBrC,
-		},
-		{
-			Desc: "Single IFID parent - parent/child",
-			In: &layers.Pkt{
-				Dev: "ifid_161", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.16.3", 40000, "192.168.16.2", 50000),
-					layers.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:6", "172.16.6.1",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(C__)[0.611][161.141][411.0]", hMac, 1)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*layers.ExpPkt{
-				{Dev: "ifid_local", Layers: []layers.LayerMatcher{
-					layers.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.12", 30002),
-					layers.NewGenCmnHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:6", "172.16.6.1",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(C__)[0.611][161.141][411.0]", hMac, 1)},
-						),
-						common.L4UDP),
-					layers.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsBrC,
-		},
-		{
-			Desc: "Single IFID parent - child/parent",
-			In: &layers.Pkt{
-				Dev: "ifid_local", Layers: []layers.LayerBuilder{
-					layers.GenOverlayIP4UDP("192.168.0.12", 30002, "192.168.0.13", 30003),
-					layers.NewValidScion("1-ff00:0:6", "172.16.6.1", "1-ff00:0:4", "172.16.4.1",
-						layers.GenPath(0, 1, layers.Segments{
-							segment("(___)[411.0][161.141][0.611]", hMac, 1)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*layers.ExpPkt{
-				{Dev: "ifid_161", Layers: []layers.LayerMatcher{
-					layers.GenOverlayIP4UDP("192.168.16.2", 50000, "192.168.16.3", 40000),
-					layers.NewGenCmnHdr("1-ff00:0:6", "172.16.6.1", "1-ff00:0:4", "172.16.4.1",
-						layers.GenPath(0, 2, layers.Segments{
-							segment("(___)[411.0][161.141][0.611]", hMac, 1)},
-						),
-						common.L4UDP),
-					layers.NewUDP(40111, 40222, nil, nil),
-				}}},
-			Ignore: IgnoredPacketsBrC,
-		},
-	}
+	ClearIgnoredPackets()
+
+	return failures
+}
+
+func parent_if_parent_local() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.16.3 Dst=192.168.16.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:6 Src=172.16.6.1 DstIA=1-ff00:0:1 Dst=192.168.0.51
+			IF_1: ISD=1 Hops=2 Flags=ConsDir
+				HF_1: ConsIngress=0   ConsEgress=611
+				HF_2: ConsIngress=161 ConsEgress=0
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("ifid_161")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.13 Dst=192.168.0.51 Checksum=0
+		UDP: Src=30003 Dst=30041
+	`)
+	pkt1.SetDev("ifid_local")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Parent IF - parent/local", defaultTimeout, pkt1)
+}
+
+func parent_if_local_parent() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.0.51 Dst=192.168.0.13 NextHdr=UDP Flags=DF
+		UDP: Src=30041 Dst=30003
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.51 DstIA=1-ff00:0:6 Dst=172.16.6.1
+			IF_1: ISD=1 Hops=2
+				HF_1: ConsIngress=161 ConsEgress=0
+				HF_2: ConsIngress=0   ConsEgress=611
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("ifid_local")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_1", "HF_2")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.16.2 Dst=192.168.16.3 Checksum=0
+		UDP: Src=50000 Dst=40000
+		SCION: CurrHopF=6
+	`)
+	pkt1.SetDev("ifid_161")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Parent IF - local/parent", defaultTimeout, pkt1)
+}
+
+func parent_if_parent_child() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.16.3 Dst=192.168.16.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:4 Src=172.16.4.1 DstIA=1-ff00:0:6 Dst=172.16.6.1
+			IF_1: ISD=1 Hops=3 Flags=ConsDir
+				HF_1: ConsIngress=0   ConsEgress=611
+				HF_2: ConsIngress=161 ConsEgress=141
+				HF_3: ConsIngress=411 ConsEgress=0
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("ifid_161")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.13 Dst=192.168.0.12 Checksum=0
+		UDP: Src=30003 Dst=30002
+	`)
+	pkt1.SetDev("ifid_local")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Parent IF - parent/child", defaultTimeout, pkt1)
+}
+
+func parent_if_child_parent() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=00:00:00:00:00:00 EthernetType=IPv4
+		IP4: Src=192.168.0.12 Dst=192.168.0.13 NextHdr=UDP Flags=DF
+		UDP: Src=30002 Dst=30003
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:6 Src=172.16.6.1 DstIA=1-ff00:0:4 Dst=172.16.4.1
+			IF_1: ISD=1 Hops=3
+				HF_1: ConsIngress=411 ConsEgress=0
+				HF_2: ConsIngress=161 ConsEgress=141
+				HF_3: ConsIngress=0   ConsEgress=611
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("ifid_local")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_3")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=00:00:00:00:00:00 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.16.2 Dst=192.168.16.3 Checksum=0
+		UDP: Src=50000 Dst=40000
+		SCION: CurrHopF=7
+	`)
+	pkt1.SetDev("ifid_161")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("Parent IF - child/parent", defaultTimeout, pkt1)
 }
