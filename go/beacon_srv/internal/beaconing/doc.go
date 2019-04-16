@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package propagation implements tasks and handlers related to beacon
-// propagation.
+// Package beaconing implements tasks and handlers related to beacon propagation
+// and registration.
 //
 // Handler
 //
@@ -26,4 +26,4 @@
 // The originator should only be instantiated by core beacon servers. It
 // periodically creates fresh beacons and propagates them on all core and child
 // links.
-package propagation
+package beaconing
