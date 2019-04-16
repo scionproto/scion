@@ -331,12 +331,7 @@ func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
 	}
 	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{Blob: rawASE})
 	ps.ASEntries = append(ps.ASEntries, ase)
-	packed, err := ps.sigPack(ps.MaxAEIdx())
-	if err != nil {
-		ps.popLastEntry()
-		return err
-	}
-	ps.RawASEntries[ps.MaxAEIdx()].Sign, err = signer.Sign(packed)
+	ps.RawASEntries[ps.MaxAEIdx()].Sign, err = signer.Sign(ps.sigPack(ps.MaxAEIdx()))
 	if err != nil {
 		ps.popLastEntry()
 		return err
@@ -346,8 +341,8 @@ func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
 }
 
 func (ps *PathSegment) popLastEntry() {
-	ps.RawASEntries = ps.RawASEntries[:ps.MaxAEIdx()]
-	ps.ASEntries = ps.ASEntries[:ps.MaxAEIdx()]
+	ps.RawASEntries = ps.RawASEntries[:len(ps.RawASEntries)-1]
+	ps.ASEntries = ps.ASEntries[:len(ps.ASEntries)-1]
 }
 
 func (ps *PathSegment) invalidateIds() {
@@ -357,23 +352,19 @@ func (ps *PathSegment) invalidateIds() {
 
 // VerifyASEntry verifies the AS Entry at the specified index.
 func (ps *PathSegment) VerifyASEntry(ctx context.Context, verifier Verifier, idx int) error {
-	packed, err := ps.sigPack(idx)
-	if err != nil {
+	if err := ps.validateIdx(idx); err != nil {
 		return err
 	}
-	return verifier.Verify(ctx, packed, ps.RawASEntries[idx].Sign)
+	return verifier.Verify(ctx, ps.sigPack(idx), ps.RawASEntries[idx].Sign)
 }
 
-func (ps *PathSegment) sigPack(idx int) (common.RawBytes, error) {
-	if err := ps.validateIdx(idx); err != nil {
-		return nil, err
-	}
+func (ps *PathSegment) sigPack(idx int) common.RawBytes {
 	data := append(common.RawBytes(nil), ps.RawSData...)
 	for i := 0; i < idx; i++ {
 		data = append(data, ps.RawASEntries[i].Pack()...)
 	}
 	data = append(data, ps.RawASEntries[idx].Blob...)
-	return data, nil
+	return data
 }
 
 func (ps *PathSegment) MaxAEIdx() int {

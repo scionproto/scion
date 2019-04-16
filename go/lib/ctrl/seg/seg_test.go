@@ -17,11 +17,15 @@ package seg
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -35,61 +39,68 @@ var (
 )
 
 func TestPathSegmentAddASEntry(t *testing.T) {
+	asEntries := []*ASEntry{
+		{
+			RawIA:    as110.IAInt(),
+			TrcVer:   1,
+			CertVer:  3,
+			MTU:      1500,
+			IfIDSize: 12,
+			HopEntries: []*HopEntry{
+				{
+					RemoteOutIF: 23,
+					RawOutIA:    as111.IAInt(),
+					RawHopField: make(common.RawBytes, spath.HopFieldLength),
+				},
+			},
+		},
+		{
+			RawIA:    as110.IAInt(),
+			TrcVer:   3,
+			CertVer:  7,
+			MTU:      1500,
+			IfIDSize: 12,
+			HopEntries: []*HopEntry{
+				{
+					RemoteInIF:  18,
+					RawInIA:     as110.IAInt(),
+					RemoteOutIF: 24,
+					RawOutIA:    as112.IAInt(),
+					RawHopField: make(common.RawBytes, spath.HopFieldLength),
+				},
+			},
+		},
+		{
+			RawIA:    as110.IAInt(),
+			TrcVer:   4,
+			CertVer:  2,
+			MTU:      1500,
+			IfIDSize: 12,
+			HopEntries: []*HopEntry{
+				{
+					RemoteInIF:  19,
+					RawInIA:     as111.IAInt(),
+					RawHopField: make(common.RawBytes, spath.HopFieldLength),
+				},
+			},
+		},
+	}
+	var keyPairs []*keyPair
+	for range asEntries {
+		keyPairs = append(keyPairs, newKeyPair(t))
+	}
 	Convey("When constructing a path segment by adding multiple AS entries", t, func() {
-		asEntries := []*ASEntry{
-			{
-				RawIA:    as110.IAInt(),
-				TrcVer:   1,
-				CertVer:  3,
-				MTU:      1500,
-				IfIDSize: 12,
-				HopEntries: []*HopEntry{
-					{
-						RemoteOutIF: 23,
-						RawOutIA:    as111.IAInt(),
-						RawHopField: make(common.RawBytes, spath.HopFieldLength),
-					},
-				},
-			},
-			{
-				RawIA:    as110.IAInt(),
-				TrcVer:   3,
-				CertVer:  7,
-				MTU:      1500,
-				IfIDSize: 12,
-				HopEntries: []*HopEntry{
-					{
-						RemoteInIF:  18,
-						RawInIA:     as110.IAInt(),
-						RemoteOutIF: 24,
-						RawOutIA:    as112.IAInt(),
-						RawHopField: make(common.RawBytes, spath.HopFieldLength),
-					},
-				},
-			},
-			{
-				RawIA:    as110.IAInt(),
-				TrcVer:   4,
-				CertVer:  2,
-				MTU:      1500,
-				IfIDSize: 12,
-				HopEntries: []*HopEntry{
-					{
-						RemoteInIF:  19,
-						RawInIA:     as111.IAInt(),
-						RawHopField: make(common.RawBytes, spath.HopFieldLength),
-					},
-				},
-			},
-		}
-		var keyPairs []*keyPair
-		for range asEntries {
-			keyPairs = append(keyPairs, newKeyPair(t))
-		}
 		pseg, err := NewSeg(&spath.InfoField{ISD: 1, TsInt: 13})
 		xtest.FailOnErr(t, err)
+		id, fullId := getIds(t, pseg)
 		for i, entry := range asEntries {
 			pseg.AddASEntry(entry, keyPairs[i])
+
+			// Check that adding an AS entry modifies the segment id.
+			newId, newFullId := getIds(t, pseg)
+			SoMsg(fmt.Sprintf("ID differs %d", i), newId, ShouldNotEqual, id)
+			SoMsg(fmt.Sprintf("FullID differs %d", i), newFullId, ShouldNotEqual, fullId)
+			id, fullId = newId, newFullId
 		}
 		Convey("The segment should be verifiable", func() {
 			for i, keyPair := range keyPairs {
@@ -112,6 +123,47 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 			}
 		})
 	})
+	Convey("When adding an AS entry fails, the segment is not affected", t, func() {
+		pseg, err := NewSeg(&spath.InfoField{ISD: 1, TsInt: 13})
+		xtest.FailOnErr(t, err)
+		err = pseg.AddASEntry(asEntries[0], keyPairs[0])
+		SoMsg("AddASEntry err", err, ShouldBeNil)
+		raw, err := pseg.Pack()
+		SoMsg("Pack seg err", err, ShouldBeNil)
+		copySeg, err := NewBeaconFromRaw(raw)
+		SoMsg("Parse seg err", err, ShouldBeNil)
+		Convey("Invalid ASEntry causes an error", func() {
+			err := pseg.AddASEntry(nil, keyPairs[1])
+			SoMsg("err", err, ShouldNotBeNil)
+			id, fullId := getIds(t, pseg)
+			copyId, copyFullId := getIds(t, copySeg)
+			SoMsg("ID equal", id, ShouldResemble, copyId)
+			SoMsg("FullID equal", fullId, ShouldResemble, copyFullId)
+			SoMsg("eq", pseg, ShouldResemble, copySeg)
+		})
+		Convey("Signing errors do not change the segment", func() {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			signer := mock_seg.NewMockSigner(ctrl)
+			signer.EXPECT().Sign(gomock.Any()).Times(1).Return(nil, errors.New("fail"))
+			err := pseg.AddASEntry(asEntries[1], signer)
+			SoMsg("err", err, ShouldNotBeNil)
+			id, fullId := getIds(t, pseg)
+			copyId, copyFullId := getIds(t, copySeg)
+			SoMsg("ID equal", id, ShouldResemble, copyId)
+			SoMsg("FullID equal", fullId, ShouldResemble, copyFullId)
+			SoMsg("eq", pseg, ShouldResemble, copySeg)
+		})
+	})
+}
+
+func getIds(t *testing.T, seg *PathSegment) (common.RawBytes, common.RawBytes) {
+	t.Helper()
+	id, err := seg.ID()
+	xtest.FailOnErr(t, err)
+	full, err := seg.ID()
+	xtest.FailOnErr(t, err)
+	return id, full
 }
 
 type keyPair struct {

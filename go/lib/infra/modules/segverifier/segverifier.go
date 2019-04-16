@@ -196,7 +196,7 @@ type ElemResult struct {
 func verifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr, segment *seg.Meta,
 	ch chan ElemResult) {
 
-	err := VerifySegment(ctx, verifier, server, segment)
+	err := VerifySegment(ctx, verifier, server, segment.Segment)
 	select {
 	case ch <- ElemResult{Index: segErrIndex, Error: err}:
 	default:
@@ -205,18 +205,18 @@ func verifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 }
 
 func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr,
-	segment *seg.Meta) error {
+	segment *seg.PathSegment) error {
 
-	for i, asEntry := range segment.Segment.ASEntries {
+	for i, asEntry := range segment.ASEntries {
 		// Bind the verifier to the values specified in the AS Entry since
 		// the sign meta does not carry this information.
 		verifier := verifier.WithServer(server).WithSrc(ctrl.SignSrcDef{
 			IA:       asEntry.IA(),
 			ChainVer: asEntry.CertVer,
 		})
-		if err := segment.Segment.VerifyASEntry(ctx, verifier, i); err != nil {
+		if err := segment.VerifyASEntry(ctx, verifier, i); err != nil {
 			return common.NewBasicError("segverifier.VerifySegment", err, "segment", segment,
-				"asEntry", asEntry, "sign", segment.Segment.RawASEntries[i].Sign)
+				"asEntry", asEntry, "sign", segment.RawASEntries[i].Sign)
 		}
 	}
 	return nil
