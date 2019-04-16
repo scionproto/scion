@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/prom"
 )
@@ -110,11 +109,11 @@ func (m *MessengerWithMetrics) SendIfStateInfos(ctx context.Context, msg *path_m
 	return err
 }
 
-func (m *MessengerWithMetrics) SendSeg(ctx context.Context, msg *seg.PathSegment,
+func (m *MessengerWithMetrics) SendSegReg(ctx context.Context, msg *path_mgmt.SegReg,
 	a net.Addr, id uint64) error {
 
-	opMetrics := metricStartOp(infra.Seg)
-	err := m.messenger.SendSeg(ctx, msg, a, id)
+	opMetrics := metricStartOp(infra.SegReg)
+	err := m.messenger.SendSegReg(ctx, msg, a, id)
 	opMetrics.publishResult(err)
 	return err
 }

@@ -24,7 +24,6 @@ go_library(
         "//go/lib/ctrl/ctrl_msg:go_default_library",
         "//go/lib/ctrl/ifid:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
-        "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/disp:go_default_library",
         "//go/lib/infra/rpc:go_default_library",
