@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -303,8 +302,8 @@ type Messenger interface {
 	SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error
 	// SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
 	SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos, a net.Addr, id uint64) error
-	// SendSeg sends a reliable seg.Pathsegment to a.
-	SendSeg(ctx context.Context, msg *seg.PathSegment, a net.Addr, id uint64) error
+	// SendSegReg sends a reliable path_mgmt.SegReg to a.
+	SendSegReg(ctx context.Context, msg *path_mgmt.SegReg, a net.Addr, id uint64) error
 	// GetSegs asks the server at the remote address for the path segments that
 	// satisfy msg, and returns a verified reply.
 	GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,

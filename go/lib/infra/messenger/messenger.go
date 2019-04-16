@@ -86,7 +86,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
@@ -329,10 +328,10 @@ func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFState
 	return m.sendMessage(ctx, pld, a, id, infra.IfStateInfos)
 }
 
-func (m *Messenger) SendSeg(ctx context.Context, msg *seg.PathSegment,
+func (m *Messenger) SendSegReg(ctx context.Context, msg *path_mgmt.SegReg,
 	a net.Addr, id uint64) error {
 
-	return m.sendMessage(ctx, msg, a, id, infra.Seg)
+	return m.sendMessage(ctx, msg, a, id, infra.SegReg)
 }
 
 func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
