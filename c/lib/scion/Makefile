@@ -1,6 +1,5 @@
 .PHONY: all clean install uninstall
 
-#CC = clang
 EXTRA_CFLAGS = -Wall -Werror -fPIC -fno-strict-aliasing -Wno-unused-result
 EXTRA_LDFLAGS = -shared -Wl,-z,defs -Wl,-soname,libscion.so.0
 

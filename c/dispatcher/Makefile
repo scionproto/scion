@@ -1,6 +1,5 @@
 .PHONY: all clean install uninstall
 
-#CC = clang
 EXTRA_CFLAGS ?= -Wall -Werror -g -O2 -fno-strict-aliasing -Wno-unused-result
 EXTRA_LDFLAGS ?= -lpthread -lzlog -Wl,-Bstatic -L../lib/filter -lfilter -L../lib/scion -lscion -Wl,-Bdynamic
 
