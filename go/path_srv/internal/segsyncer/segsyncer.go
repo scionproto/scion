@@ -33,7 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
@@ -109,7 +109,7 @@ func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
 	var cPs net.Addr
 	// select a seg to reach the dst
 	for _, ps := range coreSegs {
-		cPs, err = addrutil.GetPath(addr.SvcPS, ps, ps.FirstIA(), itopo.Get())
+		cPs, err = addrutil.GetPath(addr.SvcPS, ps, itopo.Get())
 		if err == nil {
 			return cPs, nil
 		}
