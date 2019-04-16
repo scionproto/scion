@@ -124,7 +124,6 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 		})
 	})
 	Convey("When adding an AS entry fails, the segment is not affected", t, func() {
-		ctrl := gomock.NewController(t)
 		pseg, err := NewSeg(&spath.InfoField{ISD: 1, TsInt: 13})
 		xtest.FailOnErr(t, err)
 		err = pseg.AddASEntry(asEntries[0], keyPairs[0])
@@ -133,7 +132,7 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 		SoMsg("Pack seg err", err, ShouldBeNil)
 		copySeg, err := NewBeaconFromRaw(raw)
 		SoMsg("Parse seg err", err, ShouldBeNil)
-		Convey("Invalid ASEntry cause an error", func() {
+		Convey("Invalid ASEntry causes an error", func() {
 			err := pseg.AddASEntry(nil, keyPairs[1])
 			SoMsg("err", err, ShouldNotBeNil)
 			id, fullId := getIds(t, pseg)
@@ -142,7 +141,9 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 			SoMsg("FullID equal", fullId, ShouldResemble, copyFullId)
 			SoMsg("eq", pseg, ShouldResemble, copySeg)
 		})
-		Convey("Singing errors do not change the segment", func() {
+		Convey("Signing errors do not change the segment", func() {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 			signer := mock_seg.NewMockSigner(ctrl)
 			signer.EXPECT().Sign(gomock.Any()).Times(1).Return(nil, errors.New("fail"))
 			err := pseg.AddASEntry(asEntries[1], signer)
