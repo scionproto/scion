@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -204,5 +204,5 @@ func (h *segReqCoreHandler) corePSAddr(ctx context.Context, destISD addr.ISD) (n
 	}
 	// select random reachable core AS.
 	seg := coreSegs[rand.Intn(len(coreSegs))]
-	return addrutil.GetPath(addr.SvcPS, seg, seg.FirstIA(), h.topology)
+	return addrutil.GetPath(addr.SvcPS, seg, h.topology)
 }
