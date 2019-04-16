@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package propagation
+package beaconing
 
 import (
 	"context"
@@ -24,8 +24,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
+	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
-	"github.com/scionproto/scion/go/beacon_srv/internal/propagation/mock_propagation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -59,7 +59,7 @@ func TestNewHandler(t *testing.T) {
 		bseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X})
 
 		Convey("Correct beacon is inserted", func() {
-			inserter := mock_propagation.NewMockBeaconInserter(mctrl)
+			inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 			expectedBeacon := beacon.Beacon{Segment: bseg.Segment, InIfId: localIF}
 			inserter.EXPECT().InsertBeacons(gomock.Any(), expectedBeacon).Return(nil)
 
@@ -74,7 +74,7 @@ func TestNewHandler(t *testing.T) {
 			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
 		})
 		Convey("Invalid requests cause an error", func() {
-			inserter := mock_propagation.NewMockBeaconInserter(mctrl)
+			inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 			verifier := mock_infra.NewMockVerifier(mctrl)
 
 			intfs := testInterfaces(t)
@@ -164,7 +164,7 @@ func TestNewHandler(t *testing.T) {
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 				})
 				Convey("Insertion error", func() {
-					inserter := mock_propagation.NewMockBeaconInserter(mctrl)
+					inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 					inserter.EXPECT().InsertBeacons(gomock.Any(),
 						gomock.Any()).Return(common.NewBasicError("failed", nil))
 
