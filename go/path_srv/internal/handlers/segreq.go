@@ -193,26 +193,52 @@ func (h *segReqHandler) sendReply(ctx context.Context, rw infra.ResponseWriter,
 
 func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) []*seg.Meta {
 	logger := log.FromCtx(h.request.Context())
+	lup, lcore, ldown := limit(len(upSegs), len(coreSegs), len(downSegs), 9)
 	recs := make([]*seg.Meta, 0, len(upSegs)+len(coreSegs)+len(downSegs))
 	for i := range upSegs {
+		if i == lup {
+			break
+		}
 		s := upSegs[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_up))
 	}
 	for i := range coreSegs {
+		if i == lcore {
+			break
+		}
 		s := coreSegs[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_core))
 	}
 	for i := range downSegs {
+		if i == ldown {
+			break
+		}
 		s := downSegs[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
 	}
 	return recs
+}
+
+// XXX(roosd): Dirty hack to avoid exceeding jumbo frames until quic is implemented.
+// Revert tainted code after quic is implemented.
+func limit(upSegs, coreSegs, downSegs, all int) (int, int, int) {
+	for upSegs+coreSegs+downSegs > all {
+		switch {
+		case upSegs >= coreSegs && upSegs >= downSegs:
+			upSegs--
+		case coreSegs >= upSegs && coreSegs >= downSegs:
+			coreSegs--
+		default:
+			downSegs--
+		}
+	}
+	return upSegs, coreSegs, downSegs
 }
 
 // shouldRefetchSegsForDst returns true if the segments for the given dst

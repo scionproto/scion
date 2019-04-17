@@ -346,7 +346,11 @@ func (m *Messenger) SendRev(ctx context.Context, msg *path_mgmt.SignedRevInfo,
 func (m *Messenger) SendSegReg(ctx context.Context, msg *path_mgmt.SegReg,
 	a net.Addr, id uint64) error {
 
-	return m.sendMessage(ctx, msg, a, id, infra.SegReg)
+	pld, err := path_mgmt.NewPld(msg, nil)
+	if err != nil {
+		return err
+	}
+	return m.sendMessage(ctx, pld, a, id, infra.SegReg)
 }
 
 func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
