@@ -26,4 +26,10 @@
 // The originator should only be instantiated by core beacon servers. It
 // periodically creates fresh beacons and propagates them on all core and child
 // links.
+//
+// Registrar
+//
+// The registrar is a periodic task to register segments with the appropriate
+// path server. Core and Up segments are registered with the local path server.
+// Down segments are registered with the originating core AS.
 package beaconing
