@@ -15,6 +15,7 @@
 package svc
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"testing"
@@ -40,15 +41,15 @@ func TestSVCResolutionServer(t *testing.T) {
 
 		mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 		mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
-		mockReplySender := mock_svc.NewMockRequestHandler(ctrl)
+		mockReqHandler := mock_svc.NewMockRequestHandler(ctrl)
 
 		Convey("Underlying dispatcher service fails to set up underlying conn", func() {
 			mockPacketDispatcherService.EXPECT().RegisterTimeout(
 				gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-			).Return(nil, uint16(0), fmt.Errorf("conn error"))
+			).Return(nil, uint16(0), errors.New("conn error"))
 
 			dispatcherService := NewResolverPacketDispatcher(mockPacketDispatcherService,
-				mockReplySender)
+				mockReqHandler)
 			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &addr.AppAddr{},
 				&overlay.OverlayAddr{}, addr.SvcPS, 0)
 			SoMsg("conn", conn, ShouldBeNil)
@@ -58,17 +59,9 @@ func TestSVCResolutionServer(t *testing.T) {
 		Convey("Given an established resolver conn", func() {
 			mockPacketDispatcherService.EXPECT().RegisterTimeout(gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(mockPacketConn, uint16(1337), nil)
-			mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-				func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
-					pkt.Destination = snet.SCIONAddress{
-						Host: addr.SvcPS,
-					}
-					return nil
-				},
-			)
 
 			dispatcherService := NewResolverPacketDispatcher(mockPacketDispatcherService,
-				mockReplySender)
+				mockReqHandler)
 			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &addr.AppAddr{},
 				&overlay.OverlayAddr{}, addr.SvcPS, 0)
 			SoMsg("conn", conn, ShouldNotBeNil)
@@ -78,13 +71,30 @@ func TestSVCResolutionServer(t *testing.T) {
 			var pkt snet.SCIONPacket
 			var ov overlay.OverlayAddr
 			Convey("If sender fails, caller sees error", func() {
-				mockReplySender.EXPECT().Handle(gomock.Any(), gomock.Any()).
-					Return(fmt.Errorf("err")).AnyTimes()
+				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+						pkt.Destination = snet.SCIONAddress{
+							Host: addr.SvcPS,
+						}
+						return nil
+					},
+				)
+				mockReqHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).
+					Return(errors.New("err")).AnyTimes()
+
 				err = conn.ReadFrom(&pkt, &ov)
 				SoMsg("read err", err.Error(), ShouldContainSubstring, "err")
 			})
 			Convey("If sender succeeds", func() {
-				mockReplySender.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+						pkt.Destination = snet.SCIONAddress{
+							Host: addr.SvcPS,
+						}
+						return nil
+					},
+				)
+				mockReqHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				Convey("return from conn with no error next internal read yields data", func() {
 					mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 						func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
@@ -106,6 +116,20 @@ func TestSVCResolutionServer(t *testing.T) {
 					err := conn.ReadFrom(&pkt, &ov)
 					SoMsg("err", err, ShouldNotBeNil)
 				})
+			})
+			Convey("Multicast SVC packets get delivered to caller", func() {
+				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+						fmt.Println("in da tset")
+						pkt.Destination = snet.SCIONAddress{
+							Host: addr.SvcBS.Multicast(),
+						}
+						return nil
+					},
+				)
+				// test succeeds because there are no calls to the mock request handler
+				err := conn.ReadFrom(&pkt, &ov)
+				SoMsg("err", err, ShouldBeNil)
 			})
 		})
 	})
@@ -235,7 +259,7 @@ func TestDefaultHandler(t *testing.T) {
 		})
 		Convey("if check fails, no packet reply is sent", func() {
 			errorStr := "some error"
-			mockPrecheck.EXPECT().Precheck(packet).Return(fmt.Errorf(errorStr)).Times(1)
+			mockPrecheck.EXPECT().Precheck(packet).Return(errors.New(errorStr)).Times(1)
 			err := sender.Handle(packet, nil)
 			So(err.Error(), ShouldContainSubstring, errorStr)
 		})

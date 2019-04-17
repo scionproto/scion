@@ -16,6 +16,7 @@
 package svc
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -25,6 +26,8 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 )
+
+const ErrHandler = "Unable to handle SVC request"
 
 // NewResolverPacketDispatcher creates a dispatcher service that returns
 // sockets with built-in SVC address resolution capabilities.
@@ -39,7 +42,7 @@ var _ snet.PacketDispatcherService = (*ResolverPacketDispatcher)(nil)
 // ResolverPacketDispatcher is a dispatcher service that returns sockets with
 // built-in SVC address resolution capabilities. Every packet received with a
 // destination SVC address is intercepted inside the socket, and sent to an SVC
-// resolution handler which responds back to th eclient.
+// resolution handler which responds back to the client.
 //
 // Redirected packets are not returned by the connection, so they cannot be
 // seen via ReadFrom. After redirecting a packet, the connection attempts to
@@ -76,13 +79,18 @@ func (c *resolverPacketConn) ReadFrom(pkt *snet.SCIONPacket, ov *overlay.Overlay
 			return err
 		}
 		// XXX(scrye): destination address is guaranteed to not be nil
-		if _, ok := pkt.Destination.Host.(addr.HostSVC); ok {
+		if svc, ok := pkt.Destination.Host.(addr.HostSVC); ok {
+			// Multicasts do not trigger SVC resolution logic
+			fmt.Println("svc = ", svc)
+			if svc.IsMulticast() {
+				return nil
+			}
 			// XXX(scrye): This might block, causing the read to wait for the
 			// write to go through. The solution would be to run the logic in a
 			// goroutine, but because UDP writes rarely block, the current
 			// solution should be good enough for now.
 			if err := c.handler.Handle(pkt, ov); err != nil {
-				return common.NewBasicError("Unable to send back reply for SVC request", err)
+				return common.NewBasicError(ErrHandler, err)
 			}
 			continue
 		}
@@ -120,30 +128,30 @@ type DefaultHandler struct {
 	Precheck Prechecker
 }
 
-func (s *DefaultHandler) Handle(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
-	if s.Precheck != nil {
-		if err := s.Precheck.Precheck(pkt); err != nil {
+func (h *DefaultHandler) Handle(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+	if h.Precheck != nil {
+		if err := h.Precheck.Precheck(pkt); err != nil {
 			return err
 		}
 	}
-	path, err := s.reversePath(pkt.Path)
+	path, err := h.reversePath(pkt.Path)
 	if err != nil {
 		return err
 	}
-	l4header := s.reverseL4Header(pkt.L4Header)
+	l4header := h.reverseL4Header(pkt.L4Header)
 	replyPacket := &snet.SCIONPacket{
 		SCIONPacketInfo: snet.SCIONPacketInfo{
 			Destination: pkt.Source,
-			Source:      s.Source,
+			Source:      h.Source,
 			Path:        path,
 			L4Header:    l4header,
-			Payload:     s.getPayload(),
+			Payload:     h.getPayload(),
 		},
 	}
-	return s.Conn.WriteTo(replyPacket, ov)
+	return h.Conn.WriteTo(replyPacket, ov)
 }
 
-func (s *DefaultHandler) reversePath(path *spath.Path) (*spath.Path, error) {
+func (h *DefaultHandler) reversePath(path *spath.Path) (*spath.Path, error) {
 	if !path.IsEmpty() {
 		// Reverse copy to not modify input packet
 		path = path.Copy()
@@ -154,7 +162,7 @@ func (s *DefaultHandler) reversePath(path *spath.Path) (*spath.Path, error) {
 	return path, nil
 }
 
-func (s *DefaultHandler) reverseL4Header(header l4.L4Header) l4.L4Header {
+func (h *DefaultHandler) reverseL4Header(header l4.L4Header) l4.L4Header {
 	if header == nil {
 		return nil
 	}
@@ -163,11 +171,11 @@ func (s *DefaultHandler) reverseL4Header(header l4.L4Header) l4.L4Header {
 	return l4HeaderCopy
 }
 
-func (s *DefaultHandler) getPayload() common.Payload {
-	if s.Payload == nil {
+func (h *DefaultHandler) getPayload() common.Payload {
+	if h.Payload == nil {
 		return nil
 	}
-	return common.RawBytes(s.Payload)
+	return common.RawBytes(h.Payload)
 }
 
 // Prechecker can be used to customize how the SVC Resolution server reacts to
