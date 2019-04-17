@@ -31,6 +31,7 @@ STD_LIB_MOCKS_DIRECTORY = os.path.join("go", "lib", "mocks")
 
 MOCK_TARGETS = [
         ("net", "Addr,Conn,PacketConn"),
+        ("context", "Context"),
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/beaconing", "BeaconInserter"),
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/keepalive",
             "IfStatePusher,Beaconer,RevDropper"),
@@ -43,11 +44,13 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Querier,Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
         (SCION_PACKAGE_PREFIX + "/go/lib/sciond", "Service,Connector"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/snet", "Conn,PacketDispatcherService,Network,PacketConn"),
+        (SCION_PACKAGE_PREFIX +
+            "/go/lib/snet", "Conn,PacketDispatcherService,Network,PacketConn,Path,Router"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/snetproxy", "IOOperation,Reconnecter"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/ctxmonitor", "Monitor"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/pathsource", "PathSource"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/svc", "Prechecker,RequestHandler"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/svc", "Prechecker,RequestHandler,RoundTripper"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/svc/internal/ctxconn", "DeadlineCloser"),
 ]
 
 

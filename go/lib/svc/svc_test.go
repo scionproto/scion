@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package svc
+package svc_test
 
 import (
 	"errors"
@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/svc"
 	"github.com/scionproto/scion/go/lib/svc/mock_svc"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -47,7 +48,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
 			).Return(nil, uint16(0), errors.New("conn error"))
 
-			dispatcherService := NewResolverPacketDispatcher(mockPacketDispatcherService,
+			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
 			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &addr.AppAddr{},
 				&overlay.OverlayAddr{}, addr.SvcPS, 0)
@@ -59,7 +60,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			mockPacketDispatcherService.EXPECT().RegisterTimeout(gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).Return(mockPacketConn, uint16(1337), nil)
 
-			dispatcherService := NewResolverPacketDispatcher(mockPacketDispatcherService,
+			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
 			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &addr.AppAddr{},
 				&overlay.OverlayAddr{}, addr.SvcPS, 0)
@@ -208,7 +209,7 @@ func TestDefaultHandler(t *testing.T) {
 				if !tc.ExpectedError {
 					conn.EXPECT().WriteTo(tc.ExpectedPacket, gomock.Any()).Times(1)
 				}
-				sender := &DefaultHandler{
+				sender := &svc.DefaultHandler{
 					Source:  tc.ReplySource,
 					Conn:    conn,
 					Payload: tc.ReplyPayload,
@@ -232,7 +233,7 @@ func TestDefaultHandler(t *testing.T) {
 		)
 		xtest.FailOnErr(t, err)
 		conn.EXPECT().WriteTo(packet, ov).Times(1)
-		sender := &DefaultHandler{
+		sender := &svc.DefaultHandler{
 			Source: snet.SCIONAddress{},
 			Conn:   conn,
 		}
@@ -247,7 +248,7 @@ func TestDefaultHandler(t *testing.T) {
 
 		mockConn := mock_snet.NewMockPacketConn(ctrl)
 		mockPrecheck := mock_svc.NewMockPrechecker(ctrl)
-		sender := &DefaultHandler{Conn: mockConn, Precheck: mockPrecheck}
+		sender := &svc.DefaultHandler{Conn: mockConn, Precheck: mockPrecheck}
 		packet := &snet.SCIONPacket{}
 		Convey("if check succeeds, packet reply is sent", func() {
 			mockPrecheck.EXPECT().Precheck(packet).Return(nil).Times(1)
@@ -267,7 +268,7 @@ func TestDefaultHandler(t *testing.T) {
 func TestPrecheckSVC(t *testing.T) {
 	Convey("", t, func() {
 		calls := &callCounter{}
-		precheck := &PrecheckSVC{
+		precheck := &svc.PrecheckSVC{
 			MatchSVC:   addr.SvcPS,
 			OnNonMatch: calls.Call,
 		}

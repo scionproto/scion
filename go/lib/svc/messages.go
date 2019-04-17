@@ -98,6 +98,7 @@ func (r *Reply) fromProtoFormat(protoReply *proto.SVCResolutionReply) error {
 	return nil
 }
 
+// Transport contains constants for common transport keys.
 type Transport string
 
 const (

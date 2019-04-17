@@ -10,6 +10,7 @@ go_library(
         "interface.go",
         "packet_conn.go",
         "reader.go",
+        "router.go",
         "snet.go",
         "writer.go",
     ],
@@ -38,6 +39,7 @@ go_test(
     srcs = [
         "addr_test.go",
         "raw_test.go",
+        "router_test.go",
         "writer_test.go",
     ],
     embed = [":go_default_library"],
