@@ -17,6 +17,7 @@ package itopo
 
 import (
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -291,4 +292,9 @@ func call(clbk func()) {
 			clbk()
 		}()
 	}
+}
+
+// TestingInit is unsafe in regular operation and should only be used in testing.
+func TestingInit(_ *testing.T, id string, svc proto.ServiceType, clbks Callbacks) {
+	st = newState(id, svc, clbks)
 }

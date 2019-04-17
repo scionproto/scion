@@ -18,7 +18,6 @@ import (
 	"context"
 	"net"
 	"testing"
-	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -27,9 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -40,25 +37,20 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+const (
+	topoCore    = "testdata/topology-core.json"
+	topoNonCore = "testdata/topology.json"
+)
+
 func TestOriginatorRun(t *testing.T) {
-	setupItopo(t)
+	setupItopo(t, topoCore)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
 	intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	xtest.FailOnErr(t, err)
+	signer := testSigner(t, priv)
 	wconn, rconn := p2p.NewPacketConns()
-
-	signer, err := trust.NewBasicSigner(priv, infra.SignerMeta{
-		Src: ctrl.SignSrcDef{
-			ChainVer: 42,
-			TRCVer:   84,
-			IA:       xtest.MustParseIA("1-ff00:0:110"),
-		},
-		Algo:    scrypto.Ed25519,
-		ExpTime: time.Now().Add(time.Hour),
-	})
-	xtest.FailOnErr(t, err)
 
 	o, err := NewOriginator(intfs,
 		Config{
@@ -148,11 +140,15 @@ func TestOriginatorRun(t *testing.T) {
 	})
 }
 
-func setupItopo(t *testing.T) {
-	itopo.Init("", proto.ServiceType_unset, itopo.Callbacks{})
-	topo, err := topology.LoadFromFile("testdata/topology.json")
+func testTopo(t *testing.T, fn string) *topology.Topo {
+	topo, err := topology.LoadFromFile(fn)
 	xtest.FailOnErr(t, err)
-	_, _, err = itopo.SetStatic(topo, true)
+	return topo
+}
+
+func setupItopo(t *testing.T, fn string) {
+	itopo.TestingInit(t, "", proto.ServiceType_unset, itopo.Callbacks{})
+	_, _, err := itopo.SetStatic(testTopo(t, fn), true)
 	xtest.FailOnErr(t, err)
 }
 

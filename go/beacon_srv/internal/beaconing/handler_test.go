@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -206,13 +205,7 @@ func testPath(ingressIfid common.IFIDType) *spath.Path {
 }
 
 func testInterfaces(t *testing.T) *ifstate.Interfaces {
-	intfs := ifstate.NewInterfaces(testTopo(t).IFInfoMap, ifstate.Config{})
+	intfs := ifstate.NewInterfaces(testTopo(t, topoCore).IFInfoMap, ifstate.Config{})
 	intfs.Get(graph.If_110_X_120_A).Activate(graph.If_120_A_110_X)
 	return intfs
-}
-
-func testTopo(t *testing.T) *topology.Topo {
-	topo, err := topology.LoadFromFile("testdata/topology.json")
-	xtest.FailOnErr(t, err)
-	return topo
 }
