@@ -171,40 +171,14 @@ func (o *Originator) createHopEntry(ifid common.IFIDType, intf topology.IFInfo,
 	if intf.ISD_AS.IsWildcard() {
 		return nil, common.NewBasicError("Remote IA is wildcard", nil, "ia", intf.ISD_AS)
 	}
-	rawHopF, err := o.createRawHop(ifid, ts)
+	hopF, err := createHopF(0, ifid, ts, nil, o.cfg, o.sender.MAC)
 	if err != nil {
 		return nil, err
 	}
 	hop := &seg.HopEntry{
-		RawHopField: rawHopF,
+		RawHopField: hopF.Pack(),
 		RawOutIA:    intf.ISD_AS.IAInt(),
 		RemoteOutIF: intf.RemoteIFID,
 	}
 	return hop, nil
-}
-
-func (o *Originator) createRawHop(ifid common.IFIDType, ts time.Time) (common.RawBytes, error) {
-	meta := o.cfg.Signer.Meta()
-	diff := meta.ExpTime.Sub(ts)
-	if diff < 30*time.Minute {
-		log.Warn("[Originator] Signer expiration time is near",
-			"chainExpiration", meta.ExpTime, "src", meta.Src)
-	}
-	expiry, err := spath.ExpTimeFromDuration(diff, false)
-	if err != nil {
-		min := ts.Add(spath.ExpTimeType(0).ToDuration())
-		return nil, common.NewBasicError("Chain does not cover minimum hop expiration time", nil,
-			"minimumExpiration", min, "chainExpiration", meta.ExpTime, "src", meta.Src)
-	}
-	if expiry > o.cfg.maxExpTime {
-		expiry = o.cfg.maxExpTime
-	}
-	hop := &spath.HopField{
-		ConsEgress: ifid,
-		ExpTime:    expiry,
-	}
-	if hop.Mac, err = hop.CalcMac(o.sender.MAC, util.TimeToSecs(ts), nil); err != nil {
-		return nil, common.NewBasicError("Unable to create MAC", err)
-	}
-	return hop.Pack(), nil
 }
