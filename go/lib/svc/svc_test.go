@@ -16,7 +16,6 @@ package svc
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"testing"
 
@@ -120,7 +119,6 @@ func TestSVCResolutionServer(t *testing.T) {
 			Convey("Multicast SVC packets get delivered to caller", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
-						fmt.Println("in da tset")
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcBS.Multicast(),
 						}
