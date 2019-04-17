@@ -16,7 +16,6 @@
 package svc
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -81,7 +80,6 @@ func (c *resolverPacketConn) ReadFrom(pkt *snet.SCIONPacket, ov *overlay.Overlay
 		// XXX(scrye): destination address is guaranteed to not be nil
 		if svc, ok := pkt.Destination.Host.(addr.HostSVC); ok {
 			// Multicasts do not trigger SVC resolution logic
-			fmt.Println("svc = ", svc)
 			if svc.IsMulticast() {
 				return nil
 			}
