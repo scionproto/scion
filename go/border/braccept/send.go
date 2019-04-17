@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/border/braccept/parser"
 	"github.com/scionproto/scion/go/border/braccept/shared"
 )
 
@@ -28,9 +27,6 @@ func SendPackets(pkts ...*DevTaggedLayers) {
 		if !ok {
 			panic(fmt.Errorf("No device information for: %s\n", pkt.Dev))
 		}
-		// XXX workaround until we use fixed MAC addresses in the containers
-		e := pkt.TaggedLayers[0].(*parser.EthernetTaggedLayer)
-		e.DstMAC = devInfo.Mac
 		raw := pkt.TaggedLayers.Serialize()
 		devInfo.Handle.WritePacketData(raw)
 	}

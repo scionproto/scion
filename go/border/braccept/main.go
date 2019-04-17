@@ -38,22 +38,19 @@ const (
 	defaultDelay   time.Duration = 1 * time.Second
 )
 
+// Flag vars
 var (
-	borderID        string
-	devInfoFilePath string
-	keysDirPath     string
-	testIdx         int
-	failures        int
+	testName    string
+	keysDirPath string
 )
 
 func init() {
-	flag.StringVar(&borderID, "borderID", "", "Border Router ID")
-	flag.StringVar(&devInfoFilePath, "devInfoFilePath", "", "Device information file path")
+	flag.StringVar(&testName, "testName", "", "Test to run")
 	flag.StringVar(&keysDirPath, "keysDirPath", "", "AS keys directory path")
-	flag.IntVar(&testIdx, "testIndex", -1, "Run specdic test")
 }
 
 var (
+	failures int
 	timerIdx int
 	cases    []reflect.SelectCase
 )
@@ -76,7 +73,7 @@ func realMain() int {
 		return 1
 	}
 	defer log.LogPanicAndExit()
-	if err := shared.Init(devInfoFilePath, keysDirPath); err != nil {
+	if err := shared.Init(keysDirPath); err != nil {
 		log.Crit("", "err", err)
 		return 1
 	}
@@ -85,7 +82,7 @@ func realMain() int {
 	cases = make([]reflect.SelectCase, timerIdx+1)
 	for i, di := range shared.DevList {
 		var err error
-		di.Handle, err = afpacket.NewTPacket(afpacket.OptInterface(di.HostDev))
+		di.Handle, err = afpacket.NewTPacket(afpacket.OptInterface(di.Host.Name))
 		if err != nil {
 			log.Crit("", "err", err)
 			return 1
@@ -106,27 +103,27 @@ func realMain() int {
 
 	registerScionPorts()
 
+	IgnorePkts()
+
 	var failures int
-	log.Info("Acceptance tests:", "brID", borderID)
-	switch borderID {
-	case "brA":
-		failures += testsBrA()
-	case "brB":
-		failures += testsBrB()
-	case "brC":
-		failures += testsBrC()
-	case "core-brA":
-		failures += testsBrCoreA()
-	/*
-		case "brD":
-			failures += testsBrD()
-		case "brCoreB":
-			failures += testsBrCoreB()
-		case "brCoreC":
-			failures += testsBrCoreC()
-	*/
+	log.Info("Acceptance tests:", "testName", testName)
+	switch testName {
+	case "br_multi":
+		failures += br_multi()
+	case "br_child":
+		failures += br_child()
+	case "br_parent":
+		failures += br_parent()
+	case "br_peer":
+		failures += br_peer()
+	case "br_core_multi":
+		failures += br_core_multi()
+	case "br_core_coreIf":
+		failures += br_core_coreIf()
+	case "br_core_childIf":
+		failures += br_core_childIf()
 	default:
-		log.Crit("Wrong Border Router ID", "brID", borderID)
+		log.Crit("Wrong BR acceptance test name", "testName", testName)
 		return 1
 	}
 	return failures
@@ -134,14 +131,11 @@ func realMain() int {
 
 func checkFlags() error {
 	flag.Parse()
-	if borderID == "" {
-		return fmt.Errorf("ERROR: Missing borderID flag")
+	if testName == "" {
+		return fmt.Errorf("ERROR: Missing testName flag")
 	}
 	if keysDirPath == "" {
 		return fmt.Errorf("ERROR: Missing keysDirPath flag")
-	}
-	if devInfoFilePath == "" {
-		return fmt.Errorf("ERROR: Missing devInfoFilePath flag")
 	}
 	return nil
 }

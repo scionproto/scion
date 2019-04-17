@@ -1,6 +1,6 @@
 #!/bin/bash
 
-host_acceptance="brA brB brC brD core_brA core_brB core_brC"
+host_acceptance="br_multi br_child br_parent br_peer br_core_multi br_core_childIf br_core_coreIf"
 
 for test in ./acceptance/*_acceptance; do
     name="$(basename ${test%_acceptance})"

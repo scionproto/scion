@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/gopacket"
 
-	"github.com/scionproto/scion/go/border/braccept/parser"
 	"github.com/scionproto/scion/go/border/braccept/shared"
 	"github.com/scionproto/scion/go/lib/log"
 )
@@ -40,12 +39,6 @@ func ExpectedPackets(desc string, to string, pkts ...*DevTaggedLayers) int {
 	timerCh := time.After(timeout)
 	// Add timeout channel as the last select case.
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
-	// XXX workaround until we use fixed MAC addresses in the containers
-	for i := range pkts {
-		pkt := pkts[i]
-		e := pkt.TaggedLayers[0].(*parser.EthernetTaggedLayer)
-		e.SrcMAC = shared.DevByName[pkt.Dev].Mac
-	}
 	// Serialize all expected packets so that we generate proper length values, checksums, etc.
 	expPkts := toGoPackets(pkts...)
 	var errStr []string
@@ -53,7 +46,7 @@ func ExpectedPackets(desc string, to string, pkts ...*DevTaggedLayers) int {
 		idx, pktV, ok := reflect.Select(cases)
 		if !ok {
 			panic(fmt.Errorf("Unexpected interface %s/%s closed",
-				shared.DevList[idx].HostDev, shared.DevList[idx].ContDev))
+				shared.DevList[idx].Host.Name, shared.DevList[idx].ContDev))
 		}
 		if idx == timerIdx {
 			// Timeout receiving packets

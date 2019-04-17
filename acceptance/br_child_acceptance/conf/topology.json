@@ -1,0 +1,108 @@
+{
+  "ISD_AS": "1-ff00:0:1",
+  "Overlay": "UDP/IPv4",
+  "Core": false,
+  "MTU": 1472,
+  "BorderRouters": {
+    "brA": {
+      "CtrlAddr": {
+        "IPv4": { "Public": { "L4Port": 20001, "Addr": "192.168.0.101" } }
+      },
+      "InternalAddrs": {
+        "IPv4": { "PublicOverlay": { "OverlayPort": 30001, "Addr": "192.168.0.11" } }
+      },
+      "Interfaces": {
+        "141": {
+          "LinkTo": "CHILD",
+          "MTU": 1472,
+          "Overlay": "UDP/IPv4",
+          "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.14.2" },
+          "ISD_AS": "1-ff00:0:4",
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.14.3" },
+          "Bandwidth": 1000
+        },
+        "151": {
+          "LinkTo": "CHILD",
+          "MTU": 1472,
+          "Overlay": "UDP/IPv4",
+          "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.15.2" },
+          "ISD_AS": "1-ff00:0:5",
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.15.3" },
+          "Bandwidth": 1000
+        }
+      }
+    },
+    "brB": {
+      "CtrlAddr": {
+        "IPv4": { "Public": { "L4Port": 20002, "Addr": "192.168.0.102" } }
+      },
+      "InternalAddrs": {
+        "IPv4": { "PublicOverlay": { "OverlayPort": 30002, "Addr": "192.168.0.12" } }
+      },
+      "Interfaces": {
+        "171": {
+          "LinkTo": "PEER",
+          "MTU": 1472,
+          "Overlay": "UDP/IPv4",
+          "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.17.2" },
+          "ISD_AS": "2-ff00:0:7",
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.17.3" },
+          "Bandwidth": 1000
+        }
+      }
+    },
+    "brC": {
+      "CtrlAddr": {
+        "IPv4": { "Public": { "L4Port": 20003, "Addr": "192.168.0.103" } }
+      },
+      "InternalAddrs": {
+        "IPv4": { "PublicOverlay": { "OverlayPort": 30003, "Addr": "192.168.0.13" } }
+      },
+      "Interfaces": {
+        "181": {
+          "LinkTo": "CHILD",
+          "MTU": 1472,
+          "Overlay": "UDP/IPv4",
+          "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.18.2" },
+          "ISD_AS": "1-ff00:0:8",
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.18.3" },
+          "Bandwidth": 1000
+        }
+      }
+    },
+    "brD": {
+      "CtrlAddr": {
+        "IPv4": { "Public": { "L4Port": 20004, "Addr": "192.168.0.104" } }
+      },
+      "InternalAddrs": {
+        "IPv4": { "PublicOverlay": { "OverlayPort": 30004, "Addr": "192.168.0.14" } }
+      },
+      "Interfaces": {
+        "191": {
+          "LinkTo": "PARENT",
+          "MTU": 1472,
+          "Overlay": "UDP/IPv4",
+          "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.19.2" },
+          "ISD_AS": "1-ff00:0:9",
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.19.3" },
+          "Bandwidth": 1000
+        }
+      }
+    }
+  },
+  "PathService": {
+    "psA": { "Addrs": {
+        "IPv4": { "Public": { "L4Port": 20005, "Addr": "192.168.0.51" } }
+    } }
+  },
+  "BeaconService": {
+    "bsA": { "Addrs": {
+        "IPv4": { "Public": { "L4Port": 20006, "Addr": "192.168.0.61" } }
+    } }
+  },
+  "CertificateService": {
+    "csA": { "Addrs": {
+        "IPv4": { "Public": { "L4Port": 20007, "Addr": "192.168.0.71" } }
+    } }
+  }
+}

@@ -67,8 +67,8 @@ func (hbh *HBHTaggedLayer) String() string {
 func (hbh *HBHTaggedLayer) String() string {
 	e, err := layers.NewExtnSCMPFromLayer(&hbh.Extension)
 	if err != nil {
-		return fmt.Sprintf("NextHeader=%s NumLines=%d Type=%s Data=%x", hbh.NextHeader, hbh.NumLines,
-			common.ExtnType{Class: common.HopByHopClass, Type: hbh.Type}, hbh.Data)
+		return fmt.Sprintf("NextHeader=%s NumLines=%d Type=%s Data=%x", hbh.NextHeader,
+			hbh.NumLines, common.ExtnType{Class: common.HopByHopClass, Type: hbh.Type}, hbh.Data)
 	}
 	return fmt.Sprintf("NextHeader=%s NumLines=%d { %s }", hbh.NextHeader, hbh.NumLines, e)
 }
