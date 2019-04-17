@@ -15,11 +15,9 @@
 package shared
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"hash"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -32,9 +30,8 @@ import (
 )
 
 type DevInfo struct {
-	HostDev string
+	Host    *net.Interface
 	ContDev string
-	Mac     net.HardwareAddr
 	Handle  *afpacket.TPacket
 }
 
@@ -47,8 +44,13 @@ var (
 	NoTime    = time.Time{}
 )
 
-func Init(devInfoFilePath, keysDirPath string) error {
-	if err := parseDevInfo(devInfoFilePath); err != nil {
+func UpdateNow() {
+	Now = time.Now()
+	TsNow32 = uint32(Now.Unix())
+}
+
+func Init(keysDirPath string) error {
+	if err := initDevices(); err != nil {
 		return err
 	}
 	if err := generateKeys(keysDirPath); err != nil {
@@ -57,24 +59,24 @@ func Init(devInfoFilePath, keysDirPath string) error {
 	return nil
 }
 
-// XXX This should go away using fixed MAC addresses
-func parseDevInfo(fn string) error {
-	f, err := os.Open(fn)
+func initDevices() error {
+	DevByName = make(map[string]*DevInfo)
+
+	devs, err := net.Interfaces()
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	DevByName = make(map[string]*DevInfo)
-	for scanner.Scan() {
-		field := strings.Split(scanner.Text(), " ")
-		elem := &DevInfo{HostDev: field[0], ContDev: field[1]}
-		elem.Mac, err = net.ParseMAC(field[2])
-		if err != nil {
-			return err
+	for i := range devs {
+		dev := devs[i]
+		if strings.HasPrefix(dev.Name, "veth_") && strings.HasSuffix(dev.Name, "_host") {
+			// matches braccept interface name template "veth_.*_host"
+			dev := &DevInfo{
+				Host:    &devs[i],
+				ContDev: strings.TrimSuffix(dev.Name, "_host"),
+			}
+			DevList = append(DevList, dev)
+			DevByName[dev.ContDev] = dev
 		}
-		DevList = append(DevList, elem)
-		DevByName[elem.ContDev] = elem
 	}
 	return nil
 }

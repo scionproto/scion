@@ -1,7 +1,9 @@
 # This is a base file included/sourced by each border router acceptance test
 
 export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
-DEVINFO_FN=${TEST_ARTIFACTS_DIR}/devinfo.txt
+TEST_DIR=${TEST_NAME}_acceptance
+BRUTIL=acceptance/brutil
+BRCONF_DIR=${BRUTIL}/conf
 
 . acceptance/brutil/util.sh
 . acceptance/common.sh
@@ -24,9 +26,13 @@ test_setup() {
     set_docker_ns_link
 
     mkdir -p $TEST_ARTIFACTS_DIR
-    set_veths >> $DEVINFO_FN
+    set_veths
 
-    cp -r "${BRUTIL:?}/${BRCONF_DIR:?}" "$TEST_ARTIFACTS_DIR/conf"
+    # Copy common configuration files
+    cp -r "$BRCONF_DIR" "$TEST_ARTIFACTS_DIR/conf"
+
+    # Copy custom configuration files, ie. topology
+    cp -r "acceptance/${TEST_DIR}/conf/topology.json" "$TEST_ARTIFACTS_DIR/conf"
 
     sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$TEST_ARTIFACTS_DIR/conf/br.toml"
     sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$TEST_ARTIFACTS_DIR/conf/br.toml"
@@ -37,15 +43,13 @@ test_setup() {
 
 test_run() {
     set -e
-    bin/braccept -borderID "${BRID:?}" -devInfoFilePath "$DEVINFO_FN" \
-        -keysDirPath "${BRUTIL:?}/${BRCONF_DIR:?}/keys" "$@"
+    bin/braccept -testName "${TEST_NAME:?}" -keysDirPath "${BRCONF_DIR}/keys" "$@"
 }
 
 test_teardown() {
     set -e
     sudo -p "Teardown docker containers and virtual interfaces - [sudo] password for %p: " true
     del_veths
-    rm -f $DEVINFO_FN
     rm_docker_ns_link
     docker_status
     docker-compose -f $BRUTIL/docker-compose.yml --no-ansi down
@@ -69,7 +73,7 @@ print_help() {
 do_command() {
     PROGRAM="$1"
     COMMAND="$2"
-    TEST_NAME="${3}_acceptance"
+    TEST_NAME="${3}"
     shift 3
     case "$COMMAND" in
         name)
