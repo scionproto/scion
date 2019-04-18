@@ -38,9 +38,7 @@ func GenPath(infoF, hopF int, segs Segments) *ScnPath {
 	p.InfOff, p.HopOff = indexToOffsets(uint8(infoF), uint8(hopF), segs)
 	// Write SCION path
 	p.Raw = make(common.RawBytes, segs.Len())
-	if _, err := segs.WriteTo(p.Raw); err != nil {
-		return nil
-	}
+	segs.WriteTo(p.Raw)
 	// Parse the raw packet to retrieve hop fields mac
 	p.Parse(p.Raw)
 	return p
@@ -117,16 +115,12 @@ func (segs Segments) Len() int {
 	return l
 }
 
-func (segs Segments) WriteTo(b []byte) (int, error) {
+func (segs Segments) WriteTo(b []byte) int {
 	offset := 0
 	for i := range segs {
-		n, err := segs[i].WriteTo(b[offset:])
-		if err != nil {
-			return offset, nil
-		}
-		offset += n
+		offset += segs[i].WriteTo(b[offset:])
 	}
-	return offset, nil
+	return offset
 }
 
 func (segs Segments) String() string {
@@ -209,8 +203,7 @@ func (s *Segment) Parse(b []byte) (int, error) {
 	return segLen, nil
 }
 
-func (seg *Segment) WriteTo(b []byte) (int, error) {
-	var err error
+func (seg *Segment) WriteTo(b []byte) int {
 	// Write Info Field
 	seg.Inf.Write(b)
 	// Write Hop Fields
@@ -239,10 +232,7 @@ func (seg *Segment) WriteTo(b []byte) (int, error) {
 		if hop.Mac == nil {
 			if mac != nil {
 				mac.Reset()
-				hop.Mac, err = hop.CalcMac(mac, seg.Inf.TsInt, prevHop)
-				if err != nil {
-					return 0, err
-				}
+				hop.Mac = hop.CalcMac(mac, seg.Inf.TsInt, prevHop)
 			} else {
 				hop.Mac = defaultMac
 			}
@@ -252,7 +242,7 @@ func (seg *Segment) WriteTo(b []byte) (int, error) {
 		prevHop = b[curOff+1 : curOff+spath.HopFieldLength]
 		prevXover = hop.Xover
 	}
-	return spath.InfoFieldLength + nHops*spath.HopFieldLength, nil
+	return spath.InfoFieldLength + nHops*spath.HopFieldLength
 }
 
 func (s *Segment) String() string {

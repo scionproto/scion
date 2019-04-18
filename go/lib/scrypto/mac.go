@@ -39,11 +39,3 @@ func InitMac(key common.RawBytes) (hash.Hash, error) {
 	}
 	return mac, nil
 }
-
-func Mac(mac hash.Hash, msg common.RawBytes) (common.RawBytes, error) {
-	mac.Write(msg)
-	tmp := make([]byte, 0, mac.Size())
-	tag := mac.Sum(tmp)
-	mac.Reset()
-	return tag, nil
-}

@@ -166,8 +166,6 @@ func (s *segExtender) createHopF(inIfid, egIfid common.IFIDType, prev common.Raw
 		// Do not include the flags of the hop field in the mac input.
 		prev = prev[1:]
 	}
-	if hop.Mac, err = hop.CalcMac(s.mac, util.TimeToSecs(ts), prev); err != nil {
-		return nil, common.NewBasicError("Unable to create MAC", err)
-	}
+	hop.Mac = hop.CalcMac(s.mac, util.TimeToSecs(ts), prev)
 	return hop, nil
 }
