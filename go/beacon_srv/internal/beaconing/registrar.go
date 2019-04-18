@@ -20,7 +20,6 @@ import (
 	"net"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
@@ -50,10 +49,8 @@ var _ periodic.Task = (*Registrar)(nil)
 // path servers. Core and Up segments are registered with the local path server.
 // Down segments are registered at the core.
 type Registrar struct {
-	cfg      Config
-	mac      hash.Hash
+	segExtender
 	msgr     infra.Messenger
-	intfs    *ifstate.Interfaces
 	provider SegmentProvider
 	segType  proto.PathSegType
 }
@@ -67,12 +64,15 @@ func NewRegistrar(intfs *ifstate.Interfaces, segType proto.PathSegType, mac hash
 		return nil, err
 	}
 	r := &Registrar{
-		cfg:      cfg,
-		mac:      mac,
-		msgr:     msgr,
-		intfs:    intfs,
 		provider: provider,
 		segType:  segType,
+		msgr:     msgr,
+		segExtender: segExtender{
+			cfg:   cfg,
+			mac:   mac,
+			intfs: intfs,
+			task:  "registrar",
+		},
 	}
 	return r, nil
 }
@@ -146,101 +146,27 @@ func (r *Registrar) segToRegister(ctx context.Context, peers []common.IFIDType,
 	if bOrErr.Err != nil {
 		return nil, nil, bOrErr.Err
 	}
-	if err := r.terminateSegment(bOrErr.Beacon, peers); err != nil {
-		return nil, nil, common.NewBasicError("Unable to terminate beacon", err)
+	pseg := bOrErr.Beacon.Segment
+	// During parsing we validate that each AS entry has at least on hop entry.
+	prev := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField
+	if err := r.extend(pseg, bOrErr.Beacon.InIfId, 0, peers, prev); err != nil {
+		return nil, nil, common.NewBasicError("Unable to terminate", err, "beacon", bOrErr.Beacon)
 	}
 	reg := &path_mgmt.SegReg{
 		SegRecs: &path_mgmt.SegRecs{
 			Recs: []*seg.Meta{
 				{
 					Type:    r.segType,
-					Segment: bOrErr.Beacon.Segment,
+					Segment: pseg,
 				},
 			},
 		},
 	}
-	saddr, err := r.chooseServer(bOrErr.Beacon.Segment)
+	saddr, err := r.chooseServer(pseg)
 	if err != nil {
 		return nil, nil, common.NewBasicError("Unable to choose server", err)
 	}
 	return reg, saddr, nil
-}
-
-func (r *Registrar) terminateSegment(b beacon.Beacon, peers []common.IFIDType) error {
-	infoF, err := b.Segment.InfoF()
-	if err != nil {
-		return common.NewBasicError("Unable to extract info field", err)
-	}
-	// During parsing we validate that each AS entry has at least on hop entry.
-	prev := b.Segment.ASEntries[b.Segment.MaxAEIdx()].HopEntries[0].RawHopField
-	hopEntries, err := r.createHopEntries(b.InIfId, peers, infoF.Timestamp(), prev)
-	if err != nil {
-		return err
-	}
-	meta := r.cfg.Signer.Meta()
-	asEntry := &seg.ASEntry{
-		RawIA:      meta.Src.IA.IAInt(),
-		CertVer:    meta.Src.ChainVer,
-		TrcVer:     meta.Src.TRCVer,
-		IfIDSize:   r.cfg.IfidSize,
-		MTU:        r.cfg.MTU,
-		HopEntries: hopEntries,
-	}
-	if err := b.Segment.AddASEntry(asEntry, r.cfg.Signer); err != nil {
-		return err
-	}
-	return b.Segment.Validate(seg.ValidateSegment)
-
-}
-
-func (r *Registrar) createHopEntries(inIfid common.IFIDType, peers []common.IFIDType,
-	ts time.Time, prev common.RawBytes) ([]*seg.HopEntry, error) {
-
-	hopEntry, err := r.createHopEntry(inIfid, ts, prev)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create first hop entry", err)
-	}
-	hopEntries := []*seg.HopEntry{hopEntry}
-	for _, ifid := range peers {
-		hopEntry, err := r.createHopEntry(ifid, ts, hopEntries[0].RawHopField)
-		if err != nil {
-			log.Debug("[Registrar] Ignoring peer link upon error", "ifid", ifid, "err", err)
-			continue
-		}
-		hopEntries = append(hopEntries, hopEntry)
-	}
-	return hopEntries, nil
-}
-
-func (r *Registrar) createHopEntry(inIfid common.IFIDType, ts time.Time,
-	prev common.RawBytes) (*seg.HopEntry, error) {
-
-	intf := r.intfs.Get(inIfid)
-	if intf == nil {
-		return nil, common.NewBasicError("Ingress interface not found", nil, "ifid", inIfid)
-	}
-	state := intf.State()
-	if state != ifstate.Active {
-		return nil, common.NewBasicError("Interface is not active", nil, "ifid", inIfid)
-	}
-	topoInfo := intf.TopoInfo()
-	if topoInfo.RemoteIFID == 0 {
-		return nil, common.NewBasicError("Remote ifid is not set", nil)
-	}
-	if topoInfo.ISD_AS.IsWildcard() {
-		return nil, common.NewBasicError("Remote IA is wildcard", nil, "ia", topoInfo.ISD_AS)
-	}
-	hopF, err := createHopF(inIfid, 0, ts, prev, r.cfg, r.mac)
-	if err != nil {
-		return nil, err
-	}
-	hop := &seg.HopEntry{
-		RawHopField: hopF.Pack(),
-		RawInIA:     topoInfo.ISD_AS.IAInt(),
-		RemoteInIF:  topoInfo.RemoteIFID,
-		InMTU:       uint16(topoInfo.MTU),
-	}
-	return hop, nil
 }
 
 func (r *Registrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
