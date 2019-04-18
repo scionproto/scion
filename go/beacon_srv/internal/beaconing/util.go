@@ -24,6 +24,8 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
+// createHopF creates a hop field with the provided parameters. The previous hop
+// field, if any, must contain all raw bytes including the flags.
 func createHopF(inIfid, egIfid common.IFIDType, ts time.Time, prev common.RawBytes, cfg Config,
 	mac hash.Hash) (*spath.HopField, error) {
 
@@ -46,6 +48,10 @@ func createHopF(inIfid, egIfid common.IFIDType, ts time.Time, prev common.RawByt
 		ConsIngress: inIfid,
 		ConsEgress:  egIfid,
 		ExpTime:     expiry,
+	}
+	if prev != nil {
+		// Do not include the flags of the hop field in the mac input.
+		prev = prev[1:]
 	}
 	if hop.Mac, err = hop.CalcMac(mac, util.TimeToSecs(ts), prev); err != nil {
 		return nil, common.NewBasicError("Unable to create MAC", err)

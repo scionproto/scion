@@ -19,6 +19,7 @@ import (
 	"hash"
 	"net"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
@@ -89,21 +90,38 @@ func (r *Registrar) run(ctx context.Context) error {
 		return err
 	}
 	peers := r.sortedActivePeers()
-	var success, errors int
+	var success, segErr, sendErr ctr
+	wg := &sync.WaitGroup{}
 	for bOrErr := range segments {
-		if err := r.handleBeaconOrErr(ctx, peers, bOrErr); err != nil {
-			log.Error("[Registrar] Unable to register beacon", "type", r.segType, "err", err)
-			errors++
+		reg, saddr, err := r.segToRegister(ctx, peers, bOrErr)
+		if err != nil {
+			log.Error("[Registrar] Unable to create segment", "type", r.segType, "err", err)
+			segErr.Inc()
 			continue
 		}
-		success++
-		log.Info("[Registrar] Successfully registered", "type", r.segType,
-			"seg", bOrErr.Beacon.Segment)
+		wg.Add(1)
+		// Avoid head-of-line blocking when sending message to slow servers.
+		go func() {
+			defer log.LogPanicAndExit()
+			defer wg.Done()
+			if err := r.msgr.SendSegReg(ctx, reg, saddr, messenger.NextId()); err != nil {
+				log.Error("[Registrar] Unable to register segment", "addr", saddr, "err", err)
+				sendErr.Inc()
+				return
+			}
+			log.Debug("[Registrar] Successfully registered segment", "addr", saddr,
+				"seg", reg.Recs[0].Segment)
+			success.Inc()
+		}()
 	}
-	if success <= 0 {
-		return common.NewBasicError("No beacons propagated", nil, "errorCount", errors)
+	wg.Wait()
+	total := success.c + segErr.c + sendErr.c
+	if success.c <= 0 {
+		return common.NewBasicError("No beacons propagated", nil, "candidates", total,
+			"segCreationErrs", segErr.c, "sendErrs", sendErr.c)
 	}
-	log.Info("[Registrar] Successfully registered segments", "count", success)
+	log.Info("[Registrar] Successfully registered segments", "success", success.c,
+		"candidates", total, "segCreationErrs", segErr.c, "sendErrs", sendErr.c)
 	return nil
 }
 
@@ -118,20 +136,18 @@ func (r *Registrar) sortedActivePeers() []common.IFIDType {
 			continue
 		}
 		ifids = append(ifids, ifid)
-
 	}
 	sort.Slice(ifids, func(i, j int) bool { return ifids[i] < ifids[j] })
 	return ifids
 }
 
-func (r *Registrar) handleBeaconOrErr(ctx context.Context, peers []common.IFIDType,
-	bOrErr beacon.BeaconOrErr) error {
-
+func (r *Registrar) segToRegister(ctx context.Context, peers []common.IFIDType,
+	bOrErr beacon.BeaconOrErr) (*path_mgmt.SegReg, net.Addr, error) {
 	if bOrErr.Err != nil {
-		return bOrErr.Err
+		return nil, nil, bOrErr.Err
 	}
 	if err := r.terminateSegment(bOrErr.Beacon, peers); err != nil {
-		return common.NewBasicError("Unable to terminate beacon", err)
+		return nil, nil, common.NewBasicError("Unable to terminate beacon", err)
 	}
 	reg := &path_mgmt.SegReg{
 		SegRecs: &path_mgmt.SegRecs{
@@ -145,9 +161,9 @@ func (r *Registrar) handleBeaconOrErr(ctx context.Context, peers []common.IFIDTy
 	}
 	saddr, err := r.chooseServer(bOrErr.Beacon.Segment)
 	if err != nil {
-		return err
+		return nil, nil, common.NewBasicError("Unable to choose server", err)
 	}
-	return r.msgr.SendSegReg(ctx, reg, saddr, messenger.NextId())
+	return reg, saddr, nil
 }
 
 func (r *Registrar) terminateSegment(b beacon.Beacon, peers []common.IFIDType) error {
@@ -155,7 +171,9 @@ func (r *Registrar) terminateSegment(b beacon.Beacon, peers []common.IFIDType) e
 	if err != nil {
 		return common.NewBasicError("Unable to extract info field", err)
 	}
-	hopEntries, err := r.createHopEntries(b.InIfId, peers, infoF.Timestamp())
+	// During parsing we validate that each AS entry has at least on hop entry.
+	prev := b.Segment.ASEntries[b.Segment.MaxAEIdx()].HopEntries[0].RawHopField
+	hopEntries, err := r.createHopEntries(b.InIfId, peers, infoF.Timestamp(), prev)
 	if err != nil {
 		return err
 	}
@@ -176,9 +194,9 @@ func (r *Registrar) terminateSegment(b beacon.Beacon, peers []common.IFIDType) e
 }
 
 func (r *Registrar) createHopEntries(inIfid common.IFIDType, peers []common.IFIDType,
-	ts time.Time) ([]*seg.HopEntry, error) {
+	ts time.Time, prev common.RawBytes) ([]*seg.HopEntry, error) {
 
-	hopEntry, err := r.createHopEntry(inIfid, ts, nil)
+	hopEntry, err := r.createHopEntry(inIfid, ts, prev)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create first hop entry", err)
 	}
@@ -244,4 +262,15 @@ func (r *Registrar) localServer() (*snet.Addr, error) {
 		Host: topoAddr.PublicAddr(topoAddr.Overlay),
 	}
 	return saddr, nil
+}
+
+type ctr struct {
+	sync.Mutex
+	c int
+}
+
+func (c *ctr) Inc() {
+	c.Lock()
+	defer c.Unlock()
+	c.c++
 }

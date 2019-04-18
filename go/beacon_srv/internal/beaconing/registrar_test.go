@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -113,60 +114,27 @@ func TestRegistrarRun(t *testing.T) {
 					close(res)
 					return res, nil
 				})
-			segCount := 0
+			segMu := sync.Mutex{}
+			var sent []struct {
+				Reg  *path_mgmt.SegReg
+				Addr *snet.Addr
+			}
 			msgr.EXPECT().SendSegReg(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any()).Times(len(test.beacons)).DoAndReturn(
 				func(_, isegreg, iaddr, _ interface{}) error {
-					reg := isegreg.(*path_mgmt.SegReg)
-					saddr := iaddr.(*snet.Addr)
-					SoMsg("Len", len(reg.Recs), ShouldEqual, 1)
-					pseg := reg.Recs[0].Segment
-					Convey(fmt.Sprintf("Segment %d is verifiable", segCount), func() {
-						err := pseg.VerifyASEntry(context.Background(),
-							segVerifier(pub), pseg.MaxAEIdx())
-						SoMsg("err", err, ShouldBeNil)
-					})
-					Convey(fmt.Sprintf("Segment %d is terminated", segCount), func() {
-						for i, entry := range pseg.ASEntries[pseg.MaxAEIdx()].HopEntries {
-							Convey(fmt.Sprintf("Segment %d Entry %d", segCount, i), func() {
-								// Terminated.
-								SoMsg("OutIA", entry.OutIA().IsZero(), ShouldBeTrue)
-								SoMsg("OutIF", entry.RemoteOutIF, ShouldBeZeroValue)
-								hopF, err := spath.HopFFromRaw(entry.RawHopField)
-								SoMsg("err", err, ShouldBeNil)
-								SoMsg("egress", hopF.ConsEgress, ShouldBeZeroValue)
-								// Ingress set correctly.
-								intf := intfs.Get(hopF.ConsIngress)
-								topoInfo := intf.TopoInfo()
-								SoMsg("ingress", intf, ShouldNotBeNil)
-								SoMsg("InIA", entry.InIA(), ShouldResemble, topoInfo.ISD_AS)
-								SoMsg("InIF", entry.RemoteInIF, ShouldEqual, topoInfo.RemoteIFID)
-								if i > 0 {
-									SoMsg("Peer", topoInfo.LinkType, ShouldEqual,
-										proto.LinkType_peer)
-								}
-							})
-						}
-					})
-					Convey(fmt.Sprintf("Segment %d is sent to the correct PS", segCount), func() {
-						if !test.remotePS {
-							SoMsg("IA", saddr.IA, ShouldResemble, itopo.Get().ISD_AS)
-							a := itopo.Get().PS[fmt.Sprintf("ps%s-1", saddr.IA.FileFmt(false))]
-							SoMsg("Host", saddr.Host, ShouldResemble, a.PublicAddr(a.Overlay))
-							return
-						}
-						SoMsg("IA", saddr.IA, ShouldResemble, pseg.FirstIA())
-						SoMsg("Host", saddr.Host.L3, ShouldResemble, addr.SvcPS)
-						hopF, err := saddr.Path.GetHopField(saddr.Path.HopOff)
-						SoMsg("err", err, ShouldBeNil)
-						SoMsg("HopField", []uint8(hopF.Pack()), ShouldResemble,
-							pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField)
-						a := itopo.Get().IFInfoMap[hopF.ConsIngress].InternalAddrs
-						SoMsg("Next", saddr.NextHop, ShouldResemble, a.PublicOverlay(a.Overlay))
-					})
-					segCount++
+					segMu.Lock()
+					defer segMu.Unlock()
+					s := struct {
+						Reg  *path_mgmt.SegReg
+						Addr *snet.Addr
+					}{
+						Reg:  isegreg.(*path_mgmt.SegReg),
+						Addr: iaddr.(*snet.Addr),
+					}
+					sent = append(sent, s)
 					return nil
-				})
+				},
+			)
 			for ifid, intf := range intfs.All() {
 				if test.inactivePeers[ifid] {
 					continue
@@ -174,6 +142,54 @@ func TestRegistrarRun(t *testing.T) {
 				intf.Activate(42)
 			}
 			r.Run(context.Background())
+			SoMsg("Sent", len(sent), ShouldEqual, len(test.beacons))
+			for segIdx, s := range sent {
+				SoMsg("Len", len(s.Reg.Recs), ShouldEqual, 1)
+				pseg := s.Reg.Recs[0].Segment
+				Convey(fmt.Sprintf("Segment %d is verifiable", segIdx), func() {
+					err := pseg.VerifyASEntry(context.Background(),
+						segVerifier(pub), pseg.MaxAEIdx())
+					SoMsg("err", err, ShouldBeNil)
+				})
+				Convey(fmt.Sprintf("Segment %d is terminated", segIdx), func() {
+					for hopEntryIdx, entry := range pseg.ASEntries[pseg.MaxAEIdx()].HopEntries {
+						Convey(fmt.Sprintf("Segment %d Entry %d", segIdx, hopEntryIdx), func() {
+							// Terminated.
+							SoMsg("OutIA", entry.OutIA().IsZero(), ShouldBeTrue)
+							SoMsg("OutIF", entry.RemoteOutIF, ShouldBeZeroValue)
+							hopF, err := spath.HopFFromRaw(entry.RawHopField)
+							SoMsg("err", err, ShouldBeNil)
+							SoMsg("egress", hopF.ConsEgress, ShouldBeZeroValue)
+							// Ingress set correctly.
+							intf := intfs.Get(hopF.ConsIngress)
+							topoInfo := intf.TopoInfo()
+							SoMsg("ingress", intf, ShouldNotBeNil)
+							SoMsg("InIA", entry.InIA(), ShouldResemble, topoInfo.ISD_AS)
+							SoMsg("InIF", entry.RemoteInIF, ShouldEqual, topoInfo.RemoteIFID)
+							if hopEntryIdx > 0 {
+								SoMsg("Peer", topoInfo.LinkType, ShouldEqual,
+									proto.LinkType_peer)
+							}
+						})
+					}
+				})
+				Convey(fmt.Sprintf("Segment %d is sent to the correct PS", segIdx), func() {
+					if !test.remotePS {
+						SoMsg("IA", s.Addr.IA, ShouldResemble, itopo.Get().ISD_AS)
+						a := itopo.Get().PS[fmt.Sprintf("ps%s-1", s.Addr.IA.FileFmt(false))]
+						SoMsg("Host", s.Addr.Host, ShouldResemble, a.PublicAddr(a.Overlay))
+						return
+					}
+					SoMsg("IA", s.Addr.IA, ShouldResemble, pseg.FirstIA())
+					SoMsg("Host", s.Addr.Host.L3, ShouldResemble, addr.SvcPS)
+					hopF, err := s.Addr.Path.GetHopField(s.Addr.Path.HopOff)
+					SoMsg("err", err, ShouldBeNil)
+					SoMsg("HopField", []uint8(hopF.Pack()), ShouldResemble,
+						pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField)
+					a := itopo.Get().IFInfoMap[hopF.ConsIngress].InternalAddrs
+					SoMsg("Next", s.Addr.NextHop, ShouldResemble, a.PublicOverlay(a.Overlay))
+				})
+			}
 		})
 	}
 	Convey("Run drains the channel", t, func() {
@@ -273,21 +289,22 @@ func TestRegistrarRun(t *testing.T) {
 				intf.Activate(42)
 			}
 			intfs.Get(graph.If_111_C_121_X).Activate(0)
+			var reg *path_mgmt.SegReg
 			msgr.EXPECT().SendSegReg(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any()).Times(1).DoAndReturn(
 				func(_, isegreg, iaddr, _ interface{}) error {
-					reg := isegreg.(*path_mgmt.SegReg)
-					SoMsg("Len", len(reg.Recs), ShouldEqual, 1)
-					asEntry := reg.Recs[0].Segment.ASEntries[reg.Recs[0].Segment.MaxAEIdx()]
-					SoMsg("Entries", len(asEntry.HopEntries), ShouldEqual, 3)
-					for _, entry := range asEntry.HopEntries {
-						SoMsg("IA", entry.InIA(), ShouldNotResemble,
-							xtest.MustParseIA("1-ff00:0:121"))
-					}
+					reg = isegreg.(*path_mgmt.SegReg)
 					return nil
 				},
 			)
 			r.Run(context.Background())
+			SoMsg("Len", len(reg.Recs), ShouldEqual, 1)
+			asEntry := reg.Recs[0].Segment.ASEntries[reg.Recs[0].Segment.MaxAEIdx()]
+			SoMsg("Entries", len(asEntry.HopEntries), ShouldEqual, 3)
+			for _, entry := range asEntry.HopEntries {
+				SoMsg("IA", entry.InIA(), ShouldNotResemble,
+					xtest.MustParseIA("1-ff00:0:121"))
+			}
 		})
 	})
 }
