@@ -203,8 +203,6 @@ func (o *Originator) createRawHop(ifid common.IFIDType, ts time.Time) (common.Ra
 		ConsEgress: ifid,
 		ExpTime:    expiry,
 	}
-	if hop.Mac, err = hop.CalcMac(o.sender.MAC, util.TimeToSecs(ts), nil); err != nil {
-		return nil, common.NewBasicError("Unable to create MAC", err)
-	}
+	hop.Mac = hop.CalcMac(o.sender.MAC, util.TimeToSecs(ts), nil)
 	return hop.Pack(), nil
 }

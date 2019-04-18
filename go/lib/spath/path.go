@@ -48,7 +48,7 @@ func New(raw common.RawBytes) *Path {
 // NewOneHop creates a new one hop path with. If necessary, the caller has
 // to initialize the offsets.
 func NewOneHop(isd addr.ISD, ifid common.IFIDType, ts time.Time, exp ExpTimeType,
-	hfmac hash.Hash) (*Path, error) {
+	hfmac hash.Hash) *Path {
 
 	info := InfoField{
 		ConsDir: true,
@@ -60,14 +60,11 @@ func NewOneHop(isd addr.ISD, ifid common.IFIDType, ts time.Time, exp ExpTimeType
 		ConsEgress: ifid,
 		ExpTime:    exp,
 	}
-	var err error
-	if hop.Mac, err = hop.CalcMac(hfmac, info.TsInt, nil); err != nil {
-		return nil, err
-	}
+	hop.Mac = hop.CalcMac(hfmac, info.TsInt, nil)
 	raw := make(common.RawBytes, InfoFieldLength+2*HopFieldLength)
 	info.Write(raw[:InfoFieldLength])
 	hop.Write(raw[InfoFieldLength:])
-	return New(raw), nil
+	return New(raw)
 }
 
 func (p *Path) Copy() *Path {

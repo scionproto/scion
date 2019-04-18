@@ -92,9 +92,6 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.SCIONPacket, error) {
 // CreatePath creates the one-hop path and initializes it.
 func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) {
 	s.MAC.Reset()
-	path, err := spath.NewOneHop(s.IA.I, ifid, time.Now(), spath.DefaultHopFExpiry, s.MAC)
-	if err != nil {
-		return nil, err
-	}
+	path := spath.NewOneHop(s.IA.I, ifid, time.Now(), spath.DefaultHopFExpiry, s.MAC)
 	return (*Path)(path), path.InitOffsets()
 }
