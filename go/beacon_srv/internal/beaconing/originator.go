@@ -16,6 +16,7 @@ package beaconing
 
 import (
 	"context"
+	"hash"
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
@@ -24,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -41,8 +43,8 @@ type Originator struct {
 	sender *onehop.Sender
 }
 
-// NewOriginator creates a new originator. It takes ownership of the one-hop sender.
-func NewOriginator(intfs *ifstate.Interfaces, cfg Config,
+// NewOriginator creates a new originator.
+func NewOriginator(intfs *ifstate.Interfaces, mac hash.Hash, cfg Config,
 	sender *onehop.Sender) (*Originator, error) {
 
 	cfg.InitDefaults()
@@ -54,7 +56,7 @@ func NewOriginator(intfs *ifstate.Interfaces, cfg Config,
 		segExtender: segExtender{
 			cfg:   cfg,
 			intfs: intfs,
-			mac:   sender.MAC,
+			mac:   mac,
 			task:  "originator",
 		},
 	}
@@ -115,28 +117,7 @@ func (o *Originator) createBeaconMsg(ifid common.IFIDType, intf topology.IFInfo,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create beacon", err, "ifid", ifid)
 	}
-	pld, err := ctrl.NewPld(bseg, nil)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create payload", err)
-	}
-	spld, err := pld.SignedPld(o.cfg.Signer)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to sign payload", err)
-	}
-	packed, err := spld.PackPld()
-	if err != nil {
-		return nil, common.NewBasicError("Unable to pack payload", err)
-	}
-	msg := &onehop.Msg{
-		Dst: snet.SCIONAddress{
-			IA:   intf.ISD_AS,
-			Host: addr.SvcBS,
-		},
-		Ifid:     ifid,
-		InfoTime: time.Now(),
-		Pld:      packed,
-	}
-	return msg, nil
+	return packBeaconMsg(bseg, intf.ISD_AS, ifid, o.cfg.Signer)
 }
 
 func (o *Originator) createBeacon(ifid common.IFIDType, intf topology.IFInfo,
@@ -150,4 +131,31 @@ func (o *Originator) createBeacon(ifid common.IFIDType, intf topology.IFInfo,
 		return nil, common.NewBasicError("Unable to extend segment", err)
 	}
 	return &seg.Beacon{Segment: bseg}, nil
+}
+
+func packBeaconMsg(bseg *seg.Beacon, ia addr.IA, egIfid common.IFIDType,
+	signer infra.Signer) (*onehop.Msg, error) {
+
+	pld, err := ctrl.NewPld(bseg, nil)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to create payload", err)
+	}
+	spld, err := pld.SignedPld(signer)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to sign payload", err)
+	}
+	packed, err := spld.PackPld()
+	if err != nil {
+		return nil, common.NewBasicError("Unable to pack payload", err)
+	}
+	msg := &onehop.Msg{
+		Dst: snet.SCIONAddress{
+			IA:   ia,
+			Host: addr.SvcBS,
+		},
+		Ifid:     egIfid,
+		InfoTime: time.Now(),
+		Pld:      packed,
+	}
+	return msg, nil
 }

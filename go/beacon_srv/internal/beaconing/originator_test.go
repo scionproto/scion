@@ -56,7 +56,7 @@ func TestOriginatorRun(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		conn := mock_snet.NewMockPacketConn(mctrl)
-		o, err := NewOriginator(intfs,
+		o, err := NewOriginator(intfs, mac,
 			Config{
 				MTU:    uint16(itopo.Get().MTU),
 				Signer: signer,

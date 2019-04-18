@@ -43,6 +43,7 @@ go_test(
         "extender_test.go",
         "handler_test.go",
         "originator_test.go",
+        "propagator_test.go",
         "registrar_test.go",
     ],
     data = glob(["testdata/**"]),
