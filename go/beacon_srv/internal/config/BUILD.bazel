@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "sample.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/beacon_srv/internal/config",
+    visibility = ["//go/beacon_srv:__subpackages__"],
+    deps = [
+        "//go/lib/config:go_default_library",
+        "//go/lib/env:go_default_library",
+        "//go/lib/infra/modules/idiscovery:go_default_library",
+        "//go/lib/truststorage:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["config_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/env/envtest:go_default_library",
+        "//go/lib/infra/modules/idiscovery/idiscoverytest:go_default_library",
+        "//go/lib/truststorage/truststoragetest:go_default_library",
+        "@com_github_burntsushi_toml//:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)
