@@ -141,13 +141,9 @@ func TestNewOneHop(t *testing.T) {
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
 	// Compute the correct tag for the first hop field.
-	tag, err := (&HopField{ConsEgress: 11, ExpTime: 4}).CalcMac(mac, 3, nil)
-	xtest.FailOnErr(t, err)
-	mac.Reset()
-
+	tag := (&HopField{ConsEgress: 11, ExpTime: 4}).CalcMac(mac, 3, nil)
 	Convey("The one hop path should be created correctly", t, func() {
-		p, err := NewOneHop(1, 11, util.SecsToTime(3), 4, mac)
-		SoMsg("err", err, ShouldBeNil)
+		p := NewOneHop(1, 11, util.SecsToTime(3), 4, mac)
 		err = p.InitOffsets()
 		SoMsg("InitOffsets", err, ShouldBeNil)
 		// Check the info field is set correctly.
