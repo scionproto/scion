@@ -14,7 +14,6 @@ import (
 	cert_mgmt "github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	ifid "github.com/scionproto/scion/go/lib/ctrl/ifid"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
 	infra "github.com/scionproto/scion/go/lib/infra"
 	cert "github.com/scionproto/scion/go/lib/scrypto/cert"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -411,20 +410,6 @@ func (mr *MockMessengerMockRecorder) SendIfStateInfos(arg0, arg1, arg2, arg3 int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendIfStateInfos", reflect.TypeOf((*MockMessenger)(nil).SendIfStateInfos), arg0, arg1, arg2, arg3)
 }
 
-// SendSeg mocks base method
-func (m *MockMessenger) SendSeg(arg0 context.Context, arg1 *seg.PathSegment, arg2 net.Addr, arg3 uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendSeg", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendSeg indicates an expected call of SendSeg
-func (mr *MockMessengerMockRecorder) SendSeg(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSeg", reflect.TypeOf((*MockMessenger)(nil).SendSeg), arg0, arg1, arg2, arg3)
-}
-
 // SendSegChangesIdReply mocks base method
 func (m *MockMessenger) SendSegChangesIdReply(arg0 context.Context, arg1 *path_mgmt.SegChangesIdReply, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
@@ -451,6 +436,20 @@ func (m *MockMessenger) SendSegChangesReply(arg0 context.Context, arg1 *path_mgm
 func (mr *MockMessengerMockRecorder) SendSegChangesReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSegChangesReply", reflect.TypeOf((*MockMessenger)(nil).SendSegChangesReply), arg0, arg1, arg2, arg3)
+}
+
+// SendSegReg mocks base method
+func (m *MockMessenger) SendSegReg(arg0 context.Context, arg1 *path_mgmt.SegReg, arg2 net.Addr, arg3 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendSegReg", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendSegReg indicates an expected call of SendSegReg
+func (mr *MockMessengerMockRecorder) SendSegReg(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSegReg", reflect.TypeOf((*MockMessenger)(nil).SendSegReg), arg0, arg1, arg2, arg3)
 }
 
 // SendSegReply mocks base method

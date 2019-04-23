@@ -1,0 +1,64 @@
+{
+  "Overlay": "UDP/IPv4",
+  "MTU": 1472,
+  "ISD_AS": "1-ff00:0:110",
+  "Core": true,
+  "BorderRouters": {
+    "br1-ff00_0_111-1": {
+      "InternalAddrs": {
+        "IPv4": {
+          "PublicOverlay": {
+            "Addr": "127.0.0.17"
+          }
+        }
+      },
+      "CtrlAddr": {
+        "IPv4": {
+          "Public": {
+            "Addr": "127.0.0.17"
+          }
+        }
+      },
+      "Interfaces": {
+        "1129": {
+          "RemoteOverlay": {
+            "Addr": "127.0.0.4"
+          },
+          "MTU": 1280,
+          "PublicOverlay": {
+            "Addr": "127.0.0.5"
+          },
+          "Overlay": "UDP/IPv4",
+          "Bandwidth": 1000,
+          "ISD_AS": "1-ff00:0:120",
+          "LinkTo": "CORE"
+        },
+        "42": {
+            "RemoteOverlay": {
+              "Addr": "127.0.0.4"
+            },
+            "MTU": 1280,
+            "PublicOverlay": {
+              "Addr": "127.0.0.5"
+            },
+            "Overlay": "UDP/IPv4",
+            "Bandwidth": 1000,
+            "ISD_AS": "1-ff00:0:111",
+            "LinkTo": "CHILD"
+          }
+      }
+    }
+  },
+  "PathService": {
+    "ps1-ff00_0_110-1": {
+      "Addrs": {
+        "IPv4": {
+          "Public": {
+            "L4Port": 31045,
+            "Addr": "127.0.0.86"
+          }
+        }
+      }
+    }
+  }
+}

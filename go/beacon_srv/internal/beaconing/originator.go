@@ -37,9 +37,8 @@ var _ periodic.Task = (*Originator)(nil)
 
 // Originator originates beacons. It should only be used by core ASes.
 type Originator struct {
-	sender  *onehop.Sender
-	cfg     Config
-	ifState *ifstate.Interfaces
+	segExtender
+	sender *onehop.Sender
 }
 
 // NewOriginator creates a new originator. It takes ownership of the one-hop sender.
@@ -51,16 +50,20 @@ func NewOriginator(intfs *ifstate.Interfaces, cfg Config,
 		return nil, err
 	}
 	o := &Originator{
-		sender:  sender,
-		cfg:     cfg,
-		ifState: intfs,
+		sender: sender,
+		segExtender: segExtender{
+			cfg:   cfg,
+			intfs: intfs,
+			mac:   sender.MAC,
+			task:  "originator",
+		},
 	}
 	return o, nil
 }
 
 // Run originates core and downstream beacons.
 func (o *Originator) Run(_ context.Context) {
-	intfs := o.ifState.All()
+	intfs := o.intfs.All()
 	o.originateBeacons(intfs, proto.LinkType_core)
 	o.originateBeacons(intfs, proto.LinkType_child)
 }
@@ -141,70 +144,10 @@ func (o *Originator) createBeacon(ifid common.IFIDType, intf topology.IFInfo,
 
 	bseg, err := seg.NewSeg(&infoF)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("Unable to create segment", err)
 	}
-	hopEntries, err := o.createHopEntry(ifid, intf, infoF.Timestamp())
-	if err != nil {
-		return nil, err
-	}
-	meta := o.cfg.Signer.Meta()
-	asEntry := &seg.ASEntry{
-		RawIA:      meta.Src.IA.IAInt(),
-		CertVer:    meta.Src.ChainVer,
-		TrcVer:     meta.Src.TRCVer,
-		IfIDSize:   o.cfg.IfidSize,
-		MTU:        o.cfg.MTU,
-		HopEntries: []*seg.HopEntry{hopEntries},
-	}
-	if err := bseg.AddASEntry(asEntry, o.cfg.Signer); err != nil {
-		return nil, err
+	if err := o.extend(bseg, 0, ifid, nil, nil); err != nil {
+		return nil, common.NewBasicError("Unable to extend segment", err)
 	}
 	return &seg.Beacon{Segment: bseg}, nil
-}
-
-func (o *Originator) createHopEntry(ifid common.IFIDType, intf topology.IFInfo,
-	ts time.Time) (*seg.HopEntry, error) {
-
-	if intf.RemoteIFID == 0 {
-		return nil, common.NewBasicError("Remote ifid is not set", nil)
-	}
-	if intf.ISD_AS.IsWildcard() {
-		return nil, common.NewBasicError("Remote IA is wildcard", nil, "ia", intf.ISD_AS)
-	}
-	rawHopF, err := o.createRawHop(ifid, ts)
-	if err != nil {
-		return nil, err
-	}
-	hop := &seg.HopEntry{
-		RawHopField: rawHopF,
-		RawOutIA:    intf.ISD_AS.IAInt(),
-		RemoteOutIF: intf.RemoteIFID,
-	}
-	return hop, nil
-}
-
-func (o *Originator) createRawHop(ifid common.IFIDType, ts time.Time) (common.RawBytes, error) {
-	meta := o.cfg.Signer.Meta()
-	diff := meta.ExpTime.Sub(ts)
-	if diff < 30*time.Minute {
-		log.Warn("[Originator] Signer expiration time is near",
-			"chainExpiration", meta.ExpTime, "src", meta.Src)
-	}
-	expiry, err := spath.ExpTimeFromDuration(diff, false)
-	if err != nil {
-		min := ts.Add(spath.ExpTimeType(0).ToDuration())
-		return nil, common.NewBasicError("Chain does not cover minimum hop expiration time", nil,
-			"minimumExpiration", min, "chainExpiration", meta.ExpTime, "src", meta.Src)
-	}
-	if expiry > o.cfg.maxExpTime {
-		expiry = o.cfg.maxExpTime
-	}
-	hop := &spath.HopField{
-		ConsEgress: ifid,
-		ExpTime:    expiry,
-	}
-	if hop.Mac, err = hop.CalcMac(o.sender.MAC, util.TimeToSecs(ts), nil); err != nil {
-		return nil, common.NewBasicError("Unable to create MAC", err)
-	}
-	return hop.Pack(), nil
 }

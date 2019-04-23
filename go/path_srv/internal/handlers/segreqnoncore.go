@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -285,5 +285,5 @@ func (h *segReqNonCoreHandler) corePSAddr(ctx context.Context,
 	}
 	// select a core AS we have an up segment to.
 	seg := upSegs[rand.Intn(len(upSegs))]
-	return addrutil.GetPath(addr.SvcPS, seg, seg.FirstIA(), h.topology)
+	return addrutil.GetPath(addr.SvcPS, seg, h.topology)
 }
