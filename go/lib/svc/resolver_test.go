@@ -81,12 +81,13 @@ func TestResolver(t *testing.T) {
 			mockConn := mock_snet.NewMockPacketConn(ctrl)
 			mockConn.EXPECT().Close()
 			mockPacketDispatcherService.EXPECT().RegisterTimeout(dstIA,
-				machine.BuildAppAddress(),
-				machine.BuildBindAddress(),
+				machine.AppAddress(),
+				machine.BindAddress(),
 				addr.SvcNone,
 				time.Duration(0)).Return(mockConn, uint16(42), nil)
 			mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
-			mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any())
+			mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any())
 
 			resolver := &svc.Resolver{
 				Router:       mockRouter,
@@ -199,7 +200,8 @@ func TestRoundTripper(t *testing.T) {
 					tc.ConnSetup(conn)
 				}
 				roundTripper := svc.DefaultRoundTripper()
-				reply, err := roundTripper.RoundTrip(conn, tc.InputPacket, tc.InputOverlay)
+				reply, err := roundTripper.RoundTrip(context.Background(), conn, tc.InputPacket,
+					tc.InputOverlay)
 				xtest.SoMsgError("err", err, tc.ExpectedError)
 				SoMsg("reply", reply, ShouldResemble, tc.ExpectedReply)
 			})

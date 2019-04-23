@@ -29,6 +29,7 @@ import (
 // in this package. Applications that run SCIOND-less (PS, SD, BS) might be
 // interested in spinning their own implementations.
 type Router interface {
+	// Route returns a path from the local AS to dst.
 	Route(ctx context.Context, dst addr.IA) (Path, error)
 	// LocalIA returns the IA from which this router routes.
 	LocalIA() addr.IA
@@ -37,8 +38,12 @@ type Router interface {
 // Path is an abstract representation of a path. Most applications do not need
 // access to the raw internals.
 type Path interface {
+	// OverlayNextHop returns the address:port pair of a local-AS overlay
+	// speaker. Usually, this is a border router that will forward the traffic.
 	OverlayNextHop() *overlay.OverlayAddr
 	// Path returns a raw (data-plane compatible) representation of the path.
+	// The returned path is initialized and ready for use in snet calls that
+	// deal with raw paths.
 	Path() *spath.Path
 }
 
@@ -54,9 +59,9 @@ type LocalMachine struct {
 	PublicIP net.IP
 }
 
-// BuildAppAddress returns a public address for the local machine. The port is
+// AppAddress returns a public address for the local machine. The port is
 // set to 0.
-func (m *LocalMachine) BuildAppAddress() *addr.AppAddr {
+func (m *LocalMachine) AppAddress() *addr.AppAddr {
 	ip := m.InterfaceIP
 	if m.PublicIP != nil {
 		ip = m.PublicIP
@@ -67,9 +72,9 @@ func (m *LocalMachine) BuildAppAddress() *addr.AppAddr {
 	}
 }
 
-// BuildBindAddress returns a bind address for the local machine. The port is
+// BindAddress returns a bind address for the local machine. The port is
 // set to 0.
-func (m *LocalMachine) BuildBindAddress() *overlay.OverlayAddr {
+func (m *LocalMachine) BindAddress() *overlay.OverlayAddr {
 	ov, err := overlay.NewOverlayAddr(
 		addr.HostFromIP(m.InterfaceIP),
 		addr.NewL4UDPInfo(0),

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ctxconn provides a helper function to track context cancelation when
+// Package ctxconn provides a helper function to track context cancellation when
 // working with connections.
 package ctxconn
 
@@ -34,9 +34,11 @@ type DeadlineCloser interface {
 type CancelFunc func()
 
 // CloseConnOnDone closes conn whenever ctx is Done. This includes if ctx is
-// canceled via its cancelation function.
+// canceled via its cancellation function.
 //
-// Call the returned cancelation function to free up resources.
+// Call the returned cancellation function to free up resources. Calling this
+// function does not guarantee that the connection has been closed. It is not
+// safe to call the returned function multiple times at the same time.
 func CloseConnOnDone(ctx context.Context, conn DeadlineCloser) CancelFunc {
 	if deadline, ok := ctx.Deadline(); ok {
 		conn.SetDeadline(deadline)

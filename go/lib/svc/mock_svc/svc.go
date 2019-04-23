@@ -5,6 +5,7 @@
 package mock_svc
 
 import (
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 	overlay "github.com/scionproto/scion/go/lib/overlay"
 	snet "github.com/scionproto/scion/go/lib/snet"
@@ -110,16 +111,16 @@ func (m *MockRoundTripper) EXPECT() *MockRoundTripperMockRecorder {
 }
 
 // RoundTrip mocks base method
-func (m *MockRoundTripper) RoundTrip(arg0 snet.PacketConn, arg1 *snet.SCIONPacket, arg2 *overlay.OverlayAddr) (*svc.Reply, error) {
+func (m *MockRoundTripper) RoundTrip(arg0 context.Context, arg1 snet.PacketConn, arg2 *snet.SCIONPacket, arg3 *overlay.OverlayAddr) (*svc.Reply, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RoundTrip", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "RoundTrip", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*svc.Reply)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RoundTrip indicates an expected call of RoundTrip
-func (mr *MockRoundTripperMockRecorder) RoundTrip(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockRoundTripperMockRecorder) RoundTrip(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RoundTrip", reflect.TypeOf((*MockRoundTripper)(nil).RoundTrip), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RoundTrip", reflect.TypeOf((*MockRoundTripper)(nil).RoundTrip), arg0, arg1, arg2, arg3)
 }
