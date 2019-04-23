@@ -66,7 +66,6 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		return pseg.Validate(seg.ValidateSegment)
 	}
 	return pseg.Validate(seg.ValidateBeacon)
-
 }
 
 func (s *segExtender) createHopEntries(inIfid, egIfid common.IFIDType, peers []common.IFIDType,

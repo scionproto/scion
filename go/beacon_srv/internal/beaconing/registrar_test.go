@@ -114,24 +114,21 @@ func TestRegistrarRun(t *testing.T) {
 					close(res)
 					return res, nil
 				})
-			segMu := sync.Mutex{}
-			var sent []struct {
+			type regMsg struct {
 				Reg  *path_mgmt.SegReg
 				Addr *snet.Addr
 			}
+			segMu := sync.Mutex{}
+			var sent []regMsg
 			msgr.EXPECT().SendSegReg(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any()).Times(len(test.beacons)).DoAndReturn(
 				func(_, isegreg, iaddr, _ interface{}) error {
 					segMu.Lock()
 					defer segMu.Unlock()
-					s := struct {
-						Reg  *path_mgmt.SegReg
-						Addr *snet.Addr
-					}{
+					sent = append(sent, regMsg{
 						Reg:  isegreg.(*path_mgmt.SegReg),
 						Addr: iaddr.(*snet.Addr),
-					}
-					sent = append(sent, s)
+					})
 					return nil
 				},
 			)

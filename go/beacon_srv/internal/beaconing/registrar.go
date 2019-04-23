@@ -99,20 +99,8 @@ func (r *Registrar) run(ctx context.Context) error {
 			segErr.Inc()
 			continue
 		}
-		wg.Add(1)
 		// Avoid head-of-line blocking when sending message to slow servers.
-		go func() {
-			defer log.LogPanicAndExit()
-			defer wg.Done()
-			if err := r.msgr.SendSegReg(ctx, reg, saddr, messenger.NextId()); err != nil {
-				log.Error("[Registrar] Unable to register segment", "addr", saddr, "err", err)
-				sendErr.Inc()
-				return
-			}
-			log.Debug("[Registrar] Successfully registered segment", "addr", saddr,
-				"seg", reg.Recs[0].Segment)
-			success.Inc()
-		}()
+		r.startSendSegReg(ctx, reg, saddr, wg, &success, &sendErr)
 	}
 	wg.Wait()
 	total := success.c + segErr.c + sendErr.c
@@ -123,6 +111,26 @@ func (r *Registrar) run(ctx context.Context) error {
 	log.Info("[Registrar] Successfully registered segments", "success", success.c,
 		"candidates", total, "segCreationErrs", segErr.c, "sendErrs", sendErr.c)
 	return nil
+}
+
+// startSendSegReg adds to the wait group and starts a goroutine that sends the
+// registration message to the peer.
+func (r *Registrar) startSendSegReg(ctx context.Context, reg *path_mgmt.SegReg, saddr net.Addr,
+	wg *sync.WaitGroup, success, sendErr *ctr) {
+
+	wg.Add(1)
+	go func() {
+		defer log.LogPanicAndExit()
+		defer wg.Done()
+		if err := r.msgr.SendSegReg(ctx, reg, saddr, messenger.NextId()); err != nil {
+			log.Error("[Registrar] Unable to register segment", "addr", saddr, "err", err)
+			sendErr.Inc()
+			return
+		}
+		log.Debug("[Registrar] Successfully registered segment", "addr", saddr,
+			"seg", reg.Recs[0].Segment)
+		success.Inc()
+	}()
 }
 
 func (r *Registrar) sortedActivePeers() []common.IFIDType {
