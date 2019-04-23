@@ -54,19 +54,18 @@ func (r *Resolver) LookupSVC(ctx context.Context, ia addr.IA, svc addr.HostSVC) 
 		return nil, err
 	}
 
-	conn, port, err := r.ConnFactory.RegisterTimeout(ia, r.Machine.BuildAppAddress(),
-		r.Machine.BuildBindAddress(), addr.SvcNone, 0)
+	conn, port, err := r.ConnFactory.RegisterTimeout(ia, r.Machine.AppAddress(),
+		r.Machine.BindAddress(), addr.SvcNone, 0)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
-	defer ctxconn.CloseConnOnDone(ctx, conn)()
 
 	requestPacket := &snet.SCIONPacket{
 		SCIONPacketInfo: snet.SCIONPacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   r.Router.LocalIA(),
-				Host: r.Machine.BuildAppAddress().L3,
+				Host: r.Machine.AppAddress().L3,
 			},
 			Destination: snet.SCIONAddress{
 				IA:   ia,
@@ -78,7 +77,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, ia addr.IA, svc addr.HostSVC) 
 			},
 		},
 	}
-	return r.getRoundTripper().RoundTrip(conn, requestPacket, path.OverlayNextHop())
+	return r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, path.OverlayNextHop())
 }
 
 func (r *Resolver) getRoundTripper() RoundTripper {
@@ -92,7 +91,8 @@ func (r *Resolver) getRoundTripper() RoundTripper {
 // connection, using the specified request packet and overlay address.
 type RoundTripper interface {
 	// RoundTrip performs the round trip interaction.
-	RoundTrip(c snet.PacketConn, request *snet.SCIONPacket, ov *overlay.OverlayAddr) (*Reply, error)
+	RoundTrip(ctx context.Context, c snet.PacketConn, request *snet.SCIONPacket,
+		ov *overlay.OverlayAddr) (*Reply, error)
 }
 
 // DefaultRoundTripper returns a basic implementation of the RoundTripper
@@ -105,7 +105,7 @@ var _ RoundTripper = (*roundTripper)(nil)
 
 type roundTripper struct{}
 
-func (roundTripper) RoundTrip(c snet.PacketConn, pkt *snet.SCIONPacket,
+func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.SCIONPacket,
 	ov *overlay.OverlayAddr) (*Reply, error) {
 
 	if pkt == nil {
@@ -114,6 +114,10 @@ func (roundTripper) RoundTrip(c snet.PacketConn, pkt *snet.SCIONPacket,
 	if ov == nil {
 		return nil, common.NewBasicError(errNilOverlay, nil)
 	}
+
+	cancelF := ctxconn.CloseConnOnDone(ctx, c)
+	defer cancelF()
+
 	if err := c.WriteTo(pkt, ov); err != nil {
 		return nil, err
 	}

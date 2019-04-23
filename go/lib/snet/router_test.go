@@ -50,7 +50,7 @@ func TestLocalMachineBuildAppAddress(t *testing.T) {
 				},
 			},
 			{
-				Description: "if have public IP, it is used to construct app address",
+				Description: "if public IP is set, it is used to construct app address",
 				Machine: &LocalMachine{
 					InterfaceIP: net.IP{192, 168, 0, 1},
 					PublicIP:    net.IP{192, 0, 2, 1},
@@ -64,7 +64,7 @@ func TestLocalMachineBuildAppAddress(t *testing.T) {
 
 		for _, tc := range testCases {
 			Convey(tc.Description, func() {
-				So(tc.Machine.BuildAppAddress(), ShouldResemble, tc.ExpectedAppAddr)
+				So(tc.Machine.AppAddress(), ShouldResemble, tc.ExpectedAppAddr)
 			})
 		}
 	})
@@ -82,7 +82,7 @@ func TestLocalMachineBuildBindAddress(t *testing.T) {
 				Machine: &LocalMachine{
 					InterfaceIP: net.IP{192, 0, 2, 1},
 				},
-				ExpectedBindAddr: MustNewOverlayAddr(
+				ExpectedBindAddr: mustNewOverlayAddr(
 					addr.HostFromIP(net.IP{192, 0, 2, 1}),
 					addr.NewL4UDPInfo(0),
 				),
@@ -91,13 +91,13 @@ func TestLocalMachineBuildBindAddress(t *testing.T) {
 
 		for _, tc := range testCases {
 			Convey(tc.Description, func() {
-				So(tc.Machine.BuildBindAddress(), ShouldResemble, tc.ExpectedBindAddr)
+				So(tc.Machine.BindAddress(), ShouldResemble, tc.ExpectedBindAddr)
 			})
 		}
 	})
 }
 
-func MustNewOverlayAddr(l3 addr.HostAddr, l4 addr.L4Info) *overlay.OverlayAddr {
+func mustNewOverlayAddr(l3 addr.HostAddr, l4 addr.L4Info) *overlay.OverlayAddr {
 	ov, err := overlay.NewOverlayAddr(l3, l4)
 	if err != nil {
 		panic(err)
