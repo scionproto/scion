@@ -9,6 +9,15 @@ clean:
 	cd go && $(MAKE) clean
 	rm -f bin/* tags
 
+build_libs:
+	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) || exit 1;)
+
+install_libs:
+	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) install || exit 1;)
+
+build_go:
+	cd go && $(MAKE) deps_gen bin_native libs
+
 go: libscion
 	@# `make -C go` breaks if there are symlinks in $PWD
 	cd go && $(MAKE)

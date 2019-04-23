@@ -69,6 +69,7 @@ __pycache__
 # Generated executables
 ##########################
 /bin/*
+/etc/*
 !/bin/.keepme
 /c/dispatcher/dispatcher
 /c/lib/scion/checksum_bench

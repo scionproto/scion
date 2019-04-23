@@ -10,8 +10,8 @@ TARGETS = dispatcher
 
 # High level variables, these might be set from outside to
 # use a custom target directory
-DESTDIR?=
-PREFIX?=..
+DESTDIR?=../../
+PREFIX?=
 
 all: $(TARGETS)
 

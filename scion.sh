@@ -284,10 +284,13 @@ cmd_version() {
 
 cmd_build() {
     if [ "$1" == "bypass" ]; then
-        USER_OPTS=-DBYPASS_ROUTERS make -s
+        USER_OPTS=-DBYPASS_ROUTERS make -s build_libs
     else
-        make -s
+        make -s build_libs
     fi
+    sudo -p 'Installing libraries to system directory: Password for %p' true
+    sudo make -s install_libs
+    make build_go
 }
 
 cmd_clean() {
