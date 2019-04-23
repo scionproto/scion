@@ -13,7 +13,6 @@ go_test(
     srcs = ["ctxconn_test.go"],
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/mocks/context/mock_context:go_default_library",
         "//go/lib/svc/internal/ctxconn/mock_ctxconn:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
