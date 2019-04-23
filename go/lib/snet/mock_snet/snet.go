@@ -465,6 +465,20 @@ func (m *MockPath) EXPECT() *MockPathMockRecorder {
 	return m.recorder
 }
 
+// Destination mocks base method
+func (m *MockPath) Destination() addr.IA {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Destination")
+	ret0, _ := ret[0].(addr.IA)
+	return ret0
+}
+
+// Destination indicates an expected call of Destination
+func (mr *MockPathMockRecorder) Destination() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destination", reflect.TypeOf((*MockPath)(nil).Destination))
+}
+
 // OverlayNextHop mocks base method
 func (m *MockPath) OverlayNextHop() *overlay.OverlayAddr {
 	m.ctrl.T.Helper()

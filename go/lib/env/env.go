@@ -120,7 +120,7 @@ func (cfg *General) ConfigName() string {
 
 var _ config.Config = (*SciondClient)(nil)
 
-// SciondClient contains information to for running snet with sciond.
+// SciondClient contains information for running snet with sciond.
 type SciondClient struct {
 	// Path is the sciond path. It defaults to sciond.DefaultSCIONDPath.
 	Path string

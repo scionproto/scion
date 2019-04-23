@@ -19,7 +19,10 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -29,14 +32,81 @@ import (
 // in this package. Applications that run SCIOND-less (PS, SD, BS) might be
 // interested in spinning their own implementations.
 type Router interface {
-	// Route returns a path from the local AS to dst.
+	// Route returns a path from the local AS to dst. If dst matches the local
+	// AS, an empty path is returned.
 	Route(ctx context.Context, dst addr.IA) (Path, error)
 	// LocalIA returns the IA from which this router routes.
 	LocalIA() addr.IA
 }
 
+var _ Router = (*SCIONDRouter)(nil)
+
+// SCIONDRouter is a path router implementation that uses a path resolver to
+// query SCIOND for paths, or returns empty paths if a path resolver is not
+// specified.
+type SCIONDRouter struct {
+	// IA is the source AS for paths, usually the local AS.
+	IA addr.IA
+	// PathResolver to solve path requests. If nil, all path requests yield nil
+	// paths.
+	PathResolver pathmgr.Resolver
+}
+
+// Route uses the specified path resolver (if one exists) to obtain a path from
+// the local AS to dst.
+func (r *SCIONDRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
+	if r.PathResolver == nil || dst.Equal(r.IA) {
+		return &path{}, nil
+	}
+	aps := r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
+	if len(aps) == 0 {
+		return nil, common.NewBasicError("unable to find paths", nil)
+	}
+
+	pathEntry := aps.GetAppPath("").Entry
+	p := spath.New(pathEntry.Path.FwdPath)
+	// Preinitialize offsets, we don't want to propagate unusable paths
+	if err := p.InitOffsets(); err != nil {
+		return nil, common.NewBasicError("path error", err)
+	}
+	overlayAddr, err := pathEntry.HostInfo.Overlay()
+	if err != nil {
+		return nil, common.NewBasicError("path error", err)
+	}
+	return &path{
+		sciondPath: pathEntry,
+		spath:      p,
+		overlay:    overlayAddr,
+	}, nil
+}
+
+func (r *SCIONDRouter) LocalIA() addr.IA {
+	return r.IA
+}
+
+var _ Router = (*NullRouter)(nil)
+
+// NullRouter returns empty paths to all routing queries. It is useful for
+// servers that do their own path handling.
+type NullRouter struct {
+	IA addr.IA
+}
+
+func (r *NullRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
+	return &path{}, nil
+}
+
+func (r *NullRouter) LocalIA() addr.IA {
+	return r.IA
+}
+
 // Path is an abstract representation of a path. Most applications do not need
 // access to the raw internals.
+//
+// An empty path is a special kind of path that can be used for intra-AS
+// traffic. Empty paths are valid return values for certain route calls (e.g.,
+// if the source and destination ASes match, or if a router was configured
+// without a source of paths).
 type Path interface {
 	// OverlayNextHop returns the address:port pair of a local-AS overlay
 	// speaker. Usually, this is a border router that will forward the traffic.
@@ -45,6 +115,38 @@ type Path interface {
 	// The returned path is initialized and ready for use in snet calls that
 	// deal with raw paths.
 	Path() *spath.Path
+	// Destination is the AS the path points to. Empty paths return the zero AS
+	// address.
+	Destination() addr.IA
+}
+
+var _ Path = (*path)(nil)
+
+type path struct {
+	// sciondPath contains SCIOND-related path metadata.
+	sciondPath *sciond.PathReplyEntry
+	// spath is the raw SCION forwarding path.
+	spath *spath.Path
+	// overlay is the intra-AS next-hop to use for this path.
+	overlay *overlay.OverlayAddr
+}
+
+func (p *path) OverlayNextHop() *overlay.OverlayAddr {
+	return p.overlay
+}
+
+func (p *path) Path() *spath.Path {
+	if p.spath == nil {
+		return nil
+	}
+	return p.spath.Copy()
+}
+
+func (p *path) Destination() addr.IA {
+	if p.sciondPath == nil {
+		return addr.IA{I: 0, A: 0}
+	}
+	return p.sciondPath.Path.DstIA()
 }
 
 // LocalMachine describes aspects of the host system and its network.

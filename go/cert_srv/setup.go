@@ -74,18 +74,22 @@ func setup() error {
 	if _, _, err := itopo.SetStatic(topo, false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
+	router, err := infraenv.NewRouter(topo.ISD_AS, cfg.Sciond)
+	if err != nil {
+		return common.NewBasicError("Unable to initialize path router", err)
+	}
 	// Load CS state.
-	if err := initState(&cfg); err != nil {
+	if err := initState(&cfg, router); err != nil {
 		return common.NewBasicError("Unable to initialize CS state", err)
 	}
-	if err := setMessenger(&cfg); err != nil {
+	if err := setMessenger(&cfg, router); err != nil {
 		return common.NewBasicError("Unable to set messenger", err)
 	}
 	return nil
 }
 
 // initState sets the state.
-func initState(cfg *config.Config) error {
+func initState(cfg *config.Config, router snet.Router) error {
 	topo := itopo.Get()
 	var err error
 	if trustDB, err = cfg.TrustDB.New(); err != nil {
@@ -95,6 +99,7 @@ func initState(cfg *config.Config) error {
 	trustConf := &trust.Config{
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_cs,
+		Router:             router,
 	}
 	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
 		trustConf, log.Root())
@@ -141,7 +146,7 @@ func setDefaultSignerVerifier(c *config.State, pubIA addr.IA) error {
 
 // setMessenger sets the messenger and the internal messenger of the store in
 // cfg.CS. This function may only be called once per config.
-func setMessenger(cfg *config.Config) error {
+func setMessenger(cfg *config.Config, router snet.Router) error {
 	topo := itopo.Get()
 	topoAddress := topo.CS.GetById(cfg.General.ID)
 	if topoAddress == nil {
@@ -155,7 +160,7 @@ func setMessenger(cfg *config.Config) error {
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		EnableQUICTest:        cfg.EnableQUICTest,
 		TrustStore:            state.Store,
-		SCIOND:                cfg.Sciond,
+		Router:                router,
 	}
 	var err error
 	msgr, err = nc.Messenger()

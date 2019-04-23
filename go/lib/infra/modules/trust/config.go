@@ -15,6 +15,7 @@
 package trust
 
 import (
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -29,4 +30,6 @@ type Config struct {
 	MustHaveLocalChain bool
 	// ServiceType is the type of the service that uses the store.
 	ServiceType proto.ServiceType
+	// Router is used to determine paths to other ASes.
+	Router snet.Router
 }
