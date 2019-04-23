@@ -20,16 +20,16 @@ gohsr: libhsr
 clibs: libscion libfilter
 
 libscion:
-	$(MAKE) -C c/lib/scion $(target)
+	$(MAKE) -C c/lib/scion install
 
 libfilter: libscion
-	$(MAKE) -C c/lib/filter $(target)
+	$(MAKE) -C c/lib/filter install
 
 dispatcher: clibs
-	$(MAKE) -C c/dispatcher $(target)
+	$(MAKE) -C c/dispatcher install
 
 libhsr: libscion
-	$(MAKE) -C c/lib/hsr $(target)
+	$(MAKE) -C c/lib/hsr doinstall
 
 uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)

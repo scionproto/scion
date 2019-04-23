@@ -39,33 +39,33 @@ TARGETBIN=$(DESTDIR)$(BINDIR)
 TARGETETC=$(DESTDIR)$(ETCDIR)
 
 %:
-	dh $@ 
+	dh $@
 
 override_dh_auto_clean:
-	make libscion target=clean
-	make libfilter target=clean
-	make dispatcher target=clean
+	make -C c/lib/scion target=clean
+	make -C c/lib/filter target=clean
+	make -C c/dispatcher target=clean
 	rm -rf bin/*
 
 override_dh_auto_build:
 	echo 'build'
-	make libscion CC=$(CC) CXX=$(CXX)
-	make libfilter CC=$(CC) CXX=$(CXX)
-	make dispatcher CC=$(CC) CXX=$(CXX)
+	make -C c/lib/scion CC=$(CC) CXX=$(CXX)
+	make -C c/lib/filter CC=$(CC) CXX=$(CXX)
+	make -C c/dispatcher CC=$(CC) CXX=$(CXX)
 	CC=$(CC) CROSS_GOOS=$(DEB_HOST_ARCH_OS) CROSS_GOARCH=$(DEB_HOST_ARCH_CPU) ./build-in-tmp.sh
 
 override_dh_auto_install:
 	# Make debian build directory
 	mkdir -p $(DESTDIR)
-	
+
 	# Install libscion
-	make libscion target=install DESTDIR=$(DESTDIR) PREFIX=$(PREFIX) LIBRARY_PATH=lib/$(DEB_HOST_GNU_TYPE)
-	
+	make -C c/lib/scion target=install DESTDIR=$(DESTDIR) PREFIX=$(PREFIX) LIBRARY_PATH=lib/$(DEB_HOST_GNU_TYPE)
+
 	# Copy files for libscion0
 	mkdir -p $(DEBDIR)/libscion0$(LIBDIR)
 	cp $(TARGETLIB)/libscion.so $(DEBDIR)/libscion0$(LIBDIR)/libscion.so
 	ln -sf libscion.so $(DEBDIR)/libscion0$(LIBDIR)/libscion.so.0
-	
+
 	# Copy files for libscion0-dev
 	mkdir -p $(DEBDIR)/libscion0-dev$(LIBDIR)
 	mkdir -p $(DEBDIR)/libscion0-dev$(PKGDIR)
@@ -73,15 +73,15 @@ override_dh_auto_install:
 	cp $(TARGETPKG)/scion.pc $(DEBDIR)/libscion0-dev$(PKGDIR)/scion.pc
 	cp $(TARGETLIB)/libscion.a $(DEBDIR)/libscion0-dev$(LIBDIR)/libscion.a
 	cp -r $(TARGETINC)/scion/* $(DEBDIR)/libscion0-dev$(INCDIR)/scion
-	
+
 	# Install libfilter0
-	make libfilter target=install DESTDIR=${DESTDIR} PREFIX=$(PREFIX) LIBRARY_PATH=lib/$(DEB_HOST_GNU_TYPE)
-	
+	make -C c/lib/filter target=install DESTDIR=${DESTDIR} PREFIX=$(PREFIX) LIBRARY_PATH=lib/$(DEB_HOST_GNU_TYPE)
+
 	# Copy files for libfilter0
 	mkdir -p $(DEBDIR)/libfilter0$(LIBDIR)
 	cp $(TARGETLIB)/libfilter.so $(DEBDIR)/libfilter0$(LIBDIR)/libfilter.so
 	ln -sf libfilter.so $(DEBDIR)/libfilter0$(LIBDIR)/libfilter.so.0
-	
+
 	# Copy files for libfilter0-dev
 	mkdir -p $(DEBDIR)/libfilter0-dev$(LIBDIR)
 	mkdir -p $(DEBDIR)/libfilter0-dev$(PKGDIR)
@@ -89,16 +89,16 @@ override_dh_auto_install:
 	cp $(TARGETPKG)/scion-filter.pc $(DEBDIR)/libfilter0-dev$(PKDIR)/scion-filter.pc
 	cp $(TARGETLIB)/libfilter.a $(DEBDIR)/libfilter0-dev$(LIBDIR)/libfilter.a
 	cp -r $(TARGETINC)/scion-filter/* $(DEBDIR)/libscion0-dev$(INCDIR)/scion-filter
-	
+
 	# Install scion-dispatcher
-	make dispatcher target=install DESTDIR=${DESTDIR} PREFIX=$(PREFIX) LIBRARY_PATH=lib/$(DEB_HOST_GNU_TYPE)
-	
+	make -C c/dispatcher target=install DESTDIR=${DESTDIR} PREFIX=$(PREFIX) LIBRARY_PATH=lib/$(DEB_HOST_GNU_TYPE)
+
 	# Copy files for scion-dispatcher
 	mkdir -p $(DEBDIR)/scion-dispatcher$(BINDIR)
 	mkdir -p $(DEBDIR)/scion-dispatcher$(ETCDIR)/scion
 	cp $(TARGETBIN)/dispatcher $(DEBDIR)/scion-dispatcher$(BINDIR)/dispatcher
 	cp $(TARGETETC)/scion/dispatcher.conf $(DEBDIR)/scion-dispatcher$(ETCDIR)/scion/dispatcher.conf
-	
+
 	# Copy files for scion-daemons
 	mkdir -p $(DEBDIR)/scion-daemons$(BINDIR)
 	echo $(shell pwd)
