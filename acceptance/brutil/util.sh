@@ -2,12 +2,14 @@
 
 # Following are the specific setup functions for border acceptance tests
 
-# syntax: create_veth <host_if_name> <container_if_name> <container_ip_addr> <neigh_ips>
+# Syntax:
+#  create_veth <host_if_name> <container_if_name> <container_ip_addr> <container_mac_addr> <neigh_ips>
 create_veth() {
     VETH_HOST=${1:?}
     VETH_CONTAINER=${2:?}
     IP_CONTAINER=${3:?}
-    shift 3
+    MAC_CONTAINER=${4:?}
+    shift 4
     NS=$(get_docker_ns)
     # Set veth1 pair
     sudo ip link add $VETH_HOST type veth peer name $VETH_CONTAINER
@@ -15,13 +17,14 @@ create_veth() {
     sudo ip link set $VETH_HOST up
     sudo ip link set $VETH_CONTAINER netns $NS
     sudo ip netns exec $NS sysctl -qw net.ipv6.conf.$VETH_CONTAINER.disable_ipv6=1
+    sudo ip netns exec $NS sysctl -qw net.ipv4.ip_default_ttl=64
+    sudo ip netns exec $NS ethtool -K $VETH_CONTAINER rx off tx off 1>&2
+    sudo ip netns exec $NS ip link set $VETH_CONTAINER address $MAC_CONTAINER
     sudo ip netns exec $NS ip addr add $IP_CONTAINER dev $VETH_CONTAINER
     for ip in "$@"; do
         sudo ip netns exec $NS ip neigh add $ip lladdr f0:0d:ca:fe:be:ef nud permanent dev $VETH_CONTAINER
     done
     sudo ip netns exec $NS ip link set $VETH_CONTAINER up
-    MAC=$(sudo ip netns exec $NS cat /sys/class/net/${VETH_CONTAINER}/address)
-    echo "$VETH_HOST $VETH_CONTAINER $MAC"
 }
 
 get_docker_ns_path() {
