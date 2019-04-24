@@ -1,7 +1,0 @@
-Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: scion
-Source: https://scion-architecture.net
-
-Files: *
-Copyright: 2019 SCION Team <https://scion-architecture.net>
-License: Apache-2.0
