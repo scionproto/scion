@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -38,24 +39,47 @@ const (
 	ErrAppUnableToInitMessenger = "Unable to initialize SCION Infra Messenger"
 )
 
-func InitMessenger(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
-	reconnectToDispatcher bool, enableQUICTest bool,
-	store infra.TrustStore) (infra.Messenger, error) {
-
-	return InitMessengerWithSciond(ia, public, bind, svc, reconnectToDispatcher,
-		enableQUICTest, store, env.SciondClient{})
+// NetworkConfig describes the networking configuration of a SCION
+// control-plane RPC endpoint.
+type NetworkConfig struct {
+	// IA is the local AS number.
+	IA addr.IA
+	// Public is the Internet-reachable address in the case where the service
+	// is behind NAT.
+	Public *snet.Addr
+	// Bind is the local address the server should listen on.
+	Bind *snet.Addr
+	// SVC registers this server to receive packets with the specified SVC
+	// destination address.
+	SVC addr.HostSVC
+	// TrustStore is the crypto backend for control-plane verification.
+	TrustStore infra.TrustStore
+	// ReconnectToDispatcher sets up sockets that automatically reconnect if
+	// the dispatcher closes the connection (e.g., if the dispatcher goes
+	// down).
+	ReconnectToDispatcher bool
+	// EnableQUICTest can be used to enable the QUIC RPC implementation.
+	EnableQUICTest bool
+	// SCIOND tells the stack it can use the local SCIOND daemon for certain
+	// operations. If the default value is used, no SCIOND connections are ever
+	// set up.
+	SCIOND env.SciondClient
 }
 
-func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
-	reconnectToDispatcher bool, enableQUICTest bool, store infra.TrustStore,
-	sciond env.SciondClient) (infra.Messenger, error) {
-
-	conn, err := initNetworking(ia, public, bind, svc, reconnectToDispatcher, sciond)
+// Messenger initializes a SCION control-plane RPC endpoint using the specified
+// configuration.
+func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
+	// TODO(scrye): Ignore path resolver for now, but use it later to
+	// initialize path-related modules in the messenger and trust store.
+	conn, _, err := nc.initNetworking()
 	if err != nil {
 		return nil, err
 	}
-	msgerCfg := &messenger.Config{IA: ia, TrustStore: store}
-	if enableQUICTest {
+	msgerCfg := &messenger.Config{
+		IA:         nc.IA,
+		TrustStore: nc.TrustStore,
+	}
+	if nc.EnableQUICTest {
 		var err error
 		msgerCfg.QUIC, err = buildQUICConfig(conn)
 		if err != nil {
@@ -69,8 +93,52 @@ func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostS
 		)
 	}
 	msger := messenger.NewMessengerWithMetrics(msgerCfg)
-	store.SetMessenger(msger)
+	nc.TrustStore.SetMessenger(msger)
 	return msger, nil
+
+}
+
+func (nc *NetworkConfig) initNetworking() (net.PacketConn, pathmgr.Resolver, error) {
+	network, err := nc.initNetwork()
+	if err != nil {
+		return nil, nil, common.NewBasicError("Unable to create network", err)
+	}
+	// FIXME(scrye): create a new path resolver here, as sharing path state
+	// with the snet backend path store is rarely useful in the same app.
+	pathResolver := network.(*snet.SCIONNetwork).PathResolver()
+	if nc.ReconnectToDispatcher {
+		network = snetproxy.NewProxyNetwork(network)
+	}
+	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
+	if err != nil {
+		return nil, nil, common.NewBasicError("Unable to listen on SCION", err)
+	}
+	return conn, pathResolver, nil
+}
+
+func (nc *NetworkConfig) initNetwork() (snet.Network, error) {
+	var err error
+	var network snet.Network
+	ticker := time.NewTicker(time.Second)
+	timer := time.NewTimer(nc.SCIOND.InitialConnectPeriod.Duration)
+	defer ticker.Stop()
+	defer timer.Stop()
+	// XXX(roosd): Initial retrying is implemented here temporarily.
+	// In https://github.com/scionproto/scion/issues/1974 this will be
+	// done transparently and pushed to snet.NewNetwork.
+Top:
+	for {
+		network, err = snet.NewNetwork(nc.IA, nc.SCIOND.Path, reliable.NewDispatcherService(""))
+		if err == nil || nc.SCIOND.Path == "" {
+			break
+		}
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			break Top
+		}
+	}
+	return network, err
 }
 
 func buildQUICConfig(conn net.PacketConn) (*messenger.QUICConfig, error) {
@@ -89,49 +157,6 @@ func buildQUICConfig(conn net.PacketConn) (*messenger.QUICConfig, error) {
 			InsecureSkipVerify: true,
 		},
 	}, nil
-}
-
-func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
-	reconnectToDispatcher bool, sciond env.SciondClient) (snet.Conn, error) {
-
-	var network snet.Network
-	network, err := initNetwork(ia, sciond)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create network", err)
-	}
-	if reconnectToDispatcher {
-		network = snetproxy.NewProxyNetwork(network)
-	}
-	conn, err := network.ListenSCIONWithBindSVC("udp4", public, bind, svc, 0)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to listen on SCION", err)
-	}
-	return conn, nil
-}
-
-func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
-	var err error
-	var network snet.Network
-	ticker := time.NewTicker(time.Second)
-	timer := time.NewTimer(sciond.InitialConnectPeriod.Duration)
-	defer ticker.Stop()
-	defer timer.Stop()
-	// XXX(roosd): Initial retrying is implemented here temporarily.
-	// In https://github.com/scionproto/scion/issues/1974 this will be
-	// done transparently and pushed to snet.NewNetwork.
-Top:
-	for {
-		network, err = snet.NewNetwork(ia, sciond.Path, reliable.NewDispatcherService(""))
-		if err == nil || sciond.Path == "" {
-			break
-		}
-		select {
-		case <-ticker.C:
-		case <-timer.C:
-			break Top
-		}
-	}
-	return network, err
 }
 
 func InitInfraEnvironment(topologyPath string) *env.Env {

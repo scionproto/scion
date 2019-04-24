@@ -117,15 +117,16 @@ func realMain() int {
 		log.Crit("Unable to find topo address")
 		return 1
 	}
-	msger, err := infraenv.InitMessenger(
-		topo.ISD_AS,
-		env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
-		env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
-		addr.SvcPS,
-		cfg.General.ReconnectToDispatcher,
-		cfg.EnableQUICTest,
-		trustStore,
-	)
+	nc := infraenv.NetworkConfig{
+		IA:                    topo.ISD_AS,
+		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
+		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
+		SVC:                   addr.SvcPS,
+		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
+		EnableQUICTest:        cfg.EnableQUICTest,
+		TrustStore:            trustStore,
+	}
+	msger, err := nc.Messenger()
 	if err != nil {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
