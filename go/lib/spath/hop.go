@@ -151,8 +151,10 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32, prev common.RawBytes) co
 	copy(all[9:], prev)
 
 	mac.Reset()
-	// We can safely ignore the return values: https://godoc.org/hash#Hash
-	mac.Write(all)
+	// Write must not return an error: https://godoc.org/hash#Hash
+	if _, err := mac.Write(all); err != nil {
+		panic(err)
+	}
 	tmp := make([]byte, 0, mac.Size())
 	return mac.Sum(tmp)[:MacLen]
 }
