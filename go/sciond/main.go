@@ -110,15 +110,16 @@ func realMain() int {
 		log.Crit("TRC error", "err", err)
 		return 1
 	}
-	msger, err := infraenv.InitMessenger(
-		itopo.Get().ISD_AS,
-		cfg.SD.Public,
-		cfg.SD.Bind,
-		addr.SvcNone,
-		cfg.General.ReconnectToDispatcher,
-		cfg.EnableQUICTest,
-		trustStore,
-	)
+	nc := infraenv.NetworkConfig{
+		IA:                    itopo.Get().ISD_AS,
+		Public:                cfg.SD.Public,
+		Bind:                  cfg.SD.Bind,
+		SVC:                   addr.SvcNone,
+		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
+		EnableQUICTest:        cfg.EnableQUICTest,
+		TrustStore:            trustStore,
+	}
+	msger, err := nc.Messenger()
 	if err != nil {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1

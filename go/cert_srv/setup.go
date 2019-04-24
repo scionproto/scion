@@ -147,17 +147,18 @@ func setMessenger(cfg *config.Config) error {
 	if topoAddress == nil {
 		return common.NewBasicError("Unable to find topo address", nil)
 	}
+	nc := infraenv.NetworkConfig{
+		IA:                    topo.ISD_AS,
+		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
+		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
+		SVC:                   addr.SvcCS,
+		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
+		EnableQUICTest:        cfg.EnableQUICTest,
+		TrustStore:            state.Store,
+		SCIOND:                cfg.Sciond,
+	}
 	var err error
-	msgr, err = infraenv.InitMessengerWithSciond(
-		topo.ISD_AS,
-		env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
-		env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
-		addr.SvcCS,
-		cfg.General.ReconnectToDispatcher,
-		cfg.EnableQUICTest,
-		state.Store,
-		cfg.Sciond,
-	)
+	msgr, err = nc.Messenger()
 	if err != nil {
 		return common.NewBasicError("Unable to initialize SCION Messenger", err)
 	}
