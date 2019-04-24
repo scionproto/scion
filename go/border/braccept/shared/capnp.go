@@ -38,19 +38,16 @@ func CtrlCapnpEnc(signer ctrl.Signer, instance proto.Cerealizable) (common.RawBy
 	return pld, nil
 }
 
-func CtrlCapnpDec(sigVerifier ctrl.SigVerifier, raw common.RawBytes) (proto.Cerealizable, error) {
-	scPld, err := ctrl.NewSignedPldFromRaw(raw)
+func CtrlCapnpDec(sigVerifier ctrl.Verifier, raw common.RawBytes) (proto.Cerealizable, error) {
+	spld, err := ctrl.NewSignedPldFromRaw(raw)
 	if err != nil {
 		return nil, err
 	}
-	if err := sigVerifier.Verify(context.Background(), scPld); err != nil {
-		return nil, err
-	}
-	cPld, err := scPld.Pld()
+	cpld, err := spld.GetVerifiedPld(context.Background(), sigVerifier)
 	if err != nil {
 		return nil, err
 	}
-	u, err := cPld.Union()
+	u, err := cpld.Union()
 	if err != nil {
 		return nil, err
 	}
