@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -666,14 +665,12 @@ func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.
 	if err != nil {
 		return nil, common.NewBasicError("Unable to determine dest ISD to query", err)
 	}
-	pathSet := snet.DefNetwork.PathResolver().Query(ctx, store.ia, addr.IA{I: destISD},
-		sciond.PathReqFlags{})
-	path := pathSet.GetAppPath("")
-	if path == nil {
-		return nil, common.NewBasicError("Unable to find path to any core AS", nil,
+	path, err := store.config.Router.Route(ctx, addr.IA{I: destISD})
+	if err != nil {
+		return nil, common.NewBasicError("Unable to find path to any core AS", err,
 			"isd", destISD)
 	}
-	a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	a := &snet.Addr{IA: path.Destination(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	return a, nil
 }
 

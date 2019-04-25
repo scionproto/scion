@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -60,24 +61,22 @@ type NetworkConfig struct {
 	ReconnectToDispatcher bool
 	// EnableQUICTest can be used to enable the QUIC RPC implementation.
 	EnableQUICTest bool
-	// SCIOND tells the stack it can use the local SCIOND daemon for certain
-	// operations. If the default value is used, no SCIOND connections are ever
-	// set up.
-	SCIOND env.SciondClient
+	// Router is used by various infra modules for path-related operations. A
+	// nil router means only intra-AS traffic is supported.
+	Router snet.Router
 }
 
 // Messenger initializes a SCION control-plane RPC endpoint using the specified
 // configuration.
 func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
-	// TODO(scrye): Ignore path resolver for now, but use it later to
-	// initialize path-related modules in the messenger and trust store.
-	conn, _, err := nc.initNetworking()
+	conn, err := nc.initNetworking()
 	if err != nil {
 		return nil, err
 	}
 	msgerCfg := &messenger.Config{
 		IA:         nc.IA,
 		TrustStore: nc.TrustStore,
+		Router:     nc.Router,
 	}
 	if nc.EnableQUICTest {
 		var err error
@@ -98,29 +97,28 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 
 }
 
-func (nc *NetworkConfig) initNetworking() (net.PacketConn, pathmgr.Resolver, error) {
-	network, err := nc.initNetwork()
+func (nc *NetworkConfig) initNetworking() (net.PacketConn, error) {
+	var network snet.Network
+	network, err := snet.NewNetwork(nc.IA, "", reliable.NewDispatcherService(""))
 	if err != nil {
-		return nil, nil, common.NewBasicError("Unable to create network", err)
+		return nil, common.NewBasicError("Unable to create network", err)
 	}
-	// FIXME(scrye): create a new path resolver here, as sharing path state
-	// with the snet backend path store is rarely useful in the same app.
-	pathResolver := network.(*snet.SCIONNetwork).PathResolver()
 	if nc.ReconnectToDispatcher {
 		network = snetproxy.NewProxyNetwork(network)
 	}
 	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
 	if err != nil {
-		return nil, nil, common.NewBasicError("Unable to listen on SCION", err)
+		return nil, common.NewBasicError("Unable to listen on SCION", err)
 	}
-	return conn, pathResolver, nil
+	return conn, nil
 }
 
-func (nc *NetworkConfig) initNetwork() (snet.Network, error) {
+// NewRouter constructs a path router for paths starting from localIA.
+func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 	var err error
-	var network snet.Network
+	var router snet.Router
 	ticker := time.NewTicker(time.Second)
-	timer := time.NewTimer(nc.SCIOND.InitialConnectPeriod.Duration)
+	timer := time.NewTimer(sd.InitialConnectPeriod.Duration)
 	defer ticker.Stop()
 	defer timer.Stop()
 	// XXX(roosd): Initial retrying is implemented here temporarily.
@@ -128,17 +126,29 @@ func (nc *NetworkConfig) initNetwork() (snet.Network, error) {
 	// done transparently and pushed to snet.NewNetwork.
 Top:
 	for {
-		network, err = snet.NewNetwork(nc.IA, nc.SCIOND.Path, reliable.NewDispatcherService(""))
-		if err == nil || nc.SCIOND.Path == "" {
+		sciondConn, err := sciond.NewService(sd.Path, true).Connect()
+		router = &snet.BaseRouter{
+			IA: localIA,
+			PathResolver: pathmgr.New(
+				sciondConn,
+				pathmgr.Timers{
+					NormalRefire: time.Minute,
+					ErrorRefire:  3 * time.Second,
+				},
+				log.Root(),
+			),
+		}
+		if err == nil {
 			break
 		}
+
 		select {
 		case <-ticker.C:
 		case <-timer.C:
 			break Top
 		}
 	}
-	return network, err
+	return router, err
 }
 
 func buildQUICConfig(conn net.PacketConn) (*messenger.QUICConfig, error) {

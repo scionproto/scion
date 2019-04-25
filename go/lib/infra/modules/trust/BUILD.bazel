@@ -23,7 +23,6 @@ go_library(
         "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/trust/trustdb:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/lib/sciond:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",
         "//go/lib/scrypto/trc:go_default_library",

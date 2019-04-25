@@ -90,9 +90,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -109,6 +107,9 @@ type Config struct {
 	Dispatcher *disp.Dispatcher
 	// TrustStore stores and retrieves certificate chains and TRCs.
 	TrustStore infra.TrustStore
+	// Router is used to discover paths to remote ASes. If router is nil, the
+	// messenger never resolves paths.
+	Router snet.Router
 	// HandlerTimeout is the amount of time allocated to the processing of a
 	// received message. This includes the time needed to verify the signature
 	// and the execution of a registered handler (if one exists). If the
@@ -152,6 +153,8 @@ type Messenger struct {
 	config *Config
 	// Networking layer for sending and receiving messages
 	dispatcher *disp.Dispatcher
+	// router is used to discover paths to remote ASes
+	router snet.Router
 
 	cryptoLock sync.RWMutex
 	// signer is used to sign selected outgoing messages
@@ -203,6 +206,10 @@ func New(config *Config) *Messenger {
 		}
 	}
 
+	router := config.Router
+	if router == nil {
+		router = &snet.BaseRouter{IA: config.IA}
+	}
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -213,6 +220,7 @@ func New(config *Config) *Messenger {
 		ia:          config.IA,
 		config:      config,
 		dispatcher:  config.Dispatcher,
+		router:      router,
 		signer:      infra.NullSigner,
 		verifier:    infra.NullSigVerifier,
 		trustStore:  config.TrustStore,
@@ -745,7 +753,10 @@ func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
 		signer = m.signer
 	}
 	if m.config.QUIC == nil {
-		return NewPathingRequester(signer, m.verifier, m.dispatcher, m.ia)
+		return &pathingRequester{
+			requester: ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
+			router:    m.router,
+		}
 	}
 	return &QUICRequester{
 		QUICClientConfig: &rpc.Client{
@@ -753,7 +764,7 @@ func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
 			TLSConfig:  m.config.QUIC.TLSConfig,
 			QUICConfig: m.config.QUIC.QUICConfig,
 		},
-		LocalIA: m.ia,
+		Router: m.router,
 	}
 }
 
@@ -762,33 +773,25 @@ func newTypeAssertErr(typeStr string, msg interface{}) error {
 	return common.NewBasicError(errStr, nil, "msg", msg)
 }
 
-// pathingRequester is a requester with an attached local IA. It resolves the
-// SCION path to construct complete snet addresses that rarely block on writes.
-//
-// FIXME(scrye): This is just a hack to improve performance in the default
-// topology, by allowing each goroutine to issue a request to SCIOND in
-// parallel (as opposed of one goroutine waiting for another if the Path
-// Resolver were to be used). This logic should be moved to snet internals
-// once the path resolver has support for concurrent queries and context
-// awareness.
-type pathingRequester struct {
-	requester *ctrl_msg.Requester
-	local     addr.IA
+type Requester interface {
+	Request(ctx context.Context, pld *ctrl.Pld, a net.Addr) (*ctrl.Pld, *proto.SignS, error)
+	Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
+	NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
 }
 
-func NewPathingRequester(signer ctrl.Signer, sigv ctrl.Verifier, d *disp.Dispatcher,
-	local addr.IA) Requester {
+var _ Requester = (*pathingRequester)(nil)
 
-	return &pathingRequester{
-		requester: ctrl_msg.NewRequester(signer, sigv, d),
-		local:     local,
-	}
+// pathingRequester resolves the SCION path and constructs complete snet
+// addresses.
+type pathingRequester struct {
+	requester *ctrl_msg.Requester
+	router    snet.Router
 }
 
 func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
 
-	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	newAddr, err := computeNewAddress(ctx, pr.router, a)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -796,7 +799,7 @@ func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 }
 
 func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	newAddr, err := computeNewAddress(ctx, pr.router, a)
 	if err != nil {
 		return err
 	}
@@ -804,25 +807,18 @@ func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Add
 }
 
 func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := getBlockingPath(ctx, pr.local, a)
+	newAddr, err := computeNewAddress(ctx, pr.router, a)
 	if err != nil {
 		return err
 	}
 	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
 }
 
-type Requester interface {
-	// RoundTrip(ctx context.Context, request *Request) (*ctrl.SignedPld, error)
-	Request(ctx context.Context, pld *ctrl.Pld, a net.Addr) (*ctrl.Pld, *proto.SignS, error)
-	Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
-	NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
-}
-
 var _ Requester = (*QUICRequester)(nil)
 
 type QUICRequester struct {
 	QUICClientConfig *rpc.Client
-	LocalIA          addr.IA
+	Router           snet.Router
 }
 
 func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
@@ -830,7 +826,7 @@ func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 
 	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
 	// additional verifications in the future.
-	newAddr, err := getBlockingPath(ctx, rt.LocalIA, a)
+	newAddr, err := computeNewAddress(ctx, rt.Router, a)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -861,41 +857,28 @@ func (rt *QUICRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a 
 	return common.NewBasicError("transport type does not support NotifyUnreliable message", nil)
 }
 
+func computeNewAddress(ctx context.Context, r snet.Router, a net.Addr) (net.Addr, error) {
+	// FIXME(scrye): This is here just to make the trust store pass some older
+	// tests that use a full messenger instead of mocks.
+	// See https://github.com/scionproto/scion/issues/2611.
+	if a == nil {
+		return nil, nil
+	}
+	newAddr := a.(*snet.Addr).Copy()
+	if newAddr.Path == nil {
+		p, err := r.Route(ctx, newAddr.IA)
+		if err != nil {
+			return nil, err
+		}
+		newAddr.Path = p.Path()
+		newAddr.NextHop = p.OverlayNextHop()
+	}
+	return newAddr, nil
+}
+
 type Request struct {
 	Host    net.Addr
 	Payload *ctrl.SignedPld
-}
-
-func getBlockingPath(ctx context.Context, local addr.IA, a net.Addr) (net.Addr, error) {
-	// for SCIOND-less operation do not try to resolve paths
-	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
-		return a, nil
-	}
-	snetAddress := a.(*snet.Addr).Copy()
-	if snetAddress.IA == local {
-		return snetAddress, nil
-	}
-	if snetAddress.Path != nil {
-		return snetAddress, nil
-	}
-	conn := snet.DefNetwork.PathResolver().Sciond()
-	paths, err := conn.Paths(ctx, snetAddress.IA, local, 5, sciond.PathReqFlags{})
-	if err != nil {
-		return nil, err
-	}
-	if len(paths.Entries) == 0 {
-		return nil, common.NewBasicError("unable to find path", nil)
-	}
-	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
-	if err := snetAddress.Path.InitOffsets(); err != nil {
-		return nil, common.NewBasicError("unable to initialize path", err)
-	}
-	snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
-	if err != nil {
-		return nil, common.NewBasicError("unable to build next hop", err)
-	}
-	return snetAddress, nil
-
 }
 
 // validate checks that msg is one of the acceptable message types for SCION
