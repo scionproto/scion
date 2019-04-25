@@ -39,7 +39,7 @@ var _ periodic.Task = (*Registrar)(nil)
 // Propagator forwards beacons to neighboring ASes. In a core AS, the beacons
 // are propagated to neighbors on core links. In a non-core AS, the beacons are
 // forwarded on child links. Selection of the beacons is handled by the beacon
-// provider, only filters AS loops.
+// provider, the propagator only filters AS loops.
 type Propagator struct {
 	segExtender
 	sender   *onehop.Sender
