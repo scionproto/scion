@@ -17,6 +17,7 @@ package beaconing
 import (
 	"context"
 	"errors"
+	"hash"
 	"testing"
 	"time"
 
@@ -38,8 +39,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
 )
-
-// ignore inactive peers
 
 func TestExtenderExtend(t *testing.T) {
 	setupItopo(t, topoNonCore)
@@ -165,67 +164,21 @@ func TestExtenderExtend(t *testing.T) {
 			infoF, err := pseg.InfoF()
 			SoMsg("infoF err", err, ShouldBeNil)
 
-			// checkHopF checks whether the hop field in the hop entry contains
-			// the expected values. The inIfid and prev are different between
-			// that cons and peer hop field.
-			checkHopF := func(hop *seg.HopEntry, inIfid common.IFIDType, prev common.RawBytes) {
-				if prev != nil {
-					prev = prev[1:]
-				}
-				hopF, err := spath.HopFFromRaw(hop.RawHopField)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("hopF.ConsIngress", hopF.ConsIngress, ShouldEqual, inIfid)
-				SoMsg("hopF.ConsEgress", hopF.ConsEgress, ShouldEqual, test.egIfid)
-				SoMsg("hopF.Mac", hopF.Verify(mac, infoF.TsInt, prev), ShouldBeNil)
-				expiry, err := spath.ExpTimeFromDuration(
-					ext.cfg.Signer.Meta().ExpTime.Sub(infoF.Timestamp()), false)
-				xtest.FailOnErr(t, err)
-				SoMsg("hopF.ExpTime", hopF.ExpTime, ShouldEqual, expiry)
-			}
-
-			// checkHopEntry checks whether the hop entry contains the expected
-			// values. The inIfid is different between cons and peer hop
-			// entries.
-			checkHopEntry := func(hop *seg.HopEntry, inIfid common.IFIDType) {
-				ia, ifid, mtu := addr.IA{}, common.IFIDType(0), uint16(0)
-				// Hop entries that are not first on the segment, must not
-				// contain zero values.
-				if inIfid != 0 {
-					intf := intfs.Get(inIfid)
-					SoMsg("Intf", intf, ShouldNotBeNil)
-					ia = intf.TopoInfo().ISD_AS
-					ifid = intf.TopoInfo().RemoteIFID
-					mtu = uint16(intf.TopoInfo().MTU)
-				}
-				SoMsg("Hop.InIA", hop.InIA(), ShouldResemble, ia)
-				SoMsg("Hop.InIf", hop.RemoteInIF, ShouldEqual, ifid)
-				SoMsg("hop.InMTU", hop.InMTU, ShouldEqual, mtu)
-				ia, ifid = addr.IA{}, common.IFIDType(0)
-				// Hop entries that are not last on the segment, must not
-				// contain zero values.
-				if test.egIfid != 0 {
-					intf := intfs.Get(test.egIfid)
-					ia = intf.TopoInfo().ISD_AS
-					ifid = intf.TopoInfo().RemoteIFID
-				}
-				SoMsg("Hop.OutIA", hop.OutIA(), ShouldResemble, ia)
-				SoMsg("Hop.OutIf", hop.RemoteOutIF, ShouldResemble, ifid)
-			}
-
 			Convey("Hop entry is correct", func() {
 				var prev common.RawBytes
 				// The extended hop entry is not the first one.
 				if pseg.MaxAEIdx() > 0 {
 					prev = pseg.ASEntries[pseg.MaxAEIdx()-1].HopEntries[0].RawHopField
 				}
-
-				checkHopEntry(entry.HopEntries[0], test.inIfid)
-				checkHopF(entry.HopEntries[0], test.inIfid, prev)
+				testHopEntry(entry.HopEntries[0], intfs, test.inIfid, test.egIfid)
+				testHopF(t, entry.HopEntries[0], mac, infoF.TsInt, ext.cfg.Signer.Meta().ExpTime,
+					test.inIfid, test.egIfid, prev)
 			})
 
 			Convey("Peer entry is correct", func() {
-				checkHopEntry(entry.HopEntries[1], peer)
-				checkHopF(entry.HopEntries[1], peer, entry.HopEntries[0].RawHopField)
+				testHopEntry(entry.HopEntries[1], intfs, peer, test.egIfid)
+				testHopF(t, entry.HopEntries[1], mac, infoF.TsInt, ext.cfg.Signer.Meta().ExpTime,
+					peer, test.egIfid, entry.HopEntries[0].RawHopField)
 			})
 		})
 	}
@@ -323,6 +276,53 @@ func TestExtenderExtend(t *testing.T) {
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})
+}
+
+// testHopF checks whether the hop field in the hop entry contains the expected
+// values. The inIfid and prev are different between that cons and peer hop
+// field.
+func testHopF(t *testing.T, hop *seg.HopEntry, mac hash.Hash, ts uint32, signerExpTime time.Time,
+	inIfid, egIfid common.IFIDType, prev common.RawBytes) {
+
+	if prev != nil {
+		prev = prev[1:]
+	}
+	hopF, err := spath.HopFFromRaw(hop.RawHopField)
+	SoMsg("err", err, ShouldBeNil)
+	SoMsg("hopF.ConsIngress", hopF.ConsIngress, ShouldEqual, inIfid)
+	SoMsg("hopF.ConsEgress", hopF.ConsEgress, ShouldEqual, egIfid)
+	SoMsg("hopF.Mac", hopF.Verify(mac, ts, prev), ShouldBeNil)
+	expiry, err := spath.ExpTimeFromDuration(signerExpTime.Sub(util.SecsToTime(ts)), false)
+	xtest.FailOnErr(t, err)
+	SoMsg("hopF.ExpTime", hopF.ExpTime, ShouldEqual, expiry)
+}
+
+// testHopEntry checks whether the hop entry contains the expected values. The
+// inIfid is different between cons and peer hop entries.
+func testHopEntry(hop *seg.HopEntry, intfs *ifstate.Interfaces, inIfid, egIfid common.IFIDType) {
+	ia, ifid, mtu := addr.IA{}, common.IFIDType(0), uint16(0)
+	// Hop entries that are not first on the segment, must not
+	// contain zero values.
+	if inIfid != 0 {
+		intf := intfs.Get(inIfid)
+		SoMsg("Intf", intf, ShouldNotBeNil)
+		ia = intf.TopoInfo().ISD_AS
+		ifid = intf.TopoInfo().RemoteIFID
+		mtu = uint16(intf.TopoInfo().MTU)
+	}
+	SoMsg("Hop.InIA", hop.InIA(), ShouldResemble, ia)
+	SoMsg("Hop.InIf", hop.RemoteInIF, ShouldEqual, ifid)
+	SoMsg("hop.InMTU", hop.InMTU, ShouldEqual, mtu)
+	ia, ifid = addr.IA{}, common.IFIDType(0)
+	// Hop entries that are not last on the segment, must not
+	// contain zero values.
+	if egIfid != 0 {
+		intf := intfs.Get(egIfid)
+		ia = intf.TopoInfo().ISD_AS
+		ifid = intf.TopoInfo().RemoteIFID
+	}
+	SoMsg("Hop.OutIA", hop.OutIA(), ShouldResemble, ia)
+	SoMsg("Hop.OutIf", hop.RemoteOutIF, ShouldResemble, ifid)
 }
 
 type failSigner struct {

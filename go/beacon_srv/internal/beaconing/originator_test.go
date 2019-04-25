@@ -17,10 +17,10 @@ package beaconing
 import (
 	"context"
 	"fmt"
-	"net"
+	"sync"
 	"testing"
-	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
@@ -33,9 +33,9 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/p2p"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -53,7 +53,9 @@ func TestOriginatorRun(t *testing.T) {
 	xtest.FailOnErr(t, err)
 	signer := testSigner(t, priv)
 	Convey("Run originates ifid packets on all active core and child interfaces", t, func() {
-		wconn, rconn := p2p.NewPacketConns()
+		mctrl := gomock.NewController(t)
+		defer mctrl.Finish()
+		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := NewOriginator(intfs,
 			Config{
 				MTU:    uint16(itopo.Get().MTU),
@@ -61,7 +63,7 @@ func TestOriginatorRun(t *testing.T) {
 			},
 			&onehop.Sender{
 				IA:   xtest.MustParseIA("1-ff00:0:110"),
-				Conn: snet.NewSCIONPacketConn(wconn),
+				Conn: conn,
 				Addr: &addr.AppAddr{
 					L3: addr.HostFromIPStr("127.0.0.1"),
 					L4: addr.NewL4UDPInfo(4242),
@@ -70,36 +72,55 @@ func TestOriginatorRun(t *testing.T) {
 			},
 		)
 		xtest.FailOnErr(t, err)
-		intfs.Get(1129).Activate(82)
+		// Activate interfaces
 		intfs.Get(42).Activate(84)
-		stop := make(chan struct{})
-		done := readTestPkts(stop, rconn, 2)
+		intfs.Get(1129).Activate(82)
+
+		type msg struct {
+			pkt *snet.SCIONPacket
+			ov  *overlay.OverlayAddr
+		}
+		msgsMtx := sync.Mutex{}
+		var msgs []msg
+		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
+			func(ipkt, iov interface{}) error {
+				msgsMtx.Lock()
+				defer msgsMtx.Unlock()
+				msgs = append(msgs, msg{
+					pkt: ipkt.(*snet.SCIONPacket),
+					ov:  iov.(*overlay.OverlayAddr),
+				})
+				return nil
+			},
+		)
 		// Start beacon messages.
 		o.Run(nil)
-		var pkts []*snet.SCIONPacket
-		select {
-		case pkts = <-done:
-		case <-time.After(1 * time.Second):
-			SoMsg("Timed out", true, ShouldBeFalse)
-		}
-		SoMsg("Pkts", len(pkts), ShouldEqual, len(itopo.Get().IFInfoMap))
-		for i, pkt := range pkts {
+		for i, msg := range msgs {
 			Convey(fmt.Sprintf("Packet %d is correct", i), func() {
 				// Extract segment from the payload
-				spld, err := ctrl.NewSignedPldFromRaw(pkt.Payload.(common.RawBytes))
+				spld, err := ctrl.NewSignedPldFromRaw(msg.pkt.Payload.(common.RawBytes))
 				SoMsg("SPldErr", err, ShouldBeNil)
 				pld, err := spld.UnsafePld()
 				SoMsg("PldErr", err, ShouldBeNil)
 				err = pld.Beacon.Parse()
 				SoMsg("ParseErr", err, ShouldBeNil)
+				pseg := pld.Beacon.Segment
 				Convey("Segment can be validated", func() {
-					err = pld.Beacon.Segment.Validate(seg.ValidateBeacon)
+					err = pseg.Validate(seg.ValidateBeacon)
 					SoMsg("err", err, ShouldBeNil)
 				})
 				Convey("Segment can be verified", func() {
-					err = pld.Beacon.Segment.VerifyASEntry(context.Background(),
-						segVerifier(pub), 0)
+					err = pseg.VerifyASEntry(context.Background(), segVerifier(pub), 0)
 					SoMsg("err", err, ShouldBeNil)
+				})
+				Convey("Beacon on correct interface", func() {
+					hopF, err := msg.pkt.Path.GetHopField(msg.pkt.Path.HopOff)
+					xtest.FailOnErr(t, err)
+					bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
+					xtest.FailOnErr(t, err)
+					SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
+					brAddr := itopo.Get().IFInfoMap[hopF.ConsEgress].InternalAddrs
+					SoMsg("ov", msg.ov, ShouldResemble, brAddr.PublicOverlay(brAddr.Overlay))
 				})
 			})
 		}
@@ -123,60 +144,4 @@ type segVerifier common.RawBytes
 func (v segVerifier) Verify(_ context.Context, msg common.RawBytes, sign *proto.SignS) error {
 	return scrypto.Verify(sign.SigInput(msg, false), sign.Signature,
 		common.RawBytes(v), scrypto.Ed25519)
-}
-
-// testConn is a packet conn that returns an empty overlay address.
-type testConn struct {
-	net.PacketConn
-}
-
-func (conn *testConn) ReadFrom(b []byte) (int, net.Addr, error) {
-	n, _, err := conn.PacketConn.ReadFrom(b)
-	return n, &overlay.OverlayAddr{}, err
-}
-
-func readTestPkts(stop chan struct{}, rconn net.PacketConn,
-	expected int) chan []*snet.SCIONPacket {
-
-	done := make(chan []*snet.SCIONPacket)
-	read := make(chan *snet.SCIONPacket)
-	// Read packets from connection.
-	go func() {
-		conn := snet.NewSCIONPacketConn(&testConn{rconn})
-		for {
-			select {
-			case <-stop:
-				return
-			default:
-				pkt := &snet.SCIONPacket{}
-				conn.ReadFrom(pkt, &overlay.OverlayAddr{})
-				read <- pkt
-			}
-		}
-	}()
-	// Return the expected packets. Any subsequent packet fails the test.
-	go func() {
-		pkts := make([]*snet.SCIONPacket, 0, expected)
-		recv := 0
-		for {
-			select {
-			case <-stop:
-				return
-			case pkt := <-read:
-				recv++
-				if recv <= expected {
-					pkts = append(pkts, pkt)
-					if recv == expected {
-						done <- pkts
-						close(done)
-					}
-					break
-				}
-				err := common.NewBasicError("Received unexpected packet", nil,
-					"recv", recv, "pkt", pkt)
-				SoMsg("Err", err, ShouldNotBeNil)
-			}
-		}
-	}()
-	return done
 }

@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -29,10 +30,10 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/p2p"
 )
 
 func TestSenderCreatePath(t *testing.T) {
@@ -87,15 +88,7 @@ func TestSenderCreatePkt(t *testing.T) {
 			},
 			MAC: createMac(t),
 		}
-		msg := &Msg{
-			Dst: snet.SCIONAddress{
-				IA:   xtest.MustParseIA("1-ff00:0:111"),
-				Host: addr.SvcBS,
-			},
-			Ifid:     12,
-			InfoTime: time.Now(),
-			Pld:      common.RawBytes{1, 2, 3, 4},
-		}
+		msg := testPacket()
 		pkt, err := s.CreatePkt(msg)
 		SoMsg("err", err, ShouldBeNil)
 		checkTestPkt(t, s, msg, pkt)
@@ -104,10 +97,12 @@ func TestSenderCreatePkt(t *testing.T) {
 
 func TestSenderSend(t *testing.T) {
 	Convey("Send sends packet", t, func() {
-		wconn, rconn := p2p.NewPacketConns()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		conn := mock_snet.NewMockPacketConn(ctrl)
 		s := &Sender{
 			IA:   xtest.MustParseIA("1-ff00:0:110"),
-			Conn: snet.NewSCIONPacketConn(wconn),
+			Conn: conn,
 			Addr: &addr.AppAddr{
 				L3: addr.HostFromIPStr("127.0.0.1"),
 				L4: addr.NewL4UDPInfo(4242),
@@ -115,26 +110,33 @@ func TestSenderSend(t *testing.T) {
 			MAC: createMac(t),
 		}
 		// Read from connection to unblock sender.
-		pkt := &snet.SCIONPacket{}
-		done := make(chan struct{})
-		go func() {
-			snet.NewSCIONPacketConn(&testConn{rconn}).ReadFrom(pkt, &overlay.OverlayAddr{})
-			close(done)
-		}()
-		msg := &Msg{
-			Dst: snet.SCIONAddress{
-				IA:   xtest.MustParseIA("1-ff00:0:111"),
-				Host: addr.SvcBS,
+		host := addr.HostFromIP(net.IP{127, 0, 0, 42})
+		ov, err := overlay.NewOverlayAddr(host, addr.NewL4UDPInfo(1337))
+		xtest.FailOnErr(t, err)
+		var pkt *snet.SCIONPacket
+		conn.EXPECT().WriteTo(gomock.Any(), ov).DoAndReturn(
+			func(ipkt, _ interface{}) error {
+				pkt = ipkt.(*snet.SCIONPacket)
+				return nil
 			},
-			Ifid:     12,
-			InfoTime: time.Now(),
-			Pld:      common.RawBytes{1, 2, 3, 4},
-		}
-		err := s.Send(msg, &overlay.OverlayAddr{})
+		)
+		msg := testPacket()
+		err = s.Send(msg, ov)
 		SoMsg("err", err, ShouldBeNil)
-		<-done
 		checkTestPkt(t, s, msg, pkt)
 	})
+}
+
+func testPacket() *Msg {
+	return &Msg{
+		Dst: snet.SCIONAddress{
+			IA:   xtest.MustParseIA("1-ff00:0:111"),
+			Host: addr.SvcBS,
+		},
+		Ifid:     12,
+		InfoTime: time.Now(),
+		Pld:      common.RawBytes{1, 2, 3, 4},
+	}
 }
 
 func checkTestPkt(t *testing.T, s *Sender, msg *Msg, pkt *snet.SCIONPacket) {

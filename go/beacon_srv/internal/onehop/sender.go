@@ -50,7 +50,7 @@ type Sender struct {
 	// Addr is the address that is set as the source.
 	Addr *addr.AppAddr
 	// Conn is used to send the packets.
-	Conn *snet.SCIONPacketConn
+	Conn snet.PacketConn
 	// MAC is the mac to issue hop fields.
 	MAC hash.Hash
 }

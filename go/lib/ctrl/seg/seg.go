@@ -226,7 +226,7 @@ func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 		// matches, since it is not set yet.
 		ignoreNext := i == len(ps.ASEntries)-1 && (validationMethod == ValidateBeacon)
 		if err := ps.ASEntries[i].Validate(prevIA, nextIA, ignoreNext); err != nil {
-			return err
+			return common.NewBasicError("Unable to validate AS entry", err, "ASEntryIdx", i)
 		}
 	}
 	// Check that all hop fields can be extracted
