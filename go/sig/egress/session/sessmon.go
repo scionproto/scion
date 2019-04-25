@@ -185,9 +185,14 @@ func (sm *sessMonitor) updateRemote() {
 func (sm *sessMonitor) updateSessSnap() {
 	// Copy the remote to avoid capturing the object in the session.
 	remote := *sm.smRemote
-	// XXX(roosd): Data traffic should never be sent to a SVC address.
+	// XXX(roosd): Data traffic should never be sent to a SVC address if avoidable.
 	if remote.Sig.Host.Equal(addr.SvcSIG) {
-		remote.Sig = sm.sess.Remote().Sig
+		old := sm.sess.Remote()
+		// If the previous remote is not set, do not set the snapshot.
+		if old == nil {
+			return
+		}
+		remote.Sig = old.Sig
 	}
 	sm.sess.currRemote.Store(&remote)
 }
