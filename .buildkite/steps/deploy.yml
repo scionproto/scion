@@ -1,12 +1,7 @@
 - wait
-- label: Build app images
-  command:
-    - $BASE/scripts/build_scion_img
-    - make -C docker/perapp
-  branches: "v*.*.*"
-- wait
 - label: Push images
   command:
+  - $BASE/scripts/all_images pull
   - echo \$DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USER --password-stdin
   - ./docker/perapp/publish "$BUILDKITE_TAG"
   branches: "v*.*.*"
