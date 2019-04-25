@@ -16,6 +16,7 @@ package beaconing
 
 import (
 	"hash"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
@@ -29,10 +30,11 @@ import (
 
 // segExtender appends AS entries to provided path segments.
 type segExtender struct {
-	cfg   Config
-	intfs *ifstate.Interfaces
-	mac   hash.Hash
-	task  string
+	cfg    Config
+	intfs  *ifstate.Interfaces
+	macMtx sync.Mutex
+	mac    hash.Hash
+	task   string
 }
 
 // extend extends the path segment. Prev should include the full raw hop field,
@@ -40,11 +42,19 @@ type segExtender struct {
 // the created AS entry is the initial entry. A zero egress interface indicates,
 // that the segment is terminated.
 func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDType,
-	peers []common.IFIDType, prev common.RawBytes) error {
+	peers []common.IFIDType) error {
 
+	if inIfid == 0 && egIfid == 0 {
+		return common.NewBasicError("Ingress and egress must not be both 0", nil)
+	}
 	infoF, err := pseg.InfoF()
 	if err != nil {
 		return common.NewBasicError("Unable to extract info field", err)
+	}
+	var prev common.RawBytes
+	if pseg.MaxAEIdx() >= 0 {
+		// Validated segments are guaranteed to have at least one hop entry.
+		prev = pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField
 	}
 	hopEntries, err := s.createHopEntries(inIfid, egIfid, peers, prev, infoF.Timestamp())
 	if err != nil {
@@ -166,6 +176,8 @@ func (s *segExtender) createHopF(inIfid, egIfid common.IFIDType, prev common.Raw
 		// Do not include the flags of the hop field in the mac input.
 		prev = prev[1:]
 	}
+	s.macMtx.Lock()
+	defer s.macMtx.Unlock()
 	hop.Mac = hop.CalcMac(s.mac, util.TimeToSecs(ts), prev)
 	return hop, nil
 }

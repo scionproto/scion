@@ -16,9 +16,9 @@ package keepalive
 
 import (
 	"context"
-	"net"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
@@ -28,27 +28,28 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/p2p"
 	"github.com/scionproto/scion/go/proto"
 )
 
 func TestSenderRun(t *testing.T) {
 	setupItopo(t)
 	Convey("Run sends ifid packets on all interfaces", t, func() {
+		mctrl := gomock.NewController(t)
+		defer mctrl.Finish()
 		mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 		xtest.FailOnErr(t, err)
 		pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 		xtest.FailOnErr(t, err)
-		wconn, rconn := p2p.NewPacketConns()
+		conn := mock_snet.NewMockPacketConn(mctrl)
 		s := Sender{
 			Sender: &onehop.Sender{
 				IA:   xtest.MustParseIA("1-ff00:0:111"),
-				Conn: snet.NewSCIONPacketConn(wconn),
+				Conn: conn,
 				Addr: &addr.AppAddr{
 					L3: addr.HostFromIPStr("127.0.0.1"),
 					L4: addr.NewL4UDPInfo(4242),
@@ -57,22 +58,15 @@ func TestSenderRun(t *testing.T) {
 			},
 			Signer: createTestSigner(t, priv),
 		}
-		var pkts []*snet.SCIONPacket
-		done := make(chan struct{})
-		// Read packets from the connection to unblock sender.
-		go func() {
-			conn := snet.NewSCIONPacketConn(&testConn{rconn})
-			for range itopo.Get().IFInfoMap {
-				pkt := &snet.SCIONPacket{}
-				conn.ReadFrom(pkt, &overlay.OverlayAddr{})
-				pkts = append(pkts, pkt)
-			}
-			close(done)
-		}()
+		pkts := make([]*snet.SCIONPacket, 0, len(itopo.Get().IFInfoMap))
+		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(cap(pkts)).DoAndReturn(
+			func(ipkts, _ interface{}) error {
+				pkts = append(pkts, ipkts.(*snet.SCIONPacket))
+				return nil
+			},
+		)
 		// Start keepalive messages.
 		s.Run(nil)
-		<-done
-		SoMsg("Pkts", len(pkts), ShouldEqual, len(itopo.Get().IFInfoMap))
 		// Check packets are correct.
 		for _, pkt := range pkts {
 			spld, err := ctrl.NewSignedPldFromRaw(pkt.Payload.(common.RawBytes))
@@ -91,16 +85,6 @@ func setupItopo(t *testing.T) {
 	xtest.FailOnErr(t, err)
 	_, _, err = itopo.SetStatic(topo, true)
 	xtest.FailOnErr(t, err)
-}
-
-// testConn is a packet conn that returns an empty overlay address.
-type testConn struct {
-	net.PacketConn
-}
-
-func (conn *testConn) ReadFrom(b []byte) (int, net.Addr, error) {
-	n, _, err := conn.PacketConn.ReadFrom(b)
-	return n, &overlay.OverlayAddr{}, err
 }
 
 func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
