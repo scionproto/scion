@@ -15,7 +15,6 @@
 package beaconing
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -29,8 +28,6 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -52,33 +49,48 @@ func TestPropagatorRun(t *testing.T) {
 		name     string
 		inactive map[common.IFIDType]bool
 		expected int
+		core     bool
 	}
-
-	nonCoreBeacons := [][]common.IFIDType{
-		{graph.If_120_X_111_B},
-		{graph.If_130_B_120_A, graph.If_120_X_111_B},
-		{graph.If_130_B_120_A, graph.If_120_X_111_B},
+	topoFile := map[bool]string{false: topoNonCore, true: topoCore}
+	// The beacons to propagate for the non-core and core tests.
+	beacons := map[bool][][]common.IFIDType{
+		false: {
+			{graph.If_120_X_111_B},
+			{graph.If_130_B_120_A, graph.If_120_X_111_B},
+			{graph.If_130_B_120_A, graph.If_120_X_111_B},
+		},
+		true: {
+			{graph.If_120_A_110_X},
+			{graph.If_130_B_120_A, graph.If_120_A_110_X},
+		},
 	}
-	// All interfaces of the non-core AS
-	nonCoreIntfs := map[common.IFIDType]common.IFIDType{
-		graph.If_111_A_112_X: graph.If_112_X_111_A,
-		graph.If_111_B_120_X: graph.If_120_X_111_B,
-		graph.If_111_B_211_A: graph.If_211_A_111_B,
-		graph.If_111_C_211_A: graph.If_211_A_111_C,
-		graph.If_111_C_121_X: graph.If_121_X_111_C,
+	// The interfaces in the non-core and core topologies.
+	allIntfs := map[bool]map[common.IFIDType]common.IFIDType{
+		false: {
+			graph.If_111_A_112_X: graph.If_112_X_111_A,
+			graph.If_111_B_120_X: graph.If_120_X_111_B,
+			graph.If_111_B_211_A: graph.If_211_A_111_B,
+			graph.If_111_C_211_A: graph.If_211_A_111_C,
+			graph.If_111_C_121_X: graph.If_121_X_111_C,
+		},
+		true: {
+			graph.If_110_X_120_A: graph.If_120_A_110_X,
+			graph.If_110_X_130_A: graph.If_130_A_110_X,
+			graph.If_110_X_210_X: graph.If_210_X_110_X,
+		},
 	}
-	nonCore := []test{
+	tests := []test{
 		{
-			name:     "All interfaces active",
+			name:     "Non-core: All interfaces active",
 			expected: 3,
 		},
 		{
-			name:     "One peer inactive",
+			name:     "Non-core: One peer inactive",
 			inactive: map[common.IFIDType]bool{graph.If_111_C_121_X: true},
 			expected: 3,
 		},
 		{
-			name: "All peers inactive",
+			name: "Non-core: All peers inactive",
 			inactive: map[common.IFIDType]bool{
 				graph.If_111_C_121_X: true,
 				graph.If_111_B_211_A: true,
@@ -87,20 +99,52 @@ func TestPropagatorRun(t *testing.T) {
 			expected: 3,
 		},
 		{
-			name:     "Child interface inactive",
+			name:     "Non-core: Child interface inactive",
 			inactive: map[common.IFIDType]bool{graph.If_111_A_112_X: true},
+		},
+		{
+			name:     "Core: All interfaces active",
+			expected: 3,
+			core:     true,
+		},
+		{
+			name:     "Core: 1-ff00:0:120 inactive",
+			inactive: map[common.IFIDType]bool{graph.If_110_X_120_A: true},
+			// Should not create beacon if ingress interface is down.
 			expected: 0,
+			core:     true,
+		},
+		{
+			name:     "Core: 1-ff00:0:130 inactive",
+			inactive: map[common.IFIDType]bool{graph.If_110_X_130_A: true},
+			expected: 2,
+			core:     true,
+		},
+		{
+			name:     "Core: 2-ff00:0:210 inactive",
+			inactive: map[common.IFIDType]bool{graph.If_110_X_210_X: true},
+			expected: 1,
+			core:     true,
+		},
+		{
+			name: "Core: All inactive",
+			inactive: map[common.IFIDType]bool{
+				graph.If_110_X_120_A: true,
+				graph.If_110_X_130_A: true,
+				graph.If_110_X_210_X: true,
+			},
+			core: true,
 		},
 	}
-	for _, test := range nonCore {
-		Convey("Non-core: "+test.name, t, func() {
+	for _, test := range tests {
+		Convey(test.name, t, func() {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			setupItopo(t, topoNonCore)
+			setupItopo(t, topoFile[test.core])
 			signer := testSigner(t, priv)
 			// Activate all non-inactive interfaces.
 			intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
-			for ifid, remote := range nonCoreIntfs {
+			for ifid, remote := range allIntfs[test.core] {
 				if test.inactive[ifid] {
 					continue
 				}
@@ -111,7 +155,7 @@ func TestPropagatorRun(t *testing.T) {
 			provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 			conn := mock_snet.NewMockPacketConn(mctrl)
 
-			p, err := NewPropagator(intfs, macProp, false, provider,
+			p, err := NewPropagator(intfs, macProp, test.core, provider,
 				Config{
 					MTU:    uint16(itopo.Get().MTU),
 					Signer: signer,
@@ -129,18 +173,14 @@ func TestPropagatorRun(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			provider.EXPECT().BeaconsToPropagate(gomock.Any()).DoAndReturn(
 				func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, len(nonCoreBeacons))
-					for _, desc := range nonCoreBeacons {
+					res := make(chan beacon.BeaconOrErr, len(beacons[test.core]))
+					for _, desc := range beacons[test.core] {
 						res <- testBeaconOrErr(g, desc)
 					}
 					close(res)
 					return res, nil
 				},
 			)
-			type msg struct {
-				pkt *snet.SCIONPacket
-				ov  *overlay.OverlayAddr
-			}
 			msgsMtx := sync.Mutex{}
 			var msgs []msg
 			conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(test.expected).DoAndReturn(
@@ -157,32 +197,7 @@ func TestPropagatorRun(t *testing.T) {
 			p.Run(nil)
 			for i, msg := range msgs {
 				Convey(fmt.Sprintf("Packet %d is correct", i), func() {
-					// Extract segment from the payload
-					spld, err := ctrl.NewSignedPldFromRaw(msg.pkt.Payload.(common.RawBytes))
-					SoMsg("SPldErr", err, ShouldBeNil)
-					pld, err := spld.UnsafePld()
-					SoMsg("PldErr", err, ShouldBeNil)
-					err = pld.Beacon.Parse()
-					SoMsg("ParseErr", err, ShouldBeNil)
-					pseg := pld.Beacon.Segment
-					Convey("Segment can be validated", func() {
-						err = pseg.Validate(seg.ValidateBeacon)
-						SoMsg("err", err, ShouldBeNil)
-					})
-					Convey("Segment can be verified", func() {
-						err = pseg.VerifyASEntry(context.Background(),
-							segVerifier(pub), pseg.MaxAEIdx())
-						SoMsg("err", err, ShouldBeNil)
-					})
-					Convey("Beacon on correct interface", func() {
-						hopF, err := msg.pkt.Path.GetHopField(msg.pkt.Path.HopOff)
-						xtest.FailOnErr(t, err)
-						bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
-						xtest.FailOnErr(t, err)
-						SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
-						brAddr := itopo.Get().IFInfoMap[hopF.ConsEgress].InternalAddrs
-						SoMsg("ov", msg.ov, ShouldResemble, brAddr.PublicOverlay(brAddr.Overlay))
-					})
+					checkMsg(t, msg, pub)
 				})
 			}
 		})
