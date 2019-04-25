@@ -128,8 +128,12 @@ func (sm *sessMonitor) updateRemote() {
 			// checking for the path.
 			sm.smRemote.SessPath.Fail()
 		}
+		// Start monitoring new path and discover a new SIG.
 		sm.smRemote.Sig.Host = addr.SvcSIG
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
+		// XXX(roosd): The session's remote SIG will remain the same until the
+		// monitor discovers a remote SIG.
+		sm.updateSessSnap()
 		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
@@ -139,7 +143,9 @@ func (sm *sessMonitor) updateRemote() {
 	if sm.smRemote.SessPath == nil {
 		sm.Info("sessMonitor: Path not available", "remote", sm.smRemote)
 		sm.sess.healthy.Store(false)
+		// Start monitoring the new path.
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
+		sm.updateSessSnap()
 		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
@@ -151,10 +157,11 @@ func (sm *sessMonitor) updateRemote() {
 	updatedPath, ok := sm.sessPathPool[sm.smRemote.SessPath.Key()]
 	if !ok {
 		sm.Info("sessMonitor: Current path was invalidated", "remote", sm.smRemote)
+		// Start monitoring the new path.
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
 		// Make session use the new path immediately even though we haven't yet checked
 		// whether it works.
-		sm.sess.currRemote.Store(sm.smRemote)
+		sm.updateSessSnap()
 		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
@@ -167,10 +174,22 @@ func (sm *sessMonitor) updateRemote() {
 		if sm.smRemote.SessPath.IsCloseToExpiry() {
 			sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
 		}
-		sm.sess.currRemote.Store(sm.smRemote)
+		sm.updateSessSnap()
 		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
+}
+
+// updateSessSnap updates the remote snapshot in the session. If the new remote
+// SIG host is an SVC address, the previous host of the session is kept.
+func (sm *sessMonitor) updateSessSnap() {
+	// Copy the remote to avoid capturing the object in the session.
+	remote := *sm.smRemote
+	// XXX(roosd): Data traffic should never be sent to a SVC address.
+	if remote.Sig.Host.Equal(addr.SvcSIG) {
+		remote.Sig = sm.sess.Remote().Sig
+	}
+	sm.sess.currRemote.Store(&remote)
 }
 
 func (sm *sessMonitor) getNewPath(old *egress.SessPath) *egress.SessPath {
@@ -250,8 +269,8 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 		// Update session's remote, if needed.
 		sessRemote := sm.sess.Remote()
 		if sessRemote == nil || !sm.smRemote.Sig.Equal(sessRemote.Sig) {
+			sm.updateSessSnap()
 			sm.Info("sessMonitor: updating remote Info", "msgId", rpld.Id, "remote", sm.smRemote)
-			sm.sess.currRemote.Store(sm.smRemote)
 		}
 		sm.sess.healthy.Store(true)
 	} else {
