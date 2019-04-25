@@ -155,9 +155,7 @@ func (r *Registrar) segToRegister(ctx context.Context, peers []common.IFIDType,
 		return nil, nil, bOrErr.Err
 	}
 	pseg := bOrErr.Beacon.Segment
-	// During parsing we validate that each AS entry has at least on hop entry.
-	prev := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField
-	if err := r.extend(pseg, bOrErr.Beacon.InIfId, 0, peers, prev); err != nil {
+	if err := r.extend(pseg, bOrErr.Beacon.InIfId, 0, peers); err != nil {
 		return nil, nil, common.NewBasicError("Unable to terminate", err, "beacon", bOrErr.Beacon)
 	}
 	reg := &path_mgmt.SegReg{

@@ -146,7 +146,7 @@ func (o *Originator) createBeacon(ifid common.IFIDType, intf topology.IFInfo,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create segment", err)
 	}
-	if err := o.extend(bseg, 0, ifid, nil, nil); err != nil {
+	if err := o.extend(bseg, 0, ifid, nil); err != nil {
 		return nil, common.NewBasicError("Unable to extend segment", err)
 	}
 	return &seg.Beacon{Segment: bseg}, nil
