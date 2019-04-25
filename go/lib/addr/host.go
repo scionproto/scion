@@ -47,6 +47,31 @@ func (t HostAddrType) String() string {
 	return fmt.Sprintf("UNKNOWN (%d)", t)
 }
 
+func (t HostAddrType) Len() (uint8, error) {
+	var length uint8
+	switch t {
+	case HostTypeNone:
+		length = HostLenNone
+	case HostTypeIPv4:
+		length = HostLenIPv4
+	case HostTypeIPv6:
+		length = HostLenIPv6
+	case HostTypeSVC:
+		length = HostLenSVC
+	default:
+		return 0, common.NewBasicError(ErrorBadHostAddrType, nil, "type", t)
+	}
+	return length, nil
+}
+
+func (t HostAddrType) TypeCheck() bool {
+	switch t {
+	case HostTypeIPv6, HostTypeIPv4, HostTypeSVC:
+		return true
+	}
+	return false
+}
+
 const (
 	HostLenNone = 0
 	HostLenIPv4 = net.IPv4len
@@ -77,39 +102,6 @@ type HostAddr interface {
 	Copy() HostAddr
 	Equal(HostAddr) bool
 	fmt.Stringer
-}
-
-var _ HostAddr = (HostNone)(nil)
-
-type HostNone net.IP
-
-func (h HostNone) Size() int {
-	return HostLenNone
-}
-
-func (h HostNone) Type() HostAddrType {
-	return HostTypeNone
-}
-
-func (h HostNone) Pack() common.RawBytes {
-	return common.RawBytes{}
-}
-
-func (h HostNone) IP() net.IP {
-	return nil
-}
-
-func (h HostNone) Copy() HostAddr {
-	return HostNone{}
-}
-
-func (h HostNone) Equal(o HostAddr) bool {
-	_, ok := o.(HostNone)
-	return ok
-}
-
-func (h HostNone) String() string {
-	return "<None>"
 }
 
 var _ HostAddr = (HostIPv4)(nil)
@@ -279,8 +271,6 @@ func (h HostSVC) BaseString() string {
 
 func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
 	switch htype {
-	case HostTypeNone:
-		return HostNone{}, nil
 	case HostTypeIPv4:
 		return HostIPv4(b[:HostLenIPv4]), nil
 	case HostTypeIPv6:
@@ -305,29 +295,4 @@ func HostFromIPStr(s string) HostAddr {
 		return nil
 	}
 	return HostFromIP(ip)
-}
-
-func HostLen(htype HostAddrType) (uint8, error) {
-	var length uint8
-	switch htype {
-	case HostTypeNone:
-		length = HostLenNone
-	case HostTypeIPv4:
-		length = HostLenIPv4
-	case HostTypeIPv6:
-		length = HostLenIPv6
-	case HostTypeSVC:
-		length = HostLenSVC
-	default:
-		return 0, common.NewBasicError(ErrorBadHostAddrType, nil, "type", htype)
-	}
-	return length, nil
-}
-
-func HostTypeCheck(t HostAddrType) bool {
-	switch t {
-	case HostTypeIPv6, HostTypeIPv4, HostTypeSVC:
-		return true
-	}
-	return false
 }

@@ -74,7 +74,7 @@ func (rp *RtrPkt) parseBasic() error {
 	rp.idxs.srcIA = rp.idxs.dstIA + addr.IABytes
 	// Set index for destination host address and calculate its length.
 	rp.idxs.dstHost = rp.idxs.srcIA + addr.IABytes
-	if dstLen, err = addr.HostLen(rp.CmnHdr.DstType); err != nil {
+	if dstLen, err = rp.CmnHdr.DstType.Len(); err != nil {
 		if common.GetErrorMsg(err) == addr.ErrorBadHostAddrType {
 			err = scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil, err)
 		}
@@ -82,7 +82,7 @@ func (rp *RtrPkt) parseBasic() error {
 	}
 	// Set index for source host address and calculate its length.
 	rp.idxs.srcHost = rp.idxs.dstHost + int(dstLen)
-	if srcLen, err = addr.HostLen(rp.CmnHdr.SrcType); err != nil {
+	if srcLen, err = rp.CmnHdr.SrcType.Len(); err != nil {
 		if common.GetErrorMsg(err) == addr.ErrorBadHostAddrType {
 			err = scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil, err)
 		}

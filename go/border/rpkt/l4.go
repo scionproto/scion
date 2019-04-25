@@ -135,8 +135,8 @@ func (rp *RtrPkt) verifyL4Chksum() error {
 // header (excluding padding) and the payload, for calculating a
 // layer 4 checksum.
 func (rp *RtrPkt) getChksumInput() (ahdr, pld common.RawBytes) {
-	dstLen, _ := addr.HostLen(rp.CmnHdr.DstType)
-	srcLen, _ := addr.HostLen(rp.CmnHdr.SrcType)
+	dstLen, _ := rp.CmnHdr.DstType.Len()
+	srcLen, _ := rp.CmnHdr.SrcType.Len()
 	addrsLen := int(addr.IABytes*2 + dstLen + srcLen)
 	ahdr = rp.Raw[rp.idxs.dstIA : rp.idxs.dstIA+addrsLen]
 	pld = rp.Raw[rp.idxs.pld:]

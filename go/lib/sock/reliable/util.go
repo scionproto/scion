@@ -48,7 +48,7 @@ func isValidReliableSockDestination(t addr.HostAddrType) bool {
 }
 
 func getAddressLength(t addr.HostAddrType) int {
-	n, _ := addr.HostLen(t)
+	n, _ := t.Len()
 	return int(n)
 }
 

@@ -55,11 +55,11 @@ func ParseRawAddrHdr(b common.RawBytes, srcT, dstT addr.HostAddrType) (*AddrHdr,
 }
 
 func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, error) {
-	srcLen, err := addr.HostLen(srcT)
+	srcLen, err := srcT.Len()
 	if err != nil {
 		return 0, err
 	}
-	dstLen, err := addr.HostLen(dstT)
+	dstLen, err := dstT.Len()
 	if err != nil {
 		return 0, err
 	}

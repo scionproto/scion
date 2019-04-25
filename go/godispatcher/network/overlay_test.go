@@ -22,6 +22,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/addr/mock_addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/l4/mock_l4"
@@ -36,6 +37,9 @@ func TestComputeDestination(t *testing.T) {
 	badL4 := mock_l4.NewMockL4Header(ctrl)
 	badL4.EXPECT().Pack(gomock.Any()).Return(common.RawBytes{}, nil).AnyTimes()
 	badL4.EXPECT().L4Type().Return(common.L4TCP).AnyTimes()
+
+	badAddr := mock_addr.NewMockHostAddr(ctrl)
+	badAddr.EXPECT().Type().Return(addr.HostTypeNone).AnyTimes()
 
 	type TestCase struct {
 		Description string
@@ -71,7 +75,7 @@ func TestComputeDestination(t *testing.T) {
 		{
 			Description: "SCION/UDP without SVC or IP destination returns error",
 			Packet: &spkt.ScnPkt{
-				DstHost: addr.HostNone{},
+				DstHost: badAddr,
 				L4:      &l4.UDP{DstPort: 1002},
 			},
 			ExpectedErr: ErrUnsupportedDestination,

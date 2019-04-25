@@ -45,11 +45,11 @@ func (rp *RtrPkt) Validate() (bool, error) {
 		mtu = rp.Ctx.Conf.Topo.MTU
 	}
 	// XXX(kormat): the rest of the common header is checked by the parsing phase.
-	if !addr.HostTypeCheck(rp.CmnHdr.DstType) {
+	if !rp.CmnHdr.DstType.TypeCheck() {
 		return false, common.NewBasicError("Unsupported destination address type",
 			scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil, nil), "type", rp.CmnHdr.DstType)
 	}
-	if !addr.HostTypeCheck(rp.CmnHdr.SrcType) || rp.CmnHdr.SrcType == addr.HostTypeSVC {
+	if !rp.CmnHdr.SrcType.TypeCheck() || rp.CmnHdr.SrcType == addr.HostTypeSVC {
 		// Either the source address type isn't supported, or it is an SVC
 		// address (which is forbidden).
 		return false, common.NewBasicError("Unsupported source address type",

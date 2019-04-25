@@ -35,6 +35,7 @@ MOCK_TARGETS = [
             "BeaconInserter,SegmentProvider"),
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/keepalive",
             "IfStatePusher,Beaconer,RevDropper"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/addr", "HostAddr"),
         (SCION_PACKAGE_PREFIX + "/go/lib/ctrl/seg", "Signer"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter,Verifier"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),
