@@ -73,6 +73,21 @@
           },
           "Overlay": "UDP/IPv4",
           "ISD_AS": "2-ff00:0:211"
+        },
+        "1417": {
+          "Bandwidth": 1000,
+          "LinkTo": "CHILD",
+          "MTU": 1472,
+          "PublicOverlay": {
+            "Addr": "127.0.0.22",
+            "OverlayPort": 50000
+          },
+          "RemoteOverlay": {
+            "Addr": "127.0.0.23",
+            "OverlayPort": 50000
+          },
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "1-ff00:0:112"
         }
       },
       "InternalAddrs": {

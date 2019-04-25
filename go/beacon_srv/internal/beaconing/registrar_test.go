@@ -32,13 +32,13 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
@@ -120,6 +120,7 @@ func TestRegistrarRun(t *testing.T) {
 			}
 			segMu := sync.Mutex{}
 			var sent []regMsg
+			// Collect the segments that are sent on the messenger.
 			msgr.EXPECT().SendSegReg(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any()).Times(len(test.beacons)).DoAndReturn(
 				func(_, isegreg, iaddr, _ interface{}) error {
@@ -143,32 +144,14 @@ func TestRegistrarRun(t *testing.T) {
 			for segIdx, s := range sent {
 				SoMsg("Len", len(s.Reg.Recs), ShouldEqual, 1)
 				pseg := s.Reg.Recs[0].Segment
+				Convey(fmt.Sprintf("Segment %d can be validated", segIdx), func() {
+					err := pseg.Validate(seg.ValidateSegment)
+					SoMsg("err", err, ShouldBeNil)
+				})
 				Convey(fmt.Sprintf("Segment %d is verifiable", segIdx), func() {
 					err := pseg.VerifyASEntry(context.Background(),
 						segVerifier(pub), pseg.MaxAEIdx())
 					SoMsg("err", err, ShouldBeNil)
-				})
-				Convey(fmt.Sprintf("Segment %d is terminated", segIdx), func() {
-					for hopEntryIdx, entry := range pseg.ASEntries[pseg.MaxAEIdx()].HopEntries {
-						Convey(fmt.Sprintf("Segment %d Entry %d", segIdx, hopEntryIdx), func() {
-							// Terminated.
-							SoMsg("OutIA", entry.OutIA().IsZero(), ShouldBeTrue)
-							SoMsg("OutIF", entry.RemoteOutIF, ShouldBeZeroValue)
-							hopF, err := spath.HopFFromRaw(entry.RawHopField)
-							SoMsg("err", err, ShouldBeNil)
-							SoMsg("egress", hopF.ConsEgress, ShouldBeZeroValue)
-							// Ingress set correctly.
-							intf := intfs.Get(hopF.ConsIngress)
-							topoInfo := intf.TopoInfo()
-							SoMsg("ingress", intf, ShouldNotBeNil)
-							SoMsg("InIA", entry.InIA(), ShouldResemble, topoInfo.ISD_AS)
-							SoMsg("InIF", entry.RemoteInIF, ShouldEqual, topoInfo.RemoteIFID)
-							if hopEntryIdx > 0 {
-								SoMsg("Peer", topoInfo.LinkType, ShouldEqual,
-									proto.LinkType_peer)
-							}
-						})
-					}
 				})
 				Convey(fmt.Sprintf("Segment %d is sent to the correct PS", segIdx), func() {
 					if !test.remotePS {
@@ -248,60 +231,6 @@ func TestRegistrarRun(t *testing.T) {
 					return res, nil
 				})
 			r.Run(context.Background())
-		})
-		Convey("Inactive Ingress IFID", func() {
-			provider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
-				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, 1)
-					b := testBeaconOrErr(g, []common.IFIDType{graph.If_120_X_111_B})
-					res <- b
-					intfs.Get(b.Beacon.InIfId).Revoke(nil)
-					close(res)
-					return res, nil
-				})
-			r.Run(context.Background())
-		})
-		Convey("Invalid remote IFID", func() {
-			provider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
-				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, 1)
-					b := testBeaconOrErr(g, []common.IFIDType{graph.If_120_X_111_B})
-					intfs.Get(b.Beacon.InIfId).Activate(0)
-					res <- b
-					close(res)
-					return res, nil
-				})
-			r.Run(context.Background())
-		})
-		Convey("Invalid peers are ignored", func() {
-			provider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
-				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, 1)
-					res <- testBeaconOrErr(g, []common.IFIDType{graph.If_120_X_111_B})
-					close(res)
-					return res, nil
-				},
-			)
-			for _, intf := range intfs.All() {
-				intf.Activate(42)
-			}
-			intfs.Get(graph.If_111_C_121_X).Activate(0)
-			var reg *path_mgmt.SegReg
-			msgr.EXPECT().SendSegReg(gomock.Any(), gomock.Any(), gomock.Any(),
-				gomock.Any()).Times(1).DoAndReturn(
-				func(_, isegreg, iaddr, _ interface{}) error {
-					reg = isegreg.(*path_mgmt.SegReg)
-					return nil
-				},
-			)
-			r.Run(context.Background())
-			SoMsg("Len", len(reg.Recs), ShouldEqual, 1)
-			asEntry := reg.Recs[0].Segment.ASEntries[reg.Recs[0].Segment.MaxAEIdx()]
-			SoMsg("Entries", len(asEntry.HopEntries), ShouldEqual, 3)
-			for _, entry := range asEntry.HopEntries {
-				SoMsg("IA", entry.InIA(), ShouldNotResemble,
-					xtest.MustParseIA("1-ff00:0:121"))
-			}
 		})
 	})
 }
