@@ -99,8 +99,7 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 
 func (nc *NetworkConfig) initNetworking() (net.PacketConn, error) {
 	var network snet.Network
-	var err error
-	network, err = snet.NewNetwork(nc.IA, "", reliable.NewDispatcherService(""))
+	network, err := snet.NewNetwork(nc.IA, "", reliable.NewDispatcherService(""))
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create network", err)
 	}
@@ -128,7 +127,7 @@ func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 Top:
 	for {
 		sciondConn, err := sciond.NewService(sd.Path, true).Connect()
-		router = &snet.SCIONDRouter{
+		router = &snet.BaseRouter{
 			IA: localIA,
 			PathResolver: pathmgr.New(
 				sciondConn,

@@ -208,7 +208,7 @@ func New(config *Config) *Messenger {
 
 	router := config.Router
 	if router == nil {
-		router = &snet.NullRouter{IA: config.IA}
+		router = &snet.BaseRouter{IA: config.IA}
 	}
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
@@ -781,15 +781,8 @@ type Requester interface {
 
 var _ Requester = (*pathingRequester)(nil)
 
-// pathingRequester is a requester with an attached local IA. It resolves the
-// SCION path to construct complete snet addresses that rarely block on writes.
-//
-// FIXME(scrye): This is just a hack to improve performance in the default
-// topology, by allowing each goroutine to issue a request to SCIOND in
-// parallel (as opposed of one goroutine waiting for another if the Path
-// Resolver were to be used). This logic should be moved to snet internals
-// once the path resolver has support for concurrent queries and context
-// awareness.
+// pathingRequester resolves the SCION path and constructs complete snet
+// addresses.
 type pathingRequester struct {
 	requester *ctrl_msg.Requester
 	router    snet.Router

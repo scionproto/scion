@@ -39,22 +39,22 @@ type Router interface {
 	LocalIA() addr.IA
 }
 
-var _ Router = (*SCIONDRouter)(nil)
+var _ Router = (*BaseRouter)(nil)
 
-// SCIONDRouter is a path router implementation that uses a path resolver to
+// BaseRouter is a path router implementation that uses a path resolver to
 // query SCIOND for paths, or returns empty paths if a path resolver is not
 // specified.
-type SCIONDRouter struct {
+type BaseRouter struct {
 	// IA is the source AS for paths, usually the local AS.
 	IA addr.IA
-	// PathResolver to solve path requests. If nil, all path requests yield nil
-	// paths.
+	// PathResolver to solve path requests. If nil, all path requests yield
+	// empty paths.
 	PathResolver pathmgr.Resolver
 }
 
 // Route uses the specified path resolver (if one exists) to obtain a path from
 // the local AS to dst.
-func (r *SCIONDRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
+func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 	if r.PathResolver == nil || dst.Equal(r.IA) {
 		return &path{}, nil
 	}
@@ -77,26 +77,11 @@ func (r *SCIONDRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 		sciondPath: pathEntry,
 		spath:      p,
 		overlay:    overlayAddr,
+		source:     r.IA,
 	}, nil
 }
 
-func (r *SCIONDRouter) LocalIA() addr.IA {
-	return r.IA
-}
-
-var _ Router = (*NullRouter)(nil)
-
-// NullRouter returns empty paths to all routing queries. It is useful for
-// servers that do their own path handling.
-type NullRouter struct {
-	IA addr.IA
-}
-
-func (r *NullRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
-	return &path{}, nil
-}
-
-func (r *NullRouter) LocalIA() addr.IA {
+func (r *BaseRouter) LocalIA() addr.IA {
 	return r.IA
 }
 
@@ -115,8 +100,8 @@ type Path interface {
 	// The returned path is initialized and ready for use in snet calls that
 	// deal with raw paths.
 	Path() *spath.Path
-	// Destination is the AS the path points to. Empty paths return the zero AS
-	// address.
+	// Destination is the AS the path points to. Empty paths return the local
+	// AS of the router that created them.
 	Destination() addr.IA
 }
 
@@ -129,6 +114,8 @@ type path struct {
 	spath *spath.Path
 	// overlay is the intra-AS next-hop to use for this path.
 	overlay *overlay.OverlayAddr
+	// source is the AS where the path starts.
+	source addr.IA
 }
 
 func (p *path) OverlayNextHop() *overlay.OverlayAddr {
@@ -144,7 +131,7 @@ func (p *path) Path() *spath.Path {
 
 func (p *path) Destination() addr.IA {
 	if p.sciondPath == nil {
-		return addr.IA{I: 0, A: 0}
+		return p.source
 	}
 	return p.sciondPath.Path.DstIA()
 }
