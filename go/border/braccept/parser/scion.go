@@ -323,13 +323,9 @@ func (scn *ScionTaggedLayer) GenerateMac(hMac hash.Hash, infTag, hfTag, hfMacTag
 		hfMac.Write(buf)
 	}
 	hMac.Reset()
-	var err error
 	/// CalcMac assumes TsInt in network order
-	//hf.Mac, err = hf.CalcMac(hMac, common.Order.PutUint32(inf.TsInt, buf))
-	hf.Mac, err = hf.CalcMac(hMac, inf.TsInt, buf[1:])
-	if err != nil {
-		panic(err)
-	}
+	//hf.Mac = hf.CalcMac(hMac, common.Order.PutUint32(inf.TsInt, buf))
+	hf.Mac = hf.CalcMac(hMac, inf.TsInt, buf[1:])
 }
 
 func (scn *ScionTaggedLayer) addTag(tag string, v interface{}) {

@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 const (
@@ -111,17 +110,20 @@ func (h *HopField) String() string {
 		h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.Mac)
 }
 
+// Verify checks the MAC. The same restrictions on prev as in CalcMac apply, and
+// the function may panic otherwise.
 func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) error {
-	if mac, err := h.CalcMac(macH, tsInt, prev); err != nil {
-		return err
-	} else if !bytes.Equal(h.Mac, mac) {
+	mac := h.CalcMac(macH, tsInt, prev)
+	if !bytes.Equal(h.Mac, mac) {
 		return common.NewBasicError(ErrorHopFBadMac, nil, "expected", mac, "actual", h.Mac)
 	}
 	return nil
 }
 
 // CalcMac calculates the MAC of a HopField and its preceding HopField, if any.
-// prev does not contain flags byte.
+// prev does not contain flags byte. This implies that the length of prev can
+// either be 0 or k*8+7, where k >=0.
+// WARN: If prev is of different length, this function panics.
 //
 // MAC input block format:
 //
@@ -137,16 +139,24 @@ func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) er
 //  |                           PrevHopF                            |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
-	prev common.RawBytes) (common.RawBytes, error) {
-
+func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32, prev common.RawBytes) common.RawBytes {
+	// If the previous hopfield is set, it must be of length k*8+7 (k >= 0),
+	if len(prev) != 0 && (len(prev)&0x7) != 7 {
+		panic(fmt.Sprintf("Bad previous hop field length len=%d", len(prev)))
+	}
 	all := make(common.RawBytes, macInputLen)
 	common.Order.PutUint32(all, tsInt)
 	all[4] = 0 // Ignore flags
 	common.Order.PutUint32(all[5:], h.expTimeIfIdsPack())
 	copy(all[9:], prev)
-	tag, err := scrypto.Mac(mac, all)
-	return tag[:MacLen], err
+
+	mac.Reset()
+	// Write must not return an error: https://godoc.org/hash#Hash
+	if _, err := mac.Write(all); err != nil {
+		panic(err)
+	}
+	tmp := make([]byte, 0, mac.Size())
+	return mac.Sum(tmp)[:MacLen]
 }
 
 // Pack packs the hop field.
