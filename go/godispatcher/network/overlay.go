@@ -172,7 +172,7 @@ func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	// information found in the overlay IP header.
 	routingEntries := dp.RoutingTable.LookupService(pkt.Info.DstIA, addr.HostSVC(d), nil)
 	if len(routingEntries) == 0 {
-		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "svc", d)
+		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "svc", addr.HostSVC(d))
 		return
 	}
 	// Increase reference count for all extra copies
