@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var (
@@ -57,6 +58,11 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	if err := cfg.Validate(); err != nil {
 		log.Crit("Unable to validate config", "err", err)
+		return 1
+	}
+
+	if err := util.CreateParentDirs(cfg.Dispatcher.ApplicationSocket); err != nil {
+		log.Crit("Unable to create directory tree for socket", "err", err)
 		return 1
 	}
 
