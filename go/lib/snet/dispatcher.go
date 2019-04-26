@@ -47,7 +47,7 @@ func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *add
 	bind *overlay.OverlayAddr, svc addr.HostSVC,
 	timeout time.Duration) (PacketConn, uint16, error) {
 
-	rconn, port, err := s.dispatcherService.Register(ia, public, bind, svc)
+	rconn, port, err := s.dispatcherService.RegisterTimeout(ia, public, bind, svc, timeout)
 	if err != nil {
 		return nil, 0, err
 	}

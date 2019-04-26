@@ -37,6 +37,7 @@ MOCK_TARGETS = [
             "IfStatePusher,Beaconer,RevDropper"),
         (SCION_PACKAGE_PREFIX + "/go/lib/ctrl/seg", "Signer"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter,Verifier"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/infra/messenger", "Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),
         (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
         (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),

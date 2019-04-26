@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/svc"
 )
 
 const (
@@ -73,10 +74,27 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	router := nc.Router
+	if router == nil {
+		router = &snet.BaseRouter{IA: nc.IA}
+	}
+
 	msgerCfg := &messenger.Config{
 		IA:         nc.IA,
 		TrustStore: nc.TrustStore,
-		Router:     nc.Router,
+		AddressRewriter: &messenger.AddressRewriter{
+			Router: router,
+			Resolver: &svc.Resolver{
+				LocalIA: nc.IA,
+				ConnFactory: snet.NewDefaultPacketDispatcherService(
+					reliable.NewDispatcherService(""),
+				),
+				Machine: buildLocalMachine(nc.Bind, nc.Public),
+			},
+			// XXX(scrye): Disable SVC resolution for the moment.
+			SVCResolutionFraction: 0.00,
+		},
 	}
 	if nc.EnableQUICTest {
 		var err error
@@ -95,6 +113,17 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 	nc.TrustStore.SetMessenger(msger)
 	return msger, nil
 
+}
+
+func buildLocalMachine(bind, public *snet.Addr) snet.LocalMachine {
+	var mi snet.LocalMachine
+	mi.PublicIP = public.Host.L3.IP()
+	if bind != nil {
+		mi.InterfaceIP = bind.Host.L3.IP()
+	} else {
+		mi.InterfaceIP = mi.PublicIP
+	}
+	return mi
 }
 
 func (nc *NetworkConfig) initNetworking() (net.PacketConn, error) {

@@ -41,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/topology/topotestutil"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -256,7 +257,7 @@ func TestGetTRC(t *testing.T) {
 		insertTRC(t, store, trcs[1])
 		insertTRC(t, store, trcs[3])
 
-		for _, tc := range testCases[4:5] {
+		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
@@ -309,7 +310,7 @@ func TestGetValidChain(t *testing.T) {
 		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 		insertTRC(t, store, trcs[1])
-		for _, tc := range testCases[3:4] {
+		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
@@ -697,6 +698,11 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) 
 			messenger.DefaultAdapter,
 			log.New("name", name),
 		),
+		AddressRewriter: &messenger.AddressRewriter{
+			Router: &snet.BaseRouter{
+				IA: ia,
+			},
+		},
 		TrustStore:                   store,
 		DisableSignatureVerification: true,
 		Logger:                       log.Root().New("name", name),

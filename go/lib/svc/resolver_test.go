@@ -43,46 +43,33 @@ func TestResolver(t *testing.T) {
 
 		srcIA := xtest.MustParseIA("1-ff00:0:1")
 		dstIA := xtest.MustParseIA("1-ff00:0:2")
-		mockRouter := mock_snet.NewMockRouter(ctrl)
-		mockRouter.EXPECT().LocalIA().Return(srcIA).AnyTimes()
 		mockPath := mock_snet.NewMockPath(ctrl)
 		mockPath.EXPECT().Path().Return(nil).AnyTimes()
 		mockPath.EXPECT().OverlayNextHop().Return(nil).AnyTimes()
+		mockPath.EXPECT().Destination().Return(dstIA).AnyTimes()
 
-		Convey("If routing fails, return error and no reply", func() {
-			mockRouter.EXPECT().Route(gomock.Any(), dstIA).Return(nil, errors.New("no path"))
-			resolver := &svc.Resolver{
-				Router: mockRouter,
-			}
-
-			reply, err := resolver.LookupSVC(context.Background(), dstIA, addr.SvcCS)
-			SoMsg("reply", reply, ShouldBeNil)
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("If routing succeeds, but opening up port fails, return error and no reply", func() {
+		Convey("If opening up port fails, return error and no reply", func() {
 			mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
-			mockRouter.EXPECT().Route(gomock.Any(), dstIA).Return(mockPath, nil)
 			mockPacketDispatcherService.EXPECT().RegisterTimeout(gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any(), gomock.Any()).
 				Return(nil, uint16(0), errors.New("no conn"))
 			resolver := &svc.Resolver{
-				Router:      mockRouter,
+				LocalIA:     srcIA,
 				ConnFactory: mockPacketDispatcherService,
 			}
 
-			reply, err := resolver.LookupSVC(context.Background(), dstIA, addr.SvcCS)
+			reply, err := resolver.LookupSVC(context.Background(), mockPath, addr.SvcCS)
 			SoMsg("reply", reply, ShouldBeNil)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Local machine information is used to build conns", func() {
 			machine := snet.LocalMachine{InterfaceIP: net.IP{192, 0, 2, 1}}
-			mockRouter.EXPECT().Route(gomock.Any(), dstIA).Return(mockPath, nil)
 			mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
 			mockConn := mock_snet.NewMockPacketConn(ctrl)
 			mockConn.EXPECT().Close()
-			mockPacketDispatcherService.EXPECT().RegisterTimeout(dstIA,
+			mockPacketDispatcherService.EXPECT().RegisterTimeout(srcIA,
 				machine.AppAddress(),
-				machine.BindAddress(),
+				nil,
 				addr.SvcNone,
 				time.Duration(0)).Return(mockConn, uint16(42), nil)
 			mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
@@ -90,12 +77,12 @@ func TestResolver(t *testing.T) {
 				gomock.Any())
 
 			resolver := &svc.Resolver{
-				Router:       mockRouter,
+				LocalIA:      srcIA,
 				ConnFactory:  mockPacketDispatcherService,
 				Machine:      machine,
 				RoundTripper: mockRoundTripper,
 			}
-			resolver.LookupSVC(context.Background(), dstIA, addr.SvcCS)
+			resolver.LookupSVC(context.Background(), mockPath, addr.SvcCS)
 		})
 	})
 }
