@@ -293,10 +293,13 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
 			var inIFID, outIFID common.IFIDType
 			asEntry := asEntries[asEntryIdx]
-			path.Mtu = minUint16(path.Mtu, asEntry.MTU)
 
 			// Normal hop field.
-			newHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[0])
+			hopEntry := asEntry.HopEntries[0]
+			newHF := currentSeg.appendHopFieldFrom(hopEntry)
+			// We don't know if this hop entry is used for forwarding (a peer
+			// entry might be used instead, which would override mtu later)
+			forwardingLinkMtu := hopEntry.InMTU
 			inIFID, outIFID = newHF.ConsEgress, newHF.ConsIngress
 
 			// If we've transitioned from a previous segment, set Xover flag.
@@ -332,7 +335,9 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 						// even if on last segment.
 						newHF.Xover = true
 						// Add a new hop field for the peering entry, and set Xover.
-						pHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[solEdge.edge.Peer])
+						pHopEntry := asEntry.HopEntries[solEdge.edge.Peer]
+						pHF := currentSeg.appendHopFieldFrom(pHopEntry)
+						forwardingLinkMtu = pHopEntry.InMTU
 						pHF.Xover = true
 						inIFID, outIFID = pHF.ConsEgress, pHF.ConsIngress
 					} else {
@@ -345,6 +350,11 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 				}
 			}
 
+			path.Mtu = minUint16(path.Mtu, asEntry.MTU)
+			if forwardingLinkMtu != 0 {
+				// The first HE in a segment has MTU 0, so we ignore those
+				path.Mtu = minUint16(path.Mtu, forwardingLinkMtu)
+			}
 			currentSeg.Interfaces = append(currentSeg.Interfaces,
 				getPathInterfaces(asEntry.IA(), inIFID, outIFID)...)
 		}
