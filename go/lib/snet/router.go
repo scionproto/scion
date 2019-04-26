@@ -136,6 +136,30 @@ func (p *path) Destination() addr.IA {
 	return p.sciondPath.Path.DstIA()
 }
 
+// partialPath is a path object with incomplete metadata. It is used as a
+// temporary solution where a full path cannot be reconstituted from other
+// objects, notably snet.Addr.
+type partialPath struct {
+	spath       *spath.Path
+	overlay     *overlay.OverlayAddr
+	destination addr.IA
+}
+
+func (p *partialPath) OverlayNextHop() *overlay.OverlayAddr {
+	return p.overlay
+}
+
+func (p *partialPath) Path() *spath.Path {
+	if p.spath == nil {
+		return nil
+	}
+	return p.spath.Copy()
+}
+
+func (p *partialPath) Destination() addr.IA {
+	return p.destination
+}
+
 // LocalMachine describes aspects of the host system and its network.
 type LocalMachine struct {
 	// InterfaceIP is the default L3 address for connections originating from

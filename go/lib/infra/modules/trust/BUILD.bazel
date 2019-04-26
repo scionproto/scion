@@ -56,6 +56,7 @@ go_test(
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",
         "//go/lib/scrypto/trc:go_default_library",
+        "//go/lib/snet:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/topology/topotestutil:go_default_library",
         "//go/lib/xtest:go_default_library",
