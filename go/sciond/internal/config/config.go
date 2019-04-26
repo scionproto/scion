@@ -17,8 +17,6 @@ package config
 
 import (
 	"io"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -147,18 +145,11 @@ func (cfg *SDConfig) ConfigName() string {
 }
 
 func (cfg *SDConfig) CreateSocketDirs() error {
-	reliableDir := filepath.Dir(cfg.Reliable)
-	if _, err := os.Stat(reliableDir); os.IsNotExist(err) {
-		if err = os.MkdirAll(reliableDir, 0755); err != nil {
-			return common.NewBasicError("Cannot create reliable socket dir", err, "dir",
-				reliableDir)
-		}
+	if err := util.CreateParentDirs(cfg.Reliable); err != nil {
+		return common.NewBasicError("Cannot create reliable socket dir", err)
 	}
-	unixDir := filepath.Dir(cfg.Unix)
-	if _, err := os.Stat(unixDir); os.IsNotExist(err) {
-		if err = os.MkdirAll(unixDir, 0755); err != nil {
-			return common.NewBasicError("Cannot create unix socket dir", err, "dir", unixDir)
-		}
+	if err := util.CreateParentDirs(cfg.Unix); err != nil {
+		return common.NewBasicError("Cannot create unix socket dir", err)
 	}
 	return nil
 }
