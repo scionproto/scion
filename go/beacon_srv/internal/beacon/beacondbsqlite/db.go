@@ -120,8 +120,36 @@ type beaconMeta struct {
 	LastUpdated time.Time
 }
 
-func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
-	usage beacon.Usage) (<-chan beacon.BeaconOrErr, error) {
+func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
+
+	e.RLock()
+	defer e.RUnlock()
+	if e.db == nil {
+		return nil, common.NewBasicError("No database open", nil)
+	}
+	query := `SELECT DISTINCT StartIsd, StartAs FROM BEACONS`
+	rows, err := e.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, common.NewBasicError("Error selecting source IAs", err)
+	}
+	defer rows.Close()
+	var ias []addr.IA
+	for rows.Next() {
+		var isd addr.ISD
+		var as addr.AS
+		if err := rows.Scan(&isd, &as); err != nil {
+			return nil, err
+		}
+		ias = append(ias, addr.IA{I: isd, A: as})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ias, nil
+}
+
+func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beacon.Usage,
+	src addr.IA) (<-chan beacon.BeaconOrErr, error) {
 
 	e.RLock()
 	defer e.RUnlock()
@@ -130,7 +158,12 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
 	}
 	query := `SELECT Beacon, InIntfID FROM Beacons
 				WHERE ( Usage & ?1 ) == ?1 ORDER BY HopsLength ASC LIMIT ?2`
-	rows, err := e.db.QueryContext(ctx, query, usage, setSize)
+	if !src.IsZero() {
+		query = `SELECT Beacon, InIntfID FROM Beacons
+				WHERE ( Usage & ?1 ) == ?1 AND StartIsd == ?3 AND StartAs == ?4
+				ORDER BY HopsLength ASC LIMIT ?2`
+	}
+	rows, err := e.db.QueryContext(ctx, query, usage, setSize, src.I, src.A)
 	if err != nil {
 		return nil, common.NewBasicError("Error selecting beacons", err)
 	}
@@ -145,7 +178,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int,
 			errors = append(errors, err)
 			continue
 		}
-		s, err := seg.NewSegFromRaw(common.RawBytes(rawBeacon))
+		s, err := seg.NewBeaconFromRaw(common.RawBytes(rawBeacon))
 		if err != nil {
 			errors = append(errors, common.NewBasicError("Unable to parse beacon", err))
 		}

@@ -148,13 +148,13 @@ func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWri
 		SoMsg("Insert err", err, ShouldBeNil)
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Fetch the candidate beacons
-		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 		SoMsg("CandidateBeacons err", err, ShouldBeNil)
 		// There should only be one candidate beacon, and it should match the inserted.
 		CheckResult(t, results, b)
 		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 			beacon.UsageCoreReg} {
-			results, err = db.CandidateBeacons(ctx, 10, usage)
+			results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
 			CheckEmpty(t, usage.String(), results, err)
 		}
 	})
@@ -177,13 +177,13 @@ func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadW
 		SoMsg("Insert new err", err, ShouldBeNil)
 		SoMsg("Inserted new", inserted, ShouldEqual, 1)
 		// Fetch the candidate beacons
-		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg, addr.IA{})
 		SoMsg("CandidateBeacons err", err, ShouldBeNil)
 		// There should only be one candidate beacon, and it should match the inserted.
 		CheckResult(t, results, newB)
 		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageProp,
 			beacon.UsageCoreReg} {
-			results, err = db.CandidateBeacons(ctx, 10, usage)
+			results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
 			CheckEmpty(t, usage.String(), results, err)
 		}
 	})
@@ -206,13 +206,13 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DBR
 		SoMsg("Insert old err", err, ShouldBeNil)
 		SoMsg("Inserted old", inserted, ShouldEqual, 0)
 		// Fetch the candidate beacons
-		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 		SoMsg("CandidateBeacons err", err, ShouldBeNil)
 		// There should only be one candidate beacon, and it should match the inserted.
 		CheckResult(t, results, newB)
 		for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 			beacon.UsageCoreReg} {
-			results, err = db.CandidateBeacons(ctx, 10, usage)
+			results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
 			CheckEmpty(t, usage.String(), results, err)
 		}
 	})
@@ -247,7 +247,7 @@ func CheckEmpty(t *testing.T, name string, results <-chan beacon.BeaconOrErr, er
 }
 
 func testCandidateBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
-	Convey("InsertBeacon should correctly ignore an older beacon", func() {
+	Convey("CandidateBeacons returns the expected beacons", func() {
 		// Insert beacons from longest to shortest path such that the insertion
 		// order is not sorted the same as the expected outcome.
 		var beacons []beacon.Beacon
@@ -256,26 +256,37 @@ func testCandidateBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.DBRea
 			// Prepend to get beacons sorted from shortest to longest path.
 			beacons = append([]beacon.Beacon{b}, beacons...)
 		}
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
-		SoMsg("Err", err, ShouldBeNil)
-		for i, expected := range beacons {
-			select {
-			case res := <-results:
-				SoMsg(fmt.Sprintf("Beacon %d err", i), res.Err, ShouldBeNil)
-				_, err := res.Beacon.Segment.ID()
-				xtest.FailOnErr(t, err)
-				_, err = res.Beacon.Segment.FullId()
-				xtest.FailOnErr(t, err)
-				SoMsg(fmt.Sprintf("Segment %d should match", i), res.Beacon.Segment, ShouldResemble,
-					expected.Segment)
-				SoMsg(fmt.Sprintf("InIfId %d should match", i), res.Beacon.InIfId, ShouldEqual,
-					expected.InIfId)
-			case <-time.After(timeout):
-				t.Fatalf("Beacon %d took too long", i)
+		Convey("If no source ISD-AS is specified, all beacons are returned", func() {
+			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+			defer cancelF()
+			results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+			SoMsg("Err", err, ShouldBeNil)
+			for i, expected := range beacons {
+				select {
+				case res := <-results:
+					SoMsg(fmt.Sprintf("Beacon %d err", i), res.Err, ShouldBeNil)
+					_, err := res.Beacon.Segment.ID()
+					xtest.FailOnErr(t, err)
+					_, err = res.Beacon.Segment.FullId()
+					xtest.FailOnErr(t, err)
+					SoMsg(fmt.Sprintf("Segment %d should match", i), res.Beacon.Segment,
+						ShouldResemble, expected.Segment)
+					SoMsg(fmt.Sprintf("InIfId %d should match", i), res.Beacon.InIfId,
+						ShouldEqual, expected.InIfId)
+				case <-time.After(timeout):
+					t.Fatalf("Beacon %d took too long", i)
+				}
 			}
-		}
+		})
+		Convey("Only beacons with matching source ISD-AS are returned, if specified", func() {
+			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+			defer cancelF()
+			results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp,
+				beacons[0].Segment.FirstIA())
+			SoMsg("Err", err, ShouldBeNil)
+			CheckResult(t, results, beacons[0])
+
+		})
 	})
 }
 
@@ -313,7 +324,7 @@ func testRollback(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 		SoMsg("Insert should succeed", inserted, ShouldEqual, 1)
 		err = tx.Rollback()
 		SoMsg("Rollback should not fail", err, ShouldBeNil)
-		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 		CheckEmpty(t, beacon.UsageProp.String(), results, err)
 	})
 }
