@@ -118,8 +118,7 @@ func checkMsg(t *testing.T, msg msg, pub common.RawBytes) {
 		SoMsg("err", err, ShouldBeNil)
 	})
 	Convey("Segment can be verified", func() {
-		err = pseg.VerifyASEntry(context.Background(),
-			segVerifier(pub), pseg.MaxAEIdx())
+		err = pseg.VerifyASEntry(context.Background(), segVerifier(pub), pseg.MaxAEIdx())
 		SoMsg("err", err, ShouldBeNil)
 	})
 	Convey("Beacon on correct interface", func() {

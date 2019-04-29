@@ -32,4 +32,11 @@
 // The registrar is a periodic task to register segments with the appropriate
 // path server. Core and Up segments are registered with the local path server.
 // Down segments are registered with the originating core AS.
+//
+// Propagator
+//
+// The propagator is a periodic task to propagate beacons to the appropriate
+// neighboring ASes. In a core AS, the beacons are propagated to the neighbors
+// on all core link, unless they will create an AS loop. In a non-core AS, the
+// beacons are propagated to the neighbors on all child links.
 package beaconing

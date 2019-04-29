@@ -96,6 +96,6 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.SCIONPacket, error) {
 func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) {
 	s.macMtx.Lock()
 	defer s.macMtx.Unlock()
-	path := spath.NewOneHop(s.IA.I, ifid, time.Now(), spath.DefaultHopFExpiry, s.MAC)
+	path := spath.NewOneHop(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
 	return (*Path)(path), path.InitOffsets()
 }
