@@ -18,7 +18,6 @@ import (
 	"context"
 	"hash"
 	"net"
-	"sort"
 	"sync"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
@@ -89,7 +88,10 @@ func (r *Registrar) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	peers := r.sortedActivePeers()
+	peers, nonActivePeers := sortedIntfs(r.intfs, proto.LinkType_peer)
+	if len(nonActivePeers) > 0 {
+		log.Debug("[Registrar] Ignore non-active peer interfaces", "intfs", nonActivePeers)
+	}
 	var success, segErr, sendErr ctr
 	wg := &sync.WaitGroup{}
 	for bOrErr := range segments {
@@ -131,22 +133,6 @@ func (r *Registrar) startSendSegReg(ctx context.Context, reg *path_mgmt.SegReg, 
 			"seg", reg.Recs[0].Segment)
 		success.Inc()
 	}()
-}
-
-func (r *Registrar) sortedActivePeers() []common.IFIDType {
-	var ifids []common.IFIDType
-	for ifid, intf := range r.intfs.All() {
-		if intf.TopoInfo().LinkType != proto.LinkType_peer {
-			continue
-		}
-		if intf.State() != ifstate.Active {
-			log.Debug("[Registrar] Ignore inactive peer link", "ifid", ifid)
-			continue
-		}
-		ifids = append(ifids, ifid)
-	}
-	sort.Slice(ifids, func(i, j int) bool { return ifids[i] < ifids[j] })
-	return ifids
 }
 
 func (r *Registrar) segToRegister(ctx context.Context, peers []common.IFIDType,
@@ -194,15 +180,4 @@ func (r *Registrar) localServer() (*snet.Addr, error) {
 		Host: topoAddr.PublicAddr(topoAddr.Overlay),
 	}
 	return saddr, nil
-}
-
-type ctr struct {
-	sync.Mutex
-	c int
-}
-
-func (c *ctr) Inc() {
-	c.Lock()
-	defer c.Unlock()
-	c.c++
 }

@@ -33,6 +33,32 @@
           "ISD_AS": "1-ff00:0:120",
           "LinkTo": "CORE"
         },
+        "1113": {
+          "RemoteOverlay": {
+            "Addr": "127.0.0.4"
+          },
+          "MTU": 1280,
+          "PublicOverlay": {
+            "Addr": "127.0.0.5"
+          },
+          "Overlay": "UDP/IPv4",
+          "Bandwidth": 1000,
+          "ISD_AS": "1-ff00:0:130",
+          "LinkTo": "CORE"
+        },
+        "1121": {
+          "RemoteOverlay": {
+            "Addr": "127.0.0.4"
+          },
+          "MTU": 1280,
+          "PublicOverlay": {
+            "Addr": "127.0.0.5"
+          },
+          "Overlay": "UDP/IPv4",
+          "Bandwidth": 1000,
+          "ISD_AS": "2-ff00:0:210",
+          "LinkTo": "CORE"
+        },
         "42": {
             "RemoteOverlay": {
               "Addr": "127.0.0.4"

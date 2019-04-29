@@ -16,19 +16,17 @@ package beaconing
 
 import (
 	"context"
+	"hash"
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -41,8 +39,8 @@ type Originator struct {
 	sender *onehop.Sender
 }
 
-// NewOriginator creates a new originator. It takes ownership of the one-hop sender.
-func NewOriginator(intfs *ifstate.Interfaces, cfg Config,
+// NewOriginator creates a new originator.
+func NewOriginator(intfs *ifstate.Interfaces, mac hash.Hash, cfg Config,
 	sender *onehop.Sender) (*Originator, error) {
 
 	cfg.InitDefaults()
@@ -54,7 +52,7 @@ func NewOriginator(intfs *ifstate.Interfaces, cfg Config,
 		segExtender: segExtender{
 			cfg:   cfg,
 			intfs: intfs,
-			mac:   sender.MAC,
+			mac:   mac,
 			task:  "originator",
 		},
 	}
@@ -63,35 +61,22 @@ func NewOriginator(intfs *ifstate.Interfaces, cfg Config,
 
 // Run originates core and downstream beacons.
 func (o *Originator) Run(_ context.Context) {
-	intfs := o.intfs.All()
-	o.originateBeacons(intfs, proto.LinkType_core)
-	o.originateBeacons(intfs, proto.LinkType_child)
+	o.originateBeacons(proto.LinkType_core)
+	o.originateBeacons(proto.LinkType_child)
 }
 
 // originateBeacons creates and sends a beacon for each active interface of
 // the specified link type.
-func (o *Originator) originateBeacons(intfs map[common.IFIDType]*ifstate.Interface,
-	linkType proto.LinkType) {
+func (o *Originator) originateBeacons(linkType proto.LinkType) {
 
+	active, nonActive := sortedIntfs(o.intfs, linkType)
+	if len(nonActive) > 0 {
+		log.Debug("[Originator] Ignore non-active interfaces", "intfs", nonActive)
+	}
 	infoF := o.createInfoF(time.Now())
-	for ifid, info := range intfs {
-		intf := info.TopoInfo()
-		if intf.LinkType != linkType {
-			continue
-		}
-		state := info.State()
-		if state != ifstate.Active {
-			log.Debug("[Originator] Skipping non-active interface", "ifid", ifid, "state", state)
-			continue
-		}
-		msg, err := o.createBeaconMsg(ifid, intf, infoF)
-		if err != nil {
-			log.Error("[Originator] Skipping interface on error", "ifid", ifid, "err", err)
-			continue
-		}
-		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
-		if err := o.sender.Send(msg, ov); err != nil {
-			log.Error("[Originator] Unable to send packet", "ifid", "err", err)
+	for _, ifid := range active {
+		if err := o.originateBeacon(ifid, infoF); err != nil {
+			log.Error("[Originator] Unable to originate on interface", "ifid", ifid, "err", err)
 		}
 	}
 }
@@ -106,40 +91,37 @@ func (o *Originator) createInfoF(now time.Time) spath.InfoField {
 	return infoF
 }
 
+// originateBeacon originates a beacon on the given ifid.
+func (o *Originator) originateBeacon(ifid common.IFIDType, infoF spath.InfoField) error {
+	intf := o.intfs.Get(ifid)
+	if intf == nil {
+		return common.NewBasicError("Interface does not exist", nil)
+	}
+	topoInfo := intf.TopoInfo()
+	msg, err := o.createBeaconMsg(ifid, infoF, topoInfo.ISD_AS)
+	if err != nil {
+		return err
+	}
+	ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
+	if err := o.sender.Send(msg, ov); err != nil {
+		return common.NewBasicError("Unable to send packet", err)
+	}
+	return nil
+}
+
 // createBeaconMsg creates a beacon for the given interface, signs it and
 // wraps it in a one-hop message.
-func (o *Originator) createBeaconMsg(ifid common.IFIDType, intf topology.IFInfo,
-	infoF spath.InfoField) (*onehop.Msg, error) {
+func (o *Originator) createBeaconMsg(ifid common.IFIDType, infoF spath.InfoField,
+	remoteIA addr.IA) (*onehop.Msg, error) {
 
-	bseg, err := o.createBeacon(ifid, intf, infoF)
+	bseg, err := o.createBeacon(ifid, infoF)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create beacon", err, "ifid", ifid)
 	}
-	pld, err := ctrl.NewPld(bseg, nil)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create payload", err)
-	}
-	spld, err := pld.SignedPld(o.cfg.Signer)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to sign payload", err)
-	}
-	packed, err := spld.PackPld()
-	if err != nil {
-		return nil, common.NewBasicError("Unable to pack payload", err)
-	}
-	msg := &onehop.Msg{
-		Dst: snet.SCIONAddress{
-			IA:   intf.ISD_AS,
-			Host: addr.SvcBS,
-		},
-		Ifid:     ifid,
-		InfoTime: time.Now(),
-		Pld:      packed,
-	}
-	return msg, nil
+	return packBeaconMsg(bseg, remoteIA, ifid, o.cfg.Signer)
 }
 
-func (o *Originator) createBeacon(ifid common.IFIDType, intf topology.IFInfo,
+func (o *Originator) createBeacon(ifid common.IFIDType,
 	infoF spath.InfoField) (*seg.Beacon, error) {
 
 	bseg, err := seg.NewSeg(&infoF)

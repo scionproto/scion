@@ -56,7 +56,7 @@ func TestOriginatorRun(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		conn := mock_snet.NewMockPacketConn(mctrl)
-		o, err := NewOriginator(intfs,
+		o, err := NewOriginator(intfs, mac,
 			Config{
 				MTU:    uint16(itopo.Get().MTU),
 				Signer: signer,
@@ -76,10 +76,6 @@ func TestOriginatorRun(t *testing.T) {
 		intfs.Get(42).Activate(84)
 		intfs.Get(1129).Activate(82)
 
-		type msg struct {
-			pkt *snet.SCIONPacket
-			ov  *overlay.OverlayAddr
-		}
 		msgsMtx := sync.Mutex{}
 		var msgs []msg
 		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
@@ -97,33 +93,42 @@ func TestOriginatorRun(t *testing.T) {
 		o.Run(nil)
 		for i, msg := range msgs {
 			Convey(fmt.Sprintf("Packet %d is correct", i), func() {
-				// Extract segment from the payload
-				spld, err := ctrl.NewSignedPldFromRaw(msg.pkt.Payload.(common.RawBytes))
-				SoMsg("SPldErr", err, ShouldBeNil)
-				pld, err := spld.UnsafePld()
-				SoMsg("PldErr", err, ShouldBeNil)
-				err = pld.Beacon.Parse()
-				SoMsg("ParseErr", err, ShouldBeNil)
-				pseg := pld.Beacon.Segment
-				Convey("Segment can be validated", func() {
-					err = pseg.Validate(seg.ValidateBeacon)
-					SoMsg("err", err, ShouldBeNil)
-				})
-				Convey("Segment can be verified", func() {
-					err = pseg.VerifyASEntry(context.Background(), segVerifier(pub), 0)
-					SoMsg("err", err, ShouldBeNil)
-				})
-				Convey("Beacon on correct interface", func() {
-					hopF, err := msg.pkt.Path.GetHopField(msg.pkt.Path.HopOff)
-					xtest.FailOnErr(t, err)
-					bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
-					xtest.FailOnErr(t, err)
-					SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
-					brAddr := itopo.Get().IFInfoMap[hopF.ConsEgress].InternalAddrs
-					SoMsg("ov", msg.ov, ShouldResemble, brAddr.PublicOverlay(brAddr.Overlay))
-				})
+				checkMsg(t, msg, pub)
 			})
 		}
+	})
+}
+
+type msg struct {
+	pkt *snet.SCIONPacket
+	ov  *overlay.OverlayAddr
+}
+
+func checkMsg(t *testing.T, msg msg, pub common.RawBytes) {
+	// Extract segment from the payload
+	spld, err := ctrl.NewSignedPldFromRaw(msg.pkt.Payload.(common.RawBytes))
+	SoMsg("SPldErr", err, ShouldBeNil)
+	pld, err := spld.UnsafePld()
+	SoMsg("PldErr", err, ShouldBeNil)
+	err = pld.Beacon.Parse()
+	SoMsg("ParseErr", err, ShouldBeNil)
+	pseg := pld.Beacon.Segment
+	Convey("Segment can be validated", func() {
+		err = pseg.Validate(seg.ValidateBeacon)
+		SoMsg("err", err, ShouldBeNil)
+	})
+	Convey("Segment can be verified", func() {
+		err = pseg.VerifyASEntry(context.Background(), segVerifier(pub), pseg.MaxAEIdx())
+		SoMsg("err", err, ShouldBeNil)
+	})
+	Convey("Beacon on correct interface", func() {
+		hopF, err := msg.pkt.Path.GetHopField(msg.pkt.Path.HopOff)
+		xtest.FailOnErr(t, err)
+		bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
+		xtest.FailOnErr(t, err)
+		SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
+		brAddr := itopo.Get().IFInfoMap[hopF.ConsEgress].InternalAddrs
+		SoMsg("ov", msg.ov, ShouldResemble, brAddr.PublicOverlay(brAddr.Overlay))
 	})
 }
 

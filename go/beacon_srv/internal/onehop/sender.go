@@ -17,6 +17,7 @@ package onehop
 
 import (
 	"hash"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -51,6 +52,8 @@ type Sender struct {
 	Addr *addr.AppAddr
 	// Conn is used to send the packets.
 	Conn snet.PacketConn
+	// macMtx protects the MAC.
+	macMtx sync.Mutex
 	// MAC is the mac to issue hop fields.
 	MAC hash.Hash
 }
@@ -91,7 +94,8 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.SCIONPacket, error) {
 
 // CreatePath creates the one-hop path and initializes it.
 func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) {
-	s.MAC.Reset()
-	path := spath.NewOneHop(s.IA.I, ifid, time.Now(), spath.DefaultHopFExpiry, s.MAC)
+	s.macMtx.Lock()
+	defer s.macMtx.Unlock()
+	path := spath.NewOneHop(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
 	return (*Path)(path), path.InitOffsets()
 }

@@ -32,7 +32,7 @@ STD_LIB_MOCKS_DIRECTORY = os.path.join("go", "lib", "mocks")
 MOCK_TARGETS = [
         ("net", "Addr,Conn,PacketConn"),
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/beaconing",
-            "BeaconInserter,SegmentProvider"),
+            "BeaconInserter,BeaconProvider,SegmentProvider"),
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/keepalive",
             "IfStatePusher,Beaconer,RevDropper"),
         (SCION_PACKAGE_PREFIX + "/go/lib/ctrl/seg", "Signer"),
