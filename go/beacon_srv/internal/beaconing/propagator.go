@@ -34,7 +34,7 @@ type BeaconProvider interface {
 	BeaconsToPropagate(ctx context.Context) (<-chan beacon.BeaconOrErr, error)
 }
 
-var _ periodic.Task = (*Registrar)(nil)
+var _ periodic.Task = (*Propagator)(nil)
 
 // Propagator forwards beacons to neighboring ASes. In a core AS, the beacons
 // are propagated to neighbors on core links. In a non-core AS, the beacons are
@@ -85,7 +85,10 @@ func (p *Propagator) run(ctx context.Context) error {
 		return err
 	}
 	activeIntfs := p.activeIntfs()
-	peers := sortedActivePeers(p.intfs, p.task)
+	peers, nonActivePeers := sortedIntfs(p.intfs, proto.LinkType_peer)
+	if len(nonActivePeers) > 0 {
+		log.Debug("[Propagator] Ignore inactive peer links", "ifids", nonActivePeers)
+	}
 	wg := &sync.WaitGroup{}
 	for bOrErr := range beacons {
 		if bOrErr.Err != nil {
@@ -102,20 +105,16 @@ func (p *Propagator) run(ctx context.Context) error {
 // propagated to. In a core AS, these are all active core links. In a non-core
 // AS, these are all active child links.
 func (p *Propagator) activeIntfs() []common.IFIDType {
-	var ifids []common.IFIDType
-	for ifid, intf := range p.intfs.All() {
-		topoInfo := intf.TopoInfo()
-		if (p.core && topoInfo.LinkType != proto.LinkType_core) ||
-			(!p.core && topoInfo.LinkType != proto.LinkType_child) {
-			continue
-		}
-		if intf.State() != ifstate.Active {
-			log.Debug("[Propagator] Ignore inactive link", "ifid", ifid)
-			continue
-		}
-		ifids = append(ifids, ifid)
+	var activeIntfs, nonActiveIntfs []common.IFIDType
+	if p.core {
+		activeIntfs, nonActiveIntfs = sortedIntfs(p.intfs, proto.LinkType_core)
+	} else {
+		activeIntfs, nonActiveIntfs = sortedIntfs(p.intfs, proto.LinkType_child)
 	}
-	return ifids
+	if len(nonActiveIntfs) > 0 {
+		log.Debug("[Propagator] Ignore inactive links", "ifids", nonActiveIntfs)
+	}
+	return activeIntfs
 }
 
 // startPropagate adds to the wait group and starts propagation of the beacon on
@@ -142,11 +141,13 @@ func (p *Propagator) propagate(origBeacon beacon.Beacon, activeIntfs,
 		return err
 	}
 	var success ctr
+	var expected int
 	wg := sync.WaitGroup{}
 	for _, egIfid := range activeIntfs {
 		if p.shouldIgnore(origBeacon, egIfid) {
 			continue
 		}
+		expected++
 		bseg := origBeacon
 		if bseg.Segment, err = seg.NewBeaconFromRaw(raw); err != nil {
 			return common.NewBasicError("Unable to unpack beacon", err)
@@ -154,10 +155,11 @@ func (p *Propagator) propagate(origBeacon beacon.Beacon, activeIntfs,
 		p.extendAndSend(bseg, egIfid, peers, &success, &wg)
 	}
 	wg.Wait()
-	if success.c <= 0 {
-		return common.NewBasicError("None propagated", nil, "beacon", origBeacon)
+	if success.c <= 0 && expected > 0 {
+		return common.NewBasicError("None propagated", nil, "expected", expected)
 	}
-	log.Info("[Propagator] Successfully propagated", "beacon", origBeacon, "count", success.c)
+	log.Info("[Propagator] Successfully propagated", "beacon", origBeacon,
+		"expected", expected, "count", success.c)
 	return nil
 }
 
