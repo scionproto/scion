@@ -410,6 +410,20 @@ func (mr *MockMessengerMockRecorder) SendIfStateInfos(arg0, arg1, arg2, arg3 int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendIfStateInfos", reflect.TypeOf((*MockMessenger)(nil).SendIfStateInfos), arg0, arg1, arg2, arg3)
 }
 
+// SendRev mocks base method
+func (m *MockMessenger) SendRev(arg0 context.Context, arg1 *path_mgmt.SignedRevInfo, arg2 net.Addr, arg3 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendRev", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendRev indicates an expected call of SendRev
+func (mr *MockMessengerMockRecorder) SendRev(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendRev", reflect.TypeOf((*MockMessenger)(nil).SendRev), arg0, arg1, arg2, arg3)
+}
+
 // SendSegChangesIdReply mocks base method
 func (m *MockMessenger) SendSegChangesIdReply(arg0 context.Context, arg1 *path_mgmt.SegChangesIdReply, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
