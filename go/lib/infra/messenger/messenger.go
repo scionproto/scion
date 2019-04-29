@@ -30,7 +30,7 @@
 //  infra.SegReq              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
 //  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
 //  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
-//  infra.SegRev              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SRevInfo
+//  infra.SignedRev              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SignedRevInfo
 //  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
 //  infra.ChainIssueRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssReq
 //  infra.ChainIssueReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssRep
@@ -334,6 +334,16 @@ func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFState
 		return err
 	}
 	return m.sendMessage(ctx, pld, a, id, infra.IfStateInfos)
+}
+
+func (m *Messenger) SendRev(ctx context.Context, msg *path_mgmt.SignedRevInfo,
+	a net.Addr, id uint64) error {
+
+	pld, err := path_mgmt.NewPld(msg, nil)
+	if err != nil {
+		return err
+	}
+	return m.sendMessage(ctx, pld, a, id, infra.SignedRev)
 }
 
 func (m *Messenger) SendSegReg(ctx context.Context, msg *path_mgmt.SegReg,
@@ -923,7 +933,7 @@ func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 		case proto.PathMgmt_Which_segSync:
 			return infra.SegSync, pld.PathMgmt.SegSync, nil
 		case proto.PathMgmt_Which_sRevInfo:
-			return infra.SegRev, pld.PathMgmt.SRevInfo, nil
+			return infra.SignedRev, pld.PathMgmt.SRevInfo, nil
 		case proto.PathMgmt_Which_ifStateReq:
 			return infra.IfStateReq, pld.PathMgmt.IFStateReq, nil
 		case proto.PathMgmt_Which_ifStateInfos:

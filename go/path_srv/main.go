@@ -157,7 +157,7 @@ func realMain() int {
 		// Old down segment sync mechanism
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
 	}
-	msger.AddHandler(infra.SegRev, handlers.NewRevocHandler(args))
+	msger.AddHandler(infra.SignedRev, handlers.NewRevocHandler(args))
 	cfg.Metrics.StartPrometheus()
 	// Start handling requests/messages
 	go func() {

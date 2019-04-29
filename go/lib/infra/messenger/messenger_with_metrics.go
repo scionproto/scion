@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -105,6 +105,15 @@ func (m *MessengerWithMetrics) SendIfStateInfos(ctx context.Context, msg *path_m
 
 	opMetrics := metricStartOp(infra.IfStateInfos)
 	err := m.messenger.SendIfStateInfos(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *MessengerWithMetrics) SendRev(ctx context.Context, msg *path_mgmt.SignedRevInfo,
+	a net.Addr, id uint64) error {
+
+	opMetrics := metricStartOp(infra.SignedRev)
+	err := m.messenger.SendRev(ctx, msg, a, id)
 	opMetrics.publishResult(err)
 	return err
 }
