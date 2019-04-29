@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
@@ -32,8 +33,10 @@ type DBRead interface {
 	// errors. After sending the first error, the channel is closed. The
 	// channel must be drained, since the db might spawn go routines to
 	// fill the channel.
-	CandidateBeacons(ctx context.Context, setSize int, usage Usage) (
+	CandidateBeacons(ctx context.Context, setSize int, usage Usage, src addr.IA) (
 		<-chan BeaconOrErr, error)
+	// BeaconSources returns all source ISD-AS of the beacons in the database.
+	BeaconSources(ctx context.Context) ([]addr.IA, error)
 }
 
 // DBWrite defines all write operations of the beacon DB.
@@ -93,19 +96,24 @@ func UsageFromPolicyType(policyType PolicyType) Usage {
 	}
 }
 
+// None indicates whether the beacons is not allowed to be used anywhere.
+func (u Usage) None() bool {
+	return u&0x0F == 0
+}
+
 func (u Usage) String() string {
 	names := []string{}
 	if u&UsageUpReg != 0 {
 		names = append(names, "UpRegistration")
 	}
 	if u&UsageDownReg != 0 {
-		names = append(names, "UpRegistration")
+		names = append(names, "DownRegistration")
 	}
 	if u&UsageCoreReg != 0 {
-		names = append(names, "UpRegistration")
+		names = append(names, "CoreRegistration")
 	}
 	if u&UsageProp != 0 {
-		names = append(names, "UpRegistration")
+		names = append(names, "Propagation")
 	}
 	return fmt.Sprintf("Usage: [%s]", strings.Join(names, ","))
 }
