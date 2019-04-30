@@ -140,7 +140,7 @@ const (
 	SegReg
 	SegRequest
 	SegReply
-	SegRev
+	SignedRev
 	SegSync
 	ChainIssueRequest
 	ChainIssueReply
@@ -181,8 +181,8 @@ func (mt MessageType) String() string {
 		return "SegRequest"
 	case SegReply:
 		return "SegReply"
-	case SegRev:
-		return "SegRev"
+	case SignedRev:
+		return "SignedRev"
 	case SegSync:
 		return "SegSync"
 	case ChainIssueRequest:
@@ -232,8 +232,8 @@ func (mt MessageType) MetricLabel() string {
 		return "seg_req"
 	case SegReply:
 		return "seg_push"
-	case SegRev:
-		return "seg_rev_push"
+	case SignedRev:
+		return "revoction_push"
 	case SegSync:
 		return "seg_sync_push"
 	case ChainIssueRequest:
@@ -302,6 +302,8 @@ type Messenger interface {
 	SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error
 	// SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
 	SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos, a net.Addr, id uint64) error
+	// SendRev sends a reliable revocation to a.
+	SendRev(ctx context.Context, msg *path_mgmt.SignedRevInfo, a net.Addr, id uint64) error
 	// SendSegReg sends a reliable path_mgmt.SegReg to a.
 	SendSegReg(ctx context.Context, msg *path_mgmt.SegReg, a net.Addr, id uint64) error
 	// GetSegs asks the server at the remote address for the path segments that
