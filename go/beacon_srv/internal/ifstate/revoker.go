@@ -142,12 +142,8 @@ func (r *Revoker) pushRevocationsToBRs(ctx context.Context,
 	msg := &path_mgmt.IFStateInfos{
 		Infos: make([]*path_mgmt.IFStateInfo, 0, len(revs)),
 	}
-	for ifid, srev := range revs {
-		msg.Infos = append(msg.Infos, &path_mgmt.IFStateInfo{
-			IfID:     uint64(ifid),
-			Active:   false,
-			SRevInfo: srev,
-		})
+	for ifid := range revs {
+		msg.Infos = append(msg.Infos, infoFromInterface(ifid, r.intfs.Get(ifid)))
 	}
 	for brId, br := range topo.BR {
 		r.sendToBr(ctx, brId, br, msg, wg)
