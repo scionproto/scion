@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "doc.go",
+        "handler.go",
         "ifstate.go",
         "revoker.go",
     ],
@@ -26,6 +27,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "handler_test.go",
         "ifstate_test.go",
         "revoker_test.go",
     ],
@@ -46,6 +48,8 @@ go_test(
         "//go/lib/xtest:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
+        "@com_github_smartystreets_assertions//:go_default_library",
+        "@com_github_smartystreets_assertions//should:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],
 )
