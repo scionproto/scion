@@ -83,7 +83,8 @@ func (r *Revoker) run(ctx context.Context) error {
 				var err error
 				existingRevInfo, err = existingRev.RevInfo()
 				if err != nil {
-					log.Warn("[Revoker] couldn't extract rev info from existing revocation", "err", err)
+					log.Warn("[Revoker] couldn't extract rev info from existing revocation",
+						"err", err)
 				}
 			}
 			if existingRevInfo == nil {
