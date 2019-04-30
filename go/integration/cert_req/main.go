@@ -77,6 +77,9 @@ func (c client) run() int {
 				messenger.DefaultAdapter,
 				log.Root(),
 			),
+			AddressRewriter: &messenger.AddressRewriter{
+				Router: &snet.BaseRouter{IA: integration.Local.IA},
+			},
 		},
 	)
 	if err = getRemote(); err != nil {

@@ -155,11 +155,12 @@ func TestBuildFullAddress(t *testing.T) {
 
 func TestResolveIfSVC(t *testing.T) {
 	testCases := []struct {
-		Description     string
-		InputAddress    *addr.AppAddr
-		ResolverSetup   func(*mock_messenger.MockResolver)
-		ExpectedAddress *addr.AppAddr
-		ExpectedError   bool
+		Description           string
+		InputAddress          *addr.AppAddr
+		ResolverSetup         func(*mock_messenger.MockResolver)
+		SVCResolutionFraction float64
+		ExpectedAddress       *addr.AppAddr
+		ExpectedError         bool
 	}{
 		{
 			Description: "non-svc address does not trigger lookup",
@@ -167,8 +168,21 @@ func TestResolveIfSVC(t *testing.T) {
 				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
 				L4: addr.NewL4UDPInfo(1),
 			},
+			SVCResolutionFraction: 1.0,
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
+				L4: addr.NewL4UDPInfo(1),
+			},
+		},
+		{
+			Description: "disabling SVC resolution does not trigger lookup, same addr is returned",
+			InputAddress: &addr.AppAddr{
+				L3: addr.SvcBS,
+				L4: addr.NewL4UDPInfo(1),
+			},
+			SVCResolutionFraction: 0.0,
+			ExpectedAddress: &addr.AppAddr{
+				L3: addr.SvcBS,
 				L4: addr.NewL4UDPInfo(1),
 			},
 		},
@@ -182,7 +196,24 @@ func TestResolveIfSVC(t *testing.T) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, fmt.Errorf("err"))
 			},
-			ExpectedError: true,
+			SVCResolutionFraction: 1.0,
+			ExpectedError:         true,
+		},
+		{
+			Description: "svc address, half time allowed for resolution, lookup fails",
+			InputAddress: &addr.AppAddr{
+				L3: addr.SvcBS,
+				L4: addr.NewL4UDPInfo(1),
+			},
+			ResolverSetup: func(r *mock_messenger.MockResolver) {
+				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(nil, fmt.Errorf("err"))
+			},
+			SVCResolutionFraction: 0.5,
+			ExpectedAddress: &addr.AppAddr{
+				L3: addr.SvcBS,
+				L4: addr.NewL4UDPInfo(1),
+			},
 		},
 		{
 			Description: "svc address, lookup succeeds",
@@ -201,6 +232,30 @@ func TestResolveIfSVC(t *testing.T) {
 						nil,
 					)
 			},
+			SVCResolutionFraction: 1.0,
+			ExpectedAddress: &addr.AppAddr{
+				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
+				L4: addr.NewL4UDPInfo(8000),
+			},
+		},
+		{
+			Description: "svc address, half time allowed for resolution, lookup succeeds",
+			InputAddress: &addr.AppAddr{
+				L3: addr.SvcBS,
+				L4: addr.NewL4UDPInfo(1),
+			},
+			ResolverSetup: func(r *mock_messenger.MockResolver) {
+				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(
+						&svc.Reply{
+							Transports: map[svc.Transport]string{
+								svc.UDP: "192.168.1.1:8000",
+							},
+						},
+						nil,
+					)
+			},
+			SVCResolutionFraction: 0.5,
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
 				L4: addr.NewL4UDPInfo(8000),
@@ -214,12 +269,12 @@ func TestResolveIfSVC(t *testing.T) {
 		resolver := mock_messenger.NewMockResolver(ctrl)
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Destination().Return(addr.IA{}).AnyTimes()
-		aw := AddressRewriter{
-			Resolver:              resolver,
-			SVCResolutionFraction: 1.0,
-		}
 		for _, tc := range testCases {
 			Convey(tc.Description, func() {
+				aw := AddressRewriter{
+					Resolver:              resolver,
+					SVCResolutionFraction: tc.SVCResolutionFraction,
+				}
 				initResolver(resolver, tc.ResolverSetup)
 				a, err := aw.resolveIfSVC(context.Background(), path, tc.InputAddress)
 				SoMsg("addr", a, ShouldResemble, tc.ExpectedAddress)
