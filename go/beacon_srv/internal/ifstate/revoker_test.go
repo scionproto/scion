@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -55,6 +56,7 @@ type brMsg struct {
 
 func TestMain(m *testing.M) {
 	itopo.Init("", proto.ServiceType_unset, itopo.Callbacks{})
+	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }
 
@@ -66,22 +68,17 @@ func TestNoRevocationIssued(t *testing.T) {
 	xtest.FailOnErr(t, err)
 	signer := createTestSigner(t, priv)
 	Convey("TestNoRevocationIssued", t, func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		msger := mock_infra.NewMockMessenger(mctrl)
 		intfs := NewInterfaces(itopo.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		revoker := testRevoker(intfs, msger, signer)
 		revoker.Run(ctx)
 		// gomock tests that no calls to the messenger are made.
-		Convey("Check interface state didn't change", func() {
-			for ifid, intf := range intfs.All() {
-				SoMsg(fmt.Sprintf("Intf %d should be active", ifid),
-					intf.State(), ShouldEqual, Active)
-			}
-		})
+		checkInterfaces(intfs, map[common.IFIDType]State{})
 	})
 }
 
@@ -92,12 +89,11 @@ func TestRevokeInterface(t *testing.T) {
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	xtest.FailOnErr(t, err)
 	signer := createTestSigner(t, priv)
-	verifier := revVerifier(pub)
 	Convey("TestRevokeInterface", t, func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		msger := mock_infra.NewMockMessenger(mctrl)
 		intfs := NewInterfaces(itopo.Get().IFInfoMap, Config{})
 		activateAll(intfs)
@@ -105,18 +101,8 @@ func TestRevokeInterface(t *testing.T) {
 		checkSentMessages := expectMessengerCalls(msger, 101)
 		revoker := testRevoker(intfs, msger, signer)
 		revoker.Run(ctx)
-		Convey("Check interface state", func() {
-			for ifid, intf := range intfs.All() {
-				if ifid == 101 {
-					SoMsg(fmt.Sprintf("Intf %d should be revoked", ifid),
-						intf.State(), ShouldEqual, Revoked)
-				} else {
-					SoMsg(fmt.Sprintf("Intf %d should be active", ifid),
-						intf.State(), ShouldEqual, Active)
-				}
-			}
-		})
-		checkSentMessages(t, verifier)
+		checkInterfaces(intfs, map[common.IFIDType]State{101: Revoked})
+		checkSentMessages(t, revVerifier(pub))
 	})
 }
 
@@ -128,35 +114,27 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 	xtest.FailOnErr(t, err)
 	signer := createTestSigner(t, priv)
 	Convey("TestRevokedInterfaceNotRevokedImmediately", t, func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		msger := mock_infra.NewMockMessenger(mctrl)
 		intfs := NewInterfaces(itopo.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Expired
-		intfs.Get(101).Revoke(toSigned(t, &path_mgmt.RevInfo{
+		srev := toSigned(t, &path_mgmt.RevInfo{
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
 			LinkType:     proto.LinkType_peer,
 			RawTimestamp: util.TimeToSecs(time.Now().Add(-500 * time.Millisecond)),
 			RawTTL:       10,
-		}))
+		})
+		intfs.Get(101).Revoke(srev)
 		revoker := testRevoker(intfs, msger, signer)
 		revoker.Run(ctx)
 		// gomock tests that no calls to the messenger are made.
-		Convey("Check interface state didn't change", func() {
-			for ifid, intf := range intfs.All() {
-				if ifid == 101 {
-					SoMsg(fmt.Sprintf("Intf %d should be revoked", ifid),
-						intf.State(), ShouldEqual, Revoked)
-				} else {
-					SoMsg(fmt.Sprintf("Intf %d should be active", ifid),
-						intf.State(), ShouldEqual, Active)
-				}
-			}
-		})
+		SoMsg("Revocation should be same", intfs.Get(101).Revocation(), ShouldEqual, srev)
+		checkInterfaces(intfs, map[common.IFIDType]State{101: Revoked})
 	})
 }
 
@@ -167,39 +145,30 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	xtest.FailOnErr(t, err)
 	signer := createTestSigner(t, priv)
-	verifier := revVerifier(pub)
 	Convey("TestRevokedInterfaceRevokedAgain", t, func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		msger := mock_infra.NewMockMessenger(mctrl)
 		intfs := NewInterfaces(itopo.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Expired
-		intfs.Get(101).Revoke(toSigned(t, &path_mgmt.RevInfo{
+		srev := toSigned(t, &path_mgmt.RevInfo{
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
 			LinkType:     proto.LinkType_peer,
 			RawTimestamp: util.TimeToSecs(time.Now().Add(-6 * time.Second)),
 			RawTTL:       10,
-		}))
+		})
+		intfs.Get(101).Revoke(srev)
 		checkSentMessages := expectMessengerCalls(msger, 101)
 		revoker := testRevoker(intfs, msger, signer)
 		revoker.Run(ctx)
 		// gomock tests that no calls to the messenger are made.
-		Convey("Check interface state didn't change", func() {
-			for ifid, intf := range intfs.All() {
-				if ifid == 101 {
-					SoMsg(fmt.Sprintf("Intf %d should be revoked", ifid),
-						intf.State(), ShouldEqual, Revoked)
-				} else {
-					SoMsg(fmt.Sprintf("Intf %d should be active", ifid),
-						intf.State(), ShouldEqual, Active)
-				}
-			}
-		})
-		checkSentMessages(t, verifier)
+		checkInterfaces(intfs, map[common.IFIDType]State{101: Revoked})
+		SoMsg("Revocation should be different", intfs.Get(101).Revocation(), ShouldNotEqual, srev)
+		checkSentMessages(t, revVerifier(pub))
 	})
 }
 
@@ -211,7 +180,7 @@ func expectMessengerCalls(msger *mock_infra.MockMessenger,
 	var brMsgs []brMsg
 	var brMsgsMtx sync.Mutex
 	msger.EXPECT().SendIfStateInfos(gomock.Any(),
-		gomock.Any(), gomock.Any(), gomock.Any()).Times(brCount()).DoAndReturn(
+		gomock.Any(), gomock.Any(), gomock.Any()).Times(len(itopo.Get().BR)).DoAndReturn(
 		func(_ context.Context, msg *path_mgmt.IFStateInfos, a net.Addr, _ uint64) error {
 			brMsgsMtx.Lock()
 			defer brMsgsMtx.Unlock()
@@ -229,7 +198,8 @@ func expectMessengerCalls(msger *mock_infra.MockMessenger,
 		})
 	return func(t *testing.T, verifier revVerifier) {
 		Convey("Check sent BR messages", func() {
-			SoMsg("Should send correct amount of messages", len(brMsgs), ShouldEqual, brCount())
+			SoMsg("Should send correct amount of messages", len(brMsgs),
+				ShouldEqual, len(itopo.Get().BR))
 			sentBRs := expectedBRs()
 			for _, brMsg := range brMsgs {
 				brName := brId(t, brMsg.a.(*snet.Addr))
@@ -283,6 +253,18 @@ func checkRevocation(t *testing.T, srev *path_mgmt.SignedRevInfo,
 	})
 }
 
+func checkInterfaces(intfs *Interfaces, nonActive map[common.IFIDType]State) {
+	Convey("Check interface state", func() {
+		for ifid, intf := range intfs.All() {
+			expectedState := Active
+			if st, ok := nonActive[ifid]; ok {
+				expectedState = st
+			}
+			SoMsg(fmt.Sprintf("Intf %d state", ifid), intf.State(), ShouldEqual, expectedState)
+		}
+	})
+}
+
 func brId(t *testing.T, saddr *snet.Addr) string {
 	topo := itopo.Get()
 	for brId, brInfo := range topo.BR {
@@ -308,10 +290,6 @@ func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {
 	sr, err := path_mgmt.NewSignedRevInfo(r, nil)
 	xtest.FailOnErr(t, err)
 	return sr
-}
-
-func brCount() int {
-	return len(itopo.Get().BR)
 }
 
 func activateAll(intfs *Interfaces) {
