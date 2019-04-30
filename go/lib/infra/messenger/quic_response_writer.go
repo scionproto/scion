@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 var _ infra.ResponseWriter = (*QUICResponseWriter)(nil)
@@ -35,6 +36,7 @@ type QUICResponseWriter struct {
 
 func (rw *QUICResponseWriter) SendAckReply(ctx context.Context, msg *ack.Ack) error {
 	go func() {
+		defer log.LogPanicAndExit()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -51,6 +53,7 @@ func (rw *QUICResponseWriter) SendAckReply(ctx context.Context, msg *ack.Ack) er
 
 func (rw *QUICResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.TRC) error {
 	go func() {
+		defer log.LogPanicAndExit()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -67,6 +70,7 @@ func (rw *QUICResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.T
 
 func (rw *QUICResponseWriter) SendCertChainReply(ctx context.Context, msg *cert_mgmt.Chain) error {
 	go func() {
+		defer log.LogPanicAndExit()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -85,6 +89,7 @@ func (rw *QUICResponseWriter) SendChainIssueReply(ctx context.Context,
 	msg *cert_mgmt.ChainIssRep) error {
 
 	go func() {
+		defer log.LogPanicAndExit()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -101,6 +106,26 @@ func (rw *QUICResponseWriter) SendChainIssueReply(ctx context.Context,
 
 func (rw *QUICResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error {
 	go func() {
+		defer log.LogPanicAndExit()
+		<-ctx.Done()
+		rw.ReplyWriter.Close()
+	}()
+	ctrlPld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: rw.ID})
+	if err != nil {
+		return err
+	}
+	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
+	if err != nil {
+		return err
+	}
+	return rw.ReplyWriter.WriteReply(&rpc.Reply{SignedPld: signedCtrlPld})
+}
+
+func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
+	msg *path_mgmt.IFStateInfos) error {
+
+	go func() {
+		defer log.LogPanicAndExit()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()

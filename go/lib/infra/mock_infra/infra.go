@@ -597,6 +597,20 @@ func (mr *MockResponseWriterMockRecorder) SendChainIssueReply(arg0, arg1 interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendChainIssueReply", reflect.TypeOf((*MockResponseWriter)(nil).SendChainIssueReply), arg0, arg1)
 }
 
+// SendIfStateInfoReply mocks base method
+func (m *MockResponseWriter) SendIfStateInfoReply(arg0 context.Context, arg1 *path_mgmt.IFStateInfos) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendIfStateInfoReply", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendIfStateInfoReply indicates an expected call of SendIfStateInfoReply
+func (mr *MockResponseWriterMockRecorder) SendIfStateInfoReply(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendIfStateInfoReply", reflect.TypeOf((*MockResponseWriter)(nil).SendIfStateInfoReply), arg0, arg1)
+}
+
 // SendSegReply mocks base method
 func (m *MockResponseWriter) SendSegReply(arg0 context.Context, arg1 *path_mgmt.SegReply) error {
 	m.ctrl.T.Helper()
