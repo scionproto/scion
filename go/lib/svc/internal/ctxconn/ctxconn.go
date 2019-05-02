@@ -49,7 +49,6 @@ func CloseConnOnDone(ctx context.Context, conn DeadlineCloser) CancelFunc {
 		defer log.LogPanicAndExit()
 		select {
 		case <-ctx.Done():
-			// It's safe to call close multiple times
 			if err := conn.Close(); err != nil {
 				log.Warn("Error closing conn when ctx canceled", "err", err)
 			}

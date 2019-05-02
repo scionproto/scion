@@ -70,7 +70,7 @@ func TestSVCResolutionServer(t *testing.T) {
 
 			var pkt snet.SCIONPacket
 			var ov overlay.OverlayAddr
-			Convey("If sender fails, caller sees error", func() {
+			Convey("If handler fails, caller sees error", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
 						pkt.Destination = snet.SCIONAddress{
@@ -79,13 +79,13 @@ func TestSVCResolutionServer(t *testing.T) {
 						return nil
 					},
 				)
-				mockReqHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).
-					Return(errors.New("err")).AnyTimes()
+				mockReqHandler.EXPECT().Handle(gomock.Any()).
+					Return(svc.Error, errors.New("err")).AnyTimes()
 
 				err = conn.ReadFrom(&pkt, &ov)
 				SoMsg("read err", err.Error(), ShouldContainSubstring, "err")
 			})
-			Convey("If sender succeeds", func() {
+			Convey("If handler returns forward, caller sees data", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
 						pkt.Destination = snet.SCIONAddress{
@@ -94,7 +94,21 @@ func TestSVCResolutionServer(t *testing.T) {
 						return nil
 					},
 				)
-				mockReqHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockReqHandler.EXPECT().Handle(gomock.Any()).
+					Return(svc.Forward, nil).AnyTimes()
+				err = conn.ReadFrom(&pkt, &ov)
+				SoMsg("read err", err, ShouldBeNil)
+			})
+			Convey("If handler succeeds", func() {
+				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+						pkt.Destination = snet.SCIONAddress{
+							Host: addr.SvcPS,
+						}
+						return nil
+					},
+				)
+				mockReqHandler.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
 				Convey("return from conn with no error next internal read yields data", func() {
 					mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 						func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
@@ -209,13 +223,17 @@ func TestDefaultHandler(t *testing.T) {
 				if !tc.ExpectedError {
 					conn.EXPECT().WriteTo(tc.ExpectedPacket, gomock.Any()).Times(1)
 				}
-				sender := &svc.DefaultHandler{
-					Source:  tc.ReplySource,
-					Conn:    conn,
-					Payload: tc.ReplyPayload,
+				sender := &svc.BaseHandler{
+					Message: tc.ReplyPayload,
 				}
 
-				err := sender.Handle(tc.InputPacket, nil)
+				_, err := sender.Handle(
+					&svc.Request{
+						Packet: tc.InputPacket,
+						Source: tc.ReplySource,
+						Conn:   conn,
+					},
+				)
 				xtest.SoMsgError("err", err, tc.ExpectedError)
 			})
 		}
@@ -233,50 +251,33 @@ func TestDefaultHandler(t *testing.T) {
 		)
 		xtest.FailOnErr(t, err)
 		conn.EXPECT().WriteTo(packet, ov).Times(1)
-		sender := &svc.DefaultHandler{
-			Source: snet.SCIONAddress{},
-			Conn:   conn,
+		sender := &svc.BaseHandler{}
+
+		request := &svc.Request{
+			Conn:    conn,
+			Source:  snet.SCIONAddress{},
+			Packet:  packet,
+			Overlay: ov,
 		}
-
-		err = sender.Handle(packet, ov)
+		_, err = sender.Handle(request)
 		So(err, ShouldBeNil)
-	})
-
-	Convey("Registered precheck runs on every packet", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		mockConn := mock_snet.NewMockPacketConn(ctrl)
-		mockPrecheck := mock_svc.NewMockPrechecker(ctrl)
-		sender := &svc.DefaultHandler{Conn: mockConn, Precheck: mockPrecheck}
-		packet := &snet.SCIONPacket{}
-		Convey("if check succeeds, packet reply is sent", func() {
-			mockPrecheck.EXPECT().Precheck(packet).Return(nil).Times(1)
-			mockConn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(1)
-			err := sender.Handle(packet, nil)
-			So(err, ShouldBeNil)
-		})
-		Convey("if check fails, no packet reply is sent", func() {
-			errorStr := "some error"
-			mockPrecheck.EXPECT().Precheck(packet).Return(errors.New(errorStr)).Times(1)
-			err := sender.Handle(packet, nil)
-			So(err.Error(), ShouldContainSubstring, errorStr)
-		})
 	})
 }
 
 func TestPrecheckSVC(t *testing.T) {
 	Convey("", t, func() {
 		calls := &callCounter{}
-		precheck := &svc.PrecheckSVC{
+		precheck := &svc.SVCMatchHandler{
 			MatchSVC:   addr.SvcPS,
 			OnNonMatch: calls.Call,
 		}
 		Convey("if SVC address matches, return nil error", func() {
-			err := precheck.Precheck(&snet.SCIONPacket{
-				SCIONPacketInfo: snet.SCIONPacketInfo{
-					Destination: snet.SCIONAddress{
-						Host: addr.SvcPS,
+			_, err := precheck.Handle(&svc.Request{
+				Packet: &snet.SCIONPacket{
+					SCIONPacketInfo: snet.SCIONPacketInfo{
+						Destination: snet.SCIONAddress{
+							Host: addr.SvcPS,
+						},
 					},
 				},
 			})
@@ -284,10 +285,12 @@ func TestPrecheckSVC(t *testing.T) {
 			SoMsg("call count", calls.count, ShouldEqual, 0)
 		})
 		Convey("if SVC address does not match, return non-nil error", func() {
-			err := precheck.Precheck(&snet.SCIONPacket{
-				SCIONPacketInfo: snet.SCIONPacketInfo{
-					Destination: snet.SCIONAddress{
-						Host: addr.SvcCS,
+			_, err := precheck.Handle(&svc.Request{
+				Packet: &snet.SCIONPacket{
+					SCIONPacketInfo: snet.SCIONPacketInfo{
+						Destination: snet.SCIONAddress{
+							Host: addr.SvcCS,
+						},
 					},
 				},
 			})
