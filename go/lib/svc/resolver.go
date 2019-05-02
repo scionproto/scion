@@ -49,6 +49,8 @@ type Resolver struct {
 	// RoundTripper performs the request/reply exchange for SVC resolutions. If
 	// nil, the default round tripper is used.
 	RoundTripper RoundTripper
+	// Payload is used for the data part of SVC requests.
+	Payload []byte
 }
 
 // LookupSVC resolves the SVC address for the AS terminating the path.
@@ -76,8 +78,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 			L4Header: &l4.UDP{
 				SrcPort: port,
 			},
-			// FIXME(scrye): Add a dummy payload, because nil payloads are not supported.
-			Payload: common.RawBytes{0},
+			Payload: common.RawBytes(r.Payload),
 		},
 	}
 	return r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.OverlayNextHop())

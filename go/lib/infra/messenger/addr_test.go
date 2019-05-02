@@ -285,68 +285,124 @@ func TestResolveIfSVC(t *testing.T) {
 }
 
 func TestParseReply(t *testing.T) {
+	testCases := []struct {
+		Description     string
+		Reply           *svc.Reply
+		ExpectedAddress *addr.AppAddr
+		ExpectedError   bool
+	}{
+		{
+			Description:   "nil reply",
+			ExpectedError: true,
+		},
+		{
+			Description:   "empty reply",
+			Reply:         &svc.Reply{},
+			ExpectedError: true,
+		},
+		{
+			Description:   "key not found in reply",
+			Reply:         &svc.Reply{Transports: map[svc.Transport]string{svc.QUIC: "foo"}},
+			ExpectedError: true,
+		},
+		{
+			Description: "key found in reply, but parsing fails",
+			Reply: &svc.Reply{
+				Transports: map[svc.Transport]string{
+					svc.UDP: "foo",
+				},
+			},
+			ExpectedError: true,
+		},
+		{
+			Description: "key found in reply, IPv4 address",
+			Reply: &svc.Reply{
+				Transports: map[svc.Transport]string{
+					svc.UDP: "192.168.1.1:8000",
+				},
+			},
+			ExpectedAddress: &addr.AppAddr{
+				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
+				L4: addr.NewL4UDPInfo(8000),
+			},
+			ExpectedError: false,
+		},
+		{
+			Description: "key found in reply, IPv6 address",
+			Reply: &svc.Reply{
+				Transports: map[svc.Transport]string{
+					svc.UDP: "[2001:db8::1]:8000",
+				},
+			},
+			ExpectedAddress: &addr.AppAddr{
+				L3: addr.HostFromIP(net.ParseIP("2001:db8::1")),
+				L4: addr.NewL4UDPInfo(8000),
+			},
+			ExpectedError: false,
+		},
+	}
+
 	Convey("", t, func() {
-		testCases := []struct {
-			Description     string
-			Reply           *svc.Reply
-			ExpectedAddress *addr.AppAddr
-			ExpectedError   bool
-		}{
-			{
-				Description:   "nil reply",
-				ExpectedError: true,
-			},
-			{
-				Description:   "empty reply",
-				Reply:         &svc.Reply{},
-				ExpectedError: true,
-			},
-			{
-				Description:   "key not found in reply",
-				Reply:         &svc.Reply{Transports: map[svc.Transport]string{svc.QUIC: "foo"}},
-				ExpectedError: true,
-			},
-			{
-				Description: "key found in reply, but parsing fails",
-				Reply: &svc.Reply{
-					Transports: map[svc.Transport]string{
-						svc.UDP: "foo",
-					},
-				},
-				ExpectedError: true,
-			},
-			{
-				Description: "key found in reply, IPv4 address",
-				Reply: &svc.Reply{
-					Transports: map[svc.Transport]string{
-						svc.UDP: "192.168.1.1:8000",
-					},
-				},
-				ExpectedAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
-					L4: addr.NewL4UDPInfo(8000),
-				},
-				ExpectedError: false,
-			},
-			{
-				Description: "key found in reply, IPv6 address",
-				Reply: &svc.Reply{
-					Transports: map[svc.Transport]string{
-						svc.UDP: "[2001:db8::1]:8000",
-					},
-				},
-				ExpectedAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.ParseIP("2001:db8::1")),
-					L4: addr.NewL4UDPInfo(8000),
-				},
-				ExpectedError: false,
-			},
-		}
 		for _, tc := range testCases {
 			Convey(tc.Description, func() {
 				a, err := parseReply(tc.Reply)
 				xtest.SoMsgError("err", err, tc.ExpectedError)
 				SoMsg("addr", a, ShouldResemble, tc.ExpectedAddress)
+			})
+		}
+	})
+}
+
+func TestBuildReply(t *testing.T) {
+	testCases := []struct {
+		Description   string
+		InputAddress  *addr.AppAddr
+		ExpectedReply *svc.Reply
+	}{
+		{
+			Description:   "nil app address",
+			ExpectedReply: &svc.Reply{},
+		},
+		{
+			Description:   "nil L3",
+			InputAddress:  &addr.AppAddr{L4: addr.NewL4UDPInfo(1)},
+			ExpectedReply: &svc.Reply{},
+		},
+		{
+			Description:   "nil L4",
+			InputAddress:  &addr.AppAddr{L3: addr.SvcBS},
+			ExpectedReply: &svc.Reply{},
+		},
+		{
+			Description: "IPv4 L3, UDP L4",
+			InputAddress: &addr.AppAddr{
+				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
+				L4: addr.NewL4UDPInfo(1),
+			},
+			ExpectedReply: &svc.Reply{
+				Transports: map[svc.Transport]string{
+					svc.UDP: "192.168.0.1:1",
+				},
+			},
+		},
+		{
+			Description: "IPv6 L3, UDP L4",
+			InputAddress: &addr.AppAddr{
+				L3: addr.HostFromIP(net.ParseIP("2001:db8::1")),
+				L4: addr.NewL4UDPInfo(1),
+			},
+			ExpectedReply: &svc.Reply{
+				Transports: map[svc.Transport]string{
+					svc.UDP: "[2001:db8::1]:1",
+				},
+			},
+		},
+	}
+
+	Convey("", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.Description, func() {
+				So(BuildReply(tc.InputAddress), ShouldResemble, tc.ExpectedReply)
 			})
 		}
 	})

@@ -74,17 +74,18 @@ func (m *MockRequestHandler) EXPECT() *MockRequestHandlerMockRecorder {
 }
 
 // Handle mocks base method
-func (m *MockRequestHandler) Handle(arg0 *snet.SCIONPacket, arg1 *overlay.OverlayAddr) error {
+func (m *MockRequestHandler) Handle(arg0 *svc.Request) (svc.Result, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Handle", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "Handle", arg0)
+	ret0, _ := ret[0].(svc.Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Handle indicates an expected call of Handle
-func (mr *MockRequestHandlerMockRecorder) Handle(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockRequestHandlerMockRecorder) Handle(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockRequestHandler)(nil).Handle), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockRequestHandler)(nil).Handle), arg0)
 }
 
 // MockRoundTripper is a mock of RoundTripper interface
