@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "doc.go",
         "ifstate.go",
         "revoker.go",
     ],
@@ -13,7 +14,6 @@ go_library(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
-        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/periodic:go_default_library",
         "//go/lib/snet:go_default_library",
@@ -37,8 +37,8 @@ go_test(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",
-        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/trust:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/snet:go_default_library",
         "//go/lib/topology:go_default_library",
