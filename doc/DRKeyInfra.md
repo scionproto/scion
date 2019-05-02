@@ -158,7 +158,7 @@ local secret value SV\_A. SV\_A is chosen according to the epoch identified by
 `val_time`.
 
     K_{A→B} = PRF_{SV_A} (B)
-    ciphertext = {A | K_{A→B}}_PK_B
+    ciphertext = {A | B | K_{A→B}}_PK_B
     signature = {ciphertext | epoch_begin | epoch_end | timestamp}_PK_A^−1
     CS_A → CS_B : ciphertext | epoch_begin | epoch_end | timestamp | signature
 
