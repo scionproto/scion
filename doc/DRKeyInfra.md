@@ -4,7 +4,7 @@ This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 - Author: Benjamin Rothenberger
-- Last updated: 2019-02-28
+- Last updated: 2019-05-02
 - Status: draft
 
 ## Overview
@@ -183,6 +183,10 @@ The amount of cached first-level keys is configurable by each AS. We suggest a
 default policy of caching 10'000 first-level keys, where the least frequently
 used keys get replaced. This requires fetching on average one first-level key
 every 8 seconds (assuming a key lifetime of 24h).
+
+Note that *only one AS* is required to perform a first-level key exchange to
+obtain a symmetric first-level key. For example, to obtain `K_{A→B}`, only AS B
+is required the first-level key. AS A can directly derive the key from SV\_A.
 
 #### Second-Level Key Exchange
 
