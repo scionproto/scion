@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/infratest"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -74,7 +75,8 @@ func TestHandler(t *testing.T) {
 				Infos: []*path_mgmt.IFStateInfo{
 					{IfID: 100, Active: true},
 					{IfID: 101, Active: true},
-					{IfID: 102, Active: false, SRevInfo: toSigned(t, rev102)},
+					{IfID: 102, Active: false,
+						SRevInfo: infratest.SignedRev(t, rev102, infra.NullSigner)},
 					{IfID: 103, Active: true},
 					{IfID: 104, Active: true},
 					{IfID: 105, Active: false},
