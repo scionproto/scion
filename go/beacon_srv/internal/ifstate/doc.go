@@ -29,6 +29,6 @@
 //
 // Handler
 //
-// Then handler handles interface state requests. It can be instantiated with
+// The handler handles interface state requests. It can be instantiated with
 // the NewHandler constructor.
 package ifstate
