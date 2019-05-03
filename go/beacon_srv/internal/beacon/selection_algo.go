@@ -38,7 +38,7 @@ func (baseAlgo) SelectAndServe(beacons <-chan BeaconOrErr, results chan<- Beacon
 	baseAlgo{}.serveMostDiverse(beacons, results, best, diversity)
 }
 
-// serveShortsestBeacons serves the k-1 shortest beacons on the result channel.
+// serveShortsestBeacons serves the resultSize shortest beacons on the result channel.
 // It returns the first beacon and the maximum served diversity.
 func (baseAlgo) serveShortestBeacons(beacons <-chan BeaconOrErr, results chan<- BeaconOrErr,
 	resultSize int) (Beacon, int) {
