@@ -17,7 +17,6 @@ package beacon
 import (
 	"context"
 	"database/sql"
-	"math"
 	"sync"
 	"time"
 
@@ -77,6 +76,7 @@ func NewBeaconStore(prop, upReg, downReg Policy, db DB) *Store {
 				down: &downReg,
 				up:   &upReg,
 			},
+			algo: baseAlgo{},
 		},
 	}
 	return s
@@ -117,7 +117,7 @@ func (s *Store) getBeacons(ctx context.Context, policy *Policy) (<-chan BeaconOr
 	go func() {
 		defer log.LogPanicAndExit()
 		defer close(results)
-		s.selectAndServe(beacons, results, policy)
+		s.algo.SelectAndServe(beacons, results, policy.BestSetSize)
 	}()
 	return results, nil
 }
@@ -141,6 +141,7 @@ func NewCoreBeaconStore(prop, coreReg Policy, db DB) *CoreStore {
 				prop: &prop,
 				core: &coreReg,
 			},
+			algo: baseAlgo{},
 		},
 	}
 	return s
@@ -193,7 +194,7 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 		go func() {
 			defer log.LogPanicAndExit()
 			defer wg.Done()
-			s.selectAndServe(beacons, results, policy)
+			s.algo.SelectAndServe(beacons, results, policy.BestSetSize)
 		}()
 	}
 	go func() {
@@ -213,6 +214,7 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 type baseStore struct {
 	db       DB
 	policies policies
+	algo     selectionAlgorithm
 }
 
 // InsertBeacons adds verified beacons to the store. Beacons that
@@ -238,75 +240,6 @@ func (s *baseStore) InsertBeacons(ctx context.Context, beacons ...Beacon) error 
 // DeleteExpiredBeacons deletes expired Beacons from the store.
 func (s *baseStore) DeleteExpiredBeacons(ctx context.Context) (int, error) {
 	return s.db.DeleteExpiredBeacons(ctx, time.Now())
-}
-
-// selectAndServe implements a very simple selection algorithm. The best beacon is
-// the one with a shortest path. The second best is the most divers from the
-// best beacon. The remaining k-2 beacons are filled with the remaining shortest
-// beacons.
-func (s *baseStore) selectAndServe(beacons <-chan BeaconOrErr, results chan<- BeaconOrErr,
-	policy *Policy) {
-
-	// The best beacon is the beacon with the shortest path. The result from the
-	// database is sorted by path length.
-	best, ok := s.serveShortestBeacons(beacons, results, policy)
-	if !ok {
-		return
-	}
-	// Select the most diverse compared to the best beacon from the remaining beacons.
-	s.serveMostDiverse(best, beacons, results)
-}
-
-// serveShortsestBeacons serves the k-1 shortest beacons on the result channel.
-func (s *baseStore) serveShortestBeacons(beacons <-chan BeaconOrErr, results chan<- BeaconOrErr,
-	policy *Policy) (Beacon, bool) {
-
-	var best Beacon
-	i := 0
-	for res := range beacons {
-		if (best == Beacon{}) {
-			best = res.Beacon
-		}
-		results <- res
-		if res.Err != nil {
-			return best, false
-		}
-		if i >= policy.BestSetSize-2 {
-			break
-		}
-		i++
-	}
-	return best, true
-}
-
-// serveMostDiverse selects the most diverse beacon compared to the provided
-// best beacon from all beacons that are in the channel and serves it in the
-// result channel.
-func (s *baseStore) serveMostDiverse(best Beacon, beacons <-chan BeaconOrErr,
-	results chan<- BeaconOrErr) {
-
-	maxDiversity := -1
-	minLen := math.MaxUint16
-	var diverse BeaconOrErr
-	var err error
-	for res := range beacons {
-		if res.Err != nil {
-			err = res.Err
-			continue
-		}
-		diversity := best.Diversity(res.Beacon)
-		l := len(res.Beacon.Segment.ASEntries)
-		if diversity > maxDiversity || (diversity == maxDiversity && minLen > l) {
-			diverse.Beacon, minLen, maxDiversity = res.Beacon, l, diversity
-		}
-	}
-	if (diverse == BeaconOrErr{}) {
-		if err != nil {
-			results <- BeaconOrErr{Err: err}
-		}
-		return
-	}
-	results <- diverse
 }
 
 func min(a, b int) int {

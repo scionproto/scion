@@ -40,6 +40,7 @@ func (b Beacon) Diversity(other Beacon) int {
 			oia, oifid := link(otherEntry)
 			if ia.Equal(oia) && ifid == oifid {
 				found = true
+				break
 			}
 		}
 		if !found {

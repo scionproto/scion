@@ -6,6 +6,7 @@ go_library(
         "beacon.go",
         "db.go",
         "policy.go",
+        "selection_algo.go",
         "store.go",
     ],
     importpath = "github.com/scionproto/scion/go/beacon_srv/internal/beacon",

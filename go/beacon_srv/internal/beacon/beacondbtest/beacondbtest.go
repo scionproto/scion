@@ -17,6 +17,7 @@ package beacondbtest
 import (
 	"context"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -101,6 +102,7 @@ func Test(t *testing.T, db Testable) {
 			test(t, ctrl, db)
 		}
 	}
+	Convey("BeaconSources", testWrapper(testBeaconSources))
 	Convey("InsertBeacon", testWrapper(testInsertBeacon))
 	Convey("UpdateBeacon", testWrapper(testUpdateExisting))
 	Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
@@ -121,6 +123,7 @@ func Test(t *testing.T, db Testable) {
 		}
 	}
 	Convey("WithTransaction", func() {
+		Convey("BeaconSources", txTestWrapper(testBeaconSources))
 		Convey("InsertBeacon", txTestWrapper(testInsertBeacon))
 		Convey("UpdateBeacon", testWrapper(testUpdateExisting))
 		Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
@@ -134,6 +137,22 @@ func Test(t *testing.T, db Testable) {
 			db.Prepare(t, prepareCtx)
 			testRollback(t, ctrl, db)
 		})
+	})
+}
+
+func testBeaconSources(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
+	Convey("BeaconSources should report all sources", func() {
+		for i, info := range [][]IfInfo{Info3, Info2, Info1} {
+			InsertBeacon(t, ctrl, db, info, 12, uint32(i), beacon.UsageProp)
+		}
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		ias, err := db.BeaconSources(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		sort.Slice(ias, func(i, j int) bool { return ias[i].A < ias[j].A })
+		SoMsg("len", len(ias), ShouldEqual, 2)
+		SoMsg("311", ias[0], ShouldResemble, ia311)
+		SoMsg("330", ias[1], ShouldResemble, ia330)
 	})
 }
 
