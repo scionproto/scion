@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import (
 	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/go/border/braccept/shared"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 )
@@ -85,7 +86,7 @@ func (i *IFStateReqTaggedLayer) updateFields(kvs propMap) {
 	for k, v := range kvs {
 		switch k {
 		case "IfID":
-			i.IfID = uint64(StrToInt(v))
+			i.IfID = common.IFIDType(StrToInt(v))
 		default:
 			panic(fmt.Errorf("Unknown IFStateReq field: %s", k))
 		}
@@ -169,7 +170,7 @@ func (i *IFStateInfoTaggedLayer) updateFields(kvs propMap) {
 	for k, v := range kvs {
 		switch k {
 		case "IfID":
-			i.IFStateInfo.IfID = uint64(StrToInt(v))
+			i.IFStateInfo.IfID = common.IFIDType(StrToInt(v))
 		case "Active":
 			i.IFStateInfo.Active = StrToBool(v)
 		default:

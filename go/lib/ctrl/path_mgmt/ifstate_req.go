@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +20,14 @@ package path_mgmt
 import (
 	"fmt"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*IFStateReq)(nil)
 
 type IFStateReq struct {
-	IfID uint64
+	IfID common.IFIDType
 }
 
 func (i *IFStateReq) ProtoId() proto.ProtoIdType {

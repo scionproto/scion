@@ -23,7 +23,6 @@ import (
 	"github.com/smartystreets/assertions"
 	"github.com/smartystreets/assertions/should"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
@@ -69,7 +68,7 @@ func TestHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "Request all, one revoked, on inactive",
+			name: "Request all, one revoked, one inactive",
 			req:  &path_mgmt.IFStateReq{},
 			expected: &path_mgmt.IFStateInfos{
 				Infos: []*path_mgmt.IFStateInfo{
@@ -116,7 +115,7 @@ func interfaces(t *testing.T, topoProvider TopoProvider,
 	activateAll(intfs)
 	for _, info := range expectedIfSate.Infos {
 		if !info.Active {
-			intf := intfs.Get(common.IFIDType(info.IfID))
+			intf := intfs.Get(info.IfID)
 			intf.state = Inactive
 			if info.SRevInfo != nil {
 				xtest.FailOnErr(t, intf.Revoke(info.SRevInfo))

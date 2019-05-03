@@ -26,6 +26,7 @@ type handler struct {
 	request *infra.Request
 }
 
+// NewHandler creates interface state request handler.
 func NewHandler(intfs *Interfaces) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &handler{
@@ -62,10 +63,11 @@ func (h *handler) Handle() *infra.HandlerResult {
 func (h *handler) buildIfStateInfo(req *path_mgmt.IFStateReq) *path_mgmt.IFStateInfos {
 	var infos []*path_mgmt.IFStateInfo
 	if req.IfID != 0 {
-		infos = append(infos,
-			infoFromInterface(common.IFIDType(req.IfID), h.intfs.Get(common.IFIDType(req.IfID))))
+		infos = []*path_mgmt.IFStateInfo{infoFromInterface(req.IfID, h.intfs.Get(req.IfID))}
 	} else {
-		for ifid, intf := range h.intfs.All() {
+		all := h.intfs.All()
+		infos = make([]*path_mgmt.IFStateInfo, 0, len(all))
+		for ifid, intf := range all {
 			infos = append(infos, infoFromInterface(ifid, intf))
 		}
 	}
@@ -74,7 +76,7 @@ func (h *handler) buildIfStateInfo(req *path_mgmt.IFStateReq) *path_mgmt.IFState
 
 func infoFromInterface(ifid common.IFIDType, intf *Interface) *path_mgmt.IFStateInfo {
 	return &path_mgmt.IFStateInfo{
-		IfID:     uint64(ifid),
+		IfID:     ifid,
 		Active:   intf.State() == Active,
 		SRevInfo: intf.Revocation(),
 	}
