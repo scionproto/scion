@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beacon
+package beacon_test
 
 import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -33,7 +34,7 @@ var (
 )
 
 func TestLoadFromYaml(t *testing.T) {
-	checkPolicy := func(p *Policy, t PolicyType) {
+	checkPolicy := func(p *beacon.Policy, t beacon.PolicyType) {
 		SoMsg("BestSetSize", p.BestSetSize, ShouldEqual, 6)
 		SoMsg("CandidateSetSize", p.CandidateSetSize, ShouldEqual, 20)
 		SoMsg("Type", p.Type, ShouldEqual, t)
@@ -45,25 +46,26 @@ func TestLoadFromYaml(t *testing.T) {
 	Convey("Given a policy file with policy type set", t, func() {
 		fn := "testdata/typedPolicy.yml"
 		Convey("The policy is parsed correctly if the type matches", func() {
-			p, err := LoadFromYaml(fn, PropPolicy)
+			p, err := beacon.LoadFromYaml(fn, beacon.PropPolicy)
 			SoMsg("err", err, ShouldBeNil)
-			checkPolicy(p, PropPolicy)
+			checkPolicy(p, beacon.PropPolicy)
 		})
 		Convey("An error is returned if the type does not match", func() {
-			_, err := LoadFromYaml(fn, UpRegPolicy)
+			_, err := beacon.LoadFromYaml(fn, beacon.UpRegPolicy)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
 	})
 	Convey("Given a policy file with policy type unset", t, func() {
-		loadWithType := func(polType PolicyType) {
+		loadWithType := func(polType beacon.PolicyType) {
 			Convey(string("Load with type "+polType+" should succeed"), func() {
-				p, err := LoadFromYaml("testdata/policy.yml", polType)
+				p, err := beacon.LoadFromYaml("testdata/policy.yml", polType)
 				SoMsg("err", err, ShouldBeNil)
 				checkPolicy(p, polType)
 			})
 		}
-		for _, t := range []PolicyType{PropPolicy, UpRegPolicy, DownRegPolicy, CoreRegPolicy} {
+		for _, t := range []beacon.PolicyType{beacon.PropPolicy, beacon.UpRegPolicy,
+			beacon.DownRegPolicy, beacon.CoreRegPolicy} {
 			loadWithType(t)
 		}
 	})
@@ -71,14 +73,14 @@ func TestLoadFromYaml(t *testing.T) {
 
 func TestFilterApply(t *testing.T) {
 	Convey("Given a filter", t, func() {
-		f := Filter{
+		f := beacon.Filter{
 			MaxHopsLength: 2,
 			AsBlackList:   []addr.AS{ia112.A},
 			IsdBlackList:  []addr.ISD{2},
 		}
 		testCases := []struct {
 			Name         string
-			Beacon       Beacon
+			Beacon       beacon.Beacon
 			ShouldFilter bool
 		}{
 			{
@@ -116,12 +118,12 @@ func TestFilterApply(t *testing.T) {
 
 }
 
-func newTestBeacon(hops ...addr.IA) Beacon {
+func newTestBeacon(hops ...addr.IA) beacon.Beacon {
 	var entries []*seg.ASEntry
 	for _, hop := range hops {
 		entries = append(entries, &seg.ASEntry{RawIA: hop.IAInt()})
 	}
-	b := Beacon{
+	b := beacon.Beacon{
 		Segment: &seg.PathSegment{
 			ASEntries: entries,
 		},
