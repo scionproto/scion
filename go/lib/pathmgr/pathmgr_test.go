@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/infra"
+
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -404,7 +406,7 @@ func newTestRev(t *testing.T, rev string) *path_mgmt.SignedRevInfo {
 		&path_mgmt.RevInfo{
 			IfID:     pi.IfID,
 			RawIsdas: pi.RawIsdas,
-		}, nil)
+		}, infra.NullSigner)
 	xtest.FailOnErr(t, err)
 	return signedRevInfo
 }

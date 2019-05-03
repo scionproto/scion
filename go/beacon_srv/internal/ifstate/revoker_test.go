@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/infratest"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
@@ -118,13 +117,14 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Expired
-		srev := infratest.SignedRev(t, &path_mgmt.RevInfo{
+		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
 			LinkType:     proto.LinkType_peer,
 			RawTimestamp: util.TimeToSecs(time.Now().Add(-500 * time.Millisecond)),
 			RawTTL:       10,
 		}, infra.NullSigner)
+		xtest.FailOnErr(t, err)
 		intfs.Get(101).Revoke(srev)
 		revoker := testRevoker(intfs, msger, signer, topoProvider)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -150,13 +150,14 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Expired
-		srev := infratest.SignedRev(t, &path_mgmt.RevInfo{
+		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
 			LinkType:     proto.LinkType_peer,
 			RawTimestamp: util.TimeToSecs(time.Now().Add(-6 * time.Second)),
 			RawTTL:       10,
 		}, infra.NullSigner)
+		xtest.FailOnErr(t, err)
 		intfs.Get(101).Revoke(srev)
 		checkSentMessages := expectMessengerCalls(msger, 101, topoProvider)
 		revoker := testRevoker(intfs, msger, signer, topoProvider)

@@ -38,7 +38,6 @@ go_test(
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
-        "//go/lib/infra/infratest:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/infra/modules/trust:go_default_library",
         "//go/lib/log:go_default_library",

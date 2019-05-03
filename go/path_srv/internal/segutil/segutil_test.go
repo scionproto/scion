@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/infratest"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -50,7 +49,9 @@ func TestNoRevokedHopIntf(t *testing.T) {
 			SoMsg("No revocation expected", noR, ShouldBeTrue)
 		})
 		Convey("Given a revcache with an on segment revocation", func() {
-			sRev := infratest.SignedRev(t, defaultRevInfo(graph.If_210_X_211_A), infra.NullSigner)
+			sRev, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(graph.If_210_X_211_A),
+				infra.NullSigner)
+			xtest.FailOnErr(t, err)
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 				revcache.Revocations{
 					revcache.Key{IA: xtest.MustParseIA("2-ff00:0:211"),
