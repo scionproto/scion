@@ -26,4 +26,9 @@
 // The revoker is a periodic task that revokes interfaces that have timed out
 // and renews revocations of already revoked interfaces. Create it with the
 // NewRevoker costructor.
+//
+// Handler
+//
+// The handler handles interface state requests. It can be instantiated with
+// the NewHandler constructor.
 package ifstate
