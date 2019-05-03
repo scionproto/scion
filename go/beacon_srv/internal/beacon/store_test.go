@@ -17,11 +17,9 @@ package beacon_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon/mock_beacon"
@@ -50,153 +48,151 @@ func TestStoreBeaconsToPropagate(t *testing.T) {
 
 func testStoreSelection(t *testing.T,
 	methodToTest func(store *beacon.Store) (<-chan beacon.BeaconOrErr, error)) {
-	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
-	g := graph.NewDefaultGraph(mctrl)
 
-	// Ensure remote out if is set in last AS entry.
-	stub := graph.If_111_A_112_X
-	beacons := []beacon.BeaconOrErr{
-		testBeaconOrErr(g, []common.IFIDType{graph.If_120_X_111_B, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_120_A, graph.If_120_X_111_B, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_120_A, graph.If_120_X_111_B, stub}),
-	}
-	stub = graph.If_210_X_220_X
-	diverseBeacons := []beacon.BeaconOrErr{
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_A_110_X, graph.If_110_X_210_X, stub}),
-		// Same beacon as the first beacon.
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_A_110_X, graph.If_110_X_210_X, stub}),
-		// Share the last link between 110 and 210.
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_120_A, graph.If_120_A_110_X,
-			graph.If_110_X_210_X, stub}),
-		// Share the last link between 130 and 110.
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_A_110_X, graph.If_110_X_120_A,
-			graph.If_120_B_220_X, graph.If_220_X_210_X, stub}),
-		// Share no link.
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_120_A, graph.If_120_B_220_X,
-			graph.If_220_X_210_X, stub}),
-		// Share no link.
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_111_A, graph.If_111_B_120_X,
-			graph.If_120_B_220_X, graph.If_220_X_210_X, stub}),
-	}
-	beaconErr := beacon.BeaconOrErr{Err: errors.New("Fail")}
-	var tests = []struct {
-		name      string
-		results   []beacon.BeaconOrErr
-		bestSize  int
-		expected  map[beacon.BeaconOrErr]bool
-		expectErr bool
-	}{
-		{
-			name:      "Error on first beacon",
-			results:   []beacon.BeaconOrErr{beaconErr},
-			bestSize:  5,
-			expectErr: true,
-		},
-		{
-			name:      "Error after first beacon",
-			results:   append([]beacon.BeaconOrErr{}, beacons[0], beaconErr),
-			bestSize:  5,
-			expected:  map[beacon.BeaconOrErr]bool{beacons[0]: true},
-			expectErr: true,
-		},
-		{
-			name:     "Error on last beacon of set size",
-			results:  append(append([]beacon.BeaconOrErr{}, beacons[:2]...), beaconErr),
-			bestSize: 3,
-			expected: map[beacon.BeaconOrErr]bool{
-				beacons[0]: true,
-				beacons[1]: true,
+	t.Run("Selector", func(t *testing.T) {
+		mctrl := gomock.NewController(t)
+		defer mctrl.Finish()
+		g := graph.NewDefaultGraph(mctrl)
+
+		// Ensure remote out if is set in last AS entry.
+		stub := graph.If_111_A_112_X
+		beacons := []beacon.BeaconOrErr{
+			testBeaconOrErr(g, graph.If_120_X_111_B, stub),
+			testBeaconOrErr(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
+			testBeaconOrErr(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
+		}
+		stub = graph.If_210_X_220_X
+		diverseBeacons := []beacon.BeaconOrErr{
+			testBeaconOrErr(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
+			// Same beacon as the first beacon.
+			testBeaconOrErr(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
+			// Share the last link between 110 and 210.
+			testBeaconOrErr(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+			// Share the last link between 130 and 110.
+			testBeaconOrErr(g, graph.If_130_A_110_X, graph.If_110_X_120_A, graph.If_120_B_220_X,
+				graph.If_220_X_210_X, stub),
+			// Share no link.
+			testBeaconOrErr(g, graph.If_130_B_120_A, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
+			// Share no link.
+			testBeaconOrErr(g, graph.If_130_B_111_A, graph.If_111_B_120_X, graph.If_120_B_220_X,
+				graph.If_220_X_210_X, stub),
+		}
+		beaconErr := beacon.BeaconOrErr{Err: errors.New("Fail")}
+		var tests = []struct {
+			name      string
+			results   []beacon.BeaconOrErr
+			bestSize  int
+			expected  map[beacon.BeaconOrErr]bool
+			expectErr bool
+		}{
+			{
+				name:      "Error on first beacon",
+				results:   []beacon.BeaconOrErr{beaconErr},
+				bestSize:  5,
+				expectErr: true,
 			},
-			expectErr: true,
-		},
-		{
-			name:     "Available beacons equal best set size",
-			results:  beacons,
-			bestSize: 3,
-			expected: map[beacon.BeaconOrErr]bool{
-				beacons[0]: true,
-				beacons[1]: true,
-				beacons[2]: true,
+			{
+				name:      "Error after first beacon",
+				results:   []beacon.BeaconOrErr{beacons[0], beaconErr},
+				bestSize:  5,
+				expected:  map[beacon.BeaconOrErr]bool{beacons[0]: true},
+				expectErr: true,
 			},
-		},
-		{
-			name:     "Error after last beacon of set size",
-			results:  append(append([]beacon.BeaconOrErr{}, beacons...), beaconErr),
-			bestSize: 3,
-			expected: map[beacon.BeaconOrErr]bool{
-				beacons[0]: true,
-				beacons[1]: true,
-				beacons[2]: true,
-			},
-		},
-		{
-			name:     "Error in the middle of beacons",
-			results:  append(append([]beacon.BeaconOrErr{}, beacons[0], beaconErr), beacons[1:]...),
-			bestSize: 3,
-			expected: map[beacon.BeaconOrErr]bool{
-				beacons[0]: true,
-				beacons[1]: true,
-				beacons[2]: true,
-			},
-			expectErr: true,
-		},
-		{
-			// This test uses beacons on core links to get more diverse paths.
-			// This must not matter to the store anyway.
-			name:     "Select shortest most diverse",
-			results:  append(append([]beacon.BeaconOrErr{}, diverseBeacons...), beaconErr),
-			bestSize: 2,
-			expected: map[beacon.BeaconOrErr]bool{
-				diverseBeacons[0]: true,
-				diverseBeacons[4]: true,
-			},
-		},
-	}
-	for _, test := range tests {
-		Convey(test.name, t, func() {
-			db := mock_beacon.NewMockDB(mctrl)
-			prop := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.PropPolicy}
-			up := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.UpRegPolicy}
-			down := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.DownRegPolicy}
-			store := beacon.NewBeaconStore(prop, up, down, db)
-			db.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
-				addr.IA{}).DoAndReturn(
-				func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error) {
-					results := make(chan beacon.BeaconOrErr, len(test.results))
-					defer close(results)
-					for _, res := range test.results {
-						results <- res
-					}
-					return results, nil
+			{
+				name:     "Error on last beacon of set size",
+				results:  append(append([]beacon.BeaconOrErr{}, beacons[:2]...), beaconErr),
+				bestSize: 3,
+				expected: map[beacon.BeaconOrErr]bool{
+					beacons[0]: true,
+					beacons[1]: true,
 				},
-			)
-			res, err := methodToTest(store)
-			SoMsg("Err", err, ShouldBeNil)
-			seen := make(map[beacon.BeaconOrErr]bool)
-			for bOrErr := range res {
-				if bOrErr.Err == nil {
-					SoMsg(fmt.Sprintf("Expect %s", bOrErr.Beacon), test.expected[bOrErr],
-						ShouldBeTrue)
-					seen[bOrErr] = true
-				} else {
-					xtest.SoMsgError("Err expected", bOrErr.Err, test.expectErr)
+				expectErr: true,
+			},
+			{
+				name:     "Available beacons equal best set size",
+				results:  beacons,
+				bestSize: 3,
+				expected: map[beacon.BeaconOrErr]bool{
+					beacons[0]: true,
+					beacons[1]: true,
+					beacons[2]: true,
+				},
+			},
+			{
+				name:     "Error after last beacon of set size",
+				results:  append(append([]beacon.BeaconOrErr{}, beacons...), beaconErr),
+				bestSize: 3,
+				expected: map[beacon.BeaconOrErr]bool{
+					beacons[0]: true,
+					beacons[1]: true,
+					beacons[2]: true,
+				},
+			},
+			{
+				name:     "Error in the middle of beacons",
+				results:  append(append([]beacon.BeaconOrErr{}, beacons[0], beaconErr), beacons[1:]...),
+				bestSize: 3,
+				expected: map[beacon.BeaconOrErr]bool{
+					beacons[0]: true,
+					beacons[1]: true,
+					beacons[2]: true,
+				},
+				expectErr: true,
+			},
+			{
+				// This test uses beacons on core links to get more diverse paths.
+				// This must not matter to the store anyway.
+				name:     "Select shortest most diverse",
+				results:  append(append([]beacon.BeaconOrErr{}, diverseBeacons...), beaconErr),
+				bestSize: 2,
+				expected: map[beacon.BeaconOrErr]bool{
+					diverseBeacons[0]: true,
+					diverseBeacons[4]: true,
+				},
+			},
+		}
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				db := mock_beacon.NewMockDB(mctrl)
+				prop := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.PropPolicy}
+				up := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.UpRegPolicy}
+				down := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.DownRegPolicy}
+				store := beacon.NewBeaconStore(prop, up, down, db)
+				db.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
+					addr.IA{}).DoAndReturn(
+					func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error) {
+						results := make(chan beacon.BeaconOrErr, len(test.results))
+						defer close(results)
+						for _, res := range test.results {
+							results <- res
+						}
+						return results, nil
+					},
+				)
+				res, err := methodToTest(store)
+				xtest.FailOnErr(t, err, "err")
+				seen := make(map[beacon.BeaconOrErr]bool)
+				for bOrErr := range res {
+					if bOrErr.Err == nil {
+						if !test.expected[bOrErr] {
+							t.Errorf("Unexpected beacon %s", bOrErr.Beacon)
+						}
+						seen[bOrErr] = true
+					} else if !test.expectErr {
+						t.Errorf("Error not expected %s", bOrErr.Err)
+					}
 				}
-			}
-			for bOrErr := range test.expected {
-				SoMsg(fmt.Sprintf("Seen %s", bOrErr.Beacon), seen[bOrErr], ShouldBeTrue)
-			}
-		})
-	}
+				for bOrErr := range test.expected {
+					if !seen[bOrErr] {
+						t.Errorf("Expected beacon not seen %s", bOrErr.Beacon)
+					}
+				}
+			})
+		}
+	})
 }
 
-func testLen(beaconLen int, err bool) int {
-	if err {
-		return beaconLen + 1
-	}
-	return beaconLen
-}
-
+/*
 func TestCoreStoreSegmentsToRegister(t *testing.T) {
 	testCoreStoreSelection(t, func(store *beacon.CoreStore) (<-chan beacon.BeaconOrErr, error) {
 		return store.SegmentsToRegister(context.Background(), proto.PathSegType_core)
@@ -221,34 +217,26 @@ func testCoreStoreSelection(t *testing.T,
 
 	ia120 := xtest.MustParseIA("1-ff00:0:120")
 	beacons120 := []beacon.BeaconOrErr{
-		testBeaconOrErr(g, []common.IFIDType{graph.If_120_A_110_X, graph.If_110_X_210_X, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_120_B_220_X, graph.If_220_X_210_X, stub}),
+		testBeaconOrErr(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+		testBeaconOrErr(g, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
 	}
 	diverse120 := []beacon.BeaconOrErr{
-		testBeaconOrErr(g, []common.IFIDType{graph.If_120_A_110_X,
-			graph.If_110_X_210_X, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_120_A_110_X,
-			graph.If_110_X_210_X, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_120_B_220_X,
-			graph.If_220_X_210_X, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_120_A_110_X,
-			graph.If_110_X_210_X, stub}),
+		testBeaconOrErr(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+		testBeaconOrErr(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+		testBeaconOrErr(g, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
+		testBeaconOrErr(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
 	}
 
 	ia130 := xtest.MustParseIA("1-ff00:0:130")
 	beacons130 := []beacon.BeaconOrErr{
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_A_110_X, graph.If_110_X_210_X, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_120_A, graph.If_120_A_110_X,
-			graph.If_110_X_210_X, stub}),
+		testBeaconOrErr(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
+		testBeaconOrErr(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
 	}
 	diverse130 := []beacon.BeaconOrErr{
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_A_110_X, graph.If_110_X_210_X, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_120_A, graph.If_120_A_110_X,
-			graph.If_110_X_210_X, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_120_A, graph.If_120_B_220_X,
-			graph.If_220_X_210_X, stub}),
-		testBeaconOrErr(g, []common.IFIDType{graph.If_130_B_120_A, graph.If_120_A_110_X,
-			graph.If_110_X_210_X, stub}),
+		testBeaconOrErr(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
+		testBeaconOrErr(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+		testBeaconOrErr(g, graph.If_130_B_120_A, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
+		testBeaconOrErr(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
 	}
 	var tests = []struct {
 		name      string
@@ -273,7 +261,7 @@ func testCoreStoreSelection(t *testing.T,
 		{
 			name: "Error after first beacon",
 			results: map[addr.IA][]beacon.BeaconOrErr{
-				ia120: append([]beacon.BeaconOrErr{}, beacons120[0], beaconErr),
+				ia120: []beacon.BeaconOrErr{beacons120[0], beaconErr},
 				ia130: beacons130,
 			},
 			bestSize: 2,
@@ -328,8 +316,7 @@ func testCoreStoreSelection(t *testing.T,
 		},
 	}
 	for _, test := range tests {
-		Convey(test.name, t, func() {
-
+		t.Run(test.name, func(t *testing.T) {
 			db := mock_beacon.NewMockDB(mctrl)
 			tx := mock_beacon.NewMockTransaction(mctrl)
 			prop := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.PropPolicy}
@@ -357,25 +344,29 @@ func testCoreStoreSelection(t *testing.T,
 				ia130).DoAndReturn(responder(ia130))
 
 			res, err := methodToTest(store)
-			SoMsg("Err", err, ShouldBeNil)
+			xtest.FailOnErr(t, err, "err")
 			seen := make(map[beacon.BeaconOrErr]bool)
 			for bOrErr := range res {
 				if bOrErr.Err == nil {
-					SoMsg(fmt.Sprintf("Expect %s", bOrErr.Beacon), test.expected[bOrErr],
-						ShouldBeTrue)
+					if !test.expected[bOrErr] {
+						t.Errorf("Unexpected beacon %s", bOrErr.Beacon)
+					}
 					seen[bOrErr] = true
-				} else {
-					xtest.SoMsgError("Err expected", bOrErr.Err, test.expectErr)
+				} else if !test.expectErr {
+					t.Errorf("Error not expected %s", bOrErr.Err)
 				}
 			}
 			for bOrErr := range test.expected {
-				SoMsg(fmt.Sprintf("Seen %s", bOrErr.Beacon), seen[bOrErr], ShouldBeTrue)
+				if !seen[bOrErr] {
+					t.Errorf("Expected beacon not seen %s", bOrErr.Beacon)
+				}
 			}
 		})
 	}
 }
+*/
 
-func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr {
+func testBeaconOrErr(g *graph.Graph, desc ...common.IFIDType) beacon.BeaconOrErr {
 	pseg := testBeacon(g, desc)
 	asEntry := pseg.ASEntries[pseg.MaxAEIdx()]
 	return beacon.BeaconOrErr{

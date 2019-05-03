@@ -53,10 +53,10 @@ func TestBeaconDiversity(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
-		bseg := testBeaconOrErr(g, tests[0].beacon)
+		bseg := testBeaconOrErr(g, tests[0].beacon...)
 		for _, test := range tests {
 			Convey(test.name, func() {
-				other := testBeaconOrErr(g, test.beacon)
+				other := testBeaconOrErr(g, test.beacon...)
 				diversity := bseg.Beacon.Diversity(other.Beacon)
 				SoMsg("Diversity", diversity, ShouldEqual, test.diversity)
 			})
