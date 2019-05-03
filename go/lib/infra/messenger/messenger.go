@@ -107,9 +107,9 @@ type Config struct {
 	Dispatcher *disp.Dispatcher
 	// TrustStore stores and retrieves certificate chains and TRCs.
 	TrustStore infra.TrustStore
-	// Router is used to discover paths to remote ASes. If router is nil, the
-	// messenger never resolves paths.
-	Router snet.Router
+	// AddressRewriter is used to compute paths and replace SVC destinations with
+	// unicast addresses.
+	AddressRewriter *AddressRewriter
 	// HandlerTimeout is the amount of time allocated to the processing of a
 	// received message. This includes the time needed to verify the signature
 	// and the execution of a registered handler (if one exists). If the
@@ -153,8 +153,9 @@ type Messenger struct {
 	config *Config
 	// Networking layer for sending and receiving messages
 	dispatcher *disp.Dispatcher
-	// router is used to discover paths to remote ASes
-	router snet.Router
+
+	// addressRewriter is used to compute full remote addresses (path + server)
+	addressRewriter *AddressRewriter
 
 	cryptoLock sync.RWMutex
 	// signer is used to sign selected outgoing messages
@@ -206,10 +207,6 @@ func New(config *Config) *Messenger {
 		}
 	}
 
-	router := config.Router
-	if router == nil {
-		router = &snet.BaseRouter{IA: config.IA}
-	}
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -217,20 +214,20 @@ func New(config *Config) *Messenger {
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
-		ia:          config.IA,
-		config:      config,
-		dispatcher:  config.Dispatcher,
-		router:      router,
-		signer:      infra.NullSigner,
-		verifier:    infra.NullSigVerifier,
-		trustStore:  config.TrustStore,
-		handlers:    make(map[infra.MessageType]infra.Handler),
-		closeChan:   make(chan struct{}),
-		ctx:         ctx,
-		cancelF:     cancelF,
-		log:         config.Logger,
-		quicServer:  quicServer,
-		quicHandler: quicHandler,
+		ia:              config.IA,
+		config:          config,
+		dispatcher:      config.Dispatcher,
+		addressRewriter: config.AddressRewriter,
+		signer:          infra.NullSigner,
+		verifier:        infra.NullSigVerifier,
+		trustStore:      config.TrustStore,
+		handlers:        make(map[infra.MessageType]infra.Handler),
+		closeChan:       make(chan struct{}),
+		ctx:             ctx,
+		cancelF:         cancelF,
+		log:             config.Logger,
+		quicServer:      quicServer,
+		quicHandler:     quicHandler,
 	}
 }
 
@@ -764,8 +761,8 @@ func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
 	}
 	if m.config.QUIC == nil {
 		return &pathingRequester{
-			requester: ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
-			router:    m.router,
+			requester:       ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
+			addressRewriter: m.addressRewriter,
 		}
 	}
 	return &QUICRequester{
@@ -774,7 +771,7 @@ func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
 			TLSConfig:  m.config.QUIC.TLSConfig,
 			QUICConfig: m.config.QUIC.QUICConfig,
 		},
-		Router: m.router,
+		AddressRewriter: m.addressRewriter,
 	}
 }
 
@@ -794,14 +791,14 @@ var _ Requester = (*pathingRequester)(nil)
 // pathingRequester resolves the SCION path and constructs complete snet
 // addresses.
 type pathingRequester struct {
-	requester *ctrl_msg.Requester
-	router    snet.Router
+	requester       *ctrl_msg.Requester
+	addressRewriter *AddressRewriter
 }
 
 func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
 
-	newAddr, err := computeNewAddress(ctx, pr.router, a)
+	newAddr, err := pr.addressRewriter.Rewrite(ctx, a)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -809,7 +806,7 @@ func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 }
 
 func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := computeNewAddress(ctx, pr.router, a)
+	newAddr, err := pr.addressRewriter.Rewrite(ctx, a)
 	if err != nil {
 		return err
 	}
@@ -817,7 +814,7 @@ func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Add
 }
 
 func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := computeNewAddress(ctx, pr.router, a)
+	newAddr, err := pr.addressRewriter.Rewrite(ctx, a)
 	if err != nil {
 		return err
 	}
@@ -828,7 +825,7 @@ var _ Requester = (*QUICRequester)(nil)
 
 type QUICRequester struct {
 	QUICClientConfig *rpc.Client
-	Router           snet.Router
+	AddressRewriter  *AddressRewriter
 }
 
 func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
@@ -836,7 +833,7 @@ func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 
 	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
 	// additional verifications in the future.
-	newAddr, err := computeNewAddress(ctx, rt.Router, a)
+	newAddr, err := rt.AddressRewriter.Rewrite(ctx, a)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -865,25 +862,6 @@ func (rt *QUICRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) 
 
 func (rt *QUICRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
 	return common.NewBasicError("transport type does not support NotifyUnreliable message", nil)
-}
-
-func computeNewAddress(ctx context.Context, r snet.Router, a net.Addr) (net.Addr, error) {
-	// FIXME(scrye): This is here just to make the trust store pass some older
-	// tests that use a full messenger instead of mocks.
-	// See https://github.com/scionproto/scion/issues/2611.
-	if a == nil {
-		return nil, nil
-	}
-	newAddr := a.(*snet.Addr).Copy()
-	if newAddr.Path == nil {
-		p, err := r.Route(ctx, newAddr.IA)
-		if err != nil {
-			return nil, err
-		}
-		newAddr.Path = p.Path()
-		newAddr.NextHop = p.OverlayNextHop()
-	}
-	return newAddr, nil
 }
 
 type Request struct {
