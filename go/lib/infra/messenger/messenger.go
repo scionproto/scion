@@ -107,8 +107,8 @@ type Config struct {
 	Dispatcher *disp.Dispatcher
 	// TrustStore stores and retrieves certificate chains and TRCs.
 	TrustStore infra.TrustStore
-	// AddressRewriter is used to compute paths and unicast addresses for SVC
-	// destinations. AddressRewriter must not be nil.
+	// AddressRewriter is used to compute paths and replace SVC destinations with
+	// unicast addresses.
 	AddressRewriter *AddressRewriter
 	// HandlerTimeout is the amount of time allocated to the processing of a
 	// received message. This includes the time needed to verify the signature

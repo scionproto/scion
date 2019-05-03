@@ -33,8 +33,8 @@ type Resolver interface {
 	LookupSVC(ctx context.Context, path snet.Path, svc addr.HostSVC) (*svc.Reply, error)
 }
 
-// AddressRewriter is used to compute paths and unicast addresses for SVC
-// destinations.
+// AddressRewriter is used to compute paths and replace SVC destinations with
+// unicast addresses.
 type AddressRewriter struct {
 	// Router obtains path information to fill in address paths, if they are
 	// required and missing.
@@ -56,7 +56,7 @@ type AddressRewriter struct {
 	SVCResolutionFraction float64
 }
 
-// Rewrite takes address a and adds a path (if one does not already exist but
+// Rewrite takes an address and adds a path (if one does not already exist but
 // is required), and replaces SVC destinations with unicast ones, if desired.
 func (r AddressRewriter) Rewrite(ctx context.Context, a net.Addr) (net.Addr, error) {
 	// FIXME(scrye): This is not legitimate use. It's only included for
@@ -115,15 +115,16 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 	return newAddr, nil
 }
 
-// resolveIfSvc returns an UDP/IP address if the input address is an SVC
-// destination. If address is not a well-formed application address (all fields
-// set, non-nil, supported protocols), the function's behavior is undefined.
-// The returned address is always a copy.
+// resolveIfSvc performs SVC resolution and returns an UDP/IP address if the
+// input address is an SVC destination. If the address does not have an SVC
+// destination, it is returned unchanged. If address is not a well-formed
+// application address (all fields set, non-nil, supported protocols), the
+// function's behavior is undefined. The returned address is always a copy.
 func (r AddressRewriter) resolveIfSVC(ctx context.Context, p snet.Path,
 	address *addr.AppAddr) (*addr.AppAddr, error) {
 
-	svcAddress := getSVC(address.L3)
-	if svcAddress == addr.SvcNone {
+	svcAddress, ok := address.L3.(addr.HostSVC)
+	if !ok {
 		return address.Copy(), nil
 	}
 	if r.SVCResolutionFraction <= 0.0 {
@@ -164,13 +165,6 @@ func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, co
 	timeout := deadline.Sub(time.Now())
 	timeout = time.Duration(float64(timeout) * r.SVCResolutionFraction)
 	return context.WithTimeout(ctx, timeout)
-}
-
-func getSVC(a addr.HostAddr) addr.HostSVC {
-	if svcAddress, ok := a.(addr.HostSVC); ok {
-		return svcAddress
-	}
-	return addr.SvcNone
 }
 
 // parseReply searches for a UDP server on the remote address. If one is not
