@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/infratest"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
 	"github.com/scionproto/scion/go/lib/util"
@@ -43,10 +42,13 @@ var (
 )
 
 func TestFilterNew(t *testing.T) {
-	sr10 := infratest.SignedRev(t, defaultRevInfo(ia110, ifid10, now), infra.NullSigner)
-	sr11 := infratest.SignedRev(t, defaultRevInfo(ia110, ifid11, now), infra.NullSigner)
-	sr11Old := infratest.SignedRev(t,
+	sr10, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifid10, now), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr11, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifid11, now), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr11Old, err := path_mgmt.NewSignedRevInfo(
 		defaultRevInfo(ia110, ifid11, now.Add(-10*time.Second)), infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	Convey("TestFilterNew", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
