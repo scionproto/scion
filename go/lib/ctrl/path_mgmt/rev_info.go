@@ -146,7 +146,8 @@ type Signer interface {
 
 // Verifier is used to verify signatures.
 type Verifier interface {
-	// Verify verifies the packed segment based on the signature meta data.
+	// Verify verifies the packed signed revocation based on the signature meta
+	// data.
 	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
 }
 
