@@ -8,22 +8,24 @@ The BS periodically selects a set of PCBs to propagate and and a set of PCBs to 
 The sets of PCBs to propagate or register are selected according to an AS level policy.
 
 Additionally the BS is also responsible to determine the state of all interfaces in the AS.
-For this each BS pings the neighbouring AS’ BS over each interface. If a ping isn’t received for a certain amount of time on an interface, the BS will assume this interface is down and sends a revocation to all BRs in the AS, to the local PS and to all core PSes.
+For this each BS pings the neighbouring AS' BS over each interface.
+If a ping isn't received for a certain amount of time on an interface, the BS will assume the interface is down and sends a revocation to all BRs in the AS, to the local PS and to all core PSes.
 
 ## General Structure
 
-The BS should be structured similar to the existing go infra services. It should reuse the existing building blocks for go services:
+The BS is structured similar to the existing go infra services.
+It reuses the existing building blocks for go services:
 
-* go/lib/env: Should be used for configuration and setup of the service
-* go/lib/infra/modules/trust: Should be used for TRCs and other crypto material
-* go/lib/infra: Use the messenger to send and receive messages.
-* go/lib/periodic: Use periodic for periodic tasks.
+* go/lib/env: Is used for configuration and setup of the service
+* go/lib/infra/modules/trust: Is used for TRCs and other crypto material
+* go/lib/infra: Is used for the messenger to send and receive messages.
+* go/lib/periodic: Is used for periodic tasks.
 * etc ...
 
-The main parts of the BS will be:
+The main parts of the BS are:
 
 * **handlers** to handle incoming PCBs, Revocations and interface state keeping
-* **periodic tasks** for PCB propagation, segment registration, ifid keepalive,
+* **periodic tasks** for PCB propagation, segment registration, interface keepalive and revocation,
 * **beacon storage**.
 
 Each part is described in a separate chapter below. These parts can be grouped together into two subjects. Beaconing and Interface state keeping.
@@ -33,8 +35,8 @@ The following diagram shows an overview of the components related to beaconing a
 
 ![beaconing parts overview](fig/beacon_srv/beaconing_overview.png).
 
-The interface state keeping part takes care of IFID state of the AS and issuing revocations as needed.
-The diagram shows an overview of the components related to IFID state and their dependency relation.
+The interface state keeping part takes care of IfId state of the AS and issuing revocations as needed.
+The diagram shows an overview of the components related to IfId state and their dependency relation.
 
 ![ifstate parts overview](fig/beacon_srv/ifstate_overview.png)
 
@@ -56,7 +58,7 @@ type BeaconStore interface {
     BeaconsToPropagate(ctx context.Context) (<-chan beacon.BeaconOrErr, error)
     // SegmentsToRegister returns a channel that provides all beacons to
     // register at the time of the call. The selections is based on the
-    // configured propagation policy for the requested segment type.
+    // configured registration policy for the requested segment type.
     SegmentsToRegister(ctx context.Context, segType proto.PathSegType) (
         <-chan beacon.BeaconOrErr, error)
     // InsertBeacons adds verified beacons to the store. Beacons that
@@ -96,7 +98,7 @@ Beacons that are filtered by all policies are not added to the beaconDB.
 The BeaconDB consists of three tables:
 
 * Beacons: This table stores the raw beacons with some additional metadata used to select the beacons.
-* IntfToBeacons: This table maps the (ISD-AS, IfID)-pair to all beacons containing that IFID.
+* IntfToBeacons: This table maps the (ISD-AS, IfId)-pair to all beacons containing that IfId.
 * Revocations: This table contains all revocations that are not expired.
 
 #### Beacon insertion
@@ -112,8 +114,8 @@ Beacon selection is done in-memory and ad-hoc.
 The heuristic is as follows:
 
 1. Select at most *n* beacons with the least amount of hops that do not contain a revoked interface and are not expired.
-1. Choose the maximum disjoint path compared to the shortest path from the set
 1. Choose the *k-1* paths with the least amount of hops from the set
+1. Choose the maximum disjoint path compared to the shortest path from the set
 
 #### Policy Updates
 
@@ -135,50 +137,45 @@ It is used by the BS to issue revocations and decide where to propagate new beac
 
 ```go
 // Interfaces keeps track of all interfaces of the AS.
-type Interfaces struct {}
-
-// Update updates the interface mapping. Interfaces no longer present in
-// the topology are removed. The state of existing interfaces is preserved.
-// New interfaces are added as inactive.
-func (intfs *Interfaces) Update(ifInfomap topology.IfInfoMap) {}
-
-// Reset resets all interface states to inactive.
-func (intfs *Interfaces) Reset() {}
-
-// All returns a copy of the map from interface id to interface.
-func (intfs *Interfaces) All() map[common.IFIDType]*Interface {}
-
-// Get returns the interface for the specified id, or nil if not present.
-func (intfs *Interfaces) Get(ifid common.IFIDType) *Interface {}
+type Interfaces interface {
+    // Update updates the interface mapping. Interfaces no longer present in
+    // the topology are removed. The state of existing interfaces is preserved.
+    // New interfaces are added as inactive.
+    func Update(ifInfomap topology.IfInfoMap)
+    // Reset resets all interface states to inactive.
+    func Reset()
+    // All returns a copy of the map from interface id to interface.
+    func All() map[common.IFIDType]Interface
+    // Get returns the interface for the specified id, or nil if not present.
+    func Get(ifid common.IFIDType) Interface
+}
 
 // Interface keeps track of the interface state.
-type Interface struct {}
+type Interface interface {
+    // Activate activates the interface the keep alive is received from when
+    // necessary, and sets the remote interface id. The return value indicates
+    // the previous state of the interface.
+    func Activate(remote common.IFIDType) State
+    // Expire checks whether the interface has not been activated for a certain
+    // amount of time. If that is the case and the current state is inactive or
+    // active, the state changes to Expired. The return value indicates,
+    // whether the state is expired or revoked when the call returns.
+    func Expire() bool
+    // Revoke changes the state of the interface to revoked and updates the
+    // revocation, unless the current state is active. In that case, the
+    // interface has been activated in the meantime and should not be revoked.
+    // This is indicated through an error.
+    func Revoke(rev *path_mgmt.SignedRevInfo) error
+    // Revocation returns the revocation.
+    func Revocation() *path_mgmt.SignedRevInfo
+    // TopoInfo returns the topology information.
+    func TopoInfo() topology.IFInfo
+    // State returns the current state of the interface.
+    func State() State
+}
 
-// Activate activates the interface the keep alive is received from when
-// necessary, and sets the remote interface id. The return value indicates
-// the previous state of the interface.
-func (intf *Interface) Activate(remote common.IFIDType) State {}
-
-// Expire checks whether the interface has not been activated for a certain
-// amount of time. If that is the case and the current state is inactive or
-// active, the state changes to Expired. The return value indicates,
-// whether the state is expired or revoked when the call returns.
-func (intf *Interface) Expire() bool {}
-
-// Revoke changes the state of the interface to revoked and updates the
-// revocation, unless the current state is active. In that case, the
-// interface has been activated in the meantime and should not be revoked.
-// This is indicated through an error.
-func (intf *Interface) Revoke(rev *path_mgmt.SignedRevInfo) error {}
-
-// Revocation returns the revocation.
-func (intf *Interface) Revocation() *path_mgmt.SignedRevInfo {}
-
-// TopoInfo returns the topology information.
-func (intf *Interface) TopoInfo() topology.IFInfo {}
-
-// State returns the current state of the interface.
-func (intf *Interface) State() State {}
+// State is the state of an interface.
+type State string
 
 const (
     // Inactive indicates that the interface has not been activated or
@@ -191,9 +188,6 @@ const (
     // Revoked indicates that the interface is revoked.
     Revoked State = "Revoked"
 )
-
-// State is the state of an interface.
-type State string
 ```
 
 ### Trust handlers
@@ -234,7 +228,7 @@ Currently BRs send those requests periodically to cover lost IFStateInfo pushes 
 Once we have acks for infra messages, we can change the model to BRs only requesting the information at the start-up.
 Since, in regular operation, the state is then reliably pushed with IfStateInfo messages by the BS.
 
-#### IFID Keepalive Handler
+#### IfId Keepalive Handler
 
 *(uses: Interface.Activate, Interfaces.All, BeaconStore.DeleteRevocation)*
 
@@ -315,16 +309,16 @@ When a configurable amount of keepalive messages for a given interface are not r
 
 1. Call Interface.Expire on all infos.
 1. Revoke all expired interfaces in InterfaceState, update the revocation if necessary (certain amount of previous revocation period has passed)
-1. insert revocation in beacon store
-1. send revocation to all BRs in the local AS.
-1. send revocation to local PS as SignedRevInfo
-1. if in non-core AS, send revocation to PS in all core ASes.
+1. Insert revocation in beacon store
+1. Send revocation to all BRs in the local AS.
+1. Send revocation to local PS as SignedRevInfo
+1. Send revocation to PS in all core ASes, if in non-core AS.
 
-#### IFID Keepalive Sender
+#### IfId Keepalive Sender
 
 *(uses: itopo.Get)*
 
-Periodically send an IFID Keepalive message to the neighboring BS for each interface in the topology.
+Periodically send an IfId Keepalive message to the neighboring BS for each interface in the topology.
 This is done by using a one hop path extension.
 
 ### Delete Expired data from DB
