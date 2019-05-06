@@ -18,6 +18,7 @@
 package path_mgmt
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -138,6 +139,18 @@ func (r *RevInfo) SameIntf(other *RevInfo) bool {
 		r.LinkType == other.LinkType
 }
 
+// Signer is used to sign raw bytes.
+type Signer interface {
+	Sign(msg common.RawBytes) (*proto.SignS, error)
+}
+
+// Verifier is used to verify signatures.
+type Verifier interface {
+	// Verify verifies the packed signed revocation based on the signature meta
+	// data.
+	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
+}
+
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)
 
 type SignedRevInfo struct {
@@ -151,14 +164,18 @@ func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
 	return sr, proto.ParseFromRaw(sr, b)
 }
 
-func NewSignedRevInfo(r *RevInfo, s *proto.SignS) (*SignedRevInfo, error) {
+func NewSignedRevInfo(r *RevInfo, signer Signer) (*SignedRevInfo, error) {
 	rawR, err := r.Pack()
+	if err != nil {
+		return nil, err
+	}
+	sign, err := signer.Sign(rawR)
 	if err != nil {
 		return nil, err
 	}
 	return &SignedRevInfo{
 		Blob:    rawR,
-		Sign:    s,
+		Sign:    sign,
 		revInfo: r,
 	}, nil
 }
@@ -173,6 +190,18 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 		sr.revInfo, err = NewRevInfoFromRaw(sr.Blob)
 	}
 	return sr.revInfo, err
+}
+
+// VerifiedRevInfo verifies the signature and returns the revocation
+// information or an error in case the verification fails.
+func (sr *SignedRevInfo) VerifiedRevInfo(ctx context.Context,
+	verifier Verifier) (*RevInfo, error) {
+
+	rev, err := NewRevInfoFromRaw(sr.Blob)
+	if err != nil {
+		return nil, err
+	}
+	return rev, verifier.Verify(ctx, sr.Blob, sr.Sign)
 }
 
 func (sr *SignedRevInfo) String() string {

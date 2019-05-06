@@ -39,9 +39,10 @@ func TestHandler(t *testing.T) {
 		result   *infra.HandlerResult
 	}
 
-	rev102 := &path_mgmt.RevInfo{
+	rev102, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 		IfID: 102,
-	}
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
 
 	tests := []testDef{
 		{
@@ -74,7 +75,7 @@ func TestHandler(t *testing.T) {
 				Infos: []*path_mgmt.IFStateInfo{
 					{IfID: 100, Active: true},
 					{IfID: 101, Active: true},
-					{IfID: 102, Active: false, SRevInfo: toSigned(t, rev102)},
+					{IfID: 102, Active: false, SRevInfo: rev102},
 					{IfID: 103, Active: true},
 					{IfID: 104, Active: true},
 					{IfID: 105, Active: false},

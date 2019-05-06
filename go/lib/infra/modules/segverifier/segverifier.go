@@ -236,5 +236,6 @@ func verifyRevInfo(ctx context.Context, verifier infra.Verifier, server net.Addr
 func VerifyRevInfo(ctx context.Context, verifier infra.Verifier, server net.Addr,
 	signedRevInfo *path_mgmt.SignedRevInfo) error {
 
-	return verifier.WithServer(server).Verify(ctx, signedRevInfo.Blob, signedRevInfo.Sign)
+	_, err := signedRevInfo.VerifiedRevInfo(ctx, verifier.WithServer(server))
+	return err
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
 	"github.com/scionproto/scion/go/lib/util"
@@ -41,9 +42,13 @@ var (
 )
 
 func TestFilterNew(t *testing.T) {
-	sr10 := toSigned(t, defaultRevInfo(ia110, ifid10, now))
-	sr11 := toSigned(t, defaultRevInfo(ia110, ifid11, now))
-	sr11Old := toSigned(t, defaultRevInfo(ia110, ifid11, now.Add(-10*time.Second)))
+	sr10, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifid10, now), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr11, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifid11, now), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr11Old, err := path_mgmt.NewSignedRevInfo(
+		defaultRevInfo(ia110, ifid11, now.Add(-10*time.Second)), infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	Convey("TestFilterNew", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -98,12 +103,6 @@ func copy(revs revcache.Revocations) revcache.Revocations {
 		res[k] = v
 	}
 	return res
-}
-
-func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {
-	sr, err := path_mgmt.NewSignedRevInfo(r, nil)
-	xtest.FailOnErr(t, err)
-	return sr
 }
 
 func defaultRevInfo(ia addr.IA, ifId common.IFIDType, ts time.Time) *path_mgmt.RevInfo {

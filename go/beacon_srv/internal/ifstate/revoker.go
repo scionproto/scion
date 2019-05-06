@@ -124,15 +124,7 @@ func (r *Revoker) createSignedRev(ifid common.IFIDType) (*path_mgmt.SignedRevInf
 		RawTimestamp: now,
 		RawTTL:       uint32(path_mgmt.MinRevTTL.Seconds()),
 	}
-	rawRevInfo, err := revInfo.Pack()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := r.signer.Sign(rawRevInfo)
-	if err != nil {
-		return nil, err
-	}
-	return path_mgmt.NewSignedRevInfo(revInfo, sign)
+	return path_mgmt.NewSignedRevInfo(revInfo, r.signer)
 }
 
 func (r *Revoker) pushRevocationsToBRs(ctx context.Context,

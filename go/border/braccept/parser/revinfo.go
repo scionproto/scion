@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ type RevInfo struct {
 }
 
 func (i *RevInfo) sign() *path_mgmt.SignedRevInfo {
-	sRevInfo, err := path_mgmt.NewSignedRevInfo(&i.RevInfo, nil)
+	sRevInfo, err := path_mgmt.NewSignedRevInfo(&i.RevInfo, infra.NullSigner)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to Sign RevInfo: %s\n", err))
 	}

@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -76,7 +77,8 @@ func TestRevCache(t *testing.T, revCache TestableRevCache) {
 }
 
 func testInsertGet(t *testing.T, revCache TestableRevCache) {
-	sr := toSigned(t, defaultRevInfo(ia110, ifId15))
+	sr, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifId15), infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	inserted, err := revCache.Insert(ctx, sr)
@@ -97,10 +99,15 @@ func testInsertGet(t *testing.T, revCache TestableRevCache) {
 }
 
 func testGetMultikey(t *testing.T, revCache TestableRevCache) {
-	sr1 := toSigned(t, defaultRevInfo(ia110, ifId15))
-	sr2 := toSigned(t, defaultRevInfo(ia110, ifId19))
-	sr3 := toSigned(t, defaultRevInfo(ia120, ifId15))
-	sr4 := toSigned(t, defaultRevInfo(ia120, common.IFIDType(10)))
+	sr1, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifId15), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr2, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifId19), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr3, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, ifId15), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr4, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, common.IFIDType(10)),
+		infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 
@@ -151,10 +158,15 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 	SoMsg("No more entries expected", more, ShouldBeFalse)
 
 	// Insert some stuff and query again
-	sr1 := toSigned(t, defaultRevInfo(ia110, ifId15))
-	sr2 := toSigned(t, defaultRevInfo(ia110, ifId19))
-	sr3 := toSigned(t, defaultRevInfo(ia120, ifId15))
-	sr4 := toSigned(t, defaultRevInfo(ia120, common.IFIDType(20)))
+	sr1, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifId15), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr2, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifId19), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr3, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, ifId15), infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	sr4, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, common.IFIDType(20)),
+		infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	_, err = revCache.Insert(ctx, sr1)
 	xtest.FailOnErr(t, err)
 	_, err = revCache.Insert(ctx, sr2)
@@ -190,13 +202,14 @@ func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	// insert expired rev
-	srNew := toSigned(t, &path_mgmt.RevInfo{
+	srNew, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
 		RawTTL:       1,
-	})
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	revCache.InsertExpired(t, ctx, srNew)
 	// Now test that we don't get the expired rev
 	resChan, err := revCache.GetAll(ctx)
@@ -216,24 +229,28 @@ func testInsertExpired(t *testing.T, revCache TestableRevCache) {
 	}
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	inserted, err := revCache.Insert(ctx, toSigned(t, r))
+	srev, err := path_mgmt.NewSignedRevInfo(r, infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	inserted, err := revCache.Insert(ctx, srev)
 	SoMsg("Insert should return false for expired rev", inserted, ShouldBeFalse)
 	SoMsg("Insert should not err", err, ShouldBeNil)
 }
 
 func testInsertNewer(t *testing.T, revCache TestableRevCache) {
-	sr := toSigned(t, defaultRevInfo(ia110, ifId15))
+	sr, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifId15), infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	_, err := revCache.Insert(ctx, sr)
+	_, err = revCache.Insert(ctx, sr)
 	xtest.FailOnErr(t, err)
-	srNew := toSigned(t, &path_mgmt.RevInfo{
+	srNew, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(10 * time.Second)),
 		RawTTL:       uint32((time.Duration(10) * time.Second).Seconds()),
-	})
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	inserted, err := revCache.Insert(ctx, srNew)
 	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
 	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
@@ -249,13 +266,14 @@ func testInsertNewer(t *testing.T, revCache TestableRevCache) {
 func testGetExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	srNew := toSigned(t, &path_mgmt.RevInfo{
+	srNew, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
 		RawTTL:       1,
-	})
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	revCache.InsertExpired(t, ctx, srNew)
 	revs, err := revCache.Get(ctx, revcache.SingleKey(ia110, ifId15))
 	SoMsg("Expired entry should not be returned", revs, ShouldBeEmpty)
@@ -265,15 +283,17 @@ func testGetExpired(t *testing.T, revCache TestableRevCache) {
 func testGetMuliKeysExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	srNew := toSigned(t, &path_mgmt.RevInfo{
+	srNew, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
 		RawTTL:       1,
-	})
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	revCache.InsertExpired(t, ctx, srNew)
-	sr110_19 := toSigned(t, defaultRevInfo(ia110, ifId19))
+	sr110_19, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifId19), infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	revCache.Insert(ctx, sr110_19)
 	validKey := *revcache.NewKey(ia110, ifId19)
 	srCache, err := revCache.Get(ctx, revcache.KeySet{
@@ -292,18 +312,20 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	del, err := revCache.DeleteExpired(ctx)
 	SoMsg("DeleteExpired on empty should not error", err, ShouldBeNil)
 	SoMsg("DeleteExpired on empty should delete 0", del, ShouldEqual, 0)
-	sr110_19 := toSigned(t, defaultRevInfo(ia110, ifId19))
+	sr110_19, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifId19), infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	revCache.Insert(ctx, sr110_19)
 	del, err = revCache.DeleteExpired(ctx)
 	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
 	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)
-	srNew := toSigned(t, &path_mgmt.RevInfo{
+	srNew, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
 		RawTTL:       1,
-	})
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
 	revCache.InsertExpired(t, ctx, srNew)
 	del, err = revCache.DeleteExpired(ctx)
 	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
@@ -311,12 +333,6 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	del, err = revCache.DeleteExpired(ctx)
 	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
 	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)
-}
-
-func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {
-	sr, err := path_mgmt.NewSignedRevInfo(r, nil)
-	xtest.FailOnErr(t, err)
-	return sr
 }
 
 func defaultRevInfo(ia addr.IA, ifId common.IFIDType) *path_mgmt.RevInfo {

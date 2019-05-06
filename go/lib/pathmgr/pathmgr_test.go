@@ -25,6 +25,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -404,7 +405,7 @@ func newTestRev(t *testing.T, rev string) *path_mgmt.SignedRevInfo {
 		&path_mgmt.RevInfo{
 			IfID:     pi.IfID,
 			RawIsdas: pi.RawIsdas,
-		}, nil)
+		}, infra.NullSigner)
 	xtest.FailOnErr(t, err)
 	return signedRevInfo
 }
