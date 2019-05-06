@@ -15,7 +15,6 @@ go_library(
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/disp:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
-        "//go/lib/infra/transport:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",

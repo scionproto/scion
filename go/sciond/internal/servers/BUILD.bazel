@@ -16,7 +16,6 @@ go_library(
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/segverifier:go_default_library",
-        "//go/lib/infra/transport:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/revcache:go_default_library",
         "//go/lib/sciond:go_default_library",

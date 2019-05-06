@@ -21,7 +21,6 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
@@ -81,7 +80,7 @@ func (srv *Server) ListenAndServe() error {
 		go func() {
 			defer log.LogPanicAndExit()
 			pconn := conn.(net.PacketConn)
-			hdl := NewTransportHandler(transport.NewPacketTransport(pconn), srv.handlers, srv.log)
+			hdl := NewConnHandler(pconn, srv.handlers, srv.log)
 			if err := hdl.Serve(); err != nil && err != io.EOF {
 				srv.log.Error("Transport handler error", "err", err)
 			}
@@ -111,7 +110,7 @@ func (srv *Server) Close() error {
 	defer srv.mu.Unlock()
 
 	if srv.listener == nil {
-		return common.NewBasicError("unitialized server", nil)
+		return common.NewBasicError("uninitialized server", nil)
 	}
 	return srv.listener.Close()
 	// FIXME(scrye): shut down running servers once we actually implement the
