@@ -163,7 +163,8 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 	xtest.FailOnErr(t, err)
 	sr3, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, ifId15), infra.NullSigner)
 	xtest.FailOnErr(t, err)
-	sr4, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, common.IFIDType(20)), infra.NullSigner)
+	sr4, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, common.IFIDType(20)),
+		infra.NullSigner)
 	xtest.FailOnErr(t, err)
 	_, err = revCache.Insert(ctx, sr1)
 	xtest.FailOnErr(t, err)
