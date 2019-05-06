@@ -52,7 +52,7 @@ func (m *MessengerWithMetrics) SendAck(ctx context.Context, msg *ack.Ack, a net.
 
 	opMetric := metricStartOp(infra.Ack)
 	err := m.messenger.SendAck(ctx, msg, a, id)
-	opMetric.publishResult(err)
+	opMetric.publishResult(ctx, err)
 	return err
 }
 
@@ -61,7 +61,7 @@ func (m *MessengerWithMetrics) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq
 
 	opMetric := metricStartOp(infra.TRCRequest)
 	trc, err := m.messenger.GetTRC(ctx, msg, a, id)
-	opMetric.publishResult(err)
+	opMetric.publishResult(ctx, err)
 	return trc, err
 }
 
@@ -70,7 +70,7 @@ func (m *MessengerWithMetrics) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, 
 
 	opMetrics := metricStartOp(infra.TRC)
 	err := m.messenger.SendTRC(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -79,7 +79,7 @@ func (m *MessengerWithMetrics) GetCertChain(ctx context.Context, msg *cert_mgmt.
 
 	opMetrics := metricStartOp(infra.ChainRequest)
 	chain, err := m.messenger.GetCertChain(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return chain, err
 }
 
@@ -88,7 +88,7 @@ func (m *MessengerWithMetrics) SendCertChain(ctx context.Context, msg *cert_mgmt
 
 	opMetrics := metricStartOp(infra.Chain)
 	err := m.messenger.SendCertChain(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -97,7 +97,7 @@ func (m *MessengerWithMetrics) SendIfId(ctx context.Context, msg *ifid.IFID, a n
 
 	opMetrics := metricStartOp(infra.IfId)
 	err := m.messenger.SendIfId(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -106,7 +106,7 @@ func (m *MessengerWithMetrics) SendIfStateInfos(ctx context.Context, msg *path_m
 
 	opMetrics := metricStartOp(infra.IfStateInfos)
 	err := m.messenger.SendIfStateInfos(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -115,7 +115,7 @@ func (m *MessengerWithMetrics) SendRev(ctx context.Context, msg *path_mgmt.Signe
 
 	opMetrics := metricStartOp(infra.SignedRev)
 	err := m.messenger.SendRev(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -124,7 +124,7 @@ func (m *MessengerWithMetrics) SendSegReg(ctx context.Context, msg *path_mgmt.Se
 
 	opMetrics := metricStartOp(infra.SegReg)
 	err := m.messenger.SendSegReg(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -133,7 +133,7 @@ func (m *MessengerWithMetrics) GetSegs(ctx context.Context, msg *path_mgmt.SegRe
 
 	opMetrics := metricStartOp(infra.SegRequest)
 	reply, err := m.messenger.GetSegs(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return reply, err
 }
 
@@ -142,7 +142,7 @@ func (m *MessengerWithMetrics) SendSegReply(ctx context.Context, msg *path_mgmt.
 
 	opMetrics := metricStartOp(infra.SegReply)
 	err := m.messenger.SendSegReply(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -151,7 +151,7 @@ func (m *MessengerWithMetrics) SendSegSync(ctx context.Context, msg *path_mgmt.S
 
 	opMetrics := metricStartOp(infra.SegSync)
 	err := m.messenger.SendSegSync(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -160,7 +160,7 @@ func (m *MessengerWithMetrics) GetSegChangesIds(ctx context.Context, msg *path_m
 
 	opMetrics := metricStartOp(infra.SegChangesIdReq)
 	reply, err := m.messenger.GetSegChangesIds(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return reply, err
 }
 
@@ -169,7 +169,7 @@ func (m *MessengerWithMetrics) SendSegChangesIdReply(ctx context.Context,
 
 	opMetrics := metricStartOp(infra.SegChangesIdReply)
 	err := m.messenger.SendSegChangesIdReply(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -178,7 +178,7 @@ func (m *MessengerWithMetrics) GetSegChanges(ctx context.Context, msg *path_mgmt
 
 	opMetrics := metricStartOp(infra.SegChangesReq)
 	reply, err := m.messenger.GetSegChanges(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return reply, err
 }
 
@@ -187,7 +187,7 @@ func (m *MessengerWithMetrics) SendSegChangesReply(ctx context.Context,
 
 	opMetrics := metricStartOp(infra.SegChangesReply)
 	err := m.messenger.SendSegChangesReply(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -196,7 +196,7 @@ func (m *MessengerWithMetrics) RequestChainIssue(ctx context.Context, msg *cert_
 
 	opMetrics := metricStartOp(infra.ChainIssueRequest)
 	reply, err := m.messenger.RequestChainIssue(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return reply, err
 }
 
@@ -205,7 +205,7 @@ func (m *MessengerWithMetrics) SendChainIssueReply(ctx context.Context, msg *cer
 
 	opMetrics := metricStartOp(infra.ChainIssueReply)
 	err := m.messenger.SendChainIssueReply(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 
@@ -214,7 +214,7 @@ func (m *MessengerWithMetrics) SendBeacon(ctx context.Context, msg *seg.Beacon, 
 
 	opMetrics := metricStartOp(infra.Seg)
 	err := m.messenger.SendBeacon(ctx, msg, a, id)
-	opMetrics.publishResult(err)
+	opMetrics.publishResult(ctx, err)
 	return err
 }
 

@@ -16,7 +16,6 @@
 package sigcmn
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -78,8 +77,8 @@ func EncapSnetAddr() *snet.Addr {
 
 func ValidatePort(desc string, port int) error {
 	if port < 1 || port > MaxPort {
-		return common.NewBasicError(fmt.Sprintf("Invalid %s port", desc), nil,
-			"min", 1, "max", MaxPort, "actual", port)
+		return common.NewBasicError("Invalid port", nil,
+			"min", 1, "max", MaxPort, "actual", port, "desc", desc)
 	}
 	return nil
 }
