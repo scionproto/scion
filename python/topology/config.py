@@ -76,7 +76,7 @@ from topology.zk import ZKGenArgs, ZKGenerator
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
 
-DEFAULT_BEACON_SERVER = "py"
+DEFAULT_BEACON_SERVER = "go"
 DEFAULT_CERTIFICATE_SERVER = "go"
 DEFAULT_SCIOND = "go"
 DEFAULT_PATH_SERVER = "go"
