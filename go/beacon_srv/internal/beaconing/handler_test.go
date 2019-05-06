@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -46,7 +45,7 @@ var (
 
 // Disable logging in all tests
 func TestMain(m *testing.M) {
-	log.Root().SetHandler(log.DiscardHandler())
+	//log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }
 

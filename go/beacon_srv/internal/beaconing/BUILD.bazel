@@ -61,7 +61,6 @@ go_test(
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/infra/modules/trust:go_default_library",
-        "//go/lib/log:go_default_library",
         "//go/lib/overlay:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/snet:go_default_library",
