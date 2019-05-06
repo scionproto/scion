@@ -15,6 +15,7 @@
 package messenger
 
 import (
+	"context"
 	"net"
 	"sync"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -97,8 +99,8 @@ type opMetrics struct {
 	begin time.Time
 }
 
-func (m *opMetrics) publishResult(err error) {
-	resLabel := errorToResultLabel(err)
+func (m *opMetrics) publishResult(ctx context.Context, err error) {
+	resLabel := errorToResultLabel(ctx, err)
 	resLabels := prometheus.Labels{
 		prom.LabelOperation: m.mt.MetricLabel(),
 		prom.LabelResult:    resLabel,
@@ -107,7 +109,7 @@ func (m *opMetrics) publishResult(err error) {
 	outResultsTotal.With(resLabels).Inc()
 }
 
-func errorToResultLabel(err error) string {
+func errorToResultLabel(ctx context.Context, err error) string {
 	// TODO(lukedirtwalker): categorize error better.
 	switch {
 	case err == nil:
@@ -115,6 +117,10 @@ func errorToResultLabel(err error) string {
 	case common.IsTimeoutErr(err):
 		return prom.ErrTimeout
 	default:
+		// Log the unclassified error. This allows to easily find the unclassified errors
+		// in the logs and change this code to make them classified.
+		logger := log.FromCtx(ctx)
+		logger.Debug("Unclassified RPC error", "msg", err.Error())
 		return prom.ErrNotClassified
 	}
 }
