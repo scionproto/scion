@@ -105,7 +105,8 @@ func testGetMultikey(t *testing.T, revCache TestableRevCache) {
 	xtest.FailOnErr(t, err)
 	sr3, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, ifId15), infra.NullSigner)
 	xtest.FailOnErr(t, err)
-	sr4, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, common.IFIDType(10)), infra.NullSigner)
+	sr4, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia120, common.IFIDType(10)),
+		infra.NullSigner)
 	xtest.FailOnErr(t, err)
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
