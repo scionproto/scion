@@ -96,7 +96,7 @@ func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *addr.AppA
 type resolverPacketConn struct {
 	// PacketConn is the conn to receive and send packets.
 	snet.PacketConn
-	// source contains the address from which packets should be sent
+	// source contains the address from which packets should be sent.
 	source snet.SCIONAddress
 	// handler handles packets for SVC destinations.
 	handler RequestHandler
@@ -217,34 +217,4 @@ func (h *BaseHandler) getPayload() common.Payload {
 		return nil
 	}
 	return common.RawBytes(h.Message)
-}
-
-var _ RequestHandler = (*SVCMatchHandler)(nil)
-
-// SVCMatchHandler can be used to check if a packet's destination address matches a
-// specific SVC address. If the match fails, a callback is called. SVCMatchHandler
-// panics if the packet's destination is not an SVC address. Calling code
-// should check this beforehand.
-type SVCMatchHandler struct {
-	// MatchSVC is the destination SVC address for which replies will be sent.
-	//
-	// Note that the default value for this field is the SCION Beacon Service
-	// address (0x0000).
-	MatchSVC addr.HostSVC
-	// OnNonMatch is the callback to call if the destination SVC address of a
-	// packet does not match (usually to set up some form of logging). If nil,
-	// no callback is called.
-	OnNonMatch func(pkt *snet.SCIONPacket)
-}
-
-func (p SVCMatchHandler) Handle(request *Request) (Result, error) {
-	requested := request.Packet.Destination.Host.(addr.HostSVC)
-	if p.MatchSVC != requested {
-		if p.OnNonMatch != nil {
-			p.OnNonMatch(request.Packet)
-		}
-		return Error, common.NewBasicError("Requested SVC does not match local SVC address", nil,
-			"local", p.MatchSVC, "requested", requested)
-	}
-	return Handled, nil
 }

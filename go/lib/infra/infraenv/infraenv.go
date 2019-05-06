@@ -101,7 +101,8 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 				// logic.
 				Payload: resolutionRequestPayload,
 			},
-			SVCResolutionFraction: 1.00,
+			// XXX(scrye): Disable SVC resolution for the moment.
+			SVCResolutionFraction: 0.00,
 		},
 	}
 	if nc.EnableQUICTest {
@@ -135,10 +136,10 @@ func buildLocalMachine(bind, public *snet.Addr) snet.LocalMachine {
 }
 
 // LegacyForwardingHandler is an SVC resolution handler that only responds to
-// packets that have an SVC destination address and contain only 4 0x00 bytes
-// in their payload. All other packets are considered to originate from speakers
-// that do not support SVC resolution, so they are forwarded to the application
-// unchanged.
+// packets that have an SVC destination address and contain exactly 4 0x00
+// bytes in their payload. All other packets are considered to originate from
+// speakers that do not support SVC resolution, so they are forwarded to the
+// application unchanged.
 type LegacyForwardingHandler struct {
 	ExpectedPayload []byte
 	// BaseHandler is called after the payload is checked for the correct
@@ -146,6 +147,9 @@ type LegacyForwardingHandler struct {
 	BaseHandler *svc.BaseHandler
 }
 
+// Handle redirects packets that have an SVC destination address and contain
+// exactly 4 0x00 bytes to another handler, and forwards other packets back to
+// the application.
 func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, error) {
 	p, ok := request.Packet.Payload.(common.RawBytes)
 	if !ok {
