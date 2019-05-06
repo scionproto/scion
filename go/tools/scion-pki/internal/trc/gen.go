@@ -108,8 +108,8 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 			return nil, common.NewBasicError("Error loading as.ini", err, "path", cpath)
 		}
 		if a.KeyAlgorithms == nil {
-			return nil, common.NewBasicError(fmt.Sprintf("'%s' section missing from as.ini",
-				conf.KeyAlgSectionName), nil, "path", cpath)
+			return nil, common.NewBasicError("Section missing from as.ini",
+				nil, "path", cpath, "section", conf.KeyAlgSectionName)
 		}
 		as.OnlineKeyAlg = scrypto.Ed25519
 		if a.KeyAlgorithms.Online != "" {

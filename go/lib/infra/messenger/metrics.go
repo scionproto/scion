@@ -114,6 +114,8 @@ func errorToResultLabel(err error) string {
 		return prom.ResultOk
 	case common.IsTimeoutErr(err):
 		return prom.ErrTimeout
+	case err.(*common.BasicError) != nil:
+		return err.(*common.BasicError).Msg
 	default:
 		return prom.ErrNotClassified
 	}
