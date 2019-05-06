@@ -49,6 +49,8 @@ type Resolver struct {
 	// RoundTripper performs the request/reply exchange for SVC resolutions. If
 	// nil, the default round tripper is used.
 	RoundTripper RoundTripper
+	// Payload is used for the data part of SVC requests.
+	Payload []byte
 }
 
 // LookupSVC resolves the SVC address for the AS terminating the path.
@@ -60,7 +62,6 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 	if err != nil {
 		return nil, common.NewBasicError(errRegistration, err)
 	}
-	defer conn.Close()
 
 	requestPacket := &snet.SCIONPacket{
 		SCIONPacketInfo: snet.SCIONPacketInfo{
@@ -76,8 +77,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 			L4Header: &l4.UDP{
 				SrcPort: port,
 			},
-			// FIXME(scrye): Add a dummy payload, because nil payloads are not supported.
-			Payload: common.RawBytes{0},
+			Payload: common.RawBytes(r.Payload),
 		},
 	}
 	return r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.OverlayNextHop())
@@ -111,15 +111,15 @@ type roundTripper struct{}
 func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.SCIONPacket,
 	ov *overlay.OverlayAddr) (*Reply, error) {
 
+	cancelF := ctxconn.CloseConnOnDone(ctx, c)
+	defer cancelF()
+
 	if pkt == nil {
 		return nil, common.NewBasicError(errNilPacket, nil)
 	}
 	if ov == nil {
 		return nil, common.NewBasicError(errNilOverlay, nil)
 	}
-
-	cancelF := ctxconn.CloseConnOnDone(ctx, c)
-	defer cancelF()
 
 	if err := c.WriteTo(pkt, ov); err != nil {
 		return nil, common.NewBasicError(errWrite, err)

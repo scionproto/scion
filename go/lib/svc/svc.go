@@ -28,8 +28,28 @@ import (
 
 const ErrHandler = "Unable to handle SVC request"
 
+// Result is used to inform Handler users on the outcome of handler execution.
+type Result int
+
+const (
+	// Error means that the handler experience an error during processing.
+	Error Result = iota
+	// Handled means that the handler completed successfully.
+	Handled
+	// Forward means that the packet should be forwarded to the application.
+	Forward
+)
+
 // NewResolverPacketDispatcher creates a dispatcher service that returns
 // sockets with built-in SVC address resolution capabilities.
+//
+// RequestHandler results during connection read operations are handled in the
+// following way:
+//  - on error result, the error is sent back to the reader
+//  - on forwarding result, the packet is sent back to the app for processing.
+//  - on handled result, the packet is discarded after processing, and a new
+//  read is attempted from the connection, and the entire decision process
+//  repeats.
 func NewResolverPacketDispatcher(d snet.PacketDispatcherService,
 	h RequestHandler) *ResolverPacketDispatcher {
 
@@ -60,7 +80,15 @@ func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *addr.AppA
 	if err != nil {
 		return nil, 0, err
 	}
-	return &resolverPacketConn{PacketConn: c, handler: d.handler}, port, err
+	packetConn := &resolverPacketConn{
+		PacketConn: c,
+		source: snet.SCIONAddress{
+			IA:   ia,
+			Host: public.L3,
+		},
+		handler: d.handler,
+	}
+	return packetConn, port, err
 }
 
 // resolverPacketConn redirects SVC destination packets to SVC resolution
@@ -68,6 +96,8 @@ func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *addr.AppA
 type resolverPacketConn struct {
 	// PacketConn is the conn to receive and send packets.
 	snet.PacketConn
+	// source contains the address from which packets should be sent.
+	source snet.SCIONAddress
 	// handler handles packets for SVC destinations.
 	handler RequestHandler
 }
@@ -77,23 +107,37 @@ func (c *resolverPacketConn) ReadFrom(pkt *snet.SCIONPacket, ov *overlay.Overlay
 		if err := c.PacketConn.ReadFrom(pkt, ov); err != nil {
 			return err
 		}
+
 		// XXX(scrye): destination address is guaranteed to not be nil
-		if svc, ok := pkt.Destination.Host.(addr.HostSVC); ok {
-			// Multicasts do not trigger SVC resolution logic
-			if svc.IsMulticast() {
-				return nil
-			}
-			// XXX(scrye): This might block, causing the read to wait for the
-			// write to go through. The solution would be to run the logic in a
-			// goroutine, but because UDP writes rarely block, the current
-			// solution should be good enough for now.
-			if err := c.handler.Handle(pkt, ov); err != nil {
-				return common.NewBasicError(ErrHandler, err)
-			}
-			continue
+		svc, ok := pkt.Destination.Host.(addr.HostSVC)
+		if !ok {
+			// Normal packet, return to caller because data is already parsed and ready
+			return nil
 		}
-		// Normal packet, return to caller because data is already parsed and ready
-		return nil
+
+		// Multicasts do not trigger SVC resolution logic
+		if svc.IsMulticast() {
+			return nil
+		}
+
+		// XXX(scrye): This might block, causing the read to wait for the
+		// write to go through. The solution would be to run the logic in a
+		// goroutine, but because UDP writes rarely block, the current
+		// solution should be good enough for now.
+		r := &Request{
+			Conn:    c.PacketConn,
+			Source:  c.source,
+			Packet:  pkt,
+			Overlay: ov,
+		}
+		switch result, err := c.handler.Handle(r); result {
+		case Error:
+			return common.NewBasicError(ErrHandler, err)
+		case Forward:
+			return nil
+		default:
+			// Message handled, read new packet
+		}
 	}
 }
 
@@ -104,52 +148,51 @@ type RequestHandler interface {
 	//
 	// Handle implementantions might panic if the destination is not an SVC
 	// address, so callers should perform the check beforehand.
-	Handle(*snet.SCIONPacket, *overlay.OverlayAddr) error
+	Handle(*Request) (Result, error)
 }
 
-var _ RequestHandler = (*DefaultHandler)(nil)
-
-// DefaultHandler reverses a SCION packet, replaces the source address with the
-// one in the struct and then sends the message on the connection.
-type DefaultHandler struct {
+type Request struct {
 	// Source is the override value for the source address of the reply packet.
 	Source snet.SCIONAddress
 	// Conn is the connection to send the reply on. Conn must not be nil.
-	Conn snet.PacketConn
-	// Payload is the payload data to send in the reply. Nil and zero-length
-	// payloads are supported.
-	Payload []byte
-	// Precheck runs on every packet passed into the reply sender. If the
-	// precheck function returns an error, processing of the packet stops.
-	// Precheck can be nil, in which case no checks are performed and every
-	// packet is processed normally.
-	Precheck Prechecker
+	Conn    snet.PacketConn
+	Packet  *snet.SCIONPacket
+	Overlay *overlay.OverlayAddr
 }
 
-func (h *DefaultHandler) Handle(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
-	if h.Precheck != nil {
-		if err := h.Precheck.Precheck(pkt); err != nil {
-			return err
-		}
-	}
-	path, err := h.reversePath(pkt.Path)
+var _ RequestHandler = (*BaseHandler)(nil)
+
+// BaseHandler reverses a SCION packet, replaces the source address with the
+// one in the struct and then sends the message on the connection.
+type BaseHandler struct {
+	// Message is the payload data to send in the reply. Nil and zero-length
+	// payloads are supported.
+	Message []byte
+}
+
+func (h *BaseHandler) Handle(request *Request) (Result, error) {
+	path, err := h.reversePath(request.Packet.Path)
 	if err != nil {
-		return err
+		return Error, err
 	}
-	l4header := h.reverseL4Header(pkt.L4Header)
+	l4header := h.reverseL4Header(request.Packet.L4Header)
 	replyPacket := &snet.SCIONPacket{
 		SCIONPacketInfo: snet.SCIONPacketInfo{
-			Destination: pkt.Source,
-			Source:      h.Source,
+			Destination: request.Packet.Source,
+			Source:      request.Source,
 			Path:        path,
 			L4Header:    l4header,
 			Payload:     h.getPayload(),
 		},
 	}
-	return h.Conn.WriteTo(replyPacket, ov)
+	err = request.Conn.WriteTo(replyPacket, request.Overlay)
+	if err != nil {
+		return Error, err
+	}
+	return Handled, nil
 }
 
-func (h *DefaultHandler) reversePath(path *spath.Path) (*spath.Path, error) {
+func (h *BaseHandler) reversePath(path *spath.Path) (*spath.Path, error) {
 	if !path.IsEmpty() {
 		// Reverse copy to not modify input packet
 		path = path.Copy()
@@ -160,7 +203,7 @@ func (h *DefaultHandler) reversePath(path *spath.Path) (*spath.Path, error) {
 	return path, nil
 }
 
-func (h *DefaultHandler) reverseL4Header(header l4.L4Header) l4.L4Header {
+func (h *BaseHandler) reverseL4Header(header l4.L4Header) l4.L4Header {
 	if header == nil {
 		return nil
 	}
@@ -169,49 +212,9 @@ func (h *DefaultHandler) reverseL4Header(header l4.L4Header) l4.L4Header {
 	return l4HeaderCopy
 }
 
-func (h *DefaultHandler) getPayload() common.Payload {
-	if h.Payload == nil {
+func (h *BaseHandler) getPayload() common.Payload {
+	if h.Message == nil {
 		return nil
 	}
-	return common.RawBytes(h.Payload)
-}
-
-// Prechecker can be used to customize how the SVC Resolution server reacts to
-// certain packets, e.g., to log a message if the requested SVC is not the
-// expected one.
-type Prechecker interface {
-	// Precheck evaluates if pkt satisfies a set of conditions, and returns an
-	// error if the conditions are not met.
-	//
-	// Precheck implementations must panic if the packet's destination is not
-	// an SVC address. Calling code should check this beforehand.
-	Precheck(pkt *snet.SCIONPacket) error
-}
-
-var _ Prechecker = (*PrecheckSVC)(nil)
-
-// PrecheckSVC can be used to check if a packet's destination address matches a
-// specific SVC address. If the match fails, a callback is called.
-type PrecheckSVC struct {
-	// MatchSVC is the destination SVC address for which replies will be sent.
-	//
-	// Note that the default value for this field is the SCION Beacon Service
-	// address (0x0000).
-	MatchSVC addr.HostSVC
-	// OnNonMatch is the callback to call if the destination SVC address of a
-	// packet does not match (usually to set up some form of logging). If nil,
-	// no callback is called.
-	OnNonMatch func(pkt *snet.SCIONPacket)
-}
-
-func (p PrecheckSVC) Precheck(pkt *snet.SCIONPacket) error {
-	requested := pkt.Destination.Host.(addr.HostSVC)
-	if p.MatchSVC != pkt.Destination.Host.(addr.HostSVC) {
-		if p.OnNonMatch != nil {
-			p.OnNonMatch(pkt)
-		}
-		return common.NewBasicError("Requested SVC does not match local SVC address", nil,
-			"local", p.MatchSVC, "requested", requested)
-	}
-	return nil
+	return common.RawBytes(h.Message)
 }

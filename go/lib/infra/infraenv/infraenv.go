@@ -17,6 +17,7 @@
 package infraenv
 
 import (
+	"bytes"
 	"crypto/tls"
 	"net"
 	"time"
@@ -39,6 +40,8 @@ import (
 const (
 	ErrAppUnableToInitMessenger = "Unable to initialize SCION Infra Messenger"
 )
+
+var resolutionRequestPayload = []byte{0x00, 0x00, 0x00, 0x00}
 
 // NetworkConfig describes the networking configuration of a SCION
 // control-plane RPC endpoint.
@@ -90,6 +93,13 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 					reliable.NewDispatcherService(""),
 				),
 				Machine: buildLocalMachine(nc.Bind, nc.Public),
+				// Legacy control payloads have a 4-byte length prefix. A
+				// 0-value for the prefix is invalid, so SVC resolution-aware
+				// servers can use this to detect that the client is attempting
+				// SVC resolution. Legacy SVC traffic sent by legacy clients
+				// will have a non-0 value, and thus not trigger resolution
+				// logic.
+				Payload: resolutionRequestPayload,
 			},
 			// XXX(scrye): Disable SVC resolution for the moment.
 			SVCResolutionFraction: 0.00,
@@ -125,9 +135,53 @@ func buildLocalMachine(bind, public *snet.Addr) snet.LocalMachine {
 	return mi
 }
 
+// LegacyForwardingHandler is an SVC resolution handler that only responds to
+// packets that have an SVC destination address and contain exactly 4 0x00
+// bytes in their payload. All other packets are considered to originate from
+// speakers that do not support SVC resolution, so they are forwarded to the
+// application unchanged.
+type LegacyForwardingHandler struct {
+	ExpectedPayload []byte
+	// BaseHandler is called after the payload is checked for the correct
+	// content.
+	BaseHandler *svc.BaseHandler
+}
+
+// Handle redirects packets that have an SVC destination address and contain
+// exactly 4 0x00 bytes to another handler, and forwards other packets back to
+// the application.
+func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, error) {
+	p, ok := request.Packet.Payload.(common.RawBytes)
+	if !ok {
+		return svc.Error, common.NewBasicError("Unsupported payload type", nil,
+			"payload", request.Packet.Payload)
+	}
+	if bytes.Compare(h.ExpectedPayload, []byte(p)) == 0 {
+		return h.BaseHandler.Handle(request)
+	}
+	log.Trace("Received control payload with SVC destination", "from", request.Packet.Source)
+	return svc.Forward, nil
+}
+
 func (nc *NetworkConfig) initNetworking() (net.PacketConn, error) {
+	udpAddressStr := &bytes.Buffer{}
+	if err := messenger.BuildReply(nc.Public.Host).SerializeTo(udpAddressStr); err != nil {
+		return nil, common.NewBasicError("Unable to build SVC resolution reply", err)
+	}
+
+	packetDispatcher := svc.NewResolverPacketDispatcher(
+		snet.NewDefaultPacketDispatcherService(
+			reliable.NewDispatcherService(""),
+		),
+		&LegacyForwardingHandler{
+			BaseHandler: &svc.BaseHandler{
+				Message: udpAddressStr.Bytes(),
+			},
+			ExpectedPayload: resolutionRequestPayload,
+		},
+	)
 	var network snet.Network
-	network, err := snet.NewNetwork(nc.IA, "", reliable.NewDispatcherService(""))
+	network, err := snet.NewCustomNetwork(nc.IA, "", packetDispatcher)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create network", err)
 	}

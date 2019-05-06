@@ -66,7 +66,6 @@ func TestResolver(t *testing.T) {
 			machine := snet.LocalMachine{InterfaceIP: net.IP{192, 0, 2, 1}}
 			mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
 			mockConn := mock_snet.NewMockPacketConn(ctrl)
-			mockConn.EXPECT().Close()
 			mockPacketDispatcherService.EXPECT().RegisterTimeout(srcIA,
 				machine.AppAddress(),
 				nil,
