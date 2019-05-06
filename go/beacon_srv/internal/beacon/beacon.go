@@ -15,6 +15,7 @@
 package beacon
 
 import (
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
@@ -25,6 +26,32 @@ type Beacon struct {
 	Segment *seg.PathSegment
 	// InIfId is the interface the beacon is received on.
 	InIfId common.IFIDType
+}
+
+// Diversity returns the link diversity between this and the other beacon.
+// The link diversity indicates the number of links in this beacon that do not
+// appear in the other beacon. Note: Diversity is asymmetric.
+func (b Beacon) Diversity(other Beacon) int {
+	var diff int
+	for _, asEntry := range b.Segment.ASEntries {
+		ia, ifid := link(asEntry)
+		var found bool
+		for _, otherEntry := range other.Segment.ASEntries {
+			oia, oifid := link(otherEntry)
+			if ia.Equal(oia) && ifid == oifid {
+				found = true
+				break
+			}
+		}
+		if !found {
+			diff++
+		}
+	}
+	return diff
+}
+
+func link(entry *seg.ASEntry) (addr.IA, common.IFIDType) {
+	return entry.IA(), entry.HopEntries[0].RemoteOutIF
 }
 
 // BeaconOrErr contains a read-only beacon or an error.

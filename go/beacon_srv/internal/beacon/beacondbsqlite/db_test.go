@@ -66,7 +66,7 @@ func TestOpenExisting(t *testing.T) {
 		// Open existing database
 		db, err := New(tmpF, testIA)
 		xtest.FailOnErr(t, err)
-		res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp)
+		res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 		SoMsg("err", err, ShouldBeNil)
 		beacondbtest.CheckResult(t, res, b)
 	})
