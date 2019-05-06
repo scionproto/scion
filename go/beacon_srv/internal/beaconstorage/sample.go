@@ -12,24 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package beaconstorage
 
-const idSample = "bs-1"
+const beaconDbSample = `
+# The type of trustdb backend. (default sqlite)
+Backend = "sqlite"
 
-const bsconfigSample = `
-# The interval between sending interface keepalives. (default 1s)
-KeepaliveInterval = "1s"
+# Connection for the trust database.
+Connection = "/var/lib/scion/beacondb/%s.beacon.db"
 
-# The timeout until an interface that has not received keepalives
-# is considered expired. (default 3s)
-KeepaliveTimeout = "3s"
+# The maximum number of open connections to the database. In case of the
+# empty string, the limit is not set and uses the go default. (default "")
+MaxOpenConns = ""
 
-# The interval between originating beacons. (default 5s)
-OriginationInterval = "5s"
-
-# The interval between propagating beacons. (default 5s)
-PropagationInterval = "5s"
-
-# The interval between registering beacons. (default 5s)
-RegistrationInterval = "5s"
+# The maximum number of idle connections to the database. In case of the
+# empty string, the limit is not set and uses the go default. (default "")
+MaxIdleConns = ""
 `

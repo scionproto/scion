@@ -9,10 +9,13 @@ go_library(
     importpath = "github.com/scionproto/scion/go/beacon_srv/internal/config",
     visibility = ["//go/beacon_srv:__subpackages__"],
     deps = [
+        "//go/beacon_srv/internal/beaconstorage:go_default_library",
+        "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
         "//go/lib/truststorage:go_default_library",
+        "//go/lib/util:go_default_library",
     ],
 )
 
@@ -21,6 +24,7 @@ go_test(
     srcs = ["config_test.go"],
     embed = [":go_default_library"],
     deps = [
+        "//go/beacon_srv/internal/beaconstorage/beaconstoragetest:go_default_library",
         "//go/lib/env/envtest:go_default_library",
         "//go/lib/infra/modules/idiscovery/idiscoverytest:go_default_library",
         "//go/lib/truststorage/truststoragetest:go_default_library",

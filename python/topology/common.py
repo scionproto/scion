@@ -31,6 +31,7 @@ SCION_SERVICE_NAMES = (
 )
 
 BR_CONFIG_NAME = 'br.toml'
+BS_CONFIG_NAME = 'bs.toml'
 CS_CONFIG_NAME = 'cs.toml'
 PS_CONFIG_NAME = 'ps.toml'
 SD_CONFIG_NAME = 'sd.toml'

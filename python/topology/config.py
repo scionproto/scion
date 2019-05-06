@@ -76,6 +76,7 @@ from topology.zk import ZKGenArgs, ZKGenerator
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
 
+DEFAULT_BEACON_SERVER = "py"
 DEFAULT_CERTIFICATE_SERVER = "go"
 DEFAULT_SCIOND = "go"
 DEFAULT_PATH_SERVER = "go"
@@ -187,6 +188,8 @@ class ConfigGenerator(object):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
         go_gen.generate_br()
+        if self.args.beacon_server == "go":
+            go_gen.generate_bs()
         if self.args.cert_server == "go":
             go_gen.generate_cs()
         if self.args.sciond == "go":
