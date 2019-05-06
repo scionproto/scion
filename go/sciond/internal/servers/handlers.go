@@ -47,7 +47,7 @@ const (
 )
 
 type Handler interface {
-	Handle(ctx context.Context, transport infra.Transport, src net.Addr, pld *sciond.Pld)
+	Handle(ctx context.Context, conn net.PacketConn, src net.Addr, pld *sciond.Pld)
 }
 
 // PathRequestHandler represents the shared global state for the handling of all
@@ -57,7 +57,7 @@ type PathRequestHandler struct {
 	Fetcher *fetcher.Fetcher
 }
 
-func (h *PathRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -82,7 +82,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, transport infra.Transpo
 	}
 	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
 	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	if _, err := conn.WriteTo(b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
@@ -97,7 +97,7 @@ type ASInfoRequestHandler struct {
 	TrustStore infra.TrustStore
 }
 
-func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -147,9 +147,8 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if _, err := conn.WriteTo(b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
@@ -161,7 +160,7 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 // for each IFInfoRequest it receives.
 type IFInfoRequestHandler struct{}
 
-func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -200,9 +199,8 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if _, err := conn.WriteTo(b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
@@ -214,7 +212,7 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 // for each SVCInfoRequest it receives.
 type SVCInfoRequestHandler struct{}
 
-func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport,
+func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -241,9 +239,8 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Tran
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if _, err := conn.WriteTo(b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
@@ -272,7 +269,7 @@ type RevNotificationHandler struct {
 	TrustStore infra.TrustStore
 }
 
-func (h *RevNotificationHandler) Handle(ctx context.Context, transport infra.Transport,
+func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -312,7 +309,8 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, transport infra.Tra
 	}
 	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
 	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if _, err := conn.WriteTo(b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}

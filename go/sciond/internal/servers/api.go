@@ -23,47 +23,47 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// TransportHandler is a SCIOND API server running on top of a Transport. It
+// ConnHandler is a SCIOND API server running on top of a PacketConn. It
 // reads messages from the transport, and passes them to the relevant request
 // handler.
-type TransportHandler struct {
-	Transport infra.Transport
+type ConnHandler struct {
+	Conn net.PacketConn
 	// State for request Handlers
 	Handlers map[proto.SCIONDMsg_Which]Handler
 	Logger   log.Logger
 }
 
-func NewTransportHandler(transport infra.Transport,
-	handlers HandlerMap, logger log.Logger) *TransportHandler {
+func NewConnHandler(conn net.PacketConn,
+	handlers HandlerMap, logger log.Logger) *ConnHandler {
 
-	return &TransportHandler{
-		Transport: transport,
-		Handlers:  handlers,
-		Logger:    logger,
+	return &ConnHandler{
+		Conn:     conn,
+		Handlers: handlers,
+		Logger:   logger,
 	}
 }
 
-func (srv *TransportHandler) Serve() error {
+func (srv *ConnHandler) Serve() error {
 	for {
-		b, address, err := srv.Transport.RecvFrom(context.Background())
+		b := make(common.RawBytes, common.MaxMTU)
+		n, address, err := srv.Conn.ReadFrom(b)
 		if err != nil {
 			return err
 		}
 		go func() {
 			defer log.LogPanicAndExit()
-			srv.Handle(b, address)
+			srv.Handle(b[:n], address)
 		}()
 	}
 }
 
-func (srv *TransportHandler) Handle(b common.RawBytes, address net.Addr) {
+func (srv *ConnHandler) Handle(b common.RawBytes, address net.Addr) {
 	p := &sciond.Pld{}
 	if err := proto.ParseFromReader(p, bytes.NewReader(b)); err != nil {
 		log.Error("capnp error", "err", err)
@@ -75,16 +75,9 @@ func (srv *TransportHandler) Handle(b common.RawBytes, address net.Addr) {
 		return
 	}
 	ctx := log.CtxWith(context.Background(), srv.Logger.New("debug_id", util.GetDebugID()))
-	handler.Handle(ctx, srv.Transport, address, p)
+	handler.Handle(ctx, srv.Conn, address, p)
 }
 
-func (srv *TransportHandler) Close() error {
-	// FIXME(scrye): propagate correct contexts
-	return srv.Transport.Close(context.TODO())
-}
-
-// Shutdown cleanly stops the server from handling future requests, while
-// allowing pending requests to finish.
-func (srv *TransportHandler) Shutdown() error {
-	panic("not implemented")
+func (srv *ConnHandler) Close() error {
+	return srv.Conn.Close()
 }

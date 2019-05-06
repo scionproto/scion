@@ -17,7 +17,6 @@ go_library(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/hostinfo:go_default_library",
         "//go/lib/infra/disp:go_default_library",
-        "//go/lib/infra/transport:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/spath:go_default_library",

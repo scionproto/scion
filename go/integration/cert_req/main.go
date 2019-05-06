@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -73,7 +72,7 @@ func (c client) run() int {
 		&messenger.Config{
 			IA: integration.Local.IA,
 			Dispatcher: disp.New(
-				transport.NewPacketTransport(c.conn),
+				c.conn,
 				messenger.DefaultAdapter,
 				log.Root(),
 			),

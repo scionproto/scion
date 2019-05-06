@@ -57,7 +57,7 @@ const (
 
 type Dispatcher struct {
 	// Used to send and receive messages
-	transport infra.Transport
+	conn net.PacketConn
 	// Contains keys for messages awaiting replies
 	waitTable *waitTable
 	// Channel for messages read by the background receiver; drained by calls
@@ -85,9 +85,9 @@ type Dispatcher struct {
 // (lower levels might be blocked on an uninterruptible call).
 //
 // A Dispatcher can be safely used by concurrent goroutines.
-func New(t infra.Transport, adapter MessageAdapter, logger log.Logger) *Dispatcher {
+func New(conn net.PacketConn, adapter MessageAdapter, logger log.Logger) *Dispatcher {
 	d := &Dispatcher{
-		transport:   t,
+		conn:        conn,
 		waitTable:   newWaitTable(adapter.MsgKey),
 		adapter:     adapter,
 		readEvents:  make(chan *readEventDesc, maxReadEvents),
@@ -114,10 +114,11 @@ func (d *Dispatcher) Request(ctx context.Context, msg proto.Cerealizable,
 
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return nil, common.NewBasicError(infra.StrAdapterError, err, "op", "adapter.MsgToRaw")
+		return nil, common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
 	}
-	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
-		return nil, common.NewBasicError(infra.StrTransportError, err, "op", "transport.SendMsgTo")
+	// FIXME(scrye): Writes rarely block on packet conns.
+	if _, err := d.conn.WriteTo(b, address); err != nil {
+		return nil, common.NewBasicError(infra.StrTransportError, err, "op", "WriteTo")
 	}
 
 	reply, err := d.waitTable.waitForReply(ctx, msg)
@@ -136,8 +137,8 @@ func (d *Dispatcher) Notify(ctx context.Context, msg proto.Cerealizable, address
 	if err != nil {
 		return common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
 	}
-	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
-		return common.NewBasicError(infra.StrTransportError, err, "op", "SendMsgTo")
+	if _, err := d.conn.WriteTo(b, address); err != nil {
+		return common.NewBasicError(infra.StrTransportError, err, "op", "WriteTo")
 	}
 	return nil
 }
@@ -149,8 +150,8 @@ func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg proto.Cerealizabl
 	if err != nil {
 		return common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
 	}
-	if err := d.transport.SendUnreliableMsgTo(ctx, b, address); err != nil {
-		return common.NewBasicError(infra.StrTransportError, err, "op", "SendUnreliableMsgTo")
+	if _, err := d.conn.WriteTo(b, address); err != nil {
+		return common.NewBasicError(infra.StrTransportError, err, "op", "WriteTo")
 	}
 	return nil
 }
@@ -193,7 +194,9 @@ func (d *Dispatcher) goBackgroundReceiver() {
 // returns true.
 func (d *Dispatcher) recvNext() bool {
 	// Once the transport is closed, RecvFrom returns immediately.
-	b, address, err := d.transport.RecvFrom(context.Background())
+	b := make([]byte, common.MaxMTU)
+	n, address, err := d.conn.ReadFrom(b)
+	b = b[:n]
 	if err != nil {
 		if isCleanShutdownError(err) {
 			return true
@@ -243,7 +246,7 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 	default:
 		close(d.closedChan)
 	}
-	err := d.transport.Close(ctx)
+	err := d.conn.Close()
 	if err != nil {
 		return common.NewBasicError("Unable to close transport", err)
 	}

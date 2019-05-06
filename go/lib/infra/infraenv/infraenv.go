@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -104,7 +103,7 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		}
 	} else {
 		msgerCfg.Dispatcher = disp.New(
-			transport.NewPacketTransport(conn),
+			conn,
 			messenger.DefaultAdapter,
 			log.Root(),
 		)

@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -694,7 +693,7 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) 
 	config := &messenger.Config{
 		IA: ia,
 		Dispatcher: disp.New(
-			transport.NewPacketTransport(conn),
+			conn,
 			messenger.DefaultAdapter,
 			log.New("name", name),
 		),
