@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/xtest/matchers"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -48,43 +49,6 @@ var (
 	expireTime  = time.Second + DefaultKeepaliveTimeout
 	ia          = xtest.MustParseIA("1-ff00:0:111")
 )
-
-type revSliceMatcher struct {
-	verifier  path_mgmt.Verifier
-	matchRevs []*path_mgmt.RevInfo
-}
-
-func (m *revSliceMatcher) Matches(x interface{}) bool {
-	sRevs, ok := x.([]*path_mgmt.SignedRevInfo)
-	if !ok {
-		return false
-	}
-	revInfos := make(map[path_mgmt.RevInfo]*path_mgmt.RevInfo)
-	for _, rev := range sRevs {
-		revInfo, err := rev.VerifiedRevInfo(context.Background(), m.verifier)
-		if err != nil {
-			return false
-		}
-		key := *revInfo
-		key.RawTimestamp, key.RawTTL = 0, 0
-		revInfos[key] = revInfo
-	}
-	for _, expectedRev := range m.matchRevs {
-		rev, ok := revInfos[*expectedRev]
-		if !ok {
-			return false
-		}
-		if rev.Active() != nil {
-			return false
-		}
-		delete(revInfos, *expectedRev)
-	}
-	return len(revInfos) == 0
-}
-
-func (m *revSliceMatcher) String() string {
-	return fmt.Sprintf("is slice of signed revocations matching %v and verifiable", m.matchRevs)
-}
 
 type brMsg struct {
 	msg *path_mgmt.IFStateInfos
@@ -142,9 +106,9 @@ func TestRevokeInterface(t *testing.T) {
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).lastActivate = time.Now().Add(-expireTime)
-		revInserter.EXPECT().InsertRevocations(gomock.Any(), &revSliceMatcher{
-			verifier: revVerifier(pub),
-			matchRevs: []*path_mgmt.RevInfo{{
+		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
+			Verifier: revVerifier(pub),
+			MatchRevs: []path_mgmt.RevInfo{{
 				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
 			},
 		})
@@ -232,9 +196,9 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
 		intfs.Get(101).Revoke(srev)
-		revInserter.EXPECT().InsertRevocations(gomock.Any(), &revSliceMatcher{
-			verifier: revVerifier(pub),
-			matchRevs: []*path_mgmt.RevInfo{{
+		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
+			Verifier: revVerifier(pub),
+			MatchRevs: []path_mgmt.RevInfo{{
 				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
 			},
 		})
