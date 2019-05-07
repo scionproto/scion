@@ -37,6 +37,30 @@ type policies struct {
 	prop *Policy
 }
 
+// validate checks that each policy is of the correct type.
+func (p policies) validate(core bool) error {
+	if p.prop.Type != PropPolicy {
+		return common.NewBasicError("Invalid policy type", nil,
+			"expected", PropPolicy, "actual", p.prop.Type)
+	}
+	if core {
+		if p.core.Type != CoreRegPolicy {
+			return common.NewBasicError("Invalid policy type", nil,
+				"expected", CoreRegPolicy, "actual", p.core.Type)
+		}
+		return nil
+	}
+	if p.down.Type != DownRegPolicy {
+		return common.NewBasicError("Invalid policy type", nil,
+			"expected", DownRegPolicy, "actual", p.down.Type)
+	}
+	if p.up.Type != UpRegPolicy {
+		return common.NewBasicError("Invalid policy type", nil,
+			"expected", UpRegPolicy, "actual", p.up.Type)
+	}
+	return nil
+}
+
 // Usage returns the allowed usage of the beacon based on all available
 // policies. For missing policies, the usage is not permitted.
 func (p policies) Usage(beacon Beacon) Usage {
@@ -65,22 +89,26 @@ type Store struct {
 }
 
 // NewBeaconStore creates a new beacon store for a non-core AS.
-func NewBeaconStore(prop, upReg, downReg Policy, db DB) *Store {
-	prop.InitDefaults()
-	upReg.InitDefaults()
-	downReg.InitDefaults()
+func NewBeaconStore(prop, upReg, downReg Policy, db DB) (*Store, error) {
+	prop.initDefaults(PropPolicy)
+	upReg.initDefaults(UpRegPolicy)
+	downReg.initDefaults(DownRegPolicy)
+	p := policies{
+		prop: &prop,
+		down: &downReg,
+		up:   &upReg,
+	}
+	if err := p.validate(false); err != nil {
+		return nil, err
+	}
 	s := &Store{
 		baseStore: baseStore{
-			db: db,
-			policies: policies{
-				prop: &prop,
-				down: &downReg,
-				up:   &upReg,
-			},
-			algo: baseAlgo{},
+			db:       db,
+			policies: p,
+			algo:     baseAlgo{},
 		},
 	}
-	return s
+	return s, nil
 }
 
 // BeaconsToPropagate returns a channel that provides all beacons to propagate
@@ -132,20 +160,24 @@ type CoreStore struct {
 }
 
 // NewCoreBeaconStore creates a new beacon store for a non-core AS.
-func NewCoreBeaconStore(prop, coreReg Policy, db DB) *CoreStore {
-	prop.InitDefaults()
-	coreReg.InitDefaults()
+func NewCoreBeaconStore(prop, coreReg Policy, db DB) (*CoreStore, error) {
+	prop.initDefaults(PropPolicy)
+	coreReg.initDefaults(CoreRegPolicy)
+	p := policies{
+		prop: &prop,
+		core: &coreReg,
+	}
+	if err := p.validate(true); err != nil {
+		return nil, err
+	}
 	s := &CoreStore{
 		baseStore: baseStore{
-			db: db,
-			policies: policies{
-				prop: &prop,
-				core: &coreReg,
-			},
-			algo: baseAlgo{},
+			db:       db,
+			policies: p,
+			algo:     baseAlgo{},
 		},
 	}
-	return s
+	return s, nil
 }
 
 // BeaconsToPropagate returns a channel that provides all beacons to propagate
@@ -275,6 +307,12 @@ func (s *baseStore) DeleteExpiredRevocations(ctx context.Context) (int, error) {
 // store.
 func (s *baseStore) DeleteRevokedBeacons(ctx context.Context) (int, error) {
 	return s.db.DeleteRevokedBeacons(ctx, time.Now())
+}
+
+// UpdatePolicy updates the policy. Beacons that are filtered by all
+// policies after the update are removed.
+func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
+	return common.NewBasicError("policy update not supported", nil)
 }
 
 func min(a, b int) int {

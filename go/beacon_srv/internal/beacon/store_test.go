@@ -157,7 +157,8 @@ func testStoreSelection(t *testing.T,
 			prop := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.PropPolicy}
 			up := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.UpRegPolicy}
 			down := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.DownRegPolicy}
-			store := beacon.NewBeaconStore(prop, up, down, db)
+			store, err := beacon.NewBeaconStore(prop, up, down, db)
+			xtest.FailOnErr(t, err)
 			db.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
 				addr.IA{}).DoAndReturn(
 				func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -321,7 +322,8 @@ func testCoreStoreSelection(t *testing.T,
 			tx := mock_beacon.NewMockTransaction(mctrl)
 			prop := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.PropPolicy}
 			reg := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.CoreRegPolicy}
-			store := beacon.NewCoreBeaconStore(prop, reg, db)
+			store, err := beacon.NewCoreBeaconStore(prop, reg, db)
+			xtest.FailOnErr(t, err)
 			// respFunc serves beacons on the returned channel.
 			type respFunc func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error)
 			// responder is a factory that generates a function serving the specified beacons.

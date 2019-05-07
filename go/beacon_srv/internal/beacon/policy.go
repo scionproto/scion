@@ -70,6 +70,13 @@ func (p *Policy) InitDefaults() {
 	p.Filter.InitDefaults()
 }
 
+func (p *Policy) initDefaults(t PolicyType) {
+	p.InitDefaults()
+	if p.Type == "" {
+		p.Type = t
+	}
+}
+
 // ParseYaml parses the policy in yaml format and initializes the default values.
 func ParseYaml(b common.RawBytes, t PolicyType) (*Policy, error) {
 	p := &Policy{}
