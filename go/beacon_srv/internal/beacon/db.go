@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
@@ -37,12 +39,20 @@ type DBRead interface {
 		<-chan BeaconOrErr, error)
 	// BeaconSources returns all source ISD-AS of the beacons in the database.
 	BeaconSources(ctx context.Context) ([]addr.IA, error)
+	// AllRevocations returns all revocations in the database as a channel. The
+	// result channel either carries revocations or errors. After sending the
+	// first error, the channel is closed. The channel must be drained, since
+	// the implementation might spawn go routines to fill the channel.
+	AllRevocations(ctx context.Context) (<-chan RevocationOrErr, error)
 }
 
 // DBWrite defines all write operations of the beacon DB.
 type DBWrite interface {
 	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (int, error)
 	DeleteExpiredBeacons(ctx context.Context, now time.Time) (int, error)
+	InsertRevocation(ctx context.Context, revocation *path_mgmt.SignedRevInfo) error
+	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
+	DeleteExpiredRevocations(ctx context.Context, now time.Time) (int, error)
 }
 
 // DBReadWrite defines all read an write operations of the beacon DB.
