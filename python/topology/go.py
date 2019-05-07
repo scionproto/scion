@@ -27,6 +27,7 @@ from lib.util import write_file
 from topology.common import (
     ArgsTopoDicts,
     BR_CONFIG_NAME,
+    BS_CONFIG_NAME,
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
@@ -40,6 +41,7 @@ from topology.common import (
     trust_db_conf_entry,
 )
 from topology.prometheus import (
+    BS_PROM_PORT,
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     PS_PROM_PORT,
@@ -86,6 +88,32 @@ class GoGenerator(object):
             'br': {
                 'Profile': False,
             },
+        }
+        return raw_entry
+
+    def generate_bs(self):
+        for topo_id, topo in self.args.topo_dicts.items():
+            for elem_id, elem in topo.get("BeaconService", {}).items():
+                # only a single Go-BS per AS is currently supported
+                if elem_id.endswith("-1"):
+                    base = topo_id.base_dir(self.args.output_dir)
+                    bs_conf = self._build_bs_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id, BS_CONFIG_NAME), toml.dumps(bs_conf))
+
+    def _build_bs_conf(self, topo_id, ia, base, name, infra_elem):
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': config_dir,
+                'ReconnectToDispatcher': True,
+            },
+            'logging': self._log_entry(name),
+            'trustDB': trust_db_conf_entry(self.args, name),
+            'beaconDB': beacon_db_conf_entry(self.args, name),
+            'discovery': self._discovery_entry(),
+            'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
+            'EnableQUICTest': self.args.qtest,
         }
         return raw_entry
 
@@ -246,3 +274,11 @@ class GoGenerator(object):
         return {
             'Prometheus': prom_addr
         }
+
+
+def beacon_db_conf_entry(args, name):
+    db_dir = '/share/cache' if args.docker else 'gen-cache'
+    return {
+        'Backend': 'sqlite',
+        'Connection': os.path.join(db_dir, '%s.beacon.db' % name),
+    }

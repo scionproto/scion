@@ -21,6 +21,7 @@ import (
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage/beaconstoragetest"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
@@ -43,6 +44,7 @@ func TestConfigSample(t *testing.T) {
 func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil)
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
+	beaconstoragetest.InitTestBeaconDBConf(&cfg.BeaconDB)
 	idiscoverytest.InitTestConfig(&cfg.Discovery)
 	InitTestBSConfig(&cfg.BS)
 }
@@ -52,8 +54,19 @@ func InitTestBSConfig(cfg *BSConfig) {}
 func CheckTestConfig(cfg *Config, id string) {
 	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, id)
 	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
+	beaconstoragetest.CheckTestBeaconDBConf(&cfg.BeaconDB, id)
 	idiscoverytest.CheckTestConfig(&cfg.Discovery)
 	CheckTestBSConfig(&cfg.BS)
 }
 
-func CheckTestBSConfig(cfg *BSConfig) {}
+func CheckTestBSConfig(cfg *BSConfig) {
+	SoMsg("KeepaliveTimeout", cfg.KeepaliveTimeout.Duration, ShouldEqual, DefaultKeepaliveTimeout)
+	SoMsg("KeepaliveInterval", cfg.KeepaliveInterval.Duration, ShouldEqual,
+		DefaultKeepaliveInterval)
+	SoMsg("OriginationInterval", cfg.OriginationInterval.Duration, ShouldEqual,
+		DefaultOriginationInterval)
+	SoMsg("PropagationInterval", cfg.PropagationInterval.Duration, ShouldEqual,
+		DefaultPropagationInterval)
+	SoMsg("RegistrationInterval", cfg.RegistrationInterval.Duration, ShouldEqual,
+		DefaultRegistrationInterval)
+}
