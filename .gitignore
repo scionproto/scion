@@ -78,10 +78,6 @@ __pycache__
 ##########################
 tags
 
-# HSR
-##########################
-c/lib/hsr/build
-
 # Debian Packaging files
 ##########################
 /debian/*
