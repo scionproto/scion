@@ -40,6 +40,11 @@ type TopoProvider interface {
 	Get() *topology.Topo
 }
 
+// RevInserter stores revocation into persistent storage.
+type RevInserter interface {
+	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
+}
+
 // RevConfig configures the revoker.
 type RevConfig struct {
 	RevOverlap time.Duration
@@ -58,6 +63,7 @@ var _ periodic.Task = (*Revoker)(nil)
 // Revocations for already revoked interfaces are renewed periodically.
 type Revoker struct {
 	intfs        *Interfaces
+	revInserter  RevInserter
 	msger        infra.Messenger
 	cfg          RevConfig
 	signer       infra.Signer
@@ -65,12 +71,13 @@ type Revoker struct {
 }
 
 // NewRevoker creates a new revoker from the given arguments.
-func NewRevoker(intfs *Interfaces, msger infra.Messenger,
+func NewRevoker(intfs *Interfaces, revInserter RevInserter, msger infra.Messenger,
 	signer infra.Signer, cfg RevConfig, topoProvider TopoProvider) *Revoker {
 
 	cfg.InitDefaults()
 	return &Revoker{
 		intfs:        intfs,
+		revInserter:  revInserter,
 		msger:        msger,
 		cfg:          cfg,
 		signer:       signer,
@@ -101,6 +108,10 @@ func (r *Revoker) Run(ctx context.Context) {
 	}
 	if len(revs) > 0 {
 		wg := &sync.WaitGroup{}
+		if err := r.revInserter.InsertRevocations(ctx, toSlice(revs)...); err != nil {
+			log.Error("[Revoker] Failed to insert revocations in store", "err", err)
+			// still continue to try to push it to BR/PS.
+		}
 		r.pushRevocationsToBRs(ctx, revs, wg)
 		r.pushRevocationsToPS(ctx, revs)
 		wg.Wait()
@@ -186,4 +197,12 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 			log.Error("[Revoker] Failed to send revocation to PS", "ifid", ifid, "err", err)
 		}
 	}
+}
+
+func toSlice(revs map[common.IFIDType]*path_mgmt.SignedRevInfo) []*path_mgmt.SignedRevInfo {
+	res := make([]*path_mgmt.SignedRevInfo, 0, len(revs))
+	for _, rev := range revs {
+		res = append(res, rev)
+	}
+	return res
 }
