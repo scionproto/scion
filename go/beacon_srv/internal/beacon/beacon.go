@@ -17,6 +17,7 @@ package beacon
 import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
@@ -58,4 +59,10 @@ func link(entry *seg.ASEntry) (addr.IA, common.IFIDType) {
 type BeaconOrErr struct {
 	Beacon Beacon
 	Err    error
+}
+
+// RevocationOrErr contains a signed revocation or an error.
+type RevocationOrErr struct {
+	Rev *path_mgmt.SignedRevInfo
+	Err error
 }

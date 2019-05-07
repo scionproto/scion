@@ -10,6 +10,8 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	beacon "github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	addr "github.com/scionproto/scion/go/lib/addr"
+	common "github.com/scionproto/scion/go/lib/common"
+	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	reflect "reflect"
 	time "time"
 )
@@ -35,6 +37,21 @@ func NewMockDB(ctrl *gomock.Controller) *MockDB {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockDB) EXPECT() *MockDBMockRecorder {
 	return m.recorder
+}
+
+// AllRevocations mocks base method
+func (m *MockDB) AllRevocations(arg0 context.Context) (<-chan beacon.RevocationOrErr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllRevocations", arg0)
+	ret0, _ := ret[0].(<-chan beacon.RevocationOrErr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AllRevocations indicates an expected call of AllRevocations
+func (mr *MockDBMockRecorder) AllRevocations(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllRevocations", reflect.TypeOf((*MockDB)(nil).AllRevocations), arg0)
 }
 
 // BeaconSources mocks base method
@@ -111,6 +128,50 @@ func (mr *MockDBMockRecorder) DeleteExpiredBeacons(arg0, arg1 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredBeacons", reflect.TypeOf((*MockDB)(nil).DeleteExpiredBeacons), arg0, arg1)
 }
 
+// DeleteExpiredRevocations mocks base method
+func (m *MockDB) DeleteExpiredRevocations(arg0 context.Context, arg1 time.Time) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteExpiredRevocations", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteExpiredRevocations indicates an expected call of DeleteExpiredRevocations
+func (mr *MockDBMockRecorder) DeleteExpiredRevocations(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredRevocations", reflect.TypeOf((*MockDB)(nil).DeleteExpiredRevocations), arg0, arg1)
+}
+
+// DeleteRevocation mocks base method
+func (m *MockDB) DeleteRevocation(arg0 context.Context, arg1 addr.IA, arg2 common.IFIDType) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRevocation", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRevocation indicates an expected call of DeleteRevocation
+func (mr *MockDBMockRecorder) DeleteRevocation(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevocation", reflect.TypeOf((*MockDB)(nil).DeleteRevocation), arg0, arg1, arg2)
+}
+
+// DeleteRevokedBeacons mocks base method
+func (m *MockDB) DeleteRevokedBeacons(arg0 context.Context, arg1 time.Time) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRevokedBeacons", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteRevokedBeacons indicates an expected call of DeleteRevokedBeacons
+func (mr *MockDBMockRecorder) DeleteRevokedBeacons(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevokedBeacons", reflect.TypeOf((*MockDB)(nil).DeleteRevokedBeacons), arg0, arg1)
+}
+
 // InsertBeacon mocks base method
 func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (int, error) {
 	m.ctrl.T.Helper()
@@ -124,6 +185,20 @@ func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 bea
 func (mr *MockDBMockRecorder) InsertBeacon(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertBeacon", reflect.TypeOf((*MockDB)(nil).InsertBeacon), arg0, arg1, arg2)
+}
+
+// InsertRevocation mocks base method
+func (m *MockDB) InsertRevocation(arg0 context.Context, arg1 *path_mgmt.SignedRevInfo) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertRevocation", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InsertRevocation indicates an expected call of InsertRevocation
+func (mr *MockDBMockRecorder) InsertRevocation(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertRevocation", reflect.TypeOf((*MockDB)(nil).InsertRevocation), arg0, arg1)
 }
 
 // SetMaxIdleConns mocks base method
@@ -171,6 +246,21 @@ func NewMockTransaction(ctrl *gomock.Controller) *MockTransaction {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockTransaction) EXPECT() *MockTransactionMockRecorder {
 	return m.recorder
+}
+
+// AllRevocations mocks base method
+func (m *MockTransaction) AllRevocations(arg0 context.Context) (<-chan beacon.RevocationOrErr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllRevocations", arg0)
+	ret0, _ := ret[0].(<-chan beacon.RevocationOrErr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AllRevocations indicates an expected call of AllRevocations
+func (mr *MockTransactionMockRecorder) AllRevocations(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllRevocations", reflect.TypeOf((*MockTransaction)(nil).AllRevocations), arg0)
 }
 
 // BeaconSources mocks base method
@@ -232,6 +322,50 @@ func (mr *MockTransactionMockRecorder) DeleteExpiredBeacons(arg0, arg1 interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredBeacons", reflect.TypeOf((*MockTransaction)(nil).DeleteExpiredBeacons), arg0, arg1)
 }
 
+// DeleteExpiredRevocations mocks base method
+func (m *MockTransaction) DeleteExpiredRevocations(arg0 context.Context, arg1 time.Time) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteExpiredRevocations", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteExpiredRevocations indicates an expected call of DeleteExpiredRevocations
+func (mr *MockTransactionMockRecorder) DeleteExpiredRevocations(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredRevocations", reflect.TypeOf((*MockTransaction)(nil).DeleteExpiredRevocations), arg0, arg1)
+}
+
+// DeleteRevocation mocks base method
+func (m *MockTransaction) DeleteRevocation(arg0 context.Context, arg1 addr.IA, arg2 common.IFIDType) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRevocation", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRevocation indicates an expected call of DeleteRevocation
+func (mr *MockTransactionMockRecorder) DeleteRevocation(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevocation", reflect.TypeOf((*MockTransaction)(nil).DeleteRevocation), arg0, arg1, arg2)
+}
+
+// DeleteRevokedBeacons mocks base method
+func (m *MockTransaction) DeleteRevokedBeacons(arg0 context.Context, arg1 time.Time) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRevokedBeacons", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteRevokedBeacons indicates an expected call of DeleteRevokedBeacons
+func (mr *MockTransactionMockRecorder) DeleteRevokedBeacons(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevokedBeacons", reflect.TypeOf((*MockTransaction)(nil).DeleteRevokedBeacons), arg0, arg1)
+}
+
 // InsertBeacon mocks base method
 func (m *MockTransaction) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (int, error) {
 	m.ctrl.T.Helper()
@@ -245,6 +379,20 @@ func (m *MockTransaction) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon,
 func (mr *MockTransactionMockRecorder) InsertBeacon(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertBeacon", reflect.TypeOf((*MockTransaction)(nil).InsertBeacon), arg0, arg1, arg2)
+}
+
+// InsertRevocation mocks base method
+func (m *MockTransaction) InsertRevocation(arg0 context.Context, arg1 *path_mgmt.SignedRevInfo) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertRevocation", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InsertRevocation indicates an expected call of InsertRevocation
+func (mr *MockTransactionMockRecorder) InsertRevocation(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertRevocation", reflect.TypeOf((*MockTransaction)(nil).InsertRevocation), arg0, arg1)
 }
 
 // Rollback mocks base method

@@ -27,9 +27,12 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -108,6 +111,11 @@ func Test(t *testing.T, db Testable) {
 	Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
 	Convey("CandidateBeacons", testWrapper(testCandidateBeacons))
 	Convey("DeleteExpiredBeacons", testWrapper(testDeleteExpiredBeacons))
+	Convey("DeleteRevokedBeacons", testWrapper(testDeleteRevokedBeacons))
+	Convey("AllRevocations", testWrapper(testAllRevocations))
+	Convey("CandidateBeaconsWithRevs", testWrapper(testReadWithRevocations))
+	Convey("DeleteRevocation", testWrapper(testDeleteRevocation))
+	Convey("DeleteExpiredRevocations", testWrapper(testDeleteExpiredRevocations))
 	txTestWrapper := func(test func(*testing.T, *gomock.Controller, beacon.DBReadWrite)) func() {
 		return func() {
 			ctrl := gomock.NewController(t)
@@ -125,10 +133,15 @@ func Test(t *testing.T, db Testable) {
 	Convey("WithTransaction", func() {
 		Convey("BeaconSources", txTestWrapper(testBeaconSources))
 		Convey("InsertBeacon", txTestWrapper(testInsertBeacon))
-		Convey("UpdateBeacon", testWrapper(testUpdateExisting))
-		Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
+		Convey("UpdateBeacon", txTestWrapper(testUpdateExisting))
+		Convey("IgnoreBeaconUpdate", txTestWrapper(testUpdateOlderIgnored))
 		Convey("CandidateBeacons", txTestWrapper(testCandidateBeacons))
 		Convey("DeleteExpiredBeacons", txTestWrapper(testDeleteExpiredBeacons))
+		Convey("DeleteRevokedBeacons", txTestWrapper(testDeleteRevokedBeacons))
+		Convey("AllRevocations", txTestWrapper(testAllRevocations))
+		Convey("CandidateBeaconsWithRevs", txTestWrapper(testReadWithRevocations))
+		Convey("DeleteRevocation", txTestWrapper(testDeleteRevocation))
+		Convey("DeleteExpiredRevocations", txTestWrapper(testDeleteExpiredRevocations))
 		Convey("TestTransactionRollback", func() {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -240,20 +253,36 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DBR
 // CheckResult checks that the expected beacon is returned in results, and
 // that it is the only returned beacon
 func CheckResult(t *testing.T, results <-chan beacon.BeaconOrErr, expected beacon.Beacon) {
-	beacons := make([]beacon.BeaconOrErr, 0, 1)
-	for b := range results {
-		beacons = append(beacons, b)
+	CheckResults(t, results, []beacon.Beacon{expected})
+}
+
+func CheckResults(t *testing.T, results <-chan beacon.BeaconOrErr,
+	expectedBeacons []beacon.Beacon) {
+
+	for i, expected := range expectedBeacons {
+		select {
+		case res := <-results:
+			SoMsg(fmt.Sprintf("Beacon %d err", i), res.Err, ShouldBeNil)
+			SoMsg(fmt.Sprintf("Beacon %d segment", i), res.Beacon.Segment, ShouldNotBeNil)
+			// Make sure the segment is properly initialized.
+			_, err := res.Beacon.Segment.ID()
+			xtest.FailOnErr(t, err)
+			_, err = res.Beacon.Segment.FullId()
+			xtest.FailOnErr(t, err)
+			SoMsg(fmt.Sprintf("Segment %d should match", i), res.Beacon.Segment, ShouldResemble,
+				expected.Segment)
+			SoMsg(fmt.Sprintf("InIfId %d should match", i), res.Beacon.InIfId, ShouldEqual,
+				expected.InIfId)
+		case <-time.After(timeout):
+			t.Fatalf("Beacon %d took too long", i)
+		}
 	}
-	SoMsg("Expect one result", len(beacons), ShouldEqual, 1)
-	SoMsg("Contains beacon", beacons[0].Err, ShouldBeNil)
-	// Make sure the segment is properly initialized.
-	_, err := beacons[0].Beacon.Segment.ID()
-	xtest.FailOnErr(t, err)
-	_, err = beacons[0].Beacon.Segment.FullId()
-	xtest.FailOnErr(t, err)
-	SoMsg("Beacon.Segment should match", beacons[0].Beacon.Segment, ShouldResemble,
-		expected.Segment)
-	SoMsg("Beacon.InIfId should match", beacons[0].Beacon.InIfId, ShouldEqual, expected.InIfId)
+	select {
+	case _, more := <-results:
+		SoMsg("Channel should be empty", more, ShouldBeFalse)
+	case <-time.After(timeout):
+		t.Fatalf("Channel should have been closed but seems to be open still")
+	}
 }
 
 // CheckEmpty checks that no beacon is in the result channel.
@@ -262,6 +291,37 @@ func CheckEmpty(t *testing.T, name string, results <-chan beacon.BeaconOrErr, er
 	for res := range results {
 		// If we end up in this execution tree, the test failed.
 		SoMsg("Found beacon "+name, res, ShouldBeFalse)
+	}
+}
+
+func CheckRevs(t *testing.T, results <-chan beacon.RevocationOrErr,
+	expectedRevs []*path_mgmt.SignedRevInfo) {
+
+	for i, expected := range expectedRevs {
+		select {
+		case res := <-results:
+			SoMsg(fmt.Sprintf("Rev %d err", i), res.Err, ShouldBeNil)
+			// make sure revinfo is initialized so comparison works.
+			_, err := res.Rev.RevInfo()
+			xtest.FailOnErr(t, err)
+			SoMsg(fmt.Sprintf("Rev %d rev", i), res.Rev, ShouldResemble, expected)
+		case <-time.After(timeout):
+			t.Fatalf("Rev %d took too long", i)
+		}
+	}
+	select {
+	case _, more := <-results:
+		SoMsg("Channel should be empty", more, ShouldBeFalse)
+	case <-time.After(timeout):
+		t.Fatalf("Channel should have been closed but seems to be open still")
+	}
+}
+
+func CheckEmptyRevs(t *testing.T, results <-chan beacon.RevocationOrErr, err error) {
+	SoMsg("Err", err, ShouldBeNil)
+	for range results {
+		// If we end up in this execution tree, the test failed.
+		t.Fatalf("Found revocation none expected")
 	}
 }
 
@@ -280,22 +340,7 @@ func testCandidateBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.DBRea
 			defer cancelF()
 			results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 			SoMsg("Err", err, ShouldBeNil)
-			for i, expected := range beacons {
-				select {
-				case res := <-results:
-					SoMsg(fmt.Sprintf("Beacon %d err", i), res.Err, ShouldBeNil)
-					_, err := res.Beacon.Segment.ID()
-					xtest.FailOnErr(t, err)
-					_, err = res.Beacon.Segment.FullId()
-					xtest.FailOnErr(t, err)
-					SoMsg(fmt.Sprintf("Segment %d should match", i), res.Beacon.Segment,
-						ShouldResemble, expected.Segment)
-					SoMsg(fmt.Sprintf("InIfId %d should match", i), res.Beacon.InIfId,
-						ShouldEqual, expected.InIfId)
-				case <-time.After(timeout):
-					t.Fatalf("Beacon %d took too long", i)
-				}
-			}
+			CheckResults(t, results, beacons)
 		})
 		Convey("Only beacons with matching source ISD-AS are returned, if specified", func() {
 			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -331,6 +376,221 @@ func testDeleteExpiredBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.D
 	})
 }
 
+func testDeleteRevokedBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
+	ts := uint32(10)
+	now := time.Unix(int64(ts)+2, 0)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	b3 := InsertBeacon(t, ctrl, db, Info3, 12, ts, beacon.UsageProp)
+	b2 := InsertBeacon(t, ctrl, db, Info2, 13, ts, beacon.UsageProp)
+	Convey("DeleteRevokedBeacons with no revocations should not delete anything", func() {
+		deleted, err := db.DeleteRevokedBeacons(ctx, now)
+		SoMsg("No err", err, ShouldBeNil)
+		SoMsg("No deletions", deleted, ShouldBeZeroValue)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+		xtest.FailOnErr(t, err)
+		CheckResults(t, results, []beacon.Beacon{b2, b3})
+	})
+	srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+		IfID:         Info3[2].Ingress,
+		RawIsdas:     Info3[2].IA.IAInt(),
+		LinkType:     proto.LinkType_child,
+		RawTimestamp: ts,
+		RawTTL:       10,
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	InsertRevocation(t, db, srev1)
+	Convey("DeleteRevokedBeacon with revocation on one beacon should delete it", func() {
+		deleted, err := db.DeleteRevokedBeacons(ctx, now)
+		SoMsg("No err", err, ShouldBeNil)
+		SoMsg("1 deletions", deleted, ShouldEqual, 1)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+		xtest.FailOnErr(t, err)
+		CheckResults(t, results, []beacon.Beacon{b2})
+	})
+	srev2, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+		IfID:         Info2[1].Ingress,
+		RawIsdas:     Info2[1].IA.IAInt(),
+		LinkType:     proto.LinkType_child,
+		RawTimestamp: ts,
+		RawTTL:       10,
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	InsertRevocation(t, db, srev2)
+	Convey("DeleteRevokedBeacon with revocation on both beacons should delete both", func() {
+		deleted, err := db.DeleteRevokedBeacons(ctx, now)
+		SoMsg("No err", err, ShouldBeNil)
+		SoMsg("2 deletions", deleted, ShouldEqual, 2)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+		CheckEmpty(t, "deleted beacons", results, err)
+	})
+}
+
+func testAllRevocations(t *testing.T, _ *gomock.Controller, db beacon.DBReadWrite) {
+	Convey("AllRevocations works correctly", func() {
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		Convey("AllRevocations on empty db should return an empty channel", func() {
+			revs, err := db.AllRevocations(ctx)
+			CheckEmptyRevs(t, revs, err)
+		})
+		ts := util.TimeToSecs(time.Now().Add(-5 * time.Second))
+		srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+			IfID:         Info3[2].Ingress,
+			RawIsdas:     Info3[2].IA.IAInt(),
+			LinkType:     proto.LinkType_child,
+			RawTimestamp: ts,
+			RawTTL:       10,
+		}, infra.NullSigner)
+		xtest.FailOnErr(t, err)
+		Convey("AllRevocations returns revocations in db", func() {
+			InsertRevocation(t, db, srev1)
+			revs, err := db.AllRevocations(ctx)
+			SoMsg("Err", err, ShouldBeNil)
+			CheckRevs(t, revs, []*path_mgmt.SignedRevInfo{srev1})
+		})
+	})
+}
+
+func testInsertUpdateRevocation(t *testing.T, _ *gomock.Controller, db beacon.DBReadWrite) {
+	Convey("InsertRevocation updates existing rev", func() {
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		ts := util.TimeToSecs(time.Now().Add(-5 * time.Second))
+		srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+			IfID:         Info3[2].Ingress,
+			RawIsdas:     Info3[2].IA.IAInt(),
+			LinkType:     proto.LinkType_child,
+			RawTimestamp: ts,
+			RawTTL:       20,
+		}, infra.NullSigner)
+		xtest.FailOnErr(t, err)
+		err = db.InsertRevocation(ctx, srev1)
+		SoMsg("No err expected", err, ShouldBeNil)
+		srev2, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+			IfID:         Info3[2].Ingress,
+			RawIsdas:     Info3[2].IA.IAInt(),
+			LinkType:     proto.LinkType_child,
+			RawTimestamp: ts + 1,
+			RawTTL:       10,
+		}, infra.NullSigner)
+		xtest.FailOnErr(t, err)
+		err = db.InsertRevocation(ctx, srev2)
+		SoMsg("No err expected", err, ShouldBeNil)
+		revs, err := db.AllRevocations(ctx)
+		SoMsg("Err", err, ShouldBeNil)
+		CheckRevs(t, revs, []*path_mgmt.SignedRevInfo{srev2})
+		Convey("Insert an older revocation keeps the newer one in the DB", func() {
+			err = db.InsertRevocation(ctx, srev1)
+			SoMsg("No err expected", err, ShouldBeNil)
+			revs, err := db.AllRevocations(ctx)
+			SoMsg("Err", err, ShouldBeNil)
+			CheckRevs(t, revs, []*path_mgmt.SignedRevInfo{srev2})
+		})
+	})
+}
+
+func testReadWithRevocations(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
+	Convey("Beacons with revocations should not be returned", func() {
+		ts := util.TimeToSecs(time.Now().Add(-5 * time.Second))
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		b3 := InsertBeacon(t, ctrl, db, Info3, 12, ts, beacon.UsageProp)
+		b2 := InsertBeacon(t, ctrl, db, Info2, 13, ts, beacon.UsageProp)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+		xtest.FailOnErr(t, err)
+		CheckResults(t, results, []beacon.Beacon{b2, b3})
+		Convey("Test revoking an interface that is on one beacon", func() {
+			sRev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+				IfID:         Info3[2].Ingress,
+				RawIsdas:     Info3[2].IA.IAInt(),
+				LinkType:     proto.LinkType_child,
+				RawTimestamp: ts,
+				RawTTL:       10,
+			}, infra.NullSigner)
+			xtest.FailOnErr(t, err)
+			InsertRevocation(t, db, sRev)
+			results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+			xtest.FailOnErr(t, err)
+			CheckResults(t, results, []beacon.Beacon{b2})
+		})
+	})
+}
+
+func testDeleteRevocation(t *testing.T, _ *gomock.Controller, db beacon.DBReadWrite) {
+	Convey("DeleteRevocations should delete revocations", func() {
+		ts := util.TimeToSecs(time.Now().Add(-5 * time.Second))
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		Convey("DeleteRevocations on empty db should not do anything", func() {
+			err := db.DeleteRevocation(ctx, Info3[2].IA, Info3[2].Ingress)
+			SoMsg("No err expected", err, ShouldBeNil)
+		})
+		srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+			IfID:         Info3[2].Ingress,
+			RawIsdas:     Info3[2].IA.IAInt(),
+			LinkType:     proto.LinkType_child,
+			RawTimestamp: ts,
+			RawTTL:       10,
+		}, infra.NullSigner)
+		xtest.FailOnErr(t, err)
+		InsertRevocation(t, db, srev1)
+		Convey("Deleting an existing revocation removes it", func() {
+			err := db.DeleteRevocation(ctx, Info3[2].IA, Info3[2].Ingress)
+			SoMsg("No err expected", err, ShouldBeNil)
+			revs, err := db.AllRevocations(ctx)
+			CheckEmptyRevs(t, revs, err)
+		})
+		Convey("Deleting non-existing other revocation does not delete existing", func() {
+			err := db.DeleteRevocation(ctx, Info3[2].IA, Info3[2].Egress)
+			SoMsg("No err expected", err, ShouldBeNil)
+			revs, err := db.AllRevocations(ctx)
+			SoMsg("Err", err, ShouldBeNil)
+			CheckRevs(t, revs, []*path_mgmt.SignedRevInfo{srev1})
+		})
+	})
+}
+
+func testDeleteExpiredRevocations(t *testing.T, _ *gomock.Controller, db beacon.DBReadWrite) {
+	Convey("DeleteExpiredRevocations should delete expired revocations", func() {
+		now := time.Now()
+		ts := util.TimeToSecs(now.Add(-5 * time.Second))
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		Convey("DeleteExpiredRevocation on empty DB should work", func() {
+			cnt, err := db.DeleteExpiredRevocations(ctx, now)
+			SoMsg("No err expected", err, ShouldBeNil)
+			SoMsg("No deletion expected", cnt, ShouldBeZeroValue)
+			revs, err := db.AllRevocations(ctx)
+			CheckEmptyRevs(t, revs, err)
+		})
+		srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+			IfID:         Info3[2].Ingress,
+			RawIsdas:     Info3[2].IA.IAInt(),
+			LinkType:     proto.LinkType_child,
+			RawTimestamp: ts,
+			RawTTL:       10,
+		}, infra.NullSigner)
+		xtest.FailOnErr(t, err)
+		InsertRevocation(t, db, srev1)
+		Convey("DeleteExpiredRevocation should not delete non-expired revocation", func() {
+			cnt, err := db.DeleteExpiredRevocations(ctx, now)
+			SoMsg("No err expected", err, ShouldBeNil)
+			SoMsg("No deletion expected", cnt, ShouldBeZeroValue)
+			revs, err := db.AllRevocations(ctx)
+			SoMsg("Err", err, ShouldBeNil)
+			CheckRevs(t, revs, []*path_mgmt.SignedRevInfo{srev1})
+		})
+		Convey("DeleteExpiredRevocation should delete expired revocation", func() {
+			cnt, err := db.DeleteExpiredRevocations(ctx, now.Add(6*time.Second))
+			SoMsg("No err expected", err, ShouldBeNil)
+			SoMsg("Deletion expected", cnt, ShouldEqual, 1)
+			revs, err := db.AllRevocations(ctx)
+			CheckEmptyRevs(t, revs, err)
+		})
+	})
+}
+
 func testRollback(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	Convey("Test transaction rollback", func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
@@ -356,6 +616,13 @@ func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite, 
 	_, err := db.InsertBeacon(ctx, b, allowed)
 	xtest.FailOnErr(t, err)
 	return b
+}
+
+func InsertRevocation(t *testing.T, db beacon.DBReadWrite, sRev *path_mgmt.SignedRevInfo) {
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	err := db.InsertRevocation(ctx, sRev)
+	xtest.FailOnErr(t, err)
 }
 
 type PeerEntry struct {

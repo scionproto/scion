@@ -204,6 +204,10 @@ func (sr *SignedRevInfo) VerifiedRevInfo(ctx context.Context,
 	return rev, verifier.Verify(ctx, sr.Blob, sr.Sign)
 }
 
+func (sr *SignedRevInfo) Pack() (common.RawBytes, error) {
+	return proto.PackRoot(sr)
+}
+
 func (sr *SignedRevInfo) String() string {
 	revInfo, err := sr.RevInfo()
 	if err != nil {
