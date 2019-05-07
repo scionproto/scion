@@ -26,6 +26,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate/mock_ifstate"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -46,6 +47,51 @@ var (
 	expireTime  = time.Second + DefaultKeepaliveTimeout
 	ia          = xtest.MustParseIA("1-ff00:0:111")
 )
+
+type revSliceMatcher struct {
+	verifier  path_mgmt.Verifier
+	matchRevs []*path_mgmt.RevInfo
+}
+
+func (m *revSliceMatcher) Matches(x interface{}) bool {
+	sRevs, ok := x.([]*path_mgmt.SignedRevInfo)
+	if !ok {
+		return false
+	}
+	var revInfos []*path_mgmt.RevInfo
+	for _, rev := range sRevs {
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout/10)
+		revInfo, err := rev.VerifiedRevInfo(ctx, m.verifier)
+		cancelF()
+		if err != nil {
+			return false
+		}
+		revInfos = append(revInfos, revInfo)
+	}
+	for _, expectedRev := range m.matchRevs {
+		// find matching:
+		var found bool
+		for i, rev := range revInfos {
+			if rev.IA().Equal(expectedRev.IA()) &&
+				rev.IfID == expectedRev.IfID &&
+				rev.LinkType == expectedRev.LinkType &&
+				rev.Expiration().After(time.Now()) {
+				found = true
+				// delete entry
+				revInfos = append(revInfos[:i], revInfos[i+1:]...)
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return len(revInfos) == 0
+}
+
+func (m *revSliceMatcher) String() string {
+	return fmt.Sprintf("is slice of signed revocations matching %v and verifiable", m.matchRevs)
+}
 
 type brMsg struct {
 	msg *path_mgmt.IFStateInfos
@@ -68,9 +114,11 @@ func TestNoRevocationIssued(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		msger := mock_infra.NewMockMessenger(mctrl)
+		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
-		revoker := testRevoker(intfs, msger, signer, topoProvider)
+		revoker := NewRevoker(intfs, revInserter, msger, signer,
+			RevConfig{RevOverlap: overlapTime}, topoProvider)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
@@ -90,11 +138,19 @@ func TestRevokeInterface(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		msger := mock_infra.NewMockMessenger(mctrl)
+		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).lastActivate = time.Now().Add(-expireTime)
+		revInserter.EXPECT().InsertRevocations(gomock.Any(), &revSliceMatcher{
+			verifier: revVerifier(pub),
+			matchRevs: []*path_mgmt.RevInfo{{
+				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
+			},
+		})
 		checkSentMessages := expectMessengerCalls(msger, 101, topoProvider)
-		revoker := testRevoker(intfs, msger, signer, topoProvider)
+		revoker := NewRevoker(intfs, revInserter, msger, signer,
+			RevConfig{RevOverlap: overlapTime}, topoProvider)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
@@ -114,6 +170,7 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		msger := mock_infra.NewMockMessenger(mctrl)
+		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Expired
@@ -126,7 +183,8 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
 		intfs.Get(101).Revoke(srev)
-		revoker := testRevoker(intfs, msger, signer, topoProvider)
+		revoker := NewRevoker(intfs, revInserter, msger, signer,
+			RevConfig{RevOverlap: overlapTime}, topoProvider)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
@@ -147,6 +205,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		msger := mock_infra.NewMockMessenger(mctrl)
+		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Expired
@@ -159,8 +218,15 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
 		intfs.Get(101).Revoke(srev)
+		revInserter.EXPECT().InsertRevocations(gomock.Any(), &revSliceMatcher{
+			verifier: revVerifier(pub),
+			matchRevs: []*path_mgmt.RevInfo{{
+				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
+			},
+		})
 		checkSentMessages := expectMessengerCalls(msger, 101, topoProvider)
-		revoker := testRevoker(intfs, msger, signer, topoProvider)
+		revoker := NewRevoker(intfs, revInserter, msger, signer,
+			RevConfig{RevOverlap: overlapTime}, topoProvider)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
@@ -239,9 +305,8 @@ func checkRevocation(t *testing.T, srev *path_mgmt.SignedRevInfo,
 	revokedIfId common.IFIDType, verifier revVerifier, topoProvider TopoProvider) {
 
 	Convey("Check revocation", func() {
-		verifier.Verify(t, srev)
-		revInfo, err := srev.RevInfo()
-		xtest.FailOnErr(t, err)
+		revInfo, err := srev.VerifiedRevInfo(context.Background(), verifier)
+		SoMsg("No verification err expected", err, ShouldBeNil)
 		SoMsg("correct ifId", revInfo.IfID, ShouldEqual, revokedIfId)
 		SoMsg("correct IA", revInfo.RawIsdas, ShouldEqual, ia.IAInt())
 		SoMsg("correct linkType", revInfo.LinkType,
@@ -290,12 +355,6 @@ func activateAll(intfs *Interfaces) {
 	}
 }
 
-func testRevoker(intfs *Interfaces, msger infra.Messenger, signer infra.Signer,
-	topoProvider TopoProvider) *Revoker {
-
-	return NewRevoker(intfs, msger, signer, RevConfig{RevOverlap: overlapTime}, topoProvider)
-}
-
 func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
 	signer, err := trust.NewBasicSigner(key, infra.SignerMeta{
 		Src: ctrl.SignSrcDef{
@@ -311,9 +370,7 @@ func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
 
 type revVerifier common.RawBytes
 
-func (v revVerifier) Verify(t *testing.T, srev *path_mgmt.SignedRevInfo) {
-	sign := srev.Sign
-	err := scrypto.Verify(sign.SigInput(srev.Blob, false), sign.Signature,
+func (v revVerifier) Verify(_ context.Context, msg common.RawBytes, sign *proto.SignS) error {
+	return scrypto.Verify(sign.SigInput(msg, false), sign.Signature,
 		common.RawBytes(v), scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
 }
