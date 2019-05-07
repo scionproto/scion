@@ -50,7 +50,7 @@ type DBRead interface {
 	// AllRevocations returns all revocations in the database as a channel. The
 	// result channel either carries revocations or errors. The error can
 	// either be ErrReadingRows or ErrParse. After a ErrReadingRows occurs the
-	// channel is closed, so the result might be incomplete. The channel must
+	// channel is closed and the result might be incomplete. The channel must
 	// be drained, since the implementation might spawn go routines to fill the
 	// channel.
 	AllRevocations(ctx context.Context) (<-chan RevocationOrErr, error)
