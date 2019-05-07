@@ -56,22 +56,24 @@ var (
 )
 
 func MetricsErrTrustDB(err error) *HandlerResult {
-	return metricsErrWithTimeout(err, metricsErrTrustDBTimeout, metricsErrTrustDB)
+	return MetricsErrWithTimeout(err, metricsErrTrustDBTimeout, metricsErrTrustDB)
 }
 
 func MetricsErrRevCache(err error) *HandlerResult {
-	return metricsErrWithTimeout(err, metricsErrRevCacheTo, metricsErrRevCache)
+	return MetricsErrWithTimeout(err, metricsErrRevCacheTo, metricsErrRevCache)
 }
 
 func MetricsErrMsger(err error) *HandlerResult {
-	return metricsErrWithTimeout(err, metricsErrMsgerTimeout, metricsErrMsger)
+	return MetricsErrWithTimeout(err, metricsErrMsgerTimeout, metricsErrMsger)
 }
 
 func MetricsErrTrustStore(err error) *HandlerResult {
-	return metricsErrWithTimeout(err, metricsErrTSTimeout, metricsErrTS)
+	return MetricsErrWithTimeout(err, metricsErrTSTimeout, metricsErrTS)
 }
 
-func metricsErrWithTimeout(err error, timeoutResult, result *HandlerResult) *HandlerResult {
+// MetricsErrWithTimeout checks if the error is a timeout and if so returns
+// timeoutResult otherwise returns result.
+func MetricsErrWithTimeout(err error, timeoutResult, result *HandlerResult) *HandlerResult {
 	if common.IsTimeoutErr(err) {
 		return timeoutResult
 	}
