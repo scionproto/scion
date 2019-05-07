@@ -42,6 +42,9 @@ const (
 	DefaultPropagationInterval = 5 * time.Second
 	// DefaultRegistrationInterval is the default interval between registering segments.
 	DefaultRegistrationInterval = 5 * time.Second
+	// DefaultExpiredCheckInterval is the default interval between checking for
+	// expired interfaces.
+	DefaultExpiredCheckInterval = 200 * time.Millisecond
 )
 
 var _ config.Config = (*Config)(nil)
@@ -117,6 +120,9 @@ type BSConfig struct {
 	PropagationInterval util.DurWrap
 	// RegistrationInterval is the interval between registering segments.
 	RegistrationInterval util.DurWrap
+	// ExpiredCheckInterval is the interval between checking whether interfaces
+	// have expired and should be revoked.
+	ExpiredCheckInterval util.DurWrap
 }
 
 // InitDefaults the default values for the durations that are equal to zero.
@@ -126,6 +132,7 @@ func (cfg *BSConfig) InitDefaults() {
 	initDurWrap(&cfg.OriginationInterval, DefaultOriginationInterval)
 	initDurWrap(&cfg.PropagationInterval, DefaultPropagationInterval)
 	initDurWrap(&cfg.RegistrationInterval, DefaultRegistrationInterval)
+	initDurWrap(&cfg.ExpiredCheckInterval, DefaultExpiredCheckInterval)
 }
 
 // Validate validates that all durations are set.
@@ -144,6 +151,9 @@ func (cfg *BSConfig) Validate() error {
 	}
 	if cfg.RegistrationInterval.Duration == 0 {
 		return common.NewBasicError("RegistrationInterval not set", nil)
+	}
+	if cfg.ExpiredCheckInterval.Duration == 0 {
+		return common.NewBasicError("ExpiredCheckInterval not set", nil)
 	}
 	return nil
 }

@@ -30,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing"
+	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage"
 	"github.com/scionproto/scion/go/beacon_srv/internal/config"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/keepalive"
@@ -135,34 +136,27 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
-	beaconDb, err := cfg.BeaconDB.New(topo.ISD_AS)
-	if err != nil {
-		log.Crit("Unable to open db", "err", err)
-		return 1
-	}
-	// TODO(roosd): Move initialization to beaconstorage package when the
-	// interface is implemented completely.
-	var beaconstore store
+	var store beaconstorage.Store
 	if topo.Core {
-		beaconstore = beacon.NewCoreBeaconStore(beacon.Policy{Type: beacon.PropPolicy},
-			beacon.Policy{Type: beacon.CoreRegPolicy}, beaconDb)
+		store, err = cfg.BeaconDB.NewCoreStore(topo.ISD_AS, beacon.CorePolicies{})
 	} else {
-		beaconstore = beacon.NewBeaconStore(beacon.Policy{Type: beacon.PropPolicy},
-			beacon.Policy{Type: beacon.UpRegPolicy}, beacon.Policy{Type: beacon.DownRegPolicy},
-			beaconDb)
+		store, err = cfg.BeaconDB.NewStore(topo.ISD_AS, beacon.Policies{})
+	}
+	if err != nil {
+		log.Crit("Unable to open beacon store", "err", err)
+		return 1
 	}
 	intfs = ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
 	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.ISD_AS, intfs, keepaliveTasks()))
-	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.ISD_AS, intfs, beaconstore,
+	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.ISD_AS, intfs, store,
 		trustStore.NewVerifier()))
 	cfg.Metrics.StartPrometheus()
 	go func() {
 		defer log.LogPanicAndExit()
 		msgr.ListenAndServe()
 	}()
-
 	ovAddr := &addr.AppAddr{L3: topoAddress.PublicAddr(topoAddress.Overlay).L3}
 	pktDisp := snet.NewDefaultPacketDispatcherService(reliable.NewDispatcherService(""))
 	conn, _, err := pktDisp.RegisterTimeout(topo.ISD_AS, ovAddr, nil, addr.SvcNone, time.Second)
@@ -171,11 +165,12 @@ func realMain() int {
 		return 1
 	}
 	tasks = &leaderTasks{
-		intfs:   intfs,
-		conn:    conn.(*snet.SCIONPacketConn),
-		trustDB: trustDB,
-		store:   beaconstore,
-		msgr:    msgr,
+		intfs:        intfs,
+		conn:         conn.(*snet.SCIONPacketConn),
+		trustDB:      trustDB,
+		store:        store,
+		msgr:         msgr,
+		topoProvider: topoProvider(itopo.Get),
 	}
 	if tasks.genMac, err = macGenFactory(); err != nil {
 		log.Crit("Unable to initialize MAC generator", "err", err)
@@ -195,15 +190,6 @@ func realMain() int {
 	}
 }
 
-// FIXME(roosd): Currently, beacon.{Store,CoreStore} do not implement
-// beaconstorage.Store. This interface will be removed when they do. The store
-// initialization will be moved to beaconstorage.
-type store interface {
-	beaconing.BeaconInserter
-	beaconing.BeaconProvider
-	beaconing.SegmentProvider
-}
-
 type segRegRunners struct {
 	coreRegistrar *periodic.Runner
 	upRegistrar   *periodic.Runner
@@ -221,16 +207,18 @@ func (s segRegRunners) Kill() {
 }
 
 type leaderTasks struct {
-	intfs   *ifstate.Interfaces
-	conn    *snet.SCIONPacketConn
-	genMac  func() hash.Hash
-	trustDB trustdb.TrustDB
-	store   store
-	msgr    infra.Messenger
+	intfs        *ifstate.Interfaces
+	conn         *snet.SCIONPacketConn
+	genMac       func() hash.Hash
+	trustDB      trustdb.TrustDB
+	store        beaconstorage.Store
+	msgr         infra.Messenger
+	topoProvider topology.Provider
 
 	keepalive  *periodic.Runner
 	originator *periodic.Runner
 	propagator *periodic.Runner
+	revoker    *periodic.Runner
 	registrars segRegRunners
 	discovery  idiscovery.Runners
 
@@ -246,7 +234,7 @@ func (t *leaderTasks) Start() error {
 		log.Warn("Trying to start task, but they are running! Ignored.")
 		return nil
 	}
-	topo := itopo.Get()
+	topo := t.topoProvider.Get()
 	topoAddress := topo.BS.GetById(cfg.General.ID)
 	if topoAddress == nil {
 		return common.NewBasicError("Unable to find topo address", nil)
@@ -258,13 +246,16 @@ func (t *leaderTasks) Start() error {
 	if t.registrars, err = t.startSegRegRunners(); err != nil {
 		return err
 	}
+	if t.revoker, err = t.startRevoker(); err != nil {
+		return err
+	}
 	if t.keepalive, err = t.startKeepaliveSender(topoAddress); err != nil {
 		return err
 	}
-	if t.propagator, err = t.startPropagator(topoAddress); err != nil {
+	if t.originator, err = t.startOriginator(topoAddress); err != nil {
 		return err
 	}
-	if t.originator, err = t.startOriginator(topoAddress); err != nil {
+	if t.propagator, err = t.startPropagator(topoAddress); err != nil {
 		return err
 	}
 	t.running = true
@@ -279,22 +270,41 @@ func (t *leaderTasks) startDiscovery() (idiscovery.Runners, error) {
 	return d, nil
 }
 
+func (t *leaderTasks) startRevoker() (*periodic.Runner, error) {
+	topo := t.topoProvider.Get()
+	signer, err := t.createSigner(topo)
+	if err != nil {
+		return nil, err
+	}
+	r := ifstate.RevokerConf{
+		Intfs:        t.intfs,
+		Msgr:         t.msgr,
+		RevInserter:  t.store,
+		Signer:       signer,
+		TopoProvider: t.topoProvider,
+		// TODO(roosd): Make RevConfig configurable
+	}.New()
+	return periodic.StartPeriodicTask(r, periodic.NewTicker(cfg.BS.ExpiredCheckInterval.Duration),
+		cfg.BS.ExpiredCheckInterval.Duration), nil
+}
+
 func (t *leaderTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Runner, error) {
 	s := &keepalive.Sender{
 		Sender: &onehop.Sender{
 			Conn: t.conn,
-			IA:   itopo.Get().ISD_AS,
+			IA:   t.topoProvider.Get().ISD_AS,
 			MAC:  t.genMac(),
 			Addr: a.PublicAddr(a.Overlay),
 		},
-		Signer: infra.NullSigner,
+		Signer:       infra.NullSigner,
+		TopoProvider: t.topoProvider,
 	}
 	return periodic.StartPeriodicTask(s, periodic.NewTicker(cfg.BS.KeepaliveInterval.Duration),
 		cfg.BS.KeepaliveInterval.Duration), nil
 }
 
 func (t *leaderTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, error) {
-	topo := itopo.Get()
+	topo := t.topoProvider.Get()
 	if !topo.Core {
 		return nil, nil
 	}
@@ -302,18 +312,20 @@ func (t *leaderTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, e
 	if err != nil {
 		return nil, err
 	}
-	s, err := beaconing.NewOriginator(t.intfs, t.genMac(),
-		beaconing.Config{
-			MTU:    uint16(topo.MTU),
-			Signer: signer,
-		},
-		&onehop.Sender{
+	s, err := beaconing.OriginatorConf{
+		Sender: &onehop.Sender{
 			Conn: t.conn,
 			IA:   topo.ISD_AS,
 			MAC:  t.genMac(),
 			Addr: a.PublicAddr(a.Overlay),
 		},
-	)
+		Config: beaconing.ExtenderConf{
+			Intfs:  t.intfs,
+			Mac:    t.genMac(),
+			MTU:    uint16(topo.MTU),
+			Signer: signer,
+		},
+	}.New()
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start originator", err)
 	}
@@ -322,33 +334,37 @@ func (t *leaderTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, e
 }
 
 func (t *leaderTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner, error) {
-	topo := itopo.Get()
+	topo := t.topoProvider.Get()
 	signer, err := t.createSigner(topo)
 	if err != nil {
 		return nil, err
 	}
-	s, err := beaconing.NewPropagator(t.intfs, t.genMac(), topo.Core, t.store,
-		beaconing.Config{
-			MTU:    uint16(topo.MTU),
-			Signer: signer,
-		},
-		&onehop.Sender{
+	p, err := beaconing.PropagatorConf{
+		BeaconProvider: t.store,
+		Core:           topo.Core,
+		Sender: &onehop.Sender{
 			Conn: t.conn,
 			IA:   topo.ISD_AS,
 			MAC:  t.genMac(),
 			Addr: a.PublicAddr(a.Overlay),
 		},
-	)
+		Config: beaconing.ExtenderConf{
+			Intfs:  t.intfs,
+			Mac:    t.genMac(),
+			MTU:    uint16(topo.MTU),
+			Signer: signer,
+		},
+	}.New()
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start propagator", err)
 	}
-	return periodic.StartPeriodicTask(s, periodic.NewTicker(cfg.BS.PropagationInterval.Duration),
+	return periodic.StartPeriodicTask(p, periodic.NewTicker(cfg.BS.PropagationInterval.Duration),
 		cfg.BS.PropagationInterval.Duration), nil
 }
 
 func (t *leaderTasks) startSegRegRunners() (segRegRunners, error) {
-	topo := itopo.Get()
-	s := segRegRunners{core: itopo.Get().Core}
+	topo := t.topoProvider.Get()
+	s := segRegRunners{core: topo.Core}
 	var err error
 	if s.core {
 		if s.coreRegistrar, err = t.startRegistrar(topo, proto.PathSegType_core); err != nil {
@@ -372,12 +388,18 @@ func (t *leaderTasks) startRegistrar(topo *topology.Topo,
 	if err != nil {
 		return nil, err
 	}
-	r, err := beaconing.NewRegistrar(t.intfs, segType, t.genMac(), t.store,
-		t.msgr, beaconing.Config{
+	r, err := beaconing.RegistrarConf{
+		Msgr:         t.msgr,
+		SegProvider:  t.store,
+		SegType:      segType,
+		TopoProvider: t.topoProvider,
+		Config: beaconing.ExtenderConf{
+			Intfs:  t.intfs,
+			Mac:    t.genMac(),
 			MTU:    uint16(topo.MTU),
 			Signer: signer,
 		},
-	)
+	}.New()
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start registrar", err, "type", segType)
 	}
@@ -471,6 +493,12 @@ func handleTopoUpdate() {
 		return
 	}
 	intfs.Update(itopo.Get().IFInfoMap)
+}
+
+type topoProvider func() *topology.Topo
+
+func (f topoProvider) Get() *topology.Topo {
+	return f()
 }
 
 func keepaliveTasks() keepalive.StateChangeTasks {

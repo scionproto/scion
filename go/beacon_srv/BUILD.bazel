@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//go/beacon_srv/internal/beacon:go_default_library",
         "//go/beacon_srv/internal/beaconing:go_default_library",
+        "//go/beacon_srv/internal/beaconstorage:go_default_library",
         "//go/beacon_srv/internal/config:go_default_library",
         "//go/beacon_srv/internal/ifstate:go_default_library",
         "//go/beacon_srv/internal/keepalive:go_default_library",

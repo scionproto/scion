@@ -69,4 +69,6 @@ func CheckTestBSConfig(cfg *BSConfig) {
 		DefaultPropagationInterval)
 	SoMsg("RegistrationInterval", cfg.RegistrationInterval.Duration, ShouldEqual,
 		DefaultRegistrationInterval)
+	SoMsg("ExpiredCheckInterval", cfg.ExpiredCheckInterval.Duration, ShouldEqual,
+		DefaultExpiredCheckInterval)
 }
