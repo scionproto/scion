@@ -34,6 +34,7 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//go/beacon_srv/internal/ifstate/mock_ifstate:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
