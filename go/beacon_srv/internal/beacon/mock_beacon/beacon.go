@@ -157,6 +157,21 @@ func (mr *MockDBMockRecorder) DeleteRevocation(arg0, arg1, arg2 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevocation", reflect.TypeOf((*MockDB)(nil).DeleteRevocation), arg0, arg1, arg2)
 }
 
+// DeleteRevokedBeacons mocks base method
+func (m *MockDB) DeleteRevokedBeacons(arg0 context.Context, arg1 time.Time) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRevokedBeacons", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteRevokedBeacons indicates an expected call of DeleteRevokedBeacons
+func (mr *MockDBMockRecorder) DeleteRevokedBeacons(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevokedBeacons", reflect.TypeOf((*MockDB)(nil).DeleteRevokedBeacons), arg0, arg1)
+}
+
 // InsertBeacon mocks base method
 func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (int, error) {
 	m.ctrl.T.Helper()
@@ -334,6 +349,21 @@ func (m *MockTransaction) DeleteRevocation(arg0 context.Context, arg1 addr.IA, a
 func (mr *MockTransactionMockRecorder) DeleteRevocation(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevocation", reflect.TypeOf((*MockTransaction)(nil).DeleteRevocation), arg0, arg1, arg2)
+}
+
+// DeleteRevokedBeacons mocks base method
+func (m *MockTransaction) DeleteRevokedBeacons(arg0 context.Context, arg1 time.Time) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRevokedBeacons", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteRevokedBeacons indicates an expected call of DeleteRevokedBeacons
+func (mr *MockTransactionMockRecorder) DeleteRevokedBeacons(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevokedBeacons", reflect.TypeOf((*MockTransaction)(nil).DeleteRevokedBeacons), arg0, arg1)
 }
 
 // InsertBeacon mocks base method
