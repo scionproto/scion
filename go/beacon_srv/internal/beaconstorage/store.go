@@ -48,7 +48,7 @@ type Store interface {
 	UpdatePolicy(ctx context.Context, policy beacon.Policy) error
 	// DeleteExpired deletes expired Beacons from the store.
 	DeleteExpiredBeacons(ctx context.Context) (int, error)
-	// DeleteExpired deletes expired Revocations from the store.
+	// DeleteExpiredRevocations deletes expired Revocations from the store.
 	DeleteExpiredRevocations(ctx context.Context) (int, error)
 	// DeleteRevokedBeacons deletes beacons containing revoked interfaces
 	// from the store.
