@@ -46,6 +46,96 @@ const (
 	DefaultMaxHopsLength = 10
 )
 
+// Policies keeps track of all policies for a non-core beacon store.
+type Policies struct {
+	// Prop is the propagation policy.
+	Prop Policy
+	// UpReg is the up segment policy.
+	UpReg Policy
+	// DownReg is the down segment policy.
+	DownReg Policy
+}
+
+// InitDefaults sets the defaults for all policies.
+func (p *Policies) InitDefaults() {
+	p.Prop.initDefaults(PropPolicy)
+	p.UpReg.initDefaults(UpRegPolicy)
+	p.DownReg.initDefaults(DownRegPolicy)
+}
+
+// Validate checks that each policy is of the correct type.
+func (p *Policies) Validate() error {
+	if p.Prop.Type != PropPolicy {
+		return common.NewBasicError("Invalid policy type", nil,
+			"expected", PropPolicy, "actual", p.Prop.Type)
+	}
+	if p.UpReg.Type != UpRegPolicy {
+		return common.NewBasicError("Invalid policy type", nil,
+			"expected", UpRegPolicy, "actual", p.UpReg.Type)
+	}
+	if p.DownReg.Type != DownRegPolicy {
+		return common.NewBasicError("Invalid policy type", nil,
+			"expected", DownRegPolicy, "actual", p.DownReg.Type)
+	}
+	return nil
+}
+
+// Usage returns the allowed usage of the beacon based on all available
+// policies. For missing policies, the usage is not permitted.
+func (p *Policies) Usage(beacon Beacon) Usage {
+	var u Usage
+	if p.Prop.Filter.Apply(beacon) == nil {
+		u |= UsageProp
+	}
+	if p.UpReg.Filter.Apply(beacon) == nil {
+		u |= UsageUpReg
+	}
+	if p.DownReg.Filter.Apply(beacon) == nil {
+		u |= UsageDownReg
+	}
+	return u
+}
+
+// CorePolicies keeps track of all policies for a core beacon store.
+type CorePolicies struct {
+	// Prop is the propagation policy.
+	Prop Policy
+	// CoreReg is the core segment policy.
+	CoreReg Policy
+}
+
+// InitDefaults sets the defaults for all policies.
+func (p *CorePolicies) InitDefaults() {
+	p.Prop.initDefaults(PropPolicy)
+	p.CoreReg.initDefaults(CoreRegPolicy)
+}
+
+// Validate checks that each policy is of the correct type.
+func (p *CorePolicies) Validate() error {
+	if p.Prop.Type != PropPolicy {
+		return common.NewBasicError("Invalid policy type", nil,
+			"expected", PropPolicy, "actual", p.Prop.Type)
+	}
+	if p.CoreReg.Type != CoreRegPolicy {
+		return common.NewBasicError("Invalid policy type", nil,
+			"expected", CoreRegPolicy, "actual", p.CoreReg.Type)
+	}
+	return nil
+}
+
+// Usage returns the allowed usage of the beacon based on all available
+// policies. For missing policies, the usage is not permitted.
+func (p *CorePolicies) Usage(beacon Beacon) Usage {
+	var u Usage
+	if p.Prop.Filter.Apply(beacon) == nil {
+		u |= UsageProp
+	}
+	if p.CoreReg.Filter.Apply(beacon) == nil {
+		u |= UsageCoreReg
+	}
+	return u
+}
+
 // Policy contains the policy parameters when handling beacons.
 type Policy struct {
 	// BestSetSize is the number of segments to propagate or register.
@@ -68,6 +158,13 @@ func (p *Policy) InitDefaults() {
 		p.CandidateSetSize = DefaultCandidateSetSize
 	}
 	p.Filter.InitDefaults()
+}
+
+func (p *Policy) initDefaults(t PolicyType) {
+	p.InitDefaults()
+	if p.Type == "" {
+		p.Type = t
+	}
 }
 
 // ParseYaml parses the policy in yaml format and initializes the default values.

@@ -29,31 +29,8 @@ import (
 
 const maxResultChanSize = 32
 
-// policies keeps track of all policies for a beacon store.
-type policies struct {
-	up   *Policy
-	down *Policy
-	core *Policy
-	prop *Policy
-}
-
-// Usage returns the allowed usage of the beacon based on all available
-// policies. For missing policies, the usage is not permitted.
-func (p policies) Usage(beacon Beacon) Usage {
-	var u Usage
-	if p.up != nil && p.up.Filter.Apply(beacon) == nil {
-		u |= UsageUpReg
-	}
-	if p.down != nil && p.down.Filter.Apply(beacon) == nil {
-		u |= UsageDownReg
-	}
-	if p.core != nil && p.core.Filter.Apply(beacon) == nil {
-		u |= UsageCoreReg
-	}
-	if p.prop != nil && p.prop.Filter.Apply(beacon) == nil {
-		u |= UsageProp
-	}
-	return u
+type usager interface {
+	Usage(beacon Beacon) Usage
 }
 
 // Store provides abstracted access to the beacon database in a non-core AS.
@@ -62,32 +39,31 @@ func (p policies) Usage(beacon Beacon) Usage {
 // core AS.
 type Store struct {
 	baseStore
+	policies Policies
 }
 
 // NewBeaconStore creates a new beacon store for a non-core AS.
-func NewBeaconStore(prop, upReg, downReg Policy, db DB) *Store {
-	prop.InitDefaults()
-	upReg.InitDefaults()
-	downReg.InitDefaults()
+func NewBeaconStore(policies Policies, db DB) (*Store, error) {
+	policies.InitDefaults()
+	if err := policies.Validate(); err != nil {
+		return nil, err
+	}
 	s := &Store{
 		baseStore: baseStore{
-			db: db,
-			policies: policies{
-				prop: &prop,
-				down: &downReg,
-				up:   &upReg,
-			},
+			db:   db,
 			algo: baseAlgo{},
 		},
+		policies: policies,
 	}
-	return s
+	s.baseStore.usager = &s.policies
+	return s, nil
 }
 
 // BeaconsToPropagate returns a channel that provides all beacons to propagate
 // at the time of the call. The selection is based on the configured propagation
 // policy.
 func (s *Store) BeaconsToPropagate(ctx context.Context) (<-chan BeaconOrErr, error) {
-	return s.getBeacons(ctx, s.policies.prop)
+	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
 // SegmentsToRegister returns a channel that provides all beacons to register at
@@ -98,9 +74,9 @@ func (s *Store) SegmentsToRegister(ctx context.Context, segType proto.PathSegTyp
 
 	switch {
 	case segType == proto.PathSegType_down:
-		return s.getBeacons(ctx, s.policies.down)
+		return s.getBeacons(ctx, &s.policies.DownReg)
 	case segType == proto.PathSegType_up:
-		return s.getBeacons(ctx, s.policies.up)
+		return s.getBeacons(ctx, &s.policies.UpReg)
 	default:
 		return nil, common.NewBasicError("Unsupported segment type", nil, "type", segType)
 	}
@@ -129,30 +105,31 @@ func (s *Store) getBeacons(ctx context.Context, policy *Policy) (<-chan BeaconOr
 // a non-core AS.
 type CoreStore struct {
 	baseStore
+	policies CorePolicies
 }
 
 // NewCoreBeaconStore creates a new beacon store for a non-core AS.
-func NewCoreBeaconStore(prop, coreReg Policy, db DB) *CoreStore {
-	prop.InitDefaults()
-	coreReg.InitDefaults()
+func NewCoreBeaconStore(policies CorePolicies, db DB) (*CoreStore, error) {
+	policies.InitDefaults()
+	if err := policies.Validate(); err != nil {
+		return nil, err
+	}
 	s := &CoreStore{
 		baseStore: baseStore{
-			db: db,
-			policies: policies{
-				prop: &prop,
-				core: &coreReg,
-			},
+			db:   db,
 			algo: baseAlgo{},
 		},
+		policies: policies,
 	}
-	return s
+	s.usager = &s.policies
+	return s, nil
 }
 
 // BeaconsToPropagate returns a channel that provides all beacons to propagate
 // at the time of the call. The selection is based on the configured propagation
 // policy.
 func (s *CoreStore) BeaconsToPropagate(ctx context.Context) (<-chan BeaconOrErr, error) {
-	return s.getBeacons(ctx, s.policies.prop)
+	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
 // SegmentsToRegister returns a channel that provides all beacons to register at
@@ -164,7 +141,7 @@ func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType proto.PathSe
 	if segType != proto.PathSegType_core {
 		return nil, common.NewBasicError("Unsupported segment type", nil, "type", segType)
 	}
-	return s.getBeacons(ctx, s.policies.core)
+	return s.getBeacons(ctx, &s.policies.CoreReg)
 }
 
 // getBeacons fetches the candidate beacons from the database and serves the
@@ -213,9 +190,9 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 
 // baseStore is the basis for the beacon store.
 type baseStore struct {
-	db       DB
-	policies policies
-	algo     selectionAlgorithm
+	db     DB
+	usager usager
+	algo   selectionAlgorithm
 }
 
 // InsertBeacons adds verified beacons to the store. Beacons that
@@ -227,7 +204,7 @@ func (s *baseStore) InsertBeacons(ctx context.Context, beacons ...Beacon) error 
 	}
 	defer tx.Rollback()
 	for _, beacon := range beacons {
-		usage := s.policies.Usage(beacon)
+		usage := s.usager.Usage(beacon)
 		if usage.None() {
 			continue
 		}
@@ -275,6 +252,12 @@ func (s *baseStore) DeleteExpiredRevocations(ctx context.Context) (int, error) {
 // store.
 func (s *baseStore) DeleteRevokedBeacons(ctx context.Context) (int, error) {
 	return s.db.DeleteRevokedBeacons(ctx, time.Now())
+}
+
+// UpdatePolicy updates the policy. Beacons that are filtered by all
+// policies after the update are removed.
+func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
+	return common.NewBasicError("policy update not supported", nil)
 }
 
 func min(a, b int) int {

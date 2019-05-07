@@ -154,10 +154,13 @@ func testStoreSelection(t *testing.T,
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			db := mock_beacon.NewMockDB(mctrl)
-			prop := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.PropPolicy}
-			up := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.UpRegPolicy}
-			down := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.DownRegPolicy}
-			store := beacon.NewBeaconStore(prop, up, down, db)
+			policies := beacon.Policies{
+				Prop:    beacon.Policy{BestSetSize: test.bestSize},
+				UpReg:   beacon.Policy{BestSetSize: test.bestSize},
+				DownReg: beacon.Policy{BestSetSize: test.bestSize},
+			}
+			store, err := beacon.NewBeaconStore(policies, db)
+			xtest.FailOnErr(t, err)
 			db.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
 				addr.IA{}).DoAndReturn(
 				func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -319,9 +322,12 @@ func testCoreStoreSelection(t *testing.T,
 			defer mctrl.Finish()
 			db := mock_beacon.NewMockDB(mctrl)
 			tx := mock_beacon.NewMockTransaction(mctrl)
-			prop := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.PropPolicy}
-			reg := beacon.Policy{BestSetSize: test.bestSize, Type: beacon.CoreRegPolicy}
-			store := beacon.NewCoreBeaconStore(prop, reg, db)
+			policies := beacon.CorePolicies{
+				Prop:    beacon.Policy{BestSetSize: test.bestSize},
+				CoreReg: beacon.Policy{BestSetSize: test.bestSize},
+			}
+			store, err := beacon.NewCoreBeaconStore(policies, db)
+			xtest.FailOnErr(t, err)
 			// respFunc serves beacons on the returned channel.
 			type respFunc func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error)
 			// responder is a factory that generates a function serving the specified beacons.

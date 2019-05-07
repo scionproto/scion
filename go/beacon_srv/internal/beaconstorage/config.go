@@ -154,6 +154,24 @@ func (cfg *BeaconDBConf) New(ia addr.IA) (beacon.DB, error) {
 	return db, nil
 }
 
+// NewStore creates a new beacon store backed by the configured database.
+func (cfg *BeaconDBConf) NewStore(ia addr.IA, policies beacon.Policies) (Store, error) {
+	db, err := cfg.New(ia)
+	if err != nil {
+		return nil, err
+	}
+	return beacon.NewBeaconStore(policies, db)
+}
+
+// NewCoreStore creates a new core beacon store backed by the configured database.
+func (cfg *BeaconDBConf) NewCoreStore(ia addr.IA, policies beacon.CorePolicies) (Store, error) {
+	db, err := cfg.New(ia)
+	if err != nil {
+		return nil, err
+	}
+	return beacon.NewCoreBeaconStore(policies, db)
+}
+
 func setConnLimits(cfg *BeaconDBConf, db beacon.DB) {
 	if m, ok := cfg.MaxOpenConns(); ok {
 		db.SetMaxOpenConns(m)
