@@ -60,6 +60,7 @@ type DBRead interface {
 type DBWrite interface {
 	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (int, error)
 	DeleteExpiredBeacons(ctx context.Context, now time.Time) (int, error)
+	DeleteRevokedBeacons(ctx context.Context, now time.Time) (int, error)
 	InsertRevocation(ctx context.Context, revocation *path_mgmt.SignedRevInfo) error
 	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
 	DeleteExpiredRevocations(ctx context.Context, now time.Time) (int, error)

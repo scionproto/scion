@@ -111,6 +111,7 @@ func Test(t *testing.T, db Testable) {
 	Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
 	Convey("CandidateBeacons", testWrapper(testCandidateBeacons))
 	Convey("DeleteExpiredBeacons", testWrapper(testDeleteExpiredBeacons))
+	Convey("DeleteRevokedBeacons", testWrapper(testDeleteRevokedBeacons))
 	Convey("AllRevocations", testWrapper(testAllRevocations))
 	Convey("CandidateBeaconsWithRevs", testWrapper(testReadWithRevocations))
 	Convey("DeleteRevocation", testWrapper(testDeleteRevocation))
@@ -132,10 +133,11 @@ func Test(t *testing.T, db Testable) {
 	Convey("WithTransaction", func() {
 		Convey("BeaconSources", txTestWrapper(testBeaconSources))
 		Convey("InsertBeacon", txTestWrapper(testInsertBeacon))
-		Convey("UpdateBeacon", testWrapper(testUpdateExisting))
-		Convey("IgnoreBeaconUpdate", testWrapper(testUpdateOlderIgnored))
+		Convey("UpdateBeacon", txTestWrapper(testUpdateExisting))
+		Convey("IgnoreBeaconUpdate", txTestWrapper(testUpdateOlderIgnored))
 		Convey("CandidateBeacons", txTestWrapper(testCandidateBeacons))
 		Convey("DeleteExpiredBeacons", txTestWrapper(testDeleteExpiredBeacons))
+		Convey("DeleteRevokedBeacons", txTestWrapper(testDeleteRevokedBeacons))
 		Convey("AllRevocations", txTestWrapper(testAllRevocations))
 		Convey("CandidateBeaconsWithRevs", txTestWrapper(testReadWithRevocations))
 		Convey("DeleteRevocation", txTestWrapper(testDeleteRevocation))
@@ -371,6 +373,56 @@ func testDeleteExpiredBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.D
 		deleted, err = db.DeleteExpiredBeacons(ctx, time.Unix(30, 0).Add(defaultExp))
 		xtest.FailOnErr(t, err)
 		SoMsg("Deleted", deleted, ShouldEqual, 1)
+	})
+}
+
+func testDeleteRevokedBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
+	ts := uint32(10)
+	now := time.Unix(int64(ts)+2, 0)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	b3 := InsertBeacon(t, ctrl, db, Info3, 12, ts, beacon.UsageProp)
+	b2 := InsertBeacon(t, ctrl, db, Info2, 13, ts, beacon.UsageProp)
+	Convey("DeleteRevokedBeacons with no revocations should not delete anything", func() {
+		deleted, err := db.DeleteRevokedBeacons(ctx, now)
+		SoMsg("No err", err, ShouldBeNil)
+		SoMsg("No deletions", deleted, ShouldBeZeroValue)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+		xtest.FailOnErr(t, err)
+		CheckResults(t, results, []beacon.Beacon{b2, b3})
+	})
+	srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+		IfID:         Info3[2].Ingress,
+		RawIsdas:     Info3[2].IA.IAInt(),
+		LinkType:     proto.LinkType_child,
+		RawTimestamp: ts,
+		RawTTL:       10,
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	InsertRevocation(t, db, srev1)
+	Convey("DeleteRevokedBeacon with revocation on one beacon should delete it", func() {
+		deleted, err := db.DeleteRevokedBeacons(ctx, now)
+		SoMsg("No err", err, ShouldBeNil)
+		SoMsg("1 deletions", deleted, ShouldEqual, 1)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+		xtest.FailOnErr(t, err)
+		CheckResults(t, results, []beacon.Beacon{b2})
+	})
+	srev2, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
+		IfID:         Info2[1].Ingress,
+		RawIsdas:     Info2[1].IA.IAInt(),
+		LinkType:     proto.LinkType_child,
+		RawTimestamp: ts,
+		RawTTL:       10,
+	}, infra.NullSigner)
+	xtest.FailOnErr(t, err)
+	InsertRevocation(t, db, srev2)
+	Convey("DeleteRevokedBeacon with revocation on both beacons should delete both", func() {
+		deleted, err := db.DeleteRevokedBeacons(ctx, now)
+		SoMsg("No err", err, ShouldBeNil)
+		SoMsg("2 deletions", deleted, ShouldEqual, 2)
+		results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+		CheckEmpty(t, "deleted beacons", results, err)
 	})
 }
 

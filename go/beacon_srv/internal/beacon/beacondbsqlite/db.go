@@ -466,6 +466,21 @@ func (e *executor) deleteInTx(ctx context.Context,
 	return int(deleted), nil
 }
 
+func (e *executor) DeleteRevokedBeacons(ctx context.Context, now time.Time) (int, error) {
+	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		delStmt := `
+		DELETE FROM Beacons
+		WHERE EXISTS(
+			SELECT 1
+			FROM IntfToBeacon ib
+			JOIN Revocations r USING (IsdID, AsID, IntfID)
+			WHERE ib.BeaconRowID = RowID AND r.ExpirationTime >= ?
+		)
+		`
+		return tx.ExecContext(ctx, delStmt, now.Unix())
+	})
+}
+
 func (e *executor) InsertRevocation(ctx context.Context,
 	revocation *path_mgmt.SignedRevInfo) error {
 
