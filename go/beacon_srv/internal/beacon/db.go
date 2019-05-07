@@ -28,6 +28,14 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
+const (
+	// ErrReadingRows is the error message in case we fail to read more from
+	// the database.
+	ErrReadingRows = "Failed to read rows"
+	// ErrParse is the error message in case the parsing a db entry fails.
+	ErrParse = "Failed to parse entry"
+)
+
 // DBRead defines all read operations of the beacon DB.
 type DBRead interface {
 	// CandidateBeacons returns up to setSize beacons that are allowed for the
@@ -40,9 +48,11 @@ type DBRead interface {
 	// BeaconSources returns all source ISD-AS of the beacons in the database.
 	BeaconSources(ctx context.Context) ([]addr.IA, error)
 	// AllRevocations returns all revocations in the database as a channel. The
-	// result channel either carries revocations or errors. After sending the
-	// first error, the channel is closed. The channel must be drained, since
-	// the implementation might spawn go routines to fill the channel.
+	// result channel either carries revocations or errors. The error can
+	// either be ErrReadingRows or ErrParse. After a ErrReadingRows occurs the
+	// channel is closed, so the result might be incomplete. The channel must
+	// be drained, since the implementation might spawn go routines to fill the
+	// channel.
 	AllRevocations(ctx context.Context) (<-chan RevocationOrErr, error)
 }
 
