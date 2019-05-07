@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -93,19 +92,25 @@ func TestRegistrarRun(t *testing.T) {
 		Convey("Run registers a verifiable "+test.name+" to the correct path server", t, func() {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			setupItopo(t, test.fn)
-			g := graph.NewDefaultGraph(mctrl)
-			intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
+			topoProvider := xtest.TopoProviderFromFile(t, test.fn)
+			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			msgr := mock_infra.NewMockMessenger(mctrl)
-			provider := mock_beaconing.NewMockSegmentProvider(mctrl)
-			r, err := NewRegistrar(intfs, test.segType, mac, provider, msgr,
-				Config{
-					MTU:    uint16(itopo.Get().MTU),
-					Signer: testSigner(t, priv),
+			cfg := RegistrarConf{
+				Config: ExtenderConf{
+					Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+					Mac:    mac,
+					Intfs:  ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
+					MTU:    uint16(topoProvider.Get().MTU),
 				},
-			)
+				Msgr:         msgr,
+				SegProvider:  segProvider,
+				TopoProvider: topoProvider,
+				SegType:      test.segType,
+			}
+			r, err := cfg.New()
 			SoMsg("err", err, ShouldBeNil)
-			provider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
+			g := graph.NewDefaultGraph(mctrl)
+			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
 				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
 					res := make(chan beacon.BeaconOrErr, len(test.beacons))
 					for _, desc := range test.beacons {
@@ -133,7 +138,7 @@ func TestRegistrarRun(t *testing.T) {
 					return nil
 				},
 			)
-			for ifid, intf := range intfs.All() {
+			for ifid, intf := range cfg.Config.Intfs.All() {
 				if test.inactivePeers[ifid] {
 					continue
 				}
@@ -155,8 +160,8 @@ func TestRegistrarRun(t *testing.T) {
 				})
 				Convey(fmt.Sprintf("Segment %d is sent to the correct PS", segIdx), func() {
 					if !test.remotePS {
-						SoMsg("IA", s.Addr.IA, ShouldResemble, itopo.Get().ISD_AS)
-						a := itopo.Get().PS[fmt.Sprintf("ps%s-1", s.Addr.IA.FileFmt(false))]
+						SoMsg("IA", s.Addr.IA, ShouldResemble, topoProvider.Get().ISD_AS)
+						a := topoProvider.Get().PS[fmt.Sprintf("ps%s-1", s.Addr.IA.FileFmt(false))]
 						SoMsg("Host", s.Addr.Host, ShouldResemble, a.PublicAddr(a.Overlay))
 						return
 					}
@@ -166,7 +171,7 @@ func TestRegistrarRun(t *testing.T) {
 					SoMsg("err", err, ShouldBeNil)
 					SoMsg("HopField", []uint8(hopF.Pack()), ShouldResemble,
 						pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField)
-					a := itopo.Get().IFInfoMap[hopF.ConsIngress].InternalAddrs
+					a := topoProvider.Get().IFInfoMap[hopF.ConsIngress].InternalAddrs
 					SoMsg("Next", s.Addr.NextHop, ShouldResemble, a.PublicOverlay(a.Overlay))
 				})
 			}
@@ -175,20 +180,25 @@ func TestRegistrarRun(t *testing.T) {
 	Convey("Run drains the channel", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		setupItopo(t, topoCore)
-		intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
-		xtest.FailOnErr(t, err)
+		topoProvider := xtest.TopoProviderFromFile(t, topoCore)
+		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		msgr := mock_infra.NewMockMessenger(mctrl)
-		provider := mock_beaconing.NewMockSegmentProvider(mctrl)
-		r, err := NewRegistrar(intfs, proto.PathSegType_core, mac, provider, msgr,
-			Config{
-				MTU:    uint16(itopo.Get().MTU),
-				Signer: testSigner(t, priv),
+		cfg := RegistrarConf{
+			Config: ExtenderConf{
+				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Mac:    mac,
+				Intfs:  ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
+				MTU:    uint16(topoProvider.Get().MTU),
 			},
-		)
+			Msgr:         msgr,
+			SegProvider:  segProvider,
+			TopoProvider: topoProvider,
+			SegType:      proto.PathSegType_core,
+		}
+		r, err := cfg.New()
 		SoMsg("err", err, ShouldBeNil)
 		res := make(chan beacon.BeaconOrErr, 3)
-		provider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
+		segProvider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
 			func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
 				for i := 0; i < 3; i++ {
 					res <- beacon.BeaconOrErr{Err: errors.New("Invalid beacon")}
@@ -207,21 +217,28 @@ func TestRegistrarRun(t *testing.T) {
 	Convey("Faulty beacons are not sent", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		setupItopo(t, topoNonCore)
-		g := graph.NewDefaultGraph(mctrl)
-		intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
-		xtest.FailOnErr(t, err)
+		topoProvider := xtest.TopoProviderFromFile(t, topoNonCore)
+		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		msgr := mock_infra.NewMockMessenger(mctrl)
-		provider := mock_beaconing.NewMockSegmentProvider(mctrl)
-		r, err := NewRegistrar(intfs, proto.PathSegType_core, mac, provider, msgr,
-			Config{
-				MTU:    uint16(itopo.Get().MTU),
-				Signer: testSigner(t, priv),
+		cfg := RegistrarConf{
+			Config: ExtenderConf{
+				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Mac:    mac,
+				Intfs:  ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
+				MTU:    uint16(topoProvider.Get().MTU),
 			},
-		)
+			Msgr:         msgr,
+			SegProvider:  segProvider,
+			TopoProvider: topoProvider,
+			SegType:      proto.PathSegType_core,
+		}
+		r, err := cfg.New()
+		SoMsg("err", err, ShouldBeNil)
+		g := graph.NewDefaultGraph(mctrl)
 		SoMsg("err", err, ShouldBeNil)
 		Convey("Unknown Ingress IFID", func() {
-			provider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
+			segProvider.EXPECT().SegmentsToRegister(gomock.Any(),
+				proto.PathSegType_core).DoAndReturn(
 				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
 					res := make(chan beacon.BeaconOrErr, 1)
 					b := testBeaconOrErr(g, []common.IFIDType{graph.If_120_X_111_B})
@@ -246,12 +263,12 @@ func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr 
 	}
 }
 
-func testSigner(t *testing.T, priv common.RawBytes) infra.Signer {
+func testSigner(t *testing.T, priv common.RawBytes, ia addr.IA) infra.Signer {
 	signer, err := trust.NewBasicSigner(priv, infra.SignerMeta{
 		Src: ctrl.SignSrcDef{
 			ChainVer: 42,
 			TRCVer:   84,
-			IA:       itopo.Get().ISD_AS,
+			IA:       ia,
 		},
 		Algo:    scrypto.Ed25519,
 		ExpTime: time.Now().Add(time.Hour),

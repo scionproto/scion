@@ -16,10 +16,8 @@ package beaconing
 
 import (
 	"context"
-	"hash"
 	"time"
 
-	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -33,28 +31,29 @@ import (
 
 var _ periodic.Task = (*Originator)(nil)
 
+// OriginatorConf is the configuration to create a new originator.
+type OriginatorConf struct {
+	Config ExtenderConf
+	Sender *onehop.Sender
+}
+
 // Originator originates beacons. It should only be used by core ASes.
 type Originator struct {
-	segExtender
+	*segExtender
 	sender *onehop.Sender
 }
 
-// NewOriginator creates a new originator.
-func NewOriginator(intfs *ifstate.Interfaces, mac hash.Hash, cfg Config,
-	sender *onehop.Sender) (*Originator, error) {
+// New creates a new originator.
+func (cfg OriginatorConf) New() (*Originator, error) {
 
-	cfg.InitDefaults()
-	if err := cfg.Validate(); err != nil {
+	cfg.Config.task = "originator"
+	extender, err := cfg.Config.new()
+	if err != nil {
 		return nil, err
 	}
 	o := &Originator{
-		sender: sender,
-		segExtender: segExtender{
-			cfg:   cfg,
-			intfs: intfs,
-			mac:   mac,
-			task:  "originator",
-		},
+		sender:      cfg.Sender,
+		segExtender: extender,
 	}
 	return o, nil
 }
@@ -69,7 +68,7 @@ func (o *Originator) Run(_ context.Context) {
 // the specified link type.
 func (o *Originator) originateBeacons(linkType proto.LinkType) {
 
-	active, nonActive := sortedIntfs(o.intfs, linkType)
+	active, nonActive := sortedIntfs(o.cfg.Intfs, linkType)
 	if len(nonActive) > 0 {
 		log.Debug("[Originator] Ignore non-active interfaces", "intfs", nonActive)
 	}
@@ -93,7 +92,7 @@ func (o *Originator) createInfoF(now time.Time) spath.InfoField {
 
 // originateBeacon originates a beacon on the given ifid.
 func (o *Originator) originateBeacon(ifid common.IFIDType, infoF spath.InfoField) error {
-	intf := o.intfs.Get(ifid)
+	intf := o.cfg.Intfs.Get(ifid)
 	if intf == nil {
 		return common.NewBasicError("Interface does not exist", nil)
 	}

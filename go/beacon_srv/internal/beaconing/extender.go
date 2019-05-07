@@ -15,7 +15,6 @@
 package beaconing
 
 import (
-	"hash"
 	"sync"
 	"time"
 
@@ -30,11 +29,16 @@ import (
 
 // segExtender appends AS entries to provided path segments.
 type segExtender struct {
-	cfg    Config
-	intfs  *ifstate.Interfaces
+	cfg    ExtenderConf
 	macMtx sync.Mutex
-	mac    hash.Hash
-	task   string
+}
+
+func (cfg ExtenderConf) new() (*segExtender, error) {
+	cfg.InitDefaults()
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return &segExtender{cfg: cfg}, nil
 }
 
 // extend extends the path segment. Prev should include the full raw hop field,
@@ -89,7 +93,7 @@ func (s *segExtender) createHopEntries(inIfid, egIfid common.IFIDType, peers []c
 	for _, ifid := range peers {
 		hopEntry, err := s.createHopEntry(ifid, egIfid, hopEntries[0].RawHopField, ts)
 		if err != nil {
-			log.Debug("Ignoring peer link upon error", "task", s.task, "ifid", ifid, "err", err)
+			log.Debug("Ignoring peer link upon error", "task", s.cfg.task, "ifid", ifid, "err", err)
 			continue
 		}
 		hopEntries = append(hopEntries, hopEntry)
@@ -129,7 +133,7 @@ func (s *segExtender) remoteInfo(ifid common.IFIDType) (
 	if ifid == 0 {
 		return 0, 0, 0, nil
 	}
-	intf := s.intfs.Get(ifid)
+	intf := s.cfg.Intfs.Get(ifid)
 	if intf == nil {
 		return 0, 0, 0, common.NewBasicError("Interface not found", nil)
 	}
@@ -155,7 +159,7 @@ func (s *segExtender) createHopF(inIfid, egIfid common.IFIDType, prev common.Raw
 	meta := s.cfg.Signer.Meta()
 	diff := meta.ExpTime.Sub(ts)
 	if diff < 1*time.Hour {
-		log.Warn("Signer expiration time is near", "task", s.task, "ts", ts,
+		log.Warn("Signer expiration time is near", "task", s.cfg.task, "ts", ts,
 			"chainExpiration", meta.ExpTime, "src", meta.Src)
 	}
 	expiry, err := spath.ExpTimeFromDuration(diff, false)
@@ -178,6 +182,6 @@ func (s *segExtender) createHopF(inIfid, egIfid common.IFIDType, prev common.Raw
 	}
 	s.macMtx.Lock()
 	defer s.macMtx.Unlock()
-	hop.Mac = hop.CalcMac(s.mac, util.TimeToSecs(ts), prev)
+	hop.Mac = hop.CalcMac(s.cfg.Mac, util.TimeToSecs(ts), prev)
 	return hop, nil
 }

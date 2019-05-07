@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -41,7 +40,7 @@ import (
 )
 
 func TestExtenderExtend(t *testing.T) {
-	setupItopo(t, topoNonCore)
+	topoProvider := xtest.TopoProviderFromFile(t, topoNonCore)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
@@ -112,20 +111,17 @@ func TestExtenderExtend(t *testing.T) {
 			defer mctrl.Finish()
 			g := graph.NewDefaultGraph(mctrl)
 			// Setup interfaces with active parent, child and one peer interface.
-			intfs := ifstate.NewInterfaces(testTopo(t, topoNonCore).IFInfoMap, ifstate.Config{})
+			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 			intfs.Get(graph.If_111_A_112_X).Activate(graph.If_112_X_111_A)
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
-			ext := segExtender{
-				cfg: Config{
-					MTU:        1337,
-					Signer:     testSigner(t, priv),
-					IfidSize:   DefaultIfidSize,
-					maxExpTime: spath.DefaultHopFExpiry,
-				},
-				mac:   mac,
-				intfs: intfs,
-			}
+			ext, err := ExtenderConf{
+				MTU:    1337,
+				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Mac:    mac,
+				Intfs:  intfs,
+			}.new()
+			SoMsg("err", err, ShouldBeNil)
 			// Create path segment from description, if available.
 			pseg, err := seg.NewSeg(&spath.InfoField{ISD: 1, TsInt: util.TimeToSecs(time.Now())})
 			if len(test.seg) > 0 {
@@ -157,7 +153,7 @@ func TestExtenderExtend(t *testing.T) {
 				SoMsg("TRCVer", entry.TrcVer, ShouldEqual, 84)
 				SoMsg("IfIDSize", entry.IfIDSize, ShouldEqual, DefaultIfidSize)
 				SoMsg("MTU", entry.MTU, ShouldEqual, 1337)
-				SoMsg("IA", entry.IA(), ShouldResemble, itopo.Get().ISD_AS)
+				SoMsg("IA", entry.IA(), ShouldResemble, topoProvider.Get().ISD_AS)
 				// Checks that inactive peers are ignored, even when provided.
 				SoMsg("HopEntries length", len(entry.HopEntries), ShouldEqual, 2)
 			})
@@ -186,21 +182,20 @@ func TestExtenderExtend(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
-		intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 		xtest.FailOnErr(t, err)
 		intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-		ext := segExtender{
-			cfg: Config{
-				MTU:        1337,
-				Signer:     testSigner(t, priv),
-				IfidSize:   DefaultIfidSize,
-				maxExpTime: 1,
-			},
-			mac:   mac,
-			intfs: intfs,
-		}
+		var maxExpTime = spath.ExpTimeType(1)
+		ext, err := ExtenderConf{
+			MTU:        1337,
+			Signer:     testSigner(t, priv, topoProvider.Get().ISD_AS),
+			Mac:        mac,
+			MaxExpTime: &maxExpTime,
+			Intfs:      intfs,
+		}.new()
+		SoMsg("err", err, ShouldBeNil)
 		pseg := testBeacon(g, segDesc).Segment
-		err := ext.extend(pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
+		err = ext.extend(pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
 		SoMsg("err", err, ShouldBeNil)
 		hopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
 		SoMsg("err", err, ShouldBeNil)
@@ -211,18 +206,15 @@ func TestExtenderExtend(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
-		intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 		xtest.FailOnErr(t, err)
-		ext := segExtender{
-			cfg: Config{
-				MTU:        1337,
-				Signer:     testSigner(t, priv),
-				IfidSize:   DefaultIfidSize,
-				maxExpTime: spath.DefaultHopFExpiry,
-			},
-			mac:   mac,
-			intfs: intfs,
-		}
+		ext, err := ExtenderConf{
+			MTU:    1337,
+			Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+			Mac:    mac,
+			Intfs:  intfs,
+		}.new()
+		SoMsg("err", err, ShouldBeNil)
 		pseg := testBeacon(g, segDesc).Segment
 		Convey("Unknown Ingress IFID", func() {
 			err := ext.extend(pseg, 10, 0, []common.IFIDType{})
@@ -258,7 +250,7 @@ func TestExtenderExtend(t *testing.T) {
 				Src: ctrl.SignSrcDef{
 					ChainVer: 42,
 					TRCVer:   84,
-					IA:       itopo.Get().ISD_AS,
+					IA:       topoProvider.Get().ISD_AS,
 				},
 				Algo:    scrypto.Ed25519,
 				ExpTime: time.Now(),

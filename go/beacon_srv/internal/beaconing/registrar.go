@@ -16,23 +16,21 @@ package beaconing
 
 import (
 	"context"
-	"hash"
 	"net"
 	"sync"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
-	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -44,34 +42,39 @@ type SegmentProvider interface {
 
 var _ periodic.Task = (*Registrar)(nil)
 
+// RegistrarConf is the configuration to create a new registrar.
+type RegistrarConf struct {
+	Config       ExtenderConf
+	SegProvider  SegmentProvider
+	TopoProvider topology.Provider
+	Msgr         infra.Messenger
+	SegType      proto.PathSegType
+}
+
 // Registrar is used to periodically register path segments with the appropriate
 // path servers. Core and Up segments are registered with the local path server.
 // Down segments are registered at the core.
 type Registrar struct {
-	segExtender
-	msgr     infra.Messenger
-	provider SegmentProvider
-	segType  proto.PathSegType
+	*segExtender
+	msgr         infra.Messenger
+	segProvider  SegmentProvider
+	topoProvider topology.Provider
+	segType      proto.PathSegType
 }
 
-// NewRegistrar creates a new segment regsitration task.
-func NewRegistrar(intfs *ifstate.Interfaces, segType proto.PathSegType, mac hash.Hash,
-	provider SegmentProvider, msgr infra.Messenger, cfg Config) (*Registrar, error) {
-
-	cfg.InitDefaults()
-	if err := cfg.Validate(); err != nil {
+// New creates a new segment regsitration task.
+func (cfg RegistrarConf) New() (*Registrar, error) {
+	cfg.Config.task = "registrar"
+	extender, err := cfg.Config.new()
+	if err != nil {
 		return nil, err
 	}
 	r := &Registrar{
-		provider: provider,
-		segType:  segType,
-		msgr:     msgr,
-		segExtender: segExtender{
-			cfg:   cfg,
-			mac:   mac,
-			intfs: intfs,
-			task:  "registrar",
-		},
+		segProvider:  cfg.SegProvider,
+		topoProvider: cfg.TopoProvider,
+		segType:      cfg.SegType,
+		msgr:         cfg.Msgr,
+		segExtender:  extender,
 	}
 	return r, nil
 }
@@ -84,11 +87,11 @@ func (r *Registrar) Run(ctx context.Context) {
 }
 
 func (r *Registrar) run(ctx context.Context) error {
-	segments, err := r.provider.SegmentsToRegister(ctx, r.segType)
+	segments, err := r.segProvider.SegmentsToRegister(ctx, r.segType)
 	if err != nil {
 		return err
 	}
-	peers, nonActivePeers := sortedIntfs(r.intfs, proto.LinkType_peer)
+	peers, nonActivePeers := sortedIntfs(r.cfg.Intfs, proto.LinkType_peer)
 	if len(nonActivePeers) > 0 {
 		log.Debug("[Registrar] Ignore non-active peer interfaces", "intfs", nonActivePeers)
 	}
@@ -165,11 +168,11 @@ func (r *Registrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
 	if r.segType != proto.PathSegType_down {
 		return r.localServer()
 	}
-	return addrutil.GetPath(addr.SvcPS, pseg, itopo.Get())
+	return addrutil.GetPath(addr.SvcPS, pseg, r.topoProvider.Get())
 }
 
 func (r *Registrar) localServer() (*snet.Addr, error) {
-	topo := itopo.Get()
+	topo := r.topoProvider.Get()
 	ps, err := topo.PSNames.GetRandom()
 	if err != nil {
 		return nil, err
