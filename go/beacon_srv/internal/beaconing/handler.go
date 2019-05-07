@@ -90,7 +90,7 @@ func (h *handler) buildBeacon() (beacon.Beacon, *infra.HandlerResult, error) {
 	pseg, ok := h.request.Message.(*seg.PathSegment)
 	if !ok {
 		return beacon.Beacon{}, infra.MetricsErrInternal, common.NewBasicError(
-			"Wrong message type, expected seg.Beacon", nil,
+			"Wrong message type, expected *seg.PathSegment", nil,
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 	}
 	if err := pseg.ParseRaw(seg.ValidateBeacon); err != nil {
