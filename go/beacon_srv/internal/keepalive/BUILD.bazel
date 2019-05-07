@@ -17,10 +17,10 @@ go_library(
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/ifid:go_default_library",
         "//go/lib/infra:go_default_library",
-        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/periodic:go_default_library",
         "//go/lib/snet:go_default_library",
+        "//go/lib/topology:go_default_library",
     ],
 )
 
@@ -41,7 +41,6 @@ go_test(
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/ifid:go_default_library",
         "//go/lib/infra:go_default_library",
-        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/trust:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",
@@ -50,7 +49,6 @@ go_test(
         "//go/lib/spath:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/xtest:go_default_library",
-        "//go/proto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],

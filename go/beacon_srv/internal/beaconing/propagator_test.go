@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -140,28 +139,20 @@ func TestPropagatorRun(t *testing.T) {
 		Convey(test.name, t, func() {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			setupItopo(t, topoFile[test.core])
-			signer := testSigner(t, priv)
-			// Activate all non-inactive interfaces.
-			intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
-			for ifid, remote := range allIntfs[test.core] {
-				if test.inactive[ifid] {
-					continue
-				}
-				intfs.Get(ifid).Activate(remote)
-			}
-
-			g := graph.NewDefaultGraph(mctrl)
+			topoProvider := xtest.TopoProviderFromFile(t, topoFile[test.core])
 			provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 			conn := mock_snet.NewMockPacketConn(mctrl)
-
-			p, err := NewPropagator(intfs, macProp, test.core, provider,
-				Config{
-					MTU:    uint16(itopo.Get().MTU),
-					Signer: signer,
+			cfg := PropagatorConf{
+				Config: ExtenderConf{
+					Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+					Mac:    macProp,
+					Intfs:  ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
+					MTU:    uint16(topoProvider.Get().MTU),
 				},
-				&onehop.Sender{
-					IA:   itopo.Get().ISD_AS,
+				BeaconProvider: provider,
+				Core:           test.core,
+				Sender: &onehop.Sender{
+					IA:   topoProvider.Get().ISD_AS,
 					Conn: conn,
 					Addr: &addr.AppAddr{
 						L3: addr.HostFromIPStr("127.0.0.1"),
@@ -169,8 +160,16 @@ func TestPropagatorRun(t *testing.T) {
 					},
 					MAC: macSender,
 				},
-			)
+			}
+			p, err := cfg.New()
 			SoMsg("err", err, ShouldBeNil)
+			for ifid, remote := range allIntfs[test.core] {
+				if test.inactive[ifid] {
+					continue
+				}
+				cfg.Config.Intfs.Get(ifid).Activate(remote)
+			}
+			g := graph.NewDefaultGraph(mctrl)
 			provider.EXPECT().BeaconsToPropagate(gomock.Any()).DoAndReturn(
 				func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
 					res := make(chan beacon.BeaconOrErr, len(beacons[test.core]))
@@ -197,7 +196,7 @@ func TestPropagatorRun(t *testing.T) {
 			p.Run(nil)
 			for i, msg := range msgs {
 				Convey(fmt.Sprintf("Packet %d is correct", i), func() {
-					checkMsg(t, msg, pub)
+					checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap)
 				})
 			}
 		})

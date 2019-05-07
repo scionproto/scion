@@ -15,6 +15,9 @@
 package beaconing
 
 import (
+	"hash"
+
+	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -25,9 +28,14 @@ const (
 	DefaultIfidSize = 12
 )
 
-type Config struct {
+// ExtenderConf is the configuration used when extending beacons.
+type ExtenderConf struct {
 	// Signer is used to sign path segments.
 	Signer infra.Signer
+	// Mac is used to calculate the hop field MAC.
+	Mac hash.Hash
+	// Intfs holds all interfaces in the AS.
+	Intfs *ifstate.Interfaces
 	// MTU is the MTU value set in the AS entries.
 	MTU uint16
 	// IfidSize is the bit-size of the ifid in the hop-fields.
@@ -37,10 +45,12 @@ type Config struct {
 	// maxExpTime is a copy of MaxExpTime to avoid using the captured
 	// reference from the calling code.
 	maxExpTime spath.ExpTimeType
+	// task contains an identifier specific to the task that uses the extender.
+	task string
 }
 
 // InitDefaults initializes the default values, if not set.
-func (cfg *Config) InitDefaults() {
+func (cfg *ExtenderConf) InitDefaults() {
 	if cfg.IfidSize == 0 {
 		cfg.IfidSize = DefaultIfidSize
 	}
@@ -51,7 +61,7 @@ func (cfg *Config) InitDefaults() {
 }
 
 // Validate checks that the config contains a signer.
-func (cfg *Config) Validate() error {
+func (cfg *ExtenderConf) Validate() error {
 	if cfg.Signer == nil {
 		return common.NewBasicError("Signer must be set", nil)
 	}

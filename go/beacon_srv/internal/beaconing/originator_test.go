@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -45,23 +44,25 @@ const (
 )
 
 func TestOriginatorRun(t *testing.T) {
-	setupItopo(t, topoCore)
+	topoProvider := xtest.TopoProviderFromFile(t, topoCore)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
-	intfs := ifstate.NewInterfaces(itopo.Get().IFInfoMap, ifstate.Config{})
+	intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	xtest.FailOnErr(t, err)
-	signer := testSigner(t, priv)
+	signer := testSigner(t, priv, topoProvider.Get().ISD_AS)
 	Convey("Run originates ifid packets on all active core and child interfaces", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		conn := mock_snet.NewMockPacketConn(mctrl)
-		o, err := NewOriginator(intfs, mac,
-			Config{
-				MTU:    uint16(itopo.Get().MTU),
+		o, err := OriginatorConf{
+			Config: ExtenderConf{
+				MTU:    uint16(topoProvider.Get().MTU),
 				Signer: signer,
+				Intfs:  intfs,
+				Mac:    mac,
 			},
-			&onehop.Sender{
+			Sender: &onehop.Sender{
 				IA:   xtest.MustParseIA("1-ff00:0:110"),
 				Conn: conn,
 				Addr: &addr.AppAddr{
@@ -70,7 +71,7 @@ func TestOriginatorRun(t *testing.T) {
 				},
 				MAC: mac,
 			},
-		)
+		}.New()
 		xtest.FailOnErr(t, err)
 		// Activate interfaces
 		intfs.Get(42).Activate(84)
@@ -93,7 +94,7 @@ func TestOriginatorRun(t *testing.T) {
 		o.Run(nil)
 		for i, msg := range msgs {
 			Convey(fmt.Sprintf("Packet %d is correct", i), func() {
-				checkMsg(t, msg, pub)
+				checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap)
 			})
 		}
 	})
@@ -104,7 +105,7 @@ type msg struct {
 	ov  *overlay.OverlayAddr
 }
 
-func checkMsg(t *testing.T, msg msg, pub common.RawBytes) {
+func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoMap) {
 	// Extract segment from the payload
 	spld, err := ctrl.NewSignedPldFromRaw(msg.pkt.Payload.(common.RawBytes))
 	SoMsg("SPldErr", err, ShouldBeNil)
@@ -127,21 +128,9 @@ func checkMsg(t *testing.T, msg msg, pub common.RawBytes) {
 		bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
 		xtest.FailOnErr(t, err)
 		SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
-		brAddr := itopo.Get().IFInfoMap[hopF.ConsEgress].InternalAddrs
+		brAddr := infos[hopF.ConsEgress].InternalAddrs
 		SoMsg("ov", msg.ov, ShouldResemble, brAddr.PublicOverlay(brAddr.Overlay))
 	})
-}
-
-func testTopo(t *testing.T, fn string) *topology.Topo {
-	topo, err := topology.LoadFromFile(fn)
-	xtest.FailOnErr(t, err)
-	return topo
-}
-
-func setupItopo(t *testing.T, fn string) {
-	itopo.TestingInit(t, "", proto.ServiceType_unset, itopo.Callbacks{})
-	_, _, err := itopo.SetStatic(testTopo(t, fn), true)
-	xtest.FailOnErr(t, err)
 }
 
 type segVerifier common.RawBytes

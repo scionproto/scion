@@ -24,10 +24,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 var _ periodic.Task = (*Sender)(nil)
@@ -35,12 +35,13 @@ var _ periodic.Task = (*Sender)(nil)
 // Sender sends ifid keepalive messages on all border routers.
 type Sender struct {
 	*onehop.Sender
-	Signer infra.Signer
+	Signer       infra.Signer
+	TopoProvider topology.Provider
 }
 
 // Run sends ifid keepalive messages on all border routers.
 func (s *Sender) Run(_ context.Context) {
-	topo := itopo.Get()
+	topo := s.TopoProvider.Get()
 	if topo == nil {
 		log.Error("[KeepaliveSender] Unable to send keepalive, no topology set")
 		return

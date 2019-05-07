@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
@@ -105,12 +106,19 @@ func TestNoRevocationIssued(t *testing.T) {
 	Convey("TestNoRevocationIssued", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		msger := mock_infra.NewMockMessenger(mctrl)
+		msgr := mock_infra.NewMockMessenger(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
-		revoker := NewRevoker(intfs, revInserter, msger, signer,
-			RevConfig{RevOverlap: overlapTime}, topoProvider)
+		cfg := RevokerConf{
+			Intfs:        intfs,
+			Msgr:         msgr,
+			Signer:       signer,
+			RevConfig:    RevConfig{RevOverlap: overlapTime},
+			TopoProvider: topoProvider,
+			RevInserter:  revInserter,
+		}
+		revoker := cfg.New()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
@@ -129,7 +137,7 @@ func TestRevokeInterface(t *testing.T) {
 	Convey("TestRevokeInterface", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		msger := mock_infra.NewMockMessenger(mctrl)
+		msgr := mock_infra.NewMockMessenger(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
@@ -140,9 +148,16 @@ func TestRevokeInterface(t *testing.T) {
 				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
 			},
 		})
-		checkSentMessages := expectMessengerCalls(msger, 101, topoProvider)
-		revoker := NewRevoker(intfs, revInserter, msger, signer,
-			RevConfig{RevOverlap: overlapTime}, topoProvider)
+		checkSentMessages := expectMessengerCalls(msgr, 101, topoProvider)
+		cfg := RevokerConf{
+			Intfs:        intfs,
+			Msgr:         msgr,
+			Signer:       signer,
+			RevConfig:    RevConfig{RevOverlap: overlapTime},
+			TopoProvider: topoProvider,
+			RevInserter:  revInserter,
+		}
+		revoker := cfg.New()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
@@ -161,7 +176,7 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 	Convey("TestRevokedInterfaceNotRevokedImmediately", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		msger := mock_infra.NewMockMessenger(mctrl)
+		msgr := mock_infra.NewMockMessenger(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
@@ -175,8 +190,15 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
 		intfs.Get(101).Revoke(srev)
-		revoker := NewRevoker(intfs, revInserter, msger, signer,
-			RevConfig{RevOverlap: overlapTime}, topoProvider)
+		cfg := RevokerConf{
+			Intfs:        intfs,
+			Msgr:         msgr,
+			Signer:       signer,
+			RevConfig:    RevConfig{RevOverlap: overlapTime},
+			TopoProvider: topoProvider,
+			RevInserter:  revInserter,
+		}
+		revoker := cfg.New()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
@@ -196,7 +218,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 	Convey("TestRevokedInterfaceRevokedAgain", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		msger := mock_infra.NewMockMessenger(mctrl)
+		msgr := mock_infra.NewMockMessenger(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
@@ -216,9 +238,16 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
 			},
 		})
-		checkSentMessages := expectMessengerCalls(msger, 101, topoProvider)
-		revoker := NewRevoker(intfs, revInserter, msger, signer,
-			RevConfig{RevOverlap: overlapTime}, topoProvider)
+		checkSentMessages := expectMessengerCalls(msgr, 101, topoProvider)
+		cfg := RevokerConf{
+			Intfs:        intfs,
+			Msgr:         msgr,
+			Signer:       signer,
+			RevConfig:    RevConfig{RevOverlap: overlapTime},
+			TopoProvider: topoProvider,
+			RevInserter:  revInserter,
+		}
+		revoker := cfg.New()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
@@ -232,7 +261,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 // TODO(lukedirtwalker): test revoking multiple interfaces at once.
 
 func expectMessengerCalls(msger *mock_infra.MockMessenger,
-	revokedIfId common.IFIDType, topoProvider TopoProvider) func(*testing.T, revVerifier) {
+	revokedIfId common.IFIDType, topoProvider topology.Provider) func(*testing.T, revVerifier) {
 
 	var brMsgs []brMsg
 	var brMsgsMtx sync.Mutex
@@ -283,7 +312,7 @@ func expectMessengerCalls(msger *mock_infra.MockMessenger,
 }
 
 func checkBRMessage(t *testing.T, brId string, infos *path_mgmt.IFStateInfos,
-	revokedIfId common.IFIDType, verifier revVerifier, topoProvider TopoProvider) {
+	revokedIfId common.IFIDType, verifier revVerifier, topoProvider topology.Provider) {
 
 	Convey(fmt.Sprintf("Check ifstateinfo for %s", brId), func() {
 		SoMsg("Should contain correct amount of infos", len(infos.Infos), ShouldEqual, 1)
@@ -294,7 +323,7 @@ func checkBRMessage(t *testing.T, brId string, infos *path_mgmt.IFStateInfos,
 }
 
 func checkRevocation(t *testing.T, srev *path_mgmt.SignedRevInfo,
-	revokedIfId common.IFIDType, verifier revVerifier, topoProvider TopoProvider) {
+	revokedIfId common.IFIDType, verifier revVerifier, topoProvider topology.Provider) {
 
 	Convey("Check revocation", func() {
 		revInfo, err := srev.VerifiedRevInfo(context.Background(), verifier)
@@ -321,7 +350,7 @@ func checkInterfaces(intfs *Interfaces, nonActive map[common.IFIDType]State) {
 	})
 }
 
-func brId(t *testing.T, topoProvider TopoProvider, saddr *snet.Addr) string {
+func brId(t *testing.T, topoProvider topology.Provider, saddr *snet.Addr) string {
 	topo := topoProvider.Get()
 	for brId, brInfo := range topo.BR {
 		if brInfo.CtrlAddrs.PublicAddr(topo.Overlay).Equal(saddr.Host) {
@@ -333,7 +362,7 @@ func brId(t *testing.T, topoProvider TopoProvider, saddr *snet.Addr) string {
 }
 
 // expectedBRs return a set of BR ids for which we expect a if state update push.
-func expectedBRs(topoProvider TopoProvider) map[string]struct{} {
+func expectedBRs(topoProvider topology.Provider) map[string]struct{} {
 	brIds := make(map[string]struct{})
 	for brId := range topoProvider.Get().BR {
 		brIds[brId] = struct{}{}

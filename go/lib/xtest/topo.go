@@ -29,7 +29,7 @@ type TestTopoProvider struct {
 // It fails the test if loading the file fails.
 func TopoProviderFromFile(t *testing.T, fName string) *TestTopoProvider {
 	t.Helper()
-	topo, err := topology.LoadFromFile("testdata/topology.json")
+	topo, err := topology.LoadFromFile(fName)
 	FailOnErr(t, err)
 	return &TestTopoProvider{Topo: topo}
 }

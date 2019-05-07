@@ -35,17 +35,12 @@ import (
 // the revoker can reissue a new revocation.
 const DefaultRevOverlap = path_mgmt.MinRevTTL / 2
 
-// TopoProvider provides a topology that is up to date.
-type TopoProvider interface {
-	Get() *topology.Topo
-}
-
 // RevInserter stores revocation into persistent storage.
 type RevInserter interface {
 	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
 }
 
-// RevConfig configures the revoker.
+// RevConfig configures the parameters for revocation creation.
 type RevConfig struct {
 	RevOverlap time.Duration
 }
@@ -57,39 +52,35 @@ func (c *RevConfig) InitDefaults() {
 	}
 }
 
+// RevokerConf is the configuration to create a new revoker.
+type RevokerConf struct {
+	Intfs        *Interfaces
+	Msgr         infra.Messenger
+	Signer       infra.Signer
+	TopoProvider topology.Provider
+	RevInserter  RevInserter
+	RevConfig    RevConfig
+}
+
 var _ periodic.Task = (*Revoker)(nil)
 
 // Revoker issues revocations for interfaces that have timed out.
 // Revocations for already revoked interfaces are renewed periodically.
 type Revoker struct {
-	intfs        *Interfaces
-	revInserter  RevInserter
-	msger        infra.Messenger
-	cfg          RevConfig
-	signer       infra.Signer
-	topoProvider TopoProvider
+	cfg RevokerConf
 }
 
 // NewRevoker creates a new revoker from the given arguments.
-func NewRevoker(intfs *Interfaces, revInserter RevInserter, msger infra.Messenger,
-	signer infra.Signer, cfg RevConfig, topoProvider TopoProvider) *Revoker {
-
-	cfg.InitDefaults()
-	return &Revoker{
-		intfs:        intfs,
-		revInserter:  revInserter,
-		msger:        msger,
-		cfg:          cfg,
-		signer:       signer,
-		topoProvider: topoProvider,
-	}
+func (cfg RevokerConf) New() *Revoker {
+	cfg.RevConfig.InitDefaults()
+	return &Revoker{cfg: cfg}
 }
 
 // Run issues revocations for interfaces that have timed out
 // and renews revocations for revoked interfaces.
 func (r *Revoker) Run(ctx context.Context) {
 	revs := make(map[common.IFIDType]*path_mgmt.SignedRevInfo)
-	for ifid, intf := range r.intfs.All() {
+	for ifid, intf := range r.cfg.Intfs.All() {
 		if intf.Expire() && !r.hasValidRevocation(intf) {
 			if intf.Revocation() == nil {
 				log.Info("[Revoker] interface went down", "ifid", ifid)
@@ -108,7 +99,7 @@ func (r *Revoker) Run(ctx context.Context) {
 	}
 	if len(revs) > 0 {
 		wg := &sync.WaitGroup{}
-		if err := r.revInserter.InsertRevocations(ctx, toSlice(revs)...); err != nil {
+		if err := r.cfg.RevInserter.InsertRevocations(ctx, toSlice(revs)...); err != nil {
 			log.Error("[Revoker] Failed to insert revocations in store", "err", err)
 			// still continue to try to push it to BR/PS.
 		}
@@ -121,7 +112,7 @@ func (r *Revoker) Run(ctx context.Context) {
 func (r *Revoker) hasValidRevocation(intf *Interface) bool {
 	if srev := intf.Revocation(); srev != nil {
 		rev, err := srev.RevInfo()
-		return err == nil && rev.RelativeTTL(time.Now()) >= r.cfg.RevOverlap
+		return err == nil && rev.RelativeTTL(time.Now()) >= r.cfg.RevConfig.RevOverlap
 	}
 	return false
 }
@@ -130,23 +121,23 @@ func (r *Revoker) createSignedRev(ifid common.IFIDType) (*path_mgmt.SignedRevInf
 	now := util.TimeToSecs(time.Now())
 	revInfo := &path_mgmt.RevInfo{
 		IfID:         ifid,
-		RawIsdas:     r.topoProvider.Get().ISD_AS.IAInt(),
-		LinkType:     r.topoProvider.Get().IFInfoMap[ifid].LinkType,
+		RawIsdas:     r.cfg.TopoProvider.Get().ISD_AS.IAInt(),
+		LinkType:     r.cfg.TopoProvider.Get().IFInfoMap[ifid].LinkType,
 		RawTimestamp: now,
 		RawTTL:       uint32(path_mgmt.MinRevTTL.Seconds()),
 	}
-	return path_mgmt.NewSignedRevInfo(revInfo, r.signer)
+	return path_mgmt.NewSignedRevInfo(revInfo, r.cfg.Signer)
 }
 
 func (r *Revoker) pushRevocationsToBRs(ctx context.Context,
 	revs map[common.IFIDType]*path_mgmt.SignedRevInfo, wg *sync.WaitGroup) {
 
-	topo := r.topoProvider.Get()
+	topo := r.cfg.TopoProvider.Get()
 	msg := &path_mgmt.IFStateInfos{
 		Infos: make([]*path_mgmt.IFStateInfo, 0, len(revs)),
 	}
 	for ifid := range revs {
-		msg.Infos = append(msg.Infos, infoFromInterface(ifid, r.intfs.Get(ifid)))
+		msg.Infos = append(msg.Infos, infoFromInterface(ifid, r.cfg.Intfs.Get(ifid)))
 	}
 	for brId, br := range topo.BR {
 		r.sendToBr(ctx, brId, br, msg, wg)
@@ -161,13 +152,13 @@ func (r *Revoker) sendToBr(ctx context.Context, brId string, br topology.BRInfo,
 		defer log.LogPanicAndExit()
 		defer wg.Done()
 
-		topo := r.topoProvider.Get()
+		topo := r.cfg.TopoProvider.Get()
 		a := &snet.Addr{
 			IA:      topo.ISD_AS,
 			Host:    br.CtrlAddrs.PublicAddr(topo.Overlay),
 			NextHop: br.CtrlAddrs.OverlayAddr(topo.Overlay),
 		}
-		if err := r.msger.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
+		if err := r.cfg.Msgr.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
 			log.Error("[Revoker] Failed to send revocations to BR", "br", brId, "err", err)
 		}
 	}()
@@ -176,7 +167,7 @@ func (r *Revoker) sendToBr(ctx context.Context, brId string, br topology.BRInfo,
 func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 	revs map[common.IFIDType]*path_mgmt.SignedRevInfo) {
 
-	topo := r.topoProvider.Get()
+	topo := r.cfg.TopoProvider.Get()
 	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_ps)
 	if err != nil {
 		log.Error("[Revoker] Failed to get svcInfo for PS", "err", err)
@@ -193,7 +184,7 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 		NextHop: topoAddr.OverlayAddr(topo.Overlay),
 	}
 	for ifid, srev := range revs {
-		if err := r.msger.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
+		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
 			log.Error("[Revoker] Failed to send revocation to PS", "ifid", ifid, "err", err)
 		}
 	}

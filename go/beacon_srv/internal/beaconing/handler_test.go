@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -53,10 +54,9 @@ func TestNewHandler(t *testing.T) {
 	Convey("NewHandler crates a correct handler", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-
 		g := graph.NewDefaultGraph(mctrl)
 		bseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X})
-
+		topoProvider := xtest.TopoProviderFromFile(t, topoCore)
 		Convey("Correct beacon is inserted", func() {
 			inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 			expectedBeacon := beacon.Beacon{Segment: bseg.Segment, InIfId: localIF}
@@ -68,7 +68,7 @@ func TestNewHandler(t *testing.T) {
 			verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
 				gomock.Any()).MaxTimes(2).Return(nil)
 
-			handler := NewHandler(localIA, testInterfaces(t), inserter, verifier)
+			handler := NewHandler(localIA, testInterfaces(topoProvider.Get()), inserter, verifier)
 			res := handler.Handle(defaultTestReq(bseg))
 			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
 		})
@@ -76,7 +76,7 @@ func TestNewHandler(t *testing.T) {
 			inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 			verifier := mock_infra.NewMockVerifier(mctrl)
 
-			intfs := testInterfaces(t)
+			intfs := testInterfaces(topoProvider.Get())
 			handler := NewHandler(localIA, intfs, inserter, verifier)
 			Convey("Wrong payload type", func() {
 				req := infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
@@ -204,8 +204,8 @@ func testPath(ingressIfid common.IFIDType) *spath.Path {
 	return path
 }
 
-func testInterfaces(t *testing.T) *ifstate.Interfaces {
-	intfs := ifstate.NewInterfaces(testTopo(t, topoCore).IFInfoMap, ifstate.Config{})
+func testInterfaces(topo *topology.Topo) *ifstate.Interfaces {
+	intfs := ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
 	intfs.Get(graph.If_110_X_120_A).Activate(graph.If_120_A_110_X)
 	return intfs
 }
