@@ -142,14 +142,20 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.Revocation
 			var rawRev common.RawBytes
 			err = rows.Scan(&rawRev)
 			if err != nil {
-				res <- beacon.RevocationOrErr{Err: err}
+				res <- beacon.RevocationOrErr{Err: common.NewBasicError(beacon.ErrReadingRows, err)}
 				return
 			}
 			srev, err := path_mgmt.NewSignedRevInfoFromRaw(rawRev)
-			res <- beacon.RevocationOrErr{Rev: srev, Err: err}
 			if err != nil {
-				return
+				err = common.NewBasicError(beacon.ErrParse, err)
 			}
+			res <- beacon.RevocationOrErr{
+				Rev: srev,
+				Err: err,
+			}
+			// Continue here as this should not really happen if the insertion
+			// is properly guarded.
+			// Like this the client might still be able to proceed.
 		}
 	}()
 	return res, nil
@@ -203,7 +209,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 			SELECT 1
 			FROM IntfToBeacon ib
 			JOIN Revocations r USING (IsdID, AsID, IntfID)
-			WHERE ib.BeaconRowID = RowID AND r.ExpirationTime > ?3
+			WHERE ib.BeaconRowID = RowID AND r.ExpirationTime >= ?3
 		)
 		GROUP BY b.RowID
 		ORDER BY b.HopsLength ASC
@@ -222,12 +228,12 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 		var rawBeacon sql.RawBytes
 		var inIntfId common.IFIDType
 		if err = rows.Scan(&rawBeacon, &inIntfId); err != nil {
-			errors = append(errors, err)
+			errors = append(errors, common.NewBasicError(beacon.ErrReadingRows, err))
 			continue
 		}
 		s, err := seg.NewBeaconFromRaw(common.RawBytes(rawBeacon))
 		if err != nil {
-			errors = append(errors, common.NewBasicError("Unable to parse beacon", err))
+			errors = append(errors, common.NewBasicError(beacon.ErrParse, err))
 		}
 		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfId})
 	}
@@ -475,7 +481,7 @@ func (e *executor) InsertRevocation(ctx context.Context,
 	defer e.Unlock()
 	query := `
 	INSERT OR REPLACE INTO Revocations
-	(IsdID, AsID, IntfID, LinkType, RawTimestamp, ExpirationTime, RawSignedRev)
+	(IsdID, AsID, IntfID, LinkType, IssuingTime, ExpirationTime, RawSignedRev)
 	VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
@@ -496,11 +502,10 @@ func containsNewerRev(ctx context.Context, tx *sql.Tx,
 
 	query := `
 	SELECT 1 FROM Revocations
-	WHERE IsdID = ? AND AsID = ? AND IntfID = ? AND RawTimestamp > ?
+	WHERE IsdID = ? AND AsID = ? AND IntfID = ? AND IssuingTime > ?
 	`
-	row := tx.QueryRowContext(ctx, query, revInfo.IA().I, revInfo.IA().A,
-		revInfo.IfID, revInfo.RawTimestamp)
-	err := row.Scan()
+	err := tx.QueryRowContext(ctx, query, revInfo.IA().I, revInfo.IA().A,
+		revInfo.IfID, revInfo.RawTimestamp).Scan()
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
