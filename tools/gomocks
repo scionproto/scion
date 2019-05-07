@@ -36,6 +36,7 @@ MOCK_TARGETS = [
             "BeaconInserter,BeaconProvider,SegmentProvider"),
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/keepalive",
             "IfStatePusher,Beaconer,RevDropper"),
+        (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/revocation", "Store"),
         (SCION_PACKAGE_PREFIX + "/go/lib/ctrl/seg", "Signer"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter,Verifier"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/messenger", "Resolver"),
@@ -51,7 +52,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/snetproxy", "IOOperation,Reconnecter"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/ctxmonitor", "Monitor"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/pathsource", "PathSource"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/svc", "Prechecker,RequestHandler,RoundTripper"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/svc", "RequestHandler,RoundTripper"),
         (SCION_PACKAGE_PREFIX + "/go/lib/svc/internal/ctxconn", "DeadlineCloser"),
 ]
 
