@@ -58,33 +58,25 @@ func (m *revSliceMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	var revInfos []*path_mgmt.RevInfo
+	revInfos := make(map[path_mgmt.RevInfo]*path_mgmt.RevInfo)
 	for _, rev := range sRevs {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout/10)
-		revInfo, err := rev.VerifiedRevInfo(ctx, m.verifier)
-		cancelF()
+		revInfo, err := rev.VerifiedRevInfo(context.Background(), m.verifier)
 		if err != nil {
 			return false
 		}
-		revInfos = append(revInfos, revInfo)
+		key := *revInfo
+		key.RawTimestamp, key.RawTTL = 0, 0
+		revInfos[key] = revInfo
 	}
 	for _, expectedRev := range m.matchRevs {
-		// find matching:
-		var found bool
-		for i, rev := range revInfos {
-			if rev.IA().Equal(expectedRev.IA()) &&
-				rev.IfID == expectedRev.IfID &&
-				rev.LinkType == expectedRev.LinkType &&
-				rev.Expiration().After(time.Now()) {
-				found = true
-				// delete entry
-				revInfos = append(revInfos[:i], revInfos[i+1:]...)
-				break
-			}
-		}
-		if !found {
+		rev, ok := revInfos[*expectedRev]
+		if !ok {
 			return false
 		}
+		if rev.Active() != nil {
+			return false
+		}
+		delete(revInfos, *expectedRev)
 	}
 	return len(revInfos) == 0
 }
