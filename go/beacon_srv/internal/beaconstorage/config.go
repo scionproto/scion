@@ -160,10 +160,16 @@ func (cfg *BeaconDBConf) NewStore(ia addr.IA, policies beacon.Policies) (Store, 
 	if err != nil {
 		return nil, err
 	}
-	if policies.Core {
-		return beacon.NewCoreBeaconStore(policies, db)
-	}
 	return beacon.NewBeaconStore(policies, db)
+}
+
+// NewCoreStore creates a new core beacon store backed by the configured database.
+func (cfg *BeaconDBConf) NewCoreStore(ia addr.IA, policies beacon.CorePolicies) (Store, error) {
+	db, err := cfg.New(ia)
+	if err != nil {
+		return nil, err
+	}
+	return beacon.NewCoreBeaconStore(policies, db)
 }
 
 func setConnLimits(cfg *BeaconDBConf, db beacon.DB) {

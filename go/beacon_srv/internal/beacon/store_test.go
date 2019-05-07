@@ -322,10 +322,9 @@ func testCoreStoreSelection(t *testing.T,
 			defer mctrl.Finish()
 			db := mock_beacon.NewMockDB(mctrl)
 			tx := mock_beacon.NewMockTransaction(mctrl)
-			policies := beacon.Policies{
+			policies := beacon.CorePolicies{
 				Prop:    beacon.Policy{BestSetSize: test.bestSize},
 				CoreReg: beacon.Policy{BestSetSize: test.bestSize},
-				Core:    true,
 			}
 			store, err := beacon.NewCoreBeaconStore(policies, db)
 			xtest.FailOnErr(t, err)

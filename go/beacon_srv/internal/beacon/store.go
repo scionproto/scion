@@ -29,72 +29,8 @@ import (
 
 const maxResultChanSize = 32
 
-// Policies keeps track of all policies for a beacon store.
-type Policies struct {
-	// Prop is the propagation policy.
-	Prop Policy
-	// UpReg is the up segment policy.
-	UpReg Policy
-	// DownReg is the down segment policy.
-	DownReg Policy
-	// CoreReg is the core segment policy.
-	CoreReg Policy
-	// Core indicates whether the policy is for a core store.
-	Core bool
-}
-
-// InitDefaults sets the defaults for all policies.
-func (p *Policies) InitDefaults() {
-	p.Prop.initDefaults(PropPolicy)
-	p.UpReg.initDefaults(UpRegPolicy)
-	p.DownReg.initDefaults(DownRegPolicy)
-	p.CoreReg.initDefaults(CoreRegPolicy)
-}
-
-// Validate checks that each policy is of the correct type.
-func (p *Policies) Validate() error {
-	if p.Prop.Type != PropPolicy {
-		return common.NewBasicError("Invalid policy type", nil,
-			"expected", PropPolicy, "actual", p.Prop.Type)
-	}
-	if p.Core {
-		if p.CoreReg.Type != CoreRegPolicy {
-			return common.NewBasicError("Invalid policy type", nil,
-				"expected", CoreRegPolicy, "actual", p.CoreReg.Type)
-		}
-		return nil
-	}
-	if p.UpReg.Type != UpRegPolicy {
-		return common.NewBasicError("Invalid policy type", nil,
-			"expected", UpRegPolicy, "actual", p.UpReg.Type)
-	}
-	if p.DownReg.Type != DownRegPolicy {
-		return common.NewBasicError("Invalid policy type", nil,
-			"expected", DownRegPolicy, "actual", p.DownReg.Type)
-	}
-	return nil
-}
-
-// Usage returns the allowed usage of the beacon based on all available
-// policies. For missing policies, the usage is not permitted.
-func (p *Policies) Usage(beacon Beacon) Usage {
-	var u Usage
-	if p.Prop.Filter.Apply(beacon) == nil {
-		u |= UsageProp
-	}
-	if p.Core {
-		if p.CoreReg.Filter.Apply(beacon) == nil {
-			u |= UsageCoreReg
-		}
-		return u
-	}
-	if p.UpReg.Filter.Apply(beacon) == nil {
-		u |= UsageUpReg
-	}
-	if p.DownReg.Filter.Apply(beacon) == nil {
-		u |= UsageDownReg
-	}
-	return u
+type usager interface {
+	Usage(beacon Beacon) Usage
 }
 
 // Store provides abstracted access to the beacon database in a non-core AS.
@@ -103,6 +39,7 @@ func (p *Policies) Usage(beacon Beacon) Usage {
 // core AS.
 type Store struct {
 	baseStore
+	policies Policies
 }
 
 // NewBeaconStore creates a new beacon store for a non-core AS.
@@ -111,16 +48,14 @@ func NewBeaconStore(policies Policies, db DB) (*Store, error) {
 	if err := policies.Validate(); err != nil {
 		return nil, err
 	}
-	if policies.Core {
-		return nil, common.NewBasicError("Initializing non-core store with core policies", nil)
-	}
 	s := &Store{
 		baseStore: baseStore{
-			db:       db,
-			policies: policies,
-			algo:     baseAlgo{},
+			db:   db,
+			algo: baseAlgo{},
 		},
+		policies: policies,
 	}
+	s.baseStore.usager = &s.policies
 	return s, nil
 }
 
@@ -170,24 +105,23 @@ func (s *Store) getBeacons(ctx context.Context, policy *Policy) (<-chan BeaconOr
 // a non-core AS.
 type CoreStore struct {
 	baseStore
+	policies CorePolicies
 }
 
 // NewCoreBeaconStore creates a new beacon store for a non-core AS.
-func NewCoreBeaconStore(policies Policies, db DB) (*CoreStore, error) {
+func NewCoreBeaconStore(policies CorePolicies, db DB) (*CoreStore, error) {
 	policies.InitDefaults()
 	if err := policies.Validate(); err != nil {
 		return nil, err
 	}
-	if !policies.Core {
-		return nil, common.NewBasicError("Initializing core store with non-core policies", nil)
-	}
 	s := &CoreStore{
 		baseStore: baseStore{
-			db:       db,
-			policies: policies,
-			algo:     baseAlgo{},
+			db:   db,
+			algo: baseAlgo{},
 		},
+		policies: policies,
 	}
+	s.usager = &s.policies
 	return s, nil
 }
 
@@ -256,9 +190,9 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 
 // baseStore is the basis for the beacon store.
 type baseStore struct {
-	db       DB
-	policies Policies
-	algo     selectionAlgorithm
+	db     DB
+	usager usager
+	algo   selectionAlgorithm
 }
 
 // InsertBeacons adds verified beacons to the store. Beacons that
@@ -270,7 +204,7 @@ func (s *baseStore) InsertBeacons(ctx context.Context, beacons ...Beacon) error 
 	}
 	defer tx.Rollback()
 	for _, beacon := range beacons {
-		usage := s.policies.Usage(beacon)
+		usage := s.usager.Usage(beacon)
 		if usage.None() {
 			continue
 		}
