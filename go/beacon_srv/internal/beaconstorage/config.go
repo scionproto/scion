@@ -57,7 +57,7 @@ var _ (config.Config) = (*BeaconDBConf)(nil)
 // BeaconDBConf is the configuration for the connection to the trust database.
 type BeaconDBConf map[string]string
 
-// InitDefaults choses the sqlite backend if no backend is set and sets all keys
+// InitDefaults chooses the sqlite backend if no backend is set and sets all keys
 // to lower case.
 func (cfg *BeaconDBConf) InitDefaults() {
 	if *cfg == nil {
@@ -93,8 +93,8 @@ func (cfg *BeaconDBConf) MaxIdleConns() (int, bool) {
 }
 
 func (cfg *BeaconDBConf) parsedInt(key string) (int, bool, error) {
-	val, ok := (*cfg)[key]
-	if !ok || val == "" {
+	val := (*cfg)[key]
+	if val == "" {
 		return 0, false, nil
 	}
 	i, err := strconv.Atoi(val)
@@ -150,7 +150,6 @@ func (cfg *BeaconDBConf) New(ia addr.IA) (beacon.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Info("Create db", "db", db, "err", err)
 	setConnLimits(cfg, db)
 	return db, nil
 }
