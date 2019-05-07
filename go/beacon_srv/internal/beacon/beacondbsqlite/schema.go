@@ -47,7 +47,7 @@ const (
 		AsID INTEGER NOT NULL,
 		IntfID INTEGER NOT NULL,
 		LinkType INTEGER NOT NULL,
-		RawTimestamp INTEGER NOT NULL,
+		IssuingTime INTEGER NOT NULL,
 		ExpirationTime INTEGER NOT NULL,
 		RawSignedRev BLOB NOT NULL,
 		PRIMARY KEY (IsdID, AsID, IntfID)
