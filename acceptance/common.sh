@@ -53,7 +53,7 @@ collect_elem_metrics() {
         local ip="$(jq -r .$1[\"$elem\"].$addr_key $TOPOLOGY)"
         local topo_port="$(jq -r .$1[\"$elem\"].Addrs.IPv4.Public.L4Port $TOPOLOGY)"
         echo "Collect $elem metrics from $ip:${2:-$topo_port}"
-        curl "$ip:${2:-$topo_port}/metrics" -o "$METRICS_DIR/$elem" -s -S --connect-timeout 2 || true
+        curl "$ip:${2:-$topo_port}/metrics" -o "$METRICS_DIR/$elem" -s -S --connect-timeout 2
     done
 }
 

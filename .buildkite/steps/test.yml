@@ -1,4 +1,4 @@
-- label: Unit tests
+- label: "Unit tests :bazel:"
   command: $BASE/run_step test
   artifact_paths:
       - "artifacts.out/**/*"
@@ -6,7 +6,7 @@
     automatic:
       exit_status: 255
   timeout_in_minutes: 10
-- label: Lint
+- label: "Lint :bazel:"
   command: $BASE/run_step lint
   artifact_paths:
     - "artifacts.out/**/*"
