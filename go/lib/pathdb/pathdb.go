@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 )
@@ -81,4 +82,11 @@ type PathDB interface {
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 	db.LimitSetter
 	io.Closer
+}
+
+// NewCleaner creates a cleaner task that deletes expired segments.
+func NewCleaner(db PathDB) *cleaner.Cleaner {
+	return cleaner.New(func(ctx context.Context) (int, error) {
+		return db.DeleteExpired(ctx, time.Now())
+	}, "segments")
 }
