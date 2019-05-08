@@ -100,6 +100,10 @@ beacon_py_debug: hashes/beacon_py_debug
 hashes/beacon_py_debug: debug/Dockerfile.beacon_py hashes/debug_base hashes/beacon_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
+beacon_debug:
+	bazel run //go/beacon_srv:debug
+	docker tag scion/go/beacon_srv:debug scion_beacon_debug:latest
+
 cert_py_debug: hashes/cert_py_debug
 hashes/cert_py_debug: debug/Dockerfile.cert_py hashes/debug_base hashes/cert_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<

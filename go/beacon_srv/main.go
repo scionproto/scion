@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The beacon server implementation.
 package main
 
 import (
@@ -34,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/config"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/keepalive"
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -54,7 +56,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
-	"github.com/scionproto/scion/go/sig/metrics"
 )
 
 var (
@@ -96,6 +97,7 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
+	trustDB = trustdb.WithMetrics("std", trustDB)
 	defer trustDB.Close()
 	topo := itopo.Get()
 	trustConf := &trust.Config{
@@ -149,6 +151,7 @@ func realMain() int {
 	intfs = ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
 	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
+	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
 	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.ISD_AS, intfs, keepaliveTasks()))
 	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.ISD_AS, intfs, store,
 		trustStore.NewVerifier()))
@@ -170,7 +173,7 @@ func realMain() int {
 		trustDB:      trustDB,
 		store:        store,
 		msgr:         msgr,
-		topoProvider: topoProvider(itopo.Get),
+		topoProvider: itopo.Provider(),
 	}
 	if tasks.genMac, err = macGenFactory(); err != nil {
 		log.Crit("Unable to initialize MAC generator", "err", err)
@@ -493,12 +496,6 @@ func handleTopoUpdate() {
 		return
 	}
 	intfs.Update(itopo.Get().IFInfoMap)
-}
-
-type topoProvider func() *topology.Topo
-
-func (f topoProvider) Get() *topology.Topo {
-	return f()
 }
 
 func keepaliveTasks() keepalive.StateChangeTasks {

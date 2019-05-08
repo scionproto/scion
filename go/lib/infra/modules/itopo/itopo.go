@@ -40,6 +40,18 @@ type Callbacks struct {
 	UpdateStatic func()
 }
 
+// providerFunc wraps the Get call as a topology provider.
+type providerFunc func() *topology.Topo
+
+// Provider returns a topology provider that calls Get internally.
+func Provider() topology.Provider {
+	return providerFunc(Get)
+}
+
+func (f providerFunc) Get() *topology.Topo {
+	return f()
+}
+
 // Init initializes itopo with the particular validator. A topology must be
 // initialized by calling SetStatic.
 func Init(id string, svc proto.ServiceType, clbks Callbacks) {
