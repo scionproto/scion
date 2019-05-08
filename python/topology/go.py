@@ -31,6 +31,7 @@ from topology.common import (
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
+    get_pub,
     prom_addr_br,
     prom_addr_infra,
     prom_addr_sciond,
@@ -117,15 +118,8 @@ class GoGenerator(object):
             'beaconDB': beacon_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
-            'server': {
-                'QUICListen':  prom_addr_infra(self.args.docker, name, infra_elem, BS_QUIC_PORT),
-                'QUICCertFile': 'gen-certs/tls.pem',
-                'QUICKeyFile': 'gen-certs/tls.key',
-            },
-            'client': {
-                'EnableQUICTest': self.args.qtest,
-                'ResolutionFraction': self.args.svcfrac,
-            },
+            'server': quic_server_conf_entry(infra_elem, BS_QUIC_PORT),
+            'client': quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
         }
         return raw_entry
 
@@ -157,15 +151,8 @@ class GoGenerator(object):
                 'SegSync': True,
             },
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
-            'server': {
-                'QUICListen':  prom_addr_infra(self.args.docker, name, infra_elem, PS_QUIC_PORT),
-                'QUICCertFile': 'gen-certs/tls.pem',
-                'QUICKeyFile': 'gen-certs/tls.key',
-            },
-            'client': {
-                'EnableQUICTest': self.args.qtest,
-                'ResolutionFraction': self.args.svcfrac,
-            },
+            'server': quic_server_conf_entry(infra_elem, PS_QUIC_PORT),
+            'client': quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
         }
         return raw_entry
 
@@ -199,10 +186,7 @@ class GoGenerator(object):
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
             },
-            'client': {
-                'EnableQUICTest': self.args.qtest,
-                'ResolutionFraction': self.args.svcfrac,
-            },
+            'client': quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
         }
         return raw_entry
 
@@ -235,15 +219,8 @@ class GoGenerator(object):
                 'ReissueTimeout': "5s",
             },
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
-            'server': {
-                'QUICListen':  prom_addr_infra(self.args.docker, name, infra_elem, CS_QUIC_PORT),
-                'QUICCertFile': 'gen-certs/tls.pem',
-                'QUICKeyFile': 'gen-certs/tls.key',
-            },
-            'client': {
-                'EnableQUICTest': self.args.qtest,
-                'ResolutionFraction': self.args.svcfrac,
-            },
+            'server': quic_server_conf_entry(infra_elem, CS_QUIC_PORT),
+            'client': quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
         }
         return raw_entry
 
@@ -312,4 +289,19 @@ def beacon_db_conf_entry(args, name):
     return {
         'Backend': 'sqlite',
         'Connection': os.path.join(db_dir, '%s.beacon.db' % name),
+    }
+
+
+def quic_server_conf_entry(infra_elem, port):
+    return {
+        'QUICListen':  '[%s]:%s' % (get_pub(infra_elem["Addrs"])['Public']['Addr'].ip, port),
+        'QUICCertFile': 'gen-certs/tls.pem',
+        'QUICKeyFile': 'gen-certs/tls.key',
+    }
+
+
+def quic_client_conf_entry(qtest, svcfrac):
+    return {
+        'EnableQUICTest': qtest,
+        'ResolutionFraction': svcfrac,
     }
