@@ -32,4 +32,7 @@ PropagationInterval = "5s"
 
 # The interval between registering beacons. (default 5s)
 RegistrationInterval = "5s"
+
+# The interval between checking for expired interfaces to revoke. (default 200ms)
+ExpiredCheckInterval = "200ms"
 `

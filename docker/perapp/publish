@@ -7,7 +7,7 @@ REMOTE="scionproto"
 echo "Tag: ${1:-}"
 
 # Tag local apps and push to remote
-for app in border dispatcher sig beacon_py cert cert_py path path_py sciond sciond_py; do
+for app in border dispatcher sig beacon beacon_py cert cert_py path path_py sciond sciond_py; do
     local_img="scion_$app"
     remote_img="$REMOTE/$app"
     docker tag "$local_img:latest" "$remote_img:$1"

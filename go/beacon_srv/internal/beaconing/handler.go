@@ -87,21 +87,21 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 }
 
 func (h *handler) buildBeacon() (beacon.Beacon, *infra.HandlerResult, error) {
-	bseg, ok := h.request.Message.(*seg.Beacon)
+	pseg, ok := h.request.Message.(*seg.PathSegment)
 	if !ok {
 		return beacon.Beacon{}, infra.MetricsErrInternal, common.NewBasicError(
-			"Wrong message type, expected seg.Beacon", nil,
+			"Wrong message type, expected *seg.PathSegment", nil,
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 	}
-	if err := bseg.Parse(); err != nil {
+	if err := pseg.ParseRaw(seg.ValidateBeacon); err != nil {
 		return beacon.Beacon{}, infra.MetricsErrInvalid,
-			common.NewBasicError("Unable to parse beacon", err, "beacon", bseg)
+			common.NewBasicError("Unable to parse beacon", err, "beacon", pseg)
 	}
 	ifid, err := h.getIFID()
 	if err != nil {
 		return beacon.Beacon{}, infra.MetricsErrInvalid, err
 	}
-	return beacon.Beacon{InIfId: ifid, Segment: bseg.Segment}, nil, nil
+	return beacon.Beacon{InIfId: ifid, Segment: pseg}, nil, nil
 }
 
 func (h *handler) getIFID() (common.IFIDType, error) {

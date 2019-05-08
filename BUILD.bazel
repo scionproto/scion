@@ -13,6 +13,7 @@ pkg_tar(
     name = "scion",
     package_dir = "",
     srcs = [
+        "//go/beacon_srv:beacon_srv",
         "//go/border:border",
         "//go/border/braccept:braccept",
         "//go/integration/cert_req:cert_req",

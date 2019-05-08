@@ -14,7 +14,7 @@ test_setup() {
     set -e
     base_setup
 
-    for elem in gen/ISD1/AS$AS_FILE/{cs,ps,endhost}*; do
+    for elem in gen/ISD1/AS$AS_FILE/{bs,cs,ps,endhost}*; do
         for cfg in $elem/*.toml; do
             set_log_lvl "$cfg"
             set_interval "$cfg" "static"
@@ -36,12 +36,14 @@ test_run() {
     # Check that the mock ds serves the file
     check_file "static"
     # Check that the logs contain setting and writing the topo.
-    check_logs "ps$IA_FILE-1"
+    check_logs "bs$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
+    check_logs "ps$IA_FILE-1"
     check_logs "sd$IA_FILE"
     # Check that the written file does not differ from the served file.
-    check_diff "ps$IA_FILE-1"
+    check_diff "bs$IA_FILE-1"
     check_diff "cs$IA_FILE-1"
+    check_diff "ps$IA_FILE-1"
     check_diff "sd$IA_FILE"
 
     check_infra_fail_action "static"

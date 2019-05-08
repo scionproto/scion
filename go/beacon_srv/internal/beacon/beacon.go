@@ -29,10 +29,14 @@ type Beacon struct {
 	InIfId common.IFIDType
 }
 
-// Diversity returns the link diversity between this and the other beacon.
-// The link diversity indicates the number of links in this beacon that do not
-// appear in the other beacon. Note: Diversity is asymmetric.
+// Diversity returns the link diversity between this and the other beacon. The
+// link diversity indicates the number of links in this beacon that do not
+// appear in the other beacon. If the other beacon has no segment set, 0 is
+// returned. Note: Diversity is asymmetric.
 func (b Beacon) Diversity(other Beacon) int {
+	if b.Segment == nil || other.Segment == nil {
+		return 0
+	}
 	var diff int
 	for _, asEntry := range b.Segment.ASEntries {
 		ia, ifid := link(asEntry)

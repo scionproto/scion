@@ -379,6 +379,22 @@ func (ps *PathSegment) validateIdx(idx int) error {
 	return nil
 }
 
+// ShallowCopy creates a shallow copy of the path segment.
+func (ps *PathSegment) ShallowCopy() *PathSegment {
+	rawEntries := make([]*proto.SignedBlobS, len(ps.RawASEntries))
+	copy(rawEntries, ps.RawASEntries)
+	entries := make([]*ASEntry, len(ps.ASEntries))
+	copy(entries, ps.ASEntries)
+	return &PathSegment{
+		RawSData:     ps.RawSData,
+		SData:        ps.SData,
+		RawASEntries: rawEntries,
+		ASEntries:    entries,
+		id:           ps.id,
+		fullId:       ps.fullId,
+	}
+}
+
 func (ps *PathSegment) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(ps, b)
 }

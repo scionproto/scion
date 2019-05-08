@@ -12,6 +12,14 @@ scion_app_images(
 )
 
 scion_app_images(
+    name = "beacon_srv",
+    binary = "//go/beacon_srv:beacon_srv",
+    appdir = "/app",
+    workdir = "/share",
+    entrypoint = ["/app/beacon_srv", "-config", "/share/conf/bs.toml"],
+)
+
+scion_app_images(
     name = "cert_srv",
     binary = "//go/cert_srv:cert_srv",
     appdir = "/app",
@@ -56,6 +64,7 @@ container_bundle(
     name = "prod",
     images = {
         "scion_border:latest":        ":border_prod",
+        "scion_beacon:latest":        ":beacon_srv_prod",
         "scion_cert:latest":          ":cert_srv_prod",
         "scion_dispatcher_go:latest": ":dispatcher_go_prod",
         "scion_path:latest":          ":path_srv_prod",
@@ -68,6 +77,7 @@ container_bundle(
     name = "debug",
     images = {
         "scion_border_debug:latest":        ":border_debug",
+        "scion_beacon_debug:latest":        ":beacon_srv_debug",
         "scion_cert_debug:latest":          ":cert_srv_debug",
         "scion_dispatcher_go_debug:latest": ":dispatcher_go_debug",
         "scion_path_debug:latest":          ":path_srv_debug",
