@@ -38,9 +38,6 @@ base_setup() {
     # This allows the test to work locally and on the CI.
     export DISC_DIR="$( grep -oh '\/.*\/gen' gen/scion-dc.yml | grep -v ':' -m 1 )/discovery_acceptance"
 
-    echo "$DISC_IP"
-    echo "$DISC_DIR"
-
     # Get the network AS 1-ff00_0_111 is on. And replace it in the template.
     local network=$(awk '/  scion_disp_1-ff00_0_111:/,/ volumes/ {if (f=="networks:") {gsub(":", "",$1); print $1}} {f=$1}' gen/scion-dc.yml)
     # Modify docker compose file to contain mock discovery service.
