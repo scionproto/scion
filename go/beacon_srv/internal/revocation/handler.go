@@ -30,7 +30,7 @@ import (
 
 // Store is the store in which to save the revocations.
 type Store interface {
-	InsertRevocation(ctx context.Context, verifiedRevs ...*path_mgmt.SignedRevInfo) error
+	InsertRevocations(ctx context.Context, verifiedRevs ...*path_mgmt.SignedRevInfo) error
 }
 
 type handler struct {
@@ -65,14 +65,14 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	defer cancelF()
 
 	sendAck := messenger.SendAckHelper(subCtx, rw)
-	revInfo, err := revocation.VerifiedRevInfo(subCtx, h.verifier.WithServer(request.Peer))
+	revInfo, err := revocation.VerifiedRevInfo(subCtx, h.verifier)
 	if err != nil {
 		logger.Warn("[RevHandler] Parsing/Verifying failed",
 			"signer", revocation.Sign.Src, "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid
 	}
-	err = h.revStore.InsertRevocation(subCtx, revocation)
+	err = h.revStore.InsertRevocations(subCtx, revocation)
 	if err != nil {
 		logger.Error("[RevHandler] Failed to store", "rev", revInfo, "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)

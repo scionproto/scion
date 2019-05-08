@@ -34,21 +34,21 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
-// InsertRevocation mocks base method
-func (m *MockStore) InsertRevocation(arg0 context.Context, arg1 ...*path_mgmt.SignedRevInfo) error {
+// InsertRevocations mocks base method
+func (m *MockStore) InsertRevocations(arg0 context.Context, arg1 ...*path_mgmt.SignedRevInfo) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0}
 	for _, a := range arg1 {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "InsertRevocation", varargs...)
+	ret := m.ctrl.Call(m, "InsertRevocations", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// InsertRevocation indicates an expected call of InsertRevocation
-func (mr *MockStoreMockRecorder) InsertRevocation(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
+// InsertRevocations indicates an expected call of InsertRevocations
+func (mr *MockStoreMockRecorder) InsertRevocations(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0}, arg1...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertRevocation", reflect.TypeOf((*MockStore)(nil).InsertRevocation), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertRevocations", reflect.TypeOf((*MockStore)(nil).InsertRevocations), varargs...)
 }
