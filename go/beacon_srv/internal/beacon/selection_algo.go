@@ -49,13 +49,18 @@ func (baseAlgo) serveShortestBeacons(beacons <-chan BeaconOrErr, results chan<- 
 	for res := range beacons {
 		i++
 		if (best == Beacon{}) {
-			best = res.Beacon
+			// Create shallow copy to avoid data race.
+			best = Beacon{
+				Segment: res.Beacon.Segment.ShallowCopy(),
+				InIfId:  res.Beacon.InIfId,
+			}
 		}
+		// Compute diversity before serving beacon to avoid data race.
+		maxDiversity = max(maxDiversity, best.Diversity(res.Beacon))
 		results <- res
 		if res.Err != nil {
 			continue
 		}
-		maxDiversity = max(maxDiversity, best.Diversity(res.Beacon))
 		if i == resultSize {
 			break
 		}
