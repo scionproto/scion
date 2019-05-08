@@ -230,6 +230,9 @@ func (s *baseStore) InsertRevocations(ctx context.Context,
 			return err
 		}
 	}
+	if _, err := tx.DeleteRevokedBeacons(ctx, time.Now()); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -246,12 +249,6 @@ func (s *baseStore) DeleteExpiredBeacons(ctx context.Context) (int, error) {
 // DeleteExpiredRevocations deletes expired Revocations from the store.
 func (s *baseStore) DeleteExpiredRevocations(ctx context.Context) (int, error) {
 	return s.db.DeleteExpiredRevocations(ctx, time.Now())
-}
-
-// DeleteRevokedBeacons deletes beacons containing revoked interfaces from the
-// store.
-func (s *baseStore) DeleteRevokedBeacons(ctx context.Context) (int, error) {
-	return s.db.DeleteRevokedBeacons(ctx, time.Now())
 }
 
 // UpdatePolicy updates the policy. Beacons that are filtered by all

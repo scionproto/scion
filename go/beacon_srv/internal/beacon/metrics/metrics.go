@@ -22,7 +22,7 @@ import (
 var (
 	errBeaconStore   = &infra.HandlerResult{Result: "err_beaconstore", Status: prom.StatusErr}
 	errBeaconStoreTo = &infra.HandlerResult{
-		Result: "err_beaconstore_to",
+		Result: "err_beaconstore_timeout",
 		Status: prom.StatusTimeout,
 	}
 )

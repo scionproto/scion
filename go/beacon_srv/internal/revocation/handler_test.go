@@ -16,7 +16,6 @@ package revocation
 
 import (
 	"context"
-	"net"
 	"os"
 	"testing"
 	"time"
@@ -68,7 +67,7 @@ func TestHandler(t *testing.T) {
 	sRevInvalid, err := path_mgmt.NewSignedRevInfo(rev, signer)
 	xtest.FailOnErr(t, err)
 	// flip a bit
-	sRevInvalid.Blob[0], sRevInvalid.Blob[1] = sRevInvalid.Blob[1], sRevInvalid.Blob[0]
+	sRevInvalid.Blob[0] ^= sRevInvalid.Blob[0]
 
 	tests := []struct {
 		Name   string
@@ -108,9 +107,6 @@ func TestHandler(t *testing.T) {
 						pub, scrypto.Ed25519)
 				},
 			)
-			verifier.EXPECT().WithServer(gomock.Any()).DoAndReturn(func(_ net.Addr) infra.Verifier {
-				return verifier
-			})
 
 			rw := mock_infra.NewMockResponseWriter(mctrl)
 			if test.Ack != nil {
@@ -121,7 +117,7 @@ func TestHandler(t *testing.T) {
 			if test.Result == infra.MetricsResultOk {
 				rev, err := test.Rev.RevInfo()
 				xtest.FailOnErr(t, err)
-				revStore.EXPECT().InsertRevocation(gomock.Any(), &matchers.SignedRevs{
+				revStore.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
 					Verifier:  revVerifier(pub),
 					MatchRevs: []path_mgmt.RevInfo{*rev},
 				})

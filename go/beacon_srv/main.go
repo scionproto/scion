@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/keepalive"
 	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
+	"github.com/scionproto/scion/go/beacon_srv/internal/revocation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
@@ -153,6 +154,8 @@ func realMain() int {
 	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
 	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.ISD_AS, intfs, keepaliveTasks()))
+	msgr.AddHandler(infra.SignedRev, revocation.NewHandler(store,
+		trustStore.NewVerifier(), 5*time.Second))
 	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.ISD_AS, intfs, store,
 		trustStore.NewVerifier()))
 	cfg.Metrics.StartPrometheus()
