@@ -227,6 +227,9 @@ type periodicTasks struct {
 	registrars segRegRunners
 	discovery  idiscovery.Runners
 
+	beaconCleaner *periodic.Runner
+	revCleaner    *periodic.Runner
+
 	mtx     sync.Mutex
 	running bool
 }
@@ -263,6 +266,14 @@ func (t *periodicTasks) Start() error {
 	if t.propagator, err = t.startPropagator(topoAddress); err != nil {
 		return err
 	}
+	t.beaconCleaner = periodic.StartPeriodicTask(
+		beaconstorage.NewBeaconCleaner(t.store),
+		periodic.NewTicker(30*time.Second), 30*time.Second,
+	)
+	t.revCleaner = periodic.StartPeriodicTask(
+		beaconstorage.NewRevocationCleaner(t.store),
+		periodic.NewTicker(5*time.Second), 5*time.Second,
+	)
 	t.running = true
 	return nil
 }
@@ -443,6 +454,8 @@ func (t *periodicTasks) Kill() {
 	if t.originator != nil {
 		t.originator.Kill()
 	}
+	t.beaconCleaner.Kill()
+	t.revCleaner.Kill()
 	t.running = false
 }
 
