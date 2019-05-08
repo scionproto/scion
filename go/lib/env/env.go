@@ -260,3 +260,32 @@ func (cfg *Metrics) StartPrometheus() {
 		}()
 	}
 }
+
+// Server contains configuration for control-plane servers.
+type Server struct {
+	QUICListen   string
+	QUICCertFile string
+	QUICKeyFile  string
+}
+
+func (cfg *Server) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, serverSample)
+}
+
+func (cfg *Server) ConfigName() string {
+	return "server"
+}
+
+// Client contains configuration for control-plane clients.
+type Client struct {
+	EnableQUICTest     bool
+	ResolutionFraction float64
+}
+
+func (cfg *Client) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, clientSample)
+}
+
+func (cfg *Client) ConfigName() string {
+	return "client"
+}
