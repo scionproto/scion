@@ -119,15 +119,11 @@ type Config struct {
 	// verification of the top level signature in received signed control
 	// payloads.
 	DisableSignatureVerification bool
-	// If WaitForAcks is set to true, notifications wait for Ack messages to be
-	// received before returning.
-	WaitForAcks bool
 	// Logger is used for internal Messenger logging. If it is nil, the default
 	// root logger is used.
 	Logger log.Logger
-	// QUIC defines whether the Messenger should operate on top of QUIC instead
-	// of basic UDP. If QUIC is non-nil, Dispatcher is ignored and WaitForAcks
-	// is assumed to be true.
+	// QUIC defines whether the Messenger should also operate on top of QUIC
+	// instead of only on UDP.
 	QUIC *QUICConfig
 }
 
@@ -195,7 +191,6 @@ func New(config *Config) *Messenger {
 	var quicServer *rpc.Server
 	var quicHandler *QUICHandler
 	if config.QUIC != nil {
-		config.WaitForAcks = true
 		quicHandler = &QUICHandler{
 			handlers: make(map[infra.MessageType]infra.Handler),
 		}
@@ -549,9 +544,6 @@ func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a n
 	if err != nil {
 		return err
 	}
-	if m.config.WaitForAcks {
-		return m.sendWithAck(ctx, msg, a, id, pld, msgType)
-	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", msgType, "to", a, "id", id)
 	return m.getRequester(msgType).Notify(ctx, pld, a)
@@ -587,9 +579,8 @@ func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a n
 // AddHandler registers a handler for msgType.
 func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler) {
 	m.handlersLock.Lock()
-	if m.quicServer == nil {
-		m.handlers[msgType] = handler
-	} else {
+	m.handlers[msgType] = handler
+	if m.quicServer != nil {
 		m.quicHandler.Handle(msgType, handler)
 	}
 	m.handlersLock.Unlock()
@@ -599,22 +590,29 @@ func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler)
 // interface. The function runs in the current goroutine. Multiple
 // ListenAndServe methods can run in parallel.
 func (m *Messenger) ListenAndServe() {
-	if m.config.QUIC == nil {
-		m.listenAndServeUDP()
-	} else {
-		m.listenAndServeQUIC()
+	var wg sync.WaitGroup
+	if m.config.QUIC != nil {
+		wg.Add(1)
+		go func() {
+			defer log.LogPanicAndExit()
+			m.listenAndServeQUIC()
+		}()
 	}
+	m.listenAndServeUDP()
+	wg.Wait()
 }
 
 func (m *Messenger) listenAndServeQUIC() {
-	m.log.Info("Started listening")
-	defer m.log.Info("Stopped listening")
-	m.quicServer.ListenAndServe()
+	m.log.Info("Started listening QUIC")
+	defer m.log.Info("Stopped listening QUIC")
+	if err := m.quicServer.ListenAndServe(); err != nil {
+		m.log.Error("Unable to start QUIC server", "err", err)
+	}
 }
 
 func (m *Messenger) listenAndServeUDP() {
-	m.log.Info("Started listening")
-	defer m.log.Info("Stopped listening")
+	m.log.Info("Started listening UDP")
+	defer m.log.Info("Stopped listening UDP")
 	for {
 		// Recv blocks until a new message is received. To close the server,
 		// CloseServer() calls the context's cancel function, thus unblocking Recv. The
@@ -718,6 +716,9 @@ func (m *Messenger) CloseServer() error {
 		close(m.closeChan)
 		m.cancelF()
 	}
+	if m.config.QUIC != nil {
+		return m.quicServer.Close()
+	}
 	return nil
 }
 
@@ -759,19 +760,9 @@ func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
 	if _, ok := m.signMask[reqT]; ok {
 		signer = m.signer
 	}
-	if m.config.QUIC == nil {
-		return &pathingRequester{
-			requester:       ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
-			addressRewriter: m.addressRewriter,
-		}
-	}
-	return &QUICRequester{
-		QUICClientConfig: &rpc.Client{
-			Conn:       m.config.QUIC.Conn,
-			TLSConfig:  m.config.QUIC.TLSConfig,
-			QUICConfig: m.config.QUIC.QUICConfig,
-		},
-		AddressRewriter: m.addressRewriter,
+	return &pathingRequester{
+		requester:       ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
+		addressRewriter: m.addressRewriter,
 	}
 }
 
