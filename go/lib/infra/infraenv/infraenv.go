@@ -72,9 +72,9 @@ type NetworkConfig struct {
 	// the dispatcher closes the connection (e.g., if the dispatcher goes
 	// down).
 	ReconnectToDispatcher bool
-	// QUIC contains configuration details for QUIC servers. If nil, no QUIC
-	// server is started.
-	QUIC *QUIC
+	// QUIC contains configuration details for QUIC servers. If the listening
+	// address is the empty string, then no QUIC server is started.
+	QUIC QUIC
 	// SVCResolutionFraction can be used to customize whether SVC resolution is
 	// enabled.
 	SVCResolutionFraction float64
@@ -90,7 +90,7 @@ type NetworkConfig struct {
 func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 	var quicConn net.PacketConn
 	var quicAddress string
-	if nc.QUIC != nil {
+	if nc.QUIC.Address != "" {
 		var err error
 		quicConn, err = nc.initQUICSocket()
 		if err != nil {
@@ -136,7 +136,7 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		messenger.DefaultAdapter,
 		log.Root(),
 	)
-	if nc.QUIC != nil {
+	if nc.QUIC.Address != "" {
 		var err error
 		msgerCfg.QUIC, err = nc.buildQUICConfig(quicConn)
 		if err != nil {

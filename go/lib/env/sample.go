@@ -74,10 +74,12 @@ const serverSample = `
 # The address to start a QUIC server on (ip:port). If not set, a QUIC server is
 # not started. (default "")
 QUICListen = ""
+
 # Certificate file to use for authenticating QUIC connections.
-QUICCertFile = "gen-certs/tls.pem"
+QUICCertFile = "/etc/scion/quic/tls.pem"
+
 # Key file to use for authenticating QUIC connections.
-QUICKeyFile = "gen-certs/tls.key"
+QUICKeyFile = "/etc/scion/quic/tls.key"
 `
 
 const clientSample = `
@@ -85,6 +87,7 @@ const clientSample = `
 # the SVC resolution mechanism. ResolutionFraction must be more than 0 for this
 # to have any effect.
 EnableQUICTest = false
+
 # SVCResolutionFraction enables SVC resolution for traffic to SVC
 # destinations in a way that is also compatible with control plane servers
 # that do not implement the SVC Resolution Mechanism. The value represents

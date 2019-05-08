@@ -594,23 +594,23 @@ func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler)
 // interface. The function runs in the current goroutine. Multiple
 // ListenAndServe methods can run in parallel.
 func (m *Messenger) ListenAndServe() {
-	var wg sync.WaitGroup
+	done := make(chan struct{})
 	if m.config.QUIC != nil {
-		wg.Add(1)
 		go func() {
 			defer log.LogPanicAndExit()
 			m.listenAndServeQUIC()
+			close(done)
 		}()
 	}
 	m.listenAndServeUDP()
-	wg.Wait()
+	<-done
 }
 
 func (m *Messenger) listenAndServeQUIC() {
 	m.log.Info("Started listening QUIC")
 	defer m.log.Info("Stopped listening QUIC")
 	if err := m.quicServer.ListenAndServe(); err != nil {
-		m.log.Error("Unable to start QUIC server", "err", err)
+		m.log.Error("QUIC server listen error", "err", err)
 	}
 }
 
