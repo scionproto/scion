@@ -49,6 +49,10 @@ from topology.prometheus import (
     DISP_PROM_PORT,
 )
 
+BS_QUIC_PORT = 30352
+PS_QUIC_PORT = 30353
+CS_QUIC_PORT = 30354
+
 
 class GoGenArgs(ArgsTopoDicts):
     def __init__(self, args, topo_dicts, networks, port_gen=None):
@@ -113,7 +117,15 @@ class GoGenerator(object):
             'beaconDB': beacon_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
-            'EnableQUICTest': self.args.qtest,
+            'server': {
+                'QUICListen':  prom_addr_infra(self.args.docker, name, infra_elem, BS_QUIC_PORT),
+                'QUICCertFile': 'gen-certs/tls.pem',
+                'QUICKeyFile': 'gen-certs/tls.key',
+            },
+            'client': {
+                'EnableQUICTest': self.args.qtest,
+                'ResolutionFraction': self.args.svcfrac,
+            },
         }
         return raw_entry
 
@@ -145,7 +157,15 @@ class GoGenerator(object):
                 'SegSync': True,
             },
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
-            'EnableQUICTest': self.args.qtest,
+            'server': {
+                'QUICListen':  prom_addr_infra(self.args.docker, name, infra_elem, PS_QUIC_PORT),
+                'QUICCertFile': 'gen-certs/tls.pem',
+                'QUICKeyFile': 'gen-certs/tls.key',
+            },
+            'client': {
+                'EnableQUICTest': self.args.qtest,
+                'ResolutionFraction': self.args.svcfrac,
+            },
         }
         return raw_entry
 
@@ -179,7 +199,10 @@ class GoGenerator(object):
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
             },
-            'EnableQUICTest': self.args.qtest,
+            'client': {
+                'EnableQUICTest': self.args.qtest,
+                'ResolutionFraction': self.args.svcfrac,
+            },
         }
         return raw_entry
 
@@ -212,7 +235,15 @@ class GoGenerator(object):
                 'ReissueTimeout': "5s",
             },
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
-            'EnableQUICTest': self.args.qtest,
+            'server': {
+                'QUICListen':  prom_addr_infra(self.args.docker, name, infra_elem, CS_QUIC_PORT),
+                'QUICCertFile': 'gen-certs/tls.pem',
+                'QUICKeyFile': 'gen-certs/tls.key',
+            },
+            'client': {
+                'EnableQUICTest': self.args.qtest,
+                'ResolutionFraction': self.args.svcfrac,
+            },
         }
         return raw_entry
 

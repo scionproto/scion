@@ -54,6 +54,7 @@ type Config struct {
 	General        env.General
 	Logging        env.Logging
 	Metrics        env.Metrics
+	Server         env.Server
 	TrustDB        truststorage.TrustDBConf
 	BeaconDB       beaconstorage.BeaconDBConf
 	Discovery      idiscovery.Config

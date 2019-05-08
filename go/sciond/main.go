@@ -116,7 +116,8 @@ func realMain() int {
 		Bind:                  cfg.SD.Bind,
 		SVC:                   addr.SvcNone,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
-		EnableQUICTest:        cfg.EnableQUICTest,
+		SVCResolutionFraction: cfg.Client.ResolutionFraction,
+		EnableQUICTest:        cfg.Client.EnableQUICTest,
 		TrustStore:            trustStore,
 	}
 	msger, err := nc.Messenger()
