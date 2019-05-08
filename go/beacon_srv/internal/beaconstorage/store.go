@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -53,4 +54,18 @@ type Store interface {
 	// DeleteRevokedBeacons deletes beacons containing revoked interfaces
 	// from the store.
 	DeleteRevokedBeacons(ctx context.Context) (int, error)
+}
+
+// NewBeaconCleaner creates a cleaner task, which deletes expired beacons.
+func NewBeaconCleaner(s Store) *cleaner.Cleaner {
+	return cleaner.New(func(ctx context.Context) (int, error) {
+		return s.DeleteExpiredBeacons(ctx)
+	}, "beacons")
+}
+
+// NewRevocationCleaner creates a cleaner task, which deletes expired revocations.
+func NewRevocationCleaner(s Store) *cleaner.Cleaner {
+	return cleaner.New(func(ctx context.Context) (int, error) {
+		return s.DeleteExpiredRevocations(ctx)
+	}, "revocations")
 }
