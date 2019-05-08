@@ -34,7 +34,7 @@ type Beacon struct {
 // appear in the other beacon. If the other beacon has no segment set, 0 is
 // returned. Note: Diversity is asymmetric.
 func (b Beacon) Diversity(other Beacon) int {
-	if b.Segment == nil {
+	if b.Segment == nil || other.Segment == nil {
 		return 0
 	}
 	var diff int
