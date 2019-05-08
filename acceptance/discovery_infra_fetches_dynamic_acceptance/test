@@ -14,7 +14,7 @@ test_setup() {
     set -e
     base_setup
 
-    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,ps,sd}.toml; do
+    for cfg in gen/ISD1/AS$AS_FILE/*/{bs,cs,ps,sd}.toml; do
         set_log_lvl "$cfg"
         set_interval "$cfg" "dynamic"
     done
@@ -29,8 +29,9 @@ test_run() {
     cp $DYNAMIC_FULL $DYNAMIC_DEFAULT
     sleep 6
     check_file "dynamic"
-    check_logs "ps$IA_FILE-1"
+    check_logs "bs$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
+    check_logs "ps$IA_FILE-1"
     check_logs "sd$IA_FILE"
 
     check_infra_fail_action "dynamic"

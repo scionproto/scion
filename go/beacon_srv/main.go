@@ -63,7 +63,7 @@ var (
 	environment *env.Env
 
 	intfs *ifstate.Interfaces
-	tasks *leaderTasks
+	tasks *periodicTasks
 )
 
 func init() {
@@ -162,12 +162,14 @@ func realMain() int {
 	}()
 	ovAddr := &addr.AppAddr{L3: topoAddress.PublicAddr(topoAddress.Overlay).L3}
 	pktDisp := snet.NewDefaultPacketDispatcherService(reliable.NewDispatcherService(""))
+	// We do not need to drain the connection, since the src address is spoofed
+	// to contain the topo address.
 	conn, _, err := pktDisp.RegisterTimeout(topo.ISD_AS, ovAddr, nil, addr.SvcNone, time.Second)
 	if err != nil {
 		log.Crit("Unable to create SCION packet conn", "err", err)
 		return 1
 	}
-	tasks = &leaderTasks{
+	tasks = &periodicTasks{
 		intfs:        intfs,
 		conn:         conn.(*snet.SCIONPacketConn),
 		trustDB:      trustDB,
@@ -209,7 +211,7 @@ func (s segRegRunners) Kill() {
 	s.downRegistrar.Kill()
 }
 
-type leaderTasks struct {
+type periodicTasks struct {
 	intfs        *ifstate.Interfaces
 	conn         *snet.SCIONPacketConn
 	genMac       func() hash.Hash
@@ -229,7 +231,7 @@ type leaderTasks struct {
 	running bool
 }
 
-func (t *leaderTasks) Start() error {
+func (t *periodicTasks) Start() error {
 	fatal.Check()
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
@@ -265,7 +267,7 @@ func (t *leaderTasks) Start() error {
 	return nil
 }
 
-func (t *leaderTasks) startDiscovery() (idiscovery.Runners, error) {
+func (t *periodicTasks) startDiscovery() (idiscovery.Runners, error) {
 	d, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full, idiscovery.TopoHandlers{}, nil)
 	if err != nil {
 		return idiscovery.Runners{}, common.NewBasicError("Unable to start topology fetcher", err)
@@ -273,7 +275,7 @@ func (t *leaderTasks) startDiscovery() (idiscovery.Runners, error) {
 	return d, nil
 }
 
-func (t *leaderTasks) startRevoker() (*periodic.Runner, error) {
+func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 	topo := t.topoProvider.Get()
 	signer, err := t.createSigner(topo)
 	if err != nil {
@@ -291,7 +293,7 @@ func (t *leaderTasks) startRevoker() (*periodic.Runner, error) {
 		cfg.BS.ExpiredCheckInterval.Duration), nil
 }
 
-func (t *leaderTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Runner, error) {
 	s := &keepalive.Sender{
 		Sender: &onehop.Sender{
 			Conn: t.conn,
@@ -306,7 +308,7 @@ func (t *leaderTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Runn
 		cfg.BS.KeepaliveInterval.Duration), nil
 }
 
-func (t *leaderTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, error) {
 	topo := t.topoProvider.Get()
 	if !topo.Core {
 		return nil, nil
@@ -336,7 +338,7 @@ func (t *leaderTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, e
 		cfg.BS.OriginationInterval.Duration), nil
 }
 
-func (t *leaderTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner, error) {
 	topo := t.topoProvider.Get()
 	signer, err := t.createSigner(topo)
 	if err != nil {
@@ -365,7 +367,7 @@ func (t *leaderTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner, e
 		cfg.BS.PropagationInterval.Duration), nil
 }
 
-func (t *leaderTasks) startSegRegRunners() (segRegRunners, error) {
+func (t *periodicTasks) startSegRegRunners() (segRegRunners, error) {
 	topo := t.topoProvider.Get()
 	s := segRegRunners{core: topo.Core}
 	var err error
@@ -384,7 +386,7 @@ func (t *leaderTasks) startSegRegRunners() (segRegRunners, error) {
 	return s, nil
 }
 
-func (t *leaderTasks) startRegistrar(topo *topology.Topo,
+func (t *periodicTasks) startRegistrar(topo *topology.Topo,
 	segType proto.PathSegType) (*periodic.Runner, error) {
 
 	signer, err := t.createSigner(topo)
@@ -410,7 +412,7 @@ func (t *leaderTasks) startRegistrar(topo *topology.Topo,
 		cfg.BS.RegistrationInterval.Duration), nil
 }
 
-func (t *leaderTasks) createSigner(topo *topology.Topo) (infra.Signer, error) {
+func (t *periodicTasks) createSigner(topo *topology.Topo) (infra.Signer, error) {
 	dir := filepath.Join(cfg.General.ConfigDir, "keys")
 	cfg, err := keyconf.Load(dir, false, false, false, false)
 	if err != nil {
@@ -429,7 +431,7 @@ func (t *leaderTasks) createSigner(topo *topology.Topo) (infra.Signer, error) {
 	return signer, nil
 }
 
-func (t *leaderTasks) Kill() {
+func (t *periodicTasks) Kill() {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 	if !t.running {
