@@ -1,4 +1,4 @@
-- label: Build and push scion image
+- label: "Scion image :docker: "
   command:
     - $BASE/scripts/build_scion_img
     - mkdir docker/_build && touch docker/_build/scion.stamp

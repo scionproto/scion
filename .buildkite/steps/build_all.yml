@@ -1,4 +1,4 @@
-- label: Build and push perapp images
+- label: "Perapp images :docker: :bazel:"
   command:
   - $BASE/scripts/registry_login
   - docker pull $SCION_IMG

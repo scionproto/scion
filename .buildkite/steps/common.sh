@@ -6,7 +6,6 @@ prepare() {
     mkdir -p "artifacts.out"
     $BASE/scripts/clean_env &>> "$STEP_LOG"
     $BASE/scripts/registry_login &>> "$STEP_LOG"
-    docker pull $SCION_IMG &>/dev/null
     mkdir -p $SCION_MOUNT
 }
 
