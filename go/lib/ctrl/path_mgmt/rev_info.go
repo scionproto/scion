@@ -194,14 +194,15 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 
 // VerifiedRevInfo verifies the signature and returns the revocation
 // information or an error in case the verification fails.
-func (sr *SignedRevInfo) VerifiedRevInfo(ctx context.Context,
-	verifier Verifier) (*RevInfo, error) {
-
-	rev, err := NewRevInfoFromRaw(sr.Blob)
-	if err != nil {
-		return nil, err
+func (sr *SignedRevInfo) VerifiedRevInfo(ctx context.Context, verifier Verifier) (*RevInfo, error) {
+	var err error
+	if sr.revInfo == nil {
+		sr.revInfo, err = NewRevInfoFromRaw(sr.Blob)
 	}
-	return rev, verifier.Verify(ctx, sr.Blob, sr.Sign)
+	if err != nil {
+		return sr.revInfo, err
+	}
+	return sr.revInfo, verifier.Verify(ctx, sr.Blob, sr.Sign)
 }
 
 func (sr *SignedRevInfo) Pack() (common.RawBytes, error) {
