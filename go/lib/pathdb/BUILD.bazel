@@ -3,7 +3,6 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "cleaner.go",
         "metrics.go",
         "pathdb.go",
     ],
@@ -13,10 +12,9 @@ go_library(
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/infra/modules/cleaner:go_default_library",
         "//go/lib/infra/modules/db:go_default_library",
-        "//go/lib/log:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
-        "//go/lib/periodic:go_default_library",
         "//go/lib/prom:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],

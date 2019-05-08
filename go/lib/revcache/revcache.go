@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
@@ -142,6 +143,14 @@ func (r Revocations) FilterNew(ctx context.Context, revCache RevCache) error {
 		}
 	}
 	return nil
+}
+
+// NewCleaner creates a cleaner task that deletes expired revocations.
+func NewCleaner(rc RevCache) *cleaner.Cleaner {
+	return cleaner.New(func(ctx context.Context) (int, error) {
+		cnt, err := rc.DeleteExpired(ctx)
+		return int(cnt), err
+	}, "revocations")
 }
 
 // FilterNew filters the given revocations against the revCache, only the ones which are not in the
