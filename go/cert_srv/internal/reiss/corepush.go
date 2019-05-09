@@ -16,6 +16,7 @@ package reiss
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -34,6 +35,9 @@ var (
 	// SleepAfterFailure is the base time to sleep after a failed attempt to push the chain.
 	// The actual sleep time is: attempts * SleepAfterFailure.
 	SleepAfterFailure = time.Second
+	// DefaultTryTimeout is the default timeout for one sync try if the context
+	// has no deadline set.
+	DefaultTryTimeout = 20 * time.Second
 )
 
 var _ periodic.Task = (*CorePusher)(nil)
@@ -53,64 +57,83 @@ func (p *CorePusher) Run(ctx context.Context) {
 		log.Error("[corePusher] Failed to get local chain from DB", "err", err)
 		return
 	}
-	allCores, err := p.coreASes(ctx)
+	cores, err := p.coreASes(ctx)
 	if err != nil {
 		log.Error("[corePusher] Failed to determine core ASes", "err", err)
 		return
 	}
-	cores := allCores
+	numCores := len(cores.ias)
+	tryTimeout := DefaultTryTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		tryTimeout = deadline.Sub(time.Now()) / 3
+	}
 	for syncTries := 0; syncTries < 3 && ctx.Err() == nil; syncTries++ {
-		time.Sleep(time.Duration(syncTries) * SleepAfterFailure)
-		cores, err = p.syncCores(ctx, chain, cores)
+		tryCtx, cancelF := context.WithTimeout(ctx, tryTimeout)
+		err = p.syncCores(tryCtx, chain, cores)
+		cancelF()
 		if err == nil {
-			log.Info("[corePusher] Successfully pushed chain to cores", "cores", len(allCores))
+			log.Info("[corePusher] Successfully pushed chain to cores", "cores", numCores)
 			return
 		}
 		log.Error("[corePusher] Failed to sync all cores", "err", err)
+		select {
+		case <-time.After(time.Duration(syncTries) * SleepAfterFailure):
+		case <-ctx.Done():
+		}
 	}
 }
 
-// syncCores tries to sync to the given cores and returns the cores for which the syncing failed.
-func (p *CorePusher) syncCores(ctx context.Context, chain *cert.Chain,
-	cores []addr.IA) ([]addr.IA, error) {
-
-	var checkErrors []addr.IA
-	var remainingCores []addr.IA
-	for _, coreIA := range cores {
-		hasChain, err := p.hasChain(ctx, coreIA, chain)
-		if err != nil {
-			checkErrors = append(checkErrors, coreIA)
-			// fall-through explicitly, we just assume the core doesn't have it and send it.
-		}
-		if !hasChain {
-			if err = p.sendChain(ctx, coreIA, chain); err != nil {
-				remainingCores = append(remainingCores, coreIA)
-			}
-		}
-	}
-	if len(checkErrors) > 0 || len(remainingCores) > 0 {
-		return remainingCores, common.NewBasicError("Sync error", nil,
-			"checkErrors", checkErrors, "remainingCores", remainingCores)
-	}
-	return nil, nil
-}
-
-func (p *CorePusher) coreASes(ctx context.Context) ([]addr.IA, error) {
+func (p *CorePusher) coreASes(ctx context.Context) (*iaMap, error) {
 	trc, err := p.TrustDB.GetTRCMaxVersion(ctx, p.LocalIA.I)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get TRC for local ISD", err)
 	}
-	return p.filterLocalIA(trc.CoreASes.ASList()), nil
-}
-
-func (p *CorePusher) filterLocalIA(allCores []addr.IA) []addr.IA {
-	cores := make([]addr.IA, 0, len(allCores))
-	for _, coreIA := range allCores {
-		if !p.LocalIA.Equal(coreIA) {
-			cores = append(cores, coreIA)
+	cores := make(map[addr.IA]struct{})
+	for _, ia := range trc.CoreASes.ASList() {
+		if !p.LocalIA.Equal(ia) {
+			cores[ia] = struct{}{}
 		}
 	}
-	return cores
+	return &iaMap{ias: cores}, nil
+}
+
+// syncCores tries to sync to the given cores and returns the cores for which the syncing failed.
+func (p *CorePusher) syncCores(ctx context.Context, chain *cert.Chain, cores *iaMap) error {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(len(cores.ias))
+	checkErrs := &iaList{}
+	for coreIA := range cores.ias {
+		p.asyncPush(ctx, chain, cores, coreIA, checkErrs, wg)
+	}
+	wg.Wait()
+	if len(checkErrs.ias) > 0 || len(cores.ias) > 0 {
+		return common.NewBasicError("Sync error", nil, "checkErrors", checkErrs.ias,
+			"remainingCores", cores.list())
+	}
+	return nil
+}
+
+// asyncPush pushes the certificate chain to the core if it does not have it already.
+func (p *CorePusher) asyncPush(ctx context.Context, chain *cert.Chain, cores *iaMap,
+	core addr.IA, checkErrs *iaList, wg *sync.WaitGroup) {
+
+	go func() {
+		defer log.LogPanicAndExit()
+		defer wg.Done()
+		hasChain, err := p.hasChain(ctx, core, chain)
+		if err != nil {
+			checkErrs.append(core)
+			// fall-through explicitly, we just assume the core doesn't have it and send it.
+		}
+		var sendErr error
+		if !hasChain {
+			sendErr = p.sendChain(ctx, core, chain)
+		}
+		if sendErr == nil {
+			cores.delete(core)
+		}
+	}()
 }
 
 func (p *CorePusher) hasChain(ctx context.Context, coreAS addr.IA,
@@ -142,4 +165,36 @@ func (p *CorePusher) sendChain(ctx context.Context, coreAS addr.IA, chain *cert.
 	coreAddr := &snet.Addr{IA: coreAS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	// TODO(lukedirtwalker): Expect Acks.
 	return p.Msger.SendCertChain(ctx, msg, coreAddr, messenger.NextId())
+}
+
+type iaList struct {
+	mu  sync.Mutex
+	ias []addr.IA
+}
+
+func (l *iaList) append(ia addr.IA) {
+	l.mu.Lock()
+	l.ias = append(l.ias, ia)
+	l.mu.Unlock()
+}
+
+type iaMap struct {
+	mu  sync.Mutex
+	ias map[addr.IA]struct{}
+}
+
+func (m *iaMap) delete(ia addr.IA) {
+	m.mu.Lock()
+	delete(m.ias, ia)
+	m.mu.Unlock()
+}
+
+func (m *iaMap) list() []addr.IA {
+	m.mu.Lock()
+	l := make([]addr.IA, 0, len(m.ias))
+	for ia := range m.ias {
+		l = append(l, ia)
+	}
+	m.mu.Unlock()
+	return l
 }
