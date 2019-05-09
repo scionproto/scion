@@ -123,7 +123,13 @@ func realMain() int {
 		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
 		SVC:                   addr.SvcPS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
-		EnableQUICTest:        cfg.EnableQUICTest,
+		QUIC: infraenv.QUIC{
+			Address:  cfg.Server.QUICListen,
+			CertFile: cfg.Server.QUICCertFile,
+			KeyFile:  cfg.Server.QUICKeyFile,
+		},
+		SVCResolutionFraction: cfg.Client.ResolutionFraction,
+		EnableQUICTest:        cfg.Client.EnableQUICTest,
 		TrustStore:            trustStore,
 	}
 	msger, err := nc.Messenger()
@@ -213,22 +219,15 @@ func (t *periodicTasks) Start() {
 	if err != nil {
 		fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
 	}
-	t.pathDBCleaner = periodic.StartPeriodicTask(
-		pathdb.NewCleaner(t.args.PathDB),
-		periodic.NewTicker(300*time.Second), 295*time.Second,
-	)
-	t.cryptosyncer = periodic.StartPeriodicTask(
-		&cryptosyncer.Syncer{
-			DB:    t.trustDB,
-			Msger: t.msger,
-			IA:    t.args.IA,
-		},
-		periodic.NewTicker(30*time.Second), 30*time.Second,
-	)
-	t.rcCleaner = periodic.StartPeriodicTask(
-		revcache.NewCleaner(t.args.RevCache),
-		periodic.NewTicker(10*time.Second), 10*time.Second,
-	)
+	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
+		periodic.NewTicker(300*time.Second), 295*time.Second)
+	t.cryptosyncer = periodic.StartPeriodicTask(&cryptosyncer.Syncer{
+		DB:    t.trustDB,
+		Msger: t.msger,
+		IA:    t.args.IA,
+	}, periodic.NewTicker(30*time.Second), 30*time.Second)
+	t.rcCleaner = periodic.StartPeriodicTask(revcache.NewCleaner(t.args.RevCache),
+		periodic.NewTicker(10*time.Second), 10*time.Second)
 	t.running = true
 }
 

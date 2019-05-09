@@ -158,7 +158,13 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
 		SVC:                   addr.SvcCS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
-		EnableQUICTest:        cfg.EnableQUICTest,
+		QUIC: infraenv.QUIC{
+			Address:  cfg.Server.QUICListen,
+			CertFile: cfg.Server.QUICCertFile,
+			KeyFile:  cfg.Server.QUICKeyFile,
+		},
+		SVCResolutionFraction: cfg.Client.ResolutionFraction,
+		EnableQUICTest:        cfg.Client.EnableQUICTest,
 		TrustStore:            state.Store,
 		Router:                router,
 	}

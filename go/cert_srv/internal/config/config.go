@@ -46,14 +46,15 @@ const (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	General        env.General
-	Logging        env.Logging
-	Metrics        env.Metrics
-	Sciond         env.SciondClient `toml:"sd_client"`
-	TrustDB        truststorage.TrustDBConf
-	Discovery      idiscovery.Config
-	CS             CSConfig
-	EnableQUICTest bool
+	General   env.General
+	Logging   env.Logging
+	Metrics   env.Metrics
+	Client    env.Client
+	Server    env.Server
+	Sciond    env.SciondClient `toml:"sd_client"`
+	TrustDB   truststorage.TrustDBConf
+	Discovery idiscovery.Config
+	CS        CSConfig
 }
 
 func (cfg *Config) InitDefaults() {

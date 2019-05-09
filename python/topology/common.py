@@ -16,6 +16,7 @@
 import os
 import subprocess
 import sys
+
 # SCION
 from lib.packet.scion_addr import ISD_AS
 from topology.net import AddressProxy
@@ -136,6 +137,14 @@ def get_pub(topo_addr):
     if pub is not None:
         return pub
     return topo_addr['IPv4']
+
+
+def get_pub_ip(topo_addr):
+    return get_pub(topo_addr)["Public"]["Addr"].ip
+
+
+def get_l4_port(topo_addr):
+    return get_pub(topo_addr)["Public"]["L4Port"]
 
 
 def srv_iter(topo_dicts, out_dir, common=False):

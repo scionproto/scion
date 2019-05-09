@@ -43,6 +43,16 @@ const (
 
 var resolutionRequestPayload = []byte{0x00, 0x00, 0x00, 0x00}
 
+// QUIC contains the QUIC configuration for control-plane speakers.
+type QUIC struct {
+	// Address is the UDP address to start the QUIC server on.
+	Address string
+	// CertFile is the certificate to use for QUIC authentication.
+	CertFile string
+	// KeyFile is the private key to use for QUIC authentication.
+	KeyFile string
+}
+
 // NetworkConfig describes the networking configuration of a SCION
 // control-plane RPC endpoint.
 type NetworkConfig struct {
@@ -62,6 +72,12 @@ type NetworkConfig struct {
 	// the dispatcher closes the connection (e.g., if the dispatcher goes
 	// down).
 	ReconnectToDispatcher bool
+	// QUIC contains configuration details for QUIC servers. If the listening
+	// address is the empty string, then no QUIC server is started.
+	QUIC QUIC
+	// SVCResolutionFraction can be used to customize whether SVC resolution is
+	// enabled.
+	SVCResolutionFraction float64
 	// EnableQUICTest can be used to enable the QUIC RPC implementation.
 	EnableQUICTest bool
 	// Router is used by various infra modules for path-related operations. A
@@ -72,7 +88,18 @@ type NetworkConfig struct {
 // Messenger initializes a SCION control-plane RPC endpoint using the specified
 // configuration.
 func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
-	conn, err := nc.initNetworking()
+	var quicConn net.PacketConn
+	var quicAddress string
+	if nc.QUIC.Address != "" {
+		var err error
+		quicConn, err = nc.initQUICSocket()
+		if err != nil {
+			return nil, err
+		}
+		quicAddress = nc.QUIC.Address
+	}
+
+	conn, err := nc.initUDPSocket(quicAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -101,27 +128,112 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 				// logic.
 				Payload: resolutionRequestPayload,
 			},
-			// XXX(scrye): Disable SVC resolution for the moment.
-			SVCResolutionFraction: 0.00,
+			SVCResolutionFraction: nc.SVCResolutionFraction,
 		},
 	}
-	if nc.EnableQUICTest {
+	msgerCfg.Dispatcher = disp.New(
+		conn,
+		messenger.DefaultAdapter,
+		log.Root(),
+	)
+	if nc.QUIC.Address != "" {
 		var err error
-		msgerCfg.QUIC, err = buildQUICConfig(conn)
+		msgerCfg.QUIC, err = nc.buildQUICConfig(quicConn)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		msgerCfg.Dispatcher = disp.New(
-			conn,
-			messenger.DefaultAdapter,
-			log.Root(),
-		)
 	}
 	msger := messenger.NewMessengerWithMetrics(msgerCfg)
 	nc.TrustStore.SetMessenger(msger)
 	return msger, nil
 
+}
+
+// initUDPSocket creates the main control-plane UDP socket. SVC anycasts will
+// be delivered to this socket, which can be configured to reply to SVC
+// resolution requests. If argument address is not the empty string, it will be
+// included as the QUIC address in SVC resolution replies.
+func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, error) {
+	reply := messenger.BuildReply(nc.Public.Host)
+	if quicAddress != "" {
+		reply.Transports[svc.QUIC] = quicAddress
+	}
+
+	udpAddressStr := &bytes.Buffer{}
+	if err := reply.SerializeTo(udpAddressStr); err != nil {
+		return nil, common.NewBasicError("Unable to build SVC resolution reply", err)
+	}
+
+	packetDispatcher := svc.NewResolverPacketDispatcher(
+		snet.NewDefaultPacketDispatcherService(
+			reliable.NewDispatcherService(""),
+		),
+		&LegacyForwardingHandler{
+			BaseHandler: &svc.BaseHandler{
+				Message: udpAddressStr.Bytes(),
+			},
+			ExpectedPayload: resolutionRequestPayload,
+		},
+	)
+	var network snet.Network
+	network, err := snet.NewCustomNetwork(nc.IA, "", packetDispatcher)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to create network", err)
+	}
+	if nc.ReconnectToDispatcher {
+		network = snetproxy.NewProxyNetwork(network)
+	}
+	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to listen on SCION", err)
+	}
+	return conn, nil
+}
+
+func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
+	var network snet.Network
+	network, err := snet.NewCustomNetwork(nc.IA, "",
+		snet.NewDefaultPacketDispatcherService(
+			reliable.NewDispatcherService(""),
+		),
+	)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to create network", err)
+	}
+	if nc.ReconnectToDispatcher {
+		network = snetproxy.NewProxyNetwork(network)
+	}
+	// FIXME(scrye): Add support for bind addresses.
+	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to parse address", err)
+	}
+	public := &snet.Addr{
+		IA: nc.IA,
+		Host: &addr.AppAddr{
+			L3: addr.HostFromIP(udpAddr.IP),
+			L4: addr.NewL4UDPInfo(uint16(udpAddr.Port)),
+		},
+	}
+	conn, err := network.ListenSCIONWithBindSVC("udp4", public, nil, addr.SvcNone, 0)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to listen on SCION", err)
+	}
+	return conn, nil
+}
+
+func (nc *NetworkConfig) buildQUICConfig(conn net.PacketConn) (*messenger.QUICConfig, error) {
+	cert, err := tls.LoadX509KeyPair(nc.QUIC.CertFile, nc.QUIC.KeyFile)
+	if err != nil {
+		return nil, err
+	}
+	return &messenger.QUICConfig{
+		Conn: conn,
+		TLSConfig: &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			InsecureSkipVerify: true,
+		},
+	}, nil
 }
 
 func buildLocalMachine(bind, public *snet.Addr) snet.LocalMachine {
@@ -163,38 +275,6 @@ func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, erro
 	return svc.Forward, nil
 }
 
-func (nc *NetworkConfig) initNetworking() (net.PacketConn, error) {
-	udpAddressStr := &bytes.Buffer{}
-	if err := messenger.BuildReply(nc.Public.Host).SerializeTo(udpAddressStr); err != nil {
-		return nil, common.NewBasicError("Unable to build SVC resolution reply", err)
-	}
-
-	packetDispatcher := svc.NewResolverPacketDispatcher(
-		snet.NewDefaultPacketDispatcherService(
-			reliable.NewDispatcherService(""),
-		),
-		&LegacyForwardingHandler{
-			BaseHandler: &svc.BaseHandler{
-				Message: udpAddressStr.Bytes(),
-			},
-			ExpectedPayload: resolutionRequestPayload,
-		},
-	)
-	var network snet.Network
-	network, err := snet.NewCustomNetwork(nc.IA, "", packetDispatcher)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create network", err)
-	}
-	if nc.ReconnectToDispatcher {
-		network = snetproxy.NewProxyNetwork(network)
-	}
-	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to listen on SCION", err)
-	}
-	return conn, nil
-}
-
 // NewRouter constructs a path router for paths starting from localIA.
 func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 	var err error
@@ -231,24 +311,6 @@ Top:
 		}
 	}
 	return router, err
-}
-
-func buildQUICConfig(conn net.PacketConn) (*messenger.QUICConfig, error) {
-	// FIXME(scrye): Hardcode the crypto for now, because this is only used for
-	// testing. To make QUIC RPC deployable, these need to be specified in the
-	// configuration file.
-	cert, err := tls.LoadX509KeyPair("gen-certs/tls.pem", "gen-certs/tls.key")
-	if err != nil {
-		return nil, err
-	}
-
-	return &messenger.QUICConfig{
-		Conn: conn,
-		TLSConfig: &tls.Config{
-			Certificates:       []tls.Certificate{cert},
-			InsecureSkipVerify: true,
-		},
-	}, nil
 }
 
 func InitInfraEnvironment(topologyPath string) *env.Env {

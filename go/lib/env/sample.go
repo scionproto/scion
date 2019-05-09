@@ -69,3 +69,36 @@ const metricsSample = `
 # If not set, metrics are not exported. (default "")
 Prometheus = ""
 `
+
+const serverSample = `
+# The address to start a QUIC server on (ip:port). If not set, a QUIC server is
+# not started. (default "")
+QUICListen = ""
+
+# Certificate file to use for authenticating QUIC connections.
+QUICCertFile = "/etc/scion/quic/tls.pem"
+
+# Key file to use for authenticating QUIC connections.
+QUICKeyFile = "/etc/scion/quic/tls.key"
+`
+
+const clientSample = `
+# Set to true to have clients choose QUIC sockets, when available, as part of
+# the SVC resolution mechanism. ResolutionFraction must be more than 0 for this
+# to have any effect.
+EnableQUICTest = false
+
+# SVCResolutionFraction enables SVC resolution for traffic to SVC
+# destinations in a way that is also compatible with control plane servers
+# that do not implement the SVC Resolution Mechanism. The value represents
+# the percentage of time, out of the total available context timeout,
+# spent attempting to perform SVC resolution. If SVCResolutionFraction is
+# 0 or less, SVC resolution is never attempted. If it is between 0 and 1,
+# the remaining context timeout is multiplied by the value, and that
+# amount of time is spent waiting for an SVC resolution reply from the
+# server. If this times out, the data packet is sent with an SVC
+# destination. If the value is 1 or more, then legacy behavior is
+# disabled, and data packets are never sent to SVC destinations unless the
+# resolution step is successful.
+ResolutionFraction = 0.0
+`
