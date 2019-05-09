@@ -31,7 +31,7 @@ from topology.common import (
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
-    get_pub,
+    get_pub_ip,
     prom_addr_br,
     prom_addr_infra,
     prom_addr_sciond,
@@ -294,7 +294,7 @@ def beacon_db_conf_entry(args, name):
 
 def quic_server_conf_entry(infra_elem, port):
     return {
-        'QUICListen':  '[%s]:%s' % (get_pub(infra_elem["Addrs"])['Public']['Addr'].ip, port),
+        'QUICListen':  '[%s]:%s' % (get_pub_ip(infra_elem["Addrs"]), port),
         'QUICCertFile': 'gen-certs/tls.pem',
         'QUICKeyFile': 'gen-certs/tls.key',
     }
