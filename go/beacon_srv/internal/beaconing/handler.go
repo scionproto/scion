@@ -31,6 +31,7 @@ import (
 
 // BeaconInserter inserts beacons into the beacon store.
 type BeaconInserter interface {
+	PreFilter(beacon beacon.Beacon) error
 	InsertBeacons(ctx context.Context, beacon ...beacon.Beacon) error
 }
 
@@ -76,6 +77,10 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 		return res, err
 	}
 	logger.Debug("[BeaconHandler] Received", "beacon", b)
+	if err := h.inserter.PreFilter(b); err != nil {
+		logger.Trace("[BeaconHandler] Beacon pre-filtered", "err", err)
+		return infra.MetricsResultOk, nil
+	}
 	if err := h.verifyBeacon(b); err != nil {
 		return infra.MetricsErrInvalid, err
 	}

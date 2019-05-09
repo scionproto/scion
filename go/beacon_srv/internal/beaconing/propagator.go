@@ -40,6 +40,7 @@ type PropagatorConf struct {
 	BeaconProvider BeaconProvider
 	Sender         *onehop.Sender
 	Core           bool
+	AllowIsdLoop   bool
 }
 
 // Propagator forwards beacons to neighboring ASes. In a core AS, the beacons
@@ -48,9 +49,10 @@ type PropagatorConf struct {
 // provider, the propagator only filters AS loops.
 type Propagator struct {
 	*segExtender
-	sender   *onehop.Sender
-	provider BeaconProvider
-	core     bool
+	sender       *onehop.Sender
+	provider     BeaconProvider
+	allowIsdLoop bool
+	core         bool
 }
 
 // New creates a new beacon propagation task.
@@ -61,10 +63,11 @@ func (cfg PropagatorConf) New() (*Propagator, error) {
 		return nil, err
 	}
 	p := &Propagator{
-		provider:    cfg.BeaconProvider,
-		sender:      cfg.Sender,
-		core:        cfg.Core,
-		segExtender: extender,
+		provider:     cfg.BeaconProvider,
+		sender:       cfg.Sender,
+		core:         cfg.Core,
+		allowIsdLoop: cfg.AllowIsdLoop,
+		segExtender:  extender,
 	}
 	return p, nil
 }
@@ -199,11 +202,9 @@ func (p *Propagator) shouldIgnore(bseg beacon.Beacon, egIfid common.IFIDType) bo
 	if intf == nil {
 		return true
 	}
-	ia := intf.TopoInfo().ISD_AS
-	for _, entry := range bseg.Segment.ASEntries {
-		if entry.IA().Equal(ia) {
-			return true
-		}
+	if err := beacon.FilterLoop(bseg, intf.TopoInfo().ISD_AS, p.allowIsdLoop); err != nil {
+		log.Trace("[Propagator] Ignoring beacon on loop", "ifid", egIfid, "err", err)
+		return true
 	}
 	return false
 }
