@@ -143,19 +143,6 @@ func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 	return r, nil
 }
 
-// Stop stops all runners.
-func (r *Runners) Stop() {
-	if r.Static != nil {
-		r.Static.Stop()
-	}
-	if r.Dynamic != nil {
-		r.Dynamic.Stop()
-	}
-	if r.Cleaner != nil {
-		r.Cleaner.Stop()
-	}
-}
-
 // Kill kills all runners.
 func (r *Runners) Kill() {
 	if r.Static != nil {
@@ -186,26 +173,14 @@ type Runner struct {
 	fetched flag
 }
 
-// Stop stops the periodic execution of the Runner. If the task is currently running
-// this method will block until it is done.
-func (r *Runner) Stop() {
-	r.fetcherMtx.Lock()
-	defer r.fetcherMtx.Unlock()
-	r.stopping = true
-	close(r.stop)
-	if r.fetcher != nil {
-		r.fetcher.Stop()
-	}
-}
-
-// Kill is like stop but it also cancels the context of the current running method.
+// Kill stops the periodic execution of the Runner.
 func (r *Runner) Kill() {
 	r.fetcherMtx.Lock()
 	defer r.fetcherMtx.Unlock()
 	r.stopping = true
 	close(r.stop)
 	if r.fetcher != nil {
-		r.fetcher.Stop()
+		r.fetcher.Kill()
 	}
 }
 

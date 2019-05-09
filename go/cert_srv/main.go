@@ -183,7 +183,7 @@ func startDiscovery() {
 
 func stopReissRunner() {
 	if corePusher != nil {
-		corePusher.Stop()
+		corePusher.Kill()
 	}
 	if reissRunner != nil {
 		reissRunner.Stop()
@@ -192,7 +192,7 @@ func stopReissRunner() {
 
 func stop() {
 	stopReissRunner()
-	discRunners.Stop()
+	discRunners.Kill()
 	msgr.CloseServer()
 	trustDB.Close()
 }
