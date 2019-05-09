@@ -115,7 +115,6 @@ func (p *CorePusher) syncCores(ctx context.Context, chain *cert.Chain, cores *ia
 }
 
 // asyncPush pushes the certificate chain to the core if it does not have it already.
-// Errors while checking are
 func (p *CorePusher) asyncPush(ctx context.Context, chain *cert.Chain, cores *iaMap,
 	core addr.IA, checkErrs *iaList, wg *sync.WaitGroup) {
 
