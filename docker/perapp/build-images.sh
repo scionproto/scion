@@ -24,3 +24,6 @@ rm -rf $TMPDIR
 
 # Build the images and push them to local docker repository.
 bazel run //docker/perapp:$STAGE
+
+# Remove licenses
+tar cvf $ROOTDIR/docker/perapp/licenses.tar --files-from /dev/null

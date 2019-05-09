@@ -8,7 +8,10 @@ TAG="$BUILDKITE_BUILD_NUMBER"
 
 $BASE/scripts/registry_login &>/dev/null
 
-images="border dispatcher dispatcher_go sig beacon beacon_py cert cert_py path path_py sciond sciond_py tester sig_acceptance"
+c_images="dispatcher" # for sig acceptance tests #2416
+go_images="border dispatcher_go sig beacon cert path sciond"
+tester_images="tester sig_acceptance"
+images="$c_images $go_images $tester_images"
 
 if [ "${1:?}" == "push" ]; then
     # Tag local apps and push to remote
@@ -26,7 +29,7 @@ if [ "$1" == "pull" ]; then
     for app in $images; do
         local_img="scion_$app"
         remote_img="$REGISTRY/$app"
-        docker pull "$remote_img:$TAG" &>/dev/null
+        docker pull "$remote_img:$TAG" &>/dev/null || exit 5
         docker tag "$remote_img:$TAG" "$local_img:latest"
     done
 fi
