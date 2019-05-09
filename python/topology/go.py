@@ -69,6 +69,7 @@ class GoGenerator(object):
         self.args = args
         self.log_dir = '/share/logs' if args.docker else 'logs'
         self.db_dir = '/share/cache' if args.docker else 'gen-cache'
+        self.certs_dir = '/share/crypto' if args.docker else 'gen-certs'
         self.log_level = 'trace' if args.trace else 'debug'
 
     def generate_br(self):
@@ -118,8 +119,8 @@ class GoGenerator(object):
             'beaconDB': beacon_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
-            'server': quic_server_conf_entry(infra_elem, BS_QUIC_PORT),
-            'client': quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
+            'server': self._quic_server_conf_entry(infra_elem, BS_QUIC_PORT),
+            'client': self._quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
         }
         return raw_entry
 
@@ -151,8 +152,8 @@ class GoGenerator(object):
                 'SegSync': True,
             },
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
-            'server': quic_server_conf_entry(infra_elem, PS_QUIC_PORT),
-            'client': quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
+            'server': self._quic_server_conf_entry(infra_elem, PS_QUIC_PORT),
+            'client': self._quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
         }
         return raw_entry
 
@@ -186,7 +187,7 @@ class GoGenerator(object):
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
             },
-            'client': quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
+            'client': self._quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
         }
         return raw_entry
 
@@ -219,8 +220,8 @@ class GoGenerator(object):
                 'ReissueTimeout': "5s",
             },
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
-            'server': quic_server_conf_entry(infra_elem, CS_QUIC_PORT),
-            'client': quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
+            'server': self._quic_server_conf_entry(infra_elem, CS_QUIC_PORT),
+            'client': self._quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
         }
         return raw_entry
 
@@ -283,25 +284,23 @@ class GoGenerator(object):
             'Prometheus': prom_addr
         }
 
+    def _quic_server_conf_entry(self, infra_elem, port):
+        return {
+            'QUICListen':  '[%s]:%s' % (get_pub_ip(infra_elem["Addrs"]), port),
+            'QUICCertFile': os.path.join(self.certs_dir, 'tls.pem'),
+            'QUICKeyFile': os.path.join(self.certs_dir, 'tls.key'),
+        }
+
+    def _quic_client_conf_entry(self, qtest, svcfrac):
+        return {
+            'EnableQUICTest': qtest,
+            'ResolutionFraction': svcfrac,
+        }
+
 
 def beacon_db_conf_entry(args, name):
     db_dir = '/share/cache' if args.docker else 'gen-cache'
     return {
         'Backend': 'sqlite',
         'Connection': os.path.join(db_dir, '%s.beacon.db' % name),
-    }
-
-
-def quic_server_conf_entry(infra_elem, port):
-    return {
-        'QUICListen':  '[%s]:%s' % (get_pub_ip(infra_elem["Addrs"]), port),
-        'QUICCertFile': 'gen-certs/tls.pem',
-        'QUICKeyFile': 'gen-certs/tls.key',
-    }
-
-
-def quic_client_conf_entry(qtest, svcfrac):
-    return {
-        'EnableQUICTest': qtest,
-        'ResolutionFraction': svcfrac,
     }

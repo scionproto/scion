@@ -342,11 +342,15 @@ class DockerGenerator(object):
     def _cache_vol(self):
         return self.output_base + '/gen-cache:/share/cache:rw'
 
+    def _certs_vol(self):
+        return self.output_base + '/gen-certs:/share/crypto:rw'
+
     def _std_vol(self, topo_id):
         return [
             *DOCKER_USR_VOL,
             self._disp_vol(topo_id),
             self._sciond_vol(topo_id),
             self._cache_vol(),
-            self._logs_vol()
+            self._logs_vol(),
+            self._certs_vol(),
         ]
