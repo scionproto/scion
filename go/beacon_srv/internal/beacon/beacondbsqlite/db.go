@@ -125,7 +125,6 @@ type beaconMeta struct {
 }
 
 func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.RevocationOrErr, error) {
-
 	e.RLock()
 	defer e.RUnlock()
 	query := `SELECT RawSignedRev FROM Revocations`
@@ -162,7 +161,6 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.Revocation
 }
 
 func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
-
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
@@ -176,12 +174,11 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 	defer rows.Close()
 	var ias []addr.IA
 	for rows.Next() {
-		var isd addr.ISD
-		var as addr.AS
-		if err := rows.Scan(&isd, &as); err != nil {
+		var ia addr.IA
+		if err := rows.Scan(&ia.I, &ia.A); err != nil {
 			return nil, err
 		}
-		ias = append(ias, addr.IA{I: isd, A: as})
+		ias = append(ias, ia)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -204,14 +201,12 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 	query := fmt.Sprintf(`
 		SELECT b.Beacon, b.InIntfID
 		FROM Beacons b
-		JOIN IntfToBeacon ib ON b.RowId = ib.BeaconRowID
 		WHERE ( b.Usage & ?1 ) == ?1 %s AND NOT EXISTS(
 			SELECT 1
 			FROM IntfToBeacon ib
 			JOIN Revocations r USING (IsdID, AsID, IntfID)
 			WHERE ib.BeaconRowID = RowID AND r.ExpirationTime >= ?3
 		)
-		GROUP BY b.RowID
 		ORDER BY b.HopsLength ASC
 		LIMIT ?2
 	`, srcCond)
@@ -234,6 +229,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 		s, err := seg.NewBeaconFromRaw(common.RawBytes(rawBeacon))
 		if err != nil {
 			errors = append(errors, common.NewBasicError(beacon.ErrParse, err))
+			continue
 		}
 		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfId})
 	}
@@ -453,17 +449,7 @@ func (e *executor) deleteInTx(ctx context.Context,
 	if e.db == nil {
 		return 0, common.NewBasicError("No database open", nil)
 	}
-	var res sql.Result
-	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		var err error
-		res, err = delFunc(tx)
-		return err
-	})
-	if err != nil {
-		return 0, err
-	}
-	deleted, _ := res.RowsAffected()
-	return int(deleted), nil
+	return db.DeleteInTx(ctx, e.db, delFunc)
 }
 
 func (e *executor) DeleteRevokedBeacons(ctx context.Context, now time.Time) (int, error) {

@@ -394,17 +394,7 @@ func (e *executor) deleteInTx(ctx context.Context,
 	if e.db == nil {
 		return 0, common.NewBasicError("No database open", nil)
 	}
-	var res sql.Result
-	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		var err error
-		res, err = delFunc(tx)
-		return err
-	})
-	if err != nil {
-		return 0, err
-	}
-	deleted, _ := res.RowsAffected()
-	return int(deleted), nil
+	return db.DeleteInTx(ctx, e.db, delFunc)
 }
 
 func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results, error) {
