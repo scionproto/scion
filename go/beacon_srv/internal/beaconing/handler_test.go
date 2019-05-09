@@ -61,6 +61,7 @@ func TestNewHandler(t *testing.T) {
 			inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 			expectedBeacon := beacon.Beacon{Segment: pseg, InIfId: localIF}
 			inserter.EXPECT().InsertBeacons(gomock.Any(), expectedBeacon).Return(nil)
+			inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
 
 			verifier := mock_infra.NewMockVerifier(mctrl)
 			verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
@@ -74,6 +75,7 @@ func TestNewHandler(t *testing.T) {
 		})
 		Convey("Invalid requests cause an error", func() {
 			inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+			inserter.EXPECT().PreFilter(gomock.Any()).AnyTimes().Return(nil)
 			verifier := mock_infra.NewMockVerifier(mctrl)
 
 			intfs := testInterfaces(topoProvider.Get())
@@ -164,6 +166,7 @@ func TestNewHandler(t *testing.T) {
 				})
 				Convey("Insertion error", func() {
 					inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+					inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
 					inserter.EXPECT().InsertBeacons(gomock.Any(),
 						gomock.Any()).Return(common.NewBasicError("failed", nil))
 

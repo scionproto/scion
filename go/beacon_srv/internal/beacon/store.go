@@ -30,6 +30,7 @@ import (
 const maxResultChanSize = 32
 
 type usager interface {
+	Filter(beacon Beacon) error
 	Usage(beacon Beacon) Usage
 }
 
@@ -193,6 +194,13 @@ type baseStore struct {
 	db     DB
 	usager usager
 	algo   selectionAlgorithm
+}
+
+// PreFilter indicates whether the beacon will be filtered on insert by
+// returning an error with the reason. This allows the caller to drop
+// ignored beacons.
+func (s *baseStore) PreFilter(beacon Beacon) error {
+	return s.usager.Filter(beacon)
 }
 
 // InsertBeacons adds verified beacons to the store. Beacons that

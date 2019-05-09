@@ -54,6 +54,20 @@ func (mr *MockBeaconInserterMockRecorder) InsertBeacons(arg0 interface{}, arg1 .
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertBeacons", reflect.TypeOf((*MockBeaconInserter)(nil).InsertBeacons), varargs...)
 }
 
+// PreFilter mocks base method
+func (m *MockBeaconInserter) PreFilter(arg0 beacon.Beacon) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PreFilter", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PreFilter indicates an expected call of PreFilter
+func (mr *MockBeaconInserterMockRecorder) PreFilter(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PreFilter", reflect.TypeOf((*MockBeaconInserter)(nil).PreFilter), arg0)
+}
+
 // MockBeaconProvider is a mock of BeaconProvider interface
 type MockBeaconProvider struct {
 	ctrl     *gomock.Controller
