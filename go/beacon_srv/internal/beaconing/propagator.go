@@ -179,7 +179,10 @@ func (p *Propagator) propagate(origBeacon beacon.Beacon, activeIntfs,
 		p.extendAndSend(bseg, egIfid, peers, &success, &wg)
 	}
 	wg.Wait()
-	if success.c <= 0 && expected > 0 {
+	if expected == 0 {
+		return nil
+	}
+	if success.c <= 0 {
 		return common.NewBasicError("None propagated", nil, "expected", expected)
 	}
 	log.Trace("[Propagator] Successfully propagated", "beacon", origBeacon,
