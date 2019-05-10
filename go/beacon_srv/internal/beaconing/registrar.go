@@ -105,7 +105,8 @@ func (r *Registrar) run(ctx context.Context) error {
 	}
 	peers, nonActivePeers := sortedIntfs(r.cfg.Intfs, proto.LinkType_peer)
 	if len(nonActivePeers) > 0 {
-		log.Debug("[Registrar] Ignore non-active peer interfaces", "intfs", nonActivePeers)
+		log.Debug("[Registrar] Ignore non-active peer interfaces", "type", r.segType,
+			"intfs", nonActivePeers)
 	}
 	var success, segErr, sendErr ctr
 	wg := &sync.WaitGroup{}
@@ -125,9 +126,8 @@ func (r *Registrar) run(ctx context.Context) error {
 		return common.NewBasicError("No beacons propagated", nil, "candidates", total,
 			"segCreationErrs", segErr.c, "sendErrs", sendErr.c)
 	}
-	log.Info("[Registrar] Successfully registered segments", "success", success.c,
-		"candidates", total, "segCreationErrs", segErr.c, "sendErrs", sendErr.c)
-	r.lastSucc = r.tick.now
+	log.Trace("[Registrar] Successfully registered segments", "type", r.segType, "success",
+		success.c, "candidates", total, "segCreationErrs", segErr.c, "sendErrs", sendErr.c)
 	return nil
 }
 
@@ -145,7 +145,7 @@ func (r *Registrar) startSendSegReg(ctx context.Context, reg *path_mgmt.SegReg, 
 			sendErr.Inc()
 			return
 		}
-		log.Debug("[Registrar] Successfully registered segment", "addr", saddr,
+		log.Trace("[Registrar] Successfully registered segment", "type", r.segType, "addr", saddr,
 			"seg", reg.Recs[0].Segment)
 		success.Inc()
 	}()

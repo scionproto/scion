@@ -182,7 +182,7 @@ func (p *Propagator) propagate(origBeacon beacon.Beacon, activeIntfs,
 	if success.c <= 0 && expected > 0 {
 		return common.NewBasicError("None propagated", nil, "expected", expected)
 	}
-	log.Info("[Propagator] Successfully propagated", "beacon", origBeacon,
+	log.Trace("[Propagator] Successfully propagated", "beacon", origBeacon,
 		"expected", expected, "count", success.c)
 	return nil
 }
