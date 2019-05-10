@@ -297,7 +297,8 @@ func checkRevocation(t *testing.T, srev *path_mgmt.SignedRevInfo,
 		SoMsg("correct linkType", revInfo.LinkType,
 			ShouldEqual, topoProvider.Get().IFInfoMap[revokedIfId].LinkType)
 		rawNow := util.TimeToSecs(time.Now())
-		SoMsg("recent revocation", revInfo.RawTimestamp, ShouldBeBetween, rawNow-1, rawNow+1)
+		SoMsg("recent revocation", revInfo.RawTimestamp,
+			ShouldBeBetweenOrEqual, rawNow-1, rawNow)
 		SoMsg("minTTL", revInfo.RawTTL, ShouldEqual, uint32(path_mgmt.MinRevTTL.Seconds()))
 	})
 }
