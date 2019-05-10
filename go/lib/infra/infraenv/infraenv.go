@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -113,7 +114,8 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		IA:         nc.IA,
 		TrustStore: nc.TrustStore,
 		AddressRewriter: &messenger.AddressRewriter{
-			Router: router,
+			Router:    router,
+			SVCRouter: messenger.NewSVCRouter(itopo.Provider()),
 			Resolver: &svc.Resolver{
 				LocalIA: nc.IA,
 				ConnFactory: snet.NewDefaultPacketDispatcherService(

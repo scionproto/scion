@@ -19,18 +19,15 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var _ periodic.Task = (*Syncer)(nil)
@@ -42,16 +39,12 @@ type Syncer struct {
 }
 
 func (c *Syncer) Run(ctx context.Context) {
-	cs, err := c.chooseServer()
-	if err != nil {
-		log.Error("[CryptoSync] Failed to select remote CS", "err", err)
-		return
-	}
 	trcChan, err := c.DB.GetAllTRCs(ctx)
 	if err != nil {
 		log.Error("[CryptoSync] Failed to read TRCs", "err", err)
 		return
 	}
+	cs := &snet.Addr{IA: c.IA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	trcCount := c.sendTRCs(ctx, trcChan, cs)
 	chainChan, err := c.DB.GetAllChains(ctx)
 	if err != nil {
@@ -59,21 +52,6 @@ func (c *Syncer) Run(ctx context.Context) {
 	}
 	chainCount := c.sendChains(ctx, chainChan, cs)
 	log.Info("Sent crypto to CS", "cs", cs, "TRCs", trcCount, "Chains", chainCount)
-}
-
-func (c *Syncer) chooseServer() (net.Addr, error) {
-	topo := itopo.Get()
-	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
-	if err != nil {
-		return nil, err
-	}
-	topoAddr := svcInfo.GetAnyTopoAddr()
-	if topoAddr == nil {
-		return nil, common.NewBasicError("Failed to look up CS in topology", nil)
-	}
-	csAddr := topoAddr.PublicAddr(topo.Overlay)
-	csOverlayAddr := topoAddr.OverlayAddr(topo.Overlay)
-	return &snet.Addr{IA: c.IA, Host: csAddr, NextHop: csOverlayAddr}, nil
 }
 
 func (c *Syncer) sendTRCs(ctx context.Context, trcChan <-chan trustdb.TrcOrErr, cs net.Addr) int {
