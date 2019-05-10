@@ -122,7 +122,10 @@ func (r *Registrar) run(ctx context.Context) error {
 	}
 	wg.Wait()
 	total := success.c + segErr.c + sendErr.c
-	if total > 0 && success.c <= 0 {
+	if total == 0 {
+		return nil
+	}
+	if success.c <= 0 {
 		return common.NewBasicError("No beacons propagated", nil, "candidates", total,
 			"segCreationErrs", segErr.c, "sendErrs", sendErr.c)
 	}
