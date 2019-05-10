@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
@@ -269,7 +268,7 @@ func (c *client) Close() error {
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		err = c.qsess.Close(nil)
+		err = c.qsess.Close()
 	}
 	return err
 }
@@ -376,7 +375,7 @@ func (s server) run() {
 }
 
 func (s server) handleClient(qsess quic.Session) {
-	defer qsess.Close(nil)
+	defer qsess.Close()
 	qstream, err := qsess.AcceptStream()
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
@@ -389,19 +388,6 @@ func (s server) handleClient(qsess quic.Session) {
 		// Receive ping message
 		msg, err := qs.ReadMsg()
 		if err != nil {
-			qer := qerr.ToQuicError(err)
-			// We expect qerr.PeerGoingAway or io.EOF as normal termination conditions.
-			if qer.ErrorCode == qerr.PeerGoingAway ||
-				err == io.EOF {
-				log.Info("Quic peer disconnected", "err", err)
-				break
-			}
-			// NetworkIdleTimeOut if the peer exits ungracefully we will not be notified,
-			// and the session will time out.
-			if qer.ErrorCode == qerr.NetworkIdleTimeout {
-				log.Error("Quic connection timed out", "err", err)
-				break
-			}
 			log.Error("Unable to read", "err", err)
 			break
 		}
