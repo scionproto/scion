@@ -158,6 +158,9 @@ func (t *topo) Get() *topology.Topo {
 	if t.dynamic != nil && t.dynamic.Active(time.Now()) {
 		return t.dynamic
 	}
+	if t.static == nil {
+		panic("static topology not found")
+	}
 	return t.static
 }
 

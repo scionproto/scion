@@ -296,6 +296,18 @@ func (t *Topo) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, error) 
 	return topoAddr, nil
 }
 
+func (t *Topo) GetAnyTopoAddr(svc proto.ServiceType) (*TopoAddr, error) {
+	svcInfo, err := t.GetSvcInfo(svc)
+	if err != nil {
+		return nil, err
+	}
+	id, err := svcInfo.names.GetRandom()
+	if err != nil {
+		return nil, err
+	}
+	return svcInfo.idTopoAddrMap.GetById(id), nil
+}
+
 func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
 	svcInfo, err := t.GetSvcInfo(svc)
 	if err != nil {
