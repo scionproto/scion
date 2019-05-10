@@ -109,18 +109,6 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
-	// Commit to a path server, and use it for path queries
-	svcInfo, err := f.topology.GetSvcInfo(proto.ServiceType_ps)
-	if err != nil {
-		return nil, err
-	}
-	topoAddr := svcInfo.GetAnyTopoAddr()
-	if topoAddr == nil {
-		return nil, common.NewBasicError("Failed to look up PS in topology", nil)
-	}
-	psAddr := topoAddr.PublicAddr(f.topology.Overlay)
-	psOverlayAddr := topoAddr.OverlayAddr(f.topology.Overlay)
-	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: psAddr, NextHop: psOverlayAddr}
 	// Check destination
 	if req.Dst.IA().I == 0 {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadDstIA),
@@ -167,6 +155,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// and revocation cache.
 	subCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
 	earlyTrigger := util.NewTrigger(earlyReplyInterval)
+	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
 	go func() {
 		defer log.LogPanicAndExit()
 		f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger, ps)
