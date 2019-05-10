@@ -17,8 +17,6 @@ package db
 import (
 	"context"
 	"database/sql"
-
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 var _ Sqler = (*sql.DB)(nil)
@@ -42,13 +40,16 @@ func DoInTx(ctx context.Context, db Sqler, action func(context.Context, *sql.Tx)
 	}
 	var err error
 	if tx, err = db.(*sql.DB).BeginTx(ctx, nil); err != nil {
-		return common.NewBasicError("Failed to create tx", err)
+		return NewTxError("create tx", err)
 	}
 	defer tx.Rollback()
 	if err := action(ctx, tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return NewTxError("commit", err)
+	}
+	return nil
 }
 
 // DeleteInTx executes delFunc in a transaction and returns the affected rows.
@@ -62,7 +63,7 @@ func DeleteInTx(ctx context.Context, db Sqler,
 		return err
 	})
 	if err != nil {
-		return 0, err
+		return 0, NewWriteError("delete in tx", err)
 	}
 	deleted, _ := res.RowsAffected()
 	return int(deleted), nil
