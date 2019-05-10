@@ -43,6 +43,7 @@ func TestLoadFromYaml(t *testing.T) {
 		SoMsg("MaxHopsLength", p.Filter.MaxHopsLength, ShouldEqual, 8)
 		SoMsg("AsBlackList", p.Filter.AsBlackList, ShouldResemble, []addr.AS{ia110.A, ia111.A})
 		SoMsg("IsdBlackList", p.Filter.IsdBlackList, ShouldResemble, []addr.ISD{1, 2, 3})
+		SoMsg("AllowIsdLoop", p.Filter.AllowIsdLoop, ShouldBeTrue)
 
 	}
 	Convey("Given a policy file with policy type set", t, func() {
@@ -125,9 +126,9 @@ func TestFilterApply(t *testing.T) {
 			},
 			{
 				Name:         "ISD/AS Loop [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
-				Beacon:       newTestBeacon(ia110, ia311, ia111),
+				Beacon:       newTestBeacon(ia110, ia311, ia110),
 				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: true},
-				ShouldFilter: false,
+				ShouldFilter: true,
 			},
 			{
 				Name:         "ISD Loop allowed [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",
@@ -175,9 +176,9 @@ func TestFilterLoop(t *testing.T) {
 		},
 		{
 			Name:         "ISD/AS Loop [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
-			Beacon:       newTestBeacon(ia110, ia311, ia111),
+			Beacon:       newTestBeacon(ia110, ia311, ia110),
 			AllowIsdLoop: true,
-			ShouldFilter: false,
+			ShouldFilter: true,
 		},
 		{
 			Name:         "ISD Loop allowed [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",

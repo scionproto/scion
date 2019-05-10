@@ -238,7 +238,7 @@ type Filter struct {
 	// IsdBlackList contains all ISD that may not appear in a segment.
 	IsdBlackList []addr.ISD `yaml:"IsdBlackList"`
 	// AllowIsdLoop indicates whether ISD loops should not be filtered.
-	AllowIsdLoop bool
+	AllowIsdLoop bool `yaml:"AllowIsdLoop"`
 }
 
 // InitDefaults initializes the default values for unset fields.
@@ -292,25 +292,28 @@ func buildHops(beacon Beacon) []addr.IA {
 }
 
 func filterLoops(hops []addr.IA, allowIsdLoop bool) error {
-	if !allowIsdLoop {
-		if ia := filterLoop(hops, true); !ia.IsZero() {
-			return common.NewBasicError("ISD loop", nil, "isd", ia.I)
-		}
-	}
 	if ia := filterLoop(hops, false); !ia.IsZero() {
 		return common.NewBasicError("AS loop", nil, "ia", ia)
+	}
+	if allowIsdLoop {
+		return nil
+	}
+	if ia := filterLoop(hops, true); !ia.IsZero() {
+		return common.NewBasicError("ISD loop", nil, "isd", ia.I)
 	}
 	return nil
 }
 
-func filterLoop(hops []addr.IA, ignoreAs bool) addr.IA {
+// filterLoop searches for the first loop in the hops. If stripAs is set, the AS
+// part of the hops is stripped and only ISD loops are considered.
+func filterLoop(hops []addr.IA, stripAs bool) addr.IA {
 	seen := make(map[addr.IA]struct{})
 	var last addr.IA
 	for _, ia := range hops {
 		if last.Equal(ia) {
 			return ia
 		}
-		if ignoreAs {
+		if stripAs {
 			ia.A = 0
 		}
 		if !last.Equal(ia) {
