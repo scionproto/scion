@@ -253,7 +253,7 @@ go_repository(
 
 go_repository(
     name = "com_github_lucas_clemente_quic_go",
-    commit = "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+    commit = "fd7246d7ed6eeb79eb4dc8b7b1bfa8a13047105a",
     importpath = "github.com/lucas-clemente/quic-go",
 )
 

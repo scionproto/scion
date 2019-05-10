@@ -160,6 +160,7 @@ func TestResolveIfSVC(t *testing.T) {
 		ResolverSetup         func(*mock_messenger.MockResolver)
 		SVCResolutionFraction float64
 		ExpectedAddress       *addr.AppAddr
+		ExpectedQUICRedirect  bool
 		ExpectedError         bool
 	}{
 		{
@@ -226,7 +227,7 @@ func TestResolveIfSVC(t *testing.T) {
 					Return(
 						&svc.Reply{
 							Transports: map[svc.Transport]string{
-								svc.UDP: "192.168.1.1:8000",
+								svc.QUIC: "192.168.1.1:8000",
 							},
 						},
 						nil,
@@ -237,6 +238,7 @@ func TestResolveIfSVC(t *testing.T) {
 				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
 				L4: addr.NewL4UDPInfo(8000),
 			},
+			ExpectedQUICRedirect: true,
 		},
 		{
 			Description: "svc address, half time allowed for resolution, lookup succeeds",
@@ -249,7 +251,7 @@ func TestResolveIfSVC(t *testing.T) {
 					Return(
 						&svc.Reply{
 							Transports: map[svc.Transport]string{
-								svc.UDP: "192.168.1.1:8000",
+								svc.QUIC: "192.168.1.1:8000",
 							},
 						},
 						nil,
@@ -260,6 +262,7 @@ func TestResolveIfSVC(t *testing.T) {
 				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
 				L4: addr.NewL4UDPInfo(8000),
 			},
+			ExpectedQUICRedirect: true,
 		},
 	}
 
@@ -276,8 +279,9 @@ func TestResolveIfSVC(t *testing.T) {
 					SVCResolutionFraction: tc.SVCResolutionFraction,
 				}
 				initResolver(resolver, tc.ResolverSetup)
-				a, err := aw.resolveIfSVC(context.Background(), path, tc.InputAddress)
+				a, redirect, err := aw.resolveIfSVC(context.Background(), path, tc.InputAddress)
 				SoMsg("addr", a, ShouldResemble, tc.ExpectedAddress)
+				SoMsg("redirect", redirect, ShouldEqual, tc.ExpectedQUICRedirect)
 				xtest.SoMsgError("err", err, tc.ExpectedError)
 			})
 		}
@@ -302,14 +306,14 @@ func TestParseReply(t *testing.T) {
 		},
 		{
 			Description:   "key not found in reply",
-			Reply:         &svc.Reply{Transports: map[svc.Transport]string{svc.QUIC: "foo"}},
+			Reply:         &svc.Reply{Transports: map[svc.Transport]string{svc.UDP: "foo"}},
 			ExpectedError: true,
 		},
 		{
 			Description: "key found in reply, but parsing fails",
 			Reply: &svc.Reply{
 				Transports: map[svc.Transport]string{
-					svc.UDP: "foo",
+					svc.QUIC: "foo",
 				},
 			},
 			ExpectedError: true,
@@ -318,7 +322,7 @@ func TestParseReply(t *testing.T) {
 			Description: "key found in reply, IPv4 address",
 			Reply: &svc.Reply{
 				Transports: map[svc.Transport]string{
-					svc.UDP: "192.168.1.1:8000",
+					svc.QUIC: "192.168.1.1:8000",
 				},
 			},
 			ExpectedAddress: &addr.AppAddr{
@@ -331,7 +335,7 @@ func TestParseReply(t *testing.T) {
 			Description: "key found in reply, IPv6 address",
 			Reply: &svc.Reply{
 				Transports: map[svc.Transport]string{
-					svc.UDP: "[2001:db8::1]:8000",
+					svc.QUIC: "[2001:db8::1]:8000",
 				},
 			},
 			ExpectedAddress: &addr.AppAddr{
