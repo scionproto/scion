@@ -526,7 +526,6 @@ func setup() error {
 
 func handleTopoUpdate() {
 	if intfs == nil {
-		log.Warn("intfs not set, ignoring static update")
 		return
 	}
 	intfs.Update(itopo.Get().IFInfoMap)
