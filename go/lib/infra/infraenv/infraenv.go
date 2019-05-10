@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -84,6 +83,9 @@ type NetworkConfig struct {
 	// Router is used by various infra modules for path-related operations. A
 	// nil router means only intra-AS traffic is supported.
 	Router snet.Router
+	// SVCRouter is used to discover the overlay addresses of intra-AS SVC
+	// servers.
+	SVCRouter messenger.LocalSVCRouter
 }
 
 // Messenger initializes a SCION control-plane RPC endpoint using the specified
@@ -115,7 +117,7 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		TrustStore: nc.TrustStore,
 		AddressRewriter: &messenger.AddressRewriter{
 			Router:    router,
-			SVCRouter: messenger.NewSVCRouter(itopo.Provider()),
+			SVCRouter: nc.SVCRouter,
 			Resolver: &svc.Resolver{
 				LocalIA: nc.IA,
 				ConnFactory: snet.NewDefaultPacketDispatcherService(

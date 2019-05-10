@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -29,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // DefaultRevOverlap specifies the default for how long before the expiry of an existing revocation
@@ -153,21 +153,7 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 	revs map[common.IFIDType]*path_mgmt.SignedRevInfo) {
 
 	topo := r.cfg.TopoProvider.Get()
-	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_ps)
-	if err != nil {
-		log.Error("[Revoker] Failed to get svcInfo for PS", "err", err)
-		return
-	}
-	topoAddr := svcInfo.GetAnyTopoAddr()
-	if topoAddr == nil {
-		log.Error("[Revoker] No PS found in topology")
-		return
-	}
-	a := &snet.Addr{
-		IA:      topo.ISD_AS,
-		Host:    topoAddr.PublicAddr(topo.Overlay),
-		NextHop: topoAddr.OverlayAddr(topo.Overlay),
-	}
+	a := &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
 	for ifid, srev := range revs {
 		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
 			log.Error("[Revoker] Failed to send revocation to PS", "ifid", ifid, "err", err)

@@ -179,21 +179,8 @@ func (r *Registrar) segToRegister(ctx context.Context, peers []common.IFIDType,
 
 func (r *Registrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
 	if r.segType != proto.PathSegType_down {
-		return r.localServer()
+		topo := r.topoProvider.Get()
+		return &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}, nil
 	}
 	return addrutil.GetPath(addr.SvcPS, pseg, r.topoProvider.Get())
-}
-
-func (r *Registrar) localServer() (*snet.Addr, error) {
-	topo := r.topoProvider.Get()
-	ps, err := topo.PSNames.GetRandom()
-	if err != nil {
-		return nil, err
-	}
-	topoAddr := topo.PS[ps]
-	saddr := &snet.Addr{
-		IA:   topo.ISD_AS,
-		Host: topoAddr.PublicAddr(topoAddr.Overlay),
-	}
-	return saddr, nil
 }
