@@ -32,8 +32,8 @@ test_run() {
     ./tools/dc scion kill -s HUP scion_ps$IA_FILE-1
     # Wait for 30 (PS crypto push interval) + 1 (logging flush interval) seconds to guarantee a push is seen
     sleep 31
-    grep -q "\[INFO\].*Sent crypto to CS.*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \
-        fail "Crypto material push to 127.42.42.42:39999 not found in logs"
+    grep -q ".*CryptoSync.*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \
+        fail "CryptoSync log entry with 127.42.42.42:39999 not found in logs"
 }
 
 print_help() {

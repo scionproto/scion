@@ -124,7 +124,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 
 // resolveIfSvc performs SVC resolution and returns an UDP/IP address if the
 // input address is an SVC destination. If the UDP/IP address is for a
-// QUIC-compatible server , the returned boolean value is set to true. If the
+// QUIC-compatible server, the returned boolean value is set to true. If the
 // address does not have an SVC destination, it is returned unchanged. If
 // address is not a well-formed application address (all fields set, non-nil,
 // supported protocols), the function's behavior is undefined. The returned
