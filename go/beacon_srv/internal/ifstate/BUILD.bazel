@@ -7,6 +7,7 @@ go_library(
         "handler.go",
         "ifstate.go",
         "metrics.go",
+        "pusher.go",
         "revoker.go",
     ],
     importpath = "github.com/scionproto/scion/go/beacon_srv/internal/ifstate",
@@ -31,6 +32,7 @@ go_test(
     srcs = [
         "handler_test.go",
         "ifstate_test.go",
+        "pusher_test.go",
         "revoker_test.go",
     ],
     data = glob(["testdata/**"]),
