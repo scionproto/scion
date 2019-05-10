@@ -27,6 +27,10 @@ import (
 
 // Store is the interface to interact with the beacon store.
 type Store interface {
+	// PreFilter indicates whether the beacon will be filtered on insert by
+	// returning an error with the reason. This allows the caller to drop
+	// ignored beacons.
+	PreFilter(beacon beacon.Beacon) error
 	// BeaconsToPropagate returns a channel that provides all beacons to
 	// propagate at the time of the call. The selection is based on the
 	// configured propagation policy.

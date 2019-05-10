@@ -31,6 +31,8 @@ var (
 	ia112 = xtest.MustParseIA("1-ff00:0:112")
 	ia113 = xtest.MustParseIA("1-ff00:0:113")
 	ia210 = xtest.MustParseIA("2-ff00:0:210")
+	ia310 = xtest.MustParseIA("3-ff00:0:310")
+	ia311 = xtest.MustParseIA("3-ff00:0:311")
 )
 
 func TestLoadFromYaml(t *testing.T) {
@@ -41,6 +43,7 @@ func TestLoadFromYaml(t *testing.T) {
 		SoMsg("MaxHopsLength", p.Filter.MaxHopsLength, ShouldEqual, 8)
 		SoMsg("AsBlackList", p.Filter.AsBlackList, ShouldResemble, []addr.AS{ia110.A, ia111.A})
 		SoMsg("IsdBlackList", p.Filter.IsdBlackList, ShouldResemble, []addr.ISD{1, 2, 3})
+		SoMsg("AllowIsdLoop", p.Filter.AllowIsdLoop, ShouldBeTrue)
 
 	}
 	Convey("Given a policy file with policy type set", t, func() {
@@ -81,6 +84,7 @@ func TestFilterApply(t *testing.T) {
 		testCases := []struct {
 			Name         string
 			Beacon       beacon.Beacon
+			Filter       *beacon.Filter
 			ShouldFilter bool
 		}{
 			{
@@ -103,19 +107,97 @@ func TestFilterApply(t *testing.T) {
 				Beacon:       newTestBeacon(ia210),
 				ShouldFilter: true,
 			},
+			{
+				Name:         "AS Repeated [1-ff00:0:110, 1-ff00:0:110]",
+				Beacon:       newTestBeacon(ia110, ia110),
+				ShouldFilter: true,
+			},
+			{
+				Name:         "AS loop [1-ff00:0:110, 1-ff00:0:111, 1-ff00:0:113, 1-ff00:0:110]",
+				Beacon:       newTestBeacon(ia110, ia111, ia113, ia110),
+				Filter:       &beacon.Filter{MaxHopsLength: 8},
+				ShouldFilter: true,
+			},
+			{
+				Name:         "ISD loop [1-ff00:0:110, 3-ff00:0:310, 3-ff00:0:311, 1-ff00:0:111]",
+				Beacon:       newTestBeacon(ia110, ia310, ia311, ia111),
+				Filter:       &beacon.Filter{MaxHopsLength: 8},
+				ShouldFilter: true,
+			},
+			{
+				Name:         "ISD/AS Loop [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
+				Beacon:       newTestBeacon(ia110, ia311, ia110),
+				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: true},
+				ShouldFilter: true,
+			},
+			{
+				Name:         "ISD Loop allowed [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",
+				Beacon:       newTestBeacon(ia110, ia311, ia111),
+				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: true},
+				ShouldFilter: false,
+			},
 		}
 
 		for _, test := range testCases {
 			Convey(test.Name, func() {
-				if test.ShouldFilter {
-					SoMsg("filter", f.Apply(test.Beacon), ShouldNotBeNil)
-				} else {
-					SoMsg("filter", f.Apply(test.Beacon), ShouldBeNil)
+				testFilter := f
+				if test.Filter != nil {
+					testFilter = *test.Filter
 				}
+				xtest.SoMsgError("filter", testFilter.Apply(test.Beacon), test.ShouldFilter)
 			})
 		}
 	})
+}
 
+func TestFilterLoop(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		Beacon       beacon.Beacon
+		Next         addr.IA
+		AllowIsdLoop bool
+		ShouldFilter bool
+	}{
+		{
+			Name:         "AS Repeated [1-ff00:0:110, 1-ff00:0:110]",
+			Beacon:       newTestBeacon(ia110),
+			Next:         ia110,
+			ShouldFilter: true,
+		},
+		{
+			Name:         "AS loop [1-ff00:0:110, 1-ff00:0:111, 1-ff00:0:113, 1-ff00:0:110]",
+			Beacon:       newTestBeacon(ia110, ia111, ia113, ia110),
+			ShouldFilter: true,
+		},
+		{
+			Name:         "ISD loop [1-ff00:0:110, 3-ff00:0:310, 3-ff00:0:311, 1-ff00:0:111]",
+			Beacon:       newTestBeacon(ia110, ia310, ia311, ia111),
+			ShouldFilter: true,
+		},
+		{
+			Name:         "ISD/AS Loop [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
+			Beacon:       newTestBeacon(ia110, ia311, ia110),
+			AllowIsdLoop: true,
+			ShouldFilter: true,
+		},
+		{
+			Name:         "ISD Loop allowed [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",
+			Beacon:       newTestBeacon(ia110, ia311, ia111),
+			AllowIsdLoop: true,
+			ShouldFilter: false,
+		},
+	}
+	for _, test := range testCases {
+		t.Run(test.Name, func(t *testing.T) {
+			if test.ShouldFilter {
+				if beacon.FilterLoop(test.Beacon, test.Next, test.AllowIsdLoop) == nil {
+					t.Errorf("Should filter")
+				}
+			} else {
+				xtest.FailOnErr(t, beacon.FilterLoop(test.Beacon, test.Next, test.AllowIsdLoop))
+			}
+		})
+	}
 }
 
 func newTestBeacon(hops ...addr.IA) beacon.Beacon {

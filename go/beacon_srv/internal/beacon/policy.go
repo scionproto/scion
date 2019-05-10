@@ -80,6 +80,25 @@ func (p *Policies) Validate() error {
 	return nil
 }
 
+// Filter applies all filters and returns an error if all of them filter the
+// beacon. If at least one does not filter, no error is returned.
+func (p *Policies) Filter(beacon Beacon) error {
+	var errors []error
+	if err := p.Prop.Filter.Apply(beacon); err != nil {
+		errors = append(errors, err)
+	}
+	if err := p.UpReg.Filter.Apply(beacon); err != nil {
+		errors = append(errors, err)
+	}
+	if err := p.DownReg.Filter.Apply(beacon); err != nil {
+		errors = append(errors, err)
+	}
+	if len(errors) == 3 {
+		return common.NewBasicError("Filtered by all policies", nil, "errs", errors)
+	}
+	return nil
+}
+
 // Usage returns the allowed usage of the beacon based on all available
 // policies. For missing policies, the usage is not permitted.
 func (p *Policies) Usage(beacon Beacon) Usage {
@@ -119,6 +138,22 @@ func (p *CorePolicies) Validate() error {
 	if p.CoreReg.Type != CoreRegPolicy {
 		return common.NewBasicError("Invalid policy type", nil,
 			"expected", CoreRegPolicy, "actual", p.CoreReg.Type)
+	}
+	return nil
+}
+
+// Filter applies all filters and returns an error if all of them filter the
+// beacon. If at least one does not filter, no error is returned.
+func (p *CorePolicies) Filter(beacon Beacon) error {
+	var errors []error
+	if err := p.Prop.Filter.Apply(beacon); err != nil {
+		errors = append(errors, err)
+	}
+	if err := p.CoreReg.Filter.Apply(beacon); err != nil {
+		errors = append(errors, err)
+	}
+	if len(errors) == 2 {
+		return common.NewBasicError("Filtered by all policies", nil, "errs", errors)
 	}
 	return nil
 }
@@ -202,6 +237,8 @@ type Filter struct {
 	AsBlackList []addr.AS `yaml:"AsBlackList"`
 	// IsdBlackList contains all ISD that may not appear in a segment.
 	IsdBlackList []addr.ISD `yaml:"IsdBlackList"`
+	// AllowIsdLoop indicates whether ISD loops should not be filtered.
+	AllowIsdLoop bool `yaml:"AllowIsdLoop"`
 }
 
 // InitDefaults initializes the default values for unset fields.
@@ -217,8 +254,11 @@ func (f Filter) Apply(beacon Beacon) error {
 		return common.NewBasicError("MaxHopsLength exceeded", nil, "max", f.MaxHopsLength,
 			"actual", len(beacon.Segment.ASEntries))
 	}
-	for _, entry := range beacon.Segment.ASEntries {
-		ia := entry.IA()
+	hops := buildHops(beacon)
+	if err := filterLoops(hops, f.AllowIsdLoop); err != nil {
+		return err
+	}
+	for _, ia := range hops {
 		for _, as := range f.AsBlackList {
 			if ia.A == as {
 				return common.NewBasicError("Contains blacklisted AS", nil, "ia", ia)
@@ -231,4 +271,62 @@ func (f Filter) Apply(beacon Beacon) error {
 		}
 	}
 	return nil
+}
+
+// FilterLoop returns an error if the beacon contains an AS or ISD loop. If ISD
+// loops are allowed, an error is returned only on AS loops.
+func FilterLoop(beacon Beacon, next addr.IA, allowIsdLoop bool) error {
+	hops := buildHops(beacon)
+	if !next.IsZero() {
+		hops = append(hops, next)
+	}
+	return filterLoops(hops, allowIsdLoop)
+}
+
+func buildHops(beacon Beacon) []addr.IA {
+	hops := make([]addr.IA, 0, len(beacon.Segment.ASEntries)+1)
+	for _, asEntry := range beacon.Segment.ASEntries {
+		hops = append(hops, asEntry.IA())
+	}
+	return hops
+}
+
+func filterLoops(hops []addr.IA, allowIsdLoop bool) error {
+	if ia := filterAsLoop(hops); !ia.IsZero() {
+		return common.NewBasicError("AS loop", nil, "ia", ia)
+	}
+	if allowIsdLoop {
+		return nil
+	}
+	if isd := filterIsdLoop(hops); isd != 0 {
+		return common.NewBasicError("ISD loop", nil, "isd", isd)
+	}
+	return nil
+}
+
+func filterAsLoop(hops []addr.IA) addr.IA {
+	seen := make(map[addr.IA]struct{})
+	for _, ia := range hops {
+		if _, ok := seen[ia]; ok {
+			return ia
+		}
+		seen[ia] = struct{}{}
+	}
+	return addr.IA{}
+}
+
+func filterIsdLoop(hops []addr.IA) addr.ISD {
+	seen := make(map[addr.ISD]struct{})
+	var last addr.ISD
+	for _, ia := range hops {
+		if last == ia.I {
+			continue
+		}
+		if _, ok := seen[ia.I]; ok {
+			return ia.I
+		}
+		last = ia.I
+		seen[ia.I] = struct{}{}
+	}
+	return 0
 }

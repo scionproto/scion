@@ -222,6 +222,7 @@ type periodicTasks struct {
 	store        beaconstorage.Store
 	msgr         infra.Messenger
 	topoProvider topology.Provider
+	allowIsdLoop bool
 
 	keepalive  *periodic.Runner
 	originator *periodic.Runner
@@ -360,6 +361,7 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 	}
 	p, err := beaconing.PropagatorConf{
 		BeaconProvider: t.store,
+		AllowIsdLoop:   t.allowIsdLoop,
 		Core:           topo.Core,
 		Sender: &onehop.Sender{
 			Conn: t.conn,
