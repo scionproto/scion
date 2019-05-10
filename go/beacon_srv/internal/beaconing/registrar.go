@@ -18,6 +18,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -48,6 +49,7 @@ type RegistrarConf struct {
 	SegProvider  SegmentProvider
 	TopoProvider topology.Provider
 	Msgr         infra.Messenger
+	Period       time.Duration
 	SegType      proto.PathSegType
 }
 
@@ -60,6 +62,10 @@ type Registrar struct {
 	segProvider  SegmentProvider
 	topoProvider topology.Provider
 	segType      proto.PathSegType
+
+	// mutable fields
+	lastSucc time.Time
+	tick     tick
 }
 
 // New creates a new segment regsitration task.
@@ -74,6 +80,7 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 		topoProvider: cfg.TopoProvider,
 		segType:      cfg.SegType,
 		msgr:         cfg.Msgr,
+		tick:         tick{period: cfg.Period},
 		segExtender:  extender,
 	}
 	return r, nil
@@ -81,12 +88,17 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 
 // Run registers path segments for the specified type to path servers.
 func (r *Registrar) Run(ctx context.Context) {
+	r.tick.now = time.Now()
 	if err := r.run(ctx); err != nil {
 		log.Error("[Registrar] Unable to register", "type", r.segType, "err", err)
 	}
+	r.tick.updateLast()
 }
 
 func (r *Registrar) run(ctx context.Context) error {
+	if r.tick.now.Sub(r.lastSucc) < r.tick.period {
+		return nil
+	}
 	segments, err := r.segProvider.SegmentsToRegister(ctx, r.segType)
 	if err != nil {
 		return err
@@ -115,6 +127,7 @@ func (r *Registrar) run(ctx context.Context) error {
 	}
 	log.Info("[Registrar] Successfully registered segments", "success", success.c,
 		"candidates", total, "segCreationErrs", segErr.c, "sendErrs", sendErr.c)
+	r.lastSucc = r.tick.now
 	return nil
 }
 
