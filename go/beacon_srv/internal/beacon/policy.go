@@ -292,37 +292,46 @@ func buildHops(beacon Beacon) []addr.IA {
 }
 
 func filterLoops(hops []addr.IA, allowIsdLoop bool) error {
-	if ia := filterLoop(hops, false); !ia.IsZero() {
+	if ia := filterAsLoop(hops); !ia.IsZero() {
 		return common.NewBasicError("AS loop", nil, "ia", ia)
 	}
 	if allowIsdLoop {
 		return nil
 	}
-	if ia := filterLoop(hops, true); !ia.IsZero() {
-		return common.NewBasicError("ISD loop", nil, "isd", ia.I)
+	if isd := filterIsdLoop(hops); isd != 0 {
+		return common.NewBasicError("ISD loop", nil, "isd", isd)
 	}
 	return nil
 }
 
-// filterLoop searches for the first loop in the hops. If stripAs is set, the AS
-// part of the hops is stripped and only ISD loops are considered.
-func filterLoop(hops []addr.IA, stripAs bool) addr.IA {
+func filterAsLoop(hops []addr.IA) addr.IA {
 	seen := make(map[addr.IA]struct{})
 	var last addr.IA
 	for _, ia := range hops {
 		if last.Equal(ia) {
 			return ia
 		}
-		if stripAs {
-			ia.A = 0
+		if _, ok := seen[ia]; ok {
+			return ia
 		}
-		if !last.Equal(ia) {
-			if _, ok := seen[ia]; ok {
-				return ia
-			}
-			last = ia
-			seen[ia] = struct{}{}
-		}
+		last = ia
+		seen[ia] = struct{}{}
 	}
 	return addr.IA{}
+}
+
+func filterIsdLoop(hops []addr.IA) addr.ISD {
+	seen := make(map[addr.ISD]struct{})
+	var last addr.ISD
+	for _, ia := range hops {
+		if last == ia.I {
+			continue
+		}
+		if _, ok := seen[ia.I]; ok {
+			return ia.I
+		}
+		last = ia.I
+		seen[ia.I] = struct{}{}
+	}
+	return 0
 }
