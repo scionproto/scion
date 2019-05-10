@@ -306,15 +306,10 @@ func filterLoops(hops []addr.IA, allowIsdLoop bool) error {
 
 func filterAsLoop(hops []addr.IA) addr.IA {
 	seen := make(map[addr.IA]struct{})
-	var last addr.IA
 	for _, ia := range hops {
-		if last.Equal(ia) {
-			return ia
-		}
 		if _, ok := seen[ia]; ok {
 			return ia
 		}
-		last = ia
 		seen[ia] = struct{}{}
 	}
 	return addr.IA{}
