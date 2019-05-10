@@ -150,6 +150,7 @@ func (cfg *BeaconDBConf) New(ia addr.IA) (beacon.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	db = beacon.DBWithMetrics("std", db)
 	setConnLimits(cfg, db)
 	return db, nil
 }
