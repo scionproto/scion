@@ -170,7 +170,7 @@ func TestPropagatorRun(t *testing.T) {
 				cfg.Config.Intfs.Get(ifid).Activate(remote)
 			}
 			g := graph.NewDefaultGraph(mctrl)
-			provider.EXPECT().BeaconsToPropagate(gomock.Any()).DoAndReturn(
+			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(1).DoAndReturn(
 				func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
 					res := make(chan beacon.BeaconOrErr, len(beacons[test.core]))
 					for _, desc := range beacons[test.core] {

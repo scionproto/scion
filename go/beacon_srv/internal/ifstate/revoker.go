@@ -16,6 +16,7 @@ package ifstate
 
 import (
 	"context"
+	"net"
 	"sync"
 	"time"
 
@@ -139,27 +140,25 @@ func (r *Revoker) pushRevocationsToBRs(ctx context.Context,
 	for ifid := range revs {
 		msg.Infos = append(msg.Infos, infoFromInterface(ifid, r.cfg.Intfs.Get(ifid)))
 	}
-	for brId, br := range topo.BR {
-		r.sendToBr(ctx, brId, br, msg, wg)
+	for id, br := range topo.BR {
+		a := &snet.Addr{
+			IA:      topo.ISD_AS,
+			Host:    br.CtrlAddrs.PublicAddr(br.CtrlAddrs.Overlay),
+			NextHop: br.CtrlAddrs.OverlayAddr(br.CtrlAddrs.Overlay),
+		}
+		r.sendToBr(ctx, id, a, msg, wg)
 	}
 }
 
-func (r *Revoker) sendToBr(ctx context.Context, brId string, br topology.BRInfo,
+func (r *Revoker) sendToBr(ctx context.Context, id string, a net.Addr,
 	msg *path_mgmt.IFStateInfos, wg *sync.WaitGroup) {
 
 	wg.Add(1)
 	go func() {
 		defer log.LogPanicAndExit()
 		defer wg.Done()
-
-		topo := r.cfg.TopoProvider.Get()
-		a := &snet.Addr{
-			IA:      topo.ISD_AS,
-			Host:    br.CtrlAddrs.PublicAddr(topo.Overlay),
-			NextHop: br.CtrlAddrs.OverlayAddr(topo.Overlay),
-		}
 		if err := r.cfg.Msgr.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
-			log.Error("[Revoker] Failed to send revocations to BR", "br", brId, "err", err)
+			log.Error("[Revoker] Failed to send revocations to BR", "br", id, "err", err)
 		}
 	}()
 }
