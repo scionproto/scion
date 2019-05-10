@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -119,6 +120,7 @@ func realMain() int {
 		SVCResolutionFraction: cfg.Client.ResolutionFraction,
 		EnableQUICTest:        cfg.Client.EnableQUICTest,
 		TrustStore:            trustStore,
+		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	msger, err := nc.Messenger()
 	if err != nil {

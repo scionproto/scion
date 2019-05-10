@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -167,6 +168,7 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 		EnableQUICTest:        cfg.Client.EnableQUICTest,
 		TrustStore:            state.Store,
 		Router:                router,
+		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	var err error
 	msgr, err = nc.Messenger()

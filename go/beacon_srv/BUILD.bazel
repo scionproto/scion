@@ -22,6 +22,7 @@ go_library(
         "//go/lib/fatal:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/infraenv:go_default_library",
+        "//go/lib/infra/messenger:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
         "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/trust:go_default_library",
