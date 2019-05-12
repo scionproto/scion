@@ -208,7 +208,7 @@ func testPath(ingressIfid common.IFIDType) *spath.Path {
 }
 
 func testInterfaces(topo *topology.Topo) *ifstate.Interfaces {
-	intfs := ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
+	intfs := ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{DisableMetrics: true})
 	intfs.Get(graph.If_110_X_120_A).Activate(graph.If_120_A_110_X)
 	return intfs
 }
