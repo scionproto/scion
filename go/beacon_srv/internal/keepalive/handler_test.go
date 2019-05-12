@@ -132,7 +132,7 @@ func TestNewHandler(t *testing.T) {
 
 func testInterfaces() *ifstate.Interfaces {
 	infoMap := topology.IfInfoMap{localIF: topology.IFInfo{ISD_AS: originIA}}
-	return ifstate.NewInterfaces(infoMap, ifstate.Config{})
+	return ifstate.NewInterfaces(infoMap, ifstate.Config{DisableMetrics: true})
 }
 
 func zeroCallTasks(mctrl *gomock.Controller) StateChangeTasks {

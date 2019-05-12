@@ -146,8 +146,9 @@ func TestPropagatorRun(t *testing.T) {
 				Config: ExtenderConf{
 					Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
 					Mac:    macProp,
-					Intfs:  ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
-					MTU:    uint16(topoProvider.Get().MTU),
+					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+						ifstate.Config{DisableMetrics: true}),
+					MTU: uint16(topoProvider.Get().MTU),
 				},
 				BeaconProvider: provider,
 				Core:           test.core,

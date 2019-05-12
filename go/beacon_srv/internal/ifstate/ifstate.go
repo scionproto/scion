@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -52,6 +53,8 @@ type Config struct {
 	// KeepaliveTimeout specifies for how long an interface can receive no
 	// IFID keepalive packets until it is considered expired.
 	KeepaliveTimeout time.Duration
+	// DisableMetrics disables metrics for interfaces. Should only be used for testing.
+	DisableMetrics bool
 }
 
 // InitDefaults initializes the config fields that are not set to the
@@ -76,6 +79,9 @@ func NewInterfaces(ifInfomap topology.IfInfoMap, cfg Config) *Interfaces {
 	}
 	intfs.cfg.InitDefaults()
 	intfs.Update(ifInfomap)
+	if !intfs.cfg.DisableMetrics {
+		prometheus.MustRegister(newIfStateCollector(intfs))
+	}
 	return intfs
 }
 
