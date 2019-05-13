@@ -29,7 +29,7 @@ type Collector struct {
 	intfs *Interfaces
 }
 
-// NewCollector creates a prometheus collector that exports teh state of all
+// NewCollector creates a prometheus collector that exports the state of all
 // interfaces.
 func NewCollector(intfs *Interfaces, subsystemName string) *Collector {
 	return &Collector{
