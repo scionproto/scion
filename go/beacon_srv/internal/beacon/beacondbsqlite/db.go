@@ -146,7 +146,7 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.Revocation
 			}
 			srev, err := path_mgmt.NewSignedRevInfoFromRaw(rawRev)
 			if err != nil {
-				err = db.NewDBDataError(beacon.ErrParse, err)
+				err = db.NewDataError(beacon.ErrParse, err)
 			}
 			res <- beacon.RevocationOrErr{
 				Rev: srev,
@@ -222,7 +222,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 		}
 		s, err := seg.NewBeaconFromRaw(common.RawBytes(rawBeacon))
 		if err != nil {
-			errors = append(errors, db.NewDBDataError(beacon.ErrParse, err))
+			errors = append(errors, db.NewDataError(beacon.ErrParse, err))
 			continue
 		}
 		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfId})
