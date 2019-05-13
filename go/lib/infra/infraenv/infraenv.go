@@ -73,13 +73,11 @@ type NetworkConfig struct {
 	// down).
 	ReconnectToDispatcher bool
 	// QUIC contains configuration details for QUIC servers. If the listening
-	// address is the empty string, then no QUIC server is started.
+	// address is the empty string, then no QUIC socket is opened.
 	QUIC QUIC
 	// SVCResolutionFraction can be used to customize whether SVC resolution is
 	// enabled.
 	SVCResolutionFraction float64
-	// EnableQUICTest can be used to enable the QUIC RPC implementation.
-	EnableQUICTest bool
 	// Router is used by various infra modules for path-related operations. A
 	// nil router means only intra-AS traffic is supported.
 	Router snet.Router
@@ -99,7 +97,8 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		if err != nil {
 			return nil, err
 		}
-		quicAddress = nc.QUIC.Address
+		quicAddress = quicConn.LocalAddr().(*snet.Addr).Host.String()
+		log.Trace("QUIC conn initialized", "local_addr", quicAddress)
 	}
 
 	conn, err := nc.initUDPSocket(quicAddress)

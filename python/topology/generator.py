@@ -70,9 +70,7 @@ def add_arguments(parser):
                         help='Dispatcher implementation to use ("go or "c")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
-    parser.add_argument('-q', '--qtest', action='store_true',
-                        help='Have control-plane clients select QUIC when available')
-    parser.add_argument('-f', '--svcfrac', type=float, default=0.0,
+    parser.add_argument('-f', '--svcfrac', type=float, default=0.4,
                         help='Attempt SVC resolution in RPC calls for a fraction of\
                         available timeout')
     parser.add_argument('--random-ifids', action='store_true',

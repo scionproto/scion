@@ -158,11 +158,11 @@ func TestRegistrarRun(t *testing.T) {
 						segVerifier(pub), pseg.MaxAEIdx())
 					SoMsg("err", err, ShouldBeNil)
 				})
-				Convey(fmt.Sprintf("Segment %d is sent to the correct PS", segIdx), func() {
+				Convey(fmt.Sprintf("Segment %d is sent to the PS", segIdx), func() {
 					if !test.remotePS {
 						SoMsg("IA", s.Addr.IA, ShouldResemble, topoProvider.Get().ISD_AS)
-						a := topoProvider.Get().PS[fmt.Sprintf("ps%s-1", s.Addr.IA.FileFmt(false))]
-						SoMsg("Host", s.Addr.Host, ShouldResemble, a.PublicAddr(a.Overlay))
+						a := addr.NewSVCUDPAppAddr(addr.SvcPS)
+						SoMsg("Host", s.Addr.Host, ShouldResemble, a)
 						return
 					}
 					SoMsg("IA", s.Addr.IA, ShouldResemble, pseg.FirstIA())

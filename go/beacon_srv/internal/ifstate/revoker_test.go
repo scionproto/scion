@@ -27,6 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate/mock_ifstate"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -261,15 +262,8 @@ func expectMessengerCalls(msger *mock_infra.MockMessenger,
 		Convey("Check sent PS message", func() {
 			saddr := psAddr.(*snet.Addr)
 			SoMsg("Should send to local IA", saddr.IA, ShouldResemble, ia)
-			topo := topoProvider.Get()
-			isPsAddr := false
-			for _, tAddr := range topo.PS {
-				if tAddr.PublicAddr(topo.Overlay).Equal(saddr.Host) {
-					isPsAddr = true
-					break
-				}
-			}
-			SoMsg("Should send to PS", isPsAddr, ShouldBeTrue)
+			a := addr.NewSVCUDPAppAddr(addr.SvcPS)
+			SoMsg("Should send to PS", saddr.Host, ShouldResemble, a)
 			checkRevocation(t, psMsg, revokedIfId, verifier, topoProvider)
 		})
 	}
