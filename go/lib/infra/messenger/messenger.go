@@ -193,6 +193,11 @@ func New(config *Config) *Messenger {
 	var quicClient *rpc.Client
 	var quicHandler *QUICHandler
 	if config.QUIC != nil {
+		quicClient = &rpc.Client{
+			Conn:       config.QUIC.Conn,
+			TLSConfig:  config.QUIC.TLSConfig,
+			QUICConfig: config.QUIC.QUICConfig,
+		}
 		quicHandler = &QUICHandler{
 			handlers: make(map[infra.MessageType]infra.Handler),
 		}
@@ -201,11 +206,6 @@ func New(config *Config) *Messenger {
 			TLSConfig:  config.QUIC.TLSConfig,
 			QUICConfig: config.QUIC.QUICConfig,
 			Handler:    quicHandler,
-		}
-		quicClient = &rpc.Client{
-			Conn:       config.QUIC.Conn,
-			TLSConfig:  config.QUIC.TLSConfig,
-			QUICConfig: config.QUIC.QUICConfig,
 		}
 	}
 

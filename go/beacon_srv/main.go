@@ -137,7 +137,6 @@ func realMain() int {
 		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
 		SVC:                   addr.SvcBS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
-		EnableQUICTest:        cfg.EnableQUICTest,
 		TrustStore:            trustStore,
 		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}

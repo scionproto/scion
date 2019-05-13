@@ -117,8 +117,12 @@ func realMain() int {
 		Bind:                  cfg.SD.Bind,
 		SVC:                   addr.SvcNone,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
-		SVCResolutionFraction: cfg.Client.ResolutionFraction,
-		EnableQUICTest:        cfg.Client.EnableQUICTest,
+		QUIC: infraenv.QUIC{
+			Address:  cfg.QUIC.Address,
+			CertFile: cfg.QUIC.CertFile,
+			KeyFile:  cfg.QUIC.KeyFile,
+		},
+		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
 		TrustStore:            trustStore,
 		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
