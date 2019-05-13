@@ -10,6 +10,7 @@ go_library(
         "originator.go",
         "propagator.go",
         "registrar.go",
+        "tick.go",
         "util.go",
     ],
     importpath = "github.com/scionproto/scion/go/beacon_srv/internal/beaconing",

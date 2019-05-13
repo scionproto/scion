@@ -35,11 +35,11 @@ func TestPusherPush(t *testing.T) {
 	topoProvider := xtest.TopoProviderFromFile(t, "testdata/topology.json")
 	msgr := mock_infra.NewMockMessenger(mctrl)
 	intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
-	p := Pusher{
+	p := PusherConf{
 		TopoProvider: topoProvider,
 		Intfs:        intfs,
 		Msgr:         msgr,
-	}
+	}.New()
 	expectedMsg := &path_mgmt.IFStateInfos{
 		Infos: []*path_mgmt.IFStateInfo{{
 			IfID:   101,
@@ -63,7 +63,8 @@ func TestPusherPush(t *testing.T) {
 						Host:    br.CtrlAddrs.PublicAddr(br.CtrlAddrs.Overlay),
 						NextHop: br.CtrlAddrs.OverlayAddr(br.CtrlAddrs.Overlay),
 					}
-					msgr.EXPECT().SendIfStateInfos(gomock.Any(), expectedMsg, a, gomock.Any())
+					msgr.EXPECT().SendIfStateInfos(gomock.Any(), gomock.Eq(expectedMsg),
+						gomock.Eq(a), gomock.Any())
 				}
 			}
 			p.Push(context.Background(), 101)

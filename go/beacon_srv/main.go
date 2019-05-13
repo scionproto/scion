@@ -162,11 +162,11 @@ func realMain() int {
 	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.ISD_AS, intfs,
 		keepalive.StateChangeTasks{
 			RevDropper: store,
-			IfStatePusher: &ifstate.Pusher{
+			IfStatePusher: ifstate.PusherConf{
 				Intfs:        intfs,
 				Msgr:         msgr,
 				TopoProvider: itopo.Provider(),
-			},
+			}.New(),
 		}),
 	)
 	cfg.Metrics.StartPrometheus()
