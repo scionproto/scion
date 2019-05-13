@@ -29,6 +29,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/pbkdf2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing"
@@ -66,6 +67,8 @@ var (
 
 	intfs *ifstate.Interfaces
 	tasks *periodicTasks
+
+	helpPoliciy bool
 )
 
 func init() {
@@ -79,8 +82,9 @@ func main() {
 func realMain() int {
 	fatal.Init()
 	env.AddFlags()
+	flag.BoolVar(&helpPoliciy, "help-policy", false, "Output sample policy file.")
 	flag.Parse()
-	if v, ok := env.CheckFlags(&cfg); !ok {
+	if v, ok := checkFlags(&cfg); !ok {
 		return v
 	}
 	if err := setupBasic(); err != nil {
@@ -140,12 +144,7 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
-	var store beaconstorage.Store
-	if topo.Core {
-		store, err = cfg.BeaconDB.NewCoreStore(topo.ISD_AS, beacon.CorePolicies{})
-	} else {
-		store, err = cfg.BeaconDB.NewStore(topo.ISD_AS, beacon.Policies{})
-	}
+	store, err := loadStore(topo.Core, topo.ISD_AS, cfg)
 	if err != nil {
 		log.Crit("Unable to open beacon store", "err", err)
 		return 1
@@ -530,4 +529,74 @@ func handleTopoUpdate() {
 		return
 	}
 	intfs.Update(itopo.Get().IFInfoMap)
+}
+
+func loadStore(core bool, ia addr.IA, cfg config.Config) (beaconstorage.Store, error) {
+	if core {
+		policies, err := loadCorePolicies(cfg.BS.Policies)
+		if err != nil {
+			return nil, err
+		}
+		return cfg.BeaconDB.NewCoreStore(ia, policies)
+	}
+	policies, err := loadPolicies(cfg.BS.Policies)
+	if err != nil {
+		return nil, err
+	}
+	return cfg.BeaconDB.NewStore(ia, policies)
+}
+
+func loadCorePolicies(cfg config.Policies) (beacon.CorePolicies, error) {
+	var err error
+	var policies beacon.CorePolicies
+	if policies.Prop, err = loadPolicy(cfg.Propagation, beacon.PropPolicy); err != nil {
+		return policies, err
+	}
+	if policies.CoreReg, err = loadPolicy(cfg.CoreRegistration, beacon.CoreRegPolicy); err != nil {
+		return policies, err
+	}
+	return policies, nil
+}
+
+func loadPolicies(cfg config.Policies) (beacon.Policies, error) {
+	var err error
+	var policies beacon.Policies
+	if policies.Prop, err = loadPolicy(cfg.Propagation, beacon.PropPolicy); err != nil {
+		return policies, err
+	}
+	if policies.UpReg, err = loadPolicy(cfg.UpRegistration, beacon.UpRegPolicy); err != nil {
+		return policies, err
+	}
+	if policies.DownReg, err = loadPolicy(cfg.DownRegistration, beacon.DownRegPolicy); err != nil {
+		return policies, err
+	}
+	return policies, nil
+}
+
+func loadPolicy(fn string, t beacon.PolicyType) (beacon.Policy, error) {
+	var policy beacon.Policy
+	if fn != "" {
+		p, err := beacon.LoadFromYaml(fn, t)
+		if err != nil {
+			return policy, common.NewBasicError("Unable to load policy", err, "fn", fn, "type", t)
+		}
+		policy = *p
+	}
+	policy.InitDefaults()
+	return policy, nil
+}
+
+func checkFlags(cfg *config.Config) (int, bool) {
+	if helpPoliciy {
+		var sample beacon.Policy
+		sample.InitDefaults()
+		raw, err := yaml.Marshal(sample)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Err: Unable to produce sample policy err=%s\n", err)
+			return 1, false
+		}
+		os.Stdout.Write(raw)
+		return 0, false
+	}
+	return env.CheckFlags(cfg)
 }
