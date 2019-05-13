@@ -99,7 +99,7 @@ func (c *Syncer) sendTRC(ctx context.Context, cs net.Addr, trcObj *trc.TRC) {
 		RawTRC: rawTRC,
 	}, cs, messenger.NextId())
 	if err != nil {
-		log.Error("[CryptoSync] Failed to send TRC", "err", err)
+		log.Error("[CryptoSync] Failed to send TRC", "err", err, "cs", cs)
 	}
 }
 
@@ -128,6 +128,6 @@ func (c *Syncer) sendChain(ctx context.Context, cs net.Addr, chain *cert.Chain) 
 		RawChain: rawChain,
 	}, cs, messenger.NextId())
 	if err != nil {
-		log.Error("[CryptoSync] Failed to send Chain", "err", err)
+		log.Error("[CryptoSync] Failed to send Chain", "err", err, "cs", cs)
 	}
 }

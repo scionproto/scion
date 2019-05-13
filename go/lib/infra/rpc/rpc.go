@@ -156,7 +156,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 	}
 	go func() {
 		<-ctx.Done()
-		// it is safe to cancel the write even after the stream is closed
+		stream.CancelRead(CtxTimedOutError)
 		stream.CancelWrite(CtxTimedOutError)
 	}()
 
@@ -180,7 +180,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 	if err := stream.Close(); err != nil {
 		return nil, err
 	}
-	if err := session.Close(nil); err != nil {
+	if err := session.Close(); err != nil {
 		return nil, err
 	}
 	return &Reply{SignedPld: signedPld}, nil

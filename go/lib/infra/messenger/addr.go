@@ -57,26 +57,32 @@ type AddressRewriter struct {
 	SVCResolutionFraction float64
 }
 
-// Rewrite takes an address and adds a path (if one does not already exist but
-// is required), and replaces SVC destinations with unicast ones, if desired.
-func (r AddressRewriter) Rewrite(ctx context.Context, a net.Addr) (net.Addr, error) {
+// RedirectToQUIC takes an address and adds a path (if one does not already
+// exist but is required), and replaces SVC destinations with QUIC unicast
+// ones, if possible.
+//
+// The returned boolean value is set to true if the remote server is
+// QUIC-compatible and we have successfully discovered its address.
+//
+// If the address is already unicast, no redirection to QUIC is attempted.
+func (r AddressRewriter) RedirectToQUIC(ctx context.Context, a net.Addr) (net.Addr, bool, error) {
 	// FIXME(scrye): This is not legitimate use. It's only included for
 	// compatibility with older unit tests. See
 	// https://github.com/scionproto/scion/issues/2611.
 	if a == nil {
-		return nil, nil
+		return nil, false, nil
 	}
-	address, err := r.buildFullAddress(ctx, a)
+	fullAddress, err := r.buildFullAddress(ctx, a)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	path, err := address.GetPath()
+	path, err := fullAddress.GetPath()
 	if err != nil {
-		return nil, common.NewBasicError("bad path", err)
+		return nil, false, common.NewBasicError("bad path", err)
 	}
-	address.Host, err = r.resolveIfSVC(ctx, path, address.Host)
-	return address, err
-
+	var quicRedirect bool
+	fullAddress.Host, quicRedirect, err = r.resolveIfSVC(ctx, path, fullAddress.Host)
+	return fullAddress, quicRedirect, err
 }
 
 // buildFullAddress checks that a is a well-formed address (all fields set,
@@ -117,19 +123,21 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 }
 
 // resolveIfSvc performs SVC resolution and returns an UDP/IP address if the
-// input address is an SVC destination. If the address does not have an SVC
-// destination, it is returned unchanged. If address is not a well-formed
-// application address (all fields set, non-nil, supported protocols), the
-// function's behavior is undefined. The returned address is always a copy.
+// input address is an SVC destination. If the UDP/IP address is for a
+// QUIC-compatible server, the returned boolean value is set to true. If the
+// address does not have an SVC destination, it is returned unchanged. If
+// address is not a well-formed application address (all fields set, non-nil,
+// supported protocols), the function's behavior is undefined. The returned
+// address is always a copy.
 func (r AddressRewriter) resolveIfSVC(ctx context.Context, p snet.Path,
-	address *addr.AppAddr) (*addr.AppAddr, error) {
+	address *addr.AppAddr) (*addr.AppAddr, bool, error) {
 
 	svcAddress, ok := address.L3.(addr.HostSVC)
 	if !ok {
-		return address.Copy(), nil
+		return address.Copy(), false, nil
 	}
 	if r.SVCResolutionFraction <= 0.0 {
-		return address.Copy(), nil
+		return address.Copy(), false, nil
 	}
 
 	if r.SVCResolutionFraction < 1.0 {
@@ -147,14 +155,19 @@ func (r AddressRewriter) resolveIfSVC(ctx context.Context, p snet.Path,
 			// fraction of the timeout left for data transfers, so return
 			// address with SVC destination still set
 			logger.Trace("SVC resolution failed, falling back to legacy mode", "err", err)
-			return address.Copy(), nil
+			return address.Copy(), false, nil
 		}
 		// Legacy behavior is disallowed, so propagate a hard failure back to the app.
 		logger.Trace("SVC resolution failed and legacy mode disabled", "err", err)
-		return nil, err
+		return nil, false, err
 	}
 	logger.Trace("SVC resolution successful", "reply", reply)
-	return parseReply(reply)
+
+	appAddr, err := parseReply(reply)
+	if err != nil {
+		return nil, false, err
+	}
+	return appAddr, true, nil
 }
 
 func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -168,7 +181,7 @@ func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, co
 	return context.WithTimeout(ctx, timeout)
 }
 
-// parseReply searches for a UDP server on the remote address. If one is not
+// parseReply searches for a QUIC server on the remote address. If one is not
 // found, an error is returned.
 func parseReply(reply *svc.Reply) (*addr.AppAddr, error) {
 	if reply == nil {
@@ -177,9 +190,9 @@ func parseReply(reply *svc.Reply) (*addr.AppAddr, error) {
 	if reply.Transports == nil {
 		return nil, common.NewBasicError("empty reply", nil)
 	}
-	addressStr, ok := reply.Transports[svc.UDP]
+	addressStr, ok := reply.Transports[svc.QUIC]
 	if !ok {
-		return nil, common.NewBasicError("UDP server address not found", nil)
+		return nil, common.NewBasicError("QUIC server address not found", nil)
 	}
 	udpAddr, err := net.ResolveUDPAddr("udp", addressStr)
 	if err != nil {

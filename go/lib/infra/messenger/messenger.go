@@ -177,6 +177,7 @@ type Messenger struct {
 	ia  addr.IA
 	log log.Logger
 
+	quicClient  *rpc.Client
 	quicServer  *rpc.Server
 	quicHandler *QUICHandler
 }
@@ -189,6 +190,7 @@ func New(config *Config) *Messenger {
 	config.InitDefaults()
 
 	var quicServer *rpc.Server
+	var quicClient *rpc.Client
 	var quicHandler *QUICHandler
 	if config.QUIC != nil {
 		quicHandler = &QUICHandler{
@@ -199,6 +201,11 @@ func New(config *Config) *Messenger {
 			TLSConfig:  config.QUIC.TLSConfig,
 			QUICConfig: config.QUIC.QUICConfig,
 			Handler:    quicHandler,
+		}
+		quicClient = &rpc.Client{
+			Conn:       config.QUIC.Conn,
+			TLSConfig:  config.QUIC.TLSConfig,
+			QUICConfig: config.QUIC.QUICConfig,
 		}
 	}
 
@@ -222,6 +229,7 @@ func New(config *Config) *Messenger {
 		cancelF:         cancelF,
 		log:             config.Logger,
 		quicServer:      quicServer,
+		quicClient:      quicClient,
 		quicHandler:     quicHandler,
 	}
 }
@@ -548,9 +556,7 @@ func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a n
 	if err != nil {
 		return err
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", msgType, "to", a, "id", id)
-	return m.getRequester(msgType).Notify(ctx, pld, a)
+	return m.sendWithAck(ctx, msg, a, id, pld, msgType)
 }
 
 func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a net.Addr,
@@ -764,9 +770,17 @@ func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
 	if _, ok := m.signMask[reqT]; ok {
 		signer = m.signer
 	}
+	var quicRequester Requester
+	if m.config.QUIC != nil {
+		quicRequester = &QUICRequester{
+			QUICClientConfig: m.quicClient,
+			AddressRewriter:  m.addressRewriter,
+		}
+	}
 	return &pathingRequester{
 		requester:       ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
 		addressRewriter: m.addressRewriter,
+		quicRequester:   quicRequester,
 	}
 }
 
@@ -788,20 +802,28 @@ var _ Requester = (*pathingRequester)(nil)
 type pathingRequester struct {
 	requester       *ctrl_msg.Requester
 	addressRewriter *AddressRewriter
+	quicRequester   Requester
 }
 
 func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
 
-	newAddr, err := pr.addressRewriter.Rewrite(ctx, a)
+	newAddr, redirect, err := pr.addressRewriter.RedirectToQUIC(ctx, a)
 	if err != nil {
 		return nil, nil, err
 	}
+	logger := log.FromCtx(ctx)
+	if redirect && pr.quicRequester != nil {
+		logger.Trace("Request upgraded to QUIC", "remote", newAddr)
+		pld, sign, err := pr.quicRequester.Request(ctx, pld, newAddr)
+		return pld, sign, err
+	}
+	logger.Trace("Request could not be upgraded to QUIC, using UDP", "remote", newAddr)
 	return pr.requester.Request(ctx, pld, newAddr)
 }
 
 func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.addressRewriter.Rewrite(ctx, a)
+	newAddr, _, err := pr.addressRewriter.RedirectToQUIC(ctx, a)
 	if err != nil {
 		return err
 	}
@@ -809,7 +831,7 @@ func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Add
 }
 
 func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.addressRewriter.Rewrite(ctx, a)
+	newAddr, _, err := pr.addressRewriter.RedirectToQUIC(ctx, a)
 	if err != nil {
 		return err
 	}
@@ -828,7 +850,7 @@ func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 
 	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
 	// additional verifications in the future.
-	newAddr, err := rt.AddressRewriter.Rewrite(ctx, a)
+	newAddr, _, err := rt.AddressRewriter.RedirectToQUIC(ctx, a)
 	if err != nil {
 		return nil, nil, err
 	}
