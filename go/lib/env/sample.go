@@ -70,23 +70,16 @@ const metricsSample = `
 Prometheus = ""
 `
 
-const serverSample = `
+const quicSample = `
 # The address to start a QUIC server on (ip:port). If not set, a QUIC server is
 # not started. (default "")
-QUICListen = ""
+Address = ""
 
 # Certificate file to use for authenticating QUIC connections.
-QUICCertFile = "/etc/scion/quic/tls.pem"
+CertFile = "/etc/scion/quic/tls.pem"
 
 # Key file to use for authenticating QUIC connections.
-QUICKeyFile = "/etc/scion/quic/tls.key"
-`
-
-const clientSample = `
-# Set to true to have clients choose QUIC sockets, when available, as part of
-# the SVC resolution mechanism. ResolutionFraction must be more than 0 for this
-# to have any effect.
-EnableQUICTest = false
+KeyFile = "/etc/scion/quic/tls.key"
 
 # SVCResolutionFraction enables SVC resolution for traffic to SVC
 # destinations in a way that is also compatible with control plane servers
