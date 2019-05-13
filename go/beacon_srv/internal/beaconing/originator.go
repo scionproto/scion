@@ -38,22 +38,6 @@ type OriginatorConf struct {
 	Period time.Duration
 }
 
-type tick struct {
-	now    time.Time
-	last   time.Time
-	period time.Duration
-}
-
-func (t *tick) updateLast() {
-	if t.passed() {
-		t.last = t.now
-	}
-}
-
-func (t *tick) passed() bool {
-	return t.now.Sub(t.last) >= t.period
-}
-
 // Originator originates beacons. It should only be used by core ASes.
 type Originator struct {
 	*segExtender

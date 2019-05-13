@@ -16,29 +16,45 @@ package ifstate
 
 import (
 	"context"
-	"net"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// Pusher pushes interface state infos to all border routers to remove the
-// revocations. It is called when an interface comes back up.
-type Pusher struct {
+// PusherConf is the configuration to create a new pusher.
+type PusherConf struct {
 	TopoProvider topology.Provider
 	Intfs        *Interfaces
 	Msgr         infra.Messenger
 }
 
+// Pusher pushes interface state infos to all border routers to remove the
+// revocations. It is called when an interface comes back up.
+type Pusher struct {
+	topoProvider topology.Provider
+	intfs        *Interfaces
+	pusher       brPusher
+}
+
+// New creates a new interface state pusher.
+func (cfg PusherConf) New() *Pusher {
+	return &Pusher{
+		topoProvider: cfg.TopoProvider,
+		intfs:        cfg.Intfs,
+		pusher: brPusher{
+			msgr:   cfg.Msgr,
+			logger: log.New("mode", "pusher"),
+		},
+	}
+}
+
 // Push removes the revocation for the given interface from all border routers.
 func (p *Pusher) Push(ctx context.Context, ifid common.IFIDType) {
-	intf := p.Intfs.Get(ifid)
+	intf := p.intfs.Get(ifid)
 	if intf == nil || intf.State() != Active {
 		return
 	}
@@ -48,28 +64,7 @@ func (p *Pusher) Push(ctx context.Context, ifid common.IFIDType) {
 			Active: true,
 		}},
 	}
-	topo := p.TopoProvider.Get()
 	wg := &sync.WaitGroup{}
-	for id, br := range topo.BR {
-		a := &snet.Addr{
-			IA:      topo.ISD_AS,
-			Host:    br.CtrlAddrs.PublicAddr(br.CtrlAddrs.Overlay),
-			NextHop: br.CtrlAddrs.OverlayAddr(br.CtrlAddrs.Overlay),
-		}
-		p.sendToBr(ctx, id, a, msg, wg)
-	}
+	p.pusher.sendIfStateToAllBRs(ctx, msg, p.topoProvider.Get(), wg)
 	wg.Wait()
-}
-
-func (p *Pusher) sendToBr(ctx context.Context, id string, a net.Addr,
-	msg *path_mgmt.IFStateInfos, wg *sync.WaitGroup) {
-
-	wg.Add(1)
-	go func() {
-		defer log.LogPanicAndExit()
-		defer wg.Done()
-		if err := p.Msgr.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
-			log.Error("[Pusher] Failed to send IfStateInfo to BR", "br", id, "err", err)
-		}
-	}()
 }
