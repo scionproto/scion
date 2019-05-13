@@ -49,7 +49,7 @@ type Config struct {
 	General   env.General
 	Logging   env.Logging
 	Metrics   env.Metrics
-	QUIC      env.QUIC
+	QUIC      env.QUIC         `toml:"quic"`
 	Sciond    env.SciondClient `toml:"sd_client"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config

@@ -125,6 +125,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 				return nil, common.NewBasicError("Unable to resolve overlay", err)
 			}
 			newAddr.NextHop = ov
+			log.Trace("[Acceptance]", "overlay", ov)
 			return newAddr, nil
 		}
 		p, err := r.Router.Route(ctx, newAddr.IA)

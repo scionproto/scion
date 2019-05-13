@@ -64,7 +64,9 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInvalid
 	}
 	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
-	h.verifyAndStore(subCtx, h.request.Peer, segSync.Recs, segSync.SRevInfos)
+	// TODO(scrye): investigate why passing the requester's address into the
+	// verification function doesn't work with QUIC.
+	h.verifyAndStore(subCtx, nil, segSync.Recs, segSync.SRevInfos)
 	// TODO(lukedirtwalker): If all segments failed to verify the ack should also be negative here.
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk

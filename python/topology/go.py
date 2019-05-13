@@ -55,6 +55,7 @@ PS_QUIC_PORT = 30353
 CS_QUIC_PORT = 30354
 SD_QUIC_PORT = 0
 
+
 class GoGenArgs(ArgsTopoDicts):
     def __init__(self, args, topo_dicts, networks, port_gen=None):
         super().__init__(args, topo_dicts, port_gen)
@@ -119,7 +120,7 @@ class GoGenerator(object):
             'beaconDB': beacon_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
-            'quic': self._quic_conf_entry(BS_QUIC_PORT, self.args.svcfrac, elem=infra_elem),
+            'quic': self._quic_conf_entry(BS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
 
@@ -151,7 +152,7 @@ class GoGenerator(object):
                 'SegSync': True,
             },
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
-            'quic': self._quic_conf_entry(PS_QUIC_PORT, self.args.svcfrac, elem=infra_elem),
+            'quic': self._quic_conf_entry(PS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
 
@@ -218,7 +219,7 @@ class GoGenerator(object):
                 'ReissueTimeout': "5s",
             },
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
-            'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, elem=infra_elem),
+            'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
 
@@ -282,7 +283,7 @@ class GoGenerator(object):
         }
 
     def _quic_conf_entry(self, port, svcfrac, elem=None):
-        addr = "127.0.0.1" if elem == None else get_pub_ip(elem["Addrs"])
+        addr = "127.0.0.1" if elem is None else get_pub_ip(elem["Addrs"])
         return {
             'Address':  '[%s]:%s' % (addr, port),
             'CertFile': os.path.join(self.certs_dir, 'tls.pem'),

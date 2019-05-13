@@ -15,6 +15,8 @@
 package rpc
 
 import (
+	"net"
+
 	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
@@ -26,7 +28,7 @@ type Request struct {
 	SignedPld *ctrl.SignedPld
 	// Address records the network address that sent the request. It will
 	// usually be used for logging.
-	Address string
+	Address net.Addr
 }
 
 type Reply struct {
