@@ -40,7 +40,7 @@ type Config struct {
 	General   env.General
 	Logging   env.Logging
 	Metrics   env.Metrics
-	QUIC      env.QUIC
+	QUIC      env.QUIC `toml:"quic"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config
 	SD        SDConfig
