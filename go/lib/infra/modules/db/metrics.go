@@ -31,7 +31,7 @@ func ErrToMetricLabel(err error) string {
 			switch msg {
 			case InputDataErrMsg:
 				return "input_data_invalid"
-			case DBDataErrMsg:
+			case DataErrMsg:
 				return "db_data_invalid"
 			case ReadErrMsg:
 				return "db_read"

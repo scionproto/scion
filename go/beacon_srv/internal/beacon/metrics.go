@@ -123,6 +123,9 @@ func (tx *MetricsTransaction) Rollback() error {
 	var err error
 	tx.metrics.Observe("tx_rollback", func() error {
 		err = tx.tx.Rollback()
+		if err == sql.ErrTxDone {
+			return nil
+		}
 		return err
 	})
 	return err

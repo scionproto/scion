@@ -20,7 +20,7 @@ import (
 
 const (
 	InputDataErrMsg = "db: input data invalid"
-	DBDataErrMsg    = "db: db data invalid"
+	DataErrMsg      = "db: db data invalid"
 	ReadErrMsg      = "db: read failed"
 	WriteErrMsg     = "db: write failed"
 	TxErrMsg        = "db: transaction error"
@@ -36,8 +36,8 @@ func NewInputDataError(msg string, err error, logCtx ...interface{}) error {
 		append([]interface{}{"detailMsg", msg}, logCtx...))
 }
 
-func NewDBDataError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(DBDataErrMsg, err,
+func NewDataError(msg string, err error, logCtx ...interface{}) error {
+	return common.NewBasicError(DataErrMsg, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...))
 }
 
