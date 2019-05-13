@@ -119,7 +119,7 @@ func (s *Server) handleQUICSession(session quic.Session) error {
 	rw := &replyWriter{stream: stream}
 	request := &Request{
 		SignedPld: signedPld,
-		Address:   session.RemoteAddr().String(),
+		Address:   session.RemoteAddr(),
 	}
 	go func() {
 		defer log.LogPanicAndExit()
