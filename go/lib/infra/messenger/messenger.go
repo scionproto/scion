@@ -254,7 +254,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending request", "req_type", infra.TRCRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -292,7 +292,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -367,7 +367,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
-		m.getRequester(infra.SegRequest).Request(ctx, pld, a)
+		m.getRequester(infra.SegRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -422,7 +422,7 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -465,7 +465,7 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -511,7 +511,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainIssueRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.ChainIssueRequest).Request(ctx, pld, a)
+	replyCtrlPld, _, err := m.getRequester(infra.ChainIssueRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -556,34 +556,10 @@ func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a n
 	if err != nil {
 		return err
 	}
-	return m.sendWithAck(ctx, msg, a, id, pld, msgType)
-}
-
-func (m *Messenger) sendWithAck(ctx context.Context, msg proto.Cerealizable, a net.Addr,
-	id uint64, pld *ctrl.Pld, msgType infra.MessageType) error {
-
 	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending request", "req_type", msgType,
-		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(msgType).Request(ctx, pld, a)
-	if err != nil {
-		return common.NewBasicError("[Messenger] Request error", err)
-	}
-	_, replyMsg, err := validate(replyCtrlPld)
-	if err != nil {
-		return common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch reply := replyMsg.(type) {
-	case *ack.Ack:
-		logger.Trace("[Messenger] Received reply", "reply", reply)
-		if reply.Err != proto.Ack_ErrCode_ok {
-			return &infra.Error{Message: reply}
-		}
-		return nil
-	default:
-		err := newTypeAssertErr(msgType.String(), replyMsg)
-		return common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
+	logger.Trace("[Messenger] Sending Notify", "type", msgType, "to", a, "id", id)
+	_, _, err = m.getRequester(msgType).Request(ctx, pld, a, true)
+	return err
 }
 
 // AddHandler registers a handler for msgType.
@@ -790,7 +766,8 @@ func newTypeAssertErr(typeStr string, msg interface{}) error {
 }
 
 type Requester interface {
-	Request(ctx context.Context, pld *ctrl.Pld, a net.Addr) (*ctrl.Pld, *proto.SignS, error)
+	Request(ctx context.Context, pld *ctrl.Pld, a net.Addr,
+		downgradeToNotify bool) (*ctrl.Pld, *proto.SignS, error)
 	Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
 	NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
 }
@@ -806,7 +783,7 @@ type pathingRequester struct {
 }
 
 func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
-	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
+	a net.Addr, downgradeToNotify bool) (*ctrl.Pld, *proto.SignS, error) {
 
 	newAddr, redirect, err := pr.addressRewriter.RedirectToQUIC(ctx, a)
 	if err != nil {
@@ -815,10 +792,13 @@ func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	logger := log.FromCtx(ctx)
 	if redirect && pr.quicRequester != nil {
 		logger.Trace("Request upgraded to QUIC", "remote", newAddr)
-		pld, sign, err := pr.quicRequester.Request(ctx, pld, newAddr)
+		pld, sign, err := pr.quicRequester.Request(ctx, pld, newAddr, false)
 		return pld, sign, err
 	}
 	logger.Trace("Request could not be upgraded to QUIC, using UDP", "remote", newAddr)
+	if downgradeToNotify {
+		return nil, nil, pr.requester.Notify(ctx, pld, newAddr)
+	}
 	return pr.requester.Request(ctx, pld, newAddr)
 }
 
@@ -846,7 +826,7 @@ type QUICRequester struct {
 }
 
 func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
-	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
+	a net.Addr, _ bool) (*ctrl.Pld, *proto.SignS, error) {
 
 	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
 	// additional verifications in the future.
