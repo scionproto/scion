@@ -330,8 +330,10 @@ func (t *periodicTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Ru
 		Signer:       infra.NullSigner,
 		TopoProvider: t.topoProvider,
 	}
-	return periodic.StartPeriodicTask(s, periodic.NewTicker(cfg.BS.KeepaliveInterval.Duration),
-		cfg.BS.KeepaliveInterval.Duration), nil
+	r := periodic.StartPeriodicTask(s, periodic.NewTicker(cfg.BS.KeepaliveInterval.Duration),
+		cfg.BS.KeepaliveInterval.Duration)
+	r.TriggerRun()
+	return r, nil
 }
 
 func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, error) {
@@ -361,8 +363,10 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start originator", err)
 	}
-	return periodic.StartPeriodicTask(s, periodic.NewTicker(500*time.Millisecond),
-		cfg.BS.OriginationInterval.Duration), nil
+	r := periodic.StartPeriodicTask(s, periodic.NewTicker(500*time.Millisecond),
+		cfg.BS.OriginationInterval.Duration)
+	r.TriggerRun()
+	return r, nil
 }
 
 func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner, error) {
