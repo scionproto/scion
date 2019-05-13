@@ -106,20 +106,21 @@ func Test_Chain_Verify(t *testing.T) {
 		pubCoreRaw, privCoreRaw := []byte(pub), []byte(priv)
 		pub, priv, _ = ed25519.GenerateKey(nil)
 		pubTRCRaw, privTRCRaw := []byte(pub), []byte(priv)
-		trc_ := loadTRC(fnTRC, t)
+		trc := loadTRC(fnTRC, t)
+		now := util.TimeToSecs(time.Now())
 
-		chain.Leaf.IssuingTime = util.TimeToSecs(time.Now())
+		chain.Leaf.IssuingTime = now
 		chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
 		chain.Leaf.Sign(privCoreRaw, scrypto.Ed25519)
 
 		chain.Issuer.SubjectSignKey = pubCoreRaw
-		chain.Issuer.IssuingTime = util.TimeToSecs(time.Now())
+		chain.Issuer.IssuingTime = now
 		chain.Issuer.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
 		chain.Issuer.Sign(privTRCRaw, scrypto.Ed25519)
 
-		trc_.CoreASes[chain.Issuer.Issuer].OnlineKey = pubTRCRaw
-		trc_.ExpirationTime = chain.Issuer.ExpirationTime
-		err := chain.Verify(addr.IA{I: 1, A: 0xff0000000311}, trc_)
+		trc.CoreASes[chain.Issuer.Issuer].OnlineKey = pubTRCRaw
+		trc.ExpirationTime = chain.Issuer.ExpirationTime
+		err := chain.Verify(addr.IA{I: 1, A: 0xff0000000311}, trc)
 		SoMsg("err", err, ShouldBeNil)
 	})
 }
