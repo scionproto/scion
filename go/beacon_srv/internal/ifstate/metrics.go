@@ -20,19 +20,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var _ prometheus.Collector = (*ifStateCollector)(nil)
+var _ prometheus.Collector = (*Collector)(nil)
 
-// ifStateCollector implements a prometheus collector that exports the state of
+// Collector implements a prometheus collector that exports the state of
 // all interfaces.
-type ifStateCollector struct {
+type Collector struct {
 	desc  *prometheus.Desc
 	intfs *Interfaces
 }
 
-func newIfStateCollector(intfs *Interfaces) *ifStateCollector {
-	return &ifStateCollector{
+// NewCollector creates a prometheus collector that exports teh state of all
+// interfaces.
+func NewCollector(intfs *Interfaces, subsystemName string) *Collector {
+	return &Collector{
 		desc: prometheus.NewDesc(
-			prometheus.BuildFQName("beacon_srv", "", "ifstate"),
+			prometheus.BuildFQName("beacon_srv", subsystemName, "ifstate"),
 			"Interface state, 0 means down, 1 up. More details in labels (ifid, state)",
 			[]string{"ifid", "state"},
 			prometheus.Labels{},
@@ -41,17 +43,18 @@ func newIfStateCollector(intfs *Interfaces) *ifStateCollector {
 	}
 }
 
-func (c *ifStateCollector) Collect(mc chan<- prometheus.Metric) {
+func (c *Collector) Collect(mc chan<- prometheus.Metric) {
 	for ifid, intf := range c.intfs.All() {
+		state := intf.State()
 		var up float64
-		if intf.State() == Active {
+		if state == Active {
 			up = 1
 		}
 		mc <- prometheus.MustNewConstMetric(c.desc, prometheus.GaugeValue, up,
-			strconv.FormatUint(uint64(ifid), 10), string(intf.State()))
+			strconv.FormatUint(uint64(ifid), 10), string(state))
 	}
 }
 
-func (c *ifStateCollector) Describe(dc chan<- *prometheus.Desc) {
+func (c *Collector) Describe(dc chan<- *prometheus.Desc) {
 	dc <- c.desc
 }

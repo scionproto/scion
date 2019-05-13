@@ -111,8 +111,7 @@ func TestExtenderExtend(t *testing.T) {
 			defer mctrl.Finish()
 			g := graph.NewDefaultGraph(mctrl)
 			// Setup interfaces with active parent, child and one peer interface.
-			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
-				ifstate.Config{DisableMetrics: true})
+			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 			intfs.Get(graph.If_111_A_112_X).Activate(graph.If_112_X_111_A)
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
@@ -183,8 +182,7 @@ func TestExtenderExtend(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
-			ifstate.Config{DisableMetrics: true})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 		xtest.FailOnErr(t, err)
 		intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 		var maxExpTime = spath.ExpTimeType(1)
@@ -208,8 +206,7 @@ func TestExtenderExtend(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
-			ifstate.Config{DisableMetrics: true})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 		xtest.FailOnErr(t, err)
 		ext, err := ExtenderConf{
 			MTU:    1337,

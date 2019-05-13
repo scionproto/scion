@@ -113,7 +113,7 @@ func TestHandler(t *testing.T) {
 func interfaces(t *testing.T, topoProvider topology.Provider,
 	expectedIfSate *path_mgmt.IFStateInfos) *Interfaces {
 
-	intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{DisableMetrics: true})
+	intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 	activateAll(intfs)
 	for _, info := range expectedIfSate.Infos {
 		if !info.Active {

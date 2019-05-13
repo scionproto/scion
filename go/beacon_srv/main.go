@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
@@ -150,6 +151,7 @@ func realMain() int {
 		return 1
 	}
 	intfs = ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
+	prometheus.MustRegister(ifstate.NewCollector(intfs, ""))
 	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))

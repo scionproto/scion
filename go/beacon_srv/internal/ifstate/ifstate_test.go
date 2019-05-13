@@ -186,7 +186,7 @@ func testInterfaces() *Interfaces {
 		1: {BRName: "BR-1"},
 		2: {BRName: "BR-2"},
 	}
-	intfs := NewInterfaces(topoMap, Config{DisableMetrics: true})
+	intfs := NewInterfaces(topoMap, Config{})
 	intfs.Get(1).Activate(11)
 	intfs.Get(2).topoInfo.RemoteIFID = 22
 	intfs.Get(2).Revoke(&path_mgmt.SignedRevInfo{})
