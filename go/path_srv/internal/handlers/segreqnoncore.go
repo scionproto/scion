@@ -70,12 +70,14 @@ func (h *segReqNonCoreHandler) Handle() *infra.HandlerResult {
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	var err error
+	logger.Debug("[SUPER] determining whether is core")
 	dstCore, err := h.isCoreDst(subCtx, segReq)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
 		rw.SendSegReply(subCtx, &path_mgmt.SegReply{Req: segReq})
 		return infra.MetricsErrInvalid
 	}
+	logger.Debug("[SUPER] getting local core ASes")
 	coreASes, err := h.coreASes(subCtx)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find local core ASes", "err", err)
@@ -158,9 +160,11 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 	rw infra.ResponseWriter, dstIA addr.IA, coreASes []addr.IA) {
 
 	logger := log.FromCtx(ctx)
+	logger.Debug("[SUPER] handling non core dst")
 	cPSResolve := func() (net.Addr, error) {
 		return h.corePSAddr(ctx, coreASes)
 	}
+	logger.Debug("[SUPER] fetch down segs")
 	downSegs, err := h.fetchDownSegs(ctx, dstIA, cPSResolve, segReq.Flags.CacheOnly)
 	if err != nil {
 		logger.Error("Failed to find down segs", "err", err)
@@ -172,6 +176,7 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
+	logger.Debug("[SUPER] fetch up segs from DB")
 	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, !segReq.Flags.CacheOnly)
 	if err != nil {
 		logger.Error("Failed to find up segs", "err", err)
@@ -193,6 +198,7 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 				connDownFirstIAs[dst] = struct{}{}
 				continue
 			}
+			logger.Debug("[SUPER] fetch core segs", "src", src)
 			cs, err := h.fetchCoreSegs(ctx, src, dst, segReq.Flags.CacheOnly)
 			if err != nil {
 				logger.Error("Failed to find core segs", "src", src, "dst", dst, "err", err)
@@ -205,6 +211,7 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 			}
 		}
 	}
+	logger.Debug("[SUPER] filter segments")
 	// Make sure we only return connected segments.
 	// No need to filter cores, since we only query for connected ones.
 	upSegs.FilterSegs(func(s *seg.PathSegment) bool {
