@@ -215,8 +215,8 @@ func (intf *Interface) State() State {
 // Originate sets the time this interface has been originated on last.
 func (intf *Interface) Originate(now time.Time) {
 	intf.mu.Lock()
+	defer intf.mu.Unlock()
 	intf.lastOriginate = now
-	intf.mu.Unlock()
 }
 
 // LastOriginate indicates the last time this interface has been originated on.
@@ -229,8 +229,8 @@ func (intf *Interface) LastOriginate() time.Time {
 // Propagate sets the time this interface has been propagated on last.
 func (intf *Interface) Propagate(now time.Time) {
 	intf.mu.Lock()
+	defer intf.mu.Unlock()
 	intf.lastPropagate = now
-	intf.mu.Unlock()
 }
 
 // LastPropagate indicates the last time this interface has been propagated on.

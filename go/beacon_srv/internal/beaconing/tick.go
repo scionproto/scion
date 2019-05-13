@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// tick is keeps track whether the period has passed compared to the last time.
+// tick keeps track whether the period has passed compared to the last time.
 type tick struct {
 	now    time.Time
 	last   time.Time
