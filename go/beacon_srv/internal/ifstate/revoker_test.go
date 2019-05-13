@@ -72,7 +72,7 @@ func TestNoRevocationIssued(t *testing.T) {
 		defer mctrl.Finish()
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
-		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{DisableMetrics: true})
+		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		cfg := RevokerConf{
 			Intfs:        intfs,
@@ -103,7 +103,7 @@ func TestRevokeInterface(t *testing.T) {
 		defer mctrl.Finish()
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
-		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{DisableMetrics: true})
+		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).lastActivate = time.Now().Add(-expireTime)
 		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
@@ -142,7 +142,7 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		defer mctrl.Finish()
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
-		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{DisableMetrics: true})
+		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Expired
 		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
@@ -184,7 +184,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		defer mctrl.Finish()
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
-		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{DisableMetrics: true})
+		intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Expired
 		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
