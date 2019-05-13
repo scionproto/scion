@@ -361,8 +361,10 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start originator", err)
 	}
-	return periodic.StartPeriodicTask(s, periodic.NewTicker(500*time.Millisecond),
-		cfg.BS.OriginationInterval.Duration), nil
+	r := periodic.StartPeriodicTask(s, periodic.NewTicker(500*time.Millisecond),
+		cfg.BS.OriginationInterval.Duration)
+	r.TriggerRun()
+	return r, nil
 }
 
 func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner, error) {
