@@ -6,6 +6,7 @@ go_library(
         "doc.go",
         "handler.go",
         "ifstate.go",
+        "metrics.go",
         "revoker.go",
     ],
     importpath = "github.com/scionproto/scion/go/beacon_srv/internal/ifstate",
@@ -21,6 +22,7 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/proto:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )
 
