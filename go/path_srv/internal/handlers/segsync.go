@@ -65,8 +65,6 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInvalid
 	}
 	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
-	// TODO(scrye): investigate why passing the requester's address into the
-	// verification function doesn't work with QUIC.
 	snetPeer := h.request.Peer.(*snet.Addr)
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
