@@ -124,6 +124,8 @@ type BSConfig struct {
 	// ExpiredCheckInterval is the interval between checking whether interfaces
 	// have expired and should be revoked.
 	ExpiredCheckInterval util.DurWrap
+	// Policies contains the policy files.
+	Policies Policies
 }
 
 // InitDefaults the default values for the durations that are equal to zero.
@@ -162,6 +164,7 @@ func (cfg *BSConfig) Validate() error {
 // Sample generates a sample for the beacon server specific configuration.
 func (cfg *BSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, bsconfigSample)
+	config.WriteSample(dst, path, ctx, &cfg.Policies)
 }
 
 // ConfigName is the toml key for the beacon server specific configuration.
@@ -173,4 +176,37 @@ func initDurWrap(w *util.DurWrap, def time.Duration) {
 	if w.Duration == 0 {
 		w.Duration = def
 	}
+}
+
+var _ config.Config = (*Policies)(nil)
+
+// Policies contains the file paths of the policies.
+type Policies struct {
+	config.NoDefaulter
+	config.NoValidator
+	// Propagation contains the file path for the propagation policy. If this
+	// is the empty string, the default policy is used.
+	Propagation string
+	// CoreRegistration contains the file path for the core registration
+	// policy. If this is the empty string, the default policy is used. In a
+	// non-core beacon server, this field is ignored.
+	CoreRegistration string
+	// UpRegistration contains the file path for the up registration policy. If
+	// this is the empty string, the default policy is used. In a core beacon
+	// server, this field is ignored.
+	UpRegistration string
+	// DownRegistration contains the file path for the down registration policy.
+	// If this is the empty string, the default policy is used. In a core beacon
+	// server, this field is ignored.
+	DownRegistration string
+}
+
+// Sample generates a sample for the beacon server specific configuration.
+func (cfg *Policies) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
+	config.WriteString(dst, policiesSample)
+}
+
+// ConfigName is the toml key for the beacon server specific configuration.
+func (cfg *Policies) ConfigName() string {
+	return "policies"
 }

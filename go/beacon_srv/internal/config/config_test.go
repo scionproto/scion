@@ -49,7 +49,16 @@ func InitTestConfig(cfg *Config) {
 	InitTestBSConfig(&cfg.BS)
 }
 
-func InitTestBSConfig(cfg *BSConfig) {}
+func InitTestBSConfig(cfg *BSConfig) {
+	InitTestPolicies(&cfg.Policies)
+}
+
+func InitTestPolicies(cfg *Policies) {
+	cfg.Propagation = "test"
+	cfg.CoreRegistration = "test"
+	cfg.UpRegistration = "test"
+	cfg.DownRegistration = "test"
+}
 
 func CheckTestConfig(cfg *Config, id string) {
 	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, id)
@@ -71,4 +80,12 @@ func CheckTestBSConfig(cfg *BSConfig) {
 		DefaultRegistrationInterval)
 	SoMsg("ExpiredCheckInterval", cfg.ExpiredCheckInterval.Duration, ShouldEqual,
 		DefaultExpiredCheckInterval)
+	CheckTestPolicies(&cfg.Policies)
+}
+
+func CheckTestPolicies(cfg *Policies) {
+	SoMsg("Propagation", cfg.Propagation, ShouldEqual, "")
+	SoMsg("CoreRegistration", cfg.CoreRegistration, ShouldEqual, "")
+	SoMsg("UpRegistration", cfg.UpRegistration, ShouldEqual, "")
+	SoMsg("DownRegistration", cfg.DownRegistration, ShouldEqual, "")
 }

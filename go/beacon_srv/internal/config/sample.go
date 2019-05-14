@@ -36,3 +36,24 @@ RegistrationInterval = "5s"
 # The interval between checking for expired interfaces to revoke. (default 200ms)
 ExpiredCheckInterval = "200ms"
 `
+
+const policiesSample = `
+# The file path for the propagation policy. In case of the empty string, 
+# the default policy is used. (default "")
+Propagation = ""
+
+# The file path for the core registration policy. In case of the empty string, 
+# the default policy is used. In a non-core beacon server, this field is ignored.
+# (default "")
+CoreRegistration = ""
+
+# The file path for the up registration policy. In case of the empty string, 
+# the default policy is used. In a core beacon server, this field is ignored.
+# (default "")
+UpRegistration = ""
+
+# The file path for the down registration policy. In case of the empty string, 
+# the default policy is used. In a core beacon server, this field is ignored.
+# (default "")
+DownRegistration = ""
+`
