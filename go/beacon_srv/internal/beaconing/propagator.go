@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
+	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -54,7 +55,7 @@ type Propagator struct {
 	*segExtender
 	sender       *onehop.Sender
 	provider     BeaconProvider
-	metrics      *propagatorMetrics
+	metrics      *metrics.Propagator
 	allowIsdLoop bool
 	core         bool
 
@@ -78,7 +79,7 @@ func (cfg PropagatorConf) New() (*Propagator, error) {
 		tick:         tick{period: cfg.Period},
 	}
 	if cfg.EnableMetrics {
-		p.metrics = newPropagatorMetrics()
+		p.metrics = metrics.InitPropagator()
 	}
 	return p, nil
 }
@@ -239,13 +240,15 @@ func (p *beaconPropagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDT
 		defer p.metrics.AddIntfTime(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, time.Now())
 		if err := p.extend(bseg.Segment, bseg.InIfId, egIfid, p.peers); err != nil {
 			log.Error("[Propagator] Unable to extend beacon", "beacon", bseg, "err", err)
-			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metricsCreateErr)
+			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid,
+				metrics.CreateErr)
 			return
 		}
 		intf := p.cfg.Intfs.Get(egIfid)
 		if intf == nil {
 			log.Error("[Propagator] Interface removed", "egIfid", egIfid)
-			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metricsCreateErr)
+			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid,
+				metrics.CreateErr)
 			return
 		}
 		topoInfo := intf.TopoInfo()
@@ -253,19 +256,20 @@ func (p *beaconPropagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDT
 			egIfid, p.cfg.Signer)
 		if err != nil {
 			log.Error("[Propagator] Unable pack message", "beacon", bseg, "err", err)
-			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metricsCreateErr)
+			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid,
+				metrics.CreateErr)
 			return
 		}
 		ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
 		if err := p.sender.Send(msg, ov); err != nil {
 			log.Error("[Propagator] Unable to send packet", "ifid", "err", err)
-			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metricsSendErr)
+			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metrics.SendErr)
 			return
 		}
 		intf.Propagate(p.tick.now)
 		p.success.Inc()
 		p.summary.AddIfid(egIfid)
-		p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metricsSuccess)
+		p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metrics.Success)
 	}()
 }
 

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
+	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -62,7 +63,7 @@ type Registrar struct {
 	msgr         infra.Messenger
 	segProvider  SegmentProvider
 	topoProvider topology.Provider
-	metrics      *registrarMetrics
+	metrics      *metrics.Registrar
 	segType      proto.PathSegType
 
 	// mutable fields
@@ -86,7 +87,7 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 		segExtender:  extender,
 	}
 	if cfg.EnableMetrics {
-		r.metrics = newRegistrarMetrics()
+		r.metrics = metrics.InitRegistrar()
 	}
 	return r, nil
 }
@@ -97,7 +98,7 @@ func (r *Registrar) Run(ctx context.Context) {
 	if err := r.run(ctx); err != nil {
 		log.Error("[Registrar] Unable to register", "type", r.segType, "err", err)
 	}
-	r.metrics.AddTotalTime(r.tick.now)
+	r.metrics.AddTotalTime(r.segType, r.tick.now)
 	r.tick.updateLast()
 }
 
