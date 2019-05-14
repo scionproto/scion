@@ -504,7 +504,7 @@ func setupBasic() error {
 		return err
 	}
 	metrics.Init(cfg.General.ID)
-	return env.LogAppStarted(common.CS, cfg.General.ID)
+	return env.LogAppStarted(common.BS, cfg.General.ID)
 }
 
 func setup() error {
