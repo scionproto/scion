@@ -184,8 +184,8 @@ var _ config.Config = (*Policies)(nil)
 type Policies struct {
 	config.NoDefaulter
 	config.NoValidator
-	//	Propagation contains the file path for the propagation policy. If this
-	//	is the empty string, the default policy is used.
+	// Propagation contains the file path for the propagation policy. If this
+	// is the empty string, the default policy is used.
 	Propagation string
 	// CoreRegistration contains the file path for the core registration
 	// policy. If this is the empty string, the default policy is used. In a
