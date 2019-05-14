@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -43,7 +44,7 @@ type OriginatorConf struct {
 type Originator struct {
 	*segExtender
 	sender  *onehop.Sender
-	metrics *originatorMetrics
+	metrics *metrics.Originator
 
 	// tick is mutable.
 	tick tick
@@ -63,7 +64,7 @@ func (cfg OriginatorConf) New() (*Originator, error) {
 		tick:        tick{period: cfg.Period},
 	}
 	if cfg.EnableMetrics {
-		o.metrics = newOriginatorMetrics()
+		o.metrics = metrics.InitOriginator()
 	}
 	return o, nil
 }
@@ -130,16 +131,16 @@ func (o *Originator) originateBeacon(ifid common.IFIDType, infoF spath.InfoField
 	topoInfo := intf.TopoInfo()
 	msg, err := o.createBeaconMsg(ifid, infoF, topoInfo.ISD_AS)
 	if err != nil {
-		o.metrics.IncTotalBeacons(ifid, metricsCreateErr)
+		o.metrics.IncTotalBeacons(ifid, metrics.CreateErr)
 		return err
 	}
 	ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
 	if err := o.sender.Send(msg, ov); err != nil {
-		o.metrics.IncTotalBeacons(ifid, metricsSendErr)
+		o.metrics.IncTotalBeacons(ifid, metrics.SendErr)
 		return common.NewBasicError("Unable to send packet", err)
 	}
 	intf.Originate(o.tick.now)
-	o.metrics.IncTotalBeacons(ifid, metricsSuccess)
+	o.metrics.IncTotalBeacons(ifid, metrics.Success)
 	return nil
 }
 
