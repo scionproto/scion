@@ -29,11 +29,11 @@ test_run() {
     local topo_file="gen/ISD1/AS$AS_FILE/ps$IA_FILE-1/topology.json"
     jq '.CertificateService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
     ./tools/dc scion kill -s HUP scion_ps$IA_FILE-1
-    # Wait for 1 (PS crypto push interval) + 1 (logging flush interval) 
+    # Wait for 1 (PS crypto push interval) + 1 (logging flush interval)
     # + 1  to guarantee a push is seen
     sleep 3
-    grep -q ".*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \
-        fail "CryptoSync log entry with 127.42.42.42:39999 not found in logs"
+    grep -q "\[TRACE\] \[Acceptance\] .*overlay=\[127\.42\.42\.42\]" "logs/ps$IA_FILE-1.log" || \
+        fail "Push request to 127.42.42.42 not found in logs"
 }
 
 print_help() {

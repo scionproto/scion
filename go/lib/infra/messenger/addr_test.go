@@ -16,6 +16,7 @@ package messenger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"testing"
@@ -85,6 +86,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
+		router.EXPECT().LocalIA().Return(addr.IA{}).AnyTimes()
 		resolver := mock_messenger.NewMockResolver(ctrl)
 		aw := AddressRewriter{
 			Resolver: resolver,
@@ -102,11 +104,17 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
+		localIA := xtest.MustParseIA("1-ff00:0:1")
+		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		router.EXPECT().LocalIA().Return(localIA).AnyTimes()
+		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
 		aw := AddressRewriter{
-			Router: router,
+			Router:    router,
+			SVCRouter: svcRouter,
 		}
 		Convey("snet address without path, error retrieving path", func() {
 			inputAddress := &snet.Addr{
+				IA: remoteIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
 					L4: addr.NewL4UDPInfo(1),
@@ -118,6 +126,7 @@ func TestBuildFullAddress(t *testing.T) {
 		})
 		Convey("snet address with path", func() {
 			inputAddress := &snet.Addr{
+				IA: remoteIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
 					L4: addr.NewL4UDPInfo(1),
@@ -134,6 +143,7 @@ func TestBuildFullAddress(t *testing.T) {
 			path.EXPECT().OverlayNextHop().Return(&overlay.OverlayAddr{})
 			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 			inputAddress := &snet.Addr{
+				IA: remoteIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
 					L4: addr.NewL4UDPInfo(1),
@@ -141,6 +151,7 @@ func TestBuildFullAddress(t *testing.T) {
 			}
 			a, err := aw.buildFullAddress(context.Background(), inputAddress)
 			SoMsg("addr", a, ShouldResemble, &snet.Addr{
+				IA: remoteIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
 					L4: addr.NewL4UDPInfo(1),
@@ -149,6 +160,50 @@ func TestBuildFullAddress(t *testing.T) {
 				NextHop: &overlay.OverlayAddr{},
 			})
 			SoMsg("err", err, ShouldBeNil)
+		})
+		Convey("snet address in local AS, overlay address extraction succeeds", func() {
+			overlayAddr, err := overlay.NewOverlayAddr(
+				addr.HostFromIP(net.IP{192, 168, 0, 1}),
+				addr.NewL4UDPInfo(10),
+			)
+			xtest.FailOnErr(t, err)
+			router.EXPECT().LocalIA().Return(localIA).AnyTimes()
+			svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(overlayAddr, nil)
+
+			inputAddress := &snet.Addr{
+				IA: localIA,
+				Host: &addr.AppAddr{
+					L3: addr.SvcBS,
+					L4: addr.NewL4UDPInfo(1),
+				},
+			}
+
+			a, err := aw.buildFullAddress(context.Background(), inputAddress)
+			SoMsg("addr", a, ShouldResemble, &snet.Addr{
+				IA: localIA,
+				Host: &addr.AppAddr{
+					L3: addr.SvcBS,
+					L4: addr.NewL4UDPInfo(1),
+				},
+				NextHop: overlayAddr,
+			})
+			SoMsg("err", err, ShouldBeNil)
+		})
+		Convey("snet address in local AS, overlay address extraction fails", func() {
+			router.EXPECT().LocalIA().Return(localIA).AnyTimes()
+			svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(nil, errors.New("err"))
+
+			inputAddress := &snet.Addr{
+				IA: localIA,
+				Host: &addr.AppAddr{
+					L3: addr.SvcBS,
+					L4: addr.NewL4UDPInfo(1),
+				},
+			}
+
+			a, err := aw.buildFullAddress(context.Background(), inputAddress)
+			SoMsg("addr", a, ShouldBeNil)
+			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})
 }

@@ -47,6 +47,7 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -136,8 +137,8 @@ func realMain() int {
 		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
 		SVC:                   addr.SvcBS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
-		EnableQUICTest:        cfg.EnableQUICTest,
 		TrustStore:            trustStore,
+		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	msgr, err := nc.Messenger()
 	if err != nil {

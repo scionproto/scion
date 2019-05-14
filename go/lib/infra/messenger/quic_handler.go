@@ -64,7 +64,8 @@ func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 			ID:          pld.ReqId,
 		},
 	)
-	handler.Handle(infra.NewRequest(serveCtx, messageContent, signedPld, nil, pld.ReqId))
+	handler.Handle(infra.NewRequest(serveCtx, messageContent, signedPld,
+		request.Address, pld.ReqId))
 }
 
 // Handle registers the handler for the given message type.

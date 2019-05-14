@@ -44,6 +44,7 @@ func LinkTypeFromString(s string) (proto.LinkType, error) {
 
 // Provider provides a topology.
 type Provider interface {
-	// Get returns a topology.
+	// Get returns a topology. The returned topology is guaranteed to not be
+	// nil.
 	Get() *Topo
 }

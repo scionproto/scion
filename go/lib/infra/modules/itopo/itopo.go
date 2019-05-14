@@ -45,6 +45,11 @@ type providerFunc func() *topology.Topo
 
 // Provider returns a topology provider that calls Get internally.
 func Provider() topology.Provider {
+	st.RLock()
+	defer st.RUnlock()
+	if st.topo.static == nil {
+		panic("static topology not found")
+	}
 	return providerFunc(Get)
 }
 

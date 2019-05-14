@@ -659,7 +659,7 @@ func (store *Store) isLocal(address net.Addr) error {
 func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.Addr, error) {
 	topo := itopo.Get()
 	if store.config.ServiceType != proto.ServiceType_cs {
-		return store.chooseASLocalCS(ctx, destination, topo)
+		return &snet.Addr{IA: store.ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}, nil
 	}
 	destISD, err := store.chooseDestCSIsd(ctx, destination, topo)
 	if err != nil {
@@ -697,22 +697,6 @@ func (store *Store) chooseDestCSIsd(ctx context.Context, destination addr.IA,
 	}
 	// For non-core dests in a remote isd use remote core.
 	return destination.I, nil
-}
-
-func (store *Store) chooseASLocalCS(ctx context.Context, destination addr.IA,
-	topo *topology.Topo) (net.Addr, error) {
-
-	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
-	if err != nil {
-		return nil, err
-	}
-	topoAddr := svcInfo.GetAnyTopoAddr()
-	if topoAddr == nil {
-		return nil, common.NewBasicError("Failed to look up CS in topology", nil)
-	}
-	csAddr := topoAddr.PublicAddr(topo.Overlay)
-	csOverlayAddr := topoAddr.OverlayAddr(topo.Overlay)
-	return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 }
 
 func (store *Store) NewSigner(key common.RawBytes, meta infra.SignerMeta) (infra.Signer, error) {

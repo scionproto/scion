@@ -193,6 +193,11 @@ func New(config *Config) *Messenger {
 	var quicClient *rpc.Client
 	var quicHandler *QUICHandler
 	if config.QUIC != nil {
+		quicClient = &rpc.Client{
+			Conn:       config.QUIC.Conn,
+			TLSConfig:  config.QUIC.TLSConfig,
+			QUICConfig: config.QUIC.QUICConfig,
+		}
 		quicHandler = &QUICHandler{
 			handlers: make(map[infra.MessageType]infra.Handler),
 		}
@@ -201,11 +206,6 @@ func New(config *Config) *Messenger {
 			TLSConfig:  config.QUIC.TLSConfig,
 			QUICConfig: config.QUIC.QUICConfig,
 			Handler:    quicHandler,
-		}
-		quicClient = &rpc.Client{
-			Conn:       config.QUIC.Conn,
-			TLSConfig:  config.QUIC.TLSConfig,
-			QUICConfig: config.QUIC.QUICConfig,
 		}
 	}
 
@@ -254,7 +254,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending request", "req_type", infra.TRCRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getRequester(infra.TRCRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -292,7 +292,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getRequester(infra.ChainRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -366,8 +366,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err :=
-		m.getRequester(infra.SegRequest).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getRequester(infra.SegRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -422,7 +421,7 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getRequester(infra.SegChangesIdReq).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -465,7 +464,7 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getRequester(infra.SegChangesReq).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -511,7 +510,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainIssueRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err := m.getRequester(infra.ChainIssueRequest).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getRequester(infra.ChainIssueRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -558,7 +557,7 @@ func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a n
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", msgType, "to", a, "id", id)
-	_, _, err = m.getRequester(msgType).Request(ctx, pld, a, true)
+	_, err = m.getRequester(msgType).Request(ctx, pld, a, true)
 	return err
 }
 
@@ -739,18 +738,19 @@ func (m *Messenger) UpdateVerifier(verifier infra.Verifier) {
 //
 // If message type reqT is to be signed, the key is initialized from m.signer.
 // Otherwise it is set to a null signer.
-func (m *Messenger) getRequester(reqT infra.MessageType) Requester {
+func (m *Messenger) getRequester(reqT infra.MessageType) *pathingRequester {
 	m.cryptoLock.RLock()
 	defer m.cryptoLock.RUnlock()
 	signer := infra.NullSigner
 	if _, ok := m.signMask[reqT]; ok {
 		signer = m.signer
 	}
-	var quicRequester Requester
+	var quicRequester *QUICRequester
 	if m.config.QUIC != nil {
 		quicRequester = &QUICRequester{
 			QUICClientConfig: m.quicClient,
 			AddressRewriter:  m.addressRewriter,
+			Signer:           signer,
 		}
 	}
 	return &pathingRequester{
@@ -765,41 +765,33 @@ func newTypeAssertErr(typeStr string, msg interface{}) error {
 	return common.NewBasicError(errStr, nil, "msg", msg)
 }
 
-type Requester interface {
-	Request(ctx context.Context, pld *ctrl.Pld, a net.Addr,
-		downgradeToNotify bool) (*ctrl.Pld, *proto.SignS, error)
-	Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
-	NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error
-}
-
-var _ Requester = (*pathingRequester)(nil)
-
 // pathingRequester resolves the SCION path and constructs complete snet
 // addresses.
 type pathingRequester struct {
 	requester       *ctrl_msg.Requester
 	addressRewriter *AddressRewriter
-	quicRequester   Requester
+	quicRequester   *QUICRequester
 }
 
 func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
-	a net.Addr, downgradeToNotify bool) (*ctrl.Pld, *proto.SignS, error) {
+	a net.Addr, downgradeToNotify bool) (*ctrl.Pld, error) {
 
 	newAddr, redirect, err := pr.addressRewriter.RedirectToQUIC(ctx, a)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	logger := log.FromCtx(ctx)
 	if redirect && pr.quicRequester != nil {
 		logger.Trace("Request upgraded to QUIC", "remote", newAddr)
-		pld, sign, err := pr.quicRequester.Request(ctx, pld, newAddr, false)
-		return pld, sign, err
+		pld, err := pr.quicRequester.Request(ctx, pld, newAddr)
+		return pld, err
 	}
 	logger.Trace("Request could not be upgraded to QUIC, using UDP", "remote", newAddr)
 	if downgradeToNotify {
-		return nil, nil, pr.requester.Notify(ctx, pld, newAddr)
+		return nil, pr.requester.Notify(ctx, pld, newAddr)
 	}
-	return pr.requester.Request(ctx, pld, newAddr)
+	pld, _, err = pr.requester.Request(ctx, pld, newAddr)
+	return pld, err
 }
 
 func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
@@ -818,52 +810,38 @@ func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld,
 	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
 }
 
-var _ Requester = (*QUICRequester)(nil)
-
 type QUICRequester struct {
 	QUICClientConfig *rpc.Client
 	AddressRewriter  *AddressRewriter
+	Signer           ctrl.Signer
 }
 
-func (rt *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
-	a net.Addr, _ bool) (*ctrl.Pld, *proto.SignS, error) {
+func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
+	a net.Addr) (*ctrl.Pld, error) {
 
 	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
 	// additional verifications in the future.
-	newAddr, _, err := rt.AddressRewriter.RedirectToQUIC(ctx, a)
+	newAddr, _, err := r.AddressRewriter.RedirectToQUIC(ctx, a)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	b, err := proto.PackRoot(pld)
+	signedPld, err := pld.SignedPld(r.Signer)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	request := &rpc.Request{SignedPld: &ctrl.SignedPld{Blob: b}}
-	reply, err := rt.QUICClientConfig.Request(ctx, request, newAddr)
+	request := &rpc.Request{SignedPld: signedPld}
+	reply, err := r.QUICClientConfig.Request(ctx, request, newAddr)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	replyPld, err := reply.SignedPld.UnsafePld()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return replyPld, nil, nil
-}
-
-func (rt *QUICRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	return common.NewBasicError("transport type does not support Notify messages", nil)
-}
-
-func (rt *QUICRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	return common.NewBasicError("transport type does not support NotifyUnreliable message", nil)
-}
-
-type Request struct {
-	Host    net.Addr
-	Payload *ctrl.SignedPld
+	return replyPld, nil
 }
 
 // validate checks that msg is one of the acceptable message types for SCION

@@ -73,16 +73,17 @@ type NetworkConfig struct {
 	// down).
 	ReconnectToDispatcher bool
 	// QUIC contains configuration details for QUIC servers. If the listening
-	// address is the empty string, then no QUIC server is started.
+	// address is the empty string, then no QUIC socket is opened.
 	QUIC QUIC
 	// SVCResolutionFraction can be used to customize whether SVC resolution is
 	// enabled.
 	SVCResolutionFraction float64
-	// EnableQUICTest can be used to enable the QUIC RPC implementation.
-	EnableQUICTest bool
 	// Router is used by various infra modules for path-related operations. A
 	// nil router means only intra-AS traffic is supported.
 	Router snet.Router
+	// SVCRouter is used to discover the overlay addresses of intra-AS SVC
+	// servers.
+	SVCRouter messenger.LocalSVCRouter
 }
 
 // Messenger initializes a SCION control-plane RPC endpoint using the specified
@@ -96,7 +97,8 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		if err != nil {
 			return nil, err
 		}
-		quicAddress = nc.QUIC.Address
+		quicAddress = quicConn.LocalAddr().(*snet.Addr).Host.String()
+		log.Trace("QUIC conn initialized", "local_addr", quicAddress)
 	}
 
 	conn, err := nc.initUDPSocket(quicAddress)
@@ -113,7 +115,8 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		IA:         nc.IA,
 		TrustStore: nc.TrustStore,
 		AddressRewriter: &messenger.AddressRewriter{
-			Router: router,
+			Router:    router,
+			SVCRouter: nc.SVCRouter,
 			Resolver: &svc.Resolver{
 				LocalIA: nc.IA,
 				ConnFactory: snet.NewDefaultPacketDispatcherService(

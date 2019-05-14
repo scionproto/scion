@@ -29,12 +29,12 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -159,25 +159,19 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 		SVC:                   addr.SvcCS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
-			Address:  cfg.Server.QUICListen,
-			CertFile: cfg.Server.QUICCertFile,
-			KeyFile:  cfg.Server.QUICKeyFile,
+			Address:  cfg.QUIC.Address,
+			CertFile: cfg.QUIC.CertFile,
+			KeyFile:  cfg.QUIC.KeyFile,
 		},
-		SVCResolutionFraction: cfg.Client.ResolutionFraction,
-		EnableQUICTest:        cfg.Client.EnableQUICTest,
+		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
 		TrustStore:            state.Store,
 		Router:                router,
+		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	var err error
 	msgr, err = nc.Messenger()
 	if err != nil {
 		return common.NewBasicError("Unable to initialize SCION Messenger", err)
-	}
-	// FIXME(roosd): Hack to make Store.ChooseServer not panic.
-	// Remove when https://github.com/scionproto/scion/issues/2029 is resolved.
-	err = snet.Init(topo.ISD_AS, cfg.Sciond.Path, reliable.NewDispatcherService(""))
-	if err != nil {
-		return common.NewBasicError("Unable to initialize snet", err)
 	}
 	msgr.AddHandler(infra.ChainRequest, state.Store.NewChainReqHandler(true))
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))

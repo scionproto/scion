@@ -53,6 +53,7 @@ from topology.prometheus import (
 BS_QUIC_PORT = 30352
 PS_QUIC_PORT = 30353
 CS_QUIC_PORT = 30354
+SD_QUIC_PORT = 0
 
 
 class GoGenArgs(ArgsTopoDicts):
@@ -119,8 +120,7 @@ class GoGenerator(object):
             'beaconDB': beacon_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
-            'server': self._quic_server_conf_entry(infra_elem, BS_QUIC_PORT),
-            'client': self._quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
+            'quic': self._quic_conf_entry(BS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
 
@@ -152,8 +152,7 @@ class GoGenerator(object):
                 'SegSync': True,
             },
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
-            'server': self._quic_server_conf_entry(infra_elem, PS_QUIC_PORT),
-            'client': self._quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
+            'quic': self._quic_conf_entry(PS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
 
@@ -187,7 +186,7 @@ class GoGenerator(object):
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
             },
-            'client': self._quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
+            'quic': self._quic_conf_entry(SD_QUIC_PORT, self.args.svcfrac),
         }
         return raw_entry
 
@@ -220,8 +219,7 @@ class GoGenerator(object):
                 'ReissueTimeout': "5s",
             },
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
-            'server': self._quic_server_conf_entry(infra_elem, CS_QUIC_PORT),
-            'client': self._quic_client_conf_entry(self.args.qtest, self.args.svcfrac),
+            'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
 
@@ -284,16 +282,12 @@ class GoGenerator(object):
             'Prometheus': prom_addr
         }
 
-    def _quic_server_conf_entry(self, infra_elem, port):
+    def _quic_conf_entry(self, port, svcfrac, elem=None):
+        addr = "127.0.0.1" if elem is None else get_pub_ip(elem["Addrs"])
         return {
-            'QUICListen':  '[%s]:%s' % (get_pub_ip(infra_elem["Addrs"]), port),
-            'QUICCertFile': os.path.join(self.certs_dir, 'tls.pem'),
-            'QUICKeyFile': os.path.join(self.certs_dir, 'tls.key'),
-        }
-
-    def _quic_client_conf_entry(self, qtest, svcfrac):
-        return {
-            'EnableQUICTest': qtest,
+            'Address':  '[%s]:%s' % (addr, port),
+            'CertFile': os.path.join(self.certs_dir, 'tls.pem'),
+            'KeyFile': os.path.join(self.certs_dir, 'tls.key'),
             'ResolutionFraction': svcfrac,
         }
 

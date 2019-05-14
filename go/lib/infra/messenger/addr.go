@@ -23,8 +23,11 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/svc"
+	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Resolver performs SVC resolution for a remote AS, thus converting an anycast
@@ -40,6 +43,9 @@ type AddressRewriter struct {
 	// Router obtains path information to fill in address paths, if they are
 	// required and missing.
 	Router snet.Router
+	// SVCRouter builds overlay addresses for intra-AS SVC traffic, based on
+	// information found in the topology.
+	SVCRouter LocalSVCRouter
 	// Resolver performs SVC resolution if enabled.
 	Resolver Resolver
 	// SVCResolutionFraction enables SVC resolution for traffic to SVC
@@ -112,6 +118,16 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 	newAddr := snetAddr.Copy()
 
 	if newAddr.Path == nil {
+		// SVC addresses in the local AS get resolved via topology lookup
+		if svc, ok := newAddr.Host.L3.(addr.HostSVC); ok && r.Router.LocalIA() == newAddr.IA {
+			ov, err := r.SVCRouter.GetOverlay(svc)
+			if err != nil {
+				return nil, common.NewBasicError("Unable to resolve overlay", err)
+			}
+			newAddr.NextHop = ov
+			log.Trace("[Acceptance]", "overlay", ov)
+			return newAddr, nil
+		}
 		p, err := r.Router.Route(ctx, newAddr.IA)
 		if err != nil {
 			return nil, err
@@ -229,5 +245,47 @@ func BuildReply(address *addr.AppAddr) *svc.Reply {
 		Transports: map[svc.Transport]string{
 			svc.UDP: net.JoinHostPort(ip, port),
 		},
+	}
+}
+
+// LocalSVCRouter is used to construct overlay information for SVC servers
+// running in the local AS.
+type LocalSVCRouter interface {
+	// GetOverlay returns the overlay address of a SVC server of the specified
+	// type. When multiple servers are available, the choice is random.
+	GetOverlay(svc addr.HostSVC) (*overlay.OverlayAddr, error)
+}
+
+// NewSVCRouter build a SVC router backed by topology information from the
+// specified provider.
+func NewSVCRouter(tp topology.Provider) LocalSVCRouter {
+	return &baseSVCRouter{
+		topology: tp,
+	}
+}
+
+type baseSVCRouter struct {
+	topology topology.Provider
+}
+
+func (r *baseSVCRouter) GetOverlay(svc addr.HostSVC) (*overlay.OverlayAddr, error) {
+	topo := r.topology.Get()
+	topoAddr, err := topo.GetAnyTopoAddr(toProtoServiceType(svc))
+	if err != nil {
+		return nil, common.NewBasicError("Failed to look up SVC in topology", err, "svc", svc)
+	}
+	return topoAddr.OverlayAddr(topo.Overlay), nil
+}
+
+func toProtoServiceType(svc addr.HostSVC) proto.ServiceType {
+	switch svc {
+	case addr.SvcCS:
+		return proto.ServiceType_cs
+	case addr.SvcPS:
+		return proto.ServiceType_ps
+	case addr.SvcBS:
+		return proto.ServiceType_bs
+	default:
+		panic("bad service address")
 	}
 }

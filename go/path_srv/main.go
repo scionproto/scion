@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -124,13 +125,13 @@ func realMain() int {
 		SVC:                   addr.SvcPS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
-			Address:  cfg.Server.QUICListen,
-			CertFile: cfg.Server.QUICCertFile,
-			KeyFile:  cfg.Server.QUICKeyFile,
+			Address:  cfg.QUIC.Address,
+			CertFile: cfg.QUIC.CertFile,
+			KeyFile:  cfg.QUIC.KeyFile,
 		},
-		SVCResolutionFraction: cfg.Client.ResolutionFraction,
-		EnableQUICTest:        cfg.Client.EnableQUICTest,
+		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
 		TrustStore:            trustStore,
+		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	msger, err := nc.Messenger()
 	if err != nil {
