@@ -66,4 +66,6 @@ func CheckTestPSConfig(cfg *PSConfig, id string) {
 	pathstoragetest.CheckTestRevCacheConf(&cfg.RevCache)
 	SoMsg("SegSync set", cfg.SegSync, ShouldBeFalse)
 	SoMsg("QueryInterval correct", cfg.QueryInterval.Duration, ShouldEqual, DefaultQueryInterval)
+	SoMsg("CryptoSyncInterval correct", cfg.CryptoSyncInterval.Duration,
+		ShouldEqual, DefaultCryptoSyncInterval)
 }

@@ -39,7 +39,7 @@ test_setup() {
 
 test_run() {
     set -e
-    sleep 10
+    sleep 3
     check_connectivity "initial check"
 
     # Start serving dynamic topology with invalid beacon service.

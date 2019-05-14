@@ -18,8 +18,8 @@ test_setup() {
     set -e
     ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
     for sd in gen/ISD1/*/endhost/sd.toml; do
-        sed -i 's/Level = .*$/Level = "trace"/g' "$sd"
-        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
+        sed -i -e 's/Level = .*$/Level = "trace"/g'\
+               -e '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done
     ./scion.sh run nobuild
     ./tools/dc start tester_$SRC_IA_FILE

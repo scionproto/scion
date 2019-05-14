@@ -38,7 +38,7 @@ test_setup() {
 
 test_run() {
     set -e
-    sleep 10
+    sleep 5
     bin/end2end_integration -src $IA -dst $CORE_IA -attempts 5 -d || fail "FAIL: Traffic does not pass."
     # Make sure a reissue cycle has passed.
     sleep 10
