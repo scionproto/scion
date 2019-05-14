@@ -34,7 +34,6 @@ cmd_build() {
 
 cmd_tester() {
     set -eo pipefail
-    make -C docker/perapp base
     docker build -t "scion_tester:latest" - < docker/Dockerfile.tester
     docker build -f docker/acceptance/sig/Dockerfile -t "scion_sig_acceptance:latest" docker/acceptance/sig
 }
