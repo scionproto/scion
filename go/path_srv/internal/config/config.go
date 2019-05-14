@@ -29,7 +29,8 @@ import (
 )
 
 var (
-	DefaultQueryInterval = 5 * time.Minute
+	DefaultQueryInterval      = 5 * time.Minute
+	DefaultCryptoSyncInterval = 30 * time.Second
 )
 
 var _ config.Config = (*Config)(nil)
@@ -93,11 +94,17 @@ type PSConfig struct {
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap
+	// CryptoSyncInterval specifies the interval of crypto pushes towards
+	// the local CS.
+	CryptoSyncInterval util.DurWrap
 }
 
 func (cfg *PSConfig) InitDefaults() {
 	if cfg.QueryInterval.Duration == 0 {
 		cfg.QueryInterval.Duration = DefaultQueryInterval
+	}
+	if cfg.CryptoSyncInterval.Duration == 0 {
+		cfg.CryptoSyncInterval.Duration = DefaultCryptoSyncInterval
 	}
 	config.InitAll(&cfg.PathDB, &cfg.RevCache)
 }

@@ -15,10 +15,9 @@ AS_FILE="$(as_file $IA)"
 
 test_setup() {
     set -e
-    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    for sd in gen/ISD1/*/endhost/sd.toml; do
-        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
-    done
+    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -t
+    sed -i -e '/\[logging\.file\]/a FlushInterval = 1'\
+            -e '/\[ps\]/a\CryptoSyncInterval="1s"' gen/ISD1/*/ps*/ps.toml
     ./scion.sh run nobuild
     docker_status
 }
@@ -26,13 +25,13 @@ test_setup() {
 test_run() {
     set -e
     # Wait for the PS to be populated with crypto following beaconing
-    sleep 10
+    sleep 2
     local topo_file="gen/ISD1/AS$AS_FILE/ps$IA_FILE-1/topology.json"
     jq '.CertificateService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
     ./tools/dc scion kill -s HUP scion_ps$IA_FILE-1
-    # Wait for 30 (PS crypto push interval) + 1 (logging flush interval) + 30 (context timeout) + 1
-    # to guarantee a push is seen
-    sleep 62
+    # Wait for 1 (PS crypto push interval) + 1 (logging flush interval) 
+    # + 1  to guarantee a push is seen
+    sleep 3
     grep -q ".*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \
         fail "CryptoSync log entry with 127.42.42.42:39999 not found in logs"
 }

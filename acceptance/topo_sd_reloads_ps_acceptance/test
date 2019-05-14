@@ -16,11 +16,8 @@ DST_IA=${DST_IA:-1-ff00:0:110}
 
 test_setup() {
     set -e
-    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    for sd in gen/ISD1/*/endhost/sd.toml; do
-        sed -i 's/Level = .*$/Level = "trace"/g' "$sd"
-        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
-    done
+    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -t
+    sed -i '/\[logging\.file\]/a FlushInterval = 1' gen/ISD1/*/endhost/sd.toml
     ./scion.sh run nobuild
     ./tools/dc start tester_$SRC_IA_FILE
     docker_status

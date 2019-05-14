@@ -47,7 +47,7 @@ if is_docker_be; then
     ./tools/quiet ./tools/dc start "tester*"
 fi
 
-sleep 10
+sleep 5
 result=0
 
 # Run go integration tests

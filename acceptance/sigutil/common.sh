@@ -11,7 +11,7 @@ test_setup() {
     ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d --sig -n 242.254.0.0/16
     ./scion.sh run nobuild
     ./tools/dc start 'tester*'
-    sleep 10
+    sleep 7
     docker_status
 }
 

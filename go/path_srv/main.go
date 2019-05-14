@@ -225,7 +225,7 @@ func (t *periodicTasks) Start() {
 		DB:    t.trustDB,
 		Msger: t.msger,
 		IA:    t.args.IA,
-	}, periodic.NewTicker(30*time.Second), 30*time.Second)
+	}, periodic.NewTicker(cfg.PS.CryptoSyncInterval.Duration), cfg.PS.CryptoSyncInterval.Duration)
 	t.rcCleaner = periodic.StartPeriodicTask(revcache.NewCleaner(t.args.RevCache),
 		periodic.NewTicker(10*time.Second), 10*time.Second)
 	t.running = true

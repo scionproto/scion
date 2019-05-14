@@ -23,22 +23,20 @@ CORE_IA_FILE="$(ia_file $CORE_IA)"
 
 test_setup() {
     set -e
-    ./scion.sh topology nobuild -c $TEST_TOPOLOGY -d -cs=go
-    for cfg in gen/ISD1/*/cs*/cs.toml; do
-        sed -i -e 's/Level = .*$/Level = "trace"/g' \
-            -e '/\[logging\.file\]/a FlushInterval = 1' \
-            -e '/\[cs\]/a AutomaticRenewal = true' \
-            -e "s/LeafReissueLeadTime.\+/LeafReissueLeadTime = \"$((363 * 24* 60 * 60 - 10))s\"/" \
-            -e "s/IssuerReissueLeadTime.\+/IssuerReissueLeadTime = \"$((364 * 24* 60 * 60 - 10))s\"/" \
-            -e 's/ReissueRate.\+/ReissueRate = "1s"/' \
-            -e 's/ReissueTimeout.\+/ReissueTimeout = "5s"/' "$cfg"
-    done
+    ./scion.sh topology nobuild -c $TEST_TOPOLOGY -d -t
+    sed -i -e 's/Level = .*$/Level = "trace"/g' \
+        -e '/\[logging\.file\]/a FlushInterval = 1' \
+        -e '/\[cs\]/a AutomaticRenewal = true' \
+        -e "s/LeafReissueLeadTime.\+/LeafReissueLeadTime = \"$((363 * 24* 60 * 60 - 10))s\"/" \
+        -e "s/IssuerReissueLeadTime.\+/IssuerReissueLeadTime = \"$((364 * 24* 60 * 60 - 10))s\"/" \
+        -e 's/ReissueRate.\+/ReissueRate = "1s"/' \
+        -e 's/ReissueTimeout.\+/ReissueTimeout = "5s"/' gen/ISD1/*/cs*/cs.toml
    ./scion.sh run nobuild
 }
 
 test_run() {
     set -e
-    sleep 10
+    sleep 5
     bin/end2end_integration -src $IA -dst $CORE_IA -attempts 5 -d || fail "FAIL: Traffic does not pass."
     # Make sure a reissue cycle has passed.
     sleep 10

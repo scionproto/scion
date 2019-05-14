@@ -23,4 +23,7 @@ SegSync = false
 
 # The time after which segments for a destination are refetched. (default 5m)
 QueryInterval = "5m"
+
+# The interval of crypto pushes towards the local CS. (default 30s)
+CryptoSyncInterval = "30s"
 `
