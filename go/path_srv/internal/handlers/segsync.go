@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -66,7 +67,20 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
 	// TODO(scrye): investigate why passing the requester's address into the
 	// verification function doesn't work with QUIC.
-	h.verifyAndStore(subCtx, nil, segSync.Recs, segSync.SRevInfos)
+	snetPeer := h.request.Peer.(*snet.Addr)
+	peerPath, err := snetPeer.GetPath()
+	if err != nil {
+		logger.Error("[syncHandler] Failed to initialize path", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		return infra.MetricsErrInvalid
+	}
+	svcToQuery := &snet.Addr{
+		IA:      snetPeer.IA,
+		Path:    peerPath.Path(),
+		NextHop: peerPath.OverlayNextHop(),
+		Host:    addr.NewSVCUDPAppAddr(addr.SvcPS),
+	}
+	h.verifyAndStore(subCtx, svcToQuery, segSync.Recs, segSync.SRevInfos)
 	// TODO(lukedirtwalker): If all segments failed to verify the ack should also be negative here.
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
