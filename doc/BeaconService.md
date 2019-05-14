@@ -264,6 +264,8 @@ Core BSes
 *(uses: Interfaces.All)*
 
 Core BSes originate new beacons to child and neighboring core ASes.
+The periodic task has an interval that is less than the OriginateTime.
+Beacons are originated on all interfaces that do not have a origination in the last OriginateTime.
 
 1. Create a new PCB using the local IA and the current timestamp
 1. Propagate the PCB on all core and child interfaces.

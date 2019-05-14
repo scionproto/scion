@@ -25,18 +25,24 @@
 //
 // The originator should only be instantiated by core beacon servers. It
 // periodically creates fresh beacons and propagates them on all core and child
-// links.
+// links. In case the task is run before a full period has passed, beacons are
+// originated on all interfaces that have last been originated on more than one
+// period ago.
 //
 // Registrar
 //
 // The registrar is a periodic task to register segments with the appropriate
 // path server. Core and Up segments are registered with the local path server.
-// Down segments are registered with the originating core AS.
+// Down segments are registered with the originating core AS. In case the task
+// is run before a full period has passed, segments are only registered, if
+// there has not been a successful registration in the last period.
 //
 // Propagator
 //
 // The propagator is a periodic task to propagate beacons to the appropriate
 // neighboring ASes. In a core AS, the beacons are propagated to the neighbors
 // on all core link, unless they will create an AS loop. In a non-core AS, the
-// beacons are propagated to the neighbors on all child links.
+// beacons are propagated to the neighbors on all child links. In case the task
+// is run before a full period has passed, beacons are propagated on all
+// interfaces that have last been propagated on more than one period ago.
 package beaconing

@@ -39,26 +39,19 @@ const (
 // IfStatePusher is used to push interface state changes to the border
 // routers when an interface changes its state to active.
 type IfStatePusher interface {
-	Push(ctx context.Context)
-}
-
-// Beaconer immediately beacons on an interface that changed its state to
-// active.
-type Beaconer interface {
-	Beacon(ctx context.Context, ifid common.IFIDType)
+	Push(ctx context.Context, ifid common.IFIDType)
 }
 
 // RevDropper is used to drop revocations from the beacon store for
 // interfaces that change their state to active.
 type RevDropper interface {
-	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) (int, error)
+	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
 }
 
 // StateChangeTasks holds the tasks that are executed when the state of an
 // interface changes to active.
 type StateChangeTasks struct {
 	IfStatePusher IfStatePusher
-	Beaconer      Beaconer
 	RevDropper    RevDropper
 }
 
@@ -79,10 +72,9 @@ func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, tasks StateChangeTasks) i
 }
 
 type handler struct {
-	ia    addr.IA
-	intfs *ifstate.Interfaces
-	tasks StateChangeTasks
-
+	ia      addr.IA
+	intfs   *ifstate.Interfaces
+	tasks   StateChangeTasks
 	request *infra.Request
 }
 
@@ -103,20 +95,19 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 			"Wrong message type, expected ifid.IFID", nil,
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 	}
-	logger.Debug("[KeepaliveHandler] Received", "ifidKeepalive", keepalive)
+	logger.Trace("[KeepaliveHandler] Received", "ifidKeepalive", keepalive)
 	ifid, info, err := h.getIntfInfo()
 	if err != nil {
 		return infra.MetricsErrInvalid, err
 	}
 	if lastState := info.Activate(keepalive.OrigIfID); lastState != ifstate.Active {
 		logger.Info("[KeepaliveHandler] Activated interface", "ifid", ifid)
-		h.startBeacon(ifid)
-		h.startPush()
+		h.startPush(ifid)
 		if err := h.dropRevs(ifid, keepalive.OrigIfID, info.TopoInfo().ISD_AS); err != nil {
 			return infra.MetricsErrInternal, common.NewBasicError("Unable to drop revocations", err)
 		}
 	}
-	logger.Debug("[KeepaliveHandler] Successfully handled", "keepalive", keepalive)
+	logger.Trace("[KeepaliveHandler] Successfully handled", "keepalive", keepalive)
 	return infra.MetricsResultOk, nil
 }
 
@@ -143,30 +134,20 @@ func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Interface, error) {
 	return hopF.ConsIngress, info, nil
 }
 
-func (h *handler) startBeacon(ifid common.IFIDType) {
-	go func() {
-		defer log.LogPanicAndExit()
-		ctx, cancelF := context.WithTimeout(context.Background(), BeaconTimeout)
-		defer cancelF()
-		h.tasks.Beaconer.Beacon(ctx, ifid)
-	}()
-}
-
-func (h *handler) startPush() {
+func (h *handler) startPush(ifid common.IFIDType) {
 	go func() {
 		defer log.LogPanicAndExit()
 		ctx, cancelF := context.WithTimeout(context.Background(), IfStatePushTimeout)
 		defer cancelF()
-		h.tasks.IfStatePusher.Push(ctx)
+		h.tasks.IfStatePusher.Push(ctx, ifid)
 	}()
 }
 
 func (h *handler) dropRevs(localIfid, originIfid common.IFIDType, originIA addr.IA) error {
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), DropRevTimeout)
 	defer cancelF()
-	if _, err := h.tasks.RevDropper.DeleteRevocation(subCtx, h.ia, localIfid); err != nil {
+	if err := h.tasks.RevDropper.DeleteRevocation(subCtx, h.ia, localIfid); err != nil {
 		return err
 	}
-	_, err := h.tasks.RevDropper.DeleteRevocation(subCtx, originIA, originIfid)
-	return err
+	return h.tasks.RevDropper.DeleteRevocation(subCtx, originIA, originIfid)
 }

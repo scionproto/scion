@@ -17,6 +17,7 @@ package beaconing
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
@@ -39,6 +40,7 @@ type PropagatorConf struct {
 	Config         ExtenderConf
 	BeaconProvider BeaconProvider
 	Sender         *onehop.Sender
+	Period         time.Duration
 	Core           bool
 	AllowIsdLoop   bool
 }
@@ -53,6 +55,9 @@ type Propagator struct {
 	provider     BeaconProvider
 	allowIsdLoop bool
 	core         bool
+
+	// tick is mutable.
+	tick tick
 }
 
 // New creates a new beacon propagation task.
@@ -68,6 +73,7 @@ func (cfg PropagatorConf) New() (*Propagator, error) {
 		core:         cfg.Core,
 		allowIsdLoop: cfg.AllowIsdLoop,
 		segExtender:  extender,
+		tick:         tick{period: cfg.Period},
 	}
 	return p, nil
 }
@@ -77,20 +83,25 @@ func (cfg PropagatorConf) New() (*Propagator, error) {
 // interfaces. In a non-core beacon server, child interfaces are the target
 // interfaces.
 func (p *Propagator) Run(ctx context.Context) {
+	p.tick.now = time.Now()
 	if err := p.run(ctx); err != nil {
 		log.Error("[Propagator] Unable to propagate beacons", "err", err)
 	}
+	p.tick.updateLast()
 }
 
 func (p *Propagator) run(ctx context.Context) error {
+	intfs := p.needsBeacons()
+	if len(intfs) == 0 {
+		return nil
+	}
+	peers, nonActivePeers := sortedIntfs(p.cfg.Intfs, proto.LinkType_peer)
+	if len(nonActivePeers) > 0 && p.tick.passed() {
+		log.Debug("[Propagator] Ignore inactive peer links", "ifids", nonActivePeers)
+	}
 	beacons, err := p.provider.BeaconsToPropagate(ctx)
 	if err != nil {
 		return err
-	}
-	activeIntfs := p.activeIntfs()
-	peers, nonActivePeers := sortedIntfs(p.cfg.Intfs, proto.LinkType_peer)
-	if len(nonActivePeers) > 0 {
-		log.Debug("[Propagator] Ignore inactive peer links", "ifids", nonActivePeers)
 	}
 	wg := &sync.WaitGroup{}
 	for bOrErr := range beacons {
@@ -98,26 +109,36 @@ func (p *Propagator) run(ctx context.Context) error {
 			log.Error("[Propagator] Unable to get beacon", "err", err)
 			continue
 		}
-		p.startPropagate(bOrErr.Beacon, activeIntfs, peers, wg)
+		p.startPropagate(bOrErr.Beacon, intfs, peers, wg)
 	}
 	wg.Wait()
 	return nil
 }
 
-// activeIntfs returns a list of active interface ids that beacons should be
+// needsBeacons returns a list of active interface ids that beacons should be
 // propagated to. In a core AS, these are all active core links. In a non-core
 // AS, these are all active child links.
-func (p *Propagator) activeIntfs() []common.IFIDType {
+func (p *Propagator) needsBeacons() []common.IFIDType {
 	var activeIntfs, nonActiveIntfs []common.IFIDType
 	if p.core {
 		activeIntfs, nonActiveIntfs = sortedIntfs(p.cfg.Intfs, proto.LinkType_core)
 	} else {
 		activeIntfs, nonActiveIntfs = sortedIntfs(p.cfg.Intfs, proto.LinkType_child)
 	}
-	if len(nonActiveIntfs) > 0 {
+	if len(nonActiveIntfs) > 0 && p.tick.passed() {
 		log.Debug("[Propagator] Ignore inactive links", "ifids", nonActiveIntfs)
 	}
-	return activeIntfs
+	stale := make([]common.IFIDType, 0, len(activeIntfs))
+	for _, ifid := range activeIntfs {
+		intf := p.cfg.Intfs.Get(ifid)
+		if intf == nil {
+			continue
+		}
+		if p.tick.now.Sub(intf.LastPropagate()) > p.tick.period {
+			stale = append(stale, ifid)
+		}
+	}
+	return stale
 }
 
 // startPropagate adds to the wait group and starts propagation of the beacon on
@@ -179,7 +200,11 @@ func (p *Propagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDType,
 			log.Error("[Propagator] Unable to extend beacon", "beacon", bseg, "err", err)
 			return
 		}
-		topoInfo := p.cfg.Intfs.Get(egIfid).TopoInfo()
+		intf := p.cfg.Intfs.Get(egIfid)
+		if intf == nil {
+			log.Error("[Propagator] Interface removed", "egIfid", egIfid)
+		}
+		topoInfo := intf.TopoInfo()
 		msg, err := packBeaconMsg(&seg.Beacon{Segment: bseg.Segment}, topoInfo.ISD_AS,
 			egIfid, p.cfg.Signer)
 		if err != nil {
@@ -191,6 +216,7 @@ func (p *Propagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDType,
 			log.Error("[Propagator] Unable to send packet", "ifid", "err", err)
 			return
 		}
+		intf.Propagate(p.tick.now)
 		success.Inc()
 	}()
 }

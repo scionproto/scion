@@ -155,11 +155,20 @@ func realMain() int {
 	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
-	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.ISD_AS, intfs, keepaliveTasks()))
 	msgr.AddHandler(infra.SignedRev, revocation.NewHandler(store,
 		trustStore.NewVerifier(), 5*time.Second))
 	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.ISD_AS, intfs, store,
 		trustStore.NewVerifier()))
+	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.ISD_AS, intfs,
+		keepalive.StateChangeTasks{
+			RevDropper: store,
+			IfStatePusher: ifstate.PusherConf{
+				Intfs:        intfs,
+				Msgr:         msgr,
+				TopoProvider: itopo.Provider(),
+			}.New(),
+		}),
+	)
 	cfg.Metrics.StartPrometheus()
 	go func() {
 		defer log.LogPanicAndExit()
@@ -347,11 +356,12 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 			MTU:    uint16(topo.MTU),
 			Signer: signer,
 		},
+		Period: cfg.BS.OriginationInterval.Duration,
 	}.New()
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start originator", err)
 	}
-	return periodic.StartPeriodicTask(s, periodic.NewTicker(cfg.BS.OriginationInterval.Duration),
+	return periodic.StartPeriodicTask(s, periodic.NewTicker(500*time.Millisecond),
 		cfg.BS.OriginationInterval.Duration), nil
 }
 
@@ -377,11 +387,12 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 			MTU:    uint16(topo.MTU),
 			Signer: signer,
 		},
+		Period: cfg.BS.PropagationInterval.Duration,
 	}.New()
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start propagator", err)
 	}
-	return periodic.StartPeriodicTask(p, periodic.NewTicker(cfg.BS.PropagationInterval.Duration),
+	return periodic.StartPeriodicTask(p, periodic.NewTicker(500*time.Millisecond),
 		cfg.BS.PropagationInterval.Duration), nil
 }
 
@@ -416,6 +427,7 @@ func (t *periodicTasks) startRegistrar(topo *topology.Topo,
 		SegProvider:  t.store,
 		SegType:      segType,
 		TopoProvider: t.topoProvider,
+		Period:       cfg.BS.RegistrationInterval.Duration,
 		Config: beaconing.ExtenderConf{
 			Intfs:  t.intfs,
 			Mac:    t.genMac(),
@@ -426,7 +438,7 @@ func (t *periodicTasks) startRegistrar(topo *topology.Topo,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start registrar", err, "type", segType)
 	}
-	return periodic.StartPeriodicTask(r, periodic.NewTicker(cfg.BS.RegistrationInterval.Duration),
+	return periodic.StartPeriodicTask(r, periodic.NewTicker(500*time.Millisecond),
 		cfg.BS.RegistrationInterval.Duration), nil
 }
 
@@ -518,25 +530,4 @@ func handleTopoUpdate() {
 		return
 	}
 	intfs.Update(itopo.Get().IFInfoMap)
-}
-
-func keepaliveTasks() keepalive.StateChangeTasks {
-	return keepalive.StateChangeTasks{
-		Beaconer:      keepaliveMocker{},
-		IfStatePusher: keepaliveMocker{},
-		RevDropper:    keepaliveMocker{},
-	}
-}
-
-// FIXME(roosd): Implement appropriate callbacks.
-type keepaliveMocker struct{}
-
-func (keepaliveMocker) Push(_ context.Context) {}
-
-func (keepaliveMocker) Beacon(_ context.Context, _ common.IFIDType) {}
-
-func (keepaliveMocker) DeleteRevocation(_ context.Context, _ addr.IA,
-	_ common.IFIDType) (int, error) {
-
-	return 0, nil
 }

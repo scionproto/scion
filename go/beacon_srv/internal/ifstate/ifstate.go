@@ -132,12 +132,14 @@ func (intfs *Interfaces) Get(ifid common.IFIDType) *Interface {
 
 // Interface keeps track of the interface state.
 type Interface struct {
-	mu           sync.RWMutex
-	topoInfo     topology.IFInfo
-	state        State
-	revocation   *path_mgmt.SignedRevInfo
-	lastActivate time.Time
-	cfg          Config
+	mu            sync.RWMutex
+	topoInfo      topology.IFInfo
+	state         State
+	revocation    *path_mgmt.SignedRevInfo
+	lastOriginate time.Time
+	lastPropagate time.Time
+	lastActivate  time.Time
+	cfg           Config
 }
 
 // Activate activates the interface the keep alive is received from when
@@ -156,7 +158,8 @@ func (intf *Interface) Activate(remote common.IFIDType) State {
 
 // Expire checks whether the interface has not been activated for a certain
 // amount of time. If that is the case and the current state is inactive or
-// active, the state changes to Expired. The return value indicates,
+// active, the state changes to Expired. The times for last beacon origination
+// and propagation are reset to the zero value. The return value indicates,
 // whether the state is expired or revoked when the call returns.
 func (intf *Interface) Expire() bool {
 	intf.mu.Lock()
@@ -165,6 +168,8 @@ func (intf *Interface) Expire() bool {
 		return true
 	}
 	if time.Now().Sub(intf.lastActivate) > intf.cfg.KeepaliveTimeout {
+		intf.lastOriginate = time.Time{}
+		intf.lastPropagate = time.Time{}
 		intf.state = Expired
 		return true
 	}
@@ -207,11 +212,41 @@ func (intf *Interface) State() State {
 	return intf.state
 }
 
+// Originate sets the time this interface has been originated on last.
+func (intf *Interface) Originate(now time.Time) {
+	intf.mu.Lock()
+	defer intf.mu.Unlock()
+	intf.lastOriginate = now
+}
+
+// LastOriginate indicates the last time this interface has been originated on.
+func (intf *Interface) LastOriginate() time.Time {
+	intf.mu.RLock()
+	defer intf.mu.RUnlock()
+	return intf.lastOriginate
+}
+
+// Propagate sets the time this interface has been propagated on last.
+func (intf *Interface) Propagate(now time.Time) {
+	intf.mu.Lock()
+	defer intf.mu.Unlock()
+	intf.lastPropagate = now
+}
+
+// LastPropagate indicates the last time this interface has been propagated on.
+func (intf *Interface) LastPropagate() time.Time {
+	intf.mu.RLock()
+	defer intf.mu.RUnlock()
+	return intf.lastPropagate
+}
+
 func (intf *Interface) reset() {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
 	intf.state = Inactive
 	intf.revocation = nil
+	intf.lastOriginate = time.Time{}
+	intf.lastPropagate = time.Time{}
 	// Set the starting point for the timeout interval.
 	intf.lastActivate = time.Now()
 }

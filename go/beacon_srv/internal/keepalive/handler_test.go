@@ -60,23 +60,20 @@ func TestNewHandler(t *testing.T) {
 			// The wait group ensures all go routines are finished before
 			// the test finishes.
 			wg := &sync.WaitGroup{}
-			wg.Add(4)
+			wg.Add(3)
 			// Make sure the mock is executed exactly once and updates the waitgroup.
 			set := func(call *gomock.Call) *gomock.Call {
 				return call.Times(1).Do(func(_ ...interface{}) { wg.Done() })
 			}
 
 			pusher := mock_keepalive.NewMockIfStatePusher(mctrl)
-			beaconer := mock_keepalive.NewMockBeaconer(mctrl)
 			dropper := mock_keepalive.NewMockRevDropper(mctrl)
-			set(pusher.EXPECT().Push(gomock.Any()))
-			set(beaconer.EXPECT().Beacon(gomock.Any(), localIF))
-			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), localIA, localIF)).Return(0, nil)
-			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), originIA, originIF)).Return(0, nil)
+			set(pusher.EXPECT().Push(gomock.Any(), localIF))
+			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), localIA, localIF)).Return(nil)
+			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), originIA, originIF)).Return(nil)
 
 			handler := NewHandler(localIA, testInterfaces(), StateChangeTasks{
 				IfStatePusher: pusher,
-				Beaconer:      beaconer,
 				RevDropper:    dropper,
 			})
 			req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
@@ -138,7 +135,6 @@ func testInterfaces() *ifstate.Interfaces {
 func zeroCallTasks(mctrl *gomock.Controller) StateChangeTasks {
 	return StateChangeTasks{
 		IfStatePusher: mock_keepalive.NewMockIfStatePusher(mctrl),
-		Beaconer:      mock_keepalive.NewMockBeaconer(mctrl),
 		RevDropper:    mock_keepalive.NewMockRevDropper(mctrl),
 	}
 }

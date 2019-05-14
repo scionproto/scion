@@ -35,12 +35,16 @@ var _ periodic.Task = (*Originator)(nil)
 type OriginatorConf struct {
 	Config ExtenderConf
 	Sender *onehop.Sender
+	Period time.Duration
 }
 
 // Originator originates beacons. It should only be used by core ASes.
 type Originator struct {
 	*segExtender
 	sender *onehop.Sender
+
+	// tick is mutable.
+	tick tick
 }
 
 // New creates a new originator.
@@ -54,26 +58,28 @@ func (cfg OriginatorConf) New() (*Originator, error) {
 	o := &Originator{
 		sender:      cfg.Sender,
 		segExtender: extender,
+		tick:        tick{period: cfg.Period},
 	}
 	return o, nil
 }
 
 // Run originates core and downstream beacons.
 func (o *Originator) Run(_ context.Context) {
+	o.tick.now = time.Now()
 	o.originateBeacons(proto.LinkType_core)
 	o.originateBeacons(proto.LinkType_child)
+	o.tick.updateLast()
 }
 
 // originateBeacons creates and sends a beacon for each active interface of
 // the specified link type.
 func (o *Originator) originateBeacons(linkType proto.LinkType) {
-
 	active, nonActive := sortedIntfs(o.cfg.Intfs, linkType)
-	if len(nonActive) > 0 {
+	if len(nonActive) > 0 && o.tick.passed() {
 		log.Debug("[Originator] Ignore non-active interfaces", "intfs", nonActive)
 	}
-	infoF := o.createInfoF(time.Now())
-	for _, ifid := range active {
+	infoF := o.createInfoF(o.tick.now)
+	for _, ifid := range o.needBeacon(active) {
 		if err := o.originateBeacon(ifid, infoF); err != nil {
 			log.Error("[Originator] Unable to originate on interface", "ifid", ifid, "err", err)
 		}
@@ -88,6 +94,24 @@ func (o *Originator) createInfoF(now time.Time) spath.InfoField {
 		TsInt:   util.TimeToSecs(now),
 	}
 	return infoF
+}
+
+// needBeacon returns a list of interfaces that need a beacon.
+func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
+	if o.tick.passed() {
+		return active
+	}
+	stale := make([]common.IFIDType, 0, len(active))
+	for _, ifid := range active {
+		intf := o.cfg.Intfs.Get(ifid)
+		if intf == nil {
+			continue
+		}
+		if o.tick.now.Sub(intf.LastOriginate()) > o.tick.period {
+			stale = append(stale, ifid)
+		}
+	}
+	return stale
 }
 
 // originateBeacon originates a beacon on the given ifid.
@@ -105,6 +129,7 @@ func (o *Originator) originateBeacon(ifid common.IFIDType, infoF spath.InfoField
 	if err := o.sender.Send(msg, ov); err != nil {
 		return common.NewBasicError("Unable to send packet", err)
 	}
+	intf.Originate(o.tick.now)
 	return nil
 }
 
