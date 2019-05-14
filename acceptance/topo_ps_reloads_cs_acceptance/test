@@ -15,11 +15,9 @@ AS_FILE="$(as_file $IA)"
 
 test_setup() {
     set -e
-    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    for ps in gen/ISD1/*/ps*/ps.toml; do
-        sed -i -e '/\[logging\.file\]/a FlushInterval = 1'\
-               -e '/\[ps\]/a\CryptoSyncInterval="1s"' "$ps"
-    done
+    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -t
+    sed -i -e '/\[logging\.file\]/a FlushInterval = 1'\
+            -e '/\[ps\]/a\CryptoSyncInterval="1s"' gen/ISD1/*/ps*/ps.toml
     ./scion.sh run nobuild
     docker_status
 }
