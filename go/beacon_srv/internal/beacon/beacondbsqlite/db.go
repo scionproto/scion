@@ -75,7 +75,7 @@ func (b *Backend) BeginTransaction(ctx context.Context,
 	defer b.Unlock()
 	tx, err := b.db.BeginTx(ctx, opts)
 	if err != nil {
-		return nil, common.NewBasicError("Failed to create transaction", err)
+		return nil, db.NewTxError("create tx", err)
 	}
 	return &transaction{
 		executor: &executor{
@@ -130,7 +130,7 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.Revocation
 	query := `SELECT RawSignedRev FROM Revocations`
 	rows, err := e.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, common.NewBasicError("Error selecting revocations", err)
+		return nil, db.NewReadError("Error selecting revocations", err)
 	}
 	res := make(chan beacon.RevocationOrErr)
 	go func() {
@@ -141,12 +141,12 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.Revocation
 			var rawRev common.RawBytes
 			err = rows.Scan(&rawRev)
 			if err != nil {
-				res <- beacon.RevocationOrErr{Err: common.NewBasicError(beacon.ErrReadingRows, err)}
+				res <- beacon.RevocationOrErr{Err: db.NewReadError(beacon.ErrReadingRows, err)}
 				return
 			}
 			srev, err := path_mgmt.NewSignedRevInfoFromRaw(rawRev)
 			if err != nil {
-				err = common.NewBasicError(beacon.ErrParse, err)
+				err = db.NewDataError(beacon.ErrParse, err)
 			}
 			res <- beacon.RevocationOrErr{
 				Rev: srev,
@@ -163,13 +163,10 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.Revocation
 func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 	e.RLock()
 	defer e.RUnlock()
-	if e.db == nil {
-		return nil, common.NewBasicError("No database open", nil)
-	}
 	query := `SELECT DISTINCT StartIsd, StartAs FROM BEACONS`
 	rows, err := e.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, common.NewBasicError("Error selecting source IAs", err)
+		return nil, db.NewReadError("Error selecting source IAs", err)
 	}
 	defer rows.Close()
 	var ias []addr.IA
@@ -191,9 +188,6 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 
 	e.RLock()
 	defer e.RUnlock()
-	if e.db == nil {
-		return nil, common.NewBasicError("No database open", nil)
-	}
 	srcCond := ``
 	if !src.IsZero() {
 		srcCond = `AND StartIsd == ?4 AND StartAs == ?5`
@@ -213,7 +207,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 	rows, err := e.db.QueryContext(ctx, query, usage, setSize, util.TimeToSecs(time.Now()),
 		src.I, src.A)
 	if err != nil {
-		return nil, common.NewBasicError("Error selecting beacons", err)
+		return nil, db.NewReadError("Error selecting beacons", err)
 	}
 	defer rows.Close()
 	beacons := make([]beacon.Beacon, 0, setSize)
@@ -223,12 +217,12 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 		var rawBeacon sql.RawBytes
 		var inIntfId common.IFIDType
 		if err = rows.Scan(&rawBeacon, &inIntfId); err != nil {
-			errors = append(errors, common.NewBasicError(beacon.ErrReadingRows, err))
+			errors = append(errors, db.NewReadError(beacon.ErrReadingRows, err))
 			continue
 		}
 		s, err := seg.NewBeaconFromRaw(common.RawBytes(rawBeacon))
 		if err != nil {
-			errors = append(errors, common.NewBasicError(beacon.ErrParse, err))
+			errors = append(errors, db.NewDataError(beacon.ErrParse, err))
 			continue
 		}
 		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfId})
@@ -258,14 +252,14 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 	// Compute ids outside of the lock.
 	segId, err := b.Segment.ID()
 	if err != nil {
-		return 0, err
+		return 0, db.NewInputDataError("extract id", err)
 	}
 	if _, err := b.Segment.FullId(); err != nil {
-		return 0, err
+		return 0, db.NewInputDataError("extract full id", err)
 	}
 	info, err := b.Segment.InfoF()
 	if err != nil {
-		return 0, err
+		return 0, db.NewInputDataError("extract infof", err)
 	}
 
 	e.Lock()
@@ -306,7 +300,7 @@ func (e *executor) getBeaconMeta(ctx context.Context, segID common.RawBytes) (*b
 		return nil, nil
 	}
 	if err != nil {
-		return nil, common.NewBasicError("Failed to lookup beacon", err)
+		return nil, db.NewReadError("Failed to lookup beacon", err)
 	}
 	meta := &beaconMeta{
 		RowID:       rowId,
@@ -341,7 +335,7 @@ func (e *executor) updateExistingBeacon(ctx context.Context, b beacon.Beacon,
 	_, err = e.db.ExecContext(ctx, inst, fullId, b.InIfId, len(b.Segment.ASEntries), infoTime,
 		expTime, lastUpdated, usage, packedSeg, rowId)
 	if err != nil {
-		return common.NewBasicError("Failed to update segment", err)
+		return db.NewWriteError("update segment", err)
 	}
 	return nil
 }
@@ -351,19 +345,19 @@ func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 
 	segId, err := b.Segment.ID()
 	if err != nil {
-		return err
+		return db.NewInputDataError("extract id", err)
 	}
 	fullId, err := b.Segment.FullId()
 	if err != nil {
-		return err
+		return db.NewInputDataError("extract full id", err)
 	}
 	packed, err := b.Segment.Pack()
 	if err != nil {
-		return err
+		return db.NewInputDataError("pack segment", err)
 	}
 	info, err := b.Segment.InfoF()
 	if err != nil {
-		return err
+		return db.NewInputDataError("extract infof", err)
 	}
 	start := b.Segment.FirstIA()
 	infoTime := info.Timestamp().Unix()
@@ -379,11 +373,11 @@ func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 	res, err := tx.ExecContext(ctx, inst, segId, fullId, start.I, start.A, b.InIfId,
 		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, usage, packed)
 	if err != nil {
-		return common.NewBasicError("Failed to insert beacon", err)
+		return db.NewWriteError("insert beacon", err)
 	}
 	rowId, err := res.LastInsertId()
 	if err != nil {
-		return common.NewBasicError("Failed to retrieve RowID of inserted beacon", err)
+		return db.NewWriteError("retrieve RowID of inserted beacon", err)
 	}
 	// Insert all interfaces.
 	if err = insertInterfaces(ctx, tx, b, rowId, localIA); err != nil {
@@ -399,7 +393,7 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 				VALUES (?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, stmtStr)
 	if err != nil {
-		return common.NewBasicError("Failed to prepare insert into IntfToBeacon", err)
+		return db.NewWriteError("prepare insert into IntfToBeacon", err)
 	}
 	defer stmt.Close()
 	for _, as := range b.Segment.ASEntries {
@@ -407,13 +401,13 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 		// Do not insert peering interfaces.
 		hof, err := as.HopEntries[0].HopField()
 		if err != nil {
-			return common.NewBasicError("Failed to extract hop field", err)
+			return db.NewInputDataError("extract hop field", err)
 		}
 		// Ignore the null interface of the first hop.
 		if hof.ConsIngress != 0 {
 			_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, rowId)
 			if err != nil {
-				return common.NewBasicError("Failed to insert Ingress into IntfToSeg", err,
+				return db.NewWriteError("insert Ingress into IntfToSeg", err,
 					"ia", ia, "hof", hof)
 			}
 		}
@@ -421,14 +415,14 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 		if hof.ConsEgress != 0 {
 			_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, rowId)
 			if err != nil {
-				return common.NewBasicError("Failed to insert Egress into IntfToSeg", err,
+				return db.NewWriteError("insert Egress into IntfToSeg", err,
 					"ia", ia, "hof", hof)
 			}
 		}
 	}
 	_, err = stmt.ExecContext(ctx, localIA.I, localIA.A, b.InIfId, rowId)
 	if err != nil {
-		return common.NewBasicError("Failed to insert Ingress into IntfToSeg", err,
+		return db.NewWriteError("insert Ingress into IntfToSeg", err,
 			"ia", localIA, "inIfId", b.InIfId)
 	}
 	return nil
@@ -446,9 +440,6 @@ func (e *executor) deleteInTx(ctx context.Context,
 
 	e.Lock()
 	defer e.Unlock()
-	if e.db == nil {
-		return 0, common.NewBasicError("No database open", nil)
-	}
 	return db.DeleteInTx(ctx, e.db, delFunc)
 }
 
@@ -472,11 +463,11 @@ func (e *executor) InsertRevocation(ctx context.Context,
 
 	revInfo, err := revocation.RevInfo()
 	if err != nil {
-		return common.NewBasicError("Failed to extract revocation", err)
+		return db.NewInputDataError("extract revocation", err)
 	}
 	packedRev, err := revocation.Pack()
 	if err != nil {
-		return common.NewBasicError("Failed to pack revocation", err)
+		return db.NewInputDataError("pack revocation", err)
 	}
 	e.Lock()
 	defer e.Unlock()
@@ -488,7 +479,7 @@ func (e *executor) InsertRevocation(ctx context.Context,
 	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		existingRev, err := containsNewerRev(ctx, tx, revInfo)
 		if err != nil {
-			return common.NewBasicError("Failed to check for existing rev", err)
+			return db.NewReadError("check for existing rev", err)
 		}
 		if !existingRev {
 			_, err = tx.ExecContext(ctx, query, revInfo.IA().I, revInfo.IA().A, revInfo.IfID,
