@@ -37,7 +37,6 @@ pkg_tar(
         "//go/tools/scmp/scmp_integration:scmp_integration",
         "//go/tools/showpaths:showpaths",
         "//go/sig:sig",
-        "//go/acceptance/sig_iperf_acceptance:sig_iperf_acceptance",
         "//go/acceptance/sig_ping_acceptance:sig_ping_acceptance",
         "//go/tools/topopruner:topopruner",
     ],
