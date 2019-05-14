@@ -45,12 +45,13 @@ var _ periodic.Task = (*Registrar)(nil)
 
 // RegistrarConf is the configuration to create a new registrar.
 type RegistrarConf struct {
-	Config       ExtenderConf
-	SegProvider  SegmentProvider
-	TopoProvider topology.Provider
-	Msgr         infra.Messenger
-	Period       time.Duration
-	SegType      proto.PathSegType
+	Config        ExtenderConf
+	SegProvider   SegmentProvider
+	TopoProvider  topology.Provider
+	Msgr          infra.Messenger
+	Period        time.Duration
+	SegType       proto.PathSegType
+	EnableMetrics bool
 }
 
 // Registrar is used to periodically register path segments with the appropriate
@@ -61,6 +62,7 @@ type Registrar struct {
 	msgr         infra.Messenger
 	segProvider  SegmentProvider
 	topoProvider topology.Provider
+	metrics      *registrarMetrics
 	segType      proto.PathSegType
 
 	// mutable fields
@@ -83,6 +85,9 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 		tick:         tick{period: cfg.Period},
 		segExtender:  extender,
 	}
+	if cfg.EnableMetrics {
+		r.metrics = newRegistrarMetrics()
+	}
 	return r, nil
 }
 
@@ -92,6 +97,7 @@ func (r *Registrar) Run(ctx context.Context) {
 	if err := r.run(ctx); err != nil {
 		log.Error("[Registrar] Unable to register", "type", r.segType, "err", err)
 	}
+	r.metrics.AddTotalTime(r.tick.now)
 	r.tick.updateLast()
 }
 
@@ -117,7 +123,7 @@ func (r *Registrar) run(ctx context.Context) error {
 			continue
 		}
 		// Avoid head-of-line blocking when sending message to slow servers.
-		r.startSendSegReg(ctx, reg, saddr, wg, &success, &sendErr)
+		r.startSendSegReg(ctx, bOrErr.Beacon, reg, saddr, wg, &success, &sendErr)
 	}
 	wg.Wait()
 	total := success.c + segErr.c + sendErr.c
@@ -133,8 +139,8 @@ func (r *Registrar) run(ctx context.Context) error {
 
 // startSendSegReg adds to the wait group and starts a goroutine that sends the
 // registration message to the peer.
-func (r *Registrar) startSendSegReg(ctx context.Context, reg *path_mgmt.SegReg, saddr net.Addr,
-	wg *sync.WaitGroup, success, sendErr *ctr) {
+func (r *Registrar) startSendSegReg(ctx context.Context, bseg beacon.Beacon, reg *path_mgmt.SegReg,
+	saddr net.Addr, wg *sync.WaitGroup, success, sendErr *ctr) {
 
 	wg.Add(1)
 	go func() {
@@ -143,21 +149,25 @@ func (r *Registrar) startSendSegReg(ctx context.Context, reg *path_mgmt.SegReg, 
 		if err := r.msgr.SendSegReg(ctx, reg, saddr, messenger.NextId()); err != nil {
 			log.Error("[Registrar] Unable to register segment", "addr", saddr, "err", err)
 			sendErr.Inc()
+			r.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, metricsSendErr)
 			return
 		}
 		log.Debug("[Registrar] Successfully registered segment", "addr", saddr,
 			"seg", reg.Recs[0].Segment)
 		success.Inc()
+		r.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, metricsSuccess)
 	}()
 }
 
 func (r *Registrar) segToRegister(ctx context.Context, peers []common.IFIDType,
 	bOrErr beacon.BeaconOrErr) (*path_mgmt.SegReg, net.Addr, error) {
 	if bOrErr.Err != nil {
+		r.metrics.IncInternalErr()
 		return nil, nil, bOrErr.Err
 	}
 	pseg := bOrErr.Beacon.Segment
 	if err := r.extend(pseg, bOrErr.Beacon.InIfId, 0, peers); err != nil {
+		r.metrics.IncTotalBeacons(pseg.FirstIA(), bOrErr.Beacon.InIfId, metricsCreateErr)
 		return nil, nil, common.NewBasicError("Unable to terminate", err, "beacon", bOrErr.Beacon)
 	}
 	reg := &path_mgmt.SegReg{
@@ -172,6 +182,7 @@ func (r *Registrar) segToRegister(ctx context.Context, peers []common.IFIDType,
 	}
 	saddr, err := r.chooseServer(pseg)
 	if err != nil {
+		r.metrics.IncInternalErr()
 		return nil, nil, common.NewBasicError("Unable to choose server", err)
 	}
 	return reg, saddr, nil
