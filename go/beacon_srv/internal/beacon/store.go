@@ -16,7 +16,6 @@ package beacon
 
 import (
 	"context"
-	"database/sql"
 	"sync"
 	"time"
 
@@ -148,12 +147,7 @@ func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType proto.PathSe
 // getBeacons fetches the candidate beacons from the database and serves the
 // best beacons according to the policy.
 func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan BeaconOrErr, error) {
-	tx, err := s.db.BeginTransaction(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Commit()
-	srcs, err := tx.BeaconSources(ctx)
+	srcs, err := s.db.BeaconSources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -161,11 +155,12 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 	wg := sync.WaitGroup{}
 	var errs []addr.IA
 	for _, src := range srcs {
-		beacons, err := tx.CandidateBeacons(ctx, policy.CandidateSetSize,
+		beacons, err := s.db.CandidateBeacons(ctx, policy.CandidateSetSize,
 			UsageFromPolicyType(policy.Type), src)
 		// Must not return, as the beacon channels have to be drained and a
 		// partial result is better than no result at all.
 		if err != nil {
+			log.Error("Error getting candidate beacons", "src", src, "err", err)
 			errs = append(errs, src)
 			continue
 		}
