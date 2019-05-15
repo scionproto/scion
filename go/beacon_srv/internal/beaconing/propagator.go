@@ -116,7 +116,7 @@ func (p *Propagator) run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	for bOrErr := range beacons {
 		if bOrErr.Err != nil {
-			log.Error("[Propagator] Unable to get beacon", "err", err)
+			log.Error("[Propagator] Unable to get beacon", "err", bOrErr.Err)
 			p.metrics.IncInternalErr()
 			continue
 		}
