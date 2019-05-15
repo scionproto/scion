@@ -8,6 +8,9 @@ go_library(
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
+        "//go/lib/ctrl:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/infra:go_default_library",
         "//go/lib/l4:go_default_library",
         "//go/lib/layers:go_default_library",
         "//go/lib/overlay:go_default_library",

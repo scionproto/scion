@@ -22,6 +22,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -98,4 +101,36 @@ func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) 
 	defer s.macMtx.Unlock()
 	path := spath.NewOneHop(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
 	return (*Path)(path), path.InitOffsets()
+}
+
+// BeaconSender is used to send beacons on a one-hop path.
+type BeaconSender struct {
+	Sender
+}
+
+func (s *BeaconSender) Send(bseg *seg.Beacon, ia addr.IA, egIfid common.IFIDType,
+	signer infra.Signer, ov *overlay.OverlayAddr) error {
+
+	pld, err := ctrl.NewPld(bseg, nil)
+	if err != nil {
+		return common.NewBasicError("Unable to create payload", err)
+	}
+	spld, err := pld.SignedPld(signer)
+	if err != nil {
+		return common.NewBasicError("Unable to sign payload", err)
+	}
+	packed, err := spld.PackPld()
+	if err != nil {
+		return common.NewBasicError("Unable to pack payload", err)
+	}
+	msg := &Msg{
+		Dst: snet.SCIONAddress{
+			IA:   ia,
+			Host: addr.SvcBS,
+		},
+		Ifid:     egIfid,
+		InfoTime: time.Now(),
+		Pld:      packed,
+	}
+	return s.Sender.Send(msg, ov)
 }

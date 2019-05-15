@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
@@ -36,7 +35,7 @@ var _ periodic.Task = (*Originator)(nil)
 // OriginatorConf is the configuration to create a new originator.
 type OriginatorConf struct {
 	Config        ExtenderConf
-	Sender        *onehop.Sender
+	BeaconSender  *onehop.BeaconSender
 	Period        time.Duration
 	EnableMetrics bool
 }
@@ -44,8 +43,8 @@ type OriginatorConf struct {
 // Originator originates beacons. It should only be used by core ASes.
 type Originator struct {
 	*segExtender
-	sender  *onehop.Sender
-	metrics *metrics.Originator
+	beaconSender *onehop.BeaconSender
+	metrics      *metrics.Originator
 
 	// tick is mutable.
 	tick tick
@@ -60,9 +59,9 @@ func (cfg OriginatorConf) New() (*Originator, error) {
 		return nil, err
 	}
 	o := &Originator{
-		sender:      cfg.Sender,
-		segExtender: extender,
-		tick:        tick{period: cfg.Period},
+		beaconSender: cfg.BeaconSender,
+		segExtender:  extender,
+		tick:         tick{period: cfg.Period},
 	}
 	if cfg.EnableMetrics {
 		o.metrics = metrics.InitOriginator()
@@ -110,7 +109,7 @@ func (o *Originator) originateBeacons(linkType proto.LinkType) {
 func (o *Originator) createInfoF(now time.Time) spath.InfoField {
 	infoF := spath.InfoField{
 		ConsDir: true,
-		ISD:     uint16(o.sender.IA.I),
+		ISD:     uint16(o.beaconSender.IA.I),
 		TsInt:   util.TimeToSecs(now),
 	}
 	return infoF
@@ -159,28 +158,26 @@ func (o *beaconOriginator) originateBeacon() error {
 		return common.NewBasicError("Interface does not exist", nil)
 	}
 	topoInfo := intf.TopoInfo()
-	msg, err := o.createBeaconMsg(topoInfo.ISD_AS)
-	if err != nil {
-		o.metrics.IncTotalBeacons(o.ifId, metrics.CreateErr)
-		return err
-	}
 	ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
-	if err := o.sender.Send(msg, ov); err != nil {
+
+	bseg, err := o.createBeacon()
+	if err != nil {
+		return common.NewBasicError("Unable to create beacon", err, "ifid", o.ifId)
+	}
+
+	err = o.beaconSender.Send(
+		bseg,
+		topoInfo.ISD_AS,
+		o.ifId,
+		o.cfg.Signer,
+		ov,
+	)
+	if err != nil {
 		o.metrics.IncTotalBeacons(o.ifId, metrics.SendErr)
 		return common.NewBasicError("Unable to send packet", err)
 	}
 	o.onSuccess(intf)
 	return nil
-}
-
-// createBeaconMsg creates a beacon for the given interface, signs it and
-// wraps it in a one-hop message.
-func (o *beaconOriginator) createBeaconMsg(remoteIA addr.IA) (*onehop.Msg, error) {
-	bseg, err := o.createBeacon()
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create beacon", err, "ifid", o.ifId)
-	}
-	return packBeaconMsg(bseg, remoteIA, o.ifId, o.cfg.Signer)
 }
 
 func (o *beaconOriginator) createBeacon() (*seg.Beacon, error) {

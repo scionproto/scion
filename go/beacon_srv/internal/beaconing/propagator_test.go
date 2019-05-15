@@ -151,14 +151,16 @@ func TestPropagatorRun(t *testing.T) {
 				},
 				BeaconProvider: provider,
 				Core:           test.core,
-				Sender: &onehop.Sender{
-					IA:   topoProvider.Get().ISD_AS,
-					Conn: conn,
-					Addr: &addr.AppAddr{
-						L3: addr.HostFromIPStr("127.0.0.1"),
-						L4: addr.NewL4UDPInfo(4242),
+				BeaconSender: &onehop.BeaconSender{
+					Sender: onehop.Sender{
+						IA:   topoProvider.Get().ISD_AS,
+						Conn: conn,
+						Addr: &addr.AppAddr{
+							L3: addr.HostFromIPStr("127.0.0.1"),
+							L4: addr.NewL4UDPInfo(4242),
+						},
+						MAC: macSender,
 					},
-					MAC: macSender,
 				},
 			}
 			p, err := cfg.New()
