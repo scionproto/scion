@@ -189,9 +189,13 @@ func New(config *Config) *Messenger {
 	}
 	config.InitDefaults()
 
+	// Parent context for all handlers
+	ctx, cancelF := context.WithCancel(context.Background())
+
 	var quicServer *rpc.Server
 	var quicClient *rpc.Client
 	var quicHandler *QUICHandler
+
 	if config.QUIC != nil {
 		quicClient = &rpc.Client{
 			Conn:       config.QUIC.Conn,
@@ -199,7 +203,10 @@ func New(config *Config) *Messenger {
 			QUICConfig: config.QUIC.QUICConfig,
 		}
 		quicHandler = &QUICHandler{
-			handlers: make(map[infra.MessageType]infra.Handler),
+			handlers:     make(map[infra.MessageType]infra.Handler),
+			timeout:      config.HandlerTimeout,
+			parentLogger: config.Logger,
+			parentCtx:    ctx,
 		}
 		quicServer = &rpc.Server{
 			Conn:       config.QUIC.Conn,
@@ -214,7 +221,6 @@ func New(config *Config) *Messenger {
 	// unsigned messages are supported. The content of received messages is
 	// processed in the relevant handlers which have their own reference to the
 	// trustStore.
-	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
 		ia:              config.IA,
 		config:          config,

@@ -17,10 +17,12 @@ package messenger
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var _ rpc.Handler = (*QUICHandler)(nil)
@@ -30,6 +32,10 @@ var _ rpc.Handler = (*QUICHandler)(nil)
 type QUICHandler struct {
 	handlersLock sync.RWMutex
 	handlers     map[infra.MessageType]infra.Handler
+
+	timeout      time.Duration
+	parentLogger log.Logger
+	parentCtx    context.Context
 }
 
 func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
@@ -58,12 +64,17 @@ func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 	handler := h.handlers[messageType]
 	h.handlersLock.RUnlock()
 
-	serveCtx := infra.NewContextWithResponseWriter(context.Background(),
+	serveCtx, serveCancelF := context.WithTimeout(h.parentCtx, h.timeout)
+	defer serveCancelF()
+
+	serveCtx = infra.NewContextWithResponseWriter(serveCtx,
 		&QUICResponseWriter{
 			ReplyWriter: rw,
 			ID:          pld.ReqId,
 		},
 	)
+	serveCtx = log.CtxWith(serveCtx, h.parentLogger.New("debug_id", util.GetDebugID()))
+
 	handler.Handle(infra.NewRequest(serveCtx, messageContent, signedPld,
 		request.Address, pld.ReqId))
 }
