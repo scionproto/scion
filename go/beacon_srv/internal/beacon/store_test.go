@@ -321,7 +321,6 @@ func testCoreStoreSelection(t *testing.T,
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			db := mock_beacon.NewMockDB(mctrl)
-			tx := mock_beacon.NewMockTransaction(mctrl)
 			policies := beacon.CorePolicies{
 				Prop:    beacon.Policy{BestSetSize: test.bestSize},
 				CoreReg: beacon.Policy{BestSetSize: test.bestSize},
@@ -341,12 +340,10 @@ func testCoreStoreSelection(t *testing.T,
 					return results, nil
 				}
 			}
-			db.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).Return(tx, nil)
-			tx.EXPECT().Commit()
-			tx.EXPECT().BeaconSources(gomock.Any()).Return([]addr.IA{ia120, ia130}, nil)
-			tx.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
+			db.EXPECT().BeaconSources(gomock.Any()).Return([]addr.IA{ia120, ia130}, nil)
+			db.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
 				ia120).DoAndReturn(responder(ia120))
-			tx.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
+			db.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
 				ia130).DoAndReturn(responder(ia130))
 
 			res, err := methodToTest(store)
