@@ -95,7 +95,7 @@ func (o *Originator) originateBeacons(linkType proto.LinkType) {
 			log.Error("[Originator] Unable to originate on interface", "ifid", ifid, "err", err)
 		}
 	}
-
+	o.logSummary(s, linkType)
 }
 
 // createInfoF creates the info field.

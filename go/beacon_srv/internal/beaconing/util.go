@@ -120,6 +120,7 @@ func (s *summary) IfIds() []common.IFIDType {
 	for ifId := range s.ifIds {
 		list = append(list, ifId)
 	}
+	sort.Slice(list, func(i, j int) bool { return list[i] < list[j] })
 	return list
 }
 

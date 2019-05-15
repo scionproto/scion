@@ -140,11 +140,12 @@ func (r *Registrar) run(ctx context.Context) error {
 
 func (r *Registrar) logSummary(s *summary) {
 	if r.tick.passed() {
-		log.Info("[Registrar] Registered beacons", "count", s.count, "startIAs", len(s.srcs))
+		log.Info("[Registrar] Registered beacons", "type", r.segType, "count", s.count,
+			"startIAs", len(s.srcs))
 		return
 	}
-	log.Info("[Registrar] Registered beacons after stale period", "count", s.count,
-		"startIAs", len(s.srcs))
+	log.Info("[Registrar] Registered beacons after stale period", "type", r.segType,
+		"count", s.count, "startIAs", len(s.srcs))
 }
 
 // segmentRegistrar registers one segment with the path server.
