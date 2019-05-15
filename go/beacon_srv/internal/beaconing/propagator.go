@@ -41,7 +41,7 @@ var _ periodic.Task = (*Propagator)(nil)
 type PropagatorConf struct {
 	Config         ExtenderConf
 	BeaconProvider BeaconProvider
-	Sender         *onehop.Sender
+	BeaconSender   *onehop.BeaconSender
 	Period         time.Duration
 	Core           bool
 	AllowIsdLoop   bool
@@ -54,7 +54,7 @@ type PropagatorConf struct {
 // provider, the propagator only filters AS loops.
 type Propagator struct {
 	*segExtender
-	sender       *onehop.Sender
+	beaconSender *onehop.BeaconSender
 	provider     BeaconProvider
 	metrics      *metrics.Propagator
 	allowIsdLoop bool
@@ -73,7 +73,7 @@ func (cfg PropagatorConf) New() (*Propagator, error) {
 	}
 	p := &Propagator{
 		provider:     cfg.BeaconProvider,
-		sender:       cfg.Sender,
+		beaconSender: cfg.BeaconSender,
 		core:         cfg.Core,
 		allowIsdLoop: cfg.AllowIsdLoop,
 		segExtender:  extender,
@@ -253,17 +253,17 @@ func (p *beaconPropagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDT
 			return
 		}
 		topoInfo := intf.TopoInfo()
-		msg, err := packBeaconMsg(&seg.Beacon{Segment: bseg.Segment}, topoInfo.ISD_AS,
-			egIfid, p.cfg.Signer)
-		if err != nil {
-			log.Error("[Propagator] Unable pack message", "beacon", bseg, "err", err)
-			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid,
-				metrics.SendErr)
-			return
-		}
 		ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
-		if err := p.sender.Send(msg, ov); err != nil {
-			log.Error("[Propagator] Unable to send packet", "ifid", "err", err)
+
+		err := p.beaconSender.Send(
+			&seg.Beacon{Segment: bseg.Segment},
+			topoInfo.ISD_AS,
+			egIfid,
+			p.cfg.Signer,
+			ov,
+		)
+		if err != nil {
+			log.Error("[Propagator] Unable to send packet", "egIfid", egIfid, "err", err)
 			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metrics.SendErr)
 			return
 		}

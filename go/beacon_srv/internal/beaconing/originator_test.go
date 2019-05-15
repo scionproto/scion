@@ -62,14 +62,16 @@ func TestOriginatorRun(t *testing.T) {
 				Intfs:  intfs,
 				Mac:    mac,
 			},
-			Sender: &onehop.Sender{
-				IA:   xtest.MustParseIA("1-ff00:0:110"),
-				Conn: conn,
-				Addr: &addr.AppAddr{
-					L3: addr.HostFromIPStr("127.0.0.1"),
-					L4: addr.NewL4UDPInfo(4242),
+			BeaconSender: &onehop.BeaconSender{
+				Sender: onehop.Sender{
+					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					Conn: conn,
+					Addr: &addr.AppAddr{
+						L3: addr.HostFromIPStr("127.0.0.1"),
+						L4: addr.NewL4UDPInfo(4242),
+					},
+					MAC: mac,
 				},
-				MAC: mac,
 			},
 		}.New()
 		xtest.FailOnErr(t, err)

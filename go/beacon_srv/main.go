@@ -351,11 +351,13 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 	}
 	s, err := beaconing.OriginatorConf{
 		EnableMetrics: true,
-		Sender: &onehop.Sender{
-			Conn: t.conn,
-			IA:   topo.ISD_AS,
-			MAC:  t.genMac(),
-			Addr: a.PublicAddr(a.Overlay),
+		BeaconSender: &onehop.BeaconSender{
+			Sender: onehop.Sender{
+				Conn: t.conn,
+				IA:   topo.ISD_AS,
+				MAC:  t.genMac(),
+				Addr: a.PublicAddr(a.Overlay),
+			},
 		},
 		Config: beaconing.ExtenderConf{
 			Intfs:  t.intfs,
@@ -383,11 +385,13 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 		AllowIsdLoop:   t.allowIsdLoop,
 		Core:           topo.Core,
 		EnableMetrics:  true,
-		Sender: &onehop.Sender{
-			Conn: t.conn,
-			IA:   topo.ISD_AS,
-			MAC:  t.genMac(),
-			Addr: a.PublicAddr(a.Overlay),
+		BeaconSender: &onehop.BeaconSender{
+			Sender: onehop.Sender{
+				Conn: t.conn,
+				IA:   topo.ISD_AS,
+				MAC:  t.genMac(),
+				Addr: a.PublicAddr(a.Overlay),
+			},
 		},
 		Config: beaconing.ExtenderConf{
 			Intfs:  t.intfs,
