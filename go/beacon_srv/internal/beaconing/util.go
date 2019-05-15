@@ -81,6 +81,49 @@ func sortedIntfs(intfs *ifstate.Interfaces, linkType proto.LinkType) ([]common.I
 	return active, nonActive
 }
 
+type summary struct {
+	mu    sync.Mutex
+	srcs  map[addr.IA]struct{}
+	ifIds map[common.IFIDType]struct{}
+	count int
+}
+
+func newSummary() *summary {
+	return &summary{
+		srcs:  make(map[addr.IA]struct{}),
+		ifIds: make(map[common.IFIDType]struct{}),
+	}
+}
+
+func (s *summary) AddSrc(ia addr.IA) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.srcs[ia] = struct{}{}
+}
+
+func (s *summary) AddIfid(ifid common.IFIDType) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ifIds[ifid] = struct{}{}
+}
+
+func (s *summary) Inc() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.count++
+}
+
+func (s *summary) IfIds() []common.IFIDType {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	list := make([]common.IFIDType, 0, len(s.ifIds))
+	for ifId := range s.ifIds {
+		list = append(list, ifId)
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i] < list[j] })
+	return list
+}
+
 type ctr struct {
 	sync.Mutex
 	c int

@@ -96,7 +96,7 @@ func (r *Registrar) Run(ctx context.Context) {
 }
 
 func (r *Registrar) run(ctx context.Context) error {
-	if r.tick.now.Sub(r.lastSucc) < r.tick.period {
+	if r.tick.now.Sub(r.lastSucc) < r.tick.period && !r.tick.passed() {
 		return nil
 	}
 	segments, err := r.segProvider.SegmentsToRegister(ctx, r.segType)
@@ -105,79 +105,113 @@ func (r *Registrar) run(ctx context.Context) error {
 	}
 	peers, nonActivePeers := sortedIntfs(r.cfg.Intfs, proto.LinkType_peer)
 	if len(nonActivePeers) > 0 {
-		log.Debug("[Registrar] Ignore non-active peer interfaces", "intfs", nonActivePeers)
+		log.Debug("[Registrar] Ignore non-active peer interfaces", "type", r.segType,
+			"intfs", nonActivePeers)
 	}
-	var success, segErr, sendErr ctr
-	wg := &sync.WaitGroup{}
+	s := newSummary()
+	var expected int
+	var wg sync.WaitGroup
 	for bOrErr := range segments {
-		reg, saddr, err := r.segToRegister(ctx, peers, bOrErr)
-		if err != nil {
-			log.Error("[Registrar] Unable to create segment", "type", r.segType, "err", err)
-			segErr.Inc()
+		if bOrErr.Err != nil {
+			log.Error("[Registrar] Unable to get beacon", "err", err)
 			continue
 		}
+		expected++
+		s := segmentRegistrar{
+			Registrar: r,
+			beacon:    bOrErr.Beacon,
+			peers:     peers,
+			summary:   s,
+		}
 		// Avoid head-of-line blocking when sending message to slow servers.
-		r.startSendSegReg(ctx, reg, saddr, wg, &success, &sendErr)
+		s.start(ctx, &wg)
 	}
 	wg.Wait()
-	total := success.c + segErr.c + sendErr.c
-	if success.c <= 0 {
-		return common.NewBasicError("No beacons propagated", nil, "candidates", total,
-			"segCreationErrs", segErr.c, "sendErrs", sendErr.c)
+	if expected == 0 {
+		return nil
 	}
-	log.Info("[Registrar] Successfully registered segments", "success", success.c,
-		"candidates", total, "segCreationErrs", segErr.c, "sendErrs", sendErr.c)
+	if s.count <= 0 {
+		return common.NewBasicError("No beacons propagated", nil, "candidates", expected)
+	}
 	r.lastSucc = r.tick.now
+	r.logSummary(s)
+	return nil
+}
+
+func (r *Registrar) logSummary(s *summary) {
+	if r.tick.passed() {
+		log.Info("[Registrar] Registered beacons", "type", r.segType, "count", s.count,
+			"startIAs", len(s.srcs))
+		return
+	}
+	log.Info("[Registrar] Registered beacons after stale period", "type", r.segType,
+		"count", s.count, "startIAs", len(s.srcs))
+}
+
+// segmentRegistrar registers one segment with the path server.
+type segmentRegistrar struct {
+	*Registrar
+	beacon  beacon.Beacon
+	peers   []common.IFIDType
+	summary *summary
+
+	// mutable
+	reg  *path_mgmt.SegReg
+	addr net.Addr
+}
+
+// start extends the beacon and starts a go routine that registers the beacon
+// with the path server.
+func (r *segmentRegistrar) start(ctx context.Context, wg *sync.WaitGroup) {
+	if err := r.setSegToRegister(); err != nil {
+		log.Error("[Registrar] Unable to create segment", "type", r.segType, "err", err)
+		return
+	}
+	r.startSendSegReg(ctx, wg)
+}
+
+// setSegToRegister sets the segment to register and the address to send to.
+func (r *segmentRegistrar) setSegToRegister() error {
+	if err := r.extend(r.beacon.Segment, r.beacon.InIfId, 0, r.peers); err != nil {
+		return common.NewBasicError("Unable to terminate", err, "beacon", r.beacon)
+	}
+	r.reg = &path_mgmt.SegReg{
+		SegRecs: &path_mgmt.SegRecs{
+			Recs: []*seg.Meta{
+				{
+					Type:    r.segType,
+					Segment: r.beacon.Segment,
+				},
+			},
+		},
+	}
+	var err error
+	r.addr, err = r.chooseServer(r.beacon.Segment)
+	if err != nil {
+		return common.NewBasicError("Unable to choose server", err)
+	}
 	return nil
 }
 
 // startSendSegReg adds to the wait group and starts a goroutine that sends the
 // registration message to the peer.
-func (r *Registrar) startSendSegReg(ctx context.Context, reg *path_mgmt.SegReg, saddr net.Addr,
-	wg *sync.WaitGroup, success, sendErr *ctr) {
-
+func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer log.LogPanicAndExit()
 		defer wg.Done()
-		if err := r.msgr.SendSegReg(ctx, reg, saddr, messenger.NextId()); err != nil {
-			log.Error("[Registrar] Unable to register segment", "addr", saddr, "err", err)
-			sendErr.Inc()
+		if err := r.msgr.SendSegReg(ctx, r.reg, r.addr, messenger.NextId()); err != nil {
+			log.Error("[Registrar] Unable to register segment", "addr", r.addr, "err", err)
 			return
 		}
-		log.Debug("[Registrar] Successfully registered segment", "addr", saddr,
-			"seg", reg.Recs[0].Segment)
-		success.Inc()
+		r.summary.AddSrc(r.beacon.Segment.FirstIA())
+		r.summary.Inc()
+		log.Trace("[Registrar] Successfully registered segment", "type", r.segType, "addr", r.addr,
+			"seg", r.beacon.Segment)
 	}()
 }
 
-func (r *Registrar) segToRegister(ctx context.Context, peers []common.IFIDType,
-	bOrErr beacon.BeaconOrErr) (*path_mgmt.SegReg, net.Addr, error) {
-	if bOrErr.Err != nil {
-		return nil, nil, bOrErr.Err
-	}
-	pseg := bOrErr.Beacon.Segment
-	if err := r.extend(pseg, bOrErr.Beacon.InIfId, 0, peers); err != nil {
-		return nil, nil, common.NewBasicError("Unable to terminate", err, "beacon", bOrErr.Beacon)
-	}
-	reg := &path_mgmt.SegReg{
-		SegRecs: &path_mgmt.SegRecs{
-			Recs: []*seg.Meta{
-				{
-					Type:    r.segType,
-					Segment: pseg,
-				},
-			},
-		},
-	}
-	saddr, err := r.chooseServer(pseg)
-	if err != nil {
-		return nil, nil, common.NewBasicError("Unable to choose server", err)
-	}
-	return reg, saddr, nil
-}
-
-func (r *Registrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
+func (r *segmentRegistrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
 	if r.segType != proto.PathSegType_down {
 		topo := r.topoProvider.Get()
 		return &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}, nil

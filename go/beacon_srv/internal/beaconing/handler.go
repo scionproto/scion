@@ -76,7 +76,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	if err != nil {
 		return res, err
 	}
-	logger.Debug("[BeaconHandler] Received", "beacon", b)
+	logger.Trace("[BeaconHandler] Received", "beacon", b)
 	if err := h.inserter.PreFilter(b); err != nil {
 		logger.Trace("[BeaconHandler] Beacon pre-filtered", "err", err)
 		return infra.MetricsResultOk, nil
@@ -87,7 +87,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	if err := h.inserter.InsertBeacons(h.request.Context(), b); err != nil {
 		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
 	}
-	logger.Debug("[BeaconHandler] Successfully inserted", "beacon", b)
+	logger.Trace("[BeaconHandler] Successfully inserted", "beacon", b)
 	return infra.MetricsResultOk, nil
 }
 

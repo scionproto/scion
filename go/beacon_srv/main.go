@@ -504,7 +504,7 @@ func setupBasic() error {
 		return err
 	}
 	metrics.Init(cfg.General.ID)
-	return env.LogAppStarted(common.CS, cfg.General.ID)
+	return env.LogAppStarted(common.BS, cfg.General.ID)
 }
 
 func setup() error {
@@ -526,7 +526,6 @@ func setup() error {
 
 func handleTopoUpdate() {
 	if intfs == nil {
-		log.Warn("intfs not set, ignoring static update")
 		return
 	}
 	intfs.Update(itopo.Get().IFInfoMap)

@@ -76,17 +76,29 @@ func (o *Originator) Run(_ context.Context) {
 func (o *Originator) originateBeacons(linkType proto.LinkType) {
 	active, nonActive := sortedIntfs(o.cfg.Intfs, linkType)
 	if len(nonActive) > 0 && o.tick.passed() {
-		log.Debug("[Originator] Ignore non-active interfaces", "intfs", nonActive)
+		log.Debug("[Originator] Ignore non-active interfaces", "ifids", nonActive)
+	}
+	intfs := o.needBeacon(active)
+	if len(intfs) == 0 {
+		return
 	}
 	infoF := o.createInfoF(o.tick.now)
-	for _, ifid := range o.needBeacon(active) {
-		if err := o.originateBeacon(ifid, infoF); err != nil {
+	s := newSummary()
+	for _, ifid := range intfs {
+		b := beaconOriginator{
+			Originator: o,
+			ifId:       ifid,
+			infoF:      infoF,
+			summary:    s,
+		}
+		if err := b.originateBeacon(); err != nil {
 			log.Error("[Originator] Unable to originate on interface", "ifid", ifid, "err", err)
 		}
 	}
+	o.logSummary(s, linkType)
 }
 
-// crateInfoF creates the info field.
+// createInfoF creates the info field.
 func (o *Originator) createInfoF(now time.Time) spath.InfoField {
 	infoF := spath.InfoField{
 		ConsDir: true,
@@ -114,14 +126,31 @@ func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
 	return stale
 }
 
+func (o *Originator) logSummary(s *summary, linkType proto.LinkType) {
+	if o.tick.passed() {
+		log.Info("[Originator] Originated beacons", "type", linkType.String(), "egIfIds", s.IfIds())
+		return
+	}
+	log.Info("[Originator] Originated beacons on stale interfaces", "type", linkType.String(),
+		"egIfIds", s.IfIds())
+}
+
+// beaconOriginator originates one beacon on the given interface.
+type beaconOriginator struct {
+	*Originator
+	ifId    common.IFIDType
+	infoF   spath.InfoField
+	summary *summary
+}
+
 // originateBeacon originates a beacon on the given ifid.
-func (o *Originator) originateBeacon(ifid common.IFIDType, infoF spath.InfoField) error {
-	intf := o.cfg.Intfs.Get(ifid)
+func (o *beaconOriginator) originateBeacon() error {
+	intf := o.cfg.Intfs.Get(o.ifId)
 	if intf == nil {
 		return common.NewBasicError("Interface does not exist", nil)
 	}
 	topoInfo := intf.TopoInfo()
-	msg, err := o.createBeaconMsg(ifid, infoF, topoInfo.ISD_AS)
+	msg, err := o.createBeaconMsg(topoInfo.ISD_AS)
 	if err != nil {
 		return err
 	}
@@ -130,29 +159,27 @@ func (o *Originator) originateBeacon(ifid common.IFIDType, infoF spath.InfoField
 		return common.NewBasicError("Unable to send packet", err)
 	}
 	intf.Originate(o.tick.now)
+	o.summary.AddIfid(o.ifId)
+	o.summary.Inc()
 	return nil
 }
 
 // createBeaconMsg creates a beacon for the given interface, signs it and
 // wraps it in a one-hop message.
-func (o *Originator) createBeaconMsg(ifid common.IFIDType, infoF spath.InfoField,
-	remoteIA addr.IA) (*onehop.Msg, error) {
-
-	bseg, err := o.createBeacon(ifid, infoF)
+func (o *beaconOriginator) createBeaconMsg(remoteIA addr.IA) (*onehop.Msg, error) {
+	bseg, err := o.createBeacon()
 	if err != nil {
-		return nil, common.NewBasicError("Unable to create beacon", err, "ifid", ifid)
+		return nil, common.NewBasicError("Unable to create beacon", err, "ifid", o.ifId)
 	}
-	return packBeaconMsg(bseg, remoteIA, ifid, o.cfg.Signer)
+	return packBeaconMsg(bseg, remoteIA, o.ifId, o.cfg.Signer)
 }
 
-func (o *Originator) createBeacon(ifid common.IFIDType,
-	infoF spath.InfoField) (*seg.Beacon, error) {
-
-	bseg, err := seg.NewSeg(&infoF)
+func (o *beaconOriginator) createBeacon() (*seg.Beacon, error) {
+	bseg, err := seg.NewSeg(&o.infoF)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create segment", err)
 	}
-	if err := o.extend(bseg, 0, ifid, nil); err != nil {
+	if err := o.extend(bseg, 0, o.ifId, nil); err != nil {
 		return nil, common.NewBasicError("Unable to extend segment", err)
 	}
 	return &seg.Beacon{Segment: bseg}, nil
