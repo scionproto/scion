@@ -43,7 +43,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		call := goStmt.Call
 		switch f := call.Fun.(type) {
 		case *ast.FuncLit:
-			checkFuncLit(pass, f)
+			if !checkFuncLit(pass, f) {
+				pass.Reportf(f.Pos(), "First statement should be 'defer LogPanicAndExit()")
+			}
 		default:
 			pass.Reportf(f.Pos(), "go statement should always call a func lit.")
 		}
@@ -51,37 +53,27 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func checkFuncLit(pass *analysis.Pass, fl *ast.FuncLit) {
+func checkFuncLit(pass *analysis.Pass, fl *ast.FuncLit) bool {
 	if len(fl.Body.List) == 0 {
-		return
+		return true
 	}
 	firstStmt := fl.Body.List[0]
 	deferStmt, ok := firstStmt.(*ast.DeferStmt)
 	if !ok {
-		pass.Reportf(fl.Pos(), "First statement should be 'defer log.LogPanicAndExit()'")
-		return
+		return false
 	}
 	if pkgNameSave(pass) == "log" {
 		ident, ok := deferStmt.Call.Fun.(*ast.Ident)
-		if !ok {
-			pass.Reportf(fl.Pos(), "First statement should be 'defer LogPanicAndExit()'")
-			return
+		if !ok || ident.Name != "LogPanicAndExit" {
+			return false
 		}
-		if ident.Name != "LogPanicAndExit" {
-			pass.Reportf(fl.Pos(), "First statement should be 'defer LogPanicAndExit()'")
-			return
+	} else {
+		callSel, ok := deferStmt.Call.Fun.(*ast.SelectorExpr)
+		if !ok || callSel.Sel.Name != "LogPanicAndExit" {
+			return false
 		}
-		return
 	}
-	callSel, ok := deferStmt.Call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		pass.Reportf(fl.Pos(), "First statement should be 'defer log.LogPanicAndExit()'")
-		return
-	}
-	if callSel.Sel.Name != "LogPanicAndExit" {
-		pass.Reportf(fl.Pos(), "First statement should be 'defer log.LogPanicAndExit()'")
-		return
-	}
+	return true
 }
 
 func pkgNameSave(pass *analysis.Pass) string {
