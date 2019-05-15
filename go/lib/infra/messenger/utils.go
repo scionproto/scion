@@ -26,6 +26,7 @@ import (
 const (
 	AckRejectFailedToParse  = "Failed to parse"
 	AckRejectFailedToVerify = "Failed to verfiy"
+	AckRejectPolicyError    = "Message rejected due to policy"
 	AckRetryDBError         = "DB Error"
 )
 

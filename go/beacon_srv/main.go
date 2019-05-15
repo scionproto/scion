@@ -196,6 +196,13 @@ func realMain() int {
 		store:        store,
 		msgr:         msgr,
 		topoProvider: itopo.Provider(),
+		addressRewriter: nc.AddressRewriter(
+			&onehop.OHPPacketDispatcherService{
+				PacketDispatcherService: snet.NewDefaultPacketDispatcherService(
+					reliable.NewDispatcherService(""),
+				),
+			},
+		),
 	}
 	if tasks.genMac, err = macGenFactory(); err != nil {
 		log.Crit("Unable to initialize MAC generator", "err", err)
@@ -232,14 +239,15 @@ func (s segRegRunners) Kill() {
 }
 
 type periodicTasks struct {
-	intfs        *ifstate.Interfaces
-	conn         *snet.SCIONPacketConn
-	genMac       func() hash.Hash
-	trustDB      trustdb.TrustDB
-	store        beaconstorage.Store
-	msgr         infra.Messenger
-	topoProvider topology.Provider
-	allowIsdLoop bool
+	intfs           *ifstate.Interfaces
+	conn            *snet.SCIONPacketConn
+	genMac          func() hash.Hash
+	trustDB         trustdb.TrustDB
+	store           beaconstorage.Store
+	msgr            infra.Messenger
+	topoProvider    topology.Provider
+	allowIsdLoop    bool
+	addressRewriter *messenger.AddressRewriter
 
 	keepalive  *periodic.Runner
 	originator *periodic.Runner
@@ -358,6 +366,8 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 				MAC:  t.genMac(),
 				Addr: a.PublicAddr(a.Overlay),
 			},
+			AddressRewriter:  t.addressRewriter,
+			QUICBeaconSender: t.msgr,
 		},
 		Config: beaconing.ExtenderConf{
 			Intfs:  t.intfs,

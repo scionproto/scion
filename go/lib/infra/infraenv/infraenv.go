@@ -106,33 +106,10 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		return nil, err
 	}
 
-	router := nc.Router
-	if router == nil {
-		router = &snet.BaseRouter{IA: nc.IA}
-	}
-
 	msgerCfg := &messenger.Config{
-		IA:         nc.IA,
-		TrustStore: nc.TrustStore,
-		AddressRewriter: &messenger.AddressRewriter{
-			Router:    router,
-			SVCRouter: nc.SVCRouter,
-			Resolver: &svc.Resolver{
-				LocalIA: nc.IA,
-				ConnFactory: snet.NewDefaultPacketDispatcherService(
-					reliable.NewDispatcherService(""),
-				),
-				Machine: buildLocalMachine(nc.Bind, nc.Public),
-				// Legacy control payloads have a 4-byte length prefix. A
-				// 0-value for the prefix is invalid, so SVC resolution-aware
-				// servers can use this to detect that the client is attempting
-				// SVC resolution. Legacy SVC traffic sent by legacy clients
-				// will have a non-0 value, and thus not trigger resolution
-				// logic.
-				Payload: resolutionRequestPayload,
-			},
-			SVCResolutionFraction: nc.SVCResolutionFraction,
-		},
+		IA:              nc.IA,
+		TrustStore:      nc.TrustStore,
+		AddressRewriter: nc.AddressRewriter(nil),
 	}
 	msgerCfg.Dispatcher = disp.New(
 		conn,
@@ -150,6 +127,42 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 	nc.TrustStore.SetMessenger(msger)
 	return msger, nil
 
+}
+
+// AddressRewriter initializes path and svc resolvers for infra servers.
+//
+// The connection factory is used to open sockets for SVC resolution requests.
+// If the connection factory is nil, the default connection factory is used.
+func (nc *NetworkConfig) AddressRewriter(
+	connFactory snet.PacketDispatcherService) *messenger.AddressRewriter {
+
+	router := nc.Router
+	if router == nil {
+		router = &snet.BaseRouter{IA: nc.IA}
+	}
+	if connFactory == nil {
+		connFactory = snet.NewDefaultPacketDispatcherService(
+			reliable.NewDispatcherService(""),
+		)
+	}
+
+	return &messenger.AddressRewriter{
+		Router:    router,
+		SVCRouter: nc.SVCRouter,
+		Resolver: &svc.Resolver{
+			LocalIA:     nc.IA,
+			ConnFactory: connFactory,
+			Machine:     buildLocalMachine(nc.Bind, nc.Public),
+			// Legacy control payloads have a 4-byte length prefix. A
+			// 0-value for the prefix is invalid, so SVC resolution-aware
+			// servers can use this to detect that the client is attempting
+			// SVC resolution. Legacy SVC traffic sent by legacy clients
+			// will have a non-0 value, and thus not trigger resolution
+			// logic.
+			Payload: resolutionRequestPayload,
+		},
+		SVCResolutionFraction: nc.SVCResolutionFraction,
+	}
 }
 
 // initUDPSocket creates the main control-plane UDP socket. SVC anycasts will

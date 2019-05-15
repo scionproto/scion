@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/svc/internal/ctxconn"
 )
 
@@ -36,6 +37,7 @@ const (
 	errWrite          = "unable to write"
 	errRead           = "unable to read"
 	errDecode         = "decode failed"
+	errBadPath        = "unable to parse return path"
 )
 
 // Resolver performs SVC address resolution.
@@ -138,5 +140,37 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	if err := reply.DecodeFrom(bytes.NewBuffer([]byte(b))); err != nil {
 		return nil, common.NewBasicError(errDecode, err)
 	}
+
+	if replyPacket.Path != nil {
+		if err := replyPacket.Path.Reverse(); err != nil {
+			return nil, common.NewBasicError(errBadPath, err)
+		}
+		if err := replyPacket.Path.InitOffsets(); err != nil {
+			return nil, common.NewBasicError(errBadPath, err)
+		}
+	}
+	reply.ReturnPath = &path{
+		spath:       replyPacket.Path,
+		overlay:     &replyOv,
+		destination: replyPacket.Source.IA,
+	}
 	return &reply, nil
+}
+
+type path struct {
+	spath       *spath.Path
+	overlay     *overlay.OverlayAddr
+	destination addr.IA
+}
+
+func (p *path) OverlayNextHop() *overlay.OverlayAddr {
+	return p.overlay
+}
+
+func (p *path) Path() *spath.Path {
+	return p.spath
+}
+
+func (p *path) Destination() addr.IA {
+	return p.destination
 }

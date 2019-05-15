@@ -52,7 +52,6 @@ type Originator struct {
 
 // New creates a new originator.
 func (cfg OriginatorConf) New() (*Originator, error) {
-
 	cfg.Config.task = "originator"
 	extender, err := cfg.Config.new()
 	if err != nil {
@@ -70,17 +69,17 @@ func (cfg OriginatorConf) New() (*Originator, error) {
 }
 
 // Run originates core and downstream beacons.
-func (o *Originator) Run(_ context.Context) {
+func (o *Originator) Run(ctx context.Context) {
 	o.tick.now = time.Now()
-	o.originateBeacons(proto.LinkType_core)
-	o.originateBeacons(proto.LinkType_child)
+	o.originateBeacons(ctx, proto.LinkType_core)
+	o.originateBeacons(ctx, proto.LinkType_child)
 	o.metrics.AddTotalTime(o.tick.now)
 	o.tick.updateLast()
 }
 
 // originateBeacons creates and sends a beacon for each active interface of
 // the specified link type.
-func (o *Originator) originateBeacons(linkType proto.LinkType) {
+func (o *Originator) originateBeacons(ctx context.Context, linkType proto.LinkType) {
 	active, nonActive := sortedIntfs(o.cfg.Intfs, linkType)
 	if len(nonActive) > 0 && o.tick.passed() {
 		log.Debug("[Originator] Ignore non-active interfaces", "ifids", nonActive)
@@ -98,7 +97,7 @@ func (o *Originator) originateBeacons(linkType proto.LinkType) {
 			infoF:      infoF,
 			summary:    s,
 		}
-		if err := b.originateBeacon(); err != nil {
+		if err := b.originateBeacon(ctx); err != nil {
 			log.Error("[Originator] Unable to originate on interface", "ifid", ifid, "err", err)
 		}
 	}
@@ -151,7 +150,7 @@ type beaconOriginator struct {
 }
 
 // originateBeacon originates a beacon on the given ifid.
-func (o *beaconOriginator) originateBeacon() error {
+func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	intf := o.cfg.Intfs.Get(o.ifId)
 	if intf == nil {
 		o.metrics.IncInternalErr()
@@ -166,6 +165,7 @@ func (o *beaconOriginator) originateBeacon() error {
 	}
 
 	err = o.beaconSender.Send(
+		ctx,
 		bseg,
 		topoInfo.ISD_AS,
 		o.ifId,

@@ -19,6 +19,7 @@ import (
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/svc/internal/proto"
 )
 
@@ -29,6 +30,10 @@ type Reply struct {
 	// the transport keys are acceptable and must parse the address strings
 	// accordingly.
 	Transports map[Transport]string
+	// ReturnPath contains the reversed and initialized path the SVC resolution
+	// message arrived on. This can be used to communicate across paths
+	// bootstrapped via One-Hop Path communication.
+	ReturnPath snet.Path
 }
 
 // DecodeFrom decodes a reply message from its capnp representation. No
