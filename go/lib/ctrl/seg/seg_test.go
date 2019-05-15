@@ -109,14 +109,14 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 			}
 		})
 		Convey("Modifying the first signature should render the segment unverifiable", func() {
-			pseg.RawASEntries[0].Sign.Signature[3] = 5
+			pseg.RawASEntries[0].Sign.Signature[3] ^= 0xFF
 			for i, keyPair := range keyPairs {
 				err := pseg.VerifyASEntry(context.Background(), keyPair, i)
 				SoMsg("Err "+asEntries[i].IA().String(), err, ShouldNotBeNil)
 			}
 		})
 		Convey("Modifying the first AS entry should render the segment unverifiable", func() {
-			pseg.RawASEntries[0].Blob[3] = 5
+			pseg.RawASEntries[0].Blob[3] ^= 0xFF
 			for i, keyPair := range keyPairs {
 				err := pseg.VerifyASEntry(context.Background(), keyPair, i)
 				SoMsg("Err "+asEntries[i].IA().String(), err, ShouldNotBeNil)

@@ -67,7 +67,7 @@ func TestHandler(t *testing.T) {
 	sRevInvalid, err := path_mgmt.NewSignedRevInfo(rev, signer)
 	xtest.FailOnErr(t, err)
 	// flip a bit
-	sRevInvalid.Blob[0] ^= sRevInvalid.Blob[0]
+	sRevInvalid.Blob[0] ^= 0xFF
 
 	tests := []struct {
 		Name   string
