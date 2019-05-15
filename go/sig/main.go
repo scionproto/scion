@@ -218,6 +218,7 @@ func loadConfig(path string) bool {
 func spawnIngressDispatcher(tunIO io.ReadWriteCloser) {
 	d := ingress.NewDispatcher(tunIO)
 	go func() {
+		defer log.LogPanicAndExit()
 		if err := d.Run(); err != nil {
 			log.Crit("Ingress dispatcher error", "err", err)
 			fatal.Fatal(err)

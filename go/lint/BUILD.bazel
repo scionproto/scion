@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_tool_library")
+
+#gazelle:ignore gazelle would add a go_library block which we don't need here.
+
+go_tool_library(
+    name = "log",
+    srcs = ["log.go"],
+    importpath = "lint",
+    deps = [
+        "@org_golang_x_tools//go/analysis:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/inspect:go_tool_library",
+        "@org_golang_x_tools//go/ast/inspector:go_tool_library",
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/proto"
@@ -545,6 +546,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 	}
 	resCh := make(chan query.ResultOrErr)
 	go func() {
+		defer log.LogPanicAndExit()
 		defer close(resCh)
 		defer rows.Close()
 		prevID := -1
