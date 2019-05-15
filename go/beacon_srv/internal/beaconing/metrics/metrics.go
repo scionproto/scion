@@ -66,12 +66,12 @@ func InitPropagator() *Propagator {
 func newPropagator() *Propagator {
 	ns := "beacon_propagator"
 	return &Propagator{
-		totalBeacons: *prom.NewCounterVec(ns, "", "total_beacons", "Number of beacons propagated",
+		totalBeacons: *prom.NewCounterVec(ns, "", "beacons_total", "Number of beacons propagated",
 			[]string{"start_ia", "in_ifid", "eg_ifid", "result"}),
-		totalIntfTime: *prom.NewCounterVec(ns, "", "total_time_intf",
+		totalIntfTime: *prom.NewCounterVec(ns, "", "time_interface_seconds_total",
 			"Total time spent per egress interface", []string{"start_ia", "in_ifid", "eg_ifid"}),
-		totalTime:        prom.NewCounter(ns, "", "total_time", "Total time spent"),
-		totalInternalErr: prom.NewCounter(ns, "", "total_internal_errors", "Total internal errors"),
+		totalTime:        prom.NewCounter(ns, "", "time_seconds_total", "Total time spent"),
+		totalInternalErr: prom.NewCounter(ns, "", "internal_errors_total", "Total internal errors"),
 	}
 }
 
@@ -90,8 +90,8 @@ func (m *Propagator) IncTotalBeacons(start addr.IA, in, eg common.IFIDType,
 	if m == nil {
 		return
 	}
-	m.totalBeacons.With(prometheus.Labels{"start_ia": start.String(), "in_ifid": iota(in),
-		"eg_ifid": iota(eg), "result": string(res)}).Inc()
+	m.totalBeacons.With(prometheus.Labels{"start_ia": start.String(), "in_ifid": ifidToString(in),
+		"eg_ifid": ifidToString(eg), "result": string(res)}).Inc()
 }
 
 // AddIntfTime adds the time since start to the interface time.
@@ -99,8 +99,8 @@ func (m *Propagator) AddIntfTime(ia addr.IA, in, eg common.IFIDType, start time.
 	if m == nil {
 		return
 	}
-	m.totalIntfTime.With(prometheus.Labels{"start_ia": ia.String(), "in_ifid": iota(in),
-		"eg_ifid": iota(eg)}).Add(time.Since(start).Seconds())
+	m.totalIntfTime.With(prometheus.Labels{"start_ia": ia.String(), "in_ifid": ifidToString(in),
+		"eg_ifid": ifidToString(eg)}).Add(time.Since(start).Seconds())
 }
 
 // IncInternalErr increments the internal error count.
@@ -129,11 +129,11 @@ func InitRegistrar() *Registrar {
 func newRegistrar() *Registrar {
 	ns := "beacon_registrar"
 	return &Registrar{
-		totalBeacons: *prom.NewCounterVec(ns, "", "total_beacons", "Number of beacons registered",
+		totalBeacons: *prom.NewCounterVec(ns, "", "beacons_total", "Number of beacons registered",
 			[]string{"start_ia", "in_ifid", "type", "result"}),
-		totalTime: *prom.NewCounterVec(ns, "", "total_time", "Total time spent",
+		totalTime: *prom.NewCounterVec(ns, "", "time_seconds_total", "Total time spent",
 			[]string{"type"}),
-		totalInternalErr: *prom.NewCounterVec(ns, "", "total_internal_errors",
+		totalInternalErr: *prom.NewCounterVec(ns, "", "internal_errors_total",
 			"Total internal errors", []string{"type"}),
 	}
 }
@@ -154,7 +154,7 @@ func (m *Registrar) IncTotalBeacons(t proto.PathSegType, start addr.IA, in commo
 		return
 	}
 	m.totalBeacons.With(prometheus.Labels{"type": t.String(), "start_ia": start.String(),
-		"in_ifid": iota(in), "result": string(res)}).Inc()
+		"in_ifid": ifidToString(in), "result": string(res)}).Inc()
 }
 
 // IncInternalErr increments the internal error count.
@@ -183,10 +183,10 @@ func InitOriginator() *Originator {
 func newOriginator() *Originator {
 	ns := "beacon_originator"
 	return &Originator{
-		totalBeacons: *prom.NewCounterVec(ns, "", "total_beacons", "Number of beacons originated",
+		totalBeacons: *prom.NewCounterVec(ns, "", "beacons_total", "Number of beacons originated",
 			[]string{"eg_ifid", "result"}),
-		totalTime:        prom.NewCounter(ns, "", "total_time", "Total time spent"),
-		totalInternalErr: prom.NewCounter(ns, "", "total_internal_errors", "Total internal errors"),
+		totalTime:        prom.NewCounter(ns, "", "time_seconds_total", "Total time spent"),
+		totalInternalErr: prom.NewCounter(ns, "", "internal_errors_total", "Total internal errors"),
 	}
 }
 
@@ -203,7 +203,7 @@ func (m *Originator) IncTotalBeacons(eg common.IFIDType, res result) {
 	if m == nil {
 		return
 	}
-	m.totalBeacons.With(prometheus.Labels{"eg_ifid": iota(eg), "result": string(res)}).Inc()
+	m.totalBeacons.With(prometheus.Labels{"eg_ifid": ifidToString(eg), "result": string(res)}).Inc()
 }
 
 // IncInternalErr increments the internal error count.
@@ -214,6 +214,6 @@ func (m *Originator) IncInternalErr() {
 	m.totalInternalErr.Inc()
 }
 
-func iota(ifid common.IFIDType) string {
+func ifidToString(ifid common.IFIDType) string {
 	return strconv.FormatUint(uint64(ifid), 10)
 }
