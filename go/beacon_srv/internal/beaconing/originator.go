@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
+	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -160,18 +161,15 @@ func (o *beaconOriginator) originateBeacon() error {
 	topoInfo := intf.TopoInfo()
 	msg, err := o.createBeaconMsg(topoInfo.ISD_AS)
 	if err != nil {
-		o.metrics.IncTotalBeacons(ifid, metrics.CreateErr)
+		o.metrics.IncTotalBeacons(o.ifId, metrics.CreateErr)
 		return err
 	}
 	ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
 	if err := o.sender.Send(msg, ov); err != nil {
-		o.metrics.IncTotalBeacons(ifid, metrics.SendErr)
+		o.metrics.IncTotalBeacons(o.ifId, metrics.SendErr)
 		return common.NewBasicError("Unable to send packet", err)
 	}
-	intf.Originate(o.tick.now)
-	o.summary.AddIfid(o.ifId)
-	o.summary.Inc()
-	o.metrics.IncTotalBeacons(ifid, metrics.Success)
+	o.onSuccess(intf)
 	return nil
 }
 
@@ -194,4 +192,11 @@ func (o *beaconOriginator) createBeacon() (*seg.Beacon, error) {
 		return nil, common.NewBasicError("Unable to extend segment", err)
 	}
 	return &seg.Beacon{Segment: bseg}, nil
+}
+
+func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
+	intf.Originate(o.tick.now)
+	o.summary.AddIfid(o.ifId)
+	o.summary.Inc()
+	o.metrics.IncTotalBeacons(o.ifId, metrics.Success)
 }

@@ -121,7 +121,7 @@ func (r *Registrar) run(ctx context.Context) error {
 	for bOrErr := range segments {
 		if bOrErr.Err != nil {
 			log.Error("[Registrar] Unable to get beacon", "err", err)
-			r.metrics.IncInternalErr()
+			r.metrics.IncInternalErr(r.segType)
 			continue
 		}
 		expected++
@@ -181,7 +181,8 @@ func (r *segmentRegistrar) start(ctx context.Context, wg *sync.WaitGroup) {
 // setSegToRegister sets the segment to register and the address to send to.
 func (r *segmentRegistrar) setSegToRegister() error {
 	if err := r.extend(r.beacon.Segment, r.beacon.InIfId, 0, r.peers); err != nil {
-		r.metrics.IncTotalBeacons(r.beacon.Segment.FirstIA(), r.beacon.InIfId, metrics.CreateErr)
+		r.metrics.IncTotalBeacons(r.segType, r.beacon.Segment.FirstIA(), r.beacon.InIfId,
+			metrics.CreateErr)
 		return common.NewBasicError("Unable to terminate", err, "beacon", r.beacon)
 	}
 	r.reg = &path_mgmt.SegReg{
@@ -197,7 +198,7 @@ func (r *segmentRegistrar) setSegToRegister() error {
 	var err error
 	r.addr, err = r.chooseServer(r.beacon.Segment)
 	if err != nil {
-		r.metrics.IncInternalErr()
+		r.metrics.IncInternalErr(r.segType)
 		return common.NewBasicError("Unable to choose server", err)
 	}
 	return nil
@@ -212,15 +213,21 @@ func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGro
 		defer wg.Done()
 		if err := r.msgr.SendSegReg(ctx, r.reg, r.addr, messenger.NextId()); err != nil {
 			log.Error("[Registrar] Unable to register segment", "addr", r.addr, "err", err)
-			r.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, metricsSendErr)
+			r.metrics.IncTotalBeacons(r.segType, r.beacon.Segment.FirstIA(), r.beacon.InIfId,
+				metrics.SendErr)
 			return
 		}
-		r.summary.AddSrc(r.beacon.Segment.FirstIA())
-		r.summary.Inc()
-		r.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, metricsSuccess)
+		r.onSuccess()
 		log.Trace("[Registrar] Successfully registered segment", "type", r.segType, "addr", r.addr,
 			"seg", r.beacon.Segment)
 	}()
+}
+
+func (r *segmentRegistrar) onSuccess() {
+	r.summary.AddSrc(r.beacon.Segment.FirstIA())
+	r.summary.Inc()
+	r.metrics.IncTotalBeacons(r.segType, r.beacon.Segment.FirstIA(),
+		r.beacon.InIfId, metrics.Success)
 }
 
 func (r *segmentRegistrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {

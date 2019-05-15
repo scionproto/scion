@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
+	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -108,6 +109,7 @@ func (p *Propagator) run(ctx context.Context) error {
 	}
 	beacons, err := p.provider.BeaconsToPropagate(ctx)
 	if err != nil {
+		p.metrics.IncInternalErr()
 		return err
 	}
 	s := newSummary()
@@ -190,7 +192,6 @@ func (p *beaconPropagator) start(wg *sync.WaitGroup) {
 		defer log.LogPanicAndExit()
 		defer wg.Done()
 		if err := p.propagate(); err != nil {
-			p.metrics.IncInternalErr()
 			log.Error("[Propagator] Unable to propagate", "beacon", p.beacon, "err", err)
 			return
 		}
@@ -257,7 +258,7 @@ func (p *beaconPropagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDT
 		if err != nil {
 			log.Error("[Propagator] Unable pack message", "beacon", bseg, "err", err)
 			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid,
-				metrics.CreateErr)
+				metrics.SendErr)
 			return
 		}
 		ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
@@ -266,10 +267,7 @@ func (p *beaconPropagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDT
 			p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metrics.SendErr)
 			return
 		}
-		intf.Propagate(p.tick.now)
-		p.success.Inc()
-		p.summary.AddIfid(egIfid)
-		p.metrics.IncTotalBeacons(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, metrics.Success)
+		p.onSuccess(intf, egIfid)
 	}()
 }
 
@@ -285,4 +283,11 @@ func (p *beaconPropagator) shouldIgnore(bseg beacon.Beacon, egIfid common.IFIDTy
 		return true
 	}
 	return false
+}
+
+func (p *beaconPropagator) onSuccess(intf *ifstate.Interface, egIfid common.IFIDType) {
+	intf.Propagate(p.tick.now)
+	p.success.Inc()
+	p.summary.AddIfid(egIfid)
+	p.metrics.IncTotalBeacons(p.beacon.Segment.FirstIA(), p.beacon.InIfId, egIfid, metrics.Success)
 }
