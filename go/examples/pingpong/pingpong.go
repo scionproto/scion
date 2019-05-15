@@ -82,6 +82,7 @@ func init() {
 }
 
 func main() {
+	os.Setenv("TZ", "UTC")
 	log.AddLogConsFlags()
 	validateFlags()
 	if err := log.SetupFromFlags(""); err != nil {

@@ -163,4 +163,7 @@ class PortGenerator(object):
         self._ports = defaultdict(lambda: next(self.iter))
 
     def register(self, id_):
-        return self._ports[id_]
+        p = self._ports[id_]
+        # reserve a quic port
+        self._ports[id_+"quic"]
+        return p

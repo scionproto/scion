@@ -24,6 +24,12 @@ func Must(condition bool, s string, args ...interface{}) {
 	}
 }
 
+func MustNotFail(err error, s string, args ...interface{}) {
+	if err != nil {
+		panic(fmt.Sprintf(s, args...) + ": " + err.Error())
+	}
+}
+
 func Mustf(condition bool, f func(string) string, s string) {
 	if !condition {
 		panic(f(s))
