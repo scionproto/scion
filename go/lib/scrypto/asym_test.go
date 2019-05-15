@@ -116,8 +116,15 @@ func TestVerify(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 	})
 
-	Convey("Verify should throw an error for an invalid signature", t, func() {
+	Convey("Verify should throw an error for an invalid signature length", t, func() {
 		err := Verify(Ed25519TestMsg, Ed25519TestSignature[:63], Ed25519TestPublicKey, Ed25519)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+
+	Convey("Verify should throw an error for a mangled signature", t, func() {
+		mangled := append(common.RawBytes{}, Ed25519TestSignature...)
+		mangled[0] ^= 0xFF
+		err := Verify(Ed25519TestMsg, mangled, Ed25519TestPublicKey, Ed25519)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 
