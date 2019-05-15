@@ -5,8 +5,6 @@ set -e
 export BASE=".buildkite"
 STEPS="$BASE/steps"
 
-RUN_ALL_TESTS=y
-
 # if the pipeline is triggered from a PR, run a reduced pipeline
 if [ -z "$RUN_ALL_TESTS" ]; then
     [ "$BUILDKITE_PULL_REQUEST" = "false" ] && export RUN_ALL_TESTS=y
