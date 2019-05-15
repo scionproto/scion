@@ -31,6 +31,7 @@ from topology.common import (
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
+    get_pub,
     get_pub_ip,
     prom_addr_br,
     prom_addr_infra,
@@ -284,6 +285,9 @@ class GoGenerator(object):
 
     def _quic_conf_entry(self, port, svcfrac, elem=None):
         addr = "127.0.0.1" if elem is None else get_pub_ip(elem["Addrs"])
+        if self.args.docker and elem is not None:
+            pub = get_pub(elem['Addrs'])
+            port = pub['Public']['L4Port']+1
         return {
             'Address':  '[%s]:%s' % (addr, port),
             'CertFile': os.path.join(self.certs_dir, 'tls.pem'),
