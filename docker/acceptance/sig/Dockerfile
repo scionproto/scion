@@ -1,4 +1,6 @@
-FROM scion_tester
+FROM ubuntu:16.04
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y libcap2-bin iputils-ping iproute2 && apt-get clean
 
 WORKDIR /share
 COPY sig.sh .
