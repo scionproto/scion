@@ -1,7 +1,6 @@
 FROM ubuntu:16.04
 
-# TODO make sure packages are required
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y libcap2-bin net-tools iputils-ping iproute2 && apt-get clean
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y libcap2-bin iputils-ping iproute2 && apt-get clean
 
 WORKDIR /share
 COPY sig.sh .
@@ -11,4 +10,3 @@ COPY --from=scion_app_builder:latest /home/scion/go/src/github.com/scionproto/sc
 RUN ["setcap", "cap_net_admin+ei", "/app/sig"]
 # Note: this process needs explicit CAP_NET_ADMIN from docker. e.g. with `cap_add: NET_ADMIN` from docker-compose
 ENTRYPOINT ["./sig.sh"]
-CMD tail -f /dev/null
