@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,12 +44,18 @@ func (l *portList) Insert(port int, v interface{}) *ring.Ring {
 // The objects are returned in round-robin fashion. Removing an element from
 // the list can make the round-robin selection reset from the start.
 func (l *portList) Get() interface{} {
+	if l.list == nil {
+		return nil
+	}
 	v := l.list.Value
 	l.list = l.list.Next()
 	return v.(*listItem).value
 }
 
 func (l *portList) Find(port int) bool {
+	if l.list == nil {
+		return false
+	}
 	var found bool
 	l.list.Do(
 		func(p interface{}) {
@@ -64,11 +71,16 @@ func (l *portList) Remove(element *ring.Ring) {
 	if element.Len() == 1 {
 		l.list = nil
 	} else {
-		element.Prev().Unlink(1)
+		// always change the l.list since it could be that l.list == element.
+		l.list = element.Prev()
+		l.list.Unlink(1)
 	}
 }
 
 func (l *portList) Len() int {
+	if l.list == nil {
+		return 0
+	}
 	return l.list.Len()
 }
 
