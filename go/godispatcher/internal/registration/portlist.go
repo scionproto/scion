@@ -69,6 +69,9 @@ func (l *portList) Remove(element *ring.Ring) {
 }
 
 func (l *portList) Len() int {
+	if l.list == nil {
+		return 0
+	}
 	return l.list.Len()
 }
 
