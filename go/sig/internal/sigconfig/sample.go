@@ -29,11 +29,11 @@ IA = "1-ff00:0:113"
 # The bind IP address. (required)
 IP = "192.0.2.100"
 
-# Control data port, e.g. keepalives. (default 10081)
-CtrlPort = 10081
+# Control data port, e.g. keepalives. (default 30256)
+CtrlPort = 30256
 
-# Encapsulation data port. (default 10080)
-EncapPort = 10080
+# Encapsulation data port. (default 30056)
+EncapPort = 30056
 
 # SCION dispatcher path. (default "")
 Dispatcher = ""
