@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
+	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -47,6 +48,7 @@ func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, beaconInserter BeaconInse
 			verifier: verifier,
 			intfs:    intfs,
 			request:  r,
+			metrics:  metrics.InitReceiver(),
 		}
 		return handler.Handle()
 	}
@@ -59,6 +61,7 @@ type handler struct {
 	verifier infra.Verifier
 	intfs    *ifstate.Interfaces
 	request  *infra.Request
+	metrics  *metrics.Receiver
 }
 
 // Handle handles a beacon.
@@ -74,20 +77,25 @@ func (h *handler) Handle() *infra.HandlerResult {
 func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	b, res, err := h.buildBeacon()
 	if err != nil {
+		h.metrics.IncTotalBeacons(0, metrics.InvalidErr)
 		return res, err
 	}
 	logger.Trace("[BeaconHandler] Received", "beacon", b)
 	if err := h.inserter.PreFilter(b); err != nil {
 		logger.Trace("[BeaconHandler] Beacon pre-filtered", "err", err)
+		h.metrics.IncTotalBeacons(b.InIfId, metrics.Prefiltered)
 		return infra.MetricsResultOk, nil
 	}
 	if err := h.verifyBeacon(b); err != nil {
+		h.metrics.IncTotalBeacons(b.InIfId, metrics.VerifyErr)
 		return infra.MetricsErrInvalid, err
 	}
 	if err := h.inserter.InsertBeacons(h.request.Context(), b); err != nil {
+		h.metrics.IncTotalBeacons(b.InIfId, metrics.InsertErr)
 		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
 	}
 	logger.Trace("[BeaconHandler] Successfully inserted", "beacon", b)
+	h.metrics.IncTotalBeacons(b.InIfId, metrics.Success)
 	return infra.MetricsResultOk, nil
 }
 
