@@ -36,9 +36,19 @@ const (
 	CreateErr result = "creation_err"
 	// SendErr indicates an error during sending the beacon.
 	SendErr result = "send_err"
+	// InvalidErr indicates that incoming beacon was invalid.
+	InvalidErr result = "invalid_err"
+	// VerifyErr indicates that incoming beacon wasn't verified.
+	VerifyErr result = "varify_err"
+	// InsertErr indicated that incoming beacon couldn't be inserted.
+	InsertErr result = "insert_err"
+	// Prefiltered indicates that incoming beacon was prefiltered.
+	Prefiltered result = "prefiltered"
 )
 
 var (
+	receiverOnce   sync.Once
+	receiver       *Receiver
 	propagatorOnce sync.Once
 	propagator     *Propagator
 	originatorOnce sync.Once
@@ -46,6 +56,39 @@ var (
 	registrarOnce  sync.Once
 	registrar      *Registrar
 )
+
+// Receiver holds the metrics about incoming beacons.
+type Receiver struct {
+	totalBeacons prometheus.CounterVec
+}
+
+// InitReceiver initializes the receiver metrics and returns a handle.
+func InitReceiver() *Receiver {
+	receiverOnce.Do(func() {
+		receiver = newReceiver()
+	})
+	return receiver
+}
+
+func newReceiver() *Receiver {
+	ns := "beacon_receiver"
+	return &Receiver{
+		totalBeacons: *prom.NewCounterVec(
+			ns, "", "beacons_total", "Number of beacons received",
+			[]string{"in_ifid", "result"}),
+	}
+}
+
+// IncTotalBeacons increments the total beacon count.
+func (m *Receiver) IncTotalBeacons(in common.IFIDType, res result) {
+	if m == nil {
+		return
+	}
+	m.totalBeacons.With(prometheus.Labels{
+		"in_ifid": ifidToString(in),
+		"result":  string(res),
+	}).Inc()
+}
 
 // Propagator holds the propagation metrics.
 type Propagator struct {
