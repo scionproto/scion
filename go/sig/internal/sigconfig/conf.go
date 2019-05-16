@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	DefaultCtrlPort    = 10081
-	DefaultEncapPort   = 10080
+	DefaultCtrlPort    = 30256
+	DefaultEncapPort   = 30056
 	DefaultTunName     = "sig"
 	DefaultTunRTableId = 11
 )
