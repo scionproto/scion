@@ -102,6 +102,7 @@ func TestRegistrarRun(t *testing.T) {
 					Intfs:  ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
 					MTU:    uint16(topoProvider.Get().MTU),
 				},
+				Period:       time.Hour,
 				Msgr:         msgr,
 				SegProvider:  segProvider,
 				TopoProvider: topoProvider,
@@ -175,6 +176,8 @@ func TestRegistrarRun(t *testing.T) {
 					SoMsg("Next", s.Addr.NextHop, ShouldResemble, a.PublicOverlay(a.Overlay))
 				})
 			}
+			// The second run should not do anything, since the period has not passed.
+			r.Run(context.Background())
 		})
 	}
 	Convey("Run drains the channel", t, func() {
