@@ -242,7 +242,8 @@ func TestPropagatorRun(t *testing.T) {
 			cfg.Config.Intfs.Get(ifid).Activate(remote)
 		}
 		g := graph.NewDefaultGraph(mctrl)
-		// We call run 4 times in this test
+		// We call run 4 times in this test, since the interface to 1-ff00:0:120
+		// will never be beaconed on, because the beacons are filtered for loops.
 		provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(4).DoAndReturn(
 			func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
 				res := make(chan beacon.BeaconOrErr, 1)
@@ -251,23 +252,13 @@ func TestPropagatorRun(t *testing.T) {
 				return res, nil
 			},
 		)
-		failedMtx := sync.Mutex{}
-		var failed bool
 		// 1. Initial run where one beacon fails to send. -> 2 calls
 		// 2. Second run where the beacon is delivered. -> 1 call
 		// 3. Run where no beacon is sent. -> no call
 		// 4. Run where beacons are sent on all interfaces. -> 2 calls
-		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(5).DoAndReturn(
-			func(ipkt, iov interface{}) error {
-				failedMtx.Lock()
-				defer failedMtx.Unlock()
-				if !failed {
-					failed = true
-					return errors.New("fail")
-				}
-				return nil
-			},
-		)
+		firstCall := conn.EXPECT().WriteTo(gomock.Any(), gomock.Any())
+		firstCall.Return(errors.New("fail"))
+		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).After(firstCall).Times(4).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
 		p.Run(nil)
 		time.Sleep(1 * time.Second)

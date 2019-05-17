@@ -135,23 +135,13 @@ func TestOriginatorRun(t *testing.T) {
 		intfs.Get(42).Activate(84)
 		intfs.Get(1129).Activate(82)
 
-		failedMtx := sync.Mutex{}
-		var failed bool
 		// 1. Initial run where one beacon fails to send. -> 2 calls
 		// 2. Second run where the beacon is delivered. -> 1 call
 		// 3. Run where no beacon is sent. -> no call
 		// 4. Run where beacons are sent on all interfaces. -> 2 calls
-		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(5).DoAndReturn(
-			func(ipkt, iov interface{}) error {
-				failedMtx.Lock()
-				defer failedMtx.Unlock()
-				if !failed {
-					failed = true
-					return errors.New("fail")
-				}
-				return nil
-			},
-		)
+		first := conn.EXPECT().WriteTo(gomock.Any(), gomock.Any())
+		first.Return(errors.New("fail"))
+		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).After(first).Times(4).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
 		o.Run(nil)
 		time.Sleep(1 * time.Second)
