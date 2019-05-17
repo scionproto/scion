@@ -48,7 +48,7 @@ stop_containers() {
         ./docker.sh exec "set -eo pipefail; ./tools/dc down |& tee -a logs/integration.run"
     fi
 
-    if [ -f gen/zk-dc.yml ]; then
+    if ./docker.sh exec "test -e gen/zk-dc.yml"; then
         ./docker.sh exec "./tools/dc collect_logs zk logs"
         ./docker.sh exec "./tools/dc zk down"
     fi
