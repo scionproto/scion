@@ -244,12 +244,11 @@ class GoGenerator(object):
         disp_type = "br" if name.startswith("disp_br") else ""
         prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
                                                self.args.networks, DISP_PROM_PORT, disp_type)
-        log_name = '%s_%s' % (name, topo_id) if topo_id else 'dispatcher'
         return {
             'dispatcher': {
                 'ID': name,
             },
-            'logging': self._log_entry(log_name),
+            'logging': self._log_entry(name),
             'metrics': {
                 'Prometheus': prometheus_addr,
             },
