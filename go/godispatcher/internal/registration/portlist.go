@@ -53,9 +53,6 @@ func (l *portList) Get() interface{} {
 }
 
 func (l *portList) Find(port int) bool {
-	if l.list == nil {
-		return false
-	}
 	var found bool
 	l.list.Do(
 		func(p interface{}) {
