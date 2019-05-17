@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -229,25 +230,90 @@ func TestSVCTableFree(t *testing.T) {
 			ip := net.IP{10, 2, 3, 4}
 			table := NewSVCTable()
 			addressOne := &net.UDPAddr{IP: ip, Port: 10080}
-			_, err := table.Register(addr.SvcCS, addressOne, "1")
+			refOne, err := table.Register(addr.SvcCS, addressOne, "1")
 			xtest.FailOnErr(t, err)
 			addressTwo := &net.UDPAddr{IP: ip, Port: 10081}
 			refTwo, err := table.Register(addr.SvcCS, addressTwo, "2")
 			xtest.FailOnErr(t, err)
 			addressThree := &net.UDPAddr{IP: ip, Port: 10082}
-			_, err = table.Register(addr.SvcCS, addressThree, "3")
+			refThree, err := table.Register(addr.SvcCS, addressThree, "3")
 			xtest.FailOnErr(t, err)
-			Convey("if the second address is removed", func() {
+			Convey("if the second address is removed, 1 and 3 should stay", func() {
 				refTwo.Free()
+				retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
+				sort.Slice(retValues, func(i, j int) bool {
+					return retValues[i].(string) < retValues[j].(string)
+				})
+				So(retValues, ShouldResemble, []interface{}{"1", "3"})
 				Convey("anycasting cycles between addresses one and three", func() {
-					retValuesOne := table.Lookup(addr.SvcCS, ip)
-					SoMsg("retValuesOne", retValuesOne, ShouldResemble, []interface{}{"1"})
-					retValueThree := table.Lookup(addr.SvcCS, ip)
-					SoMsg("retValuesThree", retValueThree, ShouldResemble, []interface{}{"3"})
+					checkAnyCastCycles(t,
+						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+						[]string{"1", "3"})
+				})
+			})
+			Convey("if the first address is removed, 2 and 3 should stay", func() {
+				refOne.Free()
+				retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
+				sort.Slice(retValues, func(i, j int) bool {
+					return retValues[i].(string) < retValues[j].(string)
+				})
+				So(retValues, ShouldResemble, []interface{}{"2", "3"})
+				Convey("anycasting cycles between addresses two and three", func() {
+					checkAnyCastCycles(t,
+						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+						[]string{"2", "3"})
+				})
+			})
+			Convey("if the third address is removed, 1 and 2 should stay", func() {
+				refThree.Free()
+				retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
+				sort.Slice(retValues, func(i, j int) bool {
+					return retValues[i].(string) < retValues[j].(string)
+				})
+				So(retValues, ShouldResemble, []interface{}{"1", "2"})
+				Convey("anycasting cycles between addresses one and two", func() {
+					checkAnyCastCycles(t,
+						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+						[]string{"1", "2"})
+				})
+				Convey("removing the 1st as well should only leave 2", func() {
+					refOne.Free()
+					retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
+					sort.Slice(retValues, func(i, j int) bool {
+						return retValues[i].(string) < retValues[j].(string)
+					})
+					So(retValues, ShouldResemble, []interface{}{"2"})
+					Convey("anycasting cycles between addresses two", func() {
+						checkAnyCastCycles(t,
+							func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+							[]string{"2"})
+					})
 				})
 			})
 		})
 	})
+}
+
+func checkAnyCastCycles(t *testing.T, lookup func() []interface{}, expected []string) {
+	t.Helper()
+	firstRes := lookup()[0].(string)
+	startIndex := -1
+	for i := range expected {
+		if expected[i] == firstRes {
+			startIndex = i + 1
+			break
+		}
+	}
+	if startIndex == -1 {
+		t.Fatalf("Initial value %s not in expected (%v)", firstRes, expected)
+	}
+	for cnt := 0; cnt < len(expected)+1; cnt++ {
+		idx := (startIndex + cnt) % len(expected)
+		res := lookup()[0].(string)
+		if res != expected[idx] {
+			t.Fatalf("Value %s was not expected in (%v)", res, expected)
+		}
+	}
 }
 
 func runRandomRegistrations(count int, table SVCTable) []Reference {
