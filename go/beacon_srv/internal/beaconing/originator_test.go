@@ -16,9 +16,11 @@ package beaconing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
@@ -47,13 +49,13 @@ func TestOriginatorRun(t *testing.T) {
 	topoProvider := xtest.TopoProviderFromFile(t, topoCore)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
-	intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	xtest.FailOnErr(t, err)
 	signer := testSigner(t, priv, topoProvider.Get().ISD_AS)
 	Convey("Run originates ifid packets on all active core and child interfaces", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
@@ -62,6 +64,7 @@ func TestOriginatorRun(t *testing.T) {
 				Intfs:  intfs,
 				Mac:    mac,
 			},
+			Period: time.Hour,
 			BeaconSender: &onehop.BeaconSender{
 				Sender: onehop.Sender{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
@@ -99,6 +102,56 @@ func TestOriginatorRun(t *testing.T) {
 				checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap)
 			})
 		}
+		// The second run should not cause any beacons to originate.
+		o.Run(nil)
+	})
+	Convey("Fast recovery", t, func() {
+		mctrl := gomock.NewController(t)
+		defer mctrl.Finish()
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
+		conn := mock_snet.NewMockPacketConn(mctrl)
+		o, err := OriginatorConf{
+			Config: ExtenderConf{
+				MTU:    uint16(topoProvider.Get().MTU),
+				Signer: signer,
+				Intfs:  intfs,
+				Mac:    mac,
+			},
+			Period: 2 * time.Second,
+			BeaconSender: &onehop.BeaconSender{
+				Sender: onehop.Sender{
+					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					Conn: conn,
+					Addr: &addr.AppAddr{
+						L3: addr.HostFromIPStr("127.0.0.1"),
+						L4: addr.NewL4UDPInfo(4242),
+					},
+					MAC: mac,
+				},
+			},
+		}.New()
+		xtest.FailOnErr(t, err)
+		// Activate interfaces
+		intfs.Get(42).Activate(84)
+		intfs.Get(1129).Activate(82)
+
+		// 1. Initial run where one beacon fails to send. -> 2 calls
+		// 2. Second run where the beacon is delivered. -> 1 call
+		// 3. Run where no beacon is sent. -> no call
+		// 4. Run where beacons are sent on all interfaces. -> 2 calls
+		first := conn.EXPECT().WriteTo(gomock.Any(), gomock.Any())
+		first.Return(errors.New("fail"))
+		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).After(first).Times(4).Return(nil)
+		// Initial run. Two writes expected, one write will fail.
+		o.Run(nil)
+		time.Sleep(1 * time.Second)
+		// Second run. One write expected.
+		o.Run(nil)
+		// Third run. No write expected
+		o.Run(nil)
+		time.Sleep(1 * time.Second)
+		// Fourth run. Since period has passed, two writes are expected.
+		o.Run(nil)
 	})
 }
 

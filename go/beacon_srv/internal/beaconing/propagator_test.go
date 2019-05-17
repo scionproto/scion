@@ -15,9 +15,11 @@
 package beaconing
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
@@ -149,6 +151,7 @@ func TestPropagatorRun(t *testing.T) {
 					Intfs:  ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
 					MTU:    uint16(topoProvider.Get().MTU),
 				},
+				Period:         time.Hour,
 				BeaconProvider: provider,
 				Core:           test.core,
 				BeaconSender: &onehop.BeaconSender{
@@ -172,7 +175,7 @@ func TestPropagatorRun(t *testing.T) {
 				cfg.Config.Intfs.Get(ifid).Activate(remote)
 			}
 			g := graph.NewDefaultGraph(mctrl)
-			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(1).DoAndReturn(
+			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(2).DoAndReturn(
 				func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
 					res := make(chan beacon.BeaconOrErr, len(beacons[test.core]))
 					for _, desc := range beacons[test.core] {
@@ -201,6 +204,70 @@ func TestPropagatorRun(t *testing.T) {
 					checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap)
 				})
 			}
+			// Check that no beacons are sent, since the period has not passed yet.
+			p.Run(nil)
 		})
 	}
+	Convey("Fast recovery", t, func() {
+		mctrl := gomock.NewController(t)
+		defer mctrl.Finish()
+		topoProvider := xtest.TopoProviderFromFile(t, topoCore)
+		provider := mock_beaconing.NewMockBeaconProvider(mctrl)
+		conn := mock_snet.NewMockPacketConn(mctrl)
+		cfg := PropagatorConf{
+			Config: ExtenderConf{
+				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Mac:    macProp,
+				Intfs:  ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
+				MTU:    uint16(topoProvider.Get().MTU),
+			},
+			Period:         2 * time.Second,
+			BeaconProvider: provider,
+			Core:           true,
+			BeaconSender: &onehop.BeaconSender{
+				Sender: onehop.Sender{
+					IA:   topoProvider.Get().ISD_AS,
+					Conn: conn,
+					Addr: &addr.AppAddr{
+						L3: addr.HostFromIPStr("127.0.0.1"),
+						L4: addr.NewL4UDPInfo(4242),
+					},
+					MAC: macSender,
+				},
+			},
+		}
+		p, err := cfg.New()
+		SoMsg("err", err, ShouldBeNil)
+		for ifid, remote := range allIntfs[true] {
+			cfg.Config.Intfs.Get(ifid).Activate(remote)
+		}
+		g := graph.NewDefaultGraph(mctrl)
+		// We call run 4 times in this test, since the interface to 1-ff00:0:120
+		// will never be beaconed on, because the beacons are filtered for loops.
+		provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(4).DoAndReturn(
+			func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
+				res := make(chan beacon.BeaconOrErr, 1)
+				res <- testBeaconOrErr(g, beacons[true][0])
+				close(res)
+				return res, nil
+			},
+		)
+		// 1. Initial run where one beacon fails to send. -> 2 calls
+		// 2. Second run where the beacon is delivered. -> 1 call
+		// 3. Run where no beacon is sent. -> no call
+		// 4. Run where beacons are sent on all interfaces. -> 2 calls
+		firstCall := conn.EXPECT().WriteTo(gomock.Any(), gomock.Any())
+		firstCall.Return(errors.New("fail"))
+		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).After(firstCall).Times(4).Return(nil)
+		// Initial run. Two writes expected, one write will fail.
+		p.Run(nil)
+		time.Sleep(1 * time.Second)
+		// Second run. One write expected.
+		p.Run(nil)
+		// Third run. No write expected
+		p.Run(nil)
+		time.Sleep(1 * time.Second)
+		// Fourth run. Since period has passed, two writes are expected.
+		p.Run(nil)
+	})
 }
