@@ -42,7 +42,20 @@ run_tests() {
     return $result
 }
 
-./docker.sh exec "set -x; ./scion.sh topology nobuild ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}"
+stop_containers() {
+    # Make sure all compose controlled containers are stopped
+    if [ -n "$DOCKER_BE" ]; then
+        ./docker.sh exec "set -eo pipefail; ./tools/dc down |& tee -a logs/integration.run"
+    fi
+
+    if ./docker.sh exec "test -e gen/zk-dc.yml"; then
+        ./docker.sh exec "./tools/dc collect_logs zk logs"
+        ./docker.sh exec "./tools/dc zk down"
+    fi
+}
+
+./docker.sh exec "set -x; ./scion.sh topology nobuild ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}" ||\
+    { echo "Failed to create topology"; stop_containers; exit 1; }
 ./docker.sh exec "set -eo pipefail; ./scion.sh run nobuild | grep -v "started" |& tee logs/integration.run"
 ./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee logs/integration.run"
 
@@ -63,14 +76,6 @@ esac
 # Stop scion
 ./docker.sh exec "set -eo pipefail; { ./scion.sh status && ./scion.sh stop; } |& tee -a logs/integration.run"
 
-# Make sure all compose controlled containers are stopped
-if [ -n "$DOCKER_BE" ]; then
-    ./docker.sh exec "set -eo pipefail; ./tools/dc down |& tee -a logs/integration.run"
-fi
-
-if [ -f gen/zk-dc.yml ]; then
-    ./docker.sh exec "./tools/dc collect_logs zk logs"
-    ./docker.sh exec "./tools/dc zk down"
-fi
+stop_containers
 
 exit $result
