@@ -83,6 +83,9 @@ load_cust_keys() {
 }
 
 run_zk() {
+    if [ ! -f "gen/zk-dc.yml" ]; then
+        return
+    fi
     echo "Running zookeeper..."
     ./tools/quiet ./tools/dc zk up -d
     if [ -n "$1" ]; then
