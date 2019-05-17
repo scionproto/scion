@@ -245,6 +245,11 @@ func TestSVCTableFree(t *testing.T) {
 					return retValues[i].(string) < retValues[j].(string)
 				})
 				So(retValues, ShouldResemble, []interface{}{"1", "3"})
+				Convey("anycasting cycles between addresses one and three", func() {
+					checkAnyCastCycles(t,
+						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+						[]string{"1", "3"})
+				})
 			})
 			Convey("if the first address is removed, 2 and 3 should stay", func() {
 				refOne.Free()
@@ -253,6 +258,11 @@ func TestSVCTableFree(t *testing.T) {
 					return retValues[i].(string) < retValues[j].(string)
 				})
 				So(retValues, ShouldResemble, []interface{}{"2", "3"})
+				Convey("anycasting cycles between addresses two and three", func() {
+					checkAnyCastCycles(t,
+						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+						[]string{"2", "3"})
+				})
 			})
 			Convey("if the third address is removed, 1 and 2 should stay", func() {
 				refThree.Free()
@@ -261,6 +271,11 @@ func TestSVCTableFree(t *testing.T) {
 					return retValues[i].(string) < retValues[j].(string)
 				})
 				So(retValues, ShouldResemble, []interface{}{"1", "2"})
+				Convey("anycasting cycles between addresses one and two", func() {
+					checkAnyCastCycles(t,
+						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+						[]string{"1", "2"})
+				})
 				Convey("removing the 1st as well should only leave 2", func() {
 					refOne.Free()
 					retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
@@ -268,10 +283,37 @@ func TestSVCTableFree(t *testing.T) {
 						return retValues[i].(string) < retValues[j].(string)
 					})
 					So(retValues, ShouldResemble, []interface{}{"2"})
+					Convey("anycasting cycles between addresses two", func() {
+						checkAnyCastCycles(t,
+							func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+							[]string{"2"})
+					})
 				})
 			})
 		})
 	})
+}
+
+func checkAnyCastCycles(t *testing.T, lookup func() []interface{}, expected []string) {
+	t.Helper()
+	firstRes := lookup()[0].(string)
+	startIndex := -1
+	for i := range expected {
+		if expected[i] == firstRes {
+			startIndex = i + 1
+			break
+		}
+	}
+	if startIndex == -1 {
+		t.Fatalf("Initial value %s not in expected (%v)", firstRes, expected)
+	}
+	for cnt := 0; cnt < len(expected)+1; cnt++ {
+		idx := (startIndex + cnt) % len(expected)
+		res := lookup()[0].(string)
+		if res != expected[idx] {
+			t.Fatalf("Value %s was not expected in (%v)", res, expected)
+		}
+	}
 }
 
 func runRandomRegistrations(count int, table SVCTable) []Reference {
