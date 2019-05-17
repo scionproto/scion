@@ -25,6 +25,7 @@ go_test(
         "bench_test.go",
         "generators_test.go",
         "iatable_test.go",
+        "portlist_test.go",
         "scmp_table_test.go",
         "svctable_test.go",
         "table_test.go",
