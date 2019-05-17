@@ -22,13 +22,10 @@ import (
 
 func TestEmptyPortList(t *testing.T) {
 	pl := newPortList()
-	// Test empty list actions.
 	expectGet(t, pl, nil)
-	if pl.Find(1) {
-		t.Fatalf("Empty list should not find anything but found")
-	}
+	expectFind(t, pl, 1, false)
 	expectLen(t, pl, 0)
-	// Remove can't be called without a ring element.
+	// Remove can't be tested on empty port list since we don't have a ring to remove.
 }
 
 func TestRemoval(t *testing.T) {
@@ -52,7 +49,6 @@ func TestRemoval(t *testing.T) {
 
 	pl.Remove(r3)
 	expectList(t, pl, "1", "2")
-	r3 = pl.Insert(3, "3")
 }
 
 func expectGet(t *testing.T, pl *portList, expected interface{}) {
