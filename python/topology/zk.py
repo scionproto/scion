@@ -1,4 +1,5 @@
 # Copyright 2018 ETH Zurich
+# Copyright 2019 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,6 +37,8 @@ class ZKGenerator(object):
         self.zk_conf = {'version': '3', 'services': {}}
 
     def generate(self):
+        if not self.any_py_service():
+            return
         # Take first topo_id as zookeeper is the same for all topos
         topo_id = next(iter(self.args.topo_dicts))
         zk_entry = self.args.topo_dicts[topo_id]["ZookeeperService"][1]
@@ -57,3 +60,6 @@ class ZKGenerator(object):
         self.zk_conf['services']['zookeeper'] = entry
         write_file(os.path.join(self.args.output_dir, ZK_CONF),
                    yaml.dump(self.zk_conf, default_flow_style=False))
+
+    def any_py_service(self):
+        return 'py' in (self.args.beacon_server, self.args.cert_server, self.args.path_server)
