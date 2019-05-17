@@ -248,7 +248,7 @@ class GoGenerator(object):
             'dispatcher': {
                 'ID': name,
             },
-            'logging': self._log_entry("dispatcher"),
+            'logging': self._log_entry(name),
             'metrics': {
                 'Prometheus': prometheus_addr,
             },
