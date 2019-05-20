@@ -38,6 +38,15 @@ class Test(test.Base):
     """
     Test that an interface can be added to the topology and the
     beacon server starts beaconing on that interface.
+
+    In the setup phase, the tiny topology is started with the link between
+    1-ff00:0:110 and 1-ff00:0:111 missing from the topology of the beacon
+    servers.
+
+    In the run phase, we first check that the end2end connectivity is broken.
+    Then we set the topology containing the link and send a reload signal
+    to the BSes. After some time that allows for beacon propagation, the test
+    checks that end2end connectivity is established.
     """
     tools_dc = local['./tools/dc']
 
@@ -85,6 +94,7 @@ class TestSetup(Test):
 
     @staticmethod
     def filter_interfaces(topos: Dict[str, Dict], ia: List[str]) -> Dict[str, Dict]:
+        """ Filter all interfaces in all topologies that link to an interface in ia. """
         t = deepcopy(topos)
         for fn, topo in topos.items():
             for br_name, br_dict in topo['BorderRouters'].items():
