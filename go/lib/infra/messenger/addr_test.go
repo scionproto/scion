@@ -214,6 +214,7 @@ func TestResolveIfSVC(t *testing.T) {
 		InputAddress          *addr.AppAddr
 		ResolverSetup         func(*mock_messenger.MockResolver)
 		SVCResolutionFraction float64
+		ExpectedPath          snet.Path
 		ExpectedAddress       *addr.AppAddr
 		ExpectedQUICRedirect  bool
 		ExpectedError         bool
@@ -284,11 +285,13 @@ func TestResolveIfSVC(t *testing.T) {
 							Transports: map[svc.Transport]string{
 								svc.QUIC: "192.168.1.1:8000",
 							},
+							ReturnPath: &testPath{},
 						},
 						nil,
 					)
 			},
 			SVCResolutionFraction: 1.0,
+			ExpectedPath:          &testPath{},
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
 				L4: addr.NewL4UDPInfo(8000),
@@ -334,7 +337,8 @@ func TestResolveIfSVC(t *testing.T) {
 					SVCResolutionFraction: tc.SVCResolutionFraction,
 				}
 				initResolver(resolver, tc.ResolverSetup)
-				a, redirect, err := aw.resolveIfSVC(context.Background(), path, tc.InputAddress)
+				p, a, redirect, err := aw.resolveIfSVC(context.Background(), path, tc.InputAddress)
+				SoMsg("path", p, ShouldResemble, tc.ExpectedPath)
 				SoMsg("addr", a, ShouldResemble, tc.ExpectedAddress)
 				SoMsg("redirect", redirect, ShouldEqual, tc.ExpectedQUICRedirect)
 				xtest.SoMsgError("err", err, tc.ExpectedError)
@@ -471,4 +475,18 @@ func initResolver(resolver *mock_messenger.MockResolver, f func(*mock_messenger.
 	if f != nil {
 		f(resolver)
 	}
+}
+
+type testPath struct{}
+
+func (t *testPath) OverlayNextHop() *overlay.OverlayAddr {
+	panic("not implemented")
+}
+
+func (t *testPath) Path() *spath.Path {
+	panic("not implemented")
+}
+
+func (t *testPath) Destination() addr.IA {
+	panic("not implemented")
 }

@@ -56,6 +56,8 @@ func TestNewHandler(t *testing.T) {
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
 		pseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}).Segment
+		rw := mock_infra.NewMockResponseWriter(mctrl)
+		rw.EXPECT().SendAckReply(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 		topoProvider := xtest.TopoProviderFromFile(t, topoCore)
 		Convey("Correct beacon is inserted", func() {
 			inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
@@ -70,7 +72,7 @@ func TestNewHandler(t *testing.T) {
 				gomock.Any()).MaxTimes(2).Return(nil)
 
 			handler := NewHandler(localIA, testInterfaces(topoProvider.Get()), inserter, verifier)
-			res := handler.Handle(defaultTestReq(pseg))
+			res := handler.Handle(defaultTestReq(rw, pseg))
 			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
 		})
 		Convey("Invalid requests cause an error", func() {
@@ -88,7 +90,7 @@ func TestNewHandler(t *testing.T) {
 			})
 			Convey("Unparsable beacon", func() {
 				pseg.RawSData = nil
-				res := handler.Handle(defaultTestReq(pseg))
+				res := handler.Handle(defaultTestReq(rw, pseg))
 				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 			})
 			Convey("Invalid path information is caught", func() {
@@ -97,27 +99,32 @@ func TestNewHandler(t *testing.T) {
 						IP:   net.IPv4zero,
 						Mask: net.IPMask([]byte{0, 0, 0, 0}),
 					}
-					req := infra.NewRequest(context.Background(), pseg, nil, peer, 0)
+					req := infra.NewRequest(
+						infra.NewContextWithResponseWriter(context.Background(), rw),
+						pseg, nil, peer, 0)
 					res := handler.Handle(req)
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 				})
 				Convey("Invalid hop field", func() {
-					req := infra.NewRequest(context.Background(), pseg, nil,
-						&snet.Addr{Path: &spath.Path{}}, 0)
+					req := infra.NewRequest(
+						infra.NewContextWithResponseWriter(context.Background(), rw),
+						pseg, nil, &snet.Addr{Path: &spath.Path{}}, 0)
 					res := handler.Handle(req)
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 				})
 				Convey("Invalid unknown interface", func() {
-					req := infra.NewRequest(context.Background(), pseg, nil,
-						&snet.Addr{Path: testPath(12)}, 0)
+					req := infra.NewRequest(
+						infra.NewContextWithResponseWriter(context.Background(), rw),
+						pseg, nil, &snet.Addr{Path: testPath(12)}, 0)
 					res := handler.Handle(req)
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 				})
 			})
 			Convey("Invalid AS entry information is caught", func() {
 				Convey("Invalid link type", func() {
-					req := infra.NewRequest(context.Background(), pseg, nil,
-						&snet.Addr{Path: testPath(42)}, 0)
+					req := infra.NewRequest(
+						infra.NewContextWithResponseWriter(context.Background(), rw),
+						pseg, nil, &snet.Addr{Path: testPath(42)}, 0)
 					res := handler.Handle(req)
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 				})
@@ -128,7 +135,7 @@ func TestNewHandler(t *testing.T) {
 					raw, err := asEntry.Pack()
 					xtest.FailOnErr(t, err)
 					pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
-					res := handler.Handle(defaultTestReq(pseg))
+					res := handler.Handle(defaultTestReq(rw, pseg))
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 				})
 				Convey("Invalid hop entry", func() {
@@ -139,7 +146,7 @@ func TestNewHandler(t *testing.T) {
 						raw, err := asEntry.Pack()
 						xtest.FailOnErr(t, err)
 						pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
-						res := handler.Handle(defaultTestReq(pseg))
+						res := handler.Handle(defaultTestReq(rw, pseg))
 						SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 					})
 					Convey("Invalid remote out interface", func() {
@@ -149,7 +156,7 @@ func TestNewHandler(t *testing.T) {
 						raw, err := asEntry.Pack()
 						xtest.FailOnErr(t, err)
 						pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
-						res := handler.Handle(defaultTestReq(pseg))
+						res := handler.Handle(defaultTestReq(rw, pseg))
 						SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 					})
 				})
@@ -161,7 +168,7 @@ func TestNewHandler(t *testing.T) {
 						gomock.Any()).MaxTimes(2).Return(common.NewBasicError("failed", nil))
 
 					handler := NewHandler(localIA, intfs, inserter, verifier)
-					res := handler.Handle(defaultTestReq(pseg))
+					res := handler.Handle(defaultTestReq(rw, pseg))
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
 				})
 				Convey("Insertion error", func() {
@@ -177,7 +184,7 @@ func TestNewHandler(t *testing.T) {
 						gomock.Any()).MaxTimes(2).Return(nil)
 
 					handler := NewHandler(localIA, intfs, inserter, verifier)
-					res := handler.Handle(defaultTestReq(pseg))
+					res := handler.Handle(defaultTestReq(rw, pseg))
 					SoMsg("res", res, ShouldEqual, infra.MetricsErrInternal)
 				})
 			})
@@ -185,8 +192,14 @@ func TestNewHandler(t *testing.T) {
 	})
 }
 
-func defaultTestReq(pseg *seg.PathSegment) *infra.Request {
-	return infra.NewRequest(context.Background(), pseg, nil, &snet.Addr{Path: testPath(localIF)}, 0)
+func defaultTestReq(rw infra.ResponseWriter, pseg *seg.PathSegment) *infra.Request {
+	return infra.NewRequest(
+		infra.NewContextWithResponseWriter(context.Background(), rw),
+		pseg,
+		nil,
+		&snet.Addr{Path: testPath(localIF)},
+		0,
+	)
 }
 
 func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.Beacon {
@@ -203,6 +216,7 @@ func testPath(ingressIfid common.IFIDType) *spath.Path {
 		Raw:    make(common.RawBytes, spath.InfoFieldLength+spath.HopFieldLength),
 		HopOff: spath.InfoFieldLength,
 	}
+	(&spath.InfoField{Hops: 1}).Write(path.Raw[:spath.InfoFieldLength])
 	(&spath.HopField{ConsIngress: ingressIfid}).Write(path.Raw[spath.InfoFieldLength:])
 	return path
 }

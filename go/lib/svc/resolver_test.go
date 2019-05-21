@@ -87,7 +87,9 @@ func TestResolver(t *testing.T) {
 }
 
 func TestRoundTripper(t *testing.T) {
-	testReply := &svc.Reply{Transports: map[svc.Transport]string{"foo": "bar"}}
+	testReply := &svc.Reply{
+		Transports: map[svc.Transport]string{"foo": "bar"},
+	}
 	testCases := []struct {
 		Description   string
 		InputPacket   *snet.SCIONPacket
@@ -189,7 +191,10 @@ func TestRoundTripper(t *testing.T) {
 				reply, err := roundTripper.RoundTrip(context.Background(), conn, tc.InputPacket,
 					tc.InputOverlay)
 				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("reply", reply, ShouldResemble, tc.ExpectedReply)
+				// FIXME(scrye): also test that paths are processed correctly
+				if reply != nil {
+					SoMsg("reply", reply.Transports, ShouldResemble, tc.ExpectedReply.Transports)
+				}
 			})
 		}
 	})
