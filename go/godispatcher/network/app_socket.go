@@ -95,6 +95,7 @@ func (h *AppConnHandler) Handle() {
 	metrics.OpenSockets.WithLabelValues(metrics.GetOpenConnectionLabel(ref.SVCAddr())).Inc()
 	defer metrics.OpenSockets.WithLabelValues(metrics.GetOpenConnectionLabel(ref.SVCAddr())).Dec()
 
+	defer tableEntry.appIngressRing.Close()
 	go func() {
 		defer log.LogPanicAndExit()
 		h.RunRingToAppDataplane(tableEntry.appIngressRing)
@@ -226,6 +227,10 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 	entries := make(ringbuf.EntryList, 1)
 	for {
 		n, _ := r.Read(entries, true)
+		if n < 0 {
+			// Ring was closed because app shut down its data socket
+			return
+		}
 		if n > 0 {
 			pkt := entries[0].(*respool.Packet)
 			overlayAddr, err := overlay.NewOverlayAddr(
