@@ -4,27 +4,27 @@ This module provides a simple acceptance testing library.
 
 ### Structure
 
-An acceptance test is structured fairly simple. It exposes a way 
+An acceptance test is structured fairly simple. It exposes a way
 to implement the necessary sub-commands for `acceptance/run`.
 At the core is the `Base` class. It implements the `name` and `teardown`
 sub-commands. The `setup` and `run` command must be implemented by
 each test individually.
 
 `Base` registers two flags that also can be set using environment variables:
-- `--artifacts/ACCEPTANCE_ARTIFACTS` defines the directory for artifacts 
+- `--artifacts/ACCEPTANCE_ARTIFACTS` defines the directory for artifacts
   (required)
 - `--disable-docker/DISABLE_DOCKER` disables the dockerized topology.
   This allows for faster development cycle.
 
-Additionally, the base stores utility classes that help 
+Additionally, the base stores utility classes that help
 interacting with the infrastructure in fields:
-- `scion` can be used to start and stop the scion infrastructure, 
+- `scion` can be used to start and stop the scion infrastructure,
    or interact with individual service processes.
 - `dc` can be used to interact with docker compose.
 
 ### Writing Your Own Test
 
-Write your own test by adding a directory to `acceptance` with the suffix 
+Write your own test by adding a directory to `acceptance` with the suffix
 `_acceptance`. This suffix is required by the acceptance framework.
 
 Add your test file as `new_test_acceptance/test` (without `.py`) and
@@ -66,7 +66,7 @@ class TestSetup(Test):
         # Create the tiny topology/
         self.scion.topology('topology/Tiny.topo')
         # Modify the logging config for all beacon servers
-        self.scion.set_configs({'logging.file.Level': 'trace'}, 
+        self.scion.set_configs({'logging.file.Level': 'trace'},
                                local.path('gen/ISD1') // '*/bs*/bs.toml')
         # Run the scion topology.
         self.scion.run()

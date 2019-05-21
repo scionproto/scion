@@ -34,7 +34,7 @@ class MergeDictTestCase(unittest.TestCase):
         merge_dict({'trustdb': 'insert'}, actual)
         expected = self._orig()
         expected['trustdb'] = 'insert'
-        self.assertEqual(actual, expected, "turstdb not inserted")
+        self.assertEqual(actual, expected, "trustdb not inserted")
 
     def test_replace_leaf_entry(self):
         actual = self._orig()
