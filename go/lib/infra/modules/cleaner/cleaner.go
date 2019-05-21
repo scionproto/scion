@@ -45,7 +45,7 @@ type Cleaner struct {
 	metric  *metric
 }
 
-// New returns a new cleaner task that delete expired data from deleter.
+// New returns a new cleaner task that deletes expired data using deleter.
 func New(deleter ExpiredDeleter, subsystem string) *Cleaner {
 	return &Cleaner{
 		deleter: deleter,
