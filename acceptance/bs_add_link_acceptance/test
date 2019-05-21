@@ -133,4 +133,4 @@ class TestRun(Test):
 
 if __name__ == '__main__':
     init_log()
-    Test()
+    Test.run()
