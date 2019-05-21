@@ -578,7 +578,7 @@ func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
 	case *ack.Ack:
 		return nil
 	default:
-		err := newTypeAssertErr("*seg.Beacon", replyMsg)
+		err := newTypeAssertErr("*ack.Ack", replyMsg)
 		return common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 }
