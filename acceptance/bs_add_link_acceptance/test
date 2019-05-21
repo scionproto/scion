@@ -27,14 +27,14 @@ from plumbum import local
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec, init_log
-from acceptance.common import test
+from acceptance.common.base import Base, set_name
 from acceptance.common.scion import svc_names_from_path
 
-test.set_name(__file__)
+set_name(__file__)
 logger = logging.getLogger(__name__)
 
 
-class Test(test.Base):
+class Test(Base):
     """
     Test that an interface can be added to the topology and the
     beacon server starts beaconing on that interface.

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import logging
-import os
 
 from plumbum import cli
 from plumbum import local
@@ -32,7 +31,7 @@ logger = logging.getLogger(__name__)
 def set_name(file: dir):
     global NAME
     global DIR
-    DIR = os.path.basename(os.path.dirname(os.path.abspath(file)))
+    DIR = local.path(file).dirname.name
     NAME = DIR[:-len('_acceptance')]
 
 
@@ -52,17 +51,9 @@ class Base(cli.Application):
         self.tst_dir = local.path('%s/%s/' % (a_dir, NAME))
         self.dc = DC(self.tst_dir)
 
-    def test_dir(self) -> LocalPath:
-        return local.path('acceptance') / DIR
-
     def cmd_dc(self, *args):
         for line in self.dc(*args).splitlines():
             print(line)
-
-    def docker_status(self):
-        logger.info('Docker containers')
-        docker('ps', '-a', '-s')
-        # TODO(lukedirtwalker): print status to stdout
 
     def cmd_collect_logs(self):
         self.dc.collect_logs()
@@ -74,6 +65,16 @@ class Base(cli.Application):
         self.scion.stop()
         if not self.no_docker:
             self.dc.collect_logs(self.tst_dir / 'logs' / 'docker')
+
+    @staticmethod
+    def test_dir() -> LocalPath:
+        return local.path('acceptance') / DIR
+
+    @staticmethod
+    def docker_status():
+        logger.info('Docker containers')
+        docker('ps', '-a', '-s')
+        # TODO(lukedirtwalker): print status to stdout
 
 
 @Base.subcommand('name')

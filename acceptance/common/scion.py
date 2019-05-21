@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import logging
-import os
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 import toml
@@ -24,13 +24,17 @@ from plumbum.path.local import LocalPath
 logger = logging.getLogger(__name__)
 
 
-class Scion:
+class Scion(ABC):
     """ Scion is the base class for interacting with the infrastructure. """
     scion_sh = local['./scion.sh']
     end2end = local['./bin/end2end_integration']
 
+    @abstractmethod
     def topology(self, topo_file: str, *args: str):
-        """ Create the topology files. """
+        """ Create the topology files by invoking scion.sh
+        :param topo_file: The .topo file passed with -c.
+        :param args: List of optional arguments.
+        """
         pass
 
     def run(self, nobuild=True):
@@ -46,7 +50,14 @@ class Scion:
         """ Stop the scion infrastructure. """
         self.scion_sh('stop')
 
+    @abstractmethod
     def _send_signals(self, svc_names: List[str], sig: str):
+        """
+        Send the signal to all service names.
+
+        :param svc_names: List of service names.
+        :param sig: signal string (e.g. SIGHUP, SIGKILL)
+        """
         pass
 
     def kill_svc(self, svc_names: List[str]):
@@ -61,7 +72,12 @@ class Scion:
         logger.info('Running end2end test')
         self._run_end2end(1 if expect_fail else 0)
 
+    @abstractmethod
     def _run_end2end(self, code=0):
+        """
+        Run the end2end integration test.
+        :param code: The expected return code.
+        """
         pass
 
     @staticmethod
@@ -127,19 +143,25 @@ def svc_names_from_path(files: LocalPath) -> List[str]:
     """
     names = set()
     for file in files:
-        names.add(os.path.basename(os.path.dirname(os.path.abspath(file))))
+        if file.is_file():
+            names.add(file.dirname.name)
+        else:
+            names.add(file.name)
     return list(names)
 
 
-def path_to_dict(path: str, val: str) -> dict:
-    """ Convert a dictionary {'a.b.d': d} to a nested dictionary. """
+def path_to_dict(path: str, val: Any) -> Dict:
+    """
+    Convert a path 'a.b.c' and value val to a nested dictionary of form
+    {'a': {'b': {'c': val}}}
+    """
     d = val
     for k in reversed(path.split('.')):
         d = {k: d}
     return d
 
 
-def merge_dict(change_dict, orig_dict):
+def merge_dict(change_dict: Dict[str, Any], orig_dict: Dict[str, Any]):
     """
     Merge changes into the original dictionary. Leaf values in the change dict
     overwrite the values in the original dictionary.
