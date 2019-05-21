@@ -81,8 +81,8 @@ func genCert(ia addr.IA, isIssuer bool) error {
 		return common.NewBasicError("Error loading as.ini", err, "path", cpath)
 	}
 	if isIssuer && a.IssuerCert == nil {
-		return common.NewBasicError(fmt.Sprintf("'%s' section missing from as.ini",
-			conf.IssuerSectionName), nil, "path", cpath)
+		return common.NewBasicError("Section missing from as.ini",
+			nil, "path", cpath, "section", conf.IssuerSectionName)
 	}
 	// Check if file already exists.
 	fname := fmt.Sprintf(pkicmn.CertNameFmt, ia.I, ia.A.FileFmt(), a.AsCert.Version)
