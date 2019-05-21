@@ -173,7 +173,6 @@ func (r AddressRewriter) resolveIfSVC(ctx context.Context, p snet.Path,
 	logger.Trace("Sending SVC resolution request", "ia", p.Destination(), "svc", svcAddress,
 		"svcResFraction", r.SVCResolutionFraction)
 	reply, err := r.Resolver.LookupSVC(ctx, p, svcAddress)
-	logger.Info("QQQ", "before", p, "after", reply.ReturnPath)
 	if err != nil {
 		if r.SVCResolutionFraction < 1.0 {
 			// SVC resolution failed but we allow legacy behavior and have some
