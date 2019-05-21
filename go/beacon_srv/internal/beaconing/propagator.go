@@ -127,7 +127,7 @@ func (p *Propagator) run(ctx context.Context) error {
 			peers:       peers,
 			summary:     s,
 		}
-		b.start(&wg)
+		b.start(ctx, &wg)
 	}
 	wg.Wait()
 	p.logSummary(s)
@@ -186,19 +186,19 @@ type beaconPropagator struct {
 
 // start adds to the wait group and starts propagation of the beacon on
 // all active interfaces.
-func (p *beaconPropagator) start(wg *sync.WaitGroup) {
+func (p *beaconPropagator) start(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer log.LogPanicAndExit()
 		defer wg.Done()
-		if err := p.propagate(); err != nil {
+		if err := p.propagate(ctx); err != nil {
 			log.Error("[Propagator] Unable to propagate", "beacon", p.beacon, "err", err)
 			return
 		}
 	}()
 }
 
-func (p *beaconPropagator) propagate() error {
+func (p *beaconPropagator) propagate(ctx context.Context) error {
 	raw, err := p.beacon.Segment.Pack()
 	if err != nil {
 		p.metrics.IncInternalErr()
@@ -215,7 +215,7 @@ func (p *beaconPropagator) propagate() error {
 			p.metrics.IncInternalErr()
 			return common.NewBasicError("Unable to unpack beacon", err)
 		}
-		p.extendAndSend(bseg, egIfid)
+		p.extendAndSend(ctx, bseg, egIfid)
 	}
 	p.wg.Wait()
 	if expected == 0 {
@@ -233,7 +233,9 @@ func (p *beaconPropagator) propagate() error {
 
 // extendAndSend extends the path segment with the AS entry and sends it on the
 // egress interface, all done in a goroutine to avoid head-of-line blocking.
-func (p *beaconPropagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDType) {
+func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon,
+	egIfid common.IFIDType) {
+
 	p.wg.Add(1)
 	go func() {
 		defer log.LogPanicAndExit()
@@ -256,6 +258,7 @@ func (p *beaconPropagator) extendAndSend(bseg beacon.Beacon, egIfid common.IFIDT
 		ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
 
 		err := p.beaconSender.Send(
+			ctx,
 			&seg.Beacon{Segment: bseg.Segment},
 			topoInfo.ISD_AS,
 			egIfid,

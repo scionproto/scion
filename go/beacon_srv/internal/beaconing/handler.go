@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -75,6 +76,13 @@ func (h *handler) Handle() *infra.HandlerResult {
 }
 
 func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	if !ok {
+		return infra.MetricsErrInternal, common.NewBasicError("No Messenger found", nil)
+	}
+
+	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
+
 	b, res, err := h.buildBeacon()
 	if err != nil {
 		h.metrics.IncTotalBeacons(0, metrics.InvalidErr)
@@ -84,18 +92,22 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	if err := h.inserter.PreFilter(b); err != nil {
 		logger.Trace("[BeaconHandler] Beacon pre-filtered", "err", err)
 		h.metrics.IncTotalBeacons(b.InIfId, metrics.Prefiltered)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectPolicyError)
 		return infra.MetricsResultOk, nil
 	}
 	if err := h.verifyBeacon(b); err != nil {
 		h.metrics.IncTotalBeacons(b.InIfId, metrics.VerifyErr)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid, err
 	}
 	if err := h.inserter.InsertBeacons(h.request.Context(), b); err != nil {
 		h.metrics.IncTotalBeacons(b.InIfId, metrics.InsertErr)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRetryDBError)
 		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
 	}
 	logger.Trace("[BeaconHandler] Successfully inserted", "beacon", b)
 	h.metrics.IncTotalBeacons(b.InIfId, metrics.Success)
+	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk, nil
 }
 
@@ -170,5 +182,16 @@ func (h *handler) validateASEntry(b beacon.Beacon) error {
 }
 
 func (h *handler) verifySegment(segment *seg.PathSegment) error {
-	return segverifier.VerifySegment(h.request.Context(), h.verifier, h.request.Peer, segment)
+	snetPeer := h.request.Peer.(*snet.Addr)
+	peerPath, err := snetPeer.GetPath()
+	if err != nil {
+		return common.NewBasicError("path error", err)
+	}
+	svcToQuery := &snet.Addr{
+		IA:      snetPeer.IA,
+		Path:    peerPath.Path(),
+		NextHop: peerPath.OverlayNextHop(),
+		Host:    addr.NewSVCUDPAppAddr(addr.SvcBS),
+	}
+	return segverifier.VerifySegment(h.request.Context(), h.verifier, svcToQuery, segment)
 }

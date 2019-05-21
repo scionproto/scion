@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/prom"
 )
@@ -204,6 +205,15 @@ func (m *MessengerWithMetrics) SendChainIssueReply(ctx context.Context, msg *cer
 
 	opMetrics := metricStartOp(infra.ChainIssueReply)
 	err := m.messenger.SendChainIssueReply(ctx, msg, a, id)
+	opMetrics.publishResult(err)
+	return err
+}
+
+func (m *MessengerWithMetrics) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
+	id uint64) error {
+
+	opMetrics := metricStartOp(infra.Seg)
+	err := m.messenger.SendBeacon(ctx, msg, a, id)
 	opMetrics.publishResult(err)
 	return err
 }

@@ -16,7 +16,9 @@
 package onehop
 
 import (
+	"context"
 	"hash"
+	"net"
 	"sync"
 	"time"
 
@@ -25,12 +27,20 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/layers"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 )
+
+// QUICBeaconSender is used to send beacons over QUIC.
+type QUICBeaconSender interface {
+	// SendBeacon sends the beacon to the address using the specified ID.
+	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error
+}
 
 // Path is a one-hop path.
 type Path spath.Path
@@ -72,7 +82,6 @@ func (s *Sender) Send(msg *Msg, nextHop *overlay.OverlayAddr) error {
 
 // CreatePkt creates a scion packet with a one-hop path and the payload.
 func (s *Sender) CreatePkt(msg *Msg) (*snet.SCIONPacket, error) {
-
 	path, err := s.CreatePath(msg.Ifid, msg.InfoTime)
 	if err != nil {
 		return nil, err
@@ -106,10 +115,32 @@ func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) 
 // BeaconSender is used to send beacons on a one-hop path.
 type BeaconSender struct {
 	Sender
+	// AddressRewriter resolves SVC addresses, if possible. If it is nil,
+	// resolution is not attempted.
+	AddressRewriter *messenger.AddressRewriter
+	// QUICBeaconSender is used to send beacons over QUIC whenever the sender
+	// detects that the server supports QUIC.
+	QUICBeaconSender QUICBeaconSender
 }
 
-func (s *BeaconSender) Send(bseg *seg.Beacon, ia addr.IA, egIfid common.IFIDType,
-	signer infra.Signer, ov *overlay.OverlayAddr) error {
+// Send packs and sends out the beacon. QUIC is first attempted, and if that
+// fails the method falls back on UDP.
+func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
+	egIfid common.IFIDType, signer infra.Signer, ov *overlay.OverlayAddr) error {
+
+	path, err := s.CreatePath(egIfid, time.Now())
+	if err != nil {
+		return err
+	}
+
+	quicOk, err := s.attemptQUIC(ctx, ia, (*spath.Path)(path), ov, bseg)
+	if err != nil {
+		return err
+	}
+	if quicOk {
+		// RPC already handled by QUIC
+		return nil
+	}
 
 	pld, err := ctrl.NewPld(bseg, nil)
 	if err != nil {
@@ -133,4 +164,29 @@ func (s *BeaconSender) Send(bseg *seg.Beacon, ia addr.IA, egIfid common.IFIDType
 		Pld:      packed,
 	}
 	return s.Sender.Send(msg, ov)
+}
+
+func (s *BeaconSender) attemptQUIC(ctx context.Context, ia addr.IA, path *spath.Path,
+	nextHop *overlay.OverlayAddr, bseg *seg.Beacon) (bool, error) {
+
+	if s.AddressRewriter == nil {
+		return false, nil
+	}
+
+	newAddr, redirect, err := s.AddressRewriter.RedirectToQUIC(ctx,
+		&snet.Addr{
+			IA:      ia,
+			Path:    path,
+			NextHop: nextHop,
+			Host:    addr.NewSVCUDPAppAddr(addr.SvcBS),
+		})
+
+	if err != nil || !redirect {
+		log.Trace("Beaconing could not be upgraded to QUIC, using UDP", "remote", newAddr)
+		return false, nil
+	}
+	log.Trace("Beaconing upgraded to QUIC", "remote", newAddr)
+
+	err = s.QUICBeaconSender.SendBeacon(ctx, bseg, newAddr, messenger.NextId())
+	return true, err
 }

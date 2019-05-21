@@ -87,7 +87,13 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context, a net.Addr) (net.Ad
 		return nil, false, common.NewBasicError("bad path", err)
 	}
 	var quicRedirect bool
-	fullAddress.Host, quicRedirect, err = r.resolveIfSVC(ctx, path, fullAddress.Host)
+	var p snet.Path
+	// During One-Hop Path operation, use SVC resolution to also bootstrap the
+	// path.
+	p, fullAddress.Host, quicRedirect, err = r.resolveIfSVC(ctx, path, fullAddress.Host)
+	if p != nil {
+		fullAddress.Path = p.Path()
+	}
 	return fullAddress, quicRedirect, err
 }
 
@@ -144,16 +150,18 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 // address does not have an SVC destination, it is returned unchanged. If
 // address is not a well-formed application address (all fields set, non-nil,
 // supported protocols), the function's behavior is undefined. The returned
-// address is always a copy.
+// address is always a copy. The returned path is the path contained in the
+// reply; the path can be used to talk to the remote AS after One-Hop Path
+// construction.
 func (r AddressRewriter) resolveIfSVC(ctx context.Context, p snet.Path,
-	address *addr.AppAddr) (*addr.AppAddr, bool, error) {
+	address *addr.AppAddr) (snet.Path, *addr.AppAddr, bool, error) {
 
 	svcAddress, ok := address.L3.(addr.HostSVC)
 	if !ok {
-		return address.Copy(), false, nil
+		return nil, address.Copy(), false, nil
 	}
 	if r.SVCResolutionFraction <= 0.0 {
-		return address.Copy(), false, nil
+		return nil, address.Copy(), false, nil
 	}
 
 	if r.SVCResolutionFraction < 1.0 {
@@ -171,19 +179,19 @@ func (r AddressRewriter) resolveIfSVC(ctx context.Context, p snet.Path,
 			// fraction of the timeout left for data transfers, so return
 			// address with SVC destination still set
 			logger.Trace("SVC resolution failed, falling back to legacy mode", "err", err)
-			return address.Copy(), false, nil
+			return nil, address.Copy(), false, nil
 		}
 		// Legacy behavior is disallowed, so propagate a hard failure back to the app.
 		logger.Trace("SVC resolution failed and legacy mode disabled", "err", err)
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	logger.Trace("SVC resolution successful", "reply", reply)
 
 	appAddr, err := parseReply(reply)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
-	return appAddr, true, nil
+	return reply.ReturnPath, appAddr, true, nil
 }
 
 func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, context.CancelFunc) {

@@ -86,6 +86,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
@@ -247,7 +248,7 @@ func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id ui
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Ack", "to", a, "id", id)
-	return m.getRequester(infra.Ack).Notify(ctx, pld, a)
+	return m.getFallbackRequester(infra.Ack).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
@@ -260,7 +261,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending request", "req_type", infra.TRCRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getRequester(infra.TRCRequest).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getFallbackRequester(infra.TRCRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -298,7 +299,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getRequester(infra.ChainRequest).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getFallbackRequester(infra.ChainRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -335,11 +336,14 @@ func (m *Messenger) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id
 func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
 	a net.Addr, id uint64) error {
 
-	pld, err := path_mgmt.NewPld(msg, nil)
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return err
 	}
-	return m.sendMessage(ctx, pld, a, id, infra.IfStateInfos)
+	// FIXME(scrye): Use only UDP because the BR doesn't support QUIC.
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.IfStateInfos, "to", a, "id", id)
+	return m.getFallbackRequester(infra.SegReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) SendRev(ctx context.Context, msg *path_mgmt.SignedRevInfo,
@@ -372,7 +376,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getRequester(infra.SegRequest).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getFallbackRequester(infra.SegRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -404,7 +408,7 @@ func (m *Messenger) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
-	return m.getRequester(infra.SegReply).Notify(ctx, pld, a)
+	return m.getFallbackRequester(infra.SegReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
@@ -427,7 +431,7 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getRequester(infra.SegChangesIdReq).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getFallbackRequester(infra.SegChangesIdReq).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -457,7 +461,7 @@ func (m *Messenger) SendSegChangesIdReply(ctx context.Context, msg *path_mgmt.Se
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesIdReply, "to", a, "id", id)
-	return m.getRequester(infra.SegChangesIdReply).Notify(ctx, pld, a)
+	return m.getFallbackRequester(infra.SegChangesIdReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
@@ -470,7 +474,7 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesReq,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getRequester(infra.SegChangesReq).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getFallbackRequester(infra.SegChangesReq).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -503,7 +507,7 @@ func (m *Messenger) SendSegChangesReply(ctx context.Context, msg *path_mgmt.SegC
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesReply, "to", a, "id", id)
-	return m.getRequester(infra.SegChangesReply).Notify(ctx, pld, a)
+	return m.getFallbackRequester(infra.SegChangesReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
@@ -516,7 +520,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	}
 	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainIssueRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getRequester(infra.ChainIssueRequest).Request(ctx, pld, a, false)
+	replyCtrlPld, err := m.getFallbackRequester(infra.ChainIssueRequest).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
@@ -545,7 +549,38 @@ func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
-	return m.getRequester(infra.ChainIssueReply).Notify(ctx, pld, a)
+	return m.getFallbackRequester(infra.ChainIssueReply).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error {
+	if svc, ok := a.(*snet.Addr).Host.L3.(addr.HostSVC); ok {
+		return common.NewBasicError("[Messenger] Cannot send to SVC address on QUIC-only RPC", nil,
+			"svc", svc)
+	}
+
+	logger := log.FromCtx(ctx)
+	pld, err := ctrl.NewPld(msg, nil)
+	if err != nil {
+		return err
+	}
+	logger.Trace("[Messenger] Sending beacon", "req_type", infra.Seg,
+		"msg_id", id, "beacon", msg, "peer", a)
+
+	replyCtrlPld, err := m.getQUICRequester(m.getSigner(infra.Seg)).Request(ctx, pld, a)
+	if err != nil {
+		return common.NewBasicError("[Messenger] Beaconing error", err)
+	}
+	_, replyMsg, err := validate(replyCtrlPld)
+	if err != nil {
+		return common.NewBasicError("[Messenger] Reply validation failed", err)
+	}
+	switch replyMsg.(type) {
+	case *ack.Ack:
+		return nil
+	default:
+		err := newTypeAssertErr("*ack.Ack", replyMsg)
+		return common.NewBasicError("[Messenger] Type assertion failed", err)
+	}
 }
 
 // sendMessage sends payload msg of type expectedType to address a, using id.
@@ -563,7 +598,7 @@ func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a n
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", msgType, "to", a, "id", id)
-	_, err = m.getRequester(msgType).Request(ctx, pld, a, true)
+	_, err = m.getFallbackRequester(msgType).Request(ctx, pld, a, true)
 	return err
 }
 
@@ -740,29 +775,41 @@ func (m *Messenger) UpdateVerifier(verifier infra.Verifier) {
 	m.verifier = verifier
 }
 
-// getRequester returns a requester object with customized crypto keys.
+// getFallbackRequester returns a requester object with customized crypto keys.
+// If QUIC is enabled, it first tries to do the Request over QUIC; if QUIC is
+// not enabled, or the requester was unable to determine whether the remote
+// server supports QUIC, it falls back to normal UDP.
 //
 // If message type reqT is to be signed, the key is initialized from m.signer.
 // Otherwise it is set to a null signer.
-func (m *Messenger) getRequester(reqT infra.MessageType) *pathingRequester {
+func (m *Messenger) getFallbackRequester(reqT infra.MessageType) *pathingRequester {
+	signer := m.getSigner(reqT)
+	var quicRequester *QUICRequester
+	if m.config.QUIC != nil {
+		quicRequester = m.getQUICRequester(signer)
+	}
+	return &pathingRequester{
+		requester:       ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
+		addressRewriter: m.addressRewriter,
+		quicRequester:   quicRequester,
+	}
+}
+
+func (m *Messenger) getSigner(reqT infra.MessageType) infra.Signer {
 	m.cryptoLock.RLock()
 	defer m.cryptoLock.RUnlock()
 	signer := infra.NullSigner
 	if _, ok := m.signMask[reqT]; ok {
 		signer = m.signer
 	}
-	var quicRequester *QUICRequester
-	if m.config.QUIC != nil {
-		quicRequester = &QUICRequester{
-			QUICClientConfig: m.quicClient,
-			AddressRewriter:  m.addressRewriter,
-			Signer:           signer,
-		}
-	}
-	return &pathingRequester{
-		requester:       ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
-		addressRewriter: m.addressRewriter,
-		quicRequester:   quicRequester,
+	return signer
+}
+
+func (m *Messenger) getQUICRequester(signer ctrl.Signer) *QUICRequester {
+	return &QUICRequester{
+		QUICClientConfig: m.quicClient,
+		AddressRewriter:  m.addressRewriter,
+		Signer:           signer,
 	}
 }
 
