@@ -240,6 +240,7 @@ cmd_test(){
 }
 
 py_test() {
+    python3 -m unittest discover
     nosetests3 ${EXTRA_NOSE_ARGS} "$@"
 }
 
@@ -278,7 +279,7 @@ cmd_lint() {
 
 py_lint() {
     local ret=0
-    for i in python; do
+    for i in acceptance python; do
       [ -d "$i" ] || continue
       echo "Linting $i"
       local cmd="flake8"
