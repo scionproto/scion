@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -57,7 +56,7 @@ func (c *ohpPacketConn) WriteTo(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) 
 				Destination: pkt.Destination,
 				Source:      pkt.Source,
 				Path:        pkt.Path,
-				Extensions:  []common.Extension{&layers.ExtnOHP{}},
+				Extensions:  append(pkt.Extensions, &layers.ExtnOHP{}),
 				L4Header:    pkt.L4Header,
 				Payload:     pkt.Payload,
 			},

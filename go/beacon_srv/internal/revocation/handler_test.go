@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -43,7 +44,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	// log.Root().SetHandler(log.DiscardHandler())
+	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }
 

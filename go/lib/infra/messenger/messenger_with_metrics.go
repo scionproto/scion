@@ -210,10 +210,10 @@ func (m *MessengerWithMetrics) SendChainIssueReply(ctx context.Context, msg *cer
 }
 
 func (m *MessengerWithMetrics) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
-	id uint64, signer seg.Signer) error {
+	id uint64) error {
 
 	opMetrics := metricStartOp(infra.Seg)
-	err := m.messenger.SendBeacon(ctx, msg, a, id, signer)
+	err := m.messenger.SendBeacon(ctx, msg, a, id)
 	opMetrics.publishResult(err)
 	return err
 }

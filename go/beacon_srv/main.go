@@ -175,6 +175,7 @@ func realMain() int {
 			}.New(),
 		}),
 	)
+
 	cfg.Metrics.StartPrometheus()
 	go func() {
 		defer log.LogPanicAndExit()
@@ -204,6 +205,13 @@ func realMain() int {
 			},
 		),
 	}
+	signer, err := tasks.createSigner(topo)
+	if err != nil {
+		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
+		return 1
+	}
+	msgr.UpdateSigner(signer, []infra.MessageType{infra.Seg})
+
 	if tasks.genMac, err = macGenFactory(); err != nil {
 		log.Crit("Unable to initialize MAC generator", "err", err)
 		return 1
@@ -402,6 +410,8 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 				MAC:  t.genMac(),
 				Addr: a.PublicAddr(a.Overlay),
 			},
+			AddressRewriter:  t.addressRewriter,
+			QUICBeaconSender: t.msgr,
 		},
 		Config: beaconing.ExtenderConf{
 			Intfs:  t.intfs,

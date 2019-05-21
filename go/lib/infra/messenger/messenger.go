@@ -552,11 +552,13 @@ func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 	return m.getFallbackRequester(infra.ChainIssueReply).Notify(ctx, pld, a)
 }
 
-func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
-	id uint64, signer seg.Signer) error {
+func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error {
+	if svc, ok := a.(*snet.Addr).Host.L3.(addr.HostSVC); ok {
+		return common.NewBasicError("[Messenger] Cannot send to SVC address on QUIC-only RPC", nil,
+			"svc", svc)
+	}
 
 	logger := log.FromCtx(ctx)
-
 	pld, err := ctrl.NewPld(msg, nil)
 	if err != nil {
 		return err
@@ -564,21 +566,19 @@ func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
 	logger.Trace("[Messenger] Sending beacon", "req_type", infra.Seg,
 		"msg_id", id, "beacon", msg, "peer", a)
 
-	replyCtrlPld, err := m.getQUICRequester(signer).Request(ctx, pld, a)
+	replyCtrlPld, err := m.getQUICRequester(m.getSigner(infra.Seg)).Request(ctx, pld, a)
 	if err != nil {
 		return common.NewBasicError("[Messenger] Beaconing error", err)
 	}
-
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
-
 	switch replyMsg.(type) {
 	case *ack.Ack:
 		return nil
 	default:
-		err := newTypeAssertErr("*cert_mgmt.ChainIssRep", replyMsg)
+		err := newTypeAssertErr("*seg.Beacon", replyMsg)
 		return common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 }
@@ -776,16 +776,14 @@ func (m *Messenger) UpdateVerifier(verifier infra.Verifier) {
 }
 
 // getFallbackRequester returns a requester object with customized crypto keys.
+// If QUIC is enabled, it first tries to do the Request over QUIC; if QUIC is
+// not enabled, or the requester was unable to determine whether the remote
+// server supports QUIC, it falls back to normal UDP.
 //
 // If message type reqT is to be signed, the key is initialized from m.signer.
 // Otherwise it is set to a null signer.
 func (m *Messenger) getFallbackRequester(reqT infra.MessageType) *pathingRequester {
-	m.cryptoLock.RLock()
-	defer m.cryptoLock.RUnlock()
-	signer := infra.NullSigner
-	if _, ok := m.signMask[reqT]; ok {
-		signer = m.signer
-	}
+	signer := m.getSigner(reqT)
 	var quicRequester *QUICRequester
 	if m.config.QUIC != nil {
 		quicRequester = m.getQUICRequester(signer)
@@ -795,6 +793,16 @@ func (m *Messenger) getFallbackRequester(reqT infra.MessageType) *pathingRequest
 		addressRewriter: m.addressRewriter,
 		quicRequester:   quicRequester,
 	}
+}
+
+func (m *Messenger) getSigner(reqT infra.MessageType) infra.Signer {
+	m.cryptoLock.RLock()
+	defer m.cryptoLock.RUnlock()
+	signer := infra.NullSigner
+	if _, ok := m.signMask[reqT]; ok {
+		signer = m.signer
+	}
+	return signer
 }
 
 func (m *Messenger) getQUICRequester(signer ctrl.Signer) *QUICRequester {

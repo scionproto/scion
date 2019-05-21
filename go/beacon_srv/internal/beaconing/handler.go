@@ -16,7 +16,6 @@ package beaconing
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
@@ -72,7 +71,6 @@ func (h *handler) Handle() *infra.HandlerResult {
 	res, err := h.handle(logger)
 	if err != nil {
 		logger.Error("[BeaconHandler] Unable to handle beacon", "err", err)
-		fmt.Println(" err = ", err)
 	}
 	return res
 }

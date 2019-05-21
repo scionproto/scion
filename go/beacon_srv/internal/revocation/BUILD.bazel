@@ -30,6 +30,7 @@ go_test(
         "//go/lib/infra/messenger:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/infra/modules/trust:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",

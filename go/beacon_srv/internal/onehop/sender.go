@@ -38,9 +38,8 @@ import (
 
 // QUICBeaconSender is used to send beacons over QUIC.
 type QUICBeaconSender interface {
-	// SendBeacon sends the beacon to the address using the specified ID. The
-	// top-level signature is created using the signer.
-	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64, signer seg.Signer) error
+	// SendBeacon sends the beacon to the address using the specified ID.
+	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error
 }
 
 // Path is a one-hop path.
@@ -134,7 +133,7 @@ func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
 		return err
 	}
 
-	quicOk, err := s.attemptQUIC(ctx, ia, (*spath.Path)(path), ov, bseg, signer)
+	quicOk, err := s.attemptQUIC(ctx, ia, (*spath.Path)(path), ov, bseg)
 	if err != nil {
 		return err
 	}
@@ -168,7 +167,7 @@ func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
 }
 
 func (s *BeaconSender) attemptQUIC(ctx context.Context, ia addr.IA, path *spath.Path,
-	nextHop *overlay.OverlayAddr, bseg *seg.Beacon, signer infra.Signer) (bool, error) {
+	nextHop *overlay.OverlayAddr, bseg *seg.Beacon) (bool, error) {
 
 	if s.AddressRewriter == nil {
 		return false, nil
@@ -188,6 +187,6 @@ func (s *BeaconSender) attemptQUIC(ctx context.Context, ia addr.IA, path *spath.
 	}
 	log.Trace("Beaconing upgraded to QUIC", "remote", newAddr)
 
-	err = s.QUICBeaconSender.SendBeacon(ctx, bseg, newAddr, messenger.NextId(), signer)
+	err = s.QUICBeaconSender.SendBeacon(ctx, bseg, newAddr, messenger.NextId())
 	return true, err
 }

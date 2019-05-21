@@ -327,7 +327,7 @@ type Messenger interface {
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
 		id uint64) error
-	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64, signer seg.Signer) error
+	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error
 	UpdateSigner(signer Signer, types []MessageType)
 	UpdateVerifier(verifier Verifier)
 	AddHandler(msgType MessageType, h Handler)
