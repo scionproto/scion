@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -108,7 +109,7 @@ func (s *Server) handleQUICSession(session quic.Session) error {
 	if err != nil {
 		return err
 	}
-	msg, err := capnp.NewDecoder(stream).Decode()
+	msg, err := proto.SafeDecode(capnp.NewDecoder(stream))
 	if err != nil {
 		return err
 	}
@@ -161,7 +162,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 	if err != nil {
 		return nil, err
 	}
-	msg, err := capnp.NewDecoder(stream).Decode()
+	msg, err := proto.SafeDecode(capnp.NewDecoder(stream))
 	if err != nil {
 		return nil, err
 	}

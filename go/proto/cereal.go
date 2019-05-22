@@ -134,15 +134,33 @@ func readRootFromReader(r io.Reader) (_ capnp.Struct, err error) {
 }
 
 // parseStruct parses a capnp struct into a Cerealizable instance.
-func parseStruct(c Cerealizable, s capnp.Struct) (err error) {
-	// Convert pogs panics to errors
+func parseStruct(c Cerealizable, s capnp.Struct) error {
+	if err := pogs.Extract(c, uint64(c.ProtoId()), s); err != nil {
+		return common.NewBasicError("Failed to extract struct from capnp message", err)
+	}
+	return nil
+}
+
+// SafeExtract calls pogs.Extract, converting panics to errors.
+func SafeExtract(val interface{}, typeID uint64, s capnp.Struct) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			err = common.NewBasicError("pogs panic", nil, "panic", rec)
 		}
 	}()
-	if err := pogs.Extract(c, uint64(c.ProtoId()), s); err != nil {
-		return common.NewBasicError("Failed to extract struct from capnp message", err)
-	}
-	return nil
+	return pogsExtractF(val, typeID, s)
+}
+
+var pogsExtractF = pogs.Extract
+
+// SafeDecode calls the decode method on the argument, converting panics to
+// errors.
+func SafeDecode(decoder *capnp.Decoder) (msg *capnp.Message, err error) {
+	// FIXME(scrye): Add unit tests for this function.
+	defer func() {
+		if rec := recover(); rec != nil {
+			msg, err = nil, common.NewBasicError("decode panic", nil, "panic", rec)
+		}
+	}()
+	return decoder.Decode()
 }

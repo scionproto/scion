@@ -884,7 +884,7 @@ func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 		return nil, err
 	}
 
-	msg, err := signedPldToMessage(signedPld)
+	msg, err := signedPldToMsg(signedPld)
 	if err != nil {
 		return nil, err
 	}
@@ -895,7 +895,7 @@ func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 		return nil, err
 	}
 
-	replySignedPld, err := messageToSignedPayload(reply.Message)
+	replySignedPld, err := msgToSignedPld(reply.Message)
 	if err != nil {
 		return nil, err
 	}

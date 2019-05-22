@@ -44,7 +44,7 @@ type QUICHandler struct {
 }
 
 func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
-	signedPld, err := messageToSignedPayload(request.Message)
+	signedPld, err := msgToSignedPld(request.Message)
 	if err != nil {
 		log.Error("Unable to extract SignedPld from capnp", "from", request.Address, "err", err)
 		return
@@ -95,19 +95,19 @@ func (h *QUICHandler) Handle(msgType infra.MessageType, handler infra.Handler) {
 	h.handlersLock.Unlock()
 }
 
-func messageToSignedPayload(msg *capnp.Message) (*ctrl.SignedPld, error) {
+func msgToSignedPld(msg *capnp.Message) (*ctrl.SignedPld, error) {
 	root, err := msg.RootPtr()
 	if err != nil {
 		return nil, err
 	}
 	signedPld := &ctrl.SignedPld{}
-	if err := pogs.Extract(signedPld, proto.SignedCtrlPld_TypeID, root.Struct()); err != nil {
+	if err := proto.SafeExtract(signedPld, proto.SignedCtrlPld_TypeID, root.Struct()); err != nil {
 		return nil, err
 	}
 	return signedPld, nil
 }
 
-func signedPldToMessage(signedPld *ctrl.SignedPld) (*capnp.Message, error) {
+func signedPldToMsg(signedPld *ctrl.SignedPld) (*capnp.Message, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		return nil, err

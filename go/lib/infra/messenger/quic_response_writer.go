@@ -114,7 +114,7 @@ func (rw *QUICResponseWriter) sendMessage(ctrlPld *ctrl.Pld) error {
 	if err != nil {
 		return err
 	}
-	msg, err := signedPldToMessage(signedCtrlPld)
+	msg, err := signedPldToMsg(signedCtrlPld)
 	if err != nil {
 		return err
 	}
