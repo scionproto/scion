@@ -19,10 +19,15 @@ import (
 	"sync"
 	"time"
 
+	capnp "zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/pogs"
+
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var _ rpc.Handler = (*QUICHandler)(nil)
@@ -39,7 +44,11 @@ type QUICHandler struct {
 }
 
 func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
-	signedPld := request.SignedPld
+	signedPld, err := msgToSignedPld(request.Message)
+	if err != nil {
+		log.Error("Unable to extract SignedPld from capnp", "from", request.Address, "err", err)
+		return
+	}
 
 	pld, err := signedPld.UnsafePld()
 	if err != nil {
@@ -84,4 +93,31 @@ func (h *QUICHandler) Handle(msgType infra.MessageType, handler infra.Handler) {
 	h.handlersLock.Lock()
 	h.handlers[msgType] = handler
 	h.handlersLock.Unlock()
+}
+
+func msgToSignedPld(msg *capnp.Message) (*ctrl.SignedPld, error) {
+	root, err := msg.RootPtr()
+	if err != nil {
+		return nil, err
+	}
+	signedPld := &ctrl.SignedPld{}
+	if err := proto.SafeExtract(signedPld, proto.SignedCtrlPld_TypeID, root.Struct()); err != nil {
+		return nil, err
+	}
+	return signedPld, nil
+}
+
+func signedPldToMsg(signedPld *ctrl.SignedPld) (*capnp.Message, error) {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return nil, err
+	}
+	root, err := proto.NewRootSignedCtrlPld(seg)
+	if err != nil {
+		return nil, err
+	}
+	if err := pogs.Insert(proto.SignedCtrlPld_TypeID, root.Struct, signedPld); err != nil {
+		return nil, err
+	}
+	return msg, nil
 }

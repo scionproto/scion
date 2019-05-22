@@ -884,13 +884,23 @@ func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 		return nil, err
 	}
 
-	request := &rpc.Request{SignedPld: signedPld}
+	msg, err := signedPldToMsg(signedPld)
+	if err != nil {
+		return nil, err
+	}
+
+	request := &rpc.Request{Message: msg}
 	reply, err := r.QUICClientConfig.Request(ctx, request, newAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	replyPld, err := reply.SignedPld.UnsafePld()
+	replySignedPld, err := msgToSignedPld(reply.Message)
+	if err != nil {
+		return nil, err
+	}
+
+	replyPld, err := replySignedPld.UnsafePld()
 	if err != nil {
 		return nil, err
 	}

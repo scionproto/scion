@@ -45,11 +45,7 @@ func (rw *QUICResponseWriter) SendAckReply(ctx context.Context, msg *ack.Ack) er
 	if err != nil {
 		return err
 	}
-	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
-	if err != nil {
-		return err
-	}
-	return rw.ReplyWriter.WriteReply(&rpc.Reply{SignedPld: signedCtrlPld})
+	return rw.sendMessage(ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.TRC) error {
@@ -62,11 +58,7 @@ func (rw *QUICResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.T
 	if err != nil {
 		return err
 	}
-	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
-	if err != nil {
-		return err
-	}
-	return rw.ReplyWriter.WriteReply(&rpc.Reply{SignedPld: signedCtrlPld})
+	return rw.sendMessage(ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendCertChainReply(ctx context.Context, msg *cert_mgmt.Chain) error {
@@ -79,11 +71,7 @@ func (rw *QUICResponseWriter) SendCertChainReply(ctx context.Context, msg *cert_
 	if err != nil {
 		return err
 	}
-	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
-	if err != nil {
-		return err
-	}
-	return rw.ReplyWriter.WriteReply(&rpc.Reply{SignedPld: signedCtrlPld})
+	return rw.sendMessage(ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendChainIssueReply(ctx context.Context,
@@ -98,11 +86,7 @@ func (rw *QUICResponseWriter) SendChainIssueReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
-	if err != nil {
-		return err
-	}
-	return rw.ReplyWriter.WriteReply(&rpc.Reply{SignedPld: signedCtrlPld})
+	return rw.sendMessage(ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error {
@@ -115,11 +99,7 @@ func (rw *QUICResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.S
 	if err != nil {
 		return err
 	}
-	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
-	if err != nil {
-		return err
-	}
-	return rw.ReplyWriter.WriteReply(&rpc.Reply{SignedPld: signedCtrlPld})
+	return rw.sendMessage(ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
@@ -127,4 +107,16 @@ func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
 
 	// FIXME(scrye): Use only UDP because the BR doesn't support QUIC.
 	return common.NewBasicError("IFStateInfos responses not supported in QUIC", nil)
+}
+
+func (rw *QUICResponseWriter) sendMessage(ctrlPld *ctrl.Pld) error {
+	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
+	if err != nil {
+		return err
+	}
+	msg, err := signedPldToMsg(signedCtrlPld)
+	if err != nil {
+		return err
+	}
+	return rw.ReplyWriter.WriteReply(&rpc.Reply{Message: msg})
 }
