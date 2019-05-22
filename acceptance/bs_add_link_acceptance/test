@@ -48,7 +48,6 @@ class Test(Base):
     to the BSes. After some time that allows for beacon propagation, the test
     checks that end2end connectivity is established.
     """
-    tools_dc = local['./tools/dc']
 
     @staticmethod
     def topology_files() -> LocalPath:

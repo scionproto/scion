@@ -40,6 +40,7 @@ class Base(cli.Application):
     tst_dir = local.path()  # Just init so mypy knows the type.
     scion = ScionDocker()
     no_docker = False
+    tools_dc = local['./tools/dc']
 
     @cli.switch('disable-docker',  envname='DISABLE_DOCKER',
                 help='Run in supervisor environment.')
@@ -48,7 +49,7 @@ class Base(cli.Application):
         Base.scion = ScionSupervisor()
 
     @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
-                mandatory=False)
+                mandatory=True)
     def artifacts_dir(self, a_dir: str):
         self.tst_dir = local.path('%s/%s/' % (a_dir, NAME))
         self.dc = DC(self.tst_dir)
