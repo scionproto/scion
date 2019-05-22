@@ -38,14 +38,17 @@ def set_name(file: dir):
 class Base(cli.Application):
     dc = DC('')  # Just init so mypy knows the type.
     tst_dir = local.path()  # Just init so mypy knows the type.
-    no_docker = cli.Flag('disable-docker', envname='DISABLE_DOCKER',
-                         help='Run in supervisor environment.')
+    scion = ScionDocker()
+    no_docker = False
+    tools_dc = local['./tools/dc']
 
-    def __init__(self, executable):
-        super().__init__(executable)
-        self.scion = ScionSupervisor() if self.no_docker else ScionDocker()
+    @cli.switch('disable-docker',  envname='DISABLE_DOCKER',
+                help='Run in supervisor environment.')
+    def disable_docker(self):
+        Base.no_docker = True
+        Base.scion = ScionSupervisor()
 
-    @cli.switch('--artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
+    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
                 mandatory=True)
     def artifacts_dir(self, a_dir: str):
         self.tst_dir = local.path('%s/%s/' % (a_dir, NAME))
