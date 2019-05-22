@@ -64,7 +64,7 @@ func (s *Server) ListenAndServe() error {
 	for {
 		session, err := s.listener.Accept()
 		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
+			if strings.Contains(err.Error(), "server closed") {
 				return err
 			}
 			log.Warn("[quic] server accept error", "err", err)
@@ -112,14 +112,10 @@ func (s *Server) handleQUICSession(session quic.Session) error {
 	if err != nil {
 		return err
 	}
-	signedPld, err := messageToSignedPayload(msg)
-	if err != nil {
-		return err
-	}
 	rw := &replyWriter{stream: stream}
 	request := &Request{
-		SignedPld: signedPld,
-		Address:   session.RemoteAddr(),
+		Message: msg,
+		Address: session.RemoteAddr(),
 	}
 	go func() {
 		defer log.LogPanicAndExit()
@@ -161,19 +157,11 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 		stream.CancelWrite(CtxTimedOutError)
 	}()
 
-	msg, err := signedPldToMessage(request.SignedPld)
+	err = capnp.NewEncoder(stream).Encode(request.Message)
 	if err != nil {
 		return nil, err
 	}
-	err = capnp.NewEncoder(stream).Encode(msg)
-	if err != nil {
-		return nil, err
-	}
-	msg, err = capnp.NewDecoder(stream).Decode()
-	if err != nil {
-		return nil, err
-	}
-	signedPld, err := messageToSignedPayload(msg)
+	msg, err := capnp.NewDecoder(stream).Decode()
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +172,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 	if err := session.Close(); err != nil {
 		return nil, err
 	}
-	return &Reply{SignedPld: signedPld}, nil
+	return &Reply{Message: msg}, nil
 }
 
 func (c *Client) sendRequest() error {
@@ -227,22 +215,13 @@ type replyWriter struct {
 }
 
 func (rw *replyWriter) WriteReply(reply *Reply) error {
-	msg, err := signedPldToMessage(reply.SignedPld)
-	if err != nil {
+	if err := capnp.NewEncoder(rw.stream).Encode(reply.Message); err != nil {
 		return err
 	}
-
-	err = capnp.NewEncoder(rw.stream).Encode(msg)
-	if err != nil {
-		return err
-	}
-
-	err = rw.stream.Close()
-	if err != nil {
+	if err := rw.stream.Close(); err != nil {
 		return err
 	}
 	return nil
-
 }
 
 func (rw *replyWriter) Close() error {

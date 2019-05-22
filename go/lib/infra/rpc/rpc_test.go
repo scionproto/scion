@@ -22,9 +22,12 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	capnp "zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var _ Handler = (*handler)(nil)
@@ -34,7 +37,7 @@ type handler struct {
 }
 
 func (h *handler) ServeRPC(rw ReplyWriter, request *Request) {
-	reply := &Reply{SignedPld: &ctrl.SignedPld{}}
+	reply := &Reply{Message: getMessage(h.t)}
 	err := rw.WriteReply(reply)
 	xtest.FailOnErr(h.t, err)
 }
@@ -83,11 +86,15 @@ func TestClientServer(t *testing.T) {
 		defer cancelF()
 		reply, err := client.Request(
 			ctx,
-			&Request{SignedPld: &ctrl.SignedPld{}},
+			&Request{Message: getMessage(t)},
 			&net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: 60003},
 		)
 		xtest.FailOnErr(t, err)
-		So(reply, ShouldResemble, &Reply{SignedPld: &ctrl.SignedPld{}})
+		So(
+			mustMarshalMessage(reply.Message),
+			ShouldResemble,
+			mustMarshalMessage(getMessage(t)),
+		)
 	})
 }
 
@@ -128,4 +135,23 @@ func getTestUDPConns(t testing.TB, cliPort, srvPort int) (net.PacketConn, net.Pa
 	cliConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: cliPort})
 	xtest.FailOnErr(t, err)
 	return cliConn, srvConn
+}
+
+func getMessage(t testing.TB) *capnp.Message {
+	signedPld := &ctrl.SignedPld{}
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	xtest.FailOnErr(t, err)
+	root, err := proto.NewRootSignedCtrlPld(seg)
+	xtest.FailOnErr(t, err)
+	err = pogs.Insert(proto.SignedCtrlPld_TypeID, root.Struct, signedPld)
+	xtest.FailOnErr(t, err)
+	return msg
+}
+
+func mustMarshalMessage(msg *capnp.Message) []byte {
+	b, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
