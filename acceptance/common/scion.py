@@ -21,6 +21,8 @@ from plumbum import local
 from plumbum.cmd import pkill
 from plumbum.path.local import LocalPath
 
+from acceptance.common.log import LogExec
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +39,7 @@ class Scion(ABC):
         """
         pass
 
+    @LogExec(logger, 'running topology')
     def run(self, nobuild=True):
         """ Run the scion infrastructure. """
         args = ['nobuild'] if nobuild else []
@@ -68,8 +71,8 @@ class Scion(ABC):
         """ Send SIGHUP to services by name. """
         self._send_signals(svc_names, "SIGHUP")
 
+    @LogExec(logger, 'end2end test')
     def run_end2end(self, expect_fail=False):
-        logger.info('Running end2end test')
         self._run_end2end(1 if expect_fail else 0)
 
     @abstractmethod
@@ -105,6 +108,7 @@ class ScionDocker(Scion):
     """
     tools_dc = local['./tools/dc']
 
+    @LogExec(logger, "creating dockerized topology")
     def topology(self, topo_file: str, *args: str):
         """ Create the dockerized topology files. """
         self.scion_sh('topology', 'nobuild', 'zkclean', '-c', topo_file,
@@ -123,6 +127,8 @@ class ScionSupervisor(Scion):
     ScionSupervisor is used for interacting with the supervisor
     scion infrastructure.
     """
+
+    @LogExec(logger, "creating supervisor topology")
     def topology(self, topo_file: str, *args: str):
         """ Create the topology files. """
         self.scion_sh('topology', 'nobuild', 'zkclean', '-c', topo_file, *args)
