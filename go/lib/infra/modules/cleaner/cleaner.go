@@ -16,6 +16,7 @@ package cleaner
 
 import (
 	"context"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -30,6 +31,8 @@ const (
 	MetricsNamespace = "cleaner"
 )
 
+var registry = metricsRegistry{registered: make(map[string]*metric)}
+
 // ExpiredDeleter is used to delete expired data.
 type ExpiredDeleter func(ctx context.Context) (int, error)
 
@@ -39,35 +42,54 @@ var _ periodic.Task = (*Cleaner)(nil)
 type Cleaner struct {
 	deleter ExpiredDeleter
 	logger  log.Logger
-
-	resultsTotal *prometheus.CounterVec
-	deletedTotal prometheus.Counter
+	metric  *metric
 }
 
-// New returns a new cleaner task that delete expired data from deleter.
-func New(deleter ExpiredDeleter, label string) *Cleaner {
+// New returns a new cleaner task that deletes expired data using deleter.
+func New(deleter ExpiredDeleter, subsystem string) *Cleaner {
 	return &Cleaner{
 		deleter: deleter,
-		logger:  log.New("label", label),
-		resultsTotal: prom.NewCounterVec(MetricsNamespace, label, "results_total",
-			"Results of running the cleaner, either ok or err", []string{"result"}),
-		deletedTotal: prom.NewCounter(MetricsNamespace, label, "deleted_total",
-			"Number of deleted entries total."),
+		logger:  log.New("subsystem", subsystem),
+		metric:  registry.register(subsystem),
 	}
 }
 
 // Run deletes expired entries using the deleter func.
 func (c *Cleaner) Run(ctx context.Context) {
-	result := "ok"
-	defer c.resultsTotal.WithLabelValues(result).Inc()
 	count, err := c.deleter(ctx)
 	if err != nil {
 		c.logger.Error("[Cleaner] Failed to delete", "err", err)
-		result = "err"
+		c.metric.resultsTotal.WithLabelValues("err").Inc()
 		return
 	}
 	if count > 0 {
 		c.logger.Info("[Cleaner] Deleted expired", "count", count)
-		c.deletedTotal.Add(float64(count))
+		c.metric.deletedTotal.Add(float64(count))
 	}
+	c.metric.resultsTotal.WithLabelValues("ok").Inc()
+}
+
+type metricsRegistry struct {
+	mu         sync.Mutex
+	registered map[string]*metric
+}
+
+func (m *metricsRegistry) register(subsystem string) *metric {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if metric, ok := m.registered[subsystem]; ok {
+		return metric
+	}
+	m.registered[subsystem] = &metric{
+		resultsTotal: *prom.NewCounterVec(MetricsNamespace, subsystem, "results_total",
+			"Results of running the cleaner, either ok or err", []string{"result"}),
+		deletedTotal: prom.NewCounter(MetricsNamespace, subsystem, "deleted_total",
+			"Number of deleted entries total."),
+	}
+	return m.registered[subsystem]
+}
+
+type metric struct {
+	resultsTotal prometheus.CounterVec
+	deletedTotal prometheus.Counter
 }
