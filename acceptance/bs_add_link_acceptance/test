@@ -27,14 +27,14 @@ from plumbum import local
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec, init_log
-from acceptance.common.base import Base, set_name
+from acceptance.common.base import CmdBase, set_name, TestBase
 from acceptance.common.scion import svc_names_from_path
 
 set_name(__file__)
 logger = logging.getLogger(__name__)
 
 
-class Test(Base):
+class Test(TestBase):
     """
     Test that an interface can be added to the topology and the
     beacon server starts beaconing on that interface.
@@ -49,13 +49,16 @@ class Test(Base):
     checks that end2end connectivity is established.
     """
 
+class Base(CmdBase):
+
     @staticmethod
     def topology_files() -> LocalPath:
         return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/bs*/topology.json'
 
 
 @Test.subcommand('setup')
-class TestSetup(Test):
+class TestSetup(Base):
+    """ Setup topology with missing link between 1-ff00:0:110 and 1-ff00:0:111. """
     @LogExec(logger, 'setup')
     def main(self):
         self.cmd_setup()
@@ -112,7 +115,9 @@ class TestSetup(Test):
 
 
 @Test.subcommand('run')
-class TestRun(Test):
+class TestRun(Base):
+    """ Run the test. """
+
     @LogExec(logger, 'run')
     def main(self):
         self.scion.run_end2end(expect_fail=True)

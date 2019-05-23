@@ -35,24 +35,39 @@ def set_name(file: dir):
     NAME = DIR[:-len('_acceptance')]
 
 
-class Base(cli.Application):
+class TestState:
+    """
+    TestState is used to share state between the command
+    and the sub-command.
+    """
     dc = DC('')  # Just init so mypy knows the type.
-    tst_dir = local.path()  # Just init so mypy knows the type.
+    artifacts = local.path()  # Just init so mypy knows the type.
     scion = ScionDocker()
     no_docker = False
     tools_dc = local['./tools/dc']
 
-    @cli.switch('disable-docker',  envname='DISABLE_DOCKER',
+
+class TestBase(cli.Application):
+    """
+    TestBase is used to implement the test entry point. Tests should
+    sub-class it and only define the doc string.
+    """
+
+    @cli.switch('disable-docker', envname='DISABLE_DOCKER',
                 help='Run in supervisor environment.')
     def disable_docker(self):
-        Base.no_docker = True
-        Base.scion = ScionSupervisor()
+        TestState.no_docker = True
+        TestState.scion = ScionSupervisor()
 
     @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
                 mandatory=True)
     def artifacts_dir(self, a_dir: str):
-        self.tst_dir = local.path('%s/%s/' % (a_dir, NAME))
-        self.dc = DC(self.tst_dir)
+        TestState.artifacts = local.path('%s/%s/' % (a_dir, NAME))
+
+
+class CmdBase(cli.Application):
+    """ CmdBase is used to implement the test sub-commands. """
+    tools_dc = local['./tools/dc']
 
     def cmd_dc(self, *args):
         for line in self.dc(*args).splitlines():
@@ -62,12 +77,12 @@ class Base(cli.Application):
         self.dc.collect_logs()
 
     def cmd_setup(self):
-        mkdir('-p', self.tst_dir)
+        mkdir('-p', self.artifacts)
 
     def cmd_teardown(self):
         self.scion.stop()
         if not self.no_docker:
-            self.dc.collect_logs(self.tst_dir / 'logs' / 'docker')
+            self.dc.collect_logs(self.artifacts / 'logs' / 'docker')
 
     @staticmethod
     def test_dir() -> LocalPath:
@@ -79,27 +94,52 @@ class Base(cli.Application):
         docker('ps', '-a', '-s')
         # TODO(lukedirtwalker): print status to stdout
 
+    @property
+    def dc(self):
+        return TestState.dc
 
-@Base.subcommand('name')
-class TestName(Base):
+    @property
+    def artifacts(self):
+        return TestState.artifacts
+
+    @property
+    def scion(self):
+        return TestState.scion
+
+    @property
+    def no_docker(self):
+        return TestState.no_docker
+
+
+@TestBase.subcommand('name')
+class TestName(CmdBase):
     def main(self):
         print(NAME)
 
 
-@Base.subcommand('teardown')
-class TestTeardown(Base):
+@TestBase.subcommand('teardown')
+class TestTeardown(CmdBase):
+    """
+    Teardown topology by stopping all running services..
+    In a dockerized topology, the logs are collected.
+    """
+
     @LogExec(logger, 'teardown')
     def main(self):
         self.cmd_teardown()
 
 
-@Base.subcommand('dc')
-class TestDc(Base):
+@TestBase.subcommand('dc')
+class TestDc(CmdBase):
+    """ Execute the docker-compose command. """
+
     def main(self, *args):
         self.cmd_dc(*args)
 
 
-@Base.subcommand('collect_logs')
-class TestCollectLogs(Base):
+@TestBase.subcommand('collect_logs')
+class TestCollectLogs(CmdBase):
+    """ Collect the docker logs and write them to 'logs/docker'. """
+
     def main(self):
         self.cmd_collect_logs()
