@@ -49,15 +49,17 @@ class Test(TestBase):
     checks that end2end connectivity is established.
     """
 
-class Base(CmdBase):
 
-    @staticmethod
-    def topology_files() -> LocalPath:
-        return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/bs*/topology.json'
+def topology_files() -> LocalPath:
+    """
+    Retrun the paths to all topology files for beacon servers in
+    AS 1-ff00:0:110 and 1-ff00:0:111.
+    """
+    return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/bs*/topology.json'
 
 
 @Test.subcommand('setup')
-class TestSetup(Base):
+class TestSetup(CmdBase):
     """ Setup topology with missing link between 1-ff00:0:110 and 1-ff00:0:111. """
     @LogExec(logger, 'setup')
     def main(self):
@@ -74,7 +76,7 @@ class TestSetup(Base):
             self.docker_status()
 
     def modify_topologies(self):
-        files = self.topology_files()
+        files = topology_files()
         self.backup_topologies(files)
         topos = self.load_topologies(files)
         filtered = self.filter_interfaces(topos, ['1-ff00:0:110', '1-ff00:0:111'])
@@ -115,15 +117,16 @@ class TestSetup(Base):
 
 
 @Test.subcommand('run')
-class TestRun(Base):
+class TestRun(CmdBase):
     """ Run the test. """
 
     @LogExec(logger, 'run')
     def main(self):
         self.scion.run_end2end(expect_fail=True)
         logger.info('Initial end2end failed as expected, restoring topologies')
-        self.restore_topologies(self.topology_files())
-        names = svc_names_from_path(self.topology_files())
+        files = topology_files()
+        self.restore_topologies(files)
+        names = svc_names_from_path(files)
         logging.info('Reloading services: %s' % names)
         self.scion.reload_svc(names)
         time.sleep(2)
