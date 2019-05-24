@@ -441,6 +441,15 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 0,
 		},
+		{
+			Name: "nil rule should match all the paths",
+			ACL: &ACL{Entries: []*ACLEntry{
+				{Action: Deny, Rule: nil},
+				allowEntry}},
+			Src:        xtest.MustParseIA("1-ff00:0:130"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 0,
+		},
 	}
 
 	Convey("TestPolicy", t, func() {
