@@ -271,7 +271,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	}
 	switch reply := replyMsg.(type) {
 	case *cert_mgmt.TRC:
-		logger.Trace("[Messenger] Received reply", "reply", reply)
+		logger.Trace("[Messenger] Received reply", "req_id", id, "reply", reply)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
@@ -309,7 +309,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	}
 	switch reply := replyMsg.(type) {
 	case *cert_mgmt.Chain:
-		logger.Trace("[Messenger] Received reply", "reply", reply)
+		logger.Trace("[Messenger] Received reply", "req_id", id, "reply", reply)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
@@ -389,7 +389,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 		if err := reply.ParseRaw(); err != nil {
 			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
 		}
-		logger.Trace("[Messenger] Received reply")
+		logger.Trace("[Messenger] Received reply", "req_id", id)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
@@ -441,7 +441,7 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	}
 	switch reply := replyMsg.(type) {
 	case *path_mgmt.SegChangesIdReply:
-		logger.Trace("[Messenger] Received reply")
+		logger.Trace("[Messenger] Received reply", "req_id", id)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
@@ -487,7 +487,7 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 		if err := reply.ParseRaw(); err != nil {
 			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
 		}
-		logger.Trace("[Messenger] Received reply")
+		logger.Trace("[Messenger] Received reply", "req_id", id)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
@@ -530,7 +530,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	}
 	switch reply := replyMsg.(type) {
 	case *cert_mgmt.ChainIssRep:
-		logger.Trace("[Messenger] Received reply")
+		logger.Trace("[Messenger] Received reply", "req_id", id)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
