@@ -27,14 +27,14 @@ from plumbum import local
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec, init_log
-from acceptance.common.base import Base, set_name
+from acceptance.common.base import CmdBase, set_name, TestBase
 from acceptance.common.scion import svc_names_from_path
 
 set_name(__file__)
 logger = logging.getLogger(__name__)
 
 
-class Test(Base):
+class Test(TestBase):
     """
     Test that an interface can be added to the topology and the
     beacon server starts beaconing on that interface.
@@ -49,13 +49,18 @@ class Test(Base):
     checks that end2end connectivity is established.
     """
 
-    @staticmethod
-    def topology_files() -> LocalPath:
-        return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/bs*/topology.json'
+
+def topology_files() -> LocalPath:
+    """
+    Return the paths to all topology files for beacon servers in
+    AS 1-ff00:0:110 and 1-ff00:0:111.
+    """
+    return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/bs*/topology.json'
 
 
 @Test.subcommand('setup')
-class TestSetup(Test):
+class TestSetup(CmdBase):
+    """ Setup topology with missing link between 1-ff00:0:110 and 1-ff00:0:111. """
     @LogExec(logger, 'setup')
     def main(self):
         self.cmd_setup()
@@ -71,7 +76,7 @@ class TestSetup(Test):
             self.docker_status()
 
     def modify_topologies(self):
-        files = self.topology_files()
+        files = topology_files()
         self.backup_topologies(files)
         topos = self.load_topologies(files)
         filtered = self.filter_interfaces(topos, ['1-ff00:0:110', '1-ff00:0:111'])
@@ -112,13 +117,16 @@ class TestSetup(Test):
 
 
 @Test.subcommand('run')
-class TestRun(Test):
+class TestRun(CmdBase):
+    """ Run the test. """
+
     @LogExec(logger, 'run')
     def main(self):
         self.scion.run_end2end(expect_fail=True)
         logger.info('Initial end2end failed as expected, restoring topologies')
-        self.restore_topologies(self.topology_files())
-        names = svc_names_from_path(self.topology_files())
+        files = topology_files()
+        self.restore_topologies(files)
+        names = svc_names_from_path(files)
         logging.info('Reloading services: %s' % names)
         self.scion.reload_svc(names)
         time.sleep(2)

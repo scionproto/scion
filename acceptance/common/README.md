@@ -6,21 +6,29 @@ This module provides a simple acceptance testing library.
 
 An acceptance test is structured fairly simple. It exposes a way
 to implement the necessary sub-commands for `acceptance/run`.
-At the core is the `Base` class. It implements the `name` and `teardown`
-sub-commands. The `setup` and `run` command must be implemented by
-each test individually.
+At the core are the `TestBase` and `CmdBase` classes. A test should
+have multiple classes. One class `Test` that sub-classes `common.TestBase`,
+with only a doc string. This doc comment used in the output when running the
+command with `--help` flag. Furthermore, a test should have one class per
+sub-command that sub-classes `common.CmdBase` (see below).
 
-`Base` registers two flags that also can be set using environment variables:
+`TestBase` registers two flags that also can be set using environment variables:
 - `--artifacts/ACCEPTANCE_ARTIFACTS` defines the directory for artifacts
   (required)
 - `--disable-docker/DISABLE_DOCKER` disables the dockerized topology.
   This allows for faster development cycle.
 
-Additionally, the base stores utility classes that help
-interacting with the infrastructure in fields:
+The sub-commands should sub-class `common.CmdBase`. `CmdBase` has defined some
+common properties and methods that are useful for test writing and interacting
+with the infrastructure, such as:
 - `scion` can be used to start and stop the scion infrastructure,
    or interact with individual service processes.
 - `dc` can be used to interact with docker compose.
+
+Sub-commands are registered with the `@Test.subcommand` decorator.
+By default, the `name` and `teardown` sub-command are already implemented.
+The `setup` and `run` command must be implemented by each test individually.
+
 
 ### Writing Your Own Test
 
@@ -40,7 +48,7 @@ import logging
 from plumbum import local
 
 from acceptance.common.log import LogExec, init_log
-from acceptance.common.base import Base, set_name
+from acceptance.common.base import CmdBase, TestBase, set_name
 
 # Set the name of the test. It is inferred from the file path.
 set_name(__file__)
@@ -48,7 +56,7 @@ set_name(__file__)
 logger = logging.getLogger(__name__)
 
 
-class Test(Base):
+class Test(TestBase):
     """
     Fill in the test description here. Plumbum will use it as output
     in if the --help flag is set, or the provided flags are invalid.
@@ -57,7 +65,9 @@ class Test(Base):
 
 # This decorator defines the sub-command setup.
 @Test.subcommand('setup')
-class TestSetup(Test):
+class TestSetup(CmdBase):
+    """ This doc string is used in the sub-command help. """
+
     # This decorator logs start and end of the call.
     @LogExec(logger, 'setup')
     def main(self):
@@ -78,7 +88,9 @@ class TestSetup(Test):
 
 # This decorator defines the sub-command run.
 @Test.subcommand('run')
-class TestRun(Test):
+class TestRun(CmdBase):
+    """ This doc string is used in the sub-command help. """
+
     # This decorator logs start and end of the call.
     @LogExec(logger, 'run')
     def main(self):
