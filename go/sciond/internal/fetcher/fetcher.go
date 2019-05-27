@@ -568,7 +568,10 @@ func NewExtendedContext(refCtx context.Context,
 		panic("reference context needs to have deadline")
 	}
 	otherDeadline := time.Now().Add(minLifetime)
-	return context.WithDeadline(context.Background(), max(deadline, otherDeadline))
+	parentCtx := context.Background()
+	// Make sure that the attached logger is attached to the new ctx.
+	parentCtx = log.CtxWith(parentCtx, log.FromCtx(refCtx))
+	return context.WithDeadline(parentCtx, max(deadline, otherDeadline))
 }
 
 func max(x, y time.Time) time.Time {
