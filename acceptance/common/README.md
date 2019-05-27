@@ -9,7 +9,8 @@ to implement the necessary sub-commands for `acceptance/run`.
 At the core are the `TestBase` and `CmdBase` classes. A test should
 have multiple classes. One class `Test` that sub-classes `common.TestBase`,
 with only a doc string. This doc comment used in the output when running the
-command with `--help` flag.
+command with `--help` flag. Furthermore, a test should have one class per
+sub-command that sub-classes `common.CmdBase` (see below).
 
 `TestBase` registers two flags that also can be set using environment variables:
 - `--artifacts/ACCEPTANCE_ARTIFACTS` defines the directory for artifacts

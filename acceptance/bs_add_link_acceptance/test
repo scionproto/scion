@@ -52,7 +52,7 @@ class Test(TestBase):
 
 def topology_files() -> LocalPath:
     """
-    Retrun the paths to all topology files for beacon servers in
+    Return the paths to all topology files for beacon servers in
     AS 1-ff00:0:110 and 1-ff00:0:111.
     """
     return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/bs*/topology.json'
