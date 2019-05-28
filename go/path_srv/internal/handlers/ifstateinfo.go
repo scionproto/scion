@@ -28,7 +28,7 @@ type ifStateInfoHandler struct {
 	*baseHandler
 }
 
-func NewIfStatInfoHandler(args HandlerArgs) infra.Handler {
+func NewIfStateInfoHandler(args HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &ifStateInfoHandler{
 			baseHandler: newBaseHandler(r, args),

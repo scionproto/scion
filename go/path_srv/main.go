@@ -159,7 +159,7 @@ func realMain() int {
 	}
 	msger.AddHandler(infra.SegRequest, segReqHandler)
 	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
-	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStatInfoHandler(args))
+	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStateInfoHandler(args))
 	if cfg.PS.SegSync && core {
 		// Old down segment sync mechanism
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
