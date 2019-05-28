@@ -216,6 +216,13 @@ func realMain() int {
 		log.Crit("Unable to initialize MAC generator", "err", err)
 		return 1
 	}
+	discoRunners, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full,
+		idiscovery.TopoHandlers{}, nil)
+	if err != nil {
+		log.Crit("Unable to start topology fetcher", "err", err)
+		return 1
+	}
+	defer discoRunners.Kill()
 	if err := tasks.Start(); err != nil {
 		log.Crit("Unable to start leader tasks", "err", err)
 		return 1
@@ -262,7 +269,6 @@ type periodicTasks struct {
 	propagator *periodic.Runner
 	revoker    *periodic.Runner
 	registrars segRegRunners
-	discovery  idiscovery.Runners
 
 	beaconCleaner *periodic.Runner
 	revCleaner    *periodic.Runner
@@ -285,9 +291,6 @@ func (t *periodicTasks) Start() error {
 		return common.NewBasicError("Unable to find topo address", nil)
 	}
 	var err error
-	if t.discovery, err = t.startDiscovery(); err != nil {
-		return err
-	}
 	if t.registrars, err = t.startSegRegRunners(); err != nil {
 		return err
 	}
@@ -313,14 +316,6 @@ func (t *periodicTasks) Start() error {
 	)
 	t.running = true
 	return nil
-}
-
-func (t *periodicTasks) startDiscovery() (idiscovery.Runners, error) {
-	d, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full, idiscovery.TopoHandlers{}, nil)
-	if err != nil {
-		return idiscovery.Runners{}, common.NewBasicError("Unable to start topology fetcher", err)
-	}
-	return d, nil
 }
 
 func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
@@ -501,7 +496,6 @@ func (t *periodicTasks) Kill() {
 		log.Warn("Trying to stop tasks, but they are not running! Ignored.")
 		return
 	}
-	t.discovery.Kill()
 	t.keepalive.Kill()
 	if t.originator != nil {
 		t.originator.Kill()
