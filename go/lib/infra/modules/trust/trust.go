@@ -670,7 +670,12 @@ func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.
 		return nil, common.NewBasicError("Unable to find path to any core AS", err,
 			"isd", destISD)
 	}
-	a := &snet.Addr{IA: path.Destination(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	a := &snet.Addr{
+		IA:      path.Destination(),
+		Host:    addr.NewSVCUDPAppAddr(addr.SvcCS),
+		Path:    path.Path(),
+		NextHop: path.OverlayNextHop(),
+	}
 	return a, nil
 }
 
