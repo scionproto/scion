@@ -134,10 +134,10 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
 		case ctx.Err() != nil:
-			return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
+			return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
 		case err != nil && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
 		case err != nil:
-			return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
+			return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal), err
 		case err == nil && len(paths) > 0:
 			return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 		}
@@ -176,11 +176,11 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	paths, err := f.buildPathsFromDB(ctx, req)
 	switch {
 	case ctx.Err() != nil:
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
+		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
 	case err != nil:
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
+		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal), err
 	case err == nil && len(paths) > 0:
-		return f.buildSCIONDReply(paths, 0, sciond.ErrorOk), nil
+		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 	}
 	// If we reached this point because the early reply fired but we still
 	// weren't able to build and paths, wait as much as possible for new
@@ -193,15 +193,15 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
 		case ctx.Err() != nil:
-			return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
+			return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
 		case err != nil:
-			return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
+			return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal), err
 		case err == nil && len(paths) > 0:
 			return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 		}
 	}
 	// Your paths are in another castle
-	return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
+	return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
 }
 
 // buildSCIONDReply constructs a fresh SCIOND PathReply from the information
