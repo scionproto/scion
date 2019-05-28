@@ -142,11 +142,8 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	}
 	wg.Wait()
 	for src, resChan := range resChans {
-		prevLen := len(coreSegs)
 		for s := range resChan {
 			coreSegs = append(coreSegs, s...)
-		}
-		if len(coreSegs) > prevLen {
 			connFirstIAs[src] = struct{}{}
 		}
 	}
@@ -210,11 +207,8 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 	}
 	wg.Wait()
 	for sd, resChan := range resChans {
-		prevLen := len(coreSegs)
 		for s := range resChan {
 			coreSegs = append(coreSegs, s...)
-		}
-		if len(coreSegs) > prevLen {
 			connUpFirstIAs[sd.src] = struct{}{}
 			connDownFirstIAs[sd.dst] = struct{}{}
 		}
@@ -256,14 +250,17 @@ func (h *segReqNonCoreHandler) fetchCoreSegsAsync(ctx context.Context, src, dst 
 	wg.Add(1)
 	go func() {
 		defer log.LogPanicAndExit()
-		defer close(resChan)
 		defer wg.Done()
+		defer close(resChan)
 		res, err := h.fetchCoreSegs(ctx, src, dst, cacheOnly)
 		if err != nil {
 			logger.Error("[segReqHandler] Failed to find core segs", "err", err)
 			return
 		}
-		resChan <- res
+		// only send non empty slices to the channel.
+		if len(res) > 0 {
+			resChan <- res
+		}
 	}()
 	return resChan
 }
