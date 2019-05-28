@@ -18,6 +18,7 @@ import (
 	"context"
 	"math/rand"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -130,18 +131,19 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	}
 	// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 	// Add a limit of cores we query.
+	resChans := make(map[addr.IA]<-chan []*seg.PathSegment)
+	var wg sync.WaitGroup
 	for _, src := range upSegs.FirstIAs() {
 		if !src.Equal(dst) {
-			res, err := h.fetchCoreSegs(ctx, src, dst, segReq.Flags.CacheOnly)
-			if err != nil {
-				logger.Error("[segReqHandler] Failed to find core segs", "err", err)
-				continue
-			}
-			if len(res) > 0 {
-				coreSegs = append(coreSegs, res...)
-				connFirstIAs[src] = struct{}{}
-			}
+			resChans[src] = h.fetchCoreSegsAsync(ctx, src, dst, segReq.Flags.CacheOnly, &wg)
 		} else {
+			connFirstIAs[src] = struct{}{}
+		}
+	}
+	wg.Wait()
+	for src, resChan := range resChans {
+		for s := range resChan {
+			coreSegs = append(coreSegs, s...)
 			connFirstIAs[src] = struct{}{}
 		}
 	}
@@ -152,6 +154,11 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	})
 	logger.Debug("[segReqHandler] found", "up", len(upSegs), "core", len(coreSegs))
 	h.sendReply(ctx, rw, upSegs, coreSegs, nil, segReq)
+}
+
+type srcDst struct {
+	src addr.IA
+	dst addr.IA
 }
 
 func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
@@ -182,8 +189,9 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 	// All firstIAs of up-/down-Segs that are connected, used for filtering later.
 	connUpFirstIAs := make(map[addr.IA]struct{})
 	connDownFirstIAs := make(map[addr.IA]struct{})
-	// TODO(lukedirtwalker): in case of CacheOnly we can use a single query,
-	// else we should start go routines for the core segs here.
+	resChans := make(map[srcDst]<-chan []*seg.PathSegment)
+	var wg sync.WaitGroup
+	// TODO(lukedirtwalker): in case of CacheOnly we can use a single query.
 	for _, dst := range downSegs.FirstIAs() {
 		// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 		// Add a limit of cores we query.
@@ -193,16 +201,16 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 				connDownFirstIAs[dst] = struct{}{}
 				continue
 			}
-			cs, err := h.fetchCoreSegs(ctx, src, dst, segReq.Flags.CacheOnly)
-			if err != nil {
-				logger.Error("Failed to find core segs", "src", src, "dst", dst, "err", err)
-				continue
-			}
-			if len(cs) > 0 {
-				coreSegs = append(coreSegs, cs...)
-				connUpFirstIAs[src] = struct{}{}
-				connDownFirstIAs[dst] = struct{}{}
-			}
+			resChans[srcDst{src: src, dst: dst}] = h.fetchCoreSegsAsync(ctx, src, dst,
+				segReq.Flags.CacheOnly, &wg)
+		}
+	}
+	wg.Wait()
+	for sd, resChan := range resChans {
+		for s := range resChan {
+			coreSegs = append(coreSegs, s...)
+			connUpFirstIAs[sd.src] = struct{}{}
+			connDownFirstIAs[sd.dst] = struct{}{}
 		}
 	}
 	// Make sure we only return connected segments.
@@ -232,6 +240,29 @@ func (h *segReqNonCoreHandler) fetchUpSegsFromDB(ctx context.Context,
 		return h.fetchSegsFromDBRetry(ctx, query)
 	}
 	return h.fetchSegsFromDB(ctx, query)
+}
+
+func (h *segReqNonCoreHandler) fetchCoreSegsAsync(ctx context.Context, src, dst addr.IA,
+	cacheOnly bool, wg *sync.WaitGroup) <-chan []*seg.PathSegment {
+
+	logger := log.FromCtx(ctx)
+	resChan := make(chan []*seg.PathSegment, 1)
+	wg.Add(1)
+	go func() {
+		defer log.LogPanicAndExit()
+		defer wg.Done()
+		defer close(resChan)
+		res, err := h.fetchCoreSegs(ctx, src, dst, cacheOnly)
+		if err != nil {
+			logger.Error("[segReqHandler] Failed to find core segs", "err", err)
+			return
+		}
+		// only send non empty slices to the channel.
+		if len(res) > 0 {
+			resChan <- res
+		}
+	}()
+	return resChan
 }
 
 func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context, src, dst addr.IA,
