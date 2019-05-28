@@ -67,6 +67,10 @@ cmd_run() {
     fi
     run_setup
     echo "Running the network..."
+    # Start dispatcher first, as it is requrired by the border routers.
+    ./tools/quiet ./scion.sh mstart '*disp*'
+    # Start border routers before all other services to provide connectivity.
+    ./tools/quiet ./scion.sh mstart '*br*'
     # Run with docker-compose or supervisor
     if is_docker_be; then
         ./tools/quiet ./tools/dc start 'scion*'
