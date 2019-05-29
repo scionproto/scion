@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -166,6 +167,10 @@ func (r *replyMatcher) Matches(o interface{}) bool {
 			sm.Segment.ID()
 			sm.Segment.FullId()
 		}
+		sort.Slice(segReply.Recs.Recs, func(i, j int) bool {
+			return segReply.Recs.Recs[i].Segment.GetLoggingID() <
+				segReply.Recs.Recs[j].Segment.GetLoggingID()
+		})
 	}
 	return reflect.DeepEqual(r.reply, segReply)
 }
@@ -181,6 +186,9 @@ func matchesSegsAndReq(req *path_mgmt.SegReq, segs []*seg.Meta) *replyMatcher {
 			Recs:      segs,
 			SRevInfos: []*path_mgmt.SignedRevInfo{},
 		}
+		sort.Slice(recs.Recs, func(i, j int) bool {
+			return recs.Recs[i].Segment.GetLoggingID() < recs.Recs[j].Segment.GetLoggingID()
+		})
 	}
 	return &replyMatcher{
 		reply: &path_mgmt.SegReply{

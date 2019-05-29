@@ -39,6 +39,8 @@ import (
 
 const (
 	HandlerTimeout = 30 * time.Second
+
+	NoSegmentsErr = "No segments"
 )
 
 // HandlerArgs are the values required to create the path server's handlers.
@@ -123,7 +125,7 @@ func (h *baseHandler) fetchSegsFromDBRetry(ctx context.Context,
 }
 
 func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
-	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) {
+	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) error {
 	// TODO(lukedirtwalker): collect the verified segs/revoc and return them.
 
 	logger := log.FromCtx(ctx)
@@ -150,10 +152,13 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	segverifier.Verify(ctx, h.trustStore.NewVerifier(), src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
 
+	// Return early if we have nothing to insert.
+	if len(verifiedSegs) == 0 {
+		return common.NewBasicError(NoSegmentsErr, nil)
+	}
 	tx, err := h.pathDB.BeginTransaction(ctx, nil)
 	if err != nil {
-		logger.Error("Failed to create transaction", "err", err)
-		return
+		return err
 	}
 	// sort to prevent sql deadlock
 	sort.Slice(verifiedSegs, func(i, j int) bool {
@@ -165,9 +170,8 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 			if errRollback := tx.Rollback(); errRollback != nil {
 				err = common.NewBasicError("Unable to rollback", err, "rollbackErr", errRollback)
 			}
-			logger.Error("Unable to insert segment into path database",
-				"seg", s.Segment, "err", err)
-			return
+			return common.NewBasicError("Unable to insert segment into path database", err,
+				"seg", s.Segment)
 		}
 		if wasInserted := n > 0; wasInserted {
 			insertedSegmentIDs = append(insertedSegmentIDs, s.Segment.GetLoggingID())
@@ -175,11 +179,11 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	}
 	err = tx.Commit()
 	if err != nil {
-		logger.Error("Failed to commit transaction", "err", err)
-		return
+		return common.NewBasicError("Failed to commit transaction", err)
 	}
 	if len(insertedSegmentIDs) > 0 {
 		logger.Debug("Segments inserted in DB", "count", len(insertedSegmentIDs),
 			"segments", insertedSegmentIDs)
 	}
+	return nil
 }

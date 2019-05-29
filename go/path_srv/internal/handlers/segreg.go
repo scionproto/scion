@@ -79,9 +79,10 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 		NextHop: peerPath.OverlayNextHop(),
 		Host:    addr.NewSVCUDPAppAddr(addr.SvcBS),
 	}
-
-	h.verifyAndStore(subCtx, svcToQuery, segReg.Recs, segReg.SRevInfos)
-	// TODO(lukedirtwalker): If all segments failed to verify the ack should also be negative here.
+	if err := h.verifyAndStore(subCtx, svcToQuery, segReg.Recs, segReg.SRevInfos); err != nil {
+		sendAck(proto.Ack_ErrCode_reject, err.Error())
+		return infra.MetricsErrInvalid
+	}
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
 }
