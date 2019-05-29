@@ -137,11 +137,14 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
 			// in case of error we just assume all of them are new and continue.
 			revInfos = segs.Recs.SRevInfos
 		}
-		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
-		// TODO(lukedirtwalker): If we didn't receive anything we should retry earlier.
-		if _, err := h.pathDB.InsertNextQuery(ctx, dst,
-			queryTime.Add(h.config.QueryInterval.Duration)); err != nil {
-			logger.Warn("Failed to insert last queried", "err", err)
+		if err := h.verifyAndStore(ctx, cPSAddr, recs, revInfos); err != nil {
+			logger.Error("Failed to verify and store segments", "err", err)
+		} else {
+			// Only insert next query if we found some results.
+			if _, err := h.pathDB.InsertNextQuery(ctx, dst,
+				queryTime.Add(h.config.QueryInterval.Duration)); err != nil {
+				logger.Warn("Failed to insert last queried", "err", err)
+			}
 		}
 	}
 	return nil
