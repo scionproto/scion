@@ -204,5 +204,5 @@ func (h *segReqCoreHandler) corePSAddr(ctx context.Context, destISD addr.ISD) (n
 	}
 	// select random reachable core AS.
 	seg := coreSegs[rand.Intn(len(coreSegs))]
-	return addrutil.GetPath(addr.SvcPS, seg, h.topology)
+	return addrutil.GetPath(addr.SvcPS, seg, h.topoProvider)
 }

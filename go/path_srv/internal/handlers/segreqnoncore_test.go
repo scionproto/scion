@@ -17,7 +17,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
@@ -39,9 +38,9 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -60,9 +59,9 @@ var (
 	as2_222   = xtest.MustParseIA("2-ff00:0:222")
 
 	topoFiles = map[addr.IA]string{
-		as1_132: "topology_as1_132.json",
-		as2_211: "topology_as2_211.json",
-		as2_222: "topology_as2_222.json",
+		as1_132: "testdata/topology_as1_132.json",
+		as2_211: "testdata/topology_as2_211.json",
+		as2_222: "testdata/topology_as2_222.json",
 	}
 	trcs = map[addr.ISD]*trc.TRC{
 		1: {
@@ -121,13 +120,14 @@ func newTestGraph(ctrl *gomock.Controller) *testGraph {
 }
 
 type testCase struct {
-	Name     string
-	SrcIA    addr.IA
-	DstIA    addr.IA
-	Ups      []*seg.PathSegment
-	Cores    []*seg.PathSegment
-	Downs    []*seg.PathSegment
-	Expected []*seg.Meta
+	Name      string
+	SrcIA     addr.IA
+	DstIA     addr.IA
+	Ups       []*seg.PathSegment
+	Cores     []*seg.PathSegment
+	Downs     []*seg.PathSegment
+	Expected  []*seg.Meta
+	CacheOnly bool
 }
 
 func setupDB(t *testing.T, tc testCase) pathdb.PathDB {
@@ -212,16 +212,6 @@ func expectedSegs(ups, cores, downs []*seg.PathSegment) []*seg.Meta {
 	return e
 }
 
-func loadTopo(t *testing.T, ia addr.IA) *topology.Topo {
-	fileName, ok := topoFiles[ia]
-	if !ok {
-		t.Fatalf("Missing %v in topoFile maps", ia)
-	}
-	topo, err := topology.LoadFromFile(filepath.Join("testdata", fileName))
-	xtest.FailOnErr(t, err)
-	return topo
-}
-
 func TestSegReqLocal(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -236,6 +226,7 @@ func TestSegReqLocal(t *testing.T) {
 			Cores: []*seg.PathSegment{g.seg110_130},
 			Expected: expectedSegs([]*seg.PathSegment{g.seg130_132},
 				[]*seg.PathSegment{g.seg110_130}, nil),
+			CacheOnly: true,
 		},
 		{
 			Name:  "CoreDST: Single up, dst: core remote",
@@ -245,13 +236,15 @@ func TestSegReqLocal(t *testing.T) {
 			Cores: []*seg.PathSegment{g.seg110_130, g.seg220_130},
 			Expected: expectedSegs([]*seg.PathSegment{g.seg130_132},
 				[]*seg.PathSegment{g.seg220_130}, nil),
+			CacheOnly: true,
 		},
 		{
-			Name:     "CoreDST: No Up, single core, local",
-			SrcIA:    as1_132,
-			DstIA:    core1_110,
-			Cores:    []*seg.PathSegment{g.seg110_130},
-			Expected: nil,
+			Name:      "CoreDST: No Up, single core, local",
+			SrcIA:     as1_132,
+			DstIA:     core1_110,
+			Cores:     []*seg.PathSegment{g.seg110_130},
+			Expected:  nil,
+			CacheOnly: true,
 		},
 		{
 			Name:  "CoreDST: Multi up, single core",
@@ -261,6 +254,7 @@ func TestSegReqLocal(t *testing.T) {
 			Cores: []*seg.PathSegment{g.seg120_220},
 			Expected: expectedSegs([]*seg.PathSegment{g.seg220_222},
 				[]*seg.PathSegment{g.seg120_220}, nil),
+			CacheOnly: true,
 		},
 		{
 			Name:  "CoreDST: Multi up multi core",
@@ -270,14 +264,16 @@ func TestSegReqLocal(t *testing.T) {
 			Cores: []*seg.PathSegment{g.seg120_220, g.seg120_210},
 			Expected: expectedSegs([]*seg.PathSegment{g.seg210_222, g.seg220_222},
 				[]*seg.PathSegment{g.seg120_210, g.seg120_220}, nil),
+			CacheOnly: true,
 		},
 		{
-			Name:     "NonCoreDST: Single up, no core, single down",
-			SrcIA:    as2_222,
-			DstIA:    as2_211,
-			Ups:      []*seg.PathSegment{g.seg220_222},
-			Downs:    []*seg.PathSegment{g.seg210_211},
-			Expected: expectedSegs(nil, nil, nil),
+			Name:      "NonCoreDST: Single up, no core, single down",
+			SrcIA:     as2_222,
+			DstIA:     as2_211,
+			Ups:       []*seg.PathSegment{g.seg220_222},
+			Downs:     []*seg.PathSegment{g.seg210_211},
+			Expected:  expectedSegs(nil, nil, nil),
+			CacheOnly: true,
 		},
 		{
 			Name:  "NonCoreDst: Single up, core, down",
@@ -288,6 +284,7 @@ func TestSegReqLocal(t *testing.T) {
 			Downs: []*seg.PathSegment{g.seg210_211},
 			Expected: expectedSegs([]*seg.PathSegment{g.seg220_222},
 				[]*seg.PathSegment{g.seg210_220}, []*seg.PathSegment{g.seg210_211}),
+			CacheOnly: true,
 		},
 		{
 			Name:  "NonCoreDst: On up path dst",
@@ -297,6 +294,7 @@ func TestSegReqLocal(t *testing.T) {
 			Downs: []*seg.PathSegment{g.seg220_221},
 			Expected: expectedSegs([]*seg.PathSegment{g.seg220_222}, nil,
 				[]*seg.PathSegment{g.seg220_221}),
+			CacheOnly: true,
 		},
 		{
 			Name:  "NonCoreDst: Path with shortcut",
@@ -307,6 +305,7 @@ func TestSegReqLocal(t *testing.T) {
 			Downs: []*seg.PathSegment{g.seg210_211},
 			Expected: expectedSegs([]*seg.PathSegment{g.seg220_222},
 				[]*seg.PathSegment{g.seg210_220}, []*seg.PathSegment{g.seg210_211}),
+			CacheOnly: true,
 		},
 		{
 			Name:  "NonCoreDst: Path through same core and different",
@@ -317,6 +316,15 @@ func TestSegReqLocal(t *testing.T) {
 			Downs: []*seg.PathSegment{g.seg210_222, g.seg220_222},
 			Expected: expectedSegs([]*seg.PathSegment{g.seg210_211},
 				[]*seg.PathSegment{g.seg220_210}, []*seg.PathSegment{g.seg210_222, g.seg220_222}),
+			CacheOnly: true,
+		},
+		{
+			Name:      "ISD-local wildcard should return up segments only",
+			SrcIA:     as2_222,
+			DstIA:     addr.IA{I: 2},
+			Ups:       []*seg.PathSegment{g.seg210_222, g.seg220_222},
+			Expected:  expectedSegs([]*seg.PathSegment{g.seg210_222, g.seg220_222}, nil, nil),
+			CacheOnly: false,
 		},
 		// TODO(lukedirtwalker): add tests with revocations.
 		// TODO(lukedirtwalker): add tests with expired segs.
@@ -343,9 +351,10 @@ func TestSegReqLocal(t *testing.T) {
 					RawSrcIA: tc.SrcIA.IAInt(),
 					RawDstIA: tc.DstIA.IAInt(),
 					Flags: path_mgmt.SegReqFlags{
-						CacheOnly: true,
+						CacheOnly: tc.CacheOnly,
 					},
 				}
+				msger := mock_infra.NewMockMessenger(ctrl)
 				rw := mock_infra.NewMockResponseWriter(ctrl)
 				req := infra.NewRequest(
 					infra.NewContextWithResponseWriter(context.Background(), rw),
@@ -354,20 +363,18 @@ func TestSegReqLocal(t *testing.T) {
 					&snet.Addr{IA: addr.IA{}},
 					scrypto.RandUint64(),
 				)
-				h := &segReqNonCoreHandler{
-					segReqHandler: segReqHandler{
-						baseHandler: &baseHandler{
-							request:    req,
-							pathDB:     db,
-							revCache:   memrevcache.New(),
-							trustStore: ts,
-							topology:   loadTopo(t, tc.SrcIA),
-						},
-						localIA: tc.SrcIA,
-					},
+				args := HandlerArgs{
+					PathDB:        db,
+					RevCache:      memrevcache.New(),
+					TrustStore:    ts,
+					QueryInterval: config.DefaultQueryInterval,
+					IA:            tc.SrcIA,
+					TopoProvider:  xtest.TopoProviderFromFile(t, topoFiles[tc.SrcIA]),
 				}
+				deduper := NewGetSegsDeduper(msger)
+				h := NewSegReqNonCoreHandler(args, deduper)
 				rw.EXPECT().SendSegReply(gomock.Any(), matchesSegsAndReq(segReq, tc.Expected))
-				h.Handle()
+				h.Handle(req)
 			})
 		}
 	})

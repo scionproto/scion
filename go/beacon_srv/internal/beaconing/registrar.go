@@ -235,5 +235,5 @@ func (r *segmentRegistrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error)
 		topo := r.topoProvider.Get()
 		return &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}, nil
 	}
-	return addrutil.GetPath(addr.SvcPS, pseg, r.topoProvider.Get())
+	return addrutil.GetPath(addr.SvcPS, pseg, r.topoProvider)
 }

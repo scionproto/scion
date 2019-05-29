@@ -155,7 +155,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
 		} else {
 			// Only insert next query if we found some results.
 			if _, err := h.pathDB.InsertNextQuery(ctx, dst,
-				queryTime.Add(h.config.QueryInterval.Duration)); err != nil {
+				queryTime.Add(h.queryInt)); err != nil {
 				logger.Warn("Failed to insert last queried", "err", err)
 			}
 		}
