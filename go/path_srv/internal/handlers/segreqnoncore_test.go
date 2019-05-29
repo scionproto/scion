@@ -331,6 +331,11 @@ func TestSegReqLocal(t *testing.T) {
 				return trcs[isd], nil
 			},
 		)
+		ts.EXPECT().GetValidCachedTRC(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+			func(_ context.Context, isd addr.ISD) (*trc.TRC, error) {
+				return trcs[isd], nil
+			},
+		)
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				db := setupDB(t, tc)

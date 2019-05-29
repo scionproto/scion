@@ -71,12 +71,6 @@ func (h *segReqNonCoreHandler) Handle() *infra.HandlerResult {
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	var err error
-	dstCore, err := h.isCoreDst(subCtx, segReq)
-	if err != nil {
-		logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
-		rw.SendSegReply(subCtx, &path_mgmt.SegReply{Req: segReq})
-		return infra.MetricsErrInvalid
-	}
 	coreASes, err := h.coreASes(subCtx)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find local core ASes", "err", err)
@@ -84,10 +78,19 @@ func (h *segReqNonCoreHandler) Handle() *infra.HandlerResult {
 		// TODO(lukedirtwalker): Classify error better.
 		return infra.MetricsErrInternal
 	}
+	cores := coreASes.ASList()
+	dstCore, err := h.isCoreDst(subCtx, segReq, func() (net.Addr, error) {
+		return h.coreSvcAddr(subCtx, addr.SvcCS, cores)
+	})
+	if err != nil {
+		logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
+		rw.SendSegReply(subCtx, &path_mgmt.SegReply{Req: segReq})
+		return infra.MetricsErrInvalid
+	}
 	if dstCore {
-		h.handleCoreDst(subCtx, segReq, rw, segReq.DstIA(), coreASes.ASList())
+		h.handleCoreDst(subCtx, segReq, rw, segReq.DstIA(), cores)
 	} else {
-		h.handleNonCoreDst(subCtx, segReq, rw, segReq.DstIA(), coreASes.ASList())
+		h.handleNonCoreDst(subCtx, segReq, rw, segReq.DstIA(), cores)
 	}
 	// TODO(lukedirtwalker): the return value should come from the handle functions.
 	return infra.MetricsResultOk
@@ -166,7 +169,7 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 
 	logger := log.FromCtx(ctx)
 	cPSResolve := func() (net.Addr, error) {
-		return h.corePSAddr(ctx, coreASes)
+		return h.coreSvcAddr(ctx, addr.SvcPS, coreASes)
 	}
 	downSegs, err := h.fetchDownSegs(ctx, dstIA, cPSResolve, segReq.Flags.CacheOnly)
 	if err != nil {
@@ -292,7 +295,7 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context, src, dst addr.
 		}
 	}
 	// try remote:
-	cPS, err := h.corePSAddr(ctx, []addr.IA{src})
+	cPS, err := h.coreSvcAddr(ctx, addr.SvcPS, []addr.IA{src})
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +307,7 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context, src, dst addr.
 	return h.fetchSegsFromDB(ctx, q)
 }
 
-func (h *segReqNonCoreHandler) corePSAddr(ctx context.Context,
+func (h *segReqNonCoreHandler) coreSvcAddr(ctx context.Context, svc addr.HostSVC,
 	coreASes []addr.IA) (net.Addr, error) {
 
 	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, true)
@@ -316,5 +319,5 @@ func (h *segReqNonCoreHandler) corePSAddr(ctx context.Context,
 	}
 	// select a core AS we have an up segment to.
 	seg := upSegs[rand.Intn(len(upSegs))]
-	return addrutil.GetPath(addr.SvcPS, seg, h.topology)
+	return addrutil.GetPath(svc, seg, h.topology)
 }
