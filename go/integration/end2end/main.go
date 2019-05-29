@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -37,7 +38,8 @@ const (
 )
 
 var (
-	remote snet.Addr
+	remote  snet.Addr
+	timeout = &util.DurWrap{Duration: 2 * time.Second}
 )
 
 func main() {
@@ -53,13 +55,13 @@ func realMain() int {
 	if integration.Mode == integration.ModeServer {
 		server{}.run()
 		return 0
-	} else {
-		return client{}.run()
 	}
+	return client{}.run()
 }
 
 func addFlags() {
 	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var(timeout, "timeout", "The timeout for each attempt")
 }
 
 func validateFlags() {
@@ -72,6 +74,9 @@ func validateFlags() {
 		}
 		if remote.Host.L4.Port() == 0 {
 			integration.LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
+		}
+		if timeout.Duration == 0 {
+			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
 		}
 	}
 }
@@ -130,36 +135,36 @@ func (c client) run() int {
 }
 
 func (c client) attemptRequest(n int) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
+	defer cancel()
 	// Send ping
-	if err := c.ping(n); err != nil {
+	if err := c.ping(ctx, n); err != nil {
 		log.Error("Could not send packet", "err", err)
 		return false
 	}
 	// Receive pong
-	if err := c.pong(); err != nil {
+	if err := c.pong(ctx); err != nil {
 		log.Debug("Error receiving pong", "err", err)
 		return false
 	}
 	return true
 }
 
-func (c client) ping(n int) error {
-	if err := c.getRemote(n); err != nil {
+func (c client) ping(ctx context.Context, n int) error {
+	if err := c.getRemote(ctx, n); err != nil {
 		return err
 	}
-	c.conn.SetWriteDeadline(time.Now().Add(integration.DefaultIOTimeout))
+	c.conn.SetWriteDeadline(getDeadline(ctx))
 	b := pingMessage(remote.IA)
 	_, err := c.conn.WriteTo(b, &remote)
 	return err
 }
 
-func (c client) getRemote(n int) error {
+func (c client) getRemote(ctx context.Context, n int) error {
 	if remote.IA.Equal(integration.Local.IA) {
 		return nil
 	}
 	// Get paths from sciond
-	ctx, cancelF := context.WithTimeout(context.Background(), libint.CtxTimeout)
-	defer cancelF()
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA, 1,
 		sciond.PathReqFlags{Refresh: n != 0})
 	if err != nil {
@@ -182,8 +187,8 @@ func (c client) getRemote(n int) error {
 	return nil
 }
 
-func (c client) pong() error {
-	c.conn.SetReadDeadline(time.Now().Add(integration.DefaultIOTimeout))
+func (c client) pong(ctx context.Context) error {
+	c.conn.SetReadDeadline(getDeadline(ctx))
 	reply := make([]byte, 1024)
 	pktLen, err := c.conn.Read(reply)
 	if err != nil {
@@ -196,6 +201,14 @@ func (c client) pong() error {
 	}
 	log.Debug(fmt.Sprintf("Received pong from %s", remote.IA))
 	return nil
+}
+
+func getDeadline(ctx context.Context) time.Time {
+	dl, ok := ctx.Deadline()
+	if !ok {
+		integration.LogFatal("No deadline in context")
+	}
+	return dl
 }
 
 func pingMessage(server addr.IA) []byte {
