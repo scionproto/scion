@@ -121,17 +121,17 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
+	// For a local wildcard we return all the upSegs.
+	if segReq.DstIA().A == 0 && segReq.DstIA().I == h.localIA.I {
+		logger.Debug("[segReqHandler] found", "up", len(upSegs))
+		h.sendReply(ctx, rw, upSegs, nil, nil, segReq)
+		return
+	}
 	// TODO(lukedirtwalker): in case of CacheOnly we can use a single query,
 	// else we should start go routines for the core segs here.
 	var coreSegs []*seg.PathSegment
 	// All firstIAs of upSegs that are connected, used for filtering later.
 	connFirstIAs := make(map[addr.IA]struct{})
-	// For a local wildcard we return all the upSegs.
-	if segReq.DstIA().A == 0 && segReq.DstIA().I == h.localIA.I {
-		for _, ia := range coreASes {
-			connFirstIAs[ia] = struct{}{}
-		}
-	}
 	// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 	// Add a limit of cores we query.
 	resChans := make(map[addr.IA]<-chan []*seg.PathSegment)
@@ -319,5 +319,5 @@ func (h *segReqNonCoreHandler) coreSvcAddr(ctx context.Context, svc addr.HostSVC
 	}
 	// select a core AS we have an up segment to.
 	seg := upSegs[rand.Intn(len(upSegs))]
-	return addrutil.GetPath(svc, seg, h.topology)
+	return addrutil.GetPath(svc, seg, h.topoProvider)
 }

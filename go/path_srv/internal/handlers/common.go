@@ -26,14 +26,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
 
@@ -45,32 +43,33 @@ const (
 
 // HandlerArgs are the values required to create the path server's handlers.
 type HandlerArgs struct {
-	PathDB     pathdb.PathDB
-	RevCache   revcache.RevCache
-	TrustStore infra.TrustStore
-	Config     config.PSConfig
-	IA         addr.IA
+	PathDB        pathdb.PathDB
+	RevCache      revcache.RevCache
+	TrustStore    infra.TrustStore
+	QueryInterval time.Duration
+	IA            addr.IA
+	TopoProvider  topology.Provider
 }
 
 type baseHandler struct {
-	request    *infra.Request
-	pathDB     pathdb.PathDB
-	revCache   revcache.RevCache
-	trustStore infra.TrustStore
-	topology   *topology.Topo
-	retryInt   time.Duration
-	config     config.PSConfig
+	request      *infra.Request
+	pathDB       pathdb.PathDB
+	revCache     revcache.RevCache
+	trustStore   infra.TrustStore
+	topoProvider topology.Provider
+	retryInt     time.Duration
+	queryInt     time.Duration
 }
 
 func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 	return &baseHandler{
-		request:    request,
-		pathDB:     args.PathDB,
-		revCache:   args.RevCache,
-		trustStore: args.TrustStore,
-		retryInt:   time.Second,
-		config:     args.Config,
-		topology:   itopo.Get(),
+		request:      request,
+		pathDB:       args.PathDB,
+		revCache:     args.RevCache,
+		trustStore:   args.TrustStore,
+		retryInt:     time.Second,
+		queryInt:     args.QueryInterval,
+		topoProvider: args.TopoProvider,
 	}
 }
 

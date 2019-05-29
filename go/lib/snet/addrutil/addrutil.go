@@ -27,7 +27,7 @@ import (
 )
 
 // GetPath creates a path from the given segment and then creates a snet.Addr.
-func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topo *topology.Topo) (net.Addr, error) {
+func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
 
 	x := &bytes.Buffer{}
 	if _, err := ps.RawWriteTo(x); err != nil {
@@ -44,6 +44,7 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topo *topology.Topo) (net.Ad
 	if err != nil {
 		return nil, common.NewBasicError("Failed to extract first HopField", err, "p", p)
 	}
+	topo := topoProv.Get()
 	ifId := hopF.ConsIngress
 	ifInfo, ok := topo.IFInfoMap[ifId]
 	if !ok {

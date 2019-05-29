@@ -20,13 +20,14 @@ import (
 	"sort"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/topology"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -48,6 +49,7 @@ type SegSyncer struct {
 	msger        infra.Messenger
 	dstIA        addr.IA
 	localIA      addr.IA
+	topoProvider topology.Provider
 	repErrCnt    int
 }
 
@@ -64,11 +66,12 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 			continue
 		}
 		syncer := &SegSyncer{
-			pathDB:   args.PathDB,
-			revCache: args.RevCache,
-			msger:    msger,
-			dstIA:    coreAS,
-			localIA:  args.IA,
+			pathDB:       args.PathDB,
+			revCache:     args.RevCache,
+			msger:        msger,
+			dstIA:        coreAS,
+			localIA:      args.IA,
+			topoProvider: args.TopoProvider,
 		}
 		// TODO(lukedirtwalker): either log or add metric to indicate
 		// if task takes longer than ticker often.
@@ -109,7 +112,7 @@ func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
 	var cPs net.Addr
 	// select a seg to reach the dst
 	for _, ps := range coreSegs {
-		cPs, err = addrutil.GetPath(addr.SvcPS, ps, itopo.Get())
+		cPs, err = addrutil.GetPath(addr.SvcPS, ps, s.topoProvider)
 		if err == nil {
 			return cPs, nil
 		}
