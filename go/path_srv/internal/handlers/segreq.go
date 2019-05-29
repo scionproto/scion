@@ -64,13 +64,13 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	// Try local trust store first.
 	if dstTrc, err := h.trustStore.GetValidCachedTRC(ctx, segReq.DstIA().I); err == nil {
 		return dstTrc.CoreASes.Contains(segReq.DstIA()), nil
+	} else if resolver == nil {
+		return false, common.NewBasicError("Destination TRC not found", err,
+			"isd", segReq.DstIA().I)
 	}
-	var remote net.Addr
-	if resolver != nil {
-		var err error
-		if remote, err = resolver(); err != nil {
-			return false, common.NewBasicError("Unable to resolve remote", err)
-		}
+	remote, err := resolver()
+	if err != nil {
+		return false, common.NewBasicError("Unable to resolve remote", err)
 	}
 	dstTRC, err := h.trustStore.GetValidTRC(ctx, segReq.DstIA().I, remote)
 	if err != nil {
