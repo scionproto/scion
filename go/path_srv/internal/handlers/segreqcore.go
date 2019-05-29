@@ -83,7 +83,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context, rw infra.ResponseWrit
 		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
-	dstCore, err := h.isCoreDst(ctx, segReq)
+	dstCore, err := h.isCoreDst(ctx, segReq, nil)
 	if err != nil {
 		logger.Error("[segReqCoreHandler] Failed to determine dest type", "err", err)
 		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})

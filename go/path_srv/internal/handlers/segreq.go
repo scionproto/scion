@@ -55,11 +55,24 @@ func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
 	return true
 }
 
-func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq) (bool, error) {
+func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
+	resolver func() (net.Addr, error)) (bool, error) {
+
 	if segReq.DstIA().A == 0 {
 		return true, nil
 	}
-	dstTRC, err := h.trustStore.GetTRC(ctx, segReq.DstIA().I, scrypto.LatestVer)
+	// Try local trust store first.
+	if dstTrc, err := h.trustStore.GetValidCachedTRC(ctx, segReq.DstIA().I); err == nil {
+		return dstTrc.CoreASes.Contains(segReq.DstIA()), nil
+	} else if resolver == nil {
+		return false, common.NewBasicError("Destination TRC not found", err,
+			"isd", segReq.DstIA().I)
+	}
+	remote, err := resolver()
+	if err != nil {
+		return false, common.NewBasicError("Unable to resolve remote", err)
+	}
+	dstTRC, err := h.trustStore.GetValidTRC(ctx, segReq.DstIA().I, remote)
 	if err != nil {
 		return false, common.NewBasicError("Failed to get TRC for dst", err)
 	}
