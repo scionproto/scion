@@ -292,7 +292,7 @@ class GoGenerator(object):
             'Address':  '[%s]:%s' % (addr, port),
             'CertFile': os.path.join(self.certs_dir, 'tls.pem'),
             'KeyFile': os.path.join(self.certs_dir, 'tls.key'),
-            'ResolutionFraction': svcfrac,
+            'ResolutionFraction': 0.0,
         }
 
 
