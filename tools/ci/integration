@@ -68,7 +68,7 @@ sleep 5
 COMMAND="$1"
 shift
 case "$COMMAND" in
-    go_integration|py_ext_integration|py_scmp_integration|revocation)
+    go_integration|py_ext_integration|py_scmp_integration|revocation|e2e_noncore_core_integration|e2e_noncore_noncore_integration|e2e_core_integration|e2e_upstream_integration)
         "$COMMAND"; result=$? ;;
     *) run_tests; result=$? ;;
 esac
