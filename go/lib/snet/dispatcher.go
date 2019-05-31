@@ -15,10 +15,15 @@
 package snet
 
 import (
+	"context"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -31,15 +36,23 @@ type PacketDispatcherService interface {
 
 var _ PacketDispatcherService = (*DefaultPacketDispatcherService)(nil)
 
+// DefaultPacketDispatcherService parses/serializes packets received from /
+// sent to the dispatcher.
 type DefaultPacketDispatcherService struct {
-	dispatcherService reliable.DispatcherService
+	// Dispatcher is used to get packets from the local SCION Dispatcher process.
+	Dispatcher reliable.DispatcherService
+	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
+	// handler is nil, errors are returned back to applications every time an
+	// SCMP message is received.
+	SCMPHandler SCMPHandler
 }
 
 func NewDefaultPacketDispatcherService(
 	dispatcherService reliable.DispatcherService) *DefaultPacketDispatcherService {
 
 	return &DefaultPacketDispatcherService{
-		dispatcherService: dispatcherService,
+		Dispatcher:  dispatcherService,
+		SCMPHandler: &scmpHandler{},
 	}
 }
 
@@ -47,9 +60,65 @@ func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *add
 	bind *overlay.OverlayAddr, svc addr.HostSVC,
 	timeout time.Duration) (PacketConn, uint16, error) {
 
-	rconn, port, err := s.dispatcherService.RegisterTimeout(ia, public, bind, svc, timeout)
+	rconn, port, err := s.Dispatcher.RegisterTimeout(ia, public, bind, svc, timeout)
 	if err != nil {
 		return nil, 0, err
 	}
-	return NewSCIONPacketConn(rconn), port, err
+	return &SCIONPacketConn{conn: rconn, scmpHandler: s.SCMPHandler}, port, err
+}
+
+// SCMPHandler customizes the way snet connections deal with SCMP.
+type SCMPHandler interface {
+	// Handle processes the packet as an SCMP packet. If packet is not SCMP, it
+	// returns an error.
+	//
+	// If the handler returns an error value, snet will propagate the error
+	// back to the caller. If the return value is nil, snet will reattempt to
+	// read a data packet from the underlying dispatcher connection.
+	//
+	// Handlers that wish to ignore SCMP can just return nil.
+	//
+	// If the handler mutates the packet, the changes are seen by snet
+	// connection method callers.
+	Handle(pkt *SCIONPacket) error
+}
+
+// scmpHandler handles SCMP messages received from the network.
+// If a resolver is configured, it is informed of any received revocations. All
+// revocations are passed back to the caller embedded in the error, so
+// applications can handle them manually.
+type scmpHandler struct {
+	// pathResolver manages revocations received via SCMP. If nil, nothing is informed.
+	pathResolver pathmgr.Resolver
+}
+
+func (h *scmpHandler) Handle(pkt *SCIONPacket) error {
+	hdr, ok := pkt.L4Header.(*scmp.Hdr)
+	if !ok {
+		return common.NewBasicError("scmp handler invoked with non-scmp packet", nil, "pkt", pkt)
+	}
+
+	// Only handle revocations for now
+	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
+		return h.handleSCMPRev(hdr, pkt)
+	}
+	return nil
+}
+
+func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *SCIONPacket) error {
+	scmpPayload, ok := pkt.Payload.(*scmp.Payload)
+	if !ok {
+		return common.NewBasicError("Unable to type assert payload to SCMP payload", nil,
+			"type", common.TypeOf(pkt.Payload))
+	}
+	info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
+	if !ok {
+		return common.NewBasicError("Unable to type assert SCMP Info to SCMP Revocation Info", nil,
+			"type", common.TypeOf(scmpPayload.Info))
+	}
+	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
+	if h.pathResolver != nil {
+		h.pathResolver.RevokeRaw(context.TODO(), info.RawSRev)
+	}
+	return &OpError{scmp: hdr}
 }
