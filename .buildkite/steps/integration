@@ -11,6 +11,9 @@ run_test() {
     echo "  timeout_in_minutes: 10"
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""
+    if [ "$1" == "revocation" ]; then
+        echo "  parallelism: 20"
+    fi
 }
 
 if [ "$RUN_ALL_TESTS" = "y" ]; then

@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -32,12 +33,13 @@ import (
 )
 
 const (
-	ping = "ping:"
-	pong = "pong:"
+	ping = "ping"
+	pong = "pong"
 )
 
 var (
-	remote snet.Addr
+	remote  snet.Addr
+	replies int
 )
 
 func main() {
@@ -60,6 +62,7 @@ func realMain() int {
 
 func addFlags() {
 	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.IntVar(&replies, "replies", 10, "Number of replies sent by the server")
 }
 
 func validateFlags() {
@@ -99,15 +102,25 @@ func (s server) run() {
 			log.Error("Error reading packet", "err", err)
 			continue
 		}
-		if string(b[:pktLen]) != ping+integration.Local.IA.String() {
-			integration.LogFatal("Received unexpected data", "data", b[:pktLen])
+		p, err := PingFromRaw(b[:pktLen])
+		if err != nil {
+			integration.LogFatal("Received unparsable ping", "err", err)
+		}
+		pongs, err := PongsFromPing(p, addr.IA)
+		if err != nil {
+			integration.LogFatal("Cannot create pongs from ping", "err", err)
 		}
 		log.Debug(fmt.Sprintf("Ping received from %s, sending pong.", addr))
-		// Send pong
-		reply := pongMessage(integration.Local.IA, addr.IA)
-		_, err = conn.WriteToSCION(reply, addr)
-		if err != nil {
-			integration.LogFatal("Unable to send reply", "err", err)
+		// Send pongs
+		for _, pong := range pongs {
+			reply, err := pong.Pack()
+			if err != nil {
+				integration.LogFatal("Unable to pack reply", "err", err)
+			}
+			_, err = conn.WriteToSCION(reply, addr)
+			if err != nil {
+				integration.LogFatal("Unable to send reply", "err", err)
+			}
 		}
 		log.Debug(fmt.Sprintf("Sent pong to %s", addr.Desc()))
 	}
@@ -136,7 +149,7 @@ func (c client) attemptRequest(n int) bool {
 		return false
 	}
 	// Receive pong
-	if err := c.pong(); err != nil {
+	if err := c.pong(n); err != nil {
 		log.Debug("Error receiving pong", "err", err)
 		return false
 	}
@@ -148,8 +161,16 @@ func (c client) ping(n int) error {
 		return err
 	}
 	c.conn.SetWriteDeadline(time.Now().Add(integration.DefaultIOTimeout))
-	b := pingMessage(remote.IA)
-	_, err := c.conn.WriteTo(b, &remote)
+	p := Ping{
+		Attempt:  n,
+		Messages: replies,
+		Server:   remote.IA,
+	}
+	b, err := p.Pack()
+	if err != nil {
+		return err
+	}
+	_, err = c.conn.WriteTo(b, &remote)
 	return err
 }
 
@@ -182,26 +203,101 @@ func (c client) getRemote(n int) error {
 	return nil
 }
 
-func (c client) pong() error {
+func (c client) pong(n int) error {
 	c.conn.SetReadDeadline(time.Now().Add(integration.DefaultIOTimeout))
+
+	pongs := make(map[int]Pong, replies)
+
 	reply := make([]byte, 1024)
-	pktLen, err := c.conn.Read(reply)
-	if err != nil {
-		return common.NewBasicError("Error reading packet", err)
+	for i := 0; i < replies; i++ {
+		pktLen, err := c.conn.Read(reply)
+		if err != nil {
+			return common.NewBasicError("Error reading packet", err)
+		}
+		p, err := PongFromRaw(reply[:pktLen])
+		if err != nil {
+			return common.NewBasicError("Received unparsable pong", err)
+		}
+		if !p.Client.Equal(integration.Local.IA) {
+			return common.NewBasicError("Received pong for different client", nil, "ia", p.Client)
+		}
+		if !p.Server.Equal(remote.IA) {
+			return common.NewBasicError("Received pong from different server", nil, "ia", p.Server)
+		}
+		if p.Attempt != n {
+			log.Error("Skipping pong for wrong attempt", "expected", n, "actual", p.Attempt)
+			i--
+			continue
+		}
+		pongs[p.Message] = p
+		log.Debug("Received pong", "remote", remote.IA, "attempt", n, "message", p.Message)
 	}
-	expected := pong + remote.IA.String() + integration.Local.IA.String()
-	if string(reply[:pktLen]) != expected {
-		return common.NewBasicError("Received unexpected data", nil, "data",
-			string(reply[:pktLen]), "expected", expected)
+	if len(pongs) != replies {
+		return common.NewBasicError("not enough pongs received", nil, "count", len(pongs))
 	}
-	log.Debug(fmt.Sprintf("Received pong from %s", remote.IA))
 	return nil
 }
 
-func pingMessage(server addr.IA) []byte {
-	return []byte(ping + server.String())
+type Ping struct {
+	Type     string
+	Server   addr.IA
+	Attempt  int
+	Messages int
 }
 
-func pongMessage(server, client addr.IA) []byte {
-	return []byte(pong + server.String() + client.String())
+func PingFromRaw(raw []byte) (Ping, error) {
+	var p Ping
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return Ping{}, err
+	}
+	if p.Type != ping {
+		return Ping{}, common.NewBasicError("invalid type", nil, "type", p.Type)
+	}
+	return p, nil
+}
+
+func (p Ping) Pack() ([]byte, error) {
+	p.Type = ping
+	return json.Marshal(p)
+}
+
+type Pong struct {
+	Type    string
+	Server  addr.IA
+	Client  addr.IA
+	Attempt int
+	Message int
+}
+
+func PongFromRaw(raw []byte) (Pong, error) {
+	var p Pong
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return Pong{}, err
+	}
+	if p.Type != pong {
+		return Pong{}, common.NewBasicError("invalid type", nil, "type", p.Type)
+	}
+	return p, nil
+}
+
+func PongsFromPing(p Ping, client addr.IA) ([]Pong, error) {
+	if !integration.Local.IA.Equal(p.Server) {
+		return nil, common.NewBasicError("Ping for different server", nil, "ia", p.Server)
+	}
+	pongs := make([]Pong, p.Messages)
+	for i := range pongs {
+		pongs[i] = Pong{
+			Type:    pong,
+			Server:  integration.Local.IA,
+			Client:  client,
+			Attempt: p.Attempt,
+			Message: i,
+		}
+	}
+	return pongs, nil
+}
+
+func (p Pong) Pack() ([]byte, error) {
+	p.Type = pong
+	return json.Marshal(p)
 }
