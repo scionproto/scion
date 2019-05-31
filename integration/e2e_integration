@@ -15,9 +15,18 @@
 
 . integration/common.sh
 
+MODE="$1"
+shift
 opts "$@"
 shift $((OPTIND-1))
 
 result=0
 
-run "E2E Non-core to local Core" ./bin/end2end_integration -subset noncore-localcore -timeout 2s -log.console error $DOCKER_ARGS
+case $MODE in
+    core-core|noncore-localcore)
+        run "E2E Mode: $MODE" ./bin/end2end_integration -subset "$MODE" -timeout 2s -log.console error $DOCKER_ARGS; result=$? ;;
+    *)
+        run "E2E Mode: $MODE" ./bin/end2end_integration -subset "$MODE" -log.console error $DOCKER_ARGS; result=$? ;;
+esac
+
+exit $result
