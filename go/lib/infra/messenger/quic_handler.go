@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +15,14 @@
 package messenger
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+	opentracingext "github.com/opentracing/opentracing-go/ext"
 	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
@@ -26,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -73,16 +77,9 @@ func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 	handler := h.handlers[messageType]
 	h.handlersLock.RUnlock()
 
-	serveCtx, serveCancelF := context.WithTimeout(h.parentCtx, h.timeout)
-	defer serveCancelF()
-
-	serveCtx = infra.NewContextWithResponseWriter(serveCtx,
-		&QUICResponseWriter{
-			ReplyWriter: rw,
-			ID:          pld.ReqId,
-		},
-	)
-	serveCtx = log.CtxWith(serveCtx, h.parentLogger.New("debug_id", util.GetDebugID()))
+	serveCtx, servceCancelF, span := h.prepareServeCtx(pld, messageType, rw)
+	defer servceCancelF()
+	defer span.Finish()
 
 	handler.Handle(infra.NewRequest(serveCtx, messageContent, signedPld,
 		request.Address, pld.ReqId))
@@ -93,6 +90,35 @@ func (h *QUICHandler) Handle(msgType infra.MessageType, handler infra.Handler) {
 	h.handlersLock.Lock()
 	h.handlers[msgType] = handler
 	h.handlersLock.Unlock()
+}
+
+func (h *QUICHandler) prepareServeCtx(pld *ctrl.Pld, messageType infra.MessageType,
+	rw rpc.ReplyWriter) (context.Context, context.CancelFunc, opentracing.Span) {
+
+	serveCtx, serveCancelF := context.WithTimeout(h.parentCtx, h.timeout)
+
+	serveCtx = infra.NewContextWithResponseWriter(serveCtx,
+		&QUICResponseWriter{
+			ReplyWriter: rw,
+			ID:          pld.ReqId,
+		},
+	)
+
+	// Tracing
+	var err error
+	var spanCtx opentracing.SpanContext
+	if pld.Data.TraceId.Len() > 0 {
+		spanCtx, err = opentracing.GlobalTracer().Extract(opentracing.Binary,
+			bytes.NewReader(pld.Data.TraceId))
+		if err != nil {
+			log.Error("Failed to extract span", "err", err)
+		}
+	}
+
+	var span opentracing.Span
+	serveCtx, span = tracing.CtxWith(serveCtx, h.parentLogger,
+		fmt.Sprintf("%s-handler", messageType), opentracingext.RPCServerOption(spanCtx))
+	return serveCtx, serveCancelF, span
 }
 
 func msgToSignedPld(msg *capnp.Message) (*ctrl.SignedPld, error) {

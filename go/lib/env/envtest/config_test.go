@@ -64,6 +64,19 @@ func TestMetricsSample(t *testing.T) {
 	})
 }
 
+func TestTracingSample(t *testing.T) {
+	Convey("Sample correct", t, func() {
+		var sample bytes.Buffer
+		var cfg env.Tracing
+		cfg.Sample(&sample, nil, nil)
+		InitTestTracing(&cfg)
+		meta, err := toml.Decode(sample.String(), &cfg)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
+		CheckTestTracing(&cfg)
+	})
+}
+
 func TestSciondClientSample(t *testing.T) {
 	Convey("Sample correct", t, func() {
 		var sample bytes.Buffer

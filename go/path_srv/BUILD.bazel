@@ -32,6 +32,7 @@ go_library(
         "//go/path_srv/internal/segsyncer:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_burntsushi_toml//:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
 )
 

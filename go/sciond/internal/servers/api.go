@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +21,13 @@ package servers
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -74,7 +76,9 @@ func (srv *ConnHandler) Handle(b common.RawBytes, address net.Addr) {
 		log.Error("handler not found for capnp message", "which", p.Which)
 		return
 	}
-	ctx := log.CtxWith(context.Background(), srv.Logger.New("debug_id", util.GetDebugID()))
+	ctx, span := tracing.CtxWith(context.Background(), srv.Logger,
+		fmt.Sprintf("%s.handler", p.Which))
+	defer span.Finish()
 	handler.Handle(ctx, srv.Conn, address, p)
 }
 

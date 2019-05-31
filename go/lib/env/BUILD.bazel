@@ -23,6 +23,9 @@ go_library(
         "//go/lib/snet:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
+        "@com_github_uber_jaeger_client_go//:go_default_library",
+        "@com_github_uber_jaeger_client_go//config:go_default_library",
     ],
 )

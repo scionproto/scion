@@ -17,9 +17,11 @@ package pathdb
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -94,6 +96,8 @@ type counters struct {
 }
 
 func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx context.Context) error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("pathdb.%s", string(op)))
+	defer span.Finish()
 	c.queriesTotal.WithLabelValues(string(op)).Inc()
 	err := action(ctx)
 	c.resultsTotal.WithLabelValues(db.ErrToMetricLabel(err), string(op)).Inc()
