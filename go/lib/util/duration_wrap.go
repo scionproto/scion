@@ -15,6 +15,7 @@
 package util
 
 import (
+	"flag"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -22,6 +23,7 @@ import (
 
 var _ (toml.TextUnmarshaler) = (*DurWrap)(nil)
 var _ (toml.TextMarshaler) = (*DurWrap)(nil)
+var _ (flag.Value) = (*DurWrap)(nil)
 
 // DurWrap is a wrapper to enable marshalling and unmarshalling of durations
 // with the custom format.
@@ -30,11 +32,22 @@ type DurWrap struct {
 }
 
 func (d *DurWrap) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = ParseDuration(string(text))
-	return err
+	return d.Set(string(text))
 }
 
 func (d *DurWrap) MarshalText() (text []byte, err error) {
 	return []byte(FmtDuration(d.Duration)), nil
+}
+
+func (d *DurWrap) Set(text string) error {
+	var err error
+	d.Duration, err = ParseDuration(text)
+	return err
+}
+
+func (d *DurWrap) String() string {
+	if d == nil {
+		return FmtDuration(0)
+	}
+	return FmtDuration(d.Duration)
 }

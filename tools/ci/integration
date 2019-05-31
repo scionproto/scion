@@ -22,6 +22,10 @@ revocation() {
     ./docker.sh exec "set -eo pipefail; integration/revocation_test.sh |& tee -a logs/integration.run"
 }
 
+e2e_integration() {
+    ./docker.sh exec "set -eo pipefail; integration/e2e_integration $1 |& tee -a logs/integration.run"
+}
+
 run_tests() {
     result=0
     go_integration
@@ -70,6 +74,8 @@ shift
 case "$COMMAND" in
     go_integration|py_ext_integration|py_scmp_integration|revocation)
         "$COMMAND"; result=$? ;;
+    e2e_integration)
+        e2e_integration $1; result=$? ;;
     *) run_tests; result=$? ;;
 esac
 

@@ -1,0 +1,32 @@
+#!/bin/bash
+# Copyright 2019 Anapaya Systems
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+. integration/common.sh
+
+MODE="$1"
+shift
+opts "$@"
+shift $((OPTIND-1))
+
+result=0
+
+case $MODE in
+    core-core|noncore-localcore)
+        run "E2E $MODE" ./bin/end2end_integration -subset "$MODE" -timeout 2s -log.console error $DOCKER_ARGS; result=$? ;;
+    *)
+        run "E2E $MODE" ./bin/end2end_integration -subset "$MODE" -log.console error $DOCKER_ARGS; result=$? ;;
+esac
+
+exit $result
