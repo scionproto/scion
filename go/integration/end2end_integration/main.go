@@ -66,6 +66,7 @@ func realMain() int {
 	pairs, err := getPairs()
 	if err != nil {
 		log.Error("Error selecting tests", "err", err)
+		return 1
 	}
 	if err := runTests(in, pairs); err != nil {
 		log.Error("Error during tests", "err", err)
