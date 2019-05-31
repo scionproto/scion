@@ -5,9 +5,13 @@ set -e
 TESTS="revocation go_integration"
 
 run_test() {
-    echo "- label: Integration - ${1:?}"
+    if [-z "$2" ]; then
+        echo "- label: Integration - ${1:?}"
+    else
+        echo "- label: Integration - ${1:?} Mode=$2"
+    fi
     echo "  command:"
-    echo "  - $BASE/run_step integration $1"
+    echo "  - $BASE/run_step integration $1 $2"
     echo "  timeout_in_minutes: 10"
 #    echo "  parallelism: 10"
     echo "  artifact_paths:"
@@ -17,7 +21,7 @@ run_test() {
 MODES="core-core noncore-localcore noncore-core noncore-noncore"
 
 for mode in $MODES; do
-    run_test "e2e_integration" "mode"
+    run_test "e2e_integration" "$mode"
 done
 
 if [ "$RUN_ALL_TESTS" = "y" ]; then
