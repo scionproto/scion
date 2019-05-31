@@ -34,10 +34,6 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	var err error
 	offset := 0
 
-	if s.E2EExt != nil {
-		return 0, common.NewBasicError("E2E extensions not supported", nil, "ext", s.E2EExt)
-	}
-
 	// Compute header lengths
 	addrHdrLen := s.DstHost.Size() + s.SrcHost.Size() + 2*addr.IABytes
 	addrPad := util.CalcPadding(addrHdrLen, common.LineLen)
