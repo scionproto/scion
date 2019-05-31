@@ -371,8 +371,7 @@ func TestSegReqLocal(t *testing.T) {
 					IA:            tc.SrcIA,
 					TopoProvider:  xtest.TopoProviderFromFile(t, topoFiles[tc.SrcIA]),
 				}
-				deduper := NewGetSegsDeduper(msger)
-				h := NewSegReqNonCoreHandler(args, deduper)
+				h := NewSegReqNonCoreHandler(args, msger)
 				rw.EXPECT().SendSegReply(gomock.Any(), matchesSegsAndReq(segReq, tc.Expected))
 				h.Handle(req)
 			})

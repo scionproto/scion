@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
@@ -35,13 +34,13 @@ type segReqCoreHandler struct {
 	segReqHandler
 }
 
-func NewSegReqCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra.Handler {
+func NewSegReqCoreHandler(args HandlerArgs, msger infra.Messenger) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &segReqCoreHandler{
 			segReqHandler: segReqHandler{
 				baseHandler: newBaseHandler(r, args),
 				localIA:     args.IA,
-				segsDeduper: segsDeduper,
+				msger:       msger,
 			},
 		}
 		return handler.Handle()

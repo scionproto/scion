@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -39,8 +38,8 @@ import (
 
 type segReqHandler struct {
 	*baseHandler
-	localIA     addr.IA
-	segsDeduper dedupe.Deduper
+	localIA addr.IA
+	msger   infra.Messenger
 }
 
 // isValidDst returns true if segReq contains a valid destination for segReq handlers,
@@ -166,21 +165,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
 func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
 	req *path_mgmt.SegReq, server net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
-	responseC, cancelF := h.segsDeduper.Request(&segReq{
-		segReq: req,
-		server: server,
-		id:     id,
-	})
-	defer cancelF()
-	select {
-	case response := <-responseC:
-		if response.Error != nil {
-			return nil, response.Error
-		}
-		return response.Data.(*path_mgmt.SegReply), nil
-	case <-ctx.Done():
-		return nil, common.NewBasicError("Context done while waiting for Segs", ctx.Err())
-	}
+	return h.msger.GetSegs(ctx, req, server, id)
 }
 
 func (h *segReqHandler) sendReply(ctx context.Context, rw infra.ResponseWriter,

@@ -16,16 +16,12 @@ package trust
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
-
-var _ dedupe.Request = (*trcRequest)(nil)
 
 // trcRequest objects describe a single request and are passed from the trust
 // store to the background resolvers.
@@ -41,20 +37,6 @@ type trcRequest struct {
 	postHook ValidateTRCFunc
 }
 
-func (req *trcRequest) DedupeKey() string {
-	// Include the existence of a validation hook in the dedupe key. This
-	// allows callers to request both verified and unverified crypto at the
-	// same (thus avoiding the case where unverified requests block verified
-	// requests from running).
-	return fmt.Sprintf("%dv%d %t %s", req.isd, req.version, req.postHook != nil, req.server)
-}
-
-func (req *trcRequest) BroadcastKey() string {
-	return fmt.Sprintf("%dv%d", req.isd, req.version)
-}
-
-var _ dedupe.Request = (*chainRequest)(nil)
-
 // chainRequest objects describe a single request and are passed from the trust
 // store to the background resolvers.
 type chainRequest struct {
@@ -67,18 +49,6 @@ type chainRequest struct {
 	// the database. Also, used to generate different DedupeKeys for requests
 	// for valid vs invalid crypto.
 	postHook ValidateChainFunc
-}
-
-func (req *chainRequest) DedupeKey() string {
-	// Include the existence of a validation hook in the dedupe key. This
-	// allows callers to request both verified and unverified crypto at the
-	// same (thus avoiding the case where unverified requests block verified
-	// requests from running).
-	return fmt.Sprintf("%sv%d %t %s", req.ia, req.version, req.postHook != nil, req.server)
-}
-
-func (req *chainRequest) BroadcastKey() string {
-	return fmt.Sprintf("%sv%d", req.ia, req.version)
 }
 
 type ValidateTRCFunc func(ctx context.Context, trcObj *trc.TRC) error
