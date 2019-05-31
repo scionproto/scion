@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -235,8 +237,12 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
-	responseC, cancelF := store.trcDeduper.Request(req)
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "getTRCFromNet")
+	defer span.Finish()
+	responseC, cancelF, span := store.trcDeduper.Request(ctx, req)
 	defer cancelF()
+	defer span.Finish()
 	select {
 	case response := <-responseC:
 		if response.Error != nil {
@@ -450,8 +456,12 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 func (store *Store) getChainFromNetwork(ctx context.Context,
 	req *chainRequest) (*cert.Chain, error) {
 
-	responseC, cancelF := store.chainDeduper.Request(req)
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "getChainFromNetwork")
+	defer span.Finish()
+	responseC, cancelF, span := store.chainDeduper.Request(ctx, req)
 	defer cancelF()
+	defer span.Finish()
 	select {
 	case response := <-responseC:
 		if response.Error != nil {

@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,13 +42,13 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, nil)
+	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, nil, nil)
 	cfg.Dispatcher.DeleteSocket = true
 	cfg.Dispatcher.PerfData = "Invalid"
 }
 
 func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(nil, &cfg.Logging, &cfg.Metrics, nil, id)
+	envtest.CheckTest(nil, &cfg.Logging, &cfg.Metrics, nil, nil, id)
 	SoMsg("ID", cfg.Dispatcher.ID, ShouldEqual, id)
 	SoMsg("ApplicationSocket", cfg.Dispatcher.ApplicationSocket, ShouldEqual,
 		reliable.DefaultDispPath)

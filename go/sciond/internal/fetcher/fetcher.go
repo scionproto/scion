@@ -21,6 +21,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -573,6 +575,10 @@ func NewExtendedContext(refCtx context.Context,
 	parentCtx := context.Background()
 	// Make sure that the attached logger is attached to the new ctx.
 	parentCtx = log.CtxWith(parentCtx, log.FromCtx(refCtx))
+	// Make sure that the attached span is attached to the new ctx.
+	if span := opentracing.SpanFromContext(refCtx); span != nil {
+		parentCtx = opentracing.ContextWithSpan(parentCtx, span)
+	}
 	return context.WithDeadline(parentCtx, max(deadline, otherDeadline))
 }
 

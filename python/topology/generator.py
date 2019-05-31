@@ -82,6 +82,7 @@ def add_arguments(parser):
     parser.add_argument('--sig', action='store_true',
                         help='Generate a SIG per AS (only available with -d, the SIG image needs\
                         to be built manually e.g. when running acceptance tests)')
+    parser.add_argument('--opentracing', action='store_true', help='Add opentracing')
     return parser
 
 

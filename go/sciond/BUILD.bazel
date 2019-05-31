@@ -29,6 +29,7 @@ go_library(
         "//go/sciond/internal/metrics:go_default_library",
         "//go/sciond/internal/servers:go_default_library",
         "@com_github_burntsushi_toml//:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
 )
 

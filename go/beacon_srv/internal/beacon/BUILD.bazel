@@ -21,6 +21,7 @@ go_library(
         "//go/lib/log:go_default_library",
         "//go/lib/prom:go_default_library",
         "//go/proto:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@in_gopkg_yaml_v2//:go_default_library",
     ],

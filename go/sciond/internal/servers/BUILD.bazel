@@ -21,7 +21,7 @@ go_library(
         "//go/lib/sciond:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/topology:go_default_library",
-        "//go/lib/util:go_default_library",
+        "//go/lib/tracing:go_default_library",
         "//go/proto:go_default_library",
         "//go/sciond/internal/fetcher:go_default_library",
     ],

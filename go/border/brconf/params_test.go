@@ -40,7 +40,7 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil)
+	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, nil)
 	InitTestDiscoveryConfig(&cfg.Discovery)
 	InitTestBRConfig(&cfg.BR)
 }
@@ -54,7 +54,7 @@ func InitTestBRConfig(cfg *BR) {
 }
 
 func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, id)
+	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, nil, id)
 	CheckTestDiscoveryConfig(&cfg.Discovery)
 	CheckTestBRConfig(&cfg.BR)
 }
