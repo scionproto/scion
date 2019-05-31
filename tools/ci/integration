@@ -54,7 +54,7 @@ stop_containers() {
     fi
 }
 
-./docker.sh exec "set -x; ./scion.sh topology nobuild ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}" ||\
+./docker.sh exec "set -x; ./scion.sh topology nobuild -t ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}" ||\
     { echo "Failed to create topology"; stop_containers; exit 1; }
 ./docker.sh exec "set -eo pipefail; ./scion.sh run nobuild | grep -v "started" |& tee logs/integration.run"
 ./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee logs/integration.run"

@@ -8,7 +8,7 @@ DST_IA=${DST_IA:-1-ff00:0:112}
 
 test_setup() {
     set -e
-    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d --sig -n 242.254.0.0/16
+    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -t --sig -n 242.254.0.0/16
     ./scion.sh run nobuild
     ./tools/dc start 'tester*'
     sleep 7
