@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -67,7 +69,7 @@ func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 		pathDB:       args.PathDB,
 		revCache:     args.RevCache,
 		trustStore:   args.TrustStore,
-		retryInt:     time.Second,
+		retryInt:     500 * time.Millisecond,
 		queryInt:     args.QueryInterval,
 		topoProvider: args.TopoProvider,
 	}
@@ -114,12 +116,21 @@ func (h *baseHandler) fetchSegsFromDBRetry(ctx context.Context,
 		if err != nil || len(upSegs) > 0 {
 			return upSegs, err
 		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(h.retryInt):
-			// retry
+		if err := h.sleepOrTimeout(ctx); err != nil {
+			return nil, err
 		}
+	}
+}
+
+func (h *baseHandler) sleepOrTimeout(ctx context.Context) error {
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "sleep.wait")
+	defer span.Finish()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(h.retryInt):
+		return nil
 	}
 }
 

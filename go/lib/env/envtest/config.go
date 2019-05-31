@@ -24,7 +24,7 @@ import (
 )
 
 func InitTest(general *env.General, logging *env.Logging,
-	metrics *env.Metrics, sciond *env.SciondClient) {
+	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SciondClient) {
 	if general != nil {
 		InitTestGeneral(general)
 	}
@@ -33,6 +33,9 @@ func InitTest(general *env.General, logging *env.Logging,
 	}
 	if metrics != nil {
 		InitTestMetrics(metrics)
+	}
+	if tracing != nil {
+		InitTestTracing(tracing)
 	}
 	if sciond != nil {
 		InitTestSciond(sciond)
@@ -47,10 +50,15 @@ func InitTestLogging(cfg *env.Logging) {}
 
 func InitTestMetrics(cfg *env.Metrics) {}
 
+func InitTestTracing(cfg *env.Tracing) {
+	cfg.Disabled = true
+	cfg.Debug = true
+}
+
 func InitTestSciond(cfg *env.SciondClient) {}
 
 func CheckTest(general *env.General, logging *env.Logging,
-	metrics *env.Metrics, sciond *env.SciondClient, id string) {
+	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SciondClient, id string) {
 	if general != nil {
 		CheckTestGeneral(general, id)
 	}
@@ -59,6 +67,9 @@ func CheckTest(general *env.General, logging *env.Logging,
 	}
 	if metrics != nil {
 		CheckTestMetrics(metrics)
+	}
+	if tracing != nil {
+		CheckTestTracing(tracing)
 	}
 	if sciond != nil {
 		CheckTestSciond(sciond, id)
@@ -85,6 +96,11 @@ func CheckTestLogging(cfg *env.Logging, id string) {
 
 func CheckTestMetrics(cfg *env.Metrics) {
 	SoMsg("Prometheus correct", cfg.Prometheus, ShouldEqual, "")
+}
+
+func CheckTestTracing(cfg *env.Tracing) {
+	SoMsg("Disabled correct", cfg.Disabled, ShouldBeFalse)
+	SoMsg("Debug correct", cfg.Debug, ShouldBeFalse)
 }
 
 func CheckTestSciond(cfg *env.SciondClient, id string) {

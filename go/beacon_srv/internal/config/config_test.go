@@ -42,7 +42,7 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil)
+	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil)
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
 	beaconstoragetest.InitTestBeaconDBConf(&cfg.BeaconDB)
 	idiscoverytest.InitTestConfig(&cfg.Discovery)
@@ -61,7 +61,7 @@ func InitTestPolicies(cfg *Policies) {
 }
 
 func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, id)
+	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
 	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
 	beaconstoragetest.CheckTestBeaconDBConf(&cfg.BeaconDB, id)
 	idiscoverytest.CheckTestConfig(&cfg.Discovery)

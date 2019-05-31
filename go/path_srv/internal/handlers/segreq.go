@@ -20,6 +20,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -166,11 +168,15 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
 func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
 	req *path_mgmt.SegReq, server net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
-	responseC, cancelF := h.segsDeduper.Request(&segReq{
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "getSegsFromNetwork")
+	defer span.Finish()
+	responseC, cancelF, span := h.segsDeduper.Request(ctx, &segReq{
 		segReq: req,
 		server: server,
 		id:     id,
 	})
+	defer span.Finish()
 	defer cancelF()
 	select {
 	case response := <-responseC:

@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ package svc
 import (
 	"bytes"
 	"context"
+
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -57,6 +59,10 @@ type Resolver struct {
 
 // LookupSVC resolves the SVC address for the AS terminating the path.
 func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC) (*Reply, error) {
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "svc.resolution")
+	defer span.Finish()
+
 	// FIXME(scrye): Assume registration is always instant for now. This,
 	// however, should respect ctx.
 	conn, port, err := r.ConnFactory.RegisterTimeout(r.LocalIA, r.Machine.AppAddress(),

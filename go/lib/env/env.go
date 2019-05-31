@@ -29,7 +29,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/uber/jaeger-client-go"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -256,6 +259,41 @@ func (cfg *Metrics) StartPrometheus() {
 			}
 		}()
 	}
+}
+
+// Tracing contains configuration for tracing.
+type Tracing struct {
+	// Disable tracing for this service.
+	Disabled bool
+	// Enable debug mode.
+	Debug bool
+}
+
+func (cfg *Tracing) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, tracingSample)
+}
+
+func (cfg *Tracing) ConfigName() string {
+	return "tracing"
+}
+
+// NewTracer creates a new Tracer for the given configuration. In case tracing
+// is disabled this still returns noop-objects for convenience of the caller.
+func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) {
+	traceConfig := jaegercfg.Configuration{
+		ServiceName: id,
+		Disabled:    cfg.Disabled,
+	}
+	if cfg.Debug {
+		traceConfig.Sampler = &jaegercfg.SamplerConfig{
+			Type:  jaeger.SamplerTypeConst,
+			Param: 1,
+		}
+	}
+	bp := jaeger.NewBinaryPropagator(nil)
+	return traceConfig.NewTracer(
+		jaegercfg.Extractor(opentracing.Binary, bp),
+		jaegercfg.Injector(opentracing.Binary, bp))
 }
 
 // QUIC contains configuration for control-plane speakers.

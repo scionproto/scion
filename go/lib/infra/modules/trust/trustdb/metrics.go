@@ -17,8 +17,10 @@ package trustdb
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -106,6 +108,8 @@ func newCounters(dbName string) *counters {
 }
 
 func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx context.Context) error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("trustdb.%s", string(op)))
+	defer span.Finish()
 	c.queriesTotal.WithLabelValues(string(op)).Inc()
 	err := action(ctx)
 	c.resultsTotal.WithLabelValues(string(op), db.ErrToMetricLabel(err))

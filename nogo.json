@@ -28,7 +28,8 @@
   "unreachable": {
     "exclude_files": {
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
-      "/in_gopkg_yaml_v2/": ""
+      "/in_gopkg_yaml_v2/": "",
+      "/com_github_uber_jaeger_client_go": ""
     }
   },
   "unsafeptr": {
@@ -40,6 +41,11 @@
   "shift": {
     "exclude_files": {
       "/com_github_lucas_clemente_quic_go/": ""
+    }
+  },
+  "stdmethods": {
+    "exclude_files": {
+      "/com_github_uber_jaeger_client_go": ""
     }
   },
   "structtag": {

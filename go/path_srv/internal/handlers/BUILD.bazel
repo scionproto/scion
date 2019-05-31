@@ -37,6 +37,7 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/path_srv/internal/segutil:go_default_library",
         "//go/proto:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
 )
 

@@ -75,7 +75,7 @@ func TestConfig_InitDefaults(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Sciond)
+	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, &cfg.Sciond)
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
 	idiscoverytest.InitTestConfig(&cfg.Discovery)
 	InitTestCSConfig(&cfg.CS)
@@ -86,7 +86,7 @@ func InitTestCSConfig(cfg *CSConfig) {
 }
 
 func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Sciond, id)
+	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, &cfg.Sciond, id)
 	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
 	idiscoverytest.CheckTestConfig(&cfg.Discovery)
 	CheckTestCSConfig(&cfg.CS)

@@ -62,6 +62,7 @@ from topology.common import (
 )
 from topology.docker import DockerGenArgs, DockerGenerator
 from topology.go import GoGenArgs, GoGenerator
+from topology.jaeger import JaegerGenArgs, JaegerGenerator
 from topology.net import (
     PortGenerator,
     SubnetGenerator,
@@ -167,6 +168,7 @@ class ConfigGenerator(object):
             self._generate_docker(topo_dicts)
         else:
             self._generate_supervisor(topo_dicts)
+        self._generate_jaeger(topo_dicts)
         self._generate_zk(topo_dicts)
         self._generate_prom_conf(topo_dicts)
 
@@ -201,6 +203,11 @@ class ConfigGenerator(object):
 
     def _go_args(self, topo_dicts):
         return GoGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
+
+    def _generate_jaeger(self, topo_dicts):
+        args = JaegerGenArgs(self.args, topo_dicts)
+        jaeger_gen = JaegerGenerator(args)
+        jaeger_gen.generate()
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(self._topo_args())
