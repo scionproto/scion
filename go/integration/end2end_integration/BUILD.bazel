@@ -12,7 +12,6 @@ go_library(
         "//go/lib/integration:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/util:go_default_library",
-        "@in_gopkg_yaml_v2//:go_default_library",
     ],
 )
 

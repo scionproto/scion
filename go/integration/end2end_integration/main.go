@@ -17,13 +17,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -122,12 +119,8 @@ func getPairs() ([]integration.IAPair, error) {
 	if subset == "all" {
 		return pairs, nil
 	}
-	raw, err := ioutil.ReadFile("gen/as_list.yml")
+	ases, err := util.LoadASList("gen/as_list.yml")
 	if err != nil {
-		return nil, err
-	}
-	var ases ASList
-	if err := yaml.Unmarshal(raw, &ases); err != nil {
 		return nil, err
 	}
 	parts := strings.Split(subset, "-")
@@ -138,11 +131,11 @@ func getPairs() ([]integration.IAPair, error) {
 }
 
 // filter returns the list of ASes that are part of the desired subset.
-func filter(src, dst string, pairs []integration.IAPair, ases ASList) []integration.IAPair {
+func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []integration.IAPair {
 	var res []integration.IAPair
 	for _, pair := range pairs {
-		filter := !ases.contains(src != "noncore", pair.Src.IA)
-		filter = filter || !ases.contains(dst != "noncore", pair.Dst.IA)
+		filter := !contains(ases, src != "noncore", pair.Src.IA)
+		filter = filter || !contains(ases, dst != "noncore", pair.Dst.IA)
 		if dst == "localcore" {
 			filter = filter || pair.Src.IA.I != pair.Dst.IA.I
 		}
@@ -153,18 +146,12 @@ func filter(src, dst string, pairs []integration.IAPair, ases ASList) []integrat
 	return res
 }
 
-// ASList contains all ASes of the current topology.
-type ASList struct {
-	Core    []addr.IA `yaml:"Core"`
-	NonCore []addr.IA `yaml:"Non-core"`
-}
-
-func (l *ASList) contains(core bool, ia addr.IA) bool {
-	ases := l.Core
+func contains(ases *util.ASList, core bool, ia addr.IA) bool {
+	l := ases.Core
 	if !core {
-		ases = l.NonCore
+		l = ases.NonCore
 	}
-	for _, as := range ases {
+	for _, as := range l {
 		if ia.Equal(as) {
 			return true
 		}
