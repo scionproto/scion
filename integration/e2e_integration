@@ -24,7 +24,7 @@ result=0
 
 case $MODE in
     core-core|noncore-localcore)
-        run "E2E $MODE" ./bin/end2end_integration -subset "$MODE" -timeout 2s -log.console error $DOCKER_ARGS; result=$? ;;
+        run "E2E $MODE" ./bin/end2end_integration -subset "$MODE" -timeout 2500ms -log.console error $DOCKER_ARGS; result=$? ;;
     *)
         run "E2E $MODE" ./bin/end2end_integration -subset "$MODE" -log.console error $DOCKER_ARGS; result=$? ;;
 esac
