@@ -243,7 +243,7 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 func logDebugE2E(pkt *spkt.ScnPkt) {
 	for _, e := range pkt.E2EExt {
 		if extnData, ok := e.(*layers.ExtnE2EDebug); ok {
-			log.Debug("Recv'd packet with debug extension", "debug_id", extnData.ID, "pkt", pkt)
+			log.Trace("Recv'd packet with debug extension", "debug_id", extnData.ID, "pkt", pkt)
 		}
 	}
 }

@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"os"
@@ -29,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -89,9 +91,12 @@ type server struct {
 }
 
 func (s server) run() {
-	connFactory := snet.NewDefaultPacketDispatcherService(
-		reliable.NewDispatcherService(""),
-	)
+	connFactory := &snet.DefaultPacketDispatcherService{
+		Dispatcher: reliable.NewDispatcherService(""),
+		SCMPHandler: snet.NewSCMPHandler(
+			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}, log.Root()),
+		),
+	}
 	conn, port, err := connFactory.RegisterTimeout(integration.Local.IA, integration.Local.Host,
 		nil, addr.SvcNone, 0)
 	if err != nil {
@@ -102,7 +107,7 @@ func (s server) run() {
 		fmt.Printf("Port=%d\n", port)
 		fmt.Printf("%s%s\n", libint.ReadySignal, integration.Local.IA)
 	}
-	log.Debug("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, +port))
+	log.Debug("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
 	// Receive ping message
 	for {
 		var p snet.SCIONPacket
@@ -141,9 +146,12 @@ type client struct {
 }
 
 func (c client) run() int {
-	connFactory := snet.NewDefaultPacketDispatcherService(
-		reliable.NewDispatcherService(""),
-	)
+	connFactory := &snet.DefaultPacketDispatcherService{
+		Dispatcher: reliable.NewDispatcherService(""),
+		SCMPHandler: snet.NewSCMPHandler(
+			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}, log.Root()),
+		),
+	}
 
 	var err error
 	c.conn, c.port, err = connFactory.RegisterTimeout(integration.Local.IA, integration.Local.Host,
@@ -188,6 +196,9 @@ func (c client) ping(ctx context.Context, n int) error {
 			return common.NewBasicError("Error building overlay", err)
 		}
 	}
+	var debugID [common.ExtnFirstLineLen]byte
+	// API guarantees return values are ok
+	_, _ = rand.Read(debugID[:])
 	return c.conn.WriteTo(
 		&snet.SCIONPacket{
 			SCIONPacketInfo: snet.SCIONPacketInfo{
@@ -202,7 +213,7 @@ func (c client) ping(ctx context.Context, n int) error {
 				Path: remote.Path,
 				Extensions: []common.Extension{
 					layers.ExtnE2EDebug{
-						ID: [5]byte{1, 2, 3, 4, 5},
+						ID: debugID,
 					},
 				},
 				L4Header: &l4.UDP{
