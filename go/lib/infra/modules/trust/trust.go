@@ -172,7 +172,6 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
-
 	trcReqMsg := &cert_mgmt.TRCReq{
 		ISD:       req.isd,
 		Version:   req.version,
