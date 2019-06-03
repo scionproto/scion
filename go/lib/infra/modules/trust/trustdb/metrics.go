@@ -63,44 +63,15 @@ var (
 	queriesTotal *prometheus.CounterVec
 	resultsTotal *prometheus.CounterVec
 
-	allOps = []promOp{
-		promOpGetIssCert,
-		promOpGetIssCertMV,
-		promOpGetAllIssCerts,
-		promOpGetChain,
-		promOpGetChainMV,
-		promOpGetAllChains,
-		promOpGetTRC,
-		promOpGetTRCMV,
-		promOpGetAllTRCs,
-		promOpGetCustKey,
-		promOpGetAllCustKeys,
-
-		promOpInsertIssCert,
-		promOpInsertChain,
-		promOpInsertTRC,
-		promOpInsertCustKey,
-
-		promOpBeginTx,
-		promOpCommitTx,
-		promOpRollbackTx,
-	}
-
-	allResults = []string{
-		prom.ResultOk,
-		prom.ErrNotClassified,
-		prom.ErrTimeout,
-	}
-
 	initMetricsOnce sync.Once
 )
 
 func initMetrics() {
 	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 18 (len(allOps))
+		// Cardinality: X (dbName) * 18 (len(all ops))
 		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
 			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbName) * 18 (len(allOps)) * 3 (len(allResults))
+		// Cardinality: X (dbName) * 18 (len(all ops)) * Y (len(all results))
 		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
 			"Results of trustdb operations.",
 			[]string{promDBName, prom.LabelOperation, prom.LabelResult})

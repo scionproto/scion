@@ -56,36 +56,15 @@ var (
 	queriesTotal *prometheus.CounterVec
 	resultsTotal *prometheus.CounterVec
 
-	allOps = []promOp{
-		promOpInsert,
-		promOpInsertHpCfg,
-		promOpDelete,
-		promOpDeleteExpired,
-		promOpGet,
-		promOpGetAll,
-		promOpInsertNextQuery,
-		promOpGetNextQuery,
-
-		promOpBeginTx,
-		promOpCommitTx,
-		promOpRollbackTx,
-	}
-
-	allResults = []string{
-		prom.ResultOk,
-		prom.ErrNotClassified,
-		prom.ErrTimeout,
-	}
-
 	initMetricsOnce sync.Once
 )
 
 func initMetrics() {
 	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 11 (len(allOps))
+		// Cardinality: X (dbName) * 11 (len(all ops))
 		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
 			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbNmae) * 11 (len(allOps)) * 3 (len(allResults))
+		// Cardinality: X (dbNmae) * 11 (len(all ops)) * Y (len(all results))
 		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
 			"The results of the pathdb ops.",
 			[]string{promDBName, prom.LabelResult, prom.LabelOperation})
