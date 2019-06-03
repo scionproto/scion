@@ -141,9 +141,9 @@ func (nc *NetworkConfig) AddressRewriter(
 		router = &snet.BaseRouter{IA: nc.IA}
 	}
 	if connFactory == nil {
-		connFactory = snet.NewDefaultPacketDispatcherService(
-			reliable.NewDispatcherService(""),
-		)
+		connFactory = &snet.DefaultPacketDispatcherService{
+			Dispatcher: reliable.NewDispatcherService(""),
+		}
 	}
 
 	return &messenger.AddressRewriter{
@@ -181,9 +181,9 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 	}
 
 	packetDispatcher := svc.NewResolverPacketDispatcher(
-		snet.NewDefaultPacketDispatcherService(
-			reliable.NewDispatcherService(""),
-		),
+		&snet.DefaultPacketDispatcherService{
+			Dispatcher: reliable.NewDispatcherService(""),
+		},
 		&LegacyForwardingHandler{
 			BaseHandler: &svc.BaseHandler{
 				Message: udpAddressStr.Bytes(),

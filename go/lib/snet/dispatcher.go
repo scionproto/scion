@@ -47,15 +47,6 @@ type DefaultPacketDispatcherService struct {
 	SCMPHandler SCMPHandler
 }
 
-func NewDefaultPacketDispatcherService(
-	dispatcherService reliable.DispatcherService) *DefaultPacketDispatcherService {
-
-	return &DefaultPacketDispatcherService{
-		Dispatcher:  dispatcherService,
-		SCMPHandler: &scmpHandler{},
-	}
-}
-
 func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
 	bind *overlay.OverlayAddr, svc addr.HostSVC,
 	timeout time.Duration) (PacketConn, uint16, error) {
@@ -81,6 +72,18 @@ type SCMPHandler interface {
 	// If the handler mutates the packet, the changes are seen by snet
 	// connection method callers.
 	Handle(pkt *SCIONPacket) error
+}
+
+// NewSCMPHandler creates a default SCMP handler that forwards revocations to
+// the path resolver. SCMP packets are also forwarded to snet callers via
+// errors returned by Read calls.
+//
+// If the resolver is nil, revocations are not forwarded to any resolver.
+// However, they are still sent back to the caller during read operations.
+func NewSCMPHandler(pr pathmgr.Resolver) SCMPHandler {
+	return &scmpHandler{
+		pathResolver: pr,
+	}
 }
 
 // scmpHandler handles SCMP messages received from the network.

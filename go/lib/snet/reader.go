@@ -90,11 +90,12 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 	if c.base.net == "udp4" {
 		// Extract remote address
 		remote = &Addr{
-			IA:   pkt.Source.IA,
-			Path: pkt.Path,
+			IA: pkt.Source.IA,
 		}
+
 		// Extract path
-		if remote.Path != nil {
+		if pkt.Path != nil {
+			remote.Path = pkt.Path.Copy()
 			if err = remote.Path.Reverse(); err != nil {
 				return 0, nil,
 					common.NewBasicError("Unable to reverse path on received packet", err)
