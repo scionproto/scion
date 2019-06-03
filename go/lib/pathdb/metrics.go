@@ -100,7 +100,7 @@ func WithMetrics(dbName string, pathDB PathDB) PathDB {
 	return &metricsPathDB{
 		metricsExecutor: &metricsExecutor{
 			pathDB: pathDB,
-			metrics: &dbCounters{
+			metrics: &counters{
 				queriesTotal: queriesTotal.MustCurryWith(labels),
 				resultsTotal: resultsTotal.MustCurryWith(labels),
 			},
@@ -109,12 +109,12 @@ func WithMetrics(dbName string, pathDB PathDB) PathDB {
 	}
 }
 
-type dbCounters struct {
+type counters struct {
 	queriesTotal *prometheus.CounterVec
 	resultsTotal *prometheus.CounterVec
 }
 
-func (c *dbCounters) Observe(ctx context.Context, op promOp, action func(ctx context.Context) error) {
+func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx context.Context) error) {
 	c.queriesTotal.WithLabelValues(string(op)).Inc()
 	err := action(ctx)
 	c.resultsTotal.WithLabelValues(db.ErrToMetricLabel(err), string(op)).Inc()
@@ -192,7 +192,7 @@ var _ (ReadWrite) = (*metricsExecutor)(nil)
 
 type metricsExecutor struct {
 	pathDB  ReadWrite
-	metrics *dbCounters
+	metrics *counters
 }
 
 func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (int, error) {
