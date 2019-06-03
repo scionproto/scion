@@ -107,7 +107,15 @@ type SCIONNetwork struct {
 func NewNetworkWithPR(ia addr.IA, dispatcher reliable.DispatcherService,
 	pr pathmgr.Resolver) *SCIONNetwork {
 
-	return NewCustomNetworkWithPR(ia, NewDefaultPacketDispatcherService(dispatcher), pr)
+	return NewCustomNetworkWithPR(ia,
+		&DefaultPacketDispatcherService{
+			Dispatcher: dispatcher,
+			SCMPHandler: &scmpHandler{
+				pathResolver: pr,
+			},
+		},
+		pr,
+	)
 }
 
 // NewCustomNetworkWithPR is similar to NewNetworkWithPR, while giving control
@@ -132,7 +140,11 @@ func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService,
 func NewNetwork(ia addr.IA, sciondPath string,
 	dispatcher reliable.DispatcherService) (*SCIONNetwork, error) {
 
-	return NewCustomNetwork(ia, sciondPath, NewDefaultPacketDispatcherService(dispatcher))
+	pathResolver, err := getResolver(sciondPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewNetworkWithPR(ia, dispatcher, pathResolver), nil
 }
 
 // NewCustomNetwork is similar to NewNetwork, except it gives control over the
@@ -142,6 +154,15 @@ func NewNetwork(ia addr.IA, sciondPath string,
 func NewCustomNetwork(ia addr.IA, sciondPath string,
 	pktDispatcher PacketDispatcherService) (*SCIONNetwork, error) {
 
+	pathResolver, err := getResolver(sciondPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewCustomNetworkWithPR(ia, pktDispatcher, pathResolver), nil
+}
+
+// getResolver builds a default resolver for snet internals.
+func getResolver(sciondPath string) (pathmgr.Resolver, error) {
 	var pathResolver pathmgr.Resolver
 	if sciondPath != "" {
 		sciondConn, err := sciond.NewService(sciondPath, true).Connect()
@@ -157,7 +178,7 @@ func NewCustomNetwork(ia addr.IA, sciondPath string,
 			log.Root(),
 		)
 	}
-	return NewCustomNetworkWithPR(ia, pktDispatcher, pathResolver), nil
+	return pathResolver, nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not

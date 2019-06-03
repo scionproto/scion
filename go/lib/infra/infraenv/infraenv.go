@@ -141,9 +141,9 @@ func (nc *NetworkConfig) AddressRewriter(
 		router = &snet.BaseRouter{IA: nc.IA}
 	}
 	if connFactory == nil {
-		connFactory = snet.NewDefaultPacketDispatcherService(
-			reliable.NewDispatcherService(""),
-		)
+		connFactory = &snet.DefaultPacketDispatcherService{
+			Dispatcher: reliable.NewDispatcherService(""),
+		}
 	}
 
 	return &messenger.AddressRewriter{
@@ -181,9 +181,9 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 	}
 
 	packetDispatcher := svc.NewResolverPacketDispatcher(
-		snet.NewDefaultPacketDispatcherService(
-			reliable.NewDispatcherService(""),
-		),
+		&snet.DefaultPacketDispatcherService{
+			Dispatcher: reliable.NewDispatcherService(""),
+		},
 		&LegacyForwardingHandler{
 			BaseHandler: &svc.BaseHandler{
 				Message: udpAddressStr.Bytes(),
@@ -209,9 +209,10 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 	var network snet.Network
 	network, err := snet.NewCustomNetwork(nc.IA, "",
-		snet.NewDefaultPacketDispatcherService(
-			reliable.NewDispatcherService(""),
-		),
+		&snet.DefaultPacketDispatcherService{
+			Dispatcher:  reliable.NewDispatcherService(""),
+			SCMPHandler: ignoreSCMP{},
+		},
 	)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create network", err)
@@ -344,4 +345,16 @@ func InitInfraEnvironmentFunc(topologyPath string, f func()) *env.Env {
 			}
 		},
 	)
+}
+
+// ignoreSCMP ignores all received SCMP packets.
+//
+// FIXME(scrye): Different services will want to process SCMP revocations in
+// different ways, for example, to update their custom path stores (PS) or
+// inform local SCION state (CS informing the local SD).
+type ignoreSCMP struct{}
+
+func (ignoreSCMP) Handle(pkt *snet.SCIONPacket) error {
+	// Always reattempt reads from the socket.
+	return nil
 }

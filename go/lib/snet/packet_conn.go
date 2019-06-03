@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
@@ -119,6 +120,10 @@ type SCIONAddress struct {
 type SCIONPacketConn struct {
 	// conn is the connection to send/receive serialized packets on.
 	conn net.PacketConn
+	// scmpHandler is invoked for packets that contain an SCMP L4. If the
+	// handler is nil, errors are returned back to applications every time an
+	// SCMP message is received.
+	scmpHandler SCMPHandler
 }
 
 // NewSCIONPacketConn creates a new conn with packet serialization/decoding
@@ -173,6 +178,27 @@ func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 }
 
 func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+	for {
+		// Read until we get an error or a data packet
+		if err := c.readFrom(pkt, ov); err != nil {
+			return err
+		}
+		if _, ok := pkt.L4Header.(*scmp.Hdr); ok {
+			if c.scmpHandler == nil {
+				return common.NewBasicError("scmp packet received, but no handler found", nil)
+			}
+			if err := c.scmpHandler.Handle(pkt); err != nil {
+				return common.NewBasicError("scmp error", err)
+			}
+		} else {
+			// non-SCMP L4s are assumed to be data and get passed back to the
+			// app.
+			return nil
+		}
+	}
+}
+
+func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
 	pkt.Prepare()
 	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {

@@ -182,7 +182,9 @@ func realMain() int {
 		msgr.ListenAndServe()
 	}()
 	ovAddr := &addr.AppAddr{L3: topoAddress.PublicAddr(topoAddress.Overlay).L3}
-	pktDisp := snet.NewDefaultPacketDispatcherService(reliable.NewDispatcherService(""))
+	pktDisp := &snet.DefaultPacketDispatcherService{
+		Dispatcher: reliable.NewDispatcherService(""),
+	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
 	conn, _, err := pktDisp.RegisterTimeout(topo.ISD_AS, ovAddr, nil, addr.SvcNone, time.Second)
@@ -199,9 +201,9 @@ func realMain() int {
 		topoProvider: itopo.Provider(),
 		addressRewriter: nc.AddressRewriter(
 			&onehop.OHPPacketDispatcherService{
-				PacketDispatcherService: snet.NewDefaultPacketDispatcherService(
-					reliable.NewDispatcherService(""),
-				),
+				PacketDispatcherService: &snet.DefaultPacketDispatcherService{
+					Dispatcher: reliable.NewDispatcherService(""),
+				},
 			},
 		),
 	}
