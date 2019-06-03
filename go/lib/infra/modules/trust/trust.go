@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -68,11 +67,9 @@ var _ infra.TrustStore = (*Store)(nil)
 // Store is backed by a database in package
 // go/lib/infra/modules/trust/trustdb.
 type Store struct {
-	mu           sync.Mutex
-	trustdb      trustdb.TrustDB
-	trcDeduper   dedupe.Deduper
-	chainDeduper dedupe.Deduper
-	config       *Config
+	mu      sync.Mutex
+	trustdb trustdb.TrustDB
+	config  *Config
 	// local AS
 	ia    addr.IA
 	log   log.Logger
@@ -107,68 +104,6 @@ func (store *Store) SetMessenger(msger infra.Messenger) {
 		panic("messenger already set")
 	}
 	store.msger = msger
-	store.trcDeduper = dedupe.New(store.trcRequestFunc, 0, 0)
-	store.chainDeduper = dedupe.New(store.chainRequestFunc, 0, 0)
-}
-
-// trcRequestFunc is the dedupe.RequestFunc for TRC requests.
-func (store *Store) trcRequestFunc(ctx context.Context, request dedupe.Request) dedupe.Response {
-	req := request.(*trcRequest)
-	trcReqMsg := &cert_mgmt.TRCReq{
-		ISD:       req.isd,
-		Version:   req.version,
-		CacheOnly: req.cacheOnly,
-	}
-	trcMsg, err := store.msger.GetTRC(ctx, trcReqMsg, req.server, req.id)
-	if err != nil {
-		return wrapErr(err)
-	}
-	trcObj, err := trcMsg.TRC()
-	if err != nil {
-		return wrapErr(common.NewBasicError("Unable to parse TRC message", err, "msg", trcMsg))
-	}
-	if trcObj == nil {
-		return dedupe.Response{Data: nil}
-	}
-
-	if req.version != scrypto.LatestVer && trcObj.Version != req.version {
-		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
-			"got", trcObj.Version, "expected", req.version))
-	}
-
-	if req.postHook != nil {
-		return dedupe.Response{Data: trcObj, Error: req.postHook(ctx, trcObj)}
-	}
-	return dedupe.Response{Data: trcObj}
-}
-
-// chainRequestFunc is the dedupe.RequestFunc for Chain requests.
-func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request) dedupe.Response {
-	req := request.(*chainRequest)
-	chainReqMsg := &cert_mgmt.ChainReq{
-		RawIA:     req.ia.IAInt(),
-		Version:   req.version,
-		CacheOnly: req.cacheOnly,
-	}
-	chainMsg, err := store.msger.GetCertChain(ctx, chainReqMsg, req.server, req.id)
-	if err != nil {
-		return wrapErr(common.NewBasicError("Unable to get CertChain from peer", err))
-	}
-	chain, err := chainMsg.Chain()
-	if err != nil {
-		return wrapErr(common.NewBasicError("Unable to parse CertChain message", err))
-	}
-	if chain == nil {
-		return dedupe.Response{Data: nil}
-	}
-	if req.version != scrypto.LatestVer && chain.Leaf.Version != req.version {
-		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
-			"got", chain.Leaf.Version, "expected", req.version))
-	}
-	if req.postHook != nil {
-		return dedupe.Response{Data: chain, Error: req.postHook(ctx, chain)}
-	}
-	return dedupe.Response{Data: chain}
 }
 
 // GetValidTRC asks the trust store to return a valid TRC for isd. Server is
@@ -237,21 +172,32 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
-	responseC, cancelF := store.trcDeduper.Request(req)
-	defer cancelF()
-	select {
-	case response := <-responseC:
-		if response.Error != nil {
-			return nil, response.Error
-		}
-		if response.Data == nil {
-			return nil, common.NewBasicError(ErrNotFound, nil)
-		}
-		return response.Data.(*trc.TRC), nil
-	case <-ctx.Done():
-		return nil, common.NewBasicError("Context done while waiting for TRC",
-			ctx.Err(), "isd", req.isd, "version", req.version)
+	trcReqMsg := &cert_mgmt.TRCReq{
+		ISD:       req.isd,
+		Version:   req.version,
+		CacheOnly: req.cacheOnly,
 	}
+	trcMsg, err := store.msger.GetTRC(ctx, trcReqMsg, req.server, req.id)
+	if err != nil {
+		return nil, err
+	}
+	trcObj, err := trcMsg.TRC()
+	if err != nil {
+		return nil, common.NewBasicError("Unable to parse TRC message", err, "msg", trcMsg)
+	}
+	if trcObj == nil {
+		return nil, common.NewBasicError(ErrNotFound, nil)
+	}
+	if req.version != scrypto.LatestVer && trcObj.Version != req.version {
+		return nil, common.NewBasicError("Remote server responded with bad version", nil,
+			"got", trcObj.Version, "expected", req.version)
+	}
+	if req.postHook != nil {
+		if err := req.postHook(ctx, trcObj); err != nil {
+			return nil, err
+		}
+	}
+	return trcObj, nil
 }
 
 func (store *Store) insertTRCHook() ValidateTRCFunc {
@@ -452,21 +398,32 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 func (store *Store) getChainFromNetwork(ctx context.Context,
 	req *chainRequest) (*cert.Chain, error) {
 
-	responseC, cancelF := store.chainDeduper.Request(req)
-	defer cancelF()
-	select {
-	case response := <-responseC:
-		if response.Error != nil {
-			return nil, response.Error
-		}
-		if response.Data == nil {
-			return nil, common.NewBasicError(ErrNotFound, nil)
-		}
-		return response.Data.(*cert.Chain), nil
-	case <-ctx.Done():
-		return nil, common.NewBasicError("Context canceled while waiting for Chain",
-			nil, "ia", req.ia, "version", req.version)
+	chainReqMsg := &cert_mgmt.ChainReq{
+		RawIA:     req.ia.IAInt(),
+		Version:   req.version,
+		CacheOnly: req.cacheOnly,
 	}
+	chainMsg, err := store.msger.GetCertChain(ctx, chainReqMsg, req.server, req.id)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to get CertChain from peer", err)
+	}
+	chain, err := chainMsg.Chain()
+	if err != nil {
+		return nil, common.NewBasicError("Unable to parse CertChain message", err)
+	}
+	if chain == nil {
+		return nil, common.NewBasicError(ErrNotFound, nil)
+	}
+	if req.version != scrypto.LatestVer && chain.Leaf.Version != req.version {
+		return nil, common.NewBasicError("Remote server responded with bad version", nil,
+			"got", chain.Leaf.Version, "expected", req.version)
+	}
+	if req.postHook != nil {
+		if err := req.postHook(ctx, chain); err != nil {
+			return nil, err
+		}
+	}
+	return chain, nil
 }
 
 func (store *Store) LoadAuthoritativeTRC(dir string) error {
@@ -710,9 +667,4 @@ func (store *Store) NewSigner(key common.RawBytes, meta infra.SignerMeta) (infra
 
 func (store *Store) NewVerifier() infra.Verifier {
 	return NewBasicVerifier(store)
-}
-
-// wrapErr build a dedupe.Response object containing nil data and error err.
-func wrapErr(err error) dedupe.Response {
-	return dedupe.Response{Error: err}
 }
