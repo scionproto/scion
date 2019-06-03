@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -58,6 +59,8 @@ func (dp *NetToRingDataplane) Run() error {
 			log.Warn("error receiving next packet from overlay conn", "err", err)
 			continue
 		}
+
+		logDebugE2E(&pkt.Info)
 
 		dst, err := ComputeDestination(&pkt.Info)
 		if err != nil {
@@ -235,4 +238,12 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 	}
 	respool.PutBuffer(b)
 	pkt.Free()
+}
+
+func logDebugE2E(pkt *spkt.ScnPkt) {
+	for _, e := range pkt.E2EExt {
+		if extnData, ok := e.(*layers.ExtnE2EDebug); ok {
+			log.Trace("Recv'd packet with debug extension", "debug_id", extnData.ID, "pkt", pkt)
+		}
+	}
 }

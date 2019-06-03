@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"os"
@@ -25,9 +26,14 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	libint "github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -82,54 +88,79 @@ func validateFlags() {
 }
 
 type server struct {
-	conn snet.Conn
 }
 
 func (s server) run() {
-	conn, err := snet.ListenSCION("udp4", &integration.Local)
+	connFactory := &snet.DefaultPacketDispatcherService{
+		Dispatcher: reliable.NewDispatcherService(""),
+		SCMPHandler: snet.NewSCMPHandler(
+			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}, log.Root()),
+		),
+	}
+	conn, port, err := connFactory.RegisterTimeout(integration.Local.IA, integration.Local.Host,
+		nil, addr.SvcNone, 0)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
 	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
-		fmt.Printf("Port=%d\n", conn.LocalAddr().(*snet.Addr).Host.L4.Port())
+		fmt.Printf("Port=%d\n", port)
 		fmt.Printf("%s%s\n", libint.ReadySignal, integration.Local.IA)
 	}
-	log.Debug("Listening", "local", conn.LocalAddr())
+	log.Debug("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
 	// Receive ping message
-	b := make(common.RawBytes, 1024)
 	for {
-		pktLen, addr, err := conn.ReadFromSCION(b)
-		if err != nil {
+		var p snet.SCIONPacket
+		var ov overlay.OverlayAddr
+		if err := conn.ReadFrom(&p, &ov); err != nil {
 			log.Error("Error reading packet", "err", err)
 			continue
 		}
-		if string(b[:pktLen]) != ping+integration.Local.IA.String() {
-			integration.LogFatal("Received unexpected data", "data", b[:pktLen])
+		if string(p.Payload.(common.RawBytes)) != ping+integration.Local.IA.String() {
+			integration.LogFatal("Received unexpected data", "data", p.Payload.(common.RawBytes))
 		}
-		log.Debug(fmt.Sprintf("Ping received from %s, sending pong.", addr))
+		log.Debug(fmt.Sprintf("Ping received from %s, sending pong.",
+			p.Source))
 		// Send pong
-		reply := pongMessage(integration.Local.IA, addr.IA)
-		_, err = conn.WriteToSCION(reply, addr)
-		if err != nil {
+
+		if p.Path != nil {
+			if err := p.Path.Reverse(); err != nil {
+				log.Debug(fmt.Sprintf("Error reversing path, err = %v", err))
+				continue
+			}
+		}
+		p.Destination, p.Source = p.Source, p.Destination
+		p.L4Header.Reverse()
+		p.Payload = common.RawBytes(pongMessage(integration.Local.IA, p.Destination.IA))
+		if err := conn.WriteTo(&p, &ov); err != nil {
 			integration.LogFatal("Unable to send reply", "err", err)
 		}
-		log.Debug(fmt.Sprintf("Sent pong to %s", addr.Desc()))
+		log.Debug(fmt.Sprintf("Sent pong to %s", p.Destination))
 	}
 }
 
 type client struct {
-	conn   snet.Conn
+	conn   snet.PacketConn
+	port   uint16
 	sdConn sciond.Connector
 }
 
 func (c client) run() int {
+	connFactory := &snet.DefaultPacketDispatcherService{
+		Dispatcher: reliable.NewDispatcherService(""),
+		SCMPHandler: snet.NewSCMPHandler(
+			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}, log.Root()),
+		),
+	}
+
 	var err error
-	c.conn, err = snet.ListenSCION("udp4", &integration.Local)
+	c.conn, c.port, err = connFactory.RegisterTimeout(integration.Local.IA, integration.Local.Host,
+		nil, addr.SvcNone, 0)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
-	log.Debug("Send on", "local", c.conn.LocalAddr())
+	log.Debug("Send on", "local",
+		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.L3, c.port))
 	c.sdConn = snet.DefNetwork.Sciond()
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
@@ -155,9 +186,47 @@ func (c client) ping(ctx context.Context, n int) error {
 		return err
 	}
 	c.conn.SetWriteDeadline(getDeadline(ctx))
-	b := pingMessage(remote.IA)
-	_, err := c.conn.WriteTo(b, &remote)
-	return err
+	if remote.NextHop == nil {
+		var err error
+		remote.NextHop, err = overlay.NewOverlayAddr(
+			remote.Host.L3,
+			addr.NewL4UDPInfo(overlay.EndhostPort),
+		)
+		if err != nil {
+			return common.NewBasicError("Error building overlay", err)
+		}
+	}
+	var debugID [common.ExtnFirstLineLen]byte
+	// API guarantees return values are ok
+	_, _ = rand.Read(debugID[:])
+	return c.conn.WriteTo(
+		&snet.SCIONPacket{
+			SCIONPacketInfo: snet.SCIONPacketInfo{
+				Destination: snet.SCIONAddress{
+					IA:   remote.IA,
+					Host: remote.Host.L3,
+				},
+				Source: snet.SCIONAddress{
+					IA:   integration.Local.IA,
+					Host: integration.Local.Host.L3,
+				},
+				Path: remote.Path,
+				Extensions: []common.Extension{
+					layers.ExtnE2EDebug{
+						ID: debugID,
+					},
+				},
+				L4Header: &l4.UDP{
+					SrcPort: c.port,
+					DstPort: remote.Host.L4.Port(),
+				},
+				Payload: common.RawBytes(
+					pingMessage(remote.IA),
+				),
+			},
+		},
+		remote.NextHop,
+	)
 }
 
 func (c client) getRemote(ctx context.Context, n int) error {
@@ -189,15 +258,15 @@ func (c client) getRemote(ctx context.Context, n int) error {
 
 func (c client) pong(ctx context.Context) error {
 	c.conn.SetReadDeadline(getDeadline(ctx))
-	reply := make([]byte, 1024)
-	pktLen, err := c.conn.Read(reply)
-	if err != nil {
+	var p snet.SCIONPacket
+	var ov overlay.OverlayAddr
+	if err := c.conn.ReadFrom(&p, &ov); err != nil {
 		return common.NewBasicError("Error reading packet", err)
 	}
 	expected := pong + remote.IA.String() + integration.Local.IA.String()
-	if string(reply[:pktLen]) != expected {
+	if string(p.Payload.(common.RawBytes)) != expected {
 		return common.NewBasicError("Received unexpected data", nil, "data",
-			string(reply[:pktLen]), "expected", expected)
+			string(p.Payload.(common.RawBytes)), "expected", expected)
 	}
 	log.Debug(fmt.Sprintf("Received pong from %s", remote.IA))
 	return nil
