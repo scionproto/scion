@@ -22,7 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -63,44 +63,15 @@ var (
 	queriesTotal *prometheus.CounterVec
 	resultsTotal *prometheus.CounterVec
 
-	allOps = []promOp{
-		promOpGetIssCert,
-		promOpGetIssCertMV,
-		promOpGetAllIssCerts,
-		promOpGetChain,
-		promOpGetChainMV,
-		promOpGetAllChains,
-		promOpGetTRC,
-		promOpGetTRCMV,
-		promOpGetAllTRCs,
-		promOpGetCustKey,
-		promOpGetAllCustKeys,
-
-		promOpInsertIssCert,
-		promOpInsertChain,
-		promOpInsertTRC,
-		promOpInsertCustKey,
-
-		promOpBeginTx,
-		promOpCommitTx,
-		promOpRollbackTx,
-	}
-
-	allResults = []string{
-		prom.ResultOk,
-		prom.ErrNotClassified,
-		prom.ErrTimeout,
-	}
-
 	initMetricsOnce sync.Once
 )
 
 func initMetrics() {
 	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 18 (len(allOps))
+		// Cardinality: X (dbName) * 18 (len(all ops))
 		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
 			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbName) * 18 (len(allOps)) * 3 (len(allResults))
+		// Cardinality: X (dbName) * 18 (len(all ops)) * Y (len(all results))
 		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
 			"Results of trustdb operations.",
 			[]string{promDBName, prom.LabelOperation, prom.LabelResult})
@@ -122,57 +93,22 @@ func WithMetrics(dbName string, trustDB TrustDB) TrustDB {
 }
 
 type counters struct {
-	opCounters     map[promOp]prometheus.Counter
-	resultCounters map[promOp]map[string]prometheus.Counter
+	queriesTotal *prometheus.CounterVec
+	resultsTotal *prometheus.CounterVec
 }
 
 func newCounters(dbName string) *counters {
+	labels := prometheus.Labels{promDBName: dbName}
 	return &counters{
-		opCounters:     opCounters(dbName),
-		resultCounters: resultCounters(dbName),
+		queriesTotal: queriesTotal.MustCurryWith(labels),
+		resultsTotal: resultsTotal.MustCurryWith(labels),
 	}
 }
 
-func opCounters(dbName string) map[promOp]prometheus.Counter {
-	opCounters := make(map[promOp]prometheus.Counter)
-	for _, op := range allOps {
-		opCounters[op] = queriesTotal.With(prometheus.Labels{
-			promDBName:          dbName,
-			prom.LabelOperation: string(op),
-		})
-	}
-	return opCounters
-}
-
-func resultCounters(dbName string) map[promOp]map[string]prometheus.Counter {
-	resultCounters := make(map[promOp]map[string]prometheus.Counter)
-	for _, op := range allOps {
-		resultCounters[op] = make(map[string]prometheus.Counter)
-		for _, res := range allResults {
-			resultCounters[op][res] = resultsTotal.With(prometheus.Labels{
-				promDBName:          dbName,
-				prom.LabelOperation: string(op),
-				prom.LabelResult:    res,
-			})
-		}
-	}
-	return resultCounters
-}
-
-func (c *counters) incOp(op promOp) {
-	c.opCounters[op].Inc()
-}
-
-func (c *counters) incResult(op promOp, err error) {
-	// TODO(lukedirtwalker): categorize error better.
-	switch {
-	case err == nil:
-		c.resultCounters[op][prom.ResultOk].Inc()
-	case common.IsTimeoutErr(err):
-		c.resultCounters[op][prom.ErrTimeout].Inc()
-	default:
-		c.resultCounters[op][prom.ErrNotClassified].Inc()
-	}
+func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx context.Context) error) {
+	c.queriesTotal.WithLabelValues(string(op)).Inc()
+	err := action(ctx)
+	c.resultsTotal.WithLabelValues(string(op), db.ErrToMetricLabel(err))
 }
 
 var _ (TrustDB) = (*metricsTrustDB)(nil)
@@ -186,14 +122,18 @@ type metricsTrustDB struct {
 func (db *metricsTrustDB) BeginTransaction(ctx context.Context,
 	opts *sql.TxOptions) (Transaction, error) {
 
-	db.metricsExecutor.metrics.incOp(promOpBeginTx)
-	tx, err := db.db.BeginTransaction(ctx, opts)
-	db.metricsExecutor.metrics.incResult(promOpBeginTx, err)
+	var tx Transaction
+	var err error
+	db.metricsExecutor.metrics.Observe(ctx, promOpBeginTx, func(ctx context.Context) error {
+		tx, err = db.db.BeginTransaction(ctx, opts)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
 	return &metricsTransaction{
-		tx: tx,
+		tx:  tx,
+		ctx: ctx,
 		metricsExecutor: &metricsExecutor{
 			rwDB:    tx,
 			metrics: db.metricsExecutor.metrics,
@@ -218,20 +158,25 @@ var _ (Transaction) = (*metricsTransaction)(nil)
 type metricsTransaction struct {
 	*metricsExecutor
 	// tx is only used for Commit and Rollback.
-	tx Transaction
+	tx  Transaction
+	ctx context.Context
 }
 
 func (tx *metricsTransaction) Commit() error {
-	tx.metrics.incOp(promOpCommitTx)
-	err := tx.tx.Commit()
-	tx.metrics.incResult(promOpCommitTx, err)
+	var err error
+	tx.metrics.Observe(tx.ctx, promOpCommitTx, func(_ context.Context) error {
+		err = tx.tx.Commit()
+		return err
+	})
 	return err
 }
 
 func (tx *metricsTransaction) Rollback() error {
-	tx.metrics.incOp(promOpRollbackTx)
-	err := tx.tx.Rollback()
-	tx.metrics.incResult(promOpRollbackTx, err)
+	var err error
+	tx.metrics.Observe(tx.ctx, promOpRollbackTx, func(_ context.Context) error {
+		err = tx.tx.Rollback()
+		return err
+	})
 	return err
 }
 
@@ -240,123 +185,168 @@ type metricsExecutor struct {
 	metrics *counters
 }
 
-// below here is very boilerplaty code that implements all DB ops and calls the inc functions.
+// below here is very boilerplaty code that implements all DB ops and calls the Observe function.
 
 func (db *metricsExecutor) InsertIssCert(ctx context.Context,
 	crt *cert.Certificate) (int64, error) {
 
-	db.metrics.incOp(promOpInsertIssCert)
-	cnt, err := db.rwDB.InsertIssCert(ctx, crt)
-	db.metrics.incResult(promOpInsertIssCert, err)
+	var cnt int64
+	var err error
+	db.metrics.Observe(ctx, promOpInsertIssCert, func(ctx context.Context) error {
+		cnt, err = db.rwDB.InsertIssCert(ctx, crt)
+		return err
+	})
 	return cnt, err
 }
 
 func (db *metricsExecutor) InsertChain(ctx context.Context, chain *cert.Chain) (int64, error) {
-	db.metrics.incOp(promOpInsertChain)
-	cnt, err := db.rwDB.InsertChain(ctx, chain)
-	db.metrics.incResult(promOpInsertChain, err)
+
+	var cnt int64
+	var err error
+	db.metrics.Observe(ctx, promOpInsertChain, func(ctx context.Context) error {
+		cnt, err = db.rwDB.InsertChain(ctx, chain)
+		return err
+	})
 	return cnt, err
 }
 
 func (db *metricsExecutor) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, error) {
-	db.metrics.incOp(promOpInsertTRC)
-	cnt, err := db.rwDB.InsertTRC(ctx, trcobj)
-	db.metrics.incResult(promOpInsertTRC, err)
+	var cnt int64
+	var err error
+	db.metrics.Observe(ctx, promOpInsertTRC, func(ctx context.Context) error {
+		cnt, err = db.rwDB.InsertTRC(ctx, trcobj)
+		return err
+	})
 	return cnt, err
 }
 
 func (db *metricsExecutor) InsertCustKey(ctx context.Context, key *CustKey,
 	oldVersion uint64) error {
 
-	db.metrics.incOp(promOpInsertCustKey)
-	err := db.rwDB.InsertCustKey(ctx, key, oldVersion)
-	db.metrics.incResult(promOpInsertCustKey, err)
+	var err error
+	db.metrics.Observe(ctx, promOpInsertCustKey, func(ctx context.Context) error {
+		err = db.rwDB.InsertCustKey(ctx, key, oldVersion)
+		return err
+	})
 	return err
 }
 
 func (db *metricsExecutor) GetIssCertVersion(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Certificate, error) {
 
-	db.metrics.incOp(promOpGetIssCert)
-	res, err := db.rwDB.GetIssCertVersion(ctx, ia, version)
-	db.metrics.incResult(promOpGetIssCert, err)
+	var res *cert.Certificate
+	var err error
+	db.metrics.Observe(ctx, promOpGetIssCert, func(ctx context.Context) error {
+		res, err = db.rwDB.GetIssCertVersion(ctx, ia, version)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetIssCertMaxVersion(ctx context.Context,
 	ia addr.IA) (*cert.Certificate, error) {
 
-	db.metrics.incOp(promOpGetIssCertMV)
-	res, err := db.rwDB.GetIssCertMaxVersion(ctx, ia)
-	db.metrics.incResult(promOpGetIssCertMV, err)
+	var res *cert.Certificate
+	var err error
+	db.metrics.Observe(ctx, promOpGetIssCertMV, func(ctx context.Context) error {
+		res, err = db.rwDB.GetIssCertMaxVersion(ctx, ia)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetAllIssCerts(ctx context.Context) (<-chan CertOrErr, error) {
-	db.metrics.incOp(promOpGetAllIssCerts)
-	res, err := db.rwDB.GetAllIssCerts(ctx)
-	db.metrics.incResult(promOpGetAllIssCerts, err)
+	var res <-chan CertOrErr
+	var err error
+	db.metrics.Observe(ctx, promOpGetAllIssCerts, func(ctx context.Context) error {
+		res, err = db.rwDB.GetAllIssCerts(ctx)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetChainVersion(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Chain, error) {
 
-	db.metrics.incOp(promOpGetChain)
-	res, err := db.rwDB.GetChainVersion(ctx, ia, version)
-	db.metrics.incResult(promOpGetChain, err)
+	var res *cert.Chain
+	var err error
+	db.metrics.Observe(ctx, promOpGetChain, func(ctx context.Context) error {
+		res, err = db.rwDB.GetChainVersion(ctx, ia, version)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetChainMaxVersion(ctx context.Context,
 	ia addr.IA) (*cert.Chain, error) {
 
-	db.metrics.incOp(promOpGetChainMV)
-	res, err := db.rwDB.GetChainMaxVersion(ctx, ia)
-	db.metrics.incResult(promOpGetChainMV, err)
+	var res *cert.Chain
+	var err error
+	db.metrics.Observe(ctx, promOpGetChainMV, func(ctx context.Context) error {
+		res, err = db.rwDB.GetChainMaxVersion(ctx, ia)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetAllChains(ctx context.Context) (<-chan ChainOrErr, error) {
-	db.metrics.incOp(promOpGetAllChains)
-	res, err := db.rwDB.GetAllChains(ctx)
-	db.metrics.incResult(promOpGetAllChains, err)
+	var res <-chan ChainOrErr
+	var err error
+	db.metrics.Observe(ctx, promOpGetAllChains, func(ctx context.Context) error {
+		res, err = db.rwDB.GetAllChains(ctx)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetTRCVersion(ctx context.Context, isd addr.ISD,
 	version uint64) (*trc.TRC, error) {
 
-	db.metrics.incOp(promOpGetTRC)
-	res, err := db.rwDB.GetTRCVersion(ctx, isd, version)
-	db.metrics.incResult(promOpGetTRC, err)
+	var res *trc.TRC
+	var err error
+	db.metrics.Observe(ctx, promOpGetTRC, func(ctx context.Context) error {
+		res, err = db.rwDB.GetTRCVersion(ctx, isd, version)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
-	db.metrics.incOp(promOpGetTRCMV)
-	res, err := db.rwDB.GetTRCMaxVersion(ctx, isd)
-	db.metrics.incResult(promOpGetTRCMV, err)
+	var res *trc.TRC
+	var err error
+	db.metrics.Observe(ctx, promOpGetTRCMV, func(ctx context.Context) error {
+		res, err = db.rwDB.GetTRCMaxVersion(ctx, isd)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetAllTRCs(ctx context.Context) (<-chan TrcOrErr, error) {
-	db.metrics.incOp(promOpGetAllTRCs)
-	res, err := db.rwDB.GetAllTRCs(ctx)
-	db.metrics.incResult(promOpGetAllTRCs, err)
+	var res <-chan TrcOrErr
+	var err error
+	db.metrics.Observe(ctx, promOpGetAllTRCs, func(ctx context.Context) error {
+		res, err = db.rwDB.GetAllTRCs(ctx)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetCustKey(ctx context.Context, ia addr.IA) (*CustKey, error) {
-	db.metrics.incOp(promOpGetCustKey)
-	res, err := db.rwDB.GetCustKey(ctx, ia)
-	db.metrics.incResult(promOpGetCustKey, err)
+	var res *CustKey
+	var err error
+	db.metrics.Observe(ctx, promOpGetCustKey, func(ctx context.Context) error {
+		res, err = db.rwDB.GetCustKey(ctx, ia)
+		return err
+	})
 	return res, err
 }
 
 func (db *metricsExecutor) GetAllCustKeys(ctx context.Context) (<-chan CustKeyOrErr, error) {
-	db.metrics.incOp(promOpGetAllCustKeys)
-	res, err := db.rwDB.GetAllCustKeys(ctx)
-	db.metrics.incResult(promOpGetAllCustKeys, err)
+	var res <-chan CustKeyOrErr
+	var err error
+	db.metrics.Observe(ctx, promOpGetAllCustKeys, func(ctx context.Context) error {
+		res, err = db.rwDB.GetAllCustKeys(ctx)
+		return err
+	})
 	return res, err
 }
