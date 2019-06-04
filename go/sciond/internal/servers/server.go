@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -72,6 +73,9 @@ func (srv *Server) ListenAndServe() error {
 	for {
 		conn, err := srv.listener.Accept()
 		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				return err
+			}
 			srv.log.Warn("unable to accept conn", "err", err)
 			continue
 		}
