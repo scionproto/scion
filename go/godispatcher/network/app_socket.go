@@ -198,7 +198,7 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.RegReference) {
 			log.Warn("SCMP Request ID error, packet still sent", "err", err)
 		}
 
-		logDebugE2E("egress", &pkt.Info)
+		logDebugE2E("egress", &pkt.Info, pkt.OverlayRemote)
 
 		n, err := pkt.SendOnConn(h.OverlayConn, pkt.OverlayRemote)
 		if err != nil {

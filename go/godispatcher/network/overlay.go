@@ -60,7 +60,7 @@ func (dp *NetToRingDataplane) Run() error {
 			continue
 		}
 
-		logDebugE2E("ingress", &pkt.Info)
+		logDebugE2E("ingress", &pkt.Info, pkt.OverlayRemote)
 
 		dst, err := ComputeDestination(&pkt.Info)
 		if err != nil {
@@ -240,11 +240,11 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 	pkt.Free()
 }
 
-func logDebugE2E(key string, pkt *spkt.ScnPkt) {
+func logDebugE2E(key string, pkt *spkt.ScnPkt, ov *net.UDPAddr) {
 	for _, e := range pkt.E2EExt {
 		if extnData, ok := e.(*layers.ExtnE2EDebug); ok {
 			log.Trace("Recv'd packet with debug extension", "dir", key, "debug_id", extnData.ID,
-				"pkt", pkt)
+				"pkt", pkt, "overlay_addr", ov)
 		}
 	}
 }
