@@ -17,10 +17,12 @@ package svc
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -65,6 +67,9 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		return nil, common.NewBasicError(errRegistration, err)
 	}
 
+	var debugID [common.ExtnFirstLineLen]byte
+	// API guarantees return values are ok
+	_, _ = rand.Read(debugID[:])
 	requestPacket := &snet.SCIONPacket{
 		SCIONPacketInfo: snet.SCIONPacketInfo{
 			Source: snet.SCIONAddress{
@@ -76,6 +81,11 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 				Host: svc,
 			},
 			Path: p.Path(),
+			Extensions: []common.Extension{
+				layers.ExtnE2EDebug{
+					ID: debugID,
+				},
+			},
 			L4Header: &l4.UDP{
 				SrcPort: port,
 			},

@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -171,6 +172,7 @@ type BaseHandler struct {
 }
 
 func (h *BaseHandler) Handle(request *Request) (Result, error) {
+	log.Trace("XXX - Handling SVC request", "from", request.Source)
 	path, err := h.reversePath(request.Packet.Path)
 	if err != nil {
 		return Error, err
