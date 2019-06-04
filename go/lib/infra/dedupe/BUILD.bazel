@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "dedupe.go",
+        "notification.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/infra/dedupe",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/log:go_default_library",
+        "@com_github_patrickmn_go_cache//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["dedupe_test.go"],
+    embed = [":go_default_library"],
+    deps = ["@com_github_smartystreets_goconvey//convey:go_default_library"],
+)

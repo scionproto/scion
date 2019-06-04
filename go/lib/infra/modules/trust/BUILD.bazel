@@ -18,6 +18,7 @@ go_library(
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/cert_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
+        "//go/lib/infra/dedupe:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
         "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/trust/trustdb:go_default_library",
