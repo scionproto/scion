@@ -198,6 +198,8 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.RegReference) {
 			log.Warn("SCMP Request ID error, packet still sent", "err", err)
 		}
 
+		logDebugE2E("egress", &pkt.Info)
+
 		n, err := pkt.SendOnConn(h.OverlayConn, pkt.OverlayRemote)
 		if err != nil {
 			h.Logger.Error("[app->network] Overlay socket error", "err", err)
