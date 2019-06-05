@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"time"
 
@@ -151,6 +152,12 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	topoAddress := topo.CS.GetById(cfg.General.ID)
 	if topoAddress == nil {
 		return common.NewBasicError("Unable to find topo address", nil)
+	}
+	// If QUIC bind address is not specified we'll use UDP bind address and
+	// an ephemeral port.
+	if cfg.QUIC.Address == "" {
+		addr := topoAddress.IPv4.BindOrPublic().L3.IP()
+		cfg.QUIC.Address = fmt.Sprintf("%s:0", addr.String())
 	}
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.ISD_AS,

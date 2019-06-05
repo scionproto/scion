@@ -111,6 +111,15 @@ func realMain() int {
 		log.Crit("TRC error", "err", err)
 		return 1
 	}
+	// If QUIC bind address is not specified we'll use UDP bind address and
+	// an ephemeral port.
+	if cfg.QUIC.Address == "" {
+		addr := cfg.SD.Bind.Host.L3.IP()
+		if addr == nil {
+			addr = cfg.SD.Public.Host.L3.IP()
+		}
+		cfg.QUIC.Address = fmt.Sprintf("%s:0", addr.String())
+	}
 	nc := infraenv.NetworkConfig{
 		IA:                    itopo.Get().ISD_AS,
 		Public:                cfg.SD.Public,

@@ -118,6 +118,12 @@ func realMain() int {
 		log.Crit("Unable to find topo address")
 		return 1
 	}
+	// If QUIC bind address is not specified we'll use UDP bind address and
+	// an ephemeral port.
+	if cfg.QUIC.Address == "" {
+		addr := topoAddress.IPv4.BindOrPublic().L3.IP()
+		cfg.QUIC.Address = fmt.Sprintf("%s:0", addr.String())
+	}
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.ISD_AS,
 		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
