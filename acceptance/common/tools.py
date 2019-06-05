@@ -50,5 +50,6 @@ class DC(object):
         mkdir('-p', out_p)
         for svc in self('config', '--services').splitlines():
             dst_f = out_p / '%s.log' % svc
-            with open(dst_f, 'w') as log_f:
-                log_f.write(self('logs', svc))
+            with local.env(BASE_DIR=self.base_dir, COMPOSE_FILE=self.compose_file):
+                with redirect_stderr(sys.stdout):
+                    (docker_compose['-p', 'acceptance_scion', '--no-ansi', 'logs', svc] > dst_f)()
