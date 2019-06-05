@@ -27,6 +27,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -190,12 +192,21 @@ func AssertReadReturnsBefore(t testing.TB, ch <-chan struct{}, timeout time.Dura
 	}
 }
 
-// AssertChannelClosedBefore will call t.Fatalf if the first read from the
+// AssertReadDoesNotReturnBefore will call t.Fatalf if the first read from the
 // channel happens before timeout.
 func AssertReadDoesNotReturnBefore(t testing.TB, ch <-chan struct{}, timeout time.Duration) {
 	select {
 	case <-ch:
 		t.Fatalf("goroutine finished too quickly")
 	case <-time.After(timeout):
+	}
+}
+
+// AssertError checks that err is not nil if expectError is true and that is it nil otherwise
+func AssertError(t *testing.T, err error, expectError bool) {
+	if expectError {
+		assert.Error(t, err)
+	} else {
+		assert.NoError(t, err)
 	}
 }

@@ -450,3 +450,9 @@ go_repository(
     commit = "da645544ed44df016359bd4c0e3dc60ee3a0da43",
     importpath = "github.com/sergi/go-diff",  # diffmatchpatch
 )
+
+go_repository(
+    name = "com_github_stretchr_testify",
+    commit = "34c6fa2dc70986bccbbffcc6130f6920a924b075",
+    importpath = "github.com/stretchr/testify",
+)
