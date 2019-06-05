@@ -498,10 +498,13 @@ func (t *periodicTasks) Kill() {
 		log.Warn("Trying to stop tasks, but they are not running! Ignored.")
 		return
 	}
+	t.registrars.Kill()
+	t.revoker.Kill()
 	t.keepalive.Kill()
 	if t.originator != nil {
 		t.originator.Kill()
 	}
+	t.propagator.Kill()
 	t.beaconCleaner.Kill()
 	t.revCleaner.Kill()
 	t.running = false
