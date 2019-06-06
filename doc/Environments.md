@@ -2,14 +2,14 @@
 
 There are different ways SCION services can be run. The different enviroments are
 
--   development (local)
--   testing (local and CI)
--   production
+- development (local)
+- testing (local and CI)
+- production
 
 And the different `scion.sh` backends are
 
--   supervisor
--   docker
+- supervisor
+- docker
 
 ## Development with supervisor
 
