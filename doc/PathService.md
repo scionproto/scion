@@ -100,9 +100,9 @@ If there are paths available for a certain destination an interval of, e.g. 5 mi
 
 ### DoS / High load Prevention
 
-A client could request paths to random (non-existing) ASes and with this put a lot of load on the Path Service Infra. To prevent this we need caching of which ASes exist. https://github.com/scionproto/scion/issues/1486 Describes how we can find out if an AS exists. A core PS that receives a path request for a non existing AS can reply with an error (AS does not exist), the local PS can then cache this result, so it can immediately reply if the same request is received again.
+A client could request paths to random (non-existing) ASes and with this put a lot of load on the Path Service Infra. To prevent this we need caching of which ASes exist. [scion#1486](https://github.com/scionproto/scion/issues/1486) Describes how we can find out if an AS exists. A core PS that receives a path request for a non existing AS can reply with an error (AS does not exist), the local PS can then cache this result, so it can immediately reply if the same request is received again.
 
-Also we should consider: https://github.com/scionproto/scion/issues/1725
+Also we should consider: [scion#1725](https://github.com/scionproto/scion/issues/1725)
 
 ### Policy
 

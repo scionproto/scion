@@ -20,11 +20,11 @@ If the tail elements in a HP are 0, they can be omitted. See the following examp
 
 Examples:
 
--   Match ISD _1_: `1` or `1-0` or `1-0#0` or `1-0#0,0`
--   Match AS _1-ff00:0:133_: `1-ff00:0:133` or `1-ff00:0:133#0` or `1-ff00:0:133#0,0`
--   Match inbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2,0`
--   Match outbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#0,2`
--   Match inbound or outbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
+- Match ISD _1_: `1` or `1-0` or `1-0#0` or `1-0#0,0`
+- Match AS _1-ff00:0:133_: `1-ff00:0:133` or `1-ff00:0:133#0` or `1-ff00:0:133#0,0`
+- Match inbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2,0`
+- Match outbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#0,2`
+- Match inbound or outbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
 
 ## Operators
 
@@ -32,43 +32,43 @@ The path policy language has the following operators:
 
 ACL:
 
--   `+` (allow predicate)
--   `-` (deny predicate)
+- `+` (allow predicate)
+- `-` (deny predicate)
 
 Sequence:
 
--   `?` (the preceding HP may appear at most once)
--   `+` (the preceding **ISD-level** HP must appear at least once)
--   `*` (the preceding **ISD-level** HP may appear zero or more times)
--   `|` (logical OR)
+- `?` (the preceding HP may appear at most once)
+- `+` (the preceding **ISD-level** HP must appear at least once)
+- `*` (the preceding **ISD-level** HP may appear zero or more times)
+- `|` (logical OR)
 
 Planned:
 
--   `!` (logical NOT)
--   `&` (logical AND)
+- `!` (logical NOT)
+- `&` (logical AND)
 
 ## Policy
 
 A policy is defined by a policy object. It can have the following attributes:
 
--   [`extends`](#Extends) (list of extended policies)
--   [`acl`](#ACL) (list of HPs, preceded by `+` or `-`)
--   [`sequence`](#Sequence) (space separated list of HPs, may contain operators)
--   [`options`](#Options) (list of option policies)
-    -   `weight` (importance level, only valid under `options`)
+- [`extends`](#Extends) (list of extended policies)
+- [`acl`](#ACL) (list of HPs, preceded by `+` or `-`)
+- [`sequence`](#Sequence) (space separated list of HPs, may contain operators)
+- [`options`](#Options) (list of option policies)
+  - `weight` (importance level, only valid under `options`)
 
 Planned:
 
--   `bw` (bandwidth)
--   `lat` (latency)
--   `cost`
--   `mtu`
--   `exp` (expiration time)
--   `frh` (freshness)
--   `hops` (number of hops)
--   `type` (defines where the policy should apply)
--   `peer` (peer segments)
--   `shct` (shortcut segments)
+- `bw` (bandwidth)
+- `lat` (latency)
+- `cost`
+- `mtu`
+- `exp` (expiration time)
+- `frh` (freshness)
+- `hops` (number of hops)
+- `type` (defines where the policy should apply)
+- `peer` (peer segments)
+- `shct` (shortcut segments)
 
 ## Specification
 
@@ -90,7 +90,7 @@ default everything is whitelisted.
 The following is an example for allowing all interfaces in ASes _1-ff00:0:133_ and _1-ff00:0:120_,
 but denying all other ASes in ISD _1_. The last entry makes sure that any other ISD is allowed.
 
-```
+```yaml
 - acl_policy_example:
     acl:
     - '+ 1-ff00:0:133'
@@ -108,7 +108,7 @@ The following example specifies a path from any interface in AS _1-ff00:0:133_ t
 interfaces in AS _1-ff00:0:120_ (entering on interface _2_ and exiting on interface _1_), then there
 are two wildcards that each match any AS. The path must end with any interface in AS _1-ff00:0:110_.
 
-```
+```yaml
 - sequence_example_2:
     sequence: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
 ```
@@ -120,7 +120,7 @@ The following example specifies a path from interface _1-ff00:0:133#1_ through m
 _1_, that may (but does not need to) traverse AS _2-ff00:0:1_ and then reaches its destination on
 _2-ff00:0:233#1_.
 
-```
+```yaml
 - sequence_more_complex:
     sequence: "1-ff00:0:133#1 1+ 2-ff00:0:1? 2-ff00:0:233#1"
 ```
@@ -135,7 +135,7 @@ always has precedence over attributes of an extended policy.
 The following example uses three sub-policies to create the top-level policy. As `sub_pol_1` and
 `sub_pol_3` both define an ACL but `sub_pol_3` has precedence, the ACL of `sub_pol_1` is discarded.
 
-```
+```yaml
 - extends_example:
     extends:
     - sub_pol_1
@@ -173,7 +173,7 @@ The following example has three options, the first denies ISD 1. If that doesn't
 the second option which denies hops in multiple ASes is used. If that again does not match, the
 third option which denies only hops in AS _1-ff00:0:133_, is used.
 
-```
+```yaml
 - policy_with_options:
     options:
       - weight: 3

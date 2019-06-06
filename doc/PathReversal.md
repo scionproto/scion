@@ -5,6 +5,7 @@ The aim in all cases is to set the current Hop Field index to the appropriate
 entry for the next router.
 
 The table fields below are as follows:
+
 - Router: This specifies the direction of the original packet relative to the
   local AS. E.g. `Egress` means the packet was sent to the router by the local
   AS.
@@ -40,6 +41,7 @@ illegal in these cases, so the deliver case is left out.
 | Egress  | Forward         |              |                  | X      | 1        |
 
 ### Peer change over
+
 The router is at a peering Xover point. This differs from the other Xover
 points in that local delivery is legal, and no segment change is happening.
 
@@ -52,6 +54,7 @@ points in that local delivery is legal, and no segment change is happening.
 ### Processing summary
 
 The rules can be simplified to:
+
 - If the packet is at an egress non-Xover point, stop here.
 - Increment the reversed path one step.
 - Increment the reversed path if it was incremented in the forward direction.
