@@ -18,10 +18,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/xtest/mock_xtest"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -41,36 +44,43 @@ func TestInit(t *testing.T) {
 }
 
 func TestStateSetStatic(t *testing.T) {
+	mctrl := gomock.NewController(&xtest.PanickingReporter{T: t})
+	defer mctrl.Finish()
 	Convey("When state is initialized with no specific element", t, func() {
-		called := clbkCalled{}
-		s := newState("", proto.ServiceType_unset, called.clbks())
+		clbks := newMockClbks(mctrl)
+		s := newState("", proto.ServiceType_unset, clbks.Clbks())
 		s.topo.static = loadTopo(fn, t)
 		// Set dynamic such that drop dynamic might possibly be called.
 		s.topo.dynamic = loadTopo(fn, t)
 		topo := loadTopo(fn, t)
 		Convey("Calling with modified topo should succeed", func() {
+			var wg xtest.Waiter
+			wg.Add(1)
 			ifinfo := topo.IFInfoMap[1]
 			ifinfo.MTU = 42
 			topo.IFInfoMap[1] = ifinfo
+			clbks.update.EXPECT().Call().Do(wg.Done)
 			newTopo, updated, err := s.setStatic(topo, true)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
 			SoMsg("topo static", topo, ShouldEqual, s.topo.static)
 			SoMsg("topo dynamic", newTopo, ShouldEqual, s.topo.dynamic)
-			called.check(false, false, true)
+			wg.WaitWithTimeout(time.Second)
 		})
-		testNilTopo(setStaticTestFunc(s), &called, t)
-		testNoModified(setStaticTestFunc(s), s.topo.static, &called, true, t)
+		testNilTopo(setStaticTestFunc(s), t)
+		testNoModified(setStaticTestFunc(s), s.topo.static, clbks, true, t)
 	})
 	Convey("When itopo is initialized with a service element", t, func() {
-		called := clbkCalled{}
+		clbks := newMockClbks(mctrl)
 		id := "cs1-ff00:0:311-1"
-		s := newState(id, proto.ServiceType_cs, called.clbks())
+		s := newState(id, proto.ServiceType_cs, clbks.Clbks())
 		s.topo.static = loadTopo(fn, t)
 		// Set dynamic such that drop dynamic might possibly be called.
 		s.topo.dynamic = loadTopo(fn, t)
 		topo := loadTopo(fn, t)
 		Convey("Modification without touching the element's entry should be allowed", func() {
+			var wg xtest.Waiter
+			wg.Add(1)
 			// Modify border router
 			ifinfo := topo.IFInfoMap[1]
 			ifinfo.MTU = 42
@@ -79,12 +89,13 @@ func TestStateSetStatic(t *testing.T) {
 			cs := topo.CS["cs1-ff00:0:311-2"]
 			cs.Overlay = overlay.IPv6
 			topo.CS["cs1-ff00:0:311-2"] = cs
+			clbks.update.EXPECT().Call().Do(wg.Done)
 			newTopo, updated, err := s.setStatic(topo, true)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
 			SoMsg("topo static", topo, ShouldEqual, s.topo.static)
 			SoMsg("topo dynamic", newTopo, ShouldEqual, s.topo.dynamic)
-			called.check(false, false, true)
+			wg.WaitWithTimeout(time.Second)
 		})
 		Convey("Modifying the element's entry should not be allowed", func() {
 			cs := topo.CS[id]
@@ -94,20 +105,21 @@ func TestStateSetStatic(t *testing.T) {
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
 			SoMsg("topo static", topo, ShouldNotEqual, s.topo.static)
-			called.check(false, false, false)
 		})
-		testNilTopo(setStaticTestFunc(s), &called, t)
-		testNoModified(setStaticTestFunc(s), s.topo.static, &called, true, t)
+		testNilTopo(setStaticTestFunc(s), t)
+		testNoModified(setStaticTestFunc(s), s.topo.static, clbks, true, t)
 	})
 	Convey("When itopo is initialized with a border router", t, func() {
-		called := clbkCalled{}
+		clbks := newMockClbks(mctrl)
 		id := "br1-ff00:0:311-1"
-		s := newState(id, proto.ServiceType_br, called.clbks())
+		s := newState(id, proto.ServiceType_br, clbks.Clbks())
 		s.topo.static = loadTopo(fn, t)
 		// Set dynamic such that drop dynamic might possibly be called.
 		s.topo.dynamic = loadTopo(fn, t)
 		topo := loadTopo(fn, t)
 		Convey("Modification without touching the br's entry should be allowed", func() {
+			var wg xtest.Waiter
+			wg.Add(1)
 			// Modify border router
 			ifinfo := topo.IFInfoMap[2]
 			ifinfo.MTU = 42
@@ -117,20 +129,22 @@ func TestStateSetStatic(t *testing.T) {
 			cs.Overlay = overlay.IPv6
 			topo.CS["cs1-ff00:0:311-2"] = cs
 			Convey("If semi-mutation is allowed", func() {
+				clbks.update.EXPECT().Call().Do(wg.Done)
 				newTopo, updated, err := s.setStatic(topo, true)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("updated", updated, ShouldBeTrue)
 				SoMsg("topo static", topo, ShouldEqual, s.topo.static)
 				SoMsg("topo dynamic", newTopo, ShouldEqual, s.topo.dynamic)
-				called.check(false, false, true)
+				wg.WaitWithTimeout(time.Second)
 			})
 			Convey("If semi-mutation is not allowed", func() {
+				clbks.update.EXPECT().Call().Do(wg.Done)
 				newTopo, updated, err := s.setStatic(topo, false)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("updated", updated, ShouldBeTrue)
 				SoMsg("topo static", topo, ShouldEqual, s.topo.static)
 				SoMsg("topo dynamic", newTopo, ShouldEqual, s.topo.dynamic)
-				called.check(false, false, true)
+				wg.WaitWithTimeout(time.Second)
 			})
 		})
 		Convey("Modifying the internal address is not allowed", func() {
@@ -142,14 +156,12 @@ func TestStateSetStatic(t *testing.T) {
 				SoMsg("err", err, ShouldNotBeNil)
 				SoMsg("updated", updated, ShouldBeFalse)
 				SoMsg("topo static", topo, ShouldNotEqual, s.topo.static)
-				called.check(false, false, false)
 			})
 			Convey("If semi-mutation is not allowed", func() {
 				_, updated, err := s.setStatic(topo, false)
 				SoMsg("err", err, ShouldNotBeNil)
 				SoMsg("updated", updated, ShouldBeFalse)
 				SoMsg("topo static", topo, ShouldNotEqual, s.topo.static)
-				called.check(false, false, false)
 			})
 		})
 		Convey("Modifying an interface is only allowed if semi-mutations are allowed", func() {
@@ -157,29 +169,34 @@ func TestStateSetStatic(t *testing.T) {
 			ifinfo.MTU = 42
 			topo.IFInfoMap[1] = ifinfo
 			Convey("Succeed, if semi-mutation is allowed", func() {
+				var wg xtest.Waiter
+				wg.Add(2)
+				clbks.update.EXPECT().Call().Do(wg.Done)
+				clbks.drop.EXPECT().Call().Do(wg.Done)
 				newTopo, updated, err := s.setStatic(topo, true)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("updated", updated, ShouldBeTrue)
 				SoMsg("topo", newTopo, ShouldEqual, topo)
-				called.check(false, true, true)
+				wg.WaitWithTimeout(time.Second)
 			})
 			Convey("Fail, if semi-mutation is not allowed", func() {
 				_, updated, err := s.setStatic(topo, false)
 				SoMsg("err", err, ShouldNotBeNil)
 				SoMsg("updated", updated, ShouldBeFalse)
 				SoMsg("topo static", topo, ShouldNotEqual, s.topo.static)
-				called.check(false, false, false)
 			})
 		})
-		testNilTopo(setStaticTestFunc(s), &called, t)
-		testNoModified(setStaticTestFunc(s), s.topo.static, &called, true, t)
+		testNilTopo(setStaticTestFunc(s), t)
+		testNoModified(setStaticTestFunc(s), s.topo.static, clbks, true, t)
 	})
 }
 
 func TestStateSetDynamic(t *testing.T) {
+	mctrl := gomock.NewController(t)
+	defer mctrl.Finish()
 	Convey("When state is initialized with no specific element", t, func() {
-		called := clbkCalled{}
-		s := newState("", proto.ServiceType_unset, called.clbks())
+		clbks := newMockClbks(mctrl)
+		s := newState("", proto.ServiceType_unset, clbks.Clbks())
 		s.topo.static = loadTopo(fn, t)
 		// Set dynamic such that drop dynamic might possibly be called.
 		s.topo.dynamic = loadTopo(fn, t)
@@ -193,15 +210,14 @@ func TestStateSetDynamic(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
 			SoMsg("topo", newTopo, ShouldEqual, topo)
-			called.check(false, false, false)
 		})
-		testNilTopo(s.setDynamic, &called, t)
-		testNoModified(s.setDynamic, s.topo.dynamic, &called, false, t)
+		testNilTopo(s.setDynamic, t)
+		testNoModified(s.setDynamic, s.topo.dynamic, clbks, false, t)
 	})
 	Convey("When itopo is initialized with a service element", t, func() {
-		called := clbkCalled{}
+		clbks := newMockClbks(mctrl)
 		id := "cs1-ff00:0:311-1"
-		s := newState(id, proto.ServiceType_cs, called.clbks())
+		s := newState(id, proto.ServiceType_cs, clbks.Clbks())
 		s.topo.static = loadTopo(fn, t)
 		// Set dynamic such that drop dynamic might possibly be called.
 		s.topo.dynamic = loadTopo(fn, t)
@@ -220,7 +236,6 @@ func TestStateSetDynamic(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
 			SoMsg("topo", newTopo, ShouldEqual, topo)
-			called.check(false, false, false)
 		})
 		Convey("Modifying the element's entry should not be allowed", func() {
 			cs := topo.CS[id]
@@ -229,15 +244,14 @@ func TestStateSetDynamic(t *testing.T) {
 			_, updated, err := s.setDynamic(topo)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
-			called.check(false, false, false)
 		})
-		testNilTopo(s.setDynamic, &called, t)
-		testNoModified(s.setDynamic, s.topo.dynamic, &called, false, t)
+		testNilTopo(s.setDynamic, t)
+		testNoModified(s.setDynamic, s.topo.dynamic, clbks, false, t)
 	})
 	Convey("When itopo is initialized with a border router", t, func() {
-		called := clbkCalled{}
+		clbks := newMockClbks(mctrl)
 		id := "br1-ff00:0:311-1"
-		s := newState(id, proto.ServiceType_br, called.clbks())
+		s := newState(id, proto.ServiceType_br, clbks.Clbks())
 		s.topo.static = loadTopo(fn, t)
 		// Set dynamic such that drop dynamic might possibly be called.
 		s.topo.dynamic = loadTopo(fn, t)
@@ -256,7 +270,6 @@ func TestStateSetDynamic(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
 			SoMsg("topo", newTopo, ShouldEqual, topo)
-			called.check(false, false, false)
 		})
 		Convey("Modifying the internal address is not allowed", func() {
 			brInfo := topo.BR[id]
@@ -265,7 +278,6 @@ func TestStateSetDynamic(t *testing.T) {
 			_, updated, err := s.setDynamic(topo)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
-			called.check(false, false, false)
 		})
 		Convey("Modifying an interfaces is not allowed", func() {
 			ifinfo := topo.IFInfoMap[1]
@@ -274,24 +286,22 @@ func TestStateSetDynamic(t *testing.T) {
 			_, updated, err := s.setDynamic(topo)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
-			called.check(false, false, false)
 		})
-		testNilTopo(s.setDynamic, &called, t)
-		testNoModified(s.setDynamic, s.topo.dynamic, &called, false, t)
+		testNilTopo(s.setDynamic, t)
+		testNoModified(s.setDynamic, s.topo.dynamic, clbks, false, t)
 	})
 }
 
-func testNilTopo(update updateTestFunc, called *clbkCalled, t *testing.T) {
+func testNilTopo(update updateTestFunc, t *testing.T) {
 	Convey("Calling with nil topo should fail", func() {
 		_, updated, err := update(nil)
 		SoMsg("err", err, ShouldNotBeNil)
 		SoMsg("updated", updated, ShouldBeFalse)
-		called.check(false, false, false)
 	})
 }
 
 func testNoModified(update updateTestFunc, prevTopo *topology.Topo,
-	called *clbkCalled, updateCalled bool, t *testing.T) {
+	clbks *mockClbks, updateCalled bool, t *testing.T) {
 
 	t.Helper()
 	Convey("Calling with non-modified topo should succeed", func() {
@@ -301,43 +311,46 @@ func testNoModified(update updateTestFunc, prevTopo *topology.Topo,
 			_, updated, err := update(topo)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
-			called.check(false, false, false)
 		})
 		Convey("No update if expires earlier", func() {
 			topo.TTL -= 2 * time.Second
 			_, updated, err := update(topo)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
-			called.check(false, false, false)
 		})
 		Convey("Update if expires later", func() {
+			var wg xtest.Waiter
 			topo.TTL += 2 * time.Second
+			if updateCalled {
+				wg.Add(1)
+				clbks.update.EXPECT().Call().Do(wg.Done)
+			}
 			_, updated, err := update(topo)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
-			called.check(false, false, updateCalled)
+			wg.WaitWithTimeout(time.Second)
 		})
 	})
 }
 
-type clbkCalled struct {
-	clean  bool
-	drop   bool
-	update bool
+type mockClbks struct {
+	clean  *mock_xtest.MockCallback
+	drop   *mock_xtest.MockCallback
+	update *mock_xtest.MockCallback
 }
 
-func (c *clbkCalled) check(clean, drop, update bool) {
-	// Wait for callbacks to be executed
-	time.Sleep(500 * time.Millisecond)
-	SoMsg("clbk clean", c.clean, ShouldEqual, clean)
-	SoMsg("clbk drop", c.drop, ShouldEqual, drop)
-	SoMsg("clbk update", c.update, ShouldEqual, update)
+func newMockClbks(mctrl *gomock.Controller) *mockClbks {
+	return &mockClbks{
+		clean:  mock_xtest.NewMockCallback(mctrl),
+		drop:   mock_xtest.NewMockCallback(mctrl),
+		update: mock_xtest.NewMockCallback(mctrl),
+	}
 }
 
-func (c *clbkCalled) clbks() Callbacks {
+func (clbks *mockClbks) Clbks() Callbacks {
 	return Callbacks{
-		CleanDynamic: func() { c.clean = true },
-		DropDynamic:  func() { c.drop = true },
-		UpdateStatic: func() { c.update = true },
+		CleanDynamic: clbks.clean.Call,
+		DropDynamic:  clbks.drop.Call,
+		UpdateStatic: clbks.update.Call,
 	}
 }
