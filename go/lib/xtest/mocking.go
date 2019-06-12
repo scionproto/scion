@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,4 +32,11 @@ type PanickingReporter struct {
 
 func (reporter *PanickingReporter) Fatalf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
+}
+
+// Callback defines an interfaces that provides a callback function that is
+// mockable. A mock implementation implementing this interface can be found
+// in sub-package mock_xtest.
+type Callback interface {
+	Call()
 }
