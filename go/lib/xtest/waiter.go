@@ -25,8 +25,9 @@ type Waiter struct {
 }
 
 // WaitWithTimeout returns immediately after the waitgroup is done,
-// or the timeout has passed.
-func (w *Waiter) WaitWithTimeout(timeout time.Duration) {
+// or the timeout has passed. The return value indicates whether
+// the call timed out.
+func (w *Waiter) WaitWithTimeout(timeout time.Duration) bool {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -34,6 +35,8 @@ func (w *Waiter) WaitWithTimeout(timeout time.Duration) {
 	}()
 	select {
 	case <-done:
+		return false
 	case <-time.After(timeout):
+		return true
 	}
 }
