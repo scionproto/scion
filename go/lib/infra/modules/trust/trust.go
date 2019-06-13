@@ -82,9 +82,7 @@ type Store struct {
 // NewStore initializes a TRC/Certificate Chain cache/resolver backed by db.
 // Parameter local must specify the AS in which the trust store resides (which
 // is used during request forwarding decisions).
-func NewStore(db trustdb.TrustDB, local addr.IA,
-	options *Config, logger log.Logger) (*Store, error) {
-
+func NewStore(db trustdb.TrustDB, local addr.IA, options *Config, logger log.Logger) *Store {
 	if options == nil {
 		options = &Config{}
 	}
@@ -94,7 +92,7 @@ func NewStore(db trustdb.TrustDB, local addr.IA,
 		config:  options,
 		log:     logger,
 	}
-	return store, nil
+	return store
 }
 
 // SetMessenger enables network access for the trust store via msger. The
@@ -467,6 +465,14 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 		return nil, common.NewBasicError("Context canceled while waiting for Chain",
 			nil, "ia", req.ia, "version", req.version)
 	}
+}
+
+// LoadAuthoritativeCrypto loads the authoritative TRC and chain.
+func (store *Store) LoadAuthoritativeCrypto(dir string) error {
+	if err := store.LoadAuthoritativeTRC(dir); err != nil {
+		return err
+	}
+	return store.LoadAuthoritativeChain(dir)
 }
 
 func (store *Store) LoadAuthoritativeTRC(dir string) error {

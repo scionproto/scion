@@ -101,16 +101,13 @@ func realMain() int {
 	defer trustDB.Close()
 	topo := itopo.Get()
 	trustConf := &trust.Config{
-		ServiceType: proto.ServiceType_ps,
+		MustHaveLocalChain: true,
+		ServiceType:        proto.ServiceType_ps,
 	}
-	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
-		log.Crit("Unable to initialize trust store", "err", err)
-		return 1
-	}
-	err = trustStore.LoadAuthoritativeTRC(filepath.Join(cfg.General.ConfigDir, "certs"))
-	if err != nil {
-		log.Crit("TRC error", "err", err)
+		log.Crit("Unable to load local crypto", "err", err)
 		return 1
 	}
 	topoAddress := topo.PS.GetById(cfg.General.ID)
