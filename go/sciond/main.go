@@ -102,9 +102,9 @@ func realMain() int {
 	}
 	defer trustDB.Close()
 	trustStore := trust.NewStore(trustDB, itopo.Get().ISD_AS, nil, log.Root())
-	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
+	err = trustStore.LoadAuthoritativeTRC(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
-		log.Crit("Unable to load local crypto", "err", err)
+		log.Crit("Unable to load local TRC", "err", err)
 		return 1
 	}
 	nc := infraenv.NetworkConfig{

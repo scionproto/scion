@@ -752,8 +752,7 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	})
 	_, _, err = itopo.SetStatic(topo, false)
 	xtest.FailOnErr(t, err)
-	store, err := NewStore(db, ia, &Config{}, log.Root())
-	xtest.FailOnErr(t, err)
+	store := NewStore(db, ia, &Config{}, log.Root())
 	// Enable fake network access for trust database
 	store.SetMessenger(msger)
 	return store, db.Close
