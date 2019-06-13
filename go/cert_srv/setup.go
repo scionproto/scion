@@ -101,24 +101,14 @@ func initState(cfg *config.Config, router snet.Router) error {
 		ServiceType:        proto.ServiceType_cs,
 		Router:             router,
 	}
-	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
-		trustConf, log.Root())
+	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
-		return common.NewBasicError("Unable to initialize trust store", err)
+		return common.NewBasicError("Unable to load local crypto", err)
 	}
-	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core,
-		trustDB, trustStore)
+	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore)
 	if err != nil {
 		return common.NewBasicError("Unable to load CS state", err)
-	}
-	err = state.Store.LoadAuthoritativeTRC(filepath.Join(cfg.General.ConfigDir, "certs"))
-	if err != nil {
-		return common.NewBasicError("Unable to load local TRC", err)
-	}
-	err = state.Store.LoadAuthoritativeChain(
-		filepath.Join(cfg.General.ConfigDir, "certs"))
-	if err != nil {
-		return common.NewBasicError("Unable to load local Chain", err)
 	}
 	if err = setDefaultSignerVerifier(state, topo.ISD_AS); err != nil {
 		return common.NewBasicError("Unable to set default signer and verifier", err)
