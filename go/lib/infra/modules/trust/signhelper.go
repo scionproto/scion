@@ -138,16 +138,16 @@ func (v *BasicVerifier) Verify(ctx context.Context, msg common.RawBytes, sign *p
 func (v *BasicVerifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
 	cpld, err := ctrl.NewPldFromRaw(spld.Blob)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("Unable to parse payload", err)
 	}
 	if v.ignoreSign(cpld, spld.Sign) {
 		return cpld, nil
 	}
 	if err := v.sanityChecks(spld.Sign, true); err != nil {
-		return nil, err
+		return nil, common.NewBasicError("Sanity check failed", err, "pld", cpld)
 	}
 	if err := v.verify(ctx, spld.Blob, spld.Sign); err != nil {
-		return nil, err
+		return nil, common.NewBasicError("Unable to verify", err, "pld", cpld)
 	}
 	return cpld, nil
 }
