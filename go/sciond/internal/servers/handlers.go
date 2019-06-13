@@ -74,20 +74,12 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 		Which:     proto.SCIONDMsg_Which_pathReply,
 		PathReply: getPathsReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		// This is constructed locally, so it should always succeed. Otherwise,
-		// it is a bug.
-		panic(err)
-	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if _, err := conn.WriteTo(b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Debug("Replied with paths", "num_paths", len(getPathsReply.Entries))
+		logger.Trace("Full reply", "paths", getPathsReply)
 	}
-	logger.Debug("Replied with paths", "num_paths", len(getPathsReply.Entries))
-	logger.Trace("Full reply", "paths", getPathsReply)
 }
 
 // ASInfoRequestHandler represents the shared global state for the handling of all
@@ -143,16 +135,11 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 		Which:       proto.SCIONDMsg_Which_asInfoReply,
 		AsInfoReply: asInfoReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		panic(err)
-	}
-	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
-	if _, err := conn.WriteTo(b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Trace("Sent reply", "asInfo", asInfoReply)
 	}
-	logger.Trace("Sent reply", "asInfo", asInfoReply)
 }
 
 // IFInfoRequestHandler represents the shared global state for the handling of all
@@ -195,16 +182,11 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 		Which:       proto.SCIONDMsg_Which_ifInfoReply,
 		IfInfoReply: ifInfoReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		panic(err)
-	}
-	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
-	if _, err := conn.WriteTo(b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Trace("Sent reply", "ifInfo", ifInfoReply)
 	}
-	logger.Trace("Sent reply", "ifInfo", ifInfoReply)
 }
 
 // SVCInfoRequestHandler represents the shared global state for the handling of all
@@ -235,16 +217,11 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 		Which:            proto.SCIONDMsg_Which_serviceInfoReply,
 		ServiceInfoReply: svcInfoReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		panic(err)
-	}
-	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
-	if _, err := conn.WriteTo(b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Trace("Sent reply", "svcInfo", svcInfoReply)
 	}
-	logger.Trace("Sent reply", "svcInfo", svcInfoReply)
 }
 
 func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.HostInfo {
@@ -303,18 +280,11 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn
 		Which:    proto.SCIONDMsg_Which_revReply,
 		RevReply: revReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		panic(err)
-	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
-	if _, err := conn.WriteTo(b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Trace("Sent reply", "revInfo", revInfo)
 	}
-	logger.Trace("Sent reply", "revInfo", revInfo)
 }
 
 // verifySRevInfo first checks if the RevInfo can be extracted from sRevInfo,
@@ -356,4 +326,14 @@ func isInvalid(err error) bool {
 // verification ended with an outcome of unknown.
 func isUnknown(err error) bool {
 	return err != nil
+}
+
+func sendReply(pld *sciond.Pld, conn net.PacketConn, src net.Addr) error {
+	b, err := proto.PackRoot(pld)
+	if err != nil {
+		panic(err)
+	}
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	_, err = conn.WriteTo(b, src)
+	return err
 }
