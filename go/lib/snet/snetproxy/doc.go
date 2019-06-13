@@ -21,4 +21,6 @@
 // (e.g., creating callbacks and checking that addresses stay the same).
 // Callers can opt to use the helper ProxyNetwork, or manage reconnection logic
 // themselves by using ProxyConn directly.
+//
+// ProxyConn currently sets a new timer for every IO operation.
 package snetproxy
