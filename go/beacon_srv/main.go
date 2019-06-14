@@ -147,6 +147,7 @@ func realMain() int {
 		log.Crit("Unable to open beacon store", "err", err)
 		return 1
 	}
+	defer store.Close()
 	intfs = ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
 	prometheus.MustRegister(ifstate.NewCollector(intfs, ""))
 	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
