@@ -191,7 +191,7 @@ func (e *executor) get(ctx context.Context, segID common.RawBytes) (*segMeta, er
 		return nil, common.NewBasicError("Failed to lookup segment", err)
 	}
 	meta.LastUpdated = time.Unix(0, lastUpdated)
-	meta.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
+	meta.Seg, err = seg.NewSegFromRaw(rawSeg)
 	if err != nil {
 		return nil, err
 	}
