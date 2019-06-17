@@ -85,9 +85,9 @@ const (
 // DispatcherService controls how SCION applications open sockets in the SCION world.
 type DispatcherService interface {
 	Register(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
-		svc addr.HostSVC) (*Conn, uint16, error)
+		svc addr.HostSVC) (net.PacketConn, uint16, error)
 	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
-		svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error)
+		svc addr.HostSVC, timeout time.Duration) (net.PacketConn, uint16, error)
 }
 
 // NewDispatcherService creates a new dispatcher API endpoint on top of a UNIX
@@ -105,13 +105,14 @@ type dispatcherService struct {
 }
 
 func (d *dispatcherService) Register(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
-	svc addr.HostSVC) (*Conn, uint16, error) {
+	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	return Register(d.Address, ia, public, bind, svc)
 }
 
 func (d *dispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
+	bind *overlay.OverlayAddr, svc addr.HostSVC,
+	timeout time.Duration) (net.PacketConn, uint16, error) {
 
 	return RegisterTimeout(d.Address, ia, public, bind, svc, timeout)
 }

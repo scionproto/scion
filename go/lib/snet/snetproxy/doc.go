@@ -14,13 +14,4 @@
 
 // Package snetproxy implements transparent logic for reconnecting to the
 // dispatcher.
-//
-// This is done via two types: ProxyConn, a wrapper around snet.Conn that
-// supports transparent reconnects, and ProxyNetwork, a wrapper around
-// snet.Network that provides some helper functions for initializing ProxyConns
-// (e.g., creating callbacks and checking that addresses stay the same).
-// Callers can opt to use the helper ProxyNetwork, or manage reconnection logic
-// themselves by using ProxyConn directly.
-//
-// ProxyConn currently sets a new timer for every IO operation.
 package snetproxy

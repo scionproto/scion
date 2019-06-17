@@ -180,9 +180,13 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 		return nil, common.NewBasicError("Unable to build SVC resolution reply", err)
 	}
 
+	dispatcherService := reliable.NewDispatcherService("")
+	if nc.ReconnectToDispatcher {
+		dispatcherService = snetproxy.NewReconnectingDispatcherService(dispatcherService)
+	}
 	packetDispatcher := svc.NewResolverPacketDispatcher(
 		&snet.DefaultPacketDispatcherService{
-			Dispatcher: reliable.NewDispatcherService(""),
+			Dispatcher: dispatcherService,
 		},
 		&LegacyForwardingHandler{
 			BaseHandler: &svc.BaseHandler{
@@ -191,13 +195,9 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 			ExpectedPayload: resolutionRequestPayload,
 		},
 	)
-	var network snet.Network
 	network, err := snet.NewCustomNetwork(nc.IA, "", packetDispatcher)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create network", err)
-	}
-	if nc.ReconnectToDispatcher {
-		network = snetproxy.NewProxyNetwork(network)
 	}
 	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
 	if err != nil {
@@ -207,18 +207,19 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 }
 
 func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
-	var network snet.Network
+	dispatcherService := reliable.NewDispatcherService("")
+	if nc.ReconnectToDispatcher {
+		dispatcherService = snetproxy.NewReconnectingDispatcherService(dispatcherService)
+	}
+
 	network, err := snet.NewCustomNetwork(nc.IA, "",
 		&snet.DefaultPacketDispatcherService{
-			Dispatcher:  reliable.NewDispatcherService(""),
+			Dispatcher:  dispatcherService,
 			SCMPHandler: ignoreSCMP{},
 		},
 	)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create network", err)
-	}
-	if nc.ReconnectToDispatcher {
-		network = snetproxy.NewProxyNetwork(network)
 	}
 	// FIXME(scrye): Add support for bind addresses.
 	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)

@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
@@ -39,8 +40,8 @@ var (
 var (
 	localAddr      = MustParseSnet("1-ff00:0:1,[192.168.0.1]:80")
 	otherLocalAddr = MustParseSnet("1-ff00:0:1,[192.168.0.1]:10080")
-	bindAddr       = MustParseSnet("1-ff00:0:1,[192.168.0.2]:80")
-	otherBindAddr  = MustParseSnet("1-ff00:0:1,[192.168.0.2]:10080")
+	bindAddr       = MustBuildOverlay("[192.168.0.2]:80")
+	otherBindAddr  = MustBuildOverlay("[192.168.0.2]:10080")
 	remoteAddr     = MustParseSnet("2-ff00:0:2,[172.16.0.1]:80")
 	svc            = addr.SvcNone
 	timeout        = time.Duration(0)
@@ -71,6 +72,21 @@ func MustParseSnet(str string) *snet.Addr {
 		panic(fmt.Sprintf("bad snet string %v, err=%v", str, err))
 	}
 	return address
+}
+
+func MustBuildOverlay(str string) *overlay.OverlayAddr {
+	udpAddr, err := net.ResolveUDPAddr("udp4", str)
+	if err != nil {
+		panic(fmt.Sprintf("bad overlay address %v, err=%v", str, err))
+	}
+	ov, err := overlay.NewOverlayAddr(
+		addr.HostFromIP(udpAddr.IP),
+		addr.NewL4UDPInfo(uint16(udpAddr.Port)),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("cannot build overlay, err=%v", err))
+	}
+	return ov
 }
 
 // tickerMultiplier computes durations relative to the default reconnect
