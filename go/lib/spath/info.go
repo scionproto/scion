@@ -92,7 +92,8 @@ func (inf *InfoField) Write(b common.RawBytes) {
 
 func (inf *InfoField) String() string {
 	return fmt.Sprintf("ISD: %v TS: %v Hops: %v ConsDir: %v Shortcut: %v Peer: %v",
-		inf.ISD, util.TimeToStringSec(inf.Timestamp()), inf.Hops, inf.ConsDir, inf.Shortcut, inf.Peer)
+		inf.ISD, util.TimeToStringSec(inf.Timestamp()),
+		inf.Hops, inf.ConsDir, inf.Shortcut, inf.Peer)
 }
 
 // Timestamp returns TsInt as a time.Time.
