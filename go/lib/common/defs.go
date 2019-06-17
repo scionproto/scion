@@ -1,5 +1,5 @@
 // Copyright 2016 ETH Zurich
-// Copyrgiht 2018 ETH Zurich, Anapaya Systems
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,10 +22,11 @@ import (
 
 const (
 	// LineLen is the number of bytes that all SCION headers are padded to a multiple of.
-	LineLen = 8
-	MinMTU  = 1280
-	MaxMTU  = (1 << 16) - 1
-	TimeFmt = "2006-01-02 15:04:05.000000-0700"
+	LineLen     = 8
+	MinMTU      = 1280
+	MaxMTU      = (1 << 16) - 1
+	TimeFmt     = "2006-01-02 15:04:05.000000-0700"
+	TimeFmtSecs = "2006-01-02 15:04:05-0700"
 )
 
 const (
