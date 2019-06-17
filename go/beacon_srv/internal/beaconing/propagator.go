@@ -169,8 +169,10 @@ func (p *Propagator) logSummary(s *summary) {
 			"egIfIds", s.IfIds())
 		return
 	}
-	log.Info("[Propagator] Propagated beacons on stale interfaces", "count", s.count,
-		"startIAs", len(s.srcs), "egIfIds", s.IfIds())
+	if s.count > 0 {
+		log.Info("[Propagator] Propagated beacons on stale interfaces", "count", s.count,
+			"startIAs", len(s.srcs), "egIfIds", s.IfIds())
+	}
 }
 
 // beaconPropagator propagates one beacon to all active interfaces.
