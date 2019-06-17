@@ -55,6 +55,8 @@ type Store interface {
 	DeleteExpiredBeacons(ctx context.Context) (int, error)
 	// DeleteExpiredRevocations deletes expired Revocations from the store.
 	DeleteExpiredRevocations(ctx context.Context) (int, error)
+	// Close closes the store.
+	Close() error
 }
 
 // NewBeaconCleaner creates a cleaner task, which deletes expired beacons.

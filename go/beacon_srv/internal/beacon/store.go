@@ -260,6 +260,11 @@ func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
 	return common.NewBasicError("policy update not supported", nil)
 }
 
+// Close closes the store and the underlying database connection.
+func (s *baseStore) Close() error {
+	return s.db.Close()
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
