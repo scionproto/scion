@@ -166,13 +166,6 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	case <-subCtx.Done():
 	case <-ctx.Done():
 	}
-	if ctx.Err() == nil {
-		_, err = f.pathDB.InsertNextQuery(ctx, req.Dst.IA(),
-			time.Now().Add(f.config.QueryInterval.Duration))
-		if err != nil {
-			f.logger.Warn("Failed to update nextQuery", "err", err)
-		}
-	}
 	paths, err := f.buildPathsFromDB(ctx, req)
 	switch {
 	case ctx.Err() != nil:
@@ -471,6 +464,11 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 		verifiedSeg, verifiedRev, segErr, revErr)
 	if len(insertedSegmentIDs) > 0 {
 		f.logger.Debug("Segments inserted in DB", "segments", insertedSegmentIDs)
+		_, err = f.pathDB.InsertNextQuery(ctx, req.Dst.IA(),
+			time.Now().Add(f.config.QueryInterval.Duration))
+		if err != nil {
+			f.logger.Warn("Failed to update nextQuery", "err", err)
+		}
 	}
 }
 

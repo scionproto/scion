@@ -59,8 +59,9 @@ type Write interface {
 	// DeleteExpired deletes all paths segments that are expired, using now as a reference.
 	// Returns the number of deleted segments.
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)
-	// Get returns all path segment(s) matching the parameters specified.
-	// InsertNextQuery inserts or updates the timestamp nextQuery for the given dst.
+	// InsertNextQuery inserts or updates the timestamp nextQuery for the given
+	// dst. Returns true if an insert/update happened or false if the stored
+	// timestamp is already newer.
 	InsertNextQuery(ctx context.Context, dst addr.IA, nextQuery time.Time) (bool, error)
 }
 
