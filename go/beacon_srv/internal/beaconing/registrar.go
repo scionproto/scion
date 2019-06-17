@@ -152,8 +152,10 @@ func (r *Registrar) logSummary(s *summary) {
 			"startIAs", len(s.srcs))
 		return
 	}
-	log.Info("[Registrar] Registered beacons after stale period", "type", r.segType,
-		"count", s.count, "startIAs", len(s.srcs))
+	if s.count > 0 {
+		log.Info("[Registrar] Registered beacons after stale period", "type", r.segType,
+			"count", s.count, "startIAs", len(s.srcs))
+	}
 }
 
 // segmentRegistrar registers one segment with the path server.

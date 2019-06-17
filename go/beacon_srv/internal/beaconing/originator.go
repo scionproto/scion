@@ -137,8 +137,10 @@ func (o *Originator) logSummary(s *summary, linkType proto.LinkType) {
 		log.Info("[Originator] Originated beacons", "type", linkType.String(), "egIfIds", s.IfIds())
 		return
 	}
-	log.Info("[Originator] Originated beacons on stale interfaces", "type", linkType.String(),
-		"egIfIds", s.IfIds())
+	if s.count > 0 {
+		log.Info("[Originator] Originated beacons on stale interfaces", "type", linkType.String(),
+			"egIfIds", s.IfIds())
+	}
 }
 
 // beaconOriginator originates one beacon on the given interface.
