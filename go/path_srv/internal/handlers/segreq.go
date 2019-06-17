@@ -202,6 +202,7 @@ func (h *segReqHandler) sendReply(ctx context.Context, rw infra.ResponseWriter,
 	}
 	if err := rw.SendSegReply(ctx, reply); err != nil {
 		logger.Error("[segReqHandler] Failed to send reply!", "err", err)
+		return
 	}
 	logger.Debug("[segReqHandler] reply sent", "id", h.request.ID,
 		"ups", len(upSegs), "cores", len(coreSegs), "downs", len(downSegs))
