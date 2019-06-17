@@ -36,13 +36,16 @@ func TimeToString(t time.Time) string {
 	return t.UTC().Format(common.TimeFmt)
 }
 
-// SecsToTimeString converts seconds to a formatted time string.
-func SecsToTimeString(t uint32) string {
-	return TimeToStringSec(SecsToTime(t))
+// SecsToCompact creates a compact string representation from the seconds.
+func SecsToCompact(t uint32) string {
+	return TimeToCompact(SecsToTime(t))
 }
 
-// TimeToStringSec converts the given time to a string but only prints up to
-// seconds accurracy.
-func TimeToStringSec(t time.Time) string {
-	return t.UTC().Format(common.TimeFmtSecs)
+// TimeToCompact formats the time as a compat string, e.g. it discards the
+// milliseconds parts if the time only has second resolution.
+func TimeToCompact(t time.Time) string {
+	if t.Nanosecond() == 0 {
+		return t.UTC().Format(common.TimeFmtSecs)
+	}
+	return TimeToString(t)
 }
