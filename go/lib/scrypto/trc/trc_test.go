@@ -294,8 +294,9 @@ func Test_TRC_JSON(t *testing.T) {
 	Convey("TRC is returned as Json correctly", t, func() {
 		trc := loadTRC(fnTRC, t)
 		j, err := trc.JSON(false)
-		SoMsg("err", err, ShouldEqual, nil)
+		SoMsg("Pack err", err, ShouldEqual, nil)
 		trcJ, err := TRCFromRaw(j, false)
+		SoMsg("Parse err", err, ShouldEqual, nil)
 		SoMsg("Eq", trc, ShouldResemble, trcJ)
 	})
 }
