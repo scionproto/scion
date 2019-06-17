@@ -6,7 +6,7 @@ package mock_snetproxy
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	snet "github.com/scionproto/scion/go/lib/snet"
+	net "net"
 	reflect "reflect"
 	time "time"
 )
@@ -35,7 +35,7 @@ func (m *MockIOOperation) EXPECT() *MockIOOperationMockRecorder {
 }
 
 // Do mocks base method
-func (m *MockIOOperation) Do(arg0 snet.Conn) error {
+func (m *MockIOOperation) Do(arg0 net.PacketConn) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Do", arg0)
 	ret0, _ := ret[0].(error)
@@ -86,12 +86,13 @@ func (m *MockReconnecter) EXPECT() *MockReconnecterMockRecorder {
 }
 
 // Reconnect mocks base method
-func (m *MockReconnecter) Reconnect(arg0 time.Duration) (snet.Conn, error) {
+func (m *MockReconnecter) Reconnect(arg0 time.Duration) (net.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Reconnect", arg0)
-	ret0, _ := ret[0].(snet.Conn)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(net.PacketConn)
+	ret1, _ := ret[1].(uint16)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Reconnect indicates an expected call of Reconnect
