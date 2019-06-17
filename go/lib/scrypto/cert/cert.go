@@ -115,13 +115,13 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 func (c *Certificate) VerifyTime(ts uint32) error {
 	if ts < c.IssuingTime {
 		return common.NewBasicError(EarlyUsage, nil,
-			"IssuingTime", util.SecsToTimeString(c.IssuingTime),
-			"current", util.SecsToTimeString(ts))
+			"IssuingTime", util.SecsToCompact(c.IssuingTime),
+			"current", util.SecsToCompact(ts))
 	}
 	if ts > c.ExpirationTime {
 		return common.NewBasicError(Expired, nil,
-			"ExpirationTime", util.SecsToTimeString(c.ExpirationTime),
-			"current", util.SecsToTimeString(ts))
+			"ExpirationTime", util.SecsToCompact(c.ExpirationTime),
+			"current", util.SecsToCompact(ts))
 	}
 	return nil
 }

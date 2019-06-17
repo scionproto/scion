@@ -95,7 +95,7 @@ func (r *RevInfo) Active() error {
 	}
 	if r.Timestamp().After(now.Add(time.Second)) {
 		return common.NewBasicError("Revocation timestamp is in the future.", nil,
-			"timestamp", util.SecsToTimeString(r.RawTimestamp))
+			"timestamp", util.TimeToCompact(r.Timestamp()))
 	}
 	return nil
 }
@@ -110,7 +110,7 @@ func (r *RevInfo) Pack() (common.RawBytes, error) {
 
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %s", r.IA(), r.IfID,
-		r.LinkType, util.SecsToTimeString(r.RawTimestamp), r.TTL())
+		r.LinkType, util.TimeToCompact(r.Timestamp()), r.TTL())
 }
 
 // RelativeTTL returns the duration r is still valid for, relative to
