@@ -19,20 +19,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-var _ snet.Conn = (*ProxyConn)(nil)
+var _ net.PacketConn = (*ProxyConn)(nil)
 
 type ProxyConn struct {
-	// connMtx protects read/write access to the snetConn pointer. connMtx must
-	// not be held when running methods on snetConn.
+	// connMtx protects read/write access to connection information. connMtx must
+	// not be held when running methods on the connection.
 	connMtx  sync.Mutex
-	snetConn snet.Conn
+	dispConn net.PacketConn
+	port     uint16
 
 	// readMtx is used to ensure only one reader enters the main I/O loop.
 	readMtx sync.Mutex
@@ -60,22 +60,15 @@ type ProxyConn struct {
 	closeMtx sync.Mutex
 }
 
-func NewProxyConn(conn snet.Conn, reconnecter Reconnecter) *ProxyConn {
+func NewProxyConn(dispConn net.PacketConn, reconnecter Reconnecter) *ProxyConn {
 	return &ProxyConn{
-		snetConn:             conn,
+		dispConn:             dispConn,
 		dispatcherState:      NewState(),
 		reconnecter:          reconnecter,
 		deadlineChangedEvent: make(chan struct{}, 1),
 		fatalError:           make(chan error, 1),
 		closeCh:              make(chan struct{}),
 	}
-}
-
-func (conn *ProxyConn) Read(b []byte) (int, error) {
-	op := &ReadOperation{}
-	op.buffer = b
-	err := conn.DoIO(op)
-	return op.numBytes, err
 }
 
 func (conn *ProxyConn) ReadFrom(b []byte) (int, net.Addr, error) {
@@ -85,30 +78,8 @@ func (conn *ProxyConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	return op.numBytes, op.address, err
 }
 
-func (conn *ProxyConn) ReadFromSCION(b []byte) (int, *snet.Addr, error) {
-	op := &ReadFromSCIONOperation{}
-	op.buffer = b
-	err := conn.DoIO(op)
-	return op.numBytes, op.address, err
-}
-
-func (conn *ProxyConn) Write(b []byte) (int, error) {
-	op := &WriteOperation{}
-	op.buffer = b
-	err := conn.DoIO(op)
-	return op.numBytes, err
-}
-
 func (conn *ProxyConn) WriteTo(b []byte, address net.Addr) (int, error) {
 	op := &WriteToOperation{}
-	op.buffer = b
-	op.address = address.(*snet.Addr)
-	err := conn.DoIO(op)
-	return op.numBytes, err
-}
-
-func (conn *ProxyConn) WriteToSCION(b []byte, address *snet.Addr) (int, error) {
-	op := &WriteToSCIONOperation{}
 	op.buffer = b
 	op.address = address
 	err := conn.DoIO(op)
@@ -178,7 +149,7 @@ func (conn *ProxyConn) spawnAsyncReconnecterOnce() {
 }
 
 func (conn *ProxyConn) asyncReconnectWrapper() {
-	newConn, err := conn.Reconnect()
+	newConn, newPort, err := conn.Reconnect()
 	if err != nil {
 		conn.fatalError <- err
 		close(conn.fatalError)
@@ -186,23 +157,24 @@ func (conn *ProxyConn) asyncReconnectWrapper() {
 	}
 	newConn.SetReadDeadline(conn.readDeadline)
 	newConn.SetWriteDeadline(conn.writeDeadline)
-	conn.setConn(newConn)
+	conn.setConn(newConn, newPort)
 	conn.dispatcherState.SetUp()
 }
 
 // Reconnect is only used for testing purposes and should never be called.
-func (conn *ProxyConn) Reconnect() (snet.Conn, error) {
-	newConn, err := conn.reconnecter.Reconnect(0)
+func (conn *ProxyConn) Reconnect() (net.PacketConn, uint16, error) {
+	newConn, port, err := conn.reconnecter.Reconnect(0)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	if addressesEq(conn.getConn().LocalAddr(), newConn.LocalAddr()) == false {
-		return nil, common.NewBasicError(ErrLocalAddressChanged, nil)
+	oldConn, oldPort := conn.getConnAndPort()
+	if addressesEq(oldConn.LocalAddr(), newConn.LocalAddr()) == false {
+		return nil, 0, common.NewBasicError(ErrLocalAddressChanged, nil)
 	}
-	if addressesEq(conn.getConn().BindAddr(), newConn.BindAddr()) == false {
-		return nil, common.NewBasicError(ErrBindAddressChanged, nil)
+	if oldPort != port {
+		return nil, 0, common.NewBasicError(ErrLocalPortChanged, nil)
 	}
-	return newConn, nil
+	return newConn, port, nil
 }
 
 func (conn *ProxyConn) Close() error {
@@ -230,18 +202,6 @@ func (conn *ProxyConn) isClosing() bool {
 
 func (conn *ProxyConn) LocalAddr() net.Addr {
 	return conn.getConn().LocalAddr()
-}
-
-func (conn *ProxyConn) BindAddr() net.Addr {
-	return conn.getConn().BindAddr()
-}
-
-func (conn *ProxyConn) SVC() addr.HostSVC {
-	return conn.getConn().SVC()
-}
-
-func (conn *ProxyConn) RemoteAddr() net.Addr {
-	return conn.getConn().RemoteAddr()
 }
 
 func (conn *ProxyConn) SetWriteDeadline(deadline time.Time) error {
@@ -299,16 +259,25 @@ func (conn *ProxyConn) getReadDeadline() time.Time {
 	return deadline
 }
 
-func (conn *ProxyConn) getConn() snet.Conn {
+func (conn *ProxyConn) getConn() net.PacketConn {
 	conn.connMtx.Lock()
-	c := conn.snetConn
+	c := conn.dispConn
 	conn.connMtx.Unlock()
 	return c
 }
 
-func (conn *ProxyConn) setConn(newConn snet.Conn) {
+func (conn *ProxyConn) getConnAndPort() (net.PacketConn, uint16) {
 	conn.connMtx.Lock()
-	conn.snetConn = newConn
+	c := conn.dispConn
+	p := conn.port
+	conn.connMtx.Unlock()
+	return c, p
+}
+
+func (conn *ProxyConn) setConn(newConn net.PacketConn, newPort uint16) {
+	conn.connMtx.Lock()
+	conn.dispConn = newConn
+	conn.port = newPort
 	conn.connMtx.Unlock()
 }
 

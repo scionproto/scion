@@ -15,12 +15,12 @@
 package snetproxy
 
 import (
+	"net"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -30,7 +30,7 @@ var (
 )
 
 type Reconnecter interface {
-	Reconnect(timeout time.Duration) (snet.Conn, error)
+	Reconnect(timeout time.Duration) (net.PacketConn, uint16, error)
 	Stop()
 }
 
@@ -42,7 +42,7 @@ type TickingReconnecter struct {
 	// context-aware dials in reliable socket is tricky. This can make stopping
 	// the reconnecter take significant time, depending on the timeout of the
 	// reconnection function.
-	reconnectF func(timeout time.Duration) (snet.Conn, error)
+	reconnectF func(timeout time.Duration) (net.PacketConn, uint16, error)
 	state      *State
 	stopping   *AtomicBool
 }
@@ -50,7 +50,9 @@ type TickingReconnecter struct {
 // NewTickingReconnecter creates a new dispatcher reconnecter. Calling
 // Reconnect in turn calls f periodically to obtain a new connection to the
 // dispatcher,
-func NewTickingReconnecter(f func(timeout time.Duration) (snet.Conn, error)) *TickingReconnecter {
+func NewTickingReconnecter(
+	f func(timeout time.Duration) (net.PacketConn, uint16, error)) *TickingReconnecter {
+
 	return &TickingReconnecter{
 		reconnectF: f,
 		stopping:   &AtomicBool{},
@@ -61,7 +63,7 @@ func NewTickingReconnecter(f func(timeout time.Duration) (snet.Conn, error)) *Ti
 // subject to timeout. Attempts that receive dispatcher connection errors are
 // followed by reattempts. Critical errors (e.g., port mismatches) return
 // immediately.
-func (r *TickingReconnecter) Reconnect(timeout time.Duration) (snet.Conn, error) {
+func (r *TickingReconnecter) Reconnect(timeout time.Duration) (net.PacketConn, uint16, error) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	start := time.Now()
@@ -72,9 +74,9 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (snet.Conn, error)
 	for r.stopping.IsFalse() {
 		newTimeout, ok := getNewTimeout(timeout, start)
 		if !ok {
-			return nil, common.NewBasicError(ErrReconnecterTimeoutExpired, nil)
+			return nil, 0, common.NewBasicError(ErrReconnecterTimeoutExpired, nil)
 		}
-		conn, err := r.reconnectF(newTimeout)
+		conn, port, err := r.reconnectF(newTimeout)
 		switch {
 		case reliable.IsSysError(err):
 			// Wait until next tick to retry. If the overall timeout expires
@@ -86,16 +88,16 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (snet.Conn, error)
 			select {
 			case <-t.C:
 			case <-timeoutExpired:
-				return nil, common.NewBasicError(ErrReconnecterTimeoutExpired, nil)
+				return nil, 0, common.NewBasicError(ErrReconnecterTimeoutExpired, nil)
 			}
 			continue
 		case err != nil:
-			return nil, err
+			return nil, 0, err
 		default:
-			return conn, nil
+			return conn, port, nil
 		}
 	}
-	return nil, common.NewBasicError(ErrReconnecterStopped, nil)
+	return nil, 0, common.NewBasicError(ErrReconnecterStopped, nil)
 }
 
 // Stop shuts down the reconnection attempt (if any), and waits for the
