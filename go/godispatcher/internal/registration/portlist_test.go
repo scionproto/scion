@@ -15,16 +15,17 @@
 package registration
 
 import (
-	"reflect"
-	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmptyPortList(t *testing.T) {
 	pl := newPortList()
-	expectGet(t, pl, nil)
-	expectFind(t, pl, 1, false)
-	expectLen(t, pl, 0)
+	assert.Nil(t, pl.Get(), "Empty PortList should return nil on Get")
+	assert.False(t, pl.Find(1))
+	assert.Equal(t, 0, pl.Len())
 	// Remove can't be tested on empty port list since we don't have a ring to remove.
 }
 
@@ -32,9 +33,11 @@ func TestRemoval(t *testing.T) {
 	pl := newPortList()
 	r1 := pl.Insert(1, "1")
 	pl.Remove(r1)
-	expectLen(t, pl, 0)
+	require.Equal(t, pl.Len(), 0)
+
 	r2 := pl.Insert(2, "2")
-	expectGet(t, pl, "2")
+	require.Equal(t, "2", pl.Get())
+
 	r1 = pl.Insert(1, "1")
 	r3 := pl.Insert(3, "3")
 	expectList(t, pl, "1", "2", "3")
@@ -49,12 +52,10 @@ func TestRemoval(t *testing.T) {
 
 	pl.Remove(r3)
 	expectList(t, pl, "1", "2")
-}
-
-func expectGet(t *testing.T, pl *portList, expected interface{}) {
-	if v := pl.Get(); v != expected {
-		t.Fatalf("Expected %s in Get but returned %s", expected, v)
-	}
+	pl.Remove(r2)
+	expectList(t, pl, "1")
+	pl.Remove(r1)
+	expectList(t, pl)
 }
 
 func expectList(t *testing.T, pl *portList, expected ...string) {
@@ -62,24 +63,5 @@ func expectList(t *testing.T, pl *portList, expected ...string) {
 	for i := 0; i < pl.Len(); i++ {
 		actual = append(actual, pl.Get().(string))
 	}
-	sort.Slice(actual, func(i, j int) bool { return actual[i] < actual[j] })
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Expected list to be %v but was %v", expected, actual)
-	}
-}
-
-func expectLen(t *testing.T, pl *portList, expectedLen int) {
-	if l := pl.Len(); l != expectedLen {
-		t.Fatalf("List should have length %d but has %d", expectedLen, l)
-	}
-}
-
-func expectFind(t *testing.T, pl *portList, val int, expectedFound bool) {
-	if pl.Find(val) != expectedFound {
-		if expectedFound {
-			t.Fatalf("Expected %d to be found but wasn't", val)
-		} else {
-			t.Fatalf("Expected %d to not be found but was", val)
-		}
-	}
+	require.ElementsMatchf(t, actual, expected, "expected=%s actual=%s", expected, actual)
 }

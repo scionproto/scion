@@ -94,6 +94,9 @@ func (m *IPv4MatchDestination) MarshalJSON() ([]byte, error) {
 
 func (m *IPv4MatchDestination) UnmarshalJSON(b []byte) error {
 	s, err := unmarshalStringField(b, "MatchDestination", "Net")
+	if err != nil {
+		return err
+	}
 	_, network, err := net.ParseCIDR(s)
 	if err != nil {
 		return common.NewBasicError("Unable to parse MatchDestination operand", err)
