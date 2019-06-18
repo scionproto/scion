@@ -51,6 +51,7 @@ pkg_tar(
         "@com_github_client9_misspell//cmd/misspell:misspell",
         "@com_github_jeanmertz_lll//cmd/lll:lll",
         "@com_github_pavius_impi//cmd/impi:impi",
+        "@com_github_oncilla_ineffassign//:ineffassign",
     ],
     mode = "0755",
 )
@@ -74,6 +75,7 @@ nogo(
         "@org_golang_x_tools//go/analysis/passes/loopclosure:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/lostcancel:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/nilfunc:go_tool_library",
+        "@org_golang_x_tools//go/analysis/passes/nilness:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/printf:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/shift:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/stdmethods:go_tool_library",

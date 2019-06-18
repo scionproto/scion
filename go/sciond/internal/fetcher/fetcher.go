@@ -138,7 +138,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		case err != nil && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
 		case err != nil:
 			return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal), err
-		case err == nil && len(paths) > 0:
+		case len(paths) > 0:
 			return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 		}
 	}
@@ -172,7 +172,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
 	case err != nil:
 		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal), err
-	case err == nil && len(paths) > 0:
+	case len(paths) > 0:
 		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 	}
 	// If we reached this point because the early reply fired but we still
@@ -189,7 +189,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 			return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
 		case err != nil:
 			return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal), err
-		case err == nil && len(paths) > 0:
+		case len(paths) > 0:
 			return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 		}
 	}

@@ -47,7 +47,6 @@
 package snet
 
 import (
-	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -279,17 +278,9 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		net:      network,
 		scionNet: n,
 		svc:      svc,
+		laddr:    laddr.Copy(),
 	}
-	// Initialize local bind address
-	// NOTE: keep nil address logic for now, even though we do not support it yet
-	if laddr != nil {
-		conn.laddr = laddr.Copy()
-	} else {
-		l4 := addr.NewL4UDPInfo(0)
-		conn.laddr = &Addr{}
-		conn.laddr.Host = &addr.AppAddr{L3: addr.HostIPv4(net.IPv4zero), L4: l4}
-		conn.laddr.IA = conn.scionNet.localIA
-	}
+	// Make sure the IA is set.
 	if conn.laddr.IA.IsZero() {
 		conn.laddr.IA = n.IA()
 	}
