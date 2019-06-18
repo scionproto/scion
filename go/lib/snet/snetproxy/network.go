@@ -55,7 +55,9 @@ func (pn *ReconnectingDispatcherService) RegisterTimeout(ia addr.IA, public *add
 	bind *overlay.OverlayAddr, svc addr.HostSVC,
 	timeout time.Duration) (net.PacketConn, uint16, error) {
 
-	// Perform initial connection to allocate port
+	// Perform initial connection to allocate port. We use a reconnecter here
+	// to set up the initial connection using the same retry logic we use when
+	// losing the connection to the dispatcher.
 	reconnecter := pn.newReconnecterFromListenArgs(ia, public, bind, svc, timeout)
 	conn, port, err := reconnecter.Reconnect(timeout)
 	if err != nil {

@@ -234,6 +234,11 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
 		conn.Close()
 		return nil, 0, err
 	}
+	if publicUDP.Port != 0 && publicUDP.Port != int(c.Port) {
+		conn.Close()
+		return nil, 0, common.NewBasicError("port mismatch", nil, "requested", publicUDP.Port,
+			"received", c.Port)
+	}
 	// Disable deadline to not affect calling code
 	conn.SetDeadline(time.Time{})
 	return conn, c.Port, nil

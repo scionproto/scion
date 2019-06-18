@@ -31,7 +31,6 @@ type ProxyConn struct {
 	// not be held when running methods on the connection.
 	connMtx  sync.Mutex
 	dispConn net.PacketConn
-	port     uint16
 
 	// readMtx is used to ensure only one reader enters the main I/O loop.
 	readMtx sync.Mutex
@@ -160,15 +159,12 @@ func (conn *ProxyConn) asyncReconnectWrapper() {
 	conn.dispatcherState.SetUp()
 }
 
-// Reconnect is only used for testing purposes and should never be called.
+// Reconnect is only used internally and should never be called from outside
+// the package.
 func (conn *ProxyConn) Reconnect() (net.PacketConn, uint16, error) {
 	newConn, port, err := conn.reconnecter.Reconnect(0)
 	if err != nil {
 		return nil, 0, err
-	}
-	_, oldPort := conn.getConnAndPort()
-	if oldPort != port {
-		return nil, 0, common.NewBasicError(ErrLocalPortChanged, nil)
 	}
 	return newConn, port, nil
 }
@@ -262,18 +258,9 @@ func (conn *ProxyConn) getConn() net.PacketConn {
 	return c
 }
 
-func (conn *ProxyConn) getConnAndPort() (net.PacketConn, uint16) {
-	conn.connMtx.Lock()
-	c := conn.dispConn
-	p := conn.port
-	conn.connMtx.Unlock()
-	return c, p
-}
-
 func (conn *ProxyConn) setConn(newConn net.PacketConn, newPort uint16) {
 	conn.connMtx.Lock()
 	conn.dispConn = newConn
-	conn.port = newPort
 	conn.connMtx.Unlock()
 }
 
