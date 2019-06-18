@@ -37,7 +37,12 @@ Necessary steps in order to run SCION:
 
 1. Make sure that you are using a clean and recently updated **Ubuntu 16.04**.
 
-1. Install [Bazel](https://bazel.build).
+1. Install [Bazel](https://bazel.build) version 0.27.0:
+   ```
+   wget https://github.com/bazelbuild/bazel/releases/download/0.27.0/bazel-0.27.0-installer-linux-x86_64.sh
+   bash ./bazel-0.27.0-installer-linux-x86_64.sh --user
+   rm ./bazel-0.27.0-installer-linux-x86_64.sh
+   ```
 
 1. Make sure that you have a
    [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
