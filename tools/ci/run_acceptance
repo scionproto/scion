@@ -4,4 +4,4 @@ set -e
 
 echo "Running acceptance: ${1:?}"
 
-./docker.sh exec ./acceptance/ctl grun "$1/test"
+./docker.sh exec ./acceptance/ctl grun "$1"
