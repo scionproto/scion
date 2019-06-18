@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -35,13 +34,13 @@ func TestProxyConnIO(t *testing.T) {
 	Convey("Given an underlying connection, a reconnecter and an IO operation", t, func() {
 		ctrl := gomock.NewController(&xtest.PanickingReporter{T: t})
 		defer ctrl.Finish()
-		mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
+		mockConn := mock_snet.NewMockConn(ctrl)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
 		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 		mockIO := mock_snetproxy.NewMockIOOperation(ctrl)
 		mockIO.EXPECT().IsWrite().Return(true).AnyTimes()
 		Convey("IO must reconnect after dispatcher error, and do op on new conn", func() {
-			connFromReconnect := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
+			connFromReconnect := mock_snet.NewMockConn(ctrl)
 			connFromReconnect.EXPECT().SetWriteDeadline(Any()).Return(nil).AnyTimes()
 			connFromReconnect.EXPECT().SetReadDeadline(Any()).Return(nil).AnyTimes()
 			gomock.InOrder(
@@ -62,16 +61,6 @@ func TestProxyConnIO(t *testing.T) {
 			err := proxyConn.DoIO(mockIO)
 			SoMsg("err", common.GetErrorMsg(err), ShouldEqual,
 				common.GetErrorMsg(writeNonDispatcherError))
-		})
-		Convey("IO must return an error if the reconnect changed addresses", func() {
-			connFromReconnect := NewMockConnWithAddrs(ctrl,
-				otherLocalAddr, nil, bindAddr, addr.SvcNone)
-			gomock.InOrder(
-				mockIO.EXPECT().Do(mockConn).Return(dispatcherError),
-				mockReconnecter.EXPECT().Reconnect(Any()).Return(connFromReconnect, uint16(0), nil),
-			)
-			err := proxyConn.DoIO(mockIO)
-			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, snetproxy.ErrLocalAddressChanged)
 		})
 		Convey("IO must return an error if reconnect got an error from the dispatcher", func() {
 			// If reconnection failed while the dispatcher was up (e.g.,
@@ -151,7 +140,7 @@ func TestProxyConnIO(t *testing.T) {
 		})
 		Convey("After reconnect, IO deadline is inherited by the new connection", func() {
 			deadline := time.Now().Add(tickerMultiplier(1))
-			connFromReconnect := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
+			connFromReconnect := mock_snet.NewMockConn(ctrl)
 			gomock.InOrder(
 				mockConn.EXPECT().SetWriteDeadline(deadline).Return(nil),
 				mockIO.EXPECT().Do(mockConn).Return(dispatcherError),
@@ -185,7 +174,7 @@ func TestProxyConnReadWrite(t *testing.T) {
 	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
+		mockConn := mock_snet.NewMockConn(ctrl)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
 		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 		Convey("Writes on proxy conn must call the same function on the underlying conn", func() {
@@ -220,7 +209,7 @@ func TestProxyConnConcurrentReadWrite(t *testing.T) {
 	Convey("Given a server blocked in reading, writes still go through", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
+		mockConn := mock_snet.NewMockConn(ctrl)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
 		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 		mockConn.EXPECT().ReadFrom(Any()).DoAndReturn(
@@ -250,7 +239,7 @@ func TestProxyConnClose(t *testing.T) {
 	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
+		mockConn := mock_snet.NewMockConn(ctrl)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
 		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 		Convey("Calling close on proxy conn calls close on underlying conn", func() {

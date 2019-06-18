@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -167,10 +166,7 @@ func (conn *ProxyConn) Reconnect() (net.PacketConn, uint16, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	oldConn, oldPort := conn.getConnAndPort()
-	if addressesEq(oldConn.LocalAddr(), newConn.LocalAddr()) == false {
-		return nil, 0, common.NewBasicError(ErrLocalAddressChanged, nil)
-	}
+	_, oldPort := conn.getConnAndPort()
 	if oldPort != port {
 		return nil, 0, common.NewBasicError(ErrLocalPortChanged, nil)
 	}
@@ -279,15 +275,6 @@ func (conn *ProxyConn) setConn(newConn net.PacketConn, newPort uint16) {
 	conn.dispConn = newConn
 	conn.port = newPort
 	conn.connMtx.Unlock()
-}
-
-func addressesEq(x, y net.Addr) bool {
-	if x == nil || y == nil {
-		return x == y
-	}
-	xSnet := x.(*snet.Addr)
-	ySnet := y.(*snet.Addr)
-	return xSnet.EqualAddr(ySnet)
 }
 
 func returnOnDeadline(deadline time.Time) <-chan time.Time {
