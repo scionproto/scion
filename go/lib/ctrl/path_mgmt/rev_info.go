@@ -37,7 +37,7 @@ type RevTimeError string
 func NewRevTimeError(r *RevInfo) RevTimeError {
 	return RevTimeError(fmt.Sprintf(
 		"Revocation is expired, timestamp: %s, TTL %s.",
-		util.SecsToTime(r.RawTimestamp), r.TTL()))
+		util.TimeToCompact(r.Timestamp()), r.TTL()))
 }
 
 func (ee RevTimeError) Timeout() bool {
