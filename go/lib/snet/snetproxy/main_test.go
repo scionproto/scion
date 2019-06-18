@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 )
 
@@ -38,14 +37,15 @@ var (
 )
 
 var (
-	localAddr      = MustParseSnet("1-ff00:0:1,[192.168.0.1]:80")
-	otherLocalAddr = MustParseSnet("1-ff00:0:1,[192.168.0.1]:10080")
-	bindAddr       = MustBuildOverlay("[192.168.0.2]:80")
-	otherBindAddr  = MustBuildOverlay("[192.168.0.2]:10080")
-	remoteAddr     = MustParseSnet("2-ff00:0:2,[172.16.0.1]:80")
-	svc            = addr.SvcNone
-	timeout        = time.Duration(0)
-	testBuffer     = []byte{1, 2, 3}
+	localNoPortAddr = MustParseSnet("1-ff00:0:1,[192.168.0.1]:0")
+	localAddr       = MustParseSnet("1-ff00:0:1,[192.168.0.1]:80")
+	otherLocalAddr  = MustParseSnet("1-ff00:0:1,[192.168.0.1]:10080")
+	bindAddr        = MustBuildOverlay("[192.168.0.2]:80")
+	otherBindAddr   = MustBuildOverlay("[192.168.0.2]:10080")
+	remoteAddr      = MustParseSnet("2-ff00:0:2,[172.16.0.1]:80")
+	svc             = addr.SvcNone
+	timeout         = time.Duration(0)
+	testBuffer      = []byte{1, 2, 3}
 )
 
 var (
@@ -54,17 +54,6 @@ var (
 	writeNonDispatcherError    = common.NewBasicError("Misc error", nil)
 	connectErrorFromDispatcher = common.NewBasicError("Port unavailable", nil)
 )
-
-func NewMockConnWithAddrs(ctrl *gomock.Controller,
-	laddr, raddr, baddr net.Addr, svc addr.HostSVC) *mock_snet.MockConn {
-
-	address := mock_snet.NewMockConn(ctrl)
-	address.EXPECT().LocalAddr().Return(laddr).AnyTimes()
-	address.EXPECT().RemoteAddr().Return(raddr).AnyTimes()
-	address.EXPECT().BindAddr().Return(baddr).AnyTimes()
-	address.EXPECT().SVC().Return(svc).AnyTimes()
-	return address
-}
 
 func MustParseSnet(str string) *snet.Addr {
 	address, err := snet.AddrFromString(str)
