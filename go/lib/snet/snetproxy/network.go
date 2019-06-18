@@ -55,12 +55,18 @@ func (pn *ReconnectingDispatcherService) RegisterTimeout(ia addr.IA, public *add
 	bind *overlay.OverlayAddr, svc addr.HostSVC,
 	timeout time.Duration) (net.PacketConn, uint16, error) {
 
-	listener := pn.newReconnecterFromListenArgs(ia, public, bind, svc, timeout)
-	conn, port, err := listener.Reconnect(timeout)
+	// Perform initial connection to allocate port
+	reconnecter := pn.newReconnecterFromListenArgs(ia, public, bind, svc, timeout)
+	conn, port, err := reconnecter.Reconnect(timeout)
 	if err != nil {
 		return nil, 0, err
 	}
-	reconnecter := pn.newReconnecterFromListenArgs(ia, public, bind, svc, timeout)
+	var newPublic *addr.AppAddr
+	if public != nil {
+		newPublic = public.Copy()
+		newPublic.L4 = addr.NewL4UDPInfo(port)
+	}
+	reconnecter = pn.newReconnecterFromListenArgs(ia, newPublic, bind, svc, timeout)
 	return NewProxyConn(conn, reconnecter), port, nil
 }
 

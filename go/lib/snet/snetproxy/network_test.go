@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/sock/reliable/mock_reliable"
 )
@@ -35,45 +36,30 @@ func TestReconnect(t *testing.T) {
 		defer ctrl.Finish()
 		mockNetwork := mock_reliable.NewMockDispatcherService(ctrl)
 		Convey("Given a mocked underlying connection with local and bind", func() {
-			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, svc)
-			Convey("If local address and bind address do not change", func() {
+			mockConn := mock_snet.NewMockConn(ctrl)
+			Convey("Allocated ports are reused on subsequent attempts", func() {
 				mockNetwork.EXPECT().
-					RegisterTimeout(localAddr.IA, localAddr.Host, bindAddr, svc, timeout).
-					Return(mockConn, uint16(0), nil)
+					RegisterTimeout(localAddr.IA, localNoPortAddr.Host, bindAddr, svc, timeout).
+					Return(mockConn, uint16(80), nil)
+				newExpectedAddr := localNoPortAddr.Host.Copy()
+				newExpectedAddr.L4 = addr.NewL4UDPInfo(80)
 				mockNetwork.EXPECT().
-					RegisterTimeout(localAddr.IA, localAddr.Host, bindAddr, svc, timeout).
-					Return(mockConn, uint16(0), nil)
+					RegisterTimeout(localAddr.IA, newExpectedAddr, bindAddr, svc, timeout).
+					Return(mockConn, uint16(80), nil)
 				Convey("reconnect must not return error.", func() {
 					proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
 					proxyConn, _, _ := proxyNetwork.RegisterTimeout(localAddr.IA,
-						localAddr.Host, bindAddr, svc, timeout)
-					_, _, err := proxyConn.(*snetproxy.ProxyConn).Reconnect()
-					SoMsg("err", err, ShouldBeNil)
-				})
-			})
-			Convey("If local address changes", func() {
-				secondConn := NewMockConnWithAddrs(ctrl, otherLocalAddr, nil, nil, svc)
-				mockNetwork.EXPECT().
-					RegisterTimeout(localAddr.IA, localAddr.Host, bindAddr, svc, timeout).
-					Return(mockConn, uint16(0), nil)
-				mockNetwork.EXPECT().
-					RegisterTimeout(localAddr.IA, localAddr.Host, bindAddr, svc, timeout).
-					Return(secondConn, uint16(0), nil)
-				Convey("reconnect must return error.", func() {
-					proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
-					proxyConn, _, _ := proxyNetwork.RegisterTimeout(localAddr.IA,
-						localAddr.Host, bindAddr, svc, timeout)
-					_, _, err := proxyConn.(*snetproxy.ProxyConn).Reconnect()
-					SoMsg("err", err, ShouldNotBeNil)
+						localNoPortAddr.Host, bindAddr, svc, timeout)
+					proxyConn.(*snetproxy.ProxyConn).Reconnect()
 				})
 			})
 			Convey("If allocated port changes", func() {
 				mockNetwork.EXPECT().
 					RegisterTimeout(localAddr.IA, localAddr.Host, bindAddr, svc, timeout).
-					Return(mockConn, uint16(1), nil)
+					Return(mockConn, localAddr.Host.L4.Port(), nil)
 				mockNetwork.EXPECT().
 					RegisterTimeout(localAddr.IA, localAddr.Host, bindAddr, svc, timeout).
-					Return(mockConn, uint16(2), nil)
+					Return(mockConn, localAddr.Host.L4.Port()+1, nil)
 				Convey("reconnect must return error.", func() {
 					proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
 					proxyConn, _, _ := proxyNetwork.RegisterTimeout(localAddr.IA,
@@ -118,7 +104,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 		mockNetwork := mock_reliable.NewMockDispatcherService(ctrl)
 		proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
 		Convey("Dial tries to reconnect if no timeout set", func() {
-			mockConn := NewMockConnWithAddrs(ctrl, localAddr, remoteAddr, nil, addr.SvcNone)
+			mockConn := mock_snet.NewMockConn(ctrl)
 			gomock.InOrder(
 				mockNetwork.EXPECT().
 					RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
@@ -143,7 +129,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Listen tries to reconnect if no timeout set", func() {
-			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, nil, addr.SvcNone)
+			mockConn := mock_snet.NewMockConn(ctrl)
 			gomock.InOrder(
 				mockNetwork.EXPECT().
 					RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
