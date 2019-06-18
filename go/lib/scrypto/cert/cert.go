@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,13 +115,13 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 func (c *Certificate) VerifyTime(ts uint32) error {
 	if ts < c.IssuingTime {
 		return common.NewBasicError(EarlyUsage, nil,
-			"IssuingTime", util.TimeToString(util.SecsToTime(c.IssuingTime)),
-			"current", util.TimeToString(util.SecsToTime(ts)))
+			"IssuingTime", util.SecsToCompact(c.IssuingTime),
+			"current", util.SecsToCompact(ts))
 	}
 	if ts > c.ExpirationTime {
 		return common.NewBasicError(Expired, nil,
-			"ExpirationTime", util.TimeToString(util.SecsToTime(c.ExpirationTime)),
-			"current", util.TimeToString(util.SecsToTime(ts)))
+			"ExpirationTime", util.SecsToCompact(c.ExpirationTime),
+			"current", util.SecsToCompact(ts))
 	}
 	return nil
 }

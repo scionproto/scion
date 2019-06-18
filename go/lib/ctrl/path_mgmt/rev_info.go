@@ -37,7 +37,7 @@ type RevTimeError string
 func NewRevTimeError(r *RevInfo) RevTimeError {
 	return RevTimeError(fmt.Sprintf(
 		"Revocation is expired, timestamp: %s, TTL %s.",
-		util.TimeToString(r.Timestamp()), r.TTL()))
+		util.TimeToCompact(r.Timestamp()), r.TTL()))
 }
 
 func (ee RevTimeError) Timeout() bool {
@@ -95,7 +95,7 @@ func (r *RevInfo) Active() error {
 	}
 	if r.Timestamp().After(now.Add(time.Second)) {
 		return common.NewBasicError("Revocation timestamp is in the future.", nil,
-			"timestamp", util.TimeToString(r.Timestamp()))
+			"timestamp", util.TimeToCompact(r.Timestamp()))
 	}
 	return nil
 }
@@ -110,7 +110,7 @@ func (r *RevInfo) Pack() (common.RawBytes, error) {
 
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %s", r.IA(), r.IfID,
-		r.LinkType, util.TimeToString(r.Timestamp()), r.TTL())
+		r.LinkType, util.TimeToCompact(r.Timestamp()), r.TTL())
 }
 
 // RelativeTTL returns the duration r is still valid for, relative to

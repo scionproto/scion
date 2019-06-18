@@ -444,7 +444,7 @@ func (ps *PathSegment) String() string {
 	info, _ := ps.InfoF()
 	desc := []string{
 		ps.GetLoggingID(),
-		util.TimeToString(info.Timestamp()),
+		util.TimeToCompact(info.Timestamp()),
 		ps.getHopsDescription(),
 	}
 	return strings.Join(desc, " ")

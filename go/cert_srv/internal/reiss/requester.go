@@ -68,7 +68,7 @@ func (r *Requester) run(ctx context.Context) (bool, error) {
 	now := time.Now()
 	if now.After(exp) {
 		return true, common.NewBasicError("Certificate expired without being reissued", nil,
-			"chain", chain, "expTime", util.TimeToString(exp), "now", util.TimeToString(now))
+			"chain", chain, "expTime", util.TimeToCompact(exp), "now", util.TimeToString(now))
 	}
 	if now.Add(r.LeafTime).Before(exp) {
 		return false, nil

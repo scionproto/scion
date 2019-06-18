@@ -233,10 +233,12 @@ func (t *TRC) IsActive(maxTRC *TRC) error {
 	currTime := util.TimeToSecs(time.Now())
 	if currTime < t.CreationTime {
 		return common.NewBasicError(EarlyUsage, nil,
-			"now", timeToString(currTime), "creation", timeToString(t.CreationTime))
+			"now", util.SecsToCompact(currTime),
+			"creation", util.SecsToCompact(t.CreationTime))
 	} else if currTime > t.ExpirationTime {
 		return common.NewBasicError(Expired, nil,
-			"now", timeToString(currTime), "expiration", timeToString(t.ExpirationTime))
+			"now", util.SecsToCompact(currTime),
+			"expiration", util.SecsToCompact(t.ExpirationTime))
 	} else if t.Version == maxTRC.Version {
 		return nil
 	} else if t.Version+1 != maxTRC.Version {
@@ -246,8 +248,8 @@ func (t *TRC) IsActive(maxTRC *TRC) error {
 			"actual", t.Version,
 		)
 	} else if currTime > maxTRC.CreationTime+maxTRC.GracePeriod {
-		return common.NewBasicError(GracePeriodPassed, nil, "now", timeToString(currTime),
-			"expiration", timeToString(maxTRC.CreationTime+maxTRC.GracePeriod))
+		return common.NewBasicError(GracePeriodPassed, nil, "now", util.SecsToCompact(currTime),
+			"expiration", util.SecsToCompact(maxTRC.CreationTime+maxTRC.GracePeriod))
 	}
 	return nil
 }
@@ -287,8 +289,8 @@ func (t *TRC) verifyUpdate(old *TRC) (*TRCVerResult, error) {
 	if t.CreationTime < old.CreationTime+old.GracePeriod {
 		return nil, common.NewBasicError(
 			InvalidCreationTime, nil,
-			"expected >", timeToString(old.CreationTime+old.GracePeriod),
-			"actual", timeToString(t.CreationTime),
+			"expected >", util.SecsToCompact(old.CreationTime+old.GracePeriod),
+			"actual", util.SecsToCompact(t.CreationTime),
 		)
 	}
 	if t.Quarantine || old.Quarantine {
@@ -417,8 +419,4 @@ func (t *TRC) String() string {
 		return "TRC <nil>"
 	}
 	return fmt.Sprintf("TRC %dv%d", t.ISD, t.Version)
-}
-
-func timeToString(t uint32) string {
-	return util.TimeToString(util.SecsToTime(t))
 }

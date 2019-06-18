@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -91,12 +92,13 @@ func (inf *InfoField) Write(b common.RawBytes) {
 
 func (inf *InfoField) String() string {
 	return fmt.Sprintf("ISD: %v TS: %v Hops: %v ConsDir: %v Shortcut: %v Peer: %v",
-		inf.ISD, inf.Timestamp(), inf.Hops, inf.ConsDir, inf.Shortcut, inf.Peer)
+		inf.ISD, util.TimeToCompact(inf.Timestamp()),
+		inf.Hops, inf.ConsDir, inf.Shortcut, inf.Peer)
 }
 
 // Timestamp returns TsInt as a time.Time.
 func (inf *InfoField) Timestamp() time.Time {
-	return time.Unix(int64(inf.TsInt), 0)
+	return util.SecsToTime(inf.TsInt)
 }
 
 // WriteTo implements the io.WriterTo interface.
