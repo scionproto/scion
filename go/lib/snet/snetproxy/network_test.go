@@ -53,21 +53,6 @@ func TestReconnect(t *testing.T) {
 					proxyConn.(*snetproxy.ProxyConn).Reconnect()
 				})
 			})
-			Convey("If allocated port changes", func() {
-				mockNetwork.EXPECT().
-					RegisterTimeout(localAddr.IA, localAddr.Host, bindAddr, svc, timeout).
-					Return(mockConn, localAddr.Host.L4.Port(), nil)
-				mockNetwork.EXPECT().
-					RegisterTimeout(localAddr.IA, localAddr.Host, bindAddr, svc, timeout).
-					Return(mockConn, localAddr.Host.L4.Port()+1, nil)
-				Convey("reconnect must return error.", func() {
-					proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
-					proxyConn, _, _ := proxyNetwork.RegisterTimeout(localAddr.IA,
-						localAddr.Host, bindAddr, svc, timeout)
-					_, _, err := proxyConn.(*snetproxy.ProxyConn).Reconnect()
-					SoMsg("err", err, ShouldNotBeNil)
-				})
-			})
 		})
 	})
 }
