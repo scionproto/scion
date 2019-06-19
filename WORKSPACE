@@ -462,3 +462,15 @@ go_repository(
     commit = "34c6fa2dc70986bccbbffcc6130f6920a924b075",
     importpath = "github.com/stretchr/testify",
 )
+
+go_repository(
+    name = "com_github_buildkite_go_buildkite",
+    commit = "568b6651b687ccf6893ada08086ce58b072538b6",
+    importpath = "github.com/buildkite/go-buildkite",
+)
+
+go_repository(
+    name = "com_github_google_go_querystring",
+    commit = "c8c88dbee036db4e4808d1f2ec8c2e15e11c3f80",
+    importpath = "github.com/google/go-querystring",
+)
