@@ -31,6 +31,7 @@ pkg_tar(
         "//go/examples/pingpong/pp_integration:pp_integration",
         "//go/tools/scion-custpk-load:scion-custpk-load",
         "//go/sciond:sciond",
+        "//go/tools/buildkite_log_downloader:buildkite_log_downloader",
         "//go/tools/scion-pki:scion-pki",
         "//go/tools/scmp:scmp",
         "//go/integration/scmp_error_pyintegration:scmp_error_pyintegration",
