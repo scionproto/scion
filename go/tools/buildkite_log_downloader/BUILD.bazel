@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/go/tools/buildkite_log_downloader",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "@com_github_buildkite_go_buildkite//buildkite:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "buildkite_log_downloader",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
