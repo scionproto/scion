@@ -9,6 +9,16 @@
       "gazelle/language/go/resolve.go": ""
     }
   },
+  "nilness": {
+    "exclude_files": {
+      "gazelle/cmd/gazelle/diff.go": "",
+      "/in_gopkg_yaml_v2/decode.go": "",
+      "/com_zombiezen_go_capnproto2/schemas/schemas.go": "",
+      "/com_github_mattn_go_sqlite3": "",
+      "/com_github_lucas_clemente_quic_go": "many vendored dependencies have issues",
+      "/com_github_vishvananda_netlink": ""
+    }
+  },
   "printf": {
     "exclude_files": {
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",

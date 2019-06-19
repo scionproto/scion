@@ -294,6 +294,12 @@ go_repository(
 )
 
 go_repository(
+    name = "com_github_oncilla_ineffassign",
+    commit = "198c6a326229fbe8a5803f701ea9da06bc8c1776",
+    importpath = "github.com/Oncilla/ineffassign",
+)
+
+go_repository(
     name = "com_github_patrickmn_go_cache",
     commit = "7ac151875ffb48b9f3ccce9ea20f020b0c1596c8",
     importpath = "github.com/patrickmn/go-cache",
