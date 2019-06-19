@@ -97,8 +97,7 @@ Loop:
 		case <-conn.dispatcherState.Up():
 			err = op.Do(conn.getConn())
 			if err != nil {
-				if reliable.IsDispatcherError(err) &&
-					!conn.isClosing() {
+				if reliable.IsDispatcherError(err) && !conn.isClosing() {
 					conn.spawnAsyncReconnecterOnce()
 					continue
 				} else {
@@ -147,7 +146,7 @@ func (conn *ProxyConn) spawnAsyncReconnecterOnce() {
 }
 
 func (conn *ProxyConn) asyncReconnectWrapper() {
-	newConn, newPort, err := conn.Reconnect()
+	newConn, err := conn.Reconnect()
 	if err != nil {
 		conn.fatalError <- err
 		close(conn.fatalError)
@@ -155,18 +154,18 @@ func (conn *ProxyConn) asyncReconnectWrapper() {
 	}
 	newConn.SetReadDeadline(conn.readDeadline)
 	newConn.SetWriteDeadline(conn.writeDeadline)
-	conn.setConn(newConn, newPort)
+	conn.setConn(newConn)
 	conn.dispatcherState.SetUp()
 }
 
 // Reconnect is only used internally and should never be called from outside
 // the package.
-func (conn *ProxyConn) Reconnect() (net.PacketConn, uint16, error) {
-	newConn, port, err := conn.reconnecter.Reconnect(0)
+func (conn *ProxyConn) Reconnect() (net.PacketConn, error) {
+	newConn, _, err := conn.reconnecter.Reconnect(0)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return newConn, port, nil
+	return newConn, nil
 }
 
 func (conn *ProxyConn) Close() error {
@@ -258,7 +257,7 @@ func (conn *ProxyConn) getConn() net.PacketConn {
 	return c
 }
 
-func (conn *ProxyConn) setConn(newConn net.PacketConn, newPort uint16) {
+func (conn *ProxyConn) setConn(newConn net.PacketConn) {
 	conn.connMtx.Lock()
 	conn.dispConn = newConn
 	conn.connMtx.Unlock()

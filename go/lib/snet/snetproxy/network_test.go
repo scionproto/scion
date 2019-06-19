@@ -46,12 +46,11 @@ func TestReconnect(t *testing.T) {
 				mockNetwork.EXPECT().
 					RegisterTimeout(localAddr.IA, newExpectedAddr, bindAddr, svc, timeout).
 					Return(mockConn, uint16(80), nil)
-				Convey("reconnect must not return error.", func() {
-					proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
-					proxyConn, _, _ := proxyNetwork.RegisterTimeout(localAddr.IA,
-						localNoPortAddr.Host, bindAddr, svc, timeout)
-					proxyConn.(*snetproxy.ProxyConn).Reconnect()
-				})
+
+				proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
+				proxyConn, _, _ := proxyNetwork.RegisterTimeout(localAddr.IA,
+					localNoPortAddr.Host, bindAddr, svc, timeout)
+				proxyConn.(*snetproxy.ProxyConn).Reconnect()
 			})
 		})
 	})
