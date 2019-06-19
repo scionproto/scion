@@ -14,6 +14,7 @@
 
 // +build go1.9,linux
 
+// Package conn implements overlay sockets with additional metadata on reads.
 package conn
 
 import (
@@ -23,7 +24,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
@@ -35,12 +35,16 @@ import (
 	"github.com/scionproto/scion/go/lib/sockctrl"
 )
 
-const recvBufSize = 1 << 20
+// ReceiveBufferSize is the default size, in bytes, of receive buffers for
+// opened sockets.
+const ReceiveBufferSize = 1 << 20
 
 var oobSize = syscall.CmsgSpace(SizeOfInt) + syscall.CmsgSpace(SizeOfTimespec)
 var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 	"Ignore failing to set the receive buffer size on a socket.")
 
+// Conn describes the API for an overlay socket with additional metadata on
+// reads.
 type Conn interface {
 	Read(common.RawBytes) (int, *ReadMeta, error)
 	ReadBatch([]ipv4.Message, []ReadMeta) (int, error)
@@ -50,10 +54,33 @@ type Conn interface {
 	LocalAddr() *overlay.OverlayAddr
 	RemoteAddr() *overlay.OverlayAddr
 	SetReadDeadline(time.Time) error
+	SetWriteDeadline(time.Time) error
+	SetDeadline(time.Time) error
 	Close() error
 }
 
-func New(listen, remote *overlay.OverlayAddr, labels prometheus.Labels) (Conn, error) {
+// Config customizes the behavior of an overlay socket.
+type Config struct {
+	// ReceiveBufferSize is the size of the operating system receive buffer, in
+	// bytes. If 0, the package constant is used instead.
+	ReceiveBufferSize int
+}
+
+func (c *Config) getReceiveBufferSize() int {
+	if c.ReceiveBufferSize != 0 {
+		return c.ReceiveBufferSize
+	}
+	return ReceiveBufferSize
+}
+
+// New opens a new overlay socket on the specified addresses.
+//
+// The config can be used to customize socket behavior. If config is nil,
+// default values are used.
+func New(listen, remote *overlay.OverlayAddr, cfg *Config) (Conn, error) {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	if assert.On {
 		assert.Must(listen != nil || remote != nil, "Either listen or remote must be set")
 	}
@@ -63,9 +90,9 @@ func New(listen, remote *overlay.OverlayAddr, labels prometheus.Labels) (Conn, e
 	}
 	switch a.Type() {
 	case overlay.UDPIPv6:
-		return newConnUDPIPv6(listen, remote, labels)
+		return newConnUDPIPv6(listen, remote, cfg)
 	case overlay.UDPIPv4:
-		return newConnUDPIPv4(listen, remote, labels)
+		return newConnUDPIPv4(listen, remote, cfg)
 	}
 	return nil, common.NewBasicError("Unsupported overlay type", nil, "overlay", a.Type())
 }
@@ -75,11 +102,9 @@ type connUDPIPv4 struct {
 	pconn *ipv4.PacketConn
 }
 
-func newConnUDPIPv4(listen, remote *overlay.OverlayAddr,
-	labels prometheus.Labels) (*connUDPIPv4, error) {
-
+func newConnUDPIPv4(listen, remote *overlay.OverlayAddr, cfg *Config) (*connUDPIPv4, error) {
 	cc := &connUDPIPv4{}
-	if err := cc.initConnUDP("udp4", listen, remote); err != nil {
+	if err := cc.initConnUDP("udp4", listen, remote, cfg); err != nil {
 		return nil, err
 	}
 	cc.pconn = ipv4.NewPacketConn(cc.conn)
@@ -93,18 +118,17 @@ func (c *connUDPIPv4) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, err
 		assert.Must(len(msgs) == len(metas), "msgs and metas must be the same length")
 	}
 	for i := range metas {
-		metas[i].Reset()
+		metas[i].reset()
 	}
 	n, err := c.pconn.ReadBatch(msgs, syscall.MSG_WAITFORONE)
 	readTime := time.Now()
 	for i := 0; i < n; i++ {
 		msg := msgs[i]
 		meta := &metas[i]
-		meta.read = readTime
 		if msg.NN > 0 {
-			c.handleCmsg(msg.OOB[:msg.NN], meta)
+			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
 		}
-		meta.SetSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv4)
+		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv4)
 	}
 	return n, err
 }
@@ -118,16 +142,22 @@ func (c *connUDPIPv4) SetReadDeadline(t time.Time) error {
 	return c.pconn.SetReadDeadline(t)
 }
 
+func (c *connUDPIPv4) SetWriteDeadline(t time.Time) error {
+	return c.pconn.SetWriteDeadline(t)
+}
+
+func (c *connUDPIPv4) SetDeadline(t time.Time) error {
+	return c.pconn.SetDeadline(t)
+}
+
 type connUDPIPv6 struct {
 	connUDPBase
 	pconn *ipv6.PacketConn
 }
 
-func newConnUDPIPv6(listen, remote *overlay.OverlayAddr,
-	labels prometheus.Labels) (*connUDPIPv6, error) {
-
+func newConnUDPIPv6(listen, remote *overlay.OverlayAddr, cfg *Config) (*connUDPIPv6, error) {
 	cc := &connUDPIPv6{}
-	if err := cc.initConnUDP("udp6", listen, remote); err != nil {
+	if err := cc.initConnUDP("udp6", listen, remote, cfg); err != nil {
 		return nil, err
 	}
 	cc.pconn = ipv6.NewPacketConn(cc.conn)
@@ -141,18 +171,17 @@ func (c *connUDPIPv6) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, err
 		assert.Must(len(msgs) == len(metas), "msgs and metas must be the same length")
 	}
 	for i := range metas {
-		metas[i].Reset()
+		metas[i].reset()
 	}
 	n, err := c.pconn.ReadBatch(msgs, syscall.MSG_WAITFORONE)
 	readTime := time.Now()
 	for i := 0; i < n; i++ {
 		msg := msgs[i]
 		meta := &metas[i]
-		meta.read = readTime
 		if msg.NN > 0 {
-			c.handleCmsg(msg.OOB[:msg.NN], meta)
+			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
 		}
-		meta.SetSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv6)
+		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv6)
 	}
 	return n, err
 }
@@ -166,6 +195,14 @@ func (c *connUDPIPv6) SetReadDeadline(t time.Time) error {
 	return c.pconn.SetReadDeadline(t)
 }
 
+func (c *connUDPIPv6) SetWriteDeadline(t time.Time) error {
+	return c.pconn.SetWriteDeadline(t)
+}
+
+func (c *connUDPIPv6) SetDeadline(t time.Time) error {
+	return c.pconn.SetDeadline(t)
+}
+
 type connUDPBase struct {
 	conn     *net.UDPConn
 	Listen   *overlay.OverlayAddr
@@ -175,7 +212,9 @@ type connUDPBase struct {
 	readMeta ReadMeta
 }
 
-func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.OverlayAddr) error {
+func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.OverlayAddr,
+	cfg *Config) error {
+
 	var laddr, raddr *net.UDPAddr
 	var c *net.UDPConn
 	var err error
@@ -216,7 +255,7 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 		return common.NewBasicError("Error getting SO_RCVBUF socket option (before)", err,
 			"listen", listen, "remote", remote)
 	}
-	if err = c.SetReadBuffer(recvBufSize); err != nil {
+	if err = c.SetReadBuffer(cfg.getReceiveBufferSize()); err != nil {
 		return common.NewBasicError("Error setting recv buffer size", err,
 			"listen", listen, "remote", remote)
 	}
@@ -225,9 +264,10 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 		return common.NewBasicError("Error getting SO_RCVBUF socket option (after)", err,
 			"listen", listen, "remote", remote)
 	}
-	if after/2 != recvBufSize {
+	if after/2 != ReceiveBufferSize {
 		msg := "Receive buffer size smaller than requested"
-		ctx := []interface{}{"expected", recvBufSize, "actual", after / 2, "before", before / 2}
+		ctx := []interface{}{"expected", ReceiveBufferSize, "actual", after / 2,
+			"before", before / 2}
 		if !*sizeIgnore {
 			return common.NewBasicError(msg, nil, ctx...)
 		}
@@ -242,11 +282,11 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 }
 
 func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
-	c.readMeta.Reset()
+	c.readMeta.reset()
 	n, oobn, _, src, err := c.conn.ReadMsgUDP(b, c.oob)
-	c.readMeta.read = time.Now()
+	readTime := time.Now()
 	if oobn > 0 {
-		c.handleCmsg(c.oob[:oobn], &c.readMeta)
+		c.handleCmsg(c.oob[:oobn], &c.readMeta, readTime)
 	}
 	if c.Remote != nil {
 		c.readMeta.Src = c.Remote
@@ -258,7 +298,7 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	return n, &c.readMeta, err
 }
 
-func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta) {
+func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime time.Time) {
 	// Based on https://github.com/golang/go/blob/release-branch.go1.8/src/syscall/sockcmsg_unix.go#L49
 	// and modified to remove most allocations.
 	sizeofCmsgHdr := syscall.CmsgLen(0)
@@ -280,7 +320,7 @@ func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta) {
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
 			tv := *(*Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 			meta.Recvd = time.Unix(int64(tv.tv_sec), int64(tv.tv_nsec))
-			meta.ReadDelay = meta.read.Sub(meta.Recvd)
+			meta.ReadDelay = readTime.Sub(meta.Recvd)
 			// Guard against leap-seconds.
 			if meta.ReadDelay < 0 {
 				meta.ReadDelay = 0
@@ -323,26 +363,32 @@ func (c *connUDPBase) Close() error {
 	return c.conn.Close()
 }
 
+// ReadMeta contains extra information about socket reads.
 type ReadMeta struct {
 	// Src is the remote address from which the datagram was received
 	Src *overlay.OverlayAddr
 	// Local is the address on which the datagram was received
-	Local     *overlay.OverlayAddr
-	RcvOvfl   int
-	Recvd     time.Time
-	read      time.Time
+	Local *overlay.OverlayAddr
+	// RcvOvfl is the total number of packets that were dropped by the OS due
+	// to the receive buffers being full.
+	RcvOvfl int
+	// Recvd is the timestamp when the kernel placed the packet in the socket's
+	// receive buffer.
+	Recvd time.Time
+	// ReadDelay is the time elapsed between the kernel adding a packet to the
+	// socket's receive buffer, and the application reading it from the Go
+	// network stack (i.e., kernel to application latency).
 	ReadDelay time.Duration
 }
 
-func (m *ReadMeta) Reset() {
+func (m *ReadMeta) reset() {
 	m.Src = nil
 	m.RcvOvfl = 0
 	m.Recvd = time.Unix(0, 0)
-	m.read = time.Unix(0, 0)
 	m.ReadDelay = 0
 }
 
-func (m *ReadMeta) SetSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay.Type) {
+func (m *ReadMeta) setSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay.Type) {
 	if a != nil {
 		m.Src = a
 	} else {
@@ -355,6 +401,8 @@ func (m *ReadMeta) SetSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay
 	}
 }
 
+// NewReadMessages allocates memory for reading IPv4 Linux network stack
+// messages.
 func NewReadMessages(n int) []ipv4.Message {
 	m := make([]ipv4.Message, n)
 	for i := range m {
@@ -365,6 +413,8 @@ func NewReadMessages(n int) []ipv4.Message {
 	return m
 }
 
+// NewWriteMessages allocates memory for writing IPv4 Linux network stack
+// messages.
 func NewWriteMessages(n int) []ipv4.Message {
 	m := make([]ipv4.Message, n)
 	for i := range m {

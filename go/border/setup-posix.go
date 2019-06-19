@@ -88,7 +88,7 @@ func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx, labels prometheus.Labels) er
 	bind := ctx.Conf.Net.LocAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay)
 	log.Debug("Setting up new local socket.", "bind", bind)
 	// Listen on the socket.
-	over, err := conn.New(bind, nil, labels)
+	over, err := conn.New(bind, nil, nil)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on local socket", err, "bind", bind)
 	}
@@ -160,7 +160,7 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	// Connect to remote address.
 	log.Debug("Setting up new external socket.", "intf", intf)
 	bind := intf.IFAddr.BindOrPublicOverlay(intf.IFAddr.Overlay)
-	c, err := conn.New(bind, intf.RemoteAddr, labels)
+	c, err := conn.New(bind, intf.RemoteAddr, nil)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
