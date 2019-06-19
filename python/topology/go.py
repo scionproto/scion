@@ -206,6 +206,7 @@ class GoGenerator(object):
             'general': {
                 'ID': name,
                 'ConfigDir': config_dir,
+                'ReconnectToDispatcher': True,
             },
             'sd_client': {
                 'Path': get_default_sciond_path(topo_id),
