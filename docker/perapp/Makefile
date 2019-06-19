@@ -76,46 +76,22 @@ bazel_debug: ../_build/scion.stamp
 	./build-images.sh debug
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build hashes/sig_debug app/Dockerfile.sig
 
-border_debug:
-	bazel run //go/border:debug
-	docker tag scion/go/border:debug scion_border_debug:latest
-
 dispatcher_debug: hashes/dispatcher_debug
 hashes/dispatcher_debug: debug/Dockerfile.dispatcher hashes/debug_base hashes/dispatcher
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
-
-dispatcher_go_debug:
-	bazel run //go/godispatcher:debug
-	docker tag scion/go/godispatcher:debug scion_dispatcher_go:latest
 
 path_py_debug: hashes/path_py_debug
 hashes/path_py_debug: debug/Dockerfile.path_py hashes/debug_base hashes/path_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
-path_debug:
-	bazel run //go/path_srv:debug
-	docker tag scion/go/path_srv:debug scion_path_debug:latest
-
 beacon_py_debug: hashes/beacon_py_debug
 hashes/beacon_py_debug: debug/Dockerfile.beacon_py hashes/debug_base hashes/beacon_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
-
-beacon_debug:
-	bazel run //go/beacon_srv:debug
-	docker tag scion/go/beacon_srv:debug scion_beacon_debug:latest
 
 cert_py_debug: hashes/cert_py_debug
 hashes/cert_py_debug: debug/Dockerfile.cert_py hashes/debug_base hashes/cert_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
-cert_debug:
-	bazel run //go/cert_srv:debug
-	docker tag scion/go/cert_srv:debug scion_cert_debug:latest
-
 sciond_py_debug: hashes/sciond_py_debug
 hashes/sciond_py_debug: debug/Dockerfile.sciond_py hashes/debug_base hashes/sciond_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
-
-sciond_debug:
-	bazel run //go/sciond:debug
-	docker tag scion/go/sciond:debug scion_sciond_debug:latest
