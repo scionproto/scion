@@ -88,6 +88,7 @@ func (d *Dispatcher) ListenAndServe() error {
 			ConnManager: &AppConnManager{
 				RoutingTable:    d.RoutingTable,
 				IPv4OverlayConn: ipv4Conn,
+				IPv6OverlayConn: ipv6Conn,
 			},
 		}
 		errChan <- appServer.Serve()
