@@ -86,8 +86,8 @@ func (d *Dispatcher) ListenAndServe() error {
 		appServer := &AppSocketServer{
 			Listener: appServerConn,
 			ConnManager: &AppConnManager{
-				RoutingTable: d.RoutingTable,
-				OverlayConn:  ipv4Conn,
+				RoutingTable:    d.RoutingTable,
+				IPv4OverlayConn: ipv4Conn,
 			},
 		}
 		errChan <- appServer.Serve()
