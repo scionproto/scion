@@ -57,6 +57,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -174,8 +175,12 @@ func realMain() int {
 		msgr.ListenAndServe()
 	}()
 	ovAddr := &addr.AppAddr{L3: topoAddress.PublicAddr(topoAddress.Overlay).L3}
+	dispatcherService := reliable.NewDispatcherService("")
+	if cfg.General.ReconnectToDispatcher {
+		dispatcherService = snetproxy.NewReconnectingDispatcherService(dispatcherService)
+	}
 	pktDisp := &snet.DefaultPacketDispatcherService{
-		Dispatcher: reliable.NewDispatcherService(""),
+		Dispatcher: dispatcherService,
 	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
