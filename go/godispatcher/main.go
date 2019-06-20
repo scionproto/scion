@@ -34,8 +34,7 @@ import (
 )
 
 var (
-	cfg         config.Config
-	environment *env.Env
+	cfg config.Config
 )
 
 func main() {
@@ -87,7 +86,7 @@ func realMain() int {
 		}()
 	}
 
-	environment = env.SetupEnv(nil)
+	env.SetupEnv(nil)
 	cfg.Metrics.StartPrometheus()
 
 	returnCode := waitForTeardown()
@@ -149,9 +148,9 @@ func deleteSocket(socket string) error {
 
 func waitForTeardown() int {
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }

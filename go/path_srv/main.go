@@ -52,9 +52,7 @@ import (
 )
 
 var (
-	cfg         config.Config
-	environment *env.Env
-
+	cfg   config.Config
 	tasks *periodicTasks
 )
 
@@ -177,10 +175,10 @@ func realMain() int {
 	tasks.Start()
 	defer tasks.Kill()
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }
@@ -272,6 +270,6 @@ func setup() error {
 	if _, _, err := itopo.SetStatic(topo, false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
-	environment = infraenv.InitInfraEnvironment(cfg.General.Topology)
+	infraenv.InitInfraEnvironment(cfg.General.Topology)
 	return nil
 }

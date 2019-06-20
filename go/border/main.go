@@ -38,9 +38,8 @@ import (
 )
 
 var (
-	cfg         brconf.Config
-	environment *env.Env
-	r           *Router
+	cfg brconf.Config
+	r   *Router
 )
 
 func init() {
@@ -89,10 +88,10 @@ func realMain() int {
 	}
 	r.Start()
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }
@@ -112,7 +111,7 @@ func setup() error {
 	if err := cfg.Validate(); err != nil {
 		return common.NewBasicError("Unable to validate config", err)
 	}
-	environment = env.SetupEnv(func() {
+	env.SetupEnv(func() {
 		if r == nil {
 			log.Error("Unable to reload config", "err", "router not set")
 			return
