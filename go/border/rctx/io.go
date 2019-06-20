@@ -100,7 +100,8 @@ func (s *Sock) Start() {
 		}
 		s.running = true
 		s.started = true
-		log.Info("Sock routines started", "addr", s.Conn.LocalAddr())
+		log.Info("Sock routines started", "addr", s.Conn.LocalAddr(), "dir", s.Dir,
+			"ifid", s.Ifid, "type", s.Type)
 	}
 }
 
@@ -108,7 +109,8 @@ func (s *Sock) Start() {
 // routines are stopped before returning to the caller.
 func (s *Sock) Stop() {
 	if s.running {
-		log.Debug("Sock routines stopping", "addr", s.Conn.LocalAddr())
+		log.Debug("Sock routines stopping", "addr", s.Conn.LocalAddr(), "dir", s.Dir,
+			"ifid", s.Ifid, "type", s.Type)
 		// The order of the sequence below is important:
 		// Close the Sock, which effectively only signals the Reader to finish.
 		close(s.stop)
@@ -127,14 +129,14 @@ func (s *Sock) Stop() {
 		}
 		// Close the posix sockets.
 		if err := s.Conn.Close(); err != nil {
-			log.Error("Error stopping socket", "err", err)
+			log.Error("Error stopping socket", "addr", s.Conn.LocalAddr(), "err", err)
 		}
 		s.running = false
 		log.Info("Sock routines stopped", "addr", s.Conn.LocalAddr())
 	} else if !s.started {
 		s.Ring.Close()
 		if err := s.Conn.Close(); err != nil {
-			log.Error("Error stopping socket", "err", err)
+			log.Error("Error stopping socket", "addr", s.Conn.LocalAddr(), "err", err)
 		}
 		log.Info("Non-started sock stopped", "addr", s.Conn.LocalAddr())
 	}
