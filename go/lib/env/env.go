@@ -81,7 +81,8 @@ type General struct {
 	ConfigDir string
 	// Topology is the file path for the local topology JSON file.
 	Topology string
-	// ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
+	// ReconnectToDispatcher can be set to true to enable transparent dispatcher
+	// reconnects.
 	ReconnectToDispatcher bool
 }
 

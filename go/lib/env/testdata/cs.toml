@@ -10,7 +10,8 @@
   # directory.
   Topology = "testdata/dir/topology.json"
 
-  # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
+  # ReconnectToDispatcher can be set to true to enable transparent dispatcher
+  # reconnects.
   ReconnectToDispatcher = true
 
 [sd_client]
