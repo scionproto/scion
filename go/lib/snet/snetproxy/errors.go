@@ -16,8 +16,6 @@ package snetproxy
 
 const (
 	ErrDispatcherDead            = "dispatcher dead"
-	ErrLocalAddressChanged       = "local address changed on reconnect"
-	ErrBindAddressChanged        = "bind address changed on reconnect"
 	ErrReconnecterTimeoutExpired = "Timeout expired"
 	ErrReconnecterStopped        = "Stop method was called"
 	ErrClosed                    = "closed"

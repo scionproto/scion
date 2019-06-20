@@ -15,23 +15,23 @@
 package snetproxy_test
 
 import (
+	"net"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 // newErrorReconnF returns a dispatcher error after the duration elapses.
-func newErrorReconnF(sleep time.Duration) func(time.Duration) (snet.Conn, error) {
-	return func(_ time.Duration) (snet.Conn, error) {
+func newErrorReconnF(sleep time.Duration) func(time.Duration) (net.PacketConn, uint16, error) {
+	return func(_ time.Duration) (net.PacketConn, uint16, error) {
 		time.Sleep(sleep)
 		// return dispatcher error s.t. reconnecter reattempts
-		return nil, dispatcherError
+		return nil, 0, dispatcherError
 	}
 }
 
@@ -88,7 +88,7 @@ func reconnectWithoutTimeoutAfter(reconnecter *snetproxy.TickingReconnecter,
 	sleepAtStart time.Duration) error {
 
 	time.Sleep(sleepAtStart)
-	_, err := reconnecter.Reconnect(0)
+	_, _, err := reconnecter.Reconnect(0)
 	return err
 }
 

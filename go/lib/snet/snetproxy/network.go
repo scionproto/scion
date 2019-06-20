@@ -19,84 +19,65 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-var _ snet.Network = (*ProxyNetwork)(nil)
+var _ reliable.DispatcherService = (*ReconnectingDispatcherService)(nil)
 
-// ProxyNetwork is a wrapper network that creates conns with transparent
-// reconnection capabilities. Connections created by ProxyNetwork also validate
-// that dispatcher registrations do not change addresses.
+// ReconnectingDispatcherService is a dispatcher wrapper that creates conns
+// with transparent reconnection capabilities. Connections created by
+// ReconnectingDispatcherService also validate that dispatcher registrations do
+// not change addresses.
 //
 // Callers interested in providing their own reconnection callbacks and
 // validating the new connection themselves should use the proxy connection
 // constructors directly.
-type ProxyNetwork struct {
-	network snet.Network
+type ReconnectingDispatcherService struct {
+	dispatcher reliable.DispatcherService
 }
 
-// NewProxyNetwork adds transparent reconnection capabilities to the
-// connections created by an snet network.
-func NewProxyNetwork(network snet.Network) *ProxyNetwork {
-	return &ProxyNetwork{network: network}
+// NewReconnectingDispatcherService adds transparent reconnection capabilities
+// to dispatcher connections.
+func NewReconnectingDispatcherService(
+	dispatcher reliable.DispatcherService) *ReconnectingDispatcherService {
+
+	return &ReconnectingDispatcherService{dispatcher: dispatcher}
 }
 
-func (pn *ProxyNetwork) DialSCIONWithBindSVC(network string,
-	laddr, raddr, baddr *snet.Addr, svc addr.HostSVC, timeout time.Duration) (snet.Conn, error) {
+func (pn *ReconnectingDispatcherService) Register(ia addr.IA, public *addr.AppAddr,
+	bind *overlay.OverlayAddr, svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
-	dialer := pn.newReconnecterFromDialArgs(network, laddr, raddr, baddr, svc)
-	conn, err := dialer.Reconnect(timeout)
+	return pn.RegisterTimeout(ia, public, bind, svc, 0)
+}
+
+func (pn *ReconnectingDispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
+	bind *overlay.OverlayAddr, svc addr.HostSVC,
+	timeout time.Duration) (net.PacketConn, uint16, error) {
+
+	// Perform initial connection to allocate port. We use a reconnecter here
+	// to set up the initial connection using the same retry logic we use when
+	// losing the connection to the dispatcher.
+	reconnecter := pn.newReconnecterFromListenArgs(ia, public, bind, svc, timeout)
+	conn, port, err := reconnecter.Reconnect(timeout)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	reconnecter := pn.newReconnecterFromDialArgs(
-		network,
-		toSnetAddr(conn.LocalAddr()),
-		toSnetAddr(conn.RemoteAddr()),
-		toSnetAddr(conn.BindAddr()),
-		conn.SVC(),
-	)
-	return NewProxyConn(conn, reconnecter), nil
+	var newPublic *addr.AppAddr
+	if public != nil {
+		newPublic = public.Copy()
+		newPublic.L4 = addr.NewL4UDPInfo(port)
+	}
+	reconnecter = pn.newReconnecterFromListenArgs(ia, newPublic, bind, svc, timeout)
+	return NewProxyConn(conn, reconnecter), port, nil
 }
 
-func (pn *ProxyNetwork) newReconnecterFromDialArgs(network string, laddr, raddr, baddr *snet.Addr,
-	svc addr.HostSVC) *TickingReconnecter {
+func (pn *ReconnectingDispatcherService) newReconnecterFromListenArgs(ia addr.IA,
+	public *addr.AppAddr, bind *overlay.OverlayAddr,
+	svc addr.HostSVC, timeout time.Duration) *TickingReconnecter {
 
-	f := func(timeout time.Duration) (snet.Conn, error) {
-		return pn.network.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc, timeout)
+	f := func(timeout time.Duration) (net.PacketConn, uint16, error) {
+		return pn.dispatcher.RegisterTimeout(ia, public, bind, svc, timeout)
 	}
 	return NewTickingReconnecter(f)
-}
-
-func (pn *ProxyNetwork) ListenSCIONWithBindSVC(network string,
-	laddr, baddr *snet.Addr, svc addr.HostSVC, timeout time.Duration) (snet.Conn, error) {
-
-	listener := pn.newReconnecterFromListenArgs(network, laddr, baddr, svc)
-	conn, err := listener.Reconnect(timeout)
-	if err != nil {
-		return nil, err
-	}
-	reconnecter := pn.newReconnecterFromListenArgs(
-		network,
-		toSnetAddr(conn.LocalAddr()),
-		toSnetAddr(conn.BindAddr()),
-		conn.SVC(),
-	)
-	return NewProxyConn(conn, reconnecter), nil
-}
-
-func (pn *ProxyNetwork) newReconnecterFromListenArgs(network string,
-	laddr, baddr *snet.Addr, svc addr.HostSVC) *TickingReconnecter {
-
-	f := func(timeout time.Duration) (snet.Conn, error) {
-		return pn.network.ListenSCIONWithBindSVC(network, laddr, baddr, svc, timeout)
-	}
-	return NewTickingReconnecter(f)
-}
-
-func toSnetAddr(address net.Addr) *snet.Addr {
-	if address == nil {
-		return nil
-	}
-	return address.(*snet.Addr)
 }
