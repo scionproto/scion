@@ -2,9 +2,10 @@
 
 . $BASE/steps/common.sh
 
-set -eu
+set -exu
 
-TAG="$BUILDKITE_BUILD_NUMBER"
+#Set tag only in not already set in environment
+TAG=${TAG:-$BUILDKITE_BUILD_NUMBER}
 
 $BASE/scripts/registry_login &>/dev/null
 
