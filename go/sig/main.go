@@ -88,7 +88,7 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		base.PollReqHdlr()
 	}()
-	environment := env.SetupEnv(
+	env.SetupEnv(
 		func() {
 			success := loadConfig(cfg.Sig.SIGConfig)
 			// Errors already logged in loadConfig
@@ -103,9 +103,9 @@ func realMain() int {
 	spawnIngressDispatcher(tunIO)
 	cfg.Metrics.StartPrometheus()
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }

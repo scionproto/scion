@@ -42,7 +42,6 @@ import (
 var (
 	cfg         config.Config
 	state       *config.State
-	environment *env.Env
 	reissRunner *periodic.Runner
 	discRunners idiscovery.Runners
 	corePusher  *periodic.Runner
@@ -88,7 +87,7 @@ func realMain() int {
 		msgr.ListenAndServe()
 	}()
 	// Set environment to listen for signals.
-	environment = infraenv.InitInfraEnvironmentFunc(cfg.General.Topology, func() {
+	infraenv.InitInfraEnvironmentFunc(cfg.General.Topology, func() {
 		if err := reload(); err != nil {
 			log.Error("Unable to reload", "err", err)
 		}
@@ -97,10 +96,10 @@ func realMain() int {
 	defer stop()
 	cfg.Metrics.StartPrometheus()
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }

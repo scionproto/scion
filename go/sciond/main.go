@@ -54,7 +54,6 @@ const (
 
 var (
 	cfg         config.Config
-	environment *env.Env
 	discRunners idiscovery.Runners
 )
 
@@ -164,11 +163,11 @@ func realMain() int {
 	StartServer("UnixServer", cfg.SD.Unix, unixpacketServer)
 	cfg.Metrics.StartPrometheus()
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		// Deferred shutdowns for all running servers run now.
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }
@@ -197,7 +196,7 @@ func setup() error {
 	if _, _, err := itopo.SetStatic(topo, false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
-	environment = infraenv.InitInfraEnvironment(cfg.General.Topology)
+	infraenv.InitInfraEnvironment(cfg.General.Topology)
 	return cfg.SD.CreateSocketDirs()
 }
 

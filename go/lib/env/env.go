@@ -57,6 +57,10 @@ const (
 	// SciondInitConnectPeriod is the default total amount of time spent
 	// attempting to connect to sciond on start.
 	SciondInitConnectPeriod = 20 * time.Second
+
+	// ShutdownGraceInterval is the time applications wait after issuing a
+	// clean shutdown signal, before forcerfully tearing down the application.
+	ShutdownGraceInterval = 5 * time.Second
 )
 
 var sighupC chan os.Signal
@@ -153,25 +157,17 @@ func (cfg *SciondClient) ConfigName() string {
 	return "sd_client"
 }
 
-type Env struct {
-	// AppShutdownSignal is closed when the process receives a signal to close
-	// (e.g., SIGTERM).
-	AppShutdownSignal chan struct{}
-}
-
 // SetupEnv initializes a basic environment for applications. If reloadF is not
 // nil, the application will call reloadF whenever it receives a SIGHUP signal.
-func SetupEnv(reloadF func()) *Env {
-	e := &Env{}
-	e.setupSignals(reloadF)
-	return e
+func SetupEnv(reloadF func()) {
+	setupSignals(reloadF)
 }
 
-// setupSignals sets up a goroutine that closes AppShutdownSignal on received
-// SIGTERM/SIGINT signals. If reloadF is not nil, setupSignals also calls
-// reloadF on SIGHUP.
-func (e *Env) setupSignals(reloadF func()) {
-	e.AppShutdownSignal = make(chan struct{})
+// setupSignals sets up a goroutine that on received SIGTERM/SIGINT signals
+// informs the application that it should shut down. If reloadF is not nil,
+// setupSignals also calls reloadF on SIGHUP.
+func setupSignals(reloadF func()) {
+	fatal.Check()
 	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt)
 	signal.Notify(sig, syscall.SIGTERM)
@@ -179,7 +175,7 @@ func (e *Env) setupSignals(reloadF func()) {
 		defer log.LogPanicAndExit()
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
-		close(e.AppShutdownSignal)
+		fatal.Shutdown(ShutdownGraceInterval)
 	}()
 	if reloadF != nil {
 		go func() {
