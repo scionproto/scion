@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snetproxy_test
+package reconnect_test
 
 import (
 	"net"
@@ -22,7 +22,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/snet/snetproxy"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -37,7 +37,7 @@ func newErrorReconnF(sleep time.Duration) func(time.Duration) (net.PacketConn, u
 
 func TestTickingReconnectorStop(t *testing.T) {
 	Convey("Calling stop terminates a reconnect running in the background", t, func() {
-		reconnecter := snetproxy.NewTickingReconnecter(newErrorReconnF(tickerMultiplier(1)))
+		reconnecter := reconnect.NewTickingReconnecter(newErrorReconnF(tickerMultiplier(1)))
 		barrierCh := make(chan struct{})
 		Convey("Stop returns immediately if a reconnect is not running", func() {
 			go func() {
@@ -65,11 +65,11 @@ func TestTickingReconnectorStop(t *testing.T) {
 			}()
 			go reconnecter.Stop()
 			xtest.AssertReadReturnsBefore(t, barrierCh, tickerMultiplier(4))
-			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, snetproxy.ErrReconnecterStopped)
+			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, reconnect.ErrReconnecterStopped)
 		})
 	})
 	Convey("Given a reconnection function that takes a long time", t, func() {
-		reconnecter := snetproxy.NewTickingReconnecter(newErrorReconnF(tickerMultiplier(4)))
+		reconnecter := reconnect.NewTickingReconnecter(newErrorReconnF(tickerMultiplier(4)))
 		barrierCh := make(chan struct{})
 		Convey("Stop waits for a running reconnection attempt to finish before returning", func() {
 			go func() {
@@ -84,7 +84,7 @@ func TestTickingReconnectorStop(t *testing.T) {
 	})
 }
 
-func reconnectWithoutTimeoutAfter(reconnecter *snetproxy.TickingReconnecter,
+func reconnectWithoutTimeoutAfter(reconnecter *reconnect.TickingReconnecter,
 	sleepAtStart time.Duration) error {
 
 	time.Sleep(sleepAtStart)
@@ -92,7 +92,7 @@ func reconnectWithoutTimeoutAfter(reconnecter *snetproxy.TickingReconnecter,
 	return err
 }
 
-func stopAfter(reconnecter *snetproxy.TickingReconnecter, sleepAtStart time.Duration) {
+func stopAfter(reconnecter *reconnect.TickingReconnecter, sleepAtStart time.Duration) {
 	time.Sleep(sleepAtStart)
 	reconnecter.Stop()
 }

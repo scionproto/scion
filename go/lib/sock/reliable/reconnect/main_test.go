@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snetproxy_test
+package reconnect_test
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetproxy"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 )
 
 var (
@@ -82,12 +82,12 @@ func MustBuildOverlay(str string) *overlay.OverlayAddr {
 // ticking interval. This is needed for some timing tests that need sleep
 // values to stay fairly close to the ticking interval.
 func tickerMultiplier(multiplier time.Duration) time.Duration {
-	return multiplier * snetproxy.DefaultTickerInterval
+	return multiplier * reconnect.DefaultTickerInterval
 }
 
 func TestMain(m *testing.M) {
 	// Inject a smaller timeout s.t. tests run quickly
-	snetproxy.DefaultTickerInterval = 10 * time.Millisecond
+	reconnect.DefaultTickerInterval = 10 * time.Millisecond
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }

@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snetproxy
-
-const (
-	ErrDispatcherDead            = "dispatcher dead"
-	ErrReconnecterTimeoutExpired = "Timeout expired"
-	ErrReconnecterStopped        = "Stop method was called"
-	ErrClosed                    = "closed"
-)
+// Package reconnect implements transparent logic for reconnecting to the
+// dispatcher.
+package reconnect
