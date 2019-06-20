@@ -37,8 +37,10 @@ type Server struct {
 	address  string
 	handlers map[proto.SCIONDMsg_Which]Handler
 	log      log.Logger
-	mu       sync.Mutex // protect access to listener during init/close
-	listener net.Listener
+
+	mu          sync.Mutex
+	listener    net.Listener
+	closeCalled bool
 }
 
 // NewServer initializes a new server at address on the specified network. The
@@ -61,6 +63,10 @@ func NewServer(network string, address string, handlers HandlerMap, logger log.L
 // until it is closed by the client.
 func (srv *Server) ListenAndServe() error {
 	srv.mu.Lock()
+	if srv.closeCalled {
+		srv.mu.Unlock()
+		return common.NewBasicError("attempted to listen on server that was shut down", nil)
+	}
 	listener, err := srv.listen()
 	if err != nil {
 		srv.mu.Unlock()
@@ -116,6 +122,7 @@ func (srv *Server) Close() error {
 	if srv.listener == nil {
 		return common.NewBasicError("uninitialized server", nil)
 	}
+	srv.closeCalled = true
 	return srv.listener.Close()
 	// FIXME(scrye): shut down running servers once we actually implement the
 	// handlers.
