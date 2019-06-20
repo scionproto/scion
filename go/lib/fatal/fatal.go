@@ -109,6 +109,8 @@ func Fatal(err error) {
 //
 // Shutdown blocks forever.
 func Shutdown(d time.Duration) {
+	log.Info("Shutdown called, waiting a limited amount of time until forceful shutdown",
+		"time_allowance", d)
 	// Inform drainer if not informed already
 	shutdownMtx.Lock()
 	if !shutdownClosed {
