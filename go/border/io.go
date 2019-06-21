@@ -235,8 +235,8 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 					continue
 				}
 				// Before dropping the packets, we have to return them to the freelist.
-				releaseAllPkts(epkts[:toWrite])
-				// Drop packets attempted to write.
+				releasePkts(epkts[:toWrite])
+				// Drop packets from the failed write attempt.
 				epkts = shiftUnwrittenPkts(epkts, toWrite)
 				if isRecoverableErr(err) {
 					continue
@@ -265,7 +265,7 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 		epkts = shiftUnwrittenPkts(epkts, pktsWritten)
 	}
 	// Release any remaining unsent pkts.
-	releaseAllPkts(epkts)
+	releasePkts(epkts)
 	epkts = epkts[:0]
 	// If the ring is not already closed, drain it until it is closed. This
 	// prevents writers from blocking in case of an unrecoverable error.
@@ -275,7 +275,7 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 			if epkts, ok = r.posixPrepOutput(epkts, msgs, s.Ring, dst != nil); !ok {
 				break
 			}
-			releaseAllPkts(epkts)
+			releasePkts(epkts)
 			epkts = epkts[:0]
 		}
 	}
@@ -313,17 +313,17 @@ func (r *Router) posixPrepOutput(epkts ringbuf.EntryList, msgs []ipv4.Message,
 	return epkts, true
 }
 
+// releasePkts releases all pkts in the entry list.
+func releasePkts(epkts ringbuf.EntryList) {
+	for _, epkt := range epkts {
+		epkt.(*rpkt.EgressRtrPkt).Rp.Release()
+	}
+}
+
 // shiftUnwrittenPkts moves the unwritten packets to the start.
 func shiftUnwrittenPkts(epkts ringbuf.EntryList, pktsWritten int) ringbuf.EntryList {
 	copied := copy(epkts, epkts[pktsWritten:])
 	return epkts[:copied]
-}
-
-// releaseAllPkts releases all pkts in the entry list.
-func releaseAllPkts(epkts ringbuf.EntryList) {
-	for _, epkt := range epkts {
-		epkt.(*rpkt.EgressRtrPkt).Rp.Release()
-	}
 }
 
 // isRecoverableErr checks whether an non-temporary error is recoverable.
