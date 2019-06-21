@@ -290,6 +290,16 @@ func checkExtSocksRunning(key string, ctx *rctx.Ctx, running bool) {
 // setupTest sets up a test router. The test router is initially set up with the
 // topology loaded from testdata.
 func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
+	r := initTestRouter(4)
+	sockConf := brconf.SockConf{Default: PosixSock}
+	// oldCtx contains the testdata topology.
+	oldCtx := rctx.New(loadConfig(t))
+	xtest.FailOnErr(t, r.setupNet(oldCtx, nil, sockConf))
+	startSocks(oldCtx)
+	return r, oldCtx
+}
+
+func initTestRouter(maxNumPosixInput int) *Router {
 	// Init metrics.
 	testInitOnce.Do(func() {
 		metrics.Init("br1-ff00_0_111-1")
@@ -300,19 +310,12 @@ func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
 	// input routines times inputBufCnt. Otherwise they might get stuck
 	// trying to prepare for reading from the connection.
 	// See: https://github.com/scionproto/scion/issues/1981
-	maxNumPosixInput := 4
-	// Initialize router with the topology.
 	r := &Router{
 		freePkts: ringbuf.New(maxNumPosixInput*inputBufCnt, func() interface{} {
 			return rpkt.NewRtrPkt()
 		}, "free", prometheus.Labels{"ringId": "freePkts"}),
 	}
-	sockConf := brconf.SockConf{Default: PosixSock}
-	// oldCtx contains the testdata topology.
-	oldCtx := rctx.New(loadConfig(t))
-	xtest.FailOnErr(t, r.setupNet(oldCtx, nil, sockConf))
-	startSocks(oldCtx)
-	return r, oldCtx
+	return r
 }
 
 // updateTestRouter calls setupNet on the provided router with new and old context.
