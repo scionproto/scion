@@ -295,8 +295,6 @@ func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, erro
 
 // NewRouter constructs a path router for paths starting from localIA.
 func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
-	var err error
-	var router snet.Router
 	ticker := time.NewTicker(time.Second)
 	timer := time.NewTimer(sd.InitialConnectPeriod.Duration)
 	defer ticker.Stop()
@@ -304,31 +302,30 @@ func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 	// XXX(roosd): Initial retrying is implemented here temporarily.
 	// In https://github.com/scionproto/scion/issues/1974 this will be
 	// done transparently and pushed to snet.NewNetwork.
-Top:
+	var router snet.Router
 	for {
 		sciondConn, err := sciond.NewService(sd.Path, true).Connect()
-		router = &snet.BaseRouter{
-			IA: localIA,
-			PathResolver: pathmgr.New(
-				sciondConn,
-				pathmgr.Timers{
-					NormalRefire: time.Minute,
-					ErrorRefire:  3 * time.Second,
-				},
-				log.Root(),
-			),
-		}
 		if err == nil {
+			router = &snet.BaseRouter{
+				IA: localIA,
+				PathResolver: pathmgr.New(
+					sciondConn,
+					pathmgr.Timers{
+						NormalRefire: time.Minute,
+						ErrorRefire:  3 * time.Second,
+					},
+					log.Root(),
+				),
+			}
 			break
 		}
-
 		select {
 		case <-ticker.C:
 		case <-timer.C:
-			break Top
+			return nil, common.NewBasicError("Timed out during initial sciond connect", err)
 		}
 	}
-	return router, err
+	return router, nil
 }
 
 func InitInfraEnvironment(topologyPath string) {
