@@ -17,7 +17,6 @@ create_veth() {
     sudo ip link set $VETH_HOST up
     sudo ip link set $VETH_CONTAINER netns $NS
     sudo ip netns exec $NS sysctl -qw net.ipv6.conf.$VETH_CONTAINER.disable_ipv6=1
-    sudo ip netns exec $NS sysctl -qw net.ipv4.ip_default_ttl=64
     sudo ip netns exec $NS ethtool -K $VETH_CONTAINER rx off tx off 1>&2
     sudo ip netns exec $NS ip link set $VETH_CONTAINER address $MAC_CONTAINER
     sudo ip netns exec $NS ip addr add $IP_CONTAINER dev $VETH_CONTAINER
