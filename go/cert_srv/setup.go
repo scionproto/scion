@@ -74,6 +74,12 @@ func setup() error {
 	if _, _, err := itopo.SetStatic(topo, false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
+	// Set environment to listen for signals.
+	infraenv.InitInfraEnvironmentFunc(cfg.General.Topology, func() {
+		if err := reload(); err != nil {
+			log.Error("Unable to reload", "err", err)
+		}
+	})
 	router, err := infraenv.NewRouter(topo.ISD_AS, cfg.Sciond)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize path router", err)
@@ -85,6 +91,26 @@ func setup() error {
 	if err := setMessenger(&cfg, router); err != nil {
 		return common.NewBasicError("Unable to set messenger", err)
 	}
+	return nil
+}
+
+// reload reloads the topology and CS config.
+func reload() error {
+	// FIXME(roosd): KeyConf reloading is not yet supported.
+	// https://github.com/scionproto/scion/issues/2077
+	var newConf config.Config
+	// Load new config to get the CS parameters.
+	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {
+		return err
+	}
+	newConf.InitDefaults()
+	if err := newConf.Validate(); err != nil {
+		return common.NewBasicError("Unable to validate new config", err)
+	}
+	cfg.CS = newConf.CS
+	// Restart the periodic reissue task to respect the fresh parameters.
+	stopReissRunner()
+	startReissRunner()
 	return nil
 }
 

@@ -22,8 +22,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/common"
@@ -31,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -86,12 +83,6 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		msgr.ListenAndServe()
 	}()
-	// Set environment to listen for signals.
-	infraenv.InitInfraEnvironmentFunc(cfg.General.Topology, func() {
-		if err := reload(); err != nil {
-			log.Error("Unable to reload", "err", err)
-		}
-	})
 	// Cleanup when the CS exits.
 	defer stop()
 	cfg.Metrics.StartPrometheus()
@@ -102,26 +93,6 @@ func realMain() int {
 	case <-fatal.FatalChan():
 		return 1
 	}
-}
-
-// reload reloads the topology and CS config.
-func reload() error {
-	// FIXME(roosd): KeyConf reloading is not yet supported.
-	// https://github.com/scionproto/scion/issues/2077
-	var newConf config.Config
-	// Load new config to get the CS parameters.
-	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {
-		return err
-	}
-	newConf.InitDefaults()
-	if err := newConf.Validate(); err != nil {
-		return common.NewBasicError("Unable to validate new config", err)
-	}
-	cfg.CS = newConf.CS
-	// Restart the periodic reissue task to respect the fresh parameters.
-	stopReissRunner()
-	startReissRunner()
-	return nil
 }
 
 // startReissRunner starts a periodic reissuance task. Core starts self-issuer.
