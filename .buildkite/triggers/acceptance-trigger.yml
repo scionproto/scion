@@ -1,5 +1,5 @@
 - trigger: "acceptance-tests"
-  label: "Run acceptance tests"
+  label: "Acceptance"
   build:
     commit: "${BUILDKITE_COMMIT}"
     branch: "${BUILDKITE_BRANCH}"

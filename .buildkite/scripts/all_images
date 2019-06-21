@@ -4,7 +4,7 @@
 
 set -eu
 
-#Set tag if not already set in environment
+# Set tag if not already set in environment
 TAG=${TAG:-$BUILDKITE_BUILD_NUMBER}
 
 $BASE/scripts/registry_login &>/dev/null
