@@ -19,7 +19,7 @@ echo "steps:"
 cat "$STEPS/setup.yml"
 
 # Print instructions for manual build
-echo "- label: 'Manually trigger acceptance tests'"
+echo "- label: 'Print instructions to trigger acceptance tests as user'"
 echo "  command: 'envsubst < $BASE/files/acceptance_trigger_instructions'"
 echo "  env:"
 echo "    DOLLAR: '$'"
