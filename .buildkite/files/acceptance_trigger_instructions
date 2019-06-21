@@ -9,7 +9,7 @@ curl -X POST -H "Authorization: Bearer ${DOLLAR}{ACCEPTANCE_ACCESS_TOKEN}" "http
     }
   }'
 
-# Or open 'https://buildkite.com/${BUILDKITE_ORGANIZATION_SLUG}/acceptance-tests' and create a new build with 
+# Or open \033]1339;url='https://buildkite.com/${BUILDKITE_ORGANIZATION_SLUG}/acceptance-tests' and create a new build with 
 # Commit: $BUILDKITE_COMMIT
 # Branch: $BUILDKITE_BRANCH
 # Env:    TAG=${BUILDKITE_BUILD_NUMBER}
