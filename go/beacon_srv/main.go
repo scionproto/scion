@@ -176,7 +176,7 @@ func realMain() int {
 	ovAddr := &addr.AppAddr{L3: topoAddress.PublicAddr(topoAddress.Overlay).L3}
 	dispatcherService := reliable.NewDispatcherService("")
 	if cfg.General.ReconnectToDispatcher {
-		dispatcherService = reconnect.NewReconnectingDispatcherService(dispatcherService)
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
 	pktDisp := &snet.DefaultPacketDispatcherService{
 		Dispatcher: dispatcherService,

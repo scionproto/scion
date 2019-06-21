@@ -30,13 +30,13 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestProxyConnIO(t *testing.T) {
+func TestPacketConnIO(t *testing.T) {
 	Convey("Given an underlying connection, a reconnecter and an IO operation", t, func() {
 		ctrl := gomock.NewController(&xtest.PanickingReporter{T: t})
 		defer ctrl.Finish()
 		mockConn := mock_net.NewMockPacketConn(ctrl)
 		mockReconnecter := mock_reconnect.NewMockReconnecter(ctrl)
-		proxyConn := reconnect.NewProxyConn(mockConn, mockReconnecter)
+		packetConn := reconnect.NewPacketConn(mockConn, mockReconnecter)
 		mockIO := mock_reconnect.NewMockIOOperation(ctrl)
 		mockIO.EXPECT().IsWrite().Return(true).AnyTimes()
 		Convey("IO must reconnect after dispatcher error, and do op on new conn", func() {
@@ -48,17 +48,17 @@ func TestProxyConnIO(t *testing.T) {
 				mockReconnecter.EXPECT().Reconnect(Any()).Return(connFromReconnect, uint16(0), nil),
 				mockIO.EXPECT().Do(connFromReconnect).Return(nil),
 			)
-			err := proxyConn.DoIO(mockIO)
+			err := packetConn.DoIO(mockIO)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("IO must return a nil error if successful", func() {
 			mockIO.EXPECT().Do(mockConn).Return(nil)
-			err := proxyConn.DoIO(mockIO)
+			err := packetConn.DoIO(mockIO)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("IO must return non-dispatcher errors", func() {
 			mockIO.EXPECT().Do(mockConn).Return(writeNonDispatcherError)
-			err := proxyConn.DoIO(mockIO)
+			err := packetConn.DoIO(mockIO)
 			SoMsg("err", common.GetErrorMsg(err), ShouldEqual,
 				common.GetErrorMsg(writeNonDispatcherError))
 		})
@@ -72,7 +72,7 @@ func TestProxyConnIO(t *testing.T) {
 				mockReconnecter.EXPECT().Reconnect(Any()).
 					Return(nil, uint16(0), connectErrorFromDispatcher),
 			)
-			err := proxyConn.DoIO(mockIO)
+			err := packetConn.DoIO(mockIO)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("IO returns dispatcher dead if write deadline reached when disconnected", func() {
@@ -86,8 +86,8 @@ func TestProxyConnIO(t *testing.T) {
 						return mockConn, uint16(0), nil
 					}),
 			)
-			proxyConn.SetWriteDeadline(time.Now().Add(tickerMultiplier(2)))
-			err := proxyConn.DoIO(mockIO)
+			packetConn.SetWriteDeadline(time.Now().Add(tickerMultiplier(2)))
+			err := packetConn.DoIO(mockIO)
 			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, reconnect.ErrDispatcherDead)
 		})
 		Convey("SetWriteDeadline in the past unblocks a blocked writer", func() {
@@ -104,13 +104,13 @@ func TestProxyConnIO(t *testing.T) {
 			// Set a deadline that is sufficient to Reconnect. We later move
 			// the deadline in the past, thus cancelling the write prior to the
 			// Reconnect completing.
-			proxyConn.SetWriteDeadline(time.Now().Add(tickerMultiplier(10)))
+			packetConn.SetWriteDeadline(time.Now().Add(tickerMultiplier(10)))
 			go func() {
 				// Give write time to block on the existing deadline
 				time.Sleep(tickerMultiplier(2))
-				proxyConn.SetWriteDeadline(time.Now().Add(tickerMultiplier(-1)))
+				packetConn.SetWriteDeadline(time.Now().Add(tickerMultiplier(-1)))
 			}()
-			err := proxyConn.DoIO(mockIO)
+			err := packetConn.DoIO(mockIO)
 			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, reconnect.ErrDispatcherDead)
 		})
 		Convey("SetReadDeadline in the past unblocks a blocked reader", func() {
@@ -129,13 +129,13 @@ func TestProxyConnIO(t *testing.T) {
 			// Set a deadline that is sufficient to Reconnect. We later move
 			// the deadline in the past, thus cancelling the write prior to the
 			// Reconnect completing.
-			proxyConn.SetReadDeadline(time.Now().Add(tickerMultiplier(10)))
+			packetConn.SetReadDeadline(time.Now().Add(tickerMultiplier(10)))
 			go func() {
 				// Give write time to block on the existing deadline
 				time.Sleep(tickerMultiplier(2))
-				proxyConn.SetReadDeadline(time.Now().Add(tickerMultiplier(-1)))
+				packetConn.SetReadDeadline(time.Now().Add(tickerMultiplier(-1)))
 			}()
-			err := proxyConn.DoIO(mockIO)
+			err := packetConn.DoIO(mockIO)
 			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, reconnect.ErrDispatcherDead)
 		})
 		Convey("After reconnect, IO deadline is inherited by the new connection", func() {
@@ -149,44 +149,44 @@ func TestProxyConnIO(t *testing.T) {
 				connFromReconnect.EXPECT().SetWriteDeadline(deadline).Return(nil),
 				mockIO.EXPECT().Do(connFromReconnect).Return(nil),
 			)
-			proxyConn.SetWriteDeadline(deadline)
-			proxyConn.DoIO(mockIO)
+			packetConn.SetWriteDeadline(deadline)
+			packetConn.DoIO(mockIO)
 		})
 	})
 }
 
-func TestProxyConnAddrs(t *testing.T) {
-	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
+func TestPacketConnAddrs(t *testing.T) {
+	Convey("Given a packet conn running on an underlying connection with a reconnecter", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		mockConn := mock_net.NewMockPacketConn(ctrl)
 		mockReconnecter := mock_reconnect.NewMockReconnecter(ctrl)
-		proxyConn := reconnect.NewProxyConn(mockConn, mockReconnecter)
+		packetConn := reconnect.NewPacketConn(mockConn, mockReconnecter)
 		Convey("Local address must call the same function on the underlying connection", func() {
 			mockConn.EXPECT().LocalAddr().Return(localAddr)
-			address := proxyConn.LocalAddr()
+			address := packetConn.LocalAddr()
 			SoMsg("address", address, ShouldEqual, localAddr)
 		})
 	})
 }
 
-func TestProxyConnReadWrite(t *testing.T) {
-	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
+func TestPacketConnReadWrite(t *testing.T) {
+	Convey("Given a packet conn running on an underlying connection with a reconnecter", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		mockConn := mock_net.NewMockPacketConn(ctrl)
 		mockReconnecter := mock_reconnect.NewMockReconnecter(ctrl)
-		proxyConn := reconnect.NewProxyConn(mockConn, mockReconnecter)
-		Convey("Writes on proxy conn must call the same function on the underlying conn", func() {
+		packetConn := reconnect.NewPacketConn(mockConn, mockReconnecter)
+		Convey("Writes on packet conn must call the same function on the underlying conn", func() {
 			buffer := []byte{1, 2, 3}
 			Convey("WriteTo", func() {
 				mockConn.EXPECT().WriteTo(buffer, remoteAddr).Return(len(buffer), nil)
-				n, err := proxyConn.WriteTo(buffer, remoteAddr)
+				n, err := packetConn.WriteTo(buffer, remoteAddr)
 				SoMsg("n", n, ShouldEqual, len(buffer))
 				SoMsg("err", err, ShouldBeNil)
 			})
 		})
-		Convey("Reads on proxy conn must call the same function on the underlying conn", func() {
+		Convey("Reads on packet conn must call the same function on the underlying conn", func() {
 			buffer := make([]byte, 3)
 			readData := []byte{4, 5}
 			mockReadFunc := func(b []byte) (int, *snet.Addr, error) {
@@ -195,7 +195,7 @@ func TestProxyConnReadWrite(t *testing.T) {
 			}
 			Convey("ReadFrom", func() {
 				mockConn.EXPECT().ReadFrom(buffer).DoAndReturn(mockReadFunc)
-				n, remoteAddress, err := proxyConn.ReadFrom(buffer)
+				n, remoteAddress, err := packetConn.ReadFrom(buffer)
 				SoMsg("n", n, ShouldEqual, len(readData))
 				SoMsg("address", remoteAddress, ShouldEqual, remoteAddr)
 				SoMsg("buffer", buffer[:n], ShouldResemble, readData)
@@ -205,13 +205,13 @@ func TestProxyConnReadWrite(t *testing.T) {
 	})
 }
 
-func TestProxyConnConcurrentReadWrite(t *testing.T) {
+func TestPacketConnConcurrentReadWrite(t *testing.T) {
 	Convey("Given a server blocked in reading, writes still go through", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		mockConn := mock_net.NewMockPacketConn(ctrl)
 		mockReconnecter := mock_reconnect.NewMockReconnecter(ctrl)
-		proxyConn := reconnect.NewProxyConn(mockConn, mockReconnecter)
+		packetConn := reconnect.NewPacketConn(mockConn, mockReconnecter)
 		mockConn.EXPECT().ReadFrom(Any()).DoAndReturn(
 			func(_ []byte) (int, net.Addr, error) {
 				// Keep the read blocked "forever"
@@ -224,29 +224,29 @@ func TestProxyConnConcurrentReadWrite(t *testing.T) {
 		barrierCh := make(chan struct{})
 		go func() {
 			buffer := make([]byte, 3)
-			proxyConn.ReadFrom(buffer)
+			packetConn.ReadFrom(buffer)
 		}()
 		time.Sleep(tickerMultiplier(2))
 		go func() {
-			proxyConn.WriteTo(testBuffer, nil)
+			packetConn.WriteTo(testBuffer, nil)
 			close(barrierCh)
 		}()
 		xtest.AssertReadReturnsBefore(t, barrierCh, tickerMultiplier(3))
 	})
 }
 
-func TestProxyConnClose(t *testing.T) {
-	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
+func TestPacketConnClose(t *testing.T) {
+	Convey("Given a packet conn running on an underlying connection with a reconnecter", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		mockConn := mock_net.NewMockPacketConn(ctrl)
 		mockReconnecter := mock_reconnect.NewMockReconnecter(ctrl)
-		proxyConn := reconnect.NewProxyConn(mockConn, mockReconnecter)
-		Convey("Calling close on proxy conn calls close on underlying conn", func() {
+		packetConn := reconnect.NewPacketConn(mockConn, mockReconnecter)
+		Convey("Calling close on packet conn calls close on underlying conn", func() {
 			mockReconnecter.EXPECT().Stop().AnyTimes()
 			mockConn.EXPECT().Close()
-			proxyConn := reconnect.NewProxyConn(mockConn, mockReconnecter)
-			proxyConn.Close()
+			packetConn := reconnect.NewPacketConn(mockConn, mockReconnecter)
+			packetConn.Close()
 		})
 		Convey("Calling close while blocked in IO does not cause a reconnect attempt", func() {
 			mockReconnecter.EXPECT().Stop().AnyTimes()
@@ -259,10 +259,10 @@ func TestProxyConnClose(t *testing.T) {
 				})
 			mockConn.EXPECT().Close()
 			go func() {
-				proxyConn.DoIO(mockIO)
+				packetConn.DoIO(mockIO)
 			}()
 			time.Sleep(tickerMultiplier(1))
-			proxyConn.Close()
+			packetConn.Close()
 			// Wait for mocked IO to finish (note that real IO would be
 			// unblocked immediately by the go runtime)
 			time.Sleep(tickerMultiplier(10))
@@ -280,11 +280,11 @@ func TestProxyConnClose(t *testing.T) {
 			mockConn.EXPECT().Close()
 			barrierCh := make(chan struct{})
 			go func() {
-				proxyConn.DoIO(mockIO)
+				packetConn.DoIO(mockIO)
 				close(barrierCh)
 			}()
 			time.Sleep(tickerMultiplier(1))
-			proxyConn.Close()
+			packetConn.Close()
 			select {
 			case <-barrierCh:
 			case <-time.After(tickerMultiplier(20)):
@@ -294,13 +294,13 @@ func TestProxyConnClose(t *testing.T) {
 		Convey("Calling close twice panics", func() {
 			mockReconnecter.EXPECT().Stop().AnyTimes()
 			mockConn.EXPECT().Close()
-			proxyConn.Close()
-			SoMsg("close panic", func() { proxyConn.Close() }, ShouldPanicWith, "double close")
+			packetConn.Close()
+			SoMsg("close panic", func() { packetConn.Close() }, ShouldPanicWith, "double close")
 		})
 		Convey("Calling close shuts down the reconnecting goroutine (if any)", func() {
 			mockReconnecter.EXPECT().Stop()
 			mockConn.EXPECT().Close()
-			proxyConn.Close()
+			packetConn.Close()
 		})
 	})
 }

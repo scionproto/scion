@@ -47,34 +47,34 @@ func TestReconnect(t *testing.T) {
 					RegisterTimeout(localAddr.IA, newExpectedAddr, bindAddr, svc, timeout).
 					Return(mockConn, uint16(80), nil)
 
-				proxyNetwork := reconnect.NewReconnectingDispatcherService(mockNetwork)
-				proxyConn, _, _ := proxyNetwork.RegisterTimeout(localAddr.IA,
+				network := reconnect.NewDispatcherService(mockNetwork)
+				packetConn, _, _ := network.RegisterTimeout(localAddr.IA,
 					localNoPortAddr.Host, bindAddr, svc, timeout)
-				proxyConn.(*reconnect.ProxyConn).Reconnect()
+				packetConn.(*reconnect.PacketConn).Reconnect()
 			})
 		})
 	})
 }
 
 func TestNetworkFatalError(t *testing.T) {
-	Convey("Given a proxy network running over an underlying mocked network", t, func() {
+	Convey("Given a network running over an underlying mocked network", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		err := common.NewBasicError("Not dispatcher dead error, e.g., malformed register msg", nil)
 		mockNetwork := mock_reliable.NewMockDispatcherService(ctrl)
-		proxyNetwork := reconnect.NewReconnectingDispatcherService(mockNetwork)
-		Convey("The proxy network returns non-dispatcher dial errors from the mock", func() {
+		network := reconnect.NewDispatcherService(mockNetwork)
+		Convey("The network returns non-dispatcher dial errors from the mock", func() {
 			mockNetwork.EXPECT().
 				RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
 				Return(nil, uint16(0), err)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
+			_, _, err := network.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
-		Convey("The proxy network returns non-dispatcher listen errors from the mock", func() {
+		Convey("The network returns non-dispatcher listen errors from the mock", func() {
 			mockNetwork.EXPECT().
 				RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
 				Return(nil, uint16(0), err)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
+			_, _, err := network.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})
@@ -86,7 +86,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		mockNetwork := mock_reliable.NewMockDispatcherService(ctrl)
-		proxyNetwork := reconnect.NewReconnectingDispatcherService(mockNetwork)
+		network := reconnect.NewDispatcherService(mockNetwork)
 		Convey("Dial tries to reconnect if no timeout set", func() {
 			mockConn := mock_net.NewMockPacketConn(ctrl)
 			gomock.InOrder(
@@ -98,7 +98,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
 					Return(mockConn, uint16(0), nil),
 			)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
+			_, _, err := network.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Dial only retries for limited time if timeout set", func() {
@@ -108,7 +108,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					Return(nil, uint16(0), dispatcherError).
 					MinTimes(2).MaxTimes(5),
 			)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{},
+			_, _, err := network.RegisterTimeout(addr.IA{},
 				nil, nil, addr.SvcNone, tickerMultiplier(4))
 			SoMsg("err", err, ShouldNotBeNil)
 		})
@@ -123,7 +123,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
 					Return(mockConn, uint16(0), nil),
 			)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
+			_, _, err := network.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Listen only retries for limited time if timeout set", func() {
@@ -133,7 +133,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					Return(nil, uint16(0), dispatcherError).
 					MinTimes(3).MaxTimes(5),
 			)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{},
+			_, _, err := network.RegisterTimeout(addr.IA{},
 				nil, nil, addr.SvcNone, tickerMultiplier(4))
 			SoMsg("err", err, ShouldNotBeNil)
 		})
