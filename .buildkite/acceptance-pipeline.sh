@@ -10,7 +10,7 @@ RUN_DOCKER_BUILD="${RUN_DOCKER_BUILD:-true}"
 echo "steps:"
 
 if [[ "$RUN_DOCKER_BUILD" = true ]]; then
-    cat "=${STEPS}/build_all.yml"
+    cat "${STEPS}/build_all.yml"
     echo "- wait"
 fi
 
