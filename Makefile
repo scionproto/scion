@@ -27,8 +27,6 @@ vendor:
 bazel: vendor
 	bazel build //:scion --workspace_status_command=./tools/bazel-build-env
 	tar -xf bazel-bin/scion.tar -C bin
-	@sudo -p "go:braccept [sudo] password for %p: " true
-	sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
