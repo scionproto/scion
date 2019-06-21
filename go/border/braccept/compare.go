@@ -81,6 +81,8 @@ func compareLayersIP4(act, exp gopacket.Layer) error {
 			// data, ie. IPv4 ID, thus also IPv4 checksum.
 			actIP4.Checksum = 0
 		}
+		// XXX ignore TTL value (https://github.com/scionproto/scion/issues/2792)
+		expIP4.TTL = actIP4.TTL
 	}
 	return compareLayers(act, exp)
 }
