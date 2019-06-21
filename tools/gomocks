@@ -42,6 +42,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),
         (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
         (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/overlay/conn", "Conn"),
         (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
         (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Querier,Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
