@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snetproxy
+package reconnect
 
 import (
 	"net"
@@ -23,35 +23,33 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-var _ reliable.DispatcherService = (*ReconnectingDispatcherService)(nil)
-
-// ReconnectingDispatcherService is a dispatcher wrapper that creates conns
+// DispatcherService is a dispatcher wrapper that creates conns
 // with transparent reconnection capabilities. Connections created by
-// ReconnectingDispatcherService also validate that dispatcher registrations do
+// DispatcherService also validate that dispatcher registrations do
 // not change addresses.
 //
 // Callers interested in providing their own reconnection callbacks and
-// validating the new connection themselves should use the proxy connection
+// validating the new connection themselves should use the connection
 // constructors directly.
-type ReconnectingDispatcherService struct {
+type DispatcherService struct {
 	dispatcher reliable.DispatcherService
 }
 
-// NewReconnectingDispatcherService adds transparent reconnection capabilities
+// NewDispatcherService adds transparent reconnection capabilities
 // to dispatcher connections.
-func NewReconnectingDispatcherService(
-	dispatcher reliable.DispatcherService) *ReconnectingDispatcherService {
+func NewDispatcherService(
+	dispatcher reliable.DispatcherService) *DispatcherService {
 
-	return &ReconnectingDispatcherService{dispatcher: dispatcher}
+	return &DispatcherService{dispatcher: dispatcher}
 }
 
-func (pn *ReconnectingDispatcherService) Register(ia addr.IA, public *addr.AppAddr,
+func (pn *DispatcherService) Register(ia addr.IA, public *addr.AppAddr,
 	bind *overlay.OverlayAddr, svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	return pn.RegisterTimeout(ia, public, bind, svc, 0)
 }
 
-func (pn *ReconnectingDispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
+func (pn *DispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
 	bind *overlay.OverlayAddr, svc addr.HostSVC,
 	timeout time.Duration) (net.PacketConn, uint16, error) {
 
@@ -69,10 +67,10 @@ func (pn *ReconnectingDispatcherService) RegisterTimeout(ia addr.IA, public *add
 		newPublic.L4 = addr.NewL4UDPInfo(port)
 	}
 	reconnecter = pn.newReconnecterFromListenArgs(ia, newPublic, bind, svc, timeout)
-	return NewProxyConn(conn, reconnecter), port, nil
+	return NewPacketConn(conn, reconnecter), port, nil
 }
 
-func (pn *ReconnectingDispatcherService) newReconnecterFromListenArgs(ia addr.IA,
+func (pn *DispatcherService) newReconnecterFromListenArgs(ia addr.IA,
 	public *addr.AppAddr, bind *overlay.OverlayAddr,
 	svc addr.HostSVC, timeout time.Duration) *TickingReconnecter {
 

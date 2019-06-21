@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snetproxy_test
+package reconnect_test
 
 import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/snet/snetproxy"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 )
 
 func TestState(t *testing.T) {
 	Convey("", t, func() {
 		Convey("State check returns immediately after creating a new object", func() {
-			s := snetproxy.NewState()
+			s := reconnect.NewState()
 			select {
 			case <-s.Up():
 			default:

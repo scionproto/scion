@@ -57,8 +57,8 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -176,7 +176,7 @@ func realMain() int {
 	ovAddr := &addr.AppAddr{L3: topoAddress.PublicAddr(topoAddress.Overlay).L3}
 	dispatcherService := reliable.NewDispatcherService("")
 	if cfg.General.ReconnectToDispatcher {
-		dispatcherService = snetproxy.NewReconnectingDispatcherService(dispatcherService)
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
 	pktDisp := &snet.DefaultPacketDispatcherService{
 		Dispatcher: dispatcherService,

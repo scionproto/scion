@@ -32,8 +32,8 @@ import (
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/svc"
 )
 
@@ -182,7 +182,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 
 	dispatcherService := reliable.NewDispatcherService("")
 	if nc.ReconnectToDispatcher {
-		dispatcherService = snetproxy.NewReconnectingDispatcherService(dispatcherService)
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
 	packetDispatcher := svc.NewResolverPacketDispatcher(
 		&snet.DefaultPacketDispatcherService{
@@ -209,7 +209,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 	dispatcherService := reliable.NewDispatcherService("")
 	if nc.ReconnectToDispatcher {
-		dispatcherService = snetproxy.NewReconnectingDispatcherService(dispatcherService)
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
 
 	network, err := snet.NewCustomNetwork(nc.IA, "",

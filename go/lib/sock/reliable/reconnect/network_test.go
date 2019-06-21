@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snetproxy_test
+package reconnect_test
 
 import (
 	"net"
@@ -25,9 +25,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/snet/snetproxy"
+	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 	"github.com/scionproto/scion/go/lib/sock/reliable/mock_reliable"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 )
 
 func TestReconnect(t *testing.T) {
@@ -36,7 +36,7 @@ func TestReconnect(t *testing.T) {
 		defer ctrl.Finish()
 		mockNetwork := mock_reliable.NewMockDispatcherService(ctrl)
 		Convey("Given a mocked underlying connection with local and bind", func() {
-			mockConn := mock_snet.NewMockConn(ctrl)
+			mockConn := mock_net.NewMockPacketConn(ctrl)
 			Convey("Allocated ports are reused on subsequent attempts", func() {
 				mockNetwork.EXPECT().
 					RegisterTimeout(localAddr.IA, localNoPortAddr.Host, bindAddr, svc, timeout).
@@ -47,34 +47,34 @@ func TestReconnect(t *testing.T) {
 					RegisterTimeout(localAddr.IA, newExpectedAddr, bindAddr, svc, timeout).
 					Return(mockConn, uint16(80), nil)
 
-				proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
-				proxyConn, _, _ := proxyNetwork.RegisterTimeout(localAddr.IA,
+				network := reconnect.NewDispatcherService(mockNetwork)
+				packetConn, _, _ := network.RegisterTimeout(localAddr.IA,
 					localNoPortAddr.Host, bindAddr, svc, timeout)
-				proxyConn.(*snetproxy.ProxyConn).Reconnect()
+				packetConn.(*reconnect.PacketConn).Reconnect()
 			})
 		})
 	})
 }
 
 func TestNetworkFatalError(t *testing.T) {
-	Convey("Given a proxy network running over an underlying mocked network", t, func() {
+	Convey("Given a network running over an underlying mocked network", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		err := common.NewBasicError("Not dispatcher dead error, e.g., malformed register msg", nil)
 		mockNetwork := mock_reliable.NewMockDispatcherService(ctrl)
-		proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
-		Convey("The proxy network returns non-dispatcher dial errors from the mock", func() {
+		network := reconnect.NewDispatcherService(mockNetwork)
+		Convey("The network returns non-dispatcher dial errors from the mock", func() {
 			mockNetwork.EXPECT().
 				RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
 				Return(nil, uint16(0), err)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
+			_, _, err := network.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
-		Convey("The proxy network returns non-dispatcher listen errors from the mock", func() {
+		Convey("The network returns non-dispatcher listen errors from the mock", func() {
 			mockNetwork.EXPECT().
 				RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
 				Return(nil, uint16(0), err)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
+			_, _, err := network.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})
@@ -86,9 +86,9 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		mockNetwork := mock_reliable.NewMockDispatcherService(ctrl)
-		proxyNetwork := snetproxy.NewReconnectingDispatcherService(mockNetwork)
+		network := reconnect.NewDispatcherService(mockNetwork)
 		Convey("Dial tries to reconnect if no timeout set", func() {
-			mockConn := mock_snet.NewMockConn(ctrl)
+			mockConn := mock_net.NewMockPacketConn(ctrl)
 			gomock.InOrder(
 				mockNetwork.EXPECT().
 					RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
@@ -98,7 +98,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
 					Return(mockConn, uint16(0), nil),
 			)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
+			_, _, err := network.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Dial only retries for limited time if timeout set", func() {
@@ -108,12 +108,12 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					Return(nil, uint16(0), dispatcherError).
 					MinTimes(2).MaxTimes(5),
 			)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{},
+			_, _, err := network.RegisterTimeout(addr.IA{},
 				nil, nil, addr.SvcNone, tickerMultiplier(4))
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Listen tries to reconnect if no timeout set", func() {
-			mockConn := mock_snet.NewMockConn(ctrl)
+			mockConn := mock_net.NewMockPacketConn(ctrl)
 			gomock.InOrder(
 				mockNetwork.EXPECT().
 					RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
@@ -123,7 +123,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					RegisterTimeout(Any(), Any(), Any(), Any(), Any()).
 					Return(mockConn, uint16(0), nil),
 			)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
+			_, _, err := network.RegisterTimeout(addr.IA{}, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Listen only retries for limited time if timeout set", func() {
@@ -133,7 +133,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					Return(nil, uint16(0), dispatcherError).
 					MinTimes(3).MaxTimes(5),
 			)
-			_, _, err := proxyNetwork.RegisterTimeout(addr.IA{},
+			_, _, err := network.RegisterTimeout(addr.IA{},
 				nil, nil, addr.SvcNone, tickerMultiplier(4))
 			SoMsg("err", err, ShouldNotBeNil)
 		})

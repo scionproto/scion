@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snetproxy
+package reconnect
 
 import (
 	"net"
@@ -24,9 +24,9 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-var _ net.PacketConn = (*ProxyConn)(nil)
+var _ net.PacketConn = (*PacketConn)(nil)
 
-type ProxyConn struct {
+type PacketConn struct {
 	// connMtx protects read/write access to connection information. connMtx must
 	// not be held when running methods on the connection.
 	connMtx  sync.Mutex
@@ -58,8 +58,8 @@ type ProxyConn struct {
 	closeMtx sync.Mutex
 }
 
-func NewProxyConn(dispConn net.PacketConn, reconnecter Reconnecter) *ProxyConn {
-	return &ProxyConn{
+func NewPacketConn(dispConn net.PacketConn, reconnecter Reconnecter) *PacketConn {
+	return &PacketConn{
 		dispConn:             dispConn,
 		dispatcherState:      NewState(),
 		reconnecter:          reconnecter,
@@ -69,14 +69,14 @@ func NewProxyConn(dispConn net.PacketConn, reconnecter Reconnecter) *ProxyConn {
 	}
 }
 
-func (conn *ProxyConn) ReadFrom(b []byte) (int, net.Addr, error) {
+func (conn *PacketConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	op := &ReadFromOperation{}
 	op.buffer = b
 	err := conn.DoIO(op)
 	return op.numBytes, op.address, err
 }
 
-func (conn *ProxyConn) WriteTo(b []byte, address net.Addr) (int, error) {
+func (conn *PacketConn) WriteTo(b []byte, address net.Addr) (int, error) {
 	op := &WriteToOperation{}
 	op.buffer = b
 	op.address = address
@@ -84,7 +84,7 @@ func (conn *ProxyConn) WriteTo(b []byte, address net.Addr) (int, error) {
 	return op.numBytes, err
 }
 
-func (conn *ProxyConn) DoIO(op IOOperation) error {
+func (conn *PacketConn) DoIO(op IOOperation) error {
 	conn.lockMutexForOpType(op)
 	defer conn.unlockMutexForOpType(op)
 	var err error
@@ -115,7 +115,7 @@ Loop:
 	return nil
 }
 
-func (conn *ProxyConn) lockMutexForOpType(op IOOperation) {
+func (conn *PacketConn) lockMutexForOpType(op IOOperation) {
 	if op.IsWrite() {
 		conn.writeMtx.Lock()
 	} else {
@@ -123,7 +123,7 @@ func (conn *ProxyConn) lockMutexForOpType(op IOOperation) {
 	}
 }
 
-func (conn *ProxyConn) unlockMutexForOpType(op IOOperation) {
+func (conn *PacketConn) unlockMutexForOpType(op IOOperation) {
 	if op.IsWrite() {
 		conn.writeMtx.Unlock()
 	} else {
@@ -131,7 +131,7 @@ func (conn *ProxyConn) unlockMutexForOpType(op IOOperation) {
 	}
 }
 
-func (conn *ProxyConn) spawnAsyncReconnecterOnce() {
+func (conn *PacketConn) spawnAsyncReconnecterOnce() {
 	conn.spawnReconnecterMtx.Lock()
 	select {
 	case <-conn.dispatcherState.Up():
@@ -145,7 +145,7 @@ func (conn *ProxyConn) spawnAsyncReconnecterOnce() {
 	conn.spawnReconnecterMtx.Unlock()
 }
 
-func (conn *ProxyConn) asyncReconnectWrapper() {
+func (conn *PacketConn) asyncReconnectWrapper() {
 	newConn, err := conn.Reconnect()
 	if err != nil {
 		conn.fatalError <- err
@@ -160,7 +160,7 @@ func (conn *ProxyConn) asyncReconnectWrapper() {
 
 // Reconnect is only used internally and should never be called from outside
 // the package.
-func (conn *ProxyConn) Reconnect() (net.PacketConn, error) {
+func (conn *PacketConn) Reconnect() (net.PacketConn, error) {
 	newConn, _, err := conn.reconnecter.Reconnect(0)
 	if err != nil {
 		return nil, err
@@ -168,7 +168,7 @@ func (conn *ProxyConn) Reconnect() (net.PacketConn, error) {
 	return newConn, nil
 }
 
-func (conn *ProxyConn) Close() error {
+func (conn *PacketConn) Close() error {
 	conn.closeMtx.Lock()
 	defer conn.closeMtx.Unlock()
 	if conn.isClosing() {
@@ -182,7 +182,7 @@ func (conn *ProxyConn) Close() error {
 	return err
 }
 
-func (conn *ProxyConn) isClosing() bool {
+func (conn *PacketConn) isClosing() bool {
 	select {
 	case <-conn.closeCh:
 		return true
@@ -191,11 +191,11 @@ func (conn *ProxyConn) isClosing() bool {
 	}
 }
 
-func (conn *ProxyConn) LocalAddr() net.Addr {
+func (conn *PacketConn) LocalAddr() net.Addr {
 	return conn.getConn().LocalAddr()
 }
 
-func (conn *ProxyConn) SetWriteDeadline(deadline time.Time) error {
+func (conn *PacketConn) SetWriteDeadline(deadline time.Time) error {
 	conn.writeDeadlineMtx.Lock()
 	conn.getConn().SetWriteDeadline(deadline)
 	conn.writeDeadline = deadline
@@ -209,7 +209,7 @@ func (conn *ProxyConn) SetWriteDeadline(deadline time.Time) error {
 	return nil
 }
 
-func (conn *ProxyConn) SetReadDeadline(deadline time.Time) error {
+func (conn *PacketConn) SetReadDeadline(deadline time.Time) error {
 	conn.readDeadlineMtx.Lock()
 	conn.getConn().SetReadDeadline(deadline)
 	conn.readDeadline = deadline
@@ -223,41 +223,41 @@ func (conn *ProxyConn) SetReadDeadline(deadline time.Time) error {
 	return nil
 }
 
-func (conn *ProxyConn) SetDeadline(deadline time.Time) error {
+func (conn *PacketConn) SetDeadline(deadline time.Time) error {
 	conn.SetWriteDeadline(deadline)
 	conn.SetReadDeadline(deadline)
 	return nil
 }
 
-func (conn *ProxyConn) getDeadlineForOpType(op IOOperation) time.Time {
+func (conn *PacketConn) getDeadlineForOpType(op IOOperation) time.Time {
 	if op.IsWrite() {
 		return conn.getWriteDeadline()
 	}
 	return conn.getReadDeadline()
 }
 
-func (conn *ProxyConn) getWriteDeadline() time.Time {
+func (conn *PacketConn) getWriteDeadline() time.Time {
 	conn.writeDeadlineMtx.Lock()
 	deadline := conn.writeDeadline
 	conn.writeDeadlineMtx.Unlock()
 	return deadline
 }
 
-func (conn *ProxyConn) getReadDeadline() time.Time {
+func (conn *PacketConn) getReadDeadline() time.Time {
 	conn.readDeadlineMtx.Lock()
 	deadline := conn.readDeadline
 	conn.readDeadlineMtx.Unlock()
 	return deadline
 }
 
-func (conn *ProxyConn) getConn() net.PacketConn {
+func (conn *PacketConn) getConn() net.PacketConn {
 	conn.connMtx.Lock()
 	c := conn.dispConn
 	conn.connMtx.Unlock()
 	return c
 }
 
-func (conn *ProxyConn) setConn(newConn net.PacketConn) {
+func (conn *PacketConn) setConn(newConn net.PacketConn) {
 	conn.connMtx.Lock()
 	conn.dispConn = newConn
 	conn.connMtx.Unlock()
