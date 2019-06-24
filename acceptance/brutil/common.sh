@@ -48,6 +48,8 @@ test_setup() {
 
 test_run() {
     set -e
+    ls -l $BRACCEPT
+    getcap $BRACCEPT
     $BRACCEPT -testName "${TEST_NAME:?}" -keysDirPath "${BRCONF_DIR}/keys" "$@"
 }
 
