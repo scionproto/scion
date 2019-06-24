@@ -17,10 +17,7 @@ test_setup() {
 
     # XXX(kormat): This is conditional on the binary existing, because when
     # running on CI 'setup' is run on the host, where the binary doesn't exist.
-    if [ -e $BRACCEPT -a -n "$(getcap $BRACCEPT)" ]; then
-        sudo -p "go:braccept [sudo] password for %p: " true
-        sudo setcap cap_net_admin,cap_net_raw+ep $BRACCEPT
-    fi
+    [ -e $BRACCEPT ] && make -s setcap
 
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
