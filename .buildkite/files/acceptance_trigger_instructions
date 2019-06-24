@@ -3,7 +3,7 @@ curl -X POST -H "Authorization: Bearer ${DOLLAR}{ACCEPTANCE_ACCESS_TOKEN}" "http
   -d '{
     "commit": "${BUILDKITE_COMMIT}",
     "branch": "${BUILDKITE_BRANCH}",
-    "message": "Triggered from curl, brach: ${BUILDKITE_BRANCH}, commit: ${BUILDKITE_COMMIT}",
+    "message": "Triggered from curl, branch: ${BUILDKITE_BRANCH}, commit: ${BUILDKITE_COMMIT}",
     "env": {
       "TAG": "${BUILDKITE_BUILD_NUMBER}"
     }
