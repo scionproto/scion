@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel gazelle clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel gazelle setcap clibs libscion libfilter dispatcher uninstall tags
 
 GAZELLE_MODE?=fix
 
@@ -30,6 +30,10 @@ bazel: vendor
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
+
+setcap:
+	@sudo -p "setcap [sudo] password for %p: " true
+	sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
 
 # Order is important
 clibs: libscion libfilter

@@ -3,6 +3,7 @@
 export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 TEST_DIR=${TEST_NAME}_acceptance
 BRUTIL=acceptance/brutil
+BRACCEPT=bin/braccept
 BRCONF_DIR=${BRUTIL}/conf
 
 . acceptance/brutil/util.sh
@@ -14,9 +15,11 @@ BRCONF_DIR=${BRUTIL}/conf
 test_setup() {
     set -e
 
-    if [ -n "$(getcap bin/braccept)" ]; then
+    # XXX(kormat): This is conditional on the binary existing, because when
+    # running on CI 'setup' is run on the host, where the binary doesn't exist.
+    if [ -e $BRACCEPT -a -n "$(getcap $BRACCEPT)" ]; then
         sudo -p "go:braccept [sudo] password for %p: " true
-        sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
+        sudo setcap cap_net_admin,cap_net_raw+ep $BRACCEPT
     fi
 
     local disp_dir="/run/shm/dispatcher"
@@ -48,7 +51,7 @@ test_setup() {
 
 test_run() {
     set -e
-    bin/braccept -testName "${TEST_NAME:?}" -keysDirPath "${BRCONF_DIR}/keys" "$@"
+    $BRACCEPT -testName "${TEST_NAME:?}" -keysDirPath "${BRCONF_DIR}/keys" "$@"
 }
 
 test_teardown() {
