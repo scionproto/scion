@@ -1,4 +1,4 @@
 - label: "Scion image :docker: "
   command:
-    - false && echo "echo false"
+    - "false && echo \"echo false\""
 - wait
