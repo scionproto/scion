@@ -14,11 +14,6 @@ BRCONF_DIR=${BRUTIL}/conf
 test_setup() {
     set -e
 
-    if [ -n "$(getcap bin/braccept)" ]; then
-        sudo -p "go:braccept [sudo] password for %p: " true
-        sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
-    fi
-
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
     [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
@@ -48,6 +43,12 @@ test_setup() {
 
 test_run() {
     set -e
+    # XXX(kormat): This has to be here rather than setup because on CI 'setup'
+    # runs on the host env, but 'run' executes inside a docker container.
+    if [ -n "$(getcap bin/braccept)" ]; then
+        sudo -p "go:braccept [sudo] password for %p: " true
+        sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
+    fi
     bin/braccept -testName "${TEST_NAME:?}" -keysDirPath "${BRCONF_DIR}/keys" "$@"
 }
 
