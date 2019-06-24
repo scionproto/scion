@@ -3,6 +3,7 @@
 export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 TEST_DIR=${TEST_NAME}_acceptance
 BRUTIL=acceptance/brutil
+BRACCEPT=bin/braccept
 BRCONF_DIR=${BRUTIL}/conf
 
 . acceptance/brutil/util.sh
@@ -13,6 +14,13 @@ BRCONF_DIR=${BRUTIL}/conf
 # Each test should have its own set_veths function for specific setup
 test_setup() {
     set -e
+
+    # XXX(kormat): This is conditional on the binary existing, because when
+    # running on CI 'setup' is run on the host, where the binary doesn't exist.
+    if [ -e $BRACCEPT -a -n "$(getcap $BRACCEPT)" ]; then
+        sudo -p "go:braccept [sudo] password for %p: " true
+        sudo setcap cap_net_admin,cap_net_raw+ep $BRACCEPT
+    fi
 
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
@@ -43,13 +51,7 @@ test_setup() {
 
 test_run() {
     set -e
-    # XXX(kormat): This has to be here rather than setup because on CI 'setup'
-    # runs on the host env, but 'run' executes inside a docker container.
-    if [ -n "$(getcap bin/braccept)" ]; then
-        sudo -p "go:braccept [sudo] password for %p: " true
-        sudo setcap cap_net_admin,cap_net_raw+ep bin/braccept
-    fi
-    bin/braccept -testName "${TEST_NAME:?}" -keysDirPath "${BRCONF_DIR}/keys" "$@"
+    $BRACCEPT -testName "${TEST_NAME:?}" -keysDirPath "${BRCONF_DIR}/keys" "$@"
 }
 
 test_teardown() {
