@@ -63,7 +63,9 @@ type sessMonitor struct {
 
 func newSessMonitor(sess *Session) *sessMonitor {
 	return &sessMonitor{
-		Logger: sess.Logger, sess: sess, pool: sess.pool, sessPathPool: make(egress.SessPathPool),
+		Logger: sess.Logger,
+		sess:   sess, pool: sess.pool,
+		sessPathPool: egress.NewSessPathPool(),
 	}
 }
 
@@ -99,9 +101,7 @@ Top:
 		case rpld := <-regc:
 			sm.handleRep(rpld)
 		case <-pathExpiryTick.C:
-			for _, path := range sm.sessPathPool {
-				path.ExpireFails()
-			}
+			sm.sessPathPool.ExpireFails()
 		}
 	}
 	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(),
@@ -126,7 +126,7 @@ func (sm *sessMonitor) updateRemote() {
 			// may be OK, but the remote SIG may be down. However, we accept
 			// the inaccuracy so that we don't have to do separate health
 			// checking for the path.
-			sm.smRemote.SessPath.Fail()
+			sm.sessPathPool.Fail(sm.smRemote.SessPath)
 		}
 		// Start monitoring new path and discover a new SIG.
 		sm.smRemote.Sig.Host = addr.SvcSIG
@@ -154,8 +154,8 @@ func (sm *sessMonitor) updateRemote() {
 	// the old path. This implies that the encap traffic is sent on a path that has not been
 	// tested by the session monitor yet. If the new path is unhealthy, it is changed quickly
 	// by the session monitor through the regular timeout mechanism above.
-	updatedPath, ok := sm.sessPathPool[sm.smRemote.SessPath.Key()]
-	if !ok {
+	updatedPath := sm.sessPathPool.GetByKey(sm.smRemote.SessPath.Key())
+	if updatedPath == nil {
 		sm.Info("sessMonitor: Current path was invalidated", "remote", sm.smRemote)
 		// Start monitoring the new path.
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
