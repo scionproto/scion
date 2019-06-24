@@ -19,6 +19,7 @@
 # Stdlib
 import base64
 import os
+import time
 from collections import defaultdict
 
 # SCION
@@ -165,7 +166,7 @@ class CertGenerator(object):
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
             comment, can_issue, DEFAULT_LEAF_CERT_VALIDITY, self.enc_pub_keys[topo_id],
-            self.sig_pub_keys[topo_id], signing_key
+            self.sig_pub_keys[topo_id], signing_key, issuing_time=int(time.time())+2,
         )
 
     def _build_chains(self):
