@@ -23,13 +23,19 @@ import (
 
 const pathFailExpiration = 5 * time.Minute
 
-type SessPathPoolImpl map[spathmeta.PathKey]*SessPath
+type SessPathAndStats struct {
+	sessPath  *SessPath
+	lastFail  time.Time
+	failCount uint16
+}
+
+type SessPathPoolImpl map[spathmeta.PathKey]*SessPathAndStats
 
 // Return the most suitable path. Exclude a specific path, if possible.
 func (spp SessPathPoolImpl) Get(exclude spathmeta.PathKey) *SessPath {
-	var bestSessPath *SessPath
+	var bestSessPath *SessPathAndStats
 	var minFail uint16 = math.MaxUint16
-	var bestNonExpiringSessPath *SessPath
+	var bestNonExpiringSessPath *SessPathAndStats
 	var minNonExpiringFail uint16 = math.MaxUint16
 	for k, v := range spp {
 		if k == exclude {
@@ -39,26 +45,26 @@ func (spp SessPathPoolImpl) Get(exclude spathmeta.PathKey) *SessPath {
 			bestSessPath = v
 			minFail = v.failCount
 		}
-		if v.failCount < minNonExpiringFail && !v.IsCloseToExpiry() {
+		if v.failCount < minNonExpiringFail && !v.sessPath.IsCloseToExpiry() {
 			bestNonExpiringSessPath = v
 			minNonExpiringFail = v.failCount
 		}
 	}
 	// Return a non-expiring path with least failures.
 	if bestNonExpiringSessPath != nil {
-		return bestNonExpiringSessPath
+		return bestNonExpiringSessPath.sessPath
 	}
 	// If not possible, return the best path that's close to expiry.
 	if bestSessPath != nil {
-		return bestSessPath
+		return bestSessPath.sessPath
 	}
 	// In the worst case return the excluded path. Given that the caller asked to exclude it
 	// it's probably non-functional, but it's the only option we have.
-	return spp[exclude]
+	return spp[exclude].sessPath
 }
 
 func (spp SessPathPoolImpl) GetByKey(key spathmeta.PathKey) *SessPath {
-	return spp[key]
+	return spp[key].sessPath
 }
 
 func (spp SessPathPoolImpl) Update(aps spathmeta.AppPathSet) {
@@ -72,10 +78,13 @@ func (spp SessPathPoolImpl) Update(aps spathmeta.AppPathSet) {
 		e, ok := spp[key]
 		if !ok {
 			// This is a new path, add an entry.
-			spp[key] = NewSessPath(key, ap.Entry)
+			spp[key] = &SessPathAndStats{
+				sessPath: NewSessPath(key, ap.Entry),
+				lastFail: time.Now(),
+			}
 		} else {
 			// This path already exists, update it.
-			e.pathEntry = ap.Entry
+			e.sessPath.pathEntry = ap.Entry
 		}
 	}
 }

@@ -26,12 +26,10 @@ import (
 type SessPath struct {
 	key       spathmeta.PathKey
 	pathEntry *sciond.PathReplyEntry
-	lastFail  time.Time
-	failCount uint16
 }
 
 func NewSessPath(key spathmeta.PathKey, pathEntry *sciond.PathReplyEntry) *SessPath {
-	return &SessPath{key: key, pathEntry: pathEntry, lastFail: time.Now()}
+	return &SessPath{key: key, pathEntry: pathEntry}
 }
 
 func (sp *SessPath) Key() spathmeta.PathKey {
@@ -47,6 +45,6 @@ func (sp *SessPath) IsCloseToExpiry() bool {
 }
 
 func (sp *SessPath) String() string {
-	return fmt.Sprintf("Key: %s %s lastFail: %s failCount: %d", sp.key,
-		sp.pathEntry.Path, sp.lastFail, sp.failCount)
+	return fmt.Sprintf("Key: %s %s", sp.key,
+		sp.pathEntry.Path)
 }
