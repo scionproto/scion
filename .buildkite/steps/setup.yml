@@ -1,15 +1,4 @@
 - label: "Scion image :docker: "
   command:
-    - $BASE/scripts/build_scion_img
-    - mkdir docker/_build && touch docker/_build/scion.stamp
-    - make -C docker/perapp app_builder
-    - docker tag scion_app_builder "$SCION_IMG"
-    - $BASE/scripts/registry_login
-    - docker push $SCION_IMG
-  artifact_paths:
-    - "artifacts.out/**/*"
-  retry:
-    automatic:
-      exit_status: 255
-  timeout_in_minutes: 10
+    - false && echo "echo false"
 - wait

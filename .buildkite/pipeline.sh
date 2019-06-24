@@ -17,29 +17,29 @@ echo "steps:"
 # build scion image and binaries
 cat "$STEPS/setup.yml"
 
-# build images together with unit tests
-if [ "$RUN_ALL_TESTS" = "y" ]; then
-    cat "$STEPS/build_all.yml"
-fi
+# # build images together with unit tests
+# if [ "$RUN_ALL_TESTS" = "y" ]; then
+#     cat "$STEPS/build_all.yml"
+# fi
 
-# Linting and Unit tests
-cat "$STEPS/test.yml"
+# # Linting and Unit tests
+# cat "$STEPS/test.yml"
 
-# we need to wait for the build_all step
-if [ "$RUN_ALL_TESTS" = "y" ]; then
-echo "- wait"
-fi
+# # we need to wait for the build_all step
+# if [ "$RUN_ALL_TESTS" = "y" ]; then
+# echo "- wait"
+# fi
 
-# integration testing
-"$STEPS/integration"
+# # integration testing
+# "$STEPS/integration"
 
-# conditionally run more tests
-if [ "$RUN_ALL_TESTS" = "y" ]; then
-    # docker integration testing
-    cat "$STEPS/docker-integration.yml"
-    # acceptance testing
-    "$STEPS/acceptance"
-fi
+# # conditionally run more tests
+# if [ "$RUN_ALL_TESTS" = "y" ]; then
+#     # docker integration testing
+#     cat "$STEPS/docker-integration.yml"
+#     # acceptance testing
+#     "$STEPS/acceptance"
+# fi
 
-# deploy
-cat "$STEPS/deploy.yml"
+# # deploy
+# cat "$STEPS/deploy.yml"
