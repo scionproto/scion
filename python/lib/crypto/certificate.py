@@ -152,7 +152,7 @@ class Certificate(object):
 
     @classmethod
     def from_values(cls, subject, issuer, trc_version, version, comment, can_issue, validity_period,
-                    subject_enc_key, subject_sig_key, iss_priv_key):
+                    subject_enc_key, subject_sig_key, iss_priv_key, issuing_time=0):
         """
         Generate a Certificate instance.
 
@@ -170,10 +170,13 @@ class Certificate(object):
             the issuer's signing key. It is used to sign the certificate.
         :param bytes subject_sig_key: the public key of the subject.
         :param bytes subject_enc_key: the public part of the encryption key.
+        :param int issuing_time: the certificate issuing time.
+            In case of 0, the current time is used.
         :returns: the newly created Certificate instance.
         :rtype: :class:`Certificate`
         """
-        now = int(time.time())
+        if not issuing_time:
+            issuing_time = int(time.time())
         cert_dict = {
             SUBJECT_STRING: subject,
             ISSUER_STRING: issuer,
@@ -181,8 +184,8 @@ class Certificate(object):
             VERSION_STRING: version,
             COMMENT_STRING: comment,
             CAN_ISSUE_STRING: can_issue,
-            ISSUING_TIME_STRING: now,
-            EXPIRATION_TIME_STRING: now + validity_period,
+            ISSUING_TIME_STRING: issuing_time,
+            EXPIRATION_TIME_STRING: issuing_time + validity_period,
             ENC_ALGORITHM_STRING: cls.ENC_ALGORITHM,
             SUBJECT_ENC_KEY_STRING:
                 base64.b64encode(subject_enc_key).decode("utf-8"),
