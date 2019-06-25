@@ -74,7 +74,7 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	if err := shared.Init(keysDirPath); err != nil {
-		log.Crit("", "err", err)
+		log.Crit("Initialization failed", "err", err)
 		return 1
 	}
 	// We setup the select cases in main so we can easily defer device handle close on exit
@@ -84,7 +84,7 @@ func realMain() int {
 		var err error
 		di.Handle, err = afpacket.NewTPacket(afpacket.OptInterface(di.Host.Name))
 		if err != nil {
-			log.Crit("", "err", err)
+			log.Crit("Error creating packet", "err", err)
 			return 1
 		}
 		packetSource := gopacket.NewPacketSource(di.Handle, golayers.LinkTypeEthernet)

@@ -1,4 +1,6 @@
-.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel gazelle clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel gazelle setcap clibs libscion libfilter dispatcher uninstall tags
+
+BRACCEPT = bin/braccept
 
 GAZELLE_MODE?=fix
 
@@ -30,6 +32,9 @@ bazel: vendor
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
+
+setcap:
+	tools/setcap cap_net_admin,cap_net_raw+ep $(BRACCEPT)
 
 # Order is important
 clibs: libscion libfilter
