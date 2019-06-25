@@ -156,8 +156,10 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	subCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
 	earlyTrigger := util.NewTrigger(earlyReplyInterval)
 	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
+	segmentsInserted := make(chan struct{})
 	go func() {
 		defer log.LogPanicAndExit()
+		defer close(segmentsInserted)
 		f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger, ps)
 	}()
 	// Wait for deadlines while also waiting for the early reply.
@@ -170,6 +172,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	switch {
 	case ctx.Err() != nil:
 		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
+	case err != nil && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
 	case err != nil:
 		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal), err
 	case len(paths) > 0:
@@ -182,6 +185,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		select {
 		case <-subCtx.Done():
 		case <-ctx.Done():
+		case <-segmentsInserted:
 		}
 		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
