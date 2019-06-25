@@ -1,5 +1,19 @@
 #!/bin/bash
 
+set -e
+
+export BASE=".buildkite"
+STEPS="$BASE/steps"
+RUN_DOCKER_BUILD="${RUN_DOCKER_BUILD:-true}"
+
+"${BASE}/common.sh"
+echo "steps:"
+
+if [[ "$RUN_DOCKER_BUILD" = true ]]; then
+    cat "${STEPS}/build_all.yml"
+    echo "- wait"
+fi
+
 host_acceptance="br_multi br_child br_parent br_peer br_core_multi br_core_childIf br_core_coreIf"
 
 for test in ./acceptance/*_acceptance; do
