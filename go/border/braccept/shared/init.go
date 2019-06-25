@@ -64,7 +64,7 @@ func initDevices() error {
 
 	devs, err := net.Interfaces()
 	if err != nil {
-		return err
+		return common.NewBasicError("Unable to list interfaces", err)
 	}
 	for i := range devs {
 		dev := devs[i]
