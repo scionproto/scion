@@ -18,6 +18,7 @@ import os
 # External packages
 import yaml
 # SCION
+from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION
 from lib.util import write_file
 from topology.common import ArgsTopoDicts
 
@@ -34,7 +35,7 @@ class ZKGenerator(object):
         :param ZKGenArgs args: Contains the passed command line arguments and topo dicts.
         """
         self.args = args
-        self.zk_conf = {'version': '3', 'services': {}}
+        self.zk_conf = {'version': DOCKER_COMPOSE_CONFIG_VERSION, 'services': {}}
 
     def generate(self):
         if not self.any_py_service():

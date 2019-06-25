@@ -20,7 +20,7 @@ from string import Template
 import yaml
 # SCION
 from lib.app.sciond import get_default_sciond_path
-from lib.defines import SCIOND_API_SOCKDIR
+from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
 from lib.util import (
     read_file,
@@ -63,7 +63,8 @@ class DockerGenerator(object):
         :param DockerGenArgs args: Contains the passed command line arguments and topo dicts.
         """
         self.args = args
-        self.dc_conf = {'version': '3', 'services': {}, 'networks': {}, 'volumes': {}}
+        self.dc_conf = {'version': DOCKER_COMPOSE_CONFIG_VERSION,
+                        'services': {}, 'networks': {}, 'volumes': {}}
         self.elem_networks = {}
         self.bridges = {}
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
