@@ -43,14 +43,18 @@ var oobSize = syscall.CmsgSpace(SizeOfInt) + syscall.CmsgSpace(SizeOfTimespec)
 var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 	"Ignore failing to set the receive buffer size on a socket.")
 
+// Messages is a list of ipX.Messages. It is necessary to hide the type alias
+// between ipv4.Message, ipv6.Message and socket.Message.
+type Messages []ipv4.Message
+
 // Conn describes the API for an overlay socket with additional metadata on
 // reads.
 type Conn interface {
 	Read(common.RawBytes) (int, *ReadMeta, error)
-	ReadBatch([]ipv4.Message, []ReadMeta) (int, error)
+	ReadBatch(Messages, []ReadMeta) (int, error)
 	Write(common.RawBytes) (int, error)
 	WriteTo(common.RawBytes, *overlay.OverlayAddr) (int, error)
-	WriteBatch([]ipv4.Message) (int, error)
+	WriteBatch(Messages) (int, error)
 	LocalAddr() *overlay.OverlayAddr
 	RemoteAddr() *overlay.OverlayAddr
 	SetReadDeadline(time.Time) error
@@ -113,7 +117,7 @@ func newConnUDPIPv4(listen, remote *overlay.OverlayAddr, cfg *Config) (*connUDPI
 
 // ReadBatch reads up to len(msgs) packets, and stores them in msgs, with their
 // corresponding ReadMeta in metas. It returns the number of packets read, and an error if any.
-func (c *connUDPIPv4) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, error) {
+func (c *connUDPIPv4) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 	if assert.On {
 		assert.Must(len(msgs) == len(metas), "msgs and metas must be the same length")
 	}
@@ -133,7 +137,7 @@ func (c *connUDPIPv4) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, err
 	return n, err
 }
 
-func (c *connUDPIPv4) WriteBatch(msgs []ipv4.Message) (int, error) {
+func (c *connUDPIPv4) WriteBatch(msgs Messages) (int, error) {
 	return c.pconn.WriteBatch(msgs, 0)
 }
 
@@ -166,7 +170,7 @@ func newConnUDPIPv6(listen, remote *overlay.OverlayAddr, cfg *Config) (*connUDPI
 
 // ReadBatch reads up to len(msgs) packets, and stores them in msgs, with their
 // corresponding ReadMeta in metas. It returns the number of packets read, and an error if any.
-func (c *connUDPIPv6) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, error) {
+func (c *connUDPIPv6) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 	if assert.On {
 		assert.Must(len(msgs) == len(metas), "msgs and metas must be the same length")
 	}
@@ -186,7 +190,7 @@ func (c *connUDPIPv6) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, err
 	return n, err
 }
 
-func (c *connUDPIPv6) WriteBatch(msgs []ipv4.Message) (int, error) {
+func (c *connUDPIPv6) WriteBatch(msgs Messages) (int, error) {
 	return c.pconn.WriteBatch(msgs, 0)
 }
 
@@ -403,8 +407,8 @@ func (m *ReadMeta) setSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay
 
 // NewReadMessages allocates memory for reading IPv4 Linux network stack
 // messages.
-func NewReadMessages(n int) []ipv4.Message {
-	m := make([]ipv4.Message, n)
+func NewReadMessages(n int) Messages {
+	m := make(Messages, n)
 	for i := range m {
 		// Allocate a single-element, to avoid allocations when setting the buffer.
 		m[i].Buffers = make([][]byte, 1)
@@ -415,8 +419,8 @@ func NewReadMessages(n int) []ipv4.Message {
 
 // NewWriteMessages allocates memory for writing IPv4 Linux network stack
 // messages.
-func NewWriteMessages(n int) []ipv4.Message {
-	m := make([]ipv4.Message, n)
+func NewWriteMessages(n int) Messages {
+	m := make(Messages, n)
 	for i := range m {
 		// Allocate a single-element, to avoid allocations when setting the buffer.
 		m[i].Buffers = make([][]byte, 1)
