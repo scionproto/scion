@@ -42,6 +42,11 @@
       "/com_github_lucas_clemente_quic_go/": ""
     }
   },
+  "structtag": {
+    "exclude_files": {
+      "com_github_buildkite_go_buildkite": ""
+    }
+  },
   "gocall": {
     "exclude_files": {
       "(vendor|external)/*": "Only applies to internal files",
