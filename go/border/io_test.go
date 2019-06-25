@@ -39,13 +39,13 @@ func TestPosixOutputNoLeakNoErrors(t *testing.T) {
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 	r := initTestRouter(1)
-	pkts, checkAllReturned := testPktList(t, 2*outputBatchCnt)
+	pkts, checkAllReturned := newTestPktList(t, 2*outputBatchCnt)
 	defer checkAllReturned(len(pkts))
 	// Wait for both batches to be written.
 	done := make(chan struct{}, 1)
-	mconn := testConn(mctrl)
+	mconn := newTestConn(mctrl)
 	mconn.EXPECT().WriteBatch(gomock.Any()).Times(2).DoAndReturn(testSuccessfulWrite(done))
-	sock := testSock(r, len(pkts), mconn)
+	sock := newTestSock(r, len(pkts), mconn)
 	sock.Start()
 	sock.Ring.Write(pkts, true)
 	<-done
@@ -57,14 +57,14 @@ func TestPosixOutputNoLeakTemporaryErrors(t *testing.T) {
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 	r := initTestRouter(1)
-	pkts, checkAllReturned := testPktList(t, 2*outputBatchCnt)
+	pkts, checkAllReturned := newTestPktList(t, 2*outputBatchCnt)
 	defer checkAllReturned(len(pkts))
 	// Wait for both batches to be written.
 	done := make(chan struct{}, 1)
-	mconn := testConn(mctrl)
+	mconn := newTestConn(mctrl)
 	mconn.EXPECT().WriteBatch(gomock.Any()).Return(0, tempTestErr{})
 	mconn.EXPECT().WriteBatch(gomock.Any()).Times(2).DoAndReturn(testSuccessfulWrite(done))
-	sock := testSock(r, len(pkts), mconn)
+	sock := newTestSock(r, len(pkts), mconn)
 	sock.Start()
 	sock.Ring.Write(pkts, true)
 	<-done
@@ -76,15 +76,15 @@ func TestPosixOutputNoLeakRecoverableErrors(t *testing.T) {
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 	r := initTestRouter(1)
-	pkts, checkAllReturned := testPktList(t, 2*outputBatchCnt)
+	pkts, checkAllReturned := newTestPktList(t, 2*outputBatchCnt)
 	defer checkAllReturned(len(pkts))
 	// Wait for both batches to be written.
 	done := make(chan struct{}, 1)
-	mconn := testConn(mctrl)
+	mconn := newTestConn(mctrl)
 	err := &net.OpError{Err: &os.SyscallError{Err: syscall.ECONNREFUSED}}
 	mconn.EXPECT().WriteBatch(gomock.Any()).Return(0, err)
 	mconn.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(testSuccessfulWrite(done))
-	sock := testSock(r, len(pkts), mconn)
+	sock := newTestSock(r, len(pkts), mconn)
 	sock.Start()
 	sock.Ring.Write(pkts, true)
 	<-done
@@ -95,27 +95,26 @@ func TestPosixOutputNoLeakUnrecoverableErrors(t *testing.T) {
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 	r := initTestRouter(1)
-	pkts, checkAllReturned := testPktList(t, 2*outputBatchCnt)
+	pkts, checkAllReturned := newTestPktList(t, 2*outputBatchCnt)
 	defer checkAllReturned(len(pkts))
 	// Wait for both batches to be written.
 	done := make(chan struct{}, 1)
-	mconn := testConn(mctrl)
+	mconn := newTestConn(mctrl)
 	mconn.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
-		func(msgsI interface{}) (int, error) {
+		func(_ conn.Messages) (int, error) {
 			done <- struct{}{}
 			return 0, errors.New("unrecoverable")
 		},
 	)
-	sock := testSock(r, len(pkts), mconn)
+	sock := newTestSock(r, len(pkts), mconn)
 	sock.Start()
 	sock.Ring.Write(pkts, true)
 	<-done
 	sock.Stop()
 }
 
-func testSuccessfulWrite(done chan<- struct{}) func(msgsI interface{}) (int, error) {
-	return func(msgsI interface{}) (int, error) {
-		msgs := msgsI.(conn.Messages)
+func testSuccessfulWrite(done chan<- struct{}) func(conn.Messages) (int, error) {
+	return func(msgs conn.Messages) (int, error) {
 		for i, msg := range msgs {
 			msgs[i].N = len(msg.Buffers[0])
 		}
@@ -124,7 +123,7 @@ func testSuccessfulWrite(done chan<- struct{}) func(msgsI interface{}) (int, err
 	}
 }
 
-func testConn(mctrl *gomock.Controller) *mock_conn.MockConn {
+func newTestConn(mctrl *gomock.Controller) *mock_conn.MockConn {
 	mconn := mock_conn.NewMockConn(mctrl)
 	mconn.EXPECT().LocalAddr().AnyTimes().Return(nil)
 	mconn.EXPECT().RemoteAddr().AnyTimes().Return(nil)
@@ -133,23 +132,23 @@ func testConn(mctrl *gomock.Controller) *mock_conn.MockConn {
 	return mconn
 }
 
-func testPktList(t *testing.T, l int) (ringbuf.EntryList, func(expected int)) {
+func newTestPktList(t *testing.T, length int) (ringbuf.EntryList, func(expected int)) {
 	var freeCtr int
-	entries := make(ringbuf.EntryList, l)
+	entries := make(ringbuf.EntryList, length)
 	for i := range entries {
 		rp := rpkt.NewRtrPkt()
 		rp.Logger = log.Root()
 		rp.Free = func(rp *rpkt.RtrPkt) {
 			freeCtr++
 		}
-		entries[i] = &rpkt.EgressRtrPkt{Rp: rp, Dst: testDst(t)}
+		entries[i] = &rpkt.EgressRtrPkt{Rp: rp, Dst: newTestDst(t)}
 	}
 	return entries, func(expected int) {
 		require.Equal(t, expected, freeCtr, "Invalid number of freed packets")
 	}
 }
 
-func testDst(t *testing.T) *overlay.OverlayAddr {
+func newTestDst(t *testing.T) *overlay.OverlayAddr {
 	dst, err := overlay.NewOverlayAddr(
 		addr.HostFromIP(net.IP{127, 0, 0, 1}),
 		addr.NewL4UDPInfo(overlay.EndhostPort),
@@ -158,7 +157,7 @@ func testDst(t *testing.T) *overlay.OverlayAddr {
 	return dst
 }
 
-func testSock(r *Router, ringSize int, mconn conn.Conn) *rctx.Sock {
+func newTestSock(r *Router, ringSize int, mconn conn.Conn) *rctx.Sock {
 	return rctx.NewSock(ringbuf.New(ringSize, nil, "locOut",
 		prometheus.Labels{"ringId": "posixOutput"}), mconn, 0, 12,
 		prometheus.Labels{"sock": "posixOutput"}, nil, r.posixOutput, PosixSock)
