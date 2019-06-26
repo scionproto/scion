@@ -36,10 +36,11 @@ class JaegerGenerator(object):
 
     def generate(self):
         dc_conf = self._generate_dc()
-        write_file(os.path.join(self.args.output_dir, JAEGER_DC),
-                   yaml.dump(dc_conf, default_flow_style=False))
+        print("### Jaeger path: %s" % self.local_jaeger_dir)
         os.makedirs(os.path.join(self.local_jaeger_dir, 'data'))
         os.makedirs(os.path.join(self.local_jaeger_dir, 'key'))
+        write_file(os.path.join(self.args.output_dir, JAEGER_DC),
+                   yaml.dump(dc_conf, default_flow_style=False))
 
     def _generate_dc(self):
         name = 'jaeger-docker' if self.args.in_docker else 'jaeger'
@@ -61,7 +62,8 @@ class JaegerGenerator(object):
                         'BADGER_DIRECTORY_KEY=/badger/key'
                     ],
                     'volumes': [
-                        '%s:/badger' % self.local_jaeger_dir,
+                        '%s:/badger/data' % os.path.join(self.local_jaeger_dir, 'data'),
+                        '%s:/badger/key' % os.path.join(self.local_jaeger_dir, 'key'),
                     ],
                 }
             }
