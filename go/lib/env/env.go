@@ -293,6 +293,9 @@ func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) 
 	traceConfig := jaegercfg.Configuration{
 		ServiceName: id,
 		Disabled:    cfg.Disabled,
+		Reporter: &jaegercfg.ReporterConfig{
+			LocalAgentHostPort: cfg.Agent,
+		},
 	}
 	if cfg.Debug {
 		traceConfig.Sampler = &jaegercfg.SamplerConfig{

@@ -78,7 +78,7 @@ import (
 	"time"
 
 	quic "github.com/lucas-clemente/quic-go"
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	opentracingext "github.com/opentracing/opentracing-go/ext"
 
 	"github.com/scionproto/scion/go/lib/addr"
