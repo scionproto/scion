@@ -267,6 +267,16 @@ type Tracing struct {
 	Disabled bool
 	// Enable debug mode.
 	Debug bool
+	// Agent is the local agent, to which this process should report it's
+	// traces. (default: localhost:6831)
+	Agent string
+}
+
+func (cfg *Tracing) InitDefaults() {
+	if cfg.Agent == "" {
+		cfg.Agent = fmt.Sprintf("%s:%d",
+			jaeger.DefaultUDPSpanServerHost, jaeger.DefaultUDPSpanServerPort)
+	}
 }
 
 func (cfg *Tracing) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {

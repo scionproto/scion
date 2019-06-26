@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/pbkdf2"
 	"gopkg.in/yaml.v2"

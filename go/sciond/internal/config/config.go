@@ -52,6 +52,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.General,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.Tracing,
 		&cfg.TrustDB,
 		&cfg.Discovery,
 		&cfg.SD,

@@ -75,6 +75,9 @@ const tracingSample = `
 Disabled = false
 # Enable debug mode. (default false)
 Debug = false
+# Agent is the local agent, to which this process should report it's traces.
+# (default: localhost:6831)
+Agent = "localhost:6831"
 `
 
 const quicSample = `

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
