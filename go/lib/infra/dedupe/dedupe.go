@@ -37,7 +37,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	jaegertracing "github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go"
 
 	"github.com/scionproto/scion/go/lib/log"
 )
@@ -154,7 +154,7 @@ func (dd *deduper) Request(parentCtx context.Context,
 		if span != nil {
 			origSpan := span
 			span, _ = opentracing.StartSpanFromContext(parentCtx, "waiting on dedupe")
-			if origSpanCtx, ok := origSpan.Context().(jaegertracing.SpanContext); ok {
+			if origSpanCtx, ok := origSpan.Context().(jaeger.SpanContext); ok {
 				span.SetTag("origSpanId", origSpanCtx.SpanID())
 			}
 		} else {

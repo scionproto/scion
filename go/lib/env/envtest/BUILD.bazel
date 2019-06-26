@@ -8,7 +8,9 @@ go_library(
     deps = [
         "//go/lib/env:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/sciond:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@com_github_uber_jaeger_client_go//:go_default_library",
     ],
 )
 
