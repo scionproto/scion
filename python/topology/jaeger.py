@@ -31,8 +31,7 @@ class JaegerGenerator(object):
 
     def __init__(self, args):
         self.args = args
-        self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
-        self.local_jaeger_dir = os.path.join(self.output_base, self.args.output_dir, 'Jaeger')
+        self.local_jaeger_dir = os.path.join(self.args.output_dir, 'Jaeger')
 
     def generate(self):
         dc_conf = self._generate_dc()
