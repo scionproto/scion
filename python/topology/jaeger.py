@@ -31,11 +31,15 @@ class JaegerGenerator(object):
 
     def __init__(self, args):
         self.args = args
+        self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
+        self.local_jaeger_dir = os.path.join(self.output_base, self.args.output_dir, 'Jaeger')
 
     def generate(self):
         dc_conf = self._generate_dc()
         write_file(os.path.join(self.args.output_dir, JAEGER_DC),
                    yaml.dump(dc_conf, default_flow_style=False))
+        os.makedirs(os.path.join(self.local_jaeger_dir, 'data'))
+        os.makedirs(os.path.join(self.local_jaeger_dir, 'key'))
 
     def _generate_dc(self):
         name = 'jaeger-docker' if self.args.in_docker else 'docker'
@@ -48,7 +52,16 @@ class JaegerGenerator(object):
                     'ports': [
                         '6831:6831/udp',
                         '16686:16686'
-                    ]
+                    ],
+                    'environment': [
+                        'SPAN_STORAGE_TYPE=badger',
+                        'BADGER_EPHEMERAL=false',
+                        'BADGER_DIRECTORY_VALUE=/badger/data',
+                        'BADGER_DIRECTORY_KEY=/badger/key'
+                    ],
+                    'volumes': [
+                        '%s:/badger' % self.local_jaeger_dir,
+                    ],
                 }
             }
         }
