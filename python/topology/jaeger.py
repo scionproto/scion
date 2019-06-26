@@ -31,12 +31,12 @@ class JaegerGenerator(object):
 
     def __init__(self, args):
         self.args = args
-        self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
-        self.local_jaeger_dir = os.path.join(self.output_base, self.args.output_dir, 'Jaeger')
+        output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
+        self.local_jaeger_dir = os.path.join(self.args.output_dir, 'Jaeger')
+        self.docker_jaeger_dir = os.path.join(output_base, self.local_jaeger_dir)
 
     def generate(self):
         dc_conf = self._generate_dc()
-        print("### Jaeger path: %s" % self.local_jaeger_dir)
         os.makedirs(os.path.join(self.local_jaeger_dir, 'data'))
         os.makedirs(os.path.join(self.local_jaeger_dir, 'key'))
         write_file(os.path.join(self.args.output_dir, JAEGER_DC),
@@ -50,7 +50,7 @@ class JaegerGenerator(object):
                 'jaeger': {
                     'image': 'jaegertracing/all-in-one:1.12.0',
                     'container_name': name,
-                    'user': '%s' % str(os.getuid()),
+                    'user': '%s:%s' % (str(os.getuid()), str(os.getgid())),
                     'ports': [
                         '6831:6831/udp',
                         '16686:16686'
@@ -62,8 +62,7 @@ class JaegerGenerator(object):
                         'BADGER_DIRECTORY_KEY=/badger/key'
                     ],
                     'volumes': [
-                        '%s:/badger/data' % os.path.join(self.local_jaeger_dir, 'data'),
-                        '%s:/badger/key' % os.path.join(self.local_jaeger_dir, 'key'),
+                        '%s:/badger' % self.docker_jaeger_dir,
                     ],
                 }
             }
