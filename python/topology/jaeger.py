@@ -42,13 +42,14 @@ class JaegerGenerator(object):
         os.makedirs(os.path.join(self.local_jaeger_dir, 'key'))
 
     def _generate_dc(self):
-        name = 'jaeger-docker' if self.args.in_docker else 'docker'
+        name = 'jaeger-docker' if self.args.in_docker else 'jaeger'
         entry = {
             'version': '2',
             'services': {
                 'jaeger': {
                     'image': 'jaegertracing/all-in-one:1.12.0',
                     'container_name': name,
+                    'user': '%s' % str(os.getuid()),
                     'ports': [
                         '6831:6831/udp',
                         '16686:16686'
