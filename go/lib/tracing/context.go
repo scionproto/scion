@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/opentracing/opentracing-go"
-	jaegertracing "github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go"
 
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
@@ -31,7 +31,7 @@ func CtxWith(parentCtx context.Context, parentLogger log.Logger, operationName s
 
 	debugId := util.GetDebugID()
 	span, ctx := opentracing.StartSpanFromContext(parentCtx, operationName, opts...)
-	if spanCtx, ok := span.Context().(jaegertracing.SpanContext); ok {
+	if spanCtx, ok := span.Context().(jaeger.SpanContext); ok {
 		ctx = log.CtxWith(ctx, parentLogger.New("debug_id", debugId, "trace_id", spanCtx.TraceID()))
 		span.SetTag("LogDebugId", debugId)
 	} else {

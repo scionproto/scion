@@ -116,7 +116,7 @@ run_jaeger() {
 }
 
 stop_jaeger() {
-        if [ ! -f "gen/jaeger-dc.yml" ]; then
+    if [ ! -f "gen/jaeger-dc.yml" ]; then
         return
     fi
     ./tools/dc jaeger down

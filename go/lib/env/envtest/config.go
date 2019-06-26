@@ -16,11 +16,14 @@ package envtest
 
 import (
 	"fmt"
+	"path/filepath"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/uber/jaeger-client-go"
 
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 func InitTest(general *env.General, logging *env.Logging,
@@ -79,7 +82,8 @@ func CheckTest(general *env.General, logging *env.Logging,
 func CheckTestGeneral(cfg *env.General, id string) {
 	SoMsg("ID correct", cfg.ID, ShouldEqual, id)
 	SoMsg("ConfigDir correct", cfg.ConfigDir, ShouldEqual, "/etc/scion")
-	SoMsg("Topology correct", cfg.Topology, ShouldEqual, "/etc/scion/topology.json")
+	SoMsg("Topology correct", cfg.Topology, ShouldEqual,
+		filepath.Join(cfg.ConfigDir, env.DefaultTopologyPath))
 	SoMsg("ReconnectToDispatcher correct", cfg.ReconnectToDispatcher, ShouldBeFalse)
 }
 
@@ -101,10 +105,12 @@ func CheckTestMetrics(cfg *env.Metrics) {
 func CheckTestTracing(cfg *env.Tracing) {
 	SoMsg("Disabled correct", cfg.Disabled, ShouldBeFalse)
 	SoMsg("Debug correct", cfg.Debug, ShouldBeFalse)
+	SoMsg("Agent correct", cfg.Agent, ShouldEqual,
+		fmt.Sprintf("%s:%d", jaeger.DefaultUDPSpanServerHost, jaeger.DefaultUDPSpanServerPort))
 }
 
 func CheckTestSciond(cfg *env.SciondClient, id string) {
-	SoMsg("Path correct", cfg.Path, ShouldEqual, "/run/shm/sciond/default.sock")
+	SoMsg("Path correct", cfg.Path, ShouldEqual, sciond.DefaultSCIONDPath)
 	SoMsg("InitialConnectPeriod correct", cfg.InitialConnectPeriod.Duration, ShouldEqual,
 		env.SciondInitConnectPeriod)
 }
