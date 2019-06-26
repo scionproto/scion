@@ -46,6 +46,7 @@ func (s *Sender) Run(_ context.Context) {
 		log.Error("[KeepaliveSender] Unable to send keepalive, no topology set")
 		return
 	}
+	var sentIfids []common.IFIDType
 	for ifid, intf := range topo.IFInfoMap {
 		pld, err := s.createPld(ifid)
 		if err != nil {
@@ -64,7 +65,12 @@ func (s *Sender) Run(_ context.Context) {
 		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
 		if err := s.Send(msg, ov); err != nil {
 			log.Error("[KeepaliveSender] Unable to send packet", "err", err)
+		} else {
+			sentIfids = append(sentIfids, ifid)
 		}
+	}
+	if len(sentIfids) > 0 {
+		log.Trace("[KeepaliveSender] Sent keepalives", "ifids", sentIfids)
 	}
 }
 
