@@ -109,6 +109,7 @@ run_zk() {
 }
 
 run_jaeger() {
+    ls -la gen/Jaeger
     if [ ! -f "gen/jaeger-dc.yml" ]; then
         return
     fi
