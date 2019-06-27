@@ -490,7 +490,7 @@ go_repository(
 go_repository(
     name = "com_github_uber_jaeger_lib",
     commit = "0e30338a695636fe5bcf7301e8030ce8dd2a8530",
-    importpath = "github.com/uber/jaeger-lib",
+    importpath = "github.com/uber/jaeger-lib", # metrics
 )
 
 go_repository(
