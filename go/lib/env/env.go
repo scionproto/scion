@@ -267,7 +267,7 @@ type Tracing struct {
 	Disabled bool
 	// Enable debug mode.
 	Debug bool
-	// Agent is the local agent, to which this process should report it's
+	// Agent is the address of the local agent that handles the reported
 	// traces. (default: localhost:6831)
 	Agent string
 }

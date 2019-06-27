@@ -753,15 +753,15 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 		var span opentracing.Span
 		span, ctx = opentracing.StartSpanFromContext(ctx,
 			fmt.Sprintf("%s-handler-udp", msgType), opentracingext.RPCServerOption(spanCtx))
-		// TODO span.SetTag("LogDebugId", debugId)
+		// TODO(lukedirtwalker) optimally the logger should use the same
+		// debug_id as the span.
 		defer span.Finish()
 	}
 
 	go func() {
 		defer log.LogPanicAndExit()
 		defer cancelF()
-		handler.Handle(infra.NewRequest(ctx,
-			msg, signedPld, address, pld.ReqId))
+		handler.Handle(infra.NewRequest(ctx, msg, signedPld, address, pld.ReqId))
 	}()
 }
 
