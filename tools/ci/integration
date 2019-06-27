@@ -56,6 +56,11 @@ stop_containers() {
         ./docker.sh exec "./tools/dc collect_logs zk logs"
         ./docker.sh exec "./tools/dc zk down"
     fi
+
+    if ./docker.sh exec "test -e gen/jaeger-dc.yml"; then
+        ./docker.sh exec "./tools/dc collect_logs jaeger logs"
+        ./docker.sh exec "./tools/dc jaeger down"
+    fi
 }
 
 ./docker.sh exec "set -x; ./scion.sh topology nobuild -t ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}" ||\
