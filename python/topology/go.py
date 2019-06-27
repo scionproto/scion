@@ -31,6 +31,7 @@ from topology.common import (
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
+    docker_host,
     get_pub,
     get_pub_ip,
     prom_addr_br,
@@ -271,8 +272,10 @@ class GoGenerator(object):
         return entry
 
     def _tracing_entry(self):
+        docker_ip = docker_host(self.args.in_docker, self.args.docker)
         entry = {
             'debug': True,
+            'agent': '%s:6831' % docker_ip
         }
         return entry
 
