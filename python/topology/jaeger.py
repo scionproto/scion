@@ -58,11 +58,11 @@ class JaegerGenerator(object):
                     'environment': [
                         'SPAN_STORAGE_TYPE=badger',
                         'BADGER_EPHEMERAL=false',
-                        # 'BADGER_DIRECTORY_VALUE=/badger/data',
-                        # 'BADGER_DIRECTORY_KEY=/badger/key'
+                        'BADGER_DIRECTORY_VALUE=/badger/data',
+                        'BADGER_DIRECTORY_KEY=/badger/key'
                     ],
                     'volumes': [
-                        '%s:/go/bin/data' % self.docker_jaeger_dir,
+                        '%s:/badger' % self.docker_jaeger_dir,
                     ],
                 }
             }
