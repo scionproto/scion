@@ -109,18 +109,19 @@ run_zk() {
 }
 
 run_jaeger() {
-    ls -la gen/Jaeger
     if [ ! -f "gen/jaeger-dc.yml" ]; then
         return
     fi
-    ./tools/dc jaeger up -d
+    echo "Running jaeger..."
+    ./tools/quiet ./tools/dc jaeger up -d
 }
 
 stop_jaeger() {
     if [ ! -f "gen/jaeger-dc.yml" ]; then
         return
     fi
-    ./tools/dc jaeger down
+    echo "Stopping jaeger..."
+    ./tools/quiet ./tools/dc jaeger down
 }
 
 cmd_mstart() {
