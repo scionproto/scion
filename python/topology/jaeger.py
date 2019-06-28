@@ -32,7 +32,7 @@ class JaegerGenerator(object):
     def __init__(self, args):
         self.args = args
         output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
-        self.local_jaeger_dir = os.path.join(self.args.output_dir, 'Jaeger')
+        self.local_jaeger_dir = os.path.join('traces')
         self.docker_jaeger_dir = os.path.join(output_base, self.local_jaeger_dir)
 
     def generate(self):
