@@ -70,6 +70,16 @@ const metricsSample = `
 Prometheus = ""
 `
 
+const tracingSample = `
+# Disable the tracing. (default false)
+Disabled = false
+# Enable debug mode. (default false)
+Debug = false
+# Address of the local agent that handles the reported traces.
+# (default: localhost:6831)
+Agent = "localhost:6831"
+`
+
 const quicSample = `
 # The address to start a QUIC server on (ip:port). If not set, a QUIC server is
 # not started. (default "")

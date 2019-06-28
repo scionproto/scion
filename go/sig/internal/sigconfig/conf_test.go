@@ -41,7 +41,7 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, &cfg.Sciond)
+	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, nil, &cfg.Sciond)
 	InitTestSigConf(&cfg.Sig)
 }
 
@@ -50,7 +50,7 @@ func InitTestSigConf(cfg *SigConf) {
 }
 
 func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(nil, &cfg.Logging, &cfg.Metrics, &cfg.Sciond, id)
+	envtest.CheckTest(nil, &cfg.Logging, &cfg.Metrics, nil, &cfg.Sciond, id)
 	CheckTestSigConf(&cfg.Sig, id)
 }
 

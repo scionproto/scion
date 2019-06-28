@@ -16,10 +16,12 @@ package messenger
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -82,6 +84,18 @@ func metricSrcValue(peer net.Addr, localIA addr.IA) string {
 		return infra.PromSrcISDLocal
 	}
 	return infra.PromSrcISDRemote
+}
+
+func observe(ctx context.Context, msgType infra.MessageType,
+	action func(ctx context.Context) error) error {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx,
+		fmt.Sprintf("messenger.%s", msgType.String()))
+	defer span.Finish()
+	m := metricStartOp(msgType)
+	err := action(ctx)
+	m.publishResult(ctx, err)
+	return err
 }
 
 func metricStartOp(msgType infra.MessageType) opMetrics {

@@ -53,8 +53,13 @@ stop_containers() {
     fi
 
     if ./docker.sh exec "test -e gen/zk-dc.yml"; then
-        ./docker.sh exec "./tools/dc collect_logs zk logs"
+        ./docker.sh exec "./tools/dc collect_logs zk logs/docker"
         ./docker.sh exec "./tools/dc zk down"
+    fi
+
+    if ./docker.sh exec "test -e gen/jaeger-dc.yml"; then
+        ./docker.sh exec "./tools/dc collect_logs jaeger logs/docker"
+        ./docker.sh exec "./tools/dc jaeger down"
     fi
 }
 

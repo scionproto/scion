@@ -21,6 +21,7 @@ cmd_topology() {
         echo "Shutting down: $(./scion.sh stop)"
     fi
     supervisor/supervisor.sh shutdown
+    stop_jaeger
     mkdir -p logs traces gen gen-cache
     find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
     if [ "$1" = "zkclean" ]; then
@@ -37,6 +38,7 @@ cmd_topology() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
+    run_jaeger
     run_zk "$zkclean"
     load_cust_keys
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
@@ -104,6 +106,22 @@ run_zk() {
         fi
         tools/zkcleanslate --zk "$addr"
     fi
+}
+
+run_jaeger() {
+    if [ ! -f "gen/jaeger-dc.yml" ]; then
+        return
+    fi
+    echo "Running jaeger..."
+    ./tools/quiet ./tools/dc jaeger up -d
+}
+
+stop_jaeger() {
+    if [ ! -f "gen/jaeger-dc.yml" ]; then
+        return
+    fi
+    echo "Stopping jaeger..."
+    ./tools/quiet ./tools/dc jaeger down
 }
 
 cmd_mstart() {

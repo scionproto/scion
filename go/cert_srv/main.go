@@ -22,6 +22,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/common"
@@ -74,6 +76,13 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
+	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
+	if err != nil {
+		log.Crit("Unable to create tracer", "err", err)
+		return 1
+	}
+	defer trCloser.Close()
+	opentracing.SetGlobalTracer(tracer)
 	// Start the periodic reissuance task.
 	startReissRunner()
 	// Start the periodic fetching from discovery service.

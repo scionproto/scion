@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -106,6 +107,13 @@ func realMain() int {
 		log.Crit("Unable to load local TRC", "err", err)
 		return 1
 	}
+	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
+	if err != nil {
+		log.Crit("Unable to create tracer", "err", err)
+		return 1
+	}
+	defer trCloser.Close()
+	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
 		IA:                    itopo.Get().ISD_AS,
 		Public:                cfg.SD.Public,

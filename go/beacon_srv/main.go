@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/pbkdf2"
 	"gopkg.in/yaml.v2"
@@ -122,6 +123,13 @@ func realMain() int {
 		log.Crit("Unable to find topo address")
 		return 1
 	}
+	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
+	if err != nil {
+		log.Crit("Unable to create tracer", "err", err)
+		return 1
+	}
+	defer trCloser.Close()
+	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.ISD_AS,
 		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),

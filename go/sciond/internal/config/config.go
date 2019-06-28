@@ -40,6 +40,7 @@ type Config struct {
 	General   env.General
 	Logging   env.Logging
 	Metrics   env.Metrics
+	Tracing   env.Tracing
 	QUIC      env.QUIC `toml:"quic"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config
@@ -51,6 +52,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.General,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.Tracing,
 		&cfg.TrustDB,
 		&cfg.Discovery,
 		&cfg.SD,
@@ -73,6 +75,8 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.General,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.Tracing,
+		&cfg.QUIC,
 		&cfg.TrustDB,
 		&cfg.Discovery,
 		&cfg.SD,

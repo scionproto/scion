@@ -474,3 +474,27 @@ go_repository(
     commit = "c8c88dbee036db4e4808d1f2ec8c2e15e11c3f80",
     importpath = "github.com/google/go-querystring", # query
 )
+
+go_repository(
+    name = "com_github_opentracing_opentracing_go",
+    commit = "659c90643e714681897ec2521c60567dd21da733",
+    importpath = "github.com/opentracing/opentracing-go",
+)
+
+go_repository(
+    name = "com_github_uber_jaeger_client_go",
+    commit = "2f47546e3facd43297739439600bcf43f44cce5d",
+    importpath = "github.com/uber/jaeger-client-go",
+)
+
+go_repository(
+    name = "com_github_uber_jaeger_lib",
+    commit = "0e30338a695636fe5bcf7301e8030ce8dd2a8530",
+    importpath = "github.com/uber/jaeger-lib", # metrics
+)
+
+go_repository(
+    name = "com_github_pkg_errors",
+    commit = "27936f6d90f9c8e1145f11ed52ffffbfdb9e0af7",
+    importpath = "github.com/pkg/errors",
+)

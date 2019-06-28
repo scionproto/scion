@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -96,6 +97,7 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
+	trustDB = trustdb.WithMetrics("std", trustDB)
 	defer trustDB.Close()
 	topo := itopo.Get()
 	trustConf := &trust.Config{
@@ -113,6 +115,13 @@ func realMain() int {
 		log.Crit("Unable to find topo address")
 		return 1
 	}
+	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
+	if err != nil {
+		log.Crit("Unable to create tracer", "err", err)
+		return 1
+	}
+	defer trCloser.Close()
+	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.ISD_AS,
 		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),

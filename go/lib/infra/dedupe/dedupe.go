@@ -36,6 +36,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-client-go"
+
 	"github.com/scionproto/scion/go/lib/log"
 )
 
@@ -97,7 +100,7 @@ type Deduper interface {
 	//
 	// Note this method explicitly takes no context, when waiting on the response
 	// you should always also read from the ctx.Done() channel.
-	Request(req Request) (<-chan Response, CancelFunc)
+	Request(ctx context.Context, req Request) (<-chan Response, CancelFunc, opentracing.Span)
 }
 
 type deduper struct {
@@ -137,20 +140,33 @@ func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) Deduper 
 	}
 }
 
-func (dd *deduper) Request(req Request) (<-chan Response, CancelFunc) {
+func (dd *deduper) Request(parentCtx context.Context,
+	req Request) (<-chan Response, CancelFunc, opentracing.Span) {
+
 	ch := make(chan Response, 1)
-	if ctx := dd.notifications.Add(req, ch, dd.dedupeLifetime); ctx != nil {
+	ctx, span := dd.notifications.Add(parentCtx, req, ch, dd.dedupeLifetime)
+	if ctx != nil {
 		go func() {
 			defer log.LogPanicAndExit()
 			dd.handler(ctx, req)
 		}()
+	} else {
+		if span != nil {
+			origSpan := span
+			span, _ = opentracing.StartSpanFromContext(parentCtx, "waiting on dedupe")
+			if origSpanCtx, ok := origSpan.Context().(jaeger.SpanContext); ok {
+				span.SetTag("origSpanId", origSpanCtx.SpanID())
+			}
+		} else {
+			span, _ = opentracing.StartSpanFromContext(parentCtx, "dedupe reply cached")
+		}
 	}
 
 	return ch, func() {
 		// Give callers the option of cleaning up resources prior to the
 		// Request returning.
 		dd.notifications.Remove(req, ch)
-	}
+	}, span
 }
 
 // handler calls RequestFunc with a freshly created channel, and then reads the

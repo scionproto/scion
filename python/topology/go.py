@@ -31,6 +31,7 @@ from topology.common import (
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
+    docker_host,
     get_pub,
     get_pub_ip,
     prom_addr_br,
@@ -120,6 +121,7 @@ class GoGenerator(object):
             'trustDB': trust_db_conf_entry(self.args, name),
             'beaconDB': beacon_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
+            'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
             'quic': self._quic_conf_entry(BS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
@@ -152,6 +154,7 @@ class GoGenerator(object):
                 },
                 'SegSync': True,
             },
+            'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
             'quic': self._quic_conf_entry(PS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
@@ -183,6 +186,7 @@ class GoGenerator(object):
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
             },
+            'tracing': self._tracing_entry(),
             'metrics': {
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
@@ -220,6 +224,7 @@ class GoGenerator(object):
                 'ReissueRate': "10s",
                 'ReissueTimeout': "5s",
             },
+            'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
             'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
@@ -263,6 +268,14 @@ class GoGenerator(object):
             'dynamic': {
                 'Enable': self.args.discovery,
             }
+        }
+        return entry
+
+    def _tracing_entry(self):
+        docker_ip = docker_host(self.args.in_docker, self.args.docker)
+        entry = {
+            'debug': True,
+            'agent': '%s:6831' % docker_ip
         }
         return entry
 

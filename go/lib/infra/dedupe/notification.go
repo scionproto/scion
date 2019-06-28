@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	cache "github.com/patrickmn/go-cache"
 )
 
@@ -52,6 +53,8 @@ type notificationTable struct {
 	// network request goroutines. The map keys are dedupe keys.
 	cancelFunctions map[string]CancelFunc
 
+	tracingSpans map[string]opentracing.Span
+
 	// cache contains the results of recent successful network requests. If a
 	// new request arrives within ResponseValidity time of a successful network
 	// request, it does not spawn a new network request and the response
@@ -71,6 +74,7 @@ func newNotificationTable() *notificationTable {
 		broadcast:       make(map[string]notifyList),
 		dedupe:          make(map[string]notifyList),
 		cancelFunctions: make(map[string]CancelFunc),
+		tracingSpans:    make(map[string]opentracing.Span),
 		// 0 is the default lifetime as we explicitly set lifetimes using set
 		cache:      cache.New(0, cacheExpirationInterval),
 		goroutines: make(map[ResponseChannel]string),
@@ -79,8 +83,8 @@ func newNotificationTable() *notificationTable {
 
 // Add registers ch with the dedupe and broadcast key maps. If a network
 // request needs to be issued, the returned context is non-nil.
-func (table *notificationTable) Add(req Request, ch ResponseChannel,
-	dedupeLifetime time.Duration) context.Context {
+func (table *notificationTable) Add(parentCtx context.Context, req Request, ch ResponseChannel,
+	dedupeLifetime time.Duration) (context.Context, opentracing.Span) {
 
 	table.Lock()
 	defer table.Unlock()
@@ -94,7 +98,7 @@ func (table *notificationTable) Add(req Request, ch ResponseChannel,
 		// expired but the cache's cleanup goroutine hasn't run yet.
 		if expiry.After(time.Now()) {
 			ch <- response
-			return nil
+			return nil, nil
 		}
 		table.cache.Delete(bkey)
 	}
@@ -103,6 +107,7 @@ func (table *notificationTable) Add(req Request, ch ResponseChannel,
 	// goroutine if one isn't running already.
 	var ctx context.Context
 	var cancelF context.CancelFunc
+	var span opentracing.Span
 
 	// Insert into dedupe key map. If this is the first channel for the key,
 	// initialize a context to signal that the caller should issue a new
@@ -110,9 +115,12 @@ func (table *notificationTable) Add(req Request, ch ResponseChannel,
 	dkey := req.DedupeKey()
 	if _, ok := table.dedupe[dkey]; !ok {
 		table.dedupe[dkey] = make(notifyList)
-		ctx, cancelF = context.WithTimeout(context.Background(), dedupeLifetime)
+		ctx, cancelF = context.WithTimeout(parentCtx, dedupeLifetime)
+		span, ctx = opentracing.StartSpanFromContext(ctx, "dedupe.first.req")
 		table.cancelFunctions[dkey] = CancelFunc(cancelF)
+		table.tracingSpans[dkey] = span
 	}
+	span = table.tracingSpans[dkey]
 	table.dedupe[dkey][ch] = struct{}{}
 
 	// Insert into broadcast key map. Also, add backlink from channel to dedupe
@@ -123,7 +131,7 @@ func (table *notificationTable) Add(req Request, ch ResponseChannel,
 	}
 	table.broadcast[bkey][ch] = struct{}{}
 	table.goroutines[ch] = dkey
-	return ctx
+	return ctx, span
 }
 
 // Cache saves response in the cache, using the specified key and lifetime d.
@@ -152,6 +160,7 @@ func (table *notificationTable) removeLocked(req Request, ch ResponseChannel) {
 	if len(table.broadcast[broadcastKey]) == 0 {
 		delete(table.broadcast, broadcastKey)
 	}
+	delete(table.tracingSpans, dedupeKey)
 	delete(table.dedupe[dedupeKey], ch)
 	// If there are no more channels on the dedupeKey, it means no client
 	// (application) goroutine is waiting for the result of the network request

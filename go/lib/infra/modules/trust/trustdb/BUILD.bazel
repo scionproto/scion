@@ -15,6 +15,7 @@ go_library(
         "//go/lib/prom:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",
         "//go/lib/scrypto/trc:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )
