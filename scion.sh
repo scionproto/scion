@@ -387,6 +387,37 @@ cmd_sciond() {
     exit $?
 }
 
+traces_name() {
+    local name=jaeger_read_badger_traces
+    echo "$name"
+}
+
+cmd_traces() {
+    set -e
+    local trace_dir=${1:-"$(readlink -e .)/traces"}
+    local port=16687
+    local name=$(traces_name)
+    cmd_stop_traces
+    docker run -d --name "$name" \
+        -u "$(id -u):$(id -g)" \
+        -e SPAN_STORAGE_TYPE=badger \
+        -e BADGER_EPHEMERAL=false \
+        -e BADGER_DIRECTORY_VALUE=/badger/data \
+        -e BADGER_DIRECTORY_KEY=/badger/key \
+        -e BADGER_CONSISTENCY=true \
+        -v "$trace_dir:/badger" \
+        -p "$port":16686 \
+        jaegertracing/all-in-one:1.12.0
+    sleep 3
+    x-www-browser "http://localhost:$port"
+}
+
+cmd_stop_traces() {
+    local name=$(traces_name)
+    docker stop "$name" || true
+    docker rm "$name" || true
+}
+
 cmd_help() {
 	cmd_version
 	echo
@@ -423,6 +454,10 @@ cmd_help() {
 	        Show this text.
 	    $PROGRAM version
 	        Show version information.
+        $PROGRAM traces [folder]
+            Serve jaeger traces from the specified folder (default: traces/)
+        $PROGRAM stop_traces
+            Stop the jaeger container started during the traces command
 	_EOF
 }
 # END subcommand functions
@@ -432,7 +467,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|mocks|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
+    coverage|help|lint|mocks|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;
