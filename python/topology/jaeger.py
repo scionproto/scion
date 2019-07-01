@@ -37,8 +37,8 @@ class JaegerGenerator(object):
 
     def generate(self):
         dc_conf = self._generate_dc()
-        os.makedirs(os.path.join(self.local_jaeger_dir, 'data'))
-        os.makedirs(os.path.join(self.local_jaeger_dir, 'key'))
+        os.makedirs(os.path.join(self.local_jaeger_dir, 'data'), exist_ok=True)
+        os.makedirs(os.path.join(self.local_jaeger_dir, 'key'), exist_ok=True)
         write_file(os.path.join(self.args.output_dir, JAEGER_DC),
                    yaml.dump(dc_conf, default_flow_style=False))
 

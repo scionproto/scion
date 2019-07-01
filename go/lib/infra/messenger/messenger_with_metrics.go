@@ -158,7 +158,7 @@ func (m *MessengerWithMetrics) GetSegChangesIds(ctx context.Context, msg *path_m
 	var reply *path_mgmt.SegChangesIdReply
 	return reply, observe(ctx, infra.SegChangesIdReq, func(ctx context.Context) error {
 		var err error
-		reply, err = m.GetSegChangesIds(ctx, msg, a, id)
+		reply, err = m.messenger.GetSegChangesIds(ctx, msg, a, id)
 		return err
 	})
 }
@@ -177,7 +177,7 @@ func (m *MessengerWithMetrics) GetSegChanges(ctx context.Context, msg *path_mgmt
 	var reply *path_mgmt.SegChangesReply
 	return reply, observe(ctx, infra.SegChangesReq, func(ctx context.Context) error {
 		var err error
-		reply, err = m.GetSegChanges(ctx, msg, a, id)
+		reply, err = m.messenger.GetSegChanges(ctx, msg, a, id)
 		return err
 	})
 }
@@ -196,7 +196,7 @@ func (m *MessengerWithMetrics) RequestChainIssue(ctx context.Context, msg *cert_
 	var reply *cert_mgmt.ChainIssRep
 	return reply, observe(ctx, infra.ChainIssueRequest, func(ctx context.Context) error {
 		var err error
-		reply, err = m.RequestChainIssue(ctx, msg, a, id)
+		reply, err = m.messenger.RequestChainIssue(ctx, msg, a, id)
 		return err
 	})
 }
