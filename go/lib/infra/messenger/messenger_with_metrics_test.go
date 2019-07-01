@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-
 	"github.com/golang/mock/gomock"
+
+	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 )
 
 // TestMessengerWithMetricsCallsUnderlyingMessenger test that the messenger
