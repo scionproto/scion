@@ -142,6 +142,7 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
+	defer msger.CloseServer()
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	// TODO(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.
@@ -176,12 +177,22 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		msger.ListenAndServe()
 	}()
+	discoRunners, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full,
+		idiscovery.TopoHandlers{}, nil)
+	if err != nil {
+		log.Crit("Unable to start topology fetcher", "err", err)
+		return 1
+	}
+	defer discoRunners.Kill()
 	tasks = &periodicTasks{
 		args:    args,
 		msger:   msger,
 		trustDB: trustDB,
 	}
-	tasks.Start()
+	if err := tasks.Start(); err != nil {
+		log.Crit("Failed to start periodic tasks", "err", err)
+		return 1
+	}
 	defer tasks.Kill()
 	select {
 	case <-fatal.ShutdownChan():
@@ -202,28 +213,22 @@ type periodicTasks struct {
 	pathDBCleaner *periodic.Runner
 	cryptosyncer  *periodic.Runner
 	rcCleaner     *periodic.Runner
-	discovery     idiscovery.Runners
 }
 
-func (t *periodicTasks) Start() {
-	fatal.Check()
+func (t *periodicTasks) Start() error {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 	if t.running {
-		log.Warn("Trying to start task, but they are running! Ignored.")
-		return
+		log.Warn("Trying to start tasks, but they are running! Ignored.")
+		return nil
 	}
+	t.running = true
 	var err error
 	if cfg.PS.SegSync && itopo.Get().Core {
 		t.segSyncers, err = segsyncer.StartAll(t.args, t.msger)
 		if err != nil {
-			fatal.Fatal(common.NewBasicError("Unable to start seg syncer", err))
+			return common.NewBasicError("Unable to start seg syncer", err)
 		}
-	}
-	t.discovery, err = idiscovery.StartRunners(cfg.Discovery, discovery.Full,
-		idiscovery.TopoHandlers{}, nil)
-	if err != nil {
-		fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
 	}
 	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
@@ -234,7 +239,7 @@ func (t *periodicTasks) Start() {
 	}, periodic.NewTicker(cfg.PS.CryptoSyncInterval.Duration), cfg.PS.CryptoSyncInterval.Duration)
 	t.rcCleaner = periodic.StartPeriodicTask(revcache.NewCleaner(t.args.RevCache),
 		periodic.NewTicker(10*time.Second), 10*time.Second)
-	t.running = true
+	return nil
 }
 
 func (t *periodicTasks) Kill() {
@@ -248,7 +253,6 @@ func (t *periodicTasks) Kill() {
 		syncer := t.segSyncers[i]
 		syncer.Kill()
 	}
-	t.discovery.Kill()
 	t.pathDBCleaner.Kill()
 	t.cryptosyncer.Kill()
 	t.rcCleaner.Kill()

@@ -150,6 +150,7 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
+	defer msgr.CloseServer()
 	store, err := loadStore(topo.Core, topo.ISD_AS, cfg)
 	if err != nil {
 		log.Crit("Unable to open beacon store", "err", err)
@@ -251,10 +252,7 @@ type segRegRunners struct {
 }
 
 func (s segRegRunners) Kill() {
-	if s.core {
-		s.coreRegistrar.Kill()
-		return
-	}
+	s.coreRegistrar.Kill()
 	s.upRegistrar.Kill()
 	s.downRegistrar.Kill()
 }
@@ -284,13 +282,13 @@ type periodicTasks struct {
 }
 
 func (t *periodicTasks) Start() error {
-	fatal.Check()
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 	if t.running {
-		log.Warn("Trying to start task, but they are running! Ignored.")
+		log.Warn("Trying to start tasks, but they are running! Ignored.")
 		return nil
 	}
+	t.running = true
 	topo := t.topoProvider.Get()
 	topoAddress := topo.BS.GetById(cfg.General.ID)
 	if topoAddress == nil {
@@ -320,7 +318,6 @@ func (t *periodicTasks) Start() error {
 		beaconstorage.NewRevocationCleaner(t.store),
 		periodic.NewTicker(5*time.Second), 5*time.Second,
 	)
-	t.running = true
 	return nil
 }
 
@@ -505,9 +502,7 @@ func (t *periodicTasks) Kill() {
 	t.registrars.Kill()
 	t.revoker.Kill()
 	t.keepalive.Kill()
-	if t.originator != nil {
-		t.originator.Kill()
-	}
+	t.originator.Kill()
 	t.propagator.Kill()
 	t.beaconCleaner.Kill()
 	t.revCleaner.Kill()
