@@ -222,6 +222,7 @@ func (t *periodicTasks) Start() error {
 		log.Warn("Trying to start tasks, but they are running! Ignored.")
 		return nil
 	}
+	t.running = true
 	var err error
 	if cfg.PS.SegSync && itopo.Get().Core {
 		t.segSyncers, err = segsyncer.StartAll(t.args, t.msger)
@@ -238,13 +239,16 @@ func (t *periodicTasks) Start() error {
 	}, periodic.NewTicker(cfg.PS.CryptoSyncInterval.Duration), cfg.PS.CryptoSyncInterval.Duration)
 	t.rcCleaner = periodic.StartPeriodicTask(revcache.NewCleaner(t.args.RevCache),
 		periodic.NewTicker(10*time.Second), 10*time.Second)
-	t.running = true
 	return nil
 }
 
 func (t *periodicTasks) Kill() {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
+	if !t.running {
+		log.Warn("Trying to stop tasks, but they are not running! Ignored.")
+		return
+	}
 	for i := range t.segSyncers {
 		syncer := t.segSyncers[i]
 		syncer.Kill()

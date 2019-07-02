@@ -282,13 +282,13 @@ type periodicTasks struct {
 }
 
 func (t *periodicTasks) Start() error {
-	fatal.Check()
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 	if t.running {
 		log.Warn("Trying to start tasks, but they are running! Ignored.")
 		return nil
 	}
+	t.running = true
 	topo := t.topoProvider.Get()
 	topoAddress := topo.BS.GetById(cfg.General.ID)
 	if topoAddress == nil {
@@ -318,7 +318,6 @@ func (t *periodicTasks) Start() error {
 		beaconstorage.NewRevocationCleaner(t.store),
 		periodic.NewTicker(5*time.Second), 5*time.Second,
 	)
-	t.running = true
 	return nil
 }
 
@@ -496,6 +495,10 @@ func (t *periodicTasks) createSigner(topo *topology.Topo) (infra.Signer, error) 
 func (t *periodicTasks) Kill() {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
+	if !t.running {
+		log.Warn("Trying to stop tasks, but they are not running! Ignored.")
+		return
+	}
 	t.registrars.Kill()
 	t.revoker.Kill()
 	t.keepalive.Kill()
