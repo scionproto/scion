@@ -17,6 +17,7 @@ package mgmt
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
@@ -26,6 +27,10 @@ type MsgIdType uint64
 
 func (m MsgIdType) String() string {
 	return fmt.Sprintf("0x%016x", uint64(m))
+}
+
+func (m MsgIdType) Time() time.Time {
+	return time.Unix(int64(m)/1000000000, int64(m)%1000000000)
 }
 
 // union represents the contents of the unnamed capnp union.
