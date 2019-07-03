@@ -10,7 +10,6 @@
   - ./docker.sh run -c "mkdir docker/_build && touch docker/_build/scion.stamp && make -C docker/perapp apps"
   - echo "$(date -u +"%F %T.%6N%z") Build tester image"
   - ./docker.sh tester
-  - echo "$(date -u +"%F %T.%6N%z") Push all images"
   - $BASE/scripts/all_images push
   - echo "$(date -u +"%F %T.%6N%z") All images pushed"
   artifact_paths:
