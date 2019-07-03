@@ -97,23 +97,6 @@ type PathPool interface {
 	Destroy() error
 }
 
-type SessPathPool interface {
-	// Get retrieves the best path.
-	Get(exclude spathmeta.PathKey) *SessPath
-	// GetByKey returns the path associated with the key.
-	GetByKey(exclude spathmeta.PathKey) *SessPath
-	// Update fills in a new set of paths to the pool.
-	Update(aps spathmeta.AppPathSet)
-	// Fail informs the path that a probe had failed.
-	Fail(path *SessPath)
-	// ExpireFails is called periodically to make old failures less relevant.
-	ExpireFails()
-}
-
-func NewSessPathPool() SessPathPool {
-	return &SessPathPoolImpl{}
-}
-
 type SessionSelector interface {
 	ChooseSess(b common.RawBytes) Session
 }

@@ -24,10 +24,14 @@ import (
 
 const pathFailExpiration = 5 * time.Minute
 
-type SessPathPoolImpl map[spathmeta.PathKey]*SessPathStats
+type SessPathPool map[spathmeta.PathKey]*SessPathStats
+
+func NewSessPathPool() *SessPathPool {
+	return &SessPathPool{}
+}
 
 // Get returns the most suitable path. Excludes a specific path, if possible.
-func (spp SessPathPoolImpl) Get(exclude spathmeta.PathKey) *SessPath {
+func (spp SessPathPool) Get(exclude spathmeta.PathKey) *SessPath {
 	var bestSessPath *SessPathStats
 	var minFail uint16 = math.MaxUint16
 	var bestNonExpiringSessPath *SessPathStats
@@ -62,7 +66,7 @@ func (spp SessPathPoolImpl) Get(exclude spathmeta.PathKey) *SessPath {
 	return res.SessPath
 }
 
-func (spp SessPathPoolImpl) GetByKey(key spathmeta.PathKey) *SessPath {
+func (spp SessPathPool) GetByKey(key spathmeta.PathKey) *SessPath {
 	res := spp[key]
 	if res == nil {
 		return nil
@@ -70,7 +74,7 @@ func (spp SessPathPoolImpl) GetByKey(key spathmeta.PathKey) *SessPath {
 	return res.SessPath
 }
 
-func (spp SessPathPoolImpl) Update(aps spathmeta.AppPathSet) {
+func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
 	// Remove any old entries that aren't present in the update.
 	for key := range spp {
 		if _, ok := aps[key]; !ok {
@@ -89,7 +93,14 @@ func (spp SessPathPoolImpl) Update(aps spathmeta.AppPathSet) {
 	}
 }
 
-func (spp SessPathPoolImpl) Fail(path *SessPath) {
+// Reply is called when a probe reply arrives.
+// 'sent' is the time when the original probe was sent.
+func (spp SessPathPool) Reply(path *SessPath, sent time.Time) {
+}
+
+// Timeout is called when a reply to a probe is not received in time.
+// 'sent' is the time when the original probe was sent.
+func (spp SessPathPool) Timeout(path *SessPath, sent time.Time) {
 	sp := spp[path.Key()]
 	if sp == nil {
 		return
@@ -100,7 +111,7 @@ func (spp SessPathPoolImpl) Fail(path *SessPath) {
 	}
 }
 
-func (spp SessPathPoolImpl) ExpireFails() {
+func (spp SessPathPool) ExpireFails() {
 	for _, sp := range spp {
 		if time.Since(sp.lastFail) > pathFailExpiration {
 			sp.failCount /= 2

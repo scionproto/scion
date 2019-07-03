@@ -48,7 +48,7 @@ type sessMonitor struct {
 	// the (filtered) pool of paths to the remote AS, maintained by pathmgr.
 	pool egress.PathPool
 	// the pool of paths this session is currently using, frequently refreshed from pool.
-	sessPathPool egress.SessPathPool
+	sessPathPool *egress.SessPathPool
 	// the remote Info (remote SIG, and path) used for sending polls. This
 	// differs from the parent session's remote info when the session monitor
 	// is polling a new SIG or over a new path, and is waiting for a response.
@@ -126,7 +126,7 @@ func (sm *sessMonitor) updateRemote() {
 			// may be OK, but the remote SIG may be down. However, we accept
 			// the inaccuracy so that we don't have to do separate health
 			// checking for the path.
-			sm.sessPathPool.Fail(sm.smRemote.SessPath)
+			sm.sessPathPool.Timeout(sm.smRemote.SessPath, sm.updateMsgId.Time())
 		}
 		// Start monitoring new path and discover a new SIG.
 		sm.smRemote.Sig.Host = addr.SvcSIG
@@ -260,6 +260,12 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 			"expected", sm.sess.IA(), "actual", rpld.Addr.IA)
 		return
 	}
+
+	// Inform SessPathPool that a reply has arrived.
+	if sm.smRemote.SessPath != nil {
+		sm.sessPathPool.Reply(sm.smRemote.SessPath, rpld.Id.Time())
+	}
+
 	// Only update the session's RemoteInfo if we get a response matching
 	// the last poll we sent.
 	if sm.updateMsgId == rpld.Id {
