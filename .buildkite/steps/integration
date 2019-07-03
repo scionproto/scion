@@ -13,7 +13,6 @@ run_test() {
     echo "  command:"
     echo "  - $BASE/run_step integration $1 $2"
     echo "  timeout_in_minutes: 10"
-    echo "  parallelism: 2"
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""
 }
