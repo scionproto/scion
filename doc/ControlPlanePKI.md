@@ -759,8 +759,11 @@ primary ASes in the local ISD.
 
 The following rules define trust material lookup in the different services:
 
-__Path Server__: When verifying path segments, query the sending beacon/path server. __Beacon
-Server__: When verifying beacons, query the sending beacon server. __Certificate Server__:  The
+__Path Server__: When verifying path segments, query the sending beacon/path server.
+
+__BeaconServer__: When verifying beacons, query the sending beacon server.
+
+__Certificate Server__:  The
 following table shows where a certificate server fetches the material based on which type of AS it
 resides in.
 
@@ -768,6 +771,7 @@ resides in.
 | --------------- | ------------- | -------------- | --------------- | ------------ |
 | Authoritative   | check locally | remote auth AS |check locally    |remote auth AS|
 |Non-authoritative| local auth AS | remote auth AS |local auth AS    |remote auth AS|
+
 __others__: All other requests are sent to the local certificate server that recursively fetches the
 certificates according to the table.
 
