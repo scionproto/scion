@@ -235,10 +235,13 @@ following:
 - __KeyType__: ASCII string. The type of key used. (`Online` or `Offline`)
 - __KeyVersion__: 64-bit unsigned integer. The version of the key used.
 
-The votes section indicates all voting ASes of the previous TRC that voted for the TRC update. It is
-included to prevent an attacker from simply changing the set if signatures on the JWS signed TRC to
-come up wit another valid TRC for the same ISD and Version number (compromising "uniqueness")
-without consent from a voting quorum.
+The votes section lists all ASes that voted for the TRC update. They must hold the voting attribute
+in the previous TRC. A vote counts as valid, if the JWS signed TRC contains a signature from the
+specified AS with the specified key.
+
+This section is included to prevent an attacker from simply changing the set of signatures on the
+JWS signed TRC to come up with another valid TRC for the same ISD and Version number (compromising
+"uniqueness") without consent from a voting quorum.
 
 ### TRC Section: ProofOfPossession
 
