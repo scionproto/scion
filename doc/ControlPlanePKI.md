@@ -395,11 +395,11 @@ update) TRCs.
 
 - __Subject__: String. ISD and AS identifiers of the entity that owns the certificate and the
     corresponding key pair.
-- __Version__: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
+- __TRCVersion__: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
     Note that a certificate can still be valid and verifiable, if the issuing AS has the same public
     key in any of the active TRC versions. Thus, TRC updates that do not change the issuing key do
     not affect the validity of a certificate.
-- __CertificateVersion__: 64-bit integer. Certificate version, starts at 1.
+- __Version__: 64-bit integer. Certificate version, starts at 1.
 - __FormatVersion__: 8-bit integer. Version of the TRC/certificate format (currently 1).
 - __Description__: String. Describes the certificate/AS.
 - __CertificateType__: String. Indicates whether the subject is allowed to issue certificates for
@@ -447,7 +447,7 @@ The contents depend on the certificate type:
 {
     "Subject": "1-ff00:0:120",
     "TRCVersion": 2,
-    "CertificateVersion": 1,
+    "Version": 1,
     "FormatVersion": 1,
     "Description": "AS certificate",
     "CertificateType": "AS",
