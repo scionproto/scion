@@ -1,7 +1,7 @@
 # SCION Control-Plane PKI
 
 The control-plane PKI (CP-PKI) allows each isolation domain (ISD) to define its own roots of trust
-for routing-related decisions. Each ISD maintains its own trust root configuration (TRC), where the
+for ISD and AS identities. Each ISD maintains its own trust root configuration (TRC), where the
 primary ASes of the ISD are specified along with public keys and policies for updating the TRC. Each
 version of the TRC must be signed by a number of ASes with voting power in the ISD, so that updates
 can be authenticated and validated against previous versions. The TRC can be seen as a
@@ -44,13 +44,15 @@ from the perspective of a verifier:
 
 Other qualifiers for TRCs include the following:
 
-- __Fresh:__ a TRC with a version of 1 (version 0 being reserved to request the latest TRC).
+- __Fresh:__ the initial TRC of an ISD. It must have version 1 (version 0 being reserved to request
+  the latest TRC).
+- __Base:__ a TRC that defines the trust anchor for a TRC chain verification. A fresh TRC is a
+  special case of this. Each TRC references the version of the base TRC it uses as trust anchor. In
+  a base TRC this reference is equal to its own version.
 - __Inconsistent:__ TRCs with the same version number and the same ISD identifier with differing
-    contents.
+  contents.
 - __Expired:__ a TRC whose validity period has ended, or that has been replaced by an update whose
-    grace period renders the previous TRC inactive.
-- __Base:__ a TRC with the version equal to the base version. This indicates that the TRC chain
-    starts at this TRC version. Fresh is a special case of base.
+  grace period renders the previous TRC inactive.
 
 ## Primary ASes
 
@@ -58,8 +60,7 @@ An ISD is made up of a number of ASes. There is a set of attributes that each AS
 
 - __Core__: AS that has core links to other core ASes.
 - __Voting__: AS that participates in and signs TRC updates.
-- __Authoritative__: AS that is authoritative for TRCs and certificates for the local ISD. I.e. must
-  have all trust material for this ISD.
+- __Authoritative__: AS that is authoritative for TRCs and certificates for the local ISD.
 - __Issuing__: AS that issues AS certificates to other ASes in the ISD.
 
 __Primary AS:__ has at least one of the above attributes.
@@ -665,15 +666,23 @@ must be met:
 
 ## TRC Update Dissemination
 
+A TRC update must be distributed amongst all authoritative ASes in that ISD, and they must switch to
+it as the latest version in a synchronized fashion. I.e. when querying two distinct authoritative
+ASes for the latest TRC version, they must reply with the same version modulo some miner clock skew.
+
+ASes inside that ISD must only announce the new TRC after the authoritative ASes have switched their
+view of the latest TRC version. This can easily achieved by having authoritative ASes switch the
+latest on the `Validity.NotBefore` time, since SCION requires some time synchronization.
+
+TRC updates are disseminated via SCION's beaconing process. If the TRC version number within a
+received beacon is higher than the locally stored TRC, the beacon server sends a request to the
+beacon server that sent the beacon. After a new TRC is accepted, it is submitted by the beacon
+server to a local certificate server. Path servers and end hosts learn about new remote TRCs through
+the path-segment registration and path lookup processes, respectively.
+
 All entities within an ISD must have a recent TRC of their own ISD. On startup, all servers and end
 hosts obtain the missing TRCs (if any, from the TRC they possess to the latest TRC) of their own ISD
 from a certificate server.
-
-TRC updates are disseminated to other ISDs via SCION's beaconing process. If the TRC version number
-within a received beacon is higher than the locally stored TRC, the beacon server sends a request to
-the beacon server that sent the beacon. After a new TRC is accepted, it is submitted by the beacon
-server to a local certificate server. Path servers and end hosts learn about new remote TRCs through
-the path-segment registration and path lookup processes, respectively.
 
 ### Getting a TRC
 
@@ -707,12 +716,19 @@ Bootstrapping](#trc-bootstrapping) and setting new trust anchors.
 
 ## Certificate Chain Dissemination
 
-Certificate chains are issued by an `Issuing` AS upon request. The requester then uses the new
-certificate chain to sign path-segments. Similar to TRC dissemination, when a beacon server receives
-an unknown certificate chain version, it sends a request to the sending beacon server. When a path
-server gets a path segment with an unknown chain, it requests the missing certificate chain from the
-entity that provided the segment. This could either be the beacon server, or a remote path server.
-End hosts query their local certificate server for missing certificate chains.
+Certificate chains are issued by an `Issuing` AS upon request. As certificates are short lived, this
+is an automated process that happens automatically. Before an AS may use a certificate chain, it
+must register it with all authoritative ASes of its ISD. If the automatic registration process fails
+due to an unavailable authoritative AS, an operator may manually choose to start using the issued
+certificate chain. However, they must ensure the certificate chain is eventually registered with all
+authoritative ASes of its ISD.
+
+Certificate chains are used to sign beacons and path-segments. Similar to TRC dissemination, when a
+beacon server receives an unknown certificate chain version, it sends a request to the sending
+beacon server. When a path server gets a path segment with an unknown chain, it requests the missing
+certificate chain from the entity that provided the segment. This could either be the beacon server,
+or a remote path server. End hosts query their local certificate server for missing certificate
+chains.
 
 ### Getting an AS Certificate Chain
 
