@@ -201,7 +201,7 @@ This comprises all non-object values in the top level of the TRC.
 ### TRC Section: Validity
 
 The following fields must be used to determine whether a TRC is *valid* (not to be confused with
-*active*). Timestamps are 64-bit decimal integers, in seconds since the Unix epoch.
+*active*). Timestamps are 64-bit unsigned integers, in seconds since the Unix epoch.
 
 - __NotBefore__: Time before which this TRC cannot be considered *valid*.
 - __NotAfter__: Time after which this TRC will no longer be considered *valid*.
@@ -216,7 +216,8 @@ This is an object that maps primary AS identifiers to their attributes and keys:
 
 - __Keys__: Object that maps key types (`Issuing`, `Online` or `Offline`) to an object with the
   following fields:
-  - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is replaced.
+  - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time this key is
+    replaced.
   - __Algorithm__: String. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
 
@@ -225,7 +226,7 @@ This is an object that maps AS identifiers to a signature object which must cont
 following:
 
 - __KeyType__: String. The type of key used. (`Online` or `Offline`)
-- __KeyVersion__: 64-bit integer. The version of the key used.
+- __KeyVersion__: 64-bit unsigned integer. The version of the key used.
 
 The votes section indicates all voting ASes of the previous TRC that voted for the TRC update. It is
 included to prevent an attacker from simply changing the set if signatures on the JWS signed TRC to
@@ -238,7 +239,7 @@ This is an object that maps AS identifiers to an array of signature objects, whi
 following:
 
 - __KeyType__: String. The type of key used (`Issuing`, `Online` or `Offline`).
-- __KeyVersion__: 64-bit integer. The version of the key used.
+- __KeyVersion__: 64-bit unsigned integer. The version of the key used.
 
 New or updated keys sign the first TRC they appear in to show proof of possession.
 
@@ -383,8 +384,7 @@ signature and will be serialized using the Flattened JWS JSON Serialization Synt
 Serialization](#cert-serialization)).
 
 In the following sections, certificate refers to the payload of the full JWS signed certificate for
-simplicity. All integers are unsigned and formatted as decimal unless otherwise specified.
-Certificates are uniquely identified by the `(Subject, Version)`-pair.
+simplicity. Certificates are uniquely identified by the `(Subject, Version)`-pair.
 
 There are two types of certificates: __Issuer certificates__ and __AS certificates__. An AS
 certificate is authenticated by exactly one Issuer certificate. An Issuer certificate is signed by
@@ -395,12 +395,12 @@ update) TRCs.
 
 - __Subject__: String. ISD and AS identifiers of the entity that owns the certificate and the
     corresponding key pair.
-- __TRCVersion__: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
+- __TRCVersion__: 64-bit unsigned integer. Version of the TRC the issuer used when signing the certificate.
     Note that a certificate can still be valid and verifiable, if the issuing AS has the same public
     key in any of the active TRC versions. Thus, TRC updates that do not change the issuing key do
     not affect the validity of a certificate.
-- __Version__: 64-bit integer. Certificate version, starts at 1.
-- __FormatVersion__: 8-bit integer. Version of the TRC/certificate format (currently 1).
+- __Version__: 64-bit unsigned integer. Certificate version, starts at 1.
+- __FormatVersion__: 8-bit unsigned integer. Version of the TRC/certificate format (currently 1).
 - __Description__: String. Describes the certificate/AS.
 - __CertificateType__: String. Indicates whether the subject is allowed to issue certificates for
     other ASes. Can be either `Issuer` (can issue certificate) or `AS` (cannot). This field also
@@ -411,7 +411,7 @@ update) TRCs.
 ### Certificate Section: Validity
 
 The following fields must be used to determine whether a certificate is valid. Timestamps are
-unsigned 64-bit decimal integers in seconds since the Unix epoch.
+unsigned 64-bit integers in seconds since the Unix epoch.
 
 - __NotBefore__: Time before which this Cert cannot be used to verify signatures.
 - __NotAfter__: Time after which this Cert may no longer be used to verify signatures.
@@ -426,7 +426,8 @@ algorithm and the key.
 - __Keys__: Object that maps key types to an object with the following fields:
   - __Algorithm__: String. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
-  - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time the key is replaced.
+  - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time the key is
+    replaced.
 
 ### Certificate Section: Issuer
 
@@ -434,12 +435,13 @@ The contents depend on the certificate type:
 
 #### AS Certificate
 - __IA__: String. ISD and AS identifiers of the entity that signed the certificate.
-- __CertificateVersion__: The certificate version of the Issuer certificate.
+- __CertificateVersion__: 64-bit unsigned integer. The certificate version of the Issuer
+  certificate.
 
 #### Issuer Certificate
 - __IA__: String. ISD and AS identifiers of the entity that signed the certificate. The issuer must
   be in the same ISD as the subject.
-- __KeyVersion__: The online key version of the issuing AS in the TRC.
+- __KeyVersion__: 64-bit unsigned integer. The online key version of the issuing AS in the TRC.
 
 ### Example of an AS Certificate Payload
 
@@ -835,12 +837,12 @@ The CCRL has the following fields:
 - __RevokedIssuerCerts__: Dictionary from issuer certificate identifiers formatted as
   `{{ia}}-{{version}}` to revocation notes.
 - __Validity__:
-    - __NotBefore__:  64-bit Timestamp as seconds since Unix epoch indicating the start of the
-      validity.
-    - __NotAfter__:  64-bit Timestamp as seconds since Unix epoch indicating the end of the
-      validity.
-- __EarliestRelease__:  64-bit Timestamp as seconds since Unix epoch indicating the earliest time
-  the next CCRL will be released.
+    - __NotBefore__: 64-bit unsigned integer. Timestamp in seconds since Unix epoch indicating the
+      start of the validity.
+    - __NotAfter__: 64-bit unsigned integer. Timestamp in seconds since Unix epoch indicating the
+      end of the validity.
+- __EarliestRelease__: 64-bit unsigned integer.Timestamp in seconds since Unix epoch indicating the
+  earliest time the next CCRL will be released.
 
 The CCRL is singed with the AS certificate of the issuer. This also means, before an CCRL issuer
 revokes its own certificate, it should acquire a new version first.
@@ -990,27 +992,27 @@ The following fields and no other must be present in the metadata object:
 - __TAAName__: The name of the TRC attestation authority.
 - __KeyID__: The attestation key identifier.
 - __KeyVersion__: The attestation key version.
-- __Timestamp__: An unsigned 64-bit decimal integer in seconds since Unix epoch.
+- __Timestamp__: 64-bit unsigned integer in seconds since Unix epoch.
 
 #### TRC Attestation Authority Config
 
 The Attestation Authority Config (TAAC) is represented in the JWS JSON Serialization Representation.
 The design is fairly similar to the TRC. There are a few (logical) groups of data in it, explained
-in the following sections. All integers are unsigned and formatted as decimal unless otherwise
-specified.
+in the following sections.
 
 ##### Top-Level TAAC Fields
 
 This comprises all non-object values in the top level of the TAAC.
 
 - __TAAName__: string. Name of the TRC attestation authority.
-- __TAACVersion__: 64-bit integer. TAAC version, starts at 1. All TAAC updates must increment this
-    by exactly 1 (i.e., no gaps, no repeats).
+- __TAACVersion__: 64-bit unsigned integer. TAAC version, starts at 1. All TAAC updates must
+    increment this by exactly 1 (i.e., no gaps, no repeats).
 - __Alias__: String array. List of all ISD-AS identifiers the TAA is reachable under.
-- __VotingQuorum__: 8-bit integer. Defines how many offline keys are necessary to update the TAAC.
-- __GracePeriod__: 32-bit integer. How long, in seconds, the previous unexpired version of the TAAC
-    can still be used to validate attestations (same as in TRC). `TAAC(i)` is still active until the
-    following time has passed (or `TAAC(i+2)` has been announced):
+- __VotingQuorum__: 8-bit unsigned integer. Defines how many offline keys are necessary to update
+  the TAAC.
+- __GracePeriod__: 32-bit unsigned integer. How long, in seconds, the previous unexpired version of
+  the TAAC can still be used to validate attestations (same as in TRC). `TAAC(i)` is still active
+  until the following time has passed (or `TAAC(i+2)` has been announced):
 
     `TAAC(i+1).Validity.NotBefore + TAAC(i+1).GracePeriod`
 
@@ -1026,7 +1028,8 @@ The following fields must be used to determine whether a TAAC is *valid*. Timest
 
 This is an object that maps offline key identifiers to the keys. Offline keys are used to verify
 TAAC updates.
-  - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is replaced.
+  - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time this key is
+    replaced.
   - __Algorithm__: String. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
 
@@ -1034,7 +1037,8 @@ TAAC updates.
 
 This is an object that maps attestation key identifiers to the keys. Attestation keys are used to
 verify Attestations.
-  - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is replaced.
+  - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time this key is
+    replaced.
   - __Algorithm__: String. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
 
