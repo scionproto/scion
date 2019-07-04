@@ -177,23 +177,23 @@ introduced in a future version of the TRC format.
 This comprises all non-object values in the top level of the TRC.
 
 - __ISD__: 16-bit unsigned integer. Unique and immutable ISD identifier.
-- __Version__: 64-bit unsigned integer. TRC version, starts at 1. All TRC updates must increment this by
-    exactly 1 (i.e., no gaps, no repeats).
+- __Version__: 64-bit unsigned integer. TRC version, starts at 1. All TRC updates must increment
+  this by exactly 1 (i.e., no gaps, no repeats).
 - __BaseVersion__: 64-bit unsigned integer. Version of the last trust reset TRC.
-- __Description__: String. Describes the ISD/TRC in human-readable form (possibly in multiple
-    languages).
-- __VotingQuorum__: 8-bit unsigned integer. Defines how many voting ASes from this ISD need to agree to be
-    able to modify the TRC.
+- __Description__: UTF-8 string. Describes the ISD/TRC in human-readable form (possibly in multiple
+  languages).
+- __VotingQuorum__: 8-bit unsigned integer. Defines how many voting ASes from this ISD need to agree
+  to be able to modify the TRC.
 - __FormatVersion__: 8-bit unsigned integer. Version of the TRC/certificate format (currently 1).
-- __GracePeriod__: 32-bit unsigned integer. How long, in seconds, the previous unexpired version of the TRC
-    should still be considered *active*, i.e., `TRC(i)` is still active until the following time has
-    passed (or `TRC(i+2)` has been announced):
+- __GracePeriod__: 32-bit unsigned integer. How long, in seconds, the previous unexpired version of
+  the TRC should still be considered *active*, i.e., `TRC(i)` is still active until the following
+  time has passed (or `TRC(i+2)` has been announced):
 
-    `TRC(i+1).Validity.NotBefore + TRC(i+1).GracePeriod`
+  `TRC(i+1).Validity.NotBefore + TRC(i+1).GracePeriod`
 
-    This formula allows the grace period to be adjusted according to the urgency, i.e., in a key
-    compromise situation, it may be preferable to have a shorter grace period than during regular
-    updates. A grace period of 0 is a special case that designates a trust reset.
+  This formula allows the grace period to be adjusted according to the urgency, i.e., in a key
+  compromise situation, it may be preferable to have a shorter grace period than during regular
+  updates. A grace period of 0 is a special case that designates a trust reset.
 
 - __TrustResetAllowed__: Boolean. Specifies whether a third party can announce a trust reset for
     this ISD.
@@ -218,14 +218,14 @@ This is an object that maps primary AS identifiers to their attributes and keys:
   following fields:
   - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time this key is
     replaced.
-  - __Algorithm__: String. Identifies the algorithm this key is used with.
+  - __Algorithm__: ASCII string. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
 
 ### TRC Section: Votes
 This is an object that maps AS identifiers to a signature object which must contain exactly the
 following:
 
-- __KeyType__: String. The type of key used. (`Online` or `Offline`)
+- __KeyType__: ASCII string. The type of key used. (`Online` or `Offline`)
 - __KeyVersion__: 64-bit unsigned integer. The version of the key used.
 
 The votes section indicates all voting ASes of the previous TRC that voted for the TRC update. It is
@@ -238,7 +238,7 @@ without consent from a voting quorum.
 This is an object that maps AS identifiers to an array of signature objects, which must contain the
 following:
 
-- __KeyType__: String. The type of key used (`Issuing`, `Online` or `Offline`).
+- __KeyType__: ASCII string. The type of key used (`Issuing`, `Online` or `Offline`).
 - __KeyVersion__: 64-bit unsigned integer. The version of the key used.
 
 New or updated keys sign the first TRC they appear in to show proof of possession.
@@ -393,20 +393,20 @@ update) TRCs.
 
 ### Top-Level Certificate Fields
 
-- __Subject__: String. ISD and AS identifiers of the entity that owns the certificate and the
-    corresponding key pair.
-- __TRCVersion__: 64-bit unsigned integer. Version of the TRC the issuer used when signing the certificate.
-    Note that a certificate can still be valid and verifiable, if the issuing AS has the same public
-    key in any of the active TRC versions. Thus, TRC updates that do not change the issuing key do
-    not affect the validity of a certificate.
+- __Subject__: ASCII string. ISD and AS identifiers of the entity that owns the certificate and the
+  corresponding key pair.
+- __TRCVersion__: 64-bit unsigned integer. Version of the TRC the issuer used when signing the
+  certificate. Note that a certificate can still be valid and verifiable, if the issuing AS has the
+  same public key in any of the active TRC versions. Thus, TRC updates that do not change the
+  issuing key do not affect the validity of a certificate.
 - __Version__: 64-bit unsigned integer. Certificate version, starts at 1.
 - __FormatVersion__: 8-bit unsigned integer. Version of the TRC/certificate format (currently 1).
-- __Description__: String. Describes the certificate/AS.
-- __CertificateType__: String. Indicates whether the subject is allowed to issue certificates for
-    other ASes. Can be either `Issuer` (can issue certificate) or `AS` (cannot). This field also
-    determines the contents of the __Issuer__ section.
+- __Description__: UTF-8 string. Describes the certificate and/or AS.
+- __CertificateType__: ASCII string. Indicates whether the subject is allowed to issue certificates
+  for other ASes. Can be either `Issuer` (can issue certificate) or `AS` (cannot). This field also
+  determines the contents of the __Issuer__ section.
 - __CCRLDistributionPoints__: Array (optional). Distribution points of control-plane certificate
-    revocation lists (CCRLs) formatted as the ISD-AS string.
+  revocation lists (CCRLs) formatted as the ISD-AS string.
 
 ### Certificate Section: Validity
 
@@ -424,7 +424,7 @@ This is an object that maps the type of key (`Encryption`, `Signing`, or `Revoca
 algorithm and the key.
 
 - __Keys__: Object that maps key types to an object with the following fields:
-  - __Algorithm__: String. Identifies the algorithm this key is used with.
+  - __Algorithm__: ASCII string. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
   - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time the key is
     replaced.
@@ -434,13 +434,13 @@ algorithm and the key.
 The contents depend on the certificate type:
 
 #### AS Certificate
-- __IA__: String. ISD and AS identifiers of the entity that signed the certificate.
+- __IA__: ASCII string. ISD and AS identifiers of the entity that signed the certificate.
 - __CertificateVersion__: 64-bit unsigned integer. The certificate version of the Issuer
   certificate.
 
 #### Issuer Certificate
-- __IA__: String. ISD and AS identifiers of the entity that signed the certificate. The issuer must
-  be in the same ISD as the subject.
+- __IA__: ACII string. ISD and AS identifiers of the entity that signed the certificate. The issuer
+  must be in the same ISD as the subject.
 - __KeyVersion__: 64-bit unsigned integer. The online key version of the issuing AS in the TRC.
 
 ### Example of an AS Certificate Payload
@@ -1004,7 +1004,7 @@ in the following sections.
 
 This comprises all non-object values in the top level of the TAAC.
 
-- __TAAName__: string. Name of the TRC attestation authority.
+- __TAAName__: UTF-8 string. Name of the TRC attestation authority.
 - __TAACVersion__: 64-bit unsigned integer. TAAC version, starts at 1. All TAAC updates must
     increment this by exactly 1 (i.e., no gaps, no repeats).
 - __Alias__: String array. List of all ISD-AS identifiers the TAA is reachable under.
@@ -1030,7 +1030,7 @@ This is an object that maps offline key identifiers to the keys. Offline keys ar
 TAAC updates.
   - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time this key is
     replaced.
-  - __Algorithm__: String. Identifies the algorithm this key is used with.
+  - __Algorithm__: ASCII String. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
 
 ##### TAAC Section: AttestationKeys
@@ -1039,7 +1039,7 @@ This is an object that maps attestation key identifiers to the keys. Attestation
 verify Attestations.
   - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time this key is
     replaced.
-  - __Algorithm__: String. Identifies the algorithm this key is used with.
+  - __Algorithm__: ASCII String. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
 
 ### <a name="taac-invariants"></a> TAAC Invariants
