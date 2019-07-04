@@ -126,7 +126,7 @@ revocation) applies. Trust anchors often take the form of self-signed root certi
 roots of trust). In the context of SCION the trust anchors are TRCs.
 
 The two predominant trust models in today's Internet are monopolistic (single root of trust) and
-oligopolistic (multiple roots of trust). Typically, in both models, all or some certification
+oligopolistic (multiple roots of trust). Typically, in both models, some or all certification
 authorities are omnipotent. That is, if their key is compromised, then the security of the entire
 system collapses. Moreover, roots of trust are typically defined through independent self-signed
 certificates. The SCION trust model is different in mainly two ways. First, no entity is omnipotent;
@@ -176,16 +176,16 @@ introduced in a future version of the TRC format.
 
 This comprises all non-object values in the top level of the TRC.
 
-- __ISD__: 16-bit integer. Unique and immutable ISD identifier.
-- __TRCVersion__: 64-bit integer. TRC version, starts at 1. All TRC updates must increment this by
+- __ISD__: 16-bit unsigned integer. Unique and immutable ISD identifier.
+- __Version__: 64-bit unsigned integer. TRC version, starts at 1. All TRC updates must increment this by
     exactly 1 (i.e., no gaps, no repeats).
-- __BaseVersion__: 64-bit integer. Version of the last trust reset TRC.
+- __BaseVersion__: 64-bit unsigned integer. Version of the last trust reset TRC.
 - __Description__: String. Describes the ISD/TRC in human-readable form (possibly in multiple
     languages).
-- __VotingQuorum__: 8-bit integer. Defines how many voting ASes from this ISD need to agree to be
+- __VotingQuorum__: 8-bit unsigned integer. Defines how many voting ASes from this ISD need to agree to be
     able to modify the TRC.
-- __FormatVersion__: 8-bit integer. Version of the TRC/certificate format (currently 1).
-- __GracePeriod__: 32-bit integer. How long, in seconds, the previous unexpired version of the TRC
+- __FormatVersion__: 8-bit unsigned integer. Version of the TRC/certificate format (currently 1).
+- __GracePeriod__: 32-bit unsigned integer. How long, in seconds, the previous unexpired version of the TRC
     should still be considered *active*, i.e., `TRC(i)` is still active until the following time has
     passed (or `TRC(i+2)` has been announced):
 
@@ -253,9 +253,9 @@ The following are conditions that must hold true for every TRC:
 6. Each `Authoritative` AS is a `Core` AS.
 7. No non-`Voting` AS has an online or offline key.
 8. No non-`Issuing` AS has an issuing key.
-9. `(BaseVersion != TRCVersion) ==> (GracePeriod > 0)`
-10. `(BaseVersion == TRCVersion) <==> (GracePeriod == 0)` (Initial TRC or trust reset)
-11. `(BaseVersion == TRCVersion) ==> All keys attach proof of possession to TRC`
+9. `(BaseVersion != Version) ==> (GracePeriod > 0)`
+10. `(BaseVersion == Version) <==> (GracePeriod == 0)` (Initial TRC or trust reset)
+11. `(BaseVersion == Version) ==> All keys attach proof of possession to TRC`
 
 
 ### Example of a TRC Payload
@@ -263,7 +263,7 @@ The following are conditions that must hold true for every TRC:
 ````json
 {
     "ISD": 1,
-    "TRCVersion": 23,
+    "Version": 23,
     "BaseVersion": 1,
     "Description": "Example ISD",
     "VotingQuorum": 2,
@@ -395,7 +395,7 @@ update) TRCs.
 
 - __Subject__: String. ISD and AS identifiers of the entity that owns the certificate and the
     corresponding key pair.
-- __TRCVersion__: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
+- __Version__: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
     Note that a certificate can still be valid and verifiable, if the issuing AS has the same public
     key in any of the active TRC versions. Thus, TRC updates that do not change the issuing key do
     not affect the validity of a certificate.
@@ -625,7 +625,7 @@ For any kind of update, the following conditions must be met:
 - The [TRC Invariants](#trc-invariants) must hold.
 - The `ISD` identifier field is immutable.
 - The `TrustResetAllowed` field is immutable.
-- The `TRCVersion` field must be equal to the previous version + 1.
+- The `Version` field must be equal to the previous version + 1.
 - The `BaseVersion` must be equal to the base version of the pervious TRC.
 - The `GracePeriod` of the TRC must not be 0. (A TRC with a grace period of 0 indicates a trust
   reset)
