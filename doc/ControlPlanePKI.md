@@ -21,6 +21,9 @@ new concepts and simplifies some existing mechanisms.
   certificates. All SCION hosts are verifiers.
 - __Trust store:__ database of trust anchors established and maintained by verifiers.
 - __Trust reset:__ action of creating and announcing a new trust anchor for an existing ISD.
+- __TRC update:__ process of releasing a new TRC version that is verifiable with the previous
+  version. Starting from a trust anchoring TRC, consecutive updates build a verifiable chain of
+  updates.
 - __TRC chain verification:__ process of verifying a series of TRCs with consecutive version numbers
   and the same ISD identifier, starting from a trust anchor.
 - __ASCII__, __BASE64URL__, __UTF8__: defined according to [Section 1.1 of RFC
@@ -195,6 +198,9 @@ This comprises all non-object values in the top level of the TRC.
   This formula allows the grace period to be adjusted according to the urgency, i.e., in a key
   compromise situation, it may be preferable to have a shorter grace period than during regular
   updates. A grace period of 0 is a special case that designates a trust reset.
+
+  From the verifiers viewpoint, an updated TRC might not be available instantly since it has to
+  propagate through beaconing first.
 
 - __TrustResetAllowed__: Boolean. Specifies whether a third party can announce a trust reset for
     this ISD.
@@ -1382,3 +1388,20 @@ serialized_chain = json.dumps(chain)
 #   }
 # ]
 ````
+
+
+## TODOs
+
+From Discussion:
+
+- ~~TRC update must be synchronized among authoritative ASes~~
+- ~~Certificate Chains must be registered by the subject ASes at the authoritative ASes~~
+- Authoritative ASes that were not available should not serve "authoritative requests" until they have
+  synchronized
+- Key version must be increased by one, the Version is kept even if status is lost and regained.
+  Verifiers MUST check that it is increased by one, if the key is present in the previous TRC.
+  They are free to ignore it if it is not present.
+  ASes signing the TRC MUST check that it is strictly increasing by one.
+- Revocations must be published at the local authoritative ASes, optional remote distribution points
+- Time based data structure.
+- CS is resolver for verifier. End hosts trust the CS and ask about specific certificates.
