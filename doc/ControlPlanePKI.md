@@ -183,12 +183,13 @@ This comprises all non-object values in the top level of the TRC.
 - __ISD__: 16-bit unsigned integer. Unique and immutable ISD identifier.
 - __Version__: 64-bit unsigned integer. TRC version, starts at 1. All TRC updates must increment
   this by exactly 1 (i.e., no gaps, no repeats).
-- __BaseVersion__: 64-bit unsigned integer. Version of the last trust reset TRC.
+- __BaseVersion__: 64-bit unsigned integer. Version of the base TRC that anchors this TRC chain.
+  In a base TRC this is equal to *Version*.
 - __Description__: UTF-8 string. Describes the ISD/TRC in human-readable form (possibly in multiple
   languages).
 - __VotingQuorum__: 8-bit unsigned integer. Defines how many voting ASes from this ISD need to agree
   to be able to modify the TRC.
-- __FormatVersion__: 8-bit unsigned integer. Version of the TRC/certificate format (currently 1).
+- __FormatVersion__: 8-bit unsigned integer. Version of the TRC format (currently 1).
 - __GracePeriod__: 32-bit unsigned integer. How long, in seconds, the previous unexpired version of
   the TRC should still be considered *active*, i.e., `TRC(i)` is still active until the following
   time has passed (or `TRC(i+2)` has been announced):
@@ -197,7 +198,8 @@ This comprises all non-object values in the top level of the TRC.
 
   This formula allows the grace period to be adjusted according to the urgency, i.e., in a key
   compromise situation, it may be preferable to have a shorter grace period than during regular
-  updates. A grace period of 0 is a special case that designates a trust reset.
+  updates. A base TRC must have a grace period of zero. All other TRCs must have a grace period
+  larger than zero.
 
   From the verifiers viewpoint, an updated TRC might not be available instantly since it has to
   propagate through beaconing first.
@@ -264,9 +266,8 @@ The following are conditions that must hold true for every TRC:
 6. Each `Authoritative` AS is a `Core` AS.
 7. No non-`Voting` AS has an online or offline key.
 8. No non-`Issuing` AS has an issuing key.
-9. `(BaseVersion != Version) ==> (GracePeriod > 0)`
-10. `(BaseVersion == Version) <==> (GracePeriod == 0)` (Initial TRC or trust reset)
-11. `(BaseVersion == Version) ==> All keys attach proof of possession to TRC`
+9. `(BaseVersion == Version) <==> (GracePeriod == 0)` (Initial TRC or trust reset)
+10. `(BaseVersion == Version) ==> All keys attach proof of possession to TRC`
 
 
 ### Example of a TRC Payload
@@ -361,7 +362,7 @@ A TRC is signed using the JWS standard and serialized using the General JWS JSON
 Syntax [Section 7.2.1 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.1).
 
 The following fields must be present and no other must be set:
-- __payload__: The BASE64URL encode TRC payload as described above.
+- __payload__: The BASE64URL-encoded TRC payload described above.
 - __signatures__: JSON array of the signature objects.
 
 The following fields must be present in the signature object and no other must be set:
@@ -449,9 +450,9 @@ The contents depend on the certificate type:
   certificate.
 
 #### Issuer Certificate
-- __IA__: ACII string. ISD and AS identifiers of the entity that signed the certificate. The issuer
+- __IA__: ASCII string. ISD and AS identifiers of the entity that signed the certificate. The issuer
   must be in the same ISD as the subject.
-- __KeyVersion__: 64-bit unsigned integer. The online key version of the issuing AS in the TRC.
+- __KeyVersion__: 64-bit unsigned integer. The issuing key version of the issuing AS in the TRC.
 
 ### Example of an AS Certificate Payload
 
@@ -520,7 +521,7 @@ A certificate is signed using the JWS standard and serialized using the Flattene
 Serialization Syntax [Section 7.2.2 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.2).
 
 The following fields and no other must be present:
-- __payload__: The BASE64URL encode certificate payload as described above.
+- __payload__: The BASE64URL-encoded certificate payload described above.
 - __protected__: The BASE64URL(UTF8(metadata))-encoded metadata of the signature.
 - __signature__: The BASE64URL encoded JWS signature.
 
@@ -1006,7 +1007,7 @@ Attestations carry only one signature and will be serialized using the Flattened
 Serialization Syntax [Section 7.2.2 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.2).
 
 The following fields and no other must be present in the metadata object:
-- __payload__: The BASE64URL encode serialized base TRC.
+- __payload__: The BASE64URL-encoded serialized base TRC.
 - __protected__: The BASE64URL(UTF8(metadata))-encoded metadata of the signature.
 - __signature__: The BASE64URL encoded JWS signature.
 
@@ -1119,7 +1120,7 @@ A TAAC is signed using the JWS standard and serialized using the General JWS JSO
 Syntax [Section 7.2.1 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.1).
 
 The following fields and no other must be present:
-- __payload__: The BASE64URL encode TAAC payload as described above.
+- __payload__: The BASE64URL-encoded TAAC payload described above.
 - __signatures__: JSON array of the signature objects.
 
 The following fields and no other must be present in the signature object:
@@ -1157,7 +1158,7 @@ The following conditions must hold for an update to be considered valid:
 
 #### TAAC Dissemination
 
-Contrary to TRCs, TAACs are not discovered through the beaconing process. Even tough attestations
+Contrary to TRCs, TAACs are not discovered through the beaconing process. Even though attestations
 are first class citizens, we do not want to force ASes to use them for their internal decision
 making. The verifiers periodically check whether a new TAAC exists. This is done in a hierarchical
 manner. Core ASes query the RAA directly. Non-core query their core. End hosts query the local AS.
