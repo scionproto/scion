@@ -57,9 +57,9 @@ This decision is based on a policy defined in the Beacon Server's configuration 
 
 ### Path Lookup
 
-Additionally to up-, core- and down-segments, SCION daemon is responsible for fetching hidden down-segments. SCION daemon uses the HPG configuration to detect whether it has to do a hidden path lookup. For a given request, it checks all HPGs and extracts the HPG `GroupID` of all those groups where the destination is a Writer (or Owner) of that group. With these `GroupID`s and the given destination, SCION daemon then requests hidden down-segments from its local HPS. The local HPS selects a Registry for each `GroupID`, paritioning the `GroupID`s into disjoint subsets based on shared Registries. HPS then resolves the request by applying one of two cases for each subset:
-1. The local HPS is a registry of the groups in the subset, and thus resolves the request by querying its database
-2. The local HPS is *not* a registry of the groups in the subset. The request is resolved by querying the shared registry of the given groups.
+Additional to up-, core- and down-segments, SCION daemon is responsible for fetching hidden down-segments. SCION daemon uses the HPG configuration to detect whether it has to do a hidden path lookup. For a given request, it checks all HPGs and extracts the HPG `GroupID` of all those groups where the destination is a Writer (or Owner) of that group. With these `GroupID`s and the given destination, SCION daemon then requests hidden down-segments from its local HPS. The local HPS selects a Registry for each `GroupID`, partitioning the `GroupID`s into disjoint subsets based on shared Registries. HPS then resolves the request by applying one of two cases for each subset:
+1. The local HPS is a Registry of the groups in the subset, and thus resolves the request by querying its database
+2. The local HPS is *not* a Registry of the groups in the subset. The request is resolved by querying the shared Registry of the given groups.
 
 The HPS then replies to SCION daemon with a map of `GroupID` -> (`SegReply`, `error`).
 
@@ -147,5 +147,7 @@ The HPS is structured similar to existing go infra services. It uses:
 #### Handlers
 
 The HPS has the following handlers:
-- `HPSegRegHandler`: Handler accepting a `GroupID` and a list of segments to be registered as hidden down-segments for that group. Access: Owner/Writers
-- `HPSegReqHandler`: Accepting a list of `GroupID`s, responding with hidden down-segments corresponding to those groups. Access: Owner/Readers
+- `HPSegRegHandler`: Handler accepting a `GroupID` and a list of segments to be registered as hidden down-segments for that group  
+Access: Owner/Writers
+- `HPSegReqHandler`: Accepting a list of `GroupID`s, responding with hidden down-segments corresponding to those groups  
+Access: Owner/Readers
