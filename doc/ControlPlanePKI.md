@@ -664,7 +664,14 @@ must be met:
 
 - Keys can be updated only with a strictly increasing `KeyVersion` number. In case the key is
   changed, the `KeyVersion` must be the previous version + 1. In case the `KeyVersion` remains the
-  same, the key must not change.
+  same, the key must not change. This holds true over all TRCs since the base TRC. I.e. if an AS is
+  demoted and later promoted again, the key version continues where it left off before. This must be
+  ensured by all signing entities.
+
+  Verifiers must check the `KeyVersion` is correct in the updated TRC, if the previous TRC already
+  contains a key of the given type for that primary AS. If not, verifiers are free to ignore the
+  check.
+
 - Any key that was not present in the previous TRC must sign the new TRC. This guarantees that any
   key present in any version of the TRC has been used to produce at least one signature in the TRC's
   history, which shows a proof of possession (PoP) of the corresponding private key (considered a
@@ -673,6 +680,7 @@ must be met:
   with the offline root key authenticated by the previous TRC.
 - The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
   TRC.
+
 
 ## TRC Update Dissemination
 
@@ -1408,10 +1416,10 @@ From Discussion:
 - ~~Authoritative ASes that were not available should not serve "authoritative requests" until they
   have synchronized~~
 - ~~TRCVersion only in issuer certificate.~~
-- Key version must be increased by one, the Version is kept even if status is lost and regained.
-  Verifiers MUST check that it is increased by one, if the key is present in the previous TRC.
-  They are free to ignore it if it is not present.
-  ASes signing the TRC MUST check that it is strictly increasing by one.
+- ~~Key version must be increased by one, the Version is kept even if status is lost and regained.
+  Verifiers MUST check that it is increased by one, if the key is present in the previous TRC. They
+  are free to ignore it if it is not present. ASes signing the TRC MUST check that it is strictly
+  increasing by one.~~~
 - Revocations must be published at the local authoritative ASes, optional remote distribution points
 - Time based data structure.
 - CS is resolver for verifier. End hosts trust the CS and ask about specific certificates.
