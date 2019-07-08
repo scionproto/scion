@@ -412,8 +412,8 @@ update) TRCs.
 - __CertificateType__: ASCII string. Indicates whether the subject is allowed to issue certificates
   for other ASes. Can be either `Issuer` (can issue certificate) or `AS` (cannot). This field also
   determines the contents of the __Issuer__ section.
-- __CCRLDistributionPoints__: Array (optional). Distribution points of control-plane certificate
-  revocation lists (CCRLs) formatted as the ISD-AS string.
+- __OptionalDistributionPoints__: Array string. Additional certificate revocation distribution
+  points formatted as ISD-AS string. They must be authoritative in their ISD.
 
 ### Certificate Section: Validity
 
@@ -849,63 +849,22 @@ replaced by the subject, and `{{version}}` is replaced by the version of the rev
 
 ### Revocation Note Distribution
 
-The revocation notes must be distributed in a scalable manner that also is serviceable in a
-bootstrapping phase. An important factor for scalability of distribution is that all revocation
-information can be cached. To these end, distribution points periodically issue a Control-Plane
-Certificate Revocation List (CCRL). This list contains all revocation notes for certificates that
-are still in their validity period and the distribution point has seen. Additionally, distribution
-points can be queried about individual certificates.
+Each authoritative AS is a revocation note distribution point. ASes that want to revoke their
+certificate must register the revocation note with all authoritative ASes of their ISD. If the
+certificate has configured optional distribution points, the AS must distribute the note to them as
+well.
 
-#### NOTE: Problems with "Revocations Since" approach
+Distribution points keep a data structure that allows querying new revocation notes that have been
+registered after the provided time. The signed response contains the revocation notes including the
+time that the revoked certificates expires. Additionally, the distribution points can be queried
+about a specific certificate.
 
-A proposed solution was, that the distribution point should keep a data structure ordered by
-insertion time that allows queries of the type "give me all revocations since time x". There are
-multiple issues with this. For one, it is not hierarchically cacheable. I.e the endhosts cannot
-easily ask the local CS for these types of queries, unless we allow the response to contain earlier
-points in time than the requested x. Then, we could periodically issue such a list which would make
-it a bit more cacheable. The more severe issue with this approach is that verifiers do not know when
-they can discard the revocations if they do not have a copy of the revoked certificate.
+ASes periodically query at least one distribution point of all valid certificate in their trust
+store. Verifiers then ask the local certificate server about the state of a certificate. In case
+they do not trust their certificate server for this, they can query the distribution points
+themselves.
 
-#### Control-Plane Certificate Revocation List (CCRL)
-
-The CCRL has the following fields:
-
-- __Issuer__: The CCRL issuer AS identifier.
-- __RevokedASCertificates__: Dictionary from AS certificate identifiers formatted as
-  `{{ia}}-{{version}}` to revocation notes.
-- __RevokedIssuerCerts__: Dictionary from issuer certificate identifiers formatted as
-  `{{ia}}-{{version}}` to revocation notes.
-- __Validity__:
-    - __NotBefore__: 64-bit unsigned integer. Timestamp in seconds since Unix epoch indicating the
-      start of the validity.
-    - __NotAfter__: 64-bit unsigned integer. Timestamp in seconds since Unix epoch indicating the
-      end of the validity.
-- __EarliestRelease__: 64-bit unsigned integer.Timestamp in seconds since Unix epoch indicating the
-  earliest time the next CCRL will be released.
-
-The CCRL is singed with the AS certificate of the issuer. This also means, before an CCRL issuer
-revokes its own certificate, it should acquire a new version first.
-
-#### CCRL Serialization
-
-TODO(roosd): will be in JWS, the same as all other parts.
-
-#### Distribution Points
-
-Distribution points are selected by the certificate chain subject, if it chooses to opt into
-certificate revocation. The certificate chain can specify two different types of distribution
-points:
-- locally hosted CCRL: The AS hosts its own CCRL.
-- Core hosted CCRL: The revocation note will be available in a CCRL hosted by a core AS. This can be
-  a core AS in the local or a remote ISD.
-
-QUESTION(roosd): Should the core ASes also be authoritative?
-
-The subject can specify multiple distribution points, and also mix the types. Certificate servers
-query the distribution points specified in all valid certificate chains periodically to get the
-newest CCRL. To avoid a storm of requests on the distribution points, the certificate servers should
-wait for a random amount of time after EarliestRelease before requesting the new list. All other
-entities query the local certificate servers.
+Distribution points must only be queried if they are an authoritative AS in their ISD.
 
 ### Revocation Note Registration
 
@@ -921,14 +880,15 @@ of time. Operators should coordinate and prepare before revoking an issuer certi
 ### Verifier Decision Making
 
 Certificate revocation stands in stark contrast with availability. In case verifiers only deem a
-certificate as valid if they have a recent CCRL available,  there is a circular dependency between
-verifying paths to the distribution points and having paths to the distribution point. We have to
-make a trade-off here and CCRL are to be considered on a best-effort basis. During regular
-operation, the CCRL will be available and certificates are revoked in a short amount of time.
+certificate as valid if they have recently queried the distribution point, there is a circular
+dependency between verifying paths to the distribution points and having paths to the distribution
+point. We have to make a trade-off here and revocations are to be considered on a best-effort basis.
+During regular operation, the revocation distribution points will be available and certificates are
+revoked in a short amount of time.
 
-If any of the CCRL specified in a certificate contains a revocation note, the certificate is
-considered revoked and should no longer be considered valid. In case of an issuer certificate, this
-means all certificate chains containing it will also be considered invalid.
+If any of the distribution points contains a revocation note, the certificate is considered revoked
+and should no longer be considered valid. In case of an issuer certificate, this means all
+certificate chains containing it will also be considered invalid.
 
 ## <a name="trc-bootstrapping"></a> TRC Bootstrapping
 
@@ -1420,6 +1380,6 @@ From Discussion:
   Verifiers MUST check that it is increased by one, if the key is present in the previous TRC. They
   are free to ignore it if it is not present. ASes signing the TRC MUST check that it is strictly
   increasing by one.~~~
-- Revocations must be published at the local authoritative ASes, optional remote distribution points
-- Time based data structure.
-- CS is resolver for verifier. End hosts trust the CS and ask about specific certificates.
+- ~~Revocations must be published at the local authoritative ASes, optional remote distribution points~~
+- ~~Time based data structure.~~
+- ~~CS is resolver for verifier. End hosts trust the CS and ask about specific certificates.~~
