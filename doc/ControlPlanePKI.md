@@ -406,10 +406,6 @@ update) TRCs.
 
 - __Subject__: ASCII string. ISD and AS identifiers of the entity that owns the certificate and the
   corresponding key pair.
-- __TRCVersion__: 64-bit unsigned integer. Version of the TRC the issuer used when signing the
-  certificate. Note that a certificate can still be valid and verifiable, if the issuing AS has the
-  same public key in any of the active TRC versions. Thus, TRC updates that do not change the
-  issuing key do not affect the validity of a certificate.
 - __Version__: 64-bit unsigned integer. Certificate version, starts at 1.
 - __FormatVersion__: 8-bit unsigned integer. Version of the TRC/certificate format (currently 1).
 - __Description__: UTF-8 string. Describes the certificate and/or AS.
@@ -453,13 +449,17 @@ The contents depend on the certificate type:
 - __IA__: ASCII string. ISD and AS identifiers of the entity that signed the certificate. The issuer
   must be in the same ISD as the subject.
 - __KeyVersion__: 64-bit unsigned integer. The issuing key version of the issuing AS in the TRC.
+- __TRCVersion__: 64-bit unsigned integer. Version of the TRC the issuer used when signing the
+  certificate. Note that a certificate can still be valid and verifiable, if the issuing AS has the
+  same issuing key in any of the active TRC versions. TRC updates that do not change the issuing key
+  do not affect the validity of a certificate. The TRCVersion serves as a starting point in the TRC
+  chain.
 
 ### Example of an AS Certificate Payload
 
 ````json
 {
     "Subject": "1-ff00:0:120",
-    "TRCVersion": 2,
     "Version": 1,
     "FormatVersion": 1,
     "Description": "AS certificate",
@@ -492,8 +492,7 @@ The contents depend on the certificate type:
 ````json
 {
     "Subject": "1-ff00:0:130",
-    "TRCVersion": 2,
-    "CertificateVersion": 6,
+    "Version": 6,
     "FormatVersion": 1,
     "Description": "Issuer certificate",
     "CertificateType": "Issuer",
@@ -510,7 +509,8 @@ The contents depend on the certificate type:
     },
     "Issuer": {
         "IA": "1-ff00:0:130",
-        "KeyVersion": 42
+        "KeyVersion": 42,
+        "TRCVersion": 2,
     }
 }
 ````
@@ -678,7 +678,7 @@ must be met:
 
 A TRC update must be distributed amongst all authoritative ASes in that ISD, and they must switch to
 it as the latest version in a synchronized fashion. I.e. when querying two distinct authoritative
-ASes for the latest TRC version, they must reply with the same version modulo some miner clock skew.
+ASes for the latest TRC version, they must reply with the same version modulo some minor clock skew.
 
 ASes inside that ISD must only announce the new TRC after the authoritative ASes have switched their
 view of the latest TRC version. This can easily achieved by having authoritative ASes switch the
@@ -742,12 +742,12 @@ chains.
 
 ### Getting an AS Certificate Chain
 
-    getVerifiedChain(isd, as, version, trcVersion):
+    getVerifiedChain(isd, as, version):
         chain = trustStoreQueryChain(isd, as, version)
         if chain != nil:
             return chain
-        trc = getVerifiedTRC(isd, trcVersion)
         chain = downloadChain(isd, as, version)
+        trc = getVerifiedTRC(isd, chain[0].Issuer.TRCVersion)
         if verifyChain(cert, trc) == true:
             return cert
         return nil
@@ -771,19 +771,25 @@ When validating signatures based on certificate chains, the following must be ch
   verified certificate chain.
 - The current time is inside the validity period of the certificate chain.
 - The certificate chain is authenticated by a currently active TRC. This means the issuing key that
-    was used to sign the Issuer certificate must be authenticated by the active TRCs. The active
-    TRC's version can differ from the `TRCVersion` specified in the Issuer certificate.
+  was used to sign the Issuer certificate must be authenticated by the active TRCs. The active TRC's
+  version can differ from the `TRCVersion` specified in the Issuer certificate.
 
 ## Trust Material Sources
 
 When dealing with crypto material operators should have a point to contact to do certain kinds of
-queries. Authoritative primary ASes are required to keep all certificate chains issued inside their
-ISD. Queries such as asking for the newest TRC should be sent to an authoritative primary AS. All
-other ASes are required to have the trust material to verify all messages they serve. E.g. an AS
-must have all certificate chains to verify all path segments it serves.
+queries. Authoritative ASes are required to keep all certificate chains issued inside their ISD.
+Queries such as asking for the newest TRC should be sent to an authoritative primary AS. All other
+ASes are required to have the trust material to verify all messages they serve. E.g. an AS must have
+all certificate chains to verify all path segments it serves.
 
 The subjects of certificate chains must register all freshly issued chains with all authoritative
 primary ASes in the local ISD.
+
+If an authoritative AS has been unavailable, it must not serve authoritative queries until it has
+synchronized with the other authoritative ASes. Examples of authoritative queries are:
+- Certificate chain request with negative response.
+- Newest certificate chain for given AS.
+- Newest TRC for this ISD.
 
 The following rules define trust material lookup in the different services:
 
@@ -791,9 +797,8 @@ __Path Server__: When verifying path segments, query the sending beacon/path ser
 
 __BeaconServer__: When verifying beacons, query the sending beacon server.
 
-__Certificate Server__:  The
-following table shows where a certificate server fetches the material based on which type of AS it
-resides in.
+__Certificate Server__: The following table shows where a certificate server fetches the material
+based on which type of AS it resides in.
 
 | AS type         | Local ISD TRC | Remote ISD TRC | ISD Local Chain | Remote Chain |
 | --------------- | ------------- | -------------- | --------------- | ------------ |
@@ -1400,8 +1405,9 @@ From Discussion:
 
 - ~~TRC update must be synchronized among authoritative ASes~~
 - ~~Certificate Chains must be registered by the subject ASes at the authoritative ASes~~
-- Authoritative ASes that were not available should not serve "authoritative requests" until they have
-  synchronized
+- ~~Authoritative ASes that were not available should not serve "authoritative requests" until they
+  have synchronized~~
+- ~~TRCVersion only in issuer certificate.~~
 - Key version must be increased by one, the Version is kept even if status is lost and regained.
   Verifiers MUST check that it is increased by one, if the key is present in the previous TRC.
   They are free to ignore it if it is not present.
