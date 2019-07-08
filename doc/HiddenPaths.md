@@ -17,7 +17,7 @@ This file documents the design for the Hidden Paths infrastructure.
 
 Hidden Path communication enables entities to obtain and use specific path segments to build AS level end-to-end paths. In the common case, path segments are publicly available to any network entity. They are fetched from path servers and used to construct forwarding paths. In a Hidden Path communication setting, certain down-segments are not registered at the public path servers. Instead, they are reigistered at a dedicated Hidden path server (HPS) which enforces access control, such that only authorized entities can fetch and use these segments to create forwarding paths.
 
-![Path Lookup](fig/hidden_paths/HiddenPath.png)  
+![Hidden Path Communication](fig/hidden_paths/HiddenPath.png)  
 *Hidden Path communication scheme:*  
 *1: Group Owner creates a HPG and shares the configuration out-of-band*  
 *2: Writer ASes register down-segments at Registries of their group*  
@@ -57,9 +57,9 @@ This decision is based on a policy defined in the Beacon Server's configuration 
 
 ### Path Lookup
 
-Additionally to up-, core- and down-segments, SCION daemon is responsible for fetching hidden down-segments. SCION daemon uses the HPG configuration to detect whether it has to do a hidden path lookup. For a given request, it checks all HPGs and extracts the HPG `GroupID` of all those groups where the destination is a writer (or owner) of that group. With these `GroupID`s and the given destination, SCION daemon then requests hidden down-segments from its local HPS. The local HPS resolves the request by applying one of two cases for each provided `GroupID`:
-1. The local HPS is a registry of the given `GroupID`, and thus resolves the request by querying its database
-2. The local HPS is *not* a registry of the given `GroupID`. The request is resolved by querying one of the registries of the given group.
+Additionally to up-, core- and down-segments, SCION daemon is responsible for fetching hidden down-segments. SCION daemon uses the HPG configuration to detect whether it has to do a hidden path lookup. For a given request, it checks all HPGs and extracts the HPG `GroupID` of all those groups where the destination is a Writer (or Owner) of that group. With these `GroupID`s and the given destination, SCION daemon then requests hidden down-segments from its local HPS. The local HPS selects a Registry for each `GroupID`, paritioning the `GroupID`s into disjoint subsets based on shared Registries. HPS then resolves the request by applying one of two cases for each subset:
+1. The local HPS is a registry of the groups in the subset, and thus resolves the request by querying its database
+2. The local HPS is *not* a registry of the groups in the subset. The request is resolved by querying the shared registry of the given groups.
 
 The HPS then replies to SCION daemon with a map of `GroupID` -> (`SegReply`, `error`).
 
