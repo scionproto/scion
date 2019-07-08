@@ -3,14 +3,19 @@
 This file documents the design for the Hidden Paths infrastructure.
 
 - Author: Claude Hähni
-- Last updated: 2019-07-05
+- Last updated: 2019-07-08
 - Status: draft
 
 ## Overview
 
 Hidden Path communication enables entities to obtain and use specific path segments to build AS level end-to-end paths. In the common case, path segments are publicly available to any network entity. They are fetched from path servers and used to construct forwarding paths. In a Hidden Path communication setting, certain down-segments are not registered at the public path servers. Instead, they are reigistered at a dedicated Hidden path server (HPS) which enforces access control, such that only authorized entities can fetch and use these segments to create forwarding paths.
 
-![Path Lookup](fig/hidden_paths/HiddenPath.png)
+![Path Lookup](fig/hidden_paths/HiddenPath.png)  
+*Hidden Path communication scheme:*  
+*1: Group Owner creates a HPG and shares the configuration out-of-band*  
+*2: Writer ASes register down-segments at Registries of their group*  
+*3: Reader ASes query local HPS for hidden segments*  
+*4: Reader ASes can communicate with Writer ASes based on hidden path segments*
 
 ## Terminology
 
@@ -24,7 +29,7 @@ Hidden Path communication enables entities to obtain and use specific path segme
 ### Hidden Path Group
 
 A hidden path group is defined as a group of ASes within which hidden path information is shared. A hidden path group consists of:
-- GroupID: Unique 64bit identification of the group: OwnerAS<sub>48bit</sub>||GroupID<sub>16bit<sub>
+- GroupID: Unique 64bit identification of the group: OwnerAS<48bit>||GroupID<16bit>
 - Version: A version indicating the version of the configuration
 - Owner: AS ID of the owner of the hidden path group. Responsible for maintaining the hidden path group configuration and keeping the group's HPS up-to-date with the latest version, Access: Read/Write
 - Writers: All ASes in the group which are allowed to register hidden paths, Access: Read/Write
@@ -64,7 +69,7 @@ The HPS then replies to SCION daemon with a map of `GroupID` -> (`SegReply`, `er
 
 ### Hidden Path Group
 
-Below is an example of a Hidden Path Group configuration file
+Below is an example of a Hidden Path Group configuration file (`HpCfg_281474977720757.json`):
 
 ```json
 {
@@ -101,7 +106,7 @@ ID = "bs1-ff00_0_111-1"
 
 [hpGroups]
 [hpGroups.281474977720757]
-CfgFilePath = "path/to/file"
+CfgFilePath = "path/to/HpCfg_281474977720757.json"
 
 [[hpGroups.281474977720757.segments]]
 interface = 5
@@ -130,6 +135,17 @@ localHidden = true
 
 (TBD)
 
-### HPS Handlers
+### Hidden Path Server
 
-(TBD)
+#### General Structure
+
+The HPS is structured similar to existing go infra services. It uses:
+- go/lib/env (for configuration and setting up the service)
+- go/lib/infra (for sending messages)
+- go/lib/pathdb (for storing hidden segments)
+
+#### Handlers
+
+The HPS has the following handlers:
+- `HPSegRegHandler`: Handler accepting a `GroupID` and a list of segments to be registered as hidden down-segments for that group. Access: Owner/Writers
+- `HPSegReqHandler`: Accepting a list of `GroupID`s, responding with hidden down-segments corresponding to those groups. Access: Owner/Readers
