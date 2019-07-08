@@ -6,6 +6,13 @@ This file documents the design for the Hidden Paths infrastructure.
 - Last updated: 2019-07-08
 - Status: draft
 
+## Naming
+
+| Name                     | Explanation                                                     |
+| ------------------------ | --------------------------------------------------------------- |
+| Hidden Path Group (HPG)  | Group within which hidden path information is shared            |
+| Hidden Path Server (HPS) | Server caching hidden segments / answering hidden path requests |
+
 ## Overview
 
 Hidden Path communication enables entities to obtain and use specific path segments to build AS level end-to-end paths. In the common case, path segments are publicly available to any network entity. They are fetched from path servers and used to construct forwarding paths. In a Hidden Path communication setting, certain down-segments are not registered at the public path servers. Instead, they are reigistered at a dedicated Hidden path server (HPS) which enforces access control, such that only authorized entities can fetch and use these segments to create forwarding paths.
@@ -16,13 +23,6 @@ Hidden Path communication enables entities to obtain and use specific path segme
 *2: Writer ASes register down-segments at Registries of their group*  
 *3: Reader ASes query local HPS for hidden segments*  
 *4: Reader ASes can communicate with Writer ASes based on hidden path segments*
-
-## Terminology
-
-| Term                     | Explanation                                                     |
-| ------------------------ | --------------------------------------------------------------- |
-| Hidden Path Group (HPG)  | Group within which hidden paths are shared                      |
-| Hidden Path Server (HPS) | Server caching hidden segments / answering hidden path requests |
 
 ## Design
 
