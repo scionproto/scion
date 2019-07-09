@@ -1378,21 +1378,3 @@ serialized_chain = json.dumps(chain)
 #   }
 # ]
 ````
-
-
-## TODOs
-
-From Discussion:
-
-- ~~TRC update must be synchronized among authoritative ASes~~
-- ~~Certificate Chains must be registered by the subject ASes at the authoritative ASes~~
-- ~~Authoritative ASes that were not available should not serve "authoritative requests" until they
-  have synchronized~~
-- ~~TRCVersion only in issuer certificate.~~
-- ~~Key version must be increased by one, the Version is kept even if status is lost and regained.
-  Verifiers MUST check that it is increased by one, if the key is present in the previous TRC. They
-  are free to ignore it if it is not present. ASes signing the TRC MUST check that it is strictly
-  increasing by one.~~~
-- ~~Revocations must be published at the local authoritative ASes, optional remote distribution points~~
-- ~~Time based data structure.~~
-- ~~CS is resolver for verifier. End hosts trust the CS and ask about specific certificates.~~
