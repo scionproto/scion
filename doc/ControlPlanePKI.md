@@ -251,7 +251,6 @@ This is an object that maps AS identifiers to an array of signature objects, whi
 following:
 
 - __KeyType__: ASCII string. The type of key used (`Issuing`, `Online` or `Offline`).
-- __KeyVersion__: 64-bit unsigned integer. The version of the key used.
 
 New or updated keys sign the first TRC they appear in to show proof of possession.
 
@@ -346,11 +345,9 @@ The following are conditions that must hold true for every TRC:
     "ProofOfPossession": {
         "ff00:0:110": [{
             "Type": "Online",
-            "KeyVersion": 22
         }],
         "ff00:0:120": [{
             "Type": "Offline",
-            "KeyVersion": 11
         }]
     }
 }
@@ -435,6 +432,14 @@ algorithm and the key.
   - __Key__: Base64-encoded string representation of the public key.
   - __KeyVersion__: 64-bit unsigned integer. Starts at 1, incremented every time the key is
     replaced.
+
+The following table shows what keys are authenticated by the different certificate types. The key
+notation is the same as in the [private keys table](#table-private-keys).
+
+|                    | Encryption key     | Signing key             | Revocation key     |
+| ------------------ | ------------------ | ----------------------- | ------------------ |
+| Issuer certificate | illegal            | required (`K_iss_cert`) | optional (`K_rev`) |
+| AS certificate     | required (`K_enc`) | required (`K_sign`)     | optional (`K_rev`) |
 
 ### Certificate Section: Issuer
 
@@ -595,16 +600,17 @@ primary ASes) use AS certificates to carry out their regular operations (such as
 Issuing ASes hold an additional certificate whose only purpose is to authenticate (other ASes' and
 their own) AS certificates.
 
-### Table: Private Keys
+### <a name="table-private-keys"></a> Table: Private Keys
 
 | Name             | Notation      | Auth.[^1]| Validity[^2]| Revocation    | Usage                       |
 | ---------------- | ------------- | -------- | ----------- | ------------- | --------------------------- |
 | Offline root key | `K_offline`   | TRC      | 5 years     | TRC update    | Sensitive TRC update        |
 | Online root key  | `K_online`    | TRC      | 1 year      | TRC update    | Regular TRC update          |
 | Issuing key      | `K_issuing`   | TRC      | 1 year      | TRC update    | Signing issuer certificates |
-| Issuer cert key  |`K_issuer_cert`|`C_issuer`| 6 months    | Dedicated[^3] | Signing AS certificates     |
+| Issuer cert key  | `K_iss_cert`  |`C_issuer`| 6 months    | Dedicated[^3] | Signing AS certificates     |
 | Encryption key   | `K_enc`       | `C_AS`   | 3 months    | Dedicated[^3] | DRKey                       |
 | Signing key      | `K_sign`      | `C_AS`   | 3 months    | Dedicated[^3] | Path authentication         |
+| Revocation key   | `K_rev`
 
 [^1]: Location of the corresponding (authenticated) public key. [^2]: Recommended usage period
 before key rollover (best practice). [^3]: As described in the "AS Certificate Revocation" section
@@ -614,8 +620,8 @@ below.
 
 | Name               | Notation      | Signed by       | Associated key    | Validity[^4]    |
 | ------------------ | ------------- | --------------- | ----------------- | --------------- |
-| Issuer certificate | `C_issuer`    | `K_issuing`     | `K_issuer_cert`   | 1 week          |
-| AS certificate     | `C_AS`        | `K_issuer_cert` | `K_enc`, `K_sign` | 3 days          |
+| Issuer certificate | `C_issuer`    | `K_issuing`     | `K_iss_cert`      | 1 week          |
+| AS certificate     | `C_AS`        | `K_iss_cert`    | `K_enc`, `K_sign` | 3 days          |
 
 [^4]: Recommended validity period (best practice).
 
@@ -629,6 +635,11 @@ updates, sensitive updates, such as changes to the keys of Primary AS can occur.
 In this section we describe how TRCs must be verified. This includes a verification of the TRC chain
 as well as other basic validations. Note, however, that a *verified* TRC is not necessarily *valid*
 or *active*.
+
+A TRC update involves two TRC versions of the same ISD. The previous version and the updated
+version. The previous TRC is relative to the updated TRC and is simply identified by the updated TRC
+version - 1. Verification of the updated version is done against the previous TRC. Because of the
+uniqueness property of TRCs, there is exactly one previous TRC for all non-base TRCs.
 
 Trust resets are not considered TRC updates, since they set a new trust anchor. They are described
 later in this document.
@@ -644,15 +655,15 @@ For any kind of update, the following conditions must be met:
   reset)
 - The `NotBefore` validity field must be in the range spanned by the validity fields of the previous
   TRC.
-- There must only be votes by voting ASes.
+- There must only be votes by voting ASes of the previous TRC.
 
 ### Regular TRC Update
 
 A regular update is an update that modifies neither the `PrimaryASes` section nor the `VotingQuorum`
 parameter.
 
-- The TRC must only have signatures issued by voting ASes in the previous TRC.
-- All voting ASes in the new TRC must sign it.
+- The TRC must only have voting signatures issued by voting ASes in the previous TRC.
+- All voting ASes in the new TRC must have signed a vote.
 - All votes must be issued with the online root key.
 - The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
   TRC.
@@ -662,6 +673,12 @@ parameter.
 A sensitive update is any update that is not "regular" (as defined above). The following conditions
 must be met:
 
+- The TRC must only have voting signatures issued by voting ASes in the previous TRC.
+- All voting ASes in the new TRC that were present in the previous TRC must attach a vote to the
+  TRC.
+- All votes must be issued with the offline root key authenticated by the previous TRC.
+- The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
+  TRC.
 - Keys can be updated only with a strictly increasing `KeyVersion` number. In case the key is
   changed, the `KeyVersion` must be the previous version + 1. In case the `KeyVersion` remains the
   same, the key must not change. This holds true over all TRCs since the base TRC. I.e. if an AS is
@@ -672,15 +689,11 @@ must be met:
   contains a key of the given type for that primary AS. If not, verifiers are free to ignore the
   check.
 
-- Any key that was not present in the previous TRC must sign the new TRC. This guarantees that any
-  key present in any version of the TRC has been used to produce at least one signature in the TRC's
-  history, which shows a proof of possession (PoP) of the corresponding private key (considered a
-  good practice in such a context, see the appendix).
-- All voting ASes in the new TRC that were present in the previous TRC must attach a vote to the TRC
-  with the offline root key authenticated by the previous TRC.
-- The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
-  TRC.
-
+- Any key that was not present in the previous TRC must show proof of possession by signing the new
+  TRC. This guarantees that any key present in any version of the TRC has been used to produce at
+  least one signature in the TRC's history, which shows a proof of possession (PoP) of the
+  corresponding private key (considered a good practice in such a context, see the appendix).
+  These signatures are distinct from votes and do no count towards the quorum.
 
 ## TRC Update Dissemination
 
