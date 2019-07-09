@@ -1195,6 +1195,9 @@ from above.
 
 ````py
 
+def b64url(input: bytes) -> str:
+    return base64.urlsafe_b64encode(input).decode().strip('=')
+
 ############################################
 # Metadata serialization
 ############################################
@@ -1211,7 +1214,7 @@ offline_110 = """
     "AS": "1-ff00:0:110"
 }
 """
-offline_110_enc = base64.urlsafe_b64encode(offline_110.encode('utf-8')).decode()
+offline_110_enc = b64url(offline_110.encode('utf-8'))
 
 online_110 = """
 {
@@ -1222,7 +1225,7 @@ online_110 = """
     "AS": "1-ff00:0:110"
 }
 """
-online_110_enc = base64.urlsafe_b64encode(online_110.encode('utf-8')).decode()
+online_110_enc = b64url(online_110.encode('utf-8'))
 
 
 offline_120 = """
@@ -1234,13 +1237,13 @@ offline_120 = """
     "AS": "1-ff00:0:120"
 }
 """
-offline_120_enc = base64.urlsafe_b64encode(offline_120.encode('utf-8')).decode()
+offline_120_enc = b64url(offline_120.encode('utf-8'))
 
 ############################################
 # Payload serialization
 ############################################
 
-payload = base64.urlsafe_b64encode(json.dumps(trc_payload)).decode()
+payload = b64url(json.dumps(trc_payload))
 
 ############################################
 # Issuing TRC signatures
@@ -1294,9 +1297,10 @@ serialized_trc = json.dumps(signed_trc)
 
 In the following, the serialization of a certificate chain is described.
 
-TODO(roosd): RawBase64URL instead of Base64URL
-
 ````py
+
+def b64url(input: bytes) -> str:
+    return base64.urlsafe_b64encode(input).decode().strip('=')
 
 ############################################
 # AS certifcate metadata/payload serialization
@@ -1311,12 +1315,12 @@ as_cert_meta = """
     "IA": "1-ff00:0:130"
 }
 """
-as_cert_meta_enc = base64.urlsafe_b64encode(as_cert_meta.encode('utf-8')).decode()
+as_cert_meta_enc = b64url(as_cert_meta.encode('utf-8'))
 # 'CnsKICAgICJhbGciOiAiRWQyNTUxOSIsCiAgICAiY3JpdCI6IFsiVHlwZSIsICJDZXJ0aWZp
 # Y2F0ZVZlcnNpb24iLCAiSUEiXQogICAgIlR5cGUiOiAiQ2VydGlmaWNhdGUiCiAgICAiQ2Vyd
 # GlmaWNhdGVWZXJzaW9uIjogNiwKICAgICJJQSI6ICIxLWZmMDA6MDoxMzAiCn0K'
 
-payload = base64.urlsafe_b64encode(json.dumps(as_cert_payload).encode()).decode()
+payload = b64url(json.dumps(as_cert_payload).encode())
 
 ############################################
 # Issuing AS certifcate signature
@@ -1341,12 +1345,12 @@ iss_cert_meta = """
     "IA": "1-ff00:0:130"
 }
 """
-iss_cert_meta_enc = base64.urlsafe_b64encode(iss_cert_meta.encode('utf-8')).decode()
+iss_cert_meta_enc = b64url(iss_cert_meta.encode('utf-8'))
 # 'CnsKICAgICJhbGciOiAiRWQyNTUxOSIsCiAgICAiY3JpdCI6IFsiVHlwZSIsICJLZXlWZXJz
 # aW9uIiwgIklBIl0KICAgICJUeXBlIjogIlRSQyIKICAgICJLZXlWZXJzaW9uIjogNDIsCiAgI
 # CAiSUEiOiAiMS1mZjAwOjA6MTMwIgp9Cg'
 
-payload = base64.urlsafe_b64encode(json.dumps(iss_cert_payload).encode()).decode()
+payload = b64url(json.dumps(iss_cert_payload).encode())
 
 ############################################
 # Issuing Issuer certifcate signature
