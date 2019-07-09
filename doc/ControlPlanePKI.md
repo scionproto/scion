@@ -68,11 +68,6 @@ An ISD is made up of a number of ASes. There is a set of attributes that each AS
 
 __Primary AS:__ has at least one of the above attributes.
 
-An AS that has no core links must not be a core AS. An authoritative AS must be a core AS (this
-ensures it is reachable by other core ASes for bootstrap purposes). A voting AS is required to have
-both offline and online keys. Non-voting ASes must not have offline or online keys. An issuing AS is
-required to have an issuing key. Non-issuing ASes must not have an issuing key.
-
 All ASes with one or more attributes are considered primary ASes, and are listed in the TRC, along
 with their relevant keys. ASes without any of these attributes are not considered primary and must
 not appear in the TRC.
@@ -229,6 +224,11 @@ This is an object that maps primary AS identifiers to their attributes and keys:
     replaced.
   - __Algorithm__: ASCII string. Identifies the algorithm this key is used with.
   - __Key__: Base64-encoded string representation of the public key.
+
+An AS that has no core links must not be a core AS. An authoritative AS must be a core AS (this
+ensures it is reachable by other core ASes for bootstrap purposes). A voting AS is required to have
+both offline and online keys. Non-voting ASes must not have offline or online keys. An issuing AS is
+required to have an issuing key. Non-issuing ASes must not have an issuing key.
 
 ### TRC Section: Votes
 This is an object that maps AS identifiers to a signature object which must contain exactly the
