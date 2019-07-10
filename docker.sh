@@ -90,6 +90,7 @@ common_args() {
     args+=" -v $SCION_MOUNT/gen-cache:/home/scion/go/src/github.com/scionproto/scion/gen-cache"
     args+=" -v $SCION_MOUNT/traces:/home/scion/go/src/github.com/scionproto/scion/traces"
     args+=" -v $SCION_MOUNT/htmlcov:/home/scion/go/src/github.com/scionproto/scion/python/htmlcov"
+    args+=" -v $SCION_MOUNT/tools:/home/scion/go/src/github.com/scionproto/scion/tools"
     args+=" -e SCION_OUTPUT_BASE=$SCION_MOUNT"
     args+=" -e SCION_UID=$(id -u)"
     args+=" -e SCION_GID=$(id -g)"
