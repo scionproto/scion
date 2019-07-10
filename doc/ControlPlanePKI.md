@@ -920,7 +920,9 @@ certificate as valid if they have recently queried the distribution point, there
 dependency between verifying paths to the distribution points and having paths to the distribution
 point. We have to make a trade-off here and revocations are to be considered on a best-effort basis.
 During regular operation, the revocation distribution points will be available and certificates are
-revoked in a short amount of time.
+revoked in a short amount of time. Also, an AS can take advantage of the
+`OptionalDistributionPoints` field in the AS cert to nominate distribution points that are
+geographically diverse to mitigate availability issues.
 
 If any of the distribution points contains a revocation note, the certificate is considered revoked
 and should no longer be considered valid. In case of an issuer certificate, this means all
@@ -935,10 +937,11 @@ In the following, we discuss multiple options for distributing TRC base versions
 adding them to the trust store of verifiers. A trust reset is essentially the same problem as
 distributing the initial TRC version, and can be solved with the same mechanisms.
 
-Out of the three options presented here, we envision the "TRC Attestation" method to find wide
-adoption since it provides a reasonable trade-off between security and ease of operation. However,
-operators are free to choose any of the three solutions or define their own to bootstrap their trust
-store and install the necessary TRCs.
+Out of the three options presented here, we recommend the "TRC Attestation" method since it provides
+a reasonable trade-off between security and ease of operation. The other methods are of academic
+interest, but either offer more limited availability or worse security properties. Independent of
+the method that an ISD uses for TRC bootstrapping, it is required to support TRC attestation for
+queries it receives from other ISDs.
 
 ### Manual Mode
 
@@ -967,7 +970,7 @@ availability of the local TRC.
 
 ### TRC Attestation
 
-The previously mentioned method imply a large operational overhead. Requiring human involvement for
+The previously mentioned methods imply a large operational overhead. Requiring human involvement for
 end hosts is not be desirable, or might not even be feasible. With the TRC Attestation method, the
 human involvement is reduced to a minimum.
 
@@ -992,7 +995,8 @@ verification into their pipeline for added security.
 Regional numbering authorities must maintain an append-only log of base TRCs and attestations in
 their ISD range(s) for auditability. This also allows all entities to quickly discovery new base
 TRCs, either caused by a new ISD joining the network or by a trust reset. Additionally, the RAAs
-manage an append-only log of all TRCs in their ISD range.
+manage an append-only log of all TRCs in their ISD range. RAAs discovery new TRCs be periodically
+fetching the newest TRCs in their ISD range.
 
 Even with an append-only log, a split-world attack is still possible: a RAA could provide different
 attestations for the same identifier to different clients. For this reason, TRC hashes must be
@@ -1082,11 +1086,11 @@ verify Attestations.
 
 #### TAAC Invariants
 
-The following are conditions that must hold true for every TRC:
+The following are conditions that must hold true for every TAAC:
 
 1. `NotBefore < NotAfter`
-2. `VotingQuorum <= count(OfflineKeys)`
-3. `count(AttestationKey) > 1`
+2. `0 < VotingQuorum <= count(OfflineKeys)`
+3. `count(AttestationKey) >= 1`
 4. `GracePeriod > 0`
 5. `count(Alias) > 0` and all entries are valid ISD-AS strings.
 
@@ -1145,17 +1149,18 @@ The following fields and no other must be present in the metadata object:
 
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
-- __crit__: The following immutable array `["KeyID", "KeyVersion"]`
+- __crit__: The following immutable array `["KeyID", "KeyType", "KeyVersion"]`
 - __KeyID__: The offline key identifier.
+- __KeyType__: The signing key type (`Attestation` or `Offline`).
 - __KeyVersion__: The signing key version.
 
 The signature input is in accordance with the RFC: `ASCII(protected || '.' || payload)`
 
 #### TAAC Update
 
-Similar to TRCs, a TAAC can be updated. The updates are very infrequent, in the order of years. When
+Similar to TRCs, a TAAC can be updated. The updates are very infrequent, on the order of years. When
 an update is issued, each RAA has to issue new attestation for all newest base TRCs of every ISD in
-its range that were signed with a removed attestation key. Upon discovering a new TAAC,
+its range that were signed with an updated/removed attestation key. Upon discovering a new TAAC,
 infrastructure nodes need to fetch the new attestations for all newest base TRCs in their trust
 store that were signed with a removed attestation key. This allows new nodes to bootstrap TRC chains
 after the TAAC update grace period has passed.
@@ -1194,15 +1199,15 @@ the RAA to accept trust resets. Notice, end hosts do not require any human inter
 
 #### Trade-offs
 
-With the attestation approach, we reduce the amount of necessary trusted files to the number of RAAs
-in the network. However, this also increases the impact in case of a key compromise. However, AS
-operators can choose their own bootstrapping method according to their security and trust model.
+With the attestation approach, we reduce the amount of necessary trusted files to the TAACs. On the
+other hand, this also increases the impact in case of a key compromise. However, AS operators can
+choose their own bootstrapping method according to their security and trust model.
 
-Note, however, that attestation are only used for bootstrapping and during trust resets after
-catastrophic events that involved multiple offline key compromises. During normal operation and
-non-catastrophic key compromises, the RAAs are not involved. ISDs can update their TRCs freely,
-without the consents or attestation of RAAs. This limits the power that an RAA holds. Misbehavior on
-the RAA's part is easily discoverable, as it limits itself to issuing false trust resets.
+Note that attestations are only used for bootstrapping, and trust resets after catastrophic events
+that involved multiple AS offline root key compromises. During normal operation and non-catastrophic
+key compromises, the RAAs are not involved. ISDs can update their TRCs freely, without the consent
+or attestation of RAAs. This limits the power that an RAA holds. Misbehavior on the RAA's part is
+easily discoverable, as it is limited to issuing false trust resets.
 
 ## Appendix
 
@@ -1226,7 +1231,7 @@ TODO(roosd): recompute all base 64 strings
 ````py
 
 def b64url(input: bytes) -> str:
-    return base64.urlsafe_b64encode(input).decode().strip('=')
+    return base64.urlsafe_b64encode(input).decode().rstrip('=')
 
 ############################################
 # Metadata serialization
