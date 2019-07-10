@@ -1,5 +1,7 @@
 # Revocation Authentication
 
+## Overview
+
 This document presents the new design for interface revocation authentication. Revocation
 authentication was done using hash trees, see chapter 7.3.3 of the book. This is was not practical
 and was therefore migrated to use digital signatures.

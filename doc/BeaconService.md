@@ -2,14 +2,15 @@
 
 ## Overview
 
-The beacon server (BS) does path exploration and registration in the scion network.
-It sends out path construction beacons (PCBs) to all neighboring core and child interfaces.
-The BS periodically selects a set of PCBs to propagate and and a set of PCBs to register at a path server.
-The sets of PCBs to propagate or register are selected according to an AS level policy.
+The beacon server (BS) does path exploration and registration in the scion network. It sends out
+path construction beacons (PCBs) to all neighboring core and child interfaces. The BS periodically
+selects a set of PCBs to propagate and and a set of PCBs to register at a path server. The sets of
+PCBs to propagate or register are selected according to an AS level policy.
 
-Additionally the BS is also responsible to determine the state of all interfaces in the AS.
-For this each BS pings the neighbouring AS' BS over each interface.
-If a ping isn't received for a certain amount of time on an interface, the BS will assume the interface is down and sends a revocation to all BRs in the AS, to the local PS and to all core PSes.
+Additionally the BS is also responsible to determine the state of all interfaces in the AS. For this
+each BS pings the neighbouring AS' BS over each interface. If a ping isn't received for a certain
+amount of time on an interface, the BS will assume the interface is down and sends a revocation to
+all BRs in the AS, to the local PS and to all core PSes.
 
 ## General Structure
 
@@ -28,15 +29,18 @@ The main parts of the BS are:
 * **periodic tasks** for PCB propagation, segment registration, interface keepalive and revocation,
 * **beacon storage**.
 
-Each part is described in a separate chapter below. These parts can be grouped together into two subjects. Beaconing and Interface state keeping.
+Each part is described in a separate chapter below. These parts can be grouped together into two
+subjects. Beaconing and Interface state keeping.
 
 The Beaconing part takes care of handling beacons and registering them.
-The following diagram shows an overview of the components related to beaconing and their dependency relation.
+The following diagram shows an overview of the components related to beaconing and their dependency
+relation.
 
 ![beaconing parts overview](fig/beacon_srv/beaconing_overview.png).
 
-The interface state keeping part takes care of IfId state of the AS and issuing revocations as needed.
-The diagram shows an overview of the components related to IfId state and their dependency relation.
+The interface state keeping part takes care of IfId state of the AS and issuing revocations as
+needed. The diagram shows an overview of the components related to IfId state and their dependency
+relation.
 
 ![ifstate parts overview](fig/beacon_srv/ifstate_overview.png)
 
@@ -81,11 +85,12 @@ type BeaconStore interface {
 
 ### Policy
 
-A policy contains the parameters for the selection heuristic and the filters for inserting the beacon into the BeaconDB.
-Beacon servers have multiple policies for different purposes.
-Beacons that are filtered by all policies are not added to the beaconDB.
+A policy contains the parameters for the selection heuristic and the filters for inserting the
+beacon into the BeaconDB. Beacon servers have multiple policies for different purposes. Beacons that
+are filtered by all policies are not added to the beaconDB.
 
-* In a non-core beacon server, there is a policy for propagation, up-segment registration and down-segment registration.
+* In a non-core beacon server, there is a policy for propagation, up-segment registration and
+  down-segment registration.
 * In a core beacon server, there is a policy for propagation and for core-segment registration.
 
 ### Beacon DB
@@ -94,7 +99,8 @@ Beacons that are filtered by all policies are not added to the beaconDB.
 
 The BeaconDB consists of three tables:
 
-* Beacons: This table stores the raw beacons with some additional metadata used to select the beacons.
+* Beacons: This table stores the raw beacons with some additional metadata used to select the
+  beacons.
 * IntfToBeacons: This table maps the (ISD-AS, IfId)-pair to all beacons containing that IfId.
 * Revocations: This table contains all revocations that are not expired.
 
@@ -110,7 +116,8 @@ Otherwise, the beacon and the IntfToBeacon mappings are inserted.
 Beacon selection is done in-memory and ad-hoc.
 The heuristic is as follows:
 
-1. Select at most *n* beacons with the least amount of hops that do not contain a revoked interface and are not expired.
+1. Select at most *n* beacons with the least amount of hops that do not contain a revoked interface
+   and are not expired.
 1. Choose the *k-1* paths with the least amount of hops from the set
 1. Choose the maximum disjoint path compared to the shortest path from the set
 
@@ -197,41 +204,45 @@ Use existing handler from trust module.
 
 #### PCB Handler
 
-*(uses: BeaconStore.InsertBeacon)*
+*(uses: BeaconStore.InsertBeacon).*
 
-When receiving a PCB the BS first checks if it has the required TRC and Chain to verify it, if not it will fetch it from the beaconing AS.
-In the initial version, the beaconing BS is contacted to be compatible with the python version of the code.
-In a second stage, we will move to requesting the crypto from the CS.
-(This requires message acks for infra messages to ensure crypto is registered with the certificate server before a beacon is propagated).
-If the BS is not able to fetch the crypto material (with retries on timeout), the PCB is discarded.
+When receiving a PCB the BS first checks if it has the required TRC and Chain to verify it, if not
+it will fetch it from the beaconing AS. In the initial version, the beaconing BS is contacted to be
+compatible with the python version of the code. In a second stage, we will move to requesting the
+crypto from the CS. (This requires message acks for infra messages to ensure crypto is registered
+with the certificate server before a beacon is propagated). If the BS is not able to fetch the
+crypto material (with retries on timeout), the PCB is discarded.
 
 The BS then verifies the PCB and passes it to the beacon store.
 
 #### Revocation handler
 
-*(uses: BeaconStore.InsertRevocation)*
+*(uses: BeaconStore.InsertRevocation).*
 
-Under some circumstances, the border router extracts revocations from SCMP errors and pushes them to the beacon server.
-Store verified revocations in the beacon store, which adds the revocation to the shared beaconDB.
+Under some circumstances, the border router extracts revocations from SCMP errors and pushes them to
+the beacon server. Store verified revocations in the beacon store, which adds the revocation to the
+shared beaconDB.
 
 ### Interface state keeping handlers
 
 #### IFStateInfoRequest Handler
 
-*(uses: Interfaces.All)*
+*(uses: Interfaces.All).*
 
 The reply contains the state of the interfaces from the in-memory interface state seen by the BS.
-Currently BRs send those requests periodically to cover lost IFStateInfo pushes by the BS.
-Once we have acks for infra messages, we can change the model to BRs only requesting the information at the start-up.
-Since, in regular operation, the state is then reliably pushed with IfStateInfo messages by the BS.
+Currently BRs send those requests periodically to cover lost IFStateInfo pushes by the BS. Once we
+have acks for infra messages, we can change the model to BRs only requesting the information at the
+start-up. Since, in regular operation, the state is then reliably pushed with IfStateInfo messages
+by the BS.
 
 #### IfId Keepalive Handler
 
-*(uses: Interface.Activate, Interfaces.All, BeaconStore.DeleteRevocation)*
+*(uses: Interface.Activate, Interfaces.All, BeaconStore.DeleteRevocation).*
 
-Update the interface state of the given IfId.
-If it changes, send IfStateInfo to all BRs, remove associated revocations from the BeaconDB (if any) and immediately beacon on that interface (in a core AS this also includes sending an origination beacon).
-The associated revocations include both the local and the remote interface.
+Update the interface state of the given IfId. If it changes, send IfStateInfo to all BRs, remove
+associated revocations from the BeaconDB (if any) and immediately beacon on that interface (in a
+core AS this also includes sending an origination beacon). The associated revocations include both
+the local and the remote interface.
 
 ## Periodic Tasks
 
@@ -239,7 +250,7 @@ The associated revocations include both the local and the remote interface.
 
 #### PCB Propagator
 
-*(uses: BeaconStore.BeaconsToPropagate, Interfaces.All)*
+*(uses: BeaconStore.BeaconsToPropagate, Interfaces.All).*
 
 This periodic task propagates the PCBs provided by the beacon store.
 The periodic task has an interval that is less than the PropagateTime.
@@ -257,11 +268,12 @@ Non-Core BSes
 
 Core BSes
 
-1. Get core beacons to propagate from beacon store and propagate to neighboring core ASes. (similar to step 2. above)
+1. Get core beacons to propagate from beacon store and propagate to neighboring core ASes. (similar
+   to step 2. above)
 
 #### PCB Initiator
 
-*(uses: Interfaces.All)*
+*(uses: Interfaces.All).*
 
 Core BSes originate new beacons to child and neighboring core ASes.
 The periodic task has an interval that is less than the OriginateTime.
@@ -272,13 +284,14 @@ Beacons are originated on all interfaces that do not have a origination in the l
 
 #### Segment Registration
 
-*(uses: BeaconStore.SegmentsToRegister)*
+*(uses: BeaconStore.SegmentsToRegister).*
 
-This periodic task registers the best PCB as path segments with the appropriate PS.
-Note that once we have app level acks in place, segment registration should use them and retry registering the segments until it an ack is received (or a specified timeout is hit).
-Similar to beacon propagation, the interval is less than RegisterTime.
-Whenever no path has been registered in the last RegisterTime, paths are registered immediately.
-This ensures that segments are registered quickly after a stale period.
+This periodic task registers the best PCB as path segments with the appropriate PS. Note that once
+we have app level acks in place, segment registration should use them and retry registering the
+segments until it an ack is received (or a specified timeout is hit). Similar to beacon propagation,
+the interval is less than RegisterTime. Whenever no path has been registered in the last
+RegisterTime, paths are registered immediately. This ensures that segments are registered quickly
+after a stale period.
 
 Non-Core BSes
 
@@ -301,13 +314,15 @@ Core BSes
 
 #### Interface Revocation
 
-*(uses: Interfaces.All, Interface.Expire,  Interface.Revoke, Beaconstore.InsertRevocation)*
+*(uses: Interfaces.All, Interface.Expire,  Interface.Revoke, Beaconstore.InsertRevocation).*
 
-Each BS instance keeps track of the interface state in an in-memory structure.
-When a configurable amount of keepalive messages for a given interface are not received, the interface is revoked by the BS.
+Each BS instance keeps track of the interface state in an in-memory structure. When a configurable
+amount of keepalive messages for a given interface are not received, the interface is revoked by the
+BS.
 
 1. Call Interface.Expire on all infos.
-1. Revoke all expired interfaces in InterfaceState, update the revocation if necessary (certain amount of previous revocation period has passed)
+1. Revoke all expired interfaces in InterfaceState, update the revocation if necessary (certain
+   amount of previous revocation period has passed)
 1. Insert revocation in beacon store
 1. Send revocation to all BRs in the local AS.
 1. Send revocation to local PS as SignedRevInfo
@@ -315,14 +330,14 @@ When a configurable amount of keepalive messages for a given interface are not r
 
 #### IfId Keepalive Sender
 
-*(uses: itopo.Get)*
+*(uses: itopo.Get).*
 
-Periodically send an IfId Keepalive message to the neighboring BS for each interface in the topology.
-This is done by using a one hop path extension.
+Periodically send an IfId Keepalive message to the neighboring BS for each interface in the
+topology. This is done by using a one hop path extension.
 
 ### Delete Expired data from DB
 
-*(uses: BeaconStore.DeleteExpired)*
+*(uses: BeaconStore.DeleteExpired).*
 
 Periodically delete data that is no longer relevant. That includes:
 
@@ -331,9 +346,9 @@ Periodically delete data that is no longer relevant. That includes:
 
 ## Events
 
-#### Topology Reload
+### Topology Reload
 
-*(uses: InterfaceState.Update)*
+*(uses: InterfaceState.Update).*
 
 Update the interface states according to the changes in the new topology.
 The BS then immediately sends IfStateInfos to all BRs.
