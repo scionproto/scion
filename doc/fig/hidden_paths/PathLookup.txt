@@ -1,0 +1,15 @@
+title Path Lookup
+
+Client -> +sciond: PathRequest (srcIA, dstIA)
+sciond ->+Local HPS: SegRequest (list: [GroupID], dstIA)
+par for each GroupID subset
+alt local Registry
+Local HPS -> Local HPS: QueryDB: (list: [GroupID], dstIA)
+else remote Registry
+Local HPS -> + Remote HPS: SegRequest (list: [GroupID], dstIA)
+Remote HPS -> - Local HPS: SegReply
+end
+end
+Local HPS -> -sciond: SegReply (map: [GroupID] -> (SegReply, error)
+note over sciond: combine segments
+sciond -> -Client: PathReply
