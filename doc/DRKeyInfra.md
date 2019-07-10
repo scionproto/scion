@@ -22,22 +22,24 @@ DRKey is used for:
 
 ## Notation
 
-    |                     bitstring concatenation
-    ^                     superscript
-    _                     subscript
+```spec
+|                     bitstring concatenation
+^                     superscript
+_                     subscript
 
-    PRF_K (X)             pseudorandom function using key K and taking X as an input
-    {X}_PK_A              public key encryption using public key of AS A
-    {X}_PK_A^-1           public key signing using private key of AS A
+PRF_K (X)             pseudorandom function using key K and taking X as an input
+{X}_PK_A              public key encryption using public key of AS A
+{X}_PK_A^-1           public key signing using private key of AS A
 
-    A                     autonomous system
-    H_A                   end host identified by their IP address
-    CS_A                  certificate server located in AS A
+A                     autonomous system
+H_A                   end host identified by their IP address
+CS_A                  certificate server located in AS A
 
-    SV_A                  AS A's local secret value
-    K_{A→B}               symmetric key between AS A and AS B with direct key derivation for AS A
-    K_{A:H_A→B:H_B}^{p}   symmetric key between host H_A in AS A and host H_B in AS B for protocol 'p'
-    DS_{A→B}^{p}          delegation secret between AS A and AS B for protocol 'p'
+SV_A                  AS A's local secret value
+K_{A→B}               symmetric key between AS A and AS B with direct key derivation for AS A
+K_{A:H_A→B:H_B}^{p}   symmetric key between host H_A in AS A and host H_B in AS B for protocol 'p'
+DS_{A→B}^{p}          delegation secret between AS A and AS B for protocol 'p'
+```
 
 Note that the arrow notation does *not* refer to the directionality of the key, but
 rather states for which entity the key derivation must be efficient. For example,
@@ -59,15 +61,17 @@ whereas a slower key fetch is required by a client to a local certificate server
 
 ### Key Hierarchy
 
-                              SV_A                          (0th level)
-                                |
-                         +------+-----....
-                         |
-                      K_{A→B}                               (1st level)
-                         |
-        +----------------+-------------------+---...
-        |                |                   |
-    K_{A→B}^{p}    K_{A→B:H_B}^{p}    K_{A:H_A→B:H_B}^{p}   (2nd level)
+```spec
+                            SV_A                          (0th level)
+                            |
+                        +------+-----....
+                        |
+                    K_{A→B}                               (1st level)
+                        |
+    +----------------+-------------------+---...
+    |                |                   |
+K_{A→B}^{p}    K_{A→B:H_B}^{p}    K_{A:H_A→B:H_B}^{p}   (2nd level)
+```
 
 #### 0th-level
 
@@ -83,7 +87,9 @@ destined for other ASes from this secret value. These derived keys form the
 first level of the key hierarchy and are called first-level keys. For example, a
 first-level key that is used between AS A and AS B, is derived as follows:
 
-     K_{A→B} = PRF_{SV_A} (B)
+```spec
+K_{A→B} = PRF_{SV_A} (B)
+```
 
 where SV\_A is the AS-specific secret value from the zeroth level of the key
 hierarchy.
@@ -96,7 +102,9 @@ keys can be established between a pair of AS infrastructure nodes (such as
 border routers or servers), end hosts or a combination of both. For example, a
 key between end hosts H\_A in AS A and H\_B in AS B is derived as follows:
 
-    K_{A:H_A→B:H_B}^{prot} = PRF_K_{A→B} (“prot” | H_A | H_B)
+```spec
+K_{A:H_A→B:H_B}^{prot} = PRF_K_{A→B} (“prot” | H_A | H_B)
+```
 
 where “prot” denotes an arbitrary protocol, and H\_A and H\_B represent host
 addresses. We distinguish between IPv4, IPv6 and service addresses.
@@ -137,8 +145,10 @@ To exchange a first-level key the certificate servers of corresponding ASes
 perform the key exchange protocol. The key exchange is initialized by CS\_B by
 sending the following request:
 
-    token = A | val_time | timestamp
-    CS_B → CS_A : A | B | token | {token}_PK_B^−1
+```spec
+token = A | val_time | timestamp
+CS_B → CS_A : A | B | token | {token}_PK_B^−1
+```
 
 where `val_time` specifies a point in time at which the requested key is valid.
 The requested key may not be valid at the time of request, either because it
@@ -157,10 +167,12 @@ CS\_A will reply with an encrypted and signed first-level key derived from the
 local secret value SV\_A. SV\_A is chosen according to the epoch identified by
 `val_time`.
 
-    K_{A→B} = PRF_{SV_A} (B)
-    ciphertext = {A | B | K_{A→B}}_PK_B
-    signature = {ciphertext | epoch_begin | epoch_end | timestamp}_PK_A^−1
-    CS_A → CS_B : ciphertext | epoch_begin | epoch_end | timestamp | signature
+```spec
+K_{A→B} = PRF_{SV_A} (B)
+ciphertext = {A | B | K_{A→B}}_PK_B
+signature = {ciphertext | epoch_begin | epoch_end | timestamp}_PK_A^−1
+CS_A → CS_B : ciphertext | epoch_begin | epoch_end | timestamp | signature
+```
 
 Once the requesting certificate server CS\_B has received the key, it shares it
 among other local certificate servers to ensure a consistent view. Each
@@ -194,7 +206,9 @@ from SV\_A.
 End hosts request a second-level key from their local certificate server with
 the following request format:
 
-    {keyType, requestID, protocol, srcIA, dstIA, srcHost, dstHost, misc}
+```spec
+{keyType, requestID, protocol, srcIA, dstIA, srcHost, dstHost, misc}
+```
 
 `keyType` defines which type of second-level key is requested. Currently,
 there exist three types of second-level keys: AS-to-AS, AS-to-end-host, and
@@ -204,7 +218,9 @@ might be required for protocol-specific keys (e.g., shorter key lifetime).
 An end host H\_A in AS A uses this format for issuing the following request to
 its local certificate server CS\_A:
 
-    H_A → CS_A : format | val_time | timestamp
+```spec
+H_A → CS_A : format | val_time | timestamp
+```
 
 Similar to the first-level key exchange, 'val\_time' specifies a point in time at
 which the requested key is valid.
@@ -214,14 +230,16 @@ point in time. An authorized host must either be an end point of the communicati
 that is authenticated using the second-level key, or authorized separately by the
 AS. The following second-level requests exist:
 
-    1. AS → AS:
-    Request: { 0, req.ID, prot, A, B, ⊥, ⊥, ⊥ }
+```spec
+1. AS → AS:
+Request: { 0, req.ID, prot, A, B, ⊥, ⊥, ⊥ }
 
-    2. AS → end host
-    Request: { 1, req.ID, prot, A, B, ⊥, H_B, ⊥ }
+2. AS → end host
+Request: { 1, req.ID, prot, A, B, ⊥, H_B, ⊥ }
 
-    3. end host → end host:
-    Request: { 2, req.ID, prot, A, B, H_A , H_B, ⊥ }
+3. end host → end host:
+Request: { 2, req.ID, prot, A, B, H_A , H_B, ⊥ }
+```
 
 ### Second-level Key Derivation
 
@@ -232,25 +250,29 @@ trusted AS infrastructure (e.g., SCMP), and protocols that can profit from
 "outsourcing" key derivation to AS-owned infrastructure entities (e.g., PISKES).
 In the former case, key derivation can be performed as follows:
 
-    1. AS → AS:
-    Key Derivation: K_{A→B}^prot = PRF_{K_{A→B}}( “prot” )
+```spec
+1. AS → AS:
+Key Derivation: K_{A→B}^prot = PRF_{K_{A→B}}( “prot” )
 
-    2. AS → end host
-    Key Derivation: K_{A→B:H_B}^prot = PRF_{K_{A→B}} ( “prot” | H_B )
+2. AS → end host
+Key Derivation: K_{A→B:H_B}^prot = PRF_{K_{A→B}} ( “prot” | H_B )
 
-    3. end host → end host:
-    Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{K_{A→B}} ( “prot” | H_A | H_B )
+3. end host → end host:
+Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{K_{A→B}} ( “prot” | H_A | H_B )
+```
 
 In the latter case, where key derivation should be performed by AS-owned
 entities, we introduce an intermediate step:
 
-    SV_A
-     |
-    K_{A→B}
-     |
-    DS_{A→B}^{prot}
-     |
-    K_{A:H_A→B:H_B}^{prot}
+```spec
+SV_A
+    |
+K_{A→B}
+    |
+DS_{A→B}^{prot}
+    |
+K_{A:H_A→B:H_B}^{prot}
+```
 
 The delegation secret `DS_{A→B}^{prot}` can be shared with services to enable
 them to locally derive second-level keys in a single derivation step. On the
@@ -259,18 +281,22 @@ get a second-level key. This is particularly useful for AS-controlled services
 that require authentication of the first packet. The secret of the intermediate
 step is derived as follows:
 
-    DS_{A→B}^{prot} = PRF_{K_{A→B}} ( “prot” )
+```spec
+DS_{A→B}^{prot} = PRF_{K_{A→B}} ( “prot” )
+```
 
 Consequently, the second-level key derivation is adapted:
 
-    1. AS → AS:
-    Key Derivation: K_{A→B}^prot =  DS_{A→B}^{prot} (no derivation required)
+```spec
+1. AS → AS:
+Key Derivation: K_{A→B}^prot =  DS_{A→B}^{prot} (no derivation required)
 
-    2. AS → end host
-    Key Derivation: K_{A→B:H_B}^prot = PRF_{DS_{A→B}^{prot}} ( H_B )
+2. AS → end host
+Key Derivation: K_{A→B:H_B}^prot = PRF_{DS_{A→B}^{prot}} ( H_B )
 
-    3. end host → end host:
-    Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{DS_{A→B}^{prot}} ( H_A | H_B )
+3. end host → end host:
+Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{DS_{A→B}^{prot}} ( H_A | H_B )
+```
 
 Other protocols could also introduce other procedures to derive second-level
 keys. However, the CSes of both participating ASes must be upgraded to support
@@ -284,21 +310,27 @@ Such peaks can be avoided by spreading out key expiration, which in turn will
 lead to spreading out the fetching requests. To this end, we introduce the
 following deterministic mapping:
 
-    offset : (A, B) → [0, t)
+```spec
+offset : (A, B) → [0, t)
+```
 
 that uniformly maps the AS identifiers of the source in AS A and the destination
 in AS B to a range between 0 and the maximum lifetime t of SV\_A. The offset is
 used to determine the validity period of a key by determining the secret value
 SV\_A^j that is used to derive K_{A→B} at the current sequence j such that:
 
-    [ start(SV_A^j) + offset(A, B), start(SV_A^j+1) + offset(A, B) )
+```spec
+[ start(SV_A^j) + offset(A, B), start(SV_A^j+1) + offset(A, B) )
+```
 
 ![Offset figure](fig/offset.png)
 
 The offset function is AS-specific. By default, we suggest to use a function
 that uniformely distributes the offset values in the following interval:
 
-    [0, minimum epoch length / 2 )
+```spec
+[0, minimum epoch length / 2 )
+```
 
 For prefetching of DRKeys, a `valTime` that exceeds the end of the current epoch
 can be selected. To allow seamless key rollover, an entity is required to store
@@ -326,48 +358,58 @@ a secure password-based key derivation function. We use `PBKDF2` with at least
 
 Data input:
 
-    secLen      uint8
-    secret      []byte
-    date        []byte
+```spec
+secLen      uint8
+secret      []byte
+date        []byte
+```
 
 #### 1st-level
 
 Key input:
 
-    SV_A        []byte
+```spec
+SV_A        []byte
+```
 
 Data input:
 
-    DstIA       uint64
+```spec
+DstIA       uint64
+```
 
 #### 2nd-level (default)
 
 Key input:
 
-    K_{A→B}    []byte
+```spec
+K_{A→B}    []byte
+```
 
 Data input:
 
-    1. AS → AS:
-    ProtoLen    uint8
-    Protocol    []byte
-    KeyType     uint8
+```spec
+1. AS → AS:
+ProtoLen    uint8
+Protocol    []byte
+KeyType     uint8
 
-    2. AS → end host:
-    ProtoLen    uint8
-    Protocol    []byte
-    KeyType     uint8
-    DstHostLen  uint8
-    DstHost     []byte
+2. AS → end host:
+ProtoLen    uint8
+Protocol    []byte
+KeyType     uint8
+DstHostLen  uint8
+DstHost     []byte
 
-    3. end host → end host:
-    ProtoLen    uint8
-    Protocol    []byte
-    KeyType     uint8
-    SrcHostLen  uint8
-    DstHostLen  uint8
-    SrcHost     []byte
-    DstHost     []byte
+3. end host → end host:
+ProtoLen    uint8
+Protocol    []byte
+KeyType     uint8
+SrcHostLen  uint8
+DstHostLen  uint8
+SrcHost     []byte
+DstHost     []byte
+```
 
 The input size of the PRF depends on the address type that is used to
 address end hosts.
@@ -376,24 +418,28 @@ address end hosts.
 
 Key input:
 
-    DS_{A→B}^{p} []byte
+```spec
+DS_{A→B}^{p} []byte
+```
 
 Data input:
 
-    1. AS → AS:
-    KeyType     uint8
+```spec
+1. AS → AS:
+KeyType     uint8
 
-    2. AS → end host:
-    KeyType     uint8
-    DstHostLen  uint8
-    DstHost     []byte
+2. AS → end host:
+KeyType     uint8
+DstHostLen  uint8
+DstHost     []byte
 
-    3. end host → end host:
-    KeyType     uint8
-    SrcHostLen  uint8
-    DstHostLen  uint8
-    SrcHost     []byte
-    DstHost     []byte
+3. end host → end host:
+KeyType     uint8
+SrcHostLen  uint8
+DstHostLen  uint8
+SrcHost     []byte
+DstHost     []byte
+```
 
 ### First Level Key Exchange
 
@@ -404,41 +450,47 @@ of the certificate used to encrypt the message. Furthermore, all time-specific
 data such as timestamps, validity time, or expiration time are specified as
 the time in seconds since the unix epoch.
 
-    DRKeyLvl1Req {
-        isdas       UInt64  # Src ISD-AS of the requested DRKey
-        valTime     UInt32  # Point in time where requested DRKey must be valid. Used to identify the epoch.
-    }
+```spec
+DRKeyLvl1Req {
+    isdas       UInt64  # Src ISD-AS of the requested DRKey
+    valTime     UInt32  # Point in time where requested DRKey must be valid.
+                        # Used to identify the epoch.
+}
 
-    DRKeyLvl1Rep {
-        isdas       UInt64  # Src ISD-AS of the DRKey
-        epochBegin  UInt32  # Begin of validity period of DRKey
-        epochEnd    UInt32  # End of validity period of DRKey
-        cipher      Data    # Encrypted DRKey
-        certVerDst  UInt64  # Version of cert of public key used to encrypt
-    }
+DRKeyLvl1Rep {
+    isdas       UInt64  # Src ISD-AS of the DRKey
+    epochBegin  UInt32  # Begin of validity period of DRKey
+    epochEnd    UInt32  # End of validity period of DRKey
+    cipher      Data    # Encrypted DRKey
+    certVerDst  UInt64  # Version of cert of public key used to encrypt
+}
+```
 
 ### Second Level Key Exchange
 
 The second level key response will also be transmitted with SignedCtrlPld.
 
-    DRKeyLvl2Req {
-        valTime     UInt32  # Point in time where requested DRKey must be valid. Used to identify the epoch.
-        protocol    Data    # Protocol identifier
-        keyType     UInt8   # Key type of requested DRKey
-        srcIA       UInt64  # Src ISD-AS of the requested DRKey
-        dstIA       UInt64  # Dst ISD-AS of the requested DRKey
-        srcHost     Data    # Src Host of the request DRKey (optional)
-        dstHost     Data    # Dst Host of the request DRKey (optional)
-        misc        Data    # Additional information for DRKey derivation (optional)
-    }
+```spec
+DRKeyLvl2Req {
+    valTime     UInt32  # Point in time where requested DRKey must be valid.
+                        # Used to identify the epoch.
+    protocol    Data    # Protocol identifier
+    keyType     UInt8   # Key type of requested DRKey
+    srcIA       UInt64  # Src ISD-AS of the requested DRKey
+    dstIA       UInt64  # Dst ISD-AS of the requested DRKey
+    srcHost     Data    # Src Host of the request DRKey (optional)
+    dstHost     Data    # Dst Host of the request DRKey (optional)
+    misc        Data    # Additional information for DRKey derivation (optional)
+}
 
-    DRKeyLvl2Rep {
-        timestamp   UInt32  # Timestamp
-        drkey       Data    # Derived DRKey
-        epochBegin  UInt32  # Begin of validity period of DRKey
-        epochEnd    UInt32  # End of validity period of DRKey
-        misc        Data    # Additional information (optional)
-    }
+DRKeyLvl2Rep {
+    timestamp   UInt32  # Timestamp
+    drkey       Data    # Derived DRKey
+    epochBegin  UInt32  # Begin of validity period of DRKey
+    epochEnd    UInt32  # End of validity period of DRKey
+    misc        Data    # Additional information (optional)
+}
+```
 
 ### Key Store
 
@@ -451,7 +503,9 @@ The key store also stores the begin and end of an epoch for an individual key.
 
 The offset function to spread out key expiration is implemented as follows:
 
-    hash(srcAS | dstAS) % mod (min epoch length / 2)
+```spec
+hash(srcAS | dstAS) % mod (min epoch length / 2)
+```
 
 As a hash function, we will use the non-cryptographic hash function
 `MurmurHash3`. It provides a good distribution, while being faster than an

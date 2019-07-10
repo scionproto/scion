@@ -93,6 +93,7 @@ common_args() {
     args+=" -e SCION_OUTPUT_BASE=$SCION_MOUNT"
     args+=" -e SCION_UID=$(id -u)"
     args+=" -e SCION_GID=$(id -g)"
+    args+=" -e SCION_PWD=${PWD}"
     args+=" -e DOCKER_GID=$(getent group docker | cut -f3 -d:)"
     args+=" -e SCION_USERSPEC=$(id -un):$(id -gn)"
     args+=" -u root"

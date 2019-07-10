@@ -339,6 +339,8 @@ go_lint() {
     echo "======> bazel"
     make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
+    echo "======> markdown"
+    ./tools/mdlint || ret=1
     rm -rf $TMPDIR
     return $ret
 }

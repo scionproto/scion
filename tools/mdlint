@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker run --rm -v ${SCION_PWD:-${PWD}}:/data -v ${SCION_PWD:-${PWD}}/tools/md/mdlintstyle.rb:/style.rb $(docker build -q tools/md) doc -s /style.rb
