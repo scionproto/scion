@@ -296,16 +296,17 @@ cmd_lint() {
     local ret=0
     py_lint || ret=1
     go_lint || ret=1
+    md_lint || ret=1
     return $ret
 }
 
 py_lint() {
+    lint_header "lint python"
     local ret=0
     for i in acceptance python; do
       [ -d "$i" ] || continue
-      echo "Linting $i"
       local cmd="flake8"
-      echo "============================================="
+      echo "======> $i"
       ( cd "$i" && $cmd --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     done
     flake8 --config python/flake8.ini tools/gomocks || ((ret++))
@@ -313,6 +314,7 @@ py_lint() {
 }
 
 go_lint() {
+    lint_header "lint go"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
     echo "======> Building lint tools"
@@ -339,10 +341,18 @@ go_lint() {
     echo "======> bazel"
     make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
-    echo "======> markdown"
-    ./tools/mdlint || ret=1
     rm -rf $TMPDIR
     return $ret
+}
+
+md_lint() {
+    lint_header "linting markdown"
+    echo "======> mdlint"
+    ./tools/mdlint
+}
+
+lint_header() {
+    printf "\n$1\n=====================\n\n"
 }
 
 cmd_mocks() {
