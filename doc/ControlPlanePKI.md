@@ -684,7 +684,7 @@ For any kind of update, the following conditions must be met:
   TRC. This guarantees that any key present in any version of the TRC has been used to produce at
   least one signature in the TRC's history, which shows a proof of possession (PoP) of the
   corresponding private key (considered a good practice in such a context, see the appendix).
-  These signatures are distinct from votes and do no count towards the quorum.
+  These signatures are distinct from votes and do not count towards the quorum.
 
 ### Regular TRC Update
 
@@ -700,17 +700,16 @@ change.
 
 ### Sensitive TRC Update
 
-TODO(additional constraints)
-
 A sensitive update is any update that is not "regular" (as defined above). The following conditions
 must be met:
 
-- The TRC must only have voting signatures issued by voting ASes in the previous TRC.
-- All voting ASes in the new TRC that were present in the previous TRC must attach a vote to the
-  TRC.
 - All votes must be issued with the offline root key authenticated by the previous TRC.
 - The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
   TRC.
+
+Compared to the regular update, the restriction that voting ASes with changed online key must
+cast a vote is lifted. This allows replacing the online and offline key of a voting AS that has lost
+its offline key without revoking the voting status.
 
 ## TRC Update Dissemination
 
@@ -766,10 +765,10 @@ Bootstrapping](#trc-bootstrapping) and setting new trust anchors.
 ## Certificate Chain Dissemination
 
 Certificate chains are issued by an `Issuing` AS upon request. As certificates are short lived, this
-is an automated process that happens automatically. Before an AS may use a certificate chain, it
-must register it with all authoritative ASes of its ISD. If the automatic registration process fails
-due to an unavailable authoritative AS, an operator may manually choose to start using the issued
-certificate chain. However, they must ensure the certificate chain is eventually registered with all
+is an automatic, automated process. Before an AS may use a certificate chain, it must register it
+with all authoritative ASes of its ISD. If the automatic registration process fails due to an
+unavailable authoritative AS, an operator may manually choose to start using the issued certificate
+chain. However, they must ensure the certificate chain is registered as soon as possible with all
 authoritative ASes of its ISD.
 
 Certificate chains are used to sign beacons and path-segments. Similar to TRC dissemination, when a
@@ -812,8 +811,12 @@ When validating signatures based on certificate chains, the following must be ch
   verified certificate chain.
 - The current time is inside the validity period of the certificate chain.
 - The certificate chain is authenticated by a currently active TRC. This means the issuing key that
-  was used to sign the Issuer certificate must be authenticated by the active TRCs. The active TRC's
-  version can differ from the `TRCVersion` specified in the Issuer certificate.
+  was used to sign the Issuer certificate must be authenticated by a currently active TRCs. The
+  active TRC's version must be greater than or equal to the `TRCVersion` specified in the Issuer
+  certificate.
+
+  This allows signature validation to succeed during the grace period of a TRC update with a
+  modified issuing key.
 
 ## Trust Material Sources
 
@@ -853,8 +856,8 @@ certificates according to the table.
 ## Certificate Revocation
 
 With a validity on the order of days, AS certificates can be considered short-lived. Nevertheless,
-an attack window of several days is too large for some mission-critical operation. Therefore, the
-CP-PKI needs a system for quickly revoking AS and issuer certificates. The revocation status must be
+an attack window of several days is too large for mission-critical operation. Therefore, the CP-PKI
+needs a system for quickly revoking AS and issuer certificates. The revocation status must be
 cacheable and efficient to distribute. Also, propagation of revocations must not hinder the
 availability of the infrastructure.
 
