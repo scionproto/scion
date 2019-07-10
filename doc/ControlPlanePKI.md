@@ -36,7 +36,7 @@ from the perspective of a verifier:
 
 1. __Verified:__ a TRC whose format and contents are correct and consistent with previous versions.
     The verification of a TRC includes basic sanity checks, such as ensuring [TRC
-    invariants](#trc-invariants) and [TRC update validation](#trc-update), as well as a TRC chain
+    invariants](#trc-invariants) and [TRC update validation](#trc-updates), as well as a TRC chain
     verification.
 2. __Valid:__ a *verified* TRC whose "validity" period (defined in the TRC itself) has begun and has
     not yet ended. Note: this does not consider the grace period of any following TRC.
@@ -268,7 +268,7 @@ New or updated keys sign the first TRC they appear in to show proof of possessio
 all keys need to show proof of possession and sign the TRC. We recommend that all keys are fresh in
 a TRC trust reset in the first place.
 
-### <a name="trc-invariants"></a> TRC Invariants
+### TRC Invariants
 
 The following are conditions that must hold true for every TRC:
 
@@ -363,7 +363,7 @@ The following are conditions that must hold true for every TRC:
 }
 ````
 
-### <a name="trc-serialization"></a> TRC Serialization
+### TRC Serialization
 
 A TRC is signed using the JWS standard and serialized using the General JWS JSON Serialization
 Syntax [Section 7.2.1 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.1).
@@ -402,7 +402,7 @@ created with the respective keys, "uniqueness" cannot be compromised.
 
 Similarly to TRCs, AS certificates are serialized and signed using JWS. Certificates only carry one
 signature and will be serialized using the Flattened JWS JSON Serialization Syntax (see [Certificate
-Serialization](#cert-serialization)).
+Serialization](#certificate-serialization)).
 
 In the following sections, certificate refers to the payload of the full JWS signed certificate for
 simplicity. Certificates are uniquely identified by the `(Subject, Version)`-pair.
@@ -534,7 +534,7 @@ The contents depend on the certificate type:
 }
 ````
 
-### <a name="cert-serialization"></a> Certificate Serialization
+### Certificate Serialization
 
 A certificate is signed using the JWS standard and serialized using the Flattened JWS JSON
 Serialization Syntax [Section 7.2.2 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.2).
@@ -615,7 +615,7 @@ primary ASes) use AS certificates to carry out their regular operations (such as
 Issuing ASes hold an additional certificate whose only purpose is to authenticate (other ASes' and
 their own) AS certificates.
 
-### <a name="table-private-keys"></a> Table: Private Keys
+### Table: Private Keys
 
 | Name             | Notation      | Auth.[^1]| Validity[^2]| Revocation    | Usage                       |
 | ---------------- | ------------- | -------- | ----------- | ------------- | --------------------------- |
@@ -640,7 +640,7 @@ below.
 
 [^4]: Recommended validity period (best practice).
 
-## <a name="trc-update"></a> TRC Updates
+## TRC Updates
 
 In general, the TRC validity period is shorter than the validity of the keys it authenticates. Thus,
 TRCs are regularly updated to cover the full key validity period. In addition to these regular
@@ -920,7 +920,7 @@ If any of the distribution points contains a revocation note, the certificate is
 and should no longer be considered valid. In case of an issuer certificate, this means all
 certificate chains containing it will also be considered invalid.
 
-## <a name="trc-bootstrapping"></a> TRC Bootstrapping
+## TRC Bootstrapping
 
 TRCs are trust anchors and are axiomatically trusted. All nodes must be pre-loaded with at least the
 current base version TRC of their own ISD, which builds the trust anchor.
@@ -1074,7 +1074,7 @@ verify Attestations.
 - __Algorithm__: String. Identifies the algorithm this key is used with.
 - __Key__: Base64-encoded string representation of the public key.
 
-#### <a name="taac-invariants"></a> TAAC Invariants
+#### TAAC Invariants
 
 The following are conditions that must hold true for every TRC:
 
@@ -1210,7 +1210,7 @@ Mallory could get a certificate containing the same public key PK. There are two
 could claim to have been the real signer of T, and Alice can falsely deny signing T, claiming that
 it was Mallory instead who signed the transaction [RFC 4211].
 
-### <a name="trc-serialization-example"></a> TRC Serialization Example
+### TRC Serialization Example
 
 In the following, the serialization of the TRC is described. As the TRC payload, we use the example
 from above.
@@ -1315,7 +1315,7 @@ serialized_trc = json.dumps(signed_trc)
 # }
 ````
 
-### <a name="chain-serialization-example"></a> Chain Serialization Example
+### Chain Serialization Example
 
 In the following, the serialization of a certificate chain is described.
 
