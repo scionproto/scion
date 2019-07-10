@@ -296,16 +296,17 @@ cmd_lint() {
     local ret=0
     py_lint || ret=1
     go_lint || ret=1
+    md_lint || ret=1
     return $ret
 }
 
 py_lint() {
+    lint_header "python"
     local ret=0
     for i in acceptance python; do
       [ -d "$i" ] || continue
-      echo "Linting $i"
       local cmd="flake8"
-      echo "============================================="
+      lint_step "$cmd /$i"
       ( cd "$i" && $cmd --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     done
     flake8 --config python/flake8.ini tools/gomocks || ((ret++))
@@ -313,36 +314,49 @@ py_lint() {
 }
 
 go_lint() {
+    lint_header "go"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
-    echo "======> Building lint tools"
+    lint_step "Building lint tools"
     bazel build //:lint || return 1
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
     local ret=0
-    echo "======> impi"
+    lint_step "impi"
     # Skip CGO (https://github.com/pavius/impi/issues/5) files.
     $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' --skip 'mock_' --skip 'go/proto/.*\.capnp\.go' ./go/... || ret=1
-    echo "======> gofmt"
+    lint_step "gofmt"
     # TODO(sustrik): At the moment there are no bazel rules for gofmt.
     # See: https://github.com/bazelbuild/rules_go/issues/511
     # Instead we'll just run the commands from Go SDK directly.
     GOSDK=$(bazel info output_base)/external/go_sdk/bin
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
-    echo "======> linelen (lll)"
+    lint_step "linelen (lll)"
     out=$(find go -type f -iname '*.go' -a '!' -ipath 'go/proto/structs.gen.go' -a '!' -ipath 'go/proto/*.capnp.go' -a '!' -ipath '*mock_*' -a '!' -ipath 'go/lib/pathpol/sequence/*' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
-    echo "======> misspell"
+    lint_step "misspell"
     $TMPDIR/misspell -error $LOCAL_DIRS || ret=1
-    echo "======> ineffassign"
+    lint_step "ineffassign"
     $TMPDIR/ineffassign -exclude ineffassign.json go || ret=1
-    echo "======> bazel"
+    lint_step "bazel"
     make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
-    echo "======> markdown"
-    ./tools/mdlint || ret=1
     rm -rf $TMPDIR
     return $ret
+}
+
+md_lint() {
+    lint_header "markdown"
+    lint_step "mdlint"
+    ./tools/mdlint
+}
+
+lint_header() {
+    printf "\nlint $1\n==============\n"
+}
+
+lint_step() {
+    echo "======> $1"
 }
 
 cmd_mocks() {
