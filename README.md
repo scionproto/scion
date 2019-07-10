@@ -1,5 +1,5 @@
-SCION
-=====
+# SCION
+
 [![Documentation](https://godoc.org/github.com/scionproto/scion?status.svg)](http://godoc.org/github.com/scionproto/scion)
 [![Build Status](https://badge.buildkite.com/cbb8e648c58d567991b445317d68955db5235b627dcfc97ab9.svg?branch=master)](https://buildkite.com/scionproto/scionproto)
 [![Go Report Card](https://goreportcard.com/badge/github.com/scionproto/scion)](https://goreportcard.com/report/github.com/scionproto/scion)
@@ -38,7 +38,8 @@ Necessary steps in order to run SCION:
 1. Make sure that you are using a clean and recently updated **Ubuntu 16.04**.
 
 1. Install [Bazel](https://bazel.build) version 0.26.1:
-   ```
+
+   ```bash
    wget https://github.com/bazelbuild/bazel/releases/download/0.26.1/bazel-0.26.1-installer-linux-x86_64.sh
    bash ./bazel-0.26.1-installer-linux-x86_64.sh --user
    rm ./bazel-0.26.1-installer-linux-x86_64.sh
@@ -48,30 +49,33 @@ Necessary steps in order to run SCION:
    [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
    `~/.local/bin`, and `$GOPATH/bin` can be found in your `$PATH` variable. For example:
 
-    ```
-    echo 'export GOPATH="$HOME/go"' >> ~/.profile
-    echo 'export PATH="$HOME/.local/bin:$GOPATH/bin:$PATH"' >> ~/.profile
-    source ~/.profile
-    mkdir -p "$GOPATH"
-    ```
+   ```bash
+   echo 'export GOPATH="$HOME/go"' >> ~/.profile
+   echo 'export PATH="$HOME/.local/bin:$GOPATH/bin:$PATH"' >> ~/.profile
+   source ~/.profile
+   mkdir -p "$GOPATH"
+   ```
 
 1. Check out scion into the appropriate directory inside your go workspace (or
    put a symlink into the go workspace to point to your existing scion
    checkout):
-   ```
+
+   ```bash
    mkdir -p "$GOPATH/src/github.com/scionproto"
    cd "$GOPATH/src/github.com/scionproto"
    git clone --recursive git@github.com:scionproto/scion
    cd scion
    ```
+
    If you don't have a github account, or haven't setup ssh access to it, this
    command will make git use https instead:
    `git config --global url.https://github.com/.insteadOf git@github.com:`
 
 1. Install required packages with dependencies:
-    ```
-    ./env/deps
-    ```
+
+   ```bash
+   ./env/deps
+   ```
 
 1. Install `docker` and `docker-compose`. Please follow the instructions for
    [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/) and
@@ -82,21 +86,23 @@ Necessary steps in order to run SCION:
 1. Create the topology and configuration files (according to
    `topology/Default.topo`):
 
-    `./scion.sh topology`
+   `./scion.sh topology`
 
-    The resulting directory structure will be created:
+   The resulting directory structure will be created:
 
-        ./gen/ISD{X}/AS{Y}/
-            {elem}{X}-{Y}-{Z}/
-                as.yml
-                path_policy.yml
-                supervisord.conf
-                topology.yml
-                certs/
-                    ISD{X}-AS{Y}-V0.crt
-                    ISD{X}-V0.trc
-                keys/
-                    as-sig.key
+   ```bash
+   ./gen/ISD{X}/AS{Y}/
+       {elem}{X}-{Y}-{Z}/
+           as.yml
+           path_policy.yml
+           supervisord.conf
+           topology.yml
+           certs/
+               ISD{X}-AS{Y}-V0.crt
+               ISD{X}-V0.trc
+           keys/
+               as-sig.key
+   ```
 
    The default topology looks like [this](doc/fig/default_topo.png).
 

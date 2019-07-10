@@ -1,2 +1,7 @@
-Call test with -update flag to update the test files:
-  go test -update
+# Combinator testdata
+
+Call test with `-update` flag to update the test files:
+
+```bash
+go test -update
+```

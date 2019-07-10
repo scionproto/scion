@@ -1,7 +1,9 @@
+# trust tesdata
+
 Cross signatures are not implemented so ISDs exist in isolation. The
 graph for this test file (in graph's package format) is outlined below.
 
-```
+```go
 Nodes: []string{
     "1-ff00:0:1", "1-ff00:0:2", "1-ff00:0:3",
     "2-ff00:0:4", "2-ff00:0:5", "2-ff00:0:6",

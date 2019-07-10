@@ -1,3 +1,4 @@
 #!/bin/bash
 
-docker run --rm -v ${SCION_PWD:-${PWD}}:/data -v ${SCION_PWD:-${PWD}}/tools/md/mdlintstyle.rb:/style.rb $(docker build -q tools/md) doc -s /style.rb
+FILES=$(find . -type f  -iname '*.md' -a '!' -ipath './docker/_build/*' -a '!' -ipath './go/vendor/*')
+docker run --rm -v ${SCION_PWD:-${PWD}}:/data -v ${SCION_PWD:-${PWD}}/tools/md/mdlintstyle.rb:/style.rb $(docker build -q tools/md) $FILES -s /style.rb
