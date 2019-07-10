@@ -1,8 +1,8 @@
-## Acceptance Testing
+# Acceptance Testing
 
 This module provides a simple acceptance testing library.
 
-### Structure
+## Structure
 
 An acceptance test is structured fairly simple. It exposes a way
 to implement the necessary sub-commands for `acceptance/run`.
@@ -13,6 +13,7 @@ command with `--help` flag. Furthermore, a test should have one class per
 sub-command that sub-classes `common.CmdBase` (see below).
 
 `TestBase` registers two flags that also can be set using environment variables:
+
 - `--artifacts/ACCEPTANCE_ARTIFACTS` defines the directory for artifacts
   (required)
 - `--disable-docker/DISABLE_DOCKER` disables the dockerized topology.
@@ -21,6 +22,7 @@ sub-command that sub-classes `common.CmdBase` (see below).
 The sub-commands should sub-class `common.CmdBase`. `CmdBase` has defined some
 common properties and methods that are useful for test writing and interacting
 with the infrastructure, such as:
+
 - `scion` can be used to start and stop the scion infrastructure,
    or interact with individual service processes.
 - `dc` can be used to interact with docker compose.
@@ -29,8 +31,7 @@ Sub-commands are registered with the `@Test.subcommand` decorator.
 By default, the `name` and `teardown` sub-command are already implemented.
 The `setup` and `run` command must be implemented by each test individually.
 
-
-### Writing Your Own Test
+## Writing Your Own Test
 
 Write your own test by adding a directory to `acceptance` with the suffix
 `_acceptance`. This suffix is required by the acceptance framework.
@@ -40,7 +41,7 @@ make it executable with `chmod +x`.
 
 A minimal working test can be written as follows:
 
-````python
+```python
 #!/usr/bin/env python3
 
 import logging
@@ -101,4 +102,4 @@ class TestRun(CmdBase):
 if __name__ == '__main__':
     init_log()
     Test.run()
-````
+```

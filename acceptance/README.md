@@ -1,11 +1,10 @@
-
-Acceptance testing framework
-============================
+# Acceptance testing framework
 
 To add an acceptance test, create a new `xxx_acceptance` folder in
 `/acceptance`, with `xxx` replaced by the name of your test.
 
 The folder must contain a `test` executable, which must support the following arguments:
+
 * `name`, which returns the name of the acceptance test.
 * `setup`, which runs the setup portion of the acceptance test. If the return
   value of the application is non-zero, the test is aborted.
@@ -16,41 +15,47 @@ The folder must contain a `test` executable, which must support the following ar
 
 For an example, see `acceptance/reconnecting_acceptance`.
 
-Basic Commands
-==============
+## Basic Commands
 
 To run all defined tests, use:
-```
+
+```bash
 acceptance/run
 ```
 
 To run only the tests matching a certain regular expression, use:
-```
+
+```bash
 acceptance/run REGEX
 ```
-where REGEX is replaced with a regular expression of your choice.
 
-Manual Testing
-==============
+where `REGEX` is replaced with a regular expression of your choice.
+
+## Manual Testing
 
 To run fine-grained operations for a single test, use one of the following:
-```
+
+```bash
 acceptance/ctl setup TESTNAME
 acceptance/ctl run TESTNAME
 acceptance/ctl teardown TESTNAME
 ```
+
 This calls the functions in `acceptance/xxx_acceptance/test.sh` directly,
 without any prior setup. This also means docker images are **not** rebuilt,
 even if application code has changed.
 
 To run the `ctl` commands above, the environment needs to be built first. To do that, run:
-```
+
+```bash
 acceptance/ctl gsetup
 ```
+
 This will also rebuild the docker images, taking new code into account.
 
 To run the `setup`, `run` and `teardown` phases of a single test (without gsetup):
-```
+
+```bash
 acceptance/ctl grun TESTNAME
 ```
 

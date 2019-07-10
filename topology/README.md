@@ -1,3 +1,5 @@
+# Topology
+
 Brief description of sections in .topo files
 
 The 'defaults' section describes configuration that applies to all ASes, like
@@ -21,10 +23,12 @@ BRs in the final generated topology. The order of the links is what determines
 the element ID.
 
 Consider the following example:
+
 - {a: "1-ff00:0:110",   b: "1-ff00:0:120-1", linkAtoB: CORE}
 - {a: "1-ff00:0:120-1", b: "1-ff00:0:130", linkAtoB: CORE}
 
 In the example above, two links are defined resulting in:
+
 - BR 1-ff00:0:110 with a single interface
 - BR 1-ff00:0:120 with multiple interfaces
 - BR 1-ff00:0:130 with a single interface
