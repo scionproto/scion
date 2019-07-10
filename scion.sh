@@ -301,7 +301,7 @@ cmd_lint() {
 }
 
 py_lint() {
-    lint_header "lint python"
+    lint_header "python"
     local ret=0
     for i in acceptance python; do
       [ -d "$i" ] || continue
@@ -314,7 +314,7 @@ py_lint() {
 }
 
 go_lint() {
-    lint_header "lint go"
+    lint_header "go"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
     echo "======> Building lint tools"
@@ -346,13 +346,13 @@ go_lint() {
 }
 
 md_lint() {
-    lint_header "linting markdown"
+    lint_header "markdown"
     echo "======> mdlint"
     ./tools/mdlint
 }
 
 lint_header() {
-    printf "\n$1\n=====================\n\n"
+    printf "\nlint $1\n=====================\n\n"
 }
 
 cmd_mocks() {
