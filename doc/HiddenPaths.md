@@ -34,15 +34,15 @@ paths.
 A hidden path group is defined as a group of ASes within which hidden path
 information is shared. A hidden path group consists of:
 - GroupID: Unique 64bit identification of the group:
-  OwnerAS<sub>48bit</sub>||GroupID<sub>16bit</sub>
+OwnerAS<sub>48bit</sub>||GroupID<sub>16bit</sub>
 - Version: A version indicating the version of the configuration
 - Owner: AS ID of the owner of the hidden path group. The Owner AS is responsible for maintaining
-  the hidden path group configuration and keeping the group's HPS up-to-date with the latest
-  version, Access: Read/Write
+the hidden path group configuration and keeping the group's HPS up-to-date with the latest
+version, Access: Read/Write
 - Writers: All ASes in the group which are allowed to register hidden paths,
-  Access: Read/Write
+Access: Read/Write
 - Readers: All ASes in the group which are allowed to read hidden path
-  information, Access: Read
+information, Access: Read
 - Registries: All ASes in the group at which writers register hidden paths
 
 The HPGCfg is shared amongst the members of the group out-of-band. It
@@ -59,7 +59,7 @@ service: The segment lookup on an HPS is simple compared to the lookup done by a
 down-segments need to be returned. Not much of the PS logic could be re-used. Furthermore, an HPS
 needs to perform ACL checks on requesters based on HPGCfgs. This logic is not needed by a regular
 PS. Merging the two services would unnecessarily complicate both designs and harm the development of
-future, more sophisticated accesss control mechanisms on HPS. 
+future, more sophisticated accesss control mechanisms on HPS.
 
 Each HPS is of one of two types:
 - `Registries` contain the Hidden Path segment information and serve this information to `Forwarders`
@@ -77,9 +77,9 @@ decision is based on a policy defined in the Beacon Server's configuration file.
 The policy maps from interface ID to:
 - MaxExpiration:  The time interval after which the segment becomes invalid
 - RemoteHidden: Whether the segment is hidden from remote Path Servers
-  (not usable as down-segment for non-authorized ASes)
+(not usable as down-segment for non-authorized ASes)
 - LocalHidden: Whether the segment is hidden from the local Path Server
-  (not usable as up-segment)
+(not usable as up-segment)
 
 By default, Beacon Servers assume no policy and register all segments publicly.
 
@@ -198,4 +198,3 @@ down-segments corresponding to those groups
 Access: Owner/Readers
 - `HPGCfgReqHandler`: Returns a list of all `HPGCfg`s the requester is a member of  
 Access: Owner/Writers/Readers
-  
