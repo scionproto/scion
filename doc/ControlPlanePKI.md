@@ -39,7 +39,7 @@ from the perspective of a verifier:
     invariants](#trc-invariants) and [TRC update validation](#trc-update), as well as a TRC chain
     verification.
 2. __Valid:__ a *verified* TRC whose "validity" period (defined in the TRC itself) has begun and has
-    not yet ended.
+    not yet ended. Note: this does not consider the grace period of any following TRC.
 3. __Active:__ a *valid* TRC that may still be used for verifying certificate signatures, i.e.,
     either the latest TRC or the previous one if it is still in its grace period. No more than two
     TRCs can be active at the same time for each ISD from the viewpoint of the verifier.
@@ -155,12 +155,14 @@ ASes must treat these new fields as follows. When creating an AS entry, the hash
 and the algorithm used to compute that hash must be put into the AS entry. When receiving a beacon,
 all AS entries must be verified; this includes verifying the TRC hashes, as follows (in pseudocode):
 
-    verifyBeaconHashes(beacon):
-        for each ASEntry in beacon:
-            TRC = getVerifiedTRC(ASEntry.ISD, ASEntry.TRCVersion)
-            if ASEntry.TRCHash != hash(TRC, ASentry.hashAlgo)
-                return false
-        return true
+````python
+verifyBeaconHashes(beacon):
+    for each ASEntry in beacon:
+        TRC = getVerifiedTRC(ASEntry.ISD, ASEntry.TRCVersion)
+        if ASEntry.TRCHash != hash(TRC, ASentry.hashAlgo)
+            return false
+    return true
+````
 
 If the above verification returns `false`, then the beacon is dropped. The `getVerifiedTRC` function
 is defined below. Note that it can return `nil` (in which case the verification fails).
@@ -189,7 +191,7 @@ This comprises all non-object values in the top level of the TRC.
   this by exactly 1 (i.e., no gaps, no repeats).
 - __BaseVersion__: 64-bit integer. Version of the base TRC that anchors this TRC chain.
   In a base TRC this is equal to *Version*.
-- __Description__: UTF-8 string. Describes the ISD/TRC in human-readable form (possibly in multiple
+- __Description__: string. Describes the ISD/TRC in human-readable form (possibly in multiple
   languages).
 - __VotingQuorum__: 8-bit integer. Defines how many voting ASes from this ISD need to agree
   to be able to modify the TRC.
@@ -240,6 +242,7 @@ both offline and online keys. Non-voting ASes must not have offline or online ke
 required to have an issuing key. Non-issuing ASes must not have an issuing key.
 
 ### TRC Section: Votes
+
 This is an object that maps AS identifiers to a signature object which must contain exactly the
 following:
 
@@ -254,29 +257,31 @@ This section is included to prevent an attacker from simply changing the set of 
 JWS signed TRC to come up with another valid TRC for the same ISD and Version number (compromising
 "uniqueness") without consent from a voting quorum.
 
+Base TRCs are the root of the TRC update chain. Thus, they do not carry any votes. Trust has to be
+established in a different manner.  
+
 ### TRC Section: ProofOfPossession
 
-This is an object that maps AS identifiers to an array of signature objects, which must contain the
-following:
+This is an object that maps AS identifiers to an array key types.
 
-- __KeyType__: string. The type of key used (`Issuing`, `Online` or `Offline`).
-
-New or updated keys sign the first TRC they appear in to show proof of possession.
+New or updated keys sign the first TRC they appear in to show proof of possession. In a Base TRCs,
+all keys need to show proof of possession and sign the TRC. We recommend that all keys are fresh in
+a TRC trust reset in the first place.
 
 ### <a name="trc-invariants"></a> TRC Invariants
 
 The following are conditions that must hold true for every TRC:
-1. `NotBefore < NotAfter`
-2. `1 <= VotingQuorum <= count(VotingASes)`
-3. `1 <= count(IssuingASes)`
-4. Each `Voting` AS has an offline and online key.
-5. Each `Issuing` AS has an issuing key.
-6. Each `Authoritative` AS is a `Core` AS.
-7. No non-`Voting` AS has an online or offline key.
-8. No non-`Issuing` AS has an issuing key.
-9. `(BaseVersion == Version) <==> (GracePeriod == 0)` (Initial TRC or trust reset)
-10. `(BaseVersion == Version) ==> All keys attach proof of possession to TRC`
 
+1. `NotBefore < NotAfter`
+1. `1 <= VotingQuorum <= count(VotingASes)`
+1. `1 <= count(IssuingASes)`
+1. Each `Voting` AS has an offline and online key.
+1. Each `Issuing` AS has an issuing key.
+1. Each `Authoritative` AS is a `Core` AS.
+1. No non-`Voting` AS has an online or offline key.
+1. No non-`Issuing` AS has an issuing key.
+1. `(BaseVersion == Version) <==> (GracePeriod == 0)` (Initial TRC or trust reset)
+1. `(BaseVersion == Version) ==> All keys attach proof of possession to TRC`
 
 ### Example of a TRC Payload
 
@@ -352,12 +357,8 @@ The following are conditions that must hold true for every TRC:
         }
     },
     "ProofOfPossession": {
-        "ff00:0:110": [{
-            "Type": "Online",
-        }],
-        "ff00:0:120": [{
-            "Type": "Offline",
-        }]
+        "ff00:0:110": ["Online"],
+        "ff00:0:120": ["Offline"]
     }
 }
 ````
@@ -368,14 +369,17 @@ A TRC is signed using the JWS standard and serialized using the General JWS JSON
 Syntax [Section 7.2.1 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.1).
 
 The following fields must be present and no other must be set:
+
 - __payload__: The BASE64URL-encoded TRC payload described above.
 - __signatures__: JSON array of the signature objects.
 
 The following fields must be present in the signature object and no other must be set:
+
 - __protected__: The BASE64URL(UTF8(metadata))-encoded metadata of the signature.
 - __signature__: The BASE64URL encoded JWS signature.
 
 The following fields must be present in the metadata object and no other must be set:
+
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
 - __crit__: The following immutable array `["Type", "KeyType", "KeyVersion", "AS"]`
@@ -454,11 +458,13 @@ notation is the same as in the [private keys table](#table-private-keys).
 The contents depend on the certificate type:
 
 #### AS Certificate
+
 - __IA__: string. ISD and AS identifiers of the entity that signed the certificate.
 - __CertificateVersion__: 64-bit integer. The certificate version of the Issuer
   certificate.
 
 #### Issuer Certificate
+
 - __IA__: string. ISD and AS identifiers of the entity that signed the certificate. The issuer
   must be in the same ISD as the subject.
 - __KeyVersion__: 64-bit integer. The issuing key version of the issuing AS in the TRC.
@@ -534,6 +540,7 @@ A certificate is signed using the JWS standard and serialized using the Flattene
 Serialization Syntax [Section 7.2.2 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.2).
 
 The following fields and no other must be present:
+
 - __payload__: The BASE64URL-encoded certificate payload described above.
 - __protected__: The BASE64URL(UTF8(metadata))-encoded metadata of the signature.
 - __signature__: The BASE64URL encoded JWS signature.
@@ -541,6 +548,7 @@ The following fields and no other must be present:
 The metadata differs when signing AS and Issuer certificates.
 
 For AS certificates, the following fields and no other must be present in the metadata object:
+
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
     7515](https://tools.ietf.org/html/rfc7515#section-10.7).
 - __crit__: The following immutable array `["Type", "CertificateVersion", "IA"]`
@@ -550,6 +558,7 @@ For AS certificates, the following fields and no other must be present in the me
 - __IA__: The ISD-AS of the signing AS.
 
 For Issuer certificates, the following fields and no other must be present in the metadata object:
+
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
 - __crit__: The following immutable array `["Type", "KeyVersion", "IA"]`
@@ -562,7 +571,6 @@ An example of how a certificate is serialized and signed can be found in the
 
 The signature input is in accordance with the RFC: `ASCII(protected || '.' || payload)`
 
-
 ## Certificate Chain
 
 Certificate chains consist of an Issuer and an AS certificate. They are uniquely identified by the
@@ -572,7 +580,6 @@ chain.
 
 The certificate chain is represented as a JSON array with the first entry being the serialized and
 signed Issuer certificate and the second entry being the serialized and signed AS certificate.
-
 
 ### Example of a serialized Certificate Chain
 
@@ -632,7 +639,6 @@ below.
 | AS certificate     | `C_AS`        | `K_iss_cert`    | `K_enc`, `K_sign` | 3 days          |
 
 [^4]: Recommended validity period (best practice).
-
 
 ## <a name="trc-update"></a> TRC Updates
 
@@ -725,17 +731,19 @@ from a certificate server.
 
 ### Getting a TRC
 
-    getVerifiedTRC(isd, version):
-        if version <= 0:
-            return nil
-        trc = trustStoreQueryTRC(version)
-        if trc != nil:
-            return trc
-        previous = getVerifiedTRC(isd, version - 1)
-        trc = downloadTRC(isd, version)
-        if verifyTRC(trc, previous) == true:
-            return trc
+````python
+getVerifiedTRC(isd, version):
+    if version <= 0:
         return nil
+    trc = trustStoreQueryTRC(version)
+    if trc != nil:
+        return trc
+    previous = getVerifiedTRC(isd, version - 1)
+    trc = downloadTRC(isd, version)
+    if verifyTRC(trc, previous) == true:
+        return trc
+    return nil
+````
 
 The above code is simplified and does not implement the "version 0 means latest" feature.
 
@@ -751,7 +759,6 @@ possible.
 When resetting the trust anchor, the [TRC Invariants](#trc-invariants) must still hold. We describe
 multiple different mechanisms that allow handling trust resets in [TRC
 Bootstrapping](#trc-bootstrapping) and setting new trust anchors.
-
 
 ## Certificate Chain Dissemination
 
@@ -771,15 +778,17 @@ chains.
 
 ### Getting an AS Certificate Chain
 
-    getVerifiedChain(isd, as, version):
-        chain = trustStoreQueryChain(isd, as, version)
-        if chain != nil:
-            return chain
-        chain = downloadChain(isd, as, version)
-        trc = getVerifiedTRC(isd, chain[0].Issuer.TRCVersion)
-        if verifyChain(cert, trc) == true:
-            return cert
-        return nil
+````python
+getVerifiedChain(isd, as, version):
+    chain = trustStoreQueryChain(isd, as, version)
+    if chain != nil:
+        return chain
+    chain = downloadChain(isd, as, version)
+    trc = getVerifiedTRC(isd, chain[0].Issuer.TRCVersion)
+    if verifyChain(cert, trc) == true:
+        return cert
+    return nil
+````
 
 ### Certificate Chain Verification
 
@@ -816,6 +825,7 @@ primary ASes in the local ISD.
 
 If an authoritative AS has been unavailable, it must not serve authoritative queries until it has
 synchronized with the other authoritative ASes. Examples of authoritative queries are:
+
 - Certificate chain request with negative response.
 - Newest certificate chain for given AS.
 - Newest TRC for this ISD.
@@ -836,7 +846,6 @@ based on which type of AS it resides in.
 
 __others__: All other requests are sent to the local certificate server that recursively fetches the
 certificates according to the table.
-
 
 ## Certificate Revocation
 
@@ -1001,11 +1010,13 @@ Attestations carry only one signature and will be serialized using the Flattened
 Serialization Syntax [Section 7.2.2 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.2).
 
 The following fields and no other must be present in the metadata object:
+
 - __payload__: The BASE64URL-encoded serialized base TRC.
 - __protected__: The BASE64URL(UTF8(metadata))-encoded metadata of the signature.
 - __signature__: The BASE64URL encoded JWS signature.
 
 The following fields and no other must be present in the metadata object:
+
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
     7515](https://tools.ietf.org/html/rfc7515#section-10.7).
 - __crit__: The following immutable array `["TAAName", "KeyID", "KeyVersion", "Timestamp"]`
@@ -1047,31 +1058,33 @@ The following fields must be used to determine whether a TAAC is *valid*.
 
 This is an object that maps offline key identifiers to the keys. Offline keys are used to verify
 TAAC updates.
-  - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is
-    replaced.
-  - __Algorithm__: String. Identifies the algorithm this key is used with.
-  - __Key__: Base64-encoded string representation of the public key.
+
+- __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is
+  replaced.
+- __Algorithm__: String. Identifies the algorithm this key is used with.
+- __Key__: Base64-encoded string representation of the public key.
 
 ##### TAAC Section: AttestationKeys
 
 This is an object that maps attestation key identifiers to the keys. Attestation keys are used to
 verify Attestations.
-  - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is
-    replaced.
-  - __Algorithm__: String. Identifies the algorithm this key is used with.
-  - __Key__: Base64-encoded string representation of the public key.
 
-### <a name="taac-invariants"></a> TAAC Invariants
+- __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is
+  replaced.
+- __Algorithm__: String. Identifies the algorithm this key is used with.
+- __Key__: Base64-encoded string representation of the public key.
+
+#### <a name="taac-invariants"></a> TAAC Invariants
 
 The following are conditions that must hold true for every TRC:
+
 1. `NotBefore < NotAfter`
 2. `VotingQuorum <= count(OfflineKeys)`
 3. `count(AttestationKey) > 1`
 4. `GracePeriod > 0`
 5. `count(Alias) > 0` and all entries are valid ISD-AS strings.
 
-
-##### Example of TAAC Payload
+#### Example of TAAC Payload
 
 ````json
 {
@@ -1107,20 +1120,23 @@ The following are conditions that must hold true for every TRC:
 }
 ````
 
-##### TAAC Serialization
+#### TAAC Serialization
 
 A TAAC is signed using the JWS standard and serialized using the General JWS JSON Serialization
 Syntax [Section 7.2.1 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-7.2.1).
 
 The following fields and no other must be present:
+
 - __payload__: The BASE64URL-encoded TAAC payload described above.
 - __signatures__: JSON array of the signature objects.
 
 The following fields and no other must be present in the signature object:
+
 - __protected__: The BASE64URL(UTF8(metadata))-encoded metadata of the signature.
 - __signature__: The BASE64URL encoded JWS signature.
 
 The following fields and no other must be present in the metadata object:
+
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
 - __crit__: The following immutable array `["KeyID", "KeyVersion"]`
@@ -1181,7 +1197,6 @@ catastrophic events that involved multiple offline key compromises. During norma
 non-catastrophic key compromises, the RAAs are not involved. ISDs can update their TRCs freely,
 without the consents or attestation of RAAs. This limits the power that an RAA holds. Misbehavior on
 the RAA's part is easily discoverable, as it limits itself to issuing false trust resets.
-
 
 ## Appendix
 
