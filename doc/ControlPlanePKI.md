@@ -38,12 +38,12 @@ from the perspective of a verifier:
     The verification of a TRC includes basic sanity checks, such as ensuring [TRC
     invariants](#trc-invariants) and [TRC update validation](#trc-updates), as well as a TRC chain
     verification.
-2. __Valid:__ a *verified* TRC whose "validity" period (defined in the TRC itself) has begun and has
+1. __Valid:__ a *verified* TRC whose "validity" period (defined in the TRC itself) has begun and has
     not yet ended. Note: this does not consider the grace period of any following TRC.
-3. __Active:__ a *valid* TRC that may still be used for verifying certificate signatures, i.e.,
+1. __Active:__ a *valid* TRC that may still be used for verifying certificate signatures, i.e.,
     either the latest TRC or the previous one if it is still in its grace period. No more than two
     TRCs can be active at the same time for each ISD from the viewpoint of the verifier.
-4. __Latest:__ the TRC with the highest version number known to the verifier.
+1. __Latest:__ the TRC with the highest version number known to the verifier.
 
 Other qualifiers for TRCs include the following:
 
@@ -1089,10 +1089,10 @@ verify Attestations.
 The following are conditions that must hold true for every TAAC:
 
 1. `NotBefore < NotAfter`
-2. `0 < VotingQuorum <= count(OfflineKeys)`
-3. `count(AttestationKey) >= 1`
-4. `GracePeriod > 0`
-5. `count(Alias) > 0` and all entries are valid ISD-AS strings.
+1. `0 < VotingQuorum <= count(OfflineKeys)`
+1. `count(AttestationKey) >= 1`
+1. `GracePeriod > 0`
+1. `count(Alias) > 0` and all entries are valid ISD-AS strings.
 
 #### Example of TAAC Payload
 
