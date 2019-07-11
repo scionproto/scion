@@ -264,7 +264,7 @@ established in a different manner.
 
 This is an object that maps AS identifiers to an array key types.
 
-New or updated keys sign the first TRC they appear in to show proof of possession. In a Base TRCs,
+New or updated keys sign the first TRC they appear in to show proof of possession. In a Base TRC,
 all keys need to show proof of possession and sign the TRC. We recommend that all keys are fresh in
 a TRC trust reset in the first place.
 
@@ -467,12 +467,13 @@ The contents depend on the certificate type:
 
 #### Issuer Certificate
 
-- __IA__: string. ISD and AS identifiers of the issuing primary AS that signed this certificate. The
-  issuer must be in the same ISD as the subject of this certificate.
 - __TRCVersion__: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
   Note that a certificate can still be valid and verifiable even if the TRC version specified is no
   longer active, so long as the issuing AS still has the same issuing key in any of the active TRC
   versions.
+
+The issuer certificate is self-signed with the `Issuing` key in the TRC. Thus, the issuer is the
+same as the certificate subject and does not need to be specified.
 
 ### Example of an AS Certificate Payload
 
@@ -527,7 +528,6 @@ The contents depend on the certificate type:
         }
     },
     "Issuer": {
-        "IA": "1-ff00:0:130",
         "TRCVersion": 2,
     }
 }
@@ -560,10 +560,9 @@ For Issuer certificates, the following fields and no other must be present in th
 
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
-- __crit__: The following immutable array `["Type", "TRCVersion", "IA"]`
+- __crit__: The following immutable array `["Type", "TRCVersion"]`
 - __Type__: Must be the string "TRC", to indicate the public key is authenticated by a TRC.
 - __TRCVersion__: The trc version.
-- __IA__: The ISD-AS of the signing AS.
 
 An example of how a certificate is serialized and signed can be found in the
 [appendix](#chain-serialization-example).
@@ -674,6 +673,8 @@ For any kind of update, the following conditions must be met:
 - The `NotBefore` validity field must be in the range spanned by the validity fields of the previous
   TRC.
 - There must only be votes by voting ASes of the previous TRC.
+- The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
+  TRC.
 - Keys can be updated only with a strictly increasing `KeyVersion` number. In case the key is
   changed, the `KeyVersion` must be the previous version + 1. In case the `KeyVersion` remains the
   same, the key must not change. This holds true over all TRCs since the base TRC. I.e. if an AS is
@@ -692,14 +693,10 @@ For any kind of update, the following conditions must be met:
 ### Regular TRC Update
 
 In a regular update, the `VotingQuorum` parameter must not be changed. In the `PrimaryASes` section,
-only the issuing and online keys can change. No other parts of the `PrimaryASes` section must
-change.
+only the issuing and online keys can change. No other parts of the `PrimaryASes` section may change.
 
 - All votes from ASes with unchanged online root keys must be cast with the online root key.
-- All votes from ASes with changed online root keys must be cast with the offline root key.
-- All ASes with changed online root keys must cast a vote.
-- The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
-  TRC.
+- All ASes with changed online root keys must cast a vote with their offline root key.
 
 ### Sensitive TRC Update
 
@@ -707,8 +704,6 @@ A sensitive update is any update that is not "regular" (as defined above). The f
 must be met:
 
 - All votes must be issued with the offline root key authenticated by the previous TRC.
-- The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
-  TRC.
 
 Compared to the regular update, the restriction that voting ASes with changed online key must
 cast a vote is lifted. This allows replacing the online and offline key of a voting AS that has lost
@@ -830,7 +825,7 @@ When validating signatures based on certificate chains, the following must be ch
 ## Trust Material Sources
 
 When dealing with crypto material operators should have a point to contact to do certain kinds of
-queries. Authoritative ASes are required to keep all certificate issued inside their ISD. Queries
+queries. Authoritative ASes are required to keep all certificates issued inside their ISD. Queries
 such as asking for the newest TRC should be sent to an authoritative primary AS. All other ASes are
 required to have the trust material to verify all messages they serve. E.g. an AS must have all
 certificate chains to verify all path segments it serves.
@@ -855,10 +850,12 @@ __BeaconServer__: When verifying beacons, query the sending beacon server.
 __Certificate Server__: The following table shows where a certificate server fetches the material
 based on which type of AS it resides in.
 
-| AS type         | Local ISD TRC | Remote ISD TRC | ISD Local Chain | Remote Chain |
-| --------------- | ------------- | -------------- | --------------- | ------------ |
-| Authoritative   | check locally | remote auth AS |check locally    |remote auth AS|
-|Non-authoritative| local auth AS | remote auth AS |local auth AS    |remote auth AS|
+| AS type           | Local ISD TRC | Remote ISD TRC | ISD Local Chain | Remote Chain   |
+| ----------------- | ------------- | -------------- | --------------- | -------------- |
+| Authoritative     | n/a ¹         | remote auth AS | n/a ¹           | remote auth AS |
+| Non-authoritative | local auth AS | remote auth AS | local auth AS   | remote auth AS |
+
+[¹]: An authoritative AS should have all trust material for their local ISD available.
 
 __others__: All other requests are sent to the local certificate server that recursively fetches the
 certificates according to the table.
@@ -890,8 +887,9 @@ party.
 #### Revocation Note Format
 
 The revocation note is simply a signature over the ASCII string `Revocation Note: Type={{type}}
-IA={{ia}} Version={{version}}`, where `{{type}}` is replaced by the `CertificateType`, `{{ia}}` is
-replaced by the subject, and `{{version}}` is replaced by the version of the revoked certificate.
+IA={{ia}} Version={{version}} TS={{timestamp}}`, where `{{type}}` is replaced by the
+`CertificateType`, `{{ia}}` is replaced by the subject, `{{version}}` is replaced by the version
+of the revoked certificate, and `{{timestamp}}` is a timestamp when the revocation was issued.
 
 ### Revocation Note Distribution
 
@@ -1005,7 +1003,7 @@ verification into their pipeline for added security.
 Regional numbering authorities must maintain an append-only log of base TRCs and attestations in
 their ISD range(s) for auditability. This also allows all entities to quickly discovery new base
 TRCs, either caused by a new ISD joining the network or by a trust reset. Additionally, the RAAs
-manage an append-only log of all TRCs in their ISD range. RAAs discovery new TRCs be periodically
+manage an append-only log of all TRCs in their ISD range. RAAs discover new TRCs by periodically
 fetching the newest TRCs in their ISD range.
 
 Even with an append-only log, a split-world attack is still possible: a RAA could provide different
@@ -1382,16 +1380,14 @@ signed_as_cert = {
 iss_cert_meta = """
 {
     "alg": "Ed25519",
-    "crit": ["Type", "TRCVersion", "IA"]
+    "crit": ["Type", "TRCVersion"]
     "Type": "TRC"
     "TRCVersion": 2,
-    "IA": "1-ff00:0:130"
 }
 """
 iss_cert_meta_enc = b64url(iss_cert_meta.encode('utf-8'))
 # 'CnsKICAgICJhbGciOiAiRWQyNTUxOSIsCiAgICAiY3JpdCI6IFsiVHlwZSIsICJUUkNWZXJz
-# aW9uIiwgIklBIl0KICAgICJUeXBlIjogIlRSQyIKICAgICJUUkNWZXJzaW9uIjogMiwKICAgI
-# CJJQSI6ICIxLWZmMDA6MDoxMzAiCn0K'
+# aW9uIl0KICAgICJUeXBlIjogIlRSQyIKICAgICJUUkNWZXJzaW9uIjogMiwKfQo'
 
 payload = b64url(json.dumps(iss_cert_payload).encode())
 
