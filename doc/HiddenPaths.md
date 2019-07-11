@@ -110,6 +110,17 @@ The HPS then replies to sciond with a map of `GroupID` -> (`SegReply`,
 
 ![Path Lookup](fig/hidden_paths/PathLookup.png)
 
+### Security
+
+Various operations in this design are security critical and require client/server authentication:
+
+1. For the creation of HPGs we assume that the chosen out-of-band mechanism is safe.
+1. For registrations from BS to HPS we need to authenticate the HPS. Currently, there is no server
+   authentication in SCION. This needs to be implemented for the segment registration to be secure.
+1. sciond querying paths from the local HPS is secured by AS internal policies.
+1. A local HPS fetching segments from a remote HPS is authenticated by signing the request with the
+   local ASes signing key. The remote HPS can verify the signature using the client ASes public key.
+
 ## Implementation
 
 ### Hidden Path Group Configuration
