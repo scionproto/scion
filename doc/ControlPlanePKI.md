@@ -248,10 +248,9 @@ This is an object that maps primary AS identifiers to their attributes and keys:
 
 - __Keys__: Object that maps key types (`Issuing`, `Online` or `Offline`) to an object with the
   following fields:
-  - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is
-    replaced.
-  - __Algorithm__: string. Identifies the algorithm this key is used with.
-  - __Key__: Base64-encoded string representation of the public key.
+    - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is replaced.
+    - __Algorithm__: string. Identifies the algorithm this key is used with.
+    - __Key__: Base64-encoded string representation of the public key.
 
 An AS that has no core links must not be a core AS. An authoritative AS must be a core AS (this
 ensures it is reachable by other core ASes for bootstrap purposes). A voting AS is required to have
@@ -583,10 +582,9 @@ This is an object that maps the type of key (`Issuing`, `Encryption`, `Signing`,
 the algorithm and the key.
 
 - __Keys__: Object that maps key types to an object with the following fields:
-  - __Algorithm__: string. Identifies the algorithm this key is used with.
-  - __Key__: Base64-encoded string representation of the public key.
-  - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time the key is
-    replaced.
+    - __Algorithm__: string. Identifies the algorithm this key is used with.
+    - __Key__: Base64-encoded string representation of the public key.
+    - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time the key is replaced.
 
 The following table shows what keys are authenticated by the different certificate types. The key
 notation is the same as in the [private keys table](#table-private-keys).

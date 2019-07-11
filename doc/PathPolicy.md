@@ -212,8 +212,8 @@ third option which denies only hops in AS _1-ff00:0:133_, is used.
 ### Path lookup flow
 
 1. Client sends request towards sciond with a policy in the request.
-1. Sciond checks if it has cached segments for the destination
-    1. Cached segments present: build paths and filter with policy, return result to client.
+1. Sciond checks if it has recently done a request with the same policy for the destination
+    1. Recent request done: build path from cache and filter with policy, return result to client.
     1. Cached segments not present: continue with steps below.
 1. Sciond sends request with policy to local PS
 1. PS checks if it has cached segments for the destination
@@ -223,6 +223,12 @@ third option which denies only hops in AS _1-ff00:0:133_, is used.
    paths should be returned.
 1. PS stores reply in its DB and filters segments with policy and returns it to sciond.
 1. Sciond builds paths and filters them with policy and return them to the client.
+
+Note that for the request caching in sciond we need to remember which policies were used in a
+request. For that we use a time & space limited cache. It caches a result for a destination and a
+certain policy up to x seconds. But it also starts to drop items once there are more than y requests
+with different policies. To differentiate policies the hash of the serialized policy is used, so two
+policies with the same effect but different representation will count separately.
 
 ### API changes
 
