@@ -1226,8 +1226,6 @@ it was Mallory instead who signed the transaction [RFC 4211].
 In the following, the serialization of the TRC is described. As the TRC payload, we use the example
 from above.
 
-TODO(roosd): recompute all base 64 strings
-
 ````py
 
 def b64url(input: bytes) -> str:
@@ -1278,7 +1276,7 @@ offline_120_enc = b64url(offline_120.encode('utf-8'))
 # Payload serialization
 ############################################
 
-payload = b64url(json.dumps(trc_payload))
+payload = b64url(json.dumps(trc_payload).encode())
 
 ############################################
 # Issuing TRC signatures
@@ -1297,7 +1295,7 @@ signed_trc = {
         },
         {
             "protected": offline_120,
-            "signature": sign(off_key_120, (offline_120 + '.' + payload))
+            "signature": sign(off_key_120, (online_120_enc + '.' + payload))
         },
     ]
 }
@@ -1381,9 +1379,9 @@ iss_cert_meta = """
 }
 """
 iss_cert_meta_enc = b64url(iss_cert_meta.encode('utf-8'))
-# 'CnsKICAgICJhbGciOiAiRWQyNTUxOSIsCiAgICAiY3JpdCI6IFsiVHlwZSIsICJLZXlWZXJz
-# aW9uIiwgIklBIl0KICAgICJUeXBlIjogIlRSQyIKICAgICJLZXlWZXJzaW9uIjogNDIsCiAgI
-# CAiSUEiOiAiMS1mZjAwOjA6MTMwIgp9Cg'
+# 'CnsKICAgICJhbGciOiAiRWQyNTUxOSIsCiAgICAiY3JpdCI6IFsiVHlwZSIsICJUUkNWZXJz
+# aW9uIiwgIklBIl0KICAgICJUeXBlIjogIlRSQyIKICAgICJUUkNWZXJzaW9uIjogMiwKICAgI
+# CJJQSI6ICIxLWZmMDA6MDoxMzAiCn0K'
 
 payload = b64url(json.dumps(iss_cert_payload).encode())
 
