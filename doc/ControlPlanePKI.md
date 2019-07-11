@@ -66,21 +66,6 @@ follows (unless specified otherwise):
 - __integer__: All integers are unsigned.
 - __timestamp__: 64-bit integer indicating seconds since the unix epoch.
 
-## Primary ASes
-
-An ISD is made up of a number of ASes. There is a set of attributes that each AS may have:
-
-- __Core__: AS that has core links to other core ASes.
-- __Voting__: AS that participates in and signs TRC updates.
-- __Authoritative__: AS that is authoritative for TRCs and certificates for the local ISD.
-- __Issuing__: AS that issues AS certificates to other ASes in the ISD.
-
-__Primary AS:__ has at least one of the above attributes.
-
-All ASes with one or more attributes are considered primary ASes, and are listed in the TRC, along
-with their relevant keys. ASes without any of these attributes are not considered primary and must
-not appear in the TRC.
-
 ## Design Goals
 
 During normal operations, the CP-PKI should require minimal human intervention, and updating a TRC
@@ -169,6 +154,65 @@ is defined below. Note that it can return `nil` (in which case the verification 
 
 Although this mechanism in itself does not guarantee uniqueness, it helps detecting inconsistent
 TRCs with little overhead.
+
+## Primary ASes
+
+An ISD is made up of a number of ASes. There is a set of attributes that each AS may have:
+
+- __Core__: AS that has core links to other core ASes.
+- __Voting__: AS that participates in and signs TRC updates.
+- __Authoritative__: AS that is authoritative for TRCs and certificates for the local ISD.
+- __Issuing__: AS that issues AS certificates to other ASes in the ISD.
+
+__Primary AS:__ has at least one of the above attributes.
+
+All ASes with one or more attributes are considered primary ASes, and are listed in the TRC, along
+with their relevant keys. ASes without any of these attributes are not considered primary and must
+not appear in the TRC.
+
+## Overview of Keys and Certificates
+
+Voting ASes have online and offline key pairs. Issuing ASes have issuing keys. Offline keys are used
+for infrequent safety-critical operations that will require administrator involvement to cross an
+air gap, while online and issuing keys are used for frequent automated operations that do not
+require administrator involvement. The renewal of AS and Issuer certificates is an example of a
+fully automated operation that occurs every few days and only requires issuing keys.
+
+The tables below give an overview of the different keys and certificates used in the CP-PKI. The TRC
+contains the offline and/or online keys of primary ASes and is signed with a quorum of root keys
+(online or offline, depending on the context); as such, it can be considered a self-signed root
+certificate, except that multiple parties are involved. Online, offline and issuing keys are
+included in TRCs while other keys are authenticated via certificates. All ASes (including the
+primary ASes) use AS certificates to carry out their regular operations (such as signing beacons).
+Issuing ASes hold an additional certificate whose only purpose is to authenticate (other ASes' and
+their own) AS certificates.
+
+### Table: Private Keys
+
+| Name             | Notation      | Auth. ¹          | Validity ²  | Revocation  | Usage                       |
+| ---------------- | ------------- | ---------------- | ----------- | ----------- | --------------------------- |
+| Offline root key | `K_offline`   | TRC              | 5 years     | TRC update  | Sensitive TRC update        |
+| Online root key  | `K_online`    | TRC              | 1 year      | TRC update  | Regular TRC update          |
+| Issuing key      | `K_issuing`   | TRC              | 1 year      | TRC update  | Signing issuer certificates |
+| Issuer cert key  | `K_iss_cert`  | `C_issuer`       | 6 months    | Dedicated ³ | Signing AS certificates     |
+| Encryption key   | `K_enc`       | `C_AS`           | 3 months    | Dedicated ³ | DRKey                       |
+| Signing key      | `K_sign`      | `C_AS`           | 3 months    | Dedicated ³ | Signing CP messages         |
+| Revocation key   | `K_rev`       | `C_issuer`,`C_AS`| 6/3 months  | Dedicated ³ | Revoke certificate          |
+
+[¹]: Location of the corresponding (authenticated) public key.
+
+[²]: Recommended usage period before key rollover (best practice).
+
+[³]: As described in the "AS Certificate Revocation" section below.
+
+### Table: Certificates
+
+| Name               | Notation      | Signed by       | Associated key    | Validity ⁴      |
+| ------------------ | ------------- | --------------- | ----------------- | --------------- |
+| Issuer certificate | `C_issuer`    | `K_issuing`     | `K_iss_cert`      | 1 week          |
+| AS certificate     | `C_AS`        | `K_iss_cert`    | `K_enc`, `K_sign` | 3 days          |
+
+[⁴]: Recommended validity period (best practice).
 
 ## TRC Format
 
@@ -398,6 +442,132 @@ since the order of the keys when serializing JSON is not specified and cannot be
 since the TRC payload explicitly states all expected signatures, and those signature can only be
 created with the respective keys, "uniqueness" cannot be compromised.
 
+## TRC Updates
+
+In general, the TRC validity period is shorter than the validity of the keys it authenticates. Thus,
+TRCs are regularly updated to cover the full key validity period. In addition to these regular
+updates, sensitive updates, such as changes to the keys of Primary AS can occur.
+
+In this section we describe how TRCs must be verified. This includes a verification of the TRC chain
+as well as other basic validations. Note, however, that a *verified* TRC is not necessarily *valid*
+or *active*.
+
+A TRC update involves two TRC versions of the same ISD. The previous version and the updated
+version. The previous TRC is relative to the updated TRC and is simply identified by the updated TRC
+version - 1. Verification of the updated version is done against the previous TRC. Because of the
+uniqueness property of TRCs, there is exactly one previous TRC for all non-base TRCs.
+
+The update votes can still be verified, even after the previous TRC's validity period has passed.
+This allows entities to verify the chain even if any of the previous TRCs in the chain have expired.
+
+Trust resets are not considered TRC updates, since they set a new trust anchor. They are described
+later in this document.
+
+For any kind of update, the following conditions must be met:
+
+- The [TRC Invariants](#trc-invariants) must hold.
+- The `ISD` identifier field is immutable.
+- The `TrustResetAllowed` field is immutable.
+- The `Version` field must be equal to the previous version + 1.
+- The `BaseVersion` must be equal to the base version of the pervious TRC.
+- The `GracePeriod` of the TRC must not be 0. (A TRC with a grace period of 0 indicates a trust
+  reset)
+- The `NotBefore` validity field must be in the range spanned by the validity fields of the previous
+  TRC.
+- There must only be votes by voting ASes of the previous TRC.
+- The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
+  TRC.
+- Keys can be updated only with a strictly increasing `KeyVersion` number. In case the key is
+  changed, the `KeyVersion` must be the previous version + 1. In case the `KeyVersion` remains the
+  same, the key must not change. This holds true over all TRCs since the base TRC. I.e. if an AS is
+  demoted and later promoted again, the key version continues where it left off before. This must be
+  ensured by all signing entities.
+
+  Verifiers must check the `KeyVersion` is correct in the updated TRC, if the previous TRC already
+  contains a key of the given type for that primary AS. If not, verifiers are free to ignore the
+  check.
+- Any key that was not present in the previous TRC must show proof of possession by signing the new
+  TRC. This guarantees that any key present in any version of the TRC has been used to produce at
+  least one signature in the TRC's history, which shows a proof of possession (PoP) of the
+  corresponding private key (considered a good practice in such a context, see the appendix).
+  These signatures are distinct from votes and do not count towards the quorum.
+
+### Regular TRC Update
+
+In a regular update, the `VotingQuorum` parameter must not be changed. In the `PrimaryASes` section,
+only the issuing and online keys can change. No other parts of the `PrimaryASes` section may change.
+
+- All votes from ASes with unchanged online root keys must be cast with the online root key.
+- All ASes with changed online root keys must cast a vote with their offline root key.
+
+### Sensitive TRC Update
+
+A sensitive update is any update that is not "regular" (as defined above). The following conditions
+must be met:
+
+- All votes must be issued with the offline root key authenticated by the previous TRC.
+
+Compared to the regular update, the restriction that voting ASes with changed online key must
+cast a vote is lifted. This allows replacing the online and offline key of a voting AS that has lost
+its offline key without revoking the voting status.
+
+## TRC Update Dissemination
+
+A TRC update must be distributed amongst all authoritative ASes in that ISD, and they must switch to
+it as the latest version in a synchronized fashion. I.e. when querying two distinct authoritative
+ASes for the latest TRC version, they must reply with the same version modulo some minor clock skew.
+
+ASes inside that ISD must only announce the new TRC after the authoritative ASes have switched their
+view of the latest TRC version. This can easily achieved by having authoritative ASes switch the
+latest on the `Validity.NotBefore` time, since SCION requires some time synchronization.
+
+TRC updates are disseminated via SCION's beaconing process. If the TRC version number within a
+received beacon is higher than the locally stored TRC, the beacon server sends a request to the
+beacon server that sent the beacon. After a new TRC is accepted, it is submitted by the beacon
+server to a local certificate server. Path servers and end hosts learn about new remote TRCs through
+the path-segment registration and path lookup processes, respectively.
+
+All entities within an ISD must have a recent TRC of their own ISD. On startup, all servers and end
+hosts obtain the missing TRCs (if any, from the TRC they possess to the latest TRC) of their own ISD
+from a certificate server.
+
+### Getting a TRC
+
+````python
+getVerifiedTRC(isd, version):
+    if version <= 0:
+        return nil
+    trc = trustStoreQueryTRC(version)
+    if trc != nil:
+        return trc
+    previous = getVerifiedTRC(isd, version - 1)
+    trc = downloadTRC(isd, version)
+    if verifyTRC(trc, previous) == true:
+        return trc
+    return nil
+````
+
+The above code is simplified and does not implement the "version 0 means latest" feature.
+
+## TRC Trust Reset
+
+Aside from fresh TRCs, trust anchors can be re-established with a trust reset. Typically, a trust
+reset is needed when at least a quorum of voting ASes' online or offline keys have been compromised,
+or when a quorum can no longer be met. A trust reset is a worst case scenario, that is unlikely to
+happen. It is not considered a TRC update and may involve human intervention if necessary. A Trust
+reset is only permissible if `TrustResetAllowed` is set to `true`, otherwise, the no trust reset is
+possible.
+
+When resetting the trust anchor, the [TRC Invariants](#trc-invariants) must still hold. We describe
+multiple different mechanisms that allow handling trust resets in [TRC
+Bootstrapping](#trc-bootstrapping) and setting new trust anchors.
+
+The new base TRC is allowed to introduce a version number gap. If an ISD is badly compromised, and
+the attacker can issue new TRCs, this allows the ISD to get a head start. To taint the network, the
+attacker has to distribute the TRC first. If the new base TRC does violate the version uniqueness
+property, human intervention is necessary to rectify the situation by pruning the maliciously issued
+TRC chain to ensure uniqueness.
+
 ## Certificate Format
 
 Similarly to TRCs, AS certificates are serialized and signed using JWS. Certificates only carry one
@@ -596,175 +766,20 @@ signed Issuer certificate and the second entry being the serialized and signed A
 ]
 ````
 
-## Overview of Keys and Certificates
+## Signature Validation based on Certificate Chains
 
-Voting ASes have online and offline key pairs. Issuing ASes have issuing keys. Offline keys are used
-for infrequent safety-critical operations that will require administrator involvement to cross an
-air gap, while online and issuing keys are used for frequent automated operations that do not
-require administrator involvement. The renewal of AS and Issuer certificates is an example of a
-fully automated operation that occurs every few days and only requires issuing keys.
+When validating signatures based on certificate chains, the following must be checked:
 
-The tables below give an overview of the different keys and certificates used in the CP-PKI. The TRC
-contains the offline and/or online keys of primary ASes and is signed with a quorum of root keys
-(online or offline, depending on the context); as such, it can be considered a self-signed root
-certificate, except that multiple parties are involved. Online, offline and issuing keys are
-included in TRCs while other keys are authenticated via certificates. All ASes (including the
-primary ASes) use AS certificates to carry out their regular operations (such as signing beacons).
-Issuing ASes hold an additional certificate whose only purpose is to authenticate (other ASes' and
-their own) AS certificates.
+- The signature can be verified with the public key authenticated by the AS certificate of a
+  verified certificate chain.
+- The current time is inside the validity period of the certificate chain.
+- The certificate chain is authenticated by a currently active TRC. This means the issuing key that
+  was used to sign the Issuer certificate must be authenticated by a currently active TRCs. The
+  active TRC's version must be greater than or equal to the `TRCVersion` specified in the Issuer
+  certificate.
 
-### Table: Private Keys
-
-| Name             | Notation      | Auth. ¹          | Validity ²  | Revocation  | Usage                       |
-| ---------------- | ------------- | ---------------- | ----------- | ----------- | --------------------------- |
-| Offline root key | `K_offline`   | TRC              | 5 years     | TRC update  | Sensitive TRC update        |
-| Online root key  | `K_online`    | TRC              | 1 year      | TRC update  | Regular TRC update          |
-| Issuing key      | `K_issuing`   | TRC              | 1 year      | TRC update  | Signing issuer certificates |
-| Issuer cert key  | `K_iss_cert`  | `C_issuer`       | 6 months    | Dedicated ³ | Signing AS certificates     |
-| Encryption key   | `K_enc`       | `C_AS`           | 3 months    | Dedicated ³ | DRKey                       |
-| Signing key      | `K_sign`      | `C_AS`           | 3 months    | Dedicated ³ | Signing CP messages         |
-| Revocation key   | `K_rev`       | `C_issuer`,`C_AS`| 6/3 months  | Dedicated ³ | Revoke certificate          |
-
-[¹]: Location of the corresponding (authenticated) public key.
-
-[²]: Recommended usage period before key rollover (best practice).
-
-[³]: As described in the "AS Certificate Revocation" section below.
-
-### Table: Certificates
-
-| Name               | Notation      | Signed by       | Associated key    | Validity ⁴      |
-| ------------------ | ------------- | --------------- | ----------------- | --------------- |
-| Issuer certificate | `C_issuer`    | `K_issuing`     | `K_iss_cert`      | 1 week          |
-| AS certificate     | `C_AS`        | `K_iss_cert`    | `K_enc`, `K_sign` | 3 days          |
-
-[⁴]: Recommended validity period (best practice).
-
-## TRC Updates
-
-In general, the TRC validity period is shorter than the validity of the keys it authenticates. Thus,
-TRCs are regularly updated to cover the full key validity period. In addition to these regular
-updates, sensitive updates, such as changes to the keys of Primary AS can occur.
-
-In this section we describe how TRCs must be verified. This includes a verification of the TRC chain
-as well as other basic validations. Note, however, that a *verified* TRC is not necessarily *valid*
-or *active*.
-
-A TRC update involves two TRC versions of the same ISD. The previous version and the updated
-version. The previous TRC is relative to the updated TRC and is simply identified by the updated TRC
-version - 1. Verification of the updated version is done against the previous TRC. Because of the
-uniqueness property of TRCs, there is exactly one previous TRC for all non-base TRCs.
-
-The update votes can still be verified, even after the previous TRC's validity period has passed.
-This allows entities to verify the chain even if any of the previous TRCs in the chain have expired.
-
-Trust resets are not considered TRC updates, since they set a new trust anchor. They are described
-later in this document.
-
-For any kind of update, the following conditions must be met:
-
-- The [TRC Invariants](#trc-invariants) must hold.
-- The `ISD` identifier field is immutable.
-- The `TrustResetAllowed` field is immutable.
-- The `Version` field must be equal to the previous version + 1.
-- The `BaseVersion` must be equal to the base version of the pervious TRC.
-- The `GracePeriod` of the TRC must not be 0. (A TRC with a grace period of 0 indicates a trust
-  reset)
-- The `NotBefore` validity field must be in the range spanned by the validity fields of the previous
-  TRC.
-- There must only be votes by voting ASes of the previous TRC.
-- The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
-  TRC.
-- Keys can be updated only with a strictly increasing `KeyVersion` number. In case the key is
-  changed, the `KeyVersion` must be the previous version + 1. In case the `KeyVersion` remains the
-  same, the key must not change. This holds true over all TRCs since the base TRC. I.e. if an AS is
-  demoted and later promoted again, the key version continues where it left off before. This must be
-  ensured by all signing entities.
-
-  Verifiers must check the `KeyVersion` is correct in the updated TRC, if the previous TRC already
-  contains a key of the given type for that primary AS. If not, verifiers are free to ignore the
-  check.
-- Any key that was not present in the previous TRC must show proof of possession by signing the new
-  TRC. This guarantees that any key present in any version of the TRC has been used to produce at
-  least one signature in the TRC's history, which shows a proof of possession (PoP) of the
-  corresponding private key (considered a good practice in such a context, see the appendix).
-  These signatures are distinct from votes and do not count towards the quorum.
-
-### Regular TRC Update
-
-In a regular update, the `VotingQuorum` parameter must not be changed. In the `PrimaryASes` section,
-only the issuing and online keys can change. No other parts of the `PrimaryASes` section may change.
-
-- All votes from ASes with unchanged online root keys must be cast with the online root key.
-- All ASes with changed online root keys must cast a vote with their offline root key.
-
-### Sensitive TRC Update
-
-A sensitive update is any update that is not "regular" (as defined above). The following conditions
-must be met:
-
-- All votes must be issued with the offline root key authenticated by the previous TRC.
-
-Compared to the regular update, the restriction that voting ASes with changed online key must
-cast a vote is lifted. This allows replacing the online and offline key of a voting AS that has lost
-its offline key without revoking the voting status.
-
-## TRC Update Dissemination
-
-A TRC update must be distributed amongst all authoritative ASes in that ISD, and they must switch to
-it as the latest version in a synchronized fashion. I.e. when querying two distinct authoritative
-ASes for the latest TRC version, they must reply with the same version modulo some minor clock skew.
-
-ASes inside that ISD must only announce the new TRC after the authoritative ASes have switched their
-view of the latest TRC version. This can easily achieved by having authoritative ASes switch the
-latest on the `Validity.NotBefore` time, since SCION requires some time synchronization.
-
-TRC updates are disseminated via SCION's beaconing process. If the TRC version number within a
-received beacon is higher than the locally stored TRC, the beacon server sends a request to the
-beacon server that sent the beacon. After a new TRC is accepted, it is submitted by the beacon
-server to a local certificate server. Path servers and end hosts learn about new remote TRCs through
-the path-segment registration and path lookup processes, respectively.
-
-All entities within an ISD must have a recent TRC of their own ISD. On startup, all servers and end
-hosts obtain the missing TRCs (if any, from the TRC they possess to the latest TRC) of their own ISD
-from a certificate server.
-
-### Getting a TRC
-
-````python
-getVerifiedTRC(isd, version):
-    if version <= 0:
-        return nil
-    trc = trustStoreQueryTRC(version)
-    if trc != nil:
-        return trc
-    previous = getVerifiedTRC(isd, version - 1)
-    trc = downloadTRC(isd, version)
-    if verifyTRC(trc, previous) == true:
-        return trc
-    return nil
-````
-
-The above code is simplified and does not implement the "version 0 means latest" feature.
-
-## TRC Trust Reset
-
-Aside from fresh TRCs, trust anchors can be re-established with a trust reset. Typically, a trust
-reset is needed when at least a quorum of voting ASes' online or offline keys have been compromised,
-or when a quorum can no longer be met. A trust reset is a worst case scenario, that is unlikely to
-happen. It is not considered a TRC update and may involve human intervention if necessary. A Trust
-reset is only permissible if `TrustResetAllowed` is set to `true`, otherwise, the no trust reset is
-possible.
-
-When resetting the trust anchor, the [TRC Invariants](#trc-invariants) must still hold. We describe
-multiple different mechanisms that allow handling trust resets in [TRC
-Bootstrapping](#trc-bootstrapping) and setting new trust anchors.
-
-The new base TRC is allowed to introduce a version number gap. If an ISD is badly compromised, and
-the attacker can issue new TRCs, this allows the ISD to get a head start. To taint the network, the
-attacker has to distribute the TRC first. If the new base TRC does violate the version uniqueness
-property, human intervention is necessary to rectify the situation by pruning the maliciously issued
-TRC chain to ensure uniqueness.
+  This allows signature validation to succeed during the grace period of a TRC update with a
+  modified issuing key.
 
 ## Certificate Chain Dissemination
 
@@ -806,59 +821,6 @@ When verifying a certificate chain, the following must be checked:
   TRC.
 - The AS certificate validity period is covered by the Issuer certificate period.
 - The Issuer certificate validity period is covered by the referenced TRC validity period.
-
-## Signature Validation based on Certificate Chains
-
-When validating signatures based on certificate chains, the following must be checked:
-
-- The signature can be verified with the public key authenticated by the AS certificate of a
-  verified certificate chain.
-- The current time is inside the validity period of the certificate chain.
-- The certificate chain is authenticated by a currently active TRC. This means the issuing key that
-  was used to sign the Issuer certificate must be authenticated by a currently active TRCs. The
-  active TRC's version must be greater than or equal to the `TRCVersion` specified in the Issuer
-  certificate.
-
-  This allows signature validation to succeed during the grace period of a TRC update with a
-  modified issuing key.
-
-## Trust Material Sources
-
-When dealing with crypto material operators should have a point to contact to do certain kinds of
-queries. Authoritative ASes are required to keep all certificates issued inside their ISD. Queries
-such as asking for the newest TRC should be sent to an authoritative primary AS. All other ASes are
-required to have the trust material to verify all messages they serve. E.g. an AS must have all
-certificate chains to verify all path segments it serves.
-
-The subjects of certificate chains must register all freshly issued chains with all authoritative
-primary ASes in the local ISD. The same holds true for the subjects of issuer certificates.
-
-If an authoritative AS has been unavailable, it must not serve authoritative queries until it has
-synchronized with the other authoritative ASes. Examples of authoritative queries are:
-
-- Issuer certificate request with negative response.
-- Certificate chain request with negative response.
-- Newest certificate chain for given AS.
-- Newest TRC for this ISD.
-
-The following rules define trust material lookup in the different services:
-
-__Path Server__: When verifying path segments, query the sending beacon/path server.
-
-__BeaconServer__: When verifying beacons, query the sending beacon server.
-
-__Certificate Server__: The following table shows where a certificate server fetches the material
-based on which type of AS it resides in.
-
-| AS type           | Local ISD TRC | Remote ISD TRC | ISD Local Chain | Remote Chain   |
-| ----------------- | ------------- | -------------- | --------------- | -------------- |
-| Authoritative     | n/a ¹         | remote auth AS | n/a ¹           | remote auth AS |
-| Non-authoritative | local auth AS | remote auth AS | local auth AS   | remote auth AS |
-
-[¹]: An authoritative AS should have all trust material for their local ISD available.
-
-__others__: All other requests are sent to the local certificate server that recursively fetches the
-certificates according to the table.
 
 ## Certificate Revocation
 
@@ -935,6 +897,44 @@ geographically diverse to mitigate availability issues.
 If any of the distribution points contains a revocation note, the certificate is considered revoked
 and should no longer be considered valid. In case of an issuer certificate, this means all
 certificate chains containing it will also be considered invalid.
+
+## Trust Material Sources
+
+When dealing with crypto material operators should have a point to contact to do certain kinds of
+queries. Authoritative ASes are required to keep all certificates issued inside their ISD. Queries
+such as asking for the newest TRC should be sent to an authoritative primary AS. All other ASes are
+required to have the trust material to verify all messages they serve. E.g. an AS must have all
+certificate chains to verify all path segments it serves.
+
+The subjects of certificate chains must register all freshly issued chains with all authoritative
+primary ASes in the local ISD. The same holds true for the subjects of issuer certificates.
+
+If an authoritative AS has been unavailable, it must not serve authoritative queries until it has
+synchronized with the other authoritative ASes. Examples of authoritative queries are:
+
+- Issuer certificate request with negative response.
+- Certificate chain request with negative response.
+- Newest certificate chain for given AS.
+- Newest TRC for this ISD.
+
+The following rules define trust material lookup in the different services:
+
+__Path Server__: When verifying path segments, query the sending beacon/path server.
+
+__BeaconServer__: When verifying beacons, query the sending beacon server.
+
+__Certificate Server__: The following table shows where a certificate server fetches the material
+based on which type of AS it resides in.
+
+| AS type           | Local ISD TRC | Remote ISD TRC | ISD Local Chain | Remote Chain   |
+| ----------------- | ------------- | -------------- | --------------- | -------------- |
+| Authoritative     | n/a ¹         | remote auth AS | n/a ¹           | remote auth AS |
+| Non-authoritative | local auth AS | remote auth AS | local auth AS   | remote auth AS |
+
+[¹]: An authoritative AS should have all trust material for their local ISD available.
+
+__others__: All other requests are sent to the local certificate server that recursively fetches the
+certificates according to the table.
 
 ## TRC Bootstrapping
 
