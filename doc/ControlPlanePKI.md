@@ -128,33 +128,6 @@ communication channels in which they are involved. Second, the trust roots of ea
 co-located in a single file, the TRC, which is co-signed by voting ASes of the ISD. The trust store
 of each verifier hence consists of a list of TRCs.
 
-## Beacon Format (AS Entry) Modification
-
-This document proposes the addition of the following fields to beacons (in AS entries,
-specifically):
-
-- Hash algorithm
-- TRC hash
-
-ASes must treat these new fields as follows. When creating an AS entry, the hash of the latest TRC
-and the algorithm used to compute that hash must be put into the AS entry. When receiving a beacon,
-all AS entries must be verified; this includes verifying the TRC hashes, as follows (in pseudocode):
-
-````python
-verifyBeaconHashes(beacon):
-    for each ASEntry in beacon:
-        TRC = getVerifiedTRC(ASEntry.ISD, ASEntry.TRCVersion)
-        if ASEntry.TRCHash != hash(TRC, ASentry.hashAlgo)
-            return false
-    return true
-````
-
-If the above verification returns `false`, then the beacon is dropped. The `getVerifiedTRC` function
-is defined below. Note that it can return `nil` (in which case the verification fails).
-
-Although this mechanism in itself does not guarantee uniqueness, it helps detecting inconsistent
-TRCs with little overhead.
-
 ## Primary ASes
 
 An ISD is made up of a number of ASes. There is a set of attributes that each AS may have:
@@ -1008,8 +981,9 @@ fetching the newest TRCs in their ISD range.
 
 Even with an append-only log, a split-world attack is still possible: a RAA could provide different
 attestations for the same identifier to different clients. For this reason, TRC hashes must be
-included into beacons and verified by other ASes, as described above. This effectively runs a gossip
-protocol among ASes and allows them to detect inconsistent TRCs.
+included into beacons and verified by other ASes, see
+[appendix](#beacon-format-as-entry-modification). This effectively runs a gossip protocol among ASes
+and allows them to detect inconsistent TRCs.
 
 A RAA can only issue attestations for trust resets if the initial TRC has set `TrustResetAllowed` to
 true. This prevents RAAs from triggering a "kill switch" on ISDs who decided to set this flag to
@@ -1218,6 +1192,33 @@ or attestation of RAAs. This limits the power that an RAA holds. Misbehavior on 
 easily discoverable, as it is limited to issuing false trust resets.
 
 ## Appendix
+
+### Beacon Format (AS Entry) Modification
+
+This document proposes the addition of the following fields to beacons (in AS entries,
+specifically):
+
+- Hash algorithm
+- TRC hash
+
+ASes must treat these new fields as follows. When creating an AS entry, the hash of the latest TRC
+and the algorithm used to compute that hash must be put into the AS entry. When receiving a beacon,
+all AS entries must be verified; this includes verifying the TRC hashes, as follows (in pseudocode):
+
+````python
+verifyBeaconHashes(beacon):
+    for each ASEntry in beacon:
+        TRC = getVerifiedTRC(ASEntry.ISD, ASEntry.TRCVersion)
+        if ASEntry.TRCHash != hash(TRC, ASentry.hashAlgo)
+            return false
+    return true
+````
+
+If the above verification returns `false`, then the beacon is dropped. The `getVerifiedTRC` function
+is defined below. Note that it can return `nil` (in which case the verification fails).
+
+Although this mechanism in itself does not guarantee uniqueness, it helps detecting inconsistent
+TRCs with little overhead.
 
 ### Proof of Possession (PoP)
 
