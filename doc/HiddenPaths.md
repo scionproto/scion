@@ -191,9 +191,7 @@ The HPS is structured similar to existing go infra services. It uses:
 
 The HPS has the following handlers:
 - `HPSegRegHandler`: Handler accepting a `GroupID` and a list of segments to be registered as hidden
-  own-segments for that group *(Access: Owner/Writers)*
+down-segments for that group *(Access: Owner/Writers)*
 - `HPSegReqHandler`: Accepting a list of `GroupID`s, responding with hidden
-down-segments corresponding to those groups  
-Access: Owner/Readers
-- `HPGCfgReqHandler`: Returns a list of all `HPGCfg`s the requester is a member of  
-Access: Owner/Writers/Readers
+down-segments corresponding to those groups *(Access: Owner/Readers)*
+- `HPGCfgReqHandler`: Returns a list of all `HPGCfg`s the requester is a member of *(Access: Owner/Writers/Readers)*
