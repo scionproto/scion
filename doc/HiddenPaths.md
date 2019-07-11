@@ -21,11 +21,11 @@ control, such that only authorized entities can fetch and use these segments to 
 paths.
 
 ![Hidden Path Communication](fig/hidden_paths/HiddenPath.png)  
-*Hidden Path communication scheme:*  
-*1: Group Owner creates a HPG and shares the configuration out-of-band*  
-*2: Writer ASes register down-segments at Registries of their group*  
-*3: Reader ASes query local HPS for hidden segments*  
-*4: Reader ASes can communicate with Writer ASes based on hidden path segments*
+*Hidden Path communication scheme:*
+1. Group Owner creates a HPG and shares the configuration out-of-band
+1. Writer ASes register down-segments at Registries of their group
+1. Reader ASes query local HPS for hidden segments
+1. Reader ASes can communicate with Writer ASes based on hidden path segments
 
 ## Design
 
@@ -101,7 +101,7 @@ into disjoint subsets based on shared Registries. HPS then resolves the request
 by applying one of two cases for each subset:
 1. The local HPS is a Registry of the groups in the subset, and thus resolves the request by
    querying its database
-2. The local HPS is *not* a Registry of the groups in the subset. The request is
+1. The local HPS is *not* a Registry of the groups in the subset. The request is
    resolved by querying the shared Registry of the given groups.
 
 The HPS then replies to sciond with a map of `GroupID` -> (`SegReply`,
@@ -117,22 +117,22 @@ Below is an example of a Hidden Path Group configuration file (`HPGCfg_281474977
 
 ```json
 {
-	"GroupID": 281474977720757,
-	"Version": 1,
-	"Owner": "1-ff00:0:110",
-	"Writers": [
-		"1-ff00:0:111",
-		"1-ff00:0:112"
-	],
-	"Readers": [
-		"1-ff00:0:113",
-		"1-ff00:0:114"
-	],
-	"Registries": [
-		"1-ff00:0:110",
-		"1-ff00:0:111",
-		"1-ff00:0:113"
-	]
+    "GroupID": 281474977720757,
+    "Version": 1,
+    "Owner": "1-ff00:0:110",
+    "Writers": [
+        "1-ff00:0:111",
+        "1-ff00:0:112"
+    ],
+    "Readers": [
+    "1-ff00:0:113",
+    "1-ff00:0:114"
+    ],
+    "Registries": [
+        "1-ff00:0:110",
+        "1-ff00:0:111",
+        "1-ff00:0:113"
+    ]
 }
 ```
 
@@ -190,9 +190,8 @@ The HPS is structured similar to existing go infra services. It uses:
 #### Handlers
 
 The HPS has the following handlers:
-- `HPSegRegHandler`: Handler accepting a `GroupID` and a list of segments to be
-registered as hidden down-segments for that group  
-Access: Owner/Writers
+- `HPSegRegHandler`: Handler accepting a `GroupID` and a list of segments to be registered as hidden
+  own-segments for that group *(Access: Owner/Writers)*
 - `HPSegReqHandler`: Accepting a list of `GroupID`s, responding with hidden
 down-segments corresponding to those groups  
 Access: Owner/Readers
