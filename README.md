@@ -14,18 +14,18 @@ Internet architecture.
   containers.
 * [go/](/go): parts of the implementation that are written in
   [Go](http://golang.org).
-  * [border_router](/go/border): Border Router
-  * [certificate_server](/go/cert_srv): Certificate Server
-  * [scion_ip_gateway](/go/sig): SCION IP Gateway
-  * [lib](/go/lib): shared SCION Go libraries
+    * [border_router](/go/border): Border Router
+    * [certificate_server](/go/cert_srv): Certificate Server
+    * [scion_ip_gateway](/go/sig): SCION IP Gateway
+    * [lib](/go/lib): shared SCION Go libraries
 * [python/](/python): the parts of the infrastructure
   implemented in Python.
-  * [beacon_server](/python/beacon_server): Beacon Server
-  * [certificate_server](/python/cert_server): Certificate Server
-  * [path_server](/python/path_server): Path Server
-  * [lib/](/python/lib): shared SCION Python libraries
-  * [topology](/python/topology): generator for generating a local topology,
-    including all the necessary configuration, key, and certificate files
+    * [beacon_server](/python/beacon_server): Beacon Server
+    * [certificate_server](/python/cert_server): Certificate Server
+    * [path_server](/python/path_server): Path Server
+    * [lib/](/python/lib): shared SCION Python libraries
+    * [topology](/python/topology): generator for generating a local topology,
+        including all the necessary configuration, key, and certificate files
 * [proto/](/proto): the protocol definitions for use with [Cap’n
   Proto](https://capnproto.org/).
 * [supervisor/](/supervisor): the configuration for
