@@ -634,12 +634,12 @@ their own) AS certificates.
 
 ### Table: Certificates
 
-| Name               | Notation      | Signed by       | Associated key    | Validity[^4]    |
+| Name               | Notation      | Signed by       | Associated key    | Validity ⁴      |
 | ------------------ | ------------- | --------------- | ----------------- | --------------- |
 | Issuer certificate | `C_issuer`    | `K_issuing`     | `K_iss_cert`      | 1 week          |
 | AS certificate     | `C_AS`        | `K_iss_cert`    | `K_enc`, `K_sign` | 3 days          |
 
-[^4]: Recommended validity period (best practice).
+[⁴]: Recommended validity period (best practice).
 
 ## TRC Updates
 
