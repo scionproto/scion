@@ -20,8 +20,10 @@ servers. Instead, they are registered at a dedicated Hidden path server (HPS) wh
 control, such that only authorized entities can fetch and use these segments to create forwarding
 paths.
 
-![Hidden Path Communication](fig/hidden_paths/HiddenPath.png)  
+![Hidden Path Communication](fig/hidden_paths/HiddenPath.png)
+
 *Hidden Path communication scheme:*
+
 1. Group Owner creates a HPG and shares the configuration out-of-band
 1. Writer ASes register down-segments at Registries of their group
 1. Reader ASes query local HPS for hidden segments
@@ -33,16 +35,14 @@ paths.
 
 A hidden path group is defined as a group of ASes within which hidden path
 information is shared. A hidden path group consists of:
-- GroupID: Unique 64bit identification of the group:
-OwnerAS<sub>48bit</sub>||GroupID<sub>16bit</sub>
+
+- GroupID: Unique 64bit identification of the group: OwnerAS<sub>48bit</sub>||GroupID<sub>16bit</sub>
 - Version: A version indicating the version of the configuration
 - Owner: AS ID of the owner of the hidden path group. The Owner AS is responsible for maintaining
-the hidden path group configuration and keeping the group's HPS up-to-date with the latest
-version, Access: Read/Write
-- Writers: All ASes in the group which are allowed to register hidden paths,
-Access: Read/Write
-- Readers: All ASes in the group which are allowed to read hidden path
-information, Access: Read
+  the hidden path group configuration and keeping the group's HPS up-to-date with the latest
+  version *(Access: Read/Write)*
+- Writers: All ASes in the group which are allowed to register hidden paths *(Access: Read/Write)*
+- Readers: All ASes in the group which are allowed to read hidden path information *(Access: Read)*
 - Registries: All ASes in the group at which writers register hidden paths
 
 The HPGCfg is shared amongst the members of the group out-of-band. It
@@ -62,6 +62,7 @@ PS. Merging the two services would unnecessarily complicate both designs and har
 future, more sophisticated accesss control mechanisms on HPS.
 
 Each HPS is of one of two types:
+
 - `Registries` contain the Hidden Path segment information and serve this information to `Forwarders`
 - `Forwarders` forward hidden path requests on behalf of sciond to `Registries` of the group
 
@@ -75,11 +76,11 @@ The Beacon Server needs to distinguish between segments to be registered at the
 Path Server and the ones to be registered at the Hidden Path Server. This
 decision is based on a policy defined in the Beacon Server's configuration file.
 The policy maps from interface ID to:
+
 - MaxExpiration:  The time interval after which the segment becomes invalid
-- RemoteHidden: Whether the segment is hidden from remote Path Servers
-(not usable as down-segment for non-authorized ASes)
-- LocalHidden: Whether the segment is hidden from the local Path Server
-(not usable as up-segment)
+- RemoteHidden: Whether the segment is hidden from remote Path Servers (not usable as down-segment
+  for non-authorized ASes)
+- LocalHidden: Whether the segment is hidden from the local Path Server (not usable as up-segment)
 
 By default, Beacon Servers assume no policy and register all segments publicly.
 
@@ -90,15 +91,15 @@ distinguishable. This is achieved by adding an extension to the `ASEntry` of the
 
 ### Path Lookup
 
-Additional to up-, core- and down-segments, sciond is responsible for
-fetching hidden down-segments. sciond periodically queries the local HPS to fetch all HPGCfgs of
-which it is a member. Clients of sciond have to explicitly ask sciond for hidden paths. Clients can
-include a specific `GroupID` in their request; otherwise sciond checks all HPGCfgs and extracts the HPG
-`GroupID`s of all those groups where the destination is a Writer (or Owner) of that group. With the
-obtained `GroupID`s and the given destination, sciond then requests hidden down-segments from its local HPS.
-The local HPS selects a Registry for each `GroupID`, partitioning the `GroupID`s
-into disjoint subsets based on shared Registries. HPS then resolves the request
-by applying one of two cases for each subset:
+Additional to up-, core- and down-segments, sciond is responsible for fetching hidden down-segments.
+sciond periodically queries the local HPS to fetch all HPGCfgs of which it is a member. Clients of
+sciond have to explicitly ask sciond for hidden paths. Clients can include a specific `GroupID` in
+their request; otherwise sciond checks all HPGCfgs and extracts the HPG `GroupID`s of all those
+groups where the destination is a Writer (or Owner) of that group. With the obtained `GroupID`s and
+the given destination, sciond then requests hidden down-segments from its local HPS. The local HPS
+selects a Registry for each `GroupID`, partitioning the `GroupID`s into disjoint subsets based on
+shared Registries. HPS then resolves the request by applying one of two cases for each subset:
+
 1. The local HPS is a Registry of the groups in the subset, and thus resolves the request by
    querying its database
 1. The local HPS is *not* a Registry of the groups in the subset. The request is
@@ -163,7 +164,7 @@ localHidden = false
 [hpGroups.281474977720757.segments.8]
 maxExpiration = "60s"
 remoteHidden = true
-localHidden = true 
+localHidden = true
 
 [hpGroups.xxxxx]
 
@@ -183,6 +184,7 @@ localHidden = true
 #### General Structure
 
 The HPS is structured similar to existing go infra services. It uses:
+
 - go/lib/env (for configuration and setting up the service)
 - go/lib/infra (for sending messages)
 - go/lib/pathdb (for storing hidden segments)
@@ -190,8 +192,9 @@ The HPS is structured similar to existing go infra services. It uses:
 #### Handlers
 
 The HPS has the following handlers:
+
 - `HPSegRegHandler`: Handler accepting a `GroupID` and a list of segments to be registered as hidden
-down-segments for that group *(Access: Owner/Writers)*
-- `HPSegReqHandler`: Accepting a list of `GroupID`s, responding with hidden
-down-segments corresponding to those groups *(Access: Owner/Readers)*
+  down-segments for that group *(Access: Owner/Writers)*
+- `HPSegReqHandler`: Accepting a list of `GroupID`s, responding with hidden down-segments
+  corresponding to those groups *(Access: Owner/Readers)*
 - `HPGCfgReqHandler`: Returns a list of all `HPGCfg`s the requester is a member of *(Access: Owner/Writers/Readers)*
