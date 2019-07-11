@@ -656,6 +656,9 @@ version. The previous TRC is relative to the updated TRC and is simply identifie
 version - 1. Verification of the updated version is done against the previous TRC. Because of the
 uniqueness property of TRCs, there is exactly one previous TRC for all non-base TRCs.
 
+The update votes can still be verified, even after the previous TRC's validity period has passed.
+This allows entities to verify the chain even if any of the previous TRCs in the chain have expired.
+
 Trust resets are not considered TRC updates, since they set a new trust anchor. They are described
 later in this document.
 
@@ -762,6 +765,12 @@ When resetting the trust anchor, the [TRC Invariants](#trc-invariants) must stil
 multiple different mechanisms that allow handling trust resets in [TRC
 Bootstrapping](#trc-bootstrapping) and setting new trust anchors.
 
+The new base TRC is allowed to introduce a version number gap. If an ISD is badly compromised, and
+the attacker can issue new TRCs, this allows the ISD to get a head start. To taint the network, the
+attacker has to distribute the TRC first. If the new base TRC does violate the version uniqueness
+property, human intervention is necessary to rectify the situation by pruning the maliciously issued
+TRC chain to ensure uniqueness.
+
 ## Certificate Chain Dissemination
 
 Certificate chains are issued by an `Issuing` AS upon request. As certificates are short lived, this
@@ -821,17 +830,18 @@ When validating signatures based on certificate chains, the following must be ch
 ## Trust Material Sources
 
 When dealing with crypto material operators should have a point to contact to do certain kinds of
-queries. Authoritative ASes are required to keep all certificate chains issued inside their ISD.
-Queries such as asking for the newest TRC should be sent to an authoritative primary AS. All other
-ASes are required to have the trust material to verify all messages they serve. E.g. an AS must have
-all certificate chains to verify all path segments it serves.
+queries. Authoritative ASes are required to keep all certificate issued inside their ISD. Queries
+such as asking for the newest TRC should be sent to an authoritative primary AS. All other ASes are
+required to have the trust material to verify all messages they serve. E.g. an AS must have all
+certificate chains to verify all path segments it serves.
 
 The subjects of certificate chains must register all freshly issued chains with all authoritative
-primary ASes in the local ISD.
+primary ASes in the local ISD. The same holds true for the subjects of issuer certificates.
 
 If an authoritative AS has been unavailable, it must not serve authoritative queries until it has
 synchronized with the other authoritative ASes. Examples of authoritative queries are:
 
+- Issuer certificate request with negative response.
 - Certificate chain request with negative response.
 - Newest certificate chain for given AS.
 - Newest TRC for this ISD.
