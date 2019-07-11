@@ -72,8 +72,8 @@ Local means in the same ISD as the current PS, remote means in a different ISD.
 * For non-core PS: Check source (R.RawSrcIA): must either be unset, or set to the local IA otherwise
   return an error/empty reply
 * Check destination (R.RawDstIA):
-  * If the R.RawDstIA is not set or invalid (i.e., ISD is 0) or represents the local IA, immediately
-    return an error/empty reply
+    * If the R.RawDstIA is not set or invalid (i.e., ISD is 0) or represents the local IA,
+      immediately return an error/empty reply
 * Define `GetCached(Seg, cPS)` := if last lookup Seg.Dst is longer than a configured time ago (Note
   comments on the cache refresh interval in chapter below), request at cPS and save result in cache,
   then return cached version. If we currently do not have a path to cPS we should hold the request
@@ -84,35 +84,35 @@ Local means in the same ISD as the current PS, remote means in a different ISD.
 #### Non-core PS
 
 * If Dst == Core-AS:
-  * For each local core-AS x, for which an up segment exists && isNot(dst):
-    * GetCached(coreSeg{dst->x}, x)
-  * Return up-segments, which have a connecting core segment or which end in dst, and the core
-    segments.
+    * For each local core-AS x, for which an up segment exists && isNot(dst):
+        * GetCached(coreSeg{dst->x}, x)
+    * Return up-segments, which have a connecting core segment or which end in dst, and the core
+        segments.
 * Else // Dst == Non-Core-AS:
-  * GetCached(downSeg{*->dst}, any local cPS)
-  * Filter down segments, remove revoked ones.
-  * For each core AS x, that is at the start of a down segment:
-    * For each local core AS y, for which an up segment exists && x != y: GetCached(coreSeg{x->y},
-      y)
-  * Filter down segments, only keep reachable ones
-  * Return the down, core, and up segments.
+    * GetCached(downSeg{*->dst}, any local cPS)
+    * Filter down segments, remove revoked ones.
+    * For each core AS x, that is at the start of a down segment:
+        * For each local core AS y, for which an up segment exists && x != y:
+          GetCached(coreSeg{x->y}, y)
+    * Filter down segments, only keep reachable ones
+    * Return the down, core, and up segments.
 
 #### Core PS
 
 * If destination is local:
-  * If Dest is ISD-0: return empty
-  * Else if Dest is core AS: return coreSeg{dst->self}
-  * Else
-    * If request from different AS: return downSeg{*->dst} (from DB)
-    * Else return downSeg{*->dst} (from DB) and for each core AS x, that is at the start of a down
-      segment return the coreSegs{x->self}
+    * If Dest is ISD-0: return empty
+    * Else if Dest is core AS: return coreSeg{dst->self}
+    * Else
+        * If request from different AS: return downSeg{*->dst} (from DB)
+        * Else return downSeg{*->dst} (from DB) and for each core AS x, that is at the start of a
+          down segment return the coreSegs{x->self}
 * If destination is remote:
-  * If Dest is ISD-0 return any coreSeg{ISD-*->self}
-  * Else if Dest is core AS: return coreSeg{dst->self}
-  * Else
-    * If request from different AS: return GetCached(downSeg{*->dst}, any cPS in DestISD)
-    * Else return GetCached(downSeg{*->dst}, any cPS in DestISD) and for each core AS x, that is at
-      the start of a down segment return the coreSegs{x->self}
+    * If Dest is ISD-0 return any coreSeg{ISD-*->self}
+    * Else if Dest is core AS: return coreSeg{dst->self}
+    * Else
+        * If request from different AS: return GetCached(downSeg{*->dst}, any cPS in DestISD)
+        * Else return GetCached(downSeg{*->dst}, any cPS in DestISD) and for each core AS x, that is
+          at the start of a down segment return the coreSegs{x->self}
 
 ### Cache refresh interval
 
@@ -156,16 +156,16 @@ segment. Instead we only filter when using path segments.
 
 * Receive revocation R
 * If R is a CtrlPld.PathMgmt.SRevInfo && source is not in same ISD
-  * Ignore R // SRevInfo should only come from within the same ISD.
+    * Ignore R // SRevInfo should only come from within the same ISD.
 * Verify R, if invalid drop it and return.
 * Save R in the revocation cache
 * Forward revocation in non-core PS:
-  * If revoked interface belongs to this AS OR revocation is from a different ISD:
-    * Inform all core PSes in the local ISD
+    * If revoked interface belongs to this AS OR revocation is from a different ISD:
+        * Inform all core PSes in the local ISD
 * Forward revocation in core PS:
-  * If revoked interface belongs to this AS OR Revocation is from a BR and it originated from a
+    * If revoked interface belongs to this AS OR Revocation is from a BR and it originated from a
       different ISD
-    * Inform all other core ASes.
-  * Note that if a cPS queries a cPS of another ISD for down segments it should also get the
-    relevant revocations for the segments. These revocations do not need to be forwarded to other
-    cPSes.
+        * Inform all other core ASes.
+    * Note that if a cPS queries a cPS of another ISD for down segments it should also get the
+      relevant revocations for the segments. These revocations do not need to be forwarded to other
+      cPSes.
