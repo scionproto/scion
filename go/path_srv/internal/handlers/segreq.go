@@ -122,7 +122,6 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, dst addr.IA,
 	if err = h.fetchAndSaveSegs(ctx, addr.IA{}, dst, cAddr); err != nil {
 		return nil, err
 	}
-	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
 	return h.fetchSegsFromDB(ctx, q)
 }
 
@@ -130,23 +129,23 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
 	cPSAddr net.Addr) error {
 
 	logger := log.FromCtx(ctx)
-	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
 	// The logging below is used for acceptance testing do not delete!
 	if snetAddr, ok := cPSAddr.(*snet.Addr); ok {
 		logger.Trace("[segReqHandler] Sending segment request", "NextHop", snetAddr.NextHop)
 	}
-	segs, err := h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
-	if err != nil {
-		return err
-	}
+	return h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
+}
+
+func (h *segReqHandler) handleReceivedSegs(ctx context.Context, queryTime time.Time,
+	cPSAddr net.Addr, req *path_mgmt.SegReq, segs *path_mgmt.SegReply) {
+
+	logger := log.FromCtx(ctx)
 	segs = segs.Sanitize(logger)
-	var recs []*seg.Meta
-	var revInfos []*path_mgmt.SignedRevInfo
 	if segs.Recs != nil {
 		logSegRecs(logger, "[segReqHandler]", cPSAddr, segs.Recs)
-		recs = segs.Recs.Recs
-		revInfos, err = revcache.FilterNew(ctx, h.revCache, segs.Recs.SRevInfos)
+		recs := segs.Recs.Recs
+		revInfos, err := revcache.FilterNew(ctx, h.revCache, segs.Recs.SRevInfos)
 		if err != nil {
 			logger.Error("[segReqHandler] Failed to filter new revocations", "err", err)
 			// in case of error we just assume all of them are new and continue.
@@ -156,36 +155,33 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
 			logger.Error("Failed to verify and store segments", "err", err)
 		} else {
 			// Only insert next query if we found some results.
-			if _, err := h.pathDB.InsertNextQuery(ctx, dst,
+			if _, err := h.pathDB.InsertNextQuery(ctx, req.DstIA(),
 				queryTime.Add(h.queryInt)); err != nil {
 				logger.Warn("Failed to insert last queried", "err", err)
 			}
 		}
 	}
-	return nil
 }
 
 func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
-	req *path_mgmt.SegReq, server net.Addr, id uint64) (*path_mgmt.SegReply, error) {
+	req *path_mgmt.SegReq, server net.Addr, id uint64) error {
 
 	var span opentracing.Span
 	span, ctx = opentracing.StartSpanFromContext(ctx, "getSegsFromNetwork")
 	defer span.Finish()
 	responseC, cancelF, span := h.segsDeduper.Request(ctx, &segReq{
-		segReq: req,
-		server: server,
-		id:     id,
+		segReq:      req,
+		server:      server,
+		id:          id,
+		postprocess: h.handleReceivedSegs,
 	})
 	defer span.Finish()
 	defer cancelF()
 	select {
 	case response := <-responseC:
-		if response.Error != nil {
-			return nil, response.Error
-		}
-		return response.Data.(*path_mgmt.SegReply), nil
+		return response.Error
 	case <-ctx.Done():
-		return nil, common.NewBasicError("Context done while waiting for Segs", ctx.Err())
+		return common.NewBasicError("Context done while waiting for Segs", ctx.Err())
 	}
 }
 
