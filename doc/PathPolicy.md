@@ -55,7 +55,7 @@ A policy is defined by a policy object. It can have the following attributes:
 - [`acl`](#ACL) (list of HPs, preceded by `+` or `-`)
 - [`sequence`](#Sequence) (space separated list of HPs, may contain operators)
 - [`options`](#Options) (list of option policies)
-  - `weight` (importance level, only valid under `options`)
+    - `weight` (importance level, only valid under `options`)
 
 Planned:
 
@@ -195,3 +195,50 @@ third option which denies only hops in AS _1-ff00:0:133_, is used.
     - "- 1-ff00:0:133#0"
     - "+"
 ```
+
+## Path policies in path lookup
+
+### Requirements
+
+1. The path lookup path policy languages has to be at least as expressive as what we offer to
+   clients. Otherwise we will need to have a middle man which requests all the required segments
+   until a request can be fulfilled.
+1. The path lookup path policy can only contain static properties of a path. Static are the acl and
+   sequence parts of the policy and everything that does not contain information that can
+   dynamically change, like latency (note that min latency of a link is probably a helpful static
+   property).
+1. The path lookup result caching should, if possible, not be affected by this change.
+
+### Path lookup flow
+
+1. Client sends request towards sciond with a policy in the request.
+1. Sciond checks if it has recently done a request with the same policy for the destination
+    1. Recent request done: build path from cache and filter with policy, return result to client.
+    1. Cached segments not present: continue with steps below.
+1. Sciond sends request with policy to local PS
+1. PS checks if it has cached segments for the destination
+    1. Cached segments present: filter segments with policy, return result to client.
+    1. Cached segments not present: continue with steps below.
+1. PS sends request to relevant core PS (according to current rules) with a flag indicating that all
+   paths should be returned.
+1. PS stores reply in its DB and filters segments with policy and returns it to sciond.
+1. Sciond builds paths and filters them with policy and return them to the client.
+
+Note that for the request caching in sciond we need to remember which policies were used in a
+request. For that we use a time & space limited cache. It caches a result for a destination and a
+certain policy up to x seconds. But it also starts to drop items once there are more than y requests
+with different policies. To differentiate policies the hash of the serialized policy is used, so two
+policies with the same effect but different representation will count separately.
+
+### API changes
+
+We have to change the sciond `PathReq` and the PS `SegReq` to include at policy field. The field
+should encapsulate the `pathpol.PolicyMap` go type. Preferably a capnproto type would be used to
+model it and if that is not possible we should serialize the type to JSON and send it as text field.
+
+### Possible implementation shortcuts
+
+It would be possible for the local PS to just return all the segments without filtering since sciond
+has to do filtering anyway. Since the API of the PS will already accept policies we can just forward
+the policy from sciond to the PS and the PS can either filter segments or just return all segments
+without filtering.
