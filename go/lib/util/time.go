@@ -16,10 +16,40 @@
 package util
 
 import (
+	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
+
+var _ json.Marshaler = (*UnixTime)(nil)
+var _ json.Unmarshaler = (*UnixTime)(nil)
+
+// UnixTime allows parsing and packing timestamps in seconds since epoch.
+type UnixTime struct {
+	time.Time
+}
+
+func (t *UnixTime) UnmarshalJSON(b []byte) error {
+	var seconds uint64
+	seconds, err := strconv.ParseUint(string(b), 10, 64)
+	if err != nil {
+		return err
+	}
+	t.Time = time.Unix(int64(seconds), 0)
+	return nil
+}
+
+// MarshalJSON marshals the time as seconds since unix epoch. This must be a
+// value receiver.
+func (t UnixTime) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.FormatUint(uint64(t.Unix()), 10)), nil
+}
+
+func (t *UnixTime) String() string {
+	return TimeToString(t.Time)
+}
 
 // SecsToTime takes seconds stored in a uint32.
 func SecsToTime(t uint32) time.Time {
