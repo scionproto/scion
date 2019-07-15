@@ -20,6 +20,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -29,8 +30,8 @@ func InitTestBeaconDBConf(cfg *beaconstorage.BeaconDBConf) {
 	if *cfg == nil {
 		*cfg = make(beaconstorage.BeaconDBConf)
 	}
-	(*cfg)[beaconstorage.MaxOpenConnsKey] = "maxOpenConns"
-	(*cfg)[beaconstorage.MaxIdleConnsKey] = "maxIdleConns"
+	(*cfg)[db.MaxOpenConnsKey] = "maxOpenConns"
+	(*cfg)[db.MaxIdleConnsKey] = "maxIdleConns"
 }
 
 // CheckTestBeaconDBConf checks that the values are as expected from the sample.

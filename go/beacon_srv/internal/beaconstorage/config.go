@@ -20,13 +20,13 @@ package beaconstorage
 import (
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon/beacondbsqlite"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -46,10 +46,6 @@ const (
 	BackendKey = "backend"
 	// ConnectionKey is the connection key in the config mapping.
 	ConnectionKey = "connection"
-	// MaxOpenConnsKey is the key for max open conns in the config mapping.
-	MaxOpenConnsKey = "maxopenconns"
-	// MaxIdleConnsKey is the key for max idle conns in the config mapping.
-	MaxIdleConnsKey = "maxidleconns"
 )
 
 var _ (config.Config) = (*BeaconDBConf)(nil)
@@ -82,30 +78,26 @@ func (cfg *BeaconDBConf) Connection() string {
 
 // MaxOpenConns returns the limit for maximum open connections to the database.
 func (cfg *BeaconDBConf) MaxOpenConns() (int, bool) {
-	val, ok, _ := cfg.parsedInt(MaxOpenConnsKey)
-	return val, ok
+	return db.ConfiguredMaxOpenConns(*cfg)
 }
 
 // MaxIdleConns returns the limit for maximum idle connections to the database.
 func (cfg *BeaconDBConf) MaxIdleConns() (int, bool) {
-	val, ok, _ := cfg.parsedInt(MaxIdleConnsKey)
-	return val, ok
-}
-
-func (cfg *BeaconDBConf) parsedInt(key string) (int, bool, error) {
-	val := (*cfg)[key]
-	if val == "" {
-		return 0, false, nil
-	}
-	i, err := strconv.Atoi(val)
-	return i, true, err
+	return db.ConfiguredMaxIdleConns(*cfg)
 }
 
 // Validate validates that all values are parsable, and the backend is set.
 func (cfg *BeaconDBConf) Validate() error {
-	if err := cfg.validateLimits(); err != nil {
+	if err := db.ValidateConfigLimits(*cfg); err != nil {
 		return err
 	}
+	if err := cfg.validateBackend(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *BeaconDBConf) validateBackend() error {
 	switch cfg.Backend() {
 	case BackendSqlite:
 		return nil
@@ -113,16 +105,6 @@ func (cfg *BeaconDBConf) Validate() error {
 		return common.NewBasicError("No backend set", nil)
 	}
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
-}
-
-func (cfg *BeaconDBConf) validateLimits() error {
-	if _, _, err := cfg.parsedInt(MaxOpenConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxOpenConns", nil, "value", (*cfg)[MaxOpenConnsKey])
-	}
-	if _, _, err := cfg.parsedInt(MaxIdleConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxIdleConns", nil, "value", (*cfg)[MaxIdleConnsKey])
-	}
-	return nil
 }
 
 // Sample writes a config sample to the writer.
@@ -139,20 +121,20 @@ func (cfg *BeaconDBConf) ConfigName() string {
 func (cfg *BeaconDBConf) New(ia addr.IA) (beacon.DB, error) {
 	log.Info("Connecting BeaconDB", "backend", cfg.Backend(), "connection", cfg.Connection())
 	var err error
-	var db beacon.DB
+	var bdb beacon.DB
 
 	switch cfg.Backend() {
 	case BackendSqlite:
-		db, err = beacondbsqlite.New(cfg.Connection(), ia)
+		bdb, err = beacondbsqlite.New(cfg.Connection(), ia)
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 	}
 	if err != nil {
 		return nil, err
 	}
-	db = beacon.DBWithMetrics("std", db)
-	setConnLimits(cfg, db)
-	return db, nil
+	bdb = beacon.DBWithMetrics("std", bdb)
+	db.SetConnLimits(cfg, bdb)
+	return bdb, nil
 }
 
 // NewStore creates a new beacon store backed by the configured database.
@@ -171,13 +153,4 @@ func (cfg *BeaconDBConf) NewCoreStore(ia addr.IA, policies beacon.CorePolicies) 
 		return nil, err
 	}
 	return beacon.NewCoreBeaconStore(policies, db)
-}
-
-func setConnLimits(cfg *BeaconDBConf, db beacon.DB) {
-	if m, ok := cfg.MaxOpenConns(); ok {
-		db.SetMaxOpenConns(m)
-	}
-	if m, ok := cfg.MaxIdleConns(); ok {
-		db.SetMaxIdleConns(m)
-	}
 }

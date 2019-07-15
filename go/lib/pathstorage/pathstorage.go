@@ -17,7 +17,6 @@ package pathstorage
 import (
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
@@ -39,10 +38,8 @@ const (
 )
 
 const (
-	BackendKey      = "backend"
-	ConnectionKey   = "connection"
-	MaxOpenConnsKey = "maxopenconns"
-	MaxIdleConnsKey = "maxidleconns"
+	BackendKey    = "backend"
+	ConnectionKey = "connection"
 )
 
 var _ config.Config = (*PathDBConf)(nil)
@@ -71,20 +68,36 @@ func (cfg *PathDBConf) Connection() string {
 }
 
 func (cfg *PathDBConf) MaxOpenConns() (int, bool) {
-	val, ok, _ := parsedInt(*cfg, MaxOpenConnsKey)
-	return val, ok
+	return db.ConfiguredMaxOpenConns(*cfg)
 }
 
 func (cfg *PathDBConf) MaxIdleConns() (int, bool) {
-	val, ok, _ := parsedInt(*cfg, MaxIdleConnsKey)
-	return val, ok
+	return db.ConfiguredMaxIdleConns(*cfg)
+}
+
+func (cfg *PathDBConf) Sample(dst io.Writer, _ config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(pathDbSample, ctx[config.ID]))
+}
+
+func (cfg *PathDBConf) ConfigName() string {
+	return "pathDB"
 }
 
 // Validate validates the configuration, should be called after InitDefaults.
 func (cfg *PathDBConf) Validate() error {
-	if err := validateLimits(*cfg); err != nil {
+	if err := db.ValidateConfigLimits(*cfg); err != nil {
 		return err
 	}
+	if err := cfg.validateBackend(); err != nil {
+		return err
+	}
+	if err := cfg.validateConnection(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *PathDBConf) validateBackend() error {
 	switch cfg.Backend() {
 	case BackendSqlite:
 		return nil
@@ -94,22 +107,11 @@ func (cfg *PathDBConf) Validate() error {
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }
 
-func (cfg *PathDBConf) validate() error {
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
+func (cfg *PathDBConf) validateConnection() error {
 	if cfg.Connection() == "" {
 		return common.NewBasicError("Empty connection not allowed", nil)
 	}
 	return nil
-}
-
-func (cfg *PathDBConf) Sample(dst io.Writer, _ config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, fmt.Sprintf(pathDbSample, ctx[config.ID]))
-}
-
-func (cfg *PathDBConf) ConfigName() string {
-	return "pathDB"
 }
 
 var _ config.Config = (*RevCacheConf)(nil)
@@ -138,35 +140,23 @@ func (cfg *RevCacheConf) Connection() string {
 }
 
 func (cfg *RevCacheConf) MaxOpenConns() (int, bool) {
-	val, ok, _ := parsedInt(*cfg, MaxOpenConnsKey)
-	return val, ok
+	return db.ConfiguredMaxOpenConns(*cfg)
 }
 
 func (cfg *RevCacheConf) MaxIdleConns() (int, bool) {
-	val, ok, _ := parsedInt(*cfg, MaxIdleConnsKey)
-	return val, ok
+	return db.ConfiguredMaxIdleConns(*cfg)
 }
 
 // Validate validates the configuration, should be called after InitDefaults.
 func (cfg *RevCacheConf) Validate() error {
-	if err := validateLimits(*cfg); err != nil {
+	if err := db.ValidateConfigLimits(*cfg); err != nil {
 		return err
 	}
-	switch cfg.Backend() {
-	case BackendSqlite, BackendMem:
-		return nil
-	case BackendNone:
-		return common.NewBasicError("No backend set", nil)
-	}
-	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
-}
-
-func (cfg *RevCacheConf) validate() error {
-	if err := cfg.Validate(); err != nil {
+	if err := cfg.validateBackend(); err != nil {
 		return err
 	}
-	if cfg.Backend() != BackendMem && cfg.Connection() == "" {
-		return common.NewBasicError("Empty connection not allowed", nil)
+	if err := cfg.validateConnection(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -179,39 +169,36 @@ func (cfg *RevCacheConf) ConfigName() string {
 	return "revCache"
 }
 
-func validateLimits(cfg map[string]string) error {
-	if _, _, err := parsedInt(cfg, MaxOpenConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxOpenConns", nil, "value", cfg[MaxOpenConnsKey])
+func (cfg *RevCacheConf) validateBackend() error {
+	switch cfg.Backend() {
+	case BackendSqlite, BackendMem:
+		return nil
+	case BackendNone:
+		return common.NewBasicError("No backend set", nil)
 	}
-	if _, _, err := parsedInt(cfg, MaxIdleConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxIdleConns", nil, "value", cfg[MaxIdleConnsKey])
+	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
+}
+
+func (cfg *RevCacheConf) validateConnection() error {
+	if cfg.Backend() != BackendMem && cfg.Connection() == "" {
+		return common.NewBasicError("Empty connection not allowed", nil)
 	}
 	return nil
 }
 
-func parsedInt(cfg map[string]string, key string) (int, bool, error) {
-	val, ok := cfg[key]
-	if !ok || val == "" {
-		return 0, false, nil
-	}
-	i, err := strconv.Atoi(val)
-	return i, true, err
-}
-
-// NewPathStorage creates a PathStorage from the given configs.
-// Periodic cleaners for the given databases have to be manually created and started:
-//  - cleaner.New (for PathDB)
-//  - revcache.NewCleaner (for RevCache)
+// NewPathStorage creates a PathStorage from the given configs. Periodic
+// cleaners for the given databases have to be manually created and started
+// (see cleaner package).
 func NewPathStorage(pdbConf PathDBConf,
 	rcConf RevCacheConf) (pathdb.PathDB, revcache.RevCache, error) {
 
 	if sameBackend(pdbConf, rcConf) {
 		return newCombinedBackend(pdbConf, rcConf)
 	}
-	if err := pdbConf.validate(); err != nil {
+	if err := pdbConf.Validate(); err != nil {
 		return nil, nil, common.NewBasicError("Invalid pathdb config", err)
 	}
-	if err := rcConf.validate(); err != nil {
+	if err := rcConf.Validate(); err != nil {
 		return nil, nil, common.NewBasicError("Invalid revcache config", err)
 	}
 	pdb, err := newPathDB(pdbConf)
@@ -252,7 +239,7 @@ func newPathDB(conf PathDBConf) (pathdb.PathDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	setConnLimits(&conf, pdb)
+	db.SetConnLimits(&conf, pdb)
 	return pdb, nil
 }
 
@@ -265,19 +252,5 @@ func newRevCache(conf RevCacheConf) (revcache.RevCache, error) {
 		return nil, nil
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend())
-	}
-}
-
-type limitConfig interface {
-	MaxOpenConns() (int, bool)
-	MaxIdleConns() (int, bool)
-}
-
-func setConnLimits(cfg limitConfig, db db.LimitSetter) {
-	if m, ok := cfg.MaxOpenConns(); ok {
-		db.SetMaxOpenConns(m)
-	}
-	if m, ok := cfg.MaxIdleConns(); ok {
-		db.SetMaxIdleConns(m)
 	}
 }
