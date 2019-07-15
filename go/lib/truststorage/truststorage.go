@@ -20,10 +20,10 @@ package truststorage
 import (
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
@@ -38,10 +38,8 @@ const (
 )
 
 const (
-	BackendKey      = "backend"
-	ConnectionKey   = "connection"
-	MaxOpenConnsKey = "maxopenconns"
-	MaxIdleConnsKey = "maxidleconns"
+	BackendKey    = "backend"
+	ConnectionKey = "connection"
 )
 
 var _ (config.Config) = (*TrustDBConf)(nil)
@@ -70,45 +68,11 @@ func (cfg *TrustDBConf) Connection() string {
 }
 
 func (cfg *TrustDBConf) MaxOpenConns() (int, bool) {
-	val, ok, _ := cfg.parsedInt(MaxOpenConnsKey)
-	return val, ok
+	return db.ConfiguredMaxOpenConns(*cfg)
 }
 
 func (cfg *TrustDBConf) MaxIdleConns() (int, bool) {
-	val, ok, _ := cfg.parsedInt(MaxIdleConnsKey)
-	return val, ok
-}
-
-func (cfg *TrustDBConf) parsedInt(key string) (int, bool, error) {
-	val, ok := (*cfg)[key]
-	if !ok || val == "" {
-		return 0, false, nil
-	}
-	i, err := strconv.Atoi(val)
-	return i, true, err
-}
-
-func (cfg *TrustDBConf) Validate() error {
-	if err := cfg.validateLimits(); err != nil {
-		return err
-	}
-	switch cfg.Backend() {
-	case BackendSqlite:
-		return nil
-	case BackendNone:
-		return common.NewBasicError("No backend set", nil)
-	}
-	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
-}
-
-func (cfg *TrustDBConf) validateLimits() error {
-	if _, _, err := cfg.parsedInt(MaxOpenConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxOpenConns", nil, "value", (*cfg)[MaxOpenConnsKey])
-	}
-	if _, _, err := cfg.parsedInt(MaxIdleConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxIdleConns", nil, "value", (*cfg)[MaxIdleConnsKey])
-	}
-	return nil
+	return db.ConfiguredMaxIdleConns(*cfg)
 }
 
 func (cfg *TrustDBConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
@@ -117,6 +81,26 @@ func (cfg *TrustDBConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMa
 
 func (cfg *TrustDBConf) ConfigName() string {
 	return "trustDB"
+}
+
+func (cfg *TrustDBConf) Validate() error {
+	if err := db.ValidateConfigLimits(*cfg); err != nil {
+		return err
+	}
+	if err := cfg.validateBackend(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *TrustDBConf) validateBackend() error {
+	switch cfg.Backend() {
+	case BackendSqlite:
+		return nil
+	case BackendNone:
+		return common.NewBasicError("No backend set", nil)
+	}
+	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }
 
 // New creates a TrustDB from the config.
@@ -135,15 +119,6 @@ func (cfg *TrustDBConf) New() (trustdb.TrustDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	setConnLimits(cfg, tdb)
+	db.SetConnLimits(cfg, tdb)
 	return tdb, nil
-}
-
-func setConnLimits(cfg *TrustDBConf, tdb trustdb.TrustDB) {
-	if m, ok := cfg.MaxOpenConns(); ok {
-		tdb.SetMaxOpenConns(m)
-	}
-	if m, ok := cfg.MaxIdleConns(); ok {
-		tdb.SetMaxIdleConns(m)
-	}
 }
