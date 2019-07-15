@@ -19,6 +19,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -27,8 +28,8 @@ func InitTestConfig(cfg *truststorage.TrustDBConf) {
 	if *cfg == nil {
 		*cfg = make(truststorage.TrustDBConf)
 	}
-	(*cfg)[truststorage.MaxOpenConnsKey] = "maxOpenConns"
-	(*cfg)[truststorage.MaxIdleConnsKey] = "maxIdleConns"
+	(*cfg)[db.MaxOpenConnsKey] = "maxOpenConns"
+	(*cfg)[db.MaxIdleConnsKey] = "maxIdleConns"
 }
 
 func CheckTestConfig(cfg *truststorage.TrustDBConf, id string) {

@@ -19,6 +19,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -27,16 +28,16 @@ func InitTestPathDBConf(cfg *pathstorage.PathDBConf) {
 	if *cfg == nil {
 		*cfg = make(pathstorage.PathDBConf)
 	}
-	(*cfg)[pathstorage.MaxOpenConnsKey] = "maxOpenConns"
-	(*cfg)[pathstorage.MaxIdleConnsKey] = "maxIdleConns"
+	(*cfg)[db.MaxOpenConnsKey] = "maxOpenConns"
+	(*cfg)[db.MaxIdleConnsKey] = "maxIdleConns"
 }
 
 func InitTestRevCacheConf(cfg *pathstorage.RevCacheConf) {
 	if *cfg == nil {
 		*cfg = make(pathstorage.RevCacheConf)
 	}
-	(*cfg)[pathstorage.MaxOpenConnsKey] = "maxOpenConns"
-	(*cfg)[pathstorage.MaxIdleConnsKey] = "maxIdleConns"
+	(*cfg)[db.MaxOpenConnsKey] = "maxOpenConns"
+	(*cfg)[db.MaxIdleConnsKey] = "maxIdleConns"
 }
 
 func CheckTestPathDBConf(cfg *pathstorage.PathDBConf, id string) {
