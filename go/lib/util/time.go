@@ -33,7 +33,8 @@ type UnixTime struct {
 
 func (t *UnixTime) UnmarshalJSON(b []byte) error {
 	var seconds uint64
-	seconds, err := strconv.ParseUint(string(b), 10, 64)
+	// Only allow up to 63-bit to avoid wrap around.
+	seconds, err := strconv.ParseUint(string(b), 10, 63)
 	if err != nil {
 		return err
 	}

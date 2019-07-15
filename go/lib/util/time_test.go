@@ -16,6 +16,7 @@ package util
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,6 +38,10 @@ func TestUnixTimeUnmarshal(t *testing.T) {
 		},
 		"negative": {
 			Input:  "-1",
+			Assert: assert.Error,
+		},
+		"wrap around": {
+			Input:  strconv.FormatUint(1<<63, 10),
 			Assert: assert.Error,
 		},
 		"correct": {
