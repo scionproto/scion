@@ -49,7 +49,7 @@ func (t UnixTime) MarshalJSON() ([]byte, error) {
 }
 
 func (t *UnixTime) String() string {
-	return TimeToString(t.Time)
+	return TimeToCompact(t.Time)
 }
 
 // SecsToTime takes seconds stored in a uint32.
