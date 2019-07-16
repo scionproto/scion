@@ -66,14 +66,14 @@ func TestTRCValidateInvariant(t *testing.T) {
 		"Zero VotingQuorum": {
 			Modify: func(base *trc.TRC) {
 				quorum := uint8(0)
-				base.VotingQuorum = &quorum
+				base.VotingQuorumPtr = &quorum
 			},
 			ExpectedErrMsg: trc.ErrZeroVotingQuorum.Error(),
 		},
 		"VotingQuorum larger than voting ASes": {
 			Modify: func(base *trc.TRC) {
 				quorum := uint8(base.PrimaryASes.Count(trc.Voting) + 1)
-				base.VotingQuorum = &quorum
+				base.VotingQuorumPtr = &quorum
 			},
 			ExpectedErrMsg: trc.VotingQuorumTooLarge,
 		},
@@ -151,14 +151,14 @@ func newBaseTRC() *trc.TRC {
 	quorum := uint8(3)
 	trustResetAllowed := true
 	t := &trc.TRC{
-		ISD:               1,
-		Version:           1,
-		BaseVersion:       1,
-		Description:       "This is the initial TRC of ISD 1",
-		VotingQuorum:      &quorum,
-		FormatVersion:     1,
-		GracePeriod:       &trc.Period{},
-		TrustResetAllowed: &trustResetAllowed,
+		ISD:                  1,
+		Version:              1,
+		BaseVersion:          1,
+		Description:          "This is the initial TRC of ISD 1",
+		VotingQuorumPtr:      &quorum,
+		FormatVersion:        1,
+		GracePeriod:          &trc.Period{},
+		TrustResetAllowedPtr: &trustResetAllowed,
 		Validity: &scrypto.Validity{
 			NotBefore: util.UnixTime{Time: unixNow},
 			NotAfter:  util.UnixTime{Time: unixNow.Add(8760 * time.Hour)},

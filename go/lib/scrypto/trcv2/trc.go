@@ -122,8 +122,9 @@ type TRC struct {
 	// Description is an human-readable description of the ISD.
 	Description string `json:"Description"`
 	// VotingQuorum is the number of signatures the next TRC needs from voting
-	// ASes in this TRC for an update to be valid.
-	VotingQuorum *uint8 `json:"VotingQuorum"`
+	// ASes in this TRC for an update to be valid. This is a pointer to check
+	// the field is set during parsing.
+	VotingQuorumPtr *uint8 `json:"VotingQuorum"`
 	// FormatVersion is the TRC format version.
 	FormatVersion FormatVersion `json:"FormatVersion"`
 	// GracePeriod indicates how long the previous unexpired version of the TRC
@@ -132,7 +133,7 @@ type TRC struct {
 	//  TRC(i+1).Validity.NotBefore + TRC(i+1).GracePeriod
 	GracePeriod *Period `json:"GracePeriod"`
 	// TrustResetAllowed indicates whether a trust reset is allowed for this ISD.
-	TrustResetAllowed *bool `json:"TrustResetAllowed"`
+	TrustResetAllowedPtr *bool `json:"TrustResetAllowed"`
 	// Validity indicates the validity period of the TRC.
 	Validity *scrypto.Validity `json:"Validity"`
 	// PrimaryASes contains all primary ASes in the ISD.
@@ -141,6 +142,18 @@ type TRC struct {
 	Votes map[addr.AS]Vote `json:"Votes"`
 	// ProofOfPossession maps ASes to their key types they need to show proof of possession.
 	ProofOfPossession map[addr.AS][]KeyType `json:"ProofOfPossession"`
+}
+
+// VotingQuorum returns the voting quorum. It provides a convenience wrapper
+// around VotingQuorumPtr.
+func (t *TRC) VotingQuorum() int {
+	return int(*t.VotingQuorumPtr)
+}
+
+// TrustResetAllowed returns whether trust resets are allowed according to the
+// TRC. It provides a convenience wrapper around TrustResetAllowedPtr.
+func (t *TRC) TrustResetAllowed() bool {
+	return *t.TrustResetAllowedPtr
 }
 
 // Base returns true if this TRC is a base TRC.
@@ -157,11 +170,11 @@ func (t *TRC) ValidateInvariant() error {
 	if t.PrimaryASes.Count(Issuing) <= 0 {
 		return ErrNoIssuingAS
 	}
-	if *t.VotingQuorum <= 0 {
+	if t.VotingQuorum() <= 0 {
 		return ErrZeroVotingQuorum
 	}
 	c := t.PrimaryASes.Count(Voting)
-	if int(*t.VotingQuorum) > c {
+	if t.VotingQuorum() > c {
 		return common.NewBasicError(VotingQuorumTooLarge, nil, "max", c, "actual", t.VotingQuorum)
 	}
 	if err := t.PrimaryASes.ValidateInvariant(); err != nil {
@@ -219,13 +232,13 @@ func (t *TRC) checkAllSet() error {
 		return ErrBaseVersionNotSet
 	case t.Description == "":
 		return ErrDescriptionNotSet
-	case t.VotingQuorum == nil:
+	case t.VotingQuorumPtr == nil:
 		return ErrVotingQuorumNotSet
 	case t.FormatVersion == 0:
 		return ErrFormatVersionNotSet
 	case t.GracePeriod == nil:
 		return ErrGracePeriodNotSet
-	case t.TrustResetAllowed == nil:
+	case t.TrustResetAllowedPtr == nil:
 		return ErrTrustResetAllowedNotSet
 	case t.Validity == nil:
 		return ErrValidityNotSet
