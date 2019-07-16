@@ -25,12 +25,12 @@ cleanup() {
 
 softnet_stat_snapshot() {
     # Collect packet loss info pre test execution
-    cat /proc/net/softnet_stat > /tmp/snapshot_softnet_stat
+    cp /proc/net/softnet_stat /tmp/snapshot_softnet_stat
 }
 
 detect_packet_loss_since_snapshot() {
     # Compare column2 of softnet_stat to detect kernel packet loss and print snapshot and current in case of packet loss
-    if diff -q <(cat /proc/net/softnet_stat | awk '{print $2}') <(cat /tmp/snapshot_softnet_stat | awk '{print $2}'); then
+    if diff -q <(awk '{print $2}' /proc/net/softnet_stat) <(awk '{print $2}'); then
         echo "No Kernel Packet loss detected"
     else
         echo "Kernel Packet loss detected - /proc/net/softnet_stat column 2 differs from last snapshot"
