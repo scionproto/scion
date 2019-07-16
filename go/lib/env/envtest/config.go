@@ -54,7 +54,7 @@ func InitTestLogging(cfg *env.Logging) {}
 func InitTestMetrics(cfg *env.Metrics) {}
 
 func InitTestTracing(cfg *env.Tracing) {
-	cfg.Disabled = true
+	cfg.Enabled = true
 	cfg.Debug = true
 }
 
@@ -103,7 +103,7 @@ func CheckTestMetrics(cfg *env.Metrics) {
 }
 
 func CheckTestTracing(cfg *env.Tracing) {
-	SoMsg("Disabled correct", cfg.Disabled, ShouldBeFalse)
+	SoMsg("Enabled correct", cfg.Enabled, ShouldBeFalse)
 	SoMsg("Debug correct", cfg.Debug, ShouldBeFalse)
 	SoMsg("Agent correct", cfg.Agent, ShouldEqual,
 		fmt.Sprintf("%s:%d", jaeger.DefaultUDPSpanServerHost, jaeger.DefaultUDPSpanServerPort))

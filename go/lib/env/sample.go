@@ -71,8 +71,8 @@ Prometheus = ""
 `
 
 const tracingSample = `
-# Disable the tracing. (default false)
-Disabled = false
+# Enable the tracing. (default false)
+Enabled = false
 # Enable debug mode. (default false)
 Debug = false
 # Address of the local agent that handles the reported traces.

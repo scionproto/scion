@@ -263,8 +263,8 @@ func (cfg *Metrics) StartPrometheus() {
 
 // Tracing contains configuration for tracing.
 type Tracing struct {
-	// Disable tracing for this service.
-	Disabled bool
+	// Enabled enables tracing for this service.
+	Enabled bool
 	// Enable debug mode.
 	Debug bool
 	// Agent is the address of the local agent that handles the reported
@@ -292,7 +292,7 @@ func (cfg *Tracing) ConfigName() string {
 func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) {
 	traceConfig := jaegercfg.Configuration{
 		ServiceName: id,
-		Disabled:    cfg.Disabled,
+		Disabled:    !cfg.Enabled,
 		Reporter: &jaegercfg.ReporterConfig{
 			LocalAgentHostPort: cfg.Agent,
 		},

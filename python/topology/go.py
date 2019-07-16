@@ -274,6 +274,7 @@ class GoGenerator(object):
     def _tracing_entry(self):
         docker_ip = docker_host(self.args.in_docker, self.args.docker)
         entry = {
+            'enabled': True,
             'debug': True,
             'agent': '%s:6831' % docker_ip
         }
