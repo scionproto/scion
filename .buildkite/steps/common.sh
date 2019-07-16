@@ -25,7 +25,7 @@ cleanup() {
 
 softnet_stat_snapshot() {
     # Collect packet loss info pre test execution
-    cp /proc/net/softnet_stat /tmp/snapshot_softnet_stat
+    cat /proc/net/softnet_stat > /tmp/snapshot_softnet_stat
 }
 
 detect_packet_loss_since_snapshot() {
