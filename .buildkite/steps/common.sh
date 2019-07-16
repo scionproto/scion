@@ -38,4 +38,3 @@ detect_packet_loss_since_snapshot() {
         cat /proc/net/softnet_stat
     fi
 }
-
