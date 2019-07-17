@@ -90,6 +90,7 @@ common_args() {
     args+=" -v $SCION_MOUNT/gen-cache:/home/scion/go/src/github.com/scionproto/scion/gen-cache"
     args+=" -v $SCION_MOUNT/traces:/home/scion/go/src/github.com/scionproto/scion/traces"
     args+=" -v $SCION_MOUNT/htmlcov:/home/scion/go/src/github.com/scionproto/scion/python/htmlcov"
+    args+=" -v $SCION_MOUNT/metrics:/home/scion/go/src/github.com/scionproto/scion/metrics"
     args+=" -e SCION_OUTPUT_BASE=$SCION_MOUNT"
     args+=" -e SCION_UID=$(id -u)"
     args+=" -e SCION_GID=$(id -g)"
@@ -144,7 +145,7 @@ cmd_stop() {
 
 setup_volumes() {
     set -e
-    for i in gen logs gen-certs gen-cache traces htmlcov; do
+    for i in gen logs gen-certs gen-cache traces htmlcov metrics; do
         mkdir -p "$SCION_MOUNT/$i"
         # Check dir exists, and is owned by the current (effective) user. If
         # it's owned by the wrong user, the docker environment won't be able to
