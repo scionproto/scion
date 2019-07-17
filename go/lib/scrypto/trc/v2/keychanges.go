@@ -25,26 +25,26 @@ const (
 	InvalidKeyVersion = "invalid key version"
 )
 
-// AStoKeyMeta maps an AS to its key metadata for a single key type.
-type AStoKeyMeta map[addr.AS]KeyMeta
+// ASToKeyMeta maps an AS to its key metadata for a single key type.
+type ASToKeyMeta map[addr.AS]KeyMeta
 
 // KeyChanges contains all new keys in a TRC update.
 type KeyChanges struct {
-	Modified map[KeyType]AStoKeyMeta
-	Fresh    map[KeyType]AStoKeyMeta
+	Modified map[KeyType]ASToKeyMeta
+	Fresh    map[KeyType]ASToKeyMeta
 }
 
 func newKeyChanges() *KeyChanges {
 	c := &KeyChanges{
-		Modified: map[KeyType]AStoKeyMeta{
-			OnlineKey:  make(AStoKeyMeta),
-			OfflineKey: make(AStoKeyMeta),
-			IssuingKey: make(AStoKeyMeta),
+		Modified: map[KeyType]ASToKeyMeta{
+			OnlineKey:  make(ASToKeyMeta),
+			OfflineKey: make(ASToKeyMeta),
+			IssuingKey: make(ASToKeyMeta),
 		},
-		Fresh: map[KeyType]AStoKeyMeta{
-			OnlineKey:  make(AStoKeyMeta),
-			OfflineKey: make(AStoKeyMeta),
-			IssuingKey: make(AStoKeyMeta),
+		Fresh: map[KeyType]ASToKeyMeta{
+			OnlineKey:  make(ASToKeyMeta),
+			OfflineKey: make(ASToKeyMeta),
+			IssuingKey: make(ASToKeyMeta),
 		},
 	}
 	return c

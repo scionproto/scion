@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package trc contains the TRC implementation according to the new
-// control-plane PKI desing.
+// control-plane PKI design.
 //
 // This package will replace the parent package, once the package is stable
 // and all code interacting with the trust material has been adapated.

@@ -278,8 +278,8 @@ var _ json.Unmarshaler = (*Attribute)(nil)
 // Attribute indicates the capability of a primary AS.
 type Attribute string
 
-// UnmarshalJSON checks that the attribute is valid. It can either be "Issuing",
-// "Voting" or "Core".
+// UnmarshalJSON checks that the attribute is valid. It can either be
+// "Authoritative", "Core", "Issuing", or "Voting".
 func (t *Attribute) UnmarshalJSON(b []byte) error {
 	switch Attribute(strings.Trim(string(b), `"`)) {
 	case Authoritative:
@@ -308,7 +308,7 @@ const (
 var _ json.Unmarshaler = (*KeyType)(nil)
 
 // KeyType indicates the type of the key authenticated by the TRC. It can either
-// be "Online", "Offline" or "Issuing".
+// be "Online", "Offline", or "Issuing".
 type KeyType string
 
 // UnmarshalJSON implements json.Unmarshaler.

@@ -60,7 +60,7 @@ func (v *popValidator) checkProofOfPossession() error {
 
 // popForModType checks that all new keys have a proof of possession in the TRC.
 // Additionally, it removes all visited pops from the mapping.
-func (v *popValidator) popForModType(changes map[KeyType]AStoKeyMeta) error {
+func (v *popValidator) popForModType(changes map[KeyType]ASToKeyMeta) error {
 	for keyType, m := range changes {
 		if err := v.popForKeyType(keyType, m); err != nil {
 			return err
