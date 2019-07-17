@@ -35,13 +35,13 @@ type Verifier interface {
 	Verify(context.Context, *path_mgmt.SegReply, net.Addr) (chan segverifier.UnitResult, int)
 }
 
-// SegVerifier is a convenience wrapper around the segverifier that implements
+// SegVerifier is a convenience wrapper around segverifier that implements
 // the Verifier interface.
 type SegVerifier struct {
 	Verifier infra.Verifier
 }
 
-// Verify calls the segverifier for the given reply.
+// Verify calls segverifier for the given reply.
 func (v *SegVerifier) Verify(ctx context.Context, reply *path_mgmt.SegReply,
 	server net.Addr) (chan segverifier.UnitResult, int) {
 
@@ -65,15 +65,15 @@ type Storage interface {
 	StoreRevs(context.Context, []*path_mgmt.SignedRevInfo) error
 }
 
-// PathDBRevcacheStorage wraps path DB and revocation cache and offers
+// DefaultStorage wraps path DB and revocation cache and offers
 // convenience methods that implement the Storage interface.
-type PathDBRevcacheStorage struct {
+type DefaultStorage struct {
 	PathDB   pathdb.PathDB
 	RevCache revcache.RevCache
 }
 
 // StoreSegs stores the given segments in the pathdb in a transaction.
-func (s *PathDBRevcacheStorage) StoreSegs(ctx context.Context, segs []*SegWithHP) error {
+func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*SegWithHP) error {
 	tx, err := s.PathDB.BeginTransaction(ctx, nil)
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func (s *PathDBRevcacheStorage) StoreSegs(ctx context.Context, segs []*SegWithHP
 }
 
 // StoreRevs stores the given revocations in the revocation cache.
-func (s *PathDBRevcacheStorage) StoreRevs(ctx context.Context,
+func (s *DefaultStorage) StoreRevs(ctx context.Context,
 	revs []*path_mgmt.SignedRevInfo) error {
 
 	for _, rev := range revs {
@@ -122,8 +122,8 @@ func (r *ProcessedResult) EarlyTriggerProcessed() <-chan int {
 	return r.early
 }
 
-// FullReplyProcessed returns a channel that will contain the number of
-// successfully stored segments in total once the processing is done.
+// FullReplyProcessed returns a channel that will be closed once the full reply
+// has been processed.
 func (r *ProcessedResult) FullReplyProcessed() <-chan struct{} {
 	return r.full
 }
@@ -149,7 +149,7 @@ type SegReplyHandler struct {
 
 // Handle handles verifies and stores a single seg reply.
 func (h *SegReplyHandler) Handle(ctx context.Context, reply *path_mgmt.SegReply, server net.Addr,
-	earlyReplyCh <-chan struct{}) *ProcessedResult {
+	earlyTrigger <-chan struct{}) *ProcessedResult {
 
 	result := &ProcessedResult{
 		early: make(chan int, 1),
@@ -164,13 +164,13 @@ func (h *SegReplyHandler) Handle(ctx context.Context, reply *path_mgmt.SegReply,
 
 	go func() {
 		defer log.LogPanicAndExit()
-		h.verifyAndStore(ctx, earlyReplyCh, result, verifiedCh, units)
+		h.verifyAndStore(ctx, earlyTrigger, result, verifiedCh, units)
 	}()
 	return result
 }
 
 func (h *SegReplyHandler) verifyAndStore(ctx context.Context,
-	earlyReplyCh <-chan struct{}, result *ProcessedResult,
+	earlyTrigger <-chan struct{}, result *ProcessedResult,
 	verifiedCh <-chan segverifier.UnitResult, units int) {
 
 	verifiedUnits := make([]segverifier.UnitResult, 0, units)
@@ -178,7 +178,8 @@ func (h *SegReplyHandler) verifyAndStore(ctx context.Context,
 	totalSegsSaved := 0
 	defer close(result.full)
 	defer func() {
-		if earlyReplyCh != nil {
+		if earlyTrigger != nil {
+			// Unblock channel if done before triggered
 			result.early <- totalSegsSaved
 		}
 	}()
@@ -186,31 +187,25 @@ func (h *SegReplyHandler) verifyAndStore(ctx context.Context,
 		select {
 		case verifiedUnit := <-verifiedCh:
 			verifiedUnits = append(verifiedUnits, verifiedUnit)
-		case <-earlyReplyCh:
+		case <-earlyTrigger:
+			// Reduce u since this does not process an additional unit.
+			u--
 			segs, verifyErrs, err := h.storeResults(ctx, verifiedUnits)
-			if err != nil {
-				// TODO(lukedirtwalker): log early store failure
-				close(result.early)
-			} else {
-				allVerifyErrs = append(allVerifyErrs, verifyErrs...)
-				totalSegsSaved += segs
-				result.early <- segs
+			allVerifyErrs = append(allVerifyErrs, verifyErrs...)
+			totalSegsSaved += segs
+			result.early <- segs
+			// TODO(lukedirtwalker): log early store failure
+			if err == nil {
 				// clear already processed units
 				verifiedUnits = verifiedUnits[:0]
 			}
-			// since we are not a unit reduce u by one
-			u--
-			// make sure we don't select from this channel again
-			earlyReplyCh = nil
+			// Make sure we do not select from this channel again
+			earlyTrigger = nil
 		}
 	}
 	segs, verifyErrs, err := h.storeResults(ctx, verifiedUnits)
-	allVerifyErrs = append(allVerifyErrs, verifyErrs...)
-	result.verifyErrs = allVerifyErrs
-	if err != nil {
-		result.err = err
-		return
-	}
+	result.verifyErrs = append(allVerifyErrs, verifyErrs...)
+	result.err = err
 	totalSegsSaved += segs
 }
 
@@ -242,7 +237,6 @@ func (h *SegReplyHandler) storeResults(ctx context.Context,
 	if len(segs) > 0 {
 		if err := h.Storage.StoreSegs(ctx, segs); err != nil {
 			return 0, verifyErrs, err
-
 		}
 	}
 	if len(revs) > 0 {
