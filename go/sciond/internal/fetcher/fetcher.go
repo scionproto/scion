@@ -191,16 +191,15 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 }
 
 func (f *fetcherHandler) buildReplyFromDB(ctx context.Context,
-	req *sciond.PathReq, handleTrustNotFoundLocally bool) (*sciond.PathReply, error) {
+	req *sciond.PathReq, ignoreTrustNotFoundLocally bool) (*sciond.PathReply, error) {
 
 	paths, err := f.buildPathsFromDB(ctx, req)
 	switch {
 	case ctx.Err() != nil:
 		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorNoPaths), nil
+	case ignoreTrustNotFoundLocally && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
+		return nil, nil
 	case err != nil:
-		if handleTrustNotFoundLocally && common.GetErrorMsg(err) == trust.ErrNotFoundLocally {
-			return nil, nil
-		}
 		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorInternal), err
 	case len(paths) > 0:
 		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
@@ -430,12 +429,13 @@ func (f *fetcherHandler) shouldRefetchSegs(ctx context.Context,
 func (f *fetcherHandler) fetchAndVerify(ctx context.Context, req *sciond.PathReq,
 	earlyReplyInterval time.Duration, ps *snet.Addr) *segfetcher.ProcessedResult {
 
-	reply, err := f.getSegmentsFromNetwork(ctx, req, ps)
+	extCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
+	reply, err := f.getSegmentsFromNetwork(extCtx, req, ps)
 	if err != nil {
 		f.logger.Error("Unable to retrieve paths from network", "err", err)
 		return nil
 	}
-	revInfos, err := revcache.FilterNew(ctx, f.revocationCache, reply.Recs.SRevInfos)
+	revInfos, err := revcache.FilterNew(extCtx, f.revocationCache, reply.Recs.SRevInfos)
 	if err != nil {
 		f.logger.Error("Failed to determine new revocations", "err", err)
 		// Assume all are new
@@ -445,8 +445,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, req *sciond.PathReq
 	f.logger.Trace("Handle reply")
 	earlyTrigger := make(chan struct{})
 	time.AfterFunc(earlyReplyInterval, func() { close(earlyTrigger) })
-	// create an extended context to verify and store the reply.
-	extCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
+	// Create an extended context to verify and store the reply.
 	r := f.replyHandler.Handle(extCtx, reply, ps, earlyTrigger)
 	go func() {
 		defer log.LogPanicAndExit()
