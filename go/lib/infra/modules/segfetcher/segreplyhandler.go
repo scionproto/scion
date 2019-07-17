@@ -128,7 +128,7 @@ func (r *ProcessedResult) FullReplyProcessed() <-chan struct{} {
 	return r.full
 }
 
-// Err indicates the error that happend when storing the segments. This should
+// Err indicates the error that happened when storing the segments. This should
 // only be accessed after FullReplyProcessed channel has been closed.
 func (r *ProcessedResult) Err() error {
 	return r.err
