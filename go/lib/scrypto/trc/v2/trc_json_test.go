@@ -24,7 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	trc "github.com/scionproto/scion/go/lib/scrypto/trcv2"
+	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 )
 
 type genTRC struct {
@@ -145,7 +145,7 @@ func TestTRCUnmarshalJSON(t *testing.T) {
 				assert.Equal(t, test.TRC, &parsed)
 			} else {
 				require.Error(t, err)
-				assert.Equalf(t, test.ExpectedErrMsg, nestedErrorMsg(err), "Actual error: %s", err)
+				assert.Equal(t, err.Error(), test.ExpectedErrMsg)
 			}
 		})
 	}
@@ -206,7 +206,7 @@ func TestVoteUnmarshalJSON(t *testing.T) {
 				assert.Equal(t, test.Vote, vote)
 			} else {
 				require.Error(t, err)
-				assert.Equal(t, test.ExpectedErrMsg, nestedErrorMsg(err))
+				assert.Equal(t, err.Error(), test.ExpectedErrMsg)
 			}
 		})
 	}

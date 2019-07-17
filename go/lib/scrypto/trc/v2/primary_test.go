@@ -17,9 +17,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
-	trc "github.com/scionproto/scion/go/lib/scrypto/trcv2"
+	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 )
 
 func TestPrimaryASesValidateInvariant(t *testing.T) {
@@ -65,7 +66,7 @@ func TestPrimaryASesValidateInvariant(t *testing.T) {
 			},
 			Assertion: assert.Error,
 		},
-		"With Valid": {
+		"Valid": {
 			Primaries: trc.PrimaryASes{
 				a110: trc.PrimaryAS{
 					Attributes: trc.Attributes{trc.Core},
@@ -156,18 +157,18 @@ func TestPrimaryASesCount(t *testing.T) {
 
 func TestPrimaryASValidateInvariant(t *testing.T) {
 	tests := map[string]struct {
-		Primary   trc.PrimaryAS
-		Assertion assert.ErrorAssertionFunc
+		Primary        trc.PrimaryAS
+		ExpectedErrMsg string
 	}{
 		"Non-Core and Authoritative": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Authoritative},
 				Keys: map[trc.KeyType]trc.KeyMeta{
-					trc.OfflineKey: {},
 					trc.OnlineKey:  {},
+					trc.OfflineKey: {},
 				},
 			},
-			Assertion: assert.Error,
+			ExpectedErrMsg: trc.AuthoritativeButNotCore,
 		},
 		"Voting AS without online key": {
 			Primary: trc.PrimaryAS{
@@ -176,7 +177,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 					trc.OfflineKey: {},
 				},
 			},
-			Assertion: assert.Error,
+			ExpectedErrMsg: trc.MissingKey,
 		},
 		"Voting AS without offline key": {
 			Primary: trc.PrimaryAS{
@@ -185,44 +186,83 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 					trc.OnlineKey: {},
 				},
 			},
-			Assertion: assert.Error,
+			ExpectedErrMsg: trc.MissingKey,
 		},
 		"Voting AS with issuing key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
 				Keys: map[trc.KeyType]trc.KeyMeta{
-					trc.OnlineKey: {},
+					trc.OnlineKey:  {},
+					trc.OfflineKey: {},
+					trc.IssuingKey: {},
 				},
 			},
-			Assertion: assert.Error,
+			ExpectedErrMsg: trc.UnexpectedKey,
 		},
 		"Issuer AS without issuing key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Issuing},
 				Keys:       make(map[trc.KeyType]trc.KeyMeta),
 			},
-			Assertion: assert.Error,
+			ExpectedErrMsg: trc.MissingKey,
 		},
 		"Issuer AS with online key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Issuing},
 				Keys: map[trc.KeyType]trc.KeyMeta{
-					trc.IssuingKey: {},
 					trc.OnlineKey:  {},
+					trc.IssuingKey: {},
 				},
 			},
-			Assertion: assert.Error,
+			ExpectedErrMsg: trc.UnexpectedKey,
 		},
 		"Valid Core": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Core},
 			},
-			Assertion: assert.NoError,
+		},
+		"Valid Voting": {
+			Primary: trc.PrimaryAS{
+				Attributes: trc.Attributes{trc.Voting},
+				Keys: map[trc.KeyType]trc.KeyMeta{
+					trc.OnlineKey:  {},
+					trc.OfflineKey: {},
+				},
+			},
+		},
+		"Valid Issuing": {
+			Primary: trc.PrimaryAS{
+				Attributes: trc.Attributes{trc.Issuing},
+				Keys: map[trc.KeyType]trc.KeyMeta{
+					trc.IssuingKey: {},
+				},
+			},
+		},
+		"Valid Authoritative": {
+			Primary: trc.PrimaryAS{
+				Attributes: trc.Attributes{trc.Authoritative, trc.Core},
+			},
+		},
+		"Valid multi": {
+			Primary: trc.PrimaryAS{
+				Attributes: trc.Attributes{trc.Authoritative, trc.Issuing, trc.Core, trc.Voting},
+				Keys: map[trc.KeyType]trc.KeyMeta{
+					trc.OnlineKey:  {},
+					trc.OfflineKey: {},
+					trc.IssuingKey: {},
+				},
+			},
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			test.Assertion(t, test.Primary.ValidateInvariant())
+			err := test.Primary.ValidateInvariant()
+			if test.ExpectedErrMsg == "" {
+				assert.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
+			}
 		})
 	}
 }

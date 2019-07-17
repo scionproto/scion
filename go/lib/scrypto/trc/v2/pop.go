@@ -22,20 +22,22 @@ import (
 const (
 	// MissingProofOfPossession indicates that the proof of possession is missing.
 	MissingProofOfPossession = "missing proof of possession"
-	// UnexpectedProofOfPossession indicates that the proof of possession is missing.
+	// UnexpectedProofOfPossession indicates an unexpected proof of possession.
 	UnexpectedProofOfPossession = "unexpected proof of possession"
 )
+
+type keyTypeSet map[KeyType]struct{}
 
 type popValidator struct {
 	TRC        *TRC
 	KeyChanges *KeyChanges
-	pops       map[addr.AS]map[KeyType]struct{}
+	pops       map[addr.AS]keyTypeSet
 }
 
 func (v *popValidator) checkProofOfPossession() error {
-	v.pops = make(map[addr.AS]map[KeyType]struct{}, len(v.TRC.ProofOfPossession))
+	v.pops = make(map[addr.AS]keyTypeSet, len(v.TRC.ProofOfPossession))
 	for as, types := range v.TRC.ProofOfPossession {
-		m := make(map[KeyType]struct{}, len(types))
+		m := make(keyTypeSet, len(types))
 		for _, t := range types {
 			m[t] = struct{}{}
 		}
@@ -58,7 +60,7 @@ func (v *popValidator) checkProofOfPossession() error {
 
 // popForModType checks that all new keys have a proof of possession in the TRC.
 // Additionally, it removes all visited pops from the mapping.
-func (v *popValidator) popForModType(changes map[KeyType]map[addr.AS]KeyMeta) error {
+func (v *popValidator) popForModType(changes map[KeyType]AStoKeyMeta) error {
 	for keyType, m := range changes {
 		if err := v.popForKeyType(keyType, m); err != nil {
 			return err
@@ -69,14 +71,19 @@ func (v *popValidator) popForModType(changes map[KeyType]map[addr.AS]KeyMeta) er
 
 func (v *popValidator) popForKeyType(keyType KeyType, m map[addr.AS]KeyMeta) error {
 	for as := range m {
-		var pop bool
-		for _, t := range v.TRC.ProofOfPossession[as] {
-			pop = pop || t == keyType
-		}
-		if !pop {
+		if !v.hasPop(v.TRC.ProofOfPossession[as], keyType) {
 			return common.NewBasicError(MissingProofOfPossession, nil, "AS", as, "keyType", keyType)
 		}
 		delete(v.pops[as], keyType)
 	}
 	return nil
+}
+
+func (v *popValidator) hasPop(allPops []KeyType, keyType KeyType) bool {
+	for _, t := range allPops {
+		if t == keyType {
+			return true
+		}
+	}
+	return false
 }

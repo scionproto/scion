@@ -167,15 +167,15 @@ func (t *TRC) ValidateInvariant() error {
 		return common.NewBasicError(InvalidValidityPeriod, nil,
 			"NotBefore", t.Validity.NotBefore, "NotAfter", t.Validity.NotAfter)
 	}
-	if t.PrimaryASes.Count(Issuing) <= 0 {
-		return ErrNoIssuingAS
-	}
 	if t.VotingQuorum() <= 0 {
 		return ErrZeroVotingQuorum
 	}
 	c := t.PrimaryASes.Count(Voting)
 	if t.VotingQuorum() > c {
 		return common.NewBasicError(VotingQuorumTooLarge, nil, "max", c, "actual", t.VotingQuorum)
+	}
+	if t.PrimaryASes.Count(Issuing) <= 0 {
+		return ErrNoIssuingAS
 	}
 	if err := t.PrimaryASes.ValidateInvariant(); err != nil {
 		return err
@@ -296,7 +296,7 @@ func (v *voteAlias) checkAllSet() error {
 var _ json.Unmarshaler = (*Version)(nil)
 
 // FormatVersion indicates the TRC format version. Currently, only format
-// version 0 is supported.
+// version 1 is supported.
 type FormatVersion uint8
 
 // UnmarshalJSON checks that the FormatVersion is supported.

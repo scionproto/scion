@@ -37,7 +37,7 @@ const (
 
 // Invariant errors
 const (
-	// AuthoritativeButNotCore indicates that a primary AS that is authoritative but not core.
+	// AuthoritativeButNotCore indicates a primary AS that is authoritative but not core.
 	AuthoritativeButNotCore = "authoritative but not core"
 	// UnexpectedKey indicates that a primary AS has an excess key. Voting ASes must
 	// have an online and offline key. Non-Voting ASes must not have an offline
@@ -61,17 +61,6 @@ var (
 	ErrAlgorithmNotSet = errors.New("algorithm not set")
 	// ErrKeyNotSet indicates the key is not set.
 	ErrKeyNotSet = errors.New("key not set")
-)
-
-const (
-	// Authoritative indicates an authoritative AS.
-	Authoritative Attribute = "Authoritative"
-	// Core indicates a core AS.
-	Core Attribute = "Core"
-	// Issuing indicates an issuing AS.
-	Issuing Attribute = "Issuing"
-	// Voting indicates a voting AS. A voting AS must also be a core AS.
-	Voting Attribute = "Voting"
 )
 
 // PrimaryASes holds all primary ASes and maps them to their attributes and keys.
@@ -273,6 +262,17 @@ func (t *Attributes) UnmarshalJSON(b []byte) error {
 	return t.Validate()
 }
 
+const (
+	// Authoritative indicates an authoritative AS.
+	Authoritative Attribute = "Authoritative"
+	// Core indicates a core AS.
+	Core Attribute = "Core"
+	// Issuing indicates an issuing AS.
+	Issuing Attribute = "Issuing"
+	// Voting indicates a voting AS. A voting AS must also be a core AS.
+	Voting Attribute = "Voting"
+)
+
 var _ json.Unmarshaler = (*Attribute)(nil)
 
 // Attribute indicates the capability of a primary AS.
@@ -308,7 +308,7 @@ const (
 var _ json.Unmarshaler = (*KeyType)(nil)
 
 // KeyType indicates the type of the key authenticated by the TRC. It can either
-// be "Online" or "Offline".
+// be "Online", "Offline" or "Issuing".
 type KeyType string
 
 // UnmarshalJSON implements json.Unmarshaler.

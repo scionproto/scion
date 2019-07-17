@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
-	trc "github.com/scionproto/scion/go/lib/scrypto/trcv2"
+	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -98,7 +98,7 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 				assert.Equal(t, test.Primary, primary)
 			} else {
 				require.Error(t, err)
-				assert.Equal(t, test.ExpectedErrMsg, nestedErrorMsg(err))
+				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 			}
 		})
 	}
@@ -172,7 +172,7 @@ func TestKeyMetaUnmarshalJSON(t *testing.T) {
 				assert.Equal(t, test.Meta, meta)
 			} else {
 				require.Error(t, err)
-				assert.Equal(t, test.ExpectedErrMsg, nestedErrorMsg(err))
+				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 			}
 		})
 	}

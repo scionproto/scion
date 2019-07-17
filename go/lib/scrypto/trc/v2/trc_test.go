@@ -20,9 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	trc "github.com/scionproto/scion/go/lib/scrypto/trcv2"
+	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -80,8 +79,6 @@ func TestTRCValidateInvariant(t *testing.T) {
 		"PrimaryASes invariant violated": {
 			Modify: func(base *trc.TRC) {
 				delete(base.PrimaryASes[a110].Keys, trc.OfflineKey)
-				primary := base.PrimaryASes[a110]
-				_ = primary
 			},
 			ExpectedErrMsg: trc.MissingKey,
 		},
@@ -140,14 +137,14 @@ func TestTRCValidateInvariant(t *testing.T) {
 				assert.NoError(t, err)
 			} else {
 				assert.Error(t, err)
-				assert.Equalf(t, test.ExpectedErrMsg, nestedErrorMsg(err), "Actual error: %s", err)
+				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 			}
 		})
 	}
 }
 
 func newBaseTRC() *trc.TRC {
-	unixNow := time.Unix(time.Now().Unix(), 0)
+	now := time.Now().Round(time.Second)
 	quorum := uint8(3)
 	trustResetAllowed := true
 	t := &trc.TRC{
@@ -160,8 +157,8 @@ func newBaseTRC() *trc.TRC {
 		GracePeriod:          &trc.Period{},
 		TrustResetAllowedPtr: &trustResetAllowed,
 		Validity: &scrypto.Validity{
-			NotBefore: util.UnixTime{Time: unixNow},
-			NotAfter:  util.UnixTime{Time: unixNow.Add(8760 * time.Hour)},
+			NotBefore: util.UnixTime{Time: now},
+			NotAfter:  util.UnixTime{Time: now.Add(8760 * time.Hour)},
 		},
 		PrimaryASes: trc.PrimaryASes{
 			a110: trc.PrimaryAS{
@@ -249,23 +246,4 @@ func newBaseTRC() *trc.TRC {
 		},
 	}
 	return t
-}
-
-func nestedErrorMsg(err error) string {
-	nested := nestedError(err)
-	if msg := common.GetErrorMsg(nested); msg != "" {
-		return msg
-	}
-	if nested != nil {
-		return nested.Error()
-	}
-	return ""
-}
-
-func nestedError(err error) error {
-	last := err
-	for next := last; next != nil; next = common.GetNestedError(last) {
-		last = next
-	}
-	return last
 }
