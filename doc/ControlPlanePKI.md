@@ -17,9 +17,11 @@ new concepts and simplifies some existing mechanisms.
 - __Trust anchor:__ certificate, public key, or set thereof that is considered valid axiomatically
   (unless expired or revoked). In other words, a cryptographic object for which trust is assumed
   rather than derived. In SCION, trust anchors are TRCs with a grace period of 0.
-- __Verifier:__ any entity holding at least one trust anchor and capable of verifying TRCs and AS
-  certificates. All SCION hosts are verifiers.
-- __Trust store:__ database of trust anchors established and maintained by verifiers.
+- __Relying party:__ any entity holding at least one trust anchor and capable of verifying TRCs and
+  AS certificates. All SCION hosts are relying parties. A relying party (similarly to how they are
+  defined in [RFC 3647](https://tools.ietf.org/html/rfc3647)) is an entity that uses a public key in
+  a TRC or certificate (e.g., for signature verification or encryption).
+- __Trust store:__ database of trust anchors established and maintained by relying parties.
 - __Trust reset:__ action of creating and announcing a new trust anchor for an existing ISD.
 - __TRC update:__ process of releasing a new TRC version that is verifiable with the previous
   version. Starting from a trust anchoring TRC, consecutive updates build a verifiable chain of
@@ -32,7 +34,7 @@ new concepts and simplifies some existing mechanisms.
 ### TRC Qualifiers
 
 Below are the different states in which a TRC can be (in increasing level of "trustworthiness"),
-from the perspective of a verifier:
+from the perspective of a relying party:
 
 1. __Verified:__ a TRC whose format and contents are correct and consistent with previous versions.
     The verification of a TRC includes basic sanity checks, such as ensuring [TRC
@@ -42,18 +44,18 @@ from the perspective of a verifier:
     not yet ended. Note: this does not consider the grace period of any following TRC.
 1. __Active:__ a *valid* TRC that may still be used for verifying certificate signatures, i.e.,
     either the latest TRC or the previous one if it is still in its grace period. No more than two
-    TRCs can be active at the same time for each ISD from the viewpoint of the verifier.
-1. __Latest:__ the TRC with the highest version number known to the verifier.
+    TRCs can be active at the same time for each ISD from the viewpoint of a relying party.
+1. __Latest:__ the TRC with the highest version number known to the relying party.
 
 Other qualifiers for TRCs include the following:
 
-- __Fresh:__ the initial TRC of an ISD. It must have version 1 (version 0 being reserved to request
+- __Initial:__ the first TRC of an ISD. It must have version 1 (version 0 being reserved to request
   the latest TRC).
-- __Base:__ a TRC that defines the trust anchor for a TRC chain verification. A fresh TRC is a
+- __Base:__ a TRC that defines the trust anchor for a TRC chain verification. An initial TRC is a
   special case of this. Each TRC references the version of the base TRC it uses as trust anchor. In
   a base TRC this reference is equal to its own version.
-- __Inconsistent:__ TRCs with the same version number and the same ISD identifier with differing
-  contents.
+- __Inconsistent:__ verified TRCs with the same version number and the same ISD identifier with
+  differing contents.
 - __Expired:__ a TRC whose validity period has ended, or that has been replaced by an update whose
   grace period renders the previous TRC inactive.
 
@@ -64,7 +66,7 @@ follows (unless specified otherwise):
 
 - __string__: UTF-8 string.
 - __integer__: All integers are unsigned.
-- __timestamp__: 64-bit integer indicating seconds since the unix epoch.
+- __timestamp__: 64-bit integer indicating seconds since the Unix epoch.
 
 ## Design Goals
 
@@ -75,7 +77,7 @@ cryptographic keys stored in secure offline locations).
 
 ### Authenticity
 
-It should be possible to determine whether fresh TRCs and updates are authentic. More sensitive
+It should be possible to determine whether any TRC or certificate is authentic. More sensitive
 actions in the CP-PKI should have higher authentication requirements, i.e., in terms of key type
 (offline vs. online) and number of entities involved.
 
@@ -86,7 +88,7 @@ with minimal effort, i.e., without requiring a complete re-establishment of the 
 corresponding ISD.
 
 It should also be possible for an ISD to recover (with more effort and human involvement) after some
-or all of its voting ASes have been compromised. Otherwise, a badly compromised ISD would have to
+or all of its voting ASes have been compromised. Otherwise, a severely compromised ISD would have to
 get a new ISD number, renumber its entire ISD, invalidate all remote references to the old ISD
 number, and the old number would be considered poisoned, forever.
 
@@ -126,7 +128,7 @@ certificates. The SCION trust model is different in mainly two ways. First, no e
 following the "isolation" design goal, the capabilities of ISDs (authentication-wise) are limited to
 communication channels in which they are involved. Second, the trust roots of each ISD are
 co-located in a single file, the TRC, which is co-signed by voting ASes of the ISD. The trust store
-of each verifier hence consists of a list of TRCs.
+of each relying party hence consists of a list of TRCs.
 
 ## Primary ASes
 
@@ -224,7 +226,7 @@ This comprises all non-object values in the top level of the TRC.
   updates. A base TRC must have a grace period of zero. All other TRCs must have a grace period
   larger than zero.
 
-  From the verifiers viewpoint, an updated TRC might not be available instantly since it has to
+  From a relying party's viewpoint, an updated TRC might not be available instantly since it has to
   propagate through beaconing first.
 
 - __TrustResetAllowed__: Boolean. Specifies whether a third party can announce a trust reset for
@@ -273,16 +275,16 @@ This section is included to prevent an attacker from simply changing the set of 
 JWS signed TRC to come up with another valid TRC for the same ISD and Version number (compromising
 "uniqueness") without consent from a voting quorum.
 
-Base TRCs are the root of the TRC update chain. Thus, they do not carry any votes. Trust has to be
-established in a different manner.
+A base TRC is the start of a TRC update chain. Base TRCs do not carry any votes. Therefore, trust
+is established in a different manner for base TRCs (see [TRC Bootstrapping](#trc-bootstrapping)).
 
 ### TRC Section: ProofOfPossession
 
-This is an object that maps AS identifiers to an array key types.
+This is an object that maps AS identifiers to an array of key types.
 
-New or updated keys sign the first TRC they appear in to show proof of possession. In a Base TRC,
-all keys need to show proof of possession and sign the TRC. We recommend that all keys are fresh in
-a TRC trust reset in the first place.
+New or updated keys sign the first TRC they appear in to show proof of possession. In a base TRC,
+all keys need to show proof of possession and sign the TRC. We recommend that all keys be fresh in
+a trust-reset TRC.
 
 ### TRC Invariants
 
@@ -411,23 +413,23 @@ The signature input is in accordance with the RFC: `ASCII(protected || '.' || pa
 
 The hash that is announced during beaconing is calculated over `ASCII(payload)`. This is necessary,
 since the order of the keys when serializing JSON is not specified and cannot be relied on. However,
-since the TRC payload explicitly states all expected signatures, and those signature can only be
-created with the respective keys, "uniqueness" cannot be compromised.
+since the TRC payload explicitly states all expected signatures, and those signatures can only be
+created with the respective keys, the "uniqueness" property cannot be violated.
 
 ## TRC Updates
 
 In general, the TRC validity period is shorter than the validity of the keys it authenticates. Thus,
 TRCs are regularly updated to cover the full key validity period. In addition to these regular
-updates, sensitive updates, such as changes to the keys of Primary AS can occur.
+updates, sensitive updates, such as changes to the keys of a primary AS, can occur.
 
 In this section we describe how TRCs must be verified. This includes a verification of the TRC chain
 as well as other basic validations. Note, however, that a *verified* TRC is not necessarily *valid*
 or *active*.
 
-A TRC update involves two TRC versions of the same ISD. The previous version and the updated
-version. The previous TRC is relative to the updated TRC and is simply identified by the updated TRC
-version - 1. Verification of the updated version is done against the previous TRC. Because of the
-uniqueness property of TRCs, there is exactly one previous TRC for all non-base TRCs.
+A TRC update involves two TRC versions with the same ISD identifier: the "previous" version and the
+"updated" version. The previous TRC version is equal to the updated TRC version - 1. Verification of
+the updated version is done against the previous TRC. To respect the uniqueness property, there is
+exactly one previous TRC for all non-base TRCs.
 
 The update votes can still be verified, even after the previous TRC's validity period has passed.
 This allows entities to verify the chain even if any of the previous TRCs in the chain have expired.
@@ -455,9 +457,9 @@ For any kind of update, the following conditions must be met:
   demoted and later promoted again, the key version continues where it left off before. This must be
   ensured by all signing entities.
 
-  Verifiers must check the `KeyVersion` is correct in the updated TRC, if the previous TRC already
-  contains a key of the given type for that primary AS. If not, verifiers are free to ignore the
-  check.
+  Relying parties must check the `KeyVersion` is correct in the updated TRC, if the previous TRC
+  already contains a key of the given type for that primary AS. If not, relying parties are free to
+  ignore the check.
 - Any key that was not present in the previous TRC must show proof of possession by signing the new
   TRC. This guarantees that any key present in any version of the TRC has been used to produce at
   least one signature in the TRC's history, which shows a proof of possession (PoP) of the
@@ -486,18 +488,19 @@ its offline key without revoking the voting status.
 ## TRC Update Dissemination
 
 A TRC update must be distributed amongst all authoritative ASes in that ISD, and they must switch to
-it as the latest version in a synchronized fashion. I.e. when querying two distinct authoritative
-ASes for the latest TRC version, they must reply with the same version modulo some minor clock skew.
+it as the latest version in a synchronized fashion. That is, when querying two distinct
+authoritative ASes for the latest TRC version, they must reply with the same version modulo some
+minor clock skew.
 
 ASes inside that ISD must only announce the new TRC after the authoritative ASes have switched their
 view of the latest TRC version. This can easily achieved by having authoritative ASes switch the
-latest on the `Validity.NotBefore` time, since SCION requires some time synchronization.
+latest on the `Validity.NotBefore` time, since SCION requires synchronized clocks.
 
 TRC updates are disseminated via SCION's beaconing process. If the TRC version number within a
 received beacon is higher than the locally stored TRC, the beacon server sends a request to the
 beacon server that sent the beacon. After a new TRC is accepted, it is submitted by the beacon
-server to a local certificate server. Path servers and end hosts learn about new remote TRCs through
-the path-segment registration and path lookup processes, respectively.
+server to a local certificate server. Path servers and end hosts learn about new TRCs through the
+path-segment registration and path lookup processes, respectively.
 
 All entities within an ISD must have a recent TRC of their own ISD. On startup, all servers and end
 hosts obtain the missing TRCs (if any, from the TRC they possess to the latest TRC) of their own ISD
@@ -523,22 +526,22 @@ The above code is simplified and does not implement the "version 0 means latest"
 
 ## TRC Trust Reset
 
-Aside from fresh TRCs, trust anchors can be re-established with a trust reset. Typically, a trust
+Aside from initial TRCs, trust anchors can be re-established with a trust reset. Typically, a trust
 reset is needed when at least a quorum of voting ASes' online or offline keys have been compromised,
 or when a quorum can no longer be met. A trust reset is a worst case scenario, that is unlikely to
 happen. It is not considered a TRC update and may involve human intervention if necessary. A Trust
-reset is only permissible if `TrustResetAllowed` is set to `true`, otherwise, the no trust reset is
-possible.
+reset is only permissible if `TrustResetAllowed` is set to `true`; otherwise, no trust reset is
+possible, and the ISD can only be re-established with a new ISD identifier.
 
 When resetting the trust anchor, the [TRC Invariants](#trc-invariants) must still hold. We describe
 multiple different mechanisms that allow handling trust resets in [TRC
 Bootstrapping](#trc-bootstrapping) and setting new trust anchors.
 
-The new base TRC is allowed to introduce a version number gap. If an ISD is badly compromised, and
-the attacker can issue new TRCs, this allows the ISD to get a head start. To taint the network, the
-attacker has to distribute the TRC first. If the new base TRC does violate the version uniqueness
-property, human intervention is necessary to rectify the situation by pruning the maliciously issued
-TRC chain to ensure uniqueness.
+The new base TRC is allowed to introduce a version number gap. If an ISD is severely compromised,
+and the attacker can issue new TRCs, this allows the ISD to get a head start. To taint the network,
+the attacker has to distribute the TRC first. If the new base TRC does violate the version
+uniqueness property, human intervention is necessary to rectify the situation by pruning the
+maliciously issued TRC chain to ensure uniqueness.
 
 ## Certificate Format
 
@@ -743,9 +746,9 @@ When validating signatures based on certificate chains, the following must be ch
 
 - The signature can be verified with the public key authenticated by the AS certificate of a
   verified certificate chain.
-- The current time is inside the validity period of the certificate chain.
+- The current time falls within the validity period of the certificate chain.
 - The certificate chain is authenticated by a currently active TRC. This means the issuing key that
-  was used to sign the Issuer certificate must be authenticated by a currently active TRCs. The
+  was used to sign the Issuer certificate must be authenticated by a currently active TRC. The
   active TRC's version must be greater than or equal to the `TRCVersion` specified in the Issuer
   certificate.
 
@@ -755,10 +758,10 @@ When validating signatures based on certificate chains, the following must be ch
 ## Certificate Chain Dissemination
 
 Certificate chains are issued by an `Issuing` AS upon request. As certificates are short lived, this
-is an automatic, automated process. Before an AS may use a certificate chain, it must register it
-with all authoritative ASes of its ISD. If the automatic registration process fails due to an
-unavailable authoritative AS, an operator may manually choose to start using the issued certificate
-chain. However, they must ensure the certificate chain is registered as soon as possible with all
+is an automated process. Before an AS may use a certificate chain, it must register it with all
+authoritative ASes of its ISD. If the automatic registration process fails due to an unavailable
+authoritative AS, an operator may manually choose to start using the issued certificate chain.
+However, they must ensure the certificate chain is registered as soon as possible with all
 authoritative ASes of its ISD.
 
 Certificate chains are used to sign beacons and path-segments. Similar to TRC dissemination, when a
@@ -802,20 +805,20 @@ cacheable and efficient to distribute. Also, propagation of revocations must not
 availability of the infrastructure.
 
 The number of ASes in SCION will most likely exceed the number of ASes in the current Internet by a
-few orders of magnitude. This, in addition to the short certificate lifetime, will result in a large
-number of certificates. However, because certificates are short-lived and because stale revocations
-can be discarded, revocation lists will remain small or empty most of the time.
+few orders of magnitude, which will result in a large number of certificates. However, because
+certificates are short-lived and because stale revocations can be discarded, revocation lists will
+remain small or empty most of the time.
 
 ### Revocation Notes
 
-A revocation note attests that a certificate must be revoked. A revocation note is either signed by
-the signing key authenticated by the revoked certificate, or a separate `Revocation` key. The
-`Revocation` key is specified in the certificate, in which case the corresponding private key must
-be stored offline and used to sign the revocation note instead of the regular signing key. The
-revocation key may also be used to request a new certificate from an issuer. It may be stored at the
-issuer or a third party, such that they can revoke the certificate in case the certificate's subject
-loses the revocation key. This requires a certain level of trust between the subject and the third
-party.
+A revocation note attests that a certificate is revoked. A revocation note is either signed by the
+signing key contained in the revoked certificate, or a separate `Revocation` key. The `Revocation`
+public key may also be specified in the revoked certificate, in which case the corresponding private
+key must be stored offline and used to sign the revocation note instead of the regular signing key.
+The revocation key may also be used to request a new certificate from an issuer. It may be stored at
+the issuer or a third party, such that they can revoke the certificate in case the certificate's
+subject loses the revocation key. This requires a certain level of trust between the subject and the
+third party.
 
 #### Revocation Note Format
 
@@ -836,12 +839,12 @@ registered after the provided time. The signed response contains the revocation 
 time that the revoked certificates expires. Additionally, the distribution points can be queried
 about a specific certificate.
 
-ASes periodically query at least one distribution point of all valid certificate in their trust
-store. Verifiers then ask the local certificate server about the state of a certificate. In case
-they do not trust their certificate server for this, they can query the distribution points
+ASes periodically query at least one distribution point of all valid certificates in their trust
+store. Relying parties ask their local certificate server about the state of a certificate. In
+case they do not trust their certificate server for this, they can query the distribution points
 themselves.
 
-Distribution points must only be queried if they are an authoritative AS in their ISD.
+A distribution point must only be queried if it is an authoritative AS in the ISD.
 
 ### Revocation Note Registration
 
@@ -854,14 +857,14 @@ Revoking an Issuer certificate has severe implications. All certificate chains t
 no longer be considered valid. Thus, a large portion of an ISD might be unreachable for some period
 of time. Operators should coordinate and prepare before revoking an issuer certificate.
 
-### Verifier Decision Making
+### Best-Effort Revocation
 
-Certificate revocation stands in stark contrast with availability. In case verifiers only deem a
-certificate as valid if they have recently queried the distribution point, there is a circular
-dependency between verifying paths to the distribution points and having paths to the distribution
-point. We have to make a trade-off here and revocations are to be considered on a best-effort basis.
-During regular operation, the revocation distribution points will be available and certificates are
-revoked in a short amount of time. Also, an AS can take advantage of the
+Certificate revocation stands in stark contrast with availability. If relying parties only
+considered a certificate valid after querying the corresponding distribution point, then there would
+be a circular dependency between verifying paths to the distribution points and having paths to the
+distribution point. To avoid this circular dependency, revocations are to be considered on a
+best-effort basis. During regular operation, the revocation distribution points will be available
+and certificates are revoked in a short amount of time. Also, an AS can take advantage of the
 `OptionalDistributionPoints` field in the AS cert to nominate distribution points that are
 geographically diverse to mitigate availability issues.
 
@@ -871,11 +874,11 @@ certificate chains containing it will also be considered invalid.
 
 ## Trust Material Sources
 
-When dealing with crypto material operators should have a point to contact to do certain kinds of
-queries. Authoritative ASes are required to keep all certificates issued inside their ISD. Queries
-such as asking for the newest TRC should be sent to an authoritative primary AS. All other ASes are
-required to have the trust material to verify all messages they serve. E.g. an AS must have all
-certificate chains to verify all path segments it serves.
+When dealing with cryptographic material, operators should have a point to contact to do certain
+kinds of queries. Authoritative ASes are required to keep all certificates issued inside their ISD.
+Queries such as asking for the newest TRC should be sent to an authoritative AS. All other ASes are
+required to have the trust material to verify all messages they serve. For example, an AS must have
+all the certificate chains needed to verify the path segments it serves.
 
 The subjects of certificate chains must register all freshly issued chains with all authoritative
 primary ASes in the local ISD. The same holds true for the subjects of issuer certificates.
@@ -909,11 +912,11 @@ certificates according to the table.
 
 ## TRC Bootstrapping
 
-TRCs are trust anchors and are axiomatically trusted. All nodes must be pre-loaded with at least the
-current base version TRC of their own ISD, which builds the trust anchor.
+Base TRCs are trust anchors and thus axiomatically trusted. All nodes must be pre-loaded with at
+least the current base version TRC of their own ISD, which builds the trust anchor.
 
 In the following, we discuss multiple options for distributing TRC base versions of other ISDs and
-adding them to the trust store of verifiers. A trust reset is essentially the same problem as
+adding them to the trust store of relying parties. A trust reset is essentially the same problem as
 distributing the initial TRC version, and can be solved with the same mechanisms.
 
 Out of the three options presented here, we recommend the "TRC Attestation" method since it provides
@@ -924,19 +927,19 @@ queries it receives from other ISDs.
 
 ### Manual Mode
 
-In the manual mode, the operators are responsible for adding all TRCs manually to the trust stores.
-They can receive the TRC through multiple channels. E.g. through out-of-band mechanisms or by
-discovering them during the beaconing process.
+In the manual mode, the operators are responsible for adding all TRCs manually to their trust store.
+They can receive TRCs through multiple channels (e.g., through out-of-band mechanisms or by
+discovering them during the beaconing process).
 
 ### Trust On Multi-Announcement (TOMA)
 
 In the trust on multi announcement (TOMA) mode, initial TRCs and trust reset TRCs that are
 discovered during the beaconing process are put into quarantine for a specified amount of time. If
 during this quarantine period, the TRCs have been received on a pre-defined number of distinct paths
-with exactly the same content the TRC is trusted and added to the trust store.
+with exactly the same content, the TRC is trusted and added to the trust store.
 
 Alternatively, the quarantined TRC can be sent to an operator for review who then accepts the TRC.
-This merges the TOMA and manual methods to provide easier operations, as it limits the operators
+This merges the TOMA and manual methods to provide easier operations, as it limits operator
 involvement.
 
 TOMA is only applicable for core ASes, since they are the only ones that are able to receive beacons
@@ -950,29 +953,29 @@ availability of the local TRC.
 ### TRC Attestation
 
 The previously mentioned methods imply a large operational overhead. Requiring human involvement for
-end hosts is not be desirable, or might not even be feasible. With the TRC Attestation method, the
-human involvement is reduced to a minimum.
+may not be desirable, or may not even be feasible. With the TRC Attestation method, human
+involvement is reduced to a minimum.
 
 A numbering authority will coordinate the attribution of identifiers to ISDs globally. It is likely,
 however, that this authority will delegate and allocate ISD ranges to regional authorities, which
 will then assign specific identifiers to ISDs in their region. These regional authorities act as the
 Regional Attestation Authority (RAA).
 
-An __Attestation__ is issued for every base TRC and indicates to any verifier that the base TRC is
-considered the trust anchor for the respective ISD at the time of signing. Thus, whenever an ISD
+An __Attestation__ is issued for every base TRC and indicates to any relying party that the base TRC
+is considered the trust anchor for the respective ISD at the time of signing. Thus, whenever an ISD
 registers itself with the regional numbering authorities, it simultaneously obtains an attestation
-for bootstrapping purposes. Additionally, whenever an ISD is forced to do a trust reset, a new
-attestation has to be obtained.
+for bootstrapping purposes. Additionally, whenever an ISD is forced to perform a trust reset, a new
+attestation must be obtained.
 
-Attestations are used by verifiers to validate fresh or reset TRCs for remote ISDs. They are stored
-in the trust store and are considered first order citizens. When a verifier encounters an unknown
-base TRC during a TRC request, it fetches the attestation from the same node. Thus, even
-infrastructure nodes operating in manual, TOMA or any other mode must be able to provide
-attestations for every base TRC in their store. In fact, they should probably include attestation
-verification into their pipeline for added security.
+Attestations are used by relying parties to validate initial or trust-reset TRCs of remote ISDs.
+They are stored in the trust store and are considered first order citizens. When a relying parties
+encounters an unknown base TRC during a TRC request, it fetches the attestation from the same node.
+Thus, even infrastructure nodes operating in manual, TOMA or any other mode must be able to provide
+attestations for every base TRC in their store. In fact, they should include attestation
+verification into their decision process for added security.
 
 Regional numbering authorities must maintain an append-only log of base TRCs and attestations in
-their ISD range(s) for auditability. This also allows all entities to quickly discovery new base
+their ISD range(s) for auditability. This also allows all entities to quickly discover new base
 TRCs, either caused by a new ISD joining the network or by a trust reset. Additionally, the RAAs
 manage an append-only log of all TRCs in their ISD range. RAAs discover new TRCs by periodically
 fetching the newest TRCs in their ISD range.
@@ -990,9 +993,9 @@ ISD are lost or compromised. We stress that this is a disastrous failure case an
 to occur.
 
 Attestations are signed by the RAA and are verifiable using the TRC Attestation Authority Config
-(TAAC). Every RAA has their own TAAC. The structure is very similar to a TRC. The TAAC authenticates
-a set of attestation keys that are used to verify attestations, and a set offline keys that are used
-to sign new TAAC versions.
+(TAAC). Every RAA has their own TAAC. The structure is very similar to a TRC. The TAAC contains a
+set of attestation keys that are used to verify attestations, and a set of offline keys used to sign
+new TAAC versions.
 
 #### TRC Attestation Format
 
@@ -1015,11 +1018,11 @@ The following fields and no other must be present in the metadata object:
 - __KeyVersion__: The attestation key version.
 - __Timestamp__: 64-bit integer in seconds since Unix epoch.
 
-#### TRC Attestation Authority Config
+#### TRC Attestation Authority Config (TAAC)
 
-The Attestation Authority Config (TAAC) is represented in the JWS JSON Serialization Representation.
-The design is fairly similar to the TRC. There are a few (logical) groups of data in it, explained
-in the following sections.
+The TRC Attestation Authority Config (TAAC) is represented using JWS JSON Serialization. The
+structure and content of a TAAC is similar to that of a TRC. There are a few (logical) groups of
+data in it, explained in the following sections.
 
 ##### Top-Level TAAC Fields
 
@@ -1160,9 +1163,9 @@ The following conditions must hold for an update to be considered valid:
 
 Contrary to TRCs, TAACs are not discovered through the beaconing process. Even though attestations
 are first class citizens, we do not want to force ASes to use them for their internal decision
-making. The verifiers periodically check whether a new TAAC exists. This is done in a hierarchical
-manner. Core ASes query the RAA directly. Non-core query their core. End hosts query the local AS.
-To prevent entities from hiding TAAC updates, the RAA periodically issues a "proof of
+making. The relying parties periodically check whether a new TAAC exists. This is done in a
+hierarchical manner. Core ASes query the RAA directly. Non-core query their core. End hosts query
+the local AS. To prevent entities from hiding TAAC updates, the RAA periodically issues a "proof of
 non-existence". This proof is signed with a attestation key of the newest TAAC and declares that for
 a given period of time, there is no newer TAAC.
 
@@ -1311,7 +1314,7 @@ signed_trc = {
 # TRC serialization
 ############################################
 # This serialized TRC is the final form that can be
-# verified and added to the trust store by each verifier.
+# verified and added to the trust store by each relying party.
 
 serialized_trc = json.dumps(signed_trc)
 # {
