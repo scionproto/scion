@@ -84,10 +84,13 @@ case "$COMMAND" in
     *) run_tests; result=$? ;;
 esac
 
-# Collect metrics from scion services
-./docker.sh exec ./tools/ci/get_metrics.sh
-result=$((result+$?))
-
+# Collect metrics from scion processes.
+if [ -n "$DOCKER_BE" ]; then
+    echo "Metrics collection for Docker Backend not implemented"
+else
+    ./docker.sh exec ./tools/ci/get_metrics.sh
+    result=$((result+$?))
+fi
 # Stop scion
 ./docker.sh exec "set -eo pipefail; { ./scion.sh status && ./scion.sh stop; } |& tee -a logs/integration.run"
 
