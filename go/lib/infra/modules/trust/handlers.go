@@ -204,6 +204,8 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
+	logger.Trace("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
+		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcPushHandler] Unable to service request, no Messenger found")
@@ -252,6 +254,8 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
+	logger.Trace("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
+		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
