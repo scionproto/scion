@@ -17,8 +17,6 @@ package db
 import (
 	"context"
 	"database/sql"
-
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 var _ Sqler = (*sql.DB)(nil)
@@ -37,23 +35,36 @@ type Sqler interface {
 // rollbacked, otherwise it is committed.
 func DoInTx(ctx context.Context, db Sqler, action func(context.Context, *sql.Tx) error) error {
 	tx, ok := db.(*sql.Tx)
-	manageTx := !ok
-	if manageTx {
-		var err error
-		if tx, err = db.(*sql.DB).BeginTx(ctx, nil); err != nil {
-			return common.NewBasicError("Failed to create tx", err)
-		}
+	if ok {
+		return action(ctx, tx)
 	}
+	var err error
+	if tx, err = db.(*sql.DB).BeginTx(ctx, nil); err != nil {
+		return NewTxError("create tx", err)
+	}
+	defer tx.Rollback()
 	if err := action(ctx, tx); err != nil {
-		if manageTx {
-			tx.Rollback()
-		}
 		return err
 	}
-	if manageTx {
-		if err := tx.Commit(); err != nil {
-			return common.NewBasicError("Failed to commit", err)
-		}
+	if err := tx.Commit(); err != nil {
+		return NewTxError("commit", err)
 	}
 	return nil
+}
+
+// DeleteInTx executes delFunc in a transaction and returns the affected rows.
+func DeleteInTx(ctx context.Context, db Sqler,
+	delFunc func(tx *sql.Tx) (sql.Result, error)) (int, error) {
+
+	var res sql.Result
+	err := DoInTx(ctx, db, func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		res, err = delFunc(tx)
+		return err
+	})
+	if err != nil {
+		return 0, NewWriteError("delete in tx", err)
+	}
+	deleted, _ := res.RowsAffected()
+	return int(deleted), nil
 }

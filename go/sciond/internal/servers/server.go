@@ -18,10 +18,10 @@ import (
 	"context"
 	"io"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
@@ -37,8 +37,10 @@ type Server struct {
 	address  string
 	handlers map[proto.SCIONDMsg_Which]Handler
 	log      log.Logger
-	mu       sync.Mutex // protect access to listener during init/close
-	listener net.Listener
+
+	mu          sync.Mutex
+	listener    net.Listener
+	closeCalled bool
 }
 
 // NewServer initializes a new server at address on the specified network. The
@@ -61,6 +63,10 @@ func NewServer(network string, address string, handlers HandlerMap, logger log.L
 // until it is closed by the client.
 func (srv *Server) ListenAndServe() error {
 	srv.mu.Lock()
+	if srv.closeCalled {
+		srv.mu.Unlock()
+		return common.NewBasicError("attempted to listen on server that was shut down", nil)
+	}
 	listener, err := srv.listen()
 	if err != nil {
 		srv.mu.Unlock()
@@ -73,6 +79,9 @@ func (srv *Server) ListenAndServe() error {
 	for {
 		conn, err := srv.listener.Accept()
 		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				return err
+			}
 			srv.log.Warn("unable to accept conn", "err", err)
 			continue
 		}
@@ -81,7 +90,7 @@ func (srv *Server) ListenAndServe() error {
 		go func() {
 			defer log.LogPanicAndExit()
 			pconn := conn.(net.PacketConn)
-			hdl := NewTransportHandler(transport.NewPacketTransport(pconn), srv.handlers, srv.log)
+			hdl := NewConnHandler(pconn, srv.handlers, srv.log)
 			if err := hdl.Serve(); err != nil && err != io.EOF {
 				srv.log.Error("Transport handler error", "err", err)
 			}
@@ -111,8 +120,9 @@ func (srv *Server) Close() error {
 	defer srv.mu.Unlock()
 
 	if srv.listener == nil {
-		return common.NewBasicError("unitialized server", nil)
+		return common.NewBasicError("uninitialized server", nil)
 	}
+	srv.closeCalled = true
 	return srv.listener.Close()
 	// FIXME(scrye): shut down running servers once we actually implement the
 	// handlers.

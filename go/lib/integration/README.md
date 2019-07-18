@@ -8,10 +8,11 @@ After building the integration test binaries end up in `./bin`
 All integration tests assume the topology is running (`scion.sh run`)
 
 To run the pingpong integration test do:
-```
-$ ./scion.sh build
-$ ./scion.sh start
-$ ./bin/pp_integration
+
+```bash
+./scion.sh build
+./scion.sh start
+./bin/pp_integration
 ```
 
 ## Implementation of your own integration test

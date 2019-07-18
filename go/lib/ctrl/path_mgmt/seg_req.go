@@ -40,7 +40,7 @@ type SegReqFlags struct {
 
 func NewSegReqFromRaw(b common.RawBytes) (*SegReq, error) {
 	s := &SegReq{}
-	return s, proto.ParseFromRaw(s, s.ProtoId(), b)
+	return s, proto.ParseFromRaw(s, b)
 }
 
 func (s *SegReq) SrcIA() addr.IA {
@@ -60,5 +60,5 @@ func (s *SegReq) Write(b common.RawBytes) (int, error) {
 }
 
 func (s *SegReq) String() string {
-	return fmt.Sprintf("%s -> %s, Flags: %v", s.SrcIA(), s.DstIA(), s.Flags)
+	return fmt.Sprintf("%s -> %s, Flags: %+v", s.SrcIA(), s.DstIA(), s.Flags)
 }

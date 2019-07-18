@@ -26,10 +26,13 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+var _ dedupe.Request = (*segReq)(nil)
+
 type segReq struct {
-	segReq *path_mgmt.SegReq
-	server net.Addr
-	id     uint64
+	segReq      *path_mgmt.SegReq
+	server      net.Addr
+	id          uint64
+	postprocess func(context.Context, time.Time, net.Addr, *path_mgmt.SegReq, *path_mgmt.SegReply)
 }
 
 func (req *segReq) DedupeKey() string {
@@ -46,11 +49,13 @@ func (req *segReq) BroadcastKey() string {
 func NewGetSegsDeduper(msger infra.Messenger) dedupe.Deduper {
 	requestFunc := func(ctx context.Context, request dedupe.Request) dedupe.Response {
 		req := request.(*segReq)
+		queryTime := time.Now()
 		segs, err := msger.GetSegs(ctx, req.segReq, req.server, req.id)
 		if err != nil {
 			return dedupe.Response{Error: err}
 		}
-		return dedupe.Response{Data: segs}
+		req.postprocess(ctx, queryTime, req.server, req.segReq, segs)
+		return dedupe.Response{}
 	}
-	return dedupe.New(requestFunc, time.Second, 0)
+	return dedupe.New(requestFunc, 3*time.Second, 0)
 }

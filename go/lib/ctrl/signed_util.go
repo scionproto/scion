@@ -25,30 +25,14 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// Signer takes a Pld and signs it, producing a SignedPld.
+// Signer takes a message and signs it, producing the signature metadata.
 type Signer interface {
-	Sign(*Pld) (*SignedPld, error)
+	Sign(msg common.RawBytes) (*proto.SignS, error)
 }
 
-// SigVerifier verifies the signature of a SignedPld.
-type SigVerifier interface { // interfaces -> infra
-	Verify(context.Context, *SignedPld) error
-}
-
-// VerifySig does some sanity checks on p, and then verifies the signature using sigV.
-func VerifySig(ctx context.Context, p *SignedPld, sigV SigVerifier) error {
-	// Perform common checks before calling real checker.
-	if p.Sign.Type == proto.SignType_none && len(p.Sign.Signature) == 0 {
-		// Nothing to check.
-		return nil
-	}
-	if p.Sign.Type == proto.SignType_none {
-		return common.NewBasicError("SignedPld has signature of type none", nil)
-	}
-	if len(p.Sign.Signature) == 0 {
-		return common.NewBasicError("SignedPld is missing signature", nil, "type", p.Sign.Type)
-	}
-	return sigV.Verify(ctx, p)
+// Verifier verifies the signature of a signed payload.
+type Verifier interface {
+	VerifyPld(context.Context, *SignedPld) (*Pld, error)
 }
 
 const (
@@ -58,31 +42,41 @@ const (
 	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\S+) CHAIN: (\d+) TRC: (\d+)$`
 )
 
+// SignSrcDef is the default format for signature source. It states the
+// signing entity, and the certificate chain authenticating the public key.
+// The TRC version is a hint for the TRC that can currently be used to
+// verify the chain.
 type SignSrcDef struct {
 	IA       addr.IA
 	ChainVer uint64
 	TRCVer   uint64
 }
 
-func NewSignSrcDefFromRaw(b common.RawBytes) (*SignSrcDef, error) {
+func NewSignSrcDefFromRaw(b common.RawBytes) (SignSrcDef, error) {
 	re := regexp.MustCompile(SrcDefaultFmt)
 	s := re.FindStringSubmatch(string(b))
 	if len(s) == 0 {
-		return nil, common.NewBasicError("Unable to match default src", nil, "string", string(b))
+		return SignSrcDef{}, common.NewBasicError("Unable to match default src", nil,
+			"string", string(b))
 	}
 	ia, err := addr.IAFromString(s[1])
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse default src IA", err)
+		return SignSrcDef{}, common.NewBasicError("Unable to parse default src IA", err)
 	}
 	chainVer, err := strconv.ParseUint(s[2], 10, 64)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse default src ChainVer", err)
+		return SignSrcDef{}, common.NewBasicError("Unable to parse default src ChainVer", err)
 	}
 	trcVer, err := strconv.ParseUint(s[3], 10, 64)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse default src TRCVer", err)
+		return SignSrcDef{}, common.NewBasicError("Unable to parse default src TRCVer", err)
 	}
-	return &SignSrcDef{IA: ia, ChainVer: chainVer, TRCVer: trcVer}, nil
+	return SignSrcDef{IA: ia, ChainVer: chainVer, TRCVer: trcVer}, nil
+}
+
+// IsUninitialized indicates whether the source is equal to the zero value.
+func (s *SignSrcDef) IsUninitialized() bool {
+	return *s == SignSrcDef{}
 }
 
 func (s *SignSrcDef) Pack() common.RawBytes {

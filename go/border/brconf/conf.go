@@ -33,8 +33,9 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// Conf is the main config structure.
-type Conf struct {
+// BRConf is the main config structure. It contains the dynamic
+// configuration at runtime.
+type BRConf struct {
 	// Topo contains the names of all local infrastructure elements, a map
 	// of interface IDs to routers, and the actual topology.
 	Topo *topology.Topo
@@ -55,8 +56,8 @@ type Conf struct {
 }
 
 // Load sets up the configuration, loading it from the supplied config directory.
-func Load(id, confDir string) (*Conf, error) {
-	conf := &Conf{
+func Load(id, confDir string) (*BRConf, error) {
+	conf := &BRConf{
 		Dir: confDir,
 	}
 	if err := conf.loadTopo(id); err != nil {
@@ -79,8 +80,8 @@ func Load(id, confDir string) (*Conf, error) {
 
 // WithNewTopo creates config that shares all content except fields related
 // to topology with the oldConf.
-func WithNewTopo(id string, topo *topology.Topo, oldConf *Conf) (*Conf, error) {
-	conf := &Conf{
+func WithNewTopo(id string, topo *topology.Topo, oldConf *BRConf) (*BRConf, error) {
+	conf := &BRConf{
 		Dir:        oldConf.Dir,
 		ASConf:     oldConf.ASConf,
 		MasterKeys: oldConf.MasterKeys,
@@ -97,46 +98,46 @@ func WithNewTopo(id string, topo *topology.Topo, oldConf *Conf) (*Conf, error) {
 
 // loadTopo loads the topology from the config directory and initializes the
 // entries related to topo in the config.
-func (c *Conf) loadTopo(id string) error {
-	topoPath := filepath.Join(c.Dir, topology.CfgName)
+func (cfg *BRConf) loadTopo(id string) error {
+	topoPath := filepath.Join(cfg.Dir, topology.CfgName)
 	topo, err := topology.LoadFromFile(topoPath)
 	if err != nil {
 		return err
 	}
-	if err := c.initTopo(id, topo); err != nil {
+	if err := cfg.initTopo(id, topo); err != nil {
 		return common.NewBasicError("Unable to initialize topo", err, "path", topoPath)
 	}
 	return nil
 }
 
 // initTopo initializesthe entries related to topo in the config.
-func (c *Conf) initTopo(id string, topo *topology.Topo) error {
-	c.Topo = topo
-	c.IA = c.Topo.ISD_AS
+func (cfg *BRConf) initTopo(id string, topo *topology.Topo) error {
+	cfg.Topo = topo
+	cfg.IA = cfg.Topo.ISD_AS
 	// Find the config for this router.
-	topoBR, ok := c.Topo.BR[id]
+	topoBR, ok := cfg.Topo.BR[id]
 	if !ok {
 		return common.NewBasicError("Unable to find element ID in topology", nil,
 			"id", id)
 	}
-	c.BR = &topoBR
+	cfg.BR = &topoBR
 	return nil
 }
 
 // loadAsConf loads the as config from the config directory.
-func (c *Conf) loadAsConf() error {
-	asConfPath := filepath.Join(c.Dir, as_conf.CfgName)
+func (cfg *BRConf) loadAsConf() error {
+	asConfPath := filepath.Join(cfg.Dir, as_conf.CfgName)
 	if err := as_conf.Load(asConfPath); err != nil {
 		return err
 	}
-	c.ASConf = as_conf.CurrConf
+	cfg.ASConf = as_conf.CurrConf
 	return nil
 }
 
 // loadMasterKeys loads the master keys from the config directory.
-func (c *Conf) loadMasterKeys() error {
+func (cfg *BRConf) loadMasterKeys() error {
 	var err error
-	c.MasterKeys, err = keyconf.LoadMaster(filepath.Join(c.Dir, "keys"))
+	cfg.MasterKeys, err = keyconf.LoadMaster(filepath.Join(cfg.Dir, "keys"))
 	if err != nil {
 		return common.NewBasicError("Unable to load master keys", err)
 	}
@@ -144,18 +145,18 @@ func (c *Conf) loadMasterKeys() error {
 }
 
 // initMacPool initializes the hop field mac pool.
-func (c *Conf) initMacPool() error {
+func (cfg *BRConf) initMacPool() error {
 	// Generate keys
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(c.MasterKeys.Key0, []byte("Derive OF Key"), 1000, 16, sha256.New)
+	hfGenKey := pbkdf2.Key(cfg.MasterKeys.Key0, []byte("Derive OF Key"), 1000, 16, sha256.New)
 
 	// First check for MAC creation errors.
 	if _, err := scrypto.InitMac(hfGenKey); err != nil {
 		return err
 	}
 	// Create a pool of MAC instances.
-	c.HFMacPool = &sync.Pool{
+	cfg.HFMacPool = &sync.Pool{
 		New: func() interface{} {
 			mac, _ := scrypto.InitMac(hfGenKey)
 			return mac
@@ -165,9 +166,9 @@ func (c *Conf) initMacPool() error {
 }
 
 // initNet initializes the network configuration.
-func (c *Conf) initNet() error {
+func (cfg *BRConf) initNet() error {
 	var err error
-	if c.Net, err = netconf.FromTopo(c.BR, c.Topo.IFInfoMap); err != nil {
+	if cfg.Net, err = netconf.FromTopo(cfg.BR, cfg.Topo.IFInfoMap); err != nil {
 		return err
 	}
 	return nil

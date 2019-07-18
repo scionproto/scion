@@ -1,5 +1,11 @@
-SCION
-=====
+# SCION
+
+[![Documentation](https://godoc.org/github.com/scionproto/scion?status.svg)](http://godoc.org/github.com/scionproto/scion)
+[![Build Status](https://badge.buildkite.com/cbb8e648c58d567991b445317d68955db5235b627dcfc97ab9.svg?branch=master)](https://buildkite.com/scionproto/scionproto)
+[![Go Report Card](https://goreportcard.com/badge/github.com/scionproto/scion)](https://goreportcard.com/report/github.com/scionproto/scion)
+[![GitHub issues](https://img.shields.io/github/issues/scionproto/scion/help%20wanted.svg?label=help%20wanted&color=blue)](https://github.com/scionproto/scion/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+[![Release](https://img.shields.io/github/release-pre/scionproto/scion.svg)](https://github.com/scionproto/scion/releases)
+[![license](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
 
 An implementation of [SCION](http://www.scion-architecture.net), a future
 Internet architecture.
@@ -8,18 +14,18 @@ Internet architecture.
   containers.
 * [go/](/go): parts of the implementation that are written in
   [Go](http://golang.org).
-  * [border_router](/go/border): Border Router
-  * [certificate_server](/go/cert_srv): Certificate Server
-  * [scion_ip_gateway](/go/sig): SCION IP Gateway
-  * [lib](/go/lib): shared SCION Go libraries
+    * [border_router](/go/border): Border Router
+    * [certificate_server](/go/cert_srv): Certificate Server
+    * [scion_ip_gateway](/go/sig): SCION IP Gateway
+    * [lib](/go/lib): shared SCION Go libraries
 * [python/](/python): the parts of the infrastructure
   implemented in Python.
-  * [beacon_server](/python/beacon_server): Beacon Server
-  * [certificate_server](/python/cert_server): Certificate Server
-  * [path_server](/python/path_server): Path Server
-  * [lib/](/python/lib): shared SCION Python libraries
-  * [topology](/python/topology): generator for generating a local topology,
-    including all the necessary configuration, key, and certificate files
+    * [beacon_server](/python/beacon_server): Beacon Server
+    * [certificate_server](/python/cert_server): Certificate Server
+    * [path_server](/python/path_server): Path Server
+    * [lib/](/python/lib): shared SCION Python libraries
+    * [topology](/python/topology): generator for generating a local topology,
+        including all the necessary configuration, key, and certificate files
 * [proto/](/proto): the protocol definitions for use with [Cap’n
   Proto](https://capnproto.org/).
 * [supervisor/](/supervisor): the configuration for
@@ -31,36 +37,45 @@ Necessary steps in order to run SCION:
 
 1. Make sure that you are using a clean and recently updated **Ubuntu 16.04**.
 
-1. Install [Bazel](https://bazel.build).
+1. Install [Bazel](https://bazel.build) version 0.26.1:
+
+   ```bash
+   wget https://github.com/bazelbuild/bazel/releases/download/0.26.1/bazel-0.26.1-installer-linux-x86_64.sh
+   bash ./bazel-0.26.1-installer-linux-x86_64.sh --user
+   rm ./bazel-0.26.1-installer-linux-x86_64.sh
+   ```
 
 1. Make sure that you have a
    [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
    `~/.local/bin`, and `$GOPATH/bin` can be found in your `$PATH` variable. For example:
 
-    ```
-    echo 'export GOPATH="$HOME/go"' >> ~/.profile
-    echo 'export PATH="$HOME/.local/bin:$GOPATH/bin:$PATH"' >> ~/.profile
-    source ~/.profile
-    mkdir -p "$GOPATH"
-    ```
+   ```bash
+   echo 'export GOPATH="$HOME/go"' >> ~/.profile
+   echo 'export PATH="$HOME/.local/bin:$GOPATH/bin:$PATH"' >> ~/.profile
+   source ~/.profile
+   mkdir -p "$GOPATH"
+   ```
 
 1. Check out scion into the appropriate directory inside your go workspace (or
    put a symlink into the go workspace to point to your existing scion
    checkout):
-   ```
+
+   ```bash
    mkdir -p "$GOPATH/src/github.com/scionproto"
    cd "$GOPATH/src/github.com/scionproto"
    git clone --recursive git@github.com:scionproto/scion
    cd scion
    ```
+
    If you don't have a github account, or haven't setup ssh access to it, this
    command will make git use https instead:
    `git config --global url.https://github.com/.insteadOf git@github.com:`
 
 1. Install required packages with dependencies:
-    ```
-    ./env/deps
-    ```
+
+   ```bash
+   ./env/deps
+   ```
 
 1. Install `docker` and `docker-compose`. Please follow the instructions for
    [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/) and
@@ -71,21 +86,23 @@ Necessary steps in order to run SCION:
 1. Create the topology and configuration files (according to
    `topology/Default.topo`):
 
-    `./scion.sh topology`
+   `./scion.sh topology`
 
-    The resulting directory structure will be created:
+   The resulting directory structure will be created:
 
-        ./gen/ISD{X}/AS{Y}/
-            {elem}{X}-{Y}-{Z}/
-                as.yml
-                path_policy.yml
-                supervisord.conf
-                topology.yml
-                certs/
-                    ISD{X}-AS{Y}-V0.crt
-                    ISD{X}-V0.trc
-                keys/
-                    as-sig.key
+   ```bash
+   ./gen/ISD{X}/AS{Y}/
+       {elem}{X}-{Y}-{Z}/
+           as.yml
+           path_policy.yml
+           supervisord.conf
+           topology.yml
+           certs/
+               ISD{X}-AS{Y}-V0.crt
+               ISD{X}-V0.trc
+           keys/
+               as-sig.key
+   ```
 
    The default topology looks like [this](doc/fig/default_topo.png).
 

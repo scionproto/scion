@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -32,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -41,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
@@ -50,9 +53,7 @@ import (
 )
 
 var (
-	cfg         config.Config
-	environment *env.Env
-
+	cfg   config.Config
 	tasks *periodicTasks
 )
 
@@ -69,7 +70,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if v, ok := env.CheckFlags(config.Sample); !ok {
+	if v, ok := env.CheckFlags(&cfg); !ok {
 		return v
 	}
 	if err := setupBasic(); err != nil {
@@ -88,24 +89,25 @@ func realMain() int {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
+	defer revCache.Close()
 	pathDB = pathdb.WithMetrics("std", pathDB)
+	defer pathDB.Close()
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
+	trustDB = trustdb.WithMetrics("std", trustDB)
+	defer trustDB.Close()
 	topo := itopo.Get()
 	trustConf := &trust.Config{
-		ServiceType: proto.ServiceType_ps,
+		MustHaveLocalChain: true,
+		ServiceType:        proto.ServiceType_ps,
 	}
-	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
-		log.Crit("Unable to initialize trust store", "err", err)
-		return 1
-	}
-	err = trustStore.LoadAuthoritativeTRC(filepath.Join(cfg.General.ConfigDir, "certs"))
-	if err != nil {
-		log.Crit("TRC error", "err", err)
+		log.Crit("Unable to load local crypto", "err", err)
 		return 1
 	}
 	topoAddress := topo.PS.GetById(cfg.General.ID)
@@ -113,29 +115,45 @@ func realMain() int {
 		log.Crit("Unable to find topo address")
 		return 1
 	}
-	msger, err := infraenv.InitMessenger(
-		topo.ISD_AS,
-		env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
-		env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
-		addr.SvcPS,
-		cfg.General.ReconnectToDispatcher,
-		cfg.EnableQUICTest,
-		trustStore,
-	)
+	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
+	if err != nil {
+		log.Crit("Unable to create tracer", "err", err)
+		return 1
+	}
+	defer trCloser.Close()
+	opentracing.SetGlobalTracer(tracer)
+	nc := infraenv.NetworkConfig{
+		IA:                    topo.ISD_AS,
+		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
+		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
+		SVC:                   addr.SvcPS,
+		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
+		QUIC: infraenv.QUIC{
+			Address:  cfg.QUIC.Address,
+			CertFile: cfg.QUIC.CertFile,
+			KeyFile:  cfg.QUIC.KeyFile,
+		},
+		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
+		TrustStore:            trustStore,
+		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
+	}
+	msger, err := nc.Messenger()
 	if err != nil {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
+	defer msger.CloseServer()
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	// TODO(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.
 	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	args := handlers.HandlerArgs{
-		PathDB:     pathDB,
-		RevCache:   revCache,
-		TrustStore: trustStore,
-		Config:     cfg.PS,
-		IA:         topo.ISD_AS,
+		PathDB:        pathDB,
+		RevCache:      revCache,
+		TrustStore:    trustStore,
+		QueryInterval: cfg.PS.QueryInterval.Duration,
+		IA:            topo.ISD_AS,
+		TopoProvider:  itopo.Provider(),
 	}
 	core := topo.Core
 	var segReqHandler infra.Handler
@@ -147,30 +165,40 @@ func realMain() int {
 	}
 	msger.AddHandler(infra.SegRequest, segReqHandler)
 	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
-	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStatInfoHandler(args))
+	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStateInfoHandler(args))
 	if cfg.PS.SegSync && core {
 		// Old down segment sync mechanism
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
 	}
-	msger.AddHandler(infra.SegRev, handlers.NewRevocHandler(args))
+	msger.AddHandler(infra.SignedRev, handlers.NewRevocHandler(args))
 	cfg.Metrics.StartPrometheus()
 	// Start handling requests/messages
 	go func() {
 		defer log.LogPanicAndExit()
 		msger.ListenAndServe()
 	}()
+	discoRunners, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full,
+		idiscovery.TopoHandlers{}, nil)
+	if err != nil {
+		log.Crit("Unable to start topology fetcher", "err", err)
+		return 1
+	}
+	defer discoRunners.Kill()
 	tasks = &periodicTasks{
 		args:    args,
 		msger:   msger,
 		trustDB: trustDB,
 	}
-	tasks.Start()
+	if err := tasks.Start(); err != nil {
+		log.Crit("Failed to start periodic tasks", "err", err)
+		return 1
+	}
 	defer tasks.Kill()
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }
@@ -185,28 +213,22 @@ type periodicTasks struct {
 	pathDBCleaner *periodic.Runner
 	cryptosyncer  *periodic.Runner
 	rcCleaner     *periodic.Runner
-	discovery     idiscovery.Runners
 }
 
-func (t *periodicTasks) Start() {
-	fatal.Check()
+func (t *periodicTasks) Start() error {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 	if t.running {
-		log.Warn("Trying to start task, but they are running! Ignored.")
-		return
+		log.Warn("Trying to start tasks, but they are running! Ignored.")
+		return nil
 	}
+	t.running = true
 	var err error
-	if cfg.PS.SegSync && cfg.General.Topology.Core {
+	if cfg.PS.SegSync && itopo.Get().Core {
 		t.segSyncers, err = segsyncer.StartAll(t.args, t.msger)
 		if err != nil {
-			fatal.Fatal(common.NewBasicError("Unable to start seg syncer", err))
+			return common.NewBasicError("Unable to start seg syncer", err)
 		}
-	}
-	t.discovery, err = idiscovery.StartRunners(cfg.Discovery, discovery.Full,
-		idiscovery.TopoHandlers{}, nil)
-	if err != nil {
-		fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
 	}
 	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
@@ -214,10 +236,10 @@ func (t *periodicTasks) Start() {
 		DB:    t.trustDB,
 		Msger: t.msger,
 		IA:    t.args.IA,
-	}, periodic.NewTicker(30*time.Second), 30*time.Second)
+	}, periodic.NewTicker(cfg.PS.CryptoSyncInterval.Duration), cfg.PS.CryptoSyncInterval.Duration)
 	t.rcCleaner = periodic.StartPeriodicTask(revcache.NewCleaner(t.args.RevCache),
 		periodic.NewTicker(10*time.Second), 10*time.Second)
-	t.running = true
+	return nil
 }
 
 func (t *periodicTasks) Kill() {
@@ -231,7 +253,6 @@ func (t *periodicTasks) Kill() {
 		syncer := t.segSyncers[i]
 		syncer.Kill()
 	}
-	t.discovery.Kill()
 	t.pathDBCleaner.Kill()
 	t.cryptosyncer.Kill()
 	t.rcCleaner.Kill()
@@ -242,6 +263,7 @@ func setupBasic() error {
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
+	cfg.InitDefaults()
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
@@ -250,14 +272,17 @@ func setupBasic() error {
 }
 
 func setup() error {
-	if err := env.InitGeneral(&cfg.General); err != nil {
-		return err
+	if err := cfg.Validate(); err != nil {
+		return common.NewBasicError("Unable to validate config", err)
 	}
 	itopo.Init(cfg.General.ID, proto.ServiceType_ps, itopo.Callbacks{})
-	if _, _, err := itopo.SetStatic(cfg.General.Topology, false); err != nil {
+	topo, err := topology.LoadFromFile(cfg.General.Topology)
+	if err != nil {
+		return common.NewBasicError("Unable to load topology", err)
+	}
+	if _, _, err := itopo.SetStatic(topo, false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
-	environment = infraenv.InitInfraEnvironment(cfg.General.TopologyPath)
-	cfg.InitDefaults()
+	infraenv.InitInfraEnvironment(cfg.General.Topology)
 	return nil
 }

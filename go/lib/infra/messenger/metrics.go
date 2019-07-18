@@ -15,15 +15,19 @@
 package messenger
 
 import (
+	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -82,6 +86,18 @@ func metricSrcValue(peer net.Addr, localIA addr.IA) string {
 	return infra.PromSrcISDRemote
 }
 
+func observe(ctx context.Context, msgType infra.MessageType,
+	action func(ctx context.Context) error) error {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx,
+		fmt.Sprintf("messenger.%s", msgType.String()))
+	defer span.Finish()
+	m := metricStartOp(msgType)
+	err := action(ctx)
+	m.publishResult(ctx, err)
+	return err
+}
+
 func metricStartOp(msgType infra.MessageType) opMetrics {
 	outCallsTotal.With(prometheus.Labels{
 		prom.LabelOperation: msgType.MetricLabel(),
@@ -97,8 +113,8 @@ type opMetrics struct {
 	begin time.Time
 }
 
-func (m *opMetrics) publishResult(err error) {
-	resLabel := errorToResultLabel(err)
+func (m *opMetrics) publishResult(ctx context.Context, err error) {
+	resLabel := errorToResultLabel(ctx, err)
 	resLabels := prometheus.Labels{
 		prom.LabelOperation: m.mt.MetricLabel(),
 		prom.LabelResult:    resLabel,
@@ -107,7 +123,7 @@ func (m *opMetrics) publishResult(err error) {
 	outResultsTotal.With(resLabels).Inc()
 }
 
-func errorToResultLabel(err error) string {
+func errorToResultLabel(ctx context.Context, err error) string {
 	// TODO(lukedirtwalker): categorize error better.
 	switch {
 	case err == nil:
@@ -115,6 +131,10 @@ func errorToResultLabel(err error) string {
 	case common.IsTimeoutErr(err):
 		return prom.ErrTimeout
 	default:
+		// Log the unclassified error. This allows to easily find the unclassified errors
+		// in the logs and change this code to make them classified.
+		logger := log.FromCtx(ctx)
+		logger.Debug("Unclassified RPC error", "msg", err.Error())
 		return prom.ErrNotClassified
 	}
 }

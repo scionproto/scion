@@ -1,4 +1,5 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
 
 go_library(
     name = "go_default_library",
@@ -14,7 +15,6 @@ go_library(
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/disp:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
-        "//go/lib/infra/transport:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",
@@ -23,7 +23,7 @@ go_library(
     ],
 )
 
-go_binary(
+scion_go_binary(
     name = "cert_req",
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],

@@ -82,7 +82,7 @@ func (r *Router) Start() {
 // ReloadConfig handles reloading the configuration when SIGHUP is received.
 func (r *Router) ReloadConfig() error {
 	var err error
-	var config *brconf.Conf
+	var config *brconf.BRConf
 	if config, err = r.loadNewConfig(); err != nil {
 		return common.NewBasicError("Unable to load config", err)
 	}
@@ -96,11 +96,12 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer log.LogPanicAndExit()
 	defer close(stopped)
 	pkts := make(ringbuf.EntryList, processBufCnt)
-	log.Debug("handleSock starting", "sock", *s)
+	dst := s.Conn.LocalAddr()
+	log.Debug("handleSock starting", "addr", dst)
 	for {
 		n, _ := s.Ring.Read(pkts, true)
 		if n < 0 {
-			log.Debug("handleSock stopping", "sock", *s)
+			log.Debug("handleSock stopping", "addr", dst)
 			return
 		}
 		for i := 0; i < n; i++ {

@@ -18,6 +18,7 @@ import (
 	"context"
 	"math/rand"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -28,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -70,12 +71,6 @@ func (h *segReqNonCoreHandler) Handle() *infra.HandlerResult {
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	var err error
-	dstCore, err := h.isCoreDst(subCtx, segReq)
-	if err != nil {
-		logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
-		rw.SendSegReply(subCtx, &path_mgmt.SegReply{Req: segReq})
-		return infra.MetricsErrInvalid
-	}
 	coreASes, err := h.coreASes(subCtx)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find local core ASes", "err", err)
@@ -83,10 +78,19 @@ func (h *segReqNonCoreHandler) Handle() *infra.HandlerResult {
 		// TODO(lukedirtwalker): Classify error better.
 		return infra.MetricsErrInternal
 	}
+	cores := coreASes.ASList()
+	dstCore, err := h.isCoreDst(subCtx, segReq, func() (net.Addr, error) {
+		return h.coreSvcAddr(subCtx, addr.SvcCS, cores)
+	})
+	if err != nil {
+		logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
+		rw.SendSegReply(subCtx, &path_mgmt.SegReply{Req: segReq})
+		return infra.MetricsErrInvalid
+	}
 	if dstCore {
-		h.handleCoreDst(subCtx, segReq, rw, segReq.DstIA(), coreASes.ASList())
+		h.handleCoreDst(subCtx, segReq, rw, segReq.DstIA(), cores)
 	} else {
-		h.handleNonCoreDst(subCtx, segReq, rw, segReq.DstIA(), coreASes.ASList())
+		h.handleNonCoreDst(subCtx, segReq, rw, segReq.DstIA(), cores)
 	}
 	// TODO(lukedirtwalker): the return value should come from the handle functions.
 	return infra.MetricsResultOk
@@ -117,31 +121,32 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
+	// For a local wildcard we return all the upSegs.
+	if segReq.DstIA().A == 0 && segReq.DstIA().I == h.localIA.I {
+		logger.Debug("[segReqHandler] found", "up", len(upSegs))
+		h.sendReply(ctx, rw, upSegs, nil, nil, segReq)
+		return
+	}
 	// TODO(lukedirtwalker): in case of CacheOnly we can use a single query,
 	// else we should start go routines for the core segs here.
 	var coreSegs []*seg.PathSegment
 	// All firstIAs of upSegs that are connected, used for filtering later.
 	connFirstIAs := make(map[addr.IA]struct{})
-	// For a local wildcard we return all the upSegs.
-	if segReq.DstIA().A == 0 && segReq.DstIA().I == h.localIA.I {
-		for _, ia := range coreASes {
-			connFirstIAs[ia] = struct{}{}
-		}
-	}
 	// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 	// Add a limit of cores we query.
+	resChans := make(map[addr.IA]<-chan []*seg.PathSegment)
+	var wg sync.WaitGroup
 	for _, src := range upSegs.FirstIAs() {
 		if !src.Equal(dst) {
-			res, err := h.fetchCoreSegs(ctx, src, dst, segReq.Flags.CacheOnly)
-			if err != nil {
-				logger.Error("[segReqHandler] Failed to find core segs", "err", err)
-				continue
-			}
-			if len(res) > 0 {
-				coreSegs = append(coreSegs, res...)
-				connFirstIAs[src] = struct{}{}
-			}
+			resChans[src] = h.fetchCoreSegsAsync(ctx, src, dst, segReq.Flags.CacheOnly, &wg)
 		} else {
+			connFirstIAs[src] = struct{}{}
+		}
+	}
+	wg.Wait()
+	for src, resChan := range resChans {
+		for s := range resChan {
+			coreSegs = append(coreSegs, s...)
 			connFirstIAs[src] = struct{}{}
 		}
 	}
@@ -154,12 +159,17 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	h.sendReply(ctx, rw, upSegs, coreSegs, nil, segReq)
 }
 
+type srcDst struct {
+	src addr.IA
+	dst addr.IA
+}
+
 func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	rw infra.ResponseWriter, dstIA addr.IA, coreASes []addr.IA) {
 
 	logger := log.FromCtx(ctx)
 	cPSResolve := func() (net.Addr, error) {
-		return h.corePSAddr(ctx, coreASes)
+		return h.coreSvcAddr(ctx, addr.SvcPS, coreASes)
 	}
 	downSegs, err := h.fetchDownSegs(ctx, dstIA, cPSResolve, segReq.Flags.CacheOnly)
 	if err != nil {
@@ -182,8 +192,9 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 	// All firstIAs of up-/down-Segs that are connected, used for filtering later.
 	connUpFirstIAs := make(map[addr.IA]struct{})
 	connDownFirstIAs := make(map[addr.IA]struct{})
-	// TODO(lukedirtwalker): in case of CacheOnly we can use a single query,
-	// else we should start go routines for the core segs here.
+	resChans := make(map[srcDst]<-chan []*seg.PathSegment)
+	var wg sync.WaitGroup
+	// TODO(lukedirtwalker): in case of CacheOnly we can use a single query.
 	for _, dst := range downSegs.FirstIAs() {
 		// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 		// Add a limit of cores we query.
@@ -193,16 +204,16 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 				connDownFirstIAs[dst] = struct{}{}
 				continue
 			}
-			cs, err := h.fetchCoreSegs(ctx, src, dst, segReq.Flags.CacheOnly)
-			if err != nil {
-				logger.Error("Failed to find core segs", "src", src, "dst", dst, "err", err)
-				continue
-			}
-			if len(cs) > 0 {
-				coreSegs = append(coreSegs, cs...)
-				connUpFirstIAs[src] = struct{}{}
-				connDownFirstIAs[dst] = struct{}{}
-			}
+			resChans[srcDst{src: src, dst: dst}] = h.fetchCoreSegsAsync(ctx, src, dst,
+				segReq.Flags.CacheOnly, &wg)
+		}
+	}
+	wg.Wait()
+	for sd, resChan := range resChans {
+		for s := range resChan {
+			coreSegs = append(coreSegs, s...)
+			connUpFirstIAs[sd.src] = struct{}{}
+			connDownFirstIAs[sd.dst] = struct{}{}
 		}
 	}
 	// Make sure we only return connected segments.
@@ -234,6 +245,29 @@ func (h *segReqNonCoreHandler) fetchUpSegsFromDB(ctx context.Context,
 	return h.fetchSegsFromDB(ctx, query)
 }
 
+func (h *segReqNonCoreHandler) fetchCoreSegsAsync(ctx context.Context, src, dst addr.IA,
+	cacheOnly bool, wg *sync.WaitGroup) <-chan []*seg.PathSegment {
+
+	logger := log.FromCtx(ctx)
+	resChan := make(chan []*seg.PathSegment, 1)
+	wg.Add(1)
+	go func() {
+		defer log.LogPanicAndExit()
+		defer wg.Done()
+		defer close(resChan)
+		res, err := h.fetchCoreSegs(ctx, src, dst, cacheOnly)
+		if err != nil {
+			logger.Error("[segReqHandler] Failed to find core segs", "err", err)
+			return
+		}
+		// only send non empty slices to the channel.
+		if len(res) > 0 {
+			resChan <- res
+		}
+	}()
+	return resChan
+}
+
 func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context, src, dst addr.IA,
 	dbOnly bool) ([]*seg.PathSegment, error) {
 
@@ -261,7 +295,7 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context, src, dst addr.
 		}
 	}
 	// try remote:
-	cPS, err := h.corePSAddr(ctx, []addr.IA{src})
+	cPS, err := h.coreSvcAddr(ctx, addr.SvcPS, []addr.IA{src})
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +307,7 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context, src, dst addr.
 	return h.fetchSegsFromDB(ctx, q)
 }
 
-func (h *segReqNonCoreHandler) corePSAddr(ctx context.Context,
+func (h *segReqNonCoreHandler) coreSvcAddr(ctx context.Context, svc addr.HostSVC,
 	coreASes []addr.IA) (net.Addr, error) {
 
 	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, true)
@@ -285,5 +319,5 @@ func (h *segReqNonCoreHandler) corePSAddr(ctx context.Context,
 	}
 	// select a core AS we have an up segment to.
 	seg := upSegs[rand.Intn(len(upSegs))]
-	return addrutil.GetPath(addr.SvcPS, seg, seg.FirstIA(), h.topology)
+	return addrutil.GetPath(svc, seg, h.topoProvider)
 }

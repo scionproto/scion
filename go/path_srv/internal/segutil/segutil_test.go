@@ -25,25 +25,22 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
-var (
-	g            = graph.NewDefaultGraph()
-	seg210_222_1 = g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
-
-	timeout = time.Second
-)
+var timeout = time.Second
 
 func TestNoRevokedHopIntf(t *testing.T) {
 	Convey("NoRevokedHopIntf", t, func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
+		seg210_222_1 := createSeg(ctrl)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		revCache := mock_revcache.NewMockRevCache(ctrl)
 		Convey("Given an empty revcache", func() {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any())
@@ -52,7 +49,9 @@ func TestNoRevokedHopIntf(t *testing.T) {
 			SoMsg("No revocation expected", noR, ShouldBeTrue)
 		})
 		Convey("Given a revcache with an on segment revocation", func() {
-			sRev := toSigned(t, defaultRevInfo(graph.If_210_X_211_A))
+			sRev, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(graph.If_210_X_211_A),
+				infra.NullSigner)
+			xtest.FailOnErr(t, err)
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 				revcache.Revocations{
 					revcache.Key{IA: xtest.MustParseIA("2-ff00:0:211"),
@@ -79,7 +78,7 @@ func TestRelevantRevInfos(t *testing.T) {
 		defer cancelF()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		segs := []*seg.PathSegment{seg210_222_1}
+		segs := []*seg.PathSegment{createSeg(ctrl)}
 		revCache := mock_revcache.NewMockRevCache(ctrl)
 		Convey("Given an empty revcache", func() {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any())
@@ -98,10 +97,9 @@ func TestRelevantRevInfos(t *testing.T) {
 	})
 }
 
-func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {
-	sr, err := path_mgmt.NewSignedRevInfo(r, nil)
-	xtest.FailOnErr(t, err)
-	return sr
+func createSeg(ctrl *gomock.Controller) *seg.PathSegment {
+	g := graph.NewDefaultGraph(ctrl)
+	return g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
 }
 
 func defaultRevInfo(ifId common.IFIDType) *path_mgmt.RevInfo {

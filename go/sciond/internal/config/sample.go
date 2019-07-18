@@ -14,142 +14,28 @@
 
 package config
 
-const Sample = `[general]
-  # The ID of the service.
-  ID = "sd"
+const idSample = "sd"
 
-  # Directory for loading AS information, certs, keys, path policy, topology.
-  ConfigDir = "/etc/scion"
+const sdSample = `
+# Address to listen on via the reliable socket protocol. If empty,
+# a reliable socket server on the default socket is started.
+Reliable = "/run/shm/sciond/default.sock"
 
-  # Topology file. If not specified, topology.json is loaded from the config
-  # directory.
-  # Topology = "/etc/scion/topology.json"
+# Address to listen on for normal unixgram messages. If empty, a
+# unixgram server on the default socket is started.
+Unix = "/run/shm/sciond/default-unix.sock"
 
-  # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
-  # ReconnectToDispatcher = true
+# If set to True, the socket is removed before being created. (default false)
+DeleteSocket = false
 
-[logging]
-  [logging.file]
-    # Location of the logging file.
-    Path = "/var/log/scion/sd.log"
+# Local address to listen on for SCION messages (if Bind is not set),
+# and to send out messages to other nodes. (required)
+Public = "1-ff00:0:110,[127.0.0.1]:0"
 
-    # File logging level (trace|debug|info|warn|error|crit) (default debug)
-    Level = "debug"
+# If set, Bind is the preferred local address to listen on for SCION
+# messages.
+# Bind = "1-ff00:0:110,[127.0.0.1]:0"
 
-    # Max size of log file in MiB (default 50)
-    # Size = 50
-
-    # Max age of log file in days (default 7)
-    # MaxAge = 7
-
-    # MaxBackups is the maximum number of log files to retain (default 10)
-    # MaxBackups = 10
-
-    # How frequently to flush to the log file, in seconds. If 0, all messages
-    # are immediately flushed. If negative, messages are never flushed
-    # automatically. (default 5)
-    FlushInterval = 5
-  [logging.console]
-    # Console logging level (trace|debug|info|warn|error|crit) (default crit)
-    Level = "crit"
-
-[metrics]
-  # The address to export prometheus metrics on. If not set, metrics are not
-  # exported.
-  # Prometheus = "127.0.0.1:8000"
-
-[TrustDB]
-  # The type of trustdb backend
-  Backend = "sqlite"
-  # Connection for the trust database
-  Connection = "/var/lib/scion/spki/sd.trust.db"
-
-[discovery]
-  [discovery.static]
-    # Enable periodic fetching of the static topology. (default false)
-    Enable = false
-
-    # Time between two consecutive static topology queries. (default 5m)
-    Interval = "5m"
-
-    # Timeout for querying the static topology. (default 1s)
-    Timeout = "1s"
-
-    # Require https connection. (default false)
-    Https = false
-
-    # Filename where the updated static topologies are written. In case of the
-    # empty string, the updated topologies are not written. (default "")
-    Filename = ""
-
-    [discovery.static.connect]
-      # Maximum time spent attempting to fetch the topology from the
-      # discovery service on start. If no topology is successfully fetched
-      # in this period, the FailAction is executed. (default 20s)
-      InitialPeriod = "20s"
-
-      # The action to take if no topology is successfully fetched in
-      # the InitialPeriod.
-      # - Fatal: Exit process.
-      # - Continue: Log error and continue with execution.
-      # (Fatal | Continue) (default Continue)
-      FailAction = "Continue"
-
-  [discovery.dynamic]
-    # Enable periodic fetching of the dynamic topology. (default false)
-    Enable = false
-
-    # Time between two consecutive dynamic topology queries. (default 5s)
-    Interval = "5s"
-
-    # Timeout for querying the dynamic topology. (default 1s)
-    Timeout = "1s"
-
-    # Require https connection. (default false)
-    Https = false
-
-    [discovery.dynamic.connect]
-      # Maximum time spent attempting to fetch the topology from the
-      # discovery service on start. If no topology is successfully fetched
-      # in this period, the FailAction is executed. (default 20s)
-      InitialPeriod = "20s"
-
-      # The action to take if no topology is successfully fetched in InitialPeriod.
-      # - Fatal: Exit process.
-      # - Continue: Log error and continue with execution.
-      # (Fatal | Continue) (default Continue)
-      FailAction = "Continue"
-
-[sd]
-  # Address to listen on via the reliable socket protocol. If empty,
-  # a reliable socket server on the default socket is started.
-  Reliable = "/run/shm/sciond/default.sock"
-
-  # Address to listen on for normal unixgram messages. If empty, a
-  # unixgram server on the default socket is started.
-  Unix = "/run/shm/sciond/default-unix.sock"
-
-  # If set to True, the socket is removed before being created. (default false)
-  DeleteSocket = false
-
-  # Local address to listen on for SCION messages (if Bind is not set),
-  # and to send out messages to other nodes.
-  Public = "1-ff00:0:110,[127.0.0.1]:0"
-
-  # If set, Bind is the preferred local address to listen on for SCION
-  # messages.
-  # Bind = "1-ff00:0:110,[127.0.0.1]:0"
-
-  # The time after which segments for a destination are refetched. (default 5m)
-  QueryInterval = "5m"
-
-  [sd.PathDB]
-    # The type of pathdb backend
-    Backend = "sqlite"
-    # Path to the path database.
-    Connection = "/var/lib/scion/sd.path.db"
-
-  [sd.RevCache]
-    Backend = "mem"
-
+# The time after which segments for a destination are refetched. (default 5m)
+QueryInterval = "5m"
 `

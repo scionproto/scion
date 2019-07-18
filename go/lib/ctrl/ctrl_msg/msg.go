@@ -31,17 +31,17 @@ type notifyF func(context.Context, proto.Cerealizable, net.Addr) error
 
 type Requester struct {
 	signer ctrl.Signer
-	sigv   ctrl.SigVerifier
+	sigv   ctrl.Verifier
 	d      *disp.Dispatcher
 }
 
-func NewRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher) *Requester {
+func NewRequester(signer ctrl.Signer, sigv ctrl.Verifier, d *disp.Dispatcher) *Requester {
 	return &Requester{signer: signer, sigv: sigv, d: d}
 }
 
 func (r *Requester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
-	spld, err := r.signer.Sign(pld)
+	spld, err := pld.SignedPld(r.signer)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -54,10 +54,7 @@ func (r *Requester) Request(ctx context.Context, pld *ctrl.Pld,
 		return nil, nil, common.NewBasicError("ctrl_msg: reply is not a ctrl.SignedPld", nil,
 			"type", common.TypeOf(reply), "reply", reply)
 	}
-	if err := r.sigv.Verify(ctx, rspld); err != nil {
-		return nil, rspld.Sign, err
-	}
-	rpld, err := rspld.Pld()
+	rpld, err := rspld.GetVerifiedPld(ctx, r.sigv)
 	if err != nil {
 		return nil, rspld.Sign, err
 	}

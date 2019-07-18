@@ -193,6 +193,7 @@ func (r *Router) posixInputRead(msgs []ipv4.Message, metas []conn.ReadMeta,
 func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	defer log.LogPanicAndExit()
 	defer close(stopped)
+	var ringClosed bool
 	src := s.Conn.LocalAddr()
 	dst := s.Conn.RemoteAddr()
 	log.Info("posixOutput starting", "addr", src)
@@ -208,11 +209,15 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	outputWriteErrs := metrics.OutputWriteErrors.With(s.Labels)
 	outputWriteLatency := metrics.OutputWriteLatency.With(s.Labels)
 
+	// This loop is exited in two cases:
+	// 1. When the the ring is closed and fully drained.
+	// 2. When a non-recoverable error happens.
 	for {
 		var bytes int // Needs to be declared before goto
 		var t float64 // Needs to be declared before goto
 		var ok bool
 		if epkts, ok = r.posixPrepOutput(epkts, msgs, s.Ring, dst != nil); !ok {
+			ringClosed = true
 			break
 		}
 		toWrite := min(len(epkts), outputBatchCnt)
@@ -223,14 +228,21 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 			outputWriteErrs.Inc()
 			log.Error("Error sending packet(s)", "src", src, "err", err)
 			// If some packets were still sent, continue processing. Otherwise:
-			if pktsWritten < 0 {
+			if pktsWritten <= 0 {
 				// If we know the error is temporary, retry sending, otherwise drop
 				// the current batch and move on.
 				if common.IsTemporaryErr(err) {
 					continue
 				}
-				pktsWritten = toWrite
-				goto End
+				// Before dropping the packets, we have to return them to the freelist.
+				releasePkts(epkts[:toWrite])
+				// Drop packets from the failed write attempt.
+				epkts = shiftUnwrittenPkts(epkts, toWrite)
+				if isRecoverableErr(err) {
+					continue
+				}
+				// Shutdown writer if the error is non-recoverable.
+				break
 			}
 		}
 		t = time.Since(start).Seconds()
@@ -250,20 +262,28 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 		outputPkts.Add(float64(pktsWritten))
 		outputBytes.Add(float64(bytes))
 		outputWrites.Inc()
-	End:
-		// Move unsent packets to the start.
-		copied := copy(epkts, epkts[pktsWritten:])
-		epkts = epkts[:copied]
+		epkts = shiftUnwrittenPkts(epkts, pktsWritten)
 	}
-	// Release any unsent pkts.
-	for i := range epkts {
-		rp := epkts[i].(*rpkt.EgressRtrPkt).Rp
-		rp.Release()
+	// Release any remaining unsent pkts.
+	releasePkts(epkts)
+	epkts = epkts[:0]
+	// If the ring is not already closed, drain it until it is closed. This
+	// prevents writers from blocking in case of an unrecoverable error.
+	if !ringClosed {
+		for {
+			var ok bool
+			if epkts, ok = r.posixPrepOutput(epkts, msgs, s.Ring, dst != nil); !ok {
+				break
+			}
+			releasePkts(epkts)
+			epkts = epkts[:0]
+		}
 	}
 }
 
 // posixPrepOutput fetches new packets if epkts is empty, and sets the msgs
-// Buffers and Addr based on the corresponding entries in epkts.
+// Buffers and Addr based on the corresponding entries in epkts. The second return
+// value is false, if the underlying ring is closed and drained.
 func (r *Router) posixPrepOutput(epkts ringbuf.EntryList, msgs []ipv4.Message,
 	ring *ringbuf.Ring, connected bool) (ringbuf.EntryList, bool) {
 
@@ -291,6 +311,24 @@ func (r *Router) posixPrepOutput(epkts ringbuf.EntryList, msgs []ipv4.Message,
 		}
 	}
 	return epkts, true
+}
+
+// releasePkts releases all pkts in the entry list.
+func releasePkts(epkts ringbuf.EntryList) {
+	for _, epkt := range epkts {
+		epkt.(*rpkt.EgressRtrPkt).Rp.Release()
+	}
+}
+
+// shiftUnwrittenPkts moves the unwritten packets to the start.
+func shiftUnwrittenPkts(epkts ringbuf.EntryList, pktsWritten int) ringbuf.EntryList {
+	copied := copy(epkts, epkts[pktsWritten:])
+	return epkts[:copied]
+}
+
+// isRecoverableErr checks whether an non-temporary error is recoverable.
+func isRecoverableErr(err error) bool {
+	return isConnRefused(err)
 }
 
 func isConnRefused(err error) bool {

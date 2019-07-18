@@ -30,6 +30,7 @@ from lib.util import read_file, write_file
 from topology.common import (
     ArgsTopoDicts,
     BR_CONFIG_NAME,
+    BS_CONFIG_NAME,
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
@@ -91,8 +92,16 @@ class SupervisorGenerator(object):
         return entries
 
     def _bs_entries(self, topo, base):
-        return self._std_entries(topo, "BeaconService", "python/bin/beacon_server", base,
-                                 BS_PROM_PORT)
+        if self.args.beacon_server == "py":
+            return self._std_entries(topo, "BeaconService", "python/bin/beacon_server", base,
+                                     BS_PROM_PORT)
+        entries = []
+        for k, v in topo.get("BeaconService", {}).items():
+            # only a single Go-BS per AS is currently supported
+            if k.endswith("-1"):
+                conf = os.path.join(base, k, BS_CONFIG_NAME)
+                entries.append((k, ["bin/beacon_srv", "-config", conf]))
+        return entries
 
     def _cs_entries(self, topo, base):
         if self.args.cert_server == "py":

@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -42,7 +44,7 @@ func (i *IFStateInfos) String() string {
 }
 
 type IFStateInfo struct {
-	IfID     uint64
+	IfID     common.IFIDType
 	Active   bool
 	SRevInfo *SignedRevInfo
 }

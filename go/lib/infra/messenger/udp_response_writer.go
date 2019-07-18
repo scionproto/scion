@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,4 +52,10 @@ func (rw *UDPResponseWriter) SendChainIssueReply(ctx context.Context,
 
 func (rw *UDPResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error {
 	return rw.Messenger.SendSegReply(ctx, msg, rw.Remote, rw.ID)
+}
+
+func (rw *UDPResponseWriter) SendIfStateInfoReply(ctx context.Context,
+	msg *path_mgmt.IFStateInfos) error {
+
+	return rw.Messenger.SendIfStateInfos(ctx, msg, rw.Remote, rw.ID)
 }

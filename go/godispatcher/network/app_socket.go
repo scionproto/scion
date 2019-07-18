@@ -53,17 +53,22 @@ func (s *AppSocketServer) Serve() error {
 // AppConnManager handles new connections coming from SCION applications.
 type AppConnManager struct {
 	RoutingTable *IATable
-	// OverlayConn is the network connection to which egress traffic is sent.
-	OverlayConn net.PacketConn
+	// IPv4OverlayConn is the network connection to which IPv4 egress traffic
+	// is sent.
+	IPv4OverlayConn net.PacketConn
+	// IPv6OverlayConn is the network connection to which IPv6 egress traffic
+	// is sent.
+	IPv6OverlayConn net.PacketConn
 }
 
 // Handle passes conn off to a per-connection state handler.
 func (h *AppConnManager) Handle(conn net.PacketConn) {
 	ch := &AppConnHandler{
-		Conn:         conn,
-		RoutingTable: h.RoutingTable,
-		OverlayConn:  h.OverlayConn,
-		Logger:       log.Root().New("clientID", fmt.Sprintf("%p", conn)),
+		Conn:            conn,
+		RoutingTable:    h.RoutingTable,
+		IPv4OverlayConn: h.IPv4OverlayConn,
+		IPv6OverlayConn: h.IPv6OverlayConn,
+		Logger:          log.Root().New("clientID", fmt.Sprintf("%p", conn)),
 	}
 	go func() {
 		defer log.LogPanicAndExit()
@@ -76,9 +81,13 @@ type AppConnHandler struct {
 	RoutingTable *IATable
 	// Conn is the local socket to which the application is connected.
 	Conn net.PacketConn
-	// OverlayConn is the network connection to which egress traffic is sent.
-	OverlayConn net.PacketConn
-	Logger      log.Logger
+	// IPv4OverlayConn is the network connection to which egress IPv4 traffic
+	// is sent.
+	IPv4OverlayConn net.PacketConn
+	// IPv6OverlayConn is the network connection to which egress IPv6 traffic
+	// is sent.
+	IPv6OverlayConn net.PacketConn
+	Logger          log.Logger
 }
 
 func (h *AppConnHandler) Handle() {
@@ -86,7 +95,7 @@ func (h *AppConnHandler) Handle() {
 	defer h.Logger.Info("Closed client socket")
 	defer h.Conn.Close()
 
-	ref, tableEntry, err := h.doRegExchange()
+	ref, tableEntry, useIPv6, err := h.doRegExchange()
 	if err != nil {
 		h.Logger.Warn("registration error", "err", err)
 		return
@@ -95,20 +104,30 @@ func (h *AppConnHandler) Handle() {
 	metrics.OpenSockets.WithLabelValues(metrics.GetOpenConnectionLabel(ref.SVCAddr())).Inc()
 	defer metrics.OpenSockets.WithLabelValues(metrics.GetOpenConnectionLabel(ref.SVCAddr())).Dec()
 
+	defer tableEntry.appIngressRing.Close()
 	go func() {
 		defer log.LogPanicAndExit()
 		h.RunRingToAppDataplane(tableEntry.appIngressRing)
 	}()
-	h.RunAppToNetDataplane(ref)
+
+	conn := h.IPv4OverlayConn
+	if useIPv6 {
+		conn = h.IPv6OverlayConn
+	}
+	h.RunAppToNetDataplane(ref, conn)
 }
 
-func (h *AppConnHandler) doRegExchange() (registration.RegReference, *TableEntry, error) {
+// doRegExchange manages an application's registration request, and returns a
+// reference to registered data that should be freed at the end of the
+// registration, information about allocated ring buffers, a boolean specifying
+// whether to use IPv6 egress instead of IPv4, and whether an error occurred.
+func (h *AppConnHandler) doRegExchange() (registration.RegReference, *TableEntry, bool, error) {
 	b := respool.GetBuffer()
 	defer respool.PutBuffer(b)
 
 	regInfo, err := h.recvRegistration(b)
 	if err != nil {
-		return nil, nil, common.NewBasicError("registration message error", nil, "err", err)
+		return nil, nil, false, common.NewBasicError("registration message error", nil, "err", err)
 	}
 
 	tableEntry := newTableEntry(h.Conn)
@@ -120,7 +139,7 @@ func (h *AppConnHandler) doRegExchange() (registration.RegReference, *TableEntry
 		tableEntry,
 	)
 	if err != nil {
-		return nil, nil, common.NewBasicError("registration table error", nil, "err", err)
+		return nil, nil, false, common.NewBasicError("registration table error", nil, "err", err)
 	}
 
 	udpRef := ref.(registration.RegReference)
@@ -128,11 +147,12 @@ func (h *AppConnHandler) doRegExchange() (registration.RegReference, *TableEntry
 	if err := h.sendConfirmation(b, &reliable.Confirmation{Port: port}); err != nil {
 		// Need to release stale state from the table
 		ref.Free()
-		return nil, nil, common.NewBasicError("confirmation message error", nil, "err", err)
+		return nil, nil, false, common.NewBasicError("confirmation message error", nil, "err", err)
 	}
 	h.logRegistration(regInfo.IA, udpRef.UDPAddr(), getBindIP(regInfo.BindAddress),
 		regInfo.SVCAddress)
-	return udpRef, tableEntry, nil
+	isIPv6 := regInfo.PublicAddress.IP.To4() == nil
+	return udpRef, tableEntry, isIPv6, nil
 }
 
 func (h *AppConnHandler) logRegistration(ia addr.IA, public *net.UDPAddr, bind net.IP,
@@ -177,7 +197,9 @@ func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirm
 
 // RunAppToNetDataplane moves packets from the application's socket to the
 // overlay socket.
-func (h *AppConnHandler) RunAppToNetDataplane(ref registration.RegReference) {
+func (h *AppConnHandler) RunAppToNetDataplane(ref registration.RegReference,
+	ovConn net.PacketConn) {
+
 	for {
 		pkt := respool.GetPacket()
 		// XXX(scrye): we don't release the reference on error conditions, and
@@ -197,7 +219,7 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.RegReference) {
 			log.Warn("SCMP Request ID error, packet still sent", "err", err)
 		}
 
-		n, err := pkt.SendOnConn(h.OverlayConn, pkt.OverlayRemote)
+		n, err := pkt.SendOnConn(ovConn, pkt.OverlayRemote)
 		if err != nil {
 			h.Logger.Error("[app->network] Overlay socket error", "err", err)
 		} else {
@@ -226,6 +248,10 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 	entries := make(ringbuf.EntryList, 1)
 	for {
 		n, _ := r.Read(entries, true)
+		if n < 0 {
+			// Ring was closed because app shut down its data socket
+			return
+		}
 		if n > 0 {
 			pkt := entries[0].(*respool.Packet)
 			overlayAddr, err := overlay.NewOverlayAddr(

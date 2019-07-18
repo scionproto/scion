@@ -25,6 +25,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -42,7 +43,9 @@ func getDuration(units time.Duration) time.Duration {
 
 func TestQuery(t *testing.T) {
 	Convey("Query, we have 0 paths and SCIOND is asked again, receive 1 path", t, func() {
-		g := graph.NewDefaultGraph()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		g := graph.NewDefaultGraph(ctrl)
 		pm := NewPR(t, g, 0, 0)
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -75,7 +78,9 @@ var allowEntry = &pathpol.ACLEntry{Action: pathpol.Allow, Rule: pathpol.NewHopPr
 var denyEntry = &pathpol.ACLEntry{Action: pathpol.Deny, Rule: pathpol.NewHopPredicate()}
 
 func TestQueryFilter(t *testing.T) {
-	g := graph.NewDefaultGraph()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	g := graph.NewDefaultGraph(ctrl)
 	pm := NewPR(t, g, 0, 0)
 	srcIA := xtest.MustParseIA("1-ff00:0:133")
 	dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -119,7 +124,9 @@ func TestQueryFilter(t *testing.T) {
 
 func TestACLPolicyFilter(t *testing.T) {
 	Convey("Query with ACL policy filter", t, func() {
-		g := graph.NewDefaultGraph()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		g := graph.NewDefaultGraph(ctrl)
 		pm := NewPR(t, g, 0, 0)
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -135,7 +142,9 @@ func TestACLPolicyFilter(t *testing.T) {
 		SoMsg("aps len", len(aps), ShouldEqual, 2)
 	})
 	Convey("Query with longer ACL policy filter", t, func() {
-		g := graph.NewDefaultGraph()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		g := graph.NewDefaultGraph(ctrl)
 		pm := NewPR(t, g, 0, 0)
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -396,7 +405,7 @@ func newTestRev(t *testing.T, rev string) *path_mgmt.SignedRevInfo {
 		&path_mgmt.RevInfo{
 			IfID:     pi.IfID,
 			RawIsdas: pi.RawIsdas,
-		}, nil)
+		}, infra.NullSigner)
 	xtest.FailOnErr(t, err)
 	return signedRevInfo
 }

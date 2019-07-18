@@ -21,6 +21,7 @@ package env
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -28,10 +29,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/uber/jaeger-client-go"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
@@ -55,6 +60,10 @@ const (
 	// SciondInitConnectPeriod is the default total amount of time spent
 	// attempting to connect to sciond on start.
 	SciondInitConnectPeriod = 20 * time.Second
+
+	// ShutdownGraceInterval is the time applications wait after issuing a
+	// clean shutdown signal, before forcerfully tearing down the application.
+	ShutdownGraceInterval = 5 * time.Second
 )
 
 var sighupC chan os.Signal
@@ -65,51 +74,61 @@ func init() {
 	signal.Notify(sighupC, syscall.SIGHUP)
 }
 
+var _ config.Config = (*General)(nil)
+
 type General struct {
 	// ID is the SCION element ID. This is used to choose the relevant
 	// portion of the topology file for some services.
 	ID string
 	// ConfigDir for loading extra files (currently, only topology.json)
 	ConfigDir string
-	// TopologyPath is the file path for the local topology JSON file.
-	TopologyPath string `toml:"Topology"`
-	// Topology is the loaded topology file.
-	Topology *topology.Topo `toml:"-"`
-	// ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
+	// Topology is the file path for the local topology JSON file.
+	Topology string
+	// ReconnectToDispatcher can be set to true to enable transparent dispatcher
+	// reconnects.
 	ReconnectToDispatcher bool
 }
 
-// setFiles determines the values for extra config files (e.g., topology.json).
-func (cfg *General) setFiles() error {
-	if cfg.ConfigDir == "" {
-		return nil
+// InitDefaults sets the default value for Topology if not already set.
+func (cfg *General) InitDefaults() {
+	if cfg.Topology == "" {
+		cfg.Topology = filepath.Join(cfg.ConfigDir, DefaultTopologyPath)
 	}
-	info, err := os.Stat(cfg.ConfigDir)
-	if err != nil {
-		return err
+}
+
+func (cfg *General) Validate() error {
+	if cfg.ID == "" {
+		return common.NewBasicError("No element ID specified", nil)
 	}
-	if !info.IsDir() {
-		return common.NewBasicError(
-			fmt.Sprintf("%v is not a directory", cfg.ConfigDir), nil)
-	}
-	// Fill in file names, but do not override specifics
-	if cfg.TopologyPath == "" {
-		cfg.TopologyPath = filepath.Join(cfg.ConfigDir, DefaultTopologyPath)
+	return cfg.checkDir()
+}
+
+// checkDir checks that the config dir is a directory.
+func (cfg *General) checkDir() error {
+	if cfg.ConfigDir != "" {
+		info, err := os.Stat(cfg.ConfigDir)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return common.NewBasicError(
+				fmt.Sprintf("%v is not a directory", cfg.ConfigDir), nil)
+		}
 	}
 	return nil
 }
 
-func InitGeneral(cfg *General) error {
-	cfg.setFiles()
-	topo, err := topology.LoadFromFile(cfg.TopologyPath)
-	if err != nil {
-		return err
-	}
-	cfg.Topology = topo
-	return nil
+func (cfg *General) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(generalSample, ctx[config.ID]))
 }
 
-// SciondClient contains information to for running snet with sciond.
+func (cfg *General) ConfigName() string {
+	return "general"
+}
+
+var _ config.Config = (*SciondClient)(nil)
+
+// SciondClient contains information for running snet with sciond.
 type SciondClient struct {
 	// Path is the sciond path. It defaults to sciond.DefaultSCIONDPath.
 	Path string
@@ -118,7 +137,7 @@ type SciondClient struct {
 	InitialConnectPeriod util.DurWrap
 }
 
-func InitSciondClient(cfg *SciondClient) {
+func (cfg *SciondClient) InitDefaults() {
 	if cfg.Path == "" {
 		cfg.Path = sciond.DefaultSCIONDPath
 	}
@@ -127,25 +146,32 @@ func InitSciondClient(cfg *SciondClient) {
 	}
 }
 
-type Env struct {
-	// AppShutdownSignal is closed when the process receives a signal to close
-	// (e.g., SIGTERM).
-	AppShutdownSignal chan struct{}
+func (cfg *SciondClient) Validate() error {
+	if cfg.InitialConnectPeriod.Duration == 0 {
+		return common.NewBasicError("InitialConnectPeriod must not be zero", nil)
+	}
+	return nil
+}
+
+func (cfg *SciondClient) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, sciondClientSample)
+}
+
+func (cfg *SciondClient) ConfigName() string {
+	return "sd_client"
 }
 
 // SetupEnv initializes a basic environment for applications. If reloadF is not
 // nil, the application will call reloadF whenever it receives a SIGHUP signal.
-func SetupEnv(reloadF func()) *Env {
-	e := &Env{}
-	e.setupSignals(reloadF)
-	return e
+func SetupEnv(reloadF func()) {
+	setupSignals(reloadF)
 }
 
-// setupSignals sets up a goroutine that closes AppShutdownSignal on received
-// SIGTERM/SIGINT signals. If reloadF is not nil, setupSignals also calls
-// reloadF on SIGHUP.
-func (e *Env) setupSignals(reloadF func()) {
-	e.AppShutdownSignal = make(chan struct{})
+// setupSignals sets up a goroutine that on received SIGTERM/SIGINT signals
+// informs the application that it should shut down. If reloadF is not nil,
+// setupSignals also calls reloadF on SIGHUP.
+func setupSignals(reloadF func()) {
+	fatal.Check()
 	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt)
 	signal.Notify(sig, syscall.SIGTERM)
@@ -153,7 +179,7 @@ func (e *Env) setupSignals(reloadF func()) {
 		defer log.LogPanicAndExit()
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
-		close(e.AppShutdownSignal)
+		fatal.Shutdown(ShutdownGraceInterval)
 	}()
 	if reloadF != nil {
 		go func() {
@@ -203,10 +229,22 @@ func GetBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	return &snet.Addr{IA: ia, Host: bind}
 }
 
+var _ config.Config = (*Metrics)(nil)
+
 type Metrics struct {
+	config.NoDefaulter
+	config.NoValidator
 	// Prometheus contains the address to export prometheus metrics on. If
 	// not set, metrics are not exported.
 	Prometheus string
+}
+
+func (cfg *Metrics) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, metricsSample)
+}
+
+func (cfg *Metrics) ConfigName() string {
+	return "metrics"
 }
 
 func (cfg *Metrics) StartPrometheus() {
@@ -223,8 +261,66 @@ func (cfg *Metrics) StartPrometheus() {
 	}
 }
 
-// Infra contains information that is BS, CS, PS specific.
-type Infra struct {
-	// Type must be one of BS, CS or PS.
-	Type string
+// Tracing contains configuration for tracing.
+type Tracing struct {
+	// Enabled enables tracing for this service.
+	Enabled bool
+	// Enable debug mode.
+	Debug bool
+	// Agent is the address of the local agent that handles the reported
+	// traces. (default: localhost:6831)
+	Agent string
+}
+
+func (cfg *Tracing) InitDefaults() {
+	if cfg.Agent == "" {
+		cfg.Agent = fmt.Sprintf("%s:%d",
+			jaeger.DefaultUDPSpanServerHost, jaeger.DefaultUDPSpanServerPort)
+	}
+}
+
+func (cfg *Tracing) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, tracingSample)
+}
+
+func (cfg *Tracing) ConfigName() string {
+	return "tracing"
+}
+
+// NewTracer creates a new Tracer for the given configuration. In case tracing
+// is disabled this still returns noop-objects for convenience of the caller.
+func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) {
+	traceConfig := jaegercfg.Configuration{
+		ServiceName: id,
+		Disabled:    !cfg.Enabled,
+		Reporter: &jaegercfg.ReporterConfig{
+			LocalAgentHostPort: cfg.Agent,
+		},
+	}
+	if cfg.Debug {
+		traceConfig.Sampler = &jaegercfg.SamplerConfig{
+			Type:  jaeger.SamplerTypeConst,
+			Param: 1,
+		}
+	}
+	bp := jaeger.NewBinaryPropagator(nil)
+	return traceConfig.NewTracer(
+		jaegercfg.Extractor(opentracing.Binary, bp),
+		jaegercfg.Injector(opentracing.Binary, bp))
+}
+
+// QUIC contains configuration for control-plane speakers.
+type QUIC struct {
+	ResolutionFraction float64
+	Address            string
+	CertFile           string
+	KeyFile            string
+}
+
+func (cfg *QUIC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, quicSample)
+}
+
+func (cfg *QUIC) ConfigName() string {
+	return "quic"
 }

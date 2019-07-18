@@ -18,10 +18,13 @@ package pathdb
 import (
 	"context"
 	"database/sql"
+	"io"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 )
 
@@ -56,8 +59,9 @@ type Write interface {
 	// DeleteExpired deletes all paths segments that are expired, using now as a reference.
 	// Returns the number of deleted segments.
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)
-	// Get returns all path segment(s) matching the parameters specified.
-	// InsertNextQuery inserts or updates the timestamp nextQuery for the given dst.
+	// InsertNextQuery inserts or updates the timestamp nextQuery for the given
+	// dst. Returns true if an insert/update happened or false if the stored
+	// timestamp is already newer.
 	InsertNextQuery(ctx context.Context, dst addr.IA, nextQuery time.Time) (bool, error)
 }
 
@@ -77,4 +81,13 @@ type Transaction interface {
 type PathDB interface {
 	ReadWrite
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	db.LimitSetter
+	io.Closer
+}
+
+// NewCleaner creates a cleaner task that deletes expired segments.
+func NewCleaner(db PathDB) *cleaner.Cleaner {
+	return cleaner.New(func(ctx context.Context) (int, error) {
+		return db.DeleteExpired(ctx, time.Now())
+	}, "segments")
 }

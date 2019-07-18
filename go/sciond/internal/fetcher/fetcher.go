@@ -21,6 +21,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -30,8 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
-	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -56,6 +57,7 @@ type Fetcher struct {
 	trustStore      infra.TrustStore
 	revocationCache revcache.RevCache
 	config          config.SDConfig
+	replyHandler    *segfetcher.SegReplyHandler
 }
 
 func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore infra.TrustStore,
@@ -67,6 +69,13 @@ func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore infr
 		trustStore:      trustStore,
 		revocationCache: revCache,
 		config:          cfg,
+		replyHandler: &segfetcher.SegReplyHandler{
+			Verifier: &segfetcher.SegVerifier{Verifier: trustStore.NewVerifier()},
+			Storage: &segfetcher.DefaultStorage{
+				PathDB:   pathDB,
+				RevCache: revCache,
+			},
+		},
 	}
 }
 
@@ -109,18 +118,6 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
-	// Commit to a path server, and use it for path queries
-	svcInfo, err := f.topology.GetSvcInfo(proto.ServiceType_ps)
-	if err != nil {
-		return nil, err
-	}
-	topoAddr := svcInfo.GetAnyTopoAddr()
-	if topoAddr == nil {
-		return nil, common.NewBasicError("Failed to look up PS in topology", nil)
-	}
-	psAddr := topoAddr.PublicAddr(f.topology.Overlay)
-	psOverlayAddr := topoAddr.OverlayAddr(f.topology.Overlay)
-	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: psAddr, NextHop: psOverlayAddr}
 	// Check destination
 	if req.Dst.IA().I == 0 {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadDstIA),
@@ -143,15 +140,8 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// Try to build paths from local information first, if we don't have to
 	// get fresh segments.
 	if !req.Flags.Refresh && !refetch {
-		paths, err := f.buildPathsFromDB(ctx, req)
-		switch {
-		case ctx.Err() != nil:
-			return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
-		case err != nil && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
-		case err != nil:
-			return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
-		case err == nil && len(paths) > 0:
-			return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
+		if reply, err := f.buildReplyFromDB(ctx, req, true); reply != nil {
+			return reply, err
 		}
 	}
 	if req.Flags.Refresh {
@@ -163,56 +153,58 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		}
 	}
 	// We don't have enough local information, grab fresh segments from the
-	// network. The spawned goroutine takes care of updating the path database
-	// and revocation cache.
-	subCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
-	earlyTrigger := util.NewTrigger(earlyReplyInterval)
-	go func() {
-		defer log.LogPanicAndExit()
-		f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger, ps)
-	}()
-	// Wait for deadlines while also waiting for the early reply.
-	select {
-	case <-earlyTrigger.Done():
-	case <-subCtx.Done():
-	case <-ctx.Done():
+	// network. The spawned goroutine (in fetchAndVerify) takes care of
+	// updating the path database and revocation cache.
+	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
+	processedResult := f.fetchAndVerify(ctx, req, earlyReplyInterval, ps)
+	if processedResult == nil {
+		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal),
+			common.NewBasicError("No result", nil)
 	}
-	if ctx.Err() == nil {
-		_, err = f.pathDB.InsertNextQuery(ctx, req.Dst.IA(),
-			time.Now().Add(f.config.QueryInterval.Duration))
-		if err != nil {
-			f.logger.Warn("Failed to update nextQuery", "err", err)
+	var storedSegs int
+	// Wait for deadline while also waiting for the early reply.
+	select {
+	case <-ctx.Done():
+	case storedSegs = <-processedResult.EarlyTriggerProcessed():
+	}
+	if storedSegs > 0 {
+		if reply, err := f.buildReplyFromDB(ctx, req, true); reply != nil {
+			return reply, err
 		}
 	}
+	// Wait for deadline or full reply processed.
+	select {
+	case <-ctx.Done():
+	case <-processedResult.FullReplyProcessed():
+	}
+	if processedResult.Err() != nil {
+		f.logger.Error("Failed to store segments", nil, "err", err)
+	}
+	if processedResult.VerificationErrors() != nil {
+		f.logger.Warn("Failed to verify reply", nil, "errors", processedResult.VerificationErrors())
+	}
+	if reply, err := f.buildReplyFromDB(ctx, req, false); reply != nil {
+		return reply, err
+	}
+	// Your paths are in another castle
+	return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
+}
+
+func (f *fetcherHandler) buildReplyFromDB(ctx context.Context,
+	req *sciond.PathReq, ignoreTrustNotFoundLocally bool) (*sciond.PathReply, error) {
+
 	paths, err := f.buildPathsFromDB(ctx, req)
 	switch {
 	case ctx.Err() != nil:
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
+		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorNoPaths), nil
+	case ignoreTrustNotFoundLocally && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
+		return nil, nil
 	case err != nil:
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
-	case err == nil && len(paths) > 0:
-		return f.buildSCIONDReply(paths, 0, sciond.ErrorOk), nil
+		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorInternal), err
+	case len(paths) > 0:
+		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 	}
-	// If we reached this point because the early reply fired but we still
-	// weren't able to build and paths, wait as much as possible for new
-	// segments and try again.
-	if earlyTrigger.Triggered() {
-		select {
-		case <-subCtx.Done():
-		case <-ctx.Done():
-		}
-		paths, err := f.buildPathsFromDB(ctx, req)
-		switch {
-		case ctx.Err() != nil:
-			return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
-		case err != nil:
-			return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
-		case err == nil && len(paths) > 0:
-			return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
-		}
-	}
-	// Your paths are in another castle
-	return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
+	return nil, nil
 }
 
 // buildSCIONDReply constructs a fresh SCIOND PathReply from the information
@@ -434,55 +426,41 @@ func (f *fetcherHandler) shouldRefetchSegs(ctx context.Context,
 // fetchAndVerify downloads path segments from the network. Segments that are
 // successfully verified are added to the pathDB. Revocations that are
 // successfully verified are added to the revocation cache.
-func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc,
-	req *sciond.PathReq, earlyTrigger *util.Trigger, ps *snet.Addr) {
+func (f *fetcherHandler) fetchAndVerify(ctx context.Context, req *sciond.PathReq,
+	earlyReplyInterval time.Duration, ps *snet.Addr) *segfetcher.ProcessedResult {
 
-	defer cancelF()
-	reply, err := f.getSegmentsFromNetwork(ctx, req, ps)
+	extCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
+	reply, err := f.getSegmentsFromNetwork(extCtx, req, ps)
 	if err != nil {
 		f.logger.Error("Unable to retrieve paths from network", "err", err)
-		return
+		return nil
 	}
-	timer := earlyTrigger.Arm()
-	// Cleanup early reply goroutine if function exits early
-	if timer != nil {
-		defer timer.Stop()
-	}
-	// verify and store the segments
-	var insertedSegmentIDs []string
-	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
-		wasInserted, err := segsaver.StoreSeg(ctx, s, f.pathDB)
-		if err != nil {
-			f.logger.Error("Unable to insert segment into path database",
-				"seg", s.Segment, "err", err)
-			return
-		}
-		if wasInserted {
-			insertedSegmentIDs = append(insertedSegmentIDs, s.Segment.GetLoggingID())
-		}
-	}
-	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
-		if _, err := f.revocationCache.Insert(ctx, rev); err != nil {
-			f.logger.Error("Unable to insert revocation into revcache", "rev", rev, "err", err)
-		}
-	}
-	segErr := func(s *seg.Meta, err error) {
-		f.logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
-	}
-	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
-		f.logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
-	}
-	revInfos, err := revcache.FilterNew(ctx, f.revocationCache, reply.Recs.SRevInfos)
+	revInfos, err := revcache.FilterNew(extCtx, f.revocationCache, reply.Recs.SRevInfos)
 	if err != nil {
 		f.logger.Error("Failed to determine new revocations", "err", err)
 		// Assume all are new
 		revInfos = reply.Recs.SRevInfos
 	}
-	segverifier.Verify(ctx, f.trustStore, nil, reply.Recs.Recs, revInfos,
-		verifiedSeg, verifiedRev, segErr, revErr)
-	if len(insertedSegmentIDs) > 0 {
-		f.logger.Debug("Segments inserted in DB", "segments", insertedSegmentIDs)
-	}
+	reply.Recs.SRevInfos = revInfos
+	f.logger.Trace("Handle reply")
+	earlyTrigger := make(chan struct{})
+	time.AfterFunc(earlyReplyInterval, func() { close(earlyTrigger) })
+	// Create an extended context to verify and store the reply.
+	r := f.replyHandler.Handle(extCtx, reply, ps, earlyTrigger)
+	go func() {
+		defer log.LogPanicAndExit()
+		defer cancelF()
+		select {
+		case <-extCtx.Done():
+		case <-r.FullReplyProcessed():
+			_, err = f.pathDB.InsertNextQuery(extCtx, req.Dst.IA(),
+				time.Now().Add(f.config.QueryInterval.Duration))
+			if err != nil {
+				f.logger.Warn("Failed to update nextQuery", "err", err)
+			}
+		}
+	}()
+	return r
 }
 
 func (f *fetcherHandler) getSegmentsFromNetwork(ctx context.Context,
@@ -579,7 +557,14 @@ func NewExtendedContext(refCtx context.Context,
 		panic("reference context needs to have deadline")
 	}
 	otherDeadline := time.Now().Add(minLifetime)
-	return context.WithDeadline(context.Background(), max(deadline, otherDeadline))
+	parentCtx := context.Background()
+	// Make sure that the attached logger is attached to the new ctx.
+	parentCtx = log.CtxWith(parentCtx, log.FromCtx(refCtx))
+	// Make sure that the attached span is attached to the new ctx.
+	if span := opentracing.SpanFromContext(refCtx); span != nil {
+		parentCtx = opentracing.ContextWithSpan(parentCtx, span)
+	}
+	return context.WithDeadline(parentCtx, max(deadline, otherDeadline))
 }
 
 func max(x, y time.Time) time.Time {

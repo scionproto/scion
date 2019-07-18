@@ -16,11 +16,8 @@ DST_IA=${DST_IA:-1-ff00:0:110}
 
 test_setup() {
     set -e
-    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    for sd in gen/ISD1/*/endhost/sciond.toml; do
-        sed -i 's/Level = .*$/Level = "trace"/g' "$sd"
-        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
-    done
+    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -t
+    sed -i '/\[logging\.file\]/a FlushInterval = 1' gen/ISD1/*/endhost/sd.toml
     ./scion.sh run nobuild
     ./tools/dc start tester_$SRC_IA_FILE
     docker_status
@@ -35,8 +32,8 @@ test_run() {
     sleep 1
     ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
     sleep 2
-    grep -q "\[TRACE\] \[Messenger\] Sending request.*req_type=SegRequest.*$SRC_IA,\[127\.42\.42\.42\]:39999" "logs/sd$SRC_IA_FILE.log" || \
-        fail "Path segment request to 127.42.42.42:39999 not found in logs"
+    grep -q "\[TRACE\] \[Acceptance\] .*overlay=\[127\.42\.42\.42\]" "logs/sd$SRC_IA_FILE.log" || \
+        fail "Request to 127.42.42.42 not found in logs"
 }
 
 print_help() {

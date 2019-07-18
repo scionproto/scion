@@ -77,6 +77,10 @@ cmd_zk() {
     dc "zk" "$@"
 }
 
+cmd_jaeger() {
+    dc "jaeger" "$@"
+}
+
 cmd_prom() {
     dc "prom" "$@"
 }
@@ -143,7 +147,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    start|stop|down|run|scion|zk|prom|collect_logs)
+    start|stop|down|run|scion|zk|jaeger|prom|collect_logs)
         "cmd_$COMMAND" "$@" ;;
     exec_tester)
         "exec_tester" "$@" ;;

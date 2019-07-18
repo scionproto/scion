@@ -30,7 +30,7 @@ type Ack struct {
 
 func NewFromRaw(b common.RawBytes) (*Ack, error) {
 	a := &Ack{}
-	return a, proto.ParseFromRaw(a, a.ProtoId(), b)
+	return a, proto.ParseFromRaw(a, b)
 }
 
 func (a *Ack) ProtoId() proto.ProtoIdType {

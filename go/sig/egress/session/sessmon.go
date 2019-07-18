@@ -48,7 +48,7 @@ type sessMonitor struct {
 	// the (filtered) pool of paths to the remote AS, maintained by pathmgr.
 	pool egress.PathPool
 	// the pool of paths this session is currently using, frequently refreshed from pool.
-	sessPathPool egress.SessPathPool
+	sessPathPool *egress.SessPathPool
 	// the remote Info (remote SIG, and path) used for sending polls. This
 	// differs from the parent session's remote info when the session monitor
 	// is polling a new SIG or over a new path, and is waiting for a response.
@@ -63,7 +63,9 @@ type sessMonitor struct {
 
 func newSessMonitor(sess *Session) *sessMonitor {
 	return &sessMonitor{
-		Logger: sess.Logger, sess: sess, pool: sess.pool, sessPathPool: make(egress.SessPathPool),
+		Logger: sess.Logger,
+		sess:   sess, pool: sess.pool,
+		sessPathPool: egress.NewSessPathPool(),
 	}
 }
 
@@ -99,9 +101,7 @@ Top:
 		case rpld := <-regc:
 			sm.handleRep(rpld)
 		case <-pathExpiryTick.C:
-			for _, path := range sm.sessPathPool {
-				path.ExpireFails()
-			}
+			sm.sessPathPool.ExpireFails()
 		}
 	}
 	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(),
@@ -126,10 +126,14 @@ func (sm *sessMonitor) updateRemote() {
 			// may be OK, but the remote SIG may be down. However, we accept
 			// the inaccuracy so that we don't have to do separate health
 			// checking for the path.
-			sm.smRemote.SessPath.Fail()
+			sm.sessPathPool.Timeout(sm.smRemote.SessPath, sm.updateMsgId.Time())
 		}
+		// Start monitoring new path and discover a new SIG.
 		sm.smRemote.Sig.Host = addr.SvcSIG
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
+		// XXX(roosd): The session's remote SIG will remain the same until the
+		// monitor discovers a remote SIG.
+		sm.updateSessSnap()
 		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
@@ -139,7 +143,9 @@ func (sm *sessMonitor) updateRemote() {
 	if sm.smRemote.SessPath == nil {
 		sm.Info("sessMonitor: Path not available", "remote", sm.smRemote)
 		sm.sess.healthy.Store(false)
+		// Start monitoring the new path.
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
+		sm.updateSessSnap()
 		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
@@ -148,13 +154,14 @@ func (sm *sessMonitor) updateRemote() {
 	// the old path. This implies that the encap traffic is sent on a path that has not been
 	// tested by the session monitor yet. If the new path is unhealthy, it is changed quickly
 	// by the session monitor through the regular timeout mechanism above.
-	updatedPath, ok := sm.sessPathPool[sm.smRemote.SessPath.Key()]
-	if !ok {
+	updatedPath := sm.sessPathPool.GetByKey(sm.smRemote.SessPath.Key())
+	if updatedPath == nil {
 		sm.Info("sessMonitor: Current path was invalidated", "remote", sm.smRemote)
+		// Start monitoring the new path.
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
 		// Make session use the new path immediately even though we haven't yet checked
 		// whether it works.
-		sm.sess.currRemote.Store(sm.smRemote)
+		sm.updateSessSnap()
 		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
@@ -167,10 +174,27 @@ func (sm *sessMonitor) updateRemote() {
 		if sm.smRemote.SessPath.IsCloseToExpiry() {
 			sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
 		}
-		sm.sess.currRemote.Store(sm.smRemote)
+		sm.updateSessSnap()
 		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
+}
+
+// updateSessSnap updates the remote snapshot in the session. If the new remote
+// SIG host is an SVC address, the previous host of the session is kept.
+func (sm *sessMonitor) updateSessSnap() {
+	// Copy the remote to avoid capturing the object in the session.
+	remote := *sm.smRemote
+	// XXX(roosd): Data traffic should never be sent to a SVC address if avoidable.
+	if remote.Sig.Host.Equal(addr.SvcSIG) {
+		old := sm.sess.Remote()
+		// If the previous remote is not set, do not set the snapshot.
+		if old == nil {
+			return
+		}
+		remote.Sig = old.Sig
+	}
+	sm.sess.currRemote.Store(&remote)
 }
 
 func (sm *sessMonitor) getNewPath(old *egress.SessPath) *egress.SessPath {
@@ -236,6 +260,12 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 			"expected", sm.sess.IA(), "actual", rpld.Addr.IA)
 		return
 	}
+
+	// Inform SessPathPool that a reply has arrived.
+	if sm.smRemote.SessPath != nil {
+		sm.sessPathPool.Reply(sm.smRemote.SessPath, rpld.Id.Time())
+	}
+
 	// Only update the session's RemoteInfo if we get a response matching
 	// the last poll we sent.
 	if sm.updateMsgId == rpld.Id {
@@ -250,8 +280,8 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 		// Update session's remote, if needed.
 		sessRemote := sm.sess.Remote()
 		if sessRemote == nil || !sm.smRemote.Sig.Equal(sessRemote.Sig) {
+			sm.updateSessSnap()
 			sm.Info("sessMonitor: updating remote Info", "msgId", rpld.Id, "remote", sm.smRemote)
-			sm.sess.currRemote.Store(sm.smRemote)
 		}
 		sm.sess.healthy.Store(true)
 	} else {

@@ -16,7 +16,6 @@
 package sigcmn
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -49,7 +48,7 @@ var (
 	encapPort uint16
 )
 
-func Init(cfg sigconfig.Conf, sdCfg env.SciondClient) error {
+func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 	var err error
 	IA = cfg.IA
 	Host = addr.HostFromIP(cfg.IP)
@@ -78,8 +77,8 @@ func EncapSnetAddr() *snet.Addr {
 
 func ValidatePort(desc string, port int) error {
 	if port < 1 || port > MaxPort {
-		return common.NewBasicError(fmt.Sprintf("Invalid %s port", desc), nil,
-			"min", 1, "max", MaxPort, "actual", port)
+		return common.NewBasicError("Invalid port", nil,
+			"min", 1, "max", MaxPort, "actual", port, "desc", desc)
 	}
 	return nil
 }
@@ -87,7 +86,7 @@ func ValidatePort(desc string, port int) error {
 // initSNET initializes snet. Tries in second interval until sdCfg.InitialConnectPeriod is up.
 // Copied from infraenv.initNetwork. Should be adapted once we have
 // https://github.com/scionproto/scion/issues/1974
-func initSNET(cfg sigconfig.Conf, sdCfg env.SciondClient) error {
+func initSNET(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 	var err error
 	ticker := time.NewTicker(time.Second)
 	timer := time.NewTimer(sdCfg.InitialConnectPeriod.Duration)

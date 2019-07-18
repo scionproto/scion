@@ -15,7 +15,6 @@
 package snet
 
 import (
-	"context"
 	"net"
 	"sync"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
@@ -71,6 +69,7 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
+
 	pkt := SCIONPacket{
 		Bytes: Bytes(c.buffer),
 	}
@@ -91,11 +90,12 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 	if c.base.net == "udp4" {
 		// Extract remote address
 		remote = &Addr{
-			IA:   pkt.Source.IA,
-			Path: pkt.Path,
+			IA: pkt.Source.IA,
 		}
+
 		// Extract path
-		if remote.Path != nil {
+		if pkt.Path != nil {
+			remote.Path = pkt.Path.Copy()
 			if err = remote.Path.Reverse(); err != nil {
 				return 0, nil,
 					common.NewBasicError("Unable to reverse path on received packet", err)
@@ -113,8 +113,6 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 			l4i = addr.NewL4UDPInfo(hdr.SrcPort)
 		case *scmp.Hdr:
 			l4i = addr.NewL4SCMPInfo()
-			c.handleSCMP(hdr, &pkt)
-			err = &OpError{scmp: hdr}
 		default:
 			err = common.NewBasicError("Unexpected SCION L4 protocol", nil,
 				"expected", "UDP or SCMP", "actual", pkt.L4Header.L4Type())
@@ -125,30 +123,6 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 		return n, remote, err
 	}
 	return 0, nil, common.NewBasicError("Unknown network", nil, "net", c.base.net)
-}
-
-func (c *scionConnReader) handleSCMP(hdr *scmp.Hdr, pkt *SCIONPacket) {
-	// Only handle revocations for now
-	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
-		c.handleSCMPRev(hdr, pkt)
-	}
-}
-
-func (c *scionConnReader) handleSCMPRev(hdr *scmp.Hdr, pkt *SCIONPacket) {
-	scmpPayload, ok := pkt.Payload.(*scmp.Payload)
-	if !ok {
-		log.Error("Unable to type assert payload to SCMP payload",
-			"type", common.TypeOf(pkt.Payload))
-	}
-	info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
-	if !ok {
-		log.Error("Unable to type assert SCMP Info to SCMP Revocation Info",
-			"type", common.TypeOf(scmpPayload.Info))
-	}
-	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
-	if c.base.scionNet.pathResolver != nil {
-		c.base.scionNet.pathResolver.RevokeRaw(context.TODO(), info.RawSRev)
-	}
 }
 
 func (c *scionConnReader) SetReadDeadline(t time.Time) error {

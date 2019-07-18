@@ -31,10 +31,8 @@ base_setup() {
 }
 
 base_gen_topo() {
-    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d
-    for sd in gen/ISD1/*/br*/brconfig.toml; do
-        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
-    done
+    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -t
+    sed -i '/\[logging\.file\]/a FlushInterval = 1' gen/ISD1/*/br*/br.toml
 }
 
 base_run_topo() {

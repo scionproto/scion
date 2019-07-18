@@ -32,7 +32,7 @@ import (
 // Ctx is the main router context structure.
 type Ctx struct {
 	// Conf contains the router state for this context.
-	Conf *brconf.Conf
+	Conf *brconf.BRConf
 	// LockSockIn is a Sock for receiving packets from the local AS,
 	LocSockIn *Sock
 	// LocSockOut is a Sock for sending packets to the local AS,
@@ -49,7 +49,7 @@ type Ctx struct {
 var ctx atomic.Value
 
 // New returns a new Ctx instance.
-func New(conf *brconf.Conf) *Ctx {
+func New(conf *brconf.BRConf) *Ctx {
 	ctx := &Ctx{
 		Conf:       conf,
 		ExtSockOut: make(map[common.IFIDType]*Sock),

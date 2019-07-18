@@ -15,48 +15,18 @@
 package rpc
 
 import (
-	capnp "zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/pogs"
+	"net"
 
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/proto"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 type Request struct {
-	SignedPld *ctrl.SignedPld
+	Message *capnp.Message
 	// Address records the network address that sent the request. It will
 	// usually be used for logging.
-	Address string
+	Address net.Addr
 }
 
 type Reply struct {
-	SignedPld *ctrl.SignedPld
-}
-
-func messageToSignedPayload(msg *capnp.Message) (*ctrl.SignedPld, error) {
-	root, err := msg.RootPtr()
-	if err != nil {
-		return nil, err
-	}
-	signedPld := &ctrl.SignedPld{}
-	if err := pogs.Extract(signedPld, proto.SignedCtrlPld_TypeID, root.Struct()); err != nil {
-		return nil, err
-	}
-	return signedPld, nil
-}
-
-func signedPldToMessage(signedPld *ctrl.SignedPld) (*capnp.Message, error) {
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return nil, err
-	}
-	root, err := proto.NewRootSignedCtrlPld(seg)
-	if err != nil {
-		return nil, err
-	}
-	if err := pogs.Insert(proto.SignedCtrlPld_TypeID, root.Struct, signedPld); err != nil {
-		return nil, err
-	}
-	return msg, nil
-
+	Message *capnp.Message
 }

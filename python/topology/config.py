@@ -62,6 +62,7 @@ from topology.common import (
 )
 from topology.docker import DockerGenArgs, DockerGenerator
 from topology.go import GoGenArgs, GoGenerator
+from topology.jaeger import JaegerGenArgs, JaegerGenerator
 from topology.net import (
     PortGenerator,
     SubnetGenerator,
@@ -76,6 +77,7 @@ from topology.zk import ZKGenArgs, ZKGenerator
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
 
+DEFAULT_BEACON_SERVER = "go"
 DEFAULT_CERTIFICATE_SERVER = "go"
 DEFAULT_SCIOND = "go"
 DEFAULT_PATH_SERVER = "go"
@@ -166,6 +168,7 @@ class ConfigGenerator(object):
             self._generate_docker(topo_dicts)
         else:
             self._generate_supervisor(topo_dicts)
+        self._generate_jaeger(topo_dicts)
         self._generate_zk(topo_dicts)
         self._generate_prom_conf(topo_dicts)
 
@@ -187,6 +190,8 @@ class ConfigGenerator(object):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
         go_gen.generate_br()
+        if self.args.beacon_server == "go":
+            go_gen.generate_bs()
         if self.args.cert_server == "go":
             go_gen.generate_cs()
         if self.args.sciond == "go":
@@ -198,6 +203,11 @@ class ConfigGenerator(object):
 
     def _go_args(self, topo_dicts):
         return GoGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
+
+    def _generate_jaeger(self, topo_dicts):
+        args = JaegerGenArgs(self.args, topo_dicts)
+        jaeger_gen = JaegerGenerator(args)
+        jaeger_gen.generate()
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(self._topo_args())
@@ -266,18 +276,21 @@ class ConfigGenerator(object):
             with open(script_name, 'w') as script:
                 script.write('#!/bin/bash\n\n')
                 for cust_dir, cs_name in cust_pk.items():
-                    conf_entry = trust_db_conf_entry(self.args, cs_name)
-                    # If we build the dockerized topology the directory is setup to be reachable
-                    # from docker, but the tool runs on the host, so we resolve the bind mount here.
-                    conf_entry['Connection'] = conf_entry['Connection'].replace('/share/cache',
-                                                                                'gen-cache')
+                    conf_entry = self._cust_db_conf_entry(cs_name)
                     script.write('cat > cfg.toml << EOL\n%sEOL\n\n'
-                                 % toml.dumps({'TrustDB': conf_entry}))
+                                 % toml.dumps({'trustDB': conf_entry}))
                     script.write('bin/scion-custpk-load -customers %s -config %s\n' % (cust_dir,
                                                                                        'cfg.toml'))
                 script.write('rm cfg.toml\n')
             st = os.stat(script_name)
             os.chmod(script_name, st.st_mode | stat.S_IEXEC)
+
+    def _cust_db_conf_entry(self, cs_name):
+        conf_entry = trust_db_conf_entry(self.args, cs_name)
+        # If we build the dockerized topology the directory is setup to be reachable
+        # from docker, but the tool runs on the host, so we resolve the bind mount here.
+        conf_entry['Connection'] = conf_entry['Connection'].replace('/share/cache', 'gen-cache')
+        return conf_entry
 
     def _write_conf_policies(self, topo_dicts):
         """

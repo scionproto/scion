@@ -1,0 +1,170 @@
+{
+  "Overlay": "UDP/IPv4",
+  "MTU": 1472,
+  "ISD_AS": "1-ff00:0:111",
+  "Core": false,
+  "BorderRouters": {
+    "br1-ff00_0_111-2": {
+      "CtrlAddr": {
+        "IPv4": {
+          "Public": {
+            "L4Port": 31031,
+            "Addr": "127.0.0.82"
+          }
+        }
+      },
+      "InternalAddrs": {
+        "IPv4": {
+          "PublicOverlay": {
+            "OverlayPort": 31032,
+            "Addr": "127.0.0.82"
+          }
+        }
+      },
+      "Interfaces": {
+        "105": {
+          "Bandwidth": 1000,
+          "RemoteOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.17"
+          },
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "1-ff00:0:130",
+          "PublicOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.16"
+          },
+          "LinkTo": "PARENT",
+          "MTU": 1472
+        },
+        "103": {
+          "Bandwidth": 1000,
+          "RemoteOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.15"
+          },
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "1-ff00:0:112",
+          "PublicOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.14"
+          },
+          "LinkTo": "CHILD",
+          "MTU": 1472
+        }
+      }
+    },
+    "br1-ff00_0_111-3": {
+      "CtrlAddr": {
+        "IPv4": {
+          "Public": {
+            "L4Port": 31033,
+            "Addr": "127.0.0.83"
+          }
+        }
+      },
+      "InternalAddrs": {
+        "IPv4": {
+          "PublicOverlay": {
+            "OverlayPort": 31034,
+            "Addr": "127.0.0.83"
+          }
+        }
+      },
+      "Interfaces": {
+        "100": {
+          "Bandwidth": 1000,
+          "RemoteOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.19"
+          },
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "1-ff00:0:121",
+          "PublicOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.18"
+          },
+          "LinkTo": "PEER",
+          "MTU": 1472
+        },
+        "102": {
+          "Bandwidth": 1000,
+          "RemoteOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.21"
+          },
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "2-ff00:0:211",
+          "PublicOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.20"
+          },
+          "LinkTo": "PEER",
+          "MTU": 1472
+        }
+      }
+    },
+    "br1-ff00_0_111-1": {
+      "CtrlAddr": {
+        "IPv4": {
+          "Public": {
+            "L4Port": 31029,
+            "Addr": "127.0.0.81"
+          }
+        }
+      },
+      "InternalAddrs": {
+        "IPv4": {
+          "PublicOverlay": {
+            "OverlayPort": 31030,
+            "Addr": "127.0.0.81"
+          }
+        }
+      },
+      "Interfaces": {
+        "104": {
+          "Bandwidth": 1000,
+          "RemoteOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.11"
+          },
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "1-ff00:0:120",
+          "PublicOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.10"
+          },
+          "LinkTo": "PARENT",
+          "MTU": 1472
+        },
+        "101": {
+          "Bandwidth": 1000,
+          "RemoteOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.13"
+          },
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "2-ff00:0:211",
+          "PublicOverlay": {
+            "OverlayPort": 50000,
+            "Addr": "127.0.0.12"
+          },
+          "LinkTo": "PEER",
+          "MTU": 1472
+        }
+      }
+    }
+  },
+  "PathService": {
+    "ps1-ff00_0_111-1": {
+      "Addrs": {
+        "IPv4": {
+          "Public": {
+            "L4Port": 31028,
+            "Addr": "127.0.0.86"
+          }
+        }
+      }
+    }
+  }
+}

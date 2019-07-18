@@ -106,11 +106,14 @@ func (s *Self) createLeafCert(ctx context.Context, leaf *cert.Certificate) error
 		return common.NewBasicError("Unable to write certificate chain", err, "chain", chain)
 	}
 	log.Info("[reiss.Self] Created certificate chain", "chain", chain)
-	sign, err := trust.CreateSign(ctx, s.IA, s.State.TrustDB)
+	meta, err := trust.CreateSignMeta(ctx, s.IA, s.State.TrustDB)
 	if err != nil {
-		log.Error("[reiss.Self] Unable to set create new sign", "err", err)
+		return common.NewBasicError("Unable to create sign meta", err)
 	}
-	signer := trust.NewBasicSigner(sign, s.State.GetSigningKey())
+	signer, err := trust.NewBasicSigner(s.State.GetSigningKey(), meta)
+	if err != nil {
+		return common.NewBasicError("Unable to create new signer", err)
+	}
 	s.State.SetSigner(signer)
 	s.Msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueReply})
 	return nil

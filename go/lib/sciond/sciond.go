@@ -41,7 +41,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
@@ -153,7 +152,7 @@ func connectTimeout(socketName string, timeout time.Duration) (*connector, error
 	}
 	return &connector{
 		dispatcher: disp.New(
-			transport.NewPacketTransport(conn),
+			conn,
 			&Adapter{},
 			log.Root(),
 		),

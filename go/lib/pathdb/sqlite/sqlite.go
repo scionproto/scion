@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/proto"
@@ -66,6 +67,17 @@ func New(path string) (*Backend, error) {
 		},
 		db: db,
 	}, nil
+}
+
+func (b *Backend) Close() error {
+	return b.db.Close()
+}
+
+func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
+	b.db.SetMaxOpenConns(maxOpenConns)
+}
+func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
+	b.db.SetMaxIdleConns(maxIdleConns)
 }
 
 func (b *Backend) BeginTransaction(ctx context.Context,
@@ -167,28 +179,23 @@ func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 
 func (e *executor) get(ctx context.Context, segID common.RawBytes) (*segMeta, error) {
 	query := "SELECT RowID, SegID, FullID, LastUpdated, Segment FROM Segments WHERE SegID=?"
-	rows, err := e.db.QueryContext(ctx, query, segID)
+	var meta segMeta
+	var lastUpdated int64
+	var rawSeg common.RawBytes
+	err := e.db.QueryRowContext(ctx, query, segID).Scan(
+		&meta.RowID, &meta.SegID, &meta.FullID, &lastUpdated, &rawSeg)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, common.NewBasicError("Failed to lookup segment", err)
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var meta segMeta
-		var lastUpdated int64
-		var rawSeg sql.RawBytes
-		err = rows.Scan(&meta.RowID, &meta.SegID, &meta.FullID, &lastUpdated, &rawSeg)
-		if err != nil {
-			return nil, common.NewBasicError("Failed to extract data", err)
-		}
-		meta.LastUpdated = time.Unix(0, lastUpdated)
-		var err error
-		meta.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
-		if err != nil {
-			return nil, err
-		}
-		return &meta, nil
+	meta.LastUpdated = time.Unix(0, lastUpdated)
+	meta.Seg, err = seg.NewSegFromRaw(rawSeg)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	return &meta, nil
 }
 
 func (e *executor) updateExisting(ctx context.Context, meta *segMeta,
@@ -383,17 +390,7 @@ func (e *executor) deleteInTx(ctx context.Context,
 	if e.db == nil {
 		return 0, common.NewBasicError("No database open", nil)
 	}
-	var res sql.Result
-	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		var err error
-		res, err = delFunc(tx)
-		return err
-	})
-	if err != nil {
-		return 0, err
-	}
-	deleted, _ := res.RowsAffected()
-	return int(deleted), nil
+	return db.DeleteInTx(ctx, e.db, delFunc)
 }
 
 func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results, error) {
@@ -544,6 +541,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 	}
 	resCh := make(chan query.ResultOrErr)
 	go func() {
+		defer log.LogPanicAndExit()
 		defer close(resCh)
 		defer rows.Close()
 		prevID := -1
@@ -595,20 +593,19 @@ func (e *executor) InsertNextQuery(ctx context.Context, dst addr.IA,
 	if e.db == nil {
 		return false, common.NewBasicError("No database open", nil)
 	}
-	queryLines := []string{
-		"INSERT OR REPLACE INTO NextQuery",
-		// Select the data from the input only if the new NextQuery is larger than the existing
-		// or if there is no existing (NextQuery.IsdID IS NULL)
-		"SELECT data.* FROM",
-		"(SELECT ? AS IsdID, ? AS AsID, ? AS lq) AS data",
-		"LEFT JOIN NextQuery USING (IsdID, AsID)",
-		"WHERE data.lq > NextQuery.NextQuery OR NextQuery.IsdID IS NULL;",
-	}
-	q := strings.Join(queryLines, "\n")
+	// Select the data from the input only if the new NextQuery is larger than the existing
+	// or if there is no existing (NextQuery.IsdID IS NULL)
+	query := `
+		INSERT OR REPLACE INTO NextQuery
+		SELECT data.* FROM
+		(SELECT ? AS IsdID, ? AS AsID, ? AS lq) AS data
+		LEFT JOIN NextQuery USING (IsdID, AsID)
+		WHERE data.lq > NextQuery.NextQuery OR NextQuery.IsdID IS NULL;
+	`
 	var r sql.Result
 	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
-		r, err = tx.ExecContext(ctx, q, dst.I, dst.A, nextQuery.UnixNano())
+		r, err = tx.ExecContext(ctx, query, dst.I, dst.A, nextQuery.UnixNano())
 		return err
 	})
 	if err != nil {
@@ -625,16 +622,14 @@ func (e *executor) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, e
 		return nil, common.NewBasicError("No database open", nil)
 	}
 	query := "SELECT NextQuery from NextQuery WHERE IsdID = ? AND AsID = ?"
-	rows, err := e.db.QueryContext(ctx, query, dst.I, dst.A)
+	var nanos int64
+	err := e.db.QueryRowContext(ctx, query, dst.I, dst.A).Scan(&nanos)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	if !rows.Next() {
-		return nil, nil
-	}
-	var nanos int64
-	rows.Scan(&nanos)
 	t := time.Unix(0, nanos)
 	return &t, nil
 }

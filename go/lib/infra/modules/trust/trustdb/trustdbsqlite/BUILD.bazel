@@ -10,6 +10,7 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/infra/modules/db:go_default_library",
         "//go/lib/infra/modules/trust/trustdb:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",
         "//go/lib/scrypto/trc:go_default_library",
@@ -22,7 +23,6 @@ go_test(
     srcs = ["db_test.go"],
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/infra/modules/trust/trustdb:go_default_library",
         "//go/lib/infra/modules/trust/trustdb/trustdbtest:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",

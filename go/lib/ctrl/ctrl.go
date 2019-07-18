@@ -61,7 +61,7 @@ func NewCertMgmtPld(u proto.Cerealizable, certD *cert_mgmt.Data, ctrlD *Data) (*
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{Data: &Data{}}
-	return p, proto.ParseFromRaw(p, proto.CtrlPld_TypeID, b)
+	return p, proto.ParseFromRaw(p, b)
 }
 
 func (p *Pld) Union() (proto.Cerealizable, error) {
@@ -83,7 +83,7 @@ func (p *Pld) GetCertMgmt() (*cert_mgmt.Pld, *Data, error) {
 	return certP, p.Data, nil
 }
 
-// GetCertMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
+// GetPathMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
 // If the union type is not PathMgmt, an error is returned.
 func (p *Pld) GetPathMgmt() (*path_mgmt.Pld, *Data, error) {
 	u, err := p.Union()
@@ -102,7 +102,7 @@ func (p *Pld) Len() int {
 	return -1
 }
 
-func (p *Pld) Copy() (common.Payload, error) {
+func (p *Pld) Copy() (*Pld, error) {
 	raw, err := proto.PackRoot(p)
 	if err != nil {
 		return nil, err
@@ -115,23 +115,7 @@ func (p *Pld) Write(b common.RawBytes) (int, error) {
 }
 
 func (p *Pld) SignedPld(signer Signer) (*SignedPld, error) {
-	return signer.Sign(p)
-}
-
-func (p *Pld) WritePld(b common.RawBytes) (int, error) {
-	sp, err := NewSignedPld(p, nil, nil)
-	if err != nil {
-		return 0, err
-	}
-	return sp.WritePld(b)
-}
-
-func (p *Pld) PackPld() (common.RawBytes, error) {
-	sp, err := NewSignedPld(p, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return sp.PackPld()
+	return NewSignedPld(p, signer)
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {

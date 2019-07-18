@@ -47,7 +47,7 @@ const (
 )
 
 type Handler interface {
-	Handle(ctx context.Context, transport infra.Transport, src net.Addr, pld *sciond.Pld)
+	Handle(ctx context.Context, conn net.PacketConn, src net.Addr, pld *sciond.Pld)
 }
 
 // PathRequestHandler represents the shared global state for the handling of all
@@ -57,7 +57,7 @@ type PathRequestHandler struct {
 	Fetcher *fetcher.Fetcher
 }
 
-func (h *PathRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -74,20 +74,12 @@ func (h *PathRequestHandler) Handle(ctx context.Context, transport infra.Transpo
 		Which:     proto.SCIONDMsg_Which_pathReply,
 		PathReply: getPathsReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		// This is constructed locally, so it should always succeed. Otherwise,
-		// it is a bug.
-		panic(err)
-	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Debug("Replied with paths", "num_paths", len(getPathsReply.Entries))
+		logger.Trace("Full reply", "paths", getPathsReply)
 	}
-	logger.Debug("Replied with paths", "num_paths", len(getPathsReply.Entries))
-	logger.Trace("Full reply", "paths", getPathsReply)
 }
 
 // ASInfoRequestHandler represents the shared global state for the handling of all
@@ -97,7 +89,7 @@ type ASInfoRequestHandler struct {
 	TrustStore infra.TrustStore
 }
 
-func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -143,17 +135,11 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 		Which:       proto.SCIONDMsg_Which_asInfoReply,
 		AsInfoReply: asInfoReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		panic(err)
-	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Trace("Sent reply", "asInfo", asInfoReply)
 	}
-	logger.Trace("Sent reply", "asInfo", asInfoReply)
 }
 
 // IFInfoRequestHandler represents the shared global state for the handling of all
@@ -161,7 +147,7 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 // for each IFInfoRequest it receives.
 type IFInfoRequestHandler struct{}
 
-func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -196,17 +182,11 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 		Which:       proto.SCIONDMsg_Which_ifInfoReply,
 		IfInfoReply: ifInfoReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		panic(err)
-	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Trace("Sent reply", "ifInfo", ifInfoReply)
 	}
-	logger.Trace("Sent reply", "ifInfo", ifInfoReply)
 }
 
 // SVCInfoRequestHandler represents the shared global state for the handling of all
@@ -214,7 +194,7 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Trans
 // for each SVCInfoRequest it receives.
 type SVCInfoRequestHandler struct{}
 
-func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport,
+func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -237,17 +217,11 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Tran
 		Which:            proto.SCIONDMsg_Which_serviceInfoReply,
 		ServiceInfoReply: svcInfoReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		panic(err)
-	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Trace("Sent reply", "svcInfo", svcInfoReply)
 	}
-	logger.Trace("Sent reply", "svcInfo", svcInfoReply)
 }
 
 func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.HostInfo {
@@ -272,7 +246,7 @@ type RevNotificationHandler struct {
 	TrustStore infra.TrustStore
 }
 
-func (h *RevNotificationHandler) Handle(ctx context.Context, transport infra.Transport,
+func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
 
 	logger := log.FromCtx(ctx)
@@ -306,17 +280,11 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, transport infra.Tra
 		Which:    proto.SCIONDMsg_Which_revReply,
 		RevReply: revReply,
 	}
-	b, err := proto.PackRoot(reply)
-	if err != nil {
-		panic(err)
-	}
-	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
-	defer cancelF()
-	if err := transport.SendMsgTo(ctx, b, src); err != nil {
+	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
-		return
+	} else {
+		logger.Trace("Sent reply", "revInfo", revInfo)
 	}
-	logger.Trace("Sent reply", "revInfo", revInfo)
 }
 
 // verifySRevInfo first checks if the RevInfo can be extracted from sRevInfo,
@@ -330,7 +298,7 @@ func (h *RevNotificationHandler) verifySRevInfo(ctx context.Context,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to extract RevInfo", nil)
 	}
-	err = segverifier.VerifyRevInfo(ctx, h.TrustStore, nil, sRevInfo)
+	err = segverifier.VerifyRevInfo(ctx, h.TrustStore.NewVerifier(), nil, sRevInfo)
 	return info, err
 }
 
@@ -358,4 +326,14 @@ func isInvalid(err error) bool {
 // verification ended with an outcome of unknown.
 func isUnknown(err error) bool {
 	return err != nil
+}
+
+func sendReply(pld *sciond.Pld, conn net.PacketConn, src net.Addr) error {
+	b, err := proto.PackRoot(pld)
+	if err != nil {
+		panic(err)
+	}
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	_, err = conn.WriteTo(b, src)
+	return err
 }

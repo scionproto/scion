@@ -9,6 +9,11 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 cmd_topology() {
     set -e
     local zkclean
+    local nobuild
+    if [ "$1" = "nobuild" ]; then
+        shift
+        nobuild="y"
+    fi
     if is_docker_be; then
         echo "Shutting down dockerized topology..."
         ./tools/quiet ./tools/dc down
@@ -16,20 +21,24 @@ cmd_topology() {
         echo "Shutting down: $(./scion.sh stop)"
     fi
     supervisor/supervisor.sh shutdown
+    stop_jaeger
     mkdir -p logs traces gen gen-cache
     find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
     if [ "$1" = "zkclean" ]; then
         shift
         zkclean="y"
     fi
-    echo "Compiling..."
-    cmd_build || exit 1
+    if [ -z "$nobuild" ]; then
+        echo "Compiling..."
+        cmd_build || exit 1
+    fi
     echo "Create topology, configuration, and execution files."
     is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
+    run_jaeger
     run_zk "$zkclean"
     load_cust_keys
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
@@ -60,6 +69,10 @@ cmd_run() {
     fi
     run_setup
     echo "Running the network..."
+    # Start dispatcher first, as it is requrired by the border routers.
+    ./tools/quiet ./scion.sh mstart '*disp*'
+    # Start border routers before all other services to provide connectivity.
+    ./tools/quiet ./scion.sh mstart '*br*'
     # Run with docker-compose or supervisor
     if is_docker_be; then
         ./tools/quiet ./tools/dc start 'scion*'
@@ -76,6 +89,9 @@ load_cust_keys() {
 }
 
 run_zk() {
+    if [ ! -f "gen/zk-dc.yml" ]; then
+        return
+    fi
     echo "Running zookeeper..."
     ./tools/quiet ./tools/dc zk up -d
     if [ -n "$1" ]; then
@@ -90,6 +106,22 @@ run_zk() {
         fi
         tools/zkcleanslate --zk "$addr"
     fi
+}
+
+run_jaeger() {
+    if [ ! -f "gen/jaeger-dc.yml" ]; then
+        return
+    fi
+    echo "Running jaeger..."
+    ./tools/quiet ./tools/dc jaeger up -d
+}
+
+stop_jaeger() {
+    if [ ! -f "gen/jaeger-dc.yml" ]; then
+        return
+    fi
+    echo "Stopping jaeger..."
+    ./tools/quiet ./tools/dc jaeger down
 }
 
 cmd_mstart() {
@@ -230,6 +262,7 @@ cmd_test(){
 }
 
 py_test() {
+    python3 -m unittest discover
     nosetests3 ${EXTRA_NOSE_ARGS} "$@"
 }
 
@@ -263,46 +296,73 @@ cmd_lint() {
     local ret=0
     py_lint || ret=1
     go_lint || ret=1
+    md_lint || ret=1
     return $ret
 }
 
 py_lint() {
+    lint_header "python"
     local ret=0
-    for i in python; do
+    for i in acceptance python; do
       [ -d "$i" ] || continue
-      echo "Linting $i"
       local cmd="flake8"
-      echo "============================================="
+      lint_step "$cmd /$i"
       ( cd "$i" && $cmd --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     done
+    flake8 --config python/flake8.ini tools/gomocks || ((ret++))
     return $ret
 }
 
 go_lint() {
+    lint_header "go"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
-    echo "======> Building lint tools"
+    lint_step "Building lint tools"
     bazel build //:lint || return 1
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
     local ret=0
-    echo "======> impi"
+    lint_step "impi"
     # Skip CGO (https://github.com/pavius/impi/issues/5) files.
-    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' ./go/... || ret=1
-    echo "======> gofmt"
+    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' --skip 'mock_' --skip 'go/proto/.*\.capnp\.go' ./go/... || ret=1
+    lint_step "gofmt"
     # TODO(sustrik): At the moment there are no bazel rules for gofmt.
     # See: https://github.com/bazelbuild/rules_go/issues/511
     # Instead we'll just run the commands from Go SDK directly.
     GOSDK=$(bazel info output_base)/external/go_sdk/bin
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
-    echo "======> linelen (lll)"
-    out=$(find go -type f -iname '*.go' -a '!' '(' -ipath 'go/lib/pathpol/sequence/*' ')' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
+    lint_step "linelen (lll)"
+    out=$(find go -type f -iname '*.go' -a '!' -ipath 'go/proto/structs.gen.go' -a '!' -ipath 'go/proto/*.capnp.go' -a '!' -ipath '*mock_*' -a '!' -ipath 'go/lib/pathpol/sequence/*' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
-    echo "======> misspell"
+    lint_step "misspell"
     $TMPDIR/misspell -error $LOCAL_DIRS || ret=1
+    lint_step "ineffassign"
+    $TMPDIR/ineffassign -exclude ineffassign.json go || ret=1
+    lint_step "bazel"
+    make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
     rm -rf $TMPDIR
     return $ret
+}
+
+md_lint() {
+    lint_header "markdown"
+    lint_step "mdlint"
+    ./tools/mdlint
+}
+
+lint_header() {
+    printf "\nlint $1\n==============\n"
+}
+
+lint_step() {
+    echo "======> $1"
+}
+
+cmd_mocks() {
+    set -o pipefail
+    tools/gomocks || return 1
+    return 0
 }
 
 cmd_version() {
@@ -343,15 +403,47 @@ cmd_sciond() {
     exit $?
 }
 
+traces_name() {
+    local name=jaeger_read_badger_traces
+    echo "$name"
+}
+
+cmd_traces() {
+    set -e
+    local trace_dir=${1:-"$(readlink -e .)/traces"}
+    local port=16687
+    local name=$(traces_name)
+    cmd_stop_traces
+    docker run -d --name "$name" \
+        -u "$(id -u):$(id -g)" \
+        -e SPAN_STORAGE_TYPE=badger \
+        -e BADGER_EPHEMERAL=false \
+        -e BADGER_DIRECTORY_VALUE=/badger/data \
+        -e BADGER_DIRECTORY_KEY=/badger/key \
+        -e BADGER_CONSISTENCY=true \
+        -v "$trace_dir:/badger" \
+        -p "$port":16686 \
+        jaegertracing/all-in-one:1.12.0
+    sleep 3
+    x-www-browser "http://localhost:$port"
+}
+
+cmd_stop_traces() {
+    local name=$(traces_name)
+    docker stop "$name" || true
+    docker rm "$name" || true
+}
+
 cmd_help() {
 	cmd_version
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM topology [zkclean]
-	        Create topology, configuration, and execution files. With the
-	        'zkclean' option, also reset all local Zookeeper state. Another
-	        other arguments or options are passed to topology/generator.py
+	    $PROGRAM topology [nobuild] [zkclean]
+	        Create topology, configuration, and execution files. With the 'nobuild'
+            option, don't build the code. With the 'zkclean' option, also reset 
+            all local Zookeeper state. All other arguments or options are passed 
+            to topology/generator.py
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM sciond ISD-AS [ADDR]
@@ -372,10 +464,16 @@ cmd_help() {
 	        Run all unit tests.
 	    $PROGRAM coverage
 	        Create a html report with unit test code coverage.
+	    $PROGRAM mocks
+	        Generate source files for Go mocks.
 	    $PROGRAM help
 	        Show this text.
 	    $PROGRAM version
 	        Show version information.
+        $PROGRAM traces [folder]
+            Serve jaeger traces from the specified folder (default: traces/)
+        $PROGRAM stop_traces
+            Stop the jaeger container started during the traces command
 	_EOF
 }
 # END subcommand functions
@@ -385,7 +483,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
+    coverage|help|lint|mocks|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;

@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -83,7 +83,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context, rw infra.ResponseWrit
 		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
 		return
 	}
-	dstCore, err := h.isCoreDst(ctx, segReq)
+	dstCore, err := h.isCoreDst(ctx, segReq, nil)
 	if err != nil {
 		logger.Error("[segReqCoreHandler] Failed to determine dest type", "err", err)
 		rw.SendSegReply(ctx, &path_mgmt.SegReply{Req: segReq})
@@ -204,5 +204,5 @@ func (h *segReqCoreHandler) corePSAddr(ctx context.Context, destISD addr.ISD) (n
 	}
 	// select random reachable core AS.
 	seg := coreSegs[rand.Intn(len(coreSegs))]
-	return addrutil.GetPath(addr.SvcPS, seg, seg.FirstIA(), h.topology)
+	return addrutil.GetPath(addr.SvcPS, seg, h.topoProvider)
 }

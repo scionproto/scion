@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/hpkt:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/scmp:go_default_library",
         "//go/lib/spkt:go_default_library",
         "//go/tools/scmp/cmn:go_default_library",

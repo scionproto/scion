@@ -21,54 +21,57 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
 
 const (
 	HandlerTimeout = 30 * time.Second
+
+	NoSegmentsErr = "No segments"
 )
 
 // HandlerArgs are the values required to create the path server's handlers.
 type HandlerArgs struct {
-	PathDB     pathdb.PathDB
-	RevCache   revcache.RevCache
-	TrustStore infra.TrustStore
-	Config     config.PSConfig
-	IA         addr.IA
+	PathDB        pathdb.PathDB
+	RevCache      revcache.RevCache
+	TrustStore    infra.TrustStore
+	QueryInterval time.Duration
+	IA            addr.IA
+	TopoProvider  topology.Provider
 }
 
 type baseHandler struct {
-	request    *infra.Request
-	pathDB     pathdb.PathDB
-	revCache   revcache.RevCache
-	trustStore infra.TrustStore
-	topology   *topology.Topo
-	retryInt   time.Duration
-	config     config.PSConfig
+	request      *infra.Request
+	pathDB       pathdb.PathDB
+	revCache     revcache.RevCache
+	trustStore   infra.TrustStore
+	topoProvider topology.Provider
+	retryInt     time.Duration
+	queryInt     time.Duration
 }
 
 func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 	return &baseHandler{
-		request:    request,
-		pathDB:     args.PathDB,
-		revCache:   args.RevCache,
-		trustStore: args.TrustStore,
-		retryInt:   time.Second,
-		config:     args.Config,
-		topology:   itopo.Get(),
+		request:      request,
+		pathDB:       args.PathDB,
+		revCache:     args.RevCache,
+		trustStore:   args.TrustStore,
+		retryInt:     500 * time.Millisecond,
+		queryInt:     args.QueryInterval,
+		topoProvider: args.TopoProvider,
 	}
 }
 
@@ -113,17 +116,26 @@ func (h *baseHandler) fetchSegsFromDBRetry(ctx context.Context,
 		if err != nil || len(upSegs) > 0 {
 			return upSegs, err
 		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(h.retryInt):
-			// retry
+		if err := h.sleepOrTimeout(ctx); err != nil {
+			return nil, err
 		}
 	}
 }
 
+func (h *baseHandler) sleepOrTimeout(ctx context.Context) error {
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "sleep.wait")
+	defer span.Finish()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(h.retryInt):
+		return nil
+	}
+}
+
 func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
-	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) {
+	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) error {
 	// TODO(lukedirtwalker): collect the verified segs/revoc and return them.
 
 	logger := log.FromCtx(ctx)
@@ -147,13 +159,16 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
 		logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
 	}
-	segverifier.Verify(ctx, h.trustStore, src, recs,
+	segverifier.Verify(ctx, h.trustStore.NewVerifier(), src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
 
+	// Return early if we have nothing to insert.
+	if len(verifiedSegs) == 0 {
+		return common.NewBasicError(NoSegmentsErr, nil)
+	}
 	tx, err := h.pathDB.BeginTransaction(ctx, nil)
 	if err != nil {
-		logger.Error("Failed to create transaction", "err", err)
-		return
+		return err
 	}
 	// sort to prevent sql deadlock
 	sort.Slice(verifiedSegs, func(i, j int) bool {
@@ -162,9 +177,11 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	for _, s := range verifiedSegs {
 		n, err := tx.Insert(ctx, s)
 		if err != nil {
-			logger.Error("Unable to insert segment into path database",
-				"seg", s.Segment, "err", err)
-			return
+			if errRollback := tx.Rollback(); errRollback != nil {
+				err = common.NewBasicError("Unable to rollback", err, "rollbackErr", errRollback)
+			}
+			return common.NewBasicError("Unable to insert segment into path database", err,
+				"seg", s.Segment)
 		}
 		if wasInserted := n > 0; wasInserted {
 			insertedSegmentIDs = append(insertedSegmentIDs, s.Segment.GetLoggingID())
@@ -172,11 +189,11 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	}
 	err = tx.Commit()
 	if err != nil {
-		logger.Error("Failed to commit transaction", "err", err)
-		return
+		return common.NewBasicError("Failed to commit transaction", err)
 	}
 	if len(insertedSegmentIDs) > 0 {
 		logger.Debug("Segments inserted in DB", "count", len(insertedSegmentIDs),
 			"segments", insertedSegmentIDs)
 	}
+	return nil
 }

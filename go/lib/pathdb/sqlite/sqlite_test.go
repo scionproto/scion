@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -38,7 +39,7 @@ var (
 	ifs1     = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	hpCfgIDs = []*query.HPCfgID{
 		&query.NullHpCfgID,
-		{ia330, 0xdeadbeef},
+		{IA: ia330, ID: 0xdeadbeef},
 	}
 	segType = proto.PathSegType_up
 	timeout = time.Second
@@ -65,12 +66,14 @@ func TestPathDBSuite(t *testing.T) {
 
 func TestOpenExisting(t *testing.T) {
 	Convey("New should not overwrite an existing database if versions match", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		b, tmpF := setupDB(t)
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
-		pseg1, _ := pathdbtest.AllocPathSegment(t, ifs1, TS)
+		pseg1, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs1, TS)
 		pathdbtest.InsertSeg(t, ctx, b, pseg1, hpCfgIDs)
 		b.db.Close()
 		// Call

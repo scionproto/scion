@@ -16,6 +16,7 @@
 import os
 import subprocess
 import sys
+
 # SCION
 from lib.packet.scion_addr import ISD_AS
 from topology.net import AddressProxy
@@ -30,11 +31,13 @@ SCION_SERVICE_NAMES = (
     "DiscoveryService",
 )
 
-BR_CONFIG_NAME = 'brconfig.toml'
-CS_CONFIG_NAME = 'csconfig.toml'
-PS_CONFIG_NAME = 'psconfig.toml'
-SD_CONFIG_NAME = 'sciond.toml'
-DISP_CONFIG_NAME = 'dispconfig.toml'
+BR_CONFIG_NAME = 'br.toml'
+BS_CONFIG_NAME = 'bs.toml'
+CS_CONFIG_NAME = 'cs.toml'
+PS_CONFIG_NAME = 'ps.toml'
+SD_CONFIG_NAME = 'sd.toml'
+DISP_CONFIG_NAME = 'disp.toml'
+SIG_CONFIG_NAME = 'sig.toml'
 
 DOCKER_USR_VOL = ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
 
@@ -134,6 +137,14 @@ def get_pub(topo_addr):
     if pub is not None:
         return pub
     return topo_addr['IPv4']
+
+
+def get_pub_ip(topo_addr):
+    return get_pub(topo_addr)["Public"]["Addr"].ip
+
+
+def get_l4_port(topo_addr):
+    return get_pub(topo_addr)["Public"]["L4Port"]
 
 
 def srv_iter(topo_dicts, out_dir, common=False):

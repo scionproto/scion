@@ -20,6 +20,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -55,11 +57,24 @@ func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
 	return true
 }
 
-func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq) (bool, error) {
+func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
+	resolver func() (net.Addr, error)) (bool, error) {
+
 	if segReq.DstIA().A == 0 {
 		return true, nil
 	}
-	dstTRC, err := h.trustStore.GetTRC(ctx, segReq.DstIA().I, scrypto.LatestVer)
+	// Try local trust store first.
+	if dstTrc, err := h.trustStore.GetValidCachedTRC(ctx, segReq.DstIA().I); err == nil {
+		return dstTrc.CoreASes.Contains(segReq.DstIA()), nil
+	} else if resolver == nil {
+		return false, common.NewBasicError("Destination TRC not found", err,
+			"isd", segReq.DstIA().I)
+	}
+	remote, err := resolver()
+	if err != nil {
+		return false, common.NewBasicError("Unable to resolve remote", err)
+	}
+	dstTRC, err := h.trustStore.GetValidTRC(ctx, segReq.DstIA().I, remote)
 	if err != nil {
 		return false, common.NewBasicError("Failed to get TRC for dst", err)
 	}
@@ -107,7 +122,6 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, dst addr.IA,
 	if err = h.fetchAndSaveSegs(ctx, addr.IA{}, dst, cAddr); err != nil {
 		return nil, err
 	}
-	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
 	return h.fetchSegsFromDB(ctx, q)
 }
 
@@ -115,55 +129,59 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, src, dst addr.IA,
 	cPSAddr net.Addr) error {
 
 	logger := log.FromCtx(ctx)
-	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
 	// The logging below is used for acceptance testing do not delete!
 	if snetAddr, ok := cPSAddr.(*snet.Addr); ok {
 		logger.Trace("[segReqHandler] Sending segment request", "NextHop", snetAddr.NextHop)
 	}
-	segs, err := h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
-	if err != nil {
-		return err
-	}
+	return h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
+}
+
+func (h *segReqHandler) handleReceivedSegs(ctx context.Context, queryTime time.Time,
+	cPSAddr net.Addr, req *path_mgmt.SegReq, segs *path_mgmt.SegReply) {
+
+	logger := log.FromCtx(ctx)
 	segs = segs.Sanitize(logger)
-	var recs []*seg.Meta
-	var revInfos []*path_mgmt.SignedRevInfo
 	if segs.Recs != nil {
 		logSegRecs(logger, "[segReqHandler]", cPSAddr, segs.Recs)
-		recs = segs.Recs.Recs
-		revInfos, err = revcache.FilterNew(ctx, h.revCache, segs.Recs.SRevInfos)
+		recs := segs.Recs.Recs
+		revInfos, err := revcache.FilterNew(ctx, h.revCache, segs.Recs.SRevInfos)
 		if err != nil {
 			logger.Error("[segReqHandler] Failed to filter new revocations", "err", err)
 			// in case of error we just assume all of them are new and continue.
 			revInfos = segs.Recs.SRevInfos
 		}
-		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
-		// TODO(lukedirtwalker): If we didn't receive anything we should retry earlier.
-		if _, err := h.pathDB.InsertNextQuery(ctx, dst,
-			queryTime.Add(h.config.QueryInterval.Duration)); err != nil {
-			logger.Warn("Failed to insert last queried", "err", err)
+		if err := h.verifyAndStore(ctx, cPSAddr, recs, revInfos); err != nil {
+			logger.Error("Failed to verify and store segments", "err", err)
+		} else {
+			// Only insert next query if we found some results.
+			if _, err := h.pathDB.InsertNextQuery(ctx, req.DstIA(),
+				queryTime.Add(h.queryInt)); err != nil {
+				logger.Warn("Failed to insert last queried", "err", err)
+			}
 		}
 	}
-	return nil
 }
 
 func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
-	req *path_mgmt.SegReq, server net.Addr, id uint64) (*path_mgmt.SegReply, error) {
+	req *path_mgmt.SegReq, server net.Addr, id uint64) error {
 
-	responseC, cancelF := h.segsDeduper.Request(ctx, &segReq{
-		segReq: req,
-		server: server,
-		id:     id,
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "getSegsFromNetwork")
+	defer span.Finish()
+	responseC, cancelF, span := h.segsDeduper.Request(ctx, &segReq{
+		segReq:      req,
+		server:      server,
+		id:          id,
+		postprocess: h.handleReceivedSegs,
 	})
+	defer span.Finish()
 	defer cancelF()
 	select {
 	case response := <-responseC:
-		if response.Error != nil {
-			return nil, response.Error
-		}
-		return response.Data.(*path_mgmt.SegReply), nil
+		return response.Error
 	case <-ctx.Done():
-		return nil, common.NewBasicError("Context done while waiting for Segs", ctx.Err())
+		return common.NewBasicError("Context done while waiting for Segs", ctx.Err())
 	}
 }
 
@@ -186,6 +204,7 @@ func (h *segReqHandler) sendReply(ctx context.Context, rw infra.ResponseWriter,
 	}
 	if err := rw.SendSegReply(ctx, reply); err != nil {
 		logger.Error("[segReqHandler] Failed to send reply!", "err", err)
+		return
 	}
 	logger.Debug("[segReqHandler] reply sent", "id", h.request.ID,
 		"ups", len(upSegs), "cores", len(coreSegs), "downs", len(downSegs))
@@ -193,26 +212,52 @@ func (h *segReqHandler) sendReply(ctx context.Context, rw infra.ResponseWriter,
 
 func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) []*seg.Meta {
 	logger := log.FromCtx(h.request.Context())
+	lup, lcore, ldown := limit(len(upSegs), len(coreSegs), len(downSegs), 9)
 	recs := make([]*seg.Meta, 0, len(upSegs)+len(coreSegs)+len(downSegs))
 	for i := range upSegs {
+		if i == lup {
+			break
+		}
 		s := upSegs[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_up))
 	}
 	for i := range coreSegs {
+		if i == lcore {
+			break
+		}
 		s := coreSegs[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_core))
 	}
 	for i := range downSegs {
+		if i == ldown {
+			break
+		}
 		s := downSegs[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
 	}
 	return recs
+}
+
+// XXX(roosd): Dirty hack to avoid exceeding jumbo frames until quic is implemented.
+// Revert tainted code after quic is implemented.
+func limit(upSegs, coreSegs, downSegs, all int) (int, int, int) {
+	for upSegs+coreSegs+downSegs > all {
+		switch {
+		case upSegs >= coreSegs && upSegs >= downSegs:
+			upSegs--
+		case coreSegs >= upSegs && coreSegs >= downSegs:
+			coreSegs--
+		default:
+			downSegs--
+		}
+	}
+	return upSegs, coreSegs, downSegs
 }
 
 // shouldRefetchSegsForDst returns true if the segments for the given dst

@@ -18,6 +18,7 @@
 package path_mgmt
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -36,7 +37,7 @@ type RevTimeError string
 func NewRevTimeError(r *RevInfo) RevTimeError {
 	return RevTimeError(fmt.Sprintf(
 		"Revocation is expired, timestamp: %s, TTL %s.",
-		util.TimeToString(r.Timestamp()), r.TTL()))
+		util.TimeToCompact(r.Timestamp()), r.TTL()))
 }
 
 func (ee RevTimeError) Timeout() bool {
@@ -62,7 +63,7 @@ type RevInfo struct {
 
 func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
 	r := &RevInfo{}
-	return r, proto.ParseFromRaw(r, r.ProtoId(), b)
+	return r, proto.ParseFromRaw(r, b)
 }
 
 func (r *RevInfo) IA() addr.IA {
@@ -94,7 +95,7 @@ func (r *RevInfo) Active() error {
 	}
 	if r.Timestamp().After(now.Add(time.Second)) {
 		return common.NewBasicError("Revocation timestamp is in the future.", nil,
-			"timestamp", util.TimeToString(r.Timestamp()))
+			"timestamp", util.TimeToCompact(r.Timestamp()))
 	}
 	return nil
 }
@@ -109,7 +110,7 @@ func (r *RevInfo) Pack() (common.RawBytes, error) {
 
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %s", r.IA(), r.IfID,
-		r.LinkType, util.TimeToString(r.Timestamp()), r.TTL())
+		r.LinkType, util.TimeToCompact(r.Timestamp()), r.TTL())
 }
 
 // RelativeTTL returns the duration r is still valid for, relative to
@@ -138,6 +139,18 @@ func (r *RevInfo) SameIntf(other *RevInfo) bool {
 		r.LinkType == other.LinkType
 }
 
+// Signer is used to sign raw bytes.
+type Signer interface {
+	Sign(msg common.RawBytes) (*proto.SignS, error)
+}
+
+// Verifier is used to verify signatures.
+type Verifier interface {
+	// Verify verifies the packed signed revocation based on the signature meta
+	// data.
+	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
+}
+
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)
 
 type SignedRevInfo struct {
@@ -148,17 +161,21 @@ type SignedRevInfo struct {
 
 func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
 	sr := &SignedRevInfo{}
-	return sr, proto.ParseFromRaw(sr, sr.ProtoId(), b)
+	return sr, proto.ParseFromRaw(sr, b)
 }
 
-func NewSignedRevInfo(r *RevInfo, s *proto.SignS) (*SignedRevInfo, error) {
+func NewSignedRevInfo(r *RevInfo, signer Signer) (*SignedRevInfo, error) {
 	rawR, err := r.Pack()
+	if err != nil {
+		return nil, err
+	}
+	sign, err := signer.Sign(rawR)
 	if err != nil {
 		return nil, err
 	}
 	return &SignedRevInfo{
 		Blob:    rawR,
-		Sign:    s,
+		Sign:    sign,
 		revInfo: r,
 	}, nil
 }
@@ -173,6 +190,23 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 		sr.revInfo, err = NewRevInfoFromRaw(sr.Blob)
 	}
 	return sr.revInfo, err
+}
+
+// VerifiedRevInfo verifies the signature and returns the revocation
+// information or an error in case the verification fails.
+func (sr *SignedRevInfo) VerifiedRevInfo(ctx context.Context, verifier Verifier) (*RevInfo, error) {
+	var err error
+	if sr.revInfo == nil {
+		sr.revInfo, err = NewRevInfoFromRaw(sr.Blob)
+	}
+	if err != nil {
+		return sr.revInfo, err
+	}
+	return sr.revInfo, verifier.Verify(ctx, sr.Blob, sr.Sign)
+}
+
+func (sr *SignedRevInfo) Pack() (common.RawBytes, error) {
+	return proto.PackRoot(sr)
 }
 
 func (sr *SignedRevInfo) String() string {

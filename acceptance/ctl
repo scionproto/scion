@@ -33,7 +33,7 @@ case "$COMMAND" in
         global_setup ;;
     grun)
         artifacts_dir; stats_failed=0
-        global_run_single "$1"
+        global_run_single "acceptance/${1}_acceptance/test"
         [ $stats_failed -eq 0 ] ;;
     gteardown)
         global_teardown ;;

@@ -36,11 +36,11 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/topology/topotestutil"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -256,7 +256,7 @@ func TestGetTRC(t *testing.T) {
 		insertTRC(t, store, trcs[1])
 		insertTRC(t, store, trcs[3])
 
-		for _, tc := range testCases[4:5] {
+		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
@@ -309,12 +309,12 @@ func TestGetValidChain(t *testing.T) {
 		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 		insertTRC(t, store, trcs[1])
-		for _, tc := range testCases[3:4] {
+		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
-				chain, err := store.GetValidChain(ctx, tc.IA, nil)
+				chain, err := store.GetValidChain(ctx, tc.IA, scrypto.LatestVer, nil)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", chain, ShouldResemble, tc.ExpData)
 
@@ -693,10 +693,15 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) 
 	config := &messenger.Config{
 		IA: ia,
 		Dispatcher: disp.New(
-			transport.NewPacketTransport(conn),
+			conn,
 			messenger.DefaultAdapter,
 			log.New("name", name),
 		),
+		AddressRewriter: &messenger.AddressRewriter{
+			Router: &snet.BaseRouter{
+				IA: ia,
+			},
+		},
 		TrustStore:                   store,
 		DisableSignatureVerification: true,
 		Logger:                       log.Root().New("name", name),
@@ -747,8 +752,7 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	})
 	_, _, err = itopo.SetStatic(topo, false)
 	xtest.FailOnErr(t, err)
-	store, err := NewStore(db, ia, &Config{}, log.Root())
-	xtest.FailOnErr(t, err)
+	store := NewStore(db, ia, &Config{}, log.Root())
 	// Enable fake network access for trust database
 	store.SetMessenger(msger)
 	return store, db.Close

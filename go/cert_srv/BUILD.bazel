@@ -1,4 +1,5 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
 
 go_library(
     name = "go_default_library",
@@ -19,6 +20,7 @@ go_library(
         "//go/lib/fatal:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/infraenv:go_default_library",
+        "//go/lib/infra/messenger:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
         "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/trust:go_default_library",
@@ -26,13 +28,14 @@ go_library(
         "//go/lib/log:go_default_library",
         "//go/lib/periodic:go_default_library",
         "//go/lib/snet:go_default_library",
-        "//go/lib/sock/reliable:go_default_library",
+        "//go/lib/topology:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_burntsushi_toml//:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
 )
 
-go_binary(
+scion_go_binary(
     name = "cert_srv",
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],

@@ -27,7 +27,6 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/common:go_default_library",
-        "//go/lib/infra/transport:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/lib/xtest/p2p:go_default_library",

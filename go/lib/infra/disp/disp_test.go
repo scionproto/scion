@@ -23,7 +23,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
@@ -35,8 +34,8 @@ const (
 
 func Setup() (*Dispatcher, *Dispatcher, *customObject, *customObject) {
 	a2b, b2a := p2p.NewPacketConns()
-	dispA := New(transport.NewPacketTransport(a2b), testAdapter, log.Root())
-	dispB := New(transport.NewPacketTransport(b2a), testAdapter, log.Root())
+	dispA := New(a2b, testAdapter, log.Root())
+	dispB := New(b2a, testAdapter, log.Root())
 	request := &customObject{8, "request"}
 	reply := &customObject{8, "reply"}
 	return dispA, dispB, request, reply

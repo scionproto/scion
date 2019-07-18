@@ -16,8 +16,11 @@
 package config
 
 import (
+	"io"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
@@ -26,24 +29,64 @@ import (
 )
 
 var (
-	DefaultQueryInterval = 5 * time.Minute
+	DefaultQueryInterval      = 5 * time.Minute
+	DefaultCryptoSyncInterval = 30 * time.Second
 )
 
+var _ config.Config = (*Config)(nil)
+
 type Config struct {
-	General        env.General
-	Logging        env.Logging
-	Metrics        env.Metrics
-	TrustDB        truststorage.TrustDBConf
-	Infra          env.Infra
-	Discovery      idiscovery.Config
-	PS             PSConfig
-	EnableQUICTest bool
+	General   env.General
+	Logging   env.Logging
+	Metrics   env.Metrics
+	Tracing   env.Tracing
+	QUIC      env.QUIC `toml:"quic"`
+	TrustDB   truststorage.TrustDBConf
+	Discovery idiscovery.Config
+	PS        PSConfig
 }
 
-func (c *Config) InitDefaults() {
-	c.PS.initDefaults()
-	c.Discovery.InitDefaults()
+func (cfg *Config) InitDefaults() {
+	config.InitAll(
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Tracing,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.PS,
+	)
 }
+
+func (cfg *Config) Validate() error {
+	return config.ValidateAll(
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.PS,
+	)
+}
+
+func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.General,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.Tracing,
+		&cfg.QUIC,
+		&cfg.TrustDB,
+		&cfg.Discovery,
+		&cfg.PS,
+	)
+}
+
+func (cfg *Config) ConfigName() string {
+	return "ps_config"
+}
+
+var _ config.Config = (*PSConfig)(nil)
 
 type PSConfig struct {
 	// SegSync enables the "old" replication of down segments between cores,
@@ -54,12 +97,33 @@ type PSConfig struct {
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap
+	// CryptoSyncInterval specifies the interval of crypto pushes towards
+	// the local CS.
+	CryptoSyncInterval util.DurWrap
 }
 
-func (c *PSConfig) initDefaults() {
-	if c.QueryInterval.Duration == 0 {
-		c.QueryInterval.Duration = DefaultQueryInterval
+func (cfg *PSConfig) InitDefaults() {
+	if cfg.QueryInterval.Duration == 0 {
+		cfg.QueryInterval.Duration = DefaultQueryInterval
 	}
-	c.PathDB.InitDefaults()
-	c.RevCache.InitDefaults()
+	if cfg.CryptoSyncInterval.Duration == 0 {
+		cfg.CryptoSyncInterval.Duration = DefaultCryptoSyncInterval
+	}
+	config.InitAll(&cfg.PathDB, &cfg.RevCache)
+}
+
+func (cfg *PSConfig) Validate() error {
+	if cfg.QueryInterval.Duration == 0 {
+		return common.NewBasicError("QueryInterval must not be zero", nil)
+	}
+	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
+}
+
+func (cfg *PSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, psSample)
+	config.WriteSample(dst, path, ctx, &cfg.PathDB, &cfg.RevCache)
+}
+
+func (cfg *PSConfig) ConfigName() string {
+	return "ps"
 }

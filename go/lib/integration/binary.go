@@ -22,8 +22,10 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -101,8 +103,6 @@ func (bi *binaryIntegration) Name() string {
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.IA.String(), bi.serverArgs)
 	args = replacePattern(DstHostReplace, dst.Host.L3.String(), args)
-	startCtx, cancelF := context.WithTimeout(ctx, StartServerTimeout)
-	defer cancelF()
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
@@ -140,15 +140,14 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 		defer log.LogPanicAndExit()
 		bi.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), ep)
 	}()
-	err = r.Start()
-	if err != nil {
-		return nil, err
+	if err = r.Start(); err != nil {
+		return nil, common.NewBasicError("Failed to start server", err, "dst", dst.IA)
 	}
 	select {
 	case <-ready:
 		return r, err
-	case <-startCtx.Done():
-		return nil, startCtx.Err()
+	case <-time.After(StartServerTimeout):
+		return nil, common.NewBasicError("Start server timed out", nil, "dst", dst.IA)
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -45,8 +46,10 @@ func TestBasicPolicy(t *testing.T) {
 		},
 	}
 
-	conn := testGetSCIONDConn(t)
 	Convey("TestPolicy", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		conn := testGetSCIONDConn(t, ctrl)
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
@@ -329,8 +332,10 @@ func TestSequenceEval(t *testing.T) {
 		},
 	}
 
-	conn := testGetSCIONDConn(t)
 	Convey("TestSeq", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		conn := testGetSCIONDConn(t, ctrl)
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
@@ -436,10 +441,21 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 0,
 		},
+		{
+			Name: "nil rule should match all the paths",
+			ACL: &ACL{Entries: []*ACLEntry{
+				{Action: Deny, Rule: nil},
+				allowEntry}},
+			Src:        xtest.MustParseIA("1-ff00:0:130"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 0,
+		},
 	}
 
-	conn := testGetSCIONDConn(t)
 	Convey("TestPolicy", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		conn := testGetSCIONDConn(t, ctrl)
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
@@ -459,8 +475,10 @@ func TestACLPanic(t *testing.T) {
 		Action: Allow,
 		Rule:   mustHopPredicate(t, "1-0#0")}}}
 
-	conn := testGetSCIONDConn(t)
 	Convey("TestACLPanic", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		conn := testGetSCIONDConn(t, ctrl)
 		paths, err := conn.Paths(context.Background(), xtest.MustParseIA("2-ff00:0:211"),
 			xtest.MustParseIA("2-ff00:0:212"), 5, sciond.PathReqFlags{})
 		SoMsg("sciond err", err, ShouldBeNil)
@@ -602,8 +620,10 @@ func TestOptionsEval(t *testing.T) {
 		},
 	}
 
-	conn := testGetSCIONDConn(t)
 	Convey("TestPolicy", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		conn := testGetSCIONDConn(t, ctrl)
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
@@ -854,10 +874,10 @@ func newSequence(t *testing.T, str string) *Sequence {
 	return seq
 }
 
-func testGetSCIONDConn(t *testing.T) sciond.Connector {
+func testGetSCIONDConn(t *testing.T, ctrl *gomock.Controller) sciond.Connector {
 	t.Helper()
 
-	g := graph.NewDefaultGraph()
+	g := graph.NewDefaultGraph(ctrl)
 	service := sciond.NewMockService(g)
 	conn, err := service.Connect()
 	if err != nil {

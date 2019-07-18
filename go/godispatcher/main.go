@@ -30,11 +30,11 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var (
-	cfg         config.Config
-	environment *env.Env
+	cfg config.Config
 )
 
 func main() {
@@ -45,7 +45,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if returnCode, ok := env.CheckFlags(config.Sample); !ok {
+	if returnCode, ok := env.CheckFlags(&cfg); !ok {
 		return returnCode
 	}
 	if err := setupBasic(); err != nil {
@@ -55,6 +55,15 @@ func realMain() int {
 	defer log.Flush()
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.LogPanicAndExit()
+	if err := cfg.Validate(); err != nil {
+		log.Crit("Unable to validate config", "err", err)
+		return 1
+	}
+
+	if err := util.CreateParentDirs(cfg.Dispatcher.ApplicationSocket); err != nil {
+		log.Crit("Unable to create directory tree for socket", "err", err)
+		return 1
+	}
 
 	go func() {
 		defer log.LogPanicAndExit()
@@ -69,6 +78,7 @@ func realMain() int {
 	}()
 	if cfg.Dispatcher.PerfData != "" {
 		go func() {
+			defer log.LogPanicAndExit()
 			err := http.ListenAndServe(cfg.Dispatcher.PerfData, nil)
 			if err != nil {
 				fatal.Fatal(err)
@@ -76,7 +86,7 @@ func realMain() int {
 		}()
 	}
 
-	environment = env.SetupEnv(nil)
+	env.SetupEnv(nil)
 	cfg.Metrics.StartPrometheus()
 
 	returnCode := waitForTeardown()
@@ -102,16 +112,12 @@ func setupBasic() error {
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
+	cfg.InitDefaults()
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	cfg.InitDefaults()
 	metrics.Init(cfg.Dispatcher.ID)
-	env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
-	return nil
+	return env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
 }
 
 func RunDispatcher(deleteSocketFlag bool, applicationSocket string, overlayPort int) error {
@@ -142,9 +148,9 @@ func deleteSocket(socket string) error {
 
 func waitForTeardown() int {
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }

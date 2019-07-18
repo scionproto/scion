@@ -39,6 +39,7 @@ python3-nose
 python3-nose-cov
 python3-openssl
 python3-pip
+python3-pyasn1
 python3-pygments
 python3-setuptools
 python3-wheel

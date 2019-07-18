@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -28,8 +29,6 @@ import (
 )
 
 func TestPathPredicates(t *testing.T) {
-	conn := testGetSCIONDConn(t)
-
 	testCases := []struct {
 		name         string
 		src          string
@@ -105,6 +104,10 @@ func TestPathPredicates(t *testing.T) {
 	}
 
 	Convey("Test for various predicates and paths", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		conn := testGetSCIONDConn(t, ctrl)
+
 		for _, tc := range testCases {
 			Convey(fmt.Sprintf("Test %s", tc.name), func() {
 				pp, err := NewPathPredicate(tc.predicateStr)
@@ -152,10 +155,10 @@ func MustParseIA(iaStr string) addr.IA {
 	return ia
 }
 
-func testGetSCIONDConn(t *testing.T) sciond.Connector {
+func testGetSCIONDConn(t *testing.T, ctrl *gomock.Controller) sciond.Connector {
 	t.Helper()
 
-	g := graph.NewFromDescription(graph.DefaultGraphDescription)
+	g := graph.NewFromDescription(ctrl, graph.DefaultGraphDescription)
 	g.RemoveLink(graph.If_120_B1_220_X)
 	service := sciond.NewMockService(g)
 	conn, err := service.Connect()

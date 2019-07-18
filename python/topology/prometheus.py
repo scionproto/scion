@@ -24,7 +24,7 @@ from collections import defaultdict
 import yaml
 
 # SCION
-from lib.defines import PROM_FILE
+from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, PROM_FILE
 from lib.util import write_file
 from topology.common import (
     ArgsTopoDicts,
@@ -159,7 +159,7 @@ class PrometheusGenerator(object):
         name_prefix = 'prometheus'
         name = '%s_docker' % name_prefix if self.args.in_docker else name_prefix
         prom_dc = {
-            'version': '3',
+            'version': DOCKER_COMPOSE_CONFIG_VERSION,
             'services': {
                 name_prefix: {
                     'image': 'prom/prometheus:v2.6.0',

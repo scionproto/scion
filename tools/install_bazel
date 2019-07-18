@@ -2,19 +2,19 @@
 
 set -ex
 
-[ $(id -u) -eq 0 ] || { echo "Error: this script should be run as root" && exit 1; }
 
-# OpenJDK is mentioned as a prereq here:
-# https://docs.bazel.build/versions/master/install-ubuntu.html#install-on-ubuntu
-# However, it seems that it's not really needed.
-# DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
+BAZEL_VER=0.26.1
+BAZEL_CKSUM=6c50e142a0a405d3d8598050d6c1b3920c8cdb82a7ffca6fc067cb474275148f
 
-# Add bazel apt repo.
-if ! grep -Rq "http://storage.googleapis.com/bazel-apt" /etc/apt/sources.list.d/; then
-    curl -fsSL https://bazel.build/bazel-release.pub.gpg | apt-key add -
-    add-apt-repository "deb [arch=$(dpkg --print-architecture)] http://storage.googleapis.com/bazel-apt stable jdk1.8"
-    apt-get update
-fi
+BAZEL_MACH="$(uname -m)"
+BAZEL_FILE="bazel-${BAZEL_VER}-linux-${BAZEL_MACH}"
 
-# Install the package
-DEBIAN_FRONTEND=noninteractive apt-get install -y bazel
+[ "$BAZEL_MACH" == "x86_64" ] || { echo "Error: bazel does not provide binaries for $BAZEL_MACH"; exit 1; }
+# If ~/bin/bazel already has the expected checksum, no need to continue.
+[ -e ~/bin/bazel ] && echo ${BAZEL_CKSUM} ~/bin/bazel | sha256sum --check --status && exit 0
+
+curl -sSL https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VER}/${BAZEL_FILE} -o /tmp/${BAZEL_FILE}
+echo ${BAZEL_CKSUM} /tmp/${BAZEL_FILE} | sha256sum --check --quiet -
+
+install -m 0755 -D /tmp/${BAZEL_FILE} ~/bin/bazel
+rm /tmp/${BAZEL_FILE}

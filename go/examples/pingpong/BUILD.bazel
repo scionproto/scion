@@ -1,4 +1,5 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
 
 go_library(
     name = "go_default_library",
@@ -15,11 +16,10 @@ go_library(
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/spath:go_default_library",
         "@com_github_lucas_clemente_quic_go//:go_default_library",
-        "@com_github_lucas_clemente_quic_go//qerr:go_default_library",
     ],
 )
 
-go_binary(
+scion_go_binary(
     name = "pingpong",
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],

@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 )
 
-func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, error) {
+func (rp *RtrPkt) parseCtrlPayload() (HookResult, *ctrl.Pld, error) {
 	if rp.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
@@ -30,7 +30,7 @@ func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, error) {
 	if err != nil {
 		return HookError, nil, err
 	}
-	cpld, err := scpld.Pld()
+	cpld, err := scpld.UnsafePld()
 	if err != nil {
 		return HookError, nil, err
 	}

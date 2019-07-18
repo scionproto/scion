@@ -1,5 +1,7 @@
 # Revocation Authentication
 
+## Overview
+
 This document presents the new design for interface revocation authentication. Revocation
 authentication was done using hash trees, see chapter 7.3.3 of the book. This is was not practical
 and was therefore migrated to use digital signatures.
@@ -60,10 +62,10 @@ Upon reception from the network or zookeeper BS and PS check the revocations val
 verify the signature. Then the revocation is added to the local cache (and sent to zookeeper if not
 received from it).
 
-*   A BS removes affected PCBs. And sends the revocation to the local PS.
-*   A PS removes all revoked segments by looping over all segments. Further it forwards the
-    revocation to other path servers if necessary. This includes forwarding revocations from a local
-    PS to the core ASes and from a core PS to other core ASes.
+* A BS removes affected PCBs. And sends the revocation to the local PS.
+* A PS removes all revoked segments by looping over all segments. Further it forwards the
+  revocation to other path servers if necessary. This includes forwarding revocations from a local
+  PS to the core ASes and from a core PS to other core ASes.
 
 ### Creation of Revocaton: Beacon Server
 

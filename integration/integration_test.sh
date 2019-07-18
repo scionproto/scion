@@ -47,7 +47,7 @@ if is_docker_be; then
     ./tools/quiet ./tools/dc start "tester*"
 fi
 
-sleep 10
+sleep 5
 result=0
 
 # Run go integration tests
@@ -55,7 +55,9 @@ integration/go_integration
 result=$((result+$?))
 
 # Run python integration tests
-integration/py_integration
+integration/py_ext_integration
+result=$((result+$?))
+integration/py_scmp_integration
 result=$((result+$?))
 
 integration/revocation_test.sh -b "$REV_BRS"

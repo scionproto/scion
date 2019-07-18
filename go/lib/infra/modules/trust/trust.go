@@ -23,9 +23,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
@@ -33,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -84,9 +84,7 @@ type Store struct {
 // NewStore initializes a TRC/Certificate Chain cache/resolver backed by db.
 // Parameter local must specify the AS in which the trust store resides (which
 // is used during request forwarding decisions).
-func NewStore(db trustdb.TrustDB, local addr.IA,
-	options *Config, logger log.Logger) (*Store, error) {
-
+func NewStore(db trustdb.TrustDB, local addr.IA, options *Config, logger log.Logger) *Store {
 	if options == nil {
 		options = &Config{}
 	}
@@ -96,7 +94,7 @@ func NewStore(db trustdb.TrustDB, local addr.IA,
 		config:  options,
 		log:     logger,
 	}
-	return store, nil
+	return store
 }
 
 // SetMessenger enables network access for the trust store via msger. The
@@ -239,8 +237,12 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
-	responseC, cancelF := store.trcDeduper.Request(ctx, req)
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "getTRCFromNet")
+	defer span.Finish()
+	responseC, cancelF, span := store.trcDeduper.Request(ctx, req)
 	defer cancelF()
+	defer span.Finish()
 	select {
 	case response := <-responseC:
 		if response.Error != nil {
@@ -295,23 +297,16 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 
 // GetValidChain asks the trust store to return a valid certificate chain for ia.
 // Server is queried over the network if the chain is not available locally.
-func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
+func (store *Store) GetValidChain(ctx context.Context, ia addr.IA, ver uint64,
 	server net.Addr) (*cert.Chain, error) {
 
-	if server == nil {
-		var err error
-		server, err = store.ChooseServer(ctx, ia)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return store.getValidChain(ctx, ia, true, nil, server)
+	return store.getValidChain(ctx, ia, ver, true, nil, server)
 }
 
-func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
-	client, server net.Addr) (*cert.Chain, error) {
+func (store *Store) getValidChain(ctx context.Context, ia addr.IA, ver uint64,
+	recurse bool, client, server net.Addr) (*cert.Chain, error) {
 
-	chain, err := store.trustdb.GetChainMaxVersion(ctx, ia)
+	chain, err := store.trustdb.GetChainVersion(ctx, ia, ver)
 	if err != nil || chain != nil {
 		return chain, err
 	}
@@ -328,9 +323,16 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	if !recurse {
 		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
 	}
+	if server == nil {
+		var err error
+		server, err = store.ChooseServer(ctx, ia)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
-		version:  scrypto.LatestVer,
+		version:  ver,
 		id:       messenger.NextId(),
 		server:   server,
 		postHook: store.newChainValidator(trcObj),
@@ -356,8 +358,11 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	recurse bool, client net.Addr) (*cert.Chain, error) {
 
 	chain, err := store.trustdb.GetChainVersion(ctx, ia, version)
-	if err != nil || chain != nil {
-		return chain, err
+	if err != nil {
+		return nil, common.NewBasicError("Error accessing trustdb", nil)
+	}
+	if chain != nil {
+		return chain, nil
 	}
 	// If we're authoritative for the requested IA, error out now.
 	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
@@ -451,8 +456,12 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 func (store *Store) getChainFromNetwork(ctx context.Context,
 	req *chainRequest) (*cert.Chain, error) {
 
-	responseC, cancelF := store.chainDeduper.Request(ctx, req)
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "getChainFromNetwork")
+	defer span.Finish()
+	responseC, cancelF, span := store.chainDeduper.Request(ctx, req)
 	defer cancelF()
+	defer span.Finish()
 	select {
 	case response := <-responseC:
 		if response.Error != nil {
@@ -466,6 +475,14 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 		return nil, common.NewBasicError("Context canceled while waiting for Chain",
 			nil, "ia", req.ia, "version", req.version)
 	}
+}
+
+// LoadAuthoritativeCrypto loads the authoritative TRC and chain.
+func (store *Store) LoadAuthoritativeCrypto(dir string) error {
+	if err := store.LoadAuthoritativeTRC(dir); err != nil {
+		return err
+	}
+	return store.LoadAuthoritativeChain(dir)
 }
 
 func (store *Store) LoadAuthoritativeTRC(dir string) error {
@@ -535,7 +552,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	dbChain, err := store.getValidChain(ctx, store.ia, false, nil, nil)
+	dbChain, err := store.getValidChain(ctx, store.ia, scrypto.LatestVer, false, nil, nil)
 	switch {
 	case err != nil && common.GetErrorMsg(err) != ErrMissingAuthoritative:
 		// Unexpected error in trust store
@@ -658,20 +675,23 @@ func (store *Store) isLocal(address net.Addr) error {
 func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.Addr, error) {
 	topo := itopo.Get()
 	if store.config.ServiceType != proto.ServiceType_cs {
-		return store.chooseASLocalCS(ctx, destination, topo)
+		return &snet.Addr{IA: store.ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}, nil
 	}
 	destISD, err := store.chooseDestCSIsd(ctx, destination, topo)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to determine dest ISD to query", err)
 	}
-	pathSet := snet.DefNetwork.PathResolver().Query(ctx, store.ia, addr.IA{I: destISD},
-		sciond.PathReqFlags{})
-	path := pathSet.GetAppPath("")
-	if path == nil {
-		return nil, common.NewBasicError("Unable to find path to any core AS", nil,
+	path, err := store.config.Router.Route(ctx, addr.IA{I: destISD})
+	if err != nil {
+		return nil, common.NewBasicError("Unable to find path to any core AS", err,
 			"isd", destISD)
 	}
-	a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	a := &snet.Addr{
+		IA:      path.Destination(),
+		Host:    addr.NewSVCUDPAppAddr(addr.SvcCS),
+		Path:    path.Path(),
+		NextHop: path.OverlayNextHop(),
+	}
 	return a, nil
 }
 
@@ -700,28 +720,12 @@ func (store *Store) chooseDestCSIsd(ctx context.Context, destination addr.IA,
 	return destination.I, nil
 }
 
-func (store *Store) chooseASLocalCS(ctx context.Context, destination addr.IA,
-	topo *topology.Topo) (net.Addr, error) {
-
-	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
-	if err != nil {
-		return nil, err
-	}
-	topoAddr := svcInfo.GetAnyTopoAddr()
-	if topoAddr == nil {
-		return nil, common.NewBasicError("Failed to look up CS in topology", nil)
-	}
-	csAddr := topoAddr.PublicAddr(topo.Overlay)
-	csOverlayAddr := topoAddr.OverlayAddr(topo.Overlay)
-	return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
+func (store *Store) NewSigner(key common.RawBytes, meta infra.SignerMeta) (infra.Signer, error) {
+	return NewBasicSigner(key, meta)
 }
 
-func (store *Store) NewSigner(s *proto.SignS, key common.RawBytes) ctrl.Signer {
-	return NewBasicSigner(s, key)
-}
-
-func (store *Store) NewSigVerifier() ctrl.SigVerifier {
-	return NewBasicSigVerifier(store)
+func (store *Store) NewVerifier() infra.Verifier {
+	return NewBasicVerifier(store)
 }
 
 // wrapErr build a dedupe.Response object containing nil data and error err.

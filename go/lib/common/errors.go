@@ -111,7 +111,8 @@ type BasicError struct {
 }
 
 // NewBasicError creates a new BasicError, with e as the embedded error (can be nil), with logCtx
-// being a list of string/val pairs.
+// being a list of string/val pairs. These key/value pairs should contain all context-dependent
+// information: 'msg' argument itself should be a constant string.
 func NewBasicError(msg string, e error, logCtx ...interface{}) error {
 	if assert.On {
 		assert.Must(len(logCtx)%2 == 0, "Log context must have an even number of elements")

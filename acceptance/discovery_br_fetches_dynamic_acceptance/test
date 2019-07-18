@@ -23,7 +23,7 @@ test_setup() {
     set -e
     base_setup
 
-    local cfg="gen/ISD1/AS$AS_FILE/br$IA_FILE-1/brconfig.toml"
+    local cfg="gen/ISD1/AS$AS_FILE/br$IA_FILE-1/br.toml"
     echo $cfg
     set_log_lvl "$cfg"
     set_interval "$cfg" "dynamic"

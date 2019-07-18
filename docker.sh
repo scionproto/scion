@@ -34,7 +34,6 @@ cmd_build() {
 
 cmd_tester() {
     set -eo pipefail
-    make -C docker/perapp base
     docker build -t "scion_tester:latest" - < docker/Dockerfile.tester
     docker build -f docker/acceptance/sig/Dockerfile -t "scion_sig_acceptance:latest" docker/acceptance/sig
 }
@@ -83,17 +82,18 @@ cmd_clean() {
 }
 
 common_args() {
-    # Limit to 4G of ram, don't allow swapping.
-    local args="-h scion -m 4GB --memory-swap=4GB --shm-size=1024M $DOCKER_ARGS"
+    local args="-h scion $DOCKER_ARGS"
     args+=" -v /var/run/docker.sock:/var/run/docker.sock"
     args+=" -v $SCION_MOUNT/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
     args+=" -v $SCION_MOUNT/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
     args+=" -v $SCION_MOUNT/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
     args+=" -v $SCION_MOUNT/gen-cache:/home/scion/go/src/github.com/scionproto/scion/gen-cache"
+    args+=" -v $SCION_MOUNT/traces:/home/scion/go/src/github.com/scionproto/scion/traces"
     args+=" -v $SCION_MOUNT/htmlcov:/home/scion/go/src/github.com/scionproto/scion/python/htmlcov"
     args+=" -e SCION_OUTPUT_BASE=$SCION_MOUNT"
     args+=" -e SCION_UID=$(id -u)"
     args+=" -e SCION_GID=$(id -g)"
+    args+=" -e SCION_PWD=${PWD}"
     args+=" -e DOCKER_GID=$(getent group docker | cut -f3 -d:)"
     args+=" -e SCION_USERSPEC=$(id -un):$(id -gn)"
     args+=" -u root"
@@ -144,7 +144,7 @@ cmd_stop() {
 
 setup_volumes() {
     set -e
-    for i in gen logs gen-certs gen-cache htmlcov; do
+    for i in gen logs gen-certs gen-cache traces htmlcov; do
         mkdir -p "$SCION_MOUNT/$i"
         # Check dir exists, and is owned by the current (effective) user. If
         # it's owned by the wrong user, the docker environment won't be able to

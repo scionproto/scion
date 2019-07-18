@@ -93,6 +93,9 @@ func (r *Runner) Stop() {
 
 // Kill is like stop but it also cancels the context of the current running method.
 func (r *Runner) Kill() {
+	if r == nil {
+		return
+	}
 	r.ticker.Stop()
 	close(r.stop)
 	r.cancelF()

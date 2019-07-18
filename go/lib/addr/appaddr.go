@@ -24,7 +24,15 @@ type AppAddr struct {
 }
 
 func (a *AppAddr) Copy() *AppAddr {
-	return &AppAddr{L3: a.L3.Copy(), L4: a.L4.Copy()}
+	var l3 HostAddr
+	if a.L3 != nil {
+		l3 = a.L3.Copy()
+	}
+	var l4 L4Info
+	if a.L4 != nil {
+		l4 = a.L4.Copy()
+	}
+	return &AppAddr{L3: l3, L4: l4}
 }
 
 func (a *AppAddr) Equal(o *AppAddr) bool {

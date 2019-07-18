@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 const (
@@ -111,17 +110,20 @@ func (h *HopField) String() string {
 		h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.Mac)
 }
 
+// Verify checks the MAC. The same restrictions on prev as in CalcMac apply, and
+// the function may panic otherwise.
 func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) error {
-	if mac, err := h.CalcMac(macH, tsInt, prev); err != nil {
-		return err
-	} else if !bytes.Equal(h.Mac, mac) {
+	mac := h.CalcMac(macH, tsInt, prev)
+	if !bytes.Equal(h.Mac, mac) {
 		return common.NewBasicError(ErrorHopFBadMac, nil, "expected", mac, "actual", h.Mac)
 	}
 	return nil
 }
 
 // CalcMac calculates the MAC of a HopField and its preceding HopField, if any.
-// prev does not contain flags byte.
+// prev does not contain flags byte. This implies that the length of prev can
+// either be 0 or k*8+7, where k >=0.
+// WARN: If prev is of different length, this function panics.
 //
 // MAC input block format:
 //
@@ -137,23 +139,36 @@ func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) er
 //  |                           PrevHopF                            |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
-	prev common.RawBytes) (common.RawBytes, error) {
-
+func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32, prev common.RawBytes) common.RawBytes {
+	// If the previous hopfield is set, it must be of length k*8+7 (k >= 0),
+	if len(prev) != 0 && (len(prev)&0x7) != 7 {
+		panic(fmt.Sprintf("Bad previous hop field length len=%d", len(prev)))
+	}
 	all := make(common.RawBytes, macInputLen)
 	common.Order.PutUint32(all, tsInt)
 	all[4] = 0 // Ignore flags
 	common.Order.PutUint32(all[5:], h.expTimeIfIdsPack())
 	copy(all[9:], prev)
-	tag, err := scrypto.Mac(mac, all)
-	return tag[:MacLen], err
+
+	mac.Reset()
+	// Write must not return an error: https://godoc.org/hash#Hash
+	if _, err := mac.Write(all); err != nil {
+		panic(err)
+	}
+	tmp := make([]byte, 0, mac.Size())
+	return mac.Sum(tmp)[:MacLen]
+}
+
+// Pack packs the hop field.
+func (h *HopField) Pack() common.RawBytes {
+	b := make(common.RawBytes, HopFieldLength)
+	h.Write(b)
+	return b
 }
 
 // WriteTo implements the io.WriterTo interface.
 func (h *HopField) WriteTo(w io.Writer) (int64, error) {
-	b := make(common.RawBytes, HopFieldLength)
-	h.Write(b)
-	n, err := w.Write(b)
+	n, err := w.Write(h.Pack())
 	return int64(n), err
 }
 
@@ -170,7 +185,48 @@ func (h *HopField) Equal(o *HopField) bool {
 		h.ConsIngress == o.ConsIngress && h.ConsEgress == o.ConsEgress && bytes.Equal(h.Mac, o.Mac)
 }
 
+// ExpTimeType describes the relative expiration time of the hop field.
 type ExpTimeType uint8
+
+// ExpTimeFromDuration converts a time duration to the relative expiration
+// time.
+//
+// Round Up Mode:
+//
+// The round up mode guarantees that the resulting relative expiration time
+// is more than the provided duration. The duration is rounded up to the
+// next unit, and then 1 is subtracted from the result, e.g. 1.3 is rounded
+// to 1. In case the requested duration exceeds the maximum value for the
+// expiration time (256*Unit) in this mode, an error is returned.
+//
+// Round Down Mode:
+//
+// The round down mode guarantees that the resulting relative expiration
+// time is less than the provided duration. The duration is rounded down to
+// the next unit, and then 1 is subtracted from the result, e.g. 1.3 is
+// rounded to 0. In case the requested duration is below the unit for the
+// expiration time in this mode, an error is returned.
+func ExpTimeFromDuration(duration time.Duration, roundUp bool) (ExpTimeType, error) {
+	unit := time.Duration(ExpTimeUnit) * time.Second
+	if duration > (time.Duration(MaxTTLField)+1)*unit {
+		if roundUp {
+			return 0, common.NewBasicError("Requested duration exceeds maximum value", nil,
+				"duration", duration, "max", MaxTTLField.ToDuration())
+		}
+		return MaxTTLField, nil
+	}
+	if duration < unit {
+		if !roundUp {
+			return 0, common.NewBasicError("Requested duration below minimum value", nil,
+				"duration", duration, "min", ExpTimeType(0).ToDuration())
+		}
+		return 0, nil
+	}
+	if roundUp {
+		return ExpTimeType((duration - 1) / unit), nil
+	}
+	return ExpTimeType((duration / unit) - 1), nil
+}
 
 // ToDuration calculates the relative expiration time in seconds.
 // Note that for a 0 value ExpTime, the minimal duration is ExpTimeUnit.

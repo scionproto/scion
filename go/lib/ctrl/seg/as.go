@@ -41,14 +41,17 @@ type ASEntry struct {
 
 func NewASEntryFromRaw(b common.RawBytes) (*ASEntry, error) {
 	ase := &ASEntry{}
-	return ase, proto.ParseFromRaw(ase, ase.ProtoId(), b)
+	return ase, proto.ParseFromRaw(ase, b)
 }
 
 func (ase *ASEntry) IA() addr.IA {
 	return ase.RawIA.IA()
 }
 
-func (ase *ASEntry) Validate(prevIA addr.IA, nextIA addr.IA) error {
+func (ase *ASEntry) Validate(prevIA addr.IA, nextIA addr.IA, ignoreNext bool) error {
+	if ase.IA().IsWildcard() {
+		return common.NewBasicError("ASEntry has wildcard IA", nil, "ia", ase.IA())
+	}
 	if len(ase.HopEntries) == 0 {
 		return common.NewBasicError("ASEntry has no HopEntries", nil, "ia", ase.IA())
 	}
@@ -60,7 +63,7 @@ func (ase *ASEntry) Validate(prevIA addr.IA, nextIA addr.IA) error {
 			return common.NewBasicError("HopEntry InIA mismatch", nil,
 				"hopIdx", i, "expected", h.InIA(), "actual", prevIA)
 		}
-		if !nextIA.Equal(h.OutIA()) {
+		if !ignoreNext && !nextIA.Equal(h.OutIA()) {
 			return common.NewBasicError("HopEntry OutIA mismatch", nil,
 				"hopIdx", i, "expected", h.OutIA(), "actual", prevIA)
 		}

@@ -20,7 +20,7 @@ from string import Template
 import yaml
 # SCION
 from lib.app.sciond import get_default_sciond_path
-from lib.defines import SCIOND_API_SOCKDIR
+from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
 from lib.util import (
     read_file,
@@ -63,7 +63,8 @@ class DockerGenerator(object):
         :param DockerGenArgs args: Contains the passed command line arguments and topo dicts.
         """
         self.args = args
-        self.dc_conf = {'version': '3', 'services': {}, 'networks': {}, 'volumes': {}}
+        self.dc_conf = {'version': DOCKER_COMPOSE_CONFIG_VERSION,
+                        'services': {}, 'networks': {}, 'volumes': {}}
         self.elem_networks = {}
         self.bridges = {}
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
@@ -186,8 +187,9 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _bs_conf(self, topo_id, topo, base):
+        image = 'beacon_py' if self.args.beacon_server == 'py' else 'beacon'
         raw_entry = {
-            'image': docker_image(self.args, 'beacon_py'),
+            'image': docker_image(self.args, image),
             'depends_on': [
                 sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
@@ -197,21 +199,20 @@ class DockerGenerator(object):
             },
             'network_mode': 'service:scion_disp_%s' % topo_id.file_fmt(),
             'volumes': self._std_vol(topo_id),
-            'command': [
-                '--spki_cache_dir=cache'
-            ]
+            'command': []
         }
         for k, v in topo.get("BeaconService", {}).items():
             entry = copy.deepcopy(raw_entry)
-            name = self.prefix + k
-            entry['container_name'] = name
+            entry['container_name'] = self.prefix + k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            prom_addr = prom_addr_infra(self.args.docker, k, v, BS_PROM_PORT)
-            entry['command'].append('--prom=%s' % prom_addr)
-            entry['command'].append('--sciond_path=%s' %
-                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
-            entry['command'].append(k)
-            entry['command'].append('conf')
+            if self.args.beacon_server == 'py':
+                entry['command'].append('--spki_cache_dir=cache')
+                prom_addr = prom_addr_infra(self.args.docker, k, v, BS_PROM_PORT)
+                entry['command'].append('--prom=%s' % prom_addr)
+                entry['command'].append('--sciond_path=%s' %
+                                        get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
+                entry['command'].append(k)
+                entry['command'].append('conf')
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _ps_conf(self, topo_id, topo, base):
@@ -342,11 +343,15 @@ class DockerGenerator(object):
     def _cache_vol(self):
         return self.output_base + '/gen-cache:/share/cache:rw'
 
+    def _certs_vol(self):
+        return self.output_base + '/gen-certs:/share/crypto:rw'
+
     def _std_vol(self, topo_id):
         return [
             *DOCKER_USR_VOL,
             self._disp_vol(topo_id),
             self._sciond_vol(topo_id),
             self._cache_vol(),
-            self._logs_vol()
+            self._logs_vol(),
+            self._certs_vol(),
         ]

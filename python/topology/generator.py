@@ -28,6 +28,7 @@ from lib.defines import (
 from topology.config import (
     ConfigGenerator,
     ConfigGenArgs,
+    DEFAULT_BEACON_SERVER,
     DEFAULT_CERTIFICATE_SERVER,
     DEFAULT_PATH_POLICY_FILE,
     DEFAULT_PATH_SERVER,
@@ -57,6 +58,8 @@ def add_arguments(parser):
                         help='Enable TRACE level file logging in Go services')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
                         help='Path segment TTL (in seconds)')
+    parser.add_argument('-bs', '--beacon-server', default=DEFAULT_BEACON_SERVER,
+                        help='Certificate Server implementation to use ("go" or "py")')
     parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,
                         help='Certificate Server implementation to use ("go" or "py")')
     parser.add_argument('-sd', '--sciond', default=DEFAULT_SCIOND,
@@ -67,8 +70,9 @@ def add_arguments(parser):
                         help='Dispatcher implementation to use ("go or "c")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
-    parser.add_argument('-q', '--qtest', action='store_true',
-                        help='Enable QUIC test mode')
+    parser.add_argument('-f', '--svcfrac', type=float, default=0.4,
+                        help='Attempt SVC resolution in RPC calls for a fraction of\
+                        available timeout')
     parser.add_argument('--random-ifids', action='store_true',
                         help='Generate random IFIDs')
     parser.add_argument('--in-docker', action='store_true',

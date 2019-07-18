@@ -5,5 +5,4 @@ go_library(
     srcs = ["p2p.go"],
     importpath = "github.com/scionproto/scion/go/lib/xtest/p2p",
     visibility = ["//visibility:public"],
-    deps = ["//go/lib/common:go_default_library"],
 )

@@ -1,4 +1,5 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
 
 go_library(
     name = "go_default_library",
@@ -6,12 +7,15 @@ go_library(
     importpath = "github.com/scionproto/scion/go/integration/end2end_integration",
     visibility = ["//visibility:private"],
     deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
         "//go/lib/integration:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/util:go_default_library",
     ],
 )
 
-go_binary(
+scion_go_binary(
     name = "end2end_integration",
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],

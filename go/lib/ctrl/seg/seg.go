@@ -18,6 +18,7 @@
 package seg
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -30,6 +31,62 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
+)
+
+// Signer signs path segments.
+type Signer interface {
+	// Sign signs the packed segment and returns the signature meta data.
+	Sign(packedSegment common.RawBytes) (*proto.SignS, error)
+}
+
+// Verifier verifies path segments.
+type Verifier interface {
+	// Verify verifies the packed segment based on the signature meta data.
+	Verify(ctx context.Context, packedSegment common.RawBytes, sign *proto.SignS) error
+}
+
+var _ proto.Cerealizable = (*Beacon)(nil)
+
+// Beacon is kept for compatibility with python code.
+// Before using the enclosed segment, the beacon should be parsed.
+type Beacon struct {
+	Segment *PathSegment `capnp:"pathSeg"`
+}
+
+// Parse parses and validates the enclosed path segment.
+func (b *Beacon) Parse() error {
+	if b.Segment == nil {
+		return common.NewBasicError("Beacon does not contain a segment", nil)
+	}
+	return b.Segment.ParseRaw(ValidateBeacon)
+}
+
+func (b *Beacon) ProtoId() proto.ProtoIdType {
+	return proto.PCB_TypeID
+}
+
+func (b *Beacon) String() string {
+	if b == nil {
+		return "<nil>"
+	}
+	return b.Segment.String()
+}
+
+// ValidationMethod is the method that is used during validation.
+type ValidationMethod bool
+
+const (
+	// ValidateSegment validates that remote ingress and egress ISD-AS for
+	// each AS entry are consistent with the segment. The ingress ISD-AS of
+	// the first entry, and the egress ISD-AS of the last entry must be the
+	// zero value. Additionally, it is validated that each hop field is
+	// parsable.
+	ValidateSegment ValidationMethod = false
+	// ValidateBeacon validates the segment in the same manner as
+	// ValidateSegment, except for the last AS entry. The egress values for
+	// the last AS entry are ignored, since they are under construction in
+	// a beacon.
+	ValidateBeacon ValidationMethod = true
 )
 
 var _ proto.Cerealizable = (*PathSegment)(nil)
@@ -45,6 +102,8 @@ type PathSegment struct {
 	fullId    common.RawBytes
 }
 
+// NewSeg creates a new path segment with the specified info field. The AS
+// entries are empty and should be added using AddASEntry.
 func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
 	pss := newPathSegmentSignedData(infoF)
 	rawPss, err := proto.PackRoot(pss)
@@ -55,16 +114,27 @@ func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
 	return ps, nil
 }
 
+// NewSegFromRaw creates a segment from raw data.
 func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
+	return newSegFromRaw(b, ValidateSegment)
+}
+
+// NewBeaconFromRaw creates a segment from raw data. The last AS entry is
+// not assumed to terminate the path segment.
+func NewBeaconFromRaw(b common.RawBytes) (*PathSegment, error) {
+	return newSegFromRaw(b, ValidateBeacon)
+}
+
+func newSegFromRaw(b common.RawBytes, validationMethod ValidationMethod) (*PathSegment, error) {
 	ps := &PathSegment{}
-	err := proto.ParseFromRaw(ps, ps.ProtoId(), b)
+	err := proto.ParseFromRaw(ps, b)
 	if err != nil {
 		return nil, err
 	}
-	return ps, ps.ParseRaw()
+	return ps, ps.ParseRaw(validationMethod)
 }
 
-func (ps *PathSegment) ParseRaw() error {
+func (ps *PathSegment) ParseRaw(validationMethod ValidationMethod) error {
 	var err error
 	ps.SData, err = NewPathSegmentSignedDataFromRaw(ps.RawSData)
 	if err != nil {
@@ -77,7 +147,7 @@ func (ps *PathSegment) ParseRaw() error {
 			return err
 		}
 	}
-	return ps.Validate()
+	return ps.Validate(validationMethod)
 }
 
 // ID returns a hash of the segment covering all hops, except for peerings.
@@ -127,7 +197,10 @@ func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
 	return ps.SData.InfoF()
 }
 
-func (ps *PathSegment) Validate() error {
+// Validate validates that remote ingress and egress ISD-AS for each AS
+// entry are consistent with the segment. In case a beacon is validated,
+// the egress ISD-AS of the last AS entry is ignored.
+func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 	if err := ps.SData.Validate(); err != nil {
 		return err
 	}
@@ -149,8 +222,11 @@ func (ps *PathSegment) Validate() error {
 		if i < len(ps.ASEntries)-1 {
 			nextIA = ps.ASEntries[i+1].IA()
 		}
-		if err := ps.ASEntries[i].Validate(prevIA, nextIA); err != nil {
-			return err
+		// The last AS entry in a beacon should ignore whether the next IA
+		// matches, since it is not set yet.
+		ignoreNext := i == len(ps.ASEntries)-1 && (validationMethod == ValidateBeacon)
+		if err := ps.ASEntries[i].Validate(prevIA, nextIA, ignoreNext); err != nil {
+			return common.NewBasicError("Unable to validate AS entry", err, "ASEntryIdx", i)
 		}
 	}
 	// Check that all hop fields can be extracted
@@ -247,19 +323,26 @@ func (ps *PathSegment) WalkHopEntries() error {
 	return nil
 }
 
-func (ps *PathSegment) AddASEntry(ase *ASEntry, signType proto.SignType,
-	signSrc common.RawBytes) error {
+// AddASEntry adds the AS entry and signs the resulting path segment.
+func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
 	rawASE, err := ase.Pack()
 	if err != nil {
 		return err
 	}
-	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{
-		Blob: rawASE,
-		Sign: proto.NewSignS(signType, signSrc),
-	})
+	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{Blob: rawASE})
 	ps.ASEntries = append(ps.ASEntries, ase)
+	ps.RawASEntries[ps.MaxAEIdx()].Sign, err = signer.Sign(ps.sigPack(ps.MaxAEIdx()))
+	if err != nil {
+		ps.popLastEntry()
+		return err
+	}
 	ps.invalidateIds()
 	return nil
+}
+
+func (ps *PathSegment) popLastEntry() {
+	ps.RawASEntries = ps.RawASEntries[:len(ps.RawASEntries)-1]
+	ps.ASEntries = ps.ASEntries[:len(ps.ASEntries)-1]
 }
 
 func (ps *PathSegment) invalidateIds() {
@@ -267,33 +350,21 @@ func (ps *PathSegment) invalidateIds() {
 	ps.fullId = nil
 }
 
-func (ps *PathSegment) SignLastASEntry(key common.RawBytes) error {
-	idx := ps.MaxAEIdx()
-	packed, err := ps.sigPack(idx)
-	if err != nil {
-		return err
-	}
-	return ps.RawASEntries[idx].Sign.SignAndSet(key, packed)
-}
-
-func (ps *PathSegment) VerifyASEntry(key common.RawBytes, idx int) error {
-	packed, err := ps.sigPack(idx)
-	if err != nil {
-		return err
-	}
-	return ps.RawASEntries[idx].Sign.Verify(key, packed)
-}
-
-func (ps *PathSegment) sigPack(idx int) (common.RawBytes, error) {
+// VerifyASEntry verifies the AS Entry at the specified index.
+func (ps *PathSegment) VerifyASEntry(ctx context.Context, verifier Verifier, idx int) error {
 	if err := ps.validateIdx(idx); err != nil {
-		return nil, err
+		return err
 	}
+	return verifier.Verify(ctx, ps.sigPack(idx), ps.RawASEntries[idx].Sign)
+}
+
+func (ps *PathSegment) sigPack(idx int) common.RawBytes {
 	data := append(common.RawBytes(nil), ps.RawSData...)
 	for i := 0; i < idx; i++ {
 		data = append(data, ps.RawASEntries[i].Pack()...)
 	}
 	data = append(data, ps.RawASEntries[idx].Blob...)
-	return data, nil
+	return data
 }
 
 func (ps *PathSegment) MaxAEIdx() int {
@@ -306,6 +377,22 @@ func (ps *PathSegment) validateIdx(idx int) error {
 			"min", 0, "max", ps.MaxAEIdx(), "actual", idx)
 	}
 	return nil
+}
+
+// ShallowCopy creates a shallow copy of the path segment.
+func (ps *PathSegment) ShallowCopy() *PathSegment {
+	rawEntries := make([]*proto.SignedBlobS, len(ps.RawASEntries))
+	copy(rawEntries, ps.RawASEntries)
+	entries := make([]*ASEntry, len(ps.ASEntries))
+	copy(entries, ps.ASEntries)
+	return &PathSegment{
+		RawSData:     ps.RawSData,
+		SData:        ps.SData,
+		RawASEntries: rawEntries,
+		ASEntries:    entries,
+		id:           ps.id,
+		fullId:       ps.fullId,
+	}
 }
 
 func (ps *PathSegment) Write(b common.RawBytes) (int, error) {
@@ -357,7 +444,7 @@ func (ps *PathSegment) String() string {
 	info, _ := ps.InfoF()
 	desc := []string{
 		ps.GetLoggingID(),
-		util.TimeToString(info.Timestamp()),
+		util.TimeToCompact(info.Timestamp()),
 		ps.getHopsDescription(),
 	}
 	return strings.Join(desc, " ")

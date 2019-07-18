@@ -27,9 +27,13 @@ from lib.util import write_file
 from topology.common import (
     ArgsTopoDicts,
     BR_CONFIG_NAME,
+    BS_CONFIG_NAME,
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
+    docker_host,
+    get_pub,
+    get_pub_ip,
     prom_addr_br,
     prom_addr_infra,
     prom_addr_sciond,
@@ -40,12 +44,18 @@ from topology.common import (
     trust_db_conf_entry,
 )
 from topology.prometheus import (
+    BS_PROM_PORT,
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     PS_PROM_PORT,
     SCIOND_PROM_PORT,
     DISP_PROM_PORT,
 )
+
+BS_QUIC_PORT = 30352
+PS_QUIC_PORT = 30353
+CS_QUIC_PORT = 30354
+SD_QUIC_PORT = 0
 
 
 class GoGenArgs(ArgsTopoDicts):
@@ -62,6 +72,7 @@ class GoGenerator(object):
         self.args = args
         self.log_dir = '/share/logs' if args.docker else 'logs'
         self.db_dir = '/share/cache' if args.docker else 'gen-cache'
+        self.certs_dir = '/share/crypto' if args.docker else 'gen-certs'
         self.log_level = 'trace' if args.trace else 'debug'
 
     def generate_br(self):
@@ -89,6 +100,33 @@ class GoGenerator(object):
         }
         return raw_entry
 
+    def generate_bs(self):
+        for topo_id, topo in self.args.topo_dicts.items():
+            for elem_id, elem in topo.get("BeaconService", {}).items():
+                # only a single Go-BS per AS is currently supported
+                if elem_id.endswith("-1"):
+                    base = topo_id.base_dir(self.args.output_dir)
+                    bs_conf = self._build_bs_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id, BS_CONFIG_NAME), toml.dumps(bs_conf))
+
+    def _build_bs_conf(self, topo_id, ia, base, name, infra_elem):
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': config_dir,
+                'ReconnectToDispatcher': True,
+            },
+            'logging': self._log_entry(name),
+            'trustDB': trust_db_conf_entry(self.args, name),
+            'beaconDB': beacon_db_conf_entry(self.args, name),
+            'discovery': self._discovery_entry(),
+            'tracing': self._tracing_entry(),
+            'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
+            'quic': self._quic_conf_entry(BS_QUIC_PORT, self.args.svcfrac, infra_elem),
+        }
+        return raw_entry
+
     def generate_ps(self):
         for topo_id, topo in self.args.topo_dicts.items():
             for elem_id, elem in topo.get("PathService", {}).items():
@@ -107,20 +145,18 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
-            'infra': {
-                'Type': "PS"
-            },
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'ps': {
-                'PathDB': {
+                'pathDB': {
                     'Backend': 'sqlite',
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
                 'SegSync': True,
             },
+            'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, PS_PROM_PORT),
-            'EnableQUICTest': self.args.qtest,
+            'quic': self._quic_conf_entry(PS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
 
@@ -140,21 +176,22 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
                 'Public': '%s,[127.0.0.1]:0' % ia,
-                'PathDB': {
+                'pathDB': {
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
             },
+            'tracing': self._tracing_entry(),
             'metrics': {
                 'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
                                                self.args.networks, SCIOND_PROM_PORT)
             },
-            'EnableQUICTest': self.args.qtest,
+            'quic': self._quic_conf_entry(SD_QUIC_PORT, self.args.svcfrac),
         }
         return raw_entry
 
@@ -173,15 +210,13 @@ class GoGenerator(object):
             'general': {
                 'ID': name,
                 'ConfigDir': config_dir,
+                'ReconnectToDispatcher': True,
             },
             'sd_client': {
                 'Path': get_default_sciond_path(topo_id),
             },
             'logging': self._log_entry(name),
-            'TrustDB': trust_db_conf_entry(self.args, name),
-            'infra': {
-                'Type': "CS"
-            },
+            'trustDB': trust_db_conf_entry(self.args, name),
             'discovery': self._discovery_entry(),
             'cs': {
                 'LeafReissueLeadTime': "6h",
@@ -189,8 +224,9 @@ class GoGenerator(object):
                 'ReissueRate': "10s",
                 'ReissueTimeout': "5s",
             },
+            'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
-            'EnableQUICTest': self.args.qtest,
+            'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
 
@@ -218,7 +254,7 @@ class GoGenerator(object):
             'dispatcher': {
                 'ID': name,
             },
-            'logging': self._log_entry("dispatcher"),
+            'logging': self._log_entry(name),
             'metrics': {
                 'Prometheus': prometheus_addr,
             },
@@ -232,6 +268,15 @@ class GoGenerator(object):
             'dynamic': {
                 'Enable': self.args.discovery,
             }
+        }
+        return entry
+
+    def _tracing_entry(self):
+        docker_ip = docker_host(self.args.in_docker, self.args.docker)
+        entry = {
+            'enabled': True,
+            'debug': True,
+            'agent': '%s:6831' % docker_ip
         }
         return entry
 
@@ -252,3 +297,23 @@ class GoGenerator(object):
         return {
             'Prometheus': prom_addr
         }
+
+    def _quic_conf_entry(self, port, svcfrac, elem=None):
+        addr = "127.0.0.1" if elem is None else get_pub_ip(elem["Addrs"])
+        if self.args.docker and elem is not None:
+            pub = get_pub(elem['Addrs'])
+            port = pub['Public']['L4Port']+1
+        return {
+            'Address':  '[%s]:%s' % (addr, port),
+            'CertFile': os.path.join(self.certs_dir, 'tls.pem'),
+            'KeyFile': os.path.join(self.certs_dir, 'tls.key'),
+            'ResolutionFraction': svcfrac,
+        }
+
+
+def beacon_db_conf_entry(args, name):
+    db_dir = '/share/cache' if args.docker else 'gen-cache'
+    return {
+        'Backend': 'sqlite',
+        'Connection': os.path.join(db_dir, '%s.beacon.db' % name),
+    }

@@ -44,6 +44,23 @@ func (a *Addr) Network() string {
 	return "scion"
 }
 
+// GetPath returns a path with attached metadata.
+func (a *Addr) GetPath() (Path, error) {
+	// Initialize path so it is always ready for use
+	var p *spath.Path
+	if a.Path != nil {
+		p = a.Path.Copy()
+		if err := p.InitOffsets(); err != nil {
+			return nil, err
+		}
+	}
+	return &partialPath{
+		spath:       p,
+		overlay:     a.NextHop,
+		destination: a.IA,
+	}, nil
+}
+
 func (a *Addr) String() string {
 	if a == nil {
 		return "<nil>"

@@ -37,18 +37,9 @@ import (
 	"github.com/scionproto/scion/go/lib/profile"
 )
 
-type Config struct {
-	General   env.General
-	Logging   env.Logging
-	Metrics   env.Metrics
-	Discovery brconf.Discovery
-	BR        brconf.BR
-}
-
 var (
-	config      Config
-	environment *env.Env
-	r           *Router
+	cfg brconf.Config
+	r   *Router
 )
 
 func init() {
@@ -63,7 +54,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if v, ok := env.CheckFlags(brconf.Sample); !ok {
+	if v, ok := env.CheckFlags(&cfg); !ok {
 		return v
 	}
 	if err := setupBasic(); err != nil {
@@ -71,7 +62,7 @@ func realMain() int {
 		return 1
 	}
 	defer log.Flush()
-	defer env.LogAppStopped(common.BR, config.General.ID)
+	defer env.LogAppStopped(common.BR, cfg.General.ID)
 	defer log.LogPanicAndExit()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
@@ -81,12 +72,12 @@ func realMain() int {
 		log.Crit("Permissions checks failed", "err", err)
 		return 1
 	}
-	if config.BR.Profile {
+	if cfg.BR.Profile {
 		// Start profiling if requested.
-		profile.Start(config.General.ID)
+		profile.Start(cfg.General.ID)
 	}
 	var err error
-	if r, err = NewRouter(config.General.ID, config.General.ConfigDir); err != nil {
+	if r, err = NewRouter(cfg.General.ID, cfg.General.ConfigDir); err != nil {
 		log.Crit("Startup failed", "err", err)
 		return 1
 	}
@@ -97,31 +88,30 @@ func realMain() int {
 	}
 	r.Start()
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		return 0
-	case <-fatal.Chan():
+	case <-fatal.FatalChan():
 		return 1
 	}
 }
 
 func setupBasic() error {
-	if _, err := toml.DecodeFile(env.ConfigFile(), &config); err != nil {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
-	if err := env.InitLogging(&config.Logging); err != nil {
+	cfg.InitDefaults()
+	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	return env.LogAppStarted(common.BR, config.General.ID)
+	return env.LogAppStarted(common.BR, cfg.General.ID)
 }
 
 func setup() error {
-	if err := env.InitGeneral(&config.General); err != nil {
-		return err
+	if err := cfg.Validate(); err != nil {
+		return common.NewBasicError("Unable to validate config", err)
 	}
-	config.Discovery.InitDefaults()
-	config.BR.InitDefaults()
-	environment = env.SetupEnv(func() {
+	env.SetupEnv(func() {
 		if r == nil {
 			log.Error("Unable to reload config", "err", "router not set")
 			return

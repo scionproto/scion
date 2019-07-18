@@ -17,32 +17,44 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/truststorage"
 )
 
+var _ config.Config = (*Config)(nil)
+
 type Config struct {
 	TrustDB truststorage.TrustDBConf
 }
 
-const SampleConf = `
-[TrustDB]
-  # The type of trustdb backend
-  Backend = "sqlite"
-  # Connection for the trust database
-  Connection = "/var/lib/scion/spki/cs-1.trust.db"
-`
+func (cfg *Config) InitDefaults() {
+	cfg.TrustDB.InitDefaults()
+}
+
+func (cfg *Config) Validate() error {
+	return cfg.TrustDB.Validate()
+}
+
+func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteSample(dst, path, config.CtxMap{config.ID: "cs-1"}, &cfg.TrustDB)
+}
+
+func (cfg *Config) ConfigName() string {
+	return "scion-custpk-load_config"
+}
 
 var (
 	custDir = flag.String("customers", "", "The folder containing the customer keys")
 
-	config  Config
+	cfg     Config
 	trustDB trustdb.TrustDB
 )
 
@@ -74,7 +86,7 @@ func realMain() int {
 // The first return value is the return code of the program. The second value
 // indicates whether the program can continue with its execution or should exit.
 func checkFlags() (int, bool) {
-	if ret, ok := env.CheckFlags(SampleConf); !ok {
+	if ret, ok := env.CheckFlags(&cfg); !ok {
 		return ret, ok
 	}
 	if *custDir == "" {
@@ -86,11 +98,15 @@ func checkFlags() (int, bool) {
 }
 
 func loadConfig() error {
-	if _, err := toml.DecodeFile(env.ConfigFile(), &config); err != nil {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return common.NewBasicError("Failed to load config", err)
 	}
-	var err error
-	if trustDB, err = config.TrustDB.New(); err != nil {
+	cfg.InitDefaults()
+	err := cfg.Validate()
+	if err != nil {
+		return common.NewBasicError("Unable to validate config", err)
+	}
+	if trustDB, err = cfg.TrustDB.New(); err != nil {
 		return common.NewBasicError("Failed to init the database", err)
 	}
 	return nil
