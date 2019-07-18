@@ -107,16 +107,18 @@ func realMain() int {
 // startReissRunner starts a periodic reissuance task. Core starts self-issuer.
 // Non-core starts a requester.
 func startReissRunner() {
-	corePusher = periodic.StartPeriodicTask(
-		&reiss.CorePusher{
-			LocalIA: itopo.Get().ISD_AS,
-			TrustDB: state.TrustDB,
-			Msger:   msgr,
-		},
-		periodic.NewTicker(time.Hour),
-		time.Minute,
-	)
-	corePusher.TriggerRun()
+	if !cfg.CS.DisableCorePush {
+		corePusher = periodic.StartPeriodicTask(
+			&reiss.CorePusher{
+				LocalIA: itopo.Get().ISD_AS,
+				TrustDB: state.TrustDB,
+				Msger:   msgr,
+			},
+			periodic.NewTicker(time.Hour),
+			time.Minute,
+		)
+		corePusher.TriggerRun()
+	}
 	if !cfg.CS.AutomaticRenewal {
 		log.Info("Reissue disabled, not starting reiss task.")
 		return
