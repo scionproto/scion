@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel gazelle setcap clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean goenv gogen gogen_clean vendor bazel gazelle setcap clibs libscion libfilter dispatcher uninstall tags
 
 BRACCEPT = bin/braccept
 
@@ -8,20 +8,14 @@ SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
 all: tags clibs dispatcher bazel
 
-clean: gogenlinks_clean
-	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
-	bazel clean
-	rm -f bin/* tags
-	if [ -e go/vendor ]; then rm -r go/vendor; fi
+goenv: vendor
 
-goenv: vendor gogenlinks
+gogen: gogen_clean
+	bazel build //go/proto:structs //go/proto:capnp
+	cp --no-preserve=mode bazel-genfiles/go/proto/gogen/*.gen.go bazel-genfiles/go/proto/gogen/*.capnp.go go/proto/
 
-gogenlinks: gogenlinks_clean
-	bazel build //go/proto:go_default_library
-	find bazel-genfiles/go/proto -maxdepth 1 -type f -exec ln -snf ../../{} go/proto \;
-
-gogenlinks_clean:
-	find ./go/proto -maxdepth 1 -type l -exec rm {} +
+gogen_clean:
+	rm go/proto/*.gen.go go/proto/*.capnp.go || true
 
 vendor:
 	./tools/vendor.sh
