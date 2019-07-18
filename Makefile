@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor mocks bazel bazel_bin_clean gazelle setcap clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean goenv gogen vendor mocks bazel bazel_bin_clean gazelle setcap clibs libscion libfilter dispatcher uninstall tags
 
 BRACCEPT = bin/braccept
 
@@ -8,26 +8,26 @@ SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
 all: tags clibs dispatcher bazel
 
-clean: gogenlinks_clean
+clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 	bazel clean
 	rm -f bin/* tags
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
 
-goenv: vendor gogenlinks
+gogen:
+ifndef GOGEN_SKIP
+	$(MAKE) -C go/proto
+else
+	@echo "gogen: skipped"
+endif
 
-gogenlinks: gogenlinks_clean
-	bazel build //go/proto:go_default_library
-	find bazel-genfiles/go/proto -maxdepth 1 -type f -exec ln -snf ../../{} go/proto \;
-
-gogenlinks_clean:
-	find ./go/proto -maxdepth 1 -type l -exec rm {} +
+goenv: vendor
 
 vendor:
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
 	bzlcompat -vendorBase=go
 
-bazel: vendor bazel_bin_clean
+bazel: vendor gogen bazel_bin_clean
 	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin

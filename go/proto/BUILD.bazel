@@ -8,43 +8,7 @@ go_library(
         "cereal.go",
         "doc.go",
         "sign.go",
-        ":structs",
-        ":capnp",
-    ],
-    importpath = "github.com/scionproto/scion/go/proto",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//go/lib/common:go_default_library",
-        "//go/lib/scrypto:go_default_library",
-        "//go/lib/util:go_default_library",
-        "@com_zombiezen_go_capnproto2//:go_default_library",
-        "@com_zombiezen_go_capnproto2//encoding/text:go_default_library",
-        "@com_zombiezen_go_capnproto2//pogs:go_default_library",
-        "@com_zombiezen_go_capnproto2//schemas:go_default_library",
-    ],
-)
-
-genrule(
-    name = "structs",
-    srcs = [],
-    outs = ["structs.gen.go"],
-    cmd = "./$(location structs_gen_go.sh) > \"$@\"",
-    tools = ["structs_gen_go.sh"],
-    visibility = ["//visibility:public"],
-)
-
-# TODO(sustrik): At the moment we have a copied version of go.capnp in proto directory.
-# Once python is Bazelified we can copy it as part of the build process.
-# Specifically we would need to add "@com_zombiezen_go_capnproto2//std:go.capnp" to
-# srcs and -I$$(dirname \"$(location @com_zombiezen_go_capnproto2//std:go.capnp)\")
-# to the command line. Also "go.capnp" inside individual capnp files should be changed
-# to "/go.capnp".
-genrule(
-    name = "capnp",
-    srcs = [
-        "//proto:sources",
-    ],
-    outs = [
+        "structs.gen.go",
         "ack.capnp.go",
         "asm_exts.capnp.go",
         "cert_mgmt.capnp.go",
@@ -64,6 +28,15 @@ genrule(
         "svc_resolution.capnp.go",
         "zkid.capnp.go",
     ],
-    cmd = "capnp compile -o$(location @com_zombiezen_go_capnproto2//capnpc-go:capnpc-go):$(@D) --src-prefix=proto $(locations //proto:sources)",
-    tools = ["@com_zombiezen_go_capnproto2//capnpc-go:capnpc-go"],
+    importpath = "github.com/scionproto/scion/go/proto",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/util:go_default_library",
+        "@com_zombiezen_go_capnproto2//:go_default_library",
+        "@com_zombiezen_go_capnproto2//encoding/text:go_default_library",
+        "@com_zombiezen_go_capnproto2//pogs:go_default_library",
+        "@com_zombiezen_go_capnproto2//schemas:go_default_library",
+    ],
 )
