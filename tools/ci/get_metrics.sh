@@ -7,7 +7,7 @@ set -e
 
 echo "Collecting Metrics from all scion services in gen"
 
-# Fails if a toml (disp is the exception) in gen doesn't contain metrics->Prometheus or general->ID
+# Search all .toml files under `gen` for prometheus metrics endpoints. It will throw an error if a .toml file doesn't have a [metrics]->Prometheus entry, or if ID is missing from either [general]->ID or [dispatcher]->ID (for disp.toml files) entry.
 for i in $(find gen/ -iname '*.toml'); do
     case $i in
        */disp.toml) id=$(sed -n '/^\[dispatcher\]/,/^$/p' "$i" | awk '/^ID = / {print $3}');; 
