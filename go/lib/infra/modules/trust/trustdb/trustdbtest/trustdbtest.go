@@ -294,6 +294,9 @@ func testChain(t *testing.T, db trustdb.ReadWrite) {
 			rows, err := db.InsertChain(ctx, chain)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldNotEqual, 0)
+			rows, err = db.InsertChain(ctx, chain)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Get certificate chain from database", func() {
 				newChain, err := db.GetChainVersion(ctx, ia, 1)
 				SoMsg("err", err, ShouldBeNil)
