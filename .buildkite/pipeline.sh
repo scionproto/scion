@@ -25,9 +25,9 @@ echo "  env:"
 # The DOLLAR variable is used to create a $ in the output of envsubst. https://stackoverflow.com/questions/24963705/is-there-an-escape-character-for-envsubst
 echo "    DOLLAR: '$'"
 # build images together with unit tests
-#if [ "$RUN_ALL_TESTS" = "y" ]; then
+if [ "$RUN_ALL_TESTS" = "y" ]; then
     cat "$STEPS/build_all.yml"
-#fi
+fi
 
 # Linting and Unit tests
 cat "$STEPS/test.yml"
@@ -41,12 +41,12 @@ fi
 "$STEPS/integration"
 
 # conditionally run more tests
-#if [ "$RUN_ALL_TESTS" = "y" ]; then
+if [ "$RUN_ALL_TESTS" = "y" ]; then
     # docker integration testing
     cat "$STEPS/docker-integration.yml"
     # acceptance testing
-#    cat "$TRIGGERS/acceptance-trigger.yml"
-#fi
+    cat "$TRIGGERS/acceptance-trigger.yml"
+fi
 
 # deploy
 cat "$STEPS/deploy.yml"
