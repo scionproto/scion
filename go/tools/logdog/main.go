@@ -52,7 +52,7 @@ var (
 	version      = flag.Bool("version", false, "Output version information and exit.")
 	logLevelFlag = flag.String("level", "DBUG",
 		fmt.Sprintf(
-			"The minimum (including) log level a line must have to be included in the output,"+
+			"The minimum (inclusive) log level a line must have to be included in the output,"+
 				" any of [%s] (case insensitive)", strings.Join([]string{
 				log.LvlDebug.String(),
 				log.LvlInfo.String(),
@@ -144,16 +144,9 @@ func entriesFromFile(fn string, minLevel log.Lvl) LogEntries {
 	}
 	defer f.Close()
 	logparse.ParseFrom(f, fn, fnToEName(fn), func(e logparse.LogEntry) {
-		if !lvlIsLessSevere(e.Level, minLevel) {
+		if e.Level <= minLevel {
 			entries = append(entries, e)
 		}
 	})
 	return entries
-}
-
-// lvlIsLessSevere returns whether a is less severe than b. E.g. DEBUG is less
-// severe than INFO.
-func lvlIsLessSevere(a, b log.Lvl) bool {
-	//panic(fmt.Sprintf("%d %d, %v, %s %s", int(a), int(b), a > b, a.String(), b.String()))
-	return a > b
 }
