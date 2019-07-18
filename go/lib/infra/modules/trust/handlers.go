@@ -204,7 +204,7 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
-	logger.Debug("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
+	logger.Trace("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
 		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
@@ -233,8 +233,9 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
 		return infra.MetricsErrTrustDB(err)
 	}
-	if n != 0 {
-		logger.Debug("[TrustStore:trcPushHandler] Inserted TRC into DB", "trc", trcObj)
+	if n > 0 {
+		logger.Info("[TrustStore:trcPushHandler] Inserted TRC into DB",
+			"trc", trcObj, "peer", h.request.Peer)
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
@@ -253,7 +254,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
-	logger.Debug("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
+	logger.Trace("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
 		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
@@ -282,8 +283,9 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
 		return infra.MetricsErrTrustDB(err)
 	}
-	if n != 0 {
-		logger.Debug("[TrustStore:chainPushHandler] Inserted chain into DB", "chain", chain)
+	if n > 0 {
+		logger.Info("[TrustStore:chainPushHandler] Inserted chain into DB",
+			"chain", chain, "peer", h.request.Peer)
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
