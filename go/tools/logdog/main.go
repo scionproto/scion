@@ -44,11 +44,22 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/log/logparse"
 )
 
 var (
-	version = flag.Bool("version", false, "Output version information and exit.")
+	version      = flag.Bool("version", false, "Output version information and exit.")
+	logLevelFlag = flag.String("level", "DBUG",
+		fmt.Sprintf(
+			"The minimum (including) log level a line must have to be included in the output,"+
+				" any of [%s] (case insensitive)", strings.Join([]string{
+				log.LvlDebug.String(),
+				log.LvlInfo.String(),
+				log.LvlWarn.String(),
+				log.LvlError.String(),
+				log.LvlCrit.String(),
+			}, ",")))
 )
 
 func main() {
@@ -58,10 +69,16 @@ func main() {
 		fmt.Print(env.VersionInfo())
 		os.Exit(0)
 	}
+	logLevel, err := log.LvlFromString(*logLevelFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid log level value: %s\n", *logLevelFlag)
+		os.Exit(1)
+	}
 	maxENameLen := 0
 	// Read in all files
 	for _, fn := range flag.Args() {
-		entries = append(entries, entriesFromFile(fn)...)
+		fileEntries := entriesFromFile(fn, logLevel)
+		entries = append(entries, fileEntries...)
 		eNameLen := len(fnToEName(fn))
 		if eNameLen > maxENameLen {
 			maxENameLen = eNameLen
@@ -116,7 +133,9 @@ func printUsage() {
 	flag.PrintDefaults()
 }
 
-func entriesFromFile(fn string) LogEntries {
+// entriesFromFile gets all log entries from the file with a given minimum
+// level.
+func entriesFromFile(fn string, minLevel log.Lvl) LogEntries {
 	var entries LogEntries
 	f, err := os.Open(fn)
 	if err != nil {
@@ -125,7 +144,16 @@ func entriesFromFile(fn string) LogEntries {
 	}
 	defer f.Close()
 	logparse.ParseFrom(f, fn, fnToEName(fn), func(e logparse.LogEntry) {
-		entries = append(entries, e)
+		if !lvlIsLessSevere(e.Level, minLevel) {
+			entries = append(entries, e)
+		}
 	})
 	return entries
+}
+
+// lvlIsLessSevere returns whether a is less severe than b. E.g. DEBUG is less
+// severe than INFO.
+func lvlIsLessSevere(a, b log.Lvl) bool {
+	//panic(fmt.Sprintf("%d %d, %v, %s %s", int(a), int(b), a > b, a.String(), b.String()))
+	return a > b
 }
