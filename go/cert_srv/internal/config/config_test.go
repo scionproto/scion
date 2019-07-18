@@ -103,5 +103,5 @@ func CheckTestCSConfig(cfg *CSConfig) {
 		LeafReissTime)
 	SoMsg("IssuerReissLeadTime correct", cfg.IssuerReissueLeadTime.Duration, ShouldEqual,
 		IssuerReissTime)
-	SoMsg("DisableCorePush currect", cfg.DisableCorePush, ShouldBeFalse)
+	SoMsg("DisableCorePush correct", cfg.DisableCorePush, ShouldBeFalse)
 }
