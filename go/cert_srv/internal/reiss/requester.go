@@ -126,7 +126,9 @@ func (r *Requester) handleRep(ctx context.Context, rep *cert_mgmt.ChainIssRep) (
 	r.State.SetSigner(signer)
 	r.Msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
 	log.Info("[reiss.Requester] Updated certificate chain", "chain", chain)
-	r.CorePusher.TriggerRun()
+	if r.CorePusher != nil {
+		r.CorePusher.TriggerRun()
+	}
 	return false, nil
 }
 

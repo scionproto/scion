@@ -78,7 +78,9 @@ func (s *Self) run(ctx context.Context) error {
 			return common.NewBasicError("Unable to issue certificate chain", err)
 		}
 	}
-	s.CorePusher.TriggerRun()
+	if s.CorePusher != nil {
+		s.CorePusher.TriggerRun()
+	}
 	return nil
 }
 

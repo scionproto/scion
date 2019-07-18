@@ -4,3 +4,4 @@
   ReissueRate = "12s"
   ReissueTimeout = "6s"
   AutomaticRenewal = true
+  DisableCorePush = true

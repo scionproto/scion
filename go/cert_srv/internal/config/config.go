@@ -115,6 +115,8 @@ type CSConfig struct {
 	ReissueTimeout util.DurWrap
 	// AutomaticRenewal whether automatic reissuing is enabled.
 	AutomaticRenewal bool
+	// DisableCorePush disables the core pusher task.
+	DisableCorePush bool
 }
 
 func (cfg *CSConfig) InitDefaults() {

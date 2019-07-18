@@ -34,4 +34,7 @@ ReissueTimeout = "5s"
 
 # Whether automatic reissuing is enabled. (default false)
 AutomaticRenewal = false
+
+# Disable the core pushing. (default false)
+DisableCorePush = false
 `
