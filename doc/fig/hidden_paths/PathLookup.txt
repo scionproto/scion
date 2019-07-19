@@ -1,0 +1,26 @@
+# Generate .png on https://sequencediagram.org/
+
+title Path Lookup
+
+activate Client
+Client -> sciond: PathRequest (srcIA, dstIA, hidden=true)
+activate sciond
+sciond ->Local HPS: SegRequest (list: [GroupID], dstIA)
+activate Local HPS
+par for each GroupID subset
+alt local Registry
+Local HPS -> Local HPS: QueryDB: (list: [GroupID], dstIA)
+else remote Registry
+Local HPS ->  Remote HPS: SegRequest (list: [GroupID], dstIA)
+activate Remote HPS
+Remote HPS ->  Local HPS: SegReply
+deactivate Remote HPS
+end
+end
+Local HPS -> sciond: SegReply (map: [GroupID] -> (SegReply, error)
+deactivate Local HPS
+note over sciond: combine segments
+sciond -> Client: PathReply
+deactivate sciond
+deactivate Client
+
