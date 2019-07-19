@@ -3,7 +3,7 @@
 title Path Lookup
 
 activate Client
-Client -> sciond: PathRequest (srcIA, dstIA)
+Client -> sciond: PathRequest (srcIA, dstIA, hidden=true)
 activate sciond
 sciond ->Local HPS: SegRequest (list: [GroupID], dstIA)
 activate Local HPS
