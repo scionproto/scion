@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -183,9 +183,10 @@ func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) er
 		if err := c.readFrom(pkt, ov); err != nil {
 			return err
 		}
-		if _, ok := pkt.L4Header.(*scmp.Hdr); ok {
+		if scmpHdr, ok := pkt.L4Header.(*scmp.Hdr); ok {
 			if c.scmpHandler == nil {
-				return common.NewBasicError("scmp packet received, but no handler found", nil)
+				return common.NewBasicError("scmp packet received, but no handler found", nil,
+					"scmp.Hdr", scmpHdr, "src", pkt.Source)
 			}
 			if err := c.scmpHandler.Handle(pkt); err != nil {
 				return common.NewBasicError("scmp error", err)

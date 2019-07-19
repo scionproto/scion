@@ -9,6 +9,7 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/env:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/log/logparse:go_default_library",
     ],
 )

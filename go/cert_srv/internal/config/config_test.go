@@ -55,6 +55,7 @@ func TestConfig_InitDefaults(t *testing.T) {
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
 			SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeTrue)
+			SoMsg("disableCorePush", cfg.CS.DisableCorePush, ShouldBeTrue)
 		})
 	})
 
@@ -70,6 +71,7 @@ func TestConfig_InitDefaults(t *testing.T) {
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, ReissReqRate)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, ReissueReqTimeout)
 			SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeFalse)
+			SoMsg("disableCorePush", cfg.CS.DisableCorePush, ShouldBeFalse)
 		})
 	})
 }
@@ -83,6 +85,7 @@ func InitTestConfig(cfg *Config) {
 
 func InitTestCSConfig(cfg *CSConfig) {
 	cfg.AutomaticRenewal = true
+	cfg.DisableCorePush = true
 }
 
 func CheckTestConfig(cfg *Config, id string) {
@@ -100,4 +103,5 @@ func CheckTestCSConfig(cfg *CSConfig) {
 		LeafReissTime)
 	SoMsg("IssuerReissLeadTime correct", cfg.IssuerReissueLeadTime.Duration, ShouldEqual,
 		IssuerReissTime)
+	SoMsg("DisableCorePush correct", cfg.DisableCorePush, ShouldBeFalse)
 }
