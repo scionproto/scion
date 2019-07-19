@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -105,6 +105,7 @@ func (h *scmpHandler) Handle(pkt *SCIONPacket) error {
 	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
 		return h.handleSCMPRev(hdr, pkt)
 	}
+	log.Debug("Ignoring scmp packet", "hdr", hdr, "src", pkt.Source)
 	return nil
 }
 
@@ -119,7 +120,8 @@ func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *SCIONPacket) error {
 		return common.NewBasicError("Unable to type assert SCMP Info to SCMP Revocation Info", nil,
 			"type", common.TypeOf(scmpPayload.Info))
 	}
-	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
+	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String(),
+		"src", pkt.Source)
 	if h.pathResolver != nil {
 		h.pathResolver.RevokeRaw(context.TODO(), info.RawSRev)
 	}
