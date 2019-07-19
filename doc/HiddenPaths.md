@@ -81,9 +81,9 @@ each segment, identified by its interface ID, the following parameters can be de
 
 - MaxExpiration:  The time interval after which the segment becomes invalid
 - RegDown: Whether to register the segment as down-segment at the Core PS / HPS
-- RegUp: Whether to register the segment as (hidden) up-segment at the local PS
+- RegUp: Whether to register the segment as (hidden) up-segment at the local PS / HPS
 
-Segments not explicitly listed are either fully registered (as up- and down-segments) or not
+Segments not explicitly listed are either fully registered as public up- and down-segments or not
 registered at all, depending on the configured default action.
 
 Note that a hidden segment registered as hidden and the same segment registered publicly need to be
@@ -177,7 +177,7 @@ CfgFilePath = "path/to/HPGCfg_ffa_0_222-abcd.json"
 
 [segmentRegistration]
 DefaultAction = "register"
-AllowHiddenAndPublic = true
+HiddenAndPublic = true
 
 [segmentRegistration.2]
 RegDown = true
@@ -204,8 +204,8 @@ MaxExpiration = "60s"
 
 The default action is set to `register`, this means that all segments not listed in this
 configuration are registered as up- and down-segment with default expiration.
-Note that the segment with IFID 2 is both registered as public and hidden. This is allowed by
-setting `AllowHiddenAndPublic`.
+Note that the segment with IFID 2 is both registered as hidden and public. This is allowed by
+setting `HiddenAndPublic`.
 
 ### Message Definitions
 
