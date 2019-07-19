@@ -16,9 +16,10 @@ Hidden path communication enables the hiding of specific path segments, i.e. cer
 are only available for authorized ASes. In the common case, path segments are publicly available to
 any network entity. They are fetched from path servers and used to construct forwarding paths. In a
 Hidden Path communication setting, certain down-segments are not registered at the public path
-servers. Instead, they are registered at a dedicated Hidden path server (HPS) which enforces access
+servers. Instead, they are registered at dedicated Hidden path servers (HPS) which enforce access
 control, such that only authorized entities can fetch and use these segments to create forwarding
-paths.
+paths. Likewise, the corresponding up-segment is registered as hidden up-segment at the local Path
+Server such that endhosts are aware that they are using hidden path communication to leave the AS.
 
 ![Hidden Path Communication](fig/hidden_paths/HiddenPath.png)
 
@@ -61,10 +62,10 @@ needs to perform ACL checks on requesters based on HPGCfgs. This logic is not ne
 PS. Merging the two services would unnecessarily complicate both designs and harm the development of
 future, more sophisticated accesss control mechanisms on HPS.
 
-Each HPS is of one of two types:
+Each HPS serves two purposes:
 
-- `Registries` contain the Hidden Path segment information and serve this information to `Forwarders`
-- `Forwarders` forward hidden path requests on behalf of sciond to `Registries` of the group
+- Caching Hidden Path segment information and serving this information to sciond and forwarding HPS
+- Forwarding hidden path requests on behalf of sciond to `Registries` of the group
 
 Hidden Path Servers are listed as
 `HiddenPathService` in the topology file. The corresponding service address is
@@ -72,20 +73,24 @@ Hidden Path Servers are listed as
 
 ### Segment Registration
 
-The Beacon Server needs to distinguish between segments to be registered at the
-Path Server and the ones to be registered at the Hidden Path Server. This
-decision is based on a policy defined in the Beacon Server's configuration file.
-The policy maps from interface ID to:
+The Beacon Server needs to distinguish between segments to be registered at the Path Server and the
+ones to be registered at the Hidden Path Server. Additionally, a segment can be registered as
+up-segment only or as down-segment only. These decisions are based on a policy defined in the
+Beacon Server's configuration file. The policy groups segments by public and hidden segments. For
+each segment, identified by its interface ID, the following parameters can be defined:
 
 - MaxExpiration:  The time interval after which the segment becomes invalid
-- RemoteHidden: Whether the segment is hidden from remote Path Servers (not usable as down-segment
-  for non-authorized ASes)
-- LocalHidden: Whether the segment is hidden from the local Path Server (not usable as up-segment)
+- RegDown: Whether to register the segment as down-segment at the Core PS / HPS
+- RegUp: Whether to register the segment as (hidden) up-segment at the local PS
 
-By default, Beacon Servers assume no policy and register all segments publicly.
+Segments not explicitly listed are either fully registered (as up- and down-segments) or not
+registered at all, depending on the configured default action.
 
 Note that a hidden segment registered as hidden and the same segment registered publicly need to be
-distinguishable. This is achieved by adding an extension to the `ASEntry` of the final AS in the segment.
+distinguishable. This is achieved by adding an extension to the `ASEntry` of the final AS in the
+segment.
+
+The Beacon Server can be configured to not allow the registration of a segment both as public and hidden.
 
 (See an example policy in the [Implementation](#Segment-Registration-Policy) section)
 
@@ -125,11 +130,11 @@ Various operations in this design are security critical and require client/serve
 
 ### Hidden Path Group Configuration
 
-Below is an example of a Hidden Path Group configuration file (`HPGCfg_281474977720757.json`):
+Below is an example of a Hidden Path Group configuration file (`HPGCfg_ff00_0_110-69b5.json`):
 
 ```json
 {
-    "GroupID": 281474977720757,
+    "GroupID": "ff00:0:110-69b5",
     "Version": 1,
     "Owner": "1-ff00:0:110",
     "Writers": [
@@ -152,8 +157,8 @@ Below is an example of a Hidden Path Group configuration file (`HPGCfg_281474977
 
 Below is an excerpt of an example `bs.toml` configuration. A new `hpGroups`
 section is added, with subsections for every HPG the AS is a member of. These
-subsections contain the path to the corresponding HPGCfg and a
-list of segments which are registered at the HPS.
+subsections contain the path to the corresponding HPGCfg. Furthermore, the configuration contains
+the segment registration policy in the `segmentRegistration` section.
 
 ```toml
 [general]
@@ -164,27 +169,43 @@ ID = "bs1-ff00_0_111-1"
 #...
 
 [hpGroups]
-[hpGroups.281474977720757]
-CfgFilePath = "path/to/HpCfg_281474977720757.json"
+[hpGroups.ff00_0_110-69b5]
+CfgFilePath = "path/to/HPGCfg_ff00_0_110-69b5.json"
 
-[hpGroups.281474977720757.segments.5]
-maxExpiration = "10m"
-remoteHidden = true
-localHidden = false
+[hpGroups.ffaa_0_222-abcd]
+CfgFilePath = "path/to/HPGCfg_ffa_0_222-abcd.json"
 
-[hpGroups.281474977720757.segments.8]
-maxExpiration = "60s"
-remoteHidden = true
-localHidden = true
+[segmentRegistration]
+DefaultAction = "register"
+AllowHiddenAndPublic = true
 
-[hpGroups.xxxxx]
+[segmentRegistration.2]
+RegDown = true
+RegUP = true
+MaxExpiration = "15m"
 
-#...
+[segmentRegistration.hps.2.ff00_0_110-69b5]
+RegDown = true
+RegUp = true
+MaxExpiration = "12h"
 
-[hpGroups.yyyyy]
+[segmentRegistration.hps.3.ff00_0_110-69b5]
+RegDown = true
+RegUp = false
+MaxExpiration = "10m"
+
+[segmentRegistration.hps.3.ffaa_0_222-abcd]
+RegDown = false
+RegUp = true
+MaxExpiration = "60s"
 
 #...
 ```
+
+The default action is set to `register`, this means that all segments not listed in this
+configuration are registered as up- and down-segment with default expiration.
+Note that the segment with IFID 2 is both registered as public and hidden. This is allowed by
+setting `AllowHiddenAndPublic`.
 
 ### Message Definitions
 
@@ -208,4 +229,4 @@ The HPS has the following handlers:
   down-segments for that group *(Access: Owner/Writers)*
 - `HPSegReqHandler`: Accepting a list of `GroupID`s, responding with hidden down-segments
   corresponding to those groups *(Access: Owner/Readers)*
-- `HPGCfgReqHandler`: Returns a list of all `HPGCfg`s the requester is a member of *(Access: Owner/Writers/Readers)*
+- `HPGCfgReqHandler`: Returns a list of all `HPGCfg`s the requester is a Reader of *(Access: Owner/Writers/Readers)*
