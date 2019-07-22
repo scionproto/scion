@@ -59,12 +59,6 @@ func (c *KeyChanges) Sensitive() bool {
 	return len(c.Fresh[OfflineKey]) != 0 || len(c.Modified[OfflineKey]) != 0
 }
 
-func (c *KeyChanges) insertAllFresh(as addr.AS, next PrimaryAS) {
-	for keyType, meta := range next.Keys {
-		c.Fresh[keyType][as] = meta
-	}
-}
-
 func (c *KeyChanges) insertModifications(as addr.AS, prev, next PrimaryAS) error {
 	for keyType, meta := range next.Keys {
 		prevMeta, ok := prev.Keys[keyType]
@@ -89,14 +83,13 @@ func (c *KeyChanges) insertModifications(as addr.AS, prev, next PrimaryAS) error
 // return value indicates, whether the update is a modification.
 func ValidateKeyUpdate(prev, next KeyMeta) (bool, error) {
 	modified := next.Algorithm != prev.Algorithm || !bytes.Equal(next.Key, prev.Key)
-	// If the meta data has changed, expect a key version change.
-	expectedVersion := prev.KeyVersion
-	if modified {
-		expectedVersion = prev.KeyVersion + 1
-	}
-	if next.KeyVersion != expectedVersion {
+	switch {
+	case modified && next.KeyVersion != prev.KeyVersion+1:
 		return modified, common.NewBasicError(InvalidKeyVersion, nil, "modified", modified,
-			"expected", expectedVersion, "actual", next.KeyVersion)
+			"expected", prev.KeyVersion+1, "actual", next.KeyVersion)
+	case !modified && next.KeyVersion != prev.KeyVersion:
+		return modified, common.NewBasicError(InvalidKeyVersion, nil, "modified", modified,
+			"expected", prev.KeyVersion, "actual", next.KeyVersion)
 	}
 	return modified, nil
 }

@@ -137,12 +137,7 @@ func (v *UpdateValidator) sanity() error {
 func (v *UpdateValidator) keyChanges() (*KeyChanges, error) {
 	c := newKeyChanges()
 	for as, primary := range v.Next.PrimaryASes {
-		prev, ok := v.Prev.PrimaryASes[as]
-		if !ok {
-			c.insertAllFresh(as, primary)
-			continue
-		}
-		if err := c.insertModifications(as, prev, primary); err != nil {
+		if err := c.insertModifications(as, v.Prev.PrimaryASes[as], primary); err != nil {
 			return nil, err
 		}
 	}
@@ -153,17 +148,12 @@ func (v *UpdateValidator) attrChanges() AttributeChanges {
 	c := make(AttributeChanges)
 	// Check all attributes of all ASes that persist or are added.
 	for as, primary := range v.Next.PrimaryASes {
-		prev, ok := v.Prev.PrimaryASes[as]
-		if !ok {
-			c.insertAll(as, primary.Attributes, AttributeAdded)
-			continue
-		}
-		c.insertModifications(as, prev, primary)
+		c.insertModifications(as, v.Prev.PrimaryASes[as], primary)
 	}
 	// Check all attributes of all ASes that are removed.
 	for as, prev := range v.Prev.PrimaryASes {
-		if _, ok := v.Next.PrimaryASes[as]; !ok {
-			c.insertAll(as, prev.Attributes, AttributeRemoved)
+		if empty, ok := v.Next.PrimaryASes[as]; !ok {
+			c.insertModifications(as, prev, empty)
 		}
 	}
 	return c
@@ -185,12 +175,15 @@ func (v *UpdateValidator) checkProofOfPossesion(keyChanges *KeyChanges) error {
 }
 
 func (v *UpdateValidator) checkVotes(info UpdateInfo) error {
-	check := v.checkVotesSensitive
-	if info.Type == RegularUpdate {
-		check = v.checkVotesRegular
-	}
-	if err := check(info); err != nil {
-		return err
+	switch info.Type {
+	case RegularUpdate:
+		if err := v.checkVotesRegular(info); err != nil {
+			return err
+		}
+	default:
+		if err := v.checkVotesSensitive(info); err != nil {
+			return err
+		}
 	}
 	if len(v.Next.Votes) < v.Prev.VotingQuorum() {
 		return common.NewBasicError(QuorumUnmet, nil,
@@ -264,12 +257,6 @@ type AttributeChanges map[addr.AS]map[Attribute]AttributeChange
 // Sensitive indicates whether the attribute changes are sensitive.
 func (c AttributeChanges) Sensitive() bool {
 	return len(c) != 0
-}
-
-func (c AttributeChanges) insertAll(as addr.AS, attrs Attributes, change AttributeChange) {
-	for _, attr := range attrs {
-		c.insert(as, attr, change)
-	}
 }
 
 func (c AttributeChanges) insertModifications(as addr.AS, prev, next PrimaryAS) {

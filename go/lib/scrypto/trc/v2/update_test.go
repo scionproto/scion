@@ -35,8 +35,7 @@ func TestCommonUpdate(t *testing.T) {
 		"Trust reset": {
 			Modify: func(updated, _ *trc.TRC) {
 				*updated = *newBaseTRC()
-				updated.Version = 2
-				updated.BaseVersion = 2
+				updated.BaseVersion = updated.Version
 			},
 			ExpectedErrMsg: trc.ErrBaseNotUpdate.Error(),
 		},
@@ -48,7 +47,7 @@ func TestCommonUpdate(t *testing.T) {
 		},
 		"Wrong ISD": {
 			Modify: func(updated, _ *trc.TRC) {
-				updated.ISD = 2
+				updated.ISD = updated.ISD + 1
 			},
 			ExpectedErrMsg: trc.ImmutableISD,
 		},
