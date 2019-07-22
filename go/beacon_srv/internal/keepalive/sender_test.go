@@ -64,7 +64,7 @@ func TestSenderRun(t *testing.T) {
 			},
 		)
 		// Start keepalive messages.
-		s.Run(nil)
+		s.Run(context.Background())
 		// Check packets are correct.
 		for _, pkt := range pkts {
 			spld, err := ctrl.NewSignedPldFromRaw(pkt.Payload.(common.RawBytes))
