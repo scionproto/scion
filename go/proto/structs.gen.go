@@ -12,8 +12,8 @@ import (
 // and returns the inner capnp.Struct that it receives. This allows the helper
 // functions in cereal.go to support generic capnp root struct types.
 func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
-        var blank capnp.Struct
-        switch id {
+	var blank capnp.Struct
+	switch id {
 	case ASEntry_TypeID:
 		v, err := NewRootASEntry(seg)
 		if err != nil {
