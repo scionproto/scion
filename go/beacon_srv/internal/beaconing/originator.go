@@ -140,12 +140,13 @@ func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
 
 func (o *Originator) logSummary(logger log.Logger, s *summary, linkType proto.LinkType) {
 	if o.tick.passed() {
-		logger.Info("[Originator] Originated beacons", "type", linkType.String(), "egIfIds", s.IfIds())
+		logger.Info("[Originator] Originated beacons",
+			"type", linkType.String(), "egIfIds", s.IfIds())
 		return
 	}
 	if s.count > 0 {
-		logger.Info("[Originator] Originated beacons on stale interfaces", "type", linkType.String(),
-			"egIfIds", s.IfIds())
+		logger.Info("[Originator] Originated beacons on stale interfaces",
+			"type", linkType.String(), "egIfIds", s.IfIds())
 	}
 }
 
