@@ -118,7 +118,6 @@ type Resolver interface {
 type resolver struct {
 	sciondConn   sciond.Connector
 	timers       Timers
-	logger       log.Logger
 	watchFactory *WatchFactory
 }
 
@@ -129,13 +128,12 @@ type resolver struct {
 // (see package constants). When a query for a path older than maxAge reaches
 // the resolver, SCIOND is used to refresh the path. New returns with an error
 // if a connection to SCIOND could not be established.
-func New(conn sciond.Connector, timers Timers, logger log.Logger) Resolver {
+func New(conn sciond.Connector, timers Timers) Resolver {
 	timers.initDefaults()
 	r := &resolver{
 		sciondConn:   conn,
 		timers:       timers,
 		watchFactory: NewWatchFactory(timers),
-		logger:       getLogger(logger),
 	}
 	return r
 }
@@ -145,11 +143,11 @@ func (r *resolver) Query(ctx context.Context, src, dst addr.IA,
 
 	reply, err := r.sciondConn.Paths(ctx, dst, src, numReqPaths, flags)
 	if err != nil {
-		r.logger.Error("SCIOND network error", "err", err)
+		r.logger(ctx).Error("SCIOND network error", "err", err)
 		return make(spathmeta.AppPathSet)
 	}
 	if reply.ErrorCode != sciond.ErrorOk {
-		r.logger.Error("Unable to find path", "src", src, "dst", dst, "code", reply.ErrorCode)
+		r.logger(ctx).Error("Unable to find path", "src", src, "dst", dst, "code", reply.ErrorCode)
 		return make(spathmeta.AppPathSet)
 	}
 	return spathmeta.NewAppPathSet(reply)
@@ -203,7 +201,7 @@ func (r *resolver) WatchCount() int {
 func (r *resolver) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
 	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(rawSRevInfo)
 	if err != nil {
-		r.logger.Error("Revocation failed, unable to parse signed revocation info",
+		r.logger(ctx).Error("Revocation failed, unable to parse signed revocation info",
 			"raw", rawSRevInfo, "err", err)
 		return
 	}
@@ -211,14 +209,15 @@ func (r *resolver) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
 }
 
 func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) {
+	logger := r.logger(ctx)
 	reply, err := r.sciondConn.RevNotification(context.Background(), sRevInfo)
 	if err != nil {
-		r.logger.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
+		logger.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
 		return
 	}
 	revInfo, err := sRevInfo.RevInfo()
 	if err != nil {
-		r.logger.Error("Revocation failed, unable to parse revocation info",
+		logger.Error("Revocation failed, unable to parse revocation info",
 			"sRevInfo", sRevInfo, "err", err)
 		return
 	}
@@ -238,14 +237,18 @@ func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo
 		}
 		r.watchFactory.apply(f)
 	case sciond.RevStale:
-		r.logger.Warn("Found stale revocation notification", "revInfo", revInfo)
+		logger.Warn("Found stale revocation notification", "revInfo", revInfo)
 	case sciond.RevInvalid:
-		r.logger.Warn("Found invalid revocation notification", "revInfo", revInfo)
+		logger.Warn("Found invalid revocation notification", "revInfo", revInfo)
 	}
 }
 
 func (r *resolver) Sciond() sciond.Connector {
 	return r.sciondConn
+}
+
+func (r *resolver) logger(ctx context.Context) log.Logger {
+	return log.FromCtx(ctx).New("lib", "PathResolver")
 }
 
 func dropRevoked(aps spathmeta.AppPathSet, pi sciond.PathInterface) spathmeta.AppPathSet {
@@ -265,11 +268,4 @@ func matches(path *spathmeta.AppPath, predicatePI sciond.PathInterface) bool {
 		}
 	}
 	return false
-}
-
-func getLogger(logger log.Logger) log.Logger {
-	if logger != nil {
-		logger = logger.New("lib", "PathResolver")
-	}
-	return log.Root()
 }

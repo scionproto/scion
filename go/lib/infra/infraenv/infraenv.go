@@ -314,7 +314,6 @@ func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 						NormalRefire: time.Minute,
 						ErrorRefire:  3 * time.Second,
 					},
-					log.Root(),
 				),
 			}
 			break

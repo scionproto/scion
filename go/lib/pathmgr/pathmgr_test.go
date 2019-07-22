@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/mock_sciond"
@@ -170,7 +169,7 @@ func TestWatchCount(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		sd := mock_sciond.NewMockConnector(ctrl)
-		pr := New(sd, Timers{}, nil)
+		pr := New(sd, Timers{})
 		Convey("the count is initially 0", func() {
 			So(pr.WatchCount(), ShouldEqual, 0)
 		})
@@ -210,7 +209,7 @@ func TestWatchPolling(t *testing.T) {
 				), nil,
 			).MinTimes(1),
 		)
-		pr := New(sd, Timers{ErrorRefire: getDuration(1)}, nil)
+		pr := New(sd, Timers{ErrorRefire: getDuration(1)})
 		Convey("and adding a watch that retrieves zero paths", func() {
 			sp, err := pr.Watch(context.Background(), src, dst)
 			xtest.FailOnErr(t, err)
@@ -245,7 +244,7 @@ func TestWatchFilter(t *testing.T) {
 				), nil,
 			).AnyTimes(),
 		)
-		pr := New(sd, Timers{ErrorRefire: getDuration(1)}, nil)
+		pr := New(sd, Timers{ErrorRefire: getDuration(1)})
 		Convey("and adding a watch that should retrieve 1 path", func() {
 			seq, err := pathpol.NewSequence("1-ff00:0:111#105 0 0")
 			xtest.FailOnErr(t, err)
@@ -279,7 +278,7 @@ func TestRevokeFastRecovery(t *testing.T) {
 			), nil,
 		)
 
-		pr := New(sd, Timers{NormalRefire: getDuration(100), ErrorRefire: getDuration(1)}, nil)
+		pr := New(sd, Timers{NormalRefire: getDuration(100), ErrorRefire: getDuration(1)})
 		_, err := pr.Watch(context.Background(), src, dst)
 		xtest.FailOnErr(t, err)
 
@@ -309,7 +308,7 @@ func TestRevoke(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		sd := mock_sciond.NewMockConnector(ctrl)
-		pr := New(sd, Timers{}, nil)
+		pr := New(sd, Timers{})
 		Convey("and a watch that retrieves one path", func() {
 			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
 				buildSDAnswer(
@@ -423,7 +422,6 @@ func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire time.Duration
 			NormalRefire: normalRefire,
 			ErrorRefire:  errorRefire,
 		},
-		log.Root(),
 	)
 }
 
