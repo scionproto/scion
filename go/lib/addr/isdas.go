@@ -136,7 +136,7 @@ func (as AS) FileFmt() string {
 }
 
 func (as AS) fmt(sep byte) string {
-	if as > MaxAS {
+	if !as.inRange() {
 		return fmt.Sprintf("%d [Illegal AS: larger than %d]", as, AS(MaxAS))
 	}
 	// Format BGP ASes as decimal
@@ -157,7 +157,14 @@ func (as AS) fmt(sep byte) string {
 	return string(b)
 }
 
+func (as AS) inRange() bool {
+	return as <= MaxAS
+}
+
 func (as AS) MarshalText() ([]byte, error) {
+	if !as.inRange() {
+		return nil, common.NewBasicError("invalid AS", nil, "max", MaxAS, "actual", as)
+	}
 	return []byte(as.String()), nil
 }
 
