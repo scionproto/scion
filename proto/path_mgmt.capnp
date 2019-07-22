@@ -68,7 +68,7 @@ struct HPCfg {
     version @1 :UInt32;
     owner @2 :UInt64;
     writers @3 :List(UInt64);
-    readers @4 :List(UInt64);  
+    readers @4 :List(UInt64);
     registries @5 :List(UInt64);
 }
 
