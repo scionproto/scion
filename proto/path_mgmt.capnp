@@ -44,18 +44,18 @@ struct SegChangesReq {
     segIds @0 :List(Data);
 }
 
-struct HPGroupID {
+struct HPGroupId {
     ownerAS @0 :UInt64;
     groupID @1 :UInt16;
 }
 
 struct HPSegReq {
     dstIA @0 :UInt64;
-    groupIDs @1 :List(HPGroupID);
+    groupIds @1 :List(HPGroupId);
 }
 
 struct HPSegRecs {
-    groupID @0 :HPGroupID;
+    groupId @0 :HPGroupId;
     recs @1 :List(PSeg.PathSegMeta);
 }
 
@@ -64,9 +64,9 @@ struct HPSegReply {
 }
 
 struct HPCfg {
-    groupID @0 :HPGroupID;
+    groupId @0 :HPGroupId;
     version @1 :UInt32;
-    owner @2 :UInt64;
+    ownerISD @2 :UInt16;
     writers @3 :List(UInt64);
     readers @4 :List(UInt64);
     registries @5 :List(UInt64);
