@@ -128,6 +128,10 @@ func (p *Pool) chooseMinFails() (Info, error) {
 // expirer is a wrapper to implement period.Task.
 type expirer Pool
 
+func (e *expirer) Name() string {
+	return "Healtpool expirer"
+}
+
 func (e *expirer) Run(_ context.Context) {
 	p := (*Pool)(e)
 	p.infosMtx.RLock()

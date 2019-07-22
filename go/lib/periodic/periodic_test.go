@@ -31,6 +31,10 @@ func (tf taskFunc) Run(ctx context.Context) {
 	tf(ctx)
 }
 
+func (tf taskFunc) Name() string {
+	return "Test function"
+}
+
 var _ (Ticker) = (*testTicker)(nil)
 
 type testTicker struct {
