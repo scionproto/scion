@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -ex
+
+./docker.sh exec "set -eo pipefail; ( make gogen; git add go/proto/; git diff --cached --exit-code ) |& tee logs/checkgogen.run"
