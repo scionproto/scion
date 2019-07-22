@@ -249,3 +249,13 @@ func (c Crit) UnmarshalJSON(b []byte) error {
 func (Crit) MarshalJSON() ([]byte, error) {
 	return packedCritFields, nil
 }
+
+// SigInput computes the signature input according to rfc7517 (see:
+// https://tools.ietf.org/html/rfc7515#section-5.1)
+func SigInput(protected EncodedProtected, trc Encoded) common.RawBytes {
+	input := make([]byte, len(protected)+len(trc)+1)
+	copy(input[:len(protected)], protected)
+	input[len(protected)] = '.'
+	copy(input[len(protected)+1:], trc)
+	return input
+}
