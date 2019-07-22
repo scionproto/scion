@@ -16,6 +16,7 @@ package cleaner
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -40,30 +41,36 @@ var _ periodic.Task = (*Cleaner)(nil)
 
 // Cleaner is a periodic.Task implementation that deletes expired data.
 type Cleaner struct {
-	deleter ExpiredDeleter
-	logger  log.Logger
-	metric  *metric
+	deleter   ExpiredDeleter
+	subsystem string
+	metric    *metric
 }
 
 // New returns a new cleaner task that deletes expired data using deleter.
 func New(deleter ExpiredDeleter, subsystem string) *Cleaner {
 	return &Cleaner{
-		deleter: deleter,
-		logger:  log.New("subsystem", subsystem),
-		metric:  registry.register(subsystem),
+		deleter:   deleter,
+		subsystem: subsystem,
+		metric:    registry.register(subsystem),
 	}
+}
+
+// Name returns the tasks name.
+func (c *Cleaner) Name() string {
+	return fmt.Sprintf("Cleaner for %s", c.subsystem)
 }
 
 // Run deletes expired entries using the deleter func.
 func (c *Cleaner) Run(ctx context.Context) {
 	count, err := c.deleter(ctx)
+	logger := log.FromCtx(ctx)
 	if err != nil {
-		c.logger.Error("[Cleaner] Failed to delete", "err", err)
+		logger.Error("[Cleaner] Failed to delete", "subsystem", c.subsystem, "err", err)
 		c.metric.resultsTotal.WithLabelValues("err").Inc()
 		return
 	}
 	if count > 0 {
-		c.logger.Info("[Cleaner] Deleted expired", "count", count)
+		logger.Info("[Cleaner] Deleted expired", "subsystem", c.subsystem, "count", count)
 		c.metric.deletedTotal.Add(float64(count))
 	}
 	c.metric.resultsTotal.WithLabelValues("ok").Inc()

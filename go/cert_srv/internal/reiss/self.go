@@ -45,10 +45,15 @@ type Self struct {
 	CorePusher *periodic.Runner
 }
 
+// Name returns the tasks name.
+func (s *Self) Name() string {
+	return "reiss.Self"
+}
+
 // Run issues certificate chains for the local AS.
 func (s *Self) Run(ctx context.Context) {
 	if err := s.run(ctx); err != nil {
-		log.Crit("[reiss.Self] Unable to self issue", "err", err)
+		log.FromCtx(ctx).Crit("[reiss.Self] Unable to self issue", "err", err)
 	}
 }
 
@@ -107,7 +112,7 @@ func (s *Self) createLeafCert(ctx context.Context, leaf *cert.Certificate) error
 	if _, err := s.State.TrustDB.InsertChain(ctx, chain); err != nil {
 		return common.NewBasicError("Unable to write certificate chain", err, "chain", chain)
 	}
-	log.Info("[reiss.Self] Created certificate chain", "chain", chain)
+	log.FromCtx(ctx).Info("[reiss.Self] Created certificate chain", "chain", chain)
 	meta, err := trust.CreateSignMeta(ctx, s.IA, s.State.TrustDB)
 	if err != nil {
 		return common.NewBasicError("Unable to create sign meta", err)
@@ -152,7 +157,7 @@ func (s *Self) createIssuerCert(ctx context.Context, crt *cert.Certificate) erro
 	if err = s.setIssuerCert(ctx, crt); err != nil {
 		return common.NewBasicError("Unable to store issuer certificate", err, "cert", crt)
 	}
-	log.Info("[reiss.Self] Created issuer certificate", "cert", crt)
+	log.FromCtx(ctx).Info("[reiss.Self] Created issuer certificate", "cert", crt)
 	return nil
 }
 

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Ticker interface to improve testability of this periodic task code.
@@ -46,6 +47,9 @@ func NewTicker(d time.Duration) Ticker {
 type Task interface {
 	// Run executes the task once, it should return within the context's timeout.
 	Run(context.Context)
+	// Name returns the tasks name, each successive call should return the same
+	// value as the first call.
+	Name() string
 }
 
 // Runner runs a task periodically.
@@ -66,6 +70,8 @@ type Runner struct {
 // time it will be immediately retriggered.
 func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
+	logger := log.New("debug_id", util.GetDebugID())
+	ctx = log.CtxWith(ctx, logger)
 	runner := &Runner{
 		task:         task,
 		ticker:       ticker,
@@ -76,6 +82,7 @@ func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner 
 		cancelF:      cancelF,
 		trigger:      make(chan struct{}),
 	}
+	logger.Info("Starting periodic task", "task", task.Name())
 	go func() {
 		defer log.LogPanicAndExit()
 		runner.runLoop()
