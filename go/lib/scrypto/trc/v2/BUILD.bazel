@@ -8,6 +8,7 @@ go_library(
         "pop.go",
         "primary.go",
         "trc.go",
+        "update.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/scrypto/trc/v2",
     visibility = ["//visibility:public"],
@@ -25,6 +26,7 @@ go_test(
         "primary_test.go",
         "trc_json_test.go",
         "trc_test.go",
+        "update_test.go",
     ],
     embed = [":go_default_library"],
     deps = [

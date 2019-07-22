@@ -15,7 +15,10 @@
 package trc
 
 import (
+	"bytes"
+
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 const (
@@ -48,4 +51,45 @@ func newKeyChanges() *KeyChanges {
 		},
 	}
 	return c
+}
+
+// Sensitive indicates whether the key changes are sensitive (i.e. any offline
+// key changes).
+func (c *KeyChanges) Sensitive() bool {
+	return len(c.Fresh[OfflineKey]) != 0 || len(c.Modified[OfflineKey]) != 0
+}
+
+func (c *KeyChanges) insertModifications(as addr.AS, prev, next PrimaryAS) error {
+	for keyType, meta := range next.Keys {
+		prevMeta, ok := prev.Keys[keyType]
+		if !ok {
+			c.Fresh[keyType][as] = meta
+			continue
+		}
+		modified, err := ValidateKeyUpdate(prevMeta, meta)
+		if err != nil {
+			return common.NewBasicError(InvalidKeyMeta, err, "AS", as, "keyType", keyType)
+		}
+		if modified {
+			c.Modified[keyType][as] = meta
+		}
+	}
+	return nil
+}
+
+// ValidateKeyUpdate validates that the prev and next key meta are consistent.
+// If the algorithm and key are not modified by the update, the version must not
+// change. If they are modified, the version must be increased by one. The
+// return value indicates, whether the update is a modification.
+func ValidateKeyUpdate(prev, next KeyMeta) (bool, error) {
+	modified := next.Algorithm != prev.Algorithm || !bytes.Equal(next.Key, prev.Key)
+	switch {
+	case modified && next.KeyVersion != prev.KeyVersion+1:
+		return modified, common.NewBasicError(InvalidKeyVersion, nil, "modified", modified,
+			"expected", prev.KeyVersion+1, "actual", next.KeyVersion)
+	case !modified && next.KeyVersion != prev.KeyVersion:
+		return modified, common.NewBasicError(InvalidKeyVersion, nil, "modified", modified,
+			"expected", prev.KeyVersion, "actual", next.KeyVersion)
+	}
+	return modified, nil
 }
