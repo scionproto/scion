@@ -44,6 +44,42 @@ struct SegChangesReq {
     segIds @0 :List(Data);
 }
 
+struct HPGroupId {
+    ownerAS @0 :UInt64;
+    groupID @1 :UInt16;
+}
+
+struct HPSegReq {
+    dstIA @0 :UInt64;
+    groupIds @1 :List(HPGroupId);
+}
+
+struct HPSegRecs {
+    groupId @0 :HPGroupId;
+    recs @1 :List(PSeg.PathSegMeta);
+}
+
+struct HPSegReply {
+    recs @0 :List(HPSegRecs);
+}
+
+struct HPCfg {
+    groupId @0 :HPGroupId;
+    version @1 :UInt32;
+    ownerISD @2 :UInt16;
+    writers @3 :List(UInt64);
+    readers @4 :List(UInt64);
+    registries @5 :List(UInt64);
+}
+
+struct HPCfgReq {
+    changedSince @0 :UInt32;
+}
+
+struct HPCfgReply {
+    cfgs @0 :List(HPCfg);
+}
+
 struct PathMgmt {
     union {
         unset @0 :Void;
@@ -58,5 +94,10 @@ struct PathMgmt {
         segChangesIdReply @9 :SegChangesIdReply;
         segChangesReq @10 :SegChangesReq;
         segChangesReply @11 :SegRecs;
+        hpSegReq @12 :HPSegReq;
+        hpSegReply @13 :HPSegReply;
+        hpSegReg @14 :HPSegRecs;
+        hpCfgReq @15 :HPCfgReq;
+        hpCfgReply @16 :HPCfgReply;
     }
 }
