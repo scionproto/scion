@@ -30,11 +30,11 @@ var _ discovery.Fetcher = (*Fetcher)(nil)
 // an associated event occurs. If the function is nil, it is ignored.
 type Callbacks struct {
 	// Raw is called with the raw body from the discovery service response and the parsed topology.
-	Raw func(common.RawBytes, *topology.Topo)
+	Raw func(context.Context, common.RawBytes, *topology.Topo)
 	// Update is called with the parsed topology from the discovery service response.
-	Update func(*topology.Topo)
+	Update func(context.Context, *topology.Topo)
 	// Error is called with any error that occurs.
-	Error func(error)
+	Error func(context.Context, error)
 }
 
 // Fetcher is used to fetch a new topology file from the discovery service.
@@ -71,13 +71,18 @@ func (f *Fetcher) UpdateInstances(svcInfo topology.IDAddrMap) error {
 	return f.Pool.Update(svcInfo)
 }
 
+// Name returns the tasks name.
+func (f *Fetcher) Name() string {
+	return "discovery.Fetcher"
+}
+
 // Run fetches a new topology file from the discovery service and calls the
 // appropriate callback functions to notify the caller. RawF and UpdateF are
 // only called if no error has occurred and the topology was parsed correctly.
 // Otherwise ErrorF is called.
 func (f *Fetcher) Run(ctx context.Context) {
 	if err := f.run(ctx); err != nil && f.Callbacks.Error != nil {
-		f.Callbacks.Error(err)
+		f.Callbacks.Error(ctx, err)
 	}
 }
 
@@ -102,10 +107,10 @@ func (f *Fetcher) run(ctx context.Context) error {
 	}
 	// Notify the client.
 	if f.Callbacks.Raw != nil {
-		f.Callbacks.Raw(raw, topo)
+		f.Callbacks.Raw(ctx, raw, topo)
 	}
 	if f.Callbacks.Update != nil {
-		f.Callbacks.Update(topo)
+		f.Callbacks.Update(ctx, topo)
 	}
 	return nil
 }

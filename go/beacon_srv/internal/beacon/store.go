@@ -160,7 +160,7 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 		// Must not return, as the beacon channels have to be drained and a
 		// partial result is better than no result at all.
 		if err != nil {
-			log.Error("Error getting candidate beacons", "src", src, "err", err)
+			log.FromCtx(ctx).Error("Error getting candidate beacons", "src", src, "err", err)
 			errs = append(errs, src)
 			continue
 		}

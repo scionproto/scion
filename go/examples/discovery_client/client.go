@@ -80,22 +80,23 @@ func realMain() int {
 			Https: *https,
 		},
 		topofetcher.Callbacks{
-			Error: func(err error) {
-				log.Error("Unable to fetch topology", "err", err)
+			Error: func(ctx context.Context, err error) {
+				log.FromCtx(ctx).Error("Unable to fetch topology", "err", err)
 			},
-			Update: func(topo *topology.Topo) {
-				log.Info("Fetched new topology", "ia", topo.ISD_AS, "ts", topo.Timestamp)
+			Update: func(ctx context.Context, topo *topology.Topo) {
+				log.FromCtx(ctx).Info("Fetched new topology",
+					"ia", topo.ISD_AS, "ts", topo.Timestamp)
 			},
-			Raw: func(raw common.RawBytes, _ *topology.Topo) {
+			Raw: func(ctx context.Context, raw common.RawBytes, _ *topology.Topo) {
 				writeOnce.Do(func() {
 					fmt.Println(string(raw))
 					if *out == "" {
 						return
 					}
 					if err := ioutil.WriteFile(*out, raw, 0666); err != nil {
-						log.Error("Unable to write topology file", "err", err)
+						log.FromCtx(ctx).Error("Unable to write topology file", "err", err)
 					}
-					log.Info("Topology file written", "file", out)
+					log.FromCtx(ctx).Info("Topology file written", "file", out)
 				})
 			},
 		}, nil)
