@@ -35,7 +35,7 @@ struct PathReq {
         refresh @3 :Bool; # Fetch segments again for dst.
         hidden @4 :Bool; # Request hidden segments
     }
-    hpCfgs @5 :List(PathMgmt.HPGroupID);
+    hpCfgs @5 :List(PathMgmt.HPGroupId);
 }
 
 struct PathReply {
