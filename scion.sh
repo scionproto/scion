@@ -335,7 +335,7 @@ go_lint() {
     out=$(find go -type f -iname '*.go' -a '!' -ipath 'go/proto/structs.gen.go' -a '!' -ipath 'go/proto/*.capnp.go' -a '!' -ipath '*mock_*' -a '!' -ipath 'go/lib/pathpol/sequence/*' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "misspell"
-    $TMPDIR/misspell -error $LOCAL_DIRS || ret=1
+    $TMPDIR/misspell -source go -error $LOCAL_DIRS || ret=1
     lint_step "ineffassign"
     $TMPDIR/ineffassign -exclude ineffassign.json go || ret=1
     lint_step "bazel"
