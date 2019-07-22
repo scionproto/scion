@@ -32,6 +32,7 @@ struct PathReq {
     maxPaths @2: UInt16;  # Maximum number of paths requested
     flags :group {
         refresh @3 :Bool; # Fetch segments again for dst.
+        fnord @4 :Bool; # XXX
     }
 }
 
