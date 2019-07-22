@@ -2,4 +2,4 @@
 
 set -ex
 
-./docker.sh exec "set -eo pipefail; ( make gogen; git add go/proto/; git diff --cached --exit-code ) |& tee logs/checkgogen.run"
+./docker.sh exec "set -eo pipefail; ( cp -R go/proto/ /tmp/; make gogen; diff /tmp/proto/ go/proto/ ) |& tee logs/checkgogen.run"
