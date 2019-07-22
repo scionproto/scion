@@ -48,14 +48,20 @@ type Requester struct {
 	CorePusher *periodic.Runner
 }
 
+// Name returns the tasks name.
+func (r *Requester) Name() string {
+	return "reiss.Requester"
+}
+
 // Run requests reissued certificate chains from the issuer AS.
 func (r *Requester) Run(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	crit, err := r.run(ctx)
 	switch {
 	case crit && err != nil:
-		log.Crit("[reiss.Requester] Unable to get reissued certificate chain", "err", err)
+		logger.Crit("[reiss.Requester] Unable to get reissued certificate chain", "err", err)
 	case err != nil:
-		log.Error("[reiss.Requester] Unable to get reissued certificate chain", "err", err)
+		logger.Error("[reiss.Requester] Unable to get reissued certificate chain", "err", err)
 	}
 }
 
@@ -79,6 +85,7 @@ func (r *Requester) run(ctx context.Context) (bool, error) {
 // sendReq creates and sends a certificate chain reissue request based on the newest
 // currently active certificate chain.
 func (r *Requester) sendReq(ctx context.Context, chain *cert.Chain) (bool, error) {
+	logger := log.FromCtx(ctx)
 	c := chain.Leaf.Copy()
 	c.IssuingTime = util.TimeToSecs(time.Now())
 	c.ExpirationTime = c.IssuingTime + (chain.Leaf.ExpirationTime - chain.Leaf.IssuingTime)
@@ -96,7 +103,7 @@ func (r *Requester) sendReq(ctx context.Context, chain *cert.Chain) (bool, error
 	if err != nil {
 		return false, common.NewBasicError("Unable to request reissued certificate chain", err)
 	}
-	log.Trace("[reiss.Requester] Received certificate reissue reply", "addr", a, "rep", rep)
+	logger.Trace("[reiss.Requester] Received certificate reissue reply", "addr", a, "rep", rep)
 	if crit, err := r.handleRep(ctx, rep); err != nil {
 		return crit, common.NewBasicError("Unable to handle reply", err, "addr", a, "rep", rep)
 	}
@@ -104,6 +111,7 @@ func (r *Requester) sendReq(ctx context.Context, chain *cert.Chain) (bool, error
 }
 
 func (r *Requester) handleRep(ctx context.Context, rep *cert_mgmt.ChainIssRep) (bool, error) {
+	logger := log.FromCtx(ctx)
 	chain, err := rep.Chain()
 	if err != nil {
 		return false, common.NewBasicError("Unable to parse chain", err)
@@ -125,7 +133,7 @@ func (r *Requester) handleRep(ctx context.Context, rep *cert_mgmt.ChainIssRep) (
 	}
 	r.State.SetSigner(signer)
 	r.Msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
-	log.Info("[reiss.Requester] Updated certificate chain", "chain", chain)
+	logger.Info("[reiss.Requester] Updated certificate chain", "chain", chain)
 	if r.CorePusher != nil {
 		r.CorePusher.TriggerRun()
 	}

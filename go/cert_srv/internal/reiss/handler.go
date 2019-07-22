@@ -70,8 +70,9 @@ func (h *Handler) Handle(r *infra.Request) *infra.HandlerResult {
 func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.ChainIssReq) error {
 	ctx, cancelF := context.WithTimeout(r.Context(), HandlerTimeout)
 	defer cancelF()
+	logger := log.FromCtx(ctx)
 	signed := r.FullMessage.(*ctrl.SignedPld)
-	log.Trace("[ReissHandler] Received certificate reissue request", "addr", addr, "req", req)
+	logger.Trace("[ReissHandler] Received certificate reissue request", "addr", addr, "req", req)
 	// Validate the request was correctly signed by the requester
 	verChain, err := h.validateSign(ctx, addr, signed)
 	if err != nil {
@@ -88,7 +89,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return common.NewBasicError("Unable to fetch max chain", err)
 	}
 	if maxChain != nil && crt.Version <= maxChain.Leaf.Version {
-		log.Info("[ReissHandler] Resending certificate chain", "addr", addr, "req", req)
+		logger.Info("[ReissHandler] Resending certificate chain", "addr", addr, "req", req)
 		return h.sendRep(ctx, addr, maxChain)
 	}
 	// Get the verifying key from the customer mapping
@@ -205,7 +206,8 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	var n int64
 	if n, err = tx.InsertChain(ctx, chain); err != nil {
 		tx.Rollback()
-		log.Error("[ReissHandler] Unable to write reissued certificate chain to disk", "err", err)
+		log.FromCtx(ctx).Error("[ReissHandler] Unable to write reissued certificate chain to disk",
+			"err", err)
 		return nil, err
 	}
 	if n == 0 {
