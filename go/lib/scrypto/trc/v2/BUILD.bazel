@@ -25,6 +25,7 @@ go_test(
     srcs = [
         "primary_json_test.go",
         "primary_test.go",
+        "signed_json_test.go",
         "signed_test.go",
         "trc_json_test.go",
         "trc_test.go",

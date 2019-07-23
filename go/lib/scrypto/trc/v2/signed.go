@@ -132,11 +132,12 @@ func (p *Protected) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	*p = Protected{
-		Algorithm: *alias.Algorithm,
-		Type:      *alias.Type,
-		KeyType:   *alias.KeyType,
-		AS:        *alias.AS,
-		Crit:      *alias.Crit,
+		Algorithm:  *alias.Algorithm,
+		Type:       *alias.Type,
+		KeyType:    *alias.KeyType,
+		KeyVersion: *alias.KeyVersion,
+		AS:         *alias.AS,
+		Crit:       *alias.Crit,
 	}
 	return nil
 }
@@ -193,6 +194,22 @@ func (t *SignatureType) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+var (
+	allCritFields       = critFields{"Type", "AS", "KeyType", "KeyVersion"}
+	packedCritFields, _ = json.Marshal(allCritFields)
+)
+
+type critFields []string
+
+func (c critFields) index(field string) (int, bool) {
+	for i, f := range allCritFields {
+		if f == field {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 var _ json.Unmarshaler = Crit{}
 var _ json.Marshaler = Crit{}
 
@@ -201,47 +218,34 @@ type Crit struct{}
 
 // UnmarshalJSON checks that all expected elements and no other are in the array.
 func (c Crit) UnmarshalJSON(b []byte) error {
-	var l []string
-	if err := json.Unmarshal(b, &l); err != nil {
+	var list []string
+	if err := json.Unmarshal(b, &list); err != nil {
 		return err
 	}
-	if len(l) != 4 {
-		return common.NewBasicError(InvalidCrit, nil, "len", len(l))
+	if len(list) != len(allCritFields) {
+		return common.NewBasicError(InvalidCrit, nil, "len", len(list))
 	}
-	var seen int
-	for _, val := range l {
-		flag := c.entryToFlag(val)
-		if flag == 0 {
-			return common.NewBasicError(InvalidCrit, nil, "unknown", val)
+	fields := make([]bool, len(allCritFields))
+	for _, field := range list {
+		idx, ok := allCritFields.index(field)
+		if !ok {
+			return common.NewBasicError(InvalidCrit, nil, "unknown", field)
 		}
-		seen |= flag
+		fields[idx] = true
 	}
-	if !c.allSeen(seen) {
-		return common.NewBasicError(InvalidCrit, nil, "input", string(b))
+	var missing []string
+	for i, ok := range fields {
+		if !ok {
+			missing = append(missing, allCritFields[i])
+		}
+	}
+	if len(missing) > 0 {
+		return common.NewBasicError(InvalidCrit, nil, "missing", missing)
 	}
 	return nil
 }
 
-func (c Crit) entryToFlag(entry string) int {
-	var flag int
-	switch entry {
-	case "Type":
-		flag = 0x01
-	case "KeyType":
-		flag = 0x02
-	case "KeyVersion":
-		flag = 0x04
-	case "AS":
-		flag = 0x08
-	}
-	return flag
-}
-
-func (Crit) allSeen(flags int) bool {
-	return flags == 0x0f
-}
-
 // MarshalJSON returns a json array with the expected crit elements.
 func (Crit) MarshalJSON() ([]byte, error) {
-	return []byte(`["Type", "AS", "KeyType", "KeyVersion"]`), nil
+	return packedCritFields, nil
 }

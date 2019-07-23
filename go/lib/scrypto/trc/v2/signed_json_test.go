@@ -19,11 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/scrypto"
-	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/lib/scrypto"
+	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 )
 
 func TestProtectedUnmarshalJSON(t *testing.T) {
@@ -32,44 +32,125 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 		Protected      trc.Protected
 		ExpectedErrMsg string
 	}{
-		"Valid": {
+		"Valid online vote": {
 			Input: `
 			{
 				"alg": "ed25519",
 				"Type": "Vote",
 				"KeyType": "Online",
 				"KeyVersion": 1,
-				"AS": "ff00"
+				"AS": "ff00:0:110",
+				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
 			}`,
-			Meta: trc.KeyMeta{
-				KeyVersion: 1,
+			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
-				Key:        xtest.MustParseHexString("616e617061796120e29da420207363696f6e"),
+				Type:       trc.VoteSignature,
+				KeyType:    trc.OnlineKey,
+				KeyVersion: 1,
+				AS:         a110,
 			},
 		},
-		"KeyVersion not set": {
+		"Valid offline vote": {
 			Input: `
 			{
-				"Algorithm": "ed25519",
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"alg": "ed25519",
+				"Type": "Vote",
+				"KeyType": "Offline",
+				"KeyVersion": 1,
+				"AS": "ff00:0:110",
+				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
 			}`,
-			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
+			Protected: trc.Protected{
+				Algorithm:  scrypto.Ed25519,
+				Type:       trc.VoteSignature,
+				KeyType:    trc.OfflineKey,
+				KeyVersion: 1,
+				AS:         a110,
+			},
+		},
+		"Valid proof of possession": {
+			Input: `
+			{
+				"alg": "ed25519",
+				"Type": "ProofOfPossession",
+				"KeyType": "Issuing",
+				"KeyVersion": 1,
+				"AS": "ff00:0:110",
+				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+			}`,
+			Protected: trc.Protected{
+				Algorithm:  scrypto.Ed25519,
+				Type:       trc.POPSignature,
+				KeyType:    trc.IssuingKey,
+				KeyVersion: 1,
+				AS:         a110,
+			},
 		},
 		"Algorithm not set": {
 			Input: `
 			{
+				"Type": "ProofOfPossession",
+				"KeyType": "Issuing",
 				"KeyVersion": 1,
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"AS": "ff00:0:110",
+				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
 			}`,
 			ExpectedErrMsg: trc.ErrAlgorithmNotSet.Error(),
 		},
-		"Key not set": {
+		"Type not set": {
 			Input: `
 			{
+				"alg": "ed25519",
+				"KeyType": "Issuing",
 				"KeyVersion": 1,
-				"Algorithm": "ed25519"
+				"AS": "ff00:0:110",
+				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
 			}`,
-			ExpectedErrMsg: trc.ErrKeyNotSet.Error(),
+			ExpectedErrMsg: trc.ErrSignatureTypeNotSet.Error(),
+		},
+		"KeyType not set": {
+			Input: `
+			{
+				"alg": "ed25519",
+				"Type": "ProofOfPossession",
+				"KeyVersion": 1,
+				"AS": "ff00:0:110",
+				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+			}`,
+			ExpectedErrMsg: trc.ErrTypeNotSet.Error(),
+		},
+		"KeyVersion not set": {
+			Input: `
+			{
+				"alg": "ed25519",
+				"Type": "ProofOfPossession",
+				"KeyType": "Issuing",
+				"AS": "ff00:0:110",
+				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+			}`,
+			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
+		},
+		"AS not set": {
+			Input: `
+			{
+				"alg": "ed25519",
+				"Type": "ProofOfPossession",
+				"KeyType": "Issuing",
+				"KeyVersion": 1,
+				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+			}`,
+			ExpectedErrMsg: trc.ErrASNotSet.Error(),
+		},
+		"crit not set": {
+			Input: `
+			{
+				"alg": "ed25519",
+				"Type": "ProofOfPossession",
+				"KeyType": "Issuing",
+				"KeyVersion": 1,
+				"AS": "ff00:0:110"
+			}`,
+			ExpectedErrMsg: trc.ErrCritNotSet.Error(),
 		},
 		"Unknown field": {
 			Input: `
@@ -89,11 +170,11 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var meta trc.KeyMeta
-			err := json.Unmarshal([]byte(test.Input), &meta)
+			var protected trc.Protected
+			err := json.Unmarshal([]byte(test.Input), &protected)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
-				assert.Equal(t, test.Meta, meta)
+				assert.Equal(t, test.Protected, protected)
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
@@ -189,8 +270,8 @@ func TestCritUnmarshalJSON(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var protected trc.Protected
-			test.Assertion(t, json.Unmarshal(test.Input, &protected))
+			var meta struct{ Crit trc.Crit }
+			test.Assertion(t, json.Unmarshal(test.Input, &meta))
 		})
 	}
 }
