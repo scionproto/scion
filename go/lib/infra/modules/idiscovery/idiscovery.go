@@ -355,7 +355,7 @@ func (t *task) callHandler(ctx context.Context, topo *topology.Topo) (bool, erro
 }
 
 func (t *task) logger(ctx context.Context) log.Logger {
-	return log.FromCtx(ctx).New("Module", "Discovery", "Mode", t.mode)
+	return log.FromCtx(ctx).New("mode", t.mode)
 }
 
 type flag struct {
