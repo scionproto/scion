@@ -96,14 +96,14 @@ func TestOriginatorRun(t *testing.T) {
 			},
 		)
 		// Start beacon messages.
-		o.Run(context.Background())
+		o.Run(nil)
 		for i, msg := range msgs {
 			Convey(fmt.Sprintf("Packet %d is correct", i), func() {
 				checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap)
 			})
 		}
 		// The second run should not cause any beacons to originate.
-		o.Run(context.Background())
+		o.Run(nil)
 	})
 	Convey("Fast recovery", t, func() {
 		mctrl := gomock.NewController(t)
@@ -143,15 +143,15 @@ func TestOriginatorRun(t *testing.T) {
 		first.Return(errors.New("fail"))
 		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).After(first).Times(4).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
-		o.Run(context.Background())
+		o.Run(nil)
 		time.Sleep(1 * time.Second)
 		// Second run. One write expected.
-		o.Run(context.Background())
+		o.Run(nil)
 		// Third run. No write expected
-		o.Run(context.Background())
+		o.Run(nil)
 		time.Sleep(1 * time.Second)
 		// Fourth run. Since period has passed, two writes are expected.
-		o.Run(context.Background())
+		o.Run(nil)
 	})
 }
 

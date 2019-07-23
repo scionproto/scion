@@ -82,7 +82,7 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 }
 
 func (s *SegSyncer) Name() string {
-	return fmt.Sprintf("segsyncer dst=%s", s.dstIA)
+	return fmt.Sprintf("segsyncer.SegSyncer dst=%s", s.dstIA)
 }
 
 func (s *SegSyncer) Run(ctx context.Context) {
@@ -90,18 +90,21 @@ func (s *SegSyncer) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	cPs, err := s.getDstAddr(ctx)
 	if err != nil {
-		log.Error("[segsyncer] Failed to find path to remote", "dstIA", s.dstIA, "err", err)
+		log.Error("[segsyncer.SegSyncer] Failed to find path to remote",
+			"dstIA", s.dstIA, "err", err)
 		s.repErrCnt++
 		return
 	}
 	cnt, err := s.runInternal(ctx, cPs)
 	if err != nil {
-		logger.Error("[segsyncer] Failed to send segSync", "dstIA", s.dstIA, "err", err)
+		logger.Error("[segsyncer.SegSyncer] Failed to send segSync",
+			"dstIA", s.dstIA, "err", err)
 		s.repErrCnt++
 		return
 	}
 	if cnt > 0 {
-		logger.Debug("[segsyncer] Sent down segments", "dstIA", s.dstIA, "cnt", cnt)
+		logger.Debug("[segsyncer.SegSyncer] Sent down segments",
+			"dstIA", s.dstIA, "cnt", cnt)
 	}
 	s.repErrCnt = 0
 }

@@ -15,7 +15,6 @@
 package beaconing
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -199,14 +198,14 @@ func TestPropagatorRun(t *testing.T) {
 					return nil
 				},
 			)
-			p.Run(context.Background())
+			p.Run(nil)
 			for i, msg := range msgs {
 				Convey(fmt.Sprintf("Packet %d is correct", i), func() {
 					checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap)
 				})
 			}
 			// Check that no beacons are sent, since the period has not passed yet.
-			p.Run(context.Background())
+			p.Run(nil)
 		})
 	}
 	Convey("Fast recovery", t, func() {
@@ -261,14 +260,14 @@ func TestPropagatorRun(t *testing.T) {
 		firstCall.Return(errors.New("fail"))
 		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).After(firstCall).Times(4).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
-		p.Run(context.Background())
+		p.Run(nil)
 		time.Sleep(1 * time.Second)
 		// Second run. One write expected.
-		p.Run(context.Background())
+		p.Run(nil)
 		// Third run. No write expected
-		p.Run(context.Background())
+		p.Run(nil)
 		time.Sleep(1 * time.Second)
 		// Fourth run. Since period has passed, two writes are expected.
-		p.Run(context.Background())
+		p.Run(nil)
 	})
 }

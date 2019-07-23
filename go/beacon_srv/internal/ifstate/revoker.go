@@ -86,7 +86,7 @@ func (cfg RevokerConf) New() *Revoker {
 
 // Name returns the tasks name.
 func (r *Revoker) Name() string {
-	return "Revoker"
+	return "ifstate.Revoker"
 }
 
 // Run issues revocations for interfaces that have timed out
@@ -97,24 +97,25 @@ func (r *Revoker) Run(ctx context.Context) {
 	for ifid, intf := range r.cfg.Intfs.All() {
 		if intf.Expire() && !r.hasValidRevocation(intf) {
 			if intf.Revocation() == nil {
-				logger.Info("[Revoker] interface went down", "ifid", ifid)
+				logger.Info("[ifstate.Revoker] interface went down", "ifid", ifid)
 			}
 			srev, err := r.createSignedRev(ifid)
 			if err != nil {
-				logger.Error("[Revoker] Failed to create revocation", "ifid", ifid, "err", err)
+				logger.Error("[ifstate.Revoker] Failed to create revocation",
+					"ifid", ifid, "err", err)
 				continue
 			}
 			if err := intf.Revoke(srev); err == nil {
 				revs[ifid] = srev
 			} else {
-				logger.Error("[Revoker] Failed to revoke!", "ifid", ifid, "err", err)
+				logger.Error("[ifstate.Revoker] Failed to revoke!", "ifid", ifid, "err", err)
 			}
 		}
 	}
 	if len(revs) > 0 {
 		wg := &sync.WaitGroup{}
 		if err := r.cfg.RevInserter.InsertRevocations(ctx, toSlice(revs)...); err != nil {
-			logger.Error("[Revoker] Failed to insert revocations in store", "err", err)
+			logger.Error("[ifstate.Revoker] Failed to insert revocations in store", "err", err)
 			// still continue to try to push it to BR/PS.
 		}
 		r.pushRevocationsToBRs(ctx, revs, wg)
@@ -162,7 +163,7 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 	a := &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
 	for ifid, srev := range revs {
 		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
-			log.FromCtx(ctx).Error("[Revoker] Failed to send revocation to PS",
+			log.FromCtx(ctx).Error("[ifstate.Revoker] Failed to send revocation to PS",
 				"ifid", ifid, "err", err)
 		}
 	}
@@ -194,8 +195,8 @@ func (p *brPusher) sendIfStateToBr(ctx context.Context, msg *path_mgmt.IFStateIn
 		defer log.LogPanicAndExit()
 		defer wg.Done()
 		if err := p.msgr.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
-			logger := log.FromCtx(ctx).New("mode", p.mode)
-			logger.Error("Failed to send interface state to BR", "br", id, "err", err)
+			log.FromCtx(ctx).Error("Failed to send interface state to BR",
+				"br", id, "mode", p.mode, "err", err)
 		}
 	}()
 }

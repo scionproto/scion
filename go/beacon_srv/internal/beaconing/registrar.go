@@ -94,14 +94,15 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 
 // Name returns the tasks name.
 func (r *Registrar) Name() string {
-	return "Registrar"
+	return "beaconing.Registrar"
 }
 
 // Run registers path segments for the specified type to path servers.
 func (r *Registrar) Run(ctx context.Context) {
 	r.tick.now = time.Now()
 	if err := r.run(ctx); err != nil {
-		log.FromCtx(ctx).Error("[Registrar] Unable to register", "type", r.segType, "err", err)
+		log.FromCtx(ctx).Error("[beaconing.Registrar] Unable to register",
+			"type", r.segType, "err", err)
 	}
 	r.metrics.AddTotalTime(r.segType, r.tick.now)
 	r.tick.updateLast()
@@ -118,7 +119,7 @@ func (r *Registrar) run(ctx context.Context) error {
 	}
 	peers, nonActivePeers := sortedIntfs(r.cfg.Intfs, proto.LinkType_peer)
 	if len(nonActivePeers) > 0 {
-		logger.Debug("[Registrar] Ignore non-active peer interfaces", "type", r.segType,
+		logger.Debug("[beaconing.Registrar] Ignore non-active peer interfaces", "type", r.segType,
 			"intfs", nonActivePeers)
 	}
 	s := newSummary()
@@ -126,7 +127,7 @@ func (r *Registrar) run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	for bOrErr := range segments {
 		if bOrErr.Err != nil {
-			logger.Error("[Registrar] Unable to get beacon", "err", err)
+			logger.Error("[beaconing.Registrar] Unable to get beacon", "err", err)
 			r.metrics.IncInternalErr(r.segType)
 			continue
 		}
@@ -155,13 +156,13 @@ func (r *Registrar) run(ctx context.Context) error {
 
 func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 	if r.tick.passed() {
-		logger.Info("[Registrar] Registered beacons", "type", r.segType, "count", s.count,
+		logger.Info("[beaconing.Registrar] Registered beacons", "type", r.segType, "count", s.count,
 			"startIAs", len(s.srcs))
 		return
 	}
 	if s.count > 0 {
-		logger.Info("[Registrar] Registered beacons after stale period", "type", r.segType,
-			"count", s.count, "startIAs", len(s.srcs))
+		logger.Info("[beaconing.Registrar] Registered beacons after stale period",
+			"type", r.segType, "count", s.count, "startIAs", len(s.srcs))
 	}
 }
 
@@ -182,7 +183,8 @@ type segmentRegistrar struct {
 // with the path server.
 func (r *segmentRegistrar) start(ctx context.Context, wg *sync.WaitGroup) {
 	if err := r.setSegToRegister(); err != nil {
-		r.logger.Error("[Registrar] Unable to create segment", "type", r.segType, "err", err)
+		r.logger.Error("[beaconing.Registrar] Unable to create segment",
+			"type", r.segType, "err", err)
 		return
 	}
 	r.startSendSegReg(ctx, wg)
@@ -222,13 +224,14 @@ func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGro
 		defer log.LogPanicAndExit()
 		defer wg.Done()
 		if err := r.msgr.SendSegReg(ctx, r.reg, r.addr, messenger.NextId()); err != nil {
-			r.logger.Error("[Registrar] Unable to register segment", "addr", r.addr, "err", err)
+			r.logger.Error("[beaconing.Registrar] Unable to register segment",
+				"addr", r.addr, "err", err)
 			r.metrics.IncTotalBeacons(r.segType, r.beacon.Segment.FirstIA(), r.beacon.InIfId,
 				metrics.SendErr)
 			return
 		}
 		r.onSuccess()
-		r.logger.Trace("[Registrar] Successfully registered segment", "type", r.segType,
+		r.logger.Trace("[beaconing.Registrar] Successfully registered segment", "type", r.segType,
 			"addr", r.addr, "seg", r.beacon.Segment)
 	}()
 }

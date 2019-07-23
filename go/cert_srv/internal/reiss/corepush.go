@@ -52,7 +52,7 @@ type CorePusher struct {
 
 // Name returns the tasks name.
 func (p *CorePusher) Name() string {
-	return "corePusher"
+	return "reiss.CorePusher"
 }
 
 // Run makes sure all core CS have the chain of the local AS.
@@ -60,12 +60,12 @@ func (p *CorePusher) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	chain, err := p.TrustDB.GetChainMaxVersion(ctx, p.LocalIA)
 	if err != nil {
-		logger.Error("[corePusher] Failed to get local chain from DB", "err", err)
+		logger.Error("[reiss.CorePusher] Failed to get local chain from DB", "err", err)
 		return
 	}
 	cores, err := p.coreASes(ctx)
 	if err != nil {
-		logger.Error("[corePusher] Failed to determine core ASes", "err", err)
+		logger.Error("[reiss.CorePusher] Failed to determine core ASes", "err", err)
 		return
 	}
 	numCores := len(cores.ias)
@@ -78,10 +78,10 @@ func (p *CorePusher) Run(ctx context.Context) {
 		err = p.syncCores(tryCtx, chain, cores)
 		cancelF()
 		if err == nil {
-			logger.Info("[corePusher] Successfully pushed chain to cores", "cores", numCores)
+			logger.Info("[reiss.CorePusher] Successfully pushed chain to cores", "cores", numCores)
 			return
 		}
-		logger.Error("[corePusher] Failed to sync all cores", "err", err)
+		logger.Error("[reiss.CorePusher] Failed to sync all cores", "err", err)
 		select {
 		case <-time.After(time.Duration(syncTries) * SleepAfterFailure):
 		case <-ctx.Done():
