@@ -129,7 +129,7 @@ func (p *Pool) chooseMinFails() (Info, error) {
 type expirer Pool
 
 func (e *expirer) Name() string {
-	return "Healtpool expirer"
+	return "healthpool.expirer"
 }
 
 func (e *expirer) Run(_ context.Context) {

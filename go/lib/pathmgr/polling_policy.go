@@ -122,7 +122,7 @@ type taskPeriodicChannelWriter struct {
 }
 
 func (task *taskPeriodicChannelWriter) Name() string {
-	return "taskPeriodicChannelWriter"
+	return "pathmgr.taskPeriodicChannelWriter"
 }
 
 func (task *taskPeriodicChannelWriter) Run(_ context.Context) {

@@ -39,21 +39,21 @@ type Syncer struct {
 }
 
 func (c *Syncer) Name() string {
-	return "CryptoSync"
+	return "cryptosyncer.Syncer"
 }
 
 func (c *Syncer) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	trcChan, err := c.DB.GetAllTRCs(ctx)
 	if err != nil {
-		logger.Error("[CryptoSync] Failed to read TRCs", "err", err)
+		logger.Error("[cryptosyncer.Syncer] Failed to read TRCs", "err", err)
 		return
 	}
 	cs := &snet.Addr{IA: c.IA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	trcCount := c.sendTRCs(ctx, trcChan, cs)
 	chainChan, err := c.DB.GetAllChains(ctx)
 	if err != nil {
-		logger.Error("[CryptoSync] Failed to read chains", "err", err)
+		logger.Error("[cryptosyncer.Syncer] Failed to read chains", "err", err)
 	}
 	chainCount := c.sendChains(ctx, chainChan, cs)
 	logger.Info("Sent crypto to CS", "cs", cs, "TRCs", trcCount, "Chains", chainCount)
@@ -64,7 +64,7 @@ func (c *Syncer) sendTRCs(ctx context.Context, trcChan <-chan trustdb.TrcOrErr, 
 	trcCount := 0
 	for r := range trcChan {
 		if r.Err != nil {
-			logger.Error("[CryptoSync] Error while reading all TRCs", "err", r.Err)
+			logger.Error("[cryptosyncer.Syncer] Error while reading all TRCs", "err", r.Err)
 		} else {
 			c.sendTRC(ctx, cs, r.TRC)
 			trcCount++
@@ -77,14 +77,14 @@ func (c *Syncer) sendTRC(ctx context.Context, cs net.Addr, trcObj *trc.TRC) {
 	logger := log.FromCtx(ctx)
 	rawTRC, err := trcObj.Compress()
 	if err != nil {
-		logger.Error("[CryptoSync] Failed to compress TRC for forwarding", "err", err)
+		logger.Error("[cryptosyncer.Syncer] Failed to compress TRC for forwarding", "err", err)
 		return
 	}
 	err = c.Msger.SendTRC(ctx, &cert_mgmt.TRC{
 		RawTRC: rawTRC,
 	}, cs, messenger.NextId())
 	if err != nil {
-		logger.Error("[CryptoSync] Failed to send TRC", "err", err, "cs", cs)
+		logger.Error("[cryptosyncer.Syncer] Failed to send TRC", "err", err, "cs", cs)
 	}
 }
 
@@ -95,7 +95,7 @@ func (c *Syncer) sendChains(ctx context.Context,
 	chainCount := 0
 	for r := range chainChan {
 		if r.Err != nil {
-			logger.Error("[CryptoSync] Error while reading all Chains", "err", r.Err)
+			logger.Error("[cryptosyncer.Syncer] Error while reading all Chains", "err", r.Err)
 		} else {
 			c.sendChain(ctx, cs, r.Chain)
 			chainCount++
@@ -108,13 +108,13 @@ func (c *Syncer) sendChain(ctx context.Context, cs net.Addr, chain *cert.Chain) 
 	logger := log.FromCtx(ctx)
 	rawChain, err := chain.Compress()
 	if err != nil {
-		logger.Error("[CryptoSync] Failed to compress Chain for forwarding", "err", err)
+		logger.Error("[cryptosyncer.Syncer] Failed to compress Chain for forwarding", "err", err)
 		return
 	}
 	err = c.Msger.SendCertChain(ctx, &cert_mgmt.Chain{
 		RawChain: rawChain,
 	}, cs, messenger.NextId())
 	if err != nil {
-		logger.Error("[CryptoSync] Failed to send Chain", "err", err, "cs", cs)
+		logger.Error("[cryptosyncer.Syncer] Failed to send Chain", "err", err, "cs", cs)
 	}
 }

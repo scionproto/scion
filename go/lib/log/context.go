@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +33,9 @@ func CtxWith(ctx context.Context, logger Logger) context.Context {
 // FromCtx returns the logger embedded in ctx if one exists, or the root
 // logger otherwise. FromCtx is guaranteed to never return nil.
 func FromCtx(ctx context.Context) Logger {
+	if ctx == nil {
+		return Root()
+	}
 	if logger := ctx.Value(loggerKey); logger != nil {
 		return logger.(Logger)
 	}

@@ -70,7 +70,7 @@ func (cfg OriginatorConf) New() (*Originator, error) {
 
 // Name returns the tasks name.
 func (o *Originator) Name() string {
-	return "Originator"
+	return "beaconing.Originator"
 }
 
 // Run originates core and downstream beacons.
@@ -88,7 +88,7 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType proto.LinkTy
 	logger := log.FromCtx(ctx)
 	active, nonActive := sortedIntfs(o.cfg.Intfs, linkType)
 	if len(nonActive) > 0 && o.tick.passed() {
-		logger.Debug("[Originator] Ignore non-active interfaces", "ifids", nonActive)
+		logger.Debug("[beaconing.Originator] Ignore non-active interfaces", "ifids", nonActive)
 	}
 	intfs := o.needBeacon(active)
 	if len(intfs) == 0 {
@@ -104,7 +104,8 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType proto.LinkTy
 			summary:    s,
 		}
 		if err := b.originateBeacon(ctx); err != nil {
-			logger.Error("[Originator] Unable to originate on interface", "ifid", ifid, "err", err)
+			logger.Error("[beaconing.Originator] Unable to originate on interface",
+				"ifid", ifid, "err", err)
 		}
 	}
 	o.logSummary(logger, s, linkType)
@@ -140,12 +141,12 @@ func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
 
 func (o *Originator) logSummary(logger log.Logger, s *summary, linkType proto.LinkType) {
 	if o.tick.passed() {
-		logger.Info("[Originator] Originated beacons",
+		logger.Info("[beaconing.Originator] Originated beacons",
 			"type", linkType.String(), "egIfIds", s.IfIds())
 		return
 	}
 	if s.count > 0 {
-		logger.Info("[Originator] Originated beacons on stale interfaces",
+		logger.Info("[beaconing.Originator] Originated beacons on stale interfaces",
 			"type", linkType.String(), "egIfIds", s.IfIds())
 	}
 }
