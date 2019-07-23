@@ -15,9 +15,7 @@
 package trc_test
 
 import (
-	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -154,75 +152,11 @@ func TestEncodedProtectedDecode(t *testing.T) {
 	}
 }
 
-func TestCritUnmarshalJSON(t *testing.T) {
-	tests := map[string]struct {
-		Input     []byte
-		Expected  time.Duration
-		Assertion assert.ErrorAssertionFunc
-	}{
-		"Type, KeyType, KeyVersion, AS": {
-			Input:     []byte(`{"crit": ["Type", "KeyType", "KeyVersion", "AS"]}`),
-			Assertion: assert.NoError,
-		},
-		"AS, KeyType, KeyVersion, Type": {
-			Input:     []byte(`{"crit": ["AS", "KeyType", "KeyVersion", "Type"]}`),
-			Assertion: assert.NoError,
-		},
-		"Duplication length 4": {
-			Input:     []byte(`{"crit": ["AS", "AS", "KeyVersion", "Type"]}`),
-			Assertion: assert.Error,
-		},
-		"Duplication length 5": {
-			Input:     []byte(`{"crit": ["AS", "AS", "KeyType", "KeyVersion", "Type"]}`),
-			Assertion: assert.Error,
-		},
-		"Missing KeyType": {
-			Input:     []byte(`{"crit": ["AS", "Type", "KeyVersion"]}`),
-			Assertion: assert.Error,
-		},
-		"Missing AS": {
-			Input:     []byte(`{"crit": ["Type", "KeyType", "KeyVersion"]}`),
-			Assertion: assert.Error,
-		},
-		"Missing Type": {
-			Input:     []byte(`{"crit": ["AS", "KeyType", "KeyVersion"]}`),
-			Assertion: assert.Error,
-		},
-		"Missing KeyVersion": {
-			Input:     []byte(`{"crit": ["AS", "KeyType", "Type"]}`),
-			Assertion: assert.Error,
-		},
-		"Invalid json": {
-			Input:     []byte(`{"crit":10}`),
-			Assertion: assert.Error,
-		},
-		"Unknown Entry": {
-			Input:     []byte(`{"crit": ["AS", "KeyType", "Garbage", "Type"]}`),
-			Assertion: assert.Error,
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			var protected trc.Protected
-			test.Assertion(t, json.Unmarshal(test.Input, &protected))
-		})
-	}
-}
-
-func TestCritMarshalJSON(t *testing.T) {
-	b, err := json.Marshal(trc.Protected{})
-	require.NoError(t, err)
-	var protected struct {
-		Crit []string `json:"crit"`
-	}
-	require.NoError(t, json.Unmarshal(b, &protected))
-	assert.ElementsMatch(t, []string{"Type", "KeyType", "KeyVersion", "AS"}, protected.Crit)
-}
-
 func newBaseProtected() trc.Protected {
 	return trc.Protected{
 		Algorithm:  scrypto.Ed25519,
-		Type:       trc.OnlineKey,
+		Type:       trc.VoteSignature,
+		KeyType:    trc.OnlineKey,
 		KeyVersion: 1,
 		AS:         xtest.MustParseAS("ff00:0:111"),
 	}

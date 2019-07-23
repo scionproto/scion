@@ -15,8 +15,10 @@
 package trc
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -24,11 +26,23 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-// InvalidCrit indicates that the value for the crit key is invalid.
-const InvalidCrit = "invalid crit"
+const (
+	// InvalidCrit indicates that the value for the crit key is invalid.
+	InvalidCrit = "invalid crit"
+	// InvalidSignatureType indicates an invalid signature type.
+	InvalidSignatureType = "invalid signature type"
+)
 
-// ErrNotUTF8 indicates an invalid encoding.
-var ErrNotUTF8 = errors.New("not utf-8 encoded")
+var (
+	// ErrASNotSet indicates the AS is not set.
+	ErrASNotSet = errors.New("AS not set")
+	// ErrCritNotSet indicates that crit is not set.
+	ErrCritNotSet = errors.New("crit not set")
+	// ErrNotUTF8 indicates an invalid encoding.
+	ErrNotUTF8 = errors.New("not utf-8 encoded")
+	// ErrSignatureTypeNotSet indicates the signature type is not set.
+	ErrSignatureTypeNotSet = errors.New("signature type not set")
+)
 
 // Signed contains the packed TRC payload and the attached signatures.
 type Signed struct {
@@ -98,11 +112,85 @@ func (h *EncodedProtected) Decode() (Protected, error) {
 
 // Protected is the signature metadata.
 type Protected struct {
-	Algorithm  string     `json:"alg"`
-	Crit       Crit       `json:"crit"`
-	Type       KeyType    `json:"Type"`
-	KeyVersion KeyVersion `json:"KeyVersion"`
-	AS         addr.AS    `json:"AS"`
+	Algorithm  string        `json:"alg"`
+	Type       SignatureType `json:"Type"`
+	KeyType    KeyType       `json:"KeyType"`
+	KeyVersion KeyVersion    `json:"KeyVersion"`
+	AS         addr.AS       `json:"AS"`
+	Crit       Crit          `json:"crit"`
+}
+
+// UnmarshalJSON checks that all fields are set.
+func (p *Protected) UnmarshalJSON(b []byte) error {
+	var alias protectedAlias
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&alias); err != nil {
+		return err
+	}
+	if err := alias.checkAllSet(); err != nil {
+		return err
+	}
+	*p = Protected{
+		Algorithm: *alias.Algorithm,
+		Type:      *alias.Type,
+		KeyType:   *alias.KeyType,
+		AS:        *alias.AS,
+		Crit:      *alias.Crit,
+	}
+	return nil
+}
+
+type protectedAlias struct {
+	Algorithm  *string        `json:"alg"`
+	Type       *SignatureType `json:"Type"`
+	KeyType    *KeyType       `json:"KeyType"`
+	KeyVersion *KeyVersion    `json:"KeyVersion"`
+	AS         *addr.AS       `json:"AS"`
+	Crit       *Crit          `json:"crit"`
+}
+
+func (p *protectedAlias) checkAllSet() error {
+	switch {
+	case p.Algorithm == nil:
+		return ErrAlgorithmNotSet
+	case p.Type == nil:
+		return ErrSignatureTypeNotSet
+	case p.KeyType == nil:
+		return ErrTypeNotSet
+	case p.KeyVersion == nil:
+		return ErrKeyVersionNotSet
+	case p.AS == nil:
+		return ErrASNotSet
+	case p.Crit == nil:
+		return ErrCritNotSet
+	}
+	return nil
+}
+
+const (
+	// POPSignature indicates the purpose of the signature is to proof possession.
+	POPSignature SignatureType = "ProofOfPossession"
+	// VoteSignature indicates the purpose of the signature is to cast a vote.
+	VoteSignature SignatureType = "Vote"
+)
+
+var _ json.Unmarshaler = (*SignatureType)(nil)
+
+// SignatureType indicates the purpose of a signature.
+type SignatureType string
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (t *SignatureType) UnmarshalJSON(b []byte) error {
+	switch SignatureType(strings.Trim(string(b), `"`)) {
+	case POPSignature:
+		*t = POPSignature
+	case VoteSignature:
+		*t = VoteSignature
+	default:
+		return common.NewBasicError(InvalidSignatureType, nil, "input", string(b))
+	}
+	return nil
 }
 
 var _ json.Unmarshaler = Crit{}
