@@ -7,6 +7,7 @@ go_library(
         "keychanges.go",
         "pop.go",
         "primary.go",
+        "signed.go",
         "trc.go",
         "update.go",
     ],
@@ -24,6 +25,8 @@ go_test(
     srcs = [
         "primary_json_test.go",
         "primary_test.go",
+        "signed_json_test.go",
+        "signed_test.go",
         "trc_json_test.go",
         "trc_test.go",
         "update_test.go",
