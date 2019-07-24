@@ -53,7 +53,8 @@ func (hc *HPCfg) ProtoId() proto.ProtoIdType {
 }
 
 func (hc *HPCfg) String() string {
-	return fmt.Sprintf("{ID: %s, Version: %d, OwnerISD: %d, Writers: %v, Readers: %v, Registries: %v}",
+	return fmt.Sprintf(
+		"{ID: %s, Version: %d, OwnerISD: %d, Writers: %v, Readers: %v, Registries: %v}",
 		hc.GroupId, hc.Version, hc.OwnerISD, hc.Writers, hc.Readers, hc.Registries)
 }
 
