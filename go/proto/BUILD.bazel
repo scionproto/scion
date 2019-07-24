@@ -8,8 +8,9 @@ go_library(
         "cereal.go",
         "doc.go",
         "sign.go",
-        ] + glob(["*.gen.go",
-                  "*.capnp.go"]),
+        ":structs",
+        ":capnp",
+    ],
     importpath = "github.com/scionproto/scion/go/proto",
     visibility = ["//visibility:public"],
     deps = [
@@ -23,17 +24,13 @@ go_library(
     ],
 )
 
-# Note: :structs and :capnp are only used to manually regenerate git-controlled
-# source files. These targets are no dependencies of other bazel targets.
-# Instead, they are built only in `make gogen`.
-# To differentiate from the source files used in go_default_library, the files
-# are generated into a subdirectory `gogen/`
 genrule(
     name = "structs",
     srcs = [],
-    outs = ["gogen/structs.gen.go"],
+    outs = ["structs.gen.go"],
     cmd = "./$(location structs_gen_go.sh) > \"$@\"",
     tools = ["structs_gen_go.sh"],
+    visibility = ["//visibility:public"],
 )
 
 # TODO(sustrik): At the moment we have a copied version of go.capnp in proto directory.
@@ -47,7 +44,7 @@ genrule(
     srcs = [
         "//proto:sources",
     ],
-    outs = [ "gogen/%s" % f for f in [
+    outs = [
         "ack.capnp.go",
         "asm_exts.capnp.go",
         "cert_mgmt.capnp.go",
@@ -66,7 +63,7 @@ genrule(
         "sign.capnp.go",
         "svc_resolution.capnp.go",
         "zkid.capnp.go",
-    ]],
-    cmd = "capnp compile -o$(location @com_zombiezen_go_capnproto2//capnpc-go:capnpc-go):$(@D)/gogen --src-prefix=proto $(locations //proto:sources)",
+    ],
+    cmd = "capnp compile -o$(location @com_zombiezen_go_capnproto2//capnpc-go:capnpc-go):$(@D) --src-prefix=proto $(locations //proto:sources)",
     tools = ["@com_zombiezen_go_capnproto2//capnpc-go:capnpc-go"],
 )
