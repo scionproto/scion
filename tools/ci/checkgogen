@@ -2,4 +2,18 @@
 
 set -ex
 
-./docker.sh exec "set -eo pipefail; ( cp -R go/proto/ /tmp/; make gogen; diff /tmp/proto/ go/proto/ ) |& tee logs/checkgogen.run"
+# Regenerate go/proto and compare with files in git.
+# Because the schema_XXX variable in the generated *.capnp.go files is not
+# deterministic (see https://github.com/capnproto/go-capnproto2/issues/145),
+# we just remove this section before making the comparison.
+
+./docker.sh exec "
+set -eo pipefail;
+{
+  cp -R go/proto/ /tmp/proto_git;
+  make gogen;
+  cp -R go/proto /tmp/proto_gen;
+  find /tmp/proto_{gen,git} -type f | xargs sed -i '/const schema_/,/^$/d';
+  diff -r /tmp/proto_git /tmp/proto_gen;
+} |& tee logs/checkgogen.run
+"
