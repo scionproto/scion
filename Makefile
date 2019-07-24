@@ -6,7 +6,7 @@ GAZELLE_MODE?=fix
 
 SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
-all: tags clibs dispatcher bazel
+all: tags clibs dispatcher bazel gogen
 
 goenv: vendor
 
