@@ -3,6 +3,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
+        "hp_cfg.go",
+        "hp_seg_recs.go",
+        "hp_seg_reply.go",
+        "hp_seg_req.go",
         "ifstate_infos.go",
         "ifstate_req.go",
         "path_mgmt.go",

@@ -46,7 +46,7 @@ struct SegChangesReq {
 
 struct HPGroupId {
     ownerAS @0 :UInt64;
-    groupID @1 :UInt16;
+    groupId @1 :UInt16;
 }
 
 struct HPSegReq {

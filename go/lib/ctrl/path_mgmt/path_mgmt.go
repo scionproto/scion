@@ -37,6 +37,11 @@ type union struct {
 	SegChangesIdReply *SegChangesIdReply
 	SegChangesReq     *SegChangesReq
 	SegChangesReply   *SegChangesReply
+	HPSegReq          *HPSegReq   `capnp:"hpSegReq"`
+	HPSegReply        *HPSegReply `capnp:"hpSegReply"`
+	HPSegReg          *HPSegReg   `capnp:"hpSegReg"`
+	HPCfgReq          *HPCfgReq   `capnp:"hpCfgReq"`
+	HPCfgReply        *HPCfgReply `capnp:"hpCfgReply"`
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -74,6 +79,21 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *SegChangesReply:
 		u.Which = proto.PathMgmt_Which_segChangesReply
 		u.SegChangesReply = p
+	case *HPSegReq:
+		u.Which = proto.PathMgmt_Which_hpSegReq
+		u.HPSegReq = p
+	case *HPSegReply:
+		u.Which = proto.PathMgmt_Which_hpSegReply
+		u.HPSegReply = p
+	case *HPSegReg:
+		u.Which = proto.PathMgmt_Which_hpSegReg
+		u.HPSegReg = p
+	case *HPCfgReq:
+		u.Which = proto.PathMgmt_Which_hpCfgReq
+		u.HPCfgReq = p
+	case *HPCfgReply:
+		u.Which = proto.PathMgmt_Which_hpCfgReply
+		u.HPCfgReply = p
 	default:
 		return common.NewBasicError("Unsupported path mgmt union type (set)", nil,
 			"type", common.TypeOf(c))
@@ -105,6 +125,16 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.SegChangesReq, nil
 	case proto.PathMgmt_Which_segChangesReply:
 		return u.SegChangesReply, nil
+	case proto.PathMgmt_Which_hpSegReq:
+		return u.HPSegReq, nil
+	case proto.PathMgmt_Which_hpSegReply:
+		return u.HPSegReply, nil
+	case proto.PathMgmt_Which_hpSegReg:
+		return u.HPSegReg, nil
+	case proto.PathMgmt_Which_hpCfgReq:
+		return u.HPCfgReq, nil
+	case proto.PathMgmt_Which_hpCfgReply:
+		return u.HPCfgReply, nil
 	}
 	return nil, common.NewBasicError("Unsupported path mgmt union type (get)", nil, "type", u.Which)
 }
