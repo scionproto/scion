@@ -38,10 +38,10 @@ test_run() {
 }
 
 check_logs() {
-    grep -q "\[discovery\] Set topology .* Mode=dynamic" "logs/$1.log" || \
+    grep -q "\[discovery\] Set topology.*mode=dynamic" "logs/$1.log" || \
         fail "Setting dynamic topology not found in logs. id=$1"
-    grep -q "\[itopo.Cleaner\] Dropping expired dynamic topology" "logs/$1.log" || \
-        fail "Setting dynamic topology not found in logs. id=$1"
+    grep -q "\[itopo.cleaner\] Dropping expired dynamic topology" "logs/$1.log" || \
+        fail "Dropping expired dynamic topology not found in logs. id=$1"
 }
 
 shift

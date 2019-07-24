@@ -73,9 +73,9 @@ check_connectivity() {
 }
 
 check_logs() {
-    grep -q "\[discovery\] Set topology .* Mode=static" "logs/$1.log" || \
+    grep -q "\[discovery\] Set topology.*mode=static" "logs/$1.log" || \
         fail "Setting static topology not found in logs. id=$1"
-    grep -q "\[discovery\] Topology written to filesystem .* Mode=static" "logs/$1.log" || \
+    grep -q "\[discovery\] Topology written to filesystem.*mode=static" "logs/$1.log" || \
         fail "Writing static topology not found in logs. id=$1"
 }
 

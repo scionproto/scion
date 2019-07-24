@@ -41,11 +41,11 @@ test_run() {
     # Make sure a reissue cycle has passed.
     sleep 10
     # Check that reissued certificates appear in the logs.
-    grep -q '\[reiss.Self\] Created issuer certificate cert="Certificate' "logs/cs$CORE_IA_FILE-1.log" || \
+    grep -q '\[reiss.Self\] Created issuer certificate.*cert="Certificate' "logs/cs$CORE_IA_FILE-1.log" || \
         fail "Issuer certificate updated for $CORE_IA not found in logs"
-    grep -q "\[reiss.Self\] Created certificate chain chain=\"CertificateChain $CORE_IA" "logs/cs$CORE_IA_FILE-1.log" || \
+    grep -q "\[reiss.Self\] Created certificate chain.*chain=\"CertificateChain $CORE_IA" "logs/cs$CORE_IA_FILE-1.log" || \
         fail "Certificate chain updated for $CORE_IA not found in logs"
-    grep -q "\[reiss.Requester\] Updated certificate chain chain=\"CertificateChain $IA" "logs/cs$IA_FILE-1.log" || \
+    grep -q "\[reiss.Requester\] Updated certificate chain.*chain=\"CertificateChain $IA" "logs/cs$IA_FILE-1.log" || \
         fail "Certificate chain updated for $IA not found in logs"
 }
 
