@@ -37,41 +37,33 @@ const (
 	VoteVerificationError = "vote signature verification error"
 	// POPVerificationError indicates the signature verification of a proof of possession failed.
 	POPVerificationError = "proof of possession signature verification error"
+	// DuplicateVoteSignature indicates a duplicate voting signature for the same AS.
+	DuplicateVoteSignature = "duplicate vote signature"
+	// DuplicatePOPSignature indicates a duplicate proof of possession signature
+	// for the same AS and key type.
+	DuplicatePOPSignature = "duplicate proof of possession signature"
 )
 
-// UpdateVerifier verifies signed TRC update. The caller must first use the
+// UpdateVerifier verifies a signed TRC update. The caller must first use the
 // UpdateValidator to check the update validity. UpdateVerifier simply checks
 // that the signatures are verifiable.
 type UpdateVerifier struct {
-	// Prev is the previous TRC. It's version must be Next.Version - 1.
+	// Prev is the previous TRC. Its version must be Next.Version - 1.
 	Prev *TRC
 	// Next is the updated TRC.
 	Next *TRC
 	// NextEncoded is the encoded next TRC used for signature input.
 	NextEncoded Encoded
-	// Signatures contains all attached signatures to the new TRC.
+	// Signatures contains all signatures attached to the new TRC.
 	Signatures []Signature
 }
 
 // Verify checks that all signatures mentioned in the next TRC are present and
 // verifiable, and that no others are attached.
 func (v UpdateVerifier) Verify() error {
-	sigs, err := v.decodeSignatures()
+	votes, pops, err := v.decodeSignatures()
 	if err != nil {
 		return common.NewBasicError(DecodeProtectedFailed, err)
-	}
-	votes := make(map[addr.AS]DecodedSignature)
-	pops := make(map[addr.AS]map[KeyType]DecodedSignature)
-	for _, sig := range sigs {
-		switch sig.Protected.Type {
-		case VoteSignature:
-			votes[sig.Protected.AS] = sig
-		case POPSignature:
-			if _, ok := pops[sig.Protected.AS]; !ok {
-				pops[sig.Protected.AS] = make(map[KeyType]DecodedSignature)
-			}
-			pops[sig.Protected.AS][sig.Protected.KeyType] = sig
-		}
 	}
 	if err := v.checkVotes(votes); err != nil {
 		return err
@@ -88,20 +80,44 @@ func (v UpdateVerifier) Verify() error {
 	return nil
 }
 
-func (v UpdateVerifier) decodeSignatures() ([]DecodedSignature, error) {
-	dec := make([]DecodedSignature, 0, len(v.Signatures))
+func (v UpdateVerifier) decodeSignatures() (map[addr.AS]DecodedSignature,
+	map[addr.AS]map[KeyType]DecodedSignature, error) {
+
+	votes := make(map[addr.AS]DecodedSignature)
+	pops := make(map[addr.AS]map[KeyType]DecodedSignature)
+
+	sigs := make([]DecodedSignature, 0, len(v.Signatures))
 	for _, sig := range v.Signatures {
 		prot, err := sig.EncodedProtected.Decode()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		dec = append(dec, DecodedSignature{
+		sigs = append(sigs, DecodedSignature{
 			EncodedProtected: sig.EncodedProtected,
 			Protected:        prot,
 			Signature:        sig.Signature,
 		})
 	}
-	return dec, nil
+	for _, sig := range sigs {
+		switch sig.Protected.Type {
+		case VoteSignature:
+			if _, ok := votes[sig.Protected.AS]; ok {
+				return nil, nil, common.NewBasicError(DuplicateVoteSignature, nil,
+					"AS", sig.Protected.AS)
+			}
+			votes[sig.Protected.AS] = sig
+		case POPSignature:
+			if _, ok := pops[sig.Protected.AS][sig.Protected.KeyType]; ok {
+				return nil, nil, common.NewBasicError(DuplicatePOPSignature, nil,
+					"AS", sig.Protected.AS, "keyType", sig.Protected.KeyType)
+			}
+			if _, ok := pops[sig.Protected.AS]; !ok {
+				pops[sig.Protected.AS] = make(map[KeyType]DecodedSignature)
+			}
+			pops[sig.Protected.AS][sig.Protected.KeyType] = sig
+		}
+	}
+	return votes, pops, nil
 }
 
 func (v UpdateVerifier) checkVotes(sigs map[addr.AS]DecodedSignature) error {
@@ -144,11 +160,7 @@ func (v UpdateVerifier) verifyVotes(sigs map[addr.AS]DecodedSignature) error {
 func (v UpdateVerifier) checkPOPs(sigs map[addr.AS]map[KeyType]DecodedSignature) error {
 	for as, pops := range sigs {
 		for _, sig := range pops {
-			var found bool
-			for _, keyType := range v.Next.ProofOfPossession[as] {
-				found = found || keyType == sig.Protected.KeyType
-			}
-			if !found {
+			if !containsKeyType(sig.Protected.KeyType, v.Next.ProofOfPossession[as]) {
 				return common.NewBasicError(UnexpectedPOPSignature, nil,
 					"AS", as, "keyType", sig.Protected.KeyType)
 			}
@@ -179,7 +191,7 @@ func (v UpdateVerifier) checkPOPs(sigs map[addr.AS]map[KeyType]DecodedSignature)
 func (v UpdateVerifier) verifyPOPs(sigs map[addr.AS]map[KeyType]DecodedSignature) error {
 	for as, pops := range sigs {
 		for keyType, sig := range pops {
-			meta := v.Next.PrimaryASes[as].Keys[sig.Protected.KeyType]
+			meta := v.Next.PrimaryASes[as].Keys[keyType]
 			input := SigInput(sig.EncodedProtected, v.NextEncoded)
 			if err := scrypto.Verify(input, sig.Signature, meta.Key, meta.Algorithm); err != nil {
 				return common.NewBasicError(POPVerificationError, err, "AS", as, "keyType", keyType)
@@ -194,4 +206,12 @@ type DecodedSignature struct {
 	EncodedProtected EncodedProtected
 	Protected        Protected
 	Signature        []byte
+}
+
+func containsKeyType(keyType KeyType, keyTypes []KeyType) bool {
+	var found bool
+	for _, t := range keyTypes {
+		found = found || t == keyType
+	}
+	return found
 }
