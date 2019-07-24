@@ -8,6 +8,12 @@ SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
 all: tags clibs dispatcher bazel gogen
 
+clean:
+	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
+	bazel clean
+	rm -f bin/* tags
+	if [ -e go/vendor ]; then rm -r go/vendor; fi
+
 goenv: vendor
 
 gogen: gogen_clean
