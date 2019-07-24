@@ -32,18 +32,21 @@ import (
 
 // Declare prometheus metrics to export.
 var (
-	PktsRecv           *prometheus.CounterVec
-	PktsSent           *prometheus.CounterVec
-	PktBytesRecv       *prometheus.CounterVec
-	PktBytesSent       *prometheus.CounterVec
-	FramesRecv         *prometheus.CounterVec
-	FramesSent         *prometheus.CounterVec
-	FrameBytesRecv     *prometheus.CounterVec
-	FrameBytesSent     *prometheus.CounterVec
-	FrameDiscardEvents prometheus.Counter
-	FramesDiscarded    prometheus.Counter
-	FramesTooOld       prometheus.Counter
-	FramesDuplicated   prometheus.Counter
+	PktsRecv              *prometheus.CounterVec
+	PktsSent              *prometheus.CounterVec
+	PktBytesRecv          *prometheus.CounterVec
+	PktBytesSent          *prometheus.CounterVec
+	FramesRecv            *prometheus.CounterVec
+	FramesSent            *prometheus.CounterVec
+	FrameBytesRecv        *prometheus.CounterVec
+	FrameBytesSent        *prometheus.CounterVec
+	FrameDiscardEvents    prometheus.Counter
+	FramesDiscarded       prometheus.Counter
+	FramesTooOld          prometheus.Counter
+	FramesDuplicated      prometheus.Counter
+	SessionTimedOut       *prometheus.CounterVec
+	SessionPathSwitched   *prometheus.CounterVec
+	SessionOldPollReplies *prometheus.CounterVec
 
 	EgressRxQueueFull *prometheus.CounterVec
 )
@@ -77,6 +80,10 @@ func Init(elem string) {
 	FramesDiscarded = newC("frames_discarded_total", "Number of frames discarded.")
 	FramesTooOld = newC("frames_too_old_total", "Number of frames that are too old.")
 	FramesDuplicated = newC("frames_duplicated_total", "Number of duplicate frames.")
+	SessionTimedOut = newCVec("session_timeout", "Number of pollreq timeouts", iaLabels)
+	SessionPathSwitched = newCVec("session_switch_path", "Number of path switches", iaLabels)
+	SessionOldPollReplies = newCVec("session_old_poll_replies",
+		"Number of poll replies received after next poll request was sent", iaLabels)
 
 	EgressRxQueueFull = newCVec("egress_recv_queue_full_total",
 		"Egress packets dropped due to full queues.", []string{"IA"})

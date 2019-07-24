@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/disp"
 	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 	"github.com/scionproto/scion/go/sig/siginfo"
@@ -118,8 +119,10 @@ func (sm *sessMonitor) updateRemote() {
 	// path but also ask for a new SIG address via anycast SvcSIG request.
 	since := time.Since(sm.lastReply)
 	if since > tout {
-		// FIXME(kormat): these debug statements should be converted to prom metrics.
 		sm.Info("sessMonitor: Remote SIG timeout", "remote", sm.smRemote, "duration", since)
+		metrics.SessionTimedOut.WithLabelValues(
+			sm.sess.IA().String(),
+			sm.sess.SessId.String()).Inc()
 		sm.sess.healthy.Store(false)
 		if sm.smRemote.SessPath != nil {
 			// Update path statistics. This is a bit of a stretch. The path
@@ -198,10 +201,25 @@ func (sm *sessMonitor) updateSessSnap() {
 }
 
 func (sm *sessMonitor) getNewPath(old *egress.SessPath) *egress.SessPath {
+	var res *egress.SessPath
 	if old == nil {
-		return sm.sessPathPool.Get("")
+		res = sm.sessPathPool.Get("")
+	} else {
+		res = sm.sessPathPool.Get(old.Key())
 	}
-	return sm.sessPathPool.Get(old.Key())
+	// If the path has changed, report it to Prometheus.
+	var report bool
+	if old == nil || res == nil {
+		report = old != res
+	} else {
+		report = old.Key() != res.Key()
+	}
+	if report {
+		metrics.SessionPathSwitched.WithLabelValues(
+			sm.sess.IA().String(),
+			sm.sess.SessId.String()).Inc()
+	}
+	return res
 }
 
 func (sm *sessMonitor) sendReq() {
@@ -286,9 +304,9 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 		sm.sess.healthy.Store(true)
 	} else {
 		// This is going to happen if latency of the path is greater than the poll ticker period.
-		// TODO(sustrik): We should monitor this to spot paths where the latency is high enough to
-		// to disrupt orderly SIG operation.
 		sm.Info("Reply to an old request received", "request", sm.updateMsgId, "reply", rpld.Id)
+		metrics.SessionOldPollReplies.WithLabelValues(
+			sm.sess.IA().String(),
+			sm.sess.SessId.String()).Inc()
 	}
-
 }
