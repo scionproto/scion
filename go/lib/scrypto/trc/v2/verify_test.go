@@ -88,6 +88,20 @@ func TestUpdateVerifierVerify(t *testing.T) {
 			},
 			ExpectedErrMsg: trc.UnexpectedPOPSignature,
 		},
+		"Duplicate vote": {
+			Modify: func(t *testing.T, sigs *[]trc.Signature) {
+				i := findSignature(t, *sigs, a110, trc.VoteSignature)
+				*sigs = append((*sigs), (*sigs)[i])
+			},
+			ExpectedErrMsg: trc.DuplicateVoteSignature,
+		},
+		"Duplicate proof of possession": {
+			Modify: func(t *testing.T, sigs *[]trc.Signature) {
+				i := findSignature(t, *sigs, a110, trc.POPSignature)
+				*sigs = append((*sigs), (*sigs)[i])
+			},
+			ExpectedErrMsg: trc.DuplicatePOPSignature,
+		},
 		"Missing vote": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				i := findSignature(t, *sigs, a110, trc.VoteSignature)
@@ -138,7 +152,7 @@ func TestUpdateVerifierVerify(t *testing.T) {
 			},
 			ExpectedErrMsg: trc.InvalidProtected,
 		},
-		// A wrong KeyType would be caught be a previous check.
+		// A wrong KeyType would be caught by a previous check.
 		"Proof of possession wrong KeyVersion": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.POPSignature)]
