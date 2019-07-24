@@ -12,10 +12,10 @@ goenv: vendor
 
 gogen: gogen_clean
 	bazel build //go/proto:structs //go/proto:capnp
-	cp --no-preserve=mode bazel-genfiles/go/proto/gogen/*.gen.go bazel-genfiles/go/proto/gogen/*.capnp.go go/proto/
+	cp --no-preserve=mode bazel-genfiles/go/proto/gogen/* go/proto/
 
 gogen_clean:
-	rm go/proto/*.gen.go go/proto/*.capnp.go || true
+	rm -f go/proto/*.gen.go go/proto/*.capnp.go
 
 vendor:
 	./tools/vendor.sh
