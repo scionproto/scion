@@ -611,6 +611,644 @@ func (p SegChangesReq_Promise) Struct() (SegChangesReq, error) {
 	return SegChangesReq{s}, err
 }
 
+type HPGroupId struct{ capnp.Struct }
+
+// HPGroupId_TypeID is the unique identifier for the type HPGroupId.
+const HPGroupId_TypeID = 0xba21c7133ee44518
+
+func NewHPGroupId(s *capnp.Segment) (HPGroupId, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return HPGroupId{st}, err
+}
+
+func NewRootHPGroupId(s *capnp.Segment) (HPGroupId, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return HPGroupId{st}, err
+}
+
+func ReadRootHPGroupId(msg *capnp.Message) (HPGroupId, error) {
+	root, err := msg.RootPtr()
+	return HPGroupId{root.Struct()}, err
+}
+
+func (s HPGroupId) String() string {
+	str, _ := text.Marshal(0xba21c7133ee44518, s.Struct)
+	return str
+}
+
+func (s HPGroupId) OwnerAS() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s HPGroupId) SetOwnerAS(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s HPGroupId) GroupID() uint16 {
+	return s.Struct.Uint16(8)
+}
+
+func (s HPGroupId) SetGroupID(v uint16) {
+	s.Struct.SetUint16(8, v)
+}
+
+// HPGroupId_List is a list of HPGroupId.
+type HPGroupId_List struct{ capnp.List }
+
+// NewHPGroupId creates a new list of HPGroupId.
+func NewHPGroupId_List(s *capnp.Segment, sz int32) (HPGroupId_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
+	return HPGroupId_List{l}, err
+}
+
+func (s HPGroupId_List) At(i int) HPGroupId { return HPGroupId{s.List.Struct(i)} }
+
+func (s HPGroupId_List) Set(i int, v HPGroupId) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HPGroupId_List) String() string {
+	str, _ := text.MarshalList(0xba21c7133ee44518, s.List)
+	return str
+}
+
+// HPGroupId_Promise is a wrapper for a HPGroupId promised by a client call.
+type HPGroupId_Promise struct{ *capnp.Pipeline }
+
+func (p HPGroupId_Promise) Struct() (HPGroupId, error) {
+	s, err := p.Pipeline.Struct()
+	return HPGroupId{s}, err
+}
+
+type HPSegReq struct{ capnp.Struct }
+
+// HPSegReq_TypeID is the unique identifier for the type HPSegReq.
+const HPSegReq_TypeID = 0x8f51e8717b3fbe1c
+
+func NewHPSegReq(s *capnp.Segment) (HPSegReq, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return HPSegReq{st}, err
+}
+
+func NewRootHPSegReq(s *capnp.Segment) (HPSegReq, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return HPSegReq{st}, err
+}
+
+func ReadRootHPSegReq(msg *capnp.Message) (HPSegReq, error) {
+	root, err := msg.RootPtr()
+	return HPSegReq{root.Struct()}, err
+}
+
+func (s HPSegReq) String() string {
+	str, _ := text.Marshal(0x8f51e8717b3fbe1c, s.Struct)
+	return str
+}
+
+func (s HPSegReq) DstIA() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s HPSegReq) SetDstIA(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s HPSegReq) GroupIds() (HPGroupId_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return HPGroupId_List{List: p.List()}, err
+}
+
+func (s HPSegReq) HasGroupIds() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HPSegReq) SetGroupIds(v HPGroupId_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewGroupIds sets the groupIds field to a newly
+// allocated HPGroupId_List, preferring placement in s's segment.
+func (s HPSegReq) NewGroupIds(n int32) (HPGroupId_List, error) {
+	l, err := NewHPGroupId_List(s.Struct.Segment(), n)
+	if err != nil {
+		return HPGroupId_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// HPSegReq_List is a list of HPSegReq.
+type HPSegReq_List struct{ capnp.List }
+
+// NewHPSegReq creates a new list of HPSegReq.
+func NewHPSegReq_List(s *capnp.Segment, sz int32) (HPSegReq_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return HPSegReq_List{l}, err
+}
+
+func (s HPSegReq_List) At(i int) HPSegReq { return HPSegReq{s.List.Struct(i)} }
+
+func (s HPSegReq_List) Set(i int, v HPSegReq) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HPSegReq_List) String() string {
+	str, _ := text.MarshalList(0x8f51e8717b3fbe1c, s.List)
+	return str
+}
+
+// HPSegReq_Promise is a wrapper for a HPSegReq promised by a client call.
+type HPSegReq_Promise struct{ *capnp.Pipeline }
+
+func (p HPSegReq_Promise) Struct() (HPSegReq, error) {
+	s, err := p.Pipeline.Struct()
+	return HPSegReq{s}, err
+}
+
+type HPSegRecs struct{ capnp.Struct }
+
+// HPSegRecs_TypeID is the unique identifier for the type HPSegRecs.
+const HPSegRecs_TypeID = 0xa56b96c8b25ce2e1
+
+func NewHPSegRecs(s *capnp.Segment) (HPSegRecs, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return HPSegRecs{st}, err
+}
+
+func NewRootHPSegRecs(s *capnp.Segment) (HPSegRecs, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return HPSegRecs{st}, err
+}
+
+func ReadRootHPSegRecs(msg *capnp.Message) (HPSegRecs, error) {
+	root, err := msg.RootPtr()
+	return HPSegRecs{root.Struct()}, err
+}
+
+func (s HPSegRecs) String() string {
+	str, _ := text.Marshal(0xa56b96c8b25ce2e1, s.Struct)
+	return str
+}
+
+func (s HPSegRecs) GroupId() (HPGroupId, error) {
+	p, err := s.Struct.Ptr(0)
+	return HPGroupId{Struct: p.Struct()}, err
+}
+
+func (s HPSegRecs) HasGroupId() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HPSegRecs) SetGroupId(v HPGroupId) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewGroupId sets the groupId field to a newly
+// allocated HPGroupId struct, preferring placement in s's segment.
+func (s HPSegRecs) NewGroupId() (HPGroupId, error) {
+	ss, err := NewHPGroupId(s.Struct.Segment())
+	if err != nil {
+		return HPGroupId{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s HPSegRecs) Recs() (PathSegMeta_List, error) {
+	p, err := s.Struct.Ptr(1)
+	return PathSegMeta_List{List: p.List()}, err
+}
+
+func (s HPSegRecs) HasRecs() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s HPSegRecs) SetRecs(v PathSegMeta_List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewRecs sets the recs field to a newly
+// allocated PathSegMeta_List, preferring placement in s's segment.
+func (s HPSegRecs) NewRecs(n int32) (PathSegMeta_List, error) {
+	l, err := NewPathSegMeta_List(s.Struct.Segment(), n)
+	if err != nil {
+		return PathSegMeta_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+// HPSegRecs_List is a list of HPSegRecs.
+type HPSegRecs_List struct{ capnp.List }
+
+// NewHPSegRecs creates a new list of HPSegRecs.
+func NewHPSegRecs_List(s *capnp.Segment, sz int32) (HPSegRecs_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return HPSegRecs_List{l}, err
+}
+
+func (s HPSegRecs_List) At(i int) HPSegRecs { return HPSegRecs{s.List.Struct(i)} }
+
+func (s HPSegRecs_List) Set(i int, v HPSegRecs) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HPSegRecs_List) String() string {
+	str, _ := text.MarshalList(0xa56b96c8b25ce2e1, s.List)
+	return str
+}
+
+// HPSegRecs_Promise is a wrapper for a HPSegRecs promised by a client call.
+type HPSegRecs_Promise struct{ *capnp.Pipeline }
+
+func (p HPSegRecs_Promise) Struct() (HPSegRecs, error) {
+	s, err := p.Pipeline.Struct()
+	return HPSegRecs{s}, err
+}
+
+func (p HPSegRecs_Promise) GroupId() HPGroupId_Promise {
+	return HPGroupId_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type HPSegReply struct{ capnp.Struct }
+
+// HPSegReply_TypeID is the unique identifier for the type HPSegReply.
+const HPSegReply_TypeID = 0xaaf7fd9241668ed6
+
+func NewHPSegReply(s *capnp.Segment) (HPSegReply, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return HPSegReply{st}, err
+}
+
+func NewRootHPSegReply(s *capnp.Segment) (HPSegReply, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return HPSegReply{st}, err
+}
+
+func ReadRootHPSegReply(msg *capnp.Message) (HPSegReply, error) {
+	root, err := msg.RootPtr()
+	return HPSegReply{root.Struct()}, err
+}
+
+func (s HPSegReply) String() string {
+	str, _ := text.Marshal(0xaaf7fd9241668ed6, s.Struct)
+	return str
+}
+
+func (s HPSegReply) Recs() (HPSegRecs_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return HPSegRecs_List{List: p.List()}, err
+}
+
+func (s HPSegReply) HasRecs() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HPSegReply) SetRecs(v HPSegRecs_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewRecs sets the recs field to a newly
+// allocated HPSegRecs_List, preferring placement in s's segment.
+func (s HPSegReply) NewRecs(n int32) (HPSegRecs_List, error) {
+	l, err := NewHPSegRecs_List(s.Struct.Segment(), n)
+	if err != nil {
+		return HPSegRecs_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// HPSegReply_List is a list of HPSegReply.
+type HPSegReply_List struct{ capnp.List }
+
+// NewHPSegReply creates a new list of HPSegReply.
+func NewHPSegReply_List(s *capnp.Segment, sz int32) (HPSegReply_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return HPSegReply_List{l}, err
+}
+
+func (s HPSegReply_List) At(i int) HPSegReply { return HPSegReply{s.List.Struct(i)} }
+
+func (s HPSegReply_List) Set(i int, v HPSegReply) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HPSegReply_List) String() string {
+	str, _ := text.MarshalList(0xaaf7fd9241668ed6, s.List)
+	return str
+}
+
+// HPSegReply_Promise is a wrapper for a HPSegReply promised by a client call.
+type HPSegReply_Promise struct{ *capnp.Pipeline }
+
+func (p HPSegReply_Promise) Struct() (HPSegReply, error) {
+	s, err := p.Pipeline.Struct()
+	return HPSegReply{s}, err
+}
+
+type HPCfg struct{ capnp.Struct }
+
+// HPCfg_TypeID is the unique identifier for the type HPCfg.
+const HPCfg_TypeID = 0xf307100ab87a1963
+
+func NewHPCfg(s *capnp.Segment) (HPCfg, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4})
+	return HPCfg{st}, err
+}
+
+func NewRootHPCfg(s *capnp.Segment) (HPCfg, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4})
+	return HPCfg{st}, err
+}
+
+func ReadRootHPCfg(msg *capnp.Message) (HPCfg, error) {
+	root, err := msg.RootPtr()
+	return HPCfg{root.Struct()}, err
+}
+
+func (s HPCfg) String() string {
+	str, _ := text.Marshal(0xf307100ab87a1963, s.Struct)
+	return str
+}
+
+func (s HPCfg) GroupId() (HPGroupId, error) {
+	p, err := s.Struct.Ptr(0)
+	return HPGroupId{Struct: p.Struct()}, err
+}
+
+func (s HPCfg) HasGroupId() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HPCfg) SetGroupId(v HPGroupId) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewGroupId sets the groupId field to a newly
+// allocated HPGroupId struct, preferring placement in s's segment.
+func (s HPCfg) NewGroupId() (HPGroupId, error) {
+	ss, err := NewHPGroupId(s.Struct.Segment())
+	if err != nil {
+		return HPGroupId{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s HPCfg) Version() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s HPCfg) SetVersion(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+func (s HPCfg) OwnerISD() uint16 {
+	return s.Struct.Uint16(4)
+}
+
+func (s HPCfg) SetOwnerISD(v uint16) {
+	s.Struct.SetUint16(4, v)
+}
+
+func (s HPCfg) Writers() (capnp.UInt64List, error) {
+	p, err := s.Struct.Ptr(1)
+	return capnp.UInt64List{List: p.List()}, err
+}
+
+func (s HPCfg) HasWriters() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s HPCfg) SetWriters(v capnp.UInt64List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewWriters sets the writers field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s HPCfg) NewWriters(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+func (s HPCfg) Readers() (capnp.UInt64List, error) {
+	p, err := s.Struct.Ptr(2)
+	return capnp.UInt64List{List: p.List()}, err
+}
+
+func (s HPCfg) HasReaders() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s HPCfg) SetReaders(v capnp.UInt64List) error {
+	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewReaders sets the readers field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s HPCfg) NewReaders(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
+}
+
+func (s HPCfg) Registries() (capnp.UInt64List, error) {
+	p, err := s.Struct.Ptr(3)
+	return capnp.UInt64List{List: p.List()}, err
+}
+
+func (s HPCfg) HasRegistries() bool {
+	p, err := s.Struct.Ptr(3)
+	return p.IsValid() || err != nil
+}
+
+func (s HPCfg) SetRegistries(v capnp.UInt64List) error {
+	return s.Struct.SetPtr(3, v.List.ToPtr())
+}
+
+// NewRegistries sets the registries field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s HPCfg) NewRegistries(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
+	return l, err
+}
+
+// HPCfg_List is a list of HPCfg.
+type HPCfg_List struct{ capnp.List }
+
+// NewHPCfg creates a new list of HPCfg.
+func NewHPCfg_List(s *capnp.Segment, sz int32) (HPCfg_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4}, sz)
+	return HPCfg_List{l}, err
+}
+
+func (s HPCfg_List) At(i int) HPCfg { return HPCfg{s.List.Struct(i)} }
+
+func (s HPCfg_List) Set(i int, v HPCfg) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HPCfg_List) String() string {
+	str, _ := text.MarshalList(0xf307100ab87a1963, s.List)
+	return str
+}
+
+// HPCfg_Promise is a wrapper for a HPCfg promised by a client call.
+type HPCfg_Promise struct{ *capnp.Pipeline }
+
+func (p HPCfg_Promise) Struct() (HPCfg, error) {
+	s, err := p.Pipeline.Struct()
+	return HPCfg{s}, err
+}
+
+func (p HPCfg_Promise) GroupId() HPGroupId_Promise {
+	return HPGroupId_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type HPCfgReq struct{ capnp.Struct }
+
+// HPCfgReq_TypeID is the unique identifier for the type HPCfgReq.
+const HPCfgReq_TypeID = 0xd24bad15bb2bab5e
+
+func NewHPCfgReq(s *capnp.Segment) (HPCfgReq, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return HPCfgReq{st}, err
+}
+
+func NewRootHPCfgReq(s *capnp.Segment) (HPCfgReq, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return HPCfgReq{st}, err
+}
+
+func ReadRootHPCfgReq(msg *capnp.Message) (HPCfgReq, error) {
+	root, err := msg.RootPtr()
+	return HPCfgReq{root.Struct()}, err
+}
+
+func (s HPCfgReq) String() string {
+	str, _ := text.Marshal(0xd24bad15bb2bab5e, s.Struct)
+	return str
+}
+
+func (s HPCfgReq) ChangedSince() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s HPCfgReq) SetChangedSince(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+// HPCfgReq_List is a list of HPCfgReq.
+type HPCfgReq_List struct{ capnp.List }
+
+// NewHPCfgReq creates a new list of HPCfgReq.
+func NewHPCfgReq_List(s *capnp.Segment, sz int32) (HPCfgReq_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return HPCfgReq_List{l}, err
+}
+
+func (s HPCfgReq_List) At(i int) HPCfgReq { return HPCfgReq{s.List.Struct(i)} }
+
+func (s HPCfgReq_List) Set(i int, v HPCfgReq) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HPCfgReq_List) String() string {
+	str, _ := text.MarshalList(0xd24bad15bb2bab5e, s.List)
+	return str
+}
+
+// HPCfgReq_Promise is a wrapper for a HPCfgReq promised by a client call.
+type HPCfgReq_Promise struct{ *capnp.Pipeline }
+
+func (p HPCfgReq_Promise) Struct() (HPCfgReq, error) {
+	s, err := p.Pipeline.Struct()
+	return HPCfgReq{s}, err
+}
+
+type HPCfgReply struct{ capnp.Struct }
+
+// HPCfgReply_TypeID is the unique identifier for the type HPCfgReply.
+const HPCfgReply_TypeID = 0xb27bf6e10de2aa8c
+
+func NewHPCfgReply(s *capnp.Segment) (HPCfgReply, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return HPCfgReply{st}, err
+}
+
+func NewRootHPCfgReply(s *capnp.Segment) (HPCfgReply, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return HPCfgReply{st}, err
+}
+
+func ReadRootHPCfgReply(msg *capnp.Message) (HPCfgReply, error) {
+	root, err := msg.RootPtr()
+	return HPCfgReply{root.Struct()}, err
+}
+
+func (s HPCfgReply) String() string {
+	str, _ := text.Marshal(0xb27bf6e10de2aa8c, s.Struct)
+	return str
+}
+
+func (s HPCfgReply) Cfgs() (HPCfg_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return HPCfg_List{List: p.List()}, err
+}
+
+func (s HPCfgReply) HasCfgs() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HPCfgReply) SetCfgs(v HPCfg_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewCfgs sets the cfgs field to a newly
+// allocated HPCfg_List, preferring placement in s's segment.
+func (s HPCfgReply) NewCfgs(n int32) (HPCfg_List, error) {
+	l, err := NewHPCfg_List(s.Struct.Segment(), n)
+	if err != nil {
+		return HPCfg_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// HPCfgReply_List is a list of HPCfgReply.
+type HPCfgReply_List struct{ capnp.List }
+
+// NewHPCfgReply creates a new list of HPCfgReply.
+func NewHPCfgReply_List(s *capnp.Segment, sz int32) (HPCfgReply_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return HPCfgReply_List{l}, err
+}
+
+func (s HPCfgReply_List) At(i int) HPCfgReply { return HPCfgReply{s.List.Struct(i)} }
+
+func (s HPCfgReply_List) Set(i int, v HPCfgReply) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HPCfgReply_List) String() string {
+	str, _ := text.MarshalList(0xb27bf6e10de2aa8c, s.List)
+	return str
+}
+
+// HPCfgReply_Promise is a wrapper for a HPCfgReply promised by a client call.
+type HPCfgReply_Promise struct{ *capnp.Pipeline }
+
+func (p HPCfgReply_Promise) Struct() (HPCfgReply, error) {
+	s, err := p.Pipeline.Struct()
+	return HPCfgReply{s}, err
+}
+
 type PathMgmt struct{ capnp.Struct }
 type PathMgmt_Which uint16
 
@@ -627,10 +1265,15 @@ const (
 	PathMgmt_Which_segChangesIdReply PathMgmt_Which = 9
 	PathMgmt_Which_segChangesReq     PathMgmt_Which = 10
 	PathMgmt_Which_segChangesReply   PathMgmt_Which = 11
+	PathMgmt_Which_hpSegReq          PathMgmt_Which = 12
+	PathMgmt_Which_hpSegReply        PathMgmt_Which = 13
+	PathMgmt_Which_hpSegReg          PathMgmt_Which = 14
+	PathMgmt_Which_hpCfgReq          PathMgmt_Which = 15
+	PathMgmt_Which_hpCfgReply        PathMgmt_Which = 16
 )
 
 func (w PathMgmt_Which) String() string {
-	const s = "unsetsegReqsegReplysegRegsegSyncsRevInfoifStateReqifStateInfossegChangesIdReqsegChangesIdReplysegChangesReqsegChangesReply"
+	const s = "unsetsegReqsegReplysegRegsegSyncsRevInfoifStateReqifStateInfossegChangesIdReqsegChangesIdReplysegChangesReqsegChangesReplyhpSegReqhpSegReplyhpSegReghpCfgReqhpCfgReply"
 	switch w {
 	case PathMgmt_Which_unset:
 		return s[0:5]
@@ -656,6 +1299,16 @@ func (w PathMgmt_Which) String() string {
 		return s[94:107]
 	case PathMgmt_Which_segChangesReply:
 		return s[107:122]
+	case PathMgmt_Which_hpSegReq:
+		return s[122:130]
+	case PathMgmt_Which_hpSegReply:
+		return s[130:140]
+	case PathMgmt_Which_hpSegReg:
+		return s[140:148]
+	case PathMgmt_Which_hpCfgReq:
+		return s[148:156]
+	case PathMgmt_Which_hpCfgReply:
+		return s[156:166]
 
 	}
 	return "PathMgmt_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -1055,6 +1708,171 @@ func (s PathMgmt) NewSegChangesReply() (SegRecs, error) {
 	return ss, err
 }
 
+func (s PathMgmt) HpSegReq() (HPSegReq, error) {
+	if s.Struct.Uint16(0) != 12 {
+		panic("Which() != hpSegReq")
+	}
+	p, err := s.Struct.Ptr(0)
+	return HPSegReq{Struct: p.Struct()}, err
+}
+
+func (s PathMgmt) HasHpSegReq() bool {
+	if s.Struct.Uint16(0) != 12 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMgmt) SetHpSegReq(v HPSegReq) error {
+	s.Struct.SetUint16(0, 12)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewHpSegReq sets the hpSegReq field to a newly
+// allocated HPSegReq struct, preferring placement in s's segment.
+func (s PathMgmt) NewHpSegReq() (HPSegReq, error) {
+	s.Struct.SetUint16(0, 12)
+	ss, err := NewHPSegReq(s.Struct.Segment())
+	if err != nil {
+		return HPSegReq{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s PathMgmt) HpSegReply() (HPSegReply, error) {
+	if s.Struct.Uint16(0) != 13 {
+		panic("Which() != hpSegReply")
+	}
+	p, err := s.Struct.Ptr(0)
+	return HPSegReply{Struct: p.Struct()}, err
+}
+
+func (s PathMgmt) HasHpSegReply() bool {
+	if s.Struct.Uint16(0) != 13 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMgmt) SetHpSegReply(v HPSegReply) error {
+	s.Struct.SetUint16(0, 13)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewHpSegReply sets the hpSegReply field to a newly
+// allocated HPSegReply struct, preferring placement in s's segment.
+func (s PathMgmt) NewHpSegReply() (HPSegReply, error) {
+	s.Struct.SetUint16(0, 13)
+	ss, err := NewHPSegReply(s.Struct.Segment())
+	if err != nil {
+		return HPSegReply{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s PathMgmt) HpSegReg() (HPSegRecs, error) {
+	if s.Struct.Uint16(0) != 14 {
+		panic("Which() != hpSegReg")
+	}
+	p, err := s.Struct.Ptr(0)
+	return HPSegRecs{Struct: p.Struct()}, err
+}
+
+func (s PathMgmt) HasHpSegReg() bool {
+	if s.Struct.Uint16(0) != 14 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMgmt) SetHpSegReg(v HPSegRecs) error {
+	s.Struct.SetUint16(0, 14)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewHpSegReg sets the hpSegReg field to a newly
+// allocated HPSegRecs struct, preferring placement in s's segment.
+func (s PathMgmt) NewHpSegReg() (HPSegRecs, error) {
+	s.Struct.SetUint16(0, 14)
+	ss, err := NewHPSegRecs(s.Struct.Segment())
+	if err != nil {
+		return HPSegRecs{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s PathMgmt) HpCfgReq() (HPCfgReq, error) {
+	if s.Struct.Uint16(0) != 15 {
+		panic("Which() != hpCfgReq")
+	}
+	p, err := s.Struct.Ptr(0)
+	return HPCfgReq{Struct: p.Struct()}, err
+}
+
+func (s PathMgmt) HasHpCfgReq() bool {
+	if s.Struct.Uint16(0) != 15 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMgmt) SetHpCfgReq(v HPCfgReq) error {
+	s.Struct.SetUint16(0, 15)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewHpCfgReq sets the hpCfgReq field to a newly
+// allocated HPCfgReq struct, preferring placement in s's segment.
+func (s PathMgmt) NewHpCfgReq() (HPCfgReq, error) {
+	s.Struct.SetUint16(0, 15)
+	ss, err := NewHPCfgReq(s.Struct.Segment())
+	if err != nil {
+		return HPCfgReq{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s PathMgmt) HpCfgReply() (HPCfgReply, error) {
+	if s.Struct.Uint16(0) != 16 {
+		panic("Which() != hpCfgReply")
+	}
+	p, err := s.Struct.Ptr(0)
+	return HPCfgReply{Struct: p.Struct()}, err
+}
+
+func (s PathMgmt) HasHpCfgReply() bool {
+	if s.Struct.Uint16(0) != 16 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMgmt) SetHpCfgReply(v HPCfgReply) error {
+	s.Struct.SetUint16(0, 16)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewHpCfgReply sets the hpCfgReply field to a newly
+// allocated HPCfgReply struct, preferring placement in s's segment.
+func (s PathMgmt) NewHpCfgReply() (HPCfgReply, error) {
+	s.Struct.SetUint16(0, 16)
+	ss, err := NewHPCfgReply(s.Struct.Segment())
+	if err != nil {
+		return HPCfgReply{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
 // PathMgmt_List is a list of PathMgmt.
 type PathMgmt_List struct{ capnp.List }
 
@@ -1125,81 +1943,143 @@ func (p PathMgmt_Promise) SegChangesReply() SegRecs_Promise {
 	return SegRecs_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_8fcd13516850d142 = "x\xda|T_h[\xe5\x1b~\x9f\xef\xa4M\xda\xa6" +
-	"\xbf&\xf9\xce/UD+s\x17N\xb6\xd1\xa5\x93i" +
-	"\xe9h\xd7\xad\xb8l\xad\xe6\xe4\xe8hE\xd0,9I" +
-	"j\xd3,\xc9\xc9V\x82\x13\xff\xe0D\xd0\xe2\xdf\x8b!" +
-	"\x8a\xce\x9b2DEa\x17\xabLPajac\xc3" +
-	"\xcb\x81 \"\xca`\x17\x8a\x9b[\xb7\xf9\xc9{\xd2\x9d" +
-	"d\xa7\x99\xe4\xe6\xe4{\x9e\xf3\xbc\xcf\xf7\x9e\xf7y\xfb" +
-	"w\xb5\x8f\x88Mm\xdf\xddCd~\x88\xb6vu\xe2" +
-	"a\xfdz\xd7\xc2\xee\xb7)\x1c\x82\x1a=\x9b\xc8\x1b\xf2" +
-	"\xd4\xeb\xd4&\xfcD\xf2\x87\xf07\xf2l\x98\x9fN\x85" +
-	"\xe7\x08\xea\xcbs[\xce}\xf1\xf3TK\xeeDdI" +
-	"NE\xf8\xe9\xb1\x08s\xefz\xd9\xf7\xac\xb8\x1f\xef\x93" +
-	"\x11\x82\xd6 \xfb\x98\xf1ydQ\x1ew\xb8\xc7\"\x9f" +
-	"\x11\xd4\xd2\x99w\x83\xa3\xcb\xeb\x8f0\xb7Ix\x0c\xfe" +
-	" \x91\xdc$\x97\xe4V\xe9'\x1axP.\x08\x82z" +
-	"\xf5\xe4\xe6\x8f\xf6\x06?Y\xf0\xd8\x00\x0b\x86\xa3\x7f\xca" +
-	";\xa3\xfct{t\x98\xa0v\x7f:\x7f\xe9\xdb\xda\x95" +
-	"\x8f[Y\x8eG\x17\xa5\xe1p'\xa2ly\xc48y" +
-	"\xf9\xfc\xe9='Z\xe8\x0e\x1c\x8dF \x8f;\xe4c" +
-	"\x8e\xf0\x9bg\x8e\xfc6\xb3<\xff\xbd\xc73\xdfo\xe0" +
-	"\xd7\xa8\x80\xfc\xc3!_p\xc8\x07\xee\xd8qub\xdd" +
-	";?\x91\xd1\x0b\xad\xd1\x1a\xdd\x0f\xb6\xdc{\x9e \xff" +
-	"\xdf;Gj\xe5\x17U\xa5T5\xff\xe4lnVT" +
-	"7\xa6S\xa5bi\xd0\xb4rI+mS\x020\x02" +
-	"\x9a\x8f\xc8\x07\xa2\xf0\xba\xfb\x88\x8c\xb5\x1a\x8c\x11\x810" +
-	"\xa0\x83\x0f\xb7&\x89\x8c!\x0d\xc6\xa4@O\xc5J\xdb" +
-	"\xf8\x1f!\xa1\x01!\xd5\xb3\xd89\xf4\xcc\x9e\xc3\x1f\x10" +
-	"\x81\x0f\x95\x9d\xb4\x0e\xc4\x8b\xd9}\x84&R\xf2\x97\xe5" +
-	"-\x87\x1e\x8a\xb9\xa4\xd6^J\x85\x1ay\xdd\xacYq" +
-	"\xd3\xdf\xe4f\x03[\xbcW\x83\xb1Y\xc0_\xb1\xca\x08" +
-	"5\xeeO@\x88V<\x86\x1a\x93X?v\xeb\xe2F" +
-	"\xdda\xa7p\x99\x8b\x06\xdd\xa2c1\"cD\x831" +
-	"\xdeT4\xce\x87;4\x18\x09\x01\x084}\x80\xf0D" +
-	"\x8cD\x9f]I\xc7\xb7\xa1\x83\x04:\x08}\x19\xbb\xda" +
-	"\xf4/[H\xe5\xec\xd5\x97N\xa4\xaa\xf9\x89\xdcl\xb5" +
-	"~\xe9~\xcd\x17T\x8a\x0d\xc8m\x88\x11\x99C\xd0`" +
-	"\xee\x84@7\xfeQ\x8e\x099\x86A\"s\x84\x81q" +
-	"\x06\xc4u\xa5C\xf0\xdca\x17\x91\xb9\x93\x81G\x19\xd0" +
-	"\xae)\x1d\x1a\x914\x9c7\xc6\x19\x98d\xc0wU\xe9" +
-	"\xf0q\xa40Jd&\x18x\x82\x81\xb6e\xa5\xa3\x8d" +
-	"HN9R\x93\x0cd\x18h\xbf\xa2t\xb4\x13\xc9\x14" +
-	"\x1e'2\x9fb\xa0\xc0\x80\xff\xb2\xd2\x9d\x80L\xe3i" +
-	"\"3\xcf@\x95\x81\xc0\xdfJG\x80H\x96\xf1\"\x91" +
-	"Yb\xe0 \x03\x1d\x97\x94\x8e\x0e\"Y\xc3[D\xe6" +
-	"A\x06^a\xa0\xf3\xa2\xd2\xd1I$\x0f\xa1Bd\xbe" +
-	"\xc4\xc0\x1b\x0ct\xfd\xa5tt\x11\xc9yG\xea5\x06" +
-	"\x0eC\xa0o\x7f\xd1\xb6\xaa\xd4>l;\xdfo\xf5\x04" +
-	"(\xdb\x9d(B\xa8\xb1f\xeah\xfd\xb5\xdc\xea\x09y" +
-	"\xce\xb6rf\xad\x98n1;\xee`;\x82\xcd\x13\xcd" +
-	"\xe8t\xd6\xac\xa6\xaaV\x924\xc7\xcd\xd1\xec{_\xcf" +
-	"\xcc]\xf8\xdd\x03\xc7\xa9\xa7\x98\xdd\xc7\x93\xf9U\xd7\xb5" +
-	"\x8b\xb1\xd3w\xff\xd8dw{>U\xcc\xc1\xb2\xe3\x99" +
-	"\xa4U\xe6\x1a\xee>h\xcd)\x15PC\xa8\xb1b<" +
-	",\xea\xb3\xeczk\xdc\xe5\xb6Z\xa7\xde\xa2\xffHJ" +
-	"sB\x9d\x97\xea\xaa<\xb0>70\xdd\x83DF@" +
-	"\x83\xb1V8\xad\x8dg\xdc\xecw\x93\xb8)\xf17%" +
-	"/\x9e\xb1=q\x8f\xb5\x8a\xfb`#\xee}\x8e\xba\xa3" +
-	"\xdaM\x18\xce\xee/\x14\x1a\x7f\xdd\"\x9a\xd7t\xa3a" +
-	"\x1e\xe3k\x1a\xc6\xfd\xd3\x99\xa6\x8d\xe5.y\xcf\xc6\xba" +
-	"\x85t\x99<\xc2\xbc0\x83\x1a\x8c\xdb\x04T!eW" +
-	"\xb7\xe7\xad4a\x06\x01\x12\x08\xdcr\x03\x967f{" +
-	"xWpKB\xcf;\xd1\xf6\xf4\xe4\x05'\xd6\xe1\x0d" +
-	"\xac\xbf^\x83\xf1\x00\xf7dzo%\x05\x90\x00\x08*" +
-	"\x9dJ\xe7\xadG\x8a\x05B\xed\xc6\xd9\xbf\x01\x00\x00\xff" +
-	"\xff\x81O\xe8\xff"
+func (p PathMgmt_Promise) HpSegReq() HPSegReq_Promise {
+	return HPSegReq_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p PathMgmt_Promise) HpSegReply() HPSegReply_Promise {
+	return HPSegReply_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p PathMgmt_Promise) HpSegReg() HPSegRecs_Promise {
+	return HPSegRecs_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p PathMgmt_Promise) HpCfgReq() HPCfgReq_Promise {
+	return HPCfgReq_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p PathMgmt_Promise) HpCfgReply() HPCfgReply_Promise {
+	return HPCfgReply_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+const schema_8fcd13516850d142 = "x\xda|V}lSk\x19\x7f\x9e\xf7m\xd7\xee\xa3" +
+	"[{\xdf\xa3\xae\xeb\x8d\xbb\xf7\x06\xcd\xe5\x0aW\xee\x86" +
+	"\xb9\xd7\x05\xdd\x07[\xa0\xc0tg'A%~\xa4\xb4" +
+	"\xa7]Y\xe9\xba\x9e\x8e\xa5\x1221\xc1\x7f\x14\x89H" +
+	"\x0c\x1a\x09`0\x04\x10\x8dKL\xc8\x10\xfcJ\x90," +
+	"B\x00\xd1 \x88q\x08\x11\x08D\xe4\x9b\xc1<\xe6y" +
+	"\xdb\x9d\xd3\x9dv\xcb\xfe\xe9\xde\xdf\xef\xfc\x9e\xdf\xfb\xbc" +
+	"\xcf\xfb<\xef\xb2\x80\xb7\x83\xbd\xe7\xfe\xe4\xc7\x01\xb4_" +
+	"\xa3\xbb\xca|\xfdt\xfb\xd6\xe1\xdb\xea.P\xfd\x88f" +
+	"\xd7\xc5\xbe\x01U\x9c\xdb\x05n\xf4\x00\x88\x99\xd7&E" +
+	"\xb5\xa0_n1\x0ah\x9e\xfa\x9c2S{x\xed\xf7" +
+	"!\xe0/\xe52b\x8c\x88\xdf\x8bm\x92\x9b\x97\xdc\x93" +
+	"\xd7\xde\xbf6>\xf5\xa5\x8a\xdc\x17bR\xb8\x15\xfa\x85" +
+	"\x0aq?\xfa-\xd76\xf6)\xdcG&\xb8Mv\x11" +
+	"\xe3+\xca\x84\xd0%7\xa2\xfc\x02\xd0\x9c\xbc\xf0\xa3\xba" +
+	"\xae\xe9%\x07\x1d\x86{\xd0\x13\x00\x10\xd7\x95Iq\x87" +
+	"\xd8\xad\xb7\x94\xdfp@s\xea\xc6\x97\xc7\xcf\xfe`\xf0" +
+	"\xa7\x95l\xcc4^\x12\xd5A\xb9\xbd \xd9\xf8\xf6\x99" +
+	"\xe5?\xd9Xw\xfc\xb0\x83+S1\x1c|(\xb6I" +
+	"n>\xd8\x0eh\xfe\xf5\xbb\xf1\xce\xdd3\xcf\x8eV\xe2" +
+	"\x1e\x09^\x15\xbf\x92\xdc_J\xee\xda\x9f\xef|\xfa\x87" +
+	"\xfc\x8bc\x95<L\x05'\xc4\x1d\xc9\xbd%=|\xe7" +
+	"\xe8\x0d\xdf\xd4\xd3\xad\xe3\x95t;\x9b\xae\x8a\xde&\xfa" +
+	"\x15n\"\xdd\xc6\x9e\x9b\x9f\x15\x7f|s\x82R\xc1\x1c" +
+	"i\xcb7]\x12;$w{\x13\xe9v\xa8g\x9e\xdf" +
+	"=\xbf\xfeT\x05\xdd\xd6\xebM\xaf\xa1\xb8/\xc9w\xa4" +
+	"\xf0\xf7.\x1c\xfc\xf7\xe0\xf4\xce\xb3\x8e\x1c\x93pk0" +
+	"\xc4P|,D\xe47CD\xfe\xea\xb1O\x9c\xfc\xd0" +
+	"\xf1\xb5\x97*\x90EOhR\xa8\x92\xdb+\xb9[B" +
+	"\xdd/{\x17\xef\xf9\x07\xa8\x1fAn\x1f\xbb\xe2AJ" +
+	"q\xe8.\xa0\x18\x09\x91\xddh\xf0\xeb'j\xfc\x9eG" +
+	"\xce\xb2\x94\xaa\x7f\x09\x8d\x8b\xeb\xa4\xda\xfa\xb7\xd0\x17\x10" +
+	"\xcc\xe2\xdf\x87\xcdL$7\xf0\xb5\xcd\x89\xcd,\xf7n" +
+	"4\x92Ig\xdaV\xf7iz\xa2_\x1f\x06\xe8CT" +
+	"\xbd\xdc\x05\xe0B\x80\xc0\xe2\x16\x00u\x11Gu\x19C" +
+	"D\x05im\xe9\x1a\x00u\x09Gu5\xc3\xe6\x98\x91" +
+	"\x0bwb50\xac\x064\x13\xd9\xa1\x91L8f\x00" +
+	"\x00\xd6\x03\xf6qD\xbf\x9d}@Z,\x0f.CG" +
+	"\x0dg\xe8w\x8a\xa1;\x18\x06fc\x7f\xa6\x1f@]" +
+	"\xc1Q\xfd\"\xc3\x86\xac\x1e5\xec0\x0d\x135+\xb6" +
+	"\xae\xdf\xbb\x7f6\x8c\xd1\xafo\x09\xa7\xe3C\x80%\xa4" +
+	"\xfe\x7fM\xbf\xbfcU\xcb\xfe\x85\xbddR\xf9\xb2D" +
+	"\xbce'\xc2r\xb3\x94,\xbe\xcdQ]\xce\xd0\x93\xd5" +
+	"\x87\xd1o\x1f\x15 \xfa\xa1\xe8\xd1o7\x84\xc2\xb2\x15" +
+	"\x17g\xe3\xb6\x17\xf2OA\xeb\xac\xa0=\x94\xfd\x0e\x8e" +
+	"\xea\xba\x92\xa0aZ\xec\xe6\xa8\xf61D\x86%\xb5\x12" +
+	"\xe8m\x01\xd6ld\xa3\xf6\x89\xcc=\x9f\xe6x*\x92" +
+	"0\xca7\xdd\x17\xc9\x0d\xf4&6\xe7\x0a\x9b\xee\xe6\xae" +
+	":\xd3$\x03\xe2\x1c\xb6\x00hg\x91\xa3v\x19\x19\xfa" +
+	"\xf0\x7f\xa64!.b\x1b\x80\xf6'\x02\xae\x10\xc0f" +
+	"L\x05\x19\x95\x1c\xae\x01\xd0.\x13\xf0O\x02\xf8+S" +
+	"AN\x0dG~q\x85\x80\x9b\x04\xb8^\x9a\x0a\xba\xe8" +
+	"bc\x17\x80\xf6w\x02n\x13\xe0\x9e6\x15t\xd3=" +
+	"\x97R7\x09x@@\xd5\x0bS\xc1*\x00q\x1f7" +
+	"\x00h\xf7\x08xN\x80\xe7\xb9\xa9\xc8{\xff\x047\x01" +
+	"h\x8f\x91c?c\xe8\xf3>3\x15\xf4R\xff\xc2o" +
+	"\x02h\xaf\xe8\x03/\x01\xd5OM\x05\xab\xa9\x9d\xb1\xdd" +
+	"\x00\x9a\x97q\xd4\x14\x02j\x9e\x98\x0a\xd6\x00\x88\x00\xcb" +
+	"\x02h~\x02^'\xa0\xf6\xb1\xa9`-\x80\x082\x92" +
+	"j$`\x11\x01u\x8fL\x05\xeb\xe8\x8e3r\xfb\x06" +
+	"\x01K\x08\xf0=4\x15\xf4\x01\x88\xc5\x8c\xdc\xbeM\xc0" +
+	"r\x02\xea\xffk*X\x0f \xde\x93_,#`\x05" +
+	"\x01\x0d\x0fL\x05\x1b\x00\xc4\xa7%\xf0\x01\x01\xdd\x04\xf8" +
+	"\xffc*\xe8\xa7\xbe&\xa5:\x08X\xc7\x186\x8f\xa4" +
+	"\x0d=\x07U\xed\x86\xac\x9d\xf2\xea3\x0d\xab\x9a\x01\xfd" +
+	"\xf6\xa4)\xa0\x85\xcf\x12\xe5\xd59f\xe8\x09-\x9f\x8e" +
+	"V\xa8[\xebRI\xc1\xd2\xdbDh2\xae\xe5\"9" +
+	"\xbd\x1f\xb8ts$\xfe\xe3\xdf\x0d\x8e\xde\xbf\xed\x80\xc3" +
+	"\xd0\x90\x8e\x0f\xd1\xad8]\xfb\xeaI\xcb\xf97\xfe\\" +
+	"bw\xe5@$\x9d@\xdd\x08\xc7\xa8\x1b\xa1\xdfn\xb1" +
+	"\x959\x99\x14\xe6\xd1owm\x07\x0b\x9au\xa3\x90\x1a" +
+	"kf\x95\xeb\x14RTa\xb7\x03\x99\xd9\xaeH\xa8\xf5" +
+	"\x02\x98\x8bf\x80\xa7\xc8\x825\xe8\xe6\xc2\x89\xc2\xc7\xd6" +
+	"x\xb5\xd0\x95q[\xda\x1a\x0ds\xd1Yik\xd69" +
+	"\xba\x87\xb3}G\xd1pt\xad\xae\x85\xbaV7\xc3\xb1" +
+	"b\xc7v\xb4i\xabs\xcd\xdb]+5N\x99\xcfB" +
+	"\xc2\xc9\x86\xcb\xb2\xe1k\x03P\xbd\x1c\xd5ELV]" +
+	"8f)\xfb\x80U\xd6+n)\xc3Sy\x87\xd8;" +
+	"\xb6\x98\xc3di\x92\xeb\xe7\xeb\xb2\xe1\x981\xff\x8c\xb3" +
+	"\x93\xd4f\xb7\xf6fiYZ\xf5\x01\xb6\xc7GR)" +
+	"\xfb\xdfJ\xce\x0b\x87\xb7\xb0\xf3h<Q\xe2\xdc\x1a\xe3" +
+	"\xf3\xa5wu\xdf*yR\x18[\xe8\x84]E\xf3]" +
+	"\xb6\xf9\xb1\xa1\xd1\xb4\x9e\xed\xd4fg@\xf1\xc4\xbb\xd1" +
+	"\x03\x0c=%\xa1\xb8\xf3$\xed\x0b\xe6\xd8\xc6[\xf66" +
+	"<\xc9X\xc9.\xac\xf7\x9bc\x17\xf3H\x0f\x83C\x98" +
+	"\x86{\x1dG\xb5\x91\xa1\x99\x8a\x18\xb9\x95\x03z\x14p" +
+	"\x10\xbd\xc0\xd0\xbb@\xaa\x8b\xcf\x96\x12\xa5M%JQ" +
+	"\x191\xa6AC2\x1d\xd5\xe7\x17+\xdc\xf5w\xe3\x0d" +
+	"4$)\xc5\xfeo\xc8\x99\xe6(\x90\xedr\x9e\x05\x96" +
+	"\xf6\x17_A\x1fP\x81$7f#\x88\xc0\x10\xe9M" +
+	"\x16\x89\x0e\xe8\x9fO\xa7\x00\xf3\xd6ZY)6K\xef" +
+	"d\xbb\xd1\xb2\xfdC:\xb7=\x1c\xd5\x03\xf6kk\x1f" +
+	"\xad\xed\xe5\xa8\x1eb\x18`\xac\xe0\xe8 =\xc1\x0ep" +
+	"T\x7f\xc60\xc0\xb1\xe0\xe8\x081\x0fqT\x7f\xcb0" +
+	"\xe0br\xba\x06N\xd1\xe2\x09\x8e\xeae\x86\x017\x97" +
+	"\x935pq\x03\x80z\x81\xa3zo\xa1\x0e0\xb6E" +
+	"\xcf\x1a\xc9\xa1\xb4\x951YIa\xad\x9bzV\xb1z" +
+	"\xc6F\xb3\xc9\x9c\x9e\xb5j\xa0\xbap\x9d\xc7\xb2z$" +
+	"V\xbelf\xf5D\xd2\xc8e\x93\xc0u'\xf6\xff\x00" +
+	"\x00\x00\xff\xffkBU\x08"
 
 func init() {
 	schemas.Register(schema_8fcd13516850d142,
+		0x8f51e8717b3fbe1c,
 		0x934ba70bfd144ebd,
 		0x9359e1b2db37dbbb,
 		0x9d0135027d04861e,
 		0xa12cfa420c9ad0ca,
+		0xa56b96c8b25ce2e1,
 		0xa7ad0c62a234c68b,
+		0xaaf7fd9241668ed6,
 		0xabf979c3f68dae4b,
+		0xb27bf6e10de2aa8c,
+		0xba21c7133ee44518,
 		0xbd56ceeaf8c65140,
 		0xc88dfa6be7a1d091,
-		0xde94294dfb441b76)
+		0xd24bad15bb2bab5e,
+		0xde94294dfb441b76,
+		0xf307100ab87a1963)
 }
