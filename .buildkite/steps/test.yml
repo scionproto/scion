@@ -1,3 +1,6 @@
+- label: "Check generated go/proto files in git"
+  command: $BASE/run_step checkgogen
+  timeout_in_minutes: 1
 - label: "Unit tests :bazel:"
   command: $BASE/run_step test
   artifact_paths:
