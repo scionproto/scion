@@ -30,6 +30,8 @@ type TRCProvider interface {
 
 // RequestSplitter splits a single request into a request set.
 type RequestSplitter interface {
+	// Split splits the request into a request set. Assumes that the request
+	// has been validated for the local IA.
 	Split(ctx context.Context, r Request) (RequestSet, error)
 }
 
@@ -38,15 +40,15 @@ type RequestSplitter interface {
 func NewRequestSplitter(localIA addr.IA, trcProvider TRCProvider) (RequestSplitter, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	trc, err := trcProvider.GetTRC(ctx, localIA.I, scrypto.LatestVer)
-	if err != nil {
-		return nil, err
-	}
 	baseSplitter := baseRequestSplitter{
 		LocalIA:     localIA,
 		TRCProvider: trcProvider,
 	}
-	if trc.CoreASes.Contains(localIA) {
+	core, err := baseSplitter.isCore(ctx, localIA)
+	if err != nil {
+		return nil, err
+	}
+	if core {
 		return &coreRequestSplitter{
 			baseRequestSplitter: baseSplitter,
 		}, nil
@@ -73,7 +75,7 @@ func (s *baseRequestSplitter) isCore(ctx context.Context, dst addr.IA) (bool, er
 	return trc.CoreASes.Contains(dst), nil
 }
 
-func (s *baseRequestSplitter) isLocal(dst addr.IA) bool {
+func (s *baseRequestSplitter) isISDLocal(dst addr.IA) bool {
 	return s.LocalIA.I == dst.I
 }
 
@@ -124,7 +126,7 @@ func (s *nonCoreRequestSplitter) Split(ctx context.Context, r Request) (RequestS
 		return RequestSet{}, err
 	}
 	wildcard := s.isWildCard(r.Dst)
-	local := s.isLocal(r.Dst)
+	local := s.isISDLocal(r.Dst)
 	src := s.srcOrLocalIA(r.Src)
 	switch {
 	case core && wildcard && local:

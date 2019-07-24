@@ -36,7 +36,7 @@ type RequestSet struct {
 
 // IsEmpty returns whether the request set is empty.
 func (r RequestSet) IsEmpty() bool {
-	return r.Up.IsZero() && len(r.Cores) == 0 && r.Down.IsZero()
+	return r.Up.IsZero() && r.Cores.IsEmpty() && r.Down.IsZero()
 }
 
 // Requests is a list of requests and provides some convenience methods on top
@@ -53,15 +53,19 @@ func (r Requests) DstIAs() []addr.IA {
 	return r.extractIAs(func(req Request) addr.IA { return req.Dst })
 }
 
+// IsEmpty returns whether the list of requests is empty.
+func (r Requests) IsEmpty() bool {
+	return len(r) == 0
+}
+
 func (r Requests) extractIAs(extract func(Request) addr.IA) []addr.IA {
-	var ias []addr.IA
-	addrs := make(map[addr.IA]struct{})
+	set := make(map[addr.IA]struct{})
 	for _, req := range r {
-		ia := extract(req)
-		if _, ok := addrs[ia]; !ok {
-			addrs[ia] = struct{}{}
-			ias = append(ias, ia)
-		}
+		set[extract(req)] = struct{}{}
+	}
+	ias := make([]addr.IA, 0, len(set))
+	for ia := range set {
+		ias = append(ias, ia)
 	}
 	return ias
 }
