@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -174,7 +175,6 @@ func getResolver(sciondPath string) (pathmgr.Resolver, error) {
 				NormalRefire: time.Minute,
 				ErrorRefire:  3 * time.Second,
 			},
-			log.Root(),
 		)
 	}
 	return pathResolver, nil

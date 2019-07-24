@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -94,7 +95,7 @@ func (s server) run() {
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcherService(""),
 		SCMPHandler: snet.NewSCMPHandler(
-			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}, log.Root()),
+			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}),
 		),
 	}
 	conn, port, err := connFactory.RegisterTimeout(integration.Local.IA, integration.Local.Host,
@@ -149,7 +150,7 @@ func (c client) run() int {
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcherService(""),
 		SCMPHandler: snet.NewSCMPHandler(
-			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}, log.Root()),
+			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}),
 		),
 	}
 
