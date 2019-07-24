@@ -145,7 +145,8 @@ func (l *ReassemblyList) tryReassemble() {
 		}
 		if currFrame.index != 0 {
 			log.Error("Framing error occurred. Not enough bytes to reassemble packet",
-				"startFrame", startFrame.String(), "currFrame", currFrame.String())
+				"startFrame", startFrame.String(), "currFrame", currFrame.String(),
+				"pktLen", startFrame.pktLen)
 			framingError = true
 			break
 		}
