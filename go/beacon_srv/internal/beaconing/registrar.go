@@ -92,11 +92,17 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 	return r, nil
 }
 
+// Name returns the tasks name.
+func (r *Registrar) Name() string {
+	return "beaconing.Registrar"
+}
+
 // Run registers path segments for the specified type to path servers.
 func (r *Registrar) Run(ctx context.Context) {
 	r.tick.now = time.Now()
 	if err := r.run(ctx); err != nil {
-		log.Error("[Registrar] Unable to register", "type", r.segType, "err", err)
+		log.FromCtx(ctx).Error("[beaconing.Registrar] Unable to register",
+			"type", r.segType, "err", err)
 	}
 	r.metrics.AddTotalTime(r.segType, r.tick.now)
 	r.tick.updateLast()
@@ -106,13 +112,14 @@ func (r *Registrar) run(ctx context.Context) error {
 	if r.tick.now.Sub(r.lastSucc) < r.tick.period && !r.tick.passed() {
 		return nil
 	}
+	logger := log.FromCtx(ctx)
 	segments, err := r.segProvider.SegmentsToRegister(ctx, r.segType)
 	if err != nil {
 		return err
 	}
 	peers, nonActivePeers := sortedIntfs(r.cfg.Intfs, proto.LinkType_peer)
 	if len(nonActivePeers) > 0 {
-		log.Debug("[Registrar] Ignore non-active peer interfaces", "type", r.segType,
+		logger.Debug("[beaconing.Registrar] Ignore non-active peer interfaces", "type", r.segType,
 			"intfs", nonActivePeers)
 	}
 	s := newSummary()
@@ -120,7 +127,7 @@ func (r *Registrar) run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	for bOrErr := range segments {
 		if bOrErr.Err != nil {
-			log.Error("[Registrar] Unable to get beacon", "err", err)
+			logger.Error("[beaconing.Registrar] Unable to get beacon", "err", err)
 			r.metrics.IncInternalErr(r.segType)
 			continue
 		}
@@ -130,6 +137,7 @@ func (r *Registrar) run(ctx context.Context) error {
 			beacon:    bOrErr.Beacon,
 			peers:     peers,
 			summary:   s,
+			logger:    logger,
 		}
 		// Avoid head-of-line blocking when sending message to slow servers.
 		s.start(ctx, &wg)
@@ -142,19 +150,19 @@ func (r *Registrar) run(ctx context.Context) error {
 		return common.NewBasicError("No beacons propagated", nil, "candidates", expected)
 	}
 	r.lastSucc = r.tick.now
-	r.logSummary(s)
+	r.logSummary(logger, s)
 	return nil
 }
 
-func (r *Registrar) logSummary(s *summary) {
+func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 	if r.tick.passed() {
-		log.Info("[Registrar] Registered beacons", "type", r.segType, "count", s.count,
+		logger.Info("[beaconing.Registrar] Registered beacons", "type", r.segType, "count", s.count,
 			"startIAs", len(s.srcs))
 		return
 	}
 	if s.count > 0 {
-		log.Info("[Registrar] Registered beacons after stale period", "type", r.segType,
-			"count", s.count, "startIAs", len(s.srcs))
+		logger.Info("[beaconing.Registrar] Registered beacons after stale period",
+			"type", r.segType, "count", s.count, "startIAs", len(s.srcs))
 	}
 }
 
@@ -164,6 +172,7 @@ type segmentRegistrar struct {
 	beacon  beacon.Beacon
 	peers   []common.IFIDType
 	summary *summary
+	logger  log.Logger
 
 	// mutable
 	reg  *path_mgmt.SegReg
@@ -174,7 +183,8 @@ type segmentRegistrar struct {
 // with the path server.
 func (r *segmentRegistrar) start(ctx context.Context, wg *sync.WaitGroup) {
 	if err := r.setSegToRegister(); err != nil {
-		log.Error("[Registrar] Unable to create segment", "type", r.segType, "err", err)
+		r.logger.Error("[beaconing.Registrar] Unable to create segment",
+			"type", r.segType, "err", err)
 		return
 	}
 	r.startSendSegReg(ctx, wg)
@@ -214,14 +224,15 @@ func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGro
 		defer log.LogPanicAndExit()
 		defer wg.Done()
 		if err := r.msgr.SendSegReg(ctx, r.reg, r.addr, messenger.NextId()); err != nil {
-			log.Error("[Registrar] Unable to register segment", "addr", r.addr, "err", err)
+			r.logger.Error("[beaconing.Registrar] Unable to register segment",
+				"addr", r.addr, "err", err)
 			r.metrics.IncTotalBeacons(r.segType, r.beacon.Segment.FirstIA(), r.beacon.InIfId,
 				metrics.SendErr)
 			return
 		}
 		r.onSuccess()
-		log.Trace("[Registrar] Successfully registered segment", "type", r.segType, "addr", r.addr,
-			"seg", r.beacon.Segment)
+		r.logger.Trace("[beaconing.Registrar] Successfully registered segment", "type", r.segType,
+			"addr", r.addr, "seg", r.beacon.Segment)
 	}()
 }
 

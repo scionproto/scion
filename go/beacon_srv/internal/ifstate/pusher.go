@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -46,8 +45,8 @@ func (cfg PusherConf) New() *Pusher {
 		topoProvider: cfg.TopoProvider,
 		intfs:        cfg.Intfs,
 		pusher: brPusher{
-			msgr:   cfg.Msgr,
-			logger: log.New("mode", "pusher"),
+			msgr: cfg.Msgr,
+			mode: "pusher",
 		},
 	}
 }

@@ -279,7 +279,7 @@ func (r *Runner) handler(topo *topology.Topo) (bool, error) {
 
 // task is a periodic.Task that fetches the topology from the discovery service.
 type task struct {
-	log.Logger
+	mode     discovery.Mode
 	handler  TopoHandler
 	fetcher  *topofetcher.Fetcher
 	filename string
@@ -295,7 +295,7 @@ func NewFetcher(handler TopoHandler, params discovery.FetchParams,
 		return nil, common.NewBasicError("handler must not be nil", nil)
 	}
 	t := &task{
-		Logger:   log.New("Module", "Discovery", "Mode", params.Mode),
+		mode:     params.Mode,
 		handler:  handler,
 		filename: filename,
 	}
@@ -315,39 +315,47 @@ func NewFetcher(handler TopoHandler, params discovery.FetchParams,
 	return t, nil
 }
 
+func (t *task) Name() string {
+	return "discovery"
+}
+
 func (t *task) Run(ctx context.Context) {
 	if err := t.fetcher.UpdateInstances(itopo.Get().DS); err != nil {
-		log.Error("[discovery] Unable to update instances", "err", err)
+		t.logger(ctx).Error("[discovery] Unable to update instances", "err", err)
 		return
 	}
 	t.fetcher.Run(ctx)
 }
 
-func (t *task) handleErr(err error) {
-	t.Error("[discovery] Unable to fetch topology", "err", err)
+func (t *task) handleErr(ctx context.Context, err error) {
+	t.logger(ctx).Error("[discovery] Unable to fetch topology", "err", err)
 }
 
-func (t *task) handleRaw(raw common.RawBytes, topo *topology.Topo) {
-	updated, err := t.callHandler(topo)
+func (t *task) handleRaw(ctx context.Context, raw common.RawBytes, topo *topology.Topo) {
+	updated, err := t.callHandler(ctx, topo)
 	if err != nil || t.filename == "" || !updated {
 		return
 	}
 	if err := util.WriteFile(t.filename, raw, 0644); err != nil {
-		t.Error("[discovery] Unable to write new topology to filesystem", "err", err)
+		t.logger(ctx).Error("[discovery] Unable to write new topology to filesystem", "err", err)
 		return
 	}
-	t.Trace("[discovery] Topology written to filesystem",
+	t.logger(ctx).Trace("[discovery] Topology written to filesystem",
 		"file", t.filename, "params", t.fetcher.Params)
 }
 
-func (t *task) callHandler(topo *topology.Topo) (bool, error) {
+func (t *task) callHandler(ctx context.Context, topo *topology.Topo) (bool, error) {
 	updated, err := t.handler(topo)
 	if err != nil {
-		t.Error("[discovery] Unable to handle topology", "err", err)
+		t.logger(ctx).Error("[discovery] Unable to handle topology", "err", err)
 	} else if updated {
-		t.Trace("[discovery] Set topology", "params", t.fetcher.Params)
+		t.logger(ctx).Trace("[discovery] Set topology", "params", t.fetcher.Params)
 	}
 	return updated, err
+}
+
+func (t *task) logger(ctx context.Context) log.Logger {
+	return log.FromCtx(ctx).New("mode", t.mode)
 }
 
 type flag struct {

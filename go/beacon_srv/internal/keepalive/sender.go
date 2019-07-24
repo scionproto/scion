@@ -39,18 +39,24 @@ type Sender struct {
 	TopoProvider topology.Provider
 }
 
+// Name returns the tasks name.
+func (s *Sender) Name() string {
+	return "keepalive.Sender"
+}
+
 // Run sends ifid keepalive messages on all border routers.
-func (s *Sender) Run(_ context.Context) {
+func (s *Sender) Run(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	topo := s.TopoProvider.Get()
 	if topo == nil {
-		log.Error("[KeepaliveSender] Unable to send keepalive, no topology set")
+		logger.Error("[keepalive.Sender] Unable to send keepalive, no topology set")
 		return
 	}
 	var sentIfids []common.IFIDType
 	for ifid, intf := range topo.IFInfoMap {
 		pld, err := s.createPld(ifid)
 		if err != nil {
-			log.Error("[KeepaliveSender] Unable to create payload", "err", err)
+			logger.Error("[keepalive.Sender] Unable to create payload", "err", err)
 			continue
 		}
 		msg := &onehop.Msg{
@@ -64,13 +70,13 @@ func (s *Sender) Run(_ context.Context) {
 		}
 		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
 		if err := s.Send(msg, ov); err != nil {
-			log.Error("[KeepaliveSender] Unable to send packet", "err", err)
+			logger.Error("[keepalive.Sender] Unable to send packet", "err", err)
 		} else {
 			sentIfids = append(sentIfids, ifid)
 		}
 	}
 	if len(sentIfids) > 0 {
-		log.Trace("[KeepaliveSender] Sent keepalives", "ifids", sentIfids)
+		logger.Trace("[keepalive.Sender] Sent keepalives", "ifids", sentIfids)
 	}
 }
 

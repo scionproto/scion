@@ -57,7 +57,7 @@ func (h *Handler) Handle(r *infra.Request) *infra.HandlerResult {
 	addr := r.Peer.(*snet.Addr)
 	req := r.Message.(*cert_mgmt.ChainIssReq)
 	if err := h.handle(r, addr, req); err != nil {
-		log.Error("[ReissHandler] Dropping certificate reissue request",
+		log.Error("[reiss.Handler] Dropping certificate reissue request",
 			"addr", addr, "req", req, "err", err)
 	}
 	// TODO(lukedirtwalker): reflect error in metrics.
@@ -70,8 +70,9 @@ func (h *Handler) Handle(r *infra.Request) *infra.HandlerResult {
 func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.ChainIssReq) error {
 	ctx, cancelF := context.WithTimeout(r.Context(), HandlerTimeout)
 	defer cancelF()
+	logger := log.FromCtx(ctx)
 	signed := r.FullMessage.(*ctrl.SignedPld)
-	log.Trace("[ReissHandler] Received certificate reissue request", "addr", addr, "req", req)
+	logger.Trace("[reiss.Handler] Received certificate reissue request", "addr", addr, "req", req)
 	// Validate the request was correctly signed by the requester
 	verChain, err := h.validateSign(ctx, addr, signed)
 	if err != nil {
@@ -88,7 +89,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return common.NewBasicError("Unable to fetch max chain", err)
 	}
 	if maxChain != nil && crt.Version <= maxChain.Leaf.Version {
-		log.Info("[ReissHandler] Resending certificate chain", "addr", addr, "req", req)
+		logger.Info("[reiss.Handler] Resending certificate chain", "addr", addr, "req", req)
 		return h.sendRep(ctx, addr, maxChain)
 	}
 	// Get the verifying key from the customer mapping
@@ -205,7 +206,8 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	var n int64
 	if n, err = tx.InsertChain(ctx, chain); err != nil {
 		tx.Rollback()
-		log.Error("[ReissHandler] Unable to write reissued certificate chain to disk", "err", err)
+		log.FromCtx(ctx).Error("[reiss.Handler] Unable to write reissued certificate chain to disk",
+			"err", err)
 		return nil, err
 	}
 	if n == 0 {
@@ -228,7 +230,7 @@ func (h *Handler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain)
 	if !ok {
 		return common.NewBasicError("Unable to send reply, no response writer found", nil)
 	}
-	log.Trace("[ReissHandler] Sending reissued certificate chain", "chain", chain,
+	log.Trace("[reiss.Handler] Sending reissued certificate chain", "chain", chain,
 		"addr", addr)
 	return rw.SendChainIssueReply(ctx, &cert_mgmt.ChainIssRep{RawChain: raw})
 }

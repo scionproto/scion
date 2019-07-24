@@ -31,12 +31,17 @@ func StartCleaner(tick, timeout time.Duration) *periodic.Runner {
 
 type cleaner struct{}
 
+// Name returns the tasks name.
+func (c cleaner) Name() string {
+	return "itopo.cleaner"
+}
+
 // Run deletes expired dynamic topologies and calls the dropFunc passed to Init.
 func (c cleaner) Run(ctx context.Context) {
 	st.Lock()
 	defer st.Unlock()
 	if st.topo.dynamic != nil && !st.topo.dynamic.Active(time.Now()) {
-		log.Info("[itopo.Cleaner] Dropping expired dynamic topology",
+		log.FromCtx(ctx).Info("[itopo.cleaner] Dropping expired dynamic topology",
 			"ts", st.topo.dynamic.Timestamp, "ttl", st.topo.dynamic.TTL,
 			"expired", st.topo.dynamic.Expiry())
 		st.topo.dynamic = nil

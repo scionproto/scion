@@ -68,6 +68,11 @@ func (cfg OriginatorConf) New() (*Originator, error) {
 	return o, nil
 }
 
+// Name returns the tasks name.
+func (o *Originator) Name() string {
+	return "beaconing.Originator"
+}
+
 // Run originates core and downstream beacons.
 func (o *Originator) Run(ctx context.Context) {
 	o.tick.now = time.Now()
@@ -80,9 +85,10 @@ func (o *Originator) Run(ctx context.Context) {
 // originateBeacons creates and sends a beacon for each active interface of
 // the specified link type.
 func (o *Originator) originateBeacons(ctx context.Context, linkType proto.LinkType) {
+	logger := log.FromCtx(ctx)
 	active, nonActive := sortedIntfs(o.cfg.Intfs, linkType)
 	if len(nonActive) > 0 && o.tick.passed() {
-		log.Debug("[Originator] Ignore non-active interfaces", "ifids", nonActive)
+		logger.Debug("[beaconing.Originator] Ignore non-active interfaces", "ifids", nonActive)
 	}
 	intfs := o.needBeacon(active)
 	if len(intfs) == 0 {
@@ -98,10 +104,11 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType proto.LinkTy
 			summary:    s,
 		}
 		if err := b.originateBeacon(ctx); err != nil {
-			log.Error("[Originator] Unable to originate on interface", "ifid", ifid, "err", err)
+			logger.Error("[beaconing.Originator] Unable to originate on interface",
+				"ifid", ifid, "err", err)
 		}
 	}
-	o.logSummary(s, linkType)
+	o.logSummary(logger, s, linkType)
 }
 
 // createInfoF creates the info field.
@@ -132,14 +139,15 @@ func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
 	return stale
 }
 
-func (o *Originator) logSummary(s *summary, linkType proto.LinkType) {
+func (o *Originator) logSummary(logger log.Logger, s *summary, linkType proto.LinkType) {
 	if o.tick.passed() {
-		log.Info("[Originator] Originated beacons", "type", linkType.String(), "egIfIds", s.IfIds())
+		logger.Info("[beaconing.Originator] Originated beacons",
+			"type", linkType.String(), "egIfIds", s.IfIds())
 		return
 	}
 	if s.count > 0 {
-		log.Info("[Originator] Originated beacons on stale interfaces", "type", linkType.String(),
-			"egIfIds", s.IfIds())
+		logger.Info("[beaconing.Originator] Originated beacons on stale interfaces",
+			"type", linkType.String(), "egIfIds", s.IfIds())
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -119,6 +119,10 @@ func StartPeriodic(params PollingParameters, ch chan sciond.PathReqFlags) *perio
 type taskPeriodicChannelWriter struct {
 	ch    chan sciond.PathReqFlags
 	flags sciond.PathReqFlags
+}
+
+func (task *taskPeriodicChannelWriter) Name() string {
+	return "pathmgr.taskPeriodicChannelWriter"
 }
 
 func (task *taskPeriodicChannelWriter) Run(_ context.Context) {
