@@ -15,7 +15,6 @@
 package cert
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -62,7 +61,7 @@ type Base struct {
 	// Subject identifies the subject of the certificate.
 	Subject addr.IA `json:"Subject"`
 	// Version indicates the certificate version.
-	Version Version `json:"Version"`
+	Version scrypto.Version `json:"Version"`
 	// FormatVersion is the certificate format version.
 	FormatVersion FormatVersion `json:"FormatVersion"`
 	// Description is a human-readable description of the certificate.
@@ -70,7 +69,7 @@ type Base struct {
 	// Validity defines the validity period of the certificate.
 	Validity *scrypto.Validity `json:"Validity"`
 	// Keys holds all keys authenticated by this certificate.
-	Keys map[KeyType]KeyMeta `json:"Keys"`
+	Keys map[KeyType]scrypto.KeyMeta `json:"Keys"`
 }
 
 // Validate validates the shared fields are set correctly.
@@ -108,57 +107,6 @@ func (b *Base) checkKeyExistence(keyType KeyType, shouldExist bool) error {
 	return nil
 }
 
-// KeyMeta holds the key with metadata.
-type KeyMeta struct {
-	// KeyVersion identifies the key. It must change if the key changes, and
-	// stay the same if the key does not change.
-	KeyVersion KeyVersion `json:"KeyVersion"`
-	// Algorithm indicates the algorithm associated with the key.
-	Algorithm string `json:"Algorithm"`
-	// Key is the raw public key.
-	Key common.RawBytes `json:"Key"`
-}
-
-// UnmarshalJSON checks that all fields are set.
-func (m *KeyMeta) UnmarshalJSON(b []byte) error {
-	var alias keyMetaAlias
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&alias); err != nil {
-		return err
-	}
-	if err := alias.checkAllSet(); err != nil {
-		return err
-	}
-	*m = KeyMeta{
-		KeyVersion: *alias.KeyVersion,
-		Algorithm:  *alias.Algorithm,
-		Key:        *alias.Key,
-	}
-	return nil
-}
-
-type keyMetaAlias struct {
-	KeyVersion *KeyVersion      `json:"KeyVersion"`
-	Algorithm  *string          `json:"Algorithm"`
-	Key        *common.RawBytes `json:"Key"`
-}
-
-func (m *keyMetaAlias) checkAllSet() error {
-	switch {
-	case m.KeyVersion == nil:
-		return ErrKeyVersionNotSet
-	case m.Algorithm == nil:
-		return ErrAlgorithmNotSet
-	case m.Key == nil:
-		return ErrKeyNotSet
-	}
-	return nil
-}
-
-// KeyVersion identifies a key for a given KeyType and ISD-AS.
-type KeyVersion uint64
-
 const (
 	// IssuingKey is the issuing key type. It must only appear in issuer certificates.
 	IssuingKey KeyType = "Issuing"
@@ -187,31 +135,6 @@ func (t *KeyType) UnmarshalJSON(b []byte) error {
 		return common.NewBasicError(InvalidKeyType, nil, "input", string(b))
 	}
 	return nil
-}
-
-// Version identifies the version of a certificate. It cannot be
-// marshalled/unmarshalled to/from scrypto.LatestVer.
-type Version uint64
-
-// UnmarshalJSON checks that the value is not scrypto.LatestVer.
-func (v *Version) UnmarshalJSON(b []byte) error {
-	parsed, err := strconv.ParseUint(string(b), 10, 64)
-	if err != nil {
-		return err
-	}
-	if parsed == scrypto.LatestVer {
-		return common.NewBasicError(InvalidVersion, nil, "ver", parsed)
-	}
-	*v = Version(parsed)
-	return nil
-}
-
-// MarshalJSON checks that the value is not scrypto.LatestVer.
-func (v Version) MarshalJSON() ([]byte, error) {
-	if uint64(v) == scrypto.LatestVer {
-		return nil, common.NewBasicError(InvalidVersion, nil, "ver", v)
-	}
-	return json.Marshal(uint64(v))
 }
 
 // FormatVersion indicates the certificate format version. Currently, only format

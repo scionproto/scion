@@ -16,90 +16,12 @@ package cert_test
 
 import (
 	"encoding/json"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
-
-func TestKeyMetaUnmarshalJSON(t *testing.T) {
-	tests := map[string]struct {
-		Input          string
-		Meta           cert.KeyMeta
-		ExpectedErrMsg string
-	}{
-		"Valid": {
-			Input: `
-			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519",
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
-			}`,
-			Meta: cert.KeyMeta{
-				KeyVersion: 1,
-				Algorithm:  scrypto.Ed25519,
-				Key:        xtest.MustParseHexString("616e617061796120e29da420207363696f6e"),
-			},
-		},
-		"KeyVersion not set": {
-			Input: `
-			{
-				"Algorithm": "ed25519",
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
-			}`,
-			ExpectedErrMsg: cert.ErrKeyVersionNotSet.Error(),
-		},
-		"Algorithm not set": {
-			Input: `
-			{
-				"KeyVersion": 1,
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
-			}`,
-			ExpectedErrMsg: cert.ErrAlgorithmNotSet.Error(),
-		},
-		"Key not set": {
-			Input: `
-			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519"
-			}`,
-			ExpectedErrMsg: cert.ErrKeyNotSet.Error(),
-		},
-		"Unknown field": {
-			Input: `
-			{
-				"UnknownField": "UNKNOWN"
-			}`,
-			ExpectedErrMsg: `json: unknown field "UnknownField"`,
-		},
-		"invalid json": {
-			Input: `
-			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519"
-			`,
-			ExpectedErrMsg: "unexpected end of JSON input",
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			var meta cert.KeyMeta
-			err := json.Unmarshal([]byte(test.Input), &meta)
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
-				assert.Equal(t, test.Meta, meta)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
-		})
-	}
-}
 
 func TestKeyTypeUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
@@ -174,68 +96,6 @@ func TestFormatVersionUnmarshalJSON(t *testing.T) {
 			test.Assertion(t, json.Unmarshal(test.Input, &v))
 			assert.Equal(t, test.Expected, v)
 
-		})
-	}
-}
-
-func TestVersionUnmarshalJSON(t *testing.T) {
-	tests := map[string]struct {
-		Input     []byte
-		Expected  cert.Version
-		Assertion assert.ErrorAssertionFunc
-	}{
-		"Valid": {
-			Input:     []byte("1"),
-			Expected:  1,
-			Assertion: assert.NoError,
-		},
-		"Reserved": {
-			Input:     []byte(strconv.FormatUint(scrypto.LatestVer, 10)),
-			Assertion: assert.Error,
-		},
-		"String": {
-			Input:     []byte(`"1"`),
-			Assertion: assert.Error,
-		},
-		"Garbage": {
-			Input:     []byte(`"Garbage"`),
-			Assertion: assert.Error,
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			var v cert.Version
-			test.Assertion(t, json.Unmarshal(test.Input, &v))
-			assert.Equal(t, test.Expected, v)
-		})
-	}
-}
-
-func TestVersionMarshalJSON(t *testing.T) {
-	type mockCert struct {
-		Version cert.Version
-	}
-	tests := map[string]struct {
-		// Use a struct to simulate certificate marshaling. Pointer vs value receiver.
-		Input     mockCert
-		Expected  []byte
-		Assertion assert.ErrorAssertionFunc
-	}{
-		"Valid": {
-			Input:     mockCert{Version: 1},
-			Expected:  []byte(`{"Version":1}`),
-			Assertion: assert.NoError,
-		},
-		"Reserved": {
-			Input:     mockCert{Version: cert.Version(scrypto.LatestVer)},
-			Assertion: assert.Error,
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			b, err := json.Marshal(test.Input)
-			test.Assertion(t, err)
-			assert.Equal(t, test.Expected, b)
 		})
 	}
 }
