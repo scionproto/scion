@@ -126,7 +126,7 @@ type PathReq struct {
 	Dst      addr.IAInt
 	Src      addr.IAInt
 	MaxPaths uint16
-	HPCfgs   []*path_mgmt.HPGroupId
+	HPCfgs   []*path_mgmt.HPGroupId `capnp:"hpCfgs"`
 	Flags    PathReqFlags
 }
 
