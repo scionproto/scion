@@ -23,13 +23,12 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/scionproto/scion/go/lib/pathdb/query"
-
 	"github.com/golang/mock/gomock"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
