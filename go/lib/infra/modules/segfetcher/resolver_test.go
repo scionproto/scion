@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/lib/xtest/matchers"
 )
 
 type testGraph struct {
@@ -108,7 +109,7 @@ func TestResolver(t *testing.T) {
 				db := mock_pathdb.NewMockPathDB(ctrl)
 				// cached up segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd1)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
 				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
 				return db
@@ -142,7 +143,7 @@ func TestResolver(t *testing.T) {
 				db := mock_pathdb.NewMockPathDB(ctrl)
 				// cached up segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd1)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
 				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
 				// no cached core segments
@@ -166,12 +167,12 @@ func TestResolver(t *testing.T) {
 				db := mock_pathdb.NewMockPathDB(ctrl)
 				// cached up segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd1)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
 				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
 				// cached core segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_110)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{core_110}, EndsAt: []addr.IA{core_120, core_130},
 				})).Return(resultsFromSegs(tg.seg110_120, tg.seg110_130), nil)
 				return db
@@ -209,7 +210,7 @@ func TestResolver(t *testing.T) {
 				db := mock_pathdb.NewMockPathDB(ctrl)
 				// cached up segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd1)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
 				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_211))
@@ -233,12 +234,12 @@ func TestResolver(t *testing.T) {
 				db := mock_pathdb.NewMockPathDB(ctrl)
 				// cached up segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd2)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
 				})).Return(resultsFromSegs(tg.seg210_211), nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_111)).
 					Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
 				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120))
@@ -269,7 +270,7 @@ func TestResolver(t *testing.T) {
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_110))
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120))
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_130)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{core_130}, EndsAt: []addr.IA{core_210},
 				})).Return(resultsFromSegs(tg.seg210_130), nil)
 				return db
@@ -297,7 +298,7 @@ func TestResolver(t *testing.T) {
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_110)).Return(&futureT, nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120)).Return(&futureT, nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_130)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{core_110, core_120, core_130}, EndsAt: []addr.IA{core_210},
 				})).Return(resultsFromSegs(tg.seg210_130), nil)
 				return db
@@ -330,7 +331,7 @@ func TestResolver(t *testing.T) {
 				db := mock_pathdb.NewMockPathDB(ctrl)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_211)).
 					Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
 				})).Return(resultsFromSegs(tg.seg210_211), nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210))
@@ -352,12 +353,12 @@ func TestResolver(t *testing.T) {
 				db := mock_pathdb.NewMockPathDB(ctrl)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_111)).
 					Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
 				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120)).Return(&futureT, nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_130)).Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{core_120, core_130}, EndsAt: []addr.IA{core_210},
 				})).Return(resultsFromSegs(tg.seg210_120, tg.seg210_130), nil)
 				return db
@@ -390,7 +391,7 @@ func TestResolver(t *testing.T) {
 				// no cached up segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_111)).
 					Return(&futureT, nil)
-				db.EXPECT().Get(gomock.Any(), gomock.Eq(&query.Params{
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					StartsAt: []addr.IA{core_120}, EndsAt: []addr.IA{non_core_111},
 				})).Return(resultsFromSegs(tg.seg120_111), nil)
 				return db
