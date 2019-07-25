@@ -68,13 +68,13 @@ type Base struct {
 	FormatVersion FormatVersion `json:"FormatVersion"`
 	// Description is a human-readable description of the certificate.
 	Description string `json:"Description"`
+	// OptionalDistributionPoints contains optional certificate revocation
+	// distribution points.
+	OptionalDistributionPoints []addr.IA `json:"OptionalDistributionPoints"`
 	// Validity defines the validity period of the certificate.
 	Validity *scrypto.Validity `json:"Validity"`
 	// Keys holds all keys authenticated by this certificate.
 	Keys map[KeyType]scrypto.KeyMeta `json:"Keys"`
-	// OptionalDistributionPoints contains optional certificate revocation
-	// distribution points.
-	OptionalDistributionPoints []addr.IA `json:"OptionalDistributionPoints"`
 }
 
 // Validate validates the shared fields are set correctly.
