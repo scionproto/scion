@@ -77,7 +77,17 @@ func TestValidityUnmarshal(t *testing.T) {
 			Input:  `{"NotBefore": 1356048000}`,
 			Assert: assert.Error,
 		},
-		"correct": {
+		"Unknown field": {
+			Input: `
+			{
+				"UnknownField": "UNKNOWN"
+				"NotBefore": 1356048000,
+				"NotAfter": 1356134400
+			}
+			`,
+			Assert: assert.Error,
+		},
+		"Valid": {
 			Input: `
 			{
 				"NotBefore": 1356048000,

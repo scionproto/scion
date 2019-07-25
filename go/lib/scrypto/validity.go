@@ -15,6 +15,7 @@
 package scrypto
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -29,22 +30,21 @@ type Validity struct {
 	NotAfter  util.UnixTime `json:"NotAfter"`
 }
 
-type validity struct {
-	NotBefore *util.UnixTime `json:"NotBefore"`
-	NotAfter  *util.UnixTime `json:"NotAfter"`
+// Contains indicates whether the provided time is inside the validity period.
+func (v *Validity) Contains(t time.Time) bool {
+	return !t.Before(v.NotBefore.Time) && !t.After(v.NotAfter.Time)
 }
 
 // UnmarshalJSON checks that both NotBefore and NotAfter are set.
 func (v *Validity) UnmarshalJSON(b []byte) error {
 	var p validity
-	if err := json.Unmarshal(b, &p); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&p); err != nil {
 		return err
 	}
-	if p.NotBefore == nil {
-		return common.NewBasicError("NotBefore unset", nil)
-	}
-	if p.NotAfter == nil {
-		return common.NewBasicError("NotBefore unset", nil)
+	if err := p.checkAllSet(); err != nil {
+		return err
 	}
 	*v = Validity{
 		NotBefore: *p.NotBefore,
@@ -53,11 +53,21 @@ func (v *Validity) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Contains indicates whether the provided time is inside the validity period.
-func (v *Validity) Contains(t time.Time) bool {
-	return !t.Before(v.NotBefore.Time) && !t.After(v.NotAfter.Time)
-}
-
 func (v *Validity) String() string {
 	return fmt.Sprintf("[%s, %s]", v.NotBefore, v.NotAfter)
+}
+
+type validity struct {
+	NotBefore *util.UnixTime `json:"NotBefore"`
+	NotAfter  *util.UnixTime `json:"NotAfter"`
+}
+
+func (v *validity) checkAllSet() error {
+	if v.NotBefore == nil {
+		return common.NewBasicError("NotBefore unset", nil)
+	}
+	if v.NotAfter == nil {
+		return common.NewBasicError("NotBefore unset", nil)
+	}
+	return nil
 }
