@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogen gogen_clean vendor mocks bazel bazel_bin_clean gazelle setcap clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean goenv gogen vendor mocks bazel bazel_bin_clean gazelle setcap clibs libscion libfilter dispatcher uninstall tags
 
 BRACCEPT = bin/braccept
 
