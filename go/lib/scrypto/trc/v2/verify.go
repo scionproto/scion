@@ -209,9 +209,10 @@ type DecodedSignature struct {
 }
 
 func containsKeyType(keyType KeyType, keyTypes []KeyType) bool {
-	var found bool
 	for _, t := range keyTypes {
-		found = found || t == keyType
+		if t == keyType {
+			return true
+		}
 	}
-	return found
+	return false
 }
