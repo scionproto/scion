@@ -158,9 +158,8 @@ func (t *TRC) Base() bool {
 
 // ValidateInvariant ensures that the TRC invariant holds.
 func (t *TRC) ValidateInvariant() error {
-	if !t.Validity.NotAfter.After(t.Validity.NotBefore.Time) {
-		return common.NewBasicError(InvalidValidityPeriod, nil,
-			"NotBefore", t.Validity.NotBefore, "NotAfter", t.Validity.NotAfter)
+	if err := t.Validity.Validate(); err != nil {
+		return common.NewBasicError(InvalidValidityPeriod, err, "validity", t.Validity)
 	}
 	if t.VotingQuorum() <= 0 {
 		return ErrZeroVotingQuorum

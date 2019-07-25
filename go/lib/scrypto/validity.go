@@ -17,12 +17,16 @@ package scrypto
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 )
+
+// ErrInvalidValidityPeriod indicates an invalid validity period.
+var ErrInvalidValidityPeriod = errors.New("NotAfter before NotBefore")
 
 // Validity indicates a validity period.
 type Validity struct {
@@ -34,6 +38,13 @@ type Validity struct {
 func (v *Validity) Contains(t time.Time) bool {
 	return !t.Before(v.NotBefore.Time) && !t.After(v.NotAfter.Time)
 }
+
+// Validate checks that NotAfter is after NotBefore.
+func (v *Validity) Validate() error {
+	if !v.NotAfter.After(v.NotBefore.Time) {
+		return ErrInvalidValidityPeriod
+	}
+	return nil
 
 // UnmarshalJSON checks that both NotBefore and NotAfter are set.
 func (v *Validity) UnmarshalJSON(b []byte) error {
