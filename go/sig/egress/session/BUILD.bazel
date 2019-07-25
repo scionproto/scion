@@ -22,6 +22,7 @@ go_library(
         "//go/lib/spath/spathmeta:go_default_library",
         "//go/sig/disp:go_default_library",
         "//go/sig/egress:go_default_library",
+        "//go/sig/metrics:go_default_library",
         "//go/sig/mgmt:go_default_library",
         "//go/sig/sigcmn:go_default_library",
         "//go/sig/siginfo:go_default_library",
