@@ -30,10 +30,10 @@ import (
 const (
 	// InvalidKeyType indicates an inexistent key type.
 	InvalidKeyType = "invalid key type"
-	// InvalidVersion indicates an invalid TRC version.
-	InvalidVersion = "Invalid TRC version"
-	// UnsupportedFormat indicates an invalid TRC format.
-	UnsupportedFormat = "Unsupported TRC format"
+	// InvalidVersion indicates an invalid certificate version.
+	InvalidVersion = "Invalid certificate version"
+	// UnsupportedFormat indicates an invalid certificate format.
+	UnsupportedFormat = "Unsupported certificate format"
 )
 
 // Validation errors
@@ -170,8 +170,8 @@ const (
 
 var _ json.Unmarshaler = (*KeyType)(nil)
 
-// KeyType indicates the type of the key authenticated by the TRC. It can either
-// be "Signing", "Encryption", or "Issuing".
+// KeyType indicates the type of the key authenticated by the certificate. It
+// can either be "Signing", "Encryption", or "Issuing".
 type KeyType string
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -189,7 +189,7 @@ func (t *KeyType) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Version identifies the version of a TRC. It cannot be
+// Version identifies the version of a certificate. It cannot be
 // marshalled/unmarshalled to/from scrypto.LatestVer.
 type Version uint64
 
@@ -214,7 +214,7 @@ func (v Version) MarshalJSON() ([]byte, error) {
 	return json.Marshal(uint64(v))
 }
 
-// FormatVersion indicates the TRC format version. Currently, only format
+// FormatVersion indicates the certificate format version. Currently, only format
 // version 1 is supported.
 type FormatVersion uint8
 

@@ -216,7 +216,7 @@ func TestVersionMarshalJSON(t *testing.T) {
 		Version cert.Version
 	}
 	tests := map[string]struct {
-		// Use a struct to simulate TRC marshaling. Pointer vs value receiver.
+		// Use a struct to simulate certificate marshaling. Pointer vs value receiver.
 		Input     mockCert
 		Expected  []byte
 		Assertion assert.ErrorAssertionFunc
