@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "request.go",
+        "requester.go",
         "resolver.go",
         "segreplyhandler.go",
         "segs.go",
@@ -17,6 +18,7 @@ go_library(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra:go_default_library",
+        "//go/lib/infra/messenger:go_default_library",
         "//go/lib/infra/modules/segverifier:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathdb:go_default_library",
@@ -30,6 +32,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "requester_test.go",
         "resolver_test.go",
         "segreplyhandler_test.go",
         "splitter_test.go",
