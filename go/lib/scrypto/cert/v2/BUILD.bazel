@@ -20,6 +20,7 @@ go_test(
     ],
     embed = [":go_default_library"],
     deps = [
+        "//go/lib/addr:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",

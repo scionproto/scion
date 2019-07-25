@@ -21,13 +21,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-var ia110 = xtest.MustParseIA("1-ff00:0:110")
+var (
+	ia110 = xtest.MustParseIA("1-ff00:0:110")
+	ia210 = xtest.MustParseIA("2-ff00:0:210")
+)
 
 func TestBaseValidate(t *testing.T) {
 	tests := map[string]struct {
@@ -48,6 +52,12 @@ func TestBaseValidate(t *testing.T) {
 				c.Subject.I = 0
 			},
 			ExpectedErrMsg: cert.InvalidSubject,
+		},
+		"DistributionPoint wildcard": {
+			Modify: func(c *cert.Base) {
+				c.OptionalDistributionPoints = append(c.OptionalDistributionPoints, addr.IA{I: 1})
+			},
+			ExpectedErrMsg: cert.InvalidDistributionPoint,
 		},
 		"Wrong validity period": {
 			Modify: func(c *cert.Base) {
@@ -82,6 +92,7 @@ func newBaseCert() cert.Base {
 			NotBefore: util.UnixTime{Time: now},
 			NotAfter:  util.UnixTime{Time: now.Add(8760 * time.Hour)},
 		},
+		OptionalDistributionPoints: []addr.IA{ia210},
 	}
 	return c
 }
