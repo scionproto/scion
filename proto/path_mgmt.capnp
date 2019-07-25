@@ -46,7 +46,7 @@ struct SegChangesReq {
 
 struct HPGroupId {
     ownerAS @0 :UInt64;
-    groupID @1 :UInt16;
+    groupId @1 :UInt16;
 }
 
 struct HPSegReq {
@@ -57,6 +57,7 @@ struct HPSegReq {
 struct HPSegRecs {
     groupId @0 :HPGroupId;
     recs @1 :List(PSeg.PathSegMeta);
+    err @2 :Text;
 }
 
 struct HPSegReply {
