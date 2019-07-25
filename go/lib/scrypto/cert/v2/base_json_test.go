@@ -22,8 +22,118 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 )
+
+func TestBaseUnmarshalJSON(t *testing.T) {
+	tests := map[string]struct {
+		Modify         func(*genCert)
+		ModifyExpected func(*cert.AS)
+		ExpectedErrMsg string
+	}{
+		"Valid": {
+			Modify:         func(_ *genCert) {},
+			ModifyExpected: func(_ *cert.AS) {},
+		},
+		"With revocation key": {
+			Modify: func(g *genCert) {
+				(*g.Keys)[cert.RevocationKey] = scrypto.KeyMeta{
+					KeyVersion: 1,
+					Algorithm:  scrypto.Ed25519,
+					Key:        []byte{2, 110, 1},
+				}
+			},
+			ModifyExpected: func(c *cert.AS) {
+				c.Keys[cert.RevocationKey] = scrypto.KeyMeta{
+					KeyVersion: 1,
+					Algorithm:  scrypto.Ed25519,
+					Key:        []byte{2, 110, 1},
+				}
+			},
+		},
+		"Subject not set": {
+			Modify: func(g *genCert) {
+				g.Subject = nil
+			},
+			ExpectedErrMsg: cert.ErrSubjectNotSet.Error(),
+		},
+		"Version not set": {
+			Modify: func(g *genCert) {
+				g.Version = nil
+			},
+			ExpectedErrMsg: cert.ErrVersionNotSet.Error(),
+		},
+		"FormatVersion not set": {
+			Modify: func(g *genCert) {
+				g.FormatVersion = nil
+			},
+			ExpectedErrMsg: cert.ErrFormatVersionNotSet.Error(),
+		},
+		"Description not set": {
+			Modify: func(g *genCert) {
+				g.Description = nil
+			},
+			ExpectedErrMsg: cert.ErrDescriptionNotSet.Error(),
+		},
+		"OptionalDistributionPoints not set": {
+			Modify: func(g *genCert) {
+				g.OptDistPoints = nil
+			},
+			ExpectedErrMsg: cert.ErrOptionalDistributionPointsNotSet.Error(),
+		},
+		"Validity not set": {
+			Modify: func(g *genCert) {
+				g.Validity = nil
+			},
+			ExpectedErrMsg: cert.ErrValidityNotSet.Error(),
+		},
+		"Keys not set": {
+			Modify: func(g *genCert) {
+				g.Keys = nil
+			},
+			ExpectedErrMsg: cert.ErrKeysNotSet.Error(),
+		},
+		"Issuer not set": {
+			Modify: func(g *genCert) {
+				g.Issuer = nil
+			},
+			ExpectedErrMsg: cert.ErrIssuerNotSet.Error(),
+		},
+		"CertificateType not set": {
+			Modify: func(g *genCert) {
+				g.CertificateType = ""
+			},
+			ExpectedErrMsg: cert.ErrCertificateTypeNotSet.Error(),
+		},
+		"Unknown field": {
+			Modify: func(g *genCert) {
+				g.UnknownField = "true"
+			},
+			ExpectedErrMsg: `json: unknown field "UNKNOWN"`,
+		},
+	}
+	for name, test := range tests {
+		t.Run("AS certificate: "+name, func(t *testing.T) {
+			g := newGenASCert()
+			test.Modify(g)
+			b, err := json.Marshal(g)
+			require.NoError(t, err)
+			var as cert.AS
+			err = json.Unmarshal(b, &as)
+			if test.ExpectedErrMsg == "" {
+				require.NoError(t, err)
+				expected := newASCert()
+				test.ModifyExpected(&expected)
+				assert.Equal(t, expected, as)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
+			}
+		})
+	}
+}
 
 func TestKeyTypeUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
@@ -168,4 +278,17 @@ func TestFormatVersionUnmarshalJSON(t *testing.T) {
 
 		})
 	}
+}
+
+type genCert struct {
+	Subject         *addr.IA                          `json:"Subject,omitempty"`
+	Version         *scrypto.Version                  `json:"Version,omitempty"`
+	FormatVersion   *cert.FormatVersion               `json:"FormatVersion,omitempty"`
+	Description     *string                           `json:"Description,omitempty"`
+	OptDistPoints   *[]addr.IA                        `json:"OptionalDistributionPoints,omitempty"`
+	Validity        *scrypto.Validity                 `json:"Validity,omitempty"`
+	Keys            *map[cert.KeyType]scrypto.KeyMeta `json:"Keys,omitempty"`
+	Issuer          *map[string]interface{}           `json:"Issuer,omitempty"`
+	CertificateType string                            `json:"CertificateType,omitempty"`
+	UnknownField    string                            `json:"UNKNOWN,omitempty"`
 }
