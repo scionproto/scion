@@ -38,7 +38,7 @@ func TestKeyTypeUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Wrong case": {
-			Input:     `"offline"`,
+			Input:     `"signing"`,
 			Assertion: assert.Error,
 		},
 		"SigningKey": {

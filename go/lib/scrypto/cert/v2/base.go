@@ -41,6 +41,8 @@ const (
 	InvalidValidityPeriod = "invalid validity period"
 	// InvalidSubject indicates that the subject contains a wildcard.
 	InvalidSubject = "subject contains wildcard"
+	// InvalidDistributionPoint indicates that the distribution point is a wildcard.
+	InvalidDistributionPoint = "distribution point contains wildcard"
 	// UnexpectedKey indicates that the certificate holds an excess key.
 	UnexpectedKey = "unexpected key"
 	// MissingKey indicates that the certificate is missing a key.
@@ -70,6 +72,9 @@ type Base struct {
 	Validity *scrypto.Validity `json:"Validity"`
 	// Keys holds all keys authenticated by this certificate.
 	Keys map[KeyType]scrypto.KeyMeta `json:"Keys"`
+	// OptionalDistributionPoints contains optional certificate revocation
+	// distribution points.
+	OptionalDistributionPoints []addr.IA `json:"OptionalDistributionPoints"`
 }
 
 // Validate validates the shared fields are set correctly.
@@ -77,8 +82,20 @@ func (b *Base) Validate() error {
 	if b.Subject.IsWildcard() {
 		return common.NewBasicError(InvalidSubject, nil, "subject", b.Subject)
 	}
+	if err := b.validateDistributionPoints(); err != nil {
+		return err
+	}
 	if err := b.Validity.Validate(); err != nil {
 		return common.NewBasicError(InvalidValidityPeriod, err, "validity", b.Validity)
+	}
+	return nil
+}
+
+func (b *Base) validateDistributionPoints() error {
+	for _, ia := range b.OptionalDistributionPoints {
+		if ia.IsWildcard() {
+			return common.NewBasicError(InvalidDistributionPoint, nil, "IA", ia)
+		}
 	}
 	return nil
 }
