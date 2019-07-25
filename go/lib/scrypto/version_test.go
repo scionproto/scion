@@ -58,22 +58,22 @@ func TestVersionUnmarshalJSON(t *testing.T) {
 }
 
 func TestVersionMarshalJSON(t *testing.T) {
-	type mockTRC struct {
+	type mockObj struct {
 		Version scrypto.Version
 	}
 	tests := map[string]struct {
-		// Use a struct to simulate TRC marshaling. Pointer vs value receiver.
-		Input     mockTRC
+		// Use a struct to simulate value type marshaling. Pointer vs value receiver.
+		Input     mockObj
 		Expected  []byte
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:     mockTRC{Version: 1},
+			Input:     mockObj{Version: 1},
 			Expected:  []byte(`{"Version":1}`),
 			Assertion: assert.NoError,
 		},
 		"Reserved": {
-			Input:     mockTRC{Version: scrypto.Version(scrypto.LatestVer)},
+			Input:     mockObj{Version: scrypto.Version(scrypto.LatestVer)},
 			Assertion: assert.Error,
 		},
 	}
