@@ -16,6 +16,7 @@ package scrypto
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -23,15 +24,21 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
+// ErrInvalidValidityPeriod indicates an invalid validity period.
+var ErrInvalidValidityPeriod = errors.New("NotAfter before NotBefore")
+
 // Validity indicates a validity period.
 type Validity struct {
 	NotBefore util.UnixTime `json:"NotBefore"`
 	NotAfter  util.UnixTime `json:"NotAfter"`
 }
 
-type validity struct {
-	NotBefore *util.UnixTime `json:"NotBefore"`
-	NotAfter  *util.UnixTime `json:"NotAfter"`
+// Validate checks that NotAfter is after NotBefore.
+func (v *Validity) Validate() error {
+	if !v.NotAfter.After(v.NotBefore.Time) {
+		return ErrInvalidValidityPeriod
+	}
+	return nil
 }
 
 // UnmarshalJSON checks that both NotBefore and NotAfter are set.
@@ -60,4 +67,9 @@ func (v *Validity) Contains(t time.Time) bool {
 
 func (v *Validity) String() string {
 	return fmt.Sprintf("[%s, %s]", v.NotBefore, v.NotAfter)
+}
+
+type validity struct {
+	NotBefore *util.UnixTime `json:"NotBefore"`
+	NotAfter  *util.UnixTime `json:"NotAfter"`
 }
