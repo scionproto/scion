@@ -16,12 +16,14 @@ clean:
 
 goenv: vendor
 
-gogen: gogen_clean
+gogen:
+ifndef GOGEN_SKIP
+	rm -f go/proto/*.gen.go go/proto/*.capnp.go
 	bazel build //go/proto:structs //go/proto:capnp
 	cp --no-preserve=mode bazel-genfiles/go/proto/gogen/* go/proto/
-
-gogen_clean:
-	rm -f go/proto/*.gen.go go/proto/*.capnp.go
+else
+	echo "gogen: skipped"
+endif
 
 vendor:
 	./tools/vendor.sh
