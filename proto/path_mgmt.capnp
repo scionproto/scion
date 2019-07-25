@@ -57,6 +57,7 @@ struct HPSegReq {
 struct HPSegRecs {
     groupId @0 :HPGroupId;
     recs @1 :List(PSeg.PathSegMeta);
+    err @2 :Text;
 }
 
 struct HPSegReply {

@@ -28,6 +28,7 @@ var _ proto.Cerealizable = (*HPSegRecs)(nil)
 type HPSegRecs struct {
 	GroupId *HPGroupId
 	Recs    []*seg.Meta
+	Err     string
 }
 
 func (hs *HPSegRecs) ProtoId() proto.ProtoIdType {
