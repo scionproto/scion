@@ -46,7 +46,7 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 			}`,
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{"Issuing", "Core"},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.IssuingKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
@@ -87,7 +87,7 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 					}
 				}
 			}`,
-			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
+			ExpectedErrMsg: scrypto.ErrKeyVersionNotSet.Error(),
 		},
 	}
 	for name, test := range tests {
@@ -97,80 +97,6 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
 				assert.Equal(t, test.Primary, primary)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
-		})
-	}
-}
-
-func TestKeyMetaUnmarshalJSON(t *testing.T) {
-	tests := map[string]struct {
-		Input          string
-		Meta           trc.KeyMeta
-		ExpectedErrMsg string
-	}{
-		"Valid": {
-			Input: `
-			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519",
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
-			}`,
-			Meta: trc.KeyMeta{
-				KeyVersion: 1,
-				Algorithm:  scrypto.Ed25519,
-				Key:        xtest.MustParseHexString("616e617061796120e29da420207363696f6e"),
-			},
-		},
-		"KeyVersion not set": {
-			Input: `
-			{
-				"Algorithm": "ed25519",
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
-			}`,
-			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
-		},
-		"Algorithm not set": {
-			Input: `
-			{
-				"KeyVersion": 1,
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
-			}`,
-			ExpectedErrMsg: trc.ErrAlgorithmNotSet.Error(),
-		},
-		"Key not set": {
-			Input: `
-			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519"
-			}`,
-			ExpectedErrMsg: trc.ErrKeyNotSet.Error(),
-		},
-		"Unknown field": {
-			Input: `
-			{
-				"UnknownField": "UNKNOWN"
-			}`,
-			ExpectedErrMsg: `json: unknown field "UnknownField"`,
-		},
-		"invalid json": {
-			Input: `
-			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519"
-			`,
-			ExpectedErrMsg: "unexpected end of JSON input",
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			var meta trc.KeyMeta
-			err := json.Unmarshal([]byte(test.Input), &meta)
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
-				assert.Equal(t, test.Meta, meta)
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), test.ExpectedErrMsg)

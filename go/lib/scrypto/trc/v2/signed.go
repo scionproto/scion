@@ -34,6 +34,8 @@ const (
 )
 
 var (
+	// ErrAlgorithmNotSet indicates the key algorithm is not set.
+	ErrAlgorithmNotSet = errors.New("algorithm not set")
 	// ErrASNotSet indicates the AS is not set.
 	ErrASNotSet = errors.New("AS not set")
 	// ErrCritNotSet indicates that crit is not set.
@@ -112,12 +114,12 @@ func (h *EncodedProtected) Decode() (Protected, error) {
 
 // Protected is the signature metadata.
 type Protected struct {
-	Algorithm  string        `json:"alg"`
-	Type       SignatureType `json:"Type"`
-	KeyType    KeyType       `json:"KeyType"`
-	KeyVersion KeyVersion    `json:"KeyVersion"`
-	AS         addr.AS       `json:"AS"`
-	Crit       Crit          `json:"crit"`
+	Algorithm  string             `json:"alg"`
+	Type       SignatureType      `json:"Type"`
+	KeyType    KeyType            `json:"KeyType"`
+	KeyVersion scrypto.KeyVersion `json:"KeyVersion"`
+	AS         addr.AS            `json:"AS"`
+	Crit       Crit               `json:"crit"`
 }
 
 // UnmarshalJSON checks that all fields are set.
@@ -143,12 +145,12 @@ func (p *Protected) UnmarshalJSON(b []byte) error {
 }
 
 type protectedAlias struct {
-	Algorithm  *string        `json:"alg"`
-	Type       *SignatureType `json:"Type"`
-	KeyType    *KeyType       `json:"KeyType"`
-	KeyVersion *KeyVersion    `json:"KeyVersion"`
-	AS         *addr.AS       `json:"AS"`
-	Crit       *Crit          `json:"crit"`
+	Algorithm  *string             `json:"alg"`
+	Type       *SignatureType      `json:"Type"`
+	KeyType    *KeyType            `json:"KeyType"`
+	KeyVersion *scrypto.KeyVersion `json:"KeyVersion"`
+	AS         *addr.AS            `json:"AS"`
+	Crit       *Crit               `json:"crit"`
 }
 
 func (p *protectedAlias) checkAllSet() error {

@@ -143,7 +143,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				*updated.VotingQuorumPtr += 1
 				updated.PrimaryASes[a190] = trc.PrimaryAS{
 					Attributes: trc.Attributes{trc.Issuing, trc.Voting},
-					Keys: map[trc.KeyType]trc.KeyMeta{
+					Keys: map[trc.KeyType]scrypto.KeyMeta{
 						trc.OnlineKey: {
 							KeyVersion: 1,
 							Algorithm:  scrypto.Ed25519,
@@ -217,7 +217,7 @@ func TestSensitiveUpdate(t *testing.T) {
 			Modify: func(updated, _ *trc.TRC) {
 				primary := updated.PrimaryASes[a150]
 				primary.Attributes = append(primary.Attributes, trc.Issuing)
-				primary.Keys = map[trc.KeyType]trc.KeyMeta{
+				primary.Keys = map[trc.KeyType]scrypto.KeyMeta{
 					trc.IssuingKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
@@ -246,12 +246,12 @@ func TestSensitiveUpdate(t *testing.T) {
 			Modify: func(updated, _ *trc.TRC) {
 				primary := updated.PrimaryASes[a130]
 				primary.Attributes = trc.Attributes{trc.Issuing, trc.Core, trc.Voting}
-				primary.Keys[trc.OnlineKey] = trc.KeyMeta{
+				primary.Keys[trc.OnlineKey] = scrypto.KeyMeta{
 					KeyVersion: 1,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{0, 130, 1},
 				}
-				primary.Keys[trc.OfflineKey] = trc.KeyMeta{
+				primary.Keys[trc.OfflineKey] = scrypto.KeyMeta{
 					KeyVersion: 1,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{1, 130, 1},
@@ -322,7 +322,7 @@ func TestSensitiveUpdate(t *testing.T) {
 		},
 		"Update offline key": {
 			Modify: func(updated, _ *trc.TRC) {
-				updated.PrimaryASes[a110].Keys[trc.OfflineKey] = trc.KeyMeta{
+				updated.PrimaryASes[a110].Keys[trc.OfflineKey] = scrypto.KeyMeta{
 					KeyVersion: 2,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{1, 110, 2},
@@ -378,7 +378,7 @@ func TestSensitiveUpdate(t *testing.T) {
 			Modify: func(updated, _ *trc.TRC) {
 				updated.PrimaryASes[a190] = trc.PrimaryAS{
 					Attributes: trc.Attributes{trc.Voting, trc.Core},
-					Keys: map[trc.KeyType]trc.KeyMeta{
+					Keys: map[trc.KeyType]scrypto.KeyMeta{
 						trc.OnlineKey: {
 							KeyVersion: 1,
 							Algorithm:  scrypto.Ed25519,
@@ -399,7 +399,7 @@ func TestSensitiveUpdate(t *testing.T) {
 			Modify: func(updated, _ *trc.TRC) {
 				updated.PrimaryASes[a190] = trc.PrimaryAS{
 					Attributes: trc.Attributes{trc.Voting, trc.Core},
-					Keys: map[trc.KeyType]trc.KeyMeta{
+					Keys: map[trc.KeyType]scrypto.KeyMeta{
 						trc.OnlineKey: {
 							KeyVersion: 1,
 							Algorithm:  scrypto.Ed25519,
@@ -442,7 +442,7 @@ func TestSensitiveUpdate(t *testing.T) {
 		},
 		"Update offline key without proof of possession": {
 			Modify: func(updated, _ *trc.TRC) {
-				updated.PrimaryASes[a110].Keys[trc.OfflineKey] = trc.KeyMeta{
+				updated.PrimaryASes[a110].Keys[trc.OfflineKey] = scrypto.KeyMeta{
 					KeyVersion: 2,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{1, 110, 2},
@@ -571,7 +571,7 @@ func TestRegularUpdate(t *testing.T) {
 		},
 		"Update issuing key": {
 			Modify: func(updated, _ *trc.TRC) {
-				updated.PrimaryASes[a110].Keys[trc.IssuingKey] = trc.KeyMeta{
+				updated.PrimaryASes[a110].Keys[trc.IssuingKey] = scrypto.KeyMeta{
 					KeyVersion: 2,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{2, 110, 2},
@@ -595,7 +595,7 @@ func TestRegularUpdate(t *testing.T) {
 		},
 		"Update online key": {
 			Modify: func(updated, _ *trc.TRC) {
-				updated.PrimaryASes[a110].Keys[trc.OnlineKey] = trc.KeyMeta{
+				updated.PrimaryASes[a110].Keys[trc.OnlineKey] = scrypto.KeyMeta{
 					KeyVersion: 2,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{0, 110, 2},
@@ -668,7 +668,7 @@ func TestRegularUpdate(t *testing.T) {
 		},
 		"Missing proof of possession": {
 			Modify: func(updated, _ *trc.TRC) {
-				updated.PrimaryASes[a110].Keys[trc.OnlineKey] = trc.KeyMeta{
+				updated.PrimaryASes[a110].Keys[trc.OnlineKey] = scrypto.KeyMeta{
 					KeyVersion: 2,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{0, 110, 2},
@@ -688,7 +688,7 @@ func TestRegularUpdate(t *testing.T) {
 		},
 		"Update online key with online vote": {
 			Modify: func(updated, _ *trc.TRC) {
-				updated.PrimaryASes[a110].Keys[trc.OnlineKey] = trc.KeyMeta{
+				updated.PrimaryASes[a110].Keys[trc.OnlineKey] = scrypto.KeyMeta{
 					KeyVersion: 2,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{0, 110, 2},
@@ -701,7 +701,7 @@ func TestRegularUpdate(t *testing.T) {
 			Modify: func(updated, prev *trc.TRC) {
 				*prev.VotingQuorumPtr = 2
 				*updated.VotingQuorumPtr = 2
-				updated.PrimaryASes[a110].Keys[trc.OnlineKey] = trc.KeyMeta{
+				updated.PrimaryASes[a110].Keys[trc.OnlineKey] = scrypto.KeyMeta{
 					KeyVersion: 2,
 					Algorithm:  scrypto.Ed25519,
 					Key:        []byte{0, 110, 2},

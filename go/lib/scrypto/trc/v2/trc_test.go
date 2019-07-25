@@ -164,7 +164,7 @@ func newBaseTRC() *trc.TRC {
 		PrimaryASes: trc.PrimaryASes{
 			a110: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Authoritative, trc.Core, trc.Voting, trc.Issuing},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
@@ -184,7 +184,7 @@ func newBaseTRC() *trc.TRC {
 			},
 			a120: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
@@ -199,7 +199,7 @@ func newBaseTRC() *trc.TRC {
 			},
 			a130: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Issuing},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.IssuingKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
@@ -209,7 +209,7 @@ func newBaseTRC() *trc.TRC {
 			},
 			a140: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,

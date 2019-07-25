@@ -33,7 +33,7 @@ func TestPrimaryASesValidateInvariant(t *testing.T) {
 			Primaries: trc.PrimaryASes{
 				a110: trc.PrimaryAS{
 					Attributes: trc.Attributes{trc.Voting},
-					Keys: map[trc.KeyType]trc.KeyMeta{
+					Keys: map[trc.KeyType]scrypto.KeyMeta{
 						trc.OfflineKey: {
 							KeyVersion: 1,
 							Algorithm:  scrypto.Ed25519,
@@ -48,7 +48,7 @@ func TestPrimaryASesValidateInvariant(t *testing.T) {
 			Primaries: trc.PrimaryASes{
 				a110: trc.PrimaryAS{
 					Attributes: trc.Attributes{trc.Core},
-					Keys: map[trc.KeyType]trc.KeyMeta{
+					Keys: map[trc.KeyType]scrypto.KeyMeta{
 						trc.OfflineKey: {
 							KeyVersion: 1,
 							Algorithm:  scrypto.Ed25519,
@@ -164,7 +164,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 		"Non-Core and Authoritative": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Authoritative},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey:  {},
 					trc.OfflineKey: {},
 				},
@@ -174,7 +174,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 		"Voting AS without online key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OfflineKey: {},
 				},
 			},
@@ -183,7 +183,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 		"Voting AS without offline key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey: {},
 				},
 			},
@@ -192,7 +192,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 		"Voting AS with issuing key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey:  {},
 					trc.OfflineKey: {},
 					trc.IssuingKey: {},
@@ -203,14 +203,14 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 		"Issuer AS without issuing key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Issuing},
-				Keys:       make(map[trc.KeyType]trc.KeyMeta),
+				Keys:       make(map[trc.KeyType]scrypto.KeyMeta),
 			},
 			ExpectedErrMsg: trc.MissingKey,
 		},
 		"Issuer AS with online key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Issuing},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey:  {},
 					trc.IssuingKey: {},
 				},
@@ -225,7 +225,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 		"Valid Voting": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey:  {},
 					trc.OfflineKey: {},
 				},
@@ -234,7 +234,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 		"Valid Issuing": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Issuing},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.IssuingKey: {},
 				},
 			},
@@ -247,7 +247,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 		"Valid multi": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Authoritative, trc.Issuing, trc.Core, trc.Voting},
-				Keys: map[trc.KeyType]trc.KeyMeta{
+				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.OnlineKey:  {},
 					trc.OfflineKey: {},
 					trc.IssuingKey: {},

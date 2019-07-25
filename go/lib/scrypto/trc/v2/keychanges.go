@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 const (
@@ -29,7 +30,7 @@ const (
 )
 
 // ASToKeyMeta maps an AS to its key metadata for a single key type.
-type ASToKeyMeta map[addr.AS]KeyMeta
+type ASToKeyMeta map[addr.AS]scrypto.KeyMeta
 
 // KeyChanges contains all new keys in a TRC update.
 type KeyChanges struct {
@@ -81,7 +82,7 @@ func (c *KeyChanges) insertModifications(as addr.AS, prev, next PrimaryAS) error
 // If the algorithm and key are not modified by the update, the version must not
 // change. If they are modified, the version must be increased by one. The
 // return value indicates, whether the update is a modification.
-func ValidateKeyUpdate(prev, next KeyMeta) (bool, error) {
+func ValidateKeyUpdate(prev, next scrypto.KeyMeta) (bool, error) {
 	modified := next.Algorithm != prev.Algorithm || !bytes.Equal(next.Key, prev.Key)
 	switch {
 	case modified && next.KeyVersion != prev.KeyVersion+1:

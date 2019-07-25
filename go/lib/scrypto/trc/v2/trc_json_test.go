@@ -30,8 +30,8 @@ import (
 
 type genTRC struct {
 	ISD               *addr.ISD                  `json:"ISD,omitempty"`
-	Version           *trc.Version               `json:"TRCVersion,omitempty"`
-	BaseVersion       *trc.Version               `json:"BaseVersion,omitempty"`
+	Version           *scrypto.Version           `json:"TRCVersion,omitempty"`
+	BaseVersion       *scrypto.Version           `json:"BaseVersion,omitempty"`
 	Description       *string                    `json:"Description,omitempty"`
 	VotingQuorum      *uint8                     `json:"VotingQuorum,omitempty"`
 	FormatVersion     *trc.FormatVersion         `json:"FormatVersion,omitempty"`
@@ -243,68 +243,6 @@ func TestFormatVersionUnmarshalJSON(t *testing.T) {
 			test.Assertion(t, json.Unmarshal(test.Input, &v))
 			assert.Equal(t, test.Expected, v)
 
-		})
-	}
-}
-
-func TestVersionUnmarshalJSON(t *testing.T) {
-	tests := map[string]struct {
-		Input     []byte
-		Expected  trc.Version
-		Assertion assert.ErrorAssertionFunc
-	}{
-		"Valid": {
-			Input:     []byte("1"),
-			Expected:  1,
-			Assertion: assert.NoError,
-		},
-		"Reserved": {
-			Input:     []byte(strconv.FormatUint(scrypto.LatestVer, 10)),
-			Assertion: assert.Error,
-		},
-		"String": {
-			Input:     []byte(`"1"`),
-			Assertion: assert.Error,
-		},
-		"Garbage": {
-			Input:     []byte(`"Garbage"`),
-			Assertion: assert.Error,
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			var v trc.Version
-			test.Assertion(t, json.Unmarshal(test.Input, &v))
-			assert.Equal(t, test.Expected, v)
-		})
-	}
-}
-
-func TestVersionMarshalJSON(t *testing.T) {
-	type mockTRC struct {
-		Version trc.Version
-	}
-	tests := map[string]struct {
-		// Use a struct to simulate TRC marshaling. Pointer vs value receiver.
-		Input     mockTRC
-		Expected  []byte
-		Assertion assert.ErrorAssertionFunc
-	}{
-		"Valid": {
-			Input:     mockTRC{Version: 1},
-			Expected:  []byte(`{"Version":1}`),
-			Assertion: assert.NoError,
-		},
-		"Reserved": {
-			Input:     mockTRC{Version: trc.Version(scrypto.LatestVer)},
-			Assertion: assert.Error,
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			b, err := json.Marshal(test.Input)
-			test.Assertion(t, err)
-			assert.Equal(t, test.Expected, b)
 		})
 	}
 }
