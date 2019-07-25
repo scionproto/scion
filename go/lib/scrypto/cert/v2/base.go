@@ -33,7 +33,7 @@ const (
 	UnsupportedFormat = "Unsupported certificate format"
 )
 
-// Validation errors
+// Validation errors with context.
 const (
 	// InvalidValidityPeriod indicates an invalid validity period.
 	InvalidValidityPeriod = "invalid validity period"
@@ -47,6 +47,29 @@ const (
 	MissingKey = "missing key"
 )
 
+// Parsing errors.
+var (
+	// ErrSubjectNotSet indicates Subject is not set.
+	ErrSubjectNotSet = errors.New("Subject not set")
+	// ErrVersionNotSet indicates Version is not set.
+	ErrVersionNotSet = errors.New("Version not set")
+	// ErrFormatVersionNotSet indicates FormatVersion is not set.
+	ErrFormatVersionNotSet = errors.New("FormatVersion not set")
+	// ErrDescriptionNotSet indicates Description is not set.
+	ErrDescriptionNotSet = errors.New("Description not set")
+	// ErrOptionalDistributionPointsNotSet indicates OptionalDistributionPoints is not set.
+	ErrOptionalDistributionPointsNotSet = errors.New("OptionalDistributionPoints not set")
+	// ErrValidityNotSet indicates Validity is not set.
+	ErrValidityNotSet = errors.New("Validity not set")
+	// ErrKeysNotSet indicates Keys is not set.
+	ErrKeysNotSet = errors.New("Keys not set")
+	// ErrIssuerNotSet indicates Issuer is not set.
+	ErrIssuerNotSet = errors.New("Issuer not set")
+	// ErrCertificateTypeNotSet indicates CertificateType is not set.
+	ErrCertificateTypeNotSet = errors.New("CertificateType not set")
+)
+
+// Validation errors.
 var (
 	// ErrAlgorithmNotSet indicates the key algorithm is not set.
 	ErrAlgorithmNotSet = errors.New("algorithm not set")
@@ -118,6 +141,26 @@ func (b *Base) checkKeyExistence(keyType KeyType, shouldExist bool) error {
 	}
 	if !ok && shouldExist {
 		return common.NewBasicError(MissingKey, nil, "type", keyType)
+	}
+	return nil
+}
+
+func (b *Base) checkAllSet() error {
+	switch {
+	case b.Subject.IsZero():
+		return ErrSubjectNotSet
+	case b.Version == 0:
+		return ErrVersionNotSet
+	case b.FormatVersion == 0:
+		return ErrFormatVersionNotSet
+	case b.Description == "":
+		return ErrDescriptionNotSet
+	case b.OptionalDistributionPoints == nil:
+		return ErrOptionalDistributionPointsNotSet
+	case b.Validity == nil:
+		return ErrValidityNotSet
+	case b.Keys == nil:
+		return ErrKeysNotSet
 	}
 	return nil
 }
