@@ -17,14 +17,18 @@
 package matchers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"reflect"
+	"sort"
 
 	"github.com/golang/mock/gomock"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -112,4 +116,50 @@ func (m *SignedRevs) Matches(x interface{}) bool {
 
 func (m *SignedRevs) String() string {
 	return fmt.Sprintf("is slice of signed revocations matching %v and verifiable", m.MatchRevs)
+}
+
+// EqParams returns a matcher for the given query parameters.
+func EqParams(query *query.Params) *QueryParams {
+	return &QueryParams{query: query}
+}
+
+// QueryParams is a matcher for query parameters.
+type QueryParams struct {
+	query *query.Params
+}
+
+// Matches returns whether x matches the defined query parameter ignoring the
+// order of the slices.
+func (m *QueryParams) Matches(x interface{}) bool {
+	query, ok := x.(*query.Params)
+	if !ok {
+		return false
+	}
+	sort.Slice(query.SegIDs, func(i, j int) bool {
+		return bytes.Compare(query.SegIDs[i], query.SegIDs[j]) < 0
+	})
+	sort.Slice(query.SegTypes, func(i, j int) bool {
+		return query.SegTypes[i] < query.SegTypes[j]
+	})
+	sort.Slice(query.HpCfgIDs, func(i, j int) bool {
+		return (query.HpCfgIDs[i].IA.IAInt() < query.HpCfgIDs[j].IA.IAInt()) ||
+			(query.HpCfgIDs[i].IA.IAInt() == query.HpCfgIDs[j].IA.IAInt() &&
+				query.HpCfgIDs[i].ID < query.HpCfgIDs[j].ID)
+	})
+	sort.Slice(query.Intfs, func(i, j int) bool {
+		return (query.Intfs[i].IA.IAInt() < query.Intfs[j].IA.IAInt()) ||
+			(query.Intfs[i].IA.IAInt() == query.Intfs[j].IA.IAInt() &&
+				query.Intfs[i].IfID < query.Intfs[j].IfID)
+	})
+	sort.Slice(query.StartsAt, func(i, j int) bool {
+		return query.StartsAt[i].IAInt() < query.StartsAt[j].IAInt()
+	})
+	sort.Slice(query.EndsAt, func(i, j int) bool {
+		return query.EndsAt[i].IAInt() < query.EndsAt[j].IAInt()
+	})
+	return reflect.DeepEqual(m.query, query)
+}
+
+func (m *QueryParams) String() string {
+	return fmt.Sprintf("is query.Params = %v", m.query)
 }
