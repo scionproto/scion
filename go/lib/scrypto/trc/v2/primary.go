@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 // Parsing errors with context.
@@ -57,11 +58,6 @@ var (
 	ErrAttributesNotSet = errors.New("attributes not set")
 	// ErrKeysNotSet indicates the keys in a primary AS are not set.
 	ErrKeysNotSet = errors.New("keys not set")
-
-	// ErrAlgorithmNotSet indicates the key algorithm is not set.
-	ErrAlgorithmNotSet = errors.New("algorithm not set")
-	// ErrKeyNotSet indicates the key is not set.
-	ErrKeyNotSet = errors.New("key not set")
 )
 
 // PrimaryASes holds all primary ASes and maps them to their attributes and keys.
@@ -104,8 +100,8 @@ type primaryASAlias PrimaryAS
 
 // PrimaryAS holds the attributes and keys of a primary AS.
 type PrimaryAS struct {
-	Attributes Attributes          `json:"Attributes"`
-	Keys       map[KeyType]KeyMeta `json:"Keys"`
+	Attributes Attributes                  `json:"Attributes"`
+	Keys       map[KeyType]scrypto.KeyMeta `json:"Keys"`
 }
 
 // Is returns true if the primary AS holds this property.
@@ -166,58 +162,6 @@ func (p *PrimaryAS) checkAllSet() error {
 	}
 	return nil
 }
-
-// KeyMeta holds the key with metadata. TODO(roosd): rename to key. Inspect all
-// occurrences of trc.Key in the codebase, as they are different things.
-type KeyMeta struct {
-	// KeyVersion identifies the key. It must change if the key changes, and
-	// stay the same if the key does not change.
-	KeyVersion KeyVersion `json:"KeyVersion"`
-	// Algorithm indicates the algorithm associated with the key.
-	Algorithm string `json:"Algorithm"`
-	// Key is the raw public key.
-	Key common.RawBytes `json:"Key"`
-}
-
-// UnmarshalJSON checks that all fields are set.
-func (m *KeyMeta) UnmarshalJSON(b []byte) error {
-	var alias keyMetaAlias
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&alias); err != nil {
-		return err
-	}
-	if err := alias.checkAllSet(); err != nil {
-		return err
-	}
-	*m = KeyMeta{
-		KeyVersion: *alias.KeyVersion,
-		Algorithm:  *alias.Algorithm,
-		Key:        *alias.Key,
-	}
-	return nil
-}
-
-type keyMetaAlias struct {
-	KeyVersion *KeyVersion      `json:"KeyVersion"`
-	Algorithm  *string          `json:"Algorithm"`
-	Key        *common.RawBytes `json:"Key"`
-}
-
-func (m *keyMetaAlias) checkAllSet() error {
-	switch {
-	case m.KeyVersion == nil:
-		return ErrKeyVersionNotSet
-	case m.Algorithm == nil:
-		return ErrAlgorithmNotSet
-	case m.Key == nil:
-		return ErrKeyNotSet
-	}
-	return nil
-}
-
-// KeyVersion identifies a key for a given KeyType and ISD-AS.
-type KeyVersion uint64
 
 var _ json.Marshaler = (*Attributes)(nil)
 var _ json.Unmarshaler = (*Attributes)(nil)

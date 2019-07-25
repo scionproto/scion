@@ -5,9 +5,11 @@ go_library(
     srcs = [
         "asym.go",
         "defs.go",
+        "keymeta.go",
         "mac.go",
         "rand.go",
         "validity.go",
+        "version.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/scrypto",
     visibility = ["//visibility:public"],
@@ -24,8 +26,10 @@ go_test(
     name = "go_default_test",
     srcs = [
         "asym_test.go",
+        "keymeta_test.go",
         "rand_test.go",
         "validity_test.go",
+        "version_test.go",
     ],
     embed = [":go_default_library"],
     deps = [

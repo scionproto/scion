@@ -17,6 +17,7 @@ package trc
 import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 const (
@@ -69,7 +70,7 @@ func (v *popValidator) popForModType(changes map[KeyType]ASToKeyMeta) error {
 	return nil
 }
 
-func (v *popValidator) popForKeyType(keyType KeyType, m map[addr.AS]KeyMeta) error {
+func (v *popValidator) popForKeyType(keyType KeyType, m map[addr.AS]scrypto.KeyMeta) error {
 	for as := range m {
 		if !v.hasPop(v.TRC.ProofOfPossession[as], keyType) {
 			return common.NewBasicError(MissingProofOfPossession, nil, "AS", as, "keyType", keyType)

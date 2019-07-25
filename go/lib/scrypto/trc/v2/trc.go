@@ -37,13 +37,8 @@ const (
 	VotingQuorumTooLarge = "voting quorum too large"
 )
 
-// Parse errors with context
-const (
-	// UnsupportedFormat indicates an invalid TRC format.
-	UnsupportedFormat = "Unsupported TRC format"
-	// InvalidVersion indicates an invalid TRC version.
-	InvalidVersion = "Invalid TRC version"
-)
+// UnsupportedFormat indicates an invalid TRC format.
+const UnsupportedFormat = "unsupported TRC format"
 
 // Invariant errors
 var (
@@ -115,10 +110,10 @@ type TRC struct {
 	ISD addr.ISD `json:"ISD"`
 	// Version is the version number of the TRC.
 	// The value scrypto.LatestVer is reserved and shall not be used.
-	Version Version `json:"TRCVersion"`
+	Version scrypto.Version `json:"TRCVersion"`
 	// BaseVersion indicates the initial TRC version for this TRC chain.
 	// If BaseVersion equals TRCVersion this TRC is a base TRC.
-	BaseVersion Version `json:"BaseVersion"`
+	BaseVersion scrypto.Version `json:"BaseVersion"`
 	// Description is an human-readable description of the ISD.
 	Description string `json:"Description"`
 	// VotingQuorum is the number of signatures the next TRC needs from voting
@@ -257,7 +252,7 @@ type Vote struct {
 	// Type is the type of key that is used to issue the signature.
 	Type KeyType `json:"Type"`
 	// KeyVersion is the key version of the key that is used to issue the signautre.
-	KeyVersion KeyVersion `json:"KeyVersion"`
+	KeyVersion scrypto.KeyVersion `json:"KeyVersion"`
 }
 
 // UnmarshalJSON checks that all fields are set.
@@ -279,8 +274,8 @@ func (v *Vote) UnmarshalJSON(b []byte) error {
 }
 
 type voteAlias struct {
-	Type       *KeyType    `json:"Type"`
-	KeyVersion *KeyVersion `json:"KeyVersion"`
+	Type       *KeyType            `json:"Type"`
+	KeyVersion *scrypto.KeyVersion `json:"KeyVersion"`
 }
 
 func (v *voteAlias) checkAllSet() error {
@@ -292,8 +287,6 @@ func (v *voteAlias) checkAllSet() error {
 	}
 	return nil
 }
-
-var _ json.Unmarshaler = (*Version)(nil)
 
 // FormatVersion indicates the TRC format version. Currently, only format
 // version 1 is supported.
@@ -310,34 +303,6 @@ func (v *FormatVersion) UnmarshalJSON(b []byte) error {
 	}
 	*v = FormatVersion(parsed)
 	return nil
-}
-
-var _ json.Unmarshaler = (*Version)(nil)
-var _ json.Marshaler = (*Version)(nil)
-
-// Version identifies the version of a TRC. It cannot be
-// marshalled/unmarshalled to/from scrypto.LatestVer.
-type Version uint64
-
-// UnmarshalJSON checks that the value is not scrypto.LatestVer.
-func (v *Version) UnmarshalJSON(b []byte) error {
-	parsed, err := strconv.ParseUint(string(b), 10, 64)
-	if err != nil {
-		return err
-	}
-	if parsed == scrypto.LatestVer {
-		return common.NewBasicError(InvalidVersion, nil, "ver", parsed)
-	}
-	*v = Version(parsed)
-	return nil
-}
-
-// MarshalJSON checks that the value is not scrypto.LatestVer.
-func (v Version) MarshalJSON() ([]byte, error) {
-	if uint64(v) == scrypto.LatestVer {
-		return nil, common.NewBasicError(InvalidVersion, nil, "ver", v)
-	}
-	return json.Marshal(uint64(v))
 }
 
 // Period indicates a time duration.
