@@ -45,6 +45,7 @@ func (v *Validity) Validate() error {
 		return ErrInvalidValidityPeriod
 	}
 	return nil
+}
 
 // UnmarshalJSON checks that both NotBefore and NotAfter are set.
 func (v *Validity) UnmarshalJSON(b []byte) error {
