@@ -10,6 +10,7 @@ go_library(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/infra/modules/segfetcher:go_default_library",
         "//go/lib/infra/modules/segverifier:go_default_library",
+        "//go/lib/pathdb/query:go_default_library",
         "//go/lib/scrypto/trc:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
     ],
