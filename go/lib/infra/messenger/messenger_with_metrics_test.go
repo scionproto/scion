@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 )
 
-// TestMessengerWithMetricsCallsUnderlyingMessenger test that the messenger
+// TestMessengerWithMetricsCallsUnderlyingMessenger tests that the messenger
 // with metrics always calls the underlying messenger function. The test is
 // implemented with reflection so that newly added methods are also tested.
 func TestMessengerWithMetricsCallsUnderlyingMessenger(t *testing.T) {

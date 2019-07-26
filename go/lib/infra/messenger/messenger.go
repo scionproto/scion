@@ -30,8 +30,13 @@
 //  infra.SegReq              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
 //  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
 //  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
-//  infra.SignedRev              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SignedRevInfo
+//  infra.SignedRev           -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SignedRevInfo
 //  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
+//  infra.HPSegReq            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReg
+//  infra.HPSegRequest        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReq
+//  infra.HPSegReply          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReply
+//  infra.HPCfgRequest        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPCfgReq
+//  infra.HPCfgReply          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPCfgReply
 //  infra.ChainIssueRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssReq
 //  infra.ChainIssueReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssRep
 //
@@ -527,6 +532,103 @@ func (m *Messenger) SendSegChangesReply(ctx context.Context, msg *path_mgmt.SegC
 	return m.getFallbackRequester(infra.SegChangesReply).Notify(ctx, pld, a)
 }
 
+func (m *Messenger) SendHPSegReg(ctx context.Context, msg *path_mgmt.HPSegReg, a net.Addr,
+	id uint64) error {
+
+	pld, err := path_mgmt.NewPld(msg, nil)
+	if err != nil {
+		return err
+	}
+	return m.sendMessage(ctx, pld, a, id, infra.HPSegReg)
+}
+
+func (m *Messenger) GetHPSegs(ctx context.Context, msg *path_mgmt.HPSegReq, a net.Addr,
+	id uint64) (*path_mgmt.HPSegReply, error) {
+
+	logger := log.FromCtx(ctx)
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	if err != nil {
+		return nil, err
+	}
+	logger.Trace("[Messenger] Sending request", "req_type", infra.HPSegRequest,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, err := m.getFallbackRequester(infra.HPSegRequest).Request(ctx, pld, a, false)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Request error", err)
+	}
+	_, replyMsg, err := validate(replyCtrlPld)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
+	}
+	switch reply := replyMsg.(type) {
+	case *path_mgmt.HPSegReply:
+		if err := reply.ParseRaw(); err != nil {
+			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
+		}
+		logger.Trace("[Messenger] Received reply", "req_id", id)
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
+		err := newTypeAssertErr("*path_mgmt.HPSegReply", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
+	}
+}
+
+func (m *Messenger) SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply, a net.Addr,
+	id uint64) error {
+
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.HPSegReply, "to", a, "id", id)
+	return m.getFallbackRequester(infra.HPSegReply).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq, a net.Addr,
+	id uint64) (*path_mgmt.HPCfgReply, error) {
+
+	logger := log.FromCtx(ctx)
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	if err != nil {
+		return nil, err
+	}
+	logger.Trace("[Messenger] Sending request", "req_type", infra.HPCfgRequest,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, err := m.getFallbackRequester(infra.HPCfgRequest).Request(ctx, pld, a, false)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Request error", err)
+	}
+	_, replyMsg, err := validate(replyCtrlPld)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
+	}
+	switch reply := replyMsg.(type) {
+	case *path_mgmt.HPCfgReply:
+		logger.Trace("[Messenger] Received reply", "req_id", id)
+		return reply, nil
+	case *ack.Ack:
+		return nil, &infra.Error{Message: reply}
+	default:
+		err := newTypeAssertErr("*path_mgmt.HPCfgReply", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
+	}
+}
+
+func (m *Messenger) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply, a net.Addr,
+	id uint64) error {
+
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.HPCfgReply, "to", a, "id", id)
+	return m.getFallbackRequester(infra.HPCfgReply).Notify(ctx, pld, a)
+}
+
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
@@ -998,6 +1100,16 @@ func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 			return infra.SegChangesReq, pld.PathMgmt.SegChangesReq, nil
 		case proto.PathMgmt_Which_segChangesReply:
 			return infra.SegChangesReply, pld.PathMgmt.SegChangesReply, nil
+		case proto.PathMgmt_Which_hpSegReq:
+			return infra.HPSegRequest, pld.PathMgmt.HPSegReq, nil
+		case proto.PathMgmt_Which_hpSegReply:
+			return infra.HPSegReply, pld.PathMgmt.HPSegReply, nil
+		case proto.PathMgmt_Which_hpSegReg:
+			return infra.HPSegReg, pld.PathMgmt.HPSegReg, nil
+		case proto.PathMgmt_Which_hpCfgReq:
+			return infra.HPCfgRequest, pld.PathMgmt.HPCfgReq, nil
+		case proto.PathMgmt_Which_hpCfgReply:
+			return infra.HPCfgReply, pld.PathMgmt.HPCfgReply, nil
 		default:
 			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",

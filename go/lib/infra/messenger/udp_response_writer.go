@@ -59,3 +59,11 @@ func (rw *UDPResponseWriter) SendIfStateInfoReply(ctx context.Context,
 
 	return rw.Messenger.SendIfStateInfos(ctx, msg, rw.Remote, rw.ID)
 }
+
+func (rw *UDPResponseWriter) SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error {
+	return rw.Messenger.SendHPSegReply(ctx, msg, rw.Remote, rw.ID)
+}
+
+func (rw *UDPResponseWriter) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply) error {
+	return rw.Messenger.SendHPCfgReply(ctx, msg, rw.Remote, rw.ID)
+}

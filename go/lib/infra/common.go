@@ -146,6 +146,11 @@ const (
 	ChainIssueRequest
 	ChainIssueReply
 	Ack
+	HPSegReg
+	HPSegRequest
+	HPSegReply
+	HPCfgRequest
+	HPCfgReply
 )
 
 func (mt MessageType) String() string {
@@ -192,6 +197,16 @@ func (mt MessageType) String() string {
 		return "ChainIssueReply"
 	case Ack:
 		return "Ack"
+	case HPSegReg:
+		return "HPSegReg"
+	case HPSegRequest:
+		return "HPSegRequest"
+	case HPSegReply:
+		return "HPSegReply"
+	case HPCfgRequest:
+		return "HPCfgRequest"
+	case HPCfgReply:
+		return "HPCfgReply"
 	default:
 		return fmt.Sprintf("Unknown (%d)", mt)
 	}
@@ -243,6 +258,16 @@ func (mt MessageType) MetricLabel() string {
 		return "chain_issue_push"
 	case Ack:
 		return "ack_push"
+	case HPSegReg:
+		return "hp_seg_reg_push"
+	case HPSegRequest:
+		return "hp_seg_req"
+	case HPSegReply:
+		return "hp_seg_push"
+	case HPCfgRequest:
+		return "hp_cfg_req"
+	case HPCfgReply:
+		return "hp_cfg_push"
 	default:
 		return "unknown_mt"
 	}
@@ -323,6 +348,13 @@ type Messenger interface {
 		a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error)
 	SendSegChangesReply(ctx context.Context,
 		msg *path_mgmt.SegChangesReply, a net.Addr, id uint64) error
+	SendHPSegReg(ctx context.Context, msg *path_mgmt.HPSegReg, a net.Addr, id uint64) error
+	GetHPSegs(ctx context.Context, msg *path_mgmt.HPSegReq, a net.Addr,
+		id uint64) (*path_mgmt.HPSegReply, error)
+	SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply, a net.Addr, id uint64) error
+	GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq, a net.Addr,
+		id uint64) (*path_mgmt.HPCfgReply, error)
+	SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply, a net.Addr, id uint64) error
 	RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
@@ -342,6 +374,8 @@ type ResponseWriter interface {
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep) error
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error
 	SendIfStateInfoReply(ctx context.Context, msg *path_mgmt.IFStateInfos) error
+	SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error
+	SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply) error
 }
 
 func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {

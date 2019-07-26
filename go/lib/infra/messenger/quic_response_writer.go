@@ -109,6 +109,32 @@ func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
 	return common.NewBasicError("IFStateInfos responses not supported in QUIC", nil)
 }
 
+func (rw *QUICResponseWriter) SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error {
+	go func() {
+		defer log.LogPanicAndExit()
+		<-ctx.Done()
+		rw.ReplyWriter.Close()
+	}()
+	ctrlPld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: rw.ID})
+	if err != nil {
+		return err
+	}
+	return rw.sendMessage(ctrlPld)
+}
+
+func (rw *QUICResponseWriter) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply) error {
+	go func() {
+		defer log.LogPanicAndExit()
+		<-ctx.Done()
+		rw.ReplyWriter.Close()
+	}()
+	ctrlPld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: rw.ID})
+	if err != nil {
+		return err
+	}
+	return rw.sendMessage(ctrlPld)
+}
+
 func (rw *QUICResponseWriter) sendMessage(ctrlPld *ctrl.Pld) error {
 	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
 	if err != nil {
