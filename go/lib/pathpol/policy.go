@@ -28,7 +28,7 @@ import (
 
 // ExtPolicy is an extending policy, it may have a list of policies it extends
 type ExtPolicy struct {
-	Extends []string `json:",omitempty"`
+	Extends []string `json:"extends,omitempty"`
 	*Policy
 }
 
@@ -40,9 +40,9 @@ type PolicyMap map[string]*ExtPolicy
 // Policy is a compiled path policy object, all extended policies have been merged.
 type Policy struct {
 	Name     string    `json:"-"`
-	ACL      *ACL      `json:",omitempty"`
-	Sequence *Sequence `json:",omitempty"`
-	Options  []Option  `json:",omitempty"`
+	ACL      *ACL      `json:"acl,omitempty"`
+	Sequence *Sequence `json:"sequence,omitempty"`
+	Options  []Option  `json:"options,omitempty"`
 }
 
 // NewPolicy creates a Policy and sorts its Options
