@@ -22,7 +22,6 @@ import (
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
-	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -132,8 +131,7 @@ func (r *Registrar) run(ctx context.Context) error {
 			r.metrics.IncInternalErr(r.segType)
 			continue
 		}
-		intf := r.cfg.Intfs.Get(bOrErr.Beacon.InIfId)
-		if intf == nil || intf.State() != ifstate.Active {
+		if !r.IntfActive(bOrErr.Beacon.InIfId) {
 			continue
 		}
 		expected++

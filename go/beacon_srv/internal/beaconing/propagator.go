@@ -114,9 +114,6 @@ func (p *Propagator) run(ctx context.Context) error {
 		logger.Debug("[beaconing.Propagator] Ignore non-active peering interfaces",
 			"ifids", nonActivePeers)
 	}
-	if len(intfs) == 0 {
-		return nil
-	}
 	beacons, err := p.provider.BeaconsToPropagate(ctx)
 	if err != nil {
 		p.metrics.IncInternalErr()
@@ -128,6 +125,9 @@ func (p *Propagator) run(ctx context.Context) error {
 		if bOrErr.Err != nil {
 			logger.Error("[beaconing.Propagator] Unable to get beacon", "err", bOrErr.Err)
 			p.metrics.IncInternalErr()
+			continue
+		}
+		if !p.IntfActive(bOrErr.Beacon.InIfId) {
 			continue
 		}
 		b := beaconPropagator{
