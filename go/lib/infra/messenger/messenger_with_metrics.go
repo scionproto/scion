@@ -190,6 +190,52 @@ func (m *MessengerWithMetrics) SendSegChangesReply(ctx context.Context,
 	})
 }
 
+func (m *MessengerWithMetrics) SendHPSegReg(ctx context.Context, msg *path_mgmt.HPSegReg,
+	a net.Addr, id uint64) error {
+
+	return observe(ctx, infra.HPSegReg, func(ctx context.Context) error {
+		return m.messenger.SendHPSegReg(ctx, msg, a, id)
+	})
+}
+
+func (m *MessengerWithMetrics) GetHPSegs(ctx context.Context, msg *path_mgmt.HPSegReq,
+	a net.Addr, id uint64) (*path_mgmt.HPSegReply, error) {
+
+	var segs *path_mgmt.HPSegReply
+	return segs, observe(ctx, infra.HPSegRequest, func(ctx context.Context) error {
+		var err error
+		segs, err = m.messenger.GetHPSegs(ctx, msg, a, id)
+		return err
+	})
+}
+
+func (m *MessengerWithMetrics) SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply,
+	a net.Addr, id uint64) error {
+
+	return observe(ctx, infra.HPSegReply, func(ctx context.Context) error {
+		return m.messenger.SendHPSegReply(ctx, msg, a, id)
+	})
+}
+
+func (m *MessengerWithMetrics) GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq,
+	a net.Addr, id uint64) (*path_mgmt.HPCfgReply, error) {
+
+	var cfgs *path_mgmt.HPCfgReply
+	return cfgs, observe(ctx, infra.HPCfgRequest, func(ctx context.Context) error {
+		var err error
+		cfgs, err = m.messenger.GetHPCfgs(ctx, msg, a, id)
+		return err
+	})
+}
+
+func (m *MessengerWithMetrics) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply,
+	a net.Addr, id uint64) error {
+
+	return observe(ctx, infra.HPCfgReply, func(ctx context.Context) error {
+		return m.messenger.SendHPCfgReply(ctx, msg, a, id)
+	})
+}
+
 func (m *MessengerWithMetrics) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq,
 	a net.Addr, id uint64) (*cert_mgmt.ChainIssRep, error) {
 
