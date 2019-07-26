@@ -90,7 +90,7 @@ func (s *SegSyncer) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	cPs, err := s.getDstAddr(ctx)
 	if err != nil {
-		log.Error("[segsyncer.SegSyncer] Failed to find path to remote",
+		logger.Error("[segsyncer.SegSyncer] Failed to find path to remote",
 			"dstIA", s.dstIA, "err", err)
 		s.repErrCnt++
 		return
