@@ -114,6 +114,9 @@ func (p *Propagator) run(ctx context.Context) error {
 		logger.Debug("[beaconing.Propagator] Ignore non-active peering interfaces",
 			"ifids", nonActivePeers)
 	}
+	if len(intfs) == 0 {
+		return nil
+	}
 	beacons, err := p.provider.BeaconsToPropagate(ctx)
 	if err != nil {
 		p.metrics.IncInternalErr()
