@@ -40,7 +40,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter,Verifier"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/messenger", "LocalSVCRouter,Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/segfetcher",
-            "PathDB,Storage,TRCProvider,Verifier"),
+            "DstProvider,PathDB,RequestAPI,Storage,TRCProvider,Verifier"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),
         (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
         (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),
