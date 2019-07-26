@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -22,5 +22,17 @@ go_library(
         "//go/sig/mgmt:go_default_library",
         "//go/sig/sigcmn:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["worker_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/ringbuf:go_default_library",
+        "//go/lib/snet:go_default_library",
+        "//go/sig/metrics:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )
