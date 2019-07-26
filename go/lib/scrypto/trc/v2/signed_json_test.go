@@ -277,7 +277,10 @@ func TestCritUnmarshalJSON(t *testing.T) {
 }
 
 func TestCritMarshalJSON(t *testing.T) {
-	b, err := json.Marshal(trc.Protected{})
+	mockProtected := struct {
+		Crit trc.Crit `json:"crit"`
+	}{}
+	b, err := json.Marshal(mockProtected)
 	require.NoError(t, err)
 	var protected struct {
 		Crit []string `json:"crit"`

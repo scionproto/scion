@@ -15,10 +15,8 @@
 package cert
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
-	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -125,33 +123,58 @@ func (b *Base) checkKeyExistence(keyType KeyType, shouldExist bool) error {
 }
 
 const (
-	// IssuingKey is the issuing key type. It must only appear in issuer certificates.
-	IssuingKey KeyType = "Issuing"
-	// SigningKey is the signing key type. It must only appear in AS certificates.
-	SigningKey KeyType = "Signing"
-	// EncryptionKey is the encryption key type. It must only appear in AS certificates.
-	EncryptionKey KeyType = "Encryption"
+	issuingKey    = "Issuing"
+	signingKey    = "Signing"
+	encryptionKey = "Encryption"
+	revocationKey = "Revocation"
 )
 
-var _ json.Unmarshaler = (*KeyType)(nil)
+const (
+	unknownKey KeyType = iota
+	// IssuingKey is the issuing key type. It must only appear in issuer certificates.
+	IssuingKey
+	// SigningKey is the signing key type. It must only appear in AS certificates.
+	SigningKey
+	// EncryptionKey is the encryption key type. It must only appear in AS certificates.
+	EncryptionKey
+	// RevocationKey is the revocation key type. It may appear in AS and issuer certificates.
+	RevocationKey
+)
 
 // KeyType indicates the type of the key authenticated by the certificate. It
 // can either be "Signing", "Encryption", or "Issuing".
-type KeyType string
+type KeyType int
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (t *KeyType) UnmarshalJSON(b []byte) error {
-	switch KeyType(strings.Trim(string(b), `"`)) {
-	case SigningKey:
-		*t = SigningKey
-	case EncryptionKey:
-		*t = EncryptionKey
-	case IssuingKey:
+// UnmarshalText allows KeyType to be used as a map key and do validation when parsing.
+func (t *KeyType) UnmarshalText(b []byte) error {
+	switch string(b) {
+	case issuingKey:
 		*t = IssuingKey
+	case signingKey:
+		*t = SigningKey
+	case encryptionKey:
+		*t = EncryptionKey
+	case revocationKey:
+		*t = RevocationKey
 	default:
 		return common.NewBasicError(InvalidKeyType, nil, "input", string(b))
 	}
 	return nil
+}
+
+// MarshalText is implemented to allow KeyType to be used as JSON map key.
+func (t KeyType) MarshalText() ([]byte, error) {
+	switch t {
+	case IssuingKey:
+		return []byte(issuingKey), nil
+	case SigningKey:
+		return []byte(signingKey), nil
+	case EncryptionKey:
+		return []byte(encryptionKey), nil
+	case RevocationKey:
+		return []byte(revocationKey), nil
+	}
+	return nil, common.NewBasicError(InvalidKeyType, nil, "type", int(t))
 }
 
 // FormatVersion indicates the certificate format version. Currently, only format
