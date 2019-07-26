@@ -17,6 +17,8 @@ package ingress
 import (
 	"fmt"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -27,7 +29,22 @@ import (
 const (
 	// frameBufCap is the size of a preallocated frame buffer.
 	frameBufCap = 65535
+	// freeFramesCap is the number of preallocated Framebuf objects.
+	freeFramesCap = 1024
 )
+
+var (
+	// Cache of the frame buffers free to be used.
+	freeFrames *ringbuf.Ring
+)
+
+func NewFrameBufs(frames ringbuf.EntryList) int {
+	if freeFrames == nil {
+		initFreeFrames()
+	}
+	n, _ := freeFrames.Read(frames, true)
+	return n
+}
 
 // FrameBuf is a struct used to reassemble encapsulated packets spread over
 // multiple SIG frames. It contains the raw bytes and metadata needed for reassembly.
@@ -85,6 +102,9 @@ func (fb *FrameBuf) Reset() {
 // Release reset the FrameBuf and releases it back to the ringbuf (if set).
 func (fb *FrameBuf) Release() {
 	fb.Reset()
+	if freeFrames == nil {
+		initFreeFrames()
+	}
 	freeFrames.Write(ringbuf.EntryList{fb}, true)
 }
 
@@ -140,4 +160,10 @@ func (fb *FrameBuf) String() string {
 	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d frag0Start: %d processed: (%t, %t, %t)",
 		fb.seqNr, fb.index, fb.frameLen, fb.frag0Start, fb.fragNProcessed, fb.frag0Processed,
 		fb.completePktsProcessed)
+}
+
+func initFreeFrames() {
+	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
+		return NewFrameBuf()
+	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
 }

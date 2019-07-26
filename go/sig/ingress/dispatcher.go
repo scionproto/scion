@@ -20,8 +20,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -38,40 +36,31 @@ const (
 	tunDevName = "scion-local"
 	// workerCleanupInterval is the interval between worker cleanup rounds.
 	workerCleanupInterval = 60 * time.Second
-	// freeFramesCap is the number of preallocated Framebuf objects.
-	freeFramesCap = 1024
-)
-
-var (
-	extConn            snet.Conn
-	tunIO              io.ReadWriteCloser
-	freeFrames         *ringbuf.Ring
-	framesRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 )
 
 // Dispatcher reads new encapsulated packets, classifies the packet by
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
 type Dispatcher struct {
-	laddr   *snet.Addr
-	workers map[string]*Worker
+	laddr              *snet.Addr
+	workers            map[string]*Worker
+	extConn            snet.Conn
+	tunIO              io.ReadWriteCloser
+	framesRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
 func NewDispatcher(tio io.ReadWriteCloser) *Dispatcher {
-	tunIO = tio
-	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
-		return NewFrameBuf()
-	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
-	framesRecvCounters = make(map[metrics.CtrPairKey]metrics.CtrPair)
 	return &Dispatcher{
-		laddr:   sigcmn.EncapSnetAddr(),
-		workers: make(map[string]*Worker),
+		tunIO:              tio,
+		framesRecvCounters: make(map[metrics.CtrPairKey]metrics.CtrPair),
+		laddr:              sigcmn.EncapSnetAddr(),
+		workers:            make(map[string]*Worker),
 	}
 }
 
 func (d *Dispatcher) Run() error {
 	var err error
-	extConn, err = snet.ListenSCION("udp4", d.laddr)
+	d.extConn, err = snet.ListenSCION("udp4", d.laddr)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize extConn", err)
 	}
@@ -82,10 +71,10 @@ func (d *Dispatcher) read() error {
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()
 	for {
-		n, _ := freeFrames.Read(frames, true)
+		n := NewFrameBufs(frames)
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*FrameBuf)
-			read, src, err := extConn.ReadFromSCION(frame.raw)
+			read, src, err := d.extConn.ReadFromSCION(frame.raw)
 			if err != nil {
 				log.Error("IngressDispatcher: Unable to read from external ingress", "err", err)
 				if reliable.IsDispatcherError(err) {
@@ -95,7 +84,7 @@ func (d *Dispatcher) read() error {
 			} else {
 				frame.frameLen = read
 				frame.sessId = mgmt.SessionType((frame.raw[0]))
-				updateMetrics(src.IA.IAInt(), frame.sessId, read)
+				d.updateMetrics(src.IA.IAInt(), frame.sessId, read)
 				d.dispatch(frame, src)
 			}
 			// Clear FrameBuf reference
@@ -115,7 +104,7 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 	// Check if we already have a worker running and start one if not.
 	worker, ok := d.workers[dispatchStr]
 	if !ok {
-		worker = NewWorker(src, frame.sessId)
+		worker = NewWorker(src, frame.sessId, d.tunIO)
 		d.workers[dispatchStr] = worker
 		go func() {
 			defer log.LogPanicAndExit()
@@ -142,16 +131,16 @@ func (d *Dispatcher) cleanup() {
 	}
 }
 
-func updateMetrics(remoteIA addr.IAInt, sessId mgmt.SessionType, read int) {
+func (d *Dispatcher) updateMetrics(remoteIA addr.IAInt, sessId mgmt.SessionType, read int) {
 	key := metrics.CtrPairKey{RemoteIA: remoteIA, SessId: sessId}
-	counters, ok := framesRecvCounters[key]
+	counters, ok := d.framesRecvCounters[key]
 	if !ok {
 		iaStr := remoteIA.IA().String()
 		counters = metrics.CtrPair{
 			Pkts:  metrics.FramesRecv.WithLabelValues(iaStr, sessId.String()),
 			Bytes: metrics.FrameBytesRecv.WithLabelValues(iaStr, sessId.String()),
 		}
-		framesRecvCounters[key] = counters
+		d.framesRecvCounters[key] = counters
 	}
 	counters.Pkts.Inc()
 	counters.Bytes.Add(float64(read))
