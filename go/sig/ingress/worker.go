@@ -16,6 +16,7 @@
 package ingress
 
 import (
+	"io"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -48,9 +49,10 @@ type Worker struct {
 	rlists           map[int]*ReassemblyList
 	markedForCleanup bool
 	sentCtrs         metrics.CtrPair
+	tunIO            io.ReadWriteCloser
 }
 
-func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
+func NewWorker(remote *snet.Addr, sessId mgmt.SessionType, tunIO io.ReadWriteCloser) *Worker {
 	// FIXME(kormat): these labels don't allow us to identify traffic from a
 	// specific remote sig, but adding the remote sig addr would cause a label
 	// explosion :/
@@ -69,6 +71,7 @@ func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 			Bytes: metrics.PktBytesSent.WithLabelValues(remote.IA.String(),
 				sessId.String()),
 		},
+		tunIO: tunIO,
 	}
 	return worker
 }
@@ -156,7 +159,7 @@ func (w *Worker) cleanup() {
 }
 
 func (w *Worker) send(packet common.RawBytes) error {
-	bytesWritten, err := tunIO.Write(packet)
+	bytesWritten, err := w.tunIO.Write(packet)
 	if err != nil {
 		return common.NewBasicError("Unable to write to internal ingress", err,
 			"length", len(packet))
