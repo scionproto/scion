@@ -62,8 +62,8 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 				"Keys": {
 					"Issuing": {
 						"KeyVersion": 1,
-    					"Algorithm": "ed25519",
-    					"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+						"Algorithm": "ed25519",
+						"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
 					}
 				}
 			}`,
@@ -82,12 +82,26 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 				"Attributes": ["Issuing", "Core"],
 				"Keys": {
 					"Issuing": {
-    					"Algorithm": "ed25519",
-    					"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+						"Algorithm": "ed25519",
+						"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
 					}
 				}
 			}`,
 			ExpectedErrMsg: scrypto.ErrKeyVersionNotSet.Error(),
+		},
+		"Unknown key": {
+			Input: `
+			{
+				"Attributes": ["Core"],
+				"Keys": {
+					"Signing": {
+						"KeyVersion": 1,
+						"Algorithm": "ed25519",
+						"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+					}
+				}
+			}`,
+			ExpectedErrMsg: trc.InvalidKeyType,
 		},
 	}
 	for name, test := range tests {
@@ -270,4 +284,62 @@ func TestKeyTypeUnmarshalJSON(t *testing.T) {
 			assert.Equal(t, test.Expected, attr)
 		})
 	}
+}
+
+func TestKeyTypeUnmarshalJSONMapKey(t *testing.T) {
+	tests := map[string]struct {
+		Input     string
+		Assertion assert.ErrorAssertionFunc
+	}{
+		"Invalid KeyType": {
+			Input: `
+			{
+				"unknown": "key"
+			}`,
+			Assertion: assert.Error,
+		},
+		"Valid": {
+			Input: `
+			{
+				"Issuing": "key"
+			}`,
+			Assertion: assert.NoError,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var m map[trc.KeyType]string
+			test.Assertion(t, json.Unmarshal([]byte(test.Input), &m))
+		})
+	}
+}
+
+func TestKeyTypeMarshal(t *testing.T) {
+	tests := map[string]struct {
+		KeyType trc.KeyType
+	}{
+		"OfflineKey": {
+			KeyType: trc.OfflineKey,
+		},
+		"OnlineKey": {
+			KeyType: trc.OnlineKey,
+		},
+		"IssuingKey": {
+			KeyType: trc.IssuingKey,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			b, err := json.Marshal(test.KeyType)
+			require.NoError(t, err)
+			var keyType trc.KeyType
+			err = json.Unmarshal(b, &keyType)
+			require.NoError(t, err)
+			assert.Equal(t, test.KeyType, keyType)
+		})
+	}
+	t.Run("Invalid value", func(t *testing.T) {
+		_, err := json.Marshal(trc.KeyType(100))
+		assert.Error(t, err)
+	})
 }
