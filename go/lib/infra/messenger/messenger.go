@@ -583,8 +583,8 @@ func (m *Messenger) SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegRepl
 		return err
 	}
 	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
-	return m.getFallbackRequester(infra.SegReply).Notify(ctx, pld, a)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.HPSegReply, "to", a, "id", id)
+	return m.getFallbackRequester(infra.HPSegReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq, a net.Addr,
@@ -626,7 +626,7 @@ func (m *Messenger) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgRepl
 	}
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.HPCfgReply, "to", a, "id", id)
-	return m.getFallbackRequester(infra.HPSegReply).Notify(ctx, pld, a)
+	return m.getFallbackRequester(infra.HPCfgReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,

@@ -197,12 +197,12 @@ func (mt MessageType) String() string {
 		return "ChainIssueReply"
 	case Ack:
 		return "Ack"
+	case HPSegReg:
+		return "HPSegReg"
 	case HPSegRequest:
 		return "HPSegRequest"
 	case HPSegReply:
 		return "HPSegReply"
-	case HPSegReg:
-		return "HPSegReg"
 	case HPCfgRequest:
 		return "HPCfgRequest"
 	case HPCfgReply:
@@ -258,12 +258,12 @@ func (mt MessageType) MetricLabel() string {
 		return "chain_issue_push"
 	case Ack:
 		return "ack_push"
+	case HPSegReg:
+		return "hp_seg_reg_push"
 	case HPSegRequest:
 		return "hp_seg_req"
 	case HPSegReply:
 		return "hp_seg_push"
-	case HPSegReg:
-		return "hp_seg_reg_push"
 	case HPCfgRequest:
 		return "hp_cfg_req"
 	case HPCfgReply:

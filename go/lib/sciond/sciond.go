@@ -181,10 +181,7 @@ func (c *connector) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 				Dst:      dst.IAInt(),
 				Src:      src.IAInt(),
 				MaxPaths: max,
-				// TODO(chaehni): set HPCfgs to nil until it is clear what the client
-				// API looks like to properly set this
-				HPCfgs: nil,
-				Flags:  f,
+				Flags:    f,
 			},
 		},
 		nil,
