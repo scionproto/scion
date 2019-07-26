@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 )
@@ -56,6 +57,11 @@ func TestKeyTypeUnmarshalJSON(t *testing.T) {
 			Assertion: assert.NoError,
 			Expected:  cert.IssuingKey,
 		},
+		"RevocationKey": {
+			Input:     `"Revocation"`,
+			Assertion: assert.NoError,
+			Expected:  cert.RevocationKey,
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -64,6 +70,67 @@ func TestKeyTypeUnmarshalJSON(t *testing.T) {
 			assert.Equal(t, test.Expected, keyType)
 		})
 	}
+}
+
+func TestKeyTypeUnmarshalJSONMapKey(t *testing.T) {
+	tests := map[string]struct {
+		Input     string
+		Assertion assert.ErrorAssertionFunc
+	}{
+		"Invalid KeyType": {
+			Input: `
+			{
+				"unknown": "key"
+			}`,
+			Assertion: assert.Error,
+		},
+		"Valid": {
+			Input: `
+			{
+				"Issuing": "key"
+			}`,
+			Assertion: assert.NoError,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var m map[cert.KeyType]string
+			test.Assertion(t, json.Unmarshal([]byte(test.Input), &m))
+		})
+	}
+}
+
+func TestKeyTypeMarshal(t *testing.T) {
+	tests := map[string]struct {
+		KeyType cert.KeyType
+	}{
+		"IssuingKey": {
+			KeyType: cert.IssuingKey,
+		},
+		"SigningKey": {
+			KeyType: cert.SigningKey,
+		},
+		"EncryptionKey": {
+			KeyType: cert.EncryptionKey,
+		},
+		"RevocationKey": {
+			KeyType: cert.RevocationKey,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			b, err := json.Marshal(test.KeyType)
+			require.NoError(t, err)
+			var keyType cert.KeyType
+			err = json.Unmarshal(b, &keyType)
+			require.NoError(t, err)
+			assert.Equal(t, test.KeyType, keyType)
+		})
+	}
+	t.Run("Invalid value", func(t *testing.T) {
+		_, err := json.Marshal(cert.KeyType(100))
+		assert.Error(t, err)
+	})
 }
 
 func TestFormatVersionUnmarshalJSON(t *testing.T) {
