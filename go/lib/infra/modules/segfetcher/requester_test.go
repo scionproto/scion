@@ -195,14 +195,14 @@ func TestRequester(t *testing.T) {
 			defer cancelF()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			destProvider := mock_segfetcher.NewMockDestProvider(ctrl)
-			destProvider.EXPECT().GetDest(gomock.Any(), gomock.Any()).AnyTimes()
+			destProvider := mock_segfetcher.NewMockDstProvider(ctrl)
+			destProvider.EXPECT().Dst(gomock.Any(), gomock.Any()).AnyTimes()
 			api := mock_segfetcher.NewMockRequestAPI(ctrl)
 			expectedReplies := test.Expect(api)
 
 			requester := segfetcher.Requester{
-				API:          api,
-				DestProvider: destProvider,
+				API:         api,
+				DstProvider: destProvider,
 			}
 			var replies []segfetcher.ReplyOrErr
 			for r := range requester.Request(ctx, test.Req) {

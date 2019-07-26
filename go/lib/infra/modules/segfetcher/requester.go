@@ -30,9 +30,9 @@ type RequestAPI interface {
 		id uint64) (*path_mgmt.SegReply, error)
 }
 
-// DestProvider provides the destination for a segment lookup.
-type DestProvider interface {
-	GetDest(context.Context, Request) (net.Addr, error)
+// DstProvider provides the destination for a segment lookup.
+type DstProvider interface {
+	Dst(context.Context, Request) (net.Addr, error)
 }
 
 // ReplyOrErr is a seg reply or an error.
@@ -43,11 +43,13 @@ type ReplyOrErr struct {
 
 // Requester requests all segments that can be requested from a request set.
 type Requester struct {
-	API          RequestAPI
-	DestProvider DestProvider
+	API         RequestAPI
+	DstProvider DstProvider
 }
 
-// Request the missing segments from the remote. Note that
+// Request the missing segments from the remote. Note that this might only
+// fetch a part of the full request set, i.e. if up or down segments are set,
+// cores are not yet fetched, assuming the cores are not resolved.
 func (r *Requester) Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr {
 	switch {
 	case req.Up.IsZero() && req.Down.IsZero():
@@ -67,7 +69,7 @@ func (r *Requester) fetchReqs(ctx context.Context, reqs Requests) <-chan ReplyOr
 	var wg sync.WaitGroup
 	for i := range reqs {
 		req := reqs[i]
-		dst, err := r.DestProvider.GetDest(ctx, req)
+		dst, err := r.DstProvider.Dst(ctx, req)
 		if err != nil {
 			replies <- ReplyOrErr{Err: err}
 			continue
@@ -88,7 +90,6 @@ func (r *Requester) fetchReqs(ctx context.Context, reqs Requests) <-chan ReplyOr
 		defer log.LogPanicAndExit()
 		defer close(replies)
 		wg.Wait()
-
 	}()
 	return replies
 }
