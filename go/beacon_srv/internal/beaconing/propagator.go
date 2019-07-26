@@ -127,6 +127,9 @@ func (p *Propagator) run(ctx context.Context) error {
 			p.metrics.IncInternalErr()
 			continue
 		}
+		if !p.IntfActive(bOrErr.Beacon.InIfId) {
+			continue
+		}
 		b := beaconPropagator{
 			Propagator:  p,
 			beacon:      bOrErr.Beacon,

@@ -185,3 +185,9 @@ func (s *segExtender) createHopF(inIfid, egIfid common.IFIDType, prev common.Raw
 	hop.Mac = hop.CalcMac(s.cfg.Mac, util.TimeToSecs(ts), prev)
 	return hop, nil
 }
+
+// IntfActive returns whether the interface is active.
+func (s *segExtender) IntfActive(ifid common.IFIDType) bool {
+	intf := s.cfg.Intfs.Get(ifid)
+	return intf != nil && intf.State() == ifstate.Active
+}

@@ -131,6 +131,9 @@ func (r *Registrar) run(ctx context.Context) error {
 			r.metrics.IncInternalErr(r.segType)
 			continue
 		}
+		if !r.IntfActive(bOrErr.Beacon.InIfId) {
+			continue
+		}
 		expected++
 		s := segmentRegistrar{
 			Registrar: r,
