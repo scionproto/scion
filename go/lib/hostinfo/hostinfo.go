@@ -74,6 +74,13 @@ func (h *HostInfo) Overlay() (*overlay.OverlayAddr, error) {
 	return overlay.NewOverlayAddr(h.Host(), l4)
 }
 
+func (h *HostInfo) Copy() *HostInfo {
+	res := &HostInfo{Port: h.Port}
+	copy(res.Addrs.Ipv4, h.Addrs.Ipv4)
+	copy(res.Addrs.Ipv6, h.Addrs.Ipv6)
+	return res
+}
+
 func (h *HostInfo) String() string {
 	return fmt.Sprintf("[%v]:%d", h.Host(), h.Port)
 }
