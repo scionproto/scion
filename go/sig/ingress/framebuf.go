@@ -79,7 +79,7 @@ type FrameBuf struct {
 	snd sender
 }
 
-func NewFrameBuf() *FrameBuf {
+func newFrameBuf() *FrameBuf {
 	buf := &FrameBuf{raw: make(common.RawBytes, frameBufCap)}
 	buf.Reset()
 	return buf
@@ -117,6 +117,7 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 	}
 	offset := fb.index * 8
 	var pktLen int
+	fmt.Printf("offset %d frameLen %d\n", offset, fb.frameLen)
 	for offset < fb.frameLen {
 		pktLen = int(common.Order.Uint16(fb.raw[offset : offset+2]))
 		offset += 2
@@ -164,6 +165,6 @@ func (fb *FrameBuf) String() string {
 
 func initFreeFrames() {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
-		return NewFrameBuf()
+		return newFrameBuf()
 	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
 }
