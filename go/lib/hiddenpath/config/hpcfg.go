@@ -129,18 +129,9 @@ func (h *HPCfg) HasRegistry(ia addr.IA) bool {
 
 // ToMsg retruns h as Cerializable message suitable to be sent via messenger
 func (h *HPCfg) ToMsg() *path_mgmt.HPCfg {
-	var writers []addr.IAInt
-	for _, i := range h.Writers {
-		writers = append(writers, i.IAInt())
-	}
-	var readers []addr.IAInt
-	for _, i := range h.Readers {
-		readers = append(readers, i.IAInt())
-	}
-	var registries []addr.IAInt
-	for _, i := range h.Registries {
-		registries = append(registries, i.IAInt())
-	}
+	writers := toIAInt(h.Writers)
+	readers := toIAInt(h.Readers)
+	registries := toIAInt(h.Registries)
 	return &path_mgmt.HPCfg{
 		GroupId:    h.GroupId,
 		Version:    uint32(h.Version),
@@ -153,18 +144,9 @@ func (h *HPCfg) ToMsg() *path_mgmt.HPCfg {
 
 // FromMsg retruns a HPCfg from the Cerializable representation
 func FromMsg(m *path_mgmt.HPCfg) *HPCfg {
-	var writers []addr.IA
-	for _, i := range m.Writers {
-		writers = append(writers, i.IA())
-	}
-	var readers []addr.IA
-	for _, i := range m.Readers {
-		readers = append(readers, i.IA())
-	}
-	var registries []addr.IA
-	for _, i := range m.Registries {
-		registries = append(registries, i.IA())
-	}
+	writers := toIA(m.Writers)
+	readers := toIA(m.Readers)
+	registries := toIA(m.Registries)
 	return &HPCfg{
 		GroupId: m.GroupId,
 		Version: uint(m.Version),
@@ -176,4 +158,20 @@ func FromMsg(m *path_mgmt.HPCfg) *HPCfg {
 		Readers:    readers,
 		Registries: registries,
 	}
+}
+
+func toIAInt(in []addr.IA) []addr.IAInt {
+	var out []addr.IAInt
+	for _, i := range in {
+		out = append(out, i.IAInt())
+	}
+	return out
+}
+
+func toIA(in []addr.IAInt) []addr.IA {
+	var out []addr.IA
+	for _, i := range in {
+		out = append(out, i.IA())
+	}
+	return out
 }
