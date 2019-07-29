@@ -42,7 +42,7 @@ var _ proto.Cerealizable = (*HPCfg)(nil)
 type HPCfg struct {
 	GroupId    *HPGroupId
 	Version    uint32
-	OwnerISD   uint16
+	OwnerISD   addr.ISD
 	Writers    []addr.IAInt
 	Readers    []addr.IAInt
 	Registries []addr.IAInt
