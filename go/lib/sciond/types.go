@@ -167,6 +167,16 @@ type PathReplyEntry struct {
 	HostInfo hostinfo.HostInfo
 }
 
+func (e *PathReplyEntry) Copy() *PathReplyEntry {
+	if e == nil {
+		return nil
+	}
+	return &PathReplyEntry{
+		Path:     e.Path.Copy(),
+		HostInfo: *e.HostInfo.Copy(),
+	}
+}
+
 func (e *PathReplyEntry) String() string {
 	return fmt.Sprintf("%v NextHop=%v", e.Path, &e.HostInfo)
 }
@@ -196,6 +206,19 @@ func (fpm *FwdPathMeta) DstIA() addr.IA {
 
 func (fpm *FwdPathMeta) Expiry() time.Time {
 	return util.SecsToTime(fpm.ExpTime)
+}
+
+func (fpm *FwdPathMeta) Copy() *FwdPathMeta {
+	if fpm == nil {
+		return nil
+	}
+	res := &FwdPathMeta{Mtu: fpm.Mtu, ExpTime: fpm.ExpTime}
+	res.FwdPath = common.CloneByteSlice(fpm.FwdPath)
+	if fpm.Interfaces != nil {
+		res.Interfaces = make([]PathInterface, len(fpm.Interfaces))
+		copy(res.Interfaces, fpm.Interfaces)
+	}
+	return res
 }
 
 func (fpm *FwdPathMeta) String() string {

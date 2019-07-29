@@ -44,6 +44,16 @@ func (sp *SessPath) IsCloseToExpiry() bool {
 	return sp.PathEntry().Path.Expiry().Before(time.Now().Add(SafetyInterval))
 }
 
+func (sp *SessPath) Copy() *SessPath {
+	if sp == nil {
+		return nil
+	}
+	return &SessPath{
+		key:       sp.key,
+		pathEntry: sp.pathEntry.Copy(),
+	}
+}
+
 func (sp *SessPath) String() string {
 	return fmt.Sprintf("Key: %s %s", sp.key, sp.pathEntry.Path)
 }
