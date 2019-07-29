@@ -568,8 +568,8 @@ update) TRCs.
 - __certificate_type__: string. Indicates whether the subject is allowed to issue certificates
   for other ASes. Can be either `issuer` (can issue certificate) or `as` (cannot). This field also
   determines the contents of the __issuer__ section.
-- __optional_distribution_points__: Array string. Additional certificate revocation distribution
-  points formatted as ISD-AS string. They must be authoritative in their ISD.
+- __optional_distribution_points__: Array string. Additional optimistic certificate revocation
+  distribution points formatted as ISD-AS string. They must be authoritative in their ISD.
 
 ### Certificate Section: `validity`
 
