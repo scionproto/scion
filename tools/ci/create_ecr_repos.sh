@@ -1,3 +1,4 @@
+#!/bin/bash
 set -e
 
 REPOS="dispatcher border dispatcher_go sig beacon cert path sciond tester sig_acceptance scion_ci"
@@ -7,5 +8,5 @@ LIFECYCLE_POLICY_TEXT='{"rules":[{"rulePriority":1,"description":"Delete_after_o
 for repo in $REPOS; do
     echo "Creating $repo and attaching delete policy to it"
     aws ecr create-repository --repository-name $repo
-    aws ecr put-lifecycle-policy --repository-name $repo --lifecycle-policy-text $LIFECYCLE_POLICY_TEXT
+    aws ecr put-lifecycle-policy --repository-name $repo --lifecycle-policy-text "$LIFECYCLE_POLICY_TEXT"
 done
