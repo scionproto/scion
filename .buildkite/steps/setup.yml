@@ -3,7 +3,6 @@
     - $BASE/scripts/build_scion_img
     - make -C docker/perapp app_builder
     - docker tag scion_app_builder "$SCION_IMG"
-    - $BASE/scripts/registry_login
     - docker push $SCION_IMG
   artifact_paths:
     - "artifacts.out/**/*"

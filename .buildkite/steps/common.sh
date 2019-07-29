@@ -5,7 +5,6 @@ log() {
 prepare() {
     mkdir -p "artifacts.out"
     $BASE/scripts/clean_env &>> "$STEP_LOG"
-    $BASE/scripts/registry_login &>> "$STEP_LOG"
     mkdir -p $SCION_MOUNT
     docker pull $SCION_IMG &>> "$STEP_LOG"
     softnet_stat_snapshot

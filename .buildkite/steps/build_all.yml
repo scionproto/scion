@@ -1,6 +1,5 @@
 - label: "Perapp images :docker: :bazel:"
   command:
-  - $BASE/scripts/registry_login
   - echo "$(date -u +"%F %T.%6N%z") Pull scion image"
   - docker pull $SCION_IMG
   - echo "$(date -u +"%F %T.%6N%z") Tag scion image"
