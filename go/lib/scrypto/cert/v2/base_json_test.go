@@ -16,6 +16,7 @@ package cert_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -102,29 +103,31 @@ func TestKeyTypeUnmarshalJSONMapKey(t *testing.T) {
 
 func TestKeyTypeMarshal(t *testing.T) {
 	tests := map[string]struct {
-		KeyType cert.KeyType
+		KeyType  cert.KeyType
+		Expected string
 	}{
 		"IssuingKey": {
-			KeyType: cert.IssuingKey,
+			KeyType:  cert.IssuingKey,
+			Expected: cert.IssuingKeyJSON,
 		},
 		"SigningKey": {
-			KeyType: cert.SigningKey,
+			KeyType:  cert.SigningKey,
+			Expected: cert.SigningKeyJSON,
 		},
 		"EncryptionKey": {
-			KeyType: cert.EncryptionKey,
+			KeyType:  cert.EncryptionKey,
+			Expected: cert.EncryptionKeyJSON,
 		},
 		"RevocationKey": {
-			KeyType: cert.RevocationKey,
+			KeyType:  cert.RevocationKey,
+			Expected: cert.RevocationKeyJSON,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			b, err := json.Marshal(test.KeyType)
 			require.NoError(t, err)
-			var keyType cert.KeyType
-			err = json.Unmarshal(b, &keyType)
-			require.NoError(t, err)
-			assert.Equal(t, test.KeyType, keyType)
+			assert.Equal(t, test.Expected, strings.Trim(string(b), `"`))
 		})
 	}
 	t.Run("Invalid value", func(t *testing.T) {

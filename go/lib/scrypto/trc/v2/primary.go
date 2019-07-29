@@ -242,9 +242,9 @@ func (t *Attribute) UnmarshalJSON(b []byte) error {
 }
 
 const (
-	issuingKey = "Issuing"
-	onlineKey  = "Online"
-	offlineKey = "Offline"
+	IssuingKeyJSON = "Issuing"
+	OnlineKeyJSON  = "Online"
+	OfflineKeyJSON = "Offline"
 )
 
 const (
@@ -257,8 +257,7 @@ const (
 	OfflineKey
 )
 
-// KeyType indicates the type of the key authenticated by the TRC. It can either
-// be "Online", "Offline", or "Issuing".
+// KeyType indicates the type of the key authenticated by the TRC.
 //
 // Because KeyType is used as a map key, it cannot be a string type. (see:
 // https://github.com/golang/go/issues/33298)
@@ -267,11 +266,11 @@ type KeyType int
 // UnmarshalText allows KeyType to be used as a map key and do validation when parsing.
 func (t *KeyType) UnmarshalText(b []byte) error {
 	switch string(b) {
-	case onlineKey:
+	case OnlineKeyJSON:
 		*t = OnlineKey
-	case offlineKey:
+	case OfflineKeyJSON:
 		*t = OfflineKey
-	case issuingKey:
+	case IssuingKeyJSON:
 		*t = IssuingKey
 	default:
 		return common.NewBasicError(InvalidKeyType, nil, "input", string(b))
@@ -280,15 +279,17 @@ func (t *KeyType) UnmarshalText(b []byte) error {
 
 }
 
-// MarshalText is implemented to allow KeyType to be used as JSON map key.
+// MarshalText is implemented to allow KeyType to be used as JSON map key. This
+// must be a value receiver in order for KeyType fields in a struct to marshal
+// correctly.
 func (t KeyType) MarshalText() ([]byte, error) {
 	switch t {
 	case OnlineKey:
-		return []byte(onlineKey), nil
+		return []byte(OnlineKeyJSON), nil
 	case OfflineKey:
-		return []byte(offlineKey), nil
+		return []byte(OfflineKeyJSON), nil
 	case IssuingKey:
-		return []byte(issuingKey), nil
+		return []byte(IssuingKeyJSON), nil
 	}
 	return nil, common.NewBasicError(InvalidKeyType, nil, "type", int(t))
 }
