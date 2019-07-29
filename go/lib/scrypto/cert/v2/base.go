@@ -123,10 +123,10 @@ func (b *Base) checkKeyExistence(keyType KeyType, shouldExist bool) error {
 }
 
 const (
-	issuingKey    = "Issuing"
-	signingKey    = "Signing"
-	encryptionKey = "Encryption"
-	revocationKey = "Revocation"
+	IssuingKeyJSON    = "Issuing"
+	SigningKeyJSON    = "Signing"
+	EncryptionKeyJSON = "Encryption"
+	RevocationKeyJSON = "Revocation"
 )
 
 const (
@@ -141,20 +141,22 @@ const (
 	RevocationKey
 )
 
-// KeyType indicates the type of the key authenticated by the certificate. It
-// can either be "Signing", "Encryption", or "Issuing".
+// KeyType indicates the type of the key authenticated by the certificate.
+//
+// Because KeyType is used as a map key, it cannot be a string type. (see:
+// https://github.com/golang/go/issues/33298)
 type KeyType int
 
 // UnmarshalText allows KeyType to be used as a map key and do validation when parsing.
 func (t *KeyType) UnmarshalText(b []byte) error {
 	switch string(b) {
-	case issuingKey:
+	case IssuingKeyJSON:
 		*t = IssuingKey
-	case signingKey:
+	case SigningKeyJSON:
 		*t = SigningKey
-	case encryptionKey:
+	case EncryptionKeyJSON:
 		*t = EncryptionKey
-	case revocationKey:
+	case RevocationKeyJSON:
 		*t = RevocationKey
 	default:
 		return common.NewBasicError(InvalidKeyType, nil, "input", string(b))
@@ -162,17 +164,19 @@ func (t *KeyType) UnmarshalText(b []byte) error {
 	return nil
 }
 
-// MarshalText is implemented to allow KeyType to be used as JSON map key.
+// MarshalText is implemented to allow KeyType to be used as JSON map key. This
+// must be a value receiver in order for KeyType fields in a struct to marshal
+// correctly.
 func (t KeyType) MarshalText() ([]byte, error) {
 	switch t {
 	case IssuingKey:
-		return []byte(issuingKey), nil
+		return []byte(IssuingKeyJSON), nil
 	case SigningKey:
-		return []byte(signingKey), nil
+		return []byte(SigningKeyJSON), nil
 	case EncryptionKey:
-		return []byte(encryptionKey), nil
+		return []byte(EncryptionKeyJSON), nil
 	case RevocationKey:
-		return []byte(revocationKey), nil
+		return []byte(RevocationKeyJSON), nil
 	}
 	return nil, common.NewBasicError(InvalidKeyType, nil, "type", int(t))
 }

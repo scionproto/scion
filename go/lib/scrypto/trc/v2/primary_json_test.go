@@ -16,6 +16,7 @@ package trc_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -316,26 +317,27 @@ func TestKeyTypeUnmarshalJSONMapKey(t *testing.T) {
 
 func TestKeyTypeMarshal(t *testing.T) {
 	tests := map[string]struct {
-		KeyType trc.KeyType
+		KeyType  trc.KeyType
+		Expected string
 	}{
 		"OfflineKey": {
-			KeyType: trc.OfflineKey,
+			KeyType:  trc.OfflineKey,
+			Expected: trc.OfflineKeyJSON,
 		},
 		"OnlineKey": {
-			KeyType: trc.OnlineKey,
+			KeyType:  trc.OnlineKey,
+			Expected: trc.OnlineKeyJSON,
 		},
 		"IssuingKey": {
-			KeyType: trc.IssuingKey,
+			KeyType:  trc.IssuingKey,
+			Expected: trc.IssuingKeyJSON,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			b, err := json.Marshal(test.KeyType)
 			require.NoError(t, err)
-			var keyType trc.KeyType
-			err = json.Unmarshal(b, &keyType)
-			require.NoError(t, err)
-			assert.Equal(t, test.KeyType, keyType)
+			assert.Equal(t, test.Expected, strings.Trim(string(b), `"`))
 		})
 	}
 	t.Run("Invalid value", func(t *testing.T) {
