@@ -27,7 +27,7 @@ var testCfg = `{
     "Registries": [
         "1-ff00:0:110",
         "1-ff00:0:111",
-        "1-ff00:0:113"
+        "1-ff00:0:115"
     ]
 }`
 
@@ -37,7 +37,9 @@ func TestUnmarshalJSON(t *testing.T) {
 		ExpectedErrMsg string
 	}{
 		"valid": {
-			Modify:         func() []byte { return []byte(testCfg) },
+			Modify: func() []byte {
+				return []byte(testCfg)
+			},
 			ExpectedErrMsg: "",
 		},
 		"invalid GroupId AS": {
@@ -63,6 +65,30 @@ func TestUnmarshalJSON(t *testing.T) {
 				return []byte(strings.Replace(testCfg, "ff00:0:110", "ffaa:0:110", 1))
 			},
 			ExpectedErrMsg: `Owner mismatch OwnerAS="ff00:0:110" GroupId.OwnerAS="ffaa:0:110"`,
+		},
+		"invalid Owner": {
+			Modify: func() []byte {
+				return []byte(strings.Replace(testCfg, "1-ff00:0:110", "x", 1))
+			},
+			ExpectedErrMsg: `Invalid ISD-AS raw="x"`,
+		},
+		"invalid Writer": {
+			Modify: func() []byte {
+				return []byte(strings.Replace(testCfg, "1-ff00:0:111", "x", 1))
+			},
+			ExpectedErrMsg: `Invalid ISD-AS raw="x"`,
+		},
+		"invalid Reader": {
+			Modify: func() []byte {
+				return []byte(strings.Replace(testCfg, "1-ff00:0:114", "x", 1))
+			},
+			ExpectedErrMsg: `Invalid ISD-AS raw="x"`,
+		},
+		"invalid Registry": {
+			Modify: func() []byte {
+				return []byte(strings.Replace(testCfg, "1-ff00:0:115", "x", 1))
+			},
+			ExpectedErrMsg: `Invalid ISD-AS raw="x"`,
 		},
 	}
 
@@ -99,7 +125,7 @@ func TestToMsgFromMsg(t *testing.T) {
 		OwnerISD:   0x1,
 		Writers:    []addr.IAInt{0x1ff0000000111, 0x1ff0000000112},
 		Readers:    []addr.IAInt{0x1ff0000000113, 0x1ff0000000114},
-		Registries: []addr.IAInt{0x1ff0000000110, 0x1ff0000000111, 0x1ff0000000113},
+		Registries: []addr.IAInt{0x1ff0000000110, 0x1ff0000000111, 0x1ff0000000115},
 	}
 	cfg := &HPCfg{}
 	err := json.Unmarshal([]byte(testCfg), cfg)
