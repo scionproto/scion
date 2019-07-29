@@ -88,7 +88,7 @@ esac
 if [ -n "$DOCKER_BE" ]; then
     echo "Metrics collection for Docker Backend not implemented"
 else
-    ./docker.sh exec ./tools/ci/get_metrics.sh
+    ./docker.sh exec ./tools/ci/get_metrics
     result=$((result+$?))
 fi
 # Stop scion
