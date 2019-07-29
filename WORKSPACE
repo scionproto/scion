@@ -301,7 +301,7 @@ go_repository(
 
 go_repository(
     name = "com_github_patrickmn_go_cache",
-    commit = "7ac151875ffb48b9f3ccce9ea20f020b0c1596c8",
+    commit = "5633e0862627c011927fa39556acae8b1f1df58a",
     importpath = "github.com/patrickmn/go-cache",
 )
 
