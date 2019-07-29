@@ -8,7 +8,6 @@ set -eu
 TAG=${TAG:-$BUILDKITE_BUILD_NUMBER}
 
 mkdir -p "artifacts.out"
-$BASE/scripts/registry_login &>> "$STEP_LOG"
 
 c_images="dispatcher" # for sig acceptance tests #2416
 go_images="border dispatcher_go sig beacon cert path sciond"
