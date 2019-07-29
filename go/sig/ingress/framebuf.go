@@ -117,7 +117,6 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 	}
 	offset := fb.index * 8
 	var pktLen int
-	fmt.Printf("offset %d frameLen %d\n", offset, fb.frameLen)
 	for offset < fb.frameLen {
 		pktLen = int(common.Order.Uint16(fb.raw[offset : offset+2]))
 		offset += 2
