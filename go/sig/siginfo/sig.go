@@ -48,6 +48,13 @@ func (s *Sig) Equal(x *Sig) bool {
 		s.EncapL4Port == x.EncapL4Port
 }
 
+func (s *Sig) Copy() *Sig {
+	res := &Sig{}
+	*res = *s
+	res.Host = s.Host.Copy()
+	return res
+}
+
 func (s *Sig) String() string {
 	return fmt.Sprintf("%s,[%s]:%d:%d", s.IA, s.Host, s.CtrlL4Port, s.EncapL4Port)
 }

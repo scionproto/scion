@@ -187,7 +187,7 @@ func (sm *sessMonitor) updateRemote() {
 // SIG host is an SVC address, the previous host of the session is kept.
 func (sm *sessMonitor) updateSessSnap() {
 	// Copy the remote to avoid capturing the object in the session.
-	remote := *sm.smRemote
+	remote := sm.smRemote.Copy()
 	// XXX(roosd): Data traffic should never be sent to a SVC address if avoidable.
 	if remote.Sig.Host.Equal(addr.SvcSIG) {
 		old := sm.sess.Remote()
@@ -197,7 +197,7 @@ func (sm *sessMonitor) updateSessSnap() {
 		}
 		remote.Sig = old.Sig
 	}
-	sm.sess.currRemote.Store(&remote)
+	sm.sess.currRemote.Store(remote)
 }
 
 func (sm *sessMonitor) getNewPath(old *egress.SessPath) *egress.SessPath {
