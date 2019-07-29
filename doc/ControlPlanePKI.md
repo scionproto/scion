@@ -178,7 +178,8 @@ their own) AS certificates.
 
 [²]: Recommended usage period before key rollover (best practice).
 
-[³]: As described in the "AS Certificate Revocation" section below.
+[³]: As described in the [Optimistic Certificate Revocation](#optimistic-certificate-revocation)
+section below.
 
 ### Table: Certificates
 
@@ -364,7 +365,7 @@ The following are conditions that must hold true for every TRC:
             }
         }
     },
-    "Votes": {
+    "votes": {
         "ff00:0:110": {
             "key_type": "offline",
             "key_version": 34
@@ -489,12 +490,12 @@ its offline key without revoking the voting status.
 
 A TRC update must be distributed amongst all authoritative ASes in that ISD, and they must switch to
 it as the latest version in a synchronized fashion. That is, when querying two distinct
-authoritative ASes for the latest TRC version, they must reply with the same version modulo some
-minor clock skew.
+available authoritative ASes for the latest TRC version, they must reply with the same version
+modulo some minor clock skew.
 
-ASes inside that ISD must only announce the new TRC after the authoritative ASes have switched their
-view of the latest TRC version. This can easily achieved by having authoritative ASes switch the
-latest on the `validity.not_before` time, since SCION requires synchronized clocks.
+ASes inside that ISD must only announce the new TRC after the available authoritative ASes have
+switched their view of the latest TRC version. This can easily achieved by having authoritative ASes
+switch the latest on the `validity.not_before` time, since SCION requires synchronized clocks.
 
 TRC updates are disseminated via SCION's beaconing process. If the TRC version number within a
 received beacon is higher than the locally stored TRC, the beacon server sends a request to the
@@ -747,6 +748,8 @@ When validating signatures based on certificate chains, the following must be ch
 - The signature can be verified with the public key authenticated by the AS certificate of a
   verified certificate chain.
 - The current time falls within the validity period of the certificate chain.
+- No optimistic revocation has been cached for either certificate in the chain.
+  How often a relying party updates the cache depends on their own policy.
 - The certificate chain is authenticated by a currently active TRC. This means the issuing key that
   was used to sign the Issuer certificate must be authenticated by a currently active TRC. The
   active TRC's version must be greater than or equal to the `trc_version` specified in the Issuer
@@ -796,7 +799,7 @@ When verifying a certificate chain, the following must be checked:
 - The AS certificate validity period is covered by the Issuer certificate period.
 - The Issuer certificate validity period is covered by the referenced TRC validity period.
 
-## Certificate Revocation
+## Optimistic Certificate Revocation
 
 With a validity on the order of days, AS certificates can be considered short-lived. Nevertheless,
 an attack window of several days is too large for mission-critical operation. Therefore, the CP-PKI
@@ -862,10 +865,10 @@ of time. Operators should coordinate and prepare before revoking an issuer certi
 Certificate revocation stands in stark contrast with availability. If relying parties only
 considered a certificate valid after querying the corresponding distribution point, then there would
 be a circular dependency between verifying paths to the distribution points and having paths to the
-distribution point. To avoid this circular dependency, revocations are to be considered on a
-best-effort basis. During regular operation, the revocation distribution points will be available
-and certificates are revoked in a short amount of time. Also, an AS can take advantage of the
-`optional_distribution_points` field in the AS cert to nominate distribution points that are
+distribution point. To avoid this circular dependency, optimistic revocations are to be considered
+on a best-effort basis. During regular operation, the revocation distribution points will be
+available and certificates are revoked in a short amount of time. Also, an AS can take advantage of
+the `optional_distribution_points` field in the AS cert to nominate distribution points that are
 geographically diverse to mitigate availability issues.
 
 If any of the distribution points contains a revocation note, the certificate is considered revoked
