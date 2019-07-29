@@ -20,6 +20,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -72,6 +73,16 @@ func (h *HostInfo) Overlay() (*overlay.OverlayAddr, error) {
 		l4 = addr.NewL4UDPInfo(h.Port)
 	}
 	return overlay.NewOverlayAddr(h.Host(), l4)
+}
+
+func (h *HostInfo) Copy() *HostInfo {
+	if h == nil {
+		return nil
+	}
+	res := &HostInfo{Port: h.Port}
+	res.Addrs.Ipv4 = common.CloneByteSlice(h.Addrs.Ipv4)
+	res.Addrs.Ipv6 = common.CloneByteSlice(h.Addrs.Ipv6)
+	return res
 }
 
 func (h *HostInfo) String() string {

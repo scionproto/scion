@@ -84,6 +84,17 @@ type RemoteInfo struct {
 	SessPath *SessPath
 }
 
+// Copy created a deep copy of the object.
+func (r *RemoteInfo) Copy() *RemoteInfo {
+	if r == nil {
+		return nil
+	}
+	return &RemoteInfo{
+		Sig:      r.Sig.Copy(),
+		SessPath: r.SessPath.Copy(),
+	}
+}
+
 func (r *RemoteInfo) String() string {
 	return fmt.Sprintf("Sig: %s Path: %s", r.Sig, r.SessPath)
 }
