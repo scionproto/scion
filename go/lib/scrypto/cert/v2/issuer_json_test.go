@@ -27,13 +27,13 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 )
 
-type asTest struct {
+type issTest struct {
 	baseTest
-	ModifyExpected func(*cert.AS)
+	ModifyExpected func(*cert.Issuer)
 }
 
-func TestASUnmarshalJSON(t *testing.T) {
-	tests := map[string]asTest{
+func TestIssuerUnmarshalJSON(t *testing.T) {
+	tests := map[string]issTest{
 		"With revocation key": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
@@ -44,7 +44,7 @@ func TestASUnmarshalJSON(t *testing.T) {
 					}
 				},
 			},
-			ModifyExpected: func(c *cert.AS) {
+			ModifyExpected: func(c *cert.Issuer) {
 				c.Keys[cert.RevocationKey] = scrypto.KeyMeta{
 					KeyVersion: 1,
 					Algorithm:  scrypto.Ed25519,
@@ -58,32 +58,24 @@ func TestASUnmarshalJSON(t *testing.T) {
 					(*g.OptDistPoints) = []addr.IA{ia210}
 				},
 			},
-			ModifyExpected: func(c *cert.AS) {
+			ModifyExpected: func(c *cert.Issuer) {
 				c.OptionalDistributionPoints = []addr.IA{ia210}
 			},
 		},
 		"Invalid CertificateType": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
-					g.CertificateType = "Issuer"
+					g.CertificateType = "AS"
 				},
 				ExpectedErrMsg: cert.InvalidCertificateType,
 			},
 		},
-		"Missing Issuer.IA": {
+		"Missing Issuer.TRCVersion": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
-					delete(*g.Issuer, "IA")
+					delete(*g.Issuer, "TRCVersion")
 				},
-				ExpectedErrMsg: cert.ErrIssuerIANotSet.Error(),
-			},
-		},
-		"Missing Issuer.CertificateVersion": {
-			baseTest: baseTest{
-				Modify: func(g *genCert) {
-					delete(*g.Issuer, "CertificateVersion")
-				},
-				ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
+				ExpectedErrMsg: cert.ErrIssuerTRCVersionNotSet.Error(),
 			},
 		},
 		"Unknown Issuer field": {
@@ -99,23 +91,23 @@ func TestASUnmarshalJSON(t *testing.T) {
 		if _, ok := tests[name]; ok {
 			t.Fatalf("Duplicate test name: %s", name)
 		}
-		tests[name] = asTest{baseTest: test}
+		tests[name] = issTest{baseTest: test}
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			g := newGenASCert()
+			g := newGenIssuerCert()
 			test.Modify(g)
 			b, err := json.Marshal(g)
 			require.NoError(t, err)
-			var as cert.AS
-			err = json.Unmarshal(b, &as)
+			var iss cert.Issuer
+			err = json.Unmarshal(b, &iss)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
-				expected := newASCert()
+				expected := newIssuerCert()
 				if test.ModifyExpected != nil {
 					test.ModifyExpected(&expected)
 				}
-				assert.Equal(t, expected, as)
+				assert.Equal(t, expected, iss)
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
@@ -124,45 +116,28 @@ func TestASUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
+func TestIssuerTRCUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Input          string
-		ID             cert.IssuerCertID
+		ID             cert.IssuerTRC
 		ExpectedErrMsg string
 	}{
 		"Valid": {
 			Input: `
 			{
-				"IA": "1-ff00:0:110",
-				"CertificateVersion": 2
+				"TRCVersion": 4
 			}
 			`,
-			ID: cert.IssuerCertID{
-				IA:                 ia110,
-				CertificateVersion: 2,
-			},
+			ID: cert.IssuerTRC{TRCVersion: 4},
 		},
-		"IA not set": {
-			Input: `
-			{
-				"CertificateVersion": 2
-			}
-			`,
-			ExpectedErrMsg: cert.ErrIssuerIANotSet.Error(),
-		},
-		"CertificateVersion not set": {
-			Input: `
-			{
-				"IA": "1-ff00:0:110"
-			}
-			`,
-			ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
+		"TRCVersion not set": {
+			Input:          "{}",
+			ExpectedErrMsg: cert.ErrIssuerTRCVersionNotSet.Error(),
 		},
 		"Unknown field": {
 			Input: `
 			{
-				"IA": "1-ff00:0:110",
-				"CertificateVersion": 2,
+				"TRCVersion": 4,
 				"UNKNOWN": true
 			}
 			`,
@@ -171,7 +146,7 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var id cert.IssuerCertID
+			var id cert.IssuerTRC
 			err := json.Unmarshal([]byte(test.Input), &id)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
@@ -184,45 +159,45 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestTypeASUnmarshalJSON(t *testing.T) {
+func TestTypeIssuerUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Input  string
 		Assert assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:  `"AS"`,
+			Input:  `"Issuer"`,
 			Assert: assert.NoError,
 		},
 		"Wrong case": {
-			Input:  `"as"`,
+			Input:  `"issuer"`,
 			Assert: assert.Error,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var typeAS cert.TypeAS
-			test.Assert(t, json.Unmarshal([]byte(test.Input), &typeAS))
+			var typeIssuer cert.TypeIssuer
+			test.Assert(t, json.Unmarshal([]byte(test.Input), &typeIssuer))
 		})
 	}
 }
 
-func TestTypeASMarshalJSON(t *testing.T) {
+func TestTypeIssuerMarshalJSON(t *testing.T) {
 	var obj struct {
-		CertificateType cert.TypeAS
+		CertificateType cert.TypeIssuer
 	}
 	b, err := json.Marshal(obj)
 	require.NoError(t, err)
 	assert.NoError(t, json.Unmarshal(b, &obj))
 }
 
-func TestTypeASMarshalSameASString(t *testing.T) {
-	b, err := json.Marshal(cert.TypeAS{})
+func TestTypeIssuerMarshalSameASString(t *testing.T) {
+	b, err := json.Marshal(cert.TypeIssuer{})
 	require.NoError(t, err)
-	assert.Equal(t, cert.TypeASJSON, strings.Trim(string(b), `"`))
+	assert.Equal(t, cert.TypeIssuerJSON, strings.Trim(string(b), `"`))
 }
 
-func newGenASCert() *genCert {
-	c := newASCert()
+func newGenIssuerCert() *genCert {
+	c := newIssuerCert()
 	g := &genCert{
 		Subject:         &c.Subject,
 		Version:         &c.Version,
@@ -231,35 +206,28 @@ func newGenASCert() *genCert {
 		OptDistPoints:   &c.OptionalDistributionPoints,
 		Validity:        c.Validity,
 		Keys:            &c.Keys,
-		CertificateType: cert.TypeASJSON,
+		CertificateType: cert.TypeIssuerJSON,
 	}
 	g.Issuer = &map[string]interface{}{
-		"IA":                 c.Issuer.IA,
-		"CertificateVersion": c.Issuer.CertificateVersion,
+		"TRCVersion": c.Issuer.TRCVersion,
 	}
 	return g
 }
 
-func newASCert() cert.AS {
-	c := cert.AS{
+func newIssuerCert() cert.Issuer {
+	c := cert.Issuer{
 		Base: newBaseCert(),
-		Issuer: cert.IssuerCertID{
-			IA:                 ia110,
-			CertificateVersion: 2,
+		Issuer: cert.IssuerTRC{
+			TRCVersion: 4,
 		},
 	}
 	c.Keys = map[cert.KeyType]scrypto.KeyMeta{
-		cert.SigningKey: {
+		cert.IssuingKey: {
 			KeyVersion: 1,
 			Algorithm:  scrypto.Ed25519,
-			Key:        []byte{0, 110, 1},
-		},
-		cert.EncryptionKey: {
-			KeyVersion: 1,
-			Algorithm:  scrypto.Ed25519,
-			Key:        []byte{1, 110, 1},
+			Key:        []byte{3, 110, 1},
 		},
 	}
-	c.Version = 4
+	c.Version = 2
 	return c
 }
