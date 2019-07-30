@@ -28,8 +28,11 @@ type ACL struct {
 
 // NewACL creates a new entry and checks for the presence of a default action
 func NewACL(entries ...*ACLEntry) (*ACL, error) {
+	if len(entries) == 0 {
+		return nil, common.NewBasicError("ACL does not have a default", nil)
+	}
 	lastRule := entries[len(entries)-1].Rule
-	if lastRule.IfIDs[0] != 0 || lastRule.ISD != 0 || lastRule.AS != 0 {
+	if lastRule != nil && (lastRule.IfIDs[0] != 0 || lastRule.ISD != 0 || lastRule.AS != 0) {
 		return nil, common.NewBasicError("ACL does not have a default", nil)
 	}
 	return &ACL{Entries: entries}, nil
