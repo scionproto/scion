@@ -83,7 +83,7 @@ func (p *CorePusher) Run(ctx context.Context) {
 		}
 		logger.Error("[reiss.CorePusher] Failed to sync all cores", "err", err)
 		select {
-		case <-time.After(time.Duration(syncTries) * SleepAfterFailure):
+		case <-time.After(time.Duration(syncTries+1) * SleepAfterFailure):
 		case <-ctx.Done():
 		}
 	}
