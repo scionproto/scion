@@ -100,7 +100,7 @@ func (s *Session) Start() {
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		worker.NewWorker(s, s.Logger).Run()
+		worker.NewWorker(s, s.conn, false, s.Logger).Run()
 	}()
 }
 
