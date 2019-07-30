@@ -271,7 +271,8 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, err := m.getFallbackRequester(infra.TRCRequest).Request(ctx, pld, a, false)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err)
+		return nil, common.NewBasicError("[Messenger] Request error", err,
+			"req_type", infra.TRCRequest)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
@@ -309,7 +310,8 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, err := m.getFallbackRequester(infra.ChainRequest).Request(ctx, pld, a, false)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err)
+		return nil, common.NewBasicError("[Messenger] Request error", err,
+			"req_type", infra.ChainRequest)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
@@ -400,7 +402,8 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, err := m.getFallbackRequester(infra.SegRequest).Request(ctx, pld, a, false)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err)
+		return nil, common.NewBasicError("[Messenger] Request error", err,
+			"req_type", infra.SegRequest)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
@@ -455,7 +458,8 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, err := m.getFallbackRequester(infra.SegChangesIdReq).Request(ctx, pld, a, false)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err)
+		return nil, common.NewBasicError("[Messenger] Request error", err,
+			"req_type", infra.SegChangesIdReq)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
@@ -498,7 +502,8 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, err := m.getFallbackRequester(infra.SegChangesReq).Request(ctx, pld, a, false)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err)
+		return nil, common.NewBasicError("[Messenger] Request error", err,
+			"req_type", infra.SegChangesReq)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
@@ -554,7 +559,8 @@ func (m *Messenger) GetHPSegs(ctx context.Context, msg *path_mgmt.HPSegReq, a ne
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, err := m.getFallbackRequester(infra.HPSegRequest).Request(ctx, pld, a, false)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err)
+		return nil, common.NewBasicError("[Messenger] Request error", err,
+			"req_type", infra.HPSegRequest)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
@@ -599,7 +605,8 @@ func (m *Messenger) GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq, a ne
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, err := m.getFallbackRequester(infra.HPCfgRequest).Request(ctx, pld, a, false)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err)
+		return nil, common.NewBasicError("[Messenger] Request error", err,
+			"req_type", infra.HPCfgRequest)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
@@ -641,7 +648,8 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, err := m.getFallbackRequester(infra.ChainIssueRequest).Request(ctx, pld, a, false)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err)
+		return nil, common.NewBasicError("[Messenger] Request error", err,
+			"req_type", infra.ChainIssueRequest)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
@@ -687,7 +695,8 @@ func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
 
 	replyCtrlPld, err := m.getQUICRequester(m.getSigner(infra.Seg)).Request(ctx, pld, a)
 	if err != nil {
-		return common.NewBasicError("[Messenger] Beaconing error", err)
+		return common.NewBasicError("[Messenger] Beaconing error", err,
+			"req_type", infra.Seg)
 	}
 	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
