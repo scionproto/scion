@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
@@ -56,10 +57,16 @@ const (
 	MaxSeq     = (1 << 24) - 1
 )
 
+type SCIONWriter interface {
+	WriteToSCION(b []byte, address *snet.Addr) (int, error)
+}
+
 type worker struct {
 	log.Logger
 	iaString      string
 	sess          egress.Session
+	writer        SCIONWriter
+	ignoreAddress bool
 	currSig       *siginfo.Sig
 	currPathEntry *sciond.PathReplyEntry
 	frameSentCtrs metrics.CtrPair
@@ -69,11 +76,15 @@ type worker struct {
 	pkts  ringbuf.EntryList
 }
 
-func NewWorker(sess egress.Session, logger log.Logger) *worker {
+func NewWorker(sess egress.Session, writer SCIONWriter, ignoreAddress bool,
+	logger log.Logger) *worker {
+
 	return &worker{
-		Logger:   logger,
-		iaString: sess.IA().String(),
-		sess:     sess,
+		Logger:        logger,
+		iaString:      sess.IA().String(),
+		sess:          sess,
+		writer:        writer,
+		ignoreAddress: ignoreAddress,
 		frameSentCtrs: metrics.CtrPair{
 			Pkts:  metrics.FramesSent.WithLabelValues(sess.IA().String(), sess.ID().String()),
 			Bytes: metrics.FrameBytesSent.WithLabelValues(sess.IA().String(), sess.ID().String()),
@@ -159,24 +170,27 @@ func (w *worker) write(f *frame) error {
 	// TODO(kormat): consider looking for an updated path here, and switching
 	// to it if the mtu isn't smaller than the current one.
 	defer w.resetFrame(f)
-	if w.currPathEntry == nil {
-		// FIXME(kormat): add some metrics to track this.
-		return nil
+	var snetAddr *snet.Addr
+	if !w.ignoreAddress {
+		if w.currPathEntry == nil {
+			// FIXME(kormat): add some metrics to track this.
+			return nil
+		}
+		if w.currSig == nil {
+			// FIXME(kormat): add some metrics to track this.
+			return nil
+		}
+		snetAddr := w.currSig.EncapSnetAddr()
+		snetAddr.Path = spath.New(w.currPathEntry.Path.FwdPath)
+		if err := snetAddr.Path.InitOffsets(); err != nil {
+			return common.NewBasicError("Error initializing path offsets", err)
+		}
+		nh, err := w.currPathEntry.HostInfo.Overlay()
+		if err != nil {
+			return common.NewBasicError("Egress unsupported NextHop", err)
+		}
+		snetAddr.NextHop = nh
 	}
-	if w.currSig == nil {
-		// FIXME(kormat): add some metrics to track this.
-		return nil
-	}
-	snetAddr := w.currSig.EncapSnetAddr()
-	snetAddr.Path = spath.New(w.currPathEntry.Path.FwdPath)
-	if err := snetAddr.Path.InitOffsets(); err != nil {
-		return common.NewBasicError("Error initializing path offsets", err)
-	}
-	nh, err := w.currPathEntry.HostInfo.Overlay()
-	if err != nil {
-		return common.NewBasicError("Egress unsupported NextHop", err)
-	}
-	snetAddr.NextHop = nh
 	if w.seq == 0 {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
@@ -186,7 +200,7 @@ func (w *worker) write(f *frame) error {
 	if w.seq > MaxSeq {
 		w.seq = 0
 	}
-	bytesWritten, err := w.sess.Conn().WriteToSCION(f.raw(), snetAddr)
+	bytesWritten, err := w.writer.WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
 		return common.NewBasicError("Egress write error", err)
 	}

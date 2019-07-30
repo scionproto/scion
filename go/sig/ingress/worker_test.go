@@ -15,7 +15,6 @@
 package ingress
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,7 +33,6 @@ func (mt *MockTun) Read(p []byte) (n int, err error) {
 }
 
 func (mt *MockTun) Write(p []byte) (n int, err error) {
-	fmt.Printf("===> %v\n", p)
 	mt.packets = append(mt.packets, p)
 	return n, nil
 }
@@ -64,7 +62,6 @@ func SendFrame(t *testing.T, w *Worker, data []byte) {
 }
 
 func TestParsing(t *testing.T) {
-	ringbuf.InitMetrics("", []string{"ringId", "sessId"})
 	metrics.Init("")
 	addr, err := snet.AddrFromString("1-ff00:0:300,[192.168.1.1]:80")
 	assert.NoError(t, err)
