@@ -27,31 +27,15 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 )
 
-func TestBaseUnmarshalJSON(t *testing.T) {
-	tests := map[string]struct {
-		Modify         func(*genCert)
-		ModifyExpected func(*cert.AS)
-		ExpectedErrMsg string
-	}{
+type baseTest struct {
+	Modify         func(*genCert)
+	ExpectedErrMsg string
+}
+
+func baseUnmarshalJSONTests() map[string]baseTest {
+	tests := map[string]baseTest{
 		"Valid": {
-			Modify:         func(_ *genCert) {},
-			ModifyExpected: func(_ *cert.AS) {},
-		},
-		"With revocation key": {
-			Modify: func(g *genCert) {
-				(*g.Keys)[cert.RevocationKey] = scrypto.KeyMeta{
-					KeyVersion: 1,
-					Algorithm:  scrypto.Ed25519,
-					Key:        []byte{2, 110, 1},
-				}
-			},
-			ModifyExpected: func(c *cert.AS) {
-				c.Keys[cert.RevocationKey] = scrypto.KeyMeta{
-					KeyVersion: 1,
-					Algorithm:  scrypto.Ed25519,
-					Key:        []byte{2, 110, 1},
-				}
-			},
+			Modify: func(_ *genCert) {},
 		},
 		"Subject not set": {
 			Modify: func(g *genCert) {
@@ -114,25 +98,7 @@ func TestBaseUnmarshalJSON(t *testing.T) {
 			ExpectedErrMsg: `json: unknown field "UNKNOWN"`,
 		},
 	}
-	for name, test := range tests {
-		t.Run("AS certificate: "+name, func(t *testing.T) {
-			g := newGenASCert()
-			test.Modify(g)
-			b, err := json.Marshal(g)
-			require.NoError(t, err)
-			var as cert.AS
-			err = json.Unmarshal(b, &as)
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
-				expected := newASCert()
-				test.ModifyExpected(&expected)
-				assert.Equal(t, expected, as)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
-		})
-	}
+	return tests
 }
 
 func TestKeyTypeUnmarshalJSON(t *testing.T) {

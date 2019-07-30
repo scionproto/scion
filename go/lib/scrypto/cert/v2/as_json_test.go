@@ -26,47 +26,89 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 )
 
-func TestASUnmarshalJSON(t *testing.T) {
-	tests := map[string]struct {
-		Modify         func(*genCert)
-		ExpectedErrMsg string
-	}{
-		// The valid case is already tested in TestBaseUnmarshalJSON
+type asTest struct {
+	baseTest
+	ModifyExpected func(*cert.AS)
+}
 
-		"Invalid CertificateType": {
-			Modify: func(g *genCert) {
-				g.CertificateType = "Issuer"
+func TestASUnmarshalJSON(t *testing.T) {
+	tests := map[string]asTest{
+		"With revocation key": {
+			baseTest: baseTest{
+				Modify: func(g *genCert) {
+					(*g.Keys)[cert.RevocationKey] = scrypto.KeyMeta{
+						KeyVersion: 1,
+						Algorithm:  scrypto.Ed25519,
+						Key:        []byte{2, 110, 1},
+					}
+				},
 			},
-			ExpectedErrMsg: cert.InvalidCertificateType,
+			ModifyExpected: func(c *cert.AS) {
+				c.Keys[cert.RevocationKey] = scrypto.KeyMeta{
+					KeyVersion: 1,
+					Algorithm:  scrypto.Ed25519,
+					Key:        []byte{2, 110, 1},
+				}
+			},
+		},
+		"Invalid CertificateType": {
+			baseTest: baseTest{
+				Modify: func(g *genCert) {
+					g.CertificateType = "Issuer"
+				},
+				ExpectedErrMsg: cert.InvalidCertificateType,
+			},
 		},
 		"Missing Issuer.IA": {
-			Modify: func(g *genCert) {
-				delete(*g.Issuer, "IA")
+			baseTest: baseTest{
+				Modify: func(g *genCert) {
+					delete(*g.Issuer, "IA")
+				},
+				ExpectedErrMsg: cert.ErrIssuerIANotSet.Error(),
 			},
-			ExpectedErrMsg: cert.ErrIssuerIANotSet.Error(),
 		},
 		"Missing Issuer.CertificateVersion": {
-			Modify: func(g *genCert) {
-				delete(*g.Issuer, "CertificateVersion")
+			baseTest: baseTest{
+				Modify: func(g *genCert) {
+					delete(*g.Issuer, "CertificateVersion")
+				},
+				ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
 			},
-			ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
 		},
 		"Unknown Issuer field": {
-			Modify: func(g *genCert) {
-				(*g.Issuer)["UNKNOWN"] = true
+			baseTest: baseTest{
+				Modify: func(g *genCert) {
+					(*g.Issuer)["UNKNOWN"] = true
+				},
+				ExpectedErrMsg: `json: unknown field "UNKNOWN"`,
 			},
-			ExpectedErrMsg: `json: unknown field "UNKNOWN"`,
 		},
 	}
+	for name, test := range baseUnmarshalJSONTests() {
+		if _, ok := tests[name]; ok {
+			t.Fatalf("Duplicate test name: %s", name)
+		}
+		tests[name] = asTest{baseTest: test}
+	}
 	for name, test := range tests {
-		t.Run("AS certificate: "+name, func(t *testing.T) {
+		t.Run(name, func(t *testing.T) {
 			g := newGenASCert()
 			test.Modify(g)
 			b, err := json.Marshal(g)
 			require.NoError(t, err)
-			err = json.Unmarshal(b, &cert.AS{})
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), test.ExpectedErrMsg)
+			var as cert.AS
+			err = json.Unmarshal(b, &as)
+			if test.ExpectedErrMsg == "" {
+				require.NoError(t, err)
+				expected := newASCert()
+				if test.ModifyExpected != nil {
+					test.ModifyExpected(&expected)
+				}
+				assert.Equal(t, expected, as)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
+			}
 		})
 	}
 }
