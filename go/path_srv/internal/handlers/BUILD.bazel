@@ -30,8 +30,6 @@ go_library(
         "//go/lib/pathdb:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
         "//go/lib/revcache:go_default_library",
-        "//go/lib/scrypto:go_default_library",
-        "//go/lib/scrypto/trc:go_default_library",
         "//go/lib/snet:go_default_library",
         "//go/lib/snet/addrutil:go_default_library",
         "//go/lib/topology:go_default_library",

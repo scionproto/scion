@@ -17,13 +17,13 @@ package trust
 
 import (
 	"context"
-	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/util"
@@ -59,9 +59,10 @@ func CreateSignMeta(ctx context.Context, ia addr.IA,
 
 // VerifyChain verifies the chain based on the TRCs present in the store.
 func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
-	store infra.TrustStore) error {
+	store infra.ExtendedTrustStore) error {
 
-	maxTrc, err := store.GetValidTRC(ctx, chain.Issuer.Issuer.I, nil)
+	maxTrc, err := store.GetTRC(ctx, chain.Issuer.Issuer.I, scrypto.Version(scrypto.LatestVer),
+		infra.TRCOpts{})
 	if err != nil {
 		return common.NewBasicError("Unable to find TRC", nil, "isd", chain.Issuer.Issuer.I)
 	}
@@ -71,7 +72,8 @@ func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
 	if err := chain.Verify(subject, maxTrc); err != nil {
 		var graceTrc *trc.TRC
 		if maxTrc.Version > 1 {
-			graceTrc, err = store.GetTRC(ctx, maxTrc.ISD, maxTrc.Version-1)
+			graceTrc, err = store.GetTRC(ctx, maxTrc.ISD, scrypto.Version(maxTrc.Version-1),
+				infra.TRCOpts{})
 			if err != nil {
 				return err
 			}
@@ -90,10 +92,4 @@ func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
 		}
 	}
 	return nil
-}
-
-func GetChainForSign(ctx context.Context, src ctrl.SignSrcDef,
-	store infra.TrustStore, server net.Addr) (*cert.Chain, error) {
-
-	return store.GetValidChain(ctx, src.IA, src.ChainVer, server)
 }

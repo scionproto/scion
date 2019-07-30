@@ -62,7 +62,8 @@ func (s *Self) run(ctx context.Context) error {
 	if err != nil {
 		return common.NewBasicError("Unable to get issuer certificate", err)
 	}
-	chain, err := s.State.Store.GetChain(ctx, s.IA, scrypto.LatestVer)
+	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
+	chain, err := s.State.Store.GetChain(ctx, s.IA, scrypto.Version(scrypto.LatestVer), opts)
 	if err != nil {
 		return common.NewBasicError("Unable to get certificate chain", err)
 	}
@@ -162,7 +163,8 @@ func (s *Self) createIssuerCert(ctx context.Context, crt *cert.Certificate) erro
 }
 
 func (s *Self) getCoreASEntry(ctx context.Context) (*trc.CoreAS, error) {
-	maxTrc, err := s.State.Store.GetTRC(ctx, s.IA.I, scrypto.LatestVer)
+	opts := infra.TRCOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
+	maxTrc, err := s.State.Store.GetTRC(ctx, s.IA.I, scrypto.Version(scrypto.LatestVer), opts)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local TRC", err)
 	}

@@ -71,14 +71,13 @@ func (h *segReqNonCoreHandler) Handle() *infra.HandlerResult {
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	var err error
-	coreASes, err := h.coreASes(subCtx)
+	cores, err := h.coreASes(subCtx)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find local core ASes", "err", err)
 		rw.SendSegReply(subCtx, &path_mgmt.SegReply{Req: segReq})
 		// TODO(lukedirtwalker): Classify error better.
 		return infra.MetricsErrInternal
 	}
-	cores := coreASes.ASList()
 	dstCore, err := h.isCoreDst(subCtx, segReq, func() (net.Addr, error) {
 		return h.coreSvcAddr(subCtx, addr.SvcCS, cores)
 	})

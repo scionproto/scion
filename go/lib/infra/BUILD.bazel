@@ -20,6 +20,7 @@ go_library(
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/prom:go_default_library",
+        "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",
         "//go/lib/scrypto/trc:go_default_library",
         "//go/proto:go_default_library",
