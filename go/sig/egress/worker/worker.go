@@ -56,12 +56,6 @@ const (
 	MaxSeq     = (1 << 24) - 1
 )
 
-func DefaultFactory(sess egress.Session, logger log.Logger) egress.Runner {
-	return NewWorker(sess, logger)
-}
-
-var _ egress.Runner = (*worker)(nil)
-
 type worker struct {
 	log.Logger
 	iaString      string

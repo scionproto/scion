@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/sig/egress/dispatcher"
 	"github.com/scionproto/scion/go/sig/egress/router"
 	"github.com/scionproto/scion/go/sig/egress/session"
-	"github.com/scionproto/scion/go/sig/egress/worker"
 )
 
 const (
@@ -66,7 +65,7 @@ func newASEntry(ia addr.IA) (*ASEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	ae.Session, err = session.NewSession(ia, 0, ae.Logger, pool, worker.DefaultFactory)
+	ae.Session, err = session.NewSession(ia, 0, ae.Logger, pool)
 	if err != nil {
 		return nil, err
 	}

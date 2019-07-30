@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/worker"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 )
@@ -59,19 +60,17 @@ type Session struct {
 	pktDispStop    chan struct{}
 	pktDispStopped chan struct{}
 	workerStopped  chan struct{}
-	factory        egress.WorkerFactory
 }
 
 func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
-	pool egress.PathPool, factory egress.WorkerFactory) (*Session, error) {
+	pool egress.PathPool) (*Session, error) {
 
 	var err error
 	s := &Session{
-		Logger:  logger.New("sessId", sessId),
-		ia:      dstIA,
-		SessId:  sessId,
-		pool:    pool,
-		factory: factory,
+		Logger: logger.New("sessId", sessId),
+		ia:     dstIA,
+		SessId: sessId,
+		pool:   pool,
 	}
 	s.currRemote.Store((*egress.RemoteInfo)(nil))
 	s.healthy.Store(false)
@@ -101,7 +100,7 @@ func (s *Session) Start() {
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		s.factory(s, s.Logger).Run()
+		worker.NewWorker(s, s.Logger).Run()
 	}()
 }
 

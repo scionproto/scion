@@ -38,8 +38,6 @@ const (
 	ip6DstOff = 24
 )
 
-var _ egress.Runner = (*Reader)(nil)
-
 type Reader struct {
 	log   log.Logger
 	tunIO io.ReadWriteCloser

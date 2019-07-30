@@ -27,8 +27,6 @@ import (
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
-var _ egress.Runner = (*egressDispatcher)(nil)
-
 type egressDispatcher struct {
 	log.Logger
 	ia               addr.IA
