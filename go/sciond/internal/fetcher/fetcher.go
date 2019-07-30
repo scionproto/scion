@@ -54,7 +54,7 @@ const (
 type Fetcher struct {
 	messenger       infra.Messenger
 	pathDB          pathdb.PathDB
-	trustStore      infra.TrustStore
+	primaryProvider infra.PrimaryProvider
 	revocationCache revcache.RevCache
 	config          config.SDConfig
 	replyHandler    *segfetcher.SegReplyHandler
@@ -66,7 +66,7 @@ func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore infr
 	return &Fetcher{
 		messenger:       messenger,
 		pathDB:          pathDB,
-		trustStore:      trustStore,
+		primaryProvider: trustStore,
 		revocationCache: revCache,
 		config:          cfg,
 		replyHandler: &segfetcher.SegReplyHandler{
@@ -300,7 +300,14 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 	// Try to determine whether the destination AS is core or not
 	subCtx, subCancelF := context.WithTimeout(ctx, time.Second)
 	defer subCancelF()
-	dstTrc, err := f.trustStore.GetValidCachedTRC(subCtx, req.Dst.IA().I)
+
+	dstArgs := infra.PrimaryProviderOpts{
+		TrustStoreOpts: infra.TrustStoreOpts{
+			LocalOnly: true,
+		},
+		RequiredAttributes: []infra.Attribute{infra.Core},
+	}
+	dstCores, err := f.primaryProvider.PrimariesWithAttributes(subCtx, req.Dst.IA().I, dstArgs)
 	if err != nil {
 		// There are situations where we cannot tell if the remote is core. In
 		// these cases we just error out, and calling code will try to get path
@@ -308,12 +315,15 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		// function will proceed to the next part.
 		return nil, err
 	}
-	localTrc, err := f.trustStore.GetValidTRC(ctx, f.topology.ISD_AS.I, nil)
+	localArgs := infra.PrimaryProviderOpts{
+		RequiredAttributes: []infra.Attribute{infra.Core},
+	}
+	locCores, err := f.primaryProvider.PrimariesWithAttributes(ctx, f.topology.ISD_AS.I, localArgs)
 	if err != nil {
 		return nil, err
 	}
-	srcIsCore := localTrc.CoreASes.Contains(f.topology.ISD_AS)
-	dstIsCore := req.Dst.IA().A == 0 || dstTrc.CoreASes.Contains(req.Dst.IA())
+	srcIsCore := containsIA(locCores, f.topology.ISD_AS)
+	dstIsCore := req.Dst.IA().A == 0 || containsIA(dstCores, req.Dst.IA())
 	// pathdb expects slices
 	srcIASlice := []addr.IA{req.Src.IA()}
 	dstIASlice := []addr.IA{req.Dst.IA()}
@@ -327,35 +337,29 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 			return nil, err
 		}
 	case srcIsCore && !dstIsCore:
-		cores, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), srcIASlice,
-			proto.PathSegType_core)
+		cores, err = f.getSegmentsFromDB(ctx, dstCores, srcIASlice, proto.PathSegType_core)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), dstIASlice,
-			proto.PathSegType_down)
+		downs, err = f.getSegmentsFromDB(ctx, dstCores, dstIASlice, proto.PathSegType_down)
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && dstIsCore:
-		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASes.ASList(), srcIASlice,
-			proto.PathSegType_up)
+		ups, err = f.getSegmentsFromDB(ctx, locCores, srcIASlice, proto.PathSegType_up)
 		if err != nil {
 			return nil, err
 		}
-		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, localTrc.CoreASes.ASList(),
-			proto.PathSegType_core)
+		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, locCores, proto.PathSegType_core)
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && !dstIsCore:
-		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASes.ASList(), srcIASlice,
-			proto.PathSegType_up)
+		ups, err = f.getSegmentsFromDB(ctx, locCores, srcIASlice, proto.PathSegType_up)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), dstIASlice,
-			proto.PathSegType_down)
+		downs, err = f.getSegmentsFromDB(ctx, dstCores, dstIASlice, proto.PathSegType_down)
 		if err != nil {
 			return nil, err
 		}
@@ -536,6 +540,15 @@ func filterExpiredPaths(paths []*combinator.Path) []*combinator.Path {
 		}
 	}
 	return validPaths
+}
+
+func containsIA(ias []addr.IA, ia addr.IA) bool {
+	for _, v := range ias {
+		if v.Equal(ia) {
+			return true
+		}
+	}
+	return false
 }
 
 // NewExtendedContext returns a new _independent_ context that can extend past

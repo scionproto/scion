@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
@@ -428,22 +429,90 @@ type Verifier interface {
 	WithSrc(src ctrl.SignSrcDef) Verifier
 }
 
+// TrustStore is the interface to interact with the control-plane PKI.
 type TrustStore interface {
-	GetValidChain(ctx context.Context, ia addr.IA, ver uint64, source net.Addr) (*cert.Chain, error)
-	GetValidTRC(ctx context.Context, isd addr.ISD, source net.Addr) (*trc.TRC, error)
-	GetValidCachedTRC(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
-	GetChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error)
-	GetTRC(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error)
-	NewTRCReqHandler(recurseAllowed bool) Handler
-	NewChainReqHandler(recurseAllowed bool) Handler
-	SetMessenger(msger Messenger)
+	PrimaryProvider
+	CryptoHandlerFactory
 	MsgVerificationFactory
+	SetMessenger(msger Messenger)
 }
 
+// PrimaryProvider provides information about primary ASes.
+type PrimaryProvider interface {
+	// PrimariesWithAttributes returns a list of ASes in the specified ISD that
+	// hold all attributes.
+	PrimariesWithAttributes(ctx context.Context, isd addr.ISD,
+		args PrimaryProviderOpts) ([]addr.IA, error)
+	// HasAttributes indicates whether an AS holds all the specified attributes.
+	// The first return value is always false for non-primary ASes.
+	HasAttributes(ctx context.Context, ia addr.IA, args PrimaryProviderOpts) (bool, error)
+}
+
+// CryptoHandlerFactory provides handlers for incoming crypto material requests.
+type CryptoHandlerFactory interface {
+	NewTRCReqHandler(recurseAllowed bool) Handler
+	NewChainReqHandler(recurseAllowed bool) Handler
+}
+
+// MsgVerificationFactory provides objects for message signing and verification
+// based on control-plane PKI certificates.
 type MsgVerificationFactory interface {
 	NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)
 	NewVerifier() Verifier
 }
+
+// ExtendedTrustStore extends the TrustStore interface to allow for more interactions.
+// Regular infra services should use the TrustStore interface instead.
+type ExtendedTrustStore interface {
+	TrustStore
+	// GetChain returns a valid certificate chain or an error. If the chain is
+	// not found locally, it is requested over the network unless LocalOnly is set.
+	GetChain(ctx context.Context, ia addr.IA, version scrypto.Version, opts ChainOpts) (
+		*cert.Chain, error)
+	// GetTRC returns a valid and active TRC or an error. If the TRC is not
+	// found locally, it is requested over the network unless LocalOnly is set.
+	GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version, opts TRCOpts) (
+		*trc.TRC, error)
+	NewChainPushHandler() Handler
+	NewTRCPushHandler() Handler
+}
+
+// TrustStoreOpts contains the base options when interacting with the trust store.
+type TrustStoreOpts struct {
+	// Hint provides an address where the store should send crypto material
+	// request, if they are not available locally.
+	Hint net.Addr
+	// LocalOnly indicates that the store should only check locally.
+	LocalOnly bool
+}
+
+// PrimaryProviderOpts contains the options for request about primary ASes.
+type PrimaryProviderOpts struct {
+	TrustStoreOpts
+	// RequiredAttributes is a list off all attributes the primary AS must have.
+	RequiredAttributes []Attribute
+}
+
+// ChainOpts contains the options when fetching certificate chains.
+type ChainOpts struct {
+	TrustStoreOpts
+	// AllowInactiveTRC allows retrieving chains authenticated by no longer
+	// active TRCs.
+	AllowInactiveTRC bool
+}
+
+// TRCOpts contains the options when fetching TRCs.
+type TRCOpts struct {
+	TrustStoreOpts
+	// AllowInactive allows retrieving verified TRCs that are no longer active.
+	AllowInactive bool
+}
+
+// Core is the place holder core attribute. TODO(roosd): remove
+const Core Attribute = 1
+
+// Attribute is a place holder for new the primary AS attributes. TODO(roosd): remove
+type Attribute int
 
 var (
 	// NullSigner is a Signer that creates SignedPld's with no signature.
