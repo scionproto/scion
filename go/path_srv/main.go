@@ -148,12 +148,13 @@ func realMain() int {
 	// and cert requests.
 	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	args := handlers.HandlerArgs{
-		PathDB:        pathDB,
-		RevCache:      revCache,
-		TrustStore:    trustStore,
-		QueryInterval: cfg.PS.QueryInterval.Duration,
-		IA:            topo.ISD_AS,
-		TopoProvider:  itopo.Provider(),
+		PathDB:          pathDB,
+		RevCache:        revCache,
+		PrimaryProvider: trustStore,
+		VerifierFactory: trustStore,
+		QueryInterval:   cfg.PS.QueryInterval.Duration,
+		IA:              topo.ISD_AS,
+		TopoProvider:    itopo.Provider(),
 	}
 	core := topo.Core
 	var segReqHandler infra.Handler
