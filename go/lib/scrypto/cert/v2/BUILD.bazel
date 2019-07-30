@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "as.go",
         "base.go",
+        "issuer.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/scrypto/cert/v2",
     visibility = ["//visibility:public"],
@@ -22,6 +23,8 @@ go_test(
         "as_test.go",
         "base_json_test.go",
         "base_test.go",
+        "issuer_json_test.go",
+        "issuer_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
