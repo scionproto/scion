@@ -131,19 +131,6 @@ func unmarshalCond(b []byte) (Cond, error) {
 	return c, nil
 }
 
-// unmarshalAction extracts an Action from a JSON encoding
-func unmarshalAction(b []byte) (Action, error) {
-	t, err := unmarshalInterface(b)
-	if err != nil {
-		return nil, err
-	}
-	a, ok := t.(Action)
-	if !ok {
-		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
-	}
-	return a, nil
-}
-
 // unmarshal extracts an IPv4Predicate from a JSON encoding
 func unmarshalPredicate(b []byte) (IPv4Predicate, error) {
 	t, err := unmarshalInterface(b)
