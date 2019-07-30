@@ -242,31 +242,54 @@ func (t *Attribute) UnmarshalJSON(b []byte) error {
 }
 
 const (
-	// IssuingKey is the issuing key type.
-	IssuingKey KeyType = "Issuing"
-	// OnlineKey is the online key type.
-	OnlineKey KeyType = "Online"
-	// OfflineKey is the offline key type.
-	OfflineKey KeyType = "Offline"
+	IssuingKeyJSON = "Issuing"
+	OnlineKeyJSON  = "Online"
+	OfflineKeyJSON = "Offline"
 )
 
-var _ json.Unmarshaler = (*KeyType)(nil)
+const (
+	unknownKey KeyType = iota
+	// IssuingKey is the issuing key type.
+	IssuingKey
+	// OnlineKey is the online key type.
+	OnlineKey
+	// OfflineKey is the offline key type.
+	OfflineKey
+)
 
-// KeyType indicates the type of the key authenticated by the TRC. It can either
-// be "Online", "Offline", or "Issuing".
-type KeyType string
+// KeyType indicates the type of the key authenticated by the TRC.
+//
+// Because KeyType is used as a map key, it cannot be a string type. (see:
+// https://github.com/golang/go/issues/33298)
+type KeyType int
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (t *KeyType) UnmarshalJSON(b []byte) error {
-	switch KeyType(strings.Trim(string(b), `"`)) {
-	case OnlineKey:
+// UnmarshalText allows KeyType to be used as a map key and do validation when parsing.
+func (t *KeyType) UnmarshalText(b []byte) error {
+	switch string(b) {
+	case OnlineKeyJSON:
 		*t = OnlineKey
-	case OfflineKey:
+	case OfflineKeyJSON:
 		*t = OfflineKey
-	case IssuingKey:
+	case IssuingKeyJSON:
 		*t = IssuingKey
 	default:
 		return common.NewBasicError(InvalidKeyType, nil, "input", string(b))
 	}
 	return nil
+
+}
+
+// MarshalText is implemented to allow KeyType to be used as JSON map key. This
+// must be a value receiver in order for KeyType fields in a struct to marshal
+// correctly.
+func (t KeyType) MarshalText() ([]byte, error) {
+	switch t {
+	case OnlineKey:
+		return []byte(OnlineKeyJSON), nil
+	case OfflineKey:
+		return []byte(OfflineKeyJSON), nil
+	case IssuingKey:
+		return []byte(IssuingKeyJSON), nil
+	}
+	return nil, common.NewBasicError(InvalidKeyType, nil, "type", int(t))
 }
