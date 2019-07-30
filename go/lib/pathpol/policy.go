@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,6 +72,18 @@ func (p *Policy) Act(values interface{}) interface{} {
 	return resultSet
 }
 
+func (p *Policy) Act2(paths PathSet) PathSet {
+	resultSet := p.ACL.Eval2(paths)
+	if p.Sequence != nil {
+		resultSet = p.Sequence.Eval2(resultSet)
+	}
+	// Filter on sub policies
+	if len(p.Options) > 0 {
+		resultSet = p.evalOptions2(resultSet)
+	}
+	return resultSet
+}
+
 // PolicyFromExtPolicy creates a Policy from an extending Policy and the extended policies
 func PolicyFromExtPolicy(extPolicy *ExtPolicy, extended []*ExtPolicy) (*Policy, error) {
 	policy := extPolicy.Policy
@@ -132,6 +145,23 @@ func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet
 		}
 		currWeight = option.Weight
 		subPaths := option.Policy.Act(inputSet).(spathmeta.AppPathSet)
+		for key, path := range subPaths {
+			subPolicySet[key] = path
+		}
+	}
+	return subPolicySet
+}
+
+func (p *Policy) evalOptions2(inputSet PathSet) PathSet {
+	subPolicySet := make(PathSet)
+	currWeight := p.Options[0].Weight
+	// Go through sub policies
+	for _, option := range p.Options {
+		if currWeight > option.Weight && len(subPolicySet) > 0 {
+			break
+		}
+		currWeight = option.Weight
+		subPaths := option.Policy.Act2(inputSet)
 		for key, path := range subPaths {
 			subPolicySet[key] = path
 		}

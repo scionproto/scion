@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,6 +52,20 @@ func (a *ACL) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	return resultSet
 }
 
+func (a *ACL) Eval2(inputSet PathSet) PathSet {
+	resultSet := make(PathSet)
+	if a == nil || len(a.Entries) == 0 {
+		return inputSet
+	}
+	for key, path := range inputSet {
+		// Check ACL
+		if a.evalPath2(path) {
+			resultSet[key] = path
+		}
+	}
+	return resultSet
+}
+
 func (a *ACL) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.Entries)
 }
@@ -68,9 +83,27 @@ func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
 	return Allow
 }
 
+func (a *ACL) evalPath2(path Path) ACLAction {
+	for i, iface := range path.Interfaces() {
+		if a.evalInterface2(iface, i%2 != 0) == Deny {
+			return Deny
+		}
+	}
+	return Allow
+}
+
 func (a *ACL) evalInterface(iface sciond.PathInterface, ingress bool) ACLAction {
 	for _, aclEntry := range a.Entries {
 		if aclEntry.Rule == nil || aclEntry.Rule.pathIFMatch(iface, ingress) {
+			return aclEntry.Action
+		}
+	}
+	panic("Default ACL action missing")
+}
+
+func (a *ACL) evalInterface2(iface PathInterface, ingress bool) ACLAction {
+	for _, aclEntry := range a.Entries {
+		if aclEntry.Rule == nil || aclEntry.Rule.pathIFMatch2(iface, ingress) {
 			return aclEntry.Action
 		}
 	}

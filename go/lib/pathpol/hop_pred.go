@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -101,6 +102,26 @@ func (hp *HopPredicate) pathIFMatch(pi sciond.PathInterface, in bool) bool {
 		ifInd = 1
 	}
 	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.IfID {
+		return false
+	}
+	return true
+}
+
+func (hp *HopPredicate) pathIFMatch2(pi PathInterface, in bool) bool {
+	if hp.ISD != 0 && pi.IA.I != hp.ISD {
+		return false
+	}
+	if hp.AS != 0 && pi.IA.A != hp.AS {
+		return false
+	}
+	ifInd := 0
+	// the IF index is set to 1 if
+	// - there are two IFIDs and
+	// - the ingress interface should not be matched
+	if len(hp.IfIDs) == 2 && !in {
+		ifInd = 1
+	}
+	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.IfId {
 		return false
 	}
 	return true
