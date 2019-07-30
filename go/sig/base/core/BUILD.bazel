@@ -19,7 +19,6 @@ go_library(
         "//go/sig/egress/dispatcher:go_default_library",
         "//go/sig/egress/router:go_default_library",
         "//go/sig/egress/session:go_default_library",
-        "//go/sig/egress/worker:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )

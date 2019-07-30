@@ -72,14 +72,6 @@ type Session interface {
 	AnnounceWorkerStopped()
 }
 
-// Runner is implemented by objects that operate as goroutines.
-type Runner interface {
-	Run()
-}
-
-// WorkerFactory build a worker for a specific session.
-type WorkerFactory func(Session, log.Logger) Runner
-
 type RemoteInfo struct {
 	Sig      *siginfo.Sig
 	SessPath *SessPath
