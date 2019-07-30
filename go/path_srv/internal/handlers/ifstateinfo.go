@@ -61,7 +61,7 @@ func (h *ifStateInfoHandler) Handle() *infra.HandlerResult {
 
 func (h *ifStateInfoHandler) verifyAndStore(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
 	logger := log.FromCtx(ctx)
-	err := segverifier.VerifyRevInfo(ctx, h.trustStore.NewVerifier(), h.request.Peer, rev)
+	err := segverifier.VerifyRevInfo(ctx, h.verifierFactory.NewVerifier(), h.request.Peer, rev)
 	if err != nil {
 		logger.Error("[ifStateHandler] Failed to verify revInfo", "rev", rev, "err", err)
 		return

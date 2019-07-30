@@ -20,14 +20,13 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/keyconf"
 )
 
 type State struct {
 	// Store is the trust store.
-	Store *trust.Store
+	Store infra.ExtendedTrustStore
 	// TrustDB is the trust DB.
 	TrustDB trustdb.TrustDB
 	// keyConf contains the AS level keys.
@@ -45,7 +44,7 @@ type State struct {
 }
 
 func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
-	trustStore *trust.Store) (*State, error) {
+	trustStore infra.ExtendedTrustStore) (*State, error) {
 
 	s := &State{
 		Store:   trustStore,
