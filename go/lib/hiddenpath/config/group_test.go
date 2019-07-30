@@ -1,4 +1,4 @@
-package config
+package hpGroup
 
 import (
 	"encoding/json"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var testCfg = `{
@@ -31,6 +32,16 @@ var testCfg = `{
     ]
 }`
 
+var (
+	as_110 = xtest.MustParseAS("ff00:0:110")
+	ia_110 = xtest.MustParseIA("1-ff00:0:110")
+	ia_111 = xtest.MustParseIA("1-ff00:0:111")
+	ia_112 = xtest.MustParseIA("1-ff00:0:112")
+	ia_113 = xtest.MustParseIA("1-ff00:0:113")
+	ia_114 = xtest.MustParseIA("1-ff00:0:114")
+	ia_115 = xtest.MustParseIA("1-ff00:0:115")
+)
+
 func TestUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func() []byte
@@ -42,23 +53,35 @@ func TestUnmarshalJSON(t *testing.T) {
 			},
 			ExpectedErrMsg: "",
 		},
+		"invalid GroupId format": {
+			Modify: func() []byte {
+				return []byte(strings.Replace(testCfg, "ff00:0:110-69b5", "invalid", 1))
+			},
+			ExpectedErrMsg: `Invalid GroupId format GroupId="invalid"`,
+		},
 		"invalid GroupId AS": {
 			Modify: func() []byte {
-				return []byte(strings.Replace(testCfg, "ff00:0:110", "x", 1))
+				return []byte(strings.Replace(testCfg, "ff00:0:110", "invalid", 1))
 			},
 			ExpectedErrMsg: `Unable to parse AS`,
 		},
 		"invalid GroupId suffix": {
 			Modify: func() []byte {
-				return []byte(strings.Replace(testCfg, "69b5", "x", 1))
+				return []byte(strings.Replace(testCfg, "69b5", "invalid", 1))
 			},
-			ExpectedErrMsg: `Invalid GroupId suffix suffix="x"`,
+			ExpectedErrMsg: `Invalid GroupId suffix suffix="invalid"`,
 		},
 		"version missing": {
 			Modify: func() []byte {
 				return []byte(strings.Replace(testCfg, `"Version": 1,`, "", 1))
 			},
-			ExpectedErrMsg: `Version missing`,
+			ExpectedErrMsg: `Invalid version`,
+		},
+		"version invalid": {
+			Modify: func() []byte {
+				return []byte(strings.Replace(testCfg, `"Version": 1,`, `"Version": 0,`, 1))
+			},
+			ExpectedErrMsg: `Invalid version`,
 		},
 		"owner mismatch": {
 			Modify: func() []byte {
@@ -68,33 +91,33 @@ func TestUnmarshalJSON(t *testing.T) {
 		},
 		"invalid Owner": {
 			Modify: func() []byte {
-				return []byte(strings.Replace(testCfg, "1-ff00:0:110", "x", 1))
+				return []byte(strings.Replace(testCfg, "1-ff00:0:110", "invalid", 1))
 			},
-			ExpectedErrMsg: `Invalid ISD-AS raw="x"`,
+			ExpectedErrMsg: `Invalid ISD-AS raw="invalid"`,
 		},
 		"invalid Writer": {
 			Modify: func() []byte {
-				return []byte(strings.Replace(testCfg, "1-ff00:0:111", "x", 1))
+				return []byte(strings.Replace(testCfg, "1-ff00:0:111", "invalid", 1))
 			},
-			ExpectedErrMsg: `Invalid ISD-AS raw="x"`,
+			ExpectedErrMsg: `Invalid ISD-AS raw="invalid"`,
 		},
 		"invalid Reader": {
 			Modify: func() []byte {
-				return []byte(strings.Replace(testCfg, "1-ff00:0:114", "x", 1))
+				return []byte(strings.Replace(testCfg, "1-ff00:0:114", "invalid", 1))
 			},
-			ExpectedErrMsg: `Invalid ISD-AS raw="x"`,
+			ExpectedErrMsg: `Invalid ISD-AS raw="invalid"`,
 		},
 		"invalid Registry": {
 			Modify: func() []byte {
-				return []byte(strings.Replace(testCfg, "1-ff00:0:115", "x", 1))
+				return []byte(strings.Replace(testCfg, "1-ff00:0:115", "invalid", 1))
 			},
-			ExpectedErrMsg: `Invalid ISD-AS raw="x"`,
+			ExpectedErrMsg: `Invalid ISD-AS raw="invalid"`,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var parsed HPCfg
+			var parsed Group
 			err := json.Unmarshal(test.Modify(), &parsed)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
@@ -107,7 +130,7 @@ func TestUnmarshalJSON(t *testing.T) {
 }
 
 func TestUnmarshalMarshal(t *testing.T) {
-	cfg := &HPCfg{}
+	cfg := &Group{}
 	err := json.Unmarshal([]byte(testCfg), cfg)
 	require.NoError(t, err)
 	b, err := json.MarshalIndent(cfg, "", "    ")
@@ -118,16 +141,16 @@ func TestUnmarshalMarshal(t *testing.T) {
 func TestToMsgFromMsg(t *testing.T) {
 	expected := &path_mgmt.HPCfg{
 		GroupId: &path_mgmt.HPGroupId{
-			OwnerAS: 0xff0000000110,
+			OwnerAS: as_110,
 			GroupId: 0x69b5,
 		},
 		Version:    0x1,
 		OwnerISD:   0x1,
-		Writers:    []addr.IAInt{0x1ff0000000111, 0x1ff0000000112},
-		Readers:    []addr.IAInt{0x1ff0000000113, 0x1ff0000000114},
-		Registries: []addr.IAInt{0x1ff0000000110, 0x1ff0000000111, 0x1ff0000000115},
+		Writers:    []addr.IAInt{ia_111.IAInt(), ia_112.IAInt()},
+		Readers:    []addr.IAInt{ia_113.IAInt(), ia_114.IAInt()},
+		Registries: []addr.IAInt{ia_110.IAInt(), ia_111.IAInt(), ia_115.IAInt()},
 	}
-	cfg := &HPCfg{}
+	cfg := &Group{}
 	err := json.Unmarshal([]byte(testCfg), cfg)
 	require.NoError(t, err)
 	msg := cfg.ToMsg()
@@ -137,7 +160,7 @@ func TestToMsgFromMsg(t *testing.T) {
 }
 
 func TestHas(t *testing.T) {
-	cfg := &HPCfg{}
+	cfg := &Group{}
 	err := json.Unmarshal([]byte(testCfg), cfg)
 	require.NoError(t, err)
 
@@ -148,43 +171,39 @@ func TestHas(t *testing.T) {
 	}{
 		"has writer": {
 			IA:       cfg.Writers[0],
-			Func:     cfg.HasWriter,
+			Func:     cfg.IsWriter,
 			Expected: true,
 		},
 		"not has writer": {
 			IA:       cfg.Readers[0],
-			Func:     cfg.HasWriter,
+			Func:     cfg.IsWriter,
 			Expected: false,
 		},
 		"has reader": {
 			IA:       cfg.Readers[0],
-			Func:     cfg.HasReader,
+			Func:     cfg.IsReader,
 			Expected: true,
 		},
 		"not has reader": {
 			IA:       cfg.Writers[0],
-			Func:     cfg.HasReader,
+			Func:     cfg.IsReader,
 			Expected: false,
 		},
 		"has registry": {
 			IA:       cfg.Registries[0],
-			Func:     cfg.HasRegistry,
+			Func:     cfg.IsRegistry,
 			Expected: true,
 		},
 		"not has registry": {
 			IA:       cfg.Writers[1],
-			Func:     cfg.HasRegistry,
+			Func:     cfg.IsRegistry,
 			Expected: false,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if test.Expected {
-				assert.True(t, test.Func(test.IA))
-			} else {
-				assert.False(t, test.Func(test.IA))
-			}
+			assert.Equal(t, test.Expected, test.Func(test.IA))
 		})
 	}
 }
