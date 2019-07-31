@@ -274,8 +274,7 @@ type pathWrap struct {
 	*spathmeta.AppPath
 }
 
-func (p pathWrap) Key() string     { return p.AppPath.Key().String() }
-func (p pathWrap) IsPartial() bool { return false }
+func (p pathWrap) Key() string { return p.AppPath.Key().String() }
 func (p pathWrap) Interfaces() []pathpol.PathInterface {
 	intfs := make([]pathpol.PathInterface, 0, len(p.Entry.Path.Interfaces))
 	for _, intf := range p.Entry.Path.Interfaces {
