@@ -1,4 +1,4 @@
-package hpGroup
+package hiddenpath
 
 import (
 	"encoding/json"
@@ -21,22 +21,27 @@ const (
 
 // Validation errors
 const (
-	// OwnerMismatch indicates a mismatch between Owner and GroupId.OwnerAS
-	OwnerMismatch = "Owner mismatch"
+	// MissingGroupID indicates a missing GroupId
+	MissingGroupId = "Missing GroupId"
 	// InvalidVersion indicates a missing version
 	InvalidVersion = "Invalid version"
+	// MissingOwner indicates a missing Owner
+	MissingOwner = "Missing Owner"
+	// OwnerMismatch indicates a mismatch between Owner and GroupId.OwnerAS
+	OwnerMismatch = "Owner mismatch"
+	// EmptyWriters indicatres an empty Writer section
+	EmptyWriters = "Writer section cannot be empty"
+	// EmptyWriters indicatres an empty Writer section
+	EmptyRegistries = "Registry section cannot be empty"
 )
 
-type Id struct {
+type GroupId struct {
 	OwnerAS addr.AS
 	Suffix  uint16
 }
 
-func (id *Id) UnmarshalJSON(data []byte) (err error) {
+func (id *GroupId) UnmarshalJSON(data []byte) (err error) {
 	var v string
-	if err = json.Unmarshal(data, &v); err != nil {
-		return err
-	}
 	if err = json.Unmarshal(data, &v); err != nil {
 		return err
 	}
@@ -50,19 +55,19 @@ func (id *Id) UnmarshalJSON(data []byte) (err error) {
 	}
 	suffix, err := strconv.ParseUint(parts[1], 16, 16)
 	if err != nil {
-		return common.NewBasicError(InvalidGroupIdSuffix, err, "suffix", parts[1])
+		return common.NewBasicError(InvalidGroupIdSuffix, err, "Suffix", parts[1])
 	}
 	id.OwnerAS = ownerAS
 	id.Suffix = uint16(suffix)
 	return nil
 }
 
-func (id *Id) MarshalJSON() ([]byte, error) {
+func (id GroupId) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fmt.Sprintf("%s-%x", id.OwnerAS, id.Suffix))
 }
 
 type Group struct {
-	GroupId    *Id `json:"GroupID"`
+	Id         GroupId `json:"GroupID"`
 	Version    uint
 	Owner      addr.IA
 	Writers    []addr.IA
@@ -71,36 +76,36 @@ type Group struct {
 }
 
 func (h *Group) UnmarshalJSON(data []byte) (err error) {
-	var v struct {
-		GroupId    *Id
-		Version    uint
-		Owner      addr.IA
-		Writers    []addr.IA
-		Readers    []addr.IA
-		Registries []addr.IA
-	}
+	type groupAlias Group
+	var v groupAlias
 	if err = json.Unmarshal(data, &v); err != nil {
 		return err
+	}
+	if v.Id == (GroupId{}) {
+		return common.NewBasicError(MissingGroupId, nil)
 	}
 	if v.Version == 0 {
 		return common.NewBasicError(InvalidVersion, nil)
 	}
-	if v.Owner.A != v.GroupId.OwnerAS {
-		return common.NewBasicError(OwnerMismatch, nil,
-			"OwnerAS", v.Owner.A, "GroupId.OwnerAS", v.GroupId.OwnerAS)
+	if v.Owner == (addr.IA{}) {
+		return common.NewBasicError(MissingOwner, nil)
 	}
-	h.GroupId = v.GroupId
-	h.Version = v.Version
-	h.Owner = v.Owner
-	h.Writers = v.Writers
-	h.Readers = v.Readers
-	h.Registries = v.Registries
-
+	if v.Owner.A != v.Id.OwnerAS {
+		return common.NewBasicError(OwnerMismatch, nil,
+			"OwnerAS", v.Owner.A, "GroupId.OwnerAS", v.Id.OwnerAS)
+	}
+	if len(v.Writers) == 0 {
+		return common.NewBasicError(EmptyWriters, nil)
+	}
+	if len(v.Registries) == 0 {
+		return common.NewBasicError(EmptyRegistries, nil)
+	}
+	*h = Group(v)
 	return nil
 }
 
-// IsWriter returns true if ia is a Writer of h
-func (h *Group) IsWriter(ia addr.IA) bool {
+// HasWriter returns true if ia is a Writer of h
+func (h Group) HasWriter(ia addr.IA) bool {
 	for _, w := range h.Writers {
 		if w == ia {
 			return true
@@ -109,8 +114,8 @@ func (h *Group) IsWriter(ia addr.IA) bool {
 	return false
 }
 
-// IsReader returns true if ia is a Reader of h
-func (h *Group) IsReader(ia addr.IA) bool {
+// HasReader returns true if ia is a Reader of h
+func (h Group) HasReader(ia addr.IA) bool {
 	for _, r := range h.Readers {
 		if r == ia {
 			return true
@@ -119,8 +124,8 @@ func (h *Group) IsReader(ia addr.IA) bool {
 	return false
 }
 
-// IsRegistry returns true if ia is a Registry of h
-func (h *Group) IsRegistry(ia addr.IA) bool {
+// HasRegistry returns true if ia is a Registry of h
+func (h Group) HasRegistry(ia addr.IA) bool {
 	for _, r := range h.Registries {
 		if r == ia {
 			return true
@@ -129,12 +134,12 @@ func (h *Group) IsRegistry(ia addr.IA) bool {
 	return false
 }
 
-// ToMsg retruns h as Cerializable message suitable to be sent via messenger
-func (h *Group) ToMsg() *path_mgmt.HPCfg {
+// ToMsg returns h as Cerializable message suitable to be sent via messenger
+func (h Group) ToMsg() *path_mgmt.HPCfg {
 	return &path_mgmt.HPCfg{
 		GroupId: &path_mgmt.HPGroupId{
-			OwnerAS: h.GroupId.OwnerAS,
-			GroupId: h.GroupId.Suffix,
+			OwnerAS: h.Id.OwnerAS,
+			GroupId: h.Id.Suffix,
 		},
 		Version:    uint32(h.Version),
 		OwnerISD:   h.Owner.I,
@@ -144,10 +149,10 @@ func (h *Group) ToMsg() *path_mgmt.HPCfg {
 	}
 }
 
-// FromMsg retruns a HPCfg from the Cerializable representation
+// FromMsg returns a HPCfg from the Cerializable representation
 func FromMsg(m *path_mgmt.HPCfg) *Group {
 	return &Group{
-		GroupId: &Id{
+		Id: GroupId{
 			OwnerAS: m.GroupId.OwnerAS,
 			Suffix:  m.GroupId.GroupId,
 		},
