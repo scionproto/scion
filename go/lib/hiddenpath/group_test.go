@@ -58,12 +58,14 @@ func TestUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func() string
 		ExpectedErrMsg string
+		ExpectedGroup  func() Group
 	}{
 		"valid": {
 			Modify: func() string {
 				return testCfg
 			},
 			ExpectedErrMsg: "",
+			ExpectedGroup:  func() Group { return testGroup },
 		},
 		"missing GroupId": {
 			Modify: func() string {
@@ -150,7 +152,11 @@ func TestUnmarshalJSON(t *testing.T) {
 				b, _ := json.Marshal(g)
 				return string(b)
 			},
-			ExpectedErrMsg: "",
+			ExpectedGroup: func() Group {
+				g := testGroup
+				g.Readers = nil
+				return g
+			},
 		},
 		"empty Readers ok": {
 			Modify: func() string {
@@ -159,7 +165,11 @@ func TestUnmarshalJSON(t *testing.T) {
 				b, _ := json.Marshal(g)
 				return string(b)
 			},
-			ExpectedErrMsg: "",
+			ExpectedGroup: func() Group {
+				g := testGroup
+				g.Readers = []addr.IA{}
+				return g
+			},
 		},
 		"invalid Reader": {
 			Modify: func() string {
@@ -199,6 +209,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			err := json.Unmarshal([]byte(test.Modify()), &parsed)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
+				require.Equal(t, test.ExpectedGroup(), parsed)
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
