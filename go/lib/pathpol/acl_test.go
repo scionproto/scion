@@ -22,6 +22,27 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+func TestNewACL(t *testing.T) {
+	tests := map[string]struct {
+		Entries        []*ACLEntry
+		ErrorAssertion assert.ErrorAssertionFunc
+	}{
+		"No entry": {
+			ErrorAssertion: assert.Error,
+		},
+		"Entry without rule": {
+			Entries:        []*ACLEntry{{Action: Allow}},
+			ErrorAssertion: assert.NoError,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err := NewACL(test.Entries...)
+			test.ErrorAssertion(t, err)
+		})
+	}
+}
+
 func TestACLEntryLoadFromString(t *testing.T) {
 	tests := map[string]struct {
 		String         string

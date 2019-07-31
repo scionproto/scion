@@ -17,9 +17,15 @@ package pathpol
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+)
+
+var (
+	// ErrNoDefault indicates that there is no default acl entry.
+	ErrNoDefault = errors.New("ACL does not have a default")
 )
 
 type ACL struct {
@@ -28,9 +34,8 @@ type ACL struct {
 
 // NewACL creates a new entry and checks for the presence of a default action
 func NewACL(entries ...*ACLEntry) (*ACL, error) {
-	lastRule := entries[len(entries)-1].Rule
-	if lastRule.IfIDs[0] != 0 || lastRule.ISD != 0 || lastRule.AS != 0 {
-		return nil, common.NewBasicError("ACL does not have a default", nil)
+	if len(entries) == 0 || !entries[len(entries)-1].Rule.matchesAll() {
+		return nil, ErrNoDefault
 	}
 	return &ACL{Entries: entries}, nil
 }

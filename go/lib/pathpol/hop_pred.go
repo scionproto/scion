@@ -105,6 +105,14 @@ func (hp *HopPredicate) pathIFMatch(pi PathInterface, in bool) bool {
 	return true
 }
 
+func (hp *HopPredicate) matchesAll() bool {
+	if hp == nil {
+		return true
+	}
+	// hp.AS == 0 implies that there is exactly one 0 interface.
+	return hp.ISD == 0 && hp.AS == 0
+}
+
 func (hp HopPredicate) String() string {
 	var s []string
 	for _, ifid := range hp.IfIDs {
