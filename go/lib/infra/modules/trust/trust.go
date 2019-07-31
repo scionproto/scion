@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -74,7 +73,7 @@ type Store struct {
 	trustdb      trustdb.TrustDB
 	trcDeduper   dedupe.Deduper
 	chainDeduper dedupe.Deduper
-	config       *Config
+	config       Config
 	// local AS
 	ia    addr.IA
 	log   log.Logger
@@ -84,10 +83,7 @@ type Store struct {
 // NewStore initializes a TRC/Certificate Chain cache/resolver backed by db.
 // Parameter local must specify the AS in which the trust store resides (which
 // is used during request forwarding decisions).
-func NewStore(db trustdb.TrustDB, local addr.IA, options *Config, logger log.Logger) *Store {
-	if options == nil {
-		options = &Config{}
-	}
+func NewStore(db trustdb.TrustDB, local addr.IA, options Config, logger log.Logger) *Store {
 	store := &Store{
 		trustdb: db,
 		ia:      local,
@@ -609,7 +605,7 @@ func (store *Store) isLocal(address net.Addr) error {
 //  * a local core CS if destination is isd-local or any core CS.
 //  * a remote core CS if destination is remote isd.
 func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.Addr, error) {
-	topo := itopo.Get()
+	topo := store.config.TopoProvider.Get()
 	if store.config.ServiceType != proto.ServiceType_cs {
 		return &snet.Addr{IA: store.ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}, nil
 	}
