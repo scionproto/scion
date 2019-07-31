@@ -807,8 +807,6 @@ func (p *testPath) Interfaces() []PathInterface {
 	return p.interfaces
 }
 
-func (p *testPath) IsPartial() bool { return false }
-
 func (p *testPath) Key() string { return p.key }
 
 type testPathIntf struct {

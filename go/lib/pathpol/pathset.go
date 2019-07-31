@@ -26,8 +26,6 @@ type PathSet map[string]Path
 type Path interface {
 	// Interfaces returns all the interfaces of this path.
 	Interfaces() []PathInterface
-	// IsPartial returns whether this is a partial path.
-	IsPartial() bool
 	// Returns a string that uniquely identifies this path.
 	Key() string
 }
