@@ -4,7 +4,9 @@ go_library(
     name = "go_default_library",
     srcs = [
         "as.go",
+        "as_signed.go",
         "base.go",
+        "base_signed.go",
         "issuer.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/scrypto/cert/v2",
@@ -20,6 +22,8 @@ go_test(
     name = "go_default_test",
     srcs = [
         "as_json_test.go",
+        "as_signed_json_test.go",
+        "as_signed_test.go",
         "as_test.go",
         "base_json_test.go",
         "base_test.go",

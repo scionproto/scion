@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -178,14 +177,12 @@ const (
 	VoteSignature SignatureType = "Vote"
 )
 
-var _ json.Unmarshaler = (*SignatureType)(nil)
-
 // SignatureType indicates the purpose of a signature.
 type SignatureType string
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (t *SignatureType) UnmarshalJSON(b []byte) error {
-	switch SignatureType(strings.Trim(string(b), `"`)) {
+// UnmarshalText checks that signature type is supported.
+func (t *SignatureType) UnmarshalText(b []byte) error {
+	switch SignatureType(b) {
 	case POPSignature:
 		*t = POPSignature
 	case VoteSignature:
@@ -197,20 +194,9 @@ func (t *SignatureType) UnmarshalJSON(b []byte) error {
 }
 
 var (
-	allCritFields       = critFields{"Type", "AS", "KeyType", "KeyVersion"}
+	allCritFields       = []string{"Type", "KeyType", "KeyVersion", "AS"}
 	packedCritFields, _ = json.Marshal(allCritFields)
 )
-
-type critFields []string
-
-func (c critFields) index(field string) (int, bool) {
-	for i, f := range allCritFields {
-		if f == field {
-			return i, true
-		}
-	}
-	return 0, false
-}
 
 var _ json.Unmarshaler = Crit{}
 var _ json.Marshaler = Crit{}
@@ -227,22 +213,11 @@ func (c Crit) UnmarshalJSON(b []byte) error {
 	if len(list) != len(allCritFields) {
 		return common.NewBasicError(InvalidCrit, nil, "len", len(list))
 	}
-	fields := make([]bool, len(allCritFields))
-	for _, field := range list {
-		idx, ok := allCritFields.index(field)
-		if !ok {
-			return common.NewBasicError(InvalidCrit, nil, "unknown", field)
+	for i, expected := range allCritFields {
+		if list[i] != expected {
+			return common.NewBasicError(InvalidCrit, nil, "idx", i,
+				"expected", expected, "actual", list[i])
 		}
-		fields[idx] = true
-	}
-	var missing []string
-	for i, ok := range fields {
-		if !ok {
-			missing = append(missing, allCritFields[i])
-		}
-	}
-	if len(missing) > 0 {
-		return common.NewBasicError(InvalidCrit, nil, "missing", missing)
 	}
 	return nil
 }
@@ -255,9 +230,5 @@ func (Crit) MarshalJSON() ([]byte, error) {
 // SigInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
 func SigInput(protected EncodedProtected, trc Encoded) common.RawBytes {
-	input := make([]byte, len(protected)+len(trc)+1)
-	copy(input[:len(protected)], protected)
-	input[len(protected)] = '.'
-	copy(input[len(protected)+1:], trc)
-	return input
+	return scrypto.JWSignatureInput(protected, trc)
 }
