@@ -16,6 +16,7 @@ package trust
 
 import (
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -32,4 +33,6 @@ type Config struct {
 	ServiceType proto.ServiceType
 	// Router is used to determine paths to other ASes.
 	Router snet.Router
+	// TopoProvider provides the local topology.
+	TopoProvider topology.Provider
 }
