@@ -160,7 +160,11 @@ func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
 	if policy == nil {
 		return aps
 	}
-	return policy.Act(aps).(spathmeta.AppPathSet)
+	ps := make(pathpol.PathSet, len(aps))
+	for key, path := range aps {
+		ps[key.String()] = path
+	}
+	return policy.Act2(aps)
 }
 
 func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,

@@ -272,6 +272,14 @@ func (iface *PathInterface) ISD_AS() addr.IA {
 	return iface.RawIsdas.IA()
 }
 
+func (iface PathInterface) IA() addr.IA {
+	return iface.RawIsdas.IA()
+}
+
+func (iface PathInterface) IfId() common.IFIDType {
+	return iface.IfID
+}
+
 func (iface *PathInterface) Equal(other *PathInterface) bool {
 	if iface == nil || other == nil {
 		return iface == other

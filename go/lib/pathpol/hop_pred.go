@@ -108,10 +108,10 @@ func (hp *HopPredicate) pathIFMatch(pi sciond.PathInterface, in bool) bool {
 }
 
 func (hp *HopPredicate) pathIFMatch2(pi PathInterface, in bool) bool {
-	if hp.ISD != 0 && pi.IA.I != hp.ISD {
+	if hp.ISD != 0 && pi.IA().I != hp.ISD {
 		return false
 	}
-	if hp.AS != 0 && pi.IA.A != hp.AS {
+	if hp.AS != 0 && pi.IA().A != hp.AS {
 		return false
 	}
 	ifInd := 0
@@ -121,7 +121,7 @@ func (hp *HopPredicate) pathIFMatch2(pi PathInterface, in bool) bool {
 	if len(hp.IfIDs) == 2 && !in {
 		ifInd = 1
 	}
-	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.IfId {
+	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.IfId() {
 		return false
 	}
 	return true

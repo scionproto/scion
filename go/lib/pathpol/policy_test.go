@@ -790,7 +790,7 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 		var key strings.Builder
 		for _, ifid := range ifids {
 			ia := p.g.GetParent(ifid)
-			pathIntfs = append(pathIntfs, PathInterface{IA: ia, IfId: ifid})
+			pathIntfs = append(pathIntfs, testPathIntf{ia: ia, ifid: ifid})
 			key.WriteString(fmt.Sprintf("%s-%d", ia, ifid))
 		}
 		result[key.String()] = &testPath{interfaces: pathIntfs, key: key.String()}
@@ -810,6 +810,14 @@ func (p *testPath) Interfaces() []PathInterface {
 func (p *testPath) IsPartial() bool { return false }
 
 func (p *testPath) Key() string { return p.key }
+
+type testPathIntf struct {
+	ia   addr.IA
+	ifid common.IFIDType
+}
+
+func (i testPathIntf) IfId() common.IFIDType { return i.ifid }
+func (i testPathIntf) IA() addr.IA           { return i.ia }
 
 func mustHopPredicate(t *testing.T, str string) *HopPredicate {
 	hp, err := HopPredicateFromString(str)

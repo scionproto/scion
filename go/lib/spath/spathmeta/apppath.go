@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -94,6 +95,14 @@ func (ap *AppPath) Key() PathKey {
 		binary.Write(h, common.Order, iface.IfID)
 	}
 	return PathKey(h.Sum(nil))
+}
+
+func (ap *AppPath) Interfaces() []*sciond.PathInterface {
+	return nil
+}
+
+func (ap *AppPath) IsPartial() bool {
+	return false
 }
 
 func (ap *AppPath) Copy() *AppPath {

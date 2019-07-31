@@ -33,9 +33,9 @@ type Path interface {
 }
 
 // PathInterface is an interface on the path.
-type PathInterface struct {
+type PathInterface interface {
 	// IfId is the id of the interface.
-	IfId common.IFIDType
+	IfId() common.IFIDType
 	// IA is the ISD AS identifier of the interface.
-	IA addr.IA
+	IA() addr.IA
 }
