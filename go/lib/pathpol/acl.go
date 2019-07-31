@@ -69,7 +69,7 @@ func (a *ACL) evalPath(path Path) ACLAction {
 
 func (a *ACL) evalInterface(iface PathInterface, ingress bool) ACLAction {
 	for _, aclEntry := range a.Entries {
-		if aclEntry.Rule == nil || aclEntry.Rule.pathIFMatch2(iface, ingress) {
+		if aclEntry.Rule == nil || aclEntry.Rule.pathIFMatch(iface, ingress) {
 			return aclEntry.Action
 		}
 	}

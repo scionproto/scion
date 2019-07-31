@@ -91,7 +91,7 @@ type AppPath struct {
 func (ap *AppPath) Key() PathKey {
 	h := sha256.New()
 	for _, iface := range ap.Entry.Path.Interfaces {
-		binary.Write(h, common.Order, iface.ISD_AS().IAInt())
+		binary.Write(h, common.Order, iface.RawIsdas)
 		binary.Write(h, common.Order, iface.IfID)
 	}
 	return PathKey(h.Sum(nil))

@@ -63,7 +63,7 @@ func (p *Policy) Act(paths PathSet) PathSet {
 	}
 	// Filter on sub policies
 	if len(p.Options) > 0 {
-		resultSet = p.evalOptions2(resultSet)
+		resultSet = p.evalOptions(resultSet)
 	}
 	return resultSet
 }
@@ -119,7 +119,7 @@ func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error 
 
 // evalOptions evaluates the options of a policy and returns the pathSet that matches the option
 // with the highest weight
-func (p *Policy) evalOptions2(inputSet PathSet) PathSet {
+func (p *Policy) evalOptions(inputSet PathSet) PathSet {
 	subPolicySet := make(PathSet)
 	currWeight := p.Options[0].Weight
 	// Go through sub policies

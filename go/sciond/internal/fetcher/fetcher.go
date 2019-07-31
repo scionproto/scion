@@ -399,7 +399,7 @@ func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
 		for _, iface := range path.Interfaces {
 			// cache automatically expires outdated revocations every second,
 			// so a cache hit implies revocation is still active.
-			revs, err := f.revocationCache.Get(ctx, revcache.SingleKey(iface.ISD_AS(), iface.IfID))
+			revs, err := f.revocationCache.Get(ctx, revcache.SingleKey(iface.IA(), iface.IfID))
 			if err != nil {
 				f.logger.Error("Failed to get revocation", "err", err)
 				// continue, the client might still get some usable paths like this.
