@@ -15,7 +15,11 @@
 
 package scrypto
 
-import "encoding/base64"
+import (
+	"encoding/base64"
+
+	"github.com/scionproto/scion/go/lib/common"
+)
 
 // LatestVer is the wildcard version indicating the highest available version
 // when requesting certificate chains and TRCs.
@@ -25,3 +29,13 @@ const LatestVer uint64 = 0
 // In accordance with rfc7515 (see https://tools.ietf.org/html/rfc7515#section-2),
 // this is the URL safe encoding with padding omitted.
 var Base64 = base64.RawURLEncoding
+
+// JWSignatureInput computes the signature input according to rfc7517 (see:
+// https://tools.ietf.org/html/rfc7515#section-5.1)
+func JWSignatureInput(protected []byte, payload []byte) common.RawBytes {
+	input := make([]byte, len(protected)+len(payload)+1)
+	copy(input[:len(protected)], protected)
+	input[len(protected)] = '.'
+	copy(input[len(protected)+1:], payload)
+	return input
+}

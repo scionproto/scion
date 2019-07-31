@@ -227,35 +227,15 @@ func TestCritUnmarshalJSON(t *testing.T) {
 		Expected  time.Duration
 		Assertion assert.ErrorAssertionFunc
 	}{
-		"Type, KeyType, KeyVersion, AS": {
+		"Valid": {
 			Input:     []byte(`{"crit": ["Type", "KeyType", "KeyVersion", "AS"]}`),
 			Assertion: assert.NoError,
 		},
-		"AS, KeyType, KeyVersion, Type": {
-			Input:     []byte(`{"crit": ["AS", "KeyType", "KeyVersion", "Type"]}`),
-			Assertion: assert.NoError,
-		},
-		"Duplication length 4": {
-			Input:     []byte(`{"crit": ["AS", "AS", "KeyVersion", "Type"]}`),
+		"Out of order": {
+			Input:     []byte(`{"crit": ["AS", "Type", "KeyType", "KeyVersion"]}`),
 			Assertion: assert.Error,
 		},
-		"Duplication length 5": {
-			Input:     []byte(`{"crit": ["AS", "AS", "KeyType", "KeyVersion", "Type"]}`),
-			Assertion: assert.Error,
-		},
-		"Missing KeyType": {
-			Input:     []byte(`{"crit": ["AS", "Type", "KeyVersion"]}`),
-			Assertion: assert.Error,
-		},
-		"Missing AS": {
-			Input:     []byte(`{"crit": ["Type", "KeyType", "KeyVersion"]}`),
-			Assertion: assert.Error,
-		},
-		"Missing Type": {
-			Input:     []byte(`{"crit": ["AS", "KeyType", "KeyVersion"]}`),
-			Assertion: assert.Error,
-		},
-		"Missing KeyVersion": {
+		"Length mismatch": {
 			Input:     []byte(`{"crit": ["AS", "KeyType", "Type"]}`),
 			Assertion: assert.Error,
 		},
