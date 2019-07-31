@@ -122,10 +122,11 @@ func initState(cfg *config.Config, router snet.Router) error {
 		return common.NewBasicError("Unable to initialize trustDB", err)
 	}
 	trustDB = trustdb.WithMetrics("std", trustDB)
-	trustConf := &trust.Config{
+	trustConf := trust.Config{
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_cs,
 		Router:             router,
+		TopoProvider:       itopo.Provider(),
 	}
 	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
 	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
