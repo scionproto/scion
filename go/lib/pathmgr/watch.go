@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -153,7 +153,7 @@ type queryConfig struct {
 func (bq *queryConfig) Do(ctx context.Context, flags sciond.PathReqFlags) spathmeta.AppPathSet {
 	aps := bq.querier.Query(ctx, bq.src, bq.dst, flags)
 	if bq.filter != nil {
-		aps = bq.filter.Act(aps).(spathmeta.AppPathSet)
+		aps = psToAps(bq.filter.Act(apsToPs(aps)))
 	}
 	return aps
 }

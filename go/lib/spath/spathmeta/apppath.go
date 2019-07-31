@@ -97,14 +97,6 @@ func (ap *AppPath) Key() PathKey {
 	return PathKey(h.Sum(nil))
 }
 
-func (ap *AppPath) Interfaces() []*sciond.PathInterface {
-	return nil
-}
-
-func (ap *AppPath) IsPartial() bool {
-	return false
-}
-
 func (ap *AppPath) Copy() *AppPath {
 	// FIXME(scrye): this might need deep copying as well
 	return &AppPath{

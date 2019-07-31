@@ -50,7 +50,7 @@ func TestBasicPolicy(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			paths := pp.GetPaths(test.Src, test.Dst)
-			outPaths := test.Policy.Act2(paths)
+			outPaths := test.Policy.Act(paths)
 			assert.Equal(t, test.ExpPathNum, len(outPaths))
 		})
 	}
@@ -292,7 +292,7 @@ func TestSequenceEval(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			paths := pp.GetPaths(test.Src, test.Dst)
-			outPaths := test.Seq.Eval2(paths)
+			outPaths := test.Seq.Eval(paths)
 			assert.Equal(t, test.ExpPathNum, len(outPaths))
 		})
 	}
@@ -395,7 +395,7 @@ func TestACLEval(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			paths := pp.GetPaths(test.Src, test.Dst)
-			outPaths := test.ACL.Eval2(paths)
+			outPaths := test.ACL.Eval(paths)
 			assert.Equal(t, test.ExpPathNum, len(outPaths))
 		})
 	}
@@ -410,7 +410,7 @@ func TestACLPanic(t *testing.T) {
 	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	paths := pp.GetPaths(xtest.MustParseIA("2-ff00:0:212"), xtest.MustParseIA("2-ff00:0:211"))
-	assert.Panics(t, func() { acl.Eval2(paths) })
+	assert.Panics(t, func() { acl.Eval(paths) })
 }
 
 func TestACLConstructor(t *testing.T) {
@@ -543,7 +543,7 @@ func TestOptionsEval(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			paths := pp.GetPaths(test.Src, test.Dst)
-			outPaths := test.Policy.Act2(paths)
+			outPaths := test.Policy.Act(paths)
 			assert.Equal(t, test.ExpPathNum, len(outPaths))
 		})
 	}
