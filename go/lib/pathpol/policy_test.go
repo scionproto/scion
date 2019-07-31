@@ -418,7 +418,7 @@ func TestACLConstructor(t *testing.T) {
 		Action: Allow,
 		Rule:   mustHopPredicate(t, "1-0#0")})
 	if assert.Error(t, err) {
-		assert.Equal(t, common.NewBasicError("ACL does not have a default", nil), err)
+		assert.Equal(t, ErrNoDefault, err)
 	}
 	acl, err := NewACL(&ACLEntry{
 		Action: Allow,
