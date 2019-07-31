@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,70 +17,69 @@ package pathpol
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestACLEntryLoadFromString(t *testing.T) {
-	testCases := []struct {
-		Name     string
-		String   string
-		ACLEntry ACLEntry
-		Error    bool
+	tests := map[string]struct {
+		String         string
+		ACLEntry       ACLEntry
+		ErrorAssertion assert.ErrorAssertionFunc
 	}{
-		{
-			Name:     "Allow all",
-			String:   "+ 0",
-			ACLEntry: ACLEntry{Action: Allow, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}},
+		"Allow all": {
+			String: "+ 0",
+			ACLEntry: ACLEntry{
+				Action: Allow,
+				Rule:   &HopPredicate{IfIDs: []common.IFIDType{0}},
+			},
+			ErrorAssertion: assert.NoError,
 		},
-		{
-			Name:   "Allow 1-2#3",
+		"Allow 1-2#3": {
 			String: "+ 1-2#3",
-			ACLEntry: ACLEntry{Action: Allow, Rule: &HopPredicate{ISD: 1, AS: 2,
-				IfIDs: []common.IFIDType{3}}},
+			ACLEntry: ACLEntry{
+				Action: Allow,
+				Rule:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{3}},
+			},
+			ErrorAssertion: assert.NoError,
 		},
-		{
-			Name:     "Allow all short",
-			String:   "+",
-			ACLEntry: ACLEntry{Action: Allow},
+		"Allow all short": {
+			String:         "+",
+			ACLEntry:       ACLEntry{Action: Allow},
+			ErrorAssertion: assert.NoError,
 		},
-		{
-			Name:     "Allow none",
-			String:   "- 0",
-			ACLEntry: ACLEntry{Action: Deny, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}},
+		"Allow none": {
+			String: "- 0",
+			ACLEntry: ACLEntry{
+				Action: Deny,
+				Rule:   &HopPredicate{IfIDs: []common.IFIDType{0}},
+			},
+			ErrorAssertion: assert.NoError,
 		},
-		{
-			Name:     "Bad action symbol",
-			String:   "* 0",
-			ACLEntry: ACLEntry{},
-			Error:    true,
+		"Bad action symbol": {
+			String:         "* 0",
+			ACLEntry:       ACLEntry{},
+			ErrorAssertion: assert.Error,
 		},
-		{
-			Name:     "Bad aclEntry string",
-			String:   "+ 0 0",
-			ACLEntry: ACLEntry{},
-			Error:    true,
+		"Bad aclEntry string": {
+			String:         "+ 0 0",
+			ACLEntry:       ACLEntry{},
+			ErrorAssertion: assert.Error,
 		},
 	}
-
-	Convey("TestACLEntryLoadFromString", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				var aclEntry ACLEntry
-				err := aclEntry.LoadFromString(tc.String)
-				xtest.SoMsgError("err", err, tc.Error)
-				SoMsg("aclEntry", aclEntry, ShouldResemble, tc.ACLEntry)
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var aclEntry ACLEntry
+			err := aclEntry.LoadFromString(test.String)
+			test.ErrorAssertion(t, err)
+			assert.Equal(t, test.ACLEntry, aclEntry)
+		})
+	}
 }
 
 func TestACLEntryString(t *testing.T) {
-	Convey("TestACLEntryString", t, func() {
-		aclEntryString := "+ 0-0#0"
-		aclEntry := &ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}}
-		SoMsg("aclEntry", aclEntryString, ShouldResemble, aclEntry.String())
-	})
+	aclEntryString := "+ 0-0#0"
+	aclEntry := &ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}}
+	assert.Equal(t, aclEntryString, aclEntry.String())
 }

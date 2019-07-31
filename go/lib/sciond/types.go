@@ -193,7 +193,7 @@ func (fpm *FwdPathMeta) SrcIA() addr.IA {
 	if len(ifaces) == 0 {
 		return addr.IA{}
 	}
-	return ifaces[0].ISD_AS()
+	return ifaces[0].IA()
 }
 
 func (fpm *FwdPathMeta) DstIA() addr.IA {
@@ -201,7 +201,7 @@ func (fpm *FwdPathMeta) DstIA() addr.IA {
 	if len(ifaces) == 0 {
 		return addr.IA{}
 	}
-	return ifaces[len(ifaces)-1].ISD_AS()
+	return ifaces[len(ifaces)-1].IA()
 }
 
 func (fpm *FwdPathMeta) Expiry() time.Time {
@@ -232,14 +232,14 @@ func (fpm *FwdPathMeta) fmtIfaces() []string {
 		return hops
 	}
 	intf := fpm.Interfaces[0]
-	hops = append(hops, fmt.Sprintf("%s %d", intf.ISD_AS(), intf.IfID))
+	hops = append(hops, fmt.Sprintf("%s %d", intf.IA(), intf.IfID))
 	for i := 1; i < len(fpm.Interfaces)-1; i += 2 {
 		inIntf := fpm.Interfaces[i]
 		outIntf := fpm.Interfaces[i+1]
-		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.IfID, inIntf.ISD_AS(), outIntf.IfID))
+		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.IfID, inIntf.IA(), outIntf.IfID))
 	}
 	intf = fpm.Interfaces[len(fpm.Interfaces)-1]
-	hops = append(hops, fmt.Sprintf("%d %s", intf.IfID, intf.ISD_AS()))
+	hops = append(hops, fmt.Sprintf("%d %s", intf.IfID, intf.IA()))
 	return hops
 }
 
@@ -268,8 +268,12 @@ func NewPathInterface(str string) (PathInterface, error) {
 	return iface, nil
 }
 
-func (iface *PathInterface) ISD_AS() addr.IA {
+func (iface PathInterface) IA() addr.IA {
 	return iface.RawIsdas.IA()
+}
+
+func (iface PathInterface) IfId() common.IFIDType {
+	return iface.IfID
 }
 
 func (iface *PathInterface) Equal(other *PathInterface) bool {
@@ -280,7 +284,7 @@ func (iface *PathInterface) Equal(other *PathInterface) bool {
 }
 
 func (iface PathInterface) String() string {
-	return fmt.Sprintf("%s#%d", iface.ISD_AS(), iface.IfID)
+	return fmt.Sprintf("%s#%d", iface.IA(), iface.IfID)
 }
 
 type ASInfoReq struct {

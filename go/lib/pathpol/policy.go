@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +24,6 @@ import (
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // ExtPolicy is an extending policy, it may have a list of policies it extends
@@ -56,11 +56,8 @@ func NewPolicy(name string, acl *ACL, sequence *Sequence, options []Option) *Pol
 }
 
 // Act filters the path set according the policy
-func (p *Policy) Act(values interface{}) interface{} {
-	inputSet := values.(spathmeta.AppPathSet)
-	// Filter on ACL
-	resultSet := p.ACL.Eval(inputSet)
-	// Filter on Sequence
+func (p *Policy) Act(paths PathSet) PathSet {
+	resultSet := p.ACL.Eval(paths)
 	if p.Sequence != nil {
 		resultSet = p.Sequence.Eval(resultSet)
 	}
@@ -122,8 +119,8 @@ func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error 
 
 // evalOptions evaluates the options of a policy and returns the pathSet that matches the option
 // with the highest weight
-func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
-	subPolicySet := make(spathmeta.AppPathSet)
+func (p *Policy) evalOptions(inputSet PathSet) PathSet {
+	subPolicySet := make(PathSet)
 	currWeight := p.Options[0].Weight
 	// Go through sub policies
 	for _, option := range p.Options {
@@ -131,7 +128,7 @@ func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet
 			break
 		}
 		currWeight = option.Weight
-		subPaths := option.Policy.Act(inputSet).(spathmeta.AppPathSet)
+		subPaths := option.Policy.Act(inputSet)
 		for key, path := range subPaths {
 			subPolicySet[key] = path
 		}

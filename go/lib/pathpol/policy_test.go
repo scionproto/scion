@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,354 +16,299 @@
 package pathpol
 
 import (
-	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
 func TestBasicPolicy(t *testing.T) {
-	testCases := []struct {
+	tests := map[string]struct {
 		Name       string
 		Policy     *Policy
 		Src        addr.IA
 		Dst        addr.IA
 		ExpPathNum int
 	}{
-		{
-			Name:       "Empty policy",
+		"Empty policy": {
 			Policy:     &Policy{},
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
 	}
-
-	Convey("TestPolicy", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		conn := testGetSCIONDConn(t, ctrl)
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
-					sciond.PathReqFlags{})
-				SoMsg("sciond err", err, ShouldBeNil)
-
-				inAPS := spathmeta.NewAppPathSet(paths)
-				outAPS := tc.Policy.Act(inAPS).(spathmeta.AppPathSet)
-				SoMsg("paths", len(outAPS), ShouldEqual, tc.ExpPathNum)
-			})
-		}
-	})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	pp := NewPathProvider(ctrl)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			paths := pp.GetPaths(test.Src, test.Dst)
+			outPaths := test.Policy.Act(paths)
+			assert.Equal(t, test.ExpPathNum, len(outPaths))
+		})
+	}
 }
 
 func TestSequenceEval(t *testing.T) {
-	testCases := []struct {
-		Name       string
+	tests := map[string]struct {
 		Seq        *Sequence
 		Src        addr.IA
 		Dst        addr.IA
 		ExpPathNum int
 	}{
-		{
-			Name:       "Empty path",
+		"Empty path": {
 			Seq:        newSequence(t, "0-0#0"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:212"),
 			ExpPathNum: 0,
 		},
-		{
-			Name:       "Length not matching",
+		"Length not matching": {
 			Seq:        newSequence(t, "0-0#0"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 0,
 		},
-		{
-			Name:       "Two Wildcard matching",
+		"Two Wildcard matching": {
 			Seq:        newSequence(t, "0-0#0 0-0#0"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Longer Wildcard matching",
+		"Longer Wildcard matching": {
 			Seq:        newSequence(t, "0-0#0 0-0#0 0-0#0 0-0#0"),
 			Src:        xtest.MustParseIA("1-ff00:0:122"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Two Explicit matching",
+		"Two Explicit matching": {
 			Seq:        newSequence(t, "1-ff00:0:133#1019 1-ff00:0:132#1910"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:132"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "AS double IF matching",
+		"AS double IF matching": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#1910,1916 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "AS IF matching, first wildcard",
+		"AS IF matching, first wildcard": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#0,1916 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 1,
 		},
-		{
-			Name: "Longer Explicit matching",
+		"Longer Explicit matching": {
 			Seq: newSequence(t, "1-ff00:0:122#1815 1-ff00:0:121#1518,1530 "+
 				"1-ff00:0:120#3015,3122 2-ff00:0:220#2231,2224 2-ff00:0:221#2422"),
 			Src:        xtest.MustParseIA("1-ff00:0:122"),
 			Dst:        xtest.MustParseIA("2-ff00:0:221"),
 			ExpPathNum: 1,
 		},
-		{
-			Name: "Longer Explicit matching, single wildcard",
+		"Longer Explicit matching, single wildcard": {
 			Seq: newSequence(t, "1-ff00:0:133#1018 1-ff00:0:122#1810,1815 "+
 				"1-ff00:0:121#0,1530 1-ff00:0:120#3015,2911 1-ff00:0:110#1129"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
-		{
-			Name: "Longer Explicit matching, reverse single wildcard",
+		"Longer Explicit matching, reverse single wildcard": {
 			Seq: newSequence(t, "1-ff00:0:133#1018 1-ff00:0:122#1810,1815 "+
 				"1-ff00:0:121#1530,0 1-ff00:0:120#3015,2911 1-ff00:0:110#1129"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 0,
 		},
-		{
-			Name: "Longer Explicit matching, multiple wildcard",
+		"Longer Explicit matching, multiple wildcard": {
 			Seq: newSequence(t, "1-ff00:0:133#1018 1-ff00:0:122#0,1815 "+
 				"1-ff00:0:121#0,1530 1-ff00:0:120#3015,0 1-ff00:0:110#1129"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
-		{
-			Name: "Longer Explicit matching, mixed wildcard types",
+		"Longer Explicit matching, mixed wildcard types": {
 			Seq: newSequence(t, "1-ff00:0:133#0 1 "+
 				"0-0#0 1-ff00:0:120#0 1-ff00:0:110#1129"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
-		{
-			Name: "Longer Explicit matching, mixed wildcard types, two paths",
+		"Longer Explicit matching, mixed wildcard types, two paths": {
 			Seq: newSequence(t, "1-ff00:0:133#0 1-0#0 "+
 				"0-0#0 1-0#0 1-ff00:0:110#0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Nil sequence does not filter",
+		"Nil sequence does not filter": {
 			Seq:        nil,
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Asterisk matches multiple hops",
+		"Asterisk matches multiple hops": {
 			Seq:        newSequence(t, "0*"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Asterisk matches zero hops",
+		"Asterisk matches zero hops": {
 			Seq:        newSequence(t, "0 0 0*"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Plus matches multiple hops",
+		"Plus matches multiple hops": {
 			Seq:        newSequence(t, "0+"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Plus doesn't match zero hops",
+		"Plus doesn't match zero hops": {
 			Seq:        newSequence(t, "0 0 0+"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 0,
 		},
-		{
-			Name:       "Question mark matches zero hops",
+		"Question mark matches zero hops": {
 			Seq:        newSequence(t, "0 0 0?"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Question mark matches one hop",
+		"Question mark matches one hop": {
 			Seq:        newSequence(t, "0 0?"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name:       "Question mark doesn't match two hops",
+		"Question mark doesn't match two hops": {
 			Seq:        newSequence(t, "0?"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 0,
 		},
-		{
-			Name:       "Successful match on hop count",
+		"Successful match on hop count": {
 			Seq:        newSequence(t, "0 0 0"),
 			Src:        xtest.MustParseIA("2-ff00:0:211"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 3,
 		},
-		{
-			Name:       "Failed match on hop count",
+		"Failed match on hop count": {
 			Seq:        newSequence(t, "0 0"),
 			Src:        xtest.MustParseIA("2-ff00:0:211"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 0,
 		},
-		{
-			Name:       "Select one of the intermediate ASes",
+		"Select one of the intermediate ASes": {
 			Seq:        newSequence(t, "0 2-ff00:0:221 0"),
 			Src:        xtest.MustParseIA("2-ff00:0:211"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "Select two alternative intermediate ASes",
+		"Select two alternative intermediate ASes": {
 			Seq:        newSequence(t, "0 (2-ff00:0:221 | 2-ff00:0:210) 0"),
 			Src:        xtest.MustParseIA("2-ff00:0:211"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 3,
 		},
-		{
-			Name:       "Alternative intermediate ASes, but one doesn't exist",
+		"Alternative intermediate ASes, but one doesn't exist": {
 			Seq:        newSequence(t, "0 (2-ff00:0:221 |64-12345) 0"),
 			Src:        xtest.MustParseIA("2-ff00:0:211"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "Or has higher priority than concatenation",
+		"Or has higher priority than concatenation": {
 			Seq:        newSequence(t, "0 2-ff00:0:221|64-12345 0"),
 			Src:        xtest.MustParseIA("2-ff00:0:211"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "Question mark has higher priority than concatenation",
+		"Question mark has higher priority than concatenation": {
 			Seq:        newSequence(t, "0 0 0 ?  "),
 			Src:        xtest.MustParseIA("2-ff00:0:211"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 3,
 		},
-		{
-			Name:       "Parentheses change priority",
+		"Parentheses change priority": {
 			Seq:        newSequence(t, "(0 0)?"),
 			Src:        xtest.MustParseIA("2-ff00:0:211"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 0,
 		},
-		{
-			Name:       "Single interface matches inbound interface",
+		"Single interface matches inbound interface": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#1910 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "Single interface matches outbound interface",
+		"Single interface matches outbound interface": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#1916 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "Single non-matching interface",
+		"Single non-matching interface": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#1917 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 0,
 		},
-		{
-			Name:       "Left interface matches inbound",
+		"Left interface matches inbound": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#1910,0 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "Left interface doesn't match outbound",
+		"Left interface doesn't match outbound": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#1916,0 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 0,
 		},
-		{
-			Name:       "Right interface matches outbound",
+		"Right interface matches outbound": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#0,1916 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 1,
 		},
-		{
-			Name:       "Right interface doesn't match inbound",
+		"Right interface doesn't match inbound": {
 			Seq:        newSequence(t, "0 1-ff00:0:132#0,1910 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 0,
 		},
 	}
-
-	Convey("TestSeq", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		conn := testGetSCIONDConn(t, ctrl)
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
-					sciond.PathReqFlags{})
-				SoMsg("sciond err", err, ShouldBeNil)
-
-				inAPS := spathmeta.NewAppPathSet(paths)
-				outAPS := tc.Seq.Eval(inAPS)
-				SoMsg("paths", len(outAPS), ShouldEqual, tc.ExpPathNum)
-			})
-		}
-	})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	pp := NewPathProvider(ctrl)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			paths := pp.GetPaths(test.Src, test.Dst)
+			outPaths := test.Seq.Eval(paths)
+			assert.Equal(t, test.ExpPathNum, len(outPaths))
+		})
+	}
 }
 
 var allowEntry = &ACLEntry{ACLAction(true), NewHopPredicate()}
 var denyEntry = &ACLEntry{ACLAction(false), NewHopPredicate()}
 
 func TestACLEval(t *testing.T) {
-	testCases := []struct {
-		Name       string
+	tests := map[string]struct {
 		ACL        *ACL
 		Src        addr.IA
 		Dst        addr.IA
 		ExpPathNum int
 	}{
-		{
-			Name: "allow everything",
+		"allow everything": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Allow, Rule: mustHopPredicate(t, "0-0#0")},
 				denyEntry}},
@@ -370,8 +316,7 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name: "allow 2-0#0, deny rest",
+		"allow 2-0#0, deny rest": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Allow, Rule: mustHopPredicate(t, "2-0#0")},
 				denyEntry}},
@@ -379,8 +324,7 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name: "allow 2-ff00:0:212#0 and 2-ff00:0:211, deny rest",
+		"allow 2-ff00:0:212#0 and 2-ff00:0:211, deny rest": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Allow, Rule: mustHopPredicate(t, "2-ff00:0:212#0")},
 				{Action: Allow, Rule: mustHopPredicate(t, "2-ff00:0:211#0")},
@@ -389,8 +333,7 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name: "allow 2-ff00:0:212#0, deny rest",
+		"allow 2-ff00:0:212#0, deny rest": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Allow, Rule: mustHopPredicate(t, "2-ff00:0:212#0")},
 				denyEntry}},
@@ -398,8 +341,7 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 0,
 		},
-		{
-			Name: "deny 1-ff00:0:110#0, 1-ff00:0:120#0, allow rest",
+		"deny 1-ff00:0:110#0, 1-ff00:0:120#0, allow rest": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:110#0")},
 				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
@@ -408,8 +350,7 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:222"),
 			ExpPathNum: 2,
 		},
-		{
-			Name: "deny 1-ff00:0:110#0, 1-ff00:0:120#0 and 1-ff00:0:111#2823, allow rest",
+		"deny 1-ff00:0:110#0, 1-ff00:0:120#0 and 1-ff00:0:111#2823, allow rest": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:110#0")},
 				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
@@ -419,8 +360,7 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:222"),
 			ExpPathNum: 1,
 		},
-		{
-			Name: "deny ISD1, allow certain ASes",
+		"deny ISD1, allow certain ASes": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Allow, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
 				{Action: Allow, Rule: mustHopPredicate(t, "1-ff00:0:130#0")},
@@ -430,8 +370,7 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 2,
 		},
-		{
-			Name: "deny ISD1, allow certain ASes - wrong oder",
+		"deny ISD1, allow certain ASes - wrong oder": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Deny, Rule: mustHopPredicate(t, "1-0#0")},
 				{Action: Allow, Rule: mustHopPredicate(t, "1-ff00:0:130#0")},
@@ -441,8 +380,7 @@ func TestACLEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 0,
 		},
-		{
-			Name: "nil rule should match all the paths",
+		"nil rule should match all the paths": {
 			ACL: &ACL{Entries: []*ACLEntry{
 				{Action: Deny, Rule: nil},
 				allowEntry}},
@@ -451,23 +389,16 @@ func TestACLEval(t *testing.T) {
 			ExpPathNum: 0,
 		},
 	}
-
-	Convey("TestPolicy", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		conn := testGetSCIONDConn(t, ctrl)
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
-					sciond.PathReqFlags{})
-				SoMsg("sciond err", err, ShouldBeNil)
-
-				inAPS := spathmeta.NewAppPathSet(paths)
-				outAPS := tc.ACL.Eval(inAPS)
-				SoMsg("paths", len(outAPS), ShouldEqual, tc.ExpPathNum)
-			})
-		}
-	})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	pp := NewPathProvider(ctrl)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			paths := pp.GetPaths(test.Src, test.Dst)
+			outPaths := test.ACL.Eval(paths)
+			assert.Equal(t, test.ExpPathNum, len(outPaths))
+		})
+	}
 }
 
 func TestACLPanic(t *testing.T) {
@@ -475,47 +406,39 @@ func TestACLPanic(t *testing.T) {
 		Action: Allow,
 		Rule:   mustHopPredicate(t, "1-0#0")}}}
 
-	Convey("TestACLPanic", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		conn := testGetSCIONDConn(t, ctrl)
-		paths, err := conn.Paths(context.Background(), xtest.MustParseIA("2-ff00:0:211"),
-			xtest.MustParseIA("2-ff00:0:212"), 5, sciond.PathReqFlags{})
-		SoMsg("sciond err", err, ShouldBeNil)
-
-		inAPS := spathmeta.NewAppPathSet(paths)
-		So(func() { acl.Eval(inAPS) }, ShouldPanic)
-	})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	pp := NewPathProvider(ctrl)
+	paths := pp.GetPaths(xtest.MustParseIA("2-ff00:0:212"), xtest.MustParseIA("2-ff00:0:211"))
+	assert.Panics(t, func() { acl.Eval(paths) })
 }
 
 func TestACLConstructor(t *testing.T) {
-	Convey("TestACLConstructor", t, func() {
-		_, err := NewACL(&ACLEntry{
-			Action: Allow,
-			Rule:   mustHopPredicate(t, "1-0#0")})
-		SoMsg("constructor", err, ShouldResemble,
-			common.NewBasicError("ACL does not have a default", nil))
-		acl, err := NewACL(&ACLEntry{
-			Action: Allow,
-			Rule:   mustHopPredicate(t, "1-0#0")},
-			&ACLEntry{
-				Action: Deny,
-				Rule:   mustHopPredicate(t, "0-0#0")})
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("acl", acl, ShouldNotBeNil)
-	})
+	_, err := NewACL(&ACLEntry{
+		Action: Allow,
+		Rule:   mustHopPredicate(t, "1-0#0")})
+	if assert.Error(t, err) {
+		assert.Equal(t, common.NewBasicError("ACL does not have a default", nil), err)
+	}
+	acl, err := NewACL(&ACLEntry{
+		Action: Allow,
+		Rule:   mustHopPredicate(t, "1-0#0")},
+		&ACLEntry{
+			Action: Deny,
+			Rule:   mustHopPredicate(t, "0-0#0")})
+	if assert.NoError(t, err) {
+		assert.NotNil(t, acl)
+	}
 }
 
 func TestOptionsEval(t *testing.T) {
-	testCases := []struct {
-		Name       string
+	tests := map[string]struct {
 		Policy     *Policy
 		Src        addr.IA
 		Dst        addr.IA
 		ExpPathNum int
 	}{
-		{
-			Name: "one option, allow everything",
+		"one option, allow everything": {
 			Policy: NewPolicy("", nil, nil, []Option{
 				{
 					Policy: &Policy{
@@ -530,8 +453,7 @@ func TestOptionsEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name: "two options, deny everything",
+		"two options, deny everything": {
 			Policy: NewPolicy("", nil, nil, []Option{
 				{
 					Policy: &Policy{
@@ -552,8 +474,7 @@ func TestOptionsEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
-		{
-			Name: "two options, first: allow everything, second: allow one path",
+		"two options, first: allow everything, second: allow one path": {
 			Policy: NewPolicy("", nil, nil, []Option{
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
 					{Action: Allow, Rule: mustHopPredicate(t, "0-0#0")},
@@ -570,8 +491,7 @@ func TestOptionsEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:222"),
 			ExpPathNum: 1,
 		},
-		{
-			Name: "two options, combined",
+		"two options, combined": {
 			Policy: NewPolicy("", nil, nil, []Option{
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
 					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
@@ -586,8 +506,7 @@ func TestOptionsEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 3,
 		},
-		{
-			Name: "two options, take first",
+		"two options, take first": {
 			Policy: NewPolicy("", nil, nil, []Option{
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
 					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
@@ -602,8 +521,7 @@ func TestOptionsEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 1,
 		},
-		{
-			Name: "two options, take second",
+		"two options, take second": {
 			Policy: NewPolicy("", nil, nil, []Option{
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
 					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
@@ -619,34 +537,25 @@ func TestOptionsEval(t *testing.T) {
 			ExpPathNum: 2,
 		},
 	}
-
-	Convey("TestPolicy", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		conn := testGetSCIONDConn(t, ctrl)
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
-					sciond.PathReqFlags{})
-				SoMsg("sciond err", err, ShouldBeNil)
-
-				inAPS := spathmeta.NewAppPathSet(paths)
-				outAPS := tc.Policy.Act(inAPS).(spathmeta.AppPathSet)
-				SoMsg("paths", len(outAPS), ShouldEqual, tc.ExpPathNum)
-			})
-		}
-	})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	pp := NewPathProvider(ctrl)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			paths := pp.GetPaths(test.Src, test.Dst)
+			outPaths := test.Policy.Act(paths)
+			assert.Equal(t, test.ExpPathNum, len(outPaths))
+		})
+	}
 }
 
 func TestExtends(t *testing.T) {
-	testCases := []struct {
-		Name           string
+	tests := map[string]struct {
 		Policy         *ExtPolicy
 		Extended       []*ExtPolicy
 		ExtendedPolicy *Policy
 	}{
-		{
-			Name: "one extends, use sub acl",
+		"one extends, use sub acl": {
 			Policy: &ExtPolicy{
 				Extends: []string{"policy1"}},
 			Extended: []*ExtPolicy{
@@ -663,8 +572,7 @@ func TestExtends(t *testing.T) {
 					Rule:   mustHopPredicate(t, "0-0#0")},
 					denyEntry}}},
 		},
-		{
-			Name: "use option of extended policy",
+		"use option of extended policy": {
 			Policy: &ExtPolicy{
 				Extends: []string{"policy1"}},
 			Extended: []*ExtPolicy{
@@ -691,8 +599,7 @@ func TestExtends(t *testing.T) {
 			},
 			},
 		},
-		{
-			Name:   "two extends, use sub acl and list",
+		"two extends, use sub acl and list": {
 			Policy: &ExtPolicy{Extends: []string{"policy1"}},
 			Extended: []*ExtPolicy{
 				{
@@ -710,8 +617,7 @@ func TestExtends(t *testing.T) {
 				denyEntry}},
 				Sequence: newSequence(t, "1-ff00:0:133#1019 1-ff00:0:132#1910")},
 		},
-		{
-			Name: "two extends, only use acl",
+		"two extends, only use acl": {
 			Policy: &ExtPolicy{
 				Policy: &Policy{
 					Sequence: newSequence(t, "1-ff00:0:133#0 1-ff00:0:132#0")},
@@ -731,8 +637,7 @@ func TestExtends(t *testing.T) {
 				denyEntry}},
 				Sequence: newSequence(t, "1-ff00:0:133#0 1-ff00:0:132#0")},
 		},
-		{
-			Name: "three extends, use last list",
+		"three extends, use last list": {
 			Policy: &ExtPolicy{
 				Extends: []string{"p1", "p2", "p3"}},
 			Extended: []*ExtPolicy{
@@ -752,8 +657,7 @@ func TestExtends(t *testing.T) {
 			ExtendedPolicy: &Policy{
 				Sequence: newSequence(t, "1-ff00:0:133#1013 1-ff00:0:132#1913")},
 		},
-		{
-			Name: "nested extends",
+		"nested extends": {
 			Policy: &ExtPolicy{
 				Extends: []string{"policy1"}},
 			Extended: []*ExtPolicy{
@@ -772,8 +676,7 @@ func TestExtends(t *testing.T) {
 			ExtendedPolicy: &Policy{
 				Sequence: newSequence(t, "1-ff00:0:133#1011 1-ff00:0:132#1911")},
 		},
-		{
-			Name: "nested extends, evaluating order",
+		"nested extends, evaluating order": {
 			Policy: &ExtPolicy{
 				Extends: []string{"policy3"}},
 			Extended: []*ExtPolicy{
@@ -793,8 +696,7 @@ func TestExtends(t *testing.T) {
 			ExtendedPolicy: &Policy{
 				Sequence: newSequence(t, "1-ff00:0:133#1010 1-ff00:0:132#1910")},
 		},
-		{
-			Name: "different nested extends, evaluating order",
+		"different nested extends, evaluating order": {
 			Policy: &ExtPolicy{
 				Extends: []string{"policy6"}},
 			Extended: []*ExtPolicy{
@@ -819,17 +721,16 @@ func TestExtends(t *testing.T) {
 		},
 	}
 
-	Convey("TestPolicy Extend", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				pol, err := PolicyFromExtPolicy(tc.Policy, tc.Extended)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("policies", pol, ShouldResemble, tc.ExtendedPolicy)
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			pol, err := PolicyFromExtPolicy(test.Policy, test.Extended)
+			if assert.NoError(t, err) {
+				assert.Equal(t, test.ExtendedPolicy, pol)
+			}
+		})
+	}
 
-	Convey("TestPolicy Extend not found", t, func() {
+	t.Run("TestPolicy Extend not found", func(t *testing.T) {
 		extPolicy := &ExtPolicy{Extends: []string{"policy1"}}
 		extended := []*ExtPolicy{
 			{
@@ -845,27 +746,24 @@ func TestExtends(t *testing.T) {
 			},
 		}
 		_, err := PolicyFromExtPolicy(extPolicy, extended)
-		SoMsg("error", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 }
 
 func TestSequenceConstructor(t *testing.T) {
-	Convey("TestSequenceConstructor", t, func() {
-		_, err := NewSequence("0-0-0#0")
-		SoMsg("err1", err, ShouldNotBeNil)
-
-		_, err = NewSequence("0#0#0")
-		SoMsg("err2", err, ShouldNotBeNil)
-
-		_, err = NewSequence("0")
-		SoMsg("err3", err, ShouldBeNil)
-
-		_, err = NewSequence("1#0")
-		SoMsg("err4", err, ShouldNotBeNil)
-
-		_, err = NewSequence("1-0")
-		SoMsg("err5", err, ShouldBeNil)
-	})
+	tests := map[string]assert.ErrorAssertionFunc{
+		"0-0-0#0": assert.Error,
+		"0#0#0":   assert.Error,
+		"0":       assert.NoError,
+		"1#0":     assert.Error,
+		"1-0":     assert.NoError,
+	}
+	for seq, assertion := range tests {
+		t.Run(seq, func(t *testing.T) {
+			_, err := NewSequence(seq)
+			assertion(t, err, seq)
+		})
+	}
 }
 
 func newSequence(t *testing.T, str string) *Sequence {
@@ -874,23 +772,52 @@ func newSequence(t *testing.T, str string) *Sequence {
 	return seq
 }
 
-func testGetSCIONDConn(t *testing.T, ctrl *gomock.Controller) sciond.Connector {
-	t.Helper()
+type PathProvider struct {
+	g *graph.Graph
+}
 
-	g := graph.NewDefaultGraph(ctrl)
-	service := sciond.NewMockService(g)
-	conn, err := service.Connect()
-	if err != nil {
-		t.Fatalf("sciond init error: %s", err)
+func NewPathProvider(ctrl *gomock.Controller) PathProvider {
+	return PathProvider{
+		g: graph.NewDefaultGraph(ctrl),
 	}
-	return conn
 }
 
-func mustPolicyFromExtPolicy(t *testing.T, extPolicy *ExtPolicy, extended []*ExtPolicy) *Policy {
-	pol, err := PolicyFromExtPolicy(extPolicy, extended)
-	xtest.FailOnErr(t, err)
-	return pol
+func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
+	result := make(PathSet)
+	paths := p.g.GetPaths(src.String(), dst.String())
+	for _, ifids := range paths {
+		pathIntfs := make([]PathInterface, 0, len(ifids))
+		var key strings.Builder
+		for _, ifid := range ifids {
+			ia := p.g.GetParent(ifid)
+			pathIntfs = append(pathIntfs, testPathIntf{ia: ia, ifid: ifid})
+			key.WriteString(fmt.Sprintf("%s-%d", ia, ifid))
+		}
+		result[key.String()] = &testPath{interfaces: pathIntfs, key: key.String()}
+	}
+	return result
 }
+
+type testPath struct {
+	interfaces []PathInterface
+	key        string
+}
+
+func (p *testPath) Interfaces() []PathInterface {
+	return p.interfaces
+}
+
+func (p *testPath) IsPartial() bool { return false }
+
+func (p *testPath) Key() string { return p.key }
+
+type testPathIntf struct {
+	ia   addr.IA
+	ifid common.IFIDType
+}
+
+func (i testPathIntf) IfId() common.IFIDType { return i.ifid }
+func (i testPathIntf) IA() addr.IA           { return i.ia }
 
 func mustHopPredicate(t *testing.T, str string) *HopPredicate {
 	hp, err := HopPredicateFromString(str)

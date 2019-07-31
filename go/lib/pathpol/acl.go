@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +20,6 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 type ACL struct {
@@ -37,8 +36,8 @@ func NewACL(entries ...*ACLEntry) (*ACL, error) {
 }
 
 // Eval returns the set of paths that match the ACL.
-func (a *ACL) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
-	resultSet := make(spathmeta.AppPathSet)
+func (a *ACL) Eval(inputSet PathSet) PathSet {
+	resultSet := make(PathSet)
 	if a == nil || len(a.Entries) == 0 {
 		return inputSet
 	}
@@ -59,8 +58,8 @@ func (a *ACL) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &a.Entries)
 }
 
-func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
-	for i, iface := range path.Entry.Path.Interfaces {
+func (a *ACL) evalPath(path Path) ACLAction {
+	for i, iface := range path.Interfaces() {
 		if a.evalInterface(iface, i%2 != 0) == Deny {
 			return Deny
 		}
@@ -68,7 +67,7 @@ func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
 	return Allow
 }
 
-func (a *ACL) evalInterface(iface sciond.PathInterface, ingress bool) ACLAction {
+func (a *ACL) evalInterface(iface PathInterface, ingress bool) ACLAction {
 	for _, aclEntry := range a.Entries {
 		if aclEntry.Rule == nil || aclEntry.Rule.pathIFMatch(iface, ingress) {
 			return aclEntry.Action

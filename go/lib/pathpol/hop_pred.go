@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // A HopPredicate specifies a hop in the ACL or Sequence of the path policy,
@@ -85,12 +85,11 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 
 // pathIFMatch takes a PathInterface and a bool indicating if the ingress
 // interface needs to be matching. It returns true if the HopPredicate matches the PathInterface
-func (hp *HopPredicate) pathIFMatch(pi sciond.PathInterface, in bool) bool {
-	piIA := pi.ISD_AS()
-	if hp.ISD != 0 && piIA.I != hp.ISD {
+func (hp *HopPredicate) pathIFMatch(pi PathInterface, in bool) bool {
+	if hp.ISD != 0 && pi.IA().I != hp.ISD {
 		return false
 	}
-	if hp.AS != 0 && piIA.A != hp.AS {
+	if hp.AS != 0 && pi.IA().A != hp.AS {
 		return false
 	}
 	ifInd := 0
@@ -100,7 +99,7 @@ func (hp *HopPredicate) pathIFMatch(pi sciond.PathInterface, in bool) bool {
 	if len(hp.IfIDs) == 2 && !in {
 		ifInd = 1
 	}
-	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.IfID {
+	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.IfId() {
 		return false
 	}
 	return true

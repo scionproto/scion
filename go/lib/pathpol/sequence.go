@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol/sequence"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 const (
@@ -74,13 +73,13 @@ func NewSequence(s string) (*Sequence, error) {
 }
 
 // Eval evaluates the interface sequence list and returns the set of paths that match the list
-func (s *Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
+func (s *Sequence) Eval(inputSet PathSet) PathSet {
 	if s == nil || s.srcstr == "" {
 		return inputSet
 	}
-	resultSet := make(spathmeta.AppPathSet)
+	resultSet := make(PathSet)
 	for key, path := range inputSet {
-		ifaces := path.Entry.Path.Interfaces
+		ifaces := path.Interfaces()
 		// Path should contain even number of interfaces. 1 for source AS,
 		// 1 for destination AS and 2 per each intermediate AS. Invalid paths should
 		// not occur but if they do let's ignore them.
@@ -92,13 +91,13 @@ func (s *Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 		// one element in form <IA>#<inbound-interface>,<outbound-interface>,
 		// e.g. 64-ff00:0:112#3,5. For the source AS, the inbound interface will be
 		// zero. For destination AS, outbound interface will be zero.
-		p := fmt.Sprintf("%s#0,%d ", ifaces[0].ISD_AS(), ifaces[0].IfID)
+		p := fmt.Sprintf("%s#0,%d ", ifaces[0].IA(), ifaces[0].IfId())
 		for i := 1; i < len(ifaces)-1; i += 2 {
-			p += fmt.Sprintf("%s#%d,%d ", ifaces[i].ISD_AS(),
-				ifaces[i].IfID, ifaces[i+1].IfID)
+			p += fmt.Sprintf("%s#%d,%d ", ifaces[i].IA(),
+				ifaces[i].IfId(), ifaces[i+1].IfId())
 		}
-		p += fmt.Sprintf("%s#%d,0 ", ifaces[len(ifaces)-1].ISD_AS(),
-			ifaces[len(ifaces)-1].IfID)
+		p += fmt.Sprintf("%s#%d,0 ", ifaces[len(ifaces)-1].IA(),
+			ifaces[len(ifaces)-1].IfId())
 		// Check whether the string matches the sequence regexp.
 		//fmt.Printf("EVAL: %s\n", p)
 		if s.re.MatchString(p) {

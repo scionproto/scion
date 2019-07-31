@@ -160,7 +160,7 @@ func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
 	if policy == nil {
 		return aps
 	}
-	return policy.Act(aps).(spathmeta.AppPathSet)
+	return psToAps(policy.Act(apsToPs(aps)))
 }
 
 func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
@@ -168,7 +168,7 @@ func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
 
 	aps := r.Query(ctx, src, dst, sciond.PathReqFlags{})
 	if filter != nil {
-		aps = filter.Act(aps).(spathmeta.AppPathSet)
+		aps = psToAps(filter.Act(apsToPs(aps)))
 	}
 	sp := NewSyncPaths()
 	sp.update(aps)
@@ -268,4 +268,35 @@ func matches(path *spathmeta.AppPath, predicatePI sciond.PathInterface) bool {
 		}
 	}
 	return false
+}
+
+type pathWrap struct {
+	*spathmeta.AppPath
+}
+
+func (p pathWrap) Key() string     { return p.AppPath.Key().String() }
+func (p pathWrap) IsPartial() bool { return false }
+func (p pathWrap) Interfaces() []pathpol.PathInterface {
+	intfs := make([]pathpol.PathInterface, 0, len(p.Entry.Path.Interfaces))
+	for _, intf := range p.Entry.Path.Interfaces {
+		intfs = append(intfs, intf)
+	}
+	return intfs
+}
+
+func apsToPs(aps spathmeta.AppPathSet) pathpol.PathSet {
+	ps := make(pathpol.PathSet, len(aps))
+	for key, path := range aps {
+		ps[key.String()] = pathWrap{AppPath: path}
+	}
+	return ps
+}
+
+func psToAps(ps pathpol.PathSet) spathmeta.AppPathSet {
+	aps := make(spathmeta.AppPathSet)
+	for _, path := range ps {
+		ap := path.(pathWrap).AppPath
+		aps[ap.Key()] = ap
+	}
+	return aps
 }

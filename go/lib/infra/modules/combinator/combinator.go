@@ -232,8 +232,8 @@ func FilterLongPaths(paths []*Path) []*Path {
 		long := false
 		iaCounts := make(map[addr.IA]int)
 		for _, iface := range path.Interfaces {
-			iaCounts[iface.ISD_AS()]++
-			if iaCounts[iface.ISD_AS()] > 2 {
+			iaCounts[iface.IA()]++
+			if iaCounts[iface.IA()] > 2 {
 				long = true
 				break
 			}
