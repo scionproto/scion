@@ -159,6 +159,20 @@ func (w *worker) write(f *frame) error {
 	// TODO(kormat): consider looking for an updated path here, and switching
 	// to it if the mtu isn't smaller than the current one.
 	defer w.resetFrame(f)
+	if w.seq == 0 {
+		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
+	}
+
+	// Update the sequence number.
+	// We want to do this even if the function fails. Otherwise, if writing fails
+	// in the middle of sending a packet the peer wouldn't recognize that there's
+	// a frame missing and would try to parse an inconsistent sequence of frames.
+	seq := w.seq
+	w.seq += 1
+	if w.seq > MaxSeq {
+		w.seq = 0
+	}
+
 	if w.currPathEntry == nil {
 		// FIXME(kormat): add some metrics to track this.
 		return nil
@@ -177,15 +191,7 @@ func (w *worker) write(f *frame) error {
 		return common.NewBasicError("Egress unsupported NextHop", err)
 	}
 	snetAddr.NextHop = nh
-	if w.seq == 0 {
-		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
-	}
-	f.writeHdr(w.sess.ID(), w.epoch, w.seq)
-	// Update sequence number for next packet
-	w.seq += 1
-	if w.seq > MaxSeq {
-		w.seq = 0
-	}
+	f.writeHdr(w.sess.ID(), w.epoch, seq)
 	bytesWritten, err := w.sess.Conn().WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
 		return common.NewBasicError("Egress write error", err)
