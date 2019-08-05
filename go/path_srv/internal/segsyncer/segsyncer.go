@@ -55,10 +55,10 @@ type SegSyncer struct {
 func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Runner, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	primaryArgs := infra.PrimaryProviderOpts{
+	primaryArgs := infra.ASInspectorOpts{
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	coreASes, err := args.PrimaryProvider.PrimariesWithAttributes(ctx, args.IA.I, primaryArgs)
+	coreASes, err := args.ASInspector.ByAttributes(ctx, args.IA.I, primaryArgs)
 	if err != nil {
 		return nil, common.NewBasicError("Failed to get local core ASes", err)
 	}

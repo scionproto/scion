@@ -86,7 +86,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 // ASInfoRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each ASInfoRequest it receives.
 type ASInfoRequestHandler struct {
-	PrimaryProvider infra.PrimaryProvider
+	ASInspector infra.ASInspector
 }
 
 func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
@@ -107,8 +107,8 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 		mtu = uint16(topo.MTU)
 	}
 	var entries []sciond.ASInfoReplyEntry
-	opts := infra.PrimaryProviderOpts{RequiredAttributes: []infra.Attribute{infra.Core}}
-	if core, err := h.PrimaryProvider.HasAttributes(workCtx, reqIA, opts); err != nil {
+	opts := infra.ASInspectorOpts{RequiredAttributes: []infra.Attribute{infra.Core}}
+	if core, err := h.ASInspector.HasAttributes(workCtx, reqIA, opts); err != nil {
 		// FIXME(scrye): return a zero AS because the protocol doesn't
 		// support errors, but we probably want to return an error here in
 		// the future.

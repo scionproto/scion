@@ -431,21 +431,21 @@ type Verifier interface {
 
 // TrustStore is the interface to interact with the control-plane PKI.
 type TrustStore interface {
-	PrimaryProvider
+	ASInspector
 	CryptoHandlerFactory
 	MsgVerificationFactory
 	SetMessenger(msger Messenger)
 }
 
-// PrimaryProvider provides information about primary ASes.
-type PrimaryProvider interface {
-	// PrimariesWithAttributes returns a list of ASes in the specified ISD that
-	// hold all attributes.
-	PrimariesWithAttributes(ctx context.Context, isd addr.ISD,
-		args PrimaryProviderOpts) ([]addr.IA, error)
+// ASInspector provides information about primary ASes.
+type ASInspector interface {
+	// ByAttributes returns a list of primary ASes in the specified ISD that
+	// hold all the requested attributes.
+	ByAttributes(ctx context.Context, isd addr.ISD,
+		args ASInspectorOpts) ([]addr.IA, error)
 	// HasAttributes indicates whether an AS holds all the specified attributes.
 	// The first return value is always false for non-primary ASes.
-	HasAttributes(ctx context.Context, ia addr.IA, args PrimaryProviderOpts) (bool, error)
+	HasAttributes(ctx context.Context, ia addr.IA, args ASInspectorOpts) (bool, error)
 }
 
 // CryptoHandlerFactory provides handlers for incoming crypto material requests.
@@ -486,8 +486,8 @@ type TrustStoreOpts struct {
 	LocalOnly bool
 }
 
-// PrimaryProviderOpts contains the options for request about primary ASes.
-type PrimaryProviderOpts struct {
+// ASInspectorOpts contains the options for request about primary ASes.
+type ASInspectorOpts struct {
 	TrustStoreOpts
 	// RequiredAttributes is a list off all attributes the primary AS must have.
 	RequiredAttributes []Attribute

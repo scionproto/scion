@@ -148,7 +148,7 @@ func realMain() int {
 			),
 		},
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
-			PrimaryProvider: trustStore,
+			ASInspector: trustStore,
 		},
 		proto.SCIONDMsg_Which_ifInfoRequest:      &servers.IFInfoRequestHandler{},
 		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{},
