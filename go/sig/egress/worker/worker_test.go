@@ -15,8 +15,10 @@
 package worker
 
 import (
+	"os"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 
@@ -26,67 +28,24 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/mock_egress"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
-func NewMockSession(logger log.Logger) *MockSession {
-	return &MockSession{
-		Logger: logger.New(),
-		ring: ringbuf.New(64, nil, "egress",
-			prometheus.Labels{"ringId": "", "sessId": ""}),
-	}
+func TestMain(m *testing.M) {
+	log.Root().SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
 }
 
-type MockSession struct {
-	log.Logger
-	ring *ringbuf.Ring
-}
-
-func (self *MockSession) IA() addr.IA {
-	ia, _ := addr.IAFromString("1-ff00:0:300")
-	return ia
-}
-
-func (self *MockSession) ID() mgmt.SessionType {
-	return 0
-}
-
-func (self *MockSession) Conn() snet.Conn {
-	return nil
-}
-
-func (self *MockSession) Ring() *ringbuf.Ring {
-	return self.ring
-}
-
-func (self *MockSession) Remote() *egress.RemoteInfo {
-	return nil
-}
-
-func (self *MockSession) Cleanup() error {
-	return nil
-}
-
-func (self *MockSession) Healthy() bool {
-	return true
-}
-
-func (self *MockSession) PathPool() egress.PathPool {
-	return nil
-}
-
-func (self *MockSession) AnnounceWorkerStopped() {
-}
-
-func (self *MockSession) SendPacket(t *testing.T, pkt []byte) {
+func SendPacket(t *testing.T, r *ringbuf.Ring, pkt []byte) {
 	bufs := make(ringbuf.EntryList, 1)
 	n, _ := egress.EgressFreePkts.Read(bufs, true)
 	assert.Equal(t, 1, n)
 	buf := bufs[0].(common.RawBytes)
 	buf = buf[:len(pkt)]
 	copy(buf, pkt)
-	n, _ = self.ring.Write(ringbuf.EntryList{buf}, true)
+	n, _ = r.Write(ringbuf.EntryList{buf}, true)
 	assert.Equal(t, 1, n)
 }
 
@@ -116,35 +75,50 @@ func TestParsing(t *testing.T) {
 	metrics.Init("")
 	egress.Init()
 	logger := log.New()
-	session := NewMockSession(logger)
+
+	ia, _ := addr.IAFromString("1-ff00:0:300")
+	r := ringbuf.New(64, nil, "egress", prometheus.Labels{"ringId": "", "sessId": ""})
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	s := mock_egress.NewMockSession(mockCtrl)
+	s.EXPECT().IA().AnyTimes().Return(ia)
+	s.EXPECT().ID().AnyTimes().Return(mgmt.SessionType(0))
+	s.EXPECT().Conn().AnyTimes().Return(nil)
+	s.EXPECT().Ring().AnyTimes().Return(r)
+	s.EXPECT().Remote().AnyTimes().Return(nil)
+	s.EXPECT().Cleanup().AnyTimes().Return(nil)
+	s.EXPECT().Healthy().AnyTimes().Return(true)
+	s.EXPECT().PathPool().AnyTimes().Return(nil)
+
 	writer := NewMockWriter()
-	w := NewWorker(session, writer, true, logger)
+	w := NewWorker(s, writer, true, logger)
 	go func() {
 		w.Run()
 	}()
 
 	// Simple packet.
-	session.SendPacket(t, []byte{1, 2, 3})
+	SendPacket(t, r, []byte{1, 2, 3})
 	writer.AssertFrame(t, []byte{0, 0, 0, 0, 0, 0, 0, 1,
 		0, 3, 1, 2, 3})
 
 	// Two packets in a single frame.
-	session.SendPacket(t, []byte{4, 5, 6})
-	session.SendPacket(t, []byte{7, 8})
+	SendPacket(t, r, []byte{4, 5, 6})
+	SendPacket(t, r, []byte{7, 8})
 	writer.AssertFrame(t, []byte{0, 0, 0, 0, 0, 1, 0, 1,
 		0, 3, 4, 5, 6, 0, 0, 0,
 		0, 2, 7, 8})
 
 	// Single packet split into two frames.
-	session.SendPacket(t, make([]byte, 2000))
+	SendPacket(t, r, make([]byte, 2000))
 	writer.AssertFrame(t, append([]byte{0, 0, 0, 0, 0, 2, 0, 1,
 		7, 208}, make([]byte, 1254)...))
 	writer.AssertFrame(t, append([]byte{0, 0, 0, 0, 0, 3, 0, 0},
 		make([]byte, 746)...))
 
 	// Second packet starting at non-zero position in the second frame.
-	session.SendPacket(t, make([]byte, 2000))
-	session.SendPacket(t, []byte{10, 11, 12})
+	SendPacket(t, r, make([]byte, 2000))
+	SendPacket(t, r, []byte{10, 11, 12})
 	writer.AssertFrame(t, append([]byte{0, 0, 0, 0, 0, 4, 0, 1,
 		7, 208}, make([]byte, 1254)...))
 	exp := []byte{0, 0, 0, 0, 0, 5, 0, 95}
@@ -153,5 +127,5 @@ func TestParsing(t *testing.T) {
 	exp = append(exp, []byte{0, 3, 10, 11, 12}...)
 	writer.AssertFrame(t, exp)
 
-	session.ring.Close()
+	r.Close()
 }

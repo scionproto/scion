@@ -66,7 +66,6 @@ type worker struct {
 	iaString      string
 	sess          egress.Session
 	writer        SCIONWriter
-	ignoreAddress bool
 	currSig       *siginfo.Sig
 	currPathEntry *sciond.PathReplyEntry
 	frameSentCtrs metrics.CtrPair
@@ -74,8 +73,14 @@ type worker struct {
 	epoch uint16
 	seq   uint32
 	pkts  ringbuf.EntryList
+
+	// TODO(sustrik): This is used for testing only. The code should be refactored
+	// in such a way that it's not needed.
+	ignoreAddress bool
 }
 
+// NewWorker creates a new worker object.
+// ignoreAddress is set to true only in tests. Elsewhere is should be set to false.
 func NewWorker(sess egress.Session, writer SCIONWriter, ignoreAddress bool,
 	logger log.Logger) *worker {
 
