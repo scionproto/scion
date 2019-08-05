@@ -15,6 +15,7 @@ go_library(
         "//go/lib/env:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
+        "//go/lib/infra/modules/trust:go_default_library",
         "//go/lib/infra/modules/trust/trustdb:go_default_library",
         "//go/lib/keyconf:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",

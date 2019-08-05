@@ -48,7 +48,7 @@ type HandlerArgs struct {
 	PathDB          pathdb.PathDB
 	RevCache        revcache.RevCache
 	ASInspector     infra.ASInspector
-	VerifierFactory infra.MsgVerificationFactory
+	VerifierFactory infra.VerificationFactory
 	QueryInterval   time.Duration
 	IA              addr.IA
 	TopoProvider    topology.Provider
@@ -59,7 +59,7 @@ type baseHandler struct {
 	pathDB          pathdb.PathDB
 	revCache        revcache.RevCache
 	inspector       infra.ASInspector
-	verifierFactory infra.MsgVerificationFactory
+	verifierFactory infra.VerificationFactory
 	topoProvider    topology.Provider
 	retryInt        time.Duration
 	queryInt        time.Duration

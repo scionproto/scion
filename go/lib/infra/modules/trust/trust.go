@@ -197,8 +197,8 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 	if err := store.isLocal(client); err != nil {
 		return nil, err
 	}
-	if opts.Hint == nil {
-		opts.Hint, err = store.ChooseServer(ctx, addr.IA{I: isd})
+	if opts.Server == nil {
+		opts.Server, err = store.ChooseServer(ctx, addr.IA{I: isd})
 		if err != nil {
 			return nil, common.NewBasicError("Error determining server to query", err,
 				"isd", isd, "version", version)
@@ -208,7 +208,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		isd:      isd,
 		version:  uint64(version),
 		id:       messenger.NextId(),
-		server:   opts.Hint,
+		server:   opts.Server,
 		postHook: store.insertTRCHook(),
 	})
 }
@@ -303,9 +303,9 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 	if opts.LocalOnly {
 		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
 	}
-	if opts.Hint == nil {
+	if opts.Server == nil {
 		var err error
-		opts.Hint, err = store.ChooseServer(ctx, ia)
+		opts.Server, err = store.ChooseServer(ctx, ia)
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +314,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		ia:       ia,
 		version:  uint64(version),
 		id:       messenger.NextId(),
-		server:   opts.Hint,
+		server:   opts.Server,
 		postHook: store.newChainValidator(trcObj),
 	})
 }

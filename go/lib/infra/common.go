@@ -433,16 +433,23 @@ type Verifier interface {
 type TrustStore interface {
 	ASInspector
 	CryptoHandlerFactory
-	MsgVerificationFactory
-	SetMessenger(msger Messenger)
+	VerificationFactory
+}
+
+// ExtendedTrustStore extends the TrustStore interface to allow for more interactions.
+// Regular infra services should use the TrustStore interface instead.
+type ExtendedTrustStore interface {
+	ASInspector
+	VerificationFactory
+	ExtendedCryptoHandlerFactory
+	CryptoMaterialProvider
 }
 
 // ASInspector provides information about primary ASes.
 type ASInspector interface {
 	// ByAttributes returns a list of primary ASes in the specified ISD that
 	// hold all the requested attributes.
-	ByAttributes(ctx context.Context, isd addr.ISD,
-		args ASInspectorOpts) ([]addr.IA, error)
+	ByAttributes(ctx context.Context, isd addr.ISD, args ASInspectorOpts) ([]addr.IA, error)
 	// HasAttributes indicates whether an AS holds all the specified attributes.
 	// The first return value is always false for non-primary ASes.
 	HasAttributes(ctx context.Context, ia addr.IA, args ASInspectorOpts) (bool, error)
@@ -454,17 +461,23 @@ type CryptoHandlerFactory interface {
 	NewChainReqHandler(recurseAllowed bool) Handler
 }
 
-// MsgVerificationFactory provides objects for message signing and verification
+// VerificationFactory provides objects for message signing and verification
 // based on control-plane PKI certificates.
-type MsgVerificationFactory interface {
+type VerificationFactory interface {
 	NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)
 	NewVerifier() Verifier
 }
 
-// ExtendedTrustStore extends the TrustStore interface to allow for more interactions.
-// Regular infra services should use the TrustStore interface instead.
-type ExtendedTrustStore interface {
-	TrustStore
+// ExtendedCryptoHandlerFactory provides handlers for incoming crypto material
+// requests, and crypto material pushes.
+type ExtendedCryptoHandlerFactory interface {
+	CryptoHandlerFactory
+	NewChainPushHandler() Handler
+	NewTRCPushHandler() Handler
+}
+
+// CryptoMaterialProvider provides crypto material.
+type CryptoMaterialProvider interface {
 	// GetChain returns a valid certificate chain or an error. If the chain is
 	// not found locally, it is requested over the network unless LocalOnly is set.
 	GetChain(ctx context.Context, ia addr.IA, version scrypto.Version, opts ChainOpts) (
@@ -473,15 +486,14 @@ type ExtendedTrustStore interface {
 	// found locally, it is requested over the network unless LocalOnly is set.
 	GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version, opts TRCOpts) (
 		*trc.TRC, error)
-	NewChainPushHandler() Handler
-	NewTRCPushHandler() Handler
 }
 
 // TrustStoreOpts contains the base options when interacting with the trust store.
 type TrustStoreOpts struct {
-	// Hint provides an address where the store should send crypto material
-	// request, if they are not available locally.
-	Hint net.Addr
+	// Server provides an address where the store should send crypto material
+	// request, if they are not available locally. If it is not set, the
+	// trust store does its own server resolution.
+	Server net.Addr
 	// LocalOnly indicates that the store should only check locally.
 	LocalOnly bool
 }
