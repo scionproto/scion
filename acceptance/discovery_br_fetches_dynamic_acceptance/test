@@ -10,14 +10,15 @@
 # 4. Let dynamic topology expire -> link goes up
 # 5. Check connectivity is up again
 
+. acceptance/discovery_util/util.sh
+
 PROGRAM=`basename "$0"`
 COMMAND="$1"
 TEST_NAME="discovery_br_fetches_dynamic"
 
 DST_IA=${DST_IA:-1-ff00:0:112}
+DST_IA_FILE="$(ia_file $DST_IA)"
 
-. acceptance/common.sh
-. acceptance/discovery_util/util.sh
 
 test_setup() {
     set -e
@@ -29,6 +30,7 @@ test_setup() {
     set_interval "$cfg" "dynamic"
 
     base_start_scion
+    ./tools/dc start tester_$DST_IA_FILE tester_$IA_FILE
 }
 
 test_run() {

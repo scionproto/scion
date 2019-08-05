@@ -32,6 +32,7 @@ test_setup() {
         -e 's/ReissueRate.\+/ReissueRate = "1s"/' \
         -e 's/ReissueTimeout.\+/ReissueTimeout = "5s"/' gen/ISD1/*/cs*/cs.toml
    ./scion.sh run nobuild
+   ./tools/dc start tester_$IA_FILE tester_$CORE_IA_FILE
 }
 
 test_run() {

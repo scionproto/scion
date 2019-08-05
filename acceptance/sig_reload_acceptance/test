@@ -1,6 +1,5 @@
 #!/bin/bash
 
-. acceptance/common.sh
 . acceptance/sigutil/common.sh
 
 PROGRAM=`basename "$0"`

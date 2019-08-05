@@ -7,7 +7,6 @@ PROGRAM=`basename "$0"`
 COMMAND="$1"
 TEST_NAME="discovery_infra_fetches_static"
 
-. acceptance/common.sh
 . acceptance/discovery_util/util.sh
 
 test_setup() {
