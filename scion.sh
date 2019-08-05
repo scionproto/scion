@@ -267,7 +267,11 @@ py_test() {
 }
 
 bazel_test() {
-    bazel test //go/... --print_relative_test_log_paths --color no
+    local color_mode="auto"
+    if is_running_in_docker; then
+        color_mode="no"
+    fi
+    bazel test //go/... --print_relative_test_log_paths --color $color_mode
 }
 
 cmd_coverage(){
