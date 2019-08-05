@@ -9,6 +9,8 @@ curl -X POST -H "Authorization: Bearer ${DOLLAR}{ACCEPTANCE_ACCESS_TOKEN}" "http
     }
   }'
 
+# You can specify the acceptance tests you'd like to run. E.g. set "ACCEPTANCE_TEST": "br" as a regexp-style environment variable below "TAG".
+
 # Or open 'https://buildkite.com/${BUILDKITE_ORGANIZATION_SLUG}/acceptance-tests' and create a new build with 
 # Commit: $BUILDKITE_COMMIT
 # Branch: $BUILDKITE_BRANCH
