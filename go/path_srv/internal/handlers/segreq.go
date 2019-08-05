@@ -80,7 +80,7 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	}
 	args = infra.ASInspectorOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{
-			Hint: remote,
+			Server: remote,
 		},
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
