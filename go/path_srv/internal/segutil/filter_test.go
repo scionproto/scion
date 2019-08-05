@@ -41,7 +41,6 @@ func TestFilter(t *testing.T) {
 	seg110To120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
 	seg110To130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
 
-	// TODO delete method IsPartial
 	tests := map[string]struct {
 		Segs         seg.Segments
 		Dir          Direction
