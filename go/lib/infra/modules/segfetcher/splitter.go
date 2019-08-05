@@ -31,14 +31,14 @@ type RequestSplitter interface {
 
 // NewRequestSplitter creates a request splitter for the given local IA. The
 // TRC provider is used to get TRCs and check whether an IA is core or not.
-func NewRequestSplitter(localIA addr.IA, primaryProvider infra.PrimaryProvider) (
+func NewRequestSplitter(localIA addr.IA, inspector infra.ASInspector) (
 	RequestSplitter, error) {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	baseSplitter := baseRequestSplitter{
-		LocalIA:         localIA,
-		PrimaryProvider: primaryProvider,
+		LocalIA:     localIA,
+		ASInspector: inspector,
 	}
 	core, err := baseSplitter.isCore(ctx, localIA)
 	if err != nil {
@@ -56,18 +56,18 @@ func NewRequestSplitter(localIA addr.IA, primaryProvider infra.PrimaryProvider) 
 
 // baseRequestSplitter implements common functionality for request splitters.
 type baseRequestSplitter struct {
-	LocalIA         addr.IA
-	PrimaryProvider infra.PrimaryProvider
+	LocalIA     addr.IA
+	ASInspector infra.ASInspector
 }
 
 func (s *baseRequestSplitter) isCore(ctx context.Context, dst addr.IA) (bool, error) {
 	if s.isWildCard(dst) {
 		return true, nil
 	}
-	args := infra.PrimaryProviderOpts{
+	args := infra.ASInspectorOpts{
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	isCore, err := s.PrimaryProvider.HasAttributes(ctx, dst, args)
+	isCore, err := s.ASInspector.HasAttributes(ctx, dst, args)
 	if err != nil {
 		return false, err
 	}

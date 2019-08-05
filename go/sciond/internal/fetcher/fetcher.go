@@ -54,7 +54,7 @@ const (
 type Fetcher struct {
 	messenger       infra.Messenger
 	pathDB          pathdb.PathDB
-	primaryProvider infra.PrimaryProvider
+	inspector       infra.ASInspector
 	revocationCache revcache.RevCache
 	config          config.SDConfig
 	replyHandler    *segfetcher.SegReplyHandler
@@ -66,7 +66,7 @@ func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore infr
 	return &Fetcher{
 		messenger:       messenger,
 		pathDB:          pathDB,
-		primaryProvider: trustStore,
+		inspector:       trustStore,
 		revocationCache: revCache,
 		config:          cfg,
 		replyHandler: &segfetcher.SegReplyHandler{
@@ -301,13 +301,13 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 	subCtx, subCancelF := context.WithTimeout(ctx, time.Second)
 	defer subCancelF()
 
-	dstArgs := infra.PrimaryProviderOpts{
+	dstArgs := infra.ASInspectorOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{
 			LocalOnly: true,
 		},
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	dstCores, err := f.primaryProvider.PrimariesWithAttributes(subCtx, req.Dst.IA().I, dstArgs)
+	dstCores, err := f.inspector.ByAttributes(subCtx, req.Dst.IA().I, dstArgs)
 	if err != nil {
 		// There are situations where we cannot tell if the remote is core. In
 		// these cases we just error out, and calling code will try to get path
@@ -315,10 +315,10 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		// function will proceed to the next part.
 		return nil, err
 	}
-	localArgs := infra.PrimaryProviderOpts{
+	localArgs := infra.ASInspectorOpts{
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	locCores, err := f.primaryProvider.PrimariesWithAttributes(ctx, f.topology.ISD_AS.I, localArgs)
+	locCores, err := f.inspector.ByAttributes(ctx, f.topology.ISD_AS.I, localArgs)
 	if err != nil {
 		return nil, err
 	}
