@@ -168,8 +168,8 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 }
 
 // GetTRC asks the trust store to return a valid and active TRC for isd. The
-// hinted server is queried over the network if the TRC is not available
-// locally. Otherwise, the default server is queried.
+// optionally configured server is queried over the network if the TRC is not
+// available locally. Otherwise, the default server is queried.
 //
 // FIXME(roosd): Currently this does not check whether the TRC is active.
 func (store *Store) GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
@@ -272,8 +272,9 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 	return nil
 }
 
-// GetChain asks the trust store to return a valid certificate chain for ia.
-// Server is queried over the network if the chain is not available locally.
+// GetChain asks the trust store to return a valid certificate chain for ia. The
+// optionally configured server is queried over the network if the certificate
+// chain is not available locally. Otherwise, the default server is queried.
 func (store *Store) GetChain(ctx context.Context, ia addr.IA, version scrypto.Version,
 	opts infra.ChainOpts) (*cert.Chain, error) {
 
