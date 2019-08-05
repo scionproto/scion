@@ -15,6 +15,7 @@
 package worker
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/egress/mock_egress"
+	"github.com/scionproto/scion/go/sig/egress/worker/mock_worker"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
@@ -38,94 +40,139 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func SendPacket(t *testing.T, r *ringbuf.Ring, pkt []byte) {
+type FrameMatcher struct {
+	pattern []byte
+}
+
+func MatchFrame(pattern []byte) gomock.Matcher {
+	return &FrameMatcher{pattern}
+}
+
+func (self *FrameMatcher) Matches(x interface{}) bool {
+	frame := x.([]byte)
+	// Match all the bytes except the epoch.
+	if len(frame) != len(self.pattern) {
+		return false
+	}
+	if frame[0] != self.pattern[0] {
+		return false
+	}
+	for i, v := range frame[3:] {
+		if v != self.pattern[i+3] {
+			return false
+		}
+	}
+	return true
+}
+
+func (self *FrameMatcher) String() string {
+	return fmt.Sprintf("matches %v", self.pattern)
+}
+
+type WorkerTester struct {
+	t        *testing.T
+	mockCtrl *gomock.Controller
+	writer   *mock_worker.MockSCIONWriter
+	ring     *ringbuf.Ring
+}
+
+func NewWorkerTester(t *testing.T) *WorkerTester {
+	tester := &WorkerTester{t: t}
+	tester.mockCtrl = gomock.NewController(t)
+	tester.writer = mock_worker.NewMockSCIONWriter(tester.mockCtrl)
+	tester.ring = ringbuf.New(64, nil, "egress", prometheus.Labels{"ringId": "", "sessId": ""})
+	return tester
+}
+
+func (self *WorkerTester) ExpectFrame(frame []byte) {
+	self.writer.EXPECT().WriteToSCION(MatchFrame(frame), gomock.Any()).Return(len(frame), nil)
+}
+
+func (self *WorkerTester) ExpectLastFrame(frame []byte) {
+	self.writer.EXPECT().WriteToSCION(MatchFrame(frame), gomock.Any()).DoAndReturn(
+		func(frame []byte, address *snet.Addr) (int, error) {
+			self.ring.Close()
+			return len(frame), nil
+		})
+}
+
+func (self *WorkerTester) SendPacket(pkt []byte) {
 	bufs := make(ringbuf.EntryList, 1)
 	n, _ := egress.EgressFreePkts.Read(bufs, true)
-	assert.Equal(t, 1, n)
+	assert.Equal(self.t, 1, n)
 	buf := bufs[0].(common.RawBytes)
 	buf = buf[:len(pkt)]
 	copy(buf, pkt)
-	n, _ = r.Write(ringbuf.EntryList{buf}, true)
-	assert.Equal(t, 1, n)
+	n, _ = self.ring.Write(ringbuf.EntryList{buf}, true)
+	assert.Equal(self.t, 1, n)
 }
 
-func NewMockWriter() *MockWriter {
-	return &MockWriter{ch: make(chan []byte)}
+func (self *WorkerTester) Run() {
+	ia, _ := addr.IAFromString("1-ff00:0:300")
+	s := mock_egress.NewMockSession(self.mockCtrl)
+	s.EXPECT().IA().AnyTimes().Return(ia)
+	s.EXPECT().ID().AnyTimes().Return(mgmt.SessionType(0))
+	s.EXPECT().Conn().AnyTimes().Return(nil)
+	s.EXPECT().Ring().AnyTimes().Return(self.ring)
+	s.EXPECT().Remote().AnyTimes().Return(nil)
+	s.EXPECT().Cleanup().AnyTimes().Return(nil)
+	s.EXPECT().Healthy().AnyTimes().Return(true)
+	s.EXPECT().PathPool().AnyTimes().Return(nil)
+	s.EXPECT().AnnounceWorkerStopped().AnyTimes()
+	NewWorker(s, self.writer, true, log.New()).Run()
 }
 
-type MockWriter struct {
-	ch chan []byte
-}
-
-func (self *MockWriter) WriteToSCION(b []byte, address *snet.Addr) (int, error) {
-	f := make([]byte, len(b))
-	copy(f, b)
-	self.ch <- f
-	return len(f), nil
-}
-
-func (self *MockWriter) AssertFrame(t *testing.T, expected []byte) {
-	f := <-self.ch
-	// Epoch numbers (f[1:3]) are random. Ignore them.
-	assert.Equal(t, expected[0], f[0])
-	assert.Equal(t, expected[3:], f[3:])
+func (self *WorkerTester) Finish() {
+	self.mockCtrl.Finish()
 }
 
 func TestParsing(t *testing.T) {
 	metrics.Init("")
 	egress.Init()
-	logger := log.New()
 
-	ia, _ := addr.IAFromString("1-ff00:0:300")
-	r := ringbuf.New(64, nil, "egress", prometheus.Labels{"ringId": "", "sessId": ""})
+	t.Run("simple packet", func(t *testing.T) {
+		tester := NewWorkerTester(t)
+		defer tester.Finish()
+		tester.SendPacket([]byte{1, 2, 3})
+		tester.ExpectLastFrame([]byte{0, 0, 0, 0, 0, 0, 0, 1,
+			0, 3, 1, 2, 3})
+		tester.Run()
+	})
 
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-	s := mock_egress.NewMockSession(mockCtrl)
-	s.EXPECT().IA().AnyTimes().Return(ia)
-	s.EXPECT().ID().AnyTimes().Return(mgmt.SessionType(0))
-	s.EXPECT().Conn().AnyTimes().Return(nil)
-	s.EXPECT().Ring().AnyTimes().Return(r)
-	s.EXPECT().Remote().AnyTimes().Return(nil)
-	s.EXPECT().Cleanup().AnyTimes().Return(nil)
-	s.EXPECT().Healthy().AnyTimes().Return(true)
-	s.EXPECT().PathPool().AnyTimes().Return(nil)
+	t.Run("two packets in a single frame", func(t *testing.T) {
+		tester := NewWorkerTester(t)
+		defer tester.Finish()
+		tester.SendPacket([]byte{4, 5, 6})
+		tester.SendPacket([]byte{7, 8})
+		tester.ExpectLastFrame([]byte{0, 0, 0, 0, 0, 0, 0, 1,
+			0, 3, 4, 5, 6, 0, 0, 0,
+			0, 2, 7, 8})
+		tester.Run()
+	})
 
-	writer := NewMockWriter()
-	w := NewWorker(s, writer, true, logger)
-	go func() {
-		w.Run()
-	}()
+	t.Run("single packet split into two frames", func(t *testing.T) {
+		tester := NewWorkerTester(t)
+		defer tester.Finish()
+		tester.SendPacket(make([]byte, 2000))
+		tester.ExpectFrame(append([]byte{0, 0, 0, 0, 0, 0, 0, 1,
+			7, 208}, make([]byte, 1254)...))
+		tester.ExpectLastFrame(append([]byte{0, 0, 0, 0, 0, 1, 0, 0},
+			make([]byte, 746)...))
+		tester.Run()
+	})
 
-	// Simple packet.
-	SendPacket(t, r, []byte{1, 2, 3})
-	writer.AssertFrame(t, []byte{0, 0, 0, 0, 0, 0, 0, 1,
-		0, 3, 1, 2, 3})
-
-	// Two packets in a single frame.
-	SendPacket(t, r, []byte{4, 5, 6})
-	SendPacket(t, r, []byte{7, 8})
-	writer.AssertFrame(t, []byte{0, 0, 0, 0, 0, 1, 0, 1,
-		0, 3, 4, 5, 6, 0, 0, 0,
-		0, 2, 7, 8})
-
-	// Single packet split into two frames.
-	SendPacket(t, r, make([]byte, 2000))
-	writer.AssertFrame(t, append([]byte{0, 0, 0, 0, 0, 2, 0, 1,
-		7, 208}, make([]byte, 1254)...))
-	writer.AssertFrame(t, append([]byte{0, 0, 0, 0, 0, 3, 0, 0},
-		make([]byte, 746)...))
-
-	// Second packet starting at non-zero position in the second frame.
-	SendPacket(t, r, make([]byte, 2000))
-	SendPacket(t, r, []byte{10, 11, 12})
-	writer.AssertFrame(t, append([]byte{0, 0, 0, 0, 0, 4, 0, 1,
-		7, 208}, make([]byte, 1254)...))
-	exp := []byte{0, 0, 0, 0, 0, 5, 0, 95}
-	exp = append(exp, make([]byte, 746)...)
-	exp = append(exp, []byte{0, 0, 0, 0, 0, 0}...) // padding at the end of 1st packet
-	exp = append(exp, []byte{0, 3, 10, 11, 12}...)
-	writer.AssertFrame(t, exp)
-
-	r.Close()
+	t.Run("second packet starting at non-zero position in the second frame", func(t *testing.T) {
+		tester := NewWorkerTester(t)
+		defer tester.Finish()
+		tester.SendPacket(make([]byte, 2000))
+		tester.SendPacket([]byte{10, 11, 12})
+		tester.ExpectFrame(append([]byte{0, 0, 0, 0, 0, 0, 0, 1,
+			7, 208}, make([]byte, 1254)...))
+		exp := []byte{0, 0, 0, 0, 0, 1, 0, 95}
+		exp = append(exp, make([]byte, 746)...)
+		exp = append(exp, []byte{0, 0, 0, 0, 0, 0}...) // padding at the end of 1st packet
+		exp = append(exp, []byte{0, 3, 10, 11, 12}...)
+		tester.ExpectLastFrame(exp)
+		tester.Run()
+	})
 }
