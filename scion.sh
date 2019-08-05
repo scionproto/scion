@@ -267,7 +267,8 @@ py_test() {
 }
 
 bazel_test() {
-    bazel test //go/... --print_relative_test_log_paths --color no
+    local color_mode=$([ "$CI" == "true" ] && echo "no" || echo "auto")
+    bazel test //go/... --print_relative_test_log_paths --color $color_mode
 }
 
 cmd_coverage(){
