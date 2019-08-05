@@ -16,16 +16,15 @@ package segfetcher_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -42,17 +41,11 @@ var (
 	non_core_112 = xtest.MustParseIA("1-ff00:0:112")
 	non_core_211 = xtest.MustParseIA("2-ff00:0:211")
 
-	trc1Mock = &trc.TRC{
-		CoreASes: trc.CoreASMap{
-			core_110: nil,
-			core_120: nil,
-			core_130: nil,
-		},
-	}
-	trc2Mock = &trc.TRC{
-		CoreASes: trc.CoreASMap{
-			core_210: nil,
-		},
+	cores = map[addr.IA]struct{}{
+		core_110: {},
+		core_120: {},
+		core_130: {},
+		core_210: {},
 	}
 )
 
@@ -60,18 +53,16 @@ func TestRequestSplitter(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	trcProvider := mock_segfetcher.NewMockTRCProvider(ctrl)
-	trcProvider.EXPECT().GetTRC(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, isd addr.ISD, _ uint64) (*trc.TRC, error) {
-			switch isd {
-			case 1:
-				return trc1Mock, nil
-			case 2:
-				return trc2Mock, nil
-			default:
-				return nil, errors.New("TRC Not found")
-			}
-		}).AnyTimes()
+	inspector := mock_infra.NewMockASInspector(ctrl)
+	opts := infra.ASInspectorOpts{
+		RequiredAttributes: []infra.Attribute{infra.Core},
+	}
+	inspector.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), opts).DoAndReturn(
+		func(_ context.Context, ia addr.IA, _ infra.ASInspectorOpts) (bool, error) {
+			_, ok := cores[ia]
+			return ok, nil
+		},
+	).AnyTimes()
 	tests := map[string]struct {
 		LocalIA        addr.IA
 		Request        segfetcher.Request
@@ -167,7 +158,7 @@ func TestRequestSplitter(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			splitter, err := segfetcher.NewRequestSplitter(test.LocalIA, trcProvider)
+			splitter, err := segfetcher.NewRequestSplitter(test.LocalIA, inspector)
 			xtest.FailOnErr(t, err)
 			requests, err := splitter.Split(context.Background(), test.Request)
 			if test.ExpectedErrMsg != "" {

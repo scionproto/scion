@@ -641,7 +641,7 @@ func (store *Store) chooseDestCSIsd(ctx context.Context, destination addr.IA,
 	if destination.A == 0 {
 		return topo.ISD_AS.I, nil
 	}
-	opts := infra.PrimaryProviderOpts{RequiredAttributes: []infra.Attribute{infra.Core}}
+	opts := infra.ASInspectorOpts{RequiredAttributes: []infra.Attribute{infra.Core}}
 	core, err := store.HasAttributes(ctx, destination, opts)
 	if err != nil {
 		return 0, err
@@ -661,10 +661,10 @@ func (store *Store) NewVerifier() infra.Verifier {
 	return NewBasicVerifier(store)
 }
 
-// PrimariesWithAttributes returns a list of ASes in the specified ISD that
+// ByAttributes returns a list of ASes in the specified ISD that
 // hold all attributes.
-func (store *Store) PrimariesWithAttributes(ctx context.Context, isd addr.ISD,
-	opts infra.PrimaryProviderOpts) ([]addr.IA, error) {
+func (store *Store) ByAttributes(ctx context.Context, isd addr.ISD,
+	opts infra.ASInspectorOpts) ([]addr.IA, error) {
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	trc, err := store.GetTRC(ctx, isd, scrypto.Version(scrypto.LatestVer), trcOpts)
 	if err != nil {
@@ -678,7 +678,7 @@ func (store *Store) PrimariesWithAttributes(ctx context.Context, isd addr.ISD,
 // HasAttributes indicates whether an AS holds all the specified attributes.
 // The first return value is always false for non-primary ASes.
 func (store *Store) HasAttributes(ctx context.Context, ia addr.IA,
-	opts infra.PrimaryProviderOpts) (bool, error) {
+	opts infra.ASInspectorOpts) (bool, error) {
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	trc, err := store.GetTRC(ctx, ia.I, scrypto.Version(scrypto.LatestVer), trcOpts)
 	if err != nil {

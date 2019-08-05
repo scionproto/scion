@@ -63,13 +63,13 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 		return true, nil
 	}
 	// Try local trust store first.
-	args := infra.PrimaryProviderOpts{
+	args := infra.ASInspectorOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{
 			LocalOnly: true,
 		},
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	if isCore, err := h.primaryProvider.HasAttributes(ctx, dst, args); err == nil {
+	if isCore, err := h.inspector.HasAttributes(ctx, dst, args); err == nil {
 		return isCore, nil
 	} else if resolver == nil {
 		return false, common.NewBasicError("Cannot check whether AS is core", err, "ia", dst)
@@ -78,13 +78,13 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	if err != nil {
 		return false, common.NewBasicError("Unable to resolve remote", err)
 	}
-	args = infra.PrimaryProviderOpts{
+	args = infra.ASInspectorOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{
 			Hint: remote,
 		},
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	isCore, err := h.primaryProvider.HasAttributes(ctx, dst, args)
+	isCore, err := h.inspector.HasAttributes(ctx, dst, args)
 	if err != nil {
 		return false, common.NewBasicError("Cannot check whether AS is core", err, "ia", dst)
 	}
@@ -93,10 +93,10 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 
 // coreASes returns the list of core ASes for the local ISD.
 func (h *segReqHandler) coreASes(ctx context.Context) ([]addr.IA, error) {
-	args := infra.PrimaryProviderOpts{
+	args := infra.ASInspectorOpts{
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	cores, err := h.primaryProvider.PrimariesWithAttributes(ctx, h.localIA.I, args)
+	cores, err := h.inspector.ByAttributes(ctx, h.localIA.I, args)
 	if err != nil {
 		return nil, err
 	}

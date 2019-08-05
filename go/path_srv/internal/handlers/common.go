@@ -47,7 +47,7 @@ const (
 type HandlerArgs struct {
 	PathDB          pathdb.PathDB
 	RevCache        revcache.RevCache
-	PrimaryProvider infra.PrimaryProvider
+	ASInspector     infra.ASInspector
 	VerifierFactory infra.MsgVerificationFactory
 	QueryInterval   time.Duration
 	IA              addr.IA
@@ -58,7 +58,7 @@ type baseHandler struct {
 	request         *infra.Request
 	pathDB          pathdb.PathDB
 	revCache        revcache.RevCache
-	primaryProvider infra.PrimaryProvider
+	inspector       infra.ASInspector
 	verifierFactory infra.MsgVerificationFactory
 	topoProvider    topology.Provider
 	retryInt        time.Duration
@@ -70,7 +70,7 @@ func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 		request:         request,
 		pathDB:          args.PathDB,
 		revCache:        args.RevCache,
-		primaryProvider: args.PrimaryProvider,
+		inspector:       args.ASInspector,
 		verifierFactory: args.VerifierFactory,
 		retryInt:        500 * time.Millisecond,
 		queryInt:        args.QueryInterval,

@@ -151,7 +151,7 @@ func realMain() int {
 	args := handlers.HandlerArgs{
 		PathDB:          pathDB,
 		RevCache:        revCache,
-		PrimaryProvider: trustStore,
+		ASInspector:     trustStore,
 		VerifierFactory: trustStore,
 		QueryInterval:   cfg.PS.QueryInterval.Duration,
 		IA:              topo.ISD_AS,
