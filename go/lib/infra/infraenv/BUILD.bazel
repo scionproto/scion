@@ -12,6 +12,7 @@ go_library(
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/disp:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
+        "//go/lib/infra/modules/trust:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathmgr:go_default_library",
         "//go/lib/sciond:go_default_library",

@@ -51,6 +51,11 @@ const (
 	DefaultMinWorkerLifetime = 10 * time.Second
 )
 
+type TrustStore interface {
+	infra.VerificationFactory
+	infra.ASInspector
+}
+
 type Fetcher struct {
 	messenger       infra.Messenger
 	pathDB          pathdb.PathDB
@@ -60,7 +65,7 @@ type Fetcher struct {
 	replyHandler    *segfetcher.SegReplyHandler
 }
 
-func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore infra.TrustStore,
+func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore TrustStore,
 	revCache revcache.RevCache, cfg config.SDConfig, logger log.Logger) *Fetcher {
 
 	return &Fetcher{

@@ -237,7 +237,7 @@ func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.HostInfo
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
 	RevCache        revcache.RevCache
-	VerifierFactory infra.MsgVerificationFactory
+	VerifierFactory infra.VerificationFactory
 }
 
 func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn,
