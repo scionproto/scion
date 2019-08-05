@@ -448,9 +448,9 @@ func TestTRCReqHandler(t *testing.T) {
 
 			c2s, s2c := p2p.NewPacketConns()
 			// each test initiates a request from the client messenger
-			clientMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), c2s, nil, "client")
+			clientMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), c2s, "client")
 			// the server messenger runs ListenAndServe, backed by the trust store
-			serverMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), s2c, store, "server")
+			serverMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), s2c, "server")
 
 			handler := store.NewTRCReqHandler(test.RecursionEnabled)
 			serverMessenger.AddHandler(infra.TRCRequest, handler)
@@ -555,9 +555,9 @@ func TestChainReqHandler(t *testing.T) {
 
 			c2s, s2c := p2p.NewPacketConns()
 			// each test initiates a request from the client messenger
-			clientMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), c2s, nil, "client")
+			clientMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), c2s, "client")
 			// the server messenger runs ListenAndServe, backed by the trust store
-			serverMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), s2c, store, "server")
+			serverMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), s2c, "server")
 
 			handler := store.NewChainReqHandler(test.RecursionEnabled)
 			serverMessenger.AddHandler(infra.ChainRequest, handler)
@@ -586,7 +586,7 @@ func TestChainReqHandler(t *testing.T) {
 	}
 }
 
-func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) infra.Messenger {
+func setupMessenger(ia addr.IA, conn net.PacketConn, name string) infra.Messenger {
 	config := &messenger.Config{
 		IA: ia,
 		Dispatcher: disp.New(
@@ -599,7 +599,6 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) 
 				IA: ia,
 			},
 		},
-		TrustStore:                   store,
 		DisableSignatureVerification: true,
 		Logger:                       log.Root().New("name", name),
 	}

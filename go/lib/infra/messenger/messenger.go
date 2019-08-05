@@ -114,8 +114,6 @@ type Config struct {
 	IA addr.IA
 	// Dispatcher to use for associating requests with replies.
 	Dispatcher *disp.Dispatcher
-	// TrustStore stores and retrieves certificate chains and TRCs.
-	TrustStore infra.TrustStore
 	// AddressRewriter is used to compute paths and replace SVC destinations with
 	// unicast addresses.
 	AddressRewriter *AddressRewriter
@@ -169,9 +167,6 @@ type Messenger struct {
 	signMask map[infra.MessageType]struct{}
 	// verifier is used to verify selected incoming messages
 	verifier infra.Verifier
-
-	// Source for crypto objects (certificates and TRCs)
-	trustStore infra.TrustStore
 
 	handlersLock sync.RWMutex
 	// Handlers for received messages processing
@@ -237,7 +232,6 @@ func New(config *Config) *Messenger {
 		addressRewriter: config.AddressRewriter,
 		signer:          infra.NullSigner,
 		verifier:        infra.NullSigVerifier,
-		trustStore:      config.TrustStore,
 		handlers:        make(map[infra.MessageType]infra.Handler),
 		closeChan:       make(chan struct{}),
 		ctx:             ctx,

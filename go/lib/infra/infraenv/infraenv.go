@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -67,7 +68,7 @@ type NetworkConfig struct {
 	// destination address.
 	SVC addr.HostSVC
 	// TrustStore is the crypto backend for control-plane verification.
-	TrustStore infra.TrustStore
+	TrustStore *trust.Store
 	// ReconnectToDispatcher sets up sockets that automatically reconnect if
 	// the dispatcher closes the connection (e.g., if the dispatcher goes
 	// down).
@@ -108,7 +109,6 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 
 	msgerCfg := &messenger.Config{
 		IA:              nc.IA,
-		TrustStore:      nc.TrustStore,
 		AddressRewriter: nc.AddressRewriter(nil),
 	}
 	msgerCfg.Dispatcher = disp.New(
