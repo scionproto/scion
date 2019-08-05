@@ -267,7 +267,8 @@ py_test() {
 }
 
 bazel_test() {
-    local color_mode=$([ "$CI" == "true" ] && echo "no" || echo "auto")
+    local color_mode="auto"
+    [ "$CI" == "true" ] && color_mode="no"
     bazel test //go/... --print_relative_test_log_paths --color $color_mode
 }
 
