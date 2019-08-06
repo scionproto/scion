@@ -364,7 +364,7 @@ var _ gomock.Matcher = coreOpsMatcher{}
 
 type coreOpsMatcher struct{}
 
-// Matches returns whether the matcher matches x.
+// Matches returns whether the core AS attribute is requested.
 func (m coreOpsMatcher) Matches(x interface{}) bool {
 	opts, ok := x.(infra.ASInspectorOpts)
 	if !ok {
