@@ -416,11 +416,8 @@ func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
 func (f *fetcherHandler) shouldRefetchSegs(ctx context.Context,
 	req *sciond.PathReq) (bool, error) {
 
-	nq, err := f.pathDB.GetNextQuery(ctx, req.Dst.IA())
-	if err != nil || nq == nil {
-		return true, err
-	}
-	return time.Now().After(*nq), nil
+	nq, err := f.pathDB.GetNextQuery(ctx, req.Src.IA(), req.Dst.IA(), nil)
+	return time.Now().After(nq), err
 }
 
 // fetchAndVerify downloads path segments from the network. Segments that are
@@ -453,7 +450,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, req *sciond.PathReq
 		select {
 		case <-extCtx.Done():
 		case <-r.FullReplyProcessed():
-			_, err = f.pathDB.InsertNextQuery(extCtx, req.Dst.IA(),
+			_, err = f.pathDB.InsertNextQuery(extCtx, req.Src.IA(), req.Dst.IA(), nil,
 				time.Now().Add(f.config.QueryInterval.Duration))
 			if err != nil {
 				f.logger.Warn("Failed to update nextQuery", "err", err)

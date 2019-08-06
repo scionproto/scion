@@ -12,6 +12,7 @@ import (
 	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
 	pathdb "github.com/scionproto/scion/go/lib/pathdb"
 	query "github.com/scionproto/scion/go/lib/pathdb/query"
+	pathpol "github.com/scionproto/scion/go/lib/pathpol"
 	reflect "reflect"
 	time "time"
 )
@@ -129,18 +130,18 @@ func (mr *MockPathDBMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method
-func (m *MockPathDB) GetNextQuery(arg0 context.Context, arg1 addr.IA) (*time.Time, error) {
+func (m *MockPathDB) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (time.Time, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1)
-	ret0, _ := ret[0].(*time.Time)
+	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(time.Time)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetNextQuery indicates an expected call of GetNextQuery
-func (mr *MockPathDBMockRecorder) GetNextQuery(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockPathDBMockRecorder) GetNextQuery(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockPathDB)(nil).GetNextQuery), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockPathDB)(nil).GetNextQuery), arg0, arg1, arg2, arg3)
 }
 
 // Insert mocks base method
@@ -159,18 +160,18 @@ func (mr *MockPathDBMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // InsertNextQuery mocks base method
-func (m *MockPathDB) InsertNextQuery(arg0 context.Context, arg1 addr.IA, arg2 time.Time) (bool, error) {
+func (m *MockPathDB) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy, arg4 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // InsertNextQuery indicates an expected call of InsertNextQuery
-func (mr *MockPathDBMockRecorder) InsertNextQuery(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockPathDBMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockPathDB)(nil).InsertNextQuery), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockPathDB)(nil).InsertNextQuery), arg0, arg1, arg2, arg3, arg4)
 }
 
 // InsertWithHPCfgIDs mocks base method
@@ -310,18 +311,18 @@ func (mr *MockTransactionMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method
-func (m *MockTransaction) GetNextQuery(arg0 context.Context, arg1 addr.IA) (*time.Time, error) {
+func (m *MockTransaction) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (time.Time, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1)
-	ret0, _ := ret[0].(*time.Time)
+	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(time.Time)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetNextQuery indicates an expected call of GetNextQuery
-func (mr *MockTransactionMockRecorder) GetNextQuery(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockTransactionMockRecorder) GetNextQuery(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockTransaction)(nil).GetNextQuery), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockTransaction)(nil).GetNextQuery), arg0, arg1, arg2, arg3)
 }
 
 // Insert mocks base method
@@ -340,18 +341,18 @@ func (mr *MockTransactionMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Ca
 }
 
 // InsertNextQuery mocks base method
-func (m *MockTransaction) InsertNextQuery(arg0 context.Context, arg1 addr.IA, arg2 time.Time) (bool, error) {
+func (m *MockTransaction) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy, arg4 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // InsertNextQuery indicates an expected call of InsertNextQuery
-func (mr *MockTransactionMockRecorder) InsertNextQuery(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockTransactionMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockTransaction)(nil).InsertNextQuery), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockTransaction)(nil).InsertNextQuery), arg0, arg1, arg2, arg3, arg4)
 }
 
 // InsertWithHPCfgIDs mocks base method
@@ -467,18 +468,18 @@ func (mr *MockReadWriteMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method
-func (m *MockReadWrite) GetNextQuery(arg0 context.Context, arg1 addr.IA) (*time.Time, error) {
+func (m *MockReadWrite) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (time.Time, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1)
-	ret0, _ := ret[0].(*time.Time)
+	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(time.Time)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetNextQuery indicates an expected call of GetNextQuery
-func (mr *MockReadWriteMockRecorder) GetNextQuery(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockReadWriteMockRecorder) GetNextQuery(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockReadWrite)(nil).GetNextQuery), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockReadWrite)(nil).GetNextQuery), arg0, arg1, arg2, arg3)
 }
 
 // Insert mocks base method
@@ -497,18 +498,18 @@ func (mr *MockReadWriteMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call
 }
 
 // InsertNextQuery mocks base method
-func (m *MockReadWrite) InsertNextQuery(arg0 context.Context, arg1 addr.IA, arg2 time.Time) (bool, error) {
+func (m *MockReadWrite) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy, arg4 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // InsertNextQuery indicates an expected call of InsertNextQuery
-func (mr *MockReadWriteMockRecorder) InsertNextQuery(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockReadWriteMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockReadWrite)(nil).InsertNextQuery), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockReadWrite)(nil).InsertNextQuery), arg0, arg1, arg2, arg3, arg4)
 }
 
 // InsertWithHPCfgIDs mocks base method

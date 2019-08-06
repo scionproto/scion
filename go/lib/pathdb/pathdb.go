@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/pathpol"
 )
 
 // Read defines all read operations of the path DB.
@@ -40,9 +41,9 @@ type Read interface {
 	// channel, which means the channel must be fully drained to guarantee the destruction of the
 	// goroutine.
 	GetAll(context.Context) (<-chan query.ResultOrErr, error)
-	// GetNextQuery returns the nextQuery timestamp for the given dst,
-	// or nil if it hasn't been queried.
-	GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error)
+	// GetNextQuery returns the nextQuery timestamp for the given src-dst pair
+	// and policy , or a zero time if it hasn't been queried.
+	GetNextQuery(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) (time.Time, error)
 }
 
 // Write defines all write operations of the path DB.
@@ -60,9 +61,10 @@ type Write interface {
 	// Returns the number of deleted segments.
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)
 	// InsertNextQuery inserts or updates the timestamp nextQuery for the given
-	// dst. Returns true if an insert/update happened or false if the stored
-	// timestamp is already newer.
-	InsertNextQuery(ctx context.Context, dst addr.IA, nextQuery time.Time) (bool, error)
+	// src-dst pair and policy. Returns true if an insert/update happened or
+	// false if the stored timestamp is already newer.
+	InsertNextQuery(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy,
+		nextQuery time.Time) (bool, error)
 }
 
 // ReadWrite defines all read an write operations of the path DB.

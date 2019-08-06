@@ -104,7 +104,7 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, dst addr.IA,
 	if dbOnly || len(segs) > 0 {
 		refetch := !dbOnly
 		if !dbOnly {
-			refetch, err = h.shouldRefetchSegsForDst(ctx, dst, time.Now())
+			refetch, err = h.shouldRefetchSegsForDst(ctx, addr.IA{I: dst.I}, dst, time.Now())
 			if err != nil {
 				log.FromCtx(ctx).Warn("[segReqHandler] failed to get last query", "err", err)
 			}
@@ -119,7 +119,7 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, dst addr.IA,
 	}
 	logger := log.FromCtx(ctx)
 	logger.Debug("[segReqHandler] Fetch down segments", "dst", dst, "remote", cAddr)
-	if err = h.fetchAndSaveSegs(ctx, addr.IA{}, dst, cAddr); err != nil {
+	if err = h.fetchAndSaveSegs(ctx, addr.IA{I: dst.I}, dst, cAddr); err != nil {
 		return nil, err
 	}
 	return h.fetchSegsFromDB(ctx, q)
@@ -155,7 +155,7 @@ func (h *segReqHandler) handleReceivedSegs(ctx context.Context, queryTime time.T
 			logger.Error("Failed to verify and store segments", "err", err)
 		} else {
 			// Only insert next query if we found some results.
-			if _, err := h.pathDB.InsertNextQuery(ctx, req.DstIA(),
+			if _, err := h.pathDB.InsertNextQuery(ctx, req.SrcIA(), req.DstIA(), nil,
 				queryTime.Add(h.queryInt)); err != nil {
 				logger.Warn("Failed to insert last queried", "err", err)
 			}
@@ -262,17 +262,11 @@ func limit(upSegs, coreSegs, downSegs, all int) (int, int, int) {
 
 // shouldRefetchSegsForDst returns true if the segments for the given dst
 // should be fetched from the remote PS. Returns true on error, so the value can be used anyway.
-func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA,
+func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, src, dst addr.IA,
 	now time.Time) (bool, error) {
 
-	nq, err := h.pathDB.GetNextQuery(ctx, dst)
-	if err != nil {
-		return true, err
-	}
-	if nq == nil {
-		return true, nil
-	}
-	return now.After(*nq), nil
+	nq, err := h.pathDB.GetNextQuery(ctx, src, dst, nil)
+	return now.After(nq), err
 }
 
 // segsToMap converts the segs slice to a map of IAs to segments.

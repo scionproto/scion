@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
@@ -241,22 +242,24 @@ func (db *metricsExecutor) GetAll(ctx context.Context) (<-chan query.ResultOrErr
 }
 
 func (db *metricsExecutor) InsertNextQuery(ctx context.Context,
-	dst addr.IA, nextQuery time.Time) (bool, error) {
+	src, dst addr.IA, policy *pathpol.Policy, nextQuery time.Time) (bool, error) {
 
 	var ok bool
 	var err error
 	db.metrics.Observe(ctx, promOpInsertNextQuery, func(ctx context.Context) error {
-		ok, err = db.pathDB.InsertNextQuery(ctx, dst, nextQuery)
+		ok, err = db.pathDB.InsertNextQuery(ctx, src, dst, policy, nextQuery)
 		return err
 	})
 	return ok, err
 }
 
-func (db *metricsExecutor) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
-	var t *time.Time
+func (db *metricsExecutor) GetNextQuery(ctx context.Context, src, dst addr.IA,
+	policy *pathpol.Policy) (time.Time, error) {
+
+	var t time.Time
 	var err error
 	db.metrics.Observe(ctx, promOpGetNextQuery, func(ctx context.Context) error {
-		t, err = db.pathDB.GetNextQuery(ctx, dst)
+		t, err = db.pathDB.GetNextQuery(ctx, src, dst, policy)
 		return err
 	})
 	return t, err

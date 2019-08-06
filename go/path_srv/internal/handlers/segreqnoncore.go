@@ -285,7 +285,7 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context, src, dst addr.
 	if dbOnly || len(segs) > 0 {
 		refetch := !dbOnly
 		if !dbOnly {
-			refetch, err = h.shouldRefetchSegsForDst(ctx, dst, time.Now())
+			refetch, err = h.shouldRefetchSegsForDst(ctx, src, dst, time.Now())
 			if err != nil {
 				logger.Warn("[segReqHandler] failed to get last query", "err", err)
 			}
