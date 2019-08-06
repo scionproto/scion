@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel bazel_bin_clean gazelle setcap clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor mocks bazel bazel_bin_clean gazelle setcap clibs libscion libfilter dispatcher uninstall tags
 
 BRACCEPT = bin/braccept
 
@@ -35,6 +35,9 @@ bazel: vendor bazel_bin_clean
 # those aren't created by bazel.
 bazel_bin_clean:
 	find bin/ -mindepth 1 ! -iname dispatcher -a ! -iname ".*" -exec rm {} +
+
+mocks: goenv
+	./tools/gomocks
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
