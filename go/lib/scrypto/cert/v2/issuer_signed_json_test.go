@@ -26,34 +26,31 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 )
 
-func TestProtectedASUnmarshalJSON(t *testing.T) {
+func TestProtectedIssuerUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Input          string
-		Protected      cert.ProtectedAS
+		Protected      cert.ProtectedIssuer
 		ExpectedErrMsg string
 	}{
 		"Valid": {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "Certificate",
-				"CertificateVersion": 2,
-				"IA": "1-ff00:0:110",
-				"crit": ["Type", "CertificateVersion", "IA"]
+				"Type": "TRC",
+				"TRCVersion": 4,
+				"crit": ["Type", "TRCVersion"]
 			}`,
-			Protected: cert.ProtectedAS{
-				Algorithm:          scrypto.Ed25519,
-				CertificateVersion: 2,
-				IA:                 ia110,
+			Protected: cert.ProtectedIssuer{
+				Algorithm:  scrypto.Ed25519,
+				TRCVersion: 4,
 			},
 		},
 		"Algorithm not set": {
 			Input: `
 			{
-				"Type": "Certificate",
-				"CertificateVersion": 2,
-				"IA": "1-ff00:0:110",
-				"crit": ["Type", "CertificateVersion", "IA"]
+				"Type": "TRC",
+				"TRCVersion": 4,
+				"crit": ["Type", "TRCVersion"]
 			}`,
 			ExpectedErrMsg: cert.ErrAlgorithmNotSet.Error(),
 		},
@@ -61,39 +58,26 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"CertificateVersion": 2,
-				"IA": "1-ff00:0:110",
-				"crit": ["Type", "CertificateVersion", "IA"]
+				"TRCVersion": 4,
+				"crit": ["Type", "TRCVersion"]
 			}`,
 			ExpectedErrMsg: cert.ErrSignatureTypeNotSet.Error(),
 		},
-		"CertificateVersion not set": {
+		"TRCVersion not set": {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "Certificate",
-				"IA": "1-ff00:0:110",
-				"crit": ["Type", "CertificateVersion", "IA"]
+				"Type": "TRC",
+				"crit": ["Type", "TRCVersion"]
 			}`,
-			ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
-		},
-		"IA not set": {
-			Input: `
-			{
-				"alg": "ed25519",
-				"Type": "Certificate",
-				"CertificateVersion": 2,
-				"crit": ["Type", "CertificateVersion", "IA"]
-			}`,
-			ExpectedErrMsg: cert.ErrIANotSet.Error(),
+			ExpectedErrMsg: cert.ErrIssuerTRCVersionNotSet.Error(),
 		},
 		"crit not set": {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "Certificate",
-				"CertificateVersion": 2,
-				"IA": "1-ff00:0:110"
+				"Type": "TRC",
+				"TRCVersion": 4
 			}`,
 			ExpectedErrMsg: cert.ErrCritNotSet.Error(),
 		},
@@ -115,7 +99,7 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var protected cert.ProtectedAS
+			var protected cert.ProtectedIssuer
 			err := json.Unmarshal([]byte(test.Input), &protected)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
@@ -128,32 +112,32 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestSignatureTypeCertificateUnmarshalJSON(t *testing.T) {
+func TestSignatureTypeTRCUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Input     []byte
 		Expected  time.Duration
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:     []byte(`"Certificate"`),
+			Input:     []byte(`"TRC"`),
 			Assertion: assert.NoError,
 		},
 		"Wrong case": {
-			Input:     []byte(`"certificate"`),
+			Input:     []byte(`"trc"`),
 			Assertion: assert.Error,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var sigType cert.SignatureTypeCertificate
+			var sigType cert.SignatureTypeTRC
 			test.Assertion(t, json.Unmarshal(test.Input, &sigType))
 		})
 	}
 }
 
-func TestSignatureTypeCertificateMarshalJSON(t *testing.T) {
+func TestSignatureTypeTRCMarshalJSON(t *testing.T) {
 	mockProtected := struct {
-		Type cert.SignatureTypeCertificate
+		Type cert.SignatureTypeTRC
 	}{}
 	b, err := json.Marshal(mockProtected)
 	require.NoError(t, err)
@@ -161,25 +145,25 @@ func TestSignatureTypeCertificateMarshalJSON(t *testing.T) {
 		Type string
 	}
 	require.NoError(t, json.Unmarshal(b, &protected))
-	assert.Equal(t, cert.SignatureTypeCertificateJSON, protected.Type)
+	assert.Equal(t, cert.SignatureTypeTRCJSON, protected.Type)
 }
 
-func TestCritASUnmarshalJSON(t *testing.T) {
+func TestCritIssuerUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Input     []byte
 		Expected  time.Duration
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:     []byte(`{"crit": ["Type", "CertificateVersion", "IA"]}`),
+			Input:     []byte(`{"crit": ["Type", "TRCVersion"]}`),
 			Assertion: assert.NoError,
 		},
 		"Out of order": {
-			Input:     []byte(`{"crit": ["Type", "IA", "CertificateVersion"]}`),
+			Input:     []byte(`{"crit": ["TRCVersion", "Type"]}`),
 			Assertion: assert.Error,
 		},
 		"Length mismatch": {
-			Input:     []byte(`{"crit": ["Type", "CertificateVersion"]}`),
+			Input:     []byte(`{"crit": ["Type"]}`),
 			Assertion: assert.Error,
 		},
 		"Invalid json": {
@@ -187,21 +171,21 @@ func TestCritASUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Unknown Entry": {
-			Input:     []byte(`{"crit": ["Type", "CertificateVersion", "Garbage", "IA"]}`),
+			Input:     []byte(`{"crit": ["Type", "Garbage"]}`),
 			Assertion: assert.Error,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var meta struct{ Crit cert.CritAS }
+			var meta struct{ Crit cert.CritIssuer }
 			test.Assertion(t, json.Unmarshal(test.Input, &meta))
 		})
 	}
 }
 
-func TestCritASMarshalJSON(t *testing.T) {
+func TestCritIssuerMarshalJSON(t *testing.T) {
 	mockProtected := struct {
-		Crit cert.CritAS `json:"crit"`
+		Crit cert.CritIssuer `json:"crit"`
 	}{}
 	b, err := json.Marshal(mockProtected)
 	require.NoError(t, err)
@@ -209,5 +193,5 @@ func TestCritASMarshalJSON(t *testing.T) {
 		Crit []string `json:"crit"`
 	}
 	require.NoError(t, json.Unmarshal(b, &protected))
-	assert.ElementsMatch(t, []string{"Type", "CertificateVersion", "IA"}, protected.Crit)
+	assert.ElementsMatch(t, []string{"Type", "TRCVersion"}, protected.Crit)
 }
