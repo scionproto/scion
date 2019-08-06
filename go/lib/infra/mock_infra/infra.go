@@ -748,18 +748,6 @@ func (mr *MockTrustStoreMockRecorder) NewVerifier() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewVerifier", reflect.TypeOf((*MockTrustStore)(nil).NewVerifier))
 }
 
-// SetMessenger mocks base method
-func (m *MockTrustStore) SetMessenger(arg0 infra.Messenger) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMessenger", arg0)
-}
-
-// SetMessenger indicates an expected call of SetMessenger
-func (mr *MockTrustStoreMockRecorder) SetMessenger(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMessenger", reflect.TypeOf((*MockTrustStore)(nil).SetMessenger), arg0)
-}
-
 // MockVerifier is a mock of Verifier interface
 type MockVerifier struct {
 	ctrl     *gomock.Controller
