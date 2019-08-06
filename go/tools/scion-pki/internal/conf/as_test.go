@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,195 +18,177 @@ package conf
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/stretchr/testify/assert"
 )
 
-type asConfTestStructure struct {
-	scenario string
-	as       *As
-	err      string
-}
-
 func TestValidatingAsConf(t *testing.T) {
-	Convey("Given an AS configuration", t, func() {
-		tests := []asConfTestStructure{
-			{
-				scenario: "With empty AS",
-				as:       &As{},
-				err:      ErrAsCertMissing,
-			},
-			{
-				scenario: "With empty Issuer inside AS Cert",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "",
-						BaseCert: &BaseCert{
-							TRCVersion:  1,
-							Version:     1,
-							RawValidity: "180s",
-						},
+	tests := map[string]struct {
+		as  *As
+		err string
+	}{
+		"With empty AS": {
+			as:  &As{},
+			err: ErrAsCertMissing,
+		},
+		"With empty Issuer inside AS Cert": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "",
+					BaseCert: &BaseCert{
+						TRCVersion:  1,
+						Version:     1,
+						RawValidity: "180s",
 					},
 				},
-				err: ErrIssuerMissing,
 			},
-			{
-				scenario: "With empty Issuer in different format inside AS Cert",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "0-0",
-						BaseCert: &BaseCert{
-							TRCVersion:  1,
-							Version:     1,
-							RawValidity: "180s",
-						},
+			err: ErrIssuerMissing,
+		},
+		"With empty Issuer in different format inside AS Cert": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "0-0",
+					BaseCert: &BaseCert{
+						TRCVersion:  1,
+						Version:     1,
+						RawValidity: "180s",
 					},
 				},
-				err: ErrIssuerMissing,
 			},
-			{
-				scenario: "With invalid TRCVersion inside BaseCert",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							Version:     1,
-							RawValidity: "180s",
-						},
+			err: ErrIssuerMissing,
+		},
+		"With invalid TRCVersion inside BaseCert": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						Version:     1,
+						RawValidity: "180s",
 					},
 				},
-				err: ErrTRCVersionNotSet,
 			},
-			{
-				scenario: "With invalid Version for BaseCert",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							TRCVersion:  1,
-							RawValidity: "180s",
-						},
+			err: ErrTRCVersionNotSet,
+		},
+		"With invalid Version for BaseCert": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						TRCVersion:  1,
+						RawValidity: "180s",
 					},
 				},
-				err: ErrVersionNotSet,
 			},
-			{
-				scenario: "With invalid RawValidity for BaseCert",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							TRCVersion:  1,
-							Version:     1,
-							RawValidity: "180",
-						},
+			err: ErrVersionNotSet,
+		},
+		"With invalid RawValidity for BaseCert": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						TRCVersion:  1,
+						Version:     1,
+						RawValidity: "180",
 					},
 				},
-				err: ErrInvalidValidityDuration,
 			},
-			{
-				scenario: "With validity set to 0 for BaseCert",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							TRCVersion: 1,
-							Version:    1,
-						},
+			err: ErrInvalidValidityDuration,
+		},
+		"With validity set to 0 for BaseCert": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						TRCVersion: 1,
+						Version:    1,
 					},
 				},
-				err: ErrValidityDurationNotSet,
 			},
-			{
-				scenario: "With valid AS Cert",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							TRCVersion:  1,
-							Version:     1,
-							RawValidity: "180s",
-						},
+			err: ErrValidityDurationNotSet,
+		},
+		"With valid AS Cert": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						TRCVersion:  1,
+						Version:     1,
+						RawValidity: "180s",
 					},
 				},
-				err: "",
 			},
-			{
-				scenario: "With invalid sign algorithm",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							SignAlgorithm: "curve25519xsalsa20poly1305",
-							TRCVersion:    1,
-							Version:       1,
-							RawValidity:   "180s",
-						},
+			err: "",
+		},
+		"With invalid sign algorithm": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						SignAlgorithm: "curve25519xsalsa20poly1305",
+						TRCVersion:    1,
+						Version:       1,
+						RawValidity:   "180s",
 					},
 				},
-				err: ErrInvalidSignAlgorithm,
 			},
-			{
-				scenario: "With invalid enc algorithm",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							EncAlgorithm: "ed25519",
-							TRCVersion:   1,
-							Version:      1,
-							RawValidity:  "180s",
-						},
+			err: ErrInvalidSignAlgorithm,
+		},
+		"With invalid enc algorithm": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						EncAlgorithm: "ed25519",
+						TRCVersion:   1,
+						Version:      1,
+						RawValidity:  "180s",
 					},
 				},
-				err: ErrInvalidEncAlgorithm,
 			},
-			{
-				scenario: "With invalid online key",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							TRCVersion:  1,
-							Version:     1,
-							RawValidity: "180s",
-						},
-					},
-					KeyAlgorithms: &KeyAlgorithms{
-						Online: "foo",
+			err: ErrInvalidEncAlgorithm,
+		},
+		"With invalid online key": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						TRCVersion:  1,
+						Version:     1,
+						RawValidity: "180s",
 					},
 				},
-				err: ErrInvalidSignAlgorithm,
+				KeyAlgorithms: &KeyAlgorithms{
+					Online: "foo",
+				},
 			},
-			{
-				scenario: "With invalid offline key",
-				as: &As{
-					AsCert: &AsCert{
-						Issuer: "1-ff00:0:10",
-						BaseCert: &BaseCert{
-							TRCVersion:  1,
-							Version:     1,
-							RawValidity: "180s",
-						},
-					},
-					KeyAlgorithms: &KeyAlgorithms{
-						Offline: "foo",
+			err: ErrInvalidSignAlgorithm,
+		},
+		"With invalid offline key": {
+			as: &As{
+				AsCert: &AsCert{
+					Issuer: "1-ff00:0:10",
+					BaseCert: &BaseCert{
+						TRCVersion:  1,
+						Version:     1,
+						RawValidity: "180s",
 					},
 				},
-				err: ErrInvalidSignAlgorithm,
+				KeyAlgorithms: &KeyAlgorithms{
+					Offline: "foo",
+				},
 			},
-		}
-		for _, test := range tests {
-			Convey(test.scenario, func() {
-				err := test.as.validate()
-				if test.err != "" {
-					be := err.(common.BasicError)
-					So(be.Msg, ShouldEqual, test.err)
-				} else {
-					So(err, ShouldBeNil)
+			err: ErrInvalidSignAlgorithm,
+		},
+	}
+	for scenario, test := range tests {
+		t.Run(scenario, func(t *testing.T) {
+			err := test.as.validate()
+			if test.err != "" {
+				if assert.Error(t, err) {
+					assert.Contains(t, err.Error(), test.err)
 				}
-			})
-		}
-	})
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
