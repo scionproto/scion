@@ -97,10 +97,10 @@ func (h *EncodedProtectedAS) Decode() (ProtectedAS, error) {
 // ProtectedAS is the signature metadata.
 type ProtectedAS struct {
 	Algorithm          string                   `json:"alg"`
+	Crit               CritAS                   `json:"crit"`
 	Type               SignatureTypeCertificate `json:"Type"`
 	CertificateVersion scrypto.Version          `json:"CertificateVersion"`
 	IA                 addr.IA                  `json:"IA"`
-	Crit               CritAS                   `json:"crit"`
 }
 
 // UnmarshalJSON checks that all fields are set.

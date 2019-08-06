@@ -40,7 +40,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"KeyType": "Online",
 				"KeyVersion": 1,
 				"AS": "ff00:0:110",
-				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
 			}`,
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
@@ -58,7 +58,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"KeyType": "Offline",
 				"KeyVersion": 1,
 				"AS": "ff00:0:110",
-				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
 			}`,
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
@@ -76,7 +76,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"KeyType": "Issuing",
 				"KeyVersion": 1,
 				"AS": "ff00:0:110",
-				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
 			}`,
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
@@ -93,7 +93,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"KeyType": "Issuing",
 				"KeyVersion": 1,
 				"AS": "ff00:0:110",
-				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
 			}`,
 			ExpectedErrMsg: trc.ErrAlgorithmNotSet.Error(),
 		},
@@ -104,7 +104,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"KeyType": "Issuing",
 				"KeyVersion": 1,
 				"AS": "ff00:0:110",
-				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
 			}`,
 			ExpectedErrMsg: trc.ErrSignatureTypeNotSet.Error(),
 		},
@@ -115,7 +115,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"Type": "ProofOfPossession",
 				"KeyVersion": 1,
 				"AS": "ff00:0:110",
-				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
 			}`,
 			ExpectedErrMsg: trc.ErrTypeNotSet.Error(),
 		},
@@ -126,7 +126,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"Type": "ProofOfPossession",
 				"KeyType": "Issuing",
 				"AS": "ff00:0:110",
-				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
 			}`,
 			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
 		},
@@ -137,7 +137,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"Type": "ProofOfPossession",
 				"KeyType": "Issuing",
 				"KeyVersion": 1,
-				"crit": ["Type", "AS", "KeyType", "KeyVersion"]
+				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
 			}`,
 			ExpectedErrMsg: trc.ErrASNotSet.Error(),
 		},
