@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel gazelle setcap clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor mocks bazel gazelle setcap clibs libscion libfilter dispatcher uninstall tags
 
 BRACCEPT = bin/braccept
 
@@ -25,6 +25,9 @@ gogenlinks_clean:
 
 vendor:
 	./tools/vendor.sh
+
+mocks: goenv
+	./tools/gomocks
 
 bazel: vendor
 	bazel build //:scion --workspace_status_command=./tools/bazel-build-env
