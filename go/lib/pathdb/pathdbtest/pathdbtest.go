@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
@@ -529,33 +530,51 @@ func testNextQuery(t *testing.T, _ *gomock.Controller, pathDB pathdb.ReadWrite) 
 	Convey("NextQuery insert should always result in the latest timestamp", func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 		defer cancelF()
+		src := xtest.MustParseIA("1-ff00:0:111")
 		dst := xtest.MustParseIA("1-ff00:0:133")
 		oldT := time.Now().Add(-10 * time.Second)
-		updated, err := pathDB.InsertNextQuery(ctx, dst, oldT)
+		updated, err := pathDB.InsertNextQuery(ctx, src, dst, nil, oldT)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should Insert new", updated, ShouldBeTrue)
-		dbT, err := pathDB.GetNextQuery(ctx, dst)
+		dbT, err := pathDB.GetNextQuery(ctx, src, dst, nil)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should return inserted time", dbT.Unix(), ShouldEqual, oldT.Unix())
 		newT := time.Now()
-		updated, err = pathDB.InsertNextQuery(ctx, dst, newT)
+		updated, err = pathDB.InsertNextQuery(ctx, src, dst, nil, newT)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should Update existing", updated, ShouldBeTrue)
-		dbT, err = pathDB.GetNextQuery(ctx, dst)
+		dbT, err = pathDB.GetNextQuery(ctx, src, dst, nil)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
-		updated, err = pathDB.InsertNextQuery(ctx, dst, oldT)
+		updated, err = pathDB.InsertNextQuery(ctx, src, dst, nil, oldT)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should not update to older", updated, ShouldBeFalse)
-		dbT, err = pathDB.GetNextQuery(ctx, dst)
+		dbT, err = pathDB.GetNextQuery(ctx, src, dst, nil)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
-		dbT, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"))
+		// with policy
+		dbT, err = pathDB.GetNextQuery(ctx, src, dst, policy(t))
 		xtest.FailOnErr(t, err)
-		SoMsg("Should be nil", dbT, ShouldBeNil)
+		SoMsg("Should be zero", dbT.IsZero(), ShouldBeTrue)
+		updated, err = pathDB.InsertNextQuery(ctx, src, dst, policy(t), oldT)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should Insert new", updated, ShouldBeTrue)
+		updated, err = pathDB.InsertNextQuery(ctx, src, dst, policy(t), oldT)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should not update existing", updated, ShouldBeFalse)
+		dbT, err = pathDB.GetNextQuery(ctx, src, dst, policy(t))
+		xtest.FailOnErr(t, err)
+		SoMsg("Should return inserted time", dbT.Unix(), ShouldEqual, oldT.Unix())
+		// other dst
+		dbT, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"), nil)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should be zero", dbT.IsZero(), ShouldBeTrue)
+		dbT, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"), dst, nil)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should be zero", dbT.IsZero(), ShouldBeTrue)
 		ctx, cancelF = context.WithDeadline(context.Background(), time.Now().Add(-3*time.Second))
 		defer cancelF()
-		_, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"))
+		_, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"), nil)
 		SoMsg("Should error", err, ShouldNotBeNil)
 	})
 }
@@ -706,4 +725,10 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.I
 		SoMsg(fmt.Sprintf("Interface should not be present: %v#%d", ia, ifId),
 			len(r), ShouldBeZeroValue)
 	}
+}
+
+func policy(t *testing.T) *pathpol.Policy {
+	acl, err := pathpol.NewACL(&pathpol.ACLEntry{Action: pathpol.Allow})
+	xtest.FailOnErr(t, err)
+	return pathpol.NewPolicy("Test allow all", acl, nil, nil)
 }

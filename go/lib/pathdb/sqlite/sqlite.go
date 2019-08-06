@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -63,7 +64,8 @@ func New(path string) (*Backend, error) {
 	}
 	return &Backend{
 		executor: &executor{
-			db: db,
+			db:      db,
+			polHash: pathdb.HashPolicy,
 		},
 		db: db,
 	}, nil
@@ -91,7 +93,8 @@ func (b *Backend) BeginTransaction(ctx context.Context,
 	}
 	return &transaction{
 		executor: &executor{
-			db: tx,
+			db:      tx,
+			polHash: b.polHash,
 		},
 		tx: tx,
 	}, nil
@@ -120,7 +123,8 @@ var _ (pathdb.ReadWrite) = (*executor)(nil)
 
 type executor struct {
 	sync.RWMutex
-	db db.Sqler
+	db      db.Sqler
+	polHash pathdb.PolicyHashFunc
 }
 
 func (e *executor) Insert(ctx context.Context, segMeta *seg.Meta) (int, error) {
@@ -585,7 +589,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 	return resCh, nil
 }
 
-func (e *executor) InsertNextQuery(ctx context.Context, dst addr.IA,
+func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy,
 	nextQuery time.Time) (bool, error) {
 
 	e.Lock()
@@ -593,19 +597,24 @@ func (e *executor) InsertNextQuery(ctx context.Context, dst addr.IA,
 	if e.db == nil {
 		return false, common.NewBasicError("No database open", nil)
 	}
+	ph, err := e.polHash(policy)
+	if err != nil {
+		return false, err
+	}
 	// Select the data from the input only if the new NextQuery is larger than the existing
-	// or if there is no existing (NextQuery.IsdID IS NULL)
+	// or if there is no existing (NextQuery.DstIsdID IS NULL)
 	query := `
-		INSERT OR REPLACE INTO NextQuery
+		INSERT OR REPLACE INTO NextQuery (SrcIsdID, SrcAsID, DstIsdID, DstAsID, Policy, NextQuery)
 		SELECT data.* FROM
-		(SELECT ? AS IsdID, ? AS AsID, ? AS lq) AS data
-		LEFT JOIN NextQuery USING (IsdID, AsID)
-		WHERE data.lq > NextQuery.NextQuery OR NextQuery.IsdID IS NULL;
+		(SELECT ? AS SrcIsdID, ? AS SrcAsID, ? AS DstIsdID, ? AS DstAsID, ? AS Policy, ? AS lq)
+			AS data
+		LEFT JOIN NextQuery USING (SrcIsdID, SrcAsID, DstIsdID, DstAsID, Policy)
+		WHERE data.lq > NextQuery.NextQuery OR NextQuery.DstIsdID IS NULL;
 	`
 	var r sql.Result
-	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
-		r, err = tx.ExecContext(ctx, query, dst.I, dst.A, nextQuery.UnixNano())
+		r, err = tx.ExecContext(ctx, query, src.I, src.A, dst.I, dst.A, ph, nextQuery.UnixNano())
 		return err
 	})
 	if err != nil {
@@ -615,21 +624,29 @@ func (e *executor) InsertNextQuery(ctx context.Context, dst addr.IA,
 	return n > 0, err
 }
 
-func (e *executor) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
+func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA,
+	policy *pathpol.Policy) (time.Time, error) {
+
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
-		return nil, common.NewBasicError("No database open", nil)
+		return time.Time{}, common.NewBasicError("No database open", nil)
 	}
-	query := "SELECT NextQuery from NextQuery WHERE IsdID = ? AND AsID = ?"
+	ph, err := e.polHash(policy)
+	if err != nil {
+		return time.Time{}, err
+	}
+	query := `
+		SELECT NextQuery from NextQuery
+		WHERE SrcIsdID = ? AND SrcAsID = ? AND DstIsdID = ? AND DstAsID = ? AND Policy = ?
+	`
 	var nanos int64
-	err := e.db.QueryRowContext(ctx, query, dst.I, dst.A).Scan(&nanos)
+	err = e.db.QueryRowContext(ctx, query, src.I, src.A, dst.I, dst.A, ph).Scan(&nanos)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return time.Time{}, nil
 	}
 	if err != nil {
-		return nil, err
+		return time.Time{}, err
 	}
-	t := time.Unix(0, nanos)
-	return &t, nil
+	return time.Unix(0, nanos), nil
 }
