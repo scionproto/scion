@@ -98,12 +98,13 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 	defer workCancelF()
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
 	// will at most contain one element).
-	reqIA := pld.AsInfoReq.Isdas.IA()
 	topo := itopo.Get()
-
-	var mtu uint16
-	if reqIA.IsZero() || reqIA.Equal(topo.ISD_AS) {
+	reqIA := pld.AsInfoReq.Isdas.IA()
+	if reqIA.IsZero() {
 		reqIA = topo.ISD_AS
+	}
+	mtu := uint16(0)
+	if reqIA.Equal(topo.ISD_AS) {
 		mtu = uint16(topo.MTU)
 	}
 	var entries []sciond.ASInfoReplyEntry

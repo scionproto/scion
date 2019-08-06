@@ -666,6 +666,7 @@ func (store *Store) NewVerifier() infra.Verifier {
 // hold all attributes.
 func (store *Store) ByAttributes(ctx context.Context, isd addr.ISD,
 	opts infra.ASInspectorOpts) ([]addr.IA, error) {
+
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	trc, err := store.GetTRC(ctx, isd, scrypto.Version(scrypto.LatestVer), trcOpts)
 	if err != nil {
@@ -680,6 +681,7 @@ func (store *Store) ByAttributes(ctx context.Context, isd addr.ISD,
 // The first return value is always false for non-primary ASes.
 func (store *Store) HasAttributes(ctx context.Context, ia addr.IA,
 	opts infra.ASInspectorOpts) (bool, error) {
+
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	trc, err := store.GetTRC(ctx, ia.I, scrypto.Version(scrypto.LatestVer), trcOpts)
 	if err != nil {
