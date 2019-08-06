@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +18,7 @@ package util
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 )
 
@@ -26,40 +27,35 @@ var _ yaml.Marshaler = (*B64Bytes)(nil)
 var _ yaml.Unmarshaler = (*B64Bytes)(nil)
 
 func Test_B64B_String(t *testing.T) {
-	Convey("String() should return hex-encoded string", t, func() {
-		b := B64Bytes{00, 01, 02, 03}
-		So(b.String(), ShouldEqual, "00010203")
-	})
+	b := B64Bytes{00, 01, 02, 03}
+	assert.Equal(t, "00010203", b.String(), "String() should return hex-encoded string")
 }
 
 func Test_B64B_MarshalYAML(t *testing.T) {
-	Convey("Should marshal to a base64-encoded yaml entry", t, func() {
-		b := B64Bytes("hello, world")
-		out, _ := yaml.Marshal(&b)
-		So(string(out), ShouldEqual, "aGVsbG8sIHdvcmxk\n")
-	})
+	b := B64Bytes("hello, world")
+	out, _ := yaml.Marshal(&b)
+	assert.Equal(t, "aGVsbG8sIHdvcmxk\n", string(out),
+		"Should marshal to a base64-encoded yaml entry")
 }
 
 func Test_B64B_UnmarshalYAML_YAMLParseError(t *testing.T) {
-	Convey("YAML parse error", t, func() {
-		var b B64Bytes
-		So(yaml.Unmarshal([]byte("a: b"), &b), ShouldNotBeNil)
-		So(b, ShouldBeZeroValue)
-	})
+	var b B64Bytes
+	err := yaml.Unmarshal([]byte("a: b"), &b)
+	assert.Error(t, err, "YAML parse error")
+	assert.Zero(t, b)
 }
 
 func Test_B64B_UnmarshalYAML_B64DecodeError(t *testing.T) {
-	Convey("Base64 decode error", t, func() {
-		var b B64Bytes
-		So(yaml.Unmarshal([]byte("_"), &b), ShouldNotBeNil)
-		So(b, ShouldBeZeroValue)
-	})
+	var b B64Bytes
+	err := yaml.Unmarshal([]byte("_"), &b)
+	assert.Error(t, err, "Base64 decode error")
+	assert.Zero(t, b)
 }
 
 func Test_B64B_UnmarshalYAML_Success(t *testing.T) {
-	Convey("Valid sequence unmarshaled", t, func() {
-		var b B64Bytes
-		So(yaml.Unmarshal([]byte("aGVsbG8sIHdvcmxk"), &b), ShouldBeNil)
-		So(b, ShouldResemble, B64Bytes("hello, world"))
-	})
+	var b B64Bytes
+	err := yaml.Unmarshal([]byte("aGVsbG8sIHdvcmxk"), &b)
+	if assert.NoError(t, err, "Valid sequence unmarshaled") {
+		assert.Equal(t, B64Bytes("hello, world"), b)
+	}
 }

@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -40,17 +41,13 @@ func TestChecksum(t *testing.T) {
 			{0xb1, 0xb2, 0xb3},
 			{0x10, 0x20}}, [2]byte{0x45, 0xe5}},
 	}
-
-	Convey("Test checksum", t, func() {
-		for _, test := range tests {
-			checksum := make([]byte, 2)
-			binary.BigEndian.PutUint16(checksum, Checksum(test.Input...))
-			Convey(fmt.Sprintf("Input %v", test.Input), func() {
-				So(checksum[0], ShouldEqual, test.Output[0])
-				So(checksum[1], ShouldEqual, test.Output[1])
-			})
-		}
-	})
+	for _, test := range tests {
+		checksum := make([]byte, 2)
+		binary.BigEndian.PutUint16(checksum, Checksum(test.Input...))
+		t.Run(fmt.Sprintf("Input %v", test.Input), func(t *testing.T) {
+			assert.Equal(t, test.Output[:], checksum)
+		})
+	}
 }
 
 func BenchmarkChecksum(b *testing.B) {
