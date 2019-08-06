@@ -25,12 +25,12 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/pathdb/pathdbtest"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -53,7 +53,7 @@ type TestPathDB struct {
 
 func (b *TestPathDB) Prepare(t *testing.T, _ context.Context) {
 	db, err := New(":memory:")
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	b.Backend = db
 }
 
@@ -62,54 +62,54 @@ func TestPathDBSuite(t *testing.T) {
 	pathdbtest.TestPathDB(t, tdb)
 }
 
+// TestOpenExisting tests that New does not overwrite an existing database if
+// versions match.
 func TestOpenExisting(t *testing.T) {
-	Convey("New should not overwrite an existing database if versions match", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		b, tmpF := setupDB(t)
-		defer os.Remove(tmpF)
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs1, TS)
-		pathdbtest.InsertSeg(t, ctx, b, pseg1, hpCfgIDs)
-		b.db.Close()
-		// Call
-		b, err := New(tmpF)
-		xtest.FailOnErr(t, err)
-		// Test
-		// Check that path segment is still there.
-		res, err := b.Get(ctx, nil)
-		xtest.FailOnErr(t, err)
-		SoMsg("Segment still exists", len(res), ShouldEqual, 1)
-	})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	b, tmpF := setupDB(t)
+	defer os.Remove(tmpF)
+	TS := uint32(10)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	pseg1, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs1, TS)
+	pathdbtest.InsertSeg(t, ctx, b, pseg1, hpCfgIDs)
+	b.db.Close()
+	// Call
+	b, err := New(tmpF)
+	require.NoError(t, err)
+	// Test
+	// Check that path segment is still there.
+	res, err := b.Get(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(res), "Segment still exists")
 }
 
+// TestOpenNewer tests that New does not overwrite an existing database if it's
+// of a newer version.
 func TestOpenNewer(t *testing.T) {
-	Convey("New should not overwrite an existing database if it's of a newer version", t, func() {
-		b, tmpF := setupDB(t)
-		defer os.Remove(tmpF)
-		// Write a newer version
-		_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
-		xtest.FailOnErr(t, err)
-		b.db.Close()
-		// Call
-		b, err = New(tmpF)
-		// Test
-		SoMsg("Backend nil", b, ShouldBeNil)
-		SoMsg("Err returned", err, ShouldNotBeNil)
-	})
+	b, tmpF := setupDB(t)
+	defer os.Remove(tmpF)
+	// Write a newer version
+	_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
+	require.NoError(t, err)
+	b.db.Close()
+	// Call
+	b, err = New(tmpF)
+	// Test
+	assert.Error(t, err)
+	assert.Nil(t, b)
 }
 
 func setupDB(t *testing.T) (*Backend, string) {
 	tmpFile := tempFilename(t)
 	b, err := New(tmpFile)
-	xtest.FailOnErr(t, err, "Failed to open DB")
+	require.NoError(t, err, "Failed to open DB")
 	return b, tmpFile
 }
 
 func tempFilename(t *testing.T) string {
 	dir, err := ioutil.TempDir("", "pathdb-sqlite")
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return path.Join(dir, t.Name())
 }
