@@ -19,14 +19,8 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/infra"
 )
-
-// TRCProvider provides TRCs.
-type TRCProvider interface {
-	GetTRC(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error)
-}
 
 // RequestSplitter splits a single request into a request set.
 type RequestSplitter interface {
@@ -37,12 +31,14 @@ type RequestSplitter interface {
 
 // NewRequestSplitter creates a request splitter for the given local IA. The
 // TRC provider is used to get TRCs and check whether an IA is core or not.
-func NewRequestSplitter(localIA addr.IA, trcProvider TRCProvider) (RequestSplitter, error) {
+func NewRequestSplitter(localIA addr.IA, inspector infra.ASInspector) (
+	RequestSplitter, error) {
+
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	baseSplitter := baseRequestSplitter{
 		LocalIA:     localIA,
-		TRCProvider: trcProvider,
+		ASInspector: inspector,
 	}
 	core, err := baseSplitter.isCore(ctx, localIA)
 	if err != nil {
@@ -61,18 +57,21 @@ func NewRequestSplitter(localIA addr.IA, trcProvider TRCProvider) (RequestSplitt
 // baseRequestSplitter implements common functionality for request splitters.
 type baseRequestSplitter struct {
 	LocalIA     addr.IA
-	TRCProvider TRCProvider
+	ASInspector infra.ASInspector
 }
 
 func (s *baseRequestSplitter) isCore(ctx context.Context, dst addr.IA) (bool, error) {
 	if s.isWildCard(dst) {
 		return true, nil
 	}
-	trc, err := s.TRCProvider.GetTRC(ctx, dst.I, scrypto.LatestVer)
+	args := infra.ASInspectorOpts{
+		RequiredAttributes: []infra.Attribute{infra.Core},
+	}
+	isCore, err := s.ASInspector.HasAttributes(ctx, dst, args)
 	if err != nil {
 		return false, err
 	}
-	return trc.CoreASes.Contains(dst), nil
+	return isCore, nil
 }
 
 func (s *baseRequestSplitter) isISDLocal(dst addr.IA) bool {

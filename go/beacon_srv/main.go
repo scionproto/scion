@@ -108,9 +108,10 @@ func realMain() int {
 	trustDB = trustdb.WithMetrics("std", trustDB)
 	defer trustDB.Close()
 	topo := itopo.Get()
-	trustConf := &trust.Config{
+	trustConf := trust.Config{
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_bs,
+		TopoProvider:       itopo.Provider(),
 	}
 	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
 	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))

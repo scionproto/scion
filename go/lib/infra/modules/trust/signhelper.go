@@ -205,7 +205,10 @@ func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
 	if err := v.checkSrc(src); err != nil {
 		return err
 	}
-	chain, err := GetChainForSign(ctx, src, v.store, v.server)
+	opts := infra.ChainOpts{
+		TrustStoreOpts: infra.TrustStoreOpts{Server: v.server},
+	}
+	chain, err := v.store.GetChain(ctx, src.IA, scrypto.Version(src.ChainVer), opts)
 	if err != nil {
 		return err
 	}

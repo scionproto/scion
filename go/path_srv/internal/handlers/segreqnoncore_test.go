@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -36,7 +36,6 @@ import (
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -63,20 +62,9 @@ var (
 		as2_211: "testdata/topology_as2_211.json",
 		as2_222: "testdata/topology_as2_222.json",
 	}
-	trcs = map[addr.ISD]*trc.TRC{
-		1: {
-			CoreASes: trc.CoreASMap{
-				core1_110: nil,
-				core1_120: nil,
-				core1_130: nil,
-			},
-		},
-		2: {
-			CoreASes: trc.CoreASMap{
-				core2_210: nil,
-				core2_220: nil,
-			},
-		},
+	cores = map[addr.ISD][]addr.IA{
+		1: {core1_110, core1_120, core1_130},
+		2: {core2_210, core2_220},
 	}
 )
 
@@ -120,7 +108,6 @@ func newTestGraph(ctrl *gomock.Controller) *testGraph {
 }
 
 type testCase struct {
-	Name      string
 	SrcIA     addr.IA
 	DstIA     addr.IA
 	Ups       []*seg.PathSegment
@@ -217,9 +204,8 @@ func TestSegReqLocal(t *testing.T) {
 	defer ctrl.Finish()
 	g := newTestGraph(ctrl)
 	log.SetupLogConsole("debug")
-	testCases := []testCase{
-		{
-			Name:  "CoreDST: Single up, dst: core local",
+	tests := map[string]testCase{
+		"CoreDST: Single up, dst: core local": {
 			SrcIA: as1_132,
 			DstIA: core1_110,
 			Ups:   []*seg.PathSegment{g.seg130_132},
@@ -228,8 +214,7 @@ func TestSegReqLocal(t *testing.T) {
 				[]*seg.PathSegment{g.seg110_130}, nil),
 			CacheOnly: true,
 		},
-		{
-			Name:  "CoreDST: Single up, dst: core remote",
+		"CoreDST: Single up, dst: core remote": {
 			SrcIA: as1_132,
 			DstIA: core2_220,
 			Ups:   []*seg.PathSegment{g.seg130_132},
@@ -238,16 +223,14 @@ func TestSegReqLocal(t *testing.T) {
 				[]*seg.PathSegment{g.seg220_130}, nil),
 			CacheOnly: true,
 		},
-		{
-			Name:      "CoreDST: No Up, single core, local",
+		"CoreDST: No Up, single core, local": {
 			SrcIA:     as1_132,
 			DstIA:     core1_110,
 			Cores:     []*seg.PathSegment{g.seg110_130},
 			Expected:  nil,
 			CacheOnly: true,
 		},
-		{
-			Name:  "CoreDST: Multi up, single core",
+		"CoreDST: Multi up, single core": {
 			SrcIA: as2_222,
 			DstIA: core1_120,
 			Ups:   []*seg.PathSegment{g.seg210_222, g.seg220_222},
@@ -256,8 +239,7 @@ func TestSegReqLocal(t *testing.T) {
 				[]*seg.PathSegment{g.seg120_220}, nil),
 			CacheOnly: true,
 		},
-		{
-			Name:  "CoreDST: Multi up multi core",
+		"CoreDST: Multi up multi core": {
 			SrcIA: as2_222,
 			DstIA: core1_120,
 			Ups:   []*seg.PathSegment{g.seg210_222, g.seg220_222},
@@ -266,8 +248,7 @@ func TestSegReqLocal(t *testing.T) {
 				[]*seg.PathSegment{g.seg120_210, g.seg120_220}, nil),
 			CacheOnly: true,
 		},
-		{
-			Name:      "NonCoreDST: Single up, no core, single down",
+		"NonCoreDST: Single up, no core, single down": {
 			SrcIA:     as2_222,
 			DstIA:     as2_211,
 			Ups:       []*seg.PathSegment{g.seg220_222},
@@ -275,8 +256,7 @@ func TestSegReqLocal(t *testing.T) {
 			Expected:  expectedSegs(nil, nil, nil),
 			CacheOnly: true,
 		},
-		{
-			Name:  "NonCoreDst: Single up, core, down",
+		"NonCoreDst: Single up, core, down": {
 			SrcIA: as2_222,
 			DstIA: as2_211,
 			Ups:   []*seg.PathSegment{g.seg220_222},
@@ -286,8 +266,7 @@ func TestSegReqLocal(t *testing.T) {
 				[]*seg.PathSegment{g.seg210_220}, []*seg.PathSegment{g.seg210_211}),
 			CacheOnly: true,
 		},
-		{
-			Name:  "NonCoreDst: On up path dst",
+		"NonCoreDst: On up path dst": {
 			SrcIA: as2_222,
 			DstIA: as2_221,
 			Ups:   []*seg.PathSegment{g.seg220_222},
@@ -296,8 +275,7 @@ func TestSegReqLocal(t *testing.T) {
 				[]*seg.PathSegment{g.seg220_221}),
 			CacheOnly: true,
 		},
-		{
-			Name:  "NonCoreDst: Path with shortcut",
+		"NonCoreDst: Path with shortcut": {
 			SrcIA: as2_222,
 			DstIA: as2_211,
 			Ups:   []*seg.PathSegment{g.seg220_222},
@@ -307,8 +285,7 @@ func TestSegReqLocal(t *testing.T) {
 				[]*seg.PathSegment{g.seg210_220}, []*seg.PathSegment{g.seg210_211}),
 			CacheOnly: true,
 		},
-		{
-			Name:  "NonCoreDst: Path through same core and different",
+		"NonCoreDst: Path through same core and different": {
 			SrcIA: as2_211,
 			DstIA: as2_222,
 			Ups:   []*seg.PathSegment{g.seg210_211},
@@ -318,8 +295,7 @@ func TestSegReqLocal(t *testing.T) {
 				[]*seg.PathSegment{g.seg220_210}, []*seg.PathSegment{g.seg210_222, g.seg220_222}),
 			CacheOnly: true,
 		},
-		{
-			Name:      "ISD-local wildcard should return up segments only",
+		"ISD-local wildcard should return up segments only": {
 			SrcIA:     as2_222,
 			DstIA:     addr.IA{I: 2},
 			Ups:       []*seg.PathSegment{g.seg210_222, g.seg220_222},
@@ -330,52 +306,73 @@ func TestSegReqLocal(t *testing.T) {
 		// TODO(lukedirtwalker): add tests with expired segs.
 		// TODO(lukedirtwalker): add test with too many segments to test pruning.
 	}
-	Convey("SegReqLocal", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		ts := mock_infra.NewMockTrustStore(ctrl)
-		ts.EXPECT().GetTRC(gomock.Any(), gomock.Any(), scrypto.LatestVer).AnyTimes().DoAndReturn(
-			func(_ context.Context, isd addr.ISD, version uint64) (*trc.TRC, error) {
-				return trcs[isd], nil
-			},
-		)
-		ts.EXPECT().GetValidCachedTRC(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-			func(_ context.Context, isd addr.ISD) (*trc.TRC, error) {
-				return trcs[isd], nil
-			},
-		)
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				db := setupDB(t, tc)
-				segReq := &path_mgmt.SegReq{
-					RawSrcIA: tc.SrcIA.IAInt(),
-					RawDstIA: tc.DstIA.IAInt(),
-					Flags: path_mgmt.SegReqFlags{
-						CacheOnly: tc.CacheOnly,
-					},
+	var m coreOpsMatcher
+	inspector := mock_infra.NewMockASInspector(ctrl)
+	inspector.EXPECT().ByAttributes(gomock.Any(), gomock.Any(), m).DoAndReturn(
+		func(_ context.Context, isd addr.ISD, _ infra.ASInspectorOpts) ([]addr.IA, error) {
+			return cores[isd], nil
+		},
+	).AnyTimes()
+	inspector.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), m).DoAndReturn(
+		func(_ context.Context, ia addr.IA, _ infra.ASInspectorOpts) (bool, error) {
+			for _, isd := range cores {
+				for _, core := range isd {
+					if ia.Equal(core) {
+						return true, nil
+					}
 				}
-				msger := mock_infra.NewMockMessenger(ctrl)
-				rw := mock_infra.NewMockResponseWriter(ctrl)
-				req := infra.NewRequest(
-					infra.NewContextWithResponseWriter(context.Background(), rw),
-					segReq,
-					nil,
-					&snet.Addr{IA: addr.IA{}},
-					scrypto.RandUint64(),
-				)
-				args := HandlerArgs{
-					PathDB:        db,
-					RevCache:      memrevcache.New(),
-					TrustStore:    ts,
-					QueryInterval: config.DefaultQueryInterval,
-					IA:            tc.SrcIA,
-					TopoProvider:  xtest.TopoProviderFromFile(t, topoFiles[tc.SrcIA]),
-				}
-				deduper := NewGetSegsDeduper(msger)
-				h := NewSegReqNonCoreHandler(args, deduper)
-				rw.EXPECT().SendSegReply(gomock.Any(), matchesSegsAndReq(segReq, tc.Expected))
-				h.Handle(req)
-			})
-		}
-	})
+			}
+			return false, nil
+		},
+	).AnyTimes()
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			db := setupDB(t, test)
+			segReq := &path_mgmt.SegReq{
+				RawSrcIA: test.SrcIA.IAInt(),
+				RawDstIA: test.DstIA.IAInt(),
+				Flags: path_mgmt.SegReqFlags{
+					CacheOnly: test.CacheOnly,
+				},
+			}
+			msger := mock_infra.NewMockMessenger(ctrl)
+			rw := mock_infra.NewMockResponseWriter(ctrl)
+			req := infra.NewRequest(
+				infra.NewContextWithResponseWriter(context.Background(), rw),
+				segReq,
+				nil,
+				&snet.Addr{IA: addr.IA{}},
+				scrypto.RandUint64(),
+			)
+			args := HandlerArgs{
+				PathDB:        db,
+				RevCache:      memrevcache.New(),
+				ASInspector:   inspector,
+				QueryInterval: config.DefaultQueryInterval,
+				IA:            test.SrcIA,
+				TopoProvider:  xtest.TopoProviderFromFile(t, topoFiles[test.SrcIA]),
+			}
+			deduper := NewGetSegsDeduper(msger)
+			h := NewSegReqNonCoreHandler(args, deduper)
+			rw.EXPECT().SendSegReply(gomock.Any(), matchesSegsAndReq(segReq, test.Expected))
+			h.Handle(req)
+		})
+	}
+}
+
+var _ gomock.Matcher = coreOpsMatcher{}
+
+type coreOpsMatcher struct{}
+
+// Matches returns whether the core AS attribute is requested.
+func (m coreOpsMatcher) Matches(x interface{}) bool {
+	opts, ok := x.(infra.ASInspectorOpts)
+	if !ok {
+		return false
+	}
+	return cmp.Equal(opts.RequiredAttributes, []infra.Attribute{infra.Core})
+}
+
+func (m coreOpsMatcher) String() string {
+	return fmt.Sprintf("is core opts")
 }

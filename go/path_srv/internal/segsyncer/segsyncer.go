@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
@@ -56,12 +55,16 @@ type SegSyncer struct {
 func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Runner, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	trc, err := args.TrustStore.GetTRC(ctx, args.IA.I, scrypto.LatestVer)
-	if err != nil {
-		return nil, common.NewBasicError("Failed to get local TRC", err)
+	primaryArgs := infra.ASInspectorOpts{
+		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	segSyncers := make([]*periodic.Runner, 0, len(trc.CoreASes)-1)
-	for coreAS := range trc.CoreASes {
+	coreASes, err := args.ASInspector.ByAttributes(ctx, args.IA.I, primaryArgs)
+	if err != nil {
+		return nil, common.NewBasicError("Failed to get local core ASes", err)
+	}
+
+	segSyncers := make([]*periodic.Runner, 0, len(coreASes)-1)
+	for _, coreAS := range coreASes {
 		if coreAS.Equal(args.IA) {
 			continue
 		}

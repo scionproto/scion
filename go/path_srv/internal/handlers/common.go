@@ -45,33 +45,36 @@ const (
 
 // HandlerArgs are the values required to create the path server's handlers.
 type HandlerArgs struct {
-	PathDB        pathdb.PathDB
-	RevCache      revcache.RevCache
-	TrustStore    infra.TrustStore
-	QueryInterval time.Duration
-	IA            addr.IA
-	TopoProvider  topology.Provider
+	PathDB          pathdb.PathDB
+	RevCache        revcache.RevCache
+	ASInspector     infra.ASInspector
+	VerifierFactory infra.VerificationFactory
+	QueryInterval   time.Duration
+	IA              addr.IA
+	TopoProvider    topology.Provider
 }
 
 type baseHandler struct {
-	request      *infra.Request
-	pathDB       pathdb.PathDB
-	revCache     revcache.RevCache
-	trustStore   infra.TrustStore
-	topoProvider topology.Provider
-	retryInt     time.Duration
-	queryInt     time.Duration
+	request         *infra.Request
+	pathDB          pathdb.PathDB
+	revCache        revcache.RevCache
+	inspector       infra.ASInspector
+	verifierFactory infra.VerificationFactory
+	topoProvider    topology.Provider
+	retryInt        time.Duration
+	queryInt        time.Duration
 }
 
 func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 	return &baseHandler{
-		request:      request,
-		pathDB:       args.PathDB,
-		revCache:     args.RevCache,
-		trustStore:   args.TrustStore,
-		retryInt:     500 * time.Millisecond,
-		queryInt:     args.QueryInterval,
-		topoProvider: args.TopoProvider,
+		request:         request,
+		pathDB:          args.PathDB,
+		revCache:        args.RevCache,
+		inspector:       args.ASInspector,
+		verifierFactory: args.VerifierFactory,
+		retryInt:        500 * time.Millisecond,
+		queryInt:        args.QueryInterval,
+		topoProvider:    args.TopoProvider,
 	}
 }
 
@@ -159,8 +162,8 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
 		logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
 	}
-	segverifier.Verify(ctx, h.trustStore.NewVerifier(), src, recs,
-		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
+	segverifier.Verify(ctx, h.verifierFactory.NewVerifier(), src, recs, revInfos, verifiedSeg,
+		verifiedRev, segErr, revErr)
 
 	// Return early if we have nothing to insert.
 	if len(verifiedSegs) == 0 {

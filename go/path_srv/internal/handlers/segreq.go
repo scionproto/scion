@@ -32,8 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
@@ -60,33 +58,49 @@ func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
 func (h *segReqHandler) isCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	resolver func() (net.Addr, error)) (bool, error) {
 
-	if segReq.DstIA().A == 0 {
+	dst := segReq.DstIA()
+	if dst.A == 0 {
 		return true, nil
 	}
 	// Try local trust store first.
-	if dstTrc, err := h.trustStore.GetValidCachedTRC(ctx, segReq.DstIA().I); err == nil {
-		return dstTrc.CoreASes.Contains(segReq.DstIA()), nil
+	args := infra.ASInspectorOpts{
+		TrustStoreOpts: infra.TrustStoreOpts{
+			LocalOnly: true,
+		},
+		RequiredAttributes: []infra.Attribute{infra.Core},
+	}
+	if isCore, err := h.inspector.HasAttributes(ctx, dst, args); err == nil {
+		return isCore, nil
 	} else if resolver == nil {
-		return false, common.NewBasicError("Destination TRC not found", err,
-			"isd", segReq.DstIA().I)
+		return false, common.NewBasicError("Cannot check whether AS is core", err, "ia", dst)
 	}
 	remote, err := resolver()
 	if err != nil {
 		return false, common.NewBasicError("Unable to resolve remote", err)
 	}
-	dstTRC, err := h.trustStore.GetValidTRC(ctx, segReq.DstIA().I, remote)
-	if err != nil {
-		return false, common.NewBasicError("Failed to get TRC for dst", err)
+	args = infra.ASInspectorOpts{
+		TrustStoreOpts: infra.TrustStoreOpts{
+			Server: remote,
+		},
+		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	return dstTRC.CoreASes.Contains(segReq.DstIA()), nil
+	isCore, err := h.inspector.HasAttributes(ctx, dst, args)
+	if err != nil {
+		return false, common.NewBasicError("Cannot check whether AS is core", err, "ia", dst)
+	}
+	return isCore, nil
 }
 
-func (h *segReqHandler) coreASes(ctx context.Context) (trc.CoreASMap, error) {
-	srcTRC, err := h.trustStore.GetTRC(ctx, h.localIA.I, scrypto.LatestVer)
-	if err != nil {
-		return nil, common.NewBasicError("Failed to get TRC for localIA", err)
+// coreASes returns the list of core ASes for the local ISD.
+func (h *segReqHandler) coreASes(ctx context.Context) ([]addr.IA, error) {
+	args := infra.ASInspectorOpts{
+		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	return srcTRC.CoreASes, nil
+	cores, err := h.inspector.ByAttributes(ctx, h.localIA.I, args)
+	if err != nil {
+		return nil, err
+	}
+	return cores, nil
 }
 
 func (h *segReqHandler) fetchDownSegs(ctx context.Context, dst addr.IA,

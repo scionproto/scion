@@ -24,8 +24,6 @@ go_library(
         "//go/lib/pathdb:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
         "//go/lib/revcache:go_default_library",
-        "//go/lib/scrypto:go_default_library",
-        "//go/lib/scrypto/trc:go_default_library",
     ],
 )
 
@@ -44,10 +42,10 @@ go_test(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra:go_default_library",
+        "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/infra/modules/segfetcher/mock_segfetcher:go_default_library",
         "//go/lib/infra/modules/segverifier:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
-        "//go/lib/scrypto/trc:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/lib/xtest/graph:go_default_library",
         "//go/lib/xtest/matchers:go_default_library",

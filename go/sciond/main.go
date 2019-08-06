@@ -101,7 +101,8 @@ func realMain() int {
 		return 1
 	}
 	defer trustDB.Close()
-	trustStore := trust.NewStore(trustDB, itopo.Get().ISD_AS, nil, log.Root())
+	trustConf := trust.Config{TopoProvider: itopo.Provider()}
+	trustStore := trust.NewStore(trustDB, itopo.Get().ISD_AS, trustConf, log.Root())
 	err = trustStore.LoadAuthoritativeTRC(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
 		log.Crit("Unable to load local TRC", "err", err)
@@ -147,13 +148,13 @@ func realMain() int {
 			),
 		},
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
-			TrustStore: trustStore,
+			ASInspector: trustStore,
 		},
 		proto.SCIONDMsg_Which_ifInfoRequest:      &servers.IFInfoRequestHandler{},
 		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
-			RevCache:   revCache,
-			TrustStore: trustStore,
+			RevCache:        revCache,
+			VerifierFactory: trustStore,
 		},
 	}
 	cleaner := periodic.StartPeriodicTask(pathdb.NewCleaner(pathDB),

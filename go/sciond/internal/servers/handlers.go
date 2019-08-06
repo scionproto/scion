@@ -86,7 +86,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 // ASInfoRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each ASInfoRequest it receives.
 type ASInfoRequestHandler struct {
-	TrustStore infra.TrustStore
+	ASInspector infra.ASInspector
 }
 
 func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
@@ -98,47 +98,42 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 	defer workCancelF()
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
 	// will at most contain one element).
-	reqIA := pld.AsInfoReq.Isdas.IA()
 	topo := itopo.Get()
+	reqIA := pld.AsInfoReq.Isdas.IA()
 	if reqIA.IsZero() {
 		reqIA = topo.ISD_AS
 	}
-	asInfoReply := &sciond.ASInfoReply{}
-	trcObj, err := h.TrustStore.GetValidTRC(workCtx, reqIA.I, nil)
-	if err != nil {
+	mtu := uint16(0)
+	if reqIA.Equal(topo.ISD_AS) {
+		mtu = uint16(topo.MTU)
+	}
+	var entries []sciond.ASInfoReplyEntry
+	opts := infra.ASInspectorOpts{RequiredAttributes: []infra.Attribute{infra.Core}}
+	if core, err := h.ASInspector.HasAttributes(workCtx, reqIA, opts); err != nil {
 		// FIXME(scrye): return a zero AS because the protocol doesn't
 		// support errors, but we probably want to return an error here in
 		// the future.
-		asInfoReply.Entries = []sciond.ASInfoReplyEntry{}
-	}
-	if reqIA.IsZero() || reqIA.Equal(topo.ISD_AS) {
-		// Requested AS is us
-		asInfoReply.Entries = []sciond.ASInfoReplyEntry{
-			{
-				RawIsdas: topo.ISD_AS.IAInt(),
-				Mtu:      uint16(topo.MTU),
-				IsCore:   trcObj.CoreASes.Contains(topo.ISD_AS),
-			},
-		}
+		entries = []sciond.ASInfoReplyEntry{}
 	} else {
-		// Requested AS is not us
-		asInfoReply.Entries = []sciond.ASInfoReplyEntry{
+		entries = []sciond.ASInfoReplyEntry{
 			{
 				RawIsdas: reqIA.IAInt(),
-				Mtu:      0,
-				IsCore:   trcObj.CoreASes.Contains(reqIA),
+				Mtu:      mtu,
+				IsCore:   core,
 			},
 		}
 	}
 	reply := &sciond.Pld{
-		Id:          pld.Id,
-		Which:       proto.SCIONDMsg_Which_asInfoReply,
-		AsInfoReply: asInfoReply,
+		Id:    pld.Id,
+		Which: proto.SCIONDMsg_Which_asInfoReply,
+		AsInfoReply: &sciond.ASInfoReply{
+			Entries: entries,
+		},
 	}
 	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 	} else {
-		logger.Trace("Sent reply", "asInfo", asInfoReply)
+		logger.Trace("Sent reply", "asInfo", reply.AsInfoReply)
 	}
 }
 
@@ -242,8 +237,8 @@ func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.HostInfo
 // RevNotification announcements. The SCIOND API spawns a goroutine with method Handle
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
-	RevCache   revcache.RevCache
-	TrustStore infra.TrustStore
+	RevCache        revcache.RevCache
+	VerifierFactory infra.VerificationFactory
 }
 
 func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn,
@@ -298,7 +293,7 @@ func (h *RevNotificationHandler) verifySRevInfo(ctx context.Context,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to extract RevInfo", nil)
 	}
-	err = segverifier.VerifyRevInfo(ctx, h.TrustStore.NewVerifier(), nil, sRevInfo)
+	err = segverifier.VerifyRevInfo(ctx, h.VerifierFactory.NewVerifier(), nil, sRevInfo)
 	return info, err
 }
 

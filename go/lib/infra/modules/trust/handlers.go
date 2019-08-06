@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -88,8 +89,12 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 			return infra.MetricsErrTrustDB(err)
 		}
 	} else {
-		trcObj, err = h.store.getTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
-			h.recurse, h.request.Peer, nil)
+		opts := infra.TRCOpts{
+			TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: !h.recurse},
+			AllowInactive:  true,
+		}
+		trcObj, err = h.store.getTRC(h.request.Context(), trcReq.ISD,
+			scrypto.Version(trcReq.Version), opts, h.request.Peer)
 		if err != nil {
 			logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
 			return infra.MetricsErrTrustStore(err)
@@ -159,8 +164,12 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 			return infra.MetricsErrTrustDB(err)
 		}
 	} else {
-		chain, err = h.store.getChain(h.request.Context(), chainReq.IA(), chainReq.Version,
-			h.recurse, h.request.Peer)
+		opts := infra.ChainOpts{
+			TrustStoreOpts:   infra.TrustStoreOpts{LocalOnly: !h.recurse},
+			AllowInactiveTRC: true,
+		}
+		chain, err = h.store.getChain(h.request.Context(), chainReq.IA(),
+			scrypto.Version(chainReq.Version), opts, h.request.Peer)
 		if err != nil {
 			logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
 			return infra.MetricsErrTrustStore(err)

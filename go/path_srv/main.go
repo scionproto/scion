@@ -100,9 +100,10 @@ func realMain() int {
 	trustDB = trustdb.WithMetrics("std", trustDB)
 	defer trustDB.Close()
 	topo := itopo.Get()
-	trustConf := &trust.Config{
+	trustConf := trust.Config{
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_ps,
+		TopoProvider:       itopo.Provider(),
 	}
 	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
 	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
@@ -148,12 +149,13 @@ func realMain() int {
 	// and cert requests.
 	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	args := handlers.HandlerArgs{
-		PathDB:        pathDB,
-		RevCache:      revCache,
-		TrustStore:    trustStore,
-		QueryInterval: cfg.PS.QueryInterval.Duration,
-		IA:            topo.ISD_AS,
-		TopoProvider:  itopo.Provider(),
+		PathDB:          pathDB,
+		RevCache:        revCache,
+		ASInspector:     trustStore,
+		VerifierFactory: trustStore,
+		QueryInterval:   cfg.PS.QueryInterval.Duration,
+		IA:              topo.ISD_AS,
+		TopoProvider:    itopo.Provider(),
 	}
 	core := topo.Core
 	var segReqHandler infra.Handler

@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -84,7 +83,9 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return common.NewBasicError("Unable to parse requested certificate", err)
 	}
 	// Respond with max chain for outdated requests.
-	maxChain, err := h.State.Store.GetChain(ctx, verChain.Leaf.Subject, scrypto.LatestVer)
+	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
+	maxChain, err := h.State.Store.GetChain(ctx, verChain.Leaf.Subject,
+		scrypto.Version(scrypto.LatestVer), opts)
 	if err != nil {
 		return common.NewBasicError("Unable to fetch max chain", err)
 	}
@@ -125,7 +126,8 @@ func (h *Handler) validateSign(ctx context.Context, addr *snet.Addr,
 	if err != nil {
 		return nil, err
 	}
-	verChain, err := trust.GetChainForSign(ctx, src, h.State.Store, nil)
+	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
+	verChain, err := h.State.Store.GetChain(ctx, src.IA, scrypto.Version(src.ChainVer), opts)
 	if err != nil {
 		return nil, err
 	}
