@@ -21,17 +21,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// ErrInvalidValidityPeriod indicates an invalid validity period.
-var ErrInvalidValidityPeriod = errors.New("NotAfter before NotBefore")
+var (
+	// ErrNotAfterNotSet indicates not_after is not set.
+	ErrNotAfterNotSet = errors.New("not_after not set")
+	// ErrNotBeforeNotSet indicates not_before is not set.
+	ErrNotBeforeNotSet = errors.New("not_before not set")
+	// ErrInvalidValidityPeriod indicates an invalid validity period.
+	ErrInvalidValidityPeriod = errors.New("not_after before not_before")
+)
 
 // Validity indicates a validity period.
 type Validity struct {
-	NotBefore util.UnixTime `json:"NotBefore"`
-	NotAfter  util.UnixTime `json:"NotAfter"`
+	NotBefore util.UnixTime `json:"not_before"`
+	NotAfter  util.UnixTime `json:"not_after"`
 }
 
 // Contains indicates whether the provided time is inside the validity period.
@@ -66,20 +71,21 @@ func (v *Validity) UnmarshalJSON(b []byte) error {
 }
 
 func (v *Validity) String() string {
-	return fmt.Sprintf("[%s, %s]", v.NotBefore, v.NotAfter)
+	return fmt.Sprintf("[%s, %s]", util.TimeToCompact(v.NotBefore.Time),
+		util.TimeToCompact(v.NotAfter.Time))
 }
 
 type validity struct {
-	NotBefore *util.UnixTime `json:"NotBefore"`
-	NotAfter  *util.UnixTime `json:"NotAfter"`
+	NotBefore *util.UnixTime `json:"not_before"`
+	NotAfter  *util.UnixTime `json:"not_after"`
 }
 
 func (v *validity) checkAllSet() error {
 	if v.NotBefore == nil {
-		return common.NewBasicError("NotBefore unset", nil)
+		return ErrNotBeforeNotSet
 	}
 	if v.NotAfter == nil {
-		return common.NewBasicError("NotBefore unset", nil)
+		return ErrNotAfterNotSet
 	}
 	return nil
 }

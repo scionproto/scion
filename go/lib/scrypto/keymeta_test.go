@@ -34,9 +34,9 @@ func TestKeyMetaUnmarshalJSON(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519",
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"key_version": 1,
+				"algorithm": "ed25519",
+				"key": "YW5hcGF5YSDinaQgIHNjaW9u"
 			}`,
 			Meta: scrypto.KeyMeta{
 				KeyVersion: 1,
@@ -47,24 +47,24 @@ func TestKeyMetaUnmarshalJSON(t *testing.T) {
 		"KeyVersion not set": {
 			Input: `
 			{
-				"Algorithm": "ed25519",
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"algorithm": "ed25519",
+				"key": "YW5hcGF5YSDinaQgIHNjaW9u"
 			}`,
 			ExpectedErrMsg: scrypto.ErrKeyVersionNotSet.Error(),
 		},
 		"Algorithm not set": {
 			Input: `
 			{
-				"KeyVersion": 1,
-				"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"key_version": 1,
+				"key": "YW5hcGF5YSDinaQgIHNjaW9u"
 			}`,
 			ExpectedErrMsg: scrypto.ErrAlgorithmNotSet.Error(),
 		},
 		"Key not set": {
 			Input: `
 			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519"
+				"key_version": 1,
+				"algorithm": "ed25519"
 			}`,
 			ExpectedErrMsg: scrypto.ErrKeyNotSet.Error(),
 		},
@@ -78,8 +78,8 @@ func TestKeyMetaUnmarshalJSON(t *testing.T) {
 		"invalid json": {
 			Input: `
 			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519"
+				"key_version": 1,
+				"algorithm": "ed25519"
 			`,
 			ExpectedErrMsg: "unexpected end of JSON input",
 		},

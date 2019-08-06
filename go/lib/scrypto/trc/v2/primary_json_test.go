@@ -36,17 +36,17 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"Attributes": ["Issuing", "Core"],
-				"Keys": {
-					"Issuing": {
-						"KeyVersion": 1,
-    					"Algorithm": "ed25519",
-    					"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"attributes": ["issuing", "core"],
+				"keys": {
+					"issuing": {
+						"key_version": 1,
+    					"algorithm": "ed25519",
+    					"key": "YW5hcGF5YSDinaQgIHNjaW9u"
 					}
 				}
 			}`,
 			Primary: trc.PrimaryAS{
-				Attributes: trc.Attributes{"Issuing", "Core"},
+				Attributes: trc.Attributes{"issuing", "core"},
 				Keys: map[trc.KeyType]scrypto.KeyMeta{
 					trc.IssuingKey: {
 						KeyVersion: 1,
@@ -60,11 +60,11 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 		"Attributes not set": {
 			Input: `
 			{
-				"Keys": {
-					"Issuing": {
-						"KeyVersion": 1,
-						"Algorithm": "ed25519",
-						"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"keys": {
+					"issuing": {
+						"key_version": 1,
+						"algorithm": "ed25519",
+						"key": "YW5hcGF5YSDinaQgIHNjaW9u"
 					}
 				}
 			}`,
@@ -73,18 +73,18 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 		"Keys not set": {
 			Input: `
 			{
-				"Attributes": ["Issuing", "Core"]
+				"attributes": ["issuing", "core"]
 			}`,
 			ExpectedErrMsg: trc.ErrKeysNotSet.Error(),
 		},
 		"Invalid key meta": {
 			Input: `
 			{
-				"Attributes": ["Issuing", "Core"],
-				"Keys": {
-					"Issuing": {
-						"Algorithm": "ed25519",
-						"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"attributes": ["issuing", "core"],
+				"keys": {
+					"issuing": {
+						"algorithm": "ed25519",
+						"key": "YW5hcGF5YSDinaQgIHNjaW9u"
 					}
 				}
 			}`,
@@ -93,12 +93,12 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 		"Unknown key": {
 			Input: `
 			{
-				"Attributes": ["Core"],
-				"Keys": {
-					"Signing": {
-						"KeyVersion": 1,
-						"Algorithm": "ed25519",
-						"Key": "YW5hcGF5YSDinaQgIHNjaW9u"
+				"attributes": ["core"],
+				"keys": {
+					"signing": {
+						"key_version": 1,
+						"algorithm": "ed25519",
+						"key": "YW5hcGF5YSDinaQgIHNjaW9u"
 					}
 				}
 			}`,
@@ -135,15 +135,15 @@ func TestAttributesUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Non-Core and Authoritative": {
-			Input:     `["Authoritative"]`,
+			Input:     `["authoritative"]`,
 			Assertion: assert.Error,
 		},
 		"Duplication": {
-			Input:     `["Core", "Core"]`,
+			Input:     `["core", "core"]`,
 			Assertion: assert.Error,
 		},
-		"Authoritative, Core, Issuing and Voting": {
-			Input:     `["Authoritative", "Issuing", "Core", "Voting"]`,
+		"Authoritative, core, issuing and voting": {
+			Input:     `["authoritative", "issuing", "core", "voting"]`,
 			Assertion: assert.NoError,
 			Expected:  trc.Attributes{trc.Authoritative, trc.Issuing, trc.Voting, trc.Core},
 		},
@@ -161,7 +161,7 @@ func TestAttributesUnmarshalJSON(t *testing.T) {
 
 func TestAttributesMarshalJSON(t *testing.T) {
 	type mockPrimaryAS struct {
-		Attributes trc.Attributes
+		Attributes trc.Attributes `json:"attributes"`
 	}
 	tests := map[string]struct {
 		Attrs     trc.Attributes
@@ -172,18 +172,18 @@ func TestAttributesMarshalJSON(t *testing.T) {
 			Attrs:     trc.Attributes{trc.Core, trc.Core},
 			Assertion: assert.Error,
 		},
-		"Non-Core and Authoritative": {
+		"Non-Core and authoritative": {
 			Attrs:     trc.Attributes{trc.Authoritative},
 			Assertion: assert.Error,
 		},
-		"Core and Voting": {
+		"Core and voting": {
 			Attrs:     trc.Attributes{trc.Voting, trc.Core},
-			Expected:  []byte(`{"Attributes":["Voting","Core"]}`),
+			Expected:  []byte(`{"attributes":["voting","core"]}`),
 			Assertion: assert.NoError,
 		},
-		"Authoritative, Core, Voting and Issuing": {
+		"Authoritative, core, voting and issuing": {
 			Attrs:     trc.Attributes{trc.Authoritative, trc.Issuing, trc.Voting, trc.Core},
-			Expected:  []byte(`{"Attributes":["Authoritative","Issuing","Voting","Core"]}`),
+			Expected:  []byte(`{"attributes":["authoritative","issuing","voting","core"]}`),
 			Assertion: assert.NoError,
 		},
 	}
@@ -211,26 +211,26 @@ func TestAttributeUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Wrong case": {
-			Input:     `"voting"`,
+			Input:     `"Voting"`,
 			Assertion: assert.Error,
 		},
 		"Authoritative": {
-			Input:     `"Authoritative"`,
+			Input:     `"authoritative"`,
 			Assertion: assert.NoError,
 			Expected:  trc.Authoritative,
 		},
 		"Core": {
-			Input:     `"Core"`,
+			Input:     `"core"`,
 			Assertion: assert.NoError,
 			Expected:  trc.Core,
 		},
 		"Issuing": {
-			Input:     `"Issuing"`,
+			Input:     `"issuing"`,
 			Assertion: assert.NoError,
 			Expected:  trc.Issuing,
 		},
 		"Voting": {
-			Input:     `"Voting"`,
+			Input:     `"voting"`,
 			Assertion: assert.NoError,
 			Expected:  trc.Voting,
 		},
@@ -259,21 +259,21 @@ func TestKeyTypeUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Wrong case": {
-			Input:     `"offline"`,
+			Input:     `"Offline"`,
 			Assertion: assert.Error,
 		},
 		"OfflineKey": {
-			Input:     `"Offline"`,
+			Input:     `"offline"`,
 			Assertion: assert.NoError,
 			Expected:  trc.OfflineKey,
 		},
 		"OnlineKey": {
-			Input:     `"Online"`,
+			Input:     `"online"`,
 			Assertion: assert.NoError,
 			Expected:  trc.OnlineKey,
 		},
 		"IssuingKey": {
-			Input:     `"Issuing"`,
+			Input:     `"issuing"`,
 			Assertion: assert.NoError,
 			Expected:  trc.IssuingKey,
 		},
@@ -302,7 +302,7 @@ func TestKeyTypeUnmarshalJSONMapKey(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"Issuing": "key"
+				"issuing": "key"
 			}`,
 			Assertion: assert.NoError,
 		},

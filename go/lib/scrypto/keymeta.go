@@ -35,11 +35,11 @@ var (
 type KeyMeta struct {
 	// KeyVersion identifies the key. It must change if the key changes, and
 	// stay the same if the key does not change.
-	KeyVersion KeyVersion `json:"KeyVersion"`
+	KeyVersion KeyVersion `json:"key_version"`
 	// Algorithm indicates the algorithm associated with the key.
-	Algorithm string `json:"Algorithm"`
+	Algorithm string `json:"algorithm"`
 	// Key is the raw public key.
-	Key common.RawBytes `json:"Key"`
+	Key common.RawBytes `json:"key"`
 }
 
 // UnmarshalJSON checks that all fields are set.
@@ -62,9 +62,9 @@ func (m *KeyMeta) UnmarshalJSON(b []byte) error {
 }
 
 type keyMetaAlias struct {
-	KeyVersion *KeyVersion      `json:"KeyVersion"`
-	Algorithm  *string          `json:"Algorithm"`
-	Key        *common.RawBytes `json:"Key"`
+	KeyVersion *KeyVersion      `json:"key_version"`
+	Algorithm  *string          `json:"algorithm"`
+	Key        *common.RawBytes `json:"key"`
 }
 
 func (m *keyMetaAlias) checkAllSet() error {

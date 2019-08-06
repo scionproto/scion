@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -100,8 +99,8 @@ type primaryASAlias PrimaryAS
 
 // PrimaryAS holds the attributes and keys of a primary AS.
 type PrimaryAS struct {
-	Attributes Attributes                  `json:"Attributes"`
-	Keys       map[KeyType]scrypto.KeyMeta `json:"Keys"`
+	Attributes Attributes                  `json:"attributes"`
+	Keys       map[KeyType]scrypto.KeyMeta `json:"keys"`
 }
 
 // Is returns true if the primary AS holds this property.
@@ -209,24 +208,22 @@ func (t *Attributes) UnmarshalJSON(b []byte) error {
 
 const (
 	// Authoritative indicates an authoritative AS.
-	Authoritative Attribute = "Authoritative"
+	Authoritative Attribute = "authoritative"
 	// Core indicates a core AS.
-	Core Attribute = "Core"
+	Core Attribute = "core"
 	// Issuing indicates an issuing AS.
-	Issuing Attribute = "Issuing"
+	Issuing Attribute = "issuing"
 	// Voting indicates a voting AS. A voting AS must also be a core AS.
-	Voting Attribute = "Voting"
+	Voting Attribute = "voting"
 )
-
-var _ json.Unmarshaler = (*Attribute)(nil)
 
 // Attribute indicates the capability of a primary AS.
 type Attribute string
 
-// UnmarshalJSON checks that the attribute is valid. It can either be
-// "Authoritative", "Core", "Issuing", or "Voting".
-func (t *Attribute) UnmarshalJSON(b []byte) error {
-	switch Attribute(strings.Trim(string(b), `"`)) {
+// UnmarshalText checks that the attribute is valid. It can either be
+// "authoritative", "core", "issuing", or "voting".
+func (t *Attribute) UnmarshalText(b []byte) error {
+	switch Attribute(b) {
 	case Authoritative:
 		*t = Authoritative
 	case Issuing:
@@ -242,9 +239,9 @@ func (t *Attribute) UnmarshalJSON(b []byte) error {
 }
 
 const (
-	IssuingKeyJSON = "Issuing"
-	OnlineKeyJSON  = "Online"
-	OfflineKeyJSON = "Offline"
+	IssuingKeyJSON = "issuing"
+	OnlineKeyJSON  = "online"
+	OfflineKeyJSON = "offline"
 )
 
 const (

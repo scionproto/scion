@@ -114,10 +114,10 @@ func (h *EncodedProtected) Decode() (Protected, error) {
 // Protected is the signature metadata.
 type Protected struct {
 	Algorithm  string             `json:"alg"`
-	Type       SignatureType      `json:"Type"`
-	KeyType    KeyType            `json:"KeyType"`
-	KeyVersion scrypto.KeyVersion `json:"KeyVersion"`
-	AS         addr.AS            `json:"AS"`
+	Type       SignatureType      `json:"type"`
+	KeyType    KeyType            `json:"key_type"`
+	KeyVersion scrypto.KeyVersion `json:"key_version"`
+	AS         addr.AS            `json:"as"`
 	Crit       Crit               `json:"crit"`
 }
 
@@ -145,10 +145,10 @@ func (p *Protected) UnmarshalJSON(b []byte) error {
 
 type protectedAlias struct {
 	Algorithm  *string             `json:"alg"`
-	Type       *SignatureType      `json:"Type"`
-	KeyType    *KeyType            `json:"KeyType"`
-	KeyVersion *scrypto.KeyVersion `json:"KeyVersion"`
-	AS         *addr.AS            `json:"AS"`
+	Type       *SignatureType      `json:"type"`
+	KeyType    *KeyType            `json:"key_type"`
+	KeyVersion *scrypto.KeyVersion `json:"key_version"`
+	AS         *addr.AS            `json:"as"`
 	Crit       *Crit               `json:"crit"`
 }
 
@@ -172,9 +172,9 @@ func (p *protectedAlias) checkAllSet() error {
 
 const (
 	// POPSignature indicates the purpose of the signature is to proof possession.
-	POPSignature SignatureType = "ProofOfPossession"
+	POPSignature SignatureType = "proof_of_possession"
 	// VoteSignature indicates the purpose of the signature is to cast a vote.
-	VoteSignature SignatureType = "Vote"
+	VoteSignature SignatureType = "vote"
 )
 
 // SignatureType indicates the purpose of a signature.
@@ -194,7 +194,7 @@ func (t *SignatureType) UnmarshalText(b []byte) error {
 }
 
 var (
-	allCritFields       = []string{"Type", "KeyType", "KeyVersion", "AS"}
+	allCritFields       = []string{"type", "key_type", "key_version", "as"}
 	packedCritFields, _ = json.Marshal(allCritFields)
 )
 

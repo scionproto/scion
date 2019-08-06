@@ -107,36 +107,36 @@ type trcAlias TRC
 // TRC is the trust root configuration for an ISD.
 type TRC struct {
 	// ISD is the integer identifier from 1 to 4095.
-	ISD addr.ISD `json:"ISD"`
+	ISD addr.ISD `json:"isd"`
 	// Version is the version number of the TRC.
 	// The value scrypto.LatestVer is reserved and shall not be used.
-	Version scrypto.Version `json:"TRCVersion"`
+	Version scrypto.Version `json:"trc_version"`
 	// BaseVersion indicates the initial TRC version for this TRC chain.
 	// If BaseVersion equals TRCVersion this TRC is a base TRC.
-	BaseVersion scrypto.Version `json:"BaseVersion"`
+	BaseVersion scrypto.Version `json:"base_version"`
 	// Description is an human-readable description of the ISD.
-	Description string `json:"Description"`
+	Description string `json:"description"`
 	// VotingQuorum is the number of signatures the next TRC needs from voting
 	// ASes in this TRC for an update to be valid. This is a pointer to check
 	// the field is set during parsing.
-	VotingQuorumPtr *uint8 `json:"VotingQuorum"`
+	VotingQuorumPtr *uint8 `json:"voting_quorum"`
 	// FormatVersion is the TRC format version.
-	FormatVersion FormatVersion `json:"FormatVersion"`
+	FormatVersion FormatVersion `json:"format_version"`
 	// GracePeriod indicates how long the previous unexpired version of the TRC
 	// should still be considered active, i.e., TRCvi is still active until the
 	// following time has passed (or TRCvi+2 has been announced):
 	//  TRC(i+1).Validity.NotBefore + TRC(i+1).GracePeriod
-	GracePeriod *Period `json:"GracePeriod"`
+	GracePeriod *Period `json:"grace_period"`
 	// TrustResetAllowed indicates whether a trust reset is allowed for this ISD.
-	TrustResetAllowedPtr *bool `json:"TrustResetAllowed"`
+	TrustResetAllowedPtr *bool `json:"trust_reset_allowed"`
 	// Validity indicates the validity period of the TRC.
-	Validity *scrypto.Validity `json:"Validity"`
+	Validity *scrypto.Validity `json:"validity"`
 	// PrimaryASes contains all primary ASes in the ISD.
-	PrimaryASes PrimaryASes `json:"PrimaryASes"`
+	PrimaryASes PrimaryASes `json:"primary_ases"`
 	// Votes maps voting ASes to their cast vote.
-	Votes map[addr.AS]Vote `json:"Votes"`
+	Votes map[addr.AS]Vote `json:"votes"`
 	// ProofOfPossession maps ASes to their key types they need to show proof of possession.
-	ProofOfPossession map[addr.AS][]KeyType `json:"ProofOfPossession"`
+	ProofOfPossession map[addr.AS][]KeyType `json:"proof_of_possession"`
 }
 
 // VotingQuorum returns the voting quorum. It provides a convenience wrapper
@@ -249,9 +249,9 @@ func (t *TRC) checkAllSet() error {
 // Vote identifies the expected vote.
 type Vote struct {
 	// Type is the type of key that is used to issue the signature.
-	Type KeyType `json:"Type"`
+	Type KeyType `json:"type"`
 	// KeyVersion is the key version of the key that is used to issue the signautre.
-	KeyVersion scrypto.KeyVersion `json:"KeyVersion"`
+	KeyVersion scrypto.KeyVersion `json:"key_version"`
 }
 
 // UnmarshalJSON checks that all fields are set.
@@ -273,8 +273,8 @@ func (v *Vote) UnmarshalJSON(b []byte) error {
 }
 
 type voteAlias struct {
-	Type       *KeyType            `json:"Type"`
-	KeyVersion *scrypto.KeyVersion `json:"KeyVersion"`
+	Type       *KeyType            `json:"type"`
+	KeyVersion *scrypto.KeyVersion `json:"key_version"`
 }
 
 func (v *voteAlias) checkAllSet() error {
