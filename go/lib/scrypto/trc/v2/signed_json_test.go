@@ -36,11 +36,11 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "Vote",
-				"KeyType": "Online",
-				"KeyVersion": 1,
-				"AS": "ff00:0:110",
-				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
+				"type": "vote",
+				"key_type": "online",
+				"key_version": 1,
+				"as": "ff00:0:110",
+				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
@@ -54,11 +54,11 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "Vote",
-				"KeyType": "Offline",
-				"KeyVersion": 1,
-				"AS": "ff00:0:110",
-				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
+				"type": "vote",
+				"key_type": "offline",
+				"key_version": 1,
+				"as": "ff00:0:110",
+				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
@@ -72,11 +72,11 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "ProofOfPossession",
-				"KeyType": "Issuing",
-				"KeyVersion": 1,
-				"AS": "ff00:0:110",
-				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
+				"type": "proof_of_possession",
+				"key_type": "issuing",
+				"key_version": 1,
+				"as": "ff00:0:110",
+				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
@@ -89,11 +89,11 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 		"Algorithm not set": {
 			Input: `
 			{
-				"Type": "ProofOfPossession",
-				"KeyType": "Issuing",
-				"KeyVersion": 1,
-				"AS": "ff00:0:110",
-				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
+				"type": "proof_of_possession",
+				"key_type": "issuing",
+				"key_version": 1,
+				"as": "ff00:0:110",
+				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
 			ExpectedErrMsg: trc.ErrAlgorithmNotSet.Error(),
 		},
@@ -101,10 +101,10 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"KeyType": "Issuing",
-				"KeyVersion": 1,
-				"AS": "ff00:0:110",
-				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
+				"key_type": "issuing",
+				"key_version": 1,
+				"as": "ff00:0:110",
+				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
 			ExpectedErrMsg: trc.ErrSignatureTypeNotSet.Error(),
 		},
@@ -112,10 +112,10 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "ProofOfPossession",
-				"KeyVersion": 1,
-				"AS": "ff00:0:110",
-				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
+				"type": "proof_of_possession",
+				"key_version": 1,
+				"as": "ff00:0:110",
+				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
 			ExpectedErrMsg: trc.ErrTypeNotSet.Error(),
 		},
@@ -123,10 +123,10 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "ProofOfPossession",
-				"KeyType": "Issuing",
-				"AS": "ff00:0:110",
-				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
+				"type": "proof_of_possession",
+				"key_type": "issuing",
+				"as": "ff00:0:110",
+				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
 			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
 		},
@@ -134,10 +134,10 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "ProofOfPossession",
-				"KeyType": "Issuing",
-				"KeyVersion": 1,
-				"crit": ["Type", "KeyType", "KeyVersion", "AS"]
+				"type": "proof_of_possession",
+				"key_type": "issuing",
+				"key_version": 1,
+				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
 			ExpectedErrMsg: trc.ErrASNotSet.Error(),
 		},
@@ -145,10 +145,10 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "ProofOfPossession",
-				"KeyType": "Issuing",
-				"KeyVersion": 1,
-				"AS": "ff00:0:110"
+				"type": "proof_of_possession",
+				"key_type": "issuing",
+				"key_version": 1,
+				"as": "ff00:0:110"
 			}`,
 			ExpectedErrMsg: trc.ErrCritNotSet.Error(),
 		},
@@ -162,7 +162,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 		"invalid json": {
 			Input: `
 			{
-				"KeyVersion": 1,
+				"key_version": 1,
 				"Algorithm": "ed25519"
 			`,
 			ExpectedErrMsg: "unexpected end of JSON input",
@@ -198,16 +198,16 @@ func TestSignatureTypeUnmarshalJson(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Wrong case": {
-			Input:     `"vote"`,
+			Input:     `"Vote"`,
 			Assertion: assert.Error,
 		},
-		"ProofOfPossession": {
-			Input:     `"ProofOfPossession"`,
+		"proof_of_possession": {
+			Input:     `"proof_of_possession"`,
 			Assertion: assert.NoError,
 			Expected:  trc.POPSignature,
 		},
-		"Vote": {
-			Input:     `"Vote"`,
+		"vote": {
+			Input:     `"vote"`,
 			Assertion: assert.NoError,
 			Expected:  trc.VoteSignature,
 		},
@@ -228,15 +228,15 @@ func TestCritUnmarshalJSON(t *testing.T) {
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:     []byte(`{"crit": ["Type", "KeyType", "KeyVersion", "AS"]}`),
+			Input:     []byte(`{"crit": ["type", "key_type", "key_version", "as"]}`),
 			Assertion: assert.NoError,
 		},
 		"Out of order": {
-			Input:     []byte(`{"crit": ["AS", "Type", "KeyType", "KeyVersion"]}`),
+			Input:     []byte(`{"crit": ["as", "type", "key_type", "key_version"]}`),
 			Assertion: assert.Error,
 		},
 		"Length mismatch": {
-			Input:     []byte(`{"crit": ["AS", "KeyType", "Type"]}`),
+			Input:     []byte(`{"crit": ["as", "key_type", "type"]}`),
 			Assertion: assert.Error,
 		},
 		"Invalid json": {
@@ -244,7 +244,7 @@ func TestCritUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Unknown Entry": {
-			Input:     []byte(`{"crit": ["AS", "KeyType", "Garbage", "Type"]}`),
+			Input:     []byte(`{"crit": ["as", "key_type", "Garbage", "type"]}`),
 			Assertion: assert.Error,
 		},
 	}
@@ -266,5 +266,5 @@ func TestCritMarshalJSON(t *testing.T) {
 		Crit []string `json:"crit"`
 	}
 	require.NoError(t, json.Unmarshal(b, &protected))
-	assert.ElementsMatch(t, []string{"Type", "KeyType", "KeyVersion", "AS"}, protected.Crit)
+	assert.ElementsMatch(t, []string{"type", "key_type", "key_version", "as"}, protected.Crit)
 }

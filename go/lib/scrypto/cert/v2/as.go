@@ -42,9 +42,9 @@ var (
 type AS struct {
 	Base
 	// Issuer holds the identifiers of the issuing issuer certificate.
-	Issuer IssuerCertID `json:"Issuer"`
+	Issuer IssuerCertID `json:"issuer"`
 	// CertificateType ensures the correct certificate type when marshalling.
-	CertificateType TypeAS `json:"CertificateType"`
+	CertificateType TypeAS `json:"certificate_type"`
 }
 
 // Validate checks that the certificate is in a valid format.
@@ -83,8 +83,8 @@ func (c *AS) UnmarshalJSON(b []byte) error {
 
 type asAlias struct {
 	Base
-	Issuer          *IssuerCertID `json:"Issuer"`
-	CertificateType *TypeAS       `json:"CertificateType"`
+	Issuer          *IssuerCertID `json:"issuer"`
+	CertificateType *TypeAS       `json:"certificate_type"`
 }
 
 func (c *asAlias) checkAllSet() error {
@@ -106,9 +106,9 @@ type issuerCertIDAlias IssuerCertID
 // IssuerCertID identifies the issuer certificate that authenticates the AS certificate.
 type IssuerCertID struct {
 	// IA is the subject of the issuing issuer certificate.
-	IA addr.IA `json:"IA"`
+	IA addr.IA `json:"ia"`
 	// CertificateVersion is the version of the issuing issuer certificate.
-	CertificateVersion scrypto.Version `json:"CertificateVersion"`
+	CertificateVersion scrypto.Version `json:"certificate_version"`
 }
 
 // UnmarshalJSON checks that all fields are set.
@@ -131,7 +131,7 @@ func (i *IssuerCertID) checkAllSet() error {
 	return nil
 }
 
-const TypeASJSON = "AS"
+const TypeASJSON = "as"
 
 // TypeAS indicates an AS certificate.
 type TypeAS struct{}

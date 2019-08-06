@@ -70,19 +70,19 @@ func TestValidityUnmarshal(t *testing.T) {
 			Assert: assert.Error,
 		},
 		"NotBefore missing": {
-			Input:  `{"NotAfter": 1356134400}`,
+			Input:  `{"not_after": 1356134400}`,
 			Assert: assert.Error,
 		},
 		"NotAfter missing": {
-			Input:  `{"NotBefore": 1356048000}`,
+			Input:  `{"not_before": 1356048000}`,
 			Assert: assert.Error,
 		},
 		"Unknown field": {
 			Input: `
 			{
-				"UnknownField": "UNKNOWN"
-				"NotBefore": 1356048000,
-				"NotAfter": 1356134400
+				"unknown_field": "UNKNOWN"
+				"not_before": 1356048000,
+				"not_after": 1356134400
 			}
 			`,
 			Assert: assert.Error,
@@ -90,8 +90,8 @@ func TestValidityUnmarshal(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"NotBefore": 1356048000,
-				"NotAfter": 1356134400
+				"not_before": 1356048000,
+				"not_after": 1356134400
 			}
 			`,
 			Assert: assert.NoError,
@@ -122,5 +122,5 @@ func TestValidityMarshal(t *testing.T) {
 	}
 	raw, err := json.Marshal(s)
 	require.NoError(t, err)
-	assert.Equal(t, `{"Validity":{"NotBefore":1356048000,"NotAfter":1356134400}}`, string(raw))
+	assert.Equal(t, `{"Validity":{"not_before":1356048000,"not_after":1356134400}}`, string(raw))
 }

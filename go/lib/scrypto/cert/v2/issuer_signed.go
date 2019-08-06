@@ -92,8 +92,8 @@ func (h *EncodedProtectedIssuer) Decode() (ProtectedIssuer, error) {
 // ProtectedIssuer is the signature metadata.
 type ProtectedIssuer struct {
 	Algorithm  string           `json:"alg"`
-	Type       SignatureTypeTRC `json:"Type"`
-	TRCVersion scrypto.Version  `json:"TRCVersion"`
+	Type       SignatureTypeTRC `json:"type"`
+	TRCVersion scrypto.Version  `json:"trc_version"`
 	Crit       CritIssuer       `json:"crit"`
 }
 
@@ -119,8 +119,8 @@ func (p *ProtectedIssuer) UnmarshalJSON(b []byte) error {
 
 type protectedIssuerAlias struct {
 	Algorithm  *string           `json:"alg"`
-	Type       *SignatureTypeTRC `json:"Type"`
-	TRCVersion *scrypto.Version  `json:"TRCVersion"`
+	Type       *SignatureTypeTRC `json:"type"`
+	TRCVersion *scrypto.Version  `json:"trc_version"`
 	Crit       *CritIssuer       `json:"crit"`
 }
 
@@ -138,7 +138,7 @@ func (p *protectedIssuerAlias) checkAllSet() error {
 	return nil
 }
 
-const SignatureTypeTRCJSON = "TRC"
+const SignatureTypeTRCJSON = "trc"
 
 // SignatureTypeTRC indicates the public key is authenticated by an
 // issuer certificate.
@@ -157,7 +157,7 @@ func (t SignatureTypeTRC) MarshalText() ([]byte, error) {
 }
 
 var (
-	critIssuerFields          = []string{"Type", "TRCVersion"}
+	critIssuerFields          = []string{"type", "trc_version"}
 	packedCritIssuerFields, _ = json.Marshal(critIssuerFields)
 )
 

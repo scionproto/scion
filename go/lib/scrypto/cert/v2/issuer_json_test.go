@@ -65,20 +65,20 @@ func TestIssuerUnmarshalJSON(t *testing.T) {
 		"Invalid CertificateType": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
-					g.CertificateType = "AS"
+					g.CertificateType = "as"
 				},
 				ExpectedErrMsg: cert.InvalidCertificateType,
 			},
 		},
-		"Missing Issuer.TRCVersion": {
+		"Missing issuer.trc_version": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
-					delete(*g.Issuer, "TRCVersion")
+					delete(*g.Issuer, "trc_version")
 				},
 				ExpectedErrMsg: cert.ErrIssuerTRCVersionNotSet.Error(),
 			},
 		},
-		"Unknown Issuer field": {
+		"Unknown issuer field": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
 					(*g.Issuer)["UNKNOWN"] = true
@@ -125,7 +125,7 @@ func TestIssuerTRCUnmarshalJSON(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"TRCVersion": 4
+				"trc_version": 4
 			}
 			`,
 			ID: cert.IssuerTRC{TRCVersion: 4},
@@ -137,7 +137,7 @@ func TestIssuerTRCUnmarshalJSON(t *testing.T) {
 		"Unknown field": {
 			Input: `
 			{
-				"TRCVersion": 4,
+				"trc_version": 4,
 				"UNKNOWN": true
 			}
 			`,
@@ -165,11 +165,11 @@ func TestTypeIssuerUnmarshalJSON(t *testing.T) {
 		Assert assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:  `"Issuer"`,
+			Input:  `"issuer"`,
 			Assert: assert.NoError,
 		},
 		"Wrong case": {
-			Input:  `"issuer"`,
+			Input:  `"Issuer"`,
 			Assert: assert.Error,
 		},
 	}
@@ -209,7 +209,7 @@ func newGenIssuerCert() *genCert {
 		CertificateType: cert.TypeIssuerJSON,
 	}
 	g.Issuer = &map[string]interface{}{
-		"TRCVersion": c.Issuer.TRCVersion,
+		"trc_version": c.Issuer.TRCVersion,
 	}
 	return g
 }
