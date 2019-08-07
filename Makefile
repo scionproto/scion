@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel gazelle setcap clibs libscion libfilter dispatcher uninstall tags
+.PHONY: all clean goenv gogenlinks gogenlinks_clean vendor bazel bazel_bin_clean gazelle setcap clibs libscion libfilter dispatcher uninstall tags
 
 BRACCEPT = bin/braccept
 
@@ -26,11 +26,15 @@ gogenlinks_clean:
 vendor:
 	./tools/vendor.sh
 
-bazel: vendor
+bazel: vendor bazel_bin_clean
 	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
-	rm -f bin/*
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
+
+# Delete everything in bin/ that isn't bin/dispatcher or a hidden file, as
+# those aren't created by bazel.
+bazel_bin_clean:
+	find bin/ -mindepth 1 ! -iname dispatcher -a ! -iname ".*" -exec rm {} +
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
