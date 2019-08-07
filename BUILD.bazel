@@ -5,44 +5,53 @@ load("@io_bazel_rules_go//go:def.bzl", "nogo")
 # gazelle:prefix github.com/scionproto/scion
 gazelle(name = "gazelle")
 
-# This is SCION distributable package.
-# TODO(sustrik): At the moment it contains random stuff needed for
-# acceptance tests and such. We should remove that once we are fully
-# switched to bazel. Only binaries and tools should remain.
+# This is the SCION distributable package. It contains all (binary) services,
+# and the required tools.
 pkg_tar(
     name = "scion",
     package_dir = "",
     srcs = [
         "//go/beacon_srv:beacon_srv",
         "//go/border:border",
+        "//go/cert_srv:cert_srv",
+        "//go/godispatcher:godispatcher",
+        "//go/tools/logdog:logdog",
+        "//go/path_srv:path_srv",
+        "//go/tools/scion-custpk-load:scion-custpk-load",
+        "//go/sciond:sciond",
+        "//go/tools/scion-pki:scion-pki",
+        "//go/tools/scmp:scmp",
+        "//go/tools/showpaths:showpaths",
+        "//go/sig:sig",
+    ],
+    mode = "0755",
+)
+
+# This contains all of the binaries needed to run CI (integration & acceptance
+# tests)
+pkg_tar(
+    name = "scion-ci",
+    package_dir = "",
+    srcs = [
         "//go/border/braccept:braccept",
         "//go/integration/cert_req:cert_req",
         "//go/integration/cert_req_integration:cert_req_integration",
-        "//go/cert_srv:cert_srv",
         "//go/integration/cli_srv_ext_pyintegration:cli_srv_ext_pyintegration",
         "//go/examples/discovery_client:discovery_client",
         "//go/integration/end2end:end2end",
         "//go/integration/end2end_integration:end2end_integration",
-        "//go/godispatcher:godispatcher",
         "//go/lib/xtest/graphupdater:graphupdater",
-        "//go/tools/logdog:logdog",
-        "//go/path_srv:path_srv",
         "//go/examples/pingpong:pingpong",
         "//go/examples/pingpong/pp_integration:pp_integration",
-        "//go/tools/scion-custpk-load:scion-custpk-load",
-        "//go/sciond:sciond",
         "//go/tools/buildkite_log_downloader:buildkite_log_downloader",
-        "//go/tools/scion-pki:scion-pki",
-        "//go/tools/scmp:scmp",
         "//go/integration/scmp_error_pyintegration:scmp_error_pyintegration",
         "//go/tools/scmp/scmp_integration:scmp_integration",
-        "//go/tools/showpaths:showpaths",
-        "//go/sig:sig",
         "//go/acceptance/sig_ping_acceptance:sig_ping_acceptance",
         "//go/tools/topopruner:topopruner",
     ],
     mode = "0755",
 )
+
 
 # This is a package of tools used for linting the source code.
 pkg_tar(
