@@ -18,7 +18,6 @@ go_library(
     deps = [
         "//go/border/brconf:go_default_library",
         "//go/border/metrics:go_default_library",
-        "//go/border/netconf:go_default_library",
         "//go/border/rcmn:go_default_library",
         "//go/border/rctrl:go_default_library",
         "//go/border/rctx:go_default_library",
@@ -64,7 +63,6 @@ go_test(
     deps = [
         "//go/border/brconf:go_default_library",
         "//go/border/metrics:go_default_library",
-        "//go/border/netconf:go_default_library",
         "//go/border/rctx:go_default_library",
         "//go/border/rpkt:go_default_library",
         "//go/lib/addr:go_default_library",

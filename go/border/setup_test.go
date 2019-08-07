@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/metrics"
-	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
@@ -55,7 +54,8 @@ func TestSetupNet(t *testing.T) {
 		ctx := rctx.New(loadConfig(t))
 		// Modify local socket address. A new socket should be opened when
 		// setting up the context.
-		ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[3] = 255
+		addr := ctx.Conf.BR.InternalAddrs
+		addr.PublicOverlay(addr.Overlay).L3().IP()[3] = 255
 		SoMsg("In", oldCtx.LocSockIn, ShouldNotBeNil)
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
@@ -71,7 +71,7 @@ func TestSetupNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
+		ctx.Conf.BR.IFs[12].Local.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Check that unaffected sockets have not changed.
@@ -92,7 +92,7 @@ func TestSetupNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.Net.IFs[12].RemoteAddr.L3().IP()[3] = 255
+		ctx.Conf.BR.IFs[12].Remote.L3().IP()[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Check that unaffected sockets have not changed.
@@ -134,7 +134,8 @@ func TestRollbackNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[3] = 255
+		addr := ctx.Conf.BR.InternalAddrs
+		addr.PublicOverlay(addr.Overlay).L3().IP()[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Rollback the changes.
@@ -152,7 +153,7 @@ func TestRollbackNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
+		ctx.Conf.BR.IFs[12].Local.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Rollback the changes.
@@ -191,7 +192,8 @@ func TestTeardownNet(t *testing.T) {
 	Convey("Tearing down config with changed local address  should be a noop", t, func() {
 		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[3] = 255
+		addr := ctx.Conf.BR.InternalAddrs
+		addr.PublicOverlay(addr.Overlay).L3().IP()[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Start sockets on the new context.
@@ -209,7 +211,7 @@ func TestTeardownNet(t *testing.T) {
 	Convey("Tearing down config with changed interface should be a noop", t, func() {
 		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
+		ctx.Conf.BR.IFs[12].Local.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Start sockets on the new context.
@@ -228,7 +230,7 @@ func TestTeardownNet(t *testing.T) {
 	Convey("Tearing down config with removed interface should close socket", t, func() {
 		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
-		delete(ctx.Conf.Net.IFs, 12)
+		delete(ctx.Conf.BR.IFs, 12)
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Start sockets on the new context.
@@ -362,17 +364,16 @@ func closeAllSocks(ctx *rctx.Ctx) {
 
 func loadConfig(t *testing.T) *brconf.BRConf {
 	topo := loadTopo(t)
+	topo, err := topology.LoadFromFile("testdata/topology.json")
+	xtest.FailOnErr(t, err)
 	topoBr, ok := topo.BR["br1-ff00_0_111-1"]
 	if !ok {
 		t.Fatal("BR ID not found")
 	}
-	net, err := netconf.FromTopo(&topoBr, topo.IFInfoMap)
-	xtest.FailOnErr(t, err)
 	return &brconf.BRConf{
 		Topo: topo,
 		IA:   topo.ISD_AS,
 		BR:   &topoBr,
-		Net:  net,
 	}
 }
 

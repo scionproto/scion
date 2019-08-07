@@ -187,10 +187,10 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 			"Unable to decode SignedRevInfo from SCMP InfoRevocation payload", err)
 	}
 
-	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+	intf := rp.Ctx.Conf.BR.IFs[*rp.ifCurr]
 	rp.SrcIA() // Ensure that rp.srcIA has been set
-	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == proto.LinkType_core) ||
-		(rp.srcIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == proto.LinkType_parent) {
+	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.LinkType == proto.LinkType_core) ||
+		(rp.srcIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.LinkType == proto.LinkType_parent) {
 		// Case 1 & 2
 		args.Addrs = append(args.Addrs, addr.SvcBS)
 		if len(rp.Ctx.Conf.Topo.PS) > 0 {

@@ -29,7 +29,6 @@ import (
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/border/brconf"
-	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
@@ -49,11 +48,11 @@ type locSockOps interface {
 }
 
 type extSockOps interface {
-	Setup(r *Router, ctx *rctx.Ctx, intfs *netconf.Interface,
+	Setup(r *Router, ctx *rctx.Ctx, intfs *topology.IFInfo,
 		labels prometheus.Labels, oldCtx *rctx.Ctx) error
-	Rollback(r *Router, ctx *rctx.Ctx, intfs *netconf.Interface,
+	Rollback(r *Router, ctx *rctx.Ctx, intfs *topology.IFInfo,
 		labels prometheus.Labels, oldCtx *rctx.Ctx) error
-	Teardown(r *Router, ctx *rctx.Ctx, intfs *netconf.Interface, oldCtx *rctx.Ctx)
+	Teardown(r *Router, ctx *rctx.Ctx, intfs *topology.IFInfo, oldCtx *rctx.Ctx)
 }
 
 // SockOps enable the network stack to be modular. Any network stack that wants
@@ -238,7 +237,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, sockConf brconf.SockC
 		return err
 	}
 	// Iterate over interfaces, configuring them via provided setup function.
-	for _, intf := range ctx.Conf.Net.IFs {
+	for _, intf := range ctx.Conf.BR.IFs {
 		labels := extLabels(intf.Id)
 		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Setup(r, ctx, intf, labels, oldCtx)
 		if err != nil {
@@ -253,7 +252,7 @@ func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx,
 	sockConf brconf.SockConf, handleErr func(err error)) {
 
 	// Rollback of external interfaces.
-	for _, intf := range ctx.Conf.Net.IFs {
+	for _, intf := range ctx.Conf.BR.IFs {
 		labels := extLabels(intf.Id)
 		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Rollback(r, ctx, intf, labels, oldCtx)
 		if err != nil {
@@ -278,7 +277,7 @@ func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
 		return
 	}
 	// Iterate on oldCtx to catch removed interfaces.
-	for _, intf := range oldCtx.Conf.Net.IFs {
+	for _, intf := range oldCtx.Conf.BR.IFs {
 		registeredExtSockOps[sockConf.Ext(intf.Id)].Teardown(r, ctx, intf, oldCtx)
 	}
 }
@@ -379,7 +378,7 @@ func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 			"expected", oldCtx.LocSockIn.Type, "actual", sockType)
 	}
 	// Validate interfaces.
-	for _, intf := range ctx.Conf.Net.IFs {
+	for _, intf := range ctx.Conf.BR.IFs {
 		sockType := sockConf.Ext(intf.Id)
 		// Validate socket type is registered
 		if _, ok := registeredExtSockOps[sockType]; !ok {
@@ -393,20 +392,20 @@ func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 		}
 
 		// Validate interface does not take over local address.
-		if intf.IFAddr.Equal(oldCtx.Conf.Net.LocAddr) {
+		if intf.Local.Equal(oldCtx.Conf.BR.InternalAddrs) {
 			return common.NewBasicError("Address must not switch from local", nil,
-				"intf", intf, "locAddr", oldCtx.Conf.Net.LocAddr)
+				"intf", intf, "locAddr", oldCtx.Conf.BR.InternalAddrs)
 		}
-		for _, oldIntf := range oldCtx.Conf.Net.IFs {
+		for _, oldIntf := range oldCtx.Conf.BR.IFs {
 			// Validate interface does not take over the address of old interface.
-			if intf.IFAddr.Equal(oldIntf.IFAddr) && intf.Id != oldIntf.Id {
+			if intf.Local.Equal(oldIntf.Local) && intf.Id != oldIntf.Id {
 				return common.NewBasicError("Address must not switch interface", nil,
 					"intf", intf, "oldIntf", oldIntf)
 			}
 			// Validate local sock does not take over the address of old interface.
-			if ctx.Conf.Net.LocAddr.Equal(oldIntf.IFAddr) {
+			if ctx.Conf.BR.InternalAddrs.Equal(oldIntf.Local) {
 				return common.NewBasicError("Address must not switch to local", nil,
-					"oldIntf", intf, "locAddr", oldCtx.Conf.Net.LocAddr)
+					"oldIntf", intf, "locAddr", oldCtx.Conf.BR.InternalAddrs)
 			}
 		}
 	}
