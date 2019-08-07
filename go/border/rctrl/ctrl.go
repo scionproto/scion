@@ -48,7 +48,7 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs) {
 		logger.Error("Initializing SNET", "err", err)
 		return
 	}
-	ctrlAddr := ctx.Conf.Net.CtrlAddr
+	ctrlAddr := ctx.Conf.BR.CtrlAddrs
 	pub := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.PublicAddr()}
 	bind := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.BindAddr()}
 	if bind.Host == nil {

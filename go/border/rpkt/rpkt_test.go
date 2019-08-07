@@ -24,12 +24,12 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/border/brconf"
-	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 var rawUdpPkt = "testdata/udp-scion.bin"
@@ -49,8 +49,8 @@ func prepareRtrPacketSample() *RtrPkt {
 	// Set some other data that are required for the parsing to succeed:
 	var config = &brconf.BRConf{
 		IA: addr.IA{I: 1, A: 2},
-		Net: &netconf.NetConf{
-			IFs: map[common.IFIDType]*netconf.Interface{5: nil},
+		BR: &topology.BRInfo{
+			IFs: map[common.IFIDType]*topology.IFInfo{5: nil},
 		},
 	}
 	r.Ctx = rctx.New(config)
