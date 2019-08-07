@@ -48,6 +48,7 @@ import (
 	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/metrics"
+	"github.com/scionproto/scion/go/path_srv/internal/segreq"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -156,16 +157,10 @@ func realMain() int {
 		QueryInterval:   cfg.PS.QueryInterval.Duration,
 		IA:              topo.ISD_AS,
 		TopoProvider:    itopo.Provider(),
+		SegRequestAPI:   msger,
 	}
 	core := topo.Core
-	var segReqHandler infra.Handler
-	deduper := handlers.NewGetSegsDeduper(msger)
-	if core {
-		segReqHandler = handlers.NewSegReqCoreHandler(args, deduper)
-	} else {
-		segReqHandler = handlers.NewSegReqNonCoreHandler(args, deduper)
-	}
-	msger.AddHandler(infra.SegRequest, segReqHandler)
+	msger.AddHandler(infra.SegRequest, segreq.NewHandler(args))
 	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
 	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStateInfoHandler(args))
 	if cfg.PS.SegSync && core {

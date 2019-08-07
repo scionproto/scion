@@ -19,21 +19,17 @@ package fetcher
 import (
 	"bytes"
 	"context"
+	"net"
 	"time"
-
-	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -43,7 +39,6 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/config"
 )
 
@@ -57,30 +52,31 @@ type TrustStore interface {
 }
 
 type Fetcher struct {
-	messenger       infra.Messenger
 	pathDB          pathdb.PathDB
-	inspector       infra.ASInspector
 	revocationCache revcache.RevCache
 	config          config.SDConfig
-	replyHandler    *segfetcher.SegReplyHandler
+	segfetcher      *segfetcher.Fetcher
 }
 
 func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore TrustStore,
 	revCache revcache.RevCache, cfg config.SDConfig, logger log.Logger) *Fetcher {
 
+	localIA := itopo.Get().ISD_AS
 	return &Fetcher{
-		messenger:       messenger,
 		pathDB:          pathDB,
-		inspector:       trustStore,
 		revocationCache: revCache,
 		config:          cfg,
-		replyHandler: &segfetcher.SegReplyHandler{
-			Verifier: &segfetcher.SegVerifier{Verifier: trustStore.NewVerifier()},
-			Storage: &segfetcher.DefaultStorage{
-				PathDB:   pathDB,
-				RevCache: revCache,
-			},
-		},
+		segfetcher: segfetcher.FetcherConfig{
+			QueryInterval:       cfg.QueryInterval.Duration,
+			LocalIA:             localIA,
+			ASInspector:         trustStore,
+			VerificationFactory: trustStore,
+			PathDB:              pathDB,
+			RevCache:            revCache,
+			RequestAPI:          messenger,
+			DstProvider:         &dstProvider{IA: localIA},
+			Splitter:            NewRequestSplitter(localIA, trustStore),
+		}.New(),
 	}
 }
 
@@ -110,6 +106,8 @@ type fetcherHandler struct {
 func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	earlyReplyInterval time.Duration) (*sciond.PathReply, error) {
 
+	// TODO(lukedirtwalker): move to validator, but we need to keep sciond
+	// error codes.
 	req = req.Copy()
 	// Check context
 	if _, ok := ctx.Deadline(); !ok {
@@ -131,24 +129,6 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if req.Dst.IA().Equal(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorOk), nil
 	}
-	// A ISD-0 destination should not require a TRC lookup in sciond, it could lead to a
-	// lookup loop: If sciond doesn't have the TRC, it would ask the CS, the CS would try to connect
-	// to the CS in the destination ISD and for that it will ask sciond for paths to ISD-0.
-	// Instead we consider ISD-0 always as core destination in sciond.
-	// If there are no cached paths in sciond, send the query to the local PS,
-	// which will forward the query to a ISD-local core PS, so there won't be any loop.
-
-	refetch, err := f.shouldRefetchSegs(ctx, req)
-	if err != nil {
-		f.logger.Warn("Failed to check if refetch is required", "err", err)
-	}
-	// Try to build paths from local information first, if we don't have to
-	// get fresh segments.
-	if !req.Flags.Refresh && !refetch {
-		if reply, err := f.buildReplyFromDB(ctx, req, true); reply != nil {
-			return reply, err
-		}
-	}
 	if req.Flags.Refresh {
 		// This is a workaround for https://github.com/scionproto/scion/issues/1876
 		err := f.flushSegmentsWithFirstHopInterfaces(ctx)
@@ -157,59 +137,25 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 			// continue anyway, things might still work out for the client.
 		}
 	}
-	// We don't have enough local information, grab fresh segments from the
-	// network. The spawned goroutine (in fetchAndVerify) takes care of
-	// updating the path database and revocation cache.
-	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
-	processedResult := f.fetchAndVerify(ctx, req, earlyReplyInterval, ps)
-	if processedResult == nil {
-		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorInternal),
-			common.NewBasicError("No result", nil)
-	}
-	var storedSegs int
-	// Wait for deadline while also waiting for the early reply.
-	select {
-	case <-ctx.Done():
-	case storedSegs = <-processedResult.EarlyTriggerProcessed():
-	}
-	if storedSegs > 0 {
-		if reply, err := f.buildReplyFromDB(ctx, req, true); reply != nil {
-			return reply, err
-		}
-	}
-	// Wait for deadline or full reply processed.
-	select {
-	case <-ctx.Done():
-	case <-processedResult.FullReplyProcessed():
-	}
-	if processedResult.Err() != nil {
-		f.logger.Error("Failed to store segments", nil, "err", err)
-	}
-	if processedResult.VerificationErrors() != nil {
-		f.logger.Warn("Failed to verify reply", nil, "errors", processedResult.VerificationErrors())
-	}
-	if reply, err := f.buildReplyFromDB(ctx, req, false); reply != nil {
-		return reply, err
-	}
-	// Your paths are in another castle
-	return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
-}
+	// A ISD-0 destination should not require a TRC lookup in sciond, it could lead to a
+	// lookup loop: If sciond doesn't have the TRC, it would ask the CS, the CS would try to connect
+	// to the CS in the destination ISD and for that it will ask sciond for paths to ISD-0.
+	// Instead we consider ISD-0 always as core destination in sciond.
+	// If there are no cached paths in sciond, send the query to the local PS,
+	// which will forward the query to a ISD-local core PS, so there won't be
+	// any loop.
 
-func (f *fetcherHandler) buildReplyFromDB(ctx context.Context,
-	req *sciond.PathReq, ignoreTrustNotFoundLocally bool) (*sciond.PathReply, error) {
-
-	paths, err := f.buildPathsFromDB(ctx, req)
-	switch {
-	case ctx.Err() != nil:
-		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorNoPaths), nil
-	case ignoreTrustNotFoundLocally && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
-		return nil, nil
-	case err != nil:
-		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorInternal), err
-	case len(paths) > 0:
-		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
+	segs, err := f.segfetcher.FetchSegs(ctx,
+		segfetcher.Request{Src: req.Src.IA(), Dst: req.Dst.IA()})
+	if err != nil {
+		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
 	}
-	return nil, nil
+	paths := f.buildPathsToAllDsts(req, segs.Up, segs.Core, segs.Down)
+	paths, err = f.filterRevokedPaths(ctx, paths)
+	if err != nil {
+		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
+	}
+	return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 }
 
 // buildSCIONDReply constructs a fresh SCIOND PathReply from the information
@@ -297,105 +243,6 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
 	return entries
 }
 
-// buildPathsFromDB attempts to build paths only from information contained in the
-// local path database, taking the revocation cache into account.
-func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
-	req *sciond.PathReq) ([]*combinator.Path, error) {
-
-	// Try to determine whether the destination AS is core or not
-	subCtx, subCancelF := context.WithTimeout(ctx, time.Second)
-	defer subCancelF()
-
-	dstArgs := infra.ASInspectorOpts{
-		TrustStoreOpts: infra.TrustStoreOpts{
-			LocalOnly: true,
-		},
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	}
-	dstCores, err := f.inspector.ByAttributes(subCtx, req.Dst.IA().I, dstArgs)
-	if err != nil {
-		// There are situations where we cannot tell if the remote is core. In
-		// these cases we just error out, and calling code will try to get path
-		// segments. When buildPaths is called again, err should be nil and the
-		// function will proceed to the next part.
-		return nil, err
-	}
-	localArgs := infra.ASInspectorOpts{
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	}
-	locCores, err := f.inspector.ByAttributes(ctx, f.topology.ISD_AS.I, localArgs)
-	if err != nil {
-		return nil, err
-	}
-	srcIsCore := containsIA(locCores, f.topology.ISD_AS)
-	dstIsCore := req.Dst.IA().A == 0 || containsIA(dstCores, req.Dst.IA())
-	// pathdb expects slices
-	srcIASlice := []addr.IA{req.Src.IA()}
-	dstIASlice := []addr.IA{req.Dst.IA()}
-	// query pathdb and fill in the relevant segments below
-	var ups, cores, downs seg.Segments
-	switch {
-	case srcIsCore && dstIsCore:
-		// Gone corin'
-		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, srcIASlice, proto.PathSegType_core)
-		if err != nil {
-			return nil, err
-		}
-	case srcIsCore && !dstIsCore:
-		cores, err = f.getSegmentsFromDB(ctx, dstCores, srcIASlice, proto.PathSegType_core)
-		if err != nil {
-			return nil, err
-		}
-		downs, err = f.getSegmentsFromDB(ctx, dstCores, dstIASlice, proto.PathSegType_down)
-		if err != nil {
-			return nil, err
-		}
-	case !srcIsCore && dstIsCore:
-		ups, err = f.getSegmentsFromDB(ctx, locCores, srcIASlice, proto.PathSegType_up)
-		if err != nil {
-			return nil, err
-		}
-		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, locCores, proto.PathSegType_core)
-		if err != nil {
-			return nil, err
-		}
-	case !srcIsCore && !dstIsCore:
-		ups, err = f.getSegmentsFromDB(ctx, locCores, srcIASlice, proto.PathSegType_up)
-		if err != nil {
-			return nil, err
-		}
-		downs, err = f.getSegmentsFromDB(ctx, dstCores, dstIASlice, proto.PathSegType_down)
-		if err != nil {
-			return nil, err
-		}
-		cores, err = f.getSegmentsFromDB(ctx, downs.FirstIAs(), ups.FirstIAs(),
-			proto.PathSegType_core)
-		if err != nil {
-			return nil, err
-		}
-	}
-	paths := f.buildPathsToAllDsts(req, ups, cores, downs)
-	return f.filterRevokedPaths(ctx, paths)
-}
-
-func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
-	endsAt []addr.IA, segType proto.PathSegType) ([]*seg.PathSegment, error) {
-
-	// We shouldn't query with zero length slices. Doing so would return too many segments.
-	if len(startsAt) == 0 || len(endsAt) == 0 {
-		return nil, nil
-	}
-	results, err := f.pathDB.Get(ctx, &query.Params{
-		StartsAt: startsAt,
-		EndsAt:   endsAt,
-		SegTypes: []proto.PathSegType{segType},
-	})
-	if err != nil {
-		return nil, err
-	}
-	return query.Results(results).Segs(), nil
-}
-
 // filterRevokedPaths returns a new slice containing only those paths that do
 // not have revoked interfaces in their forwarding path. Only the interfaces
 // that have traffic going through them are checked.
@@ -422,70 +269,6 @@ func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
 	return newPaths, nil
 }
 
-func (f *fetcherHandler) shouldRefetchSegs(ctx context.Context,
-	req *sciond.PathReq) (bool, error) {
-
-	nq, err := f.pathDB.GetNextQuery(ctx, req.Src.IA(), req.Dst.IA(), nil)
-	return time.Now().After(nq), err
-}
-
-// fetchAndVerify downloads path segments from the network. Segments that are
-// successfully verified are added to the pathDB. Revocations that are
-// successfully verified are added to the revocation cache.
-func (f *fetcherHandler) fetchAndVerify(ctx context.Context, req *sciond.PathReq,
-	earlyReplyInterval time.Duration, ps *snet.Addr) *segfetcher.ProcessedResult {
-
-	extCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
-	reply, err := f.getSegmentsFromNetwork(extCtx, req, ps)
-	if err != nil {
-		f.logger.Error("Unable to retrieve paths from network", "err", err)
-		return nil
-	}
-	revInfos, err := revcache.FilterNew(extCtx, f.revocationCache, reply.Recs.SRevInfos)
-	if err != nil {
-		f.logger.Error("Failed to determine new revocations", "err", err)
-		// Assume all are new
-		revInfos = reply.Recs.SRevInfos
-	}
-	reply.Recs.SRevInfos = revInfos
-	f.logger.Trace("Handle reply")
-	earlyTrigger := make(chan struct{})
-	time.AfterFunc(earlyReplyInterval, func() { close(earlyTrigger) })
-	// Create an extended context to verify and store the reply.
-	r := f.replyHandler.Handle(extCtx, reply, nil, earlyTrigger)
-	go func() {
-		defer log.LogPanicAndExit()
-		defer cancelF()
-		select {
-		case <-extCtx.Done():
-		case <-r.FullReplyProcessed():
-			_, err = f.pathDB.InsertNextQuery(extCtx, req.Src.IA(), req.Dst.IA(), nil,
-				time.Now().Add(f.config.QueryInterval.Duration))
-			if err != nil {
-				f.logger.Warn("Failed to update nextQuery", "err", err)
-			}
-		}
-	}()
-	return r
-}
-
-func (f *fetcherHandler) getSegmentsFromNetwork(ctx context.Context,
-	req *sciond.PathReq, ps *snet.Addr) (*path_mgmt.SegReply, error) {
-
-	// Get segments from path server
-	msg := &path_mgmt.SegReq{
-		RawSrcIA: req.Src,
-		RawDstIA: req.Dst,
-	}
-	f.logger.Debug("Requesting segments", "ps", ps)
-	reply, err := f.messenger.GetSegs(ctx, msg, ps, messenger.NextId())
-	if err != nil {
-		return nil, err
-	}
-	// Sanitize input. There's no point in propagating garbage all throughout other modules.
-	return reply.Sanitize(f.logger), nil
-}
-
 func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context) error {
 	intfs := make([]*query.IntfSpec, 0, len(f.topology.IFInfoMap))
 	for ifid := range f.topology.IFInfoMap {
@@ -496,6 +279,9 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 	}
 	q := &query.Params{
 		Intfs: intfs,
+	}
+	if _, err := f.pathDB.DeleteNQ(ctx, f.topology.ISD_AS, addr.IA{}, nil); err != nil {
+		return err
 	}
 	_, err := f.pathDB.Delete(ctx, q)
 	return err
@@ -547,44 +333,10 @@ func filterExpiredPaths(paths []*combinator.Path) []*combinator.Path {
 	return validPaths
 }
 
-func containsIA(ias []addr.IA, ia addr.IA) bool {
-	for _, v := range ias {
-		if v.Equal(ia) {
-			return true
-		}
-	}
-	return false
+type dstProvider struct {
+	IA addr.IA
 }
 
-// NewExtendedContext returns a new _independent_ context that can extend past
-// refCtx's lifetime, guaranteeing a minimum lifetime of minLifetime. If
-// refCtx has a deadline, the newly created context will have a deadline equal
-// to the maximum of refCtx's deadline and (minLifetime + currentTime). If
-// refCtx does not have a deadline, the function panics.
-//
-// Because the returned context is independent, calling refCtx's cancellation
-// function will not result in the cancellation of the returned context.
-func NewExtendedContext(refCtx context.Context,
-	minLifetime time.Duration) (context.Context, context.CancelFunc) {
-
-	deadline, ok := refCtx.Deadline()
-	if !ok {
-		panic("reference context needs to have deadline")
-	}
-	otherDeadline := time.Now().Add(minLifetime)
-	parentCtx := context.Background()
-	// Make sure that the attached logger is attached to the new ctx.
-	parentCtx = log.CtxWith(parentCtx, log.FromCtx(refCtx))
-	// Make sure that the attached span is attached to the new ctx.
-	if span := opentracing.SpanFromContext(refCtx); span != nil {
-		parentCtx = opentracing.ContextWithSpan(parentCtx, span)
-	}
-	return context.WithDeadline(parentCtx, max(deadline, otherDeadline))
-}
-
-func max(x, y time.Time) time.Time {
-	if x.Before(y) {
-		return y
-	}
-	return x
+func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, error) {
+	return &snet.Addr{IA: r.IA, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}, nil
 }
