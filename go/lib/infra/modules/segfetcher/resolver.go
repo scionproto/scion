@@ -21,7 +21,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // InvalidRequest indicates an invalid request.
@@ -31,25 +33,14 @@ const InvalidRequest = "Invalid request"
 type Resolver interface {
 	// Resolve resolves a request set. It returns the segments that are locally
 	// stored and the set of requests that have to be requested at a remote server.
-	Resolve(ctx context.Context, req RequestSet) (Segments, RequestSet, error)
-}
-
-// PathDB is the path db interface the resolver uses.
-// FIXME(lukedirtwaler): The Resolver should use pathdb.Read instead of its own
-// pathdb interface, changing the pathdb will be done later.
-type PathDB interface {
-	// Get returns all path segment(s) matching the parameters specified.
-	Get(context.Context, *query.Params) (query.Results, error)
-	// GetNextQuery returns the nextQuery timestamp for the given src and dst,
-	// or nil if it hasn't been queried.
-	GetNextQuery(ctx context.Context, src, dst addr.IA) (*time.Time, error)
+	Resolve(ctx context.Context, segs Segments, req RequestSet) (Segments, RequestSet, error)
 }
 
 // NewResolver creates a new resolver with the given DB. The DB might be
 // customized. E.g. a PS could inject a wrapper around GetNextQuery so that it
 // always returns that the cache is up to date for segments that should be
 // available local.
-func NewResolver(DB PathDB) *DefaultResolver {
+func NewResolver(DB pathdb.Read) *DefaultResolver {
 	return &DefaultResolver{
 		DB: DB,
 	}
@@ -57,15 +48,14 @@ func NewResolver(DB PathDB) *DefaultResolver {
 
 // DefaultResolver is the default resolver implementation.
 type DefaultResolver struct {
-	DB PathDB
+	DB pathdb.Read
 }
 
 // Resolve resolves a request set. It returns the segments that are locally
 // stored and the set of requests that have to be requested at a remote server.
-func (r *DefaultResolver) Resolve(ctx context.Context,
+func (r *DefaultResolver) Resolve(ctx context.Context, segs Segments,
 	req RequestSet) (Segments, RequestSet, error) {
 
-	var segs Segments
 	var err error
 	if !req.Up.IsZero() {
 		if segs, req, err = r.resolveUpSegs(ctx, segs, req); err != nil {
@@ -98,6 +88,7 @@ func (r *DefaultResolver) Resolve(ctx context.Context,
 		coreRes, err := r.DB.Get(ctx, &query.Params{
 			StartsAt: cachedReqs.DstIAs(),
 			EndsAt:   cachedReqs.SrcIAs(),
+			SegTypes: []proto.PathSegType{proto.PathSegType_core},
 		})
 		if err != nil {
 			return segs, req, err
@@ -131,12 +122,15 @@ func (r *DefaultResolver) resolveSegment(ctx context.Context,
 		return nil, req, err
 	}
 	start, end := req.Src, req.Dst
+	segType := proto.PathSegType_down
 	if !consDir {
 		start, end = end, start
+		segType = proto.PathSegType_up
 	}
 	res, err := r.DB.Get(ctx, &query.Params{
 		StartsAt: []addr.IA{start},
 		EndsAt:   []addr.IA{end},
+		SegTypes: []proto.PathSegType{segType},
 	})
 	if err != nil {
 		return nil, req, err
@@ -145,11 +139,8 @@ func (r *DefaultResolver) resolveSegment(ctx context.Context,
 }
 
 func (r *DefaultResolver) needsFetching(ctx context.Context, req Request) (bool, error) {
-	nq, err := r.DB.GetNextQuery(ctx, req.Src, req.Dst)
-	if err != nil || nq == nil {
-		return true, err
-	}
-	return time.Now().After(*nq), nil
+	nq, err := r.DB.GetNextQuery(ctx, req.Src, req.Dst, nil)
+	return time.Now().After(nq), err
 }
 
 func (r *DefaultResolver) expandCores(segs Segments, req RequestSet) ([]Request, error) {
@@ -190,8 +181,8 @@ func (r *DefaultResolver) expandNonCoreToCore(segs Segments,
 
 	coreReq := req.Cores[0]
 	if !coreReq.Src.IsWildcard() {
-		return nil, common.NewBasicError(InvalidRequest, nil,
-			"req", req, "reason", "Core src should be wildcard.")
+		// already resolved
+		return req.Cores, nil
 	}
 	upIAs := segs.Up.FirstIAs()
 	coreReqs := make([]Request, 0, len(upIAs))
@@ -209,8 +200,8 @@ func (r *DefaultResolver) expandCoreToNonCore(segs Segments,
 
 	coreReq := req.Cores[0]
 	if !coreReq.Dst.IsWildcard() {
-		return nil, common.NewBasicError(InvalidRequest, nil,
-			"req", req, "reason", "Core dst should be wildcard.")
+		// already resolved
+		return req.Cores, nil
 	}
 	downIAs := segs.Down.FirstIAs()
 	coreReqs := make([]Request, 0, len(downIAs))
@@ -227,9 +218,13 @@ func (r *DefaultResolver) expandNonCoreToNonCore(segs Segments,
 	req RequestSet) ([]Request, error) {
 
 	coreReq := req.Cores[0]
+	if !coreReq.Src.IsWildcard() && !coreReq.Dst.IsWildcard() {
+		// already resolved
+		return req.Cores, nil
+	}
 	if !coreReq.Src.IsWildcard() || !coreReq.Dst.IsWildcard() {
 		return nil, common.NewBasicError(InvalidRequest, nil,
-			"req", req, "reason", "Core src & dst should be wildcard.")
+			"req", req, "reason", "Core either src & dst should be wildcard or none.")
 	}
 	upIAs := segs.Up.FirstIAs()
 	downIAs := segs.Down.FirstIAs()
