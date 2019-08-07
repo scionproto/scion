@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -237,8 +238,9 @@ func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.HostInfo
 // RevNotification announcements. The SCIOND API spawns a goroutine with method Handle
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
-	RevCache        revcache.RevCache
-	VerifierFactory infra.VerificationFactory
+	RevCache         revcache.RevCache
+	VerifierFactory  infra.VerificationFactory
+	NextQueryCleaner segfetcher.NextQueryCleaner
 }
 
 func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn,
@@ -261,6 +263,13 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn
 	switch {
 	case isValid(err):
 		revReply.Result = sciond.RevValid
+		revInfo, err := revNotification.SRevInfo.RevInfo()
+		if err != nil {
+			logger.Error("Failed to extract error from rev info", "err", err)
+		}
+		if err := h.NextQueryCleaner.ResetQueryCache(ctx, revInfo); err != nil {
+			logger.Error("Failed to delete query cache", "err", err)
+		}
 	case isStale(err):
 		revReply.Result = sciond.RevStale
 	case isInvalid(err):

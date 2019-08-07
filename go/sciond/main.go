@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -144,6 +145,7 @@ func realMain() int {
 				trustStore,
 				revCache,
 				cfg.SD,
+				itopo.Provider(),
 				log.Root(),
 			),
 		},
@@ -153,8 +155,9 @@ func realMain() int {
 		proto.SCIONDMsg_Which_ifInfoRequest:      &servers.IFInfoRequestHandler{},
 		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
-			RevCache:        revCache,
-			VerifierFactory: trustStore,
+			RevCache:         revCache,
+			VerifierFactory:  trustStore,
+			NextQueryCleaner: segfetcher.NextQueryCleaner{PathDB: pathDB},
 		},
 	}
 	cleaner := periodic.StartPeriodicTask(pathdb.NewCleaner(pathDB),

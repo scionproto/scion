@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -123,6 +123,9 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 	}
 	newAddr := snetAddr.Copy()
 
+	defer func() {
+		log.Trace("[Acceptance]", "overlay", newAddr.NextHop)
+	}()
 	if newAddr.Path == nil {
 		// SVC addresses in the local AS get resolved via topology lookup
 		if svc, ok := newAddr.Host.L3.(addr.HostSVC); ok && r.Router.LocalIA() == newAddr.IA {
@@ -131,7 +134,6 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 				return nil, common.NewBasicError("Unable to resolve overlay", err)
 			}
 			newAddr.NextHop = ov
-			log.Trace("[Acceptance]", "overlay", ov)
 			return newAddr, nil
 		}
 		p, err := r.Router.Route(ctx, newAddr.IA)

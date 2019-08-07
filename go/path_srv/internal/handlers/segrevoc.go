@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
@@ -28,12 +29,16 @@ import (
 
 type revocHandler struct {
 	*baseHandler
+	NextQueryCleaner segfetcher.NextQueryCleaner
 }
 
 func NewRevocHandler(args HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &revocHandler{
 			baseHandler: newBaseHandler(r, args),
+			NextQueryCleaner: segfetcher.NextQueryCleaner{
+				PathDB: args.PathDB,
+			},
 		}
 		return handler.Handle()
 	}
@@ -73,6 +78,9 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 		logger.Warn("Couldn't verify revocation", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid
+	}
+	if err := h.NextQueryCleaner.ResetQueryCache(subCtx, revInfo); err != nil {
+		logger.Warn("Couldn't reset pathdb cache for revocation", "err", err)
 	}
 
 	_, err = h.revCache.Insert(subCtx, revocation)
