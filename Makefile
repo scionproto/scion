@@ -28,7 +28,12 @@ vendor:
 
 bazel: vendor
 	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
-	rm -f bin/*
+	@# Delete everything in bin/ that isn't bin/dispatcher, as that's not created by bazel.
+	for i in bin/*; do \
+	    [ -e "$$i" ] || break; \
+	    [ "$$i" = "bin/dispatcher" ] && continue; \
+	    rm "$$i"; \
+	done
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
