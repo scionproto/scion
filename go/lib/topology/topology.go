@@ -463,6 +463,6 @@ func (i IFInfo) Verify(isCore bool, brName string) error {
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v "+
-		"Remote:+%v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddrs, i.CtrlAddrs, i.Overlay,
+		"Remote:%+v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddrs, i.CtrlAddrs, i.Overlay,
 		i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType, i.MTU)
 }
