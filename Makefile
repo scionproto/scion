@@ -27,8 +27,10 @@ vendor:
 	./tools/vendor.sh
 
 bazel: vendor
-	bazel build //:scion --workspace_status_command=./tools/bazel-build-env
-	tar -xf bazel-bin/scion.tar -C bin
+	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
+	rm -f bin/*
+	tar -kxf bazel-bin/scion.tar -C bin
+	tar -kxf bazel-bin/scion-ci.tar -C bin
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
