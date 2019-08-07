@@ -101,12 +101,12 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 	var segs Segments
 	i := 0
 	for {
-		log.FromCtx(ctx).Trace("Request to process", "req", reqSet)
+		log.FromCtx(ctx).Trace("Request to process", "req", reqSet, "segs", segs)
 		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
 		if err != nil {
 			return Segments{}, err
 		}
-		log.FromCtx(ctx).Trace("After resolving", "req", reqSet)
+		log.FromCtx(ctx).Trace("After resolving", "req", reqSet, "segs", segs)
 		if reqSet.IsEmpty() {
 			break
 		}
