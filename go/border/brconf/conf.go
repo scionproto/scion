@@ -24,7 +24,6 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
@@ -49,8 +48,6 @@ type BRConf struct {
 	MasterKeys keyconf.Master
 	// HFMacPool is the pool of Hop Field MAC generation instances.
 	HFMacPool *sync.Pool
-	// Net is the network configuration of this router.
-	Net *netconf.NetConf
 	// Dir is the configuration directory.
 	Dir string
 }
@@ -72,9 +69,6 @@ func Load(id, confDir string) (*BRConf, error) {
 	if err := conf.initMacPool(); err != nil {
 		return nil, err
 	}
-	if err := conf.initNet(); err != nil {
-		return nil, err
-	}
 	return conf, nil
 }
 
@@ -89,9 +83,6 @@ func WithNewTopo(id string, topo *topology.Topo, oldConf *BRConf) (*BRConf, erro
 	}
 	if err := conf.initTopo(id, topo); err != nil {
 		return nil, common.NewBasicError("Unable to initialize topo", err)
-	}
-	if err := conf.initNet(); err != nil {
-		return nil, common.NewBasicError("Unable to initialize net", err)
 	}
 	return conf, nil
 }
@@ -161,15 +152,6 @@ func (cfg *BRConf) initMacPool() error {
 			mac, _ := scrypto.InitMac(hfGenKey)
 			return mac
 		},
-	}
-	return nil
-}
-
-// initNet initializes the network configuration.
-func (cfg *BRConf) initNet() error {
-	var err error
-	if cfg.Net, err = netconf.FromTopo(cfg.BR, cfg.Topo.IFInfoMap); err != nil {
-		return err
 	}
 	return nil
 }

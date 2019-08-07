@@ -133,7 +133,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return HookError, err
 	}
 	// Destination is in a remote ISD-AS.
-	if _, ok := rp.Ctx.Conf.Net.IFs[*rp.ifNext]; ok {
+	if _, ok := rp.Ctx.Conf.BR.IFs[*rp.ifNext]; ok {
 		// Egress interface is local so re-inject the packet
 		// and make it look like it arrived in the internal interface
 		rp.RefInc(1)
@@ -194,7 +194,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 		// If the segment didn't change, no more checks to make.
 		return nil
 	}
-	prevLink := rp.Ctx.Conf.Net.IFs[origIFCurr].Type
+	prevLink := rp.Ctx.Conf.BR.IFs[origIFCurr].LinkType
 	nextLink := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext].LinkType
 	// Never allowed to switch between core segments.
 	if prevLink == proto.LinkType_core && nextLink == proto.LinkType_core {

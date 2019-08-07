@@ -43,7 +43,7 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	}
 	// Check for shorcuts in packets from core links
 	if rp.infoF.Shortcut {
-		currentLinkType := rp.Ctx.Conf.Net.IFs[*rp.ifCurr].Type
+		currentLinkType := rp.Ctx.Conf.BR.IFs[*rp.ifCurr].LinkType
 		if currentLinkType == proto.LinkType_core {
 			return common.NewBasicError("Shortcut not allowed on core segment", nil)
 		}
@@ -447,7 +447,7 @@ func (rp *RtrPkt) checkSetCurrIF(ifid *common.IFIDType) (*common.IFIDType, error
 	if ifid == nil {
 		return nil, common.NewBasicError("No interface found", nil)
 	}
-	if _, ok := rp.Ctx.Conf.Net.IFs[*ifid]; !ok {
+	if _, ok := rp.Ctx.Conf.BR.IFs[*ifid]; !ok {
 		return nil, common.NewBasicError("Unknown interface", nil, "ifid", *ifid)
 	}
 	rp.ifCurr = ifid

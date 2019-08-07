@@ -36,7 +36,7 @@ const (
 func (rp *RtrPkt) Validate() (bool, error) {
 	var mtu int
 	if rp.ifCurr != nil {
-		intf, ok := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+		intf, ok := rp.Ctx.Conf.BR.IFs[*rp.ifCurr]
 		if !ok {
 			return false, common.NewBasicError(errCurrIntfInvalid, nil, "ifid", *rp.ifCurr)
 		}

@@ -61,13 +61,13 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/border/brconf:go_default_library",
-        "//go/border/netconf:go_default_library",
         "//go/border/rctx:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/l4:go_default_library",
         "//go/lib/spath:go_default_library",
         "//go/lib/spkt:go_default_library",
+        "//go/lib/topology:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],
 )

@@ -179,7 +179,7 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 	}
 	sp.SrcIA = rp.Ctx.Conf.IA
 	// Use the local address as the source host
-	pub := rp.Ctx.Conf.Net.LocAddr.PublicOverlay(rp.Ctx.Conf.Topo.Overlay)
+	pub := rp.Ctx.Conf.BR.InternalAddrs.PublicOverlay(rp.Ctx.Conf.Topo.Overlay)
 	sp.SrcHost = pub.L3()
 	return sp, nil
 }
@@ -253,7 +253,7 @@ func (rp *RtrPkt) replyEgress(dir rcmn.Dir, dst *overlay.OverlayAddr, ifid commo
 	if err := rp.validateLocalIF(rp.ifNext); err != nil {
 		return err
 	}
-	if _, ok := rp.Ctx.Conf.Net.IFs[*rp.ifNext]; ok {
+	if _, ok := rp.Ctx.Conf.BR.IFs[*rp.ifNext]; ok {
 		// Egress interface is on this BR
 		// Re-inject to process the reply as an "Egress br"
 		// and make it look like it arrived in the local socket

@@ -19,7 +19,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/border/brconf"
-	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/common"
@@ -27,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const PosixSock brconf.SockType = "posix"
@@ -47,7 +47,7 @@ func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	// Check if the existing socket can be reused. On startup, oldCtx is nil.
 	if oldCtx != nil {
 		// The socket can be reused if the local address does not change.
-		if ctx.Conf.Net.LocAddr.Equal(oldCtx.Conf.Net.LocAddr) {
+		if ctx.Conf.BR.InternalAddrs.Equal(oldCtx.Conf.BR.InternalAddrs) {
 			log.Trace("No change detected for local socket.")
 			// Nothing changed. Copy I/O functions from old context.
 			ctx.LocSockIn = oldCtx.LocSockIn
@@ -66,7 +66,7 @@ func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	oldCtx *rctx.Ctx) error {
 
 	// Do nothing if socket is reused.
-	if oldCtx != nil && ctx.Conf.Net.LocAddr.Equal(oldCtx.Conf.Net.LocAddr) {
+	if oldCtx != nil && ctx.Conf.BR.InternalAddrs.Equal(oldCtx.Conf.BR.InternalAddrs) {
 		return nil
 	}
 	// Remove new socket if it exists. It might not be set if the setup failed.
@@ -85,7 +85,7 @@ func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 
 func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx, labels prometheus.Labels) error {
 	// Get Bind address if set, Public otherwise
-	bind := ctx.Conf.Net.LocAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay)
+	bind := ctx.Conf.BR.InternalAddrs.BindOrPublicOverlay(ctx.Conf.Topo.Overlay)
 	log.Debug("Setting up new local socket.", "bind", bind)
 	// Listen on the socket.
 	over, err := conn.New(bind, nil, nil)
@@ -106,18 +106,18 @@ var _ extSockOps = posixExt{}
 type posixExt posixLoc
 
 // Setup configures a POSIX(/BSD) interface socket.
-func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
+func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 	labels prometheus.Labels, oldCtx *rctx.Ctx) error {
 
 	// No old context. This happens during startup of the router.
 	if oldCtx == nil {
 		return p.addIntf(r, ctx, intf, labels)
 	}
-	if oldIntf, ok := oldCtx.Conf.Net.IFs[intf.Id]; ok {
+	if oldIntf, ok := oldCtx.Conf.BR.IFs[intf.Id]; ok {
 		// Reuse socket if the interface has not changed.
 		if !interfaceChanged(intf, oldIntf) {
 			log.Trace("No change detected for external socket.", "conn",
-				intf.IFAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay))
+				intf.Local.BindOrPublicOverlay(ctx.Conf.Topo.Overlay))
 			ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
 			ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
 			return nil
@@ -129,12 +129,12 @@ func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	return p.addIntf(r, ctx, intf, labels)
 }
 
-func (p posixExt) Rollback(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
+func (p posixExt) Rollback(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 	labels prometheus.Labels, oldCtx *rctx.Ctx) error {
 
-	var oldIntf *netconf.Interface
+	var oldIntf *topology.IFInfo
 	if oldCtx != nil {
-		oldIntf = oldCtx.Conf.Net.IFs[intf.Id]
+		oldIntf = oldCtx.Conf.BR.IFs[intf.Id]
 	}
 	// Do not rollback socket if it is reused by new context.
 	if oldIntf != nil && !interfaceChanged(intf, oldIntf) {
@@ -154,13 +154,13 @@ func (p posixExt) Rollback(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	return p.addIntf(r, oldCtx, oldIntf, labels)
 }
 
-func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
+func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 	labels prometheus.Labels) error {
 
 	// Connect to remote address.
 	log.Debug("Setting up new external socket.", "intf", intf)
-	bind := intf.IFAddr.BindOrPublicOverlay(intf.IFAddr.Overlay)
-	c, err := conn.New(bind, intf.RemoteAddr, nil)
+	bind := intf.Local.BindOrPublicOverlay(intf.Local.Overlay)
+	c, err := conn.New(bind, intf.Remote, nil)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
@@ -173,7 +173,7 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	return nil
 }
 
-func (p posixExt) Teardown(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, oldCtx *rctx.Ctx) {
+func (p posixExt) Teardown(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo, oldCtx *rctx.Ctx) {
 	if oldCtx == nil || oldCtx.ExtSockIn[intf.Id] == nil {
 		return
 	}
@@ -186,10 +186,10 @@ func (p posixExt) Teardown(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, ol
 
 // interfaceChanged returns true if a new input goroutine is needed for the
 // corresponding interface.
-func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bool {
+func interfaceChanged(newIntf *topology.IFInfo, oldIntf *topology.IFInfo) bool {
 	return (newIntf.Id != oldIntf.Id ||
-		!newIntf.IFAddr.Equal(oldIntf.IFAddr) ||
-		!newIntf.RemoteAddr.Equal(oldIntf.RemoteAddr))
+		!newIntf.Local.Equal(oldIntf.Local) ||
+		!newIntf.Remote.Equal(oldIntf.Remote))
 }
 
 // Create a set of labels for ringbuf with `sock` renamed to `ringId`.

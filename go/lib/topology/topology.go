@@ -126,7 +126,7 @@ func NewTopo() *Topo {
 		SIG:       make(IDAddrMap),
 		DS:        make(IDAddrMap),
 		ZK:        make(map[int]*addr.AppAddr),
-		IFInfoMap: make(map[common.IFIDType]IFInfo),
+		IFInfoMap: make(IfInfoMap),
 	}
 }
 
@@ -188,13 +188,20 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			return err
 		}
 		brInfo := BRInfo{
+			Name:          name,
 			CtrlAddrs:     ctrlAddr,
 			InternalAddrs: intAddr,
+			IFs:           make(map[common.IFIDType]*IFInfo),
 		}
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
+			// Check that ifid is unique
+			if _, ok := t.IFInfoMap[ifid]; ok {
+				return common.NewBasicError("IFID already exists", nil, "ID", ifid)
+			}
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
 			ifinfo := IFInfo{
+				Id:            ifid,
 				BRName:        name,
 				InternalAddrs: intAddr,
 				CtrlAddrs:     ctrlAddr,
@@ -213,6 +220,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			// These fields are only necessary for the border router.
 			// Parsing should not fail if they are missing.
 			if rawIntf.Overlay == "" && rawIntf.BindOverlay == nil && rawIntf.RemoteOverlay == nil {
+				brInfo.IFs[ifid] = &ifinfo
 				t.IFInfoMap[ifid] = ifinfo
 				continue
 			}
@@ -225,6 +233,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			if ifinfo.Remote, err = rawIntf.remoteBRAddr(ifinfo.Overlay); err != nil {
 				return err
 			}
+			brInfo.IFs[ifid] = &ifinfo
 			t.IFInfoMap[ifid] = ifinfo
 		}
 		sort.Slice(brInfo.IFIDs, func(i, j int) bool {
@@ -403,15 +412,23 @@ func (t *Topo) zkSvcFromRaw(zksvc map[int]*RawAddrPort) error {
 // to in order to use that interface, via the IFInfoMap member of the Topo
 // struct.
 type BRInfo struct {
-	CtrlAddrs     *TopoAddr
+	Name string
+	// CtrlAddrs are the local control-plane addresses.
+	CtrlAddrs *TopoAddr
+	// InternalAddrs are the local data-plane addresses.
 	InternalAddrs *TopoBRAddr
-	IFIDs         []common.IFIDType
+	// IFIDs is a sorted list of the interface IDs.
+	IFIDs []common.IFIDType
+	// IFs is a map of interface IDs.
+	IFs map[common.IFIDType]*IFInfo
 }
 
 // IFInfo describes a border router link to another AS, including the internal address
 // applications should send traffic for the link to (InternalAddrs) and information about
 // the link itself and the remote side of it.
 type IFInfo struct {
+	// Id is the interface ID. It is unique per AS.
+	Id            common.IFIDType
 	BRName        string
 	CtrlAddrs     *TopoAddr
 	Overlay       overlay.Type

@@ -231,6 +231,7 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm := make(map[common.IFIDType]IFInfo)
 	isdas, _ := addr.IAFromString("1-ff00:0:312")
 	ifm[1] = IFInfo{
+		Id:     1,
 		BRName: "br1-ff00:0:311-1",
 		InternalAddrs: &TopoBRAddr{
 			IPv4:    mkOB("10.1.0.1", 0, ""),
@@ -252,6 +253,7 @@ func Test_IFInfoMap(t *testing.T) {
 	}
 	isdas, _ = addr.IAFromString("1-ff00:0:314")
 	ifm[3] = IFInfo{
+		Id:     3,
 		BRName: "br1-ff00:0:311-1",
 		InternalAddrs: &TopoBRAddr{
 			IPv4:    mkOB("10.1.0.1", 0, ""),
@@ -273,6 +275,7 @@ func Test_IFInfoMap(t *testing.T) {
 	}
 	isdas, _ = addr.IAFromString("1-ff00:0:313")
 	ifm[8] = IFInfo{
+		Id:     8,
 		BRName: "br1-ff00:0:311-1",
 		InternalAddrs: &TopoBRAddr{
 			IPv4:    mkOB("10.1.0.1", 0, ""),
@@ -306,6 +309,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	ifm := make(map[common.IFIDType]IFInfo)
 	isdas, _ := addr.IAFromString("6-ff00:0:363")
 	ifm[91] = IFInfo{
+		Id:     91,
 		BRName: "borderrouter6-ff00:0:362-1",
 		InternalAddrs: &TopoBRAddr{
 			IPv4:    mkOB("10.1.0.1", 0, ""),
@@ -327,6 +331,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	}
 	isdas, _ = addr.IAFromString("6-ff00:0:364")
 	ifm[32] = IFInfo{
+		Id:     32,
 		BRName: "borderrouter6-ff00:0:362-9",
 		InternalAddrs: &TopoBRAddr{
 			IPv4:    mkOB("10.1.0.2", 0, ""),
