@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segfetcher_test
+package fetcher
 
 import (
 	"context"
@@ -158,8 +158,7 @@ func TestRequestSplitter(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			splitter, err := segfetcher.NewRequestSplitter(test.LocalIA, inspector)
-			xtest.FailOnErr(t, err)
+			splitter := NewRequestSplitter(test.LocalIA, inspector)
 			requests, err := splitter.Split(context.Background(), test.Request)
 			if test.ExpectedErrMsg != "" {
 				assert.Error(t, err)

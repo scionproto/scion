@@ -12,15 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package segfetcher contains all the logic that is needed to fetch segments,
+// verify and store segments in an efficient manner. It is designed to be
+// pluggable into sciond and PS.
 package segfetcher
-
-import (
-	"context"
-)
-
-// Splitter splits a single request into a request set.
-type Splitter interface {
-	// Split splits the request into a request set. Assumes that the request
-	// has been validated for the local IA.
-	Split(ctx context.Context, r Request) (RequestSet, error)
-}

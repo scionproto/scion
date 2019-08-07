@@ -14,13 +14,8 @@
 
 package segfetcher
 
-import (
-	"context"
-)
-
-// Splitter splits a single request into a request set.
-type Splitter interface {
-	// Split splits the request into a request set. Assumes that the request
-	// has been validated for the local IA.
-	Split(ctx context.Context, r Request) (RequestSet, error)
+// Validator validates a request.
+type Validator interface {
+	// Validate should return an error if the given request is not valid.
+	Validate(r Request) error
 }

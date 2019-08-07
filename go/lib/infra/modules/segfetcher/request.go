@@ -14,7 +14,10 @@
 
 package segfetcher
 
-import "github.com/scionproto/scion/go/lib/addr"
+import (
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+)
 
 // Request represents a path or segment request.
 type Request struct {
@@ -25,6 +28,14 @@ type Request struct {
 // IsZero returns whether the request is empty.
 func (r Request) IsZero() bool {
 	return r.Src.IsZero() && r.Dst.IsZero()
+}
+
+// ToSegReq returns the request as a path_mgmt segment request.
+func (r Request) ToSegReq() *path_mgmt.SegReq {
+	return &path_mgmt.SegReq{
+		RawSrcIA: r.Src.IAInt(),
+		RawDstIA: r.Dst.IAInt(),
+	}
 }
 
 // RequestSet is a set of requests.
