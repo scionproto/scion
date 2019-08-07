@@ -92,7 +92,7 @@ change_remote_ip() {
     jq ".BorderRouters[].Interfaces[].RemoteOverlay.Addr = $3" $1 | sponge $1
     ./tools/dc scion kill -s HUP scion_br"$2"-1
     sleep 2
-    check_logs "RemoteAddr:[$(unqoute $3)]" $2
+    check_logs "Remote:[$(unqoute $3)]" $2
 }
 
 check_change_initial_ip() {
