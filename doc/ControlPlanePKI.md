@@ -147,7 +147,7 @@ not appear in the TRC.
 
 ## Overview of Keys and Certificates
 
-voting ASes have online and offline key pairs. Issuing ASes have issuing keys. Offline keys are used
+Voting ASes have online and offline key pairs. Issuing ASes have issuing keys. Offline keys are used
 for infrequent safety-critical operations that will require administrator involvement to cross an
 air gap, while online and issuing keys are used for frequent automated operations that do not
 require administrator involvement. The renewal of AS and Issuer certificates is an example of a
@@ -182,7 +182,7 @@ their own) AS certificates.
 
 ### Table: Certificates
 
-| Name               | Notation      | Signed by       | Associated key    | validity ⁴      |
+| Name               | Notation      | Signed by       | Associated key    | Validity ⁴      |
 | ------------------ | ------------- | --------------- | ----------------- | --------------- |
 | Issuer certificate | `C_issuer`    | `K_issuing`     | `K_iss_cert`      | 1 week          |
 | AS certificate     | `C_AS`        | `K_iss_cert`    | `K_enc`, `K_sign` | 3 days          |
