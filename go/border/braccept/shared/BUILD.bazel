@@ -15,6 +15,5 @@ go_library(
         "//go/lib/scrypto:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_google_gopacket//afpacket:go_default_library",
-        "@org_golang_x_crypto//pbkdf2:go_default_library",
     ],
 )

@@ -19,6 +19,7 @@ package rctx
 
 import (
 	"math/rand"
+	"sync"
 	"sync/atomic"
 
 	"github.com/scionproto/scion/go/border/brconf"
@@ -26,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -33,6 +35,8 @@ import (
 type Ctx struct {
 	// Conf contains the router state for this context.
 	Conf *brconf.BRConf
+	// HFMacPool is the pool of Hop Field MAC generation instances.
+	HFMacPool *sync.Pool
 	// LockSockIn is a Sock for receiving packets from the local AS,
 	LocSockIn *Sock
 	// LocSockOut is a Sock for sending packets to the local AS,
@@ -56,6 +60,21 @@ func New(conf *brconf.BRConf) *Ctx {
 		ExtSockIn:  make(map[common.IFIDType]*Sock),
 	}
 	return ctx
+}
+
+// initMacPool initializes the hop field mac pool.
+func (ctx *Ctx) InitMacPool() error {
+	hfMacFactory, err := scrypto.HFMacFactory(ctx.Conf.MasterKeys.Key0)
+	if err != nil {
+		return err
+	}
+	// Create a pool of MAC instances.
+	ctx.HFMacPool = &sync.Pool{
+		New: func() interface{} {
+			return hfMacFactory()
+		},
+	}
+	return nil
 }
 
 func (ctx *Ctx) ResolveSVC(svc addr.HostSVC) ([]*overlay.OverlayAddr, error) {
