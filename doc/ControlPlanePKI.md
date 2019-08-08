@@ -291,15 +291,15 @@ a trust-reset TRC.
 The following are conditions that must hold true for every TRC:
 
 1. `not_before < not_after`
-1. `1 <= voting_quorum <= count(VotingASes)`
-1. `1 <= count(IssuingASes)`
+1. `1 <= voting_quorum <= count(voting ASes)`
+1. `1 <= count(issuing ASes)`
 1. Each `voting` AS has an offline and online key.
 1. Each `issuing` AS has an issuing key.
 1. Each `authoritative` AS is a `core` AS.
 1. No non-`voting` AS has an online or offline key.
 1. No non-`issuing` AS has an issuing key.
 1. `(base_version == version) <==> (grace_period == 0)` (Initial TRC or trust reset)
-1. `(base_version == version) ==> All keys attach proof of possession to TRC`
+1. `(base_version == version) ==> All keys must attach proof of possession to TRC`
 
 ### Example of a TRC Payload
 
@@ -592,12 +592,12 @@ the algorithm and the key.
 The following table shows what keys are authenticated by the different certificate types. The key
 notation is the same as in the [private keys table](#table-private-keys).
 
-|                | Issuer Certificate      | AS certificate      |
+| Key Type       | Issuer Certificate      | AS certificate      |
 | -------------- | ----------------------- | ------------------- |
-| Issuing Key    | required (`K_iss_cert`) | illegal             |
-| Encryption Key | illegal                 | required (`K_enc`)  |
-| Signing Key    | illegal                 | required (`K_sign`) |
-| Revocation Key | optional (`K_rev`)      | optional (`K_rev`)  |
+| `issuing`      | required (`K_iss_cert`) | illegal             |
+| `encryption`   | illegal                 | required (`K_enc`)  |
+| `signing`      | illegal                 | required (`K_sign`) |
+| `revocation`   | optional (`K_rev`)      | optional (`K_rev`)  |
 
 ### Certificate Section: `issuer`
 
