@@ -26,7 +26,7 @@ const (
 	// InvalidKeyMeta indicates an invalid key metadata.
 	InvalidKeyMeta = "invalid key meta"
 	// InvalidKeyVersion indicates an invalid key version.
-	InvalidKeyVersion = "invalid key version"
+	InvalidKeyVersion = "invalid key_version"
 )
 
 // ASToKeyMeta maps an AS to its key metadata for a single key type.
@@ -69,7 +69,7 @@ func (c *KeyChanges) insertModifications(as addr.AS, prev, next PrimaryAS) error
 		}
 		modified, err := ValidateKeyUpdate(prevMeta, meta)
 		if err != nil {
-			return common.NewBasicError(InvalidKeyMeta, err, "AS", as, "keyType", keyType)
+			return common.NewBasicError(InvalidKeyMeta, err, "as", as, "key_type", keyType)
 		}
 		if modified {
 			c.Modified[keyType][as] = meta

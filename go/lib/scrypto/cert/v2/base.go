@@ -49,53 +49,49 @@ const (
 
 // Parsing errors.
 var (
-	// ErrSubjectNotSet indicates Subject is not set.
-	ErrSubjectNotSet = errors.New("Subject not set")
-	// ErrVersionNotSet indicates Version is not set.
-	ErrVersionNotSet = errors.New("Version not set")
-	// ErrFormatVersionNotSet indicates FormatVersion is not set.
-	ErrFormatVersionNotSet = errors.New("FormatVersion not set")
-	// ErrDescriptionNotSet indicates Description is not set.
-	ErrDescriptionNotSet = errors.New("Description not set")
-	// ErrOptionalDistributionPointsNotSet indicates OptionalDistributionPoints is not set.
-	ErrOptionalDistributionPointsNotSet = errors.New("OptionalDistributionPoints not set")
-	// ErrValidityNotSet indicates Validity is not set.
-	ErrValidityNotSet = errors.New("Validity not set")
-	// ErrKeysNotSet indicates Keys is not set.
-	ErrKeysNotSet = errors.New("Keys not set")
-	// ErrIssuerNotSet indicates Issuer is not set.
-	ErrIssuerNotSet = errors.New("Issuer not set")
-	// ErrCertificateTypeNotSet indicates CertificateType is not set.
-	ErrCertificateTypeNotSet = errors.New("CertificateType not set")
+	// ErrSubjectNotSet indicates subject is not set.
+	ErrSubjectNotSet = errors.New("subject not set")
+	// ErrVersionNotSet indicates version is not set.
+	ErrVersionNotSet = errors.New("version not set")
+	// ErrFormatVersionNotSet indicates format_version is not set.
+	ErrFormatVersionNotSet = errors.New("format_version not set")
+	// ErrDescriptionNotSet indicates description is not set.
+	ErrDescriptionNotSet = errors.New("description not set")
+	// ErrOptionalDistributionPointsNotSet indicates optional_distribution_points is not set.
+	ErrOptionalDistributionPointsNotSet = errors.New("optional_distribution_points not set")
+	// ErrValidityNotSet indicates validity is not set.
+	ErrValidityNotSet = errors.New("validity not set")
+	// ErrKeysNotSet indicates keys is not set.
+	ErrKeysNotSet = errors.New("keys not set")
+	// ErrIssuerNotSet indicates issuer is not set.
+	ErrIssuerNotSet = errors.New("issuer not set")
+	// ErrCertificateTypeNotSet indicates certificate_type is not set.
+	ErrCertificateTypeNotSet = errors.New("certificate_type not set")
 )
 
 // Validation errors.
 var (
 	// ErrAlgorithmNotSet indicates the key algorithm is not set.
 	ErrAlgorithmNotSet = errors.New("algorithm not set")
-	// ErrKeyNotSet indicates the key is not set.
-	ErrKeyNotSet = errors.New("key not set")
-	// ErrKeyVersionNotSet indicates KeyVersion is not set.
-	ErrKeyVersionNotSet = errors.New("key version not set")
 )
 
 // Base contains the shared fields between the issuer and AS certificate.
 type Base struct {
 	// Subject identifies the subject of the certificate.
-	Subject addr.IA `json:"Subject"`
+	Subject addr.IA `json:"subject"`
 	// Version indicates the certificate version.
-	Version scrypto.Version `json:"Version"`
+	Version scrypto.Version `json:"version"`
 	// FormatVersion is the certificate format version.
-	FormatVersion FormatVersion `json:"FormatVersion"`
+	FormatVersion FormatVersion `json:"format_version"`
 	// Description is a human-readable description of the certificate.
-	Description string `json:"Description"`
+	Description string `json:"description"`
 	// OptionalDistributionPoints contains optional certificate revocation
 	// distribution points.
-	OptionalDistributionPoints []addr.IA `json:"OptionalDistributionPoints"`
+	OptionalDistributionPoints []addr.IA `json:"optional_distribution_points"`
 	// Validity defines the validity period of the certificate.
-	Validity *scrypto.Validity `json:"Validity"`
+	Validity *scrypto.Validity `json:"validity"`
 	// Keys holds all keys authenticated by this certificate.
-	Keys map[KeyType]scrypto.KeyMeta `json:"Keys"`
+	Keys map[KeyType]scrypto.KeyMeta `json:"keys"`
 }
 
 // Validate validates the shared fields are set correctly.
@@ -166,10 +162,10 @@ func (b *Base) checkAllSet() error {
 }
 
 const (
-	IssuingKeyJSON    = "Issuing"
-	SigningKeyJSON    = "Signing"
-	EncryptionKeyJSON = "Encryption"
-	RevocationKeyJSON = "Revocation"
+	IssuingKeyJSON    = "issuing"
+	SigningKeyJSON    = "signing"
+	EncryptionKeyJSON = "encryption"
+	RevocationKeyJSON = "revocation"
 )
 
 const (

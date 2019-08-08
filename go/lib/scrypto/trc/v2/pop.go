@@ -21,10 +21,10 @@ import (
 )
 
 const (
-	// MissingProofOfPossession indicates that the proof of possession is missing.
-	MissingProofOfPossession = "missing proof of possession"
-	// UnexpectedProofOfPossession indicates an unexpected proof of possession.
-	UnexpectedProofOfPossession = "unexpected proof of possession"
+	// MissingProofOfPossession indicates that the proof_of_possession is missing.
+	MissingProofOfPossession = "missing proof_of_possession"
+	// UnexpectedProofOfPossession indicates an unexpected proof_of_possession.
+	UnexpectedProofOfPossession = "unexpected proof_of_possession"
 )
 
 type keyTypeSet map[KeyType]struct{}
@@ -53,7 +53,7 @@ func (v *popValidator) checkProofOfPossession() error {
 	for as, types := range v.pops {
 		if len(types) > 0 {
 			return common.NewBasicError(UnexpectedProofOfPossession, nil,
-				"AS", as, "keyTypes", types)
+				"as", as, "key_types", types)
 		}
 	}
 	return nil
@@ -73,7 +73,8 @@ func (v *popValidator) popForModType(changes map[KeyType]ASToKeyMeta) error {
 func (v *popValidator) popForKeyType(keyType KeyType, m map[addr.AS]scrypto.KeyMeta) error {
 	for as := range m {
 		if !v.hasPop(v.TRC.ProofOfPossession[as], keyType) {
-			return common.NewBasicError(MissingProofOfPossession, nil, "AS", as, "keyType", keyType)
+			return common.NewBasicError(MissingProofOfPossession, nil,
+				"as", as, "key_type", keyType)
 		}
 		delete(v.pops[as], keyType)
 	}

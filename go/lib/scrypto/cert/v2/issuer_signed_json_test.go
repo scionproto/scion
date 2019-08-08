@@ -36,9 +36,9 @@ func TestProtectedIssuerUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "TRC",
-				"TRCVersion": 4,
-				"crit": ["Type", "TRCVersion"]
+				"type": "trc",
+				"trc_version": 4,
+				"crit": ["type", "trc_version"]
 			}`,
 			Protected: cert.ProtectedIssuer{
 				Algorithm:  scrypto.Ed25519,
@@ -48,9 +48,9 @@ func TestProtectedIssuerUnmarshalJSON(t *testing.T) {
 		"Algorithm not set": {
 			Input: `
 			{
-				"Type": "TRC",
-				"TRCVersion": 4,
-				"crit": ["Type", "TRCVersion"]
+				"type": "trc",
+				"trc_version": 4,
+				"crit": ["type", "trc_version"]
 			}`,
 			ExpectedErrMsg: cert.ErrAlgorithmNotSet.Error(),
 		},
@@ -58,8 +58,8 @@ func TestProtectedIssuerUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"TRCVersion": 4,
-				"crit": ["Type", "TRCVersion"]
+				"trc_version": 4,
+				"crit": ["type", "trc_version"]
 			}`,
 			ExpectedErrMsg: cert.ErrSignatureTypeNotSet.Error(),
 		},
@@ -67,17 +67,17 @@ func TestProtectedIssuerUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "TRC",
-				"crit": ["Type", "TRCVersion"]
+				"type": "trc",
+				"crit": ["type", "trc_version"]
 			}`,
-			ExpectedErrMsg: cert.ErrIssuerTRCVersionNotSet.Error(),
+			ExpectedErrMsg: cert.ErrTRCVersionNotSet.Error(),
 		},
 		"crit not set": {
 			Input: `
 			{
 				"alg": "ed25519",
-				"Type": "TRC",
-				"TRCVersion": 4
+				"type": "trc",
+				"trc_version": 4
 			}`,
 			ExpectedErrMsg: cert.ErrCritNotSet.Error(),
 		},
@@ -91,8 +91,8 @@ func TestProtectedIssuerUnmarshalJSON(t *testing.T) {
 		"invalid json": {
 			Input: `
 			{
-				"KeyVersion": 1,
-				"Algorithm": "ed25519"
+				"key_version": 1,
+				"algorithm": "ed25519"
 			`,
 			ExpectedErrMsg: "unexpected end of JSON input",
 		},
@@ -119,11 +119,11 @@ func TestSignatureTypeTRCUnmarshalJSON(t *testing.T) {
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:     []byte(`"TRC"`),
+			Input:     []byte(`"trc"`),
 			Assertion: assert.NoError,
 		},
 		"Wrong case": {
-			Input:     []byte(`"trc"`),
+			Input:     []byte(`"TRC"`),
 			Assertion: assert.Error,
 		},
 	}
@@ -155,15 +155,15 @@ func TestCritIssuerUnmarshalJSON(t *testing.T) {
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:     []byte(`{"crit": ["Type", "TRCVersion"]}`),
+			Input:     []byte(`{"crit": ["type", "trc_version"]}`),
 			Assertion: assert.NoError,
 		},
 		"Out of order": {
-			Input:     []byte(`{"crit": ["TRCVersion", "Type"]}`),
+			Input:     []byte(`{"crit": ["trc_version", "type"]}`),
 			Assertion: assert.Error,
 		},
 		"Length mismatch": {
-			Input:     []byte(`{"crit": ["Type"]}`),
+			Input:     []byte(`{"crit": ["type"]}`),
 			Assertion: assert.Error,
 		},
 		"Invalid json": {
@@ -171,7 +171,7 @@ func TestCritIssuerUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Unknown Entry": {
-			Input:     []byte(`{"crit": ["Type", "Garbage"]}`),
+			Input:     []byte(`{"crit": ["type", "Garbage"]}`),
 			Assertion: assert.Error,
 		},
 	}
@@ -193,5 +193,5 @@ func TestCritIssuerMarshalJSON(t *testing.T) {
 		Crit []string `json:"crit"`
 	}
 	require.NoError(t, json.Unmarshal(b, &protected))
-	assert.ElementsMatch(t, []string{"Type", "TRCVersion"}, protected.Crit)
+	assert.ElementsMatch(t, []string{"type", "trc_version"}, protected.Crit)
 }

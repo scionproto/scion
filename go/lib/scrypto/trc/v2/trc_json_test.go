@@ -29,19 +29,19 @@ import (
 )
 
 type genTRC struct {
-	ISD               *addr.ISD                  `json:"ISD,omitempty"`
-	Version           *scrypto.Version           `json:"TRCVersion,omitempty"`
-	BaseVersion       *scrypto.Version           `json:"BaseVersion,omitempty"`
-	Description       *string                    `json:"Description,omitempty"`
-	VotingQuorum      *uint8                     `json:"VotingQuorum,omitempty"`
-	FormatVersion     *trc.FormatVersion         `json:"FormatVersion,omitempty"`
-	GracePeriod       *trc.Period                `json:"GracePeriod,omitempty"`
-	TrustResetAllowed *bool                      `json:"TrustResetAllowed,omitempty"`
-	Validity          *scrypto.Validity          `json:"Validity,omitempty"`
-	PrimaryASes       *trc.PrimaryASes           `json:"PrimaryASes,omitempty"`
-	Votes             *map[addr.AS]trc.Vote      `json:"Votes,omitempty"`
-	ProofOfPossession *map[addr.AS][]trc.KeyType `json:"ProofOfPossession,omitempty"`
-	UnknownField      string                     `json:"UnknownField,omitempty"`
+	ISD               *addr.ISD                  `json:"isd,omitempty"`
+	Version           *scrypto.Version           `json:"trc_version,omitempty"`
+	BaseVersion       *scrypto.Version           `json:"base_version,omitempty"`
+	Description       *string                    `json:"description,omitempty"`
+	VotingQuorum      *uint8                     `json:"voting_quorum,omitempty"`
+	FormatVersion     *trc.FormatVersion         `json:"format_version,omitempty"`
+	GracePeriod       *trc.Period                `json:"grace_period,omitempty"`
+	TrustResetAllowed *bool                      `json:"trust_reset_allowed,omitempty"`
+	Validity          *scrypto.Validity          `json:"validity,omitempty"`
+	PrimaryASes       *trc.PrimaryASes           `json:"primary_ases,omitempty"`
+	Votes             *map[addr.AS]trc.Vote      `json:"votes,omitempty"`
+	ProofOfPossession *map[addr.AS][]trc.KeyType `json:"proof_of_possession,omitempty"`
+	UnknownField      string                     `json:"unknown_field,omitempty"`
 }
 
 func TestTRCUnmarshalJSON(t *testing.T) {
@@ -130,7 +130,7 @@ func TestTRCUnmarshalJSON(t *testing.T) {
 			Modify: func(g *genTRC) {
 				g.UnknownField = "And if you don't know, now you know!"
 			},
-			ExpectedErrMsg: `json: unknown field "UnknownField"`,
+			ExpectedErrMsg: `json: unknown field "unknown_field"`,
 		},
 	}
 	for name, test := range tests {
@@ -161,39 +161,39 @@ func TestVoteUnmarshalJSON(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"Type": "Online",
-				"KeyVersion": 0
+				"key_type": "online",
+				"key_version": 0
 			}`,
 			Vote: trc.Vote{
-				Type:       trc.OnlineKey,
+				KeyType:    trc.OnlineKey,
 				KeyVersion: 0,
 			},
 		},
-		"Type not set": {
+		"key_type not set": {
 			Input: `
 			{
-				"KeyVersion": 0
+				"key_version": 0
 			}`,
-			ExpectedErrMsg: trc.ErrTypeNotSet.Error(),
+			ExpectedErrMsg: trc.ErrKeyTypeNotSet.Error(),
 		},
-		"KeyVersion not set": {
+		"key_version not set": {
 			Input: `
 			{
-				"Type": "Online"
+				"key_type": "online"
 			}`,
 			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
 		},
 		"Unknown field": {
 			Input: `
 			{
-				"UnknownField": "Hi! My name is!"
+				"unknown_field": "Hi! My name is!"
 			}`,
-			ExpectedErrMsg: `json: unknown field "UnknownField"`,
+			ExpectedErrMsg: `json: unknown field "unknown_field"`,
 		},
 		"invalid json": {
 			Input: `
 			{
-				"Type": "Online"
+				"key_type": "online"
 			`,
 			ExpectedErrMsg: "unexpected end of JSON input",
 		},
@@ -282,7 +282,7 @@ func TestPeriodUnmarshalJSON(t *testing.T) {
 
 func TestPeriodMarshalJSON(t *testing.T) {
 	type mockTRC struct {
-		Period trc.Period
+		Period trc.Period `json:"period"`
 	}
 	tests := map[string]struct {
 		// Use a struct to simulate TRC marshaling. Pointer vs value receiver.
@@ -292,12 +292,12 @@ func TestPeriodMarshalJSON(t *testing.T) {
 	}{
 		"Valid 0": {
 			Input:     mockTRC{},
-			Expected:  []byte(`{"Period":0}`),
+			Expected:  []byte(`{"period":0}`),
 			Assertion: assert.NoError,
 		},
 		"Valid hour": {
 			Input:     mockTRC{Period: trc.Period{Duration: time.Hour}},
-			Expected:  []byte(`{"Period":3600}`),
+			Expected:  []byte(`{"period":3600}`),
 			Assertion: assert.NoError,
 		},
 	}

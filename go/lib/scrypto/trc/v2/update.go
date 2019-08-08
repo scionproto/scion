@@ -23,12 +23,12 @@ import (
 
 // Update validation errors with context.
 const (
-	// ImmutableBaseVersion indicates an invalid update to the BaseVersion.
-	ImmutableBaseVersion = "BaseVersion is immutable"
+	// ImmutableBaseVersion indicates an invalid update to the base_version.
+	ImmutableBaseVersion = "base_version is immutable"
 	// ImmutableISD indicates an invalid update to the ISD identifier.
-	ImmutableISD = "ISD is immutable"
-	// ImmutableTrustResetAllowed indicates an invalid update to TrustResetAllowed.
-	ImmutableTrustResetAllowed = "TrustResetAllowed is immutable"
+	ImmutableISD = "isd is immutable"
+	// ImmutableTrustResetAllowed indicates an invalid update to trust_reset_allowed.
+	ImmutableTrustResetAllowed = "trust_reset_allowed is immutable"
 	// InvalidVersionIncrement indicates an invalid version increment.
 	InvalidVersionIncrement = "TRC version must be incremented by one"
 	// MissingVote indicates an AS has not cast vote during a regular update
@@ -37,7 +37,7 @@ const (
 	// NotInsidePreviousValidityPeriod indicates the validity periods do not overlap.
 	NotInsidePreviousValidityPeriod = "not inside previous validity period"
 	// QuorumUnmet indicates that not enough votes have been cast.
-	QuorumUnmet = "voting quorum unmet"
+	QuorumUnmet = "voting_quorum unmet"
 	// WrongVotingKeyType indicates the vote is cast with the wrong key type.
 	WrongVotingKeyType = "vote with wrong key type"
 	// WrongVotingKeyVersion indicates the vote is cast with the wrong key version
@@ -129,7 +129,7 @@ func (v *UpdateValidator) sanity() error {
 	}
 	if !v.Prev.Validity.Contains(v.Next.Validity.NotBefore.Time) {
 		return common.NewBasicError(NotInsidePreviousValidityPeriod, nil,
-			"prevValidity", v.Prev.Validity, "NotBefore", v.Next.Validity.NotBefore)
+			"previous validity", v.Prev.Validity, "not_before", v.Next.Validity.NotBefore)
 	}
 	return nil
 }
@@ -200,13 +200,13 @@ func (v *UpdateValidator) checkVotesRegular(info UpdateInfo) error {
 			expectedKeyType = OfflineKey
 		}
 		if err := v.hasVotingRights(as, vote, expectedKeyType); err != nil {
-			return common.NewBasicError(InvalidVote, err, "AS", as, "vote", vote)
+			return common.NewBasicError(InvalidVote, err, "as", as, "vote", vote)
 		}
 	}
 	// Check all ASes with changed online key have cast a vote.
 	for as := range info.KeyChanges.Modified[OnlineKey] {
 		if _, ok := v.Next.Votes[as]; !ok {
-			return common.NewBasicError(MissingVote, nil, "AS", as)
+			return common.NewBasicError(MissingVote, nil, "as", as)
 		}
 	}
 	return nil
@@ -216,7 +216,7 @@ func (v *UpdateValidator) checkVotesSensitive(info UpdateInfo) error {
 	// Check all votes from voting ASes with offline keys.
 	for as, vote := range v.Next.Votes {
 		if err := v.hasVotingRights(as, vote, OfflineKey); err != nil {
-			return common.NewBasicError(InvalidVote, err, "AS", as, "vote", vote)
+			return common.NewBasicError(InvalidVote, err, "as", as, "vote", vote)
 		}
 	}
 	return nil
@@ -230,9 +230,9 @@ func (v *UpdateValidator) hasVotingRights(as addr.AS, vote Vote, keyType KeyType
 	if !primary.Is(Voting) {
 		return ErrNoVotingRight
 	}
-	if vote.Type != keyType {
+	if vote.KeyType != keyType {
 		return common.NewBasicError(WrongVotingKeyType, nil,
-			"expected", keyType, "actual", vote.Type)
+			"expected", keyType, "actual", vote.KeyType)
 	}
 	if primary.Keys[keyType].KeyVersion != vote.KeyVersion {
 		return common.NewBasicError(WrongVotingKeyVersion, nil,

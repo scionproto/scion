@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -49,7 +48,7 @@ const (
 	// MissingKey indicates that the primary AS is missing a key.
 	MissingKey = "missing key"
 	// InvalidPrimaryAS indicates an invalid primary AS entry.
-	InvalidPrimaryAS = "invalid primary AS entry"
+	InvalidPrimaryAS = "invalid primary as entry"
 )
 
 // Parsing errors
@@ -67,7 +66,7 @@ type PrimaryASes map[addr.AS]PrimaryAS
 func (p *PrimaryASes) ValidateInvariant() error {
 	for as, primary := range *p {
 		if err := primary.ValidateInvariant(); err != nil {
-			return common.NewBasicError(InvalidPrimaryAS, err, "AS", as)
+			return common.NewBasicError(InvalidPrimaryAS, err, "as", as)
 		}
 	}
 	return nil
@@ -100,8 +99,8 @@ type primaryASAlias PrimaryAS
 
 // PrimaryAS holds the attributes and keys of a primary AS.
 type PrimaryAS struct {
-	Attributes Attributes                  `json:"Attributes"`
-	Keys       map[KeyType]scrypto.KeyMeta `json:"Keys"`
+	Attributes Attributes                  `json:"attributes"`
+	Keys       map[KeyType]scrypto.KeyMeta `json:"keys"`
 }
 
 // Is returns true if the primary AS holds this property.
@@ -135,10 +134,10 @@ func (p *PrimaryAS) ValidateInvariant() error {
 func (p *PrimaryAS) checkKeyExistence(keyType KeyType, shouldExist bool) error {
 	_, ok := p.Keys[keyType]
 	if ok && !shouldExist {
-		return common.NewBasicError(UnexpectedKey, nil, "type", keyType)
+		return common.NewBasicError(UnexpectedKey, nil, "key_type", keyType)
 	}
 	if !ok && shouldExist {
-		return common.NewBasicError(MissingKey, nil, "type", keyType)
+		return common.NewBasicError(MissingKey, nil, "key_type", keyType)
 	}
 	return nil
 }
@@ -209,24 +208,22 @@ func (t *Attributes) UnmarshalJSON(b []byte) error {
 
 const (
 	// Authoritative indicates an authoritative AS.
-	Authoritative Attribute = "Authoritative"
+	Authoritative Attribute = "authoritative"
 	// Core indicates a core AS.
-	Core Attribute = "Core"
+	Core Attribute = "core"
 	// Issuing indicates an issuing AS.
-	Issuing Attribute = "Issuing"
+	Issuing Attribute = "issuing"
 	// Voting indicates a voting AS. A voting AS must also be a core AS.
-	Voting Attribute = "Voting"
+	Voting Attribute = "voting"
 )
-
-var _ json.Unmarshaler = (*Attribute)(nil)
 
 // Attribute indicates the capability of a primary AS.
 type Attribute string
 
-// UnmarshalJSON checks that the attribute is valid. It can either be
-// "Authoritative", "Core", "Issuing", or "Voting".
-func (t *Attribute) UnmarshalJSON(b []byte) error {
-	switch Attribute(strings.Trim(string(b), `"`)) {
+// UnmarshalText checks that the attribute is valid. It can either be
+// "authoritative", "core", "issuing", or "voting".
+func (t *Attribute) UnmarshalText(b []byte) error {
+	switch Attribute(b) {
 	case Authoritative:
 		*t = Authoritative
 	case Issuing:
@@ -242,9 +239,9 @@ func (t *Attribute) UnmarshalJSON(b []byte) error {
 }
 
 const (
-	IssuingKeyJSON = "Issuing"
-	OnlineKeyJSON  = "Online"
-	OfflineKeyJSON = "Offline"
+	IssuingKeyJSON = "issuing"
+	OnlineKeyJSON  = "online"
+	OfflineKeyJSON = "offline"
 )
 
 const (
@@ -291,5 +288,5 @@ func (t KeyType) MarshalText() ([]byte, error) {
 	case IssuingKey:
 		return []byte(IssuingKeyJSON), nil
 	}
-	return nil, common.NewBasicError(InvalidKeyType, nil, "type", int(t))
+	return nil, common.NewBasicError(InvalidKeyType, nil, "key_type", int(t))
 }

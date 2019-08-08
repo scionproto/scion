@@ -65,28 +65,28 @@ func TestASUnmarshalJSON(t *testing.T) {
 		"Invalid CertificateType": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
-					g.CertificateType = "Issuer"
+					g.CertificateType = "issuer"
 				},
 				ExpectedErrMsg: cert.InvalidCertificateType,
 			},
 		},
-		"Missing Issuer.IA": {
+		"Missing issuer.ia": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
-					delete(*g.Issuer, "IA")
+					delete(*g.Issuer, "ia")
 				},
 				ExpectedErrMsg: cert.ErrIssuerIANotSet.Error(),
 			},
 		},
-		"Missing Issuer.CertificateVersion": {
+		"Missing issuer.certificate_version": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
-					delete(*g.Issuer, "CertificateVersion")
+					delete(*g.Issuer, "certificate_version")
 				},
 				ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
 			},
 		},
-		"Unknown Issuer field": {
+		"Unknown issuer field": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
 					(*g.Issuer)["UNKNOWN"] = true
@@ -133,8 +133,8 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"IA": "1-ff00:0:110",
-				"CertificateVersion": 2
+				"ia": "1-ff00:0:110",
+				"certificate_version": 2
 			}
 			`,
 			ID: cert.IssuerCertID{
@@ -145,7 +145,7 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 		"IA not set": {
 			Input: `
 			{
-				"CertificateVersion": 2
+				"certificate_version": 2
 			}
 			`,
 			ExpectedErrMsg: cert.ErrIssuerIANotSet.Error(),
@@ -153,7 +153,7 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 		"CertificateVersion not set": {
 			Input: `
 			{
-				"IA": "1-ff00:0:110"
+				"ia": "1-ff00:0:110"
 			}
 			`,
 			ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
@@ -161,8 +161,8 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 		"Unknown field": {
 			Input: `
 			{
-				"IA": "1-ff00:0:110",
-				"CertificateVersion": 2,
+				"ia": "1-ff00:0:110",
+				"certificate_version": 2,
 				"UNKNOWN": true
 			}
 			`,
@@ -190,11 +190,11 @@ func TestTypeASUnmarshalJSON(t *testing.T) {
 		Assert assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:  `"AS"`,
+			Input:  `"as"`,
 			Assert: assert.NoError,
 		},
 		"Wrong case": {
-			Input:  `"as"`,
+			Input:  `"AS"`,
 			Assert: assert.Error,
 		},
 	}
@@ -234,8 +234,8 @@ func newGenASCert() *genCert {
 		CertificateType: cert.TypeASJSON,
 	}
 	g.Issuer = &map[string]interface{}{
-		"IA":                 c.Issuer.IA,
-		"CertificateVersion": c.Issuer.CertificateVersion,
+		"ia":                  c.Issuer.IA,
+		"certificate_version": c.Issuer.CertificateVersion,
 	}
 	return g
 }

@@ -25,8 +25,8 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-// ErrIANotSet indicates the issuing IA is not set.
-var ErrIANotSet = errors.New("IA not set")
+// ErrIANotSet indicates the issuing ia is not set.
+var ErrIANotSet = errors.New("ia not set")
 
 type SignedAS struct {
 	Encoded          EncodedAS          `json:"payload"`
@@ -98,14 +98,14 @@ func (h *EncodedProtectedAS) Decode() (ProtectedAS, error) {
 type ProtectedAS struct {
 	Algorithm          string                   `json:"alg"`
 	Crit               CritAS                   `json:"crit"`
-	Type               SignatureTypeCertificate `json:"Type"`
-	CertificateVersion scrypto.Version          `json:"CertificateVersion"`
-	IA                 addr.IA                  `json:"IA"`
+	Type               SignatureTypeCertificate `json:"type"`
+	CertificateVersion scrypto.Version          `json:"certificate_version"`
+	IA                 addr.IA                  `json:"ia"`
 }
 
 // UnmarshalJSON checks that all fields are set.
 func (p *ProtectedAS) UnmarshalJSON(b []byte) error {
-	var alias ProtectedASAlias
+	var alias protectedASAlias
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&alias); err != nil {
@@ -124,15 +124,15 @@ func (p *ProtectedAS) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type ProtectedASAlias struct {
+type protectedASAlias struct {
 	Algorithm          *string                   `json:"alg"`
-	Type               *SignatureTypeCertificate `json:"Type"`
-	CertificateVersion *scrypto.Version          `json:"CertificateVersion"`
-	IA                 *addr.IA                  `json:"IA"`
+	Type               *SignatureTypeCertificate `json:"type"`
+	CertificateVersion *scrypto.Version          `json:"certificate_version"`
+	IA                 *addr.IA                  `json:"ia"`
 	Crit               *CritAS                   `json:"crit"`
 }
 
-func (p *ProtectedASAlias) checkAllSet() error {
+func (p *protectedASAlias) checkAllSet() error {
 	switch {
 	case p.Algorithm == nil:
 		return ErrAlgorithmNotSet
@@ -148,7 +148,7 @@ func (p *ProtectedASAlias) checkAllSet() error {
 	return nil
 }
 
-const SignatureTypeCertificateJSON = "Certificate"
+const SignatureTypeCertificateJSON = "certificate"
 
 // SignatureTypeCertificate indicates the public key is authenticated by an
 // issuer certificate.
@@ -167,7 +167,7 @@ func (t SignatureTypeCertificate) MarshalText() ([]byte, error) {
 }
 
 var (
-	critASFields        = []string{"Type", "CertificateVersion", "IA"}
+	critASFields        = []string{"type", "certificate_version", "ia"}
 	packedCritFields, _ = json.Marshal(critASFields)
 )
 

@@ -134,10 +134,10 @@ of each relying party hence consists of a list of TRCs.
 
 An ISD is made up of a number of ASes. There is a set of attributes that each AS may have:
 
-- __Core__: AS that has core links to other core ASes.
-- __Voting__: AS that participates in and signs TRC updates.
-- __Authoritative__: AS that is authoritative for TRCs and certificates for the local ISD.
-- __Issuing__: AS that issues AS certificates to other ASes in the ISD.
+- __core__: AS that has core links to other core ASes.
+- __voting__: AS that participates in and signs TRC updates.
+- __authoritative__: AS that is authoritative for TRCs and certificates for the local ISD.
+- __issuing__: AS that issues AS certificates to other ASes in the ISD.
 
 __Primary AS:__ has at least one of the above attributes.
 
@@ -205,21 +205,21 @@ introduced in a future version of the TRC format.
 
 This comprises all non-object values in the top level of the TRC.
 
-- __ISD__: 16-bit integer. Unique and immutable ISD identifier.
-- __Version__: 64-bit integer. TRC version, starts at 1. All TRC updates must increment
+- __isd__: 16-bit integer. Unique and immutable ISD identifier.
+- __version__: 64-bit integer. TRC version, starts at 1. All TRC updates must increment
   this by exactly 1 (i.e., no gaps, no repeats).
-- __BaseVersion__: 64-bit integer. Version of the base TRC that anchors this TRC chain.
+- __base_version__: 64-bit integer. Version of the base TRC that anchors this TRC chain.
   In a base TRC this is equal to *Version*.
-- __Description__: string. Describes the ISD/TRC in human-readable form (possibly in multiple
+- __description__: string. Describes the ISD/TRC in human-readable form (possibly in multiple
   languages).
-- __VotingQuorum__: 8-bit integer. Defines how many voting ASes from this ISD need to agree
+- __voting_quorum__: 8-bit integer. Defines how many voting ASes from this ISD need to agree
   to be able to modify the TRC.
-- __FormatVersion__: 8-bit integer. Version of the TRC format (currently 1).
-- __GracePeriod__: 32-bit integer. How long, in seconds, the previous unexpired version of
+- __format_version__: 8-bit integer. Version of the TRC format (currently 1).
+- __grace_period__: 32-bit integer. How long, in seconds, the previous unexpired version of
   the TRC should still be considered *active*, i.e., `TRC(i)` is still active until the following
   time has passed (or `TRC(i+2)` has been announced):
 
-  `TRC(i+1).Validity.NotBefore + TRC(i+1).GracePeriod`
+  `TRC(i+1).validity.not_before + TRC(i+1).grace_period`
 
   This formula allows the grace period to be adjusted according to the urgency, i.e., in a key
   compromise situation, it may be preferable to have a shorter grace period than during regular
@@ -229,43 +229,43 @@ This comprises all non-object values in the top level of the TRC.
   From a relying party's viewpoint, an updated TRC might not be available instantly since it has to
   propagate through beaconing first.
 
-- __TrustResetAllowed__: Boolean. Specifies whether a third party can announce a trust reset for
+- __trust_reset_allowed__: Boolean. Specifies whether a third party can announce a trust reset for
     this ISD.
 
-### TRC Section: Validity
+### TRC Section: `validity`
 
 The following fields must be used to determine whether a TRC is *valid* (not to be confused with
 *active*).
 
-- __NotBefore__: timestamp. Time before which this TRC cannot be considered *valid*.
-- __NotAfter__: timestamp. Time after which this TRC will no longer be considered *valid*.
+- __not_before__: timestamp. Time before which this TRC cannot be considered *valid*.
+- __not_after__: timestamp. Time after which this TRC will no longer be considered *valid*.
 
-### TRC Section: PrimaryASes
+### TRC Section: `primary_ases`
 
 This is an object that maps primary AS identifiers to their attributes and keys:
 
-- __Attributes__: Set of AS attributes. Can be `Authoritative`, `Core`, `Issuing`, and/or `Voting`.
+- __attributes__: Set of AS attributes. Can be `authoritative`, `core`, `issuing`, and/or `voting`.
   The set of attributes cannot be empty as the AS would not be considered primary. An
-  `Authoritative` AS must be `Core`.
+  `authoritative` AS must be `core`.
 
-- __Keys__: Object that maps key types (`Issuing`, `Online` or `Offline`) to an object with the
+- __keys__: Object that maps key types (`issuing`, `online` or `offline`) to an object with the
   following fields:
-    - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is replaced.
-    - __Algorithm__: string. Identifies the algorithm this key is used with.
-    - __Key__: Base64-encoded string representation of the public key.
+    - __key_version__: 64-bit integer. Starts at 1, incremented every time this key is replaced.
+    - __algorithm__: string. Identifies the algorithm this key is used with.
+    - __key__: Base64-encoded string representation of the public key.
 
 An AS that has no core links must not be a core AS. An authoritative AS must be a core AS (this
 ensures it is reachable by other core ASes for bootstrap purposes). A voting AS is required to have
 both offline and online keys. Non-voting ASes must not have offline or online keys. An issuing AS is
 required to have an issuing key. Non-issuing ASes must not have an issuing key.
 
-### TRC Section: Votes
+### TRC Section: `votes`
 
 This is an object that maps AS identifiers to a signature object which must contain exactly the
 following:
 
-- __KeyType__: string. The type of key used. (`Online` or `Offline`)
-- __KeyVersion__: 64-bit integer. The version of the key used.
+- __key_type__: string. The type of key used. (`online` or `offline`)
+- __key_version__: 64-bit integer. The version of the key used.
 
 The votes section lists all ASes that voted for the TRC update. They must hold the voting attribute
 in the previous TRC. A vote counts as valid, if the JWS signed TRC contains a signature from the
@@ -278,7 +278,7 @@ JWS signed TRC to come up with another valid TRC for the same ISD and Version nu
 A base TRC is the start of a TRC update chain. Base TRCs do not carry any votes. Therefore, trust
 is established in a different manner for base TRCs (see [TRC Bootstrapping](#trc-bootstrapping)).
 
-### TRC Section: ProofOfPossession
+### TRC Section: `proof_of_possession`
 
 This is an object that maps AS identifiers to an array of key types.
 
@@ -290,93 +290,93 @@ a trust-reset TRC.
 
 The following are conditions that must hold true for every TRC:
 
-1. `NotBefore < NotAfter`
-1. `1 <= VotingQuorum <= count(VotingASes)`
-1. `1 <= count(IssuingASes)`
-1. Each `Voting` AS has an offline and online key.
-1. Each `Issuing` AS has an issuing key.
-1. Each `Authoritative` AS is a `Core` AS.
-1. No non-`Voting` AS has an online or offline key.
-1. No non-`Issuing` AS has an issuing key.
-1. `(BaseVersion == Version) <==> (GracePeriod == 0)` (Initial TRC or trust reset)
-1. `(BaseVersion == Version) ==> All keys attach proof of possession to TRC`
+1. `not_before < not_after`
+1. `1 <= voting_quorum <= count(voting ASes)`
+1. `1 <= count(issuing ASes)`
+1. Each `voting` AS has an offline and online key.
+1. Each `issuing` AS has an issuing key.
+1. Each `authoritative` AS is a `core` AS.
+1. No non-`voting` AS has an online or offline key.
+1. No non-`issuing` AS has an issuing key.
+1. `(base_version == version) <==> (grace_period == 0)` (Initial TRC or trust reset)
+1. `(base_version == version) ==> All keys must attach proof of possession to TRC`
 
 ### Example of a TRC Payload
 
 ````json
 {
-    "ISD": 1,
-    "Version": 23,
-    "BaseVersion": 1,
-    "Description": "Example ISD",
-    "VotingQuorum": 2,
-    "FormatVersion": 1,
-    "GracePeriod": 18000,
-    "TrustResetAllowed": true,
-    "Validity": {
-        "NotBefore": 1510146554,
-        "NotAfter": 1541682554
+    "isd": 1,
+    "version": 23,
+    "base_version": 1,
+    "description": "Example ISD",
+    "voting_quorum": 2,
+    "format_version": 1,
+    "grace_period": 18000,
+    "trust_reset_allowed": true,
+    "validity": {
+        "not_before": 1510146554,
+        "not_after": 1541682554
     },
-    "PrimaryASes": {
+    "primary_ases": {
         "ff00:0:110": {
-            "Attributes": ["Authoritative", "Core", "Issuing", "Voting"],
-            "Keys": {
-                "Issuing": {
-                    "KeyVersion": 12,
-                    "Algorithm": "Ed25519",
-                    "Key": "PQCd00doU4nAFURE7Q9s/4nAFUJPQNaC7S..."
+            "attributes": ["authoritative", "core", "issuing", "voting"],
+            "keys": {
+                "issuing": {
+                    "key_version": 12,
+                    "algorithm": "Ed25519",
+                    "key": "PQCd00doU4nAFURE7Q9s/4nAFUJPQNaC7S..."
                 },
-                "Offline": {
-                    "KeyVersion": 34,
-                    "Algorithm": "Ed25519",
-                    "Key": "K3WE17Q9s/84djid00RREne6SJPQC7gpYS..."
+                "offline": {
+                    "key_version": 34,
+                    "algorithm": "Ed25519",
+                    "key": "K3WE17Q9s/84djid00RREne6SJPQC7gpYS..."
                 },
-                "Online": {
-                    "KeyVersion": 22,
-                    "Algorithm": "Ed25519",
-                    "Key": "JvgaODTGiO84O3XdoU4nAFUQO43uTPfDcN..."
+                "online": {
+                    "key_version": 22,
+                    "algorithm": "Ed25519",
+                    "key": "JvgaODTGiO84O3XdoU4nAFUQO43uTPfDcN..."
                 }
             }
         },
         "ff00:0:120": {
-            "Attributes": ["Core", "Voting"],
-            "Keys": {
-                "Offline": {
-                    "KeyVersion": 11,
-                    "Algorithm": "Ed25519",
-                    "Key": "+XjIxmREKXId2cu9cNEvqMeVjvfBhFMu66..."
+            "attributes": ["core", "voting"],
+            "keys": {
+                "offline": {
+                    "key_version": 11,
+                    "algorithm": "Ed25519",
+                    "key": "+XjIxmREKXId2cu9cNEvqMeVjvfBhFMu66..."
                 },
-                "Online": {
-                    "KeyVersion": 1000000,
-                    "Algorithm": "Ed25519",
-                    "Key": "0lIsyTRewuHAhtnj2Gt3hVbnNF2wb+0rS..."
+                "online": {
+                    "key_version": 1000000,
+                    "algorithm": "Ed25519",
+                    "key": "0lIsyTRewuHAhtnj2Gt3hVbnNF2wb+0rS..."
                 }
             }
         },
         "ff00:0:130": {
-            "Attributes": ["Authoritative", "Core", "Issuing"],
-            "Keys": {
-                "Issuing": {
-                    "KeyVersion": 42,
-                    "Algorithm": "Ed25519",
-                    "Key": "o9V50Hja2ajyyJYRcAEjrcYCzty+iZFE2d..."
+            "attributes": ["authoritative", "core", "issuing"],
+            "keys": {
+                "issuing": {
+                    "key_version": 42,
+                    "algorithm": "Ed25519",
+                    "key": "o9V50Hja2ajyyJYRcAEjrcYCzty+iZFE2d..."
                 }
             }
         }
     },
     "Votes": {
         "ff00:0:110": {
-            "Type": "Offline",
-            "KeyVersion": 34
+            "key_type": "offline",
+            "key_version": 34
         },
         "ff00:0:120": {
-            "Type": "Offline",
-            "KeyVersion": 10
+            "key_type": "offline",
+            "key_version": 10
         }
     },
-    "ProofOfPossession": {
-        "ff00:0:110": ["Online"],
-        "ff00:0:120": ["Offline"]
+    "proof_of_possession": {
+        "ff00:0:110": ["online"],
+        "ff00:0:120": ["offline"]
     }
 }
 ````
@@ -400,11 +400,11 @@ The following fields must be present in the metadata object and no other must be
 
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
-- __crit__: The following immutable array `["Type", "KeyType", "KeyVersion", "AS"]`
-- __Type__: The type of signature. (`ProofOfPossession` or `Vote`)
-- __KeyType__: The signing key type (`Issuing`, `Online` or `Offline`).
-- __KeyVersion__: The signing key version.
-- __AS__: The ISD-AS of the signing AS.
+- __crit__: The following immutable array `["type", "key_type", "key_version", "as"]`
+- __type__: The type of signature. (`proof_of_possession` or `vote`)
+- __key_type__: The signing key type (`issuing`, `online` or `offline`).
+- __key_version__: The signing key version.
+- __as__: The ISD-AS of the signing AS.
 
 An example of how the TRC is serialized and signed can be found in the
 [appendix](#trc-serialization-example).
@@ -440,24 +440,24 @@ later in this document.
 For any kind of update, the following conditions must be met:
 
 - The [TRC Invariants](#trc-invariants) must hold.
-- The `ISD` identifier field is immutable.
-- The `TrustResetAllowed` field is immutable.
-- The `Version` field must be equal to the previous version + 1.
-- The `BaseVersion` must be equal to the base version of the pervious TRC.
-- The `GracePeriod` of the TRC must not be 0. (A TRC with a grace period of 0 indicates a trust
+- The `isd` identifier field is immutable.
+- The `trust_reset_allowed` field is immutable.
+- The `version` field must be equal to the previous version + 1.
+- The `base_version` must be equal to the base version of the pervious TRC.
+- The `grace_period` of the TRC must not be 0. (A TRC with a grace period of 0 indicates a trust
   reset)
-- The `NotBefore` validity field must be in the range spanned by the validity fields of the previous
+- The `not_before` validity field must be in the range spanned by the validity fields of the previous
   TRC.
 - There must only be votes by voting ASes of the previous TRC.
-- The number of votes must be greater than or equal to the `VotingQuorum` parameter of the previous
+- The number of votes must be greater than or equal to the `voting_quorum` parameter of the previous
   TRC.
-- Keys can be updated only with a strictly increasing `KeyVersion` number. In case the key is
-  changed, the `KeyVersion` must be the previous version + 1. In case the `KeyVersion` remains the
+- Keys can be updated only with a strictly increasing `key_version` number. In case the key is
+  changed, the `key_version` must be the previous version + 1. In case the `key_version` remains the
   same, the key must not change. This holds true over all TRCs since the base TRC. I.e. if an AS is
   demoted and later promoted again, the key version continues where it left off before. This must be
   ensured by all signing entities.
 
-  Relying parties must check the `KeyVersion` is correct in the updated TRC, if the previous TRC
+  Relying parties must check the `key_version` is correct in the updated TRC, if the previous TRC
   already contains a key of the given type for that primary AS. If not, relying parties are free to
   ignore the check.
 - Any key that was not present in the previous TRC must show proof of possession by signing the new
@@ -468,8 +468,8 @@ For any kind of update, the following conditions must be met:
 
 ### Regular TRC Update
 
-In a regular update, the `VotingQuorum` parameter must not be changed. In the `PrimaryASes` section,
-only the issuing and online keys can change. No other parts of the `PrimaryASes` section may change.
+In a regular update, the `voting_quorum` parameter must not be changed. In the `primary_ases` section,
+only the issuing and online keys can change. No other parts of the `primary_ases` section may change.
 
 - All votes from ASes with unchanged online root keys must be cast with the online root key.
 - All ASes with changed online root keys must cast a vote with their offline root key.
@@ -494,7 +494,7 @@ minor clock skew.
 
 ASes inside that ISD must only announce the new TRC after the authoritative ASes have switched their
 view of the latest TRC version. This can easily achieved by having authoritative ASes switch the
-latest on the `Validity.NotBefore` time, since SCION requires synchronized clocks.
+latest on the `validity.not_before` time, since SCION requires synchronized clocks.
 
 TRC updates are disseminated via SCION's beaconing process. If the TRC version number within a
 received beacon is higher than the locally stored TRC, the beacon server sends a request to the
@@ -530,7 +530,7 @@ Aside from initial TRCs, trust anchors can be re-established with a trust reset.
 reset is needed when at least a quorum of voting ASes' online or offline keys have been compromised,
 or when a quorum can no longer be met. A trust reset is a worst case scenario, that is unlikely to
 happen. It is not considered a TRC update and may involve human intervention if necessary. A Trust
-reset is only permissible if `TrustResetAllowed` is set to `true`; otherwise, no trust reset is
+reset is only permissible if `trust_reset_allowed` is set to `true`; otherwise, no trust reset is
 possible, and the ISD can only be re-established with a new ISD identifier.
 
 When resetting the trust anchor, the [TRC Invariants](#trc-invariants) must still hold. We describe
@@ -550,7 +550,7 @@ signature and will be serialized using the Flattened JWS JSON Serialization Synt
 Serialization](#certificate-serialization)).
 
 In the following sections, certificate refers to the payload of the full JWS signed certificate for
-simplicity. Certificates are uniquely identified by the `(Subject, Version)`-pair.
+simplicity. Certificates are uniquely identified by the `(subject, version)`-pair.
 
 There are two types of certificates: __Issuer certificates__ and __AS certificates__. An AS
 certificate is authenticated by exactly one Issuer certificate. An Issuer certificate is signed by
@@ -559,94 +559,94 @@ update) TRCs.
 
 ### Top-Level Certificate Fields
 
-- __Subject__: string. ISD and AS identifiers of the entity that owns the certificate and the
+- __subject__: string. ISD and AS identifiers of the entity that owns the certificate and the
   corresponding key pair.
-- __Version__: 64-bit integer. Certificate version, starts at 1.
-- __FormatVersion__: 8-bit integer. Version of the TRC/certificate format (currently 1).
-- __Description__: UTF-8 string. Describes the certificate and/or AS.
-- __CertificateType__: string. Indicates whether the subject is allowed to issue certificates
-  for other ASes. Can be either `Issuer` (can issue certificate) or `AS` (cannot). This field also
-  determines the contents of the __Issuer__ section.
-- __OptionalDistributionPoints__: Array string. Additional certificate revocation distribution
+- __version__: 64-bit integer. Certificate version, starts at 1.
+- __format_version__: 8-bit integer. Version of the TRC/certificate format (currently 1).
+- __description__: UTF-8 string. Describes the certificate and/or AS.
+- __certificate_type__: string. Indicates whether the subject is allowed to issue certificates
+  for other ASes. Can be either `issuer` (can issue certificate) or `as` (cannot). This field also
+  determines the contents of the __issuer__ section.
+- __optional_distribution_points__: Array string. Additional certificate revocation distribution
   points formatted as ISD-AS string. They must be authoritative in their ISD.
 
-### Certificate Section: Validity
+### Certificate Section: `validity`
 
 The following fields must be used to determine whether a certificate is valid.
 
-- __NotBefore__: timestamp. Time before which this Cert cannot be used to verify signatures.
-- __NotAfter__: timestamp. Time after which this Cert may no longer be used to verify signatures.
+- __not_before__: timestamp. Time before which this Cert cannot be used to verify signatures.
+- __not_after__: timestamp. Time after which this Cert may no longer be used to verify signatures.
 
 The full validity period must be covered by the validity period of the signing certificate/TRC.
 
-### Certificate Section: Keys
+### Certificate Section: `keys`
 
-This is an object that maps the type of key (`Issuing`, `Encryption`, `Signing`, or `Revocation`) to
+This is an object that maps the type of key (`issuing`, `encryption`, `signing`, or `revocation`) to
 the algorithm and the key.
 
-- __Keys__: Object that maps key types to an object with the following fields:
-    - __Algorithm__: string. Identifies the algorithm this key is used with.
-    - __Key__: Base64-encoded string representation of the public key.
-    - __KeyVersion__: 64-bit integer. Starts at 1, incremented every time the key is replaced.
+- __keys__: Object that maps key types to an object with the following fields:
+    - __algorithm__: string. Identifies the algorithm this key is used with.
+    - __key__: Base64-encoded string representation of the public key.
+    - __key_version__: 64-bit integer. Starts at 1, incremented every time the key is replaced.
 
 The following table shows what keys are authenticated by the different certificate types. The key
 notation is the same as in the [private keys table](#table-private-keys).
 
-|                | Issuer Certificate      | AS certificate      |
+| Key Type       | Issuer Certificate      | AS certificate      |
 | -------------- | ----------------------- | ------------------- |
-| Issuing Key    | required (`K_iss_cert`) | illegal             |
-| Encryption Key | illegal                 | required (`K_enc`)  |
-| Signing Key    | illegal                 | required (`K_sign`) |
-| Revocation Key | optional (`K_rev`)      | optional (`K_rev`)  |
+| `issuing`      | required (`K_iss_cert`) | illegal             |
+| `encryption`   | illegal                 | required (`K_enc`)  |
+| `signing`      | illegal                 | required (`K_sign`) |
+| `revocation`   | optional (`K_rev`)      | optional (`K_rev`)  |
 
-### Certificate Section: Issuer
+### Certificate Section: `issuer`
 
 The contents depend on the certificate type:
 
 #### AS Certificate
 
-- __IA__: string. ISD and AS identifiers of the entity that signed this certificate. The issuer must
+- __ia__: string. ISD and AS identifiers of the entity that signed this certificate. The issuer must
   be in the same ISD as the subject of this certificate.
-- __CertificateVersion__: 64-bit integer. The certificate version of the Issuer certificate.
+- __certificate_version__: 64-bit integer. The certificate version of the Issuer certificate.
 
 #### Issuer Certificate
 
-- __TRCVersion__: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
+- __trc_version__: 64-bit integer. Version of the TRC the issuer used when signing the certificate.
   Note that a certificate can still be valid and verifiable even if the TRC version specified is no
   longer active, so long as the issuing AS still has the same issuing key in any of the active TRC
   versions.
 
-The issuer certificate is self-signed with the `Issuing` key in the TRC. Thus, the issuer is the
+The issuer certificate is self-signed with the `issuing` key in the TRC. Thus, the issuer is the
 same as the certificate subject and does not need to be specified.
 
 ### Example of an AS Certificate Payload
 
 ````json
 {
-    "Subject": "1-ff00:0:120",
-    "Version": 1,
-    "FormatVersion": 1,
-    "Description": "AS certificate",
-    "CertificateType": "AS",
-    "Validity": {
-        "NotBefore": 1480927723,
-        "NotAfter": 1512463723
+    "subject": "1-ff00:0:120",
+    "version": 1,
+    "format_version": 1,
+    "description": "AS certificate",
+    "certificate_type": "as",
+    "validity": {
+        "not_before": 1480927723,
+        "not_after": 1512463723
     },
-    "Keys": {
-        "Encryption": {
-            "Algorithm": "curve25519",
-            "Key": "Gfnet1MzpHGb3aUzbZQga+c44H+YNA6QM7b5p00dQkY=",
-            "KeyVersion": 21
+    "keys": {
+        "encryption": {
+            "algorithm": "curve25519",
+            "key": "Gfnet1MzpHGb3aUzbZQga+c44H+YNA6QM7b5p00dQkY=",
+            "key_version": 21
         },
-        "Signing": {
-            "Algorithm": "Ed25519",
-            "Key": "TqL566mz2H+uslHYoAYBhQeNlyxUq25gsmx38JHK8XA=",
-            "KeyVersion": 21
+        "signing": {
+            "algorithm": "Ed25519",
+            "key": "TqL566mz2H+uslHYoAYBhQeNlyxUq25gsmx38JHK8XA=",
+            "key_version": 21
         }
     },
-    "Issuer": {
-        "IA": "1-ff00:0:130",
-        "CertificateVersion": 6
+    "issuer": {
+        "ia": "1-ff00:0:130",
+        "certificate_version": 6
     }
 }
 ````
@@ -655,24 +655,24 @@ same as the certificate subject and does not need to be specified.
 
 ````json
 {
-    "Subject": "1-ff00:0:130",
-    "Version": 6,
-    "FormatVersion": 1,
-    "Description": "Issuer certificate",
-    "CertificateType": "Issuer",
-    "Validity": {
-        "NotBefore": 1442862832,
-        "NotAfter": 1582463723
+    "subject": "1-ff00:0:130",
+    "version": 6,
+    "format_version": 1,
+    "description": "Issuer certificate",
+    "certificate_type": "issuer",
+    "validity": {
+        "not_before": 1442862832,
+        "not_after": 1582463723
     },
-    "Keys": {
-        "Issuing": {
-            "Algorithm": "Ed25519",
-            "Key": "SKx1bhe3mh4Wl3eZ1ZsK1MwZwsSfcwvyn4FSI9yTvDs=",
-            "KeyVersion": 72
+    "keys": {
+        "issuing": {
+            "algorithm": "Ed25519",
+            "key": "SKx1bhe3mh4Wl3eZ1ZsK1MwZwsSfcwvyn4FSI9yTvDs=",
+            "key_version": 72
         }
     },
-    "Issuer": {
-        "TRCVersion": 2,
+    "issuer": {
+        "trc_version": 2,
     }
 }
 ````
@@ -694,19 +694,19 @@ For AS certificates, the following fields and no other must be present in the me
 
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
     7515](https://tools.ietf.org/html/rfc7515#section-10.7).
-- __crit__: The following immutable array `["Type", "CertificateVersion", "IA"]`
-- __Type__: Must be the string "Certificate", to indicate the public key is authenticated by an
+- __crit__: The following immutable array `["type", "certificate_version", "ia"]`
+- __type__: Must be the string `"certificate"`, to indicate the public key is authenticated by an
     issuer certificate.
-- __CertificateVersion__: The version of the Issuer certificate.
-- __IA__: The ISD-AS of the signing AS.
+- __certificate_version__: The version of the Issuer certificate.
+- __ia__: The ISD-AS of the signing AS.
 
 For Issuer certificates, the following fields and no other must be present in the metadata object:
 
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
-- __crit__: The following immutable array `["Type", "TRCVersion"]`
-- __Type__: Must be the string "TRC", to indicate the public key is authenticated by a TRC.
-- __TRCVersion__: The trc version.
+- __crit__: The following immutable array `["type", "trc_version"]`
+- __type__: Must be the string `"trc"`, to indicate the public key is authenticated by a TRC.
+- __trc_version__: The trc version.
 
 An example of how a certificate is serialized and signed can be found in the
 [appendix](#chain-serialization-example).
@@ -716,7 +716,7 @@ The signature input is in accordance with the RFC: `ASCII(protected || '.' || pa
 ## Certificate Chain
 
 Certificate chains consist of an Issuer and an AS certificate. They are uniquely identified by the
-AS certificate's `(Subject, Version)`-pair, since the AS certificate references the Issuer
+AS certificate's `(subject, version)`-pair, since the AS certificate references the Issuer
 certificate. Thus, for any given AS certificate there is exactly one corresponding certificate
 chain.
 
@@ -749,7 +749,7 @@ When validating signatures based on certificate chains, the following must be ch
 - The current time falls within the validity period of the certificate chain.
 - The certificate chain is authenticated by a currently active TRC. This means the issuing key that
   was used to sign the Issuer certificate must be authenticated by a currently active TRC. The
-  active TRC's version must be greater than or equal to the `TRCVersion` specified in the Issuer
+  active TRC's version must be greater than or equal to the `trc_version` specified in the Issuer
   certificate.
 
   This allows signature validation to succeed during the grace period of a TRC update with a
@@ -757,7 +757,7 @@ When validating signatures based on certificate chains, the following must be ch
 
 ## Certificate Chain Dissemination
 
-Certificate chains are issued by an `Issuing` AS upon request. As certificates are short lived, this
+Certificate chains are issued by an `issuing` AS upon request. As certificates are short lived, this
 is an automated process. Before an AS may use a certificate chain, it must register it with all
 authoritative ASes of its ISD. If the automatic registration process fails due to an unavailable
 authoritative AS, an operator may manually choose to start using the issued certificate chain.
@@ -779,7 +779,7 @@ getVerifiedChain(isd, as, version):
     if chain != nil:
         return chain
     chain = downloadChain(isd, as, version)
-    trc = getVerifiedTRC(isd, chain[0].Issuer.TRCVersion)
+    trc = getVerifiedTRC(isd, chain[0].issuer.trc_version)
     if verifyChain(cert, trc) == true:
         return cert
     return nil
@@ -812,7 +812,7 @@ remain small or empty most of the time.
 ### Revocation Notes
 
 A revocation note attests that a certificate is revoked. A revocation note is either signed by the
-signing key contained in the revoked certificate, or a separate `Revocation` key. The `Revocation`
+signing key contained in the revoked certificate, or a separate `revocation` key. The `revocation`
 public key may also be specified in the revoked certificate, in which case the corresponding private
 key must be stored offline and used to sign the revocation note instead of the regular signing key.
 The revocation key may also be used to request a new certificate from an issuer. It may be stored at
@@ -824,7 +824,7 @@ third party.
 
 The revocation note is simply a signature over the ASCII string `Revocation Note: Type={{type}}
 IA={{ia}} Version={{version}} TS={{timestamp}}`, where `{{type}}` is replaced by the
-`CertificateType`, `{{ia}}` is replaced by the subject, `{{version}}` is replaced by the version
+`certificate_type`, `{{ia}}` is replaced by the subject, `{{version}}` is replaced by the version
 of the revoked certificate, and `{{timestamp}}` is a timestamp when the revocation was issued.
 
 ### Revocation Note Distribution
@@ -865,7 +865,7 @@ be a circular dependency between verifying paths to the distribution points and 
 distribution point. To avoid this circular dependency, revocations are to be considered on a
 best-effort basis. During regular operation, the revocation distribution points will be available
 and certificates are revoked in a short amount of time. Also, an AS can take advantage of the
-`OptionalDistributionPoints` field in the AS cert to nominate distribution points that are
+`optional_distribution_points` field in the AS cert to nominate distribution points that are
 geographically diverse to mitigate availability issues.
 
 If any of the distribution points contains a revocation note, the certificate is considered revoked
@@ -986,8 +986,8 @@ included into beacons and verified by other ASes, see
 [appendix](#beacon-format-as-entry-modification). This effectively runs a gossip protocol among ASes
 and allows them to detect inconsistent TRCs.
 
-A RAA can only issue attestations for trust resets if the initial TRC has set `TrustResetAllowed` to
-true. This prevents RAAs from triggering a "kill switch" on ISDs who decided to set this flag to
+A RAA can only issue attestations for trust resets if the initial TRC has set `trust_reset_allowed`
+to true. This prevents RAAs from triggering a "kill switch" on ISDs who decided to set this flag to
 `false`. However, this also burns an ISD number in case a large amount of the offline keys of that
 ISD are lost or compromised. We stress that this is a disastrous failure case and is very unlikely
 to occur.
@@ -1012,11 +1012,11 @@ The following fields and no other must be present in the metadata object:
 
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
     7515](https://tools.ietf.org/html/rfc7515#section-10.7).
-- __crit__: The following immutable array `["TAAName", "KeyID", "KeyVersion", "Timestamp"]`
-- __TAAName__: The name of the TRC attestation authority.
-- __KeyID__: The attestation key identifier.
-- __KeyVersion__: The attestation key version.
-- __Timestamp__: 64-bit integer in seconds since Unix epoch.
+- __crit__: The following immutable array `["taa_name", "key_id", "key_version", "timestamp"]`
+- __taa_name__: The name of the TRC attestation authority.
+- __key_id__: The attestation key identifier.
+- __key_version__: The attestation key version.
+- __timestamp__: 64-bit integer in seconds since Unix epoch.
 
 #### TRC Attestation Authority Config (TAAC)
 
@@ -1028,86 +1028,86 @@ data in it, explained in the following sections.
 
 This comprises all non-object values in the top level of the TAAC.
 
-- __TAAName__: UTF-8 string. Name of the TRC attestation authority.
-- __TAACVersion__: 64-bit integer. TAAC version, starts at 1. All TAAC updates must
+- __taa_name__: UTF-8 string. Name of the TRC attestation authority.
+- __taac_version__: 64-bit integer. TAAC version, starts at 1. All TAAC updates must
     increment this by exactly 1 (i.e., no gaps, no repeats).
-- __Alias__: String array. List of all ISD-AS identifiers the TAA is reachable under.
-- __VotingQuorum__: 8-bit integer. Defines how many offline keys are necessary to update
+- __alias__: String array. List of all ISD-AS identifiers the TAA is reachable under.
+- __voting_quorum__: 8-bit integer. Defines how many offline keys are necessary to update
   the TAAC.
-- __GracePeriod__: 32-bit integer. How long, in seconds, the previous unexpired version of
+- __grace_period__: 32-bit integer. How long, in seconds, the previous unexpired version of
   the TAAC can still be used to validate attestations (same as in TRC). `TAAC(i)` is still active
   until the following time has passed (or `TAAC(i+2)` has been announced):
 
-    `TAAC(i+1).Validity.NotBefore + TAAC(i+1).GracePeriod`
+    `TAAC(i+1).validity.not_before + TAAC(i+1).grace_period`
 
-##### TAAC Section: Validity
+##### TAAC Section: `validity`
 
 The following fields must be used to determine whether a TAAC is *valid*.
 
-- __NotBefore__: timestamp. Time before which this TAAC cannot be considered *valid*.
-- __NotAfter__: timestamp. Time after which this TAAC will no longer be considered *valid*.
+- __not_before__: timestamp. Time before which this TAAC cannot be considered *valid*.
+- __not_after__: timestamp. Time after which this TAAC will no longer be considered *valid*.
 
-##### TAAC Section: OfflineKeys
+##### TAAC Section: `offline_keys`
 
 This is an object that maps offline key identifiers to the keys. Offline keys are used to verify
 TAAC updates.
 
-- __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is
+- __key_version__: 64-bit integer. Starts at 1, incremented every time this key is
   replaced.
-- __Algorithm__: String. Identifies the algorithm this key is used with.
-- __Key__: Base64-encoded string representation of the public key.
+- __algorithm__: String. Identifies the algorithm this key is used with.
+- __key__: Base64-encoded string representation of the public key.
 
-##### TAAC Section: AttestationKeys
+##### TAAC Section: `attestation_keys`
 
 This is an object that maps attestation key identifiers to the keys. Attestation keys are used to
 verify Attestations.
 
-- __KeyVersion__: 64-bit integer. Starts at 1, incremented every time this key is
+- __key_version__: 64-bit integer. Starts at 1, incremented every time this key is
   replaced.
-- __Algorithm__: String. Identifies the algorithm this key is used with.
-- __Key__: Base64-encoded string representation of the public key.
+- __algorithm__: String. Identifies the algorithm this key is used with.
+- __key__: Base64-encoded string representation of the public key.
 
 #### TAAC Invariants
 
 The following are conditions that must hold true for every TAAC:
 
-1. `NotBefore < NotAfter`
-1. `0 < VotingQuorum <= count(OfflineKeys)`
-1. `count(AttestationKey) >= 1`
-1. `GracePeriod > 0`
-1. `count(Alias) > 0` and all entries are valid ISD-AS strings.
+1. `not_before < not_after`
+1. `0 < voting_quorum <= count(offline_keys)`
+1. `count(attestation_keys) >= 1`
+1. `grace_period > 0`
+1. `count(alias) > 0` and all entries are valid ISD-AS strings.
 
 #### Example of TAAC Payload
 
 ````json
 {
-    "TAAName": "RegionalTAA-1",
-    "TAACVersion": 2,
-    "Alias": ["1-ff00:0:110", "2-ff00:0:220"],
-    "VotingQuorum": 9,
-    "GracePeriod": 2592000,
-    "Validity": {
-        "NotBefore": 1577836800,
-        "NotAfter": 1893456000
+    "taa_name": "RegionalTAA-1",
+    "taac_version": 2,
+    "alias": ["1-ff00:0:110", "2-ff00:0:220"],
+    "voting_quorum": 9,
+    "grace_period": 2592000,
+    "validity": {
+        "not_before": 1577836800,
+        "not_after": 1893456000
     },
-    "OfflineKeys": {
-        "OffKey1": {
-            "KeyVersion": 1,
-            "Algorithm": "Ed25519",
-            "Key": "VJRXxT2nWrHFT9qKwlG8z3lBeb/VcLQTzA..."
+    "offline_keys": {
+        "off_key_1": {
+            "key_version": 1,
+            "algorithm": "Ed25519",
+            "key": "VJRXxT2nWrHFT9qKwlG8z3lBeb/VcLQTzA..."
         },
-        "OffKey2": {
-            "KeyVersion": 1,
-            "Algorithm": "Ed25519",
-            "Key": "PkdxgZiODO/glKHsYcR6m9k7SoSxsja86T..."
+        "off_key_2": {
+            "key_version": 1,
+            "algorithm": "Ed25519",
+            "key": "PkdxgZiODO/glKHsYcR6m9k7SoSxsja86T..."
         },
-        "OffKey3": "..."
+        "off_key_3": "..."
     },
-    "AttestationKeys": {
-        "AttKey1": {
-            "KeyVersion": 2,
-            "Algorithm": "Ed25519",
-            "Key": "ObjSwF0YDo0Eg/KFxgXJkh2IWv7OBRa1aF..."
+    "attestation_keys": {
+        "att_key_1": {
+            "key_version": 2,
+            "algorithm": "Ed25519",
+            "key": "ObjSwF0YDo0Eg/KFxgXJkh2IWv7OBRa1aF..."
         }
     }
 }
@@ -1132,10 +1132,10 @@ The following fields and no other must be present in the metadata object:
 
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
-- __crit__: The following immutable array `["KeyID", "KeyType", "KeyVersion"]`
-- __KeyID__: The offline key identifier.
-- __KeyType__: The signing key type (`Attestation` or `Offline`).
-- __KeyVersion__: The signing key version.
+- __crit__: The following immutable array `["key_id", "key_type", "key_version"]`
+- __key_id__: The offline key identifier.
+- __key_type__: The signing key type (`attestation` or `offline`).
+- __key_version__: The signing key version.
 
 The signature input is in accordance with the RFC: `ASCII(protected || '.' || payload)`
 
@@ -1151,12 +1151,12 @@ after the TAAC update grace period has passed.
 The following conditions must hold for an update to be considered valid:
 
 - The [TAAC invariants](#taac-invariants) must hold.
-- The `TAAName` identifier field is immutable.
-- The `TAACVersion` field must be equal to the previous version + 1.
-- The `NotBefore` validity field must be in the range spanned by the validity fields of the previous
-  TAAC.
+- The `taa_name` identifier field is immutable.
+- The `taac_version` field must be equal to the previous version + 1.
+- The `not_before` validity field must be in the range spanned by the validity fields of the
+  previous TAAC.
 - There must be a number of signatures from offline keys from the previous TAAC greater than or
-  equal to the `VotingQuorum` parameter in the previous TAAC.
+  equal to the `voting_quorum` parameter in the previous TAAC.
 - Any key that was not present in the previous TAAC must sign the new TAAC to show PoP.
 
 #### TAAC Dissemination
@@ -1210,7 +1210,7 @@ all AS entries must be verified; this includes verifying the TRC hashes, as foll
 verifyBeaconHashes(beacon):
     for each ASEntry in beacon:
         TRC = getVerifiedTRC(ASEntry.ISD, ASEntry.TRCVersion)
-        if ASEntry.TRCHash != hash(TRC, ASentry.hashAlgo)
+        if ASEntry.TRCHash != hash(TRC, ASentry.HashAlgo)
             return false
     return true
 ````
@@ -1251,10 +1251,10 @@ def b64url(input: bytes) -> str:
 offline_110 = """
 {
     "alg": "Ed25519",
-    "crit": ["Type", "KeyVersion", "AS"]
-    "Type": "Offline"
-    "KeyVersion": 34,
-    "AS": "1-ff00:0:110"
+    "crit": ["type", "key_version", "as"]
+    "type": "offline"
+    "key_version": 34,
+    "as": "1-ff00:0:110"
 }
 """
 offline_110_enc = b64url(offline_110.encode('utf-8'))
@@ -1262,10 +1262,10 @@ offline_110_enc = b64url(offline_110.encode('utf-8'))
 online_110 = """
 {
     "alg": "Ed25519",
-    "crit": ["Type", "KeyVersion", "AS"]
-    "Type": "Online"
-    "KeyVersion": 22,
-    "AS": "1-ff00:0:110"
+    "crit": ["type", "key_version", "as"]
+    "type": "online"
+    "key_version": 22,
+    "as": "1-ff00:0:110"
 }
 """
 online_110_enc = b64url(online_110.encode('utf-8'))
@@ -1274,10 +1274,10 @@ online_110_enc = b64url(online_110.encode('utf-8'))
 offline_120 = """
 {
     "alg": "Ed25519",
-    "crit": ["Type", "KeyVersion", "AS"]
-    "Type": "Offline"
-    "KeyVersion": 11,
-    "AS": "1-ff00:0:120"
+    "crit": ["type", "key_version", "as"]
+    "type": "offline"
+    "key_version": 11,
+    "as": "1-ff00:0:120"
 }
 """
 offline_120_enc = b64url(offline_120.encode('utf-8'))
@@ -1352,16 +1352,13 @@ def b64url(input: bytes) -> str:
 as_cert_meta = """
 {
     "alg": "Ed25519",
-    "crit": ["Type", "CertificateVersion", "IA"]
-    "Type": "Certificate"
-    "CertificateVersion": 6,
-    "IA": "1-ff00:0:130"
+    "crit": ["type", "certificate_version", "ia"]
+    "type": "Certificate"
+    "certificate_version": 6,
+    "ia": "1-ff00:0:130"
 }
 """
 as_cert_meta_enc = b64url(as_cert_meta.encode('utf-8'))
-# 'CnsKICAgICJhbGciOiAiRWQyNTUxOSIsCiAgICAiY3JpdCI6IFsiVHlwZSIsICJDZXJ0aWZp
-# Y2F0ZVZlcnNpb24iLCAiSUEiXQogICAgIlR5cGUiOiAiQ2VydGlmaWNhdGUiCiAgICAiQ2Vyd
-# GlmaWNhdGVWZXJzaW9uIjogNiwKICAgICJJQSI6ICIxLWZmMDA6MDoxMzAiCn0K'
 
 payload = b64url(json.dumps(as_cert_payload).encode())
 
@@ -1382,14 +1379,12 @@ signed_as_cert = {
 iss_cert_meta = """
 {
     "alg": "Ed25519",
-    "crit": ["Type", "TRCVersion"]
-    "Type": "TRC"
-    "TRCVersion": 2,
+    "crit": ["type", "trc_version"]
+    "type": "TRC"
+    "trc_version": 2,
 }
 """
 iss_cert_meta_enc = b64url(iss_cert_meta.encode('utf-8'))
-# 'CnsKICAgICJhbGciOiAiRWQyNTUxOSIsCiAgICAiY3JpdCI6IFsiVHlwZSIsICJUUkNWZXJz
-# aW9uIl0KICAgICJUeXBlIjogIlRSQyIKICAgICJUUkNWZXJzaW9uIjogMiwKfQo'
 
 payload = b64url(json.dumps(iss_cert_payload).encode())
 

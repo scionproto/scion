@@ -116,26 +116,26 @@ func TestKeyTypeUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Wrong case": {
-			Input:     `"signing"`,
+			Input:     `"Signing"`,
 			Assertion: assert.Error,
 		},
 		"SigningKey": {
-			Input:     `"Signing"`,
+			Input:     `"signing"`,
 			Assertion: assert.NoError,
 			Expected:  cert.SigningKey,
 		},
 		"EncryptionKey": {
-			Input:     `"Encryption"`,
+			Input:     `"encryption"`,
 			Assertion: assert.NoError,
 			Expected:  cert.EncryptionKey,
 		},
 		"IssuingKey": {
-			Input:     `"Issuing"`,
+			Input:     `"issuing"`,
 			Assertion: assert.NoError,
 			Expected:  cert.IssuingKey,
 		},
 		"RevocationKey": {
-			Input:     `"Revocation"`,
+			Input:     `"revocation"`,
 			Assertion: assert.NoError,
 			Expected:  cert.RevocationKey,
 		},
@@ -164,7 +164,7 @@ func TestKeyTypeUnmarshalJSONMapKey(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"Issuing": "key"
+				"issuing": "key"
 			}`,
 			Assertion: assert.NoError,
 		},
@@ -247,14 +247,15 @@ func TestFormatVersionUnmarshalJSON(t *testing.T) {
 }
 
 type genCert struct {
-	Subject         *addr.IA                          `json:"Subject,omitempty"`
-	Version         *scrypto.Version                  `json:"Version,omitempty"`
-	FormatVersion   *cert.FormatVersion               `json:"FormatVersion,omitempty"`
-	Description     *string                           `json:"Description,omitempty"`
-	OptDistPoints   *[]addr.IA                        `json:"OptionalDistributionPoints,omitempty"`
-	Validity        *scrypto.Validity                 `json:"Validity,omitempty"`
-	Keys            *map[cert.KeyType]scrypto.KeyMeta `json:"Keys,omitempty"`
-	Issuer          *map[string]interface{}           `json:"Issuer,omitempty"`
-	CertificateType string                            `json:"CertificateType,omitempty"`
+	Subject       *addr.IA            `json:"subject,omitempty"`
+	Version       *scrypto.Version    `json:"version,omitempty"`
+	FormatVersion *cert.FormatVersion `json:"format_version,omitempty"`
+	Description   *string             `json:"description,omitempty"`
+	OptDistPoints *[]addr.IA          `json:"optional_distribution_points,omitempty"`
+	// Break to keep 100 char limit.
+	Validity        *scrypto.Validity                 `json:"validity,omitempty"`
+	Keys            *map[cert.KeyType]scrypto.KeyMeta `json:"keys,omitempty"`
+	Issuer          *map[string]interface{}           `json:"issuer,omitempty"`
+	CertificateType string                            `json:"certificate_type,omitempty"`
 	UnknownField    string                            `json:"UNKNOWN,omitempty"`
 }

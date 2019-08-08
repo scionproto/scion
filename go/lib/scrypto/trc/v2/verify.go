@@ -103,13 +103,13 @@ func (v UpdateVerifier) decodeSignatures() (map[addr.AS]DecodedSignature,
 		case VoteSignature:
 			if _, ok := votes[sig.Protected.AS]; ok {
 				return nil, nil, common.NewBasicError(DuplicateVoteSignature, nil,
-					"AS", sig.Protected.AS)
+					"as", sig.Protected.AS)
 			}
 			votes[sig.Protected.AS] = sig
 		case POPSignature:
 			if _, ok := pops[sig.Protected.AS][sig.Protected.KeyType]; ok {
 				return nil, nil, common.NewBasicError(DuplicatePOPSignature, nil,
-					"AS", sig.Protected.AS, "keyType", sig.Protected.KeyType)
+					"as", sig.Protected.AS, "key_type", sig.Protected.KeyType)
 			}
 			if _, ok := pops[sig.Protected.AS]; !ok {
 				pops[sig.Protected.AS] = make(map[KeyType]DecodedSignature)
@@ -124,12 +124,12 @@ func (v UpdateVerifier) checkVotes(sigs map[addr.AS]DecodedSignature) error {
 	for as, sig := range sigs {
 		vote, ok := v.Next.Votes[as]
 		if !ok {
-			return common.NewBasicError(UnexpectedVoteSignature, nil, "AS", as)
+			return common.NewBasicError(UnexpectedVoteSignature, nil, "as", as)
 		}
 		expected := Protected{
-			Algorithm:  v.Prev.PrimaryASes[as].Keys[vote.Type].Algorithm,
+			Algorithm:  v.Prev.PrimaryASes[as].Keys[vote.KeyType].Algorithm,
 			Type:       VoteSignature,
-			KeyType:    vote.Type,
+			KeyType:    vote.KeyType,
 			KeyVersion: vote.KeyVersion,
 			AS:         as,
 		}
@@ -140,7 +140,7 @@ func (v UpdateVerifier) checkVotes(sigs map[addr.AS]DecodedSignature) error {
 	}
 	for as := range v.Next.Votes {
 		if _, ok := sigs[as]; !ok {
-			return common.NewBasicError(MissingVoteSignature, nil, "AS", as)
+			return common.NewBasicError(MissingVoteSignature, nil, "as", as)
 		}
 	}
 	return nil
@@ -151,7 +151,7 @@ func (v UpdateVerifier) verifyVotes(sigs map[addr.AS]DecodedSignature) error {
 		meta := v.Prev.PrimaryASes[as].Keys[sig.Protected.KeyType]
 		input := SigInput(sig.EncodedProtected, v.NextEncoded)
 		if err := scrypto.Verify(input, sig.Signature, meta.Key, meta.Algorithm); err != nil {
-			return common.NewBasicError(VoteVerificationError, err, "AS", as, "meta", meta)
+			return common.NewBasicError(VoteVerificationError, err, "as", as, "meta", meta)
 		}
 	}
 	return nil
@@ -162,7 +162,7 @@ func (v UpdateVerifier) checkPOPs(sigs map[addr.AS]map[KeyType]DecodedSignature)
 		for _, sig := range pops {
 			if !containsKeyType(sig.Protected.KeyType, v.Next.ProofOfPossession[as]) {
 				return common.NewBasicError(UnexpectedPOPSignature, nil,
-					"AS", as, "keyType", sig.Protected.KeyType)
+					"as", as, "key_type", sig.Protected.KeyType)
 			}
 			meta := v.Next.PrimaryASes[as].Keys[sig.Protected.KeyType]
 			expected := Protected{
@@ -181,7 +181,7 @@ func (v UpdateVerifier) checkPOPs(sigs map[addr.AS]map[KeyType]DecodedSignature)
 	for as, keyTypes := range v.Next.ProofOfPossession {
 		for _, keyType := range keyTypes {
 			if _, ok := sigs[as][keyType]; !ok {
-				return common.NewBasicError(MissingPOPSignature, nil, "AS", as, "keyType", keyType)
+				return common.NewBasicError(MissingPOPSignature, nil, "as", as, "key_type", keyType)
 			}
 		}
 	}
@@ -194,7 +194,8 @@ func (v UpdateVerifier) verifyPOPs(sigs map[addr.AS]map[KeyType]DecodedSignature
 			meta := v.Next.PrimaryASes[as].Keys[keyType]
 			input := SigInput(sig.EncodedProtected, v.NextEncoded)
 			if err := scrypto.Verify(input, sig.Signature, meta.Key, meta.Algorithm); err != nil {
-				return common.NewBasicError(POPVerificationError, err, "AS", as, "keyType", keyType)
+				return common.NewBasicError(POPVerificationError, err,
+					"as", as, "key_type", keyType)
 			}
 		}
 	}

@@ -25,7 +25,7 @@ import (
 
 var (
 	// ErrIssuerTRCVersionNotSet indicates the issuer TRC version is not set.
-	ErrIssuerTRCVersionNotSet = errors.New("issuer TRC version not set")
+	ErrIssuerTRCVersionNotSet = errors.New("issuer.trc_version not set")
 )
 
 // Issuer is the Issuer certificate.
@@ -34,9 +34,9 @@ type Issuer struct {
 	// Issuer holds the TRC Version. Since the issuer certificate is
 	// self-signed, the issuing AS in the TRC is the same as the subject of this
 	// certificate.
-	Issuer IssuerTRC `json:"Issuer"`
+	Issuer IssuerTRC `json:"issuer"`
 	// CertificateType ensures the correct certificate type when marshalling.
-	CertificateType TypeIssuer `json:"CertificateType"`
+	CertificateType TypeIssuer `json:"certificate_type"`
 }
 
 // Validate checks that the certificate is in a valid format.
@@ -71,8 +71,8 @@ func (c *Issuer) UnmarshalJSON(b []byte) error {
 
 type issuerAlias struct {
 	Base
-	Issuer          *IssuerTRC  `json:"Issuer"`
-	CertificateType *TypeIssuer `json:"CertificateType"`
+	Issuer          *IssuerTRC  `json:"issuer"`
+	CertificateType *TypeIssuer `json:"certificate_type"`
 }
 
 func (c *issuerAlias) checkAllSet() error {
@@ -96,7 +96,7 @@ type issuerTRCAlias IssuerTRC
 // implied by the subject.
 type IssuerTRC struct {
 	// TRCVersion is the version of the issuing TRC.
-	TRCVersion scrypto.Version `json:"TRCVersion"`
+	TRCVersion scrypto.Version `json:"trc_version"`
 }
 
 // UnmarshalJSON checks that all fields are set.
@@ -116,7 +116,7 @@ func (i *IssuerTRC) checkAllSet() error {
 	return nil
 }
 
-const TypeIssuerJSON = "Issuer"
+const TypeIssuerJSON = "issuer"
 
 // TypeIssuer indicates an AS certificate.
 type TypeIssuer struct{}
