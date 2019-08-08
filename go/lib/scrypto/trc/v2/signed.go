@@ -35,8 +35,8 @@ const (
 var (
 	// ErrAlgorithmNotSet indicates the key algorithm is not set.
 	ErrAlgorithmNotSet = errors.New("algorithm not set")
-	// ErrASNotSet indicates the AS is not set.
-	ErrASNotSet = errors.New("AS not set")
+	// ErrASNotSet indicates the as is not set.
+	ErrASNotSet = errors.New("as not set")
 	// ErrCritNotSet indicates that crit is not set.
 	ErrCritNotSet = errors.New("crit not set")
 	// ErrNotUTF8 indicates an invalid encoding.

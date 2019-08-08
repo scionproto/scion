@@ -48,7 +48,7 @@ const (
 	// MissingKey indicates that the primary AS is missing a key.
 	MissingKey = "missing key"
 	// InvalidPrimaryAS indicates an invalid primary AS entry.
-	InvalidPrimaryAS = "invalid primary AS entry"
+	InvalidPrimaryAS = "invalid primary as entry"
 )
 
 // Parsing errors
@@ -66,7 +66,7 @@ type PrimaryASes map[addr.AS]PrimaryAS
 func (p *PrimaryASes) ValidateInvariant() error {
 	for as, primary := range *p {
 		if err := primary.ValidateInvariant(); err != nil {
-			return common.NewBasicError(InvalidPrimaryAS, err, "AS", as)
+			return common.NewBasicError(InvalidPrimaryAS, err, "as", as)
 		}
 	}
 	return nil
@@ -134,10 +134,10 @@ func (p *PrimaryAS) ValidateInvariant() error {
 func (p *PrimaryAS) checkKeyExistence(keyType KeyType, shouldExist bool) error {
 	_, ok := p.Keys[keyType]
 	if ok && !shouldExist {
-		return common.NewBasicError(UnexpectedKey, nil, "type", keyType)
+		return common.NewBasicError(UnexpectedKey, nil, "key_type", keyType)
 	}
 	if !ok && shouldExist {
-		return common.NewBasicError(MissingKey, nil, "type", keyType)
+		return common.NewBasicError(MissingKey, nil, "key_type", keyType)
 	}
 	return nil
 }
@@ -288,5 +288,5 @@ func (t KeyType) MarshalText() ([]byte, error) {
 	case IssuingKey:
 		return []byte(IssuingKeyJSON), nil
 	}
-	return nil, common.NewBasicError(InvalidKeyType, nil, "type", int(t))
+	return nil, common.NewBasicError(InvalidKeyType, nil, "key_type", int(t))
 }
