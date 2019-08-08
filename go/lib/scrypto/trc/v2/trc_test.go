@@ -110,7 +110,7 @@ func TestTRCValidateInvariant(t *testing.T) {
 		"Base with votes": {
 			Modify: func(base *trc.TRC) {
 				base.Votes[a130] = trc.Vote{
-					Type:       trc.OnlineKey,
+					KeyType:    trc.OnlineKey,
 					KeyVersion: 1,
 				}
 			},

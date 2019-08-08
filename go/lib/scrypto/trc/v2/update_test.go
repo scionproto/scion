@@ -485,7 +485,7 @@ func TestSensitiveUpdate(t *testing.T) {
 			Modify: func(updated, _ *trc.TRC) {
 				*updated.VotingQuorumPtr -= 1
 				updated.Votes[a130] = trc.Vote{
-					Type:       trc.IssuingKey,
+					KeyType:    trc.IssuingKey,
 					KeyVersion: 1,
 				}
 			},
@@ -497,7 +497,7 @@ func TestSensitiveUpdate(t *testing.T) {
 					Attributes: trc.Attributes{trc.Core},
 				}
 				updated.Votes[a190] = trc.Vote{
-					Type:       trc.OnlineKey,
+					KeyType:    trc.OnlineKey,
 					KeyVersion: 1,
 				}
 			},
@@ -507,7 +507,7 @@ func TestSensitiveUpdate(t *testing.T) {
 			Modify: func(updated, _ *trc.TRC) {
 				*updated.VotingQuorumPtr -= 1
 				updated.Votes[a110] = trc.Vote{
-					Type:       trc.OnlineKey,
+					KeyType:    trc.OnlineKey,
 					KeyVersion: 1,
 				}
 			},
@@ -517,7 +517,7 @@ func TestSensitiveUpdate(t *testing.T) {
 			Modify: func(updated, _ *trc.TRC) {
 				*updated.VotingQuorumPtr -= 1
 				updated.Votes[a110] = trc.Vote{
-					Type:       trc.OfflineKey,
+					KeyType:    trc.OfflineKey,
 					KeyVersion: 10,
 				}
 			},
@@ -602,7 +602,7 @@ func TestRegularUpdate(t *testing.T) {
 				}
 				updated.ProofOfPossession[a110] = []trc.KeyType{trc.OnlineKey}
 				updated.Votes[a110] = trc.Vote{
-					Type:       trc.OfflineKey,
+					KeyType:    trc.OfflineKey,
 					KeyVersion: 1,
 				}
 			},
@@ -627,7 +627,7 @@ func TestRegularUpdate(t *testing.T) {
 		"Signature from previous non-Primary AS": {
 			Modify: func(updated, _ *trc.TRC) {
 				updated.Votes[a190] = trc.Vote{
-					Type:       trc.OnlineKey,
+					KeyType:    trc.OnlineKey,
 					KeyVersion: 1,
 				}
 			},
@@ -636,7 +636,7 @@ func TestRegularUpdate(t *testing.T) {
 		"Signature from non-Voting AS": {
 			Modify: func(updated, prev *trc.TRC) {
 				updated.Votes[a130] = trc.Vote{
-					Type:       trc.OnlineKey,
+					KeyType:    trc.OnlineKey,
 					KeyVersion: 1,
 				}
 			},
@@ -645,7 +645,7 @@ func TestRegularUpdate(t *testing.T) {
 		"Wrong KeyType": {
 			Modify: func(updated, _ *trc.TRC) {
 				updated.Votes[a110] = trc.Vote{
-					Type:       trc.OfflineKey,
+					KeyType:    trc.OfflineKey,
 					KeyVersion: 1,
 				}
 			},
@@ -654,7 +654,7 @@ func TestRegularUpdate(t *testing.T) {
 		"Wrong KeyVersion": {
 			Modify: func(updated, _ *trc.TRC) {
 				updated.Votes[a110] = trc.Vote{
-					Type:       trc.OnlineKey,
+					KeyType:    trc.OnlineKey,
 					KeyVersion: 10,
 				}
 			},
@@ -674,7 +674,7 @@ func TestRegularUpdate(t *testing.T) {
 					Key:        []byte{0, 110, 2},
 				}
 				updated.Votes[a110] = trc.Vote{
-					Type:       trc.OfflineKey,
+					KeyType:    trc.OfflineKey,
 					KeyVersion: 1,
 				}
 			},
@@ -758,9 +758,9 @@ func newRegularUpdate() (*trc.TRC, *trc.TRC) {
 	t.Version = 2
 	t.GracePeriod = &trc.Period{Duration: 6 * time.Hour}
 	t.Votes = map[addr.AS]trc.Vote{
-		a110: {Type: trc.OnlineKey, KeyVersion: 1},
-		a120: {Type: trc.OnlineKey, KeyVersion: 1},
-		a140: {Type: trc.OnlineKey, KeyVersion: 1},
+		a110: {KeyType: trc.OnlineKey, KeyVersion: 1},
+		a120: {KeyType: trc.OnlineKey, KeyVersion: 1},
+		a140: {KeyType: trc.OnlineKey, KeyVersion: 1},
 	}
 	t.ProofOfPossession = make(map[addr.AS][]trc.KeyType)
 	return t, newBaseTRC()
@@ -773,9 +773,9 @@ func newSensitiveUpdate() (*trc.TRC, *trc.TRC) {
 	t.Version = 3
 	t.GracePeriod = &trc.Period{Duration: 6 * time.Hour}
 	t.Votes = map[addr.AS]trc.Vote{
-		a110: {Type: trc.OfflineKey, KeyVersion: 1},
-		a120: {Type: trc.OfflineKey, KeyVersion: 1},
-		a140: {Type: trc.OfflineKey, KeyVersion: 1},
+		a110: {KeyType: trc.OfflineKey, KeyVersion: 1},
+		a120: {KeyType: trc.OfflineKey, KeyVersion: 1},
+		a140: {KeyType: trc.OfflineKey, KeyVersion: 1},
 	}
 	t.ProofOfPossession = make(map[addr.AS][]trc.KeyType)
 	prev, _ := newRegularUpdate()

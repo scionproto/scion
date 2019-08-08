@@ -127,9 +127,9 @@ func (v UpdateVerifier) checkVotes(sigs map[addr.AS]DecodedSignature) error {
 			return common.NewBasicError(UnexpectedVoteSignature, nil, "as", as)
 		}
 		expected := Protected{
-			Algorithm:  v.Prev.PrimaryASes[as].Keys[vote.Type].Algorithm,
+			Algorithm:  v.Prev.PrimaryASes[as].Keys[vote.KeyType].Algorithm,
 			Type:       VoteSignature,
-			KeyType:    vote.Type,
+			KeyType:    vote.KeyType,
 			KeyVersion: vote.KeyVersion,
 			AS:         as,
 		}
