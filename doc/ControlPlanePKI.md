@@ -232,7 +232,7 @@ This comprises all non-object values in the top level of the TRC.
 - __trust_reset_allowed__: Boolean. Specifies whether a third party can announce a trust reset for
     this ISD.
 
-### TRC Section: validity
+### TRC Section: `validity`
 
 The following fields must be used to determine whether a TRC is *valid* (not to be confused with
 *active*).
@@ -240,7 +240,7 @@ The following fields must be used to determine whether a TRC is *valid* (not to 
 - __not_before__: timestamp. Time before which this TRC cannot be considered *valid*.
 - __not_after__: timestamp. Time after which this TRC will no longer be considered *valid*.
 
-### TRC Section: primary_ases
+### TRC Section: `primary_ases`
 
 This is an object that maps primary AS identifiers to their attributes and keys:
 
@@ -259,7 +259,7 @@ ensures it is reachable by other core ASes for bootstrap purposes). A voting AS 
 both offline and online keys. Non-voting ASes must not have offline or online keys. An issuing AS is
 required to have an issuing key. Non-issuing ASes must not have an issuing key.
 
-### TRC Section: votes
+### TRC Section: `votes`
 
 This is an object that maps AS identifiers to a signature object which must contain exactly the
 following:
@@ -278,7 +278,7 @@ JWS signed TRC to come up with another valid TRC for the same ISD and Version nu
 A base TRC is the start of a TRC update chain. Base TRCs do not carry any votes. Therefore, trust
 is established in a different manner for base TRCs (see [TRC Bootstrapping](#trc-bootstrapping)).
 
-### TRC Section: proof_of_possession
+### TRC Section: `proof_of_possession`
 
 This is an object that maps AS identifiers to an array of key types.
 
@@ -570,7 +570,7 @@ update) TRCs.
 - __optional_distribution_points__: Array string. Additional certificate revocation distribution
   points formatted as ISD-AS string. They must be authoritative in their ISD.
 
-### Certificate Section: validity
+### Certificate Section: `validity`
 
 The following fields must be used to determine whether a certificate is valid.
 
@@ -579,7 +579,7 @@ The following fields must be used to determine whether a certificate is valid.
 
 The full validity period must be covered by the validity period of the signing certificate/TRC.
 
-### Certificate Section: keys
+### Certificate Section: `keys`
 
 This is an object that maps the type of key (`issuing`, `encryption`, `signing`, or `revocation`) to
 the algorithm and the key.
@@ -599,7 +599,7 @@ notation is the same as in the [private keys table](#table-private-keys).
 | Signing Key    | illegal                 | required (`K_sign`) |
 | Revocation Key | optional (`K_rev`)      | optional (`K_rev`)  |
 
-### Certificate Section: issuer
+### Certificate Section: `issuer`
 
 The contents depend on the certificate type:
 
@@ -1040,14 +1040,14 @@ This comprises all non-object values in the top level of the TAAC.
 
     `TAAC(i+1).validity.not_before + TAAC(i+1).grace_period`
 
-##### TAAC Section: validity
+##### TAAC Section: `validity`
 
 The following fields must be used to determine whether a TAAC is *valid*.
 
 - __not_before__: timestamp. Time before which this TAAC cannot be considered *valid*.
 - __not_after__: timestamp. Time after which this TAAC will no longer be considered *valid*.
 
-##### TAAC Section: offline_keys
+##### TAAC Section: `offline_keys`
 
 This is an object that maps offline key identifiers to the keys. Offline keys are used to verify
 TAAC updates.
@@ -1057,7 +1057,7 @@ TAAC updates.
 - __algorithm__: String. Identifies the algorithm this key is used with.
 - __key__: Base64-encoded string representation of the public key.
 
-##### TAAC Section: attestation_keys
+##### TAAC Section: `attestation_keys`
 
 This is an object that maps attestation key identifiers to the keys. Attestation keys are used to
 verify Attestations.
