@@ -179,9 +179,9 @@ CfgFilePath = "path/to/HPGCfg_ffa_0_222-abcd.json"
 DefaultAction = "register"
 HiddenAndPublic = true
 
-[segmentRegistration.2]
+[segmentRegistration.ps.2]
 RegDown = true
-RegUP = true
+RegUp = true
 MaxExpiration = "15m"
 
 [segmentRegistration.hps.2.ff00_0_110-69b5]

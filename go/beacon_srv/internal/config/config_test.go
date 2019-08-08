@@ -47,6 +47,7 @@ func InitTestConfig(cfg *Config) {
 	beaconstoragetest.InitTestBeaconDBConf(&cfg.BeaconDB)
 	idiscoverytest.InitTestConfig(&cfg.Discovery)
 	InitTestBSConfig(&cfg.BS)
+	InitTestRegPolicies(&cfg.RegPolicies)
 }
 
 func InitTestBSConfig(cfg *BSConfig) {
@@ -60,12 +61,27 @@ func InitTestPolicies(cfg *Policies) {
 	cfg.DownRegistration = "test"
 }
 
+func InitTestRegPolicies(cfg *RegPolicies) {
+	cfg.DefaultAction = "test"
+	cfg.HiddenAndPublic = true
+	cfg.PublicSegs = map[string]*RegPolicy{
+		"2": {RegDown: true, RegUp: true},
+	}
+	cfg.HiddenSegs = map[string]map[string]*RegPolicy{
+		"2": {
+			"ff00_0_110-69b5": {RegDown: true, RegUp: true},
+		},
+	}
+}
+
 func CheckTestConfig(cfg *Config, id string) {
 	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
 	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
 	beaconstoragetest.CheckTestBeaconDBConf(&cfg.BeaconDB, id)
 	idiscoverytest.CheckTestConfig(&cfg.Discovery)
 	CheckTestBSConfig(&cfg.BS)
+	CheckTestHPGroups(cfg.HPGroups)
+	CheckTestRegPolicies(&cfg.RegPolicies)
 }
 
 func CheckTestBSConfig(cfg *BSConfig) {
@@ -88,4 +104,24 @@ func CheckTestPolicies(cfg *Policies) {
 	SoMsg("CoreRegistration", cfg.CoreRegistration, ShouldEqual, "")
 	SoMsg("UpRegistration", cfg.UpRegistration, ShouldEqual, "")
 	SoMsg("DownRegistration", cfg.DownRegistration, ShouldEqual, "")
+}
+
+func CheckTestHPGroups(cfg HPGroups) {
+	SoMsg("Group ff00_0_110-69b5", cfg["ff00_0_110-69b5"].CfgFilePath, ShouldEqual,
+		"path/to/HPGCfg_ff00_0_110-69b5.json")
+	SoMsg("Group ffaa_0_222-abcd", cfg["ffaa_0_222-abcd"].CfgFilePath, ShouldEqual,
+		"path/to/HPGCfg_ffa_0_222-abcd.json")
+}
+
+func CheckTestRegPolicies(cfg *RegPolicies) {
+	SoMsg("DefaultAction", cfg.DefaultAction, ShouldEqual, "register")
+	SoMsg("HiddenAndPublic", cfg.HiddenAndPublic, ShouldBeFalse)
+	SoMsg("Public Seg RegDown", cfg.PublicSegs["2"].RegDown, ShouldBeFalse)
+	SoMsg("Public Seg RegUp", cfg.PublicSegs["2"].RegUp, ShouldBeFalse)
+	SoMsg("Public Seg MaxExpiration", cfg.PublicSegs["2"].MaxExpiration.Duration,
+		ShouldEqual, DefaultMaxSegExpiration)
+	SoMsg("Hidden Seg RegDown", cfg.HiddenSegs["2"]["ff00_0_110-69b5"].RegDown, ShouldBeFalse)
+	SoMsg("Hidden Seg RegUp", cfg.HiddenSegs["2"]["ff00_0_110-69b5"].RegUp, ShouldBeFalse)
+	SoMsg("Hidden Seg MaxExpiration", cfg.HiddenSegs["2"]["ff00_0_110-69b5"].MaxExpiration.Duration,
+		ShouldEqual, DefaultMaxSegExpiration)
 }

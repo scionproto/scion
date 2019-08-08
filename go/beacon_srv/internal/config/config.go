@@ -17,12 +17,14 @@ package config
 
 import (
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
@@ -45,6 +47,9 @@ const (
 	// DefaultExpiredCheckInterval is the default interval between checking for
 	// expired interfaces.
 	DefaultExpiredCheckInterval = 200 * time.Millisecond
+	// DefaultMaxSegExpiration is the default maximal time after which a registered
+	//segment expires
+	DefaultMaxSegExpiration = time.Hour
 )
 
 var _ config.Config = (*Config)(nil)
@@ -60,6 +65,8 @@ type Config struct {
 	BeaconDB       beaconstorage.BeaconDBConf
 	Discovery      idiscovery.Config
 	BS             BSConfig
+	HPGroups       HPGroups
+	RegPolicies    RegPolicies `toml:"segmentRegistration"`
 	EnableQUICTest bool
 }
 
@@ -74,6 +81,8 @@ func (cfg *Config) InitDefaults() {
 		&cfg.BeaconDB,
 		&cfg.Discovery,
 		&cfg.BS,
+		&cfg.HPGroups,
+		&cfg.RegPolicies,
 	)
 }
 
@@ -87,6 +96,8 @@ func (cfg *Config) Validate() error {
 		&cfg.BeaconDB,
 		&cfg.Discovery,
 		&cfg.BS,
+		&cfg.HPGroups,
+		&cfg.RegPolicies,
 	)
 }
 
@@ -102,6 +113,8 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.BeaconDB,
 		&cfg.Discovery,
 		&cfg.BS,
+		&cfg.HPGroups,
+		&cfg.RegPolicies,
 	)
 }
 
@@ -213,4 +226,129 @@ func (cfg *Policies) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
 // ConfigName is the toml key for the beacon server specific configuration.
 func (cfg *Policies) ConfigName() string {
 	return "policies"
+}
+
+// HPGroup holds a hidden path group configuration.
+type HPGroup struct {
+	config.NoDefaulter
+	config.NoValidator
+	CfgFilePath string
+}
+
+var _ config.Config = (HPGroups)(nil)
+
+// HPGroups holds the file paths of hidden path group configurations.
+type HPGroups map[string]*HPGroup
+
+// InitDefaults is a no-op to satisfy the config.Config interface
+func (hpg HPGroups) InitDefaults() {}
+
+// Validate checks that keys are valid hiddenpath GroupIds.
+func (hpg HPGroups) Validate() error {
+	for id, group := range hpg {
+		groupid := hiddenpath.GroupId{}
+		err := groupid.UnmarshalText([]byte(id))
+		if err != nil {
+			return common.NewBasicError("Invalid HPGroup", err)
+		}
+		group.Validate()
+	}
+	return nil
+}
+
+// Sample generates a sample for the HPGroups configuration
+func (hpg HPGroups) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
+	config.WriteString(dst, hpGroupsSample)
+}
+
+// ConfigName is the toml key for the HPGroups configuration.
+func (hpg HPGroups) ConfigName() string {
+	return "hpGroups"
+}
+
+// RegPolicy holds a segment registration policy
+type RegPolicy struct {
+	RegDown       bool
+	RegUp         bool
+	MaxExpiration util.DurWrap
+}
+
+// InitDefaults sets the default values for the RegPolicy
+func (rp *RegPolicy) InitDefaults() {
+	initDurWrap(&rp.MaxExpiration, DefaultMaxSegExpiration)
+}
+
+// Validate checks that MaxExpiration is set
+func (rp *RegPolicy) Validate() error {
+	if rp.MaxExpiration.Duration == 0 {
+		return common.NewBasicError("MaxExpiration not set", nil)
+	}
+	return nil
+}
+
+var _ config.Config = (*RegPolicies)(nil)
+
+// RegPolicies describes how to register segments
+type RegPolicies struct {
+	DefaultAction   string
+	HiddenAndPublic bool
+	PublicSegs      map[string]*RegPolicy            `toml:"ps"`
+	HiddenSegs      map[string]map[string]*RegPolicy `toml:"hps"`
+}
+
+// InitDefaults sets the default values for all policies
+func (p *RegPolicies) InitDefaults() {
+	p.DefaultAction = "register"
+	for _, policy := range p.PublicSegs {
+		policy.InitDefaults()
+	}
+	for _, m := range p.HiddenSegs {
+		for _, policy := range m {
+			policy.InitDefaults()
+		}
+	}
+}
+
+// Validate validates that segments are identified by IFIDs,
+// the supplied HPGroupIds are valid and the DefaultAction is valid.
+func (p *RegPolicies) Validate() error {
+	if p.DefaultAction != "register" && p.DefaultAction != "discard" {
+		return common.NewBasicError("Invalid default action", nil, "action", p.DefaultAction)
+	}
+	for ifid, policy := range p.PublicSegs {
+		_, err := strconv.ParseUint(ifid, 10, 64)
+		if err != nil {
+			return common.NewBasicError("Key is not an IFID", err)
+		}
+		if err = policy.Validate(); err != nil {
+			return common.NewBasicError("Invalid registration policy", err, "policy", policy)
+		}
+	}
+	for ifid, m := range p.HiddenSegs {
+		_, err := strconv.ParseUint(ifid, 10, 64)
+		if err != nil {
+			return common.NewBasicError("Key is not an IFID", err)
+		}
+		for group, policy := range m {
+			id := hiddenpath.GroupId{}
+			err = id.UnmarshalText([]byte(group))
+			if err != nil {
+				return common.NewBasicError("Invalid HPGroup", err)
+			}
+			if err = policy.Validate(); err != nil {
+				return common.NewBasicError("Invalid registration policy", err, "policy", policy)
+			}
+		}
+	}
+	return nil
+}
+
+// Sample generates a sample for the segment registration configuration.
+func (p *RegPolicies) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, regPoliciesSample)
+}
+
+// ConfigName is the toml key for the segment registration configuration.
+func (p *RegPolicies) ConfigName() string {
+	return "segmentRegistration"
 }

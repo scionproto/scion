@@ -57,3 +57,53 @@ UpRegistration = ""
 # (default "")
 DownRegistration = ""
 `
+
+const hpGroupsSample = `
+# The hidden path groups known to this BS
+# Map from GroupId to location of group configuration file
+[hpGroups.ff00_0_110-69b5]
+CfgFilePath = "path/to/HPGCfg_ff00_0_110-69b5.json"
+
+[hpGroups.ffaa_0_222-abcd]
+CfgFilePath = "path/to/HPGCfg_ffa_0_222-abcd.json"
+`
+
+const regPoliciesSample = `
+# The default action to perform for segments not explicitly listed.
+# Valid options are "register" and "discard".
+# (default "register")
+DefaultAction = "register"
+
+# Speciefies wether the same segment can be 
+# registered as hidden and public.
+# (default false)
+HiddenAndPublic = false
+
+	[segmentRegistration.ps.2]
+		# Wether to register this segment as down-segment
+		# at the core PS (default false)
+		RegDown = false
+
+		# Wether to register this segment as up-segment
+		# at the local PS (default false)
+		RegUp = false
+
+		# Maximal time after which segment expires
+		#(default "1h")
+		MaxExpiration = "1h"
+
+	[segmentRegistration.hps.2.ff00_0_110-69b5]
+		# Wether to register this segment as down-segment
+		# at the remote HPS of the specified HPGroup
+		#(default false)
+		RegDown = false
+
+		# Wether to register this segment as hidden up-segment
+		# at the local HPS
+		#(default false)
+		RegUp = false
+
+		# Maximal time after which segment expires
+		#(default "1h")
+		MaxExpiration = "1h"
+`

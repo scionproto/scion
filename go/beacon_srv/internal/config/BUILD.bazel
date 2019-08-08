@@ -13,6 +13,7 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
+        "//go/lib/hiddenpath:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
         "//go/lib/truststorage:go_default_library",
         "//go/lib/util:go_default_library",
