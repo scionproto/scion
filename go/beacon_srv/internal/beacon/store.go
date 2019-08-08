@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -72,10 +73,10 @@ func (s *Store) BeaconsToPropagate(ctx context.Context) (<-chan BeaconOrErr, err
 func (s *Store) SegmentsToRegister(ctx context.Context, segType proto.PathSegType) (
 	<-chan BeaconOrErr, error) {
 
-	switch {
-	case segType == proto.PathSegType_down:
+	switch segType {
+	case proto.PathSegType_down:
 		return s.getBeacons(ctx, &s.policies.DownReg)
-	case segType == proto.PathSegType_up:
+	case proto.PathSegType_up:
 		return s.getBeacons(ctx, &s.policies.UpReg)
 	default:
 		return nil, common.NewBasicError("Unsupported segment type", nil, "type", segType)
@@ -97,6 +98,19 @@ func (s *Store) getBeacons(ctx context.Context, policy *Policy) (<-chan BeaconOr
 		s.algo.SelectAndServe(beacons, results, policy.BestSetSize)
 	}()
 	return results, nil
+}
+
+// MaxExpTime returns the segment maximum expiration time for the given policy.
+func (s *Store) MaxExpTime(policyType PolicyType) spath.ExpTimeType {
+	switch policyType {
+	case UpRegPolicy:
+		return *s.policies.UpReg.MaxExpTime
+	case DownRegPolicy:
+		return *s.policies.DownReg.MaxExpTime
+	case PropPolicy:
+		return *s.policies.Prop.MaxExpTime
+	}
+	return DefaultMaxExpTime
 }
 
 // CoreStore provides abstracted access to the beacon database in a core AS. The
@@ -182,6 +196,17 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 		}
 	}()
 	return results, nil
+}
+
+// MaxExpTime returns the segment maximum expiration time for the given policy.
+func (s *CoreStore) MaxExpTime(policyType PolicyType) spath.ExpTimeType {
+	switch policyType {
+	case CoreRegPolicy:
+		return *s.policies.CoreReg.MaxExpTime
+	case PropPolicy:
+		return *s.policies.Prop.MaxExpTime
+	}
+	return DefaultMaxExpTime
 }
 
 // baseStore is the basis for the beacon store.

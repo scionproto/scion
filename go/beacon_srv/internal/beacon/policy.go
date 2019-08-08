@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // PolicyType is the policy type.
@@ -44,6 +45,8 @@ const (
 	DefaultCandidateSetSize = 100
 	// DefaultMaxHopsLength is the default MaxHopsLength value.
 	DefaultMaxHopsLength = 10
+	// DefaultMaxExpTime is the default MaxExpTime value.
+	DefaultMaxExpTime = spath.DefaultHopFExpiry
 )
 
 // Policies keeps track of all policies for a non-core beacon store.
@@ -178,6 +181,9 @@ type Policy struct {
 	// CandidateSetSize is the number of segments to consider for
 	// selection.
 	CandidateSetSize int `yaml:"CandidateSetSize"`
+	// MaxExpTime indicates the maximum value for the expiration time when
+	// extending the segment.
+	MaxExpTime *spath.ExpTimeType `yaml:"MaxExpTime"`
 	// Filter is the filter applied to segments.
 	Filter Filter `yaml:"Filter"`
 	// Type is the policy type.
@@ -192,14 +198,21 @@ func (p *Policy) InitDefaults() {
 	if p.CandidateSetSize == 0 {
 		p.CandidateSetSize = DefaultCandidateSetSize
 	}
+	if p.MaxExpTime == nil {
+		m := DefaultMaxExpTime
+		p.MaxExpTime = &m
+	}
 	p.Filter.InitDefaults()
 }
 
-func (p *Policy) initDefaults(t PolicyType) {
+func (p *Policy) initDefaults(t PolicyType) error {
 	p.InitDefaults()
-	if p.Type == "" {
-		p.Type = t
+	if p.Type != "" && p.Type != t {
+		return common.NewBasicError("Specified policy type does not match", nil,
+			"expected", t, "actual", p.Type)
 	}
+	p.Type = t
+	return nil
 }
 
 // ParseYaml parses the policy in yaml format and initializes the default values.
@@ -208,13 +221,8 @@ func ParseYaml(b common.RawBytes, t PolicyType) (*Policy, error) {
 	if err := yaml.Unmarshal(b, p); err != nil {
 		return nil, common.NewBasicError("Unable to parse policy", err)
 	}
-	p.InitDefaults()
-	if p.Type == "" {
-		p.Type = t
-	}
-	if p.Type != t {
-		return nil, common.NewBasicError("Specified policy type does not match", nil,
-			"expected", t, "actual", p.Type)
+	if err := p.initDefaults(t); err != nil {
+		return nil, err
 	}
 	return p, nil
 }
