@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"flag"
 	"fmt"
 	"hash"
@@ -29,7 +28,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/crypto/pbkdf2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
@@ -515,16 +513,11 @@ func macGenFactory() (func() hash.Hash, error) {
 	if err != nil {
 		return nil, err
 	}
-	hfGenKey := pbkdf2.Key(mk.Key0, []byte("Derive OF Key"), 1000, 16, sha256.New)
-	// check that mac initialization works.
-	if _, err := scrypto.InitMac(hfGenKey); err != nil {
+	hfMacFactory, err := scrypto.HFMacFactory(mk.Key0)
+	if err != nil {
 		return nil, err
 	}
-	gen := func() hash.Hash {
-		mac, _ := scrypto.InitMac(hfGenKey)
-		return mac
-	}
-	return gen, nil
+	return hfMacFactory, nil
 }
 
 func setupBasic() error {

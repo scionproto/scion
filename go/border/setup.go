@@ -198,6 +198,10 @@ func (r *Router) setupCtxOnClean() {
 // setupNewContext sets up a new router context.
 func (r *Router) setupNewContext(ctx *rctx.Ctx, tx *itopo.Transaction) error {
 	oldCtx := rctx.Get()
+	// Initialize Hop Field Mac Pool
+	if err := ctx.InitMacPool(); err != nil {
+		return err
+	}
 	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
 	sockConf := brconf.SockConf{Default: PosixSock}
 	if err := r.setupNetAndTopo(ctx, oldCtx, sockConf, tx); err != nil {

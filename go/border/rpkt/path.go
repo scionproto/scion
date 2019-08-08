@@ -65,9 +65,9 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 		)
 	}
 	// Verify the Hop Field MAC.
-	hfmac := rp.Ctx.Conf.HFMacPool.Get().(hash.Hash)
+	hfmac := rp.Ctx.HFMacPool.Get().(hash.Hash)
 	err := rp.hopF.Verify(hfmac, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
-	rp.Ctx.Conf.HFMacPool.Put(hfmac)
+	rp.Ctx.HFMacPool.Put(hfmac)
 	if err != nil && common.GetErrorMsg(err) == spath.ErrorHopFBadMac {
 		err = scmp.NewError(scmp.C_Path, scmp.T_P_BadMac,
 			rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), err)
