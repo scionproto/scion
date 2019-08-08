@@ -452,7 +452,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, req *sciond.PathReq
 	earlyTrigger := make(chan struct{})
 	time.AfterFunc(earlyReplyInterval, func() { close(earlyTrigger) })
 	// Create an extended context to verify and store the reply.
-	r := f.replyHandler.Handle(extCtx, reply, ps, earlyTrigger)
+	r := f.replyHandler.Handle(extCtx, reply, nil, earlyTrigger)
 	go func() {
 		defer log.LogPanicAndExit()
 		defer cancelF()
