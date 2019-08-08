@@ -15,14 +15,12 @@
 package shared
 
 import (
-	"crypto/sha256"
 	"hash"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/google/gopacket/afpacket"
-	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
@@ -87,10 +85,10 @@ func generateKeys(fn string) error {
 	if err != nil {
 		return err
 	}
-	// This uses 16B keys with 1000 hash iterations, which is the same as the
-	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(masterKeys.Key0, common.RawBytes("Derive OF Key"), 1000, 16, sha256.New)
-	// First check for MAC creation errors.
-	HashMac, err = scrypto.InitMac(hfGenKey)
-	return err
+	hfMacFactory, err := scrypto.HFMacFactory(masterKeys.Key0)
+	if err != nil {
+		return err
+	}
+	HashMac = hfMacFactory()
+	return nil
 }

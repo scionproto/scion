@@ -34,7 +34,7 @@ test_setup() {
     set_veths
 
     # Copy common configuration files
-    cp -r "$BRCONF_DIR" "$TEST_ARTIFACTS_DIR/conf"
+    cp -r "$BRCONF_DIR" "$TEST_ARTIFACTS_DIR"
 
     # Copy custom configuration files, ie. topology
     cp -r "acceptance/${TEST_DIR}/conf/topology.json" "$TEST_ARTIFACTS_DIR/conf"

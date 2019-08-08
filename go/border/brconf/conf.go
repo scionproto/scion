@@ -18,17 +18,12 @@
 package brconf
 
 import (
-	"crypto/sha256"
 	"path/filepath"
-	"sync"
-
-	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -46,8 +41,6 @@ type BRConf struct {
 	ASConf *as_conf.ASConf
 	// MasterKeys holds the local AS master keys.
 	MasterKeys keyconf.Master
-	// HFMacPool is the pool of Hop Field MAC generation instances.
-	HFMacPool *sync.Pool
 	// Dir is the configuration directory.
 	Dir string
 }
@@ -66,9 +59,6 @@ func Load(id, confDir string) (*BRConf, error) {
 	if err := conf.loadMasterKeys(); err != nil {
 		return nil, err
 	}
-	if err := conf.initMacPool(); err != nil {
-		return nil, err
-	}
 	return conf, nil
 }
 
@@ -79,7 +69,6 @@ func WithNewTopo(id string, topo *topology.Topo, oldConf *BRConf) (*BRConf, erro
 		Dir:        oldConf.Dir,
 		ASConf:     oldConf.ASConf,
 		MasterKeys: oldConf.MasterKeys,
-		HFMacPool:  oldConf.HFMacPool,
 	}
 	if err := conf.initTopo(id, topo); err != nil {
 		return nil, common.NewBasicError("Unable to initialize topo", err)
@@ -131,27 +120,6 @@ func (cfg *BRConf) loadMasterKeys() error {
 	cfg.MasterKeys, err = keyconf.LoadMaster(filepath.Join(cfg.Dir, "keys"))
 	if err != nil {
 		return common.NewBasicError("Unable to load master keys", err)
-	}
-	return nil
-}
-
-// initMacPool initializes the hop field mac pool.
-func (cfg *BRConf) initMacPool() error {
-	// Generate keys
-	// This uses 16B keys with 1000 hash iterations, which is the same as the
-	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(cfg.MasterKeys.Key0, []byte("Derive OF Key"), 1000, 16, sha256.New)
-
-	// First check for MAC creation errors.
-	if _, err := scrypto.InitMac(hfGenKey); err != nil {
-		return err
-	}
-	// Create a pool of MAC instances.
-	cfg.HFMacPool = &sync.Pool{
-		New: func() interface{} {
-			mac, _ := scrypto.InitMac(hfGenKey)
-			return mac
-		},
 	}
 	return nil
 }
