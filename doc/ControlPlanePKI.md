@@ -366,11 +366,11 @@ The following are conditions that must hold true for every TRC:
     },
     "Votes": {
         "ff00:0:110": {
-            "type": "offline",
+            "key_type": "offline",
             "key_version": 34
         },
         "ff00:0:120": {
-            "type": "offline",
+            "key_type": "offline",
             "key_version": 10
         }
     },
