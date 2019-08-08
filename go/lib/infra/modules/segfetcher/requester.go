@@ -35,14 +35,21 @@ type DstProvider interface {
 	Dst(context.Context, Request) (net.Addr, error)
 }
 
-// ReplyOrErr is a seg reply or an error.
+// ReplyOrErr is a seg reply or an error for the given request.
 type ReplyOrErr struct {
+	Req   Request
 	Reply *path_mgmt.SegReply
+	Peer  net.Addr
 	Err   error
 }
 
-// Requester requests all segments that can be requested from a request set.
-type Requester struct {
+// Requester requests segments.
+type Requester interface {
+	Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr
+}
+
+// DefaultRequester requests all segments that can be requested from a request set.
+type DefaultRequester struct {
 	API         RequestAPI
 	DstProvider DstProvider
 }
@@ -50,7 +57,7 @@ type Requester struct {
 // Request the missing segments from the remote. Note that this might only
 // fetch a part of the full request set, i.e. if up or down segments are set,
 // cores are not yet fetched, assuming the cores are not resolved.
-func (r *Requester) Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr {
+func (r *DefaultRequester) Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr {
 	switch {
 	case req.Up.IsZero() && req.Down.IsZero():
 		// only cores to fetch
@@ -64,26 +71,22 @@ func (r *Requester) Request(ctx context.Context, req RequestSet) <-chan ReplyOrE
 	}
 }
 
-func (r *Requester) fetchReqs(ctx context.Context, reqs Requests) <-chan ReplyOrErr {
+func (r *DefaultRequester) fetchReqs(ctx context.Context, reqs Requests) <-chan ReplyOrErr {
 	replies := make(chan ReplyOrErr, len(reqs))
 	var wg sync.WaitGroup
 	for i := range reqs {
 		req := reqs[i]
 		dst, err := r.DstProvider.Dst(ctx, req)
 		if err != nil {
-			replies <- ReplyOrErr{Err: err}
+			replies <- ReplyOrErr{Req: req, Err: err}
 			continue
 		}
 		wg.Add(1)
 		go func() {
 			defer log.LogPanicAndExit()
 			defer wg.Done()
-
-			reply, err := r.API.GetSegs(ctx, &path_mgmt.SegReq{
-				RawSrcIA: req.Src.IAInt(),
-				RawDstIA: req.Dst.IAInt(),
-			}, dst, messenger.NextId())
-			replies <- ReplyOrErr{Reply: reply, Err: err}
+			reply, err := r.API.GetSegs(ctx, req.ToSegReq(), dst, messenger.NextId())
+			replies <- ReplyOrErr{Req: req, Reply: reply, Peer: dst, Err: err}
 		}()
 	}
 	go func() {

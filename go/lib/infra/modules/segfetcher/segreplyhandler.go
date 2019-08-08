@@ -139,6 +139,12 @@ func (r *ProcessedResult) VerificationErrors() []error {
 	return r.verifyErrs
 }
 
+// ReplyHandler handles replies.
+type ReplyHandler interface {
+	Handle(ctx context.Context, reply *path_mgmt.SegReply, server net.Addr,
+		earlyTrigger <-chan struct{}) *ProcessedResult
+}
+
 // SegReplyHandler is a handler that verifies and stores seg replies. The
 // handler supports an early trigger, so that a partial result can be stored
 // early to possibly reply to clients earlier.
@@ -155,7 +161,7 @@ func (h *SegReplyHandler) Handle(ctx context.Context, reply *path_mgmt.SegReply,
 		early: make(chan int, 1),
 		full:  make(chan struct{}),
 	}
-	verifiedCh, units := h.Verifier.Verify(ctx, reply, nil)
+	verifiedCh, units := h.Verifier.Verify(ctx, reply, server)
 	if units == 0 {
 		close(result.early)
 		close(result.full)

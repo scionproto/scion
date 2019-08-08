@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
+	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
@@ -47,15 +48,16 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 	verified := make(chan segverifier.UnitResult)
 	close(verified)
 
+	server := mock_net.NewMockAddr(ctrl)
 	storage := mock_segfetcher.NewMockStorage(ctrl)
 	verifier := mock_segfetcher.NewMockVerifier(ctrl)
-	verifier.EXPECT().Verify(ctx, reply, gomock.Any()).Return(verified, 0)
+	verifier.EXPECT().Verify(ctx, reply, gomock.Eq(server)).Return(verified, 0)
 	handler := segfetcher.SegReplyHandler{
 		Storage:  storage,
 		Verifier: verifier,
 	}
 
-	r := handler.Handle(ctx, reply, nil, earlyTrigger)
+	r := handler.Handle(ctx, reply, server, earlyTrigger)
 	AssertRead(t, r.EarlyTriggerProcessed(), 0, time.Second/2)
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
