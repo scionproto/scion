@@ -117,11 +117,11 @@ func TestExtenderExtend(t *testing.T) {
 			intfs.Get(graph.If_111_A_112_X).Activate(graph.If_112_X_111_A)
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
 			ext, err := ExtenderConf{
-				MTU:        1337,
-				Signer:     testSigner(t, priv, topoProvider.Get().ISD_AS),
-				Mac:        mac,
-				Intfs:      intfs,
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				MTU:           1337,
+				Signer:        testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Mac:           mac,
+				Intfs:         intfs,
+				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			}.new()
 			SoMsg("err", err, ShouldBeNil)
 			// Create path segment from description, if available.
@@ -188,11 +188,11 @@ func TestExtenderExtend(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 		ext, err := ExtenderConf{
-			MTU:        1337,
-			Signer:     testSigner(t, priv, topoProvider.Get().ISD_AS),
-			Mac:        mac,
-			MaxExpTime: maxExpTimeFactory(1),
-			Intfs:      intfs,
+			MTU:           1337,
+			Signer:        testSigner(t, priv, topoProvider.Get().ISD_AS),
+			Mac:           mac,
+			GetMaxExpTime: maxExpTimeFactory(1),
+			Intfs:         intfs,
 		}.new()
 		SoMsg("err", err, ShouldBeNil)
 		pseg := testBeacon(g, segDesc).Segment
@@ -210,11 +210,11 @@ func TestExtenderExtend(t *testing.T) {
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
 		xtest.FailOnErr(t, err)
 		ext, err := ExtenderConf{
-			MTU:        1337,
-			Signer:     testSigner(t, priv, topoProvider.Get().ISD_AS),
-			Mac:        mac,
-			Intfs:      intfs,
-			MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+			MTU:           1337,
+			Signer:        testSigner(t, priv, topoProvider.Get().ISD_AS),
+			Mac:           mac,
+			Intfs:         intfs,
+			GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 		}.new()
 		SoMsg("err", err, ShouldBeNil)
 		pseg := testBeacon(g, segDesc).Segment
