@@ -25,6 +25,8 @@ import (
 )
 
 const (
+	// WildcardIssuer indicates the issuer is a wildcard IA.
+	WildcardIssuer = "issuer.ia is wildcard"
 	// IssuerDifferentISD indicates that the issuing AS is in a different ISD.
 	IssuerDifferentISD = "issuing.ia in different ISD"
 	// InvalidCertificateType indicates the certificate type is invalid.
@@ -54,6 +56,9 @@ func (c *AS) Validate() error {
 	}
 	if err := c.validateKeys(false); err != nil {
 		return err
+	}
+	if c.Issuer.IA.IsWildcard() {
+		return common.NewBasicError(WildcardIssuer, nil, "issuer", c.Issuer.IA)
 	}
 	if c.Subject.I != c.Issuer.IA.I {
 		return common.NewBasicError(IssuerDifferentISD, nil,

@@ -60,6 +60,41 @@ func TestValidityContains(t *testing.T) {
 	}
 }
 
+func TestValidityCovers(t *testing.T) {
+	now := time.Now()
+	validity := scrypto.Validity{
+		NotBefore: util.UnixTime{Time: now},
+		NotAfter:  util.UnixTime{Time: now.Add(time.Minute)},
+	}
+	tests := map[string]struct {
+		DiffNotBefore time.Duration
+		DiffNotAfter  time.Duration
+		Civf          bool
+	}{
+		"Before": {
+			Time: now.Add(-time.Minute),
+		},
+		"Same as NotBefore": {
+			Time:      now,
+			Contained: true,
+		},
+		"Between NotBefore and NotAfter": {
+			Time:      now.Add(30 * time.Second),
+			Contained: true,
+		},
+		"Same as NotAfter": {
+			Time:      now.Add(time.Minute),
+			Contained: true,
+		},
+		"After": {
+			Time: now.Add(time.Hour),
+		},
+	}
+	for name, test := range tests {
+		assert.Equal(t, test.Contained, validity.Contains(test.Time), name)
+	}
+}
+
 func TestValidityUnmarshal(t *testing.T) {
 	tests := map[string]struct {
 		Input  string
