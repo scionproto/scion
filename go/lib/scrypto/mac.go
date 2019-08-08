@@ -16,9 +16,11 @@ package scrypto
 
 import (
 	"crypto/aes"
+	"crypto/sha256"
 	"hash"
 
 	"github.com/dchest/cmac"
+	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -28,7 +30,11 @@ const (
 	ErrorMacFailure    = "Unable to initialize Mac"
 )
 
-func InitMac(key common.RawBytes) (hash.Hash, error) {
+var (
+	hfMacSalt = []byte("Derive OF Key")
+)
+
+func InitMac(key []byte) (hash.Hash, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, common.NewBasicError(ErrorCipherFailure, err)
@@ -38,4 +44,21 @@ func InitMac(key common.RawBytes) (hash.Hash, error) {
 		return nil, common.NewBasicError(ErrorMacFailure, err)
 	}
 	return mac, nil
+}
+
+func HFMacFactory(key []byte) (func() hash.Hash, error) {
+	// Generate keys
+	// This uses 16B keys with 1000 hash iterations, which is the same as the
+	// defaults used by pycrypto.
+	hfGenKey := pbkdf2.Key(key, hfMacSalt, 1000, 16, sha256.New)
+
+	// First check for MAC creation errors.
+	if _, err := InitMac(hfGenKey); err != nil {
+		return nil, err
+	}
+	f := func() hash.Hash {
+		mac, _ := InitMac(hfGenKey)
+		return mac
+	}
+	return f, nil
 }

@@ -24,15 +24,5 @@ services:
       - "./dispatcher-conf:/share/conf"
   core-brA:
     <<: *br
-  core-brB:
-    <<: *br
-  core-brC:
-    <<: *br
   brA:
-    <<: *br
-  brB:
-    <<: *br
-  brC:
-    <<: *br
-  brD:
     <<: *br
