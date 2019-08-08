@@ -114,8 +114,8 @@ func TestFetcher(t *testing.T) {
 			ErrorAssertion: require.NoError,
 			ExpectedSegs:   segfetcher.Segments{Up: seg.Segments{tg.seg130_111}},
 		},
-		// XXX(lukedirtwalker): testing the full loop is quite involved, not
-		// sure if it would be worth it.
+		// XXX(lukedirtwalker): testing the full loop is quite involved, and is
+		// therefore currently omitted.
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
