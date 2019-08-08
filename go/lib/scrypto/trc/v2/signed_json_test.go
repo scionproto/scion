@@ -68,7 +68,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				AS:         a110,
 			},
 		},
-		"Valid proof of possession": {
+		"Valid proof_of_possession": {
 			Input: `
 			{
 				"alg": "ed25519",
@@ -86,7 +86,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				AS:         a110,
 			},
 		},
-		"Algorithm not set": {
+		"algorithm not set": {
 			Input: `
 			{
 				"type": "proof_of_possession",
@@ -97,7 +97,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			}`,
 			ExpectedErrMsg: trc.ErrAlgorithmNotSet.Error(),
 		},
-		"Type not set": {
+		"type not set": {
 			Input: `
 			{
 				"alg": "ed25519",
@@ -108,7 +108,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			}`,
 			ExpectedErrMsg: trc.ErrSignatureTypeNotSet.Error(),
 		},
-		"KeyType not set": {
+		"key_type not set": {
 			Input: `
 			{
 				"alg": "ed25519",
@@ -117,9 +117,9 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"as": "ff00:0:110",
 				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
-			ExpectedErrMsg: trc.ErrTypeNotSet.Error(),
+			ExpectedErrMsg: trc.ErrKeyTypeNotSet.Error(),
 		},
-		"KeyVersion not set": {
+		"key_version not set": {
 			Input: `
 			{
 				"alg": "ed25519",
@@ -130,7 +130,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			}`,
 			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
 		},
-		"AS not set": {
+		"as not set": {
 			Input: `
 			{
 				"alg": "ed25519",

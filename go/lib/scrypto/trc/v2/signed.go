@@ -159,7 +159,7 @@ func (p *protectedAlias) checkAllSet() error {
 	case p.Type == nil:
 		return ErrSignatureTypeNotSet
 	case p.KeyType == nil:
-		return ErrTypeNotSet
+		return ErrKeyTypeNotSet
 	case p.KeyVersion == nil:
 		return ErrKeyVersionNotSet
 	case p.AS == nil:

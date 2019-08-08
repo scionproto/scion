@@ -230,9 +230,9 @@ func (v *UpdateValidator) hasVotingRights(as addr.AS, vote Vote, keyType KeyType
 	if !primary.Is(Voting) {
 		return ErrNoVotingRight
 	}
-	if vote.Type != keyType {
+	if vote.KeyType != keyType {
 		return common.NewBasicError(WrongVotingKeyType, nil,
-			"expected", keyType, "actual", vote.Type)
+			"expected", keyType, "actual", vote.KeyType)
 	}
 	if primary.Keys[keyType].KeyVersion != vote.KeyVersion {
 		return common.NewBasicError(WrongVotingKeyVersion, nil,

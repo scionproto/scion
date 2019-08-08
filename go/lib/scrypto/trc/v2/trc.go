@@ -58,35 +58,35 @@ var (
 
 // Parse errors
 var (
-	// ErrISDNotSet indicates ISD is not set.
-	ErrISDNotSet = errors.New("ISD not set")
-	// ErrVersionNotSet indicates Version is not set.
-	ErrVersionNotSet = errors.New("Version not set")
-	// ErrBaseVersionNotSet indicates BaseVersion is not set.
-	ErrBaseVersionNotSet = errors.New("BaseVersion not set")
-	// ErrDescriptionNotSet indicates Description is not set.
-	ErrDescriptionNotSet = errors.New("Description not set")
-	// ErrVotingQuorumNotSet indicates VotingQuorum is not set.
-	ErrVotingQuorumNotSet = errors.New("VotingQuorum not set")
-	// ErrFormatVersionNotSet indicates FormatVersion is not set.
-	ErrFormatVersionNotSet = errors.New("FormatVersion not set")
-	// ErrGracePeriodNotSet indicates GracePeriod is not set.
-	ErrGracePeriodNotSet = errors.New("GracePeriod not set")
-	// ErrTrustResetAllowedNotSet indicates TrustResetAllowed is not set.
-	ErrTrustResetAllowedNotSet = errors.New("TrustResetAllowed not set")
-	// ErrValidityNotSet indicates Validity is not set.
-	ErrValidityNotSet = errors.New("Validity not set")
-	// ErrPrimaryASesNotSet indicates PrimaryASes is not set.
-	ErrPrimaryASesNotSet = errors.New("PrimaryASes not set")
-	// ErrVotesNotSet indicates Votes is not set.
-	ErrVotesNotSet = errors.New("Votes not set")
-	// ErrProofOfPossessionNotSet indicates ProofOfPossession is not set.
-	ErrProofOfPossessionNotSet = errors.New("ProofOfPossession not set")
+	// ErrISDNotSet indicates isd is not set.
+	ErrISDNotSet = errors.New("isd not set")
+	// ErrVersionNotSet indicates version is not set.
+	ErrVersionNotSet = errors.New("version not set")
+	// ErrBaseVersionNotSet indicates base_version is not set.
+	ErrBaseVersionNotSet = errors.New("base_version not set")
+	// ErrDescriptionNotSet indicates description is not set.
+	ErrDescriptionNotSet = errors.New("description not set")
+	// ErrVotingQuorumNotSet indicates voting_quorum is not set.
+	ErrVotingQuorumNotSet = errors.New("voting_quorum not set")
+	// ErrFormatVersionNotSet indicates format_version is not set.
+	ErrFormatVersionNotSet = errors.New("format_version not set")
+	// ErrGracePeriodNotSet indicates grace_period is not set.
+	ErrGracePeriodNotSet = errors.New("grace_period not set")
+	// ErrTrustResetAllowedNotSet indicates trust_reset_allowed is not set.
+	ErrTrustResetAllowedNotSet = errors.New("trust_reset_allowed not set")
+	// ErrValidityNotSet indicates validity is not set.
+	ErrValidityNotSet = errors.New("validity not set")
+	// ErrPrimaryASesNotSet indicates primary_ases is not set.
+	ErrPrimaryASesNotSet = errors.New("primary_ases not set")
+	// ErrVotesNotSet indicates votes is not set.
+	ErrVotesNotSet = errors.New("votes not set")
+	// ErrProofOfPossessionNotSet indicates proof_of_possession is not set.
+	ErrProofOfPossessionNotSet = errors.New("proof_of_possession not set")
 
-	// ErrTypeNotSet indicates Type is not set.
-	ErrTypeNotSet = errors.New("key type not set")
-	// ErrKeyVersionNotSet indicates KeyVersion is not set.
-	ErrKeyVersionNotSet = errors.New("key version not set")
+	// ErrKeyTypeNotSet indicates key_type is not set.
+	ErrKeyTypeNotSet = errors.New("key_type not set")
+	// ErrKeyVersionNotSet indicates key_version is not set.
+	ErrKeyVersionNotSet = errors.New("key_version not set")
 )
 
 const (
@@ -248,8 +248,8 @@ func (t *TRC) checkAllSet() error {
 
 // Vote identifies the expected vote.
 type Vote struct {
-	// Type is the type of key that is used to issue the signature.
-	Type KeyType `json:"type"`
+	// KeyType is the type of key that is used to issue the signature.
+	KeyType KeyType `json:"key_type"`
 	// KeyVersion is the key version of the key that is used to issue the signautre.
 	KeyVersion scrypto.KeyVersion `json:"key_version"`
 }
@@ -266,21 +266,21 @@ func (v *Vote) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	*v = Vote{
-		Type:       *alias.Type,
+		KeyType:    *alias.KeyType,
 		KeyVersion: *alias.KeyVersion,
 	}
 	return nil
 }
 
 type voteAlias struct {
-	Type       *KeyType            `json:"type"`
+	KeyType    *KeyType            `json:"key_type"`
 	KeyVersion *scrypto.KeyVersion `json:"key_version"`
 }
 
 func (v *voteAlias) checkAllSet() error {
 	switch {
-	case v.Type == nil:
-		return ErrTypeNotSet
+	case v.KeyType == nil:
+		return ErrKeyTypeNotSet
 	case v.KeyVersion == nil:
 		return ErrKeyVersionNotSet
 	}

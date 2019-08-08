@@ -161,25 +161,25 @@ func TestVoteUnmarshalJSON(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"type": "online",
+				"key_type": "online",
 				"key_version": 0
 			}`,
 			Vote: trc.Vote{
-				Type:       trc.OnlineKey,
+				KeyType:    trc.OnlineKey,
 				KeyVersion: 0,
 			},
 		},
-		"Type not set": {
+		"key_type not set": {
 			Input: `
 			{
 				"key_version": 0
 			}`,
-			ExpectedErrMsg: trc.ErrTypeNotSet.Error(),
+			ExpectedErrMsg: trc.ErrKeyTypeNotSet.Error(),
 		},
-		"KeyVersion not set": {
+		"key_version not set": {
 			Input: `
 			{
-				"type": "online"
+				"key_type": "online"
 			}`,
 			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
 		},
@@ -193,7 +193,7 @@ func TestVoteUnmarshalJSON(t *testing.T) {
 		"invalid json": {
 			Input: `
 			{
-				"type": "online"
+				"key_type": "online"
 			`,
 			ExpectedErrMsg: "unexpected end of JSON input",
 		},

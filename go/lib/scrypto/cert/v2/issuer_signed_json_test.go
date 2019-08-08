@@ -70,7 +70,7 @@ func TestProtectedIssuerUnmarshalJSON(t *testing.T) {
 				"type": "trc",
 				"crit": ["type", "trc_version"]
 			}`,
-			ExpectedErrMsg: cert.ErrIssuerTRCVersionNotSet.Error(),
+			ExpectedErrMsg: cert.ErrTRCVersionNotSet.Error(),
 		},
 		"crit not set": {
 			Input: `

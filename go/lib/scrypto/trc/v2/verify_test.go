@@ -185,7 +185,7 @@ func TestUpdateVerifierVerify(t *testing.T) {
 			next.PrimaryASes[a110].Keys[trc.OnlineKey] = meta
 			next.ProofOfPossession[a110] = append(next.ProofOfPossession[a110], trc.OnlineKey)
 			vote := next.Votes[a110]
-			vote.Type = trc.OfflineKey
+			vote.KeyType = trc.OfflineKey
 			next.Votes[a110] = vote
 
 			meta = next.PrimaryASes[a130].Keys[trc.IssuingKey]
@@ -281,14 +281,14 @@ func signTRC(t *testing.T, next, prev *trc.TRC, nextKeys,
 		protected := trc.Protected{
 			Algorithm:  scrypto.Ed25519,
 			Type:       trc.VoteSignature,
-			KeyType:    vote.Type,
+			KeyType:    vote.KeyType,
 			KeyVersion: vote.KeyVersion,
 			AS:         as,
 		}
 		encProtected, err := trc.EncodeProtected(protected)
 		require.NoError(t, err)
 
-		sig, err := scrypto.Sign(trc.SigInput(encProtected, encoded), prevKeys[as][vote.Type],
+		sig, err := scrypto.Sign(trc.SigInput(encProtected, encoded), prevKeys[as][vote.KeyType],
 			scrypto.Ed25519)
 		require.NoError(t, err)
 
