@@ -66,17 +66,13 @@ var (
 	// ErrIssuerNotSet indicates issuer is not set.
 	ErrIssuerNotSet = errors.New("issuer not set")
 	// ErrCertificateTypeNotSet indicates certificate_type is not set.
-	ErrCertificateTypeNotSet = errors.New("certificate_ype not set")
+	ErrCertificateTypeNotSet = errors.New("certificate_type not set")
 )
 
 // Validation errors.
 var (
 	// ErrAlgorithmNotSet indicates the key algorithm is not set.
 	ErrAlgorithmNotSet = errors.New("algorithm not set")
-	// ErrKeyNotSet indicates the key is not set.
-	ErrKeyNotSet = errors.New("key not set")
-	// ErrKeyVersionNotSet indicates Key_version is not set.
-	ErrKeyVersionNotSet = errors.New("key_version not set")
 )
 
 // Base contains the shared fields between the issuer and AS certificate.

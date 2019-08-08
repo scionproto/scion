@@ -25,7 +25,7 @@ import (
 
 var (
 	// ErrIssuerTRCVersionNotSet indicates the issuer TRC version is not set.
-	ErrIssuerTRCVersionNotSet = errors.New("issuer TRC version not set")
+	ErrIssuerTRCVersionNotSet = errors.New("issuer.trc_version not set")
 )
 
 // Issuer is the Issuer certificate.

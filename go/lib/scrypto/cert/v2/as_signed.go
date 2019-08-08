@@ -25,8 +25,8 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-// ErrIANotSet indicates the issuing IA is not set.
-var ErrIANotSet = errors.New("IA not set")
+// ErrIANotSet indicates the issuing ia is not set.
+var ErrIANotSet = errors.New("ia not set")
 
 type SignedAS struct {
 	Encoded          EncodedAS          `json:"payload"`

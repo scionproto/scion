@@ -17,10 +17,16 @@ package cert
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"unicode/utf8"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
+)
+
+var (
+	// ErrTRCVersionNotSet indicates the TRC version is not set.
+	ErrTRCVersionNotSet = errors.New("trc_version not set")
 )
 
 type SignedIssuer struct {
@@ -131,7 +137,7 @@ func (p *protectedIssuerAlias) checkAllSet() error {
 	case p.Type == nil:
 		return ErrSignatureTypeNotSet
 	case p.TRCVersion == nil:
-		return ErrIssuerTRCVersionNotSet
+		return ErrTRCVersionNotSet
 	case p.Crit == nil:
 		return ErrCritNotSet
 	}

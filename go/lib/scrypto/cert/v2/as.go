@@ -26,16 +26,16 @@ import (
 
 const (
 	// IssuerDifferentISD indicates that the issuing AS is in a different ISD.
-	IssuerDifferentISD = "issuing AS in different ISD"
+	IssuerDifferentISD = "issuing.ia in different ISD"
 	// InvalidCertificateType indicates the certificate type is invalid.
-	InvalidCertificateType = "invalid certificate type"
+	InvalidCertificateType = "invalid certificate_type"
 )
 
 var (
-	// ErrIssuerIANotSet indicates the issuer IA is not set.
-	ErrIssuerIANotSet = errors.New("issuer IA not set")
+	// ErrIssuerIANotSet indicates the issuer ia is not set.
+	ErrIssuerIANotSet = errors.New("issuer.ia not set")
 	// ErrIssuerCertificateVersionNotSet indicates the issuer certificate version is not set.
-	ErrIssuerCertificateVersionNotSet = errors.New("issuer certificate version not set")
+	ErrIssuerCertificateVersionNotSet = errors.New("issuer.certificate_version not set")
 )
 
 // AS is the AS certificate.
