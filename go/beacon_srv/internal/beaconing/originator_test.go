@@ -25,6 +25,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -59,10 +60,11 @@ func TestOriginatorRun(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
-				MTU:    uint16(topoProvider.Get().MTU),
-				Signer: signer,
-				Intfs:  intfs,
-				Mac:    mac,
+				MTU:           uint16(topoProvider.Get().MTU),
+				Signer:        signer,
+				Intfs:         intfs,
+				Mac:           mac,
+				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Period: time.Hour,
 			BeaconSender: &onehop.BeaconSender{
@@ -112,10 +114,11 @@ func TestOriginatorRun(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
-				MTU:    uint16(topoProvider.Get().MTU),
-				Signer: signer,
-				Intfs:  intfs,
-				Mac:    mac,
+				MTU:           uint16(topoProvider.Get().MTU),
+				Signer:        signer,
+				Intfs:         intfs,
+				Mac:           mac,
+				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Period: 2 * time.Second,
 			BeaconSender: &onehop.BeaconSender{

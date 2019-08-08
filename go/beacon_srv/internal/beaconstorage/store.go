@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -51,6 +52,8 @@ type Store interface {
 	// UpdatePolicy updates the policy. Beacons that are filtered by all
 	// policies after the update are removed.
 	UpdatePolicy(ctx context.Context, policy beacon.Policy) error
+	// MaxExpTime returns the segment maximum expiration time for the given policy.
+	MaxExpTime(policyType beacon.PolicyType) spath.ExpTimeType
 	// DeleteExpired deletes expired Beacons from the store.
 	DeleteExpiredBeacons(ctx context.Context) (int, error)
 	// DeleteExpiredRevocations deletes expired Revocations from the store.

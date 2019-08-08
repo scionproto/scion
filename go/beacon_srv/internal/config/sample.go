@@ -38,6 +38,8 @@ ExpiredCheckInterval = "200ms"
 `
 
 const policiesSample = `
+# Output a sample policy file by providing the -help-policy flag.
+
 # The file path for the propagation policy. In case of the empty string, 
 # the default policy is used. (default "")
 Propagation = ""

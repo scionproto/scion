@@ -40,11 +40,8 @@ type ExtenderConf struct {
 	MTU uint16
 	// IfidSize is the bit-size of the ifid in the hop-fields.
 	IfidSize uint8
-	// MaxExpTime is the maximum relative expiration time.
-	MaxExpTime *spath.ExpTimeType
-	// maxExpTime is a copy of MaxExpTime to avoid using the captured
-	// reference from the calling code.
-	maxExpTime spath.ExpTimeType
+	// GetMaxExpTime returns the maximum relative expiration time.
+	GetMaxExpTime func() spath.ExpTimeType
 	// task contains an identifier specific to the task that uses the extender.
 	task string
 }
@@ -53,10 +50,6 @@ type ExtenderConf struct {
 func (cfg *ExtenderConf) InitDefaults() {
 	if cfg.IfidSize == 0 {
 		cfg.IfidSize = DefaultIfidSize
-	}
-	if cfg.MaxExpTime == nil {
-		expiry := spath.DefaultHopFExpiry
-		cfg.MaxExpTime = &expiry
 	}
 }
 
@@ -71,9 +64,5 @@ func (cfg *ExtenderConf) Validate() error {
 	if cfg.MTU == 0 {
 		return common.NewBasicError("MTU must be set", nil)
 	}
-	if cfg.MaxExpTime == nil {
-		return common.NewBasicError("MaxExpTime must be set", nil)
-	}
-	cfg.maxExpTime = *cfg.MaxExpTime
 	return nil
 }

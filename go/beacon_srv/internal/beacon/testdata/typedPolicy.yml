@@ -1,6 +1,7 @@
 ---
 BestSetSize: 6
 CandidateSetSize: 20
+MaxExpTime: 42
 Filter:
   MaxHopsLength: 8
   AsBlackList: ["ff00:0:110", "ff00:0:111"]

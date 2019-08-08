@@ -58,6 +58,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -375,10 +376,11 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 			QUICBeaconSender: t.msgr,
 		},
 		Config: beaconing.ExtenderConf{
-			Intfs:  t.intfs,
-			Mac:    t.genMac(),
-			MTU:    uint16(topo.MTU),
-			Signer: signer,
+			Intfs:         t.intfs,
+			Mac:           t.genMac(),
+			MTU:           uint16(topo.MTU),
+			Signer:        signer,
+			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
 		},
 		Period: cfg.BS.OriginationInterval.Duration,
 	}.New()
@@ -411,10 +413,11 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 			QUICBeaconSender: t.msgr,
 		},
 		Config: beaconing.ExtenderConf{
-			Intfs:  t.intfs,
-			Mac:    t.genMac(),
-			MTU:    uint16(topo.MTU),
-			Signer: signer,
+			Intfs:         t.intfs,
+			Mac:           t.genMac(),
+			MTU:           uint16(topo.MTU),
+			Signer:        signer,
+			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
 		},
 		Period: cfg.BS.PropagationInterval.Duration,
 	}.New()
@@ -430,22 +433,25 @@ func (t *periodicTasks) startSegRegRunners() (segRegRunners, error) {
 	s := segRegRunners{core: topo.Core}
 	var err error
 	if s.core {
-		if s.coreRegistrar, err = t.startRegistrar(topo, proto.PathSegType_core); err != nil {
+		s.coreRegistrar, err = t.startRegistrar(topo, proto.PathSegType_core, beacon.CoreRegPolicy)
+		if err != nil {
 			return s, common.NewBasicError("Unable to create core segment registrar", err)
 		}
 	} else {
-		if s.downRegistrar, err = t.startRegistrar(topo, proto.PathSegType_down); err != nil {
+		s.downRegistrar, err = t.startRegistrar(topo, proto.PathSegType_down, beacon.DownRegPolicy)
+		if err != nil {
 			return s, common.NewBasicError("Unable to create down segment registrar", err)
 		}
-		if s.upRegistrar, err = t.startRegistrar(topo, proto.PathSegType_up); err != nil {
+		s.upRegistrar, err = t.startRegistrar(topo, proto.PathSegType_up, beacon.UpRegPolicy)
+		if err != nil {
 			return s, common.NewBasicError("Unable to create up segment registrar", err)
 		}
 	}
 	return s, nil
 }
 
-func (t *periodicTasks) startRegistrar(topo *topology.Topo,
-	segType proto.PathSegType) (*periodic.Runner, error) {
+func (t *periodicTasks) startRegistrar(topo *topology.Topo, segType proto.PathSegType,
+	policyType beacon.PolicyType) (*periodic.Runner, error) {
 
 	signer, err := t.createSigner(topo)
 	if err != nil {
@@ -459,10 +465,11 @@ func (t *periodicTasks) startRegistrar(topo *topology.Topo,
 		Period:        cfg.BS.RegistrationInterval.Duration,
 		EnableMetrics: true,
 		Config: beaconing.ExtenderConf{
-			Intfs:  t.intfs,
-			Mac:    t.genMac(),
-			MTU:    uint16(topo.MTU),
-			Signer: signer,
+			Intfs:         t.intfs,
+			Mac:           t.genMac(),
+			MTU:           uint16(topo.MTU),
+			Signer:        signer,
+			GetMaxExpTime: maxExpTimeFactory(t.store, policyType),
 		},
 	}.New()
 	if err != nil {
@@ -518,6 +525,12 @@ func macGenFactory() (func() hash.Hash, error) {
 		return nil, err
 	}
 	return hfMacFactory, nil
+}
+
+func maxExpTimeFactory(store beaconstorage.Store, p beacon.PolicyType) func() spath.ExpTimeType {
+	return func() spath.ExpTimeType {
+		return store.MaxExpTime(p)
+	}
 }
 
 func setupBasic() error {
