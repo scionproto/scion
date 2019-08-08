@@ -30,7 +30,11 @@ const (
 	ErrorMacFailure    = "Unable to initialize Mac"
 )
 
-func InitMac(key common.RawBytes) (hash.Hash, error) {
+var (
+	hfMacSalt = []byte("Derive OF Key")
+)
+
+func InitMac(key []byte) (hash.Hash, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, common.NewBasicError(ErrorCipherFailure, err)
@@ -42,11 +46,11 @@ func InitMac(key common.RawBytes) (hash.Hash, error) {
 	return mac, nil
 }
 
-func HFMacFactory(key common.RawBytes) (func() hash.Hash, error) {
+func HFMacFactory(key []byte) (func() hash.Hash, error) {
 	// Generate keys
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(key, []byte("Derive OF Key"), 1000, 16, sha256.New)
+	hfGenKey := pbkdf2.Key(key, hfMacSalt, 1000, 16, sha256.New)
 
 	// First check for MAC creation errors.
 	if _, err := InitMac(hfGenKey); err != nil {
