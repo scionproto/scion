@@ -40,6 +40,7 @@ func TestLoadFromYaml(t *testing.T) {
 		SoMsg("BestSetSize", p.BestSetSize, ShouldEqual, 6)
 		SoMsg("CandidateSetSize", p.CandidateSetSize, ShouldEqual, 20)
 		SoMsg("Type", p.Type, ShouldEqual, t)
+		SoMsg("MaxExpTime", *p.MaxExpTime, ShouldEqual, 42)
 		SoMsg("MaxHopsLength", p.Filter.MaxHopsLength, ShouldEqual, 8)
 		SoMsg("AsBlackList", p.Filter.AsBlackList, ShouldResemble, []addr.AS{ia110.A, ia111.A})
 		SoMsg("IsdBlackList", p.Filter.IsdBlackList, ShouldResemble, []addr.ISD{1, 2, 3})

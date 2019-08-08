@@ -101,8 +101,8 @@ func TestRegistrarRun(t *testing.T) {
 					Mac:    mac,
 					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
 						ifstate.Config{}),
-					MTU:        uint16(topoProvider.Get().MTU),
-					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					MTU:           uint16(topoProvider.Get().MTU),
+					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 				},
 				Period:       time.Hour,
 				Msgr:         msgr,
@@ -190,11 +190,12 @@ func TestRegistrarRun(t *testing.T) {
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		cfg := RegistrarConf{
 			Config: ExtenderConf{
-				Signer:     testSigner(t, priv, topoProvider.Get().ISD_AS),
-				Mac:        mac,
-				Intfs:      ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
-				MTU:        uint16(topoProvider.Get().MTU),
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Mac:    mac,
+				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+					ifstate.Config{}),
+				MTU:           uint16(topoProvider.Get().MTU),
+				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Msgr:         msgr,
 			SegProvider:  segProvider,
@@ -228,11 +229,12 @@ func TestRegistrarRun(t *testing.T) {
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		cfg := RegistrarConf{
 			Config: ExtenderConf{
-				Signer:     testSigner(t, priv, topoProvider.Get().ISD_AS),
-				Mac:        mac,
-				Intfs:      ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
-				MTU:        uint16(topoProvider.Get().MTU),
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Mac:    mac,
+				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+					ifstate.Config{}),
+				MTU:           uint16(topoProvider.Get().MTU),
+				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Msgr:         msgr,
 			SegProvider:  segProvider,

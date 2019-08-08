@@ -60,11 +60,11 @@ func TestOriginatorRun(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
-				MTU:        uint16(topoProvider.Get().MTU),
-				Signer:     signer,
-				Intfs:      intfs,
-				Mac:        mac,
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				MTU:           uint16(topoProvider.Get().MTU),
+				Signer:        signer,
+				Intfs:         intfs,
+				Mac:           mac,
+				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Period: time.Hour,
 			BeaconSender: &onehop.BeaconSender{
@@ -114,11 +114,11 @@ func TestOriginatorRun(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
-				MTU:        uint16(topoProvider.Get().MTU),
-				Signer:     signer,
-				Intfs:      intfs,
-				Mac:        mac,
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				MTU:           uint16(topoProvider.Get().MTU),
+				Signer:        signer,
+				Intfs:         intfs,
+				Mac:           mac,
+				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Period: 2 * time.Second,
 			BeaconSender: &onehop.BeaconSender{

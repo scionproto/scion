@@ -150,8 +150,8 @@ func TestPropagatorRun(t *testing.T) {
 					Mac:    macProp,
 					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
 						ifstate.Config{}),
-					MTU:        uint16(topoProvider.Get().MTU),
-					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					MTU:           uint16(topoProvider.Get().MTU),
+					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 				},
 				Period:         time.Hour,
 				BeaconProvider: provider,
@@ -218,11 +218,12 @@ func TestPropagatorRun(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		cfg := PropagatorConf{
 			Config: ExtenderConf{
-				Signer:     testSigner(t, priv, topoProvider.Get().ISD_AS),
-				Mac:        macProp,
-				Intfs:      ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{}),
-				MTU:        uint16(topoProvider.Get().MTU),
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Mac:    macProp,
+				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+					ifstate.Config{}),
+				MTU:           uint16(topoProvider.Get().MTU),
+				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Period:         2 * time.Second,
 			BeaconProvider: provider,

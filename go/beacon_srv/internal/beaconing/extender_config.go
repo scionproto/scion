@@ -40,8 +40,8 @@ type ExtenderConf struct {
 	MTU uint16
 	// IfidSize is the bit-size of the ifid in the hop-fields.
 	IfidSize uint8
-	// MaxExpTime returns the maximum relative expiration time.
-	MaxExpTime func() spath.ExpTimeType
+	// GetMaxExpTime returns the maximum relative expiration time.
+	GetMaxExpTime func() spath.ExpTimeType
 	// task contains an identifier specific to the task that uses the extender.
 	task string
 }

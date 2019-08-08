@@ -168,7 +168,7 @@ func (s *segExtender) createHopF(inIfid, egIfid common.IFIDType, prev common.Raw
 		return nil, common.NewBasicError("Chain does not cover minimum hop expiration time", nil,
 			"minimumExpiration", min, "chainExpiration", meta.ExpTime, "src", meta.Src)
 	}
-	expiry = min(expiry, s.cfg.MaxExpTime())
+	expiry = min(expiry, s.cfg.GetMaxExpTime())
 	hop := &spath.HopField{
 		ConsIngress: inIfid,
 		ConsEgress:  egIfid,
