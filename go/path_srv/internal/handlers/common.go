@@ -52,6 +52,7 @@ type HandlerArgs struct {
 	QueryInterval   time.Duration
 	IA              addr.IA
 	TopoProvider    topology.Provider
+	Messenger       infra.Messenger
 }
 
 type baseHandler struct {
