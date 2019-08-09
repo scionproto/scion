@@ -95,8 +95,7 @@ Top:
 		case <-sm.sess.sessMonStop:
 			break Top
 		case <-reqTick.C:
-			// Update paths and sigs
-			sm.sessPathPool.Update(sm.pool.Paths())
+			sm.updatePaths()
 			sm.updateRemote()
 			sm.sendReq()
 		case rpld := <-regc:
@@ -111,6 +110,27 @@ Top:
 		log.Error("sessMonitor: unable to unregister from ctrl dispatcher", "err", err)
 	}
 	sm.Info("sessMonitor: stopped")
+}
+
+func (sm *sessMonitor) updatePaths() {
+	if sm.smRemote == nil || sm.smRemote.SessPath == nil {
+		sm.sessPathPool.Update(sm.pool.Paths())
+		return
+	}
+	currPath := sm.smRemote.SessPath
+	expTime := currPath.PathEntry().Path.ExpTime
+	mtu := currPath.PathEntry().Path.Mtu
+	sm.sessPathPool.Update(sm.pool.Paths())
+	// Expiration or MTU of the current path may have changed during the update.
+	// In such a case we want to push the updated path to the Session.
+	if currPath.PathEntry().Path.ExpTime != expTime || currPath.PathEntry().Path.Mtu != mtu {
+		sm.Trace("sessMonitor: Path metadata changed",
+			"oldExpiration", expTime,
+			"newExpiration", currPath.PathEntry().Path.ExpTime,
+			"oldMTU", mtu,
+			"newMTU", currPath.PathEntry().Path.Mtu)
+		sm.updateSessSnap()
+	}
 }
 
 func (sm *sessMonitor) updateRemote() {
