@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -52,6 +53,7 @@ type HandlerArgs struct {
 	QueryInterval   time.Duration
 	IA              addr.IA
 	TopoProvider    topology.Provider
+	SegRequestAPI   segfetcher.RequestAPI
 }
 
 type baseHandler struct {

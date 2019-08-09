@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segfetcher
-
-import "context"
-
-// Validator validates a request.
-type Validator interface {
-	// Validate should return an error if the given request is not valid.
-	Validate(ctx context.Context, r Request) error
-}
+// Package segreq contains everything that is needed to handle segment requests
+// in the path server. It relies on the segfetcher module and therefore has
+// many helper types to use the segfetcher module.
+package segreq
