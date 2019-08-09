@@ -14,8 +14,10 @@
 
 package segfetcher
 
+import "context"
+
 // Validator validates a request.
 type Validator interface {
 	// Validate should return an error if the given request is not valid.
-	Validate(r Request) error
+	Validate(ctx context.Context, r Request) error
 }

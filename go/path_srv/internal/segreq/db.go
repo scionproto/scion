@@ -31,15 +31,20 @@ type LocalInfo interface {
 	IsParamsLocal(*query.Params) bool
 }
 
-// PSPathDB is a wrapper around the path db that handles retries and changes
+// PathDB is a wrapper around the path db that handles retries and changes
 // GetNextQuery behavior for usage in segfetcher.
-type PSPathDB struct {
+type PathDB struct {
 	pathdb.PathDB
 	LocalInfo  LocalInfo
 	RetrySleep time.Duration
 }
 
-func (db *PSPathDB) Get(ctx context.Context, params *query.Params) (query.Results, error) {
+// Get implements the path db's get function. It retries the underlying
+// connection for local segments. For example a non-core path server will retry
+// for local up segments since there is a chance it will receive them from the
+// beacon server. A core path server will retry on core segments since there is
+// a chance it receives them from the beacon server.
+func (db *PathDB) Get(ctx context.Context, params *query.Params) (query.Results, error) {
 	res, err := db.PathDB.Get(ctx, params)
 	if err == nil && db.LocalInfo.IsParamsLocal(params) {
 		for err == nil && len(query.Results(res).Segs()) == 0 {
@@ -54,7 +59,7 @@ func (db *PSPathDB) Get(ctx context.Context, params *query.Params) (query.Result
 	return res, err
 }
 
-func (db *PSPathDB) GetNextQuery(ctx context.Context, src, dst addr.IA,
+func (db *PathDB) GetNextQuery(ctx context.Context, src, dst addr.IA,
 	policy *pathpol.Policy) (time.Time, error) {
 	if local, err := db.LocalInfo.IsSegLocal(ctx, src, dst); err != nil {
 		return time.Time{}, err
@@ -73,32 +78,53 @@ type CoreLocalInfo struct {
 // IsSegLocal returns whether the segments described by src and dst would be a
 // core segments or a local down segment.
 func (i *CoreLocalInfo) IsSegLocal(ctx context.Context, src, dst addr.IA) (bool, error) {
+	// All local core and down segments.
+	if dst.I == i.LocalIA.I {
+		return true, nil
+	}
+	// All core segments
 	isCore, err := i.CoreChecker.IsCore(ctx, dst)
 	if err != nil {
 		return false, err
 	}
-	return isCore || dst.I == i.LocalIA.I, nil
+	return isCore, nil
 }
 
 // IsParamsLocal returns whether params is a core segment request.
 func (i *CoreLocalInfo) IsParamsLocal(params *query.Params) bool {
-	return len(params.SegTypes) == 1 && params.SegTypes[0] == proto.PathSegType_core
+	if len(params.SegTypes) != 1 {
+		return false
+	}
+	if params.SegTypes[0] == proto.PathSegType_core {
+		return true
+	}
+	if params.SegTypes[0] == proto.PathSegType_down {
+		for _, ia := range params.StartsAt {
+			if ia.I != i.LocalIA.I {
+				return false
+			}
+		}
+		for _, ia := range params.EndsAt {
+			if ia.I != i.LocalIA.I {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // NonCoreLocalInfo is the local info for non core PSes.
 type NonCoreLocalInfo struct {
-	CoreChecker CoreChecker
-	LocalIA     addr.IA
+	LocalIA addr.IA
 }
 
 // IsSegLocal checks if the segment described by src and dst is an up segment
 // to the local core.
 func (i *NonCoreLocalInfo) IsSegLocal(ctx context.Context, src, dst addr.IA) (bool, error) {
-	// Check if it is an up segment request.
-	if src.Equal(i.LocalIA) && dst.I == i.LocalIA.I {
-		return i.CoreChecker.IsCore(ctx, dst)
-	}
-	return false, nil
+	// The validator should make sure that if we are at the source it can only
+	// be an up segment.
+	return i.LocalIA.Equal(src), nil
 }
 
 // IsParamsLocal returns whether params is a up segments request.

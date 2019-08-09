@@ -107,7 +107,7 @@ func TestSplitter(t *testing.T) {
 			defer ctrl.Finish()
 			i := mock_infra.NewMockASInspector(ctrl)
 			test.PrepareMock(i)
-			splitter := segreq.PsSplitter{ASInspector: i}
+			splitter := segreq.Splitter{ASInspector: i}
 			rs, err := splitter.Split(context.Background(), test.Req)
 			test.ErrorAssertion(t, err)
 			assert.Equal(t, test.ExpectedSet, rs)

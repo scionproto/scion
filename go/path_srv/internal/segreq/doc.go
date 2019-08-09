@@ -13,6 +13,6 @@
 // limitations under the License.
 
 // Package segreq contains everything that is needed to handle segment requests
-// in the path server. It relieas on the segfetcher module and therefore has
+// in the path server. It relies on the segfetcher module and therefore has
 // many helper types to use the segfetcher module.
 package segreq

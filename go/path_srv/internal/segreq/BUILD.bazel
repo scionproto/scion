@@ -9,6 +9,7 @@ go_library(
         "helpers.go",
         "provider.go",
         "splitter.go",
+        "validator.go",
     ],
     importpath = "github.com/scionproto/scion/go/path_srv/internal/segreq",
     visibility = ["//go/path_srv:__subpackages__"],
@@ -39,6 +40,7 @@ go_test(
         "helpers_test.go",
         "provider_test.go",
         "splitter_test.go",
+        "validator_test.go",
     ],
     embed = [":go_default_library"],
     deps = [

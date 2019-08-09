@@ -42,8 +42,8 @@ type FetcherConfig struct {
 	PathDB pathdb.PathDB
 	// RevCache is the revocation cache to use.
 	RevCache revcache.RevCache
-	// Messenger is the messenger to use.
-	Messenger infra.Messenger
+	// RequestAPI is the request api to use.
+	RequestAPI RequestAPI
 	// DstProvider provides destinations to fetch segments from
 	DstProvider DstProvider
 	// Validator is used to validate requests.
@@ -62,7 +62,7 @@ func (cfg FetcherConfig) New() *Fetcher {
 		Validator: cfg.Validator,
 		Splitter:  cfg.Splitter,
 		Resolver:  NewResolver(cfg.PathDB),
-		Requester: &DefaultRequester{API: cfg.Messenger, DstProvider: cfg.DstProvider},
+		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
 		ReplyHandler: &SegReplyHandler{
 			Verifier: &SegVerifier{Verifier: cfg.VerificationFactory.NewVerifier()},
 			Storage:  &DefaultStorage{PathDB: cfg.PathDB, RevCache: cfg.RevCache},
@@ -90,7 +90,7 @@ type Fetcher struct {
 // cache the segments are fetched from the remote server.
 func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) {
 	if f.Validator != nil {
-		if err := f.Validator.Validate(req); err != nil {
+		if err := f.Validator.Validate(ctx, req); err != nil {
 			return Segments{}, err
 		}
 	}
