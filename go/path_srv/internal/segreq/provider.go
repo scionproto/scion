@@ -70,7 +70,14 @@ type nonCoreDstProvider struct {
 	topoProvider topology.Provider
 }
 
+// Dst provides the server to lookup the segment for the given request.
+// Querying for segments that start at the localIA will result in an error,
+// since they should be locally resolved.
 func (p *nonCoreDstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
+	if p.localIA.Equal(req.Src) {
+		return nil, common.NewBasicError(segfetcher.InvalidRequest, nil,
+			"req", req, "reason", "up segments should be resolved locally")
+	}
 	dstCore, err := p.coreChecker.IsCore(ctx, req.Dst)
 	if err != nil {
 		return nil, err
