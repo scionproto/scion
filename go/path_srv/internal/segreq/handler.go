@@ -45,9 +45,9 @@ func NewHandler(args handlers.HandlerArgs) infra.Handler {
 			VerificationFactory: args.VerifierFactory,
 			PathDB:              args.PathDB,
 			RevCache:            args.RevCache,
-			Messenger:           args.Messenger,
+			RequestAPI:          args.SegRequestAPI,
 			DstProvider:         createDstProvider(args, core),
-			Splitter:            &PsSplitter{ASInspector: args.ASInspector},
+			Splitter:            &Splitter{ASInspector: args.ASInspector},
 		}.New(),
 		revCache: args.RevCache,
 	}
@@ -93,21 +93,29 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	return infra.MetricsResultOk
 }
 
+func createValidator(args handlers.HandlerArgs, core bool) segfetcher.Validator {
+	base := BaseValidator{
+		CoreChecker: CoreChecker{Inspector: args.ASInspector},
+	}
+	if !core {
+		return &base
+	}
+	return &CoreValidator{BaseValidator: base}
+}
+
 func createPathDB(args handlers.HandlerArgs, core bool) pathdb.PathDB {
-	coreChecker := CoreChecker{Inspector: args.ASInspector}
 	var localInfo LocalInfo
 	if core {
 		localInfo = &CoreLocalInfo{
-			CoreChecker: coreChecker,
+			CoreChecker: CoreChecker{Inspector: args.ASInspector},
 			LocalIA:     args.IA,
 		}
 	} else {
 		localInfo = &NonCoreLocalInfo{
-			CoreChecker: coreChecker,
-			LocalIA:     args.IA,
+			LocalIA: args.IA,
 		}
 	}
-	return &PSPathDB{
+	return &PathDB{
 		PathDB:     args.PathDB,
 		LocalInfo:  localInfo,
 		RetrySleep: 500 * time.Millisecond,

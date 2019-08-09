@@ -24,12 +24,12 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 )
 
-// PsSplitter splits requests for the PS.
-type PsSplitter struct {
+// Splitter splits requests for the PS.
+type Splitter struct {
 	ASInspector infra.ASInspector
 }
 
-func (s *PsSplitter) Split(ctx context.Context,
+func (s *Splitter) Split(ctx context.Context,
 	r segfetcher.Request) (segfetcher.RequestSet, error) {
 
 	srcCore, err := s.isCore(ctx, r.Src)
@@ -52,23 +52,19 @@ func (s *PsSplitter) Split(ctx context.Context,
 	}
 }
 
-func (s *PsSplitter) isCore(ctx context.Context, dst addr.IA) (bool, error) {
-	if dst.IsZero() {
+func (s *Splitter) isCore(ctx context.Context, ia addr.IA) (bool, error) {
+	if ia.IsZero() {
 		return false, common.NewBasicError(segfetcher.InvalidRequest, nil, "reason", "empty ia")
 	}
-	if s.isWildCard(dst) {
+	if ia.IsWildcard() {
 		return true, nil
 	}
 	args := infra.ASInspectorOpts{
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
-	isCore, err := s.ASInspector.HasAttributes(ctx, dst, args)
+	isCore, err := s.ASInspector.HasAttributes(ctx, ia, args)
 	if err != nil {
 		return false, err
 	}
 	return isCore, nil
-}
-
-func (s *PsSplitter) isWildCard(dst addr.IA) bool {
-	return dst.A == 0
 }

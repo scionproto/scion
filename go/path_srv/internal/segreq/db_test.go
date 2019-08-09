@@ -104,7 +104,7 @@ func TestPSPathDBGet(t *testing.T) {
 			defer cancelF()
 			test.PreparePathDB(pdb, params, cancelF)
 			test.PrepareLocalInfo(li, params)
-			db := &segreq.PSPathDB{
+			db := &segreq.PathDB{
 				PathDB:     pdb,
 				LocalInfo:  li,
 				RetrySleep: time.Microsecond,
@@ -169,7 +169,7 @@ func TestPSPathDBGetNextQuery(t *testing.T) {
 			li := mock_segreq.NewMockLocalInfo(ctrl)
 			test.PreparePathDB(pdb, test.Src, test.Dst)
 			test.PrepareLocalInfo(li, test.Src, test.Dst)
-			db := &segreq.PSPathDB{
+			db := &segreq.PathDB{
 				PathDB:    pdb,
 				LocalInfo: li,
 			}
@@ -178,12 +178,4 @@ func TestPSPathDBGetNextQuery(t *testing.T) {
 			test.AssertNextQueryAfterNow(t, nq.After(time.Now()))
 		})
 	}
-}
-
-func TestCoreLocaInfo(t *testing.T) {
-
-}
-
-func TestNonCoreLocalInfo(t *testing.T) {
-
 }

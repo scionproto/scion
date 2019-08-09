@@ -78,13 +78,13 @@ func TestFetcher(t *testing.T) {
 	}{
 		"Invalid request": {
 			PrepareFetcher: func(f *TestableFetcher) {
-				f.Validator.EXPECT().Validate(gomock.Any()).Return(testErr)
+				f.Validator.EXPECT().Validate(gomock.Any(), gomock.Any()).Return(testErr)
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Splitter error": {
 			PrepareFetcher: func(f *TestableFetcher) {
-				f.Validator.EXPECT().Validate(gomock.Any())
+				f.Validator.EXPECT().Validate(gomock.Any(), gomock.Any())
 				f.Splitter.EXPECT().Split(gomock.Any(), gomock.Any()).
 					Return(segfetcher.RequestSet{}, testErr)
 			},
@@ -92,7 +92,7 @@ func TestFetcher(t *testing.T) {
 		},
 		"Resolver error": {
 			PrepareFetcher: func(f *TestableFetcher) {
-				f.Validator.EXPECT().Validate(gomock.Any())
+				f.Validator.EXPECT().Validate(gomock.Any(), gomock.Any())
 				f.Splitter.EXPECT().Split(gomock.Any(), gomock.Any())
 				f.Resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(segfetcher.Segments{}, segfetcher.RequestSet{}, testErr)
@@ -101,7 +101,7 @@ func TestFetcher(t *testing.T) {
 		},
 		"Immediately resolved": {
 			PrepareFetcher: func(f *TestableFetcher) {
-				f.Validator.EXPECT().Validate(gomock.Any())
+				f.Validator.EXPECT().Validate(gomock.Any(), gomock.Any())
 				reqSet := segfetcher.RequestSet{
 					Up: segfetcher.Request{Src: non_core_111, Dst: core_130},
 				}

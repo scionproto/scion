@@ -60,6 +60,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/svc", "RequestHandler,RoundTripper"),
         (SCION_PACKAGE_PREFIX + "/go/lib/svc/internal/ctxconn", "DeadlineCloser"),
         (SCION_PACKAGE_PREFIX + "/go/lib/xtest", "Callback"),
+        (SCION_PACKAGE_PREFIX + "/go/path_srv/internal/segreq", "LocalInfo"),
         (SCION_PACKAGE_PREFIX + "/go/sig/egress", "Session"),
         (SCION_PACKAGE_PREFIX + "/go/sig/egress/worker", "SCIONWriter"),
 ]

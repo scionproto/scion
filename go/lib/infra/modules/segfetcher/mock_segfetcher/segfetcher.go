@@ -316,17 +316,17 @@ func (m *MockValidator) EXPECT() *MockValidatorMockRecorder {
 }
 
 // Validate mocks base method
-func (m *MockValidator) Validate(arg0 segfetcher.Request) error {
+func (m *MockValidator) Validate(arg0 context.Context, arg1 segfetcher.Request) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", arg0)
+	ret := m.ctrl.Call(m, "Validate", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Validate indicates an expected call of Validate
-func (mr *MockValidatorMockRecorder) Validate(arg0 interface{}) *gomock.Call {
+func (mr *MockValidatorMockRecorder) Validate(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), arg0, arg1)
 }
 
 // MockVerifier is a mock of Verifier interface
