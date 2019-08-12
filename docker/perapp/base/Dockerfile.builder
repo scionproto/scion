@@ -1,2 +1,2 @@
 FROM scion:latest
-RUN make -s all setcap && bazel clean
+RUN make all setcap && bazel clean

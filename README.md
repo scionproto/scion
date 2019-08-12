@@ -45,9 +45,8 @@ Necessary steps in order to run SCION:
    rm ./bazel-0.26.1-installer-linux-x86_64.sh
    ```
 
-1. (Optional: for go tools compatability with bazel) Install
-   [bzlcompat](https://github.com/kormat/bzlcompat) version v0.4:
-   ```
+1. Install [bzlcompat](https://github.com/kormat/bzlcompat) version v0.4:
+   ```bash
    wget https://github.com/kormat/bzlcompat/releases/download/v0.4/bzlcompat-v0.4-linux-x86_64 -o ~/bin/bzlcompat
    chmod 755 ~/bin/bzlcompat
    ```
