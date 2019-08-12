@@ -6,7 +6,7 @@ GAZELLE_MODE?=fix
 
 SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
-all: tags clibs dispatcher bazel gogen
+all: tags clibs dispatcher gogen bazel
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
