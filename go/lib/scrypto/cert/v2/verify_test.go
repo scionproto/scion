@@ -158,33 +158,33 @@ func TestIssuerVerifierVerify(t *testing.T) {
 			ExpectedErrMsg: "illegal base64 data at input byte 0",
 		},
 		"Non-primary": {
-			Modify: func(issuer *cert.Issuer, trc_ *trc.TRC, _ *cert.ProtectedIssuer) {
-				delete(trc_.PrimaryASes, issuer.Subject.A)
+			Modify: func(issuer *cert.Issuer, trc *trc.TRC, _ *cert.ProtectedIssuer) {
+				delete(trc.PrimaryASes, issuer.Subject.A)
 			},
 			ModifySigned:   func(*cert.SignedIssuer) {},
 			ExpectedErrMsg: cert.ErrNotIssuing.Error(),
 		},
 
 		"Non-issuing primary": {
-			Modify: func(issuer *cert.Issuer, trc_ *trc.TRC, _ *cert.ProtectedIssuer) {
-				meta := trc_.PrimaryASes[issuer.Subject.A]
+			Modify: func(issuer *cert.Issuer, trcObj *trc.TRC, _ *cert.ProtectedIssuer) {
+				meta := trcObj.PrimaryASes[issuer.Subject.A]
 				meta.Attributes = trc.Attributes{trc.Core}
-				trc_.PrimaryASes[issuer.Subject.A] = meta
+				trcObj.PrimaryASes[issuer.Subject.A] = meta
 			},
 			ModifySigned:   func(*cert.SignedIssuer) {},
 			ExpectedErrMsg: cert.ErrNotIssuing.Error(),
 		},
 		"TRC version mismatch": {
-			Modify: func(_ *cert.Issuer, trc_ *trc.TRC, _ *cert.ProtectedIssuer) {
-				trc_.Version++
+			Modify: func(_ *cert.Issuer, trc *trc.TRC, _ *cert.ProtectedIssuer) {
+				trc.Version++
 			},
 			ModifySigned:   func(*cert.SignedIssuer) {},
 			ExpectedErrMsg: cert.UnexpectedTRCVersion,
 		},
 		"Validity not covered": {
-			Modify: func(issuer *cert.Issuer, trc_ *trc.TRC, _ *cert.ProtectedIssuer) {
-				trc_.Validity.NotBefore.Time = issuer.Validity.NotBefore.Time.Add(time.Second)
-				trc_.Validity.NotAfter.Time = issuer.Validity.NotAfter.Time.Add(-time.Second)
+			Modify: func(issuer *cert.Issuer, trc *trc.TRC, _ *cert.ProtectedIssuer) {
+				trc.Validity.NotBefore.Time = issuer.Validity.NotBefore.Time.Add(time.Second)
+				trc.Validity.NotAfter.Time = issuer.Validity.NotAfter.Time.Add(-time.Second)
 			},
 			ModifySigned:   func(*cert.SignedIssuer) {},
 			ExpectedErrMsg: cert.ASValidityNotCovered,
