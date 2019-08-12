@@ -75,6 +75,12 @@ func TestASValidate(t *testing.T) {
 			},
 			ExpectedErrMsg: cert.IssuerDifferentISD,
 		},
+		"Wildcard Issuer": {
+			Modify: func(c *cert.AS) {
+				c.Issuer.IA.A = 0
+			},
+			ExpectedErrMsg: cert.WildcardIssuer,
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {

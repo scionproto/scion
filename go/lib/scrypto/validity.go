@@ -44,6 +44,11 @@ func (v *Validity) Contains(t time.Time) bool {
 	return !t.Before(v.NotBefore.Time) && !t.After(v.NotAfter.Time)
 }
 
+// Covers indicates whether the other validity is covered by this validity.
+func (v *Validity) Covers(other Validity) bool {
+	return !other.NotBefore.Before(v.NotBefore.Time) && !other.NotAfter.After(v.NotAfter.Time)
+}
+
 // Validate checks that NotAfter is after NotBefore.
 func (v *Validity) Validate() error {
 	if !v.NotAfter.After(v.NotBefore.Time) {
