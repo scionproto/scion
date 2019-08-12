@@ -24,7 +24,7 @@ go_library(
 )
 
 # Note: :structs and :capnp are only used to manually regenerate git-controlled
-# source files. These targets are no dependencies of other bazel targets.
+# source files. These targets are not dependencies of other bazel targets.
 # Instead, they are built only in `make gogen`.
 # To differentiate from the source files used in go_default_library, the files
 # are generated into a subdirectory `gogen/`
