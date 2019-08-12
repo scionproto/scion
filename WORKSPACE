@@ -192,12 +192,6 @@ go_repository(
 )
 
 go_repository(
-    name = "com_github_golang_protobuf",
-    commit = "98fa357170587e470c5f27d3c3ea0947b71eb455",
-    importpath = "github.com/golang/protobuf",  # proto
-)
-
-go_repository(
     name = "com_github_google_go_cmp",
     commit = "2248b49eaa8e1c8c0963ee77b40841adbc19d4ca",
     importpath = "github.com/google/go-cmp",  # cmp
@@ -401,24 +395,6 @@ go_repository(
     name = "org_golang_x_crypto",
     commit = "8ac0e0d97ce45cd83d1d7243c060cb8461dda5e9",
     importpath = "golang.org/x/crypto",  # acme
-)
-
-go_repository(
-    name = "org_golang_x_net",
-    commit = "c7086645de248775cbf2373cf5ca4d2fa664b8c1",
-    importpath = "golang.org/x/net",  # ipv4
-)
-
-go_repository(
-    name = "org_golang_x_sys",
-    commit = "314a259e304ff91bd6985da2a7149bbf91237993",
-    importpath = "golang.org/x/sys",  # unix
-)
-
-go_repository(
-    name = "org_golang_x_tools",
-    commit = "5e2ae75eb72a62985e086eed33a5982a929e4fff",
-    importpath = "golang.org/x/tools",  # cover
 )
 
 go_repository(
