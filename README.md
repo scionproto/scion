@@ -46,6 +46,7 @@ Necessary steps in order to run SCION:
    ```
 
 1. Install [bzlcompat](https://github.com/kormat/bzlcompat) version v0.4:
+
    ```bash
    wget https://github.com/kormat/bzlcompat/releases/download/v0.4/bzlcompat-v0.4-linux-x86_64 -O ~/bin/bzlcompat
    chmod 755 ~/bin/bzlcompat
