@@ -69,29 +69,29 @@ func TestValidityCovers(t *testing.T) {
 	tests := map[string]struct {
 		DiffNotBefore time.Duration
 		DiffNotAfter  time.Duration
-		Civf          bool
+		Covers        bool
 	}{
-		"Before": {
-			Time: now.Add(-time.Minute),
+		"Equal": {
+			Covers: true,
 		},
-		"Same as NotBefore": {
-			Time:      now,
-			Contained: true,
+		"strict subset": {
+			DiffNotBefore: time.Second,
+			DiffNotAfter:  -time.Second,
+			Covers:        true,
 		},
-		"Between NotBefore and NotAfter": {
-			Time:      now.Add(30 * time.Second),
-			Contained: true,
+		"NotBefore before": {
+			DiffNotBefore: -time.Second,
 		},
-		"Same as NotAfter": {
-			Time:      now.Add(time.Minute),
-			Contained: true,
-		},
-		"After": {
-			Time: now.Add(time.Hour),
+		"NotAfter after": {
+			DiffNotAfter: time.Second,
 		},
 	}
 	for name, test := range tests {
-		assert.Equal(t, test.Contained, validity.Contains(test.Time), name)
+		other := scrypto.Validity{
+			NotBefore: util.UnixTime{Time: validity.NotBefore.Add(test.DiffNotBefore)},
+			NotAfter:  util.UnixTime{Time: validity.NotAfter.Add(test.DiffNotAfter)},
+		}
+		assert.Equal(t, test.Covers, validity.Covers(other), name)
 	}
 }
 
