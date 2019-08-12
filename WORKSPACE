@@ -441,7 +441,7 @@ go_repository(
 
 go_repository(
     name = "com_zombiezen_go_capnproto2",
-    commit = "659aba4018b61e5f07f6b90ff2abc5b300baccea",
+    commit = "9caa061de5906783733757884d7f04c1aef2911b",
     importpath = "zombiezen.com/go/capnproto2",
 )
 

@@ -29,7 +29,8 @@
     "exclude_files": {
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
       "/in_gopkg_yaml_v2/": "",
-      "/com_github_uber_jaeger_client_go": ""
+      "/com_github_uber_jaeger_client_go": "",
+      "/com_zombiezen_go_capnproto2/encoding/text/": ""
     }
   },
   "unsafeptr": {
