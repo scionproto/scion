@@ -1,20 +1,35 @@
 #!/bin/bash
 
-set -ex
+set -exu
 
+dl_install() {
+    local url="${1:?}"; shift
+    local csum="${1:?}"; shift
+    local target="${1:?}"; shift
+    # If the target already exists, check to see if it already matches the checksum.
+    [ -e "$target" ] && echo "$csum" "$target" |  sha256sum --check --status && return
+
+    curl -sSL "$url" -o "$target.tmp"
+    echo "$csum" "$target.tmp" |  sha256sum --check --quiet -
+    install -m 0755 "$target.tmp" "$target"
+    rm "$target.tmp"
+}
+
+MACH="$(uname -m)"
+[ "$MACH" == "x86_64" ] || { echo "Error: bazel does not provide binaries for $MACH"; exit 1; }
+
+mkdir -p ~/bin
 
 BAZEL_VER=0.26.1
 BAZEL_CKSUM=6c50e142a0a405d3d8598050d6c1b3920c8cdb82a7ffca6fc067cb474275148f
+BAZEL_FILE="bazel-${BAZEL_VER}-linux-${MACH}"
+BAZEL_URL=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VER}/${BAZEL_FILE}
 
-BAZEL_MACH="$(uname -m)"
-BAZEL_FILE="bazel-${BAZEL_VER}-linux-${BAZEL_MACH}"
+dl_install "$BAZEL_URL" "$BAZEL_CKSUM" ~/bin/bazel
 
-[ "$BAZEL_MACH" == "x86_64" ] || { echo "Error: bazel does not provide binaries for $BAZEL_MACH"; exit 1; }
-# If ~/bin/bazel already has the expected checksum, no need to continue.
-[ -e ~/bin/bazel ] && echo ${BAZEL_CKSUM} ~/bin/bazel | sha256sum --check --status && exit 0
+BZLCOMPAT_VER=v0.4
+BZLCOMPAT_CKSUM=396f4768ad3068955dcf9444eb65c5ed3beafb5f7d70d5be4607a3ebdb4b25dd
+BZLCOMPAT_FILE="bzlcompat-${BZLCOMPAT_VER}-linux-${MACH}"
+BZLCOMPAT_URL=https://github.com/kormat/bzlcompat/releases/download/${BZLCOMPAT_VER}/${BZLCOMPAT_FILE}
 
-curl -sSL https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VER}/${BAZEL_FILE} -o /tmp/${BAZEL_FILE}
-echo ${BAZEL_CKSUM} /tmp/${BAZEL_FILE} | sha256sum --check --quiet -
-
-install -m 0755 -D /tmp/${BAZEL_FILE} ~/bin/bazel
-rm /tmp/${BAZEL_FILE}
+dl_install "$BZLCOMPAT_URL" "$BZLCOMPAT_CKSUM" ~/bin/bzlcompat
