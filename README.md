@@ -45,6 +45,13 @@ Necessary steps in order to run SCION:
    rm ./bazel-0.26.1-installer-linux-x86_64.sh
    ```
 
+1. Install [bzlcompat](https://github.com/kormat/bzlcompat) version v0.4:
+
+   ```bash
+   wget https://github.com/kormat/bzlcompat/releases/download/v0.4/bzlcompat-v0.4-linux-x86_64 -O ~/bin/bzlcompat
+   chmod 755 ~/bin/bzlcompat
+   ```
+
 1. Make sure that you have a
    [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
    `~/.local/bin`, and `$GOPATH/bin` can be found in your `$PATH` variable. For example:

@@ -24,7 +24,8 @@ gogenlinks_clean:
 	find ./go/proto -maxdepth 1 -type l -exec rm {} +
 
 vendor:
-	./tools/vendor.sh
+	if [ -e go/vendor ]; then rm -r go/vendor; fi
+	bzlcompat -vendorBase=go
 
 bazel: vendor bazel_bin_clean
 	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
