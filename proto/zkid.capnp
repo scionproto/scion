@@ -7,7 +7,6 @@ struct ZkId {
     isdas @0 :UInt64;
     id @1 :Text;
     addrs @2 :List(Addr);
-    foo @3 :Text;
 }
 
 struct Addr {
