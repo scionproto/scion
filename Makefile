@@ -24,7 +24,7 @@ gogenlinks_clean:
 	find ./go/proto -maxdepth 1 -type l -exec rm {} +
 
 vendor:
-	@[ -e go/vendor ] && rm -r go/vendor
+	if [ -e go/vendor ]; then rm -r go/vendor; fi
 	bzlcompat -vendorBase=go
 
 bazel: vendor bazel_bin_clean
