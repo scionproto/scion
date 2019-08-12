@@ -346,7 +346,10 @@ go_lint() {
     out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:' < $TMPDIR/gofiles.list);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "misspell"
-    xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error || ret=1
+    # misspell: invoke for all files in gofiles.list. To allow continuing after
+    # first set of files with an error (for which xargs does not have an option),
+    # xargs only assembles the command and sh executes.
+    xargs -a $TMPDIR/gofiles.list echo $TMPDIR/misspell -error | sed 's/$/ || ret=1/;$s/$/; exit $ret/' | sh || ret=1
     lint_step "ineffassign"
     $TMPDIR/ineffassign -exclude ineffassign.json go || ret=1
     lint_step "bazel"
@@ -446,8 +449,8 @@ cmd_help() {
 	Usage:
 	    $PROGRAM topology [nobuild] [zkclean]
 	        Create topology, configuration, and execution files. With the 'nobuild'
-            option, don't build the code. With the 'zkclean' option, also reset 
-            all local Zookeeper state. All other arguments or options are passed 
+            option, don't build the code. With the 'zkclean' option, also reset
+            all local Zookeeper state. All other arguments or options are passed
             to topology/generator.py
 	    $PROGRAM run
 	        Run network.
