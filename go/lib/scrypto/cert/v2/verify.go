@@ -46,6 +46,8 @@ var (
 )
 
 // ASVerifier verifies the AS certificate based on the trusted issuer certificate.
+// The caller must ensure that the issuer certificate is verified, and that the
+// AS certificate is valid and decoded from the signed AS certificate.
 type ASVerifier struct {
 	Issuer   *Issuer
 	AS       *AS
@@ -93,7 +95,9 @@ func (v ASVerifier) checkIssuer(p ProtectedAS) error {
 	return nil
 }
 
-// IssuerVerifier verifies the issuer certificate based on the trusted issuer certificate.
+// IssuerVerifier verifies the issuer certificate based on the trusted TRC. The
+// caller must ensure that the TRC is verified, and that the issuer certificate
+// is valid and decoded from the signed issuer certificate.
 type IssuerVerifier struct {
 	TRC          *trc.TRC
 	Issuer       *Issuer
