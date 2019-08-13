@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/tmpl"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/trc"
+	v2 "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/cmd"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/version"
 )
 
@@ -107,4 +109,5 @@ func init() {
 	RootCmd.AddCommand(trc.Cmd)
 	RootCmd.AddCommand(tmpl.Cmd)
 	RootCmd.AddCommand(autoCompleteCmd)
+	RootCmd.AddCommand(v2.Cmd)
 }
