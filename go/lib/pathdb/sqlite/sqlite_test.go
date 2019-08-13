@@ -59,9 +59,7 @@ func (b *TestPathDB) Prepare(t *testing.T, _ context.Context) {
 
 func TestPathDBSuite(t *testing.T) {
 	tdb := &TestPathDB{}
-	Convey("PathDBSuite", t, func() {
-		pathdbtest.TestPathDB(t, tdb)
-	})
+	pathdbtest.TestPathDB(t, tdb)
 }
 
 func TestOpenExisting(t *testing.T) {
