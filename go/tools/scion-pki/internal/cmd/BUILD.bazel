@@ -11,6 +11,7 @@ go_library(
         "//go/tools/scion-pki/internal/pkicmn:go_default_library",
         "//go/tools/scion-pki/internal/tmpl:go_default_library",
         "//go/tools/scion-pki/internal/trc:go_default_library",
+        "//go/tools/scion-pki/internal/v2/cmd:go_default_library",
         "//go/tools/scion-pki/internal/version:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
     ],
