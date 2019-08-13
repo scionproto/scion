@@ -1,6 +1,17 @@
 {
+  "assign": {
+    "exclude_files": {
+      "gazelle/walk/walk.go": ""
+    }
+  },
+  "composites": {
+    "exclude_files": {
+      "gazelle/language/go/resolve.go": ""
+    }
+  },
   "nilness": {
     "exclude_files": {
+      "gazelle/cmd/gazelle/diff.go": "",
       "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
       "/com_github_mattn_go_sqlite3": "",
       "/com_github_lucas_clemente_quic_go": "many vendored dependencies have issues",
