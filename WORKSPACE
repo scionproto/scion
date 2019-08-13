@@ -411,13 +411,13 @@ go_repository(
 
 go_repository(
     name = "in_gopkg_yaml_v2",
-    commit = "a5b47d31c556af34a302ce5d659e6fea44d90de0",
+    commit = "51d6538a90f86fe93ac480b35f37b2be17fef232",
     importpath = "gopkg.in/yaml.v2",
 )
 
 go_repository(
     name = "com_zombiezen_go_capnproto2",
-    commit = "9caa061de5906783733757884d7f04c1aef2911b",
+    commit = "ddfb9bb855fad9979ae59da7211fca20967d5669",
     importpath = "zombiezen.com/go/capnproto2",
 )
 
