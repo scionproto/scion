@@ -44,10 +44,14 @@ func TestHPRegistrationFromYaml(t *testing.T) {
 
 		SoMsg("IFID 2 Public RegUP", r.HPPolicies[2].Public.RegUp, ShouldBeTrue)
 		SoMsg("IFID 2 Public RegDown", r.HPPolicies[2].Public.RegDown, ShouldBeTrue)
-		SoMsg("IFID 2 ff00:0:110-69b5 RegUp", r.HPPolicies[2].Hidden[id69b5].RegUp, ShouldBeTrue)
-		SoMsg("IFID 2 ff00:0:110-69b5 RegDown", r.HPPolicies[2].Hidden[id69b5].RegDown, ShouldBeTrue)
-		SoMsg("IFID 2 ffaa:0:222-abcd RegUp", r.HPPolicies[2].Hidden[idabcd].RegUp, ShouldBeTrue)
-		SoMsg("IFID 2 ffaa:0:222-abcd RegDown", r.HPPolicies[2].Hidden[idabcd].RegDown, ShouldBeTrue)
+		SoMsg("IFID 2 ff00:0:110-69b5 RegUp",
+			r.HPPolicies[2].Hidden[id69b5].RegUp, ShouldBeTrue)
+		SoMsg("IFID 2 ff00:0:110-69b5 RegDown",
+			r.HPPolicies[2].Hidden[id69b5].RegDown, ShouldBeTrue)
+		SoMsg("IFID 2 ffaa:0:222-abcd RegUp",
+			r.HPPolicies[2].Hidden[idabcd].RegUp, ShouldBeTrue)
+		SoMsg("IFID 2 ffaa:0:222-abcd RegDown",
+			r.HPPolicies[2].Hidden[idabcd].RegDown, ShouldBeTrue)
 		SoMsg("IFID 3 Public RegUP", r.HPPolicies[3].Public.RegUp, ShouldBeTrue)
 		SoMsg("IFID 3 Public RegDown", r.HPPolicies[3].Public.RegDown, ShouldBeTrue)
 		SoMsg("IFID3 no hidden policies", len(r.HPPolicies[3].Hidden), ShouldEqual, 0)

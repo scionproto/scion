@@ -54,7 +54,8 @@ func (hp *HPRegistration) Validate() error {
 	for _, g := range hp.HPGroups {
 		if _, err := os.Stat(g.GroupCfgPath); err != nil {
 			if os.IsNotExist(err) {
-				return common.NewBasicError("HP group file does not exist", nil, "file", g.GroupCfgPath)
+				return common.NewBasicError("HP group file does not exist", nil,
+					"file", g.GroupCfgPath)
 			}
 		}
 	}
@@ -99,7 +100,8 @@ func (hp *HPRegistration) init() error {
 func (g *HPGroup) loadGroup() error {
 	b, err := ioutil.ReadFile(g.GroupCfgPath)
 	if err != nil {
-		return common.NewBasicError("Unable to read hidden path group file", err, "path", g.GroupCfgPath)
+		return common.NewBasicError("Unable to read hidden path group file", err,
+			"path", g.GroupCfgPath)
 	}
 	err = json.Unmarshal(b, &g.Group)
 	if err != nil {
