@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,42 +20,36 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_ParseDuration(t *testing.T) {
 	tests := []struct {
-		input  string
-		output time.Duration
-		isOk   bool
+		input          string
+		output         time.Duration
+		errorAssertion assert.ErrorAssertionFunc
 	}{
-		{"", 0, false},      // Empty string
-		{"0", 0, false},     // No unit provided
-		{"1d12h", 0, false}, // Multiple units
-		{"2ns", 2 * time.Nanosecond, true},
-		{"33us", 33 * time.Microsecond, true},
-		{"4444µs", 4444 * time.Microsecond, true},
-		{"55555ms", 55555 * time.Millisecond, true},
-		{"101s", 101 * time.Second, true},
-		{"102m", 102 * time.Minute, true},
-		{"103h", 103 * time.Hour, true},
-		{"104d", 104 * 24 * time.Hour, true},
-		{"105w", 105 * 7 * 24 * time.Hour, true},
-		{"106y", 106 * 365 * 24 * time.Hour, true},
+		{"", 0, assert.Error},      // Empty string
+		{"0", 0, assert.Error},     // No unit provided
+		{"1d12h", 0, assert.Error}, // Multiple units
+		{"2ns", 2 * time.Nanosecond, assert.NoError},
+		{"33us", 33 * time.Microsecond, assert.NoError},
+		{"4444µs", 4444 * time.Microsecond, assert.NoError},
+		{"55555ms", 55555 * time.Millisecond, assert.NoError},
+		{"101s", 101 * time.Second, assert.NoError},
+		{"102m", 102 * time.Minute, assert.NoError},
+		{"103h", 103 * time.Hour, assert.NoError},
+		{"104d", 104 * 24 * time.Hour, assert.NoError},
+		{"105w", 105 * 7 * 24 * time.Hour, assert.NoError},
+		{"106y", 106 * 365 * 24 * time.Hour, assert.NoError},
 	}
-	Convey("Test ParseDuration", t, func() {
-		for _, test := range tests {
-			Convey(fmt.Sprintf("Input: %q", test.input), func() {
-				ret, err := ParseDuration(test.input)
-				if test.isOk {
-					SoMsg("No error", err, ShouldBeNil)
-					SoMsg("Result should be correct", ret, ShouldEqual, test.output)
-				} else {
-					SoMsg("Error", err, ShouldNotBeNil)
-				}
-			})
-		}
-	})
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("Input: %q", test.input), func(t *testing.T) {
+			ret, err := ParseDuration(test.input)
+			test.errorAssertion(t, err)
+			assert.Equal(t, test.output, ret)
+		})
+	}
 }
 
 func Test_FmtDuration(t *testing.T) {
@@ -73,13 +68,10 @@ func Test_FmtDuration(t *testing.T) {
 		{35 * day, "5w"},
 		{101 * year, "101y"},
 	}
-	Convey("Test FmtDuration", t, func() {
-		for _, test := range tests {
-			Convey(fmt.Sprintf("Input: %v", test.output), func() {
-				ret := FmtDuration(test.input)
-				SoMsg("Result should be correct", ret, ShouldEqual, test.output)
-			})
-		}
-	})
-
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("Input: %v", test.output), func(t *testing.T) {
+			ret := FmtDuration(test.input)
+			assert.Equal(t, test.output, ret)
+		})
+	}
 }

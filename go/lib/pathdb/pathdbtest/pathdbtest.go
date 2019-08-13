@@ -23,7 +23,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -76,8 +77,10 @@ type TestablePathDB interface {
 // setup should return a PathDB in a clean state, i.e. no entries in the DB.
 // cleanup can be used to release any resources that have been allocated during setup.
 func TestPathDB(t *testing.T, db TestablePathDB) {
-	testWrapper := func(test func(*testing.T, *gomock.Controller, pathdb.ReadWrite)) func() {
-		return func() {
+	testWrapper := func(test func(*testing.T, *gomock.Controller,
+		pathdb.ReadWrite)) func(t *testing.T) {
+
+		return func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -86,57 +89,88 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 			test(t, ctrl, db)
 		}
 	}
-	deleteWrapper := func(inTx bool) func() {
-		return func() {
+	deleteWrapper := func(inTx bool) func(t *testing.T) {
+		return func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			testDelete(t, ctrl, db, inTx)
 		}
 	}
-	Convey("Delete", func() { deleteWrapper(false) })
-	Convey("InsertWithHpCfgIDsFull", testWrapper(testInsertWithHpCfgIDsFull))
-	Convey("UpdateExisting", testWrapper(testUpdateExisting))
-	Convey("UpdateOlderIgnored", testWrapper(testUpdateOlderIgnored))
-	Convey("UpdateIntfToSeg", testWrapper(testUpdateIntfToSeg))
-	Convey("DeleteExpired", testWrapper(testDeleteExpired))
-	Convey("GetMixed", testWrapper(testGetMixed))
-	Convey("GetNilParams", testWrapper(testGetNilParams))
-	Convey("GetAll", testWrapper(testGetAll))
-	Convey("GetStartsAtEndsAt", testWrapper(testGetStartsAtEndsAt))
-	Convey("GetWithIntfs", testWrapper(testGetWithIntfs))
-	Convey("GetWithHpCfgIDs", testWrapper(testGetWithHpCfgIDs))
-	Convey("ModifiedIDs", testWrapper(testGetModifiedIDs))
-	Convey("NextQuery", testWrapper(testNextQuery))
-	txTestWrapper := func(test func(*testing.T, *gomock.Controller, pathdb.ReadWrite)) func() {
-		return func() {
+	t.Run("Delete",
+		deleteWrapper(false))
+	t.Run("InsertWithHpCfgID should correctly insert a new segment",
+		testWrapper(testInsertWithHpCfgIDsFull))
+	t.Run("InsertWithHpCfgID should correctly update a new segment",
+		testWrapper(testUpdateExisting))
+	t.Run("InsertWithHpCfgID should correctly ignore an older segment",
+		testWrapper(testUpdateOlderIgnored))
+	t.Run("Updating a segment with new peer links should update interface to seg mapping",
+		testWrapper(testUpdateIntfToSeg))
+	t.Run("DeleteExpired should delete expired segments",
+		testWrapper(testDeleteExpired))
+	t.Run("Get should return the correct path segments",
+		testWrapper(testGetMixed))
+	t.Run("Get with nil params should return all path segments",
+		testWrapper(testGetNilParams))
+	t.Run("GetAll",
+		testWrapper(testGetAll))
+	t.Run("Get should return all path segments starting or ending at",
+		testWrapper(testGetStartsAtEndsAt))
+	t.Run("Get should return all path segment with given ifIDs",
+		testWrapper(testGetWithIntfs))
+	t.Run("Get should return all path segment with given HpCfgIDs",
+		testWrapper(testGetWithHpCfgIDs))
+	t.Run("Get with MinLastUpdate should return only segs that have been modified",
+		testWrapper(testGetModifiedIDs))
+	t.Run("NextQuery",
+		testWrapper(testNextQuery))
+
+	txTestWrapper := func(test func(*testing.T, *gomock.Controller,
+		pathdb.ReadWrite)) func(t *testing.T) {
+
+		return func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
 			db.Prepare(t, ctx)
 			tx, err := db.BeginTransaction(ctx, nil)
-			xtest.FailOnErr(t, err)
+			require.NoError(t, err)
 			test(t, ctrl, tx)
 			err = tx.Commit()
-			xtest.FailOnErr(t, err)
+			require.NoError(t, err)
 		}
 	}
-	Convey("WithTransaction", func() {
-		Convey("Delete", func() { deleteWrapper(true) })
-		Convey("InsertWithHpCfgIDsFull", txTestWrapper(testInsertWithHpCfgIDsFull))
-		Convey("UpdateExisting", txTestWrapper(testUpdateExisting))
-		Convey("UpdateOlderIgnored", txTestWrapper(testUpdateOlderIgnored))
-		Convey("UpdateIntfToSeg", txTestWrapper(testUpdateIntfToSeg))
-		Convey("DeleteExpired", txTestWrapper(testDeleteExpired))
-		Convey("GetMixed", txTestWrapper(testGetMixed))
-		Convey("GetNilParams", txTestWrapper(testGetNilParams))
-		Convey("GetAll", txTestWrapper(testGetAll))
-		Convey("GetStartsAtEndsAt", txTestWrapper(testGetStartsAtEndsAt))
-		Convey("GetWithIntfs", txTestWrapper(testGetWithIntfs))
-		Convey("GetWithHpCfgIDs", txTestWrapper(testGetWithHpCfgIDs))
-		Convey("ModifiedIDs", txTestWrapper(testGetModifiedIDs))
-		Convey("NextQuery", txTestWrapper(testNextQuery))
-		Convey("TestTransactionRollback", func() {
+	t.Run("WithTransaction", func(t *testing.T) {
+		t.Run("Delete",
+			deleteWrapper(true))
+		t.Run("InsertWithHpCfgID should correctly insert a new segment",
+			txTestWrapper(testInsertWithHpCfgIDsFull))
+		t.Run("InsertWithHpCfgID should correctly update a new segment",
+			txTestWrapper(testUpdateExisting))
+		t.Run("InsertWithHpCfgID should correctly ignore an older segment",
+			txTestWrapper(testUpdateOlderIgnored))
+		t.Run("Updating a segment with new peer links should update interface to seg mapping",
+			txTestWrapper(testUpdateIntfToSeg))
+		t.Run("DeleteExpired should delete expired segments",
+			txTestWrapper(testDeleteExpired))
+		t.Run("Get should return the correct path segments",
+			txTestWrapper(testGetMixed))
+		t.Run("Get with nil params should return all path segments",
+			txTestWrapper(testGetNilParams))
+		t.Run("GetAll",
+			txTestWrapper(testGetAll))
+		t.Run("Get should return all path segments starting or ending at",
+			txTestWrapper(testGetStartsAtEndsAt))
+		t.Run("Get should return all path segment with given ifIDs",
+			txTestWrapper(testGetWithIntfs))
+		t.Run("Get should return all path segment with given HpCfgIDs",
+			txTestWrapper(testGetWithHpCfgIDs))
+		t.Run("Get with MinLastUpdate should return only segs that have been modified",
+			txTestWrapper(testGetModifiedIDs))
+		t.Run("NextQuery",
+			txTestWrapper(testNextQuery))
+		t.Run("Rollback", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -148,14 +182,12 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 }
 
 func testDelete(t *testing.T, ctrl *gomock.Controller, pathDB TestablePathDB, inTx bool) {
-	testCases := []struct {
-		Name  string
+	tests := map[string]struct {
 		Setup func(ctx context.Context, t *testing.T, ctrl *gomock.Controller,
 			pathDB pathdb.PathDB) *query.Params
 		DeleteCount int
 	}{
-		{
-			Name: "Delete by id",
+		"Delete by id": {
 			Setup: func(ctx context.Context, t *testing.T, ctrl *gomock.Controller,
 				pathDB pathdb.PathDB) *query.Params {
 				TS := uint32(10)
@@ -165,8 +197,7 @@ func testDelete(t *testing.T, ctrl *gomock.Controller, pathDB TestablePathDB, in
 			},
 			DeleteCount: 1,
 		},
-		{
-			Name: "Delete by interfaces",
+		"Delete by interfaces": {
 			Setup: func(ctx context.Context, t *testing.T, ctrl *gomock.Controller,
 				pathDB pathdb.PathDB) *query.Params {
 				TS := uint32(10)
@@ -181,420 +212,385 @@ func testDelete(t *testing.T, ctrl *gomock.Controller, pathDB TestablePathDB, in
 			DeleteCount: 1,
 		},
 	}
-	Convey("Delete should correctly remove a path segment", func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-				defer cancelF()
-				pathDB.Prepare(t, ctx)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+			defer cancelF()
+			pathDB.Prepare(t, ctx)
 
-				params := tc.Setup(ctx, t, ctrl, pathDB)
-				var deleted int
+			params := test.Setup(ctx, t, ctrl, pathDB)
+			var deleted int
+			if inTx {
+				tx, err := pathDB.BeginTransaction(ctx, nil)
+				require.NoError(t, err)
+				deleted, err = tx.Delete(ctx, params)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+			} else {
 				var err error
-				// Call
-				if inTx {
-					tx, err := pathDB.BeginTransaction(ctx, nil)
-					xtest.FailOnErr(t, err)
-					deleted, err = tx.Delete(ctx, params)
-					xtest.FailOnErr(t, err)
-					xtest.FailOnErr(t, tx.Commit())
-				} else {
-					deleted, err = pathDB.Delete(ctx, params)
-				}
-				xtest.FailOnErr(t, err)
-				// Check return value.
-				SoMsg("Deleted", deleted, ShouldEqual, tc.DeleteCount)
-			})
-		}
-	})
+				deleted, err = pathDB.Delete(ctx, params)
+				require.NoError(t, err)
+			}
+			assert.Equal(t, test.DeleteCount, deleted)
+		})
+	}
 }
 
 func testInsertWithHpCfgIDsFull(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("InsertWithHpCfgID should correctly insert a new segment", func() {
-		TS := uint32(10)
-		pseg, segID := AllocPathSegment(t, ctrl, ifs1, TS)
+	TS := uint32(10)
+	pseg, segID := AllocPathSegment(t, ctrl, ifs1, TS)
 
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		// Call
-		inserted, err := pathDB.InsertWithHPCfgIDs(ctx, seg.NewMeta(pseg, segType), hpCfgIDs)
-		xtest.FailOnErr(t, err)
-		// Check return value.
-		SoMsg("Inserted", inserted, ShouldEqual, 1)
-		// Check Insert.
-		res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{segID}})
-		xtest.FailOnErr(t, err)
-		checkResult(t, res, pseg, hpCfgIDs)
-	})
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	// Call
+	inserted, err := pathDB.InsertWithHPCfgIDs(ctx, seg.NewMeta(pseg, segType), hpCfgIDs)
+	require.NoError(t, err)
+	// Check return value.
+	assert.Equal(t, 1, inserted, "Inserted")
+	// Check Insert.
+	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{segID}})
+	require.NoError(t, err)
+	checkResult(t, res, pseg, hpCfgIDs)
 }
 
 func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("InsertWithHpCfgID should correctly update a new segment", func() {
-		oldTS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		oldSeg, segID := AllocPathSegment(t, ctrl, ifs1, oldTS)
-		newTS := uint32(20)
-		newSeg, newSegID := AllocPathSegment(t, ctrl, ifs1, newTS)
-		SoMsg("IDs should match", newSegID, ShouldResemble, segID)
-		InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
-		// Call
-		inserted := InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
-		// Check return value.
-		SoMsg("Inserted", inserted, ShouldEqual, 1)
-		// Check Insert
-		res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{segID}})
-		xtest.FailOnErr(t, err)
-		checkResult(t, res, newSeg, hpCfgIDs)
-	})
+	oldTS := uint32(10)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	oldSeg, segID := AllocPathSegment(t, ctrl, ifs1, oldTS)
+	newTS := uint32(20)
+	newSeg, newSegID := AllocPathSegment(t, ctrl, ifs1, newTS)
+	assert.Equal(t, segID, newSegID, "IDs should match")
+	InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
+	// Call
+	inserted := InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
+	// Check return value.
+	assert.Equal(t, 1, inserted, "Inserted")
+	// Check Insert
+	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{segID}})
+	require.NoError(t, err)
+	checkResult(t, res, newSeg, hpCfgIDs)
 }
 
 func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("InsertWithHpCfgID should correctly ignore an older segment", func() {
-		newTS := uint32(20)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		newSeg, newSegID := AllocPathSegment(t, ctrl, ifs1, newTS)
-		oldTS := uint32(10)
-		oldSeg, oldSegId := AllocPathSegment(t, ctrl, ifs1, oldTS)
-		SoMsg("IDs should match", oldSegId, ShouldResemble, newSegID)
-		InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
-		// Call
-		inserted := InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
-		// Check return value.
-		SoMsg("Inserted", inserted, ShouldEqual, 0)
-		// Check Insert
-		res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{newSegID}})
-		xtest.FailOnErr(t, err)
-		checkResult(t, res, newSeg, hpCfgIDs)
-	})
+	newTS := uint32(20)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	newSeg, newSegID := AllocPathSegment(t, ctrl, ifs1, newTS)
+	oldTS := uint32(10)
+	oldSeg, oldSegId := AllocPathSegment(t, ctrl, ifs1, oldTS)
+	assert.Equal(t, newSegID, oldSegId, "IDs should match")
+	InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
+	// Call
+	inserted := InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
+	// Check return value.
+	assert.Equal(t, 0, inserted, "Inserted")
+	// Check Insert
+	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{newSegID}})
+	require.NoError(t, err)
+	checkResult(t, res, newSeg, hpCfgIDs)
 }
 
-func testUpdateIntfToSeg(t *testing.T, _ *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("Updating a segment with new peer links should update interface to seg mapping", func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
+func testUpdateIntfToSeg(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	ps, _ := AllocPathSegment(t, ctrl, ifs1, uint32(20))
+	InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
+	checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
+	// Create a new segment with an additional peer entry.
+	info := &spath.InfoField{
+		TsInt: uint32(30),
+		ISD:   1,
+		Hops:  3,
+	}
+	newPs, err := seg.NewSeg(info)
+	require.NoError(t, err)
+	hfr := make([]byte, 8)
+	hf := spath.HopField{
+		ConsIngress: common.IFIDType(common.IFIDType(23)),
+		ExpTime:     spath.DefaultHopFExpiry,
+	}
+	hf.Write(hfr)
+	he := allocHopEntry(ia331, ia332, hfr)
+	asEntries := ps.ASEntries
+	asEntries[1].HopEntries = append(asEntries[1].HopEntries, he)
 
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		ps, _ := AllocPathSegment(t, ctrl, ifs1, uint32(20))
-		InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
-		checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
-		// Create a new segment with an additional peer entry.
-		info := &spath.InfoField{
-			TsInt: uint32(30),
-			ISD:   1,
-			Hops:  3,
-		}
-		newPs, err := seg.NewSeg(info)
-		xtest.FailOnErr(t, err)
-		hfr := make([]byte, 8)
-		hf := spath.HopField{
-			ConsIngress: common.IFIDType(common.IFIDType(23)),
-			ExpTime:     spath.DefaultHopFExpiry,
-		}
-		hf.Write(hfr)
-		he := allocHopEntry(ia331, ia332, hfr)
-		asEntries := ps.ASEntries
-		asEntries[1].HopEntries = append(asEntries[1].HopEntries, he)
-
-		signer := mock_seg.NewMockSigner(ctrl)
-		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
-			&proto.SignS{}, nil).AnyTimes()
-		for _, asEntry := range asEntries {
-			err = newPs.AddASEntry(asEntry, signer)
-			xtest.FailOnErr(t, err)
-		}
-		InsertSeg(t, ctx, pathDB, newPs, hpCfgIDs)
-		checkInterfacesPresent(t, ctx, newPs.ASEntries, pathDB)
-		// Now check that the new interface is removed again.
-		ps, _ = AllocPathSegment(t, ctrl, ifs1, uint32(40))
-		InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
-		checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
-		checkInterface(t, ctx, newPs.ASEntries[1].IA(), hf.ConsIngress, pathDB, false)
-	})
+	signer := mock_seg.NewMockSigner(ctrl)
+	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+		&proto.SignS{}, nil).AnyTimes()
+	for _, asEntry := range asEntries {
+		err = newPs.AddASEntry(asEntry, signer)
+		require.NoError(t, err)
+	}
+	InsertSeg(t, ctx, pathDB, newPs, hpCfgIDs)
+	checkInterfacesPresent(t, ctx, newPs.ASEntries, pathDB)
+	// Now check that the new interface is removed again.
+	ps, _ = AllocPathSegment(t, ctrl, ifs1, uint32(40))
+	InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
+	checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
+	checkInterface(t, ctx, newPs.ASEntries[1].IA(), hf.ConsIngress, pathDB, false)
 }
 
 func testDeleteExpired(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("DeleteExpired should delete expired segments", func() {
-		ts1 := uint32(10)
-		ts2 := uint32(20)
-		// defaultExp is the default expiry of the hopfields.
-		defaultExp := spath.DefaultHopFExpiry.ToDuration()
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, _ := AllocPathSegment(t, ctrl, ifs1, ts1)
-		pseg2, _ := AllocPathSegment(t, ctrl, ifs2, ts2)
-		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs)
-		deleted, err := pathDB.DeleteExpired(ctx, time.Unix(10, 0).Add(defaultExp))
-		xtest.FailOnErr(t, err)
-		SoMsg("Deleted", deleted, ShouldEqual, 0)
-		deleted, err = pathDB.DeleteExpired(ctx, time.Unix(20, 0).Add(defaultExp))
-		xtest.FailOnErr(t, err)
-		SoMsg("Deleted", deleted, ShouldEqual, 1)
-		deleted, err = pathDB.DeleteExpired(ctx, time.Unix(30, 0).Add(defaultExp))
-		xtest.FailOnErr(t, err)
-		SoMsg("Deleted", deleted, ShouldEqual, 1)
-	})
+	ts1 := uint32(10)
+	ts2 := uint32(20)
+	// defaultExp is the default expiry of the hopfields.
+	defaultExp := spath.DefaultHopFExpiry.ToDuration()
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	pseg1, _ := AllocPathSegment(t, ctrl, ifs1, ts1)
+	pseg2, _ := AllocPathSegment(t, ctrl, ifs2, ts2)
+	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs)
+	deleted, err := pathDB.DeleteExpired(ctx, time.Unix(10, 0).Add(defaultExp))
+	require.NoError(t, err)
+	assert.Equal(t, 0, deleted, "Deleted")
+	deleted, err = pathDB.DeleteExpired(ctx, time.Unix(20, 0).Add(defaultExp))
+	require.NoError(t, err)
+	assert.Equal(t, 1, deleted, "Deleted")
+	deleted, err = pathDB.DeleteExpired(ctx, time.Unix(30, 0).Add(defaultExp))
+	require.NoError(t, err)
+	assert.Equal(t, 1, deleted, "Deleted")
 }
 
 func testGetMixed(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("Get should return the correct path segments", func() {
-		// Setup
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, segID1 := AllocPathSegment(t, ctrl, ifs1, TS)
-		pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
-		params := &query.Params{
-			SegIDs:   []common.RawBytes{segID1},
-			SegTypes: []proto.PathSegType{proto.PathSegType_up},
-		}
-		// Call
-		res, err := pathDB.Get(ctx, params)
-		xtest.FailOnErr(t, err)
-		resSegID, _ := res[0].Seg.ID()
-		SoMsg("Result count", len(res), ShouldEqual, 1)
-		SoMsg("SegIDs match", resSegID, ShouldResemble, segID1)
-		checkSameHpCfgs("HpCfgIDs match", res[0].HpCfgIDs, hpCfgIDs)
-	})
+	// Setup
+	TS := uint32(10)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	pseg1, segID1 := AllocPathSegment(t, ctrl, ifs1, TS)
+	pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
+	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	params := &query.Params{
+		SegIDs:   []common.RawBytes{segID1},
+		SegTypes: []proto.PathSegType{proto.PathSegType_up},
+	}
+	// Call
+	res, err := pathDB.Get(ctx, params)
+	require.NoError(t, err)
+	resSegID, _ := res[0].Seg.ID()
+	assert.Equal(t, 1, len(res), "Result count")
+	assert.Equal(t, segID1, resSegID, "SegIDs match")
+	checkSameHpCfgs(t, "HpCfgIDs match", res[0].HpCfgIDs, hpCfgIDs)
 }
 
 func testGetNilParams(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("Get should return the all path segments", func() {
-		// Setup
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, segID1 := AllocPathSegment(t, ctrl, ifs1, TS)
-		pseg2, segID2 := AllocPathSegment(t, ctrl, ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
-		// Call
-		res, err := pathDB.Get(ctx, nil)
-		xtest.FailOnErr(t, err)
-		SoMsg("Result count", len(res), ShouldEqual, 2)
-		for _, r := range res {
-			resSegID, _ := r.Seg.ID()
-			if bytes.Compare(resSegID, segID1) == 0 {
-				checkSameHpCfgs("HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
-			} else if bytes.Compare(resSegID, segID2) == 0 {
-				checkSameHpCfgs("HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
-			} else {
-				t.Fatal("Unexpected result", "seg", r.Seg)
-			}
+	// Setup
+	TS := uint32(10)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	pseg1, segID1 := AllocPathSegment(t, ctrl, ifs1, TS)
+	pseg2, segID2 := AllocPathSegment(t, ctrl, ifs2, TS)
+	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	// Call
+	res, err := pathDB.Get(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(res), "Result count")
+	for _, r := range res {
+		resSegID, _ := r.Seg.ID()
+		if bytes.Compare(resSegID, segID1) == 0 {
+			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
+		} else if bytes.Compare(resSegID, segID2) == 0 {
+			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
+		} else {
+			t.Fatal("Unexpected result", "seg", r.Seg)
 		}
-	})
+	}
 }
 
 func testGetAll(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("", func() {
-		// Setup
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
+	// Setup
+	TS := uint32(10)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
 
-		// Empty db should return an empty chan
-		resChan, err := pathDB.GetAll(ctx)
-		SoMsg("No error expected", err, ShouldBeNil)
-		res, more := <-resChan
-		SoMsg("No result expected", res, ShouldResemble, query.ResultOrErr{})
-		SoMsg("No more entries expected", more, ShouldBeFalse)
+	// Empty db should return an empty chan
+	resChan, err := pathDB.GetAll(ctx)
+	require.NoError(t, err)
+	res, more := <-resChan
+	assert.Equal(t, query.ResultOrErr{}, res, "No result expected")
+	assert.False(t, more, "No more entries expected")
 
-		pseg1, segID1 := AllocPathSegment(t, ctrl, ifs1, TS)
-		pseg2, segID2 := AllocPathSegment(t, ctrl, ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	pseg1, segID1 := AllocPathSegment(t, ctrl, ifs1, TS)
+	pseg2, segID2 := AllocPathSegment(t, ctrl, ifs2, TS)
+	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 
-		resChan, err = pathDB.GetAll(ctx)
-		SoMsg("No error expected", err, ShouldBeNil)
-		for r := range resChan {
-			SoMsg("No error expected", r.Err, ShouldBeNil)
-			resSegID, _ := r.Result.Seg.ID()
-			if bytes.Compare(resSegID, segID1) == 0 {
-				checkSameHpCfgs("HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs)
-			} else if bytes.Compare(resSegID, segID2) == 0 {
-				checkSameHpCfgs("HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs[:1])
-			} else {
-				t.Fatal("Unexpected result", "seg", r.Result.Seg)
-			}
+	resChan, err = pathDB.GetAll(ctx)
+	require.NoError(t, err)
+	for r := range resChan {
+		assert.NoError(t, r.Err)
+		resSegID, _ := r.Result.Seg.ID()
+		if bytes.Compare(resSegID, segID1) == 0 {
+			checkSameHpCfgs(t, "HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs)
+		} else if bytes.Compare(resSegID, segID2) == 0 {
+			checkSameHpCfgs(t, "HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs[:1])
+		} else {
+			t.Fatal("Unexpected result", "seg", r.Result.Seg)
 		}
-	})
+	}
 }
 
 func testGetStartsAtEndsAt(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("Get should return all path segments starting or ending at", func() {
-		// Setup
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, _ := AllocPathSegment(t, ctrl, ifs1, TS)
-		pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
-		// Call
-		res, err := pathDB.Get(ctx, &query.Params{StartsAt: []addr.IA{ia330, ia332}})
-		xtest.FailOnErr(t, err)
-		SoMsg("Result count", len(res), ShouldEqual, 2)
-		res, err = pathDB.Get(ctx, &query.Params{EndsAt: []addr.IA{ia330, ia332}})
-		xtest.FailOnErr(t, err)
-		SoMsg("Result count", len(res), ShouldEqual, 2)
-	})
+	// Setup
+	TS := uint32(10)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	pseg1, _ := AllocPathSegment(t, ctrl, ifs1, TS)
+	pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
+	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	// Call
+	res, err := pathDB.Get(ctx, &query.Params{StartsAt: []addr.IA{ia330, ia332}})
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(res), "Result count")
+	res, err = pathDB.Get(ctx, &query.Params{EndsAt: []addr.IA{ia330, ia332}})
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(res), "Result count")
 }
 
 func testGetWithIntfs(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("Get should return all path segment with given ifIDs", func() {
-		// Setup
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, _ := AllocPathSegment(t, ctrl, ifs1, TS)
-		pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
-		params := &query.Params{
-			Intfs: []*query.IntfSpec{
-				{IA: ia330, IfID: 5},
-				{IA: ia332, IfID: 2},
-			},
-		}
-		// Call
-		res, err := pathDB.Get(ctx, params)
-		xtest.FailOnErr(t, err)
-		SoMsg("Result count", len(res), ShouldEqual, 2)
-	})
+	// Setup
+	TS := uint32(10)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	pseg1, _ := AllocPathSegment(t, ctrl, ifs1, TS)
+	pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
+	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	params := &query.Params{
+		Intfs: []*query.IntfSpec{
+			{IA: ia330, IfID: 5},
+			{IA: ia332, IfID: 2},
+		},
+	}
+	// Call
+	res, err := pathDB.Get(ctx, params)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(res), "Result count")
 }
 
 func testGetWithHpCfgIDs(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("Get should return all path segment with given HpCfgIDs", func() {
-		// Setup
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, _ := AllocPathSegment(t, ctrl, ifs1, TS)
-		pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
-		params := &query.Params{
-			HpCfgIDs: hpCfgIDs[1:],
-		}
-		// Call
-		res, err := pathDB.Get(ctx, params)
-		xtest.FailOnErr(t, err)
-		SoMsg("Result count", len(res), ShouldEqual, 1)
-	})
+	// Setup
+	TS := uint32(10)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	pseg1, _ := AllocPathSegment(t, ctrl, ifs1, TS)
+	pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
+	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	params := &query.Params{
+		HpCfgIDs: hpCfgIDs[1:],
+	}
+	// Call
+	res, err := pathDB.Get(ctx, params)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(res), "Result count")
 }
 
 func testGetModifiedIDs(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("Get with MinLastUpdate should return only segs that have been modified", func() {
-		// Setup
-		TS := uint32(10)
-		now := time.Now()
-		tAfter := now.Add(time.Second)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, _ := AllocPathSegment(t, ctrl, ifs1, TS)
-		pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
-		q := &query.Params{
-			MinLastUpdate: &tAfter,
-		}
-		res, err := pathDB.Get(ctx, q)
-		xtest.FailOnErr(t, err)
-		SoMsg("Result count", len(res), ShouldEqual, 0)
-		tBefore := now.Add(-5 * time.Second)
-		q = &query.Params{
-			MinLastUpdate: &tBefore,
-		}
-		res, err = pathDB.Get(ctx, q)
-		xtest.FailOnErr(t, err)
-		SoMsg("Result count", len(res), ShouldEqual, 2)
-		expectID1, err := pseg1.ID()
-		xtest.FailOnErr(t, err)
-		id1, err := res[0].Seg.ID()
-		xtest.FailOnErr(t, err)
-		SoMsg("ID 1", expectID1, ShouldResemble, id1)
-		expectedID2, err := pseg2.ID()
-		xtest.FailOnErr(t, err)
-		id2, err := res[1].Seg.ID()
-		xtest.FailOnErr(t, err)
-		SoMsg("ID 2", expectedID2, ShouldResemble, id2)
-	})
+	// Setup
+	TS := uint32(10)
+	now := time.Now()
+	tAfter := now.Add(time.Second)
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	pseg1, _ := AllocPathSegment(t, ctrl, ifs1, TS)
+	pseg2, _ := AllocPathSegment(t, ctrl, ifs2, TS)
+	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	q := &query.Params{
+		MinLastUpdate: &tAfter,
+	}
+	res, err := pathDB.Get(ctx, q)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(res), "Result count")
+	tBefore := now.Add(-5 * time.Second)
+	q = &query.Params{
+		MinLastUpdate: &tBefore,
+	}
+	res, err = pathDB.Get(ctx, q)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(res), "Result count")
+	expectID1, err := pseg1.ID()
+	require.NoError(t, err)
+	id1, err := res[0].Seg.ID()
+	require.NoError(t, err)
+	assert.Equal(t, id1, expectID1, "ID 1")
+	expectedID2, err := pseg2.ID()
+	require.NoError(t, err)
+	id2, err := res[1].Seg.ID()
+	require.NoError(t, err)
+	assert.Equal(t, id2, expectedID2, "ID 2")
 }
 
 func testNextQuery(t *testing.T, _ *gomock.Controller, pathDB pathdb.ReadWrite) {
-	Convey("NextQuery insert should always result in the latest timestamp", func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-		defer cancelF()
-		src := xtest.MustParseIA("1-ff00:0:111")
-		dst := xtest.MustParseIA("1-ff00:0:133")
-		oldT := time.Now().Add(-10 * time.Second)
-		updated, err := pathDB.InsertNextQuery(ctx, src, dst, nil, oldT)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should Insert new", updated, ShouldBeTrue)
-		dbT, err := pathDB.GetNextQuery(ctx, src, dst, nil)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should return inserted time", dbT.Unix(), ShouldEqual, oldT.Unix())
-		newT := time.Now()
-		updated, err = pathDB.InsertNextQuery(ctx, src, dst, nil, newT)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should Update existing", updated, ShouldBeTrue)
-		dbT, err = pathDB.GetNextQuery(ctx, src, dst, nil)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
-		updated, err = pathDB.InsertNextQuery(ctx, src, dst, nil, oldT)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should not update to older", updated, ShouldBeFalse)
-		dbT, err = pathDB.GetNextQuery(ctx, src, dst, nil)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
-		// with policy
-		dbT, err = pathDB.GetNextQuery(ctx, src, dst, policy(t))
-		xtest.FailOnErr(t, err)
-		SoMsg("Should be zero", dbT.IsZero(), ShouldBeTrue)
-		updated, err = pathDB.InsertNextQuery(ctx, src, dst, policy(t), oldT)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should Insert new", updated, ShouldBeTrue)
-		updated, err = pathDB.InsertNextQuery(ctx, src, dst, policy(t), oldT)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should not update existing", updated, ShouldBeFalse)
-		dbT, err = pathDB.GetNextQuery(ctx, src, dst, policy(t))
-		xtest.FailOnErr(t, err)
-		SoMsg("Should return inserted time", dbT.Unix(), ShouldEqual, oldT.Unix())
-		// other dst
-		dbT, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"), nil)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should be zero", dbT.IsZero(), ShouldBeTrue)
-		dbT, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"), dst, nil)
-		xtest.FailOnErr(t, err)
-		SoMsg("Should be zero", dbT.IsZero(), ShouldBeTrue)
-		ctx, cancelF = context.WithDeadline(context.Background(), time.Now().Add(-3*time.Second))
-		defer cancelF()
-		_, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"), nil)
-		SoMsg("Should error", err, ShouldNotBeNil)
-	})
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	src := xtest.MustParseIA("1-ff00:0:111")
+	dst := xtest.MustParseIA("1-ff00:0:133")
+	oldT := time.Now().Add(-10 * time.Second)
+	updated, err := pathDB.InsertNextQuery(ctx, src, dst, nil, oldT)
+	require.NoError(t, err)
+	assert.True(t, updated, "Should Insert new")
+	dbT, err := pathDB.GetNextQuery(ctx, src, dst, nil)
+	require.NoError(t, err)
+	assert.Equal(t, oldT.Unix(), dbT.Unix(), "Should return inserted time")
+	newT := time.Now()
+	updated, err = pathDB.InsertNextQuery(ctx, src, dst, nil, newT)
+	require.NoError(t, err)
+	assert.True(t, updated, "Should Update existing")
+	dbT, err = pathDB.GetNextQuery(ctx, src, dst, nil)
+	require.NoError(t, err)
+	assert.Equal(t, newT.Unix(), dbT.Unix(), "Should return updated time")
+	updated, err = pathDB.InsertNextQuery(ctx, src, dst, nil, oldT)
+	require.NoError(t, err)
+	assert.False(t, updated, "Should not update to older")
+	dbT, err = pathDB.GetNextQuery(ctx, src, dst, nil)
+	require.NoError(t, err)
+	assert.Equal(t, newT.Unix(), dbT.Unix(), "Should return updated time")
+	// with policy
+	dbT, err = pathDB.GetNextQuery(ctx, src, dst, policy(t))
+	require.NoError(t, err)
+	assert.Zero(t, dbT, "Should be zero")
+	updated, err = pathDB.InsertNextQuery(ctx, src, dst, policy(t), oldT)
+	require.NoError(t, err)
+	assert.True(t, updated, "Should Insert new")
+	updated, err = pathDB.InsertNextQuery(ctx, src, dst, policy(t), oldT)
+	require.NoError(t, err)
+	assert.False(t, updated, "Should not update existing")
+	dbT, err = pathDB.GetNextQuery(ctx, src, dst, policy(t))
+	require.NoError(t, err)
+	assert.Equal(t, oldT.Unix(), dbT.Unix(), "Should return inserted time")
+	// other dst
+	dbT, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"), nil)
+	require.NoError(t, err)
+	assert.Zero(t, dbT)
+	dbT, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"), dst, nil)
+	require.NoError(t, err)
+	assert.Zero(t, dbT)
+	ctx, cancelF = context.WithDeadline(context.Background(), time.Now().Add(-3*time.Second))
+	defer cancelF()
+	_, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"), nil)
+	assert.Error(t, err)
 }
 
 func testRollback(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.PathDB) {
-	Convey("Test transaction rollback", func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-		defer cancelF()
-		tx, err := pathDB.BeginTransaction(ctx, nil)
-		SoMsg("Transaction begin should not fail", err, ShouldBeNil)
-		pseg, _ := AllocPathSegment(t, ctrl, ifs1, uint32(10))
-		SoMsg("Insert should succeed", InsertSeg(t, ctx, tx, pseg, hpCfgIDs), ShouldEqual, 1)
-		err = tx.Rollback()
-		SoMsg("Rollback should not fail", err, ShouldBeNil)
-		segChan, err := pathDB.GetAll(ctx)
-		SoMsg("GetAll should work", err, ShouldBeNil)
-		res, more := <-segChan
-		SoMsg("No entries expected", res, ShouldResemble, query.ResultOrErr{})
-		SoMsg("No more entries expected", more, ShouldBeFalse)
-	})
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	tx, err := pathDB.BeginTransaction(ctx, nil)
+	require.NoError(t, err)
+	pseg, _ := AllocPathSegment(t, ctrl, ifs1, uint32(10))
+	assert.Equal(t, 1, InsertSeg(t, ctx, tx, pseg, hpCfgIDs), "Insert should succeed")
+	err = tx.Rollback()
+	assert.NoError(t, err)
+	segChan, err := pathDB.GetAll(ctx)
+	assert.NoError(t, err)
+	res, more := <-segChan
+	assert.Equal(t, query.ResultOrErr{}, res, "No entries expected")
+	assert.False(t, more, "No more entries expected")
 }
 
 func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
@@ -637,18 +633,18 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 		Hops:  3,
 	}
 	pseg, err := seg.NewSeg(info)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	signer := mock_seg.NewMockSigner(ctrl)
 	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 		&proto.SignS{}, nil).AnyTimes()
 	for _, ase := range ases {
 		err := pseg.AddASEntry(ase, signer)
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 	}
 	segID, err := pseg.ID()
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	_, err = pseg.FullId()
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return pseg, segID
 }
 
@@ -664,30 +660,30 @@ func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite,
 	pseg *seg.PathSegment, hpCfgIDs []*query.HPCfgID) int {
 
 	inserted, err := pathDB.InsertWithHPCfgIDs(ctx, seg.NewMeta(pseg, segType), hpCfgIDs)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return inserted
 }
 
 func checkResult(t *testing.T, results []*query.Result, expectedSeg *seg.PathSegment,
 	hpCfgsIds []*query.HPCfgID) {
 
-	SoMsg("Expect one result", len(results), ShouldEqual, 1)
+	assert.Equal(t, 1, len(results), "Expect one result")
 	// Make sure the segment is properly initialized.
 	_, err := results[0].Seg.ID()
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	_, err = results[0].Seg.FullId()
-	xtest.FailOnErr(t, err)
-	SoMsg("Segment should match", results[0].Seg, ShouldResemble, expectedSeg)
-	checkSameHpCfgs("HiddenPath Ids should match", results[0].HpCfgIDs, hpCfgsIds)
+	require.NoError(t, err)
+	assert.Equal(t, expectedSeg, results[0].Seg, "Segment should match")
+	checkSameHpCfgs(t, "HiddenPath Ids should match", results[0].HpCfgIDs, hpCfgsIds)
 }
 
-func checkSameHpCfgs(msg string, actual, expected []*query.HPCfgID) {
+func checkSameHpCfgs(t *testing.T, msg string, actual, expected []*query.HPCfgID) {
 	sort.Slice(actual, func(i, j int) bool {
 		return actual[i].IA.I < actual[j].IA.I ||
 			actual[i].IA.I == actual[j].IA.I && actual[i].IA.A < actual[j].IA.A ||
 			actual[i].IA.Equal(actual[j].IA) && actual[i].ID < actual[j].ID
 	})
-	SoMsg(msg, actual, ShouldResemble, expected)
+	assert.Equal(t, expected, actual, msg)
 }
 
 func checkInterfacesPresent(t *testing.T, ctx context.Context,
@@ -696,7 +692,7 @@ func checkInterfacesPresent(t *testing.T, ctx context.Context,
 	for _, asEntry := range expectedHopEntries {
 		for _, hopEntry := range asEntry.HopEntries {
 			hof, err := hopEntry.HopField()
-			xtest.FailOnErr(t, err)
+			require.NoError(t, err)
 			if hof.ConsIngress != 0 {
 				checkInterface(t, ctx, asEntry.IA(), hof.ConsIngress, pathDB, true)
 			}
@@ -718,17 +714,16 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.I
 			},
 		},
 	})
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	if present {
-		SoMsg(fmt.Sprintf("Interface should be present: %v#%d", ia, ifId), len(r), ShouldEqual, 1)
+		assert.Equal(t, 1, len(r), fmt.Sprintf("Interface should be present: %v#%d", ia, ifId))
 	} else {
-		SoMsg(fmt.Sprintf("Interface should not be present: %v#%d", ia, ifId),
-			len(r), ShouldBeZeroValue)
+		assert.Zero(t, len(r), (fmt.Sprintf("Interface should not be present: %v#%d", ia, ifId)))
 	}
 }
 
 func policy(t *testing.T) *pathpol.Policy {
 	acl, err := pathpol.NewACL(&pathpol.ACLEntry{Action: pathpol.Allow})
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return pathpol.NewPolicy("Test allow all", acl, nil, nil)
 }
