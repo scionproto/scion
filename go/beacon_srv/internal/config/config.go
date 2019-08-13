@@ -203,6 +203,10 @@ type Policies struct {
 	// If this is the empty string, the default policy is used. In a core beacon
 	// server, this field is ignored.
 	DownRegistration string
+	// HiddenPathRegistration contains the file path for the hidden path registration policy
+	// and the corresponding hidden path groups.
+	// If this is the empty string, no hidden path functionality is used.
+	HiddenPathRegistration string
 }
 
 // Sample generates a sample for the beacon server specific configuration.

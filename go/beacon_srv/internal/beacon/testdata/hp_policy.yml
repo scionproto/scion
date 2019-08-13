@@ -1,0 +1,22 @@
+---
+hpGroups:
+  ff00:0:110-69b5:
+    CfgFilePath: testdata/HPGCfg_ff00_0_110-69b5.json
+  ffaa:0:222-abcd:
+    CfgFilePath: testdata/HPGCfg_ffaa_0_222-abcd.json
+segmentRegistration:
+  '2':
+    ps:
+      RegUp: true
+      RegDown: true
+    hps:
+      ff00:0:110-69b5:
+        RegUp: true
+        RegDown: true
+      ffaa:0:222-abcd:
+        RegUp: true
+        RegDown: true
+  '3':
+    ps:
+      RegUp: true
+      RegDown: true

@@ -47,6 +47,15 @@ func (ifid IFIDType) String() string {
 	return strconv.FormatUint(uint64(ifid), 10)
 }
 
+func (ifid *IFIDType) UnmarshalText(text []byte) error {
+	i, err := strconv.ParseUint(string(text), 10, 64)
+	if err != nil {
+		return err
+	}
+	*ifid = IFIDType(i)
+	return nil
+}
+
 const IFIDBytes = 8
 
 func TypeOf(v interface{}) string {
