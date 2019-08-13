@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -126,6 +127,15 @@ func asFromDir(dir string) (addr.AS, error) {
 func Contains(ases []addr.IA, as addr.IA) bool {
 	for _, ia := range ases {
 		if ia.Equal(as) {
+			return true
+		}
+	}
+	return false
+}
+
+func ContainsAS(ases []addr.AS, as addr.AS) bool {
+	for _, o := range ases {
+		if as == o {
 			return true
 		}
 	}
