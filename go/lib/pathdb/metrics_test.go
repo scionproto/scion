@@ -18,12 +18,11 @@ import (
 	"context"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/pathdbtest"
 	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 type TestPathDB struct {
@@ -34,15 +33,15 @@ func (b *TestPathDB) Prepare(t *testing.T, _ context.Context) {
 	b.PathDB = setupDB(t)
 }
 
+// TestMetricWrapperFunctionality tests that the metrics wrapper succeeds the
+// normal path db test suite.
 func TestMetricWrapperFunctionality(t *testing.T) {
 	tdb := &TestPathDB{}
-	Convey("Test metrics wrapper functions normally", t, func() {
-		pathdbtest.TestPathDB(t, tdb)
-	})
+	pathdbtest.TestPathDB(t, tdb)
 }
 
 func setupDB(t *testing.T) pathdb.PathDB {
 	db, err := sqlite.New(":memory:")
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return pathdb.WithMetrics("testdb", db)
 }

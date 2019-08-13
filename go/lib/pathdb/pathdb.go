@@ -65,6 +65,20 @@ type Write interface {
 	// false if the stored timestamp is already newer.
 	InsertNextQuery(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy,
 		nextQuery time.Time) (bool, error)
+	NextQueryDeleter
+}
+
+// NextQueryDeleter contains functions to delete NextQuery entries.
+type NextQueryDeleter interface {
+	// DeleteExpiredNQ deletes all expired next query entries, i.e. all entries
+	// which have a next query time that is in the past.
+	DeleteExpiredNQ(ctx context.Context, now time.Time) (int, error)
+	// DeleteNQ deletes all entries that match the given parameters. Note that
+	// only parameters with non-zero value are considered, i.e. calling this
+	// function with all zero values deletes all next query entries. Calling
+	// with only a non-zero src value will delete all next query entries where
+	// the source matches the given src parameter.
+	DeleteNQ(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) (int, error)
 }
 
 // ReadWrite defines all read an write operations of the path DB.

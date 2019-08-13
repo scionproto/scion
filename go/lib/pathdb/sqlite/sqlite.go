@@ -650,3 +650,40 @@ func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA,
 	}
 	return time.Unix(0, nanos), nil
 }
+
+func (e *executor) DeleteExpiredNQ(ctx context.Context, now time.Time) (int, error) {
+	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		delStmt := `DELETE FROM NextQuery WHERE NextQuery < ?`
+		return tx.ExecContext(ctx, delStmt, now.UnixNano())
+	})
+}
+
+func (e *executor) DeleteNQ(ctx context.Context, src, dst addr.IA,
+	policy *pathpol.Policy) (int, error) {
+
+	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		delStmt := `DELETE FROM NextQuery`
+		var whereParts []string
+		var args []interface{}
+		if !src.IsZero() {
+			whereParts = append(whereParts, "SrcIsdID = ? AND SrcASID = ?")
+			args = append(args, src.I, src.A)
+		}
+		if !dst.IsZero() {
+			whereParts = append(whereParts, "DstIsdID = ? AND DstASID = ?")
+			args = append(args, dst.I, dst.A)
+		}
+		if policy != nil {
+			ph, err := e.polHash(policy)
+			if err != nil {
+				return nil, err
+			}
+			whereParts = append(whereParts, "Policy = ?")
+			args = append(args, ph)
+		}
+		if len(whereParts) > 0 {
+			delStmt = fmt.Sprintf("%s WHERE %s", delStmt, strings.Join(whereParts, " AND "))
+		}
+		return tx.ExecContext(ctx, delStmt, args...)
+	})
+}

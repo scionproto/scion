@@ -49,6 +49,8 @@ const (
 	promOpGetAll          promOp = "get_all"
 	promOpInsertNextQuery promOp = "insert_next_query"
 	promOpGetNextQuery    promOp = "get_next_query"
+	promOpDeleteExpiredNQ promOp = "delete_expired_nq"
+	promOpDeleteNQ        promOp = "delete_nq"
 
 	promOpBeginTx    promOp = "tx_begin"
 	promOpCommitTx   promOp = "tx_commit"
@@ -64,10 +66,10 @@ var (
 
 func initMetrics() {
 	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 11 (len(all ops))
+		// Cardinality: X (dbName) * 13 (len(all ops))
 		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
 			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbNmae) * 11 (len(all ops)) * Y (len(all results))
+		// Cardinality: X (dbNmae) * 13 (len(all ops)) * Y (len(all results))
 		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
 			"The results of the pathdb ops.",
 			[]string{promDBName, prom.LabelResult, prom.LabelOperation})
@@ -263,4 +265,26 @@ func (db *metricsExecutor) GetNextQuery(ctx context.Context, src, dst addr.IA,
 		return err
 	})
 	return t, err
+}
+
+func (db *metricsExecutor) DeleteExpiredNQ(ctx context.Context, now time.Time) (int, error) {
+	var cnt int
+	var err error
+	db.metrics.Observe(ctx, promOpDeleteExpiredNQ, func(ctx context.Context) error {
+		cnt, err = db.pathDB.DeleteExpiredNQ(ctx, now)
+		return err
+	})
+	return cnt, err
+}
+
+func (db *metricsExecutor) DeleteNQ(ctx context.Context, src, dst addr.IA,
+	policy *pathpol.Policy) (int, error) {
+
+	var cnt int
+	var err error
+	db.metrics.Observe(ctx, promOpDeleteNQ, func(ctx context.Context) error {
+		cnt, err = db.pathDB.DeleteNQ(ctx, src, dst, policy)
+		return err
+	})
+	return cnt, err
 }
