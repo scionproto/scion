@@ -17,15 +17,15 @@ package beacon
 import (
 	"encoding/json"
 	"io/ioutil"
-	"os"
 
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
-// HPGroup holds a HPGroup
+// HPGroup holds a hidden path group
 type HPGroup struct {
 	GroupCfgPath string `yaml:"CfgFilePath"`
 	Group        hiddenpath.Group
@@ -33,30 +33,45 @@ type HPGroup struct {
 
 // RegPolicy holds a segmentregistration policy
 type RegPolicy struct {
-	RegUp   bool `yaml:"RegUp"`
-	RegDown bool `yaml:"RegDown"`
+	RegUp         bool         `yaml:"RegUp"`
+	RegDown       bool         `yaml:"RegDown"`
+	MaxExpiration util.DurWrap `yaml:"MaxExpiration"`
 }
 
 // HPPolicy holds the public and hidden registration policies for an interface
 type HPPolicy struct {
-	Public RegPolicy                        `yaml:"ps"`
-	Hidden map[hiddenpath.GroupId]RegPolicy `yaml:"hps"`
+	Public RegPolicy                        `yaml:"PS"`
+	Hidden map[hiddenpath.GroupId]RegPolicy `yaml:"HPS"`
+}
+
+// HPPolicies holds all the hidden path registration policies for a BS
+type HPPolicies struct {
+	DefaultAction   string                       `yaml:"DefaultAction"`
+	HiddenAndPublic bool                         `yaml:"HiddenAndPublic"`
+	Policies        map[common.IFIDType]HPPolicy `yaml:"Policies"`
 }
 
 // HPRegistration holds all the information required for hidden path segment registrations
 type HPRegistration struct {
-	HPGroups   map[hiddenpath.GroupId]*HPGroup `yaml:"hpGroups"`
-	HPPolicies map[common.IFIDType]HPPolicy    `yaml:"segmentRegistration"`
+	HPPolicies HPPolicies                      `yaml:"SegmentRegistration"`
+	HPGroups   map[hiddenpath.GroupId]*HPGroup `yaml:"HPGroups"`
 }
 
-// Validate verifies that all HPGroup configuration files exist
+// Validate verifies that for all hidden path policies the referenced Group exists
+// and checks if all GroupId keys match the initialized HPGroup
 func (hp *HPRegistration) Validate() error {
-	for _, g := range hp.HPGroups {
-		if _, err := os.Stat(g.GroupCfgPath); err != nil {
-			if os.IsNotExist(err) {
-				return common.NewBasicError("HP group file does not exist", nil,
-					"file", g.GroupCfgPath)
+	for _, p := range hp.HPPolicies.Policies {
+		for id := range p.Hidden {
+			if _, ok := hp.HPGroups[id]; !ok {
+				return common.NewBasicError("Policy references unavailable Group",
+					nil, "GroupId", id)
 			}
+		}
+	}
+	for id, g := range hp.HPGroups {
+		if id != g.Group.Id {
+			return common.NewBasicError("GroupId key doesn't match loaded HPGroup",
+				nil, "key", id, "loaded", g.Group.Id)
 		}
 	}
 	return nil
@@ -69,10 +84,10 @@ func ParseHPRegYaml(b common.RawBytes) (*HPRegistration, error) {
 	if err := yaml.Unmarshal(b, r); err != nil {
 		return nil, common.NewBasicError("Unable to parse policy", err)
 	}
-	if err := r.Validate(); err != nil {
+	if err := r.init(); err != nil {
 		return nil, err
 	}
-	if err := r.init(); err != nil {
+	if err := r.Validate(); err != nil {
 		return nil, err
 	}
 	return r, nil

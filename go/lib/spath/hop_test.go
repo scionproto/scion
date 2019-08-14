@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package spath
+package spath_test
 
 import (
 	"testing"
@@ -20,6 +20,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	. "github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 

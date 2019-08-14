@@ -15,54 +15,94 @@
 package beacon_test
 
 import (
+	"io/ioutil"
+	"strings"
 	"testing"
+	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
+	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
+var (
+	id69b5 = xtest.MustParseHPGroupId("ff00:0:110-69b5")
+	idabcd = xtest.MustParseHPGroupId("ffaa:0:222-abcd")
+)
+
+var refPolicy = beacon.RegPolicy{
+	RegUp:         true,
+	RegDown:       true,
+	MaxExpiration: util.DurWrap{Duration: time.Hour},
+}
+
+// expected is the HPRegistration which should result from parsing 'testdata/hp_policy.yml'
+// It is missing the initialized hiddenpath.Groups (unmarshalling those is tested in the hiddenpath
+// package)
+var expected = &beacon.HPRegistration{
+	HPPolicies: beacon.HPPolicies{
+		DefaultAction:   "register",
+		HiddenAndPublic: true,
+		Policies: map[common.IFIDType]beacon.HPPolicy{
+			2: {
+				Public: refPolicy,
+				Hidden: map[hiddenpath.GroupId]beacon.RegPolicy{
+					id69b5: refPolicy,
+					idabcd: refPolicy,
+				},
+			},
+			3: {
+				Public: refPolicy,
+			},
+		},
+	},
+	HPGroups: map[hiddenpath.GroupId]*beacon.HPGroup{
+		id69b5: {
+			GroupCfgPath: "testdata/HPGCfg_ff00_0_110-69b5.json",
+		},
+		idabcd: {
+			GroupCfgPath: "testdata/HPGCfg_ffaa_0_222-abcd.json",
+		},
+	},
+}
+
 func TestHPRegistrationFromYaml(t *testing.T) {
-	var id69b5 hiddenpath.GroupId
-	var idabcd hiddenpath.GroupId
-	id69b5.UnmarshalText([]byte("ff00:0:110-69b5"))
-	idabcd.UnmarshalText([]byte("ffaa:0:222-abcd"))
 
-	checkRegPolicy := func(r *beacon.HPRegistration) {
-		g, ok := r.HPGroups[id69b5]
-		SoMsg("HPGroups has hidden group ff00:0:110-69b5", ok, ShouldBeTrue)
-		SoMsg("Group ff00:0:110-69b5 is loaded", g.Group, ShouldNotEqual, hiddenpath.Group{})
-		g, ok = r.HPGroups[idabcd]
-		SoMsg("HPGropus has hidden group ffaa:0:222-abcd", ok, ShouldBeTrue)
-		SoMsg("Group ffaa:0:222-abcd is loaded", g.Group, ShouldNotEqual, hiddenpath.Group{})
-
-		_, ok = r.HPPolicies[2].Hidden[id69b5]
-		SoMsg("Policies has hidden group ff00:0:110-69b5", ok, ShouldBeTrue)
-		_, ok = r.HPPolicies[2].Hidden[idabcd]
-		SoMsg("Policies has hidden group ffaa:0:222-abcd", ok, ShouldBeTrue)
-
-		SoMsg("IFID 2 Public RegUP", r.HPPolicies[2].Public.RegUp, ShouldBeTrue)
-		SoMsg("IFID 2 Public RegDown", r.HPPolicies[2].Public.RegDown, ShouldBeTrue)
-		SoMsg("IFID 2 ff00:0:110-69b5 RegUp",
-			r.HPPolicies[2].Hidden[id69b5].RegUp, ShouldBeTrue)
-		SoMsg("IFID 2 ff00:0:110-69b5 RegDown",
-			r.HPPolicies[2].Hidden[id69b5].RegDown, ShouldBeTrue)
-		SoMsg("IFID 2 ffaa:0:222-abcd RegUp",
-			r.HPPolicies[2].Hidden[idabcd].RegUp, ShouldBeTrue)
-		SoMsg("IFID 2 ffaa:0:222-abcd RegDown",
-			r.HPPolicies[2].Hidden[idabcd].RegDown, ShouldBeTrue)
-		SoMsg("IFID 3 Public RegUP", r.HPPolicies[3].Public.RegUp, ShouldBeTrue)
-		SoMsg("IFID 3 Public RegDown", r.HPPolicies[3].Public.RegDown, ShouldBeTrue)
-		SoMsg("IFID3 no hidden policies", len(r.HPPolicies[3].Hidden), ShouldEqual, 0)
-	}
-
-	Convey("Given a policy file", t, func() {
+	t.Run("Valid", func(t *testing.T) {
 		fn := "testdata/hp_policy.yml"
-		Convey("The policy is parsed correctly", func() {
-			p, err := beacon.LoadHPRegFromYaml(fn)
-			SoMsg("err", err, ShouldBeNil)
-			checkRegPolicy(p)
-		})
+		r, err := beacon.LoadHPRegFromYaml(fn)
+		require.NoError(t, err)
+
+		for _, v := range r.HPGroups {
+			assert.NotEqual(t, hiddenpath.Group{}, v.Group,
+				"HPGroup %q not initialized", v.GroupCfgPath)
+			v.Group = hiddenpath.Group{}
+		}
+		assert.Equal(t, expected, r)
+	})
+
+	t.Run("Unavailable group", func(t *testing.T) {
+		b, err := ioutil.ReadFile("testdata/hp_policy.yml")
+		require.NoError(t, err)
+
+		modified := strings.Replace(string(b), "ff00:0:110-69b5", "ff00:0:0-0", 1)
+		_, err = beacon.ParseHPRegYaml([]byte(modified))
+		assert.EqualError(t, err,
+			`Policy references unavailable Group GroupId="{ff00:0:110 27061}"`)
+	})
+
+	t.Run("Load wrong group", func(t *testing.T) {
+		b, err := ioutil.ReadFile("testdata/hp_policy.yml")
+		require.NoError(t, err)
+
+		modified := strings.Replace(string(b), "ff00_0_110-69b5", "ffaa_0_222-abcd", 1)
+		_, err = beacon.ParseHPRegYaml([]byte(modified))
+		assert.EqualError(t, err, `GroupId key doesn't match loaded `+
+			`HPGroup key="{ff00:0:110 27061}" loaded="{ffaa:0:222 43981}"`)
 	})
 }
