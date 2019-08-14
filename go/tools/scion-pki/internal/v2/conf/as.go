@@ -129,7 +129,7 @@ func (a *ASCfg) Validate() error {
 	if err := a.AS.validate(); err != nil {
 		return err
 	}
-	if a.Issuer != nil {
+	if !a.Issuer.isZero() {
 		if err := a.Issuer.validate(); err != nil {
 			return err
 		}
@@ -230,6 +230,10 @@ func (c *Issuer) validate() error {
 
 }
 
+func (c *Issuer) isZero() bool {
+	return c == nil || *c == Issuer{}
+}
+
 // BaseCert holds the shared parameters that are used to create certs.
 type BaseCert struct {
 	Version                    uint64        `comment:"The version of the certificate. Cannot be 0"`
@@ -274,9 +278,9 @@ func (c *BaseCert) set() {
 
 // PrimaryKeyAlgorithms holds the algorithms for the keys for a primary AS.
 type PrimaryKeyAlgorithms struct {
-	Online  string `comment:"Signing algorithm used by Online Key, e.g., ed25519"`
-	Offline string `comment:"Signing algorithm used by Offline Key, e.g., ed25519"`
-	Issuing string `comment:"Signing algorithm used by Issuing Key, e.g., ed25519"`
+	Online  string `ini:"Online,omitempty" comment:"Signing algorithm used by Online Key, e.g., ed25519"`
+	Offline string `ini:"Offline,omitempty" comment:"Signing algorithm used by Offline Key, e.g., ed25519"`
+	Issuing string `ini:"Issuing,omitempty" comment:"Signing algorithm used by Issuing Key, e.g., ed25519"`
 }
 
 func (k *PrimaryKeyAlgorithms) validate() error {
