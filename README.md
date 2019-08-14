@@ -45,10 +45,10 @@ Necessary steps in order to run SCION:
    rm ./bazel-0.26.1-installer-linux-x86_64.sh
    ```
 
-1. Install [bzlcompat](https://github.com/kormat/bzlcompat) version v0.4:
+1. Install [bzlcompat](https://github.com/kormat/bzlcompat) version v0.6:
 
    ```bash
-   wget https://github.com/kormat/bzlcompat/releases/download/v0.4/bzlcompat-v0.4-linux-x86_64 -O ~/bin/bzlcompat
+   wget https://github.com/kormat/bzlcompat/releases/download/v0.6/bzlcompat-v0.6-linux-x86_64 -O ~/bin/bzlcompat
    chmod 755 ~/bin/bzlcompat
    ```
 
