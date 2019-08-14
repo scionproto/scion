@@ -21,7 +21,6 @@ import (
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -37,8 +36,6 @@ type BRConf struct {
 	IA addr.IA
 	// BR is the topology information of this router.
 	BR *topology.BRInfo
-	// ASConf is the local AS configuration.
-	ASConf *as_conf.ASConf
 	// MasterKeys holds the local AS master keys.
 	MasterKeys keyconf.Master
 	// Dir is the configuration directory.
@@ -53,9 +50,6 @@ func Load(id, confDir string) (*BRConf, error) {
 	if err := conf.loadTopo(id); err != nil {
 		return nil, err
 	}
-	if err := conf.loadAsConf(); err != nil {
-		return nil, err
-	}
 	if err := conf.loadMasterKeys(); err != nil {
 		return nil, err
 	}
@@ -67,7 +61,6 @@ func Load(id, confDir string) (*BRConf, error) {
 func WithNewTopo(id string, topo *topology.Topo, oldConf *BRConf) (*BRConf, error) {
 	conf := &BRConf{
 		Dir:        oldConf.Dir,
-		ASConf:     oldConf.ASConf,
 		MasterKeys: oldConf.MasterKeys,
 	}
 	if err := conf.initTopo(id, topo); err != nil {
@@ -101,16 +94,6 @@ func (cfg *BRConf) initTopo(id string, topo *topology.Topo) error {
 			"id", id)
 	}
 	cfg.BR = &topoBR
-	return nil
-}
-
-// loadAsConf loads the as config from the config directory.
-func (cfg *BRConf) loadAsConf() error {
-	asConfPath := filepath.Join(cfg.Dir, as_conf.CfgName)
-	if err := as_conf.Load(asConfPath); err != nil {
-		return err
-	}
-	cfg.ASConf = as_conf.CurrConf
 	return nil
 }
 
