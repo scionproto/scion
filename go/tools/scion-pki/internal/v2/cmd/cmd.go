@@ -19,6 +19,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/keys"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/tmpl"
 )
 
@@ -32,4 +33,5 @@ var Cmd = &cobra.Command{
 
 func init() {
 	Cmd.AddCommand(tmpl.Cmd)
+	Cmd.AddCommand(keys.Cmd)
 }

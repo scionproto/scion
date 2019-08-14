@@ -51,6 +51,19 @@ const (
 	MasterKey0    = "master0.key"
 	MasterKey1    = "master1.key"
 
+	// FIXME(roosd): removed unused keys above.
+
+	ASSigKeyFile = "as-signing.key"
+	ASDecKeyFile = "as-decrypt.ley"
+	ASRevKeyFile = "as-revocation.key"
+
+	IssuerRevKeyFile  = "issuer-revocation.key"
+	IssuerCertKeyFile = "issuer-cert-signing.key"
+
+	TRCOnlineKeyFile  = "trc-online.key"
+	TRCOfflineKeyFile = "trc-offline.key"
+	TRCIssuingKeyFile = "trc-issuing.key"
+
 	RawKey = "raw"
 
 	ErrorOpen    = "Unable to load key"
