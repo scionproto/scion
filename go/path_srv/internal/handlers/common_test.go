@@ -30,7 +30,47 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
+
+type testGraph struct {
+	g *graph.Graph
+
+	seg130_132 *seg.PathSegment
+	seg110_130 *seg.PathSegment
+	seg120_210 *seg.PathSegment
+	seg120_220 *seg.PathSegment
+
+	seg210_211 *seg.PathSegment
+	seg210_220 *seg.PathSegment
+	seg210_222 *seg.PathSegment
+
+	seg220_130 *seg.PathSegment
+	seg220_210 *seg.PathSegment
+	seg220_221 *seg.PathSegment
+	seg220_222 *seg.PathSegment
+}
+
+func newTestGraph(ctrl *gomock.Controller) *testGraph {
+	g := graph.NewDefaultGraph(ctrl)
+
+	tg := &testGraph{
+		seg130_132: g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
+		seg110_130: g.Beacon([]common.IFIDType{graph.If_110_X_130_A}),
+		seg120_210: g.Beacon([]common.IFIDType{graph.If_120_B_220_X, graph.If_220_X_210_X}),
+		seg120_220: g.Beacon([]common.IFIDType{graph.If_120_B_220_X}),
+
+		seg210_211: g.Beacon([]common.IFIDType{graph.If_210_X_211_A}),
+		seg210_220: g.Beacon([]common.IFIDType{graph.If_210_X_220_X}),
+		seg210_222: g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X}),
+
+		seg220_130: g.Beacon([]common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_130_B}),
+		seg220_210: g.Beacon([]common.IFIDType{graph.If_220_X_210_X}),
+		seg220_221: g.Beacon([]common.IFIDType{graph.If_220_X_221_X}),
+		seg220_222: g.Beacon([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X}),
+	}
+	return tg
+}
 
 func TestFetchDB(t *testing.T) {
 	Convey("FetchDB", t, func() {
