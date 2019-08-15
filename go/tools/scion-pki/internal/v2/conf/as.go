@@ -51,8 +51,11 @@ const (
 )
 
 var (
-	validSignAlgorithms = []string{scrypto.Ed25519}
-	validEncAlgorithms  = []string{scrypto.Curve25519xSalsa20Poly1305}
+	defaultSignAlgorithm = scrypto.Ed25519
+	defaultEncAlgorithm  = scrypto.Curve25519xSalsa20Poly1305
+
+	validSignAlgorithms = []string{defaultSignAlgorithm}
+	validEncAlgorithms  = []string{defaultEncAlgorithm}
 )
 
 // ASCfg contains the as.ini configuration parameters.
@@ -71,8 +74,8 @@ func NewTemplateASCfg(subject addr.IA, trcVer uint64, voting, issuing bool) *ASC
 			Description: "AS certificate",
 			Validity:    24 * 3 * time.Hour,
 		},
-		EncAlgorithm:      scrypto.Curve25519xSalsa20Poly1305,
-		SignAlgorithm:     scrypto.Ed25519,
+		EncAlgorithm:      defaultEncAlgorithm,
+		SignAlgorithm:     defaultSignAlgorithm,
 		IssuerIA:          addr.IA{},
 		IssuerCertVersion: 1,
 	}
@@ -83,7 +86,7 @@ func NewTemplateASCfg(subject addr.IA, trcVer uint64, voting, issuing bool) *ASC
 				Description: "Issuer certificate",
 				Validity:    24 * 7 * time.Hour,
 			},
-			IssuingAlgorithm: scrypto.Ed25519,
+			IssuingAlgorithm: defaultSignAlgorithm,
 			TRCVersion:       trcVer,
 		}
 		a.AS.IssuerIA = subject
@@ -91,11 +94,11 @@ func NewTemplateASCfg(subject addr.IA, trcVer uint64, voting, issuing bool) *ASC
 	if issuing || voting {
 		a.PrimaryKeyAlgorithms = &PrimaryKeyAlgorithms{}
 		if issuing {
-			a.PrimaryKeyAlgorithms.Issuing = scrypto.Ed25519
+			a.PrimaryKeyAlgorithms.Issuing = defaultSignAlgorithm
 		}
 		if voting {
-			a.PrimaryKeyAlgorithms.Online = scrypto.Ed25519
-			a.PrimaryKeyAlgorithms.Offline = scrypto.Ed25519
+			a.PrimaryKeyAlgorithms.Online = defaultSignAlgorithm
+			a.PrimaryKeyAlgorithms.Offline = defaultSignAlgorithm
 		}
 	}
 	return a
@@ -178,9 +181,6 @@ type AS struct {
 }
 
 func (c *AS) validate() error {
-	if c.BaseCert == nil {
-		panic("c.BaseCert is nil")
-	}
 	if err := defaultAndValidateEncAlgorithm(&c.EncAlgorithm); err != nil {
 		return err
 	}
@@ -217,9 +217,6 @@ type Issuer struct {
 }
 
 func (c *Issuer) validate() error {
-	if c.BaseCert == nil {
-		panic("c.BaseCert is nil")
-	}
 	if err := defaultAndValidateSignAlgorithm(&c.IssuingAlgorithm); err != nil {
 		return common.NewBasicError("invalid IssuingAlgorithm", err)
 	}
@@ -252,7 +249,7 @@ func (c *BaseCert) validate() error {
 	for _, raw := range c.RawOptDistPoints {
 		ia, err := addr.IAFromString(raw)
 		if err != nil || ia.IsWildcard() {
-			return common.NewBasicError("invalid optional distribution point", nil, "ia", ia)
+			return common.NewBasicError(ErrInvalidOptDistPoint, nil, "ia", ia)
 		}
 		c.OptionalDistributionPoints = append(c.OptionalDistributionPoints, ia)
 	}
@@ -297,7 +294,7 @@ func (k *PrimaryKeyAlgorithms) validate() error {
 
 func defaultAndValidateSignAlgorithm(algo *string) error {
 	if *algo == "" {
-		*algo = scrypto.Ed25519
+		*algo = defaultSignAlgorithm
 	}
 	return validateAlgorithm(*algo, validSignAlgorithms, ErrInvalidSignAlgorithm)
 
@@ -305,7 +302,7 @@ func defaultAndValidateSignAlgorithm(algo *string) error {
 
 func defaultAndValidateEncAlgorithm(algo *string) error {
 	if *algo == "" {
-		*algo = scrypto.Curve25519xSalsa20Poly1305
+		*algo = defaultEncAlgorithm
 	}
 	return validateAlgorithm(*algo, validEncAlgorithms, ErrInvalidEncAlgorithm)
 }
