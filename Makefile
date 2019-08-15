@@ -41,7 +41,7 @@ mocks: goenv
 	./tools/gomocks
 
 gazelle:
-	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
+	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build -exclude go/protobuf ./go
 
 setcap:
 	tools/setcap cap_net_admin,cap_net_raw+ep $(BRACCEPT)
