@@ -26,13 +26,13 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
+	"github.com/scionproto/scion/go/lib/hiddenpath/hiddenpathtest"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var (
-	id69b5 = xtest.MustParseHPGroupId("ff00:0:110-69b5")
-	idabcd = xtest.MustParseHPGroupId("ffaa:0:222-abcd")
+	id69b5 = hiddenpathtest.MustParseHPGroupId("ff00:0:110-69b5")
+	idabcd = hiddenpathtest.MustParseHPGroupId("ffaa:0:222-abcd")
 )
 
 var refPolicy = beacon.RegPolicy{
@@ -79,8 +79,7 @@ func TestHPRegistrationFromYaml(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, v := range r.HPGroups {
-			assert.NotEqual(t, hiddenpath.Group{}, v.Group,
-				"HPGroup %q not initialized", v.GroupCfgPath)
+			assert.NotZero(t, v.Group, "HPGroup %q not initialized", v.GroupCfgPath)
 			v.Group = hiddenpath.Group{}
 		}
 		assert.Equal(t, expected, r)

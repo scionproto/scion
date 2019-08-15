@@ -155,36 +155,37 @@ Below is an example of a Hidden Path Group configuration file (`HPGCfg_ff00_0_11
 
 ### Segment Registration Policy
 
-Below is an example `hp_policy.yml` configuration. In `HPGroups` all the HPGs available to the beacon service are listed. Furthermore, the configuration contains the segment registration policies
-in the `SegmentRegistration` section.
-The file `hp_policy.yml` in turn is pointed to by the `bs.toml` file by specifying the `HiddenPathRegistration` parameter.
+Below is an example `hp_policy.yml` configuration. In `HPGroups` all the HPGs available to the
+beacon service are listed. Furthermore, the configuration contains the segment registration policies
+in the `SegmentRegistration` section. The file `hp_policy.yml` in turn is pointed to by the
+`bs.toml` file by specifying the `HiddenPathRegistration` parameter.
 
 ```yaml
 ---
 HPGroups:
-  ff00:0:110-69b5:
+  "ff00:0:110-69b5":
     CfgFilePath: testdata/HPGCfg_ff00_0_110-69b5.json
-  ffaa:0:222-abcd:
+  "ffaa:0:222-abcd":
     CfgFilePath: testdata/HPGCfg_ffaa_0_222-abcd.json
 SegmentRegistration:
   DefaultAction: register
   HiddenAndPublic: true
   Policies:
-    '2':
+    2:
       PS:
         RegUp: true
         RegDown: true
         MaxExpiration: 1h
       HPS:
-        ff00:0:110-69b5:
+        "ff00:0:110-69b5":
           RegUp: true
           RegDown: true
           MaxExpiration: 1h
-        ffaa:0:222-abcd:
+        "ffaa:0:222-abcd":
           RegUp: true
           RegDown: true
           MaxExpiration: 1h
-    '3':
+    3:
       PS:
         RegUp: true
         RegDown: true

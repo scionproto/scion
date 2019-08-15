@@ -31,7 +31,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
 )
 
 // TempFileName creates a temporary file in dir with the specified prefix, and
@@ -172,17 +171,6 @@ func MustParseHexString(s string) common.RawBytes {
 		panic(err)
 	}
 	return decoded
-}
-
-// MustParseHPGroupId parses s and returns the corresponding hiddenpath.GroupId object.
-// It panics if s is not a valid GroupId representation
-func MustParseHPGroupId(s string) hiddenpath.GroupId {
-	id := hiddenpath.GroupId{}
-	err := id.UnmarshalText([]byte(s))
-	if err != nil {
-		panic(err)
-	}
-	return id
 }
 
 // AssertReadReturnsBetween will call t.Fatalf if the first read from the
