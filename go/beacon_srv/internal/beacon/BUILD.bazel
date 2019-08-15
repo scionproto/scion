@@ -50,6 +50,7 @@ go_test(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/hiddenpath:go_default_library",
+        "//go/lib/hiddenpath/hiddenpathtest:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/lib/xtest/graph:go_default_library",
