@@ -614,7 +614,7 @@ func loadPolicies(cfg config.Policies) (beacon.Policies, error) {
 func loadPolicy(fn string, t beacon.PolicyType) (beacon.Policy, error) {
 	var policy beacon.Policy
 	if fn != "" {
-		p, err := beacon.LoadFromYaml(fn, t)
+		p, err := beacon.LoadPolicyFromYaml(fn, t)
 		if err != nil {
 			return policy, common.NewBasicError("Unable to load policy", err, "fn", fn, "type", t)
 		}

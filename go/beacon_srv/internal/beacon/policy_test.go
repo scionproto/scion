@@ -35,7 +35,7 @@ var (
 	ia311 = xtest.MustParseIA("3-ff00:0:311")
 )
 
-func TestLoadFromYaml(t *testing.T) {
+func TestLoadPolicyFromYaml(t *testing.T) {
 	checkPolicy := func(p *beacon.Policy, t beacon.PolicyType) {
 		SoMsg("BestSetSize", p.BestSetSize, ShouldEqual, 6)
 		SoMsg("CandidateSetSize", p.CandidateSetSize, ShouldEqual, 20)
@@ -50,12 +50,12 @@ func TestLoadFromYaml(t *testing.T) {
 	Convey("Given a policy file with policy type set", t, func() {
 		fn := "testdata/typedPolicy.yml"
 		Convey("The policy is parsed correctly if the type matches", func() {
-			p, err := beacon.LoadFromYaml(fn, beacon.PropPolicy)
+			p, err := beacon.LoadPolicyFromYaml(fn, beacon.PropPolicy)
 			SoMsg("err", err, ShouldBeNil)
 			checkPolicy(p, beacon.PropPolicy)
 		})
 		Convey("An error is returned if the type does not match", func() {
-			_, err := beacon.LoadFromYaml(fn, beacon.UpRegPolicy)
+			_, err := beacon.LoadPolicyFromYaml(fn, beacon.UpRegPolicy)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
@@ -63,7 +63,7 @@ func TestLoadFromYaml(t *testing.T) {
 	Convey("Given a policy file with policy type unset", t, func() {
 		loadWithType := func(polType beacon.PolicyType) {
 			Convey(string("Load with type "+polType+" should succeed"), func() {
-				p, err := beacon.LoadFromYaml("testdata/policy.yml", polType)
+				p, err := beacon.LoadPolicyFromYaml("testdata/policy.yml", polType)
 				SoMsg("err", err, ShouldBeNil)
 				checkPolicy(p, polType)
 			})

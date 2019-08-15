@@ -58,4 +58,9 @@ UpRegistration = ""
 # the default policy is used. In a core beacon server, this field is ignored.
 # (default "")
 DownRegistration = ""
+
+# The file path for the hidden path registration policy. In case of the empty string,
+# no hidden path functionality is used.
+# (default "")
+HiddenPathRegistration = ""
 `

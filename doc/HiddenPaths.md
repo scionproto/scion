@@ -155,51 +155,41 @@ Below is an example of a Hidden Path Group configuration file (`HPGCfg_ff00_0_11
 
 ### Segment Registration Policy
 
-Below is an excerpt of an example `bs.toml` configuration. A new `hpGroups`
-section is added, with subsections for every HPG the AS is a member of. These
-subsections contain the path to the corresponding HPGCfg. Furthermore, the configuration contains
-the segment registration policy in the `segmentRegistration` section.
+Below is an example `hp_policy.yml` configuration. In `HPGroups` all the HPGs available to the
+beacon service are listed. Furthermore, the configuration contains the segment registration policies
+in the `SegmentRegistration` section. The file `hp_policy.yml` in turn is pointed to by the
+`bs.toml` file by specifying the `HiddenPathRegistration` parameter.
 
-```toml
-[general]
-ConfigDir = "gen/ISD1/ASff00_0_111/bs1-ff00_0_111-1"
-ReconnectToDispatcher = true
-ID = "bs1-ff00_0_111-1"
-
-#...
-
-[hpGroups]
-[hpGroups.ff00_0_110-69b5]
-CfgFilePath = "path/to/HPGCfg_ff00_0_110-69b5.json"
-
-[hpGroups.ffaa_0_222-abcd]
-CfgFilePath = "path/to/HPGCfg_ffa_0_222-abcd.json"
-
-[segmentRegistration]
-DefaultAction = "register"
-HiddenAndPublic = true
-
-[segmentRegistration.2]
-RegDown = true
-RegUP = true
-MaxExpiration = "15m"
-
-[segmentRegistration.hps.2.ff00_0_110-69b5]
-RegDown = true
-RegUp = true
-MaxExpiration = "12h"
-
-[segmentRegistration.hps.3.ff00_0_110-69b5]
-RegDown = true
-RegUp = false
-MaxExpiration = "10m"
-
-[segmentRegistration.hps.3.ffaa_0_222-abcd]
-RegDown = false
-RegUp = true
-MaxExpiration = "60s"
-
-#...
+```yaml
+---
+HPGroups:
+  "ff00:0:110-69b5":
+    CfgFilePath: testdata/HPGCfg_ff00_0_110-69b5.json
+  "ffaa:0:222-abcd":
+    CfgFilePath: testdata/HPGCfg_ffaa_0_222-abcd.json
+SegmentRegistration:
+  DefaultAction: register
+  HiddenAndPublic: true
+  Policies:
+    2:
+      PS:
+        RegUp: true
+        RegDown: true
+        MaxExpiration: 1h
+      HPS:
+        "ff00:0:110-69b5":
+          RegUp: true
+          RegDown: true
+          MaxExpiration: 1h
+        "ffaa:0:222-abcd":
+          RegUp: true
+          RegDown: true
+          MaxExpiration: 1h
+    3:
+      PS:
+        RegUp: true
+        RegDown: true
+        MaxExpiration: 1h
 ```
 
 The default action is set to `register`, this means that all segments not listed in this
