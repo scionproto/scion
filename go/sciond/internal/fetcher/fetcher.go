@@ -280,11 +280,55 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 	q := &query.Params{
 		Intfs: intfs,
 	}
-	if _, err := f.pathDB.DeleteNQ(ctx, f.topology.ISD_AS, addr.IA{}, nil); err != nil {
+	// this is a bit involved, we have to delete the next query cache,
+	// otherwise it could be that next query is in the future but we don't have
+	// any segments stored.
+	tx, err := f.pathDB.BeginTransaction(ctx, nil)
+	if err != nil {
 		return err
 	}
-	_, err := f.pathDB.Delete(ctx, q)
-	return err
+	defer tx.Rollback()
+	res, err := f.pathDB.Get(ctx, q)
+	if err != nil {
+		return err
+	}
+	for _, r := range res {
+		segment := r.Seg
+		if f.topology.Core {
+			// in the core we can have down segments or core segments that we
+			// deleted. We can distinguish them by first IA. (first IA == local
+			// -> down, otherwise core.)
+			src := segment.FirstIA()
+			dst := segment.LastIA()
+			if !f.topology.ISD_AS.Equal(segment.FirstIA()) {
+				// for core segments we have to flip src and dst because next
+				// query is always looking from the local IA.
+				src, dst = dst, src
+			}
+			if _, err := tx.DeleteNQ(ctx, src, dst, nil); err != nil {
+				return err
+			}
+		} else {
+			// in the non-core case deletion can only affect a segment that
+			// goes through our AS, so either up or down.  since we don't know
+			// whether we have an up or down segment we unfortunately have to
+			// delete both next query entries.
+			src := addr.IA{I: segment.FirstIA().I}
+			dst := segment.LastIA()
+			if _, err := tx.DeleteNQ(ctx, src, dst, nil); err != nil {
+				return err
+			}
+			src, dst = dst, src
+			if _, err := tx.DeleteNQ(ctx, src, dst, nil); err != nil {
+				return err
+			}
+		}
+	}
+	_, err = tx.Delete(ctx, q)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (f *fetcherHandler) buildPathsToAllDsts(req *sciond.PathReq,
