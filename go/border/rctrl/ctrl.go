@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -45,8 +46,7 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs) {
 	ctx := rctx.Get()
 	ia = ctx.Conf.IA
 	if err = snet.Init(ia, "", reliable.NewDispatcherService("")); err != nil {
-		logger.Error("Initializing SNET", "err", err)
-		return
+		fatal.Fatal(common.NewBasicError("Initializing SNET", err))
 	}
 	ctrlAddr := ctx.Conf.BR.CtrlAddrs
 	pub := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.PublicAddr()}
@@ -56,8 +56,7 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs) {
 	}
 	snetConn, err = snet.ListenSCIONWithBindSVC("udp4", pub, bind, addr.SvcNone)
 	if err != nil {
-		logger.Error("Listening on address", "addr", ctrlAddr, "err", err)
-		return
+		fatal.Fatal(common.NewBasicError("Listening on address", err, "addr", ctrlAddr))
 	}
 	go func() {
 		defer log.LogPanicAndExit()
@@ -75,8 +74,7 @@ func processCtrl() {
 	for {
 		pktLen, _, err := snetConn.ReadFromSCION(b)
 		if err != nil {
-			logger.Error("Reading packet", "err", err)
-			continue
+			fatal.Fatal(common.NewBasicError("Reading packet", err))
 		}
 		if err = processCtrlFromRaw(b[:pktLen]); err != nil {
 			logger.Error("Processing ctrl pld", "err", err)

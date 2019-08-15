@@ -17,6 +17,7 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/fatal:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/snet:go_default_library",
