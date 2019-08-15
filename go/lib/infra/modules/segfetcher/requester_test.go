@@ -43,6 +43,7 @@ var (
 	non_core_111 = xtest.MustParseIA("1-ff00:0:111")
 	non_core_112 = xtest.MustParseIA("1-ff00:0:112")
 	non_core_211 = xtest.MustParseIA("2-ff00:0:211")
+	non_core_212 = xtest.MustParseIA("2-ff00:0:212")
 
 	req_111_1   = segfetcher.Request{Src: non_core_111, Dst: isd1}
 	req_1_111   = segfetcher.Request{Src: isd1, Dst: non_core_111}
