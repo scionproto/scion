@@ -44,6 +44,7 @@ type testGraph struct {
 	seg210_120 *seg.PathSegment
 	seg210_130 *seg.PathSegment
 	seg210_211 *seg.PathSegment
+	seg210_212 *seg.PathSegment
 }
 
 func newTestGraph(ctrl *gomock.Controller) *testGraph {
@@ -59,6 +60,7 @@ func newTestGraph(ctrl *gomock.Controller) *testGraph {
 		seg210_120: g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_120_A}),
 		seg210_130: g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
 		seg210_211: g.Beacon([]common.IFIDType{graph.If_210_X_211_A}),
+		seg210_212: g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 	}
 }
 
@@ -208,6 +210,47 @@ func TestResolver(t *testing.T) {
 				Cores: []segfetcher.Request{
 					{Src: core_120, Dst: core_110},
 				},
+			},
+		},
+		"Up down": {
+			Req: segfetcher.RequestSet{
+				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
+				Cores: []segfetcher.Request{{Src: isd2, Dst: isd2}},
+				Down:  segfetcher.Request{Src: isd2, Dst: non_core_212},
+			},
+			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
+				db.EXPECT().GetNextQuery(gomock.Any(), non_core_211, isd2, gomock.Any())
+				db.EXPECT().GetNextQuery(gomock.Any(), isd2, non_core_212, gomock.Any())
+			},
+			ExpectedReqSet: segfetcher.RequestSet{
+				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
+				Cores: []segfetcher.Request{{Src: isd2, Dst: isd2}},
+				Down:  segfetcher.Request{Src: isd2, Dst: non_core_212},
+			},
+		},
+		"Up(cached) down(cached)": {
+			Req: segfetcher.RequestSet{
+				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
+				Cores: []segfetcher.Request{{Src: isd2, Dst: isd2}},
+				Down:  segfetcher.Request{Src: isd2, Dst: non_core_212},
+			},
+			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
+				db.EXPECT().GetNextQuery(gomock.Any(), non_core_211, isd2, gomock.Any()).
+					Return(futureT, nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), isd2, non_core_212, gomock.Any()).
+					Return(futureT, nil)
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
+					SegTypes: []proto.PathSegType{proto.PathSegType_up},
+					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
+				})).Return(resultsFromSegs(tg.seg210_211), nil)
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
+					SegTypes: []proto.PathSegType{proto.PathSegType_down},
+					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_212},
+				})).Return(resultsFromSegs(tg.seg210_212), nil)
+			},
+			ExpectedSegments: segfetcher.Segments{
+				Up:   seg.Segments{tg.seg210_211},
+				Down: seg.Segments{tg.seg210_212},
 			},
 		},
 		"Up Core Down": {
