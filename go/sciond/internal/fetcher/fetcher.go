@@ -298,15 +298,20 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 			// in the core we can have down segments or core segments that we
 			// deleted. We can distinguish them by first IA. (first IA == local
 			// -> down, otherwise core.)
-			src := segment.FirstIA()
-			dst := segment.LastIA()
 			if !f.topology.ISD_AS.Equal(segment.FirstIA()) {
 				// for core segments we have to flip src and dst because next
 				// query is always looking from the local IA.
-				src, dst = dst, src
-			}
-			if _, err := tx.DeleteNQ(ctx, src, dst, nil); err != nil {
-				return err
+				src := segment.LastIA()
+				dst := segment.FirstIA()
+				if _, err := tx.DeleteNQ(ctx, src, dst, nil); err != nil {
+					return err
+				}
+			} else {
+				src := addr.IA{I: segment.FirstIA().I}
+				dst := segment.LastIA()
+				if _, err := tx.DeleteNQ(ctx, src, dst, nil); err != nil {
+					return err
+				}
 			}
 		} else {
 			// in the non-core case deletion can only affect a segment that
