@@ -51,8 +51,8 @@ func (s *SignS) Copy() *SignS {
 }
 
 // SetTimestamp sets the timestamp.
-func (s *SignS) SetTimestamp(now time.Time) {
-	s.Timestamp = util.TimeToSecs(time.Now())
+func (s *SignS) SetTimestamp(ts time.Time) {
+	s.Timestamp = util.TimeToSecs(ts)
 }
 
 // Time returns the timestamp. If the receiver is nil, the zero value is returned.
