@@ -411,6 +411,15 @@ type Signer interface {
 	Meta() SignerMeta
 }
 
+// SignatureTimestampRange configures the range a signature timestamp is
+// considered valid. This allows for small clock drifts in the network.
+type SignatureTimestampRange struct {
+	// MaxPldAge determines the maximum age of a control payload signature.
+	MaxPldAge time.Duration
+	// MaxInFuture determines the maximum time a timestamp may be in the future.
+	MaxInFuture time.Duration
+}
+
 // Verifier is used to verify payloads signed with control-plane PKI
 // certificates.
 type Verifier interface {
@@ -427,6 +436,9 @@ type Verifier interface {
 	// It verifies against the specified source, and not the value
 	// provided by the sign meta data.
 	WithSrc(src ctrl.SignSrcDef) Verifier
+	// WithSignatureTimestampRange returns a verifier that uses the specified
+	// signature timestamp range configuration.
+	WithSignatureTimestampRange(timestampRange SignatureTimestampRange) Verifier
 }
 
 // TrustStore is the interface to interact with the control-plane PKI.
@@ -566,5 +578,9 @@ func (nullSigVerifier) WithIA(_ addr.IA) Verifier {
 }
 
 func (nullSigVerifier) WithSrc(_ ctrl.SignSrcDef) Verifier {
+	return nullSigVerifier{}
+}
+
+func (nullSigVerifier) WithSignatureTimestampRange(_ SignatureTimestampRange) Verifier {
 	return nullSigVerifier{}
 }

@@ -828,6 +828,20 @@ func (mr *MockVerifierMockRecorder) WithServer(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithServer", reflect.TypeOf((*MockVerifier)(nil).WithServer), arg0)
 }
 
+// WithSignatureTimestampRange mocks base method
+func (m *MockVerifier) WithSignatureTimestampRange(arg0 infra.SignatureTimestampRange) infra.Verifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithSignatureTimestampRange", arg0)
+	ret0, _ := ret[0].(infra.Verifier)
+	return ret0
+}
+
+// WithSignatureTimestampRange indicates an expected call of WithSignatureTimestampRange
+func (mr *MockVerifierMockRecorder) WithSignatureTimestampRange(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithSignatureTimestampRange", reflect.TypeOf((*MockVerifier)(nil).WithSignatureTimestampRange), arg0)
+}
+
 // WithSrc mocks base method
 func (m *MockVerifier) WithSrc(arg0 ctrl.SignSrcDef) infra.Verifier {
 	m.ctrl.T.Helper()
