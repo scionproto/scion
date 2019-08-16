@@ -80,14 +80,12 @@ func realMain() int {
 		log.Crit("Unable to create & configure TUN device", "err", err)
 		return 1
 	}
-	if err := setup(); err != nil {
-		log.Crit("Setup failed", "err", err)
+	// Export prometheus metrics.
+	metrics.Init(cfg.Sig.ID)
+	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
+		log.Crit("Error during initialization", err)
 		return 1
 	}
-	go func() {
-		defer log.LogPanicAndExit()
-		base.PollReqHdlr()
-	}()
 	env.SetupEnv(
 		func() {
 			success := loadConfig(cfg.Sig.SIGConfig)
@@ -95,12 +93,14 @@ func realMain() int {
 			log.Info("reloadOnSIGHUP: reload done", "success", success)
 		},
 	)
-	// Spawn egress reader
-	go func() {
-		defer log.LogPanicAndExit()
-		reader.NewReader(tunIO).Run()
-	}()
-	spawnIngressDispatcher(tunIO)
+	disp.Init(sigcmn.CtrlConn)
+	// Parse sig config
+	if loadConfig(cfg.Sig.SIGConfig) != true {
+		log.Crit("Unable to load sig config on startup")
+		return 1
+	}
+	setupEgress(tunIO)
+	setupIngress(tunIO)
 	cfg.Metrics.StartPrometheus()
 	select {
 	case <-fatal.ShutdownChan():
@@ -167,6 +167,30 @@ func setupTun() (io.ReadWriteCloser, error) {
 	return tunIO, nil
 }
 
+func setupEgress(tunIO io.ReadWriteCloser) {
+	egress.Init()
+	go func() {
+		defer log.LogPanicAndExit()
+		base.PollReqHdlr()
+	}()
+	// Spawn egress reader
+	go func() {
+		defer log.LogPanicAndExit()
+		reader.NewReader(tunIO).Run()
+	}()
+}
+
+func setupIngress(tunIO io.ReadWriteCloser) {
+	d := ingress.NewDispatcher(tunIO)
+	go func() {
+		defer log.LogPanicAndExit()
+		if err := d.Run(); err != nil {
+			log.Crit("Ingress dispatcher error", "err", err)
+			fatal.Fatal(err)
+		}
+	}()
+}
+
 func checkPerms() error {
 	user, err := user.Current()
 	if err != nil {
@@ -186,21 +210,6 @@ func checkPerms() error {
 	return nil
 }
 
-func setup() error {
-	// Export prometheus metrics.
-	metrics.Init(cfg.Sig.ID)
-	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
-		return common.NewBasicError("Error during initialization", err)
-	}
-	egress.Init()
-	disp.Init(sigcmn.CtrlConn)
-	// Parse sig config
-	if loadConfig(cfg.Sig.SIGConfig) != true {
-		return common.NewBasicError("Unable to load sig config on startup", nil)
-	}
-	return nil
-}
-
 func loadConfig(path string) bool {
 	cfg, err := config.LoadFromFile(path)
 	if err != nil {
@@ -213,15 +222,4 @@ func loadConfig(path string) bool {
 	}
 	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
 	return true
-}
-
-func spawnIngressDispatcher(tunIO io.ReadWriteCloser) {
-	d := ingress.NewDispatcher(tunIO)
-	go func() {
-		defer log.LogPanicAndExit()
-		if err := d.Run(); err != nil {
-			log.Crit("Ingress dispatcher error", "err", err)
-			fatal.Fatal(err)
-		}
-	}()
 }

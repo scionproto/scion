@@ -112,13 +112,6 @@ Top:
 	return s
 }
 
-// AddNet idempotently adds a network for the remote IA.
-func (ae *ASEntry) AddNet(ipnet *net.IPNet) error {
-	ae.Lock()
-	defer ae.Unlock()
-	return ae.addNet(ipnet)
-}
-
 func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
 	if ae.egressRing == nil {
 		// Ensure that the network setup is done
@@ -143,13 +136,6 @@ func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
 	base.NetworkChanged(params)
 	ae.Info("Added network", "net", ipnet)
 	return nil
-}
-
-// DelNet removes a network for the remote IA.
-func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
-	ae.Lock()
-	defer ae.Unlock()
-	return ae.delNet(ipnet)
 }
 
 func (ae *ASEntry) delNet(ipnet *net.IPNet) error {
