@@ -236,7 +236,7 @@ func (ae *ASEntry) setupNet() {
 	go func() {
 		defer log.LogPanicAndExit()
 		dispatcher.NewDispatcher(ae.IA, ae.egressRing,
-			&base.SingleSession{Session: ae.Session}).Run()
+			&base.SessionSelector{Session: ae.Session}).Run()
 	}()
 	go func() {
 		defer log.LogPanicAndExit()

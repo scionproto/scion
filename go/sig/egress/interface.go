@@ -101,7 +101,3 @@ type PathPool interface {
 	// Destroy cleans up any resources associated with the PathPool.
 	Destroy() error
 }
-
-type SessionSelector interface {
-	ChooseSess(b common.RawBytes) Session
-}

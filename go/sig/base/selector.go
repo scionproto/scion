@@ -19,14 +19,12 @@ import (
 	"github.com/scionproto/scion/go/sig/egress"
 )
 
-var _ egress.SessionSelector = (*SingleSession)(nil)
-
-// SingleSession implements egress.SessionSelector, returning the contained
+// SessionSelector implements egress.SessionSelector, returning the contained
 // session on ChooseSess.
-type SingleSession struct {
+type SessionSelector struct {
 	Session egress.Session
 }
 
-func (ss *SingleSession) ChooseSess(b common.RawBytes) egress.Session {
+func (ss *SessionSelector) ChooseSess(b common.RawBytes) egress.Session {
 	return ss.Session
 }

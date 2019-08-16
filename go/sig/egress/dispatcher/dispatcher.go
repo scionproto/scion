@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
@@ -31,11 +32,11 @@ type egressDispatcher struct {
 	log.Logger
 	ia               addr.IA
 	ring             *ringbuf.Ring
-	sessionSelector  egress.SessionSelector
+	sessionSelector  *base.SessionSelector
 	pktsRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
-func NewDispatcher(ia addr.IA, ring *ringbuf.Ring, ss egress.SessionSelector) *egressDispatcher {
+func NewDispatcher(ia addr.IA, ring *ringbuf.Ring, ss *base.SessionSelector) *egressDispatcher {
 	return &egressDispatcher{
 		Logger:           log.New("ia", ia.String()),
 		ring:             ring,
