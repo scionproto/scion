@@ -144,6 +144,7 @@ func realMain() int {
 				trustStore,
 				revCache,
 				cfg.SD,
+				itopo.Provider(),
 				log.Root(),
 			),
 		},
