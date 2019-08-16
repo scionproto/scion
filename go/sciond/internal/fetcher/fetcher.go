@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -54,17 +53,20 @@ type TrustStore interface {
 type Fetcher struct {
 	pathDB          pathdb.PathDB
 	revocationCache revcache.RevCache
+	topoProvider    topology.Provider
 	config          config.SDConfig
 	segfetcher      *segfetcher.Fetcher
 }
 
 func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore TrustStore,
-	revCache revcache.RevCache, cfg config.SDConfig, logger log.Logger) *Fetcher {
+	revCache revcache.RevCache, cfg config.SDConfig, topoProvider topology.Provider,
+	logger log.Logger) *Fetcher {
 
-	localIA := itopo.Get().ISD_AS
+	localIA := topoProvider.Get().ISD_AS
 	return &Fetcher{
 		pathDB:          pathDB,
 		revocationCache: revCache,
+		topoProvider:    topoProvider,
 		config:          cfg,
 		segfetcher: segfetcher.FetcherConfig{
 			QueryInterval:       cfg.QueryInterval.Duration,
@@ -85,7 +87,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 
 	handler := &fetcherHandler{
 		Fetcher:  f,
-		topology: itopo.Get(),
+		topology: f.topoProvider.Get(),
 		logger:   logger,
 	}
 	return handler.GetPaths(ctx, req, earlyReplyInterval)
@@ -282,7 +284,9 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 	}
 	// this is a bit involved, we have to delete the next query cache,
 	// otherwise it could be that next query is in the future but we don't have
-	// any segments stored.
+	// any segments stored. Note that just deleting nextquery with start or end
+	// IA equal to local IA is not enough, e.g. down segments can actually pass
+	// through our AS but neither end nor start in our AS.
 	tx, err := f.pathDB.BeginTransaction(ctx, nil)
 	if err != nil {
 		return err
