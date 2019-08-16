@@ -288,7 +288,7 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 		return err
 	}
 	defer tx.Rollback()
-	res, err := f.pathDB.Get(ctx, q)
+	res, err := tx.Get(ctx, q)
 	if err != nil {
 		return err
 	}
