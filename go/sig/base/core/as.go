@@ -72,12 +72,12 @@ func newASEntry(ia addr.IA) (*ASEntry, error) {
 	return ae, nil
 }
 
-func (ae *ASEntry) ReloadConfig(cfg *config.ASEntry) bool {
+func (ae *ASEntry) ReloadConfig(cfg *config.Cfg, cfgEntry *config.ASEntry) bool {
 	ae.Lock()
 	defer ae.Unlock()
 	// Method calls first to prevent skips due to logical short-circuit
-	s := ae.addNewNets(cfg.Nets)
-	return ae.delOldNets(cfg.Nets) && s
+	s := ae.addNewNets(cfgEntry.Nets)
+	return ae.delOldNets(cfgEntry.Nets) && s
 }
 
 // addNewNets adds the networks in ipnets that are not currently configured.
