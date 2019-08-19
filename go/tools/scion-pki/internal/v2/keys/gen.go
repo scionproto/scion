@@ -21,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/crypto/ed25519"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -130,6 +132,12 @@ func genKey(keyType string) ([]byte, error) {
 		return nil, nil
 	case keyconf.RawKey:
 		return genMasterKey()
+	case scrypto.Ed25519:
+		_, private, err := scrypto.GenKeyPair(keyType)
+		if err != nil {
+			return nil, err
+		}
+		return ed25519.PrivateKey(private).Seed(), nil
 	default:
 		_, private, err := scrypto.GenKeyPair(keyType)
 		return private, err
