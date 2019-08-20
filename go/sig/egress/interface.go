@@ -27,8 +27,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
+	"github.com/scionproto/scion/go/sig/egress/siginfo"
 	"github.com/scionproto/scion/go/sig/mgmt"
-	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 func Init() {

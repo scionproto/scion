@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/egress/dispatcher"
 	"github.com/scionproto/scion/go/sig/egress/router"
+	"github.com/scionproto/scion/go/sig/egress/selector"
 	"github.com/scionproto/scion/go/sig/egress/session"
 )
 
@@ -236,7 +237,7 @@ func (ae *ASEntry) setupNet() {
 	go func() {
 		defer log.LogPanicAndExit()
 		dispatcher.NewDispatcher(ae.IA, ae.egressRing,
-			&base.SingleSession{Session: ae.Session}).Run()
+			&selector.SingleSession{Session: ae.Session}).Run()
 	}()
 	go func() {
 		defer log.LogPanicAndExit()

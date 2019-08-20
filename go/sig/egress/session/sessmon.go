@@ -26,10 +26,10 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/disp"
 	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/siginfo"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
-	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 const (
