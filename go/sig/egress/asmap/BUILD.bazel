@@ -6,7 +6,7 @@ go_library(
         "as.go",
         "map.go",
     ],
-    importpath = "github.com/scionproto/scion/go/sig/base/core",
+    importpath = "github.com/scionproto/scion/go/sig/egress/asmap",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
