@@ -11,7 +11,8 @@ import (
 // Registry and the remaining Groups are mapped to a small number of remote Registries.
 // The algorithm runs in O(Registries*Groups^2) and is at most ln(Groups)+1 times worse
 // than an optimal solution.
-func GetRegistryMapping(groups []*hiddenpath.Group, localIA addr.IA) (map[addr.IA][]hiddenpath.GroupId, error) {
+func GetRegistryMapping(groups []*hiddenpath.Group, localIA addr.IA) (
+	map[addr.IA][]hiddenpath.GroupId, error) {
 
 	if err := findDuplicates(groups); err != nil {
 		return nil, err
