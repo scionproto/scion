@@ -13,6 +13,10 @@ uint16_t checksum(chk_input *in) {
     int i;
     /* As the maximum packet size is 65535B, the 32-bit accumulator cannot overflow. */
     uint32_t sum = 0;
+    if (in->idx != in->total) {
+        fprintf(stderr, "ERROR checksum, chunk not initialized: in->idx (%d) != in->total (%d)\n", in->idx, in->total);
+        exit(1);
+    }
 
     // Iterate over the chunks
     for (i=0; i < in->total; i++){
