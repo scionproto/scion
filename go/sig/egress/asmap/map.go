@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package core contains the tables for remote SIGs, ASes and their prefixes
-package core
+// Package asmap contains the tables for remote SIGs, ASes and their prefixes.
+package asmap
 
 import (
 	"sync"
