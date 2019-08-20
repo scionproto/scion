@@ -15,7 +15,7 @@ uint16_t checksum(chk_input *in) {
     uint32_t sum = 0;
 
     // Iterate over the chunks
-    for (i=0; i < in->total; i++){
+    for (i=0; i < in->idx; i++){
         int j = 0;
         int len = in->len[i];
         int len2 = len/2;
