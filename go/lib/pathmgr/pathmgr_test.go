@@ -44,23 +44,32 @@ func TestQuery(t *testing.T) {
 	Convey("Query, we have 0 paths and SCIOND is asked again, receive 1 path", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		g := graph.NewDefaultGraph(ctrl)
-		pm := NewPR(t, g, 0, 0)
+
+		sd := mock_sciond.NewMockConnector(ctrl)
+		pm := New(sd, Timers{})
+
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
 
-		aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
-		SoMsg("aps len", len(aps), ShouldEqual, 1)
+		g := graph.NewDefaultGraph(ctrl)
+
 		Convey("Query immediately, get paths", func() {
+			sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
+				buildGAnswer(srcIA.String(), dstIA.String(), g), nil,
+			).AnyTimes()
 			aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
 			SoMsg("aps len", len(aps), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(aps), ShouldContain,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 		})
+
 		Convey("Then query again and get new paths", func() {
 			// Add new path between 1-ff00:0:133 and 1-ff00:0:131
 			g.AddLink("1-ff00:0:133", 101902, "1-ff00:0:132", 191002, false)
+			sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
+				buildGAnswer(srcIA.String(), dstIA.String(), g), nil,
+			).AnyTimes()
 			aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
 			SoMsg("aps len", len(aps), ShouldEqual, 2)
 			SoMsg("path #1", getPathStrings(aps), ShouldContain,
@@ -79,10 +88,18 @@ var denyEntry = &pathpol.ACLEntry{Action: pathpol.Deny, Rule: pathpol.NewHopPred
 func TestQueryFilter(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	g := graph.NewDefaultGraph(ctrl)
-	pm := NewPR(t, g, 0, 0)
+
+	sd := mock_sciond.NewMockConnector(ctrl)
+	pm := New(sd, Timers{})
+
 	srcIA := xtest.MustParseIA("1-ff00:0:133")
 	dstIA := xtest.MustParseIA("1-ff00:0:131")
+
+	g := graph.NewDefaultGraph(ctrl)
+	sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
+		buildGAnswer(srcIA.String(), dstIA.String(), g), nil,
+	).AnyTimes()
+
 	Convey("Query with policy filter, only one path should remain, default deny", t, func() {
 		pp, err := pathpol.HopPredicateFromString("0-0#0")
 		xtest.FailOnErr(t, err)
@@ -90,12 +107,14 @@ func TestQueryFilter(t *testing.T) {
 			{Action: pathpol.Allow, Rule: pp},
 			denyEntry,
 		}}}
+
 		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
 			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 	})
+
 	Convey("Query with policy filter, only one path should remain, default allow", t, func() {
 		pp, err := pathpol.HopPredicateFromString("1-ff00:0:134#1910")
 		xtest.FailOnErr(t, err)
@@ -122,38 +141,34 @@ func TestQueryFilter(t *testing.T) {
 }
 
 func TestACLPolicyFilter(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sd := mock_sciond.NewMockConnector(ctrl)
+	pm := New(sd, Timers{})
+
+	srcIA := xtest.MustParseIA("2-ff00:0:222")
+	dstIA := xtest.MustParseIA("1-ff00:0:131")
+
+	g := graph.NewDefaultGraph(ctrl)
+	sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
+		buildGAnswer(srcIA.String(), dstIA.String(), g), nil,
+	).AnyTimes()
+
+	pp, _ := pathpol.HopPredicateFromString("1-ff00:0:121#0")
 	Convey("Query with ACL policy filter", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		g := graph.NewDefaultGraph(ctrl)
-		pm := NewPR(t, g, 0, 0)
-		srcIA := xtest.MustParseIA("2-ff00:0:222")
-		dstIA := xtest.MustParseIA("1-ff00:0:131")
-		pp, _ := pathpol.HopPredicateFromString("1-ff00:0:121#0")
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
-			{
-				Action: pathpol.Deny,
-				Rule:   pp,
-			},
+			{Action: pathpol.Deny, Rule: pp},
 			allowEntry,
 		}}}
 		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 2)
 	})
+
 	Convey("Query with longer ACL policy filter", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		g := graph.NewDefaultGraph(ctrl)
-		pm := NewPR(t, g, 0, 0)
-		srcIA := xtest.MustParseIA("2-ff00:0:222")
-		dstIA := xtest.MustParseIA("1-ff00:0:131")
-		pp, _ := pathpol.HopPredicateFromString("1-ff00:0:121#0")
 		pp2, _ := pathpol.HopPredicateFromString("2-ff00:0:211#2327")
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
-			{
-				Action: pathpol.Deny,
-				Rule:   pp,
-			},
+			{Action: pathpol.Deny, Rule: pp},
 			{Action: pathpol.Deny, Rule: pp2},
 			allowEntry,
 		}}}
@@ -407,22 +422,6 @@ func newTestRev(t *testing.T, rev string) *path_mgmt.SignedRevInfo {
 		}, infra.NullSigner)
 	xtest.FailOnErr(t, err)
 	return signedRevInfo
-}
-
-func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire time.Duration) Resolver {
-
-	t.Helper()
-
-	mockConn, err := sciond.NewMockService(g).Connect()
-	xtest.FailOnErr(t, err)
-
-	return New(
-		mockConn,
-		Timers{
-			NormalRefire: normalRefire,
-			ErrorRefire:  errorRefire,
-		},
-	)
 }
 
 func getPathStrings(aps spathmeta.AppPathSet) []string {
