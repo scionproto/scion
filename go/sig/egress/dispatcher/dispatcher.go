@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
@@ -31,11 +31,11 @@ type egressDispatcher struct {
 	log.Logger
 	ia               addr.IA
 	ring             *ringbuf.Ring
-	sessionSelector  egress.SessionSelector
+	sessionSelector  iface.SessionSelector
 	pktsRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
-func NewDispatcher(ia addr.IA, ring *ringbuf.Ring, ss egress.SessionSelector) *egressDispatcher {
+func NewDispatcher(ia addr.IA, ring *ringbuf.Ring, ss iface.SessionSelector) *egressDispatcher {
 	return &egressDispatcher{
 		Logger:           log.New("ia", ia.String()),
 		ring:             ring,
@@ -46,7 +46,7 @@ func NewDispatcher(ia addr.IA, ring *ringbuf.Ring, ss egress.SessionSelector) *e
 
 func (ed *egressDispatcher) Run() {
 	ed.Info("EgressDispatcher: starting")
-	bufs := make(ringbuf.EntryList, egress.EgressBufPkts)
+	bufs := make(ringbuf.EntryList, iface.EgressBufPkts)
 	for {
 		n, _ := ed.ring.Read(bufs, true)
 		if n < 0 {
@@ -57,7 +57,7 @@ func (ed *egressDispatcher) Run() {
 			sess := ed.sessionSelector.ChooseSess(buf)
 			if sess == nil {
 				// Release buffer back to free buffer pool
-				egress.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				iface.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				// FIXME(kormat): replace with metric.
 				ed.Debug("EgressDispatcher: unable to find session")
 				continue
