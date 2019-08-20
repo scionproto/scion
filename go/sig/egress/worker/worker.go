@@ -28,11 +28,11 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/iface"
+	"github.com/scionproto/scion/go/sig/egress/siginfo"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
-	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
@@ -64,7 +64,7 @@ type SCIONWriter interface {
 type worker struct {
 	log.Logger
 	iaString      string
-	sess          egress.Session
+	sess          iface.Session
 	writer        SCIONWriter
 	currSig       *siginfo.Sig
 	currPathEntry *sciond.PathReplyEntry
@@ -81,7 +81,7 @@ type worker struct {
 
 // NewWorker creates a new worker object.
 // ignoreAddress is set to true only in tests. Elsewhere is should be set to false.
-func NewWorker(sess egress.Session, writer SCIONWriter, ignoreAddress bool,
+func NewWorker(sess iface.Session, writer SCIONWriter, ignoreAddress bool,
 	logger log.Logger) *worker {
 
 	return &worker{
@@ -94,7 +94,7 @@ func NewWorker(sess egress.Session, writer SCIONWriter, ignoreAddress bool,
 			Pkts:  metrics.FramesSent.WithLabelValues(sess.IA().String(), sess.ID().String()),
 			Bytes: metrics.FrameBytesSent.WithLabelValues(sess.IA().String(), sess.ID().String()),
 		},
-		pkts: make(ringbuf.EntryList, 0, egress.EgressBufPkts),
+		pkts: make(ringbuf.EntryList, 0, iface.EgressBufPkts),
 	}
 }
 
@@ -129,7 +129,7 @@ TopLoop:
 			}
 		}
 		// Return processed pkts to the free pool, and remove references.
-		egress.EgressFreePkts.Write(w.pkts, true)
+		iface.EgressFreePkts.Write(w.pkts, true)
 		for i := range w.pkts {
 			w.pkts[i] = nil
 		}

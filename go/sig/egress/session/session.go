@@ -32,13 +32,13 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
-	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/worker"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
-var _ egress.Session = (*Session)(nil)
+var _ iface.Session = (*Session)(nil)
 
 // Session contains a pool of paths to the remote AS, metrics about those paths,
 // as well as maintaining the currently favoured path and remote SIG to use.
@@ -47,11 +47,11 @@ type Session struct {
 	ia     addr.IA
 	SessId mgmt.SessionType
 
-	// pool of paths, managed by pathmgr
-	pool egress.PathPool
-	// *egress.RemoteInfo
+	// pool contains paths managed by pathmgr.
+	pool iface.PathPool
+	// FIXME: Use AtomicRemoteInfo instead
 	currRemote atomic.Value
-	// bool
+	// FIXME: Use AtomicBool instead.
 	healthy        atomic.Value
 	ring           *ringbuf.Ring
 	conn           snet.Conn
@@ -63,7 +63,7 @@ type Session struct {
 }
 
 func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
-	pool egress.PathPool) (*Session, error) {
+	pool iface.PathPool) (*Session, error) {
 
 	var err error
 	s := &Session{
@@ -72,7 +72,7 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
 		SessId: sessId,
 		pool:   pool,
 	}
-	s.currRemote.Store((*egress.RemoteInfo)(nil))
+	s.currRemote.Store((*iface.RemoteInfo)(nil))
 	s.healthy.Store(false)
 	s.ring = ringbuf.New(64, nil, "egress",
 		prometheus.Labels{"ringId": dstIA.String(), "sessId": sessId.String()})
@@ -107,15 +107,15 @@ func (s *Session) Start() {
 func (s *Session) Cleanup() error {
 	s.ring.Close()
 	close(s.sessMonStop)
-	s.Debug("egress.Session Cleanup: wait for worker")
+	s.Debug("iface.Session Cleanup: wait for worker")
 	<-s.workerStopped
-	s.Debug("egress.Session Cleanup: wait for session monitor")
+	s.Debug("iface.Session Cleanup: wait for session monitor")
 	<-s.sessMonStopped
 	close(s.pktDispStop)
-	s.Debug("egress.Session Cleanup: wait for pktDisp")
+	s.Debug("iface.Session Cleanup: wait for pktDisp")
 	s.conn.SetReadDeadline(time.Now())
 	<-s.pktDispStopped
-	s.Debug("egress.Session Cleanup: closing conn")
+	s.Debug("iface.Session Cleanup: closing conn")
 	if err := s.conn.Close(); err != nil {
 		return common.NewBasicError("Unable to close conn", err)
 	}
@@ -125,8 +125,8 @@ func (s *Session) Cleanup() error {
 	return nil
 }
 
-func (s *Session) Remote() *egress.RemoteInfo {
-	return s.currRemote.Load().(*egress.RemoteInfo)
+func (s *Session) Remote() *iface.RemoteInfo {
+	return s.currRemote.Load().(*iface.RemoteInfo)
 }
 
 func (s *Session) Ring() *ringbuf.Ring {
@@ -150,7 +150,7 @@ func (s *Session) Healthy() bool {
 	return s.healthy.Load().(bool)
 }
 
-func (s *Session) PathPool() egress.PathPool {
+func (s *Session) PathPool() iface.PathPool {
 	return s.pool
 }
 
@@ -163,7 +163,7 @@ type PathPool struct {
 	pool *pathmgr.SyncPaths
 }
 
-var _ egress.PathPool = (*PathPool)(nil)
+var _ iface.PathPool = (*PathPool)(nil)
 
 func NewPathPool(dst addr.IA) (*PathPool, error) {
 	pool, err := sigcmn.PathMgr.Watch(context.TODO(), sigcmn.IA, dst)

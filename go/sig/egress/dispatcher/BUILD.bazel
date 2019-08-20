@@ -10,7 +10,7 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/ringbuf:go_default_library",
-        "//go/sig/egress:go_default_library",
+        "//go/sig/egress/iface:go_default_library",
         "//go/sig/metrics:go_default_library",
         "//go/sig/mgmt:go_default_library",
     ],

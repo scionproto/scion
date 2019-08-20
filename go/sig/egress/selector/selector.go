@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+// selector package implements selection of a session to use for an outgoing packet.
+package selector
 
 import (
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/iface"
 )
 
-var _ egress.SessionSelector = (*SingleSession)(nil)
+var _ iface.SessionSelector = (*SingleSession)(nil)
 
-// SingleSession implements egress.SessionSelector, returning the contained
+// SingleSession implements iface.SessionSelector, returning the contained
 // session on ChooseSess.
 type SingleSession struct {
-	Session egress.Session
+	Session iface.Session
 }
 
-func (ss *SingleSession) ChooseSess(b common.RawBytes) egress.Session {
+func (ss *SingleSession) ChooseSess(b common.RawBytes) iface.Session {
 	return ss.Session
 }

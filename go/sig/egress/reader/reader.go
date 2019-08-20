@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/router"
 	"github.com/scionproto/scion/go/sig/metrics"
 )
@@ -49,10 +49,10 @@ func NewReader(tunIO io.ReadWriteCloser) *Reader {
 
 func (r *Reader) Run() {
 	r.log.Info("EgressReader: starting")
-	bufs := make(ringbuf.EntryList, egress.EgressBufPkts)
+	bufs := make(ringbuf.EntryList, iface.EgressBufPkts)
 BatchLoop:
 	for {
-		n, _ := egress.EgressFreePkts.Read(bufs, true)
+		n, _ := iface.EgressFreePkts.Read(bufs, true)
 		if n < 0 {
 			break
 		}
@@ -80,7 +80,7 @@ BatchLoop:
 			dstIP, err := r.getDestIP(buf)
 			if err != nil {
 				// Release buffer back to free buffer pool
-				egress.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				iface.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				// FIXME(kormat): replace with metric.
 				r.log.Error("EgressReader: unable to get dest IP", "err", err)
 				continue
@@ -88,14 +88,14 @@ BatchLoop:
 			dstIA, dstRing := router.NetMap.Lookup(dstIP)
 			if dstRing == nil {
 				// Release buffer back to free buffer pool
-				egress.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				iface.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				// FIXME(kormat): replace with metric.
 				r.log.Error("EgressReader: unable to find dest IA", "ip", dstIP)
 				continue
 			}
 			if n, _ := dstRing.Write(ringbuf.EntryList{buf}, false); n != 1 {
 				// Release buffer back to free buffer pool
-				egress.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				iface.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				metrics.EgressRxQueueFull.WithLabelValues(dstIA.String()).Inc()
 			}
 		}
