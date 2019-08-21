@@ -39,20 +39,15 @@ func (gi *GroupInfo) GetRegistryMapping(ids []hiddenpath.GroupId) (
 		return nil, err
 	}
 	groups := make([]*hiddenpath.Group, 0, len(ids))
-	for _, id := range ids {
-		groups = append(groups, gi.Groups[id])
-	}
 	mapping := map[addr.IA][]hiddenpath.GroupId{}
-	l := len(groups)
-	for i := 0; i < l; {
-		if groups[i].HasRegistry(gi.LocalRegistry) {
-			mapping[gi.LocalRegistry] = append(mapping[gi.LocalRegistry], groups[i].Id)
-			groups[i] = groups[len(groups)-1]
-			groups = groups[:len(groups)-1]
-			l--
+	for _, id := range ids {
+		group := gi.Groups[id]
+		if group.HasRegistry(gi.LocalRegistry) {
+			mapping[gi.LocalRegistry] = append(mapping[gi.LocalRegistry], id)
 		} else {
-			i++
+			groups = append(groups, group)
 		}
+
 	}
 	covered := make(map[hiddenpath.GroupId]struct{}, len(groups))
 	for len(covered) < len(groups) {
