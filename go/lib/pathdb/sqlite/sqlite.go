@@ -416,8 +416,10 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 		var segRowID int
 		var rawSeg sql.RawBytes
 		var lastUpdated int64
+		var segType proto.PathSegType
 		hpCfgID := &query.HPCfgID{IA: addr.IA{}}
-		err = rows.Scan(&segRowID, &rawSeg, &lastUpdated, &hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID)
+		err = rows.Scan(&segRowID, &rawSeg, &lastUpdated, &hpCfgID.IA.I,
+			&hpCfgID.IA.A, &hpCfgID.ID, &segType)
 		if err != nil {
 			return nil, common.NewBasicError("Error reading DB response", err)
 		}
@@ -428,6 +430,7 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 			}
 			curRes = &query.Result{
 				LastUpdate: time.Unix(0, lastUpdated),
+				Type:       segType,
 			}
 			var err error
 			curRes.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
@@ -449,8 +452,9 @@ func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 	var args []interface{}
 	query := []string{
 		"SELECT DISTINCT s.RowID, s.Segment, s.LastUpdated," +
-			" h.IsdID, h.AsID, h.CfgID FROM Segments s",
+			" h.IsdID, h.AsID, h.CfgID, t.Type FROM Segments s",
 		"JOIN HpCfgIds h ON h.SegRowID=s.RowID",
+		"JOIN SegTypes t ON t.SegRowID=s.RowID",
 	}
 	if params == nil {
 		return strings.Join(query, "\n"), args
@@ -466,7 +470,6 @@ func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.SegTypes) > 0 {
-		joins = append(joins, "JOIN SegTypes t ON t.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, segType := range params.SegTypes {
 			subQ = append(subQ, "t.Type=?")
@@ -554,9 +557,10 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 			var segRowID int
 			var rawSeg sql.RawBytes
 			var lastUpdated int64
+			var segType proto.PathSegType
 			hpCfgID := &query.HPCfgID{IA: addr.IA{}}
 			err = rows.Scan(&segRowID, &rawSeg, &lastUpdated,
-				&hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID)
+				&hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID, &segType)
 			if err != nil {
 				resCh <- query.ResultOrErr{
 					Err: common.NewBasicError("Error reading DB response", err)}
@@ -569,6 +573,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 				}
 				curRes = &query.Result{
 					LastUpdate: time.Unix(0, lastUpdated),
+					Type:       segType,
 				}
 				var err error
 				curRes.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
