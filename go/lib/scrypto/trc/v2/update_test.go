@@ -35,7 +35,7 @@ func TestCommonUpdate(t *testing.T) {
 	}{
 		"Trust reset": {
 			Modify: func(updated, _ *trc.TRC) {
-				*updated = *newBaseTRC()
+				*updated = *newBaseTRC(time.Now())
 				updated.BaseVersion = updated.Version
 			},
 			ExpectedErrMsg: trc.ErrBaseNotUpdate.Error(),
@@ -83,8 +83,8 @@ func TestCommonUpdate(t *testing.T) {
 		},
 	}
 	for name, test := range tests {
-		run := func(t *testing.T, trcs func() (*trc.TRC, *trc.TRC), updateType trc.UpdateType) {
-			updated, prev := trcs()
+		run := func(t *testing.T, trcs func(time.Time) (*trc.TRC, *trc.TRC), ut trc.UpdateType) {
+			updated, prev := trcs(time.Now())
 			test.Modify(updated, prev)
 			v := trc.UpdateValidator{
 				Prev: prev,
@@ -93,7 +93,7 @@ func TestCommonUpdate(t *testing.T) {
 			info, err := v.Validate()
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
-				assert.Equal(t, updateType, info.Type)
+				assert.Equal(t, ut, info.Type)
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
@@ -102,8 +102,8 @@ func TestCommonUpdate(t *testing.T) {
 		t.Run(name+" (regular)", func(t *testing.T) {
 			run(t, newRegularUpdate, trc.RegularUpdate)
 		})
-		sensitiveUpdate := func() (*trc.TRC, *trc.TRC) {
-			updated, prev := newSensitiveUpdate()
+		sensitiveUpdate := func(now time.Time) (*trc.TRC, *trc.TRC) {
+			updated, prev := newSensitiveUpdate(now)
 			*updated.VotingQuorumPtr -= 1
 			return updated, prev
 		}
@@ -526,7 +526,7 @@ func TestSensitiveUpdate(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			updated, prev := newSensitiveUpdate()
+			updated, prev := newSensitiveUpdate(time.Now())
 			test.Modify(updated, prev)
 			v := trc.UpdateValidator{
 				Prev: prev,
@@ -714,7 +714,7 @@ func TestRegularUpdate(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			updated, prev := newRegularUpdate()
+			updated, prev := newRegularUpdate(time.Now())
 			test.Modify(updated, prev)
 			v := trc.UpdateValidator{
 				Prev: prev,
@@ -753,8 +753,8 @@ func initKeyChanges(info *trc.UpdateInfo) {
 	initModType(&info.KeyChanges.Modified)
 }
 
-func newRegularUpdate() (*trc.TRC, *trc.TRC) {
-	t := newBaseTRC()
+func newRegularUpdate(now time.Time) (*trc.TRC, *trc.TRC) {
+	t := newBaseTRC(now.Add(time.Hour))
 	t.Version = 2
 	t.GracePeriod = &trc.Period{Duration: 6 * time.Hour}
 	t.Votes = map[addr.AS]trc.Vote{
@@ -763,13 +763,13 @@ func newRegularUpdate() (*trc.TRC, *trc.TRC) {
 		a140: {KeyType: trc.OnlineKey, KeyVersion: 1},
 	}
 	t.ProofOfPossession = make(map[addr.AS][]trc.KeyType)
-	return t, newBaseTRC()
+	return t, newBaseTRC(now)
 }
 
 // newSensitive creates an update that is signed with the offline keys.
 // The caller has to add the sensitive change.
-func newSensitiveUpdate() (*trc.TRC, *trc.TRC) {
-	t, _ := newRegularUpdate()
+func newSensitiveUpdate(now time.Time) (*trc.TRC, *trc.TRC) {
+	t, _ := newRegularUpdate(now.Add(time.Hour))
 	t.Version = 3
 	t.GracePeriod = &trc.Period{Duration: 6 * time.Hour}
 	t.Votes = map[addr.AS]trc.Vote{
@@ -778,6 +778,6 @@ func newSensitiveUpdate() (*trc.TRC, *trc.TRC) {
 		a140: {KeyType: trc.OfflineKey, KeyVersion: 1},
 	}
 	t.ProofOfPossession = make(map[addr.AS][]trc.KeyType)
-	prev, _ := newRegularUpdate()
+	prev, _ := newRegularUpdate(now)
 	return t, prev
 }

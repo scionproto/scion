@@ -47,12 +47,10 @@ type genTRC struct {
 func TestTRCUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(*genTRC)
-		TRC            *trc.TRC
 		ExpectedErrMsg string
 	}{
 		"valid": {
 			Modify: func(*genTRC) {},
-			TRC:    newBaseTRC(),
 		},
 		"ISD not set": {
 			Modify: func(g *genTRC) {
@@ -135,7 +133,7 @@ func TestTRCUnmarshalJSON(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			g := newGenTRC()
+			trcObj, g := newGenTRC(time.Now())
 			test.Modify(g)
 			b, err := json.Marshal(g)
 			require.NoError(t, err)
@@ -143,7 +141,7 @@ func TestTRCUnmarshalJSON(t *testing.T) {
 			err = json.Unmarshal(b, &parsed)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
-				assert.Equal(t, test.TRC, &parsed)
+				assert.Equal(t, trcObj, &parsed)
 			} else {
 				require.Error(t, err)
 				assert.Equal(t, err.Error(), test.ExpectedErrMsg)
@@ -310,8 +308,8 @@ func TestPeriodMarshalJSON(t *testing.T) {
 	}
 }
 
-func newGenTRC() *genTRC {
-	b := newBaseTRC()
+func newGenTRC(now time.Time) (*trc.TRC, *genTRC) {
+	b := newBaseTRC(now)
 	t := &genTRC{
 		ISD:               &b.ISD,
 		Version:           &b.Version,
@@ -326,5 +324,5 @@ func newGenTRC() *genTRC {
 		Votes:             &b.Votes,
 		ProofOfPossession: &b.ProofOfPossession,
 	}
-	return t
+	return b, t
 }

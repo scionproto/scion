@@ -16,6 +16,7 @@ package trc_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ func TestEncode(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			base := newBaseTRC()
+			base := newBaseTRC(time.Now())
 			test.Modify(base)
 			packed, err := trc.Encode(base)
 			test.Assertion(t, err)
@@ -59,7 +60,7 @@ func TestEncode(t *testing.T) {
 }
 
 func TestEncodedDecode(t *testing.T) {
-	valid, err := trc.Encode(newBaseTRC())
+	valid, err := trc.Encode(newBaseTRC(time.Now()))
 	require.NoError(t, err)
 
 	tests := map[string]struct {
