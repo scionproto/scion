@@ -120,15 +120,35 @@ func TestCases(t *testing.T) {
 			testRegCanAnswerRequest(t, info, mapping)
 		})
 	}
-	t.Run("unknown GroupId", func(t *testing.T) {
-		testUnknownIds(t)
-	})
-	t.Run("duplicate GroupIds", func(t *testing.T) {
-		testDuplicateIds(t)
-	})
-	t.Run("Group with no Registries", func(t *testing.T) {
-		testNoRegistries(t)
-	})
+}
+
+func TestUnknownIds(t *testing.T) {
+	info := &hpsegreq.GroupInfo{}
+	ids := []hiddenpath.GroupId{id1}
+	_, err := info.GetRegistryMapping(ids)
+	assert.EqualError(t, err, `Unknown group group="ff00:0:0-1"`)
+}
+
+func TestDuplicateIds(t *testing.T) {
+	var testcase = map[hiddenpath.GroupId][]addr.IA{
+		id1: {reg1},
+	}
+	info := &hpsegreq.GroupInfo{}
+	info.Groups = buildGroups(t, testcase)
+	ids := []hiddenpath.GroupId{id1, id1}
+	_, err := info.GetRegistryMapping(ids)
+	assert.EqualError(t, err, `Provided Groups contain duplicates group="ff00:0:0-1"`)
+}
+
+func TestNoRegistries(t *testing.T) {
+	var testcase = map[hiddenpath.GroupId][]addr.IA{
+		id1: {},
+	}
+	info := &hpsegreq.GroupInfo{}
+	info.Groups = buildGroups(t, testcase)
+	ids := []hiddenpath.GroupId{id1}
+	_, err := info.GetRegistryMapping(ids)
+	assert.EqualError(t, err, `Group does not have any Registries group="ff00:0:0-1"`)
 }
 
 func testRegistriesValid(t *testing.T, info *hpsegreq.GroupInfo,
@@ -176,35 +196,6 @@ func testRegCanAnswerRequest(t *testing.T, info *hpsegreq.GroupInfo,
 				"Registry must be responsible for given GroupId")
 		}
 	}
-}
-
-func testUnknownIds(t *testing.T) {
-	info := &hpsegreq.GroupInfo{}
-	ids := []hiddenpath.GroupId{id1}
-	_, err := info.GetRegistryMapping(ids)
-	assert.EqualError(t, err, `Unknown group group="ff00:0:0-1"`)
-}
-
-func testDuplicateIds(t *testing.T) {
-	var testcase = map[hiddenpath.GroupId][]addr.IA{
-		id1: {reg1},
-	}
-	info := &hpsegreq.GroupInfo{}
-	info.Groups = buildGroups(t, testcase)
-	ids := []hiddenpath.GroupId{id1, id1}
-	_, err := info.GetRegistryMapping(ids)
-	assert.EqualError(t, err, `Provided Groups contain duplicates group="ff00:0:0-1"`)
-}
-
-func testNoRegistries(t *testing.T) {
-	var testcase = map[hiddenpath.GroupId][]addr.IA{
-		id1: {},
-	}
-	info := &hpsegreq.GroupInfo{}
-	info.Groups = buildGroups(t, testcase)
-	ids := []hiddenpath.GroupId{id1}
-	_, err := info.GetRegistryMapping(ids)
-	assert.EqualError(t, err, `Group does not have any Registries group="ff00:0:0-1"`)
 }
 
 func buildGroups(t *testing.T,
