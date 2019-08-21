@@ -63,19 +63,18 @@ var (
 	timeout = time.Second
 )
 
-// TestablePathDB extends the path db interface with methods that are needed for testing.
+// TestablePathDB extends the path db interface with methods that are needed
+// for testing.
 type TestablePathDB interface {
 	pathdb.PathDB
-	// Prepare should reset the internal state so that the DB is empty and is ready to be tested.
+	// Prepare should reset the internal state so that the DB is empty and is
+	// ready to be tested.
 	Prepare(t *testing.T, ctx context.Context)
 }
 
-// TestPathDB should be used to test any implementation of the PathDB interface.
-// An implementation of the PathDB interface should at least have one test method that calls
-// this test-suite. The calling test code should have a top level Convey block.
-//
-// setup should return a PathDB in a clean state, i.e. no entries in the DB.
-// cleanup can be used to release any resources that have been allocated during setup.
+// TestPathDB should be used to test any implementation of the PathDB
+// interface. An implementation of the PathDB interface should at least have
+// one test method that calls this test-suite.
 func TestPathDB(t *testing.T, db TestablePathDB) {
 	testWrapper := func(test func(*testing.T, *gomock.Controller,
 		pathdb.ReadWrite)) func(t *testing.T) {

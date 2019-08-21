@@ -18,39 +18,39 @@ import (
 	"bytes"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
+// TestSVCResolutionPogsSerialization tests that serializing and deserializing
+// via pogs returns the initial object.
 func TestSVCResolutionPogsSerialization(t *testing.T) {
 	// Sanity check to test that the Go reflection helper type is in sync with
 	// the capnp data definition.
-	Convey("Serializing and deserializing via pogs should return the initial object", t, func() {
-		message := SVCResolutionReply{
-			Transports: []Transport{
-				{Key: "foo", Value: "bar"},
-				{Key: "bar", Value: "baz"},
-			},
-		}
-		buffer := &bytes.Buffer{}
+	message := SVCResolutionReply{
+		Transports: []Transport{
+			{Key: "foo", Value: "bar"},
+			{Key: "bar", Value: "baz"},
+		},
+	}
+	buffer := &bytes.Buffer{}
 
-		err := message.SerializeTo(buffer)
-		SoMsg("serialize error", err, ShouldBeNil)
+	err := message.SerializeTo(buffer)
+	require.NoError(t, err)
 
-		var newMessage SVCResolutionReply
-		err = newMessage.DecodeFrom(buffer)
-		SoMsg("decode error", err, ShouldBeNil)
-		SoMsg("data", newMessage, ShouldResemble, message)
-	})
+	var newMessage SVCResolutionReply
+	err = newMessage.DecodeFrom(buffer)
+	require.NoError(t, err)
+	assert.Equal(t, message, newMessage)
 }
 
+// TestSVCResolutionReplyString tests that the String function writes the correct data.
 func TestSVCResolutionReplyString(t *testing.T) {
-	Convey("String function should write correct data", t, func() {
-		message := SVCResolutionReply{
-			Transports: []Transport{
-				{Key: "foo", Value: "bar"},
-				{Key: "bar", Value: "baz"},
-			},
-		}
-		So(message.String(), ShouldEqual, "SVCResolutionReply([foo:bar bar:baz])")
-	})
+	message := SVCResolutionReply{
+		Transports: []Transport{
+			{Key: "foo", Value: "bar"},
+			{Key: "bar", Value: "baz"},
+		},
+	}
+	assert.Equal(t, "SVCResolutionReply([foo:bar bar:baz])", message.String())
 }

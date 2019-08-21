@@ -17,29 +17,23 @@ package snet
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/layers"
 )
 
 func TestExtensionSort(t *testing.T) {
-	type TestCase struct {
-		Description   string
+	tests := map[string]struct {
 		InputSlice    []common.Extension
 		ExpectedSlice []common.Extension
-	}
-	testCases := []*TestCase{
-		{
-			Description: "nil list",
-		},
-		{
-			Description:   "empty list",
+	}{
+		"nil list": {},
+		"empty list": {
 			InputSlice:    []common.Extension{},
 			ExpectedSlice: []common.Extension{},
 		},
-		{
-			Description: "one item",
+		"one item": {
 			InputSlice: []common.Extension{
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 42},
 			},
@@ -47,8 +41,7 @@ func TestExtensionSort(t *testing.T) {
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 42},
 			},
 		},
-		{
-			Description: "scmp should go first",
+		"scmp should go first": {
 			InputSlice: []common.Extension{
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 42},
 				&layers.ExtnSCMP{},
@@ -58,8 +51,7 @@ func TestExtensionSort(t *testing.T) {
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 42},
 			},
 		},
-		{
-			Description: "HBH extensions go before e2e, in stable fashion",
+		"HBH extensions go before e2e, in stable fashion": {
 			InputSlice: []common.Extension{
 				&layers.ExtnUnknown{ClassField: common.End2EndClass, TypeField: 42},
 				&layers.ExtnUnknown{ClassField: common.End2EndClass, TypeField: 43},
@@ -74,12 +66,10 @@ func TestExtensionSort(t *testing.T) {
 			},
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				StableSortExtensions(tc.InputSlice)
-				So(tc.InputSlice, ShouldResemble, tc.ExpectedSlice)
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			StableSortExtensions(test.InputSlice)
+			assert.Equal(t, test.ExpectedSlice, test.InputSlice)
+		})
+	}
 }

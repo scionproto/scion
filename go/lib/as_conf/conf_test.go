@@ -17,17 +17,17 @@ package as_conf
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func Test_ASConf(t *testing.T) {
-	Convey("Loading test config `testdata/basic.yml`", t, func() {
-		if err := Load("testdata/basic.yml"); err != nil {
-			t.Fatalf("Error loading config: %v", err)
-		}
-		c := CurrConf
-		So(c, ShouldResemble, &ASConf{
-			1, 21600, 5, true, 60,
-		})
-	})
+// TestASConf tests that loading test config `testdata/basic.yml` works.
+func TestASConf(t *testing.T) {
+	err := Load("testdata/basic.yml")
+	require.NoError(t, err)
+	c := CurrConf
+	expectedConf := &ASConf{
+		1, 21600, 5, true, 60,
+	}
+	assert.Equal(t, expectedConf, c)
 }

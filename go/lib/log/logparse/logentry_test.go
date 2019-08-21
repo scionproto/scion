@@ -20,22 +20,20 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestParseFrom(t *testing.T) {
 	defaultTs := mustParse("2018-07-19 14:39:29.489625+0000", t)
-	tests := []struct {
-		Name    string
+	tests := map[string]struct {
 		Input   string
 		Entries []LogEntry
 	}{
-		{
-			Name:  "SingleLineTest",
+		"SingleLineTest": {
 			Input: "2018-07-19 14:39:29.489625+0000 [ERROR] Txt",
 			Entries: []LogEntry{
 				{
@@ -45,8 +43,7 @@ func TestParseFrom(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name: "MultilineTest>",
+		"MultilineTest": {
 			Input: "2018-07-19 14:39:29.489625+0000 [CRIT] (CliSrvExt 2-ff00:0: > ...\n" +
 				"> SCIONDPathReplyEntry:",
 			Entries: []LogEntry{
@@ -57,8 +54,7 @@ func TestParseFrom(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name: "MultilineTestSpace",
+		"MultilineTestSpace": {
 			Input: "2018-07-19 14:39:29.489625+0000 [CRIT] (CliSrvExt 2-ff00:0: > ...\n" +
 				" SCIONDPathReplyEntry:",
 			Entries: []LogEntry{
@@ -69,12 +65,10 @@ func TestParseFrom(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name:  "MissingLevel",
+		"MissingLevel": {
 			Input: "2018-07-19 14:39:29.489625+0000 Txt",
 		},
-		{
-			Name: "MultiEntry",
+		"MultiEntry": {
 			Input: "2018-07-19 14:39:29.489625+0000 [ERROR] Txt\n" +
 				"2018-07-19 14:39:30.489625+0000 [INFO] Txt2",
 			Entries: []LogEntry{
@@ -91,28 +85,24 @@ func TestParseFrom(t *testing.T) {
 			},
 		},
 	}
-	Convey("ParseFrom", t, func() {
-		for _, tc := range tests {
-			Convey(tc.Name, func() {
-				r := strings.NewReader(tc.Input)
-				var entries []LogEntry
-				ParseFrom(r, tc.Name, tc.Name,
-					func(e LogEntry) { entries = append(entries, e) })
-				SoMsg("entries len", len(entries), ShouldEqual, len(tc.Entries))
-				for i, e := range entries {
-					SoMsg("entry ts", e.Timestamp, ShouldResemble, tc.Entries[i].Timestamp)
-					SoMsg("entry element", e.Element, ShouldEqual, tc.Name)
-					SoMsg("entry level", e.Level, ShouldEqual, tc.Entries[i].Level)
-					SoMsg("entry entry", e.Lines, ShouldResemble, tc.Entries[i].Lines)
-				}
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			r := strings.NewReader(test.Input)
+			var entries []LogEntry
+			ParseFrom(r, name, name,
+				func(e LogEntry) {
+					assert.Equal(t, e.Element, name)
+					e.Element = ""
+					entries = append(entries, e)
+				})
+			assert.ElementsMatch(t, test.Entries, entries)
+		})
+	}
 }
 
 func mustParse(ts string, t *testing.T) time.Time {
 	tts, err := time.Parse(common.TimeFmt, ts)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return tts
 }
 

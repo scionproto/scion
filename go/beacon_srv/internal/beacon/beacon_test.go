@@ -18,12 +18,13 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
+// TestBeaconDiversity tests that diversity is calculated correctly.
 func TestBeaconDiversity(t *testing.T) {
 	var tests = []struct {
 		name      string
@@ -49,17 +50,15 @@ func TestBeaconDiversity(t *testing.T) {
 			diversity: 2,
 		},
 	}
-	Convey("Diversity is calculated correctly", t, func() {
-		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
-		g := graph.NewDefaultGraph(mctrl)
-		bseg := testBeaconOrErr(g, tests[0].beacon...)
-		for _, test := range tests {
-			Convey(test.name, func() {
-				other := testBeaconOrErr(g, test.beacon...)
-				diversity := bseg.Beacon.Diversity(other.Beacon)
-				SoMsg("Diversity", diversity, ShouldEqual, test.diversity)
-			})
-		}
-	})
+	mctrl := gomock.NewController(t)
+	defer mctrl.Finish()
+	g := graph.NewDefaultGraph(mctrl)
+	bseg := testBeaconOrErr(g, tests[0].beacon...)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			other := testBeaconOrErr(g, test.beacon...)
+			diversity := bseg.Beacon.Diversity(other.Beacon)
+			assert.Equal(t, test.diversity, diversity)
+		})
+	}
 }

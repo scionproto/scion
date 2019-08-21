@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -86,46 +86,40 @@ func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *HopEntry {
 	}
 }
 
-func Test_FilterSegments(t *testing.T) {
-	Convey("Test filtering segments", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
+func TestFilterSegments(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-		seg110_120 := allocPathSegment(ctrl, []addr.IA{core1_110, core1_120})
-		seg120_110 := allocPathSegment(ctrl, []addr.IA{core1_120, core1_110})
+	seg110_120 := allocPathSegment(ctrl, []addr.IA{core1_110, core1_120})
+	seg120_110 := allocPathSegment(ctrl, []addr.IA{core1_120, core1_110})
 
-		testCases := []struct {
-			Name     string
-			Segs     []*PathSegment
-			Filtered []*PathSegment
-			KeepF    func(*PathSegment) bool
-		}{
-			{
-				Name:     "Keep all",
-				Segs:     []*PathSegment{seg110_120},
-				Filtered: []*PathSegment{seg110_120},
-				KeepF:    func(s *PathSegment) bool { return true },
-			},
-			{
-				Name:     "Drop all",
-				Segs:     []*PathSegment{seg110_120},
-				Filtered: []*PathSegment{},
-				KeepF:    func(s *PathSegment) bool { return false },
-			},
-			{
-				Name:     "First IA core 1_110",
-				Segs:     []*PathSegment{seg110_120, seg120_110},
-				Filtered: []*PathSegment{seg120_110},
-				KeepF:    func(s *PathSegment) bool { return core1_120.Equal(s.FirstIA()) },
-			},
-		}
+	tests := map[string]struct {
+		Segs     []*PathSegment
+		Filtered []*PathSegment
+		KeepF    func(*PathSegment) bool
+	}{
+		"Keep all": {
+			Segs:     []*PathSegment{seg110_120},
+			Filtered: []*PathSegment{seg110_120},
+			KeepF:    func(s *PathSegment) bool { return true },
+		},
+		"Drop all": {
+			Segs:     []*PathSegment{seg110_120},
+			Filtered: []*PathSegment{},
+			KeepF:    func(s *PathSegment) bool { return false },
+		},
+		"First IA core 1_110": {
+			Segs:     []*PathSegment{seg110_120, seg120_110},
+			Filtered: []*PathSegment{seg120_110},
+			KeepF:    func(s *PathSegment) bool { return core1_120.Equal(s.FirstIA()) },
+		},
+	}
 
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				segs := Segments(tc.Segs)
-				segs.FilterSegs(tc.KeepF)
-				SoMsg("Filtering not exact", segs, ShouldResemble, Segments(tc.Filtered))
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			segs := Segments(test.Segs)
+			segs.FilterSegs(test.KeepF)
+			assert.Equal(t, Segments(test.Filtered), segs)
+		})
+	}
 }
