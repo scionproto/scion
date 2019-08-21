@@ -382,6 +382,7 @@ func testGetMixed(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite
 	resSegID, _ := res[0].Seg.ID()
 	assert.Equal(t, 1, len(res), "Result count")
 	assert.Equal(t, segID1, resSegID, "SegIDs match")
+	assert.Equal(t, proto.PathSegType_up, res[0].Type)
 	checkSameHpCfgs(t, "HpCfgIDs match", res[0].HpCfgIDs, hpCfgIDs)
 }
 
@@ -399,6 +400,7 @@ func testGetNilParams(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadW
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(res), "Result count")
 	for _, r := range res {
+		assert.Equal(t, proto.PathSegType_up, r.Type)
 		resSegID, _ := r.Seg.ID()
 		if bytes.Compare(resSegID, segID1) == 0 {
 			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
@@ -432,6 +434,7 @@ func testGetAll(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) 
 	require.NoError(t, err)
 	for r := range resChan {
 		assert.NoError(t, r.Err)
+		assert.Equal(t, proto.PathSegType_up, r.Result.Type)
 		resSegID, _ := r.Result.Seg.ID()
 		if bytes.Compare(resSegID, segID1) == 0 {
 			checkSameHpCfgs(t, "HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs)

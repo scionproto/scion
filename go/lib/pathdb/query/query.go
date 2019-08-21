@@ -58,6 +58,7 @@ type Result struct {
 	Seg        *seg.PathSegment
 	LastUpdate time.Time
 	HpCfgIDs   []*HPCfgID
+	Type       proto.PathSegType
 }
 
 // ResultOrErr is either a result or an error.
