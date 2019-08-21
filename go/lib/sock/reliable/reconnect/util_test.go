@@ -17,20 +17,15 @@ package reconnect_test
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 )
 
+// TestState tests that State check returns immediately after creating a new object.
 func TestState(t *testing.T) {
-	Convey("", t, func() {
-		Convey("State check returns immediately after creating a new object", func() {
-			s := reconnect.NewState()
-			select {
-			case <-s.Up():
-			default:
-				t.Fatalf("Expected method to return immediately, but it didn't")
-			}
-		})
-	})
+	s := reconnect.NewState()
+	select {
+	case <-s.Up():
+	default:
+		t.Fatalf("Expected method to return immediately, but it didn't")
+	}
 }

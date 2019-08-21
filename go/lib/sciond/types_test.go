@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,105 +17,84 @@ package sciond
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewPathInterface(t *testing.T) {
-	testCases := []struct {
-		Name  string
-		In    string
-		PI    PathInterface
-		Valid bool
+	tests := map[string]struct {
+		In  string
+		PI  PathInterface
+		Err assert.ErrorAssertionFunc
 	}{
-		{
-			Name:  "AS, IF wildcard omitted",
-			In:    "1",
-			Valid: false,
+		"AS, IF wildcard omitted": {
+			In:  "1",
+			Err: assert.Error,
 		},
-		{
-			Name:  "IF wildcard omitted",
-			In:    "1-0",
-			Valid: false,
+		"IF wildcard omitted": {
+			In:  "1-0",
+			Err: assert.Error,
 		},
-		{
-			Name:  "basic wildcard",
-			In:    "1-0#0",
-			PI:    mustPathInterface(t, "1-0#0"),
-			Valid: true,
+		"basic wildcard": {
+			In:  "1-0#0",
+			PI:  mustPathInterface(t, "1-0#0"),
+			Err: assert.NoError,
 		},
-		{
-			Name:  "AS wildcard, interface set",
-			In:    "1-0#1",
-			PI:    mustPathInterface(t, "1-0#1"),
-			Valid: true,
+		"AS wildcard, interface set": {
+			In:  "1-0#1",
+			PI:  mustPathInterface(t, "1-0#1"),
+			Err: assert.NoError,
 		},
-		{
-			Name:  "ISD wildcard, AS set",
-			In:    "0-1#0",
-			PI:    mustPathInterface(t, "0-1#0"),
-			Valid: true,
+		"ISD wildcard, AS set": {
+			In:  "0-1#0",
+			PI:  mustPathInterface(t, "0-1#0"),
+			Err: assert.NoError,
 		},
-		{
-			Name:  "ISD wildcard, AS set, interface set",
-			In:    "0-1#1",
-			PI:    mustPathInterface(t, "0-1#1"),
-			Valid: true,
+		"ISD wildcard, AS set, interface set": {
+			In:  "0-1#1",
+			PI:  mustPathInterface(t, "0-1#1"),
+			Err: assert.NoError,
 		},
-		{
-			Name:  "ISD wildcard, AS set and interface omitted",
-			In:    "0-1",
-			Valid: false,
+		"ISD wildcard, AS set and interface omitted": {
+			In:  "0-1",
+			Err: assert.Error,
 		},
-		{
-			Name:  "IF wildcard omitted, AS set",
-			In:    "1-1",
-			Valid: false,
+		"IF wildcard omitted, AS set": {
+			In:  "1-1",
+			Err: assert.Error,
 		},
-		{
-			Name:  "bad -",
-			In:    "1-1-0",
-			Valid: false,
+		"bad -": {
+			In:  "1-1-0",
+			Err: assert.Error,
 		},
-		{
-			Name:  "bad #",
-			In:    "1-1#0#",
-			Valid: false,
+		"bad #": {
+			In:  "1-1#0#",
+			Err: assert.Error,
 		},
-		{
-			Name:  "bad IF",
-			In:    "1-1#e",
-			Valid: false,
+		"bad IF": {
+			In:  "1-1#e",
+			Err: assert.Error,
 		},
-		{
-			Name:  "bad AS",
-			In:    "1-12323433243534#0",
-			Valid: false,
+		"bad AS": {
+			In:  "1-12323433243534#0",
+			Err: assert.Error,
 		},
-		{
-			Name:  "bad ISD",
-			In:    "1123212-23#0",
-			Valid: false,
+		"bad ISD": {
+			In:  "1123212-23#0",
+			Err: assert.Error,
 		},
 	}
-	Convey("TestNewPathInterface", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				pi, err := NewPathInterface(tc.In)
-				if tc.Valid {
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("pi", pi, ShouldResemble, tc.PI)
-				} else {
-					SoMsg("err", err, ShouldNotBeNil)
-				}
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			pi, err := NewPathInterface(test.In)
+			test.Err(t, err)
+			assert.Equal(t, test.PI, pi)
+		})
+	}
 }
 func mustPathInterface(t *testing.T, str string) PathInterface {
 	t.Helper()
 	pi, err := NewPathInterface(str)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return pi
 }
