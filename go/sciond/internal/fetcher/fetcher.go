@@ -183,10 +183,11 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	case <-processedResult.FullReplyProcessed():
 	}
 	if processedResult.Err() != nil {
-		f.logger.Error("Failed to store segments", nil, "err", err)
+		f.logger.Error("Failed to store segments", "err", err)
 	}
 	if processedResult.VerificationErrors() != nil {
-		f.logger.Warn("Failed to verify reply", nil, "errors", processedResult.VerificationErrors())
+		f.logger.Warn("Failed to verify reply",
+			"errors", common.FmtErrors(processedResult.VerificationErrors()))
 	}
 	if reply, err := f.buildReplyFromDB(ctx, req, false); reply != nil {
 		return reply, err
