@@ -252,6 +252,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
 func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
 	paths []*combinator.Path) ([]*combinator.Path, error) {
 
+	prevPaths := len(paths)
 	var newPaths []*combinator.Path
 	for _, path := range paths {
 		revoked := false
@@ -269,6 +270,8 @@ func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
 			newPaths = append(newPaths, path)
 		}
 	}
+	f.logger.Trace("Filtered paths with revocations",
+		"paths", prevPaths, "nonrevoked", len(newPaths))
 	return newPaths, nil
 }
 
