@@ -30,9 +30,10 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon/beacondbtest"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-var testIA = addr.IA{I: 1, A: 0xff0000000333}
+var testIA = xtest.MustParseIA("1-ff00:0:333")
 
 var _ beacondbtest.Testable = (*TestBackend)(nil)
 
