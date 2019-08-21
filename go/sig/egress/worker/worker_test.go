@@ -28,8 +28,8 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/sig/egress"
-	"github.com/scionproto/scion/go/sig/egress/mock_egress"
+	"github.com/scionproto/scion/go/sig/egress/iface"
+	"github.com/scionproto/scion/go/sig/egress/iface/mock_iface"
 	"github.com/scionproto/scion/go/sig/egress/worker/mock_worker"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
@@ -98,7 +98,7 @@ func (wt *WorkerTester) ExpectLastFrame(frame []byte) {
 
 func (wt *WorkerTester) SendPacket(pkt []byte) {
 	bufs := make(ringbuf.EntryList, 1)
-	n, _ := egress.EgressFreePkts.Read(bufs, true)
+	n, _ := iface.EgressFreePkts.Read(bufs, true)
 	assert.Equal(wt.t, 1, n)
 	buf := bufs[0].(common.RawBytes)
 	buf = buf[:len(pkt)]
@@ -109,7 +109,7 @@ func (wt *WorkerTester) SendPacket(pkt []byte) {
 
 func (wt *WorkerTester) Run() {
 	ia, _ := addr.IAFromString("1-ff00:0:300")
-	s := mock_egress.NewMockSession(wt.mockCtrl)
+	s := mock_iface.NewMockSession(wt.mockCtrl)
 	s.EXPECT().IA().AnyTimes().Return(ia)
 	s.EXPECT().ID().AnyTimes().Return(mgmt.SessionType(0))
 	s.EXPECT().Conn().AnyTimes().Return(nil)
@@ -128,7 +128,7 @@ func (wt *WorkerTester) Finish() {
 
 func TestParsing(t *testing.T) {
 	metrics.Init("")
-	egress.Init()
+	iface.Init()
 
 	t.Run("simple packet", func(t *testing.T) {
 		tester := NewWorkerTester(t)

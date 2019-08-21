@@ -25,11 +25,11 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/disp"
-	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/iface"
+	"github.com/scionproto/scion/go/sig/egress/siginfo"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
-	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 const (
@@ -47,13 +47,13 @@ type sessMonitor struct {
 	// the Session this instance is monitoring.
 	sess *Session
 	// the (filtered) pool of paths to the remote AS, maintained by pathmgr.
-	pool egress.PathPool
+	pool iface.PathPool
 	// the pool of paths this session is currently using, frequently refreshed from pool.
-	sessPathPool *egress.SessPathPool
+	sessPathPool *iface.SessPathPool
 	// the remote Info (remote SIG, and path) used for sending polls. This
 	// differs from the parent session's remote info when the session monitor
 	// is polling a new SIG or over a new path, and is waiting for a response.
-	smRemote *egress.RemoteInfo
+	smRemote *iface.RemoteInfo
 	// when sessMonitor is trying to switch SIGs/paths, this is the id of the
 	// last PollReq sent, so that sessMonitor can correlate replies to the
 	// remoteInfo used for the request.
@@ -66,7 +66,7 @@ func newSessMonitor(sess *Session) *sessMonitor {
 	return &sessMonitor{
 		Logger: sess.Logger,
 		sess:   sess, pool: sess.pool,
-		sessPathPool: egress.NewSessPathPool(),
+		sessPathPool: iface.NewSessPathPool(),
 	}
 }
 
@@ -82,7 +82,7 @@ func (sm *sessMonitor) run() {
 	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId), regc)
 	sm.lastReply = time.Now()
 	// Start by querying for the remote SIG instance.
-	sm.smRemote = &egress.RemoteInfo{
+	sm.smRemote = &iface.RemoteInfo{
 		Sig: &siginfo.Sig{
 			IA:   sm.sess.IA(),
 			Host: addr.SvcSIG,
@@ -220,8 +220,8 @@ func (sm *sessMonitor) updateSessSnap() {
 	sm.sess.currRemote.Store(remote)
 }
 
-func (sm *sessMonitor) getNewPath(old *egress.SessPath) *egress.SessPath {
-	var res *egress.SessPath
+func (sm *sessMonitor) getNewPath(old *iface.SessPath) *iface.SessPath {
+	var res *iface.SessPath
 	if old == nil {
 		res = sm.sessPathPool.Get("")
 	} else {
