@@ -16,57 +16,10 @@ package pathmgr
 
 import (
 	"strings"
-	"time"
 
-	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
-// buildGAnswer returns the minimum-length paths from src to dst. If no path exists,
-// the error code in the PathReply is set to ErrorNoPaths. If more than one
-// minimum-length path exists, all minimum-length paths are returned.
-//
-// buildGAnswer does not guarantee to represent a consistent snapshot of the SCION
-// network if the backing multigraph is modified while Paths is running.
-func buildGAnswer(src, dst string, g *graph.Graph) *sciond.PathReply {
-	paths := g.GetPaths(src, dst)
-	var entries []sciond.PathReplyEntry
-	for _, path := range paths {
-		var pathInterfaces []sciond.PathInterface
-		for _, ifid := range path {
-			pathInterfaces = append(pathInterfaces,
-				sciond.PathInterface{
-					RawIsdas: g.GetParent(ifid).IAInt(),
-					IfID:     ifid,
-				},
-			)
-		}
-		entries = append(entries,
-			sciond.PathReplyEntry{
-				Path: &sciond.FwdPathMeta{
-					Interfaces: pathInterfaces,
-					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
-				},
-				HostInfo: hostinfo.HostInfo{
-					// TODO(scrye): leave nil for now since no tests use this
-				},
-			},
-		)
-	}
-	if len(entries) == 0 {
-		return &sciond.PathReply{
-			ErrorCode: sciond.ErrorNoPaths,
-			Entries:   entries,
-		}
-	}
-	return &sciond.PathReply{
-		ErrorCode: sciond.ErrorOk,
-		Entries:   entries,
-	}
-}
 func buildSDAnswer(pathStrings ...string) *sciond.PathReply {
 	reply := &sciond.PathReply{
 		ErrorCode: sciond.ErrorOk,

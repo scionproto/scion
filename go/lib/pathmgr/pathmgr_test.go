@@ -23,6 +23,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -31,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond/mock_sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
 const timeUnitDuration time.Duration = 10 * time.Millisecond
@@ -41,51 +41,6 @@ func getDuration(units time.Duration) time.Duration {
 }
 
 func TestQuery(t *testing.T) {
-	Convey("Query, we have 0 paths and SCIOND is asked again, receive 1 path", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		sd := mock_sciond.NewMockConnector(ctrl)
-		pm := New(sd, Timers{})
-
-		srcIA := xtest.MustParseIA("1-ff00:0:133")
-		dstIA := xtest.MustParseIA("1-ff00:0:131")
-
-		g := graph.NewDefaultGraph(ctrl)
-
-		Convey("Query immediately, get paths", func() {
-			sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
-				buildGAnswer(srcIA.String(), dstIA.String(), g), nil,
-			).AnyTimes()
-			aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
-			SoMsg("aps len", len(aps), ShouldEqual, 1)
-			SoMsg("path", getPathStrings(aps), ShouldContain,
-				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
-					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
-		})
-
-		Convey("Then query again and get new paths", func() {
-			// Add new path between 1-ff00:0:133 and 1-ff00:0:131
-			g.AddLink("1-ff00:0:133", 101902, "1-ff00:0:132", 191002, false)
-			sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
-				buildGAnswer(srcIA.String(), dstIA.String(), g), nil,
-			).AnyTimes()
-			aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
-			SoMsg("aps len", len(aps), ShouldEqual, 2)
-			SoMsg("path #1", getPathStrings(aps), ShouldContain,
-				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
-					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
-			SoMsg("path #2", getPathStrings(aps), ShouldContain,
-				"[1-ff00:0:133#101902 1-ff00:0:132#191002 "+
-					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
-		})
-	})
-}
-
-var allowEntry = &pathpol.ACLEntry{Action: pathpol.Allow, Rule: pathpol.NewHopPredicate()}
-var denyEntry = &pathpol.ACLEntry{Action: pathpol.Deny, Rule: pathpol.NewHopPredicate()}
-
-func TestQueryFilter(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -95,12 +50,64 @@ func TestQueryFilter(t *testing.T) {
 	srcIA := xtest.MustParseIA("1-ff00:0:133")
 	dstIA := xtest.MustParseIA("1-ff00:0:131")
 
-	g := graph.NewDefaultGraph(ctrl)
+	t.Run("Query immediately, get paths", func(t *testing.T) {
+		paths := []string{
+			"1-ff00:0:133#1019 1-ff00:0:132#1910 " + "1-ff00:0:132#1916 1-ff00:0:131#1619",
+		}
+
+		sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(paths...), nil,
+		)
+
+		aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
+		assert.Len(t, aps, 1)
+		assert.Contains(t, getPathStrings(aps),
+			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+	})
+
+	t.Run("Then query again and get new paths", func(t *testing.T) {
+		paths := []string{
+			"1-ff00:0:133#1019 1-ff00:0:132#1910 " + "1-ff00:0:132#1916 1-ff00:0:131#1619",
+			"1-ff00:0:133#101902 1-ff00:0:132#191002 " + "1-ff00:0:132#1916 1-ff00:0:131#1619",
+		}
+
+		sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(paths...), nil,
+		)
+
+		aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
+		assert.Len(t, aps, 2)
+		assert.Contains(t, getPathStrings(aps),
+			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+
+		assert.Contains(t, getPathStrings(aps),
+			"[1-ff00:0:133#101902 1-ff00:0:132#191002 "+"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+	})
+}
+
+var allowEntry = &pathpol.ACLEntry{Action: pathpol.Allow, Rule: pathpol.NewHopPredicate()}
+var denyEntry = &pathpol.ACLEntry{Action: pathpol.Deny, Rule: pathpol.NewHopPredicate()}
+
+func TestQueryFilter(t *testing.T) {
+	t.Log("Query with policy filter")
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sd := mock_sciond.NewMockConnector(ctrl)
+	pm := New(sd, Timers{})
+
+	srcIA := xtest.MustParseIA("1-ff00:0:133")
+	dstIA := xtest.MustParseIA("1-ff00:0:131")
+
+	paths := []string{
+		"1-ff00:0:133#1019 1-ff00:0:132#1910 " + "1-ff00:0:132#1916 1-ff00:0:131#1619",
+	}
+
 	sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
-		buildGAnswer(srcIA.String(), dstIA.String(), g), nil,
+		buildSDAnswer(paths...), nil,
 	).AnyTimes()
 
-	Convey("Query with policy filter, only one path should remain, default deny", t, func() {
+	t.Run("Hop does not exist in paths, default deny", func(t *testing.T) {
 		pp, err := pathpol.HopPredicateFromString("0-0#0")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
@@ -109,13 +116,13 @@ func TestQueryFilter(t *testing.T) {
 		}}}
 
 		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
-		SoMsg("aps len", len(aps), ShouldEqual, 1)
-		SoMsg("path", getPathStrings(aps), ShouldContain,
+		assert.Len(t, aps, 1, "only one path should remain")
+		assert.Contains(t, getPathStrings(aps),
 			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 	})
 
-	Convey("Query with policy filter, only one path should remain, default allow", t, func() {
+	t.Run("Hop does not exist paths, default allow", func(t *testing.T) {
 		pp, err := pathpol.HopPredicateFromString("1-ff00:0:134#1910")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
@@ -123,12 +130,13 @@ func TestQueryFilter(t *testing.T) {
 			allowEntry,
 		}}}
 		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
-		SoMsg("aps len", len(aps), ShouldEqual, 1)
-		SoMsg("path", getPathStrings(aps), ShouldContain,
+		assert.Len(t, aps, 1, "only one path should remain")
+		assert.Contains(t, getPathStrings(aps),
 			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 	})
-	Convey("Query with policy filter, no path should remain", t, func() {
+
+	t.Run("Hop exists in paths, default deny ", func(t *testing.T) {
 		pp, err := pathpol.HopPredicateFromString("1-ff00:0:132#1910")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
@@ -136,7 +144,7 @@ func TestQueryFilter(t *testing.T) {
 			denyEntry,
 		}}}
 		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
-		SoMsg("aps len", len(aps), ShouldEqual, 0)
+		assert.Len(t, aps, 0, "no path should remain")
 	})
 }
 
@@ -150,22 +158,30 @@ func TestACLPolicyFilter(t *testing.T) {
 	srcIA := xtest.MustParseIA("2-ff00:0:222")
 	dstIA := xtest.MustParseIA("1-ff00:0:131")
 
-	g := graph.NewDefaultGraph(ctrl)
+	paths := []string{
+		fmt.Sprintf("%s#1019 1-ff00:0:122#1910 1-ff00:0:122#1916 %s#1619",
+			srcIA.String(), dstIA.String()),
+		fmt.Sprintf("%s#1019 2-ff00:0:211#1911 2-ff00:0:211#2327 %s#1619",
+			srcIA.String(), dstIA.String()),
+		fmt.Sprintf("%s#1019 1-ff00:0:121#1912 1-ff00:0:121#2328 %s#1619",
+			srcIA.String(), dstIA.String()),
+	}
+
 	sd.EXPECT().Paths(gomock.Any(), dstIA, srcIA, gomock.Any(), gomock.Any()).Return(
-		buildGAnswer(srcIA.String(), dstIA.String(), g), nil,
+		buildSDAnswer(paths...), nil,
 	).AnyTimes()
 
 	pp, _ := pathpol.HopPredicateFromString("1-ff00:0:121#0")
-	Convey("Query with ACL policy filter", t, func() {
+	t.Run("Query with ACL policy filter", func(t *testing.T) {
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{Action: pathpol.Deny, Rule: pp},
 			allowEntry,
 		}}}
 		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
-		SoMsg("aps len", len(aps), ShouldEqual, 2)
+		assert.Len(t, aps, 2)
 	})
 
-	Convey("Query with longer ACL policy filter", t, func() {
+	t.Run("Query with longer ACL policy filter", func(t *testing.T) {
 		pp2, _ := pathpol.HopPredicateFromString("2-ff00:0:211#2327")
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{Action: pathpol.Deny, Rule: pp},
@@ -173,244 +189,300 @@ func TestACLPolicyFilter(t *testing.T) {
 			allowEntry,
 		}}}
 		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
-		SoMsg("aps len", len(aps), ShouldEqual, 1)
+		assert.Len(t, aps, 1)
 	})
 }
 
 func TestWatchCount(t *testing.T) {
+	t.Log("Given a path manager and adding a watch")
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sd := mock_sciond.NewMockConnector(ctrl)
+	pr := New(sd, Timers{})
+
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:110")
-	Convey("Given a path manager", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		sd := mock_sciond.NewMockConnector(ctrl)
-		pr := New(sd, Timers{})
-		Convey("the count is initially 0", func() {
-			So(pr.WatchCount(), ShouldEqual, 0)
-		})
-		Convey("and adding a watch", func() {
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				buildSDAnswer(), nil,
-			).AnyTimes()
-			sp, err := pr.Watch(context.Background(), src, dst)
-			xtest.FailOnErr(t, err)
-			Convey("the number of watches increases to 1", func() {
-				So(pr.WatchCount(), ShouldEqual, 1)
-			})
-			Convey("if the watch is destroyed", func() {
-				sp.Destroy()
-				Convey("the number of watches decreases to 0", func() {
-					So(pr.WatchCount(), ShouldEqual, 0)
-				})
-			})
-		})
-	})
+
+	sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+		buildSDAnswer(), nil,
+	).AnyTimes()
+
+	assert.Equal(t, pr.WatchCount(), 0, " the count is initially 0")
+	sp, err := pr.Watch(context.Background(), src, dst)
+	xtest.FailOnErr(t, err)
+	assert.Equal(t, pr.WatchCount(), 1, "the number of watches increases to 1")
+	sp.Destroy()
+	assert.Equal(t, pr.WatchCount(), 0, "the number of watches decreases to 0")
 }
 
 func TestWatchPolling(t *testing.T) {
+	t.Log("Given a path manager and adding a watch that retrieves zero paths")
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sd := mock_sciond.NewMockConnector(ctrl)
+	pr := New(sd, Timers{ErrorRefire: getDuration(1)})
+
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:110")
-	Convey("Given a path manager", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		sd := mock_sciond.NewMockConnector(ctrl)
-		gomock.InOrder(
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				buildSDAnswer(), nil,
-			),
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				buildSDAnswer(
-					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
-				), nil,
-			).MinTimes(1),
-		)
-		pr := New(sd, Timers{ErrorRefire: getDuration(1)})
-		Convey("and adding a watch that retrieves zero paths", func() {
-			sp, err := pr.Watch(context.Background(), src, dst)
-			xtest.FailOnErr(t, err)
-			Convey("there are 0 paths currently available", func() {
-				So(len(sp.Load().APS), ShouldEqual, 0)
-				Convey("and after waiting, we get new paths.", func() {
-					time.Sleep(getDuration(4))
-					So(len(sp.Load().APS), ShouldEqual, 1)
-				})
-			})
-		})
-	})
+	gomock.InOrder(
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(), nil,
+		),
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+			), nil,
+		).MinTimes(1),
+	)
+
+	sp, err := pr.Watch(context.Background(), src, dst)
+	xtest.FailOnErr(t, err)
+	assert.Len(t, sp.Load().APS, 0, "there are 0 paths currently available")
+	time.Sleep(getDuration(4))
+	assert.Len(t, sp.Load().APS, 1, "and after waiting, we get new paths")
 }
 
 func TestWatchFilter(t *testing.T) {
+	t.Log("Given a path manager and adding a watch that should retrieve 1 path")
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	sd := mock_sciond.NewMockConnector(ctrl)
+	pr := New(sd, Timers{ErrorRefire: getDuration(1)})
+
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:110")
-	Convey("Given a path manager", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		sd := mock_sciond.NewMockConnector(ctrl)
-		gomock.InOrder(
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				buildSDAnswer(
-					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
-				), nil,
-			),
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				buildSDAnswer(
-					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
-					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
-				), nil,
-			).AnyTimes(),
-		)
-		pr := New(sd, Timers{ErrorRefire: getDuration(1)})
-		Convey("and adding a watch that should retrieve 1 path", func() {
-			seq, err := pathpol.NewSequence("1-ff00:0:111#105 0 0")
-			xtest.FailOnErr(t, err)
-			filter := pathpol.NewPolicy("test-1-ff00:0:111#105", nil, seq, nil)
+	gomock.InOrder(
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
+			), nil,
+		),
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+				"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
+			), nil,
+		).AnyTimes(),
+	)
 
-			sp, err := pr.WatchFilter(context.Background(), src, dst, filter)
-			xtest.FailOnErr(t, err)
-			Convey("there are 0 paths due to filtering", func() {
-				So(len(sp.Load().APS), ShouldEqual, 0)
-				Convey("and after waiting, we get 1 path that is not filtered.", func() {
-					time.Sleep(getDuration(4))
-					So(len(sp.Load().APS), ShouldEqual, 1)
-				})
-			})
-		})
-	})
+	seq, err := pathpol.NewSequence("1-ff00:0:111#105 0 0")
+	xtest.FailOnErr(t, err)
+	filter := pathpol.NewPolicy("test-1-ff00:0:111#105", nil, seq, nil)
+
+	sp, err := pr.WatchFilter(context.Background(), src, dst, filter)
+	xtest.FailOnErr(t, err)
+	assert.Len(t, sp.Load().APS, 0, "there are 0 paths due to filtering")
+	time.Sleep(getDuration(4))
+	assert.Len(t, sp.Load().APS, 1, "and after waiting, we get 1 path that is not filtered")
 }
 
 func TestRevokeFastRecovery(t *testing.T) {
+	t.Log("Given a path manager with a long normal timer and very small error timer")
+	t.Log("A revocation that deletes everything triggers an immediate requery")
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:110")
-	Convey("Given a path manager with a long normal timer and very small error timer", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
+	sd := mock_sciond.NewMockConnector(ctrl)
+	pr := New(sd, Timers{NormalRefire: getDuration(100), ErrorRefire: getDuration(1)})
+
+	sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+		buildSDAnswer(
+			"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+		), nil,
+	)
+
+	_, err := pr.Watch(context.Background(), src, dst)
+	xtest.FailOnErr(t, err)
+
+	// Once everything is revoked a fast request is immediately
+	// triggered. We check for at least 2 iterations to make sure we
+	// are in error recovery mode, and the aggressive timer is used.
+	// We actually test that the mock .{Revnotifications,Paths} functions are
+	// being called within a 5 sec time period. It will fail with "missing
+	// call(s)" error message
+	gomock.InOrder(
+		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+			&sciond.RevReply{Result: sciond.RevValid}, nil,
+		),
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(),
+			gomock.Any()).Return(
+			buildSDAnswer(), nil,
+		).MinTimes(2),
+	)
+	pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+	time.Sleep(getDuration(5))
+}
+
+func TestRevoke(t *testing.T) {
+	t.Log("Given a path manager and a watch that")
+
+	src := xtest.MustParseIA("1-ff00:0:111")
+	dst := xtest.MustParseIA("1-ff00:0:110")
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	t.Run("retrieves one path revoking an IFID that matches the path", func(t *testing.T) {
 		sd := mock_sciond.NewMockConnector(ctrl)
-		// First SCIOND query populates the watch
+		pr := New(sd, Timers{})
+
 		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
 			buildSDAnswer(
 				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
 			), nil,
 		)
-
-		pr := New(sd, Timers{NormalRefire: getDuration(100), ErrorRefire: getDuration(1)})
-		_, err := pr.Watch(context.Background(), src, dst)
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(), nil,
+		).AnyTimes()
+		sp, err := pr.Watch(context.Background(), src, dst)
 		xtest.FailOnErr(t, err)
 
-		Convey("A revocation that deletes everything triggers an immediate requery", func() {
-			// Once everything is revoked a fast request is immediately
-			// triggered. We check for at least 2 iterations to make sure we
-			// are in error recovery mode, and the aggressive timer is used.
-			gomock.InOrder(
-				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-					&sciond.RevReply{Result: sciond.RevValid}, nil,
-				),
-				sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(),
-					gomock.Any()).Return(
-					buildSDAnswer(), nil,
-				).MinTimes(2),
-			)
-			pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
-			time.Sleep(getDuration(5))
-		})
+		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+			&sciond.RevReply{Result: sciond.RevValid}, nil,
+		)
+		pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+		assert.Len(t, sp.Load().APS, 0, "deletes the path")
 	})
-}
 
-func TestRevoke(t *testing.T) {
-	src := xtest.MustParseIA("1-ff00:0:111")
-	dst := xtest.MustParseIA("1-ff00:0:110")
-	Convey("Given a path manager", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
+	t.Run("retrieves one path revoking an IFID that does not match the path", func(t *testing.T) {
 		sd := mock_sciond.NewMockConnector(ctrl)
 		pr := New(sd, Timers{})
-		Convey("and a watch that retrieves one path", func() {
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				buildSDAnswer(
-					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
-				), nil,
-			)
-			// Attempts to recover from all paths getting revoked do not yield new paths
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				buildSDAnswer(), nil,
-			).AnyTimes()
-			sp, err := pr.Watch(context.Background(), src, dst)
-			xtest.FailOnErr(t, err)
-			Convey("revoking an IFID that matches the path", func() {
-				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-					&sciond.RevReply{Result: sciond.RevValid}, nil,
-				)
-				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
-				Convey("deletes the path", func() {
-					So(len(sp.Load().APS), ShouldEqual, 0)
-				})
-			})
-			Convey("revoking an IFID that does not match the path", func() {
-				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-					&sciond.RevReply{Result: sciond.RevValid}, nil,
-				)
-				pr.Revoke(context.Background(), newTestRev(t, "2-ff00:0:1#1"))
-				Convey("does not delete the path", func() {
-					So(len(sp.Load().APS), ShouldEqual, 1)
-				})
-			})
-			Convey("trying to revoke an IFID, but SCIOND encounters an error", func() {
-				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-					nil, fmt.Errorf("some error"),
-				)
-				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
-				Convey("does not delete the path", func() {
-					So(len(sp.Load().APS), ShouldEqual, 1)
-				})
-			})
-			Convey("trying to revoke an IFID, but the revocation is invalid", func() {
-				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-					&sciond.RevReply{Result: sciond.RevInvalid}, nil,
-				)
-				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
-				Convey("does not delete the path", func() {
-					So(len(sp.Load().APS), ShouldEqual, 1)
-				})
-			})
-			Convey("trying to revoke an IFID, but the revocation is stale", func() {
-				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-					&sciond.RevReply{Result: sciond.RevStale}, nil,
-				)
-				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
-				Convey("does not delete the path", func() {
-					So(len(sp.Load().APS), ShouldEqual, 1)
-				})
-			})
-			Convey("trying to revoke an IFID, but the revocation is unknown", func() {
-				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-					&sciond.RevReply{Result: sciond.RevUnknown}, nil,
-				)
-				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
-				Convey("deletes the path", func() {
-					So(len(sp.Load().APS), ShouldEqual, 0)
-				})
-			})
-		})
-		Convey("and a watch that retrieves two paths", func() {
-			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				buildSDAnswer(
-					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
-					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
-				), nil,
-			)
-			sp, err := pr.Watch(context.Background(), src, dst)
-			xtest.FailOnErr(t, err)
-			Convey("revoking an IFID that matches one path", func() {
-				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-					&sciond.RevReply{Result: sciond.RevValid}, nil,
-				)
-				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
-				Convey("leaves one path remaining", func() {
-					So(len(sp.Load().APS), ShouldEqual, 1)
-				})
-			})
-		})
+
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+			), nil,
+		)
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(), nil,
+		).AnyTimes()
+		sp, err := pr.Watch(context.Background(), src, dst)
+		xtest.FailOnErr(t, err)
+
+		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+			&sciond.RevReply{Result: sciond.RevValid}, nil,
+		)
+		pr.Revoke(context.Background(), newTestRev(t, "2-ff00:0:1#1"))
+		assert.Len(t, sp.Load().APS, 1, "does not delete the path")
 	})
+
+	t.Run("tries to revoke an IFID, but SCIOND encounters an error", func(t *testing.T) {
+		sd := mock_sciond.NewMockConnector(ctrl)
+		pr := New(sd, Timers{})
+
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+			), nil,
+		)
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(), nil,
+		).AnyTimes()
+		sp, err := pr.Watch(context.Background(), src, dst)
+		xtest.FailOnErr(t, err)
+
+		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+			nil, fmt.Errorf("some error"),
+		)
+		pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+		assert.Len(t, sp.Load().APS, 1, "does not delete the path")
+	})
+
+	t.Run("tries to revoke an IFID, but the revocation is invalid", func(t *testing.T) {
+		sd := mock_sciond.NewMockConnector(ctrl)
+		pr := New(sd, Timers{})
+
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+			), nil,
+		)
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(), nil,
+		).AnyTimes()
+		sp, err := pr.Watch(context.Background(), src, dst)
+		xtest.FailOnErr(t, err)
+
+		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+			&sciond.RevReply{Result: sciond.RevInvalid}, nil,
+		)
+		pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+		assert.Len(t, sp.Load().APS, 1, "does not delete the path")
+	})
+
+	t.Run("tries to revoke an IFID, but the revocation is stale", func(t *testing.T) {
+		sd := mock_sciond.NewMockConnector(ctrl)
+		pr := New(sd, Timers{})
+
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+			), nil,
+		)
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(), nil,
+		).AnyTimes()
+		sp, err := pr.Watch(context.Background(), src, dst)
+		xtest.FailOnErr(t, err)
+
+		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+			&sciond.RevReply{Result: sciond.RevStale}, nil,
+		)
+		pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+		assert.Len(t, sp.Load().APS, 1, "does not delete the path")
+	})
+
+	t.Run("tries to revoke an IFID, but the revocation is unknown", func(t *testing.T) {
+		sd := mock_sciond.NewMockConnector(ctrl)
+		pr := New(sd, Timers{})
+
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+			), nil,
+		)
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(), nil,
+		).AnyTimes()
+		sp, err := pr.Watch(context.Background(), src, dst)
+		xtest.FailOnErr(t, err)
+
+		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+			&sciond.RevReply{Result: sciond.RevUnknown}, nil,
+		)
+		pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+		assert.Len(t, sp.Load().APS, 0, "deletes the path")
+	})
+
+	t.Run("retrieves two paths and revokes an IFID that matches one path", func(t *testing.T) {
+
+		sd := mock_sciond.NewMockConnector(ctrl)
+		pr := New(sd, Timers{})
+
+		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+			buildSDAnswer(
+				"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+				"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
+			), nil,
+		)
+		sp, err := pr.Watch(context.Background(), src, dst)
+		xtest.FailOnErr(t, err)
+
+		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+			&sciond.RevReply{Result: sciond.RevValid}, nil,
+		)
+		pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+		assert.Len(t, sp.Load().APS, 1, "leaves one path remaining")
+	})
+
 }
 
 func newTestRev(t *testing.T, rev string) *path_mgmt.SignedRevInfo {
