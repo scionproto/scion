@@ -493,12 +493,13 @@ func (e *executor) InsertRevocation(ctx context.Context,
 func containsNewerRev(ctx context.Context, tx *sql.Tx,
 	revInfo *path_mgmt.RevInfo) (bool, error) {
 
+	var one int
 	query := `
 	SELECT 1 FROM Revocations
 	WHERE IsdID = ? AND AsID = ? AND IntfID = ? AND IssuingTime > ?
 	`
 	err := tx.QueryRowContext(ctx, query, revInfo.IA().I, revInfo.IA().A,
-		revInfo.IfID, revInfo.RawTimestamp).Scan()
+		revInfo.IfID, revInfo.RawTimestamp).Scan(&one)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
