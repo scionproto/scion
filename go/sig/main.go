@@ -34,9 +34,8 @@ import (
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/disp"
+	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/egress/asmap"
-	"github.com/scionproto/scion/go/sig/egress/iface"
-	"github.com/scionproto/scion/go/sig/egress/reader"
 	"github.com/scionproto/scion/go/sig/ingress"
 	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/metrics"
@@ -99,8 +98,13 @@ func realMain() int {
 		log.Crit("Unable to load sig config on startup")
 		return 1
 	}
-	setupEgress(tunIO)
-	setupIngress(tunIO)
+	// Reply to probes from other SIGs.
+	go func() {
+		defer log.LogPanicAndExit()
+		base.PollReqHdlr()
+	}()
+	egress.Init(tunIO)
+	ingress.Init(tunIO)
 	cfg.Metrics.StartPrometheus()
 	select {
 	case <-fatal.ShutdownChan():
@@ -165,30 +169,6 @@ func setupTun() (io.ReadWriteCloser, error) {
 	caps.Clear(capability.CAPS)
 	caps.Apply(capability.CAPS)
 	return tunIO, nil
-}
-
-func setupEgress(tunIO io.ReadWriteCloser) {
-	iface.Init()
-	go func() {
-		defer log.LogPanicAndExit()
-		base.PollReqHdlr()
-	}()
-	// Spawn egress reader
-	go func() {
-		defer log.LogPanicAndExit()
-		reader.NewReader(tunIO).Run()
-	}()
-}
-
-func setupIngress(tunIO io.ReadWriteCloser) {
-	d := ingress.NewDispatcher(tunIO)
-	go func() {
-		defer log.LogPanicAndExit()
-		if err := d.Run(); err != nil {
-			log.Crit("Ingress dispatcher error", "err", err)
-			fatal.Fatal(err)
-		}
-	}()
 }
 
 func checkPerms() error {
