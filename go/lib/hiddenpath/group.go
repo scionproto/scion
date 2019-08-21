@@ -35,7 +35,7 @@ const (
 
 // Validation errors
 const (
-	// MissingGroupID indicates a missing GroupId
+	// MissingGroupId indicates a missing GroupId
 	MissingGroupId = "Missing GroupId"
 	// InvalidVersion indicates a missing version
 	InvalidVersion = "Invalid version"
@@ -54,7 +54,7 @@ type GroupId struct {
 	Suffix  uint16
 }
 
-func (id *GroupId) String() string {
+func (id GroupId) String() string {
 	return fmt.Sprintf("%s-%x", id.OwnerAS, id.Suffix)
 }
 

@@ -92,7 +92,7 @@ func TestHPRegistrationFromYaml(t *testing.T) {
 		modified := strings.Replace(string(b), "ff00:0:110-69b5", "ff00:0:0-0", 1)
 		_, err = beacon.ParseHPRegYaml([]byte(modified))
 		assert.EqualError(t, err,
-			`Policy references unavailable Group GroupId="{ff00:0:110 27061}"`)
+			`Policy references unavailable Group GroupId="ff00:0:110-69b5"`)
 	})
 
 	t.Run("Load wrong group", func(t *testing.T) {
@@ -102,6 +102,6 @@ func TestHPRegistrationFromYaml(t *testing.T) {
 		modified := strings.Replace(string(b), "ff00_0_110-69b5", "ffaa_0_222-abcd", 1)
 		_, err = beacon.ParseHPRegYaml([]byte(modified))
 		assert.EqualError(t, err, `GroupId key doesn't match loaded `+
-			`HPGroup key="{ff00:0:110 27061}" loaded="{ffaa:0:222 43981}"`)
+			`HPGroup key="ff00:0:110-69b5" loaded="ffaa:0:222-abcd"`)
 	})
 }
