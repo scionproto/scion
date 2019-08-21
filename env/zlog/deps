@@ -9,7 +9,7 @@ BASE=$(dirname "$0")
 
 tmpdir=$(mktemp -d /tmp/zlog.XXXXXXX)
 cd "${tmpdir:?}"
-curl -L $CURL_PARAM https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1
+curl -sSL $CURL_PARAM https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1
 make -sj6
 echo "ldconfig" >> postinstall-pak
 echo "ldconfig" >> postremove-pak
