@@ -97,8 +97,8 @@ func TestASVerifierVerify(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			as := newASCert()
-			issuer := newIssuerCert()
+			as := newASCert(time.Now())
+			issuer := newIssuerCert(time.Now())
 			pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 			require.NoError(t, err)
 
@@ -213,7 +213,7 @@ func TestIssuerVerifierVerify(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			issuer := newIssuerCert()
+			issuer := newIssuerCert(time.Now())
 			pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 			require.NoError(t, err)
 			trc_ := trc.TRC{

@@ -16,6 +16,7 @@ package trc_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -179,7 +180,7 @@ func TestUpdateVerifierVerify(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			next, prev := newRegularUpdate()
+			next, prev := newRegularUpdate(time.Now())
 			meta := next.PrimaryASes[a110].Keys[trc.OnlineKey]
 			meta.KeyVersion += 1
 			next.PrimaryASes[a110].Keys[trc.OnlineKey] = meta

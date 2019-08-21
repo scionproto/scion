@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -103,7 +104,7 @@ func TestASUnmarshalJSON(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			g := newGenASCert()
+			expected, g := newGenASCert(time.Now())
 			test.Modify(g)
 			b, err := json.Marshal(g)
 			require.NoError(t, err)
@@ -111,7 +112,6 @@ func TestASUnmarshalJSON(t *testing.T) {
 			err = json.Unmarshal(b, &as)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
-				expected := newASCert()
 				if test.ModifyExpected != nil {
 					test.ModifyExpected(&expected)
 				}
@@ -221,8 +221,8 @@ func TestTypeASMarshalSameASString(t *testing.T) {
 	assert.Equal(t, cert.TypeASJSON, strings.Trim(string(b), `"`))
 }
 
-func newGenASCert() *genCert {
-	c := newASCert()
+func newGenASCert(now time.Time) (cert.AS, *genCert) {
+	c := newASCert(now)
 	g := &genCert{
 		Subject:         &c.Subject,
 		Version:         &c.Version,
@@ -237,12 +237,12 @@ func newGenASCert() *genCert {
 		"ia":                  c.Issuer.IA,
 		"certificate_version": c.Issuer.CertificateVersion,
 	}
-	return g
+	return c, g
 }
 
-func newASCert() cert.AS {
+func newASCert(now time.Time) cert.AS {
 	c := cert.AS{
-		Base: newBaseCert(),
+		Base: newBaseCert(now),
 		Issuer: cert.IssuerCertID{
 			IA:                 ia110,
 			CertificateVersion: 2,

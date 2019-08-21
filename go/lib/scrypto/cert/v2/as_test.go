@@ -16,6 +16,7 @@ package cert_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,7 +85,7 @@ func TestASValidate(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			c := newASCert()
+			c := newASCert(time.Now())
 			test.Modify(&c)
 			err := c.Validate()
 			if test.ExpectedErrMsg == "" {

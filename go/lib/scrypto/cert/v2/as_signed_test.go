@@ -16,6 +16,7 @@ package cert_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,7 +43,7 @@ func TestEncodeAS(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			base := newASCert()
+			base := newASCert(time.Now())
 			test.Modify(&base)
 			packed, err := cert.EncodeAS(&base)
 			test.Assertion(t, err)
@@ -57,7 +58,7 @@ func TestEncodeAS(t *testing.T) {
 }
 
 func TestEncodedASDecode(t *testing.T) {
-	base := newASCert()
+	base := newASCert(time.Now())
 	valid, err := cert.EncodeAS(&base)
 	require.NoError(t, err)
 
