@@ -82,7 +82,7 @@ func (gi *GroupInfo) GetRegistryMapping(ids []hiddenpath.GroupId) (
 }
 
 // CheckIds checks that the provided Ids do not contain duplicates,
-// have at least one Registry and that all ids are known to the HPS.
+// have at least one Registry and that all Ids are known to the HPS.
 func (gi *GroupInfo) CheckIds(ids []hiddenpath.GroupId) error {
 	seen := make(map[hiddenpath.GroupId]struct{}, len(ids))
 	for _, id := range ids {
