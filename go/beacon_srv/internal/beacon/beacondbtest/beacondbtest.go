@@ -94,7 +94,7 @@ type Testable interface {
 // An implementation of the BeaconDB interface should at least have one test method that calls
 // this test-suite. The calling test code should have a top level Convey block.
 func Test(t *testing.T, db Testable) {
-	testWrapper2 := func(test func(*testing.T, *gomock.Controller,
+	testWrapper := func(test func(*testing.T, *gomock.Controller,
 		beacon.DBReadWrite)) func(t *testing.T) {
 
 		return func(t *testing.T) {
@@ -112,28 +112,28 @@ func Test(t *testing.T, db Testable) {
 		}
 	}
 	t.Run("BeaconSources should report all sources",
-		testWrapper2(testBeaconSources))
+		testWrapper(testBeaconSources))
 	t.Run("InsertBeacon should correctly insert a new beacon",
-		testWrapper2(testInsertBeacon))
+		testWrapper(testInsertBeacon))
 	t.Run("InsertBeacon should correctly update a new beacon",
-		testWrapper2(testUpdateExisting))
+		testWrapper(testUpdateExisting))
 	t.Run("InsertBeacon should correctly ignore an older beacon",
-		testWrapper2(testUpdateOlderIgnored))
+		testWrapper(testUpdateOlderIgnored))
 	t.Run("CandidateBeacons returns the expected beacons",
 		tableWrapper(false, testCandidateBeacons))
 	t.Run("DeleteExpired should delete expired segments",
-		testWrapper2(testDeleteExpiredBeacons))
+		testWrapper(testDeleteExpiredBeacons))
 	t.Run("DeleteRevokedBeacons",
 		tableWrapper(false, testDeleteRevokedBeacons))
 	t.Run("AllRevocations",
 		tableWrapper(false, testAllRevocations))
 	t.Run("InsertRevocation updates existing rev",
-		testWrapper2(testInsertUpdateRevocation))
+		testWrapper(testInsertUpdateRevocation))
 	t.Run("DeleteRevocations should delete revocations",
 		tableWrapper(false, testDeleteRevocation2))
 	t.Run("DeleteExpiredRevocations should delete expired revocations",
-		testWrapper2(testDeleteExpiredRevocations))
-	txTestWrapper2 := func(test func(*testing.T, *gomock.Controller,
+		testWrapper(testDeleteExpiredRevocations))
+	txTestWrapper := func(test func(*testing.T, *gomock.Controller,
 		beacon.DBReadWrite)) func(t *testing.T) {
 
 		return func(t *testing.T) {
@@ -151,27 +151,27 @@ func Test(t *testing.T, db Testable) {
 	}
 	t.Run("WithTransaction", func(t *testing.T) {
 		t.Run("BeaconSources should report all sources",
-			txTestWrapper2(testBeaconSources))
+			txTestWrapper(testBeaconSources))
 		t.Run("InsertBeacon should correctly insert a new beacon",
-			txTestWrapper2(testInsertBeacon))
+			txTestWrapper(testInsertBeacon))
 		t.Run("InsertBeacon should correctly update a new beacon",
-			txTestWrapper2(testUpdateExisting))
+			txTestWrapper(testUpdateExisting))
 		t.Run("InsertBeacon should correctly ignore an older beacon",
-			txTestWrapper2(testUpdateOlderIgnored))
+			txTestWrapper(testUpdateOlderIgnored))
 		t.Run("CandidateBeacons returns the expected beacons",
 			tableWrapper(true, testCandidateBeacons))
 		t.Run("DeleteExpired should delete expired segments",
-			txTestWrapper2(testDeleteExpiredBeacons))
+			txTestWrapper(testDeleteExpiredBeacons))
 		t.Run("DeleteRevokedBeacons",
 			tableWrapper(true, testDeleteRevokedBeacons))
 		t.Run("AllRevocations",
 			tableWrapper(true, testAllRevocations))
 		t.Run("InsertRevocation updates existing rev",
-			txTestWrapper2(testInsertUpdateRevocation))
+			txTestWrapper(testInsertUpdateRevocation))
 		t.Run("DeleteRevocations should delete revocations",
 			tableWrapper(true, testDeleteRevocation2))
 		t.Run("DeleteExpiredRevocations should delete expired revocations",
-			txTestWrapper2(testDeleteExpiredRevocations))
+			txTestWrapper(testDeleteExpiredRevocations))
 		t.Run("Test transaction rollback", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -190,9 +190,8 @@ func testBeaconSources(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWr
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	ias, err := db.BeaconSources(ctx)
-	if assert.NoError(t, err) {
-		assert.ElementsMatch(t, []addr.IA{ia311, ia330}, ias)
-	}
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []addr.IA{ia311, ia330}, ias)
 }
 
 func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
@@ -202,15 +201,11 @@ func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWri
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	inserted, err := db.InsertBeacon(ctx, b, beacon.UsageProp)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.Equal(t, 1, inserted)
 	// Fetch the candidate beacons
 	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	// There should only be one candidate beacon, and it should match the inserted.
 	CheckResult(t, results, b)
 	for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
