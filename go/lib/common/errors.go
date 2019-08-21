@@ -146,6 +146,24 @@ func (be BasicError) GetErr() error {
 	return be.Err
 }
 
+// MultiError is a slice of errors
+type MultiError []error
+
+// ToError returns the object as error interface implementation.
+func (be MultiError) ToError() error {
+	if len(be) == 0 {
+		return nil
+	}
+	return multiError(be)
+}
+
+// multiError is the internal error interface implementation of MultiError.
+type multiError []error
+
+func (be multiError) Error() string {
+	return FmtErrors(be)
+}
+
 // FmtError formats e for logging. It walks through all nested errors, putting each on a new line,
 // and indenting multi-line errors.
 func FmtError(e error) string {

@@ -72,12 +72,12 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs) {
 func processCtrl() {
 	b := make(common.RawBytes, maxBufSize)
 	for {
-		pktLen, _, err := snetConn.ReadFromSCION(b)
+		pktLen, src, err := snetConn.ReadFromSCION(b)
 		if err != nil {
 			fatal.Fatal(common.NewBasicError("Reading packet", err))
 		}
 		if err = processCtrlFromRaw(b[:pktLen]); err != nil {
-			logger.Error("Processing ctrl pld", "err", err)
+			logger.Error("Processing ctrl pld", "src", src, "err", err)
 			continue
 		}
 	}
@@ -99,9 +99,11 @@ func processCtrlFromRaw(b common.RawBytes) error {
 	}
 	switch pld := u.(type) {
 	case *path_mgmt.Pld:
-		return processPathMgmtSelf(pld)
+		err = processPathMgmtSelf(pld)
+	default:
+		err = common.NewBasicError("Unsupported control payload", nil, "type", common.TypeOf(pld))
 	}
-	return common.NewBasicError("Unsupported control payload", nil, "type", common.TypeOf(cPld))
+	return err
 }
 
 // processPathMgmtSelf handles Path Management SCION control messages.
@@ -114,8 +116,7 @@ func processPathMgmtSelf(p *path_mgmt.Pld) error {
 	case *path_mgmt.IFStateInfos:
 		ifstate.Process(pld)
 	default:
-		return common.NewBasicError("Unsupported PathMgmt payload", nil,
-			"type", common.TypeOf(pld))
+		err = common.NewBasicError("Unsupported PathMgmt payload", nil, "type", common.TypeOf(pld))
 	}
-	return nil
+	return err
 }

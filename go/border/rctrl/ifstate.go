@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -41,26 +42,25 @@ const (
 func ifStateUpdate() {
 	genIFStateReq()
 	for range time.Tick(ifStateFreq) {
-		genIFStateReq()
+		if err := genIFStateReq(); err != nil {
+			logger.Error(err.Error(), nil)
+		}
 	}
 }
 
 // genIFStateReq generates an Interface State request packet to the local beacon service.
-func genIFStateReq() {
+func genIFStateReq() error {
 	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{}, nil, nil)
 	if err != nil {
-		logger.Error("Generating IFStateReq Ctrl payload", "err", err)
-		return
+		return common.NewBasicError("Generating IFStateReq Ctrl payload", err)
 	}
 	scpld, err := cpld.SignedPld(infra.NullSigner)
 	if err != nil {
-		logger.Error("Generating IFStateReq signed Ctrl payload", "err", err)
-		return
+		return common.NewBasicError("Generating IFStateReq signed Ctrl payload", err)
 	}
 	pld, err := scpld.PackPld()
 	if err != nil {
-		logger.Error("Writing IFStateReq signed Ctrl payload", "err", err)
-		return
+		return common.NewBasicError("Writing IFStateReq signed Ctrl payload", err)
 	}
 	dst := &snet.Addr{
 		IA:   ia,
@@ -68,15 +68,17 @@ func genIFStateReq() {
 	}
 	bsAddrs, err := rctx.Get().ResolveSVCMulti(addr.SvcBS)
 	if err != nil {
-		logger.Error("Resolving SVC BS multicast", "err", err)
-		return
+		return common.NewBasicError("Resolving SVC BS multicast", err)
 	}
+
+	var errors common.MultiError
 	for _, addr := range bsAddrs {
 		dst.NextHop = addr
 		if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
-			logger.Error("Writing IFStateReq", "dst", dst, "err", err)
+			errors = append(errors, common.NewBasicError("Writing IFStateReq", err, "dst", dst))
 			continue
 		}
 		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", addr)
 	}
+	return errors.ToError()
 }
