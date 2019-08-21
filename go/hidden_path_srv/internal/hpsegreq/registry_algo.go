@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package hpsegreq
 
 import (
 	"github.com/scionproto/scion/go/lib/addr"
@@ -20,39 +20,47 @@ import (
 	"github.com/scionproto/scion/go/lib/hiddenpath"
 )
 
+// GroupInfo holds all information about hidden path groups needed by the HPS
+// throughout its life cycle
+type GroupInfo struct {
+	LocalRegistry addr.IA
+	Groups        map[hiddenpath.GroupId]*hiddenpath.Group
+}
+
 // GetRegistryMapping uses a greedy algorithm to approximate an optimal mapping
 // from Registries to GroupIds such that all local Groups are mapped to the local
 // Registry and the remaining Groups are mapped to a small number of remote Registries.
 // The algorithm runs in O(Registries*Groups^2) and is at most ln(Groups)+1 times worse
 // than an optimal solution.
-func GetRegistryMapping(groups []*hiddenpath.Group, localIA addr.IA) (
+func (gi *GroupInfo) GetRegistryMapping(ids []hiddenpath.GroupId) (
 	map[addr.IA][]hiddenpath.GroupId, error) {
 
-	if err := findDuplicates(groups); err != nil {
+	if err := gi.CheckIds(ids); err != nil {
 		return nil, err
 	}
-	all := len(groups)
-	count := 0
+	groups := make([]*hiddenpath.Group, 0, len(ids))
+	for _, id := range ids {
+		groups = append(groups, gi.Groups[id])
+	}
 	mapping := map[addr.IA][]hiddenpath.GroupId{}
-	covered := map[hiddenpath.GroupId]bool{}
-	// prioritize local Registries
-	for _, g := range groups {
-		if g.HasRegistry(localIA) {
-			mapping[localIA] = append(mapping[localIA], g.Id)
-			covered[g.Id] = true
+	l := len(groups)
+	for i := 0; i < l; {
+		if groups[i].HasRegistry(gi.LocalRegistry) {
+			mapping[gi.LocalRegistry] = append(mapping[gi.LocalRegistry], groups[i].Id)
+			groups[i] = groups[len(groups)-1]
+			groups = groups[:len(groups)-1]
+			l--
+		} else {
+			i++
 		}
 	}
-	count += len(mapping[localIA])
-	for count < all {
+	covered := make(map[hiddenpath.GroupId]struct{}, len(groups))
+	for len(covered) < len(groups) {
 		bestReg := addr.IA{}
 		cover := map[addr.IA][]hiddenpath.GroupId{}
 		// find Registry that can answer the most queries
 		for _, g := range groups {
-			if len(g.Registries) == 0 {
-				return nil, common.NewBasicError("Group does not have any Registries",
-					nil, "group", g.Id)
-			}
-			if covered[g.Id] {
+			if _, ok := covered[g.Id]; ok {
 				// this group is already covered and should not increase the counter
 				continue
 			}
@@ -67,21 +75,31 @@ func GetRegistryMapping(groups []*hiddenpath.Group, localIA addr.IA) (
 		// add this registry to the mapping and mark all its Ids as covered
 		mapping[bestReg] = cover[bestReg]
 		for _, g := range cover[bestReg] {
-			covered[g] = true
+			covered[g] = struct{}{}
 		}
-		count += len(cover[bestReg])
 	}
 	return mapping, nil
 }
 
-func findDuplicates(groups []*hiddenpath.Group) error {
-	var seen = map[hiddenpath.GroupId]bool{}
-	for _, g := range groups {
-		if seen[g.Id] {
-			return common.NewBasicError("Provided Groups contain duplicates",
-				nil, "group", g.Id)
+// CheckIds checks that the provided Ids do not contain duplicates,
+// have at least one Registry and that all ids are known to the HPS.
+func (gi *GroupInfo) CheckIds(ids []hiddenpath.GroupId) error {
+	seen := make(map[hiddenpath.GroupId]struct{}, len(ids))
+	for _, id := range ids {
+		group, ok := gi.Groups[id]
+		if !ok {
+			return common.NewBasicError("Unknown group",
+				nil, "group", id)
 		}
-		seen[g.Id] = true
+		if len(group.Registries) == 0 {
+			return common.NewBasicError("Group does not have any Registries",
+				nil, "group", id)
+		}
+		if _, ok := seen[id]; ok {
+			return common.NewBasicError("Provided Groups contain duplicates",
+				nil, "group", id)
+		}
+		seen[id] = struct{}{}
 	}
 	return nil
 }
