@@ -186,9 +186,9 @@ func innerFmtError(e error) ([]string, error) {
 
 // FmtErrors formats a slice of errors for logging.
 func FmtErrors(es []error) string {
-	s := make([]string, 0)
-	for _, e := range es {
-		s = append(s, e.Error())
+	s := make([]string, len(es))
+	for i, e := range es {
+		s[i] = e.Error()
 	}
 	return strings.Join(s, "\n")
 }
