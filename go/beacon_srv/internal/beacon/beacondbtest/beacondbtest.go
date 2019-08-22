@@ -80,7 +80,7 @@ var (
 		},
 	}
 
-	timeout = time.Second
+	timeout = 3 * time.Second
 )
 
 // Testable extends the beacon db interface with methods that are needed for testing.
@@ -100,7 +100,7 @@ func Test(t *testing.T, db Testable) {
 		return func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			prepareCtx, cancelF := context.WithTimeout(context.Background(), 2*timeout)
+			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
 			db.Prepare(t, prepareCtx)
 			test(t, ctrl, db)
