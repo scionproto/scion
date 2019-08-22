@@ -145,7 +145,7 @@ func TestTRCValidateInvariant(t *testing.T) {
 }
 
 func newBaseTRC(notBefore time.Time) *trc.TRC {
-	now := notBefore.Round(time.Second)
+	now := notBefore.Truncate(time.Second)
 	quorum := uint8(3)
 	trustResetAllowed := true
 	t := &trc.TRC{

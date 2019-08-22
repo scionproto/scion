@@ -82,7 +82,7 @@ func TestBaseValidate(t *testing.T) {
 }
 
 func newBaseCert(notBefore time.Time) cert.Base {
-	now := notBefore.Round(time.Second)
+	now := notBefore.Truncate(time.Second)
 	c := cert.Base{
 		Subject:       ia110,
 		Version:       1,
