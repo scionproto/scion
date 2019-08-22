@@ -28,20 +28,13 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestUpdateVerifierVerify(t *testing.T) {
+type verifyTestCase struct {
+	Modify         func(*testing.T, *[]trc.Signature)
+	ExpectedErrMsg string
+}
 
-	recodeProtected := func(t *testing.T, sig *trc.Signature, modify func(*trc.Protected)) {
-		p, err := sig.EncodedProtected.Decode()
-		require.NoError(t, err)
-		modify(&p)
-		sig.EncodedProtected, err = trc.EncodeProtected(p)
-		require.NoError(t, err)
-	}
-
-	tests := map[string]struct {
-		Modify         func(*testing.T, *[]trc.Signature)
-		ExpectedErrMsg string
-	}{
+var (
+	verifySimpleTests = map[string]verifyTestCase{
 		"Valid update": {
 			Modify: func(_ *testing.T, _ *[]trc.Signature) {},
 		},
@@ -51,25 +44,9 @@ func TestUpdateVerifierVerify(t *testing.T) {
 			},
 			ExpectedErrMsg: "illegal base64 data",
 		},
-		"Unexpected vote signature": {
-			Modify: func(t *testing.T, sigs *[]trc.Signature) {
-				protected := trc.Protected{
-					Algorithm:  scrypto.Ed25519,
-					Type:       trc.VoteSignature,
-					KeyType:    trc.OnlineKey,
-					KeyVersion: 1,
-					AS:         a190,
-				}
-				encProtected, err := trc.EncodeProtected(protected)
-				require.NoError(t, err)
-				*sigs = append(*sigs, trc.Signature{
-					EncodedProtected: encProtected,
-					Signature: xtest.MustParseHexString("e2a08be2a081e2a085e2a0912" +
-						"0e2a08ee2a08ae2a09be2a09de2a081e2a09ee2a0a5e2a097e2a091"),
-				})
-			},
-			ExpectedErrMsg: trc.UnexpectedVoteSignature,
-		},
+	}
+
+	verifyPOPTests = map[string]verifyTestCase{
 		"Unexpected proof of possession signature": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				protected := trc.Protected{
@@ -89,13 +66,6 @@ func TestUpdateVerifierVerify(t *testing.T) {
 			},
 			ExpectedErrMsg: trc.UnexpectedPOPSignature,
 		},
-		"Duplicate vote": {
-			Modify: func(t *testing.T, sigs *[]trc.Signature) {
-				i := findSignature(t, *sigs, a110, trc.VoteSignature)
-				*sigs = append((*sigs), (*sigs)[i])
-			},
-			ExpectedErrMsg: trc.DuplicateVoteSignature,
-		},
 		"Duplicate proof of possession": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				i := findSignature(t, *sigs, a110, trc.POPSignature)
@@ -103,19 +73,74 @@ func TestUpdateVerifierVerify(t *testing.T) {
 			},
 			ExpectedErrMsg: trc.DuplicatePOPSignature,
 		},
-		"Missing vote": {
-			Modify: func(t *testing.T, sigs *[]trc.Signature) {
-				i := findSignature(t, *sigs, a110, trc.VoteSignature)
-				*sigs = append((*sigs)[:i], (*sigs)[i+1:]...)
-			},
-			ExpectedErrMsg: trc.MissingVoteSignature,
-		},
 		"Missing proof of possession": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				i := findSignature(t, *sigs, a110, trc.POPSignature)
 				*sigs = append((*sigs)[:i], (*sigs)[i+1:]...)
 			},
 			ExpectedErrMsg: trc.MissingPOPSignature,
+		},
+		"Proof of possession wrong Algorithm": {
+			Modify: func(t *testing.T, sigs *[]trc.Signature) {
+				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.POPSignature)]
+				recodeProtected(t, sig, func(p *trc.Protected) {
+					p.Algorithm = "invalid"
+				})
+			},
+			ExpectedErrMsg: trc.InvalidProtected,
+		},
+		// A wrong KeyType would be caught by a previous check.
+		"Proof of possession wrong KeyVersion": {
+			Modify: func(t *testing.T, sigs *[]trc.Signature) {
+				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.POPSignature)]
+				recodeProtected(t, sig, func(p *trc.Protected) {
+					p.KeyVersion += 1
+				})
+			},
+			ExpectedErrMsg: trc.InvalidProtected,
+		},
+		"Mangled proof of possession signature": {
+			Modify: func(t *testing.T, sigs *[]trc.Signature) {
+				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.POPSignature)]
+				sig.Signature[0] ^= 0xFF
+			},
+			ExpectedErrMsg: trc.POPVerificationError,
+		},
+	}
+
+	verifyVoteTests = map[string]verifyTestCase{
+		"Unexpected vote signature": {
+			Modify: func(t *testing.T, sigs *[]trc.Signature) {
+				protected := trc.Protected{
+					Algorithm:  scrypto.Ed25519,
+					Type:       trc.VoteSignature,
+					KeyType:    trc.OnlineKey,
+					KeyVersion: 1,
+					AS:         a190,
+				}
+				encProtected, err := trc.EncodeProtected(protected)
+				require.NoError(t, err)
+				*sigs = append(*sigs, trc.Signature{
+					EncodedProtected: encProtected,
+					Signature: xtest.MustParseHexString("e2a08be2a081e2a085e2a0912" +
+						"0e2a08ee2a08ae2a09be2a09de2a081e2a09ee2a0a5e2a097e2a091"),
+				})
+			},
+			ExpectedErrMsg: trc.UnexpectedVoteSignature,
+		},
+		"Duplicate vote": {
+			Modify: func(t *testing.T, sigs *[]trc.Signature) {
+				i := findSignature(t, *sigs, a110, trc.VoteSignature)
+				*sigs = append((*sigs), (*sigs)[i])
+			},
+			ExpectedErrMsg: trc.DuplicateVoteSignature,
+		},
+		"Missing vote": {
+			Modify: func(t *testing.T, sigs *[]trc.Signature) {
+				i := findSignature(t, *sigs, a110, trc.VoteSignature)
+				*sigs = append((*sigs)[:i], (*sigs)[i+1:]...)
+			},
+			ExpectedErrMsg: trc.MissingVoteSignature,
 		},
 		"Vote wrong Algorithm": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
@@ -144,25 +169,6 @@ func TestUpdateVerifierVerify(t *testing.T) {
 			},
 			ExpectedErrMsg: trc.InvalidProtected,
 		},
-		"Proof of possession wrong Algorithm": {
-			Modify: func(t *testing.T, sigs *[]trc.Signature) {
-				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.POPSignature)]
-				recodeProtected(t, sig, func(p *trc.Protected) {
-					p.Algorithm = "invalid"
-				})
-			},
-			ExpectedErrMsg: trc.InvalidProtected,
-		},
-		// A wrong KeyType would be caught by a previous check.
-		"Proof of possession wrong KeyVersion": {
-			Modify: func(t *testing.T, sigs *[]trc.Signature) {
-				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.POPSignature)]
-				recodeProtected(t, sig, func(p *trc.Protected) {
-					p.KeyVersion += 1
-				})
-			},
-			ExpectedErrMsg: trc.InvalidProtected,
-		},
 		"Mangled Vote signature": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.VoteSignature)]
@@ -170,48 +176,26 @@ func TestUpdateVerifierVerify(t *testing.T) {
 			},
 			ExpectedErrMsg: trc.VoteVerificationError,
 		},
-		"Mangled proof of possession signature": {
-			Modify: func(t *testing.T, sigs *[]trc.Signature) {
-				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.POPSignature)]
-				sig.Signature[0] ^= 0xFF
-			},
-			ExpectedErrMsg: trc.POPVerificationError,
-		},
 	}
+)
+
+func TestUpdateVerifierVerify(t *testing.T) {
+	tests := union(
+		verifySimpleTests,
+		verifyVoteTests,
+		verifyPOPTests,
+	)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			next, prev := newRegularUpdate(time.Now())
-			meta := next.PrimaryASes[a110].Keys[trc.OnlineKey]
-			meta.KeyVersion += 1
-			next.PrimaryASes[a110].Keys[trc.OnlineKey] = meta
-			next.ProofOfPossession[a110] = append(next.ProofOfPossession[a110], trc.OnlineKey)
-			vote := next.Votes[a110]
-			vote.KeyType = trc.OfflineKey
-			next.Votes[a110] = vote
-
-			meta = next.PrimaryASes[a130].Keys[trc.IssuingKey]
-			meta.KeyVersion += 1
-			next.PrimaryASes[a130].Keys[trc.IssuingKey] = meta
-			next.ProofOfPossession[a130] = append(next.ProofOfPossession[a130], trc.IssuingKey)
-
-			nextKeys, prevKeys := generateKeys(t, next, prev)
-			signed := signTRC(t, next, prev, nextKeys, prevKeys)
-			test.Modify(t, &(signed.Signatures))
-
-			u := trc.UpdateValidator{
-				Prev: prev,
-				Next: next,
-			}
-			_, err := u.Validate()
-			require.NoError(t, err)
-
+			vt := newVerifyTestTRC(t, time.Now())
+			prepareVerifyTest(t, &vt, test.Modify)
 			v := trc.UpdateVerifier{
-				Prev:        prev,
-				Next:        next,
-				NextEncoded: signed.EncodedTRC,
-				Signatures:  signed.Signatures,
+				Prev:        vt.Prev,
+				Next:        vt.Next,
+				NextEncoded: vt.Signed.EncodedTRC,
+				Signatures:  vt.Signed.Signatures,
 			}
-			err = v.Verify()
+			err := v.Verify()
 			if test.ExpectedErrMsg == "" {
 				assert.NoError(t, err)
 			} else {
@@ -219,6 +203,75 @@ func TestUpdateVerifierVerify(t *testing.T) {
 				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 			}
 		})
+	}
+}
+
+func TestPOPVerifierVerify(t *testing.T) {
+	tests := union(
+		verifySimpleTests,
+		verifyPOPTests,
+	)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			vt := newVerifyTestTRC(t, time.Now())
+			prepareVerifyTest(t, &vt, test.Modify)
+			v := trc.POPVerifier{
+				TRC:        vt.Next,
+				Encoded:    vt.Signed.EncodedTRC,
+				Signatures: vt.Signed.Signatures,
+			}
+			err := v.Verify()
+			if test.ExpectedErrMsg == "" {
+				assert.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
+			}
+		})
+	}
+}
+
+func prepareVerifyTest(t *testing.T, vt *verifyTestTRC, modify func(*testing.T, *[]trc.Signature)) {
+	modify(t, &(vt.Signed.Signatures))
+	u := trc.UpdateValidator{
+		Prev: vt.Prev,
+		Next: vt.Next,
+	}
+	_, err := u.Validate()
+	require.NoError(t, err)
+}
+
+type verifyTestTRC struct {
+	Prev     *trc.TRC
+	Next     *trc.TRC
+	PrevKeys map[addr.AS]map[trc.KeyType][]byte
+	NextKeys map[addr.AS]map[trc.KeyType][]byte
+	Signed   trc.Signed
+}
+
+func newVerifyTestTRC(t *testing.T, now time.Time) verifyTestTRC {
+	next, prev := newRegularUpdate(now)
+	meta := next.PrimaryASes[a110].Keys[trc.OnlineKey]
+	meta.KeyVersion += 1
+	next.PrimaryASes[a110].Keys[trc.OnlineKey] = meta
+	next.ProofOfPossession[a110] = append(next.ProofOfPossession[a110], trc.OnlineKey)
+	vote := next.Votes[a110]
+	vote.KeyType = trc.OfflineKey
+	next.Votes[a110] = vote
+
+	meta = next.PrimaryASes[a130].Keys[trc.IssuingKey]
+	meta.KeyVersion += 1
+	next.PrimaryASes[a130].Keys[trc.IssuingKey] = meta
+	next.ProofOfPossession[a130] = append(next.ProofOfPossession[a130], trc.IssuingKey)
+
+	nextKeys, prevKeys := generateKeys(t, next, prev)
+	signed := signTRC(t, next, prev, nextKeys, prevKeys)
+	return verifyTestTRC{
+		Prev:     prev,
+		Next:     next,
+		PrevKeys: prevKeys,
+		NextKeys: nextKeys,
+		Signed:   signed,
 	}
 }
 
@@ -231,6 +284,14 @@ func findSignature(t *testing.T, sigs []trc.Signature, as addr.AS, sigType trc.S
 		}
 	}
 	return -1
+}
+
+func recodeProtected(t *testing.T, sig *trc.Signature, modify func(*trc.Protected)) {
+	p, err := sig.EncodedProtected.Decode()
+	require.NoError(t, err)
+	modify(&p)
+	sig.EncodedProtected, err = trc.EncodeProtected(p)
+	require.NoError(t, err)
 }
 
 func generateKeys(t *testing.T, next, prev *trc.TRC) (map[addr.AS]map[trc.KeyType][]byte,
@@ -321,4 +382,14 @@ func signTRC(t *testing.T, next, prev *trc.TRC, nextKeys,
 		}
 	}
 	return signed
+}
+
+func union(tests ...map[string]verifyTestCase) map[string]verifyTestCase {
+	m := make(map[string]verifyTestCase)
+	for _, test := range tests {
+		for k, v := range test {
+			m[k] = v
+		}
+	}
+	return m
 }
