@@ -89,6 +89,15 @@ func (a *as) gen() error {
 			keyconf.TRCOfflineKeyFile: a.cfg.PrimaryKeyAlgorithms.Offline,
 		})
 	}
+	// Check if out directory exists and if not create it.
+	_, err := os.Stat(a.outDir)
+	if os.IsNotExist(err) {
+		if err = os.MkdirAll(a.outDir, 0700); err != nil {
+			return common.NewBasicError("Cannot create output dir", err)
+		}
+	} else if err != nil {
+		return common.NewBasicError("Error checking output dir", err)
+	}
 	for file, keyType := range keys {
 		if err := a.genKey(file, keyType); err != nil {
 			return err
@@ -106,17 +115,6 @@ func (a *as) genKey(fname, keyType string) error {
 	if privKey == nil {
 		return nil
 	}
-	// Check if out directory exists and if not create it.
-	_, err = os.Stat(a.outDir)
-	if os.IsNotExist(err) {
-		if err = os.MkdirAll(a.outDir, 0700); err != nil {
-			return common.NewBasicError("Cannot create output dir", err, "key", fname)
-		}
-	} else if err != nil {
-		return common.NewBasicError("Error checking output dir", err, "key", fname)
-	}
-	// Generate a fresh public/private key pair based on seed.
-
 	// Write private key to file.
 	privKeyPath := filepath.Join(a.outDir, fname)
 	privKeyEnc := base64.StdEncoding.EncodeToString(privKey)

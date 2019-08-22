@@ -129,10 +129,8 @@ func (a *ASCfg) Validate() error {
 	if err := a.AS.validate(); err != nil {
 		return err
 	}
-	if !a.Issuer.isZero() {
-		if err := a.Issuer.validate(); err != nil {
-			return err
-		}
+	if err := a.Issuer.validate(); err != nil {
+		return err
 	}
 	if a.PrimaryKeyAlgorithms != nil {
 		return a.PrimaryKeyAlgorithms.validate()
@@ -217,6 +215,9 @@ type Issuer struct {
 }
 
 func (c *Issuer) validate() error {
+	if a.Issuer.isZero() {
+		return nil
+	}
 	if err := defaultAndValidateSignAlgorithm(&c.IssuingAlgorithm); err != nil {
 		return common.NewBasicError("invalid IssuingAlgorithm", err)
 	}
