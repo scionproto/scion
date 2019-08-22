@@ -66,7 +66,8 @@ pkg_tar(
     mode = "0755",
 )
 
-# This is a package of tools used for generating code that is checked in to git (i.e. outside of bazels reach).
+# This is a package of tools used for generating code that is checked in
+# to git (i.e. outside of bazels reach).
 pkg_tar(
     name = "build-tools",
     package_dir = "",
