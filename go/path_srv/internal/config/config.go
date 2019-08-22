@@ -37,6 +37,7 @@ var _ config.Config = (*Config)(nil)
 
 type Config struct {
 	General   env.General
+	Features  env.Features
 	Logging   env.Logging
 	Metrics   env.Metrics
 	Tracing   env.Tracing
@@ -49,6 +50,7 @@ type Config struct {
 func (cfg *Config) InitDefaults() {
 	config.InitAll(
 		&cfg.General,
+		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Tracing,
@@ -61,6 +63,7 @@ func (cfg *Config) InitDefaults() {
 func (cfg *Config) Validate() error {
 	return config.ValidateAll(
 		&cfg.General,
+		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.TrustDB,
@@ -72,6 +75,7 @@ func (cfg *Config) Validate() error {
 func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
 		&cfg.General,
+		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Tracing,

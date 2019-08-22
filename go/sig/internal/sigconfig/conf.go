@@ -35,14 +35,16 @@ const (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	Logging env.Logging
-	Metrics env.Metrics
-	Sciond  env.SciondClient `toml:"sd_client"`
-	Sig     SigConf
+	Features env.Features
+	Logging  env.Logging
+	Metrics  env.Metrics
+	Sciond   env.SciondClient `toml:"sd_client"`
+	Sig      SigConf
 }
 
 func (cfg *Config) InitDefaults() {
 	config.InitAll(
+		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Sciond,
@@ -52,6 +54,7 @@ func (cfg *Config) InitDefaults() {
 
 func (cfg *Config) Validate() error {
 	return config.ValidateAll(
+		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Sciond,
@@ -61,6 +64,7 @@ func (cfg *Config) Validate() error {
 
 func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Sciond,

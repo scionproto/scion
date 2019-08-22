@@ -26,10 +26,13 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
-func InitTest(general *env.General, logging *env.Logging,
+func InitTest(general *env.General, features *env.Features, logging *env.Logging,
 	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SciondClient) {
 	if general != nil {
 		InitTestGeneral(general)
+	}
+	if features != nil {
+		InitTestFeatures(features)
 	}
 	if logging != nil {
 		InitTestLogging(logging)
@@ -49,6 +52,11 @@ func InitTestGeneral(cfg *env.General) {
 	cfg.ReconnectToDispatcher = true
 }
 
+func InitTestFeatures(cfg *env.Features) {
+	cfg.TestA = true
+	cfg.TestB = false
+}
+
 func InitTestLogging(cfg *env.Logging) {}
 
 func InitTestMetrics(cfg *env.Metrics) {}
@@ -60,10 +68,13 @@ func InitTestTracing(cfg *env.Tracing) {
 
 func InitTestSciond(cfg *env.SciondClient) {}
 
-func CheckTest(general *env.General, logging *env.Logging,
+func CheckTest(general *env.General, features *env.Features, logging *env.Logging,
 	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SciondClient, id string) {
 	if general != nil {
 		CheckTestGeneral(general, id)
+	}
+	if features != nil {
+		CheckTestFeatures(features)
 	}
 	if logging != nil {
 		CheckTestLogging(logging, id)
@@ -85,6 +96,12 @@ func CheckTestGeneral(cfg *env.General, id string) {
 	SoMsg("Topology correct", cfg.Topology, ShouldEqual,
 		filepath.Join(cfg.ConfigDir, env.DefaultTopologyPath))
 	SoMsg("ReconnectToDispatcher correct", cfg.ReconnectToDispatcher, ShouldBeFalse)
+}
+
+func CheckTestFeatures(cfg *env.Features) {
+	SoMsg("TestA correct", cfg.TestA, ShouldEqual, true)
+	SoMsg("TestB correct", cfg.TestB, ShouldEqual, false)
+	SoMsg("TestC correct", cfg.TestC, ShouldEqual, false)
 }
 
 func CheckTestLogging(cfg *env.Logging, id string) {

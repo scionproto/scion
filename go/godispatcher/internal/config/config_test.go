@@ -42,13 +42,13 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, nil, nil)
+	envtest.InitTest(nil, &cfg.Features, &cfg.Logging, &cfg.Metrics, nil, nil)
 	cfg.Dispatcher.DeleteSocket = true
 	cfg.Dispatcher.PerfData = "Invalid"
 }
 
 func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(nil, &cfg.Logging, &cfg.Metrics, nil, nil, id)
+	envtest.CheckTest(nil, &cfg.Features, &cfg.Logging, &cfg.Metrics, nil, nil, id)
 	SoMsg("ID", cfg.Dispatcher.ID, ShouldEqual, id)
 	SoMsg("ApplicationSocket", cfg.Dispatcher.ApplicationSocket, ShouldEqual,
 		reliable.DefaultDispPath)

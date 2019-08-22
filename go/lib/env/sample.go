@@ -29,6 +29,12 @@ Topology = "/etc/scion/topology.json"
 ReconnectToDispatcher = false
 `
 
+const featuresSample = `
+# Feature flags are various boolean properties as defined in go/lib/env/features.go
+TestA = true
+TestB = false
+`
+
 const sciondClientSample = `
 # The Sciond path. (default sciond.DefaultSCIONDPath)
 Path = "/run/shm/sciond/default.sock"

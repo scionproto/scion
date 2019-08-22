@@ -29,6 +29,7 @@ import (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
+	Features   env.Features
 	Logging    env.Logging
 	Metrics    env.Metrics
 	Dispatcher struct {
@@ -75,6 +76,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		Name: "dispatcher",
 	}
 	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
 		dispSampler,
