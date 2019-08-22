@@ -17,11 +17,10 @@ package hpkt
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/layers"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestExtension(t *testing.T) {
@@ -114,7 +113,6 @@ func TestExtension(t *testing.T) {
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 44},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 45},
 			},
-			ExpectedError: false,
 		},
 		{
 			Description: "too many HBH with SCMP",
@@ -136,14 +134,16 @@ func TestExtension(t *testing.T) {
 			ExpectedError: true,
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				hbh, e2e, err := ValidateExtensions(tc.InputExtensions)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("HBH", hbh, ShouldResemble, tc.ExpectedOutputHBH)
-				SoMsg("E2E", e2e, ShouldResemble, tc.ExpectedOutputE2E)
-			})
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.Description, func(t *testing.T) {
+			hbh, e2e, err := ValidateExtensions(tc.InputExtensions)
+			if tc.ExpectedError == true {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, hbh, tc.ExpectedOutputHBH, "HBH")
+			assert.Equal(t, e2e, tc.ExpectedOutputE2E, "E2E")
+		})
+	}
 }
