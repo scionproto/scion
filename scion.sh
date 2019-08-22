@@ -317,6 +317,13 @@ go_lint() {
     lint_header "go"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
+    # Find go files to lint, excluding generated code. For linelen and misspell.
+    find go -type f -iname '*.go' \
+      -a '!' -ipath 'go/proto/structs.gen.go' \
+      -a '!' -ipath 'go/proto/*.capnp.go' \
+      -a '!' -ipath '*mock_*' \
+      -a '!' -ipath 'go/lib/pathpol/sequence/*' > $TMPDIR/gofiles.list
+
     lint_step "Building lint tools"
     bazel build //:lint || return 1
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
@@ -332,10 +339,10 @@ go_lint() {
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "linelen (lll)"
-    out=$(find go -type f -iname '*.go' -a '!' -ipath 'go/proto/structs.gen.go' -a '!' -ipath 'go/proto/*.capnp.go' -a '!' -ipath '*mock_*' -a '!' -ipath 'go/lib/pathpol/sequence/*' | $TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:');
+    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:' < $TMPDIR/gofiles.list);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "misspell"
-    $TMPDIR/misspell -error $LOCAL_DIRS || ret=1
+    xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error || ret=1
     lint_step "ineffassign"
     $TMPDIR/ineffassign -exclude ineffassign.json go || ret=1
     lint_step "bazel"
