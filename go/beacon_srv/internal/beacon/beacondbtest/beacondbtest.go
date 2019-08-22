@@ -100,7 +100,7 @@ func Test(t *testing.T, db Testable) {
 		return func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
+			prepareCtx, cancelF := context.WithTimeout(context.Background(), 2*timeout)
 			defer cancelF()
 			db.Prepare(t, prepareCtx)
 			test(t, ctrl, db)
@@ -315,7 +315,7 @@ func testCandidateBeacons(t *testing.T, db Testable, inTx bool) {
 				InsertRevocation(t, db, sRev)
 			},
 			// last beacon (info3) is revoked
-			Expected: beacons[:1],
+			Expected: beacons[:2],
 		},
 	}
 	for name, test := range tests {
@@ -665,14 +665,16 @@ func CheckResults(t *testing.T, results <-chan beacon.BeaconOrErr,
 			t.Fatalf("Beacon %d took too long", i)
 		}
 	}
-	assert.Empty(t, results)
+	CheckEmpty(t, "", results, nil)
 }
 
 // CheckEmpty checks that no beacon is in the result channel.
 func CheckEmpty(t *testing.T, name string, results <-chan beacon.BeaconOrErr, err error) {
 	t.Helper()
 	assert.NoError(t, err, name)
-	assert.Empty(t, results, name)
+	res, more := <-results
+	assert.False(t, more)
+	assert.Zero(t, res)
 }
 
 func CheckRevs(t *testing.T, results <-chan beacon.RevocationOrErr,
@@ -691,13 +693,15 @@ func CheckRevs(t *testing.T, results <-chan beacon.RevocationOrErr,
 			t.Fatalf("Rev %d took too long", i)
 		}
 	}
-	assert.Empty(t, results)
+	CheckEmptyRevs(t, results, nil)
 }
 
 func CheckEmptyRevs(t *testing.T, results <-chan beacon.RevocationOrErr, err error) {
 	t.Helper()
 	assert.NoError(t, err)
-	assert.Empty(t, results)
+	res, more := <-results
+	assert.False(t, more)
+	assert.Zero(t, res)
 }
 
 func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite, ases []IfInfo,
