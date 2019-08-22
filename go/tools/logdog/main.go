@@ -60,6 +60,8 @@ var (
 				log.LvlError.String(),
 				log.LvlCrit.String(),
 			}, ",")))
+	containsFlag = flag.String("contains", "",
+		"A string that must be contained in a log line to be included in the output.")
 )
 
 func main() {
@@ -69,15 +71,16 @@ func main() {
 		fmt.Print(env.VersionInfo())
 		os.Exit(0)
 	}
-	logLevel, err := log.LvlFromString(*logLevelFlag)
+
+	f, err := filterFromFlags()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid log level value: %s\n", *logLevelFlag)
+		fmt.Fprintf(os.Stderr, "Failed to create filters: %s\n", err)
 		os.Exit(1)
 	}
 	maxENameLen := 0
 	// Read in all files
 	for _, fn := range flag.Args() {
-		fileEntries := entriesFromFile(fn, logLevel)
+		fileEntries := entriesFromFile(fn, f)
 		entries = append(entries, fileEntries...)
 		eNameLen := len(fnToEName(fn))
 		if eNameLen > maxENameLen {
@@ -97,6 +100,17 @@ func main() {
 			fmt.Printf(fmtL, entry.Element, fmtEntry(entry, indent))
 		}
 	}
+}
+
+func filterFromFlags() (Filter, error) {
+	var filters Filters
+	logLevel, err := log.LvlFromString(*logLevelFlag)
+	if err != nil {
+		return filters, err
+	}
+	filters = append(filters, MinLevel(logLevel))
+	filters = append(filters, Contains(*containsFlag))
+	return filters, nil
 }
 
 func fmtEntry(l logparse.LogEntry, indent string) string {
@@ -135,7 +149,7 @@ func printUsage() {
 
 // entriesFromFile gets all log entries from the file with a given minimum
 // level.
-func entriesFromFile(fn string, minLevel log.Lvl) LogEntries {
+func entriesFromFile(fn string, filter Filter) LogEntries {
 	var entries LogEntries
 	f, err := os.Open(fn)
 	if err != nil {
@@ -144,9 +158,54 @@ func entriesFromFile(fn string, minLevel log.Lvl) LogEntries {
 	}
 	defer f.Close()
 	logparse.ParseFrom(f, fn, fnToEName(fn), func(e logparse.LogEntry) {
-		if e.Level <= minLevel {
+		if filter.Keep(e) {
 			entries = append(entries, e)
 		}
 	})
 	return entries
+}
+
+// Filter filters log entries. If keep returns true an entry is kept, otherwise
+// it is dropped.
+type Filter interface {
+	Keep(logparse.LogEntry) bool
+}
+
+// Filters is a list of filters that is applied in order.
+type Filters []Filter
+
+// Keep returns whether all filters vote for keeping a line.
+func (fs Filters) Keep(e logparse.LogEntry) bool {
+	for _, f := range fs {
+		if !f.Keep(e) {
+			return false
+		}
+	}
+	return true
+}
+
+// FilterFunc is a convenience wrapper to create Filters from functions.
+type FilterFunc func(logparse.LogEntry) bool
+
+func (f FilterFunc) Keep(e logparse.LogEntry) bool {
+	return f(e)
+}
+
+// MinLevel returns a filter that checks that an entry has at least level min.
+func MinLevel(min log.Lvl) Filter {
+	return FilterFunc(func(e logparse.LogEntry) bool {
+		return e.Level <= min
+	})
+}
+
+// Contains returns a filter that checks that s is contained in the log entry.
+func Contains(s string) Filter {
+	return FilterFunc(func(e logparse.LogEntry) bool {
+		for _, l := range e.Lines {
+			if strings.Contains(l, s) {
+				return true
+			}
+		}
+		return false
+	})
 }
