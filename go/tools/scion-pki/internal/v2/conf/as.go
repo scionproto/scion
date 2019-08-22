@@ -215,7 +215,7 @@ type Issuer struct {
 }
 
 func (c *Issuer) validate() error {
-	if a.Issuer.isZero() {
+	if c.isZero() {
 		return nil
 	}
 	if err := defaultAndValidateSignAlgorithm(&c.IssuingAlgorithm); err != nil {
