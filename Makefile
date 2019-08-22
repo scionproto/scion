@@ -27,7 +27,7 @@ vendor:
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
 	bzlcompat -vendorBase=go
 
-bazel: gogen vendor bazel_bin_clean
+bazel: vendor gogen bazel_bin_clean
 	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
