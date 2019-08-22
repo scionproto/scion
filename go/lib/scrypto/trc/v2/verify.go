@@ -44,6 +44,12 @@ const (
 	DuplicatePOPSignature = "duplicate proof of possession signature"
 )
 
+// Votes maps ASes to their decoded vote.
+type Votes map[addr.AS]DecodedSignature
+
+// POPs maps ASes to their decoded proof of possession.
+type POPs map[addr.AS]map[KeyType]DecodedSignature
+
 // UpdateVerifier verifies a signed TRC update. The caller must first use the
 // UpdateValidator to check the update validity. UpdateVerifier simply checks
 // that the signatures are verifiable (including the proof of possession).
@@ -85,8 +91,8 @@ func (v UpdateVerifier) Verify() error {
 	return nil
 }
 
-func (v UpdateVerifier) checkVotes(sigs map[addr.AS]DecodedSignature) error {
-	for as, sig := range sigs {
+func (v UpdateVerifier) checkVotes(votes Votes) error {
+	for as, sig := range votes {
 		vote, ok := v.Next.Votes[as]
 		if !ok {
 			return common.NewBasicError(UnexpectedVoteSignature, nil, "as", as)
@@ -104,15 +110,15 @@ func (v UpdateVerifier) checkVotes(sigs map[addr.AS]DecodedSignature) error {
 		}
 	}
 	for as := range v.Next.Votes {
-		if _, ok := sigs[as]; !ok {
+		if _, ok := votes[as]; !ok {
 			return common.NewBasicError(MissingVoteSignature, nil, "as", as)
 		}
 	}
 	return nil
 }
 
-func (v UpdateVerifier) verifyVotes(sigs map[addr.AS]DecodedSignature) error {
-	for as, sig := range sigs {
+func (v UpdateVerifier) verifyVotes(votes Votes) error {
+	for as, sig := range votes {
 		meta := v.Prev.PrimaryASes[as].Keys[sig.Protected.KeyType]
 		input := SigInput(sig.EncodedProtected, v.NextEncoded)
 		if err := scrypto.Verify(input, sig.Signature, meta.Key, meta.Algorithm); err != nil {
@@ -158,7 +164,7 @@ func (v POPVerifier) Verify() error {
 type popVerifier struct {
 	TRC        *TRC
 	Encoded    Encoded
-	signatures map[addr.AS]map[KeyType]DecodedSignature
+	signatures POPs
 }
 
 func (v *popVerifier) check() error {
@@ -213,12 +219,9 @@ type DecodedSignature struct {
 	Signature        []byte
 }
 
-func decodeSignatures(signatures []Signature) (map[addr.AS]DecodedSignature,
-	map[addr.AS]map[KeyType]DecodedSignature, error) {
-
-	votes := make(map[addr.AS]DecodedSignature)
-	pops := make(map[addr.AS]map[KeyType]DecodedSignature)
-
+func decodeSignatures(signatures []Signature) (Votes, POPs, error) {
+	votes := make(Votes)
+	pops := make(POPs)
 	sigs := make([]DecodedSignature, 0, len(signatures))
 	for _, sig := range signatures {
 		prot, err := sig.EncodedProtected.Decode()
