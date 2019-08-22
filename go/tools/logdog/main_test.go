@@ -17,9 +17,10 @@ package main
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/log/logparse"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestFilters(t *testing.T) {
