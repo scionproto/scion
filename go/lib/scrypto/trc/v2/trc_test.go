@@ -131,7 +131,7 @@ func TestTRCValidateInvariant(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			base := newBaseTRC()
+			base := newBaseTRC(time.Now())
 			test.Modify(base)
 			err := base.ValidateInvariant()
 			if test.ExpectedErrMsg == "" {
@@ -144,8 +144,8 @@ func TestTRCValidateInvariant(t *testing.T) {
 	}
 }
 
-func newBaseTRC() *trc.TRC {
-	now := time.Now().Round(time.Second)
+func newBaseTRC(notBefore time.Time) *trc.TRC {
+	now := notBefore.Truncate(time.Second)
 	quorum := uint8(3)
 	trustResetAllowed := true
 	t := &trc.TRC{

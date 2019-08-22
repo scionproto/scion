@@ -68,7 +68,7 @@ func TestBaseValidate(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			c := newBaseCert()
+			c := newBaseCert(time.Now())
 			test.Modify(&c)
 			err := c.Validate()
 			if test.ExpectedErrMsg == "" {
@@ -81,8 +81,8 @@ func TestBaseValidate(t *testing.T) {
 	}
 }
 
-func newBaseCert() cert.Base {
-	now := time.Now().Round(time.Second)
+func newBaseCert(notBefore time.Time) cert.Base {
+	now := notBefore.Truncate(time.Second)
 	c := cert.Base{
 		Subject:       ia110,
 		Version:       1,

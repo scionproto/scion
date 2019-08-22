@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -95,7 +96,7 @@ func TestIssuerUnmarshalJSON(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			g := newGenIssuerCert()
+			expected, g := newGenIssuerCert(time.Now())
 			test.Modify(g)
 			b, err := json.Marshal(g)
 			require.NoError(t, err)
@@ -103,7 +104,6 @@ func TestIssuerUnmarshalJSON(t *testing.T) {
 			err = json.Unmarshal(b, &iss)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
-				expected := newIssuerCert()
 				if test.ModifyExpected != nil {
 					test.ModifyExpected(&expected)
 				}
@@ -196,8 +196,8 @@ func TestTypeIssuerMarshalSameASString(t *testing.T) {
 	assert.Equal(t, cert.TypeIssuerJSON, strings.Trim(string(b), `"`))
 }
 
-func newGenIssuerCert() *genCert {
-	c := newIssuerCert()
+func newGenIssuerCert(now time.Time) (cert.Issuer, *genCert) {
+	c := newIssuerCert(now)
 	g := &genCert{
 		Subject:         &c.Subject,
 		Version:         &c.Version,
@@ -211,12 +211,12 @@ func newGenIssuerCert() *genCert {
 	g.Issuer = &map[string]interface{}{
 		"trc_version": c.Issuer.TRCVersion,
 	}
-	return g
+	return c, g
 }
 
-func newIssuerCert() cert.Issuer {
+func newIssuerCert(now time.Time) cert.Issuer {
 	c := cert.Issuer{
-		Base: newBaseCert(),
+		Base: newBaseCert(now),
 		Issuer: cert.IssuerTRC{
 			TRCVersion: 4,
 		},
