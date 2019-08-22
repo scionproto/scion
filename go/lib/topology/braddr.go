@@ -24,8 +24,8 @@ import (
 )
 
 type TopoBRAddr struct {
-	IPv4    *overBindAddr
-	IPv6    *overBindAddr
+	IPv4    *OverBindAddr
+	IPv6    *OverBindAddr
 	Overlay overlay.Type
 }
 
@@ -44,7 +44,7 @@ func topoBRAddrFromRBRAM(s RawBRAddrMap, ot overlay.Type) (*TopoBRAddr, error) {
 func (t *TopoBRAddr) fromRaw(s RawBRAddrMap) error {
 	for k, rob := range s {
 		var hostType addr.HostAddrType
-		ob := &overBindAddr{}
+		ob := &OverBindAddr{}
 		switch k {
 		case "IPv4":
 			if !t.Overlay.IsIPv4() {
@@ -89,18 +89,30 @@ func (t *TopoBRAddr) fromRaw(s RawBRAddrMap) error {
 }
 
 func (t *TopoBRAddr) PublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
-	return t.getAddr(ot).PublicOverlay
+	if oba := t.getAddr(ot); oba != nil {
+		return oba.PublicOverlay
+	}
+	return nil
 }
 
 func (t *TopoBRAddr) BindOverlay(ot overlay.Type) *overlay.OverlayAddr {
-	return t.getAddr(ot).BindOverlay
+	if oba := t.getAddr(ot); oba != nil {
+		return oba.BindOverlay
+	}
+	return nil
 }
 
 func (t *TopoBRAddr) BindOrPublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
-	return t.getAddr(ot).BindOrPublicOverlay()
+	if oba := t.getAddr(ot); oba != nil {
+		return oba.BindOrPublicOverlay()
+	}
+	return nil
 }
 
-func (t *TopoBRAddr) getAddr(ot overlay.Type) *overBindAddr {
+func (t *TopoBRAddr) getAddr(ot overlay.Type) *OverBindAddr {
+	if t == nil {
+		return nil
+	}
 	if t.IPv6 != nil && ot.IsIPv6() {
 		return t.IPv6
 	}
@@ -139,12 +151,12 @@ func (t *TopoBRAddr) String() string {
 	return strings.Join(s, "")
 }
 
-type overBindAddr struct {
+type OverBindAddr struct {
 	PublicOverlay *overlay.OverlayAddr
 	BindOverlay   *overlay.OverlayAddr
 }
 
-func (ob *overBindAddr) fromRaw(rob *RawOverlayBind, udpOverlay bool) error {
+func (ob *OverBindAddr) fromRaw(rob *RawOverlayBind, udpOverlay bool) error {
 	var err error
 	l3 := addr.HostFromIPStr(rob.PublicOverlay.Addr)
 	if l3 == nil {
@@ -167,14 +179,14 @@ func (ob *overBindAddr) fromRaw(rob *RawOverlayBind, udpOverlay bool) error {
 	return nil
 }
 
-func (t *overBindAddr) BindOrPublicOverlay() *overlay.OverlayAddr {
+func (t *OverBindAddr) BindOrPublicOverlay() *overlay.OverlayAddr {
 	if t.BindOverlay != nil {
 		return t.BindOverlay
 	}
 	return t.PublicOverlay
 }
 
-func (t1 *overBindAddr) Equal(t2 *overBindAddr) bool {
+func (t1 *OverBindAddr) Equal(t2 *OverBindAddr) bool {
 	if (t1 == nil) && (t2 == nil) {
 		return true
 	}
@@ -190,6 +202,6 @@ func (t1 *overBindAddr) Equal(t2 *overBindAddr) bool {
 	return true
 }
 
-func (a *overBindAddr) String() string {
+func (a *OverBindAddr) String() string {
 	return fmt.Sprintf("PublicOverlay: %v BindOverlay: %v", a.PublicOverlay, a.BindOverlay)
 }
