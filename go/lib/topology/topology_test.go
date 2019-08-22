@@ -65,13 +65,13 @@ func mkPBO(ip string, port int, bindip string, bindport int, op int) *pubBindAdd
 	return pbo
 }
 
-func mkOB(ip string, port int, bindip string) *overBindAddr {
+func mkOB(ip string, port int, bindip string) *OverBindAddr {
 	overlay := addr.HostFromIPStr(ip)
 	var bind addr.HostAddr
 	if bindip != "" {
 		bind = addr.HostFromIPStr(bindip)
 	}
-	return &overBindAddr{
+	return &OverBindAddr{
 		PublicOverlay: mkO(overlay, port),
 		BindOverlay:   mkO(bind, port),
 	}
