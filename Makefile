@@ -14,17 +14,14 @@ clean:
 	rm -f bin/* tags
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
 
-goenv: vendor
-
 gogen:
 ifndef GOGEN_SKIP
-	rm -f go/proto/*.gen.go go/proto/*.capnp.go
-	rm -f bazel-genfiles/go/proto/gogen/* # clean stale files
-	bazel build //go/proto:structs //go/proto:capnp
-	cp --no-preserve=mode bazel-genfiles/go/proto/gogen/* go/proto/
+	$(MAKE) -C go/proto
 else
-	echo "gogen: skipped"
+	@echo "gogen: skipped"
 endif
+
+goenv: vendor
 
 vendor:
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
