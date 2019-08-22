@@ -6,7 +6,7 @@ GAZELLE_MODE?=fix
 
 SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
-all: tags clibs dispatcher gogen bazel
+all: tags clibs dispatcher bazel
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
@@ -27,7 +27,7 @@ vendor:
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
 	bzlcompat -vendorBase=go
 
-bazel: vendor bazel_bin_clean
+bazel: gogen vendor bazel_bin_clean
 	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
