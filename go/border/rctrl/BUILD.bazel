@@ -22,5 +22,6 @@ go_library(
         "//go/lib/log:go_default_library",
         "//go/lib/snet:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
+        "//go/lib/sock/reliable/reconnect:go_default_library",
     ],
 )

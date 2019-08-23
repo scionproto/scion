@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 )
 
 const (
@@ -40,21 +41,28 @@ var (
 	logger   log.Logger
 )
 
-func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs) {
+func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) {
 	var err error
 	logger = log.New("Part", "Control")
 	ctx := rctx.Get()
 	ia = ctx.Conf.IA
-	if err = snet.Init(ia, "", reliable.NewDispatcherService("")); err != nil {
-		fatal.Fatal(common.NewBasicError("Initializing SNET", err))
+	dispatcherService := reliable.NewDispatcherService("")
+	if dispatcherReconnect {
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
+	scionNetwork := snet.NewCustomNetworkWithPR(ia,
+		&snet.DefaultPacketDispatcherService{
+			Dispatcher: dispatcherService,
+		},
+		nil,
+	)
 	ctrlAddr := ctx.Conf.BR.CtrlAddrs
 	pub := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.PublicAddr()}
 	bind := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.BindAddr()}
 	if bind.Host == nil {
 		bind = nil
 	}
-	snetConn, err = snet.ListenSCIONWithBindSVC("udp4", pub, bind, addr.SvcNone)
+	snetConn, err = scionNetwork.ListenSCIONWithBindSVC("udp4", pub, bind, addr.SvcNone, 0)
 	if err != nil {
 		fatal.Fatal(common.NewBasicError("Listening on address", err, "addr", ctrlAddr))
 	}
