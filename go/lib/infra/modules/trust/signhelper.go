@@ -34,7 +34,7 @@ const (
 	// MaxPldAge indicates the maximum age of a control payload signature.
 	MaxPldAge = 2 * time.Second
 	// MaxInFuture indicates the maximum time a timestamp may be in the future.
-	MaxInFuture = 1 * time.Second
+	MaxInFuture = time.Second
 )
 
 var _ infra.Signer = (*BasicSigner)(nil)
@@ -199,13 +199,13 @@ func (v *BasicVerifier) sanityChecks(sign *proto.SignS, isPldSignature bool) err
 	}
 	now := time.Now()
 	ts := sign.Time()
-	diff := now.Sub(ts)
-	if diff < -v.tsRange.MaxInFuture {
+	signatureAge := now.Sub(ts)
+	if timeInFuture := -signatureAge; timeInFuture > v.tsRange.MaxInFuture {
 		return common.NewBasicError("Invalid timestamp. Signature from future", nil,
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
 			"maxFuture", v.tsRange.MaxInFuture)
 	}
-	if isPldSignature && diff > v.tsRange.MaxPldAge {
+	if isPldSignature && signatureAge > v.tsRange.MaxPldAge {
 		return common.NewBasicError("Invalid timestamp. Signature expired", nil,
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
 			"validity", v.tsRange.MaxPldAge)
