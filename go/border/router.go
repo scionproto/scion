@@ -72,7 +72,7 @@ func (r *Router) Start() {
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		rctrl.Control(r.sRevInfoQ)
+		rctrl.Control(r.sRevInfoQ, cfg.General.ReconnectToDispatcher)
 	}()
 	if err := r.startDiscovery(); err != nil {
 		fatal.Fatal(common.NewBasicError("Unable to start discovery", err))
