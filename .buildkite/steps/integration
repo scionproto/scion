@@ -11,13 +11,11 @@ run_test() {
     echo "  command:"
     echo "  - $BASE/run_step integration $1 $2"
     echo "  timeout_in_minutes: 10"
-    echo "  parallelism: 10"
+    echo "  parallelism: 20"
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""
 }
 
 MODES="core-core noncore-localcore noncore-core noncore-noncore"
 
-for mode in $MODES; do
-    run_test "e2e_integration" "$mode"
-done
+run_test "py_ext_integration"
