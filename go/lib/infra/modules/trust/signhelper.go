@@ -31,7 +31,10 @@ import (
 )
 
 const (
-	SignatureValidity = 2 * time.Second
+	// MaxPldAge indicates the maximum age of a control payload signature.
+	MaxPldAge = 2 * time.Second
+	// MaxInFuture indicates the maximum time a timestamp may be in the future.
+	MaxInFuture = time.Second
 )
 
 var _ infra.Signer = (*BasicSigner)(nil)
@@ -88,15 +91,22 @@ var _ infra.Verifier = (*BasicVerifier)(nil)
 // BasicVerifier is a verifier that ignores signatures on cert_mgmt.TRC
 // and cert_mgmt.Chain messages, to avoid dependency cycles.
 type BasicVerifier struct {
-	store  *Store
-	ia     addr.IA
-	src    ctrl.SignSrcDef
-	server net.Addr
+	tsRange infra.SignatureTimestampRange
+	store   *Store
+	ia      addr.IA
+	src     ctrl.SignSrcDef
+	server  net.Addr
 }
 
 // NewBasicVerifier creates a new verifier.
 func NewBasicVerifier(store *Store) *BasicVerifier {
-	return &BasicVerifier{store: store}
+	return &BasicVerifier{
+		tsRange: infra.SignatureTimestampRange{
+			MaxPldAge:   MaxPldAge,
+			MaxInFuture: MaxInFuture,
+		},
+		store: store,
+	}
 }
 
 // WithIA creates a verifier that is bound to the remote AS. Only
@@ -121,6 +131,16 @@ func (v *BasicVerifier) WithSrc(src ctrl.SignSrcDef) infra.Verifier {
 func (v *BasicVerifier) WithServer(server net.Addr) infra.Verifier {
 	verifier := *v
 	verifier.server = server
+	return &verifier
+}
+
+// WithSignatureTimestampRange returns a verifier that uses the specified
+// signature timestamp range configuration.
+func (v *BasicVerifier) WithSignatureTimestampRange(
+	timestampRange infra.SignatureTimestampRange) infra.Verifier {
+
+	verifier := *v
+	verifier.tsRange = timestampRange
 	return &verifier
 }
 
@@ -170,7 +190,7 @@ func (v *BasicVerifier) ignoreSign(p *ctrl.Pld, sign *proto.SignS) bool {
 	return false
 }
 
-func (v *BasicVerifier) sanityChecks(sign *proto.SignS, timeout bool) error {
+func (v *BasicVerifier) sanityChecks(sign *proto.SignS, isPldSignature bool) error {
 	if sign == nil {
 		return common.NewBasicError("SignS is unset", nil)
 	}
@@ -179,15 +199,16 @@ func (v *BasicVerifier) sanityChecks(sign *proto.SignS, timeout bool) error {
 	}
 	now := time.Now()
 	ts := sign.Time()
-	diff := now.Sub(ts)
-	if diff < 0 {
+	signatureAge := now.Sub(ts)
+	if timeInFuture := -signatureAge; timeInFuture > v.tsRange.MaxInFuture {
 		return common.NewBasicError("Invalid timestamp. Signature from future", nil,
-			"ts", util.TimeToString(ts), "now", util.TimeToString(now))
+			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
+			"maxFuture", v.tsRange.MaxInFuture)
 	}
-	if timeout && diff > SignatureValidity {
+	if isPldSignature && signatureAge > v.tsRange.MaxPldAge {
 		return common.NewBasicError("Invalid timestamp. Signature expired", nil,
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
-			"validity", SignatureValidity)
+			"validity", v.tsRange.MaxPldAge)
 	}
 	return nil
 }
