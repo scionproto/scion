@@ -146,7 +146,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// get fresh segments.
 	if !req.Flags.Refresh && !refetch {
 		if reply, err := f.buildReplyFromDB(ctx, req, true); reply != nil {
-			return reply, err
+			return reply, common.NewBasicError("unable to build paths from local information", err)
 		}
 	}
 	if req.Flags.Refresh {
@@ -174,7 +174,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	}
 	if storedSegs > 0 {
 		if reply, err := f.buildReplyFromDB(ctx, req, true); reply != nil {
-			return reply, err
+			return reply, common.NewBasicError("unable to build reply on early trigger", err)
 		}
 	}
 	// Wait for deadline or full reply processed.
@@ -190,7 +190,8 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 			"errors", common.FmtErrors(processedResult.VerificationErrors()))
 	}
 	if reply, err := f.buildReplyFromDB(ctx, req, false); reply != nil {
-		return reply, err
+		return reply, common.NewBasicError("unable to build reply after fully processing segments",
+			err)
 	}
 	// Your paths are in another castle
 	return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
@@ -319,14 +320,14 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		// these cases we just error out, and calling code will try to get path
 		// segments. When buildPaths is called again, err should be nil and the
 		// function will proceed to the next part.
-		return nil, err
+		return nil, common.NewBasicError("unable to determine remote cores", err)
 	}
 	localArgs := infra.ASInspectorOpts{
 		RequiredAttributes: []infra.Attribute{infra.Core},
 	}
 	locCores, err := f.inspector.ByAttributes(ctx, f.topology.ISD_AS.I, localArgs)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("unable to determine local cores", err)
 	}
 	srcIsCore := containsIA(locCores, f.topology.ISD_AS)
 	dstIsCore := req.Dst.IA().A == 0 || containsIA(dstCores, req.Dst.IA())
