@@ -48,6 +48,7 @@
 package snet
 
 import (
+	"context"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -146,6 +147,13 @@ func NewNetwork(ia addr.IA, sciondPath string,
 	pathResolver, err := getResolver(sciondPath)
 	if err != nil {
 		return nil, err
+	}
+	if ia.IsZero() && pathResolver != nil {
+		asinfo, err := pathResolver.Sciond().ASInfo(context.TODO(), addr.IA{})
+		if err != nil {
+			return nil, err
+		}
+		ia = asinfo.Entries[0].RawIsdas.IA()
 	}
 	return NewNetworkWithPR(ia, dispatcher, pathResolver), nil
 }
