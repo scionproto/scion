@@ -273,7 +273,7 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 		ctx := []interface{}{"expected", ReceiveBufferSize, "actual", after / 2,
 			"before", before / 2}
 		if !*sizeIgnore {
-			return common.NewBasicError(msg, nil, ctx...)
+			return common.NewBasicError(common.SimpleError(msg), nil, ctx...)
 		}
 		log.Warn(msg, ctx...)
 	}

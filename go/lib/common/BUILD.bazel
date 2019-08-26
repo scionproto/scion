@@ -24,5 +24,9 @@ go_test(
         "errors_test.go",
     ],
     embed = [":go_default_library"],
-    deps = ["@com_github_smartystreets_goconvey//convey:go_default_library"],
+    deps = [
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@org_golang_x_xerrors//:go_default_library",
+    ],
 )

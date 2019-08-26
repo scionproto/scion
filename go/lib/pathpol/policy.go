@@ -20,7 +20,6 @@
 package pathpol
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -98,8 +97,8 @@ func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error 
 			}
 		}
 		if policy == nil {
-			return common.NewBasicError(
-				fmt.Sprintf("Extended policy '%s' could not be found", extends[i]), nil)
+			return common.NewBasicError("Extended policy could not be found", nil,
+				"policy", extends[i])
 		}
 		// Replace ACL
 		if p.ACL == nil && policy.ACL != nil {

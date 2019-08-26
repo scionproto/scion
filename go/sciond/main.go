@@ -236,11 +236,11 @@ func StartServer(name, sockPath string, server *servers.Server) {
 		defer log.LogPanicAndExit()
 		if cfg.SD.DeleteSocket {
 			if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
-				fatal.Fatal(common.NewBasicError(name+" SocketRemoval error", err))
+				fatal.Fatal(common.NewBasicError("SocketRemoval error", err, "name", name))
 			}
 		}
 		if err := server.ListenAndServe(); err != nil {
-			fatal.Fatal(common.NewBasicError(name+" ListenAndServe error", err))
+			fatal.Fatal(common.NewBasicError("ListenAndServe error", err, "name", name))
 		}
 	}()
 }

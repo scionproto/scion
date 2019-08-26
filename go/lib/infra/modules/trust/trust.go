@@ -46,7 +46,7 @@ const (
 	HandlerTimeout = 3 * time.Second
 )
 
-var (
+const (
 	ErrNotFoundLocally      = "Chain/TRC not found locally"
 	ErrMissingAuthoritative = "Trust store is authoritative for requested object," +
 		" and object was not found"

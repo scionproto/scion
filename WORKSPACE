@@ -442,13 +442,13 @@ go_repository(
 go_repository(
     name = "com_github_buildkite_go_buildkite",
     commit = "568b6651b687ccf6893ada08086ce58b072538b6",
-    importpath = "github.com/buildkite/go-buildkite", # buildkite
+    importpath = "github.com/buildkite/go-buildkite",  # buildkite
 )
 
 go_repository(
     name = "com_github_google_go_querystring",
     commit = "c8c88dbee036db4e4808d1f2ec8c2e15e11c3f80",
-    importpath = "github.com/google/go-querystring", # query
+    importpath = "github.com/google/go-querystring",  # query
 )
 
 go_repository(
@@ -466,11 +466,17 @@ go_repository(
 go_repository(
     name = "com_github_uber_jaeger_lib",
     commit = "0e30338a695636fe5bcf7301e8030ce8dd2a8530",
-    importpath = "github.com/uber/jaeger-lib", # metrics
+    importpath = "github.com/uber/jaeger-lib",  # metrics
 )
 
 go_repository(
     name = "com_github_pkg_errors",
     commit = "27936f6d90f9c8e1145f11ed52ffffbfdb9e0af7",
     importpath = "github.com/pkg/errors",
+)
+
+go_repository(
+    name = "org_golang_x_xerrors",
+    commit = "a985d3407aa71f30cf86696ee0a2f409709f22e1",
+    importpath = "golang.org/x/xerrors",
 )

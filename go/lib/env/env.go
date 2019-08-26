@@ -111,8 +111,7 @@ func (cfg *General) checkDir() error {
 			return err
 		}
 		if !info.IsDir() {
-			return common.NewBasicError(
-				fmt.Sprintf("%v is not a directory", cfg.ConfigDir), nil)
+			return common.NewBasicError("Not a directory", nil, "dir", cfg.ConfigDir)
 		}
 	}
 	return nil

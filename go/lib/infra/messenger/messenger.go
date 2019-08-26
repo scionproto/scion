@@ -955,8 +955,8 @@ func (m *Messenger) getQUICRequester(signer ctrl.Signer) *QUICRequester {
 }
 
 func newTypeAssertErr(typeStr string, msg interface{}) error {
-	errStr := fmt.Sprintf("Unable to type assert disp.Message to %s", typeStr)
-	return common.NewBasicError(errStr, nil, "msg", msg)
+	return common.NewBasicError("Unable to type assert disp.Message", nil,
+		"msg", msg, "type", typeStr)
 }
 
 // pathingRequester resolves the SCION path and constructs complete snet
