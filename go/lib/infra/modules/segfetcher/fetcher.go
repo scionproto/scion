@@ -50,10 +50,9 @@ type FetcherConfig struct {
 	Validator Validator
 	// Splitter is used to split requests.
 	Splitter Splitter
-	// CryptoLookupAtLocalCS indicates whether crypto to verify path material
-	// should be fetched from the local CS or from the sender of the path
-	// material.
-	CryptoLookupAtLocalCS bool
+	// SciondMode enables sciond mode, this means it uses the local CS to fetch
+	// crypto material and considers revocations in the path lookup.
+	SciondMode bool
 }
 
 // New creates a new fetcher from the configuration.
@@ -61,7 +60,7 @@ func (cfg FetcherConfig) New() *Fetcher {
 	return &Fetcher{
 		Validator: cfg.Validator,
 		Splitter:  cfg.Splitter,
-		Resolver:  NewResolver(cfg.PathDB),
+		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache, !cfg.SciondMode),
 		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
 		ReplyHandler: &SegReplyHandler{
 			Verifier: &SegVerifier{Verifier: cfg.VerificationFactory.NewVerifier()},
@@ -69,7 +68,7 @@ func (cfg FetcherConfig) New() *Fetcher {
 		},
 		PathDB:                cfg.PathDB,
 		QueryInterval:         cfg.QueryInterval,
-		CryptoLookupAtLocalCS: cfg.CryptoLookupAtLocalCS,
+		CryptoLookupAtLocalCS: cfg.SciondMode,
 	}
 }
 
@@ -101,12 +100,12 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 	var segs Segments
 	i := 0
 	for {
-		log.FromCtx(ctx).Trace("Request to process", "req", reqSet)
+		log.FromCtx(ctx).Trace("Request to process", "req", reqSet, "segs", segs)
 		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
 		if err != nil {
 			return Segments{}, err
 		}
-		log.FromCtx(ctx).Trace("After resolving", "req", reqSet)
+		log.FromCtx(ctx).Trace("After resolving", "req", reqSet, "segs", segs)
 		if reqSet.IsEmpty() {
 			break
 		}
@@ -139,6 +138,8 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			if err := r.Err(); err != nil {
 				return err
 			}
+			// TODO(lukedirtwalker): if we didn't get any paths we should try
+			// again in a shorter interval.
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil,
 				time.Now().Add(f.QueryInterval))
 			if err != nil {

@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -40,15 +41,19 @@ type Resolver interface {
 // customized. E.g. a PS could inject a wrapper around GetNextQuery so that it
 // always returns that the cache is up to date for segments that should be
 // available local.
-func NewResolver(DB pathdb.Read) *DefaultResolver {
+func NewResolver(DB pathdb.Read, revCache revcache.RevCache, ignoreRevs bool) *DefaultResolver {
 	return &DefaultResolver{
-		DB: DB,
+		DB:         DB,
+		RevCache:   revCache,
+		IgnoreRevs: ignoreRevs,
 	}
 }
 
 // DefaultResolver is the default resolver implementation.
 type DefaultResolver struct {
-	DB pathdb.Read
+	DB         pathdb.Read
+	RevCache   revcache.RevCache
+	IgnoreRevs bool
 }
 
 // Resolve resolves a request set. It returns the segments that are locally
@@ -93,7 +98,10 @@ func (r *DefaultResolver) Resolve(ctx context.Context, segs Segments,
 		if err != nil {
 			return segs, req, err
 		}
-		segs.Core = resultsToSegs(coreRes)
+		segs.Core, err = r.resultsToSegs(ctx, coreRes)
+		if err != nil {
+			return segs, req, err
+		}
 	}
 	return segs, req, nil
 }
@@ -135,7 +143,8 @@ func (r *DefaultResolver) resolveSegment(ctx context.Context,
 	if err != nil {
 		return nil, req, err
 	}
-	return resultsToSegs(res), Request{}, err
+	segs, err := r.resultsToSegs(ctx, res)
+	return segs, Request{}, err
 }
 
 func (r *DefaultResolver) needsFetching(ctx context.Context, req Request) (bool, error) {
@@ -265,10 +274,18 @@ func (r *DefaultResolver) resolveCores(ctx context.Context,
 	return remainingCores, cachedReqs, nil
 }
 
-func resultsToSegs(results query.Results) seg.Segments {
-	segs := make(seg.Segments, 0, len(results))
-	for _, res := range results {
-		segs = append(segs, res.Seg)
+func (r *DefaultResolver) resultsToSegs(ctx context.Context,
+	results query.Results) (seg.Segments, error) {
+
+	segs := results.Segs()
+	if r.IgnoreRevs {
+		return segs, nil
 	}
-	return segs
+	_, err := segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
+		return revcache.NoRevokedHopIntf(ctx, r.RevCache, ps)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return segs, nil
 }
