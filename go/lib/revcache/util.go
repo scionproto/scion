@@ -12,31 +12,61 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segutil
+package revcache
 
 import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 )
 
+// NewCleaner creates a cleaner task that deletes expired revocations.
+func NewCleaner(rc RevCache) *cleaner.Cleaner {
+	return cleaner.New(func(ctx context.Context) (int, error) {
+		cnt, err := rc.DeleteExpired(ctx)
+		return int(cnt), err
+	}, "revocations")
+}
+
+// FilterNew filters the given revocations against the revCache, only the ones
+// which are not in the cache are returned. This is a convenience wrapper
+// around the Revocations type and its filter new method.
+func FilterNew(ctx context.Context, revCache RevCache,
+	revocations []*path_mgmt.SignedRevInfo) ([]*path_mgmt.SignedRevInfo, error) {
+
+	rMap, err := RevocationToMap(revocations)
+	if err != nil {
+		return nil, err
+	}
+	if err = rMap.FilterNew(ctx, revCache); err != nil {
+		return nil, err
+	}
+	return rMap.ToSlice(), nil
+}
+
+// newerInfo returns whether the received info is newer than the existing.
+func newerInfo(existing, received *path_mgmt.RevInfo) bool {
+	return !received.SameIntf(existing) ||
+		received.Timestamp().After(existing.Timestamp())
+}
+
 // NoRevokedHopIntf returns true if there is no on-segment revocation.
-func NoRevokedHopIntf(ctx context.Context, revCache revcache.RevCache,
+func NoRevokedHopIntf(ctx context.Context, revCache RevCache,
 	s *seg.PathSegment) (bool, error) {
 
-	revKeys := make(revcache.KeySet)
+	revKeys := make(KeySet)
 	addRevKeys([]*seg.PathSegment{s}, revKeys, true)
 	revs, err := revCache.Get(ctx, revKeys)
 	return len(revs) == 0, err
 }
 
 // RelevantRevInfos finds all revocations for the given segments.
-func RelevantRevInfos(ctx context.Context, revCache revcache.RevCache,
+func RelevantRevInfos(ctx context.Context, revCache RevCache,
 	allSegs ...[]*seg.PathSegment) ([]*path_mgmt.SignedRevInfo, error) {
 
-	revKeys := make(revcache.KeySet)
+	revKeys := make(KeySet)
 	for _, segs := range allSegs {
 		addRevKeys(segs, revKeys, false)
 	}
@@ -53,7 +83,7 @@ func RelevantRevInfos(ctx context.Context, revCache revcache.RevCache,
 
 // addRevKeys adds all revocations keys for the given segments to the keys set.
 // If hopOnly is set, only the first hop entry is considered.
-func addRevKeys(segs []*seg.PathSegment, keys revcache.KeySet, hopOnly bool) {
+func addRevKeys(segs []*seg.PathSegment, keys KeySet, hopOnly bool) {
 	for _, s := range segs {
 		for _, asEntry := range s.ASEntries {
 			for _, entry := range asEntry.HopEntries {
@@ -64,10 +94,10 @@ func addRevKeys(segs []*seg.PathSegment, keys revcache.KeySet, hopOnly bool) {
 					panic(err)
 				}
 				if hf.ConsIngress != 0 {
-					keys[*revcache.NewKey(asEntry.IA(), hf.ConsIngress)] = struct{}{}
+					keys[*NewKey(asEntry.IA(), hf.ConsIngress)] = struct{}{}
 				}
 				if hf.ConsEgress != 0 {
-					keys[*revcache.NewKey(asEntry.IA(), hf.ConsEgress)] = struct{}{}
+					keys[*NewKey(asEntry.IA(), hf.ConsEgress)] = struct{}{}
 				}
 				if hopOnly {
 					break

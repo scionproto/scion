@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -203,7 +202,7 @@ func (h *segReqHandler) sendReply(ctx context.Context, rw infra.ResponseWriter,
 	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) {
 
 	logger := log.FromCtx(ctx)
-	revs, err := segutil.RelevantRevInfos(ctx, h.revCache, upSegs, coreSegs, downSegs)
+	revs, err := revcache.RelevantRevInfos(ctx, h.revCache, upSegs, coreSegs, downSegs)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
 		// the client might still be able to use the segments so continue here.

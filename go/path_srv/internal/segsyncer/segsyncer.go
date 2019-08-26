@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
-	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -143,7 +142,7 @@ func (s *SegSyncer) fetchCoreSegsFromDB(ctx context.Context) ([]*seg.PathSegment
 	}
 	segs := query.Results(res).Segs()
 	_, err = segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
-		return segutil.NoRevokedHopIntf(ctx, s.revCache, ps)
+		return revcache.NoRevokedHopIntf(ctx, s.revCache, ps)
 	})
 	if err != nil {
 		return nil, common.NewBasicError("Failed to filter segments", err)
@@ -192,7 +191,7 @@ func (s *SegSyncer) createMessages(ctx context.Context,
 
 	msgs := make([]*msgWithTimestamp, 0, len(qrs))
 	for _, qr := range qrs {
-		revs, err := segutil.RelevantRevInfos(ctx, s.revCache, []*seg.PathSegment{qr.Seg})
+		revs, err := revcache.RelevantRevInfos(ctx, s.revCache, []*seg.PathSegment{qr.Seg})
 		if err != nil {
 			return nil, err
 		}

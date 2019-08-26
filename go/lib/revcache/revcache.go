@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
@@ -143,34 +142,4 @@ func (r Revocations) FilterNew(ctx context.Context, revCache RevCache) error {
 		}
 	}
 	return nil
-}
-
-// NewCleaner creates a cleaner task that deletes expired revocations.
-func NewCleaner(rc RevCache) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		cnt, err := rc.DeleteExpired(ctx)
-		return int(cnt), err
-	}, "revocations")
-}
-
-// FilterNew filters the given revocations against the revCache, only the ones which are not in the
-// cache are returned. This is a convenience wrapper around the Revocations type and its filter new
-// method.
-func FilterNew(ctx context.Context, revCache RevCache,
-	revocations []*path_mgmt.SignedRevInfo) ([]*path_mgmt.SignedRevInfo, error) {
-
-	rMap, err := RevocationToMap(revocations)
-	if err != nil {
-		return nil, err
-	}
-	if err = rMap.FilterNew(ctx, revCache); err != nil {
-		return nil, err
-	}
-	return rMap.ToSlice(), nil
-}
-
-// newerInfo returns whether the received info is newer than the existing.
-func newerInfo(existing, received *path_mgmt.RevInfo) bool {
-	return !received.SameIntf(existing) ||
-		received.Timestamp().After(existing.Timestamp())
 }

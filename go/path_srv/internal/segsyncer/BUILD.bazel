@@ -20,7 +20,6 @@ go_library(
         "//go/lib/snet/addrutil:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/path_srv/internal/handlers:go_default_library",
-        "//go/path_srv/internal/segutil:go_default_library",
         "//go/proto:go_default_library",
     ],
 )

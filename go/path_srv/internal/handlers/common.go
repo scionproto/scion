@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
 
 const (
@@ -91,7 +90,7 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 	segs := query.Results(res).Segs()
 	// XXX(lukedirtwalker): Consider cases where segment with revoked interfaces should be returned.
 	_, err = segs.FilterSegsErr(func(s *seg.PathSegment) (bool, error) {
-		noRevoked, err := segutil.NoRevokedHopIntf(ctx, h.revCache, s)
+		noRevoked, err := revcache.NoRevokedHopIntf(ctx, h.revCache, s)
 		if err != nil {
 			return false, err
 		}

@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
-	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
 
 type handler struct {
@@ -75,7 +74,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	if err != nil {
 		return infra.MetricsErrInternal
 	}
-	revs, err := segutil.RelevantRevInfos(ctx, h.revCache, segs.Up, segs.Core, segs.Down)
+	revs, err := revcache.RelevantRevInfos(ctx, h.revCache, segs.Up, segs.Core, segs.Down)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
 		// the client might still be able to use the segments so continue here.
