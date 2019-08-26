@@ -8,7 +8,6 @@ go_library(
         "request.go",
         "requester.go",
         "resolver.go",
-        "revocation.go",
         "segreplyhandler.go",
         "segs.go",
         "splitter.go",
