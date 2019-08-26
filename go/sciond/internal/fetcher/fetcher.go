@@ -19,6 +19,7 @@ package fetcher
 import (
 	"bytes"
 	"context"
+	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -204,7 +205,7 @@ func (f *fetcherHandler) buildReplyFromDB(ctx context.Context,
 	switch {
 	case ctx.Err() != nil:
 		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorNoPaths), nil
-	case ignoreTrustNotFoundLocally && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
+	case ignoreTrustNotFoundLocally && f.isTrustNotFoundLocally(err):
 		return nil, nil
 	case err != nil:
 		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorInternal), err
@@ -212,6 +213,10 @@ func (f *fetcherHandler) buildReplyFromDB(ctx context.Context,
 		return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 	}
 	return nil, nil
+}
+
+func (f *fetcherHandler) isTrustNotFoundLocally(err error) bool {
+	return err != nil && strings.Contains(err.Error(), trust.ErrNotFoundLocally)
 }
 
 // buildSCIONDReply constructs a fresh SCIOND PathReply from the information
