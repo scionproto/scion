@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,22 +16,71 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/xerrors"
 )
 
-func Test_FmtError(t *testing.T) {
-	var err error = NewBasicError(
+func TestFmtError(t *testing.T) {
+	err := NewBasicError(
 		"level0\nlevel0.1",
 		fmt.Errorf("level1\nlevel1.1"),
 		"k0", "v0", "k1", 1,
 	)
-	Convey("FmtError formats correctly", t, func() {
-		So(FmtError(err), ShouldEqual, `level0
+	expedtedMsg := `level0
     >   level0.1 k0="v0" k1="1"
     level1
-    >   level1.1`)
-	})
+    >   level1.1`
+	assert.Equal(t, expedtedMsg, FmtError(err))
+}
+
+func TestSimpleError(t *testing.T) {
+	errText := "test error string"
+	err := SimpleError(errText)
+	assert.Equal(t, errText, err.Error())
+}
+
+func TestUnwrap(t *testing.T) {
+	baseErr := errors.New("base err")
+	noWrapErr := NewBasicError("test no wrap", nil)
+	wrapBaseErr := NewBasicError("wrapping base once", baseErr)
+	wrapWrapBaseErr := NewBasicError("wrapping wrapper of base", wrapBaseErr)
+
+	assert.Nil(t, xerrors.Unwrap(baseErr))
+	assert.Nil(t, xerrors.Unwrap(noWrapErr))
+	assert.Equal(t, baseErr, xerrors.Unwrap(wrapBaseErr))
+	assert.Equal(t, wrapBaseErr, xerrors.Unwrap(wrapWrapBaseErr))
+}
+
+func TestIs(t *testing.T) {
+	baseErr := errors.New("base err")
+	noWrapErr := NewBasicError("test no wrap", nil)
+	wrapNoWrapErr := NewBasicError("wrapping basic error", noWrapErr)
+	wrapBaseErr := NewBasicError("wrapping base once", baseErr)
+	wrapWrapBaseErr := NewBasicError("wrapping wrapper of base", wrapBaseErr)
+
+	assert.False(t, xerrors.Is(baseErr, wrapBaseErr))
+	assert.False(t, xerrors.Is(noWrapErr, baseErr))
+	assert.False(t, xerrors.Is(noWrapErr, wrapNoWrapErr))
+
+	assert.True(t, xerrors.Is(wrapBaseErr, baseErr))
+	assert.True(t, xerrors.Is(wrapNoWrapErr, noWrapErr))
+	assert.True(t, xerrors.Is(wrapWrapBaseErr, baseErr))
+	assert.True(t, xerrors.Is(wrapWrapBaseErr, wrapBaseErr))
+
+	assert.True(t, xerrors.Is(noWrapErr, SimpleError("test no wrap")))
+	assert.True(t, xerrors.Is(wrapWrapBaseErr, SimpleError("wrapping base once")))
+	assert.True(t, xerrors.Is(wrapNoWrapErr, SimpleError("test no wrap")))
+
+	assert.True(t, xerrors.Is(SimpleError("foo"), SimpleError("foo")))
+}
+
+func ExampleSimpleError() {
+	var ErrMsg SimpleError = "this is the error msg"
+
+	fmt.Println(xerrors.Is(NewBasicError(ErrMsg, nil, "ctx", 1), ErrMsg))
+	// Output: true
 }

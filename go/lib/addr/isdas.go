@@ -62,8 +62,7 @@ func ISDFromString(s string) (ISD, error) {
 func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
 	if prefix {
 		if !strings.HasPrefix(s, ISDFmtPrefix) {
-			return 0, common.NewBasicError(
-				fmt.Sprintf("'%s' prefix missing", ISDFmtPrefix), nil, "raw", s)
+			return 0, common.NewBasicError("prefix missing", nil, "prefix", ISDFmtPrefix, "raw", s)
 		}
 		s = s[len(ISDFmtPrefix):]
 	}
@@ -89,8 +88,7 @@ func ASFromString(s string) (AS, error) {
 func ASFromFileFmt(s string, prefix bool) (AS, error) {
 	if prefix {
 		if !strings.HasPrefix(s, ASFmtPrefix) {
-			return 0, common.NewBasicError(
-				fmt.Sprintf("'%s' prefix missing", ASFmtPrefix), nil, "raw", s)
+			return 0, common.NewBasicError("prefix missing", nil, "prefix", ASFmtPrefix, "raw", s)
 		}
 		s = s[len(ASFmtPrefix):]
 	}
@@ -109,9 +107,8 @@ func asParse(s string, sep string) (AS, error) {
 	}
 	parts := strings.Split(s, sep)
 	if len(parts) != asParts {
-		return 0, common.NewBasicError(
-			fmt.Sprintf("Unable to parse AS: wrong number of %s separators", sep), nil,
-			"expected", asParts, "actual", len(parts), "raw", s)
+		return 0, common.NewBasicError("unable to parse AS: wrong number of separators", nil,
+			"expected", asParts, "actual", len(parts), "sep", sep, "raw", s)
 	}
 	var as AS
 	for i := 0; i < asParts; i++ {
@@ -193,7 +190,7 @@ func IAFromRaw(b common.RawBytes) IA {
 	return *ia
 }
 
-/// IAFromString parses an IA from a string of the format 'ia-as'.
+// IAFromString parses an IA from a string of the format 'ia-as'.
 func IAFromString(s string) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
@@ -231,7 +228,7 @@ func (ia IA) MarshalText() ([]byte, error) {
 	return []byte(ia.String()), nil
 }
 
-// allows IA to be used as a map key in JSON.
+// UnmarshalText allows IA to be used as a map key in JSON.
 func (ia *IA) UnmarshalText(text []byte) error {
 	if len(text) == 0 {
 		*ia = IA{}
@@ -285,7 +282,7 @@ func (ia IA) FileFmt(prefixes bool) string {
 	return fmt.Sprintf(fmts, ia.I, ia.A.FileFmt())
 }
 
-// This method implements flag.Value interface
+// Set implements flag.Value interface
 func (ia *IA) Set(s string) error {
 	pIA, err := IAFromString(s)
 	if err != nil {
