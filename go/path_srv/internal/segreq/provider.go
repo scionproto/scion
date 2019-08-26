@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -50,7 +49,7 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 	}
 	segs := query.Results(res).Segs()
 	_, err = segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
-		return segutil.NoRevokedHopIntf(ctx, s.RevCache, ps)
+		return revcache.NoRevokedHopIntf(ctx, s.RevCache, ps)
 	})
 	if err != nil {
 		return nil, common.NewBasicError("Failed to filter segments", err)
