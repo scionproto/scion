@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
 )
 
 var _ hiddenpathdb.HiddenPathDB = (*PathDBAdapter)(nil)
@@ -41,16 +40,12 @@ type readWriter struct {
 	backend pathdb.ReadWrite
 }
 
-// New returns a new PathDBAdapter with an SQLite backend opening a database at the given path.
-// If no database exists a new database is created. If the schema version of the
-// stored database is different from the one in schema.go, an error is returned.
-func New(path string) (*PathDBAdapter, error) {
-	backend, err := sqlite.New(path)
-	if err != nil {
-		return nil, err
+// New returns a new PathDBAdapter with an implementation of PathDB as backend.
+func New(db pathdb.PathDB) *PathDBAdapter {
+	return &PathDBAdapter{
+		backend:    db,
+		readWriter: &readWriter{db},
 	}
-	return &PathDBAdapter{backend: backend,
-		readWriter: &readWriter{backend}}, nil
 }
 
 // Get fetches all the hidden path segments matching the given parameters
