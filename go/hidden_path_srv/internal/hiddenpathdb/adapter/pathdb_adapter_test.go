@@ -16,15 +16,10 @@ package adapter
 
 import (
 	"context"
-	"io/ioutil"
-	"os"
-	"path"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq"
@@ -42,7 +37,6 @@ var (
 	end      = addr.IA{I: 5, A: 0xff0000000440}
 	suffix   = uint16(1337)
 	ifs      = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
-	ctx      = context.Background()
 	groupIds = hpsegreq.GroupIdSet{
 		hiddenpath.GroupId{}:               struct{}{},
 		{OwnerAS: owner.A, Suffix: suffix}: struct{}{},
@@ -64,127 +58,95 @@ var (
 	}
 )
 
-func newTestDB(t *testing.T) (*gomock.Controller,
-	*PathDBAdapter, *mock_pathdb.MockPathDB) {
+func TestAdapter(t *testing.T) {
+	tests := map[string]func(*testing.T, context.Context, *mock_pathdb.MockPathDB,
+		*gomock.Controller){
 
-	ctrl := gomock.NewController(t)
-	mockBackend := mock_pathdb.NewMockPathDB(ctrl)
-	return ctrl, &PathDBAdapter{
-		backend:    mockBackend,
-		readWriter: &readWriter{mockBackend},
-	}, mockBackend
+		"Get with params": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
+			_ *gomock.Controller) {
+
+			pdb.EXPECT().Get(ctx, queryParams)
+			New(pdb).Get(ctx, params)
+		},
+		"Get no params": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
+			_ *gomock.Controller) {
+
+			pdb.EXPECT().Get(ctx, nil)
+			New(pdb).Get(ctx, nil)
+		},
+		"Insert": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
+			ctrl *gomock.Controller) {
+
+			pseg, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs, uint32(10))
+			pdb.EXPECT().InsertWithHPCfgIDs(ctx, getSeg(pseg), hpCfgIDs)
+			New(pdb).Insert(ctx, getSeg(pseg), groupIds)
+		},
+		"Delete with params": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
+			_ *gomock.Controller) {
+
+			pdb.EXPECT().Delete(ctx, queryParams)
+			New(pdb).Delete(ctx, params)
+		},
+		"Delete no params": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
+			_ *gomock.Controller) {
+
+			pdb.EXPECT().Delete(ctx, nil)
+			New(pdb).Delete(ctx, nil)
+		},
+		"DeleteExpired": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
+			_ *gomock.Controller) {
+
+			timeNow := time.Now()
+			pdb.EXPECT().DeleteExpired(ctx, timeNow)
+			New(pdb).DeleteExpired(ctx, timeNow)
+		},
+		"BeginTransaction": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
+			_ *gomock.Controller) {
+
+			pdb.EXPECT().BeginTransaction(ctx, nil)
+			New(pdb).BeginTransaction(ctx, nil)
+		},
+		"Close": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
+			_ *gomock.Controller) {
+			pdb.EXPECT().Close()
+			New(pdb).Close()
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			ctx := context.Background()
+			pdb := mock_pathdb.NewMockPathDB(ctrl)
+			test(t, ctx, pdb, ctrl)
+		})
+	}
 }
 
-func newTestTransaction(t *testing.T) (*gomock.Controller,
-	*transaction, *mock_pathdb.MockTransaction) {
-
-	ctrl := gomock.NewController(t)
-	mockBackend := mock_pathdb.NewMockTransaction(ctrl)
-	return ctrl, &transaction{
-		backend:    mockBackend,
-		readWriter: &readWriter{mockBackend},
-	}, mockBackend
-}
-
-// TestOpenExisting tests that New does not overwrite an existing database if
-// versions match.
-func TestOpenExisting(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	db, tmpF := setupDB(t)
-	defer os.Remove(tmpF)
-	TS := uint32(10)
-	pseg, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs, TS)
-	db.Insert(ctx, getSeg(pseg), groupIds)
-	db.Close()
-	// Call
-	db, err := New(tmpF)
-	require.NoError(t, err)
-	// Test
-	// Check that path segment is still there.
-	res, err := db.Get(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, 1, len(res), "Segment still exists")
-}
-
-func TestGet(t *testing.T) {
-	ctrl, db, mockBackend := newTestDB(t)
-	defer ctrl.Finish()
-	mockBackend.EXPECT().Get(ctx, queryParams).Times(1)
-	mockBackend.EXPECT().Get(ctx, nil).Times(1)
-	db.Get(ctx, params)
-	// handles nil params
-	db.Get(ctx, nil)
-}
-
-func TestInsert(t *testing.T) {
-	ctrl, db, mockBackend := newTestDB(t)
-	defer ctrl.Finish()
-	TS := uint32(10)
-	pseg, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs, TS)
-	mockBackend.EXPECT().InsertWithHPCfgIDs(ctx, getSeg(pseg), hpCfgIDs).Times(1)
-	db.Insert(ctx, getSeg(pseg), groupIds)
-}
-
-func TestDelete(t *testing.T) {
-	ctrl, db, mockBackend := newTestDB(t)
-	defer ctrl.Finish()
-	mockBackend.EXPECT().Delete(ctx, queryParams).Times(1)
-	mockBackend.EXPECT().Delete(ctx, nil).Times(1)
-	db.Delete(ctx, params)
-	// handles nil params
-	db.Delete(ctx, nil)
-}
-
-func TestDeleteExpired(t *testing.T) {
-	ctrl, db, mockBackend := newTestDB(t)
-	defer ctrl.Finish()
-	timeNow := time.Now()
-	mockBackend.EXPECT().DeleteExpired(ctx, timeNow).Times(1)
-	db.DeleteExpired(ctx, timeNow)
-}
-
-func TestBeginTransaction(t *testing.T) {
-	ctrl, db, mockBackend := newTestDB(t)
-	defer ctrl.Finish()
-	mockBackend.EXPECT().BeginTransaction(ctx, nil).Times(1)
-	db.BeginTransaction(ctx, nil)
-}
-
-func TestClose(t *testing.T) {
-	ctrl, db, mockBackend := newTestDB(t)
-	defer ctrl.Finish()
-	mockBackend.EXPECT().Close().Times(1)
-	db.Close()
-}
-
-func TestCommit(t *testing.T) {
-	ctrl, tx, mockBackend := newTestTransaction(t)
-	defer ctrl.Finish()
-	mockBackend.EXPECT().Commit().Times(1)
-	tx.Commit()
-}
-
-func TestRollback(t *testing.T) {
-	ctrl, tx, mockBackend := newTestTransaction(t)
-	defer ctrl.Finish()
-	mockBackend.EXPECT().Rollback().Times(1)
-	tx.Rollback()
+func TestTransaction(t *testing.T) {
+	tests := map[string]func(*testing.T, context.Context, *mock_pathdb.MockTransaction){
+		"Commit": func(t *testing.T, ctx context.Context, txPdb *mock_pathdb.MockTransaction) {
+			txPdb.EXPECT().Commit()
+			tx := &transaction{backend: txPdb}
+			tx.Commit()
+		},
+		"Rollback": func(t *testing.T, ctx context.Context, txPdb *mock_pathdb.MockTransaction) {
+			txPdb.EXPECT().Rollback()
+			tx := &transaction{backend: txPdb}
+			tx.Rollback()
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			ctx := context.Background()
+			tx := mock_pathdb.NewMockTransaction(ctrl)
+			test(t, ctx, tx)
+		})
+	}
 }
 
 func getSeg(pseg *seg.PathSegment) *seg.Meta {
 	return seg.NewMeta(pseg, proto.PathSegType_down)
-}
-
-func setupDB(t *testing.T) (hiddenpathdb.HiddenPathDB, string) {
-	tmpFile := tempFilename(t)
-	b, err := New(tmpFile)
-	require.NoError(t, err, "Failed to open DB")
-	return b, tmpFile
-}
-
-func tempFilename(t *testing.T) string {
-	dir, err := ioutil.TempDir("", "pathdb-sqlite")
-	require.NoError(t, err)
-	return path.Join(dir, t.Name())
 }
