@@ -41,10 +41,10 @@ type readWriter struct {
 }
 
 // New returns a new PathDBAdapter with an implementation of PathDB as backend.
-func New(db pathdb.PathDB) *PathDBAdapter {
+func New(pdb pathdb.PathDB) *PathDBAdapter {
 	return &PathDBAdapter{
-		backend:    db,
-		readWriter: &readWriter{db},
+		backend:    pdb,
+		readWriter: &readWriter{pdb},
 	}
 }
 
