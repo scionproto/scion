@@ -35,6 +35,8 @@ func ExtensionFactory(class common.L4ProtocolType, extension *Extension) (common
 		switch extension.Type {
 		case common.ExtnE2EDebugType.Type:
 			return NewExtnE2EDebugFromLayer(extension)
+		case common.ExtnHiddenPathSegmentType.Type:
+			return NewExtnHiddenPathSegmentFromLayer(extension)
 		default:
 			return NewExtnUnknownFromLayer(common.End2EndClass, extension)
 		}
@@ -58,9 +60,9 @@ func NewExtnOHPFromLayer(extension *Extension) (*ExtnOHP, error) {
 }
 
 func (o *ExtnOHP) DecodeFromLayer(extension *Extension) error {
-	if len(extension.Data) != common.LineLen-3 {
+	if len(extension.Data) != common.ExtnFirstLineLen {
 		return common.NewBasicError("bad length for OHP extension", nil,
-			"actual", len(extension.Data), "want", common.LineLen-3)
+			"actual", len(extension.Data), "want", common.ExtnFirstLineLen)
 	}
 	return nil
 }
@@ -193,6 +195,65 @@ func (e *ExtnSCMP) Type() common.ExtnType {
 
 func (e *ExtnSCMP) String() string {
 	return fmt.Sprintf("SCMP Ext(%dB): Error? %v HopByHop: %v", e.Len(), e.Error, e.HopByHop)
+}
+
+var _ common.Extension = (*ExtnHiddenPathSegment)(nil)
+
+type ExtnHiddenPathSegment struct{}
+
+func NewExtnHiddenPathSegmentFromLayer(extension *Extension) (*ExtnHiddenPathSegment, error) {
+	var extn ExtnHiddenPathSegment
+	if err := extn.DecodeFromLayer(extension); err != nil {
+		return nil, err
+	}
+	return &extn, nil
+}
+
+func (h *ExtnHiddenPathSegment) DecodeFromLayer(extension *Extension) error {
+	if len(extension.Data) != common.ExtnFirstLineLen {
+		return common.NewBasicError("bad length for HiddenPathSegment extension", nil,
+			"actual", len(extension.Data), "want", common.ExtnFirstLineLen)
+	}
+	return nil
+}
+
+func (h *ExtnHiddenPathSegment) Copy() common.Extension {
+	return &ExtnHiddenPathSegment{}
+}
+
+func (h *ExtnHiddenPathSegment) Write(b common.RawBytes) error {
+	for i := 0; i < h.Len(); i++ {
+		b[i] = 0
+	}
+	return nil
+}
+
+func (h *ExtnHiddenPathSegment) Pack() (common.RawBytes, error) {
+	b := make(common.RawBytes, h.Len())
+	if err := h.Write(b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (h *ExtnHiddenPathSegment) Reverse() (bool, error) {
+	// Reversing removes the extension.
+	return false, nil
+}
+func (h *ExtnHiddenPathSegment) Len() int {
+	return common.ExtnFirstLineLen
+}
+
+func (h *ExtnHiddenPathSegment) Class() common.L4ProtocolType {
+	return common.End2EndClass
+}
+
+func (h *ExtnHiddenPathSegment) Type() common.ExtnType {
+	return common.ExtnHiddenPathSegmentType
+}
+
+func (h *ExtnHiddenPathSegment) String() string {
+	return "HiddenPathSegment"
 }
 
 var _ common.Extension = (*ExtnUnknown)(nil)
