@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "as.go",
+        "hiddenpath_extn.go",
         "hop.go",
         "meta.go",
         "seg.go",

@@ -34,8 +34,9 @@ type ASEntry struct {
 	HopEntries []*HopEntry `capnp:"hops"`
 	MTU        uint16      `capnp:"mtu"`
 	Exts       struct {
-		RoutingPolicy common.RawBytes `capnp:"-"` // Not supported yet
-		Sibra         common.RawBytes `capnp:"-"` // Not supported yet
+		RoutingPolicy common.RawBytes    `capnp:"-"` // Not supported yet
+		Sibra         common.RawBytes    `capnp:"-"` // Not supported yet
+		HiddenPathSeg *HiddenPathSegExtn `capnp:"hiddenPathSeg"`
 	}
 }
 
@@ -80,6 +81,7 @@ func (ase *ASEntry) ProtoId() proto.ProtoIdType {
 }
 
 func (ase *ASEntry) String() string {
-	return fmt.Sprintf("%s Trc: %d Cert: %d Ifid size: %d Hops: %d MTU: %d",
-		ase.IA(), ase.TrcVer, ase.CertVer, ase.IfIDSize, len(ase.HopEntries), ase.MTU)
+	return fmt.Sprintf("%s Trc: %d Cert: %d Ifid size: %d Hops: %d MTU: %d Hidden: %v",
+		ase.IA(), ase.TrcVer, ase.CertVer, ase.IfIDSize, len(ase.HopEntries),
+		ase.MTU, ase.Exts.HiddenPathSeg)
 }

@@ -13,3 +13,7 @@ struct RoutingPolicyExt{
 struct ISDAnnouncementExt{
     set @0 :Bool;   # TODO(Sezer): Implement announcement extension
 }
+
+struct HiddenPathSegExtn{
+    set @0 :Bool;
+}
