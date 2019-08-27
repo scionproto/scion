@@ -31,6 +31,8 @@ const (
 	CertNameFmt        = "ISD%d-AS%s-V%d.crt"
 	CoreCertNameFmt    = "ISD%d-AS%s-V%d-core.crt"
 	TrcNameFmt         = "ISD%d-V%d.trc"
+	TRCPartsDirFmt     = "ISD%d-V%d.parts"
+	TRCProtoNameFmt    = "ISD%d-V%d.proto"
 	ErrInvalidSelector = "Invalid selector."
 	ErrNoISDDirFound   = "No ISD directories found"
 	ErrNoASDirFound    = "No AS directories found"
@@ -142,7 +144,7 @@ func ContainsAS(ases []addr.AS, as addr.AS) bool {
 	return false
 }
 
-func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
+func WriteToFile(raw []byte, path string, perm os.FileMode) error {
 	// Check if file already exists.
 	if _, err := os.Stat(path); err == nil {
 		if !Force {
