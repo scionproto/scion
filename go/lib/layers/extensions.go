@@ -58,9 +58,9 @@ func NewExtnOHPFromLayer(extension *Extension) (*ExtnOHP, error) {
 }
 
 func (o *ExtnOHP) DecodeFromLayer(extension *Extension) error {
-	if len(extension.Data) != common.LineLen-3 {
+	if len(extension.Data) != common.ExtnFirstLineLen {
 		return common.NewBasicError("bad length for OHP extension", nil,
-			"actual", len(extension.Data), "want", common.LineLen-3)
+			"actual", len(extension.Data), "want", common.ExtnFirstLineLen)
 	}
 	return nil
 }
