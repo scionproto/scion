@@ -78,7 +78,7 @@ func TestExtensionDecodeFromBytes(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedExtension, extn)
+				assert.Equal(t, tc.ExpectedExtension, extn, "extension must matches")
 			}
 		})
 	}
@@ -168,8 +168,9 @@ func TestExtensionSerializeTo(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedBytes, b.Bytes(), "b")
-				assert.Equal(t, tc.ExpectedLength, tc.Extension.NumLines, "updated length field")
+				assert.Equal(t, tc.ExpectedBytes, b.Bytes(), "buffer must match")
+				assert.Equal(t, tc.ExpectedLength, tc.Extension.NumLines,
+					"updated length field must match")
 			}
 		})
 	}

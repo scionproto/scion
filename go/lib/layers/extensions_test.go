@@ -85,7 +85,7 @@ func TestExtnSCMPDecodeFromLayer(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedExtension, extn)
+				assert.Equal(t, tc.ExpectedExtension, extn, "extension must match")
 			}
 		})
 	}
@@ -147,7 +147,7 @@ func TestExtnUnkownDecodeFromLayer(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedExtension, extn)
+				assert.Equal(t, tc.ExpectedExtension, extn, "extension must match")
 			}
 		})
 	}
