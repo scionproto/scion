@@ -110,11 +110,15 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 			break
 		}
 		if i > 3 {
-			log.FromCtx(ctx).Crit("No convergence in looking up", "i", i)
+			log.FromCtx(ctx).Error("No convergence in lookup", "iteration", i+1)
 			return segs, common.NewBasicError("Segment lookup doesn't converge", nil,
 				"iterations", i)
 		}
-		reqCtx, cancelF := context.WithTimeout(ctx, 2*time.Second)
+		// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
+		// here. The problem is that revocations can't be differentiated from
+		// timeouts. And having 10s timeouts plays really bad together with
+		// revocations. See also: https://github.com/scionproto/scion/issues/3052
+		reqCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
 		replies := f.Requester.Request(reqCtx, reqSet)
 		// TODO(lukedirtwalker): We need to have early trigger for the last request.
 		if err := f.waitOnProcessed(ctx, replies); err != nil {
