@@ -16,7 +16,6 @@ package adapter_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -83,7 +82,6 @@ func TestAdapter(t *testing.T) {
 
 			pseg, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs, uint32(10))
 			pdb.EXPECT().InsertWithHPCfgIDs(ctx, getSeg(pseg), matchers.EqHPCfgIDs(hpCfgIDs))
-			fmt.Println("want")
 			adapter.New(pdb).Insert(ctx, getSeg(pseg), groupIds)
 		},
 		"Delete with params": func(t *testing.T, ctx context.Context, pdb *mock_pathdb.MockPathDB,
