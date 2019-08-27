@@ -15,12 +15,11 @@
 package hpkt
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -28,127 +27,103 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var (
-	rawUdpPktFilename  = "testdata/udp-scion.bin"
-	rawScmpPktFilename = "testdata/scmp-rev.bin"
+	rawUDPPktFilename  = "udp-scion.bin"
+	rawScmpPktFilename = "scmp-rev.bin"
 )
 
-func MustLoad(path string) common.RawBytes {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		panic(fmt.Sprintf("Unable to load file: %v", err))
-	}
-	return common.RawBytes(data)
+func TestParseScnPkt(t *testing.T) {
+	raw := xtest.MustReadFromFile(t, rawUDPPktFilename)
+	t.Log("ScnPkt.Parse should parse UDP/SCION packets correctly")
+
+	s := &spkt.ScnPkt{}
+	require.NoError(t, ParseScnPkt(s, raw), "Should parse without error")
+
+	assert.Equal(t, s.DstIA.I, addr.ISD(2), "AddrHdr.DstIA.I")
+	assert.Equal(t, s.DstIA.A, xtest.MustParseAS("ff00:0:222"), "AddrHdr.DstIA.A")
+	assert.Equal(t, s.SrcIA.I, addr.ISD(1), "AddrHdr.SrcIA.I")
+	assert.Equal(t, s.SrcIA.A, xtest.MustParseAS("ff00:0:133"), "AddrHdr.SrcIA.A")
+	assert.Equal(t, s.DstHost.IP(), net.IP{127, 2, 2, 222}, "AddrHdr.DstHostAddr")
+	assert.Equal(t, s.SrcHost.IP(), net.IP{127, 1, 1, 111}, "AddrHdr.SrcHostAddr")
+	cmnHdr, err := spkt.CmnHdrFromRaw(raw)
+	require.NoError(t, err, "Bad common header, cannot continue")
+
+	hdrLen := cmnHdr.HdrLenBytes()
+	pathStart := spkt.CmnHdrLen + s.AddrLen()
+	assert.Equal(t, s.Path.Raw, common.RawBytes(raw[pathStart:hdrLen]), "Path")
+
+	udpHdr, ok := s.L4.(*l4.UDP)
+	require.True(t, ok, "L4Hdr - Bad header")
+
+	assert.Equal(t, udpHdr.SrcPort, uint16(3001), "UDP.SrcPort")
+	assert.Equal(t, udpHdr.DstPort, uint16(3000), "UDP.DstPort")
+	assert.Equal(t, udpHdr.TotalLen, uint16(len(raw)-hdrLen), "UDP.Len")
+	assert.Equal(t, udpHdr.Checksum, common.RawBytes{0x1e, 0xb9}, "UDP.Checksum")
+
+	buf := make(common.RawBytes, 1<<16)
+	n, _ := s.Pld.WritePld(buf)
+	assert.Equal(t, buf[:n], common.RawBytes(raw[hdrLen+l4.UDPLen:]), "Payload")
 }
 
-func Test_ParseScnPkt(t *testing.T) {
-	rawUdpPkt := MustLoad(rawUdpPktFilename)
-	Convey("ScnPkt.Parse should parse UDP/SCION packets correctly", t, func() {
-		s := &spkt.ScnPkt{
-			DstIA: addr.IA{},
-			SrcIA: addr.IA{},
-		}
-		err := ParseScnPkt(s, rawUdpPkt)
+func TestParseSCMPRev(t *testing.T) {
+	rawScmpPkt := xtest.MustReadFromFile(t, rawScmpPktFilename)
+	t.Log("ScnPkt.Parse should load SCMP revocation packets correctly")
 
-		SoMsg("error", err, ShouldBeNil)
+	s := &spkt.ScnPkt{}
+	require.NoError(t, ParseScnPkt(s, rawScmpPkt), "Should parse without error")
+	assert.Equal(t, len(s.HBHExt), 1, "HBH extension count")
+	assert.Equal(t, len(s.E2EExt), 0, "E2E extension count")
 
-		SoMsg("AddrHdr.DstIA.I", s.DstIA.I, ShouldEqual, 2)
-		SoMsg("AddrHdr.DstIA.A", s.DstIA.A, ShouldEqual, 0xff0000000222)
-		SoMsg("AddrHdr.SrcIA.I", s.SrcIA.I, ShouldEqual, 1)
-		SoMsg("AddrHdr.SrcIA.A", s.SrcIA.A, ShouldEqual, 0xff0000000133)
+	scmpHdr, ok := s.L4.(*scmp.Hdr)
+	require.True(t, ok, "Bad L4Hdr, cannot continue")
 
-		SoMsg("AddrHdr.DstHostAddr", s.DstHost.IP(), ShouldResemble, net.IP{127, 2, 2, 222})
-		SoMsg("AddrHdr.SrcHostAddr", s.SrcHost.IP(), ShouldResemble, net.IP{127, 1, 1, 111})
-		cmnHdr, err := spkt.CmnHdrFromRaw(rawUdpPkt)
-		if err != nil {
-			t.Fatalf("Failed to parse common header: %v", err)
-		}
-		hdrLen := cmnHdr.HdrLenBytes()
-		pathStart := spkt.CmnHdrLen + s.AddrLen()
-		SoMsg("Path", s.Path.Raw, ShouldResemble, rawUdpPkt[pathStart:hdrLen])
+	assert.Equal(t, scmpHdr.Class, scmp.C_Path, "SCMP.Class")
+	assert.Equal(t, scmpHdr.Type, scmp.T_P_RevokedIF, "SCMP.Type")
+	// if we regenerate the .bin then we must manually update the values, e.g. checksum
+	assert.Equal(t, scmpHdr.TotalLen, uint16(0x158), "SCMP.Len")
+	assert.Equal(t, scmpHdr.Checksum, common.RawBytes{0x4b, 0x52}, "SCMP.Checksum")
+	assert.Equal(t, scmpHdr.Timestamp, uint64(0x57cd47224504d), "SCMP.Timestamp")
+	cmnHdr, err := spkt.CmnHdrFromRaw(rawScmpPkt)
+	require.NoError(t, err, "Bad common header, cannot continue")
 
-		udpHdr, ok := s.L4.(*l4.UDP)
-		SoMsg("L4Hdr", ok, ShouldEqual, true)
-		if !ok {
-			t.Fatalf("Bad header, cannot continue")
-		}
-		SoMsg("UDP.SrcPort", udpHdr.SrcPort, ShouldEqual, 3001)
-		SoMsg("UDP.DstPort", udpHdr.DstPort, ShouldEqual, 3000)
-		SoMsg("UDP.Len", udpHdr.TotalLen, ShouldEqual, len(rawUdpPkt)-hdrLen)
-		// XXX(kormat): not maintainable:
-		//SoMsg("UDP.Checksum", udpHdr.Checksum, ShouldResemble, common.RawBytes{0x8f, 0x9d})
-
-		buf := make(common.RawBytes, 1<<16)
-		n, _ := s.Pld.WritePld(buf)
-		SoMsg("Payload", buf[:n], ShouldResemble, common.RawBytes(rawUdpPkt[hdrLen+l4.UDPLen:]))
-	})
+	buf := make(common.RawBytes, 1<<16)
+	n, _ := s.Pld.WritePld(buf)
+	pldStart := cmnHdr.HdrLenBytes() + common.LineLen + scmp.HdrLen
+	assert.Equal(t, buf[:n], common.RawBytes(rawScmpPkt[pldStart:]), "Payload")
 }
 
-func Test_ParseSCMPRev(t *testing.T) {
-	rawScmpPkt := MustLoad(rawScmpPktFilename)
-	Convey("ScnPkt.Parse should load SCMP revocation packets correctly", t, func() {
-		s := &spkt.ScnPkt{}
-		err := ParseScnPkt(s, rawScmpPkt)
-		t.Logf("%#v", s)
-		SoMsg("error", err, ShouldBeNil)
-		SoMsg("HBH extension count", len(s.HBHExt), ShouldEqual, 1)
-		SoMsg("E2E extension count", len(s.E2EExt), ShouldEqual, 0)
-
-		scmpHdr, ok := s.L4.(*scmp.Hdr)
-		SoMsg("L4Hdr", ok, ShouldEqual, true)
-		if !ok {
-			t.Fatalf("Bad header, cannot continue")
-		}
-		SoMsg("SCMP.Class", scmpHdr.Class, ShouldEqual, scmp.C_Path)
-		SoMsg("SCMP.Type", scmpHdr.Type, ShouldEqual, scmp.T_P_RevokedIF)
-		// XXX(kormat): not maintainable:
-		//SoMsg("SCMP.Len", scmpHdr.TotalLen, ShouldEqual, 816)
-		//SoMsg("SCMP.Checksum", scmpHdr.Checksum, ShouldResemble, common.RawBytes{0xde, 0x37})
-		//SoMsg("SCMP.Timestamp", scmpHdr.Timestamp, ShouldEqual, 1522929287506836)
-		cmnHdr, err := spkt.CmnHdrFromRaw(rawScmpPkt)
-		if err != nil {
-			t.Fatalf("Failed to parse common header: %v", err)
-		}
-
-		buf := make(common.RawBytes, 1<<16)
-		n, _ := s.Pld.WritePld(buf)
-		pldStart := cmnHdr.HdrLenBytes() + common.LineLen + scmp.HdrLen
-		SoMsg("Payload", buf[:n], ShouldResemble, common.RawBytes(rawScmpPkt[pldStart:]))
-	})
-}
-
-func Test_ScnPkt_Write(t *testing.T) {
+func TestScnPktWrite(t *testing.T) {
 	rawPath := common.RawBytes("\x01\x59\x78\xad\x54\x00\x64\x02" +
 		"\x00\x3f\x02\x00\x00\x2e\x84\x50" +
 		"\x00\x3f\x00\x00\x1d\x8a\xad\x6c")
-	Convey("Hpkt should be able to parse packets it writes.", t, func() {
-		s := &spkt.ScnPkt{}
-		s.DstIA, _ = addr.IAFromString("42-ff00:0:300")
-		s.SrcIA, _ = addr.IAFromString("73-ff00:0:301")
-		s.DstHost = addr.HostFromIP(net.IPv4(1, 2, 3, 4))
-		s.SrcHost = addr.HostFromIP(net.IPv4(10, 0, 0, 1))
-		s.Path = &spath.Path{Raw: rawPath, InfOff: 0, HopOff: 8}
-		s.L4 = &l4.UDP{SrcPort: 1280, DstPort: 80, TotalLen: 8}
-		s.Pld = common.RawBytes("scion123")
+	t.Log("Hpkt should be able to parse packets it writes.")
+	s := &spkt.ScnPkt{}
+	s.DstIA, _ = addr.IAFromString("42-ff00:0:300")
+	s.SrcIA, _ = addr.IAFromString("73-ff00:0:301")
+	s.DstHost = addr.HostFromIP(net.IPv4(1, 2, 3, 4))
+	s.SrcHost = addr.HostFromIP(net.IPv4(10, 0, 0, 1))
+	s.Path = &spath.Path{Raw: rawPath, InfOff: 0, HopOff: 8}
+	s.L4 = &l4.UDP{SrcPort: 1280, DstPort: 80, TotalLen: 8}
+	s.Pld = common.RawBytes("scion123")
 
-		b := make(common.RawBytes, 1024)
-		n, err := WriteScnPkt(s, b)
-		SoMsg("Write error", err, ShouldBeNil)
+	b := make(common.RawBytes, 1024)
+	n, err := WriteScnPkt(s, b)
+	assert.NoError(t, err, "Write error")
 
-		c := &spkt.ScnPkt{}
-		err = ParseScnPkt(c, b[:n])
-		SoMsg("Read error", err, ShouldBeNil)
-		SoMsg("Dst IAs must match", s.DstIA.Equal(c.DstIA), ShouldBeTrue)
-		SoMsg("Src IAs must match", s.SrcIA.Equal(c.SrcIA), ShouldBeTrue)
-		SoMsg("Dst host types must match", s.DstHost.Type(), ShouldEqual, c.DstHost.Type())
-		SoMsg("Dst host IPs must match", s.DstHost.IP().Equal(c.DstHost.IP()), ShouldBeTrue)
-		SoMsg("Raw paths must match", s.Path.Raw, ShouldResemble, c.Path.Raw)
-		SoMsg("Info offset must be correct", c.Path.InfOff, ShouldEqual, 0)
-		SoMsg("Hop offset must be correct", c.Path.HopOff, ShouldEqual, 8)
-		SoMsg("L4 type must match", s.L4.L4Type(), ShouldEqual, c.L4.L4Type())
-		SoMsg("L4 length must match", s.L4.L4Len(), ShouldEqual, c.L4.L4Len())
-		SoMsg("Payloads must match", s.Pld, ShouldResemble, c.Pld)
-	})
+	c := &spkt.ScnPkt{}
+	err = ParseScnPkt(c, b[:n])
+	require.NoError(t, err, "Read error")
+	assert.True(t, s.DstIA.Equal(c.DstIA), "Dst IAs must match")
+	assert.True(t, s.SrcIA.Equal(c.SrcIA), "Src IAs must match")
+	assert.Equal(t, s.DstHost.Type(), c.DstHost.Type(), "Dst host types must match")
+	assert.True(t, s.DstHost.IP().Equal(c.DstHost.IP()), "Dst host IPs must match")
+	assert.Equal(t, s.Path.Raw, c.Path.Raw, "Raw paths must match")
+	assert.Equal(t, c.Path.InfOff, 0, "Info offset must be correct")
+	assert.Equal(t, c.Path.HopOff, 8, "Hop offset must be correct")
+	assert.Equal(t, s.L4.L4Type(), c.L4.L4Type(), "L4 type must match")
+	assert.Equal(t, s.L4.L4Len(), c.L4.L4Len(), "L4 length must match")
+	assert.Equal(t, s.Pld, c.Pld, "Payloads must match")
 }

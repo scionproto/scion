@@ -17,54 +17,42 @@ package hpkt
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/layers"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestExtension(t *testing.T) {
-	type TestCase struct {
-		Description       string
+	tests := map[string]struct {
 		InputExtensions   []common.Extension
 		ExpectedOutputHBH []common.Extension
 		ExpectedOutputE2E []common.Extension
-		ExpectedError     bool
-	}
-	testCases := []*TestCase{
-		{
-			Description: "nil slice",
+		Assertion         require.ErrorAssertionFunc
+	}{
+		"nil slice": {
+			Assertion: require.NoError,
 		},
-		{
-			Description:     "empty slice",
+		"empty slice": {
 			InputExtensions: []common.Extension{},
+			Assertion:       require.NoError,
 		},
-		{
-			Description:       "OHP",
+		"OHP": {
 			InputExtensions:   []common.Extension{&layers.ExtnOHP{}},
 			ExpectedOutputHBH: []common.Extension{&layers.ExtnOHP{}},
+			Assertion:         require.NoError,
 		},
-		// Disabled for now, see https://github.com/scionproto/scion/issues/2421.
-		/*
-			{
-				Description:     "Duplicate OHP",
-				InputExtensions: []common.Extension{&layers.ExtnOHP{}, &layers.ExtnOHP{}},
-				ExpectedError:   true,
-			},
-		*/
-		{
-			Description:       "SCMP in first position",
+		"SCMP in first position": {
 			InputExtensions:   []common.Extension{&layers.ExtnSCMP{}},
 			ExpectedOutputHBH: []common.Extension{&layers.ExtnSCMP{}},
+			Assertion:         require.NoError,
 		},
-		{
-			Description:     "SCMP not in first position",
+		"SCMP not in first position": {
 			InputExtensions: []common.Extension{&layers.ExtnOHP{}, &layers.ExtnSCMP{}},
-			ExpectedError:   true,
+			Assertion:       require.Error,
 		},
-		{
-			Description: "two unknown extensions, different types",
+		"two unknown extensions, different types": {
 			InputExtensions: []common.Extension{
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 42},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 43},
@@ -73,35 +61,34 @@ func TestExtension(t *testing.T) {
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 42},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 43},
 			},
+			Assertion: require.NoError,
 		},
-		{
-			Description: "unknown E2E",
+		"unknown E2E": {
 			InputExtensions: []common.Extension{
 				&layers.ExtnUnknown{ClassField: common.End2EndClass, TypeField: 42},
 			},
 			ExpectedOutputE2E: []common.Extension{
 				&layers.ExtnUnknown{ClassField: common.End2EndClass, TypeField: 42},
 			},
+			Assertion: require.NoError,
 		},
-		{
-			Description: "bad class",
+		"bad class": {
 			InputExtensions: []common.Extension{
 				&layers.ExtnUnknown{ClassField: 73, TypeField: 42},
 			},
-			ExpectedError: true,
+			Assertion: require.Error,
 		},
-		{
-			Description: "too many HBH",
+
+		"too many HBH": {
 			InputExtensions: []common.Extension{
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 42},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 43},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 44},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 45},
 			},
-			ExpectedError: true,
+			Assertion: require.Error,
 		},
-		{
-			Description: "HBH limit with SCMP",
+		"HBH limit with SCMP": {
 			InputExtensions: []common.Extension{
 				&layers.ExtnSCMP{},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 43},
@@ -114,10 +101,9 @@ func TestExtension(t *testing.T) {
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 44},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 45},
 			},
-			ExpectedError: false,
+			Assertion: require.NoError,
 		},
-		{
-			Description: "too many HBH with SCMP",
+		"too many HBH with SCMP": {
 			InputExtensions: []common.Extension{
 				&layers.ExtnSCMP{},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 43},
@@ -125,25 +111,28 @@ func TestExtension(t *testing.T) {
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 45},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 46},
 			},
-			ExpectedError: true,
+			Assertion: require.Error,
 		},
-		{
-			Description: "HBH after E2E",
+		"HBH after E2E": {
 			InputExtensions: []common.Extension{
 				&layers.ExtnUnknown{ClassField: common.End2EndClass, TypeField: 43},
 				&layers.ExtnUnknown{ClassField: common.HopByHopClass, TypeField: 44},
 			},
-			ExpectedError: true,
+			Assertion: require.Error,
 		},
+		//// Disabled for now, see https://github.com/scionproto/scion/issues/2421.
+		//"Duplicate OHP": {
+		//		InputExtensions: []common.Extension{&layers.ExtnOHP{}, &layers.ExtnOHP{}},
+		//		Assertion:       require.Error,
+		//	},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				hbh, e2e, err := ValidateExtensions(tc.InputExtensions)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("HBH", hbh, ShouldResemble, tc.ExpectedOutputHBH)
-				SoMsg("E2E", e2e, ShouldResemble, tc.ExpectedOutputE2E)
-			})
-		}
-	})
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			hbh, e2e, err := ValidateExtensions(test.InputExtensions)
+			test.Assertion(t, err)
+			assert.Equal(t, hbh, test.ExpectedOutputHBH, "HBH")
+			assert.Equal(t, e2e, test.ExpectedOutputE2E, "E2E")
+		})
+	}
 }
