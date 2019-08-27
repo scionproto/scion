@@ -25,8 +25,7 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
-// asCfg holds the AS configuration including the from file system loaded
-// private keys.
+// asCfg holds the AS configuration including the private keys loaded from file system.
 type asCfg struct {
 	ASCfg *conf.ASCfg
 	Keys  map[trc.KeyType][]byte
@@ -55,11 +54,9 @@ func loadPrimaryASes(isd addr.ISD, isdCfg *conf.ISDCfg, wl []addr.IA) (map[addr.
 	for _, as := range isdCfg.IssuingASes {
 		ases[as] = append(ases[as], trc.IssuingKey)
 	}
+	filter(isd, ases, wl)
 	primaryASes := make(map[addr.AS]*asCfg)
 	for as, keys := range ases {
-		if len(wl) != 0 && !pkicmn.Contains(wl, addr.IA{I: isd, A: as}) {
-			continue
-		}
 		ia := addr.IA{I: isd, A: as}
 		cfg, err := loadASCfg(ia)
 		if err != nil {
@@ -73,6 +70,18 @@ func loadPrimaryASes(isd addr.ISD, isdCfg *conf.ISDCfg, wl []addr.IA) (map[addr.
 		primaryASes[as] = cfg
 	}
 	return primaryASes, nil
+}
+
+// filter deletes all entries that are not on the whitelist.
+func filter(isd addr.ISD, ases map[addr.AS][]trc.KeyType, wl []addr.IA) {
+	if len(wl) == 0 {
+		return
+	}
+	for as := range ases {
+		if !pkicmn.Contains(wl, addr.IA{I: isd, A: as}) {
+			delete(ases, as)
+		}
+	}
 }
 
 func loadASCfg(ia addr.IA) (*asCfg, error) {
@@ -94,10 +103,10 @@ func loadKey(ia addr.IA, keyType trc.KeyType, cfg *asCfg) ([]byte, error) {
 	case trc.IssuingKey:
 		file = keyconf.TRCIssuingKeyFile
 	}
-	key, err := keyconf.LoadKey(filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, ia),
-		pkicmn.KeysDir, file), cfg.KeyTypeToAlgo(keyType))
+	path := filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, ia), pkicmn.KeysDir, file)
+	key, err := keyconf.LoadKey(path, cfg.KeyTypeToAlgo(keyType))
 	if err != nil {
-		return nil, common.NewBasicError("unable to load key", err, "keyType", keyType)
+		return nil, common.NewBasicError("unable to load key", err, "type", keyType, "file", path)
 	}
 	return key, nil
 }

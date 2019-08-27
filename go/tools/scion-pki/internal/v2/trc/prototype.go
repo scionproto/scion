@@ -56,7 +56,7 @@ func genAndWriteProto(isd addr.ISD) error {
 	if err != nil {
 		return common.NewBasicError("unable to marshal", err)
 	}
-	if err := pkicmn.CreateDir(PartsDir(isd, uint64(t.Version)), 0755); err != nil {
+	if err := os.MkdirAll(PartsDir(isd, uint64(t.Version)), 0755); err != nil {
 		return err
 	}
 	return pkicmn.WriteToFile(raw, ProtoFile(isd, uint64(t.Version)), 0644)

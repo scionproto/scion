@@ -144,20 +144,6 @@ func ContainsAS(ases []addr.AS, as addr.AS) bool {
 	return false
 }
 
-// CreateDir creates a directory if it does not already exist.
-func CreateDir(dir string, perm os.FileMode) error {
-	_, err := os.Stat(dir)
-	switch {
-	case os.IsNotExist(err):
-		if err := os.MkdirAll(dir, perm); err != nil {
-			return common.NewBasicError("cannot create output dir", err, "path", dir)
-		}
-	case err != nil:
-		return common.NewBasicError("unable to stat dir", err, "dir", dir)
-	}
-	return nil
-}
-
 func WriteToFile(raw []byte, path string, perm os.FileMode) error {
 	// Check if file already exists.
 	if _, err := os.Stat(path); err == nil {

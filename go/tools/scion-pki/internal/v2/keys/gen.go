@@ -89,7 +89,7 @@ func (a *as) gen() error {
 			keyconf.TRCOfflineKeyFile: a.cfg.PrimaryKeyAlgorithms.Offline,
 		})
 	}
-	if err := pkicmn.CreateDir(a.outDir, 0700); err != nil {
+	if err := os.MkdirAll(a.outDir, 0700); err != nil {
 		return nil
 	}
 	for file, keyType := range keys {
