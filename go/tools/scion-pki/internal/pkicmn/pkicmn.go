@@ -31,6 +31,8 @@ const (
 	CertNameFmt        = "ISD%d-AS%s-V%d.crt"
 	CoreCertNameFmt    = "ISD%d-AS%s-V%d-core.crt"
 	TrcNameFmt         = "ISD%d-V%d.trc"
+	TRCPartsDirFmt     = "ISD%d-V%d.parts"
+	TRCProtoNameFmt    = "ISD%d-V%d.proto"
 	ErrInvalidSelector = "Invalid selector."
 	ErrNoISDDirFound   = "No ISD directories found"
 	ErrNoASDirFound    = "No AS directories found"
@@ -142,7 +144,21 @@ func ContainsAS(ases []addr.AS, as addr.AS) bool {
 	return false
 }
 
-func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
+// CreateDir creates a directory if it does not already exist.
+func CreateDir(dir string, perm os.FileMode) error {
+	_, err := os.Stat(dir)
+	switch {
+	case os.IsNotExist(err):
+		if err := os.MkdirAll(dir, perm); err != nil {
+			return common.NewBasicError("cannot create output dir", err, "path", dir)
+		}
+	case err != nil:
+		return common.NewBasicError("unable to stat dir", err, "dir", dir)
+	}
+	return nil
+}
+
+func WriteToFile(raw []byte, path string, perm os.FileMode) error {
 	// Check if file already exists.
 	if _, err := os.Stat(path); err == nil {
 		if !Force {

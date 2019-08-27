@@ -89,14 +89,8 @@ func (a *as) gen() error {
 			keyconf.TRCOfflineKeyFile: a.cfg.PrimaryKeyAlgorithms.Offline,
 		})
 	}
-	// Check if out directory exists and if not create it.
-	_, err := os.Stat(a.outDir)
-	if os.IsNotExist(err) {
-		if err = os.MkdirAll(a.outDir, 0700); err != nil {
-			return common.NewBasicError("Cannot create output dir", err)
-		}
-	} else if err != nil {
-		return common.NewBasicError("Error checking output dir", err)
+	if err := pkicmn.CreateDir(a.outDir, 0700); err != nil {
+		return nil
 	}
 	for file, keyType := range keys {
 		if err := a.genKey(file, keyType); err != nil {
