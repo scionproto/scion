@@ -18,16 +18,14 @@ import (
 	"testing"
 
 	"github.com/google/gopacket"
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExtnOHPDecodeFromLayer(t *testing.T) {
 	type TestCase struct {
 		Description   string
 		Extension     *Extension
-		Bytes         []byte
 		ExpectedError bool
 	}
 	testCases := []*TestCase{
@@ -42,15 +40,17 @@ func TestExtnOHPDecodeFromLayer(t *testing.T) {
 			Extension:   mustCreateExtensionLayer([]byte{0, 1, 0, 0, 0, 0, 0, 0}),
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				var extn ExtnOHP
-				err := extn.DecodeFromLayer(tc.Extension)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-			})
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.Description, func(t *testing.T) {
+			var extn ExtnOHP
+			err := extn.DecodeFromLayer(tc.Extension)
+			if tc.ExpectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestExtnSCMPDecodeFromLayer(t *testing.T) {
@@ -77,16 +77,18 @@ func TestExtnSCMPDecodeFromLayer(t *testing.T) {
 			ExpectedExtension: ExtnSCMP{Error: true, HopByHop: true},
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				var extn ExtnSCMP
-				err := extn.DecodeFromLayer(tc.Extension)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("extension", extn, ShouldResemble, tc.ExpectedExtension)
-			})
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.Description, func(t *testing.T) {
+			var extn ExtnSCMP
+			err := extn.DecodeFromLayer(tc.Extension)
+			if tc.ExpectedError {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedExtension, extn, "extension must match")
+			}
+		})
+	}
 }
 
 func TestExtnUnkownDecodeFromLayer(t *testing.T) {
@@ -106,16 +108,18 @@ func TestExtnUnkownDecodeFromLayer(t *testing.T) {
 			ExpectedExtension: ExtnUnknown{Length: 13, TypeField: 3},
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				var extn ExtnUnknown
-				err := extn.DecodeFromLayer(tc.Extension)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("extension", extn, ShouldResemble, tc.ExpectedExtension)
-			})
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.Description, func(t *testing.T) {
+			var extn ExtnUnknown
+			err := extn.DecodeFromLayer(tc.Extension)
+			if tc.ExpectedError {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedExtension, extn, "extension must match")
+			}
+		})
+	}
 }
 
 func mustCreateExtensionLayer(b []byte) *Extension {
