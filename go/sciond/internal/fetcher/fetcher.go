@@ -146,8 +146,10 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// Try to build paths from local information first, if we don't have to
 	// get fresh segments.
 	if !req.Flags.Refresh && !refetch {
-		if reply, err := f.buildReplyFromDB(ctx, req, true); reply != nil {
+		if reply, err := f.buildReplyFromDB(ctx, req, true); err != nil {
 			return reply, common.NewBasicError("unable to build paths from local information", err)
+		} else if reply != nil {
+			return reply, nil
 		}
 	}
 	if req.Flags.Refresh {
@@ -174,8 +176,10 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	case storedSegs = <-processedResult.EarlyTriggerProcessed():
 	}
 	if storedSegs > 0 {
-		if reply, err := f.buildReplyFromDB(ctx, req, true); reply != nil {
+		if reply, err := f.buildReplyFromDB(ctx, req, true); err != nil {
 			return reply, common.NewBasicError("unable to build reply on early trigger", err)
+		} else if reply != nil {
+			return reply, nil
 		}
 	}
 	// Wait for deadline or full reply processed.
@@ -190,9 +194,11 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		f.logger.Warn("Failed to verify reply",
 			"errors", common.FmtErrors(processedResult.VerificationErrors()))
 	}
-	if reply, err := f.buildReplyFromDB(ctx, req, false); reply != nil {
+	if reply, err := f.buildReplyFromDB(ctx, req, false); err != nil {
 		return reply, common.NewBasicError("unable to build reply after fully processing segments",
 			err)
+	} else if reply != nil {
+		return reply, nil
 	}
 	// Your paths are in another castle
 	return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
