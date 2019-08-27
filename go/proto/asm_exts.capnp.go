@@ -173,28 +173,95 @@ func (p ISDAnnouncementExt_Promise) Struct() (ISDAnnouncementExt, error) {
 	return ISDAnnouncementExt{s}, err
 }
 
-const schema_e6c88f91b6a1209e = "x\xdal\xce\xb1J\xf3P\x18\xc6\xf1\xe79'm\xda" +
-	"\xe1k{\xbe\xe6\x02\xc4QT\x10\x11T\x10\xad\xb4C" +
-	"\x07\xa1G\x1d\x05\x0d\xed\xd1\x06\xda$\x90T\xd2\xa9\x08" +
-	"\xe2*.\x8eBoB]\x1d\x14\xaf\xc1Y\xf4\x1a\x9c" +
-	"\"\xc7A\x11\\\x1f\xfe/\xef\xafv\xba%T\xe1\x0e" +
-	"\xd0\xa5B1\xffx]Y\xbd\x7fy\xb8\x86\xaeR\xe4" +
-	"73\xd3\xdb\xab\xcb\xe77\x14\xe8\x02K\x0dA\xb5\xe3" +
-	"\x02\xaa\xfd\x0e\xe6\xd3\xa7\xf9\xb3\x8a\xb9x\xb4)\x7fR" +
-	"\xc7\x05\x96\x17\xf8\x9f\xf5\x0d{T_\xe3&\x98\xfb\xc9" +
-	"\xf0\xd0di\"\x17\xbb~\x1c\xc6\xeb\xbb\xd1(\x0d\xc2" +
-	"\x93N4\x08\xba\xe3V\x96\xa2C\xea\x9at\x00\x87\x80" +
-	"\xf2g\x01} \xa9\xfb\x82\x8a\xf4hG\xb3\x0d\xe8#" +
-	"I=\x10T\x82\x1e\x05\xa0\x829@\xf7$u,H" +
-	"\xe9Q\x02jh\xc3\xbe\xa4>\x17t\x13\x93\x92\x10$" +
-	"8\x89\xa3\xc1\xfe86,B\xb0\x08V\x83\xe3v\x93" +
-	"e\x08\x96\xc1I\x90\xf4\xfc\xc4$\xac\x80\x1d\xc9\xaf\xb9" +
-	"\xf2\x87\xbc\xbd\xd7l\x84a4\x0a\xbbfh\xc2\xb4\x95" +
-	"1\xb5v\xe7\xdb\xfe\xcf\xdaK\x92\xda\xfb\xfd\xfd3\x00" +
-	"\x00\xff\xffm\xabO\x82"
+type HiddenPathSegExtn struct{ capnp.Struct }
+
+// HiddenPathSegExtn_TypeID is the unique identifier for the type HiddenPathSegExtn.
+const HiddenPathSegExtn_TypeID = 0xff79b399e1e58cf3
+
+func NewHiddenPathSegExtn(s *capnp.Segment) (HiddenPathSegExtn, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return HiddenPathSegExtn{st}, err
+}
+
+func NewRootHiddenPathSegExtn(s *capnp.Segment) (HiddenPathSegExtn, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return HiddenPathSegExtn{st}, err
+}
+
+func ReadRootHiddenPathSegExtn(msg *capnp.Message) (HiddenPathSegExtn, error) {
+	root, err := msg.RootPtr()
+	return HiddenPathSegExtn{root.Struct()}, err
+}
+
+func (s HiddenPathSegExtn) String() string {
+	str, _ := text.Marshal(0xff79b399e1e58cf3, s.Struct)
+	return str
+}
+
+func (s HiddenPathSegExtn) Set() bool {
+	return s.Struct.Bit(0)
+}
+
+func (s HiddenPathSegExtn) SetSet(v bool) {
+	s.Struct.SetBit(0, v)
+}
+
+// HiddenPathSegExtn_List is a list of HiddenPathSegExtn.
+type HiddenPathSegExtn_List struct{ capnp.List }
+
+// NewHiddenPathSegExtn creates a new list of HiddenPathSegExtn.
+func NewHiddenPathSegExtn_List(s *capnp.Segment, sz int32) (HiddenPathSegExtn_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return HiddenPathSegExtn_List{l}, err
+}
+
+func (s HiddenPathSegExtn_List) At(i int) HiddenPathSegExtn {
+	return HiddenPathSegExtn{s.List.Struct(i)}
+}
+
+func (s HiddenPathSegExtn_List) Set(i int, v HiddenPathSegExtn) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s HiddenPathSegExtn_List) String() string {
+	str, _ := text.MarshalList(0xff79b399e1e58cf3, s.List)
+	return str
+}
+
+// HiddenPathSegExtn_Promise is a wrapper for a HiddenPathSegExtn promised by a client call.
+type HiddenPathSegExtn_Promise struct{ *capnp.Pipeline }
+
+func (p HiddenPathSegExtn_Promise) Struct() (HiddenPathSegExtn, error) {
+	s, err := p.Pipeline.Struct()
+	return HiddenPathSegExtn{s}, err
+}
+
+const schema_e6c88f91b6a1209e = "x\xda\x8c\xce?\x8b\x13A\x1c\xc6\xf1\xe7\x99\xd9d\x8d" +
+	"h\x925\xfb\x02\xc4RD\x08\"\x88\x8d\x7fH\xc0t" +
+	";\xc6F\x10t\xc9\x8e\xc9Bvva'\xb0[\x05" +
+	"A\xad\x04I\xa1b#\xe45\x08bk\xa1\xf8\x1a\xae" +
+	";\xb8?/\xe0\xaa\xab\xf6\xd8\x14w\x1c\x97\xe2\xda\x1f" +
+	"\x9fy\xe6\xdb\xfd\xf6X\xf4\x1b\x1d\x02\xeaZ\xa3Y\x1d" +
+	"\xef\xdd\x7f\xf0{\xe7\xcfW\xa8\x0eE\xf5\xe3\xe6\xfa\xd7" +
+	"\xea\xf3\xff\x034\xe8\x02\xfdD\xd0+]\xc0[\x1c\x82" +
+	"\xd5\xfa\xdf\x9dwm\xfd\xf1oMyF\x1d\x17\xb8\xf7" +
+	"\x927\xd8\x8b\xebG=\xcdG`u\xf4i\x7f\xf7\xfb" +
+	"\xcf\xb2\xda\x86?\xf0*{_6x\xb5\xc1a\x9e\xbc" +
+	"\xd6\x85\xcd\xe5\xddI\x98\x99\xec\xe1\xf3tac3\x0d" +
+	"\xd2y<)\x87\x85E@\xaa\xaet\x00\x87\x80\x17\xde" +
+	"\x02\xd4+I5\x13\xf4H\x9f\xf5Q?\x05\xd4\x1bI" +
+	"5\x17\xf4\x04}\x0a\xc0\x8bo\x03*\x92T\x99 \xa5" +
+	"O\x09xI\x0dg\x92\xea\xbd\xa0\x9bkKB\x90\xe0" +
+	"2K\xe7/\xcaL\xb3\x09\xc1&\xd8\x89\xdf\x8e\x06l" +
+	"A\xb0\x05.\xe3<\x0as\x9d\xb3\x0d\x06\x92\x9bs{" +
+	"K\xf9h<xbL\xba0\x13\x9dhc\x87\x05m" +
+	"\xdd\xee\x9c\xb6_\xaf\xdb\xafH*\xff\xfc\xef\x17\x96\x9e" +
+	"\xc5Q\xa4M\x10\xda\xd9XO\x87\x855\xc0\xe5\x96N" +
+	"\x02\x00\x00\xff\xff#\x1dpa"
 
 func init() {
 	schemas.Register(schema_e6c88f91b6a1209e,
 		0x96c1dab83835e4f9,
-		0xc586650e812cc6a1)
+		0xc586650e812cc6a1,
+		0xff79b399e1e58cf3)
 }
