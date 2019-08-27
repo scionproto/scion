@@ -50,7 +50,7 @@ func segsToRecs(ctx context.Context, segs segfetcher.Segments) []*seg.Meta {
 		}
 		s := segs.Up[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
-			s.FirstIA(), s.LastIA()))
+			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_up))
 	}
 	for i := range segs.Core {
@@ -59,7 +59,7 @@ func segsToRecs(ctx context.Context, segs segfetcher.Segments) []*seg.Meta {
 		}
 		s := segs.Core[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
-			s.FirstIA(), s.LastIA()))
+			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_core))
 	}
 	for i := range segs.Down {
@@ -68,7 +68,7 @@ func segsToRecs(ctx context.Context, segs segfetcher.Segments) []*seg.Meta {
 		}
 		s := segs.Down[i]
 		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
-			s.FirstIA(), s.LastIA()))
+			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
 	}
 	return recs

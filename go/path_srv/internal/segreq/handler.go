@@ -76,19 +76,21 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	}
 	revs, err := revcache.RelevantRevInfos(ctx, h.revCache, segs.Up, segs.Core, segs.Down)
 	if err != nil {
-		logger.Error("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
+		logger.Warn("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
 		// the client might still be able to use the segments so continue here.
 	}
-	err = rw.SendSegReply(ctx, &path_mgmt.SegReply{
+	reply := &path_mgmt.SegReply{
 		Req: segReq,
 		Recs: &path_mgmt.SegRecs{
 			Recs:      segsToRecs(ctx, segs),
 			SRevInfos: revs,
 		},
-	})
+	}
+	err = rw.SendSegReply(ctx, reply)
 	if err != nil {
 		return infra.MetricsErrInternal
 	}
+	logger.Debug("[segReqHandler] Replied with segments", "segs", len(reply.Recs.Recs))
 	return infra.MetricsResultOk
 }
 
