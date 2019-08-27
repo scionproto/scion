@@ -19,9 +19,8 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExtensionDecodeFromBytes(t *testing.T) {
@@ -71,16 +70,18 @@ func TestExtensionDecodeFromBytes(t *testing.T) {
 			},
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				var extn Extension
-				err := extn.DecodeFromBytes(tc.Data, gopacket.NilDecodeFeedback)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("extension", extn, ShouldResemble, tc.ExpectedExtension)
-			})
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.Description, func(t *testing.T) {
+			var extn Extension
+			err := extn.DecodeFromBytes(tc.Data, gopacket.NilDecodeFeedback)
+			if tc.ExpectedError {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedExtension, extn, "extension must matches")
+			}
+		})
+	}
 }
 
 func TestExtensionSerializeTo(t *testing.T) {
@@ -91,7 +92,7 @@ func TestExtensionSerializeTo(t *testing.T) {
 
 		ExpectedError  bool
 		ExpectedBytes  []byte
-		ExpectedLength int
+		ExpectedLength uint8
 	}
 	testCases := []*TestCase{
 		{
@@ -159,15 +160,18 @@ func TestExtensionSerializeTo(t *testing.T) {
 			ExpectedLength:   1,
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				b := gopacket.NewSerializeBuffer()
-				err := tc.Extension.SerializeTo(b, tc.SerializeOptions)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("b", b.Bytes(), ShouldResemble, tc.ExpectedBytes)
-				SoMsg("updated length field", tc.Extension.NumLines, ShouldEqual, tc.ExpectedLength)
-			})
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.Description, func(t *testing.T) {
+			b := gopacket.NewSerializeBuffer()
+			err := tc.Extension.SerializeTo(b, tc.SerializeOptions)
+			if tc.ExpectedError {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedBytes, b.Bytes(), "buffer must match")
+				assert.Equal(t, tc.ExpectedLength, tc.Extension.NumLines,
+					"updated length field must match")
+			}
+		})
+	}
 }
