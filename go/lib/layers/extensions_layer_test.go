@@ -27,27 +27,24 @@ func TestExtensionDecodeFromBytes(t *testing.T) {
 	type TestCase struct {
 		Description       string
 		Data              []byte
-		ExpectedError     bool
+		ErrorAssertion    require.ErrorAssertionFunc
 		ExpectedExtension Extension
 	}
-	testCases := []*TestCase{
-		{
-			Description:   "nil input",
-			ExpectedError: true,
+	tests := map[string]TestCase{
+		"nil input:": {
+			ErrorAssertion: require.Error,
 		},
-		{
-			Description:   "truncated header",
-			Data:          []byte{1},
-			ExpectedError: true,
+		"truncated header": {
+			Data:           []byte{1},
+			ErrorAssertion: require.Error,
 		},
-		{
-			Description:   "truncated extension body",
-			Data:          []byte{0, 1, 0},
-			ExpectedError: true,
+		"truncated extension body": {
+			Data:           []byte{0, 1, 0},
+			ErrorAssertion: require.Error,
 		},
-		{
-			Description: "extension header and data, no payload after",
-			Data:        []byte{1, 1, 3, 0, 0, 0, 0, 1},
+		"extension header and data, no payload after": {
+			Data:           []byte{1, 1, 3, 0, 0, 0, 0, 1},
+			ErrorAssertion: require.NoError,
 			ExpectedExtension: Extension{
 				BaseLayer: layers.BaseLayer{
 					Contents: []byte{1, 1, 3, 0, 0, 0, 0, 1},
@@ -57,9 +54,9 @@ func TestExtensionDecodeFromBytes(t *testing.T) {
 				Data: []byte{0, 0, 0, 0, 1},
 			},
 		},
-		{
-			Description: "extension header and data, payload after",
-			Data:        []byte{1, 1, 3, 0, 0, 0, 0, 1, 3, 4, 5},
+		"extension header and data, payload after": {
+			Data:           []byte{1, 1, 3, 0, 0, 0, 0, 1, 3, 4, 5},
+			ErrorAssertion: require.NoError,
 			ExpectedExtension: Extension{
 				BaseLayer: layers.BaseLayer{
 					Contents: []byte{1, 1, 3, 0, 0, 0, 0, 1},
@@ -70,16 +67,12 @@ func TestExtensionDecodeFromBytes(t *testing.T) {
 			},
 		},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.Description, func(t *testing.T) {
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
 			var extn Extension
-			err := extn.DecodeFromBytes(tc.Data, gopacket.NilDecodeFeedback)
-			if tc.ExpectedError {
-				assert.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedExtension, extn, "extension must matches")
-			}
+			err := extn.DecodeFromBytes(test.Data, gopacket.NilDecodeFeedback)
+			test.ErrorAssertion(t, err)
+			assert.Equal(t, test.ExpectedExtension, extn, "extension must match")
 		})
 	}
 }
@@ -90,55 +83,54 @@ func TestExtensionSerializeTo(t *testing.T) {
 		Extension        Extension
 		SerializeOptions gopacket.SerializeOptions
 
-		ExpectedError  bool
+		ErrorAssertion require.ErrorAssertionFunc
 		ExpectedBytes  []byte
 		ExpectedLength uint8
 	}
-	testCases := []*TestCase{
-		{
-			Description:   "empty extension",
-			Extension:     Extension{},
-			ExpectedBytes: []byte{0, 0, 0},
+	tests := map[string]TestCase{
+		"empty extension": {
+			Extension:      Extension{},
+			ExpectedBytes:  []byte{0, 0, 0},
+			ErrorAssertion: require.NoError,
 		},
-		{
-			Description:      "empty extension with fix lengths",
+		"empty extension with fix lengths": {
 			Extension:        Extension{},
 			SerializeOptions: gopacket.SerializeOptions{FixLengths: true},
 			ExpectedBytes:    []byte{0, 1, 0, 0, 0, 0, 0, 0},
 			ExpectedLength:   1,
+			ErrorAssertion:   require.NoError,
 		},
-		{
-			Description:    "extension with bad length",
+		"extension with bad length": {
 			Extension:      Extension{NumLines: 2},
 			ExpectedBytes:  []byte{0, 2, 0},
 			ExpectedLength: 2,
+			ErrorAssertion: require.NoError,
 		},
-		{
-			Description:   "extension with aligned payload",
-			Extension:     Extension{Data: []byte{42, 42, 42, 42, 42}},
-			ExpectedBytes: []byte{0, 0, 0, 42, 42, 42, 42, 42},
+		"extension with aligned payload": {
+			Extension:      Extension{Data: []byte{42, 42, 42, 42, 42}},
+			ExpectedBytes:  []byte{0, 0, 0, 42, 42, 42, 42, 42},
+			ErrorAssertion: require.NoError,
 		},
-		{
-			Description:      "extension with aligned payload and fix lengths",
+		"extension with aligned payload and fix lengths": {
 			Extension:        Extension{Data: []byte{42, 42, 42, 42, 42}},
 			SerializeOptions: gopacket.SerializeOptions{FixLengths: true},
 			ExpectedBytes:    []byte{0, 1, 0, 42, 42, 42, 42, 42},
 			ExpectedLength:   1,
+			ErrorAssertion:   require.NoError,
 		},
-		{
-			Description:   "extension with non-aligned payload",
-			Extension:     Extension{Data: []byte{42, 42, 42}},
-			ExpectedBytes: []byte{0, 0, 0, 42, 42, 42},
+		"extension with non-aligned payload": {
+			Extension:      Extension{Data: []byte{42, 42, 42}},
+			ExpectedBytes:  []byte{0, 0, 0, 42, 42, 42},
+			ErrorAssertion: require.NoError,
 		},
-		{
-			Description:      "extension with non-aligned payload and fix lengths",
+		"extension with non-aligned payload and fix lengths": {
 			Extension:        Extension{Data: []byte{42, 42, 42}},
 			SerializeOptions: gopacket.SerializeOptions{FixLengths: true},
 			ExpectedBytes:    []byte{0, 1, 0, 42, 42, 42, 0, 0},
 			ExpectedLength:   1,
+			ErrorAssertion:   require.NoError,
 		},
-		{
-			Description: "extension with custom fields",
+		"extension with custom fields": {
 			Extension: Extension{
 				NextHeader: 3,
 				NumLines:   4,
@@ -147,9 +139,9 @@ func TestExtensionSerializeTo(t *testing.T) {
 			},
 			ExpectedBytes:  []byte{3, 4, 5, 0, 0, 0, 0, 0},
 			ExpectedLength: 4,
+			ErrorAssertion: require.NoError,
 		},
-		{
-			Description: "extension with custom fields and fix lengths",
+		"extension with custom fields and fix lengths": {
 			Extension: Extension{
 				NextHeader: 3,
 				NumLines:   4,
@@ -158,20 +150,17 @@ func TestExtensionSerializeTo(t *testing.T) {
 			SerializeOptions: gopacket.SerializeOptions{FixLengths: true},
 			ExpectedBytes:    []byte{3, 1, 5, 0, 0, 0, 0, 0},
 			ExpectedLength:   1,
+			ErrorAssertion:   require.NoError,
 		},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.Description, func(t *testing.T) {
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
 			b := gopacket.NewSerializeBuffer()
-			err := tc.Extension.SerializeTo(b, tc.SerializeOptions)
-			if tc.ExpectedError {
-				assert.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedBytes, b.Bytes(), "buffer must match")
-				assert.Equal(t, tc.ExpectedLength, tc.Extension.NumLines,
-					"updated length field must match")
-			}
+			err := test.Extension.SerializeTo(b, test.SerializeOptions)
+			test.ErrorAssertion(t, err)
+			assert.Equal(t, test.ExpectedBytes, b.Bytes(), "buffer must match")
+			assert.Equal(t, test.ExpectedLength, test.Extension.NumLines,
+				"updated length field must match")
 		})
 	}
 }
