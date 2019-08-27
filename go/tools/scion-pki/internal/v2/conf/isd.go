@@ -67,6 +67,9 @@ func LoadISDCfg(dir string) (*ISDCfg, error) {
 	if err = cfg.MapTo(i); err != nil {
 		return nil, err
 	}
+	if len(i.Desc) == 0 {
+		return nil, common.NewBasicError("description not set", nil)
+	}
 	if err = i.TRC.Validate(); err != nil {
 		return nil, err
 	}

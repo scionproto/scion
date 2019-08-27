@@ -71,6 +71,15 @@ func GenKeyPair(algo string) (common.RawBytes, common.RawBytes, error) {
 	}
 }
 
+// GetPubKey generates the public key for the provided private key.
+func GetPubKey(privKey []byte, algo string) ([]byte, error) {
+	switch strings.ToLower(algo) {
+	case Ed25519:
+		return ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey), nil
+	}
+	return nil, common.NewBasicError("unsupported key type", nil)
+}
+
 // Sign takes a signature input and a signing key to create a signature. Currently only
 // ed25519 is supported.
 func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, error) {
