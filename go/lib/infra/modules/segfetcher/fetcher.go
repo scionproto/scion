@@ -110,7 +110,7 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 			break
 		}
 		if i > 3 {
-			log.FromCtx(ctx).Error("No convergence in looking up", "i", i)
+			log.FromCtx(ctx).Error("No convergence in lookup", "iteration", i+1)
 			return segs, common.NewBasicError("Segment lookup doesn't converge", nil,
 				"iterations", i)
 		}

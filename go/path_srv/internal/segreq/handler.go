@@ -86,8 +86,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 			SRevInfos: revs,
 		},
 	}
-	err = rw.SendSegReply(ctx, reply)
-	if err != nil {
+	if err = rw.SendSegReply(ctx, reply); err != nil {
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Replied with segments", "segs", len(reply.Recs.Recs))
