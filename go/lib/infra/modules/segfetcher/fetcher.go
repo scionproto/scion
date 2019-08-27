@@ -114,11 +114,14 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 			return segs, common.NewBasicError("Segment lookup doesn't converge", nil,
 				"iterations", i)
 		}
-		replies := f.Requester.Request(ctx, reqSet)
+		reqCtx, cancelF := context.WithTimeout(ctx, 2*time.Second)
+		replies := f.Requester.Request(reqCtx, reqSet)
 		// TODO(lukedirtwalker): We need to have early trigger for the last request.
 		if err := f.waitOnProcessed(ctx, replies); err != nil {
+			cancelF()
 			return Segments{}, err
 		}
+		cancelF()
 	}
 	return segs, nil
 }
@@ -138,10 +141,14 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			if err := r.Err(); err != nil {
 				return err
 			}
-			// TODO(lukedirtwalker): if we didn't get any paths we should try
-			// again in a shorter interval.
+			queryInt := f.QueryInterval
+			// TODO(lukedirtwalker): make the short interval configurable
+			// TODO(lukedirtwalker): only count successfully verified entries:
+			if len(reply.Reply.Recs.Recs) <= 0 {
+				queryInt = 2 * time.Second
+			}
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil,
-				time.Now().Add(f.QueryInterval))
+				time.Now().Add(queryInt))
 			if err != nil {
 				log.FromCtx(ctx).Warn("Failed to insert next query", "err", err)
 			}
