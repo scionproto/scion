@@ -163,3 +163,32 @@ func (m *QueryParams) Matches(x interface{}) bool {
 func (m *QueryParams) String() string {
 	return fmt.Sprintf("is query.Params = %v", m.query)
 }
+
+// EqHPCfgIDs returns a matcher for the given slice of HPCfgIDs.
+func EqHPCfgIDs(ids []*query.HPCfgID) *QueryHPCfgIDs {
+	return &QueryHPCfgIDs{ids: ids}
+}
+
+// QueryHPCfgIDs is a matcher for HPCfgIDs.
+type QueryHPCfgIDs struct {
+	ids []*query.HPCfgID
+}
+
+// Matches returns whether x matches the defined HPCfgIDs ignoring the
+// order of the slice elements.
+func (m *QueryHPCfgIDs) Matches(x interface{}) bool {
+	ids, ok := x.([]*query.HPCfgID)
+	if !ok {
+		return false
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		return (ids[i].IA.IAInt() < ids[j].IA.IAInt()) ||
+			(ids[i].IA.IAInt() == ids[j].IA.IAInt() &&
+				ids[i].ID < ids[j].ID)
+	})
+	return reflect.DeepEqual(m.ids, ids)
+}
+
+func (m *QueryHPCfgIDs) String() string {
+	return fmt.Sprintf("is []*query.HPCfgID = %v", m.ids)
+}
