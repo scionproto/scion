@@ -28,15 +28,15 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 var (
 	dstIAStr     = flag.String("dstIA", "", "Destination IA address: ISD-AS")
-	srcIAStr     = flag.String("srcIA", "", "Source IA address: ISD-AS")
 	sciondPath   = flag.String("sciond", "", "SCIOND socket path")
+	sciondFromIA = flag.String("sciondFromIA", "", "SCIOND socket path from IA address:ISD-AS")
 	timeout      = flag.Duration("timeout", 5*time.Second, "Timeout in seconds")
 	maxPaths     = flag.Int("maxpaths", 10, "Maximum number of paths")
-	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	expiration   = flag.Bool("expiration", false, "Show path expiration timestamps")
 	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 	status       = flag.Bool("p", false, "Probe the paths and print out the statuses")
@@ -45,7 +45,6 @@ var (
 
 var (
 	dstIA addr.IA
-	srcIA addr.IA
 	local snet.Addr
 )
 
@@ -64,12 +63,11 @@ func main() {
 	}
 	defer log.LogPanicAndExit()
 
-	sd := sciond.NewService(*sciondPath)
-	var err error
-	sdConn, err := sd.ConnectTimeout(*timeout)
-	if err != nil {
-		LogFatal("Failed to connect to SCIOND", "err", err)
+	if err := snet.Init(addr.IA{}, *sciondPath, reliable.NewDispatcherService("")); err != nil {
+		LogFatal("Initializing SNET", "err", err)
 	}
+	sdConn := snet.DefNetwork.Sciond()
+	srcIA := snet.IA()
 	reply, err := sdConn.Paths(context.Background(), dstIA, srcIA, uint16(*maxPaths),
 		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
@@ -121,18 +119,13 @@ func validateFlags() {
 		}
 	}
 
-	if *srcIAStr != "" {
-		if srcIA, err = addr.IAFromString(*srcIAStr); err != nil {
-			LogFatal("Unable to parse source IA", "err", err)
-		}
-	}
-
-	if *sciondFromIA {
+	if *sciondFromIA != "" {
 		if *sciondPath != "" {
 			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
 		}
-		if srcIA.IsZero() {
-			LogFatal("-srcIA flag is missing")
+		var srcIA addr.IA
+		if srcIA, err = addr.IAFromString(*sciondFromIA); err != nil {
+			LogFatal("Unable to parse source IA", "err", err)
 		}
 		*sciondPath = sciond.GetDefaultSCIONDPath(&srcIA)
 	} else if *sciondPath == "" {

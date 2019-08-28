@@ -13,6 +13,7 @@ go_library(
         "//go/lib/sciond:go_default_library",
         "//go/lib/sciond/pathprobe:go_default_library",
         "//go/lib/snet:go_default_library",
+        "//go/lib/sock/reliable:go_default_library",
     ],
 )
 
