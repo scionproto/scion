@@ -56,6 +56,9 @@ type InfoTraceRoute struct {
 }
 
 func InfoTraceRouteFromRaw(b common.RawBytes) (*InfoTraceRoute, error) {
+	if len(b) < traceRouteLen {
+		return nil, common.NewBasicError("Unable to parse InfoTraceRoute, small buffer size", nil)
+	}
 	e := &InfoTraceRoute{}
 	e.Id = common.Order.Uint64(b)
 	e.IA = addr.IAFromRaw(b[8:])

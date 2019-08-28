@@ -78,6 +78,10 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 		// compressed block, it prepends the length of the original data as 4 bytes, little
 		// endian, unsigned integer. We need to make sure that a malformed message does
 		// not exhaust the available memory.
+		if len(raw) < 4 {
+			return nil, common.NewBasicError("Certificate chain raw input too small", nil,
+				"min", 4, "actual", len(raw))
+		}
 		byteLen := binary.LittleEndian.Uint32(raw[:4])
 		if byteLen > MaxChainByteLength {
 			return nil, common.NewBasicError("Certificate chain LZ4 block too large", nil,
