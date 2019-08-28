@@ -51,7 +51,6 @@ func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, error) {
 }
 
 func (c *CmnHdr) Parse(b common.RawBytes) error {
-	// Check for minimum header length
 	if len(b) < CmnHdrLen {
 		return common.NewBasicError("Packet is shorter than the common header length", nil,
 			"min", CmnHdrLen, "actual", len(b))

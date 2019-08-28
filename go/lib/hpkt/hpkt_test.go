@@ -15,7 +15,10 @@
 package hpkt
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -129,21 +132,48 @@ func TestScnPktWrite(t *testing.T) {
 }
 
 func TestParseMalformedPkts(t *testing.T) {
-	tests := map[string]struct {
-		raw []byte
-	}{
-		"error when raw size smaller than scion cmnHdr": {
-			raw: make([]byte, 7),
-		},
-		"error when total size not equal to cmnHdr.TotalLen": {
-			raw: make([]byte, 15),
-		},
+
+	makeCmnHdr := func(total, header, actual, ltype int) []byte {
+		buf := make([]byte, total)
+		c := spkt.CmnHdr{
+			TotalLen: uint16(total),
+			HdrLen:   uint8(header),
+			NextHdr:  common.L4ProtocolType(ltype),
+		}
+		c.Write(buf)
+		return buf[:actual]
 	}
 
-	for name, test := range tests {
+	tests := map[string][]byte{
+		"actual size smaller than cmdnHdr min length ": makeCmnHdr(8, 1, 7, 0),
+		"actual size is smaller than cmnHdr.TotalLen":  makeCmnHdr(16, 1, 15, 0),
+		"actual size is larger than cmnHdr.TotalLen": append(makeCmnHdr(512, 64, 512,
+			0), make([]byte, 25)...),
+		"valid cmnHdr.TotalLen but invalid cmnHdr.HdrLen": makeCmnHdr(32, 64, 32, 0),
+		"valid cmnHdr.{Total,Hdr}Len, invalid payload":    makeCmnHdr(512, 64, 512, 0),
+		"valid cmdHdr, invalid type 0 header": append(makeCmnHdr(512+3, 64,
+			512, 0), make([]byte, 3)...),
+		"valid cmdHdr, invalid SCMP extension hdr": append(makeCmnHdr(512+3, 64, 512, 1),
+			make([]byte, 3)...),
+	}
+
+	fs, err := ioutil.ReadDir("testdata/fuzz-inputs")
+	require.NoError(t, err)
+	for _, f := range fs {
+		b := xtest.MustReadFromFile(t, filepath.Join("fuzz-inputs", f.Name()))
+		tests[fmt.Sprintf("input %s", f.Name())] = b
+	}
+
+	for name, b := range tests {
 		t.Run(name, func(t *testing.T) {
 			s := &spkt.ScnPkt{}
-			require.Error(t, ParseScnPkt(s, test.raw), "Should parse with error")
+			var err error
+			w := func() {
+				err = ParseScnPkt(s, b)
+			}
+			require.NotPanics(t, w)
+			require.NotContains(t, err.Error(), "panic")
+			require.Error(t, err, "Should parse with error")
 		})
 	}
 }

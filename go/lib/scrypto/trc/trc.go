@@ -154,6 +154,10 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 		// compressed block, it prepends the length of the original data as 4 bytes, little
 		// endian, unsigned integer. We need to make sure that a malformed message does
 		// not exhaust the available memory.
+		if len(raw) < 4 {
+			return nil, common.NewBasicError("TRC raw input too small", nil,
+				"min", 4, "actual", len(raw))
+		}
 		bLen := binary.LittleEndian.Uint32(raw[:4])
 		if bLen > MaxTRCByteLength {
 			return nil, common.NewBasicError("TRC LZ4 block too large", nil,
