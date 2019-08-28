@@ -32,6 +32,7 @@ const (
 	CoreCertNameFmt    = "ISD%d-AS%s-V%d-core.crt"
 	TrcNameFmt         = "ISD%d-V%d.trc"
 	TRCPartsDirFmt     = "ISD%d-V%d.parts"
+	TRCSigPartFmt      = "ISD%d-V%d.sig.%s"
 	TRCProtoNameFmt    = "ISD%d-V%d.proto"
 	ErrInvalidSelector = "Invalid selector."
 	ErrNoISDDirFound   = "No ISD directories found"
@@ -48,13 +49,11 @@ var (
 	Quiet   bool
 )
 
-// ProcessSelector processes the given selector and returns a mapping from ISD id to ASes
-// of that ISD. In case of an ISD-only selector, i.e., a '*' or any number the lists of
-// ASes will be empty.
-func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
+// ParseSelector parses the given selector. The returned strings are in file format.
+func ParseSelector(selector string) (string, string, error) {
 	toks := strings.Split(selector, "-")
 	if len(toks) > 2 {
-		return nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
+		return "", "", common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
 	}
 	isdTok := toks[0]
 	asTok := "*"
@@ -63,19 +62,30 @@ func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
 	}
 	// Validate selectors.
 	if isdTok == "*" && asTok != "*" {
-		return nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
+		return "", "", common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
 	}
 	if isdTok != "*" {
 		if _, err := addr.ISDFromString(isdTok); err != nil {
-			return nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
+			return "", "", common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
 	}
 	if asTok != "*" {
 		as, err := addr.ASFromString(asTok)
 		if err != nil {
-			return nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
+			return "", "", common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
 		asTok = as.FileFmt()
+	}
+	return isdTok, asTok, nil
+}
+
+// ProcessSelector processes the given selector and returns a mapping from ISD id to ASes
+// of that ISD. In case of an ISD-only selector, i.e., a '*' or any number the lists of
+// ASes will be empty.
+func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
+	isdTok, asTok, err := ParseSelector(selector)
+	if err != nil {
+		return nil, err
 	}
 	isdDirs, err := filepath.Glob(filepath.Join(RootDir, fmt.Sprintf("ISD%s", isdTok)))
 	if err != nil {
