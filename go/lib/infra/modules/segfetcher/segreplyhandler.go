@@ -112,6 +112,8 @@ func (s *DefaultStorage) StoreRevs(ctx context.Context,
 type ProcessedResult struct {
 	early      chan int
 	full       chan struct{}
+	segs       int
+	revs       []*path_mgmt.SignedRevInfo
 	err        error
 	verifyErrs []error
 }
@@ -126,6 +128,18 @@ func (r *ProcessedResult) EarlyTriggerProcessed() <-chan int {
 // has been processed.
 func (r *ProcessedResult) FullReplyProcessed() <-chan struct{} {
 	return r.full
+}
+
+// VerifiedSegs returns the amount of verified segs. This should only be
+// accessed after FullReplyProcessed channel has been closed.
+func (r *ProcessedResult) VerifiedSegs() int {
+	return r.segs
+}
+
+// VerifiedRevs returns the verified revocations. This should only be accessed
+// after FullReplyProcessed channel has been closed.
+func (r *ProcessedResult) VerifiedRevs() []*path_mgmt.SignedRevInfo {
+	return r.revs
 }
 
 // Err indicates the error that happened when storing the segments. This should
@@ -182,6 +196,7 @@ func (h *SegReplyHandler) verifyAndStore(ctx context.Context,
 	verifiedUnits := make([]segverifier.UnitResult, 0, units)
 	var allVerifyErrs []error
 	totalSegsSaved := 0
+	var allRevs []*path_mgmt.SignedRevInfo
 	defer close(result.full)
 	defer func() {
 		if earlyTrigger != nil {
@@ -196,9 +211,10 @@ func (h *SegReplyHandler) verifyAndStore(ctx context.Context,
 		case <-earlyTrigger:
 			// Reduce u since this does not process an additional unit.
 			u--
-			segs, verifyErrs, err := h.storeResults(ctx, verifiedUnits)
+			segs, revs, verifyErrs, err := h.storeResults(ctx, verifiedUnits)
 			allVerifyErrs = append(allVerifyErrs, verifyErrs...)
 			totalSegsSaved += segs
+			allRevs = append(allRevs, revs...)
 			result.early <- segs
 			// TODO(lukedirtwalker): log early store failure
 			if err == nil {
@@ -209,14 +225,16 @@ func (h *SegReplyHandler) verifyAndStore(ctx context.Context,
 			earlyTrigger = nil
 		}
 	}
-	segs, verifyErrs, err := h.storeResults(ctx, verifiedUnits)
+	segs, revs, verifyErrs, err := h.storeResults(ctx, verifiedUnits)
 	result.verifyErrs = append(allVerifyErrs, verifyErrs...)
 	result.err = err
 	totalSegsSaved += segs
+	result.segs = totalSegsSaved
+	result.revs = append(allRevs, revs...)
 }
 
 func (h *SegReplyHandler) storeResults(ctx context.Context,
-	verifiedUnits []segverifier.UnitResult) (int, []error, error) {
+	verifiedUnits []segverifier.UnitResult) (int, []*path_mgmt.SignedRevInfo, []error, error) {
 
 	var verifyErrs []error
 	segs := make([]*SegWithHP, 0, len(verifiedUnits))
@@ -242,11 +260,13 @@ func (h *SegReplyHandler) storeResults(ctx context.Context,
 	}
 	if len(segs) > 0 {
 		if err := h.Storage.StoreSegs(ctx, segs); err != nil {
-			return 0, verifyErrs, err
+			return 0, nil, verifyErrs, err
 		}
 	}
 	if len(revs) > 0 {
-		return len(segs), verifyErrs, h.Storage.StoreRevs(ctx, revs)
+		if err := h.Storage.StoreRevs(ctx, revs); err != nil {
+			return len(segs), nil, verifyErrs, h.Storage.StoreRevs(ctx, revs)
+		}
 	}
-	return len(segs), verifyErrs, nil
+	return len(segs), revs, verifyErrs, nil
 }

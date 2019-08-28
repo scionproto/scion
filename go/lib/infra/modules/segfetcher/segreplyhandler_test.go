@@ -37,6 +37,7 @@ import (
 
 var TestTimeout = time.Second
 
+// TestReplyHandlerEmptyReply test that we can handle an empty SegReply.
 func TestReplyHandlerEmptyReply(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -62,8 +63,12 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
+	assert.Zero(t, r.VerifiedSegs())
+	assert.Empty(t, r.VerifiedRevs())
 }
 
+// TestReplyHandlerErrors tests erros that happen during verification are
+// properly stored in the result struct.
 func TestReplyHandlerErrors(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -116,8 +121,12 @@ func TestReplyHandlerErrors(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Len(t, r.VerificationErrors(), len(verifyErrs))
+	assert.Zero(t, r.VerifiedSegs())
+	assert.Empty(t, r.VerifiedRevs())
 }
 
+// TestReplyHandlerNoErrors tests the happy case of the reply handler: 3
+// segments and 1 revocation are succesfully verified and stored.
 func TestReplyHandlerNoErrors(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -178,6 +187,8 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
+	assert.Equal(t, 3, r.VerifiedSegs())
+	assert.ElementsMatch(t, []*path_mgmt.SignedRevInfo{rev1}, r.VerifiedRevs())
 }
 
 func TestReplyHandlerAllVerifiedInEarlyInterval(t *testing.T) {
@@ -228,6 +239,8 @@ func TestReplyHandlerAllVerifiedInEarlyInterval(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
+	assert.Equal(t, 2, r.VerifiedSegs())
+	assert.ElementsMatch(t, []*path_mgmt.SignedRevInfo{rev1}, r.VerifiedRevs())
 }
 
 func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
@@ -282,6 +295,8 @@ func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
+	assert.Equal(t, 2, r.VerifiedSegs())
+	assert.ElementsMatch(t, []*path_mgmt.SignedRevInfo{rev1}, r.VerifiedRevs())
 }
 
 func TestReplyHandlerStorageError(t *testing.T) {
@@ -330,6 +345,8 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.Error(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
+	assert.Zero(t, r.VerifiedSegs())
+	assert.Empty(t, r.VerifiedRevs())
 }
 
 func AssertChanEmpty(t *testing.T, ch <-chan struct{}) {
