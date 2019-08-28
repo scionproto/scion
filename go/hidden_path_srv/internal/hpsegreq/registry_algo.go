@@ -32,7 +32,7 @@ type GroupIdSet map[hiddenpath.GroupId]struct{}
 
 // GroupIdsToSet converts a list of GroupIds to a GroupIdSet,
 // ensuring no duplcates.
-func GroupIdsToSet(ids []hiddenpath.GroupId) GroupIdSet {
+func GroupIdsToSet(ids ...hiddenpath.GroupId) GroupIdSet {
 	set := make(GroupIdSet, len(ids))
 	for _, id := range ids {
 		set[id] = struct{}{}
