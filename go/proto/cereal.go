@@ -127,14 +127,6 @@ func readRootFromReader(r io.Reader) (capnp.Struct, error) {
 	return rootPtr.Struct(), nil
 }
 
-// parseStruct parses a capnp struct into a Cerealizable instance.
-func parseStruct(c Cerealizable, s capnp.Struct) error {
-	if err := pogs.Extract(c, uint64(c.ProtoId()), s); err != nil {
-		return common.NewBasicError("Failed to extract struct from capnp message", err)
-	}
-	return nil
-}
-
 // SafeExtract calls pogs.Extract, converting panics to errors.
 func SafeExtract(val interface{}, typeID uint64, s capnp.Struct) (err error) {
 	defer func() {
