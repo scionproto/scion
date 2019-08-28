@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"io"
 
-	"zombiezen.com/go/capnproto2"
+	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -110,7 +110,7 @@ func ParseFromReader(c Cerealizable, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	return parseStruct(c, s)
+	return SafeExtract(c, uint64(c.ProtoId()), s)
 }
 
 // readRootFromReader returns the root struct from a capnp message read from r.
