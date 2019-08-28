@@ -129,14 +129,41 @@ func TestScnPktWrite(t *testing.T) {
 }
 
 func TestParseMalformedPkts(t *testing.T) {
+
+	makeCmnHdr := func(total, header, actual, ltype int) []byte {
+		buf := make([]byte, total)
+		c := spkt.CmnHdr{
+			TotalLen: uint16(total),
+			HdrLen:   uint8(header),
+			NextHdr:  common.L4ProtocolType(ltype),
+		}
+		c.Write(buf)
+		return buf[:actual]
+	}
+
 	tests := map[string]struct {
 		raw []byte
 	}{
-		"error when raw size smaller than scion cmnHdr": {
-			raw: make([]byte, 7),
+		"error when actual size smaller than scion header min length ": {
+			raw: makeCmnHdr(8, 1, 7, 0),
 		},
-		"error when total size not equal to cmnHdr.TotalLen": {
-			raw: make([]byte, 15),
+		"error when actual size is smaller to cmnHdr.TotalLen": {
+			raw: makeCmnHdr(16, 1, 15, 0),
+		},
+		"error when actual size is larger to cmnHdr.TotalLen": {
+			raw: append(makeCmnHdr(512, 64, 512, 0), make([]byte, 25)...),
+		},
+		"error when valid cmnHdr.TotalLen but invalid cmnHdr.HdrLen": {
+			raw: makeCmnHdr(32, 64, 32, 0),
+		},
+		"error when valid cmnHdr.TotalLen, valid cmdHdr.HdrLen, invalid payload": {
+			raw: makeCmnHdr(512, 64, 512, 0),
+		},
+		"error when valid cmdHdr, invalid type 0 header": {
+			raw: append(makeCmnHdr(512+3, 64, 512, 0), make([]byte, 3)...),
+		},
+		"error x": {
+			raw: append(makeCmnHdr(512+3, 64, 512, 1), make([]byte, 3)...),
 		},
 	}
 
