@@ -126,7 +126,7 @@ func TestReplyHandlerErrors(t *testing.T) {
 }
 
 // TestReplyHandlerNoErrors tests the happy case of the reply handler: 3
-// segments and 1 revocation are succesfully verified and stored.
+// segments and 1 revocation are successfully verified and stored.
 func TestReplyHandlerNoErrors(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
