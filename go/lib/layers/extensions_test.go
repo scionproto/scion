@@ -18,104 +18,92 @@ import (
 	"testing"
 
 	"github.com/google/gopacket"
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExtnOHPDecodeFromLayer(t *testing.T) {
 	type TestCase struct {
-		Description   string
-		Extension     *Extension
-		Bytes         []byte
-		ExpectedError bool
+		Extension      *Extension
+		ErrorAssertion require.ErrorAssertionFunc
 	}
-	testCases := []*TestCase{
-		{
-			Description: "bad payload",
+	tests := map[string]TestCase{
+		"bad payload": {
 			Extension: mustCreateExtensionLayer([]byte{0, 2, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0}),
-			ExpectedError: true,
+			ErrorAssertion: require.Error,
 		},
-		{
-			Description: "good payload",
-			Extension:   mustCreateExtensionLayer([]byte{0, 1, 0, 0, 0, 0, 0, 0}),
+		"good payload": {
+			Extension:      mustCreateExtensionLayer([]byte{0, 1, 0, 0, 0, 0, 0, 0}),
+			ErrorAssertion: require.NoError,
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				var extn ExtnOHP
-				err := extn.DecodeFromLayer(tc.Extension)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var extn ExtnOHP
+			err := extn.DecodeFromLayer(test.Extension)
+			test.ErrorAssertion(t, err)
+		})
+	}
 }
 
 func TestExtnSCMPDecodeFromLayer(t *testing.T) {
 	type TestCase struct {
-		Description       string
 		Extension         *Extension
-		ExpectedError     bool
+		ErrorAssertion    require.ErrorAssertionFunc
 		ExpectedExtension ExtnSCMP
 	}
-	testCases := []*TestCase{
-		{
-			Description:       "good payload, no flags",
+	tests := map[string]TestCase{
+		"good payload, no flags": {
 			Extension:         mustCreateExtensionLayer([]byte{0, 1, 0, 0, 0, 0, 0, 0}),
 			ExpectedExtension: ExtnSCMP{},
+			ErrorAssertion:    require.NoError,
 		},
-		{
-			Description:       "good payload, error flag",
+		"good payload, error flag": {
 			Extension:         mustCreateExtensionLayer([]byte{0, 1, 0, 0x01, 0, 0, 0, 0}),
 			ExpectedExtension: ExtnSCMP{Error: true},
+			ErrorAssertion:    require.NoError,
 		},
-		{
-			Description:       "good payload, all flags",
+		"good payload, all flags": {
 			Extension:         mustCreateExtensionLayer([]byte{0, 1, 0, 0x03, 0, 0, 0, 0}),
 			ExpectedExtension: ExtnSCMP{Error: true, HopByHop: true},
+			ErrorAssertion:    require.NoError,
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				var extn ExtnSCMP
-				err := extn.DecodeFromLayer(tc.Extension)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("extension", extn, ShouldResemble, tc.ExpectedExtension)
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var extn ExtnSCMP
+			err := extn.DecodeFromLayer(test.Extension)
+			test.ErrorAssertion(t, err)
+			assert.Equal(t, test.ExpectedExtension, extn, "extension must match")
+		})
+	}
 }
 
 func TestExtnUnkownDecodeFromLayer(t *testing.T) {
 	type TestCase struct {
-		Description       string
 		Extension         *Extension
-		ExpectedError     bool
+		ErrorAssertion    require.ErrorAssertionFunc
 		ExpectedExtension ExtnUnknown
 	}
 	// Keep the loop s.t. it's more similar to the rest of the tests in here
 	// and it's easier to add new tests
-	testCases := []*TestCase{
-		{
-			Description: "good payload length",
+	tests := map[string]TestCase{
+		"good payload length": {
 			Extension: mustCreateExtensionLayer([]byte{0, 2, 3, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0}),
 			ExpectedExtension: ExtnUnknown{Length: 13, TypeField: 3},
+			ErrorAssertion:    require.NoError,
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				var extn ExtnUnknown
-				err := extn.DecodeFromLayer(tc.Extension)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("extension", extn, ShouldResemble, tc.ExpectedExtension)
-			})
-		}
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var extn ExtnUnknown
+			err := extn.DecodeFromLayer(test.Extension)
+			test.ErrorAssertion(t, err)
+			assert.Equal(t, test.ExpectedExtension, extn, "extension must match")
+		})
+	}
 }
 
 func mustCreateExtensionLayer(b []byte) *Extension {
