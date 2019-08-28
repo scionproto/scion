@@ -22,6 +22,7 @@ else
 endif
 
 goenv: vendor
+	bazel fetch "kind('go_(default_library|test|binary)', //...)"
 
 vendor:
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
