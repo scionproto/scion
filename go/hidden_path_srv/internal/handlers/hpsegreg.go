@@ -1,4 +1,4 @@
-// Copyright 2018 Anapaya Systems
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,69 +15,59 @@
 package handlers
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
 
-type segRegHandler struct {
+type hpSegRegHandler struct {
 	*baseHandler
-	localIA addr.IA
-	handler seghandler.Handler
 }
 
+// NewSegRegHandler returns a hidden path segment registration handler
 func NewSegRegHandler(args HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
-		handler := &segRegHandler{
+		handler := &hpSegRegHandler{
 			baseHandler: newBaseHandler(r, args),
-			localIA:     args.IA,
-			handler: seghandler.Handler{
-				Verifier: &seghandler.DefaultVerifier{
-					Verifier: args.VerifierFactory.NewVerifier(),
-				},
-				Storage: &seghandler.DefaultStorage{
-					PathDB:   args.PathDB,
-					RevCache: args.RevCache,
-				},
-			},
 		}
 		return handler.Handle()
 	}
 	return infra.HandlerFunc(f)
 }
 
-func (h *segRegHandler) Handle() *infra.HandlerResult {
-	ctx := h.request.Context()
-	logger := log.FromCtx(ctx)
-	segReg, ok := h.request.Message.(*path_mgmt.SegReg)
+func (h *hpSegRegHandler) Handle() *infra.HandlerResult {
+	logger := log.FromCtx(h.request.Context())
+	hpSegReg, ok := h.request.Message.(*path_mgmt.HPSegReg)
 	if !ok {
-		logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",
+		logger.Error("[hpSegRegHandler] wrong message type, expected path_mgmt.HPSegReg",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return infra.MetricsErrInternal
 	}
-	rw, ok := infra.ResponseWriterFromContext(ctx)
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
-		logger.Error("[segRegHandler] Unable to service request, no Messenger found")
+		logger.Error("[hpSegRegHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
 	}
-	sendAck := messenger.SendAckHelper(ctx, rw)
-	if err := segReg.ParseRaw(); err != nil {
-		logger.Error("[segRegHandler] Failed to parse message", "err", err)
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
+	sendAck := messenger.SendAckHelper(subCtx, rw)
+	if err := hpSegReg.ParseRaw(); err != nil {
+		logger.Error("[hpSegRegHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
-	logSegRecs(logger, "[segRegHandler]", h.request.Peer, segReg.SegRecs)
+	logHPSegRecs(logger, "[hpSegRegHandler]", h.request.Peer, hpSegReg.HPSegRecs)
 
 	snetPeer := h.request.Peer.(*snet.Addr)
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
-		logger.Error("[segRegHandler] Failed to initialize path", "err", err)
+		logger.Error("[hpSegRegHandler] Failed to initialize path", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
@@ -87,14 +77,7 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 		NextHop: peerPath.OverlayNextHop(),
 		Host:    addr.NewSVCUDPAppAddr(addr.SvcBS),
 	}
-	segs := seghandler.Segments{
-		Segs:      segReg.Recs,
-		SRevInfos: segReg.SRevInfos,
-	}
-	res := h.handler.Handle(ctx, segs, svcToQuery, nil)
-	// wait until processing is done.
-	<-res.FullReplyProcessed()
-	if err := res.Err(); err != nil {
+	if err := h.verifyAndStore(subCtx, svcToQuery, hpSegReg); err != nil {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
