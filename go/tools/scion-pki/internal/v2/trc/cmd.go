@@ -103,6 +103,19 @@ var proto = &cobra.Command{
 	},
 }
 
+var sign = &cobra.Command{
+	Use:   "sign",
+	Short: "Sign the proto TRCs",
+	Long: `
+	'sign' generates new signatures for the proto TRCs.
+`,
+	Args: cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runSign(args)
+	},
+}
+
 func init() {
 	Cmd.AddCommand(proto)
+	Cmd.AddCommand(sign)
 }

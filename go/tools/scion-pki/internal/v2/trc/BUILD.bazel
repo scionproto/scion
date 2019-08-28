@@ -6,6 +6,7 @@ go_library(
         "ases.go",
         "cmd.go",
         "prototype.go",
+        "sign.go",
         "util.go",
     ],
     importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/trc",
