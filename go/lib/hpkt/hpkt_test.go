@@ -127,3 +127,23 @@ func TestScnPktWrite(t *testing.T) {
 	assert.Equal(t, s.L4.L4Len(), c.L4.L4Len(), "L4 length must match")
 	assert.Equal(t, s.Pld, c.Pld, "Payloads must match")
 }
+
+func TestParseMalformedPkts(t *testing.T) {
+	tests := map[string]struct {
+		raw []byte
+	}{
+		"error when raw size smaller than scion cmnHdr": {
+			raw: make([]byte, 7),
+		},
+		"error when total size not equal to cmnHdr.TotalLen": {
+			raw: make([]byte, 15),
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			s := &spkt.ScnPkt{}
+			require.Error(t, ParseScnPkt(s, test.raw), "Should parse with error")
+		})
+	}
+}

@@ -150,6 +150,11 @@ func (p *parseCtx) parseExtensions() ([]common.Extension, []common.Extension, er
 }
 
 func (p *parseCtx) CmnHdrParser() error {
+	if len(p.b) < spkt.CmnHdrLen {
+		return common.NewBasicError("Malformed packet length", nil,
+			"expected at least", spkt.CmnHdrLen, "actual", len(p.b))
+	}
+
 	p.cmnHdrOffsets.start = p.offset
 	if err := p.cmnHdr.Parse(p.b[:spkt.CmnHdrLen]); err != nil {
 		return err
