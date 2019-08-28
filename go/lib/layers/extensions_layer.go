@@ -57,15 +57,22 @@ type Extension struct {
 func (e *Extension) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	if len(data) < common.ExtnSubHdrLen {
 		df.SetTruncated()
-		return common.NewBasicError("Invalid SCION Extension header, length too short", nil,
-			"actual", len(data), "wanted", common.ExtnSubHdrLen)
+		return common.NewBasicError("Invalid SCION Extension header, small raw length",
+			nil, "actual", len(data), "wanted", common.ExtnSubHdrLen)
 	}
+
 	expectedLength := int(data[1]) * common.LineLen
+	if expectedLength <= 0 {
+		df.SetTruncated()
+		return common.NewBasicError("Invalid SCION Extension header, length is zero", nil)
+	}
+
 	if len(data) < expectedLength {
 		df.SetTruncated()
-		return common.NewBasicError("Invalid SCION Extension body, length too short", nil,
+		return common.NewBasicError("Invalid SCION Extension body, actual length too short", nil,
 			"actual", len(data), "wanted", expectedLength)
 	}
+
 	e.NextHeader = common.L4ProtocolType(data[0])
 	e.NumLines = data[1]
 	e.Type = data[2]

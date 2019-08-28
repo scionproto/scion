@@ -28,8 +28,14 @@ import (
 )
 
 // ParseScnPkt populates the SCION fields in s with information from b
-func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
+func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) (err error) {
 	pCtx := newParseCtx(s, b)
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = common.NewBasicError("decode panic", nil, "panic", rec)
+		}
+	}()
+
 	return pCtx.parse()
 }
 
@@ -103,7 +109,7 @@ func (p *parseCtx) parse() error {
 	p.nextHdr = p.cmnHdr.NextHdr
 
 	// Skip after SCION header
-	p.offset = int(p.cmnHdr.HdrLen * common.LineLen)
+	p.offset = p.cmnHdr.HdrLenBytes()
 
 	p.s.HBHExt, p.s.E2EExt, err = p.parseExtensions()
 	if err != nil {
@@ -150,13 +156,8 @@ func (p *parseCtx) parseExtensions() ([]common.Extension, []common.Extension, er
 }
 
 func (p *parseCtx) CmnHdrParser() error {
-	if len(p.b) < spkt.CmnHdrLen {
-		return common.NewBasicError("Malformed packet length", nil,
-			"expected at least", spkt.CmnHdrLen, "actual", len(p.b))
-	}
-
 	p.cmnHdrOffsets.start = p.offset
-	if err := p.cmnHdr.Parse(p.b[:spkt.CmnHdrLen]); err != nil {
+	if err := p.cmnHdr.Parse(p.b); err != nil {
 		return err
 	}
 	p.offset += spkt.CmnHdrLen
@@ -165,6 +166,11 @@ func (p *parseCtx) CmnHdrParser() error {
 	if int(p.cmnHdr.TotalLen) != len(p.b) {
 		return common.NewBasicError("Malformed total packet length", nil,
 			"expected", p.cmnHdr.TotalLen, "actual", len(p.b))
+	}
+
+	if len(p.b) < int(p.cmnHdr.HdrLenBytes()) {
+		return common.NewBasicError("Malformed hdr length", nil,
+			"expected", p.cmnHdr.HdrLenBytes(), "larger than ", len(p.b))
 	}
 	return nil
 }
