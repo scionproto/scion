@@ -41,6 +41,21 @@ func TestExtensionDecodeFromBytes(t *testing.T) {
 			Data:           []byte{0, 1, 0},
 			ErrorAssertion: require.Error,
 		},
+		"invalid extension header all zero": {
+			Data:              []byte{0, 0, 0},
+			ErrorAssertion:    require.Error,
+			ExpectedExtension: Extension{},
+		},
+		"invalid extension header mismatch expected actual size": {
+			Data:              []byte{1, 255, 1, 1, 1, 1, 1, 1, 1},
+			ErrorAssertion:    require.Error,
+			ExpectedExtension: Extension{},
+		},
+		"invalid extension header smaller than min": {
+			Data:              []byte{1, 255},
+			ErrorAssertion:    require.Error,
+			ExpectedExtension: Extension{},
+		},
 		"extension header and data, no payload after": {
 			Data:           []byte{1, 1, 3, 0, 0, 0, 0, 1},
 			ErrorAssertion: require.NoError,
