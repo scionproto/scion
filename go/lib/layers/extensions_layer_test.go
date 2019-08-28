@@ -25,7 +25,6 @@ import (
 
 func TestExtensionDecodeFromBytes(t *testing.T) {
 	type TestCase struct {
-		Description       string
 		Data              []byte
 		ErrorAssertion    require.ErrorAssertionFunc
 		ExpectedExtension Extension
@@ -79,7 +78,6 @@ func TestExtensionDecodeFromBytes(t *testing.T) {
 
 func TestExtensionSerializeTo(t *testing.T) {
 	type TestCase struct {
-		Description      string
 		Extension        Extension
 		SerializeOptions gopacket.SerializeOptions
 

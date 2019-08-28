@@ -24,7 +24,6 @@ import (
 
 func TestExtnOHPDecodeFromLayer(t *testing.T) {
 	type TestCase struct {
-		Description    string
 		Extension      *Extension
 		ErrorAssertion require.ErrorAssertionFunc
 	}
@@ -50,7 +49,6 @@ func TestExtnOHPDecodeFromLayer(t *testing.T) {
 
 func TestExtnSCMPDecodeFromLayer(t *testing.T) {
 	type TestCase struct {
-		Description       string
 		Extension         *Extension
 		ErrorAssertion    require.ErrorAssertionFunc
 		ExpectedExtension ExtnSCMP
@@ -84,7 +82,6 @@ func TestExtnSCMPDecodeFromLayer(t *testing.T) {
 
 func TestExtnUnkownDecodeFromLayer(t *testing.T) {
 	type TestCase struct {
-		Description       string
 		Extension         *Extension
 		ErrorAssertion    require.ErrorAssertionFunc
 		ExpectedExtension ExtnUnknown
