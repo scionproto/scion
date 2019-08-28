@@ -100,19 +100,21 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 	var segs Segments
 	i := 0
 	for {
-		log.FromCtx(ctx).Trace("Request to process", "req", reqSet, "segs", segs)
+		log.FromCtx(ctx).Trace("Request to process",
+			"req", reqSet, "segs", segs, "iteration", i+1)
 		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
 		if err != nil {
 			return Segments{}, err
 		}
-		log.FromCtx(ctx).Trace("After resolving", "req", reqSet, "segs", segs)
+		log.FromCtx(ctx).Trace("After resolving",
+			"req", reqSet, "segs", segs, "iteration", i+1)
 		if reqSet.IsEmpty() {
 			break
 		}
 		if i > 3 {
 			log.FromCtx(ctx).Error("No convergence in lookup", "iteration", i+1)
 			return segs, common.NewBasicError("Segment lookup doesn't converge", nil,
-				"iterations", i)
+				"iterations", i+1)
 		}
 		// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
 		// here. The problem is that revocations can't be differentiated from

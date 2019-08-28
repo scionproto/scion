@@ -13,6 +13,9 @@ run_test() {
     echo "  command:"
     echo "  - $BASE/run_step integration $1 $2"
     echo "  timeout_in_minutes: 10"
+    if [ "$1" = "revocation" ]; then
+        echo "  parallelism: 40"
+    fi
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""
 }
