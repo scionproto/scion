@@ -68,6 +68,7 @@ func (cfg FetcherConfig) New() *Fetcher {
 		},
 		PathDB:                cfg.PathDB,
 		QueryInterval:         cfg.QueryInterval,
+		NextQueryCleaner:      NextQueryCleaner{PathDB: cfg.PathDB},
 		CryptoLookupAtLocalCS: cfg.SciondMode,
 	}
 }
@@ -81,6 +82,7 @@ type Fetcher struct {
 	ReplyHandler          ReplyHandler
 	PathDB                pathdb.PathDB
 	QueryInterval         time.Duration
+	NextQueryCleaner      NextQueryCleaner
 	CryptoLookupAtLocalCS bool
 }
 
@@ -100,19 +102,21 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 	var segs Segments
 	i := 0
 	for {
-		log.FromCtx(ctx).Trace("Request to process", "req", reqSet, "segs", segs)
+		log.FromCtx(ctx).Trace("Request to process",
+			"req", reqSet, "segs", segs, "iteration", i+1)
 		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
 		if err != nil {
 			return Segments{}, err
 		}
-		log.FromCtx(ctx).Trace("After resolving", "req", reqSet, "segs", segs)
+		log.FromCtx(ctx).Trace("After resolving",
+			"req", reqSet, "segs", segs, "iteration", i+1)
 		if reqSet.IsEmpty() {
 			break
 		}
 		if i > 3 {
 			log.FromCtx(ctx).Error("No convergence in lookup", "iteration", i+1)
 			return segs, common.NewBasicError("Segment lookup doesn't converge", nil,
-				"iterations", i)
+				"iterations", i+1)
 		}
 		// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
 		// here. The problem is that revocations can't be differentiated from
@@ -131,6 +135,7 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 }
 
 func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr) error {
+	logger := log.FromCtx(ctx)
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
 		if reply.Err != nil {
@@ -146,15 +151,23 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				return err
 			}
 			queryInt := f.QueryInterval
+			for _, rev := range r.VerifiedRevs() {
+				revInfo, err := rev.RevInfo()
+				if err != nil {
+					logger.Warn("Failed to extract rev info from verified rev",
+						"err", err, "rev", rev)
+					continue
+				}
+				f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
+			}
 			// TODO(lukedirtwalker): make the short interval configurable
-			// TODO(lukedirtwalker): only count successfully verified entries:
-			if len(reply.Reply.Recs.Recs) <= 0 {
+			if r.VerifiedSegs() <= 0 {
 				queryInt = 2 * time.Second
 			}
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil,
 				time.Now().Add(queryInt))
 			if err != nil {
-				log.FromCtx(ctx).Warn("Failed to insert next query", "err", err)
+				logger.Warn("Failed to insert next query", "err", err)
 			}
 		case <-ctx.Done():
 			return ctx.Err()

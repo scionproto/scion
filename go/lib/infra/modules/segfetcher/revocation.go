@@ -55,6 +55,7 @@ func (c *NextQueryCleaner) ResetQueryCache(ctx context.Context, revInfo *path_mg
 func DeleteNextQueryEntries(ctx context.Context, tx pathdb.Transaction,
 	results query.Results) error {
 
+	logger := log.FromCtx(ctx)
 	nextQueriesToDelete := make(map[Request]struct{})
 	for _, r := range results {
 		var req Request
@@ -66,13 +67,13 @@ func DeleteNextQueryEntries(ctx context.Context, tx pathdb.Transaction,
 		case proto.PathSegType_down:
 			req = Request{Src: addr.IA{I: r.Seg.FirstIA().I}, Dst: r.Seg.LastIA()}
 		default:
-			log.Error("Invalid seg type", "segType", r.Type)
+			logger.Error("Invalid seg type", "segType", r.Type)
 			continue
 		}
 		nextQueriesToDelete[req] = struct{}{}
 	}
 	for nq := range nextQueriesToDelete {
-		log.Trace("Delete NQ", "src", nq.Src, "dst", nq.Dst)
+		logger.Trace("Delete NQ", "src", nq.Src, "dst", nq.Dst)
 		if _, err := tx.DeleteNQ(ctx, nq.Src, nq.Dst, nil); err != nil {
 			return err
 		}
