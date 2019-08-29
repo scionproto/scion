@@ -60,7 +60,7 @@ func genAndWriteSignatures(isd addr.ISD, ases []addr.IA, selector string) error 
 	if err := sanityChecks(isd, isdCfg, t); err != nil {
 		return common.NewBasicError("invalid prototype TRC", err)
 	}
-	signed, err := genSignatures(t, encoded, primaryASes)
+	signed, err := signTRC(t, encoded, primaryASes)
 	if err != nil {
 		return common.NewBasicError("unable to partially sign TRC", err)
 	}
@@ -106,7 +106,7 @@ func sanityChecks(isd addr.ISD, isdCfg *conf.ISDCfg, t *trc.TRC) error {
 	return nil
 }
 
-func genSignatures(t *trc.TRC, encoded trc.Encoded, primaryASes map[addr.AS]*asCfg) (
+func signTRC(t *trc.TRC, encoded trc.Encoded, primaryASes map[addr.AS]*asCfg) (
 	*trc.Signed, error) {
 
 	signatures := make(map[trc.Protected]trc.Signature)
