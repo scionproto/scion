@@ -23,6 +23,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -852,10 +853,9 @@ func TestPolicyJsonConversion(t *testing.T) {
 			Weight: 0},
 	})
 	jsonPol, err := json.Marshal(policy)
-	if assert.NoError(t, err) {
-		var pol Policy
-		err = json.Unmarshal(jsonPol, &pol)
-		assert.NoError(t, err)
-		assert.Equal(t, policy, &pol)
-	}
+	require.NoError(t, err)
+	var pol Policy
+	err = json.Unmarshal(jsonPol, &pol)
+	assert.NoError(t, err)
+	assert.Equal(t, policy, &pol)
 }
