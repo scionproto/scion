@@ -19,8 +19,54 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	capnp "zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/pogs"
 )
+
+var packedASEntry, _ = PackRoot(&asEntry{})
+
+type asEntry struct{}
+
+func (a *asEntry) ProtoId() ProtoIdType {
+	return ASEntry_TypeID
+}
+
+func (a *asEntry) String() string {
+	return "asEntry"
+}
+
+func TestParseFromRaw(t *testing.T) {
+	tests := map[string]struct {
+		Extractor func(val interface{}, typeID uint64, s capnp.Struct) error
+		Assertion require.ErrorAssertionFunc
+	}{
+		"valid": {
+			Extractor: pogs.Extract,
+			Assertion: require.NoError,
+		},
+		"error": {
+			Extractor: errorExtract,
+			Assertion: require.Error,
+		},
+		"panic": {
+			Extractor: panicExtract,
+			Assertion: require.Error,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var err error
+			a := &asEntry{}
+			wrapped := func() {
+				err = ParseFromRaw(a, packedASEntry)
+			}
+			pogsExtractF = test.Extractor
+			require.NotPanics(t, wrapped)
+			test.Assertion(t, err)
+		})
+	}
+}
 
 func TestSafeExtract(t *testing.T) {
 	pogsExtractF = panicExtract

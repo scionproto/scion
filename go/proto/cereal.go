@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"io"
 
-	"zombiezen.com/go/capnproto2"
+	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -110,7 +110,7 @@ func ParseFromReader(c Cerealizable, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	return parseStruct(c, s)
+	return SafeExtract(c, uint64(c.ProtoId()), s)
 }
 
 // readRootFromReader returns the root struct from a capnp message read from r.
@@ -125,14 +125,6 @@ func readRootFromReader(r io.Reader) (capnp.Struct, error) {
 		return blank, common.NewBasicError("Failed to get root pointer from capnp message", err)
 	}
 	return rootPtr.Struct(), nil
-}
-
-// parseStruct parses a capnp struct into a Cerealizable instance.
-func parseStruct(c Cerealizable, s capnp.Struct) error {
-	if err := pogs.Extract(c, uint64(c.ProtoId()), s); err != nil {
-		return common.NewBasicError("Failed to extract struct from capnp message", err)
-	}
-	return nil
 }
 
 // SafeExtract calls pogs.Extract, converting panics to errors.
