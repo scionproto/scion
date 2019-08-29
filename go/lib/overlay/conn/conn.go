@@ -39,7 +39,9 @@ import (
 // opened sockets.
 const ReceiveBufferSize = 1 << 20
 
-var oobSize = syscall.CmsgSpace(SizeOfInt) + syscall.CmsgSpace(SizeOfTimespec)
+var sizeOfInt64 = int(unsafe.Sizeof(int64(0)))
+var sizeOfTimespec = int(unsafe.Sizeof(syscall.Timespec{}))
+var oobSize = syscall.CmsgSpace(sizeOfInt64) + syscall.CmsgSpace(sizeOfTimespec)
 var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 	"Ignore failing to set the receive buffer size on a socket.")
 
@@ -277,7 +279,7 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 		}
 		log.Warn(msg, ctx...)
 	}
-	oob := make(common.RawBytes, syscall.CmsgSpace(SizeOfInt)+syscall.CmsgSpace(SizeOfTimespec))
+	oob := make(common.RawBytes, oobSize)
 	cc.conn = c
 	cc.Listen = listen
 	cc.Remote = remote
@@ -322,8 +324,8 @@ func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime t
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
 			meta.RcvOvfl = *(*int)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
-			tv := *(*Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
-			meta.Recvd = time.Unix(int64(tv.tv_sec), int64(tv.tv_nsec))
+			tv := *(*syscall.Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
+			meta.Recvd = time.Unix(tv.Sec, tv.Nsec)
 			meta.ReadDelay = readTime.Sub(meta.Recvd)
 			// Guard against leap-seconds.
 			if meta.ReadDelay < 0 {
