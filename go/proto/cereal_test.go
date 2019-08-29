@@ -22,9 +22,9 @@ import (
 	"github.com/stretchr/testify/require"
 	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
-
-	"github.com/scionproto/scion/go/lib/common"
 )
+
+var packedASEntry, _ = PackRoot(&asEntry{})
 
 type asEntry struct{}
 
@@ -56,13 +56,10 @@ func TestParseFromRaw(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			var err error
 			a := &asEntry{}
-			raw := make(common.RawBytes, 1024)
-			n, err := WriteRoot(a, raw)
-			require.NoError(t, err)
-			raw = raw[:n]
 			wrapped := func() {
-				err = ParseFromRaw(a, raw)
+				err = ParseFromRaw(a, packedASEntry)
 			}
 			pogsExtractF = test.Extractor
 			require.NotPanics(t, wrapped)
