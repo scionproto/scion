@@ -16,6 +16,7 @@
 package pathpol
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -836,4 +837,25 @@ func mustHopPredicate(t *testing.T, str string) *HopPredicate {
 	hp, err := HopPredicateFromString(str)
 	xtest.FailOnErr(t, err)
 	return hp
+}
+
+func TestPolicyJsonConversion(t *testing.T) {
+	policy := NewPolicy("", nil, nil, []Option{
+		{
+			Policy: &ExtPolicy{
+				Policy: &Policy{
+					ACL: &ACL{Entries: []*ACLEntry{
+						{
+							Action: Allow,
+							Rule:   mustHopPredicate(t, "0-0#0")},
+						denyEntry}}}},
+			Weight: 0},
+	})
+	jsonPol, err := json.Marshal(policy)
+	if assert.NoError(t, err) {
+		var pol Policy
+		err = json.Unmarshal(jsonPol, &pol)
+		assert.NoError(t, err)
+		assert.Equal(t, policy, &pol)
+	}
 }
