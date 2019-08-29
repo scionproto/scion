@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -68,11 +69,11 @@ func TestOpenExisting(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	b, tmpF := setupDB(t)
-	defer os.Remove(tmpF)
+	defer cleanup(tmpF)
 	TS := uint32(10)
+	pseg1, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs1, TS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
-	pseg1, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs1, TS)
 	pathdbtest.InsertSeg(t, ctx, b, pseg1, hpCfgIDs)
 	b.db.Close()
 	// Call
@@ -80,6 +81,8 @@ func TestOpenExisting(t *testing.T) {
 	require.NoError(t, err)
 	// Test
 	// Check that path segment is still there.
+	ctx, cancelF = context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
 	res, err := b.Get(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(res), "Segment still exists")
@@ -89,7 +92,7 @@ func TestOpenExisting(t *testing.T) {
 // of a newer version.
 func TestOpenNewer(t *testing.T) {
 	b, tmpF := setupDB(t)
-	defer os.Remove(tmpF)
+	defer cleanup(tmpF)
 	// Write a newer version
 	_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
 	require.NoError(t, err)
@@ -112,4 +115,8 @@ func tempFilename(t *testing.T) string {
 	dir, err := ioutil.TempDir("", "pathdb-sqlite")
 	require.NoError(t, err)
 	return path.Join(dir, t.Name())
+}
+
+func cleanup(tmpFile string) {
+	os.RemoveAll(filepath.Dir(tmpFile))
 }
