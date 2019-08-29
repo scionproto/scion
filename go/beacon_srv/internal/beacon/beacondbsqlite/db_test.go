@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -58,14 +59,14 @@ func TestOpenExisting(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	db, tmpF := setupDB(t)
-	defer os.Remove(tmpF)
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
+	defer cleanup(tmpF)
 	b := beacondbtest.InsertBeacon(t, ctrl, db, beacondbtest.Info1, 2, 10, beacon.UsageProp)
 	db.Close()
 	// Open existing database
 	db, err := New(tmpF, testIA)
 	require.NoError(t, err)
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
 	res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 	require.NoError(t, err)
 	beacondbtest.CheckResult(t, res, b)
@@ -75,7 +76,7 @@ func TestOpenExisting(t *testing.T) {
 // of a newer version.
 func TestOpenNewer(t *testing.T) {
 	b, tmpF := setupDB(t)
-	defer os.Remove(tmpF)
+	defer cleanup(tmpF)
 	// Write a newer version
 	_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
 	require.NoError(t, err)
@@ -96,4 +97,8 @@ func tempFilename(t *testing.T) string {
 	dir, err := ioutil.TempDir("", "pathdb-sqlite")
 	require.NoError(t, err)
 	return path.Join(dir, t.Name())
+}
+
+func cleanup(tmpFile string) {
+	os.RemoveAll(filepath.Dir(tmpFile))
 }
