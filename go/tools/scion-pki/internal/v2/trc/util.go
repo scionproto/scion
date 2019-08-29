@@ -61,9 +61,9 @@ func sortSignatures(signatures map[trc.Protected]trc.Signature) []trc.Signature 
 		}
 		return false
 	})
-	sigs := make([]trc.Signature, len(keys))
-	for i, key := range keys {
-		sigs[i] = signatures[key]
+	sigs := make([]trc.Signature, 0, len(keys))
+	for _, key := range keys {
+		sigs = append(sigs, signatures[key])
 	}
 	return sigs
 }
