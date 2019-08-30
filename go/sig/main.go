@@ -192,11 +192,11 @@ func setupIngress(tunIO io.ReadWriteCloser) {
 }
 
 func checkPerms() error {
-	user, err := user.Current()
+	u, err := user.Current()
 	if err != nil {
 		return common.NewBasicError("Error retrieving user", err)
 	}
-	if user.Uid == "0" {
+	if u.Uid == "0" {
 		return common.NewBasicError("Running as root is not allowed for security reasons", nil)
 	}
 	caps, err := capability.NewPid(0)
