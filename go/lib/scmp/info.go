@@ -249,6 +249,9 @@ type InfoExtIdx struct {
 }
 
 func InfoExtIdxFromRaw(b common.RawBytes) (*InfoExtIdx, error) {
+	if len(b) == 0 {
+		return nil, common.NewBasicError("Unable to parse InfoExtIdx", nil)
+	}
 	return &InfoExtIdx{Idx: b[0]}, nil
 }
 

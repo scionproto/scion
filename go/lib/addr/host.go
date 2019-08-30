@@ -55,7 +55,8 @@ const (
 )
 
 const (
-	ErrorBadHostAddrType = "Unsupported host address type"
+	ErrorBadHostAddrType       = "Unsupported host address type"
+	ErrorMalformedHostAddrType = "Malformed host address type"
 )
 
 const (
@@ -282,8 +283,14 @@ func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
 	case HostTypeNone:
 		return HostNone{}, nil
 	case HostTypeIPv4:
+		if len(b) < HostLenIPv4 {
+			return nil, common.NewBasicError(ErrorMalformedHostAddrType, nil, "type", htype)
+		}
 		return HostIPv4(b[:HostLenIPv4]), nil
 	case HostTypeIPv6:
+		if len(b) < HostLenIPv6 {
+			return nil, common.NewBasicError(ErrorMalformedHostAddrType, nil, "type", htype)
+		}
 		return HostIPv6(b[:HostLenIPv6]), nil
 	case HostTypeSVC:
 		return HostSVC(binary.BigEndian.Uint16(b)), nil
