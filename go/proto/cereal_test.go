@@ -24,18 +24,6 @@ import (
 	"zombiezen.com/go/capnproto2/pogs"
 )
 
-var packedASEntry, _ = PackRoot(&asEntry{})
-
-type asEntry struct{}
-
-func (a *asEntry) ProtoId() ProtoIdType {
-	return ASEntry_TypeID
-}
-
-func (a *asEntry) String() string {
-	return "asEntry"
-}
-
 func TestParseFromRaw(t *testing.T) {
 	tests := map[string]struct {
 		Extractor func(val interface{}, typeID uint64, s capnp.Struct) error
@@ -54,16 +42,19 @@ func TestParseFromRaw(t *testing.T) {
 			Assertion: require.Error,
 		},
 	}
+	pack := func(t *testing.T) []byte {
+		packed, err := PackRoot(&asEntry{})
+		require.NoError(t, err)
+		return packed
+	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var err error
-			a := &asEntry{}
-			wrapped := func() {
-				err = ParseFromRaw(a, packedASEntry)
-			}
 			pogsExtractF = test.Extractor
+			wrapped := func() {
+				err := ParseFromRaw(&asEntry{}, pack(t))
+				test.Assertion(t, err)
+			}
 			require.NotPanics(t, wrapped)
-			test.Assertion(t, err)
 		})
 	}
 }
@@ -99,3 +90,9 @@ func errorExtract(_ interface{}, _ uint64, _ capnp.Struct) error {
 func okExtract(_ interface{}, _ uint64, _ capnp.Struct) error {
 	return nil
 }
+
+type asEntry struct{}
+
+func (a asEntry) ProtoId() ProtoIdType { return ASEntry_TypeID }
+
+func (a asEntry) String() string { return "asEntry" }
