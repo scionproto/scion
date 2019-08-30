@@ -17,8 +17,10 @@ package trc
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
@@ -35,4 +37,33 @@ func PartsDir(isd addr.ISD, ver uint64) string {
 // ProtoFile returns the file path for the prototype TRC.
 func ProtoFile(isd addr.ISD, ver uint64) string {
 	return filepath.Join(PartsDir(isd, ver), fmt.Sprintf(pkicmn.TRCProtoNameFmt, isd, ver))
+}
+
+// PartsFile returns the file path for the partially signed TRC with the selector.
+func PartsFile(isd addr.ISD, ver uint64, selector string) string {
+	return filepath.Join(PartsDir(isd, ver),
+		fmt.Sprintf(pkicmn.TRCSigPartFmt, isd, ver, selector))
+}
+
+func sortSignatures(signatures map[trc.Protected]trc.Signature) []trc.Signature {
+	keys := make([]trc.Protected, 0, len(signatures))
+	for key := range signatures {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		switch {
+		case keys[i].AS != keys[j].AS:
+			return keys[i].AS < keys[j].AS
+		case keys[i].Type != keys[j].Type:
+			return keys[i].Type < keys[j].Type
+		case keys[i].KeyType != keys[j].KeyType:
+			return keys[i].KeyType < keys[j].KeyType
+		}
+		return false
+	})
+	sigs := make([]trc.Signature, 0, len(keys))
+	for _, key := range keys {
+		sigs = append(sigs, signatures[key])
+	}
+	return sigs
 }
