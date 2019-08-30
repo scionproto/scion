@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +19,8 @@
 package rpkt
 
 import (
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -75,7 +78,7 @@ func (rp *RtrPkt) parseBasic() error {
 	// Set index for destination host address and calculate its length.
 	rp.idxs.dstHost = rp.idxs.srcIA + addr.IABytes
 	if dstLen, err = addr.HostLen(rp.CmnHdr.DstType); err != nil {
-		if common.GetErrorMsg(err) == addr.ErrorBadHostAddrType {
+		if xerrors.Is(err, addr.ErrBadHostAddrType) {
 			err = scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil, err)
 		}
 		return err
@@ -83,7 +86,7 @@ func (rp *RtrPkt) parseBasic() error {
 	// Set index for source host address and calculate its length.
 	rp.idxs.srcHost = rp.idxs.dstHost + int(dstLen)
 	if srcLen, err = addr.HostLen(rp.CmnHdr.SrcType); err != nil {
-		if common.GetErrorMsg(err) == addr.ErrorBadHostAddrType {
+		if xerrors.Is(err, addr.ErrBadHostAddrType) {
 			err = scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil, err)
 		}
 		return err

@@ -42,12 +42,12 @@ const (
 	DefaultIssuerCertValidity = 7 * 24 * 60 * 60
 
 	// Error strings
-	IssCertInvalid   = "Issuer certificate invalid"
-	IssExpiresAfter  = "Issuer certificate expires after TRC"
-	IssASNotFound    = "Issuing AS not found"
-	LeafCertInvalid  = "Leaf certificate invalid"
-	LeafExpiresAfter = "Leaf certificate expires after issuer certificate"
-	LeafIssuedBefore = "Leaf certificate issued before issuer certificate"
+	IssCertInvalid   common.ErrMsg = "Issuer certificate invalid"
+	IssExpiresAfter                = "Issuer certificate expires after TRC"
+	IssASNotFound                  = "Issuing AS not found"
+	LeafCertInvalid                = "Leaf certificate invalid"
+	LeafExpiresAfter               = "Leaf certificate expires after issuer certificate"
+	LeafIssuedBefore               = "Leaf certificate issued before issuer certificate"
 )
 
 type Key struct {

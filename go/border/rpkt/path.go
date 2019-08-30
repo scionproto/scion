@@ -21,6 +21,8 @@ import (
 	"hash"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/border/ifstate"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/assert"
@@ -68,7 +70,7 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	hfmac := rp.Ctx.HFMacPool.Get().(hash.Hash)
 	err := rp.hopF.Verify(hfmac, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
 	rp.Ctx.HFMacPool.Put(hfmac)
-	if err != nil && common.GetErrorMsg(err) == spath.ErrorHopFBadMac {
+	if err != nil && xerrors.Is(err, spath.ErrorHopFBadMac) {
 		err = scmp.NewError(scmp.C_Path, scmp.T_P_BadMac,
 			rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), err)
 	}

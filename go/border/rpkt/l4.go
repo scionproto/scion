@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +23,8 @@ import (
 )
 
 const (
-	UnsupportedL4 = "Unsupported L4 header type"
+	// ErrUnsupportedL4 indicates an unsupported L4 header type.
+	ErrUnsupportedL4 common.ErrMsg = "unsupported L4 header type"
 )
 
 // L4Hdr finds, parses and returns the layer 4 header, if any. The verify
@@ -54,7 +56,7 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, error) {
 		*/
 		default:
 			// Can't return an SCMP error as we don't understand the L4 header
-			return nil, common.NewBasicError(UnsupportedL4, nil, "type", rp.L4Type)
+			return nil, common.NewBasicError(ErrUnsupportedL4, nil, "type", rp.L4Type)
 		}
 	}
 	if verify {

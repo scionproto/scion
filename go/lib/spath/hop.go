@@ -27,11 +27,12 @@ import (
 )
 
 const (
+	ErrorHopFTooShort common.ErrMsg = "HopF too short"
+	ErrorHopFBadMac   common.ErrMsg = "Bad HopF MAC"
+
 	HopFieldLength    = common.LineLen
 	DefaultHopFExpiry = ExpTimeType(63)
 	MacLen            = 3
-	ErrorHopFTooShort = "HopF too short"
-	ErrorHopFBadMac   = "Bad HopF MAC"
 	XoverMask         = 0x01
 	VerifyOnlyMask    = 0x02
 	MaxTTL            = 24 * 60 * 60 // One day in seconds
