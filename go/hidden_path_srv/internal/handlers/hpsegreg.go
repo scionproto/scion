@@ -42,8 +42,17 @@ func NewSegRegHandler(args HandlerArgs) infra.Handler {
 	return infra.HandlerFunc(f)
 }
 
+// Handle handles a hidden path registration request
 func (h *hpSegRegHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+	res, err := h.handle(logger)
+	if err != nil {
+		logger.Error("[hpSegRegHandler] Unable to handle request", "err", err)
+	}
+	return res
+}
+
+func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	hpSegReg, ok := h.request.Message.(*path_mgmt.HPSegReg)
 	if !ok {
 		logger.Error("[hpSegRegHandler] wrong message type, expected path_mgmt.HPSegReg",
@@ -52,7 +61,7 @@ func (h *hpSegRegHandler) Handle() *infra.HandlerResult {
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Error("[hpSegRegHandler] Unable to service request, no Messenger found")
-		return infra.MetricsErrInternal
+		return infra.MetricsErrInternal, nil
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
@@ -60,7 +69,7 @@ func (h *hpSegRegHandler) Handle() *infra.HandlerResult {
 	if err := hpSegReg.ParseRaw(); err != nil {
 		logger.Error("[hpSegRegHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return infra.MetricsErrInvalid
+		return infra.MetricsErrInvalid, nil
 	}
 	logHPSegRecs(logger, "[hpSegRegHandler]", h.request.Peer, hpSegReg.HPSegRecs)
 
@@ -69,7 +78,7 @@ func (h *hpSegRegHandler) Handle() *infra.HandlerResult {
 	if err != nil {
 		logger.Error("[hpSegRegHandler] Failed to initialize path", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return infra.MetricsErrInvalid
+		return infra.MetricsErrInvalid, nil
 	}
 	svcToQuery := &snet.Addr{
 		IA:      snetPeer.IA,
@@ -79,8 +88,8 @@ func (h *hpSegRegHandler) Handle() *infra.HandlerResult {
 	}
 	if err := h.verifyAndStore(subCtx, svcToQuery, hpSegReg); err != nil {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
-		return infra.MetricsErrInvalid
+		return infra.MetricsErrInvalid, nil
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
-	return infra.MetricsResultOk
+	return infra.MetricsResultOk, nil
 }

@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -78,8 +79,8 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	}
 	// verify and store the segments
 	var insertedSegmentIDs []string
-	var mtx sync.Mutex
 	verifiedSegs := make([]*seg.Meta, 0, len(hpSegReg.Recs))
+	var mtx sync.Mutex
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
 		mtx.Lock()
 		defer mtx.Unlock()
@@ -104,10 +105,16 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 		return verifiedSegs[i].Segment.GetLoggingID() < verifiedSegs[j].Segment.GetLoggingID()
 	})
 	for _, s := range verifiedSegs {
-		// Make sure segment is marked as hidden
+		// TODO: return on error or just log the faulty segment and continue?
+		// check that the segment is marked as hidden
 		if !checkHiddenSegExtn(s) {
-			return common.NewBasicError("Unable to insert segment into path database:"+
+			return common.NewBasicError("Unable to insert segment into path database: "+
 				"Missing HiddenPathSeg extension", nil, "seg", s.Segment)
+		}
+		// check that this is an up- or down-segment
+		if s.Type != proto.PathSegType_up && s.Type != proto.PathSegType_down {
+			return common.NewBasicError("Unable to insert segment into path database: "+
+				"Segment must be an up- or down-segment", nil, "type", s.Type)
 		}
 		n, err := tx.Insert(ctx, s, hpsegreq.GroupIdsToSet(groupId))
 		if err != nil {
@@ -164,10 +171,12 @@ func (h *baseHandler) checkGroupPermissions(groupId hiddenpath.GroupId, write bo
 }
 
 func checkHiddenSegExtn(s *seg.Meta) bool {
-	numEntries := len(s.Segment.ASEntries)
-	if numEntries < 1 {
+	if s.Segment.MaxAEIdx() < 0 {
 		return false
 	}
-	lastASEntry := s.Segment.ASEntries[numEntries-1]
+	lastASEntry := s.Segment.ASEntries[s.Segment.MaxAEIdx()]
+	if lastASEntry.Exts.HiddenPathSeg == nil {
+		return false
+	}
 	return lastASEntry.Exts.HiddenPathSeg.Set
 }
