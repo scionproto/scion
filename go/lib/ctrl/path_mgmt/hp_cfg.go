@@ -34,7 +34,7 @@ func (id *HPGroupId) ProtoId() proto.ProtoIdType {
 }
 
 func (id *HPGroupId) String() string {
-	return fmt.Sprintf("{OwnerAS: %s, GroupId %d}", id.OwnerAS, id.GroupId)
+	return fmt.Sprintf("{OwnerAS: %s, GroupId %x}", id.OwnerAS, id.GroupId)
 }
 
 var _ proto.Cerealizable = (*HPCfg)(nil)
