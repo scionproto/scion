@@ -39,7 +39,7 @@ func TestFmtError(t *testing.T) {
 
 func TestSimpleError(t *testing.T) {
 	errText := "test error string"
-	err := SimpleError(errText)
+	err := ErrMsg(errText)
 	assert.Equal(t, errText, err.Error())
 }
 
@@ -71,16 +71,16 @@ func TestIs(t *testing.T) {
 	assert.True(t, xerrors.Is(wrapWrapBaseErr, baseErr))
 	assert.True(t, xerrors.Is(wrapWrapBaseErr, wrapBaseErr))
 
-	assert.True(t, xerrors.Is(noWrapErr, SimpleError("test no wrap")))
-	assert.True(t, xerrors.Is(wrapWrapBaseErr, SimpleError("wrapping base once")))
-	assert.True(t, xerrors.Is(wrapNoWrapErr, SimpleError("test no wrap")))
+	assert.True(t, xerrors.Is(noWrapErr, ErrMsg("test no wrap")))
+	assert.True(t, xerrors.Is(wrapWrapBaseErr, ErrMsg("wrapping base once")))
+	assert.True(t, xerrors.Is(wrapNoWrapErr, ErrMsg("test no wrap")))
 
-	assert.True(t, xerrors.Is(SimpleError("foo"), SimpleError("foo")))
+	assert.True(t, xerrors.Is(ErrMsg("foo"), ErrMsg("foo")))
 }
 
 func ExampleSimpleError() {
-	var ErrMsg SimpleError = "this is the error msg"
+	var SomeErr ErrMsg = "this is the error msg"
 
-	fmt.Println(xerrors.Is(NewBasicError(ErrMsg, nil, "ctx", 1), ErrMsg))
+	fmt.Println(xerrors.Is(NewBasicError(SomeErr, nil, "ctx", 1), SomeErr))
 	// Output: true
 }

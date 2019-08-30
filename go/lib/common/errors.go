@@ -97,11 +97,11 @@ func IsTimeoutErr(e error) bool {
 	return false
 }
 
-// SimpleError should be used for error string constants. The constant can then
-// be used for Is checking in the calling code.
-type SimpleError string
+// ErrMsg should be used for error string constants. The constant can then be
+// used for Is checking in the calling code.
+type ErrMsg string
 
-func (e SimpleError) Error() string {
+func (e ErrMsg) Error() string {
 	return string(e)
 }
 
@@ -112,7 +112,7 @@ var _ ErrorNester = BasicError{}
 // and can contain context (slice of [string, val, string, val...]) for logging purposes.
 type BasicError struct {
 	// Error message
-	Msg SimpleError
+	Msg ErrMsg
 	// Error context, for logging purposes only
 	logCtx []interface{}
 	// Nested error, if any.
@@ -125,7 +125,7 @@ func (be BasicError) Is(err error) bool {
 	switch other := err.(type) {
 	case BasicError:
 		return be.Msg == other.Msg
-	case SimpleError:
+	case ErrMsg:
 		return be.Msg == other
 	default:
 		return false
@@ -140,7 +140,7 @@ func (be BasicError) Unwrap() error {
 // NewBasicError creates a new BasicError, with e as the embedded error (can be nil), with logCtx
 // being a list of string/val pairs. These key/value pairs should contain all context-dependent
 // information: 'msg' argument itself should be a constant string.
-func NewBasicError(msg SimpleError, e error, logCtx ...interface{}) error {
+func NewBasicError(msg ErrMsg, e error, logCtx ...interface{}) error {
 	if assert.On {
 		assert.Must(len(logCtx)%2 == 0, "Log context must have an even number of elements")
 		for i := 0; i < len(logCtx); i += 2 {
