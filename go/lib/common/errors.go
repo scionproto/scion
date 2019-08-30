@@ -120,7 +120,7 @@ type BasicError struct {
 }
 
 // Is returns whether this error is the same error as err, or in case err is a
-// SimpleError whether the message is equal.
+// ErrMsg whether the message is equal.
 func (be BasicError) Is(err error) bool {
 	switch other := err.(type) {
 	case BasicError:
