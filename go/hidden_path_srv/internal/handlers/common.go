@@ -37,8 +37,16 @@ import (
 
 const (
 	HandlerTimeout = 30 * time.Second
+)
 
-	NoSegmentsErr = "No segments"
+const (
+	NoSegmentsErr   common.ErrMsg = "No segments"
+	MissingExtnErr  common.ErrMsg = "Missing HiddenPathSeg extension"
+	WrongSegTypeErr common.ErrMsg = "Segment must be an up- or down-segment"
+	UnknownGroupErr common.ErrMsg = "Group not known to HPS"
+	NotRegistryErr  common.ErrMsg = "HPS is not a Registry of this group"
+	NotWriterErr    common.ErrMsg = "Peer is not a writer of this group"
+	NotReaderErr    common.ErrMsg = "Peer is not a reader of this group"
 )
 
 // HandlerArgs are the values required to create the hidden path server's handlers.
@@ -75,7 +83,7 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	// check HPGroup related permissions
 	groupId := hiddenpath.IdFromMsg(hpSegReg.GroupId)
 	if err := h.checkGroupPermissions(groupId, true); err != nil {
-		return common.NewBasicError("Group configuration error", err)
+		return common.NewBasicError("Group configuration error", err, "group", groupId)
 	}
 	// verify and store the segments
 	var insertedSegmentIDs []string
@@ -94,7 +102,7 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 
 	// Return early if we have nothing to insert.
 	if len(verifiedSegs) == 0 {
-		return common.NewBasicError(NoSegmentsErr, nil)
+		return NoSegmentsErr
 	}
 	tx, err := h.hpDB.BeginTransaction(ctx, nil)
 	if err != nil {
@@ -108,13 +116,13 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 		// TODO: return on error or just log the faulty segment and continue?
 		// check that the segment is marked as hidden
 		if !checkHiddenSegExtn(s) {
-			return common.NewBasicError("Unable to insert segment into path database: "+
-				"Missing HiddenPathSeg extension", nil, "seg", s.Segment)
+			return common.NewBasicError("Unable to insert segment into path database",
+				MissingExtnErr, "seg", s.Segment)
 		}
 		// check that this is an up- or down-segment
 		if s.Type != proto.PathSegType_up && s.Type != proto.PathSegType_down {
-			return common.NewBasicError("Unable to insert segment into path database: "+
-				"Segment must be an up- or down-segment", nil, "type", s.Type)
+			return common.NewBasicError("Unable to insert segment into path database",
+				WrongSegTypeErr, "type", s.Type)
 		}
 		n, err := tx.Insert(ctx, s, hpsegreq.GroupIdsToSet(groupId))
 		if err != nil {
@@ -143,11 +151,10 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 func (h *baseHandler) checkGroupPermissions(groupId hiddenpath.GroupId, write bool) error {
 	group, ok := h.groups[groupId]
 	if !ok {
-		return common.NewBasicError("Group not known to HPS", nil, "group", groupId)
+		return UnknownGroupErr
 	}
 	if !group.HasRegistry(h.localIA) {
-		return common.NewBasicError("HPS is not a Registry of this group",
-			nil, "group", groupId)
+		return NotRegistryErr
 	}
 	peer, ok := h.request.Peer.(*snet.Addr)
 	if !ok {
@@ -158,14 +165,12 @@ func (h *baseHandler) checkGroupPermissions(groupId hiddenpath.GroupId, write bo
 	}
 	if write {
 		if !group.HasWriter(peer.IA) {
-			return common.NewBasicError("Peer is not a writer of this group",
-				nil, "group", groupId)
+			return NotWriterErr
 		}
 		return nil
 	}
 	if !group.HasReader(peer.IA) {
-		return common.NewBasicError("Peer is not a reader of this group",
-			nil, "group", groupId)
+		return NotReaderErr
 	}
 	return nil
 }

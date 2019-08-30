@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -85,7 +86,9 @@ func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 			graph.If_130_A_131_X,
 			graph.If_131_X_132_X,
 			graph.If_132_X_133_X,
-		}), proto.PathSegType_down))
+		}),
+		proto.PathSegType_down,
+	))
 	seg120_121 = markHidden(t, seg.NewMeta( // hidden up
 		g.Beacon([]common.IFIDType{
 			graph.If_121_X_120_B,
@@ -95,10 +98,16 @@ func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 	seg210_212 = seg.NewMeta( // not hidden
 		g.Beacon([]common.IFIDType{
 			graph.If_210_X_211_A,
-			graph.If_211_A_212_X}), proto.PathSegType_down)
+			graph.If_211_A_212_X,
+		}),
+		proto.PathSegType_down,
+	)
 	seg110_120 = markHidden(t, seg.NewMeta( // core
 		g.Beacon([]common.IFIDType{
-			graph.If_110_X_120_A}), proto.PathSegType_core))
+			graph.If_110_X_120_A,
+		}),
+		proto.PathSegType_core,
+	))
 }
 
 func TestSegReg(t *testing.T) {
@@ -125,7 +134,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_133},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_ok,
-				ErrDesc: "",
+				ErrDesc: common.ErrMsg(""),
 			},
 			result: infra.MetricsResultOk,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -143,7 +152,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_133, seg120_121},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_ok,
-				ErrDesc: "",
+				ErrDesc: common.ErrMsg(""),
 			},
 			result: infra.MetricsResultOk,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -161,7 +170,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_133},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: "Group not known to HPS group=\"ff00:0:110-0\"",
+				ErrDesc: handlers.UnknownGroupErr,
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -175,7 +184,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_133},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: "HPS is not a Registry of this group group=\"ff00:0:110-69b5\"",
+				ErrDesc: handlers.NotRegistryErr,
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -189,7 +198,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_133},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: "Peer is not a writer of this group group=\"ff00:0:110-69b5\"",
+				ErrDesc: handlers.NotWriterErr,
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -203,7 +212,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg210_212},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: "Missing HiddenPathSeg extension",
+				ErrDesc: handlers.MissingExtnErr,
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -219,7 +228,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_120},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: "Segment must be an up- or down-segment type=\"core\"",
+				ErrDesc: handlers.WrongSegTypeErr,
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -239,6 +248,7 @@ func TestSegReg(t *testing.T) {
 				ts: mock_infra.NewMockTrustStore(ctrl),
 				rw: mock_infra.NewMockResponseWriter(ctrl),
 			}
+			log.Root().SetHandler(log.DiscardHandler())
 			ctx := infra.NewContextWithResponseWriter(
 				context.Background(), m.rw)
 			args := handlers.HandlerArgs{
@@ -283,7 +293,7 @@ func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
 
 type ackMatcher struct {
 	Err     proto.Ack_ErrCode
-	ErrDesc string
+	ErrDesc error
 }
 
 func (m *ackMatcher) Matches(x interface{}) bool {
@@ -291,7 +301,7 @@ func (m *ackMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return m.Err == a.Err && strings.Contains(a.ErrDesc, m.ErrDesc)
+	return m.Err == a.Err && strings.Contains(a.ErrDesc, m.ErrDesc.Error())
 }
 func (m *ackMatcher) String() string {
 	return fmt.Sprintf("Ack %v: %v", m.Err, m.ErrDesc)
