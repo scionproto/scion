@@ -115,7 +115,20 @@ var sign = &cobra.Command{
 	},
 }
 
+var human = &cobra.Command{
+	Use:   "human",
+	Short: "Display human readable",
+	Long: `
+	'human' parses the provided TRCs and displays them in a human readable format.
+`,
+	Args: cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runHuman(args)
+	},
+}
+
 func init() {
 	Cmd.AddCommand(proto)
 	Cmd.AddCommand(sign)
+	Cmd.AddCommand(human)
 }

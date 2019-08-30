@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "ases.go",
         "cmd.go",
+        "human.go",
         "prototype.go",
         "sign.go",
         "util.go",
