@@ -37,6 +37,9 @@ A policy is defined by a policy object. It can have the following attributes:
     - `weight` (importance level, only valid under `options`)
     - `policy` (a policy object)
 
+Note that if a policy has both `acl` and `sequence` both should be applied to filter paths. A
+common implementation approach is to first filter by ACL and then by sequence.
+
 Planned:
 
 - `bw` (bandwidth)
@@ -231,6 +234,15 @@ request. For that we use a time & space limited cache. It caches a result for a 
 certain policy up to x seconds. But it also starts to drop items once there are more than y requests
 with different policies. To differentiate policies the hash of the serialized policy is used, so two
 policies with the same effect but different representation will count separately.
+
+### Segment filtering in the PS
+
+In the current design it is not possible to filter by `sequence` in the PS. Since with the new path
+lookup strategy we only return one type of segment (up, core, down) and the `sequence` is not
+indicating what is up, core, or down we can't filter by `sequence`. Also `acl` filtering is more
+difficult in the PS. Up and down segs contain peer links, so it might be that a certain link that is
+blocked by the `acl` would not be used in the final path, but we would still filter the segment.
+Therefore the non-core PS only filters core segments with the `acl` policy.
 
 ### API changes
 
