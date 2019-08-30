@@ -15,7 +15,10 @@
 package hpkt
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -141,36 +144,35 @@ func TestParseMalformedPkts(t *testing.T) {
 		return buf[:actual]
 	}
 
-	tests := map[string]struct {
-		raw []byte
-	}{
-		"error when actual size smaller than scion header min length ": {
-			raw: makeCmnHdr(8, 1, 7, 0),
-		},
-		"error when actual size is smaller to cmnHdr.TotalLen": {
-			raw: makeCmnHdr(16, 1, 15, 0),
-		},
-		"error when actual size is larger to cmnHdr.TotalLen": {
-			raw: append(makeCmnHdr(512, 64, 512, 0), make([]byte, 25)...),
-		},
-		"error when valid cmnHdr.TotalLen but invalid cmnHdr.HdrLen": {
-			raw: makeCmnHdr(32, 64, 32, 0),
-		},
-		"error when valid cmnHdr.TotalLen, valid cmdHdr.HdrLen, invalid payload": {
-			raw: makeCmnHdr(512, 64, 512, 0),
-		},
-		"error when valid cmdHdr, invalid type 0 header": {
-			raw: append(makeCmnHdr(512+3, 64, 512, 0), make([]byte, 3)...),
-		},
-		"error x": {
-			raw: append(makeCmnHdr(512+3, 64, 512, 1), make([]byte, 3)...),
-		},
+	tests := map[string][]byte{
+		"actual size smaller than cmdnHdr min length ": makeCmnHdr(8, 1, 7, 0),
+		"actual size is smaller than cmnHdr.TotalLen":  makeCmnHdr(16, 1, 15, 0),
+		"actual size is larger than cmnHdr.TotalLen": append(makeCmnHdr(512, 64, 512,
+			0), make([]byte, 25)...),
+		"valid cmnHdr.TotalLen but invalid cmnHdr.HdrLen": makeCmnHdr(32, 64, 32, 0),
+		"valid cmnHdr.{Total,Hdr}Len, invalid payload":    makeCmnHdr(512, 64, 512, 0),
+		"valid cmdHdr, invalid type 0 header": append(makeCmnHdr(512+3, 64,
+			512, 0), make([]byte, 3)...),
+		"catch the panics": append(makeCmnHdr(512+3, 64, 512, 1), make([]byte, 3)...),
 	}
 
-	for name, test := range tests {
+	fs, err := ioutil.ReadDir("testdata/fuzz-inputs")
+	require.NoError(t, err)
+	for _, f := range fs {
+		b := xtest.MustReadFromFile(t, filepath.Join("fuzz-inputs", f.Name()))
+		tests[fmt.Sprintf("input %s", f.Name())] = b
+	}
+
+	for name, b := range tests {
 		t.Run(name, func(t *testing.T) {
 			s := &spkt.ScnPkt{}
-			require.Error(t, ParseScnPkt(s, test.raw), "Should parse with error")
+			var err error
+			w := func() {
+				err = ParseScnPkt(s, b)
+			}
+			require.NotPanics(t, w)
+			require.Error(t, err, "Should parse with error")
+
 		})
 	}
 }

@@ -151,7 +151,6 @@ func (p *parseCtx) parseExtensions() ([]common.Extension, []common.Extension, er
 
 		p.nextHdr = extn.NextHeader
 		p.offset += len(extn.Contents)
-
 	}
 	return ValidateExtensions(extns)
 }
@@ -173,13 +172,11 @@ func (p *parseCtx) CmnHdrParser() error {
 		return common.NewBasicError("Malformed hdr length", nil,
 			"expected", p.cmnHdr.HdrLenBytes(), "larger than ", len(p.b))
 	}
-
 	return nil
 }
 
 func (p *parseCtx) DefaultAddrHdrParser() error {
 	var err error
-	//TODO(karampok). Hard code hdr start at (int)common.CmnHdrLen
 	p.addrHdrOffsets.start = p.offset
 	p.s.DstIA.Parse(p.b[p.offset:])
 	p.offset += addr.IABytes
