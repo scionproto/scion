@@ -325,7 +325,7 @@ func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime t
 			meta.RcvOvfl = *(*int)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
 			tv := *(*syscall.Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
-			meta.Recvd = time.Unix(tv.Sec, tv.Nsec)
+			meta.Recvd = time.Unix(int64(tv.Sec), int64(tv.Nsec))
 			meta.ReadDelay = readTime.Sub(meta.Recvd)
 			// Guard against leap-seconds.
 			if meta.ReadDelay < 0 {
