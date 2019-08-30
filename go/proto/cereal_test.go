@@ -19,7 +19,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
@@ -28,26 +27,31 @@ import (
 func TestParseFromRaw(t *testing.T) {
 	tests := map[string]struct {
 		Extractor func(val interface{}, typeID uint64, s capnp.Struct) error
-		Assertion assert.ErrorAssertionFunc
+		Assertion require.ErrorAssertionFunc
 	}{
 		"valid": {
 			Extractor: pogs.Extract,
-			Assertion: assert.NoError,
+			Assertion: require.NoError,
 		},
 		"error": {
 			Extractor: errorExtract,
-			Assertion: assert.Error,
+			Assertion: require.Error,
 		},
 		"panic": {
 			Extractor: panicExtract,
-			Assertion: assert.Error,
+			Assertion: require.Error,
 		},
+	}
+	pack := func(t *testing.T) []byte {
+		packed, err := PackRoot(&asEntry{})
+		require.NoError(t, err)
+		return packed
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			pogsExtractF = test.Extractor
 			wrapped := func() {
-				err := ParseFromRaw(&asEntry{}, asEntry{}.Pack(t))
+				err := ParseFromRaw(&asEntry{}, pack(t))
 				test.Assertion(t, err)
 			}
 			require.NotPanics(t, wrapped)
@@ -88,12 +92,6 @@ func okExtract(_ interface{}, _ uint64, _ capnp.Struct) error {
 }
 
 type asEntry struct{}
-
-func (a asEntry) Pack(t *testing.T) []byte {
-	packed, err := PackRoot(&asEntry{})
-	require.NoError(t, err)
-	return packed
-}
 
 func (a asEntry) ProtoId() ProtoIdType { return ASEntry_TypeID }
 
