@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -78,7 +79,7 @@ func IsTemporaryErr(e error) bool {
 	return false
 }
 
-// Temporary allows signalling of a timeout error. Based on https://golang.org/pkg/net/#Error
+// Timeout allows signalling of a timeout error. Based on https://golang.org/pkg/net/#Error
 type Timeout interface {
 	error
 	Timeout() bool
@@ -96,6 +97,14 @@ func IsTimeoutErr(e error) bool {
 	return false
 }
 
+// ErrMsg should be used for error string constants. The constant can then be
+// used for Is checking in the calling code.
+type ErrMsg string
+
+func (e ErrMsg) Error() string {
+	return string(e)
+}
+
 var _ ErrorMsger = BasicError{}
 var _ ErrorNester = BasicError{}
 
@@ -103,17 +112,35 @@ var _ ErrorNester = BasicError{}
 // and can contain context (slice of [string, val, string, val...]) for logging purposes.
 type BasicError struct {
 	// Error message
-	Msg string
+	Msg ErrMsg
 	// Error context, for logging purposes only
 	logCtx []interface{}
 	// Nested error, if any.
 	Err error
 }
 
+// Is returns whether this error is the same error as err, or in case err is a
+// ErrMsg whether the message is equal.
+func (be BasicError) Is(err error) bool {
+	switch other := err.(type) {
+	case BasicError:
+		return be.Msg == other.Msg
+	case ErrMsg:
+		return be.Msg == other
+	default:
+		return false
+	}
+}
+
+// Unwrap returns the next error in the error chain, or nil if there is none.
+func (be BasicError) Unwrap() error {
+	return be.GetErr()
+}
+
 // NewBasicError creates a new BasicError, with e as the embedded error (can be nil), with logCtx
 // being a list of string/val pairs. These key/value pairs should contain all context-dependent
 // information: 'msg' argument itself should be a constant string.
-func NewBasicError(msg string, e error, logCtx ...interface{}) error {
+func NewBasicError(msg ErrMsg, e error, logCtx ...interface{}) error {
 	if assert.On {
 		assert.Must(len(logCtx)%2 == 0, "Log context must have an even number of elements")
 		for i := 0; i < len(logCtx); i += 2 {
@@ -126,8 +153,8 @@ func NewBasicError(msg string, e error, logCtx ...interface{}) error {
 
 func (be BasicError) TopError() string {
 	s := make([]string, 0, 1+(len(be.logCtx)/2))
-	s = append(s, be.Msg)
-	s[0] = be.Msg
+	s = append(s, string(be.Msg))
+	s[0] = string(be.Msg)
 	for i := 0; i < len(be.logCtx); i += 2 {
 		s = append(s, fmt.Sprintf("%s=\"%v\"", be.logCtx[i], be.logCtx[i+1]))
 	}
@@ -139,7 +166,7 @@ func (be BasicError) Error() string {
 }
 
 func (be BasicError) GetMsg() string {
-	return be.Msg
+	return string(be.Msg)
 }
 
 func (be BasicError) GetErr() error {

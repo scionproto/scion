@@ -312,7 +312,7 @@ func defaultAndValidateEncAlgorithm(algo *string) error {
 	return validateAlgorithm(*algo, validEncAlgorithms, ErrInvalidEncAlgorithm)
 }
 
-func validateAlgorithm(algorithm string, valid []string, errMsg string) error {
+func validateAlgorithm(algorithm string, valid []string, errMsg common.ErrMsg) error {
 	for _, a := range valid {
 		if a == algorithm {
 			return nil
