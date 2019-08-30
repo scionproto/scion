@@ -52,8 +52,8 @@ func genHuman(file string) error {
 		return common.NewBasicError("unable to parse signatures", err, "file", file)
 	}
 	humanReadable := struct {
-		Payload    *trc.TRC
-		Signatures []signature
+		Payload    *trc.TRC    `json:"payload"`
+		Signatures []signature `json:"signatures"`
 	}{
 		Payload:    t,
 		Signatures: signatures,
@@ -78,6 +78,6 @@ func parseSignatures(packed []trc.Signature) ([]signature, error) {
 }
 
 type signature struct {
-	Protected trc.Protected
-	Signature []byte
+	Protected trc.Protected `json:"protected"`
+	Signature []byte        `json:"signature"`
 }
