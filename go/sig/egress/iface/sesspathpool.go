@@ -16,6 +16,7 @@ package iface
 
 import (
 	"math"
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -30,23 +31,45 @@ func NewSessPathPool() *SessPathPool {
 	return &SessPathPool{}
 }
 
+func isShorter(x, y *SessPath) bool {
+	if y == nil {
+		return true
+	}
+	return len(x.PathEntry().Path.Interfaces) < len(y.PathEntry().Path.Interfaces)
+}
+
 // Get returns the most suitable path. Excludes a specific path, if possible.
 func (spp SessPathPool) Get(exclude spathmeta.PathKey) *SessPath {
 	var bestSessPath *SessPathStats
 	var minFail uint16 = math.MaxUint16
 	var bestNonExpiringSessPath *SessPathStats
 	var minNonExpiringFail uint16 = math.MaxUint16
-	for k, v := range spp {
+	// Iterate the paths in consistent order.
+	keys := make([]spathmeta.PathKey, 0, len(spp))
+	for k := range spp {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	for _, k := range keys {
+		v := spp[k]
 		if k == exclude {
 			continue
 		}
 		if v.failCount < minFail {
 			bestSessPath = v
 			minFail = v.failCount
+		} else if v.failCount == minFail && isShorter(v.SessPath, bestSessPath.SessPath) {
+			bestSessPath = v
 		}
-		if v.failCount < minNonExpiringFail && !v.SessPath.IsCloseToExpiry() {
-			bestNonExpiringSessPath = v
-			minNonExpiringFail = v.failCount
+		if !v.SessPath.IsCloseToExpiry() {
+			if v.failCount < minNonExpiringFail {
+				bestNonExpiringSessPath = v
+				minNonExpiringFail = v.failCount
+			} else if v.failCount == minNonExpiringFail && isShorter(v.SessPath,
+				bestNonExpiringSessPath.SessPath) {
+
+				bestNonExpiringSessPath = v
+			}
 		}
 	}
 	// Return a non-expiring path with least failures.
