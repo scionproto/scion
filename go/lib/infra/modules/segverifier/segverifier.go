@@ -45,53 +45,6 @@ const (
 	segErrIndex = -1
 )
 
-// SegVerified is the callback for a successful segment verification.
-// The function must adhere to the given context.
-type SegVerified func(context.Context, *seg.Meta)
-
-// SegVerificationFailed is the callback for a failed segment verification.
-// The function must return immediately.
-type SegVerificationFailed func(*seg.Meta, error)
-
-// RevVerified is the callback for a successful revocation verification.
-// The function must adhere to the given context.
-type RevVerified func(context.Context, *path_mgmt.SignedRevInfo)
-
-// RevVerificationFailed is the callback for a failed revocation verification.
-// The function must return immediately.
-type RevVerificationFailed func(*path_mgmt.SignedRevInfo, error)
-
-// Verify starts the verification for the given segMeta and sRevInfos.
-// The verifiedSeg and verifiedRev callbacks are called for verified segs/revs.
-// The segError/revError callbacks are called for verification errors.
-func Verify(ctx context.Context, verifier infra.Verifier, server net.Addr, segMetas []*seg.Meta,
-	sRevInfos []*path_mgmt.SignedRevInfo, verifiedSeg SegVerified, verifiedRev RevVerified,
-	segError SegVerificationFailed, revError RevVerificationFailed) {
-
-	unitResultsC, units := StartVerification(ctx, verifier, server, segMetas, sRevInfos)
-Loop:
-	for numResults := 0; numResults < units; numResults++ {
-		select {
-		case result := <-unitResultsC:
-			// Insert successfully verified revocations into the revcache
-			for index, revocation := range result.Unit.SRevInfos {
-				if err, ok := result.Errors[index]; ok {
-					revError(revocation, err)
-				} else {
-					verifiedRev(ctx, revocation)
-				}
-			}
-			if err := result.SegError(); err != nil {
-				segError(result.Unit.SegMeta, err)
-			} else {
-				verifiedSeg(ctx, result.Unit.SegMeta)
-			}
-		case <-ctx.Done():
-			break Loop
-		}
-	}
-}
-
 // StartVerification builds the units for the given segMetas and sRevInfos
 // and spawns verify method on the units.
 // StartVerification returns a channel for the UnitResult and the expected amount of results.

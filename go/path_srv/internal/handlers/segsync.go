@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
@@ -28,6 +29,7 @@ import (
 type syncHandler struct {
 	*baseHandler
 	localIA addr.IA
+	handler seghandler.Handler
 }
 
 func NewSyncHandler(args HandlerArgs) infra.Handler {
@@ -35,6 +37,15 @@ func NewSyncHandler(args HandlerArgs) infra.Handler {
 		handler := &syncHandler{
 			baseHandler: newBaseHandler(r, args),
 			localIA:     args.IA,
+			handler: seghandler.Handler{
+				Verifier: &seghandler.DefaultVerifier{
+					Verifier: args.VerifierFactory.NewVerifier(),
+				},
+				Storage: &seghandler.DefaultStorage{
+					PathDB:   args.PathDB,
+					RevCache: args.RevCache,
+				},
+			},
 		}
 		return handler.Handle()
 	}
@@ -75,7 +86,14 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		NextHop: peerPath.OverlayNextHop(),
 		Host:    addr.NewSVCUDPAppAddr(addr.SvcPS),
 	}
-	if err := h.verifyAndStore(ctx, svcToQuery, segSync.Recs, segSync.SRevInfos); err != nil {
+	segs := seghandler.Segments{
+		Segs:      segSync.Recs,
+		SRevInfos: segSync.SRevInfos,
+	}
+	res := h.handler.Handle(ctx, segs, svcToQuery, nil)
+	// wait until processing is done.
+	<-res.FullReplyProcessed()
+	if err := res.Err(); err != nil {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
