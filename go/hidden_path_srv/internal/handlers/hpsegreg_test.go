@@ -80,7 +80,8 @@ var (
 func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 	t.Helper()
 	g := graph.NewDefaultGraph(ctrl)
-	seg110_133 = markHidden(t, seg.NewMeta( // hidden down
+	// hidden down
+	seg110_133 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_110_X_130_A,
 			graph.If_130_A_131_X,
@@ -89,20 +90,23 @@ func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 		}),
 		proto.PathSegType_down,
 	))
-	seg120_121 = markHidden(t, seg.NewMeta( // hidden up
+	// hidden up
+	seg120_121 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
-			graph.If_121_X_120_B,
+			graph.If_120_B_121_X,
 		}),
 		proto.PathSegType_up,
 	))
-	seg210_212 = seg.NewMeta( // not hidden
+	// missing hidden extn
+	seg210_212 = seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_210_X_211_A,
 			graph.If_211_A_212_X,
 		}),
 		proto.PathSegType_down,
 	)
-	seg110_120 = markHidden(t, seg.NewMeta( // core
+	// core seg type
+	seg110_120 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_110_X_120_A,
 		}),
@@ -112,12 +116,6 @@ func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 
 func TestSegReg(t *testing.T) {
 	newTestGraph(t, gomock.NewController(t))
-	type mocks struct {
-		db *mock_pathdb.MockPathDB
-		tx *mock_pathdb.MockTransaction
-		ts *mock_infra.MockTrustStore
-		rw *mock_infra.MockResponseWriter
-	}
 	tests := map[string]struct {
 		hpsIA   addr.IA
 		peer    *snet.Addr
@@ -127,14 +125,14 @@ func TestSegReg(t *testing.T) {
 		result  *infra.HandlerResult
 		exp     func(*mocks, *ackMatcher)
 	}{
-		"writer can write": {
+		"writer can register": {
 			hpsIA:   ia115,
 			peer:    &snet.Addr{IA: ia112},
 			groupId: group.Id,
 			segs:    []*seg.Meta{seg110_133},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_ok,
-				ErrDesc: common.ErrMsg(""),
+				ErrDesc: "",
 			},
 			result: infra.MetricsResultOk,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -145,14 +143,14 @@ func TestSegReg(t *testing.T) {
 				m.rw.EXPECT().SendAckReply(gomock.Any(), a)
 			},
 		},
-		"owner can write": {
+		"owner can register": {
 			hpsIA:   ia115,
 			peer:    &snet.Addr{IA: ia110},
 			groupId: group.Id,
 			segs:    []*seg.Meta{seg110_133, seg120_121},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_ok,
-				ErrDesc: common.ErrMsg(""),
+				ErrDesc: "",
 			},
 			result: infra.MetricsResultOk,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -170,7 +168,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_133},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: handlers.UnknownGroupErr,
+				ErrDesc: handlers.UnknownGroupErr.Error(),
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -184,7 +182,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_133},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: handlers.NotRegistryErr,
+				ErrDesc: handlers.NotRegistryErr.Error(),
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -198,7 +196,7 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_133},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: handlers.NotWriterErr,
+				ErrDesc: handlers.NotWriterErr.Error(),
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
@@ -212,12 +210,10 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg210_212},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: handlers.MissingExtnErr,
+				ErrDesc: handlers.NoSegmentsErr.Error(),
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
-				m.ts.EXPECT().NewVerifier().Return(infra.NullSigVerifier)
-				m.db.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).Return(m.tx, nil)
 				m.rw.EXPECT().SendAckReply(gomock.Any(), a)
 			},
 		},
@@ -228,12 +224,10 @@ func TestSegReg(t *testing.T) {
 			segs:    []*seg.Meta{seg110_120},
 			ack: &ackMatcher{
 				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: handlers.WrongSegTypeErr,
+				ErrDesc: handlers.NoSegmentsErr.Error(),
 			},
 			result: infra.MetricsErrInvalid,
 			exp: func(m *mocks, a *ackMatcher) {
-				m.ts.EXPECT().NewVerifier().Return(infra.NullSigVerifier)
-				m.db.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).Return(m.tx, nil)
 				m.rw.EXPECT().SendAckReply(gomock.Any(), a)
 			},
 		},
@@ -242,12 +236,7 @@ func TestSegReg(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			m := &mocks{
-				db: mock_pathdb.NewMockPathDB(ctrl),
-				tx: mock_pathdb.NewMockTransaction(ctrl),
-				ts: mock_infra.NewMockTrustStore(ctrl),
-				rw: mock_infra.NewMockResponseWriter(ctrl),
-			}
+			m := getMocks(ctrl)
 			log.Root().SetHandler(log.DiscardHandler())
 			ctx := infra.NewContextWithResponseWriter(
 				context.Background(), m.rw)
@@ -274,6 +263,22 @@ func TestSegReg(t *testing.T) {
 	}
 }
 
+type mocks struct {
+	db *mock_pathdb.MockPathDB
+	tx *mock_pathdb.MockTransaction
+	ts *mock_infra.MockTrustStore
+	rw *mock_infra.MockResponseWriter
+}
+
+func getMocks(ctrl *gomock.Controller) *mocks {
+	return &mocks{
+		db: mock_pathdb.NewMockPathDB(ctrl),
+		tx: mock_pathdb.NewMockTransaction(ctrl),
+		ts: mock_infra.NewMockTrustStore(ctrl),
+		rw: mock_infra.NewMockResponseWriter(ctrl),
+	}
+}
+
 func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
 	t.Helper()
 	s := m.Segment
@@ -293,7 +298,7 @@ func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
 
 type ackMatcher struct {
 	Err     proto.Ack_ErrCode
-	ErrDesc error
+	ErrDesc string
 }
 
 func (m *ackMatcher) Matches(x interface{}) bool {
@@ -301,7 +306,7 @@ func (m *ackMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return m.Err == a.Err && strings.Contains(a.ErrDesc, m.ErrDesc.Error())
+	return m.Err == a.Err && strings.Contains(a.ErrDesc, m.ErrDesc)
 }
 func (m *ackMatcher) String() string {
 	return fmt.Sprintf("Ack %v: %v", m.Err, m.ErrDesc)
