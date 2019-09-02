@@ -15,7 +15,6 @@
 package segreq
 
 import (
-	"context"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -53,7 +52,8 @@ func NewHandler(args handlers.HandlerArgs) infra.Handler {
 }
 
 func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
-	logger := log.FromCtx(request.Context())
+	ctx := request.Context()
+	logger := log.FromCtx(ctx)
 	segReq, ok := request.Message.(*path_mgmt.SegReq)
 	if !ok {
 		logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
@@ -61,13 +61,11 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Received", "segReq", segReq)
-	rw, ok := infra.ResponseWriterFromContext(request.Context())
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Warn("[segReqHandler] Unable to reply to client, no response writer found")
 		return infra.MetricsErrInternal
 	}
-	ctx, cancelF := context.WithTimeout(request.Context(), handlers.HandlerTimeout)
-	defer cancelF()
 
 	segs, err := h.fetcher.FetchSegs(ctx,
 		segfetcher.Request{Src: segReq.SrcIA(), Dst: segReq.DstIA()})

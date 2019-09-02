@@ -38,8 +38,6 @@ import (
 )
 
 const (
-	HandlerTimeout = 30 * time.Second
-
 	NoSegmentsErr = "No segments"
 )
 

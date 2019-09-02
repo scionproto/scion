@@ -39,7 +39,8 @@ func NewIfStateInfoHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *ifStateInfoHandler) Handle() *infra.HandlerResult {
-	logger := log.FromCtx(h.request.Context())
+	ctx := h.request.Context()
+	logger := log.FromCtx(ctx)
 	ifStateInfo, ok := h.request.Message.(*path_mgmt.IFStateInfos)
 	if !ok {
 		logger.Error("[ifStateHandler] wrong message type, expected path_mgmt.IFStateInfos",
@@ -47,12 +48,10 @@ func (h *ifStateInfoHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[ifStateHandler] Received IfStateInfo", "ifStateInfo", ifStateInfo)
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
 	// TODO(lukedirtwalker): if all verifications fail we should reflect that in metrics.
 	for _, info := range ifStateInfo.Infos {
 		if !info.Active && info.SRevInfo != nil {
-			h.verifyAndStore(subCtx, info.SRevInfo)
+			h.verifyAndStore(ctx, info.SRevInfo)
 		}
 	}
 	logger.Debug("[ifStateHandler] done processing ifStateInfo")
