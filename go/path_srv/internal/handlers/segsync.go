@@ -15,8 +15,6 @@
 package handlers
 
 import (
-	"context"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -44,21 +42,20 @@ func NewSyncHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *syncHandler) Handle() *infra.HandlerResult {
-	logger := log.FromCtx(h.request.Context())
+	ctx := h.request.Context()
+	logger := log.FromCtx(ctx)
 	segSync, ok := h.request.Message.(*path_mgmt.SegSync)
 	if !ok {
 		logger.Error("[syncHandler] wrong message type, expected path_mgmt.SegSync",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
-	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Error("[syncHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
 	}
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
-	sendAck := messenger.SendAckHelper(subCtx, rw)
+	sendAck := messenger.SendAckHelper(ctx, rw)
 	if err := segSync.ParseRaw(); err != nil {
 		logger.Error("[syncHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
@@ -78,7 +75,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		NextHop: peerPath.OverlayNextHop(),
 		Host:    addr.NewSVCUDPAppAddr(addr.SvcPS),
 	}
-	if err := h.verifyAndStore(subCtx, svcToQuery, segSync.Recs, segSync.SRevInfos); err != nil {
+	if err := h.verifyAndStore(ctx, svcToQuery, segSync.Recs, segSync.SRevInfos); err != nil {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}

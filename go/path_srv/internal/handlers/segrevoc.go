@@ -15,8 +15,6 @@
 package handlers
 
 import (
-	"context"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -46,7 +44,8 @@ func NewRevocHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *revocHandler) Handle() *infra.HandlerResult {
-	logger := log.FromCtx(h.request.Context())
+	ctx := h.request.Context()
+	logger := log.FromCtx(ctx)
 	logger = logger.New("from", h.request.Peer)
 	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
@@ -54,16 +53,14 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
-	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Error("[revocHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
 	}
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
 	logger = logger.New("signer", revocation.Sign.Src)
 
-	sendAck := messenger.SendAckHelper(subCtx, rw)
+	sendAck := messenger.SendAckHelper(ctx, rw)
 	revInfo, err := revocation.RevInfo()
 	if err != nil {
 		logger.Warn("[revocHandler] Couldn't parse revocation", "err", err)
@@ -73,17 +70,17 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 	logger = logger.New("revInfo", revInfo)
 	logger.Debug("[revocHandler] Received revocation")
 
-	err = segverifier.VerifyRevInfo(subCtx, h.verifierFactory.NewVerifier(), nil, revocation)
+	err = segverifier.VerifyRevInfo(ctx, h.verifierFactory.NewVerifier(), nil, revocation)
 	if err != nil {
 		logger.Warn("Couldn't verify revocation", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid
 	}
-	if err := h.NextQueryCleaner.ResetQueryCache(subCtx, revInfo); err != nil {
+	if err := h.NextQueryCleaner.ResetQueryCache(ctx, revInfo); err != nil {
 		logger.Warn("Couldn't reset pathdb cache for revocation", "err", err)
 	}
 
-	_, err = h.revCache.Insert(subCtx, revocation)
+	_, err = h.revCache.Insert(ctx, revocation)
 	if err != nil {
 		logger.Error("Failed to insert revInfo", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)

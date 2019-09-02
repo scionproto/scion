@@ -15,8 +15,6 @@
 package handlers
 
 import (
-	"context"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -44,21 +42,20 @@ func NewSegRegHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *segRegHandler) Handle() *infra.HandlerResult {
-	logger := log.FromCtx(h.request.Context())
+	ctx := h.request.Context()
+	logger := log.FromCtx(ctx)
 	segReg, ok := h.request.Message.(*path_mgmt.SegReg)
 	if !ok {
 		logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal
 	}
-	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Error("[segRegHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
 	}
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
-	sendAck := messenger.SendAckHelper(subCtx, rw)
+	sendAck := messenger.SendAckHelper(ctx, rw)
 	if err := segReg.ParseRaw(); err != nil {
 		logger.Error("[segRegHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
@@ -79,7 +76,7 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 		NextHop: peerPath.OverlayNextHop(),
 		Host:    addr.NewSVCUDPAppAddr(addr.SvcBS),
 	}
-	if err := h.verifyAndStore(subCtx, svcToQuery, segReg.Recs, segReg.SRevInfos); err != nil {
+	if err := h.verifyAndStore(ctx, svcToQuery, segReg.Recs, segReg.SRevInfos); err != nil {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
