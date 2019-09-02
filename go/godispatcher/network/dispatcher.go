@@ -157,12 +157,12 @@ type throttledMetaLogger struct {
 	// printed.
 	lastPrintTimestamp time.Time
 	// lastPrintValue is the overflow value printed in the last logging message.
-	lastPrintValue int
+	lastPrintValue uint32
 }
 
 func (p *throttledMetaLogger) Handle(m *conn.ReadMeta) {
 	p.mu.Lock()
-	if m.RcvOvfl > p.lastPrintValue && time.Since(p.lastPrintTimestamp) > p.MinInterval {
+	if m.RcvOvfl != p.lastPrintValue && time.Since(p.lastPrintTimestamp) > p.MinInterval {
 		p.Logger.Debug("Detected socket overflow", "total_cnt", m.RcvOvfl)
 		p.lastPrintTimestamp = time.Now()
 		p.lastPrintValue = m.RcvOvfl

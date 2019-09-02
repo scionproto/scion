@@ -39,9 +39,9 @@ import (
 // opened sockets.
 const ReceiveBufferSize = 1 << 20
 
-var sizeOfInt64 = int(unsafe.Sizeof(int64(0)))
+const sizeOfRxqOvfl = 4 // Defined to be uint32
 var sizeOfTimespec = int(unsafe.Sizeof(syscall.Timespec{}))
-var oobSize = syscall.CmsgSpace(sizeOfInt64) + syscall.CmsgSpace(sizeOfTimespec)
+var oobSize = syscall.CmsgSpace(sizeOfRxqOvfl) + syscall.CmsgSpace(sizeOfTimespec)
 var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 	"Ignore failing to set the receive buffer size on a socket.")
 
@@ -322,7 +322,7 @@ func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime t
 		}
 		switch {
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
-			meta.RcvOvfl = *(*int)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
+			meta.RcvOvfl = *(*uint32)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
 			tv := *(*syscall.Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 			meta.Recvd = time.Unix(int64(tv.Sec), int64(tv.Nsec))
@@ -377,7 +377,7 @@ type ReadMeta struct {
 	Local *overlay.OverlayAddr
 	// RcvOvfl is the total number of packets that were dropped by the OS due
 	// to the receive buffers being full.
-	RcvOvfl int
+	RcvOvfl uint32
 	// Recvd is the timestamp when the kernel placed the packet in the socket's
 	// receive buffer.
 	Recvd time.Time
