@@ -40,7 +40,8 @@ import (
 const ReceiveBufferSize = 1 << 20
 
 const sizeOfRxqOvfl = 4 // Defined to be uint32
-var sizeOfTimespec = int(unsafe.Sizeof(syscall.Timespec{}))
+const sizeOfTimespec = int(unsafe.Sizeof(syscall.Timespec{}))
+
 var oobSize = syscall.CmsgSpace(sizeOfRxqOvfl) + syscall.CmsgSpace(sizeOfTimespec)
 var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 	"Ignore failing to set the receive buffer size on a socket.")
