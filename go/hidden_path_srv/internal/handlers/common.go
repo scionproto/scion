@@ -79,15 +79,21 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	hpSegReg *path_mgmt.HPSegReg) error {
 
 	logger := log.FromCtx(ctx)
-
 	// check HPGroup related permissions
 	groupId := hiddenpath.IdFromMsg(hpSegReg.GroupId)
 	if err := h.checkGroupPermissions(groupId, true); err != nil {
 		return common.NewBasicError("Group configuration error", err, "group", groupId)
 	}
+	// filter for valid hidden segements
+	filtered := filterHiddenSegs(hpSegReg.Recs, logger)
+	// return early if we have nothing to insert.
+	if len(filtered) == 0 {
+		return NoSegmentsErr
+	}
+
 	// verify and store the segments
 	var insertedSegmentIDs []string
-	verifiedSegs := make([]*seg.Meta, 0, len(hpSegReg.Recs))
+	verifiedSegs := make([]*seg.Meta, 0, len(filtered))
 	var mtx sync.Mutex
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
 		mtx.Lock()
@@ -97,10 +103,10 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	segErr := func(s *seg.Meta, err error) {
 		logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
 	}
-	segverifier.Verify(ctx, h.verifierFactory.NewVerifier(), src, hpSegReg.Recs, nil, verifiedSeg,
+	segverifier.Verify(ctx, h.verifierFactory.NewVerifier(), src, filtered, nil, verifiedSeg,
 		nil, segErr, nil)
 
-	// Return early if we have nothing to insert.
+	// return early if we have nothing to insert.
 	if len(verifiedSegs) == 0 {
 		return NoSegmentsErr
 	}
@@ -113,17 +119,6 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 		return verifiedSegs[i].Segment.GetLoggingID() < verifiedSegs[j].Segment.GetLoggingID()
 	})
 	for _, s := range verifiedSegs {
-		// TODO: return on error or just log the faulty segment and continue?
-		// check that the segment is marked as hidden
-		if !checkHiddenSegExtn(s) {
-			return common.NewBasicError("Unable to insert segment into path database",
-				MissingExtnErr, "seg", s.Segment)
-		}
-		// check that this is an up- or down-segment
-		if s.Type != proto.PathSegType_up && s.Type != proto.PathSegType_down {
-			return common.NewBasicError("Unable to insert segment into path database",
-				WrongSegTypeErr, "type", s.Type)
-		}
 		n, err := tx.Insert(ctx, s, hpsegreq.GroupIdsToSet(groupId))
 		if err != nil {
 			if errRollback := tx.Rollback(); errRollback != nil {
@@ -144,7 +139,6 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 		logger.Debug("Hidden segments inserted in DB", "count", len(insertedSegmentIDs),
 			"segments", insertedSegmentIDs)
 	}
-
 	return nil
 }
 
@@ -156,23 +150,33 @@ func (h *baseHandler) checkGroupPermissions(groupId hiddenpath.GroupId, write bo
 	if !group.HasRegistry(h.localIA) {
 		return NotRegistryErr
 	}
-	peer, ok := h.request.Peer.(*snet.Addr)
-	if !ok {
-		// TODO: Can this ever fail?
-	}
-	if group.Owner == peer.IA {
-		return nil
-	}
+	peer := h.request.Peer.(*snet.Addr)
 	if write {
-		if !group.HasWriter(peer.IA) {
-			return NotWriterErr
+		if peer.IA == group.Owner || group.HasWriter(peer.IA) {
+			return nil
 		}
+		return NotWriterErr
+	}
+	if peer.IA == group.Owner || group.HasReader(peer.IA) {
 		return nil
 	}
-	if !group.HasReader(peer.IA) {
-		return NotReaderErr
+	return NotReaderErr
+}
+
+func filterHiddenSegs(recs []*seg.Meta, logger log.Logger) []*seg.Meta {
+	filtered := make([]*seg.Meta, 0, len(recs))
+	for _, seg := range recs {
+		if !checkHiddenSegExtn(seg) {
+			logger.Warn("Invalid hidden segment", "err", MissingExtnErr)
+			continue
+		}
+		if seg.Type != proto.PathSegType_up && seg.Type != proto.PathSegType_down {
+			logger.Warn("Invalid hidden segment", "err", WrongSegTypeErr)
+			continue
+		}
+		filtered = append(filtered, seg)
 	}
-	return nil
+	return filtered
 }
 
 func checkHiddenSegExtn(s *seg.Meta) bool {
