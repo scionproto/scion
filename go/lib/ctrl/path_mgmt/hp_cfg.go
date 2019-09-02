@@ -37,6 +37,16 @@ func (id *HPGroupId) String() string {
 	return fmt.Sprintf("{OwnerAS: %s, GroupId %x}", id.OwnerAS, id.GroupId)
 }
 
+func (id *HPGroupId) Copy() *HPGroupId {
+	if id == nil {
+		return nil
+	}
+	return &HPGroupId{
+		OwnerAS: id.OwnerAS,
+		GroupId: id.GroupId,
+	}
+}
+
 var _ proto.Cerealizable = (*HPCfg)(nil)
 
 type HPCfg struct {
