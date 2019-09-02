@@ -7,6 +7,7 @@ using Common = import "common.capnp";
 using Sign = import "sign.capnp";
 using PSeg = import "path_seg.capnp";
 using PathMgmt = import "path_mgmt.capnp";
+using PathPolicy = import "path_policy.capnp";
 
 struct SCIONDMsg {
     id @0 :UInt64;  # Request ID
@@ -36,6 +37,7 @@ struct PathReq {
         hidden @4 :Bool; # Request hidden segments
     }
     hpCfgs @5 :List(PathMgmt.HPGroupId);
+    policy @6 :PathPolicy.Policy;
 }
 
 struct PathReply {

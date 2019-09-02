@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_policy"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -31,6 +32,7 @@ type SegReq struct {
 	RawSrcIA addr.IAInt `capnp:"srcIA"`
 	RawDstIA addr.IAInt `capnp:"dstIA"`
 	Flags    SegReqFlags
+	Policy   *path_policy.Policy
 }
 
 type SegReqFlags struct {

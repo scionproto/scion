@@ -16,6 +16,7 @@ go_library(
         "ifid.capnp.go",
         "path_mgmt.capnp.go",
         "path_seg.capnp.go",
+        "path_policy.capnp.go",
         "rev_info.capnp.go",
         "sciond.capnp.go",
         "sibra.capnp.go",

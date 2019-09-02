@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/path_policy"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -127,14 +128,21 @@ type PathReq struct {
 	Src      addr.IAInt
 	MaxPaths uint16
 	HPCfgs   []*path_mgmt.HPGroupId `capnp:"hpCfgs"`
+	Policy   *path_policy.Policy
 	Flags    PathReqFlags
 }
 
 func (pathReq *PathReq) Copy() *PathReq {
+	hpCfgsCopy := make([]*path_mgmt.HPGroupId, 0, len(pathReq.HPCfgs))
+	for _, id := range pathReq.HPCfgs {
+		hpCfgsCopy = append(hpCfgsCopy, id.Copy())
+	}
 	return &PathReq{
 		Dst:      pathReq.Dst,
 		Src:      pathReq.Src,
 		MaxPaths: pathReq.MaxPaths,
+		HPCfgs:   hpCfgsCopy,
+		Policy:   pathReq.Policy.Copy(),
 		Flags:    pathReq.Flags,
 	}
 }

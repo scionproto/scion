@@ -6,6 +6,7 @@ $Go.import("github.com/scionproto/scion/go/proto");
 using PSeg = import "path_seg.capnp";
 using IFState = import "if_state.capnp";
 using Sign = import "sign.capnp";
+using PathPolicy = import "path_policy.capnp";
 
 struct SegReq {
     srcIA @0 :UInt64;
@@ -14,6 +15,7 @@ struct SegReq {
         sibra @2 :Bool;
         cacheOnly @3 :Bool;
     }
+    policy @4 :PathPolicy.Policy;
 }
 
 struct SegRecs {
