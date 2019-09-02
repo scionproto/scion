@@ -178,7 +178,7 @@ their own) AS certificates.
 
 [²]: Recommended usage period before key rollover (best practice).
 
-[³]: As described in the [Optimistic Certificate Revocation](#optimistic-certificate-revocation)
+[³]: As described in the [Best-Effort Certificate Revocation](#best-effort-certificate-revocation)
 section below.
 
 ### Table: Certificates
@@ -568,8 +568,8 @@ update) TRCs.
 - __certificate_type__: string. Indicates whether the subject is allowed to issue certificates
   for other ASes. Can be either `issuer` (can issue certificate) or `as` (cannot). This field also
   determines the contents of the __issuer__ section.
-- __optional_distribution_points__: Array string. Additional optimistic certificate revocation
-  distribution points formatted as ISD-AS string. They must be authoritative in their ISD.
+- __optional_distribution_points__: Array string. Additional certificate revocation distribution
+  points formatted as ISD-AS string. They must be authoritative in their ISD.
 
 ### Certificate Section: `validity`
 
@@ -748,7 +748,7 @@ When validating signatures based on certificate chains, the following must be ch
 - The signature can be verified with the public key authenticated by the AS certificate of a
   verified certificate chain.
 - The current time falls within the validity period of the certificate chain.
-- No optimistic revocation has been cached for either certificate in the chain.
+- No revocation has been cached for either certificate in the chain.
   How often a relying party updates the cache depends on their own policy.
 - The certificate chain is authenticated by a currently active TRC. This means the issuing key that
   was used to sign the Issuer certificate must be authenticated by a currently active TRC. The
@@ -799,7 +799,7 @@ When verifying a certificate chain, the following must be checked:
 - The AS certificate validity period is covered by the Issuer certificate period.
 - The Issuer certificate validity period is covered by the referenced TRC validity period.
 
-## Optimistic Certificate Revocation
+## Best-Effort Certificate Revocation
 
 With a validity on the order of days, AS certificates can be considered short-lived. Nevertheless,
 an attack window of several days is too large for mission-critical operation. Therefore, the CP-PKI
@@ -811,9 +811,6 @@ The number of ASes in SCION will most likely exceed the number of ASes in the cu
 few orders of magnitude, which will result in a large number of certificates. However, because
 certificates are short-lived and because stale revocations can be discarded, revocation lists will
 remain small or empty most of the time.
-
-Certificate revocations are optimistic in the sense that they are considered on a best-effort basis.
-(see: [Best-Effort Revocation](#best-effort-revocation))
 
 ### Revocation Notes
 
@@ -863,13 +860,13 @@ Revoking an Issuer certificate has severe implications. All certificate chains t
 no longer be considered valid. Thus, a large portion of an ISD might be unreachable for some period
 of time. Operators should coordinate and prepare before revoking an issuer certificate.
 
-### Best-Effort Revocation
+### Best-Effort
 
 Certificate revocation stands in stark contrast with availability. If relying parties only
 considered a certificate valid after querying the corresponding distribution point, then there would
 be a circular dependency between verifying paths to the distribution points and having paths to the
-distribution point. To avoid this circular dependency, optimistic revocations are to be considered
-on a best-effort basis. During regular operation, the revocation distribution points will be
+distribution point. To avoid this circular dependency, revocations are to be considered on a
+best-effort basis. During regular operation, the revocation distribution points will be
 available and certificates are revoked in a short amount of time. Also, an AS can take advantage of
 the `optional_distribution_points` field in the AS cert to nominate distribution points that are
 geographically diverse to mitigate availability issues.
