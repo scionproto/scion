@@ -812,6 +812,9 @@ few orders of magnitude, which will result in a large number of certificates. Ho
 certificates are short-lived and because stale revocations can be discarded, revocation lists will
 remain small or empty most of the time.
 
+Certificate revocations are optimistic in the sense that they are considered on a best-effort basis.
+(see: [Best-Effort Revocation](#best-effort-revocation))
+
 ### Revocation Notes
 
 A revocation note attests that a certificate is revoked. A revocation note is either signed by the
