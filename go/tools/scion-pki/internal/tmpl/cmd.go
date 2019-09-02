@@ -60,7 +60,22 @@ Selector:
 	},
 }
 
+var topo = &cobra.Command{
+	Use:   "topo",
+	Short: "Generate isd.ini and as.ini templates for the provided topo",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runGenTopoTmpl(args)
+	},
+}
+
 func init() {
 	Cmd.AddCommand(isd)
 	Cmd.AddCommand(as)
+
+	topo.PersistentFlags().Uint32VarP(&notBefore, "notbefore", "b", 0,
+		"set not_before time in all configs")
+	topo.PersistentFlags().StringVar(&rawValidity, "validity", "365d",
+		"set the validity of all crypto material")
+	Cmd.AddCommand(topo)
 }

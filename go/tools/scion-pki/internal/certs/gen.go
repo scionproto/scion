@@ -161,6 +161,9 @@ func genIssuerCert(issuerConf *conf.IssuerCert, s addr.IA) (*cert.Certificate, e
 		return nil, common.NewBasicError("Issuer of IssuerCert not found in Core ASes of TRC",
 			nil, "issuer", s)
 	}
+	// Make sure the certificates are in the validity period.
+	c.IssuingTime = max(c.IssuingTime, currTrc.CreationTime)
+	c.ExpirationTime = min(c.ExpirationTime, currTrc.ExpirationTime)
 	if err = c.Sign(issuerKey, coreAs.OnlineKeyAlg); err != nil {
 		return nil, err
 	}
@@ -184,6 +187,9 @@ func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cer
 		return nil, common.NewBasicError("Issuer cert not authorized to issue certs.", nil,
 			"issuer", c.Issuer, "subject", c.Subject)
 	}
+	// Make sure the certificates are in the validity period.
+	c.IssuingTime = max(c.IssuingTime, issuerCert.IssuingTime)
+	c.ExpirationTime = min(c.ExpirationTime, issuerCert.ExpirationTime)
 	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, conf.IssuerIA), pkicmn.KeysDir,
 		keyconf.IssSigKeyFile)
 	issuerKey, err := keyconf.LoadKey(issuerKeyPath, issuerCert.SignAlgorithm)
@@ -267,4 +273,18 @@ func getIssuerCert(issuer addr.IA) (*cert.Certificate, error) {
 		}
 	}
 	return issuerCert, nil
+}
+
+func max(a, b uint32) uint32 {
+	if a >= b {
+		return a
+	}
+	return b
+}
+
+func min(a, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
 }
