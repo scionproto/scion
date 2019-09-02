@@ -21,11 +21,19 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 )
+
+// ReplyHandler handles replies.
+type ReplyHandler interface {
+	Handle(ctx context.Context, recs seghandler.Segments, server net.Addr,
+		earlyTrigger <-chan struct{}) *seghandler.ProcessedResult
+}
 
 // FetcherConfig is the configuration for the fetcher.
 type FetcherConfig struct {
@@ -62,9 +70,9 @@ func (cfg FetcherConfig) New() *Fetcher {
 		Splitter:  cfg.Splitter,
 		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache, !cfg.SciondMode),
 		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
-		ReplyHandler: &SegReplyHandler{
-			Verifier: &SegVerifier{Verifier: cfg.VerificationFactory.NewVerifier()},
-			Storage:  &DefaultStorage{PathDB: cfg.PathDB, RevCache: cfg.RevCache},
+		ReplyHandler: &seghandler.Handler{
+			Verifier: &seghandler.DefaultVerifier{Verifier: cfg.VerificationFactory.NewVerifier()},
+			Storage:  &seghandler.DefaultStorage{PathDB: cfg.PathDB, RevCache: cfg.RevCache},
 		},
 		PathDB:                cfg.PathDB,
 		QueryInterval:         cfg.QueryInterval,
@@ -144,7 +152,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 		if reply.Reply == nil || reply.Reply.Recs == nil {
 			continue
 		}
-		r := f.ReplyHandler.Handle(ctx, reply.Reply, f.verifyServer(reply), nil)
+		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), f.verifyServer(reply), nil)
 		select {
 		case <-r.FullReplyProcessed():
 			if err := r.Err(); err != nil {
@@ -181,4 +189,11 @@ func (f *Fetcher) verifyServer(reply ReplyOrErr) net.Addr {
 		return nil
 	}
 	return reply.Peer
+}
+
+func replyToRecs(reply *path_mgmt.SegReply) seghandler.Segments {
+	return seghandler.Segments{
+		Segs:      reply.Recs.Recs,
+		SRevInfos: reply.Recs.SRevInfos,
+	}
 }
