@@ -34,7 +34,7 @@ func runGenAsTmpl(args []string) {
 			pkicmn.ErrorAndExit("Error reading %s: %s\n", conf.ISDCfgFileName, err)
 		}
 		for _, ia := range ases {
-			if err = genAsTmpl(ia, iconf); err != nil {
+			if err = genAndWriteASTmpl(ia, iconf); err != nil {
 				pkicmn.ErrorAndExit("Error generating %s template for %s: %s\n",
 					conf.ASConfFileName, ia, err)
 			}
@@ -42,14 +42,18 @@ func runGenAsTmpl(args []string) {
 	}
 }
 
-func genAsTmpl(ia addr.IA, isd *conf.ISDCfg) error {
-	voting := pkicmn.ContainsAS(isd.TRC.VotingASes, ia.A)
-	issuing := pkicmn.ContainsAS(isd.TRC.IssuingASes, ia.A)
-	a := conf.NewTemplateASCfg(ia, isd.TRC.Version, voting, issuing)
+func genAndWriteASTmpl(ia addr.IA, isd *conf.ISDCfg) error {
+	asCfg := genASTmpl(ia, isd)
 	dir := pkicmn.GetAsPath(pkicmn.RootDir, ia)
 	fpath := filepath.Join(dir, conf.ASConfFileName)
-	if err := a.Write(fpath, pkicmn.Force); err != nil {
+	if err := asCfg.Write(fpath, pkicmn.Force); err != nil {
 		return err
 	}
 	return nil
+}
+
+func genASTmpl(ia addr.IA, isd *conf.ISDCfg) *conf.ASCfg {
+	voting := pkicmn.ContainsAS(isd.TRC.VotingASes, ia.A)
+	issuing := pkicmn.ContainsAS(isd.TRC.IssuingASes, ia.A)
+	return conf.NewTemplateASCfg(ia, isd.TRC.Version, voting, issuing)
 }

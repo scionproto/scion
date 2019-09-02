@@ -15,8 +15,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/keys"
@@ -27,9 +25,6 @@ import (
 var Cmd = &cobra.Command{
 	Use:   "v2",
 	Short: "Use the new format",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(args)
-	},
 }
 
 func init() {
