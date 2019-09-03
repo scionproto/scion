@@ -17,7 +17,6 @@
 =============================================
 """
 # Stdlib
-import base64
 import configparser
 import logging
 import os
@@ -28,15 +27,10 @@ from io import StringIO
 # External packages
 import toml
 import yaml
+from plumbum import local
 
 # SCION
 from lib.config import Config
-from lib.crypto.util import (
-    get_master_key,
-    get_master_key_file_path,
-    MASTER_KEY_0,
-    MASTER_KEY_1,
-)
 from lib.defines import (
     AS_CONF_FILE,
     DEFAULT_MTU,
@@ -139,16 +133,11 @@ class ConfigGenerator(object):
         """
         self._ensure_uniq_ases()
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
-        cert_files, trc_files, cust_files = self._generate_certs_trcs()
         topo_dicts, self.networks, prv_networks = self._generate_topology()
         self._generate_with_topo(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
-        self._write_trust_files(topo_dicts, cert_files)
-        self._write_trust_files(topo_dicts, trc_files)
-        self._write_cust_files(topo_dicts, cust_files)
         self._write_conf_policies(topo_dicts)
-        self._write_master_keys(topo_dicts)
         self._write_networks_conf(self.networks, NETWORKS_FILE)
         if self.args.bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
@@ -171,6 +160,8 @@ class ConfigGenerator(object):
         self._generate_jaeger(topo_dicts)
         self._generate_zk(topo_dicts)
         self._generate_prom_conf(topo_dicts)
+        self._generate_certs_trcs(topo_dicts)
+        self._generate_load_custs_sh(topo_dicts)
 
     def _generate_cas(self):
         ca_gen = CAGenerator(self._ca_args())
@@ -179,9 +170,9 @@ class ConfigGenerator(object):
     def _ca_args(self):
         return CAGenArgs(self.args, self.topo_config)
 
-    def _generate_certs_trcs(self):
+    def _generate_certs_trcs(self, topo_dicts):
         certgen = CertGenerator(self._cert_args())
-        return certgen.generate()
+        certgen.generate(topo_dicts)
 
     def _cert_args(self):
         return CertGenArgs(self.args, self.topo_config)
@@ -254,23 +245,15 @@ class ConfigGenerator(object):
             for path, value in ca_files[int(isd)].items():
                 write_file(os.path.join(base, path), value.decode())
 
-    def _write_trust_files(self, topo_dicts, cert_files):
-        for topo_id, as_topo, base in srv_iter(
-                topo_dicts, self.args.output_dir, common=True):
-            for path, value in cert_files[topo_id].items():
-                write_file(os.path.join(base, path), value + '\n')
-
-    def _write_cust_files(self, topo_dicts, cust_files):
+    def _generate_load_custs_sh(self, topo_dicts):
         cust_pk = {}
         for topo_id, as_topo in topo_dicts.items():
-            base = topo_id.base_dir(self.args.output_dir)
+            base = local.path(topo_id.base_dir(self.args.output_dir))
+            path = base / 'customers'
+            if path.exists() and (len(path.list()) <= 0):
+                continue
             for elem in as_topo["CertificateService"]:
-                for path, value in cust_files[topo_id].items():
-                    write_file(os.path.join(base, elem, path), value)
-                    if self.args.cert_server == 'go':
-                        cust_dir_name = os.path.dirname(path)
-                        cust_dir = os.path.join(base, elem, cust_dir_name)
-                        cust_pk[cust_dir] = elem
+                cust_pk[base / elem / 'customers'] = elem
         if cust_pk:
             script_name = 'gen/load_custs.sh'
             with open(script_name, 'w') as script:
@@ -319,26 +302,6 @@ class ConfigGenerator(object):
             'RegisterPath': True if as_topo["PathService"] else False,
             'PathSegmentTTL': self.args.pseg_ttl,
         }
-
-    def _write_master_keys(self, topo_dicts):
-        """
-        Write AS master keys.
-        """
-        master_keys = {}
-        for topo_id, as_topo, base in srv_iter(
-                topo_dicts, self.args.output_dir, common=True):
-
-            master_keys.setdefault(topo_id, self._gen_master_keys())
-            write_file(get_master_key_file_path(base, MASTER_KEY_0),
-                       base64.b64encode(master_keys[topo_id][0]).decode())
-            write_file(get_master_key_file_path(base, MASTER_KEY_1),
-                       base64.b64encode(master_keys[topo_id][1]).decode())
-            # Confirm that keys parse correctly.
-            assert get_master_key(base, MASTER_KEY_0) == master_keys[topo_id][0]
-            assert get_master_key(base, MASTER_KEY_1) == master_keys[topo_id][1]
-
-    def _gen_master_keys(self):
-        return os.urandom(16), os.urandom(16)
 
     def _write_networks_conf(self, networks, out_file):
         config = configparser.ConfigParser(interpolation=None)
