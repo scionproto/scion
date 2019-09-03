@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -63,7 +64,7 @@ func copyCustomers(ia addr.IA, cfgs map[addr.IA]*conf.As) error {
 			continue
 		}
 		search := fmt.Sprintf("ISD%d-AS%s-V*.crt", cust.I, cust.A.FileFmt())
-		pattern := filepath.Join(pkicmn.GetAsPath(pkicmn.RootDir, ia), pkicmn.CertsDir, search)
+		pattern := filepath.Join(pkicmn.GetAsPath(pkicmn.RootDir, cust), pkicmn.CertsDir, search)
 		chains, err := filepath.Glob(pattern)
 		if err != nil {
 			return common.NewBasicError("unable to glob chains", err, "pattern", pattern)
@@ -74,7 +75,8 @@ func copyCustomers(ia addr.IA, cfgs map[addr.IA]*conf.As) error {
 				return common.NewBasicError("unable to load chain", err, "file", chainFile)
 			}
 			_, name := filepath.Split(chainFile)
-			file := filepath.Join(custDir, name)
+			keyName := fmt.Sprintf("%s.key", strings.TrimSuffix(name, filepath.Ext(name)))
+			file := filepath.Join(custDir, keyName)
 			key := base64.StdEncoding.EncodeToString(c.Leaf.SubjectSignKey)
 			if err = pkicmn.WriteToFile([]byte(key), file, 0644); err != nil {
 				return common.NewBasicError("Error writing customer key", err, "file", file)
