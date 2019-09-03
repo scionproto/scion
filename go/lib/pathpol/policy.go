@@ -25,17 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// ExtPolicy is an extending policy, it may have a list of policies it extends
-type ExtPolicy struct {
-	Extends []string `json:"extends,omitempty"`
-	*Policy
-}
-
-// PolicyMap is a container for Policies, keyed by their unique name. PolicyMap
-// can be used to marshal Policies to JSON. Unmarshaling back to PolicyMap is
-// guaranteed to yield an object that is identical to the initial one.
-type PolicyMap map[string]*ExtPolicy
-
 // FilterOptions contains options for filtering.
 type FilterOptions struct {
 	// IgnoreSequence can be used to ignore the sequence part of policies.
@@ -44,10 +33,10 @@ type FilterOptions struct {
 
 // Policy is a compiled path policy object, all extended policies have been merged.
 type Policy struct {
-	Name     string    `json:"-"`
-	ACL      *ACL      `json:"acl,omitempty"`
-	Sequence *Sequence `json:"sequence,omitempty"`
-	Options  []Option  `json:"options,omitempty"`
+	Name     string
+	ACL      *ACL
+	Sequence *Sequence
+	Options  []Option
 }
 
 // NewPolicy creates a Policy and sorts its Options
@@ -82,11 +71,17 @@ func (p *Policy) FilterOpt(paths PathSet, opts FilterOptions) PathSet {
 	return resultSet
 }
 
-// PolicyFromExtPolicy creates a Policy from an extending Policy and the extended policies
+// PolicyFromExtPolicy creates a Policy from an extending Policy and the
+// extended policies. It resolves all extended policies also the ones in the
+// options.
 func PolicyFromExtPolicy(extPolicy *ExtPolicy, extended []*ExtPolicy) (*Policy, error) {
-	policy := extPolicy.Policy
-	if policy == nil {
-		policy = &Policy{}
+	policy := &Policy{
+		ACL:      extPolicy.ACL,
+		Sequence: extPolicy.Sequence,
+	}
+	var err error
+	if policy.Options, err = convertOpts(extPolicy, extended); err != nil {
+		return nil, err
 	}
 	// Apply all extended policies
 	if err := policy.applyExtended(extPolicy.Extends, extended); err != nil {
@@ -152,6 +147,34 @@ func (p *Policy) evalOptions(inputSet PathSet, opts FilterOptions) PathSet {
 
 // Option contains a weight and a policy and is used as a list item in Policy.Options
 type Option struct {
-	Weight int        `json:"weight"`
-	Policy *ExtPolicy `json:"policy"`
+	Weight int
+	Policy *Policy
+}
+
+// OptionFromExtOption creates an Option from an extended Option.
+func OptionFromExtOption(extOpt ExtOption, extended []*ExtPolicy) (Option, error) {
+	pol, err := PolicyFromExtPolicy(extOpt.Policy, extended)
+	if err != nil {
+		return Option{}, err
+	}
+	opt := Option{
+		Weight: extOpt.Weight,
+		Policy: pol,
+	}
+	return opt, nil
+}
+
+func convertOpts(extPolicy *ExtPolicy, extended []*ExtPolicy) ([]Option, error) {
+	if len(extPolicy.Options) == 0 {
+		return nil, nil
+	}
+	opts := make([]Option, 0, len(extPolicy.Options))
+	for _, extOpt := range extPolicy.Options {
+		opt, err := OptionFromExtOption(extOpt, extended)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, opt)
+	}
+	return opts, nil
 }

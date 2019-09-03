@@ -12,24 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pathdb
+package pathpol
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestHashing(t *testing.T) {
-	h, err := HashPolicy(nil)
-	if assert.NoError(t, err) {
-		assert.NotNil(t, h)
+func TestPolicyJsonConversion(t *testing.T) {
+	policy := &ExtPolicy{
+		ACL:      &ACL{Entries: []*ACLEntry{allowEntry}},
+		Sequence: newSequence(t, "1-ff00:0:133#1019 1-ff00:0:132#1910"),
+		Options: []ExtOption{
+			{
+				Policy: &ExtPolicy{
+					Extends: []string{"foo"},
+					ACL: &ACL{
+						Entries: []*ACLEntry{
+							{Action: Allow, Rule: mustHopPredicate(t, "0-0#0")},
+							denyEntry,
+						},
+					},
+				},
+				Weight: 0,
+			},
+		},
 	}
-}
-
-func TestNoPolicy(t *testing.T) {
-	h, err := HashPolicy(nil)
+	jsonPol, err := json.Marshal(policy)
 	require.NoError(t, err)
-	assert.Equal(t, NoPolicy, h)
+	var pol ExtPolicy
+	err = json.Unmarshal(jsonPol, &pol)
+	assert.NoError(t, err)
+	assert.Equal(t, policy, &pol)
 }

@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "acl.go",
+        "extpolicy.go",
         "hop_pred.go",
         "pathset.go",
         "policy.go",
@@ -25,6 +26,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "acl_test.go",
+        "extpolicy_test.go",
         "hop_pred_test.go",
         "policy_test.go",
         "sequence_test.go",
