@@ -49,7 +49,7 @@ func runGenTopoTmpl(args []string) error {
 		return common.NewBasicError("unable to parse topo", err, "file", args[0])
 	}
 	isdCfgs := make(map[addr.ISD]*conf.Isd)
-	for _, isd := range topo.ISDs() {
+	for isd := range topo.ISDs() {
 		isdCfg := genISDCfg(isd, topo, val)
 		isdCfgs[isd] = isdCfg
 		dir := pkicmn.GetIsdPath(pkicmn.RootDir, isd)
@@ -131,16 +131,12 @@ type topoFile struct {
 	ASes map[addr.IA]asEntry `yaml:"ASes"`
 }
 
-func (t topoFile) ISDs() []addr.ISD {
+func (t topoFile) ISDs() map[addr.ISD]struct{} {
 	m := make(map[addr.ISD]struct{})
 	for ia := range t.ASes {
 		m[ia.I] = struct{}{}
 	}
-	var isds []addr.ISD
-	for isd := range m {
-		isds = append(isds, isd)
-	}
-	return isds
+	return m
 }
 
 func (t topoFile) Cores(isd addr.ISD) []addr.IA {
