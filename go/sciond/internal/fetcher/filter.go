@@ -69,5 +69,4 @@ func newPathWrap(p *combinator.Path) pathWrap {
 }
 
 func (p pathWrap) Interfaces() []pathpol.PathInterface { return p.intfs }
-func (p pathWrap) IsPartial() bool                     { return false }
 func (p pathWrap) Key() string                         { return p.key }
