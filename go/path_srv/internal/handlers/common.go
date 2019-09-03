@@ -16,21 +16,15 @@ package handlers
 
 import (
 	"context"
-	"net"
-	"sort"
-	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -134,68 +128,4 @@ func (h *baseHandler) sleepOrTimeout(ctx context.Context) error {
 	case <-time.After(h.retryInt):
 		return nil
 	}
-}
-
-func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
-	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) error {
-	// TODO(lukedirtwalker): collect the verified segs/revoc and return them.
-
-	logger := log.FromCtx(ctx)
-	// verify and store the segments
-	var insertedSegmentIDs []string
-	var mtx sync.Mutex
-	verifiedSegs := make([]*seg.Meta, 0, len(recs))
-	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
-		mtx.Lock()
-		defer mtx.Unlock()
-		verifiedSegs = append(verifiedSegs, s)
-	}
-	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
-		if _, err := h.revCache.Insert(ctx, rev); err != nil {
-			logger.Error("Unable to insert revocation into revcache", "rev", rev, "err", err)
-		}
-	}
-	segErr := func(s *seg.Meta, err error) {
-		logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
-	}
-	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
-		logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
-	}
-	segverifier.Verify(ctx, h.verifierFactory.NewVerifier(), src, recs, revInfos, verifiedSeg,
-		verifiedRev, segErr, revErr)
-
-	// Return early if we have nothing to insert.
-	if len(verifiedSegs) == 0 {
-		return common.NewBasicError(NoSegmentsErr, nil)
-	}
-	tx, err := h.pathDB.BeginTransaction(ctx, nil)
-	if err != nil {
-		return err
-	}
-	// sort to prevent sql deadlock
-	sort.Slice(verifiedSegs, func(i, j int) bool {
-		return verifiedSegs[i].Segment.GetLoggingID() < verifiedSegs[j].Segment.GetLoggingID()
-	})
-	for _, s := range verifiedSegs {
-		n, err := tx.Insert(ctx, s)
-		if err != nil {
-			if errRollback := tx.Rollback(); errRollback != nil {
-				err = common.NewBasicError("Unable to rollback", err, "rollbackErr", errRollback)
-			}
-			return common.NewBasicError("Unable to insert segment into path database", err,
-				"seg", s.Segment)
-		}
-		if wasInserted := n > 0; wasInserted {
-			insertedSegmentIDs = append(insertedSegmentIDs, s.Segment.GetLoggingID())
-		}
-	}
-	err = tx.Commit()
-	if err != nil {
-		return common.NewBasicError("Failed to commit transaction", err)
-	}
-	if len(insertedSegmentIDs) > 0 {
-		logger.Debug("Segments inserted in DB", "count", len(insertedSegmentIDs),
-			"segments", insertedSegmentIDs)
-	}
-	return nil
 }
