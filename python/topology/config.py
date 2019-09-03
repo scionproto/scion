@@ -250,7 +250,7 @@ class ConfigGenerator(object):
         for topo_id, as_topo in topo_dicts.items():
             base = local.path(topo_id.base_dir(self.args.output_dir))
             path = base / 'customers'
-            if path.exists() and (len(path.list()) <= 0):
+            if not path.exists() or (path.exists() and (len(path.list()) <= 0)):
                 continue
             for elem in as_topo["CertificateService"]:
                 cust_pk[base / elem / 'customers'] = elem

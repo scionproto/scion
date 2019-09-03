@@ -16,7 +16,6 @@
 :mod:`cert` --- SCION topology certificate generator
 =============================================
 """
-import os
 from collections import defaultdict
 
 from plumbum import local
@@ -44,23 +43,27 @@ class CertGenerator(object):
         self.pki('trc', 'gen', '*', '-d', self.args.output_dir)
         self.pki('certs', 'gen', '*', '-d', self.args.output_dir)
         self.pki('certs', 'customers', '*', '-d', self.args.output_dir)
-        self._sym_links(topo_dicts)
+        self._copy_files(topo_dicts)
 
-    def _sym_links(self, topo_dicts):
-        # Symlink the trcs into the AS certs dir.
+    def _copy_files(self, topo_dicts):
+        cp = local['cp']
+        # Copy the trcs into the AS certs dir.
         for topo_id in topo_dicts:
             as_dir = local.path(topo_id.base_dir(self.args.output_dir))
             for trc in as_dir.dirname // 'trcs/*':
-                os.symlink(os.path.join('../../trcs', trc.name), as_dir / 'certs' / trc.name)
-        # Symlink the certs and key dir for all elements.
+                cp('-r', trc, as_dir / 'certs' / trc.name)
+        # Copy the certs and key dir for all elements.
         for topo_id, as_topo, base in srv_iter(
                 topo_dicts, self.args.output_dir, common=True):
             elem_dir = local.path(base)
             as_dir = elem_dir.dirname
-            os.symlink('../certs', elem_dir / 'certs')
-            os.symlink('../keys', elem_dir / 'keys')
-        # Symlink the customers dir for all certificate servers.
+            cp('-r', as_dir / 'certs', elem_dir / 'certs')
+            cp('-r', as_dir / 'keys', elem_dir / 'keys')
+        # Copy the customers dir for all certificate servers.
         for topo_id, as_topo in topo_dicts.items():
-            base = local.path(topo_id.base_dir(self.args.output_dir))
+            as_dir = local.path(topo_id.base_dir(self.args.output_dir))
+            custom_dir = as_dir / 'customers'
+            if not custom_dir.exists():
+                continue
             for elem in as_topo["CertificateService"]:
-                os.symlink('../customers', base / elem / 'customers')
+                cp('-r', as_dir / 'customers', as_dir / elem / 'customers')
