@@ -64,7 +64,7 @@ func TestFilter(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, test.ExpectedSegs, Filter(test.Segs, test.Policy, test.Dir))
+			assert.ElementsMatch(t, test.ExpectedSegs, Filter(test.Segs, test.Policy, test.Dir))
 		})
 	}
 }
