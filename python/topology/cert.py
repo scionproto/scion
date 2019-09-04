@@ -47,11 +47,6 @@ class CertGenerator(object):
 
     def _copy_files(self, topo_dicts):
         cp = local['cp']
-        # Copy the trcs into the AS certs dir.
-        for topo_id in topo_dicts:
-            as_dir = local.path(topo_id.base_dir(self.args.output_dir))
-            for trc in as_dir.dirname // 'trcs/*':
-                cp('-r', trc, as_dir / 'certs' / trc.name)
         # Copy the certs and key dir for all elements.
         for topo_id, as_topo, base in srv_iter(
                 topo_dicts, self.args.output_dir, common=True):
@@ -59,6 +54,7 @@ class CertGenerator(object):
             as_dir = elem_dir.dirname
             cp('-r', as_dir / 'certs', elem_dir / 'certs')
             cp('-r', as_dir / 'keys', elem_dir / 'keys')
+            cp(as_dir.dirname / 'trcs' // '*.trc', elem_dir / 'certs')
         # Copy the customers dir for all certificate servers.
         for topo_id, as_topo in topo_dicts.items():
             as_dir = local.path(topo_id.base_dir(self.args.output_dir))
