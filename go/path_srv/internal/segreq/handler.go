@@ -20,11 +20,13 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type handler struct {
@@ -66,10 +68,15 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		logger.Warn("[segReqHandler] Unable to reply to client, no response writer found")
 		return infra.MetricsErrInternal
 	}
+	sendAck := messenger.SendAckHelper(ctx, rw)
 
 	segs, err := h.fetcher.FetchSegs(ctx,
 		segfetcher.Request{Src: segReq.SrcIA(), Dst: segReq.DstIA()})
 	if err != nil {
+		// TODO(lukedirtwalker): Define clearer the different errors that can
+		// occur and depending on them reply / return different error codes.
+		logger.Error("Failed to handler request", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInternal
 	}
 	revs, err := revcache.RelevantRevInfos(ctx, h.revCache, segs.Up, segs.Core, segs.Down)
@@ -85,6 +92,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		},
 	}
 	if err = rw.SendSegReply(ctx, reply); err != nil {
+		logger.Error("[segReqHandler] Failed to send reply", "err", err)
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Replied with segments", "segs", len(reply.Recs.Recs))
