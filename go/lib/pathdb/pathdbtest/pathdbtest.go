@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
@@ -564,16 +563,17 @@ func testNextQuery(t *testing.T, _ *gomock.Controller, pathDB pathdb.ReadWrite) 
 	require.NoError(t, err)
 	assert.Equal(t, newT.Unix(), dbT.Unix(), "Should return updated time")
 	// with policy
-	dbT, err = pathDB.GetNextQuery(ctx, src, dst, policy(t))
+	pol := []byte("policy")
+	dbT, err = pathDB.GetNextQuery(ctx, src, dst, pol)
 	require.NoError(t, err)
 	assert.Zero(t, dbT, "Should be zero")
-	updated, err = pathDB.InsertNextQuery(ctx, src, dst, policy(t), oldT)
+	updated, err = pathDB.InsertNextQuery(ctx, src, dst, pol, oldT)
 	require.NoError(t, err)
 	assert.True(t, updated, "Should Insert new")
-	updated, err = pathDB.InsertNextQuery(ctx, src, dst, policy(t), oldT)
+	updated, err = pathDB.InsertNextQuery(ctx, src, dst, pol, oldT)
 	require.NoError(t, err)
 	assert.False(t, updated, "Should not update existing")
-	dbT, err = pathDB.GetNextQuery(ctx, src, dst, policy(t))
+	dbT, err = pathDB.GetNextQuery(ctx, src, dst, pol)
 	require.NoError(t, err)
 	assert.Equal(t, oldT.Unix(), dbT.Unix(), "Should return inserted time")
 	// other dst
@@ -593,7 +593,7 @@ func testNextQuery(t *testing.T, _ *gomock.Controller, pathDB pathdb.ReadWrite) 
 type nqDescriptor struct {
 	Src    addr.IA
 	Dst    addr.IA
-	Policy *pathpol.Policy
+	Policy pathdb.PolicyHash
 }
 
 func testNextQueryDeleteExpired(t *testing.T, pathDB TestablePathDB, inTx bool) {
@@ -670,7 +670,7 @@ func testDeleteNQ(t *testing.T, pathDB TestablePathDB, inTx bool) {
 	ia110 := xtest.MustParseIA("1-ff00:0:110")
 	ia120 := xtest.MustParseIA("1-ff00:0:120")
 	ia130 := xtest.MustParseIA("1-ff00:0:130")
-	pol := policy(t)
+	pol := []byte("policy")
 
 	insertStdEntries := func(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite) {
 		now := time.Now()
@@ -688,7 +688,7 @@ func testDeleteNQ(t *testing.T, pathDB TestablePathDB, inTx bool) {
 		PrepareDB         func(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite)
 		Src               addr.IA
 		Dst               addr.IA
-		Policy            *pathpol.Policy
+		Policy            pathdb.PolicyHash
 		ExpectedDeleted   int
 		ExpectedRemaining []nqDescriptor
 	}{
@@ -908,10 +908,4 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.I
 	} else {
 		assert.Zero(t, len(r), (fmt.Sprintf("Interface should not be present: %v#%d", ia, ifId)))
 	}
-}
-
-func policy(t *testing.T) *pathpol.Policy {
-	acl, err := pathpol.NewACL(&pathpol.ACLEntry{Action: pathpol.Allow})
-	require.NoError(t, err)
-	return pathpol.NewPolicy("Test allow all", acl, nil, nil)
 }

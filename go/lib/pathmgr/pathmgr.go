@@ -77,6 +77,11 @@ const (
 	DefaultQueryTimeout = 5 * time.Second
 )
 
+// Policy is used to filter paths
+type Policy interface {
+	Filter(pathpol.PathSet) pathpol.PathSet
+}
+
 type Querier interface {
 	// Query returns a set of paths between src and dst.
 	Query(ctx context.Context, src, dst addr.IA, flags sciond.PathReqFlags) spathmeta.AppPathSet
@@ -86,7 +91,7 @@ type Resolver interface {
 	Querier
 	// QueryFilter returns a set of paths between src and dst that satisfy
 	// policy. A nil policy will not delete any paths.
-	QueryFilter(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) spathmeta.AppPathSet
+	QueryFilter(ctx context.Context, src, dst addr.IA, policy Policy) spathmeta.AppPathSet
 	// Watch returns an object that periodically polls for paths between src
 	// and dst.
 	//
@@ -104,7 +109,7 @@ type Resolver interface {
 	// refreshed automatically.
 	//
 	// A nil filter will not delete any paths.
-	WatchFilter(ctx context.Context, src, dst addr.IA, filter *pathpol.Policy) (*SyncPaths, error)
+	WatchFilter(ctx context.Context, src, dst addr.IA, filter Policy) (*SyncPaths, error)
 	// WatchCount returns the number of active watchers.
 	WatchCount() int
 	// RevokeRaw informs SCIOND of a revocation.
@@ -154,24 +159,24 @@ func (r *resolver) Query(ctx context.Context, src, dst addr.IA,
 }
 
 func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
-	policy *pathpol.Policy) spathmeta.AppPathSet {
+	policy Policy) spathmeta.AppPathSet {
 
 	aps := r.Query(ctx, src, dst, sciond.PathReqFlags{})
 	if policy == nil {
 		return aps
 	}
-	return psToAps(policy.Act(apsToPs(aps)))
+	return psToAps(policy.Filter(apsToPs(aps)))
 }
 
 func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
-	filter *pathpol.Policy) (*SyncPaths, error) {
+	filter Policy) (*SyncPaths, error) {
 
 	aps := r.Query(ctx, src, dst, sciond.PathReqFlags{})
 	if filter != nil {
-		aps = psToAps(filter.Act(apsToPs(aps)))
+		aps = psToAps(filter.Filter(apsToPs(aps)))
 	}
 	sp := NewSyncPaths()
-	sp.update(aps)
+	sp.Update(aps)
 
 	query := &queryConfig{
 		querier: Querier(r),
@@ -230,7 +235,7 @@ func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo
 		f := func(w *WatchRunner) {
 			pathsBeforeRev := w.sp.Load().APS
 			pathsAfterRev := dropRevoked(pathsBeforeRev, pi)
-			w.sp.update(pathsAfterRev)
+			w.sp.Update(pathsAfterRev)
 			if len(pathsAfterRev) == 0 && len(pathsBeforeRev) > 0 {
 				w.pp.PollNow()
 			}

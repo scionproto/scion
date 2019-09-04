@@ -52,7 +52,7 @@ func TestBasicPolicy(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			paths := pp.GetPaths(test.Src, test.Dst)
-			outPaths := test.Policy.Act(paths)
+			outPaths := test.Policy.Filter(paths)
 			assert.Equal(t, test.ExpPathNum, len(outPaths))
 		})
 	}
@@ -657,7 +657,7 @@ func TestOptionsEval(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			paths := pp.GetPaths(test.Src, test.Dst)
-			outPaths := test.Policy.Act(paths)
+			outPaths := test.Policy.Filter(paths)
 			assert.Equal(t, test.ExpPathNum, len(outPaths))
 		})
 	}
@@ -946,6 +946,43 @@ func TestExtends(t *testing.T) {
 		_, err := PolicyFromExtPolicy(extPolicy, extended)
 		assert.Error(t, err)
 	})
+}
+
+func TestFilterOpt(t *testing.T) {
+	tests := map[string]struct {
+		Policy     *Policy
+		ExpPathNum int
+	}{
+		"sequence in options is ignored": {
+			Policy: NewPolicy("", nil, nil, []Option{
+				{
+					Policy: &ExtPolicy{
+						Policy: &Policy{
+							Sequence: newSequence(t, "0+ 1-ff00:0:111 0+"),
+						},
+					},
+					Weight: 0,
+				},
+			}),
+			ExpPathNum: 3,
+		},
+		"sequence is ignored": {
+			Policy:     NewPolicy("", nil, newSequence(t, "0+ 1-ff00:0:111 0+"), nil),
+			ExpPathNum: 3,
+		},
+	}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	pp := NewPathProvider(ctrl)
+	src := xtest.MustParseIA("1-ff00:0:110")
+	dst := xtest.MustParseIA("2-ff00:0:220")
+	paths := pp.GetPaths(src, dst)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			outPaths := test.Policy.FilterOpt(paths, FilterOptions{IgnoreSequence: true})
+			assert.Equal(t, test.ExpPathNum, len(outPaths))
+		})
+	}
 }
 
 func TestSequenceConstructor(t *testing.T) {

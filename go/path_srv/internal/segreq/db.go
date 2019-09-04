@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -60,7 +59,7 @@ func (db *PathDB) Get(ctx context.Context, params *query.Params) (query.Results,
 }
 
 func (db *PathDB) GetNextQuery(ctx context.Context, src, dst addr.IA,
-	policy *pathpol.Policy) (time.Time, error) {
+	policy pathdb.PolicyHash) (time.Time, error) {
 	if local, err := db.LocalInfo.IsSegLocal(ctx, src, dst); err != nil {
 		return time.Time{}, err
 	} else if local {

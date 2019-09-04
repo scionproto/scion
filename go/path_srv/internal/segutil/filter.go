@@ -31,6 +31,11 @@ const (
 	ConsDir
 )
 
+// Policy filters path sets according to a set of rules.
+type Policy interface {
+	FilterOpt(pathpol.PathSet, pathpol.FilterOptions) pathpol.PathSet
+}
+
 // Filter filters the given segments with the policy. Dir indicates the
 // direction of intended usage of the segments. For example up and core segments
 // are most often used in reverse construction dir. The direction parameter is
@@ -39,14 +44,13 @@ const (
 // NOTE: This function should only be applied on core segments, otherwise the PS
 // might filter segments that could still have been used in a final path,
 // because of peering links.
-func Filter(segs seg.Segments, policy *pathpol.Policy, dir Direction) seg.Segments {
-	if policy == nil {
-		return segs
-	}
-	// The sequence filter doesn't work for segments, therefore a policy
-	// without sequence is used.
-	actPolicy := pathpol.NewPolicy(policy.Name, policy.ACL, nil, policy.Options)
-	return psToSegs(actPolicy.Act(segsToPs(segs, dir)))
+// NOTE: policy must not be nil.
+func Filter(segs seg.Segments, policy Policy, dir Direction) seg.Segments {
+	// The sequence filter doesn't work for segments, therefore the option to
+	// ignore sequences is passed.
+	return psToSegs(policy.FilterOpt(segsToPs(segs, dir), pathpol.FilterOptions{
+		IgnoreSequence: true,
+	}))
 }
 
 func segsToPs(segs seg.Segments, dir Direction) pathpol.PathSet {

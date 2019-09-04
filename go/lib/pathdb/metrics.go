@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
@@ -244,7 +243,7 @@ func (db *metricsExecutor) GetAll(ctx context.Context) (<-chan query.ResultOrErr
 }
 
 func (db *metricsExecutor) InsertNextQuery(ctx context.Context,
-	src, dst addr.IA, policy *pathpol.Policy, nextQuery time.Time) (bool, error) {
+	src, dst addr.IA, policy PolicyHash, nextQuery time.Time) (bool, error) {
 
 	var ok bool
 	var err error
@@ -256,7 +255,7 @@ func (db *metricsExecutor) InsertNextQuery(ctx context.Context,
 }
 
 func (db *metricsExecutor) GetNextQuery(ctx context.Context, src, dst addr.IA,
-	policy *pathpol.Policy) (time.Time, error) {
+	policy PolicyHash) (time.Time, error) {
 
 	var t time.Time
 	var err error
@@ -278,7 +277,7 @@ func (db *metricsExecutor) DeleteExpiredNQ(ctx context.Context, now time.Time) (
 }
 
 func (db *metricsExecutor) DeleteNQ(ctx context.Context, src, dst addr.IA,
-	policy *pathpol.Policy) (int, error) {
+	policy PolicyHash) (int, error) {
 
 	var cnt int
 	var err error

@@ -36,6 +36,7 @@ go_test(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/pathmgr/mock_pathmgr:go_default_library",
         "//go/lib/pathpol:go_default_library",
         "//go/lib/sciond:go_default_library",
         "//go/lib/sciond/mock_sciond:go_default_library",

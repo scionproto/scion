@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -66,8 +65,7 @@ func New(path string) (*Backend, error) {
 	}
 	return &Backend{
 		executor: &executor{
-			db:      db,
-			polHash: pathdb.HashPolicy,
+			db: db,
 		},
 		db: db,
 	}, nil
@@ -95,8 +93,7 @@ func (b *Backend) BeginTransaction(ctx context.Context,
 	}
 	return &transaction{
 		executor: &executor{
-			db:      tx,
-			polHash: b.polHash,
+			db: tx,
 		},
 		tx: tx,
 	}, nil
@@ -125,8 +122,7 @@ var _ (pathdb.ReadWrite) = (*executor)(nil)
 
 type executor struct {
 	sync.RWMutex
-	db      db.Sqler
-	polHash pathdb.PolicyHashFunc
+	db db.Sqler
 }
 
 func (e *executor) Insert(ctx context.Context, segMeta *seg.Meta) (pathdb.InsertStats, error) {
@@ -596,7 +592,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 	return resCh, nil
 }
 
-func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy,
+func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy pathdb.PolicyHash,
 	nextQuery time.Time) (bool, error) {
 
 	e.Lock()
@@ -604,9 +600,8 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy
 	if e.db == nil {
 		return false, common.NewBasicError("No database open", nil)
 	}
-	ph, err := e.polHash(policy)
-	if err != nil {
-		return false, err
+	if policy == nil {
+		policy = pathdb.NoPolicy
 	}
 	// Select the data from the input only if the new NextQuery is larger than the existing
 	// or if there is no existing (NextQuery.DstIsdID IS NULL)
@@ -619,9 +614,10 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy
 		WHERE data.lq > NextQuery.NextQuery OR NextQuery.DstIsdID IS NULL;
 	`
 	var r sql.Result
-	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
-		r, err = tx.ExecContext(ctx, query, src.I, src.A, dst.I, dst.A, ph, nextQuery.UnixNano())
+		r, err = tx.ExecContext(ctx, query, src.I, src.A, dst.I, dst.A, policy,
+			nextQuery.UnixNano())
 		return err
 	})
 	if err != nil {
@@ -632,23 +628,22 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy
 }
 
 func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA,
-	policy *pathpol.Policy) (time.Time, error) {
+	policy pathdb.PolicyHash) (time.Time, error) {
 
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
 		return time.Time{}, common.NewBasicError("No database open", nil)
 	}
-	ph, err := e.polHash(policy)
-	if err != nil {
-		return time.Time{}, err
+	if policy == nil {
+		policy = pathdb.NoPolicy
 	}
 	query := `
 		SELECT NextQuery from NextQuery
 		WHERE SrcIsdID = ? AND SrcAsID = ? AND DstIsdID = ? AND DstAsID = ? AND Policy = ?
 	`
 	var nanos int64
-	err = e.db.QueryRowContext(ctx, query, src.I, src.A, dst.I, dst.A, ph).Scan(&nanos)
+	err := e.db.QueryRowContext(ctx, query, src.I, src.A, dst.I, dst.A, policy).Scan(&nanos)
 	if err == sql.ErrNoRows {
 		return time.Time{}, nil
 	}
@@ -666,7 +661,7 @@ func (e *executor) DeleteExpiredNQ(ctx context.Context, now time.Time) (int, err
 }
 
 func (e *executor) DeleteNQ(ctx context.Context, src, dst addr.IA,
-	policy *pathpol.Policy) (int, error) {
+	policy pathdb.PolicyHash) (int, error) {
 
 	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
 		delStmt := `DELETE FROM NextQuery`
@@ -681,12 +676,8 @@ func (e *executor) DeleteNQ(ctx context.Context, src, dst addr.IA,
 			args = append(args, dst.I, dst.A)
 		}
 		if policy != nil {
-			ph, err := e.polHash(policy)
-			if err != nil {
-				return nil, err
-			}
 			whereParts = append(whereParts, "Policy = ?")
-			args = append(args, ph)
+			args = append(args, policy)
 		}
 		if len(whereParts) > 0 {
 			delStmt = fmt.Sprintf("%s WHERE %s", delStmt, strings.Join(whereParts, " AND "))

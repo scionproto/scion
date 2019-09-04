@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/pathpol"
 )
 
 // Read defines all read operations of the path DB.
@@ -43,7 +42,7 @@ type Read interface {
 	GetAll(context.Context) (<-chan query.ResultOrErr, error)
 	// GetNextQuery returns the nextQuery timestamp for the given src-dst pair
 	// and policy , or a zero time if it hasn't been queried.
-	GetNextQuery(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) (time.Time, error)
+	GetNextQuery(ctx context.Context, src, dst addr.IA, policy PolicyHash) (time.Time, error)
 }
 
 // Write defines all write operations of the path DB.
@@ -63,7 +62,7 @@ type Write interface {
 	// InsertNextQuery inserts or updates the timestamp nextQuery for the given
 	// src-dst pair and policy. Returns true if an insert/update happened or
 	// false if the stored timestamp is already newer.
-	InsertNextQuery(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy,
+	InsertNextQuery(ctx context.Context, src, dst addr.IA, policy PolicyHash,
 		nextQuery time.Time) (bool, error)
 	NextQueryDeleter
 }
@@ -78,7 +77,7 @@ type NextQueryDeleter interface {
 	// function with all zero values deletes all next query entries. Calling
 	// with only a non-zero src value will delete all next query entries where
 	// the source matches the given src parameter.
-	DeleteNQ(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) (int, error)
+	DeleteNQ(ctx context.Context, src, dst addr.IA, policy PolicyHash) (int, error)
 }
 
 // InsertStats provides statistics about an insertion.
