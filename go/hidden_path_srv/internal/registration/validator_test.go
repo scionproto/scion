@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validator_test
+package registration_test
 
 import (
 	"testing"
@@ -20,8 +20,9 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
-	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreg/validator"
+	"github.com/scionproto/scion/go/hidden_path_srv/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -133,41 +134,41 @@ func TestValidator(t *testing.T) {
 			peer:    ia110,
 			groupId: wrongId,
 			segs:    []*seg.Meta{seg110_133},
-			Err:     validator.ErrUnknownGroup,
+			Err:     registration.ErrUnknownGroup,
 		},
 		"wrong registry": {
 			hpsIA:   ia113,
 			peer:    ia112,
 			groupId: group.Id,
 			segs:    []*seg.Meta{seg110_133},
-			Err:     validator.ErrNotRegistry,
+			Err:     registration.ErrNotRegistry,
 		},
 		"not a writer": {
 			hpsIA:   ia110,
 			peer:    ia113,
 			groupId: group.Id,
 			segs:    []*seg.Meta{seg110_133},
-			Err:     validator.ErrNotWriter,
+			Err:     registration.ErrNotWriter,
 		},
 		"missing extension": {
 			hpsIA:   ia115,
 			peer:    ia110,
 			groupId: group.Id,
 			segs:    []*seg.Meta{seg210_212},
-			Err:     validator.ErrMissingExtn,
+			Err:     registration.ErrMissingExtn,
 		},
 		"wrong seg type": {
 			hpsIA:   ia115,
 			peer:    ia110,
 			groupId: group.Id,
 			segs:    []*seg.Meta{seg110_120},
-			Err:     validator.ErrWrongSegType,
+			Err:     registration.ErrWrongSegType,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			validator := validator.NewDefaultValidator(
+			validator := registration.NewDefaultValidator(
 				test.hpsIA,
 				map[hiddenpath.GroupId]*hiddenpath.Group{
 					group.Id: group,
@@ -179,8 +180,14 @@ func TestValidator(t *testing.T) {
 					Recs:    test.segs,
 				},
 			}
-			err := validator.Validate(msg, test.peer).(common.BasicError)
-			assert.Equal(t, test.Err, err.GetErr())
+			err := validator.Validate(msg, test.peer)
+			if test.Err == nil {
+				assert.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.True(t, xerrors.Is(err, test.Err))
+			}
+
 		})
 	}
 }

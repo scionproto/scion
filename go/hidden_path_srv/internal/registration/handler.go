@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hpsegreg
+package registration
 
 import (
-	"github.com/scionproto/scion/go/hidden_path_srv/internal/helper"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -81,7 +80,8 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid, nil
 	}
-	helper.LogHPSegRecs(logger, "[hpSegRegHandler]", h.request.Peer, hpSegReg.HPSegRecs)
+	logger.Debug("[hpSegRegHandler] Received HPSegRecs", "src",
+		h.request.Peer, "data", hpSegReg.HPSegRecs)
 
 	snetPeer := h.request.Peer.(*snet.Addr)
 	peerPath, err := snetPeer.GetPath()
@@ -109,6 +109,7 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 	// wait until processing is done.
 	<-res.FullReplyProcessed()
 	if err := res.Err(); err != nil {
+		logger.Error("[hpSegRegHandler] Failed to handle path segments", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid, nil
 	}

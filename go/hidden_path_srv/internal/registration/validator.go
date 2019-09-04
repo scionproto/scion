@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validator
+package registration
 
 import (
-	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreg"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -34,9 +33,9 @@ const (
 	ErrNotReader    common.ErrMsg = "peer is not a reader of this group"
 )
 
-var _ hpsegreg.Validator = (*DefaultValidator)(nil)
+var _ Validator = (*DefaultValidator)(nil)
 
-// DefaultValidator validates
+// DefaultValidator validates hidden path registrations based on hidden path group configurations
 type DefaultValidator struct {
 	localIA addr.IA
 	groups  map[hiddenpath.GroupId]*hiddenpath.Group
@@ -58,8 +57,10 @@ func (v *DefaultValidator) Validate(hpSegReg *path_mgmt.HPSegReg, peer addr.IA) 
 	if err := v.checkGroupPermissions(id, peer); err != nil {
 		return common.NewBasicError("Group configuration error", err, "group", id)
 	}
-	err := v.checkSegments(hpSegReg.Recs)
-	return common.NewBasicError("Invalid hidden segment", err)
+	if err := v.checkSegments(hpSegReg.Recs); err != nil {
+		return common.NewBasicError("Invalid hidden segment", err)
+	}
+	return nil
 }
 
 func (v *DefaultValidator) checkGroupPermissions(groupId hiddenpath.GroupId, peer addr.IA) error {
@@ -97,13 +98,4 @@ func checkHiddenSegExtn(s *seg.Meta) bool {
 		return false
 	}
 	return lastASEntry.Exts.HiddenPathSeg.Set
-}
-
-// NullValidator validates all input
-var NullValidator = nullValidator{}
-
-type nullValidator struct{}
-
-func (v nullValidator) Validate(hpSegReg *path_mgmt.HPSegReg, peer addr.IA) error {
-	return nil
 }

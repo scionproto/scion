@@ -179,7 +179,7 @@ func (g *Group) HasRegistry(ia addr.IA) bool {
 }
 
 // ToMsg returns h as Cerializable message suitable to be sent via messenger
-func (g Group) ToMsg() *path_mgmt.HPCfg {
+func (g *Group) ToMsg() *path_mgmt.HPCfg {
 	return &path_mgmt.HPCfg{
 		GroupId:    g.Id.ToMsg(),
 		Version:    uint32(g.Version),

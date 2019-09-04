@@ -44,7 +44,7 @@ type Handler struct {
 	Storage  Storage
 }
 
-// Handle handles verifies and stores a set of segments.
+// Handle verifies and stores a set of segments.
 func (h *Handler) Handle(ctx context.Context, recs Segments, server net.Addr,
 	earlyTrigger <-chan struct{}) *ProcessedResult {
 
