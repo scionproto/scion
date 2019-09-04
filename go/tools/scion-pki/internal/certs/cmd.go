@@ -95,7 +95,7 @@ var genCerts = &cobra.Command{
 	},
 }
 
-var genCustomers = &cobra.Command{
+var collectCustomers = &cobra.Command{
 	Use:   "customers",
 	Short: "Collect customer keys",
 	Args:  cobra.MinimumNArgs(1),
@@ -133,7 +133,7 @@ func init() {
 	Cmd.PersistentFlags().BoolVarP(&verify, "verify", "v", true,
 		"verify the generated/renewed certificates")
 	Cmd.AddCommand(genCerts)
-	Cmd.AddCommand(genCustomers)
+	Cmd.AddCommand(collectCustomers)
 	Cmd.AddCommand(renewCerts)
 	Cmd.AddCommand(cleanCerts)
 }

@@ -253,7 +253,8 @@ class ConfigGenerator(object):
             if not path.exists() or (path.exists() and (len(path.list()) <= 0)):
                 continue
             for elem in as_topo["CertificateService"]:
-                cust_pk[base / elem / 'customers'] = elem
+                if self.args.cert_server == 'go':
+                    cust_pk[base / elem / 'customers'] = elem
         if cust_pk:
             script_name = 'gen/load_custs.sh'
             with open(script_name, 'w') as script:
