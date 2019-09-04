@@ -2,11 +2,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "c.go",
-        "conn.go",
-    ],
-    cgo = True,
+    srcs = ["conn.go"],
     importpath = "github.com/scionproto/scion/go/lib/overlay/conn",
     visibility = ["//visibility:public"],
     deps = select({
