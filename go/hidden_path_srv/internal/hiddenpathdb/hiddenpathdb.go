@@ -20,9 +20,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 )
 
@@ -36,7 +36,7 @@ type Read interface {
 type Write interface {
 	// Insert inserts or updates a hidden path segment. It returns the number of path segments
 	// that have been inserted/updated.
-	Insert(context.Context, *seg.Meta, hpsegreq.GroupIdSet) (int, error)
+	Insert(context.Context, *seg.Meta, hiddenpath.GroupIdSet) (int, error)
 	// Delete deletes all path segments that match the given query,
 	// returning the number of deleted segments
 	Delete(context.Context, *Params) (int, error)
@@ -66,6 +66,6 @@ type HiddenPathDB interface {
 
 // Params contains the parameters with which the database can be queried.
 type Params struct {
-	GroupIds hpsegreq.GroupIdSet
+	GroupIds hiddenpath.GroupIdSet
 	EndsAt   addr.IA
 }

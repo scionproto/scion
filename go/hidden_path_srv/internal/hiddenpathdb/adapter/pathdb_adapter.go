@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb"
-	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 )
@@ -62,7 +62,7 @@ func (rw *readWriter) Get(ctx context.Context, params *hiddenpathdb.Params) (que
 
 // Insert inserts a hidden path segment into the the underlying PathDB
 func (rw *readWriter) Insert(ctx context.Context, seg *seg.Meta,
-	ids hpsegreq.GroupIdSet) (int, error) {
+	ids hiddenpath.GroupIdSet) (int, error) {
 
 	return rw.backend.InsertWithHPCfgIDs(ctx, seg, convertIds(ids))
 }
@@ -120,7 +120,7 @@ func (tx *transaction) Rollback() error {
 	return tx.backend.Rollback()
 }
 
-func convertIds(ids hpsegreq.GroupIdSet) []*query.HPCfgID {
+func convertIds(ids hiddenpath.GroupIdSet) []*query.HPCfgID {
 	queryIds := make([]*query.HPCfgID, 0, len(ids))
 	for id := range ids {
 		queryId := &query.HPCfgID{
