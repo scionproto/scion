@@ -149,7 +149,7 @@ func (g *Group) UnmarshalJSON(data []byte) (err error) {
 }
 
 // HasWriter returns true if ia is a Writer of h
-func (g Group) HasWriter(ia addr.IA) bool {
+func (g *Group) HasWriter(ia addr.IA) bool {
 	for _, w := range g.Writers {
 		if w == ia {
 			return true
@@ -159,7 +159,7 @@ func (g Group) HasWriter(ia addr.IA) bool {
 }
 
 // HasReader returns true if ia is a Reader of h
-func (g Group) HasReader(ia addr.IA) bool {
+func (g *Group) HasReader(ia addr.IA) bool {
 	for _, r := range g.Readers {
 		if r == ia {
 			return true
@@ -169,7 +169,7 @@ func (g Group) HasReader(ia addr.IA) bool {
 }
 
 // HasRegistry returns true if ia is a Registry of h
-func (g Group) HasRegistry(ia addr.IA) bool {
+func (g *Group) HasRegistry(ia addr.IA) bool {
 	for _, r := range g.Registries {
 		if r == ia {
 			return true
@@ -219,4 +219,17 @@ func toIA(in []addr.IAInt) []addr.IA {
 		out = append(out, i.IA())
 	}
 	return out
+}
+
+// GroupIdSet is a set of hidden path GroupIds
+type GroupIdSet map[GroupId]struct{}
+
+// GroupIdsToSet converts a list of GroupIds to a GroupIdSet,
+// ensuring no duplcates.
+func GroupIdsToSet(ids ...GroupId) GroupIdSet {
+	set := make(GroupIdSet, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	return set
 }

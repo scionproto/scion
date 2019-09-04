@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb/adapter"
-	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
@@ -40,7 +39,7 @@ var (
 	end      = addr.IA{I: 5, A: 0xff0000000440}
 	suffix   = uint16(1337)
 	ifs      = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
-	groupIds = hpsegreq.GroupIdSet{
+	groupIds = hiddenpath.GroupIdSet{
 		hiddenpath.GroupId{}:               struct{}{},
 		{OwnerAS: owner.A, Suffix: suffix}: struct{}{},
 	}

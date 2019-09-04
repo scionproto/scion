@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package handlers
+package helper
 
 import (
 	"net"
@@ -21,6 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-func logHPSegRecs(logger log.Logger, prefix string, src net.Addr, hpSegRecs *path_mgmt.HPSegRecs) {
+func LogHPSegRecs(logger log.Logger, prefix string, src net.Addr, hpSegRecs *path_mgmt.HPSegRecs) {
 	logger.Debug(prefix+" Received HPSegRecs", "src", src, "data", hpSegRecs)
 }
