@@ -74,11 +74,13 @@ func (spp SessPathPool) GetByKey(key spathmeta.PathKey) *SessPath {
 	return res.SessPath
 }
 
-func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
+func (spp SessPathPool) Update(aps spathmeta.AppPathSet) bool {
+	var changed bool
 	// Remove any old entries that aren't present in the update.
 	for key := range spp {
 		if _, ok := aps[key]; !ok {
 			delete(spp, key)
+			changed = true
 		}
 	}
 	for key, ap := range aps {
@@ -86,11 +88,13 @@ func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
 		if !ok {
 			// This is a new path, add an entry.
 			spp[key] = NewSessPathStats(key, ap.Entry)
+			changed = true
 		} else {
 			// This path already exists, update it.
 			e.SessPath.pathEntry = ap.Entry
 		}
 	}
+	return changed
 }
 
 // Reply is called when a probe reply arrives.
@@ -117,6 +121,15 @@ func (spp SessPathPool) ExpireFails() {
 			sp.failCount /= 2
 		}
 	}
+}
+
+func (spp SessPathPool) String() string {
+	var paths string
+	for _, v := range spp {
+		paths += v.SessPath.PathEntry().Path.String()
+		paths += ";"
+	}
+	return paths
 }
 
 type SessPathStats struct {

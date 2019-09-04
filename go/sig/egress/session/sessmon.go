@@ -114,13 +114,13 @@ Top:
 
 func (sm *sessMonitor) updatePaths() {
 	if sm.smRemote == nil || sm.smRemote.SessPath == nil {
-		sm.sessPathPool.Update(sm.pool.Paths())
+		sm.updatePathsFromPool()
 		return
 	}
 	currPath := sm.smRemote.SessPath
 	expTime := currPath.PathEntry().Path.ExpTime
 	mtu := currPath.PathEntry().Path.Mtu
-	sm.sessPathPool.Update(sm.pool.Paths())
+	sm.updatePathsFromPool()
 	// Expiration or MTU of the current path may have changed during the update.
 	// In such a case we want to push the updated path to the Session.
 	if currPath.PathEntry().Path.ExpTime != expTime || currPath.PathEntry().Path.Mtu != mtu {
@@ -130,6 +130,12 @@ func (sm *sessMonitor) updatePaths() {
 			"oldMTU", mtu,
 			"newMTU", currPath.PathEntry().Path.Mtu)
 		sm.updateSessSnap()
+	}
+}
+
+func (sm *sessMonitor) updatePathsFromPool() {
+	if sm.sessPathPool.Update(sm.pool.Paths()) {
+		sm.Debug("sessMonitor: Path pool updated", "pool", sm.sessPathPool)
 	}
 }
 
