@@ -33,6 +33,10 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+// ErrNoConnectivity indicates that connectivity to the remote PS is not
+// available.
+const ErrNoConnectivity common.ErrMsg = "no connectivity to remote PS"
+
 // SegSelector selects segments to use for a connection to a remote server.
 type SegSelector struct {
 	PathDB   pathdb.PathDB
@@ -52,10 +56,10 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 		return revcache.NoRevokedHopIntf(ctx, s.RevCache, ps)
 	})
 	if err != nil {
-		return nil, common.NewBasicError("Failed to filter segments", err)
+		return nil, common.NewBasicError("failed to filter segments", err)
 	}
 	if len(segs) < 1 {
-		return nil, common.NewBasicError("No segments found!", nil)
+		return nil, common.NewBasicError("no segments found", nil)
 	}
 	return segs[rand.Intn(len(segs))], nil
 }
@@ -106,7 +110,7 @@ func (p *nonCoreDstProvider) coreSvcAddr(ctx context.Context, svc addr.HostSVC,
 	}
 	seg, err := p.SelectSeg(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError(ErrNoConnectivity, err)
 	}
 	return addrutil.GetPath(svc, seg, p.topoProvider)
 }
@@ -121,7 +125,7 @@ type coreDstProvider struct {
 func (p *coreDstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
 	dstISDLocal := req.Dst.I == p.localIA.I
 	if dstISDLocal {
-		return nil, errors.New("Shouldn't need resolution for local dst")
+		return nil, errors.New("shouldn't need resolution for local dst")
 	}
 	return p.corePSAddr(ctx, req.Dst.I)
 }
@@ -134,7 +138,7 @@ func (p *coreDstProvider) corePSAddr(ctx context.Context, destISD addr.ISD) (net
 	}
 	seg, err := p.SelectSeg(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError(ErrNoConnectivity, err)
 	}
 	return addrutil.GetPath(addr.SvcPS, seg, p.topoProvider)
 }
