@@ -50,7 +50,9 @@ type Server struct {
 // HandlerMap. To start listening on the address, call ListenAndServe.
 //
 // Network must be "unixpacket" or "rsock".
-func NewServer(network string, address string, filemode os.FileMode, handlers HandlerMap, logger log.Logger) *Server {
+func NewServer(network string, address string, filemode os.FileMode, handlers HandlerMap,
+	logger log.Logger) *Server {
+
 	return &Server{
 		network:  network,
 		address:  address,
