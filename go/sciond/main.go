@@ -222,7 +222,7 @@ func startDiscovery() error {
 func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
 	logger log.Logger) (*servers.Server, func()) {
 
-	server := servers.NewServer(network, rsockPath, handlers, logger)
+	server := servers.NewServer(network, rsockPath, os.FileMode(cfg.SD.SocketFileMode), handlers, logger)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
 		server.Shutdown(ctx)

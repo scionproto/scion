@@ -17,6 +17,8 @@ package config
 
 import (
 	"io"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -100,6 +102,8 @@ type SDConfig struct {
 	// Address to listen on for normal unixgram messages. If empty, a
 	// unixgram server on the default socket is started.
 	Unix string
+	// Socket files (both Reliable and Unix) permissions when created; read from octal (e.g. 0755).
+	SocketFileMode FileMode
 	// If set to True, the socket is removed before being created
 	DeleteSocket bool
 	// Public is the local address to listen on for SCION messages (if Bind is
@@ -124,6 +128,9 @@ func (cfg *SDConfig) InitDefaults() {
 	if cfg.Unix == "" {
 		cfg.Unix = "/run/shm/sciond/default-unix.sock"
 	}
+	if cfg.SocketFileMode == 0 {
+		cfg.SocketFileMode = sciond.DefaultSocketFileMode
+	}
 	if cfg.QueryInterval.Duration == 0 {
 		cfg.QueryInterval.Duration = DefaultQueryInterval
 	}
@@ -136,6 +143,9 @@ func (cfg *SDConfig) Validate() error {
 	}
 	if cfg.Unix == "" {
 		return common.NewBasicError("Unix must be set", nil)
+	}
+	if cfg.SocketFileMode == 0 {
+		return common.NewBasicError("SocketFileMode must be set", nil)
 	}
 	if cfg.QueryInterval.Duration == 0 {
 		return common.NewBasicError("QueryInterval must not be zero", nil)
@@ -160,4 +170,12 @@ func (cfg *SDConfig) CreateSocketDirs() error {
 		return common.NewBasicError("Cannot create unix socket dir", err)
 	}
 	return nil
+}
+
+type FileMode os.FileMode
+
+func (f *FileMode) UnmarshalText(text []byte) error {
+	perm, err := strconv.ParseUint(string(text), 8, 32)
+	*f = FileMode(perm)
+	return err
 }
