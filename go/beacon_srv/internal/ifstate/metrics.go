@@ -35,8 +35,8 @@ func NewCollector(intfs *Interfaces, subsystemName string) *Collector {
 	return &Collector{
 		desc: prometheus.NewDesc(
 			prometheus.BuildFQName("beacon_srv", subsystemName, "ifstate"),
-			"Interface state, 0 means down, 1 up. More details in labels (ifid, state)",
-			[]string{"ifid", "state"},
+			"Interface state, 0==inactive/expired/revoked, 1==active",
+			[]string{"ifid"},
 			prometheus.Labels{},
 		),
 		intfs: intfs,
@@ -45,13 +45,12 @@ func NewCollector(intfs *Interfaces, subsystemName string) *Collector {
 
 func (c *Collector) Collect(mc chan<- prometheus.Metric) {
 	for ifid, intf := range c.intfs.All() {
-		state := intf.State()
-		var up float64
-		if state == Active {
+		up := float64(0)
+		if intf.State() == Active {
 			up = 1
 		}
 		mc <- prometheus.MustNewConstMetric(c.desc, prometheus.GaugeValue, up,
-			strconv.FormatUint(uint64(ifid), 10), string(state))
+			strconv.FormatUint(uint64(ifid), 10))
 	}
 }
 
