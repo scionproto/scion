@@ -23,20 +23,24 @@ test_setup() {
 
 test_run() {
     set -e
-    # Start serving dynamic topology. Full for infra services, default for sciond.
-    jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $DYNAMIC_FULL
+
+    log "Starting to serve dynamic topology with modified border router."
+    jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 1" $TOPO | sponge $DYNAMIC_FULL
     cp $DYNAMIC_FULL $DYNAMIC_DEFAULT
     sleep 2
     check_file "dynamic"
+
     check_logs "bs$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
     check_logs "ps$IA_FILE-1"
     check_logs "sd$IA_FILE"
 
+    log "Checking fail action."
     check_infra_fail_action "dynamic"
 }
 
 check_logs() {
+    log "Checking logs for $1."
     grep -q "\[discovery\] Set topology.*mode=dynamic" "logs/$1.log" || \
         fail "Setting dynamic topology not found in logs. id=$1"
     grep -q "\[itopo.cleaner\] Dropping expired dynamic topology" "logs/$1.log" || \

@@ -41,22 +41,24 @@ test_run() {
     sleep 3
     check_connectivity "initial check"
 
-    # Start serving dynamic topology with invalid beacon service.
-    jq ".BeaconService[].Addrs.IPv4.Public.Addr = \"127.42.42.42\" | .Timestamp = $( date +%s) | .TTL = 15" $TOPO | sponge $STATIC_FULL
-    sleep 0.5
+    log "Staring to serve static topology with wrong BS address."
+    jq ".BeaconService[].Addrs.IPv4.Public.Addr = \"127.42.42.42\" | .Timestamp = $( date +%s)" $TOPO | sponge $STATIC_FULL
+    log "Waiting for BS to issue revocation and link going down"
+    sleep 4
     check_connectivity_broken "invalid beacon service address"
 
-    # Check that the logs contain setting and writing the topo.
-    sleep 1
+    log "Checking topology is set and written to file system."
     check_logs "br$IA_FILE-1"
-    # Check that the written file does not differ from the served file.
     diff -q $STATIC_FULL logs/br$IA_FILE-1-topo.json
 
-    # Set the valid static topology.
+    log "Setting original topology"
     cp $TOPO $STATIC_FULL
-    sleep 0.5
+
+    log "Waiting for revocation to expire."
+    sleep 12
     check_connectivity "serve original static topology"
 
+    log "Checking fail action."
     check_br_fail_action "static"
 }
 
