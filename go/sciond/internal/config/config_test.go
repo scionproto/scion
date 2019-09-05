@@ -67,6 +67,7 @@ func CheckTestSDConfig(cfg *SDConfig, id string) {
 	pathstoragetest.CheckTestRevCacheConf(&cfg.RevCache)
 	SoMsg("Reliable correct", cfg.Reliable, ShouldEqual, sciond.DefaultSCIONDPath)
 	SoMsg("Unix correct", cfg.Unix, ShouldEqual, "/run/shm/sciond/default-unix.sock")
+	SoMsg("File permissions correct", cfg.SocketFileMode, ShouldEqual, 0755)
 	SoMsg("Public correct", cfg.Public.String(), ShouldEqual,
 		"1-ff00:0:110,[127.0.0.1]:0 (UDP)")
 	SoMsg("QueryInterval correct", cfg.QueryInterval.Duration, ShouldEqual, DefaultQueryInterval)
