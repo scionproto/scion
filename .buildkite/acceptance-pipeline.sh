@@ -16,7 +16,7 @@ fi
 
 host_acceptance="br_multi br_child br_parent br_peer br_core_multi br_core_childIf br_core_coreIf"
 
-for test in ./acceptance/topo_br_reload_if*_acceptance; do
+for test in ./acceptance/{topo_br_reload_if*,sig_failover}_acceptance; do
     name="$(basename ${test%_acceptance})"
     if [[ ! "$name" =~ "$ACCEPTANCE_TEST" ]]; then
         continue

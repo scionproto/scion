@@ -56,7 +56,7 @@ check_change_invalid_local_ip() {
     check_connectivity "Start check_change_invalid_local_ip"
     jq '.BorderRouters[].Interfaces[].PublicOverlay.Addr = "172.20.255.0"' $SRC_TOPO | sponge $SRC_TOPO
     ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
-    sleep 0.5
+    sleep 2
     check_logs "Unable to reload config" $SRC_IA_FILE
     check_connectivity "End check_change_invalid_local_ip"
 }
