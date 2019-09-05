@@ -25,8 +25,8 @@ Reliable = "/run/shm/sciond/default.sock"
 # unixgram server on the default socket is started.
 Unix = "/run/shm/sciond/default-unix.sock"
 
-# File permissions of both the Reliable and Unix socket files, in octal.
-SocketFileMode = "0755"
+# File permissions of both the Reliable and Unix socket files, in octal. (default "0770")
+SocketFileMode = "0770"
 
 # If set to True, the socket is removed before being created. (default false)
 DeleteSocket = false
