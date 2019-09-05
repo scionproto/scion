@@ -103,25 +103,27 @@ func (srv *Server) ListenAndServe() error {
 
 func (srv *Server) listen() (net.Listener, error) {
 	var listener net.Listener
-	var error error
+	var err error
 	switch srv.network {
 	case "unixpacket":
-		laddr, err := net.ResolveUnixAddr("unixpacket", srv.address)
+		var laddr *net.UnixAddr
+		laddr, err = net.ResolveUnixAddr("unixpacket", srv.address)
 		if err != nil {
 			return nil, err
 		}
-		listener, error = net.ListenUnix("unixpacket", laddr)
+		listener, err = net.ListenUnix("unixpacket", laddr)
 	case "rsock":
-		listener, error = reliable.Listen(srv.address)
+		listener, err = reliable.Listen(srv.address)
 	default:
 		return nil, common.NewBasicError("unknown network", nil, "net", srv.network)
 	}
-	if error == nil {
-		if err := os.Chmod(srv.address, srv.filemode); err != nil {
-			return nil, common.NewBasicError("chmod failed", err, "address", srv.address)
-		}
+	if err != nil {
+		return nil, err
 	}
-	return listener, error
+	if err := os.Chmod(srv.address, srv.filemode); err != nil {
+		return nil, common.NewBasicError("chmod failed", err, "address", srv.address)
+	}
+	return listener, nil
 }
 
 // Close makes the Server stop listening for new connections, and immediately
