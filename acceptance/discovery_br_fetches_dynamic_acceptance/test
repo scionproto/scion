@@ -35,18 +35,20 @@ test_setup() {
 
 test_run() {
     set -e
-    sleep 10
+    sleep 3
     check_connectivity "initial check"
 
-    # Start serving dynamic topology with invalid beacon service.
-    jq ".BeaconService[].Addrs.IPv4.Public.Addr = \"127.42.42.42\" | .Timestamp = $( date +%s) | .TTL = 15" $TOPO | sponge $DYNAMIC_FULL
-    sleep 5
+    log "Staring to serve dynamic topology with wrong BS address."
+    jq ".BeaconService[].Addrs.IPv4.Public.Addr = \"127.42.42.42\" | .Timestamp = $( date +%s) | .TTL = 7" $TOPO | sponge $DYNAMIC_FULL
+    log "Waiting for BS to issue revocation and link going down"
+    sleep 4
     check_connectivity_broken "invalid beacon service address"
 
-    # Wait until dynamic topology expires.
-    sleep 10
+    log "Waiting until dynamic topology expires and revocations are gone."
+    sleep 15
     check_connectivity "dynamic topology expired"
 
+    log "Checking fail action."
     check_br_fail_action "dynamic"
 }
 

@@ -28,27 +28,30 @@ test_setup() {
 
 test_run() {
     set -e
-    # Start serving static topology. Full for infra services, default for sciond.
-    jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $STATIC_FULL
+
+    log "Starting to serve static topology with modified border router."
+    jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s)" $TOPO | sponge $STATIC_FULL
     cp $STATIC_FULL $STATIC_DEFAULT
-    sleep 6
-    # Check that the mock ds serves the file
+    sleep 1
     check_file "static"
-    # Check that the logs contain setting and writing the topo.
+
+    sleep 3
     check_logs "bs$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
     check_logs "ps$IA_FILE-1"
     check_logs "sd$IA_FILE"
-    # Check that the written file does not differ from the served file.
+
     check_diff "bs$IA_FILE-1"
     check_diff "cs$IA_FILE-1"
     check_diff "ps$IA_FILE-1"
     check_diff "sd$IA_FILE"
 
+    log "Checking fail action."
     check_infra_fail_action "static"
 }
 
 check_logs() {
+    log "Checking logs for $1."
     grep -q "\[discovery\] Set topology.*mode=static" "logs/$1.log" || \
         fail "Setting static topology not found in logs. id=$1"
     grep -q "\[discovery\] Topology written to filesystem.*mode=static" "logs/$1.log" || \
@@ -56,6 +59,7 @@ check_logs() {
 }
 
 check_diff () {
+    log "Checking the stored static topology for $1."
     diff -q $STATIC_FULL gen-cache/$1-topo.json
 }
 
