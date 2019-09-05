@@ -32,9 +32,10 @@ test_run() {
     log "Starting to serve static topology with modified border router."
     jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s)" $TOPO | sponge $STATIC_FULL
     cp $STATIC_FULL $STATIC_DEFAULT
-    sleep 2
+    sleep 1
     check_file "static"
 
+    sleep 3
     check_logs "bs$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
     check_logs "ps$IA_FILE-1"
