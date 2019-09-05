@@ -15,20 +15,31 @@ TEST_TOPOLOGY="acceptance/sig_failover_acceptance/Test.topo"
 
 test_run() {
     set -e
+    log "Initial ping tests"
     # Make sure that pings go through in a vanilla setup.
     ./bin/sig_ping_acceptance -d -log.console info
-    # Disable one of the two paths between the ASes by stopping the corresponding BR.
+    # Disable one of the two paths between the ASes by stopping the
+    # corresponding BR.
+    log "Stopping br-110-2"
     ./tools/dc stop scion_br1-ff00_0_110-2
     # Make sure that the pings still get through.
+    log "Check pings still work"
     ./bin/sig_ping_acceptance -d -log.console info
     # Enable the disabled path, disable the other path.
+    log "Start br-110-2"
     ./tools/dc start scion_br1-ff00_0_110-2
+    # Make sure the revocation of 110-2 is done.
+    sleep 10
+    log "Stop br-110-1"
     ./tools/dc stop scion_br1-ff00_0_110-1
     # Make sure that the pings still get through.
+    log "Check pings still work"
     ./bin/sig_ping_acceptance -d -log.console info
     # Enable both paths again.
+    log "Start br-110-1"
     ./tools/dc start scion_br1-ff00_0_110-1
     # Make sure that the pings still get through.
+    log "Final ping check"
     ./bin/sig_ping_acceptance -d -log.console info
 }
 

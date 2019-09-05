@@ -166,6 +166,8 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 						"err", err, "rev", rev)
 					continue
 				}
+				// TODO(lukedirtwalker): collect all revInfos and delete only
+				// once.
 				f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
 			}
 			// TODO(lukedirtwalker): make the short interval configurable
