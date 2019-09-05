@@ -16,7 +16,7 @@ fi
 
 host_acceptance="br_multi br_child br_parent br_peer br_core_multi br_core_childIf br_core_coreIf"
 
-for test in ./acceptance/*_acceptance; do
+for test in ./acceptance/topo_br_reload_if*_acceptance; do
     name="$(basename ${test%_acceptance})"
     if [[ ! "$name" =~ "$ACCEPTANCE_TEST" ]]; then
         continue
@@ -43,6 +43,7 @@ for test in ./acceptance/*_acceptance; do
         echo "  - $BASE/run_step run_acceptance $name"
     fi
     echo "  timeout_in_minutes: 10"
+    echo "  parallelism: 10"
     echo "  retry:"
     echo "    automatic:"
     echo "      - exit_status: 5"  # Pull failed
