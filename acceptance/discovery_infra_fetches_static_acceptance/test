@@ -31,7 +31,7 @@ test_run() {
     # Start serving static topology. Full for infra services, default for sciond.
     jq ".BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: \"127.42.42.42\", OverlayPort: 39999} | .Timestamp = $( date +%s) | .TTL = 3" $TOPO | sponge $STATIC_FULL
     cp $STATIC_FULL $STATIC_DEFAULT
-    sleep 6
+    sleep 2
     # Check that the mock ds serves the file
     check_file "static"
     # Check that the logs contain setting and writing the topo.

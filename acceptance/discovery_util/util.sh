@@ -54,7 +54,7 @@ set_log_lvl() {
 }
 
 set_interval() {
-    sed -i -e "/\[discovery.$2]/a Interval = \"1s\"" "$1"
+    sed -i -e "/\[discovery.$2]/a Interval = \"100ms\"" "$1"
 }
 
 set_connect() {
