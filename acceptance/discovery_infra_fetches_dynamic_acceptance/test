@@ -30,7 +30,7 @@ test_run() {
     sleep 1
     check_file "dynamic"
 
-    sleep 3
+    sleep 7
     check_logs "bs$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
     check_logs "ps$IA_FILE-1"
