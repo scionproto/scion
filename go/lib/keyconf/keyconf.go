@@ -54,7 +54,7 @@ const (
 	// FIXME(roosd): removed unused keys above.
 
 	ASSigKeyFile = "as-signing.key"
-	ASDecKeyFile = "as-decrypt.ley"
+	ASDecKeyFile = "as-decrypt.key"
 	ASRevKeyFile = "as-revocation.key"
 
 	IssuerRevKeyFile  = "issuer-revocation.key"

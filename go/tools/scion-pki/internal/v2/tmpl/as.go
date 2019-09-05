@@ -18,28 +18,29 @@ import (
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
-func runGenAsTmpl(args []string) {
-	asMap, err := pkicmn.ProcessSelector(args[0])
+func runGenASTmpl(selector string) error {
+	asMap, err := pkicmn.ProcessSelector(selector)
 	if err != nil {
-		pkicmn.ErrorAndExit("Error: %s\n", err)
+		return err
 	}
-	pkicmn.QuietPrint("Generating cert config templates.\n")
+	pkicmn.QuietPrint("Generating AS config templates.\n")
 	for isd, ases := range asMap {
-		iconf, err := conf.LoadISDCfg(pkicmn.GetIsdPath(pkicmn.RootDir, isd))
+		isdCfg, err := conf.LoadISDCfg(pkicmn.GetIsdPath(pkicmn.RootDir, isd))
 		if err != nil {
-			pkicmn.ErrorAndExit("Error reading %s: %s\n", conf.ISDCfgFileName, err)
+			return common.NewBasicError("unable to read isd.ini", err, "isd", isd)
 		}
 		for _, ia := range ases {
-			if err = genAndWriteASTmpl(ia, iconf); err != nil {
-				pkicmn.ErrorAndExit("Error generating %s template for %s: %s\n",
-					conf.ASConfFileName, ia, err)
+			if err = genAndWriteASTmpl(ia, isdCfg); err != nil {
+				return common.NewBasicError("error generating as.ini template", err, "ia", ia)
 			}
 		}
 	}
+	return nil
 }
 
 func genAndWriteASTmpl(ia addr.IA, isd *conf.ISDCfg) error {

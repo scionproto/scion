@@ -18,6 +18,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 var Cmd = &cobra.Command{
@@ -40,9 +42,12 @@ Selector:
 var genCmd = &cobra.Command{
 	Use:   "gen",
 	Short: "Generate new keys",
-	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		runGenKey(args)
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runGenKey(args[0]); err != nil {
+			return common.NewBasicError("unable to generate keys", err)
+		}
+		return nil
 	},
 }
 

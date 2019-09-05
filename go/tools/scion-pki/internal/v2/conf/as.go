@@ -106,8 +106,7 @@ func NewTemplateASCfg(subject addr.IA, trcVer uint64, voting, issuing bool) *ASC
 
 // LoadASCfg loads the AS configuration from a directory.
 func LoadASCfg(dir string) (*ASCfg, error) {
-	cname := filepath.Join(dir, ASConfFileName)
-	cfg, err := ini.Load(cname)
+	cfg, err := ini.Load(ASCfgPath(dir))
 	if err != nil {
 		return nil, err
 	}
@@ -119,6 +118,11 @@ func LoadASCfg(dir string) (*ASCfg, error) {
 		return nil, err
 	}
 	return as, nil
+}
+
+// ASCfgPath returns the path to the AS config file given a directory.
+func ASCfgPath(dir string) string {
+	return filepath.Join(dir, ASConfFileName)
 }
 
 // Validate parses the raw values and validates that the AS config is correct.

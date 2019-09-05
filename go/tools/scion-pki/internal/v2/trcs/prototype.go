@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trc
+package trcs
 
 import (
 	"encoding/json"
@@ -29,17 +29,17 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
-func runProto(args []string) {
-	asMap, err := pkicmn.ProcessSelector(args[0])
+func runProto(selector string) error {
+	asMap, err := pkicmn.ProcessSelector(selector)
 	if err != nil {
-		pkicmn.ErrorAndExit("Error: %s\n", err)
+		return err
 	}
 	for isd := range asMap {
 		if err = genAndWriteProto(isd); err != nil {
-			pkicmn.ErrorAndExit("Error generating proto TRC for ISD %d: %s\n", isd, err)
+			return common.NewBasicError("unable to generating prototype TRC", err, "isd", isd)
 		}
 	}
-	os.Exit(0)
+	return nil
 }
 
 func genAndWriteProto(isd addr.ISD) error {
@@ -63,7 +63,7 @@ func genAndWriteProto(isd addr.ISD) error {
 }
 
 func genProto(isd addr.ISD, isdCfg *conf.ISDCfg) (*trc.TRC, trc.Encoded, error) {
-	pkicmn.QuietPrint("Generating proto TRC for ISD %d\n", isd)
+	pkicmn.QuietPrint("Generating prototype TRC for ISD %d\n", isd)
 	primaryASes, err := loadPrimaryASes(isd, isdCfg, nil)
 	if err != nil {
 		return nil, nil, common.NewBasicError("error loading primary ASes configs", err)

@@ -21,6 +21,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/certs"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/keys"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
@@ -41,6 +42,8 @@ root configuration files used in the SCION control plane PKI.`,
 			pkicmn.OutDir = pkicmn.RootDir
 		}
 	},
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 const (
@@ -82,8 +85,14 @@ var autoCompleteCmd = &cobra.Command{
 }
 
 func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+	err := RootCmd.Execute()
+	switch err.(type) {
+	case common.BasicError:
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		os.Exit(2)
+	case error:
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		RootCmd.Usage()
 		os.Exit(1)
 	}
 }

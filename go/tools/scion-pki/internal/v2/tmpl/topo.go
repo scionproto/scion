@@ -35,10 +35,10 @@ var (
 	rawValidity string
 )
 
-func runGenTopoTmpl(args []string) error {
-	raw, err := ioutil.ReadFile(args[0])
+func runGenTopoTmpl(path string) error {
+	raw, err := ioutil.ReadFile(path)
 	if err != nil {
-		return common.NewBasicError("unable to read file", err, "file", args[0])
+		return common.NewBasicError("unable to read file", err)
 	}
 	val, err := validityFromFlags()
 	if err != nil {
@@ -46,7 +46,7 @@ func runGenTopoTmpl(args []string) error {
 	}
 	var topo topoFile
 	if err := yaml.Unmarshal(raw, &topo); err != nil {
-		return common.NewBasicError("unable to parse topo", err, "file", args[0])
+		return common.NewBasicError("unable to parse topo", err)
 	}
 	isdCfgs := make(map[addr.ISD]*conf.ISDCfg)
 	for isd := range topo.ISDs() {
@@ -70,7 +70,6 @@ func runGenTopoTmpl(args []string) error {
 			return common.NewBasicError("unable to write AS config", err, "ia", ia)
 		}
 	}
-
 	return nil
 }
 

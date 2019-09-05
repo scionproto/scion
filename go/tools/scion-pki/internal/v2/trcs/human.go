@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trc
+package trcs
 
 import (
 	"encoding/json"
@@ -22,16 +22,15 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-func runHuman(args []string) {
-	for _, file := range args {
+func runHuman(files []string) error {
+	for _, file := range files {
 		if err := genHuman(file); err != nil {
-			pkicmn.ErrorAndExit("Error: %s\n", err)
+			return common.NewBasicError("unable to generate human output", err, "file", file)
 		}
 	}
-	os.Exit(0)
+	return nil
 }
 
 func genHuman(file string) error {

@@ -10,7 +10,7 @@ go_library(
         "sign.go",
         "util.go",
     ],
-    importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/trc",
+    importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/trcs",
     visibility = ["//go/tools/scion-pki:__subpackages__"],
     deps = [
         "//go/lib/addr:go_default_library",

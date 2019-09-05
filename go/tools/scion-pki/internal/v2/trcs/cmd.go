@@ -13,14 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trc
+package trcs
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 var Cmd = &cobra.Command{
-	Use:   "trc",
+	Use:   "trcs",
 	Short: "Generate TRCs for the SCION control plane PKI",
 	Long: `
 'trc' can be used to generate Trust Root Configuration (TRC) files used in the SCION control
@@ -97,9 +99,12 @@ var proto = &cobra.Command{
 	'proto' generates new prototype TRCs from the ISD configs. They need to be signed
 	using the sign command.
 `,
-	Args: cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		runProto(args)
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runProto(args[0]); err != nil {
+			return common.NewBasicError("unable to generate prototype TRC", err)
+		}
+		return nil
 	},
 }
 
@@ -109,9 +114,12 @@ var sign = &cobra.Command{
 	Long: `
 	'sign' generates new signatures for the proto TRCs.
 `,
-	Args: cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		runSign(args)
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runSign(args[0]); err != nil {
+			return common.NewBasicError("unable to sign TRC", err)
+		}
+		return nil
 	},
 }
 
