@@ -29,10 +29,6 @@ test_run() {
 
     check_change_local_port
     check_change_remote_port
-    sleep 1
-    check_logs "posixOutput starting addr=[$addr_src]:42424" $SRC_IA_FILE
-    check_logs "posixInput starting addr=[$addr_src]:42424"  $SRC_IA_FILE
-    check_logs "Remote:[$addr_src]:42424" $DST_IA_FILE
     check_change_initial_port
 }
 
@@ -40,7 +36,9 @@ check_change_local_port() {
     check_connectivity "Start check_change_local_port"
     jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42424' $SRC_TOPO | sponge $SRC_TOPO
     ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
-    sleep 0.5
+    sleep 2
+    check_logs "posixOutput starting addr=[$addr_src]:42424" $SRC_IA_FILE
+    check_logs "posixInput starting addr=[$addr_src]:42424"  $SRC_IA_FILE
     bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 1 -d -log.console=crit || local failed=$?
     if [ -z ${failed+x} ]; then
         echo "FAIL: Traffic still passes. End check_change_local_port"
@@ -52,7 +50,8 @@ check_change_remote_port() {
     # Connectivity is broken at this point
     jq '.BorderRouters[].Interfaces[].RemoteOverlay.OverlayPort = 42424' $DST_TOPO | sponge $DST_TOPO
     ./tools/dc scion kill -s HUP scion_br"$DST_IA_FILE"-1
-    sleep 0.5
+    sleep 5
+    check_logs "Remote:[$addr_src]:42424" $DST_IA_FILE
     check_connectivity "End check_change_remote_port"
 }
 
