@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"sync"
 
@@ -35,6 +36,7 @@ type HandlerMap map[proto.SCIONDMsg_Which]Handler
 type Server struct {
 	network  string
 	address  string
+	filemode os.FileMode
 	handlers map[proto.SCIONDMsg_Which]Handler
 	log      log.Logger
 
@@ -48,10 +50,13 @@ type Server struct {
 // HandlerMap. To start listening on the address, call ListenAndServe.
 //
 // Network must be "unixpacket" or "rsock".
-func NewServer(network string, address string, handlers HandlerMap, logger log.Logger) *Server {
+func NewServer(network string, address string, filemode os.FileMode, handlers HandlerMap,
+	logger log.Logger) *Server {
+
 	return &Server{
 		network:  network,
 		address:  address,
+		filemode: filemode,
 		handlers: handlers,
 		log:      logger,
 	}
@@ -99,18 +104,28 @@ func (srv *Server) ListenAndServe() error {
 }
 
 func (srv *Server) listen() (net.Listener, error) {
+	var listener net.Listener
+	var err error
 	switch srv.network {
 	case "unixpacket":
-		laddr, err := net.ResolveUnixAddr("unixpacket", srv.address)
+		var laddr *net.UnixAddr
+		laddr, err = net.ResolveUnixAddr("unixpacket", srv.address)
 		if err != nil {
 			return nil, err
 		}
-		return net.ListenUnix("unixpacket", laddr)
+		listener, err = net.ListenUnix("unixpacket", laddr)
 	case "rsock":
-		return reliable.Listen(srv.address)
+		listener, err = reliable.Listen(srv.address)
 	default:
 		return nil, common.NewBasicError("unknown network", nil, "net", srv.network)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(srv.address, srv.filemode); err != nil {
+		return nil, common.NewBasicError("chmod failed", err, "address", srv.address)
+	}
+	return listener, nil
 }
 
 // Close makes the Server stop listening for new connections, and immediately

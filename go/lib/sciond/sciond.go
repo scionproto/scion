@@ -53,6 +53,8 @@ const (
 	SVCInfoTTL = 10 * time.Second
 	// DefaultSCIONDPath contains the system default for a SCIOND socket.
 	DefaultSCIONDPath = "/run/shm/sciond/default.sock"
+	// DefaultSocketFileMode allows read/write to the user and group only.
+	DefaultSocketFileMode = 0770
 )
 
 // Service describes a SCIOND endpoint. New connections to SCIOND can be
