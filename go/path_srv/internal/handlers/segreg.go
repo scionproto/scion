@@ -77,7 +77,7 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 	snetPeer := h.request.Peer.(*snet.Addr)
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
-		logger.Error("[syncHandler] Failed to initialize path", "err", err)
+		logger.Error("[segRegHandler] Failed to initialize path", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}

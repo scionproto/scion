@@ -27,25 +27,12 @@ type GroupInfo struct {
 	Groups        map[hiddenpath.GroupId]*hiddenpath.Group
 }
 
-// GroupIdSet is a set of hidden path GroupIds
-type GroupIdSet map[hiddenpath.GroupId]struct{}
-
-// GroupIdsToSet converts a list of GroupIds to a GroupIdSet,
-// ensuring no duplcates.
-func GroupIdsToSet(ids []hiddenpath.GroupId) GroupIdSet {
-	set := make(GroupIdSet, len(ids))
-	for _, id := range ids {
-		set[id] = struct{}{}
-	}
-	return set
-}
-
 // GetRegistryMapping uses a greedy algorithm to approximate an optimal mapping
 // from Registries to GroupIds such that all local Groups are mapped to the local
 // Registry and the remaining Groups are mapped to a small number of remote Registries.
 // The algorithm runs in O(Registries*Groups^2) and is at most ln(Groups)+1 times worse
 // than an optimal solution.
-func (gi *GroupInfo) GetRegistryMapping(ids GroupIdSet) (
+func (gi *GroupInfo) GetRegistryMapping(ids hiddenpath.GroupIdSet) (
 	map[addr.IA][]hiddenpath.GroupId, error) {
 
 	if err := gi.CheckIds(ids); err != nil {
@@ -91,7 +78,7 @@ func (gi *GroupInfo) GetRegistryMapping(ids GroupIdSet) (
 
 // CheckIds checks that the provided Ids are known to the HPS and
 // that all Ids have at least one Registry.
-func (gi *GroupInfo) CheckIds(ids GroupIdSet) error {
+func (gi *GroupInfo) CheckIds(ids hiddenpath.GroupIdSet) error {
 	for id := range ids {
 		group, ok := gi.Groups[id]
 		if !ok {

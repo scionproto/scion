@@ -94,6 +94,22 @@ func (id GroupId) MarshalJSON() ([]byte, error) {
 	return json.Marshal(id.String())
 }
 
+// ToMsg returns id as Cerializable message suitable to be sent via messenger
+func (id GroupId) ToMsg() *path_mgmt.HPGroupId {
+	return &path_mgmt.HPGroupId{
+		OwnerAS: id.OwnerAS,
+		GroupId: id.Suffix,
+	}
+}
+
+// IdFromMsg returns a GroupId from the Cerializable representation
+func IdFromMsg(id *path_mgmt.HPGroupId) GroupId {
+	return GroupId{
+		OwnerAS: id.OwnerAS,
+		Suffix:  id.GroupId,
+	}
+}
+
 type Group struct {
 	Id         GroupId `json:"GroupID"`
 	Version    uint
@@ -103,7 +119,7 @@ type Group struct {
 	Registries []addr.IA
 }
 
-func (h *Group) UnmarshalJSON(data []byte) (err error) {
+func (g *Group) UnmarshalJSON(data []byte) (err error) {
 	type groupAlias Group
 	var v groupAlias
 	if err = json.Unmarshal(data, &v); err != nil {
@@ -128,13 +144,13 @@ func (h *Group) UnmarshalJSON(data []byte) (err error) {
 	if len(v.Registries) == 0 {
 		return common.NewBasicError(EmptyRegistries, nil)
 	}
-	*h = Group(v)
+	*g = Group(v)
 	return nil
 }
 
 // HasWriter returns true if ia is a Writer of h
-func (h Group) HasWriter(ia addr.IA) bool {
-	for _, w := range h.Writers {
+func (g *Group) HasWriter(ia addr.IA) bool {
+	for _, w := range g.Writers {
 		if w == ia {
 			return true
 		}
@@ -143,8 +159,8 @@ func (h Group) HasWriter(ia addr.IA) bool {
 }
 
 // HasReader returns true if ia is a Reader of h
-func (h Group) HasReader(ia addr.IA) bool {
-	for _, r := range h.Readers {
+func (g *Group) HasReader(ia addr.IA) bool {
+	for _, r := range g.Readers {
 		if r == ia {
 			return true
 		}
@@ -153,8 +169,8 @@ func (h Group) HasReader(ia addr.IA) bool {
 }
 
 // HasRegistry returns true if ia is a Registry of h
-func (h Group) HasRegistry(ia addr.IA) bool {
-	for _, r := range h.Registries {
+func (g *Group) HasRegistry(ia addr.IA) bool {
+	for _, r := range g.Registries {
 		if r == ia {
 			return true
 		}
@@ -163,27 +179,21 @@ func (h Group) HasRegistry(ia addr.IA) bool {
 }
 
 // ToMsg returns h as Cerializable message suitable to be sent via messenger
-func (h Group) ToMsg() *path_mgmt.HPCfg {
+func (g *Group) ToMsg() *path_mgmt.HPCfg {
 	return &path_mgmt.HPCfg{
-		GroupId: &path_mgmt.HPGroupId{
-			OwnerAS: h.Id.OwnerAS,
-			GroupId: h.Id.Suffix,
-		},
-		Version:    uint32(h.Version),
-		OwnerISD:   h.Owner.I,
-		Writers:    toIAInt(h.Writers),
-		Readers:    toIAInt(h.Readers),
-		Registries: toIAInt(h.Registries),
+		GroupId:    g.Id.ToMsg(),
+		Version:    uint32(g.Version),
+		OwnerISD:   g.Owner.I,
+		Writers:    toIAInt(g.Writers),
+		Readers:    toIAInt(g.Readers),
+		Registries: toIAInt(g.Registries),
 	}
 }
 
-// FromMsg returns a HPCfg from the Cerializable representation
-func FromMsg(m *path_mgmt.HPCfg) *Group {
+// GroupFromMsg returns a HPCfg from the Cerializable representation
+func GroupFromMsg(m *path_mgmt.HPCfg) *Group {
 	return &Group{
-		Id: GroupId{
-			OwnerAS: m.GroupId.OwnerAS,
-			Suffix:  m.GroupId.GroupId,
-		},
+		Id:      IdFromMsg(m.GroupId),
 		Version: uint(m.Version),
 		Owner: addr.IA{
 			I: m.OwnerISD,
@@ -209,4 +219,17 @@ func toIA(in []addr.IAInt) []addr.IA {
 		out = append(out, i.IA())
 	}
 	return out
+}
+
+// GroupIdSet is a set of hidden path GroupIds
+type GroupIdSet map[GroupId]struct{}
+
+// GroupIdsToSet converts a list of GroupIds to a GroupIdSet,
+// ensuring no duplcates.
+func GroupIdsToSet(ids ...GroupId) GroupIdSet {
+	set := make(GroupIdSet, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	return set
 }

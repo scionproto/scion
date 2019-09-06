@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // This file contains the Go representation of a hidden path segment extension
-// used to distinguish hidden segments from regualr segments.
+// used to distinguish hidden segments from regular segments.
 
 package seg
 

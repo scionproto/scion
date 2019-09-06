@@ -258,7 +258,7 @@ func TestToMsgFromMsg(t *testing.T) {
 	require.NoError(t, err)
 	msg := cfg.ToMsg()
 	assert.Equal(t, expected, msg)
-	cfg2 := FromMsg(msg)
+	cfg2 := GroupFromMsg(msg)
 	assert.Equal(t, cfg, cfg2)
 }
 
