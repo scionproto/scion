@@ -146,6 +146,7 @@ func TestSegReg(t *testing.T) {
 		},
 		"group validation fails": func(t *testing.T, ctx context.Context,
 			handler infra.Handler, m *mocks) {
+
 			msg := &path_mgmt.HPSegReg{
 				HPSegRecs: &path_mgmt.HPSegRecs{
 					GroupId: group.Id.ToMsg(),
