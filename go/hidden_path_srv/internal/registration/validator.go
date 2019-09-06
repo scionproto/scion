@@ -99,3 +99,12 @@ func checkHiddenSegExtn(s *seg.Meta) bool {
 	}
 	return lastASEntry.Exts.HiddenPathSeg.Set
 }
+
+// NullValidator validates all input
+var NullValidator = nullValidator{}
+
+type nullValidator struct{}
+
+func (v nullValidator) Validate(hpSegReg *path_mgmt.HPSegReg, peer addr.IA) error {
+	return nil
+}
