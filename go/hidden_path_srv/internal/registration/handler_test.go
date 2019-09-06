@@ -16,6 +16,7 @@ package registration_test
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/registration"
+	"github.com/scionproto/scion/go/hidden_path_srv/internal/registration/mock_registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
@@ -63,6 +65,7 @@ func TestSegReg(t *testing.T) {
 				Segs:      msg.HPSegRecs.Recs,
 				HPGroupID: group.Id,
 			}
+			m.validator.EXPECT().Validate(msg, peer.IA).Return(nil)
 			m.verifier.EXPECT().Verify(gomock.Any(), segments, peer)
 			m.rw.EXPECT().SendAckReply(gomock.Any(), &matchers.AckMsg{Ack: ack})
 			res := handler.Handle(req)
@@ -141,6 +144,27 @@ func TestSegReg(t *testing.T) {
 			res := handler.Handle(req)
 			assert.Equal(t, infra.MetricsErrInvalid, res)
 		},
+		"group validation fails": func(t *testing.T, ctx context.Context,
+			handler infra.Handler, m *mocks) {
+			msg := &path_mgmt.HPSegReg{
+				HPSegRecs: &path_mgmt.HPSegRecs{
+					GroupId: group.Id.ToMsg(),
+					Recs:    []*seg.Meta{seg110_133},
+				},
+			}
+			peer := &snet.Addr{
+				Host: addr.NewSVCUDPAppAddr(addr.SvcBS),
+			}
+			req := infra.NewRequest(ctx, msg, nil, peer, 0)
+			ack := ack.Ack{
+				Err:     proto.Ack_ErrCode_reject,
+				ErrDesc: "dummy",
+			}
+			m.validator.EXPECT().Validate(msg, peer.IA).Return(errors.New("dummy"))
+			m.rw.EXPECT().SendAckReply(gomock.Any(), &matchers.AckMsg{Ack: ack})
+			res := handler.Handle(req)
+			assert.Equal(t, infra.MetricsErrInvalid, res)
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -150,7 +174,7 @@ func TestSegReg(t *testing.T) {
 			ctx := infra.NewContextWithResponseWriter(
 				context.Background(), mocks.rw)
 			handler := registration.NewSegRegHandler(
-				registration.NullValidator,
+				mocks.validator,
 				seghandler.Handler{
 					Verifier: mocks.verifier,
 					Storage:  mocks.storage,
@@ -162,15 +186,17 @@ func TestSegReg(t *testing.T) {
 }
 
 type mocks struct {
-	verifier *mock_seghandler.MockVerifier
-	storage  *mock_seghandler.MockStorage
-	rw       *mock_infra.MockResponseWriter
+	validator *mock_registration.MockValidator
+	verifier  *mock_seghandler.MockVerifier
+	storage   *mock_seghandler.MockStorage
+	rw        *mock_infra.MockResponseWriter
 }
 
 func createMocks(ctrl *gomock.Controller) *mocks {
 	return &mocks{
-		verifier: mock_seghandler.NewMockVerifier(ctrl),
-		storage:  mock_seghandler.NewMockStorage(ctrl),
-		rw:       mock_infra.NewMockResponseWriter(ctrl),
+		validator: mock_registration.NewMockValidator(ctrl),
+		verifier:  mock_seghandler.NewMockVerifier(ctrl),
+		storage:   mock_seghandler.NewMockStorage(ctrl),
+		rw:        mock_infra.NewMockResponseWriter(ctrl),
 	}
 }
