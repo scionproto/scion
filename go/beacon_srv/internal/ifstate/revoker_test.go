@@ -46,7 +46,7 @@ import (
 
 var (
 	timeout     = time.Second
-	ttl         = 10 * time.Second
+	ttl         = path_mgmt.MinRevTTL
 	overlapTime = ttl / 2
 	expireTime  = time.Second + DefaultKeepaliveTimeout
 	ia          = xtest.MustParseIA("1-ff00:0:111")
@@ -199,7 +199,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
 			LinkType:     proto.LinkType_peer,
-			RawTimestamp: util.TimeToSecs(time.Now().Add(-6 * time.Second)),
+			RawTimestamp: util.TimeToSecs(time.Now().Add(-(overlapTime + 1) * time.Second)),
 			RawTTL:       uint32(ttl.Seconds()),
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
