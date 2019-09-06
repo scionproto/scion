@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/truststorage"
@@ -45,6 +46,11 @@ const (
 	// DefaultExpiredCheckInterval is the default interval between checking for
 	// expired interfaces.
 	DefaultExpiredCheckInterval = 200 * time.Millisecond
+	// DefaultRevTTL is the default revocation TTL.
+	DefaultRevTTL = 10 * time.Second
+	// DefaultRevOverlap specifies the default for how long before the expiry of an existing
+	// revocation the revoker can reissue a new revocation.
+	DefaultRevOverlap = DefaultRevTTL / 2
 )
 
 var _ config.Config = (*Config)(nil)
@@ -132,6 +138,11 @@ type BSConfig struct {
 	// ExpiredCheckInterval is the interval between checking whether interfaces
 	// have expired and should be revoked.
 	ExpiredCheckInterval util.DurWrap
+	// RevTTL is the revocation TTL. (default 10s)
+	RevTTL util.DurWrap
+	// RevOverlap specifies for how long before the expiry of an existing revocation the revoker
+	// can reissue a new revocation. (default 5s)
+	RevOverlap util.DurWrap
 	// Policies contains the policy files.
 	Policies Policies
 }
@@ -144,6 +155,8 @@ func (cfg *BSConfig) InitDefaults() {
 	initDurWrap(&cfg.PropagationInterval, DefaultPropagationInterval)
 	initDurWrap(&cfg.RegistrationInterval, DefaultRegistrationInterval)
 	initDurWrap(&cfg.ExpiredCheckInterval, DefaultExpiredCheckInterval)
+	initDurWrap(&cfg.RevTTL, DefaultRevTTL)
+	initDurWrap(&cfg.RevOverlap, DefaultRevOverlap)
 }
 
 // Validate validates that all durations are set.
@@ -165,6 +178,19 @@ func (cfg *BSConfig) Validate() error {
 	}
 	if cfg.ExpiredCheckInterval.Duration == 0 {
 		return common.NewBasicError("ExpiredCheckInterval not set", nil)
+	}
+	if cfg.RevTTL.Duration == 0 {
+		return common.NewBasicError("RevTTL is not set", nil)
+	}
+	if cfg.RevTTL.Duration < path_mgmt.MinRevTTL {
+		return common.NewBasicError("RevTTL must be equal or greater than MinRevTTL", nil,
+			"MinRevTTL", path_mgmt.MinRevTTL)
+	}
+	if cfg.RevOverlap.Duration == 0 {
+		return common.NewBasicError("RevOverlap not set", nil)
+	}
+	if cfg.RevOverlap.Duration > cfg.RevTTL.Duration {
+		return common.NewBasicError("RevOverlap cannot be greater than RevTTL", nil)
 	}
 	return nil
 }

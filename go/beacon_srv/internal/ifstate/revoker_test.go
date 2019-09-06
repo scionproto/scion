@@ -46,7 +46,8 @@ import (
 
 var (
 	timeout     = time.Second
-	overlapTime = path_mgmt.MinRevTTL / 2
+	ttl         = 10 * time.Second
+	overlapTime = ttl / 2
 	expireTime  = time.Second + DefaultKeepaliveTimeout
 	ia          = xtest.MustParseIA("1-ff00:0:111")
 )
@@ -118,9 +119,12 @@ func TestRevokeInterface(t *testing.T) {
 			Intfs:        intfs,
 			Msgr:         msgr,
 			Signer:       signer,
-			RevConfig:    RevConfig{RevOverlap: overlapTime},
 			TopoProvider: topoProvider,
 			RevInserter:  revInserter,
+			RevConfig: RevConfig{
+				RevTTL:     ttl,
+				RevOverlap: overlapTime,
+			},
 		}
 		revoker := cfg.New()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -159,9 +163,12 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 			Intfs:        intfs,
 			Msgr:         msgr,
 			Signer:       signer,
-			RevConfig:    RevConfig{RevOverlap: overlapTime},
 			TopoProvider: topoProvider,
 			RevInserter:  revInserter,
+			RevConfig: RevConfig{
+				RevTTL:     ttl,
+				RevOverlap: overlapTime,
+			},
 		}
 		revoker := cfg.New()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -208,9 +215,12 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 			Intfs:        intfs,
 			Msgr:         msgr,
 			Signer:       signer,
-			RevConfig:    RevConfig{RevOverlap: overlapTime},
 			TopoProvider: topoProvider,
 			RevInserter:  revInserter,
+			RevConfig: RevConfig{
+				RevTTL:     ttl,
+				RevOverlap: overlapTime,
+			},
 		}
 		revoker := cfg.New()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -293,7 +303,7 @@ func checkRevocation(t *testing.T, srev *path_mgmt.SignedRevInfo,
 		rawNow := util.TimeToSecs(time.Now())
 		SoMsg("recent revocation", revInfo.RawTimestamp,
 			ShouldBeBetweenOrEqual, rawNow-1, rawNow)
-		SoMsg("minTTL", revInfo.RawTTL, ShouldEqual, uint32(path_mgmt.MinRevTTL.Seconds()))
+		SoMsg("minTTL", revInfo.RawTTL, ShouldEqual, uint32(ttl.Seconds()))
 	})
 }
 
