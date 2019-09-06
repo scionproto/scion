@@ -59,7 +59,7 @@ func TestHandler(t *testing.T) {
 		IfID:         101,
 		LinkType:     proto.LinkType_peer,
 		RawTimestamp: util.TimeToSecs(time.Now()),
-		RawTTL:       10,
+		RawTTL:       uint32(path_mgmt.MinRevTTL.Seconds()),
 	}
 	sRev, err := path_mgmt.NewSignedRevInfo(rev, signer)
 	xtest.FailOnErr(t, err)

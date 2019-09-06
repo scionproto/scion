@@ -333,7 +333,10 @@ func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 		RevInserter:  t.store,
 		Signer:       signer,
 		TopoProvider: t.topoProvider,
-		// TODO(roosd): Make RevConfig configurable
+		RevConfig: ifstate.RevConfig{
+			RevTTL:     cfg.BS.RevTTL.Duration,
+			RevOverlap: cfg.BS.RevOverlap.Duration,
+		},
 	}.New()
 	return periodic.StartPeriodicTask(r, periodic.NewTicker(cfg.BS.ExpiredCheckInterval.Duration),
 		cfg.BS.ExpiredCheckInterval.Duration), nil

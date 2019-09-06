@@ -35,26 +35,33 @@ RegistrationInterval = "5s"
 
 # The interval between checking for expired interfaces to revoke. (default 200ms)
 ExpiredCheckInterval = "200ms"
+
+# The revocation TTL. (default 10s)
+RevTTL = "10s"
+
+# The amount of time before the expiry of an existing revocation where the revoker can reissue a
+# new revocation. (default 5s)
+RevOverlap = "5s"
 `
 
 const policiesSample = `
 # Output a sample policy file by providing the -help-policy flag.
 
-# The file path for the propagation policy. In case of the empty string, 
+# The file path for the propagation policy. In case of the empty string,
 # the default policy is used. (default "")
 Propagation = ""
 
-# The file path for the core registration policy. In case of the empty string, 
+# The file path for the core registration policy. In case of the empty string,
 # the default policy is used. In a non-core beacon server, this field is ignored.
 # (default "")
 CoreRegistration = ""
 
-# The file path for the up registration policy. In case of the empty string, 
+# The file path for the up registration policy. In case of the empty string,
 # the default policy is used. In a core beacon server, this field is ignored.
 # (default "")
 UpRegistration = ""
 
-# The file path for the down registration policy. In case of the empty string, 
+# The file path for the down registration policy. In case of the empty string,
 # the default policy is used. In a core beacon server, this field is ignored.
 # (default "")
 DownRegistration = ""

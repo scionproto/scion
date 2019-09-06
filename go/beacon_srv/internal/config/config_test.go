@@ -17,14 +17,17 @@ package config
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage/beaconstoragetest"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -38,6 +41,22 @@ func TestConfigSample(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
 		CheckTestConfig(&cfg, idSample)
+	})
+}
+
+func TestInvalidTTL(t *testing.T) {
+	Convey("Validate checks wrongly configured TTL values", t, func() {
+		cfg := BSConfig{}
+		cfg.InitDefaults()
+		err := cfg.Validate()
+		SoMsg("err", err, ShouldBeNil)
+		cfg.RevOverlap = util.DurWrap{Duration: cfg.RevTTL.Duration + time.Second}
+		err = cfg.Validate()
+		SoMsg("err", err, ShouldNotBeNil)
+		cfg.InitDefaults()
+		cfg.RevTTL = util.DurWrap{Duration: path_mgmt.MinRevTTL - time.Second}
+		err = cfg.Validate()
+		SoMsg("err", err, ShouldNotBeNil)
 	})
 }
 
@@ -80,6 +99,8 @@ func CheckTestBSConfig(cfg *BSConfig) {
 		DefaultRegistrationInterval)
 	SoMsg("ExpiredCheckInterval", cfg.ExpiredCheckInterval.Duration, ShouldEqual,
 		DefaultExpiredCheckInterval)
+	SoMsg("RevTTL", cfg.RevTTL.Duration, ShouldEqual, DefaultRevTTL)
+	SoMsg("RevOverlap", cfg.RevOverlap.Duration, ShouldEqual, DefaultRevOverlap)
 	CheckTestPolicies(&cfg.Policies)
 }
 

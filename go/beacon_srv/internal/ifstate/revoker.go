@@ -32,10 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// DefaultRevOverlap specifies the default for how long before the expiry of an existing revocation
-// the revoker can reissue a new revocation.
-const DefaultRevOverlap = path_mgmt.MinRevTTL / 2
-
 // RevInserter stores revocation into persistent storage.
 type RevInserter interface {
 	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
@@ -43,14 +39,8 @@ type RevInserter interface {
 
 // RevConfig configures the parameters for revocation creation.
 type RevConfig struct {
+	RevTTL     time.Duration
 	RevOverlap time.Duration
-}
-
-// InitDefaults initializes the config fields that are not set to the default values.
-func (c *RevConfig) InitDefaults() {
-	if c.RevOverlap == 0 {
-		c.RevOverlap = DefaultRevOverlap
-	}
 }
 
 // RevokerConf is the configuration to create a new revoker.
@@ -74,7 +64,6 @@ type Revoker struct {
 
 // New creates a new revoker from the given arguments.
 func (cfg RevokerConf) New() *Revoker {
-	cfg.RevConfig.InitDefaults()
 	return &Revoker{
 		cfg: cfg,
 		pusher: brPusher{
@@ -139,7 +128,7 @@ func (r *Revoker) createSignedRev(ifid common.IFIDType) (*path_mgmt.SignedRevInf
 		RawIsdas:     r.cfg.TopoProvider.Get().ISD_AS.IAInt(),
 		LinkType:     r.cfg.TopoProvider.Get().IFInfoMap[ifid].LinkType,
 		RawTimestamp: now,
-		RawTTL:       uint32(path_mgmt.MinRevTTL.Seconds()),
+		RawTTL:       uint32(r.cfg.RevConfig.RevTTL.Seconds()),
 	}
 	return path_mgmt.NewSignedRevInfo(revInfo, r.cfg.Signer)
 }
