@@ -47,7 +47,7 @@ const (
 	// expired interfaces.
 	DefaultExpiredCheckInterval = 200 * time.Millisecond
 	// DefaultRevTTL is the default revocation TTL.
-	DefaultRevTTL = 10 * time.Second
+	DefaultRevTTL = path_mgmt.MinRevTTL
 	// DefaultRevOverlap specifies the default for how long before the expiry of an existing
 	// revocation the revoker can reissue a new revocation.
 	DefaultRevOverlap = DefaultRevTTL / 2
