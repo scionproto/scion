@@ -65,7 +65,7 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 	ctx := h.request.Context()
 	hpSegReg, ok := h.request.Message.(*path_mgmt.HPSegReg)
 	if !ok {
-		logger.Error("[hpSegRegHandler] wrong message type, expected path_mgmt.HPSegReg",
+		logger.Error("[hpSegRegHandler] Wrong message type, expected path_mgmt.HPSegReg",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return infra.MetricsErrInternal, nil
 	}
@@ -83,7 +83,13 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 	logger.Debug("[hpSegRegHandler] Received HPSegRecs", "src",
 		h.request.Peer, "data", hpSegReg.HPSegRecs)
 
-	snetPeer := h.request.Peer.(*snet.Addr)
+	snetPeer, ok := h.request.Peer.(*snet.Addr)
+	if !ok {
+		logger.Error("[hpSegRegHandler] Invalid peer address type, expected *snet.Addr", nil,
+			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		return infra.MetricsErrInvalid, nil
+	}
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
 		logger.Error("[hpSegRegHandler] Failed to initialize path", "err", err)
