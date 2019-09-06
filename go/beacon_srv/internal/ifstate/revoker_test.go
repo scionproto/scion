@@ -151,7 +151,7 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 			RawIsdas:     ia.IAInt(),
 			LinkType:     proto.LinkType_peer,
 			RawTimestamp: util.TimeToSecs(time.Now().Add(-500 * time.Millisecond)),
-			RawTTL:       uint32(path_mgmt.MinRevTTL / time.Second),
+			RawTTL:       uint32(path_mgmt.MinRevTTL.Seconds()),
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
 		intfs.Get(101).Revoke(srev)
