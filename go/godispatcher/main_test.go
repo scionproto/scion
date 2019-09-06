@@ -423,7 +423,8 @@ func TestDataplaneIntegration(t *testing.T) {
 	settings := InitTestSettings(t)
 
 	go func() {
-		err := RunDispatcher(false, settings.ApplicationSocket, settings.OverlayPort)
+		err := RunDispatcher(false, settings.ApplicationSocket, reliable.DefaultDispSocketFileMode,
+			settings.OverlayPort)
 		xtest.FailOnErr(t, err, "dispatcher error")
 	}()
 	time.Sleep(defaultWaitDuration)

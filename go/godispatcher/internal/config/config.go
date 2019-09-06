@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var _ config.Config = (*Config)(nil)
@@ -37,6 +38,8 @@ type Config struct {
 		ID string
 		// ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
 		ApplicationSocket string
+		// Socket file permissions when created; read from octal. (default 0770)
+		SocketFileMode util.FileMode
 		// OverlayPort is the native port opened by the dispatcher (default 30041)
 		OverlayPort int
 		// PerfData starts the pprof HTTP server on the specified address. If not set,
@@ -52,6 +55,9 @@ func (cfg *Config) InitDefaults() {
 	if cfg.Dispatcher.ApplicationSocket == "" {
 		cfg.Dispatcher.ApplicationSocket = reliable.DefaultDispPath
 	}
+	if cfg.Dispatcher.SocketFileMode == 0 {
+		cfg.Dispatcher.SocketFileMode = reliable.DefaultDispSocketFileMode
+	}
 	if cfg.Dispatcher.OverlayPort == 0 {
 		cfg.Dispatcher.OverlayPort = overlay.EndhostPort
 	}
@@ -60,6 +66,9 @@ func (cfg *Config) InitDefaults() {
 func (cfg *Config) Validate() error {
 	if cfg.Dispatcher.ApplicationSocket == "" {
 		return common.NewBasicError("ApplicationSocket must be set", nil)
+	}
+	if cfg.Dispatcher.SocketFileMode == 0 {
+		return common.NewBasicError("SocketFileMode must be set", nil)
 	}
 	if cfg.Dispatcher.OverlayPort == 0 {
 		return common.NewBasicError("OverlayPort must be set", nil)

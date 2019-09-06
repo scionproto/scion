@@ -16,6 +16,7 @@ package network
 
 import (
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -38,6 +39,7 @@ type Dispatcher struct {
 	RoutingTable      *IATable
 	OverlaySocket     string
 	ApplicationSocket string
+	SocketFileMode    os.FileMode
 }
 
 func (d *Dispatcher) ListenAndServe() error {
@@ -62,6 +64,9 @@ func (d *Dispatcher) ListenAndServe() error {
 		return err
 	}
 	defer appServerConn.Close()
+	if err := os.Chmod(d.ApplicationSocket, d.SocketFileMode); err != nil {
+		return common.NewBasicError("chmod failed", err, "socket file", d.ApplicationSocket)
+	}
 
 	errChan := make(chan error)
 	go func() {
