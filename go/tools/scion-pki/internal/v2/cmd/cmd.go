@@ -19,7 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/keys"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/tmpl"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/trc"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/trcs"
 )
 
 var Cmd = &cobra.Command{
@@ -30,5 +30,5 @@ var Cmd = &cobra.Command{
 func init() {
 	Cmd.AddCommand(tmpl.Cmd)
 	Cmd.AddCommand(keys.Cmd)
-	Cmd.AddCommand(trc.Cmd)
+	Cmd.AddCommand(trcs.Cmd)
 }

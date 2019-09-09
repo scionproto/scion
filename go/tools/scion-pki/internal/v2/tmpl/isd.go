@@ -19,22 +19,26 @@ import (
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
-func runGenIsdTmpl(args []string) {
-	asMap, err := pkicmn.ProcessSelector(args[0])
+func runGenISDTmpl(selector string) error {
+	asMap, err := pkicmn.ProcessSelector(selector)
 	if err != nil {
-		pkicmn.ErrorAndExit("Error: %s\n", err)
+		return err
 	}
 	pkicmn.QuietPrint("Generating trc config templates.\n")
 	for isd := range asMap {
-		genIsdTmpl(isd)
+		if err := genISDTmpl(isd); err != nil {
+			return common.NewBasicError("error generating isd.ini template", err, "isd", isd)
+		}
 	}
+	return nil
 }
 
-func genIsdTmpl(isd addr.ISD) error {
+func genISDTmpl(isd addr.ISD) error {
 	dir := pkicmn.GetIsdPath(pkicmn.RootDir, isd)
 	pkicmn.QuietPrint("Generating configuration template for ISD%d\n", isd)
 	i := conf.NewTemplateISDCfg()

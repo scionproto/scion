@@ -30,20 +30,20 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
-func runGenKey(args []string) {
-	asMap, err := pkicmn.ProcessSelector(args[0])
+func runGenKey(selector string) error {
+	asMap, err := pkicmn.ProcessSelector(selector)
 	if err != nil {
-		pkicmn.ErrorAndExit("Error: %s\n", err)
+		return err
 	}
 	for isd, ases := range asMap {
 		isdCfg, err := conf.LoadISDCfg(pkicmn.GetIsdPath(pkicmn.RootDir, isd))
 		if err != nil {
-			pkicmn.ErrorAndExit("Error reading isd.ini: %s\n", err)
+			return common.NewBasicError("unable to read isd.ini", err, "isd", isd)
 		}
 		for _, ia := range ases {
 			asCfg, err := conf.LoadASCfg(pkicmn.GetAsPath(pkicmn.RootDir, ia))
 			if err != nil {
-				pkicmn.ErrorAndExit("Error reading as.ini for %s: %s", ia, err)
+				return common.NewBasicError("unable to read as.ini", err, "ia", ia)
 			}
 			as := as{
 				cfg:     asCfg,
@@ -53,11 +53,11 @@ func runGenKey(args []string) {
 			}
 			pkicmn.QuietPrint("Generating keys for %s\n", ia)
 			if err = as.gen(); err != nil {
-				pkicmn.ErrorAndExit("Error generating keys: %s\n", err)
+				return common.NewBasicError("unable to generate keys", err, "ia", ia)
 			}
 		}
 	}
-	os.Exit(0)
+	return nil
 }
 
 type as struct {
@@ -90,7 +90,7 @@ func (a *as) gen() error {
 		})
 	}
 	if err := os.MkdirAll(a.outDir, 0700); err != nil {
-		return nil
+		return err
 	}
 	for file, keyType := range keys {
 		if err := a.genKey(file, keyType); err != nil {
@@ -103,7 +103,7 @@ func (a *as) gen() error {
 func (a *as) genKey(fname, keyType string) error {
 	privKey, err := genKey(keyType)
 	if err != nil {
-		return common.NewBasicError("Error generating keys", err, "key", fname)
+		return common.NewBasicError("error generating key", err, "key", fname)
 	}
 	// Skip keys that should not be generated.
 	if privKey == nil {
@@ -113,7 +113,7 @@ func (a *as) genKey(fname, keyType string) error {
 	privKeyPath := filepath.Join(a.outDir, fname)
 	privKeyEnc := base64.StdEncoding.EncodeToString(privKey)
 	if err = pkicmn.WriteToFile([]byte(privKeyEnc), privKeyPath, 0600); err != nil {
-		return common.NewBasicError("Cannot write key file", err, "key", fname)
+		return common.NewBasicError("cannot write key file", err, "key", fname)
 	}
 	return nil
 }
@@ -143,7 +143,7 @@ func genMasterKey() ([]byte, error) {
 		return nil, err
 	}
 	if n != 16 {
-		return nil, common.NewBasicError("Not enough random bytes", nil)
+		return nil, common.NewBasicError("not enough random bytes", nil)
 	}
 	return key, nil
 }

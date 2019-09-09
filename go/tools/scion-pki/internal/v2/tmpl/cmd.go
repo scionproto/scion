@@ -16,6 +16,8 @@ package tmpl
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 var Cmd = &cobra.Command{
@@ -31,7 +33,11 @@ var topo = &cobra.Command{
 	Short: "Generate isd.ini and as.ini templates for the provided topo",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runGenTopoTmpl(args)
+		if err := runGenTopoTmpl(args[0]); err != nil {
+			return common.NewBasicError("unable to generate templates from topo", err,
+				"file", args[0])
+		}
+		return nil
 	},
 }
 
@@ -45,9 +51,13 @@ Selector:
 	X
 		A specific ISD X.
 `,
-	Args: cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		runGenIsdTmpl(args)
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runGenISDTmpl(args[0]); err != nil {
+			return common.NewBasicError("unable to generate ISD templates", err,
+				"selector", args[0])
+		}
+		return nil
 	},
 }
 
@@ -63,9 +73,12 @@ Selector:
 	X-Y
 		A specific AS X-Y, e.g. AS 1-ff00:0:300
 `,
-	Args: cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		runGenAsTmpl(args)
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runGenASTmpl(args[0]); err != nil {
+			return common.NewBasicError("unable to generate AS templates", err, "selector", args[0])
+		}
+		return nil
 	},
 }
 

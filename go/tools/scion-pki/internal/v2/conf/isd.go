@@ -58,8 +58,7 @@ func NewTemplateISDCfg() *ISDCfg {
 
 // LoadISDCfg loads the ISD configuration from a directory.
 func LoadISDCfg(dir string) (*ISDCfg, error) {
-	cname := filepath.Join(dir, ISDCfgFileName)
-	cfg, err := ini.Load(cname)
+	cfg, err := ini.Load(ISDCfgPath(dir))
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +73,11 @@ func LoadISDCfg(dir string) (*ISDCfg, error) {
 		return nil, err
 	}
 	return i, nil
+}
+
+// ISDCfgPath returns the path to the ISD config file given a directory.
+func ISDCfgPath(dir string) string {
+	return filepath.Join(dir, ISDCfgFileName)
 }
 
 // Write writes the ISD config to the provided path.

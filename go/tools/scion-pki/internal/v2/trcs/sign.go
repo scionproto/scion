@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trc
+package trcs
 
 import (
 	"encoding/json"
@@ -27,21 +27,21 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
-func runSign(args []string) {
-	_, selector, err := pkicmn.ParseSelector(args[0])
+func runSign(selector string) error {
+	_, asSelector, err := pkicmn.ParseSelector(selector)
 	if err != nil {
-		pkicmn.ErrorAndExit("error: %s\n", err)
+		return err
 	}
-	asMap, err := pkicmn.ProcessSelector(args[0])
+	asMap, err := pkicmn.ProcessSelector(selector)
 	if err != nil {
-		pkicmn.ErrorAndExit("error: %s\n", err)
+		return err
 	}
 	for isd, ases := range asMap {
-		if err = genAndWriteSignatures(isd, ases, selector); err != nil {
-			pkicmn.ErrorAndExit("error signing TRC for ISD %d: %s\n", isd, err)
+		if err = genAndWriteSignatures(isd, ases, asSelector); err != nil {
+			return common.NewBasicError("unable to sign TRC", err, "isd", isd)
 		}
 	}
-	os.Exit(0)
+	return nil
 }
 
 func genAndWriteSignatures(isd addr.ISD, ases []addr.IA, selector string) error {
