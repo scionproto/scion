@@ -17,8 +17,6 @@ package config
 
 import (
 	"io"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -103,7 +101,7 @@ type SDConfig struct {
 	// unixgram server on the default socket is started.
 	Unix string
 	// Socket files (both Reliable and Unix) permissions when created; read from octal (e.g. 0755).
-	SocketFileMode FileMode
+	SocketFileMode util.FileMode
 	// If set to True, the socket is removed before being created
 	DeleteSocket bool
 	// Public is the local address to listen on for SCION messages (if Bind is
@@ -170,12 +168,4 @@ func (cfg *SDConfig) CreateSocketDirs() error {
 		return common.NewBasicError("Cannot create unix socket dir", err)
 	}
 	return nil
-}
-
-type FileMode os.FileMode
-
-func (f *FileMode) UnmarshalText(text []byte) error {
-	perm, err := strconv.ParseUint(string(text), 8, 32)
-	*f = FileMode(perm)
-	return err
 }

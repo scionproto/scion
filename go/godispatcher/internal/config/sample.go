@@ -23,6 +23,9 @@ ID = "%s"
 # ApplicationSocket is the local API socket. (default /run/shm/dispatcher/default.sock)
 ApplicationSocket = "/run/shm/dispatcher/default.sock"
 
+# File permissions of the ApplicationSocket socket file, in octal. (default "0770")
+SocketFileMode = "0770"
+
 # OverlayPort is the native port opened by the dispatcher. (default 30041)
 OverlayPort = 30041
 

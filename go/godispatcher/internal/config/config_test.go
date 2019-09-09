@@ -52,6 +52,8 @@ func CheckTestConfig(cfg *Config, id string) {
 	SoMsg("ID", cfg.Dispatcher.ID, ShouldEqual, id)
 	SoMsg("ApplicationSocket", cfg.Dispatcher.ApplicationSocket, ShouldEqual,
 		reliable.DefaultDispPath)
+	SoMsg("SocketFileMode", cfg.Dispatcher.SocketFileMode, ShouldEqual,
+		reliable.DefaultDispSocketFileMode)
 	SoMsg("OverlayPort", cfg.Dispatcher.OverlayPort, ShouldEqual, overlay.EndhostPort)
 	SoMsg("PerfData", cfg.Dispatcher.PerfData, ShouldBeEmpty)
 	SoMsg("DeleteSocket", cfg.Dispatcher.DeleteSocket, ShouldBeFalse)

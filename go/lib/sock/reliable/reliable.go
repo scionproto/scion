@@ -80,6 +80,8 @@ const (
 	// DefaultDispPath contains the system default for a dispatcher socket.
 	DefaultDispPath = "/run/shm/dispatcher/default.sock"
 	defBufSize      = 1 << 18
+	// DefaultDispSocketFileMode allows read/write to the user and group only.
+	DefaultDispSocketFileMode = 0770
 )
 
 // DispatcherService controls how SCION applications open sockets in the SCION world.
