@@ -80,10 +80,10 @@ func main() {
 	}
 
 	fmt.Println("Available paths to", dstIA)
-	var pathStatuses map[string]pathprobe.PathStatus
+	var pathStatuses map[string]pathprobe.Status
 	if *status {
 		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
-		pathStatuses, err = pathprobe.PathProber{
+		pathStatuses, err = pathprobe.Prober{
 			Local: local,
 			SrcIA: srcIA,
 			DstIA: dstIA,
@@ -100,7 +100,7 @@ func main() {
 				time.Until(path.Path.Expiry()).Truncate(time.Second))
 		}
 		if *status {
-			fmt.Printf(" Status: %s", pathStatuses[string(path.Path.FwdPath)])
+			fmt.Printf(" Status: %s", pathStatuses[pathprobe.PathKey(path)])
 		}
 		fmt.Printf("\n")
 	}

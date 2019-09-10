@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"golang.org/x/xerrors"
 
@@ -32,44 +33,58 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
+// StatusName defines the different states a path can be in.
+type StatusName string
+
 const (
-	statusUnknown = "Unknown"
-	statusTimeout = "Timeout"
-	statusAlive   = "Alive"
-	statusSCMP    = "SCMP"
+	// StatusUnknown indicates that it is not clear what state the path is in.
+	StatusUnknown StatusName = "Unknown"
+	// StatusTimeout indicates that a reply did come back in time for the path.
+	StatusTimeout StatusName = "Timeout"
+	// StatusAlive indicates that the expected reply did come back in time.
+	StatusAlive StatusName = "Alive"
+	// StatusSCMP indicates that an unexpected SCMP packet came in the reply.
+	StatusSCMP StatusName = "SCMP"
 )
 
-// PathStatus indicates the state a path is in.
-type PathStatus struct {
-	status         string
-	additionalInfo string
+// Status indicates the state a path is in.
+type Status struct {
+	Status         StatusName
+	AdditionalInfo string
 }
 
 // Predefined path status
 var (
-	Unknown = PathStatus{status: statusUnknown}
-	Timeout = PathStatus{status: statusTimeout}
-	Alive   = PathStatus{status: statusAlive}
+	unknown = Status{Status: StatusUnknown}
+	timeout = Status{Status: StatusTimeout}
+	alive   = Status{Status: StatusAlive}
 )
 
-func (s PathStatus) String() string {
-	if s.additionalInfo == "" {
-		return s.status
+func (s Status) String() string {
+	if s.AdditionalInfo == "" {
+		return string(s.Status)
 	}
-	return fmt.Sprintf("%s(%s)", s.status, s.additionalInfo)
+	return fmt.Sprintf("%s(%s)", s.Status, s.AdditionalInfo)
 }
 
-// PathProber can be used to get the status of a path.
-type PathProber struct {
-	SrcIA addr.IA
-	DstIA addr.IA
-	Local snet.Addr
+// PathKey is the mapping of a path reply entry to a key that is returned in
+// GetStatuses.
+func PathKey(path sciond.PathReplyEntry) string {
+	return string(path.Path.FwdPath)
+}
+
+// Prober can be used to get the status of a path.
+type Prober struct {
+	SrcIA    addr.IA
+	DstIA    addr.IA
+	Local    snet.Addr
+	DispPath string
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
 // returned map is keyed with path.Path.FwdPath.
-func (p PathProber) GetStatuses(ctx context.Context,
-	paths []sciond.PathReplyEntry) (map[string]PathStatus, error) {
+func (p Prober) GetStatuses(ctx context.Context,
+	paths []sciond.PathReplyEntry) (map[string]Status, error) {
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -79,41 +94,43 @@ func (p PathProber) GetStatuses(ctx context.Context,
 	// with invalid address via the path. The border router at the destination
 	// is going to reply with SCMP error. Receiving the error means that
 	// the path is alive.
-	pathStatuses := make(map[string]PathStatus, len(paths))
-	scmpH := scmpHandler{mtx: &sync.Mutex{}, statuses: pathStatuses}
+	pathStatuses := make(map[string]Status, len(paths))
+	scmpH := &scmpHandler{statuses: pathStatuses}
 	network := snet.NewCustomNetworkWithPR(p.Local.IA,
 		&snet.DefaultPacketDispatcherService{
-			Dispatcher:  reliable.NewDispatcherService(""),
+			Dispatcher:  reliable.NewDispatcherService(p.DispPath),
 			SCMPHandler: scmpH,
 		},
 		nil,
 	)
-	if err := snet.InitWithNetwork(network); err != nil {
-		return nil, common.NewBasicError("failed to initialize SNET", err)
-	}
-	snetConn, err := snet.ListenSCION("udp4", &p.Local)
+	snetConn, err := network.ListenSCION("udp4", &p.Local, deadline.Sub(time.Now()))
 	if err != nil {
 		return nil, common.NewBasicError("listening failed", err)
 	}
-	scionConn := snetConn.(*snet.SCIONConn)
-	err = scionConn.SetReadDeadline(deadline)
-	if err != nil {
-		return nil, common.NewBasicError("failed to set deadline", err)
-	}
+	defer snetConn.Close()
+	var sendErrors common.MultiError
 	for _, path := range paths {
-		scmpH.setStatus(string(path.Path.FwdPath), Timeout)
-		p.sendTestPacket(scionConn, path)
-	}
-	for i := len(scmpH.statuses); i > 0; i-- {
-		err := p.receiveTestReply(scionConn)
-		if err != nil {
-			return nil, err
+		scmpH.setStatus(PathKey(path), timeout)
+		if err := p.send(snetConn, path); err != nil {
+			sendErrors = append(sendErrors, err)
 		}
+	}
+	if err := sendErrors.ToError(); err != nil {
+		return nil, err
+	}
+	var receiveErrors common.MultiError
+	for i := len(scmpH.statuses); i > 0; i-- {
+		if err := p.receive(snetConn); err != nil {
+			receiveErrors = append(receiveErrors, err)
+		}
+	}
+	if err := receiveErrors.ToError(); err != nil {
+		return nil, err
 	}
 	return scmpH.statuses, nil
 }
 
-func (p PathProber) sendTestPacket(scionConn *snet.SCIONConn, path sciond.PathReplyEntry) error {
+func (p Prober) send(scionConn snet.Conn, path sciond.PathReplyEntry) error {
 	sPath := spath.New(path.Path.FwdPath)
 	if err := sPath.InitOffsets(); err != nil {
 		return common.NewBasicError("unable to initialize path", err)
@@ -139,7 +156,7 @@ func (p PathProber) sendTestPacket(scionConn *snet.SCIONConn, path sciond.PathRe
 	return nil
 }
 
-func (p PathProber) receiveTestReply(scionConn *snet.SCIONConn) error {
+func (p Prober) receive(scionConn snet.Conn) error {
 	b := make([]byte, 1500, 1500)
 	_, _, err := scionConn.ReadFromSCION(b)
 	if err == nil {
@@ -160,11 +177,11 @@ var errBadHost = errors.New("scmp: bad host")
 var errSCMP = errors.New("scmp: other")
 
 type scmpHandler struct {
-	mtx      *sync.Mutex
-	statuses map[string]PathStatus
+	mtx      sync.Mutex
+	statuses map[string]Status
 }
 
-func (h scmpHandler) Handle(pkt *snet.SCIONPacket) error {
+func (h *scmpHandler) Handle(pkt *snet.SCIONPacket) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if ok {
 		path, err := h.path(pkt)
@@ -172,16 +189,16 @@ func (h scmpHandler) Handle(pkt *snet.SCIONPacket) error {
 			return err
 		}
 		if hdr.Class == scmp.C_Routing && hdr.Type == scmp.T_R_BadHost {
-			h.setStatus(path, Alive)
+			h.setStatus(path, alive)
 			return errBadHost
 		}
-		h.setStatus(path, PathStatus{status: statusSCMP, additionalInfo: hdr.String()})
+		h.setStatus(path, Status{Status: StatusSCMP, AdditionalInfo: hdr.String()})
 		return errSCMP
 	}
 	return nil
 }
 
-func (h scmpHandler) path(pkt *snet.SCIONPacket) (string, error) {
+func (h *scmpHandler) path(pkt *snet.SCIONPacket) (string, error) {
 	path := pkt.Path.Copy()
 	if err := path.Reverse(); err != nil {
 		return "", common.NewBasicError("unable to reverse path on received packet", err)
@@ -189,7 +206,7 @@ func (h scmpHandler) path(pkt *snet.SCIONPacket) (string, error) {
 	return string(path.Raw), nil
 }
 
-func (h scmpHandler) setStatus(path string, status PathStatus) {
+func (h *scmpHandler) setStatus(path string, status Status) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 	h.statuses[path] = status

@@ -32,8 +32,10 @@ class Test(TestBase):
     Test that showpaths with the -p option works as intended.
     """
 
+
 class Base(CmdBase):
     pass
+
 
 @Test.subcommand('setup')
 class TestSetup(Base):
@@ -46,6 +48,7 @@ class TestSetup(Base):
             self.tools_dc('start', 'tester*')
             self.docker_status()
 
+
 @Test.subcommand("run")
 class TestRun(Base):
     showpaths = local['./bin/showpaths']
@@ -57,9 +60,9 @@ class TestRun(Base):
                                  '-dstIA', '1-ff00:0:110', '-p', '-local',
                                  '1-ff00:0:112,[127.0.0.1]')
         else:
-            local_disp = local['docker']('inspect',
-             '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', 
-             'scion_disp_1-ff00_0_112')
+            local_disp = local['docker']('inspect', '-f',
+                                         '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
+                                         'scion_disp_1-ff00_0_112')
             local_disp = local_disp.strip()
             out = self.tools_dc('exec_tester', '1-ff00_0_112', './bin/showpaths',
                                 '-srcIA', '1-ff00:0:112', '-sciondFromIA',
@@ -70,6 +73,7 @@ class TestRun(Base):
             logger.error("Alive not found in output, output=%s", out)
             return 1
         logger.info("successful")
+
 
 if __name__ == '__main__':
     init_log()
