@@ -48,7 +48,7 @@ class JaegerGenerator(object):
             'version': '2',
             'services': {
                 'jaeger': {
-                    'image': 'jaegertracing/all-in-one:1.12.0',
+                    'image': 'jaegertracing/all-in-one:1.14.0',
                     'container_name': name,
                     'user': '%s:%s' % (str(os.getuid()), str(os.getgid())),
                     'ports': [
@@ -57,13 +57,10 @@ class JaegerGenerator(object):
                     ],
                     'environment': [
                         'SPAN_STORAGE_TYPE=badger',
-                        'BADGER_EPHEMERAL=false',
-                        'BADGER_DIRECTORY_VALUE=/badger/data',
-                        'BADGER_DIRECTORY_KEY=/badger/key',
                         'BADGER_CONSISTENCY=true',
                     ],
                     'volumes': [
-                        '%s:/badger' % self.docker_jaeger_dir,
+                        '%s:/tmp' % self.docker_jaeger_dir,
                     ],
                 }
             }
