@@ -139,7 +139,7 @@ go_repository(
 
 go_repository(
     name = "com_github_antlr_antlr4",
-    commit = "d4d7e3d3bc3b65bb00579fe826834a9263fa45e6",
+    commit = "089550df8e458d6e731f37aad74c2a344b18eb46",
     importpath = "github.com/antlr/antlr4",  # runtime/Go/antlr
 )
 

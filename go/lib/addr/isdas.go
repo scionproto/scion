@@ -160,7 +160,7 @@ func (as AS) inRange() bool {
 
 func (as AS) MarshalText() ([]byte, error) {
 	if !as.inRange() {
-		return nil, common.NewBasicError("invalid AS", nil, "max", MaxAS, "actual", as)
+		return nil, common.NewBasicError("invalid AS", nil, "max", uint64(MaxAS), "actual", as)
 	}
 	return []byte(as.String()), nil
 }
