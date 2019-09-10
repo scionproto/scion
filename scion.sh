@@ -424,7 +424,7 @@ cmd_traces() {
         -e BADGER_CONSISTENCY=true \
         -v "$trace_dir:/badger" \
         -p "$port":16686 \
-        jaegertracing/all-in-one:1.12.0
+        jaegertracing/all-in-one:1.14.0
     sleep 3
     x-www-browser "http://localhost:$port"
 }
