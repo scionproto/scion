@@ -26,13 +26,13 @@ import (
 )
 
 const (
-	IABytes   = 8
-	ISDBits   = 16
-	ASBits    = 48
-	BGPASBits = 32
-	MaxISD    = (1 << ISDBits) - 1
-	MaxAS     = (1 << ASBits) - 1
-	MaxBGPAS  = (1 << BGPASBits) - 1
+	IABytes       = 8
+	ISDBits       = 16
+	ASBits        = 48
+	BGPASBits     = 32
+	MaxISD    ISD = (1 << ISDBits) - 1
+	MaxAS     AS  = (1 << ASBits) - 1
+	MaxBGPAS  AS  = (1 << BGPASBits) - 1
 
 	asPartBits = 16
 	asPartBase = 16
@@ -134,7 +134,7 @@ func (as AS) FileFmt() string {
 
 func (as AS) fmt(sep byte) string {
 	if !as.inRange() {
-		return fmt.Sprintf("%d [Illegal AS: larger than %d]", as, AS(MaxAS))
+		return fmt.Sprintf("%d [Illegal AS: larger than %d]", as, MaxAS)
 	}
 	// Format BGP ASes as decimal
 	if as <= MaxBGPAS {
@@ -160,7 +160,7 @@ func (as AS) inRange() bool {
 
 func (as AS) MarshalText() ([]byte, error) {
 	if !as.inRange() {
-		return nil, common.NewBasicError("invalid AS", nil, "max", uint64(MaxAS), "actual", as)
+		return nil, common.NewBasicError("invalid AS", nil, "max", MaxAS, "actual", as)
 	}
 	return []byte(as.String()), nil
 }
@@ -296,7 +296,7 @@ func (ia *IA) Set(s string) error {
 type IAInt uint64
 
 func (iaI IAInt) IA() IA {
-	return IA{I: ISD(iaI >> ASBits), A: AS(iaI & MaxAS)}
+	return IA{I: ISD(iaI >> ASBits), A: AS(iaI) & MaxAS}
 }
 
 func (iaI IAInt) String() string {
