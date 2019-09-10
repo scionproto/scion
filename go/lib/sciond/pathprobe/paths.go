@@ -75,7 +75,6 @@ func PathKey(path sciond.PathReplyEntry) string {
 
 // Prober can be used to get the status of a path.
 type Prober struct {
-	SrcIA    addr.IA
 	DstIA    addr.IA
 	Local    snet.Addr
 	DispPath string

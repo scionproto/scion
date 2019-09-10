@@ -85,7 +85,6 @@ func main() {
 		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 		pathStatuses, err = pathprobe.Prober{
 			Local: local,
-			SrcIA: srcIA,
 			DstIA: dstIA,
 		}.GetStatuses(ctx, reply.Entries)
 		cancelF()
