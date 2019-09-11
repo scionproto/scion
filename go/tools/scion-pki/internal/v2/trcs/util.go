@@ -15,11 +15,14 @@
 package trcs
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -43,6 +46,49 @@ func ProtoFile(isd addr.ISD, ver uint64) string {
 func PartsFile(isd addr.ISD, ver uint64, selector string) string {
 	return filepath.Join(PartsDir(isd, ver),
 		fmt.Sprintf(pkicmn.TRCSigPartFmt, isd, ver, selector))
+}
+
+// SignedFile returns the file path for the signed TRC.
+func SignedFile(isd addr.ISD, ver uint64) string {
+	return filepath.Join(Dir(isd), fmt.Sprintf(pkicmn.TrcNameFmt, isd, ver))
+}
+
+func validateAndWrite(t *trc.TRC, signed *trc.Signed) error {
+	raw, err := json.Marshal(signed)
+	if err != nil {
+		return common.NewBasicError("unable to marshal signed TRC", err)
+	}
+	if err := validateResult(raw); err != nil {
+		return common.NewBasicError("unable to validate signed TRC", err)
+	}
+	if err := os.MkdirAll(Dir(t.ISD), 0755); err != nil {
+		return common.NewBasicError("unable to create TRC dir", err)
+	}
+	return pkicmn.WriteToFile(raw, SignedFile(t.ISD, uint64(t.Version)), 0644)
+}
+
+func validateResult(raw []byte) error {
+	var signed trc.Signed
+	if err := json.Unmarshal(raw, &signed); err != nil {
+		return common.NewBasicError("invalid signed TRC", err)
+	}
+	t, err := signed.EncodedTRC.Decode()
+	if err != nil {
+		return common.NewBasicError("invalid TRC payload", err)
+	}
+	if err := t.ValidateInvariant(); err != nil {
+		return common.NewBasicError("violated TRC invariant", err)
+	}
+	// FIXME(roosd): Should also verify votes when supported.
+	v := trc.POPVerifier{
+		TRC:        t,
+		Encoded:    signed.EncodedTRC,
+		Signatures: signed.Signatures,
+	}
+	if err := v.Verify(); err != nil {
+		return common.NewBasicError("proof of possesions fail to verify", err)
+	}
+	return nil
 }
 
 func sortSignatures(signatures map[trc.Protected]trc.Signature) []trc.Signature {
