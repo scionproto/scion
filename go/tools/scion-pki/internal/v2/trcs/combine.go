@@ -64,8 +64,8 @@ func combineAndWrite(isd addr.ISD) error {
 	return nil
 }
 
-func loadUniqueSignatures(isd addr.ISD, ver scrypto.Version, encoded trc.Encoded) (
-	[]trc.Signature, error) {
+func loadUniqueSignatures(isd addr.ISD, ver scrypto.Version,
+	encoded trc.Encoded) ([]trc.Signature, error) {
 
 	fnames, err := filepath.Glob(PartsFile(isd, uint64(ver), "*"))
 	if err != nil {
