@@ -60,12 +60,13 @@ type SCIONConn struct {
 }
 
 func newSCIONConn(base *scionConnBase, pr pathmgr.Resolver, conn PacketConn) *SCIONConn {
-	return &SCIONConn{
-		conn:            conn,
-		scionConnBase:   *base,
-		scionConnWriter: *newScionConnWriter(base, pr, conn),
-		scionConnReader: *newScionConnReader(base, conn),
+	c := &SCIONConn{
+		conn:          conn,
+		scionConnBase: *base,
 	}
+	c.scionConnWriter = *newScionConnWriter(&c.scionConnBase, pr, conn)
+	c.scionConnReader = *newScionConnReader(&c.scionConnBase, conn)
+	return c
 }
 
 // DialSCION calls DialSCION with infinite timeout on the default networking
