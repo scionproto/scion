@@ -19,9 +19,10 @@ import logging
 
 from plumbum import local
 
+
 from acceptance.common.log import LogExec, init_log
 from acceptance.common.base import CmdBase, TestBase, set_name
-
+from lib.util import load_yaml_file
 
 set_name(__file__)
 logger = logging.getLogger(__name__)
@@ -60,10 +61,9 @@ class TestRun(Base):
                                  '-dstIA', '1-ff00:0:110', '-p', '-local',
                                  '1-ff00:0:112,[127.0.0.1]')
         else:
-            local_disp = local['docker']('inspect', '-f',
-                                         '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
-                                         'scion_disp_1-ff00_0_112')
-            local_disp = local_disp.strip()
+            dcFile = load_yaml_file('gen/scion-dc.yml')
+            networks = dcFile['services']['scion_disp_1-ff00_0_112']['networks']
+            local_disp = next(iter(networks.items()))[1]['ipv4_address']
             out = self.tools_dc('exec_tester', '1-ff00_0_112', './bin/showpaths',
                                 '-srcIA', '1-ff00:0:112', '-sciondFromIA',
                                 '-dstIA', '1-ff00:0:110', '-p', '-local',
