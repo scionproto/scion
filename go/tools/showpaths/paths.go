@@ -19,19 +19,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 var (
@@ -84,9 +80,17 @@ func main() {
 	}
 
 	fmt.Println("Available paths to", dstIA)
-	var pathStatuses map[string]string
+	var pathStatuses map[string]pathprobe.Status
 	if *status {
-		pathStatuses = getStatuses(reply.Entries)
+		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
+		pathStatuses, err = pathprobe.Prober{
+			Local: local,
+			DstIA: dstIA,
+		}.GetStatuses(ctx, reply.Entries)
+		cancelF()
+		if err != nil {
+			LogFatal("Failed to get status", "err", err)
+		}
 	}
 	for i, path := range reply.Entries {
 		fmt.Printf("[%2d] %s", i, path.Path.String())
@@ -95,7 +99,7 @@ func main() {
 				time.Until(path.Path.Expiry()).Truncate(time.Second))
 		}
 		if *status {
-			fmt.Printf(" Status: %s", pathStatuses[string(path.Path.FwdPath)])
+			fmt.Printf(" Status: %s", pathStatuses[pathprobe.PathKey(path)])
 		}
 		fmt.Printf("\n")
 	}
@@ -156,96 +160,4 @@ flags:
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
 	os.Exit(1)
-}
-
-func getStatuses(paths []sciond.PathReplyEntry) map[string]string {
-	// Check whether paths are alive. This is done by sending a packet
-	// with invalid address via the path. The border router at the destination
-	// is going to reply with SCMP error. Receiving the error means that
-	// the path is alive.
-	if err := snet.Init(srcIA, "", reliable.NewDispatcherService("")); err != nil {
-		LogFatal("Initializing SNET", "err", err)
-	}
-	snetConn, err := snet.ListenSCION("udp4", &local)
-	if err != nil {
-		LogFatal("Listening failed", "err", err)
-	}
-	scionConn := snetConn.(*snet.SCIONConn)
-	err = scionConn.SetReadDeadline(time.Now().Add(*timeout))
-	if err != nil {
-		LogFatal("Cannot set deadline", "err", err)
-	}
-	pathStatuses := make(map[string]string)
-	for _, path := range paths {
-		sendTestPacket(scionConn, path)
-		pathStatuses[string(path.Path.FwdPath)] = "Timeout"
-	}
-	for i := len(pathStatuses); i > 0; i-- {
-		path, status := receiveTestReply(scionConn)
-		if path == nil {
-			break
-		}
-		if pathStatuses[*path] != "Timeout" {
-			// Two replies received for the same path.
-			pathStatuses[*path] = "Unknown"
-			continue
-		}
-		pathStatuses[*path] = status
-	}
-	return pathStatuses
-}
-
-func sendTestPacket(scionConn *snet.SCIONConn, path sciond.PathReplyEntry) {
-	sPath := spath.New(path.Path.FwdPath)
-	if err := sPath.InitOffsets(); err != nil {
-		LogFatal("Unable to initialize path", "err", err)
-	}
-	nextHop, err := path.HostInfo.Overlay()
-	if err != nil {
-		LogFatal("Cannot get overlay info", "err", err)
-	}
-	addr := &snet.Addr{
-		IA: dstIA,
-		Host: &addr.AppAddr{
-			L3: addr.HostSVCFromString("NONE"),
-			L4: addr.NewL4UDPInfo(0),
-		},
-		NextHop: nextHop,
-		Path:    sPath,
-	}
-	log.Debug("Sending test packet.", "path", path.Path.String())
-	_, err = scionConn.WriteTo([]byte{}, addr)
-	if err != nil {
-		LogFatal("Cannot send packet", "err", err)
-	}
-}
-
-func receiveTestReply(scionConn *snet.SCIONConn) (*string, string) {
-	b := make([]byte, 1500, 1500)
-	_, addr, err := scionConn.ReadFromSCION(b)
-	if addr == nil {
-		if basicErr, ok := err.(common.BasicError); ok {
-			if netErr, ok := basicErr.Err.(net.Error); ok && netErr.Timeout() {
-				// Timeout expired before all replies were received.
-				return nil, ""
-			}
-		}
-		if err != nil {
-			LogFatal("Cannot read packet", "err", err)
-		}
-		LogFatal("Packet without an address received", "err", err)
-	}
-	path := string(addr.Path.Raw)
-	if err == nil {
-		// We've got an actual reply instead of SCMP error. This should not happen.
-		return &path, "Unknown"
-	}
-	if opErr, ok := err.(*snet.OpError); ok {
-		if opErr.SCMP().Class == scmp.C_Routing && opErr.SCMP().Type == scmp.T_R_BadHost {
-			// Expected outcome. The peer complains about SvcNone being an invalid address.
-			return &path, "Alive"
-		}
-	}
-	// All other errors are just reported alongside the path.
-	return &path, err.Error()
 }
