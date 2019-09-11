@@ -92,6 +92,18 @@ and a section 'TRC' with the following values:
 `,
 }
 
+var gen = &cobra.Command{
+	Use:   "gen",
+	Short: "Generate new TRCs",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runGenTrc(args[0]); err != nil {
+			return common.NewBasicError("unable to generate TRCs", err)
+		}
+		return nil
+	},
+}
+
 var proto = &cobra.Command{
 	Use:   "proto",
 	Short: "Generate new proto TRCs",
@@ -102,7 +114,7 @@ var proto = &cobra.Command{
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := runProto(args[0]); err != nil {
-			return common.NewBasicError("unable to generate prototype TRC", err)
+			return common.NewBasicError("unable to generate prototype TRCs", err)
 		}
 		return nil
 	},
@@ -117,7 +129,22 @@ var sign = &cobra.Command{
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := runSign(args[0]); err != nil {
-			return common.NewBasicError("unable to sign TRC", err)
+			return common.NewBasicError("unable to sign TRCs", err)
+		}
+		return nil
+	},
+}
+
+var combine = &cobra.Command{
+	Use:   "combine",
+	Short: "Combine the proto TRCs with their signatures",
+	Long: `
+	'combine' generates a new signed TRC from the prototype TRC and the signatures.
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runCombine(args[0]); err != nil {
+			return common.NewBasicError("unable to combine TRCs", err)
 		}
 		return nil
 	},
@@ -130,13 +157,18 @@ var human = &cobra.Command{
 	'human' parses the provided TRCs and displays them in a human readable format.
 `,
 	Args: cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		runHuman(args)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runHuman(args); err != nil {
+			return common.NewBasicError("unable to display human TRCs", err)
+		}
+		return nil
 	},
 }
 
 func init() {
+	Cmd.AddCommand(gen)
 	Cmd.AddCommand(proto)
 	Cmd.AddCommand(sign)
+	Cmd.AddCommand(combine)
 	Cmd.AddCommand(human)
 }
