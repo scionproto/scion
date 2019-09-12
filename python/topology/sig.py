@@ -1,4 +1,5 @@
 # Copyright 2018 ETH Zurich
+# Copyright 2019 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -71,18 +72,17 @@ class SIGGenerator(object):
     def _dispatcher_conf(self, topo_id, base):
         # Create dispatcher config
         entry = {
-            'image': 'scion_dispatcher',
+            'image': 'scion_dispatcher_go',
             'container_name': 'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
-                'ZLOG_CFG': '/share/conf/disp_sig.zlog.conf'
             },
             'networks': {},
             'volumes': [
                 *DOCKER_USR_VOL,
+                self._logs_vol(),
                 self._disp_vol(topo_id),
-                '%s:/share/conf:rw' % os.path.join(base, 'dispatcher'),
-                self._logs_vol()
+                '%s:/share/conf:rw' % os.path.join(base, 'disp_sig_%s' % topo_id.file_fmt()),
             ]
         }
 
