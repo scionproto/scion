@@ -36,6 +36,7 @@ Internet architecture.
 Necessary steps in order to run SCION:
 
 1. Make sure that you are using a clean and recently updated **Ubuntu 16.04**.
+   This environment assumes you're running as a non-root user with sudo access.
 
 1. Install [Bazel](https://bazel.build) version 0.26.1:
 
