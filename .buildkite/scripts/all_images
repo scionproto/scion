@@ -9,10 +9,9 @@ TAG=${TAG:-$BUILDKITE_BUILD_NUMBER}
 
 mkdir -p "artifacts.out"
 
-c_images="dispatcher" # for sig acceptance tests #2416
 go_images="border dispatcher_go sig beacon cert path sciond"
 tester_images="tester sig_acceptance"
-images="$c_images $go_images $tester_images"
+images="$go_images $tester_images"
 
 if [ "${1:?}" == "push" ]; then
     # Tag local apps and push to remote
