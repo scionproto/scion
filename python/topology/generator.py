@@ -33,7 +33,6 @@ from topology.config import (
     DEFAULT_PATH_POLICY_FILE,
     DEFAULT_PATH_SERVER,
     DEFAULT_SCIOND,
-    DEFAULT_DISPATCHER,
     DEFAULT_TOPOLOGY_FILE,
     GENERATE_BIND_ADDRESS,
 )
@@ -66,8 +65,6 @@ def add_arguments(parser):
                         help='SCIOND implementation to use ("go" or "py")')
     parser.add_argument('-ps', '--path-server', default=DEFAULT_PATH_SERVER,
                         help='Path Server implementation to use ("go or "py")')
-    parser.add_argument('-disp', '--dispatcher', default=DEFAULT_DISPATCHER,
-                        help='Dispatcher implementation to use ("go or "c")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
     parser.add_argument('-f', '--svcfrac', type=float, default=0.4,

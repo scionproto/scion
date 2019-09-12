@@ -75,7 +75,6 @@ DEFAULT_BEACON_SERVER = "go"
 DEFAULT_CERTIFICATE_SERVER = "go"
 DEFAULT_SCIOND = "go"
 DEFAULT_PATH_SERVER = "go"
-DEFAULT_DISPATCHER = "go"
 
 GENERATE_BIND_ADDRESS = False
 
@@ -189,8 +188,7 @@ class ConfigGenerator(object):
             go_gen.generate_sciond()
         if self.args.path_server == "go":
             go_gen.generate_ps()
-        if self.args.dispatcher == "go":
-            go_gen.generate_disp()
+        go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
         return GoGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
