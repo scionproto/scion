@@ -65,7 +65,7 @@ class Rfc3339Formatter(logging.Formatter):
         # Not using lib.util.iso_timestamp here, to avoid potential import
         # loops.
         # Also, using str on a datetime object inserts a ":" into the time zone,
-        # which, while legal, is inconsistent with logging in Go and Zlog. Fortunately,
+        # which, while legal, is inconsistent with logging in Go. Fortunately,
         # Python's strftime does the right thing.
         return datetime.fromtimestamp(
             record.created, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f%z")

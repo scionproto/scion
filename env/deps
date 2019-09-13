@@ -8,4 +8,3 @@ BASE=$(dirname "$0")
 "$BASE/debian/deps"
 "$BASE/pip3/deps"
 "$BASE/pip2/deps"
-"$BASE/zlog/deps"

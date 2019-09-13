@@ -20,13 +20,12 @@
 import configparser
 import os
 from io import StringIO
-from string import Template
 
 # SCION
 from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
-from lib.util import read_file, write_file
+from lib.util import write_file
 from topology.common import (
     ArgsTopoDicts,
     BR_CONFIG_NAME,
@@ -184,9 +183,6 @@ class SupervisorGenerator(object):
             'priority': 100,
             'command': self._mk_cmd(name, cmd_args),
         }
-        if elem_dir:
-            zlog = os.path.join(elem_dir, "%s.zlog.conf" % name)
-            entry['environment'] += ',ZLOG_CFG="%s"' % zlog
         if name == "dispatcher":
             entry['startsecs'] = 1
             entry['priority'] = 50

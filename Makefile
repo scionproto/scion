@@ -33,7 +33,7 @@ bazel: vendor gogen bazel_bin_clean
 # Delete everything in bin/ that isn't a hidden file,
 # as those aren't created by bazel.
 bazel_bin_clean:
-	find bin/ -mindepth 1 ! -iname ".*" -exec rm {} +
+	rm -f bin/*
 
 mocks: goenv
 	./tools/gomocks

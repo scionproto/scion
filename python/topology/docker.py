@@ -15,7 +15,6 @@
 # Stdlib
 import copy
 import os
-from string import Template
 # External packages
 import yaml
 # SCION
@@ -23,7 +22,6 @@ from lib.app.sciond import get_default_sciond_path
 from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
 from lib.util import (
-    read_file,
     write_file,
 )
 from topology.common import (
