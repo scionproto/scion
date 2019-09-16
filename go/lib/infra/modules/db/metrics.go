@@ -29,16 +29,16 @@ func ErrToMetricLabel(err error) string {
 	case common.IsTimeoutErr(err):
 		return prom.ErrTimeout
 	case xerrors.Is(err, ErrInvalidInputData):
-		return "input_data_invalid"
+		return "err_input_data_invalid"
 	case xerrors.Is(err, ErrDataInvalid):
-		return "db_data_invalid"
+		return "err_db_data_invalid"
 	case xerrors.Is(err, ErrReadFailed):
-		return "db_read"
+		return "err_db_read"
 	case xerrors.Is(err, ErrWriteFailed):
-		return "db_write"
+		return "err_db_write"
 	case xerrors.Is(err, ErrTx):
-		return "db_transaction"
+		return "err_db_transaction"
 	default:
-		return err.Error()
+		return prom.ErrNotClassified
 	}
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -161,6 +162,7 @@ func (v *BasicVerifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*c
 		return nil, common.NewBasicError("Unable to parse payload", err)
 	}
 	if v.ignoreSign(cpld, spld.Sign) {
+		// Do not increase metric because we skip verification.
 		return cpld, nil
 	}
 	if err := v.sanityChecks(spld.Sign, true); err != nil {
@@ -191,21 +193,26 @@ func (v *BasicVerifier) ignoreSign(p *ctrl.Pld, sign *proto.SignS) bool {
 }
 
 func (v *BasicVerifier) sanityChecks(sign *proto.SignS, isPldSignature bool) error {
+	l := metrics.VerificationLabels{Type: metrics.Signature, Result: metrics.ErrValidate}
 	if sign == nil {
+		metrics.Store.Verification(l).Inc()
 		return common.NewBasicError("SignS is unset", nil)
 	}
 	if len(sign.Signature) == 0 {
+		metrics.Store.Verification(l).Inc()
 		return common.NewBasicError("SignedPld is missing signature", nil, "type", sign.Type)
 	}
 	now := time.Now()
 	ts := sign.Time()
 	signatureAge := now.Sub(ts)
 	if timeInFuture := -signatureAge; timeInFuture > v.tsRange.MaxInFuture {
+		metrics.Store.Verification(l).Inc()
 		return common.NewBasicError("Invalid timestamp. Signature from future", nil,
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
 			"maxFuture", v.tsRange.MaxInFuture)
 	}
 	if isPldSignature && signatureAge > v.tsRange.MaxPldAge {
+		metrics.Store.Verification(l).Inc()
 		return common.NewBasicError("Invalid timestamp. Signature expired", nil,
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
 			"validity", v.tsRange.MaxPldAge)
@@ -217,13 +224,17 @@ func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
 	sign *proto.SignS) error {
 
 	var err error
+	ctx = metrics.CtxWith(ctx, metrics.SigVerification)
+	l := metrics.VerificationLabels{Type: metrics.Signature, Result: metrics.ErrValidate}
 	src := v.src
 	if src.IsUninitialized() {
 		if src, err = ctrl.NewSignSrcDefFromRaw(sign.Src); err != nil {
+			metrics.Store.Verification(l).Inc()
 			return err
 		}
 	}
 	if err := v.checkSrc(src); err != nil {
+		metrics.Store.Verification(l).Inc()
 		return err
 	}
 	opts := infra.ChainOpts{
@@ -231,13 +242,16 @@ func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
 	}
 	chain, err := v.store.GetChain(ctx, src.IA, scrypto.Version(src.ChainVer), opts)
 	if err != nil {
+		metrics.Store.Verification(l.WithResult(metrics.ErrNotFound)).Inc()
 		return err
 	}
 	err = scrypto.Verify(sign.SigInput(msg, false), sign.Signature, chain.Leaf.SubjectSignKey,
 		chain.Leaf.SignAlgorithm)
 	if err != nil {
+		metrics.Store.Verification(l.WithResult(metrics.ErrVerify)).Inc()
 		return common.NewBasicError("Verification failed", err)
 	}
+	metrics.Store.Verification(l.WithResult(metrics.Success)).Inc()
 	return nil
 }
 

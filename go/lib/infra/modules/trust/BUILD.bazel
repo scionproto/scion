@@ -20,6 +20,7 @@ go_library(
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/dedupe:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
+        "//go/lib/infra/modules/trust/internal/metrics:go_default_library",
         "//go/lib/infra/modules/trust/trustdb:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",

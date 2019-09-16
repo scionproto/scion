@@ -18,101 +18,30 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sync"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
-	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
 
-const (
-	promNamespace = "trustdb"
-
-	promDBName = "db"
-)
-
-type promOp string
-
-const (
-	promOpGetIssCert     promOp = "get_iss_cert"
-	promOpGetIssCertMV   promOp = "get_iss_cert_mv"
-	promOpGetAllIssCerts promOp = "get_all_iss_certs"
-	promOpGetChain       promOp = "get_chain"
-	promOpGetChainMV     promOp = "get_chain_mv"
-	promOpGetAllChains   promOp = "get_all_chains"
-	promOpGetTRC         promOp = "get_trc"
-	promOpGetTRCMV       promOp = "get_trc_mv"
-	promOpGetAllTRCs     promOp = "get_all_trcs"
-	promOpGetCustKey     promOp = "get_cust_key"
-	promOpGetAllCustKeys promOp = "get_all_cust_keys"
-
-	promOpInsertIssCert promOp = "insert_iss_cert"
-	promOpInsertChain   promOp = "insert_chain"
-	promOpInsertTRC     promOp = "insert_trc"
-	promOpInsertCustKey promOp = "insert_cust_key"
-
-	promOpBeginTx    promOp = "tx_begin"
-	promOpCommitTx   promOp = "tx_commit"
-	promOpRollbackTx promOp = "tx_rollback"
-)
-
-var (
-	queriesTotal *prometheus.CounterVec
-	resultsTotal *prometheus.CounterVec
-
-	initMetricsOnce sync.Once
-)
-
-func initMetrics() {
-	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 18 (len(all ops))
-		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
-			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbName) * 18 (len(all ops)) * Y (len(all results))
-		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
-			"Results of trustdb operations.",
-			[]string{promDBName, prom.LabelOperation, prom.LabelResult})
-	})
+type observer struct {
+	driver string
 }
 
-// WithMetrics wraps the given TrustDB into one that also exports metrics.
-func WithMetrics(dbName string, trustDB TrustDB) TrustDB {
-	initMetrics()
-	metricsCounters := newCounters(dbName)
-	rwDBWrapper := &metricsExecutor{
-		rwDB:    trustDB,
-		metrics: metricsCounters,
-	}
-	return &metricsTrustDB{
-		metricsExecutor: rwDBWrapper,
-		db:              trustDB,
-	}
-}
-
-type counters struct {
-	queriesTotal *prometheus.CounterVec
-	resultsTotal *prometheus.CounterVec
-}
-
-func newCounters(dbName string) *counters {
-	labels := prometheus.Labels{promDBName: dbName}
-	return &counters{
-		queriesTotal: queriesTotal.MustCurryWith(labels),
-		resultsTotal: resultsTotal.MustCurryWith(labels),
-	}
-}
-
-func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx context.Context) error) {
+func (o observer) Observe(ctx context.Context, op string, action func(ctx context.Context) error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("trustdb.%s", string(op)))
 	defer span.Finish()
-	c.queriesTotal.WithLabelValues(string(op)).Inc()
 	err := action(ctx)
-	c.resultsTotal.WithLabelValues(string(op), db.ErrToMetricLabel(err))
+	l := metrics.QueryLabels{
+		Driver:    o.driver,
+		Operation: op,
+		Result:    db.ErrToMetricLabel(err),
+	}
+	metrics.DB.Queries(l).Inc()
 }
 
 var _ (TrustDB) = (*metricsTrustDB)(nil)
@@ -123,12 +52,26 @@ type metricsTrustDB struct {
 	db TrustDB
 }
 
+// WithMetrics wraps the given TrustDB into one that also exports metrics.
+func WithMetrics(driver string, trustDB TrustDB) TrustDB {
+	rwDBWrapper := &metricsExecutor{
+		rwDB: trustDB,
+		metrics: observer{
+			driver: driver,
+		},
+	}
+	return &metricsTrustDB{
+		metricsExecutor: rwDBWrapper,
+		db:              trustDB,
+	}
+}
+
 func (db *metricsTrustDB) BeginTransaction(ctx context.Context,
 	opts *sql.TxOptions) (Transaction, error) {
 
 	var tx Transaction
 	var err error
-	db.metricsExecutor.metrics.Observe(ctx, promOpBeginTx, func(ctx context.Context) error {
+	db.metricsExecutor.metrics.Observe(ctx, metrics.BeginTx, func(ctx context.Context) error {
 		tx, err = db.db.BeginTransaction(ctx, opts)
 		return err
 	})
@@ -168,7 +111,7 @@ type metricsTransaction struct {
 
 func (tx *metricsTransaction) Commit() error {
 	var err error
-	tx.metrics.Observe(tx.ctx, promOpCommitTx, func(_ context.Context) error {
+	tx.metrics.Observe(tx.ctx, metrics.CommitTx, func(_ context.Context) error {
 		err = tx.tx.Commit()
 		return err
 	})
@@ -177,7 +120,7 @@ func (tx *metricsTransaction) Commit() error {
 
 func (tx *metricsTransaction) Rollback() error {
 	var err error
-	tx.metrics.Observe(tx.ctx, promOpRollbackTx, func(_ context.Context) error {
+	tx.metrics.Observe(tx.ctx, metrics.RollbackTx, func(_ context.Context) error {
 		err = tx.tx.Rollback()
 		return err
 	})
@@ -186,7 +129,7 @@ func (tx *metricsTransaction) Rollback() error {
 
 type metricsExecutor struct {
 	rwDB    ReadWrite
-	metrics *counters
+	metrics observer
 }
 
 // below here is very boilerplaty code that implements all DB ops and calls the Observe function.
@@ -196,7 +139,7 @@ func (db *metricsExecutor) InsertIssCert(ctx context.Context,
 
 	var cnt int64
 	var err error
-	db.metrics.Observe(ctx, promOpInsertIssCert, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.InsertIssCert, func(ctx context.Context) error {
 		cnt, err = db.rwDB.InsertIssCert(ctx, crt)
 		return err
 	})
@@ -207,7 +150,7 @@ func (db *metricsExecutor) InsertChain(ctx context.Context, chain *cert.Chain) (
 
 	var cnt int64
 	var err error
-	db.metrics.Observe(ctx, promOpInsertChain, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.InsertChain, func(ctx context.Context) error {
 		cnt, err = db.rwDB.InsertChain(ctx, chain)
 		return err
 	})
@@ -217,7 +160,7 @@ func (db *metricsExecutor) InsertChain(ctx context.Context, chain *cert.Chain) (
 func (db *metricsExecutor) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, error) {
 	var cnt int64
 	var err error
-	db.metrics.Observe(ctx, promOpInsertTRC, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.InsertTRC, func(ctx context.Context) error {
 		cnt, err = db.rwDB.InsertTRC(ctx, trcobj)
 		return err
 	})
@@ -228,7 +171,7 @@ func (db *metricsExecutor) InsertCustKey(ctx context.Context, key *CustKey,
 	oldVersion uint64) error {
 
 	var err error
-	db.metrics.Observe(ctx, promOpInsertCustKey, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.InsertCustKey, func(ctx context.Context) error {
 		err = db.rwDB.InsertCustKey(ctx, key, oldVersion)
 		return err
 	})
@@ -240,7 +183,7 @@ func (db *metricsExecutor) GetIssCertVersion(ctx context.Context, ia addr.IA,
 
 	var res *cert.Certificate
 	var err error
-	db.metrics.Observe(ctx, promOpGetIssCert, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetIssCert, func(ctx context.Context) error {
 		res, err = db.rwDB.GetIssCertVersion(ctx, ia, version)
 		return err
 	})
@@ -252,7 +195,7 @@ func (db *metricsExecutor) GetIssCertMaxVersion(ctx context.Context,
 
 	var res *cert.Certificate
 	var err error
-	db.metrics.Observe(ctx, promOpGetIssCertMV, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetIssCertMax, func(ctx context.Context) error {
 		res, err = db.rwDB.GetIssCertMaxVersion(ctx, ia)
 		return err
 	})
@@ -262,7 +205,7 @@ func (db *metricsExecutor) GetIssCertMaxVersion(ctx context.Context,
 func (db *metricsExecutor) GetAllIssCerts(ctx context.Context) (<-chan CertOrErr, error) {
 	var res <-chan CertOrErr
 	var err error
-	db.metrics.Observe(ctx, promOpGetAllIssCerts, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetAllIssCerts, func(ctx context.Context) error {
 		res, err = db.rwDB.GetAllIssCerts(ctx)
 		return err
 	})
@@ -274,7 +217,7 @@ func (db *metricsExecutor) GetChainVersion(ctx context.Context, ia addr.IA,
 
 	var res *cert.Chain
 	var err error
-	db.metrics.Observe(ctx, promOpGetChain, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetChain, func(ctx context.Context) error {
 		res, err = db.rwDB.GetChainVersion(ctx, ia, version)
 		return err
 	})
@@ -286,7 +229,7 @@ func (db *metricsExecutor) GetChainMaxVersion(ctx context.Context,
 
 	var res *cert.Chain
 	var err error
-	db.metrics.Observe(ctx, promOpGetChainMV, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetChainMax, func(ctx context.Context) error {
 		res, err = db.rwDB.GetChainMaxVersion(ctx, ia)
 		return err
 	})
@@ -296,7 +239,7 @@ func (db *metricsExecutor) GetChainMaxVersion(ctx context.Context,
 func (db *metricsExecutor) GetAllChains(ctx context.Context) (<-chan ChainOrErr, error) {
 	var res <-chan ChainOrErr
 	var err error
-	db.metrics.Observe(ctx, promOpGetAllChains, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetAllChains, func(ctx context.Context) error {
 		res, err = db.rwDB.GetAllChains(ctx)
 		return err
 	})
@@ -308,7 +251,7 @@ func (db *metricsExecutor) GetTRCVersion(ctx context.Context, isd addr.ISD,
 
 	var res *trc.TRC
 	var err error
-	db.metrics.Observe(ctx, promOpGetTRC, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetTRC, func(ctx context.Context) error {
 		res, err = db.rwDB.GetTRCVersion(ctx, isd, version)
 		return err
 	})
@@ -318,7 +261,7 @@ func (db *metricsExecutor) GetTRCVersion(ctx context.Context, isd addr.ISD,
 func (db *metricsExecutor) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
 	var res *trc.TRC
 	var err error
-	db.metrics.Observe(ctx, promOpGetTRCMV, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetTRCMax, func(ctx context.Context) error {
 		res, err = db.rwDB.GetTRCMaxVersion(ctx, isd)
 		return err
 	})
@@ -328,7 +271,7 @@ func (db *metricsExecutor) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (
 func (db *metricsExecutor) GetAllTRCs(ctx context.Context) (<-chan TrcOrErr, error) {
 	var res <-chan TrcOrErr
 	var err error
-	db.metrics.Observe(ctx, promOpGetAllTRCs, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetAllTRCs, func(ctx context.Context) error {
 		res, err = db.rwDB.GetAllTRCs(ctx)
 		return err
 	})
@@ -338,7 +281,7 @@ func (db *metricsExecutor) GetAllTRCs(ctx context.Context) (<-chan TrcOrErr, err
 func (db *metricsExecutor) GetCustKey(ctx context.Context, ia addr.IA) (*CustKey, error) {
 	var res *CustKey
 	var err error
-	db.metrics.Observe(ctx, promOpGetCustKey, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetCustKey, func(ctx context.Context) error {
 		res, err = db.rwDB.GetCustKey(ctx, ia)
 		return err
 	})
@@ -348,7 +291,7 @@ func (db *metricsExecutor) GetCustKey(ctx context.Context, ia addr.IA) (*CustKey
 func (db *metricsExecutor) GetAllCustKeys(ctx context.Context) (<-chan CustKeyOrErr, error) {
 	var res <-chan CustKeyOrErr
 	var err error
-	db.metrics.Observe(ctx, promOpGetAllCustKeys, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, metrics.GetAllCustKeys, func(ctx context.Context) error {
 		res, err = db.rwDB.GetAllCustKeys(ctx)
 		return err
 	})
