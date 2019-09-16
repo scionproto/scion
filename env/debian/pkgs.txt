@@ -1,8 +1,6 @@
 bridge-utils
 capnproto
 cgroup-bin
-checkinstall
-clang
 curl
 dnsutils
 file
@@ -12,7 +10,6 @@ gcc
 git
 jq
 libcapnp-dev
-libcurl4-openssl-dev
 libffi-dev
 libjs-jquery-hotkeys
 libjs-jquery-isonscreen
@@ -24,6 +21,7 @@ net-tools
 netcat-openbsd
 ntp
 openssh-client
+patch
 python-flake8
 python-minimal
 python-pip

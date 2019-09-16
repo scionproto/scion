@@ -55,10 +55,6 @@ RUN set -ex; \
 COPY env/pip2 env/pip2
 RUN env/pip2/deps && rm -r ~/.cache/pip
 
-# zlog packages
-COPY env/zlog env/zlog
-RUN eatmydata env/zlog/deps
-
 # Dependencies managed by Bazel.
 COPY WORKSPACE .
 COPY tools/fetch.sh tools/

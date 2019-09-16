@@ -20,13 +20,12 @@
 import configparser
 import os
 from io import StringIO
-from string import Template
 
 # SCION
 from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
-from lib.util import read_file, write_file
+from lib.util import write_file
 from topology.common import (
     ArgsTopoDicts,
     BR_CONFIG_NAME,
@@ -159,7 +158,6 @@ class SupervisorGenerator(object):
     def _write_elem_conf(self, elem, entry, elem_dir, topo_id=None):
         config = configparser.ConfigParser(interpolation=None)
         prog = self._common_entry(elem, entry, elem_dir)
-        self._write_zlog_cfg(os.path.basename(entry[0]), elem, elem_dir)
         if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
@@ -167,21 +165,11 @@ class SupervisorGenerator(object):
         config.write(text)
         write_file(os.path.join(elem_dir, SUPERVISOR_CONF), text.getvalue())
 
-    def _write_zlog_cfg(self, name, elem, elem_dir):
-        tmpl = Template(read_file("topology/zlog.tmpl"))
-        cfg = os.path.join(elem_dir, "%s.zlog.conf" % elem)
-        write_file(cfg, tmpl.substitute(name=name, elem=elem))
-
     def _write_dispatcher_conf(self):
         elem = "dispatcher"
         elem_dir = os.path.join(self.args.output_dir, elem)
-        if self.args.dispatcher == "c":
-            self._write_elem_conf(elem, ["bin/dispatcher"], elem_dir)
-        elif self.args.dispatcher == "go":
-            config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
-            self._write_elem_conf(elem, ["bin/godispatcher", "-config", config_file_path], elem_dir)
-        else:
-            raise ValueError("unsupported dispatcher implementation", self.args.dispatcher)
+        config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
+        self._write_elem_conf(elem, ["bin/godispatcher", "-config", config_file_path], elem_dir)
 
     def _common_entry(self, name, cmd_args, elem_dir=None):
         entry = {
@@ -195,9 +183,6 @@ class SupervisorGenerator(object):
             'priority': 100,
             'command': self._mk_cmd(name, cmd_args),
         }
-        if elem_dir:
-            zlog = os.path.join(elem_dir, "%s.zlog.conf" % name)
-            entry['environment'] += ',ZLOG_CFG="%s"' % zlog
         if name == "dispatcher":
             entry['startsecs'] = 1
             entry['priority'] = 50

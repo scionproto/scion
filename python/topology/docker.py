@@ -15,7 +15,6 @@
 # Stdlib
 import copy
 import os
-from string import Template
 # External packages
 import yaml
 # SCION
@@ -23,7 +22,6 @@ from lib.app.sciond import get_default_sciond_path
 from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
 from lib.util import (
-    read_file,
     write_file,
 )
 from topology.common import (
@@ -246,7 +244,7 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _dispatcher_conf(self, topo_id, topo, base):
-        image = 'dispatcher_go' if self.args.dispatcher == 'go' else 'dispatcher'
+        image = 'dispatcher_go'
         entry = {
             'image': docker_image(self.args, image),
             'environment': {
@@ -275,9 +273,6 @@ class DockerGenerator(object):
         conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_br_%s' % topo_id.file_fmt())
         entry['volumes'].append(conf)
         self.dc_conf['services']['scion_disp_br_%s' % topo_id.file_fmt()] = entry
-        # Dispatcher config
-        if not self.args.dispatcher == 'go':
-            self._generate_disp_cfg("disp_br_%s" % topo_id.file_fmt(), topo_id)
 
     def _infra_dispatcher(self, entry, topo_id, base):
         # Create dispatcher for Infra
@@ -289,9 +284,6 @@ class DockerGenerator(object):
         conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_%s' % topo_id.file_fmt())
         entry['volumes'].append(conf)
         self.dc_conf['services']['scion_disp_%s' % topo_id.file_fmt()] = entry
-        # Dispatcher config
-        if not self.args.dispatcher == 'go':
-            self._generate_disp_cfg("disp_%s" % topo_id.file_fmt(), topo_id)
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)
@@ -324,12 +316,6 @@ class DockerGenerator(object):
                 'conf'
             ]
         self.dc_conf['services'][name] = entry
-
-    def _generate_disp_cfg(self, elem, topo_id):
-        elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
-        cfg = "%s/dispatcher.zlog.conf" % elem_dir
-        tmpl = Template(read_file("topology/zlog.tmpl"))
-        write_file(cfg, tmpl.substitute(name="dispatcher", elem=elem))
 
     def _disp_vol(self, topo_id):
         return 'vol_%sdisp_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())

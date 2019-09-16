@@ -39,17 +39,13 @@ hashes/debug_base: base/Dockerfile.debug hashes/scion
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $< files/
 
 # App images
-APP_TARGETS = bazel dispatcher path_py beacon_py cert_py sciond_py
+APP_TARGETS = bazel path_py beacon_py cert_py sciond_py
 .PHONY: $(APP_TARGETS)
 apps: $(APP_TARGETS)
 
 bazel: ../_build/scion.stamp
 	./build-images.sh prod
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build hashes/sig app/Dockerfile.sig
-
-dispatcher: hashes/dispatcher
-hashes/dispatcher: app/Dockerfile.dispatcher hashes/app_base hashes/app_builder
-	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 path_py: hashes/path_py
 hashes/path_py: app/Dockerfile.path_py hashes/python_base
@@ -68,17 +64,13 @@ hashes/sciond_py: app/Dockerfile.sciond_py hashes/python_base
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 # Debug images
-DEBUG_TARGETS = bazel_debug dispatcher_debug path_py_debug beacon_py_debug cert_py_debug sciond_py_debug
+DEBUG_TARGETS = bazel_debug path_py_debug beacon_py_debug cert_py_debug sciond_py_debug
 .PHONY: $(DEBUG_TARGETS)
 debug: $(DEBUG_TARGETS)
 
 bazel_debug: ../_build/scion.stamp
 	./build-images.sh debug
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build hashes/sig_debug app/Dockerfile.sig
-
-dispatcher_debug: hashes/dispatcher_debug
-hashes/dispatcher_debug: debug/Dockerfile.dispatcher hashes/debug_base hashes/dispatcher
-	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 path_py_debug: hashes/path_py_debug
 hashes/path_py_debug: debug/Dockerfile.path_py hashes/debug_base hashes/path_py

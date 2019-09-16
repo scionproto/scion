@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Read and interleave Python and Go log files as produced by log15/fmt15, zlog
+// Read and interleave Python and Go log files as produced by log15/fmt15,
 // and Python logging.
 // See the documentation for go/lib/log/logparse for the format of the log lines.
 //

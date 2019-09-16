@@ -16,13 +16,12 @@
 # Stdlib
 import json
 import os
-from string import Template
 # External packages
 import toml
 # SCION
 from lib.app.sciond import get_default_sciond_path
 from lib.packet.scion_addr import ISD_AS
-from lib.util import read_file, write_file
+from lib.util import write_file
 from topology.common import (
     ArgsBase,
     DOCKER_USR_VOL,
@@ -91,10 +90,6 @@ class SIGGenerator(object):
         self.dc_conf['services']['scion_disp_sig_%s' % topo_id.file_fmt()] = entry
         vol_name = 'vol_scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt())
         self.dc_conf['volumes'][vol_name] = None
-        # Write log config file
-        cfg = "%s/dispatcher/%s.zlog.conf" % (topo_id.base_dir(self.args.output_dir), "disp_sig")
-        tmpl = Template(read_file("topology/zlog.tmpl"))
-        write_file(cfg, tmpl.substitute(name="dispatcher", elem="disp_sig_%s" % topo_id.file_fmt()))
 
     def _sig_dc_conf(self, topo_id, base):
         self.dc_conf['services']['scion_sig_%s' % topo_id.file_fmt()] = {
