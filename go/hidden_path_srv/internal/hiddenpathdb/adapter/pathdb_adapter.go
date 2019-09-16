@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems AG
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,7 +64,11 @@ func (rw *readWriter) Get(ctx context.Context, params *hiddenpathdb.Params) (que
 func (rw *readWriter) Insert(ctx context.Context, seg *seg.Meta,
 	ids hiddenpath.GroupIdSet) (int, error) {
 
-	return rw.backend.InsertWithHPCfgIDs(ctx, seg, convertIds(ids))
+	stats, err := rw.backend.InsertWithHPCfgIDs(ctx, seg, convertIds(ids))
+	if err != nil {
+		return 0, err
+	}
+	return stats.Inserted + stats.Updated, nil
 }
 
 // Delete deletes all path segments that match the given query,
