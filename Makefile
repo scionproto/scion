@@ -6,7 +6,7 @@ GAZELLE_MODE?=fix
 
 all: tags bazel
 
-clean: clean_bin
+clean:
 	bazel clean
 	rm -f bin/* tags
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
