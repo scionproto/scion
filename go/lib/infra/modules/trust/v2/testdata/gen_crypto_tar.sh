@@ -1,7 +1,9 @@
 #! /bin/bash
 
 # usage: gen_crypto_tar.sh <scion-pki> <output-file>
-
+# 
+# CRYPTO_PATH="./go/lib/infra/modules/trust/v2/testdata"
+# $CRYPTO_PATH/gen_crypto_tar.sh ./bin/scion-pki $CRYPTO_PATH/crypto.tar
 set -e
 
 TMP=`mktemp -d`
