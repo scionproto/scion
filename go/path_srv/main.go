@@ -98,7 +98,7 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
-	trustDB = trustdb.WithMetrics("std", trustDB)
+	trustDB = trustdb.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
 	defer trustDB.Close()
 	topo := itopo.Get()
 	trustConf := trust.Config{

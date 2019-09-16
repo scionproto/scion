@@ -30,15 +30,15 @@ func ErrToMetricLabel(err error) string {
 		if msg := common.GetErrorMsg(err); msg != "" {
 			switch msg {
 			case InputDataErrMsg:
-				return "input_data_invalid"
+				return "err_input_data_invalid"
 			case DataErrMsg:
-				return "db_data_invalid"
+				return "err_db_data_invalid"
 			case ReadErrMsg:
-				return "db_read"
+				return "err_db_read"
 			case WriteErrMsg:
-				return "db_write"
+				return "err_db_write"
 			case TxErrMsg:
-				return "db_transaction"
+				return "err_db_transaction"
 			default:
 				return msg
 			}

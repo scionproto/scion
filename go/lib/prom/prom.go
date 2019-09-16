@@ -38,22 +38,26 @@ const (
 const (
 	// Success is no error.
 	Success = "success"
-	// ErrNotClassified is an error that is not further classified.
-	ErrNotClassified = "err_not_classified"
-	// ErrTimeout is a timeout error.
-	ErrTimeout = "err_timeout"
-	// ErrInternal is an internal error.
-	ErrInternal = "err_internal"
-	// ErrInvalidReq is an invalid request.
-	ErrInvalidReq = "err_invalid_request"
-	// ErrProcess is an error during processing e.g. parsing failed.
-	ErrProcess = "err_process"
-	// ErrParse failed to parse request.
-	ErrParse = "err_parse"
 	// ErrCrypto is used for crypto related errors.
 	ErrCrypto = "err_crypto"
 	// ErrDB is used for db related errors.
 	ErrDB = "err_db"
+	// ErrInternal is an internal error.
+	ErrInternal = "err_internal"
+	// ErrInvalidReq is an invalid request.
+	ErrInvalidReq = "err_invalid_request"
+	// ErrNotClassified is an error that is not further classified.
+	ErrNotClassified = "err_not_classified"
+	// ErrParse failed to parse request.
+	ErrParse = "err_parse"
+	// ErrProcess is an error during processing e.g. parsing failed.
+	ErrProcess = "err_process"
+	// ErrTimeout is a timeout error.
+	ErrTimeout = "err_timeout"
+	// ErrValidate is used for validation related errors.
+	ErrValidate = "err_validate"
+	// ErrVerify is used for validation related errors.
+	ErrVerify = "err_verify"
 )
 
 // FIXME(roosd): remove when moving messenger to new metrics style.
