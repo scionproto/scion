@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogen vendor mocks bazel clean_bin gazelle setcap tags
+.PHONY: all clean goenv gogen vendor mocks bazel gazelle setcap tags
 
 BRACCEPT = bin/braccept
 
@@ -25,15 +25,11 @@ vendor:
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
 	bzlcompat -vendorBase=go
 
-bazel: vendor gogen clean_bin
+bazel: vendor gogen
+	rm -f bin/*
 	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
-
-# Delete everything in bin/ that isn't a hidden file,
-# as those aren't created by bazel.
-clean_bin:
-	rm -f bin/*
 
 mocks: goenv
 	./tools/gomocks
