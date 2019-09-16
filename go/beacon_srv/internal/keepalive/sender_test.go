@@ -44,6 +44,7 @@ func TestSenderRun(t *testing.T) {
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	require.NoError(t, err)
 	conn := mock_snet.NewMockPacketConn(mctrl)
+	InitMetrics()
 	s := Sender{
 		Sender: &onehop.Sender{
 			IA:   xtest.MustParseIA("1-ff00:0:111"),

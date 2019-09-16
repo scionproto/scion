@@ -71,10 +71,14 @@ func (s *Sender) Run(ctx context.Context) {
 		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
 		if err := s.Send(msg, ov); err != nil {
 			logger.Error("[keepalive.Sender] Unable to send packet", "err", err)
-		} else {
-			sentIfids = append(sentIfids, ifid)
+			increaseTransmitErrors(ifid.String())
+			continue
 		}
+
+		sentIfids = append(sentIfids, ifid)
+		increaseTransmitMsgs(ifid.String())
 	}
+
 	if len(sentIfids) > 0 {
 		logger.Trace("[keepalive.Sender] Sent keepalives", "ifids", sentIfids)
 	}

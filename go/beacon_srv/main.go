@@ -343,6 +343,7 @@ func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 }
 
 func (t *periodicTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Runner, error) {
+	keepalive.InitMetrics()
 	s := &keepalive.Sender{
 		Sender: &onehop.Sender{
 			Conn: t.conn,
