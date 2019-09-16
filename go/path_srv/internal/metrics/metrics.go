@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	namespace = "path_srv"
+	// Namespace indicates the prometheus namespace for PS metrics.
+	Namespace = "path_srv"
 )
 
 // Init initializes the metrics for the PS.

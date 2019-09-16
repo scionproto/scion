@@ -15,6 +15,11 @@
 package handlers
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -22,8 +27,31 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
+)
+
+const (
+	regLabelType   = "type"
+	regLabelSrc    = "src_ia"
+	regLabelResult = "result"
+)
+
+const (
+	regResultNew       = "new"
+	regResultUpdated   = "updated"
+	regResultErrCrypto = "err_crypto"
+	regResultErrDB     = "err_db"
+	regResultErrParse  = "err_parse"
+	regResultErrInt    = "err_internal"
+)
+
+var (
+	regResults = []string{regResultNew, regResultUpdated, regResultErrCrypto,
+		regResultErrDB, regResultErrInt}
+	regsTotal *prometheus.CounterVec
 )
 
 type segRegHandler struct {
@@ -33,6 +61,10 @@ type segRegHandler struct {
 }
 
 func NewSegRegHandler(args HandlerArgs) infra.Handler {
+	regsTotal = prom.NewCounterVec(metrics.Namespace, "", "registrations_total",
+		fmt.Sprintf("Number of path registrations. \"result\" can be one of: [%s]",
+			strings.Join(regResults, ",")),
+		[]string{regLabelType, regLabelSrc, regLabelResult})
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &segRegHandler{
 			baseHandler: newBaseHandler(r, args),
@@ -55,29 +87,41 @@ func NewSegRegHandler(args HandlerArgs) infra.Handler {
 func (h *segRegHandler) Handle() *infra.HandlerResult {
 	ctx := h.request.Context()
 	logger := log.FromCtx(ctx)
+	labels := prometheus.Labels{
+		regLabelType:   "?",
+		regLabelSrc:    "?",
+		regLabelResult: regResultErrInt,
+	}
 	segReg, ok := h.request.Message.(*path_mgmt.SegReg)
 	if !ok {
 		logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		regsTotal.With(labels).Inc()
 		return infra.MetricsErrInternal
 	}
+	snetPeer := h.request.Peer.(*snet.Addr)
+	labels[regLabelType] = classifySegs(segReg)
+	labels[regLabelSrc] = snetPeer.IA.String()
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
-		logger.Error("[segRegHandler] Unable to service request, no Messenger found")
+		logger.Error("[segRegHandler] Unable to service request, no ReplyWriter found")
+		regsTotal.With(labels).Inc()
 		return infra.MetricsErrInternal
 	}
+	labels[regLabelResult] = regResultErrParse
 	sendAck := messenger.SendAckHelper(ctx, rw)
 	if err := segReg.ParseRaw(); err != nil {
 		logger.Error("[segRegHandler] Failed to parse message", "err", err)
+		regsTotal.With(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
 	logSegRecs(logger, "[segRegHandler]", h.request.Peer, segReg.SegRecs)
 
-	snetPeer := h.request.Peer.(*snet.Addr)
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
 		logger.Error("[segRegHandler] Failed to initialize path", "err", err)
+		regsTotal.With(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
@@ -95,9 +139,37 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 	// wait until processing is done.
 	<-res.FullReplyProcessed()
 	if err := res.Err(); err != nil {
+		// TODO(lukedirtwalker): classify crypto/db error
+		labels[regLabelResult] = regResultErrDB
+		regsTotal.With(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
+	h.incMetrics(labels, res.Stats())
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
+}
+
+func (h *segRegHandler) incMetrics(labels prometheus.Labels, stats seghandler.Stats) {
+	labels[regLabelResult] = regResultNew
+	regsTotal.With(labels).Add(float64(len(stats.SegDB.InsertedSegs)))
+	labels[regLabelResult] = regResultUpdated
+	regsTotal.With(labels).Add(float64(len(stats.SegDB.UpdatedSegs)))
+}
+
+// classifySegs determines the type of segments that are registered. In the
+// current implementation there should always be exactly 1 entry so 1 type can
+// be returned. However the type allows multiple segments to be registered, so
+// this function will concatenate the types if there are multiple segments of
+// different types.
+func classifySegs(segReg *path_mgmt.SegReg) string {
+	segTypes := make(map[string]struct{}, 1)
+	for _, segMeta := range segReg.Recs {
+		segTypes[segMeta.Type.String()] = struct{}{}
+	}
+	var result strings.Builder
+	for segType := range segTypes {
+		result.WriteString(segType)
+	}
+	return result.String()
 }
