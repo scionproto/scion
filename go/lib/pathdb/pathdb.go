@@ -50,10 +50,10 @@ type Read interface {
 type Write interface {
 	// Insert inserts or updates a path segment. It returns the number of path segments
 	// that have been inserted/updated.
-	Insert(context.Context, *seg.Meta) (int, error)
+	Insert(context.Context, *seg.Meta) (InsertStats, error)
 	// InsertWithHPCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
 	// returns the number of path segments that have been inserted/updated.
-	InsertWithHPCfgIDs(context.Context, *seg.Meta, []*query.HPCfgID) (int, error)
+	InsertWithHPCfgIDs(context.Context, *seg.Meta, []*query.HPCfgID) (InsertStats, error)
 	// Delete deletes all path segments that matches the given query,
 	// returning the number of deleted segments
 	Delete(context.Context, *query.Params) (int, error)
@@ -79,6 +79,14 @@ type NextQueryDeleter interface {
 	// with only a non-zero src value will delete all next query entries where
 	// the source matches the given src parameter.
 	DeleteNQ(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) (int, error)
+}
+
+// InsertStats provides statistics about an insertion.
+type InsertStats struct {
+	// Inserted is the number of inserted entries.
+	Inserted int
+	// Updated is the number of updated entries.
+	Updated int
 }
 
 // ReadWrite defines all read an write operations of the path DB.

@@ -255,7 +255,7 @@ func testInsertWithHpCfgIDsFull(t *testing.T, ctrl *gomock.Controller, pathDB pa
 	inserted, err := pathDB.InsertWithHPCfgIDs(ctx, seg.NewMeta(pseg, segType), hpCfgIDs)
 	require.NoError(t, err)
 	// Check return value.
-	assert.Equal(t, 1, inserted, "Inserted")
+	assert.Equal(t, pathdb.InsertStats{Inserted: 1}, inserted, "Inserted")
 	// Check Insert.
 	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{segID}})
 	require.NoError(t, err)
@@ -274,7 +274,7 @@ func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.Rea
 	// Call
 	inserted := InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
 	// Check return value.
-	assert.Equal(t, 1, inserted, "Inserted")
+	assert.Equal(t, pathdb.InsertStats{Updated: 1}, inserted, "Inserted")
 	// Check Insert
 	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{segID}})
 	require.NoError(t, err)
@@ -293,7 +293,7 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, pathDB pathdb
 	// Call
 	inserted := InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
 	// Check return value.
-	assert.Equal(t, 0, inserted, "Inserted")
+	assert.Equal(t, pathdb.InsertStats{}, inserted, "Inserted")
 	// Check Insert
 	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{newSegID}})
 	require.NoError(t, err)
@@ -770,7 +770,8 @@ func testRollback(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.PathDB) {
 	tx, err := pathDB.BeginTransaction(ctx, nil)
 	require.NoError(t, err)
 	pseg, _ := AllocPathSegment(t, ctrl, ifs1, uint32(10))
-	assert.Equal(t, 1, InsertSeg(t, ctx, tx, pseg, hpCfgIDs), "Insert should succeed")
+	assert.Equal(t, pathdb.InsertStats{Inserted: 1},
+		InsertSeg(t, ctx, tx, pseg, hpCfgIDs), "Insert should succeed")
 	err = tx.Rollback()
 	assert.NoError(t, err)
 	segChan, err := pathDB.GetAll(ctx)
@@ -844,7 +845,7 @@ func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *seg.HopEntry {
 }
 
 func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite,
-	pseg *seg.PathSegment, hpCfgIDs []*query.HPCfgID) int {
+	pseg *seg.PathSegment, hpCfgIDs []*query.HPCfgID) pathdb.InsertStats {
 
 	inserted, err := pathDB.InsertWithHPCfgIDs(ctx, seg.NewMeta(pseg, segType), hpCfgIDs)
 	require.NoError(t, err)
