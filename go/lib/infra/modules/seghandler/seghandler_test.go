@@ -62,8 +62,11 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
-	assert.Zero(t, r.VerifiedSegs())
-	assert.Empty(t, r.VerifiedRevs())
+	stats := r.Stats()
+	assert.Zero(t, stats.VerifiedSegs)
+	assert.Zero(t, stats.SegDB.Total())
+	assert.Empty(t, stats.VerifiedRevs)
+	assert.Empty(t, stats.StoredRevs)
 }
 
 // TestReplyHandlerErrors tests erros that happen during verification are
@@ -120,8 +123,11 @@ func TestReplyHandlerErrors(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Len(t, r.VerificationErrors(), len(verifyErrs))
-	assert.Zero(t, r.VerifiedSegs())
-	assert.Empty(t, r.VerifiedRevs())
+	stats := r.Stats()
+	assert.Zero(t, stats.VerifiedSegs)
+	assert.Zero(t, stats.SegDB.Total())
+	assert.Empty(t, stats.VerifiedRevs)
+	assert.Empty(t, stats.StoredRevs)
 }
 
 // TestReplyHandlerNoErrors tests the happy case of the reply handler: 3
@@ -155,9 +161,12 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 		Verifier: verifier,
 	}
 	seg1Store := storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1}))
+		gomock.Eq([]*seghandler.SegWithHP{seg1})).
+		Return(seghandler.SegStats{InsertedSegs: []string{"seg1"}}, nil)
 	storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg2, seg3})).After(seg1Store)
+		gomock.Eq([]*seghandler.SegWithHP{seg2, seg3})).
+		Return(seghandler.SegStats{InsertedSegs: []string{"seg2", "seg3"}}, nil).
+		After(seg1Store)
 	storage.EXPECT().StoreRevs(gomock.Any(),
 		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1})).After(seg1Store)
 
@@ -183,8 +192,12 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
-	assert.Equal(t, 3, r.VerifiedSegs())
-	assert.ElementsMatch(t, []*path_mgmt.SignedRevInfo{rev1}, r.VerifiedRevs())
+	stats := r.Stats()
+	assert.Equal(t, 3, stats.VerifiedSegs)
+	assert.Equal(t, 3, stats.SegDB.Total())
+	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
+	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
+	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
 }
 
 func TestReplyHandlerAllVerifiedInEarlyInterval(t *testing.T) {
@@ -213,7 +226,8 @@ func TestReplyHandlerAllVerifiedInEarlyInterval(t *testing.T) {
 		Verifier: verifier,
 	}
 	storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2}))
+		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
+		Return(seghandler.SegStats{InsertedSegs: []string{"seg1", "seg2"}}, nil)
 	storage.EXPECT().StoreRevs(gomock.Any(),
 		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1}))
 
@@ -233,8 +247,12 @@ func TestReplyHandlerAllVerifiedInEarlyInterval(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
-	assert.Equal(t, 2, r.VerifiedSegs())
-	assert.ElementsMatch(t, []*path_mgmt.SignedRevInfo{rev1}, r.VerifiedRevs())
+	stats := r.Stats()
+	assert.Equal(t, 2, stats.VerifiedSegs)
+	assert.Equal(t, 2, stats.SegDB.Total())
+	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
+	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
+	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
 }
 
 func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
@@ -264,9 +282,11 @@ func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
 	}
 	seg1Store := storage.EXPECT().StoreSegs(gomock.Any(),
 		gomock.Eq([]*seghandler.SegWithHP{seg1})).
-		Return(common.NewBasicError("Test error", nil))
+		Return(seghandler.SegStats{}, common.NewBasicError("Test error", nil))
 	storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).After(seg1Store)
+		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
+		Return(seghandler.SegStats{InsertedSegs: []string{"seg1", "seg2"}}, nil).
+		After(seg1Store)
 	storage.EXPECT().StoreRevs(gomock.Any(),
 		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1}))
 
@@ -287,8 +307,13 @@ func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
-	assert.Equal(t, 2, r.VerifiedSegs())
-	assert.ElementsMatch(t, []*path_mgmt.SignedRevInfo{rev1}, r.VerifiedRevs())
+
+	stats := r.Stats()
+	assert.Equal(t, 2, stats.VerifiedSegs)
+	assert.Equal(t, 2, stats.SegDB.Total())
+	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
+	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
+	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
 }
 
 func TestReplyHandlerStorageError(t *testing.T) {
@@ -317,7 +342,7 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	storageErr := common.NewBasicError("Test error", nil)
 	storage.EXPECT().StoreSegs(gomock.Any(),
 		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
-		Return(storageErr)
+		Return(seghandler.SegStats{}, storageErr)
 
 	close(earlyTrigger)
 	r := handler.Handle(ctx, segs, nil, earlyTrigger)
@@ -335,8 +360,11 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
 	assert.Error(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
-	assert.Zero(t, r.VerifiedSegs())
-	assert.Empty(t, r.VerifiedRevs())
+	stats := r.Stats()
+	assert.Equal(t, 2, stats.VerifiedSegs)
+	assert.Zero(t, stats.SegDB.Total())
+	assert.Empty(t, stats.VerifiedRevs)
+	assert.Empty(t, stats.StoredRevs)
 }
 
 func AssertChanEmpty(t *testing.T, ch <-chan struct{}) {

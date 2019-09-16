@@ -159,7 +159,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				return err
 			}
 			queryInt := f.QueryInterval
-			for _, rev := range r.VerifiedRevs() {
+			for _, rev := range r.Stats().VerifiedRevs {
 				revInfo, err := rev.RevInfo()
 				if err != nil {
 					logger.Warn("Failed to extract rev info from verified rev",
@@ -171,7 +171,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
 			}
 			// TODO(lukedirtwalker): make the short interval configurable
-			if r.VerifiedSegs() <= 0 {
+			if r.Stats().VerifiedSegs <= 0 {
 				queryInt = 2 * time.Second
 			}
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil,

@@ -175,10 +175,10 @@ func (mr *MockPathDBMockRecorder) GetNextQuery(arg0, arg1, arg2, arg3 interface{
 }
 
 // Insert mocks base method
-func (m *MockPathDB) Insert(arg0 context.Context, arg1 *seg.Meta) (int, error) {
+func (m *MockPathDB) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", arg0, arg1)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -205,10 +205,10 @@ func (mr *MockPathDBMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3, arg4 i
 }
 
 // InsertWithHPCfgIDs mocks base method
-func (m *MockPathDB) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (int, error) {
+func (m *MockPathDB) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertWithHPCfgIDs", arg0, arg1, arg2)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -386,10 +386,10 @@ func (mr *MockTransactionMockRecorder) GetNextQuery(arg0, arg1, arg2, arg3 inter
 }
 
 // Insert mocks base method
-func (m *MockTransaction) Insert(arg0 context.Context, arg1 *seg.Meta) (int, error) {
+func (m *MockTransaction) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", arg0, arg1)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -416,10 +416,10 @@ func (mr *MockTransactionMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3, a
 }
 
 // InsertWithHPCfgIDs mocks base method
-func (m *MockTransaction) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (int, error) {
+func (m *MockTransaction) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertWithHPCfgIDs", arg0, arg1, arg2)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -573,10 +573,10 @@ func (mr *MockReadWriteMockRecorder) GetNextQuery(arg0, arg1, arg2, arg3 interfa
 }
 
 // Insert mocks base method
-func (m *MockReadWrite) Insert(arg0 context.Context, arg1 *seg.Meta) (int, error) {
+func (m *MockReadWrite) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", arg0, arg1)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -603,10 +603,10 @@ func (mr *MockReadWriteMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3, arg
 }
 
 // InsertWithHPCfgIDs mocks base method
-func (m *MockReadWrite) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (int, error) {
+func (m *MockReadWrite) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertWithHPCfgIDs", arg0, arg1, arg2)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
