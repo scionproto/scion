@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -31,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -47,10 +49,13 @@ const (
 )
 
 const (
+	ErrChainVerification    = "chain verification failed"
 	ErrNotFoundLocally      = "Chain/TRC not found locally"
 	ErrMissingAuthoritative = "Trust store is authoritative for requested object," +
 		" and object was not found"
-	ErrNotFound = "Chain/TRC not found"
+	ErrNotFound        = "Chain/TRC not found"
+	ErrParse           = "unable to parse"
+	ErrInvalidResponse = "invalid response"
 )
 
 var _ infra.ExtendedTrustStore = (*Store)(nil)
@@ -121,14 +126,15 @@ func (store *Store) trcRequestFunc(ctx context.Context, request dedupe.Request) 
 	}
 	trcObj, err := trcMsg.TRC()
 	if err != nil {
-		return wrapErr(common.NewBasicError("Unable to parse TRC message", err, "msg", trcMsg))
+		return wrapErr(common.NewBasicError(ErrParse, err, "msg", trcMsg))
 	}
 	if trcObj == nil {
 		return dedupe.Response{Data: nil}
 	}
 
 	if req.version != scrypto.LatestVer && trcObj.Version != req.version {
-		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
+		return wrapErr(common.NewBasicError(ErrInvalidResponse,
+			common.ErrMsg("remote server responded with bad version"),
 			"got", trcObj.Version, "expected", req.version))
 	}
 
@@ -152,13 +158,14 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 	}
 	chain, err := chainMsg.Chain()
 	if err != nil {
-		return wrapErr(common.NewBasicError("Unable to parse CertChain message", err))
+		return wrapErr(common.NewBasicError(ErrParse, err))
 	}
 	if chain == nil {
 		return dedupe.Response{Data: nil}
 	}
 	if req.version != scrypto.LatestVer && chain.Leaf.Version != req.version {
-		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
+		return wrapErr(common.NewBasicError(ErrInvalidResponse,
+			common.ErrMsg("Remote server responded with bad version"),
 			"got", chain.Leaf.Version, "expected", req.version))
 	}
 	if req.postHook != nil {
@@ -186,31 +193,74 @@ func (store *Store) GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
 	opts infra.TRCOpts, client net.Addr) (*trc.TRC, error) {
 
+	l := metrics.LookupLabels{
+		Client:    addrLocation(client, store.ia),
+		Trigger:   metrics.FromCtx(ctx),
+		ReqType:   metrics.TRCReq,
+		LocalOnly: opts.LocalOnly,
+		Result:    metrics.ErrInternal,
+	}
 	trcObj, err := store.trustdb.GetTRCVersion(ctx, isd, uint64(version))
-	if err != nil || trcObj != nil {
-		return trcObj, err
+	if err != nil {
+		metrics.Store.Lookup(l.WithResult(metrics.ErrDB)).Inc()
+		return nil, err
+	}
+	if trcObj != nil {
+		metrics.Store.Lookup(l.WithResult(metrics.Success)).Inc()
+		return trcObj, nil
 	}
 	if opts.LocalOnly {
+		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFound)).Inc()
 		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "isd", isd, "version", version,
 			"client", client)
 	}
 	if err := store.isLocal(client); err != nil {
+		metrics.Store.Lookup(l.WithResult(metrics.ErrDenied)).Inc()
 		return nil, err
 	}
 	if opts.Server == nil {
 		opts.Server, err = store.ChooseServer(ctx, addr.IA{I: isd})
 		if err != nil {
+			metrics.Store.Lookup(l.WithResult(metrics.ErrInternal)).Inc()
 			return nil, common.NewBasicError("Error determining server to query", err,
 				"isd", isd, "version", version)
 		}
 	}
-	return store.getTRCFromNetwork(ctx, &trcRequest{
+	l.Result, trcObj, err = store.getTRCFromNetworkWithMetric(ctx, client, &trcRequest{
 		isd:      isd,
 		version:  uint64(version),
 		id:       messenger.NextId(),
 		server:   opts.Server,
 		postHook: store.insertTRCHook(),
 	})
+	metrics.Store.Lookup(l).Inc()
+	return trcObj, err
+}
+
+func (store *Store) getTRCFromNetworkWithMetric(ctx context.Context, client net.Addr,
+	req *trcRequest) (string, *trc.TRC, error) {
+
+	l := metrics.OutgoingLabels{
+		Client:  addrLocation(client, store.ia),
+		Server:  addrLocation(req.server, store.ia),
+		Trigger: metrics.FromCtx(ctx),
+		ReqType: metrics.TRCReq,
+		Result:  metrics.ErrInternal,
+	}
+	trcObj, err := store.getTRCFromNetwork(ctx, req)
+	switch {
+	case err == nil:
+		l.Result = metrics.Success
+	case ctx.Err() != nil:
+		l.Result = metrics.ErrTimeout
+	case xerrors.Is(err, common.ErrMsg(ErrNotFound)):
+		l.Result = metrics.ErrNotFound
+	case xerrors.Is(err, common.ErrMsg(ErrParse)),
+		xerrors.Is(err, common.ErrMsg(ErrInvalidResponse)):
+		l.Result = metrics.ErrValidate
+	}
+	metrics.Store.Outgoing(l).Inc()
+	return l.Result, trcObj, err
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
@@ -263,12 +313,20 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 	if err != nil {
 		return common.NewBasicError("Failed to compress TRC for forwarding", err)
 	}
+	l := metrics.OutgoingLabels{
+		Trigger: metrics.FromCtx(ctx),
+		ReqType: metrics.TRCPush,
+		Server:  addrLocation(addr, store.ia),
+		Result:  metrics.Success,
+	}
 	err = store.msger.SendTRC(ctx, &cert_mgmt.TRC{
 		RawTRC: rawTRC,
 	}, addr, messenger.NextId())
 	if err != nil {
+		metrics.Store.Outgoing(l.WithResult(metrics.ErrTransmit)).Inc()
 		return common.NewBasicError("Failed to forward TRC", err)
 	}
+	metrics.Store.Outgoing(l).Inc()
 	return nil
 }
 
@@ -284,11 +342,24 @@ func (store *Store) GetChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Version,
 	opts infra.ChainOpts, client net.Addr) (*cert.Chain, error) {
 
+	l := metrics.LookupLabels{
+		Client:    addrLocation(client, store.ia),
+		Trigger:   metrics.FromCtx(ctx),
+		ReqType:   metrics.ChainReq,
+		LocalOnly: opts.LocalOnly,
+		Result:    metrics.ErrInternal,
+	}
 	chain, err := store.trustdb.GetChainVersion(ctx, ia, uint64(version))
-	if err != nil || chain != nil {
-		return chain, err
+	if err != nil {
+		metrics.Store.Lookup(l.WithResult(metrics.ErrDB)).Inc()
+		return nil, err
+	}
+	if chain != nil {
+		metrics.Store.Lookup(l.WithResult(metrics.Success)).Inc()
+		return chain, nil
 	}
 	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
+		metrics.Store.Lookup(l).Inc()
 		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
 			"requested_ia", ia)
 	}
@@ -299,25 +370,30 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 	}
 	trcObj, err := store.getTRC(ctx, ia.I, scrypto.Version(scrypto.LatestVer), trcOpts, client)
 	if err != nil {
+		metrics.Store.Lookup(l.WithResult(metrics.ErrTRC)).Inc()
 		return nil, err
 	}
 	if opts.LocalOnly {
+		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFound)).Inc()
 		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
 	}
 	if opts.Server == nil {
 		var err error
 		opts.Server, err = store.ChooseServer(ctx, ia)
 		if err != nil {
+			metrics.Store.Lookup(l.WithResult(metrics.ErrInternal)).Inc()
 			return nil, err
 		}
 	}
-	return store.getChainFromNetwork(ctx, &chainRequest{
+	l.Result, chain, err = store.getChainFromNetworkWithMetric(ctx, client, &chainRequest{
 		ia:       ia,
 		version:  uint64(version),
 		id:       messenger.NextId(),
 		server:   opts.Server,
 		postHook: store.newChainValidator(trcObj),
 	})
+	metrics.Store.Lookup(l).Inc()
+	return chain, err
 }
 
 func (store *Store) newChainValidator(validator *trc.TRC) ValidateChainFunc {
@@ -346,12 +422,20 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 		if err != nil {
 			return common.NewBasicError("Failed to compress chain for forwarding", err)
 		}
+		l := metrics.OutgoingLabels{
+			Trigger: metrics.FromCtx(ctx),
+			ReqType: metrics.ChainPush,
+			Server:  addrLocation(addr, store.ia),
+			Result:  metrics.Success,
+		}
 		err = store.msger.SendCertChain(ctx, &cert_mgmt.Chain{
 			RawChain: rawChain,
 		}, addr, messenger.NextId())
 		if err != nil {
+			metrics.Store.Outgoing(l.WithResult(metrics.ErrTransmit)).Inc()
 			return common.NewBasicError("Failed to forward cert chain", err, "chain", chain)
 		}
+		metrics.Store.Outgoing(l).Inc()
 		return nil
 	}
 }
@@ -373,14 +457,46 @@ func (store *Store) newChainValidatorLocal(validator *trc.TRC) ValidateChainFunc
 }
 
 func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
+	l := metrics.VerificationLabels{Type: metrics.Chain, Result: metrics.ErrVerify}
 	if validator == nil {
-		return common.NewBasicError("Chain verification failed, nil verifier", nil,
+		metrics.Store.Verification(l).Inc()
+		return common.NewBasicError(ErrChainVerification, common.ErrMsg("TRC nil"),
 			"target", chain)
 	}
 	if err := chain.Verify(chain.Leaf.Subject, validator); err != nil {
-		return common.NewBasicError("Chain verification failed", err)
+		metrics.Store.Verification(l).Inc()
+		return common.NewBasicError("Chain verification failed", err, "target", chain)
 	}
+	metrics.Store.Verification(l.WithResult(metrics.Success)).Inc()
 	return nil
+}
+
+func (store *Store) getChainFromNetworkWithMetric(ctx context.Context, client net.Addr,
+	req *chainRequest) (string, *cert.Chain, error) {
+
+	l := metrics.OutgoingLabels{
+		Client:  addrLocation(client, store.ia),
+		Server:  addrLocation(req.server, store.ia),
+		Trigger: metrics.FromCtx(ctx),
+		ReqType: metrics.ChainReq,
+		Result:  metrics.ErrInternal,
+	}
+	chain, err := store.getChainFromNetwork(ctx, req)
+	switch {
+	case err == nil:
+		l.Result = metrics.Success
+	case ctx.Err() != nil:
+		l.Result = metrics.ErrTimeout
+	case xerrors.Is(err, common.ErrMsg(ErrNotFound)):
+		l.Result = metrics.ErrNotFound
+	case xerrors.Is(err, common.ErrMsg(ErrParse)),
+		xerrors.Is(err, common.ErrMsg(ErrInvalidResponse)):
+		l.Result = metrics.ErrValidate
+	case xerrors.Is(err, common.ErrMsg(ErrChainVerification)):
+		l.Result = metrics.ErrVerify
+	}
+	metrics.Store.Outgoing(l).Inc()
+	return l.Result, chain, err
 }
 
 // issueChainRequest requests a Chain from the trust store backend.
@@ -429,6 +545,7 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
+	ctx = metrics.CtxWith(ctx, metrics.Load)
 	opts := infra.TRCOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
 	dbTRC, err := store.getTRC(ctx, store.ia.I, scrypto.Version(scrypto.LatestVer), opts, nil)
 	switch {
@@ -484,6 +601,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
+	ctx = metrics.CtxWith(ctx, metrics.Load)
 	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
 	chain, err := store.getChain(ctx, store.ia, scrypto.Version(scrypto.LatestVer), opts, nil)
 	switch {
@@ -667,6 +785,7 @@ func (store *Store) NewVerifier() infra.Verifier {
 func (store *Store) ByAttributes(ctx context.Context, isd addr.ISD,
 	opts infra.ASInspectorOpts) ([]addr.IA, error) {
 
+	ctx = metrics.CtxWith(ctx, metrics.ASInspector)
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	trc, err := store.GetTRC(ctx, isd, scrypto.Version(scrypto.LatestVer), trcOpts)
 	if err != nil {
@@ -682,6 +801,7 @@ func (store *Store) ByAttributes(ctx context.Context, isd addr.ISD,
 func (store *Store) HasAttributes(ctx context.Context, ia addr.IA,
 	opts infra.ASInspectorOpts) (bool, error) {
 
+	ctx = metrics.CtxWith(ctx, metrics.ASInspector)
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	trc, err := store.GetTRC(ctx, ia.I, scrypto.Version(scrypto.LatestVer), trcOpts)
 	if err != nil {
