@@ -17,6 +17,7 @@
 ==============================================================
 """
 
+import argparse
 import os.path
 from typing import Tuple
 
@@ -69,10 +70,17 @@ MOCK_TARGETS = [
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--package-matcher", default="",
+                        help="Generate mocks for all matched packages")
+    args = parser.parse_args()
+
     mockgen = local[local.env["MOCKTOOL"]] if "MOCKTOOL" in local.env else local["mockgen"]
     print("Generating mocks using tool", mockgen)
 
     for (package, interfaces) in MOCK_TARGETS:
+        if args.package_matcher not in package:
+            continue
         (mock_dir, mock_file) = get_mock_file_path(package)
 
         mkdir("-p", mock_dir)

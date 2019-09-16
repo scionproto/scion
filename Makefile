@@ -39,7 +39,7 @@ bazel_bin_clean:
 	find bin/ -mindepth 1 ! -iname dispatcher -a ! -iname ".*" -exec rm {} +
 
 mocks: goenv
-	./tools/gomocks
+	./tools/gomocks -p "$(PKG_MATCHER)"
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
