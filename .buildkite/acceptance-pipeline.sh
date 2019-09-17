@@ -45,8 +45,10 @@ for test in ./acceptance/*_acceptance; do
     echo "  timeout_in_minutes: 10"
     echo "  retry:"
     echo "    automatic:"
-    echo "      - exit_status: 5"  # Pull failed
+    echo "      - exit_status: 5"   # Pull failed
     echo "        limit: 2"
+    echo "      - exit_status: -1"  # Agent was lost
+    echo "      - exit_status: 255" # Forced agent shutdown
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""
 done
