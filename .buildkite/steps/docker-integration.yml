@@ -4,7 +4,8 @@
   - $BASE/run_step integration -d -a
   retry:
     automatic:
-      exit_status: -1
+      - exit_status: -1  # Agent was lost
+      - exit_status: 255 # Forced agent shutdown
   timeout_in_minutes: 10
   artifact_paths:
   - "artifacts.out/**/*"

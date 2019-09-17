@@ -14,7 +14,8 @@ run_test() {
     echo "  - $BASE/run_step integration $1 $2"
     echo "  retry:"
     echo "    automatic:"
-    echo "      exit_status: -1"
+    echo "      - exit_status: -1"  # Agent was lost
+    echo "      - exit_status: 255" # Forced agent shutdown
     echo "  timeout_in_minutes: 10"
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""
