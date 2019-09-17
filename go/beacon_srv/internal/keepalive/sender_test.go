@@ -19,7 +19,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -34,47 +35,46 @@ import (
 )
 
 func TestSenderRun(t *testing.T) {
-	Convey("Run sends ifid packets on all interfaces", t, func() {
-		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
-		topoProvider := xtest.TopoProviderFromFile(t, "testdata/topology.json")
-		mac, err := scrypto.InitMac(make(common.RawBytes, 16))
-		xtest.FailOnErr(t, err)
-		pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-		xtest.FailOnErr(t, err)
-		conn := mock_snet.NewMockPacketConn(mctrl)
-		s := Sender{
-			Sender: &onehop.Sender{
-				IA:   xtest.MustParseIA("1-ff00:0:111"),
-				Conn: conn,
-				Addr: &addr.AppAddr{
-					L3: addr.HostFromIPStr("127.0.0.1"),
-					L4: addr.NewL4UDPInfo(4242),
-				},
-				MAC: mac,
+	t.Log("Run sends ifid packets on all interfaces")
+	mctrl := gomock.NewController(t)
+	defer mctrl.Finish()
+	topoProvider := xtest.TopoProviderFromFile(t, "testdata/topology.json")
+	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
+	require.NoError(t, err)
+	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
+	require.NoError(t, err)
+	conn := mock_snet.NewMockPacketConn(mctrl)
+	s := Sender{
+		Sender: &onehop.Sender{
+			IA:   xtest.MustParseIA("1-ff00:0:111"),
+			Conn: conn,
+			Addr: &addr.AppAddr{
+				L3: addr.HostFromIPStr("127.0.0.1"),
+				L4: addr.NewL4UDPInfo(4242),
 			},
-			Signer:       createTestSigner(t, priv),
-			TopoProvider: topoProvider,
-		}
-		pkts := make([]*snet.SCIONPacket, 0, len(topoProvider.Get().IFInfoMap))
-		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(cap(pkts)).DoAndReturn(
-			func(ipkts, _ interface{}) error {
-				pkts = append(pkts, ipkts.(*snet.SCIONPacket))
-				return nil
-			},
-		)
-		// Start keepalive messages.
-		s.Run(nil)
-		// Check packets are correct.
-		for _, pkt := range pkts {
-			spld, err := ctrl.NewSignedPldFromRaw(pkt.Payload.(common.RawBytes))
-			SoMsg("SPldErr", err, ShouldBeNil)
-			pld, err := spld.GetVerifiedPld(nil, testVerifier(pub))
-			SoMsg("PldErr", err, ShouldBeNil)
-			_, ok := topoProvider.Get().IFInfoMap[pld.IfID.OrigIfID]
-			SoMsg("Intf", ok, ShouldBeTrue)
-		}
-	})
+			MAC: mac,
+		},
+		Signer:       createTestSigner(t, priv),
+		TopoProvider: topoProvider,
+	}
+	pkts := make([]*snet.SCIONPacket, 0, len(topoProvider.Get().IFInfoMap))
+	conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(cap(pkts)).DoAndReturn(
+		func(ipkts, _ interface{}) error {
+			pkts = append(pkts, ipkts.(*snet.SCIONPacket))
+			return nil
+		},
+	)
+	// Start keepalive messages.
+	s.Run(nil)
+	// Check packets are correct.
+	for _, pkt := range pkts {
+		spld, err := ctrl.NewSignedPldFromRaw(pkt.Payload.(common.RawBytes))
+		assert.NoError(t, err, "SPldErr")
+		pld, err := spld.GetVerifiedPld(nil, testVerifier(pub))
+		assert.NoError(t, err, "PldErr")
+		_, ok := topoProvider.Get().IFInfoMap[pld.IfID.OrigIfID]
+		assert.True(t, ok)
+	}
 }
 
 func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
@@ -86,7 +86,7 @@ func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
 		},
 		Algo: scrypto.Ed25519,
 	})
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return signer
 }
 
@@ -96,10 +96,15 @@ type testVerifier common.RawBytes
 
 func (t testVerifier) VerifyPld(_ context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
 	src, err := ctrl.NewSignSrcDefFromRaw(spld.Sign.Src)
-	SoMsg("Src err", err, ShouldBeNil)
-	SoMsg("Src.IA", src.IA, ShouldResemble, xtest.MustParseIA("1-ff00:0:84"))
-	SoMsg("Src.ChainVer", src.ChainVer, ShouldEqual, 42)
-	SoMsg("Src.TrcVer", src.TRCVer, ShouldEqual, 21)
+	if err != nil {
+		return nil, common.NewBasicError("Cannot parse payload", err)
+	}
+	if src.IA != xtest.MustParseIA("1-ff00:0:84") {
+		return nil, common.NewBasicError("Wrong src.IA", err)
+	}
+	if src.TRCVer != 21 {
+		return nil, common.NewBasicError("Wrong src.TRCVer", err)
+	}
 	pld, err := ctrl.NewPldFromRaw(spld.Blob)
 	if err != nil {
 		return nil, common.NewBasicError("Cannot parse payload", err)
