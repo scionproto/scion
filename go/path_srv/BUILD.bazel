@@ -28,7 +28,6 @@ go_library(
         "//go/path_srv/internal/config:go_default_library",
         "//go/path_srv/internal/cryptosyncer:go_default_library",
         "//go/path_srv/internal/handlers:go_default_library",
-        "//go/path_srv/internal/metrics:go_default_library",
         "//go/path_srv/internal/segreq:go_default_library",
         "//go/path_srv/internal/segsyncer:go_default_library",
         "//go/proto:go_default_library",

@@ -52,7 +52,7 @@ var (
 	metricsErrRevCache   = &HandlerResult{Result: "err_revcache", Status: prom.StatusErr}
 	metricsErrRevCacheTo = &HandlerResult{Result: "err_revcache_to", Status: prom.StatusTimeout}
 
-	MetricsResultOk = &HandlerResult{Result: prom.ResultOk, Status: prom.StatusOk}
+	MetricsResultOk = &HandlerResult{Result: prom.Success, Status: prom.StatusOk}
 )
 
 func MetricsErrTrustDB(err error) *HandlerResult {

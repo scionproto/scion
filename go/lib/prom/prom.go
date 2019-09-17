@@ -22,25 +22,34 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+// Common label values.
 const (
 	// LabelResult is the label for result classifications.
 	LabelResult = "result"
 	// LabelStatus for latency status classifications, possible values are prefixed with Status*.
 	LabelStatus = "status"
-	// LabelElem is the label for the element id that is added to all metrics.
-	LabelElem = "elem"
 	// LabelOperation is the label for the name of an executed operation.
 	LabelOperation = "op"
 	// LabelSrc is the label for the src of a request.
 	LabelSrc = "src"
+)
 
-	// ResultOk is no error.
-	ResultOk = "ok"
+// Common result values.
+const (
+	// Success is no error.
+	Success = "success"
 	// ErrNotClassified is an error that is not further classified.
 	ErrNotClassified = "err_not_classified"
 	// ErrTimeout is a timeout error.
 	ErrTimeout = "err_timeout"
+	// ErrInternal is an internal error.
+	ErrInternal = "err_internal"
+	// ErrInvalidReq is an invalid request.
+	ErrInvalidReq = "err_invalid_request"
+)
 
+// FIXME(roosd): remove when moving messenger to new metrics style.
+const (
 	StatusOk      = "ok"
 	StatusErr     = "err"
 	StatusTimeout = "err_timeout"
@@ -52,6 +61,7 @@ var (
 		1.28, 2.56, 5.12, 10.24}
 )
 
+// FIXME(roosd): remove.
 func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 	l := make(prometheus.Labels)
 	for k, v := range labels {
@@ -65,12 +75,7 @@ func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 // Note this should be called before any other interaction with prometheus.
 // See also: https://github.com/prometheus/client_golang/issues/515
 func UseDefaultRegWithElem(elemId string) {
-	labels := prometheus.Labels{LabelElem: elemId}
-	reg := prometheus.NewRegistry()
-	prometheus.DefaultRegisterer = prometheus.WrapRegistererWith(labels, reg)
-	prometheus.DefaultGatherer = reg
-	prometheus.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-	prometheus.MustRegister(prometheus.NewGoCollector())
+
 }
 
 // NewCounter creates a new prometheus counter that is registered with the default registry.

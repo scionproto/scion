@@ -13,7 +13,6 @@ go_library(
         "//go/beacon_srv/internal/config:go_default_library",
         "//go/beacon_srv/internal/ifstate:go_default_library",
         "//go/beacon_srv/internal/keepalive:go_default_library",
-        "//go/beacon_srv/internal/metrics:go_default_library",
         "//go/beacon_srv/internal/onehop:go_default_library",
         "//go/beacon_srv/internal/revocation:go_default_library",
         "//go/lib/addr:go_default_library",

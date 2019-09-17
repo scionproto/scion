@@ -23,7 +23,7 @@ import (
 func ErrToMetricLabel(err error) string {
 	switch {
 	case err == nil:
-		return prom.ResultOk
+		return prom.Success
 	case common.IsTimeoutErr(err):
 		return prom.ErrTimeout
 	default:

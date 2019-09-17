@@ -46,7 +46,6 @@ import (
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/config"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
-	"github.com/scionproto/scion/go/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
 
@@ -192,7 +191,6 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	metrics.Init(cfg.General.ID)
 	return env.LogAppStarted("SD", cfg.General.ID)
 }
 

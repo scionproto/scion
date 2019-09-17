@@ -21,7 +21,6 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/border/brconf"
-	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -55,7 +54,6 @@ type Router struct {
 }
 
 func NewRouter(id, confDir string) (*Router, error) {
-	metrics.Init(id)
 	r := &Router{Id: id, confDir: confDir}
 	if err := r.setup(); err != nil {
 		return nil, err

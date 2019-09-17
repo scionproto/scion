@@ -55,12 +55,10 @@ var (
 	IFState *prometheus.GaugeVec
 )
 
-// Init ensures all metrics are registered.
-func Init(elem string) {
-	namespace := "border"
+func init() {
+	namespace := "br"
 	sockLabels := []string{"sock"}
 
-	prom.UseDefaultRegWithElem(elem)
 	// Some closures to reduce boiler-plate.
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
 		return prom.NewCounterVec(namespace, "", name, help, lNames)

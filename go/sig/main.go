@@ -78,8 +78,6 @@ func realMain() int {
 		log.Crit("Unable to create & configure TUN device", "err", err)
 		return 1
 	}
-	// Export prometheus metrics.
-	metrics.Init(cfg.Sig.ID)
 	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
 		log.Crit("Error during initialization", err)
 		return 1

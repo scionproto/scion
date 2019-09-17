@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/iface/mock_iface"
 	"github.com/scionproto/scion/go/sig/egress/worker/mock_worker"
-	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
@@ -127,7 +126,6 @@ func (wt *WorkerTester) Finish() {
 }
 
 func TestParsing(t *testing.T) {
-	metrics.Init("")
 	iface.Init()
 
 	t.Run("simple packet", func(t *testing.T) {

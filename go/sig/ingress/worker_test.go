@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/sig/metrics"
 )
 
 type MockTun struct {
@@ -62,7 +61,6 @@ func SendFrame(t *testing.T, w *Worker, data []byte) {
 }
 
 func TestParsing(t *testing.T) {
-	metrics.Init("")
 	addr, err := snet.AddrFromString("1-ff00:0:300,[192.168.1.1]:80")
 	assert.NoError(t, err)
 	mt := &MockTun{}

@@ -26,7 +26,6 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
-	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/godispatcher/network"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
@@ -124,7 +123,6 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	metrics.Init(cfg.Dispatcher.ID)
 	return env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
 }
 

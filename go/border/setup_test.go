@@ -23,7 +23,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/border/brconf"
-	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
@@ -304,7 +303,6 @@ func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
 func initTestRouter(maxNumPosixInput int) *Router {
 	// Init metrics.
 	testInitOnce.Do(func() {
-		metrics.Init("br1-ff00_0_111-1")
 		// Reduce output displayed in goconvey.
 		log.Root().SetHandler(log.DiscardHandler())
 	})

@@ -36,7 +36,6 @@ go_test(
         "//go/sig/egress/iface:go_default_library",
         "//go/sig/egress/iface/mock_iface:go_default_library",
         "//go/sig/egress/worker/mock_worker:go_default_library",
-        "//go/sig/metrics:go_default_library",
         "//go/sig/mgmt:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
