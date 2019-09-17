@@ -12,6 +12,9 @@ run_test() {
     fi
     echo "  command:"
     echo "  - $BASE/run_step integration $1 $2"
+    echo "  retry:"
+    echo "    automatic:"
+    echo "      exit_status: -1"
     echo "  timeout_in_minutes: 10"
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""

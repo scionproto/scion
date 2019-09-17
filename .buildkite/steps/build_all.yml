@@ -15,5 +15,5 @@
     - "artifacts.out/**/*"
   retry:
     automatic:
-      exit_status: 255
+      exit_status: -1
   timeout_in_minutes: 10
