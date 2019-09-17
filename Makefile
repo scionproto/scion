@@ -27,7 +27,7 @@ vendor:
 
 bazel: vendor gogen
 	rm -f bin/*
-	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
+	bazel build //:scion //:scion-ci
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
