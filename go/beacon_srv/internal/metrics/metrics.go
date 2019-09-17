@@ -14,15 +14,16 @@
 
 package metrics
 
-import (
-	"github.com/scionproto/scion/go/lib/prom"
-)
-
 const (
-	namespace = "beacon_srv"
+	namespace = "bs"
+
+	// Success indicates a successful result.
+	Success string = "success"
+	// ProcessErr indicates an error during processing.
+	ProcessErr string = "process_err"
 )
 
-// Init initializes the metrics for the beacon server.
-func Init(elem string) {
-	prom.UseDefaultRegWithElem(elem)
-}
+var (
+	// Keepalive the single-instance struct to get prometheus counters
+	Keepalive = newKeepalive()
+)
