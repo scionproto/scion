@@ -2,7 +2,8 @@
   command: $BASE/run_step checkgogen
   retry:
     automatic:
-      exit_status: -1
+      - exit_status: -1  # Agent was lost
+      - exit_status: 255 # Forced agent shutdown
   timeout_in_minutes: 10
 - label: "Unit tests :bazel:"
   command: $BASE/run_step test
@@ -10,7 +11,8 @@
       - "artifacts.out/**/*"
   retry:
     automatic:
-      exit_status: -1
+      - exit_status: -1  # Agent was lost
+      - exit_status: 255 # Forced agent shutdown
   timeout_in_minutes: 10
 - label: "Lint :bazel:"
   command: $BASE/run_step lint
@@ -18,5 +20,6 @@
     - "artifacts.out/**/*"
   retry:
     automatic:
-      exit_status: -1
+      - exit_status: -1  # Agent was lost
+      - exit_status: 255 # Forced agent shutdown
   timeout_in_minutes: 10
