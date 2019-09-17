@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
@@ -89,8 +90,10 @@ func (h *handler) Handle() *infra.HandlerResult {
 }
 
 func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
+	labels := metrics.KeepaliveLabels{Result: metrics.ErrProcess}
 	keepalive, ok := h.request.Message.(*ifid.IFID)
 	if !ok {
+		metrics.Keepalive.Receives(labels).Inc()
 		return infra.MetricsErrInternal, common.NewBasicError(
 			"Wrong message type, expected ifid.IFID", nil,
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
@@ -98,16 +101,21 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	logger.Trace("[KeepaliveHandler] Received", "ifidKeepalive", keepalive)
 	ifid, info, err := h.getIntfInfo()
 	if err != nil {
+		metrics.Keepalive.Receives(labels).Inc()
 		return infra.MetricsErrInvalid, err
 	}
+	labels.IfID = ifid
 	if lastState := info.Activate(keepalive.OrigIfID); lastState != ifstate.Active {
 		logger.Info("[KeepaliveHandler] Activated interface", "ifid", ifid)
 		h.startPush(ifid)
 		if err := h.dropRevs(ifid, keepalive.OrigIfID, info.TopoInfo().ISD_AS); err != nil {
+			metrics.Keepalive.Receives(labels).Inc()
 			return infra.MetricsErrInternal, common.NewBasicError("Unable to drop revocations", err)
 		}
 	}
 	logger.Trace("[KeepaliveHandler] Successfully handled", "keepalive", keepalive)
+	labels.Result = metrics.Success
+	metrics.Keepalive.Receives(labels).Inc()
 	return infra.MetricsResultOk, nil
 }
 

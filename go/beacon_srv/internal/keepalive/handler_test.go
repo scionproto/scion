@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/keepalive/mock_keepalive"
@@ -52,78 +52,93 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewHandler(t *testing.T) {
-	Convey("NewHandler creates a correct handler", t, func() {
-		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
+	t.Log("NewHandler creates a correct handler")
+	mctrl := gomock.NewController(t)
+	defer mctrl.Finish()
 
-		Convey("Non-active interface should cause tasks to execute", func() {
-			// The wait group ensures all go routines are finished before
-			// the test finishes.
-			wg := &sync.WaitGroup{}
-			wg.Add(3)
-			// Make sure the mock is executed exactly once and updates the waitgroup.
-			set := func(call *gomock.Call) *gomock.Call {
-				return call.Times(1).Do(func(_ ...interface{}) { wg.Done() })
-			}
+	t.Run("Non-active interface should cause tasks to execute", func(t *testing.T) {
+		// The wait group ensures all go routines are finished before the test finishes.
+		wg := &sync.WaitGroup{}
+		wg.Add(3)
+		// Make sure the mock is executed exactly once and updates the waitgroup.
+		set := func(call *gomock.Call) *gomock.Call {
+			return call.Times(1).Do(func(_ ...interface{}) { wg.Done() })
+		}
 
-			pusher := mock_keepalive.NewMockIfStatePusher(mctrl)
-			dropper := mock_keepalive.NewMockRevDropper(mctrl)
-			set(pusher.EXPECT().Push(gomock.Any(), localIF))
-			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), localIA, localIF)).Return(nil)
-			set(dropper.EXPECT().DeleteRevocation(gomock.Any(), originIA, originIF)).Return(nil)
+		pusher := mock_keepalive.NewMockIfStatePusher(mctrl)
+		dropper := mock_keepalive.NewMockRevDropper(mctrl)
+		set(pusher.EXPECT().Push(gomock.Any(), localIF))
+		set(dropper.EXPECT().DeleteRevocation(gomock.Any(), localIA, localIF)).Return(nil)
+		set(dropper.EXPECT().DeleteRevocation(gomock.Any(), originIA, originIF)).Return(nil)
 
-			handler := NewHandler(localIA, testInterfaces(), StateChangeTasks{
-				IfStatePusher: pusher,
-				RevDropper:    dropper,
-			})
-			req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-				&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
-			res := handler.Handle(req)
-			waitTimeout(wg)
-			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
+		handler := NewHandler(localIA, testInterfaces(), StateChangeTasks{
+			IfStatePusher: pusher,
+			RevDropper:    dropper,
 		})
-		Convey("Active interface should cause no tasks to execute", func() {
-			intfs := testInterfaces()
-			intfs.Get(localIF).Activate(42)
-			handler := NewHandler(localIA, intfs, zeroCallTasks(mctrl))
-			req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-				&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
-			res := handler.Handle(req)
-			SoMsg("res", res, ShouldEqual, infra.MetricsResultOk)
-		})
-		Convey("Invalid requests cause an error", func() {
-			handler := NewHandler(localIA, testInterfaces(), zeroCallTasks(mctrl))
-			Convey("Wrong payload type", func() {
-				req := infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
-					&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
-				res := handler.Handle(req)
-				SoMsg("res", res, ShouldEqual, infra.MetricsErrInternal)
-			})
-			Convey("Invalid address type", func() {
-				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-					&net.UnixAddr{}, 0)
-				res := handler.Handle(req)
-				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
-			})
-			Convey("Invalid path", func() {
-				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-					&snet.Addr{IA: originIA, Path: &spath.Path{}}, 0)
-				res := handler.Handle(req)
-				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
-			})
-			Convey("Invalid ConsIngress ifid", func() {
-				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-					&snet.Addr{IA: originIA, Path: testPath(originIF)}, 0)
-				res := handler.Handle(req)
-				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
-			})
-			Convey("Invalid IA", func() {
-				req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-					&snet.Addr{IA: localIA, Path: testPath(localIF)}, 0)
-				res := handler.Handle(req)
-				SoMsg("res", res, ShouldEqual, infra.MetricsErrInvalid)
-			})
-		})
+		req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+			&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
+		res := handler.Handle(req)
+		waitTimeout(t, wg)
+		assert.Equal(t, res, infra.MetricsResultOk)
+
+	})
+
+	t.Run("Active interface should cause no tasks to execute", func(t *testing.T) {
+		intfs := testInterfaces()
+		intfs.Get(localIF).Activate(42)
+		handler := NewHandler(localIA, intfs, zeroCallTasks(mctrl))
+		req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+			&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0)
+		res := handler.Handle(req)
+		assert.Equal(t, res, infra.MetricsResultOk)
+	})
+
+	t.Run("Invalid requests cause an error", func(t *testing.T) {
+		handler := NewHandler(localIA, testInterfaces(), zeroCallTasks(mctrl))
+
+		tests := []struct {
+			msg string
+			req *infra.Request
+			exp *infra.HandlerResult
+		}{
+			{
+				msg: "Wrong payload type",
+				req: infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
+					&snet.Addr{IA: originIA, Path: testPath(localIF)}, 0),
+				exp: infra.MetricsErrInternal,
+			},
+			{
+				msg: "Invalid address type",
+				req: infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+					&net.UnixAddr{}, 0),
+				exp: infra.MetricsErrInvalid,
+			},
+			{
+				msg: "Invalid path",
+				req: infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+					&snet.Addr{IA: originIA, Path: &spath.Path{}}, 0),
+				exp: infra.MetricsErrInvalid,
+			},
+			{
+				msg: "Invalid ConsIngress ifid",
+				req: infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+					&snet.Addr{IA: originIA, Path: testPath(originIF)}, 0),
+				exp: infra.MetricsErrInvalid,
+			},
+			{
+				msg: "Invalid IA",
+				req: infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
+					&snet.Addr{IA: localIA, Path: testPath(localIF)}, 0),
+				exp: infra.MetricsErrInvalid,
+			},
+		}
+
+		for _, test := range tests {
+			t.Log(test.msg)
+			res := handler.Handle(test.req)
+			assert.Equal(t, res, test.exp)
+		}
+
 	})
 }
 
@@ -148,7 +163,7 @@ func testPath(ifid common.IFIDType) *spath.Path {
 	return path
 }
 
-func waitTimeout(wg *sync.WaitGroup) {
+func waitTimeout(t *testing.T, wg *sync.WaitGroup) {
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -156,7 +171,7 @@ func waitTimeout(wg *sync.WaitGroup) {
 	}()
 	select {
 	case <-time.After(5 * time.Second):
-		SoMsg("Timed out", 1, ShouldBeFalse)
+		assert.Fail(t, "Timed out")
 	case <-done:
 	}
 }
