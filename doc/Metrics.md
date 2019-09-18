@@ -111,22 +111,25 @@ An example metric struct:
 ```go
 // beacon_srv/internal/metrics/originator.go
 
+// OriginatorLabels define the labels attached to originator metrics.
 type OriginatorLabels struct {
     EgIfID common.IFIDType
     Result string
 }
 
+// Labels returns the list of labels.
 func (l *OrigniatorLabels) Labels() []string{
     return []string{"eg_ifid", prom.LabelResult}
 }
 
+// Values returns the label values in the order defined by Labels.
 func (l *OrigniatorLabels) Values() []string {
     return []string{l.EgIfID.String(), l.Result}
 }
 
 type originator struct {
     beacons *prometheus.CounterVec
-    time    prometheus.Counter
+    duration    prometheus.Counter
 }
 
 func newOriginator() originator {
@@ -134,17 +137,19 @@ func newOriginator() originator {
     return originator{
         beacons: prom.NewCounterVec(Namespace, sub, "beacons_total",
             "Total number of beacons originated.", OriginatorLabels.Labels()),
-        time: prom.NewCounter(Namespace, sub, "duration_seconds_total",
+        duration: prom.NewCounter(Namespace, sub, "duration_seconds_total",
             "Total time spent originating"),
     }
 }
 
+// Beacons returns the counter for the given label set.
 func (o *originator) Beacons(l OriginatorLabels) prom.Counter {
     return o.beacons.WithLabelValues(l.Values()...)
 }
 
-func (o *originator) Time() prom.Counter {
-    return o.time
+// Duration returns the duration counter.
+func (o *originator) Duration() prom.Counter {
+    return o.duration
 }
 ```
 
@@ -153,14 +158,17 @@ Another example:
 ```go
 // border/metrics/input.go
 
+// SocketLabels defines a socket label set.
 type SocketLabels struct {
     Socket string
 }
 
+// Labels returns the list of labels.
 func (l *SocketLabels) Labels() []string {
     return []string{"socket"}
 }
 
+// Values returns the label values in the order defined by Labels.
 func (l *SocketLabels) Values() []string {
     return []string{l.Socket}
 }
@@ -173,14 +181,17 @@ type input struct {
 
 func newInput() input {...}
 
+// Pkts returns the counter for the given label set.
 func (in *input) Pkts(l SocketLabels) prometheus.Counter {
     return in.pkts.WithLabelValues(l.Values()...)
 }
 
+// Bytes returns the counter for the given label set.
 func (in *input) Bytes(l SocketLabels) prometheus.Counter {
     return in.bytes.WithLabelValues(l.Values()...)
 }
 
+// PktSize returns the counter for the given label set.
 func (in *input) PktSize(l SocketLabels) prometheus.Counter {
     return in.pktSize.WithLabelValues(l.Values()...)
 }
