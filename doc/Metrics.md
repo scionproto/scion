@@ -28,6 +28,7 @@ go
 │       │    ├── handler.go
 │       │    └── sender.go
 │       └── beaconing
+│            ├── keepalive.go
 │            ├── originator.go
 │            ├── propagator.go
 │            └── registrar.go
