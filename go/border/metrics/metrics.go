@@ -25,7 +25,7 @@ import (
 )
 
 // Namespace is the metrics namespace for the border router.
-const Namespace = "border"
+const Namespace = "br"
 
 // Declare prometheus metrics to export.
 var (
