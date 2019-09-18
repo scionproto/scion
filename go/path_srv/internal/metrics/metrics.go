@@ -32,10 +32,10 @@ const (
 	Success               = prom.Success
 	RegistrationNew       = "new"
 	RegiststrationUpdated = "updated"
-	ErrParse              = "err_parse"
+	ErrParse              = prom.ErrParse
 	ErrInternal           = prom.ErrInternal
-	ErrCrypto             = "err_crypto"
-	ErrDB                 = "err_db"
+	ErrCrypto             = prom.ErrCrypto
+	ErrDB                 = prom.ErrDB
 	ErrTimeout            = prom.ErrTimeout
 )
 

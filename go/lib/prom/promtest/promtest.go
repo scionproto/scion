@@ -25,7 +25,7 @@ import (
 )
 
 // CheckLabelsStruct checks that labels has a Values and Labels method. It also
-// checks that Labels returns the struct field names.
+// checks that labels.Labels() returns the struct field names.
 func CheckLabelsStruct(t *testing.T, labels interface{}) {
 	labelsType := reflect.TypeOf(labels)
 	labelsInst := reflect.New(labelsType)

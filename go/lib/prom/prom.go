@@ -46,6 +46,12 @@ const (
 	ErrInternal = "err_internal"
 	// ErrInvalidReq is an invalid request.
 	ErrInvalidReq = "err_invalid_request"
+	// ErrParse failed to parse request.
+	ErrParse = "err_parse"
+	// ErrCrypto is used for crypto related errors.
+	ErrCrypto = "err_crypto"
+	// ErrDB is used for db related errors.
+	ErrDB = "err_db"
 )
 
 // FIXME(roosd): remove when moving messenger to new metrics style.

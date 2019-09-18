@@ -26,7 +26,8 @@ import (
 )
 
 // regResults lists all possible results for registrations.
-var regResults = []string{RegistrationNew, RegiststrationUpdated, ErrCrypto, ErrDB, ErrInternal}
+var regResults = []string{RegistrationNew, RegiststrationUpdated, ErrParse, ErrInternal,
+	ErrCrypto, ErrDB, ErrInternal, ErrTimeout}
 
 // RegistrationLabels contains the label values for registration metrics.
 type RegistrationLabels struct {
