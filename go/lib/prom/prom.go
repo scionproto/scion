@@ -46,6 +46,8 @@ const (
 	ErrInternal = "err_internal"
 	// ErrInvalidReq is an invalid request.
 	ErrInvalidReq = "err_invalid_request"
+	// ErrProcess is an error during processing e.g. parsing failed.
+	ErrProcess = "err_process"
 )
 
 // FIXME(roosd): remove when moving messenger to new metrics style.

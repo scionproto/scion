@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -54,9 +55,11 @@ func (s *Sender) Run(ctx context.Context) {
 	}
 	var sentIfids []common.IFIDType
 	for ifid, intf := range topo.IFInfoMap {
+		l := metrics.KeepaliveLabels{IfID: ifid, Result: metrics.ErrProcess}
 		pld, err := s.createPld(ifid)
 		if err != nil {
 			logger.Error("[keepalive.Sender] Unable to create payload", "err", err)
+			metrics.Keepalive.Transmits(l).Inc()
 			continue
 		}
 		msg := &onehop.Msg{
@@ -71,9 +74,14 @@ func (s *Sender) Run(ctx context.Context) {
 		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
 		if err := s.Send(msg, ov); err != nil {
 			logger.Error("[keepalive.Sender] Unable to send packet", "err", err)
-		} else {
-			sentIfids = append(sentIfids, ifid)
+			metrics.Keepalive.Transmits(l).Inc()
+			continue
 		}
+
+		sentIfids = append(sentIfids, ifid)
+
+		l.Result = metrics.Success
+		metrics.Keepalive.Transmits(l).Inc()
 	}
 	if len(sentIfids) > 0 {
 		logger.Trace("[keepalive.Sender] Sent keepalives", "ifids", sentIfids)

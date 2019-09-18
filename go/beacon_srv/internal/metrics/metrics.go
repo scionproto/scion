@@ -14,5 +14,19 @@
 
 package metrics
 
-// Namespace is the metrics namespace for the beacon server.
-const namespace = "bs"
+import "github.com/scionproto/scion/go/lib/prom"
+
+const (
+	// Namespace is the metrics namespace for the beacon server.
+	Namespace = "bs"
+
+	// Success indicates a successful result.
+	Success string = prom.Success
+	// ErrProcess indicates an error during processing.
+	ErrProcess string = prom.ErrProcess
+)
+
+var (
+	// Keepalive the single-instance struct to get prometheus counters
+	Keepalive = newKeepalive()
+)
