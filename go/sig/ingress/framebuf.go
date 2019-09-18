@@ -18,8 +18,6 @@ package ingress
 import (
 	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -166,5 +164,5 @@ func (fb *FrameBuf) String() string {
 func initFreeFrames() {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return newFrameBuf()
-	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
+	}, "ingress_free")
 }

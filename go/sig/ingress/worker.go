@@ -16,10 +16,9 @@
 package ingress
 
 import (
+	"fmt"
 	"io"
 	"time"
-
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -53,17 +52,11 @@ type Worker struct {
 }
 
 func NewWorker(remote *snet.Addr, sessId mgmt.SessionType, tunIO io.ReadWriteCloser) *Worker {
-	// FIXME(kormat): these labels don't allow us to identify traffic from a
-	// specific remote sig, but adding the remote sig addr would cause a label
-	// explosion :/
-	ringLabels := prometheus.Labels{
-		"ringId": remote.IA.String(), "sessId": sessId.String(),
-	}
 	worker := &Worker{
 		Logger: log.New("ingress", remote.String(), "sessId", sessId),
 		Remote: remote,
 		SessId: sessId,
-		Ring:   ringbuf.New(64, nil, "ingress", ringLabels),
+		Ring:   ringbuf.New(64, nil, fmt.Sprintf("ingress_%s_%s", remote.IA, sessId)),
 		rlists: make(map[int]*ReassemblyList),
 		sentCtrs: metrics.CtrPair{
 			Pkts: metrics.PktsSent.WithLabelValues(remote.IA.String(),

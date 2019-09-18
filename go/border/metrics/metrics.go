@@ -21,7 +21,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 // Namespace is the metrics namespace for the border router.
@@ -114,7 +113,4 @@ func init() {
 	BRLabels := newG("base_labels", "Border base labels.")
 	BRLabels.Set(1)
 	IFState = newGVec("interface_active", "Interface is active.", sockLabels)
-
-	// Initialize ringbuf metrics.
-	ringbuf.InitMetrics(Namespace, []string{"ringId"})
 }

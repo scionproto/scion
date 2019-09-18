@@ -19,7 +19,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/prometheus/client_golang/prometheus"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/border/brconf"
@@ -313,7 +312,7 @@ func initTestRouter(maxNumPosixInput int) *Router {
 	r := &Router{
 		freePkts: ringbuf.New(maxNumPosixInput*inputBufCnt, func() interface{} {
 			return rpkt.NewRtrPkt()
-		}, "free", prometheus.Labels{"ringId": "freePkts"}),
+		}, "free"),
 	}
 	return r
 }

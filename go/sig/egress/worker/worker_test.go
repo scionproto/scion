@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -79,7 +78,7 @@ func NewWorkerTester(t *testing.T) *WorkerTester {
 	tester := &WorkerTester{t: t}
 	tester.mockCtrl = gomock.NewController(t)
 	tester.writer = mock_worker.NewMockSCIONWriter(tester.mockCtrl)
-	tester.ring = ringbuf.New(64, nil, "egress", prometheus.Labels{"ringId": "", "sessId": ""})
+	tester.ring = ringbuf.New(64, nil, "egress")
 	return tester
 }
 
