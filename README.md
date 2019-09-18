@@ -41,6 +41,7 @@ Necessary steps in order to run SCION:
 1. Install [Bazel](https://bazel.build) version 0.26.1:
 
    ```bash
+   sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3
    wget https://github.com/bazelbuild/bazel/releases/download/0.26.1/bazel-0.26.1-installer-linux-x86_64.sh
    bash ./bazel-0.26.1-installer-linux-x86_64.sh --user
    rm ./bazel-0.26.1-installer-linux-x86_64.sh
