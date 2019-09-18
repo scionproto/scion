@@ -54,7 +54,7 @@ Commonly shared information goes to `lib/prom`:
 // lib/prom/metrics.go
 
 // common result values
-const(
+const (
     Success          = "success"
     ErrInternal      = "err_internal"
     ErrProcess       = "err_process"
@@ -77,6 +77,7 @@ Example metrics for the beacon server:
 
 import "github.com/scionproto/scion/go/lib/prom"
 
+// Namespace is the metrics namespace for the beacon server.
 const Namespace = "bs"
 
 // Metrics initialization.
