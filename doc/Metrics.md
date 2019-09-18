@@ -81,6 +81,7 @@ const Namespace = "bs"
 
 // Metrics initialization.
 var (
+    Keepalive  = newKeepalive()
     Propagator = newPropagator()
     Originator = newOriginator()
 )
@@ -118,12 +119,12 @@ type OriginatorLabels struct {
 }
 
 // Labels returns the list of labels.
-func (l *OrigniatorLabels) Labels() []string{
+func (l *OriginatorLabels) Labels() []string{
     return []string{"eg_ifid", prom.LabelResult}
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l *OrigniatorLabels) Values() []string {
+func (l *OriginatorLabels) Values() []string {
     return []string{l.EgIfID.String(), l.Result}
 }
 
@@ -151,6 +152,44 @@ func (o *originator) Beacons(l OriginatorLabels) prom.Counter {
 func (o *originator) Duration() prom.Counter {
     return o.duration
 }
+```
+
+```go
+// beacon_srv/internal/metrics/keepalive.go
+
+// KeepaliveLabels define the labels attached to keepalive metrics.
+type KeepaliveLabels struct {
+    IfID   common.IFIDType
+    Result string
+}
+
+// Labels returns the name of the labels in correct order.
+func (l KeepaliveLabels) Labels() []string {
+    return []string{"ifid", prom.LabelResult}
+}
+
+// Values returns the values of the label in correct order.
+func (l *KeepaliveLabels) Values() []string {
+    return []string{l.IfID.String(), l.Result}
+}
+
+type keepalive struct {
+    out prometheus.CounterVec
+    in prometheus.CounterVec
+}
+
+func newKeepalive() keepalive {...}
+
+// Transmits returns transmit counter.
+func (k *keepalive) Transmits(l KeepaliveLabels) prometheus.Counter {
+    return k.out.WithLabelValues(l.Values()...)
+}
+
+// Receives returns the receive counter.
+func (k *keepalive) Receives(l KeepaliveLabels) prometheus.Counter {
+    return k.in.WithLabelValues(l.Values()...)
+}
+
 ```
 
 Another example:
