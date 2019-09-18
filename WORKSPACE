@@ -480,3 +480,9 @@ go_repository(
     commit = "a985d3407aa71f30cf86696ee0a2f409709f22e1",
     importpath = "golang.org/x/xerrors",
 )
+
+go_repository(
+    name = "com_github_iancoleman_strcase",
+    commit = "e506e3ef73653e84c592ba44aab577a46678f68c",
+    importpath = "github.com/iancoleman/strcase",
+)
