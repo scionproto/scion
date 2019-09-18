@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
@@ -88,8 +87,6 @@ func init() {
 	EgressRxQueueFull = newCVec("egress_recv_queue_full_total",
 		"Egress packets dropped due to full queues.", []string{"IA"})
 
-	// Initialize ringbuf metrics.
-	ringbuf.InitMetrics("sig", []string{"ringId", "sessId"})
 	// Add handler for ConfigVersion
 	http.HandleFunc("/configversion", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, atomic.LoadUint64(&ConfigVersion))

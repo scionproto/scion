@@ -19,7 +19,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 // Namespace is the metrics namespace for the dispatcher.
@@ -56,7 +55,6 @@ func GetOpenConnectionLabel(svc addr.HostSVC) string {
 }
 
 func init() {
-	ringbuf.InitMetrics(Namespace, nil)
 	OutgoingBytesTotal = prom.NewCounter(Namespace, "", "outgoing_bytes_total",
 		"Total bytes sent on the network.")
 	OutgoingPacketsTotal = prom.NewCounter(Namespace, "", "outgoing_packets_total",

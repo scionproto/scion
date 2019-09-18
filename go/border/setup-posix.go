@@ -16,6 +16,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/border/brconf"
@@ -93,9 +95,9 @@ func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx, labels prometheus.Labels) er
 		return common.NewBasicError("Unable to listen on local socket", err, "bind", bind)
 	}
 	// Setup input goroutine.
-	ctx.LocSockIn = rctx.NewSock(ringbuf.New(64, nil, "locIn", mkRingLabels(labels)),
+	ctx.LocSockIn = rctx.NewSock(ringbuf.New(64, nil, "loc_in"),
 		over, rcmn.DirLocal, 0, labels, r.posixInput, r.handleSock, PosixSock)
-	ctx.LocSockOut = rctx.NewSock(ringbuf.New(64, nil, "locOut", mkRingLabels(labels)),
+	ctx.LocSockOut = rctx.NewSock(ringbuf.New(64, nil, "loc_out"),
 		over, rcmn.DirLocal, 0, labels, nil, r.posixOutput, PosixSock)
 	log.Debug("Done setting up new local socket.", "conn", over.LocalAddr())
 	return nil
@@ -165,9 +167,9 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
 	// Setup input goroutine.
-	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "extIn", mkRingLabels(labels)),
+	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, fmt.Sprintf("ext_in_%s", labels["sock"])),
 		c, rcmn.DirExternal, intf.Id, labels, r.posixInput, r.handleSock, PosixSock)
-	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "extOut", mkRingLabels(labels)),
+	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, fmt.Sprintf("ext_out_%s", labels["sock"])),
 		c, rcmn.DirExternal, intf.Id, labels, nil, r.posixOutput, PosixSock)
 	log.Debug("Done setting up new external socket.", "intf", intf)
 	return nil

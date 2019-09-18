@@ -17,7 +17,8 @@ package ringbuf
 import (
 	"sync"
 
-	"github.com/prometheus/client_golang/prometheus"
+	//"github.com/prometheus/client_golang/prometheus"
+	"github.com/scionproto/scion/go/lib/ringbuf/internal/metrics"
 )
 
 type Entry interface{}
@@ -35,14 +36,14 @@ type Ring struct {
 	writable   int
 	readable   int
 	closed     bool
-	metrics    *metrics
+	metrics    metrics.Ringbuf
 }
 
 // New allocates a new Ring instance, with capacity for count entries. If newf
 // is non-nil, it is called count times to pre-allocate the entries. labels
 // are attached to the prometheus metrics, and desc is added as an extra label.
 // N.B. InitMetrics must be called before the first New call.
-func New(count int, newf NewEntryF, desc string, labels prometheus.Labels) *Ring {
+func New(count int, newf NewEntryF, ringID string) *Ring {
 	r := &Ring{}
 	r.writableC = sync.NewCond(&r.mutex)
 	r.readableC = sync.NewCond(&r.mutex)
@@ -59,9 +60,9 @@ func New(count int, newf NewEntryF, desc string, labels prometheus.Labels) *Ring
 		r.writable = count
 	}
 	r.closed = false
-	r.metrics = newMetrics(desc, labels)
-	r.metrics.maxEntries.Set(float64(count))
-	r.metrics.usedEntries.Set(float64(r.readable))
+	r.metrics = metrics.NewRingbuf(&metrics.RingbufLabels{RingID: ringID})
+	r.metrics.MaxEntries.Set(float64(count))
+	r.metrics.UsedEntries.Set(float64(r.readable))
 	return r
 }
 
@@ -76,12 +77,12 @@ func (r *Ring) Write(entries EntryList, block bool) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	var blocked bool
-	r.metrics.writeCalls.Inc()
+	r.metrics.WriteCalls.Inc()
 	if len(entries) > 0 && r.writable == 0 && !r.closed {
 		if !block {
 			return 0, blocked
 		}
-		r.metrics.writesBlocked.Inc()
+		r.metrics.WritesBlocked.Inc()
 		for r.writable == 0 && !r.closed {
 			blocked = true
 			r.writableC.Wait()
@@ -95,8 +96,8 @@ func (r *Ring) Write(entries EntryList, block bool) (int, bool) {
 	r.writable -= n
 	r.readable += n
 	r.readableC.Broadcast()
-	r.metrics.writeEntries.Observe(float64(n))
-	r.metrics.usedEntries.Set(float64(r.readable))
+	r.metrics.WriteEntries.Observe(float64(n))
+	r.metrics.UsedEntries.Set(float64(r.readable))
 	return n, blocked
 }
 
@@ -111,12 +112,12 @@ func (r *Ring) Read(entries EntryList, block bool) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	var blocked bool
-	r.metrics.readCalls.Inc()
+	r.metrics.ReadCalls.Inc()
 	if len(entries) > 0 && r.readable == 0 && !r.closed {
 		if !block {
 			return 0, blocked
 		}
-		r.metrics.readsBlocked.Inc()
+		r.metrics.ReadsBlocked.Inc()
 		for r.readable == 0 && !r.closed {
 			blocked = true
 			r.readableC.Wait()
@@ -132,8 +133,8 @@ func (r *Ring) Read(entries EntryList, block bool) (int, bool) {
 	r.readable -= n
 	r.writable += n
 	r.writableC.Broadcast()
-	r.metrics.readEntries.Observe(float64(n))
-	r.metrics.usedEntries.Set(float64(r.readable))
+	r.metrics.ReadEntries.Observe(float64(n))
+	r.metrics.UsedEntries.Set(float64(r.readable))
 	return n, blocked
 }
 

@@ -16,11 +16,10 @@
 package asmap
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"time"
-
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -232,8 +231,7 @@ func (ae *ASEntry) cleanSessions() {
 }
 
 func (ae *ASEntry) setupNet() {
-	ae.egressRing = ringbuf.New(iface.EgressRemotePkts, nil, "egress",
-		prometheus.Labels{"ringId": ae.IAString, "sessId": ""})
+	ae.egressRing = ringbuf.New(iface.EgressRemotePkts, nil, fmt.Sprintf("egress_%s", ae.IAString))
 	go func() {
 		defer log.LogPanicAndExit()
 		dispatcher.NewDispatcher(ae.IA, ae.egressRing,

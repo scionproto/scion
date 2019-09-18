@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -35,7 +33,7 @@ import (
 func Init() {
 	EgressFreePkts = ringbuf.New(EgressFreePktsCap, func() interface{} {
 		return make(common.RawBytes, common.MaxMTU)
-	}, "egress", prometheus.Labels{"ringId": "freePkts", "sessId": ""})
+	}, "egress_free")
 }
 
 const (

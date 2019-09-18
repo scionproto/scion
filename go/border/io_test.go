@@ -158,8 +158,7 @@ func newTestDst(t *testing.T) *overlay.OverlayAddr {
 }
 
 func newTestSock(r *Router, ringSize int, mconn conn.Conn) *rctx.Sock {
-	return rctx.NewSock(ringbuf.New(ringSize, nil, "locOut",
-		prometheus.Labels{"ringId": "posixOutput"}), mconn, 0, 12,
+	return rctx.NewSock(ringbuf.New(ringSize, nil, "loc_out"), mconn, 0, 12,
 		prometheus.Labels{"sock": "posixOutput"}, nil, r.posixOutput, PosixSock)
 }
 

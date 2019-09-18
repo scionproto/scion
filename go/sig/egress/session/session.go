@@ -19,10 +19,9 @@ package session
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
-
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -74,8 +73,7 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
 	}
 	s.currRemote.Store((*iface.RemoteInfo)(nil))
 	s.healthy.Store(false)
-	s.ring = ringbuf.New(64, nil, "egress",
-		prometheus.Labels{"ringId": dstIA.String(), "sessId": sessId.String()})
+	s.ring = ringbuf.New(64, nil, fmt.Sprintf("egress_%s_%s", dstIA, sessId))
 	// Not using a fixed local port, as this is for outgoing data only.
 	s.conn, err = snet.ListenSCION("udp4",
 		&snet.Addr{IA: sigcmn.IA, Host: &addr.AppAddr{L3: sigcmn.Host}})
