@@ -167,9 +167,11 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
 	// Setup input goroutine.
-	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, fmt.Sprintf("ext_in_%s", labels["sock"])),
+	ctx.ExtSockIn[intf.Id] = rctx.NewSock(
+		ringbuf.New(64, nil, fmt.Sprintf("ext_in_%s", labels["sock"])),
 		c, rcmn.DirExternal, intf.Id, labels, r.posixInput, r.handleSock, PosixSock)
-	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, fmt.Sprintf("ext_out_%s", labels["sock"])),
+	ctx.ExtSockOut[intf.Id] = rctx.NewSock(
+		ringbuf.New(64, nil, fmt.Sprintf("ext_out_%s", labels["sock"])),
 		c, rcmn.DirExternal, intf.Id, labels, nil, r.posixOutput, PosixSock)
 	log.Debug("Done setting up new external socket.", "intf", intf)
 	return nil
