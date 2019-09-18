@@ -158,10 +158,10 @@ func (rp *RtrPkt) Release() {
 // addrIFPair contains the overlay destination/source addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
-	Dst  *overlay.OverlayAddr
-	Src  *overlay.OverlayAddr
-	IfID common.IFIDType
-	Sock string
+	Dst     *overlay.OverlayAddr
+	Src     *overlay.OverlayAddr
+	IfID    common.IFIDType
+	IfLabel string
 }
 
 // EgressPair contains the output function to send a packet with, along with an
