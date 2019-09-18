@@ -102,7 +102,7 @@ const (
 
 Each component is mapped to a single metrics struct. The struct exposes methods
 to interact with the metrics. Labels are provided as a struct. This allows
-reasonable static checking at compile time. Label strucst should have to suffix
+reasonable static checking at compile time. Label structs should have the suffix
 `Labels`. Label structs can be shared between components if they contain the
 same label set.
 
@@ -134,7 +134,7 @@ func newOriginator() originator {
     return originator{
         beacons: prom.NewCounterVec(Namespace, sub, "beacons_total",
             "Total number of beacons originated.", OriginatorLabels.Labels()),
-        time: prom.NewCounter(Namespace, sub, "time_seconds_total",
+        time: prom.NewCounter(Namespace, sub, "duration_seconds_total",
             "Total time spent originating"),
     }
 }
@@ -173,17 +173,16 @@ type input struct {
 
 func newInput() input {...}
 
-func (in *input) PktsWith(l SocketLabels) prometheus.Counter {
+func (in *input) Pkts(l SocketLabels) prometheus.Counter {
     return in.pkts.WithLabelValues(l.Values()...)
 }
 
-func (in *input) BytesWith(l SocketLabels) prometheus.Counter {
+func (in *input) Bytes(l SocketLabels) prometheus.Counter {
     return in.bytes.WithLabelValues(l.Values()...)
 }
 
-
-func (in *input) BytesWith(l SocketLabels) prometheus.Counter {
-    return in.bytes.WithLabelValues(l.Values()...)
+func (in *input) PktSize(l SocketLabels) prometheus.Counter {
+    return in.pktSize.WithLabelValues(l.Values()...)
 }
 ```
 
@@ -200,9 +199,9 @@ Regular case:
 import "github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 
 func (s *Sender) Run(ctx context.Context) {
-    l := metrics.KeepaliveLabel{IfID: ifid, Result: metrics.ErrNotClassified}
     ...
     for ifid, intf := range topo.IFInfoMap {
+        l := metrics.KeepaliveLabel{IfID: ifid, Result: metrics.ErrNotClassified}
         if err := s.Send(msg, ov); err != nil {
             logger.Error("[keepalive.Sender] Unable to send packet", "err", err)
             l.Result = metrics.ErrProcess
@@ -245,6 +244,6 @@ Top:
 1. [prometheus.io/docs/practices/naming/](https://prometheus.io/docs/practices/naming/)
 1. Namespace should be one word
 1. Subsystem should be one word (if present)
-1. Use values that can be search with regex. E.g. prepend `err_` for every error result.
+1. Use values that can be searched with regex. E.g. prepend `err_` for every error result.
 1. `snake_case` label names and values
 1. Put shared label names and values into `go/lib/prom`
