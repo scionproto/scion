@@ -15,6 +15,7 @@
 package rctrl
 
 import (
+	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -43,19 +44,28 @@ func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs) {
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
 func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
+	cl := metrics.ControlLabels{
+		Src:    metrics.Self,
+		Dst:    dstHost.String(),
+		Type:   metrics.Revocation,
+		Result: metrics.ErrProcess,
+	}
 	ctx := rctx.Get()
 	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
 	if err != nil {
+		metrics.Control.PktsWith(cl).Inc()
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)
 		return
 	}
 	scpld, err := cpld.SignedPld(infra.NullSigner)
 	if err != nil {
+		metrics.Control.PktsWith(cl).Inc()
 		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
 		return
 	}
 	pld, err := scpld.PackPld()
 	if err != nil {
+		metrics.Control.PktsWith(cl).Inc()
 		logger.Error("Writing RevInfo signed Ctrl payload", "err", err)
 		return
 	}
@@ -65,11 +75,18 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 	}
 	dst.NextHop, err = ctx.ResolveSVCAny(dstHost)
 	if err != nil {
+		metrics.Control.PktsWith(cl).Inc()
 		logger.Error("Resolving SVC anycast", "err", err, "addr", dst)
 		return
 	}
+	cl.Dst = dst.String()
 	if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
+		cl.Result = metrics.ErrWrite
+		metrics.Control.PktsWith(cl).Inc()
 		logger.Error("Writing RevInfo", "dst", dst, "err", err)
+		return
 	}
+	cl.Result = metrics.Success
+	metrics.Control.PktsWith(cl).Inc()
 	logger.Debug("Sent RevInfo", "dst", dst, "overlayDst", dst.NextHop)
 }

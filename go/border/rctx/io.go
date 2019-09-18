@@ -17,9 +17,8 @@ package rctx
 import (
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/scionproto/scion/go/border/brconf"
+	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
@@ -44,8 +43,8 @@ type Sock struct {
 	Dir rcmn.Dir
 	// Ifid is the interface ID associated with a connection.
 	Ifid common.IFIDType
-	// Labels holds the exported prometheus labels.
-	Labels prometheus.Labels
+	// Label is the interface label
+	Label string
 	// Reader is an optional function that reads from Sock.Ring. It is spawned
 	// in a go routine when Sock.Start() is called.
 	Reader SockFunc
@@ -62,12 +61,18 @@ type Sock struct {
 }
 
 func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir, ifid common.IFIDType,
-	labels prometheus.Labels, reader, writer SockFunc, sockType brconf.SockType) *Sock {
+	reader, writer SockFunc, sockType brconf.SockType) *Sock {
 
 	s := &Sock{
-		Ring: ring, Conn: conn, Dir: dir, Ifid: ifid, Labels: labels,
-		Reader: reader, Writer: writer, stop: make(chan struct{}),
-		Type: sockType,
+		Ring:   ring,
+		Conn:   conn,
+		Dir:    dir,
+		Ifid:   ifid,
+		Label:  metrics.IntfToLabel(ifid),
+		Reader: reader,
+		Writer: writer,
+		stop:   make(chan struct{}),
+		Type:   sockType,
 	}
 	if s.Reader != nil {
 		s.readerStopped = make(chan struct{}, 1)

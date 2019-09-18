@@ -25,7 +25,7 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
@@ -58,21 +58,20 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 	msgs := conn.NewReadMessages(inputBatchCnt)
 	readMetas := make([]conn.ReadMeta, inputBatchCnt)
 	var err error
-	var sock = s.Labels["sock"]
 
+	l := metrics.IntfLabels{Intf: s.Label}
 	// Pre-calculate metrics
-	inputPkts := metrics.InputPkts.With(s.Labels)
-	inputBytes := metrics.InputBytes.With(s.Labels)
-	inputPktSize := metrics.InputPktSize.With(s.Labels)
-	inputReads := metrics.InputReads.With(s.Labels)
-	inputReadErrs := metrics.InputReadErrors.With(s.Labels)
-	inputRcvOvfl := metrics.InputRcvOvfl.With(s.Labels)
-	inputLatency := metrics.InputLatency.With(s.Labels)
-	procPktTime := metrics.ProcessPktTime.With(s.Labels)
+	inputPkts := metrics.Input.PktsWith(l)
+	inputBytes := metrics.Input.BytesWith(l)
+	inputPktSize := metrics.Input.PktSizeWith(l)
+	inputReads := metrics.Input.ReadsWith(l)
+	inputReadErrs := metrics.Input.ReadErrorsWith(l)
+	inputRcvOvfl := metrics.Input.RcvOvflWith(l)
+	inputLatency := metrics.Input.LatencyWith(l)
 
 	// Called when the packet's reference count hits 0.
 	free := func(rp *rpkt.RtrPkt) {
-		procPktTime.Add(time.Since(rp.TimeIn).Seconds())
+		metrics.Process.TimeWith(l).Add(time.Since(rp.TimeIn).Seconds())
 		rp.Reset()
 		r.freePkts.Write(ringbuf.EntryList{rp}, true)
 	}
@@ -124,11 +123,11 @@ Top:
 			rp.TimeIn = meta.Recvd
 			rp.Raw = rp.Raw[:msg.N] // Set the length of the slice
 			rp.Ingress.Dst = dst
+			rp.Ingress.IfLabel = s.Label
 			// Make a copy, as meta.Src will be overwritten.
 			src := meta.Src
 			rp.Ingress.Src = src
 			rp.Ingress.IfID = s.Ifid
-			rp.Ingress.Sock = sock
 			inputBytes.Add(float64(msg.N))
 			inputPktSize.Observe(float64(msg.N))
 		}
@@ -202,12 +201,13 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	msgs := conn.NewWriteMessages(outputBatchCnt)
 
 	// Pre-calculate metrics
-	outputPkts := metrics.OutputPkts.With(s.Labels)
-	outputBytes := metrics.OutputBytes.With(s.Labels)
-	outputPktSize := metrics.OutputPktSize.With(s.Labels)
-	outputWrites := metrics.OutputWrites.With(s.Labels)
-	outputWriteErrs := metrics.OutputWriteErrors.With(s.Labels)
-	outputWriteLatency := metrics.OutputWriteLatency.With(s.Labels)
+	l := metrics.IntfLabels{Intf: s.Label}
+	outputPkts := metrics.Output.PktsWith(l)
+	outputBytes := metrics.Output.BytesWith(l)
+	outputPktSize := metrics.Output.PktSizeWith(l)
+	outputWrites := metrics.Output.WritesWith(l)
+	outputWriteErrs := metrics.Output.WriteErrorsWith(l)
+	outputWriteLatency := metrics.Output.LatencyWith(l)
 
 	// This loop is exited in two cases:
 	// 1. When the the ring is closed and fully drained.
