@@ -14,15 +14,5 @@
 
 package metrics
 
-import (
-	"github.com/scionproto/scion/go/lib/prom"
-)
-
-const (
-	namespace = "sciond"
-)
-
-// Init initializes the metrics for sciond.
-func Init(elem string) {
-	prom.UseDefaultRegWithElem(elem)
-}
+// Namespace is the metrics namespace for sciond.
+const Namespace = "sd"

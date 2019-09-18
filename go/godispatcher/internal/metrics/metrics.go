@@ -15,8 +15,6 @@
 package metrics
 
 import (
-	"sync"
-
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -24,9 +22,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
-const (
-	namespace = "dispatcher"
-)
+// Namespace is the metrics namespace for the dispatcher.
+const Namespace = "disp"
 
 // Label descriptions
 const (
@@ -58,26 +55,16 @@ func GetOpenConnectionLabel(svc addr.HostSVC) string {
 	return svc.BaseString()
 }
 
-var initSentinel sync.Once
-
-// Init initializes the metrics for the dispatcher.
-func Init(elem string) {
-	initSentinel.Do(func() {
-		initMetrics(elem)
-	})
-}
-
-func initMetrics(elem string) {
-	prom.UseDefaultRegWithElem(elem)
-	ringbuf.InitMetrics("dispatcher", nil)
-	OutgoingBytesTotal = prom.NewCounter(namespace, "", "outgoing_bytes_total",
+func init() {
+	ringbuf.InitMetrics(Namespace, nil)
+	OutgoingBytesTotal = prom.NewCounter(Namespace, "", "outgoing_bytes_total",
 		"Total bytes sent on the network.")
-	OutgoingPacketsTotal = prom.NewCounter(namespace, "", "outgoing_packets_total",
+	OutgoingPacketsTotal = prom.NewCounter(Namespace, "", "outgoing_packets_total",
 		"Total packets sent on the network.")
-	IncomingBytesTotal = prom.NewCounter(namespace, "", "incoming_bytes_total",
+	IncomingBytesTotal = prom.NewCounter(Namespace, "", "incoming_bytes_total",
 		"Total bytes received from the network irrespective of packet outcome.")
-	IncomingPackets = prom.NewCounterVec(namespace, "", "incoming_packets_total",
+	IncomingPackets = prom.NewCounterVec(Namespace, "", "incoming_packets_total",
 		"Total packets received from the network.", []string{IncomingPacketOutcome})
-	OpenSockets = prom.NewGaugeVec(namespace, "", "open_application_connections",
+	OpenSockets = prom.NewGaugeVec(Namespace, "", "open_application_connections",
 		"Number of sockets currently opened by applications.", []string{OpenConnectionType})
 }

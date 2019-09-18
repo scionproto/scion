@@ -30,6 +30,9 @@ import (
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
+// Namespace is the metrics namespace for the SIG.
+const Namespace = "sig"
+
 // Declare prometheus metrics to export.
 var (
 	PktsRecv              *prometheus.CounterVec
@@ -54,18 +57,15 @@ var (
 // Version number of loaded config, atomic
 var ConfigVersion uint64
 
-// Ensure all metrics are registered.
-func Init(elem string) {
-	namespace := "sig"
+func init() {
 	iaLabels := []string{"IA", "sessId"}
-	prom.UseDefaultRegWithElem(elem)
 
 	// Some closures to reduce boiler-plate.
 	newC := func(name, help string) prometheus.Counter {
-		return prom.NewCounter(namespace, "", name, help)
+		return prom.NewCounter(Namespace, "", name, help)
 	}
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
-		return prom.NewCounterVec(namespace, "", name, help, lNames)
+		return prom.NewCounterVec(Namespace, "", name, help, lNames)
 	}
 	// FIXME(kormat): these metrics should probably have more informative labels
 	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", iaLabels)

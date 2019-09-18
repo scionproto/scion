@@ -127,7 +127,7 @@ func errorToResultLabel(ctx context.Context, err error) string {
 	// TODO(lukedirtwalker): categorize error better.
 	switch {
 	case err == nil:
-		return prom.ResultOk
+		return prom.Success
 	case common.IsTimeoutErr(err):
 		return prom.ErrTimeout
 	default:

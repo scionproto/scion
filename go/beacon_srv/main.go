@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/config"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/keepalive"
-	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/beacon_srv/internal/revocation"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -54,6 +53,7 @@ import (
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -544,7 +544,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	metrics.Init(cfg.General.ID)
+	prom.ExportElementID(cfg.General.ID)
 	return env.LogAppStarted(common.BS, cfg.General.ID)
 }
 

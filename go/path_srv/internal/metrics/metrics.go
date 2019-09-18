@@ -14,15 +14,5 @@
 
 package metrics
 
-import (
-	"github.com/scionproto/scion/go/lib/prom"
-)
-
-const (
-	namespace = "path_srv"
-)
-
-// Init initializes the metrics for the PS.
-func Init(elem string) {
-	prom.UseDefaultRegWithElem(elem)
-}
+// Namespace is the metrics namespace for the path server.
+const Namespace = "ps"

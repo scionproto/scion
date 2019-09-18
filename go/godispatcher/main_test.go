@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
@@ -519,9 +518,6 @@ func MustPackQuotedSCMPL4Header(header *scmp.Hdr, meta *scmp.Meta, info scmp.Inf
 }
 
 func TestMain(m *testing.M) {
-	// If the prometheus package is not initialized, dispatcher internals panic
-	// because the counters are nil.
-	metrics.Init("dispatcher")
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }
