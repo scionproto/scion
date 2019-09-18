@@ -10,8 +10,8 @@ possible.
 
 Metrics are defined in packages called metrics. For services we suggest moving
 putting them to `go/svc_name/internal/metrics`. In `go/lib`, metrics should be
-defined as sub-package of the lowest common ancestor of all packages that intend
-to use the metrics.
+defined as internal sub-package of the lowest common ancestor of all packages
+that intend to use the metrics.
 
 Example file tree:
 
@@ -33,7 +33,8 @@ go
 │            └── registrar.go
 ├── lib
 │   └── pathdb
-│       └── metrics
+│       └── internal
+│            └── metrics
 ```
 
 General definitions are defined in `go/lib/prom` (e.g. commonly used result
