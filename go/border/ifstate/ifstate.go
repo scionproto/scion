@@ -23,14 +23,13 @@
 package ifstate
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
@@ -60,6 +59,7 @@ var states ifStates
 
 type state struct {
 	// info is a pointer to an Info object.
+	// XXX(sgmonroy) why is this an unsafe pointer?
 	info unsafe.Pointer
 }
 
@@ -74,12 +74,14 @@ type Info struct {
 
 func NewInfo(ifID common.IFIDType, active bool, srev *path_mgmt.SignedRevInfo,
 	rawSRev common.RawBytes) *Info {
+
+	label := metrics.IntfLabels{Intf: metrics.IntfToLabel(ifID)}
 	i := &Info{
 		IfID:         ifID,
 		Active:       active,
 		SRevInfo:     srev,
 		RawSRev:      rawSRev,
-		ActiveMetric: metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifID)),
+		ActiveMetric: metrics.Control.IFStateWith(label),
 	}
 	var isActive float64
 	if active {
@@ -95,6 +97,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 	for _, info := range ifStates.Infos {
 		var rawSRev common.RawBytes
 		ifid := common.IFIDType(info.IfID)
+		// XXX Why accept unsigned ifstate infos?
 		if info.SRevInfo != nil {
 			var err error
 			rawSRev, err = proto.PackRoot(info.SRevInfo)

@@ -16,6 +16,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/border/brconf"
@@ -24,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
-	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -41,8 +42,7 @@ var _ locSockOps = posixLoc{}
 type posixLoc struct{}
 
 // Setup configures a local POSIX(/BSD) socket.
-func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
-	oldCtx *rctx.Ctx) error {
+func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 
 	// Check if the existing socket can be reused. On startup, oldCtx is nil.
 	if oldCtx != nil {
@@ -59,11 +59,10 @@ func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 		oldCtx.LocSockOut.Stop()
 	}
 	// New bind address. Configure Posix I/O.
-	return p.addSock(r, ctx, labels)
+	return p.addSock(r, ctx)
 }
 
-func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
-	oldCtx *rctx.Ctx) error {
+func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 
 	// Do nothing if socket is reused.
 	if oldCtx != nil && ctx.Conf.BR.InternalAddrs.Equal(oldCtx.Conf.BR.InternalAddrs) {
@@ -80,10 +79,10 @@ func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 		return nil
 	}
 	// Replace previously closed socket.
-	return p.addSock(r, oldCtx, labels)
+	return p.addSock(r, oldCtx)
 }
 
-func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx, labels prometheus.Labels) error {
+func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx) error {
 	// Get Bind address if set, Public otherwise
 	bind := ctx.Conf.BR.InternalAddrs.BindOrPublicOverlay(ctx.Conf.Topo.Overlay)
 	log.Debug("Setting up new local socket.", "bind", bind)
@@ -92,11 +91,13 @@ func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx, labels prometheus.Labels) er
 	if err != nil {
 		return common.NewBasicError("Unable to listen on local socket", err, "bind", bind)
 	}
+	// XXX workaround until rinbugf metrics rework
+	l := prometheus.Labels{"ringId": "loc"}
 	// Setup input goroutine.
-	ctx.LocSockIn = rctx.NewSock(ringbuf.New(64, nil, "locIn", mkRingLabels(labels)),
-		over, rcmn.DirLocal, 0, labels, r.posixInput, r.handleSock, PosixSock)
-	ctx.LocSockOut = rctx.NewSock(ringbuf.New(64, nil, "locOut", mkRingLabels(labels)),
-		over, rcmn.DirLocal, 0, labels, nil, r.posixOutput, PosixSock)
+	ctx.LocSockIn = rctx.NewSock(ringbuf.New(64, nil, "in", l),
+		over, rcmn.DirLocal, 0, r.posixInput, r.handleSock, PosixSock)
+	ctx.LocSockOut = rctx.NewSock(ringbuf.New(64, nil, "out", l),
+		over, rcmn.DirLocal, 0, nil, r.posixOutput, PosixSock)
 	log.Debug("Done setting up new local socket.", "conn", over.LocalAddr())
 	return nil
 }
@@ -106,12 +107,10 @@ var _ extSockOps = posixExt{}
 type posixExt posixLoc
 
 // Setup configures a POSIX(/BSD) interface socket.
-func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) error {
-
+func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo, oldCtx *rctx.Ctx) error {
 	// No old context. This happens during startup of the router.
 	if oldCtx == nil {
-		return p.addIntf(r, ctx, intf, labels)
+		return p.addIntf(r, ctx, intf)
 	}
 	if oldIntf, ok := oldCtx.Conf.BR.IFs[intf.Id]; ok {
 		// Reuse socket if the interface has not changed.
@@ -126,11 +125,11 @@ func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 		oldCtx.ExtSockIn[intf.Id].Stop()
 		oldCtx.ExtSockOut[intf.Id].Stop()
 	}
-	return p.addIntf(r, ctx, intf, labels)
+	return p.addIntf(r, ctx, intf)
 }
 
 func (p posixExt) Rollback(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) error {
+	oldCtx *rctx.Ctx) error {
 
 	var oldIntf *topology.IFInfo
 	if oldCtx != nil {
@@ -151,11 +150,10 @@ func (p posixExt) Rollback(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 	if oldIntf == nil || oldCtx.ExtSockIn[oldIntf.Id].Running() {
 		return nil
 	}
-	return p.addIntf(r, oldCtx, oldIntf, labels)
+	return p.addIntf(r, oldCtx, oldIntf)
 }
 
-func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
-	labels prometheus.Labels) error {
+func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo) error {
 
 	// Connect to remote address.
 	log.Debug("Setting up new external socket.", "intf", intf)
@@ -164,11 +162,13 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
+	// XXX workaround until rinbugf metrics rework
+	l := prometheus.Labels{"ringId": fmt.Sprintf("ext_%d", intf.Id)}
 	// Setup input goroutine.
-	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "extIn", mkRingLabels(labels)),
-		c, rcmn.DirExternal, intf.Id, labels, r.posixInput, r.handleSock, PosixSock)
-	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "extOut", mkRingLabels(labels)),
-		c, rcmn.DirExternal, intf.Id, labels, nil, r.posixOutput, PosixSock)
+	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "in", l),
+		c, rcmn.DirExternal, intf.Id, r.posixInput, r.handleSock, PosixSock)
+	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "out", l),
+		c, rcmn.DirExternal, intf.Id, nil, r.posixOutput, PosixSock)
 	log.Debug("Done setting up new external socket.", "intf", intf)
 	return nil
 }
@@ -190,12 +190,4 @@ func interfaceChanged(newIntf *topology.IFInfo, oldIntf *topology.IFInfo) bool {
 	return (newIntf.Id != oldIntf.Id ||
 		!newIntf.Local.Equal(oldIntf.Local) ||
 		!newIntf.Remote.Equal(oldIntf.Remote))
-}
-
-// Create a set of labels for ringbuf with `sock` renamed to `ringId`.
-func mkRingLabels(labels prometheus.Labels) prometheus.Labels {
-	ringLabels := prom.CopyLabels(labels)
-	ringLabels["ringId"] = labels["sock"]
-	delete(ringLabels, "sock")
-	return ringLabels
 }
