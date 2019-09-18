@@ -61,6 +61,12 @@ var (
 		1.28, 2.56, 5.12, 10.24}
 )
 
+// ExportElementID exports the element ID as configured in the config file.
+func ExportElementID(id string) {
+	NewGaugeVec("scion", "", "elem_id",
+		"The element ID from the config file", []string{"cfg"}).WithLabelValues(id).Set(1)
+}
+
 // FIXME(roosd): remove.
 func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 	l := make(prometheus.Labels)
@@ -68,14 +74,6 @@ func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 		l[k] = v
 	}
 	return l
-}
-
-// UseDefaultRegWithElem changes the default prometheus registry
-// to one that always adds the element id label.
-// Note this should be called before any other interaction with prometheus.
-// See also: https://github.com/prometheus/client_golang/issues/515
-func UseDefaultRegWithElem(elemId string) {
-
 }
 
 // NewCounter creates a new prometheus counter that is registered with the default registry.

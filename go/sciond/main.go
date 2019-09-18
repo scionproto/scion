@@ -41,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -191,6 +192,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
+	prom.ExportElementID(cfg.General.ID)
 	return env.LogAppStarted("SD", cfg.General.ID)
 }
 

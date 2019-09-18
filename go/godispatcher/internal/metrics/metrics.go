@@ -23,7 +23,7 @@ import (
 )
 
 // Namespace is the metrics namespace for the dispatcher.
-const Namespace = "dispatcher"
+const Namespace = "disp"
 
 // Label descriptions
 const (
@@ -56,7 +56,7 @@ func GetOpenConnectionLabel(svc addr.HostSVC) string {
 }
 
 func init() {
-	ringbuf.InitMetrics("dispatcher", nil)
+	ringbuf.InitMetrics(Namespace, nil)
 	OutgoingBytesTotal = prom.NewCounter(Namespace, "", "outgoing_bytes_total",
 		"Total bytes sent on the network.")
 	OutgoingPacketsTotal = prom.NewCounter(Namespace, "", "outgoing_packets_total",

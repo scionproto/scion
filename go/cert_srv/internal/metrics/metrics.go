@@ -15,4 +15,4 @@
 package metrics
 
 // Namespace is the metrics namespace for the certificate server.
-const namespace = "cs"
+const Namespace = "cs"

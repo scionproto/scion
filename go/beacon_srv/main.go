@@ -53,6 +53,7 @@ import (
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -543,6 +544,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
+	prom.ExportElementID(cfg.General.ID)
 	return env.LogAppStarted(common.BS, cfg.General.ID)
 }
 

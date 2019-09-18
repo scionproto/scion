@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/disp"
@@ -121,6 +122,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
+	prom.ExportElementID(cfg.Sig.ID)
 	return env.LogAppStarted("SIG", cfg.Sig.ID)
 }
 

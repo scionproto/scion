@@ -15,4 +15,4 @@
 package metrics
 
 // Namespace is the metrics namespace for sciond.
-const Namespace = "sciond"
+const Namespace = "sd"

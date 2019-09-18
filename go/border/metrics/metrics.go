@@ -24,6 +24,9 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
+// Namespace is the metrics namespace for the border router.
+const Namespace = "border"
+
 // Declare prometheus metrics to export.
 var (
 	// High-level input stats
@@ -56,23 +59,22 @@ var (
 )
 
 func init() {
-	namespace := "br"
 	sockLabels := []string{"sock"}
 
 	// Some closures to reduce boiler-plate.
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
-		return prom.NewCounterVec(namespace, "", name, help, lNames)
+		return prom.NewCounterVec(Namespace, "", name, help, lNames)
 	}
 	newG := func(name, help string) prometheus.Gauge {
-		return prom.NewGauge(namespace, "", name, help)
+		return prom.NewGauge(Namespace, "", name, help)
 	}
 	newGVec := func(name, help string, lNames []string) *prometheus.GaugeVec {
-		return prom.NewGaugeVec(namespace, "", name, help, lNames)
+		return prom.NewGaugeVec(Namespace, "", name, help, lNames)
 	}
 	newHVec := func(name, help string,
 		lNames []string, buckets []float64) *prometheus.HistogramVec {
 
-		return prom.NewHistogramVec(namespace, "", name, help, lNames, buckets)
+		return prom.NewHistogramVec(Namespace, "", name, help, lNames, buckets)
 	}
 
 	InputPkts = newCVec("input_pkts_total", "Total number of input packets received.", sockLabels)
@@ -114,5 +116,5 @@ func init() {
 	IFState = newGVec("interface_active", "Interface is active.", sockLabels)
 
 	// Initialize ringbuf metrics.
-	ringbuf.InitMetrics("border", []string{"ringId"})
+	ringbuf.InitMetrics(Namespace, []string{"ringId"})
 }
