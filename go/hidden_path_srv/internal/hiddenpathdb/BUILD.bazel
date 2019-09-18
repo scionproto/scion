@@ -9,6 +9,7 @@ go_library(
         "//go/lib/addr:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/hiddenpath:go_default_library",
+        "//go/lib/pathdb:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
     ],
 )

@@ -62,13 +62,9 @@ func (rw *readWriter) Get(ctx context.Context, params *hiddenpathdb.Params) (que
 
 // Insert inserts a hidden path segment into the the underlying PathDB
 func (rw *readWriter) Insert(ctx context.Context, seg *seg.Meta,
-	ids hiddenpath.GroupIdSet) (int, error) {
+	ids hiddenpath.GroupIdSet) (pathdb.InsertStats, error) {
 
-	stats, err := rw.backend.InsertWithHPCfgIDs(ctx, seg, convertIds(ids))
-	if err != nil {
-		return 0, err
-	}
-	return stats.Inserted + stats.Updated, nil
+	return rw.backend.InsertWithHPCfgIDs(ctx, seg, convertIds(ids))
 }
 
 // Delete deletes all path segments that match the given query,

@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 )
 
@@ -36,7 +37,7 @@ type Read interface {
 type Write interface {
 	// Insert inserts or updates a hidden path segment. It returns the number of path segments
 	// that have been inserted/updated.
-	Insert(context.Context, *seg.Meta, hiddenpath.GroupIdSet) (int, error)
+	Insert(context.Context, *seg.Meta, hiddenpath.GroupIdSet) (pathdb.InsertStats, error)
 	// Delete deletes all path segments that match the given query,
 	// returning the number of deleted segments
 	Delete(context.Context, *Params) (int, error)
