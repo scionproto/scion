@@ -48,6 +48,12 @@ const (
 	ErrInvalidReq = "err_invalid_request"
 	// ErrProcess is an error during processing e.g. parsing failed.
 	ErrProcess = "err_process"
+	// ErrParse failed to parse request.
+	ErrParse = "err_parse"
+	// ErrCrypto is used for crypto related errors.
+	ErrCrypto = "err_crypto"
+	// ErrDB is used for db related errors.
+	ErrDB = "err_db"
 )
 
 // FIXME(roosd): remove when moving messenger to new metrics style.
