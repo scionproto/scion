@@ -14,19 +14,39 @@
 
 package metrics
 
-import "github.com/scionproto/scion/go/lib/prom"
+import (
+	"github.com/scionproto/scion/go/lib/prom"
+)
 
 const (
+
 	// Namespace is the metrics namespace for the beacon server.
 	Namespace = "bs"
 
-	// Success indicates a successful result.
-	Success string = prom.Success
+	// DstBR indicates the destination to be Border Router.
+	DstBR string = "br"
+	// DstPS indicates the destination to be Path Server.
+	DstPS string = "ps"
+
 	// ErrProcess indicates an error during processing.
 	ErrProcess string = prom.ErrProcess
+
+	// RevNew indicates a new issued revocation.
+	RevNew string = "new"
+	// RevRenew indicates a renew of an already issued revocation.
+	RevRenew string = "renew"
+	// RevFromCtrl indicates that revocation was sent control payload.
+	RevFromCtrl string = "ctrl"
+
+	// Success indicates a successful result.
+	Success string = prom.Success
 )
 
 var (
-	// Keepalive the single-instance struct to get prometheus counters
+	// Ifstate is the single-instance struct to get prometheus metrics or counters.
+	Ifstate = newIfstate()
+	// Keepalive is the single-instance struct to get keepalive prometheus counters.
 	Keepalive = newKeepalive()
+	// Revocation is the single-instance struct to get prometheus counters.
+	Revocation = newRevocation()
 )

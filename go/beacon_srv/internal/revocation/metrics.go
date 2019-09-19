@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics
+package revocation
 
 import (
 	"github.com/scionproto/scion/go/lib/infra"
@@ -20,13 +20,13 @@ import (
 )
 
 var (
-	errBeaconStore   = &infra.HandlerResult{Result: "err_beaconstore", Status: prom.StatusErr}
-	errBeaconStoreTo = &infra.HandlerResult{
+	errBeaconStore     = &infra.HandlerResult{Result: "err_beaconstore", Status: prom.StatusErr}
+	errBeaconStoreTout = &infra.HandlerResult{
 		Result: "err_beaconstore_timeout",
 		Status: prom.StatusTimeout,
 	}
 )
 
 func ErrBeaconStore(err error) *infra.HandlerResult {
-	return infra.MetricsErrWithTimeout(err, errBeaconStoreTo, errBeaconStore)
+	return infra.MetricsErrWithTimeout(err, errBeaconStoreTout, errBeaconStore)
 }

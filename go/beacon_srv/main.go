@@ -158,7 +158,7 @@ func realMain() int {
 	}
 	defer store.Close()
 	intfs = ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
-	prometheus.MustRegister(ifstate.NewCollector(intfs, ""))
+	prometheus.MustRegister(ifstate.NewCollector(intfs))
 	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
