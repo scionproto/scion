@@ -12,25 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics
+package metrics_test
 
 import (
-	"github.com/scionproto/scion/go/lib/prom"
+	"testing"
+
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
+	"github.com/scionproto/scion/go/lib/prom/promtest"
 )
 
-const (
-	// Namespace is the metrics namespace for the beacon server.
-	Namespace = "bs"
-
-	// Success indicates a successful result.
-	Success string = prom.Success
-	// ErrProcess indicates an error during processing.
-	ErrProcess string = prom.ErrProcess
-)
-
-var (
-	// Keepalive is the single-instance struct to get keepalive prometheus counters
-	Keepalive = newKeepalive()
-	// Revocation is the single-instance struct to get prometheus counters
-	Revocation = newRevocation()
-)
+func TestLabels(t *testing.T) {
+	tests := []interface{}{
+		metrics.RevocationLabels{},
+		metrics.KeepaliveLabels{},
+	}
+	for _, test := range tests {
+		promtest.CheckLabelsStruct(t, test)
+	}
+}
