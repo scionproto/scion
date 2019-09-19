@@ -47,6 +47,8 @@ type segMeta struct {
 	Seg         *seg.PathSegment
 }
 
+var noInsertion = pathdb.InsertStats{}
+
 var _ pathdb.PathDB = (*Backend)(nil)
 
 type Backend struct {
@@ -127,35 +129,35 @@ type executor struct {
 	polHash pathdb.PolicyHashFunc
 }
 
-func (e *executor) Insert(ctx context.Context, segMeta *seg.Meta) (int, error) {
+func (e *executor) Insert(ctx context.Context, segMeta *seg.Meta) (pathdb.InsertStats, error) {
 	return e.InsertWithHPCfgIDs(ctx, segMeta, []*query.HPCfgID{&query.NullHpCfgID})
 }
 
 func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
-	hpCfgIDs []*query.HPCfgID) (int, error) {
+	hpCfgIDs []*query.HPCfgID) (pathdb.InsertStats, error) {
 
 	e.Lock()
 	defer e.Unlock()
 	if e.db == nil {
-		return 0, common.NewBasicError("No database open", nil)
+		return noInsertion, common.NewBasicError("No database open", nil)
 	}
 	pseg := segMeta.Segment
 	// Check if we already have a path segment.
 	segID, err := pseg.ID()
 	if err != nil {
-		return 0, err
+		return noInsertion, err
 	}
 	newFullId, err := pseg.FullId()
 	if err != nil {
-		return 0, err
+		return noInsertion, err
 	}
 	newInfo, err := pseg.InfoF()
 	if err != nil {
-		return 0, err
+		return noInsertion, err
 	}
 	meta, err := e.get(ctx, segID)
 	if err != nil {
-		return 0, err
+		return noInsertion, err
 	}
 	if meta != nil {
 		// Check if the new segment is more recent.
@@ -165,20 +167,20 @@ func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 			meta.Seg = pseg
 			meta.LastUpdated = time.Now()
 			if err := e.updateExisting(ctx, meta, segMeta.Type, newFullId, hpCfgIDs); err != nil {
-				return 0, err
+				return noInsertion, err
 			}
-			return 1, nil
+			return pathdb.InsertStats{Updated: 1}, nil
 		}
-		return 0, nil
+		return noInsertion, nil
 	}
 	// Do full insert.
 	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		return insertFull(ctx, tx, segMeta, hpCfgIDs)
 	})
 	if err != nil {
-		return 0, err
+		return noInsertion, err
 	}
-	return 1, nil
+	return pathdb.InsertStats{Inserted: 1}, nil
 }
 
 func (e *executor) get(ctx context.Context, segID common.RawBytes) (*segMeta, error) {

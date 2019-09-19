@@ -16,11 +16,28 @@ package seghandler
 
 import "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 
+// Stats provides statistics about handling segments.
+type Stats struct {
+	// SegDB contains stats about segment insertions/updates.
+	SegDB SegStats
+	// VerifiedSegs indicates the amount of successfully verified segments.
+	VerifiedSegs int
+	// StoredRevs contains all revocations that were verified and stored.
+	StoredRevs []*path_mgmt.SignedRevInfo
+	// VerifiedRevs contains all revocations that were verified.
+	VerifiedRevs []*path_mgmt.SignedRevInfo
+}
+
+func (s *Stats) addStoredSegs(segs SegStats) {
+	s.SegDB.InsertedSegs = append(s.SegDB.InsertedSegs, segs.InsertedSegs...)
+	s.SegDB.UpdatedSegs = append(s.SegDB.UpdatedSegs, segs.UpdatedSegs...)
+}
+
 // ProcessedResult is the result of handling a segment reply.
 type ProcessedResult struct {
 	early      chan int
 	full       chan struct{}
-	segs       int
+	stats      Stats
 	revs       []*path_mgmt.SignedRevInfo
 	err        error
 	verifyErrs []error
@@ -38,16 +55,9 @@ func (r *ProcessedResult) FullReplyProcessed() <-chan struct{} {
 	return r.full
 }
 
-// VerifiedSegs returns the amount of verified segs. This should only be
-// accessed after FullReplyProcessed channel has been closed.
-func (r *ProcessedResult) VerifiedSegs() int {
-	return r.segs
-}
-
-// VerifiedRevs returns the verified revocations. This should only be accessed
-// after FullReplyProcessed channel has been closed.
-func (r *ProcessedResult) VerifiedRevs() []*path_mgmt.SignedRevInfo {
-	return r.revs
+// Stats provides insights about storage and verification of segments.
+func (r *ProcessedResult) Stats() Stats {
+	return r.stats
 }
 
 // Err indicates the error that happened when storing the segments. This should

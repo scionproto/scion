@@ -27,7 +27,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["seghandler_test.go"],
+    srcs = [
+        "seghandler_test.go",
+        "storage_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/common:go_default_library",
@@ -37,7 +40,10 @@ go_test(
         "//go/lib/infra/modules/seghandler/mock_seghandler:go_default_library",
         "//go/lib/infra/modules/segverifier:go_default_library",
         "//go/lib/mocks/net/mock_net:go_default_library",
+        "//go/lib/pathdb:go_default_library",
+        "//go/lib/pathdb/mock_pathdb:go_default_library",
         "//go/lib/xtest:go_default_library",
+        "//go/lib/xtest/graph:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",

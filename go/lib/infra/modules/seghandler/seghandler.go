@@ -74,13 +74,11 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 
 	verifiedUnits := make([]segverifier.UnitResult, 0, units)
 	var allVerifyErrs []error
-	totalSegsSaved := 0
-	var allRevs []*path_mgmt.SignedRevInfo
 	defer close(result.full)
 	defer func() {
 		if earlyTrigger != nil {
 			// Unblock channel if done before triggered
-			result.early <- totalSegsSaved
+			result.early <- result.stats.SegDB.Total()
 		}
 	}()
 	for u := 0; u < units; u++ {
@@ -90,30 +88,28 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 		case <-earlyTrigger:
 			// Reduce u since this does not process an additional unit.
 			u--
-			segs, revs, verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID)
+			verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
 			allVerifyErrs = append(allVerifyErrs, verifyErrs...)
-			totalSegsSaved += segs
-			allRevs = append(allRevs, revs...)
-			result.early <- segs
+			result.early <- result.stats.SegDB.Total()
 			// TODO(lukedirtwalker): log early store failure
 			if err == nil {
 				// clear already processed units
 				verifiedUnits = verifiedUnits[:0]
+			} else {
+				// reset stats
+				result.stats = Stats{}
 			}
 			// Make sure we do not select from this channel again
 			earlyTrigger = nil
 		}
 	}
-	segs, revs, verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID)
+	verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
 	result.verifyErrs = append(allVerifyErrs, verifyErrs...)
 	result.err = err
-	totalSegsSaved += segs
-	result.segs = totalSegsSaved
-	result.revs = append(allRevs, revs...)
 }
 
 func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.UnitResult,
-	hpGroupID hiddenpath.GroupId) (int, []*path_mgmt.SignedRevInfo, []error, error) {
+	hpGroupID hiddenpath.GroupId, stats *Stats) ([]error, error) {
 
 	var verifyErrs []error
 	segs := make([]*SegWithHP, 0, len(verifiedUnits))
@@ -127,6 +123,7 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 				Seg:     unit.Unit.SegMeta,
 				HPGroup: hpGroupID,
 			})
+			stats.VerifiedSegs++
 		}
 		for idx, rev := range unit.Unit.SRevInfos {
 			if err, ok := unit.Errors[idx]; ok {
@@ -134,20 +131,24 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 					"rev", rev))
 			} else {
 				revs = append(revs, rev)
+				stats.VerifiedRevs = append(stats.VerifiedRevs, rev)
 			}
 		}
 	}
 	if len(segs) > 0 {
-		if err := h.Storage.StoreSegs(ctx, segs); err != nil {
-			return 0, nil, verifyErrs, err
+		storeSegStats, err := h.Storage.StoreSegs(ctx, segs)
+		if err != nil {
+			return verifyErrs, err
 		}
+		stats.addStoredSegs(storeSegStats)
 	}
 	if len(revs) > 0 {
 		if err := h.Storage.StoreRevs(ctx, revs); err != nil {
-			return len(segs), nil, verifyErrs, h.Storage.StoreRevs(ctx, revs)
+			return verifyErrs, err
 		}
+		stats.StoredRevs = append(stats.StoredRevs, revs...)
 	}
-	return len(segs), revs, verifyErrs, nil
+	return verifyErrs, nil
 }
 
 func convertHPGroupID(id hiddenpath.GroupId) []*query.HPCfgID {

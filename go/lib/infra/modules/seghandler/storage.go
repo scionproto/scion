@@ -37,9 +37,32 @@ func (s *SegWithHP) String() string {
 	return fmt.Sprintf("{Seg: %v, HPGroup: %s}", s.Seg, s.HPGroup)
 }
 
+// SegStats provides statistics about segment insertion/updates.
+type SegStats struct {
+	// InsertedSegs are the log IDs of the inserted segments.
+	InsertedSegs []string
+	// UpdatedSegs are the log IDs of the updated segments.
+	UpdatedSegs []string
+}
+
+// Total returns the total amount of updates and inserts.
+func (s SegStats) Total() int {
+	return len(s.InsertedSegs) + len(s.UpdatedSegs)
+}
+
+// Log logs the statistics with the given logger.
+func (s *SegStats) Log(logger log.Logger) {
+	if len(s.InsertedSegs) > 0 {
+		logger.Debug("Segments inserted in DB", "segments", s.InsertedSegs)
+	}
+	if len(s.UpdatedSegs) > 0 {
+		logger.Debug("Segments updated in DB", "segments", s.UpdatedSegs)
+	}
+}
+
 // Storage is used to store segments and revocations.
 type Storage interface {
-	StoreSegs(context.Context, []*SegWithHP) error
+	StoreSegs(context.Context, []*SegWithHP) (SegStats, error)
 	StoreRevs(context.Context, []*path_mgmt.SignedRevInfo) error
 }
 
@@ -51,32 +74,33 @@ type DefaultStorage struct {
 }
 
 // StoreSegs stores the given segments in the pathdb in a transaction.
-func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*SegWithHP) error {
+func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*SegWithHP) (SegStats, error) {
 	tx, err := s.PathDB.BeginTransaction(ctx, nil)
 	if err != nil {
-		return err
+		return SegStats{}, err
 	}
+	defer tx.Rollback()
 	// Sort to prevent sql deadlock.
 	sort.Slice(segs, func(i, j int) bool {
 		return segs[i].Seg.Segment.GetLoggingID() < segs[j].Seg.Segment.GetLoggingID()
 	})
-	var insertedSegmentIDs []string
-	defer tx.Rollback()
+	segStats := SegStats{}
 	for _, seg := range segs {
-		n, err := tx.InsertWithHPCfgIDs(ctx, seg.Seg, convertHPGroupID(seg.HPGroup))
+		stats, err := tx.InsertWithHPCfgIDs(ctx, seg.Seg, convertHPGroupID(seg.HPGroup))
 		if err != nil {
-			return err
-		} else if n > 0 {
-			insertedSegmentIDs = append(insertedSegmentIDs, seg.Seg.Segment.GetLoggingID())
+			return SegStats{}, err
+		}
+		if stats.Inserted > 0 {
+			segStats.InsertedSegs = append(segStats.InsertedSegs, seg.Seg.Segment.GetLoggingID())
+		} else if stats.Updated > 0 {
+			segStats.UpdatedSegs = append(segStats.UpdatedSegs, seg.Seg.Segment.GetLoggingID())
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return err
+		return SegStats{}, err
 	}
-	if len(insertedSegmentIDs) > 0 {
-		log.FromCtx(ctx).Debug("Segments inserted in DB", "segments", insertedSegmentIDs)
-	}
-	return nil
+	segStats.Log(log.FromCtx(ctx))
+	return segStats, nil
 }
 
 // StoreRevs stores the given revocations in the revocation cache.

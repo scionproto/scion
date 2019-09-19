@@ -14,5 +14,34 @@
 
 package metrics
 
+import (
+	"github.com/scionproto/scion/go/lib/prom"
+)
+
 // Namespace is the metrics namespace for the path server.
 const Namespace = "ps"
+
+// Group of metrics.
+var (
+	// Registrations contains metrics for segments registrations.
+	Registrations = newRegistration()
+)
+
+// Result values
+const (
+	Success               = prom.Success
+	RegistrationNew       = "new"
+	RegiststrationUpdated = "updated"
+	ErrParse              = prom.ErrParse
+	ErrInternal           = prom.ErrInternal
+	ErrCrypto             = prom.ErrCrypto
+	ErrDB                 = prom.ErrDB
+	ErrTimeout            = prom.ErrTimeout
+)
+
+// Label values
+const (
+	LabelSrc    = prom.LabelSrc
+	LabelResult = prom.LabelResult
+	LabelType   = "type"
+)

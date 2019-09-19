@@ -181,8 +181,8 @@ type metricsExecutor struct {
 	metrics *counters
 }
 
-func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (int, error) {
-	var cnt int
+func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (InsertStats, error) {
+	var cnt InsertStats
 	var err error
 	db.metrics.Observe(ctx, promOpInsert, func(ctx context.Context) error {
 		cnt, err = db.pathDB.Insert(ctx, meta)
@@ -192,9 +192,9 @@ func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (int, err
 }
 
 func (db *metricsExecutor) InsertWithHPCfgIDs(ctx context.Context,
-	meta *seg.Meta, hpCfgIds []*query.HPCfgID) (int, error) {
+	meta *seg.Meta, hpCfgIds []*query.HPCfgID) (InsertStats, error) {
 
-	var cnt int
+	var cnt InsertStats
 	var err error
 	db.metrics.Observe(ctx, promOpInsertHpCfg, func(ctx context.Context) error {
 		cnt, err = db.pathDB.InsertWithHPCfgIDs(ctx, meta, hpCfgIds)
