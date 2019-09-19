@@ -21,26 +21,28 @@ import (
 
 	"github.com/iancoleman/strcase"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // CheckLabelsStruct checks that labels has a Values and Labels method. It also
 // checks that labels.Labels() returns the struct field names.
-func CheckLabelsStruct(t *testing.T, labels interface{}) {
-	labelsType := reflect.TypeOf(labels)
-	labelsInst := reflect.New(labelsType)
-	labelsMethod := labelsInst.MethodByName("Labels")
-	require.NotNil(t, labelsMethod, "Labels method missing")
-	valuesMethod := labelsInst.MethodByName("Values")
-	require.NotNil(t, valuesMethod, "Values method missing")
+func CheckLabelsStruct(t *testing.T, xLabels interface{}) {
+	type label interface {
+		Labels() []string
+		Values() []string
+	}
 
-	var fieldNames []string
+	v, ok := xLabels.(label)
+	if ok != true {
+		assert.Fail(t, "should implement label interface")
+	}
+
+	assert.Equal(t, len(v.Values()), len(v.Labels()), "should match in length")
+
+	fieldNames := []string{}
+	labelsType := reflect.TypeOf(xLabels)
 	for i := 0; i < labelsType.NumField(); i++ {
 		fieldNames = append(fieldNames, strcase.ToSnake(labelsType.Field(i).Name))
 	}
-	callResult := labelsMethod.Call([]reflect.Value{})
-	require.Equal(t, 1, len(callResult), "Values result length wrong")
-	actLabels, ok := callResult[0].Interface().([]string)
-	require.True(t, ok, "Values returns wrong type")
-	assert.ElementsMatch(t, fieldNames, actLabels, "Expected %v but was %v", fieldNames, actLabels)
+	assert.ElementsMatch(t, fieldNames, v.Labels(), "Expected %v but was %v",
+		fieldNames, v.Labels())
 }
