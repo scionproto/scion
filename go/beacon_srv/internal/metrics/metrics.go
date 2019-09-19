@@ -14,7 +14,10 @@
 
 package metrics
 
-import "github.com/scionproto/scion/go/lib/prom"
+import (
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/prom"
+)
 
 const (
 	// Namespace is the metrics namespace for the beacon server.
@@ -27,6 +30,18 @@ const (
 )
 
 var (
-	// Keepalive the single-instance struct to get prometheus counters
+	// Keepalive is the single-instance struct to get prometheus counters
 	Keepalive = newKeepalive()
+	// Revocation is the single-instance struct to get prometheus counters
+	Revocation = newRevocation()
+
+	errBeaconStore   = &infra.HandlerResult{Result: "err_beaconstore", Status: prom.StatusErr}
+	errBeaconStoreTo = &infra.HandlerResult{
+		Result: "err_beaconstore_timeout",
+		Status: prom.StatusTimeout,
+	}
 )
+
+func ErrBeaconStore(err error) *infra.HandlerResult {
+	return infra.MetricsErrWithTimeout(err, errBeaconStoreTo, errBeaconStore)
+}

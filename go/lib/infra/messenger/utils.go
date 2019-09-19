@@ -40,6 +40,7 @@ func SendAckHelper(ctx context.Context, rw infra.ResponseWriter) func(proto.Ack_
 			Err:     errCode,
 			ErrDesc: errDesc,
 		}
+		//TODO(karampok). make this to return the error
 		if err := rw.SendAckReply(ctx, a); err != nil {
 			logger.Error("Failed to send ack", "err", err)
 		}

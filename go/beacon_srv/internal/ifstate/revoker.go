@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -84,6 +85,7 @@ func (r *Revoker) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	revs := make(map[common.IFIDType]*path_mgmt.SignedRevInfo)
 	for ifid, intf := range r.cfg.Intfs.All() {
+		labels := metrics.RevocationLabels{IfID: ifid, Result: metrics.ErrProcess}
 		if intf.Expire() && !r.hasValidRevocation(intf) {
 			if intf.Revocation() == nil {
 				logger.Info("[ifstate.Revoker] interface went down", "ifid", ifid)
@@ -92,21 +94,26 @@ func (r *Revoker) Run(ctx context.Context) {
 			if err != nil {
 				logger.Error("[ifstate.Revoker] Failed to create revocation",
 					"ifid", ifid, "err", err)
+				metrics.Revocation.Transmits(labels).Inc()
 				continue
 			}
-			if err := intf.Revoke(srev); err == nil {
-				revs[ifid] = srev
-			} else {
+			if err := intf.Revoke(srev); err != nil {
 				logger.Error("[ifstate.Revoker] Failed to revoke!", "ifid", ifid, "err", err)
+				metrics.Revocation.Transmits(labels).Inc()
+				continue
 			}
+			revs[ifid] = srev
 		}
 	}
 	if len(revs) > 0 {
 		wg := &sync.WaitGroup{}
+		l := metrics.RevocationLabels{Result: metrics.Success}
 		if err := r.cfg.RevInserter.InsertRevocations(ctx, toSlice(revs)...); err != nil {
 			logger.Error("[ifstate.Revoker] Failed to insert revocations in store", "err", err)
+			l.Result = metrics.ErrProcess
 			// still continue to try to push it to BR/PS.
 		}
+		metrics.Revocation.Stores(l).Inc()
 		r.pushRevocationsToBRs(ctx, revs, wg)
 		r.pushRevocationsToPS(ctx, revs)
 		wg.Wait()
@@ -151,10 +158,13 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 	topo := r.cfg.TopoProvider.Get()
 	a := &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
 	for ifid, srev := range revs {
+		l := metrics.RevocationLabels{IfID: ifid, Result: metrics.Success, Dst: "PS"}
 		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
 			log.FromCtx(ctx).Error("[ifstate.Revoker] Failed to send revocation to PS",
 				"ifid", ifid, "err", err)
+			l.Result = metrics.ErrProcess
 		}
+		metrics.Revocation.Transmits(l).Inc()
 	}
 }
 
@@ -183,10 +193,13 @@ func (p *brPusher) sendIfStateToBr(ctx context.Context, msg *path_mgmt.IFStateIn
 	go func() {
 		defer log.LogPanicAndExit()
 		defer wg.Done()
+		l := metrics.RevocationLabels{Result: metrics.Success, Dst: id}
 		if err := p.msgr.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
 			log.FromCtx(ctx).Error("Failed to send interface state to BR",
 				"br", id, "mode", p.mode, "err", err)
+			l.Result = metrics.ErrProcess
 		}
+		metrics.Revocation.Transmits(l).Add(float64(len(msg.Infos)))
 	}()
 }
 
