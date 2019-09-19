@@ -2,16 +2,20 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["handler.go"],
+    srcs = [
+        "handler.go",
+        "metrics.go",
+    ],
     importpath = "github.com/scionproto/scion/go/beacon_srv/internal/revocation",
     visibility = ["//go/beacon_srv:__subpackages__"],
     deps = [
-        "//go/beacon_srv/internal/beacon/metrics:go_default_library",
+        "//go/beacon_srv/internal/metrics:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/prom:go_default_library",
         "//go/proto:go_default_library",
     ],
 )

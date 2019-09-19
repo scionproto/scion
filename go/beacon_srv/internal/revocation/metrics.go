@@ -12,11 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics
+package revocation
 
 import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/prom"
+)
+
+const (
+	// Success indicates a successful result.
+	Success string = prom.Success
+	// ErrProcess indicates an error during processing.
+	ErrProcess string = prom.ErrProcess
 )
 
 var (
