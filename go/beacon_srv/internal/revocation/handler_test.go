@@ -76,7 +76,7 @@ func TestHandler(t *testing.T) {
 		Result *infra.HandlerResult
 	}{
 		{
-			Name: "Unverifiable revocation is recjected",
+			Name: "Unverifiable revocation is rejected",
 			Rev:  sRevInvalid,
 			Ack: &ack.Ack{
 				Err:     proto.Ack_ErrCode_reject,

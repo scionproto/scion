@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -84,8 +85,19 @@ func (r *Revoker) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	revs := make(map[common.IFIDType]*path_mgmt.SignedRevInfo)
 	for ifid, intf := range r.cfg.Intfs.All() {
+		labelsIssued := metrics.IssuedLabels{
+			IfID:    ifid,
+			NeighAS: intf.TopoInfo().ISD_AS,
+			State:   metrics.RevRenew,
+		}
+		labelsDuration := metrics.DurationLabels{
+			IfID:    ifid,
+			NeighAS: intf.TopoInfo().ISD_AS,
+		}
+
 		if intf.Expire() && !r.hasValidRevocation(intf) {
 			if intf.Revocation() == nil {
+				labelsIssued.State = metrics.RevNew
 				logger.Info("[ifstate.Revoker] interface went down", "ifid", ifid)
 			}
 			srev, err := r.createSignedRev(ifid)
@@ -94,11 +106,15 @@ func (r *Revoker) Run(ctx context.Context) {
 					"ifid", ifid, "err", err)
 				continue
 			}
-			if err := intf.Revoke(srev); err == nil {
-				revs[ifid] = srev
-			} else {
+			if err := intf.Revoke(srev); err != nil {
 				logger.Error("[ifstate.Revoker] Failed to revoke!", "ifid", ifid, "err", err)
+				continue
 			}
+			if rev, err := srev.RevInfo(); err != nil {
+				metrics.Ifstate.Duration(labelsDuration).Add(float64(rev.RawTTL))
+			}
+			metrics.Ifstate.Issued(labelsIssued).Inc()
+			revs[ifid] = srev
 		}
 	}
 	if len(revs) > 0 {
@@ -142,6 +158,9 @@ func (r *Revoker) pushRevocationsToBRs(ctx context.Context,
 	for ifid := range revs {
 		msg.Infos = append(msg.Infos, infoFromInterface(ifid, r.cfg.Intfs.Get(ifid)))
 	}
+
+	l := metrics.SentLabels{Dst: metrics.DstBR}
+	metrics.Ifstate.Sent(l).Add(float64(len(msg.Infos)))
 	r.pusher.sendIfStateToAllBRs(ctx, msg, r.cfg.TopoProvider.Get(), wg)
 }
 
@@ -149,12 +168,14 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 	revs map[common.IFIDType]*path_mgmt.SignedRevInfo) {
 
 	topo := r.cfg.TopoProvider.Get()
+	labels := metrics.SentLabels{Dst: metrics.DstPS}
 	a := &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
 	for ifid, srev := range revs {
 		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
 			log.FromCtx(ctx).Error("[ifstate.Revoker] Failed to send revocation to PS",
 				"ifid", ifid, "err", err)
 		}
+		metrics.Ifstate.Sent(labels).Inc()
 	}
 }
 
