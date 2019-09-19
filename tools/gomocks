@@ -71,7 +71,7 @@ MOCK_TARGETS = [
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--package-matcher", default="",
+    parser.add_argument("-p", "--package-matcher", default=os.environ.get("PKG_MATCHER", ""),
                         help="Generate mocks for all matched packages")
     args = parser.parse_args()
 

@@ -32,7 +32,7 @@ bazel: vendor gogen
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
 mocks: goenv
-	./tools/gomocks -p "$(PKG_MATCHER)"
+	./tools/gomocks
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
