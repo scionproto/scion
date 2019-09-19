@@ -83,16 +83,18 @@ var (
 	timeout = 3 * time.Second
 )
 
-// Testable extends the beacon db interface with methods that are needed for testing.
+// Testable extends the beacon db interface with methods that are needed for
+// testing.
 type Testable interface {
 	beacon.DB
-	// Prepare should reset the internal state so that the DB is empty and is ready to be tested.
+	// Prepare should reset the internal state so that the DB is empty and is
+	// ready to be tested.
 	Prepare(t *testing.T, ctx context.Context)
 }
 
-// Test should be used to test any implementation of the BeaconDB interface.
-// An implementation of the BeaconDB interface should at least have one test method that calls
-// this test-suite. The calling test code should have a top level Convey block.
+// Test should be used to test any implementation of the BeaconDB interface. An
+// implementation of the BeaconDB interface should at least have one test
+// method that calls this test-suite.
 func Test(t *testing.T, db Testable) {
 	testWrapper := func(test func(*testing.T, *gomock.Controller,
 		beacon.DBReadWrite)) func(t *testing.T) {
