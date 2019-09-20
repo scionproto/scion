@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -55,7 +56,7 @@ func LoadIsdConf(dir string) (*Isd, error) {
 		return nil, err
 	}
 	if len(i.Trc.RawCoreIAs) == 0 {
-		return nil, common.NewBasicError("CoreASes missing", nil)
+		return nil, serrors.New("CoreASes missing")
 	}
 	// Parse core ASes into addr.IAs
 	for _, raw := range i.Trc.RawCoreIAs {

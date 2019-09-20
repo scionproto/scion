@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -273,7 +274,7 @@ func (s *baseStore) DeleteExpiredRevocations(ctx context.Context) (int, error) {
 // UpdatePolicy updates the policy. Beacons that are filtered by all
 // policies after the update are removed.
 func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
-	return common.NewBasicError("policy update not supported", nil)
+	return serrors.New("policy update not supported")
 }
 
 // Close closes the store and the underlying database connection.

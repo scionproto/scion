@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/layers"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -151,7 +152,7 @@ func writeExtensions(extensions []common.Extension, buffer gopacket.SerializeBuf
 		case common.End2EndClass:
 			buffer.PushLayer(layers.LayerTypeEndToEndExtension)
 		default:
-			return common.NewBasicError("cannot push unknown layer", nil)
+			return serrors.New("cannot push unknown layer")
 		}
 	}
 	return nil

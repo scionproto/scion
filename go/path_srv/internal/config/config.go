@@ -19,11 +19,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -118,7 +118,7 @@ func (cfg *PSConfig) InitDefaults() {
 
 func (cfg *PSConfig) Validate() error {
 	if cfg.QueryInterval.Duration == 0 {
-		return common.NewBasicError("QueryInterval must not be zero", nil)
+		return serrors.New("QueryInterval must not be zero")
 	}
 	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
 }

@@ -25,9 +25,9 @@ import (
 	"github.com/golang/mock/gomock"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 )
@@ -51,8 +51,8 @@ var (
 var (
 	dispatcherError            = &net.OpError{Err: os.NewSyscallError("write", syscall.ECONNRESET)}
 	writeDispatcherError       = &net.OpError{Err: os.NewSyscallError("write", syscall.EPIPE)}
-	writeNonDispatcherError    = common.NewBasicError("Misc error", nil)
-	connectErrorFromDispatcher = common.NewBasicError("Port unavailable", nil)
+	writeNonDispatcherError    = serrors.New("Misc error")
+	connectErrorFromDispatcher = serrors.New("Port unavailable")
 )
 
 func MustParseSnet(str string) *snet.Addr {

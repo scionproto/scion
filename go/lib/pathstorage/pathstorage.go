@@ -26,6 +26,7 @@ import (
 	sqlitepathdb "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -102,14 +103,14 @@ func (cfg *PathDBConf) validateBackend() error {
 	case BackendSqlite:
 		return nil
 	case BackendNone:
-		return common.NewBasicError("No backend set", nil)
+		return serrors.New("No backend set")
 	}
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }
 
 func (cfg *PathDBConf) validateConnection() error {
 	if cfg.Connection() == "" {
-		return common.NewBasicError("Empty connection not allowed", nil)
+		return serrors.New("Empty connection not allowed")
 	}
 	return nil
 }
@@ -174,14 +175,14 @@ func (cfg *RevCacheConf) validateBackend() error {
 	case BackendSqlite, BackendMem:
 		return nil
 	case BackendNone:
-		return common.NewBasicError("No backend set", nil)
+		return serrors.New("No backend set")
 	}
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }
 
 func (cfg *RevCacheConf) validateConnection() error {
 	if cfg.Backend() != BackendMem && cfg.Connection() == "" {
-		return common.NewBasicError("Empty connection not allowed", nil)
+		return serrors.New("Empty connection not allowed")
 	}
 	return nil
 }

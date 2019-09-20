@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // NewSqlite returns a new SQLite backend opening a database at the given path. If
@@ -27,7 +28,7 @@ import (
 func NewSqlite(path string, schema string, schemaVersion int) (*sql.DB, error) {
 	var err error
 	if path == "" {
-		return nil, common.NewBasicError("Empty path not allowed for sqlite", nil)
+		return nil, serrors.New("Empty path not allowed for sqlite")
 	}
 	db, err := open(path)
 	if err != nil {

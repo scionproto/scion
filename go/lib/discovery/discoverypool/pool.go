@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/discovery/discoveryinfo"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -67,7 +68,7 @@ func (p *Pool) Update(svcInfo topology.IDAddrMap) error {
 	}
 	// Check that more than one DS remain.
 	if len(del) == len(p.m) {
-		return common.NewBasicError("Unable to delete all discovery service instances", nil)
+		return serrors.New("Unable to delete all discovery service instances")
 	}
 	for _, k := range del {
 		delete(p.m, k)
@@ -90,7 +91,7 @@ func (p *Pool) Choose() (discovery.InstanceInfo, error) {
 		}
 	}
 	if best == nil {
-		return nil, common.NewBasicError("Unable to find any discovery service instance", nil)
+		return nil, serrors.New("Unable to find any discovery service instance")
 	}
 	return best, nil
 }

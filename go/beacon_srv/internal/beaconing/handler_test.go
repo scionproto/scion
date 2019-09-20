@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -166,7 +167,7 @@ func TestNewHandler(t *testing.T) {
 		verifier.EXPECT().WithSrc(gomock.Any()).Return(verifier)
 		verifier.EXPECT().WithServer(gomock.Any()).Return(verifier)
 		verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-			gomock.Any()).MaxTimes(2).Return(common.NewBasicError("failed", nil))
+						gomock.Any()).MaxTimes(2).Return(serrors.New("failed"))
 
 		handler := NewHandler(localIA, intfs, inserter, verifier)
 		pseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}).Segment
@@ -177,7 +178,7 @@ func TestNewHandler(t *testing.T) {
 		inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 		inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
 		inserter.EXPECT().InsertBeacon(gomock.Any(),
-			gomock.Any()).Return(beacon.InsertStats{}, common.NewBasicError("failed", nil))
+						gomock.Any()).Return(beacon.InsertStats{}, serrors.New("failed"))
 
 		verifier := mock_infra.NewMockVerifier(mctrl)
 		verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)

@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/matchers"
 )
@@ -151,7 +152,7 @@ func TestErrDuringSendIsRetried(t *testing.T) {
 	gomock.InOrder(
 		msger.EXPECT().SendCertChain(
 			gomock.Any(), matchesChain(rawChain), matchers.IsSnetAddrWithIA(core1_130),
-			gomock.Any()).Return(common.NewBasicError("test error", nil)),
+			gomock.Any()).Return(serrors.New("test error")),
 		msger.EXPECT().GetCertChain(
 			gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(core1_130), gomock.Any()).Return(
 			emptyChainMsg, nil,

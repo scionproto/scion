@@ -20,7 +20,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -30,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
@@ -300,7 +300,7 @@ func (h *RevNotificationHandler) verifySRevInfo(ctx context.Context,
 	// Error out immediately if RevInfo is bad
 	info, err := sRevInfo.RevInfo()
 	if err != nil {
-		return nil, common.NewBasicError("Unable to extract RevInfo", nil)
+		return nil, serrors.New("Unable to extract RevInfo")
 	}
 	err = segverifier.VerifyRevInfo(ctx, h.VerifierFactory.NewVerifier(), nil, sRevInfo)
 	return info, err

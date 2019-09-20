@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
@@ -137,16 +138,16 @@ func (cfg *SDConfig) InitDefaults() {
 
 func (cfg *SDConfig) Validate() error {
 	if cfg.Reliable == "" {
-		return common.NewBasicError("Reliable must be set", nil)
+		return serrors.New("Reliable must be set")
 	}
 	if cfg.Unix == "" {
-		return common.NewBasicError("Unix must be set", nil)
+		return serrors.New("Unix must be set")
 	}
 	if cfg.SocketFileMode == 0 {
-		return common.NewBasicError("SocketFileMode must be set", nil)
+		return serrors.New("SocketFileMode must be set")
 	}
 	if cfg.QueryInterval.Duration == 0 {
-		return common.NewBasicError("QueryInterval must not be zero", nil)
+		return serrors.New("QueryInterval must not be zero")
 	}
 	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -196,7 +197,7 @@ func (v *BasicVerifier) sanityChecks(sign *proto.SignS, isPldSignature bool) err
 	l := metrics.VerificationLabels{Type: metrics.Signature, Result: metrics.ErrValidate}
 	if sign == nil {
 		metrics.Store.Verification(l).Inc()
-		return common.NewBasicError("SignS is unset", nil)
+		return serrors.New("SignS is unset")
 	}
 	if len(sign.Signature) == 0 {
 		metrics.Store.Verification(l).Inc()

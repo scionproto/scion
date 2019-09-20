@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -120,10 +121,10 @@ func (cfg *FetchConfig) InitDefaults() {
 
 func (cfg *FetchConfig) Validate() error {
 	if cfg.Interval.Duration == 0 {
-		return common.NewBasicError("Interval must not be zero", nil)
+		return serrors.New("Interval must not be zero")
 	}
 	if cfg.Timeout.Duration == 0 {
-		return common.NewBasicError("Timeout must not be zero", nil)
+		return serrors.New("Timeout must not be zero")
 	}
 	return cfg.Connect.Validate()
 }
@@ -159,7 +160,7 @@ func (cfg *ConnectParams) InitDefaults() {
 
 func (cfg *ConnectParams) Validate() error {
 	if cfg.InitialPeriod.Duration == 0 {
-		return common.NewBasicError("InitialPeriod must not be zero", nil)
+		return serrors.New("InitialPeriod must not be zero")
 	}
 	return cfg.FailAction.Validate()
 }

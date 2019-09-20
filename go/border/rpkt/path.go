@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -47,7 +48,7 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	if rp.infoF.Shortcut {
 		currentLinkType := rp.Ctx.Conf.BR.IFs[*rp.ifCurr].LinkType
 		if currentLinkType == proto.LinkType_core {
-			return common.NewBasicError("Shortcut not allowed on core segment", nil)
+			return serrors.New("Shortcut not allowed on core segment")
 		}
 	}
 	// A verify-only Hop Field cannot be used for routing.
@@ -82,7 +83,7 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 // destination is this router.
 func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	if ifid == nil {
-		return common.NewBasicError("validateLocalIF: Interface is nil", nil)
+		return serrors.New("validateLocalIF: Interface is nil")
 	}
 	if _, ok := rp.Ctx.Conf.Topo.IFInfoMap[*ifid]; !ok {
 		// No such interface.
@@ -448,7 +449,7 @@ func (rp *RtrPkt) IFCurr() (*common.IFIDType, error) {
 // valid before setting the ifCurr field and returning the value.
 func (rp *RtrPkt) checkSetCurrIF(ifid *common.IFIDType) (*common.IFIDType, error) {
 	if ifid == nil {
-		return nil, common.NewBasicError("No interface found", nil)
+		return nil, serrors.New("No interface found")
 	}
 	if _, ok := rp.Ctx.Conf.BR.IFs[*ifid]; !ok {
 		return nil, common.NewBasicError("Unknown interface", nil, "ifid", *ifid)

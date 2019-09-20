@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -116,7 +117,7 @@ func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
 	pkt.buffer = pkt.buffer[:n]
 
 	if readExtra == nil {
-		return common.NewBasicError("missing next-hop", nil)
+		return serrors.New("missing next-hop")
 	}
 	pkt.OverlayRemote = readExtra.(*overlay.OverlayAddr).ToUDPAddr()
 

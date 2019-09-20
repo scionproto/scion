@@ -27,8 +27,8 @@ import (
 	quic "github.com/lucas-clemente/quic-go"
 	capnp "zombiezen.com/go/capnproto2"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -82,7 +82,7 @@ func (s *Server) initListener() error {
 	defer s.mu.Unlock()
 
 	if s.listener != nil {
-		return common.NewBasicError("cannot listen on same server twice", nil)
+		return serrors.New("cannot listen on same server twice")
 	}
 	listener, err := quic.Listen(s.Conn, s.TLSConfig, s.QUICConfig)
 	if err != nil {

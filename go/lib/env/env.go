@@ -43,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -98,7 +99,7 @@ func (cfg *General) InitDefaults() {
 
 func (cfg *General) Validate() error {
 	if cfg.ID == "" {
-		return common.NewBasicError("No element ID specified", nil)
+		return serrors.New("No element ID specified")
 	}
 	return cfg.checkDir()
 }
@@ -147,7 +148,7 @@ func (cfg *SciondClient) InitDefaults() {
 
 func (cfg *SciondClient) Validate() error {
 	if cfg.InitialConnectPeriod.Duration == 0 {
-		return common.NewBasicError("InitialConnectPeriod must not be zero", nil)
+		return serrors.New("InitialConnectPeriod must not be zero")
 	}
 	return nil
 }

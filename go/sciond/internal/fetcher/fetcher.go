@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -114,7 +115,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	req = req.Copy()
 	// Check context
 	if _, ok := ctx.Deadline(); !ok {
-		return nil, common.NewBasicError("Context must have deadline set", nil)
+		return nil, serrors.New("Context must have deadline set")
 	}
 	// Check source
 	if req.Src.IA().IsZero() {

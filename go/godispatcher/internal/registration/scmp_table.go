@@ -16,6 +16,7 @@ package registration
 
 import (
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // SCMPTable tracks SCMP General class IDs.
@@ -36,7 +37,7 @@ func (t *SCMPTable) Lookup(id uint64) (interface{}, bool) {
 
 func (t *SCMPTable) Register(id uint64, value interface{}) error {
 	if value == nil {
-		return common.NewBasicError("cannot register nil value", nil)
+		return serrors.New("cannot register nil value")
 	}
 	if _, ok := t.m[id]; ok {
 		return common.NewBasicError("id already registered", nil, "id", id)

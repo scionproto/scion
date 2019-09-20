@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -167,7 +168,7 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	topo := itopo.Get()
 	topoAddress := topo.CS.GetById(cfg.General.ID)
 	if topoAddress == nil {
-		return common.NewBasicError("Unable to find topo address", nil)
+		return serrors.New("Unable to find topo address")
 	}
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.ISD_AS,

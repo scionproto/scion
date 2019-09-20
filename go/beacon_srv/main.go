@@ -55,6 +55,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
@@ -292,7 +293,7 @@ func (t *periodicTasks) Start() error {
 	topo := t.topoProvider.Get()
 	topoAddress := topo.BS.GetById(cfg.General.ID)
 	if topoAddress == nil {
-		return common.NewBasicError("Unable to find topo address", nil)
+		return serrors.New("Unable to find topo address")
 	}
 	var err error
 	if t.registrars, err = t.startSegRegRunners(); err != nil {

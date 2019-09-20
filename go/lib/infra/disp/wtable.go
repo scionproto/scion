@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -40,7 +41,7 @@ func newWaitTable(keyF func(proto.Cerealizable) string) *waitTable {
 func (wt *waitTable) addRequest(object proto.Cerealizable) error {
 	select {
 	case <-wt.destroyChan:
-		return common.NewBasicError("Table destroyed", nil)
+		return serrors.New("Table destroyed")
 	default:
 	}
 	replyChannel := make(chan proto.Cerealizable, 1)
@@ -60,7 +61,7 @@ func (wt *waitTable) waitForReply(ctx context.Context,
 	object proto.Cerealizable) (proto.Cerealizable, error) {
 	select {
 	case <-wt.destroyChan:
-		return nil, common.NewBasicError("Table destroyed", nil)
+		return nil, serrors.New("Table destroyed")
 	default:
 	}
 	replyChannel, loaded := wt.replyMap.Load(wt.keyF(object))
@@ -73,7 +74,7 @@ func (wt *waitTable) waitForReply(ctx context.Context,
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-wt.destroyChan:
-		return nil, common.NewBasicError("Table destroyed", nil)
+		return nil, serrors.New("Table destroyed")
 	}
 }
 
@@ -83,7 +84,7 @@ func (wt *waitTable) waitForReply(ctx context.Context,
 func (wt *waitTable) reply(object proto.Cerealizable) (bool, error) {
 	select {
 	case <-wt.destroyChan:
-		return false, common.NewBasicError("Table destroyed", nil)
+		return false, serrors.New("Table destroyed")
 	default:
 	}
 	replyChannel, ok := wt.replyMap.Load(wt.keyF(object))

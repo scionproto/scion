@@ -20,6 +20,7 @@ package rpkt
 import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // rExtension extends common.ExtnBase, adding a method to retrieve the
@@ -134,7 +135,7 @@ func (rp *RtrPkt) extnAddE2E(e common.Extension) error {
 // that extension, as well as a pointer to the nextHdr field of that extension.
 func (rp *RtrPkt) extnOffsetNew(isHBH bool) (int, *uint8, error) {
 	if isHBH && len(rp.E2EExt) > 0 {
-		return 0, nil, common.NewBasicError("HBH extension illegal to add after E2E extension", nil)
+		return 0, nil, serrors.New("HBH extension illegal to add after E2E extension")
 	}
 	offset := rp.CmnHdr.HdrLenBytes()
 	nextHdr := (*uint8)(&rp.CmnHdr.NextHdr)

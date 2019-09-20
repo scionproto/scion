@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/internal/metrics"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -159,7 +160,7 @@ func (tx *Transaction) Commit() error {
 	}
 	if tx.staticAtTxStart != st.topo.static {
 		incUpdateMetric(l.WithResult(metrics.ErrCommit))
-		return common.NewBasicError("Static topology changed in the meantime", nil)
+		return serrors.New("Static topology changed in the meantime")
 	}
 	if !tx.IsUpdate() {
 		incUpdateMetric(l.WithResult(metrics.OkIgnored))
@@ -269,10 +270,10 @@ func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
 
 func (s *state) dynamicPreCheck(dynamic *topology.Topo) error {
 	if dynamic == nil {
-		return common.NewBasicError("Provided topology must not be nil", nil)
+		return serrors.New("Provided topology must not be nil")
 	}
 	if s.topo.static == nil {
-		return common.NewBasicError("Static topology must be set", nil)
+		return serrors.New("Static topology must be set")
 	}
 	now := time.Now()
 	if !dynamic.Active(now) {

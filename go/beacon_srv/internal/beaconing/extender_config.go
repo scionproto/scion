@@ -18,8 +18,8 @@ import (
 	"hash"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -56,13 +56,13 @@ func (cfg *ExtenderConf) InitDefaults() {
 // Validate checks that the config contains a signer.
 func (cfg *ExtenderConf) Validate() error {
 	if cfg.Signer == nil {
-		return common.NewBasicError("Signer must be set", nil)
+		return serrors.New("Signer must be set")
 	}
 	if cfg.IfidSize == 0 {
-		return common.NewBasicError("IfidSize must be set", nil)
+		return serrors.New("IfidSize must be set")
 	}
 	if cfg.MTU == 0 {
-		return common.NewBasicError("MTU must be set", nil)
+		return serrors.New("MTU must be set")
 	}
 	return nil
 }

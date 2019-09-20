@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/disp"
@@ -138,7 +139,7 @@ func validateConfig() error {
 
 func setupTun() (io.ReadWriteCloser, error) {
 	if err := checkPerms(); err != nil {
-		return nil, common.NewBasicError("Permissions checks failed", nil)
+		return nil, serrors.New("Permissions checks failed")
 	}
 	tunLink, tunIO, err := xnet.ConnectTun(cfg.Sig.Tun)
 	if err != nil {
@@ -176,7 +177,7 @@ func checkPerms() error {
 		return common.NewBasicError("Error retrieving user", err)
 	}
 	if u.Uid == "0" {
-		return common.NewBasicError("Running as root is not allowed for security reasons", nil)
+		return serrors.New("Running as root is not allowed for security reasons")
 	}
 	caps, err := capability.NewPid(0)
 	if err != nil {

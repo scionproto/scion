@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -49,7 +50,7 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 	peers []common.IFIDType) error {
 
 	if inIfid == 0 && egIfid == 0 {
-		return common.NewBasicError("Ingress and egress must not be both 0", nil)
+		return serrors.New("Ingress and egress must not be both 0")
 	}
 	infoF, err := pseg.InfoF()
 	if err != nil {
@@ -135,15 +136,15 @@ func (s *segExtender) remoteInfo(ifid common.IFIDType) (
 	}
 	intf := s.cfg.Intfs.Get(ifid)
 	if intf == nil {
-		return 0, 0, 0, common.NewBasicError("Interface not found", nil)
+		return 0, 0, 0, serrors.New("Interface not found")
 	}
 	state := intf.State()
 	if state != ifstate.Active {
-		return 0, 0, 0, common.NewBasicError("Interface is not active", nil)
+		return 0, 0, 0, serrors.New("Interface is not active")
 	}
 	topoInfo := intf.TopoInfo()
 	if topoInfo.RemoteIFID == 0 {
-		return 0, 0, 0, common.NewBasicError("Remote ifid is not set", nil)
+		return 0, 0, 0, serrors.New("Remote ifid is not set")
 	}
 	if topoInfo.ISD_AS.IsWildcard() {
 		return 0, 0, 0, common.NewBasicError("Remote IA is wildcard", nil, "ia", topoInfo.ISD_AS)

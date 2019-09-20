@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -137,7 +138,7 @@ func genMasterKey(rand io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	if n != 16 {
-		return nil, common.NewBasicError("Not enough random bytes", nil)
+		return nil, serrors.New("Not enough random bytes")
 	}
 	return key, nil
 }

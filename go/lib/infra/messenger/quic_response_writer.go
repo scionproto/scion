@@ -17,7 +17,6 @@ package messenger
 import (
 	"context"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -25,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 var _ infra.ResponseWriter = (*QUICResponseWriter)(nil)
@@ -106,7 +106,7 @@ func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
 	msg *path_mgmt.IFStateInfos) error {
 
 	// FIXME(scrye): Use only UDP because the BR doesn't support QUIC.
-	return common.NewBasicError("IFStateInfos responses not supported in QUIC", nil)
+	return serrors.New("IFStateInfos responses not supported in QUIC")
 }
 
 func (rw *QUICResponseWriter) SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error {
