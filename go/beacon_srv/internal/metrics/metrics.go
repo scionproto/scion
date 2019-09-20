@@ -33,4 +33,5 @@ var (
 	Keepalive = newKeepalive()
 	// Revocation is the single-instance struct to get prometheus counters
 	Revocation = newRevocation()
+	Ifstate    = newIfstate()
 )
