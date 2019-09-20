@@ -13,6 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package serrors provides enhanced errors. Errors created with serrors can
+// have additional log context in form of key value pairs. The package provides
+// wrapping methods. The returned errors support new Is and As error
+// functionality. For any returned error err, errors.Is(err, err) is always
+// true, for any err which wraps err2 or has err2 as msg, errors.Is(err, err2)
+// is always true, for any other combination of errors errors.Is(x,y) can be
+// assumed to return false.
 package serrors
 
 import (
@@ -23,8 +30,8 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// ErrorWrapper allows recursing into nested errrors.
-type ErrorWrapper interface {
+// Wrapper allows recursing into nested errrors.
+type Wrapper interface {
 	error
 	xerrors.Wrapper
 	// TopError should return the top level error without the wrapped ones.
@@ -58,7 +65,6 @@ func (e basicError) Is(err error) bool {
 	}
 }
 
-// TODO do we need self ASing? that would mean the type would need to be public.
 func (e basicError) As(as interface{}) bool {
 	if e.msg.err != nil {
 		return xerrors.As(e.msg.err, as)
@@ -100,6 +106,7 @@ func IsTemporary(err error) bool {
 
 // WithCtx returns an error that is the same as the given error but contains the
 // additional context. The additional context is printed in the Error method.
+// The returned error implements Is and Is(err) returns true.
 func WithCtx(err error, logCtx ...interface{}) error {
 	return basicError{
 		msg:    errOrMsg{err: err},
@@ -108,7 +115,8 @@ func WithCtx(err error, logCtx ...interface{}) error {
 }
 
 // Wrap wraps the cause with the msg error and adds context to the resulting
-// error.
+// error. The returned error implements Is and Is(msg) and Is(cause) returns
+// true.
 func Wrap(msg, cause error, logCtx ...interface{}) error {
 	return basicError{
 		msg:    errOrMsg{err: msg},
@@ -118,7 +126,8 @@ func Wrap(msg, cause error, logCtx ...interface{}) error {
 }
 
 // WrapStr wraps the cause with an error that has msg in the error message and
-// adds the addtional context.
+// adds the additional context. The returned error implements Is and Is(cause)
+// returns true.
 func WrapStr(msg string, cause error, logCtx ...interface{}) error {
 	return basicError{
 		msg:    errOrMsg{str: msg},
@@ -150,15 +159,15 @@ func (e List) ToError() error {
 	return errList(e)
 }
 
-// errList is the internal error interface implementation of MultiError.
+// errList is the internal error interface implementation of error List.
 type errList []error
 
 func (e errList) Error() string {
 	return fmtErrors(e)
 }
 
-// FmtError formats e for logging. It walks through all nested errors, putting each on a new line,
-// and indenting multi-line errors.
+// FmtError formats the error for logging. It walks through all wrapped errors,
+// putting each on a new line, and indenting multi-line errors.
 func FmtError(e error) string {
 	var s, ns []string
 	for {
@@ -175,15 +184,15 @@ func innerFmtError(e error) ([]string, error) {
 	var s []string
 	var lines []string
 	switch e := e.(type) {
-	case ErrorWrapper:
+	case Wrapper:
 		lines = strings.Split(e.TopError(), "\n")
 	default:
 		lines = strings.Split(e.Error(), "\n")
 	}
 	for i, line := range lines {
 		if i == len(lines)-1 && len(line) == 0 {
-			// Don't output an empty line if caused by a trailing newline in
-			// the input.
+			// Don't output an empty line if caused by a trailing newline in the
+			// input.
 			break
 		}
 		if i == 0 {
