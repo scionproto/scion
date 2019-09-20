@@ -166,6 +166,7 @@ func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 		verifier := verifier.WithServer(server).WithSrc(ctrl.SignSrcDef{
 			IA:       asEntry.IA(),
 			ChainVer: asEntry.CertVer,
+			TRCVer:   asEntry.TrcVer,
 		})
 		if err := segment.VerifyASEntry(ctx, verifier, i); err != nil {
 			return common.NewBasicError("segverifier.VerifySegment", err, "segment", segment,
