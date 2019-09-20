@@ -20,6 +20,7 @@ go
 ├── beacon_srv
 │   └── internal
 │       ├── metrics
+│       │    ├── keepalive.go
 │       │    ├── metrics.go
 │       │    ├── originator.go
 │       │    ├── propagator.go
@@ -28,7 +29,6 @@ go
 │       │    ├── handler.go
 │       │    └── sender.go
 │       └── beaconing
-│            ├── keepalive.go
 │            ├── originator.go
 │            ├── propagator.go
 │            └── registrar.go
@@ -166,7 +166,7 @@ type KeepaliveLabels struct {
 }
 
 // Labels returns the name of the labels in correct order.
-func (l KeepaliveLabels) Labels() []string {
+func (l *KeepaliveLabels) Labels() []string {
     return []string{"ifid", prom.LabelResult}
 }
 
