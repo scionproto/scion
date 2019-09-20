@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -76,7 +77,7 @@ func (h *handler) Handle() *infra.HandlerResult {
 func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
-		return infra.MetricsErrInternal, common.NewBasicError("No Messenger found", nil)
+		return infra.MetricsErrInternal, serrors.New("No Messenger found")
 	}
 
 	sendAck := messenger.SendAckHelper(h.request.Context(), rw)

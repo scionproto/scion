@@ -48,6 +48,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -241,7 +242,7 @@ func (r *Runner) execFailAction(fetcher *task, cfg FetchConfig) {
 		log.Warn("[discovery] Unable to get a valid initial topology, ignoring")
 		r.startRegularFetcher(fetcher, cfg)
 	default:
-		fatal.Fatal(common.NewBasicError("Unable to get a valid initial topology", nil))
+		fatal.Fatal(serrors.New("Unable to get a valid initial topology"))
 	}
 }
 
@@ -293,7 +294,7 @@ func NewFetcher(handler TopoHandler, params discovery.FetchParams,
 	filename string, client *http.Client) (*task, error) {
 
 	if handler == nil {
-		return nil, common.NewBasicError("handler must not be nil", nil)
+		return nil, serrors.New("handler must not be nil")
 	}
 	t := &task{
 		mode:     params.Mode,

@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -102,7 +103,7 @@ func (cfg *BeaconDBConf) validateBackend() error {
 	case BackendSqlite:
 		return nil
 	case backendNone:
-		return common.NewBasicError("No backend set", nil)
+		return serrors.New("No backend set")
 	}
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }

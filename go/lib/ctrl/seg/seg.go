@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -56,7 +57,7 @@ type Beacon struct {
 // Parse parses and validates the enclosed path segment.
 func (b *Beacon) Parse() error {
 	if b.Segment == nil {
-		return common.NewBasicError("Beacon does not contain a segment", nil)
+		return serrors.New("Beacon does not contain a segment")
 	}
 	return b.Segment.ParseRaw(ValidateBeacon)
 }
@@ -205,7 +206,7 @@ func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 		return err
 	}
 	if len(ps.RawASEntries) == 0 {
-		return common.NewBasicError("PathSegment has no AS Entries", nil)
+		return serrors.New("PathSegment has no AS Entries")
 	}
 	if len(ps.ASEntries) != len(ps.RawASEntries) {
 		return common.NewBasicError(

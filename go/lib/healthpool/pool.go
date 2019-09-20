@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // ErrPoolClosed is the error returned when operations on a closed pool are
@@ -120,7 +121,7 @@ func (p *Pool) chooseMinFails() (Info, error) {
 		}
 	}
 	if best == nil {
-		return nil, common.NewBasicError("Unable to find an info instance", nil)
+		return nil, serrors.New("Unable to find an info instance")
 	}
 	return best, nil
 }

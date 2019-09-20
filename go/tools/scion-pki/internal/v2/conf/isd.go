@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -67,7 +68,7 @@ func LoadISDCfg(dir string) (*ISDCfg, error) {
 		return nil, err
 	}
 	if len(i.Desc) == 0 {
-		return nil, common.NewBasicError("description not set", nil)
+		return nil, serrors.New("description not set")
 	}
 	if err = i.TRC.Validate(); err != nil {
 		return nil, err
@@ -180,7 +181,7 @@ func (t *TRC) parsePrimaries() error {
 func (t *TRC) parsePrimary(raw []string) ([]addr.AS, error) {
 	var ases []addr.AS
 	if len(raw) == 0 {
-		return nil, common.NewBasicError("section not set", nil)
+		return nil, serrors.New("section not set")
 	}
 	for _, raw := range raw {
 		as, err := addr.ASFromString(raw)
@@ -200,7 +201,7 @@ func (t *TRC) checkValuesSet() error {
 		return common.NewBasicError(ErrTrcVersionNotSet, nil)
 	}
 	if t.BaseVersion != t.Version {
-		return common.NewBasicError("only base TRCs supported currently", nil)
+		return serrors.New("only base TRCs supported currently")
 	}
 	if t.VotingQuorum == 0 {
 		return common.NewBasicError(ErrVotingQuorumNotSet, nil)

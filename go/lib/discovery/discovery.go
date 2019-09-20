@@ -72,6 +72,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -155,7 +156,7 @@ func FetchTopoRaw(ctx context.Context, params FetchParams, ds *addr.AppAddr,
 // createURL builds the url to the topology file.
 func createURL(params FetchParams, ds *addr.AppAddr) (string, error) {
 	if ds == nil {
-		return "", common.NewBasicError("Addr not set", nil)
+		return "", serrors.New("Addr not set")
 	}
 	protocol := "http"
 	if params.Https {

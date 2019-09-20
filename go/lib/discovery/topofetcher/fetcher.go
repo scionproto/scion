@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/discovery/discoverypool"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -88,7 +89,7 @@ func (f *Fetcher) Run(ctx context.Context) {
 
 func (f *Fetcher) run(ctx context.Context) error {
 	if f.Pool == nil {
-		return common.NewBasicError("Pool not initialized", nil)
+		return serrors.New("Pool not initialized")
 	}
 	// Choose a DS server.
 	ds, err := f.Pool.Choose()

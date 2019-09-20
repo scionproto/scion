@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -143,7 +144,7 @@ func (path *Path) InitOffsets() error {
 	path.HopOff = common.LineLen
 	// Cannot initialize an empty path
 	if path.IsEmpty() {
-		return common.NewBasicError("Unable to initialize empty path", nil)
+		return serrors.New("Unable to initialize empty path")
 	}
 	// Skip Peer with Xover HF
 	if infoF, err = path.GetInfoField(path.InfOff); err != nil {
@@ -162,7 +163,7 @@ func (path *Path) InitOffsets() error {
 		return err
 	}
 	if path.InfOff != 0 {
-		return common.NewBasicError("Unable to find routing Hop Field in first path segment", nil)
+		return serrors.New("Unable to find routing Hop Field in first path segment")
 	}
 	return nil
 }
@@ -221,7 +222,7 @@ func (path *Path) GetInfoField(offset int) (*InfoField, error) {
 		return nil, common.NewBasicError("Negative InfoF offset", nil, "offset", offset)
 	}
 	if path.IsEmpty() {
-		return nil, common.NewBasicError("Unable to get infoField from empty path", nil)
+		return nil, serrors.New("Unable to get infoField from empty path")
 	}
 	infoF, err := InfoFFromRaw(path.Raw[offset:])
 	if err != nil {
@@ -235,7 +236,7 @@ func (path *Path) GetHopField(offset int) (*HopField, error) {
 		return nil, common.NewBasicError("Negative HopF offset", nil, "offset", offset)
 	}
 	if path.IsEmpty() {
-		return nil, common.NewBasicError("Unable to get hopField from empty path", nil)
+		return nil, serrors.New("Unable to get hopField from empty path")
 	}
 	hopF, err := HopFFromRaw(path.Raw[offset:])
 	if err != nil {

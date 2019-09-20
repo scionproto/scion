@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -121,7 +122,7 @@ func (c client) requestCert() (*cert.Chain, error) {
 		return nil, common.NewBasicError("Unable to parse chain", err)
 	}
 	if chain == nil {
-		return nil, common.NewBasicError("Empty reply", nil)
+		return nil, serrors.New("Empty reply")
 	}
 	if !chain.Leaf.Subject.Equal(remoteIA) {
 		return nil, common.NewBasicError("Invalid subject", nil,
@@ -149,7 +150,7 @@ func (c client) requestTRC(chain *cert.Chain) error {
 		return common.NewBasicError("Unable to parse trc", err)
 	}
 	if trc == nil {
-		return common.NewBasicError("Empty reply", nil)
+		return serrors.New("Empty reply")
 	}
 	if trc.ISD != remoteIA.I {
 		return common.NewBasicError("Invalid ISD", nil,

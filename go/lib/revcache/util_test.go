@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -90,7 +91,7 @@ func TestFilterNew(t *testing.T) {
 			SoMsg("Only new revocations should stay in map", rMap, ShouldResemble, expectedMap)
 		})
 		Convey("Given a cache with an error", func() {
-			expectedErr := common.NewBasicError("TESTERR", nil)
+			expectedErr := serrors.New("TESTERR")
 			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, expectedErr)
 			rMap, err := revcache.RevocationToMap([]*path_mgmt.SignedRevInfo{})
 			SoMsg("No error expected", err, ShouldBeNil)
@@ -132,7 +133,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 		})
 		Convey("Given an error in the revache it is propagated", func() {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
-				nil, common.NewBasicError("TestError", nil),
+				nil, serrors.New("TestError"),
 			)
 			_, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
 			SoMsg("Err expected", err, ShouldNotBeNil)
@@ -157,7 +158,7 @@ func TestRelevantRevInfos(t *testing.T) {
 		// TODO(lukedirtwalker): Add test with revocations
 		Convey("Given an error in the revache it is propagated", func() {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
-				nil, common.NewBasicError("TestError", nil),
+				nil, serrors.New("TestError"),
 			)
 			_, err := revcache.RelevantRevInfos(ctx, revCache, segs)
 			SoMsg("Err expected", err, ShouldNotBeNil)

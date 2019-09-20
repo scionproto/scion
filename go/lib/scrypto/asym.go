@@ -22,6 +22,7 @@ import (
 	"golang.org/x/crypto/nacl/box"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Available asymmetric crypto algorithms. The values must be lower case.
@@ -77,7 +78,7 @@ func GetPubKey(privKey []byte, algo string) ([]byte, error) {
 	case Ed25519:
 		return ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey), nil
 	}
-	return nil, common.NewBasicError("unsupported key type", nil)
+	return nil, serrors.New("unsupported key type")
 }
 
 // Sign takes a signature input and a signing key to create a signature. Currently only

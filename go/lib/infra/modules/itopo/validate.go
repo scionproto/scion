@@ -18,6 +18,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -89,7 +90,7 @@ type generalValidator struct{}
 
 func (v *generalValidator) General(topo *topology.Topo) error {
 	if topo == nil {
-		return common.NewBasicError("Topo must not be nil", nil)
+		return serrors.New("Topo must not be nil")
 	}
 	return nil
 }

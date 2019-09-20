@@ -17,7 +17,7 @@ package log
 import (
 	"flag"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 var (
@@ -71,7 +71,7 @@ func SetupFromFlags(name string) error {
 	// if name passed, the caller wants to setup a log file
 	if name != "" {
 		if logDir == "" {
-			return common.NewBasicError("Log dir flag not set", nil)
+			return serrors.New("Log dir flag not set")
 		}
 		err = SetupLogFile(name, logDir, logLevel, logSize, logAge, logBackups, logFlush)
 	}

@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -592,7 +593,7 @@ func (db *executor) InsertCustKey(ctx context.Context,
 	key *trustdb.CustKey, oldVersion scrypto.Version) error {
 
 	if key == nil {
-		return common.NewBasicError("Inserting nil key not allowed", nil)
+		return serrors.New("Inserting nil key not allowed")
 	}
 	if key.Version == oldVersion {
 		return common.NewBasicError("Same version as oldVersion not allowed",
@@ -636,7 +637,7 @@ func (db *transaction) Commit() error {
 	db.Lock()
 	defer db.Unlock()
 	if db.tx == nil {
-		return common.NewBasicError("Transaction already done", nil)
+		return serrors.New("Transaction already done")
 	}
 	err := db.tx.Commit()
 	if err != nil {
@@ -650,7 +651,7 @@ func (db *transaction) Rollback() error {
 	db.Lock()
 	defer db.Unlock()
 	if db.tx == nil {
-		return common.NewBasicError("Transaction already done", nil)
+		return serrors.New("Transaction already done")
 	}
 	err := db.tx.Rollback()
 	db.tx = nil

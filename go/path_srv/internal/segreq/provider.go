@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -59,7 +60,7 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 		return nil, common.NewBasicError("failed to filter segments", err)
 	}
 	if len(segs) < 1 {
-		return nil, common.NewBasicError("no segments found", nil)
+		return nil, serrors.New("no segments found")
 	}
 	return segs[rand.Intn(len(segs))], nil
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
@@ -63,7 +64,7 @@ func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 	}
 	aps := r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
 	if len(aps) == 0 {
-		return nil, common.NewBasicError("unable to find paths", nil)
+		return nil, serrors.New("unable to find paths")
 	}
 	ap := aps.GetAppPath("")
 	return r.appPathToPath(ap)

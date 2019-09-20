@@ -579,7 +579,7 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 		// Unexpected error in trust store
 		return common.NewBasicError("Failed to load TRC from store", err)
 	case xerrors.Is(err, ErrNotFoundLocally) && fileTRC == nil:
-		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
+		return serrors.New("No TRC found on disk or in trustdb")
 	case xerrors.Is(err, ErrNotFoundLocally) && fileTRC != nil:
 		if _, err := store.trustdb.InsertTRC(ctx, fileTRC); err != nil {
 			return common.NewBasicError("Failed to insert TRC in trust db", err)
@@ -635,7 +635,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 		// Unexpected error in trust store
 		return err
 	case xerrors.Is(err, ErrMissingAuthoritative) && fileChain == nil:
-		return common.NewBasicError("No chain found on disk or in trustdb", nil)
+		return serrors.New("No chain found on disk or in trustdb")
 	case xerrors.Is(err, ErrMissingAuthoritative) && fileChain != nil:
 		_, err := store.trustdb.InsertChain(ctx, fileChain)
 		return err

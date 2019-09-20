@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -220,7 +221,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	}
 	// Make sure we drop packets with shortcuts in core links.
 	if rp.infoF.Shortcut && nextLink == proto.LinkType_core {
-		return common.NewBasicError("Shortcut not allowed on core segment", nil)
+		return serrors.New("Shortcut not allowed on core segment")
 	}
 	return nil
 }

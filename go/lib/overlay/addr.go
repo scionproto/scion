@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type OverlayAddr struct {
@@ -29,7 +30,7 @@ type OverlayAddr struct {
 
 func NewOverlayAddr(l3 addr.HostAddr, l4 addr.L4Info) (*OverlayAddr, error) {
 	if l3 == nil {
-		return nil, common.NewBasicError("L3 required", nil)
+		return nil, serrors.New("L3 required")
 	}
 	switch l3.Type() {
 	case addr.HostTypeIPv4, addr.HostTypeIPv6:

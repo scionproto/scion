@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
@@ -117,7 +118,7 @@ func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
 		return nil, common.NewBasicError("Failed to get core segs", err)
 	}
 	if len(coreSegs) < 1 {
-		return nil, common.NewBasicError("No core segments found!", nil)
+		return nil, serrors.New("No core segments found!")
 	}
 	var cPs net.Addr
 	// select a seg to reach the dst

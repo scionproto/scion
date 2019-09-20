@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -40,7 +41,7 @@ func (t testAdapterT) MsgToRaw(msg proto.Cerealizable) (common.RawBytes, error) 
 func (t testAdapterT) RawToMsg(b common.RawBytes) (proto.Cerealizable, error) {
 	items := strings.Split(string(b), "-")
 	if len(items) != 2 {
-		return nil, common.NewBasicError("Bad message", nil)
+		return nil, serrors.New("Bad message")
 	}
 	id, err := strconv.Atoi(items[0])
 	if err != nil {

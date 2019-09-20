@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -70,7 +71,7 @@ func (srv *Server) ListenAndServe() error {
 	srv.mu.Lock()
 	if srv.closeCalled {
 		srv.mu.Unlock()
-		return common.NewBasicError("attempted to listen on server that was shut down", nil)
+		return serrors.New("attempted to listen on server that was shut down")
 	}
 	listener, err := srv.listen()
 	if err != nil {
@@ -135,7 +136,7 @@ func (srv *Server) Close() error {
 	defer srv.mu.Unlock()
 
 	if srv.listener == nil {
-		return common.NewBasicError("uninitialized server", nil)
+		return serrors.New("uninitialized server")
 	}
 	srv.closeCalled = true
 	return srv.listener.Close()

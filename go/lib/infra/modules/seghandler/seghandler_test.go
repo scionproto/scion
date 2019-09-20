@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -30,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler/mock_seghandler"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -82,10 +82,10 @@ func TestReplyHandlerErrors(t *testing.T) {
 	verified := make(chan segverifier.UnitResult)
 
 	verifyErrs := []error{
-		common.NewBasicError("test err 1", nil),
-		common.NewBasicError("test err 2", nil),
-		common.NewBasicError("test err 3", nil),
-		common.NewBasicError("test err rev 1", nil),
+		serrors.New("test err 1"),
+		serrors.New("test err 2"),
+		serrors.New("test err 3"),
+		serrors.New("test err rev 1"),
 	}
 	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
 	xtest.FailOnErr(t, err)
@@ -282,7 +282,7 @@ func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
 	}
 	seg1Store := storage.EXPECT().StoreSegs(gomock.Any(),
 		gomock.Eq([]*seghandler.SegWithHP{seg1})).
-		Return(seghandler.SegStats{}, common.NewBasicError("Test error", nil))
+		Return(seghandler.SegStats{}, serrors.New("Test error"))
 	storage.EXPECT().StoreSegs(gomock.Any(),
 		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
 		Return(seghandler.SegStats{InsertedSegs: []string{"seg1", "seg2"}}, nil).
@@ -339,7 +339,7 @@ func TestReplyHandlerStorageError(t *testing.T) {
 		Storage:  storage,
 		Verifier: verifier,
 	}
-	storageErr := common.NewBasicError("Test error", nil)
+	storageErr := serrors.New("Test error")
 	storage.EXPECT().StoreSegs(gomock.Any(),
 		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
 		Return(seghandler.SegStats{}, storageErr)

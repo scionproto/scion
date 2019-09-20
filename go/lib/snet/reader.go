@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type scionConnReader struct {
@@ -64,7 +65,7 @@ func (c *scionConnReader) Read(b []byte) (int, error) {
 // an error (if one occurred).
 func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 	if c.base.scionNet == nil {
-		return 0, nil, common.NewBasicError("SCION network not initialized", nil)
+		return 0, nil, serrors.New("SCION network not initialized")
 	}
 
 	c.mtx.Lock()

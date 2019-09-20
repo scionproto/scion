@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -241,7 +242,7 @@ func (c client) getRemote(ctx context.Context, n int) error {
 		return common.NewBasicError("Error requesting paths", err)
 	}
 	if len(paths.Entries) == 0 {
-		return common.NewBasicError("No path entries found", nil)
+		return serrors.New("No path entries found")
 	}
 	pathEntry := paths.Entries[0]
 	path := spath.New(pathEntry.Path.FwdPath)

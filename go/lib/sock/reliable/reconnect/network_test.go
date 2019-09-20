@@ -24,8 +24,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable/mock_reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 )
@@ -60,7 +60,7 @@ func TestNetworkFatalError(t *testing.T) {
 	Convey("Given a network running over an underlying mocked network", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		err := common.NewBasicError("Not dispatcher dead error, e.g., malformed register msg", nil)
+		err := serrors.New("Not dispatcher dead error, e.g., malformed register msg")
 		mockNetwork := mock_reliable.NewMockDispatcherService(ctrl)
 		network := reconnect.NewDispatcherService(mockNetwork)
 		Convey("The network returns non-dispatcher dial errors from the mock", func() {

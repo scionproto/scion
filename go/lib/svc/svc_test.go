@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -124,7 +125,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				Convey("return from socket with error if next internal read fails", func() {
 					mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 						func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
-							return common.NewBasicError("forced exit", nil)
+							return serrors.New("forced exit")
 						},
 					)
 					err := conn.ReadFrom(&pkt, &ov)

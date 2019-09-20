@@ -56,6 +56,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -76,7 +77,7 @@ func Init(ia addr.IA, sciondPath string, dispatcher reliable.DispatcherService) 
 // InitWithNetwork initializes snet with the provided SCION networking context.
 func InitWithNetwork(network *SCIONNetwork) error {
 	if DefNetwork != nil {
-		return common.NewBasicError("Cannot initialize global SCION network twice", nil)
+		return serrors.New("Cannot initialize global SCION network twice")
 	}
 	DefNetwork = network
 	return nil
@@ -200,7 +201,7 @@ func (n *SCIONNetwork) DialSCIONWithBindSVC(network string, laddr, raddr, baddr 
 	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
 
 	if raddr == nil {
-		return nil, common.NewBasicError("Unable to dial to nil remote", nil)
+		return nil, serrors.New("Unable to dial to nil remote")
 	}
 	conn, err := n.ListenSCIONWithBindSVC(network, laddr, baddr, svc, timeout)
 	if err != nil {
@@ -251,20 +252,20 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		return nil, common.NewBasicError("Network not implemented", nil, "net", network)
 	}
 	if laddr == nil {
-		return nil, common.NewBasicError("Nil laddr not supported", nil)
+		return nil, serrors.New("Nil laddr not supported")
 	}
 	if laddr.Host == nil {
-		return nil, common.NewBasicError("Nil Host laddr not supported", nil)
+		return nil, serrors.New("Nil Host laddr not supported")
 	}
 	if laddr.Host.L3 == nil {
-		return nil, common.NewBasicError("Nil Host L3 laddr not supported", nil)
+		return nil, serrors.New("Nil Host L3 laddr not supported")
 	}
 	if laddr.Host.L3.Type() != l3Type {
 		return nil, common.NewBasicError("Supplied local address does not match network", nil,
 			"expected L3", l3Type, "actual L3", laddr.Host.L3.Type())
 	}
 	if laddr.Host.L3.IP().IsUnspecified() {
-		return nil, common.NewBasicError("Binding to unspecified address not supported", nil)
+		return nil, serrors.New("Binding to unspecified address not supported")
 	}
 	if laddr.Host.L4 == nil {
 		// If no port has been specified, default to 0 to get a random port from the dispatcher

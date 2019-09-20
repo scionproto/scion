@@ -18,11 +18,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -140,16 +140,16 @@ func (cfg *CSConfig) InitDefaults() {
 
 func (cfg *CSConfig) Validate() error {
 	if cfg.LeafReissueLeadTime.Duration == 0 {
-		return common.NewBasicError("LeafReissueLeadTime must not be zero", nil)
+		return serrors.New("LeafReissueLeadTime must not be zero")
 	}
 	if cfg.IssuerReissueLeadTime.Duration == 0 {
-		return common.NewBasicError("IssuerReissueLeadTime must not be zero", nil)
+		return serrors.New("IssuerReissueLeadTime must not be zero")
 	}
 	if cfg.ReissueRate.Duration == 0 {
-		return common.NewBasicError("ReissueRate must not be zero", nil)
+		return serrors.New("ReissueRate must not be zero")
 	}
 	if cfg.ReissueTimeout.Duration == 0 {
-		return common.NewBasicError("ReissueTimeout must not be zero", nil)
+		return serrors.New("ReissueTimeout must not be zero")
 	}
 	return nil
 }

@@ -20,9 +20,9 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -123,19 +123,19 @@ func (cfg *SigConf) InitDefaults() {
 // Validate validate the config and returns an error if a value is not valid.
 func (cfg *SigConf) Validate() error {
 	if cfg.ID == "" {
-		return common.NewBasicError("ID must be set!", nil)
+		return serrors.New("ID must be set!")
 	}
 	if cfg.SIGConfig == "" {
-		return common.NewBasicError("Config must be set!", nil)
+		return serrors.New("Config must be set!")
 	}
 	if cfg.IA.IsZero() {
-		return common.NewBasicError("IA must be set", nil)
+		return serrors.New("IA must be set")
 	}
 	if cfg.IA.IsWildcard() {
-		return common.NewBasicError("Wildcard IA not allowed", nil)
+		return serrors.New("Wildcard IA not allowed")
 	}
 	if cfg.IP.IsUnspecified() {
-		return common.NewBasicError("IP must be set", nil)
+		return serrors.New("IP must be set")
 	}
 	return nil
 }

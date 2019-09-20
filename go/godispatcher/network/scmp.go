@@ -17,6 +17,7 @@ package network
 import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -69,7 +70,7 @@ func getQuotedSCMPGeneralID(scmpPayload *scmp.Payload) (uint64, error) {
 	quotedInfoStart := quotedSCMPHeader.L4Len() + common.LineLen
 	quotedInfoEnd := quotedInfoStart + int(meta.InfoLen)*common.LineLen
 	if len(scmpPayload.L4Hdr) < quotedInfoEnd {
-		return 0, common.NewBasicError("incomplete post-quoted SCMP header meta+info quote", nil)
+		return 0, serrors.New("incomplete post-quoted SCMP header meta+info quote")
 	}
 	info, err := scmp.ParseInfo(scmpPayload.L4Hdr[quotedInfoStart:quotedInfoEnd],
 		scmp.ClassType{Class: quotedSCMPHeader.Class, Type: quotedSCMPHeader.Type})
@@ -78,7 +79,7 @@ func getQuotedSCMPGeneralID(scmpPayload *scmp.Payload) (uint64, error) {
 	}
 	id := extractID(quotedSCMPHeader.Type, info)
 	if id == 0 {
-		return 0, common.NewBasicError("SCMP General ID is 0, cannot route error packet", nil)
+		return 0, serrors.New("SCMP General ID is 0, cannot route error packet")
 	}
 	return id, nil
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spkt"
@@ -200,17 +201,17 @@ func Validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.Payload, error) {
 	infoRev, ok := scmpPld.Info.(*scmp.InfoRevocation)
 	if !ok {
 		return scmpHdr, scmpPld,
-			common.NewBasicError("Failed to parse SCMP revocation Info", nil)
+			serrors.New("Failed to parse SCMP revocation Info")
 	}
 	signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(infoRev.RawSRev)
 	if err != nil {
 		return scmpHdr, scmpPld,
-			common.NewBasicError("Failed to decode SCMP signed revocation Info", nil)
+			serrors.New("Failed to decode SCMP signed revocation Info")
 	}
 	ri, err := signedRevInfo.RevInfo()
 	if err != nil {
 		return scmpHdr, scmpPld,
-			common.NewBasicError("Failed to decode SCMP revocation Info", nil)
+			serrors.New("Failed to decode SCMP revocation Info")
 	}
 	return scmpHdr, scmpPld, common.NewBasicError("", nil, "Revocation", ri)
 }

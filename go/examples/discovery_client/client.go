@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/discovery/topofetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -113,10 +114,10 @@ func realMain() int {
 
 func validateFlags() error {
 	if *topoPath == "" && *ds == "" {
-		return common.NewBasicError("Topology and discovery service address not specified", nil)
+		return serrors.New("Topology and discovery service address not specified")
 	}
 	if *ds != "" && *topoPath != "" {
-		return common.NewBasicError("Both topology and discovery service address specified", nil)
+		return serrors.New("Both topology and discovery service address specified")
 	}
 	if *ds != "" {
 		host, port, err := net.SplitHostPort(*ds)

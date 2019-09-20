@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -184,7 +185,7 @@ func (intf *Interface) Revoke(rev *path_mgmt.SignedRevInfo) error {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
 	if intf.state == Active {
-		return common.NewBasicError("Interface activated in the meantime", nil)
+		return serrors.New("Interface activated in the meantime")
 	}
 	intf.state = Revoked
 	intf.revocation = rev

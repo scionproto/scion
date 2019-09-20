@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
@@ -39,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/topology/topotestutil"
@@ -91,12 +91,12 @@ func newMessengerMock(ctrl *gomock.Controller,
 
 			trcObj, ok := trcs[msg.ISD]
 			if !ok {
-				return nil, common.NewBasicError("TRC not found", nil)
+				return nil, serrors.New("TRC not found")
 			}
 
 			compressedTRC, err := trcObj.Compress()
 			if err != nil {
-				return nil, common.NewBasicError("Unable to compress TRC", nil)
+				return nil, serrors.New("Unable to compress TRC")
 			}
 			return &cert_mgmt.TRC{RawTRC: compressedTRC}, nil
 		},
@@ -107,12 +107,12 @@ func newMessengerMock(ctrl *gomock.Controller,
 
 			chain, ok := chains[msg.IA()]
 			if !ok {
-				return nil, common.NewBasicError("Chain not found", nil)
+				return nil, serrors.New("Chain not found")
 			}
 
 			compressedChain, err := chain.Compress()
 			if err != nil {
-				return nil, common.NewBasicError("Unable to compress Chain", nil)
+				return nil, serrors.New("Unable to compress Chain")
 			}
 			return &cert_mgmt.Chain{RawChain: compressedChain}, nil
 		},

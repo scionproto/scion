@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -172,7 +173,7 @@ func checkPerms() error {
 		return common.NewBasicError("Error retrieving user", err)
 	}
 	if u.Uid == "0" {
-		return common.NewBasicError("Running as root is not allowed for security reasons", nil)
+		return serrors.New("Running as root is not allowed for security reasons")
 	}
 	return nil
 }

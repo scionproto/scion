@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -110,7 +111,7 @@ func TestFetchDB(t *testing.T) {
 			mPathDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]*query.Result{{
 				Seg: g.seg130_132,
 			}}, nil)
-			expErr := common.NewBasicError("TestError", nil)
+			expErr := serrors.New("TestError")
 			mRevCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes().Return(
 				nil,
 				expErr,

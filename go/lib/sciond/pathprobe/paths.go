@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -87,7 +88,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		return nil, common.NewBasicError("deadline required on ctx", nil)
+		return nil, serrors.New("deadline required on ctx")
 	}
 	// Check whether paths are alive. This is done by sending a packet
 	// with invalid address via the path. The border router at the destination

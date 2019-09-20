@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -119,7 +120,7 @@ func (h *Handler) validateSign(ctx context.Context, addr *snet.Addr,
 	signed *ctrl.SignedPld) (*cert.Chain, error) {
 
 	if signed.Sign == nil {
-		return nil, common.NewBasicError("Sign is nil", nil)
+		return nil, serrors.New("Sign is nil")
 	}
 	src, err := ctrl.NewSignSrcDefFromRaw(signed.Sign.Src)
 	if err != nil {
@@ -160,10 +161,10 @@ func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 			c.Issuer, "expected", h.IA)
 	}
 	if c.CanIssue {
-		return common.NewBasicError("CanIssue not allowed to be true", nil)
+		return serrors.New("CanIssue not allowed to be true")
 	}
 	if !bytes.Equal(vKey, vChain.Leaf.SubjectSignKey) {
-		return common.NewBasicError("Request signed with wrong signing key", nil)
+		return serrors.New("Request signed with wrong signing key")
 	}
 	return nil
 }
@@ -229,7 +230,7 @@ func (h *Handler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain)
 	}
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
-		return common.NewBasicError("Unable to send reply, no response writer found", nil)
+		return serrors.New("Unable to send reply, no response writer found")
 	}
 	log.Trace("[reiss.Handler] Sending reissued certificate chain", "chain", chain,
 		"addr", addr)
