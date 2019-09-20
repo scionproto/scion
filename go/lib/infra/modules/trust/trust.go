@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -36,21 +37,27 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
 const (
-	// Handler lifetime
+	// HandlerTimeout is the handler lifetime.
 	HandlerTimeout = 3 * time.Second
 )
 
-const (
-	ErrNotFoundLocally      = "Chain/TRC not found locally"
-	ErrMissingAuthoritative = "Trust store is authoritative for requested object," +
-		" and object was not found"
-	ErrNotFound = "Chain/TRC not found"
+var (
+	// ErrNotFoundLocally indicates that a chain or TRC was not found locally.
+	ErrNotFoundLocally = serrors.New("chain/TRC not found locally")
+	// ErrMissingAuthoritative indicates that eventhough the trust store is
+	// authoritative for the requested object, it wasn't found.
+	ErrMissingAuthoritative = serrors.New("trust store is authoritative for requested object," +
+		" and object was not found")
+	// ErrNotFound indicates that a chain or TRC was not found even after a
+	// network lookup.
+	ErrNotFound = serrors.New("chain/TRC not found")
 )
 
 var _ infra.ExtendedTrustStore = (*Store)(nil)
@@ -191,7 +198,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		return trcObj, err
 	}
 	if opts.LocalOnly {
-		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "isd", isd, "version", version,
+		return nil, serrors.WithCtx(ErrNotFoundLocally, "isd", isd, "version", version,
 			"client", client)
 	}
 	if err := store.isLocal(client); err != nil {
@@ -226,7 +233,7 @@ func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*tr
 			return nil, response.Error
 		}
 		if response.Data == nil {
-			return nil, common.NewBasicError(ErrNotFound, nil)
+			return nil, ErrNotFound
 		}
 		return response.Data.(*trc.TRC), nil
 	case <-ctx.Done():
@@ -289,8 +296,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		return chain, err
 	}
 	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
-		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
-			"requested_ia", ia)
+		return nil, serrors.WithCtx(ErrMissingAuthoritative, "requested_ia", ia)
 	}
 	// Chain not found, so we'll need to fetch one. First, fetch the TRC we'll
 	// need during certificate chain validation.
@@ -302,7 +308,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		return nil, err
 	}
 	if opts.LocalOnly {
-		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
+		return nil, serrors.WithCtx(ErrNotFoundLocally, "ia", ia)
 	}
 	if opts.Server == nil {
 		var err error
@@ -399,7 +405,7 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 			return nil, response.Error
 		}
 		if response.Data == nil {
-			return nil, common.NewBasicError(ErrNotFound, nil)
+			return nil, ErrNotFound
 		}
 		return response.Data.(*cert.Chain), nil
 	case <-ctx.Done():
@@ -432,12 +438,12 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 	opts := infra.TRCOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
 	dbTRC, err := store.getTRC(ctx, store.ia.I, scrypto.Version(scrypto.LatestVer), opts, nil)
 	switch {
-	case err != nil && common.GetErrorMsg(err) != ErrNotFoundLocally:
+	case err != nil && !xerrors.Is(err, ErrNotFoundLocally):
 		// Unexpected error in trust store
-		return common.NewBasicError("Failed to TRC from store", err)
-	case common.GetErrorMsg(err) == ErrNotFoundLocally && fileTRC == nil:
+		return common.NewBasicError("Failed to load TRC from store", err)
+	case xerrors.Is(err, ErrNotFoundLocally) && fileTRC == nil:
 		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
-	case common.GetErrorMsg(err) == ErrNotFoundLocally && fileTRC != nil:
+	case xerrors.Is(err, ErrNotFoundLocally) && fileTRC != nil:
 		if _, err := store.trustdb.InsertTRC(ctx, fileTRC); err != nil {
 			return common.NewBasicError("Failed to insert TRC in trust db", err)
 		}
@@ -487,12 +493,12 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
 	chain, err := store.getChain(ctx, store.ia, scrypto.Version(scrypto.LatestVer), opts, nil)
 	switch {
-	case err != nil && common.GetErrorMsg(err) != ErrMissingAuthoritative:
+	case err != nil && !xerrors.Is(err, ErrMissingAuthoritative):
 		// Unexpected error in trust store
 		return err
-	case common.GetErrorMsg(err) == ErrMissingAuthoritative && fileChain == nil:
+	case xerrors.Is(err, ErrMissingAuthoritative) && fileChain == nil:
 		return common.NewBasicError("No chain found on disk or in trustdb", nil)
-	case common.GetErrorMsg(err) == ErrMissingAuthoritative && fileChain != nil:
+	case xerrors.Is(err, ErrMissingAuthoritative) && fileChain != nil:
 		_, err := store.trustdb.InsertChain(ctx, fileChain)
 		return err
 	case err == nil && fileChain == nil:

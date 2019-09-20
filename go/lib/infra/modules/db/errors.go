@@ -15,38 +15,43 @@
 package db
 
 import (
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-const (
-	InputDataErrMsg = "db: input data invalid"
-	DataErrMsg      = "db: db data invalid"
-	ReadErrMsg      = "db: read failed"
-	WriteErrMsg     = "db: write failed"
-	TxErrMsg        = "db: transaction error"
+var (
+	// ErrInvalidInputData indicates invalid data was tried to input in the DB.
+	ErrInvalidInputData = serrors.New("db: input data invalid")
+	// ErrDataInvalid indicates invalid data is stored in the DB.
+	ErrDataInvalid = serrors.New("db: db data invalid")
+	// ErrReadFailed indicates that reading from the DB failed.
+	ErrReadFailed = serrors.New("db: read failed")
+	// ErrWriteFailed indicates that writing to the DB failed.
+	ErrWriteFailed = serrors.New("db: write failed")
+	// ErrTx indicates a transaction error.
+	ErrTx = serrors.New("db: transaction error")
 )
 
 func NewTxError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(TxErrMsg, err,
+	return serrors.Wrap(ErrTx, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewInputDataError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(InputDataErrMsg, err,
+	return serrors.Wrap(ErrInvalidInputData, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewDataError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(DataErrMsg, err,
+	return serrors.Wrap(ErrDataInvalid, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewReadError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(ReadErrMsg, err,
+	return serrors.Wrap(ErrReadFailed, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewWriteError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(WriteErrMsg, err,
+	return serrors.Wrap(ErrWriteFailed, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }

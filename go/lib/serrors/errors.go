@@ -136,8 +136,7 @@ func WrapStr(msg string, cause error, logCtx ...interface{}) error {
 	}
 }
 
-// New creates a new error with the given message and context. If no context is
-// used prefer using the standard libs New function.
+// New creates a new error with the given message and context.
 func New(msg string, logCtx ...interface{}) error {
 	if len(logCtx) == 0 {
 		return errors.New(msg)

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type HostAddrType uint8
@@ -54,9 +55,11 @@ const (
 	HostLenSVC  = 2
 )
 
-const (
-	ErrorBadHostAddrType       = "Unsupported host address type"
-	ErrorMalformedHostAddrType = "Malformed host address type"
+var (
+	// ErrBadHostAddrType indicates an invalid host address type.
+	ErrBadHostAddrType = serrors.New("unsupported host address type")
+	// ErrMalformedHostAddrType indicates a malformed host address type.
+	ErrMalformedHostAddrType = serrors.New("malformed host address type")
 )
 
 const (
@@ -284,18 +287,18 @@ func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
 		return HostNone{}, nil
 	case HostTypeIPv4:
 		if len(b) < HostLenIPv4 {
-			return nil, common.NewBasicError(ErrorMalformedHostAddrType, nil, "type", htype)
+			return nil, serrors.WithCtx(ErrMalformedHostAddrType, "type", htype)
 		}
 		return HostIPv4(b[:HostLenIPv4]), nil
 	case HostTypeIPv6:
 		if len(b) < HostLenIPv6 {
-			return nil, common.NewBasicError(ErrorMalformedHostAddrType, nil, "type", htype)
+			return nil, serrors.WithCtx(ErrMalformedHostAddrType, "type", htype)
 		}
 		return HostIPv6(b[:HostLenIPv6]), nil
 	case HostTypeSVC:
 		return HostSVC(binary.BigEndian.Uint16(b)), nil
 	default:
-		return nil, common.NewBasicError(ErrorBadHostAddrType, nil, "type", htype)
+		return nil, serrors.WithCtx(ErrBadHostAddrType, "type", htype)
 	}
 }
 
@@ -326,7 +329,7 @@ func HostLen(htype HostAddrType) (uint8, error) {
 	case HostTypeSVC:
 		length = HostLenSVC
 	default:
-		return 0, common.NewBasicError(ErrorBadHostAddrType, nil, "type", htype)
+		return 0, serrors.WithCtx(ErrBadHostAddrType, "type", htype)
 	}
 	return length, nil
 }

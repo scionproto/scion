@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +24,8 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -289,16 +292,20 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, error) {
 	}
 	// Try to parse L4 and Payload, but we might fail to do so, ie. unsupported L4 protocol
 	if sp.L4, err = rp.L4Hdr(verify); err != nil {
-		if common.GetErrorMsg(err) != UnsupportedL4 {
-			return nil, err
+		if xerrors.Is(err, ErrUnsupportedL4) {
+			// In case of an unsupported L4 protocol return the sp we have so far.
+			// scion packets are created either in error scenarios, where we
+			// don't need L4, or in SCMP replies where we shouldn't reach this
+			// code here since the packet was already parsed before.
+			return sp, nil
 		}
+		return nil, err
 	}
-	if err == nil {
-		// L4 header was parsed without error, then parse payload
-		if sp.Pld, err = rp.Payload(verify); err != nil {
-			if common.GetErrorMsg(err) != UnsupportedL4 {
-				return nil, err
-			}
+	// L4 header was parsed without error, then parse payload
+	if sp.Pld, err = rp.Payload(verify); err != nil {
+		if !xerrors.Is(err, ErrUnsupportedL4) {
+			// See comment above for why we special case ErrUnsupportedL4.
+			return nil, err
 		}
 	}
 	return sp, nil

@@ -24,14 +24,18 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
+)
+
+var (
+	ErrorHopFTooShort = serrors.New("HopF too short")
+	ErrorHopFBadMac   = serrors.New("Bad HopF MAC")
 )
 
 const (
 	HopFieldLength    = common.LineLen
 	DefaultHopFExpiry = ExpTimeType(63)
 	MacLen            = 3
-	ErrorHopFTooShort = "HopF too short"
-	ErrorHopFBadMac   = "Bad HopF MAC"
 	XoverMask         = 0x01
 	VerifyOnlyMask    = 0x02
 	MaxTTL            = 24 * 60 * 60 // One day in seconds
@@ -74,8 +78,7 @@ type HopField struct {
 // HopFFromRaw returns a HopField object from the raw content in b.
 func HopFFromRaw(b []byte) (*HopField, error) {
 	if len(b) < HopFieldLength {
-		return nil, common.NewBasicError(ErrorHopFTooShort, nil,
-			"min", HopFieldLength, "actual", len(b))
+		return nil, serrors.WithCtx(ErrorHopFTooShort, "min", HopFieldLength, "actual", len(b))
 	}
 	h := &HopField{}
 	flags := b[0]
@@ -115,7 +118,7 @@ func (h *HopField) String() string {
 func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) error {
 	mac := h.CalcMac(macH, tsInt, prev)
 	if !bytes.Equal(h.Mac, mac) {
-		return common.NewBasicError(ErrorHopFBadMac, nil, "expected", mac, "actual", h.Mac)
+		return serrors.WithCtx(ErrorHopFBadMac, "expected", mac, "actual", h.Mac)
 	}
 	return nil
 }
