@@ -51,6 +51,15 @@ type Signed struct {
 	Signatures []Signature `json:"signatures"`
 }
 
+// ParseSigned parses the raw signed TRC.
+func ParseSigned(raw []byte) (Signed, error) {
+	var signed Signed
+	if err := json.Unmarshal(raw, &signed); err != nil {
+		return Signed{}, err
+	}
+	return signed, nil
+}
+
 // Encoded is the the base64url encoded marshaled TRC.
 type Encoded []byte
 
