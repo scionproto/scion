@@ -19,6 +19,7 @@ package trust
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -38,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -49,13 +51,20 @@ const (
 )
 
 const (
-	ErrChainVerification    = "chain verification failed"
 	ErrNotFoundLocally      = "Chain/TRC not found locally"
 	ErrMissingAuthoritative = "Trust store is authoritative for requested object," +
 		" and object was not found"
-	ErrNotFound        = "Chain/TRC not found"
-	ErrParse           = "unable to parse"
-	ErrInvalidResponse = "invalid response"
+)
+
+var (
+	// ErrChainVerification indicates the chain verification failed.
+	ErrChainVerification = errors.New("chain verification failed")
+	// ErrNotFound indicates the trust material was not found.
+	ErrNotFound = errors.New("not found")
+	// ErrParse indicates the trust material could not be parsed.
+	ErrParse = errors.New("unable to parse")
+	// ErrInvalidResponse indicates an invalid response was received.
+	ErrInvalidResponse = errors.New("invalid response")
 )
 
 var _ infra.ExtendedTrustStore = (*Store)(nil)
@@ -126,18 +135,16 @@ func (store *Store) trcRequestFunc(ctx context.Context, request dedupe.Request) 
 	}
 	trcObj, err := trcMsg.TRC()
 	if err != nil {
-		return wrapErr(common.NewBasicError(ErrParse, err, "msg", trcMsg))
+		return wrapErr(serrors.Wrap(ErrParse, err, "msg", trcMsg))
 	}
 	if trcObj == nil {
 		return dedupe.Response{Data: nil}
 	}
 
 	if req.version != scrypto.LatestVer && trcObj.Version != req.version {
-		return wrapErr(common.NewBasicError(ErrInvalidResponse,
-			common.ErrMsg("remote server responded with bad version"),
-			"got", trcObj.Version, "expected", req.version))
+		return wrapErr(serrors.WrapStr("remote server responded with bad version",
+			ErrInvalidResponse, "got", trcObj.Version, "expected", req.version))
 	}
-
 	if req.postHook != nil {
 		return dedupe.Response{Data: trcObj, Error: req.postHook(ctx, trcObj)}
 	}
@@ -154,19 +161,18 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 	}
 	chainMsg, err := store.msger.GetCertChain(ctx, chainReqMsg, req.server, req.id)
 	if err != nil {
-		return wrapErr(common.NewBasicError("Unable to get CertChain from peer", err))
+		return wrapErr(serrors.WrapStr("Unable to get CertChain from peer", err))
 	}
 	chain, err := chainMsg.Chain()
 	if err != nil {
-		return wrapErr(common.NewBasicError(ErrParse, err))
+		return wrapErr(serrors.Wrap(ErrParse, err, "msg", chainMsg))
 	}
 	if chain == nil {
 		return dedupe.Response{Data: nil}
 	}
 	if req.version != scrypto.LatestVer && chain.Leaf.Version != req.version {
-		return wrapErr(common.NewBasicError(ErrInvalidResponse,
-			common.ErrMsg("Remote server responded with bad version"),
-			"got", chain.Leaf.Version, "expected", req.version))
+		return wrapErr(serrors.WrapStr("Remote server responded with bad version",
+			ErrInvalidResponse, "got", chain.Leaf.Version, "expected", req.version))
 	}
 	if req.postHook != nil {
 		return dedupe.Response{Data: chain, Error: req.postHook(ctx, chain)}
@@ -222,7 +228,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		opts.Server, err = store.ChooseServer(ctx, addr.IA{I: isd})
 		if err != nil {
 			metrics.Store.Lookup(l.WithResult(metrics.ErrInternal)).Inc()
-			return nil, common.NewBasicError("Error determining server to query", err,
+			return nil, serrors.WrapStr("Error determining server to query", err,
 				"isd", isd, "version", version)
 		}
 	}
@@ -254,10 +260,9 @@ func (store *Store) getTRClabels(ctx context.Context, client, server net.Addr,
 		l.Result = metrics.Success
 	case ctx.Err() != nil:
 		l.Result = metrics.ErrTimeout
-	case xerrors.Is(err, common.ErrMsg(ErrNotFound)):
+	case xerrors.Is(err, ErrNotFound):
 		l.Result = metrics.ErrNotFound
-	case xerrors.Is(err, common.ErrMsg(ErrParse)),
-		xerrors.Is(err, common.ErrMsg(ErrInvalidResponse)):
+	case xerrors.Is(err, ErrParse), xerrors.Is(err, ErrInvalidResponse):
 		l.Result = metrics.ErrValidate
 	}
 	return l
@@ -276,7 +281,7 @@ func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*tr
 			return nil, response.Error
 		}
 		if response.Data == nil {
-			return nil, common.NewBasicError(ErrNotFound, nil)
+			return nil, ErrNotFound
 		}
 		return response.Data.(*trc.TRC), nil
 	case <-ctx.Done():
@@ -452,7 +457,7 @@ func (store *Store) newChainValidatorLocal(validator *trc.TRC) ValidateChainFunc
 		}
 		_, err := store.trustdb.InsertChain(ctx, chain)
 		if err != nil {
-			return common.NewBasicError("Unable to store CertChain in database", err)
+			return serrors.WrapStr("Unable to store CertChain in database", err)
 		}
 		return nil
 	}
@@ -462,12 +467,11 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 	l := metrics.VerificationLabels{Type: metrics.Chain, Result: metrics.ErrVerify}
 	if validator == nil {
 		metrics.Store.Verification(l).Inc()
-		return common.NewBasicError(ErrChainVerification, common.ErrMsg("TRC nil"),
-			"target", chain)
+		return serrors.WithCtx(ErrChainVerification, "trc", validator, "chain", chain)
 	}
 	if err := chain.Verify(chain.Leaf.Subject, validator); err != nil {
 		metrics.Store.Verification(l).Inc()
-		return common.NewBasicError("Chain verification failed", err, "target", chain)
+		return serrors.Wrap(ErrChainVerification, err, "trc", validator, "chain", chain)
 	}
 	metrics.Store.Verification(l.WithResult(metrics.Success)).Inc()
 	return nil
@@ -488,12 +492,11 @@ func (store *Store) getChainLabels(ctx context.Context, client, server net.Addr,
 		l.Result = metrics.Success
 	case ctx.Err() != nil:
 		l.Result = metrics.ErrTimeout
-	case xerrors.Is(err, common.ErrMsg(ErrNotFound)):
+	case xerrors.Is(err, ErrNotFound):
 		l.Result = metrics.ErrNotFound
-	case xerrors.Is(err, common.ErrMsg(ErrParse)),
-		xerrors.Is(err, common.ErrMsg(ErrInvalidResponse)):
+	case xerrors.Is(err, ErrParse), xerrors.Is(err, ErrInvalidResponse):
 		l.Result = metrics.ErrValidate
-	case xerrors.Is(err, common.ErrMsg(ErrChainVerification)):
+	case xerrors.Is(err, ErrChainVerification):
 		l.Result = metrics.ErrVerify
 	}
 	return l
@@ -515,11 +518,11 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 			return nil, response.Error
 		}
 		if response.Data == nil {
-			return nil, common.NewBasicError(ErrNotFound, nil)
+			return nil, ErrNotFound
 		}
 		return response.Data.(*cert.Chain), nil
 	case <-ctx.Done():
-		return nil, common.NewBasicError("Context canceled while waiting for Chain",
+		return nil, serrors.New("Context canceled while waiting for Chain",
 			nil, "ia", req.ia, "version", req.version)
 	}
 }
