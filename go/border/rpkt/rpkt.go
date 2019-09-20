@@ -303,11 +303,10 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, error) {
 	}
 	// L4 header was parsed without error, then parse payload
 	if sp.Pld, err = rp.Payload(verify); err != nil {
-		if xerrors.Is(err, ErrUnsupportedL4) {
-			// See comment above for why we return here.
-			return sp, nil
+		if !xerrors.Is(err, ErrUnsupportedL4) {
+			// See comment above for why we special case ErrUnsupportedL4.
+			return nil, err
 		}
-		return nil, err
 	}
 	return sp, nil
 }
