@@ -438,9 +438,9 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 	opts := infra.TRCOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
 	dbTRC, err := store.getTRC(ctx, store.ia.I, scrypto.Version(scrypto.LatestVer), opts, nil)
 	switch {
-	case err != nil && xerrors.Is(err, ErrNotFoundLocally):
+	case err != nil && !xerrors.Is(err, ErrNotFoundLocally):
 		// Unexpected error in trust store
-		return common.NewBasicError("Failed to TRC from store", err)
+		return common.NewBasicError("Failed to load TRC from store", err)
 	case xerrors.Is(err, ErrNotFoundLocally) && fileTRC == nil:
 		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
 	case xerrors.Is(err, ErrNotFoundLocally) && fileTRC != nil:
@@ -493,7 +493,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
 	chain, err := store.getChain(ctx, store.ia, scrypto.Version(scrypto.LatestVer), opts, nil)
 	switch {
-	case err != nil && xerrors.Is(err, ErrMissingAuthoritative):
+	case err != nil && !xerrors.Is(err, ErrMissingAuthoritative):
 		// Unexpected error in trust store
 		return err
 	case xerrors.Is(err, ErrMissingAuthoritative) && fileChain == nil:
