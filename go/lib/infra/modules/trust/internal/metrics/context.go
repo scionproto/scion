@@ -31,10 +31,10 @@ func CtxWith(ctx context.Context, trigger string) context.Context {
 // string otherwise.
 func FromCtx(ctx context.Context) string {
 	if ctx == nil {
-		return app
+		return App
 	}
 	if trigger := ctx.Value(triggerKey); trigger != nil {
 		return trigger.(string)
 	}
-	return app
+	return App
 }

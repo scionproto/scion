@@ -348,7 +348,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 // "app" is returned.
 func addrLocation(client net.Addr, localIA addr.IA) string {
 	if client == nil {
-		return appSrc
+		return metrics.App
 	}
 	sAddr, ok := client.(*snet.Addr)
 	if !ok {
