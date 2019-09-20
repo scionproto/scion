@@ -30,7 +30,7 @@ const (
 	SigVerification = "sig_verification"
 	ASInspector     = "as_inspector"
 	Load            = "load"
-	App             = "application"
+	app             = "application"
 )
 
 // Result type strings.

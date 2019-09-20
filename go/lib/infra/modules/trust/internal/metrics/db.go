@@ -59,7 +59,7 @@ func (l QueryLabels) Labels() []string {
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l *QueryLabels) Values() []string {
+func (l QueryLabels) Values() []string {
 	return []string{l.Driver, l.Operation, l.Result}
 }
 

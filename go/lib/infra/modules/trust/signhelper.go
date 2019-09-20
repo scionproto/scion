@@ -162,7 +162,7 @@ func (v *BasicVerifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*c
 		return nil, common.NewBasicError("Unable to parse payload", err)
 	}
 	if v.ignoreSign(cpld, spld.Sign) {
-		// Do not increase metric
+		// Do not increase metric because we skip verification.
 		return cpld, nil
 	}
 	if err := v.sanityChecks(spld.Sign, true); err != nil {

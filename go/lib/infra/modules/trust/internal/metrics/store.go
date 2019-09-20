@@ -43,7 +43,7 @@ func (l LookupLabels) Labels() []string {
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l *LookupLabels) Values() []string {
+func (l LookupLabels) Values() []string {
 	localOnly := strconv.FormatBool(l.LocalOnly)
 	return []string{l.Client, l.Trigger, l.ReqType, localOnly, l.Result}
 }
@@ -70,7 +70,7 @@ func (l OutgoingLabels) Labels() []string {
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l *OutgoingLabels) Values() []string {
+func (l OutgoingLabels) Values() []string {
 	cacheOnly := strconv.FormatBool(l.CacheOnly)
 	return []string{l.Client, l.Server, l.Trigger, l.ReqType, cacheOnly, l.Result}
 }
@@ -93,7 +93,7 @@ func (l VerificationLabels) Labels() []string {
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l *VerificationLabels) Values() []string {
+func (l VerificationLabels) Values() []string {
 	return []string{l.Type, l.Result}
 }
 

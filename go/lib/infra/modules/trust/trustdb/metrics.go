@@ -28,6 +28,30 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
 
+type observer struct {
+	driver string
+}
+
+func (o observer) Observe(ctx context.Context, op string, action func(ctx context.Context) error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("trustdb.%s", string(op)))
+	defer span.Finish()
+	err := action(ctx)
+	l := metrics.QueryLabels{
+		Driver:    o.driver,
+		Operation: op,
+		Result:    db.ErrToMetricLabel(err),
+	}
+	metrics.DB.Queries(l).Inc()
+}
+
+var _ (TrustDB) = (*metricsTrustDB)(nil)
+
+type metricsTrustDB struct {
+	*metricsExecutor
+	// db is only needed to have Close and BeginTransaction methods.
+	db TrustDB
+}
+
 // WithMetrics wraps the given TrustDB into one that also exports metrics.
 func WithMetrics(driver string, trustDB TrustDB) TrustDB {
 	rwDBWrapper := &metricsExecutor{
@@ -40,29 +64,6 @@ func WithMetrics(driver string, trustDB TrustDB) TrustDB {
 		metricsExecutor: rwDBWrapper,
 		db:              trustDB,
 	}
-}
-
-type observer struct {
-	driver string
-}
-
-func (o observer) Observe(ctx context.Context, op string, action func(ctx context.Context) error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("trustdb.%s", string(op)))
-	defer span.Finish()
-	l := metrics.QueryLabels{
-		Driver:    o.driver,
-		Operation: op,
-		Result:    db.ErrToMetricLabel(action(ctx)),
-	}
-	metrics.DB.Queries(l).Inc()
-}
-
-var _ (TrustDB) = (*metricsTrustDB)(nil)
-
-type metricsTrustDB struct {
-	*metricsExecutor
-	// db is only needed to have Close and BeginTransaction methods.
-	db TrustDB
 }
 
 func (db *metricsTrustDB) BeginTransaction(ctx context.Context,

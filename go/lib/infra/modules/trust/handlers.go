@@ -32,6 +32,8 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+const appSrc = "app"
+
 // trcReqHandler contains the state of a handler for a specific TRC Request
 // message, received via the Messenger's ListenAndServe method.
 type trcReqHandler struct {
@@ -67,6 +69,7 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// Add trigger to context for outgoing request metrics.
 	subCtx = metrics.CtxWith(subCtx, metrics.TRCReq)
 
 	var trcObj *trc.TRC
@@ -155,6 +158,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// Add trigger to context for outgoing request metrics.
 	subCtx = metrics.CtxWith(subCtx, metrics.ChainReq)
 
 	var chain *cert.Chain
@@ -241,6 +245,7 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// Add trigger to context for outgoing request metrics.
 	subCtx = metrics.CtxWith(subCtx, metrics.TRCPush)
 
 	sendAck := messenger.SendAckHelper(subCtx, rw)
@@ -304,6 +309,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// Add trigger to context for outgoing request metrics.
 	subCtx = metrics.CtxWith(subCtx, metrics.ChainPush)
 
 	sendAck := messenger.SendAckHelper(subCtx, rw)
@@ -342,7 +348,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 // "app" is returned.
 func addrLocation(client net.Addr, localIA addr.IA) string {
 	if client == nil {
-		return "app"
+		return appSrc
 	}
 	sAddr, ok := client.(*snet.Addr)
 	if !ok {

@@ -22,19 +22,16 @@ import (
 )
 
 func TestQueryLabels(t *testing.T) {
-	promtest.CheckLabelsStruct(t, metrics.QueryLabels{})
-}
-
-func TestHandlerLabels(t *testing.T) {
-	promtest.CheckLabelsStruct(t, metrics.HandlerLabels{})
-}
-
-func TestLookupLabels(t *testing.T) {
-	promtest.CheckLabelsStruct(t, metrics.LookupLabels{})
-}
-func TestOutgoingLabels(t *testing.T) {
-	promtest.CheckLabelsStruct(t, metrics.OutgoingLabels{})
-}
-func TestVerificationLabels(t *testing.T) {
-	promtest.CheckLabelsStruct(t, metrics.VerificationLabels{})
+	tests := map[string]interface{}{
+		"QueryLabels":        metrics.QueryLabels{},
+		"HandlerLabels":      metrics.HandlerLabels{},
+		"LookupLabels":       metrics.LookupLabels{},
+		"OutgoingLabels":     metrics.OutgoingLabels{},
+		"VerificationLabels": metrics.VerificationLabels{},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			promtest.CheckLabelsStruct(t, test)
+		})
+	}
 }

@@ -36,7 +36,7 @@ func (l HandlerLabels) Labels() []string {
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l *HandlerLabels) Values() []string {
+func (l HandlerLabels) Values() []string {
 	return []string{l.Client, l.ReqType, strconv.FormatBool(l.CacheOnly), l.Result}
 }
 

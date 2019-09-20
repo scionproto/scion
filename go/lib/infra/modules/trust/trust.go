@@ -226,28 +226,29 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 				"isd", isd, "version", version)
 		}
 	}
-	l.Result, trcObj, err = store.getTRCFromNetworkWithMetric(ctx, client, &trcRequest{
+	trcObj, err = store.getTRCFromNetwork(ctx, &trcRequest{
 		isd:      isd,
 		version:  uint64(version),
 		id:       messenger.NextId(),
 		server:   opts.Server,
 		postHook: store.insertTRCHook(),
 	})
-	metrics.Store.Lookup(l).Inc()
+	outLabels := store.getTRClabels(ctx, client, opts.Server, err)
+	metrics.Store.Outgoing(outLabels).Inc()
+	metrics.Store.Lookup(l.WithResult(outLabels.Result)).Inc()
 	return trcObj, err
 }
 
-func (store *Store) getTRCFromNetworkWithMetric(ctx context.Context, client net.Addr,
-	req *trcRequest) (string, *trc.TRC, error) {
+func (store *Store) getTRClabels(ctx context.Context, client, server net.Addr,
+	err error) metrics.OutgoingLabels {
 
 	l := metrics.OutgoingLabels{
 		Client:  addrLocation(client, store.ia),
-		Server:  addrLocation(req.server, store.ia),
+		Server:  addrLocation(server, store.ia),
 		Trigger: metrics.FromCtx(ctx),
 		ReqType: metrics.TRCReq,
 		Result:  metrics.ErrInternal,
 	}
-	trcObj, err := store.getTRCFromNetwork(ctx, req)
 	switch {
 	case err == nil:
 		l.Result = metrics.Success
@@ -259,8 +260,7 @@ func (store *Store) getTRCFromNetworkWithMetric(ctx context.Context, client net.
 		xerrors.Is(err, common.ErrMsg(ErrInvalidResponse)):
 		l.Result = metrics.ErrValidate
 	}
-	metrics.Store.Outgoing(l).Inc()
-	return l.Result, trcObj, err
+	return l
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
@@ -385,14 +385,16 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 			return nil, err
 		}
 	}
-	l.Result, chain, err = store.getChainFromNetworkWithMetric(ctx, client, &chainRequest{
+	chain, err = store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
 		version:  uint64(version),
 		id:       messenger.NextId(),
 		server:   opts.Server,
 		postHook: store.newChainValidator(trcObj),
 	})
-	metrics.Store.Lookup(l).Inc()
+	outLabels := store.getChainLabels(ctx, client, opts.Server, err)
+	metrics.Store.Outgoing(outLabels).Inc()
+	metrics.Store.Lookup(l.WithResult(outLabels.Result)).Inc()
 	return chain, err
 }
 
@@ -471,17 +473,16 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 	return nil
 }
 
-func (store *Store) getChainFromNetworkWithMetric(ctx context.Context, client net.Addr,
-	req *chainRequest) (string, *cert.Chain, error) {
+func (store *Store) getChainLabels(ctx context.Context, client, server net.Addr,
+	err error) metrics.OutgoingLabels {
 
 	l := metrics.OutgoingLabels{
 		Client:  addrLocation(client, store.ia),
-		Server:  addrLocation(req.server, store.ia),
+		Server:  addrLocation(server, store.ia),
 		Trigger: metrics.FromCtx(ctx),
 		ReqType: metrics.ChainReq,
 		Result:  metrics.ErrInternal,
 	}
-	chain, err := store.getChainFromNetwork(ctx, req)
 	switch {
 	case err == nil:
 		l.Result = metrics.Success
@@ -495,8 +496,7 @@ func (store *Store) getChainFromNetworkWithMetric(ctx context.Context, client ne
 	case xerrors.Is(err, common.ErrMsg(ErrChainVerification)):
 		l.Result = metrics.ErrVerify
 	}
-	metrics.Store.Outgoing(l).Inc()
-	return l.Result, chain, err
+	return l
 }
 
 // issueChainRequest requests a Chain from the trust store backend.
