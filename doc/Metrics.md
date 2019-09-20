@@ -121,12 +121,12 @@ type OriginatorLabels struct {
 }
 
 // Labels returns the list of labels.
-func (l *OriginatorLabels) Labels() []string{
+func (l OriginatorLabels) Labels() []string{
     return []string{"eg_ifid", prom.LabelResult}
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l *OriginatorLabels) Values() []string {
+func (l OriginatorLabels) Values() []string {
     return []string{l.EgIfID.String(), l.Result}
 }
 
@@ -166,12 +166,12 @@ type KeepaliveLabels struct {
 }
 
 // Labels returns the name of the labels in correct order.
-func (l *KeepaliveLabels) Labels() []string {
+func (l KeepaliveLabels) Labels() []string {
     return []string{"ifid", prom.LabelResult}
 }
 
 // Values returns the values of the label in correct order.
-func (l *KeepaliveLabels) Values() []string {
+func (l KeepaliveLabels) Values() []string {
     return []string{l.IfID.String(), l.Result}
 }
 
@@ -205,12 +205,12 @@ type SocketLabels struct {
 }
 
 // Labels returns the list of labels.
-func (l *SocketLabels) Labels() []string {
+func (l SocketLabels) Labels() []string {
     return []string{"socket"}
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l *SocketLabels) Values() []string {
+func (l SocketLabels) Values() []string {
     return []string{l.Socket}
 }
 
