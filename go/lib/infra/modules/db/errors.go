@@ -15,43 +15,43 @@
 package db
 
 import (
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-const (
+var (
 	// ErrInvalidInputData indicates invalid data was tried to input in the DB.
-	ErrInvalidInputData common.ErrMsg = "db: input data invalid"
+	ErrInvalidInputData = serrors.New("db: input data invalid")
 	// ErrDataInvalid indicates invalid data is stored in the DB.
-	ErrDataInvalid common.ErrMsg = "db: db data invalid"
+	ErrDataInvalid = serrors.New("db: db data invalid")
 	// ErrReadFailed indicates that reading from the DB failed.
-	ErrReadFailed common.ErrMsg = "db: read failed"
+	ErrReadFailed = serrors.New("db: read failed")
 	// ErrWriteFailed indicates that writing to the DB failed.
-	ErrWriteFailed common.ErrMsg = "db: write failed"
+	ErrWriteFailed = serrors.New("db: write failed")
 	// ErrTx indicates a transaction error.
-	ErrTx common.ErrMsg = "db: transaction error"
+	ErrTx = serrors.New("db: transaction error")
 )
 
 func NewTxError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(ErrTx, err,
+	return serrors.Wrap(ErrTx, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewInputDataError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(ErrInvalidInputData, err,
+	return serrors.Wrap(ErrInvalidInputData, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewDataError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(ErrDataInvalid, err,
+	return serrors.Wrap(ErrDataInvalid, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewReadError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(ErrReadFailed, err,
+	return serrors.Wrap(ErrReadFailed, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewWriteError(msg string, err error, logCtx ...interface{}) error {
-	return common.NewBasicError(ErrWriteFailed, err,
+	return serrors.Wrap(ErrWriteFailed, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }

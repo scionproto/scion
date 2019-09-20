@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -47,16 +48,16 @@ const (
 	HandlerTimeout = 3 * time.Second
 )
 
-const (
+var (
 	// ErrNotFoundLocally indicates that a chain or TRC was not found locally.
-	ErrNotFoundLocally common.ErrMsg = "chain/TRC not found locally"
+	ErrNotFoundLocally = serrors.New("chain/TRC not found locally")
 	// ErrMissingAuthoritative indicates that eventhough the trust store is
 	// authoritative for the requested object, it wasn't found.
-	ErrMissingAuthoritative common.ErrMsg = "trust store is authoritative for requested object," +
-		" and object was not found"
+	ErrMissingAuthoritative = serrors.New("trust store is authoritative for requested object," +
+		" and object was not found")
 	// ErrNotFound indicates that a chain or TRC was not found even after a
 	// network lookup.
-	ErrNotFound common.ErrMsg = "chain/TRC not found"
+	ErrNotFound = serrors.New("chain/TRC not found")
 )
 
 var _ infra.ExtendedTrustStore = (*Store)(nil)
@@ -197,7 +198,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		return trcObj, err
 	}
 	if opts.LocalOnly {
-		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "isd", isd, "version", version,
+		return nil, serrors.WithCtx(ErrNotFoundLocally, "isd", isd, "version", version,
 			"client", client)
 	}
 	if err := store.isLocal(client); err != nil {
@@ -232,7 +233,7 @@ func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*tr
 			return nil, response.Error
 		}
 		if response.Data == nil {
-			return nil, common.NewBasicError(ErrNotFound, nil)
+			return nil, ErrNotFound
 		}
 		return response.Data.(*trc.TRC), nil
 	case <-ctx.Done():
@@ -295,8 +296,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		return chain, err
 	}
 	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
-		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
-			"requested_ia", ia)
+		return nil, serrors.WithCtx(ErrMissingAuthoritative, "requested_ia", ia)
 	}
 	// Chain not found, so we'll need to fetch one. First, fetch the TRC we'll
 	// need during certificate chain validation.
@@ -308,7 +308,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		return nil, err
 	}
 	if opts.LocalOnly {
-		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
+		return nil, serrors.WithCtx(ErrNotFoundLocally, "ia", ia)
 	}
 	if opts.Server == nil {
 		var err error
@@ -405,7 +405,7 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 			return nil, response.Error
 		}
 		if response.Data == nil {
-			return nil, common.NewBasicError(ErrNotFound, nil)
+			return nil, ErrNotFound
 		}
 		return response.Data.(*cert.Chain), nil
 	case <-ctx.Done():

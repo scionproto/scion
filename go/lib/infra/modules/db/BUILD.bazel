@@ -15,6 +15,7 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/prom:go_default_library",
+        "//go/lib/serrors:go_default_library",
         "@org_golang_x_xerrors//:go_default_library",
     ],
 )

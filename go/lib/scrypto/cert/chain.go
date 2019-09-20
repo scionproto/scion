@@ -31,7 +31,18 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
+)
+
+// Errors
+var (
+	ErrIssCertInvalid   = serrors.New("issuer certificate invalid")
+	ErrIssExpiresAfter  = serrors.New("issuer certificate expires after TRC")
+	ErrIssASNotFound    = serrors.New("issuing AS not found")
+	ErrLeafCertInvalid  = serrors.New("leaf certificate invalid")
+	ErrLeafExpiresAfter = serrors.New("leaf certificate expires after issuer certificate")
+	ErrLeafIssuedBefore = serrors.New("leaf certificate issued before issuer certificate")
 )
 
 const (
@@ -40,14 +51,6 @@ const (
 	DefaultLeafCertValidity = 3 * 24 * 60 * 60
 	// DefaultIssuerCertValidity is the default validity time of an issuer certificate in seconds.
 	DefaultIssuerCertValidity = 7 * 24 * 60 * 60
-
-	// Error strings
-	IssCertInvalid   common.ErrMsg = "Issuer certificate invalid"
-	IssExpiresAfter                = "Issuer certificate expires after TRC"
-	IssASNotFound                  = "Issuing AS not found"
-	LeafCertInvalid                = "Leaf certificate invalid"
-	LeafExpiresAfter               = "Leaf certificate expires after issuer certificate"
-	LeafIssuedBefore               = "Leaf certificate issued before issuer certificate"
 )
 
 type Key struct {
@@ -161,33 +164,33 @@ func ChainFromSlice(certs []*Certificate) (*Chain, error) {
 
 func (c *Chain) Verify(subject addr.IA, t *trc.TRC) error {
 	if c.Leaf.IssuingTime < c.Issuer.IssuingTime {
-		return common.NewBasicError(LeafIssuedBefore, nil,
+		return serrors.WithCtx(ErrLeafIssuedBefore,
 			"leaf", util.SecsToCompact(c.Leaf.IssuingTime),
 			"issuer", util.SecsToCompact(c.Issuer.IssuingTime))
 	}
 	if c.Leaf.ExpirationTime > c.Issuer.ExpirationTime {
-		return common.NewBasicError(LeafExpiresAfter, nil,
+		return serrors.WithCtx(ErrLeafExpiresAfter,
 			"leaf", util.SecsToCompact(c.Leaf.ExpirationTime),
 			"issuer", util.SecsToCompact(c.Issuer.ExpirationTime))
 	}
 	if !c.Issuer.CanIssue {
-		return common.NewBasicError(IssCertInvalid, nil, "CanIssue", false)
+		return serrors.WithCtx(ErrIssCertInvalid, "CanIssue", false)
 	}
 	if err := c.Leaf.Verify(subject, c.Issuer.SubjectSignKey, c.Issuer.SignAlgorithm); err != nil {
-		return common.NewBasicError(LeafCertInvalid, err)
+		return serrors.Wrap(ErrLeafCertInvalid, err)
 	}
 	if c.Issuer.ExpirationTime > t.ExpirationTime {
-		return common.NewBasicError(IssExpiresAfter, nil,
+		return serrors.WithCtx(ErrIssExpiresAfter,
 			"issuer", util.SecsToCompact(c.Issuer.ExpirationTime),
 			"TRC", util.SecsToCompact(t.ExpirationTime))
 	}
 	coreAS, ok := t.CoreASes[c.Issuer.Issuer]
 	if !ok {
-		return common.NewBasicError(IssASNotFound, nil, "isdas", c.Issuer.Issuer, "coreASes",
+		return serrors.WithCtx(ErrIssASNotFound, "isdas", c.Issuer.Issuer, "coreASes",
 			t.CoreASes)
 	}
 	if err := c.Issuer.Verify(c.Issuer.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
-		return common.NewBasicError(IssCertInvalid, err)
+		return serrors.Wrap(ErrIssCertInvalid, err)
 	}
 	return nil
 }
