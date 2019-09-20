@@ -63,11 +63,12 @@ func TestIsTimeout(t *testing.T) {
 	wrappedErr := serrors.WrapStr("timeout",
 		&testToTempErr{msg: "to", timeout: true})
 	assert.True(t, serrors.IsTimeout(wrappedErr))
-	timeoutWrappingNoTimeout := serrors.WrapStr("notimeout", &testToTempErr{
-		msg:   "wraps timeout",
-		cause: &testToTempErr{msg: "timeout", timeout: true},
+	noTimeoutWrappingTimeout := serrors.WrapStr("notimeout", &testToTempErr{
+		msg:     "non timeout wraps timeout",
+		timeout: false,
+		cause:   &testToTempErr{msg: "timeout", timeout: true},
 	})
-	assert.False(t, serrors.IsTimeout(timeoutWrappingNoTimeout))
+	assert.False(t, serrors.IsTimeout(noTimeoutWrappingTimeout))
 }
 
 func TestIsTemporary(t *testing.T) {
@@ -76,11 +77,12 @@ func TestIsTemporary(t *testing.T) {
 	wrappedErr := serrors.WrapStr("temp",
 		&testToTempErr{msg: "to", temporary: true})
 	assert.True(t, serrors.IsTemporary(wrappedErr))
-	tempWrappingNoTemp := serrors.WrapStr("notemp", &testToTempErr{
-		msg:   "wraps temp",
-		cause: &testToTempErr{msg: "timeout", temporary: true},
+	noTempWrappingTemp := serrors.WrapStr("notemp", &testToTempErr{
+		msg:       "non temp wraps temp",
+		temporary: false,
+		cause:     &testToTempErr{msg: "temp", temporary: true},
 	})
-	assert.False(t, serrors.IsTemporary(tempWrappingNoTemp))
+	assert.False(t, serrors.IsTemporary(noTempWrappingTemp))
 }
 
 func TestWithCtx(t *testing.T) {
@@ -202,11 +204,30 @@ func TestList(t *testing.T) {
 	assert.Equal(t, "err1\nerr2", combinedErr.Error())
 }
 
+func ExampleNew() {
+	err1 := serrors.New("errtxt")
+	err2 := serrors.New("errtxt")
+
+	// Self equality always works:
+	fmt.Println(xerrors.Is(err1, err1))
+	fmt.Println(xerrors.Is(err2, err2))
+	// On the other hand different errors with same text should not be "equal".
+	// That is to prevent that errors with same message in different packages
+	// with same text are seen as the same thing:
+	fmt.Println(xerrors.Is(err1, err2))
+
+	// Output:
+	// true
+	// true
+	// false
+}
+
 func ExampleWrapStr() {
 	// ErrNoSpace is an error defined at package scope.
 	var ErrNoSpace = serrors.New("no space")
 
-	fmt.Println(xerrors.Is(serrors.WrapStr("wrap with more context", ErrNoSpace, "ctx", 1), ErrNoSpace))
+	wrappedErr := serrors.WrapStr("wrap with more context", ErrNoSpace, "ctx", 1)
+	fmt.Println(xerrors.Is(wrappedErr, ErrNoSpace))
 	// Output: true
 }
 
