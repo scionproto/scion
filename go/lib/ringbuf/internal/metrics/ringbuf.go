@@ -16,7 +16,7 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	//"github.com/prometheus/client_golang/prometheus/promauto"
+
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
@@ -25,7 +25,7 @@ type RingbufLabels struct {
 }
 
 func (l *RingbufLabels) Labels() []string {
-	return []string{"RingID"}
+	return []string{"ring_id"}
 }
 
 func (l *RingbufLabels) Values() []string {
