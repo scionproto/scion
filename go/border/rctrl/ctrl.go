@@ -80,10 +80,9 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 
 func processCtrl() {
 	b := make(common.RawBytes, maxBufSize)
-	cl := metrics.ControlLabels{Dst: metrics.Self, Type: metrics.IFStateInfo}
+	cl := metrics.ControlLabels{Type: metrics.IFStateInfo}
 	for {
 		pktLen, src, err := snetConn.ReadFromSCION(b)
-		cl.Src = src.String()
 		if err != nil {
 			cl.Result = metrics.ErrRead
 			metrics.Control.Pkts(cl).Inc()
