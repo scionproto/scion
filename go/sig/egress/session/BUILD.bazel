@@ -27,6 +27,5 @@ go_library(
         "//go/sig/metrics:go_default_library",
         "//go/sig/mgmt:go_default_library",
         "//go/sig/sigcmn:go_default_library",
-        "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )
