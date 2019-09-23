@@ -17,7 +17,6 @@ package ringbuf
 import (
 	"sync"
 
-	//"github.com/prometheus/client_golang/prometheus"
 	"github.com/scionproto/scion/go/lib/ringbuf/internal/metrics"
 )
 
@@ -40,9 +39,8 @@ type Ring struct {
 }
 
 // New allocates a new Ring instance, with capacity for count entries. If newf
-// is non-nil, it is called count times to pre-allocate the entries. labels
-// are attached to the prometheus metrics, and desc is added as an extra label.
-// N.B. InitMetrics must be called before the first New call.
+// is non-nil, it is called count times to pre-allocate the entries.
+// Metrics are exported with a 'ring_id" label.
 func New(count int, newf NewEntryF, ringID string) *Ring {
 	r := &Ring{}
 	r.writableC = sync.NewCond(&r.mutex)

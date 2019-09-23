@@ -16,8 +16,4 @@ package metrics
 
 const Namespace = "ringbuf"
 
-var rb ringbuf
-
-func init() {
-	rb = newRingbuf()
-}
+var rb = newRingbuf()

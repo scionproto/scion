@@ -312,7 +312,7 @@ func initTestRouter(maxNumPosixInput int) *Router {
 	r := &Router{
 		freePkts: ringbuf.New(maxNumPosixInput*inputBufCnt, func() interface{} {
 			return rpkt.NewRtrPkt()
-		}, "free"),
+		}, "free_pkts"),
 	}
 	return r
 }

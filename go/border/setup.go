@@ -65,7 +65,7 @@ var registeredExtSockOps = map[brconf.SockType]extSockOps{}
 func (r *Router) setup() error {
 	r.freePkts = ringbuf.New(1024, func() interface{} {
 		return rpkt.NewRtrPkt()
-	}, "free")
+	}, "free_pkts")
 	r.sRevInfoQ = make(chan rpkt.RawSRevCallbackArgs, 16)
 	r.pktErrorQ = make(chan pktErrorArgs, 16)
 
