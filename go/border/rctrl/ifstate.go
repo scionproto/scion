@@ -54,8 +54,6 @@ func ifStateUpdate() {
 // genIFStateReq generates an Interface State request packet to the local beacon service.
 func genIFStateReq() error {
 	cl := metrics.ControlLabels{
-		Src:    metrics.Self,
-		Dst:    "svc_bs",
 		Type:   metrics.IFStateReq,
 		Result: metrics.ErrProcess,
 	}
@@ -87,7 +85,6 @@ func genIFStateReq() error {
 	var errors common.MultiError
 	for _, addr := range bsAddrs {
 		dst.NextHop = addr
-		cl.Dst = dst.String()
 		if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
 			cl.Result = metrics.ErrWrite
 			metrics.Control.Pkts(cl).Inc()

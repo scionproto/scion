@@ -45,8 +45,6 @@ const (
 	ErrParsePayload = "err_parse_payload"
 )
 
-const Self = "self"
-
 // Metrics initialization.
 var (
 	Input   = newInput()

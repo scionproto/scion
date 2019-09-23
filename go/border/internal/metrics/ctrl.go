@@ -33,20 +33,16 @@ type ControlLabels struct {
 	Result string
 	// Type is the type of packet/message.
 	Type string
-	// Src is the source address of the processed packet.
-	Src string
-	// Dst is the destination address of the processed packet.
-	Dst string
 }
 
 // Labels returns the list of labels.
 func (l ControlLabels) Labels() []string {
-	return []string{"result", "type", "src", "dst"}
+	return []string{"result", "type"}
 }
 
 // Values returns the label values in the order defined by Labels.
 func (l ControlLabels) Values() []string {
-	return []string{l.Result, l.Type, l.Src, l.Dst}
+	return []string{l.Result, l.Type}
 }
 
 type control struct {
@@ -56,13 +52,11 @@ type control struct {
 
 func newControl() control {
 	sub := "control"
-	il := IntfLabels{}
-	cl := ControlLabels{}
 	return control{
 		pkts: prom.NewCounterVec(Namespace, sub,
-			"pkts_total", "Total number of processed packets.", cl.Labels()),
+			"pkts_total", "Total number of processed packets.", ControlLabels{}.Labels()),
 		ifstate: prom.NewGaugeVec(Namespace, sub,
-			"interface_active", "Interface is active.", il.Labels()),
+			"interface_active", "Interface is active.", IntfLabels{}.Labels()),
 	}
 }
 

@@ -37,9 +37,9 @@ func newOutput() output {
 	l := IntfLabels{}.Labels()
 	return output{
 		pkts: prom.NewCounterVec(Namespace, sub,
-			"pkts_total", "Total number of output packets received.", l),
+			"pkts_total", "Total number of output packets sent.", l),
 		bytes: prom.NewCounterVec(Namespace, sub,
-			"bytes_total", "Total number of output bytes received.", l),
+			"bytes_total", "Total number of output bytes sent.", l),
 		pktSize: prom.NewHistogramVec(Namespace, sub,
 			"pkt_size_bytes", "Size of output packets in bytes", l,
 			[]float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000}),
