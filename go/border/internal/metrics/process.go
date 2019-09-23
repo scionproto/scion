@@ -31,9 +31,9 @@ type ProcessLabels struct {
 	// Result is the outcome of processing the packet.
 	Result string
 	// In is the input SCION interface.
-	In string
+	IntfIn string
 	// Out is the output SCION interface.
-	Out string
+	IntfOut string
 }
 
 // Labels returns the list of labels.
@@ -43,7 +43,7 @@ func (l ProcessLabels) Labels() []string {
 
 // Values returns the label values in the order defined by Labels.
 func (l ProcessLabels) Values() []string {
-	return []string{l.Result, l.In, l.Out}
+	return []string{l.Result, l.IntfIn, l.IntfOut}
 }
 
 type process struct {
