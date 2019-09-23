@@ -28,16 +28,21 @@ const (
 )
 
 type ProcessLabels struct {
+	// Result is the outcome of processing the packet.
 	Result string
-	In     string
-	Out    string
+	// In is the input SCION interface.
+	In string
+	// Out is the output SCION interface.
+	Out string
 }
 
-func (l *ProcessLabels) Labels() []string {
+// Labels returns the list of labels.
+func (l ProcessLabels) Labels() []string {
 	return []string{"result", "intf_in", "intf_out"}
 }
 
-func (l *ProcessLabels) Values() []string {
+// Values returns the label values in the order defined by Labels.
+func (l ProcessLabels) Values() []string {
 	return []string{l.Result, l.In, l.Out}
 }
 
@@ -48,20 +53,20 @@ type process struct {
 
 func newProcess() process {
 	sub := "process"
-	pl := ProcessLabels{}
-	il := IntfLabels{}
 	return process{
 		pkts: prom.NewCounterVec(Namespace, sub,
-			"pkts_total", "Total number of processed packets.", pl.Labels()),
+			"pkts_total", "Total number of processed packets.", ProcessLabels{}.Labels()),
 		time: prom.NewCounterVec(Namespace, sub,
-			"time_seconds_total", "Total packet processing time.", il.Labels()),
+			"time_seconds_total", "Total packet processing time.", IntfLabels{}.Labels()),
 	}
 }
 
+// PktsWith returns the counter for the given label set.
 func (p *process) PktsWith(l ProcessLabels) prometheus.Counter {
 	return p.pkts.WithLabelValues(l.Values()...)
 }
 
+// TimeWith returns the counter for the given label set.
 func (p *process) TimeWith(l IntfLabels) prometheus.Counter {
 	return p.time.WithLabelValues(l.Values()...)
 }

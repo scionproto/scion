@@ -21,22 +21,27 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 const Namespace = "border"
 
 // Result values.
 const (
-	Success         = prom.Success
-	ErrProcess      = prom.ErrProcess
-	ErrParse        = prom.ErrParse
-	ErrCrypto       = prom.ErrCrypto
-	ErrRead         = "err_read"
-	ErrWrite        = "err_write"
-	ErrValidate     = "err_validate"
-	ErrRoute        = "err_route"
+	Success    = prom.Success
+	ErrProcess = prom.ErrProcess
+	ErrParse   = prom.ErrParse
+	ErrCrypto  = prom.ErrCrypto
+	// ErrRead is an error reading a packet from snet.
+	ErrRead = "err_read"
+	// ErrWrite is an error writing a packet to snet.
+	ErrWrite = "err_write"
+	// ErrValidate is an error validating the packet.
+	ErrValidate = "err_validate"
+	// ErrValidate is an error routing the packet.
+	ErrRoute = "err_route"
+	// ErrValidate is an error on local processing the packet, ie. SVC resolution.
 	ErrProcessLocal = "err_process_local"
+	// ErrParsePayload is an error parsing the packet payload.
 	ErrParsePayload = "err_parse_payload"
 )
 
@@ -51,20 +56,18 @@ var (
 )
 
 type IntfLabels struct {
+	// Itnf in the interface ID
 	Intf string
 }
 
-func (l *IntfLabels) Labels() []string {
+// Labels returns the list of labels.
+func (l IntfLabels) Labels() []string {
 	return []string{"interface"}
 }
 
-func (l *IntfLabels) Values() []string {
+// Values returns the label values in the order defined by Labels.
+func (l IntfLabels) Values() []string {
 	return []string{l.Intf}
-}
-
-func init() {
-	// Initialize ringbuf metrics.
-	ringbuf.InitMetrics("border", []string{"ringId"})
 }
 
 func IntfToLabel(ifid common.IFIDType) string {
