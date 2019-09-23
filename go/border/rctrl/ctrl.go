@@ -80,7 +80,7 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 
 func processCtrl() {
 	b := make(common.RawBytes, maxBufSize)
-	cl := metrics.ControlLabels{Dst: metrics.Self}
+	cl := metrics.ControlLabels{Dst: metrics.Self, Type: metrics.IFStateInfo}
 	for {
 		pktLen, src, err := snetConn.ReadFromSCION(b)
 		cl.Src = src.String()
@@ -89,7 +89,6 @@ func processCtrl() {
 			metrics.Control.PktsWith(cl).Inc()
 			fatal.Fatal(common.NewBasicError("Reading packet", err))
 		}
-		cl.Type = metrics.IFStateInfo
 		cl.Result = metrics.Success
 		if err = processCtrlFromRaw(b[:pktLen]); err != nil {
 			logger.Error("Processing ctrl pld", "src", src, "err", err)
