@@ -94,9 +94,9 @@ func genIFStateReq() error {
 			errors = append(errors, common.NewBasicError("Writing IFStateReq", err, "dst", dst))
 			continue
 		}
+		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", addr)
 		cl.Result = metrics.Success
 		metrics.Control.PktsWith(cl).Inc()
-		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", addr)
 	}
 	return errors.ToError()
 }
