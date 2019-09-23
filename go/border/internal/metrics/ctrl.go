@@ -29,17 +29,23 @@ const (
 )
 
 type ControlLabels struct {
+	// Result is the outcome of processing the packet.
 	Result string
-	Type   string
-	Src    string
-	Dst    string
+	// Type is the type of packet/message.
+	Type string
+	// Src is the source address of the processed packet.
+	Src string
+	// Dst is the destination address of the processed packet.
+	Dst string
 }
 
-func (l *ControlLabels) Labels() []string {
+// Labels returns the list of labels.
+func (l ControlLabels) Labels() []string {
 	return []string{"result", "type", "src", "dst"}
 }
 
-func (l *ControlLabels) Values() []string {
+// Values returns the label values in the order defined by Labels.
+func (l ControlLabels) Values() []string {
 	return []string{l.Result, l.Type, l.Src, l.Dst}
 }
 
@@ -60,10 +66,12 @@ func newControl() control {
 	}
 }
 
+// PktsWith returns the counter for the given label set.
 func (c *control) PktsWith(l ControlLabels) prometheus.Counter {
 	return c.pkts.WithLabelValues(l.Values()...)
 }
 
+// IFStateWith returns the gauge for the given label set.
 func (c *control) IFStateWith(l IntfLabels) prometheus.Gauge {
 	return c.ifstate.WithLabelValues(l.Values()...)
 }

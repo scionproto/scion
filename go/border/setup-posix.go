@@ -18,8 +18,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -162,10 +160,10 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo) error
 	}
 	// Setup input goroutine.
 	ctx.ExtSockIn[intf.Id] = rctx.NewSock(
-		ringbuf.New(64, nil, fmt.Sprintf("ext_in_%s", labels["sock"])),
+		ringbuf.New(64, nil, fmt.Sprintf("ext_in_%s", intf)),
 		c, rcmn.DirExternal, intf.Id, r.posixInput, r.handleSock, PosixSock)
 	ctx.ExtSockOut[intf.Id] = rctx.NewSock(
-		ringbuf.New(64, nil, fmt.Sprintf("ext_out_%s", labels["sock"])),
+		ringbuf.New(64, nil, fmt.Sprintf("ext_out_%s", intf)),
 		c, rcmn.DirExternal, intf.Id, nil, r.posixOutput, PosixSock)
 	log.Debug("Done setting up new external socket.", "intf", intf)
 	return nil

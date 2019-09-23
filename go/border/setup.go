@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/border/brconf"
