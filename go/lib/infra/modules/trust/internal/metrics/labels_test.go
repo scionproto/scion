@@ -26,7 +26,7 @@ func TestQueryLabels(t *testing.T) {
 		"QueryLabels":        metrics.QueryLabels{},
 		"HandlerLabels":      metrics.HandlerLabels{},
 		"LookupLabels":       metrics.LookupLabels{},
-		"OutgoingLabels":     metrics.OutgoingLabels{},
+		"SentLabels":         metrics.SentLabels{},
 		"VerificationLabels": metrics.VerificationLabels{},
 	}
 	for name, test := range tests {

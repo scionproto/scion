@@ -54,8 +54,8 @@ func (l LookupLabels) WithResult(result string) LookupLabels {
 	return l
 }
 
-// OutgoingLabels defines the outgoing request labels.
-type OutgoingLabels struct {
+// SentLabels defines the outgoing request labels.
+type SentLabels struct {
 	Client    string
 	Server    string
 	Trigger   string
@@ -65,18 +65,18 @@ type OutgoingLabels struct {
 }
 
 // Labels returns the list of labels.
-func (l OutgoingLabels) Labels() []string {
+func (l SentLabels) Labels() []string {
 	return []string{"client", "server", "trigger", "req_type", "cache_only", prom.LabelResult}
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l OutgoingLabels) Values() []string {
+func (l SentLabels) Values() []string {
 	cacheOnly := strconv.FormatBool(l.CacheOnly)
 	return []string{l.Client, l.Server, l.Trigger, l.ReqType, cacheOnly, l.Result}
 }
 
 // WithResult returns the outgoing labels with the modified result.
-func (l OutgoingLabels) WithResult(result string) OutgoingLabels {
+func (l SentLabels) WithResult(result string) SentLabels {
 	l.Result = result
 	return l
 }
@@ -105,7 +105,7 @@ func (l VerificationLabels) WithResult(result string) VerificationLabels {
 
 type store struct {
 	lookup       prometheus.CounterVec
-	outgoing     prometheus.CounterVec
+	sent         prometheus.CounterVec
 	verification prometheus.CounterVec
 }
 
@@ -113,8 +113,8 @@ func newStore() store {
 	return store{
 		lookup: *prom.NewCounterVec(Namespace, "", "lookups_total",
 			"Number of crypto lookups in the trust store", LookupLabels{}.Labels()),
-		outgoing: *prom.NewCounterVec(Namespace, "", "outgoing_requests_total",
-			"Number of requests initiated by the trust store", OutgoingLabels{}.Labels()),
+		sent: *prom.NewCounterVec(Namespace, "", "sent_requests_total",
+			"Number of requests initiated by the trust store", SentLabels{}.Labels()),
 		verification: *prom.NewCounterVec(Namespace, "", "signature_verifications_total",
 			"Number of signature verifications done by trust store", VerificationLabels{}.Labels()),
 	}
@@ -124,8 +124,8 @@ func (s *store) Lookup(l LookupLabels) prometheus.Counter {
 	return s.lookup.WithLabelValues(l.Values()...)
 }
 
-func (s *store) Outgoing(l OutgoingLabels) prometheus.Counter {
-	return s.outgoing.WithLabelValues(l.Values()...)
+func (s *store) Sent(l SentLabels) prometheus.Counter {
+	return s.sent.WithLabelValues(l.Values()...)
 }
 
 func (s *store) Verification(l VerificationLabels) prometheus.Counter {

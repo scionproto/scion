@@ -213,7 +213,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		return nil, err
 	}
 	if trcObj != nil {
-		metrics.Store.Lookup(l.WithResult(metrics.Success)).Inc()
+		metrics.Store.Lookup(l.WithResult(metrics.OkCached)).Inc()
 		return trcObj, nil
 	}
 	if opts.LocalOnly {
@@ -241,15 +241,15 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		postHook: store.insertTRCHook(),
 	})
 	outLabels := store.getTRClabels(ctx, client, opts.Server, err)
-	metrics.Store.Outgoing(outLabels).Inc()
+	metrics.Store.Sent(outLabels).Inc()
 	metrics.Store.Lookup(l.WithResult(outLabels.Result)).Inc()
 	return trcObj, err
 }
 
 func (store *Store) getTRClabels(ctx context.Context, client, server net.Addr,
-	err error) metrics.OutgoingLabels {
+	err error) metrics.SentLabels {
 
-	l := metrics.OutgoingLabels{
+	l := metrics.SentLabels{
 		Client:  addrLocation(client, store.ia),
 		Server:  addrLocation(server, store.ia),
 		Trigger: metrics.FromCtx(ctx),
@@ -258,7 +258,7 @@ func (store *Store) getTRClabels(ctx context.Context, client, server net.Addr,
 	}
 	switch {
 	case err == nil:
-		l.Result = metrics.Success
+		l.Result = metrics.OkRequested
 	case ctx.Err() != nil:
 		l.Result = metrics.ErrTimeout
 	case xerrors.Is(err, ErrNotFound):
@@ -319,7 +319,7 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 	if err != nil {
 		return common.NewBasicError("Failed to compress TRC for forwarding", err)
 	}
-	l := metrics.OutgoingLabels{
+	l := metrics.SentLabels{
 		Trigger: metrics.FromCtx(ctx),
 		ReqType: metrics.TRCPush,
 		Server:  addrLocation(addr, store.ia),
@@ -329,10 +329,10 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 		RawTRC: rawTRC,
 	}, addr, messenger.NextId())
 	if err != nil {
-		metrics.Store.Outgoing(l.WithResult(metrics.ErrTransmit)).Inc()
+		metrics.Store.Sent(l.WithResult(metrics.ErrTransmit)).Inc()
 		return common.NewBasicError("Failed to forward TRC", err)
 	}
-	metrics.Store.Outgoing(l).Inc()
+	metrics.Store.Sent(l).Inc()
 	return nil
 }
 
@@ -361,7 +361,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		return nil, err
 	}
 	if chain != nil {
-		metrics.Store.Lookup(l.WithResult(metrics.Success)).Inc()
+		metrics.Store.Lookup(l.WithResult(metrics.OkCached)).Inc()
 		return chain, nil
 	}
 	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
@@ -398,7 +398,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		postHook: store.newChainValidator(trcObj),
 	})
 	outLabels := store.getChainLabels(ctx, client, opts.Server, err)
-	metrics.Store.Outgoing(outLabels).Inc()
+	metrics.Store.Sent(outLabels).Inc()
 	metrics.Store.Lookup(l.WithResult(outLabels.Result)).Inc()
 	return chain, err
 }
@@ -429,7 +429,7 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 		if err != nil {
 			return common.NewBasicError("Failed to compress chain for forwarding", err)
 		}
-		l := metrics.OutgoingLabels{
+		l := metrics.SentLabels{
 			Trigger: metrics.FromCtx(ctx),
 			ReqType: metrics.ChainPush,
 			Server:  addrLocation(addr, store.ia),
@@ -439,10 +439,10 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 			RawChain: rawChain,
 		}, addr, messenger.NextId())
 		if err != nil {
-			metrics.Store.Outgoing(l.WithResult(metrics.ErrTransmit)).Inc()
+			metrics.Store.Sent(l.WithResult(metrics.ErrTransmit)).Inc()
 			return common.NewBasicError("Failed to forward cert chain", err, "chain", chain)
 		}
-		metrics.Store.Outgoing(l).Inc()
+		metrics.Store.Sent(l).Inc()
 		return nil
 	}
 }
@@ -478,9 +478,9 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 }
 
 func (store *Store) getChainLabels(ctx context.Context, client, server net.Addr,
-	err error) metrics.OutgoingLabels {
+	err error) metrics.SentLabels {
 
-	l := metrics.OutgoingLabels{
+	l := metrics.SentLabels{
 		Client:  addrLocation(client, store.ia),
 		Server:  addrLocation(server, store.ia),
 		Trigger: metrics.FromCtx(ctx),
@@ -489,7 +489,7 @@ func (store *Store) getChainLabels(ctx context.Context, client, server net.Addr,
 	}
 	switch {
 	case err == nil:
-		l.Result = metrics.Success
+		l.Result = metrics.OkRequested
 	case ctx.Err() != nil:
 		l.Result = metrics.ErrTimeout
 	case xerrors.Is(err, ErrNotFound):

@@ -37,7 +37,7 @@ const (
 // Common result values.
 const (
 	// Success is no error.
-	Success = "success"
+	Success = "ok_success"
 	// ErrCrypto is used for crypto related errors.
 	ErrCrypto = "err_crypto"
 	// ErrDB is used for db related errors.

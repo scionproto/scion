@@ -36,6 +36,9 @@ const (
 // Result type strings.
 const (
 	Success     = prom.Success
+	OkCached    = "ok_cached"
+	OkRequested = "ok_requested"
+
 	ErrDB       = prom.ErrDB
 	ErrDenied   = "err_denied"
 	ErrInternal = prom.ErrInternal
