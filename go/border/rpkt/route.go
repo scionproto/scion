@@ -56,13 +56,13 @@ func (rp *RtrPkt) Route() error {
 	}
 	l := metrics.ProcessLabels{
 		Result: metrics.Success,
-		In:     rp.Ingress.IfLabel,
+		IntfIn: rp.Ingress.IfLabel,
 	}
 	rp.RefInc(len(rp.Egress))
 	// Call all egress functions.
 	for _, epair := range rp.Egress {
 		epair.S.Ring.Write(ringbuf.EntryList{&EgressRtrPkt{rp, epair.Dst}}, true)
-		l.Out = epair.S.Label
+		l.IntfOut = epair.S.Label
 		metrics.Process.Pkts(l).Inc()
 	}
 	return nil

@@ -62,7 +62,7 @@ type IntfLabels struct {
 
 // Labels returns the list of labels.
 func (l IntfLabels) Labels() []string {
-	return []string{"interface"}
+	return []string{"intf"}
 }
 
 // Values returns the label values in the order defined by Labels.
