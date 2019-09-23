@@ -137,7 +137,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if err := rp.Parse(); err != nil {
 		r.handlePktError(rp, err, "Error parsing packet")
 		l.Result = metrics.ErrParse
-		metrics.Process.PktsWith(l).Inc()
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	// Validation looks for errors in the packet that didn't break basic
@@ -146,13 +146,13 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if err != nil {
 		r.handlePktError(rp, err, "Error validating packet")
 		l.Result = metrics.ErrValidate
-		metrics.Process.PktsWith(l).Inc()
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	if !valid {
 		rp.Error("Error validating packet, no specific error")
 		l.Result = metrics.ErrValidate
-		metrics.Process.PktsWith(l).Inc()
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	// Check if the packet needs to be processed locally, and if so register
@@ -160,7 +160,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if err := rp.NeedsLocalProcessing(); err != nil {
 		rp.Error("Error checking for local processing", "err", err)
 		l.Result = metrics.ErrProcessLocal
-		metrics.Process.PktsWith(l).Inc()
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	// Parse the packet payload, if a previous step has registered a relevant
@@ -170,20 +170,20 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		// calling handlePktError, as no SCMP errors will be sent.
 		rp.Error("Error parsing payload", "err", err)
 		l.Result = metrics.ErrParsePayload
-		metrics.Process.PktsWith(l).Inc()
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	// Process the packet, if a previous step has registered a relevant hook for doing so.
 	if err := rp.Process(); err != nil {
 		r.handlePktError(rp, err, "Error processing packet")
 		l.Result = metrics.ErrProcess
-		metrics.Process.PktsWith(l).Inc()
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
 		l.Result = metrics.ErrRoute
-		metrics.Process.PktsWith(l).Inc()
+		metrics.Process.Pkts(l).Inc()
 	}
 }
