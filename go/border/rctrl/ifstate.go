@@ -61,17 +61,17 @@ func genIFStateReq() error {
 	}
 	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{}, nil, nil)
 	if err != nil {
-		metrics.Control.PktsWith(cl).Inc()
+		metrics.Control.Pkts(cl).Inc()
 		return common.NewBasicError("Generating IFStateReq Ctrl payload", err)
 	}
 	scpld, err := cpld.SignedPld(infra.NullSigner)
 	if err != nil {
-		metrics.Control.PktsWith(cl).Inc()
+		metrics.Control.Pkts(cl).Inc()
 		return common.NewBasicError("Generating IFStateReq signed Ctrl payload", err)
 	}
 	pld, err := scpld.PackPld()
 	if err != nil {
-		metrics.Control.PktsWith(cl).Inc()
+		metrics.Control.Pkts(cl).Inc()
 		return common.NewBasicError("Writing IFStateReq signed Ctrl payload", err)
 	}
 	dst := &snet.Addr{
@@ -80,7 +80,7 @@ func genIFStateReq() error {
 	}
 	bsAddrs, err := rctx.Get().ResolveSVCMulti(addr.SvcBS)
 	if err != nil {
-		metrics.Control.PktsWith(cl).Inc()
+		metrics.Control.Pkts(cl).Inc()
 		return common.NewBasicError("Resolving SVC BS multicast", err)
 	}
 
@@ -90,13 +90,13 @@ func genIFStateReq() error {
 		cl.Dst = dst.String()
 		if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
 			cl.Result = metrics.ErrWrite
-			metrics.Control.PktsWith(cl).Inc()
+			metrics.Control.Pkts(cl).Inc()
 			errors = append(errors, common.NewBasicError("Writing IFStateReq", err, "dst", dst))
 			continue
 		}
 		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", addr)
 		cl.Result = metrics.Success
-		metrics.Control.PktsWith(cl).Inc()
+		metrics.Control.Pkts(cl).Inc()
 	}
 	return errors.ToError()
 }

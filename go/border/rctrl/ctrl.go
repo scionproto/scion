@@ -86,7 +86,7 @@ func processCtrl() {
 		cl.Src = src.String()
 		if err != nil {
 			cl.Result = metrics.ErrRead
-			metrics.Control.PktsWith(cl).Inc()
+			metrics.Control.Pkts(cl).Inc()
 			fatal.Fatal(common.NewBasicError("Reading packet", err))
 		}
 		cl.Result = metrics.Success
@@ -94,7 +94,7 @@ func processCtrl() {
 			logger.Error("Processing ctrl pld", "src", src, "err", err)
 			cl.Result = metrics.ErrParse
 		}
-		metrics.Control.PktsWith(cl).Inc()
+		metrics.Control.Pkts(cl).Inc()
 	}
 }
 

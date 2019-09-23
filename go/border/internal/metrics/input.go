@@ -58,37 +58,37 @@ func newInput() input {
 	}
 }
 
-// PktsWith returns the counter for the given label set.
-func (in *input) PktsWith(l IntfLabels) prometheus.Counter {
+// Pkts returns the counter for the given label set.
+func (in *input) Pkts(l IntfLabels) prometheus.Counter {
 	return in.pkts.WithLabelValues(l.Values()...)
 }
 
-// BytesWith returns the counter for the given label set.
-func (in *input) BytesWith(l IntfLabels) prometheus.Counter {
+// Bytes returns the counter for the given label set.
+func (in *input) Bytes(l IntfLabels) prometheus.Counter {
 	return in.bytes.WithLabelValues(l.Values()...)
 }
 
-// PktSizeWith returns the observer for the given label set.
-func (in *input) PktSizeWith(l IntfLabels) prometheus.Observer {
+// PktSize returns the observer for the given label set.
+func (in *input) PktSize(l IntfLabels) prometheus.Observer {
 	return in.pktSize.WithLabelValues(l.Values()...)
 }
 
-// ReadsWith returns the counter for the given label set.
-func (in *input) ReadsWith(l IntfLabels) prometheus.Counter {
+// Reads returns the counter for the given label set.
+func (in *input) Reads(l IntfLabels) prometheus.Counter {
 	return in.reads.WithLabelValues(l.Values()...)
 }
 
-// ReadErrorsWith returns the counter for the given label set.
-func (in *input) ReadErrorsWith(l IntfLabels) prometheus.Counter {
+// ReadErrors returns the counter for the given label set.
+func (in *input) ReadErrors(l IntfLabels) prometheus.Counter {
 	return in.readErrors.WithLabelValues(l.Values()...)
 }
 
-// RcvOvflWith returns the gauge for the given label set.
-func (in *input) RcvOvflWith(l IntfLabels) prometheus.Gauge {
+// RcvOvfl returns the gauge for the given label set.
+func (in *input) RcvOvfl(l IntfLabels) prometheus.Gauge {
 	return in.rcvOvfl.WithLabelValues(l.Values()...)
 }
 
-// LatencyWith returns the counter for the given label set.
-func (in *input) LatencyWith(l IntfLabels) prometheus.Counter {
+// Latency returns the counter for the given label set.
+func (in *input) Latency(l IntfLabels) prometheus.Counter {
 	return in.latency.WithLabelValues(l.Values()...)
 }

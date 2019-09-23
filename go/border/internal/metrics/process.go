@@ -61,12 +61,12 @@ func newProcess() process {
 	}
 }
 
-// PktsWith returns the counter for the given label set.
-func (p *process) PktsWith(l ProcessLabels) prometheus.Counter {
+// Pkts returns the counter for the given label set.
+func (p *process) Pkts(l ProcessLabels) prometheus.Counter {
 	return p.pkts.WithLabelValues(l.Values()...)
 }
 
-// TimeWith returns the counter for the given label set.
-func (p *process) TimeWith(l IntfLabels) prometheus.Counter {
+// Time returns the counter for the given label set.
+func (p *process) Time(l IntfLabels) prometheus.Counter {
 	return p.time.WithLabelValues(l.Values()...)
 }

@@ -54,32 +54,32 @@ func newOutput() output {
 	}
 }
 
-// PktsWith returns the counter for the given label set.
-func (o *output) PktsWith(l IntfLabels) prometheus.Counter {
+// Pkts returns the counter for the given label set.
+func (o *output) Pkts(l IntfLabels) prometheus.Counter {
 	return o.pkts.WithLabelValues(l.Values()...)
 }
 
-// BytesWith returns the counter for the given label set.
-func (o *output) BytesWith(l IntfLabels) prometheus.Counter {
+// Bytes returns the counter for the given label set.
+func (o *output) Bytes(l IntfLabels) prometheus.Counter {
 	return o.bytes.WithLabelValues(l.Values()...)
 }
 
-// PktSizeWith returns the observer for the given label set.
-func (o *output) PktSizeWith(l IntfLabels) prometheus.Observer {
+// PktSize returns the observer for the given label set.
+func (o *output) PktSize(l IntfLabels) prometheus.Observer {
 	return o.pktSize.WithLabelValues(l.Values()...)
 }
 
-// WritesWith returns the counter for the given label set.
-func (o *output) WritesWith(l IntfLabels) prometheus.Counter {
+// Writes returns the counter for the given label set.
+func (o *output) Writes(l IntfLabels) prometheus.Counter {
 	return o.writes.WithLabelValues(l.Values()...)
 }
 
-// WriteErrorsWith returns the counter for the given label set.
-func (o *output) WriteErrorsWith(l IntfLabels) prometheus.Counter {
+// WriteErrors returns the counter for the given label set.
+func (o *output) WriteErrors(l IntfLabels) prometheus.Counter {
 	return o.writeErrors.WithLabelValues(l.Values()...)
 }
 
-// LatencyWith returns the counter for the given label set.
-func (o *output) LatencyWith(l IntfLabels) prometheus.Counter {
+// Latency returns the counter for the given label set.
+func (o *output) Latency(l IntfLabels) prometheus.Counter {
 	return o.latency.WithLabelValues(l.Values()...)
 }

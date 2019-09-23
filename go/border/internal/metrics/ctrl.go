@@ -66,12 +66,12 @@ func newControl() control {
 	}
 }
 
-// PktsWith returns the counter for the given label set.
-func (c *control) PktsWith(l ControlLabels) prometheus.Counter {
+// Pkts returns the counter for the given label set.
+func (c *control) Pkts(l ControlLabels) prometheus.Counter {
 	return c.pkts.WithLabelValues(l.Values()...)
 }
 
-// IFStateWith returns the gauge for the given label set.
-func (c *control) IFStateWith(l IntfLabels) prometheus.Gauge {
+// IFState returns the gauge for the given label set.
+func (c *control) IFState(l IntfLabels) prometheus.Gauge {
 	return c.ifstate.WithLabelValues(l.Values()...)
 }

@@ -63,7 +63,7 @@ func (rp *RtrPkt) Route() error {
 	for _, epair := range rp.Egress {
 		epair.S.Ring.Write(ringbuf.EntryList{&EgressRtrPkt{rp, epair.Dst}}, true)
 		l.Out = epair.S.Label
-		metrics.Process.PktsWith(l).Inc()
+		metrics.Process.Pkts(l).Inc()
 	}
 	return nil
 }
