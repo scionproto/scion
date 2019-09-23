@@ -45,8 +45,6 @@ func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs) {
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
 func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 	cl := metrics.ControlLabels{
-		Src:    metrics.Self,
-		Dst:    dstHost.String(),
 		Type:   metrics.Revocation,
 		Result: metrics.ErrProcess,
 	}
@@ -79,7 +77,6 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 		logger.Error("Resolving SVC anycast", "err", err, "addr", dst)
 		return
 	}
-	cl.Dst = dst.String()
 	if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
 		cl.Result = metrics.ErrWrite
 		metrics.Control.Pkts(cl).Inc()
