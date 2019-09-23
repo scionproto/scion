@@ -50,13 +50,13 @@ type control struct {
 
 func newControl() control {
 	sub := "control"
-	intf := IntfLabels{}
-	l := intf.Labels()
+	il := IntfLabels{}
+	cl := ControlLabels{}
 	return control{
 		pkts: prom.NewCounterVec(Namespace, sub,
-			"pkts_total", "Total number of processed packets.", l),
+			"pkts_total", "Total number of processed packets.", cl.Labels()),
 		ifstate: prom.NewGaugeVec(Namespace, sub,
-			"interface_active", "Interface is active.", l),
+			"interface_active", "Interface is active.", il.Labels()),
 	}
 }
 
