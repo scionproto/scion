@@ -82,7 +82,7 @@ func NewInfo(ifID common.IFIDType, active bool, srev *path_mgmt.SignedRevInfo,
 	if active {
 		isActive = 1
 	}
-	metrics.Control.IFStateWith(label).Set(isActive)
+	metrics.Control.IFState(label).Set(isActive)
 
 	return i
 }
