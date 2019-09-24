@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -34,7 +34,7 @@ import (
 // BeaconInserter inserts beacons into the beacon store.
 type BeaconInserter interface {
 	PreFilter(beacon beacon.Beacon) error
-	InsertBeacons(ctx context.Context, beacon ...beacon.Beacon) error
+	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 }
 
 // NewHandler returns an infra.Handler for beacon messages. Both the beacon
@@ -49,7 +49,6 @@ func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, beaconInserter BeaconInse
 			verifier: verifier,
 			intfs:    intfs,
 			request:  r,
-			metrics:  metrics.InitReceiver(),
 		}
 		return handler.Handle()
 	}
@@ -62,7 +61,6 @@ type handler struct {
 	verifier infra.Verifier
 	intfs    *ifstate.Interfaces
 	request  *infra.Request
-	metrics  *metrics.Receiver
 }
 
 // Handle handles a beacon.
@@ -83,30 +81,41 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 
 	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
 
+	labels := metrics.BeaconingLabels{}
+	if peer, ok := h.request.Peer.(*snet.Addr); ok {
+		labels.NeighAS = peer.IA
+	}
 	b, res, err := h.buildBeacon()
 	if err != nil {
-		h.metrics.IncTotalBeacons(0, metrics.InvalidErr)
+		labels.Result = metrics.ErrProcess
+		metrics.Beaconing.Receives(labels).Inc()
 		return res, err
 	}
 	logger.Trace("[BeaconHandler] Received", "beacon", b)
+	labels.InIfID = b.InIfId
 	if err := h.inserter.PreFilter(b); err != nil {
 		logger.Trace("[BeaconHandler] Beacon pre-filtered", "err", err)
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.Prefiltered)
+		labels.Result = metrics.ErrPrefiltered
+		metrics.Beaconing.Receives(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectPolicyError)
-		return infra.MetricsResultOk, nil
+		return infra.MetricsErrInvalid, nil
 	}
 	if err := h.verifyBeacon(b); err != nil {
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.VerifyErr)
+		labels.Result = metrics.ErrVerify
+		metrics.Beaconing.Receives(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid, err
 	}
-	if err := h.inserter.InsertBeacons(h.request.Context(), b); err != nil {
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.InsertErr)
+	stat, err := h.inserter.InsertBeacon(h.request.Context(), b)
+	if err != nil {
+		labels.Result = metrics.ErrInsert
+		metrics.Beaconing.Receives(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRetryDBError)
 		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
 	}
 	logger.Trace("[BeaconHandler] Successfully inserted", "beacon", b)
-	h.metrics.IncTotalBeacons(b.InIfId, metrics.Success)
+	labels.Result = metrics.GetResultValue(stat)
+	metrics.Beaconing.Receives(labels).Inc()
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk, nil
 }

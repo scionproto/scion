@@ -223,24 +223,25 @@ func (s *baseStore) PreFilter(beacon Beacon) error {
 	return s.usager.Filter(beacon)
 }
 
-// InsertBeacons adds verified beacons to the store. Beacons that
-// contain revoked interfaces are not added and do not cause an error.
-func (s *baseStore) InsertBeacons(ctx context.Context, beacons ...Beacon) error {
+// InsertBeacon adds verified beacon to the store.
+// Beacon that contain revoked interfaces are inserted and do not cause an error.
+// Beacon that do not match policy are not inserted and do not cause an error.
+func (s *baseStore) InsertBeacon(ctx context.Context, beacon Beacon) (InsertStats, error) {
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
-		return err
+		return InsertStats{}, err
 	}
 	defer tx.Rollback()
-	for _, beacon := range beacons {
-		usage := s.usager.Usage(beacon)
-		if usage.None() {
-			continue
-		}
-		if _, err := tx.InsertBeacon(ctx, beacon, usage); err != nil {
-			return err
-		}
+	usage := s.usager.Usage(beacon)
+	if usage.None() {
+		return InsertStats{}, nil
 	}
-	return tx.Commit()
+	ret, err := tx.InsertBeacon(ctx, beacon, usage)
+	if err != nil {
+		return InsertStats{}, err
+	}
+
+	return ret, tx.Commit()
 }
 
 // InsertRevocations inserts the revocation into the BeaconDB. The provided
