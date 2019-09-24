@@ -19,13 +19,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 
 	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
@@ -38,7 +36,7 @@ var (
 func runGenTopoTmpl(path string) error {
 	raw, err := ioutil.ReadFile(path)
 	if err != nil {
-		return common.NewBasicError("unable to read file", err)
+		return serrors.WrapStr("unable to read file", err)
 	}
 	val, err := validityFromFlags()
 	if err != nil {
@@ -46,7 +44,7 @@ func runGenTopoTmpl(path string) error {
 	}
 	var topo topoFile
 	if err := yaml.Unmarshal(raw, &topo); err != nil {
-		return common.NewBasicError("unable to parse topo", err)
+		return serrors.WrapStr("unable to parse topo", err)
 	}
 	isdCfgs := make(map[addr.ISD]*conf.ISDCfg)
 	for isd := range topo.ISDs() {
@@ -54,26 +52,36 @@ func runGenTopoTmpl(path string) error {
 		isdCfgs[isd] = isdCfg
 		dir := pkicmn.GetIsdPath(pkicmn.RootDir, isd)
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return common.NewBasicError("unable to make ISD directory", err, "isd", isd)
+			return serrors.WrapStr("unable to make ISD directory", err, "isd", isd)
 		}
 		if err := isdCfg.Write(filepath.Join(dir, conf.ISDCfgFileName), pkicmn.Force); err != nil {
-			return common.NewBasicError("unable to write ISD config", err, "isd", isd)
+			return serrors.WrapStr("unable to write ISD config", err, "isd", isd)
+		}
+	}
+	for ia := range topo.ASes {
+		keys := genKeysTmpl(ia, val, isdCfgs[ia.I])
+		dir := pkicmn.GetAsPath(pkicmn.RootDir, ia)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return serrors.WrapStr("unable to make AS directory", err, "ia", ia)
+		}
+		if err := keys.Write(filepath.Join(dir, conf.KeysFileName)); err != nil {
+			return serrors.WithCtx(err, "ia", ia)
 		}
 	}
 	for ia, entry := range topo.ASes {
 		asCfg := genASCfg(ia, entry, val, isdCfgs[ia.I])
 		dir := pkicmn.GetAsPath(pkicmn.RootDir, ia)
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return common.NewBasicError("unable to make AS directory", err, "ia", ia)
+			return serrors.WrapStr("unable to make AS directory", err, "ia", ia)
 		}
 		if err := asCfg.Write(filepath.Join(dir, conf.ASConfFileName), pkicmn.Force); err != nil {
-			return common.NewBasicError("unable to write AS config", err, "ia", ia)
+			return serrors.WrapStr("unable to write AS config", err, "ia", ia)
 		}
 	}
 	return nil
 }
 
-func genISDCfg(isd addr.ISD, topo topoFile, val validity) *conf.ISDCfg {
+func genISDCfg(isd addr.ISD, topo topoFile, val conf.Validity) *conf.ISDCfg {
 	cores := topo.Cores(isd)
 	isdCfg := conf.NewTemplateISDCfg()
 	isdCfg.Desc = fmt.Sprintf("ISD %d", isd)
@@ -81,7 +89,7 @@ func genISDCfg(isd addr.ISD, topo topoFile, val validity) *conf.ISDCfg {
 	// serves an example.
 	isdCfg.VotingQuorum = len(cores)/2 + 1
 	isdCfg.NotBefore = val.NotBefore
-	isdCfg.Validity = val.Validity
+	isdCfg.Validity = val.Validity.Duration
 	isdCfg.AuthoritativeASes = cores
 	isdCfg.CoreASes = cores
 	isdCfg.IssuingASes = cores
@@ -89,33 +97,19 @@ func genISDCfg(isd addr.ISD, topo topoFile, val validity) *conf.ISDCfg {
 	return isdCfg
 }
 
-func genASCfg(ia addr.IA, entry asEntry, val validity, isdCfg *conf.ISDCfg) *conf.ASCfg {
+func genASCfg(ia addr.IA, entry asEntry, val conf.Validity, isdCfg *conf.ISDCfg) *conf.ASCfg {
 	asCfg := genASTmpl(ia, isdCfg)
 	asCfg.AS.NotBefore = val.NotBefore
-	asCfg.AS.Validity = val.Validity
+	asCfg.AS.Validity = val.Validity.Duration
 	if !entry.Issuer.IsZero() {
 		asCfg.IssuerIA = entry.Issuer
 	}
 	if asCfg.Issuer != nil {
 		asCfg.Issuer.NotBefore = val.NotBefore
-		asCfg.Issuer.Validity = val.Validity
+		asCfg.Issuer.Validity = val.Validity.Duration
 	}
 	return asCfg
 
-}
-
-// validity is a container for the provided flags.
-type validity struct {
-	NotBefore uint32
-	Validity  time.Duration
-}
-
-func validityFromFlags() (validity, error) {
-	p, err := util.ParseDuration(rawValidity)
-	if err != nil {
-		return validity{}, common.NewBasicError("invalid validity", err, "input", rawValidity)
-	}
-	return validity{NotBefore: notBefore, Validity: p}, nil
 }
 
 // topoFile is used to parse the topology description.
