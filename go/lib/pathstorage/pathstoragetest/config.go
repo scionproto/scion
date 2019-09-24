@@ -16,8 +16,9 @@ package pathstoragetest
 
 import (
 	"fmt"
+	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathstorage"
@@ -40,20 +41,19 @@ func InitTestRevCacheConf(cfg *pathstorage.RevCacheConf) {
 	(*cfg)[db.MaxIdleConnsKey] = "maxIdleConns"
 }
 
-func CheckTestPathDBConf(cfg *pathstorage.PathDBConf, id string) {
+func CheckTestPathDBConf(t *testing.T, cfg *pathstorage.PathDBConf, id string) {
 	util.LowerKeys(*cfg)
-	SoMsg("MaxOpenConns", isSet(cfg.MaxOpenConns()), ShouldBeFalse)
-	SoMsg("MaxIdleConns", isSet(cfg.MaxIdleConns()), ShouldBeFalse)
-	SoMsg("Backend correct", cfg.Backend(), ShouldEqual, pathstorage.BackendSqlite)
-	SoMsg("Connection correct", cfg.Connection(), ShouldEqual,
-		fmt.Sprintf("/var/lib/scion/pathdb/%s.path.db", id))
+	assert.False(t, isSet(cfg.MaxOpenConns()))
+	assert.False(t, isSet(cfg.MaxIdleConns()))
+	assert.Equal(t, pathstorage.BackendSqlite, cfg.Backend())
+	assert.Equal(t, fmt.Sprintf("/var/lib/scion/pathdb/%s.path.db", id), cfg.Connection())
 }
 
-func CheckTestRevCacheConf(cfg *pathstorage.RevCacheConf) {
+func CheckTestRevCacheConf(t *testing.T, cfg *pathstorage.RevCacheConf) {
 	util.LowerKeys(*cfg)
-	SoMsg("MaxOpenConns", isSet(cfg.MaxOpenConns()), ShouldBeFalse)
-	SoMsg("MaxIdleConns", isSet(cfg.MaxIdleConns()), ShouldBeFalse)
-	SoMsg("Backend correct", cfg.Backend(), ShouldEqual, pathstorage.BackendMem)
+	assert.False(t, isSet(cfg.MaxOpenConns()))
+	assert.False(t, isSet(cfg.MaxIdleConns()))
+	assert.Equal(t, pathstorage.BackendMem, cfg.Backend())
 }
 
 func isSet(_ int, set bool) bool {

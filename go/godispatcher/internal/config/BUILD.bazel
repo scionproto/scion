@@ -27,6 +27,6 @@ go_test(
         "//go/lib/overlay:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "@com_github_burntsushi_toml//:go_default_library",
-        "@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )

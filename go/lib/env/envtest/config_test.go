@@ -19,73 +19,63 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 )
 
 func TestGeneralSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg env.General
-		cfg.Sample(&sample, nil, map[string]string{config.ID: "general"})
-		InitTestGeneral(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestGeneral(&cfg, "general")
-	})
+	var sample bytes.Buffer
+	var cfg env.General
+	cfg.Sample(&sample, nil, map[string]string{config.ID: "general"})
+	InitTestGeneral(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestGeneral(t, &cfg, "general")
 }
 
 func TestLoggingSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg env.Logging
-		cfg.Sample(&sample, nil, map[string]string{config.ID: "logging"})
-		InitTestLogging(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestLogging(&cfg, "logging")
-	})
+	var sample bytes.Buffer
+	var cfg env.Logging
+	cfg.Sample(&sample, nil, map[string]string{config.ID: "logging"})
+	InitTestLogging(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestLogging(t, &cfg, "logging")
 }
 
 func TestMetricsSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg env.Metrics
-		cfg.Sample(&sample, nil, nil)
-		InitTestMetrics(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestMetrics(&cfg)
-	})
+	var sample bytes.Buffer
+	var cfg env.Metrics
+	cfg.Sample(&sample, nil, nil)
+	InitTestMetrics(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestMetrics(t, &cfg)
 }
 
 func TestTracingSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg env.Tracing
-		cfg.Sample(&sample, nil, nil)
-		InitTestTracing(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestTracing(&cfg)
-	})
+	var sample bytes.Buffer
+	var cfg env.Tracing
+	cfg.Sample(&sample, nil, nil)
+	InitTestTracing(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestTracing(t, &cfg)
 }
 
 func TestSciondClientSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg env.SciondClient
-		cfg.Sample(&sample, nil, nil)
-		InitTestSciond(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		InitTestSciond(&cfg)
-	})
+	var sample bytes.Buffer
+	var cfg env.SciondClient
+	cfg.Sample(&sample, nil, nil)
+	InitTestSciond(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	InitTestSciond(&cfg)
 }

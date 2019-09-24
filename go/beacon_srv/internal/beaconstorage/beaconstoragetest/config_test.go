@@ -34,6 +34,6 @@ func TestBeaconDBConfSample(t *testing.T) {
 		meta, err := toml.Decode(sample.String(), &cfg)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestBeaconDBConf(&cfg, "test")
+		CheckTestBeaconDBConf(t, &cfg, "test")
 	})
 }

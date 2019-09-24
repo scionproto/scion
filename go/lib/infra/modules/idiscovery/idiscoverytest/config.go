@@ -15,7 +15,9 @@
 package idiscoverytest
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 )
@@ -28,23 +30,20 @@ func InitTestConfig(cfg *idiscovery.Config) {
 	cfg.Static.Filename = "topology.json"
 }
 
-func CheckTestConfig(cfg *idiscovery.Config) {
-	Convey("The static part should be correct", func() {
-		checkCommon(cfg.Static.FetchConfig)
-		SoMsg("Discovery.Static.Filename correct", cfg.Static.Filename, ShouldBeBlank)
+func CheckTestConfig(t *testing.T, cfg *idiscovery.Config) {
+	t.Run("static", func(t *testing.T) {
+		checkCommon(t, cfg.Static.FetchConfig)
+		assert.Empty(t, cfg.Static.Filename)
 	})
-	Convey("The dynamic part should be correct", func() {
-		checkCommon(cfg.Dynamic)
+	t.Run("dynamic", func(t *testing.T) {
+		checkCommon(t, cfg.Dynamic)
 	})
 }
 
-func checkCommon(cfg idiscovery.FetchConfig) {
-	SoMsg("Enable correct", cfg.Enable, ShouldBeFalse)
-	SoMsg("Timeout correct", cfg.Timeout.Duration, ShouldEqual, idiscovery.DefaultFetchTimeout)
-	SoMsg("Https correct", cfg.Https, ShouldBeFalse)
-	SoMsg("Connect.InitialPeriod correct", cfg.Connect.InitialPeriod.Duration, ShouldEqual,
-		idiscovery.DefaultInitialConnectPeriod)
-	SoMsg("Connect.FailAction correct", cfg.Connect.FailAction, ShouldEqual,
-		idiscovery.FailActionContinue)
-
+func checkCommon(t *testing.T, cfg idiscovery.FetchConfig) {
+	assert.False(t, cfg.Enable)
+	assert.Equal(t, idiscovery.DefaultFetchTimeout, cfg.Timeout.Duration)
+	assert.False(t, cfg.Https)
+	assert.Equal(t, idiscovery.DefaultInitialConnectPeriod, cfg.Connect.InitialPeriod.Duration)
+	assert.Equal(t, idiscovery.FailActionContinue, cfg.Connect.FailAction)
 }

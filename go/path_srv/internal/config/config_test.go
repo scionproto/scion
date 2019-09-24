@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
@@ -28,17 +28,15 @@ import (
 )
 
 func TestConfigSample(t *testing.T) {
-	Convey("Sample is correct", t, func() {
-		var sample bytes.Buffer
-		var cfg Config
-		cfg.Sample(&sample, nil, nil)
+	var sample bytes.Buffer
+	var cfg Config
+	cfg.Sample(&sample, nil, nil)
 
-		InitTestConfig(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestConfig(&cfg, idSample)
-	})
+	InitTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestConfig(t, &cfg, idSample)
 }
 
 func InitTestConfig(cfg *Config) {
@@ -54,18 +52,17 @@ func InitTestPSConfig(cfg *PSConfig) {
 	pathstoragetest.InitTestRevCacheConf(&cfg.RevCache)
 }
 
-func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
-	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
-	idiscoverytest.CheckTestConfig(&cfg.Discovery)
-	CheckTestPSConfig(&cfg.PS, id)
+func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
+	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
+	idiscoverytest.CheckTestConfig(t, &cfg.Discovery)
+	CheckTestPSConfig(t, &cfg.PS, id)
 }
 
-func CheckTestPSConfig(cfg *PSConfig, id string) {
-	pathstoragetest.CheckTestPathDBConf(&cfg.PathDB, id)
-	pathstoragetest.CheckTestRevCacheConf(&cfg.RevCache)
-	SoMsg("SegSync set", cfg.SegSync, ShouldBeFalse)
-	SoMsg("QueryInterval correct", cfg.QueryInterval.Duration, ShouldEqual, DefaultQueryInterval)
-	SoMsg("CryptoSyncInterval correct", cfg.CryptoSyncInterval.Duration,
-		ShouldEqual, DefaultCryptoSyncInterval)
+func CheckTestPSConfig(t *testing.T, cfg *PSConfig, id string) {
+	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
+	pathstoragetest.CheckTestRevCacheConf(t, &cfg.RevCache)
+	assert.False(t, cfg.SegSync)
+	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
+	assert.Equal(t, DefaultCryptoSyncInterval, cfg.CryptoSyncInterval.Duration)
 }

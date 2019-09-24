@@ -16,8 +16,9 @@ package beaconstoragetest
 
 import (
 	"fmt"
+	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
@@ -35,13 +36,12 @@ func InitTestBeaconDBConf(cfg *beaconstorage.BeaconDBConf) {
 }
 
 // CheckTestBeaconDBConf checks that the values are as expected from the sample.
-func CheckTestBeaconDBConf(cfg *beaconstorage.BeaconDBConf, id string) {
+func CheckTestBeaconDBConf(t *testing.T, cfg *beaconstorage.BeaconDBConf, id string) {
 	util.LowerKeys(*cfg)
-	SoMsg("MaxOpenConns", isSet(cfg.MaxOpenConns()), ShouldBeFalse)
-	SoMsg("MaxIdleConns", isSet(cfg.MaxIdleConns()), ShouldBeFalse)
-	SoMsg("Backend correct", cfg.Backend(), ShouldEqual, beaconstorage.BackendSqlite)
-	SoMsg("Connection correct", cfg.Connection(), ShouldEqual,
-		fmt.Sprintf("/var/lib/scion/beacondb/%s.beacon.db", id))
+	assert.False(t, isSet(cfg.MaxOpenConns()))
+	assert.False(t, isSet(cfg.MaxIdleConns()))
+	assert.Equal(t, beaconstorage.BackendSqlite, cfg.Backend())
+	assert.Equal(t, fmt.Sprintf("/var/lib/scion/beacondb/%s.beacon.db", id), cfg.Connection())
 }
 
 func isSet(_ int, set bool) bool {

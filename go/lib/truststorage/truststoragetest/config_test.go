@@ -19,21 +19,19 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/truststorage"
 )
 
 func TestConfigSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg truststorage.TrustDBConf
-		cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
-		InitTestConfig(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestConfig(&cfg, "test")
-	})
+	var sample bytes.Buffer
+	var cfg truststorage.TrustDBConf
+	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
+	InitTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestConfig(t, &cfg, "test")
 }

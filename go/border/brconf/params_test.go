@@ -19,24 +19,22 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 )
 
 func TestConfigSample(t *testing.T) {
-	Convey("Sample is correct", t, func() {
-		var sample bytes.Buffer
-		var cfg Config
-		cfg.Sample(&sample, nil, nil)
+	var sample bytes.Buffer
+	var cfg Config
+	cfg.Sample(&sample, nil, nil)
 
-		InitTestConfig(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestConfig(&cfg, idSample)
-	})
+	InitTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestConfig(t, &cfg, idSample)
 }
 
 func InitTestConfig(cfg *Config) {
@@ -53,18 +51,18 @@ func InitTestBRConfig(cfg *BR) {
 	cfg.Profile = true
 }
 
-func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, nil, id)
-	CheckTestDiscoveryConfig(&cfg.Discovery)
-	CheckTestBRConfig(&cfg.BR)
+func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, nil, nil, id)
+	CheckTestDiscoveryConfig(t, &cfg.Discovery)
+	CheckTestBRConfig(t, &cfg.BR)
 }
 
-func CheckTestDiscoveryConfig(cfg *Discovery) {
-	SoMsg("AllowSemiMutable correct", cfg.AllowSemiMutable, ShouldBeFalse)
-	idiscoverytest.CheckTestConfig(&cfg.Config)
+func CheckTestDiscoveryConfig(t *testing.T, cfg *Discovery) {
+	assert.False(t, cfg.AllowSemiMutable)
+	idiscoverytest.CheckTestConfig(t, &cfg.Config)
 }
 
-func CheckTestBRConfig(cfg *BR) {
-	SoMsg("Profile correct", cfg.Profile, ShouldBeFalse)
-	SoMsg("RollbackFailAction correct", cfg.RollbackFailAction, ShouldEqual, FailActionFatal)
+func CheckTestBRConfig(t *testing.T, cfg *BR) {
+	assert.False(t, cfg.Profile)
+	assert.Equal(t, FailActionFatal, cfg.RollbackFailAction)
 }
