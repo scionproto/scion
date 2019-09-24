@@ -19,6 +19,7 @@ import (
 	"errors"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 )
@@ -34,11 +35,11 @@ var (
 type Inserter interface {
 	// InsertTRC verifies the signed TRC and inserts it into the database.
 	// The previous TRC is queried through the provider function, when necessary.
-	InsertTRC(ctx context.Context, decoded DecodedTRC, trcProvider TRCProviderFunc) error
+	InsertTRC(ctx context.Context, decoded decoded.TRC, trcProvider TRCProviderFunc) error
 	// InsertChain verifies the signed certificate chain and inserts it into the
 	// database. The issuing TRC is queried through the provider function, when
 	// necessary.
-	InsertChain(ctx context.Context, decoded DecodedChain, trcProvider TRCProviderFunc) error
+	InsertChain(ctx context.Context, decoded decoded.Chain, trcProvider TRCProviderFunc) error
 }
 
 // TRCProviderFunc provides TRCs. It is used to configure the TRC retrieval

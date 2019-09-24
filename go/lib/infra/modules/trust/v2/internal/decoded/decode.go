@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trust
+package decoded
 
 import (
 	"fmt"
@@ -21,29 +21,29 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 )
 
-// DecodedTRC is a container for the decoded TRC.
-type DecodedTRC struct {
+// TRC is a container for the decoded TRC.
+type TRC struct {
 	TRC    *trc.TRC
 	Signed trc.Signed
 	Raw    []byte
 }
 
-func (d DecodedTRC) String() string {
+func (d TRC) String() string {
 	if d.TRC == nil {
 		return "<nil>"
 	}
 	return fmt.Sprintf("ISD%d-V%d", d.TRC.ISD, d.TRC.Version)
 }
 
-// DecodedChain is a container for the decoded certificate chain.
-type DecodedChain struct {
+// Chain is a container for the decoded certificate chain.
+type Chain struct {
 	Chain  cert.Chain
 	AS     *cert.AS
 	Issuer *cert.Issuer
 	Raw    []byte
 }
 
-func (d DecodedChain) String() string {
+func (d Chain) String() string {
 	if d.AS == nil {
 		return "<nil>"
 	}

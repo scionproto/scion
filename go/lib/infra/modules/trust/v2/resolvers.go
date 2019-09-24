@@ -19,6 +19,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
@@ -26,10 +27,10 @@ import (
 type Resolver interface {
 	// TRC resolves the decoded signed TRC. Missing links in the TRC
 	// verification chain are also requested.
-	TRC(ctx context.Context, req TRCReq, server net.Addr) (DecodedTRC, error)
+	TRC(ctx context.Context, req TRCReq, server net.Addr) (decoded.TRC, error)
 	// Chain resolves the raw signed certificate chain. If the issuing TRC is
 	// missing, it is also requested.
-	Chain(ctx context.Context, req ChainReq, server net.Addr) (DecodedChain, error)
+	Chain(ctx context.Context, req ChainReq, server net.Addr) (decoded.Chain, error)
 }
 
 // TRCReq holds the values of a TRC request.

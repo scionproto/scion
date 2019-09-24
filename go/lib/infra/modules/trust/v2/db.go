@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -30,8 +31,8 @@ import (
 var (
 	// ErrNotFound indicates that the queried value was not found in the database.
 	ErrNotFound = serrors.New("not found")
-	// ErrHashMismatch indicates that the crypto material exists with a different hash.
-	ErrHashMismatch = serrors.New("hash does not match")
+	// ErrContentMismatch indicates that the crypto material exists with differing content.
+	ErrContentMismatch = serrors.New("content does not match")
 )
 
 // DB defines the interface a trust DB must implement.
@@ -74,12 +75,10 @@ type DBWrite interface {
 
 // TRCRead defines the TRC read operations.
 type TRCRead interface {
-	// CompareTRCHash compares the provided hash with the hash in the database.
-	// It returns whether the TRC is found in the database and the hash matches.
-	// The ErrHashMismatch error is returned if the TRC is in the database and
-	// the hash does not match.
-	CompareTRCHash(ctx context.Context, isd addr.ISD,
-		version scrypto.Version, hash []byte) (bool, error)
+	// TRCExists returns whether the TRC is found in the database and the
+	// content matches. ErrContentMismatch is returned if the TRC is in the
+	// database with differing contents.
+	TRCExists(ctx context.Context, d decoded.TRC) (bool, error)
 	// GetTRC returns the TRC. If it is not found, ErrNotFound is returned.
 	GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error)
 	// GetRawTRC returns the raw signed TRC bytes. If it is not found,
@@ -93,8 +92,10 @@ type TRCRead interface {
 // TRCWrite defines the TRC write operations.
 type TRCWrite interface {
 	// InsertTRC inserts the TRCs. The call returns true if the TRC was
-	// inserter, or false if it already existed and the Hash matches.
-	InsertTRC(ctx context.Context, decoded DecodedTRC, hash []byte) (bool, error)
+	// inserter, or false if it already existed and the content matches.
+	// ErrContentMismatch is returned if the TRC is in the database with
+	// differing contents.
+	InsertTRC(ctx context.Context, d decoded.TRC) (bool, error)
 }
 
 // ChainRead defines the certificate chain read operations.
@@ -102,26 +103,21 @@ type ChainRead interface {
 	// GetRawChain returns the raw signed certificate chain bytes. If it is not
 	// found, ErrNotFound is returned.
 	GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version) ([]byte, error)
-	// CompareASHash compares the provided hash with the hash in the database.
-	// It returns whether the AS certificate is found in the database and the
-	// hash matches. The ErrHashMismatch error is returned if the AS certificate
-	// is in the database and the hash does not match.
-	CompareASHash(ctx context.Context, ia addr.IA, version scrypto.Version,
-		hash []byte) (bool, error)
-	// CompareIssuerHash compares the provided hash with the hash in the
-	// database. It returns whether the issuer certificate is found in the
-	// database and the hash matches. The ErrHashMismatch error is returned if
-	// the issuer certificate is in the database and the hash does not match.
-	CompareIssuerHash(ctx context.Context, ia addr.IA,
-		version scrypto.Version, hash []byte) (bool, error)
+	// ChainExists returns whether the certificate chain is found in the
+	// database and the content matches. ErrContentMismatch is returned if any
+	// of the two certificates exist in the database with differing contents.
+	ChainExists(ctx context.Context, d decoded.TRC) (bool, error)
 }
 
 // ChainWrite defines the certificate chain write operations.
 type ChainWrite interface {
-	// InsertChain inserts the certificate chain. The call returns true if the
-	// certificate chain was inserted, or false if it already existed and the
-	// Hash matches.
-	InsertChain(ctx context.Context, decoded DecodedChain, asHash, issHash []byte) (bool, error)
+	// InsertChain inserts the certificate chain. The call returns true in the
+	// first return value, if the certificate chain was inserted, or false if it
+	// already existed and the contents matches. The second return value
+	// indicates whether the issuer certificate was inserted, or it already
+	// existed. ErrContentMismatch is returned if any of the two certificates
+	// exist in the database with differing contents.
+	InsertChain(ctx context.Context, d decoded.Chain) (bool, bool, error)
 }
 
 // TRCInfo contains metadata about a TRC.
