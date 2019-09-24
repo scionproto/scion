@@ -12,6 +12,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/common:go_default_library",
+        "//go/lib/infra/modules/itopo/internal/metrics:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/periodic:go_default_library",
         "//go/lib/topology:go_default_library",
