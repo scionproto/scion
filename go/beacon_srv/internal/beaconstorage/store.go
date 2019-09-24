@@ -41,9 +41,8 @@ type Store interface {
 	// configured propagation policy for the requested segment type.
 	SegmentsToRegister(ctx context.Context, segType proto.PathSegType) (
 		<-chan beacon.BeaconOrErr, error)
-	// InsertBeacons adds verified beacons to the store. Beacons that
-	// contain revoked interfaces are not added and do not cause an error.
-	InsertBeacons(ctx context.Context, beacon ...beacon.Beacon) error
+	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
+	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 	// InsertRevocations inserts the revocation into the BeaconDB.
 	// The provided revocation must be verified by the caller.
 	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
