@@ -15,9 +15,14 @@
 package tmpl
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
 var Cmd = &cobra.Command{
@@ -91,5 +96,19 @@ func init() {
 	topo.PersistentFlags().StringVar(&rawValidity, "validity", "365d",
 		"set the validity of all crypto material")
 	Cmd.AddCommand(topo)
+}
 
+func validityFromFlags() (conf.Validity, error) {
+	p, err := util.ParseDuration(rawValidity)
+	if err != nil {
+		return conf.Validity{}, serrors.WrapStr("invalid validity", err, "input", rawValidity)
+	}
+	v := conf.Validity{
+		NotBefore: notBefore,
+		Validity:  util.DurWrap{Duration: p},
+	}
+	if v.NotBefore == 0 {
+		v.NotBefore = util.TimeToSecs(time.Now())
+	}
+	return v, v.Validate()
 }
