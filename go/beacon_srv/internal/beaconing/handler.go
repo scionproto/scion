@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -34,7 +34,7 @@ import (
 // BeaconInserter inserts beacons into the beacon store.
 type BeaconInserter interface {
 	PreFilter(beacon beacon.Beacon) error
-	InsertBeacons(ctx context.Context, beacon ...beacon.Beacon) error
+	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 }
 
 // NewHandler returns an infra.Handler for beacon messages. Both the beacon
@@ -49,7 +49,6 @@ func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, beaconInserter BeaconInse
 			verifier: verifier,
 			intfs:    intfs,
 			request:  r,
-			metrics:  metrics.InitReceiver(),
 		}
 		return handler.Handle()
 	}
@@ -62,7 +61,6 @@ type handler struct {
 	verifier infra.Verifier
 	intfs    *ifstate.Interfaces
 	request  *infra.Request
-	metrics  *metrics.Receiver
 }
 
 // Handle handles a beacon.
@@ -83,35 +81,45 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 
 	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
 
-	b, res, err := h.buildBeacon()
+	labels := metrics.BeaconingLabels{}
+	ifid, as, err := h.getIFID()
 	if err != nil {
-		h.metrics.IncTotalBeacons(0, metrics.InvalidErr)
+		metrics.Beaconing.Received(labels.WithResult(metrics.ErrParse)).Inc()
+		return infra.MetricsErrInvalid, err
+	}
+	labels.InIfID, labels.NeighAS = ifid, as
+	b, res, err := h.buildBeacon(ifid)
+	if err != nil {
+		metrics.Beaconing.Received(labels.WithResult(metrics.ErrParse)).Inc()
 		return res, err
 	}
 	logger.Trace("[BeaconHandler] Received", "beacon", b)
 	if err := h.inserter.PreFilter(b); err != nil {
 		logger.Trace("[BeaconHandler] Beacon pre-filtered", "err", err)
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.Prefiltered)
+		metrics.Beaconing.Received(labels.WithResult(metrics.ErrPrefilter)).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectPolicyError)
-		return infra.MetricsResultOk, nil
+		return infra.MetricsErrInvalid, nil
 	}
 	if err := h.verifyBeacon(b); err != nil {
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.VerifyErr)
+		logger.Trace("[BeaconHandler] Beacon verification", "err", err)
+		metrics.Beaconing.Received(labels.WithResult(metrics.ErrVerify)).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid, err
 	}
-	if err := h.inserter.InsertBeacons(h.request.Context(), b); err != nil {
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.InsertErr)
+	stat, err := h.inserter.InsertBeacon(h.request.Context(), b)
+	if err != nil {
+		metrics.Beaconing.Received(labels.WithResult(metrics.ErrDB)).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRetryDBError)
 		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
 	}
 	logger.Trace("[BeaconHandler] Successfully inserted", "beacon", b)
-	h.metrics.IncTotalBeacons(b.InIfId, metrics.Success)
+	metrics.Beaconing.Received(labels.WithResult(
+		metrics.GetResultValue(stat.Inserted, stat.Updated))).Inc()
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk, nil
 }
 
-func (h *handler) buildBeacon() (beacon.Beacon, *infra.HandlerResult, error) {
+func (h *handler) buildBeacon(ifid common.IFIDType) (beacon.Beacon, *infra.HandlerResult, error) {
 	pseg, ok := h.request.Message.(*seg.PathSegment)
 	if !ok {
 		return beacon.Beacon{}, infra.MetricsErrInternal, common.NewBasicError(
@@ -122,24 +130,26 @@ func (h *handler) buildBeacon() (beacon.Beacon, *infra.HandlerResult, error) {
 		return beacon.Beacon{}, infra.MetricsErrInvalid,
 			common.NewBasicError("Unable to parse beacon", err, "beacon", pseg)
 	}
-	ifid, err := h.getIFID()
-	if err != nil {
-		return beacon.Beacon{}, infra.MetricsErrInvalid, err
-	}
 	return beacon.Beacon{InIfId: ifid, Segment: pseg}, nil, nil
 }
 
-func (h *handler) getIFID() (common.IFIDType, error) {
+func (h *handler) getIFID() (common.IFIDType, addr.IA, error) {
+	var ia addr.IA
 	peer, ok := h.request.Peer.(*snet.Addr)
 	if !ok {
-		return 0, common.NewBasicError("Invalid peer address type, expected *snet.Addr", nil,
+		return 0, ia, common.NewBasicError("Invalid peer address type, expected *snet.Addr", nil,
 			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 	}
 	hopF, err := peer.Path.GetHopField(peer.Path.HopOff)
 	if err != nil {
-		return 0, common.NewBasicError("Unable to extract hop field", err)
+		return 0, ia, common.NewBasicError("Unable to extract hop field", err)
 	}
-	return hopF.ConsIngress, nil
+	intf := h.intfs.Get(hopF.ConsIngress)
+	if intf == nil {
+		return 0, ia, common.NewBasicError("Received beacon on non-existent ifid", nil,
+			"ifid", hopF.ConsIngress)
+	}
+	return hopF.ConsIngress, intf.TopoInfo().ISD_AS, nil
 }
 
 func (h *handler) verifyBeacon(b beacon.Beacon) error {
