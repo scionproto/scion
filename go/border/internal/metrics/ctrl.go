@@ -22,7 +22,6 @@ import (
 
 // Control type values
 const (
-	//
 	IFStateInfo = "ifstate_info"
 	IFStateReq  = "ifstate_request"
 	Revocation  = "revocation"
@@ -46,26 +45,42 @@ func (l ControlLabels) Values() []string {
 }
 
 type control struct {
-	pkts    *prometheus.CounterVec
-	ifstate *prometheus.GaugeVec
+	sentMsgs     *prometheus.CounterVec
+	receivedMsgs *prometheus.CounterVec
+	ifstate      *prometheus.GaugeVec
+	ifstateTick  prometheus.Counter
 }
 
 func newControl() control {
 	sub := "control"
 	return control{
-		pkts: prom.NewCounterVec(Namespace, sub,
-			"pkts_total", "Total number of processed packets.", ControlLabels{}.Labels()),
+		sentMsgs: prom.NewCounterVec(Namespace, sub,
+			"sent_msgs_total", "Total number of sent messages.", ControlLabels{}.Labels()),
+		receivedMsgs: prom.NewCounterVec(Namespace, sub,
+			"received_msgs_total", "Total number of recevied messages.", ControlLabels{}.Labels()),
 		ifstate: prom.NewGaugeVec(Namespace, sub,
 			"interface_active", "Interface is active.", IntfLabels{}.Labels()),
+		ifstateTick: prom.NewCounter(Namespace, sub,
+			"ifstate_ticks_total", "Total number of IFState requests ticks."),
 	}
 }
 
-// Pkts returns the counter for the given label set.
-func (c *control) Pkts(l ControlLabels) prometheus.Counter {
-	return c.pkts.WithLabelValues(l.Values()...)
+// SentMsgs returns the counter for the given label set.
+func (c *control) SentMsgs(l ControlLabels) prometheus.Counter {
+	return c.sentMsgs.WithLabelValues(l.Values()...)
+}
+
+// ReceivedMsgs returns the counter for the given label set.
+func (c *control) ReceivedMsgs(l ControlLabels) prometheus.Counter {
+	return c.receivedMsgs.WithLabelValues(l.Values()...)
 }
 
 // IFState returns the gauge for the given label set.
 func (c *control) IFState(l IntfLabels) prometheus.Gauge {
 	return c.ifstate.WithLabelValues(l.Values()...)
+}
+
+// IFStateTick returns the counter for the given label set.
+func (c *control) IFStateTick() prometheus.Counter {
+	return c.ifstateTick
 }

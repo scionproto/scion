@@ -59,7 +59,7 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 	readMetas := make([]conn.ReadMeta, inputBatchCnt)
 	var err error
 
-	l := metrics.IntfLabels{Intf: s.Label}
+	l := metrics.IntfLabels{Intf: s.Label, NeighIA: s.NeighIA}
 	// Pre-calculate metrics
 	inputPkts := metrics.Input.Pkts(l)
 	inputBytes := metrics.Input.Bytes(l)
@@ -68,10 +68,11 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 	inputReadErrs := metrics.Input.ReadErrors(l)
 	inputRcvOvfl := metrics.Input.RcvOvfl(l)
 	inputLatency := metrics.Input.Latency(l)
+	procPktTime := metrics.Process.Duration(l)
 
 	// Called when the packet's reference count hits 0.
 	free := func(rp *rpkt.RtrPkt) {
-		metrics.Process.Time(l).Add(time.Since(rp.TimeIn).Seconds())
+		procPktTime.Add(time.Since(rp.TimeIn).Seconds())
 		rp.Reset()
 		r.freePkts.Write(ringbuf.EntryList{rp}, true)
 	}
@@ -201,13 +202,13 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	msgs := conn.NewWriteMessages(outputBatchCnt)
 
 	// Pre-calculate metrics
-	l := metrics.IntfLabels{Intf: s.Label}
+	l := metrics.IntfLabels{Intf: s.Label, NeighIA: s.NeighIA}
 	outputPkts := metrics.Output.Pkts(l)
 	outputBytes := metrics.Output.Bytes(l)
 	outputPktSize := metrics.Output.PktSize(l)
 	outputWrites := metrics.Output.Writes(l)
 	outputWriteErrs := metrics.Output.WriteErrors(l)
-	outputWriteLatency := metrics.Output.Latency(l)
+	outputWriteLatency := metrics.Output.Duration(l)
 
 	// This loop is exited in two cases:
 	// 1. When the the ring is closed and fully drained.

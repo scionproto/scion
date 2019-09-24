@@ -45,6 +45,8 @@ type Sock struct {
 	Ifid common.IFIDType
 	// Label is the interface label
 	Label string
+	// NeighIA is the interface remote IA
+	NeighIA string
 	// Reader is an optional function that reads from Sock.Ring. It is spawned
 	// in a go routine when Sock.Start() is called.
 	Reader SockFunc
@@ -61,18 +63,19 @@ type Sock struct {
 }
 
 func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir, ifid common.IFIDType,
-	reader, writer SockFunc, sockType brconf.SockType) *Sock {
+	neighIA string, reader, writer SockFunc, sockType brconf.SockType) *Sock {
 
 	s := &Sock{
-		Ring:   ring,
-		Conn:   conn,
-		Dir:    dir,
-		Ifid:   ifid,
-		Label:  metrics.IntfToLabel(ifid),
-		Reader: reader,
-		Writer: writer,
-		stop:   make(chan struct{}),
-		Type:   sockType,
+		Ring:    ring,
+		Conn:    conn,
+		Dir:     dir,
+		Ifid:    ifid,
+		Label:   metrics.IntfToLabel(ifid),
+		NeighIA: neighIA,
+		Reader:  reader,
+		Writer:  writer,
+		stop:    make(chan struct{}),
+		Type:    sockType,
 	}
 	if s.Reader != nil {
 		s.readerStopped = make(chan struct{}, 1)

@@ -56,7 +56,7 @@ func (s *ifStates) Store(key common.IFIDType, val *state) {
 var states ifStates
 
 type state struct {
-	// info is a pointer to an Info object. Processing gorouting can update this value.
+	// info is a pointer to an Info object. Processing goroutine can update this value.
 	info unsafe.Pointer
 }
 

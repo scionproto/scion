@@ -51,19 +51,19 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 	ctx := rctx.Get()
 	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
 	if err != nil {
-		metrics.Control.Pkts(cl).Inc()
+		metrics.Control.SentMsgs(cl).Inc()
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)
 		return
 	}
 	scpld, err := cpld.SignedPld(infra.NullSigner)
 	if err != nil {
-		metrics.Control.Pkts(cl).Inc()
+		metrics.Control.SentMsgs(cl).Inc()
 		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
 		return
 	}
 	pld, err := scpld.PackPld()
 	if err != nil {
-		metrics.Control.Pkts(cl).Inc()
+		metrics.Control.SentMsgs(cl).Inc()
 		logger.Error("Writing RevInfo signed Ctrl payload", "err", err)
 		return
 	}
@@ -73,17 +73,17 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 	}
 	dst.NextHop, err = ctx.ResolveSVCAny(dstHost)
 	if err != nil {
-		metrics.Control.Pkts(cl).Inc()
+		metrics.Control.SentMsgs(cl).Inc()
 		logger.Error("Resolving SVC anycast", "err", err, "addr", dst)
 		return
 	}
 	if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
 		cl.Result = metrics.ErrWrite
-		metrics.Control.Pkts(cl).Inc()
+		metrics.Control.SentMsgs(cl).Inc()
 		logger.Error("Writing RevInfo", "dst", dst, "err", err)
 		return
 	}
 	cl.Result = metrics.Success
-	metrics.Control.Pkts(cl).Inc()
+	metrics.Control.SentMsgs(cl).Inc()
 	logger.Debug("Sent RevInfo", "dst", dst, "overlayDst", dst.NextHop)
 }

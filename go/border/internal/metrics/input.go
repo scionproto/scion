@@ -38,9 +38,9 @@ func newInput() input {
 	l := IntfLabels{}.Labels()
 	return input{
 		pkts: prom.NewCounterVec(Namespace, sub,
-			"pkts_total", "Total number of input packets received.", l),
+			"pkts_total", "Total number of packets received.", l),
 		bytes: prom.NewCounterVec(Namespace, sub,
-			"bytes_total", "Total number of input bytes received.", l),
+			"bytes_total", "Total number of bytes received.", l),
 		pktSize: prom.NewHistogramVec(Namespace, sub,
 			"pkt_size_bytes", "Size of input packets in bytes", l,
 			[]float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000}),
@@ -53,7 +53,7 @@ func newInput() input {
 			"overflow_packets_total",
 			"Total number of packets dropped by kernel due to receive buffer overflow.", l),
 		latency: prom.NewCounterVec(Namespace, sub,
-			"latency_seconds_total",
+			"read_latency_seconds_total",
 			"Total time packets wait in the kernel to be read, in seconds", l),
 	}
 }
