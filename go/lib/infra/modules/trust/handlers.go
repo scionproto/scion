@@ -271,12 +271,14 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 		metrics.Handler.Request(l.WithResult(metrics.ErrDB)).Inc()
 		return infra.MetricsErrTrustDB(err)
 	}
+	l.Result = metrics.OkExists
 	if n > 0 {
 		logger.Info("[TrustStore:trcPushHandler] Inserted TRC into DB",
 			"trc", trcObj, "peer", h.request.Peer)
+		l.Result = metrics.OkInserted
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
-	metrics.Handler.Request(l.WithResult(metrics.Success)).Inc()
+	metrics.Handler.Request(l).Inc()
 	return infra.MetricsResultOk
 }
 
@@ -335,12 +337,14 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		metrics.Handler.Request(l.WithResult(metrics.ErrDB)).Inc()
 		return infra.MetricsErrTrustDB(err)
 	}
+	l.Result = metrics.OkExists
 	if n > 0 {
 		logger.Info("[TrustStore:chainPushHandler] Inserted chain into DB",
 			"chain", chain, "peer", h.request.Peer)
+		l.Result = metrics.OkInserted
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
-	metrics.Handler.Request(l.WithResult(metrics.Success)).Inc()
+	metrics.Handler.Request(l).Inc()
 	return infra.MetricsResultOk
 }
 

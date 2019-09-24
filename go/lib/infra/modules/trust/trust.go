@@ -204,7 +204,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		Client:    addrLocation(client, store.ia),
 		Trigger:   metrics.FromCtx(ctx),
 		ReqType:   metrics.TRCReq,
-		LocalOnly: opts.LocalOnly,
+		CacheOnly: opts.LocalOnly,
 		Result:    metrics.ErrInternal,
 	}
 	trcObj, err := store.trustdb.GetTRCVersion(ctx, isd, uint64(version))
@@ -352,7 +352,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		Client:    addrLocation(client, store.ia),
 		Trigger:   metrics.FromCtx(ctx),
 		ReqType:   metrics.ChainReq,
-		LocalOnly: opts.LocalOnly,
+		CacheOnly: opts.LocalOnly,
 		Result:    metrics.ErrInternal,
 	}
 	chain, err := store.trustdb.GetChainVersion(ctx, ia, uint64(version))

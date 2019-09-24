@@ -38,6 +38,8 @@ const (
 	Success     = prom.Success
 	OkCached    = "ok_cached"
 	OkRequested = "ok_requested"
+	OkExists    = "ok_exists"
+	OkInserted  = "ok_inserted"
 
 	ErrDB       = prom.ErrDB
 	ErrDenied   = "err_denied"

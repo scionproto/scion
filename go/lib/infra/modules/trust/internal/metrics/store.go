@@ -33,18 +33,18 @@ type LookupLabels struct {
 	Client    string
 	Trigger   string
 	ReqType   string
-	LocalOnly bool
+	CacheOnly bool
 	Result    string
 }
 
 // Labels returns the list of labels.
 func (l LookupLabels) Labels() []string {
-	return []string{"client", "trigger", "req_type", "local_only", prom.LabelResult}
+	return []string{"client", "trigger", "req_type", "cache_only", prom.LabelResult}
 }
 
 // Values returns the label values in the order defined by Labels.
 func (l LookupLabels) Values() []string {
-	localOnly := strconv.FormatBool(l.LocalOnly)
+	localOnly := strconv.FormatBool(l.CacheOnly)
 	return []string{l.Client, l.Trigger, l.ReqType, localOnly, l.Result}
 }
 
