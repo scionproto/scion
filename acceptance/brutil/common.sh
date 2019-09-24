@@ -2,11 +2,17 @@
 
 export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 TEST_DIR=${TEST_NAME}_acceptance
-BRUTIL=acceptance/brutil
 BRACCEPT=bin/braccept
-BRCONF_DIR=${BRUTIL}/conf
 
-. acceptance/brutil/util.sh
+UTIL_DIR=${UTIL_DIR:=acceptance/brutil}
+BRUTIL=${BRUTIL:=$UTIL_DIR/util.sh}
+COMMON_CONF_DIR=${COMMON_CONF_DIR:=$UTIL_DIR/conf}
+DOCKER_COMPOSE_FN=${DOCKER_COMPOSE_FN:=$UTIL_DIR/docker-compose.yml}
+
+BR_TOML_FN=${BR_TOML_FN:=br.toml}
+BR_TOML=$TEST_ARTIFACTS_DIR/conf/$BR_TOML_FN
+
+. $BRUTIL
 . acceptance/common.sh
 
 # Following are the functions required by the acceptance framework
@@ -19,6 +25,8 @@ test_setup() {
     # running on CI 'setup' is run on the host, where the binary doesn't exist.
     [ -e $BRACCEPT ] && make -s setcap
 
+    test_config
+
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
     [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
@@ -26,29 +34,37 @@ test_setup() {
     sudo -p "Setup docker containers and virtual interfaces - [sudo] password for %p: " true
     # Bring up the dispatcher container and add new veth interfaces
     # This approach currently works because the dispatcher binds to 0.0.0.0 address.
-    docker-compose -f ${BRUTIL:?}/docker-compose.yml --no-ansi up --detach dispatcher
+    docker-compose -f $DOCKER_COMPOSE_FN --no-ansi up --detach dispatcher
 
     set_docker_ns_link
 
-    mkdir -p $TEST_ARTIFACTS_DIR
     set_veths
 
-    # Copy common configuration files
-    cp -r "$BRCONF_DIR" "$TEST_ARTIFACTS_DIR"
-
-    # Copy custom configuration files, ie. topology
-    cp -r "acceptance/${TEST_DIR}/conf/topology.json" "$TEST_ARTIFACTS_DIR/conf"
-
-    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$TEST_ARTIFACTS_DIR/conf/br.toml"
-    sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$TEST_ARTIFACTS_DIR/conf/br.toml"
-
-    docker-compose -f $BRUTIL/docker-compose.yml --no-ansi up --detach $BRID
+    docker-compose -f $DOCKER_COMPOSE_FN --no-ansi up --detach $BRID
     docker_status
+}
+
+test_config() {
+    # Clear stale config files
+    rm -rf "$TEST_ARTIFACTS_DIR/conf"
+
+    # Create test directories
+    mkdir -p $TEST_ARTIFACTS_DIR/conf $TEST_ARTIFACTS_DIR/logs
+
+    # Copy common configuration
+    cp -Lr "$COMMON_CONF_DIR/." "$TEST_ARTIFACTS_DIR/conf"
+
+    # Copy custom test configuration files, ie. topology
+    cp -Lr "acceptance/${TEST_DIR}/conf/." "$TEST_ARTIFACTS_DIR/conf"
+
+    # Replace BR ID
+    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$BR_TOML"
+    sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$BR_TOML"
 }
 
 test_run() {
     set -e
-    $BRACCEPT -testName "${TEST_NAME:?}" -keysDirPath "${BRCONF_DIR}/keys" "$@"
+    $BRACCEPT -testName "${TEST_NAME:?}" -keysDirPath "$TEST_ARTIFACTS_DIR/conf/keys" "$@"
 }
 
 test_teardown() {
@@ -57,7 +73,7 @@ test_teardown() {
     del_veths
     rm_docker_ns_link
     docker_status
-    docker-compose -f $BRUTIL/docker-compose.yml --no-ansi down
+    docker-compose -f $DOCKER_COMPOSE_FN --no-ansi down
 }
 
 print_help() {
