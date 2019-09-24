@@ -29,7 +29,7 @@ type output struct {
 	// Low-level output stats
 	writes      *prometheus.CounterVec
 	writeErrors *prometheus.CounterVec
-	latency     *prometheus.CounterVec
+	duration    *prometheus.CounterVec
 }
 
 func newOutput() output {
@@ -37,9 +37,9 @@ func newOutput() output {
 	l := IntfLabels{}.Labels()
 	return output{
 		pkts: prom.NewCounterVec(Namespace, sub,
-			"pkts_total", "Total number of output packets sent.", l),
+			"pkts_total", "Total number of packets sent.", l),
 		bytes: prom.NewCounterVec(Namespace, sub,
-			"bytes_total", "Total number of output bytes sent.", l),
+			"bytes_total", "Total number of bytes sent.", l),
 		pktSize: prom.NewHistogramVec(Namespace, sub,
 			"pkt_size_bytes", "Size of output packets in bytes", l,
 			[]float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000}),
@@ -48,9 +48,9 @@ func newOutput() output {
 			"writes_total", "Total number of output socket writes.", l),
 		writeErrors: prom.NewCounterVec(Namespace, sub,
 			"write_errors_total", "Total number of output socket write errors.", l),
-		latency: prom.NewCounterVec(Namespace, sub,
-			"latency_seconds_total",
-			"Total time packets wait in the kernel to be write, in seconds", l),
+		duration: prom.NewCounterVec(Namespace, sub,
+			"write_duration_seconds_total",
+			"Total time spent writing packets to the kernel, in seconds.", l),
 	}
 }
 
@@ -79,7 +79,7 @@ func (o *output) WriteErrors(l IntfLabels) prometheus.Counter {
 	return o.writeErrors.WithLabelValues(l.Values()...)
 }
 
-// Latency returns the counter for the given label set.
-func (o *output) Latency(l IntfLabels) prometheus.Counter {
-	return o.latency.WithLabelValues(l.Values()...)
+// Duration returns the counter for the given label set.
+func (o *output) Duration(l IntfLabels) prometheus.Counter {
+	return o.duration.WithLabelValues(l.Values()...)
 }

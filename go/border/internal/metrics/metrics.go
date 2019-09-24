@@ -17,8 +17,6 @@
 package metrics
 
 import (
-	"fmt"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/prom"
 )
@@ -43,6 +41,8 @@ const (
 	ErrProcessLocal = "err_process_local"
 	// ErrParsePayload is an error parsing the packet payload.
 	ErrParsePayload = "err_parse_payload"
+	// ErrResolveSVC is an error resolving a SVC address
+	ErrResolveSVC = "err_resolve_svc"
 )
 
 // Metrics initialization.
@@ -54,23 +54,25 @@ var (
 )
 
 type IntfLabels struct {
-	// Itnf in the interface ID
+	// Itnf is the interface ID
 	Intf string
+	// NeighIA is the remote IA of a given interface.
+	NeighIA string
 }
 
 // Labels returns the list of labels.
 func (l IntfLabels) Labels() []string {
-	return []string{"intf"}
+	return []string{"intf", "neigh_ia"}
 }
 
 // Values returns the label values in the order defined by Labels.
 func (l IntfLabels) Values() []string {
-	return []string{l.Intf}
+	return []string{l.Intf, l.NeighIA}
 }
 
 func IntfToLabel(ifid common.IFIDType) string {
 	if ifid == 0 {
 		return "loc"
 	}
-	return fmt.Sprintf("%d", ifid)
+	return ifid.String()
 }

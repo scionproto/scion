@@ -127,7 +127,8 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		}
 	}
 	l := metrics.ProcessLabels{
-		IntfIn: metrics.IntfToLabel(rp.Ingress.IfID),
+		IntfIn:  metrics.IntfToLabel(rp.Ingress.IfID),
+		IntfOut: metrics.Drop,
 	}
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
 	rp.Id = log.RandId(4)
