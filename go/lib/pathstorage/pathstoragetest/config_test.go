@@ -19,34 +19,30 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 )
 
 func TestPathDBConfSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg pathstorage.PathDBConf
-		cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
-		InitTestPathDBConf(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestPathDBConf(&cfg, "test")
-	})
+	var sample bytes.Buffer
+	var cfg pathstorage.PathDBConf
+	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
+	InitTestPathDBConf(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestPathDBConf(t, &cfg, "test")
 }
 
 func TestRevCacheConfSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg pathstorage.RevCacheConf
-		cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
-		InitTestRevCacheConf(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestRevCacheConf(&cfg)
-	})
+	var sample bytes.Buffer
+	var cfg pathstorage.RevCacheConf
+	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
+	InitTestRevCacheConf(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestRevCacheConf(t, &cfg)
 }

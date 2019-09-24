@@ -17,8 +17,9 @@ package envtest
 import (
 	"fmt"
 	"path/filepath"
+	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 	"github.com/uber/jaeger-client-go"
 
 	"github.com/scionproto/scion/go/lib/env"
@@ -60,57 +61,57 @@ func InitTestTracing(cfg *env.Tracing) {
 
 func InitTestSciond(cfg *env.SciondClient) {}
 
-func CheckTest(general *env.General, logging *env.Logging,
+func CheckTest(t *testing.T, general *env.General, logging *env.Logging,
 	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SciondClient, id string) {
 	if general != nil {
-		CheckTestGeneral(general, id)
+		CheckTestGeneral(t, general, id)
 	}
 	if logging != nil {
-		CheckTestLogging(logging, id)
+		CheckTestLogging(t, logging, id)
 	}
 	if metrics != nil {
-		CheckTestMetrics(metrics)
+		CheckTestMetrics(t, metrics)
 	}
 	if tracing != nil {
-		CheckTestTracing(tracing)
+		CheckTestTracing(t, tracing)
 	}
 	if sciond != nil {
-		CheckTestSciond(sciond, id)
+		CheckTestSciond(t, sciond, id)
 	}
 }
 
-func CheckTestGeneral(cfg *env.General, id string) {
-	SoMsg("ID correct", cfg.ID, ShouldEqual, id)
-	SoMsg("ConfigDir correct", cfg.ConfigDir, ShouldEqual, "/etc/scion")
-	SoMsg("Topology correct", cfg.Topology, ShouldEqual,
-		filepath.Join(cfg.ConfigDir, env.DefaultTopologyPath))
-	SoMsg("ReconnectToDispatcher correct", cfg.ReconnectToDispatcher, ShouldBeFalse)
+func CheckTestGeneral(t *testing.T, cfg *env.General, id string) {
+	assert.Equal(t, id, cfg.ID)
+	assert.Equal(t, "/etc/scion", cfg.ConfigDir)
+	assert.Equal(t, filepath.Join(cfg.ConfigDir, env.DefaultTopologyPath), cfg.Topology)
+	assert.False(t, cfg.ReconnectToDispatcher)
 }
 
-func CheckTestLogging(cfg *env.Logging, id string) {
-	SoMsg("Path correct", cfg.File.Path, ShouldEqual, fmt.Sprintf("/var/log/scion/%s.log", id))
-	SoMsg("FileLevel correct", cfg.File.Level, ShouldEqual, log.DefaultFileLevel)
-	SoMsg("Size correct", cfg.File.Size, ShouldEqual, log.DefaultFileSizeMiB)
-	SoMsg("MaxAge correct", cfg.File.MaxAge, ShouldEqual, log.DefaultFileMaxAgeDays)
-	SoMsg("MaxBackups correct", cfg.File.MaxBackups, ShouldEqual, log.DefaultFileMaxBackups)
-	SoMsg("Flush correct", *cfg.File.FlushInterval, ShouldEqual, log.DefaultFileFlushSeconds)
-
-	SoMsg("ConsoleLevel correct", cfg.Console.Level, ShouldEqual, log.DefaultConsoleLevel)
+func CheckTestLogging(t *testing.T, cfg *env.Logging, id string) {
+	assert.Equal(t, fmt.Sprintf("/var/log/scion/%s.log", id), cfg.File.Path)
+	assert.Equal(t, log.DefaultFileLevel, cfg.File.Level)
+	assert.Equal(t, log.DefaultFileSizeMiB, int(cfg.File.Size))
+	assert.Equal(t, log.DefaultFileMaxAgeDays, int(cfg.File.MaxAge))
+	assert.Equal(t, log.DefaultFileMaxBackups, int(cfg.File.MaxBackups))
+	assert.Equal(t, log.DefaultFileFlushSeconds, *cfg.File.FlushInterval)
+	assert.Equal(t, log.DefaultConsoleLevel, cfg.Console.Level)
 }
 
-func CheckTestMetrics(cfg *env.Metrics) {
-	SoMsg("Prometheus correct", cfg.Prometheus, ShouldEqual, "")
+func CheckTestMetrics(t *testing.T, cfg *env.Metrics) {
+	assert.Empty(t, cfg.Prometheus)
 }
 
-func CheckTestTracing(cfg *env.Tracing) {
-	SoMsg("Enabled correct", cfg.Enabled, ShouldBeFalse)
-	SoMsg("Debug correct", cfg.Debug, ShouldBeFalse)
-	SoMsg("Agent correct", cfg.Agent, ShouldEqual,
-		fmt.Sprintf("%s:%d", jaeger.DefaultUDPSpanServerHost, jaeger.DefaultUDPSpanServerPort))
+func CheckTestTracing(t *testing.T, cfg *env.Tracing) {
+	assert.False(t, cfg.Enabled)
+	assert.False(t, cfg.Debug)
+	assert.Equal(
+		t,
+		fmt.Sprintf("%s:%d", jaeger.DefaultUDPSpanServerHost, jaeger.DefaultUDPSpanServerPort),
+		cfg.Agent,
+	)
 }
 
-func CheckTestSciond(cfg *env.SciondClient, id string) {
-	SoMsg("Path correct", cfg.Path, ShouldEqual, sciond.DefaultSCIONDPath)
-	SoMsg("InitialConnectPeriod correct", cfg.InitialConnectPeriod.Duration, ShouldEqual,
-		env.SciondInitConnectPeriod)
+func CheckTestSciond(t *testing.T, cfg *env.SciondClient, id string) {
+	assert.Equal(t, sciond.DefaultSCIONDPath, cfg.Path)
+	assert.Equal(t, env.SciondInitConnectPeriod, cfg.InitialConnectPeriod.Duration)
 }

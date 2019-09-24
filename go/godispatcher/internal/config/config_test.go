@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -28,17 +28,15 @@ import (
 )
 
 func TestConfigSample(t *testing.T) {
-	Convey("Sample is correct", t, func() {
-		var sample bytes.Buffer
-		var cfg Config
-		cfg.Sample(&sample, nil, nil)
+	var sample bytes.Buffer
+	var cfg Config
+	cfg.Sample(&sample, nil, nil)
 
-		InitTestConfig(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestConfig(&cfg, idSample)
-	})
+	InitTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestConfig(t, &cfg, idSample)
 }
 
 func InitTestConfig(cfg *Config) {
@@ -47,14 +45,12 @@ func InitTestConfig(cfg *Config) {
 	cfg.Dispatcher.PerfData = "Invalid"
 }
 
-func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(nil, &cfg.Logging, &cfg.Metrics, nil, nil, id)
-	SoMsg("ID", cfg.Dispatcher.ID, ShouldEqual, id)
-	SoMsg("ApplicationSocket", cfg.Dispatcher.ApplicationSocket, ShouldEqual,
-		reliable.DefaultDispPath)
-	SoMsg("SocketFileMode", cfg.Dispatcher.SocketFileMode, ShouldEqual,
-		reliable.DefaultDispSocketFileMode)
-	SoMsg("OverlayPort", cfg.Dispatcher.OverlayPort, ShouldEqual, overlay.EndhostPort)
-	SoMsg("PerfData", cfg.Dispatcher.PerfData, ShouldBeEmpty)
-	SoMsg("DeleteSocket", cfg.Dispatcher.DeleteSocket, ShouldBeFalse)
+func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+	envtest.CheckTest(t, nil, &cfg.Logging, &cfg.Metrics, nil, nil, id)
+	assert.Equal(t, id, cfg.Dispatcher.ID)
+	assert.Equal(t, reliable.DefaultDispPath, cfg.Dispatcher.ApplicationSocket)
+	assert.Equal(t, reliable.DefaultDispSocketFileMode, int(cfg.Dispatcher.SocketFileMode))
+	assert.Equal(t, overlay.EndhostPort, cfg.Dispatcher.OverlayPort)
+	assert.Empty(t, cfg.Dispatcher.PerfData)
+	assert.False(t, cfg.Dispatcher.DeleteSocket)
 }

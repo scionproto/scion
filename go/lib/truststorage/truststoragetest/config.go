@@ -16,8 +16,9 @@ package truststoragetest
 
 import (
 	"fmt"
+	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/truststorage"
@@ -32,13 +33,12 @@ func InitTestConfig(cfg *truststorage.TrustDBConf) {
 	(*cfg)[db.MaxIdleConnsKey] = "maxIdleConns"
 }
 
-func CheckTestConfig(cfg *truststorage.TrustDBConf, id string) {
+func CheckTestConfig(t *testing.T, cfg *truststorage.TrustDBConf, id string) {
 	util.LowerKeys(*cfg)
-	SoMsg("MaxOpenConns", isSet(cfg.MaxOpenConns()), ShouldBeFalse)
-	SoMsg("MaxIdleConns", isSet(cfg.MaxIdleConns()), ShouldBeFalse)
-	SoMsg("Backend correct", cfg.Backend(), ShouldEqual, truststorage.BackendSqlite)
-	SoMsg("Connection correct", cfg.Connection(), ShouldEqual,
-		fmt.Sprintf("/var/lib/scion/spki/%s.trust.db", id))
+	assert.False(t, isSet(cfg.MaxOpenConns()))
+	assert.False(t, isSet(cfg.MaxIdleConns()))
+	assert.Equal(t, truststorage.BackendSqlite, cfg.Backend())
+	assert.Equal(t, fmt.Sprintf("/var/lib/scion/spki/%s.trust.db", id), cfg.Connection())
 }
 
 func isSet(_ int, set bool) bool {

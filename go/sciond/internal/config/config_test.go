@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
@@ -29,17 +29,15 @@ import (
 )
 
 func TestConfigSample(t *testing.T) {
-	Convey("Sample is correct", t, func() {
-		var sample bytes.Buffer
-		var cfg Config
-		cfg.Sample(&sample, nil, nil)
+	var sample bytes.Buffer
+	var cfg Config
+	cfg.Sample(&sample, nil, nil)
 
-		InitTestConfig(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestConfig(&cfg, idSample)
-	})
+	InitTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestConfig(t, &cfg, idSample)
 }
 
 func InitTestConfig(cfg *Config) {
@@ -55,21 +53,20 @@ func InitTestSDConfig(cfg *SDConfig) {
 	pathstoragetest.InitTestRevCacheConf(&cfg.RevCache)
 }
 
-func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
-	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
-	idiscoverytest.CheckTestConfig(&cfg.Discovery)
-	CheckTestSDConfig(&cfg.SD, id)
+func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
+	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
+	idiscoverytest.CheckTestConfig(t, &cfg.Discovery)
+	CheckTestSDConfig(t, &cfg.SD, id)
 }
 
-func CheckTestSDConfig(cfg *SDConfig, id string) {
-	pathstoragetest.CheckTestPathDBConf(&cfg.PathDB, id)
-	pathstoragetest.CheckTestRevCacheConf(&cfg.RevCache)
-	SoMsg("Reliable correct", cfg.Reliable, ShouldEqual, sciond.DefaultSCIONDPath)
-	SoMsg("Unix correct", cfg.Unix, ShouldEqual, "/run/shm/sciond/default-unix.sock")
-	SoMsg("File permissions correct", cfg.SocketFileMode, ShouldEqual, sciond.DefaultSocketFileMode)
-	SoMsg("Public correct", cfg.Public.String(), ShouldEqual,
-		"1-ff00:0:110,[127.0.0.1]:0 (UDP)")
-	SoMsg("QueryInterval correct", cfg.QueryInterval.Duration, ShouldEqual, DefaultQueryInterval)
-	SoMsg("DeleteSocket set", cfg.DeleteSocket, ShouldBeFalse)
+func CheckTestSDConfig(t *testing.T, cfg *SDConfig, id string) {
+	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
+	pathstoragetest.CheckTestRevCacheConf(t, &cfg.RevCache)
+	assert.Equal(t, sciond.DefaultSCIONDPath, cfg.Reliable)
+	assert.Equal(t, "/run/shm/sciond/default-unix.sock", cfg.Unix)
+	assert.Equal(t, sciond.DefaultSocketFileMode, int(cfg.SocketFileMode))
+	assert.Equal(t, "1-ff00:0:110,[127.0.0.1]:0 (UDP)", cfg.Public.String())
+	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
+	assert.False(t, cfg.DeleteSocket)
 }

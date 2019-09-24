@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage/beaconstoragetest"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -31,33 +31,29 @@ import (
 )
 
 func TestConfigSample(t *testing.T) {
-	Convey("Sample is correct", t, func() {
-		var sample bytes.Buffer
-		var cfg Config
-		cfg.Sample(&sample, nil, nil)
+	var sample bytes.Buffer
+	var cfg Config
+	cfg.Sample(&sample, nil, nil)
 
-		InitTestConfig(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestConfig(&cfg, idSample)
-	})
+	InitTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestConfig(t, &cfg, idSample)
 }
 
 func TestInvalidTTL(t *testing.T) {
-	Convey("Validate checks wrongly configured TTL values", t, func() {
-		cfg := BSConfig{}
-		cfg.InitDefaults()
-		err := cfg.Validate()
-		SoMsg("err", err, ShouldBeNil)
-		cfg.RevOverlap = util.DurWrap{Duration: cfg.RevTTL.Duration + time.Second}
-		err = cfg.Validate()
-		SoMsg("err", err, ShouldNotBeNil)
-		cfg.InitDefaults()
-		cfg.RevTTL = util.DurWrap{Duration: path_mgmt.MinRevTTL - time.Second}
-		err = cfg.Validate()
-		SoMsg("err", err, ShouldNotBeNil)
-	})
+	cfg := BSConfig{}
+	cfg.InitDefaults()
+	err := cfg.Validate()
+	assert.NoError(t, err)
+	cfg.RevOverlap = util.DurWrap{Duration: cfg.RevTTL.Duration + time.Second}
+	err = cfg.Validate()
+	assert.Error(t, err)
+	cfg.InitDefaults()
+	cfg.RevTTL = util.DurWrap{Duration: path_mgmt.MinRevTTL - time.Second}
+	err = cfg.Validate()
+	assert.Error(t, err)
 }
 
 func InitTestConfig(cfg *Config) {
@@ -79,34 +75,29 @@ func InitTestPolicies(cfg *Policies) {
 	cfg.DownRegistration = "test"
 }
 
-func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
-	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
-	beaconstoragetest.CheckTestBeaconDBConf(&cfg.BeaconDB, id)
-	idiscoverytest.CheckTestConfig(&cfg.Discovery)
-	CheckTestBSConfig(&cfg.BS)
+func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
+	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
+	beaconstoragetest.CheckTestBeaconDBConf(t, &cfg.BeaconDB, id)
+	idiscoverytest.CheckTestConfig(t, &cfg.Discovery)
+	CheckTestBSConfig(t, &cfg.BS)
 }
 
-func CheckTestBSConfig(cfg *BSConfig) {
-	SoMsg("KeepaliveTimeout", cfg.KeepaliveTimeout.Duration, ShouldEqual, DefaultKeepaliveTimeout)
-	SoMsg("KeepaliveInterval", cfg.KeepaliveInterval.Duration, ShouldEqual,
-		DefaultKeepaliveInterval)
-	SoMsg("OriginationInterval", cfg.OriginationInterval.Duration, ShouldEqual,
-		DefaultOriginationInterval)
-	SoMsg("PropagationInterval", cfg.PropagationInterval.Duration, ShouldEqual,
-		DefaultPropagationInterval)
-	SoMsg("RegistrationInterval", cfg.RegistrationInterval.Duration, ShouldEqual,
-		DefaultRegistrationInterval)
-	SoMsg("ExpiredCheckInterval", cfg.ExpiredCheckInterval.Duration, ShouldEqual,
-		DefaultExpiredCheckInterval)
-	SoMsg("RevTTL", cfg.RevTTL.Duration, ShouldEqual, DefaultRevTTL)
-	SoMsg("RevOverlap", cfg.RevOverlap.Duration, ShouldEqual, DefaultRevOverlap)
-	CheckTestPolicies(&cfg.Policies)
+func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
+	assert.Equal(t, DefaultKeepaliveTimeout, cfg.KeepaliveTimeout.Duration)
+	assert.Equal(t, DefaultKeepaliveInterval, cfg.KeepaliveInterval.Duration)
+	assert.Equal(t, DefaultOriginationInterval, cfg.OriginationInterval.Duration)
+	assert.Equal(t, DefaultPropagationInterval, cfg.PropagationInterval.Duration)
+	assert.Equal(t, DefaultRegistrationInterval, cfg.RegistrationInterval.Duration)
+	assert.Equal(t, DefaultExpiredCheckInterval, cfg.ExpiredCheckInterval.Duration)
+	assert.Equal(t, DefaultRevTTL, cfg.RevTTL.Duration)
+	assert.Equal(t, DefaultRevOverlap, cfg.RevOverlap.Duration)
+	CheckTestPolicies(t, &cfg.Policies)
 }
 
-func CheckTestPolicies(cfg *Policies) {
-	SoMsg("Propagation", cfg.Propagation, ShouldEqual, "")
-	SoMsg("CoreRegistration", cfg.CoreRegistration, ShouldEqual, "")
-	SoMsg("UpRegistration", cfg.UpRegistration, ShouldEqual, "")
-	SoMsg("DownRegistration", cfg.DownRegistration, ShouldEqual, "")
+func CheckTestPolicies(t *testing.T, cfg *Policies) {
+	assert.Empty(t, cfg.Propagation)
+	assert.Empty(t, cfg.CoreRegistration)
+	assert.Empty(t, cfg.UpRegistration)
+	assert.Empty(t, cfg.DownRegistration)
 }

@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
@@ -29,50 +29,44 @@ import (
 )
 
 func TestConfigSample(t *testing.T) {
-	Convey("Sample is correct", t, func() {
-		var sample bytes.Buffer
-		var cfg Config
-		cfg.Sample(&sample, nil, nil)
+	var sample bytes.Buffer
+	var cfg Config
+	cfg.Sample(&sample, nil, nil)
 
-		InitTestConfig(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestConfig(&cfg, idSample)
-	})
+	InitTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestConfig(t, &cfg, idSample)
 }
 
 func TestConfig_InitDefaults(t *testing.T) {
-	Convey("Load Conf", t, func() {
+	t.Run("Load Conf", func(t *testing.T) {
 		var cfg Config
 		_, err := toml.DecodeFile("testdata/cs.toml", &cfg)
-		SoMsg("err", err, ShouldBeNil)
+		assert.NoError(t, err)
 
-		Convey("InitDefaults does not override values", func() {
-			cfg.InitDefaults()
-			SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, 7*time.Hour)
-			SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, 48*time.Hour)
-			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
-			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
-			SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeTrue)
-			SoMsg("disableCorePush", cfg.CS.DisableCorePush, ShouldBeTrue)
-		})
+		cfg.InitDefaults()
+		assert.Equal(t, 7*time.Hour, cfg.CS.LeafReissueLeadTime.Duration)
+		assert.Equal(t, 48*time.Hour, cfg.CS.IssuerReissueLeadTime.Duration)
+		assert.Equal(t, 12*time.Second, cfg.CS.ReissueRate.Duration)
+		assert.Equal(t, 6*time.Second, cfg.CS.ReissueTimeout.Duration)
+		assert.True(t, cfg.CS.AutomaticRenewal)
+		assert.True(t, cfg.CS.DisableCorePush)
 	})
 
-	Convey("Load Default", t, func() {
+	t.Run("Load Default", func(t *testing.T) {
 		var cfg Config
 		_, err := toml.DecodeReader(strings.NewReader("[cs]"), &cfg)
-		SoMsg("err", err, ShouldBeNil)
+		assert.NoError(t, err)
 
-		Convey("InitDefaults loads default values", func() {
-			cfg.InitDefaults()
-			SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, LeafReissTime)
-			SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, IssuerReissTime)
-			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, ReissReqRate)
-			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, ReissueReqTimeout)
-			SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeFalse)
-			SoMsg("disableCorePush", cfg.CS.DisableCorePush, ShouldBeFalse)
-		})
+		cfg.InitDefaults()
+		assert.Equal(t, LeafReissTime, cfg.CS.LeafReissueLeadTime.Duration)
+		assert.Equal(t, IssuerReissTime, cfg.CS.IssuerReissueLeadTime.Duration)
+		assert.Equal(t, ReissReqRate, cfg.CS.ReissueRate.Duration)
+		assert.Equal(t, ReissueReqTimeout, cfg.CS.ReissueTimeout.Duration)
+		assert.False(t, cfg.CS.AutomaticRenewal)
+		assert.False(t, cfg.CS.DisableCorePush)
 	})
 }
 
@@ -88,20 +82,18 @@ func InitTestCSConfig(cfg *CSConfig) {
 	cfg.DisableCorePush = true
 }
 
-func CheckTestConfig(cfg *Config, id string) {
-	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, &cfg.Sciond, id)
-	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
-	idiscoverytest.CheckTestConfig(&cfg.Discovery)
-	CheckTestCSConfig(&cfg.CS)
+func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, &cfg.Sciond, id)
+	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
+	idiscoverytest.CheckTestConfig(t, &cfg.Discovery)
+	CheckTestCSConfig(t, &cfg.CS)
 }
 
-func CheckTestCSConfig(cfg *CSConfig) {
-	SoMsg("ReissueRate correct", cfg.ReissueRate.Duration, ShouldEqual, ReissReqRate)
-	SoMsg("ReissueTimeout correct", cfg.ReissueTimeout.Duration, ShouldEqual, ReissueReqTimeout)
-	SoMsg("AutomaticRenewal correct", cfg.AutomaticRenewal, ShouldBeFalse)
-	SoMsg("LeafReissueLeadTime correct", cfg.LeafReissueLeadTime.Duration, ShouldEqual,
-		LeafReissTime)
-	SoMsg("IssuerReissLeadTime correct", cfg.IssuerReissueLeadTime.Duration, ShouldEqual,
-		IssuerReissTime)
-	SoMsg("DisableCorePush correct", cfg.DisableCorePush, ShouldBeFalse)
+func CheckTestCSConfig(t *testing.T, cfg *CSConfig) {
+	assert.Equal(t, ReissReqRate, cfg.ReissueRate.Duration)
+	assert.Equal(t, ReissueReqTimeout, cfg.ReissueTimeout.Duration)
+	assert.False(t, cfg.AutomaticRenewal)
+	assert.Equal(t, LeafReissTime, cfg.LeafReissueLeadTime.Duration)
+	assert.Equal(t, IssuerReissTime, cfg.IssuerReissueLeadTime.Duration)
+	assert.False(t, cfg.DisableCorePush)
 }

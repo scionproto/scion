@@ -19,20 +19,18 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 )
 
 func TestConfigSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg idiscovery.Config
-		cfg.Sample(&sample, nil, nil)
-		InitTestConfig(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestConfig(&cfg)
-	})
+	var sample bytes.Buffer
+	var cfg idiscovery.Config
+	cfg.Sample(&sample, nil, nil)
+	InitTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestConfig(t, &cfg)
 }
