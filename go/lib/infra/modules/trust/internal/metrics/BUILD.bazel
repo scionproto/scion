@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "context.go",
+        "db.go",
+        "handler.go",
+        "metrics.go",
+        "store.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics",
+    visibility = ["//go/lib/infra/modules/trust:__subpackages__"],
+    deps = [
+        "//go/lib/prom:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["labels_test.go"],
+    embed = [":go_default_library"],
+    deps = ["//go/lib/prom/promtest:go_default_library"],
+)

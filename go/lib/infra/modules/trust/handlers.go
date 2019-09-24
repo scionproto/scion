@@ -16,12 +16,14 @@ package trust
 
 import (
 	"context"
+	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -30,22 +32,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-func promSrcValue(r *infra.Request, localIA addr.IA) string {
-	if r == nil {
-		return infra.PromSrcUnknown
-	}
-	sAddr, ok := r.Peer.(*snet.Addr)
-	if !ok {
-		return infra.PromSrcUnknown
-	}
-	if localIA.Equal(sAddr.IA) {
-		return infra.PromSrcASLocal
-	}
-	if localIA.I == sAddr.IA.I {
-		return infra.PromSrcISDLocal
-	}
-	return infra.PromSrcISDRemote
-}
+const appSrc = "app"
 
 // trcReqHandler contains the state of a handler for a specific TRC Request
 // message, received via the Messenger's ListenAndServe method.
@@ -59,21 +46,31 @@ type trcReqHandler struct {
 
 func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+	l := metrics.HandlerLabels{
+		Client:  addrLocation(h.request.Peer, h.store.ia),
+		ReqType: metrics.TRCReq,
+		Result:  metrics.ErrInternal,
+	}
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {
 		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
+	l.CacheOnly = trcReq.CacheOnly
 	logger.Debug("[TrustStore:trcReqHandler] Received request", "trcReq", trcReq,
 		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcReqHandler] Unable to service request, no Messenger found")
+		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// Add trigger to context for outgoing request metrics.
+	subCtx = metrics.CtxWith(subCtx, metrics.TRCReq)
 
 	var trcObj *trc.TRC
 	var err error
@@ -83,9 +80,10 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	// between verified/unverified retrieval based on message content. For now,
 	// call getTRC instead of getValidTRC.
 	if trcReq.CacheOnly {
-		trcObj, err = h.store.trustdb.GetTRCVersion(h.request.Context(), trcReq.ISD, trcReq.Version)
+		trcObj, err = h.store.trustdb.GetTRCVersion(subCtx, trcReq.ISD, trcReq.Version)
 		if err != nil {
 			logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
+			metrics.Handler.Request(l.WithResult(metrics.ErrDB)).Inc()
 			return infra.MetricsErrTrustDB(err)
 		}
 	} else {
@@ -93,10 +91,11 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 			TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: !h.recurse},
 			AllowInactive:  true,
 		}
-		trcObj, err = h.store.getTRC(h.request.Context(), trcReq.ISD,
+		trcObj, err = h.store.getTRC(subCtx, trcReq.ISD,
 			scrypto.Version(trcReq.Version), opts, h.request.Peer)
 		if err != nil {
 			logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
+			metrics.Handler.Request(l).Inc()
 			return infra.MetricsErrTrustStore(err)
 		}
 	}
@@ -106,6 +105,7 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 		rawTRC, err = trcObj.Compress()
 		if err != nil {
 			logger.Warn("[TrustStore:trcReqHandler] Unable to compress TRC", "err", err)
+			metrics.Handler.Request(l).Inc()
 			return infra.MetricsErrInternal
 		}
 	}
@@ -114,10 +114,12 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	}
 	if err := rw.SendTRCReply(subCtx, trcMessage); err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Messenger error", "err", err)
+		metrics.Handler.Request(l.WithResult(metrics.ErrTransmit)).Inc()
 		return infra.MetricsErrMsger(err)
 	}
 	logger.Debug("[TrustStore:trcReqHandler] Replied with TRC",
 		"trc", trcObj, "peer", h.request.Peer)
+	metrics.Handler.Request(l.WithResult(metrics.Success)).Inc()
 	return infra.MetricsResultOk
 }
 
@@ -133,21 +135,31 @@ type chainReqHandler struct {
 
 func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+	l := metrics.HandlerLabels{
+		Client:  addrLocation(h.request.Peer, h.store.ia),
+		ReqType: metrics.ChainReq,
+		Result:  metrics.ErrInternal,
+	}
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {
 		logger.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
+	l.CacheOnly = chainReq.CacheOnly
 	logger.Debug("[TrustStore:chainReqHandler] Received request", "chainReq", chainReq,
 		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, no Messenger found")
+		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// Add trigger to context for outgoing request metrics.
+	subCtx = metrics.CtxWith(subCtx, metrics.ChainReq)
 
 	var chain *cert.Chain
 	var err error
@@ -157,10 +169,10 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	// between verified/unverified retrieval based on message content. For now,
 	// call getChain instead of getValidChain.
 	if chainReq.CacheOnly {
-		chain, err = h.store.trustdb.GetChainVersion(h.request.Context(),
-			chainReq.IA(), chainReq.Version)
+		chain, err = h.store.trustdb.GetChainVersion(subCtx, chainReq.IA(), chainReq.Version)
 		if err != nil {
 			logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
+			metrics.Handler.Request(l.WithResult(metrics.ErrDB)).Inc()
 			return infra.MetricsErrTrustDB(err)
 		}
 	} else {
@@ -168,10 +180,11 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 			TrustStoreOpts:   infra.TrustStoreOpts{LocalOnly: !h.recurse},
 			AllowInactiveTRC: true,
 		}
-		chain, err = h.store.getChain(h.request.Context(), chainReq.IA(),
-			scrypto.Version(chainReq.Version), opts, h.request.Peer)
+		chain, err = h.store.getChain(subCtx, chainReq.IA(), scrypto.Version(chainReq.Version),
+			opts, h.request.Peer)
 		if err != nil {
 			logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
+			metrics.Handler.Request(l).Inc()
 			return infra.MetricsErrTrustStore(err)
 		}
 	}
@@ -180,6 +193,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		rawChain, err = chain.Compress()
 		if err != nil {
 			logger.Error("[TrustStore:chainReqHandler] Unable to compress Chain", "err", err)
+			metrics.Handler.Request(l).Inc()
 			return infra.MetricsErrInternal
 		}
 	}
@@ -189,10 +203,12 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	err = rw.SendCertChainReply(subCtx, chainMessage)
 	if err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Messenger API error", "err", err)
+		metrics.Handler.Request(l.WithResult(metrics.ErrTransmit)).Inc()
 		return infra.MetricsErrMsger(err)
 	}
 	logger.Debug("[TrustStore:chainReqHandler] Replied with chain",
 		"chain", chain, "peer", h.request.Peer)
+	metrics.Handler.Request(l.WithResult(metrics.Success)).Inc()
 	return infra.MetricsResultOk
 }
 
@@ -203,6 +219,11 @@ type trcPushHandler struct {
 
 func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+	l := metrics.HandlerLabels{
+		Client:  addrLocation(h.request.Peer, h.store.ia),
+		ReqType: metrics.TRCPush,
+		Result:  metrics.ErrInternal,
+	}
 	// FIXME(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
 	// new chain from the issuer. If a chain is not obtained within the
@@ -211,6 +232,7 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	if !ok {
 		logger.Error("[TrustStore:trcPushHandler] Wrong message type, expected cert_mgmt.TRC",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
 	logger.Trace("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
@@ -218,10 +240,14 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcPushHandler] Unable to service request, no Messenger found")
+		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// Add trigger to context for outgoing request metrics.
+	subCtx = metrics.CtxWith(subCtx, metrics.TRCPush)
+
 	sendAck := messenger.SendAckHelper(subCtx, rw)
 	// FIXME(scrye): Verify that the TRC is valid by using the trust store and
 	// known trust topology. Use h.Request.Peer to retrieve missing TRCs.
@@ -229,24 +255,30 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	if err != nil {
 		logger.Error("[TrustStore:trcPushHandler] Unable to extract TRC from TRC push", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		metrics.Handler.Request(l.WithResult(metrics.ErrValidate)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	if trcObj == nil {
 		logger.Warn("[TrustStore:trcPushHandler] Empty chain received")
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		metrics.Handler.Request(l.WithResult(metrics.ErrValidate)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	n, err := h.store.trustdb.InsertTRC(subCtx, trcObj)
 	if err != nil {
 		logger.Error("[TrustStore:trcPushHandler] Unable to insert TRC into DB", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
+		metrics.Handler.Request(l.WithResult(metrics.ErrDB)).Inc()
 		return infra.MetricsErrTrustDB(err)
 	}
+	l.Result = metrics.OkExists
 	if n > 0 {
 		logger.Info("[TrustStore:trcPushHandler] Inserted TRC into DB",
 			"trc", trcObj, "peer", h.request.Peer)
+		l.Result = metrics.OkInserted
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
+	metrics.Handler.Request(l).Inc()
 	return infra.MetricsResultOk
 }
 
@@ -257,10 +289,16 @@ type chainPushHandler struct {
 
 func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+	l := metrics.HandlerLabels{
+		Client:  addrLocation(h.request.Peer, h.store.ia),
+		ReqType: metrics.ChainPush,
+		Result:  metrics.ErrInternal,
+	}
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
 		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
 	logger.Trace("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
@@ -268,10 +306,14 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
+		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
+	// Add trigger to context for outgoing request metrics.
+	subCtx = metrics.CtxWith(subCtx, metrics.ChainPush)
+
 	sendAck := messenger.SendAckHelper(subCtx, rw)
 	// FIXME(scrye): Verify that the chain is valid by using the trust store.
 	chain, err := chainPush.Chain()
@@ -279,23 +321,48 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		logger.Error("[TrustStore:chainPushHandler] Unable to extract chain from chain push",
 			"err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		metrics.Handler.Request(l.WithResult(metrics.ErrValidate)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	if chain == nil {
 		logger.Warn("[TrustStore:chainPushHandler] Empty chain received")
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		metrics.Handler.Request(l.WithResult(metrics.ErrValidate)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	n, err := h.store.trustdb.InsertChain(subCtx, chain)
 	if err != nil {
 		logger.Error("[TrustStore:chainPushHandler] Unable to insert chain into DB", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
+		metrics.Handler.Request(l.WithResult(metrics.ErrDB)).Inc()
 		return infra.MetricsErrTrustDB(err)
 	}
+	l.Result = metrics.OkExists
 	if n > 0 {
 		logger.Info("[TrustStore:chainPushHandler] Inserted chain into DB",
 			"chain", chain, "peer", h.request.Peer)
+		l.Result = metrics.OkInserted
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
+	metrics.Handler.Request(l).Inc()
 	return infra.MetricsResultOk
+}
+
+// addrLocation extracts the client from an infra request. If the request is nil,
+// "app" is returned.
+func addrLocation(client net.Addr, localIA addr.IA) string {
+	if client == nil {
+		return metrics.App
+	}
+	sAddr, ok := client.(*snet.Addr)
+	if !ok {
+		return infra.PromSrcUnknown
+	}
+	if localIA.Equal(sAddr.IA) {
+		return infra.PromSrcASLocal
+	}
+	if localIA.I == sAddr.IA.I {
+		return infra.PromSrcISDLocal
+	}
+	return infra.PromSrcISDRemote
 }

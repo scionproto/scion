@@ -121,7 +121,7 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if trustDB, err = cfg.TrustDB.New(); err != nil {
 		return common.NewBasicError("Unable to initialize trustDB", err)
 	}
-	trustDB = trustdb.WithMetrics("std", trustDB)
+	trustDB = trustdb.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
 	trustConf := trust.Config{
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_cs,
