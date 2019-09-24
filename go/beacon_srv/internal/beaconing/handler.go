@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -34,7 +34,7 @@ import (
 // BeaconInserter inserts beacons into the beacon store.
 type BeaconInserter interface {
 	PreFilter(beacon beacon.Beacon) error
-	InsertBeacons(ctx context.Context, beacon ...beacon.Beacon) error
+	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 }
 
 // NewHandler returns an infra.Handler for beacon messages. Both the beacon
@@ -49,7 +49,6 @@ func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, beaconInserter BeaconInse
 			verifier: verifier,
 			intfs:    intfs,
 			request:  r,
-			metrics:  metrics.InitReceiver(),
 		}
 		return handler.Handle()
 	}
@@ -62,7 +61,6 @@ type handler struct {
 	verifier infra.Verifier
 	intfs    *ifstate.Interfaces
 	request  *infra.Request
-	metrics  *metrics.Receiver
 }
 
 // Handle handles a beacon.
@@ -83,30 +81,48 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 
 	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
 
+	labels := metrics.BeaconingLabels{}
+	if peer, ok := h.request.Peer.(*snet.Addr); ok {
+		labels.NeighAS = peer.IA
+	}
 	b, res, err := h.buildBeacon()
 	if err != nil {
-		h.metrics.IncTotalBeacons(0, metrics.InvalidErr)
+		labels.Result = metrics.ErrProcess
+		metrics.Beaconing.Received(labels).Inc()
 		return res, err
 	}
 	logger.Trace("[BeaconHandler] Received", "beacon", b)
+	labels.InIfID = b.InIfId
 	if err := h.inserter.PreFilter(b); err != nil {
 		logger.Trace("[BeaconHandler] Beacon pre-filtered", "err", err)
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.Prefiltered)
+		metrics.Beaconing.ReceivedWithError(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectPolicyError)
-		return infra.MetricsResultOk, nil
+		return infra.MetricsErrInvalid, nil
 	}
-	if err := h.verifyBeacon(b); err != nil {
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.VerifyErr)
+	as, err := h.validateASEntry(b)
+	if err != nil {
+		logger.Trace("[BeaconHandler] Beacon validate as entry", "err", err)
+		metrics.Beaconing.ReceivedWithError(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
-		return infra.MetricsErrInvalid, err
+		return infra.MetricsErrInvalid, common.NewBasicError("Invalid last AS entry", err,
+			"entry", b.Segment.ASEntries[b.Segment.MaxAEIdx()])
 	}
-	if err := h.inserter.InsertBeacons(h.request.Context(), b); err != nil {
-		h.metrics.IncTotalBeacons(b.InIfId, metrics.InsertErr)
+	labels.NeighAS = as
+	if err := h.verifySegment(b.Segment); err != nil {
+		logger.Trace("[BeaconHandler] Beacon validate segment", "err", err)
+		metrics.Beaconing.ReceivedWithError(labels).Inc()
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
+		return infra.MetricsErrInvalid, common.NewBasicError("Segment verification failed", err)
+	}
+	stat, err := h.inserter.InsertBeacon(h.request.Context(), b)
+	if err != nil {
+		metrics.Beaconing.ReceivedWithDBError(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRetryDBError)
 		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
 	}
 	logger.Trace("[BeaconHandler] Successfully inserted", "beacon", b)
-	h.metrics.IncTotalBeacons(b.InIfId, metrics.Success)
+	labels.Result = metrics.GetResultValue(stat.Inserted, stat.Updated)
+	metrics.Beaconing.Received(labels).Inc()
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk, nil
 }
@@ -142,43 +158,35 @@ func (h *handler) getIFID() (common.IFIDType, error) {
 	return hopF.ConsIngress, nil
 }
 
-func (h *handler) verifyBeacon(b beacon.Beacon) error {
-	if err := h.validateASEntry(b); err != nil {
-		return common.NewBasicError("Invalid last AS entry", err,
-			"entry", b.Segment.ASEntries[b.Segment.MaxAEIdx()])
-	}
-	if err := h.verifySegment(b.Segment); err != nil {
-		return common.NewBasicError("Verification of beacon failed", err)
-	}
-	return nil
-}
-
-func (h *handler) validateASEntry(b beacon.Beacon) error {
+func (h *handler) validateASEntry(b beacon.Beacon) (addr.IA, error) {
+	ret := addr.IA{}
 	intf := h.intfs.Get(b.InIfId)
 	if intf == nil {
-		return common.NewBasicError("Received beacon on non-existent ifid", nil, "ifid", b.InIfId)
+		return ret, common.NewBasicError("Received beacon on non-existent ifid", nil,
+			"ifid", b.InIfId)
 	}
 	topoInfo := intf.TopoInfo()
 	if topoInfo.LinkType != proto.LinkType_parent && topoInfo.LinkType != proto.LinkType_core {
-		return common.NewBasicError("Beacon received on invalid link", nil,
+		return ret, common.NewBasicError("Beacon received on invalid link", nil,
 			"ifid", b.InIfId, "linkType", topoInfo.LinkType)
 	}
 	asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
 	if !asEntry.IA().Equal(topoInfo.ISD_AS) {
-		return common.NewBasicError("Invalid remote IA", nil,
+		return ret, common.NewBasicError("Invalid remote IA", nil,
 			"expected", topoInfo.ISD_AS, "actual", asEntry.IA())
 	}
 	for i, hopEntry := range asEntry.HopEntries {
 		if !hopEntry.OutIA().Equal(h.ia) {
-			return common.NewBasicError("Out IA of hop entry does not match local IA", nil,
+			return ret, common.NewBasicError("Out IA of hop entry does not match local IA", nil,
 				"index", i, "expected", h.ia, "actual", hopEntry.OutIA())
 		}
 		if hopEntry.RemoteOutIF != b.InIfId {
-			return common.NewBasicError("RemoteOutIF of hop entry does not match ingress interface",
-				nil, "expected", b.InIfId, "actual", hopEntry.RemoteOutIF)
+			return ret, common.NewBasicError(
+				"RemoteOutIF of hop entry does not match ingress interface", nil,
+				"expected", b.InIfId, "actual", hopEntry.RemoteOutIF)
 		}
 	}
-	return nil
+	return ret, nil
 }
 
 func (h *handler) verifySegment(segment *seg.PathSegment) error {

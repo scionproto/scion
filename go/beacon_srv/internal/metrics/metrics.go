@@ -24,25 +24,24 @@ const (
 	Namespace = "bs"
 
 	// DstBR indicates the destination to be Border Router.
-	DstBR string = "br"
+	DstBR = "br"
 	// DstPS indicates the destination to be Path Server.
-	DstPS string = "ps"
-
-	// ErrProcess indicates an error during processing.
-	ErrProcess string = prom.ErrProcess
+	DstPS = "ps"
 
 	// RevNew indicates a new issued revocation.
-	RevNew string = "new"
+	RevNew = "new"
 	// RevRenew indicates a renew of an already issued revocation.
-	RevRenew string = "renew"
+	RevRenew = "renew"
 	// RevFromCtrl indicates that revocation was sent control payload.
-	RevFromCtrl string = "ctrl"
+	RevFromCtrl = "ctrl"
 
 	// Success indicates a successful result.
-	Success string = prom.Success
+	Success = prom.Success
 )
 
 var (
+	// Beaconing is the single-instance struct to get prometheus metrics or counters.
+	Beaconing = newBeaconing()
 	// Ifstate is the single-instance struct to get prometheus metrics or counters.
 	Ifstate = newIfstate()
 	// Keepalive is the single-instance struct to get keepalive prometheus counters.
