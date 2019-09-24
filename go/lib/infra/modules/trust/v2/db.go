@@ -34,7 +34,7 @@ var (
 	ErrHashMismatch = serrors.New("hash does not match")
 )
 
-// DB defines the interface an trust DB must implement.
+// DB defines the interface a trust DB must implement.
 type DB interface {
 	ReadWrite
 	// BeginTransaction starts a transaction.
@@ -43,9 +43,9 @@ type DB interface {
 	io.Closer
 }
 
-// Transaction represents a trust DB transaction with an ongoing transaction. To
-// end the transaction either Rollback or Commit should be called. Calling
-// Commit or Rollback multiple times will result in an error.
+// Transaction represents a trust DB transaction. To end the transaction either
+// Rollback or Commit should be called. Calling Commit or Rollback multiple
+// times will result in an error.
 type Transaction interface {
 	ReadWrite
 	// Commit commits the transaction.
@@ -119,7 +119,7 @@ type ChainRead interface {
 // ChainWrite defines the certificate chain write operations.
 type ChainWrite interface {
 	// InsertChain inserts the certificate chain. The call returns true if the
-	// certificate chain was inserter, or false if it already existed and the
+	// certificate chain was inserted, or false if it already existed and the
 	// Hash matches.
 	InsertChain(ctx context.Context, decoded DecodedChain, asHash, issHash []byte) (bool, error)
 }

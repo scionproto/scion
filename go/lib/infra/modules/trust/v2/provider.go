@@ -25,12 +25,13 @@ import (
 )
 
 // CryptoProvider provides crypto material. A crypto provider can spawn network
-// request if necessary and permitted.
+// requests if necessary and permitted.
 type CryptoProvider interface {
 	// GetTRC asks the trust store to return a valid and active TRC for isd,
 	// unless inactive TRCs are specifically allowed. The optionally configured
 	// server is queried over the network if the TRC is not available locally.
-	// Otherwise, the default server is queried.
+	// Otherwise, the default server is queried. How the default server is
+	// determined differs between implementations.
 	GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
 		opts infra.TRCOpts) (*trc.TRC, error)
 	// GetRawTRC behaves the same as GetTRC, except returning the raw signed TRC.
@@ -39,7 +40,8 @@ type CryptoProvider interface {
 	// GetRawChain asks the trust store to return a valid and active certificate
 	// chain, unless inactive chains are specifically allowed. The optionally
 	// configured server is queried over the network if the certificate chain is
-	// not available locally. Otherwise, the default server is queried.
+	// not available locally. Otherwise, the default server is queried. How the
+	// default server is determined differs between implementations.
 	GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version,
 		opts infra.ChainOpts, client net.Addr) ([]byte, error)
 }

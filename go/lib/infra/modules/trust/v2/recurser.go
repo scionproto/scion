@@ -26,3 +26,13 @@ type Recurser interface {
 	// address and should generally be allowed.
 	AllowRecursion(peer net.Addr) error
 }
+
+// ASLocalRecurser allows AS local addresses to start recursive requests.
+type ASLocalRecurser struct {
+	// TODO(roosd): implement
+}
+
+// LocalOnlyRecurser only allows requests from the application to recurse.
+type LocalOnlyRecurser struct {
+	// TODO(roosd): implement
+}

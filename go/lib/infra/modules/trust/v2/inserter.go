@@ -41,6 +41,6 @@ type Inserter interface {
 	InsertChain(ctx context.Context, decoded DecodedChain, trcProvider TRCProviderFunc) error
 }
 
-// TRCProviderFunc provides TRCs. It is used to configure the TRC retrival
+// TRCProviderFunc provides TRCs. It is used to configure the TRC retrieval
 // method of the inserter.
 type TRCProviderFunc func(context.Context, addr.ISD, scrypto.Version) (*trc.TRC, error)
