@@ -19,7 +19,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/scionproto/scion/go/beacon_srv/internal/beacon/metrics"
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -39,6 +39,7 @@ type handler struct {
 	timeout  time.Duration
 }
 
+// NewHandler returns an infra.Handler for revocation.
 func NewHandler(revStore Store, verifier infra.Verifier, timeout time.Duration) infra.Handler {
 	return &handler{
 		verifier: verifier,
@@ -47,18 +48,25 @@ func NewHandler(revStore Store, verifier infra.Verifier, timeout time.Duration) 
 	}
 }
 
+// FIXME(karampok): add support for revocation received over SCMP
+// https://github.com/scionproto/scion/issues/3166.
+
+// Handle handles receiving revocations.
 func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	logger := log.FromCtx(request.Context())
+	labels := metrics.RevocationLabels{Method: metrics.RevFromCtrl, Result: metrics.ErrProcess}
 	revocation, ok := request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
 		logger.Error("[RevHandler] wrong message type, expected path_mgmt.SignedRevInfo",
 			"msg", request.Message, "type", common.TypeOf(request.Message))
+		metrics.Revocation.Receives(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	rw, ok := infra.ResponseWriterFromContext(request.Context())
 	if !ok {
 		logger.Error("[RevHandler] Unable to service request, no ResponseWriter found",
 			"msg", request.Message)
+		metrics.Revocation.Receives(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(request.Context(), h.timeout)
@@ -70,14 +78,19 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		logger.Warn("[RevHandler] Parsing/Verifying failed",
 			"signer", revocation.Sign.Src, "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
+		metrics.Revocation.Receives(labels).Inc()
 		return infra.MetricsErrInvalid
 	}
-	err = h.revStore.InsertRevocations(subCtx, revocation)
-	if err != nil {
+
+	if err = h.revStore.InsertRevocations(subCtx, revocation); err != nil {
 		logger.Error("[RevHandler] Failed to store", "rev", revInfo, "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
-		return metrics.ErrBeaconStore(err)
+		metrics.Revocation.Receives(labels).Inc()
+		return ErrBeaconStore(err)
+
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
+	labels.Result = metrics.Success
+	metrics.Revocation.Receives(labels).Inc()
 	return infra.MetricsResultOk
 }

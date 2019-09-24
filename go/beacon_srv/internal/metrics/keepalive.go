@@ -30,11 +30,11 @@ type KeepaliveLabels struct {
 
 // Labels returns the name of the labels in correct order.
 func (l KeepaliveLabels) Labels() []string {
-	return []string{"ifid", prom.LabelResult}
+	return []string{"if_id", prom.LabelResult}
 }
 
 // Values returns the values of the label in correct order.
-func (l *KeepaliveLabels) Values() []string {
+func (l KeepaliveLabels) Values() []string {
 	return []string{l.IfID.String(), l.Result}
 }
 

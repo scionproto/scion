@@ -15,45 +15,41 @@
 package ifstate
 
 import (
-	"strconv"
-
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 )
 
 var _ prometheus.Collector = (*Collector)(nil)
 
-// Collector implements a prometheus collector that exports the state of
-// all interfaces.
+// Collector implements a prometheus collector that exports the state of  all interfaces.
 type Collector struct {
-	desc  *prometheus.Desc
 	intfs *Interfaces
 }
 
-// NewCollector creates a prometheus collector that exports the state of all
-// interfaces.
-func NewCollector(intfs *Interfaces, subsystemName string) *Collector {
+// NewCollector creates a prometheus collector that exports the state of all interfaces.
+func NewCollector(intfs *Interfaces) *Collector {
 	return &Collector{
-		desc: prometheus.NewDesc(
-			prometheus.BuildFQName("beacon_srv", subsystemName, "ifstate"),
-			"Interface state, 0==inactive/expired/revoked, 1==active",
-			[]string{"ifid"},
-			prometheus.Labels{},
-		),
 		intfs: intfs,
 	}
 }
 
+// Collect is called by prometheus to get interface status
 func (c *Collector) Collect(mc chan<- prometheus.Metric) {
 	for ifid, intf := range c.intfs.All() {
 		up := float64(0)
 		if intf.State() == Active {
 			up = 1
 		}
-		mc <- prometheus.MustNewConstMetric(c.desc, prometheus.GaugeValue, up,
-			strconv.FormatUint(uint64(ifid), 10))
+		l := metrics.IfstateLabels{
+			IfID:    ifid,
+			NeighAS: intf.TopoInfo().ISD_AS,
+		}
+		mc <- metrics.Ifstate.IfstateMetric(l, up)
 	}
 }
 
+// Describe is called by prometheus to get description
 func (c *Collector) Describe(dc chan<- *prometheus.Desc) {
-	dc <- c.desc
+	dc <- metrics.Ifstate.Desc
 }
