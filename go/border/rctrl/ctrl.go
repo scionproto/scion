@@ -82,18 +82,18 @@ func processCtrl() {
 	b := make(common.RawBytes, maxBufSize)
 	cl := metrics.ControlLabels{Type: metrics.IFStateInfo}
 	for {
+		cl.Result = metrics.Success
 		pktLen, src, err := snetConn.ReadFromSCION(b)
 		if err != nil {
 			cl.Result = metrics.ErrRead
-			metrics.Control.Pkts(cl).Inc()
+			metrics.Control.ReceivedMsgs(cl).Inc()
 			fatal.Fatal(common.NewBasicError("Reading packet", err))
 		}
-		cl.Result = metrics.Success
 		if err = processCtrlFromRaw(b[:pktLen]); err != nil {
 			logger.Error("Processing ctrl pld", "src", src, "err", err)
 			cl.Result = metrics.ErrParse
 		}
-		metrics.Control.Pkts(cl).Inc()
+		metrics.Control.ReceivedMsgs(cl).Inc()
 	}
 }
 

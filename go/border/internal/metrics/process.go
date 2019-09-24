@@ -23,8 +23,6 @@ import (
 const (
 	// Drop is the output interface for packets with errors that are dropped.
 	Drop = "drop"
-	// Ctrl is the output interface for packets sent to control.
-	Ctrl = "control"
 )
 
 type ProcessLabels struct {
@@ -47,8 +45,8 @@ func (l ProcessLabels) Values() []string {
 }
 
 type process struct {
-	pkts *prometheus.CounterVec
-	time *prometheus.CounterVec
+	pkts     *prometheus.CounterVec
+	duration *prometheus.CounterVec
 }
 
 func newProcess() process {
@@ -56,8 +54,8 @@ func newProcess() process {
 	return process{
 		pkts: prom.NewCounterVec(Namespace, sub,
 			"pkts_total", "Total number of processed packets.", ProcessLabels{}.Labels()),
-		time: prom.NewCounterVec(Namespace, sub,
-			"time_seconds_total", "Total packet processing time.", IntfLabels{}.Labels()),
+		duration: prom.NewCounterVec(Namespace, sub,
+			"duration_seconds_total", "Total packet processing duration.", IntfLabels{}.Labels()),
 	}
 }
 
@@ -66,7 +64,7 @@ func (p *process) Pkts(l ProcessLabels) prometheus.Counter {
 	return p.pkts.WithLabelValues(l.Values()...)
 }
 
-// Time returns the counter for the given label set.
-func (p *process) Time(l IntfLabels) prometheus.Counter {
-	return p.time.WithLabelValues(l.Values()...)
+// Duration returns the counter for the given label set.
+func (p *process) Duration(l IntfLabels) prometheus.Counter {
+	return p.duration.WithLabelValues(l.Values()...)
 }
