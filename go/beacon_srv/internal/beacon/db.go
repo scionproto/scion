@@ -56,9 +56,15 @@ type DBRead interface {
 	AllRevocations(ctx context.Context) (<-chan RevocationOrErr, error)
 }
 
+// InsertStats provides statistics about an insertion.
+type InsertStats struct {
+	Inserted int
+	Updated  int
+}
+
 // DBWrite defines all write operations of the beacon DB.
 type DBWrite interface {
-	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (int, error)
+	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (InsertStats, error)
 	DeleteExpiredBeacons(ctx context.Context, now time.Time) (int, error)
 	DeleteRevokedBeacons(ctx context.Context, now time.Time) (int, error)
 	InsertRevocation(ctx context.Context, revocation *path_mgmt.SignedRevInfo) error
