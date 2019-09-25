@@ -49,6 +49,7 @@ const (
 	hdrIA        = "ia"
 )
 
+// All supported key usages.
 const (
 	ASSigningKey    Usage = "as-signing"
 	ASDecryptionKey Usage = "as-decrypt"
@@ -79,6 +80,7 @@ func (u *Usage) UnmarshalText(text []byte) error {
 	return serrors.WithCtx(ErrUnsupportedUsage, "input", string(text))
 }
 
+// Supported key types.
 const (
 	PublicKey    Type = "PUBLIC KEY"
 	PrivateKey   Type = "PRIVATE KEY"
@@ -100,10 +102,11 @@ func (t *Type) UnmarshalText(text []byte) error {
 	return serrors.WithCtx(ErrUnsupportedType, "input", string(text))
 }
 
-// Key contains the key and some additional metada.
+// Key contains the key with additional metada.
 //
-// On disk, the key is encoded in a PEM file with a file name specifice to the
-// type, usage, and version of the key.
+// On disk, the key is encoded in PEM with a file name specific to the type,
+// usage, and version of the key. The IA is prepended to public key filenames
+// to avoid collisions.
 type Key struct {
 	Type      Type
 	Usage     Usage
@@ -165,7 +168,7 @@ func (k Key) PEM() pem.Block {
 	}
 }
 
-// File returns the key file based on the metadata.
+// File returns the key filename based on the metadata.
 func (k Key) File() string {
 	if k.Type == PrivateKey {
 		return PrivateKeyFile(k.Usage, k.Version)
