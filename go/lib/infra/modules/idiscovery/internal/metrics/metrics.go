@@ -38,14 +38,12 @@ const (
 	ErrWriteFile = "err_write_file"
 )
 
-// Metrics initialization.
-var (
-	Fetcher = newFetcher()
-)
+// Fetcher is the single-instance struct to get prometheus counters.
+var Fetcher = newFetcher()
 
 // FetcherLabels defines the requests label set.
 type FetcherLabels struct {
-	Type   string
+	Static bool
 	Result string
 }
 
@@ -56,12 +54,20 @@ func (l FetcherLabels) Labels() []string {
 
 // Values returns the values of the label in correct order.
 func (l FetcherLabels) Values() []string {
-	return []string{l.Type, l.Result}
+	if l.Static {
+		return []string{Static, l.Result}
+	}
+	return []string{Dynamic, l.Result}
+}
+
+// WithResult returns the label set with the modified result.
+func (l FetcherLabels) WithResult(result string) FetcherLabels {
+	l.Result = result
+	return l
 }
 
 type fetcher struct {
-	sent *prometheus.CounterVec
-	file *prometheus.CounterVec
+	sent, file *prometheus.CounterVec
 }
 
 func newFetcher() fetcher {
@@ -73,10 +79,12 @@ func newFetcher() fetcher {
 	}
 }
 
+// Sent returns the prometheus counter.
 func (r fetcher) Sent(l FetcherLabels) prometheus.Counter {
 	return r.sent.WithLabelValues(l.Values()...)
 }
 
+// File returns the prometheus counter.
 func (r fetcher) File(l FetcherLabels) prometheus.Counter {
 	return r.file.WithLabelValues(l.Values()...)
 }

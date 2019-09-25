@@ -37,9 +37,10 @@ const (
 	ErrCommit   = "err_commit"
 )
 
-// Metrics initialization.
 var (
+	// Current is the single-instance struct to get prometheus gauges.
 	Current = newCurrent()
+	// Updates is the single-instance struct to get prometheus counters and gauges.
 	Updates = newUpdates()
 )
 
@@ -78,22 +79,24 @@ func newCurrent() current {
 	}
 }
 
+// Timestamp returns the prometheus gauge.
 func (c current) Timestamp(l CurrentLabels) prometheus.Gauge {
 	return c.timestamp.WithLabelValues(l.Values()...)
 }
 
+// TTL returns the prometheus gauge.
 func (c current) TTL(l CurrentLabels) prometheus.Gauge {
 	return c.ttl.WithLabelValues(l.Values()...)
 }
 
+// Active returns the prometheus gauge.
 func (c current) Active(l CurrentLabels) prometheus.Gauge {
 	return c.active.WithLabelValues(l.Values()...)
 }
 
 // UpdateLabels defines the update label set.
 type UpdateLabels struct {
-	Type   string
-	Result string
+	Type, Result string
 }
 
 // Labels returns the name of the labels in correct order.
@@ -126,10 +129,12 @@ func newUpdates() updates {
 	}
 }
 
+// Last returns the prometheus gauge.
 func (u updates) Last(l UpdateLabels) prometheus.Gauge {
 	return u.last.WithLabelValues(l.Values()...)
 }
 
+// Total returns the prometheus counter.
 func (u updates) Total(l UpdateLabels) prometheus.Counter {
 	return u.total.WithLabelValues(l.Values()...)
 }
