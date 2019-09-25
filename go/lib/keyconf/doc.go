@@ -16,5 +16,6 @@
 //
 // Type Key allows decoding and encoding PEM files that contain the key with
 // attached metadata. The PEM files have special file names based on the type,
-// usage, and version of the key.
+// usage, and version of the key. See the encoding and filename expample for
+// more information.
 package keyconf
