@@ -241,15 +241,15 @@ func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error)
 func (s *state) updateDynamic(dynamic *topology.Topo) {
 	s.topo.dynamic = dynamic
 	cl := metrics.CurrentLabels{Type: metrics.Dynamic}
-	metrics.Current.Active(cl).Set(1)
-	metrics.Current.Timestamp(cl).SetToCurrentTime()
-	metrics.Current.TTL(cl).Set(float64(dynamic.TTL))
+	metrics.Current.Active().Set(1)
+	metrics.Current.Timestamp(cl).Set(metrics.Timestamp(dynamic.Timestamp))
+	metrics.Current.Expiry(cl).Set(metrics.Expiry(dynamic.Expiry()))
 }
 
 func (s *state) dropDynamic() {
 	s.topo.dynamic = nil
 	call(s.clbks.DropDynamic)
-	metrics.Current.Active(metrics.CurrentLabels{Type: metrics.Dynamic}).Set(0)
+	metrics.Current.Active().Set(0)
 }
 
 func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
@@ -334,9 +334,8 @@ func (s *state) updateStatic(static *topology.Topo) {
 	s.topo.static = static
 	call(s.clbks.UpdateStatic)
 	cl := metrics.CurrentLabels{Type: metrics.Static}
-	metrics.Current.Active(cl).Set(1)
-	metrics.Current.Timestamp(cl).SetToCurrentTime()
-	metrics.Current.TTL(cl).Set(float64(static.TTL))
+	metrics.Current.Timestamp(cl).Set(metrics.Timestamp(static.Timestamp))
+	metrics.Current.Expiry(cl).Set(metrics.Expiry(static.Expiry()))
 }
 
 func keepOld(newTopo, oldTopo *topology.Topo) bool {

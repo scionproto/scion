@@ -15,6 +15,9 @@
 package metrics
 
 import (
+	"math"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/prom"
@@ -61,21 +64,20 @@ func (l CurrentLabels) Values() []string {
 
 type current struct {
 	timestamp *prometheus.GaugeVec
-	ttl       *prometheus.GaugeVec
-	active    *prometheus.GaugeVec
+	expiry    *prometheus.GaugeVec
+	active    prometheus.Gauge
 }
 
 func newCurrent() current {
 	return current{
-		timestamp: prom.NewGaugeVec(Namespace, "", "current_timestamp",
-			"The timestamp of the current topology. Remains set, even when inactive.",
-			CurrentLabels{}.Labels()),
-		ttl: prom.NewGaugeVec(Namespace, "", "current_ttl_seconds",
-			"The TTL of the current topology. 0 indicates no TTL. Remains set, even when inactive.",
-			CurrentLabels{}.Labels()),
-		active: prom.NewGaugeVec(Namespace, "", "current_active",
-			"Indicate whether the current topology is active. 0=inactive, 1=active.",
-			CurrentLabels{}.Labels()),
+		timestamp: prom.NewGaugeVec(Namespace, "", "creation_time_seconds",
+			"The creation time specified in the current topology."+
+				"Remains set for dynamic topology, even when inactive.", CurrentLabels{}.Labels()),
+		expiry: prom.NewGaugeVec(Namespace, "", "expiry_time_seconds",
+			"The expiry time specified in the current topology. Set to +Inf, if TTL is zero."+
+				"Remains set for dynamic topology, even when inactive.", CurrentLabels{}.Labels()),
+		active: prom.NewGauge(Namespace, "", "dynamic_active",
+			"Indicate whether the dynamic topology is set and active. 0=inactive, 1=active."),
 	}
 }
 
@@ -84,14 +86,14 @@ func (c current) Timestamp(l CurrentLabels) prometheus.Gauge {
 	return c.timestamp.WithLabelValues(l.Values()...)
 }
 
-// TTL returns the prometheus gauge.
-func (c current) TTL(l CurrentLabels) prometheus.Gauge {
-	return c.ttl.WithLabelValues(l.Values()...)
+// Expiry returns the prometheus gauge.
+func (c current) Expiry(l CurrentLabels) prometheus.Gauge {
+	return c.expiry.WithLabelValues(l.Values()...)
 }
 
 // Active returns the prometheus gauge.
-func (c current) Active(l CurrentLabels) prometheus.Gauge {
-	return c.active.WithLabelValues(l.Values()...)
+func (c current) Active() prometheus.Gauge {
+	return c.active
 }
 
 // UpdateLabels defines the update label set.
@@ -137,4 +139,21 @@ func (u updates) Last(l UpdateLabels) prometheus.Gauge {
 // Total returns the prometheus counter.
 func (u updates) Total(l UpdateLabels) prometheus.Counter {
 	return u.total.WithLabelValues(l.Values()...)
+}
+
+// Timestamp returns the time as unix time in seconds.
+func Timestamp(ts time.Time) float64 {
+	if ts.IsZero() {
+		return 0
+	}
+	return float64(ts.UnixNano() / 1e9)
+}
+
+// Expiry returns the expiry time as unix time in seconds. In case of the zero
+// value, +inf is returned.
+func Expiry(ts time.Time) float64 {
+	if ts.IsZero() {
+		return math.Inf(+1)
+	}
+	return float64(ts.UnixNano() / 1e9)
 }
