@@ -248,46 +248,50 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 // InsertBeacon inserts the beacon if it is new or updates the changed
 // information.
 func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
-	usage beacon.Usage) (int, error) {
+	usage beacon.Usage) (beacon.InsertStats, error) {
 
+	ret := beacon.InsertStats{}
 	// Compute ids outside of the lock.
 	segId, err := b.Segment.ID()
 	if err != nil {
-		return 0, db.NewInputDataError("extract id", err)
+		return ret, db.NewInputDataError("extract id", err)
 	}
 	if _, err := b.Segment.FullId(); err != nil {
-		return 0, db.NewInputDataError("extract full id", err)
+		return ret, db.NewInputDataError("extract full id", err)
 	}
 	info, err := b.Segment.InfoF()
 	if err != nil {
-		return 0, db.NewInputDataError("extract infof", err)
+		return ret, db.NewInputDataError("extract infof", err)
 	}
 
 	e.Lock()
 	defer e.Unlock()
 	meta, err := e.getBeaconMeta(ctx, segId)
 	if err != nil {
-		return 0, err
+		return ret, err
 	}
 	if meta != nil {
 		// Update the beacon data if it is newer.
 		if info.Timestamp().After(meta.InfoTime) {
 			meta.LastUpdated = time.Now()
 			if err := e.updateExistingBeacon(ctx, b, usage, meta.RowID, time.Now()); err != nil {
-				return 0, err
+				return ret, err
 			}
-			return 1, nil
+			ret.Updated = 1
+			return ret, nil
 		}
-		return 0, nil
+		return ret, nil
 	}
 	// Insert new beacon.
 	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		return insertNewBeacon(ctx, tx, b, usage, e.ia, time.Now())
 	})
 	if err != nil {
-		return 0, err
+		return ret, err
 	}
-	return 1, nil
+
+	ret.Inserted = 1
+	return ret, nil
 
 }
 

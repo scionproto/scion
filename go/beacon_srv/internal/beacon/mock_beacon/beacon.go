@@ -173,10 +173,10 @@ func (mr *MockDBMockRecorder) DeleteRevokedBeacons(arg0, arg1 interface{}) *gomo
 }
 
 // InsertBeacon mocks base method
-func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (int, error) {
+func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (beacon.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertBeacon", arg0, arg1, arg2)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(beacon.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -367,10 +367,10 @@ func (mr *MockTransactionMockRecorder) DeleteRevokedBeacons(arg0, arg1 interface
 }
 
 // InsertBeacon mocks base method
-func (m *MockTransaction) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (int, error) {
+func (m *MockTransaction) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (beacon.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertBeacon", arg0, arg1, arg2)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(beacon.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

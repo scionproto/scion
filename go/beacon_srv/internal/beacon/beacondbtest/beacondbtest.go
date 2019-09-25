@@ -204,7 +204,8 @@ func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWri
 	defer cancelF()
 	inserted, err := db.InsertBeacon(ctx, b, beacon.UsageProp)
 	require.NoError(t, err)
-	assert.Equal(t, 1, inserted)
+	exp := beacon.InsertStats{Inserted: 1, Updated: 0}
+	assert.Equal(t, exp, inserted)
 	// Fetch the candidate beacons
 	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 	require.NoError(t, err)
@@ -225,13 +226,15 @@ func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadW
 	defer cancelF()
 	inserted, err := db.InsertBeacon(ctx, oldB, beacon.UsageProp)
 	require.NoError(t, err)
-	assert.Equal(t, 1, inserted)
+	exp := beacon.InsertStats{Inserted: 1, Updated: 0}
+	assert.Equal(t, exp, inserted)
 	newTS := uint32(20)
 	newB, newId := AllocBeacon(t, ctrl, Info3, 12, newTS)
 	assert.Equal(t, oldId, newId, "IDs should match")
 	inserted, err = db.InsertBeacon(ctx, newB, beacon.UsageDownReg)
 	require.NoError(t, err)
-	assert.Equal(t, 1, inserted)
+	exp = beacon.InsertStats{Inserted: 0, Updated: 1}
+	assert.Equal(t, exp, inserted)
 	// Fetch the candidate beacons
 	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg, addr.IA{})
 	require.NoError(t, err, "CandidateBeacons err")
@@ -252,13 +255,16 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DBR
 	defer cancelF()
 	inserted, err := db.InsertBeacon(ctx, newB, beacon.UsageProp)
 	require.NoError(t, err)
-	assert.Equal(t, 1, inserted, "Inserted new")
+	exp := beacon.InsertStats{Inserted: 1, Updated: 0}
+	assert.Equal(t, exp, inserted, "Inserted new")
 	oldTS := uint32(10)
 	oldB, oldId := AllocBeacon(t, ctrl, Info3, 12, oldTS)
 	assert.Equal(t, oldId, newId, "IDs should match")
 	inserted, err = db.InsertBeacon(ctx, oldB, beacon.UsageDownReg)
 	require.NoError(t, err)
-	assert.Equal(t, 0, inserted, "Inserted old")
+
+	exp = beacon.InsertStats{Inserted: 0, Updated: 0}
+	assert.Equal(t, exp, inserted, "Inserted old")
 	// Fetch the candidate beacons
 	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 	require.NoError(t, err)
@@ -635,7 +641,8 @@ func testRollback(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	b, _ := AllocBeacon(t, ctrl, Info3, 12, uint32(10))
 	inserted, err := tx.InsertBeacon(ctx, b, beacon.UsageProp)
 	require.NoError(t, err)
-	assert.Equal(t, 1, inserted, "Insert should succeed")
+	exp := beacon.InsertStats{Inserted: 1, Updated: 0}
+	assert.Equal(t, exp, inserted, "Insert should succeed")
 	err = tx.Rollback()
 	require.NoError(t, err)
 	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
