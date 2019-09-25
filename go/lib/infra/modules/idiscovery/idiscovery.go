@@ -330,12 +330,12 @@ func (t *task) Run(ctx context.Context) {
 
 func (t *task) handleErr(ctx context.Context, err error) {
 	t.logger(ctx).Error("[discovery] Unable to fetch topology", "err", err)
-	l := metrics.FetcherLabels{Type: t.metricType(), Result: metrics.ErrRequest}
+	l := metrics.FetcherLabels{Static: t.static(), Result: metrics.ErrRequest}
 	metrics.Fetcher.Sent(l).Inc()
 }
 
 func (t *task) handleRaw(ctx context.Context, raw common.RawBytes, topo *topology.Topo) {
-	l := metrics.FetcherLabels{Type: t.metricType(), Result: metrics.Success}
+	l := metrics.FetcherLabels{Static: t.static(), Result: metrics.Success}
 	updated, err := t.callHandler(ctx, topo)
 	switch {
 	case err != nil:
@@ -347,15 +347,23 @@ func (t *task) handleRaw(ctx context.Context, raw common.RawBytes, topo *topolog
 		metrics.Fetcher.Sent(l).Inc()
 		return
 	}
-	if err := util.WriteFile(t.filename, raw, 0644); err != nil {
-		t.logger(ctx).Error("[discovery] Unable to write new topology to filesystem", "err", err)
+	if err := t.writeFile(ctx, raw); err != nil {
 		l.Result = metrics.ErrWriteFile
-	} else {
-		t.logger(ctx).Trace("[discovery] Topology written to filesystem",
-			"file", t.filename, "params", t.fetcher.Params)
 	}
 	metrics.Fetcher.Sent(l).Inc()
+}
+
+func (t *task) writeFile(ctx context.Context, raw common.RawBytes) error {
+	l := metrics.FetcherLabels{Static: t.static(), Result: metrics.Success}
+	if err := util.WriteFile(t.filename, raw, 0644); err != nil {
+		t.logger(ctx).Error("[discovery] Unable to write new topology to filesystem", "err", err)
+		metrics.Fetcher.File(l.WithResult(metrics.ErrWriteFile)).Inc()
+		return err
+	}
+	t.logger(ctx).Trace("[discovery] Topology written to filesystem", "file", t.filename,
+		"params", t.fetcher.Params)
 	metrics.Fetcher.File(l).Inc()
+	return nil
 }
 
 func (t *task) callHandler(ctx context.Context, topo *topology.Topo) (bool, error) {
@@ -368,15 +376,12 @@ func (t *task) callHandler(ctx context.Context, topo *topology.Topo) (bool, erro
 	return updated, err
 }
 
-func (t *task) logger(ctx context.Context) log.Logger {
-	return log.FromCtx(ctx).New("mode", t.mode)
+func (t *task) static() bool {
+	return t.mode == discovery.Static
 }
 
-func (t *task) metricType() string {
-	if t.mode == discovery.Static {
-		return metrics.Static
-	}
-	return metrics.Dynamic
+func (t *task) logger(ctx context.Context) log.Logger {
+	return log.FromCtx(ctx).New("mode", t.mode)
 }
 
 type flag struct {
