@@ -246,13 +246,17 @@ type Filter struct {
 	// IsdBlackList contains all ISD that may not appear in a segment.
 	IsdBlackList []addr.ISD `yaml:"IsdBlackList"`
 	// AllowIsdLoop indicates whether ISD loops should not be filtered.
-	AllowIsdLoop bool `yaml:"AllowIsdLoop"`
+	AllowIsdLoop *bool `yaml:"AllowIsdLoop"`
 }
 
 // InitDefaults initializes the default values for unset fields.
 func (f *Filter) InitDefaults() {
 	if f.MaxHopsLength == 0 {
 		f.MaxHopsLength = DefaultMaxHopsLength
+	}
+	if f.AllowIsdLoop == nil {
+		t := true
+		f.AllowIsdLoop = &t
 	}
 }
 
@@ -263,7 +267,7 @@ func (f Filter) Apply(beacon Beacon) error {
 			"actual", len(beacon.Segment.ASEntries))
 	}
 	hops := buildHops(beacon)
-	if err := filterLoops(hops, f.AllowIsdLoop); err != nil {
+	if err := filterLoops(hops, *f.AllowIsdLoop); err != nil {
 		return err
 	}
 	for _, ia := range hops {
