@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/internal/metrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 )
@@ -44,6 +45,8 @@ func (c cleaner) Run(ctx context.Context) {
 		log.FromCtx(ctx).Info("[itopo.cleaner] Dropping expired dynamic topology",
 			"ts", st.topo.dynamic.Timestamp, "ttl", st.topo.dynamic.TTL,
 			"expired", st.topo.dynamic.Expiry())
-		st.dropDynamic()
+		st.topo.dynamic = nil
+		call(st.clbks.CleanDynamic)
+		metrics.Current.Active().Set(0)
 	}
 }

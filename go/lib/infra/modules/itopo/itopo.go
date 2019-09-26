@@ -246,12 +246,6 @@ func (s *state) updateDynamic(dynamic *topology.Topo) {
 	metrics.Current.Expiry(cl).Set(metrics.Expiry(dynamic.Expiry()))
 }
 
-func (s *state) dropDynamic() {
-	s.topo.dynamic = nil
-	call(s.clbks.DropDynamic)
-	metrics.Current.Active().Set(0)
-}
-
 func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
 	s.Lock()
 	defer s.Unlock()
@@ -329,7 +323,9 @@ func (s *state) beginSetStatic(static *topology.Topo, allowed bool) (Transaction
 func (s *state) updateStatic(static *topology.Topo) {
 	// Drop dynamic topology if necessary.
 	if s.validator.MustDropDynamic(static, s.topo.static) && s.topo.dynamic != nil {
-		s.dropDynamic()
+		s.topo.dynamic = nil
+		call(s.clbks.DropDynamic)
+		metrics.Current.Active().Set(0)
 	}
 	s.topo.static = static
 	call(s.clbks.UpdateStatic)
