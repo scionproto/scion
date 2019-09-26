@@ -193,8 +193,9 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan RevocationOrErr, 
 	return ret, err
 }
 
-func (e *executor) InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (int, error) {
-	var ret int
+func (e *executor) InsertBeacon(ctx context.Context, beacon Beacon,
+	usage Usage) (InsertStats, error) {
+	var ret InsertStats
 	var err error
 	e.metrics.Observe(ctx, "insert_beacon", func(ctx context.Context) error {
 		ret, err = e.db.InsertBeacon(ctx, beacon, usage)
