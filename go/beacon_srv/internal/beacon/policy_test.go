@@ -33,6 +33,9 @@ var (
 	ia210 = xtest.MustParseIA("2-ff00:0:210")
 	ia310 = xtest.MustParseIA("3-ff00:0:310")
 	ia311 = xtest.MustParseIA("3-ff00:0:311")
+
+	false_val = false
+	true_val  = true
 )
 
 func TestLoadPolicyFromYaml(t *testing.T) {
@@ -44,7 +47,7 @@ func TestLoadPolicyFromYaml(t *testing.T) {
 		SoMsg("MaxHopsLength", p.Filter.MaxHopsLength, ShouldEqual, 8)
 		SoMsg("AsBlackList", p.Filter.AsBlackList, ShouldResemble, []addr.AS{ia110.A, ia111.A})
 		SoMsg("IsdBlackList", p.Filter.IsdBlackList, ShouldResemble, []addr.ISD{1, 2, 3})
-		SoMsg("AllowIsdLoop", p.Filter.AllowIsdLoop, ShouldBeTrue)
+		SoMsg("AllowIsdLoop", *p.Filter.AllowIsdLoop, ShouldBeTrue)
 
 	}
 	Convey("Given a policy file with policy type set", t, func() {
@@ -81,6 +84,7 @@ func TestFilterApply(t *testing.T) {
 			MaxHopsLength: 2,
 			AsBlackList:   []addr.AS{ia112.A},
 			IsdBlackList:  []addr.ISD{2},
+			AllowIsdLoop:  &false_val,
 		}
 		testCases := []struct {
 			Name         string
@@ -116,25 +120,25 @@ func TestFilterApply(t *testing.T) {
 			{
 				Name:         "AS loop [1-ff00:0:110, 1-ff00:0:111, 1-ff00:0:113, 1-ff00:0:110]",
 				Beacon:       newTestBeacon(ia110, ia111, ia113, ia110),
-				Filter:       &beacon.Filter{MaxHopsLength: 8},
+				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: &false_val},
 				ShouldFilter: true,
 			},
 			{
 				Name:         "ISD loop [1-ff00:0:110, 3-ff00:0:310, 3-ff00:0:311, 1-ff00:0:111]",
 				Beacon:       newTestBeacon(ia110, ia310, ia311, ia111),
-				Filter:       &beacon.Filter{MaxHopsLength: 8},
+				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: &false_val},
 				ShouldFilter: true,
 			},
 			{
 				Name:         "ISD/AS Loop [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
 				Beacon:       newTestBeacon(ia110, ia311, ia110),
-				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: true},
+				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: &true_val},
 				ShouldFilter: true,
 			},
 			{
 				Name:         "ISD Loop allowed [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",
 				Beacon:       newTestBeacon(ia110, ia311, ia111),
-				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: true},
+				Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: &true_val},
 				ShouldFilter: false,
 			},
 		}
