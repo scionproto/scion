@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/discovery/topofetcher"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -329,19 +330,40 @@ func (t *task) Run(ctx context.Context) {
 
 func (t *task) handleErr(ctx context.Context, err error) {
 	t.logger(ctx).Error("[discovery] Unable to fetch topology", "err", err)
+	l := metrics.FetcherLabels{Static: t.static(), Result: metrics.ErrRequest}
+	metrics.Fetcher.Sent(l).Inc()
 }
 
 func (t *task) handleRaw(ctx context.Context, raw common.RawBytes, topo *topology.Topo) {
+	l := metrics.FetcherLabels{Static: t.static(), Result: metrics.Success}
 	updated, err := t.callHandler(ctx, topo)
+	switch {
+	case err != nil:
+		l.Result = metrics.ErrUpdate
+	case !updated:
+		l.Result = metrics.OkIgnored
+	}
 	if err != nil || t.filename == "" || !updated {
+		metrics.Fetcher.Sent(l).Inc()
 		return
 	}
+	if err := t.writeFile(ctx, raw); err != nil {
+		l.Result = metrics.ErrWriteFile
+	}
+	metrics.Fetcher.Sent(l).Inc()
+}
+
+func (t *task) writeFile(ctx context.Context, raw common.RawBytes) error {
+	l := metrics.FetcherLabels{Static: t.static(), Result: metrics.Success}
 	if err := util.WriteFile(t.filename, raw, 0644); err != nil {
 		t.logger(ctx).Error("[discovery] Unable to write new topology to filesystem", "err", err)
-		return
+		metrics.Fetcher.File(l.WithResult(metrics.ErrWriteFile)).Inc()
+		return err
 	}
-	t.logger(ctx).Trace("[discovery] Topology written to filesystem",
-		"file", t.filename, "params", t.fetcher.Params)
+	t.logger(ctx).Trace("[discovery] Topology written to filesystem", "file", t.filename,
+		"params", t.fetcher.Params)
+	metrics.Fetcher.File(l).Inc()
+	return nil
 }
 
 func (t *task) callHandler(ctx context.Context, topo *topology.Topo) (bool, error) {
@@ -352,6 +374,10 @@ func (t *task) callHandler(ctx context.Context, topo *topology.Topo) (bool, erro
 		t.logger(ctx).Trace("[discovery] Set topology", "params", t.fetcher.Params)
 	}
 	return updated, err
+}
+
+func (t *task) static() bool {
+	return t.mode == discovery.Static
 }
 
 func (t *task) logger(ctx context.Context) log.Logger {

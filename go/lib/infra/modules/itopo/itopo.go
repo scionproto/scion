@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/internal/metrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -77,14 +78,29 @@ func Get() *topology.Topo {
 // to the currently active topology at the end of the function call. It might differ from
 // the input topology. The second return value indicates whether the in-memory
 // copy of the dynamic topology has been updated.
-func SetDynamic(static *topology.Topo) (*topology.Topo, bool, error) {
-	return st.setDynamic(static)
+func SetDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error) {
+	l := metrics.UpdateLabels{Type: metrics.Dynamic}
+	topo, updated, err := st.setDynamic(dynamic)
+	switch {
+	case err != nil:
+		l.Result = metrics.ErrValidate
+	case updated:
+		l.Result = metrics.Success
+	default:
+		l.Result = metrics.OkIgnored
+	}
+	incUpdateMetric(l)
+	return topo, updated, err
 }
 
 // BeginSetDynamic checks whether setting the dynamic topology is permissible. The returned
 // transaction provides a view on which topology would be active, if committed.
 func BeginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
-	return st.beginSetDynamic(dynamic)
+	tx, err := st.beginSetDynamic(dynamic)
+	if err != nil {
+		incUpdateMetric(metrics.UpdateLabels{Type: metrics.Dynamic, Result: metrics.ErrValidate})
+	}
+	return tx, err
 }
 
 // SetStatic atomically sets the static topology. Whether semi-mutable fields are
@@ -94,13 +110,28 @@ func BeginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
 // or dynamic set and still valid). The second return value indicates whether the in-memory
 // copy of the static topology has been updated.
 func SetStatic(static *topology.Topo, semiMutAllowed bool) (*topology.Topo, bool, error) {
-	return st.setStatic(static, semiMutAllowed)
+	l := metrics.UpdateLabels{Type: metrics.Static}
+	topo, updated, err := st.setStatic(static, semiMutAllowed)
+	switch {
+	case err != nil:
+		l.Result = metrics.ErrValidate
+	case updated:
+		l.Result = metrics.Success
+	default:
+		l.Result = metrics.OkIgnored
+	}
+	incUpdateMetric(l)
+	return topo, updated, err
 }
 
 // BeginSetStatic checks whether setting the static topology is permissible. The returned
 // transaction provides a view on which topology would be active, if committed.
 func BeginSetStatic(static *topology.Topo, semiMutAllowed bool) (Transaction, error) {
-	return st.beginSetStatic(static, semiMutAllowed)
+	tx, err := st.beginSetStatic(static, semiMutAllowed)
+	if err != nil {
+		incUpdateMetric(metrics.UpdateLabels{Type: metrics.Static, Result: metrics.ErrValidate})
+	}
+	return tx, err
 }
 
 // Transaction allows to get a view on which topology will be active without committing
@@ -122,19 +153,27 @@ type Transaction struct {
 func (tx *Transaction) Commit() error {
 	st.Lock()
 	defer st.Unlock()
+	l := metrics.UpdateLabels{Type: metrics.Dynamic}
+	if tx.inputStatic != nil {
+		l.Type = metrics.Static
+	}
 	if tx.staticAtTxStart != st.topo.static {
+		incUpdateMetric(l.WithResult(metrics.ErrCommit))
 		return common.NewBasicError("Static topology changed in the meantime", nil)
 	}
 	if !tx.IsUpdate() {
+		incUpdateMetric(l.WithResult(metrics.OkIgnored))
 		return nil
 	}
 	// Do transaction for static topology updated.
 	if tx.inputStatic != nil {
 		st.updateStatic(tx.inputStatic)
+		incUpdateMetric(l.WithResult(metrics.Success))
 		return nil
 	}
 	// Do transaction from dynamic topology update.
-	st.topo.dynamic = tx.inputDynamic
+	st.updateDynamic(tx.inputDynamic)
+	incUpdateMetric(l.WithResult(metrics.Success))
 	return nil
 }
 
@@ -195,8 +234,22 @@ func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error)
 	if keepOld(dynamic, s.topo.dynamic) {
 		return s.topo.Get(), false, nil
 	}
-	s.topo.dynamic = dynamic
+	s.updateDynamic(dynamic)
 	return s.topo.Get(), true, nil
+}
+
+func (s *state) updateDynamic(dynamic *topology.Topo) {
+	s.topo.dynamic = dynamic
+	cl := metrics.CurrentLabels{Type: metrics.Dynamic}
+	metrics.Current.Active().Set(1)
+	metrics.Current.Timestamp(cl).Set(metrics.Timestamp(dynamic.Timestamp))
+	metrics.Current.Expiry(cl).Set(metrics.Expiry(dynamic.Expiry()))
+}
+
+func (s *state) dropDynamic() {
+	s.topo.dynamic = nil
+	call(s.clbks.DropDynamic)
+	metrics.Current.Active().Set(0)
 }
 
 func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
@@ -276,11 +329,13 @@ func (s *state) beginSetStatic(static *topology.Topo, allowed bool) (Transaction
 func (s *state) updateStatic(static *topology.Topo) {
 	// Drop dynamic topology if necessary.
 	if s.validator.MustDropDynamic(static, s.topo.static) && s.topo.dynamic != nil {
-		s.topo.dynamic = nil
-		call(s.clbks.DropDynamic)
+		s.dropDynamic()
 	}
 	s.topo.static = static
 	call(s.clbks.UpdateStatic)
+	cl := metrics.CurrentLabels{Type: metrics.Static}
+	metrics.Current.Timestamp(cl).Set(metrics.Timestamp(static.Timestamp))
+	metrics.Current.Expiry(cl).Set(metrics.Expiry(static.Expiry()))
 }
 
 func keepOld(newTopo, oldTopo *topology.Topo) bool {
@@ -308,4 +363,9 @@ func call(clbk func()) {
 			clbk()
 		}()
 	}
+}
+
+func incUpdateMetric(l metrics.UpdateLabels) {
+	metrics.Updates.Last(l).SetToCurrentTime()
+	metrics.Updates.Total(l).Inc()
 }
