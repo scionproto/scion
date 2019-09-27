@@ -41,15 +41,16 @@ const (
 	OkExists    = "ok_exists"
 	OkInserted  = "ok_inserted"
 
-	ErrDB       = prom.ErrDB
-	ErrDenied   = "err_denied"
-	ErrInternal = prom.ErrInternal
-	ErrTransmit = "err_transmit"
-	ErrTimeout  = prom.ErrTimeout
-	ErrValidate = prom.ErrValidate
-	ErrVerify   = prom.ErrVerify
-	ErrTRC      = "err_trc"
-	ErrNotFound = "err_not_found"
+	ErrDB           = prom.ErrDB
+	ErrDenied       = "err_denied"
+	ErrInternal     = prom.ErrInternal
+	ErrTransmit     = "err_transmit"
+	ErrTimeout      = prom.ErrTimeout
+	ErrValidate     = prom.ErrValidate
+	ErrVerify       = prom.ErrVerify
+	ErrTRC          = "err_trc"
+	ErrNotFound     = "err_not_found"
+	ErrNotFoundAuth = "err_not_found_auth"
 )
 
 var (
