@@ -30,6 +30,11 @@ var _ json.Marshaler = (*Version)(nil)
 // marshalled/unmarshalled to/from LatestVer.
 type Version uint64
 
+// IsLatest checks if the value is LatestVer
+func (v Version) IsLatest() bool {
+	return uint64(v) == LatestVer
+}
+
 // UnmarshalJSON checks that the value is not LatestVer.
 func (v *Version) UnmarshalJSON(b []byte) error {
 	parsed, err := strconv.ParseUint(string(b), 10, 64)
