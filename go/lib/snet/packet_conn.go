@@ -189,7 +189,9 @@ func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) er
 					"scmp.Hdr", scmpHdr, "src", pkt.Source)
 			}
 			if err := c.scmpHandler.Handle(pkt); err != nil {
-				return common.NewBasicError("scmp error", err)
+				// Return error intact s.t. applications can handle custom
+				// error types returned by SCMP handlers.
+				return err
 			}
 		} else {
 			// non-SCMP L4s are assumed to be data and get passed back to the
