@@ -216,6 +216,14 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		metrics.Store.Lookup(l.WithResult(metrics.OkCached)).Inc()
 		return trcObj, nil
 	}
+	if store.config.ServiceType == proto.ServiceType_cs &&
+		store.config.TopoProvider.Get().Core && store.ia.I == isd {
+		// Core CS can't find TRC for its own ISD
+
+		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFoundAuth)).Inc()
+		return nil, serrors.WithCtx(ErrMissingAuthoritative, "isd", isd, "version", version,
+			"client", client)
+	}
 	if opts.LocalOnly {
 		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFound)).Inc()
 		return nil, serrors.WithCtx(ErrNotFoundLocally, "isd", isd, "version", version,
@@ -364,9 +372,16 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		metrics.Store.Lookup(l.WithResult(metrics.OkCached)).Inc()
 		return chain, nil
 	}
-	if store.config.MustHaveLocalChain && store.ia.Equal(ia) {
-		metrics.Store.Lookup(l).Inc()
-		return nil, serrors.WithCtx(ErrMissingAuthoritative, "requested_ia", ia)
+	if store.config.ServiceType == proto.ServiceType_cs &&
+		store.ia.Equal(ia) || (store.config.TopoProvider.Get().Core && store.ia.I == ia.I) {
+		// Either:
+		// - CS can't find a cert for its own AS
+		// or
+		// - Core CS can't find cert for AS in own ISD
+
+		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFoundAuth)).Inc()
+		return nil, serrors.WithCtx(ErrMissingAuthoritative, "ia", ia, "version", version,
+			"client", client)
 	}
 	// Chain not found, so we'll need to fetch one. First, fetch the TRC we'll
 	// need during certificate chain validation.
@@ -380,7 +395,8 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 	}
 	if opts.LocalOnly {
 		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFound)).Inc()
-		return nil, serrors.WithCtx(ErrNotFoundLocally, "ia", ia)
+		return nil, serrors.WithCtx(ErrNotFoundLocally, "ia", ia, "version", version,
+			"client", client)
 	}
 	if opts.Server == nil {
 		var err error
