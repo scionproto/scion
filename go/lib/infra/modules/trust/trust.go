@@ -372,12 +372,17 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		metrics.Store.Lookup(l.WithResult(metrics.OkCached)).Inc()
 		return chain, nil
 	}
-	if store.config.ServiceType == proto.ServiceType_cs &&
-		store.ia.Equal(ia) || (store.config.TopoProvider.Get().Core && store.ia.I == ia.I) {
+	isCS := store.config.ServiceType == proto.ServiceType_cs
+	isCore := store.config.TopoProvider.Get().Core
+	if (isCS && store.ia.Equal(ia)) ||
+		(isCS && isCore && store.ia.I == ia.I) ||
+		(store.config.MustHaveLocalChain && store.ia.Equal(ia) && version.IsLatest()) {
 		// Either:
 		// - CS can't find a cert for its own AS
 		// or
 		// - Core CS can't find cert for AS in own ISD
+		// or
+		// - Infra service doesn't have any version of its own cert
 
 		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFoundAuth)).Inc()
 		return nil, serrors.WithCtx(ErrMissingAuthoritative, "ia", ia, "version", version,
