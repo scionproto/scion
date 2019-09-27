@@ -43,7 +43,7 @@ func newRevocation() exporterR {
 	labels := RevocationLabels{}.Labels()
 
 	return exporterR{
-		in: *prom.NewCounterVec(Namespace, sub, "received_revocation_total",
+		in: *prom.NewCounterVec(Namespace, sub, "received_revocations_total",
 			"Total number of received revocation msgs.", labels),
 	}
 

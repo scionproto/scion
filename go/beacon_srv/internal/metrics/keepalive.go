@@ -47,9 +47,9 @@ func newKeepalive() exporter {
 	labels := KeepaliveLabels{}.Labels()
 
 	return exporter{
-		out: *prom.NewCounterVec(Namespace, sub, "transmit_msgs_total",
-			"Total number of transmitted keepalive msgs.", labels),
-		in: *prom.NewCounterVec(Namespace, sub, "receive_msgs_total",
+		out: *prom.NewCounterVec(Namespace, sub, "sent_msgs_total",
+			"Total number of sent keepalive msgs.", labels),
+		in: *prom.NewCounterVec(Namespace, sub, "received_msgs_total",
 			"Total number of received keepalive msgs.", labels),
 	}
 
