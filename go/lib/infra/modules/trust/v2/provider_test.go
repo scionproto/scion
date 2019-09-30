@@ -263,21 +263,22 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 		Router   *mock_v2.MockRouter
 	}
 	tests := map[string]struct {
-		Expect      func(m *mocks, dec *decoded.TRC)
+		Expect      func(m *mocks, dec *decoded.TRC) decoded.TRC
 		Opts        infra.TRCOpts
 		ExpectedErr error
 		CacheOnly   bool
 	}{
 		"TRC in database, allow inactive": {
-			Expect: func(m *mocks, dec *decoded.TRC) {
+			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
 					dec.Raw, nil,
 				)
+				return *dec
 			},
 			Opts: infra.TRCOpts{AllowInactive: true},
 		},
 		"not found, resolve success": {
-			Expect: func(m *mocks, dec *decoded.TRC) {
+			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
 					nil, trust.ErrNotFound,
 				)
@@ -290,13 +291,14 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 					CacheOnly: false,
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(*dec, nil)
+				return *dec
 			},
 			Opts: infra.TRCOpts{
 				AllowInactive: true,
 			},
 		},
 		"newest expired, recursion not allowed": {
-			Expect: func(m *mocks, dec *decoded.TRC) {
+			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
 				dec.TRC.Validity.NotAfter.Time = time.Now()
 				dec.Signed.EncodedTRC, _ = trc.Encode(dec.TRC)
 				dec.Raw, _ = json.Marshal(dec.Signed)
@@ -307,11 +309,12 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 					trust.TRCInfo{Version: dec.TRC.Version}, nil,
 				)
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(internal)
+				return decoded.TRC{}
 			},
 			ExpectedErr: internal,
 		},
 		"newest expired, network returns same": {
-			Expect: func(m *mocks, dec *decoded.TRC) {
+			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
 				dec.TRC.Validity.NotAfter.Time = time.Now()
 				dec.Signed.EncodedTRC, _ = trc.Encode(dec.TRC)
 				dec.Raw, _ = json.Marshal(dec.Signed)
@@ -330,11 +333,12 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 					CacheOnly: false,
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(*dec, nil)
+				return decoded.TRC{}
 			},
 			ExpectedErr: trust.ErrInactive,
 		},
 		"newest expired, network returns expired": {
-			Expect: func(m *mocks, dec *decoded.TRC) {
+			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
 				dec.TRC.Validity.NotAfter.Time = time.Now()
 				dec.Signed.EncodedTRC, _ = trc.Encode(dec.TRC)
 				dec.Raw, _ = json.Marshal(dec.Signed)
@@ -357,11 +361,12 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				newer.Signed.EncodedTRC, _ = trc.Encode(newer.TRC)
 				newer.Raw, _ = json.Marshal(newer.Signed)
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(newer, nil)
+				return decoded.TRC{}
 			},
 			ExpectedErr: trust.ErrInactive,
 		},
 		"newest expired, network returns newer": {
-			Expect: func(m *mocks, dec *decoded.TRC) {
+			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
 				dec.TRC.Validity.NotAfter.Time = time.Now()
 				dec.Signed.EncodedTRC, _ = trc.Encode(dec.TRC)
 				dec.Raw, _ = json.Marshal(dec.Signed)
@@ -387,6 +392,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				newer.Signed.EncodedTRC, _ = trc.Encode(newer.TRC)
 				newer.Raw, _ = json.Marshal(newer.Signed)
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(newer, nil)
+				return newer
 			},
 		},
 	}
@@ -401,10 +407,11 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				Router:   mock_v2.NewMockRouter(mctrl),
 			}
 			decoded := loadTRC(t, trc1v1)
-			test.Expect(&m, &decoded)
+			expected := test.Expect(&m, &decoded)
 			provider := trust.NewCryptoProvider(m.DB, m.Recurser, m.Resolver,
 				m.Router, test.CacheOnly)
-			_, err := provider.GetTRC(nil, trc1v1.ISD, 0, test.Opts)
+			trcObj, err := provider.GetTRC(nil, trc1v1.ISD, 0, test.Opts)
+			assert.Equal(t, expected.TRC, trcObj)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
 				assert.Truef(t, xerrors.Is(err, test.ExpectedErr),

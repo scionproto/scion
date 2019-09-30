@@ -90,20 +90,22 @@ func (p *cryptoProvider) getCheckedTRC(ctx context.Context, isd addr.ISD, versio
 		if err != nil {
 			return nil, nil, serrors.WrapStr("unable to get latest TRC info", err)
 		}
-		endGracePeriod := info.Validity.NotBefore.Add(info.GracePeriod)
 		switch {
 		case info.Version > dec.TRC.Version+1:
 			return nil, nil, serrors.WrapStr("inactivated by latest TRC version", ErrInactive,
 				"latest", info.Version)
-		case info.Version == dec.TRC.Version+1 && time.Now().After(endGracePeriod):
+		case info.Version == dec.TRC.Version+1 && graceExpired(info):
 			return nil, nil, serrors.WrapStr("grace period has passed", ErrInactive,
-				"end", endGracePeriod, "latest", info.Version)
+				"end", info.Validity.NotBefore.Add(info.GracePeriod), "latest", info.Version)
 		case !dec.TRC.Validity.Contains(time.Now()):
 			if version != scrypto.Version(scrypto.LatestVer) || opts.LocalOnly {
 				return nil, nil, serrors.WrapStr("requested TRC expired", ErrInactive,
 					"validity", dec.TRC.Validity)
 			}
-			fetched, err := p.fetchTRC(ctx, isd, version, opts, client)
+			// There might exist a more recent TRC that is not available locally
+			// yet. Fetch it if the latest version was requested and recursion
+			// is allowed.
+			fetched, err := p.fetchTRC(ctx, isd, scrypto.Version(scrypto.LatestVer), opts, client)
 			if err != nil {
 				return nil, nil, serrors.WrapStr("unable to fetch latest TRC from network", err)
 			}
@@ -116,7 +118,7 @@ func (p *cryptoProvider) getCheckedTRC(ctx context.Context, isd addr.ISD, versio
 				return nil, nil, serrors.WrapStr("latest TRC from network expired", ErrInactive,
 					"version", fetched.TRC.Version, "validity", fetched.TRC.Version)
 			}
-			return dec.TRC, dec.Raw, nil
+			return fetched.TRC, fetched.Raw, nil
 		}
 	}
 	return dec.TRC, dec.Raw, nil
@@ -138,32 +140,34 @@ func (p *cryptoProvider) getTRC(ctx context.Context, isd addr.ISD, version scryp
 		return decoded.TRC{}, serrors.WrapStr("error querying DB for TRC", err)
 	case opts.LocalOnly:
 		return decoded.TRC{}, serrors.WrapStr("localOnly requested", err)
+	default:
+		return p.fetchTRC(ctx, isd, version, opts, client)
 	}
-	return p.fetchTRC(ctx, isd, version, opts, client)
 }
 
 // fetchTRC fetches a TRC via a network request, if allowed.
 func (p *cryptoProvider) fetchTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
 	opts infra.TRCOpts, client net.Addr) (decoded.TRC, error) {
 
+	server := opts.Server
 	if err := p.recurser.AllowRecursion(client); err != nil {
 		return decoded.TRC{}, err
 	}
 	// In case the server is provided, cache-only should be set.
-	cacheOnly := opts.Server != nil || p.alwaysCacheOnly
+	cacheOnly := server != nil || p.alwaysCacheOnly
 	req := TRCReq{
 		ISD:       isd,
 		Version:   version,
 		CacheOnly: cacheOnly,
 	}
 	// Choose remote server, if not set.
-	if opts.Server == nil {
+	if server == nil {
 		var err error
-		if opts.Server, err = p.router.ChooseServer(ctx, isd); err != nil {
+		if server, err = p.router.ChooseServer(ctx, isd); err != nil {
 			return decoded.TRC{}, serrors.WrapStr("unable to route TRC request", err)
 		}
 	}
-	dec, err := p.resolver.TRC(ctx, req, opts.Server)
+	dec, err := p.resolver.TRC(ctx, req, server)
 	if err != nil {
 		return decoded.TRC{}, serrors.WrapStr("unable to resolve signed TRC from network", err)
 	}
@@ -175,4 +179,8 @@ func (p *cryptoProvider) GetRawChain(ctx context.Context, ia addr.IA, version sc
 
 	// TODO(roosd): implement.
 	return nil, serrors.New("not implemented")
+}
+
+func graceExpired(info TRCInfo) bool {
+	return time.Now().After(info.Validity.NotBefore.Add(info.GracePeriod))
 }
