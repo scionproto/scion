@@ -23,7 +23,9 @@ import (
 type Recurser interface {
 	// AllowRecursion indicates whether the recursion is allowed for the
 	// provided Peer. Recursions started by the local trust store have a nil
-	// address and should generally be allowed.
+	// address and should generally be allowed. The nil value indicates
+	// recursion is allowed. Non-nil return values indicate that recursion is
+	// not allowed and specify the reason.
 	AllowRecursion(peer net.Addr) error
 }
 

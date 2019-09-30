@@ -14,6 +14,8 @@
 
 package trust
 
+// NewCryptoProvider allows instantiating the private cryptoProvider for
+// black-box testing.
 var NewCryptoProvider = newTestCryptoProvider
 
 // newTestCryptoProvider returns a new crypto provider for testing.
