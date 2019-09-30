@@ -225,15 +225,13 @@ func ExampleNew() {
 func ExampleWrapStr() {
 	// ErrNoSpace is an error defined at package scope.
 	var ErrNoSpace = serrors.New("no space")
-
 	wrappedErr := serrors.WrapStr("wrap with more context", ErrNoSpace, "ctx", 1)
-	fmt.Println(xerrors.Is(wrappedErr, ErrNoSpace))
-	fmt.Printf("\nFormatted:\n%v", wrappedErr)
 
+	fmt.Println(xerrors.Is(wrappedErr, ErrNoSpace))
+	fmt.Printf("\n%v", wrappedErr)
 	// Output:
 	// true
 	//
-	// Formatted:
 	// wrap with more context ctx="1"
 	//     no space
 }
@@ -243,21 +241,18 @@ func ExampleWrap() {
 	var ErrNoSpace = serrors.New("no space")
 	// ErrDB is an error defined at package scope.
 	var ErrDB = serrors.New("db")
-
 	wrapped := serrors.Wrap(ErrDB, ErrNoSpace, "ctx", 1)
+
 	// Now we can identify specific errors:
 	fmt.Println(xerrors.Is(wrapped, ErrNoSpace))
-
 	// But we can also identify the broader error class ErrDB:
 	fmt.Println(xerrors.Is(wrapped, ErrDB))
 
-	fmt.Printf("\nFormatted:\n%v", wrapped)
-
+	fmt.Printf("\n%v", wrapped)
 	// Output:
 	// true
 	// true
 	//
-	// Formatted:
 	// db ctx="1"
 	//     no space
 }
