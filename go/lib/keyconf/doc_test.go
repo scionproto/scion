@@ -36,7 +36,7 @@ func ExampleKey_encoding() {
 		},
 		Version: 2,
 		IA:      xtest.MustParseIA("1-ff00:0:110"),
-		Key:     make([]byte, ed25519.PublicKeySize),
+		Bytes:   make([]byte, ed25519.PublicKeySize),
 	}
 	block := k.PEM()
 	fmt.Println(string(pem.EncodeToMemory(&block)))
