@@ -79,10 +79,10 @@ type Certificate struct {
 	// SubjectSignKey the public key used for signature verification.
 	SubjectSignKey common.RawBytes
 	// TRCVersion is the version of the issuing trc.
-	TRCVersion uint64
+	TRCVersion scrypto.Version
 	// Version is the certificate version.
 	// The value scrypto.LatestVer is reserved and shall not be used.
-	Version uint64
+	Version scrypto.Version
 }
 
 func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
@@ -90,7 +90,7 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 	if err := json.Unmarshal(raw, cert); err != nil {
 		return nil, common.NewBasicError("Unable to parse Certificate", err)
 	}
-	if cert.Version == scrypto.LatestVer {
+	if cert.Version.IsLatest() {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	return cert, nil
@@ -153,7 +153,7 @@ func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
 
 // sigPack creates a sorted json object of all fields, except for the signature field.
 func (c *Certificate) sigPack() (common.RawBytes, error) {
-	if c.Version == scrypto.LatestVer {
+	if c.Version.IsLatest() {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	m := make(map[string]interface{})

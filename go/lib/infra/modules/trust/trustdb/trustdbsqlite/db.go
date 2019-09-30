@@ -245,9 +245,9 @@ type executor struct {
 // GetIssCertVersion returns the specified version of the issuer certificate for
 // ia. If version is scrypto.LatestVer, this is equivalent to GetIssCertMaxVersion.
 func (db *executor) GetIssCertVersion(ctx context.Context, ia addr.IA,
-	version uint64) (*cert.Certificate, error) {
+	version scrypto.Version) (*cert.Certificate, error) {
 
-	if version == scrypto.LatestVer {
+	if version.IsLatest() {
 		return db.GetIssCertMaxVersion(ctx, ia)
 	}
 	db.RLock()
@@ -283,7 +283,7 @@ func (db *executor) GetAllIssCerts(ctx context.Context) (<-chan trustdb.CertOrEr
 		defer rows.Close()
 		var raw common.RawBytes
 		ia := addr.IA{}
-		var v uint64
+		var v scrypto.Version
 		for rows.Next() {
 			err = rows.Scan(&raw, &ia.I, &ia.A, &v)
 			crt, err := parseCert(raw, ia, v, err)
@@ -307,9 +307,9 @@ func (db *executor) InsertIssCert(ctx context.Context, crt *cert.Certificate) (i
 // GetLeafCertVersion returns the specified version of the leaf certificate for
 // ia. If version is scrypto.LatestVer, this is equivalent to GetLeafCertMaxVersion.
 func (db *executor) GetLeafCertVersion(ctx context.Context, ia addr.IA,
-	version uint64) (*cert.Certificate, error) {
+	version scrypto.Version) (*cert.Certificate, error) {
 
-	if version == scrypto.LatestVer {
+	if version.IsLatest() {
 		return db.GetLeafCertMaxVersion(ctx, ia)
 	}
 	db.RLock()
@@ -340,9 +340,9 @@ func (db *executor) InsertLeafCert(ctx context.Context, crt *cert.Certificate) (
 // GetChainVersion returns the specified version of the certificate chain for
 // ia. If version is scrypto.LatestVer, this is equivalent to GetChainMaxVersion.
 func (db *executor) GetChainVersion(ctx context.Context, ia addr.IA,
-	version uint64) (*cert.Chain, error) {
+	version scrypto.Version) (*cert.Chain, error) {
 
-	if version == scrypto.LatestVer {
+	if version.IsLatest() {
 		return db.GetChainMaxVersion(ctx, ia)
 	}
 	db.RLock()
@@ -442,12 +442,12 @@ func (db *executor) InsertChain(ctx context.Context, chain *cert.Chain) (int64, 
 		return 0, err
 	}
 	ia, ver := chain.IAVer()
-	rowId, err := getIssCertRowIDCtx(ctx, db.db, chain.Issuer.Subject, chain.Issuer.Version)
+	rowID, err := getIssCertRowIDCtx(ctx, db.db, chain.Issuer.Subject, chain.Issuer.Version)
 	if err != nil {
 		return 0, err
 	}
 	// NOTE(roosd): Adding multiple rows to Chains table has to be done in a transaction.
-	res, err := db.db.ExecContext(ctx, insertChainStr, ia.I, ia.A, ver, 1, rowId)
+	res, err := db.db.ExecContext(ctx, insertChainStr, ia.I, ia.A, ver, 1, rowID)
 	if err != nil {
 		return 0, err
 	}
@@ -457,9 +457,9 @@ func (db *executor) InsertChain(ctx context.Context, chain *cert.Chain) (int64, 
 // GetTRCVersion returns the specified version of the TRC for
 // isd. If version is scrypto.LatestVer, this is equivalent to GetTRCMaxVersion.
 func (db *executor) GetTRCVersion(ctx context.Context,
-	isd addr.ISD, version uint64) (*trc.TRC, error) {
+	isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
 
-	if version == scrypto.LatestVer {
+	if version.IsLatest() {
 		return db.GetTRCMaxVersion(ctx, isd)
 	}
 	db.RLock()
@@ -550,7 +550,7 @@ func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (*trustdb.CustKe
 	db.RLock()
 	defer db.RUnlock()
 	var key common.RawBytes
-	var version uint64
+	var version scrypto.Version
 	err := db.db.QueryRowContext(ctx, getCustKeyStr, ia.I, ia.A).Scan(&key, &version)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -589,7 +589,7 @@ func (db *executor) GetAllCustKeys(ctx context.Context) (<-chan trustdb.CustKeyO
 
 // InsertCustKey implements trustdb.InsertCustKey.
 func (db *executor) InsertCustKey(ctx context.Context,
-	key *trustdb.CustKey, oldVersion uint64) error {
+	key *trustdb.CustKey, oldVersion scrypto.Version) error {
 
 	if key == nil {
 		return common.NewBasicError("Inserting nil key not allowed", nil)
@@ -673,7 +673,8 @@ func insertIssCert(ctx context.Context, db db.Sqler, crt *cert.Certificate) (int
 	return res.RowsAffected()
 }
 
-func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Certificate, error) {
+func parseCert(raw common.RawBytes, ia addr.IA, version scrypto.Version,
+	err error) (*cert.Certificate, error) {
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -682,11 +683,10 @@ func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Cert
 	}
 	crt, err := cert.CertificateFromRaw(raw)
 	if err != nil {
-		if v == scrypto.LatestVer {
+		if version.IsLatest() {
 			return nil, common.NewBasicError("Cert parse error", err, "ia", ia, "version", "max")
-		} else {
-			return nil, common.NewBasicError("Cert parse error", err, "ia", ia, "version", v)
 		}
+		return nil, common.NewBasicError("Cert parse error", err, "ia", ia, "version", version)
 	}
 	return crt, nil
 }
@@ -731,7 +731,7 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 }
 
 func getIssCertRowIDCtx(ctx context.Context, db db.Sqler,
-	ia addr.IA, ver uint64) (int64, error) {
+	ia addr.IA, ver scrypto.Version) (int64, error) {
 
 	var rowId int64
 	err := db.QueryRowContext(ctx, getIssCertRowIDStr, ia.I, ia.A, ver).Scan(&rowId)

@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
@@ -31,7 +32,7 @@ var _ dedupe.Request = (*trcRequest)(nil)
 // store to the background resolvers.
 type trcRequest struct {
 	isd       addr.ISD
-	version   uint64
+	version   scrypto.Version
 	cacheOnly bool
 	id        uint64
 	server    net.Addr
@@ -59,7 +60,7 @@ var _ dedupe.Request = (*chainRequest)(nil)
 // store to the background resolvers.
 type chainRequest struct {
 	ia        addr.IA
-	version   uint64
+	version   scrypto.Version
 	cacheOnly bool
 	id        uint64
 	server    net.Addr

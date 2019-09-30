@@ -84,8 +84,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 	}
 	// Respond with max chain for outdated requests.
 	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
-	maxChain, err := h.State.Store.GetChain(ctx, verChain.Leaf.Subject,
-		scrypto.Version(scrypto.LatestVer), opts)
+	maxChain, err := h.State.Store.GetChain(ctx, verChain.Leaf.Subject, scrypto.LatestVer, opts)
 	if err != nil {
 		return common.NewBasicError("Unable to fetch max chain", err)
 	}
@@ -172,7 +171,7 @@ func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 // issueChain creates a certificate chain for the certificate and adds it to the
 // trust store.
 func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
-	vKey common.RawBytes, verVersion uint64) (*cert.Chain, error) {
+	vKey common.RawBytes, verVersion scrypto.Version) (*cert.Chain, error) {
 
 	issCert, err := h.getIssuerCert(ctx)
 	if err != nil {
@@ -251,7 +250,7 @@ func (h *Handler) getIssuerCert(ctx context.Context) (*cert.Certificate, error) 
 // getVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
 // Otherwise, nil and an error.
 func (h *Handler) getVerifyingKey(ctx context.Context,
-	ia addr.IA) (common.RawBytes, uint64, error) {
+	ia addr.IA) (common.RawBytes, scrypto.Version, error) {
 
 	k, err := h.State.TrustDB.GetCustKey(ctx, ia)
 	if err != nil {

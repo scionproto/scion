@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/util"
@@ -246,8 +247,8 @@ func genCertCommon(bc *conf.BaseCert, s addr.IA, signKeyFname string) (*cert.Cer
 		Subject:        s,
 		IssuingTime:    issuingTime,
 		ExpirationTime: expirationTime,
-		Version:        bc.Version,
-		TRCVersion:     bc.TRCVersion,
+		Version:        scrypto.Version(bc.Version),
+		TRCVersion:     scrypto.Version(bc.TRCVersion),
 	}, nil
 }
 

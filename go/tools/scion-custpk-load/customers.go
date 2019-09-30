@@ -19,13 +19,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/keyconf"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 // reCustVerKey is used to parse the IA and version of a customer verifying key file.
@@ -33,7 +33,7 @@ var reCustVerKey = regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
 
 type CustKeyMeta struct {
 	IA      addr.IA
-	Version uint64
+	Version scrypto.Version
 }
 
 // LoadCustomers populates the DB from assigned non-core ASes to their verifying key.
@@ -44,7 +44,7 @@ func LoadCustomers(path string, trustDB trustdb.TrustDB) ([]string, []*CustKeyMe
 		return nil, nil, err
 	}
 	activeKeys := make(map[addr.IA]string)
-	activeVers := make(map[addr.IA]uint64)
+	activeVers := make(map[addr.IA]scrypto.Version)
 	for _, file := range files {
 		_, name := filepath.Split(file)
 		s := reCustVerKey.FindStringSubmatch(name)
@@ -52,8 +52,8 @@ func LoadCustomers(path string, trustDB trustdb.TrustDB) ([]string, []*CustKeyMe
 		if err != nil {
 			return nil, nil, common.NewBasicError("Unable to parse IA", err, "file", file)
 		}
-		ver, err := strconv.ParseUint(s[2], 10, 64)
-		if err != nil {
+		var ver scrypto.Version
+		if err := ver.UnmarshalJSON([]byte(s[2])); err != nil {
 			return nil, nil, common.NewBasicError("Unable to parse Version", err, "file", file)
 		}
 		if ver >= activeVers[ia] {
@@ -76,7 +76,7 @@ func LoadCustomers(path string, trustDB trustdb.TrustDB) ([]string, []*CustKeyMe
 			return procFiles, addedKeys, common.NewBasicError("Failed to check DB cust key", err,
 				"ia", ia)
 		}
-		var currentV uint64
+		var currentV scrypto.Version
 		if cKey != nil {
 			if cKey.Version >= activeVers[ia] {
 				// db already contains a newer key.

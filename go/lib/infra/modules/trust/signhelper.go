@@ -54,10 +54,10 @@ func NewBasicSigner(key common.RawBytes, meta infra.SignerMeta) (*BasicSigner, e
 	if meta.Src.IA.IsWildcard() {
 		return nil, common.NewBasicError("IA must not contain wildcard", nil, "ia", meta.Src.IA)
 	}
-	if meta.Src.ChainVer == scrypto.LatestVer {
+	if meta.Src.ChainVer.IsLatest() {
 		return nil, common.NewBasicError("ChainVer must be valid", nil, "ver", meta.Src.ChainVer)
 	}
-	if meta.Src.TRCVer == scrypto.LatestVer {
+	if meta.Src.TRCVer.IsLatest() {
 		return nil, common.NewBasicError("TRCVer must be valid", nil, "ver", meta.Src.TRCVer)
 	}
 	signer := &BasicSigner{

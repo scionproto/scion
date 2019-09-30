@@ -393,7 +393,7 @@ func testCustKey(t *testing.T, db trustdb.ReadWrite) {
 			SoMsg("Empty result expected", key, ShouldBeNil)
 		})
 		Convey("Insertion should work without error", func() {
-			var ver uint64 = 1
+			ver := scrypto.Version(1)
 			key := &trustdb.CustKey{IA: ia1_110, Version: ver, Key: key_110_1}
 			err := db.InsertCustKey(ctx, key, 0)
 			SoMsg("No error expected", err, ShouldBeNil)
@@ -403,7 +403,7 @@ func testCustKey(t *testing.T, db trustdb.ReadWrite) {
 				SoMsg("Inserted key expected", actKey, ShouldResemble, key)
 			})
 			Convey("Inserting a newer version should work", func() {
-				var newVer uint64 = 2
+				newVer := scrypto.Version(2)
 				key2 := &trustdb.CustKey{IA: ia1_110, Version: newVer, Key: key_110_2}
 				err := db.InsertCustKey(ctx, key2, ver)
 				SoMsg("No error expected", err, ShouldBeNil)
@@ -423,7 +423,7 @@ func testCustKey(t *testing.T, db trustdb.ReadWrite) {
 				SoMsg("Error expected", err, ShouldNotBeNil)
 			})
 			Convey("Updating with outdated old version should fail", func() {
-				var newVer uint64 = 2
+				newVer := scrypto.Version(2)
 				key2 := &trustdb.CustKey{IA: ia1_110, Version: newVer, Key: key_110_2}
 				err := db.InsertCustKey(ctx, key2, ver)
 				SoMsg("No error expected", err, ShouldBeNil)

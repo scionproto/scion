@@ -36,7 +36,7 @@ func TestEncodeAS(t *testing.T) {
 		},
 		"Invalid Version": {
 			Modify: func(base *cert.AS) {
-				base.Version = scrypto.Version(scrypto.LatestVer)
+				base.Version = scrypto.LatestVer
 			},
 			Assertion: assert.Error,
 		},

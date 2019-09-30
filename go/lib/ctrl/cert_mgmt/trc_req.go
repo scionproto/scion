@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -27,7 +28,7 @@ var _ proto.Cerealizable = (*TRCReq)(nil)
 
 type TRCReq struct {
 	ISD       addr.ISD `capnp:"isd"`
-	Version   uint64
+	Version   scrypto.Version
 	CacheOnly bool
 }
 

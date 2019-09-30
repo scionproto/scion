@@ -63,8 +63,7 @@ func CreateSignMeta(ctx context.Context, ia addr.IA,
 func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
 	store infra.ExtendedTrustStore) error {
 
-	maxTrc, err := store.GetTRC(ctx, chain.Issuer.Issuer.I, scrypto.Version(scrypto.LatestVer),
-		infra.TRCOpts{})
+	maxTrc, err := store.GetTRC(ctx, chain.Issuer.Issuer.I, scrypto.LatestVer, infra.TRCOpts{})
 	if err != nil {
 		return common.NewBasicError("Unable to find TRC", nil, "isd", chain.Issuer.Issuer.I)
 	}

@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
@@ -59,7 +60,7 @@ func verifyChain(chain *cert.Chain, subject addr.IA) error {
 	return chain.Verify(subject, t)
 }
 
-func loadTRC(subject addr.IA, version uint64) (*trc.TRC, error) {
+func loadTRC(subject addr.IA, version scrypto.Version) (*trc.TRC, error) {
 	fname := fmt.Sprintf(pkicmn.TrcNameFmt, subject.I, version)
 	trcPath := filepath.Join(pkicmn.GetIsdPath(pkicmn.OutDir, subject.I), pkicmn.TRCsDir, fname)
 	trcRaw, err := ioutil.ReadFile(trcPath)

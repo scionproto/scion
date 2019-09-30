@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
@@ -168,7 +169,7 @@ func (db *metricsExecutor) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int6
 }
 
 func (db *metricsExecutor) InsertCustKey(ctx context.Context, key *CustKey,
-	oldVersion uint64) error {
+	oldVersion scrypto.Version) error {
 
 	var err error
 	db.metrics.Observe(ctx, metrics.InsertCustKey, func(ctx context.Context) error {
@@ -179,7 +180,7 @@ func (db *metricsExecutor) InsertCustKey(ctx context.Context, key *CustKey,
 }
 
 func (db *metricsExecutor) GetIssCertVersion(ctx context.Context, ia addr.IA,
-	version uint64) (*cert.Certificate, error) {
+	version scrypto.Version) (*cert.Certificate, error) {
 
 	var res *cert.Certificate
 	var err error
@@ -213,7 +214,7 @@ func (db *metricsExecutor) GetAllIssCerts(ctx context.Context) (<-chan CertOrErr
 }
 
 func (db *metricsExecutor) GetChainVersion(ctx context.Context, ia addr.IA,
-	version uint64) (*cert.Chain, error) {
+	version scrypto.Version) (*cert.Chain, error) {
 
 	var res *cert.Chain
 	var err error
@@ -247,7 +248,7 @@ func (db *metricsExecutor) GetAllChains(ctx context.Context) (<-chan ChainOrErr,
 }
 
 func (db *metricsExecutor) GetTRCVersion(ctx context.Context, isd addr.ISD,
-	version uint64) (*trc.TRC, error) {
+	version scrypto.Version) (*trc.TRC, error) {
 
 	var res *trc.TRC
 	var err error

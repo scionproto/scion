@@ -71,10 +71,10 @@ const (
 
 type Key struct {
 	ISD addr.ISD
-	Ver uint64
+	Ver scrypto.Version
 }
 
-func NewKey(isd addr.ISD, ver uint64) *Key {
+func NewKey(isd addr.ISD, ver scrypto.Version) *Key {
 	return &Key{ISD: isd, Ver: ver}
 }
 
@@ -145,7 +145,7 @@ type TRC struct {
 	ThresholdEEPKI uint32
 	// Version is the version number of the TRC.
 	// The value scrypto.LatestVer is reserved and shall not be used.
-	Version uint64
+	Version scrypto.Version
 }
 
 func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
@@ -174,7 +174,7 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 	if err := json.Unmarshal(raw, t); err != nil {
 		return nil, err
 	}
-	if t.Version == scrypto.LatestVer {
+	if t.Version.IsLatest() {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	return t, nil
@@ -200,7 +200,7 @@ func TRCFromDir(dir string, isd addr.ISD, f func(err error)) (*TRC, error) {
 	if err != nil {
 		return nil, err
 	}
-	var bestVersion uint64
+	var bestVersion scrypto.Version
 	var bestTRC *TRC
 	for _, file := range files {
 		trcObj, err := TRCFromFile(file, false)
@@ -220,7 +220,7 @@ func TRCFromDir(dir string, isd addr.ISD, f func(err error)) (*TRC, error) {
 	return bestTRC, nil
 }
 
-func (t *TRC) IsdVer() (addr.ISD, uint64) {
+func (t *TRC) IsdVer() (addr.ISD, scrypto.Version) {
 	return t.ISD, t.Version
 }
 
@@ -339,7 +339,7 @@ func (t *TRC) verifyXSig(trust *TRC) error {
 
 // sigPack creates a sorted json object of all fields, except for the signature map.
 func (t *TRC) sigPack() (common.RawBytes, error) {
-	if t.Version == scrypto.LatestVer {
+	if t.Version.IsLatest() {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	m := make(map[string]interface{})

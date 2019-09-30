@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/mock_trustdb"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -36,13 +37,13 @@ func TestLoadCustomers(t *testing.T) {
 		Convey("Given an empty DB: Load succeeds", func() {
 			trustDB.EXPECT().GetCustKey(gomock.Any(), gomock.Eq(ia)).Return(nil, nil)
 			expectedKey := &trustdb.CustKey{IA: ia, Key: key, Version: 1}
-			trustDB.EXPECT().InsertCustKey(gomock.Any(), gomock.Eq(expectedKey), uint64(0))
+			trustDB.EXPECT().InsertCustKey(gomock.Any(), gomock.Eq(expectedKey), scrypto.LatestVer)
 			files, loadedCusts, err := LoadCustomers("testdata/customers", trustDB)
 			SoMsg("No err expected", err, ShouldBeNil)
 			SoMsg("Exactly the file in test data expected", files, ShouldResemble,
 				[]string{"testdata/customers/ISD1-ASff00_0_110-V1.key"})
 			SoMsg("Correct cust meta expected", loadedCusts, ShouldResemble,
-				[]*CustKeyMeta{{IA: xtest.MustParseIA("1-ff00:0:110"), Version: uint64(1)}})
+				[]*CustKeyMeta{{IA: xtest.MustParseIA("1-ff00:0:110"), Version: 1}})
 		})
 		Convey("Given a key with a newer version is stored: No changes done", func() {
 			trustDB.EXPECT().GetCustKey(gomock.Any(), gomock.Eq(ia)).Return(

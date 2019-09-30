@@ -67,7 +67,7 @@ func (r *Requester) Run(ctx context.Context) {
 
 func (r *Requester) run(ctx context.Context) (bool, error) {
 	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
-	chain, err := r.State.Store.GetChain(ctx, r.IA, scrypto.Version(scrypto.LatestVer), opts)
+	chain, err := r.State.Store.GetChain(ctx, r.IA, scrypto.LatestVer, opts)
 	if err != nil {
 		return true, common.NewBasicError("Unable to get local certificate chain", err)
 	}
@@ -151,7 +151,7 @@ func (r *Requester) validateRep(ctx context.Context, chain *cert.Chain) error {
 	}
 	// FIXME(roosd): validate SubjectEncKey
 	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
-	chain, err := r.State.Store.GetChain(ctx, r.IA, scrypto.Version(scrypto.LatestVer), opts)
+	chain, err := r.State.Store.GetChain(ctx, r.IA, scrypto.LatestVer, opts)
 	if err != nil {
 		return err
 	}
