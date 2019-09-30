@@ -65,6 +65,29 @@ type Chain struct {
 	Raw    []byte
 }
 
+// DecodeChain decodes a certificate chain.
+func DecodeChain(raw []byte) (Chain, error) {
+	chain, err := cert.ParseChain(raw)
+	if err != nil {
+		return Chain{}, serrors.Wrap(ErrParse, err, "part", "chain")
+	}
+	as, err := chain.AS.Encoded.Decode()
+	if err != nil {
+		return Chain{}, serrors.Wrap(ErrParse, err, "part", "AS")
+	}
+	issuer, err := chain.Issuer.Encoded.Decode()
+	if err != nil {
+		return Chain{}, serrors.Wrap(ErrParse, err, "part", "Issuer")
+	}
+	d := Chain{
+		Chain:  chain,
+		AS:     as,
+		Issuer: issuer,
+		Raw:    raw,
+	}
+	return d, nil
+}
+
 func (d Chain) String() string {
 	if d.AS == nil {
 		return "<nil>"
