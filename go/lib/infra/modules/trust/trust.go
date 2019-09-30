@@ -223,9 +223,8 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFoundAuth)).Inc()
 		// XXX(kormat): Wrap ErrMissingAuthoritative with ErrNotFoundLocally to
 		// simplify logic in LoadAuthoritativeTRC
-		return nil, serrors.Wrap(ErrNotFoundLocally,
-			serrors.WithCtx(ErrMissingAuthoritative, "isd", isd,
-				"version", version, "client", client))
+		return nil, serrors.Wrap(ErrMissingAuthoritative, ErrNotFoundLocally,
+			"isd", isd, "version", version, "client", client))
 	}
 	if opts.LocalOnly {
 		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFound)).Inc()
