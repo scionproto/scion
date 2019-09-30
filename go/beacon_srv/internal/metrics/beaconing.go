@@ -65,13 +65,15 @@ func (e *beaconing) Received(l BeaconingLabels) prometheus.Counter {
 }
 
 // GetResultValue return result label value given insert stats.
-func GetResultValue(ins, upd int) string {
+func GetResultValue(ins, upd, flt int) string {
 	switch {
-	case upd > ins:
-		return OkUpdated
-	case upd == ins && upd == 0:
+	case flt > 0:
 		return OkFiltered
-	default:
+	case upd > 0:
+		return OkUpdated
+	case ins > 0:
 		return OkNew
+	default:
+		return OkOld
 	}
 }

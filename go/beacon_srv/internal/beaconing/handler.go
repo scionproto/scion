@@ -114,7 +114,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	}
 	logger.Trace("[BeaconHandler] Successfully inserted", "beacon", b)
 	metrics.Beaconing.Received(labels.WithResult(
-		metrics.GetResultValue(stat.Inserted, stat.Updated))).Inc()
+		metrics.GetResultValue(stat.Inserted, stat.Updated, stat.Filtered))).Inc()
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk, nil
 }

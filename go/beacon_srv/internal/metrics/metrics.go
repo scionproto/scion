@@ -39,12 +39,15 @@ const (
 	// ErrVerify indicates an error during verification.
 	ErrVerify = prom.ErrVerify
 
-	// OkNew indicates beacon inserted for the first time.
-	OkNew = "ok_new"
-	// OkUpdated indicates existing beacon in db was updated.
-	OkUpdated = "ok_updated"
 	// OkFiltered indicates beacon was filtered by policy.
 	OkFiltered = "ok_filtered"
+	// OkNew indicates beacon was inserted for the first time.
+	OkNew = "ok_new"
+	// OkOld indicates that a beacon with older timestamp was received
+	// and therefore it was not inserted or updated in db.
+	OkOld = "ok_old"
+	// OkUpdated indicates existing beacon in db was updated.
+	OkUpdated = "ok_updated"
 
 	// RevNew indicates a new issued revocation.
 	RevNew = "new"
