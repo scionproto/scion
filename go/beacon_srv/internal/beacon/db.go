@@ -58,8 +58,7 @@ type DBRead interface {
 
 // InsertStats provides statistics about an insertion.
 type InsertStats struct {
-	Inserted int
-	Updated  int
+	Inserted, Updated, Filtered int
 }
 
 // DBWrite defines all write operations of the beacon DB.
