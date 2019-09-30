@@ -10,6 +10,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	trustdb "github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	scrypto "github.com/scionproto/scion/go/lib/scrypto"
 	cert "github.com/scionproto/scion/go/lib/scrypto/cert"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc"
 	reflect "reflect"
@@ -143,7 +144,7 @@ func (mr *MockTrustDBMockRecorder) GetChainMaxVersion(arg0, arg1 interface{}) *g
 }
 
 // GetChainVersion mocks base method
-func (m *MockTrustDB) GetChainVersion(arg0 context.Context, arg1 addr.IA, arg2 uint64) (*cert.Chain, error) {
+func (m *MockTrustDB) GetChainVersion(arg0 context.Context, arg1 addr.IA, arg2 scrypto.Version) (*cert.Chain, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetChainVersion", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*cert.Chain)
@@ -188,7 +189,7 @@ func (mr *MockTrustDBMockRecorder) GetIssCertMaxVersion(arg0, arg1 interface{}) 
 }
 
 // GetIssCertVersion mocks base method
-func (m *MockTrustDB) GetIssCertVersion(arg0 context.Context, arg1 addr.IA, arg2 uint64) (*cert.Certificate, error) {
+func (m *MockTrustDB) GetIssCertVersion(arg0 context.Context, arg1 addr.IA, arg2 scrypto.Version) (*cert.Certificate, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetIssCertVersion", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*cert.Certificate)
@@ -218,7 +219,7 @@ func (mr *MockTrustDBMockRecorder) GetTRCMaxVersion(arg0, arg1 interface{}) *gom
 }
 
 // GetTRCVersion mocks base method
-func (m *MockTrustDB) GetTRCVersion(arg0 context.Context, arg1 addr.ISD, arg2 uint64) (*trc.TRC, error) {
+func (m *MockTrustDB) GetTRCVersion(arg0 context.Context, arg1 addr.ISD, arg2 scrypto.Version) (*trc.TRC, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTRCVersion", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*trc.TRC)
@@ -248,7 +249,7 @@ func (mr *MockTrustDBMockRecorder) InsertChain(arg0, arg1 interface{}) *gomock.C
 }
 
 // InsertCustKey mocks base method
-func (m *MockTrustDB) InsertCustKey(arg0 context.Context, arg1 *trustdb.CustKey, arg2 uint64) error {
+func (m *MockTrustDB) InsertCustKey(arg0 context.Context, arg1 *trustdb.CustKey, arg2 scrypto.Version) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertCustKey", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)

@@ -36,7 +36,7 @@ func TestVersionUnmarshalJSON(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"Reserved": {
-			Input:     []byte(strconv.FormatUint(scrypto.LatestVer, 10)),
+			Input:     []byte(strconv.FormatUint(uint64(scrypto.LatestVer), 10)),
 			Assertion: assert.Error,
 		},
 		"String": {
@@ -73,7 +73,7 @@ func TestVersionMarshalJSON(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"Reserved": {
-			Input:     mockObj{Version: scrypto.Version(scrypto.LatestVer)},
+			Input:     mockObj{Version: scrypto.LatestVer},
 			Assertion: assert.Error,
 		},
 	}

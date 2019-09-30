@@ -30,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
@@ -55,10 +56,10 @@ const (
 
 type Key struct {
 	IA  addr.IA
-	Ver uint64
+	Ver scrypto.Version
 }
 
-func NewKey(ia addr.IA, ver uint64) *Key {
+func NewKey(ia addr.IA, ver scrypto.Version) *Key {
 	return &Key{IA: ia, Ver: ver}
 }
 
@@ -124,7 +125,7 @@ func ChainFromDir(dir string, ia addr.IA, f func(err error)) (*Chain, error) {
 	if err != nil {
 		return nil, err
 	}
-	var bestVersion uint64
+	var bestVersion scrypto.Version
 	var bestChain *Chain
 	for _, file := range files {
 		chain, err := ChainFromFile(file, false)
@@ -253,7 +254,7 @@ func (c *Chain) Equal(o *Chain) bool {
 	return c.Leaf.Equal(o.Leaf) && c.Issuer.Equal(o.Issuer)
 }
 
-func (c *Chain) IAVer() (addr.IA, uint64) {
+func (c *Chain) IAVer() (addr.IA, scrypto.Version) {
 	return c.Leaf.Subject, c.Leaf.Version
 }
 

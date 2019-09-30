@@ -65,13 +65,15 @@ func TestBasicVerifierVerify(t *testing.T) {
 					SignAlgorithm:  scrypto.Ed25519,
 					SubjectSignKey: pub,
 					Version:        1,
+					TRCVersion:     1,
 					Signature:      []byte("signature"),
 				},
 				Issuer: &cert.Certificate{
-					Subject:   ia110,
-					Issuer:    ia110,
-					Version:   1,
-					Signature: []byte("signature"),
+					Subject:    ia110,
+					Issuer:     ia110,
+					Version:    1,
+					TRCVersion: 1,
+					Signature:  []byte("signature"),
 				},
 			})
 			require.NoError(t, err)

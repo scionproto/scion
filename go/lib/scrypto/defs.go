@@ -21,10 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// LatestVer is the wildcard version indicating the highest available version
-// when requesting certificate chains and TRCs.
-const LatestVer uint64 = 0
-
 // Base64 is the base64 encoding used when packing and unpacking encoded data.
 // In accordance with rfc7515 (see https://tools.ietf.org/html/rfc7515#section-2),
 // this is the URL safe encoding with padding omitted.

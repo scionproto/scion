@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
@@ -61,7 +62,7 @@ type TrcOrErr struct {
 type CustKey struct {
 	IA      addr.IA
 	Key     common.RawBytes
-	Version uint64
+	Version scrypto.Version
 }
 
 // CustKeyOrErr contains a customer key or an error.
@@ -76,7 +77,8 @@ type CustKeyOrErr struct {
 type Read interface {
 	// GetIssCertVersion returns the specified version of the issuer certificate for
 	// ia. If version is scrypto.LatestVer, this is equivalent to GetIssCertMaxVersion.
-	GetIssCertVersion(ctx context.Context, ia addr.IA, version uint64) (*cert.Certificate, error)
+	GetIssCertVersion(ctx context.Context, ia addr.IA,
+		version scrypto.Version) (*cert.Certificate, error)
 	// GetIssCertMaxVersion returns the max version of the issuer certificate for ia.
 	GetIssCertMaxVersion(ctx context.Context, ia addr.IA) (*cert.Certificate, error)
 	// GetAllIssCerts returns a channel that will provide all issuer certs in the trust db. If the
@@ -89,7 +91,7 @@ type Read interface {
 	GetAllIssCerts(ctx context.Context) (<-chan CertOrErr, error)
 	// GetChainVersion returns the specified version of the certificate chain for
 	// ia. If version is scrypto.LatestVer, this is equivalent to GetChainMaxVersion.
-	GetChainVersion(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error)
+	GetChainVersion(ctx context.Context, ia addr.IA, version scrypto.Version) (*cert.Chain, error)
 	// GetChainMaxVersion returns the max version of the chain for ia.
 	GetChainMaxVersion(ctx context.Context, ia addr.IA) (*cert.Chain, error)
 	// GetAllChains returns a channel that will provide all chains in the trust db. If the trust db
@@ -101,7 +103,7 @@ type Read interface {
 	GetAllChains(ctx context.Context) (<-chan ChainOrErr, error)
 	// GetTRCVersion returns the specified version of the TRC for
 	// isd. If version is scrypto.LatestVer, this is equivalent to GetTRCMaxVersion.
-	GetTRCVersion(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error)
+	GetTRCVersion(ctx context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error)
 	// GetTRCMaxVersion returns the max version of the TRC for ia.
 	GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
 	// GetAllTRCs returns a channel that will provide all TRCs in the trust db. If the trust db
@@ -138,7 +140,7 @@ type Write interface {
 	// this operation should return an error.
 	// If there is no previous version 0 should be passed for the oldVersion argument.
 	// If oldVersion == version an error is returned.
-	InsertCustKey(ctx context.Context, key *CustKey, oldVersion uint64) error
+	InsertCustKey(ctx context.Context, key *CustKey, oldVersion scrypto.Version) error
 }
 
 // ReadWrite contains all read and write operations of the trust DB.
