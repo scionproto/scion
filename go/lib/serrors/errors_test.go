@@ -228,7 +228,14 @@ func ExampleWrapStr() {
 
 	wrappedErr := serrors.WrapStr("wrap with more context", ErrNoSpace, "ctx", 1)
 	fmt.Println(xerrors.Is(wrappedErr, ErrNoSpace))
-	// Output: true
+	fmt.Printf("\nFormatted:\n%v", wrappedErr)
+
+	// Output:
+	// true
+	//
+	// Formatted:
+	// wrap with more context ctx="1"
+	//     no space
 }
 
 func ExampleWrap() {
@@ -244,7 +251,13 @@ func ExampleWrap() {
 	// But we can also identify the broader error class ErrDB:
 	fmt.Println(xerrors.Is(wrapped, ErrDB))
 
+	fmt.Printf("\nFormatted:\n%v", wrapped)
+
 	// Output:
 	// true
 	// true
+	//
+	// Formatted:
+	// db ctx="1"
+	//     no space
 }
