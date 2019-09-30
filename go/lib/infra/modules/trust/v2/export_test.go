@@ -14,9 +14,14 @@
 
 package trust
 
-// NewCryptoProvider allows instantiating the private cryptoProvider for
-// black-box testing.
-var NewCryptoProvider = newTestCryptoProvider
+var (
+	// NewCryptoProvider allows instantiating the private cryptoProvider for
+	// black-box testing.
+	NewCryptoProvider = newTestCryptoProvider
+	// NewCryptoProvider allows instantiating the private resolver for black-box
+	// testing.
+	NewResolver = newTestResolver
+)
 
 // newTestCryptoProvider returns a new crypto provider for testing.
 func newTestCryptoProvider(db DBRead, recurser Recurser, resolver Resolver, router Router,
@@ -28,5 +33,14 @@ func newTestCryptoProvider(db DBRead, recurser Recurser, resolver Resolver, rout
 		resolver:        resolver,
 		router:          router,
 		alwaysCacheOnly: alwaysCacheOnly,
+	}
+}
+
+// newTestResolver returns a new resolver for testing.
+func newTestResolver(db DBRead, inserter Inserter, rpc RPC) Resolver {
+	return &resolver{
+		db:       db,
+		inserter: inserter,
+		rpc:      rpc,
 	}
 }

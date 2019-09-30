@@ -31,6 +31,13 @@ type Chain struct {
 	AS SignedAS
 }
 
+// ParseChain parses the raw chain.
+func ParseChain(raw []byte) (Chain, error) {
+	var chain Chain
+	err := json.Unmarshal(raw, &chain)
+	return chain, err
+}
+
 // UnmarshalJSON unpacks the chain formatted as a json array.
 func (c *Chain) UnmarshalJSON(b []byte) error {
 	tmp := []interface{}{&c.Issuer, &c.AS}
