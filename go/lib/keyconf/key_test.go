@@ -118,16 +118,10 @@ func TestKeyFromPEM(t *testing.T) {
 				util.TimeToCompact(k.Validity.NotBefore.Time))
 			assert.Equal(t, block.Headers["version"], strconv.FormatUint(uint64(k.Version), 10))
 			assert.Equal(t, block.Headers["ia"], k.IA.String())
-			assert.Equal(t, block.Bytes, k.Key)
+			assert.Equal(t, block.Bytes, k.Bytes)
+			assert.Equal(t, block, k.PEM())
 		})
 	}
-}
-
-func TestKeyPem(t *testing.T) {
-	block := pemBlock(t)
-	k, err := keyconf.KeyFromPEM(block)
-	require.NoError(t, err)
-	assert.Equal(t, block, k.PEM())
 }
 
 func TestKeyFile(t *testing.T) {
@@ -170,8 +164,8 @@ func TestKeyFile(t *testing.T) {
 
 func TestKeyStringRedactsKey(t *testing.T) {
 	k := keyconf.Key{
-		Type: keyconf.PublicKey,
-		Key:  xtest.MustParseHexString("7375706572736563757265"),
+		Type:  keyconf.PublicKey,
+		Bytes: xtest.MustParseHexString("7375706572736563757265"),
 	}
 	assert.Contains(t, k.String(), "7375706572736563757265")
 	k.Type = keyconf.PrivateKey

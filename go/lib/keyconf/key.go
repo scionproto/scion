@@ -42,42 +42,49 @@ var (
 
 const (
 	hdrAlgorithm = "algorithm"
+	hdrIA        = "ia"
 	hdrNotAfter  = "not_after"
 	hdrNotBefore = "not_before"
 	hdrUsage     = "usage"
 	hdrVersion   = "version"
-	hdrIA        = "ia"
 )
 
 // All supported key usages.
 const (
-	ASSigningKey    Usage = "as-signing"
 	ASDecryptionKey Usage = "as-decrypt"
 	ASRevocationKey Usage = "as-revocation"
+	ASSigningKey    Usage = "as-signing"
 
 	IssCertSigningKey Usage = "issuer-cert-signing"
 	IssRevocationKey  Usage = "issuer-revocation"
 
-	TRCVotingOnlineKey  Usage = "trc-voting-online"
-	TRCVotingOfflineKey Usage = "trc-voting-offline"
 	TRCIssuingKey       Usage = "trc-issuing"
+	TRCVotingOfflineKey Usage = "trc-voting-offline"
+	TRCVotingOnlineKey  Usage = "trc-voting-online"
 )
 
 // Usage describes how the key is intended to be used.
 type Usage string
 
+var usages = map[Usage]struct{}{
+	ASSigningKey:        {},
+	ASDecryptionKey:     {},
+	ASRevocationKey:     {},
+	IssCertSigningKey:   {},
+	IssRevocationKey:    {},
+	TRCVotingOnlineKey:  {},
+	TRCVotingOfflineKey: {},
+	TRCIssuingKey:       {},
+}
+
 // UnmarshalText assigns the key usage if it is known. Otherwise ErrUnsupportedUsage.
 func (u *Usage) UnmarshalText(text []byte) error {
 	s := Usage(text)
-	usages := []Usage{ASSigningKey, ASDecryptionKey, ASRevocationKey, IssCertSigningKey,
-		IssRevocationKey, TRCVotingOnlineKey, TRCVotingOfflineKey, TRCIssuingKey}
-	for _, usage := range usages {
-		if usage == s {
-			*u = usage
-			return nil
-		}
+	if _, ok := usages[s]; !ok {
+		return serrors.WithCtx(ErrUnsupportedUsage, "input", string(text))
 	}
-	return serrors.WithCtx(ErrUnsupportedUsage, "input", string(text))
+	*u = s
+	return nil
 }
 
 // Supported key types.
@@ -107,6 +114,8 @@ func (t *Type) UnmarshalText(text []byte) error {
 // On disk, the key is encoded in PEM with a file name specific to the type,
 // usage, and version of the key. The IA is prepended to public key filenames
 // to avoid collisions.
+//
+// To see the resulting filename, check the example.
 type Key struct {
 	Type      Type
 	Usage     Usage
@@ -114,7 +123,7 @@ type Key struct {
 	Validity  scrypto.Validity
 	Version   scrypto.KeyVersion
 	IA        addr.IA
-	Key       []byte
+	Bytes     []byte
 }
 
 // KeyFromPEM parses the PEM block.
@@ -148,7 +157,7 @@ func KeyFromPEM(block pem.Block) (Key, error) {
 	if block.Bytes == nil {
 		return Key{}, ErrNoKey
 	}
-	k.Key = append([]byte(nil), block.Bytes...)
+	k.Bytes = append([]byte(nil), block.Bytes...)
 	return k, nil
 }
 
@@ -164,7 +173,7 @@ func (k Key) PEM() pem.Block {
 			hdrVersion:   strconv.FormatUint(uint64(k.Version), 10),
 			hdrIA:        k.IA.String(),
 		},
-		Bytes: append([]byte(nil), k.Key...),
+		Bytes: append([]byte(nil), k.Bytes...),
 	}
 }
 
@@ -179,7 +188,7 @@ func (k Key) File() string {
 func (k Key) String() string {
 	key := "<redacted>"
 	if k.Type == PublicKey {
-		key = fmt.Sprintf("%x", k.Key)
+		key = fmt.Sprintf("%x", k.Bytes)
 	}
 	return fmt.Sprintf("type: %s usage: %s version: %d ia: %s validity: %s algorithm: %s key: %s",
 		k.Type, k.Usage, k.Version, k.IA, k.Validity, k.Algorithm, key,
