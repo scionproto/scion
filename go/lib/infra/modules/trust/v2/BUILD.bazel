@@ -8,7 +8,7 @@ go_library(
         "inspector.go",
         "provider.go",
         "recurser.go",
-        "resolvers.go",
+        "resolver.go",
         "router.go",
         "rpc.go",
     ],
@@ -20,6 +20,7 @@ go_library(
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/db:go_default_library",
         "//go/lib/infra/modules/trust/v2/internal/decoded:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/trc/v2:go_default_library",
         "//go/lib/serrors:go_default_library",
@@ -33,6 +34,7 @@ go_test(
         "export_test.go",
         "main_test.go",
         "provider_test.go",
+        "resolver_test.go",
     ],
     data = [
         "//go/lib/infra/modules/trust/v2/testdata:crypto_tar",
@@ -40,6 +42,7 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
+        "//go/lib/ctrl/cert_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/trust/v2/internal/decoded:go_default_library",
         "//go/lib/infra/modules/trust/v2/mock_v2:go_default_library",

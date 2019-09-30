@@ -36,11 +36,11 @@ type TRC struct {
 func DecodeTRC(raw []byte) (TRC, error) {
 	signed, err := trc.ParseSigned(raw)
 	if err != nil {
-		return TRC{}, serrors.WithCtx(ErrParse, err, "part", "signed")
+		return TRC{}, serrors.Wrap(ErrParse, err, "part", "signed")
 	}
 	decoded, err := signed.EncodedTRC.Decode()
 	if err != nil {
-		return TRC{}, serrors.WithCtx(ErrParse, err, "part", "decode payload")
+		return TRC{}, serrors.Wrap(ErrParse, err, "part", "decode payload")
 	}
 	d := TRC{
 		TRC:    decoded,
@@ -63,6 +63,29 @@ type Chain struct {
 	AS     *cert.AS
 	Issuer *cert.Issuer
 	Raw    []byte
+}
+
+// DecodeChain decodes a certificate chain.
+func DecodeChain(raw []byte) (Chain, error) {
+	chain, err := cert.ParseChain(raw)
+	if err != nil {
+		return Chain{}, serrors.Wrap(ErrParse, err, "part", "chain")
+	}
+	as, err := chain.AS.Encoded.Decode()
+	if err != nil {
+		return Chain{}, serrors.Wrap(ErrParse, err, "part", "AS")
+	}
+	issuer, err := chain.Issuer.Encoded.Decode()
+	if err != nil {
+		return Chain{}, serrors.Wrap(ErrParse, err, "part", "Issuer")
+	}
+	d := Chain{
+		Chain:  chain,
+		AS:     as,
+		Issuer: issuer,
+		Raw:    raw,
+	}
+	return d, nil
 }
 
 func (d Chain) String() string {
