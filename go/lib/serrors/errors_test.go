@@ -215,11 +215,20 @@ func ExampleNew() {
 	// That is to prevent that errors with same message in different packages
 	// with same text are seen as the same thing:
 	fmt.Println(xerrors.Is(err1, err2))
-
 	// Output:
 	// true
 	// true
 	// false
+}
+
+func ExampleWithCtx() {
+	// ErrBadL4 is an error defined at package scope.
+	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
+	addedCtx := serrors.WithCtx(ErrBadL4, "type", "SCTP")
+
+	fmt.Println(addedCtx)
+	// Output:
+	// Unsupported L4 protocol type="SCTP"
 }
 
 func ExampleWrapStr() {
