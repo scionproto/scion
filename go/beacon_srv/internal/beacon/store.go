@@ -229,7 +229,7 @@ func (s *baseStore) PreFilter(beacon Beacon) error {
 func (s *baseStore) InsertBeacon(ctx context.Context, beacon Beacon) (InsertStats, error) {
 	usage := s.usager.Usage(beacon)
 	if usage.None() {
-		return InsertStats{}, nil
+		return InsertStats{Filtered: 1}, nil
 	}
 	return s.db.InsertBeacon(ctx, beacon, usage)
 }
