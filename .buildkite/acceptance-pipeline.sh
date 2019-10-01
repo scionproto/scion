@@ -43,7 +43,7 @@ for test in ./acceptance/sig_short_*_acceptance; do
         echo "  - $BASE/run_step run_acceptance $name"
     fi
     echo "  timeout_in_minutes: 10"
-    echo "  parallelism: 20"
+    echo "  parallelism: 10"
     echo "  retry:"
     echo "    automatic:"
     echo "      - exit_status: 5"   # Pull failed
