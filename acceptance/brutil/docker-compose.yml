@@ -21,7 +21,7 @@ services:
       - "/etc/group:/etc/group:ro"
       - "/run/shm/dispatcher:/run/shm/dispatcher"
       - "../../logs:/share/logs"
-      - "./dispatcher-conf:/share/conf"
+      - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
   core-brA:
     <<: *br
   brA:

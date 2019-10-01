@@ -1,10 +1,10 @@
 [general]
 ConfigDir = "/share/conf"
-ID = "elemId"
+ID = <AUTOFILLED>
 
 [logging.console]
 Level = "crit"
 
 [logging.file]
 Level = "debug"
-Path = "logPath"
+Path = <AUTOFILLED>
