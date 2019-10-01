@@ -123,7 +123,10 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 				Seg:     unit.Unit.SegMeta,
 				HPGroup: hpGroupID,
 			})
-			stats.VerifiedSegs++
+			stats.VerifiedSegs = append(stats.VerifiedSegs, &SegWithHP{
+				Seg:     unit.Unit.SegMeta,
+				HPGroup: hpGroupID,
+			})
 		}
 		for idx, rev := range unit.Unit.SRevInfos {
 			if err, ok := unit.Errors[idx]; ok {
