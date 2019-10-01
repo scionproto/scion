@@ -174,22 +174,8 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				// once.
 				f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
 			}
-			// TODO(lukedirtwalker): make the minium interval configurable
-			queryInt := minQueryInterval
-			now := time.Now()
-			// Search maximum time until expiration. The lower bound is minQueryInterval.
-			for _, seg := range r.Stats().VerifiedSegs {
-				expDiff := seg.Seg.Segment.MinExpiry().Add(-expirationLeadTime).Sub(now)
-				if expDiff > queryInt {
-					queryInt = expDiff
-				}
-			}
-			// At least query every configured query interval.
-			if queryInt > f.QueryInterval {
-				queryInt = f.QueryInterval
-			}
-			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil,
-				time.Now().Add(queryInt))
+			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
+			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 			if err != nil {
 				logger.Warn("Failed to insert next query", "err", err)
 			}
@@ -205,6 +191,24 @@ func (f *Fetcher) verifyServer(reply ReplyOrErr) net.Addr {
 		return nil
 	}
 	return reply.Peer
+}
+
+// nextQuery decides the next time a query should be issued based on the
+// received segments.
+func (f *Fetcher) nextQuery(segs []*seghandler.SegWithHP) time.Time {
+	now := time.Now()
+	// TODO(lukedirtwalker): make the minium interval configurable
+	nextQuery := now.Add(minQueryInterval)
+	for _, seg := range segs {
+		if exp := seg.Seg.Segment.MinExpiry().Add(-expirationLeadTime); exp.After(nextQuery) {
+			nextQuery = exp
+		}
+	}
+	// At least query every configured query interval
+	if max := now.Add(f.QueryInterval); nextQuery.After(max) {
+		return max
+	}
+	return nextQuery
 }
 
 func replyToRecs(reply *path_mgmt.SegReply) seghandler.Segments {
