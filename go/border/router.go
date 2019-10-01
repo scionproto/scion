@@ -156,16 +156,9 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		metrics.Process.Pkts(l).Inc()
 		return
 	}
-	// Check if the packet needs to be processed locally, and if so register
-	// hooks for doing so.
-	if err := rp.NeedsLocalProcessing(); err != nil {
-		rp.Error("Error checking for local processing", "err", err)
-		l.Result = metrics.ErrProcessLocal
-		metrics.Process.Pkts(l).Inc()
-		return
-	}
-	// Parse the packet payload, if a previous step has registered a relevant
-	// hook for doing so.
+	// Check if the packet needs to be processed locally, and if so register hooks for doing so.
+	rp.NeedsLocalProcessing()
+	// Parse the packet payload, if a previous step has registered a relevant hook for doing so.
 	if _, err := rp.Payload(true); err != nil {
 		// Any errors at this point are application-level, and hence not
 		// calling handlePktError, as no SCMP errors will be sent.

@@ -118,7 +118,7 @@ func processCtrlFromRaw(b common.RawBytes) error {
 	case *path_mgmt.Pld:
 		err = processPathMgmtSelf(pld)
 	default:
-		cl.Result = metrics.ErrInvalidRequest
+		cl.Result = metrics.ErrInvalidReq
 		metrics.Control.ProcessErrors(cl).Inc()
 		err = common.NewBasicError("Unsupported control payload", nil, "type", common.TypeOf(pld))
 	}
@@ -137,7 +137,7 @@ func processPathMgmtSelf(p *path_mgmt.Pld) error {
 	case *path_mgmt.IFStateInfos:
 		ifstate.Process(pld)
 	default:
-		cl.Result = metrics.ErrInvalidRequest
+		cl.Result = metrics.ErrInvalidReq
 		metrics.Control.ProcessErrors(cl).Inc()
 		err = common.NewBasicError("Unsupported PathMgmt payload", nil, "type", common.TypeOf(pld))
 	}

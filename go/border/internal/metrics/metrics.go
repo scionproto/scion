@@ -25,26 +25,22 @@ const Namespace = "br"
 
 // Result values.
 const (
-	Success    = prom.Success
-	ErrProcess = prom.ErrProcess
-	ErrParse   = prom.ErrParse
-	ErrCrypto  = prom.ErrCrypto
+	Success       = prom.Success
+	ErrProcess    = prom.ErrProcess
+	ErrParse      = prom.ErrParse
+	ErrCrypto     = prom.ErrCrypto
+	ErrValidate   = prom.ErrValidate
+	ErrInvalidReq = prom.ErrInvalidReq
 	// ErrRead is an error reading a packet from snet.
 	ErrRead = "err_read"
 	// ErrWrite is an error writing a packet to snet.
 	ErrWrite = "err_write"
-	// ErrValidate is an error validating the packet.
-	ErrValidate = "err_validate"
-	// ErrValidate is an error routing the packet.
+	// ErrRoute is an error routing the packet.
 	ErrRoute = "err_route"
-	// ErrProcessLocal is an error on local processing the packet, ie. SVC resolution.
-	ErrProcessLocal = "err_process_local"
 	// ErrParsePayload is an error parsing the packet payload.
 	ErrParsePayload = "err_parse_payload"
 	// ErrResolveSVC is an error resolving a SVC address.
 	ErrResolveSVC = "err_resolve_svc"
-	// ErrInvalidRequest is an error for unsupported control message.
-	ErrInvalidRequest = "err_invalid_request"
 )
 
 // Metrics initialization.

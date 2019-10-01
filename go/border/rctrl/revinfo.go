@@ -52,7 +52,7 @@ func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs) {
 func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 	cl := metrics.SentRevInfoLabels{
 		Result: metrics.ErrProcess,
-		SVC:    dstHost.String(),
+		SVC:    dstHost.BaseString(),
 	}
 	ctx := rctx.Get()
 	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
