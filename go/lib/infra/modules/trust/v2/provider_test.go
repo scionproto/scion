@@ -62,7 +62,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, dec.TRC.Version).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					trust.TRCInfo{Version: dec.TRC.Version}, nil,
 				)
 			},
@@ -77,7 +77,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, dec.TRC.Version).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					info, nil,
 				)
 			},
@@ -111,7 +111,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, dec.TRC.Version).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					trust.TRCInfo{Version: dec.TRC.Version}, nil,
 				)
 			},
@@ -122,7 +122,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, dec.TRC.Version).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					trust.TRCInfo{Version: dec.TRC.Version + 2}, nil,
 				)
 			},
@@ -138,7 +138,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, dec.TRC.Version).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					info, nil,
 				)
 			},
@@ -157,7 +157,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, dec.TRC.Version).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					trust.TRCInfo{}, internal,
 				)
 			},
@@ -270,7 +270,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 	}{
 		"TRC in database, allow inactive": {
 			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
-				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					dec.Raw, nil,
 				)
 				return *dec
@@ -279,7 +279,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 		},
 		"not found, resolve success": {
 			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
-				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					nil, trust.ErrNotFound,
 				)
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(nil)
@@ -302,10 +302,10 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				dec.TRC.Validity.NotAfter.Time = time.Now()
 				dec.Signed.EncodedTRC, _ = trc.Encode(dec.TRC)
 				dec.Raw, _ = json.Marshal(dec.Signed)
-				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					trust.TRCInfo{Version: dec.TRC.Version}, nil,
 				)
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(internal)
@@ -318,10 +318,10 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				dec.TRC.Validity.NotAfter.Time = time.Now()
 				dec.Signed.EncodedTRC, _ = trc.Encode(dec.TRC)
 				dec.Raw, _ = json.Marshal(dec.Signed)
-				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					trust.TRCInfo{Version: dec.TRC.Version}, nil,
 				)
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(nil)
@@ -342,10 +342,10 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				dec.TRC.Validity.NotAfter.Time = time.Now()
 				dec.Signed.EncodedTRC, _ = trc.Encode(dec.TRC)
 				dec.Raw, _ = json.Marshal(dec.Signed)
-				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					trust.TRCInfo{Version: dec.TRC.Version}, nil,
 				)
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(nil)
@@ -370,10 +370,10 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				dec.TRC.Validity.NotAfter.Time = time.Now()
 				dec.Signed.EncodedTRC, _ = trc.Encode(dec.TRC)
 				dec.Raw, _ = json.Marshal(dec.Signed)
-				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					dec.Raw, nil,
 				)
-				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.Version(0)).Return(
+				m.DB.EXPECT().GetTRCInfo(gomock.Any(), dec.TRC.ISD, scrypto.LatestVer).Return(
 					trust.TRCInfo{Version: dec.TRC.Version}, nil,
 				)
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(nil)
@@ -410,7 +410,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 			expected := test.Expect(&m, &decoded)
 			provider := trust.NewCryptoProvider(m.DB, m.Recurser, m.Resolver,
 				m.Router, test.CacheOnly)
-			trcObj, err := provider.GetTRC(nil, trc1v1.ISD, 0, test.Opts)
+			trcObj, err := provider.GetTRC(nil, trc1v1.ISD, scrypto.LatestVer, test.Opts)
 			assert.Equal(t, expected.TRC, trcObj)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
