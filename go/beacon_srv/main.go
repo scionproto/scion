@@ -405,7 +405,6 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 		BeaconProvider: t.store,
 		AllowIsdLoop:   t.allowIsdLoop,
 		Core:           topo.Core,
-		EnableMetrics:  true,
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
 				Conn: t.conn,

@@ -47,21 +47,20 @@ func (l BeaconingLabels) WithResult(result string) BeaconingLabels {
 }
 
 type beaconing struct {
-	in prometheus.CounterVec
+	receivedBeacons prometheus.CounterVec
 }
 
 func newBeaconing() beaconing {
-	sub := "beaconing"
-	labels := BeaconingLabels{}.Labels()
+	ns, sub := Namespace, "beaconing"
 
 	return beaconing{
-		in: *prom.NewCounterVec(Namespace, sub, "received_beacons_total",
-			"Total number of received beacons.", labels),
+		receivedBeacons: *prom.NewCounterVec(ns, sub, "received_beacons_total",
+			"Total number of received beacons.", BeaconingLabels{}.Labels()),
 	}
 }
 
 func (e *beaconing) Received(l BeaconingLabels) prometheus.Counter {
-	return e.in.WithLabelValues(l.Values()...)
+	return e.receivedBeacons.WithLabelValues(l.Values()...)
 }
 
 // GetResultValue return result label value given insert stats.
