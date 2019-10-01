@@ -18,31 +18,51 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
+// Namespace is the metrics namespace for the beacon server.
+const Namespace = "bs"
+
+// Labels values.
 const (
-
-	// Namespace is the metrics namespace for the beacon server.
-	Namespace = "bs"
-
 	// DstBR indicates the destination to be Border Router.
-	DstBR string = "br"
+	DstBR = "br"
 	// DstPS indicates the destination to be Path Server.
-	DstPS string = "ps"
+	DstPS = "ps"
 
+	// ErrDB indicates an error during validation.
+	ErrDB = prom.ErrDB
+	// ErrParse indicates an error during processing.
+	ErrParse = prom.ErrParse
 	// ErrProcess indicates an error during processing.
-	ErrProcess string = prom.ErrProcess
+	ErrProcess = prom.ErrProcess
+	// ErrPrefilter indicates an error during pre-filtering.
+	ErrPrefilter = "err_prefilter"
+	// ErrVerify indicates an error during verification.
+	ErrVerify = prom.ErrVerify
+
+	// OkFiltered indicates beacon was filtered by policy.
+	OkFiltered = "ok_filtered"
+	// OkNew indicates beacon was inserted for the first time.
+	OkNew = "ok_new"
+	// OkOld indicates that a beacon with older timestamp was received
+	// and therefore it was not inserted or updated in db.
+	OkOld = "ok_old"
+	// OkUpdated indicates existing beacon in db was updated.
+	OkUpdated = "ok_updated"
 
 	// RevNew indicates a new issued revocation.
-	RevNew string = "new"
+	RevNew = "new"
 	// RevRenew indicates a renew of an already issued revocation.
-	RevRenew string = "renew"
+	RevRenew = "renew"
 	// RevFromCtrl indicates that revocation was sent control payload.
-	RevFromCtrl string = "ctrl"
+	RevFromCtrl = "ctrl"
 
 	// Success indicates a successful result.
-	Success string = prom.Success
+	Success = prom.Success
 )
 
 var (
+	// Beaconing is the single-instance struct to get prometheus metrics or counters.
+	Beaconing = newBeaconing()
 	// Ifstate is the single-instance struct to get prometheus metrics or counters.
 	Ifstate = newIfstate()
 	// Keepalive is the single-instance struct to get keepalive prometheus counters.

@@ -35,23 +35,19 @@ func (m *MockBeaconInserter) EXPECT() *MockBeaconInserterMockRecorder {
 	return m.recorder
 }
 
-// InsertBeacons mocks base method
-func (m *MockBeaconInserter) InsertBeacons(arg0 context.Context, arg1 ...beacon.Beacon) error {
+// InsertBeacon mocks base method
+func (m *MockBeaconInserter) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon) (beacon.InsertStats, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0}
-	for _, a := range arg1 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "InsertBeacons", varargs...)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "InsertBeacon", arg0, arg1)
+	ret0, _ := ret[0].(beacon.InsertStats)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// InsertBeacons indicates an expected call of InsertBeacons
-func (mr *MockBeaconInserterMockRecorder) InsertBeacons(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
+// InsertBeacon indicates an expected call of InsertBeacon
+func (mr *MockBeaconInserterMockRecorder) InsertBeacon(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0}, arg1...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertBeacons", reflect.TypeOf((*MockBeaconInserter)(nil).InsertBeacons), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertBeacon", reflect.TypeOf((*MockBeaconInserter)(nil).InsertBeacon), arg0, arg1)
 }
 
 // PreFilter mocks base method
