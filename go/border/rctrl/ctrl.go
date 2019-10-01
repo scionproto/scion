@@ -18,6 +18,7 @@ package rctrl
 
 import (
 	"github.com/scionproto/scion/go/border/ifstate"
+	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -79,36 +80,46 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 
 func processCtrl() {
 	b := make(common.RawBytes, maxBufSize)
+	cl := metrics.ControlLabels{}
 	for {
 		pktLen, src, err := snetConn.ReadFromSCION(b)
 		if err != nil {
+			cl.Result = metrics.ErrRead
+			metrics.Control.Reads(cl).Inc()
 			fatal.Fatal(common.NewBasicError("Reading packet", err))
 		}
+		cl.Result = metrics.Success
+		metrics.Control.Reads(cl).Inc()
 		if err = processCtrlFromRaw(b[:pktLen]); err != nil {
 			logger.Error("Processing ctrl pld", "src", src, "err", err)
-			continue
 		}
 	}
 }
 
 func processCtrlFromRaw(b common.RawBytes) error {
+	cl := metrics.ControlLabels{Result: metrics.ErrParse}
 	scPld, err := ctrl.NewSignedPldFromRaw(b)
 	if err != nil {
+		metrics.Control.ProcessErrors(cl).Inc()
 		return common.NewBasicError("Parsing signed ctrl pld", nil, "err", err)
 	}
 	cPld, err := scPld.UnsafePld()
 	if err != nil {
+		metrics.Control.ProcessErrors(cl).Inc()
 		return common.NewBasicError("Getting ctrl pld", nil, "err", err)
 	}
 	// Determine the type of SCION control payload.
 	u, err := cPld.Union()
 	if err != nil {
+		metrics.Control.ProcessErrors(cl).Inc()
 		return err
 	}
 	switch pld := u.(type) {
 	case *path_mgmt.Pld:
 		err = processPathMgmtSelf(pld)
 	default:
+		cl.Result = metrics.ErrInvalidReq
+		metrics.Control.ProcessErrors(cl).Inc()
 		err = common.NewBasicError("Unsupported control payload", nil, "type", common.TypeOf(pld))
 	}
 	return err
@@ -116,14 +127,18 @@ func processCtrlFromRaw(b common.RawBytes) error {
 
 // processPathMgmtSelf handles Path Management SCION control messages.
 func processPathMgmtSelf(p *path_mgmt.Pld) error {
+	cl := metrics.ControlLabels{Result: metrics.ErrParse}
 	u, err := p.Union()
 	if err != nil {
+		metrics.Control.ProcessErrors(cl).Inc()
 		return err
 	}
 	switch pld := u.(type) {
 	case *path_mgmt.IFStateInfos:
 		ifstate.Process(pld)
 	default:
+		cl.Result = metrics.ErrInvalidReq
+		metrics.Control.ProcessErrors(cl).Inc()
 		err = common.NewBasicError("Unsupported PathMgmt payload", nil, "type", common.TypeOf(pld))
 	}
 	return err

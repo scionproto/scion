@@ -25,7 +25,7 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
@@ -58,17 +58,17 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 	msgs := conn.NewReadMessages(inputBatchCnt)
 	readMetas := make([]conn.ReadMeta, inputBatchCnt)
 	var err error
-	var sock = s.Labels["sock"]
 
+	l := metrics.IntfLabels{Intf: s.Label, NeighIA: s.NeighIA}
 	// Pre-calculate metrics
-	inputPkts := metrics.InputPkts.With(s.Labels)
-	inputBytes := metrics.InputBytes.With(s.Labels)
-	inputPktSize := metrics.InputPktSize.With(s.Labels)
-	inputReads := metrics.InputReads.With(s.Labels)
-	inputReadErrs := metrics.InputReadErrors.With(s.Labels)
-	inputRcvOvfl := metrics.InputRcvOvfl.With(s.Labels)
-	inputLatency := metrics.InputLatency.With(s.Labels)
-	procPktTime := metrics.ProcessPktTime.With(s.Labels)
+	inputPkts := metrics.Input.Pkts(l)
+	inputBytes := metrics.Input.Bytes(l)
+	inputPktSize := metrics.Input.PktSize(l)
+	inputReads := metrics.Input.Reads(l)
+	inputReadErrs := metrics.Input.ReadErrors(l)
+	inputRcvOvfl := metrics.Input.RcvOvfl(l)
+	inputLatency := metrics.Input.Latency(l)
+	procPktTime := metrics.Process.Duration(l)
 
 	// Called when the packet's reference count hits 0.
 	free := func(rp *rpkt.RtrPkt) {
@@ -124,11 +124,11 @@ Top:
 			rp.TimeIn = meta.Recvd
 			rp.Raw = rp.Raw[:msg.N] // Set the length of the slice
 			rp.Ingress.Dst = dst
+			rp.Ingress.IfLabel = s.Label
 			// Make a copy, as meta.Src will be overwritten.
 			src := meta.Src
 			rp.Ingress.Src = src
 			rp.Ingress.IfID = s.Ifid
-			rp.Ingress.Sock = sock
 			inputBytes.Add(float64(msg.N))
 			inputPktSize.Observe(float64(msg.N))
 		}
@@ -202,12 +202,13 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	msgs := conn.NewWriteMessages(outputBatchCnt)
 
 	// Pre-calculate metrics
-	outputPkts := metrics.OutputPkts.With(s.Labels)
-	outputBytes := metrics.OutputBytes.With(s.Labels)
-	outputPktSize := metrics.OutputPktSize.With(s.Labels)
-	outputWrites := metrics.OutputWrites.With(s.Labels)
-	outputWriteErrs := metrics.OutputWriteErrors.With(s.Labels)
-	outputWriteLatency := metrics.OutputWriteLatency.With(s.Labels)
+	l := metrics.IntfLabels{Intf: s.Label, NeighIA: s.NeighIA}
+	outputPkts := metrics.Output.Pkts(l)
+	outputBytes := metrics.Output.Bytes(l)
+	outputPktSize := metrics.Output.PktSize(l)
+	outputWrites := metrics.Output.Writes(l)
+	outputWriteErrs := metrics.Output.WriteErrors(l)
+	outputWriteLatency := metrics.Output.Duration(l)
 
 	// This loop is exited in two cases:
 	// 1. When the the ring is closed and fully drained.

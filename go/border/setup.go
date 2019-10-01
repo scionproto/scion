@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/border/brconf"
@@ -43,15 +42,13 @@ import (
 )
 
 type locSockOps interface {
-	Setup(r *Router, ctx *rctx.Ctx, labels prometheus.Labels, oldCtx *rctx.Ctx) error
-	Rollback(r *Router, ctx *rctx.Ctx, labels prometheus.Labels, oldCtx *rctx.Ctx) error
+	Setup(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error
+	Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error
 }
 
 type extSockOps interface {
-	Setup(r *Router, ctx *rctx.Ctx, intfs *topology.IFInfo,
-		labels prometheus.Labels, oldCtx *rctx.Ctx) error
-	Rollback(r *Router, ctx *rctx.Ctx, intfs *topology.IFInfo,
-		labels prometheus.Labels, oldCtx *rctx.Ctx) error
+	Setup(r *Router, ctx *rctx.Ctx, intfs *topology.IFInfo, oldCtx *rctx.Ctx) error
+	Rollback(r *Router, ctx *rctx.Ctx, intfs *topology.IFInfo, oldCtx *rctx.Ctx) error
 	Teardown(r *Router, ctx *rctx.Ctx, intfs *topology.IFInfo, oldCtx *rctx.Ctx)
 }
 
@@ -237,13 +234,12 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, sockConf brconf.SockC
 		return err
 	}
 	// Setup local interface.
-	if err := registeredLocSockOps[sockConf.Loc()].Setup(r, ctx, locLabels(), oldCtx); err != nil {
+	if err := registeredLocSockOps[sockConf.Loc()].Setup(r, ctx, oldCtx); err != nil {
 		return err
 	}
 	// Iterate over interfaces, configuring them via provided setup function.
 	for _, intf := range ctx.Conf.BR.IFs {
-		labels := extLabels(intf.Id)
-		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Setup(r, ctx, intf, labels, oldCtx)
+		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Setup(r, ctx, intf, oldCtx)
 		if err != nil {
 			return err
 		}
@@ -257,15 +253,14 @@ func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx,
 
 	// Rollback of external interfaces.
 	for _, intf := range ctx.Conf.BR.IFs {
-		labels := extLabels(intf.Id)
-		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Rollback(r, ctx, intf, labels, oldCtx)
+		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Rollback(r, ctx, intf, oldCtx)
 		if err != nil {
 			handleErr(common.NewBasicError("Unable to rollback external interface",
 				err, "intf", intf))
 		}
 	}
 	// Rollback of local interface.
-	err := registeredLocSockOps[sockConf.Loc()].Rollback(r, ctx, locLabels(), oldCtx)
+	err := registeredLocSockOps[sockConf.Loc()].Rollback(r, ctx, oldCtx)
 	if err != nil {
 		handleErr(common.NewBasicError("Unable to rollback local interface", err))
 	}
@@ -355,14 +350,6 @@ func handleRollbackErr(err error) {
 		fatal.Fatal(err)
 	}
 	log.Crit("Error in rollback", "err", err)
-}
-
-func locLabels() prometheus.Labels {
-	return prometheus.Labels{"sock": "loc"}
-}
-
-func extLabels(id common.IFIDType) prometheus.Labels {
-	return prometheus.Labels{"sock": fmt.Sprintf("intf:%d", id)}
 }
 
 // validateCtx ensures that the socket type of existing sockets does not change

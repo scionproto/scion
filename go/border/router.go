@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/border/brconf"
+	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -125,6 +126,10 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 			assert.Must(rp.Ingress.IfID > 0, "Ingress.IfID must be set for DirFrom==DirExternal")
 		}
 	}
+	l := metrics.ProcessLabels{
+		IntfIn:  metrics.IntfToLabel(rp.Ingress.IfID),
+		IntfOut: metrics.Drop,
+	}
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
 	rp.Id = log.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
@@ -132,6 +137,8 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	//rp.Debug("processPacket", "raw", rp.Raw)
 	if err := rp.Parse(); err != nil {
 		r.handlePktError(rp, err, "Error parsing packet")
+		l.Result = metrics.ErrParse
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	// Validation looks for errors in the packet that didn't break basic
@@ -139,32 +146,38 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	valid, err := rp.Validate()
 	if err != nil {
 		r.handlePktError(rp, err, "Error validating packet")
+		l.Result = metrics.ErrValidate
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	if !valid {
+		rp.Error("Error validating packet, no specific error")
+		l.Result = metrics.ErrValidate
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
-	// Check if the packet needs to be processed locally, and if so register
-	// hooks for doing so.
-	if err := rp.NeedsLocalProcessing(); err != nil {
-		rp.Error("Error checking for local processing", "err", err)
-		return
-	}
-	// Parse the packet payload, if a previous step has registered a relevant
-	// hook for doing so.
+	// Check if the packet needs to be processed locally, and if so register hooks for doing so.
+	rp.NeedsLocalProcessing()
+	// Parse the packet payload, if a previous step has registered a relevant hook for doing so.
 	if _, err := rp.Payload(true); err != nil {
 		// Any errors at this point are application-level, and hence not
 		// calling handlePktError, as no SCMP errors will be sent.
 		rp.Error("Error parsing payload", "err", err)
+		l.Result = metrics.ErrParsePayload
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	// Process the packet, if a previous step has registered a relevant hook for doing so.
 	if err := rp.Process(); err != nil {
 		r.handlePktError(rp, err, "Error processing packet")
+		l.Result = metrics.ErrProcess
+		metrics.Process.Pkts(l).Inc()
 		return
 	}
 	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
+		l.Result = metrics.ErrRoute
+		metrics.Process.Pkts(l).Inc()
 	}
 }

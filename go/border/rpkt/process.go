@@ -29,7 +29,7 @@ import (
 
 // NeedsLocalProcessing determines if the router needs to do more than just
 // forward a packet (e.g. resolve an SVC destination address).
-func (rp *RtrPkt) NeedsLocalProcessing() error {
+func (rp *RtrPkt) NeedsLocalProcessing() {
 	// Check if SVC packet to local AS
 	if rp.dstIA.Equal(rp.Ctx.Conf.IA) && rp.CmnHdr.DstType == addr.HostTypeSVC {
 		// SVC address needs to be resolved for delivery.
@@ -39,7 +39,6 @@ func (rp *RtrPkt) NeedsLocalProcessing() error {
 		// Non-SVC packet to local AS, just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 	}
-	return nil
 }
 
 // Process uses any registered hooks to process the packet. Note that there is

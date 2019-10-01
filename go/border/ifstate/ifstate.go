@@ -23,14 +23,13 @@
 package ifstate
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/prometheus/client_golang/prometheus"
-
-	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/internal/metrics"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
@@ -59,39 +58,44 @@ func (s *ifStates) Store(key common.IFIDType, val *state) {
 var states ifStates
 
 type state struct {
-	// info is a pointer to an Info object.
+	// info is a pointer to an Info object. Processing goroutine can update this value.
 	info unsafe.Pointer
 }
 
 // Info stores state information, as well as the raw revocation info for a given interface.
 type Info struct {
-	IfID         common.IFIDType
-	Active       bool
-	SRevInfo     *path_mgmt.SignedRevInfo
-	RawSRev      common.RawBytes
-	ActiveMetric prometheus.Gauge
+	IfID     common.IFIDType
+	Active   bool
+	SRevInfo *path_mgmt.SignedRevInfo
+	RawSRev  common.RawBytes
 }
 
-func NewInfo(ifID common.IFIDType, active bool, srev *path_mgmt.SignedRevInfo,
+func NewInfo(ifID common.IFIDType, ia addr.IA, active bool, srev *path_mgmt.SignedRevInfo,
 	rawSRev common.RawBytes) *Info {
+
+	label := metrics.IntfLabels{
+		Intf:    metrics.IntfToLabel(ifID),
+		NeighIA: ia.String(),
+	}
 	i := &Info{
-		IfID:         ifID,
-		Active:       active,
-		SRevInfo:     srev,
-		RawSRev:      rawSRev,
-		ActiveMetric: metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifID)),
+		IfID:     ifID,
+		Active:   active,
+		SRevInfo: srev,
+		RawSRev:  rawSRev,
 	}
 	var isActive float64
 	if active {
 		isActive = 1
 	}
-	i.ActiveMetric.Set(isActive)
+	metrics.Control.IFState(label).Set(isActive)
 
 	return i
 }
 
 // Process processes Interface State updates from the beacon service.
 func Process(ifStates *path_mgmt.IFStateInfos) {
+	cl := metrics.ControlLabels{Result: metrics.Success}
+	ctx := rctx.Get()
 	for _, info := range ifStates.Infos {
 		var rawSRev common.RawBytes
 		ifid := common.IFIDType(info.IfID)
@@ -99,11 +103,18 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 			var err error
 			rawSRev, err = proto.PackRoot(info.SRevInfo)
 			if err != nil {
+				cl.Result = metrics.ErrProcess
+				metrics.Control.ReceivedIFStateInfo(cl).Inc()
 				log.Error("Unable to pack SRevInfo", "err", err)
 				return
 			}
 		}
-		stateInfo := NewInfo(ifid, info.Active, info.SRevInfo, rawSRev)
+		intf, ok := ctx.Conf.Topo.IFInfoMap[ifid]
+		if !ok {
+			log.Warn("Interface ID does not exist", "ifid", ifid)
+			continue
+		}
+		stateInfo := NewInfo(ifid, intf.ISD_AS, info.Active, info.SRevInfo, rawSRev)
 		s, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
@@ -123,6 +134,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 		}
 		atomic.StorePointer(&s.info, unsafe.Pointer(stateInfo))
 	}
+	metrics.Control.ReceivedIFStateInfo(cl).Inc()
 }
 
 // LoadState returns the state info for a given interface ID or nil.

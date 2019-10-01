@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/border/rctx"
@@ -158,8 +157,8 @@ func newTestDst(t *testing.T) *overlay.OverlayAddr {
 }
 
 func newTestSock(r *Router, ringSize int, mconn conn.Conn) *rctx.Sock {
-	return rctx.NewSock(ringbuf.New(ringSize, nil, "loc_out"), mconn, 0, 12,
-		prometheus.Labels{"sock": "posixOutput"}, nil, r.posixOutput, PosixSock)
+	return rctx.NewSock(ringbuf.New(ringSize, nil, "loc_out"), mconn, 0, 12, "neigh_ia",
+		nil, r.posixOutput, PosixSock)
 }
 
 type tempTestErr struct{}

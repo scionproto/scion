@@ -19,9 +19,7 @@ package rpkt
 import (
 	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
-
-	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
@@ -56,16 +54,16 @@ func (rp *RtrPkt) Route() error {
 		return common.NewBasicError("No routing information found", nil,
 			"egress", rp.Egress, "dirFrom", rp.DirFrom, "raw", rp.Raw)
 	}
+	l := metrics.ProcessLabels{
+		Result: metrics.Success,
+		IntfIn: rp.Ingress.IfLabel,
+	}
 	rp.RefInc(len(rp.Egress))
 	// Call all egress functions.
 	for _, epair := range rp.Egress {
 		epair.S.Ring.Write(ringbuf.EntryList{&EgressRtrPkt{rp, epair.Dst}}, true)
-		inSock := rp.Ingress.Sock
-		if inSock == "" {
-			inSock = "self"
-		}
-		metrics.ProcessSockSrcDst.With(
-			prometheus.Labels{"inSock": inSock, "outSock": epair.S.Labels["sock"]}).Inc()
+		l.IntfOut = epair.S.Label
+		metrics.Process.Pkts(l).Inc()
 	}
 	return nil
 }
@@ -261,7 +259,7 @@ func (rp *RtrPkt) reprocess() (HookResult, error) {
 	rp.Ingress.Dst = s.Conn.LocalAddr()
 	rp.Ingress.Src = s.Conn.LocalAddr()
 	rp.Ingress.IfID = s.Ifid
-	rp.Ingress.Sock = s.Labels["sock"]
+	rp.Ingress.IfLabel = s.Label
 	// XXX This hook is meant to be called only when processing packets from external to external
 	// interface. Thus, the goroutine writing to the LocIn ringbuffer should always be the ones
 	// NOT reading from it to avoid deadlock, ie. goroutines handling packets from external
