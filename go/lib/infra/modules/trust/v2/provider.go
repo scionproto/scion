@@ -81,7 +81,7 @@ func (p *cryptoProvider) GetRawTRC(ctx context.Context, isd addr.ISD, version sc
 func (p *cryptoProvider) getCheckedTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
 	opts infra.TRCOpts, client net.Addr) (*trc.TRC, []byte, error) {
 
-	dec, err := p.getTRC(ctx, isd, version, opts, nil)
+	decTRC, err := p.getTRC(ctx, isd, version, opts, nil)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("unable to get requested TRC", err)
 	}
@@ -91,16 +91,16 @@ func (p *cryptoProvider) getCheckedTRC(ctx context.Context, isd addr.ISD, versio
 			return nil, nil, serrors.WrapStr("unable to get latest TRC info", err)
 		}
 		switch {
-		case info.Version > dec.TRC.Version+1:
+		case info.Version > decTRC.TRC.Version+1:
 			return nil, nil, serrors.WrapStr("inactivated by latest TRC version", ErrInactive,
 				"latest", info.Version)
-		case info.Version == dec.TRC.Version+1 && graceExpired(info):
+		case info.Version == decTRC.TRC.Version+1 && graceExpired(info):
 			return nil, nil, serrors.WrapStr("grace period has passed", ErrInactive,
 				"end", info.Validity.NotBefore.Add(info.GracePeriod), "latest", info.Version)
-		case !dec.TRC.Validity.Contains(time.Now()):
+		case !decTRC.TRC.Validity.Contains(time.Now()):
 			if version != scrypto.Version(scrypto.LatestVer) || opts.LocalOnly {
 				return nil, nil, serrors.WrapStr("requested TRC expired", ErrInactive,
-					"validity", dec.TRC.Validity)
+					"validity", decTRC.TRC.Validity)
 			}
 			// There might exist a more recent TRC that is not available locally
 			// yet. Fetch it if the latest version was requested and recursion
@@ -109,10 +109,10 @@ func (p *cryptoProvider) getCheckedTRC(ctx context.Context, isd addr.ISD, versio
 			if err != nil {
 				return nil, nil, serrors.WrapStr("unable to fetch latest TRC from network", err)
 			}
-			if fetched.TRC.Version <= dec.TRC.Version {
+			if fetched.TRC.Version <= decTRC.TRC.Version {
 				return nil, nil, serrors.WrapStr("latest TRC from network not newer than local",
 					ErrInactive, "net_version", fetched.TRC.Version,
-					"local_version", dec.TRC.Version, "validity", dec.TRC.Validity)
+					"local_version", decTRC.TRC.Version, "validity", decTRC.TRC.Validity)
 			}
 			if !fetched.TRC.Validity.Contains(time.Now()) {
 				return nil, nil, serrors.WrapStr("latest TRC from network expired", ErrInactive,
@@ -121,7 +121,7 @@ func (p *cryptoProvider) getCheckedTRC(ctx context.Context, isd addr.ISD, versio
 			return fetched.TRC, fetched.Raw, nil
 		}
 	}
-	return dec.TRC, dec.Raw, nil
+	return decTRC.TRC, decTRC.Raw, nil
 }
 
 // getTRC attempts to grab the TRC from the database; if the TRC is not found,
@@ -167,11 +167,11 @@ func (p *cryptoProvider) fetchTRC(ctx context.Context, isd addr.ISD, version scr
 			return decoded.TRC{}, serrors.WrapStr("unable to route TRC request", err)
 		}
 	}
-	dec, err := p.resolver.TRC(ctx, req, server)
+	decTRC, err := p.resolver.TRC(ctx, req, server)
 	if err != nil {
 		return decoded.TRC{}, serrors.WrapStr("unable to resolve signed TRC from network", err)
 	}
-	return dec, nil
+	return decTRC, nil
 }
 
 func (p *cryptoProvider) GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version,
