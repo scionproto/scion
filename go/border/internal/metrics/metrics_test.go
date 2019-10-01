@@ -24,5 +24,6 @@ import (
 func TestRegistrationsLabels(t *testing.T) {
 	promtest.CheckLabelsStruct(t, metrics.IntfLabels{})
 	promtest.CheckLabelsStruct(t, metrics.ControlLabels{})
+	promtest.CheckLabelsStruct(t, metrics.SentRevInfoLabels{})
 	promtest.CheckLabelsStruct(t, metrics.ProcessLabels{})
 }

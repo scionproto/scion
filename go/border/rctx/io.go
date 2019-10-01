@@ -65,6 +65,8 @@ type Sock struct {
 func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir, ifid common.IFIDType,
 	neighIA string, reader, writer SockFunc, sockType brconf.SockType) *Sock {
 
+	log.Debug("New Socket", "dir", dir, "ifid", ifid, "neighIA", neighIA, "sockType", sockType)
+
 	s := &Sock{
 		Ring:    ring,
 		Conn:    conn,

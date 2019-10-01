@@ -29,12 +29,18 @@ import (
 // RevInfoFwd takes RevInfos, and forwards them to the local Beacon Service
 // (BS) and Path Service (PS).
 func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs) {
+	cl := metrics.ControlLabels{}
 	// Run forever.
 	for args := range revInfoQ {
 		revInfo, err := args.SignedRevInfo.RevInfo()
 		if err != nil {
+			cl.Result = metrics.ErrParse
+			metrics.Control.ReadRevInfos(cl).Inc()
 			logger.Error("Error getting RevInfo from SignedRevInfo", "err", err)
+			continue
 		}
+		cl.Result = metrics.Success
+		metrics.Control.ReadRevInfos(cl).Inc()
 		logger.Debug("Forwarding revocation", "revInfo", revInfo.String(), "targets", args.Addrs)
 		for _, svcAddr := range args.Addrs {
 			fwdRevInfo(args.SignedRevInfo, svcAddr)
@@ -44,26 +50,26 @@ func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs) {
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
 func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
-	cl := metrics.ControlLabels{
-		Type:   metrics.Revocation,
+	cl := metrics.SentRevInfoLabels{
 		Result: metrics.ErrProcess,
+		SVC:    dstHost.String(),
 	}
 	ctx := rctx.Get()
 	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
 	if err != nil {
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentRevInfos(cl).Inc()
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)
 		return
 	}
 	scpld, err := cpld.SignedPld(infra.NullSigner)
 	if err != nil {
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentRevInfos(cl).Inc()
 		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
 		return
 	}
 	pld, err := scpld.PackPld()
 	if err != nil {
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentRevInfos(cl).Inc()
 		logger.Error("Writing RevInfo signed Ctrl payload", "err", err)
 		return
 	}
@@ -73,17 +79,17 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 	}
 	dst.NextHop, err = ctx.ResolveSVCAny(dstHost)
 	if err != nil {
-		metrics.Control.SentMsgs(cl).Inc()
+		cl.Result = metrics.ErrResolveSVC
+		metrics.Control.SentRevInfos(cl).Inc()
 		logger.Error("Resolving SVC anycast", "err", err, "addr", dst)
 		return
 	}
 	if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
-		cl.Result = metrics.ErrWrite
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentRevInfos(cl).Inc()
 		logger.Error("Writing RevInfo", "dst", dst, "err", err)
 		return
 	}
 	cl.Result = metrics.Success
-	metrics.Control.SentMsgs(cl).Inc()
+	metrics.Control.SentRevInfos(cl).Inc()
 	logger.Debug("Sent RevInfo", "dst", dst, "overlayDst", dst.NextHop)
 }

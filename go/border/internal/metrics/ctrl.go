@@ -30,49 +30,86 @@ const (
 type ControlLabels struct {
 	// Result is the outcome of processing the packet.
 	Result string
-	// Type is the type of packet/message.
-	Type string
 }
 
 // Labels returns the list of labels.
 func (l ControlLabels) Labels() []string {
-	return []string{"result", "type"}
+	return []string{"result"}
 }
 
 // Values returns the label values in the order defined by Labels.
 func (l ControlLabels) Values() []string {
-	return []string{l.Result, l.Type}
+	return []string{l.Result}
+}
+
+type SentRevInfoLabels struct {
+	// Result is the outcome of processing the packet.
+	Result string
+	// SVC is the destination svc address.
+	SVC string
+}
+
+// Labels returns the list of labels.
+func (l SentRevInfoLabels) Labels() []string {
+	return []string{"result", "svc"}
+}
+
+// Values returns the label values in the order defined by Labels.
+func (l SentRevInfoLabels) Values() []string {
+	return []string{l.Result, l.SVC}
 }
 
 type control struct {
-	sentMsgs     *prometheus.CounterVec
-	receivedMsgs *prometheus.CounterVec
-	ifstate      *prometheus.GaugeVec
-	ifstateTick  prometheus.Counter
+	reads               *prometheus.CounterVec
+	processErrors       *prometheus.CounterVec
+	receivedIFStateInfo *prometheus.CounterVec
+	sentIFStateReq      *prometheus.CounterVec
+	ifstate             *prometheus.GaugeVec
+	ifstateTick         prometheus.Counter
+	readRevInfos        *prometheus.CounterVec
+	sentRevInfos        *prometheus.CounterVec
 }
 
 func newControl() control {
-	sub := "control"
+	sub := "ctrl"
 	return control{
-		sentMsgs: prom.NewCounterVec(Namespace, sub,
-			"sent_msgs_total", "Total number of sent messages.", ControlLabels{}.Labels()),
-		receivedMsgs: prom.NewCounterVec(Namespace, sub,
-			"received_msgs_total", "Total number of recevied messages.", ControlLabels{}.Labels()),
+		reads: prom.NewCounterVec(Namespace, sub,
+			"reads_total", "Total number of read messages.", ControlLabels{}.Labels()),
+		processErrors: prom.NewCounterVec(Namespace, sub,
+			"process_errors", "Total number of process errors.", ControlLabels{}.Labels()),
+		receivedIFStateInfo: prom.NewCounterVec(Namespace, sub,
+			"received_ifstateinfo_total", "Total number of recevied ifstate infos.", ControlLabels{}.Labels()),
+		sentIFStateReq: prom.NewCounterVec(Namespace, sub,
+			"sent_ifstatereq_total", "Total number of sent ifstate requests.", ControlLabels{}.Labels()),
 		ifstate: prom.NewGaugeVec(Namespace, sub,
 			"interface_active", "Interface is active.", IntfLabels{}.Labels()),
 		ifstateTick: prom.NewCounter(Namespace, sub,
 			"ifstate_ticks_total", "Total number of IFState requests ticks."),
+		readRevInfos: prom.NewCounterVec(Namespace, sub,
+			"read_revinfos_total", "Total number of read revinfos.", ControlLabels{}.Labels()),
+		sentRevInfos: prom.NewCounterVec(Namespace, sub,
+			"sent_revinfos_total", "Total number of sent revinfos.", SentRevInfoLabels{}.Labels()),
 	}
 }
 
-// SentMsgs returns the counter for the given label set.
-func (c *control) SentMsgs(l ControlLabels) prometheus.Counter {
-	return c.sentMsgs.WithLabelValues(l.Values()...)
+// Reads returns the counter for the given label set.
+func (c *control) Reads(l ControlLabels) prometheus.Counter {
+	return c.reads.WithLabelValues(l.Values()...)
 }
 
-// ReceivedMsgs returns the counter for the given label set.
-func (c *control) ReceivedMsgs(l ControlLabels) prometheus.Counter {
-	return c.receivedMsgs.WithLabelValues(l.Values()...)
+// ProcessErrors returns the counter for the given label set.
+func (c *control) ProcessErrors(l ControlLabels) prometheus.Counter {
+	return c.processErrors.WithLabelValues(l.Values()...)
+}
+
+// ReceivedIFStateInfo returns the counter for the given label set.
+func (c *control) ReceivedIFStateInfo(l ControlLabels) prometheus.Counter {
+	return c.receivedIFStateInfo.WithLabelValues(l.Values()...)
+}
+
+// SentIFStateReq returns the counter for the given label set.
+func (c *control) SentIFStateReq(l ControlLabels) prometheus.Counter {
+	return c.sentIFStateReq.WithLabelValues(l.Values()...)
 }
 
 // IFState returns the gauge for the given label set.
@@ -83,4 +120,14 @@ func (c *control) IFState(l IntfLabels) prometheus.Gauge {
 // IFStateTick returns the counter for the given label set.
 func (c *control) IFStateTick() prometheus.Counter {
 	return c.ifstateTick
+}
+
+// ReadRevInfos returns the counter for the given label set.
+func (c *control) ReadRevInfos(l ControlLabels) prometheus.Counter {
+	return c.readRevInfos.WithLabelValues(l.Values()...)
+}
+
+// SentRevInfos returns the counter for the given label set.
+func (c *control) SentRevInfos(l SentRevInfoLabels) prometheus.Counter {
+	return c.sentRevInfos.WithLabelValues(l.Values()...)
 }

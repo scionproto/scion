@@ -44,9 +44,7 @@ func ifStateUpdate() {
 	if err := genIFStateReq(); err != nil {
 		logger.Error(err.Error(), nil)
 	}
-	metrics.Control.IFStateTick().Inc()
 	for range time.Tick(ifStateFreq) {
-		metrics.Control.IFStateTick().Inc()
 		if err := genIFStateReq(); err != nil {
 			logger.Error(err.Error(), nil)
 		}
@@ -55,23 +53,23 @@ func ifStateUpdate() {
 
 // genIFStateReq generates an Interface State request packet to the local beacon service.
 func genIFStateReq() error {
+	metrics.Control.IFStateTick().Inc()
 	cl := metrics.ControlLabels{
-		Type:   metrics.IFStateReq,
 		Result: metrics.ErrProcess,
 	}
 	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{}, nil, nil)
 	if err != nil {
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentIFStateReq(cl).Inc()
 		return common.NewBasicError("Generating IFStateReq Ctrl payload", err)
 	}
 	scpld, err := cpld.SignedPld(infra.NullSigner)
 	if err != nil {
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentIFStateReq(cl).Inc()
 		return common.NewBasicError("Generating IFStateReq signed Ctrl payload", err)
 	}
 	pld, err := scpld.PackPld()
 	if err != nil {
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentIFStateReq(cl).Inc()
 		return common.NewBasicError("Writing IFStateReq signed Ctrl payload", err)
 	}
 	dst := &snet.Addr{
@@ -81,7 +79,7 @@ func genIFStateReq() error {
 	bsAddrs, err := rctx.Get().ResolveSVCMulti(addr.SvcBS)
 	if err != nil {
 		cl.Result = metrics.ErrResolveSVC
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentIFStateReq(cl).Inc()
 		return common.NewBasicError("Resolving SVC BS multicast", err)
 	}
 
@@ -90,13 +88,13 @@ func genIFStateReq() error {
 		dst.NextHop = addr
 		if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
 			cl.Result = metrics.ErrWrite
-			metrics.Control.SentMsgs(cl).Inc()
+			metrics.Control.SentIFStateReq(cl).Inc()
 			errors = append(errors, common.NewBasicError("Writing IFStateReq", err, "dst", dst))
 			continue
 		}
 		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", addr)
 		cl.Result = metrics.Success
-		metrics.Control.SentMsgs(cl).Inc()
+		metrics.Control.SentIFStateReq(cl).Inc()
 	}
 	return errors.ToError()
 }

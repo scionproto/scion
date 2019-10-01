@@ -21,7 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-const Namespace = "border"
+const Namespace = "br"
 
 // Result values.
 const (
@@ -37,12 +37,14 @@ const (
 	ErrValidate = "err_validate"
 	// ErrValidate is an error routing the packet.
 	ErrRoute = "err_route"
-	// ErrValidate is an error on local processing the packet, ie. SVC resolution.
+	// ErrProcessLocal is an error on local processing the packet, ie. SVC resolution.
 	ErrProcessLocal = "err_process_local"
 	// ErrParsePayload is an error parsing the packet payload.
 	ErrParsePayload = "err_parse_payload"
-	// ErrResolveSVC is an error resolving a SVC address
+	// ErrResolveSVC is an error resolving a SVC address.
 	ErrResolveSVC = "err_resolve_svc"
+	// ErrInvalidRequest is an error for unsupported control message.
+	ErrInvalidRequest = "err_invalid_request"
 )
 
 // Metrics initialization.
@@ -54,7 +56,7 @@ var (
 )
 
 type IntfLabels struct {
-	// Itnf is the interface ID
+	// Intf is the interface ID
 	Intf string
 	// NeighIA is the remote IA of a given interface.
 	NeighIA string
