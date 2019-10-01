@@ -46,22 +46,68 @@ func (l BeaconingLabels) WithResult(result string) BeaconingLabels {
 	return l
 }
 
+// PropagatorLabels is used by clients to pass in a safe way labels
+// values to prometheus metric types (e.g. counter).
+type PropagatorLabels struct {
+	InIfID, EgIfID common.IFIDType
+	StartIA        addr.IA
+	Result         string
+}
+
+// Labels returns the name of the labels in correct order.
+func (l PropagatorLabels) Labels() []string {
+	return []string{"start_ia", "in_if_id", "eg_if_id", prom.LabelResult}
+}
+
+// Values returns the values of the label in correct order.
+func (l PropagatorLabels) Values() []string {
+	return []string{l.StartIA.String(), l.InIfID.String(), l.EgIfID.String(), l.Result}
+}
+
 type beaconing struct {
-	in prometheus.CounterVec
+	in                  prometheus.CounterVec
+	proTotalBeacons     prometheus.CounterVec
+	proTotalIntfTime    prometheus.CounterVec
+	proTotalRunTime     prometheus.Counter
+	proTotalInternalErr prometheus.Counter
 }
 
 func newBeaconing() beaconing {
-	sub := "beaconing"
-	labels := BeaconingLabels{}.Labels()
+	ns, sub := Namespace, "beaconing"
 
 	return beaconing{
-		in: *prom.NewCounterVec(Namespace, sub, "received_beacons_total",
-			"Total number of received beacons.", labels),
+		in: *prom.NewCounterVec(ns, sub, "received_beacons_total",
+			"Total number of received beacons.", BeaconingLabels{}.Labels()),
+		proTotalBeacons: *prom.NewCounterVec(ns, sub, "propagated_beacons_total",
+			"Number of beacons propagated", PropagatorLabels{}.Labels()),
+		proTotalIntfTime: *prom.NewCounterVec(ns, sub,
+			"propagator_interface_duration_seconds_total",
+			"Propagator total time spent per egress interface", PropagatorLabels{}.Labels()),
+		proTotalRunTime: prom.NewCounter(ns, sub, "propagator_run_duration_seconds_total",
+			"Propagator total run time spent on every periodic run"),
+		proTotalInternalErr: prom.NewCounter(ns, sub, "propagator_errors_total",
+			"Propagator total internal errors"),
 	}
 }
 
 func (e *beaconing) Received(l BeaconingLabels) prometheus.Counter {
 	return e.in.WithLabelValues(l.Values()...)
+}
+
+func (e *beaconing) PropagatorTotalRunTime() prometheus.Counter {
+	return e.proTotalRunTime
+}
+
+func (e *beaconing) PropagatorTotalBeacons(l PropagatorLabels) prometheus.Counter {
+	return e.proTotalBeacons.WithLabelValues(l.Values()...)
+}
+
+func (e *beaconing) PropagatorIntfTime(l PropagatorLabels) prometheus.Counter {
+	return e.proTotalIntfTime.WithLabelValues(l.Values()...)
+}
+
+func (e *beaconing) PropagatorInternalErr() prometheus.Counter {
+	return e.proTotalInternalErr
 }
 
 // GetResultValue return result label value given insert stats.
