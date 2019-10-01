@@ -146,12 +146,12 @@ func newOriginator() originator {
 }
 
 // Beacons returns the counter for the given label set.
-func (o *originator) Beacons(l OriginatorLabels) prom.Counter {
+func (o *originator) Beacons(l OriginatorLabels) prometheus.Counter {
     return o.beacons.WithLabelValues(l.Values()...)
 }
 
 // Duration returns the duration counter.
-func (o *originator) Duration() prom.Counter {
+func (o *originator) Duration() prometheus.Counter {
     return o.duration
 }
 ```
