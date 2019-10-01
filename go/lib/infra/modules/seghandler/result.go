@@ -20,8 +20,8 @@ import "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 type Stats struct {
 	// SegDB contains stats about segment insertions/updates.
 	SegDB SegStats
-	// VerifiedSegs indicates the amount of successfully verified segments.
-	VerifiedSegs int
+	// VerifiedSegs contains all segments that were successfully verified.
+	VerifiedSegs []*SegWithHP
 	// StoredRevs contains all revocations that were verified and stored.
 	StoredRevs []*path_mgmt.SignedRevInfo
 	// VerifiedRevs contains all revocations that were verified.

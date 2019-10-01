@@ -29,6 +29,11 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 )
 
+const (
+	minQueryInterval   = 2 * time.Second
+	expirationLeadTime = 2 * time.Minute
+)
+
 // ReplyHandler handles replies.
 type ReplyHandler interface {
 	Handle(ctx context.Context, recs seghandler.Segments, server net.Addr,
@@ -158,7 +163,6 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			if err := r.Err(); err != nil {
 				return err
 			}
-			queryInt := f.QueryInterval
 			for _, rev := range r.Stats().VerifiedRevs {
 				revInfo, err := rev.RevInfo()
 				if err != nil {
@@ -170,9 +174,19 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				// once.
 				f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
 			}
-			// TODO(lukedirtwalker): make the short interval configurable
-			if r.Stats().VerifiedSegs <= 0 {
-				queryInt = 2 * time.Second
+			// TODO(lukedirtwalker): make the minium interval configurable
+			queryInt := minQueryInterval
+			now := time.Now()
+			// Search maximum time until expiration. The lower bound is minQueryInterval.
+			for _, seg := range r.Stats().VerifiedSegs {
+				expDiff := seg.Seg.Segment.MinExpiry().Add(-expirationLeadTime).Sub(now)
+				if expDiff > queryInt {
+					queryInt = expDiff
+				}
+			}
+			// At least query every configured query interval.
+			if queryInt > f.QueryInterval {
+				queryInt = f.QueryInterval
 			}
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil,
 				time.Now().Add(queryInt))
