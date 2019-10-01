@@ -442,12 +442,12 @@ func (db *executor) InsertChain(ctx context.Context, chain *cert.Chain) (int64, 
 		return 0, err
 	}
 	ia, ver := chain.IAVer()
-	rowID, err := getIssCertRowIDCtx(ctx, db.db, chain.Issuer.Subject, chain.Issuer.Version)
+	rowId, err := getIssCertRowIDCtx(ctx, db.db, chain.Issuer.Subject, chain.Issuer.Version)
 	if err != nil {
 		return 0, err
 	}
 	// NOTE(roosd): Adding multiple rows to Chains table has to be done in a transaction.
-	res, err := db.db.ExecContext(ctx, insertChainStr, ia.I, ia.A, ver, 1, rowID)
+	res, err := db.db.ExecContext(ctx, insertChainStr, ia.I, ia.A, ver, 1, rowId)
 	if err != nil {
 		return 0, err
 	}
@@ -675,6 +675,7 @@ func insertIssCert(ctx context.Context, db db.Sqler, crt *cert.Certificate) (int
 
 func parseCert(raw common.RawBytes, ia addr.IA, version scrypto.Version,
 	err error) (*cert.Certificate, error) {
+
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

@@ -55,20 +55,20 @@ type SignSrcDef struct {
 }
 
 func NewSignSrcDefFromRaw(b common.RawBytes) (SignSrcDef, error) {
-	s := reSrcDefault.FindSubmatch(b)
-	if len(s) == 0 {
+	match := reSrcDefault.FindSubmatch(b)
+	if len(match) == 0 {
 		return SignSrcDef{}, common.NewBasicError("Unable to match default src", nil,
 			"string", string(b))
 	}
-	ia, err := addr.IAFromString(string(s[1]))
+	ia, err := addr.IAFromString(string(match[1]))
 	if err != nil {
 		return SignSrcDef{}, common.NewBasicError("Unable to parse default src IA", err)
 	}
 	var chainVer, trcVer scrypto.Version
-	if err := chainVer.UnmarshalJSON(s[2]); err != nil {
+	if err := chainVer.UnmarshalJSON(match[2]); err != nil {
 		return SignSrcDef{}, common.NewBasicError("Unable to parse default src ChainVer", err)
 	}
-	if err := trcVer.UnmarshalJSON(s[3]); err != nil {
+	if err := trcVer.UnmarshalJSON(match[3]); err != nil {
 		return SignSrcDef{}, common.NewBasicError("Unable to parse default src TRCVer", err)
 	}
 	return SignSrcDef{IA: ia, ChainVer: chainVer, TRCVer: trcVer}, nil

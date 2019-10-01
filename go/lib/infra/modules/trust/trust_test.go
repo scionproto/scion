@@ -220,6 +220,7 @@ func TestStoreGetTRC(t *testing.T) {
 
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 			defer cancelF()
+
 			trcObj, err := store.GetTRC(ctx, test.ISD, test.Version, infra.TRCOpts{})
 			test.ErrAssertion(t, err)
 			assert.Equal(t, test.ExpData, trcObj)
@@ -613,13 +614,13 @@ func loadCrypto(t *testing.T, isds []addr.ISD,
 	trcMap := make(map[addr.ISD]*trc.TRC)
 	for _, isd := range isds {
 		trcMap[isd], err = trc.TRCFromFile(getTRCFileName(isd, 1), false)
-		require.NoError(t, err)
+		xtest.FailOnErr(t, err)
 	}
 
 	chainMap := make(map[addr.IA]*cert.Chain)
 	for _, ia := range ias {
 		chainMap[ia], err = cert.ChainFromFile(getChainFileName(ia, 1), false)
-		require.NoError(t, err)
+		xtest.FailOnErr(t, err)
 	}
 	return trcMap, chainMap
 }
@@ -638,7 +639,7 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 
 	t.Helper()
 	db, err := trustdbsqlite.New(":memory:")
-	require.NoError(t, err)
+	xtest.FailOnErr(t, err)
 	topo := topology.NewTopo()
 	topotestutil.AddServer(topo, proto.ServiceType_cs, "foo",
 		topology.TestTopoAddr(nil, nil, nil, nil))
@@ -657,12 +658,12 @@ func insertTRC(t *testing.T, store *Store, trcObj *trc.TRC) {
 	t.Helper()
 
 	_, err := store.trustdb.InsertTRC(context.Background(), trcObj)
-	require.NoError(t, err)
+	xtest.FailOnErr(t, err)
 }
 
 func insertChain(t *testing.T, store *Store, chain *cert.Chain) {
 	t.Helper()
 
 	_, err := store.trustdb.InsertChain(context.Background(), chain)
-	require.NoError(t, err)
+	xtest.FailOnErr(t, err)
 }
