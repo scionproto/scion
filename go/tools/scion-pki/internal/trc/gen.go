@@ -89,7 +89,7 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 		GracePeriod:    uint32(iconf.Trc.GracePeriod.Seconds()),
 		ISD:            isd,
 		QuorumTRC:      iconf.Trc.QuorumTRC,
-		Version:        iconf.Trc.Version,
+		Version:        scrypto.Version(iconf.Trc.Version),
 		CoreASes:       make(map[addr.IA]*trc.CoreAS),
 		Signatures:     make(map[string]common.RawBytes),
 		RAINS:          &trc.Rains{},

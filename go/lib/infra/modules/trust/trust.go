@@ -142,7 +142,7 @@ func (store *Store) trcRequestFunc(ctx context.Context, request dedupe.Request) 
 		return dedupe.Response{Data: nil}
 	}
 
-	if req.version != scrypto.LatestVer && trcObj.Version != req.version {
+	if !req.version.IsLatest() && trcObj.Version != req.version {
 		return wrapErr(serrors.WrapStr("remote server responded with bad version",
 			ErrInvalidResponse, "got", trcObj.Version, "expected", req.version))
 	}
@@ -171,7 +171,7 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 	if chain == nil {
 		return dedupe.Response{Data: nil}
 	}
-	if req.version != scrypto.LatestVer && chain.Leaf.Version != req.version {
+	if !req.version.IsLatest() && chain.Leaf.Version != req.version {
 		return wrapErr(serrors.WrapStr("Remote server responded with bad version",
 			ErrInvalidResponse, "got", chain.Leaf.Version, "expected", req.version))
 	}
@@ -207,7 +207,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		CacheOnly: opts.LocalOnly,
 		Result:    metrics.ErrInternal,
 	}
-	trcObj, err := store.trustdb.GetTRCVersion(ctx, isd, uint64(version))
+	trcObj, err := store.trustdb.GetTRCVersion(ctx, isd, version)
 	if err != nil {
 		metrics.Store.Lookup(l.WithResult(metrics.ErrDB)).Inc()
 		return nil, err
@@ -245,7 +245,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 	}
 	trcObj, err = store.getTRCFromNetwork(ctx, &trcRequest{
 		isd:      isd,
-		version:  uint64(version),
+		version:  version,
 		id:       messenger.NextId(),
 		server:   opts.Server,
 		postHook: store.insertTRCHook(),
@@ -365,7 +365,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		CacheOnly: opts.LocalOnly,
 		Result:    metrics.ErrInternal,
 	}
-	chain, err := store.trustdb.GetChainVersion(ctx, ia, uint64(version))
+	chain, err := store.trustdb.GetChainVersion(ctx, ia, version)
 	if err != nil {
 		metrics.Store.Lookup(l.WithResult(metrics.ErrDB)).Inc()
 		return nil, err
@@ -395,7 +395,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 	trcOpts := infra.TRCOpts{
 		TrustStoreOpts: opts.TrustStoreOpts,
 	}
-	trcObj, err := store.getTRC(ctx, ia.I, scrypto.Version(scrypto.LatestVer), trcOpts, client)
+	trcObj, err := store.getTRC(ctx, ia.I, scrypto.LatestVer, trcOpts, client)
 	if err != nil {
 		metrics.Store.Lookup(l.WithResult(metrics.ErrTRC)).Inc()
 		return nil, err
@@ -415,7 +415,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 	}
 	chain, err = store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
-		version:  uint64(version),
+		version:  version,
 		id:       messenger.NextId(),
 		server:   opts.Server,
 		postHook: store.newChainValidator(trcObj),
@@ -573,7 +573,7 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 	defer cancelF()
 	ctx = metrics.CtxWith(ctx, metrics.Load)
 	opts := infra.TRCOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
-	dbTRC, err := store.getTRC(ctx, store.ia.I, scrypto.Version(scrypto.LatestVer), opts, nil)
+	dbTRC, err := store.getTRC(ctx, store.ia.I, scrypto.LatestVer, opts, nil)
 	switch {
 	case err != nil && !xerrors.Is(err, ErrNotFoundLocally):
 		// Unexpected error in trust store
@@ -629,7 +629,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 	defer cancelF()
 	ctx = metrics.CtxWith(ctx, metrics.Load)
 	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}}
-	chain, err := store.getChain(ctx, store.ia, scrypto.Version(scrypto.LatestVer), opts, nil)
+	chain, err := store.getChain(ctx, store.ia, scrypto.LatestVer, opts, nil)
 	switch {
 	case err != nil && !xerrors.Is(err, ErrMissingAuthoritative):
 		// Unexpected error in trust store
@@ -813,7 +813,7 @@ func (store *Store) ByAttributes(ctx context.Context, isd addr.ISD,
 
 	ctx = metrics.CtxWith(ctx, metrics.ASInspector)
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
-	trc, err := store.GetTRC(ctx, isd, scrypto.Version(scrypto.LatestVer), trcOpts)
+	trc, err := store.GetTRC(ctx, isd, scrypto.LatestVer, trcOpts)
 	if err != nil {
 		return nil, common.NewBasicError("unable to resolve TRC", err)
 	}
@@ -829,7 +829,7 @@ func (store *Store) HasAttributes(ctx context.Context, ia addr.IA,
 
 	ctx = metrics.CtxWith(ctx, metrics.ASInspector)
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
-	trc, err := store.GetTRC(ctx, ia.I, scrypto.Version(scrypto.LatestVer), trcOpts)
+	trc, err := store.GetTRC(ctx, ia.I, scrypto.LatestVer, trcOpts)
 	if err != nil {
 		return false, common.NewBasicError("unable to resolve TRC", err)
 	}

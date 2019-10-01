@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -28,8 +29,8 @@ var _ proto.Cerealizable = (*ASEntry)(nil)
 
 type ASEntry struct {
 	RawIA      addr.IAInt `capnp:"isdas"`
-	TrcVer     uint64
-	CertVer    uint64
+	TrcVer     scrypto.Version
+	CertVer    scrypto.Version
 	IfIDSize   uint8
 	HopEntries []*HopEntry `capnp:"hops"`
 	MTU        uint16      `capnp:"mtu"`

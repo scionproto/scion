@@ -345,7 +345,7 @@ func TestTRCReqHandler(t *testing.T) {
 	tests := map[string]struct {
 		Name             string
 		ISD              addr.ISD
-		Version          uint64
+		Version          scrypto.Version
 		ExpData          *trc.TRC
 		ErrAssertion     require.ErrorAssertionFunc
 		RecursionEnabled bool // Tell the server to recurse on unknown objects
@@ -484,7 +484,7 @@ func TestChainReqHandler(t *testing.T) {
 
 	tests := map[string]struct {
 		IA               addr.IA
-		Version          uint64
+		Version          scrypto.Version
 		ExpData          *cert.Chain
 		ErrAssertion     require.ErrorAssertionFunc
 		RecursionEnabled bool // Tell the server to recurse on unknown objects
@@ -625,11 +625,11 @@ func loadCrypto(t *testing.T, isds []addr.ISD,
 	return trcMap, chainMap
 }
 
-func getTRCFileName(isd addr.ISD, version uint64) string {
+func getTRCFileName(isd addr.ISD, version scrypto.Version) string {
 	return fmt.Sprintf("%s/ISD%d/trcs/ISD%d-V%d.trc", tmpDir, isd, isd, version)
 }
 
-func getChainFileName(ia addr.IA, version uint64) string {
+func getChainFileName(ia addr.IA, version scrypto.Version) string {
 	return fmt.Sprintf("%s/ISD%d/AS%s/certs/ISD%d-AS%s-V%d.crt",
 		tmpDir, ia.I, ia.A.FileFmt(), ia.I, ia.A.FileFmt(), version)
 }

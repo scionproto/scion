@@ -19,6 +19,7 @@ go_library(
         "//go/lib/ctrl/ifid:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/scrypto:go_default_library",
         "//go/proto:go_default_library",
         "//go/sig/mgmt:go_default_library",
     ],

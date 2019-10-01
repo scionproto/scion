@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -42,33 +42,33 @@ const (
 	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\S+) CHAIN: (\d+) TRC: (\d+)$`
 )
 
+var reSrcDefault = regexp.MustCompile(SrcDefaultFmt)
+
 // SignSrcDef is the default format for signature source. It states the
 // signing entity, and the certificate chain authenticating the public key.
 // The TRC version is a hint for the TRC that can currently be used to
 // verify the chain.
 type SignSrcDef struct {
 	IA       addr.IA
-	ChainVer uint64
-	TRCVer   uint64
+	ChainVer scrypto.Version
+	TRCVer   scrypto.Version
 }
 
 func NewSignSrcDefFromRaw(b common.RawBytes) (SignSrcDef, error) {
-	re := regexp.MustCompile(SrcDefaultFmt)
-	s := re.FindStringSubmatch(string(b))
-	if len(s) == 0 {
+	match := reSrcDefault.FindSubmatch(b)
+	if len(match) == 0 {
 		return SignSrcDef{}, common.NewBasicError("Unable to match default src", nil,
 			"string", string(b))
 	}
-	ia, err := addr.IAFromString(s[1])
+	ia, err := addr.IAFromString(string(match[1]))
 	if err != nil {
 		return SignSrcDef{}, common.NewBasicError("Unable to parse default src IA", err)
 	}
-	chainVer, err := strconv.ParseUint(s[2], 10, 64)
-	if err != nil {
+	var chainVer, trcVer scrypto.Version
+	if err := chainVer.UnmarshalJSON(match[2]); err != nil {
 		return SignSrcDef{}, common.NewBasicError("Unable to parse default src ChainVer", err)
 	}
-	trcVer, err := strconv.ParseUint(s[3], 10, 64)
-	if err != nil {
+	if err := trcVer.UnmarshalJSON(match[3]); err != nil {
 		return SignSrcDef{}, common.NewBasicError("Unable to parse default src TRCVer", err)
 	}
 	return SignSrcDef{IA: ia, ChainVer: chainVer, TRCVer: trcVer}, nil

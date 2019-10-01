@@ -20,6 +20,10 @@ import (
 	"strconv"
 )
 
+// LatestVer is the wildcard version indicating the highest available version
+// when requesting certificate chains and TRCs.
+const LatestVer Version = 0
+
 // ErrInvalidVersion indicates an invalid trust file version.
 var ErrInvalidVersion = errors.New("version must not be zero")
 
@@ -32,7 +36,7 @@ type Version uint64
 
 // IsLatest checks if the value is LatestVer
 func (v Version) IsLatest() bool {
-	return uint64(v) == LatestVer
+	return v == LatestVer
 }
 
 // UnmarshalJSON checks that the value is not LatestVer.
@@ -41,7 +45,7 @@ func (v *Version) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-	if parsed == LatestVer {
+	if Version(parsed) == LatestVer {
 		return ErrInvalidVersion
 	}
 	*v = Version(parsed)
@@ -50,7 +54,7 @@ func (v *Version) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON checks that the value is not LatestVer.
 func (v Version) MarshalJSON() ([]byte, error) {
-	if uint64(v) == LatestVer {
+	if v == LatestVer {
 		return nil, ErrInvalidVersion
 	}
 	return json.Marshal(uint64(v))
