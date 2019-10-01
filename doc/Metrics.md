@@ -139,7 +139,7 @@ func newOriginator() originator {
     sub := "originator"
     return originator{
         beacons: prom.NewCounterVec(Namespace, sub, "beacons_total",
-            "Total number of beacons originated.", OriginatorLabels.Labels()),
+            "Total number of beacons originated.", OriginatorLabels{}.Labels()),
         duration: prom.NewCounter(Namespace, sub, "duration_seconds_total",
             "Total time spent originating"),
     }
