@@ -47,77 +47,11 @@ const (
 )
 
 var (
-	propagatorOnce sync.Once
-	propagator     *Propagator
 	originatorOnce sync.Once
 	originator     *Originator
 	registrarOnce  sync.Once
 	registrar      *Registrar
 )
-
-// Propagator holds the propagation metrics.
-type Propagator struct {
-	totalBeacons     prometheus.CounterVec
-	totalIntfTime    prometheus.CounterVec
-	totalTime        prometheus.Counter
-	totalInternalErr prometheus.Counter
-}
-
-// InitPropagator initializes the propagator metrics and returns a handle.
-func InitPropagator() *Propagator {
-	propagatorOnce.Do(func() {
-		propagator = newPropagator()
-	})
-	return propagator
-}
-
-func newPropagator() *Propagator {
-	ns := "beacon_propagator"
-	return &Propagator{
-		totalBeacons: *prom.NewCounterVec(ns, "", "beacons_total", "Number of beacons propagated",
-			[]string{"start_ia", "in_ifid", "eg_ifid", "result"}),
-		totalIntfTime: *prom.NewCounterVec(ns, "", "time_interface_seconds_total",
-			"Total time spent per egress interface", []string{"start_ia", "in_ifid", "eg_ifid"}),
-		totalTime:        prom.NewCounter(ns, "", "time_seconds_total", "Total time spent"),
-		totalInternalErr: prom.NewCounter(ns, "", "internal_errors_total", "Total internal errors"),
-	}
-}
-
-// AddTotalTime adds the time since start to the total time.
-func (m *Propagator) AddTotalTime(start time.Time) {
-	if m == nil {
-		return
-	}
-	m.totalTime.Add(time.Since(start).Seconds())
-}
-
-// IncTotalBeacons increments the total beacon count.
-func (m *Propagator) IncTotalBeacons(start addr.IA, in, eg common.IFIDType,
-	res result) {
-
-	if m == nil {
-		return
-	}
-	m.totalBeacons.With(prometheus.Labels{"start_ia": start.String(), "in_ifid": ifidToString(in),
-		"eg_ifid": ifidToString(eg), "result": string(res)}).Inc()
-}
-
-// AddIntfTime adds the time since start to the interface time.
-func (m *Propagator) AddIntfTime(ia addr.IA, in, eg common.IFIDType, start time.Time) {
-	if m == nil {
-		return
-	}
-	m.totalIntfTime.With(prometheus.Labels{"start_ia": ia.String(), "in_ifid": ifidToString(in),
-		"eg_ifid": ifidToString(eg)}).Add(time.Since(start).Seconds())
-}
-
-// IncInternalErr increments the internal error count.
-func (m *Propagator) IncInternalErr() {
-	if m == nil {
-		return
-	}
-	m.totalInternalErr.Inc()
-}
 
 // Registrar holds the core registrar metrics.
 type Registrar struct {

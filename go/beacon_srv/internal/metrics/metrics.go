@@ -30,6 +30,8 @@ const (
 
 	// ErrDB indicates an error during validation.
 	ErrDB = prom.ErrDB
+	// ErrCreate indicates an error during creation.
+	ErrCreate = "err_create"
 	// ErrParse indicates an error during processing.
 	ErrParse = prom.ErrParse
 	// ErrProcess indicates an error during processing.
