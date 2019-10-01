@@ -28,6 +28,8 @@ import (
 	"unsafe"
 
 	"github.com/scionproto/scion/go/border/internal/metrics"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
@@ -68,10 +70,13 @@ type Info struct {
 	RawSRev  common.RawBytes
 }
 
-func NewInfo(ifID common.IFIDType, active bool, srev *path_mgmt.SignedRevInfo,
+func NewInfo(ifID common.IFIDType, ia addr.IA, active bool, srev *path_mgmt.SignedRevInfo,
 	rawSRev common.RawBytes) *Info {
 
-	label := metrics.IntfLabels{Intf: metrics.IntfToLabel(ifID)}
+	label := metrics.IntfLabels{
+		Intf:    metrics.IntfToLabel(ifID),
+		NeighIA: ia.String(),
+	}
 	i := &Info{
 		IfID:     ifID,
 		Active:   active,
@@ -89,6 +94,8 @@ func NewInfo(ifID common.IFIDType, active bool, srev *path_mgmt.SignedRevInfo,
 
 // Process processes Interface State updates from the beacon service.
 func Process(ifStates *path_mgmt.IFStateInfos) {
+	cl := metrics.ControlLabels{}
+	ctx := rctx.Get()
 	for _, info := range ifStates.Infos {
 		var rawSRev common.RawBytes
 		ifid := common.IFIDType(info.IfID)
@@ -96,11 +103,22 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 			var err error
 			rawSRev, err = proto.PackRoot(info.SRevInfo)
 			if err != nil {
+				cl.Result = metrics.ErrProcess
+				metrics.Control.ReceivedIFStateInfo(cl).Inc()
 				log.Error("Unable to pack SRevInfo", "err", err)
 				return
 			}
 		}
-		stateInfo := NewInfo(ifid, info.Active, info.SRevInfo, rawSRev)
+		intf, ok := ctx.Conf.Topo.IFInfoMap[ifid]
+		if !ok {
+			cl.Result = metrics.ErrProcess
+			metrics.Control.ReceivedIFStateInfo(cl).Inc()
+			log.Error("Interface ID does not exist", "ifid", ifid)
+			continue
+		}
+		cl.Result = metrics.Success
+		metrics.Control.ReceivedIFStateInfo(cl).Inc()
+		stateInfo := NewInfo(ifid, intf.ISD_AS, info.Active, info.SRevInfo, rawSRev)
 		s, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)

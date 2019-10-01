@@ -123,7 +123,12 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		}
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
-		newState := ifstate.NewInfo(*ifid, true, nil, nil)
+		intf, ok := rp.Ctx.Conf.BR.IFs[*ifid]
+		if !ok {
+			rp.Error("Invalid interface", "ifid", *ifid)
+			return nil
+		}
+		newState := ifstate.NewInfo(*ifid, intf.ISD_AS, true, nil, nil)
 		ifstate.UpdateIfNew(*ifid, state, newState)
 		return nil
 	}
