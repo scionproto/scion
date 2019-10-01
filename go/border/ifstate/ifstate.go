@@ -94,7 +94,7 @@ func NewInfo(ifID common.IFIDType, ia addr.IA, active bool, srev *path_mgmt.Sign
 
 // Process processes Interface State updates from the beacon service.
 func Process(ifStates *path_mgmt.IFStateInfos) {
-	cl := metrics.ControlLabels{}
+	cl := metrics.ControlLabels{Result: metrics.Success}
 	ctx := rctx.Get()
 	for _, info := range ifStates.Infos {
 		var rawSRev common.RawBytes
@@ -111,13 +111,9 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 		}
 		intf, ok := ctx.Conf.Topo.IFInfoMap[ifid]
 		if !ok {
-			cl.Result = metrics.ErrProcess
-			metrics.Control.ReceivedIFStateInfo(cl).Inc()
-			log.Error("Interface ID does not exist", "ifid", ifid)
+			log.Warn("Interface ID does not exist", "ifid", ifid)
 			continue
 		}
-		cl.Result = metrics.Success
-		metrics.Control.ReceivedIFStateInfo(cl).Inc()
 		stateInfo := NewInfo(ifid, intf.ISD_AS, info.Active, info.SRevInfo, rawSRev)
 		s, ok := states.Load(ifid)
 		if !ok {
@@ -138,6 +134,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 		}
 		atomic.StorePointer(&s.info, unsafe.Pointer(stateInfo))
 	}
+	metrics.Control.ReceivedIFStateInfo(cl).Inc()
 }
 
 // LoadState returns the state info for a given interface ID or nil.
