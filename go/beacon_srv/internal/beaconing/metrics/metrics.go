@@ -21,10 +21,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type result string
@@ -49,63 +47,7 @@ const (
 var (
 	originatorOnce sync.Once
 	originator     *Originator
-	registrarOnce  sync.Once
-	registrar      *Registrar
 )
-
-// Registrar holds the core registrar metrics.
-type Registrar struct {
-	totalBeacons     prometheus.CounterVec
-	totalTime        prometheus.CounterVec
-	totalInternalErr prometheus.CounterVec
-}
-
-// InitRegistrar initializes the registrar metrics and returns a handle.
-func InitRegistrar() *Registrar {
-	registrarOnce.Do(func() {
-		registrar = newRegistrar()
-	})
-	return registrar
-}
-
-func newRegistrar() *Registrar {
-	ns := "beacon_registrar"
-	return &Registrar{
-		totalBeacons: *prom.NewCounterVec(ns, "", "beacons_total", "Number of beacons registered",
-			[]string{"start_ia", "in_ifid", "type", "result"}),
-		totalTime: *prom.NewCounterVec(ns, "", "time_seconds_total", "Total time spent",
-			[]string{"type"}),
-		totalInternalErr: *prom.NewCounterVec(ns, "", "internal_errors_total",
-			"Total internal errors", []string{"type"}),
-	}
-}
-
-// AddTotalTime adds the time since start to the total time.
-func (m *Registrar) AddTotalTime(t proto.PathSegType, start time.Time) {
-	if m == nil {
-		return
-	}
-	m.totalTime.With(prometheus.Labels{"type": t.String()}).Add(time.Since(start).Seconds())
-}
-
-// IncTotalBeacons increments the total beacon count.
-func (m *Registrar) IncTotalBeacons(t proto.PathSegType, start addr.IA, in common.IFIDType,
-	res result) {
-
-	if m == nil {
-		return
-	}
-	m.totalBeacons.With(prometheus.Labels{"type": t.String(), "start_ia": start.String(),
-		"in_ifid": ifidToString(in), "result": string(res)}).Inc()
-}
-
-// IncInternalErr increments the internal error count.
-func (m *Registrar) IncInternalErr(t proto.PathSegType) {
-	if m == nil {
-		return
-	}
-	m.totalInternalErr.With(prometheus.Labels{"type": t.String()}).Inc()
-}
 
 // Originator holds the originator metrics.
 type Originator struct {

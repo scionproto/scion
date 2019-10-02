@@ -75,4 +75,6 @@ var (
 	Propagator = newPropagator()
 	// Revocation is the single-instance struct to get prometheus counters.
 	Revocation = newRevocation()
+	// Registrar is the single-instance struct to get prometheus metrics or counters.
+	Registrar = newRegistrar()
 )
