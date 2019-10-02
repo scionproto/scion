@@ -71,6 +71,8 @@ var (
 	Ifstate = newIfstate()
 	// Keepalive is the single-instance struct to get keepalive prometheus counters.
 	Keepalive = newKeepalive()
+	// Originator is the single-instance struct to get prometheus counters.
+	Originator = newOriginator()
 	// Propagator is the single-instance struct to get prometheus metrics or counters.
 	Propagator = newPropagator()
 	// Revocation is the single-instance struct to get prometheus counters.
