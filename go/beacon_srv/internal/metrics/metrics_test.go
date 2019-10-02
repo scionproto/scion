@@ -33,6 +33,7 @@ func TestLabels(t *testing.T) {
 		metrics.PropagatorLabels{},
 		metrics.RegistrarLabels{},
 		metrics.TypeOnlyLabel{},
+		metrics.OriginatorLabels{},
 	}
 	for _, test := range tests {
 		promtest.CheckLabelsStruct(t, test)

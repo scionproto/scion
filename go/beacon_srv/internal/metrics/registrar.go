@@ -75,10 +75,12 @@ func newRegistrar() registrar {
 func (e *registrar) Beacons(l RegistrarLabels) prometheus.Counter {
 	return e.registeredBeacons.WithLabelValues(l.Values()...)
 }
+
 func (e *registrar) RuntimeWithType(s string) prometheus.Counter {
 	l := TypeOnlyLabel{SegType: s}
 	return e.runtime.WithLabelValues(l.Values()...)
 }
+
 func (e *registrar) InternalErrorsWithType(s string) prometheus.Counter {
 	l := TypeOnlyLabel{SegType: s}
 	return e.internalErrors.WithLabelValues(l.Values()...)
