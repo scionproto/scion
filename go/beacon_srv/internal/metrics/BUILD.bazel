@@ -8,6 +8,7 @@ go_library(
         "keepalive.go",
         "metrics.go",
         "propagator.go",
+        "registrar.go",
         "revocation.go",
     ],
     importpath = "github.com/scionproto/scion/go/beacon_srv/internal/metrics",
