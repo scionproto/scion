@@ -29,6 +29,11 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 )
 
+const (
+	minQueryInterval   = 2 * time.Second
+	expirationLeadTime = 2 * time.Minute
+)
+
 // ReplyHandler handles replies.
 type ReplyHandler interface {
 	Handle(ctx context.Context, recs seghandler.Segments, server net.Addr,
@@ -158,7 +163,6 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			if err := r.Err(); err != nil {
 				return err
 			}
-			queryInt := f.QueryInterval
 			for _, rev := range r.Stats().VerifiedRevs {
 				revInfo, err := rev.RevInfo()
 				if err != nil {
@@ -170,12 +174,8 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				// once.
 				f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
 			}
-			// TODO(lukedirtwalker): make the short interval configurable
-			if r.Stats().VerifiedSegs <= 0 {
-				queryInt = 2 * time.Second
-			}
-			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil,
-				time.Now().Add(queryInt))
+			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
+			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 			if err != nil {
 				logger.Warn("Failed to insert next query", "err", err)
 			}
@@ -191,6 +191,37 @@ func (f *Fetcher) verifyServer(reply ReplyOrErr) net.Addr {
 		return nil
 	}
 	return reply.Peer
+}
+
+// nextQuery decides the next time a query should be issued based on the
+// received segments.
+func (f *Fetcher) nextQuery(segs []*seghandler.SegWithHP) time.Time {
+	// Determine the lead time for the latest segment expiration.
+	// We want to request new segments before the last one has expired.
+	expirationLead := maxSegmentExpiry(segs).Add(-expirationLeadTime)
+	return f.nearestNextQueryTime(time.Now(), expirationLead)
+}
+
+// nearestNextQueryTime finds the nearest next query time in the interval spanned
+// by the minimum and the configured query interval.
+func (f *Fetcher) nearestNextQueryTime(now, nextQuery time.Time) time.Time {
+	if earliest := now.Add(minQueryInterval); nextQuery.Before(earliest) {
+		return earliest
+	}
+	if latest := now.Add(f.QueryInterval); nextQuery.After(latest) {
+		return latest
+	}
+	return nextQuery
+}
+
+func maxSegmentExpiry(segs []*seghandler.SegWithHP) time.Time {
+	var max time.Time
+	for _, seg := range segs {
+		if exp := seg.Seg.Segment.MinExpiry(); exp.After(max) {
+			max = exp
+		}
+	}
+	return max
 }
 
 func replyToRecs(reply *path_mgmt.SegReply) seghandler.Segments {

@@ -63,7 +63,7 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
-	assert.Zero(t, stats.VerifiedSegs)
+	assert.Zero(t, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegDB.Total())
 	assert.Empty(t, stats.VerifiedRevs)
 	assert.Empty(t, stats.StoredRevs)
@@ -124,7 +124,7 @@ func TestReplyHandlerErrors(t *testing.T) {
 	assert.NoError(t, r.Err())
 	assert.Len(t, r.VerificationErrors(), len(verifyErrs))
 	stats := r.Stats()
-	assert.Zero(t, stats.VerifiedSegs)
+	assert.Zero(t, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegDB.Total())
 	assert.Empty(t, stats.VerifiedRevs)
 	assert.Empty(t, stats.StoredRevs)
@@ -193,7 +193,7 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
-	assert.Equal(t, 3, stats.VerifiedSegs)
+	assert.Equal(t, 3, len(stats.VerifiedSegs))
 	assert.Equal(t, 3, stats.SegDB.Total())
 	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
 	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
@@ -248,7 +248,7 @@ func TestReplyHandlerAllVerifiedInEarlyInterval(t *testing.T) {
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
-	assert.Equal(t, 2, stats.VerifiedSegs)
+	assert.Equal(t, 2, len(stats.VerifiedSegs))
 	assert.Equal(t, 2, stats.SegDB.Total())
 	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
 	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
@@ -309,7 +309,7 @@ func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
 	assert.Nil(t, r.VerificationErrors())
 
 	stats := r.Stats()
-	assert.Equal(t, 2, stats.VerifiedSegs)
+	assert.Equal(t, 2, len(stats.VerifiedSegs))
 	assert.Equal(t, 2, stats.SegDB.Total())
 	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
 	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
@@ -361,7 +361,7 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	assert.Error(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
-	assert.Equal(t, 2, stats.VerifiedSegs)
+	assert.Equal(t, 2, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegDB.Total())
 	assert.Empty(t, stats.VerifiedRevs)
 	assert.Empty(t, stats.StoredRevs)

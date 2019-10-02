@@ -67,7 +67,6 @@ class TestSetup(Base):
 
         self.scion.topology('topology/Tiny.topo', '--sig', '-t', '-n', '242.254.0.0/16')
         self.set_bs_policies()
-        self.set_sd_policies()
         self.scion.run()
         if not self.no_docker:
             self.tools_dc('start', 'tester*')
@@ -85,12 +84,6 @@ class TestSetup(Base):
             }, [path])
             with open(os.path.join(path.dirname, 'policy.yml'), 'w') as outfile:
                 yaml.dump({'MaxExpTime': 0}, outfile, default_flow_style=False)
-
-    def set_sd_policies(self):
-        for path in local.path('gen') // 'ISD*/AS*/endhost/sd.toml':
-            self.scion.set_configs({
-                'sd.QueryInterval': "1m",
-            }, [path])
 
 
 @Test.subcommand("run")
