@@ -368,7 +368,6 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 		return nil, err
 	}
 	s, err := beaconing.OriginatorConf{
-		EnableMetrics: true,
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
 				Conn: t.conn,
