@@ -196,19 +196,32 @@ func (f *Fetcher) verifyServer(reply ReplyOrErr) net.Addr {
 // nextQuery decides the next time a query should be issued based on the
 // received segments.
 func (f *Fetcher) nextQuery(segs []*seghandler.SegWithHP) time.Time {
-	now := time.Now()
-	// TODO(lukedirtwalker): make the minium interval configurable
-	nextQuery := now.Add(minQueryInterval)
-	for _, seg := range segs {
-		if exp := seg.Seg.Segment.MinExpiry().Add(-expirationLeadTime); exp.After(nextQuery) {
-			nextQuery = exp
-		}
+	// Determine the lead time for the latest segment expiration.
+	// We want to request new segments before the last one has expired.
+	expirationLead := maxSegmentExpiry(segs).Add(-expirationLeadTime)
+	return f.nearestNextQueryTime(time.Now(), expirationLead)
+}
+
+// nearestNextQueryTime finds the nearest next query time in the interval spanned
+// by the minimum and the configured query interval.
+func (f *Fetcher) nearestNextQueryTime(now, nextQuery time.Time) time.Time {
+	if earliest := now.Add(minQueryInterval); nextQuery.Before(earliest) {
+		return earliest
 	}
-	// At least query every configured query interval
-	if max := now.Add(f.QueryInterval); nextQuery.After(max) {
-		return max
+	if latest := now.Add(f.QueryInterval); nextQuery.After(latest) {
+		return latest
 	}
 	return nextQuery
+}
+
+func maxSegmentExpiry(segs []*seghandler.SegWithHP) time.Time {
+	var max time.Time
+	for _, seg := range segs {
+		if exp := seg.Seg.Segment.MinExpiry(); exp.After(max) {
+			max = exp
+		}
+	}
+	return max
 }
 
 func replyToRecs(reply *path_mgmt.SegReply) seghandler.Segments {
