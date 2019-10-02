@@ -19,13 +19,35 @@ import (
 
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
+
+// ErrParse indicates that parsign failed.
+var ErrParse = serrors.New("parse error")
 
 // TRC is a container for the decoded TRC.
 type TRC struct {
 	TRC    *trc.TRC
 	Signed trc.Signed
 	Raw    []byte
+}
+
+// DecodeTRC decodes the TRC.
+func DecodeTRC(raw []byte) (TRC, error) {
+	signed, err := trc.ParseSigned(raw)
+	if err != nil {
+		return TRC{}, serrors.WithCtx(ErrParse, err, "part", "signed")
+	}
+	decoded, err := signed.EncodedTRC.Decode()
+	if err != nil {
+		return TRC{}, serrors.WithCtx(ErrParse, err, "part", "decode payload")
+	}
+	d := TRC{
+		TRC:    decoded,
+		Signed: signed,
+		Raw:    raw,
+	}
+	return d, nil
 }
 
 func (d TRC) String() string {

@@ -17,12 +17,20 @@ package trust
 import (
 	"context"
 	"net"
+	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
+
+// ErrInactive indicates that the requested material is inactive.
+var ErrInactive = serrors.New("inactive")
 
 // CryptoProvider provides crypto material. A crypto provider can spawn network
 // requests if necessary and permitted.
@@ -44,4 +52,135 @@ type CryptoProvider interface {
 	// default server is determined differs between implementations.
 	GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version,
 		opts infra.ChainOpts, client net.Addr) ([]byte, error)
+}
+
+type cryptoProvider struct {
+	db       DBRead
+	recurser Recurser
+	resolver Resolver
+	router   Router
+	// alwaysCacheOnly forces the cryptoProvider to always send cache-only
+	// requests. This should be set in the CS.
+	alwaysCacheOnly bool
+}
+
+func (p *cryptoProvider) GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
+	opts infra.TRCOpts) (*trc.TRC, error) {
+
+	t, _, err := p.getCheckedTRC(ctx, isd, version, opts, nil)
+	return t, err
+}
+
+func (p *cryptoProvider) GetRawTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
+	opts infra.TRCOpts, client net.Addr) ([]byte, error) {
+
+	_, raw, err := p.getCheckedTRC(ctx, isd, version, opts, client)
+	return raw, err
+}
+
+func (p *cryptoProvider) getCheckedTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
+	opts infra.TRCOpts, client net.Addr) (*trc.TRC, []byte, error) {
+
+	decTRC, err := p.getTRC(ctx, isd, version, opts, nil)
+	if err != nil {
+		return nil, nil, serrors.WrapStr("unable to get requested TRC", err)
+	}
+	if !opts.AllowInactive {
+		info, err := p.db.GetTRCInfo(ctx, isd, scrypto.LatestVer)
+		if err != nil {
+			return nil, nil, serrors.WrapStr("unable to get latest TRC info", err)
+		}
+		switch {
+		case info.Version > decTRC.TRC.Version+1:
+			return nil, nil, serrors.WrapStr("inactivated by latest TRC version", ErrInactive,
+				"latest", info.Version)
+		case info.Version == decTRC.TRC.Version+1 && graceExpired(info):
+			return nil, nil, serrors.WrapStr("grace period has passed", ErrInactive,
+				"end", info.Validity.NotBefore.Add(info.GracePeriod), "latest", info.Version)
+		case !decTRC.TRC.Validity.Contains(time.Now()):
+			if !version.IsLatest() || opts.LocalOnly {
+				return nil, nil, serrors.WrapStr("requested TRC expired", ErrInactive,
+					"validity", decTRC.TRC.Validity)
+			}
+			// There might exist a more recent TRC that is not available locally
+			// yet. Fetch it if the latest version was requested and recursion
+			// is allowed.
+			fetched, err := p.fetchTRC(ctx, isd, scrypto.LatestVer, opts, client)
+			if err != nil {
+				return nil, nil, serrors.WrapStr("unable to fetch latest TRC from network", err)
+			}
+			if fetched.TRC.Version <= decTRC.TRC.Version {
+				return nil, nil, serrors.WrapStr("latest TRC from network not newer than local",
+					ErrInactive, "net_version", fetched.TRC.Version,
+					"local_version", decTRC.TRC.Version, "validity", decTRC.TRC.Validity)
+			}
+			if !fetched.TRC.Validity.Contains(time.Now()) {
+				return nil, nil, serrors.WrapStr("latest TRC from network expired", ErrInactive,
+					"version", fetched.TRC.Version, "validity", fetched.TRC.Version)
+			}
+			return fetched.TRC, fetched.Raw, nil
+		}
+	}
+	return decTRC.TRC, decTRC.Raw, nil
+}
+
+// getTRC attempts to grab the TRC from the database; if the TRC is not found,
+// it follows up with a network request (if allowed). The options specify
+// whether this function is allowed to create new network requests. Parameter
+// client contains the node that caused the function to be called, or nil if the
+// function was called due to a local feature.
+func (p *cryptoProvider) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
+	opts infra.TRCOpts, client net.Addr) (decoded.TRC, error) {
+
+	raw, err := p.db.GetRawTRC(ctx, isd, version)
+	switch {
+	case err == nil:
+		return decoded.DecodeTRC(raw)
+	case !xerrors.Is(err, ErrNotFound):
+		return decoded.TRC{}, serrors.WrapStr("error querying DB for TRC", err)
+	case opts.LocalOnly:
+		return decoded.TRC{}, serrors.WrapStr("localOnly requested", err)
+	default:
+		return p.fetchTRC(ctx, isd, version, opts, client)
+	}
+}
+
+// fetchTRC fetches a TRC via a network request, if allowed.
+func (p *cryptoProvider) fetchTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
+	opts infra.TRCOpts, client net.Addr) (decoded.TRC, error) {
+
+	server := opts.Server
+	if err := p.recurser.AllowRecursion(client); err != nil {
+		return decoded.TRC{}, err
+	}
+	// In case the server is provided, cache-only should be set.
+	cacheOnly := server != nil || p.alwaysCacheOnly
+	req := TRCReq{
+		ISD:       isd,
+		Version:   version,
+		CacheOnly: cacheOnly,
+	}
+	// Choose remote server, if not set.
+	if server == nil {
+		var err error
+		if server, err = p.router.ChooseServer(ctx, isd); err != nil {
+			return decoded.TRC{}, serrors.WrapStr("unable to route TRC request", err)
+		}
+	}
+	decTRC, err := p.resolver.TRC(ctx, req, server)
+	if err != nil {
+		return decoded.TRC{}, serrors.WrapStr("unable to resolve signed TRC from network", err)
+	}
+	return decTRC, nil
+}
+
+func (p *cryptoProvider) GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version,
+	opts infra.ChainOpts, client net.Addr) ([]byte, error) {
+
+	// TODO(roosd): implement.
+	return nil, serrors.New("not implemented")
+}
+
+func graceExpired(info TRCInfo) bool {
+	return time.Now().After(info.Validity.NotBefore.Add(info.GracePeriod))
 }
