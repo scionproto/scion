@@ -133,7 +133,9 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				info := trust.TRCInfo{
 					Version:     dec.TRC.Version + 1,
 					GracePeriod: time.Second,
-					Validity:    scrypto.Validity{NotBefore: dec.TRC.Validity.NotBefore},
+					Validity: scrypto.Validity{
+						NotBefore: util.UnixTime{Time: time.Now().Add(-2 * time.Second)},
+					},
 				}
 				m.DB.EXPECT().GetRawTRC(gomock.Any(), dec.TRC.ISD, dec.TRC.Version).Return(
 					dec.Raw, nil,
