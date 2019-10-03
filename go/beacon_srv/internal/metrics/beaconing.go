@@ -40,21 +40,20 @@ func (l BeaconingLabels) Values() []string {
 	return []string{l.InIfID.String(), l.NeighAS.String(), l.Result}
 }
 
-// WithResult return the label set with the modfied result.
+// WithResult returns the label set with the modfied result.
 func (l BeaconingLabels) WithResult(result string) BeaconingLabels {
 	l.Result = result
 	return l
 }
 
 type beaconing struct {
-	receivedBeacons prometheus.CounterVec
+	receivedBeacons *prometheus.CounterVec
 }
 
 func newBeaconing() beaconing {
 	ns, sub := Namespace, "beaconing"
-
 	return beaconing{
-		receivedBeacons: *prom.NewCounterVec(ns, sub, "received_beacons_total",
+		receivedBeacons: prom.NewCounterVec(ns, sub, "received_beacons_total",
 			"Total number of received beacons.", BeaconingLabels{}.Labels()),
 	}
 }
