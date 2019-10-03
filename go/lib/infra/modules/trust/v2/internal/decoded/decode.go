@@ -36,11 +36,11 @@ type TRC struct {
 func DecodeTRC(raw []byte) (TRC, error) {
 	signed, err := trc.ParseSigned(raw)
 	if err != nil {
-		return TRC{}, serrors.WithCtx(ErrParse, err, "part", "signed")
+		return TRC{}, serrors.Wrap(ErrParse, err, "part", "signed")
 	}
 	decoded, err := signed.EncodedTRC.Decode()
 	if err != nil {
-		return TRC{}, serrors.WithCtx(ErrParse, err, "part", "decode payload")
+		return TRC{}, serrors.Wrap(ErrParse, err, "part", "decode payload")
 	}
 	d := TRC{
 		TRC:    decoded,
