@@ -546,7 +546,7 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 		return response.Data.(*cert.Chain), nil
 	case <-ctx.Done():
 		return nil, serrors.New("Context canceled while waiting for Chain",
-			nil, "ia", req.ia, "version", req.version)
+			"ia", req.ia, "version", req.version)
 	}
 }
 
