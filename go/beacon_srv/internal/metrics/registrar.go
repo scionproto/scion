@@ -56,18 +56,18 @@ func (l TypeOnlyLabel) Values() []string {
 }
 
 type registrar struct {
-	registeredBeacons, runtime, internalErrors prometheus.CounterVec
+	registeredBeacons, runtime, internalErrors *prometheus.CounterVec
 }
 
 func newRegistrar() registrar {
 	ns, sub := Namespace, "beaconing"
 	return registrar{
-		registeredBeacons: *prom.NewCounterVec(ns, sub, "registered_beacons_total",
+		registeredBeacons: prom.NewCounterVec(ns, sub, "registered_beacons_total",
 			"Number of beacons registered",
 			RegistrarLabels{}.Labels()),
-		runtime: *prom.NewCounterVec(ns, sub, "registrar_run_durations_seconds_total",
+		runtime: prom.NewCounterVec(ns, sub, "registrar_run_durations_seconds_total",
 			"Registrar total time spent on every periodic run", TypeOnlyLabel{}.Labels()),
-		internalErrors: *prom.NewCounterVec(ns, sub, "registrar_errors_total",
+		internalErrors: prom.NewCounterVec(ns, sub, "registrar_errors_total",
 			"Registrar total internal errors", TypeOnlyLabel{}.Labels()),
 	}
 }

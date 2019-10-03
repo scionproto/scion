@@ -258,6 +258,7 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 		}
 		now := time.Now()
 		defer func() {
+			// This captures the labels variable such that it can be modified in the code below.
 			metrics.Propagator.IntfTime(labels).Add(time.Since(now).Seconds())
 		}()
 
