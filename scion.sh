@@ -346,7 +346,7 @@ go_lint() {
     lint_step "ineffassign"
     $TMPDIR/ineffassign -exclude ineffassign.json go || ret=1
     lint_step "serrors"
-    $TMPDIR/serrorslint ./go/... || ret=1
+    $TMPDIR/serrorslint "github.com/scionproto/scion/go/..." || ret=1
     lint_step "bazel"
     make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
