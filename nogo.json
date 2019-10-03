@@ -6,7 +6,8 @@
   },
   "composites": {
     "exclude_files": {
-      "gazelle/language/go/resolve.go": ""
+      "gazelle/language/go/resolve.go": "",
+      "/org_golang_x_tools/go/packages/golist.go": ""
     }
   },
   "nilness": {
@@ -15,7 +16,8 @@
       "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
       "/com_github_mattn_go_sqlite3": "",
       "/com_github_lucas_clemente_quic_go": "many vendored dependencies have issues",
-      "/com_github_vishvananda_netlink": ""
+      "/com_github_vishvananda_netlink": "",
+      "/org_golang_x_tools/go/packages/golist.go": ""
     }
   },
   "printf": {
@@ -48,7 +50,8 @@
   },
   "structtag": {
     "exclude_files": {
-      "com_github_buildkite_go_buildkite": ""
+      "com_github_buildkite_go_buildkite": "",
+      "org_golang_x_tools/go/packages/external.go": ""
     }
   },
   "gocall": {
