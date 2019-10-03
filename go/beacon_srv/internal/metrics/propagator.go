@@ -40,17 +40,16 @@ func (l PropagatorLabels) Values() []string {
 }
 
 type propagator struct {
-	propagatedBeacons       prometheus.CounterVec
-	intfTime                prometheus.CounterVec
-	runtime, internalErrors prometheus.Counter
+	propagatedBeacons, intfTime *prometheus.CounterVec
+	runtime, internalErrors     prometheus.Counter
 }
 
 func newPropagator() propagator {
 	ns, sub := Namespace, "beaconing"
 	return propagator{
-		propagatedBeacons: *prom.NewCounterVec(ns, sub, "propagated_beacons_total",
+		propagatedBeacons: prom.NewCounterVec(ns, sub, "propagated_beacons_total",
 			"Number of beacons propagated", PropagatorLabels{}.Labels()),
-		intfTime: *prom.NewCounterVec(ns, sub, "propagator_interface_duration_seconds_total",
+		intfTime: prom.NewCounterVec(ns, sub, "propagator_interface_duration_seconds_total",
 			"Propagator total time spent per egress interface", PropagatorLabels{}.Labels()),
 		runtime: prom.NewCounter(ns, sub, "propagator_run_duration_seconds_total",
 			"Propagator total run time spent on every periodic run"),
@@ -62,12 +61,15 @@ func newPropagator() propagator {
 func (e *propagator) Runtime() prometheus.Counter {
 	return e.runtime
 }
+
 func (e *propagator) Beacons(l PropagatorLabels) prometheus.Counter {
 	return e.propagatedBeacons.WithLabelValues(l.Values()...)
 }
+
 func (e *propagator) IntfTime(l PropagatorLabels) prometheus.Counter {
 	return e.intfTime.WithLabelValues(l.Values()...)
 }
+
 func (e *propagator) InternalErrors() prometheus.Counter {
 	return e.internalErrors
 }

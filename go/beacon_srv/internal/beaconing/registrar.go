@@ -121,7 +121,6 @@ func (r *Registrar) run(ctx context.Context) error {
 	var expected int
 	var wg sync.WaitGroup
 	for bOrErr := range segments {
-
 		if bOrErr.Err != nil {
 			logger.Error("[beaconing.Registrar] Unable to get beacon", "err", err)
 			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
@@ -221,7 +220,6 @@ func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGro
 	go func() {
 		defer log.LogPanicAndExit()
 		defer wg.Done()
-
 		if err := r.msgr.SendSegReg(ctx, r.reg, r.addr, messenger.NextId()); err != nil {
 			r.logger.Error("[beaconing.Registrar] Unable to register segment",
 				"addr", r.addr, "err", err)

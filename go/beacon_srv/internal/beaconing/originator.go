@@ -157,10 +157,10 @@ type beaconOriginator struct {
 
 // originateBeacon originates a beacon on the given ifid.
 func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
+	labels := metrics.OriginatorLabels{EgIfID: o.ifID, Result: metrics.Success}
 	intf := o.cfg.Intfs.Get(o.ifID)
 	if intf == nil {
-		l := metrics.OriginatorLabels{EgIfID: o.ifID, Result: metrics.ErrVerify}
-		metrics.Originator.Beacons(l).Inc()
+		metrics.Originator.Beacons(labels.WithResult(metrics.ErrVerify)).Inc()
 		return serrors.New("Interface does not exist")
 	}
 	topoInfo := intf.TopoInfo()
@@ -168,8 +168,7 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 
 	bseg, err := o.createBeacon()
 	if err != nil {
-		l := metrics.OriginatorLabels{EgIfID: o.ifID, Result: metrics.ErrCreate}
-		metrics.Originator.Beacons(l).Inc()
+		metrics.Originator.Beacons(labels.WithResult(metrics.ErrCreate)).Inc()
 		return common.NewBasicError("Unable to create beacon", err, "ifid", o.ifID)
 	}
 
@@ -182,13 +181,11 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		ov,
 	)
 	if err != nil {
-		l := metrics.OriginatorLabels{EgIfID: o.ifID, Result: metrics.ErrSend}
-		metrics.Originator.Beacons(l).Inc()
+		metrics.Originator.Beacons(labels.WithResult(metrics.ErrSend)).Inc()
 		return common.NewBasicError("Unable to send packet", err)
 	}
 	o.onSuccess(intf)
-	l := metrics.OriginatorLabels{EgIfID: o.ifID, Result: metrics.Success}
-	metrics.Originator.Beacons(l).Inc()
+	metrics.Originator.Beacons(labels).Inc()
 	return nil
 }
 

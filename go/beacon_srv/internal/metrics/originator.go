@@ -37,15 +37,21 @@ func (l OriginatorLabels) Values() []string {
 	return []string{l.EgIfID.String(), l.Result}
 }
 
+// WithResult returns the label set with the modfied result.
+func (l OriginatorLabels) WithResult(result string) OriginatorLabels {
+	l.Result = result
+	return l
+}
+
 type originator struct {
-	originatedBeacons prometheus.CounterVec
+	originatedBeacons *prometheus.CounterVec
 	runtime           prometheus.Counter
 }
 
 func newOriginator() originator {
 	ns, sub := Namespace, "beaconing"
 	return originator{
-		originatedBeacons: *prom.NewCounterVec(ns, sub, "originated_beacons_total",
+		originatedBeacons: prom.NewCounterVec(ns, sub, "originated_beacons_total",
 			"Number of beacons originated", OriginatorLabels{}.Labels()),
 		runtime: prom.NewCounter(ns, sub, "originator_run_duration_seconds_total",
 			"Originator total time spent on every periodic run"),
