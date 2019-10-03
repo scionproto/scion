@@ -83,7 +83,7 @@ nogo(
     config = "nogo.json",
     deps = [
         "//go/lint:log",
-        "@com_github_oncilla_gochecks//serrorscheck:serrorscheck",
+        "@com_github_oncilla_gochecks//serrorscheck:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/asmdecl:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/assign:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/atomic:go_tool_library",
