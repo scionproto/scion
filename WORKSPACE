@@ -289,8 +289,8 @@ go_repository(
 
 go_repository(
     name = "com_github_oncilla_gochecks",
-    commit = "d6344eb0440fcd1b62d95b9e0eb64f1350638420",
-    importpath = "github.com/oncilla/gochecks",
+    commit = "7147c303d76d166c0d8b82243fe16cf98aa1827d",
+    importpath = "github.com/oncilla/gochecks",  # serrorscheck
 )
 
 go_repository(
