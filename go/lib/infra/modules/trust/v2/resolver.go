@@ -30,7 +30,7 @@ import (
 
 var (
 	// ErrResolveSuperseded indicates that the latest locally available TRC
-	// superseds the TRC to resolve.
+	// supersedes the TRC to resolve.
 	ErrResolveSuperseded = serrors.New("latest locally available is newer")
 )
 
