@@ -127,7 +127,7 @@ type Key struct {
 }
 
 // KeyFromPEM parses the PEM block.
-func KeyFromPEM(block pem.Block) (Key, error) {
+func KeyFromPEM(block *pem.Block) (Key, error) {
 	k := Key{}
 	if err := k.Type.UnmarshalText([]byte(block.Type)); err != nil {
 		return Key{}, serrors.WrapStr("unable to parse key type", err)

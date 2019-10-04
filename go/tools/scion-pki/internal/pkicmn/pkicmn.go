@@ -49,6 +49,20 @@ var (
 	Quiet   bool
 )
 
+// Dirs holds the directory configuration.
+type Dirs struct {
+	Root string
+	Out  string
+}
+
+// GetDirs returns the directory configuration.
+func GetDirs() Dirs {
+	return Dirs{
+		Root: RootDir,
+		Out:  OutDir,
+	}
+}
+
 // ParseSelector parses the given selector. The returned strings are in file format.
 func ParseSelector(selector string) (string, string, error) {
 	toks := strings.Split(selector, "-")
