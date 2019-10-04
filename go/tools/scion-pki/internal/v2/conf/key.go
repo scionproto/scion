@@ -54,7 +54,7 @@ func LoadKeys(file string) (Keys, error) {
 	return k, nil
 }
 
-// Encode writes the encoded keys config to the writter
+// Encode writes the encoded keys config to the writer.
 func (k Keys) Encode(w io.Writer) error {
 	m, err := keyMarshalerFromKeys(k)
 	if err != nil {

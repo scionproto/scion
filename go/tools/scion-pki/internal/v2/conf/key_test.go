@@ -16,6 +16,7 @@ package conf_test
 
 import (
 	"bytes"
+	"flag"
 	"io/ioutil"
 	"testing"
 
@@ -26,16 +27,27 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf/testdata"
 )
 
-func TestLoadKeys(t *testing.T) {
-	keys, err := conf.LoadKeys("testdata/keys.toml")
-	require.NoError(t, err)
-	assert.Equal(t, testdata.GoldenKeys, keys)
-}
+var update = flag.Bool("update", false, "set to true to regenerate golden files")
 
-func TestKeysEncode(t *testing.T) {
+func TestKeys(t *testing.T) {
 	var buf bytes.Buffer
-	testdata.GoldenKeys.Encode(&buf)
-	raw, err := ioutil.ReadFile("testdata/keys.toml")
+	err := testdata.GoldenKeys.Encode(&buf)
 	require.NoError(t, err)
-	assert.Equal(t, raw, buf.Bytes())
+
+	if *update {
+		err := ioutil.WriteFile("testdata/keys.toml", buf.Bytes(), 0644)
+		require.NoError(t, err)
+	}
+
+	t.Run("loaded keys config matches", func(t *testing.T) {
+		keys, err := conf.LoadKeys("testdata/keys.toml")
+		require.NoError(t, err)
+		assert.Equal(t, testdata.GoldenKeys, keys)
+	})
+
+	t.Run("encoded keys config matches", func(t *testing.T) {
+		raw, err := ioutil.ReadFile("testdata/keys.toml")
+		require.NoError(t, err)
+		assert.Equal(t, raw, buf.Bytes())
+	})
 }
