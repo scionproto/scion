@@ -479,6 +479,10 @@ func initResolver(resolver *mock_messenger.MockResolver, f func(*mock_messenger.
 
 type testPath struct{}
 
+func (t *testPath) Fingerprint() string {
+	panic("not implemented")
+}
+
 func (t *testPath) OverlayNextHop() *overlay.OverlayAddr {
 	panic("not implemented")
 }
@@ -488,5 +492,9 @@ func (t *testPath) Path() *spath.Path {
 }
 
 func (t *testPath) Destination() addr.IA {
+	panic("not implemented")
+}
+
+func (t *testPath) MTU() uint16 {
 	panic("not implemented")
 }
