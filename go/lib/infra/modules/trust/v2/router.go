@@ -17,8 +17,14 @@ package trust
 import (
 	"context"
 	"net"
+	"time"
+
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // Router builds the CS address for crypto material with the subject in a given ISD.
@@ -26,4 +32,67 @@ type Router interface {
 	// ChooseServer determines the remote server for trust material with the
 	// subject in the provided ISD.
 	ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error)
+}
+
+type localRouter struct {
+	ia addr.IA
+}
+
+// ChooseServer always routs to the local CS.
+func (r *localRouter) ChooseServer(_ context.Context, _ addr.ISD) (net.Addr, error) {
+	return r.chooseServer(), nil
+}
+
+func (r *localRouter) chooseServer() net.Addr {
+	return &snet.Addr{IA: r.ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+}
+
+type csRouter struct {
+	isd    addr.ISD
+	router snet.Router
+	db     TRCRead
+}
+
+// ChooseServer builds a CS address for crypto with the subject in a given ISD.
+//  * a local authoritative CS if subject is ISD-local.
+//  * a local authoritative CS if subject is in remote ISD, but no active TRC is available.
+//  * a remote authoritative CS otherwise.
+func (r *csRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
+	dstISD, err := r.dstISD(ctx, subjectISD)
+	if err != nil {
+		return nil, common.NewBasicError("unable to determine dest ISD to query", err)
+	}
+	path, err := r.router.Route(ctx, addr.IA{I: dstISD})
+	if err != nil {
+		return nil, common.NewBasicError("unable to find path to any core AS", err, "isd", dstISD)
+	}
+	a := &snet.Addr{
+		IA:      path.Destination(),
+		Host:    addr.NewSVCUDPAppAddr(addr.SvcCS),
+		Path:    path.Path(),
+		NextHop: path.OverlayNextHop(),
+	}
+	return a, nil
+}
+
+// dstISD selects the CS to ask for crypto material, using the following strategy:
+//  * a local authoritative CS if subject is ISD-local.
+//  * a local authoritative CS if subject is in remote ISD, but no active TRC is available.
+//  * a remote authoritative CS otherwise.
+func (r *csRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, error) {
+	if destination == r.isd {
+		return r.isd, nil
+	}
+	info, err := r.db.GetTRCInfo(ctx, destination, scrypto.Version(scrypto.LatestVer))
+	notFound := xerrors.Is(err, ErrNotFound)
+	switch {
+	case err != nil && notFound:
+		return r.isd, nil
+	case err != nil && !notFound:
+		return 0, common.NewBasicError("error querying DB for TRC", err)
+	}
+	if !info.Validity.Contains(time.Now()) {
+		return r.isd, nil
+	}
+	return destination, nil
 }

@@ -14,10 +14,27 @@
 
 package trust
 
+import (
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
+)
+
 var (
 	// NewCryptoProvider allows instantiating the private cryptoProvider for
 	// black-box testing.
 	NewCryptoProvider = newTestCryptoProvider
+	// NewCSRouter allows instantiating the private CS router for black-box
+	// testing.
+	NewCSRouter = newTestCSRouter
+	// NewFwdInserter allows instantiating the private forwarding
+	// inserter for black-box testing.
+	NewFwdInserter = newTestFwdInserter
+	// NewInserter allows instantiating the private forwarding inserter for
+	// black-box testing.
+	NewInserter = newTestInserter
+	// NewLocalRouter allows instantiating the private resolver for black-box
+	// testing.
+	NewLocalRouter = newTestLocalRouter
 	// NewResolver allows instantiating the private resolver for black-box
 	// testing.
 	NewResolver = newTestResolver
@@ -34,6 +51,40 @@ func newTestCryptoProvider(db DBRead, recurser Recurser, resolver Resolver, rout
 		router:          router,
 		alwaysCacheOnly: alwaysCacheOnly,
 	}
+}
+
+// newTestCSRouter returns a new router for testing.
+func newTestCSRouter(isd addr.ISD, router snet.Router, db TRCRead) Router {
+	return &csRouter{
+		isd:    isd,
+		router: router,
+		db:     db,
+	}
+}
+
+// newTestFwdInserter returns a new inserter for testing.
+func newTestFwdInserter(db ReadWrite, rpc RPC) Inserter {
+	return &fwdInserter{
+		baseInserter: baseInserter{
+			db: db,
+		},
+		rpc: rpc,
+	}
+}
+
+// newTestInserter returns a new inserter for testing.
+func newTestInserter(db ReadWrite, unsafe bool) Inserter {
+	return &inserter{
+		baseInserter: baseInserter{
+			db:     db,
+			unsafe: unsafe,
+		},
+	}
+}
+
+// newTestLocalRouter returns a new router for testing.
+func newTestLocalRouter(ia addr.IA) Router {
+	return &localRouter{ia: ia}
 }
 
 // newTestResolver returns a new resolver for testing.
