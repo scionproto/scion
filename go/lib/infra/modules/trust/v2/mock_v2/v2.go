@@ -9,7 +9,6 @@ import (
 	sql "database/sql"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	cert_mgmt "github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	infra "github.com/scionproto/scion/go/lib/infra"
 	v2 "github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	decoded "github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
@@ -419,10 +418,10 @@ func (m *MockRPC) EXPECT() *MockRPCMockRecorder {
 }
 
 // GetCertChain mocks base method
-func (m *MockRPC) GetCertChain(arg0 context.Context, arg1 *cert_mgmt.ChainReq, arg2 net.Addr) (*cert_mgmt.Chain, error) {
+func (m *MockRPC) GetCertChain(arg0 context.Context, arg1 v2.ChainReq, arg2 net.Addr) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCertChain", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*cert_mgmt.Chain)
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -434,10 +433,10 @@ func (mr *MockRPCMockRecorder) GetCertChain(arg0, arg1, arg2 interface{}) *gomoc
 }
 
 // GetTRC mocks base method
-func (m *MockRPC) GetTRC(arg0 context.Context, arg1 *cert_mgmt.TRCReq, arg2 net.Addr) (*cert_mgmt.TRC, error) {
+func (m *MockRPC) GetTRC(arg0 context.Context, arg1 v2.TRCReq, arg2 net.Addr) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTRC", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*cert_mgmt.TRC)
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -449,7 +448,7 @@ func (mr *MockRPCMockRecorder) GetTRC(arg0, arg1, arg2 interface{}) *gomock.Call
 }
 
 // SendCertChain mocks base method
-func (m *MockRPC) SendCertChain(arg0 context.Context, arg1 *cert_mgmt.Chain, arg2 net.Addr) error {
+func (m *MockRPC) SendCertChain(arg0 context.Context, arg1 []byte, arg2 net.Addr) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendCertChain", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
@@ -463,7 +462,7 @@ func (mr *MockRPCMockRecorder) SendCertChain(arg0, arg1, arg2 interface{}) *gomo
 }
 
 // SendTRC mocks base method
-func (m *MockRPC) SendTRC(arg0 context.Context, arg1 *cert_mgmt.TRC, arg2 net.Addr) error {
+func (m *MockRPC) SendTRC(arg0 context.Context, arg1 []byte, arg2 net.Addr) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendTRC", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)

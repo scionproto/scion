@@ -24,7 +24,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	trust "github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/mock_v2"
@@ -51,15 +50,12 @@ func TestResolverTRC(t *testing.T) {
 				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer).Return(
 					trcs[1].TRC, nil,
 				)
-				m.RPC.EXPECT().GetTRC(gomock.Any(), &cert_mgmt.TRCReq{ISD: 1}, nil).Return(
-					&cert_mgmt.TRC{RawTRC: trcs[4].Raw}, nil,
-				)
+				req := trust.TRCReq{ISD: 1, Version: scrypto.LatestVer}
+				m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(trcs[4].Raw, nil)
 				for i := scrypto.Version(2); i <= scrypto.Version(4); i++ {
 					v := i
-					req := &cert_mgmt.TRCReq{ISD: 1, Version: v}
-					m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(
-						&cert_mgmt.TRC{RawTRC: trcs[req.Version].Raw}, nil,
-					)
+					req := trust.TRCReq{ISD: 1, Version: v}
+					m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(trcs[req.Version].Raw, nil)
 					m.Inserter.EXPECT().InsertTRC(gomock.Any(), trcs[v], gomock.Any()).DoAndReturn(
 						func(_ interface{}, decTRC decoded.TRC, p trust.TRCProviderFunc) error {
 							prev, err := p(nil, 1, v-1)
