@@ -498,3 +498,7 @@ func (t *testPath) Destination() addr.IA {
 func (t *testPath) MTU() uint16 {
 	panic("not implemented")
 }
+
+func (t *testPath) Copy() snet.Path {
+	panic("not implemented")
+}
