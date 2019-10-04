@@ -60,6 +60,11 @@ func ParseSigned(raw []byte) (Signed, error) {
 	return signed, nil
 }
 
+// EncodeSigned encodes the signed TRC to raw bytes.
+func EncodeSigned(signed Signed) ([]byte, error) {
+	return json.Marshal(signed)
+}
+
 // Encoded is the the base64url encoded marshaled TRC.
 type Encoded []byte
 

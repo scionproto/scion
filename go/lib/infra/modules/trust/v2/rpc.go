@@ -18,15 +18,35 @@ import (
 	"context"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 // RPC abstracts the RPC calls over the messenger.
 type RPC interface {
-	GetTRC(context.Context, *cert_mgmt.TRCReq, net.Addr) (*cert_mgmt.TRC, error)
-	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr) (*cert_mgmt.Chain, error)
-	SendTRC(context.Context, *cert_mgmt.TRC, net.Addr) error
-	SendCertChain(context.Context, *cert_mgmt.Chain, net.Addr) error
+	GetTRC(context.Context, TRCReq, net.Addr) ([]byte, error)
+	GetCertChain(ctx context.Context, msg ChainReq, a net.Addr) ([]byte, error)
+	SendTRC(context.Context, []byte, net.Addr) error
+	SendCertChain(context.Context, []byte, net.Addr) error
 	SetMsgr(msgr infra.Messenger)
+}
+
+// TRCReq holds the values of a TRC request.
+type TRCReq struct {
+	ISD       addr.ISD
+	Version   scrypto.Version
+	CacheOnly bool
+}
+
+func (r TRCReq) withVersion(version scrypto.Version) TRCReq {
+	r.Version = version
+	return r
+}
+
+// ChainReq holds the values of a certificate chain request.
+type ChainReq struct {
+	IA        addr.IA
+	Version   scrypto.Version
+	CacheOnly bool
 }
