@@ -22,7 +22,7 @@ import (
 )
 
 var _ (toml.TextUnmarshaler) = (*DurWrap)(nil)
-var _ (toml.TextMarshaler) = (*DurWrap)(nil)
+var _ (toml.TextMarshaler) = DurWrap{}
 var _ (flag.Value) = (*DurWrap)(nil)
 
 // DurWrap is a wrapper to enable marshalling and unmarshalling of durations
@@ -35,19 +35,16 @@ func (d *DurWrap) UnmarshalText(text []byte) error {
 	return d.Set(string(text))
 }
 
-func (d *DurWrap) MarshalText() (text []byte, err error) {
-	return []byte(FmtDuration(d.Duration)), nil
-}
-
 func (d *DurWrap) Set(text string) error {
 	var err error
 	d.Duration, err = ParseDuration(text)
 	return err
 }
 
-func (d *DurWrap) String() string {
-	if d == nil {
-		return FmtDuration(0)
-	}
+func (d DurWrap) MarshalText() (text []byte, err error) {
+	return []byte(FmtDuration(d.Duration)), nil
+}
+
+func (d DurWrap) String() string {
 	return FmtDuration(d.Duration)
 }
