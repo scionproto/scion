@@ -188,3 +188,11 @@ func (p *path) Destination() addr.IA {
 func (p *path) MTU() uint16 {
 	return 0
 }
+
+func (p *path) Copy() snet.Path {
+	return &path{
+		spath:       p.spath.Copy(),
+		overlay:     p.overlay.Copy(),
+		destination: p.destination,
+	}
+}

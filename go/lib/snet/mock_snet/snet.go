@@ -465,6 +465,20 @@ func (m *MockPath) EXPECT() *MockPathMockRecorder {
 	return m.recorder
 }
 
+// Copy mocks base method
+func (m *MockPath) Copy() snet.Path {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Copy")
+	ret0, _ := ret[0].(snet.Path)
+	return ret0
+}
+
+// Copy indicates an expected call of Copy
+func (mr *MockPathMockRecorder) Copy() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Copy", reflect.TypeOf((*MockPath)(nil).Copy))
+}
+
 // Destination mocks base method
 func (m *MockPath) Destination() addr.IA {
 	m.ctrl.T.Helper()
