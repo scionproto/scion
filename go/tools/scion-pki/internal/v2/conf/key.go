@@ -15,8 +15,8 @@
 package conf
 
 import (
-	"bytes"
 	"encoding"
+	"io"
 	"strconv"
 
 	"github.com/BurntSushi/toml"
@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 // KeysFileName is the file name of the key configuration.
@@ -41,7 +40,7 @@ type Keys struct {
 // LoadKeys loads the keys from the provided file. The contents are already
 // validated.
 func LoadKeys(file string) (Keys, error) {
-	var m keysMarshaler
+	var m tomlKeys
 	if _, err := toml.DecodeFile(file, &m); err != nil {
 		return Keys{}, serrors.WrapStr("unable to load key config from file", err, "file", file)
 	}
@@ -55,19 +54,15 @@ func LoadKeys(file string) (Keys, error) {
 	return k, nil
 }
 
-func (k Keys) Write(file string) error {
-	var buf bytes.Buffer
+// Encode writes the encoded keys config to the writter
+func (k Keys) Encode(w io.Writer) error {
 	m, err := keyMarshalerFromKeys(k)
 	if err != nil {
 		return serrors.WrapStr("unable to convert key config", err)
 	}
-	if err := toml.NewEncoder(&buf).Encode(m); err != nil {
+	if err := toml.NewEncoder(w).Encode(m); err != nil {
 		return serrors.WrapStr("unable to encode key config", err)
 	}
-	if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
-		return serrors.WrapStr("unable to write key config", err, "file", file)
-	}
-	pkicmn.QuietPrint("Successfully written %s\n", file)
 	return nil
 }
 
@@ -117,15 +112,15 @@ func (m KeyMeta) Validate() error {
 	return nil
 }
 
-// keysMarshaler is used for toml encoding and decoding because the library only
-// allows string has map keys.
-type keysMarshaler struct {
+// tomlKeys is used for toml encoding and decoding because the library only
+// allows string map keys.
+type tomlKeys struct {
 	Primary map[string]map[string]KeyMeta `toml:"primary"`
 	Issuer  map[string]map[string]KeyMeta `toml:"issuer_cert"`
 	AS      map[string]map[string]KeyMeta `toml:"as_cert"`
 }
 
-func (k keysMarshaler) Keys() (Keys, error) {
+func (k tomlKeys) Keys() (Keys, error) {
 	keys := Keys{
 		Primary: make(map[trc.KeyType]map[scrypto.KeyVersion]KeyMeta),
 		Issuer:  make(map[cert.KeyType]map[scrypto.KeyVersion]KeyMeta),
@@ -152,7 +147,7 @@ func (k keysMarshaler) Keys() (Keys, error) {
 	return keys, nil
 }
 
-func (k keysMarshaler) convertCertKeys(dst map[cert.KeyType]map[scrypto.KeyVersion]KeyMeta,
+func (k tomlKeys) convertCertKeys(dst map[cert.KeyType]map[scrypto.KeyVersion]KeyMeta,
 	src map[string]map[string]KeyMeta) error {
 
 	for raw, metas := range src {
@@ -169,7 +164,7 @@ func (k keysMarshaler) convertCertKeys(dst map[cert.KeyType]map[scrypto.KeyVersi
 	return nil
 }
 
-func (k keysMarshaler) convertKeyMetas(
+func (k tomlKeys) convertKeyMetas(
 	metas map[string]KeyMeta) (map[scrypto.KeyVersion]KeyMeta, error) {
 
 	m := make(map[scrypto.KeyVersion]KeyMeta, len(metas))
@@ -183,25 +178,25 @@ func (k keysMarshaler) convertKeyMetas(
 	return m, nil
 }
 
-func keyMarshalerFromKeys(k Keys) (keysMarshaler, error) {
-	m := keysMarshaler{
+func keyMarshalerFromKeys(k Keys) (tomlKeys, error) {
+	m := tomlKeys{
 		Primary: make(map[string]map[string]KeyMeta),
 		Issuer:  make(map[string]map[string]KeyMeta),
 		AS:      make(map[string]map[string]KeyMeta),
 	}
 	for keyType, metas := range k.Primary {
 		if err := marshalKeyMetas(m.Primary, keyType, metas); err != nil {
-			return keysMarshaler{}, serrors.WithCtx(err, "section", "primary")
+			return tomlKeys{}, serrors.WithCtx(err, "section", "primary")
 		}
 	}
 	for keyType, metas := range k.Issuer {
 		if err := marshalKeyMetas(m.Issuer, keyType, metas); err != nil {
-			return keysMarshaler{}, serrors.WithCtx(err, "section", "issuer_cert")
+			return tomlKeys{}, serrors.WithCtx(err, "section", "issuer_cert")
 		}
 	}
 	for keyType, metas := range k.AS {
 		if err := marshalKeyMetas(m.AS, keyType, metas); err != nil {
-			return keysMarshaler{}, serrors.WithCtx(err, "section", "as_cert")
+			return tomlKeys{}, serrors.WithCtx(err, "section", "as_cert")
 		}
 	}
 	return m, nil

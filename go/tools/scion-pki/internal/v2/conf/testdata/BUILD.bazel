@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["keys.go"],
+    importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf/testdata",
+    visibility = ["//go/tools/scion-pki:__subpackages__"],
+    deps = [
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/scrypto/cert/v2:go_default_library",
+        "//go/lib/scrypto/trc/v2:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/tools/scion-pki/internal/v2/conf:go_default_library",
+    ],
+)

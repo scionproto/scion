@@ -15,6 +15,7 @@
 package tmpl
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -64,9 +65,15 @@ func runGenTopoTmpl(path string) error {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return serrors.WrapStr("unable to make AS directory", err, "ia", ia)
 		}
-		if err := keys.Write(filepath.Join(dir, conf.KeysFileName)); err != nil {
+		var buf bytes.Buffer
+		if err := keys.Encode(&buf); err != nil {
 			return serrors.WithCtx(err, "ia", ia)
 		}
+		file := filepath.Join(dir, conf.KeysFileName)
+		if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
+			return serrors.WrapStr("unable to write key config", err, "ia", ia, "file", file)
+		}
+		pkicmn.QuietPrint("Successfully written %s\n", file)
 	}
 	for ia, entry := range topo.ASes {
 		asCfg := genASCfg(ia, entry, val, isdCfgs[ia.I])
