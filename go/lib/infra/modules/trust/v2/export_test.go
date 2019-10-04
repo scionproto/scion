@@ -18,6 +18,9 @@ var (
 	// NewCryptoProvider allows instantiating the private cryptoProvider for
 	// black-box testing.
 	NewCryptoProvider = newTestCryptoProvider
+	// newTestInspector allows instantiating the private inspector for
+	// black-box testing.
+	NewTestInspector = newTestInspector
 	// NewResolver allows instantiating the private resolver for black-box
 	// testing.
 	NewResolver = newTestResolver
@@ -33,6 +36,13 @@ func newTestCryptoProvider(db DBRead, recurser Recurser, resolver Resolver, rout
 		resolver:        resolver,
 		router:          router,
 		alwaysCacheOnly: alwaysCacheOnly,
+	}
+}
+
+// newTestInspector returns a new inspector for testing.
+func newTestInspector(provider CryptoProvider) Inspector {
+	return &inspector{
+		provider: provider,
 	}
 }
 

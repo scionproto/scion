@@ -533,7 +533,12 @@ type TRCOpts struct {
 }
 
 // Core is the place holder core attribute. TODO(roosd): remove
-const Core Attribute = 1
+const (
+	Authoritative Attribute = iota
+	Core
+	Issuing
+	Voting
+)
 
 // Attribute is a place holder for new the primary AS attributes. TODO(roosd): remove
 type Attribute int

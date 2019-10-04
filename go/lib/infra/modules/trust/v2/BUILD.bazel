@@ -31,6 +31,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "export_test.go",
+        "inspector_test.go",
         "main_test.go",
         "provider_test.go",
         "resolver_test.go",
