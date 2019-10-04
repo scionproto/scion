@@ -530,6 +530,21 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
 }
 
+// AllRoutes mocks base method
+func (m *MockRouter) AllRoutes(arg0 context.Context, arg1 addr.IA) ([]snet.Path, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllRoutes", arg0, arg1)
+	ret0, _ := ret[0].([]snet.Path)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AllRoutes indicates an expected call of AllRoutes
+func (mr *MockRouterMockRecorder) AllRoutes(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllRoutes", reflect.TypeOf((*MockRouter)(nil).AllRoutes), arg0, arg1)
+}
+
 // LocalIA mocks base method
 func (m *MockRouter) LocalIA() addr.IA {
 	m.ctrl.T.Helper()
