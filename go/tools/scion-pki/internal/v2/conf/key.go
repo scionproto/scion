@@ -17,18 +17,26 @@ package conf
 import (
 	"encoding"
 	"io"
+	"path/filepath"
 	"strconv"
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-// KeysFileName is the file name of the key configuration.
-const KeysFileName = "keys.toml"
+// keysFileName is the file name of the key configuration.
+const keysFileName = "keys.toml"
+
+// KeysFile returns the file where the keys config is written to.
+func KeysFile(dir string, ia addr.IA) string {
+	return filepath.Join(pkicmn.GetAsPath(dir, ia), keysFileName)
+}
 
 // Keys holds the key configuration.
 type Keys struct {

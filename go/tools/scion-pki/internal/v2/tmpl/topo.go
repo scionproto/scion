@@ -69,7 +69,7 @@ func runGenTopoTmpl(path string) error {
 		if err := keys.Encode(&buf); err != nil {
 			return serrors.WithCtx(err, "ia", ia)
 		}
-		file := filepath.Join(dir, conf.KeysFileName)
+		file := conf.KeysFile(dir, ia)
 		if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
 			return serrors.WrapStr("unable to write key config", err, "ia", ia, "file", file)
 		}
