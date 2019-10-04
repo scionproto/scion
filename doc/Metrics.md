@@ -139,19 +139,19 @@ func newOriginator() originator {
     sub := "originator"
     return originator{
         beacons: prom.NewCounterVec(Namespace, sub, "beacons_total",
-            "Total number of beacons originated.", OriginatorLabels.Labels()),
+            "Total number of beacons originated.", OriginatorLabels{}.Labels()),
         duration: prom.NewCounter(Namespace, sub, "duration_seconds_total",
             "Total time spent originating"),
     }
 }
 
 // Beacons returns the counter for the given label set.
-func (o *originator) Beacons(l OriginatorLabels) prom.Counter {
+func (o *originator) Beacons(l OriginatorLabels) prometheus.Counter {
     return o.beacons.WithLabelValues(l.Values()...)
 }
 
 // Duration returns the duration counter.
-func (o *originator) Duration() prom.Counter {
+func (o *originator) Duration() prometheus.Counter {
     return o.duration
 }
 ```
