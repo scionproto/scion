@@ -121,7 +121,7 @@ func TestInspectorHasAttributes(t *testing.T) {
 		},
 		"core and authoritative": {
 			IA:        ia110,
-			Attrs:     []infra.Attribute{infra.Core},
+			Attrs:     []infra.Attribute{infra.Core, infra.Authoritative},
 			Expect:    defaultExpect,
 			Assertion: assert.True,
 		},
@@ -131,7 +131,7 @@ func TestInspectorHasAttributes(t *testing.T) {
 			Expect:    defaultExpect,
 			Assertion: assert.False,
 		},
-		"non-core": {
+		"non-primary": {
 			IA:        ia122,
 			Attrs:     []infra.Attribute{},
 			Expect:    defaultExpect,
