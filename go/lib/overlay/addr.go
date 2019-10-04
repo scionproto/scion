@@ -72,6 +72,9 @@ func (a *OverlayAddr) Type() Type {
 }
 
 func (a *OverlayAddr) Copy() *OverlayAddr {
+	if a == nil {
+		return nil
+	}
 	return &OverlayAddr{l3: a.l3.Copy(), l4: a.l4.Copy()}
 }
 

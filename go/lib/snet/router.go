@@ -135,6 +135,8 @@ type Path interface {
 	Destination() addr.IA
 	// MTU returns the MTU of the path. If the result is zero, MTU is unknown.
 	MTU() uint16
+	// Copy create a copy of the path.
+	Copy() Path
 }
 
 var _ Path = (*path)(nil)
@@ -159,7 +161,7 @@ func (p *path) Fingerprint() string {
 }
 
 func (p *path) OverlayNextHop() *overlay.OverlayAddr {
-	return p.overlay
+	return p.overlay.Copy()
 }
 
 func (p *path) Path() *spath.Path {
@@ -181,6 +183,15 @@ func (p *path) MTU() uint16 {
 		return 0
 	}
 	return p.sciondPath.Path.Mtu
+}
+
+func (p *path) Copy() Path {
+	return &path{
+		sciondPath: p.sciondPath.Copy(),
+		spath:      p.spath.Copy(),
+		overlay:    p.overlay.Copy(),
+		source:     p.source,
+	}
 }
 
 // partialPath is a path object with incomplete metadata. It is used as a
@@ -213,6 +224,14 @@ func (p *partialPath) Destination() addr.IA {
 
 func (p *partialPath) MTU() uint16 {
 	return 0
+}
+
+func (p *partialPath) Copy() Path {
+	return &partialPath{
+		spath:       p.spath.Copy(),
+		overlay:     p.overlay.Copy(),
+		destination: p.destination,
+	}
 }
 
 // LocalMachine describes aspects of the host system and its network.
