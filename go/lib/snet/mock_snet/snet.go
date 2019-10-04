@@ -479,6 +479,34 @@ func (mr *MockPathMockRecorder) Destination() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destination", reflect.TypeOf((*MockPath)(nil).Destination))
 }
 
+// Fingerprint mocks base method
+func (m *MockPath) Fingerprint() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Fingerprint")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Fingerprint indicates an expected call of Fingerprint
+func (mr *MockPathMockRecorder) Fingerprint() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fingerprint", reflect.TypeOf((*MockPath)(nil).Fingerprint))
+}
+
+// MTU mocks base method
+func (m *MockPath) MTU() uint16 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MTU")
+	ret0, _ := ret[0].(uint16)
+	return ret0
+}
+
+// MTU indicates an expected call of MTU
+func (mr *MockPathMockRecorder) MTU() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MTU", reflect.TypeOf((*MockPath)(nil).MTU))
+}
+
 // OverlayNextHop mocks base method
 func (m *MockPath) OverlayNextHop() *overlay.OverlayAddr {
 	m.ctrl.T.Helper()

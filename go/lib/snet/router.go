@@ -119,6 +119,10 @@ func (r *BaseRouter) LocalIA() addr.IA {
 // if the source and destination ASes match, or if a router was configured
 // without a source of paths).
 type Path interface {
+	// Fingerprint uniquely identifies the path based on the sequence of
+	// ASes and BRs. Other metadata, such as MTU or NextHop have no effect
+	// on the fingerprint. Empty string means unknown fingerprint.
+	Fingerprint() string
 	// OverlayNextHop returns the address:port pair of a local-AS overlay
 	// speaker. Usually, this is a border router that will forward the traffic.
 	OverlayNextHop() *overlay.OverlayAddr
@@ -129,6 +133,8 @@ type Path interface {
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
 	Destination() addr.IA
+	// MTU returns the MTU of the path. If the result is zero, MTU is unknown.
+	MTU() uint16
 }
 
 var _ Path = (*path)(nil)
@@ -142,6 +148,14 @@ type path struct {
 	overlay *overlay.OverlayAddr
 	// source is the AS where the path starts.
 	source addr.IA
+}
+
+func (p *path) Fingerprint() string {
+	if p.sciondPath == nil {
+		return ""
+	}
+	ap := spathmeta.AppPath{Entry: p.sciondPath}
+	return string(ap.Key())
 }
 
 func (p *path) OverlayNextHop() *overlay.OverlayAddr {
@@ -162,6 +176,13 @@ func (p *path) Destination() addr.IA {
 	return p.sciondPath.Path.DstIA()
 }
 
+func (p *path) MTU() uint16 {
+	if p.sciondPath == nil {
+		return 0
+	}
+	return p.sciondPath.Path.Mtu
+}
+
 // partialPath is a path object with incomplete metadata. It is used as a
 // temporary solution where a full path cannot be reconstituted from other
 // objects, notably snet.Addr.
@@ -169,6 +190,10 @@ type partialPath struct {
 	spath       *spath.Path
 	overlay     *overlay.OverlayAddr
 	destination addr.IA
+}
+
+func (p *partialPath) Fingerprint() string {
+	return ""
 }
 
 func (p *partialPath) OverlayNextHop() *overlay.OverlayAddr {
@@ -184,6 +209,10 @@ func (p *partialPath) Path() *spath.Path {
 
 func (p *partialPath) Destination() addr.IA {
 	return p.destination
+}
+
+func (p *partialPath) MTU() uint16 {
+	return 0
 }
 
 // LocalMachine describes aspects of the host system and its network.

@@ -169,6 +169,10 @@ type path struct {
 	destination addr.IA
 }
 
+func (p *path) Fingerprint() string {
+	return ""
+}
+
 func (p *path) OverlayNextHop() *overlay.OverlayAddr {
 	return p.overlay
 }
@@ -179,4 +183,8 @@ func (p *path) Path() *spath.Path {
 
 func (p *path) Destination() addr.IA {
 	return p.destination
+}
+
+func (p *path) MTU() uint16 {
+	return 0
 }
