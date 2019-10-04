@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // Router performs path resolution for SCION-speaking applications.
@@ -35,6 +36,8 @@ type Router interface {
 	// Route returns a path from the local AS to dst. If dst matches the local
 	// AS, an empty path is returned.
 	Route(ctx context.Context, dst addr.IA) (Path, error)
+	// AllRoutes is similar to Route except that it returns multiple paths.
+	AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error)
 	// LocalIA returns the IA from which this router routes.
 	LocalIA() addr.IA
 }
@@ -62,19 +65,42 @@ func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 	if len(aps) == 0 {
 		return nil, common.NewBasicError("unable to find paths", nil)
 	}
+	ap := aps.GetAppPath("")
+	return r.appPathToPath(ap)
+}
 
-	pathEntry := aps.GetAppPath("").Entry
-	p := spath.New(pathEntry.Path.FwdPath)
+// AllRoutes is the same as Route except that it returns multiple paths.
+func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error) {
+	if r.PathResolver == nil || dst.Equal(r.IA) {
+		return []Path{&path{}}, nil
+	}
+	aps := r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
+	if len(aps) == 0 {
+		return nil, common.NewBasicError("unable to find paths", nil)
+	}
+	paths := make([]Path, 0, len(aps))
+	for _, ap := range aps {
+		p, err := r.appPathToPath(ap)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, p)
+	}
+	return paths, nil
+}
+
+func (r *BaseRouter) appPathToPath(ap *spathmeta.AppPath) (Path, error) {
+	p := spath.New(ap.Entry.Path.FwdPath)
 	// Preinitialize offsets, we don't want to propagate unusable paths
 	if err := p.InitOffsets(); err != nil {
 		return nil, common.NewBasicError("path error", err)
 	}
-	overlayAddr, err := pathEntry.HostInfo.Overlay()
+	overlayAddr, err := ap.Entry.HostInfo.Overlay()
 	if err != nil {
 		return nil, common.NewBasicError("path error", err)
 	}
 	return &path{
-		sciondPath: pathEntry,
+		sciondPath: ap.Entry,
 		spath:      p,
 		overlay:    overlayAddr,
 		source:     r.IA,
