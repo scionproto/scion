@@ -16,7 +16,14 @@ package trust
 
 import (
 	"net"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 )
+
+// ErrRecursionNotAllowed indicates that recursion is not allowed.
+var ErrRecursionNotAllowed = serrors.New("recursion not allowed")
 
 // Recurser decides whether a recursive request is permitted for a given peer.
 // For infra services use either ASLocalRecurser or LocalOnlyRecurser.
@@ -31,10 +38,32 @@ type Recurser interface {
 
 // ASLocalRecurser allows AS local addresses to start recursive requests.
 type ASLocalRecurser struct {
-	// TODO(roosd): implement
+	IA addr.IA
 }
 
-// LocalOnlyRecurser only allows requests from the application to recurse.
-type LocalOnlyRecurser struct {
-	// TODO(roosd): implement
+// AllowRecursion returns an error if address is not part of the local AS (or if
+// the check cannot be made).
+func (r *ASLocalRecurser) AllowRecursion(peer net.Addr) error {
+	if peer != nil {
+		switch saddr, ok := peer.(*snet.Addr); {
+		case !ok:
+			return serrors.WrapStr("unable to determine AS of peer", ErrRecursionNotAllowed,
+				"addr", peer)
+		case !r.IA.Equal(saddr.IA):
+			return serrors.WrapStr("client outside local AS", ErrRecursionNotAllowed,
+				"addr", peer)
+		}
+	}
+	return nil
+}
+
+// LocalOnlyRecurser returns an error if the address is not nil.
+type LocalOnlyRecurser struct{}
+
+// AllowRecursion returns an error if the address is not nil.
+func (r LocalOnlyRecurser) AllowRecursion(peer net.Addr) error {
+	if peer != nil {
+		return serrors.WrapStr("client not host-local", ErrRecursionNotAllowed, "addr", peer)
+	}
+	return nil
 }
