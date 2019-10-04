@@ -130,7 +130,7 @@ type hbh_ohp struct {
 
 func (ohp *hbh_ohp) updateFields(kvs propMap) {
 	if kvs != nil {
-		panic(fmt.Errorf("Unknown HBH_SCMP fields: %v", kvs))
+		panic(fmt.Errorf("Unknown HBH_OHP fields: %v", kvs))
 	}
 }
 

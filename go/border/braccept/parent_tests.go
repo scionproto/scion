@@ -141,3 +141,138 @@ func internal_child_to_parent() int {
 
 	return ExpectedPackets("internal/child to parent", defaultTimeout, pkt1)
 }
+
+func ohp_parent_to_internal_bs() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:13 EthernetType=IPv4
+		IP4: Src=192.168.13.3 Dst=192.168.13.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=BS
+			IF_1: ISD=1 Hops=2 Flags=ConsDir
+				HF_1: ConsIngress=0 ConsEgress=311
+				HF_2: ConsIngress=0 ConsEgress=0 Mac=000000
+		HBH: NextHdr=HBH Type=OHP
+			HBH.OHP:
+	`)
+	// XXX HBH and None are the same NextHdr value
+	pkt0.SetDev("veth_131")
+	pkt0.SetChecksum("UDP", "IP4")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.11 Dst=192.168.0.61 Checksum=0
+		UDP: Src=30001 Dst=30041
+		SCION:
+			HF_2: ConsIngress=131 ConsEgress=0 ExpTime=63
+	`)
+	// XXX Go BR sets ExpTime to default, which is currently 63
+	pkt1.SetDev("veth_int")
+	pkt1.SetChecksum("UDP", "IP4")
+	pkt1.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("one-hop-path parent to internal/bs", defaultTimeout, pkt1)
+}
+
+func ohp_udp_parent_to_internal_bs() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:13 EthernetType=IPv4
+		IP4: Src=192.168.13.3 Dst=192.168.13.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=BS
+			IF_1: ISD=1 Hops=2 Flags=ConsDir
+				HF_1: ConsIngress=0 ConsEgress=311
+				HF_2: ConsIngress=0 ConsEgress=0 Mac=000000
+		HBH: NextHdr=UDP Type=OHP
+			HBH.OHP:
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("veth_131")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.11 Dst=192.168.0.61 Checksum=0
+		UDP: Src=30001 Dst=30041
+		SCION:
+			HF_2: ConsIngress=131 ConsEgress=0 ExpTime=63
+	`)
+	// XXX Go BR sets ExpTime to default, which is currently 63
+	pkt1.SetDev("veth_int")
+	pkt1.SetChecksum("UDP", "IP4")
+	pkt1.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("one-hop-path udp parent to internal/bs", defaultTimeout, pkt1)
+}
+
+func ohp_udp_internal_bs_to_parent() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:01 EthernetType=IPv4
+		IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=30041 Dst=30001
+		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.61 DstIA=1-ff00:0:3 Dst=BS
+			IF_1: ISD=1 Hops=2
+				HF_1: ConsIngress=131 ConsEgress=0
+				HF_2: ConsIngress=0   ConsEgress=0 Mac=000000
+		HBH: NextHdr=HBH Type=OHP
+			HBH.OHP:
+	`)
+	pkt0.SetDev("veth_int")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_1", "HF_2")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:00:13 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.13.2 Dst=192.168.13.3 Checksum=0
+		UDP: Src=50000 Dst=40000
+		SCION: CurrHopF=6
+	`)
+	pkt1.SetDev("veth_131")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("one-hop-path up segment internal/bs to parent", defaultTimeout, pkt1)
+}
+
+func ohp_internal_bs_to_parent() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:01 EthernetType=IPv4
+		IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=30041 Dst=30001
+		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.61 DstIA=1-ff00:0:3 Dst=BS
+			IF_1: ISD=1 Hops=2 Flags=ConsDir
+				HF_1: ConsIngress=0 ConsEgress=131
+				HF_2: ConsIngress=0 ConsEgress=0 Mac=000000
+		HBH: NextHdr=HBH Type=OHP
+			HBH.OHP:
+	`)
+	pkt0.SetDev("veth_int")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_1", "")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:00:13 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.13.2 Dst=192.168.13.3 Checksum=0
+		UDP: Src=50000 Dst=40000
+		SCION: CurrHopF=6
+	`)
+	pkt1.SetDev("veth_131")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("one-hop-path internal/bs to parent", defaultTimeout, pkt1)
+}

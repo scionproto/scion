@@ -72,5 +72,20 @@ func br_parent() int {
 	failures += parent_to_internal_child()
 	failures += internal_child_to_parent()
 
+	// XXX(sgmonroy) the following tests are only run for this specific BR configuration
+	// with a single parent interface. In the current implementation, the behavior would be
+	// the same regardless of the external interface type that the packet was recevied on.
+	failures += svc_anycast_parent_to_internal_host()
+	failures += svc_multicast_parent_to_internal_host()
+	failures += svc_multicast_same_host_parent_to_internal_host()
+
+	failures += revocation_owned_parent()
+	failures += revocation_not_owned_child_link()
+
+	failures += ohp_parent_to_internal_bs()
+	failures += ohp_udp_parent_to_internal_bs()
+	failures += ohp_udp_internal_bs_to_parent()
+	failures += ohp_internal_bs_to_parent()
+
 	return failures
 }
