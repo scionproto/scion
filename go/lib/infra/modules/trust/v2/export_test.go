@@ -18,7 +18,7 @@ var (
 	// NewCryptoProvider allows instantiating the private cryptoProvider for
 	// black-box testing.
 	NewCryptoProvider = newTestCryptoProvider
-	// NewCryptoProvider allows instantiating the private resolver for black-box
+	// NewResolver allows instantiating the private resolver for black-box
 	// testing.
 	NewResolver = newTestResolver
 )

@@ -21,7 +21,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -31,7 +30,7 @@ import (
 
 var (
 	// ErrResolveSuperseded indicates that the latest locally available TRC
-	// superseeds the TRC to resolve.
+	// superseds the TRC to resolve.
 	ErrResolveSuperseded = serrors.New("latest locally available is newer")
 )
 
@@ -45,34 +44,6 @@ type Resolver interface {
 	Chain(ctx context.Context, req ChainReq, server net.Addr) (decoded.Chain, error)
 }
 
-// TRCReq holds the values of a TRC request.
-type TRCReq struct {
-	ISD       addr.ISD
-	Version   scrypto.Version
-	CacheOnly bool
-}
-
-func (r TRCReq) withVersion(version scrypto.Version) TRCReq {
-	r.Version = version
-	return r
-}
-
-// Proto returns the capnproto representation.
-func (r TRCReq) Proto() cert_mgmt.TRCReq {
-	return cert_mgmt.TRCReq{
-		ISD:       r.ISD,
-		Version:   r.Version,
-		CacheOnly: r.CacheOnly,
-	}
-}
-
-// ChainReq holds the values of a certificate chain request.
-type ChainReq struct {
-	IA        addr.IA
-	Version   scrypto.Version
-	CacheOnly bool
-}
-
 // resolver resolves trust material.
 type resolver struct {
 	db       DBRead
@@ -82,7 +53,7 @@ type resolver struct {
 
 func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decoded.TRC, error) {
 	if req.Version.IsLatest() {
-		latest, err := r.resolveLatest(ctx, req, server)
+		latest, err := r.resolveLatestVersion(ctx, req, server)
 		if err != nil {
 			return decoded.TRC{}, serrors.WrapStr("unable to resolve latest version", err)
 		}
@@ -109,7 +80,8 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 		r.startFetchTRC(ctx, results[i], ireq, server)
 	}
 	var decTRC decoded.TRC
-	w := prevWrap{prev: prev}
+	var w prevWrap
+	w.SetTRC(prev)
 	for _, resC := range results {
 		res := <-resC
 		if res.Err != nil {
@@ -122,22 +94,21 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 			return decoded.TRC{}, serrors.WrapStr("unable to insert parts of TRC chain", err,
 				"trc", decTRC)
 		}
-		w.prev = decTRC.TRC
+		w.SetTRC(decTRC.TRC)
 	}
 	return decTRC, nil
 }
 
-// FIXME(roosd): There should be request on protocol level that just resolves
-// the latest version instead of the full TRC.
-func (r *resolver) resolveLatest(ctx context.Context, req TRCReq,
+// FIXME(roosd): Add RPC that resolves just the latest version instead of the
+// full TRC.
+func (r *resolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 	server net.Addr) (scrypto.Version, error) {
 
-	creq := req.Proto()
-	trcMsg, err := r.rpc.GetTRC(ctx, &creq, server)
+	rawTRC, err := r.rpc.GetTRC(ctx, req, server)
 	if err != nil {
 		return 0, serrors.WrapStr("unable to resolve latest TRC", err)
 	}
-	decTRC, err := decoded.DecodeTRC(trcMsg.RawTRC)
+	decTRC, err := decoded.DecodeTRC(rawTRC)
 	if err != nil {
 		return 0, serrors.WrapStr("error parsing latest TRC", err)
 	}
@@ -149,14 +120,13 @@ func (r *resolver) startFetchTRC(ctx context.Context, res chan<- rawOrErr,
 
 	go func() {
 		defer log.LogPanicAndExit()
-		creq := req.Proto()
-		trcMsg, err := r.rpc.GetTRC(ctx, &creq, server)
+		rawTRC, err := r.rpc.GetTRC(ctx, req, server)
 		if err != nil {
 			res <- rawOrErr{Err: serrors.WrapStr("error requesting TRC", err,
 				"isd", req.ISD, "version", req.Version)}
 			return
 		}
-		res <- rawOrErr{Raw: trcMsg.RawTRC}
+		res <- rawOrErr{Raw: rawTRC}
 	}()
 }
 
@@ -178,7 +148,11 @@ type prevWrap struct {
 	prev *trc.TRC
 }
 
-func (w prevWrap) TRC(_ context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
+func (w *prevWrap) SetTRC(prev *trc.TRC) {
+	w.prev = prev
+}
+
+func (w *prevWrap) TRC(_ context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
 	if isd != w.prev.ISD || version != w.prev.Version {
 		return nil, serrors.New("previous wrapper can only provide a single TRC",
 			"expected_isd", w.prev.ISD, "expted_version", w.prev.Version,
