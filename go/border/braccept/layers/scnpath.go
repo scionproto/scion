@@ -27,6 +27,18 @@ type ScnPath struct {
 	raw  common.RawBytes
 }
 
+func (p *ScnPath) Clone() ScnPath {
+	clone := ScnPath{}
+	clone.raw = make(common.RawBytes, len(p.raw))
+	copy(clone.raw, p.raw)
+	clone.Segs = make([]*Segment, len(p.Segs))
+	for i := range p.Segs {
+		seg := p.Segs[i].Clone()
+		clone.Segs[i] = &seg
+	}
+	return clone
+}
+
 func (p *ScnPath) Parse(b common.RawBytes) error {
 	if len(b) == 0 {
 		return nil
@@ -85,6 +97,18 @@ func PrintSegments(segs []*Segment, indent, sep string) string {
 type Segment struct {
 	Inf  *spath.InfoField
 	Hops []*spath.HopField
+}
+
+func (s *Segment) Clone() Segment {
+	clone := Segment{}
+	inf := *s.Inf
+	clone.Inf = &inf
+	clone.Hops = make([]*spath.HopField, len(s.Hops))
+	for i := range s.Hops {
+		hop := *s.Hops[i]
+		clone.Hops[i] = &hop
+	}
+	return clone
 }
 
 func (s *Segment) Parse(b common.RawBytes) (int, error) {

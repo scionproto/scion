@@ -21,6 +21,7 @@ go_library(
         "revocation_tests.go",
         "send.go",
         "sleep.go",
+        "svc_tests.go",
     ],
     importpath = "github.com/scionproto/scion/go/border/braccept",
     visibility = ["//visibility:private"],
