@@ -36,11 +36,10 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf/testdata"
 )
 
-func TestRunPubKey(t *testing.T) {
+func TestPubGenRun(t *testing.T) {
 	tmpDir, cleanF := xtest.MustTempDir("", "test-trust")
 	defer cleanF()
 
-	// Write keys config.
 	var buf bytes.Buffer
 	err := testdata.Keys(0).Encode(&buf)
 	require.NoError(t, err)
@@ -50,7 +49,6 @@ func TestRunPubKey(t *testing.T) {
 	err = ioutil.WriteFile(file, buf.Bytes(), 0644)
 	require.NoError(t, err)
 
-	// Generate the key files.
 	asMap := map[addr.ISD][]addr.IA{1: {ia110}}
 	err = privGen{Dirs: pkicmn.Dirs{Root: tmpDir, Out: tmpDir}}.Run(asMap)
 	require.NoError(t, err)
@@ -151,18 +149,18 @@ func TestRunPubKey(t *testing.T) {
 			priv := loadKey(t, filepath.Join(PrivateDir(tmpDir, ia110), exp.PrivFile))
 			if exp.Algorithm == scrypto.Ed25519 {
 				privKey := []byte(ed25519.NewKeyFromSeed(priv.Bytes))
-
 				sig, err := scrypto.Sign([]byte("message"), privKey, priv.Algorithm)
 				require.NoError(t, err)
 				err = scrypto.Verify([]byte("message"), sig, key.Bytes, key.Algorithm)
 				assert.NoError(t, err)
 			} else {
-				oPub, oPriv, err := scrypto.GenKeyPair(scrypto.Curve25519xSalsa20Poly1305)
+				otherPub, otherPriv, err := scrypto.GenKeyPair(scrypto.Curve25519xSalsa20Poly1305)
 				require.NoError(t, err)
-				enc, err := scrypto.Encrypt([]byte("message"), make([]byte, 24), oPub, priv.Bytes,
-					priv.Algorithm)
+				enc, err := scrypto.Encrypt([]byte("message"), make([]byte, 24), otherPub,
+					priv.Bytes, priv.Algorithm)
 				require.NoError(t, err)
-				msg, err := scrypto.Decrypt(enc, make([]byte, 24), key.Bytes, oPriv, priv.Algorithm)
+				msg, err := scrypto.Decrypt(enc, make([]byte, 24), key.Bytes,
+					otherPriv, priv.Algorithm)
 				assert.NoError(t, err)
 				assert.EqualValues(t, []byte("message"), msg)
 			}
