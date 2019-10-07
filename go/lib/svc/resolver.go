@@ -189,6 +189,10 @@ func (p *path) MTU() uint16 {
 	return 0
 }
 
+func (p *path) ExpTime() uint32 {
+	return 0
+}
+
 func (p *path) Copy() snet.Path {
 	return &path{
 		spath:       p.spath.Copy(),

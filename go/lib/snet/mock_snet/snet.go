@@ -493,6 +493,20 @@ func (mr *MockPathMockRecorder) Destination() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destination", reflect.TypeOf((*MockPath)(nil).Destination))
 }
 
+// ExpTime mocks base method
+func (m *MockPath) ExpTime() uint32 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExpTime")
+	ret0, _ := ret[0].(uint32)
+	return ret0
+}
+
+// ExpTime indicates an expected call of ExpTime
+func (mr *MockPathMockRecorder) ExpTime() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExpTime", reflect.TypeOf((*MockPath)(nil).ExpTime))
+}
+
 // Fingerprint mocks base method
 func (m *MockPath) Fingerprint() string {
 	m.ctrl.T.Helper()

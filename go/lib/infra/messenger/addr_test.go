@@ -499,6 +499,10 @@ func (t *testPath) MTU() uint16 {
 	panic("not implemented")
 }
 
+func (t *testPath) ExpTime() uint32 {
+	panic("not implemented")
+}
+
 func (t *testPath) Copy() snet.Path {
 	panic("not implemented")
 }
