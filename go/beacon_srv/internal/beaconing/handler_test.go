@@ -167,7 +167,7 @@ func TestNewHandler(t *testing.T) {
 		verifier.EXPECT().WithSrc(gomock.Any()).Return(verifier)
 		verifier.EXPECT().WithServer(gomock.Any()).Return(verifier)
 		verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-						gomock.Any()).MaxTimes(2).Return(serrors.New("failed"))
+			gomock.Any()).MaxTimes(2).Return(serrors.New("failed"))
 
 		handler := NewHandler(localIA, intfs, inserter, verifier)
 		pseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}).Segment
@@ -178,7 +178,7 @@ func TestNewHandler(t *testing.T) {
 		inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 		inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
 		inserter.EXPECT().InsertBeacon(gomock.Any(),
-						gomock.Any()).Return(beacon.InsertStats{}, serrors.New("failed"))
+			gomock.Any()).Return(beacon.InsertStats{}, serrors.New("failed"))
 
 		verifier := mock_infra.NewMockVerifier(mctrl)
 		verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
