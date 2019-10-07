@@ -1,0 +1,18 @@
+description = "Testing TRC"
+version = 1
+base_version = 1
+voting_quorum = 1
+grace_period = "0s"
+trust_reset_allowed = true
+votes = ["ff00:0:110"]
+
+[validity]
+  not_before = 42424242
+  validity = "5d"
+
+[primary_ases]
+  [primary_ases."ff00:0:110"]
+    attributes = ["authoritative", "core", "issuing", "voting"]
+    issuing_key_version = 1
+    voting_online_key_version = 1
+    voting_offline_key_version = 1
