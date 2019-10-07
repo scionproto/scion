@@ -25,6 +25,8 @@ const Namespace = "ps"
 var (
 	// Registrations contains metrics for segments registrations.
 	Registrations = newRegistration()
+	// Requests contains metrics for segments requests.
+	Requests = newRequests()
 )
 
 // Result values
@@ -32,11 +34,14 @@ const (
 	Success               = prom.Success
 	RegistrationNew       = "new"
 	RegiststrationUpdated = "updated"
+	RequestCached         = "cached"
+	RequestFetched        = "fetched"
 	ErrParse              = prom.ErrParse
 	ErrInternal           = prom.ErrInternal
 	ErrCrypto             = prom.ErrCrypto
 	ErrDB                 = prom.ErrDB
 	ErrTimeout            = prom.ErrTimeout
+	ErrReply              = prom.ErrReply
 )
 
 // Label values

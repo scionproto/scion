@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "metrics.go",
         "registration.go",
+        "requests.go",
     ],
     importpath = "github.com/scionproto/scion/go/path_srv/internal/metrics",
     visibility = ["//go/path_srv:__subpackages__"],
@@ -18,7 +19,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["registration_test.go"],
+    srcs = [
+        "registration_test.go",
+        "requests_test.go",
+    ],
     embed = [":go_default_library"],
     deps = ["//go/lib/prom/promtest:go_default_library"],
 )
