@@ -88,11 +88,18 @@ func (g pubGen) generateKeys(priv map[addr.IA][]keyconf.Key) (map[addr.IA][]keyc
 	for ia, privKeys := range priv {
 		var keys []keyconf.Key
 		for _, privKey := range privKeys {
-			key := privKey
-			key.Type = keyconf.PublicKey
-			var err error
-			if key.Bytes, err = scrypto.GetPubKey(key.Bytes, key.Algorithm); err != nil {
+			raw, err := scrypto.GetPubKey(privKey.Bytes, privKey.Algorithm)
+			if err != nil {
 				return nil, serrors.WrapStr("error generating public key", err)
+			}
+			key := keyconf.Key{
+				Type:      keyconf.PublicKey,
+				Usage:     privKey.Usage,
+				Algorithm: privKey.Algorithm,
+				Validity:  privKey.Validity,
+				Version:   privKey.Version,
+				IA:        privKey.IA,
+				Bytes:     raw,
 			}
 			keys = append(keys, key)
 		}
@@ -129,6 +136,9 @@ func readPrivKey(file string) (keyconf.Key, error) {
 		return keyconf.Key{}, serrors.WrapStr("unable to read file", err)
 	}
 	block, _ := pem.Decode(raw)
+	if block == nil {
+		return keyconf.Key{}, serrors.WrapStr("unable to decode PEM", err)
+	}
 	key, err := keyconf.KeyFromPEM(block)
 	if err != nil {
 		return keyconf.Key{}, serrors.WrapStr("unable to decode private key", err)
