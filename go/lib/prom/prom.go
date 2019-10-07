@@ -58,6 +58,8 @@ const (
 	ErrValidate = "err_validate"
 	// ErrVerify is used for validation related errors.
 	ErrVerify = "err_verify"
+	// ErrReply is used for errors when sending the reply.
+	ErrReply = "err_reply"
 )
 
 // FIXME(roosd): remove when moving messenger to new metrics style.
