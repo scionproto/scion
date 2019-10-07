@@ -31,75 +31,111 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
-func runPrivKey(asMap map[addr.ISD][]addr.IA, dirs pkicmn.Dirs) error {
-	for _, ases := range asMap {
-		for _, ia := range ases {
-			if err := os.MkdirAll(PrivateDir(dirs.Out, ia), 0700); err != nil {
-				return serrors.WrapStr("unable to make private keys directory", err, "ia", ia)
-			}
-			pkicmn.QuietPrint("Generating keys for %s\n", ia)
-			if err := genAS(ia, dirs); err != nil {
-				return serrors.WrapStr("unable to generate keys", err, "ia", ia)
-			}
-		}
+type privGen struct {
+	Dirs pkicmn.Dirs
+}
+
+func (g privGen) Run(asMap map[addr.ISD][]addr.IA) error {
+	cfgs, err := g.loadConfigs(asMap)
+	if err != nil {
+		return err
+	}
+	keys, err := g.generateAllKeys(cfgs)
+	if err != nil {
+		return err
+	}
+	if err := g.createDirs(keys); err != nil {
+		return err
+	}
+	if err := g.writeKeys(keys); err != nil {
+		return err
 	}
 	return nil
 }
 
-func genAS(ia addr.IA, dirs pkicmn.Dirs) error {
-	file := conf.KeysFile(dirs.Root, ia)
-	keys, err := conf.LoadKeys(file)
-	if err != nil {
-		return serrors.WrapStr("unable to load keys config file", err, "file", file)
+func (g privGen) loadConfigs(asMap map[addr.ISD][]addr.IA) (map[addr.IA]conf.Keys, error) {
+	cfgs := make(map[addr.IA]conf.Keys)
+	for _, ases := range asMap {
+		for _, ia := range ases {
+			file := conf.KeysFile(g.Dirs.Root, ia)
+			keys, err := conf.LoadKeys(file)
+			if err != nil {
+				return nil, serrors.WrapStr("unable to load keys config file", err, "file", file)
+			}
+			cfgs[ia] = keys
+		}
 	}
-	for keyType, metas := range keys.Primary {
+	return cfgs, nil
+}
+
+func (g privGen) generateAllKeys(cfgs map[addr.IA]conf.Keys) (map[addr.IA][]keyconf.Key, error) {
+	keys := make(map[addr.IA][]keyconf.Key)
+	for ia, cfg := range cfgs {
+		k, err := g.generateKeys(ia, cfg)
+		if err != nil {
+			return nil, serrors.WrapStr("unable to generate keys for AS", err, "ia", ia)
+		}
+		keys[ia] = k
+	}
+	return keys, nil
+}
+
+func (g privGen) generateKeys(ia addr.IA, cfg conf.Keys) ([]keyconf.Key, error) {
+	var keys []keyconf.Key
+	for keyType, metas := range cfg.Primary {
 		for version, meta := range metas {
 			usage, err := usageFromTRCKeyType(keyType)
 			if err != nil {
-				return serrors.WrapStr("error determining key usage", err, "file", file,
+				return nil, serrors.WrapStr("error determining key usage", err,
 					"type", keyType, "version", version)
 			}
-			if err := writePrivKeyFile(ia, version, usage, meta, dirs.Out); err != nil {
-				return serrors.WrapStr("error generating key", err, "file", file,
-					"type", keyType, "version", version)
+			key, err := g.generateKey(ia, version, usage, meta)
+			if err != nil {
+				return nil, serrors.WrapStr("error generating key", err, "type", keyType,
+					"version", version)
 			}
+			keys = append(keys, key)
 		}
 	}
-	for keyType, metas := range keys.Issuer {
+	for keyType, metas := range cfg.Issuer {
 		for version, meta := range metas {
 			usage, err := usageFromIssuerKeyType(keyType)
 			if err != nil {
-				return serrors.WrapStr("error determining key usage", err, "file", file,
+				return nil, serrors.WrapStr("error determining key usage", err,
 					"type", keyType, "version", version)
 			}
-			if err := writePrivKeyFile(ia, version, usage, meta, dirs.Out); err != nil {
-				return serrors.WrapStr("error generating key", err, "file", file,
-					"type", keyType, "version", version)
+			key, err := g.generateKey(ia, version, usage, meta)
+			if err != nil {
+				return nil, serrors.WrapStr("error generating key", err, "type", keyType,
+					"version", version)
 			}
+			keys = append(keys, key)
 		}
 	}
-	for keyType, metas := range keys.AS {
+	for keyType, metas := range cfg.AS {
 		for version, meta := range metas {
 			usage, err := usageFromASKeyType(keyType)
 			if err != nil {
-				return serrors.WrapStr("error determining key usage", err, "file", file,
+				return nil, serrors.WrapStr("error determining key usage", err,
 					"type", keyType, "version", version)
 			}
-			if err := writePrivKeyFile(ia, version, usage, meta, dirs.Out); err != nil {
-				return serrors.WrapStr("error generating key", err, "file", file,
-					"type", keyType, "version", version)
+			key, err := g.generateKey(ia, version, usage, meta)
+			if err != nil {
+				return nil, serrors.WrapStr("error generating key", err, "type", keyType,
+					"version", version)
 			}
+			keys = append(keys, key)
 		}
 	}
-	return nil
+	return keys, nil
 }
 
-func writePrivKeyFile(ia addr.IA, version scrypto.KeyVersion, usage keyconf.Usage,
-	meta conf.KeyMeta, outDir string) error {
+func (g privGen) generateKey(ia addr.IA, version scrypto.KeyVersion,
+	usage keyconf.Usage, meta conf.KeyMeta) (keyconf.Key, error) {
 
 	raw, err := genKey(meta.Algorithm)
 	if err != nil {
-		return err
+		return keyconf.Key{}, err
 	}
 	key := keyconf.Key{
 		Type:      keyconf.PrivateKey,
@@ -110,10 +146,27 @@ func writePrivKeyFile(ia addr.IA, version scrypto.KeyVersion, usage keyconf.Usag
 		IA:        ia,
 		Bytes:     raw,
 	}
-	b := key.PEM()
-	file := filepath.Join(PrivateDir(outDir, ia), key.File())
-	if err := pkicmn.WriteToFile(pem.EncodeToMemory(&b), file, 0600); err != nil {
-		return serrors.WrapStr("error writing private key file", err, "file", file)
+	return key, nil
+}
+
+func (g privGen) createDirs(keys map[addr.IA][]keyconf.Key) error {
+	for ia := range keys {
+		if err := os.MkdirAll(PrivateDir(g.Dirs.Out, ia), 0700); err != nil {
+			return serrors.WrapStr("unable to make private keys directory", err, "ia", ia)
+		}
+	}
+	return nil
+}
+
+func (g privGen) writeKeys(keys map[addr.IA][]keyconf.Key) error {
+	for ia, list := range keys {
+		for _, key := range list {
+			b := key.PEM()
+			file := filepath.Join(PrivateDir(g.Dirs.Out, ia), key.File())
+			if err := pkicmn.WriteToFile(pem.EncodeToMemory(&b), file, 0600); err != nil {
+				return serrors.WrapStr("error writing private key file", err, "file", file)
+			}
+		}
 	}
 	return nil
 }

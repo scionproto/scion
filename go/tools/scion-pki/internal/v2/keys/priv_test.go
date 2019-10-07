@@ -37,7 +37,7 @@ import (
 
 var ia110 = xtest.MustParseIA("1-ff00:0:110")
 
-func TestRunPrivKey(t *testing.T) {
+func TestPrivGenRun(t *testing.T) {
 	tmpDir, cleanF := xtest.MustTempDir("", "test-trust")
 	defer cleanF()
 
@@ -53,7 +53,7 @@ func TestRunPrivKey(t *testing.T) {
 
 	// Generate the key files.
 	asMap := map[addr.ISD][]addr.IA{1: {ia110}}
-	err = runPrivKey(asMap, pkicmn.Dirs{Root: tmpDir, Out: tmpDir})
+	err = privGen{Dirs: pkicmn.Dirs{Root: tmpDir, Out: tmpDir}}.Run(asMap)
 	require.NoError(t, err)
 
 	files := map[string]struct {
