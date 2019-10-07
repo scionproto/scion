@@ -18,6 +18,7 @@ import (
 	"crypto/rand"
 	"strings"
 
+	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/nacl/box"
 
@@ -75,8 +76,20 @@ func GenKeyPair(algo string) (common.RawBytes, common.RawBytes, error) {
 // GetPubKey generates the public key for the provided private key.
 func GetPubKey(privKey []byte, algo string) ([]byte, error) {
 	switch strings.ToLower(algo) {
+	case Curve25519xSalsa20Poly1305:
+		var privKeyFixed, pubKey [32]byte
+		copy(privKeyFixed[:], privKey)
+		curve25519.ScalarBaseMult(&pubKey, &privKeyFixed)
+		return pubKey[:], nil
 	case Ed25519:
-		return ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey), nil
+		switch len(privKey) {
+		case ed25519.PrivateKeySize:
+			return ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey), nil
+		case ed25519.SeedSize:
+			return ed25519.NewKeyFromSeed(privKey).Public().(ed25519.PublicKey), nil
+		default:
+			return nil, serrors.New("unsupported key size", "len", len(privKey), "algo", Ed25519)
+		}
 	}
 	return nil, serrors.New("unsupported key type")
 }
