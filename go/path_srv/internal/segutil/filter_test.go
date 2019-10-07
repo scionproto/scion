@@ -12,81 +12,84 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segutil
+package segutil_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/path_srv/internal/segutil"
+	"github.com/scionproto/scion/go/path_srv/internal/segutil/mock_segutil"
 )
 
 func TestFilter(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
-	ia110 := xtest.MustParseIA("1-ff00:0:110")
-	ia111 := xtest.MustParseIA("1-ff00:0:111")
-	ia120 := xtest.MustParseIA("1-ff00:0:120")
 	seg110To120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
 	seg110To130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
 
 	tests := map[string]struct {
 		Segs         seg.Segments
-		Dir          Direction
-		Policy       *pathpol.Policy
+		Dir          segutil.Direction
+		Policy       func(ctrl *gomock.Controller) segutil.Policy
 		ExpectedSegs seg.Segments
 	}{
-		"no policy": {
-			Segs:         seg.Segments{seg110To120, seg110To130},
-			ExpectedSegs: seg.Segments{seg110To120, seg110To130},
+		"filter all": {
+			Segs: seg.Segments{seg110To120, seg110To130},
+			Policy: func(ctrl *gomock.Controller) segutil.Policy {
+				pol := mock_segutil.NewMockPolicy(ctrl)
+				pol.EXPECT().FilterOpt(gomock.Any(), pathpol.FilterOptions{IgnoreSequence: true})
+				return pol
+			},
+			ExpectedSegs: seg.Segments{},
 		},
-		"acl policy": {
-			Segs:         seg.Segments{seg110To120, seg110To130},
-			Policy:       &pathpol.Policy{ACL: acl(t, ia120)},
+		"filter 120": {
+			Segs: seg.Segments{seg110To120, seg110To130},
+			Policy: func(ctrl *gomock.Controller) segutil.Policy {
+				pol := mock_segutil.NewMockPolicy(ctrl)
+				pol.EXPECT().FilterOpt(gomock.Any(), pathpol.FilterOptions{IgnoreSequence: true}).
+					DoAndReturn(func(paths pathpol.PathSet,
+						f pathpol.FilterOptions) pathpol.PathSet {
+						for key := range paths {
+							if strings.Contains(key, "120") {
+								delete(paths, key)
+							}
+						}
+						return paths
+					})
+				return pol
+			},
 			ExpectedSegs: seg.Segments{seg110To130},
 		},
-		"sequence policy doesn't filter": {
-			Segs:         seg.Segments{seg110To120, seg110To130},
-			Policy:       &pathpol.Policy{Sequence: sequence(t, ia111, ia110)},
+		"filter nothing": {
+			Segs: seg.Segments{seg110To120, seg110To130},
+			Policy: func(ctrl *gomock.Controller) segutil.Policy {
+				pol := mock_segutil.NewMockPolicy(ctrl)
+				pol.EXPECT().FilterOpt(gomock.Any(), pathpol.FilterOptions{IgnoreSequence: true}).
+					DoAndReturn(func(paths pathpol.PathSet,
+						f pathpol.FilterOptions) pathpol.PathSet {
+
+						return paths
+					})
+				return pol
+			},
 			ExpectedSegs: seg.Segments{seg110To120, seg110To130},
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.ElementsMatch(t, test.ExpectedSegs, Filter(test.Segs, test.Policy, test.Dir))
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			assert.ElementsMatch(t, test.ExpectedSegs,
+				segutil.Filter(test.Segs, test.Policy(ctrl), test.Dir))
 		})
 	}
-}
-
-func acl(t testing.TB, disallow addr.IA) *pathpol.ACL {
-	var disallowEntry pathpol.ACLEntry
-	err := disallowEntry.LoadFromString(fmt.Sprintf("- %s", disallow))
-	xtest.FailOnErr(t, err)
-	var allowEntry pathpol.ACLEntry
-	err = allowEntry.LoadFromString("+")
-	xtest.FailOnErr(t, err)
-	acl, err := pathpol.NewACL(&disallowEntry, &allowEntry)
-	xtest.FailOnErr(t, err)
-	return acl
-}
-
-func sequence(t testing.TB, ias ...addr.IA) *pathpol.Sequence {
-	parts := make([]string, 0, len(ias))
-	for _, ia := range ias {
-		parts = append(parts, ia.String())
-	}
-	seq, err := pathpol.NewSequence(strings.Join(parts, " "))
-	require.NoError(t, err)
-	return seq
 }

@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHashing(t *testing.T) {
@@ -25,4 +26,10 @@ func TestHashing(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.NotNil(t, h)
 	}
+}
+
+func TestNoPolicy(t *testing.T) {
+	h, err := HashPolicy(nil)
+	require.NoError(t, err)
+	assert.Equal(t, h, NoPolicy)
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fetcher
+package fetcher_test
 
 import (
 	"context"
@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 )
 
 var (
@@ -158,7 +159,7 @@ func TestRequestSplitter(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			splitter := NewRequestSplitter(test.LocalIA, inspector)
+			splitter := fetcher.NewRequestSplitter(test.LocalIA, inspector)
 			requests, err := splitter.Split(context.Background(), test.Request)
 			if test.ExpectedErrMsg != "" {
 				assert.Error(t, err)

@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fetcher
+package fetcher_test
 
 import (
-	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/sciond/internal/fetcher"
+	"github.com/scionproto/scion/go/sciond/internal/fetcher/mock_fetcher"
 )
 
 func TestFilter(t *testing.T) {
@@ -35,7 +36,6 @@ func TestFilter(t *testing.T) {
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 	ia110 := xtest.MustParseIA("1-ff00:0:110")
-	ia120 := xtest.MustParseIA("1-ff00:0:120")
 	ia111 := xtest.MustParseIA("1-ff00:0:111")
 	seg110To120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
 	seg110To130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
@@ -49,18 +49,23 @@ func TestFilter(t *testing.T) {
 
 	tests := map[string]struct {
 		Paths         []*combinator.Path
-		Policy        func(t *testing.T) *pathpol.Policy
+		Policy        func(ctrl *gomock.Controller) fetcher.Policy
 		ExpectedPaths []*combinator.Path
 	}{
-		"Test without policy": {
-			Paths:         paths111To110,
-			Policy:        func(t *testing.T) *pathpol.Policy { return nil },
-			ExpectedPaths: paths111To110,
-		},
 		"Test with policy": {
 			Paths: paths111To110,
-			Policy: func(t *testing.T) *pathpol.Policy {
-				return &pathpol.Policy{ACL: acl(t, ia120)}
+			Policy: func(ctrl *gomock.Controller) fetcher.Policy {
+				pol := mock_fetcher.NewMockPolicy(ctrl)
+				pol.EXPECT().Filter(gomock.Any()).DoAndReturn(
+					func(paths pathpol.PathSet) pathpol.PathSet {
+						for key := range paths {
+							if strings.Contains(key, "120") {
+								delete(paths, key)
+							}
+						}
+						return paths
+					})
+				return pol
 			},
 			ExpectedPaths: combinator.Combine(ia111, ia110,
 				[]*seg.PathSegment{seg130To111},
@@ -70,20 +75,10 @@ func TestFilter(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			filtered := Filter(test.Paths, test.Policy(t))
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			filtered := fetcher.Filter(test.Paths, test.Policy(ctrl))
 			assert.ElementsMatch(t, test.ExpectedPaths, filtered)
 		})
 	}
-}
-
-func acl(t testing.TB, disallow addr.IA) *pathpol.ACL {
-	var disallowEntry pathpol.ACLEntry
-	err := disallowEntry.LoadFromString(fmt.Sprintf("- %s", disallow))
-	xtest.FailOnErr(t, err)
-	var allowEntry pathpol.ACLEntry
-	err = allowEntry.LoadFromString("+")
-	xtest.FailOnErr(t, err)
-	acl, err := pathpol.NewACL(&disallowEntry, &allowEntry)
-	xtest.FailOnErr(t, err)
-	return acl
 }

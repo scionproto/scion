@@ -19,7 +19,6 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
@@ -127,7 +126,7 @@ func (w *WatchRunner) Run() {
 			return
 		case flags := <-w.pp.PollC():
 			ctx, cancelF := context.WithTimeout(context.Background(), DefaultQueryTimeout)
-			w.sp.update(w.querier.Do(ctx, flags))
+			w.sp.Update(w.querier.Do(ctx, flags))
 			cancelF()
 		}
 	}
@@ -147,13 +146,13 @@ type queryConfig struct {
 	querier Querier
 	src     addr.IA
 	dst     addr.IA
-	filter  *pathpol.Policy
+	filter  Policy
 }
 
 func (bq *queryConfig) Do(ctx context.Context, flags sciond.PathReqFlags) spathmeta.AppPathSet {
 	aps := bq.querier.Query(ctx, bq.src, bq.dst, flags)
 	if bq.filter != nil {
-		aps = psToAps(bq.filter.Act(apsToPs(aps)))
+		aps = psToAps(bq.filter.Filter(apsToPs(aps)))
 	}
 	return aps
 }

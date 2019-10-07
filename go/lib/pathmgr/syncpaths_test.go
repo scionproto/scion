@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pathmgr
+package pathmgr_test
 
 import (
 	"testing"
@@ -20,13 +21,14 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 func TestSyncPathsTimestamp(t *testing.T) {
 	Convey("Create SyncPaths object", t, func() {
 		before := time.Now()
-		sp := NewSyncPaths()
+		sp := pathmgr.NewSyncPaths()
 		after := time.Now()
 		data := sp.Load()
 		SoMsg("timestamp", data.ModifyTime, ShouldHappenOnOrBetween, before, after)
@@ -34,7 +36,7 @@ func TestSyncPathsTimestamp(t *testing.T) {
 
 		Convey("Call store again without changing anything", func() {
 			beforeStore := time.Now()
-			sp.update(spathmeta.AppPathSet(nil))
+			sp.Update(spathmeta.AppPathSet(nil))
 			afterStore := time.Now()
 			data := sp.Load()
 			Convey("Modify timestamp should not change", func() {
@@ -49,7 +51,7 @@ func TestSyncPathsTimestamp(t *testing.T) {
 		Convey("Update must not modify snapshot", func() {
 			data := sp.Load()
 			snap := *data
-			sp.update(spathmeta.AppPathSet(nil))
+			sp.Update(spathmeta.AppPathSet(nil))
 			Convey("Modify timestamp should not change", func() {
 				SoMsg("timestamp", data.ModifyTime, ShouldResemble, snap.ModifyTime)
 			})

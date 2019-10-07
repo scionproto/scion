@@ -36,6 +36,12 @@ type ExtPolicy struct {
 // guaranteed to yield an object that is identical to the initial one.
 type PolicyMap map[string]*ExtPolicy
 
+// FilterOptions contains options for filtering.
+type FilterOptions struct {
+	// IgnoreSequence can be used to ignore the sequence part of policies.
+	IgnoreSequence bool
+}
+
 // Policy is a compiled path policy object, all extended policies have been merged.
 type Policy struct {
 	Name     string    `json:"-"`
@@ -54,15 +60,24 @@ func NewPolicy(name string, acl *ACL, sequence *Sequence, options []Option) *Pol
 	return policy
 }
 
-// Act filters the path set according the policy
-func (p *Policy) Act(paths PathSet) PathSet {
+// Filter filters the path set according to the policy.
+func (p *Policy) Filter(paths PathSet) PathSet {
+	return p.FilterOpt(paths, FilterOptions{})
+}
+
+// FilterOpt filters the path set according to the policy with the given
+// options.
+func (p *Policy) FilterOpt(paths PathSet, opts FilterOptions) PathSet {
+	if p == nil {
+		return paths
+	}
 	resultSet := p.ACL.Eval(paths)
-	if p.Sequence != nil {
+	if p.Sequence != nil && !opts.IgnoreSequence {
 		resultSet = p.Sequence.Eval(resultSet)
 	}
 	// Filter on sub policies
 	if len(p.Options) > 0 {
-		resultSet = p.evalOptions(resultSet)
+		resultSet = p.evalOptions(resultSet, opts)
 	}
 	return resultSet
 }
@@ -118,7 +133,7 @@ func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error 
 
 // evalOptions evaluates the options of a policy and returns the pathSet that matches the option
 // with the highest weight
-func (p *Policy) evalOptions(inputSet PathSet) PathSet {
+func (p *Policy) evalOptions(inputSet PathSet, opts FilterOptions) PathSet {
 	subPolicySet := make(PathSet)
 	currWeight := p.Options[0].Weight
 	// Go through sub policies
@@ -127,7 +142,7 @@ func (p *Policy) evalOptions(inputSet PathSet) PathSet {
 			break
 		}
 		currWeight = option.Weight
-		subPaths := option.Policy.Act(inputSet)
+		subPaths := option.Policy.FilterOpt(inputSet, opts)
 		for key, path := range subPaths {
 			subPolicySet[key] = path
 		}

@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,12 +63,12 @@ func NewSyncPaths() *SyncPaths {
 	return sp
 }
 
-// update adds and removes paths in sp to match newAPS. If a path was added or
+// Update adds and removes paths in sp to match newAPS. If a path was added or
 // removed, the modified timestamp is updated. The refresh timestamp is always
 // updated.
 // FIXME(scrye): Add SCIOND support s.t. the refresh timestamp is changed only
 // when paths (including path metadata) change.
-func (sp *SyncPaths) update(newAPS spathmeta.AppPathSet) {
+func (sp *SyncPaths) Update(newAPS spathmeta.AppPathSet) {
 	sp.mutex.Lock()
 	defer sp.mutex.Unlock()
 	value := sp.Load()

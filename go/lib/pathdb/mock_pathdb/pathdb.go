@@ -12,7 +12,6 @@ import (
 	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
 	pathdb "github.com/scionproto/scion/go/lib/pathdb"
 	query "github.com/scionproto/scion/go/lib/pathdb/query"
-	pathpol "github.com/scionproto/scion/go/lib/pathpol"
 	reflect "reflect"
 	time "time"
 )
@@ -115,7 +114,7 @@ func (mr *MockPathDBMockRecorder) DeleteExpiredNQ(arg0, arg1 interface{}) *gomoc
 }
 
 // DeleteNQ mocks base method
-func (m *MockPathDB) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (int, error) {
+func (m *MockPathDB) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteNQ", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(int)
@@ -160,7 +159,7 @@ func (mr *MockPathDBMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method
-func (m *MockPathDB) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (time.Time, error) {
+func (m *MockPathDB) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(time.Time)
@@ -190,7 +189,7 @@ func (mr *MockPathDBMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // InsertNextQuery mocks base method
-func (m *MockPathDB) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy, arg4 time.Time) (bool, error) {
+func (m *MockPathDB) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash, arg4 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(bool)
@@ -326,7 +325,7 @@ func (mr *MockTransactionMockRecorder) DeleteExpiredNQ(arg0, arg1 interface{}) *
 }
 
 // DeleteNQ mocks base method
-func (m *MockTransaction) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (int, error) {
+func (m *MockTransaction) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteNQ", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(int)
@@ -371,7 +370,7 @@ func (mr *MockTransactionMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method
-func (m *MockTransaction) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (time.Time, error) {
+func (m *MockTransaction) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(time.Time)
@@ -401,7 +400,7 @@ func (mr *MockTransactionMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Ca
 }
 
 // InsertNextQuery mocks base method
-func (m *MockTransaction) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy, arg4 time.Time) (bool, error) {
+func (m *MockTransaction) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash, arg4 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(bool)
@@ -513,7 +512,7 @@ func (mr *MockReadWriteMockRecorder) DeleteExpiredNQ(arg0, arg1 interface{}) *go
 }
 
 // DeleteNQ mocks base method
-func (m *MockReadWrite) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (int, error) {
+func (m *MockReadWrite) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteNQ", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(int)
@@ -558,7 +557,7 @@ func (mr *MockReadWriteMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method
-func (m *MockReadWrite) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy) (time.Time, error) {
+func (m *MockReadWrite) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(time.Time)
@@ -588,7 +587,7 @@ func (mr *MockReadWriteMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call
 }
 
 // InsertNextQuery mocks base method
-func (m *MockReadWrite) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 *pathpol.Policy, arg4 time.Time) (bool, error) {
+func (m *MockReadWrite) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash, arg4 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(bool)

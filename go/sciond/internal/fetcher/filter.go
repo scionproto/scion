@@ -22,13 +22,15 @@ import (
 	"github.com/scionproto/scion/go/lib/pathpol"
 )
 
+// Policy is a filter on path sets.
+type Policy interface {
+	Filter(pathpol.PathSet) pathpol.PathSet
+}
+
 // Filter filters the given paths with the given policy. Note that this
 // function might change the order of elements.
-func Filter(paths []*combinator.Path, policy *pathpol.Policy) []*combinator.Path {
-	if policy == nil {
-		return paths
-	}
-	return psToPaths(policy.Act(pathsToPs(paths)))
+func Filter(paths []*combinator.Path, policy Policy) []*combinator.Path {
+	return psToPaths(policy.Filter(pathsToPs(paths)))
 }
 
 func pathsToPs(paths []*combinator.Path) pathpol.PathSet {
