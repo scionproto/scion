@@ -26,6 +26,7 @@ go_library(
         "//go/lib/pathmgr:go_default_library",
         "//go/lib/sciond:go_default_library",
         "//go/lib/scmp:go_default_library",
+        "//go/lib/serrors:go_default_library",
         "//go/lib/snet/internal/ctxmonitor:go_default_library",
         "//go/lib/snet/internal/pathsource:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
