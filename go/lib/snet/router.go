@@ -136,6 +136,9 @@ type Path interface {
 	Destination() addr.IA
 	// MTU returns the MTU of the path. If the result is zero, MTU is unknown.
 	MTU() uint16
+	// ExpTime returns the expiration time of the path. If the result is zero,
+	// expiration time is unknown.
+	ExpTime() uint32
 	// Copy create a copy of the path.
 	Copy() Path
 }
@@ -186,6 +189,13 @@ func (p *path) MTU() uint16 {
 	return p.sciondPath.Path.Mtu
 }
 
+func (p *path) ExpTime() uint32 {
+	if p.sciondPath == nil {
+		return 0
+	}
+	return p.sciondPath.Path.ExpTime
+}
+
 func (p *path) Copy() Path {
 	return &path{
 		sciondPath: p.sciondPath.Copy(),
@@ -224,6 +234,10 @@ func (p *partialPath) Destination() addr.IA {
 }
 
 func (p *partialPath) MTU() uint16 {
+	return 0
+}
+
+func (p *partialPath) ExpTime() uint32 {
 	return 0
 }
 
