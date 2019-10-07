@@ -16,32 +16,180 @@ package trust
 
 import (
 	"context"
-	"errors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 var (
+	// ErrBaseNotSupported indicates base TRC insertion is not supported.
+	ErrBaseNotSupported = serrors.New("inserting base TRC not supported")
 	// ErrValidation indicates a validation error.
-	ErrValidation = errors.New("validation error")
+	ErrValidation = serrors.New("validation error")
 	// ErrVerification indicates a verification error.
-	ErrVerification = errors.New("verification error")
+	ErrVerification = serrors.New("verification error")
 )
 
 // Inserter inserts and verifies trust material into the database.
 type Inserter interface {
 	// InsertTRC verifies the signed TRC and inserts it into the database.
 	// The previous TRC is queried through the provider function, when necessary.
-	InsertTRC(ctx context.Context, decoded decoded.TRC, trcProvider TRCProviderFunc) error
+	InsertTRC(ctx context.Context, decTRC decoded.TRC, trcProvider TRCProviderFunc) error
 	// InsertChain verifies the signed certificate chain and inserts it into the
 	// database. The issuing TRC is queried through the provider function, when
 	// necessary.
-	InsertChain(ctx context.Context, decoded decoded.Chain, trcProvider TRCProviderFunc) error
+	InsertChain(ctx context.Context, decChain decoded.Chain, trcProvider TRCProviderFunc) error
 }
 
 // TRCProviderFunc provides TRCs. It is used to configure the TRC retrieval
 // method of the inserter.
 type TRCProviderFunc func(context.Context, addr.ISD, scrypto.Version) (*trc.TRC, error)
+
+// inserter is used to verify and insert trust material into the database.
+type inserter struct {
+	baseInserter
+}
+
+// InsertTRC verifies the signed TRC and inserts it into the database.
+// The previous TRC is queried through the provider function, when necessary.
+func (ins *inserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
+	trcProvider TRCProviderFunc) error {
+
+	if insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider); err != nil || !insert {
+		return err
+	}
+	if _, err := ins.db.InsertTRC(ctx, decTRC); err != nil {
+		return serrors.WrapStr("unable to insert TRC", err)
+	}
+	return nil
+}
+
+// InsertChain verifies the signed certificate chain and inserts it into the
+// database. The issuing TRC is queried through the provider function, when
+// necessary.
+func (ins *inserter) InsertChain(ctx context.Context, chain decoded.Chain,
+	trcProvider TRCProviderFunc) error {
+
+	if insert, err := ins.shouldInsertChain(ctx, chain, trcProvider); err != nil || !insert {
+		return err
+	}
+	if _, _, err := ins.db.InsertChain(ctx, chain); err != nil {
+		return serrors.WrapStr("unable to insert chain", err)
+	}
+	return nil
+}
+
+// fwdInserter is an inserter that always forwards the trust material to the
+// certificate server before inserting it into the database. Forwarding must be
+// successful, otherwise the material is not inserted into the database.
+type fwdInserter struct {
+	baseInserter
+	router localRouter
+	rpc    RPC
+}
+
+// InsertTRC verifies the signed TRC and inserts it into the database. The
+// previous TRC is queried through the provider function, when necessary. Before
+// insertion, the TRC is forwarded to the certificate server. If the certificate
+// server does not successfully handle the TRC, the insertion fails.
+func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
+	trcProvider TRCProviderFunc) error {
+
+	if insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider); err != nil || !insert {
+		return err
+	}
+	cs := ins.router.chooseServer()
+	if err := ins.rpc.SendTRC(ctx, decTRC.Raw, cs); err != nil {
+		return serrors.WrapStr("unable to push TRC to certificate server", err, "addr", cs)
+	}
+	if _, err := ins.db.InsertTRC(ctx, decTRC); err != nil {
+		return serrors.WrapStr("unable to insert TRC", err)
+	}
+	return nil
+}
+
+// InsertChain verifies the signed certificate chain and inserts it into the
+// database. The issuing TRC is queried through the provider function, when
+// necessary. Before insertion, the certificate chain is forwarded to the
+// certificate server. If the certificate server does not successfully handle
+// the certificate chain, the insertion fails.
+func (ins *fwdInserter) InsertChain(ctx context.Context, chain decoded.Chain,
+	trcProvider TRCProviderFunc) error {
+
+	if insert, err := ins.shouldInsertChain(ctx, chain, trcProvider); err != nil || !insert {
+		return err
+	}
+	cs := ins.router.chooseServer()
+	if err := ins.rpc.SendCertChain(ctx, chain.Raw, cs); err != nil {
+		return serrors.WrapStr("unable to push chain to certificate server", err,
+			"addr", cs)
+	}
+	if _, _, err := ins.db.InsertChain(ctx, chain); err != nil {
+		return serrors.WrapStr("unable to insert chain", err)
+	}
+	return nil
+}
+
+type baseInserter struct {
+	db ReadWrite
+	// unsafe allows inserts of base TRCs. This is used as a workaround until
+	// TAAC support is implemented.
+	unsafe bool
+}
+
+func (ins *baseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC,
+	trcProvider TRCProviderFunc) (bool, error) {
+
+	found, err := ins.db.TRCExists(ctx, decTRC)
+	if err != nil || found {
+		return !found, err
+	}
+	if decTRC.TRC.Base() {
+		// XXX(roosd): remove when TAACs are supported.
+		if ins.unsafe {
+			if _, err := ins.db.InsertTRC(ctx, decTRC); err != nil {
+				return false, serrors.WrapStr("unable to insert base TRC", err)
+			}
+			return false, nil
+		}
+		return false, serrors.WithCtx(ErrBaseNotSupported, "trc", decTRC)
+	}
+	prev, err := trcProvider(ctx, decTRC.TRC.ISD, decTRC.TRC.Version-1)
+	if err != nil {
+		return false, serrors.WrapStr("unable to get previous TRC", err,
+			"isd", decTRC.TRC.ISD, "version", decTRC.TRC.Version-1)
+	}
+	if err := ins.checkUpdate(ctx, prev, decTRC); err != nil {
+		return false, serrors.WrapStr("error checking TRC update", err)
+	}
+	return true, nil
+}
+
+func (ins *baseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next decoded.TRC) error {
+	validator := trc.UpdateValidator{
+		Next: next.TRC,
+		Prev: prev,
+	}
+	if _, err := validator.Validate(); err != nil {
+		return serrors.Wrap(ErrValidation, err)
+	}
+	verifier := trc.UpdateVerifier{
+		Next:        next.TRC,
+		NextEncoded: next.Signed.EncodedTRC,
+		Prev:        prev,
+		Signatures:  next.Signed.Signatures,
+	}
+	if err := verifier.Verify(); err != nil {
+		return serrors.Wrap(ErrVerification, err)
+	}
+	return nil
+}
+
+func (ins *baseInserter) shouldInsertChain(ctx context.Context, chain decoded.Chain,
+	trcProvider TRCProviderFunc) (bool, error) {
+
+	return false, serrors.New("not implemented")
+}
