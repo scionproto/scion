@@ -15,6 +15,9 @@
 package conf
 
 import (
+	"time"
+
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -31,4 +34,16 @@ func (v Validity) Validate() error {
 		return serrors.New("validity period not set")
 	}
 	return nil
+}
+
+// Eval returns the validity period. The not before parameter is only used if
+// the struct's not before field value is zero.
+func (v Validity) Eval(notBefore time.Time) scrypto.Validity {
+	if v.NotBefore != 0 {
+		notBefore = util.SecsToTime(v.NotBefore)
+	}
+	return scrypto.Validity{
+		NotBefore: util.UnixTime{Time: notBefore},
+		NotAfter:  util.UnixTime{Time: notBefore.Add(v.Validity.Duration)},
+	}
 }

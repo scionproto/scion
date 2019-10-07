@@ -104,7 +104,7 @@ func TestKeyFromPEM(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			block := pemBlock(t)
 			test.Modify(&block)
-			k, err := keyconf.KeyFromPEM(block)
+			k, err := keyconf.KeyFromPEM(&block)
 			test.ErrAssertion(t, err)
 			if err != nil {
 				return
