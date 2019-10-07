@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -135,7 +136,7 @@ func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 	e.Lock()
 	defer e.Unlock()
 	if e.db == nil {
-		return noInsertion, common.NewBasicError("No database open", nil)
+		return noInsertion, serrors.New("No database open")
 	}
 	pseg := segMeta.Segment
 	// Check if we already have a path segment.
@@ -390,7 +391,7 @@ func (e *executor) deleteInTx(ctx context.Context,
 	e.Lock()
 	defer e.Unlock()
 	if e.db == nil {
-		return 0, common.NewBasicError("No database open", nil)
+		return 0, serrors.New("No database open")
 	}
 	return db.DeleteInTx(ctx, e.db, delFunc)
 }
@@ -399,7 +400,7 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
-		return nil, common.NewBasicError("No database open", nil)
+		return nil, serrors.New("No database open")
 	}
 	stmt, args := e.buildQuery(params)
 	rows, err := e.db.QueryContext(ctx, stmt, args...)
@@ -537,7 +538,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
-		return nil, common.NewBasicError("No database open", nil)
+		return nil, serrors.New("No database open")
 	}
 	stmt, args := e.buildQuery(nil)
 	rows, err := e.db.QueryContext(ctx, stmt, args...)
@@ -598,7 +599,7 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy
 	e.Lock()
 	defer e.Unlock()
 	if e.db == nil {
-		return false, common.NewBasicError("No database open", nil)
+		return false, serrors.New("No database open")
 	}
 	if policy == nil {
 		policy = pathdb.NoPolicy
@@ -633,7 +634,7 @@ func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA,
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
-		return time.Time{}, common.NewBasicError("No database open", nil)
+		return time.Time{}, serrors.New("No database open")
 	}
 	if policy == nil {
 		policy = pathdb.NoPolicy

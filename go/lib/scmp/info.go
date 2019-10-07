@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -250,7 +251,7 @@ type InfoExtIdx struct {
 
 func InfoExtIdxFromRaw(b common.RawBytes) (*InfoExtIdx, error) {
 	if len(b) == 0 {
-		return nil, common.NewBasicError("Unable to parse InfoExtIdx", nil)
+		return nil, serrors.New("Unable to parse InfoExtIdx")
 	}
 	return &InfoExtIdx{Idx: b[0]}, nil
 }

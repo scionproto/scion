@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -162,35 +163,35 @@ func (cfg *BSConfig) InitDefaults() {
 // Validate validates that all durations are set.
 func (cfg *BSConfig) Validate() error {
 	if cfg.KeepaliveInterval.Duration == 0 {
-		return common.NewBasicError("KeepaliveInterval not set", nil)
+		return serrors.New("KeepaliveInterval not set")
 	}
 	if cfg.KeepaliveTimeout.Duration == 0 {
-		return common.NewBasicError("KeepaliveTimeout not set", nil)
+		return serrors.New("KeepaliveTimeout not set")
 	}
 	if cfg.OriginationInterval.Duration == 0 {
-		return common.NewBasicError("OriginationInterval not set", nil)
+		return serrors.New("OriginationInterval not set")
 	}
 	if cfg.PropagationInterval.Duration == 0 {
-		return common.NewBasicError("PropagationInterval not set", nil)
+		return serrors.New("PropagationInterval not set")
 	}
 	if cfg.RegistrationInterval.Duration == 0 {
-		return common.NewBasicError("RegistrationInterval not set", nil)
+		return serrors.New("RegistrationInterval not set")
 	}
 	if cfg.ExpiredCheckInterval.Duration == 0 {
-		return common.NewBasicError("ExpiredCheckInterval not set", nil)
+		return serrors.New("ExpiredCheckInterval not set")
 	}
 	if cfg.RevTTL.Duration == 0 {
-		return common.NewBasicError("RevTTL is not set", nil)
+		return serrors.New("RevTTL is not set")
 	}
 	if cfg.RevTTL.Duration < path_mgmt.MinRevTTL {
 		return common.NewBasicError("RevTTL must be equal or greater than MinRevTTL", nil,
 			"MinRevTTL", path_mgmt.MinRevTTL)
 	}
 	if cfg.RevOverlap.Duration == 0 {
-		return common.NewBasicError("RevOverlap not set", nil)
+		return serrors.New("RevOverlap not set")
 	}
 	if cfg.RevOverlap.Duration > cfg.RevTTL.Duration {
-		return common.NewBasicError("RevOverlap cannot be greater than RevTTL", nil)
+		return serrors.New("RevOverlap cannot be greater than RevTTL")
 	}
 	return nil
 }

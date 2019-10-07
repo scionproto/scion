@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -78,7 +79,7 @@ func ListenSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (quic.Listener, error) {
 
 	if len(srvTlsCfg.Certificates) == 0 {
-		return nil, common.NewBasicError("squic: No server TLS certificate configured", nil)
+		return nil, serrors.New("squic: No server TLS certificate configured")
 	}
 	sconn, err := sListen(network, laddr, baddr, svc)
 	if err != nil {

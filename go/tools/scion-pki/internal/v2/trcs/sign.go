@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
@@ -140,7 +141,7 @@ func signTRC(t *trc.TRC, encoded trc.Encoded, primaryASes map[addr.AS]*asCfg) (
 		}
 	}
 	if len(signatures) == 0 {
-		return nil, common.NewBasicError("no signature generated", nil)
+		return nil, serrors.New("no signature generated")
 	}
 	signed := &trc.Signed{
 		EncodedTRC: encoded,

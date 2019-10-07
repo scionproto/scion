@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sockctrl"
 )
 
@@ -226,7 +227,7 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 	var c *net.UDPConn
 	var err error
 	if listen == nil {
-		return common.NewBasicError("listen address must be specified", nil)
+		return serrors.New("listen address must be specified")
 	}
 	laddr = listen.ToUDPAddr()
 	if laddr == nil {

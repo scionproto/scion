@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type Typer interface {
@@ -126,7 +127,7 @@ func unmarshalCond(b []byte) (Cond, error) {
 	}
 	c, ok := t.(Cond)
 	if !ok {
-		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
+		return nil, serrors.New("Unable to extract Cond from interface")
 	}
 	return c, nil
 }
@@ -139,7 +140,7 @@ func unmarshalPredicate(b []byte) (IPv4Predicate, error) {
 	}
 	p, ok := t.(IPv4Predicate)
 	if !ok {
-		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
+		return nil, serrors.New("Unable to extract Cond from interface")
 	}
 	return p, nil
 }

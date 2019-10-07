@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -73,7 +73,7 @@ func newSCIONConn(base *scionConnBase, pr pathmgr.Resolver, conn PacketConn) *SC
 // context.
 func DialSCION(network string, laddr, raddr *Addr) (Conn, error) {
 	if DefNetwork == nil {
-		return nil, common.NewBasicError("SCION network not initialized", nil)
+		return nil, serrors.New("SCION network not initialized")
 	}
 	return DefNetwork.DialSCION(network, laddr, raddr, 0)
 }
@@ -83,7 +83,7 @@ func DialSCION(network string, laddr, raddr *Addr) (Conn, error) {
 func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 	svc addr.HostSVC) (Conn, error) {
 	if DefNetwork == nil {
-		return nil, common.NewBasicError("SCION network not initialized", nil)
+		return nil, serrors.New("SCION network not initialized")
 	}
 	return DefNetwork.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc, 0)
 }
@@ -92,7 +92,7 @@ func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 // networking context.
 func ListenSCION(network string, laddr *Addr) (Conn, error) {
 	if DefNetwork == nil {
-		return nil, common.NewBasicError("SCION network not initialized", nil)
+		return nil, serrors.New("SCION network not initialized")
 	}
 	return DefNetwork.ListenSCION(network, laddr, 0)
 }
@@ -101,7 +101,7 @@ func ListenSCION(network string, laddr *Addr) (Conn, error) {
 // the default networking context.
 func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC) (Conn, error) {
 	if DefNetwork == nil {
-		return nil, common.NewBasicError("SCION network not initialized", nil)
+		return nil, serrors.New("SCION network not initialized")
 	}
 	return DefNetwork.ListenSCIONWithBindSVC(network, laddr, baddr, svc, 0)
 }

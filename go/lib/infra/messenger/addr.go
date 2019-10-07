@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/svc"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -211,14 +212,14 @@ func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, co
 // found, an error is returned.
 func parseReply(reply *svc.Reply) (*addr.AppAddr, error) {
 	if reply == nil {
-		return nil, common.NewBasicError("nil reply", nil)
+		return nil, serrors.New("nil reply")
 	}
 	if reply.Transports == nil {
-		return nil, common.NewBasicError("empty reply", nil)
+		return nil, serrors.New("empty reply")
 	}
 	addressStr, ok := reply.Transports[svc.QUIC]
 	if !ok {
-		return nil, common.NewBasicError("QUIC server address not found", nil)
+		return nil, serrors.New("QUIC server address not found")
 	}
 	udpAddr, err := net.ResolveUDPAddr("udp", addressStr)
 	if err != nil {

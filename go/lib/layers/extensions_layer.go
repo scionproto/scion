@@ -19,6 +19,7 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -64,7 +65,7 @@ func (e *Extension) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) err
 	expectedLength := int(data[1]) * common.LineLen
 	if expectedLength <= 0 {
 		df.SetTruncated()
-		return common.NewBasicError("Invalid SCION Extension header, length is zero", nil)
+		return serrors.New("Invalid SCION Extension header, length is zero")
 	}
 
 	if len(data) < expectedLength {

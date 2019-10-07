@@ -70,6 +70,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 var (
@@ -270,7 +271,7 @@ func (conn *Conn) ReadFrom(buf []byte) (int, net.Addr, error) {
 		}
 	}
 	if len(buf) < len(p.Payload) {
-		return 0, nil, common.NewBasicError("buffer too small", nil)
+		return 0, nil, serrors.New("buffer too small")
 	}
 	copy(buf, p.Payload)
 	return len(p.Payload), overlayAddr, nil
@@ -345,7 +346,7 @@ func (listener *Listener) String() string {
 
 func createUDPAddrFromAppAddr(address *addr.AppAddr) (*net.UDPAddr, error) {
 	if address == nil || address.L3 == nil {
-		return nil, common.NewBasicError("nil application address", nil)
+		return nil, serrors.New("nil application address")
 	}
 	if address.L3.Type() != addr.HostTypeIPv4 && address.L3.Type() != addr.HostTypeIPv6 {
 		return nil, common.NewBasicError("unsupported application address type", nil,

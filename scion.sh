@@ -330,7 +330,7 @@ go_lint() {
     local ret=0
     lint_step "impi"
     # Skip CGO (https://github.com/pavius/impi/issues/5) files.
-    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' --skip 'mock_' --skip 'go/proto/.*\.capnp\.go' ./go/... || ret=1
+    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' --skip 'mock_' --skip 'go/proto/.*\.capnp\.go' --skip 'go/proto/structs.gen.go' ./go/... || ret=1
     lint_step "gofmt"
     # TODO(sustrik): At the moment there are no bazel rules for gofmt.
     # See: https://github.com/bazelbuild/rules_go/issues/511

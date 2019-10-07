@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // A HopPredicate specifies a hop in the ACL or Sequence of the path policy,
@@ -155,7 +156,7 @@ func validateHopPredStr(str string) error {
 			"dashes", dashes, "hashes", hashes, "commas", commas)
 	}
 	if dashes == 0 && (hashes > 0 || commas > 0) {
-		return common.NewBasicError("Can't specify IFIDs without AS", nil)
+		return serrors.New("Can't specify IFIDs without AS")
 	}
 	return nil
 }

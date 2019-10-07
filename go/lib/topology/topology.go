@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -44,7 +45,7 @@ type ServiceNames []string
 func (s ServiceNames) GetRandom() (string, error) {
 	numServers := len(s)
 	if numServers == 0 {
-		return "", common.NewBasicError("No names present", nil)
+		return "", serrors.New("No names present")
 	}
 	return s[rand.Intn(numServers)], nil
 }
@@ -324,7 +325,7 @@ func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
 	}
 	topoAddrs := svcInfo.GetAllTopoAddrs()
 	if topoAddrs == nil {
-		return nil, common.NewBasicError("Address not found", nil)
+		return nil, serrors.New("Address not found")
 	}
 	return topoAddrs, nil
 }
@@ -332,7 +333,7 @@ func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
 func (t *Topo) GetSvcInfo(svc proto.ServiceType) (*SVCInfo, error) {
 	switch svc {
 	case proto.ServiceType_unset:
-		return nil, common.NewBasicError("Service type unset", nil)
+		return nil, serrors.New("Service type unset")
 	case proto.ServiceType_bs:
 		return &SVCInfo{overlay: t.Overlay, names: t.BSNames, idTopoAddrMap: t.BS}, nil
 	case proto.ServiceType_ps:

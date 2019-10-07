@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -65,16 +65,16 @@ func (cfg *Config) InitDefaults() {
 
 func (cfg *Config) Validate() error {
 	if cfg.Dispatcher.ApplicationSocket == "" {
-		return common.NewBasicError("ApplicationSocket must be set", nil)
+		return serrors.New("ApplicationSocket must be set")
 	}
 	if cfg.Dispatcher.SocketFileMode == 0 {
-		return common.NewBasicError("SocketFileMode must be set", nil)
+		return serrors.New("SocketFileMode must be set")
 	}
 	if cfg.Dispatcher.OverlayPort == 0 {
-		return common.NewBasicError("OverlayPort must be set", nil)
+		return serrors.New("OverlayPort must be set")
 	}
 	if cfg.Dispatcher.ID == "" {
-		return common.NewBasicError("ID must be set", nil)
+		return serrors.New("ID must be set")
 	}
 	return config.ValidateAll(&cfg.Logging, &cfg.Metrics)
 }

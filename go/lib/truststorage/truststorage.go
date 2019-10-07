@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -98,7 +99,7 @@ func (cfg *TrustDBConf) validateBackend() error {
 	case BackendSqlite:
 		return nil
 	case BackendNone:
-		return common.NewBasicError("No backend set", nil)
+		return serrors.New("No backend set")
 	}
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }

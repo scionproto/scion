@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -57,7 +58,7 @@ type InfoTraceRoute struct {
 
 func InfoTraceRouteFromRaw(b common.RawBytes) (*InfoTraceRoute, error) {
 	if len(b) < traceRouteLen {
-		return nil, common.NewBasicError("Unable to parse InfoTraceRoute, small buffer size", nil)
+		return nil, serrors.New("Unable to parse InfoTraceRoute, small buffer size")
 	}
 	e := &InfoTraceRoute{}
 	e.Id = common.Order.Uint64(b)
