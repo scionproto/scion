@@ -103,7 +103,7 @@ func (k Keys) validateKeyMetas(metas map[scrypto.KeyVersion]KeyMeta) error {
 	return nil
 }
 
-// KeyMeta defines the
+// KeyMeta defines the key metadata.
 type KeyMeta struct {
 	Algorithm string   `toml:"algorithm"`
 	Validity  Validity `toml:"validity"`

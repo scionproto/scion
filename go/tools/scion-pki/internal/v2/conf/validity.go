@@ -36,10 +36,9 @@ func (v Validity) Validate() error {
 	return nil
 }
 
-// Eval returns the validity period. If the not before time is the zero
-// value, the input time is used.
-func (v Validity) Eval(now time.Time) scrypto.Validity {
-	notBefore := now
+// Eval returns the validity period. The not before parameter is only used if
+// the struct's not before field value is zero.
+func (v Validity) Eval(notBefore time.Time) scrypto.Validity {
 	if v.NotBefore != 0 {
 		notBefore = util.SecsToTime(v.NotBefore)
 	}
