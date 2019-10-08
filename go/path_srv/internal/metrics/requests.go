@@ -19,10 +19,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/prom"
-
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/proto"
 )
 
