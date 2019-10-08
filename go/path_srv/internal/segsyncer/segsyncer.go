@@ -21,6 +21,8 @@ import (
 	"sort"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -36,10 +38,18 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ periodic.Task = (*SegSyncer)(nil)
+
+var (
+	errPathDB   = serrors.New("pathdb error")
+	errRevcache = serrors.New("revcache error")
+	errNoPaths  = serrors.New("no paths")
+	errNet      = serrors.New("network error")
+)
 
 type SegSyncer struct {
 	latestUpdate *time.Time
@@ -90,12 +100,17 @@ func (s *SegSyncer) Name() string {
 
 func (s *SegSyncer) Run(ctx context.Context) {
 	// TODO(lukedirtwalker): handle too many errors in s.repErrCnt.
+	labels := metrics.SyncPushLabels{
+		Result: metrics.ErrInternal,
+		Dst:    s.dstIA,
+	}
 	logger := log.FromCtx(ctx)
 	cPs, err := s.getDstAddr(ctx)
 	if err != nil {
 		logger.Error("[segsyncer.SegSyncer] Failed to find path to remote",
 			"dstIA", s.dstIA, "err", err)
 		s.repErrCnt++
+		metrics.Syncs.Pushes(labels.WithResult(errToMetricsLabel(ctx, err))).Inc()
 		return
 	}
 	cnt, err := s.runInternal(ctx, cPs)
@@ -103,22 +118,24 @@ func (s *SegSyncer) Run(ctx context.Context) {
 		logger.Error("[segsyncer.SegSyncer] Failed to send segSync",
 			"dstIA", s.dstIA, "err", err)
 		s.repErrCnt++
+		metrics.Syncs.Pushes(labels.WithResult(errToMetricsLabel(ctx, err))).Inc()
 		return
 	}
 	if cnt > 0 {
 		logger.Debug("[segsyncer.SegSyncer] Sent down segments",
 			"dstIA", s.dstIA, "cnt", cnt)
 	}
+	metrics.Syncs.Pushes(labels.WithResult(metrics.Success)).Inc()
 	s.repErrCnt = 0
 }
 
 func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
 	coreSegs, err := s.fetchCoreSegsFromDB(ctx)
 	if err != nil {
-		return nil, common.NewBasicError("Failed to get core segs", err)
+		return nil, serrors.WrapStr("Failed to get core segs", err)
 	}
 	if len(coreSegs) < 1 {
-		return nil, serrors.New("No core segments found!")
+		return nil, serrors.Wrap(errNoPaths, serrors.New("No core segments found!"))
 	}
 	var cPs net.Addr
 	// select a seg to reach the dst
@@ -139,14 +156,15 @@ func (s *SegSyncer) fetchCoreSegsFromDB(ctx context.Context) ([]*seg.PathSegment
 	}
 	res, err := s.pathDB.Get(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, serrors.Wrap(errPathDB, err)
 	}
 	segs := query.Results(res).Segs()
 	_, err = segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
 		return revcache.NoRevokedHopIntf(ctx, s.revCache, ps)
 	})
 	if err != nil {
-		return nil, common.NewBasicError("Failed to filter segments", err)
+		return nil, serrors.WrapStr("Failed to filter segments",
+			serrors.Wrap(errRevcache, err))
 	}
 	// Sort by number of hops, i.e. AS entries.
 	sort.Slice(segs, func(i, j int) bool {
@@ -163,7 +181,7 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	}
 	queryResult, err := s.pathDB.Get(ctx, q)
 	if err != nil {
-		return 0, err
+		return 0, serrors.Wrap(errPathDB, err)
 	}
 	if len(queryResult) == 0 {
 		return 0, nil
@@ -176,7 +194,7 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	for _, msgT := range msgs {
 		err := s.msger.SendSegSync(ctx, msgT.msg, cPs, messenger.NextId())
 		if err != nil {
-			return sent, err
+			return sent, serrors.Wrap(errNet, err)
 		}
 		s.latestUpdate = &msgT.latestUpdate
 		sent += len(msgT.msg.SegRecs.Recs)
@@ -194,7 +212,7 @@ func (s *SegSyncer) createMessages(ctx context.Context,
 	for _, qr := range qrs {
 		revs, err := revcache.RelevantRevInfos(ctx, s.revCache, []*seg.PathSegment{qr.Seg})
 		if err != nil {
-			return nil, err
+			return nil, serrors.Wrap(errRevcache, err)
 		}
 		msg := &path_mgmt.SegSync{
 			SegRecs: &path_mgmt.SegRecs{
@@ -208,6 +226,24 @@ func (s *SegSyncer) createMessages(ctx context.Context,
 		})
 	}
 	return msgs, nil
+}
+
+func errToMetricsLabel(ctx context.Context, err error) string {
+	switch {
+	case serrors.IsTimeout(err):
+		return metrics.ErrTimeout
+	case xerrors.Is(err, errPathDB):
+		return metrics.ErrDB
+	case xerrors.Is(err, errRevcache):
+		return metrics.ErrDB
+	case xerrors.Is(err, errNoPaths):
+		return metrics.ErrNoPath
+	case xerrors.Is(err, errNet):
+		return metrics.ErrNetwork
+	default:
+		log.FromCtx(ctx).Debug("[segsyncer.SegSyncer] Unclassified err", "err", err)
+		return metrics.ErrNotClassified
+	}
 }
 
 // msgWithTimestamp is a SegSync message
