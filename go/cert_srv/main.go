@@ -108,13 +108,13 @@ func realMain() int {
 // Non-core starts a requester.
 func startReissRunner() {
 	if !cfg.CS.DisableCorePush {
-		corePusher = periodic.StartPeriodicTask(
+		corePusher = periodic.Start(
 			&reiss.CorePusher{
 				LocalIA: itopo.Get().ISD_AS,
 				TrustDB: state.TrustDB,
 				Msger:   msgr,
 			},
-			periodic.NewTicker(time.Hour),
+			time.Hour,
 			time.Minute,
 		)
 		corePusher.TriggerRun()
@@ -125,7 +125,7 @@ func startReissRunner() {
 	}
 	if itopo.Get().Core {
 		log.Info("Starting periodic reiss.Self task")
-		reissRunner = periodic.StartPeriodicTask(
+		reissRunner = periodic.Start(
 			&reiss.Self{
 				Msgr:       msgr,
 				State:      state,
@@ -133,14 +133,15 @@ func startReissRunner() {
 				IssTime:    cfg.CS.IssuerReissueLeadTime.Duration,
 				LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
 				CorePusher: corePusher,
+				Caller:     "cs",
 			},
-			periodic.NewTicker(cfg.CS.ReissueRate.Duration),
+			cfg.CS.ReissueRate.Duration,
 			cfg.CS.ReissueTimeout.Duration,
 		)
 		return
 	}
 	log.Info("Starting periodic reiss.Requester task")
-	reissRunner = periodic.StartPeriodicTask(
+	reissRunner = periodic.Start(
 		&reiss.Requester{
 			Msgr:       msgr,
 			State:      state,
@@ -148,7 +149,7 @@ func startReissRunner() {
 			LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
 			CorePusher: corePusher,
 		},
-		periodic.NewTicker(cfg.CS.ReissueRate.Duration),
+		cfg.CS.ReissueRate.Duration,
 		cfg.CS.ReissueTimeout.Duration,
 	)
 }
@@ -156,7 +157,7 @@ func startReissRunner() {
 func startDiscovery() {
 	var err error
 	discRunners, err = idiscovery.StartRunners(cfg.Discovery, discovery.Full,
-		idiscovery.TopoHandlers{}, nil)
+		idiscovery.TopoHandlers{}, nil, "cs")
 	if err != nil {
 		fatal.Fatal(common.NewBasicError("Unable to start dynamic topology fetcher", err))
 	}

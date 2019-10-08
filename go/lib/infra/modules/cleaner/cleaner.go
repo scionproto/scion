@@ -27,9 +27,8 @@ import (
 )
 
 const (
-	// MetricsNamespace is the namespace under which metrics are published for
-	// the cleaner.
-	MetricsNamespace = "cleaner"
+	// metricSubsystem is the subsystem under which metrics are published for the cleaner.
+	metricSubsystem = "cleaner"
 )
 
 var registry = metricsRegistry{registered: make(map[string]*metric)}
@@ -57,7 +56,7 @@ func New(deleter ExpiredDeleter, subsystem string) *Cleaner {
 
 // Name returns the tasks name.
 func (c *Cleaner) Name() string {
-	return fmt.Sprintf("Cleaner for %s", c.subsystem)
+	return fmt.Sprintf("%s_cleaner", c.subsystem)
 }
 
 // Run deletes expired entries using the deleter func.
@@ -81,19 +80,19 @@ type metricsRegistry struct {
 	registered map[string]*metric
 }
 
-func (m *metricsRegistry) register(subsystem string) *metric {
+func (m *metricsRegistry) register(namespace string) *metric {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if metric, ok := m.registered[subsystem]; ok {
+	if metric, ok := m.registered[namespace]; ok {
 		return metric
 	}
-	m.registered[subsystem] = &metric{
-		resultsTotal: *prom.NewCounterVec(MetricsNamespace, subsystem, "results_total",
+	m.registered[namespace] = &metric{
+		resultsTotal: *prom.NewCounterVec(namespace, metricSubsystem, "results_total",
 			"Results of running the cleaner, either ok or err", []string{"result"}),
-		deletedTotal: prom.NewCounter(MetricsNamespace, subsystem, "deleted_total",
+		deletedTotal: prom.NewCounter(namespace, metricSubsystem, "deleted_total",
 			"Number of deleted entries total."),
 	}
-	return m.registered[subsystem]
+	return m.registered[namespace]
 }
 
 type metric struct {

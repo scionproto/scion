@@ -54,8 +54,8 @@ func NewPool(infos map[Info]struct{}, opts PoolOptions) (*Pool, error) {
 	if err := p.Update(infos); err != nil {
 		return nil, err
 	}
-	p.expirer = periodic.StartPeriodicTask((*expirer)(p), periodic.NewTicker(time.Second),
-		time.Second)
+	//TODO(karampok). Before we start the task, we need caller identifier (e.g. bs_healthpool_x)
+	p.expirer = periodic.Start((*expirer)(p), time.Second, time.Second)
 	return p, nil
 }
 
@@ -130,7 +130,7 @@ func (p *Pool) chooseMinFails() (Info, error) {
 type expirer Pool
 
 func (e *expirer) Name() string {
-	return "healthpool.expirer"
+	return "healthpool_expirer"
 }
 
 func (e *expirer) Run(_ context.Context) {

@@ -16,6 +16,7 @@ package reiss
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
@@ -43,11 +44,12 @@ type Self struct {
 	IssTime    time.Duration
 	LeafTime   time.Duration
 	CorePusher *periodic.Runner
+	Caller     string
 }
 
 // Name returns the tasks name.
 func (s *Self) Name() string {
-	return "reiss.Self"
+	return fmt.Sprintf("%s_reiss_self", s.Caller)
 }
 
 // Run issues certificate chains for the local AS.

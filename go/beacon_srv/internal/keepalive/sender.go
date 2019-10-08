@@ -42,7 +42,7 @@ type Sender struct {
 
 // Name returns the tasks name.
 func (s *Sender) Name() string {
-	return "keepalive.Sender"
+	return "bs_keepalive_sender"
 }
 
 // Run sends ifid keepalive messages on all border routers.

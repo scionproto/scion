@@ -19,29 +19,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/periodic/metrics"
 	"github.com/scionproto/scion/go/lib/util"
 )
-
-// Ticker interface to improve testability of this periodic task code.
-type Ticker interface {
-	Chan() <-chan time.Time
-	Stop()
-}
-
-type defaultTicker struct {
-	*time.Ticker
-}
-
-func (t *defaultTicker) Chan() <-chan time.Time {
-	return t.C
-}
-
-// NewTicker returns a new Ticker with time.Ticker as implementation.
-func NewTicker(d time.Duration) Ticker {
-	return &defaultTicker{
-		Ticker: time.NewTicker(d),
-	}
-}
 
 // A Task that has to be periodically executed.
 type Task interface {
@@ -55,39 +35,43 @@ type Task interface {
 // Runner runs a task periodically.
 type Runner struct {
 	task         Task
-	ticker       Ticker
+	ticker       *time.Ticker
 	timeout      time.Duration
 	stop         chan struct{}
 	loopFinished chan struct{}
 	ctx          context.Context
 	cancelF      context.CancelFunc
 	trigger      chan struct{}
+	metric       metrics.ExportMetric
 }
 
-// StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
-// The ticker regulates the periodicity. The timeout is used for the context timeout of the task.
-// The timeout can be larger than the periodicity of the ticker. That means if a tasks takes a long
+// Start creates and starts a new Runner to run the given task peridiocally.
+// The timeout is used for the context timeout of the task. The timeout can be
+// larger than the periodicity of the task. That means if a tasks takes a long
 // time it will be immediately retriggered.
-func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner {
+func Start(task Task, period, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
 	logger := log.New("debug_id", util.GetDebugID())
 	ctx = log.CtxWith(ctx, logger)
-	runner := &Runner{
+	r := &Runner{
 		task:         task,
-		ticker:       ticker,
+		ticker:       time.NewTicker(period),
 		timeout:      timeout,
 		stop:         make(chan struct{}),
 		loopFinished: make(chan struct{}),
 		ctx:          ctx,
 		cancelF:      cancelF,
 		trigger:      make(chan struct{}),
+		metric:       metrics.NewMetric(task.Name()),
 	}
 	logger.Info("Starting periodic task", "task", task.Name())
+	r.metric.Period(period)
+	r.metric.StartTimestamp(time.Now())
 	go func() {
 		defer log.LogPanicAndExit()
-		runner.runLoop()
+		r.runLoop()
 	}()
-	return runner
+	return r
 }
 
 // Stop stops the periodic execution of the Runner.
@@ -96,6 +80,7 @@ func (r *Runner) Stop() {
 	r.ticker.Stop()
 	close(r.stop)
 	<-r.loopFinished
+	r.metric.Event(metrics.EventStop)
 }
 
 // Kill is like stop but it also cancels the context of the current running method.
@@ -107,6 +92,7 @@ func (r *Runner) Kill() {
 	close(r.stop)
 	r.cancelF()
 	<-r.loopFinished
+	r.metric.Event(metrics.EventKill)
 }
 
 // TriggerRun triggers the periodic task to run now.
@@ -122,6 +108,7 @@ func (r *Runner) TriggerRun() {
 	case <-r.stop:
 	case r.trigger <- struct{}{}:
 	}
+	r.metric.Event(metrics.EventTrigger)
 }
 
 func (r *Runner) runLoop() {
@@ -131,7 +118,7 @@ func (r *Runner) runLoop() {
 		select {
 		case <-r.stop:
 			return
-		case <-r.ticker.Chan():
+		case <-r.ticker.C:
 			r.onTick()
 		case <-r.trigger:
 			r.onTick()
@@ -147,7 +134,9 @@ func (r *Runner) onTick() {
 		return
 	default:
 		ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
+		start := time.Now()
 		r.task.Run(ctx)
+		r.metric.Runtime(time.Since(start))
 		cancelF()
 	}
 }

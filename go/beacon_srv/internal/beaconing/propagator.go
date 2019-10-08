@@ -82,7 +82,7 @@ func (cfg PropagatorConf) New() (*Propagator, error) {
 
 // Name returns the tasks name.
 func (p *Propagator) Name() string {
-	return "beaconing.Propagator"
+	return "bs_beaconing_propagator"
 }
 
 // Run propagates beacons provided by the beacon provider on all active target

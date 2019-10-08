@@ -76,7 +76,7 @@ func (cfg RevokerConf) New() *Revoker {
 
 // Name returns the tasks name.
 func (r *Revoker) Name() string {
-	return "ifstate.Revoker"
+	return "bs_ifstate_revoker"
 }
 
 // Run issues revocations for interfaces that have timed out

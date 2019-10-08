@@ -100,14 +100,13 @@ func realMain() int {
 					log.FromCtx(ctx).Info("Topology file written", "file", out)
 				})
 			},
-		}, nil)
+		}, nil, "myProcess")
 	if err != nil {
 		log.Crit("Unable to initialize fetcher", "err", err)
 		return 1
 	}
 	log.Info("Starting periodic fetching", "period", *period)
-	ticker := periodic.NewTicker(*period)
-	runner := periodic.StartPeriodicTask(fetcher, ticker, *timeout)
+	runner := periodic.Start(fetcher, *period, *timeout)
 	defer runner.Stop()
 	select {}
 }

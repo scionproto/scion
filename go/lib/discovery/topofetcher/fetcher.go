@@ -16,6 +16,7 @@ package topofetcher
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -48,18 +49,20 @@ type Fetcher struct {
 	Callbacks Callbacks
 	// Client is the http Client. If nil, the default Client is used.
 	Client *http.Client
+	caller string
 }
 
 // New initializes a fetcher with the given values. Topo is provided to
 // initialize the pool with discovery services.
 func New(svcInfo topology.IDAddrMap, params discovery.FetchParams,
-	clbks Callbacks, client *http.Client) (*Fetcher, error) {
+	clbks Callbacks, client *http.Client, component string) (*Fetcher, error) {
 
 	var err error
 	f := &Fetcher{
 		Params:    params,
 		Callbacks: clbks,
 		Client:    client,
+		caller:    component,
 	}
 	if f.Pool, err = discoverypool.New(svcInfo); err != nil {
 		return nil, err
@@ -74,7 +77,7 @@ func (f *Fetcher) UpdateInstances(svcInfo topology.IDAddrMap) error {
 
 // Name returns the tasks name.
 func (f *Fetcher) Name() string {
-	return "discovery.Fetcher"
+	return fmt.Sprintf("%s_discovery_fetcher", f.caller)
 }
 
 // Run fetches a new topology file from the discovery service and calls the
