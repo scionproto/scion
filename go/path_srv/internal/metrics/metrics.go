@@ -27,6 +27,8 @@ var (
 	Registrations = newRegistration()
 	// Requests contains metrics for segments requests.
 	Requests = newRequests()
+	// Syncs contains metrics for segment synchronization.
+	Syncs = newSync()
 )
 
 // Result values
@@ -41,7 +43,10 @@ const (
 	ErrCrypto             = prom.ErrCrypto
 	ErrDB                 = prom.ErrDB
 	ErrTimeout            = prom.ErrTimeout
-	ErrReply              = prom.ErrReply
+	ErrNetwork            = prom.ErrNetwork
+	ErrNotClassified      = prom.ErrNotClassified
+	// ErrNoPath indicates no path is available to send a message.
+	ErrNoPath = "err_no_path"
 )
 
 // Label values
