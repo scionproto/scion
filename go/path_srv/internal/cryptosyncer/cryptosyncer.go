@@ -39,7 +39,7 @@ type Syncer struct {
 }
 
 func (c *Syncer) Name() string {
-	return "cryptosyncer.Syncer"
+	return "ps_cryptosyncer_syncer"
 }
 
 func (c *Syncer) Run(ctx context.Context) {

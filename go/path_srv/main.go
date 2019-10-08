@@ -175,7 +175,7 @@ func realMain() int {
 		msger.ListenAndServe()
 	}()
 	discoRunners, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full,
-		idiscovery.TopoHandlers{}, nil)
+		idiscovery.TopoHandlers{}, nil, "ps")
 	if err != nil {
 		log.Crit("Unable to start topology fetcher", "err", err)
 		return 1
@@ -227,15 +227,15 @@ func (t *periodicTasks) Start() error {
 			return common.NewBasicError("Unable to start seg syncer", err)
 		}
 	}
-	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
-		periodic.NewTicker(300*time.Second), 295*time.Second)
-	t.cryptosyncer = periodic.StartPeriodicTask(&cryptosyncer.Syncer{
+	t.pathDBCleaner = periodic.Start(pathdb.NewCleaner(t.args.PathDB, "ps_segments"),
+		300*time.Second, 295*time.Second)
+	t.cryptosyncer = periodic.Start(&cryptosyncer.Syncer{
 		DB:    t.trustDB,
 		Msger: t.msger,
 		IA:    t.args.IA,
-	}, periodic.NewTicker(cfg.PS.CryptoSyncInterval.Duration), cfg.PS.CryptoSyncInterval.Duration)
-	t.rcCleaner = periodic.StartPeriodicTask(revcache.NewCleaner(t.args.RevCache),
-		periodic.NewTicker(10*time.Second), 10*time.Second)
+	}, cfg.PS.CryptoSyncInterval.Duration, cfg.PS.CryptoSyncInterval.Duration)
+	t.rcCleaner = periodic.Start(revcache.NewCleaner(t.args.RevCache, "ps_revocation"),
+		10*time.Second, 10*time.Second)
 	return nil
 }
 
