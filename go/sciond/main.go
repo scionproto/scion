@@ -160,11 +160,11 @@ func realMain() int {
 			NextQueryCleaner: segfetcher.NextQueryCleaner{PathDB: pathDB},
 		},
 	}
-	cleaner := periodic.StartPeriodicTask(pathdb.NewCleaner(pathDB),
-		periodic.NewTicker(300*time.Second), 295*time.Second)
+	cleaner := periodic.StartTask(pathdb.NewCleaner(pathDB),
+		300*time.Second, 295*time.Second, "sciond_pathdb_cleaner")
 	defer cleaner.Stop()
-	rcCleaner := periodic.StartPeriodicTask(revcache.NewCleaner(revCache),
-		periodic.NewTicker(10*time.Second), 10*time.Second)
+	rcCleaner := periodic.StartTask(revcache.NewCleaner(revCache),
+		10*time.Second, 10*time.Second, "sciond_revcache_cleaner")
 	defer rcCleaner.Stop()
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", cfg.SD.Reliable, handlers, log.Root())

@@ -227,15 +227,15 @@ func (t *periodicTasks) Start() error {
 			return common.NewBasicError("Unable to start seg syncer", err)
 		}
 	}
-	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
-		periodic.NewTicker(300*time.Second), 295*time.Second)
-	t.cryptosyncer = periodic.StartPeriodicTask(&cryptosyncer.Syncer{
+	t.pathDBCleaner = periodic.StartTask(pathdb.NewCleaner(t.args.PathDB),
+		300*time.Second, 295*time.Second, "ps_dbcleaner")
+	t.cryptosyncer = periodic.StartTask(&cryptosyncer.Syncer{
 		DB:    t.trustDB,
 		Msger: t.msger,
 		IA:    t.args.IA,
-	}, periodic.NewTicker(cfg.PS.CryptoSyncInterval.Duration), cfg.PS.CryptoSyncInterval.Duration)
-	t.rcCleaner = periodic.StartPeriodicTask(revcache.NewCleaner(t.args.RevCache),
-		periodic.NewTicker(10*time.Second), 10*time.Second)
+	}, cfg.PS.CryptoSyncInterval.Duration, cfg.PS.CryptoSyncInterval.Duration, "ps_cryptosyncer")
+	t.rcCleaner = periodic.StartTask(revcache.NewCleaner(t.args.RevCache),
+		10*time.Second, 10*time.Second, "ps_rccleaner")
 	return nil
 }
 

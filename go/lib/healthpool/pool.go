@@ -54,8 +54,8 @@ func NewPool(infos map[Info]struct{}, opts PoolOptions) (*Pool, error) {
 	if err := p.Update(infos); err != nil {
 		return nil, err
 	}
-	p.expirer = periodic.StartPeriodicTask((*expirer)(p), periodic.NewTicker(time.Second),
-		time.Second)
+	p.expirer = periodic.StartTask((*expirer)(p), time.Second,
+		time.Second, "healthpool_expirer")
 	return p, nil
 }
 
