@@ -23,7 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-const (
+// Possible errors
+var (
 	ErrNoAddress             common.ErrMsg = "no address found"
 	ErrNoPort                common.ErrMsg = "missing port"
 	ErrPayloadTooLong        common.ErrMsg = "payload too long"
@@ -37,6 +38,8 @@ const (
 	ErrBadLength             common.ErrMsg = "bad length"
 	ErrBufferTooSmall        common.ErrMsg = "buffer too small"
 )
+
+// TODO(lukedirtwalker): Refactor methods in here to use `xerrors`.
 
 func IsDispatcherError(err error) bool {
 	err = extractNestedError(err)

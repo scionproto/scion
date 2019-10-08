@@ -19,7 +19,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -41,7 +42,7 @@ func TestComputeDestination(t *testing.T) {
 		Description string
 		Packet      *spkt.ScnPkt
 		ExpectedDst Destination
-		ExpectedErr common.ErrMsg
+		ExpectedErr error
 	}
 	var testCases = []*TestCase{
 		{
@@ -208,19 +209,17 @@ func TestComputeDestination(t *testing.T) {
 			ExpectedErr: ErrMalformedL4Quote,
 		},
 	}
-	Convey("", t, func() {
-		for _, test := range testCases {
-			Convey(test.Description, func() {
-				destination, err := ComputeDestination(test.Packet)
-				xtest.SoMsgErrorStr("err", err, test.ExpectedErr.Error())
-				SoMsg("destination", destination, ShouldResemble, test.ExpectedDst)
-			})
-		}
-	})
+	for _, test := range testCases {
+		t.Run(test.Description, func(t *testing.T) {
+			destination, err := ComputeDestination(test.Packet)
+			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
+			assert.Equal(t, test.ExpectedDst, destination)
+		})
+	}
 }
 
 func MustPackL4Header(t *testing.T, header l4.L4Header) common.RawBytes {
 	b, err := header.Pack(false)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return b
 }

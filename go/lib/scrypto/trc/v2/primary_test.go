@@ -18,10 +18,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestPrimaryASesValidateInvariant(t *testing.T) {
@@ -258,7 +258,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			err := test.Primary.ValidateInvariant()
-			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			xtest.AssertErrorsIs(t, err, test.ExpectedErrMsg)
 		})
 	}
 }

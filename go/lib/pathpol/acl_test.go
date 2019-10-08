@@ -19,7 +19,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -53,7 +52,7 @@ func TestNewACL(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			acl, err := NewACL(test.Entries...)
-			assert.True(t, xerrors.Is(err, test.ExpectedErr))
+			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			if test.ExpectedErr == nil {
 				assert.NotNil(t, acl)
 			}

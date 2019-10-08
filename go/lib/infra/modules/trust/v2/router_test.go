@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -33,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestLocalRouterChooseServer(t *testing.T) {
@@ -135,9 +135,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 			router := trust.NewCSRouter(1, r, db)
 			res, err := router.ChooseServer(context.Background(), test.ISD)
 			if test.ExpectedErr != nil {
-				require.Error(t, err)
-				assert.True(t, xerrors.Is(err, test.ExpectedErr), "Expected: %s Actual: %s",
-					test.ExpectedErr, err)
+				xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			} else {
 				require.NoError(t, err)
 				expected := &snet.Addr{

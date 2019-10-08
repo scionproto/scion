@@ -34,9 +34,10 @@ go_test(
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/overlay:go_default_library",
+        "//go/lib/xtest:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
-        "@org_golang_x_xerrors//:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

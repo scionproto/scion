@@ -42,6 +42,5 @@ go_test(
         "//go/tools/scion-pki/internal/v2/conf/testdata:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
-        "@org_golang_x_xerrors//:go_default_library",
     ],
 )

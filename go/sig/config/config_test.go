@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -31,7 +31,7 @@ var (
 )
 
 func TestLoadFromFile(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		Name     string
 		FileName string
 		Config   Cfg
@@ -73,76 +73,72 @@ func TestLoadFromFile(t *testing.T) {
 		},
 	}
 
-	Convey("Test SIG config marshal/unmarshal", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				if *update {
-					xtest.MustMarshalJSONToFile(t, tc.Config, tc.FileName+".json")
-				}
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			if *update {
+				xtest.MustMarshalJSONToFile(t, test.Config, test.FileName+".json")
+			}
 
-				cfg, err := LoadFromFile(filepath.Join("testdata", tc.FileName+".json"))
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("cfg", *cfg, ShouldResemble, tc.Config)
-			})
-		}
-	})
+			cfg, err := LoadFromFile(filepath.Join("testdata", test.FileName+".json"))
+			assert.NoError(t, err)
+			assert.Equal(t, test.Config, *cfg)
+		})
+	}
 }
 
 func TestIPNetUnmarshalJSON(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		Name  string
-		Error bool
+		Error assert.ErrorAssertionFunc
 		JSON  string
 	}{
 		{
 			Name:  "Correct Network IPv4 Addr using 32 bits",
-			Error: false,
+			Error: assert.NoError,
 			JSON:  `"192.0.2.255/32"`,
 		},
 		{
 			Name:  "Correct Network IPv4 Addr using 0 bit",
-			Error: false,
+			Error: assert.NoError,
 			JSON:  `"0.0.0.0/0"`,
 		},
 		{
 			Name:  "Correct Network IPv4 Addr using 1 bit",
-			Error: false,
+			Error: assert.NoError,
 			JSON:  `"128.0.0.0/1"`,
 		},
 		{
 			Name:  "Invalid Network IPv4 Addr using 24 bit",
-			Error: true,
+			Error: assert.Error,
 			JSON:  `"192.0.2.43/24"`,
 		},
 		{
 			Name:  "Correct Network IPv6 Addr using 128 bits",
-			Error: false,
+			Error: assert.NoError,
 			JSON:  `"2001:0db8:0123:4567:89ab:cdef:1234:5678/128"`,
 		},
 		{
 			Name:  "Correct Network IPv6 Addr using 0 bit",
-			Error: false,
+			Error: assert.NoError,
 			JSON:  `"::/0"`,
 		},
 		{
 			Name:  "Correct Network IPv6 Addr using 1 bit",
-			Error: false,
+			Error: assert.NoError,
 			JSON:  `"8000::/1"`,
 		},
 		{
 			Name:  "Invalid Network IPv6 Addr using 24 bit",
-			Error: true,
+			Error: assert.Error,
 			JSON:  `"2001::f1/24"`,
 		},
 	}
 
-	Convey("Test verify network addr in sig.json", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				ipn := &IPNet{}
-				err := ipn.UnmarshalJSON([]byte(tc.JSON))
-				xtest.SoMsgError("err", err, tc.Error)
-			})
-		}
-	})
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			ipn := &IPNet{}
+			err := ipn.UnmarshalJSON([]byte(test.JSON))
+			test.Error(t, err)
+		})
+	}
 }

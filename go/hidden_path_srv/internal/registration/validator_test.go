@@ -18,9 +18,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -181,13 +179,7 @@ func TestValidator(t *testing.T) {
 				},
 			}
 			err := validator.Validate(msg, test.peer)
-			if test.Err == nil {
-				assert.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.True(t, xerrors.Is(err, test.Err))
-			}
-
+			xtest.AssertErrorsIs(t, err, test.Err)
 		})
 	}
 }

@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -42,22 +41,21 @@ func (r *mockResource) IsHealthy() bool {
 	return r.healthy
 }
 
+// TestResourceHealth tests that an unhealthy resource results in error replied.
 func TestResourceHealth(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	Convey("Unhealthy resource results in error replied", t, func() {
-		handler := infra.HandlerFunc(func(r *infra.Request) *infra.HandlerResult {
-			return nil
-		})
-		rHandler := infra.NewResourceAwareHandler(handler,
-			&mockResource{name: "tstFail", healthy: false})
-		rwMock := mock_infra.NewMockResponseWriter(ctrl)
-		ctx := infra.NewContextWithResponseWriter(context.Background(), rwMock)
-		rwMock.EXPECT().SendAckReply(gomock.Eq(ctx), gomock.Eq(&ack.Ack{
-			Err:     proto.Ack_ErrCode_reject,
-			ErrDesc: "Resource tstFail not healthy",
-		}))
-		req := infra.NewRequest(ctx, nil, nil, nil, 1)
-		rHandler.Handle(req)
+	handler := infra.HandlerFunc(func(r *infra.Request) *infra.HandlerResult {
+		return nil
 	})
+	rHandler := infra.NewResourceAwareHandler(handler,
+		&mockResource{name: "tstFail", healthy: false})
+	rwMock := mock_infra.NewMockResponseWriter(ctrl)
+	ctx := infra.NewContextWithResponseWriter(context.Background(), rwMock)
+	rwMock.EXPECT().SendAckReply(gomock.Eq(ctx), gomock.Eq(&ack.Ack{
+		Err:     proto.Ack_ErrCode_reject,
+		ErrDesc: "Resource tstFail not healthy",
+	}))
+	req := infra.NewRequest(ctx, nil, nil, nil, 1)
+	rHandler.Handle(req)
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb/adapter"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq"
@@ -344,12 +343,8 @@ func TestFetcher(t *testing.T) {
 			f := hpsegreq.NewDefaultFetcher(groupInfo, mockMsgr, adapter.New(mockDB))
 			test.setup(mockDB, mockMsgr)
 			recs, err := f.Fetch(context.Background(), test.req, test.peer)
-			if test.err == nil {
-				require.NoError(t, err)
-				assert.ElementsMatch(t, test.res, recs)
-			} else {
-				assert.True(t, xerrors.Is(err, test.err))
-			}
+			xtest.AssertErrorsIs(t, err, test.err)
+			assert.ElementsMatch(t, test.res, recs)
 		})
 	}
 }
