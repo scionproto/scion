@@ -17,6 +17,7 @@ package svc
 import (
 	"bytes"
 	"context"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -189,8 +190,8 @@ func (p *path) MTU() uint16 {
 	return 0
 }
 
-func (p *path) ExpTime() uint32 {
-	return 0
+func (p *path) Expiry() time.Time {
+	return time.Time{}
 }
 
 func (p *path) Copy() snet.Path {
