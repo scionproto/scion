@@ -368,7 +368,6 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 		return nil, err
 	}
 	s, err := beaconing.OriginatorConf{
-		EnableMetrics: true,
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
 				Conn: t.conn,
@@ -405,7 +404,6 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 		BeaconProvider: t.store,
 		AllowIsdLoop:   t.allowIsdLoop,
 		Core:           topo.Core,
-		EnableMetrics:  true,
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
 				Conn: t.conn,
@@ -462,12 +460,11 @@ func (t *periodicTasks) startRegistrar(topo *topology.Topo, segType proto.PathSe
 		return nil, err
 	}
 	r, err := beaconing.RegistrarConf{
-		Msgr:          t.msgr,
-		SegProvider:   t.store,
-		SegType:       segType,
-		TopoProvider:  t.topoProvider,
-		Period:        cfg.BS.RegistrationInterval.Duration,
-		EnableMetrics: true,
+		Msgr:         t.msgr,
+		SegProvider:  t.store,
+		SegType:      segType,
+		TopoProvider: t.topoProvider,
+		Period:       cfg.BS.RegistrationInterval.Duration,
 		Config: beaconing.ExtenderConf{
 			Intfs:         t.intfs,
 			Mac:           t.genMac(),

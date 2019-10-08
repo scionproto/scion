@@ -18,8 +18,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -35,17 +35,15 @@ var _ periodic.Task = (*Originator)(nil)
 
 // OriginatorConf is the configuration to create a new originator.
 type OriginatorConf struct {
-	Config        ExtenderConf
-	BeaconSender  *onehop.BeaconSender
-	Period        time.Duration
-	EnableMetrics bool
+	Config       ExtenderConf
+	BeaconSender *onehop.BeaconSender
+	Period       time.Duration
 }
 
 // Originator originates beacons. It should only be used by core ASes.
 type Originator struct {
 	*segExtender
 	beaconSender *onehop.BeaconSender
-	metrics      *metrics.Originator
 
 	// tick is mutable.
 	tick tick
@@ -63,9 +61,6 @@ func (cfg OriginatorConf) New() (*Originator, error) {
 		segExtender:  extender,
 		tick:         tick{period: cfg.Period},
 	}
-	if cfg.EnableMetrics {
-		o.metrics = metrics.InitOriginator()
-	}
 	return o, nil
 }
 
@@ -79,7 +74,7 @@ func (o *Originator) Run(ctx context.Context) {
 	o.tick.now = time.Now()
 	o.originateBeacons(ctx, proto.LinkType_core)
 	o.originateBeacons(ctx, proto.LinkType_child)
-	o.metrics.AddTotalTime(o.tick.now)
+	metrics.Originator.Runtime().Add(time.Since(o.tick.now).Seconds())
 	o.tick.updateLast()
 }
 
@@ -100,7 +95,7 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType proto.LinkTy
 	for _, ifid := range intfs {
 		b := beaconOriginator{
 			Originator: o,
-			ifId:       ifid,
+			ifID:       ifid,
 			infoF:      infoF,
 			summary:    s,
 		}
@@ -155,16 +150,17 @@ func (o *Originator) logSummary(logger log.Logger, s *summary, linkType proto.Li
 // beaconOriginator originates one beacon on the given interface.
 type beaconOriginator struct {
 	*Originator
-	ifId    common.IFIDType
+	ifID    common.IFIDType
 	infoF   spath.InfoField
 	summary *summary
 }
 
 // originateBeacon originates a beacon on the given ifid.
 func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
-	intf := o.cfg.Intfs.Get(o.ifId)
+	labels := metrics.OriginatorLabels{EgIfID: o.ifID, Result: metrics.Success}
+	intf := o.cfg.Intfs.Get(o.ifID)
 	if intf == nil {
-		o.metrics.IncInternalErr()
+		metrics.Originator.Beacons(labels.WithResult(metrics.ErrVerify)).Inc()
 		return serrors.New("Interface does not exist")
 	}
 	topoInfo := intf.TopoInfo()
@@ -172,22 +168,24 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 
 	bseg, err := o.createBeacon()
 	if err != nil {
-		return common.NewBasicError("Unable to create beacon", err, "ifid", o.ifId)
+		metrics.Originator.Beacons(labels.WithResult(metrics.ErrCreate)).Inc()
+		return common.NewBasicError("Unable to create beacon", err, "ifid", o.ifID)
 	}
 
 	err = o.beaconSender.Send(
 		ctx,
 		bseg,
 		topoInfo.ISD_AS,
-		o.ifId,
+		o.ifID,
 		o.cfg.Signer,
 		ov,
 	)
 	if err != nil {
-		o.metrics.IncTotalBeacons(o.ifId, metrics.SendErr)
+		metrics.Originator.Beacons(labels.WithResult(metrics.ErrSend)).Inc()
 		return common.NewBasicError("Unable to send packet", err)
 	}
 	o.onSuccess(intf)
+	metrics.Originator.Beacons(labels).Inc()
 	return nil
 }
 
@@ -196,7 +194,7 @@ func (o *beaconOriginator) createBeacon() (*seg.Beacon, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create segment", err)
 	}
-	if err := o.extend(bseg, 0, o.ifId, nil); err != nil {
+	if err := o.extend(bseg, 0, o.ifID, nil); err != nil {
 		return nil, common.NewBasicError("Unable to extend segment", err)
 	}
 	return &seg.Beacon{Segment: bseg}, nil
@@ -204,7 +202,6 @@ func (o *beaconOriginator) createBeacon() (*seg.Beacon, error) {
 
 func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
 	intf.Originate(o.tick.now)
-	o.summary.AddIfid(o.ifId)
+	o.summary.AddIfid(o.ifID)
 	o.summary.Inc()
-	o.metrics.IncTotalBeacons(o.ifId, metrics.Success)
 }

@@ -30,6 +30,8 @@ const (
 
 	// ErrDB indicates an error during validation.
 	ErrDB = prom.ErrDB
+	// ErrCreate indicates an error during creation.
+	ErrCreate = "err_create"
 	// ErrParse indicates an error during processing.
 	ErrParse = prom.ErrParse
 	// ErrProcess indicates an error during processing.
@@ -38,6 +40,8 @@ const (
 	ErrPrefilter = "err_prefilter"
 	// ErrVerify indicates an error during verification.
 	ErrVerify = prom.ErrVerify
+	// ErrSend indicates an error during verification.
+	ErrSend = "err_send"
 
 	// OkFiltered indicates beacon was filtered by policy.
 	OkFiltered = "ok_filtered"
@@ -67,6 +71,12 @@ var (
 	Ifstate = newIfstate()
 	// Keepalive is the single-instance struct to get keepalive prometheus counters.
 	Keepalive = newKeepalive()
+	// Originator is the single-instance struct to get prometheus counters.
+	Originator = newOriginator()
+	// Propagator is the single-instance struct to get prometheus metrics or counters.
+	Propagator = newPropagator()
 	// Revocation is the single-instance struct to get prometheus counters.
 	Revocation = newRevocation()
+	// Registrar is the single-instance struct to get prometheus metrics or counters.
+	Registrar = newRegistrar()
 )

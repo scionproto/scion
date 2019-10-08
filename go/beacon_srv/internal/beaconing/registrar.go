@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/metrics"
+	"github.com/scionproto/scion/go/beacon_srv/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -46,13 +46,12 @@ var _ periodic.Task = (*Registrar)(nil)
 
 // RegistrarConf is the configuration to create a new registrar.
 type RegistrarConf struct {
-	Config        ExtenderConf
-	SegProvider   SegmentProvider
-	TopoProvider  topology.Provider
-	Msgr          infra.Messenger
-	Period        time.Duration
-	SegType       proto.PathSegType
-	EnableMetrics bool
+	Config       ExtenderConf
+	SegProvider  SegmentProvider
+	TopoProvider topology.Provider
+	Msgr         infra.Messenger
+	Period       time.Duration
+	SegType      proto.PathSegType
 }
 
 // Registrar is used to periodically register path segments with the appropriate
@@ -63,7 +62,6 @@ type Registrar struct {
 	msgr         infra.Messenger
 	segProvider  SegmentProvider
 	topoProvider topology.Provider
-	metrics      *metrics.Registrar
 	segType      proto.PathSegType
 
 	// mutable fields
@@ -86,9 +84,6 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 		tick:         tick{period: cfg.Period},
 		segExtender:  extender,
 	}
-	if cfg.EnableMetrics {
-		r.metrics = metrics.InitRegistrar()
-	}
 	return r, nil
 }
 
@@ -104,7 +99,7 @@ func (r *Registrar) Run(ctx context.Context) {
 		log.FromCtx(ctx).Error("[beaconing.Registrar] Unable to register",
 			"type", r.segType, "err", err)
 	}
-	r.metrics.AddTotalTime(r.segType, r.tick.now)
+	metrics.Registrar.RuntimeWithType(r.segType.String()).Add(time.Since(r.tick.now).Seconds())
 	r.tick.updateLast()
 }
 
@@ -128,7 +123,7 @@ func (r *Registrar) run(ctx context.Context) error {
 	for bOrErr := range segments {
 		if bOrErr.Err != nil {
 			logger.Error("[beaconing.Registrar] Unable to get beacon", "err", err)
-			r.metrics.IncInternalErr(r.segType)
+			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 			continue
 		}
 		if !r.IntfActive(bOrErr.Beacon.InIfId) {
@@ -196,8 +191,7 @@ func (r *segmentRegistrar) start(ctx context.Context, wg *sync.WaitGroup) {
 // setSegToRegister sets the segment to register and the address to send to.
 func (r *segmentRegistrar) setSegToRegister() error {
 	if err := r.extend(r.beacon.Segment, r.beacon.InIfId, 0, r.peers); err != nil {
-		r.metrics.IncTotalBeacons(r.segType, r.beacon.Segment.FirstIA(), r.beacon.InIfId,
-			metrics.CreateErr)
+		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 		return common.NewBasicError("Unable to terminate", err, "beacon", r.beacon)
 	}
 	r.reg = &path_mgmt.SegReg{
@@ -213,7 +207,7 @@ func (r *segmentRegistrar) setSegToRegister() error {
 	var err error
 	r.addr, err = r.chooseServer(r.beacon.Segment)
 	if err != nil {
-		r.metrics.IncInternalErr(r.segType)
+		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 		return common.NewBasicError("Unable to choose server", err)
 	}
 	return nil
@@ -229,8 +223,7 @@ func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGro
 		if err := r.msgr.SendSegReg(ctx, r.reg, r.addr, messenger.NextId()); err != nil {
 			r.logger.Error("[beaconing.Registrar] Unable to register segment",
 				"addr", r.addr, "err", err)
-			r.metrics.IncTotalBeacons(r.segType, r.beacon.Segment.FirstIA(), r.beacon.InIfId,
-				metrics.SendErr)
+			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 			return
 		}
 		r.onSuccess()
@@ -242,8 +235,13 @@ func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGro
 func (r *segmentRegistrar) onSuccess() {
 	r.summary.AddSrc(r.beacon.Segment.FirstIA())
 	r.summary.Inc()
-	r.metrics.IncTotalBeacons(r.segType, r.beacon.Segment.FirstIA(),
-		r.beacon.InIfId, metrics.Success)
+	l := metrics.RegistrarLabels{
+		SegType: r.segType.String(),
+		StartIA: r.beacon.Segment.FirstIA(),
+		InIfID:  r.beacon.InIfId,
+		Result:  metrics.Success,
+	}
+	metrics.Registrar.Beacons(l).Inc()
 }
 
 func (r *segmentRegistrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
