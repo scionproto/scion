@@ -17,8 +17,6 @@ package segreq
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/path_srv/internal/metrics"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -28,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
 )
 
