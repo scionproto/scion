@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -55,29 +56,38 @@ func NewSyncHandler(args HandlerArgs) infra.Handler {
 func (h *syncHandler) Handle() *infra.HandlerResult {
 	ctx := h.request.Context()
 	logger := log.FromCtx(ctx)
+	labels := metrics.SyncRegLabels{
+		Result: metrics.ErrInternal,
+	}
 	segSync, ok := h.request.Message.(*path_mgmt.SegSync)
 	if !ok {
 		logger.Error("[syncHandler] wrong message type, expected path_mgmt.SegSync",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		metrics.Syncs.Registrations(labels).Inc()
 		return infra.MetricsErrInternal
 	}
+	snetPeer := h.request.Peer.(*snet.Addr)
+	labels.Src = snetPeer.IA
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Error("[syncHandler] Unable to service request, no Messenger found")
+		metrics.Syncs.Registrations(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
 	if err := segSync.ParseRaw(); err != nil {
 		logger.Error("[syncHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		metrics.Syncs.Registrations(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
-	snetPeer := h.request.Peer.(*snet.Addr)
+
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
 		logger.Error("[syncHandler] Failed to initialize path", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		metrics.Syncs.Registrations(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	svcToQuery := &snet.Addr{
@@ -94,9 +104,19 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 	// wait until processing is done.
 	<-res.FullReplyProcessed()
 	if err := res.Err(); err != nil {
+		// TODO(lukedirtwalker): classify error (https://github.com/scionproto/scion/issues/3240)
+		metrics.Syncs.Registrations(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
+	h.incMetrics(labels, res.Stats())
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
+}
+
+func (h *syncHandler) incMetrics(labels metrics.SyncRegLabels, stats seghandler.Stats) {
+	metrics.Syncs.Registrations(labels.WithResult(metrics.RegistrationNew)).
+		Add(float64(len(stats.SegDB.InsertedSegs)))
+	metrics.Syncs.Registrations(labels.WithResult(metrics.RegiststrationUpdated)).
+		Add(float64(len(stats.SegDB.UpdatedSegs)))
 }
