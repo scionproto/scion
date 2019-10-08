@@ -254,7 +254,7 @@ func (r *Runner) startRegularFetcher(fetcher *task, cfg FetchConfig) {
 	if r.stopping {
 		return
 	}
-	r.fetcher = periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
+	r.fetcher = periodic.Start(fetcher, cfg.Interval.Duration,
 		cfg.Timeout.Duration)
 }
 

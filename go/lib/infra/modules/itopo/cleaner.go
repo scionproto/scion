@@ -26,15 +26,15 @@ import (
 var _ periodic.Task = cleaner{}
 
 // StartCleaner starts a periodic task that removes expired dynamic topologies.
-func StartCleaner(tick, timeout time.Duration) *periodic.Runner {
-	return periodic.StartPeriodicTask(cleaner{}, periodic.NewTicker(tick), timeout)
+func StartCleaner(period, timeout time.Duration) *periodic.Runner {
+	return periodic.Start(cleaner{}, period, timeout)
 }
 
 type cleaner struct{}
 
 // Name returns the tasks name.
 func (c cleaner) Name() string {
-	return "itopo.cleaner"
+	return "itopo_cleaner"
 }
 
 // Run deletes expired dynamic topologies and calls the dropFunc passed to Init.
