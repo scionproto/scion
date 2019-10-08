@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
@@ -496,6 +497,10 @@ func (t *testPath) Destination() addr.IA {
 }
 
 func (t *testPath) MTU() uint16 {
+	panic("not implemented")
+}
+
+func (t *testPath) Expiry() time.Time {
 	panic("not implemented")
 }
 
