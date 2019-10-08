@@ -199,7 +199,7 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	svcInfoReply := &sciond.ServiceInfoReply{}
 	topo := itopo.Get()
 	for _, t := range svcInfoRequest.ServiceTypes {
-		var hostInfos []hostinfo.HostInfo
+		var hostInfos []hostinfo.Host
 		hostInfos = makeHostInfos(topo, t)
 		replyEntry := sciond.ServiceInfoReplyEntry{
 			ServiceType: t,
@@ -220,8 +220,8 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	}
 }
 
-func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.HostInfo {
-	var hostInfos []hostinfo.HostInfo
+func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.Host {
+	var hostInfos []hostinfo.Host
 	addresses, err := topo.GetAllTopoAddrs(t)
 	if err != nil {
 		// FIXME(lukedirtwalker): inform client about this:
