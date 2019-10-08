@@ -17,6 +17,7 @@ package snet
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -136,9 +137,9 @@ type Path interface {
 	Destination() addr.IA
 	// MTU returns the MTU of the path. If the result is zero, MTU is unknown.
 	MTU() uint16
-	// ExpTime returns the expiration time of the path. If the result is zero,
-	// expiration time is unknown.
-	ExpTime() uint32
+	// Expiry returns the expiration time of the path. If the result is a zero
+	// value expiration time is unknown.
+	Expiry() time.Time
 	// Copy create a copy of the path.
 	Copy() Path
 }
@@ -189,11 +190,11 @@ func (p *path) MTU() uint16 {
 	return p.sciondPath.Path.Mtu
 }
 
-func (p *path) ExpTime() uint32 {
+func (p *path) Expiry() time.Time {
 	if p.sciondPath == nil {
-		return 0
+		return time.Time{}
 	}
-	return p.sciondPath.Path.ExpTime
+	return p.sciondPath.Path.Expiry()
 }
 
 func (p *path) Copy() Path {
@@ -237,8 +238,8 @@ func (p *partialPath) MTU() uint16 {
 	return 0
 }
 
-func (p *partialPath) ExpTime() uint32 {
-	return 0
+func (p *partialPath) Expiry() time.Time {
+	return time.Time{}
 }
 
 func (p *partialPath) Copy() Path {
