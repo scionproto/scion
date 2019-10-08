@@ -108,14 +108,15 @@ func realMain() int {
 // Non-core starts a requester.
 func startReissRunner() {
 	if !cfg.CS.DisableCorePush {
-		corePusher = periodic.StartPeriodicTask(
+		corePusher = periodic.StartTask(
 			&reiss.CorePusher{
 				LocalIA: itopo.Get().ISD_AS,
 				TrustDB: state.TrustDB,
 				Msger:   msgr,
 			},
-			periodic.NewTicker(time.Hour),
+			time.Hour,
 			time.Minute,
+			"cs_reiss",
 		)
 		corePusher.TriggerRun()
 	}
@@ -125,7 +126,7 @@ func startReissRunner() {
 	}
 	if itopo.Get().Core {
 		log.Info("Starting periodic reiss.Self task")
-		reissRunner = periodic.StartPeriodicTask(
+		reissRunner = periodic.StartTask(
 			&reiss.Self{
 				Msgr:       msgr,
 				State:      state,
@@ -134,13 +135,14 @@ func startReissRunner() {
 				LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
 				CorePusher: corePusher,
 			},
-			periodic.NewTicker(cfg.CS.ReissueRate.Duration),
+			cfg.CS.ReissueRate.Duration,
 			cfg.CS.ReissueTimeout.Duration,
+			"cs_reiss_self",
 		)
 		return
 	}
 	log.Info("Starting periodic reiss.Requester task")
-	reissRunner = periodic.StartPeriodicTask(
+	reissRunner = periodic.StartTask(
 		&reiss.Requester{
 			Msgr:       msgr,
 			State:      state,
@@ -148,8 +150,9 @@ func startReissRunner() {
 			LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
 			CorePusher: corePusher,
 		},
-		periodic.NewTicker(cfg.CS.ReissueRate.Duration),
+		cfg.CS.ReissueRate.Duration,
 		cfg.CS.ReissueTimeout.Duration,
+		"cs_reiss_requester",
 	)
 }
 
