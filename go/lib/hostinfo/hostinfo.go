@@ -26,48 +26,51 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// HostInfo contains connectivity information for a host.
-type HostInfo struct {
-	Port  uint16
-	Addrs struct {
-		Ipv4 []byte
-		Ipv6 []byte
-	}
+// Host contains connectivity information for a host.
+type Host struct {
+	Addrs Addrs  `capnp:"addrs"`
+	Port  uint16 `capnp:"port"`
 }
 
-func FromHostAddr(host addr.HostAddr, port uint16) *HostInfo {
-	h := &HostInfo{Port: port}
+// Addrs is an address union for use in capnp serializations.
+type Addrs struct {
+	IPv4 []byte `capnp:"ipv4"`
+	IPv6 []byte `capnp:"ipv6"`
+}
+
+func FromHostAddr(host addr.HostAddr, port uint16) *Host {
+	h := &Host{Port: port}
 	if host.Type() == addr.HostTypeIPv4 {
-		h.Addrs.Ipv4 = host.IP()
+		h.Addrs.IPv4 = host.IP()
 	} else {
-		h.Addrs.Ipv6 = host.IP()
+		h.Addrs.IPv6 = host.IP()
 	}
 	return h
 }
 
-func FromTopoAddr(topoAddr topology.TopoAddr) HostInfo {
+func FromTopoAddr(topoAddr topology.TopoAddr) Host {
 	ipv4, port4 := topoAddrToIPv4AndPort(topoAddr)
 	ipv6, port6 := topoAddrToIPv6AndPort(topoAddr)
 	return buildHostInfo(ipv4, ipv6, port4, port6)
 }
 
-func FromTopoBRAddr(topoBRAddr topology.TopoBRAddr) HostInfo {
+func FromTopoBRAddr(topoBRAddr topology.TopoBRAddr) Host {
 	ipv4, port4 := topoBRAddrToIPv4AndPort(topoBRAddr)
 	ipv6, port6 := topoBRAddrToIPv6AndPort(topoBRAddr)
 	return buildHostInfo(ipv4, ipv6, port4, port6)
 }
 
-func (h *HostInfo) Host() addr.HostAddr {
-	if len(h.Addrs.Ipv4) > 0 {
-		return addr.HostIPv4(h.Addrs.Ipv4)
+func (h *Host) Host() addr.HostAddr {
+	if len(h.Addrs.IPv4) > 0 {
+		return addr.HostIPv4(h.Addrs.IPv4)
 	}
-	if len(h.Addrs.Ipv6) > 0 {
-		return addr.HostIPv6(h.Addrs.Ipv6)
+	if len(h.Addrs.IPv6) > 0 {
+		return addr.HostIPv6(h.Addrs.IPv6)
 	}
 	return nil
 }
 
-func (h *HostInfo) Overlay() (*overlay.OverlayAddr, error) {
+func (h *Host) Overlay() (*overlay.OverlayAddr, error) {
 	var l4 addr.L4Info
 	if h.Port != 0 {
 		l4 = addr.NewL4UDPInfo(h.Port)
@@ -75,17 +78,17 @@ func (h *HostInfo) Overlay() (*overlay.OverlayAddr, error) {
 	return overlay.NewOverlayAddr(h.Host(), l4)
 }
 
-func (h *HostInfo) Copy() *HostInfo {
+func (h *Host) Copy() *Host {
 	if h == nil {
 		return nil
 	}
-	res := &HostInfo{Port: h.Port}
-	res.Addrs.Ipv4 = common.CloneByteSlice(h.Addrs.Ipv4)
-	res.Addrs.Ipv6 = common.CloneByteSlice(h.Addrs.Ipv6)
+	res := &Host{Port: h.Port}
+	res.Addrs.IPv4 = common.CloneByteSlice(h.Addrs.IPv4)
+	res.Addrs.IPv6 = common.CloneByteSlice(h.Addrs.IPv6)
 	return res
 }
 
-func (h *HostInfo) String() string {
+func (h *Host) String() string {
 	return fmt.Sprintf("[%v]:%d", h.Host(), h.Port)
 }
 
@@ -124,7 +127,7 @@ func topoBRAddrToIPv6AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
 	return nil, 0
 }
 
-func buildHostInfo(ipv4, ipv6 net.IP, port4, port6 uint16) HostInfo {
+func buildHostInfo(ipv4, ipv6 net.IP, port4, port6 uint16) Host {
 	if port4 != 0 && port6 != 0 && port4 != port6 {
 		// NOTE: https://github.com/scionproto/scion/issues/1842 will change
 		// the behavior of this.
@@ -135,13 +138,10 @@ func buildHostInfo(ipv4, ipv6 net.IP, port4, port6 uint16) HostInfo {
 	if port == 0 {
 		port = port6
 	}
-	return HostInfo{
-		Addrs: struct {
-			Ipv4 []byte
-			Ipv6 []byte
-		}{
-			Ipv4: ipv4,
-			Ipv6: ipv6,
+	return Host{
+		Addrs: Addrs{
+			IPv4: ipv4,
+			IPv6: ipv6,
 		},
 		Port: port,
 	}
