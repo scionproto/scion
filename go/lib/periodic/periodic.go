@@ -86,7 +86,7 @@ func StartTask(task Task, period, timeout time.Duration, prefix string) *Runner 
 	}
 	logger.Info("Starting periodic task", "task", task.Name())
 	r.export.Period(period)
-	r.export.StartTimestamp()
+	r.export.StartTimestamp(time.Now())
 	go func() {
 		defer log.LogPanicAndExit()
 		r.runLoop()

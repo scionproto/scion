@@ -15,9 +15,15 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
-        "export_test.go",
+        "help_test.go",
         "metrics_test.go",
     ],
     embed = [":go_default_library"],
-    deps = ["//go/lib/prom/promtest:go_default_library"],
+    deps = [
+        "//go/lib/prom/promtest:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+        "@com_github_prometheus_client_model//go:go_default_library",
+        "@com_github_prometheus_common//expfmt:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
 )

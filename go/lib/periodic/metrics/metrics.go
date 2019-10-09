@@ -32,7 +32,7 @@ const (
 	EventTrigger = "triggered"
 )
 
-var counter = make(map[string]ExportMetric)
+var counters = make(map[string]exporter)
 
 // NewMetric return a struct with the metrics counters.
 var NewMetric = newMetric
@@ -40,7 +40,7 @@ var NewMetric = newMetric
 // ExportMetric is the interface to export periodic metrics.
 type ExportMetric interface {
 	Runtime(time.Duration)
-	StartTimestamp()
+	StartTimestamp(time.Time)
 	Period(time.Duration)
 	Event(string)
 }
@@ -51,8 +51,8 @@ type exporter struct {
 	timestamp, period prometheus.Gauge
 }
 
-func (e exporter) StartTimestamp() {
-	e.timestamp.Set(float64(time.Now().UnixNano() / 1e9))
+func (e exporter) StartTimestamp(t time.Time) {
+	e.timestamp.Set(float64(t.UnixNano() / 1e9))
 }
 
 func (e exporter) Period(d time.Duration) {
@@ -70,7 +70,7 @@ func (e exporter) Event(s string) {
 
 func newMetric(prefix string) ExportMetric {
 	key := strcase.ToSnake(prefix)
-	if v, ok := counter[key]; ok {
+	if v, ok := counters[key]; ok {
 		return v
 	}
 
@@ -86,7 +86,7 @@ func newMetric(prefix string) ExportMetric {
 			"The period of this job."),
 	}
 
-	counter[key] = ret
+	counters[key] = ret
 
 	return ret
 }
