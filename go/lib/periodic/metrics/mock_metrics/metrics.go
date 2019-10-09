@@ -70,13 +70,13 @@ func (mr *MockExportMetricMockRecorder) Runtime(arg0 interface{}) *gomock.Call {
 }
 
 // StartTimestamp mocks base method
-func (m *MockExportMetric) StartTimestamp() {
+func (m *MockExportMetric) StartTimestamp(arg0 time.Time) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "StartTimestamp")
+	m.ctrl.Call(m, "StartTimestamp", arg0)
 }
 
 // StartTimestamp indicates an expected call of StartTimestamp
-func (mr *MockExportMetricMockRecorder) StartTimestamp() *gomock.Call {
+func (mr *MockExportMetricMockRecorder) StartTimestamp(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartTimestamp", reflect.TypeOf((*MockExportMetric)(nil).StartTimestamp))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartTimestamp", reflect.TypeOf((*MockExportMetric)(nil).StartTimestamp), arg0)
 }
