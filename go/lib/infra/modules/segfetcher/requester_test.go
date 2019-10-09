@@ -45,15 +45,15 @@ var (
 	non_core_211 = xtest.MustParseIA("2-ff00:0:211")
 	non_core_212 = xtest.MustParseIA("2-ff00:0:212")
 
-	req_111_1   = segfetcher.Request{Src: non_core_111, Dst: isd1}
-	req_1_111   = segfetcher.Request{Src: isd1, Dst: non_core_111}
+	req_111_1   = segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Fetch}
+	req_1_111   = segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Fetch}
 	req_1_2     = segfetcher.Request{Src: isd1, Dst: isd2}
 	req_1_210   = segfetcher.Request{Src: isd1, Dst: core_210}
-	req_2_211   = segfetcher.Request{Src: isd2, Dst: non_core_211}
+	req_2_211   = segfetcher.Request{Src: isd2, Dst: non_core_211, State: segfetcher.Fetch}
 	req_210_1   = segfetcher.Request{Src: core_210, Dst: isd1}
-	req_210_110 = segfetcher.Request{Src: core_210, Dst: core_110}
-	req_210_120 = segfetcher.Request{Src: core_210, Dst: core_120}
-	req_210_130 = segfetcher.Request{Src: core_210, Dst: core_130}
+	req_210_110 = segfetcher.Request{Src: core_210, Dst: core_110, State: segfetcher.Fetch}
+	req_210_120 = segfetcher.Request{Src: core_210, Dst: core_120, State: segfetcher.Fetch}
+	req_210_130 = segfetcher.Request{Src: core_210, Dst: core_130, State: segfetcher.Fetch}
 )
 
 func TestRequester(t *testing.T) {
@@ -85,9 +85,7 @@ func TestRequester(t *testing.T) {
 				}
 				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req), gomock.Any(), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{
-					{Req: segfetcher.Request{Src: non_core_111, Dst: isd1}, Reply: reply},
-				}
+				return []segfetcher.ReplyOrErr{{Req: req_111_1, Reply: reply}}
 			},
 		},
 		"Down only": {
