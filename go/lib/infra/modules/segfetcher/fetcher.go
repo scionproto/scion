@@ -113,8 +113,7 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 		return Segments{}, err
 	}
 	var segs Segments
-	i := 0
-	for {
+	for i := 0; i < 3; i++ {
 		log.FromCtx(ctx).Trace("Request to process",
 			"req", reqSet, "segs", segs, "iteration", i+1)
 		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
@@ -126,7 +125,8 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 		if reqSet.IsEmpty() {
 			break
 		}
-		if i > 3 {
+		// in 3 iteration (i==2) everything should be resolved.
+		if i >= 2 {
 			log.FromCtx(ctx).Error("No convergence in lookup", "iteration", i+1)
 			return segs, common.NewBasicError("Segment lookup doesn't converge", nil,
 				"iterations", i+1)
@@ -163,17 +163,17 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			if err := r.Err(); err != nil {
 				return err
 			}
-			for _, rev := range r.Stats().VerifiedRevs {
-				revInfo, err := rev.RevInfo()
-				if err != nil {
-					logger.Warn("Failed to extract rev info from verified rev",
-						"err", err, "rev", rev)
-					continue
-				}
-				// TODO(lukedirtwalker): collect all revInfos and delete only
-				// once.
-				f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
-			}
+			// for _, rev := range r.Stats().VerifiedRevs {
+			// 	revInfo, err := rev.RevInfo()
+			// 	if err != nil {
+			// 		logger.Warn("Failed to extract rev info from verified rev",
+			// 			"err", err, "rev", rev)
+			// 		continue
+			// 	}
+			// 	// TODO(lukedirtwalker): collect all revInfos and delete only
+			// 	// once.
+			// 	f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
+			// }
 			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 			if err != nil {

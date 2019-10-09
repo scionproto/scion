@@ -263,13 +263,13 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn
 	switch {
 	case isValid(err):
 		revReply.Result = sciond.RevValid
-		revInfo, err := revNotification.SRevInfo.RevInfo()
-		if err != nil {
-			logger.Error("Failed to extract error from rev info", "err", err)
-		}
-		if err := h.NextQueryCleaner.ResetQueryCache(ctx, revInfo); err != nil {
-			logger.Error("Failed to delete query cache", "err", err)
-		}
+		// revInfo, err := revNotification.SRevInfo.RevInfo()
+		// if err != nil {
+		// 	logger.Error("Failed to extract error from rev info", "err", err)
+		// }
+		// if err := h.NextQueryCleaner.ResetQueryCache(ctx, revInfo); err != nil {
+		// 	logger.Error("Failed to delete query cache", "err", err)
+		// }
 	case isStale(err):
 		revReply.Result = sciond.RevStale
 	case isInvalid(err):
