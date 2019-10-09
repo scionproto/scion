@@ -129,7 +129,7 @@ func initMetrics(t *testing.T) *mock_metrics.MockExportMetric {
 	defer ctrl.Finish()
 	met := mock_metrics.NewMockExportMetric(ctrl)
 	met.EXPECT().Period(gomock.Any()).Return().AnyTimes()
-	met.EXPECT().StartTimestamp().Return().AnyTimes()
+	met.EXPECT().StartTimestamp(gomock.Any()).Return().AnyTimes()
 	met.EXPECT().Runtime(gomock.Any()).Return().AnyTimes()
 	met.EXPECT().Event(gomock.Any()).Return().AnyTimes()
 	return met
