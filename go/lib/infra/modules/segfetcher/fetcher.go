@@ -122,7 +122,7 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 		}
 		log.FromCtx(ctx).Trace("After resolving",
 			"req", reqSet, "segs", segs, "iteration", i+1)
-		if reqSet.IsEmpty() {
+		if reqSet.IsLoaded() {
 			break
 		}
 		// in 3 iteration (i==2) everything should be resolved.
@@ -138,7 +138,7 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 		reqCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
 		replies := f.Requester.Request(reqCtx, reqSet)
 		// TODO(lukedirtwalker): We need to have early trigger for the last request.
-		if err := f.waitOnProcessed(ctx, replies); err != nil {
+		if reqSet, err = f.waitOnProcessed(ctx, replies, reqSet); err != nil {
 			cancelF()
 			return Segments{}, err
 		}
@@ -147,12 +147,14 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 	return segs, nil
 }
 
-func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr) error {
+func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr,
+	reqSet RequestSet) (RequestSet, error) {
+
 	logger := log.FromCtx(ctx)
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
 		if reply.Err != nil {
-			return reply.Err
+			return reqSet, reply.Err
 		}
 		if reply.Reply == nil || reply.Reply.Recs == nil {
 			continue
@@ -161,29 +163,30 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 		select {
 		case <-r.FullReplyProcessed():
 			if err := r.Err(); err != nil {
-				return err
+				return reqSet, err
 			}
-			// for _, rev := range r.Stats().VerifiedRevs {
-			// 	revInfo, err := rev.RevInfo()
-			// 	if err != nil {
-			// 		logger.Warn("Failed to extract rev info from verified rev",
-			// 			"err", err, "rev", rev)
-			// 		continue
-			// 	}
-			// 	// TODO(lukedirtwalker): collect all revInfos and delete only
-			// 	// once.
-			// 	f.NextQueryCleaner.ResetQueryCache(ctx, revInfo)
-			// }
+			// TODO(lukedirtwalker): move state update to separate func
+			if reqSet.Up.EqualAddr(reply.Req) {
+				reqSet.Up.State = Fetched
+			} else if reqSet.Down.EqualAddr(reply.Req) {
+				reqSet.Down.State = Fetched
+			} else {
+				for i, coreReq := range reqSet.Cores {
+					if coreReq.EqualAddr(reply.Req) {
+						reqSet.Cores[i].State = Fetched
+					}
+				}
+			}
 			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 			if err != nil {
 				logger.Warn("Failed to insert next query", "err", err)
 			}
 		case <-ctx.Done():
-			return ctx.Err()
+			return reqSet, ctx.Err()
 		}
 	}
-	return nil
+	return reqSet, nil
 }
 
 func (f *Fetcher) verifyServer(reply ReplyOrErr) net.Addr {

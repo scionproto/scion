@@ -19,10 +19,28 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 )
 
+// RequestState is the state the request is in.
+type RequestState int
+
+const (
+	// Unresolved means the request is not yet resolved.
+	Unresolved RequestState = iota
+	// Fetch means the request needs to be fetched.
+	Fetch
+	// Cached means the request should be cached locally and can be loaded from
+	// DB.
+	Cached
+	// Fetched means the request has been fetched and should be in the DB.
+	Fetched
+	// Loaded means the request has been loaded from the DB.
+	Loaded
+)
+
 // Request represents a path or segment request.
 type Request struct {
-	Src addr.IA
-	Dst addr.IA
+	Src   addr.IA
+	Dst   addr.IA
+	State RequestState
 }
 
 // IsZero returns whether the request is empty.
@@ -38,6 +56,11 @@ func (r Request) ToSegReq() *path_mgmt.SegReq {
 	}
 }
 
+// EqualAddr returns whether the two request refer to the same src/dst.
+func (r Request) EqualAddr(other Request) bool {
+	return r.Src.Equal(other.Src) && r.Dst.Equal(other.Dst)
+}
+
 // RequestSet is a set of requests.
 type RequestSet struct {
 	Up    Request
@@ -45,9 +68,12 @@ type RequestSet struct {
 	Down  Request
 }
 
-// IsEmpty returns whether the request set is empty.
-func (r RequestSet) IsEmpty() bool {
-	return r.Up.IsZero() && r.Cores.IsEmpty() && r.Down.IsZero()
+// IsLoaded returns true if all non-zero requests in the set are in state
+// loaded.
+func (r RequestSet) IsLoaded() bool {
+	return (r.Up.IsZero() || r.Up.State == Loaded) &&
+		(r.Down.IsZero() || r.Down.State == Loaded) &&
+		r.Cores.AllLoaded()
 }
 
 // Requests is a list of requests and provides some convenience methods on top
@@ -67,6 +93,16 @@ func (r Requests) DstIAs() []addr.IA {
 // IsEmpty returns whether the list of requests is empty.
 func (r Requests) IsEmpty() bool {
 	return len(r) == 0
+}
+
+// AllLoaded returns whether all entries in request have state loaded.
+func (r Requests) AllLoaded() bool {
+	for _, req := range r {
+		if req.State != Loaded {
+			return false
+		}
+	}
+	return true
 }
 
 func (r Requests) extractIAs(extract func(Request) addr.IA) []addr.IA {

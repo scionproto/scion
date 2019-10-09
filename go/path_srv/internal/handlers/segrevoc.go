@@ -76,10 +76,6 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid
 	}
-	// if err := h.NextQueryCleaner.ResetQueryCache(ctx, revInfo); err != nil {
-	// 	logger.Warn("Couldn't reset pathdb cache for revocation", "err", err)
-	// }
-
 	_, err = h.revCache.Insert(ctx, revocation)
 	if err != nil {
 		logger.Error("Failed to insert revInfo", "err", err)
