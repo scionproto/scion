@@ -14,9 +14,11 @@
 
 package reconnect
 
-const (
-	ErrDispatcherDead            = "dispatcher dead"
-	ErrReconnecterTimeoutExpired = "Timeout expired"
-	ErrReconnecterStopped        = "Stop method was called"
-	ErrClosed                    = "closed"
+import "github.com/scionproto/scion/go/lib/serrors"
+
+var (
+	ErrDispatcherDead            = serrors.New("dispatcher dead")
+	ErrReconnecterTimeoutExpired = serrors.New("timeout expired")
+	ErrReconnecterStopped        = serrors.New("stop method was called")
+	ErrClosed                    = serrors.New("closed")
 )

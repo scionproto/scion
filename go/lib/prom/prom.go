@@ -73,6 +73,9 @@ var (
 	// DefaultLatencyBuckets 10ms, 20ms, 40ms, ... 5.12s, 10.24s.
 	DefaultLatencyBuckets = []float64{0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64,
 		1.28, 2.56, 5.12, 10.24}
+	// DefaultSizeBuckets 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384
+	DefaultSizeBuckets = []float64{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192,
+		16384}
 )
 
 // ExportElementID exports the element ID as configured in the config file.
