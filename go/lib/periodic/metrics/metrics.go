@@ -15,6 +15,7 @@
 package metrics
 
 import (
+	"strings"
 	"time"
 
 	"github.com/iancoleman/strcase"
@@ -47,10 +48,12 @@ type ExportMetric interface {
 var NewMetric = newMetric
 
 func newMetric(prefix string) ExportMetric {
-	key := strcase.ToSnake(prefix)
+	key := strcase.ToSnake(strings.Replace(prefix, ".", "_", -1))
 	if v, ok := counters[key]; ok {
 		return v
 	}
+
+	//TODO(karampok). return error instead of panicing if !model.IsValidMetricName(key)
 
 	sub := "periodic"
 	ret := exporter{

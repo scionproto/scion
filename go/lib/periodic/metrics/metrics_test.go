@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/prom/promtest"
 )
@@ -34,24 +35,35 @@ func TestLabels(t *testing.T) {
 }
 
 func TestNewMetric(t *testing.T) {
-	n, sn := "randomSnakeName", "random_snake_name"
-	assert.NotContains(t, counters, sn)
-	x := NewMetric(n)
-	assert.Contains(t, counters, sn)
-	y := NewMetric(n)
-	assert.Equal(t, x, y) // same prefix, same singleton exporter
-	z := NewMetric(n + "z")
-	assert.NotEqual(t, z, y) // different prefix, not same exporter
+	t.Run("Happy path", func(t *testing.T) {
+		t.Parallel()
+		n, sn := "randomSnakeName", "random_snake_name"
+		assert.NotContains(t, counters, sn)
+		x := NewMetric(n)
+		assert.Contains(t, counters, sn)
+		y := NewMetric(n)
+		assert.Equal(t, x, y) // same prefix, same singleton exporter
+		z := NewMetric(n + "z")
+		assert.NotEqual(t, z, y) // different prefix, not same exporter
 
-	_, ok := x.(ExportMetric)
-	assert.True(t, ok)
+		_, ok := x.(ExportMetric)
+		assert.True(t, ok)
 
-	v, _ := counters[sn]
-	assert.NotNil(t, v.period)
-	assert.NotNil(t, v.events)
-	assert.NotNil(t, v.runtime)
-	assert.NotNil(t, v.timestamp)
+		v, _ := counters[sn]
+		assert.NotNil(t, v.period)
+		assert.NotNil(t, v.events)
+		assert.NotNil(t, v.runtime)
+		assert.NotNil(t, v.timestamp)
+	})
 
+	t.Run("Invalid metric name", func(t *testing.T) {
+		t.Parallel()
+		n := "random.SnakeName"
+		w := func() {
+			NewMetric(n)
+		}
+		require.NotPanics(t, w)
+	})
 }
 
 func TestContent(t *testing.T) {
@@ -60,6 +72,7 @@ func TestContent(t *testing.T) {
 	assert.True(t, ok)
 
 	t.Run("Runtime", func(t *testing.T) {
+		t.Parallel()
 		want := `
 # HELP test_me_periodic_runtime_duration_seconds_total Total time spend on every periodic run.
 # TYPE test_me_periodic_runtime_duration_seconds_total counter
@@ -73,6 +86,7 @@ test_me_periodic_runtime_duration_seconds_total 1
 	})
 
 	t.Run("StartTimestamp", func(t *testing.T) {
+		t.Parallel()
 		want := `
 # HELP test_me_periodic_runtime_timestamp_seconds The unix timestamp when the periodic run started.
 # TYPE test_me_periodic_runtime_timestamp_seconds gauge
@@ -87,6 +101,7 @@ test_me_periodic_runtime_timestamp_seconds 1.570633374e+09
 	})
 
 	t.Run("Event", func(t *testing.T) {
+		t.Parallel()
 		want := `
 # HELP test_me_periodic_event_total Total number of events.
 # TYPE test_me_periodic_event_total counter
@@ -100,6 +115,7 @@ test_me_periodic_event_total{event_type="kill"} 1
 	})
 
 	t.Run("Period", func(t *testing.T) {
+		t.Parallel()
 		want := `
 # HELP test_me_periodic_period_duration_seconds The period of this job.
 # TYPE test_me_periodic_period_duration_seconds gauge
@@ -111,5 +127,4 @@ test_me_periodic_period_duration_seconds 0.02
 		err := collectAndCompare(v.period, strings.NewReader(want))
 		assert.NoError(t, err)
 	})
-
 }

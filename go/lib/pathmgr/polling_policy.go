@@ -111,7 +111,6 @@ func StartPeriodic(params PollingParameters, ch chan sciond.PathReqFlags) *perio
 		&taskPeriodicChannelWriter{ch: ch, flags: params.flags},
 		params.interval,
 		time.Hour, // Effectively forever, as the task is short and can never block
-		"pathmgr_policy",
 	)
 }
 
@@ -123,7 +122,7 @@ type taskPeriodicChannelWriter struct {
 }
 
 func (task *taskPeriodicChannelWriter) Name() string {
-	return "pathmgr.taskPeriodicChannelWriter"
+	return "pathmgr_channelwriter"
 }
 
 func (task *taskPeriodicChannelWriter) Run(_ context.Context) {

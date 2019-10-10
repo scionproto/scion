@@ -314,10 +314,10 @@ func (t *periodicTasks) Start() error {
 
 	t.beaconCleaner = periodic.StartTask(
 		beaconstorage.NewBeaconCleaner(t.store),
-		30*time.Second, 30*time.Second, "bs_beacon_cleaner")
+		30*time.Second, 30*time.Second)
 	t.revCleaner = periodic.StartTask(
 		beaconstorage.NewRevocationCleaner(t.store),
-		5*time.Second, 5*time.Second, "bs_revocation_cleaner")
+		5*time.Second, 5*time.Second)
 	return nil
 }
 
@@ -339,7 +339,7 @@ func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 		},
 	}.New()
 	return periodic.StartTask(r, cfg.BS.ExpiredCheckInterval.Duration,
-		cfg.BS.ExpiredCheckInterval.Duration, "bs_revoker"), nil
+		cfg.BS.ExpiredCheckInterval.Duration), nil
 }
 
 func (t *periodicTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Runner, error) {
@@ -354,7 +354,7 @@ func (t *periodicTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Ru
 		TopoProvider: t.topoProvider,
 	}
 	return periodic.StartTask(s, cfg.BS.KeepaliveInterval.Duration,
-		cfg.BS.KeepaliveInterval.Duration, "bs_keepalive"), nil
+		cfg.BS.KeepaliveInterval.Duration), nil
 }
 
 func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, error) {
@@ -390,7 +390,7 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 		return nil, common.NewBasicError("Unable to start originator", err)
 	}
 	return periodic.StartTask(s, 500*time.Millisecond,
-		cfg.BS.OriginationInterval.Duration, "bs_beaconing_originator"), nil
+		cfg.BS.OriginationInterval.Duration), nil
 }
 
 func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner, error) {
@@ -426,7 +426,7 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 		return nil, common.NewBasicError("Unable to start propagator", err)
 	}
 	return periodic.StartTask(p, 500*time.Millisecond,
-		cfg.BS.PropagationInterval.Duration, "bs_beaconing_propagator"), nil
+		cfg.BS.PropagationInterval.Duration), nil
 }
 
 func (t *periodicTasks) startSegRegRunners() (segRegRunners, error) {
@@ -476,7 +476,7 @@ func (t *periodicTasks) startRegistrar(topo *topology.Topo, segType proto.PathSe
 		return nil, common.NewBasicError("Unable to start registrar", err, "type", segType)
 	}
 	return periodic.StartTask(r, 500*time.Millisecond,
-		cfg.BS.RegistrationInterval.Duration, "bs_beaconing_registrar"), nil
+		cfg.BS.RegistrationInterval.Duration), nil
 }
 
 func (t *periodicTasks) createSigner(topo *topology.Topo) (infra.Signer, error) {

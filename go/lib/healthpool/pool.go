@@ -54,8 +54,7 @@ func NewPool(infos map[Info]struct{}, opts PoolOptions) (*Pool, error) {
 	if err := p.Update(infos); err != nil {
 		return nil, err
 	}
-	p.expirer = periodic.StartTask((*expirer)(p), time.Second,
-		time.Second, "healthpool_expirer")
+	p.expirer = periodic.StartTask((*expirer)(p), time.Second, time.Second)
 	return p, nil
 }
 
@@ -130,7 +129,7 @@ func (p *Pool) chooseMinFails() (Info, error) {
 type expirer Pool
 
 func (e *expirer) Name() string {
-	return "healthpool.expirer"
+	return "healthpool_expirer"
 }
 
 func (e *expirer) Run(_ context.Context) {

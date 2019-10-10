@@ -57,7 +57,7 @@ func New(deleter ExpiredDeleter, subsystem string) *Cleaner {
 
 // Name returns the tasks name.
 func (c *Cleaner) Name() string {
-	return fmt.Sprintf("Cleaner for %s", c.subsystem)
+	return fmt.Sprintf("cleaner_%s", c.subsystem)
 }
 
 // Run deletes expired entries using the deleter func.

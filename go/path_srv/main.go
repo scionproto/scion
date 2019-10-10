@@ -228,14 +228,14 @@ func (t *periodicTasks) Start() error {
 		}
 	}
 	t.pathDBCleaner = periodic.StartTask(pathdb.NewCleaner(t.args.PathDB),
-		300*time.Second, 295*time.Second, "ps_dbcleaner")
+		300*time.Second, 295*time.Second)
 	t.cryptosyncer = periodic.StartTask(&cryptosyncer.Syncer{
 		DB:    t.trustDB,
 		Msger: t.msger,
 		IA:    t.args.IA,
-	}, cfg.PS.CryptoSyncInterval.Duration, cfg.PS.CryptoSyncInterval.Duration, "ps_cryptosyncer")
+	}, cfg.PS.CryptoSyncInterval.Duration, cfg.PS.CryptoSyncInterval.Duration)
 	t.rcCleaner = periodic.StartTask(revcache.NewCleaner(t.args.RevCache),
-		10*time.Second, 10*time.Second, "ps_rccleaner")
+		10*time.Second, 10*time.Second)
 	return nil
 }
 
