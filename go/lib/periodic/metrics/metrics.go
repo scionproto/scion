@@ -34,15 +34,38 @@ const (
 
 var counters = make(map[string]exporter)
 
-// NewMetric return a struct with the metrics counters.
-var NewMetric = newMetric
-
 // ExportMetric is the interface to export periodic metrics.
 type ExportMetric interface {
 	Runtime(time.Duration)
 	StartTimestamp(time.Time)
 	Period(time.Duration)
 	Event(string)
+}
+
+// NewMetric holds the function that returns the struct which implements the ExportMetric.
+// It can be overwritten for testing.
+var NewMetric = newMetric
+
+func newMetric(prefix string) ExportMetric {
+	key := strcase.ToSnake(prefix)
+	if v, ok := counters[key]; ok {
+		return v
+	}
+
+	sub := "periodic"
+	ret := exporter{
+		events: prom.NewCounterVec(key, sub, "event_total",
+			"Total number of events.", EventLabels{}.Labels()),
+		runtime: prom.NewCounter(key, sub, "runtime_duration_seconds_total",
+			"Total time spend on every periodic run."),
+		timestamp: prom.NewGauge(key, sub, "runtime_timestamp_seconds",
+			"The unix timestamp when the periodic run started."),
+		period: prom.NewGauge(key, sub, "period_duration_seconds",
+			"The period of this job."),
+	}
+
+	counters[key] = ret
+	return ret
 }
 
 type exporter struct {
@@ -66,29 +89,6 @@ func (e exporter) Runtime(d time.Duration) {
 func (e exporter) Event(s string) {
 	l := EventLabels{s}
 	e.events.WithLabelValues(l.Values()...).Inc()
-}
-
-func newMetric(prefix string) ExportMetric {
-	key := strcase.ToSnake(prefix)
-	if v, ok := counters[key]; ok {
-		return v
-	}
-
-	sub := "periodic"
-	ret := exporter{
-		events: prom.NewCounterVec(key, sub, "event_total",
-			"Total number of events.", EventLabels{}.Labels()),
-		runtime: prom.NewCounter(key, sub, "runtime_duration_seconds_total",
-			"Total time spend on every periodic run."),
-		timestamp: prom.NewGauge(key, sub, "runtime_timestamp_seconds",
-			"The unix timestamp when the periodic run started."),
-		period: prom.NewGauge(key, sub, "period_duration_seconds",
-			"The period of this job."),
-	}
-
-	counters[key] = ret
-
-	return ret
 }
 
 // EventLabels is used by clients to pass in a safe way labels
