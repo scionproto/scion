@@ -64,7 +64,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	if !ok {
 		logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
 			"msg", request.Message, "type", common.TypeOf(request.Message))
-		metrics.Requests.Total(labels).Inc()
+		metrics.Requests.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Received", "segReq", segReq)
@@ -73,7 +73,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Warn("[segReqHandler] Unable to reply to client, no response writer found")
-		metrics.Requests.Total(labels).Inc()
+		metrics.Requests.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
@@ -86,10 +86,10 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		logger.Error("Failed to handler request", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		// TODO(lukedirtwalker): set result label if we have error categorization.
-		metrics.Requests.Total(labels).Inc()
+		metrics.Requests.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
-	labels.Type = determineReplyType(segs)
+	labels.SegType = metrics.DetermineReplyType(segs)
 	revs, err := revcache.RelevantRevInfos(ctx, h.revCache, segs.Up, segs.Core, segs.Down)
 	if err != nil {
 		logger.Warn("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
@@ -104,13 +104,12 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	}
 	if err = rw.SendSegReply(ctx, reply); err != nil {
 		logger.Error("[segReqHandler] Failed to send reply", "err", err)
-		labels.Result = metrics.ErrReply
-		metrics.Requests.Total(labels).Inc()
+		metrics.Requests.Count(labels.WithResult(metrics.ErrReply)).Inc()
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Replied with segments", "segs", len(reply.Recs.Recs))
-	labels.Result = metrics.Success
-	metrics.Requests.Total(labels).Inc()
+	labels = labels.WithResult(metrics.Success)
+	metrics.Requests.Count(labels).Inc()
 	metrics.Requests.ReplySegsTotal(labels.RequestOkLabels).Add(float64(len(reply.Recs.Recs)))
 	metrics.Requests.ReplyRevsTotal(labels.RequestOkLabels).Add(float64(len(reply.Recs.SRevInfos)))
 	return infra.MetricsResultOk
@@ -165,18 +164,5 @@ func createDstProvider(args handlers.HandlerArgs, core bool) segfetcher.DstProvi
 		localIA:      args.IA,
 		pathDB:       args.PathDB,
 		topoProvider: args.TopoProvider,
-	}
-}
-
-func determineReplyType(segs segfetcher.Segments) proto.PathSegType {
-	switch {
-	case len(segs.Up) > 0:
-		return proto.PathSegType_up
-	case len(segs.Core) > 0:
-		return proto.PathSegType_core
-	case len(segs.Down) > 0:
-		return proto.PathSegType_down
-	default:
-		return proto.PathSegType_unset
 	}
 }

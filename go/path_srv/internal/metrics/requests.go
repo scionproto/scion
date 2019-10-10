@@ -15,35 +15,31 @@
 package metrics
 
 import (
-	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/proto"
 )
 
-var reqResults = []string{RequestCached, RequestFetched, ErrCrypto, ErrDB, ErrTimeout, ErrReply}
-
 // RequestOkLabels contains the labels for a request that succeeded.
 type RequestOkLabels struct {
-	Type      proto.PathSegType
+	SegType   proto.PathSegType
 	CacheOnly bool
 	DstISD    addr.ISD
 }
 
 // Labels returns the labels.
 func (l RequestOkLabels) Labels() []string {
-	return []string{"type", "cache_only", "dst_isd"}
+	return []string{"seg_type", "cache_only", "dst_isd"}
 }
 
 // Values returns the values.
 func (l RequestOkLabels) Values() []string {
-	return []string{l.Type.String(), strconv.FormatBool(l.CacheOnly),
-		strconv.FormatUint(uint64(l.DstISD), 10)}
+	return []string{l.SegType.String(), strconv.FormatBool(l.CacheOnly), l.DstISD.String()}
 }
 
 // RequestLabels contains the labels for requests.
@@ -62,6 +58,12 @@ func (l RequestLabels) Values() []string {
 	return append([]string{l.Result}, l.RequestOkLabels.Values()...)
 }
 
+// WithResult returns the labels with the modified result.
+func (l RequestLabels) WithResult(result string) RequestLabels {
+	l.Result = result
+	return l
+}
+
 // Request is for request metrics.
 type Request struct {
 	total     *prometheus.CounterVec
@@ -70,20 +72,21 @@ type Request struct {
 }
 
 func newRequests() Request {
+	subsystem := "requests"
 	return Request{
-		total: prom.NewCounterVec(Namespace, "", "requests_total",
-			fmt.Sprintf("Number of path requests. \"result\" can be one of: [%s]",
-				strings.Join(reqResults, ",")),
+		total: prom.NewCounterVec(Namespace, subsystem, "total",
+			"Number of segment requests total. \"result\" indicates the outcome.",
 			RequestLabels{}.Labels()),
-		replySegs: prom.NewCounterVec(Namespace, "", "requests_reply_segs_total",
-			"Number of segments in reply to path request.", RequestOkLabels{}.Labels()),
-		replyRevs: prom.NewCounterVec(Namespace, "", "requests_reply_revs_total",
-			"Number of revocations returned in reply to path request.", RequestOkLabels{}.Labels()),
+		replySegs: prom.NewCounterVec(Namespace, subsystem, "reply_segs_total",
+			"Number of segments in reply to segment requests.", RequestOkLabels{}.Labels()),
+		replyRevs: prom.NewCounterVec(Namespace, subsystem, "reply_revs_total",
+			"Number of revocations returned in reply to segments requests.",
+			RequestOkLabels{}.Labels()),
 	}
 }
 
-// Total returns the counter for requests total.
-func (r Request) Total(l RequestLabels) prometheus.Counter {
+// Count returns the counter for requests total.
+func (r Request) Count(l RequestLabels) prometheus.Counter {
 	return r.total.WithLabelValues(l.Values()...)
 }
 
@@ -96,4 +99,17 @@ func (r Request) ReplySegsTotal(l RequestOkLabels) prometheus.Counter {
 // reply.
 func (r Request) ReplyRevsTotal(l RequestOkLabels) prometheus.Counter {
 	return r.replyRevs.WithLabelValues(l.Values()...)
+}
+
+func DetermineReplyType(segs segfetcher.Segments) proto.PathSegType {
+	switch {
+	case len(segs.Up) > 0:
+		return proto.PathSegType_up
+	case len(segs.Core) > 0:
+		return proto.PathSegType_core
+	case len(segs.Down) > 0:
+		return proto.PathSegType_down
+	default:
+		return proto.PathSegType_unset
+	}
 }
