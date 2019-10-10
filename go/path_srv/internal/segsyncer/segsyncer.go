@@ -79,13 +79,13 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 		// TODO(lukedirtwalker): either log or add metric to indicate
 		// if task takes longer than ticker often.
 		segSyncers = append(segSyncers,
-			periodic.StartTask(syncer, time.Second, 3*time.Second, "ps_segsyncer_"+coreAS.String()))
+			periodic.StartTask(syncer, time.Second, 3*time.Second))
 	}
 	return segSyncers, nil
 }
 
 func (s *SegSyncer) Name() string {
-	return fmt.Sprintf("segsyncer.SegSyncer dst=%s", s.dstIA)
+	return fmt.Sprintf("segsyncer_segSyncer_%s", s.dstIA)
 }
 
 func (s *SegSyncer) Run(ctx context.Context) {

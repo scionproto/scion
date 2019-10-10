@@ -49,7 +49,7 @@ func TestPeriodicExecution(t *testing.T) {
 		cnt++
 	})
 	p := 10 * time.Millisecond
-	r := StartTask(fn, p, time.Microsecond, "testValue")
+	r := StartTask(fn, p, time.Microsecond)
 	time.Sleep(11 * p)
 	r.Stop()
 	assert.GreaterOrEqual(t, cnt, 10, "Must run at least 10 times within 10+1 period time")
@@ -67,7 +67,7 @@ func TestKillExitsLongRunningFunc(t *testing.T) {
 		errChan <- ctx.Err()
 	})
 	p := 50 * time.Millisecond
-	r := StartTask(fn, p, 3*time.Second, "testValue")
+	r := StartTask(fn, p, 3*time.Second)
 	time.Sleep(2 * p)
 	r.Kill()
 	select {
@@ -84,7 +84,7 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 		cnt++
 	})
 	p := 100 * time.Millisecond
-	r := StartTask(fn, p, 3*p, "TestValue")
+	r := StartTask(fn, p, 3*p)
 	go func() {
 		for {
 			if cnt == 1 {
@@ -104,7 +104,7 @@ func TestTriggerNow(t *testing.T) {
 	})
 	want := 10
 	p := 10 * time.Millisecond
-	r := StartTask(fn, p, 3*p, "testValue")
+	r := StartTask(fn, p, 3*p)
 	go func() {
 		for {
 			if cnt == 1 {

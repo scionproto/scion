@@ -161,10 +161,10 @@ func realMain() int {
 		},
 	}
 	cleaner := periodic.StartTask(pathdb.NewCleaner(pathDB),
-		300*time.Second, 295*time.Second, "sciond_pathdb_cleaner")
+		300*time.Second, 295*time.Second)
 	defer cleaner.Stop()
 	rcCleaner := periodic.StartTask(revcache.NewCleaner(revCache),
-		10*time.Second, 10*time.Second, "sciond_revcache_cleaner")
+		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", cfg.SD.Reliable, handlers, log.Root())

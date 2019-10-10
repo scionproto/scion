@@ -52,7 +52,7 @@ type CorePusher struct {
 
 // Name returns the tasks name.
 func (p *CorePusher) Name() string {
-	return "reiss.CorePusher"
+	return "cs_reiss_corepusher"
 }
 
 // Run makes sure all core CS have the chain of the local AS.

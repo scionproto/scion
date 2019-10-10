@@ -27,7 +27,7 @@ var _ periodic.Task = cleaner{}
 
 // StartCleaner starts a periodic task that removes expired dynamic topologies.
 func StartCleaner(period, timeout time.Duration) *periodic.Runner {
-	return periodic.StartTask(cleaner{}, period, timeout, "itopo_cleaner")
+	return periodic.StartTask(cleaner{}, period, timeout)
 }
 
 type cleaner struct{}

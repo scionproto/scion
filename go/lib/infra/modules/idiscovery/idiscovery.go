@@ -255,7 +255,7 @@ func (r *Runner) startRegularFetcher(fetcher *task, cfg FetchConfig) {
 		return
 	}
 	r.fetcher = periodic.StartTask(fetcher, cfg.Interval.Duration,
-		cfg.Timeout.Duration, "idiscovery_fetcher")
+		cfg.Timeout.Duration)
 }
 
 // startFetch starts a go routine that executes the fetch task.

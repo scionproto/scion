@@ -116,7 +116,6 @@ func startReissRunner() {
 			},
 			time.Hour,
 			time.Minute,
-			"cs_reiss",
 		)
 		corePusher.TriggerRun()
 	}
@@ -137,7 +136,6 @@ func startReissRunner() {
 			},
 			cfg.CS.ReissueRate.Duration,
 			cfg.CS.ReissueTimeout.Duration,
-			"cs_reiss_self",
 		)
 		return
 	}
@@ -152,7 +150,6 @@ func startReissRunner() {
 		},
 		cfg.CS.ReissueRate.Duration,
 		cfg.CS.ReissueTimeout.Duration,
-		"cs_reiss_requester",
 	)
 }
 

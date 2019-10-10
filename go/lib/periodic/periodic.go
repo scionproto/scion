@@ -69,7 +69,7 @@ type Runner struct {
 // The ticker regulates the periodicity. The timeout is used for the context timeout of the task.
 // The timeout can be larger than the periodicity of the ticker. That means if a tasks takes a long
 // time it will be immediately retriggered.
-func StartTask(task Task, period, timeout time.Duration, prefix string) *Runner {
+func StartTask(task Task, period, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
 	logger := log.New("debug_id", util.GetDebugID())
 	ctx = log.CtxWith(ctx, logger)
@@ -82,7 +82,7 @@ func StartTask(task Task, period, timeout time.Duration, prefix string) *Runner 
 		ctx:          ctx,
 		cancelF:      cancelF,
 		trigger:      make(chan struct{}),
-		export:       metrics.NewMetric(prefix),
+		export:       metrics.NewMetric(task.Name()),
 	}
 	logger.Info("Starting periodic task", "task", task.Name())
 	r.export.Period(period)
