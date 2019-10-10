@@ -26,7 +26,7 @@ import (
 var _ proto.Cerealizable = (*Addr)(nil)
 
 type Addr struct {
-	Ctrl      *hostinfo.HostInfo
+	Ctrl      *hostinfo.Host
 	EncapPort uint16
 }
 

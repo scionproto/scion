@@ -164,7 +164,7 @@ func (r *PathReply) String() string {
 
 type PathReplyEntry struct {
 	Path     *FwdPathMeta
-	HostInfo hostinfo.HostInfo
+	HostInfo hostinfo.Host
 }
 
 func (e *PathReplyEntry) Copy() *PathReplyEntry {
@@ -362,8 +362,8 @@ type IFInfoReply struct {
 }
 
 // Entries maps IFIDs to their addresses and ports; the map is rebuilt each time.
-func (reply *IFInfoReply) Entries() map[common.IFIDType]hostinfo.HostInfo {
-	m := make(map[common.IFIDType]hostinfo.HostInfo)
+func (reply *IFInfoReply) Entries() map[common.IFIDType]hostinfo.Host {
+	m := make(map[common.IFIDType]hostinfo.Host)
 
 	for _, entry := range reply.RawEntries {
 		m[entry.IfID] = entry.HostInfo
@@ -374,7 +374,7 @@ func (reply *IFInfoReply) Entries() map[common.IFIDType]hostinfo.HostInfo {
 
 type IFInfoReplyEntry struct {
 	IfID     common.IFIDType
-	HostInfo hostinfo.HostInfo
+	HostInfo hostinfo.Host
 }
 
 type ServiceInfoRequest struct {
@@ -392,5 +392,5 @@ type ServiceInfoReply struct {
 type ServiceInfoReplyEntry struct {
 	ServiceType proto.ServiceType
 	Ttl         uint32
-	HostInfos   []hostinfo.HostInfo
+	HostInfos   []hostinfo.Host
 }

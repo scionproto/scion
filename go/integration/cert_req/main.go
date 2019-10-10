@@ -165,7 +165,7 @@ func (c client) requestTRC(chain *cert.Chain) error {
 
 func getRemote() error {
 	// Fetch address of service
-	var hostInfo *hostinfo.HostInfo
+	var hostInfo *hostinfo.Host
 	var err error
 	if hostInfo, err = getSVCAddress(); err != nil {
 		return err
@@ -178,7 +178,7 @@ func getRemote() error {
 	return nil
 }
 
-func getSVCAddress() (*hostinfo.HostInfo, error) {
+func getSVCAddress() (*hostinfo.Host, error) {
 	connector := snet.DefNetwork.Sciond()
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
 	defer cancelF()
