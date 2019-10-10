@@ -81,8 +81,12 @@ func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 	defer servceCancelF()
 	defer span.Finish()
 
-	handler.Handle(infra.NewRequest(serveCtx, messageContent, signedPld,
-		request.Address, pld.ReqId))
+	if handler == nil {
+		log.Error("Message type not handled", "type", messageType)
+	} else {
+		handler.Handle(infra.NewRequest(serveCtx, messageContent, signedPld,
+			request.Address, pld.ReqId))
+	}
 }
 
 // Handle registers the handler for the given message type.
