@@ -325,25 +325,25 @@ go_repository(
 
 go_repository(
     name = "com_github_prometheus_client_golang",
-    commit = "abad2d1bd44235a26707c172eab6bca5bf2dbad3",
+    commit = "170205fb58decfd011f1550d4cfb737230d7ae4f", #v1.1.0
     importpath = "github.com/prometheus/client_golang",  # prometheus
 )
 
 go_repository(
     name = "com_github_prometheus_client_model",
-    commit = "fa8ad6fec33561be4280a8f0514318c79d7f6cb6",
+    commit = "14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016",
     importpath = "github.com/prometheus/client_model",
 )
 
 go_repository(
     name = "com_github_prometheus_common",
-    commit = "0b1957f9d949dfa3084171a6ec5642b38055276a",
+    commit = "31bed53e4047fd6c510e43a941f90cb31be0972a", #v0.6.0
     importpath = "github.com/prometheus/common",  # model
 )
 
 go_repository(
     name = "com_github_prometheus_procfs",
-    commit = "185b4288413d2a0dd0806f78c90dde719829e5ae",
+    commit = "3f98efb27840a48a7a2898ec80be07674d19f9c8", #v0.0.3
     importpath = "github.com/prometheus/procfs",
 )
 
