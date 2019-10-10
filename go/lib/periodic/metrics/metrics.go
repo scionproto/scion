@@ -25,11 +25,11 @@ import (
 )
 
 const (
-	//EventStop indicates a stop event took place.
+	// EventStop indicates a stop event took place.
 	EventStop = "stop"
-	//EventKill indicates a kill event took place.
+	// EventKill indicates a kill event took place.
 	EventKill = "kill"
-	//EventTrigger indicates a trigger event took place.
+	// EventTrigger indicates a trigger event took place.
 	EventTrigger = "triggered"
 )
 

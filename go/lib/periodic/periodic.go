@@ -23,26 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// Ticker interface to improve testability of this periodic task code.
-type Ticker interface {
-	Chan() <-chan time.Time
-	Stop()
-}
-
-type defaultTicker struct {
-	*time.Ticker
-}
-
-func (t *defaultTicker) Chan() <-chan time.Time {
-	return t.C
-}
-
-func newTicker(d time.Duration) Ticker {
-	return &defaultTicker{
-		Ticker: time.NewTicker(d),
-	}
-}
-
 // A Task that has to be periodically executed.
 type Task interface {
 	// Run executes the task once, it should return within the context's timeout.
@@ -54,39 +34,39 @@ type Task interface {
 
 // Runner runs a task periodically.
 type Runner struct {
-	task         Task
-	ticker       Ticker
-	timeout      time.Duration
-	stop         chan struct{}
-	loopFinished chan struct{}
-	ctx          context.Context
-	cancelF      context.CancelFunc
-	trigger      chan struct{}
-	export       metrics.ExportMetric
+	task           Task
+	ticker         *time.Ticker
+	timeout        time.Duration
+	stop           chan struct{}
+	loopFinished   chan struct{}
+	ctx            context.Context
+	cancelF        context.CancelFunc
+	trigger        chan struct{}
+	metricExporter metrics.ExportMetric
 }
 
-// StartTask creates and starts a new Runner to run the given task peridiocally.
-// The ticker regulates the periodicity. The timeout is used for the context timeout of the task.
-// The timeout can be larger than the periodicity of the ticker. That means if a tasks takes a long
+// Start creates and starts a new Runner to run the given task peridiocally.
+// The timeout is used for the context timeout of the task. The timeout can be
+// larger than the periodicity of the task. That means if a tasks takes a long
 // time it will be immediately retriggered.
-func StartTask(task Task, period, timeout time.Duration) *Runner {
+func Start(task Task, period, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
 	logger := log.New("debug_id", util.GetDebugID())
 	ctx = log.CtxWith(ctx, logger)
 	r := &Runner{
-		task:         task,
-		ticker:       newTicker(period),
-		timeout:      timeout,
-		stop:         make(chan struct{}),
-		loopFinished: make(chan struct{}),
-		ctx:          ctx,
-		cancelF:      cancelF,
-		trigger:      make(chan struct{}),
-		export:       metrics.NewMetric(task.Name()),
+		task:           task,
+		ticker:         time.NewTicker(period),
+		timeout:        timeout,
+		stop:           make(chan struct{}),
+		loopFinished:   make(chan struct{}),
+		ctx:            ctx,
+		cancelF:        cancelF,
+		trigger:        make(chan struct{}),
+		metricExporter: metrics.NewMetric(task.Name()),
 	}
 	logger.Info("Starting periodic task", "task", task.Name())
-	r.export.Period(period)
-	r.export.StartTimestamp(time.Now())
+	r.metricExporter.Period(period)
+	r.metricExporter.StartTimestamp(time.Now())
 	go func() {
 		defer log.LogPanicAndExit()
 		r.runLoop()
@@ -100,7 +80,7 @@ func (r *Runner) Stop() {
 	r.ticker.Stop()
 	close(r.stop)
 	<-r.loopFinished
-	r.export.Event(metrics.EventStop)
+	r.metricExporter.Event(metrics.EventStop)
 }
 
 // Kill is like stop but it also cancels the context of the current running method.
@@ -109,7 +89,7 @@ func (r *Runner) Kill() {
 	close(r.stop)
 	r.cancelF()
 	<-r.loopFinished
-	r.export.Event(metrics.EventKill)
+	r.metricExporter.Event(metrics.EventKill)
 }
 
 // TriggerRun triggers the periodic task to run now.
@@ -125,7 +105,7 @@ func (r *Runner) TriggerRun() {
 	case <-r.stop:
 	case r.trigger <- struct{}{}:
 	}
-	r.export.Event(metrics.EventTrigger)
+	r.metricExporter.Event(metrics.EventTrigger)
 }
 
 func (r *Runner) runLoop() {
@@ -135,7 +115,7 @@ func (r *Runner) runLoop() {
 		select {
 		case <-r.stop:
 			return
-		case <-r.ticker.Chan():
+		case <-r.ticker.C:
 			r.onTick()
 		case <-r.trigger:
 			r.onTick()
@@ -153,7 +133,7 @@ func (r *Runner) onTick() {
 		ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
 		start := time.Now()
 		r.task.Run(ctx)
-		r.export.Runtime(time.Since(start))
+		r.metricExporter.Runtime(time.Since(start))
 		cancelF()
 	}
 }
