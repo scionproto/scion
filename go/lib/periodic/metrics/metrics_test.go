@@ -15,6 +15,7 @@
 package metrics
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -26,26 +27,15 @@ import (
 )
 
 func TestLabels(t *testing.T) {
-	tests := []interface{}{
-		EventLabels{},
-	}
-	for _, test := range tests {
-		promtest.CheckLabelsStruct(t, test)
-	}
+	promtest.CheckLabelsStruct(t, EventLabels{})
 }
 
 func TestNewMetric(t *testing.T) {
-	t.Run("Happy path", func(t *testing.T) {
+	t.Run("Returns valid exporter", func(t *testing.T) {
 		t.Parallel()
-		n, sn := "randomSnakeName", "random_snake_name"
-		assert.NotContains(t, counters, sn)
+		rnd := fmt.Sprintf("%v", time.Now().Unix())
+		n, sn := "randomSnakeName"+rnd, "random_snake_name_"+rnd
 		x := NewMetric(n)
-		assert.Contains(t, counters, sn)
-		y := NewMetric(n)
-		assert.Equal(t, x, y) // same prefix, same singleton exporter
-		z := NewMetric(n + "z")
-		assert.NotEqual(t, z, y) // different prefix, not same exporter
-
 		_, ok := x.(ExportMetric)
 		assert.True(t, ok)
 
@@ -56,7 +46,17 @@ func TestNewMetric(t *testing.T) {
 		assert.NotNil(t, v.timestamp)
 	})
 
-	t.Run("Invalid metric name", func(t *testing.T) {
+	t.Run("Same name does not panic", func(t *testing.T) {
+		t.Parallel()
+		n := "randomSnakeNameOne"
+		NewMetric(n)
+		w := func() {
+			NewMetric(n)
+		}
+		require.NotPanics(t, w)
+	})
+
+	t.Run("Invalid name does not panic", func(t *testing.T) {
 		t.Parallel()
 		n := "random.SnakeName"
 		w := func() {

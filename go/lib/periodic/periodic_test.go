@@ -49,7 +49,7 @@ func TestPeriodicExecution(t *testing.T) {
 		cnt++
 	})
 	p := 10 * time.Millisecond
-	r := StartTask(fn, p, time.Microsecond)
+	r := Start(fn, p, time.Microsecond)
 	time.Sleep(11 * p)
 	r.Stop()
 	assert.GreaterOrEqual(t, cnt, 10, "Must run at least 10 times within 10+1 period time")
@@ -61,62 +61,60 @@ func TestKillExitsLongRunningFunc(t *testing.T) {
 		// Simulate long work by blocking on the done channel.
 		select {
 		case <-ctx.Done():
-		case <-time.After(1 * time.Second):
+		case <-time.After(100 * time.Millisecond):
 			t.Fatalf("goroutine took too long to finish")
 		}
 		errChan <- ctx.Err()
 	})
-	p := 50 * time.Millisecond
-	r := StartTask(fn, p, 3*time.Second)
+	p := 1 * time.Millisecond
+	r := Start(fn, p, 300*time.Millisecond)
 	time.Sleep(2 * p)
 	r.Kill()
 	select {
 	case err := <-errChan:
 		assert.Equal(t, context.Canceled, err, "Context should have been canceled")
-	case <-time.After(2 * time.Second):
+	case <-time.After(200 * time.Millisecond):
 		t.Fatalf("time out while waiting on err")
 	}
 }
 
 func TestTaskDoesntRunAfterKill(t *testing.T) {
-	cnt := 0
+	cnt := make(chan struct{}, 50)
 	fn := taskFunc(func(ctx context.Context) {
-		cnt++
+		cnt <- struct{}{}
 	})
-	p := 100 * time.Millisecond
-	r := StartTask(fn, p, 3*p)
+	p := 20 * time.Millisecond
+	r := Start(fn, p, 2*p)
 	go func() {
-		for {
-			if cnt == 1 {
-				r.Kill()
-				return
-			}
-		}
+		<-cnt // discard the first normal periodic run
+		r.Kill()
+		return
 	}()
 	time.Sleep(5 * p)
-	assert.Equal(t, cnt, 1, "Must run only once within 5 period time")
+	assert.Equal(t, len(cnt), 0)
 }
 
 func TestTriggerNow(t *testing.T) {
-	cnt := 0
+	got, want := 0, 10
+
+	cnt := make(chan struct{}, 50)
 	fn := taskFunc(func(ctx context.Context) {
-		cnt++
+		cnt <- struct{}{}
 	})
-	want := 10
+
 	p := 10 * time.Millisecond
-	r := StartTask(fn, p, 3*p)
+	r := Start(fn, p, 3*p)
 	go func() {
-		for {
-			if cnt == 1 {
-				for i := 0; i < want; i++ {
-					r.TriggerRun()
-				}
-				return
-			}
+		<-cnt // discard the first normal periodic run
+		for i := 0; i < want; i++ {
+			r.TriggerRun()
 		}
+		return
 	}()
-	time.Sleep(2 * p)
-	assert.GreaterOrEqual(t, cnt, want, "Must run want times within 2 period time")
+
+	time.Sleep(2 * p) // wait two periods
+	got = len(cnt)    // channel want values because of trigger, and maybe plus one
+	assert.GreaterOrEqual(t, got, want, "Must run %v times within 2 period time", want)
 }
 
 func TestMain(m *testing.M) {

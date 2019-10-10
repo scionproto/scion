@@ -57,7 +57,7 @@ func New(deleter ExpiredDeleter, subsystem string) *Cleaner {
 
 // Name returns the tasks name.
 func (c *Cleaner) Name() string {
-	return fmt.Sprintf("cleaner_%s", c.subsystem)
+	return fmt.Sprintf("%s_cleaner", c.subsystem)
 }
 
 // Run deletes expired entries using the deleter func.
@@ -88,9 +88,9 @@ func (m *metricsRegistry) register(subsystem string) *metric {
 		return metric
 	}
 	m.registered[subsystem] = &metric{
-		resultsTotal: *prom.NewCounterVec(MetricsNamespace, subsystem, "results_total",
+		resultsTotal: *prom.NewCounterVec(subsystem, MetricsNamespace, "results_total",
 			"Results of running the cleaner, either ok or err", []string{"result"}),
-		deletedTotal: prom.NewCounter(MetricsNamespace, subsystem, "deleted_total",
+		deletedTotal: prom.NewCounter(subsystem, MetricsNamespace, "deleted_total",
 			"Number of deleted entries total."),
 	}
 	return m.registered[subsystem]

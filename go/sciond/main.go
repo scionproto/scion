@@ -160,10 +160,10 @@ func realMain() int {
 			NextQueryCleaner: segfetcher.NextQueryCleaner{PathDB: pathDB},
 		},
 	}
-	cleaner := periodic.StartTask(pathdb.NewCleaner(pathDB),
+	cleaner := periodic.Start(pathdb.NewCleaner(pathDB),
 		300*time.Second, 295*time.Second)
 	defer cleaner.Stop()
-	rcCleaner := periodic.StartTask(revcache.NewCleaner(revCache),
+	rcCleaner := periodic.Start(revcache.NewCleaner(revCache, "sciond_revocation"),
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 	// Start servers

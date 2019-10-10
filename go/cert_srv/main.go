@@ -108,7 +108,7 @@ func realMain() int {
 // Non-core starts a requester.
 func startReissRunner() {
 	if !cfg.CS.DisableCorePush {
-		corePusher = periodic.StartTask(
+		corePusher = periodic.Start(
 			&reiss.CorePusher{
 				LocalIA: itopo.Get().ISD_AS,
 				TrustDB: state.TrustDB,
@@ -125,7 +125,7 @@ func startReissRunner() {
 	}
 	if itopo.Get().Core {
 		log.Info("Starting periodic reiss.Self task")
-		reissRunner = periodic.StartTask(
+		reissRunner = periodic.Start(
 			&reiss.Self{
 				Msgr:       msgr,
 				State:      state,
@@ -140,7 +140,7 @@ func startReissRunner() {
 		return
 	}
 	log.Info("Starting periodic reiss.Requester task")
-	reissRunner = periodic.StartTask(
+	reissRunner = periodic.Start(
 		&reiss.Requester{
 			Msgr:       msgr,
 			State:      state,

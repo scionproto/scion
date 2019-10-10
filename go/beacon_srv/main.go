@@ -312,10 +312,10 @@ func (t *periodicTasks) Start() error {
 		return err
 	}
 
-	t.beaconCleaner = periodic.StartTask(
+	t.beaconCleaner = periodic.Start(
 		beaconstorage.NewBeaconCleaner(t.store),
 		30*time.Second, 30*time.Second)
-	t.revCleaner = periodic.StartTask(
+	t.revCleaner = periodic.Start(
 		beaconstorage.NewRevocationCleaner(t.store),
 		5*time.Second, 5*time.Second)
 	return nil
@@ -338,7 +338,7 @@ func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 			RevOverlap: cfg.BS.RevOverlap.Duration,
 		},
 	}.New()
-	return periodic.StartTask(r, cfg.BS.ExpiredCheckInterval.Duration,
+	return periodic.Start(r, cfg.BS.ExpiredCheckInterval.Duration,
 		cfg.BS.ExpiredCheckInterval.Duration), nil
 }
 
@@ -353,7 +353,7 @@ func (t *periodicTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Ru
 		Signer:       infra.NullSigner,
 		TopoProvider: t.topoProvider,
 	}
-	return periodic.StartTask(s, cfg.BS.KeepaliveInterval.Duration,
+	return periodic.Start(s, cfg.BS.KeepaliveInterval.Duration,
 		cfg.BS.KeepaliveInterval.Duration), nil
 }
 
@@ -389,7 +389,7 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start originator", err)
 	}
-	return periodic.StartTask(s, 500*time.Millisecond,
+	return periodic.Start(s, 500*time.Millisecond,
 		cfg.BS.OriginationInterval.Duration), nil
 }
 
@@ -425,7 +425,7 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start propagator", err)
 	}
-	return periodic.StartTask(p, 500*time.Millisecond,
+	return periodic.Start(p, 500*time.Millisecond,
 		cfg.BS.PropagationInterval.Duration), nil
 }
 
@@ -475,7 +475,7 @@ func (t *periodicTasks) startRegistrar(topo *topology.Topo, segType proto.PathSe
 	if err != nil {
 		return nil, common.NewBasicError("Unable to start registrar", err, "type", segType)
 	}
-	return periodic.StartTask(r, 500*time.Millisecond,
+	return periodic.Start(r, 500*time.Millisecond,
 		cfg.BS.RegistrationInterval.Duration), nil
 }
 
