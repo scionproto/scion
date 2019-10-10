@@ -70,7 +70,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/sock/reliable/internal/metrics"
 )
 
 var (
@@ -159,6 +161,12 @@ func Dial(address string) (*Conn, error) {
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
 func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
+	conn, err := dialTimeout(address, timeout)
+	metrics.M.Dials(metrics.DialLabels{Result: labelResult(err)}).Inc()
+	return conn, err
+}
+
+func dialTimeout(address string, timeout time.Duration) (*Conn, error) {
 	var err error
 	var c net.Conn
 	c, err = net.DialTimeout("unix", address, timeout)
@@ -181,9 +189,18 @@ func Register(dispatcher string, ia addr.IA, public *addr.AppAddr, bind *overlay
 //
 // A timeout of 0 means infinite timeout.
 //
-// To check for timeout errors, type assert the returned error to *net.OpError and
-// call method Timeout().
+// To check for timeout errors, type assert the returned error to *net.OpError and call method
+// Timeout().
 func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
+	bind *overlay.OverlayAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
+
+	conn, port, err := registerTimeout(dispatcher, ia, public, bind, svc, timeout)
+	labels := metrics.RegisterLabels{Result: labelResult(err), SVC: svc.BaseString()}
+	metrics.M.Registers(labels).Inc()
+	return conn, port, err
+}
+
+func registerTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
 	bind *overlay.OverlayAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
 
 	publicUDP, err := createUDPAddrFromAppAddr(public)
@@ -204,7 +221,7 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
 
 	// Compute deadline prior to Dial, because timeout is relative to current time.
 	deadline := time.Now().Add(timeout)
-	conn, err := DialTimeout(dispatcher, timeout)
+	conn, err := dialTimeout(dispatcher, timeout)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -250,6 +267,12 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
 // ReadFrom works similarly to Read. In addition to Read, it also returns the last hop
 // (usually, the border router) which sent the message.
 func (conn *Conn) ReadFrom(buf []byte) (int, net.Addr, error) {
+	n, addr, err := conn.readFrom(buf)
+	metrics.M.Reads(metrics.IOLabels{Result: labelResult(err)}).Observe(float64(n))
+	return n, addr, err
+}
+
+func (conn *Conn) readFrom(buf []byte) (int, net.Addr, error) {
 	conn.readMutex.Lock()
 	defer conn.readMutex.Unlock()
 
@@ -282,6 +305,12 @@ func (conn *Conn) ReadFrom(buf []byte) (int, net.Addr, error) {
 // On error, the number of bytes returned is meaningless. On success, the number of bytes
 // is always len(buf).
 func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
+	n, err := conn.writeTo(buf, dst)
+	metrics.M.Writes(metrics.IOLabels{Result: labelResult(err)}).Observe(float64(n))
+	return n, err
+}
+
+func (conn *Conn) writeTo(buf []byte, dst net.Addr) (int, error) {
 	conn.writeMutex.Lock()
 	defer conn.writeMutex.Unlock()
 
@@ -364,4 +393,14 @@ func createUDPAddrFromAppAddr(address *addr.AppAddr) (*net.UDPAddr, error) {
 		panic("inconsistent app address, ip should never be nil")
 	}
 	return &net.UDPAddr{IP: ip, Port: port}, nil
+}
+
+func labelResult(err error) string {
+	if err == nil {
+		return prom.Success
+	}
+	if opError, ok := err.(*net.OpError); ok && opError.Timeout() {
+		return prom.ErrTimeout
+	}
+	return prom.ErrNotClassified
 }

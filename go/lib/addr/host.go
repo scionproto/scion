@@ -264,6 +264,8 @@ func (h HostSVC) String() string {
 	return fmt.Sprintf("%v %c (0x%04x)", name, cast, uint16(h))
 }
 
+// BaseString returns the upper case name of the service. For hosts or unrecognized services, it
+// returns UNKNOWN.
 func (h HostSVC) BaseString() string {
 	switch h.Base() {
 	case SvcBS:

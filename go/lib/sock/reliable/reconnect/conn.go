@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
@@ -93,7 +92,7 @@ Loop:
 		deadline := conn.getDeadlineForOpType(op)
 		select {
 		case <-conn.closeCh:
-			return common.NewBasicError(ErrClosed, nil)
+			return ErrClosed
 		case <-conn.dispatcherState.Up():
 			err = op.Do(conn.getConn())
 			if err != nil {
@@ -109,7 +108,7 @@ Loop:
 			return err
 		case <-conn.deadlineChangedEvent:
 		case <-returnOnDeadline(deadline):
-			return common.NewBasicError(ErrDispatcherDead, nil)
+			return ErrDispatcherDead
 		}
 	}
 	return nil

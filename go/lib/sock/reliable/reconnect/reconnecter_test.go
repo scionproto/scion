@@ -21,7 +21,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -65,7 +64,7 @@ func TestTickingReconnectorStop(t *testing.T) {
 			}()
 			go reconnecter.Stop()
 			xtest.AssertReadReturnsBefore(t, barrierCh, tickerMultiplier(4))
-			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, reconnect.ErrReconnecterStopped)
+			SoMsg("err", err, ShouldEqual, reconnect.ErrReconnecterStopped)
 		})
 	})
 	Convey("Given a reconnection function that takes a long time", t, func() {

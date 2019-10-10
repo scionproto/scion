@@ -88,7 +88,7 @@ func TestPacketConnIO(t *testing.T) {
 			)
 			packetConn.SetWriteDeadline(time.Now().Add(tickerMultiplier(2)))
 			err := packetConn.DoIO(mockIO)
-			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, reconnect.ErrDispatcherDead)
+			SoMsg("err", err, ShouldEqual, reconnect.ErrDispatcherDead)
 		})
 		Convey("SetWriteDeadline in the past unblocks a blocked writer", func() {
 			mockConn.EXPECT().SetWriteDeadline(Any()).Return(nil).AnyTimes()
@@ -111,7 +111,7 @@ func TestPacketConnIO(t *testing.T) {
 				packetConn.SetWriteDeadline(time.Now().Add(tickerMultiplier(-1)))
 			}()
 			err := packetConn.DoIO(mockIO)
-			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, reconnect.ErrDispatcherDead)
+			SoMsg("err", err, ShouldEqual, reconnect.ErrDispatcherDead)
 		})
 		Convey("SetReadDeadline in the past unblocks a blocked reader", func() {
 			mockConn.EXPECT().SetWriteDeadline(Any()).Return(nil).AnyTimes()
@@ -136,7 +136,7 @@ func TestPacketConnIO(t *testing.T) {
 				packetConn.SetReadDeadline(time.Now().Add(tickerMultiplier(-1)))
 			}()
 			err := packetConn.DoIO(mockIO)
-			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, reconnect.ErrDispatcherDead)
+			SoMsg("err", err, ShouldEqual, reconnect.ErrDispatcherDead)
 		})
 		Convey("After reconnect, IO deadline is inherited by the new connection", func() {
 			deadline := time.Now().Add(tickerMultiplier(1))
