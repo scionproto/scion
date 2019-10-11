@@ -85,7 +85,7 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 }
 
 func (s *SegSyncer) Name() string {
-	return fmt.Sprintf("segsyncer_segSyncer_%s", s.dstIA)
+	return fmt.Sprintf("ps_segsyncer_segSyncer_%s", s.dstIA)
 }
 
 func (s *SegSyncer) Run(ctx context.Context) {

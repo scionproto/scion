@@ -34,20 +34,19 @@ func TestLabels(t *testing.T) {
 func TestNewMetric(t *testing.T) {
 	t.Run("Returns valid exporter", func(t *testing.T) {
 		rnd := fmt.Sprintf("%v", time.Now().Unix())
-		n, sn := "randomSnakeName"+rnd, "random_snake_name_"+rnd
-		x := NewMetric(n)
-		_, ok := x.(ExportMetric)
-		assert.True(t, ok)
-
-		v, _ := counters[sn]
-		assert.NotNil(t, v.period)
-		assert.NotNil(t, v.events)
-		assert.NotNil(t, v.runtime)
-		assert.NotNil(t, v.timestamp)
+		n := "randomSnakeName" + rnd
+		w := func() {
+			x := NewMetric(n)
+			x.Period(time.Second)
+			x.Runtime(time.Second)
+			x.Event("dummy")
+			x.StartTimestamp(time.Now())
+		}
+		require.NotPanics(t, w)
 	})
 
 	t.Run("Same name does not panic", func(t *testing.T) {
-		n := "randomSnakeNameOne"
+		n := "randomOtherName"
 		NewMetric(n)
 		w := func() {
 			NewMetric(n)
@@ -56,7 +55,7 @@ func TestNewMetric(t *testing.T) {
 	})
 
 	t.Run("Invalid name does not panic", func(t *testing.T) {
-		n := "random.SnakeName"
+		n := "random.NameWithDot"
 		w := func() {
 			NewMetric(n)
 		}
@@ -65,27 +64,35 @@ func TestNewMetric(t *testing.T) {
 }
 
 func TestContent(t *testing.T) {
-	m := NewMetric("testMe")
-	v, ok := counters["test_me"]
-	assert.True(t, ok)
-
 	t.Run("Runtime", func(t *testing.T) {
-		want := `
-# HELP test_me_periodic_runtime_duration_seconds_total Total time spend on every periodic run.
-# TYPE test_me_periodic_runtime_duration_seconds_total counter
-test_me_periodic_runtime_duration_seconds_total 1
-	`
+		rnd := fmt.Sprintf("%v", time.Now().Nanosecond())
+		n, sn := "randomName"+rnd, "random_name_"+rnd
+		m := NewMetric(n)
+		v, ok := counters[sn]
+		assert.True(t, ok)
+
+		want := fmt.Sprintf(`
+# HELP %s_periodic_runtime_duration_seconds_total Total time spend on every periodic run.
+# TYPE %s_periodic_runtime_duration_seconds_total counter
+%s_periodic_runtime_duration_seconds_total 1
+	`, sn, sn, sn)
 		m.Runtime(1 * time.Second)
 		err := testutil.CollectAndCompare(v.runtime, strings.NewReader(want))
 		assert.NoError(t, err)
 	})
 
 	t.Run("StartTimestamp", func(t *testing.T) {
-		want := `
-# HELP test_me_periodic_runtime_timestamp_seconds The unix timestamp when the periodic run started.
-# TYPE test_me_periodic_runtime_timestamp_seconds gauge
-test_me_periodic_runtime_timestamp_seconds 1.570633374e+09
-	`
+		rnd := fmt.Sprintf("%v", time.Now().Nanosecond())
+		n, sn := "randomName"+rnd, "random_name_"+rnd
+		m := NewMetric(n)
+		v, ok := counters[sn]
+		assert.True(t, ok)
+
+		want := fmt.Sprintf(`
+# HELP %s_periodic_runtime_timestamp_seconds The unix timestamp when the periodic run started.
+# TYPE %s_periodic_runtime_timestamp_seconds gauge
+%s_periodic_runtime_timestamp_seconds 1.570633374e+09
+	`, sn, sn, sn)
 		ts := time.Unix(1570633374, 0)
 		m.StartTimestamp(ts)
 		err := testutil.CollectAndCompare(v.timestamp, strings.NewReader(want))
@@ -93,22 +100,34 @@ test_me_periodic_runtime_timestamp_seconds 1.570633374e+09
 	})
 
 	t.Run("Event", func(t *testing.T) {
-		want := `
-# HELP test_me_periodic_event_total Total number of events.
-# TYPE test_me_periodic_event_total counter
-test_me_periodic_event_total{event_type="kill"} 1
-	`
+		rnd := fmt.Sprintf("%v", time.Now().Nanosecond())
+		n, sn := "randomName"+rnd, "random_name_"+rnd
+		m := NewMetric(n)
+		v, ok := counters[sn]
+		assert.True(t, ok)
+
+		want := fmt.Sprintf(`
+# HELP %s_periodic_event_total Total number of events.
+# TYPE %s_periodic_event_total counter
+%s_periodic_event_total{event_type="kill"} 1
+	`, sn, sn, sn)
 		m.Event(EventKill)
 		err := testutil.CollectAndCompare(v.events, strings.NewReader(want))
 		assert.NoError(t, err)
 	})
 
 	t.Run("Period", func(t *testing.T) {
-		want := `
-# HELP test_me_periodic_period_duration_seconds The period of this job.
-# TYPE test_me_periodic_period_duration_seconds gauge
-test_me_periodic_period_duration_seconds 0.02
-	`
+		rnd := fmt.Sprintf("%v", time.Now().Nanosecond())
+		n, sn := "randomName"+rnd, "random_name_"+rnd
+		m := NewMetric(n)
+		v, ok := counters[sn]
+		assert.True(t, ok)
+
+		want := fmt.Sprintf(`
+# HELP %s_periodic_period_duration_seconds The period of this job.
+# TYPE %s_periodic_period_duration_seconds gauge
+%s_periodic_period_duration_seconds 0.02
+`, sn, sn, sn)
 		m.Period(20 * time.Millisecond)
 		err := testutil.CollectAndCompare(v.period, strings.NewReader(want))
 		assert.NoError(t, err)

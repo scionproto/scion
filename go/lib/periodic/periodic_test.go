@@ -20,12 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/periodic/metrics"
-	"github.com/scionproto/scion/go/lib/periodic/metrics/mock_metrics"
 )
 
 type taskFunc func(context.Context)
@@ -35,45 +32,69 @@ func (tf taskFunc) Run(ctx context.Context) {
 }
 
 func (tf taskFunc) Name() string {
-	return "Test function"
+	return "test_task"
 }
 
 func TestPeriodicExecution(t *testing.T) {
-	met := initMetrics(t)
-	metrics.NewMetric = func(prefix string) metrics.ExportMetric {
-		return met
-	}
-
-	cnt := 0
+	cnt := make(chan struct{})
 	fn := taskFunc(func(ctx context.Context) {
-		cnt++
+		cnt <- struct{}{}
 	})
-	p := 10 * time.Millisecond
+	want := 5
+	p := time.Duration(want) * time.Millisecond
 	r := Start(fn, p, time.Microsecond)
-	time.Sleep(11 * p)
-	r.Stop()
-	assert.GreaterOrEqual(t, cnt, 10, "Must run at least 10 times within 10+1 period time")
+	defer r.Stop()
+
+	start := time.Now()
+	done := make(chan struct{})
+	go func() {
+		v := 0
+		for {
+			select {
+			case <-cnt:
+				v++
+				if v == want {
+					close(done)
+					return
+				}
+			case <-time.After(2 * p):
+				t.Fatalf("time out while waiting on first run")
+			}
+		}
+	}()
+	<-done
+	end := time.Now()
+
+	assert.WithinDurationf(t, start, end, time.Duration(want+1)*p,
+		"more or less %d * periods", want+1)
 }
 
 func TestKillExitsLongRunningFunc(t *testing.T) {
-	errChan := make(chan error, 1)
+	cnt, errChan := make(chan struct{}), make(chan error, 1)
+	p := 10 * time.Millisecond
 	fn := taskFunc(func(ctx context.Context) {
-		// Simulate long work by blocking on the done channel.
-		select {
+		cnt <- struct{}{}
+		select { // Simulate long work by blocking on the done channel.
 		case <-ctx.Done():
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(4 * p):
 			t.Fatalf("goroutine took too long to finish")
 		}
 		errChan <- ctx.Err()
 	})
-	p := 1 * time.Millisecond
-	r := Start(fn, p, 300*time.Millisecond)
-	time.Sleep(2 * p)
+	r := Start(fn, p, 2*p)
+
+	select { // blocks until first run with timeoute
+	case <-cnt:
+	case <-time.After(3 * p):
+		t.Fatalf("time out while waiting on first run")
+	}
+
 	r.Kill()
+
 	select {
 	case err := <-errChan:
 		assert.Equal(t, context.Canceled, err, "Context should have been canceled")
-	case <-time.After(200 * time.Millisecond):
+	case <-time.After(5 * p):
 		t.Fatalf("time out while waiting on err")
 	}
 }
@@ -83,19 +104,26 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 	fn := taskFunc(func(ctx context.Context) {
 		cnt <- struct{}{}
 	})
-	p := 20 * time.Millisecond
+	p := 10 * time.Millisecond
 	r := Start(fn, p, 2*p)
+
+	done := make(chan struct{})
 	go func() {
-		<-cnt // discard the first normal periodic run
+		select { // blocks until first run with timeout
+		case <-cnt:
+		case <-time.After(2 * p):
+			t.Fatalf("time out while waiting on first run")
+		}
 		r.Kill()
-		return
+		time.Sleep(p)
+		close(done)
 	}()
-	time.Sleep(5 * p)
-	assert.Equal(t, len(cnt), 0)
+	<-done
+	assert.Equal(t, len(cnt), 0, "No other run within a period")
 }
 
 func TestTriggerNow(t *testing.T) {
-	got, want := 0, 10
+	want := 10
 
 	cnt := make(chan struct{}, 50)
 	fn := taskFunc(func(ctx context.Context) {
@@ -104,17 +132,22 @@ func TestTriggerNow(t *testing.T) {
 
 	p := 10 * time.Millisecond
 	r := Start(fn, p, 3*p)
+
+	done := make(chan struct{})
 	go func() {
-		<-cnt // discard the first normal periodic run
+		select { // blocks until first run with timeout
+		case <-cnt:
+		case <-time.After(2 * p):
+			t.Fatalf("time out while waiting on first run")
+		}
 		for i := 0; i < want; i++ {
 			r.TriggerRun()
 		}
-		return
+		close(done)
 	}()
+	<-done
 
-	time.Sleep(2 * p) // wait two periods
-	got = len(cnt)    // channel want values because of trigger, and maybe plus one
-	assert.GreaterOrEqual(t, got, want, "Must run %v times within 2 period time", want)
+	assert.GreaterOrEqual(t, len(cnt), want-1, "Must run %v times within short time", want-1)
 }
 
 func TestMain(m *testing.M) {
@@ -122,13 +155,39 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func initMetrics(t *testing.T) *mock_metrics.MockExportMetric {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	met := mock_metrics.NewMockExportMetric(ctrl)
-	met.EXPECT().Period(gomock.Any()).Return().AnyTimes()
-	met.EXPECT().StartTimestamp(gomock.Any()).Return().AnyTimes()
-	met.EXPECT().Runtime(gomock.Any()).Return().AnyTimes()
-	met.EXPECT().Event(gomock.Any()).Return().AnyTimes()
-	return met
-}
+// This test replaces the metrics.NewMetric in a way that
+// introduce flakeness. To be removed unless we think something
+//
+//func TestMetrics(t *testing.T) {
+//	ctrl := gomock.NewController(t)
+//	defer ctrl.Finish()
+//	met := mock_metrics.NewMockExportMetric(ctrl)
+//	met.EXPECT().Period(gomock.Any()).Return().Times(1)
+//	met.EXPECT().StartTimestamp(gomock.Any()).Return().Times(1)
+//	met.EXPECT().Runtime(gomock.Any()).Return().Times(1)
+
+//	metrics.NewMetric = func(prefix string) metrics.ExportMetric {
+//		return met
+//	}
+
+//	cnt := make(chan struct{})
+//	fn := taskFunc(func(ctx context.Context) {
+//		cnt <- struct{}{}
+//	})
+//	p := 10 * time.Millisecond
+//	r := Start(fn, p, time.Microsecond)
+
+//	select { // block until first run
+//	case <-cnt:
+//	case <-time.After(2 * p):
+//		t.Fatalf("time out while waiting on first run")
+//	}
+
+//	met.EXPECT().Event(gomock.Eq(metrics.EventTrigger)).Return().Times(1)
+//	r.TriggerRun()
+
+//	met.EXPECT().Event(gomock.Eq(metrics.EventStop)).Return().Times(1)
+//	r.Stop()
+
+//	//assert met.EXPECTs worked
+//}

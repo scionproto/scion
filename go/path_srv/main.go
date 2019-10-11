@@ -227,7 +227,7 @@ func (t *periodicTasks) Start() error {
 			return common.NewBasicError("Unable to start seg syncer", err)
 		}
 	}
-	t.pathDBCleaner = periodic.Start(pathdb.NewCleaner(t.args.PathDB),
+	t.pathDBCleaner = periodic.Start(pathdb.NewCleaner(t.args.PathDB, "ps_segments"),
 		300*time.Second, 295*time.Second)
 	t.cryptosyncer = periodic.Start(&cryptosyncer.Syncer{
 		DB:    t.trustDB,

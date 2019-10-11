@@ -34,15 +34,15 @@ type Task interface {
 
 // Runner runs a task periodically.
 type Runner struct {
-	task           Task
-	ticker         *time.Ticker
-	timeout        time.Duration
-	stop           chan struct{}
-	loopFinished   chan struct{}
-	ctx            context.Context
-	cancelF        context.CancelFunc
-	trigger        chan struct{}
-	metricExporter metrics.ExportMetric
+	task         Task
+	ticker       *time.Ticker
+	timeout      time.Duration
+	stop         chan struct{}
+	loopFinished chan struct{}
+	ctx          context.Context
+	cancelF      context.CancelFunc
+	trigger      chan struct{}
+	metric       metrics.ExportMetric
 }
 
 // Start creates and starts a new Runner to run the given task peridiocally.
@@ -54,19 +54,19 @@ func Start(task Task, period, timeout time.Duration) *Runner {
 	logger := log.New("debug_id", util.GetDebugID())
 	ctx = log.CtxWith(ctx, logger)
 	r := &Runner{
-		task:           task,
-		ticker:         time.NewTicker(period),
-		timeout:        timeout,
-		stop:           make(chan struct{}),
-		loopFinished:   make(chan struct{}),
-		ctx:            ctx,
-		cancelF:        cancelF,
-		trigger:        make(chan struct{}),
-		metricExporter: metrics.NewMetric(task.Name()),
+		task:         task,
+		ticker:       time.NewTicker(period),
+		timeout:      timeout,
+		stop:         make(chan struct{}),
+		loopFinished: make(chan struct{}),
+		ctx:          ctx,
+		cancelF:      cancelF,
+		trigger:      make(chan struct{}),
+		metric:       metrics.NewMetric(task.Name()),
 	}
 	logger.Info("Starting periodic task", "task", task.Name())
-	r.metricExporter.Period(period)
-	r.metricExporter.StartTimestamp(time.Now())
+	r.metric.Period(period)
+	r.metric.StartTimestamp(time.Now())
 	go func() {
 		defer log.LogPanicAndExit()
 		r.runLoop()
@@ -80,16 +80,19 @@ func (r *Runner) Stop() {
 	r.ticker.Stop()
 	close(r.stop)
 	<-r.loopFinished
-	r.metricExporter.Event(metrics.EventStop)
+	r.metric.Event(metrics.EventStop)
 }
 
 // Kill is like stop but it also cancels the context of the current running method.
 func (r *Runner) Kill() {
+	if r == nil {
+		return
+	}
 	r.ticker.Stop()
 	close(r.stop)
 	r.cancelF()
 	<-r.loopFinished
-	r.metricExporter.Event(metrics.EventKill)
+	r.metric.Event(metrics.EventKill)
 }
 
 // TriggerRun triggers the periodic task to run now.
@@ -105,7 +108,7 @@ func (r *Runner) TriggerRun() {
 	case <-r.stop:
 	case r.trigger <- struct{}{}:
 	}
-	r.metricExporter.Event(metrics.EventTrigger)
+	r.metric.Event(metrics.EventTrigger)
 }
 
 func (r *Runner) runLoop() {
@@ -133,7 +136,7 @@ func (r *Runner) onTick() {
 		ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
 		start := time.Now()
 		r.task.Run(ctx)
-		r.metricExporter.Runtime(time.Since(start))
+		r.metric.Runtime(time.Since(start))
 		cancelF()
 	}
 }

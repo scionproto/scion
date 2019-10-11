@@ -27,9 +27,9 @@ import (
 )
 
 const (
-	// MetricsNamespace is the namespace under which metrics are published for
+	// metricSubsystem is the namespace under which metrics are published for
 	// the cleaner.
-	MetricsNamespace = "cleaner"
+	metricSubsystem = "cleaner"
 )
 
 var registry = metricsRegistry{registered: make(map[string]*metric)}
@@ -81,19 +81,19 @@ type metricsRegistry struct {
 	registered map[string]*metric
 }
 
-func (m *metricsRegistry) register(subsystem string) *metric {
+func (m *metricsRegistry) register(namespace string) *metric {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if metric, ok := m.registered[subsystem]; ok {
+	if metric, ok := m.registered[namespace]; ok {
 		return metric
 	}
-	m.registered[subsystem] = &metric{
-		resultsTotal: *prom.NewCounterVec(subsystem, MetricsNamespace, "results_total",
+	m.registered[namespace] = &metric{
+		resultsTotal: *prom.NewCounterVec(namespace, metricSubsystem, "results_total",
 			"Results of running the cleaner, either ok or err", []string{"result"}),
-		deletedTotal: prom.NewCounter(subsystem, MetricsNamespace, "deleted_total",
+		deletedTotal: prom.NewCounter(namespace, metricSubsystem, "deleted_total",
 			"Number of deleted entries total."),
 	}
-	return m.registered[subsystem]
+	return m.registered[namespace]
 }
 
 type metric struct {

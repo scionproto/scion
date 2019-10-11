@@ -160,7 +160,7 @@ func realMain() int {
 			NextQueryCleaner: segfetcher.NextQueryCleaner{PathDB: pathDB},
 		},
 	}
-	cleaner := periodic.Start(pathdb.NewCleaner(pathDB),
+	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sciond_segments"),
 		300*time.Second, 295*time.Second)
 	defer cleaner.Stop()
 	rcCleaner := periodic.Start(revcache.NewCleaner(revCache, "sciond_revocation"),

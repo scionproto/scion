@@ -82,7 +82,7 @@ func (e exporter) StartTimestamp(t time.Time) {
 }
 
 func (e exporter) Period(d time.Duration) {
-	e.period.Set(float64(d) / 1e9)
+	e.period.Set(d.Seconds())
 }
 
 func (e exporter) Runtime(d time.Duration) {
