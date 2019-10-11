@@ -4,7 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = [
         "adapter.go",
-        "reconn.go",
         "sciond.go",
         "types.go",
     ],
@@ -17,10 +16,10 @@ go_library(
         "//go/lib/hostinfo:go_default_library",
         "//go/lib/infra/disp:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/serrors:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/proto:go_default_library",
-        "@com_github_patrickmn_go_cache//:go_default_library",
     ],
 )
 
