@@ -69,7 +69,7 @@ var group2 = &hiddenpath.Group{
 		Suffix:  0xabcd,
 	},
 	Version:    1,
-	Owner:      ia110,
+	Owner:      ia111,
 	Writers:    []addr.IA{ia111, ia112},
 	Readers:    []addr.IA{ia113, ia114},
 	Registries: []addr.IA{ia115},

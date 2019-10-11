@@ -19,19 +19,19 @@ import (
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-const (
-	ErrUnknownGroup common.ErrMsg = "group not known to HPS"
-	ErrNotReader    common.ErrMsg = "peer is not a reader of this group"
+var (
+	ErrUnknownGroup = serrors.New("group not known to HPS")
+	ErrNotReader    = serrors.New("peer is not a reader of this group")
 )
 
 // Fetcher is a fetcher for hidden path segments
