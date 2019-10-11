@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -32,7 +33,6 @@ func TestLabels(t *testing.T) {
 
 func TestNewMetric(t *testing.T) {
 	t.Run("Returns valid exporter", func(t *testing.T) {
-		t.Parallel()
 		rnd := fmt.Sprintf("%v", time.Now().Unix())
 		n, sn := "randomSnakeName"+rnd, "random_snake_name_"+rnd
 		x := NewMetric(n)
@@ -47,7 +47,6 @@ func TestNewMetric(t *testing.T) {
 	})
 
 	t.Run("Same name does not panic", func(t *testing.T) {
-		t.Parallel()
 		n := "randomSnakeNameOne"
 		NewMetric(n)
 		w := func() {
@@ -57,7 +56,6 @@ func TestNewMetric(t *testing.T) {
 	})
 
 	t.Run("Invalid name does not panic", func(t *testing.T) {
-		t.Parallel()
 		n := "random.SnakeName"
 		w := func() {
 			NewMetric(n)
@@ -72,21 +70,17 @@ func TestContent(t *testing.T) {
 	assert.True(t, ok)
 
 	t.Run("Runtime", func(t *testing.T) {
-		t.Parallel()
 		want := `
 # HELP test_me_periodic_runtime_duration_seconds_total Total time spend on every periodic run.
 # TYPE test_me_periodic_runtime_duration_seconds_total counter
 test_me_periodic_runtime_duration_seconds_total 1
 	`
 		m.Runtime(1 * time.Second)
-		//TODO(karampok). the following line does not work until we update the dependency
-		// err := testutil.CollectAndCompare(v.runtime, strings.NewReader(want))
-		err := collectAndCompare(v.runtime, strings.NewReader(want))
+		err := testutil.CollectAndCompare(v.runtime, strings.NewReader(want))
 		assert.NoError(t, err)
 	})
 
 	t.Run("StartTimestamp", func(t *testing.T) {
-		t.Parallel()
 		want := `
 # HELP test_me_periodic_runtime_timestamp_seconds The unix timestamp when the periodic run started.
 # TYPE test_me_periodic_runtime_timestamp_seconds gauge
@@ -94,37 +88,29 @@ test_me_periodic_runtime_timestamp_seconds 1.570633374e+09
 	`
 		ts := time.Unix(1570633374, 0)
 		m.StartTimestamp(ts)
-		//TODO(karampok). the following line does not work until we update the dependency
-		// err := testutil.CollectAndCompare(v.runtime, strings.NewReader(want))
-		err := collectAndCompare(v.timestamp, strings.NewReader(want))
+		err := testutil.CollectAndCompare(v.timestamp, strings.NewReader(want))
 		assert.NoError(t, err)
 	})
 
 	t.Run("Event", func(t *testing.T) {
-		t.Parallel()
 		want := `
 # HELP test_me_periodic_event_total Total number of events.
 # TYPE test_me_periodic_event_total counter
 test_me_periodic_event_total{event_type="kill"} 1
 	`
 		m.Event(EventKill)
-		//TODO(karampok). the following line does not work until we update the dependency
-		// err := testutil.CollectAndCompare(v.runtime, strings.NewReader(want))
-		err := collectAndCompare(v.events, strings.NewReader(want))
+		err := testutil.CollectAndCompare(v.events, strings.NewReader(want))
 		assert.NoError(t, err)
 	})
 
 	t.Run("Period", func(t *testing.T) {
-		t.Parallel()
 		want := `
 # HELP test_me_periodic_period_duration_seconds The period of this job.
 # TYPE test_me_periodic_period_duration_seconds gauge
 test_me_periodic_period_duration_seconds 0.02
 	`
 		m.Period(20 * time.Millisecond)
-		//TODO(karampok). the following line does not work until we update the dependency
-		// err := testutil.CollectAndCompare(v.runtime, strings.NewReader(want))
-		err := collectAndCompare(v.period, strings.NewReader(want))
+		err := testutil.CollectAndCompare(v.period, strings.NewReader(want))
 		assert.NoError(t, err)
 	})
 }
