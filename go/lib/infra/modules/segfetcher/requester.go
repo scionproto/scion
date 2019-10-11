@@ -54,21 +54,16 @@ type DefaultRequester struct {
 	DstProvider DstProvider
 }
 
-// Request the missing segments from the remote. Note that this might only
-// fetch a part of the full request set, i.e. if up or down segments are set,
-// cores are not yet fetched, assuming the cores are not resolved.
+// Request all requests in the request set that are in fetch state.
 func (r *DefaultRequester) Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr {
-	switch {
-	case req.Up.IsZero() && req.Down.IsZero():
-		// only cores to fetch
-		return r.fetchReqs(ctx, req.Cores)
-	case req.Up.IsZero() && !req.Down.IsZero():
-		return r.fetchReqs(ctx, Requests{req.Down})
-	case !req.Up.IsZero() && req.Down.IsZero():
-		return r.fetchReqs(ctx, Requests{req.Up})
-	default:
-		return r.fetchReqs(ctx, Requests{req.Up, req.Down})
+	var reqs Requests
+	allReqs := append(Requests{req.Up, req.Down}, req.Cores...)
+	for _, req := range allReqs {
+		if req.State == Fetch {
+			reqs = append(reqs, req)
+		}
 	}
+	return r.fetchReqs(ctx, reqs)
 }
 
 func (r *DefaultRequester) fetchReqs(ctx context.Context, reqs Requests) <-chan ReplyOrErr {

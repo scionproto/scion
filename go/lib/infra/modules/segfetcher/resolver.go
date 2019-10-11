@@ -62,19 +62,21 @@ func (r *DefaultResolver) Resolve(ctx context.Context, segs Segments,
 	req RequestSet) (Segments, RequestSet, error) {
 
 	var err error
-	if !req.Up.IsZero() {
+	if !req.Up.IsZero() && (req.Up.State == Unresolved || req.Up.State == Fetched) {
 		if segs, req, err = r.resolveUpSegs(ctx, segs, req); err != nil {
 			return segs, req, err
 		}
 	}
-	if !req.Down.IsZero() {
+	if !req.Down.IsZero() && (req.Down.State == Unresolved || req.Down.State == Fetched) {
 		if segs, req, err = r.resolveDownSegs(ctx, segs, req); err != nil {
 			return segs, req, err
 		}
 	}
 	// If there are still up or down segments to request, or if there are no
 	// core segments no more action can be done here.
-	if !req.Up.IsZero() || !req.Down.IsZero() || req.Cores.IsEmpty() {
+	if (!req.Up.IsZero() && req.Up.State != Loaded) ||
+		(!req.Down.IsZero() && req.Down.State != Loaded) ||
+		req.Cores.IsEmpty() {
 		return segs, req, nil
 	}
 	// now resolve core segs:
@@ -82,26 +84,34 @@ func (r *DefaultResolver) Resolve(ctx context.Context, segs Segments,
 	if err != nil {
 		return segs, req, err
 	}
-	var cachedReqs Requests
-	if req.Cores, cachedReqs, err = r.resolveCores(ctx, req); err != nil {
+	if req.Cores, err = r.resolveCores(ctx, req); err != nil {
 		return segs, req, err
 	}
 	if len(req.Cores) == 0 {
 		req.Cores = nil
 	}
-	if len(cachedReqs) > 0 {
+	for i, coreReq := range req.Cores {
+		if coreReq.State != Cached && coreReq.State != Fetched {
+			continue
+		}
 		coreRes, err := r.DB.Get(ctx, &query.Params{
-			StartsAt: cachedReqs.DstIAs(),
-			EndsAt:   cachedReqs.SrcIAs(),
+			StartsAt: []addr.IA{coreReq.Dst},
+			EndsAt:   []addr.IA{coreReq.Src},
 			SegTypes: []proto.PathSegType{proto.PathSegType_core},
 		})
 		if err != nil {
 			return segs, req, err
 		}
-		segs.Core, err = r.resultsToSegs(ctx, coreRes)
+		coreSegs, filtered, err := r.resultsToSegs(ctx, coreRes)
 		if err != nil {
 			return segs, req, err
 		}
+		if len(coreSegs) == 0 && filtered > 0 && coreReq.State != Fetched {
+			req.Cores[i].State = Fetch
+		} else {
+			req.Cores[i].State = Loaded
+		}
+		segs.Core = append(segs.Core, coreSegs...)
 	}
 	return segs, req, nil
 }
@@ -125,9 +135,12 @@ func (r *DefaultResolver) resolveDownSegs(ctx context.Context, segs Segments,
 func (r *DefaultResolver) resolveSegment(ctx context.Context,
 	req Request, consDir bool) (seg.Segments, Request, error) {
 
-	fetch, err := r.needsFetching(ctx, req)
-	if err != nil || fetch {
-		return nil, req, err
+	if req.State == Unresolved {
+		fetch, err := r.needsFetching(ctx, req)
+		if err != nil || fetch {
+			req.State = Fetch
+			return nil, req, err
+		}
 	}
 	start, end := req.Src, req.Dst
 	segType := proto.PathSegType_down
@@ -143,8 +156,18 @@ func (r *DefaultResolver) resolveSegment(ctx context.Context,
 	if err != nil {
 		return nil, req, err
 	}
-	segs, err := r.resultsToSegs(ctx, res)
-	return segs, Request{}, err
+	segs, filtered, err := r.resultsToSegs(ctx, res)
+	// because of revocations our cache is empty, so refetch
+	if len(segs) == 0 && filtered > 0 {
+		if req.State == Unresolved {
+			req.State = Fetch
+		} else {
+			req.State = Loaded
+		}
+		return segs, req, err
+	}
+	req.State = Loaded
+	return segs, req, err
 }
 
 func (r *DefaultResolver) needsFetching(ctx context.Context, req Request) (bool, error) {
@@ -248,44 +271,41 @@ func (r *DefaultResolver) expandNonCoreToNonCore(segs Segments,
 	return coreReqs, nil
 }
 
-// resolveCores returns cores that need to be requested and the ones which are
-// already cached.
+// resolveCores returns cores requests classified with a state.
 func (r *DefaultResolver) resolveCores(ctx context.Context,
-	req RequestSet) (Requests, Requests, error) {
+	req RequestSet) (Requests, error) {
 
-	var cachedReqs Requests
-	remainingCores := req.Cores[:0]
 	needsFetching := make(map[Request]bool)
-	for _, coreReq := range req.Cores {
+	for i, coreReq := range req.Cores {
+		if coreReq.State == Fetched {
+			needsFetching[coreReq] = false
+		}
 		coreFetch, ok := needsFetching[coreReq]
 		if !ok {
 			var err error
 			if coreFetch, err = r.needsFetching(ctx, coreReq); err != nil {
-				return remainingCores, cachedReqs, err
+				return req.Cores, err
 			}
 			needsFetching[coreReq] = coreFetch
 		}
 		if coreFetch {
-			remainingCores = append(remainingCores, coreReq)
+			req.Cores[i].State = Fetch
 		} else {
-			cachedReqs = append(cachedReqs, coreReq)
+			req.Cores[i].State = Cached
 		}
 	}
-	return remainingCores, cachedReqs, nil
+	return req.Cores, nil
 }
 
 func (r *DefaultResolver) resultsToSegs(ctx context.Context,
-	results query.Results) (seg.Segments, error) {
+	results query.Results) (seg.Segments, int, error) {
 
 	segs := results.Segs()
-	if r.IgnoreRevs {
-		return segs, nil
-	}
-	_, err := segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
+	filtered, err := segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
 		return revcache.NoRevokedHopIntf(ctx, r.RevCache, ps)
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return segs, nil
+	return segs, filtered, nil
 }
