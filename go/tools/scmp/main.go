@@ -60,7 +60,7 @@ func main() {
 		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
 	// Connect to sciond
-	sd := sciond.NewService(*sciondPath, false)
+	sd := sciond.NewService(*sciondPath)
 	sdConn, err = sd.ConnectTimeout(1 * time.Second)
 	if err != nil {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
