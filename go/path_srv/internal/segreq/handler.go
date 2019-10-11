@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -56,16 +57,23 @@ func NewHandler(args handlers.HandlerArgs) infra.Handler {
 func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	ctx := request.Context()
 	logger := log.FromCtx(ctx)
+	labels := metrics.RequestLabels{
+		Result: metrics.ErrInternal,
+	}
 	segReq, ok := request.Message.(*path_mgmt.SegReq)
 	if !ok {
 		logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
 			"msg", request.Message, "type", common.TypeOf(request.Message))
+		metrics.Requests.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Received", "segReq", segReq)
+	labels.DstISD = segReq.DstIA().I
+	labels.CacheOnly = segReq.Flags.CacheOnly
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Warn("[segReqHandler] Unable to reply to client, no response writer found")
+		metrics.Requests.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
@@ -77,8 +85,12 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		// occur and depending on them reply / return different error codes.
 		logger.Error("Failed to handler request", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
+		// TODO(lukedirtwalker): set result label if we have error
+		// categorization. (see https://github.com/scionproto/scion/issues/3240)
+		metrics.Requests.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
+	labels.SegType = metrics.DetermineReplyType(segs)
 	revs, err := revcache.RelevantRevInfos(ctx, h.revCache, segs.Up, segs.Core, segs.Down)
 	if err != nil {
 		logger.Warn("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
@@ -93,9 +105,14 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	}
 	if err = rw.SendSegReply(ctx, reply); err != nil {
 		logger.Error("[segReqHandler] Failed to send reply", "err", err)
+		metrics.Requests.Count(labels.WithResult(metrics.ErrReply)).Inc()
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Replied with segments", "segs", len(reply.Recs.Recs))
+	labels = labels.WithResult(metrics.Success)
+	metrics.Requests.Count(labels).Inc()
+	metrics.Requests.RepliedSegs(labels.RequestOkLabels).Add(float64(len(reply.Recs.Recs)))
+	metrics.Requests.RepliedRevs(labels.RequestOkLabels).Add(float64(len(reply.Recs.SRevInfos)))
 	return infra.MetricsResultOk
 }
 

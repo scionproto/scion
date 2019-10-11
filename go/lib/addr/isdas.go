@@ -69,6 +69,10 @@ func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
 	return ISDFromString(s)
 }
 
+func (isd ISD) String() string {
+	return strconv.FormatUint(uint64(isd), 10)
+}
+
 var _ encoding.TextUnmarshaler = (*AS)(nil)
 
 // AS is the Autonomous System idenifier. See formatting and allocations here:
