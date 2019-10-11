@@ -38,6 +38,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/keepalive", "IfStatePusher,RevDropper"),
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/revocation", "Store"),
         (SCION_PACKAGE_PREFIX + "/go/hidden_path_srv/internal/registration", "Validator"),
+        (SCION_PACKAGE_PREFIX + "/go/hidden_path_srv/internal/hpsegreq", "Fetcher"),
         (SCION_PACKAGE_PREFIX + "/go/lib/ctrl/seg", "Signer"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra",
             "ASInspector,Messenger,ResponseWriter,TrustStore,Verifier"),
