@@ -32,10 +32,10 @@ var (
 // Result values
 const (
 	Success               = prom.Success
-	RegistrationNew       = "new"
-	RegiststrationUpdated = "updated"
-	RequestCached         = "cached"
-	RequestFetched        = "fetched"
+	RegistrationNew       = "ok_new"
+	RegiststrationUpdated = "ok_updated"
+	RequestCached         = "ok_cached"
+	RequestFetched        = "ok_fetched"
 	ErrParse              = prom.ErrParse
 	ErrInternal           = prom.ErrInternal
 	ErrCrypto             = prom.ErrCrypto
