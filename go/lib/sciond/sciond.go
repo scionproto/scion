@@ -45,7 +45,7 @@ import (
 
 // Errors for SCIOND API requests
 var (
-	ErrUnableToConnect = serrors.New("Unable to connect to SCIOND")
+	ErrUnableToConnect = serrors.New("unable to connect to SCIOND")
 )
 
 const (
@@ -79,7 +79,7 @@ type service struct {
 }
 
 // NewService returns a SCIOND API connection factory.
-func NewService(name string, _ bool) Service {
+func NewService(name string) Service {
 	return &service{path: name}
 }
 
@@ -137,15 +137,14 @@ func newConn(path string, initialCheckTimeout time.Duration) (*conn, error) {
 func (c *conn) checkForSciond(initialCheckTimeout time.Duration) error {
 	ctx := context.Background()
 	if initialCheckTimeout != 0 {
-		deadline := time.Now().Add(initialCheckTimeout)
-		deadlineCtx, cancelF := context.WithDeadline(context.Background(), deadline)
+		timeoutCtx, cancelF := context.WithTimeout(context.Background(), initialCheckTimeout)
 		defer cancelF()
-		ctx = deadlineCtx
+		ctx = timeoutCtx
 	}
 
 	dispatcher, err := c.ctxAwareConnect(ctx)
 	if err != nil {
-		return serrors.WrapStr("Unable to connect to SCIOND", err)
+		return serrors.Wrap(ErrUnableToConnect, err)
 	}
 	if err := dispatcher.Close(ctx); err != nil {
 		return serrors.WrapStr("Error when closing test SCIOND conn", err)

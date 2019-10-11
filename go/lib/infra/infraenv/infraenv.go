@@ -304,7 +304,7 @@ func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 	// done transparently and pushed to snet.NewNetwork.
 	var router snet.Router
 	for {
-		sciondConn, err := sciond.NewService(sd.Path, true).Connect()
+		sciondConn, err := sciond.NewService(sd.Path).Connect()
 		if err == nil {
 			router = &snet.BaseRouter{
 				IA: localIA,
