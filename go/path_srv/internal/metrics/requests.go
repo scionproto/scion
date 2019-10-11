@@ -66,41 +66,42 @@ func (l RequestLabels) WithResult(result string) RequestLabels {
 
 // Request is for request metrics.
 type Request struct {
-	total     *prometheus.CounterVec
-	replySegs *prometheus.CounterVec
-	replyRevs *prometheus.CounterVec
+	count       *prometheus.CounterVec
+	repliedSegs *prometheus.CounterVec
+	repliedRevs *prometheus.CounterVec
 }
 
 func newRequests() Request {
 	subsystem := "requests"
 	return Request{
-		total: prom.NewCounterVec(Namespace, subsystem, "total",
+		count: prom.NewCounterVec(Namespace, subsystem, "total",
 			"Number of segment requests total. \"result\" indicates the outcome.",
 			RequestLabels{}.Labels()),
-		replySegs: prom.NewCounterVec(Namespace, subsystem, "reply_segs_total",
+		repliedSegs: prom.NewCounterVec(Namespace, subsystem, "replied_segments_total",
 			"Number of segments in reply to segment requests.", RequestOkLabels{}.Labels()),
-		replyRevs: prom.NewCounterVec(Namespace, subsystem, "reply_revs_total",
-			"Number of revocations returned in reply to segments requests.",
-			RequestOkLabels{}.Labels()),
+		repliedRevs: prom.NewCounterVec(Namespace, subsystem, "replied_revocations_total",
+			"Number of revocations in reply to segments requests.", RequestOkLabels{}.Labels()),
 	}
 }
 
 // Count returns the counter for requests total.
 func (r Request) Count(l RequestLabels) prometheus.Counter {
-	return r.total.WithLabelValues(l.Values()...)
+	return r.count.WithLabelValues(l.Values()...)
 }
 
-// ReplySegsTotal returns the counter for the number of segments in a seg reply.
-func (r Request) ReplySegsTotal(l RequestOkLabels) prometheus.Counter {
-	return r.replySegs.WithLabelValues(l.Values()...)
+// RepliedSegs returns the counter for the number of segments in a seg reply.
+func (r Request) RepliedSegs(l RequestOkLabels) prometheus.Counter {
+	return r.repliedSegs.WithLabelValues(l.Values()...)
 }
 
-// ReplyRevsTotal returns the counter for the number of revocations in a seg
+// RepliedRevs returns the counter for the number of revocations in a seg
 // reply.
-func (r Request) ReplyRevsTotal(l RequestOkLabels) prometheus.Counter {
-	return r.replyRevs.WithLabelValues(l.Values()...)
+func (r Request) RepliedRevs(l RequestOkLabels) prometheus.Counter {
+	return r.repliedRevs.WithLabelValues(l.Values()...)
 }
 
+// DetermineReplyType determines which type of segments is in the reply. The
+// method assumes that segs only contains one type of segments.
 func DetermineReplyType(segs segfetcher.Segments) proto.PathSegType {
 	switch {
 	case len(segs.Up) > 0:

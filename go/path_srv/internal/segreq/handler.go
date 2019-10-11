@@ -85,7 +85,8 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		// occur and depending on them reply / return different error codes.
 		logger.Error("Failed to handler request", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
-		// TODO(lukedirtwalker): set result label if we have error categorization.
+		// TODO(lukedirtwalker): set result label if we have error
+		// categorization. (see https://github.com/scionproto/scion/issues/3240)
 		metrics.Requests.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
@@ -110,8 +111,8 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	logger.Debug("[segReqHandler] Replied with segments", "segs", len(reply.Recs.Recs))
 	labels = labels.WithResult(metrics.Success)
 	metrics.Requests.Count(labels).Inc()
-	metrics.Requests.ReplySegsTotal(labels.RequestOkLabels).Add(float64(len(reply.Recs.Recs)))
-	metrics.Requests.ReplyRevsTotal(labels.RequestOkLabels).Add(float64(len(reply.Recs.SRevInfos)))
+	metrics.Requests.RepliedSegs(labels.RequestOkLabels).Add(float64(len(reply.Recs.Recs)))
+	metrics.Requests.RepliedRevs(labels.RequestOkLabels).Add(float64(len(reply.Recs.SRevInfos)))
 	return infra.MetricsResultOk
 }
 
