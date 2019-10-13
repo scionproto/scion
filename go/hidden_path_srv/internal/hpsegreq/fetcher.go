@@ -88,10 +88,10 @@ func (f *DefaultFetcher) Fetch(ctx context.Context,
 				f.fetchDB(ctx, ids, endsAt, replyChan)
 			}(ids)
 		} else {
-			go func(ids []hiddenpath.GroupId) {
+			go func(ids []hiddenpath.GroupId, hps addr.IA) {
 				defer log.LogPanicAndExit()
 				f.fetchRemote(ctx, ids, endsAt, hps, replyChan)
-			}(ids)
+			}(ids, hps)
 		}
 	}
 

@@ -43,6 +43,7 @@ import (
 var (
 	as110 = xtest.MustParseAS("ff00:0:110")
 	as111 = xtest.MustParseAS("ff00:0:111")
+	as112 = xtest.MustParseAS("ff00:0:111")
 	ia110 = xtest.MustParseIA("1-ff00:0:110")
 	ia111 = xtest.MustParseIA("1-ff00:0:111")
 	ia112 = xtest.MustParseIA("1-ff00:0:112")
@@ -73,6 +74,18 @@ var group2 = &hiddenpath.Group{
 	Writers:    []addr.IA{ia111, ia112},
 	Readers:    []addr.IA{ia113, ia114},
 	Registries: []addr.IA{ia115},
+}
+
+var group3 = &hiddenpath.Group{
+	Id: hiddenpath.GroupId{
+		OwnerAS: as112,
+		Suffix:  0xacdc,
+	},
+	Version:    1,
+	Owner:      ia112,
+	Writers:    []addr.IA{},
+	Readers:    []addr.IA{ia113},
+	Registries: []addr.IA{ia114},
 }
 
 var wrongId = hiddenpath.GroupId{
@@ -170,8 +183,9 @@ func TestFetcher(t *testing.T) {
 						},
 					},
 				}
+				addr := &snet.Addr{IA: ia115, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
 				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(),
-					gomock.Any(), gomock.Any()).Return(reply, nil)
+					addr, gomock.Any()).Return(reply, nil)
 			},
 		},
 		"DB and remote": {
@@ -208,9 +222,59 @@ func TestFetcher(t *testing.T) {
 						},
 					},
 				}
+				addr := &snet.Addr{IA: ia115, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
 				mockDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return(res, nil)
-				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), gomock.Any(),
+				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr,
 					gomock.Any()).Return(reply, nil)
+			},
+		},
+		"two remote": {
+			req: &path_mgmt.HPSegReq{
+				RawDstIA: ia111.IAInt(),
+				GroupIds: []*path_mgmt.HPGroupId{group2.Id.ToMsg(), group3.Id.ToMsg()},
+			},
+			peer: &snet.Addr{IA: ia113},
+			res: []*path_mgmt.HPSegRecs{
+				{
+					GroupId: group2.Id.ToMsg(),
+					Recs: []*seg.Meta{
+						seg110_133,
+					},
+				},
+				{
+					GroupId: group3.Id.ToMsg(),
+					Recs: []*seg.Meta{
+						seg110_120,
+					},
+				},
+			},
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
+				reply2 := &path_mgmt.HPSegReply{
+					Recs: []*path_mgmt.HPSegRecs{
+						{
+							GroupId: group2.Id.ToMsg(),
+							Recs: []*seg.Meta{
+								seg110_133,
+							},
+						},
+					},
+				}
+				reply3 := &path_mgmt.HPSegReply{
+					Recs: []*path_mgmt.HPSegRecs{
+						{
+							GroupId: group3.Id.ToMsg(),
+							Recs: []*seg.Meta{
+								seg110_120,
+							},
+						},
+					},
+				}
+				addr2 := &snet.Addr{IA: ia115, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
+				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr2,
+					gomock.Any()).Return(reply2, nil)
+				addr3 := &snet.Addr{IA: ia114, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
+				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr3,
+					gomock.Any()).Return(reply3, nil)
 			},
 		},
 		"DB error": {
@@ -242,8 +306,9 @@ func TestFetcher(t *testing.T) {
 				},
 			},
 			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
+				addr := &snet.Addr{IA: ia115, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
 				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(),
-					gomock.Any(), gomock.Any()).Return(nil, errors.New("dummy"))
+					addr, gomock.Any()).Return(nil, errors.New("dummy"))
 			},
 		},
 		"unknown group": {
@@ -274,6 +339,7 @@ func TestFetcher(t *testing.T) {
 				Groups: map[hiddenpath.GroupId]*hiddenpath.Group{
 					group1.Id: group1,
 					group2.Id: group2,
+					group3.Id: group3,
 				},
 			}
 			mockDB := mock_pathdb.NewMockPathDB(ctrl)
