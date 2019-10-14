@@ -184,7 +184,7 @@ func (r Request) Start() func(string) {
 func newASInfoRequest() Request {
 	return Request{
 		count: prom.NewCounterVec(Namespace, subsystemASInfo, "requests_total",
-			"The amount of AS info requests received.", RevocationLabels{}.Labels()),
+			"The amount of AS info requests received.", resultLabel),
 		latency: prom.NewHistogramVec(Namespace, subsystemASInfo, "request_duration_seconds",
 			"The duration of AS info requests in sciond.", resultLabel, prom.DefaultLatencyBuckets),
 	}
@@ -193,7 +193,7 @@ func newASInfoRequest() Request {
 func newSVCInfo() Request {
 	return Request{
 		count: prom.NewCounterVec(Namespace, subsystemSVCInfo, "requests_total",
-			"The amount of SVC info requests received.", RevocationLabels{}.Labels()),
+			"The amount of SVC info requests received.", resultLabel),
 		latency: prom.NewHistogramVec(Namespace, subsystemSVCInfo, "request_duration_seconds",
 			"The duration of SVC info requests in sciond.",
 			resultLabel, prom.DefaultLatencyBuckets),
@@ -203,7 +203,7 @@ func newSVCInfo() Request {
 func newIFInfo() Request {
 	return Request{
 		count: prom.NewCounterVec(Namespace, subsystemIFInfo, "requests_total",
-			"The amount of IF info requests received.", RevocationLabels{}.Labels()),
+			"The amount of IF info requests received.", resultLabel),
 		latency: prom.NewHistogramVec(Namespace, subsystemIFInfo, "request_duration_seconds",
 			"The duration of IF info requests in sciond.", resultLabel, prom.DefaultLatencyBuckets),
 	}
