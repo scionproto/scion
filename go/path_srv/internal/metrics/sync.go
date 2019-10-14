@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
@@ -68,27 +69,35 @@ func (l SyncPushLabels) WithResult(result string) SyncPushLabels {
 
 // Sync contains metrics for segment synchronization.
 type Sync struct {
-	regsTotal   *prometheus.CounterVec
-	pushesTotal *prometheus.CounterVec
+	registrations *prometheus.CounterVec
+	pushes        *prometheus.CounterVec
 }
 
 func newSync() Sync {
 	subsystem := "segment_sync"
 	return Sync{
-		regsTotal: prom.NewCounterVec(Namespace, subsystem, "registrations_total",
-			"Number of segments received in down segment synchronizations",
+		registrations: prom.NewCounterVec(Namespace, subsystem, "registrations_total",
+			"Number of segments registered in down segment synchronizations",
 			SyncRegLabels{}.Labels()),
-		pushesTotal: prom.NewCounterVec(Namespace, subsystem, "pushes_total",
+		pushes: prom.NewCounterVec(Namespace, subsystem, "pushes_total",
 			"Number of pushes towards a destination", SyncPushLabels{}.Labels()),
 	}
 }
 
 // Registrations returns the counter for synchronization registration messages.
 func (s Sync) Registrations(l SyncRegLabels) prometheus.Counter {
-	return s.regsTotal.WithLabelValues(l.Values()...)
+	return s.registrations.WithLabelValues(l.Values()...)
+}
+
+// RegistrationSuccess increments registrations with the given stats.
+func (s Sync) RegistrationSuccess(l SyncRegLabels, stats seghandler.Stats) {
+	s.Registrations(l.WithResult(OkRegistrationNew)).
+		Add(float64(len(stats.SegDB.InsertedSegs)))
+	s.Registrations(l.WithResult(OkRegiststrationUpdated)).
+		Add(float64(len(stats.SegDB.UpdatedSegs)))
 }
 
 // Pushes returns the counter for synchronization pushes.
 func (s Sync) Pushes(l SyncPushLabels) prometheus.Counter {
-	return s.pushesTotal.WithLabelValues(l.Values()...)
+	return s.pushes.WithLabelValues(l.Values()...)
 }

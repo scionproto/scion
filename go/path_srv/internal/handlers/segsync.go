@@ -82,7 +82,6 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInvalid
 	}
 	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
-
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
 		logger.Error("[syncHandler] Failed to initialize path", "err", err)
@@ -109,14 +108,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
-	h.incMetrics(labels, res.Stats())
+	metrics.Syncs.RegistrationSuccess(labels, res.Stats())
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
-}
-
-func (h *syncHandler) incMetrics(labels metrics.SyncRegLabels, stats seghandler.Stats) {
-	metrics.Syncs.Registrations(labels.WithResult(metrics.RegistrationNew)).
-		Add(float64(len(stats.SegDB.InsertedSegs)))
-	metrics.Syncs.Registrations(labels.WithResult(metrics.RegiststrationUpdated)).
-		Add(float64(len(stats.SegDB.UpdatedSegs)))
 }
