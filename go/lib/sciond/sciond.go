@@ -30,27 +30,25 @@ package sciond
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// Time to live for cache entries
+// Errors for SCIOND API requests
+var (
+	ErrUnableToConnect = serrors.New("unable to connect to SCIOND")
+)
+
 const (
-	ASInfoTTL  = time.Hour
-	IFInfoTTL  = time.Hour
-	SVCInfoTTL = 10 * time.Second
 	// DefaultSCIONDPath contains the system default for a SCIOND socket.
 	DefaultSCIONDPath = "/run/shm/sciond/default.sock"
 	// DefaultSocketFileMode allows read/write to the user and group only.
@@ -81,28 +79,16 @@ type service struct {
 }
 
 // NewService returns a SCIOND API connection factory.
-//
-// If reconnects is true, connections created from the factory will tolerate
-// SCIOND restarts.
-func NewService(name string, reconnects bool) Service {
-	return &service{
-		path:       name,
-		reconnects: reconnects,
-	}
+func NewService(name string) Service {
+	return &service{path: name}
 }
 
 func (s *service) Connect() (Connector, error) {
-	if s.reconnects {
-		return newReconnector(s.path, 0)
-	}
-	return connect(s.path)
+	return newConn(s.path, 0)
 }
 
 func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
-	if s.reconnects {
-		return newReconnector(s.path, timeout)
-	}
-	return connectTimeout(s.path, timeout)
+	return newConn(s.path, timeout)
 }
 
 // A Connector is used to query SCIOND. The connector maintains an internal
@@ -132,49 +118,84 @@ type Connector interface {
 	Close(ctx context.Context) error
 }
 
-type connector struct {
-	sync.Mutex
-	requestID  uint64
-	dispatcher *disp.Dispatcher
-
-	// TODO(kormat): Move the caches to `service`, so they can be shared across connectors.
-	asInfos  *cache.Cache
-	ifInfos  *cache.Cache
-	svcInfos *cache.Cache
+type conn struct {
+	requestID uint64
+	path      string
 }
 
-func connect(socketName string) (*connector, error) {
-	return connectTimeout(socketName, 0)
-}
-
-func connectTimeout(socketName string, timeout time.Duration) (*connector, error) {
-	conn, err := reliable.DialTimeout(socketName, timeout)
-	if err != nil {
+func newConn(path string, initialCheckTimeout time.Duration) (*conn, error) {
+	c := &conn{path: path}
+	// Test during initialization that SCIOND is alive; this helps catch some
+	// unfixable issues (like bad socket name) while apps are still
+	// initializing their networking.
+	if err := c.checkForSciond(initialCheckTimeout); err != nil {
 		return nil, err
 	}
-	return &connector{
-		dispatcher: disp.New(
-			conn,
-			&Adapter{},
-			log.Root(),
-		),
-		asInfos:  cache.New(ASInfoTTL, time.Minute),
-		ifInfos:  cache.New(IFInfoTTL, time.Minute),
-		svcInfos: cache.New(SVCInfoTTL, time.Minute),
-	}, nil
+	return c, nil
 }
 
-// Self incrementing atomic counter for request IDs
-func (c *connector) nextID() uint64 {
-	return atomic.AddUint64(&c.requestID, 1)
+func (c *conn) checkForSciond(initialCheckTimeout time.Duration) error {
+	ctx := context.Background()
+	if initialCheckTimeout != 0 {
+		timeoutCtx, cancelF := context.WithTimeout(context.Background(), initialCheckTimeout)
+		defer cancelF()
+		ctx = timeoutCtx
+	}
+
+	dispatcher, err := c.ctxAwareConnect(ctx)
+	if err != nil {
+		return serrors.Wrap(ErrUnableToConnect, err)
+	}
+	if err := dispatcher.Close(ctx); err != nil {
+		return serrors.WrapStr("Error when closing test SCIOND conn", err)
+	}
+	return nil
 }
 
-func (c *connector) Paths(ctx context.Context, dst, src addr.IA, max uint16,
+// ctxAwareConnect establishes a connection to SCIOND. The returned infra message dispatcher is not
+// used for its request-response matching capabilities (because a single RPC is happening on each
+// underlying connection), but rather for its context-aware API.
+func (c *conn) ctxAwareConnect(ctx context.Context) (*disp.Dispatcher, error) {
+	var timeout time.Duration
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = deadline.Sub(time.Now())
+		if timeout < 0 {
+			timeout = 0
+		}
+	}
+
+	type returnValue struct {
+		dispatcher *disp.Dispatcher
+		err        error
+	}
+	barrier := make(chan returnValue, 1)
+	go func() {
+		defer log.LogPanicAndExit()
+		dispatcher, err := connectTimeout(c.path, timeout)
+		barrier <- returnValue{dispatcher: dispatcher, err: err}
+	}()
+
+	select {
+	case rValue := <-barrier:
+		return rValue.dispatcher, rValue.err
+	case <-ctx.Done():
+		// In the situation where ConnectTimeout doesn't finish and ctx is Done
+		// via a cancellation function, this may (1) permanently leak a
+		// goroutine, if ctx doesn't have a deadline, or (2) for a long amount
+		// of time, if the deadline is very far into the future.
+		return nil, ctx.Err()
+	}
+}
+
+func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 	f PathReqFlags) (*PathReply, error) {
 
-	c.Lock()
-	defer c.Unlock()
-	reply, err := c.dispatcher.Request(
+	roundTripper, err := c.ctxAwareConnect(ctx)
+	if err != nil {
+		return nil, serrors.Wrap(ErrUnableToConnect, err)
+	}
+	defer roundTripper.Close(ctx)
+	reply, err := roundTripper.Request(
 		ctx,
 		&Pld{
 			Id:    c.nextID(),
@@ -189,21 +210,18 @@ func (c *connector) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 		nil,
 	)
 	if err != nil {
-		return nil, common.NewBasicError("[sciond-API] Failed to get Paths", err)
+		return nil, serrors.WrapStr("[sciond-API] Failed to get Paths", err)
 	}
 	return reply.(*Pld).PathReply, nil
 }
 
-func (c *connector) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
-	c.Lock()
-	defer c.Unlock()
-	// Check if information for this ISD-AS is cached
-	key := ia.String()
-	if value, found := c.asInfos.Get(key); found {
-		return value.(*ASInfoReply), nil
+func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
+	roundTripper, err := c.ctxAwareConnect(ctx)
+	if err != nil {
+		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
-	// Value not in cache, so we ask SCIOND
-	pld, err := c.dispatcher.Request(
+	defer roundTripper.Close(ctx)
+	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
 			Id:    c.nextID(),
@@ -215,114 +233,60 @@ func (c *connector) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error
 		nil,
 	)
 	if err != nil {
-		return nil, common.NewBasicError("[sciond-API] Failed to get ASInfo", err)
+		return nil, serrors.WrapStr("[sciond-API] Failed to get ASInfo", err)
 	}
-	asInfoReply := pld.(*Pld).AsInfoReply
-	c.asInfos.SetDefault(key, asInfoReply)
-	return asInfoReply, nil
+	return pld.(*Pld).AsInfoReply, nil
 }
 
-func (c *connector) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	foundEntries, remainingIfs := c.getIFEntriesFromCache(ifs)
-	if len(remainingIfs) == 0 && len(ifs) != 0 {
-		return &IFInfoReply{RawEntries: foundEntries}, nil
+func (c *conn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
+	roundTripper, err := c.ctxAwareConnect(ctx)
+	if err != nil {
+		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
-	// Some values were not in the cache, so we ask SCIOND for them
-	pld, err := c.dispatcher.Request(
+	defer roundTripper.Close(ctx)
+	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_ifInfoRequest,
 			IfInfoRequest: &IFInfoRequest{
-				IfIDs: remainingIfs,
+				IfIDs: ifs,
 			},
 		},
 		nil,
 	)
 	if err != nil {
-		return nil, common.NewBasicError("[sciond-API] Failed to get IFInfo", err)
+		return nil, serrors.WrapStr("[sciond-API] Failed to get IFInfo", err)
 	}
-	ifInfoReply := pld.(*Pld).IfInfoReply
-	// Add new information to cache
-	// If SCIOND does not find HostInfo for a requested IFID, the
-	// null answer is not added to the cache.
-	for _, entry := range ifInfoReply.RawEntries {
-		c.ifInfos.SetDefault(entry.IfID.String(), entry)
-	}
-	// Append old cached entries to our reply
-	ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, foundEntries...)
-	return ifInfoReply, nil
+	return pld.(*Pld).IfInfoReply, nil
 }
 
-func (c *connector) getIFEntriesFromCache(
-	ifs []common.IFIDType) ([]IFInfoReplyEntry, []common.IFIDType) {
-
-	var remainingIfs []common.IFIDType
-	var foundEntries []IFInfoReplyEntry
-	for _, iface := range ifs {
-		if value, found := c.ifInfos.Get(iface.String()); found {
-			foundEntries = append(foundEntries, value.(IFInfoReplyEntry))
-		} else {
-			remainingIfs = append(remainingIfs, iface)
-		}
-	}
-	return foundEntries, remainingIfs
-}
-
-func (c *connector) SVCInfo(ctx context.Context,
+func (c *conn) SVCInfo(ctx context.Context,
 	svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
 
-	c.Lock()
-	defer c.Unlock()
-	foundEntries, remainingSVCs := c.getSVCEntriesFromCache(svcTypes)
-	if len(remainingSVCs) == 0 && len(svcTypes) != 0 {
-		return &ServiceInfoReply{Entries: foundEntries}, nil
+	roundTripper, err := c.ctxAwareConnect(ctx)
+	if err != nil {
+		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
-	// Some values were not in the cache, so we ask SCIOND for them
-	pld, err := c.dispatcher.Request(
+	defer roundTripper.Close(ctx)
+	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_serviceInfoRequest,
 			ServiceInfoRequest: &ServiceInfoRequest{
-				ServiceTypes: remainingSVCs,
+				ServiceTypes: svcTypes,
 			},
 		},
 		nil,
 	)
 	if err != nil {
-		return nil, common.NewBasicError("[sciond-API] Failed to get SVCInfo", err)
+		return nil, serrors.WrapStr("[sciond-API] Failed to get SVCInfo", err)
 	}
-	serviceInfoReply := pld.(*Pld).ServiceInfoReply
-	// Add new information to cache
-	for _, entry := range serviceInfoReply.Entries {
-		key := strconv.FormatUint(uint64(entry.ServiceType), 10)
-		c.svcInfos.SetDefault(key, entry)
-	}
-	serviceInfoReply.Entries = append(serviceInfoReply.Entries, foundEntries...)
-	return serviceInfoReply, nil
+	return pld.(*Pld).ServiceInfoReply, nil
 }
 
-func (c *connector) getSVCEntriesFromCache(
-	svcTypes []proto.ServiceType) ([]ServiceInfoReplyEntry, []proto.ServiceType) {
-
-	remainingSVCs := make([]proto.ServiceType, 0, len(svcTypes))
-	foundEntries := make([]ServiceInfoReplyEntry, 0, len(svcTypes))
-	for _, svcType := range svcTypes {
-		key := strconv.FormatUint(uint64(svcType), 10)
-		if value, found := c.svcInfos.Get(key); found {
-			foundEntries = append(foundEntries, value.(ServiceInfoReplyEntry))
-		} else {
-			remainingSVCs = append(remainingSVCs, svcType)
-		}
-	}
-	return foundEntries, remainingSVCs
-}
-
-func (c *connector) RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply, error) {
+func (c *conn) RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply, error) {
 	// Extract information from notification
 	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(b)
 	if err != nil {
@@ -331,13 +295,15 @@ func (c *connector) RevNotificationFromRaw(ctx context.Context, b []byte) (*RevR
 	return c.RevNotification(ctx, sRevInfo)
 }
 
-func (c *connector) RevNotification(ctx context.Context,
+func (c *conn) RevNotification(ctx context.Context,
 	sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
 
-	c.Lock()
-	defer c.Unlock()
-	// Encapsulate RevInfo item in RevNotification object
-	reply, err := c.dispatcher.Request(
+	roundTripper, err := c.ctxAwareConnect(ctx)
+	if err != nil {
+		return nil, serrors.Wrap(ErrUnableToConnect, err)
+	}
+	defer roundTripper.Close(ctx)
+	reply, err := roundTripper.Request(
 		ctx,
 		&Pld{
 			Id:    c.nextID(),
@@ -349,13 +315,30 @@ func (c *connector) RevNotification(ctx context.Context,
 		nil,
 	)
 	if err != nil {
-		return nil, common.NewBasicError("[sciond-API] Failed to send RevNotification", err)
+		return nil, serrors.WrapStr("[sciond-API] Failed to send RevNotification", err)
 	}
 	return reply.(*Pld).RevReply, nil
 }
 
-func (c *connector) Close(ctx context.Context) error {
-	return c.dispatcher.Close(ctx)
+func (c *conn) Close(_ context.Context) error {
+	return nil
+}
+
+// nextID returns a unique value for identifiying SCIOND requests.
+func (c *conn) nextID() uint64 {
+	return atomic.AddUint64(&c.requestID, 1)
+}
+
+func connectTimeout(socketName string, timeout time.Duration) (*disp.Dispatcher, error) {
+	rConn, err := reliable.DialTimeout(socketName, timeout)
+	if err != nil {
+		return nil, err
+	}
+	return disp.New(
+		rConn,
+		&Adapter{},
+		log.Root(),
+	), nil
 }
 
 // GetDefaultSCIONDPath return default sciond path for a given IA

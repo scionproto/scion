@@ -166,7 +166,7 @@ func NewCustomNetwork(ia addr.IA, sciondPath string,
 func getResolver(sciondPath string) (pathmgr.Resolver, error) {
 	var pathResolver pathmgr.Resolver
 	if sciondPath != "" {
-		sciondConn, err := sciond.NewService(sciondPath, true).Connect()
+		sciondConn, err := sciond.NewService(sciondPath).Connect()
 		if err != nil {
 			return nil, common.NewBasicError("Unable to initialize SCIOND service", err)
 		}

@@ -64,7 +64,7 @@ func main() {
 	}
 	defer log.LogPanicAndExit()
 
-	sd := sciond.NewService(*sciondPath, false)
+	sd := sciond.NewService(*sciondPath)
 	var err error
 	sdConn, err := sd.ConnectTimeout(*timeout)
 	if err != nil {
