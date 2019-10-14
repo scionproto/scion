@@ -1,14 +1,14 @@
-.PHONY: all clean goenv gogen vendor mocks bazel gazelle setcap tags
+.PHONY: all clean goenv gogen vendor mocks bazel gazelle setcap
 
 BRACCEPT = bin/braccept
 
 GAZELLE_MODE?=fix
 
-all: tags bazel
+all: bazel
 
 clean:
 	bazel clean
-	rm -f bin/* tags
+	rm -f bin/*
 	if [ -e go/vendor ]; then rm -r go/vendor; fi
 
 gogen:
@@ -39,6 +39,3 @@ gazelle:
 
 setcap:
 	tools/setcap cap_net_admin,cap_net_raw+ep $(BRACCEPT)
-
-tags:
-	which ctags >/dev/null 2>&1 || exit 0; git ls-files c | ctags -L -
