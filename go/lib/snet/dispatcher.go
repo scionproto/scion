@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
@@ -125,5 +126,13 @@ func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *SCIONPacket) error {
 	if h.pathResolver != nil {
 		h.pathResolver.RevokeRaw(context.TODO(), info.RawSRev)
 	}
-	return &OpError{scmp: hdr}
+	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(info.RawSRev)
+	if err != nil {
+		return err
+	}
+	revInfo, err := sRevInfo.RevInfo()
+	if err != nil {
+		return err
+	}
+	return &OpError{scmp: hdr, revInfo: revInfo}
 }
