@@ -118,9 +118,9 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 }
 
 func (h *segRegHandler) incMetrics(labels metrics.RegistrationLabels, stats seghandler.Stats) {
-	labels.Result = metrics.RegistrationNew
+	labels.Result = metrics.OkRegistrationNew
 	metrics.Registrations.ResultsTotal(labels).Add(float64(len(stats.SegDB.InsertedSegs)))
-	labels.Result = metrics.RegiststrationUpdated
+	labels.Result = metrics.OkRegiststrationUpdated
 	metrics.Registrations.ResultsTotal(labels).Add(float64(len(stats.SegDB.UpdatedSegs)))
 }
 
