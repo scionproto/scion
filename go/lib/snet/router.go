@@ -132,6 +132,9 @@ type Path interface {
 	// The returned path is initialized and ready for use in snet calls that
 	// deal with raw paths.
 	Path() *spath.Path
+	// Interfaces returns a list of interfaces on the path. If the list is not
+	// available the result is nil.
+	Interfaces() []sciond.PathInterface
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
 	Destination() addr.IA
@@ -174,6 +177,15 @@ func (p *path) Path() *spath.Path {
 		return nil
 	}
 	return p.spath.Copy()
+}
+
+func (p *path) Interfaces() []sciond.PathInterface {
+	if p.spath == nil {
+		return nil
+	}
+	res := make([]sciond.PathInterface, len(p.sciondPath.Path.Interfaces))
+	copy(res, p.sciondPath.Path.Interfaces)
+	return res
 }
 
 func (p *path) Destination() addr.IA {
@@ -228,6 +240,10 @@ func (p *partialPath) Path() *spath.Path {
 		return nil
 	}
 	return p.spath.Copy()
+}
+
+func (p *partialPath) Interfaces() []sciond.PathInterface {
+	return nil
 }
 
 func (p *partialPath) Destination() addr.IA {

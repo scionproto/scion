@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/messenger/mock_messenger"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -489,6 +490,10 @@ func (t *testPath) OverlayNextHop() *overlay.OverlayAddr {
 }
 
 func (t *testPath) Path() *spath.Path {
+	panic("not implemented")
+}
+
+func (t *testPath) Interfaces() []sciond.PathInterface {
 	panic("not implemented")
 }
 
