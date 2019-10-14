@@ -9,6 +9,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	overlay "github.com/scionproto/scion/go/lib/overlay"
+	sciond "github.com/scionproto/scion/go/lib/sciond"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	spath "github.com/scionproto/scion/go/lib/spath"
 	net "net"
@@ -519,6 +520,20 @@ func (m *MockPath) Fingerprint() string {
 func (mr *MockPathMockRecorder) Fingerprint() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fingerprint", reflect.TypeOf((*MockPath)(nil).Fingerprint))
+}
+
+// Interfaces mocks base method
+func (m *MockPath) Interfaces() []sciond.PathInterface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Interfaces")
+	ret0, _ := ret[0].([]sciond.PathInterface)
+	return ret0
+}
+
+// Interfaces indicates an expected call of Interfaces
+func (mr *MockPathMockRecorder) Interfaces() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Interfaces", reflect.TypeOf((*MockPath)(nil).Interfaces))
 }
 
 // MTU mocks base method
