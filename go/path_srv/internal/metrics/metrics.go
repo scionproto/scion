@@ -33,20 +33,34 @@ var (
 
 // Result values
 const (
-	Success               = prom.Success
-	RegistrationNew       = "ok_new"
-	RegiststrationUpdated = "ok_updated"
-	RequestCached         = "ok_cached"
-	RequestFetched        = "ok_fetched"
-	ErrParse              = prom.ErrParse
-	ErrInternal           = prom.ErrInternal
-	ErrCrypto             = prom.ErrCrypto
-	ErrDB                 = prom.ErrDB
-	ErrTimeout            = prom.ErrTimeout
-	ErrNetwork            = prom.ErrNetwork
-	ErrNotClassified      = prom.ErrNotClassified
+	// OkSuccess is no error.
+	OkSuccess = prom.Success
+	// OkRegistrationNew indicates something new was registered.
+	OkRegistrationNew = "ok_new"
+	// OkRegiststrationUpdated indicates a registration was updated.
+	OkRegiststrationUpdated = "ok_updated"
+	// OkRequestCached indicates the request could be processed and the result
+	// came from cache.
+	OkRequestCached = "ok_cached"
+	// OkRequestFetched indicates the request could be processed but the result
+	// needed to be fetched from a remote server.
+	OkRequestFetched = "ok_fetched"
+	// ErrParse indicates
+	ErrParse = prom.ErrParse
+	// ErrInternal indicates an internal problem (likely a code bug).
+	ErrInternal = prom.ErrInternal
+	// ErrCrypto indicates a problem with crypto.
+	ErrCrypto = prom.ErrCrypto
+	// ErrDB indicates a problem with the DB.
+	ErrDB = prom.ErrDB
+	// ErrTimeout indicates a timeout error.
+	ErrTimeout = prom.ErrTimeout
+	// ErrNetwork indicates a problem with the network.
+	ErrNetwork = prom.ErrNetwork
+	// ErrNotClassified indicates an error that is not further classified.
+	ErrNotClassified = prom.ErrNotClassified
 	// ErrNoPath indicates no path is available to send a message.
-	ErrNoPath = "err_no_path"
+	ErrNoPath = "err_nopath"
 )
 
 // Label values

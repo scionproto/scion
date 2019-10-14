@@ -110,7 +110,7 @@ func (s *SegSyncer) Run(ctx context.Context) {
 		logger.Error("[segsyncer.SegSyncer] Failed to find path to remote",
 			"dstIA", s.dstIA, "err", err)
 		s.repErrCnt++
-		metrics.Syncs.Pushes(labels.WithResult(errToMetricsLabel(ctx, err))).Inc()
+		metrics.Syncs.Pushes(labels.WithResult(errToMetricsLabel(logger, err))).Inc()
 		return
 	}
 	cnt, err := s.runInternal(ctx, cPs)
@@ -118,14 +118,14 @@ func (s *SegSyncer) Run(ctx context.Context) {
 		logger.Error("[segsyncer.SegSyncer] Failed to send segSync",
 			"dstIA", s.dstIA, "err", err)
 		s.repErrCnt++
-		metrics.Syncs.Pushes(labels.WithResult(errToMetricsLabel(ctx, err))).Inc()
+		metrics.Syncs.Pushes(labels.WithResult(errToMetricsLabel(logger, err))).Inc()
 		return
 	}
 	if cnt > 0 {
 		logger.Debug("[segsyncer.SegSyncer] Sent down segments",
 			"dstIA", s.dstIA, "cnt", cnt)
 	}
-	metrics.Syncs.Pushes(labels.WithResult(metrics.Success)).Inc()
+	metrics.Syncs.Pushes(labels.WithResult(metrics.OkSuccess)).Inc()
 	s.repErrCnt = 0
 }
 
@@ -228,7 +228,7 @@ func (s *SegSyncer) createMessages(ctx context.Context,
 	return msgs, nil
 }
 
-func errToMetricsLabel(ctx context.Context, err error) string {
+func errToMetricsLabel(logger log.Logger, err error) string {
 	switch {
 	case serrors.IsTimeout(err):
 		return metrics.ErrTimeout
@@ -241,7 +241,7 @@ func errToMetricsLabel(ctx context.Context, err error) string {
 	case xerrors.Is(err, errNet):
 		return metrics.ErrNetwork
 	default:
-		log.FromCtx(ctx).Debug("[segsyncer.SegSyncer] Unclassified err", "err", err)
+		logger.Debug("[segsyncer.SegSyncer] Unclassified err", "err", err)
 		return metrics.ErrNotClassified
 	}
 }
