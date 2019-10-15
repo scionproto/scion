@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -37,11 +38,16 @@ type Error interface {
 var _ Error = (*OpError)(nil)
 
 type OpError struct {
-	scmp *scmp.Hdr
+	scmp    *scmp.Hdr
+	revInfo *path_mgmt.RevInfo
 }
 
 func (e *OpError) SCMP() *scmp.Hdr {
 	return e.scmp
+}
+
+func (e *OpError) RevInfo() *path_mgmt.RevInfo {
+	return e.revInfo
 }
 
 func (e *OpError) Error() string {
