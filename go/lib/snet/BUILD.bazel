@@ -25,6 +25,7 @@ go_library(
         "//go/lib/log:go_default_library",
         "//go/lib/overlay:go_default_library",
         "//go/lib/pathmgr:go_default_library",
+        "//go/lib/pathpol:go_default_library",
         "//go/lib/sciond:go_default_library",
         "//go/lib/scmp:go_default_library",
         "//go/lib/serrors:go_default_library",
