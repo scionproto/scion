@@ -105,11 +105,11 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	}
 	if err = rw.SendSegReply(ctx, reply); err != nil {
 		logger.Error("[segReqHandler] Failed to send reply", "err", err)
-		metrics.Requests.Count(labels.WithResult(metrics.ErrReply)).Inc()
+		metrics.Requests.Count(labels.WithResult(metrics.ErrNetwork)).Inc()
 		return infra.MetricsErrInternal
 	}
 	logger.Debug("[segReqHandler] Replied with segments", "segs", len(reply.Recs.Recs))
-	labels = labels.WithResult(metrics.Success)
+	labels = labels.WithResult(metrics.OkSuccess)
 	metrics.Requests.Count(labels).Inc()
 	metrics.Requests.RepliedSegs(labels.RequestOkLabels).Add(float64(len(reply.Recs.Recs)))
 	metrics.Requests.RepliedRevs(labels.RequestOkLabels).Add(float64(len(reply.Recs.SRevInfos)))
