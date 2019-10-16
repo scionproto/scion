@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
@@ -177,12 +178,14 @@ func (c *conn) ctxAwareConnect(ctx context.Context) (*disp.Dispatcher, error) {
 
 	select {
 	case rValue := <-barrier:
+		metrics.Conns.Inc(errorToPrometheusLabel(rValue.err))
 		return rValue.dispatcher, rValue.err
 	case <-ctx.Done():
 		// In the situation where ConnectTimeout doesn't finish and ctx is Done
 		// via a cancellation function, this may (1) permanently leak a
 		// goroutine, if ctx doesn't have a deadline, or (2) for a long amount
 		// of time, if the deadline is very far into the future.
+		metrics.Conns.Inc(errorToPrometheusLabel(ctx.Err()))
 		return nil, ctx.Err()
 	}
 }
@@ -192,6 +195,7 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 
 	roundTripper, err := c.ctxAwareConnect(ctx)
 	if err != nil {
+		metrics.PathRequests.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
 	defer roundTripper.Close(ctx)
@@ -209,6 +213,7 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 		},
 		nil,
 	)
+	metrics.PathRequests.Inc(errorToPrometheusLabel(err))
 	if err != nil {
 		return nil, serrors.WrapStr("[sciond-API] Failed to get Paths", err)
 	}
@@ -218,6 +223,7 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	roundTripper, err := c.ctxAwareConnect(ctx)
 	if err != nil {
+		metrics.ASInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
 	defer roundTripper.Close(ctx)
@@ -232,6 +238,7 @@ func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 		},
 		nil,
 	)
+	metrics.ASInfos.Inc(errorToPrometheusLabel(err))
 	if err != nil {
 		return nil, serrors.WrapStr("[sciond-API] Failed to get ASInfo", err)
 	}
@@ -241,6 +248,7 @@ func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 func (c *conn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
 	roundTripper, err := c.ctxAwareConnect(ctx)
 	if err != nil {
+		metrics.IFInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
 	defer roundTripper.Close(ctx)
@@ -255,6 +263,7 @@ func (c *conn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply,
 		},
 		nil,
 	)
+	metrics.IFInfos.Inc(errorToPrometheusLabel(err))
 	if err != nil {
 		return nil, serrors.WrapStr("[sciond-API] Failed to get IFInfo", err)
 	}
@@ -266,6 +275,7 @@ func (c *conn) SVCInfo(ctx context.Context,
 
 	roundTripper, err := c.ctxAwareConnect(ctx)
 	if err != nil {
+		metrics.SVCInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
 	defer roundTripper.Close(ctx)
@@ -280,6 +290,7 @@ func (c *conn) SVCInfo(ctx context.Context,
 		},
 		nil,
 	)
+	metrics.SVCInfos.Inc(errorToPrometheusLabel(err))
 	if err != nil {
 		return nil, serrors.WrapStr("[sciond-API] Failed to get SVCInfo", err)
 	}
@@ -300,6 +311,7 @@ func (c *conn) RevNotification(ctx context.Context,
 
 	roundTripper, err := c.ctxAwareConnect(ctx)
 	if err != nil {
+		metrics.Revocations.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
 	defer roundTripper.Close(ctx)
@@ -314,6 +326,7 @@ func (c *conn) RevNotification(ctx context.Context,
 		},
 		nil,
 	)
+	metrics.Revocations.Inc(errorToPrometheusLabel(err))
 	if err != nil {
 		return nil, serrors.WrapStr("[sciond-API] Failed to send RevNotification", err)
 	}
@@ -347,4 +360,15 @@ func GetDefaultSCIONDPath(ia *addr.IA) string {
 		return DefaultSCIONDPath
 	}
 	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
+}
+
+func errorToPrometheusLabel(err error) string {
+	switch {
+	case err == nil:
+		return metrics.OkSuccess
+	case serrors.IsTimeout(err):
+		return metrics.ErrTimeout
+	default:
+		return metrics.ErrNotClassified
+	}
 }
