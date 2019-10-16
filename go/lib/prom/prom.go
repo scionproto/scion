@@ -30,8 +30,10 @@ const (
 	LabelStatus = "status"
 	// LabelOperation is the label for the name of an executed operation.
 	LabelOperation = "op"
-	// LabelSrc is the label for the src of a request.
+	// LabelSrc is the label for the source.
 	LabelSrc = "src"
+	// LabelDst is the label for the destination.
+	LabelDst = "dst"
 )
 
 // Common result values.

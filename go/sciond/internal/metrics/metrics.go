@@ -72,7 +72,7 @@ type PathRequestLabels struct {
 
 // Labels returns the labels.
 func (l PathRequestLabels) Labels() []string {
-	return []string{"result", "dst"}
+	return []string{prom.LabelResult, prom.LabelDst}
 }
 
 // Values returns the values for the labels.
@@ -94,7 +94,7 @@ type RevocationLabels struct {
 
 // Labels returns the labels.
 func (l RevocationLabels) Labels() []string {
-	return []string{"result", "src"}
+	return []string{prom.LabelResult, prom.LabelSrc}
 }
 
 // Values returns the values for the labels.

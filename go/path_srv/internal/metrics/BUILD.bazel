@@ -6,6 +6,7 @@ go_library(
         "metrics.go",
         "registration.go",
         "requests.go",
+        "revocation.go",
         "sync.go",
     ],
     importpath = "github.com/scionproto/scion/go/path_srv/internal/metrics",
@@ -24,6 +25,7 @@ go_test(
     srcs = [
         "registration_test.go",
         "requests_test.go",
+        "revocation_test.go",
         "sync_test.go",
     ],
     embed = [":go_default_library"],
