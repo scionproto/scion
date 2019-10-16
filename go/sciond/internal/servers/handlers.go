@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
+	"github.com/scionproto/scion/go/sciond/internal/metrics"
 )
 
 const (
@@ -61,6 +62,8 @@ type PathRequestHandler struct {
 func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
+	metricsDone := metrics.PathRequests.Start()
+	labels := metrics.PathRequestLabels{Dst: pld.PathReq.Dst.IA().I, Result: metrics.ErrInternal}
 	logger := log.FromCtx(ctx)
 	logger.Debug("[PathRequestHandler] Received request", "req", pld.PathReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
@@ -68,6 +71,9 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 	getPathsReply, err := h.Fetcher.GetPaths(workCtx, pld.PathReq, DefaultEarlyReply, logger)
 	if err != nil {
 		logger.Error("Unable to get paths", "err", err)
+		// TODO(lukedirtwalker): classify error
+		// (https://github.com/scionproto/scion/issues/3240)
+		// labels.Result = ...
 	}
 	// Always reply, as the Fetcher will fill in the relevant error bits of the reply
 	reply := &sciond.Pld{
@@ -77,9 +83,11 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 	}
 	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		metricsDone(labels.WithResult(metrics.ErrNetwork))
 	} else {
 		logger.Debug("Replied with paths", "num_paths", len(getPathsReply.Entries))
 		logger.Trace("Full reply", "paths", getPathsReply)
+		metricsDone(labels.WithResult(metrics.OkSuccess))
 	}
 }
 
@@ -93,6 +101,7 @@ type ASInfoRequestHandler struct {
 func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
+	metricsDone := metrics.ASInfos.Start()
 	logger := log.FromCtx(ctx)
 	logger.Debug("[ASInfoRequestHandler] Received request", "req", pld.AsInfoReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
@@ -133,8 +142,10 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 	}
 	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		metricsDone(metrics.ErrNetwork)
 	} else {
 		logger.Trace("Sent reply", "asInfo", reply.AsInfoReply)
+		metricsDone(metrics.OkSuccess)
 	}
 }
 
@@ -146,6 +157,7 @@ type IFInfoRequestHandler struct{}
 func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
 	pld *sciond.Pld) {
 
+	metricsDone := metrics.IFInfos.Start()
 	logger := log.FromCtx(ctx)
 	logger.Debug("[IFInfoRequestHandler] Received request", "req", pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
@@ -180,8 +192,10 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 	}
 	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		metricsDone(metrics.ErrNetwork)
 	} else {
 		logger.Trace("Sent reply", "ifInfo", ifInfoReply)
+		metricsDone(metrics.OkSuccess)
 	}
 }
 
@@ -193,6 +207,7 @@ type SVCInfoRequestHandler struct{}
 func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
 
+	metricsDone := metrics.SVCInfos.Start()
 	logger := log.FromCtx(ctx)
 	logger.Debug("[SVCInfoRequestHandler] Received request", "req", pld.ServiceInfoRequest)
 	svcInfoRequest := pld.ServiceInfoRequest
@@ -215,8 +230,10 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	}
 	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		metricsDone(metrics.ErrNetwork)
 	} else {
 		logger.Trace("Sent reply", "svcInfo", svcInfoReply)
+		metricsDone(metrics.OkSuccess)
 	}
 }
 
@@ -246,6 +263,11 @@ type RevNotificationHandler struct {
 func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
 
+	metricsDone := metrics.Revocations.Start()
+	labels := metrics.RevocationLabels{
+		Src:    metrics.RevSrcNotification,
+		Result: metrics.ErrInternal,
+	}
 	logger := log.FromCtx(ctx)
 	logger.Debug("[RevNotificationHandler] Received revocation",
 		"notification", pld.RevNotification)
@@ -279,8 +301,10 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn
 	}
 	if err := sendReply(reply, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		metricsDone(labels.WithResult(metrics.ErrNetwork))
 	} else {
 		logger.Trace("Sent reply", "revInfo", revInfo)
+		metricsDone(labels.WithResult(metrics.OkSuccess))
 	}
 }
 
