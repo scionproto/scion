@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
@@ -74,7 +73,7 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (net.PacketConn, u
 	for r.stopping.IsFalse() {
 		newTimeout, ok := getNewTimeout(timeout, start)
 		if !ok {
-			return nil, 0, common.NewBasicError(ErrReconnecterTimeoutExpired, nil)
+			return nil, 0, ErrReconnecterTimeoutExpired
 		}
 		conn, port, err := r.reconnectF(newTimeout)
 		switch {
@@ -88,7 +87,7 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (net.PacketConn, u
 			select {
 			case <-t.C:
 			case <-timeoutExpired:
-				return nil, 0, common.NewBasicError(ErrReconnecterTimeoutExpired, nil)
+				return nil, 0, ErrReconnecterTimeoutExpired
 			}
 			continue
 		case err != nil:
@@ -97,7 +96,7 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (net.PacketConn, u
 			return conn, port, nil
 		}
 	}
-	return nil, 0, common.NewBasicError(ErrReconnecterStopped, nil)
+	return nil, 0, ErrReconnecterStopped
 }
 
 // Stop shuts down the reconnection attempt (if any), and waits for the

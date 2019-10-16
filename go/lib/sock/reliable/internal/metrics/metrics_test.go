@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reconnect
+package metrics_test
 
-import "github.com/scionproto/scion/go/lib/serrors"
+import (
+	"testing"
 
-var (
-	ErrDispatcherDead = serrors.New("dispatcher dead")
-	// FIXME(scrye): Change this s.t. it's serrors.IsTimeout compatible.
-	ErrReconnecterTimeoutExpired = serrors.New("timeout expired")
-	ErrReconnecterStopped        = serrors.New("stop method was called")
-	ErrClosed                    = serrors.New("closed")
+	"github.com/scionproto/scion/go/lib/prom/promtest"
+	"github.com/scionproto/scion/go/lib/sock/reliable/internal/metrics"
 )
+
+func TestLabels(t *testing.T) {
+	promtest.CheckLabelsStruct(t, metrics.DialLabels{})
+	promtest.CheckLabelsStruct(t, metrics.RegisterLabels{})
+	promtest.CheckLabelsStruct(t, metrics.IOLabels{})
+}

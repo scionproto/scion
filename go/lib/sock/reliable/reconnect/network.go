@@ -18,9 +18,12 @@ import (
 	"net"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect/internal/metrics"
 )
 
 // DispatcherService is a dispatcher wrapper that creates conns
@@ -37,9 +40,7 @@ type DispatcherService struct {
 
 // NewDispatcherService adds transparent reconnection capabilities
 // to dispatcher connections.
-func NewDispatcherService(
-	dispatcher reliable.DispatcherService) *DispatcherService {
-
+func NewDispatcherService(dispatcher reliable.DispatcherService) *DispatcherService {
 	return &DispatcherService{dispatcher: dispatcher}
 }
 
@@ -74,8 +75,14 @@ func (pn *DispatcherService) newReconnecterFromListenArgs(ia addr.IA,
 	public *addr.AppAddr, bind *overlay.OverlayAddr,
 	svc addr.HostSVC, timeout time.Duration) *TickingReconnecter {
 
+	// f represents individual connection attempts
 	f := func(timeout time.Duration) (net.PacketConn, uint16, error) {
-		return pn.dispatcher.RegisterTimeout(ia, public, bind, svc, timeout)
+		metrics.M.Retries().Inc()
+		conn, port, err := pn.dispatcher.RegisterTimeout(ia, public, bind, svc, timeout)
+		if xerrors.Is(err, ErrReconnecterTimeoutExpired) {
+			metrics.M.Timeouts().Inc()
+		}
+		return conn, port, err
 	}
 	return NewTickingReconnecter(f)
 }
