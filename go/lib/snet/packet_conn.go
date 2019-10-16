@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
@@ -137,6 +138,7 @@ func (c *SCIONPacketConn) SetDeadline(d time.Time) error {
 }
 
 func (c *SCIONPacketConn) Close() error {
+	metrics.M.Closes().Inc()
 	return c.conn.Close()
 }
 
@@ -166,10 +168,12 @@ func (c *SCIONPacketConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) err
 	}
 	pkt.Bytes = pkt.Bytes[:n]
 	// Send message
-	_, err = c.conn.WriteTo(pkt.Bytes, ov)
+	n, err = c.conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {
 		return common.NewBasicError("Reliable socket write error", err)
 	}
+	metrics.M.WriteBytes().Add(float64(n))
+	metrics.M.WritePackets().Inc()
 	return nil
 }
 
@@ -205,8 +209,12 @@ func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) er
 	pkt.Prepare()
 	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {
+		metrics.M.DispatcherErrors().Inc()
 		return common.NewBasicError("Reliable socket read error", err)
 	}
+	metrics.M.ReadBytes().Add(float64(n))
+	metrics.M.ReadPackets().Inc()
+
 	pkt.Bytes = pkt.Bytes[:n]
 	var lastHop *overlay.OverlayAddr
 
@@ -225,6 +233,7 @@ func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) er
 	}
 	err = hpkt.ParseScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
 	if err != nil {
+		metrics.M.ParseErrors().Inc()
 		return common.NewBasicError("SCION packet parse error", err)
 	}
 

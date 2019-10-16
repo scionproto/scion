@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -99,6 +100,7 @@ type scmpHandler struct {
 func (h *scmpHandler) Handle(pkt *SCIONPacket) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if !ok {
+		metrics.M.SCMPErrors().Inc()
 		return common.NewBasicError("scmp handler invoked with non-scmp packet", nil, "pkt", pkt)
 	}
 
