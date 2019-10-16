@@ -213,10 +213,11 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 		},
 		nil,
 	)
-	metrics.PathRequests.Inc(errorToPrometheusLabel(err))
 	if err != nil {
+		metrics.PathRequests.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to get Paths", err)
 	}
+	metrics.PathRequests.Inc(metrics.OkSuccess)
 	return reply.(*Pld).PathReply, nil
 }
 
@@ -238,10 +239,11 @@ func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 		},
 		nil,
 	)
-	metrics.ASInfos.Inc(errorToPrometheusLabel(err))
 	if err != nil {
+		metrics.ASInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to get ASInfo", err)
 	}
+	metrics.ASInfos.Inc(metrics.OkSuccess)
 	return pld.(*Pld).AsInfoReply, nil
 }
 
@@ -263,10 +265,11 @@ func (c *conn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply,
 		},
 		nil,
 	)
-	metrics.IFInfos.Inc(errorToPrometheusLabel(err))
 	if err != nil {
+		metrics.IFInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to get IFInfo", err)
 	}
+	metrics.IFInfos.Inc(metrics.OkSuccess)
 	return pld.(*Pld).IfInfoReply, nil
 }
 
@@ -290,10 +293,11 @@ func (c *conn) SVCInfo(ctx context.Context,
 		},
 		nil,
 	)
-	metrics.SVCInfos.Inc(errorToPrometheusLabel(err))
 	if err != nil {
+		metrics.SVCInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to get SVCInfo", err)
 	}
+	metrics.SVCInfos.Inc(metrics.OkSuccess)
 	return pld.(*Pld).ServiceInfoReply, nil
 }
 
@@ -326,10 +330,11 @@ func (c *conn) RevNotification(ctx context.Context,
 		},
 		nil,
 	)
-	metrics.Revocations.Inc(errorToPrometheusLabel(err))
 	if err != nil {
+		metrics.Revocations.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to send RevNotification", err)
 	}
+	metrics.Revocations.Inc(metrics.OkSuccess)
 	return reply.(*Pld).RevReply, nil
 }
 

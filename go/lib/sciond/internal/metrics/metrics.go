@@ -83,7 +83,7 @@ func newPathRequest() Request {
 
 func newRevocation() Request {
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystemRevocation, "request_total",
+		count: prom.NewCounterVec(Namespace, subsystemRevocation, "requests_total",
 			"The amount of Revocation requests sent.", resultLabel),
 	}
 }
@@ -91,20 +91,20 @@ func newRevocation() Request {
 func newASInfoRequest() Request {
 	return Request{
 		count: prom.NewCounterVec(Namespace, subsystemASInfo, "requests_total",
-			"The amount of AS info requests received.", resultLabel),
+			"The amount of AS info requests sent.", resultLabel),
 	}
 }
 
 func newSVCInfo() Request {
 	return Request{
 		count: prom.NewCounterVec(Namespace, subsystemSVCInfo, "requests_total",
-			"The amount of SVC info requests received.", resultLabel),
+			"The amount of SVC info requests sent.", resultLabel),
 	}
 }
 
 func newIFInfo() Request {
 	return Request{
 		count: prom.NewCounterVec(Namespace, subsystemIFInfo, "requests_total",
-			"The amount of IF info requests received.", resultLabel),
+			"The amount of IF info requests sent.", resultLabel),
 	}
 }
