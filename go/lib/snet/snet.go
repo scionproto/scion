@@ -57,6 +57,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -200,6 +201,7 @@ func (n *SCIONNetwork) DialSCION(network string, laddr, raddr *Addr,
 func (n *SCIONNetwork) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
 
+	metrics.M.Dials().Inc()
 	if raddr == nil {
 		return nil, serrors.New("Unable to dial to nil remote")
 	}
@@ -233,6 +235,7 @@ func (n *SCIONNetwork) ListenSCION(network string, laddr *Addr,
 func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
 
+	metrics.M.Listens().Inc()
 	// FIXME(scrye): If no local address is specified, we want to
 	// bind to the address of the outbound interface on a random
 	// free port. However, the current dispatcher version cannot
