@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -55,6 +56,8 @@ type BaseRouter struct {
 	// PathResolver to solve path requests. If nil, all path requests yield
 	// empty paths.
 	PathResolver pathmgr.Resolver
+	// PathPolicy is used to filter the paths. If set to nil, no filtering is done.
+	PathPolicy *pathpol.Policy
 }
 
 // Route uses the specified path resolver (if one exists) to obtain a path from
@@ -63,7 +66,12 @@ func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 	if r.PathResolver == nil || dst.Equal(r.IA) {
 		return &path{}, nil
 	}
-	aps := r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
+	var aps spathmeta.AppPathSet
+	if r.PathPolicy == nil {
+		aps = r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
+	} else {
+		aps = r.PathResolver.QueryFilter(ctx, r.IA, dst, r.PathPolicy)
+	}
 	if len(aps) == 0 {
 		return nil, serrors.New("unable to find paths")
 	}
@@ -76,7 +84,12 @@ func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error)
 	if r.PathResolver == nil || dst.Equal(r.IA) {
 		return []Path{&path{}}, nil
 	}
-	aps := r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
+	var aps spathmeta.AppPathSet
+	if r.PathPolicy == nil {
+		aps = r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
+	} else {
+		aps = r.PathResolver.QueryFilter(ctx, r.IA, dst, r.PathPolicy)
+	}
 	if len(aps) == 0 {
 		return nil, common.NewBasicError("unable to find paths", nil)
 	}
