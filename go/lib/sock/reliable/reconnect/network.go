@@ -77,10 +77,10 @@ func (pn *DispatcherService) newReconnecterFromListenArgs(ia addr.IA,
 
 	// f represents individual connection attempts
 	f := func(timeout time.Duration) (net.PacketConn, uint16, error) {
-		metrics.M.Retries(metrics.Labels{}).Inc()
+		metrics.M.Retries().Inc()
 		conn, port, err := pn.dispatcher.RegisterTimeout(ia, public, bind, svc, timeout)
 		if xerrors.Is(err, ErrReconnecterTimeoutExpired) {
-			metrics.M.Timeouts(metrics.Labels{}).Inc()
+			metrics.M.Timeouts().Inc()
 		}
 		return conn, port, err
 	}

@@ -158,8 +158,7 @@ func Dial(address string) (*Conn, error) {
 //
 // A timeout of 0 means infinite timeout.
 //
-// To check for timeout errors, type assert the returned error to *net.OpError and
-// call method Timeout().
+// To check for timeout errors, call serrors.IsTimeout on the error.
 func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 	conn, err := dialTimeout(address, timeout)
 	metrics.M.Dials(metrics.DialLabels{Result: labelResult(err)}).Inc()
@@ -189,8 +188,7 @@ func Register(dispatcher string, ia addr.IA, public *addr.AppAddr, bind *overlay
 //
 // A timeout of 0 means infinite timeout.
 //
-// To check for timeout errors, type assert the returned error to *net.OpError and call method
-// Timeout().
+// To check for timeout errors, call serrors.IsTimeout on the error.
 func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
 	bind *overlay.OverlayAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
 
@@ -396,11 +394,12 @@ func createUDPAddrFromAppAddr(address *addr.AppAddr) (*net.UDPAddr, error) {
 }
 
 func labelResult(err error) string {
-	if err == nil {
+	switch {
+	case err == nil:
 		return prom.Success
-	}
-	if opError, ok := err.(*net.OpError); ok && opError.Timeout() {
+	case serrors.IsTimeout(err):
 		return prom.ErrTimeout
+	default:
+		return prom.ErrNotClassified
 	}
-	return prom.ErrNotClassified
 }

@@ -17,7 +17,8 @@ package reconnect
 import "github.com/scionproto/scion/go/lib/serrors"
 
 var (
-	ErrDispatcherDead            = serrors.New("dispatcher dead")
+	ErrDispatcherDead = serrors.New("dispatcher dead")
+	// FIXME(scrye): Change this s.t. it's serrors.IsTimeout compatible.
 	ErrReconnecterTimeoutExpired = serrors.New("timeout expired")
 	ErrReconnecterStopped        = serrors.New("stop method was called")
 	ErrClosed                    = serrors.New("closed")

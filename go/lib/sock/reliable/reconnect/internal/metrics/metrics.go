@@ -30,20 +30,6 @@ var (
 	M = newMetrics()
 )
 
-// Labels contains the labels for the metrics in this package.
-type Labels struct {
-}
-
-// Labels returns the list of labels.
-func (l Labels) Labels() []string {
-	return []string{}
-}
-
-// Values returns the label values in the order defined by Labels.
-func (l Labels) Values() []string {
-	return []string{}
-}
-
 type metrics struct {
 	timeouts prometheus.Counter
 	retries  prometheus.Counter
@@ -59,11 +45,11 @@ func newMetrics() metrics {
 }
 
 // Timeouts returns a counter for timeout errors.
-func (m metrics) Timeouts(_ Labels) prometheus.Counter {
+func (m metrics) Timeouts() prometheus.Counter {
 	return m.timeouts
 }
 
 // Retries returns a counter for individual reconnection attempts.
-func (m metrics) Retries(_ Labels) prometheus.Counter {
+func (m metrics) Retries() prometheus.Counter {
 	return m.retries
 }
