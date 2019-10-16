@@ -27,8 +27,8 @@ var (
 	Registrations = newRegistration()
 	// Requests contains metrics for segments requests.
 	Requests = newRequests()
-	// Syncs contains metrics for segment synchronization.
-	Syncs = newSync()
+	// Sync contains metrics for segment synchronization.
+	Sync = newSync()
 )
 
 // Result values
@@ -45,7 +45,7 @@ const (
 	// OkRequestFetched indicates the request could be processed but the result
 	// needed to be fetched from a remote server.
 	OkRequestFetched = "ok_fetched"
-	// ErrParse indicates
+	// ErrParse indicates a parse error.
 	ErrParse = prom.ErrParse
 	// ErrInternal indicates an internal problem (likely a code bug).
 	ErrInternal = prom.ErrInternal

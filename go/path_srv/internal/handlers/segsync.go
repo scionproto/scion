@@ -63,7 +63,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 	if !ok {
 		logger.Error("[syncHandler] wrong message type, expected path_mgmt.SegSync",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		metrics.Syncs.Registrations(labels).Inc()
+		metrics.Sync.Registrations(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	snetPeer := h.request.Peer.(*snet.Addr)
@@ -71,14 +71,14 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Error("[syncHandler] Unable to service request, no Messenger found")
-		metrics.Syncs.Registrations(labels).Inc()
+		metrics.Sync.Registrations(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
 	if err := segSync.ParseRaw(); err != nil {
 		logger.Error("[syncHandler] Failed to parse message", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		metrics.Syncs.Registrations(labels.WithResult(metrics.ErrParse)).Inc()
+		metrics.Sync.Registrations(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
@@ -86,7 +86,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 	if err != nil {
 		logger.Error("[syncHandler] Failed to initialize path", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		metrics.Syncs.Registrations(labels.WithResult(metrics.ErrParse)).Inc()
+		metrics.Sync.Registrations(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	svcToQuery := &snet.Addr{
@@ -104,11 +104,14 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 	<-res.FullReplyProcessed()
 	if err := res.Err(); err != nil {
 		// TODO(lukedirtwalker): classify error (https://github.com/scionproto/scion/issues/3240)
-		metrics.Syncs.Registrations(labels).Inc()
+		metrics.Sync.Registrations(labels).Inc()
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
-	metrics.Syncs.RegistrationSuccess(labels, res.Stats())
+	metrics.Sync.RegistrationSuccess(labels,
+		len(res.Stats().SegDB.InsertedSegs),
+		len(res.Stats().SegDB.UpdatedSegs),
+	)
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
 }

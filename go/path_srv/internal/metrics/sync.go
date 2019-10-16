@@ -18,12 +18,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-// SyncRegLabels contains the label values for synchronization registration
-// metrics.
+// SyncRegLabels contains the label values for synchronization registration metrics.
 type SyncRegLabels struct {
 	Result string
 	Src    addr.IA
@@ -67,15 +65,15 @@ func (l SyncPushLabels) WithResult(result string) SyncPushLabels {
 	return l
 }
 
-// Sync contains metrics for segment synchronization.
-type Sync struct {
+// sync contains metrics for segment synchronization.
+type sync struct {
 	registrations *prometheus.CounterVec
 	pushes        *prometheus.CounterVec
 }
 
-func newSync() Sync {
+func newSync() sync {
 	subsystem := "segment_sync"
-	return Sync{
+	return sync{
 		registrations: prom.NewCounterVec(Namespace, subsystem, "registrations_total",
 			"Number of segments registered in down segment synchronizations",
 			SyncRegLabels{}.Labels()),
@@ -85,19 +83,17 @@ func newSync() Sync {
 }
 
 // Registrations returns the counter for synchronization registration messages.
-func (s Sync) Registrations(l SyncRegLabels) prometheus.Counter {
+func (s sync) Registrations(l SyncRegLabels) prometheus.Counter {
 	return s.registrations.WithLabelValues(l.Values()...)
 }
 
 // RegistrationSuccess increments registrations with the given stats.
-func (s Sync) RegistrationSuccess(l SyncRegLabels, stats seghandler.Stats) {
-	s.Registrations(l.WithResult(OkRegistrationNew)).
-		Add(float64(len(stats.SegDB.InsertedSegs)))
-	s.Registrations(l.WithResult(OkRegiststrationUpdated)).
-		Add(float64(len(stats.SegDB.UpdatedSegs)))
+func (s sync) RegistrationSuccess(l SyncRegLabels, new, updated int) {
+	s.Registrations(l.WithResult(OkRegistrationNew)).Add(float64(new))
+	s.Registrations(l.WithResult(OkRegiststrationUpdated)).Add(float64(updated))
 }
 
 // Pushes returns the counter for synchronization pushes.
-func (s Sync) Pushes(l SyncPushLabels) prometheus.Counter {
+func (s sync) Pushes(l SyncPushLabels) prometheus.Counter {
 	return s.pushes.WithLabelValues(l.Values()...)
 }
