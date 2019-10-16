@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -45,17 +46,22 @@ func NewRevocHandler(args HandlerArgs) infra.Handler {
 
 func (h *revocHandler) Handle() *infra.HandlerResult {
 	ctx := h.request.Context()
-	logger := log.FromCtx(ctx)
-	logger = logger.New("from", h.request.Peer)
+	logger := log.FromCtx(ctx).New("from", h.request.Peer)
+	labels := metrics.RevocationLabels{
+		Result: metrics.ErrInternal,
+		Src:    metrics.RevSrcNotification,
+	}
 	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
 		logger.Error("[revocHandler] wrong message type, expected path_mgmt.SignedRevInfo",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		metrics.Revocation.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Error("[revocHandler] Unable to service request, no Messenger found")
+		metrics.Revocation.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	logger = logger.New("signer", revocation.Sign.Src)
@@ -65,6 +71,7 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 	if err != nil {
 		logger.Warn("[revocHandler] Couldn't parse revocation", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
+		metrics.Revocation.Count(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	logger = logger.New("revInfo", revInfo)
@@ -74,14 +81,17 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 	if err != nil {
 		logger.Warn("Couldn't verify revocation", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
+		metrics.Revocation.Count(labels.WithResult(metrics.ErrCrypto)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	_, err = h.revCache.Insert(ctx, revocation)
 	if err != nil {
 		logger.Error("Failed to insert revInfo", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
+		metrics.Revocation.Count(labels.WithResult(metrics.ErrDB)).Inc()
 		return infra.MetricsErrRevCache(err)
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
+	metrics.Revocation.Count(labels.WithResult(metrics.OkSuccess)).Inc()
 	return infra.MetricsResultOk
 }
