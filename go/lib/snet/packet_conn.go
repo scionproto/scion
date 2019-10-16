@@ -189,6 +189,7 @@ func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) er
 		}
 		if scmpHdr, ok := pkt.L4Header.(*scmp.Hdr); ok {
 			if c.scmpHandler == nil {
+				metrics.M.SCMPErrors().Inc()
 				return common.NewBasicError("scmp packet received, but no handler found", nil,
 					"scmp.Hdr", scmpHdr, "src", pkt.Source)
 			}
