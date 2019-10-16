@@ -29,7 +29,7 @@ type SyncRegLabels struct {
 
 // Labels returns the labels.
 func (l SyncRegLabels) Labels() []string {
-	return []string{"result", "src"}
+	return []string{prom.LabelResult, prom.LabelSrc}
 }
 
 // Values returns the values.
@@ -51,7 +51,7 @@ type SyncPushLabels struct {
 
 // Labels returns the labels.
 func (l SyncPushLabels) Labels() []string {
-	return []string{"result", "dst"}
+	return []string{prom.LabelResult, "dst"}
 }
 
 // Values returns the values.
@@ -65,7 +65,6 @@ func (l SyncPushLabels) WithResult(result string) SyncPushLabels {
 	return l
 }
 
-// sync contains metrics for segment synchronization.
 type sync struct {
 	registrations *prometheus.CounterVec
 	pushes        *prometheus.CounterVec
@@ -88,8 +87,8 @@ func (s sync) Registrations(l SyncRegLabels) prometheus.Counter {
 }
 
 // RegistrationSuccess increments registrations with the given stats.
-func (s sync) RegistrationSuccess(l SyncRegLabels, new, updated int) {
-	s.Registrations(l.WithResult(OkRegistrationNew)).Add(float64(new))
+func (s sync) RegistrationSuccess(l SyncRegLabels, inserted, updated int) {
+	s.Registrations(l.WithResult(OkRegistrationNew)).Add(float64(inserted))
 	s.Registrations(l.WithResult(OkRegiststrationUpdated)).Add(float64(updated))
 }
 

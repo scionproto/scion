@@ -45,7 +45,7 @@ const (
 const (
 	OkSuccess   = prom.Success
 	ErrInternal = prom.ErrInternal
-	ErrNetwork  = prom.ErrReply
+	ErrNetwork  = prom.ErrNetwork
 )
 
 var resultLabel = []string{prom.LabelResult}
