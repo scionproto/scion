@@ -76,7 +76,7 @@ func newConn() Request {
 
 func newPathRequest() Request {
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystemPath, "request_total",
+		count: prom.NewCounterVec(Namespace, subsystemPath, "requests_total",
 			"The amount of Path requests sent.", resultLabel),
 	}
 }
