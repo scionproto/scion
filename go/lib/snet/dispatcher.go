@@ -100,8 +100,14 @@ type scmpHandler struct {
 func (h *scmpHandler) Handle(pkt *SCIONPacket) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if !ok {
-		metrics.M.SCMPErrors().Inc()
 		return common.NewBasicError("scmp handler invoked with non-scmp packet", nil, "pkt", pkt)
+	}
+	if hdr.Class != scmp.C_General {
+		metrics.M.SCMPErrors().Inc()
+	}
+	if hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_Unspecified {
+		// SCMP::General::Unspecified is used for errors
+		metrics.M.SCMPErrors().Inc()
 	}
 
 	// Only handle revocations for now
