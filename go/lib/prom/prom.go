@@ -92,6 +92,19 @@ func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 	return l
 }
 
+// SafeRegister registers c and returns the registered collector. If c was
+// already registered the already registered collector is returned. In case of
+// any other error this method panicks (as MustRegister).
+func SafeRegister(c prometheus.Collector) prometheus.Collector {
+	if err := prometheus.Register(c); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			return are.ExistingCollector
+		}
+		panic(err)
+	}
+	return c
+}
+
 // NewCounter creates a new prometheus counter that is registered with the default registry.
 func NewCounter(namespace, subsystem, name, help string) prometheus.Counter {
 	return promauto.NewCounter(

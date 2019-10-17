@@ -23,11 +23,11 @@ import (
 )
 
 // NewCleaner creates a cleaner task that deletes expired revocations.
-func NewCleaner(rc RevCache) *cleaner.Cleaner {
+func NewCleaner(rc RevCache, s string) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		cnt, err := rc.DeleteExpired(ctx)
 		return int(cnt), err
-	}, "revocations")
+	}, s)
 }
 
 // FilterNew filters the given revocations against the revCache, only the ones

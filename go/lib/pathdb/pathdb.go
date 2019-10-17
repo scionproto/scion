@@ -109,8 +109,8 @@ type PathDB interface {
 }
 
 // NewCleaner creates a cleaner task that deletes expired segments.
-func NewCleaner(db PathDB) *cleaner.Cleaner {
+func NewCleaner(db PathDB, namespace string) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return db.DeleteExpired(ctx, time.Now())
-	}, "segments")
+	}, namespace)
 }

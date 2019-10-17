@@ -294,7 +294,8 @@ func (r *Router) startDiscovery() error {
 		Static:  r.setupCtxFromStatic,
 		Dynamic: r.setupCtxFromDynamic,
 	}
-	_, err = idiscovery.StartRunners(cfg.Discovery.Config, discovery.Full, handlers, client)
+	_, err = idiscovery.StartRunners(cfg.Discovery.Config, discovery.Full,
+		handlers, client, "border")
 	if err != nil {
 		return common.NewBasicError("Unable to start discovery runners", err)
 	}

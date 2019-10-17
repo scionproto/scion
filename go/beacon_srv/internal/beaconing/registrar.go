@@ -89,7 +89,7 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 
 // Name returns the tasks name.
 func (r *Registrar) Name() string {
-	return "beaconing.Registrar"
+	return "bs_beaconing_registrar"
 }
 
 // Run registers path segments for the specified type to path servers.
