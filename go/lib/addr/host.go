@@ -68,6 +68,7 @@ const (
 	SvcCS   HostSVC = 0x0002
 	SvcSB   HostSVC = 0x0003
 	SvcSIG  HostSVC = 0x0004
+	SvcHPS  HostSVC = 0x0005
 	SvcNone HostSVC = 0xffff
 
 	SVCMcast HostSVC = 0x8000
