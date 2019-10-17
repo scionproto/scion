@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -168,6 +169,11 @@ type throttledMetaLogger struct {
 func (p *throttledMetaLogger) Handle(m *conn.ReadMeta) {
 	p.mu.Lock()
 	if m.RcvOvfl != p.lastPrintValue && time.Since(p.lastPrintTimestamp) > p.MinInterval {
+		if m.RcvOvfl > p.lastPrintValue {
+			metrics.M.NetReadOverflows().Add(float64(m.RcvOvfl - p.lastPrintValue))
+		} else {
+			metrics.M.NetReadOverflows().Add(float64(m.RcvOvfl))
+		}
 		p.Logger.Debug("Detected socket overflow", "total_cnt", m.RcvOvfl)
 		p.lastPrintTimestamp = time.Now()
 		p.lastPrintValue = m.RcvOvfl

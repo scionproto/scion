@@ -29,7 +29,7 @@ type TableEntry struct {
 
 func newTableEntry(conn net.PacketConn) *TableEntry {
 	// Construct application ingress ring buffer
-	appIngressRing := ringbuf.New(128, nil, "dispatcher")
+	appIngressRing := ringbuf.New(128, nil, "net_to_app_ring")
 	return &TableEntry{
 		conn:           conn,
 		appIngressRing: appIngressRing,
