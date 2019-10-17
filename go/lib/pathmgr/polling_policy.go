@@ -107,9 +107,9 @@ type PollingParameters struct {
 }
 
 func StartPeriodic(params PollingParameters, ch chan sciond.PathReqFlags) *periodic.Runner {
-	return periodic.StartPeriodicTask(
+	return periodic.Start(
 		&taskPeriodicChannelWriter{ch: ch, flags: params.flags},
-		periodic.NewTicker(params.interval),
+		params.interval,
 		time.Hour, // Effectively forever, as the task is short and can never block
 	)
 }
@@ -122,7 +122,7 @@ type taskPeriodicChannelWriter struct {
 }
 
 func (task *taskPeriodicChannelWriter) Name() string {
-	return "pathmgr.taskPeriodicChannelWriter"
+	return "pathmgr_channelwriter"
 }
 
 func (task *taskPeriodicChannelWriter) Run(_ context.Context) {

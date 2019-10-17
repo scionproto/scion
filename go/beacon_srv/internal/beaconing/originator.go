@@ -66,7 +66,7 @@ func (cfg OriginatorConf) New() (*Originator, error) {
 
 // Name returns the tasks name.
 func (o *Originator) Name() string {
-	return "beaconing.Originator"
+	return "bs_beaconing_originator"
 }
 
 // Run originates core and downstream beacons.

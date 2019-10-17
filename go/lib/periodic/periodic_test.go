@@ -16,13 +16,13 @@ package periodic
 
 import (
 	"context"
-	"runtime"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type taskFunc func(context.Context)
@@ -32,97 +32,125 @@ func (tf taskFunc) Run(ctx context.Context) {
 }
 
 func (tf taskFunc) Name() string {
-	return "Test function"
+	return "test_task"
 }
-
-var _ (Ticker) = (*testTicker)(nil)
-
-type testTicker struct {
-	C <-chan time.Time
-}
-
-func (t *testTicker) Chan() <-chan time.Time {
-	return t.C
-}
-
-func (t *testTicker) Stop() {}
 
 func TestPeriodicExecution(t *testing.T) {
-	done := make(chan struct{})
-	cnt := 0
+	cnt := make(chan struct{})
 	fn := taskFunc(func(ctx context.Context) {
-		cnt++
-		done <- struct{}{}
+		cnt <- struct{}{}
 	})
-	tickC := make(chan time.Time)
-	ticker := &testTicker{C: tickC}
-	r := StartPeriodicTask(fn, ticker, time.Microsecond)
-	tickC <- time.Now()
-	xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
-	tickC <- time.Now()
-	xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
-	tickC <- time.Now()
-	xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
-	r.Stop()
-	assert.Equal(t, 3, cnt, "Must have executed 3 times")
+	want := 5
+	p := time.Duration(want) * time.Millisecond
+	r := Start(fn, p, time.Microsecond)
+	defer r.Stop()
+
+	start := time.Now()
+	done := make(chan struct{})
+	go func() {
+		v := 0
+		for {
+			select {
+			case <-cnt:
+				v++
+				if v == want {
+					close(done)
+					return
+				}
+			case <-time.After(2 * p):
+				t.Fatalf("time out while waiting on first run")
+			}
+		}
+	}()
+	<-done
+	end := time.Now()
+
+	assert.WithinDurationf(t, start, end, time.Duration(want+2)*p,
+		"more or less %d * periods", want+2)
 }
 
 func TestKillExitsLongRunningFunc(t *testing.T) {
-	errChan := make(chan error, 1)
+	cnt, errChan := make(chan struct{}), make(chan error, 1)
+	p := 10 * time.Millisecond
 	fn := taskFunc(func(ctx context.Context) {
-		// Simulate long work by blocking on the done channel.
-		xtest.AssertReadReturnsBefore(t, ctx.Done(), time.Second)
+		cnt <- struct{}{}
+		select { // Simulate long work by blocking on the done channel.
+		case <-ctx.Done():
+		case <-time.After(4 * p):
+			t.Fatalf("goroutine took too long to finish")
+		}
 		errChan <- ctx.Err()
 	})
-	tickC := make(chan time.Time)
-	ticker := &testTicker{C: tickC}
-	r := StartPeriodicTask(fn, ticker, time.Second)
-	// trigger the periodic method.
-	tickC <- time.Now()
-	r.Kill()
-	var err error
+	r := Start(fn, p, 2*p)
+
 	select {
-	case err = <-errChan:
-	case <-time.After(time.Second):
+	case <-cnt:
+	case <-time.After(3 * p):
+		t.Fatalf("time out while waiting on first run")
+	}
+
+	r.Kill()
+
+	select {
+	case err := <-errChan:
+		assert.Equal(t, context.Canceled, err, "Context should have been canceled")
+	case <-time.After(5 * p):
 		t.Fatalf("time out while waiting on err")
 	}
-	assert.Equal(t, context.Canceled, err, "Context should have been canceled")
 }
 
 func TestTaskDoesntRunAfterKill(t *testing.T) {
+	cnt := make(chan struct{}, 50)
 	fn := taskFunc(func(ctx context.Context) {
-		t.Fatalf("Should not have executed")
+		cnt <- struct{}{}
 	})
-	tickC := make(chan time.Time)
-	ticker := &testTicker{C: tickC}
-	// Try to make sure tick channel is full.
+	p := 10 * time.Millisecond
+	r := Start(fn, p, 2*p)
+
+	done := make(chan struct{})
 	go func() {
-		tickC <- time.Now()
+		select {
+		case <-cnt:
+		case <-time.After(2 * p):
+			t.Fatalf("time out while waiting on first run")
+		}
+		r.Kill()
+		time.Sleep(p)
+		close(done)
 	}()
-	runtime.Gosched()
-	// Now start the task and immediately kill it.
-	r := StartPeriodicTask(fn, ticker, time.Second)
-	r.Kill()
+	<-done
+	assert.Equal(t, len(cnt), 0, "No other run within a period")
 }
 
 func TestTriggerNow(t *testing.T) {
-	done := make(chan struct{})
-	cnt := 0
+	want := 10
+
+	cnt := make(chan struct{}, 50)
 	fn := taskFunc(func(ctx context.Context) {
-		cnt++
-		done <- struct{}{}
+		cnt <- struct{}{}
 	})
-	tickC := make(chan time.Time)
-	ticker := &testTicker{C: tickC}
-	r := StartPeriodicTask(fn, ticker, time.Microsecond)
-	r.TriggerRun()
-	xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
-	tickC <- time.Now()
-	xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
-	r.TriggerRun()
-	xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
-	r.Stop()
-	// check that a trigger after stop doesn't do anything.
-	r.TriggerRun()
-	assert.Equal(t, 3, cnt, "Must have executed 3 times")
+
+	p := 10 * time.Millisecond
+	r := Start(fn, p, 3*p)
+
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-cnt:
+		case <-time.After(2 * p):
+			t.Fatalf("time out while waiting on first run")
+		}
+		for i := 0; i < want; i++ {
+			r.TriggerRun()
+		}
+		close(done)
+	}()
+	<-done
+
+	assert.GreaterOrEqual(t, len(cnt), want-1, "Must run %v times within short time", want-1)
+}
+
+func TestMain(m *testing.M) {
+	log.Root().SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
 }

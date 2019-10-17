@@ -65,12 +65,12 @@ type Store interface {
 func NewBeaconCleaner(s Store) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredBeacons(ctx)
-	}, "beacons")
+	}, "bs_beacon")
 }
 
 // NewRevocationCleaner creates a cleaner task, which deletes expired revocations.
 func NewRevocationCleaner(s Store) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredRevocations(ctx)
-	}, "revocations")
+	}, "bs_revocation")
 }

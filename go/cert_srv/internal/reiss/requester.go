@@ -17,6 +17,7 @@ package reiss
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"time"
 
 	"golang.org/x/crypto/ed25519"
@@ -46,11 +47,12 @@ type Requester struct {
 	IA         addr.IA
 	LeafTime   time.Duration
 	CorePusher *periodic.Runner
+	Caller     string
 }
 
 // Name returns the tasks name.
 func (r *Requester) Name() string {
-	return "reiss.Requester"
+	return fmt.Sprintf("%s_reiss_requester", r.Caller)
 }
 
 // Run requests reissued certificate chains from the issuer AS.

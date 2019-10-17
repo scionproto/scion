@@ -16,6 +16,7 @@ package itopo
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/internal/metrics"
@@ -26,15 +27,17 @@ import (
 var _ periodic.Task = cleaner{}
 
 // StartCleaner starts a periodic task that removes expired dynamic topologies.
-func StartCleaner(tick, timeout time.Duration) *periodic.Runner {
-	return periodic.StartPeriodicTask(cleaner{}, periodic.NewTicker(tick), timeout)
+func StartCleaner(period, timeout time.Duration, caller string) *periodic.Runner {
+	return periodic.Start(cleaner{caller}, period, timeout)
 }
 
-type cleaner struct{}
+type cleaner struct {
+	caller string
+}
 
 // Name returns the tasks name.
 func (c cleaner) Name() string {
-	return "itopo.cleaner"
+	return fmt.Sprintf("%s_itopo_cleaner", c.caller)
 }
 
 // Run deletes expired dynamic topologies and calls the dropFunc passed to Init.

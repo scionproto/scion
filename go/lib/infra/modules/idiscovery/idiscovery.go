@@ -36,6 +36,7 @@ package idiscovery
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -102,7 +103,7 @@ type Runners struct {
 // StartRunners starts the runners for the specified configuration. In case the topo handler
 // function is not set, StartRunners defaults to setting the topology in itopo.
 func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
-	client *http.Client) (Runners, error) {
+	client *http.Client, caller string) (Runners, error) {
 
 	cfg.InitDefaults()
 	var err error
@@ -118,6 +119,7 @@ func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 			},
 			cfg.Static.Filename,
 			client,
+			caller,
 		)
 		if err != nil {
 			return Runners{}, err
@@ -134,12 +136,13 @@ func StartRunners(cfg Config, file discovery.File, handlers TopoHandlers,
 			},
 			"",
 			client,
+			caller,
 		)
 		if err != nil {
 			r.Kill()
 			return Runners{}, err
 		}
-		r.Cleaner = itopo.StartCleaner(1*time.Second, 1*time.Second)
+		r.Cleaner = itopo.StartCleaner(1*time.Second, 1*time.Second, caller)
 		log.Info("[idiscovery] Started dynamic topology fetcher")
 	}
 	return r, nil
@@ -190,7 +193,7 @@ func (r *Runner) Kill() {
 // If during the InitialPeriod no topology is successfully fetched, the process takes
 // the configured FailAction.
 func startPeriodicFetcher(cfg FetchConfig, handler TopoHandler, params discovery.FetchParams,
-	filename string, client *http.Client) (*Runner, error) {
+	filename string, client *http.Client, caller string) (*Runner, error) {
 
 	fatal.Check()
 	r := &Runner{
@@ -200,7 +203,7 @@ func startPeriodicFetcher(cfg FetchConfig, handler TopoHandler, params discovery
 			c: make(chan struct{}),
 		},
 	}
-	fetcher, err := NewFetcher(r.handler, params, filename, client)
+	fetcher, err := NewFetcher(r.handler, params, filename, client, caller)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +257,7 @@ func (r *Runner) startRegularFetcher(fetcher *task, cfg FetchConfig) {
 	if r.stopping {
 		return
 	}
-	r.fetcher = periodic.StartPeriodicTask(fetcher, periodic.NewTicker(cfg.Interval.Duration),
+	r.fetcher = periodic.Start(fetcher, cfg.Interval.Duration,
 		cfg.Timeout.Duration)
 }
 
@@ -285,13 +288,14 @@ type task struct {
 	handler  TopoHandler
 	fetcher  *topofetcher.Fetcher
 	filename string
+	caller   string
 }
 
 // NewFetcher creates a periodic.Task that fetches the topology from the discovery
 // service and calls the provided handler on the received topology. If the handler
 // indicates an update, and filename is set, the topology is written.
 func NewFetcher(handler TopoHandler, params discovery.FetchParams,
-	filename string, client *http.Client) (*task, error) {
+	filename string, client *http.Client, caller string) (*task, error) {
 
 	if handler == nil {
 		return nil, serrors.New("handler must not be nil")
@@ -300,6 +304,7 @@ func NewFetcher(handler TopoHandler, params discovery.FetchParams,
 		mode:     params.Mode,
 		handler:  handler,
 		filename: filename,
+		caller:   caller,
 	}
 	var err error
 	t.fetcher, err = topofetcher.New(
@@ -310,6 +315,7 @@ func NewFetcher(handler TopoHandler, params discovery.FetchParams,
 			Raw:   t.handleRaw,
 		},
 		client,
+		caller,
 	)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to initialize fetcher", err)
@@ -318,7 +324,7 @@ func NewFetcher(handler TopoHandler, params discovery.FetchParams,
 }
 
 func (t *task) Name() string {
-	return "discovery"
+	return fmt.Sprintf("%s_discovery_fetcher_%v", t.caller, t.mode)
 }
 
 func (t *task) Run(ctx context.Context) {
