@@ -109,7 +109,7 @@ func TestCases(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			info := &hpsegreq.GroupInfo{}
-			info.LocalRegistry = regLocal
+			info.LocalIA = regLocal
 			info.Groups = buildGroups(t, test.groups)
 			mapping, err := info.GetRegistryMapping(hiddenpath.GroupIdsToSet(test.ids...))
 			require.NoError(t, err)

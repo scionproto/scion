@@ -23,9 +23,10 @@ import (
 // GroupInfo holds all information about hidden path groups needed by the HPS
 // throughout its life cycle
 type GroupInfo struct {
-	// IA of a HPS
-	// In case a group contains this IA as Registry, the request can be resolved locally
-	LocalRegistry addr.IA
+	// LocalIA is the local IA of the HPS.
+	// In case a group contains this IA as Registry,
+	// requests for that group can be resolved locally.
+	LocalIA addr.IA
 	// Groups contains all the groups known to a HPS
 	Groups map[hiddenpath.GroupId]*hiddenpath.Group
 }
@@ -45,8 +46,8 @@ func (gi *GroupInfo) GetRegistryMapping(ids hiddenpath.GroupIdSet) (
 	mapping := map[addr.IA][]hiddenpath.GroupId{}
 	for id := range ids {
 		group := gi.Groups[id]
-		if group.HasRegistry(gi.LocalRegistry) {
-			mapping[gi.LocalRegistry] = append(mapping[gi.LocalRegistry], id)
+		if group.HasRegistry(gi.LocalIA) {
+			mapping[gi.LocalIA] = append(mapping[gi.LocalIA], id)
 		} else {
 			groups = append(groups, group)
 		}

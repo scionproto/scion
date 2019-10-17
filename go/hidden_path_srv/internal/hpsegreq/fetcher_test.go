@@ -335,7 +335,7 @@ func TestFetcher(t *testing.T) {
 			ctrl := gomock.NewController(&xtest.PanickingReporter{T: t})
 			defer ctrl.Finish()
 			groupInfo := &hpsegreq.GroupInfo{
-				LocalRegistry: ia110,
+				LocalIA: ia110,
 				Groups: map[hiddenpath.GroupId]*hiddenpath.Group{
 					group1.Id: group1,
 					group2.Id: group2,

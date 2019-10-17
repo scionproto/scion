@@ -82,7 +82,7 @@ func (f *DefaultFetcher) Fetch(ctx context.Context,
 	endsAt := req.RawDstIA.IA()
 	replyChan := make(chan []*path_mgmt.HPSegRecs, len(mapping))
 	for hps, ids := range mapping {
-		if hps.Equal(f.groupInfo.LocalRegistry) {
+		if hps.Equal(f.groupInfo.LocalIA) {
 			go func(ids []hiddenpath.GroupId) {
 				defer log.LogPanicAndExit()
 				f.fetchDB(ctx, ids, endsAt, replyChan)
