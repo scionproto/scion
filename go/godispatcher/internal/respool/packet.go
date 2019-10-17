@@ -99,11 +99,15 @@ func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 		return err
 	}
 	pkt.buffer = pkt.buffer[:n]
-	metrics.IncomingBytesTotal.Add(float64(n))
+	metrics.M.NetReadBytes().Add(float64(n))
 
 	pkt.OverlayRemote = readExtra.(*net.UDPAddr)
 	if err = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
-		metrics.IncomingPackets.WithLabelValues(metrics.PacketOutcomeParseError).Inc()
+		metrics.M.NetReadPkts(
+			metrics.IncomingPacket{
+				Outcome: metrics.PacketOutcomeParseError,
+			},
+		).Inc()
 		return err
 	}
 	return nil

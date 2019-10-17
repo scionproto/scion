@@ -105,7 +105,8 @@ const (
 )
 
 var typeNameMap = map[Class][]string{
-	C_General: {"UNSPECIFIED", "ECHO_REQEST", "ECHO_REPLY"},
+	C_General: {"UNSPECIFIED", "ECHO_REQUEST", "ECHO_REPLY", "TRACE_ROUTE_REQUEST",
+		"TRACE_ROUTE_REPLY", "RECORD_PATH_REQUEST", "RECORD_PATH_REPLY"},
 	C_Routing: {"UNREACH_NET", "UNREACH_HOST", "L2_ERROR", "UNREACH_PROTO",
 		"UNREACH_PORT", "UNKNOWN_HOST", "BAD_HOST", "OVERSIZE_PKT", "ADMIN_DENIED"},
 	C_CmnHdr: {"BAD_VERSION", "BAD_DST_TYPE", "BAD_SRC_TYPE",
@@ -120,10 +121,10 @@ var typeNameMap = map[Class][]string{
 
 func (t Type) Name(c Class) string {
 	names, ok := typeNameMap[c]
-	if !ok || int(t) > len(names) {
-		return fmt.Sprintf("Type(%d)", t)
+	if ok && int(t) < len(names) {
+		return fmt.Sprintf("%s(%d)", names[t], t)
 	}
-	return fmt.Sprintf("%s(%d)", names[t], t)
+	return fmt.Sprintf("Type(%d)", t)
 }
 
 type ClassType struct {

@@ -97,12 +97,13 @@ func (h *AppConnHandler) Handle() {
 
 	ref, tableEntry, useIPv6, err := h.doRegExchange()
 	if err != nil {
+		metrics.M.AppConnErrors().Inc()
 		h.Logger.Warn("registration error", "err", err)
 		return
 	}
 	defer ref.Free()
-	metrics.OpenSockets.WithLabelValues(metrics.GetOpenConnectionLabel(ref.SVCAddr())).Inc()
-	defer metrics.OpenSockets.WithLabelValues(metrics.GetOpenConnectionLabel(ref.SVCAddr())).Dec()
+	metrics.M.OpenSockets(metrics.SVC{Type: ref.SVCAddr().String()}).Inc()
+	defer metrics.M.OpenSockets(metrics.SVC{Type: ref.SVCAddr().String()}).Dec()
 
 	defer tableEntry.appIngressRing.Close()
 	go func() {
@@ -221,17 +222,27 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.RegReference,
 
 		n, err := pkt.SendOnConn(ovConn, pkt.OverlayRemote)
 		if err != nil {
+			metrics.M.NetWriteErrors().Inc()
 			h.Logger.Error("[app->network] Overlay socket error", "err", err)
 		} else {
-			metrics.OutgoingBytesTotal.Add(float64(n))
-			metrics.OutgoingPacketsTotal.Inc()
+			metrics.M.NetWriteBytes().Add(float64(n))
+			metrics.M.NetWritePkts().Inc()
 		}
 		pkt.Free()
 	}
 }
 
+// registerIfSCMPRequest registers the ID of the SCMP Request, if it is an
+// SCMP::General::EchoRequest, SCMP::General::TraceRouteRequest or SCMP::General::RecordPathRequest
+// packet. It also increments SCMP-related metrics.
 func registerIfSCMPRequest(ref registration.RegReference, packet *spkt.ScnPkt) error {
 	if scmpHdr, ok := packet.L4.(*scmp.Hdr); ok {
+		metrics.M.SCMPWritePkts(
+			metrics.SCMP{
+				Class: scmpHdr.Class.String(),
+				Type:  scmpHdr.Type.Name(scmpHdr.Class),
+			},
+		).Inc()
 		if !isSCMPGeneralRequest(scmpHdr) {
 			return nil
 		}

@@ -65,10 +65,12 @@ func (dp *NetToRingDataplane) Run() error {
 		dst, err := ComputeDestination(&pkt.Info)
 		if err != nil {
 			log.Warn("unable to route packet", "err", err)
-			metrics.IncomingPackets.WithLabelValues(metrics.PacketOutcomeRouteNotFound).Inc()
+			metrics.M.NetReadPkts(
+				metrics.IncomingPacket{Outcome: metrics.PacketOutcomeRouteNotFound},
+			).Inc()
 			continue
 		}
-		metrics.IncomingPackets.WithLabelValues(metrics.PacketOutcomeOk).Inc()
+		metrics.M.NetReadPkts(metrics.IncomingPacket{Outcome: metrics.PacketOutcomeOk}).Inc()
 		dst.Send(dp, pkt)
 	}
 }
@@ -96,7 +98,15 @@ func ComputeUDPDestination(packet *spkt.ScnPkt, header *l4.UDP) (Destination, er
 	}
 }
 
+// ComputeSCMPDestination decides which application to send the SCMP packet to. It also increments
+// SCMP-related metrics.
 func ComputeSCMPDestination(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
+	metrics.M.SCMPReadPkts(
+		metrics.SCMP{
+			Class: header.Class.String(),
+			Type:  header.Type.Name(header.Class),
+		},
+	).Inc()
 	if packet.DstHost.Type() != addr.HostTypeIPv4 && packet.DstHost.Type() != addr.HostTypeIPv6 {
 		return nil, common.NewBasicError(ErrUnsupportedSCMPDestination, nil,
 			"type", packet.DstHost.Type())
@@ -159,6 +169,7 @@ type UDPDestination net.UDPAddr
 func (d *UDPDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	routingEntry, ok := dp.RoutingTable.LookupPublic(pkt.Info.DstIA, (*net.UDPAddr)(d))
 	if !ok {
+		metrics.M.AppNotFoundErrors().Inc()
 		log.Warn("destination address not found", "ia", pkt.Info.DstIA,
 			"udpAddr", (*net.UDPAddr)(d))
 		return
@@ -175,6 +186,7 @@ func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	// information found in the overlay IP header.
 	routingEntries := dp.RoutingTable.LookupService(pkt.Info.DstIA, addr.HostSVC(d), nil)
 	if len(routingEntries) == 0 {
+		metrics.M.AppNotFoundErrors().Inc()
 		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "svc", addr.HostSVC(d))
 		return
 	}
@@ -183,6 +195,7 @@ func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 		pkt.Dup()
 	}
 	for _, routingEntry := range routingEntries {
+		metrics.M.AppWriteSVCPkts(metrics.SVC{Type: addr.HostSVC(d).String()}).Inc()
 		sendPacket(routingEntry, pkt)
 	}
 }
@@ -196,6 +209,7 @@ type SCMPAppDestination struct {
 func (d *SCMPAppDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	routingEntry, ok := dp.RoutingTable.LookupID(pkt.Info.DstIA, d.ID)
 	if !ok {
+		metrics.M.AppNotFoundErrors().Inc()
 		log.Warn("destination address not found", "SCMP", d.ID)
 		return
 	}
@@ -229,6 +243,17 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 	if err != nil {
 		log.Warn("Unable to create reply SCMP packet", "err", err)
 		return
+	}
+
+	if scmpHdr, ok := pkt.Info.L4.(*scmp.Hdr); ok {
+		// above ok should always be true, because this handler only gets invoked when
+		// replying to SCMP packets
+		metrics.M.SCMPWritePkts(
+			metrics.SCMP{
+				Class: scmpHdr.Class.String(),
+				Type:  scmpHdr.Type.Name(scmpHdr.Class),
+			},
+		).Inc()
 	}
 
 	_, err = dp.OverlayConn.WriteTo(b[:n], pkt.OverlayRemote)
