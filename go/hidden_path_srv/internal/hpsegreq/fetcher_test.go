@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -94,38 +95,37 @@ var wrongId = hiddenpath.GroupId{
 }
 
 var (
-	seg110_133 *seg.Meta
-	seg120_121 *seg.Meta
-	seg110_120 *seg.Meta
+	seg110_130_112     *seg.Meta
+	seg110_130_111_112 *seg.Meta
+	seg110_120_111_112 *seg.Meta
 )
 
 func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 	t.Helper()
 	g := graph.NewDefaultGraph(ctrl)
-	// hidden down
-	seg110_133 = seg.NewMeta(
+	seg110_130_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_110_X_130_A,
-			graph.If_130_A_131_X,
-			graph.If_131_X_132_X,
-			graph.If_132_X_133_X,
+			graph.If_130_A_112_X,
 		}),
 		proto.PathSegType_down,
-	)
-	// hidden up
-	seg120_121 = seg.NewMeta(
+	))
+	seg110_130_111_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
-			graph.If_120_B_121_X,
+			graph.If_110_X_130_A,
+			graph.If_130_B_111_A,
+			graph.If_111_A_112_X,
 		}),
 		proto.PathSegType_up,
-	)
-	// core seg type
-	seg110_120 = seg.NewMeta(
+	))
+	seg110_120_111_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_110_X_120_A,
+			graph.If_120_X_111_B,
+			graph.If_111_A_112_X,
 		}),
 		proto.PathSegType_core,
-	)
+	))
 }
 
 func TestFetcher(t *testing.T) {
@@ -147,13 +147,13 @@ func TestFetcher(t *testing.T) {
 				{
 					GroupId: group1.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_120,
+						seg110_130_112,
 					},
 				},
 			},
 			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
 				res := query.Results{
-					&query.Result{Seg: seg110_120.Segment, Type: seg110_120.Type},
+					&query.Result{Seg: seg110_130_112.Segment, Type: seg110_130_112.Type},
 				}
 				mockDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return(res, nil)
 			},
@@ -168,7 +168,7 @@ func TestFetcher(t *testing.T) {
 				{
 					GroupId: group2.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_120,
+						seg110_130_111_112,
 					},
 				},
 			},
@@ -178,7 +178,7 @@ func TestFetcher(t *testing.T) {
 						{
 							GroupId: group2.Id.ToMsg(),
 							Recs: []*seg.Meta{
-								seg110_120,
+								seg110_130_111_112,
 							},
 						},
 					},
@@ -198,26 +198,26 @@ func TestFetcher(t *testing.T) {
 				{
 					GroupId: group1.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_120,
+						seg110_130_112,
 					},
 				},
 				{
 					GroupId: group2.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_133,
+						seg110_130_111_112,
 					},
 				},
 			},
 			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
 				res := query.Results{
-					&query.Result{Seg: seg110_120.Segment, Type: seg110_120.Type},
+					&query.Result{Seg: seg110_130_112.Segment, Type: seg110_130_112.Type},
 				}
 				reply := &path_mgmt.HPSegReply{
 					Recs: []*path_mgmt.HPSegRecs{
 						{
 							GroupId: group2.Id.ToMsg(),
 							Recs: []*seg.Meta{
-								seg110_133,
+								seg110_130_111_112,
 							},
 						},
 					},
@@ -238,13 +238,13 @@ func TestFetcher(t *testing.T) {
 				{
 					GroupId: group2.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_133,
+						seg110_130_111_112,
 					},
 				},
 				{
 					GroupId: group3.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_120,
+						seg110_120_111_112,
 					},
 				},
 			},
@@ -254,7 +254,7 @@ func TestFetcher(t *testing.T) {
 						{
 							GroupId: group2.Id.ToMsg(),
 							Recs: []*seg.Meta{
-								seg110_133,
+								seg110_130_111_112,
 							},
 						},
 					},
@@ -264,7 +264,7 @@ func TestFetcher(t *testing.T) {
 						{
 							GroupId: group3.Id.ToMsg(),
 							Recs: []*seg.Meta{
-								seg110_120,
+								seg110_120_111_112,
 							},
 						},
 					},
@@ -332,7 +332,7 @@ func TestFetcher(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctrl, ctx := gomock.WithContext(context.Background(), t)
+			ctrl := gomock.NewController(&xtest.PanickingReporter{T: t})
 			defer ctrl.Finish()
 			groupInfo := &hpsegreq.GroupInfo{
 				LocalRegistry: ia110,
@@ -346,7 +346,7 @@ func TestFetcher(t *testing.T) {
 			mockMsgr := mock_infra.NewMockMessenger(ctrl)
 			f := hpsegreq.NewDefaultFetcher(groupInfo, mockMsgr, adapter.New(mockDB))
 			test.setup(mockDB, mockMsgr)
-			recs, err := callWrapper(ctx, f, test.req, test.peer)
+			recs, err := f.Fetch(context.Background(), test.req, test.peer)
 			if test.err == nil {
 				require.NoError(t, err)
 				assert.ElementsMatch(t, test.res, recs)
@@ -357,22 +357,19 @@ func TestFetcher(t *testing.T) {
 	}
 }
 
-// wrapper for Fetcher.Fetch such that errors in goroutines fail the test
-func callWrapper(ctx context.Context, f hpsegreq.Fetcher, req *path_mgmt.HPSegReq,
-	peer *snet.Addr) ([]*path_mgmt.HPSegRecs, error) {
-
-	var err error
-	var recs []*path_mgmt.HPSegRecs
-	success := make(chan struct{})
-	go func() {
-		recs, err = f.Fetch(context.Background(), req, peer)
-		success <- struct{}{}
-	}()
-
-	select {
-	case <-success:
-		return recs, err
-	case <-ctx.Done():
-		return nil, ctx.Err()
+func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
+	t.Helper()
+	s := m.Segment
+	infoF, err := s.SData.InfoF()
+	require.NoError(t, err)
+	newSeg, err := seg.NewSeg(infoF)
+	require.NoError(t, err)
+	if s.MaxAEIdx() < 0 {
+		panic("Segment has no AS entries")
 	}
+	s.ASEntries[s.MaxAEIdx()].Exts.HiddenPathSeg = seg.NewHiddenPathSegExtn()
+	for _, entry := range s.ASEntries {
+		newSeg.AddASEntry(entry, infra.NullSigner)
+	}
+	return seg.NewMeta(newSeg, m.Type)
 }

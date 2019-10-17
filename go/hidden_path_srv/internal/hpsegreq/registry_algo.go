@@ -23,8 +23,11 @@ import (
 // GroupInfo holds all information about hidden path groups needed by the HPS
 // throughout its life cycle
 type GroupInfo struct {
+	// IA of a HPS
+	// In case a group contains this IA as Registry, the request can be resolved locally
 	LocalRegistry addr.IA
-	Groups        map[hiddenpath.GroupId]*hiddenpath.Group
+	// Groups contains all the groups known to a HPS
+	Groups map[hiddenpath.GroupId]*hiddenpath.Group
 }
 
 // GetRegistryMapping uses a greedy algorithm to approximate an optimal mapping
