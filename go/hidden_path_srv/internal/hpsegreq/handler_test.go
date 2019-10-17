@@ -56,7 +56,7 @@ func TestSegReq(t *testing.T) {
 				{
 					GroupId: group1.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_130_112,
+						seg130_112,
 					},
 				},
 			}

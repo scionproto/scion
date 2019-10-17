@@ -95,32 +95,29 @@ var wrongId = hiddenpath.GroupId{
 }
 
 var (
-	seg110_130_112     *seg.Meta
-	seg110_130_111_112 *seg.Meta
-	seg110_120_111_112 *seg.Meta
+	seg130_112     *seg.Meta
+	seg130_111_112 *seg.Meta
+	seg120_111_112 *seg.Meta
 )
 
 func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 	t.Helper()
 	g := graph.NewDefaultGraph(ctrl)
-	seg110_130_112 = markHidden(t, seg.NewMeta(
+	seg130_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
-			graph.If_110_X_130_A,
 			graph.If_130_A_112_X,
 		}),
 		proto.PathSegType_down,
 	))
-	seg110_130_111_112 = markHidden(t, seg.NewMeta(
+	seg130_111_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
-			graph.If_110_X_130_A,
 			graph.If_130_B_111_A,
 			graph.If_111_A_112_X,
 		}),
 		proto.PathSegType_up,
 	))
-	seg110_120_111_112 = markHidden(t, seg.NewMeta(
+	seg120_111_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
-			graph.If_110_X_120_A,
 			graph.If_120_X_111_B,
 			graph.If_111_A_112_X,
 		}),
@@ -147,13 +144,13 @@ func TestFetcher(t *testing.T) {
 				{
 					GroupId: group1.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_130_112,
+						seg130_112,
 					},
 				},
 			},
 			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
 				res := query.Results{
-					&query.Result{Seg: seg110_130_112.Segment, Type: seg110_130_112.Type},
+					&query.Result{Seg: seg130_112.Segment, Type: seg130_112.Type},
 				}
 				mockDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return(res, nil)
 			},
@@ -168,7 +165,7 @@ func TestFetcher(t *testing.T) {
 				{
 					GroupId: group2.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_130_111_112,
+						seg130_111_112,
 					},
 				},
 			},
@@ -178,7 +175,7 @@ func TestFetcher(t *testing.T) {
 						{
 							GroupId: group2.Id.ToMsg(),
 							Recs: []*seg.Meta{
-								seg110_130_111_112,
+								seg130_111_112,
 							},
 						},
 					},
@@ -198,26 +195,26 @@ func TestFetcher(t *testing.T) {
 				{
 					GroupId: group1.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_130_112,
+						seg130_112,
 					},
 				},
 				{
 					GroupId: group2.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_130_111_112,
+						seg130_111_112,
 					},
 				},
 			},
 			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
 				res := query.Results{
-					&query.Result{Seg: seg110_130_112.Segment, Type: seg110_130_112.Type},
+					&query.Result{Seg: seg130_112.Segment, Type: seg130_112.Type},
 				}
 				reply := &path_mgmt.HPSegReply{
 					Recs: []*path_mgmt.HPSegRecs{
 						{
 							GroupId: group2.Id.ToMsg(),
 							Recs: []*seg.Meta{
-								seg110_130_111_112,
+								seg130_111_112,
 							},
 						},
 					},
@@ -238,13 +235,13 @@ func TestFetcher(t *testing.T) {
 				{
 					GroupId: group2.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_130_111_112,
+						seg130_111_112,
 					},
 				},
 				{
 					GroupId: group3.Id.ToMsg(),
 					Recs: []*seg.Meta{
-						seg110_120_111_112,
+						seg120_111_112,
 					},
 				},
 			},
@@ -254,7 +251,7 @@ func TestFetcher(t *testing.T) {
 						{
 							GroupId: group2.Id.ToMsg(),
 							Recs: []*seg.Meta{
-								seg110_130_111_112,
+								seg130_111_112,
 							},
 						},
 					},
@@ -264,7 +261,7 @@ func TestFetcher(t *testing.T) {
 						{
 							GroupId: group3.Id.ToMsg(),
 							Recs: []*seg.Meta{
-								seg110_120_111_112,
+								seg120_111_112,
 							},
 						},
 					},
