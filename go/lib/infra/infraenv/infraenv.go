@@ -123,7 +123,7 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 			return nil, err
 		}
 	}
-	msger := messenger.NewMessengerWithMetrics(msgerCfg)
+	msger := messenger.New(msgerCfg)
 	nc.TrustStore.SetMessenger(msger)
 	return msger, nil
 
