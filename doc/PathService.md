@@ -2,28 +2,28 @@
 
 ## Request Handlers
 
-The path service needs to handle multiple requests. We use the messenger to register request
+The path server (PS) needs to handle multiple requests. We use the messenger to register request
 handlers. The following requests need to be handled:
 
-* __TRCRequest:__ Use handler of existing truststore.
-* __ChainRequest:__ Use handler of existing truststore.
-* __Path registration:__ A handler for the existing Path Registration request should be implemented.
-* __Path requests:__ A handler for the existing SegReq should be implemented.
-* __Path Revocation:__ A handler for the existing Path revocation message should be implemented.
-* __Path synchronization:__ Currently the python path server uses a push model. A PS that receives a
-  down segment propagates this to the other PSes in the ISD-core. To support a smooth migration path
+* __TRC Request:__ Use handler of existing truststore.
+* __Chain Request:__ Use handler of existing truststore.
+* __Path Registration:__ A handler for the existing path-registration request should be implemented.
+* __Path Requests:__ A handler for the existing `SegReq` should be implemented.
+* __Path Revocation:__ A handler for the existing path-revocation message should be implemented.
+* __Path Synchronization:__ Currently. the python PS uses a push model. A PS that receives a
+  down-segment propagates this to the other PSes in the ISD core. To support a smooth migration path
   we should also implement this in the go PS. Note that we should add a flag to disable this (for CI
   builds and for a future go-only env)
-* __Path changes since:__ Used for the new replication of down segments. The service should return
+* __Path Changes Since:__ Used for the new replication of down-segments. The service should return
   all the ids of changed segments since a certain point in time. The requesting PS can then request
   the affected segments. The python server will not support this mechanism but we will receive the
   old path sync message from it, so this is not a big problem.
 
-## Replication of down segments
+## Replication of Down-Segments
 
-In the ISD-core the ASes must have the same set of down segments. A core PS in an AS should
+In the ISD-core the ASes must have the same set of down-segments. A core PS in an AS should
 periodically request path changes (since last query) at the PSes in all other core ASes. Once the PS
-knows what changed, it should fetch the locally missing down segments.
+knows what changed, it should fetch the locally missing down-segments.
 
 Message Types:
 
@@ -56,17 +56,17 @@ contain the `ID` since it could be that the `FullID` has changed between the `Se
 the `SegChangesReq`. If a `SegChangesReq` for an unknown `ID` is received an empty reply has to be
 sent back. The client can assume that this segment no longer exists.
 
-## Deletion of expired path segments and revocations
+## Deletion of Expired Path Segments and Revocations
 
 The PS should periodically delete expired path segments and revocations in its DB.
 
-## Path lookup
+## Path Lookup
 
-### Logic flow
+### Logic Flow
 
 Local means in the same ISD as the current PS, remote means in a different ISD.
 
-#### Common logic
+#### Common Logic
 
 * Receive path request R of type SegReq
 * For non-core PS: Check source (R.RawSrcIA): must either be unset, or set to the local IA otherwise
@@ -84,18 +84,18 @@ Local means in the same ISD as the current PS, remote means in a different ISD.
 #### Non-core PS
 
 * If Dst == Core-AS:
-    * For each local core-AS x, for which an up segment exists && isNot(dst):
+    * For each local core-AS x, for which an up-segment exists && isNot(dst):
         * GetCached(coreSeg{dst->x}, x)
-    * Return up-segments, which have a connecting core segment or which end in dst, and the core
-        segments.
+    * Return up-segments, which have a connecting core-segment or which end in dst, and the
+        core-segments.
 * Else // Dst == Non-Core-AS:
     * GetCached(downSeg{*->dst}, any local cPS)
-    * Filter down segments, remove revoked ones.
-    * For each core AS x, that is at the start of a down segment:
-        * For each local core AS y, for which an up segment exists && x != y:
+    * Filter down-segments, remove revoked ones.
+    * For each core AS x, that is at the start of a down-segment:
+        * For each local core AS y, for which an up-segment exists && x != y:
           GetCached(coreSeg{x->y}, y)
-    * Filter down segments, only keep reachable ones
-    * Return the down, core, and up segments.
+    * Filter down-segments, only keep reachable ones
+    * Return the down, core, and up-segments.
 
 #### Core PS
 
@@ -105,23 +105,23 @@ Local means in the same ISD as the current PS, remote means in a different ISD.
     * Else
         * If request from different AS: return downSeg{*->dst} (from DB)
         * Else return downSeg{*->dst} (from DB) and for each core AS x, that is at the start of a
-          down segment return the coreSegs{x->self}
+          down-segment return the coreSegs{x->self}
 * If destination is remote:
     * If Dest is ISD-0 return any coreSeg{ISD-*->self}
     * Else if Dest is core AS: return coreSeg{dst->self}
     * Else
         * If request from different AS: return GetCached(downSeg{*->dst}, any cPS in DestISD)
         * Else return GetCached(downSeg{*->dst}, any cPS in DestISD) and for each core AS x, that is
-          at the start of a down segment return the coreSegs{x->self}
+          at the start of a down-segment return the coreSegs{x->self}
 
-### Cache refresh interval
+### Cache Refresh Interval
 
 If there are paths available for a certain destination an interval of, e.g. 5 min would be fine.
 However if no paths are available we should retry more frequently, e.g. each second (maybe with
 back-off). Also if there are less that k paths available in the cache we should also query the PS
 again sooner than if enough paths are available.
 
-### DoS / High load Prevention
+### DoS / High-Load Prevention
 
 A client could request paths to random (non-existing) ASes and with this put a lot of load on the
 Path Service Infra. To prevent this we need caching of which ASes exist.
@@ -146,13 +146,13 @@ policy might impose a strong limitation on the expressionism of a policy.
 
 Revocations can come from inside the ISD in form of a CtrlPld.PathMgmt.SRevInfo from the border
 router, beacon service, or from the PS, or from anywhere in the form of an SCMP revocation, or if a
-core PS requests down segments of a core PS in another ISD the response should contain the relevant
+core PS requests down-segments of a core PS in another ISD the response should contain the relevant
 revocations.
 
 Note that, differing from the book, a revocation should no longer result in the deletion of a path
 segment. Instead we only filter when using path segments.
 
-### Logic flow
+### Logic Flow
 
 * Receive revocation R
 * If R is a CtrlPld.PathMgmt.SRevInfo && source is not in same ISD
@@ -166,6 +166,6 @@ segment. Instead we only filter when using path segments.
     * If revoked interface belongs to this AS OR Revocation is from a BR and it originated from a
       different ISD
         * Inform all other core ASes.
-    * Note that if a cPS queries a cPS of another ISD for down segments it should also get the
+    * Note that if a cPS queries a cPS of another ISD for down-segments it should also get the
       relevant revocations for the segments. These revocations do not need to be forwarded to other
       cPSes.

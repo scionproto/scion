@@ -70,7 +70,7 @@ var (
 	intfs *ifstate.Interfaces
 	tasks *periodicTasks
 
-	helpPoliciy bool
+	helpPolicy bool
 )
 
 func init() {
@@ -84,7 +84,7 @@ func main() {
 func realMain() int {
 	fatal.Init()
 	env.AddFlags()
-	flag.BoolVar(&helpPoliciy, "help-policy", false, "Output sample policy file.")
+	flag.BoolVar(&helpPolicy, "help-policy", false, "Output sample policy file.")
 	flag.Parse()
 	if v, ok := checkFlags(&cfg); !ok {
 		return v
@@ -625,7 +625,7 @@ func loadPolicy(fn string, t beacon.PolicyType) (beacon.Policy, error) {
 }
 
 func checkFlags(cfg *config.Config) (int, bool) {
-	if helpPoliciy {
+	if helpPolicy {
 		var sample beacon.Policy
 		sample.InitDefaults()
 		raw, err := yaml.Marshal(sample)
