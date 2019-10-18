@@ -12,13 +12,14 @@ infrastructure.
 The DRKey protocol enables routers and end hosts to derive symmetric
 cryptographic keys on-the-fly from a single local secret.
 
-DRKey is used for:
+DRKey is used for the following systems:
 
 - SCMP
 - SIBRA / COLIBRI
 - Security Extension
 - PISKES
 - OPT
+- EPIC
 
 ## Notation
 
@@ -73,14 +74,14 @@ whereas a slower key fetch is required by a client to a local certificate server
 K_{A→B}^{p}    K_{A→B:H_B}^{p}    K_{A:H_A→B:H_B}^{p}   (2nd level)
 ```
 
-#### 0th-level
+#### 0th Level
 
 On the zeroth level of the hierarchy, each AS A randomly generates a local and
 AS-specific secret value SV\_A. The secret value represents the per-AS basis of
 the hierarchy and is renewed frequently. This is not shared with any entity outside
 the AS.
 
-#### 1st-level
+#### 1st Level
 
 Given the AS-specific secret value, an AS can derive pairwise symmetric keys
 destined for other ASes from this secret value. These derived keys form the
@@ -94,7 +95,7 @@ K_{A→B} = PRF_{SV_A} (B)
 where SV\_A is the AS-specific secret value from the zeroth level of the key
 hierarchy.
 
-#### 2nd-level
+#### 2nd Level
 
 Using the symmetric keys of the first level of the hierarchy, second-level keys
 are derived to provide symmetric keys to hosts within the same AS. Second-level
@@ -241,7 +242,7 @@ Request: { 1, req.ID, prot, A, B, ⊥, H_B, ⊥ }
 Request: { 2, req.ID, prot, A, B, H_A , H_B, ⊥ }
 ```
 
-### Second-level Key Derivation
+### Second-Level Key Derivation
 
 The key derivation for second-level keys can be defined by each protocol. By
 default, the DRKey infrastructure offers two key derivation procedures. For
@@ -350,7 +351,7 @@ As a key derivation function we will use AES-CMAC as a single block operation,
 which can be performed in less than 100 cycles on a modern CPU. The input to
 the key derivation function looks as follows:
 
-#### 0th-level
+#### 0th Level
 
 As secret values are directly derived from an AS-specific secret, we need to use
 a secure password-based key derivation function. We use `PBKDF2` with at least
@@ -364,7 +365,7 @@ secret      []byte
 date        []byte
 ```
 
-#### 1st-level
+#### 1st Level
 
 Key input:
 
@@ -378,7 +379,7 @@ Data input:
 DstIA       uint64
 ```
 
-#### 2nd-level (default)
+#### 2nd Level (Default)
 
 Key input:
 
@@ -414,7 +415,7 @@ DstHost     []byte
 The input size of the PRF depends on the address type that is used to
 address end hosts.
 
-#### 2nd-level (with intermediate step)
+#### 2nd Level (with Intermediate Step)
 
 Key input:
 
@@ -441,7 +442,9 @@ SrcHost     []byte
 DstHost     []byte
 ```
 
-### First Level Key Exchange
+### Key Exchange
+
+#### First Level
 
 For the first-level key exchange between CS, we can use SignedCtrlPld. Thus,
 the request ID, timestamp, signature, certificate and TRC version do not need
@@ -466,7 +469,7 @@ DRKeyLvl1Rep {
 }
 ```
 
-### Second Level Key Exchange
+#### Second Level
 
 The second level key response will also be transmitted with SignedCtrlPld.
 
@@ -521,7 +524,7 @@ Key selection in DRKey is based on which entity requires fast key derivation
 we discuss an example usages of DRKey where key derivation is performed on border
 routers (BR).
 
-### Key derivation by AS infrastructure
+### Key Derivation by AS Infrastructure
 
 In the case where key derivation is performed by BRs (e.g., SCMP), the BR must be
 able to directly derive the key without requiring to fetch an additional key.

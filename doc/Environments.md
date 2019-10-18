@@ -1,28 +1,28 @@
 # SCION Environments
 
-There are different ways SCION services can be run. The different enviroments are
+There are different ways SCION services can be run. The different environments are
 
-- development (local)
-- testing (local and CI)
-- production
+- development (local),
+- testing (local and CI),
+- production.
 
 And the different `scion.sh` backends are
 
-- supervisor
-- docker
+- supervisor,
+- docker.
 
 ## Development with supervisor
 
-All services run native on the host, controlled by supervisor. In this case one dispatcher is run
+All services run native on the host, controlled by supervisor. In this case, one dispatcher is run
 on loopback. There is one SCIOND per AS, the sockets can be found in
 `/run/shm/<dispatcher|sciond>`. One zookeeper instance is run on the host.
 
 ## Development with docker
 
-Docker-compose is used to run every service in its own container (including zookeeper). We run
+`docker-compose` is used to run every service in its own container (including zookeeper). We run
 multiple dispatchers and one SCIOND per AS. One dispatcher and the SCIOND share their sockets with
-the infra services using docker volumes. And there is one dispatcher per BR, which it shares its
-socket with. Each AS has its own docker network and every BR to BR link is a docker network.
+the infra services using docker volumes. And there is one dispatcher per BR, with which it shares its
+socket. Each AS has its own docker network and every BR-to-BR link is a docker network.
 
 ## Testing with supervisor and docker (CI and `./tools/ci/local`)
 

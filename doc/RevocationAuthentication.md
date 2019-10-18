@@ -6,7 +6,7 @@ This document presents the new design for interface revocation authentication. R
 authentication was done using hash trees, see chapter 7.3.3 of the book. This is was not practical
 and was therefore migrated to use digital signatures.
 
-### Hash Tree based Mechanism
+### Hash-Tree-Based Mechanism
 
 A major complication was that revocation authentication was coupled to the path segment. This made
 it very hard for applications to handle revocations correctly, since applications that only have
@@ -67,7 +67,7 @@ received from it).
   revocation to other path servers if necessary. This includes forwarding revocations from a local
   PS to the core ASes and from a core PS to other core ASes.
 
-### Creation of Revocaton: Beacon Server
+### Creation of Revocation: Beacon Server
 
 BS can decide on the revocation period (TTL) when creating revocations, the default period is 10
 seconds. To reduce issues with timing, a revocation is renewed 2 seconds before it is expired. A
