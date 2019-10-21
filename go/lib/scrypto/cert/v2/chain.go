@@ -20,8 +20,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// InvalidChainLength indicates an invalid chain length.
-const InvalidChainLength = "invalid chain length"
+// ErrInvalidChainLength indicates an invalid chain length.
+const ErrInvalidChainLength common.ErrMsg = "invalid chain length"
 
 // Chain represents the certificate chain.
 type Chain struct {
@@ -45,7 +45,7 @@ func (c *Chain) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if len(tmp) != 2 {
-		return common.NewBasicError(InvalidChainLength, nil, "expected", 2, "actual", len(tmp))
+		return common.NewBasicError(ErrInvalidChainLength, nil, "expected", 2, "actual", len(tmp))
 	}
 	return nil
 

@@ -20,6 +20,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -28,7 +29,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 		Name          string
 		Packet        *OverlayPacket
 		ExpectedData  []byte
-		ExpectedError string
+		ExpectedError common.ErrMsg
 	}
 	testCases := []TestCase{
 		{
@@ -101,7 +102,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 			Convey(tc.Name, func() {
 				b := make([]byte, 1500)
 				n, err := tc.Packet.SerializeTo(b)
-				xtest.SoMsgErrorStr("err", err, tc.ExpectedError)
+				xtest.SoMsgErrorStr("err", err, tc.ExpectedError.Error())
 				SoMsg("data", b[:n], ShouldResemble, tc.ExpectedData)
 			})
 		}
@@ -113,7 +114,7 @@ func TestOverlayPacketDecodeFromBytes(t *testing.T) {
 		Name           string
 		Buffer         []byte
 		ExpectedPacket OverlayPacket
-		ExpectedError  string
+		ExpectedError  common.ErrMsg
 	}
 	testCases := []TestCase{
 		{
@@ -187,7 +188,7 @@ func TestOverlayPacketDecodeFromBytes(t *testing.T) {
 			Convey(tc.Name, func() {
 				var p OverlayPacket
 				err := p.DecodeFromBytes(tc.Buffer)
-				xtest.SoMsgErrorStr("err", err, tc.ExpectedError)
+				xtest.SoMsgErrorStr("err", err, tc.ExpectedError.Error())
 				SoMsg("packet", p, ShouldResemble, tc.ExpectedPacket)
 			})
 		}

@@ -27,26 +27,26 @@ import (
 
 // Parsing errors
 const (
-	// InvalidGroupIdFormat indicates an invalid GroupId format
-	InvalidGroupIdFormat = "Invalid GroupId format"
-	// InvalidGroupIdSuffix indicates an invalid GroupId suffix
-	InvalidGroupIdSuffix = "Invalid GroupId suffix"
+	// ErrInvalidGroupIdFormat indicates an invalid GroupId format
+	ErrInvalidGroupIdFormat common.ErrMsg = "Invalid GroupId format"
+	// ErrInvalidGroupIdSuffix indicates an invalid GroupId suffix
+	ErrInvalidGroupIdSuffix common.ErrMsg = "Invalid GroupId suffix"
 )
 
 // Validation errors
 const (
-	// MissingGroupId indicates a missing GroupId
-	MissingGroupId = "Missing GroupId"
-	// InvalidVersion indicates a missing version
-	InvalidVersion = "Invalid version"
-	// MissingOwner indicates a missing Owner
-	MissingOwner = "Missing Owner"
-	// OwnerMismatch indicates a mismatch between Owner and GroupId.OwnerAS
-	OwnerMismatch = "Owner mismatch"
-	// EmptyWriters indicatres an empty Writer section
-	EmptyWriters = "Writer section cannot be empty"
-	// EmptyWriters indicatres an empty Writer section
-	EmptyRegistries = "Registry section cannot be empty"
+	// ErrMissingGroupId indicates a missing GroupId
+	ErrMissingGroupId common.ErrMsg = "Missing GroupId"
+	// ErrInvalidVersion indicates a missing version
+	ErrInvalidVersion common.ErrMsg = "Invalid version"
+	// ErrMissingOwner indicates a missing Owner
+	ErrMissingOwner common.ErrMsg = "Missing Owner"
+	// ErrOwnerMismatch indicates a mismatch between Owner and GroupId.OwnerAS
+	ErrOwnerMismatch common.ErrMsg = "Owner mismatch"
+	// ErrEmptyWriters indicates an empty Writer section
+	ErrEmptyWriters common.ErrMsg = "Writer section cannot be empty"
+	// ErrEmptyRegistries indicates an empty Registires section
+	ErrEmptyRegistries common.ErrMsg = "Registry section cannot be empty"
 )
 
 type GroupId struct {
@@ -63,7 +63,7 @@ func (id *GroupId) UnmarshalText(data []byte) error {
 	v = strings.Replace(v, "_", ":", 2)
 	parts := strings.Split(v, "-")
 	if len(parts) != 2 {
-		return common.NewBasicError(InvalidGroupIdFormat, nil, "GroupId", v)
+		return common.NewBasicError(ErrInvalidGroupIdFormat, nil, "GroupId", v)
 	}
 	ownerAS, err := addr.ASFromString(parts[0])
 	if err != nil {
@@ -71,7 +71,7 @@ func (id *GroupId) UnmarshalText(data []byte) error {
 	}
 	suffix, err := strconv.ParseUint(parts[1], 16, 16)
 	if err != nil {
-		return common.NewBasicError(InvalidGroupIdSuffix, err, "Suffix", parts[1])
+		return common.NewBasicError(ErrInvalidGroupIdSuffix, err, "Suffix", parts[1])
 	}
 	id.OwnerAS = ownerAS
 	id.Suffix = uint16(suffix)
@@ -126,23 +126,23 @@ func (g *Group) UnmarshalJSON(data []byte) (err error) {
 		return err
 	}
 	if v.Id == (GroupId{}) {
-		return common.NewBasicError(MissingGroupId, nil)
+		return common.NewBasicError(ErrMissingGroupId, nil)
 	}
 	if v.Version == 0 {
-		return common.NewBasicError(InvalidVersion, nil)
+		return common.NewBasicError(ErrInvalidVersion, nil)
 	}
 	if v.Owner == (addr.IA{}) {
-		return common.NewBasicError(MissingOwner, nil)
+		return common.NewBasicError(ErrMissingOwner, nil)
 	}
 	if v.Owner.A != v.Id.OwnerAS {
-		return common.NewBasicError(OwnerMismatch, nil,
+		return common.NewBasicError(ErrOwnerMismatch, nil,
 			"OwnerAS", v.Owner.A, "GroupId.OwnerAS", v.Id.OwnerAS)
 	}
 	if len(v.Writers) == 0 {
-		return common.NewBasicError(EmptyWriters, nil)
+		return common.NewBasicError(ErrEmptyWriters, nil)
 	}
 	if len(v.Registries) == 0 {
-		return common.NewBasicError(EmptyRegistries, nil)
+		return common.NewBasicError(ErrEmptyRegistries, nil)
 	}
 	*g = Group(v)
 	return nil

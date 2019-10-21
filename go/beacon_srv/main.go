@@ -147,7 +147,7 @@ func realMain() int {
 	}
 	msgr, err := nc.Messenger()
 	if err != nil {
-		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
+		log.Crit(infraenv.ErrAppUnableToInitMessenger.Error(), "err", err)
 		return 1
 	}
 	defer msgr.CloseServer()
@@ -215,7 +215,7 @@ func realMain() int {
 	}
 	signer, err := tasks.createSigner(topo.IA())
 	if err != nil {
-		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
+		log.Crit(infraenv.ErrAppUnableToInitMessenger.Error(), "err", err)
 		return 1
 	}
 	msgr.UpdateSigner(signer, []infra.MessageType{infra.Seg})

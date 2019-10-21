@@ -41,7 +41,7 @@ func TestComputeDestination(t *testing.T) {
 		Description string
 		Packet      *spkt.ScnPkt
 		ExpectedDst Destination
-		ExpectedErr string
+		ExpectedErr common.ErrMsg
 	}
 	var testCases = []*TestCase{
 		{
@@ -212,7 +212,7 @@ func TestComputeDestination(t *testing.T) {
 		for _, test := range testCases {
 			Convey(test.Description, func() {
 				destination, err := ComputeDestination(test.Packet)
-				xtest.SoMsgErrorStr("err", err, test.ExpectedErr)
+				xtest.SoMsgErrorStr("err", err, test.ExpectedErr.Error())
 				SoMsg("destination", destination, ShouldResemble, test.ExpectedDst)
 			})
 		}

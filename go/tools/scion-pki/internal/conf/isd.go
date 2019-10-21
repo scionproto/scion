@@ -31,12 +31,12 @@ import (
 const IsdConfFileName = "isd.ini"
 
 const (
-	ErrCoreIANotSet               = "Core ASes are not specified"
-	ErrInvalidCoreIA              = "Invalid Core ASes"
-	ErrInvalidGracePeriod         = "Invalid Grace Period Duration"
-	ErrQuorumTrcGreaterThanCoreIA = "QuorumTRC > # Core ASes"
-	ErrQuorumTrcNotSet            = "Quorum TRC not set"
-	ErrTrcVersionNotSet           = "Version not set for TRC"
+	ErrCoreIANotSet               common.ErrMsg = "Core ASes are not specified"
+	ErrInvalidCoreIA              common.ErrMsg = "Invalid Core ASes"
+	ErrInvalidGracePeriod         common.ErrMsg = "Invalid Grace Period Duration"
+	ErrQuorumTrcGreaterThanCoreIA common.ErrMsg = "QuorumTRC > # Core ASes"
+	ErrQuorumTrcNotSet            common.ErrMsg = "Quorum TRC not set"
+	ErrTrcVersionNotSet           common.ErrMsg = "Version not set for TRC"
 )
 
 // Isd holds config parameters read from isd.ini.

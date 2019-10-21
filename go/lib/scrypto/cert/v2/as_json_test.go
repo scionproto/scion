@@ -68,7 +68,7 @@ func TestASUnmarshalJSON(t *testing.T) {
 				Modify: func(g *genCert) {
 					g.CertificateType = "issuer"
 				},
-				ExpectedErrMsg: cert.InvalidCertificateType,
+				ExpectedErrMsg: cert.ErrInvalidCertificateType.Error(),
 			},
 		},
 		"Missing issuer.ia": {

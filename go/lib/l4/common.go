@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-const ErrorInvalidChksum = "Invalid L4 checksum"
+const ErrInvalidChksum common.ErrMsg = "Invalid L4 checksum"
 
 type L4Header interface {
 	fmt.Stringer
@@ -65,7 +65,7 @@ func CheckCSum(h L4Header, addr, pld common.RawBytes) error {
 	}
 	exp := h.GetCSum()
 	if bytes.Compare(exp, calc) != 0 {
-		return common.NewBasicError(ErrorInvalidChksum, nil,
+		return common.NewBasicError(ErrInvalidChksum, nil,
 			"expected", exp, "actual", calc, "proto", h.L4Type())
 	}
 	return nil

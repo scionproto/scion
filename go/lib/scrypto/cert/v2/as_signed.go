@@ -157,7 +157,7 @@ type SignatureTypeCertificate struct{}
 // UnmarshalText checks the signature type is correct.
 func (t *SignatureTypeCertificate) UnmarshalText(b []byte) error {
 	if string(b) != SignatureTypeCertificateJSON {
-		return common.NewBasicError(InvalidSignatureType, nil, "input", string(b))
+		return common.NewBasicError(ErrInvalidSignatureType, nil, "input", string(b))
 	}
 	return nil
 }

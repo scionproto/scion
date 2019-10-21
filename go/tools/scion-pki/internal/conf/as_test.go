@@ -19,12 +19,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 func TestValidatingAsConf(t *testing.T) {
 	tests := map[string]struct {
 		as  *As
-		err string
+		err common.ErrMsg
 	}{
 		"With empty AS": {
 			as:  &As{},

@@ -39,16 +39,17 @@ const (
 )
 
 const (
-	InvalidPubKeySize       = "Invalid public key size"
-	InvalidPrivKeySize      = "Invalid private key size"
-	InvalidSignatureSize    = "Invalid signature size"
-	InvalidSignatureFormat  = "Invalid signature format: sig[63]&224 should equal 0"
-	VerificationError       = "Signature verification failed"
-	UnableToGenerateKeyPair = "Unable to generate key pair"
-	UnableToDecrypt         = "Unable to decrypt message"
-	UnsupportedAlgo         = "Unsupported algorithm"
-	UnsupportedSignAlgo     = "Unsupported signing algorithm"
-	UnsupportedEncAlgo      = "Unsupported encryption algorithm"
+	ErrInvalidPubKeySize      common.ErrMsg = "Invalid public key size"
+	ErrInvalidPrivKeySize     common.ErrMsg = "Invalid private key size"
+	ErrInvalidSignatureSize   common.ErrMsg = "Invalid signature size"
+	ErrInvalidSignatureFormat common.ErrMsg = "Invalid signature format: " +
+		"sig[63]&224 should equal 0"
+	ErrVerification            common.ErrMsg = "Signature verification failed"
+	ErrUnableToGenerateKeyPair common.ErrMsg = "Unable to generate key pair"
+	ErrUnableToDecrypt         common.ErrMsg = "Unable to decrypt message"
+	ErrUnsupportedAlgo         common.ErrMsg = "Unsupported algorithm"
+	ErrUnsupportedSignAlgo     common.ErrMsg = "Unsupported signing algorithm"
+	ErrUnsupportedEncAlgo      common.ErrMsg = "Unsupported encryption algorithm"
 )
 
 // GenKeyPair generates a public/private key pair.
@@ -57,19 +58,19 @@ func GenKeyPair(algo string) (common.RawBytes, common.RawBytes, error) {
 	case Curve25519xSalsa20Poly1305:
 		pubkey, privkey, err := box.GenerateKey(rand.Reader)
 		if err != nil {
-			return nil, nil, common.NewBasicError(UnableToGenerateKeyPair, err,
+			return nil, nil, common.NewBasicError(ErrUnableToGenerateKeyPair, err,
 				"algo", algo)
 		}
 		return pubkey[:], privkey[:], nil
 	case Ed25519:
 		pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
-			return nil, nil, common.NewBasicError(UnableToGenerateKeyPair, err,
+			return nil, nil, common.NewBasicError(ErrUnableToGenerateKeyPair, err,
 				"algo", algo)
 		}
 		return common.RawBytes(pubkey), common.RawBytes(privkey), nil
 	default:
-		return nil, nil, common.NewBasicError(UnsupportedAlgo, nil, "algo", algo)
+		return nil, nil, common.NewBasicError(ErrUnsupportedAlgo, nil, "algo", algo)
 	}
 }
 
@@ -100,12 +101,12 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(signKey) != ed25519.PrivateKeySize {
-			return nil, common.NewBasicError(InvalidPrivKeySize, nil, "expected",
+			return nil, common.NewBasicError(ErrInvalidPrivKeySize, nil, "expected",
 				ed25519.PrivateKeySize, "actual", len(signKey))
 		}
 		return ed25519.Sign(ed25519.PrivateKey(signKey), sigInput), nil
 	default:
-		return nil, common.NewBasicError(UnsupportedSignAlgo, nil, "algo", signAlgo)
+		return nil, common.NewBasicError(ErrUnsupportedSignAlgo, nil, "algo", signAlgo)
 	}
 }
 
@@ -115,22 +116,22 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(verifyKey) != ed25519.PublicKeySize {
-			return common.NewBasicError(InvalidPubKeySize, nil,
+			return common.NewBasicError(ErrInvalidPubKeySize, nil,
 				"expected", ed25519.PublicKeySize, "actual", len(verifyKey))
 		}
 		if len(sig) != ed25519.SignatureSize {
-			return common.NewBasicError(InvalidSignatureSize, nil,
+			return common.NewBasicError(ErrInvalidSignatureSize, nil,
 				"expected", ed25519.SignatureSize, "actual", len(sig))
 		}
 		if sig[63]&224 != 0 {
-			return common.NewBasicError(InvalidSignatureFormat, nil)
+			return common.NewBasicError(ErrInvalidSignatureFormat, nil)
 		}
 		if !ed25519.Verify(ed25519.PublicKey(verifyKey), sigInput, sig) {
-			return common.NewBasicError(VerificationError, nil, "msg", sigInput)
+			return common.NewBasicError(ErrVerification, nil, "msg", sigInput)
 		}
 		return nil
 	default:
-		return common.NewBasicError(UnsupportedSignAlgo, nil, "algo", signAlgo)
+		return common.NewBasicError(ErrUnsupportedSignAlgo, nil, "algo", signAlgo)
 	}
 }
 
@@ -146,7 +147,7 @@ func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 		}
 		return box.Seal(nil, msg, nonceRaw, pubKeyRaw, privKeyRaw), nil
 	default:
-		return nil, common.NewBasicError(UnsupportedEncAlgo, nil, "algo", algo)
+		return nil, common.NewBasicError(ErrUnsupportedEncAlgo, nil, "algo", algo)
 	}
 }
 
@@ -160,11 +161,11 @@ func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 		}
 		dec, ok := box.Open(nil, msg, nonceRaw, pubKeyRaw, privKeyRaw)
 		if !ok {
-			return nil, common.NewBasicError(UnableToDecrypt, nil, "algo", algo)
+			return nil, common.NewBasicError(ErrUnableToDecrypt, nil, "algo", algo)
 		}
 		return dec, nil
 	default:
-		return nil, common.NewBasicError(UnsupportedEncAlgo, nil, "algo", algo)
+		return nil, common.NewBasicError(ErrUnsupportedEncAlgo, nil, "algo", algo)
 	}
 }
 
@@ -172,16 +173,16 @@ func prepNaClBox(nonce, pubkey, privkey common.RawBytes) (*[NaClBoxNonceSize]byt
 	*[NaClBoxKeySize]byte, *[NaClBoxKeySize]byte, error) {
 
 	if len(nonce) != NaClBoxNonceSize {
-		return nil, nil, nil, common.NewBasicError(InvalidNonceSize, nil, "algo",
+		return nil, nil, nil, common.NewBasicError(ErrInvalidNonceSize, nil, "algo",
 			Curve25519xSalsa20Poly1305, "expected size", NaClBoxNonceSize, "actual size",
 			len(nonce))
 	}
 	if len(pubkey) != NaClBoxKeySize {
-		return nil, nil, nil, common.NewBasicError(InvalidPubKeySize, nil, "algo",
+		return nil, nil, nil, common.NewBasicError(ErrInvalidPubKeySize, nil, "algo",
 			Curve25519xSalsa20Poly1305, "expected size", NaClBoxKeySize, "actual size", len(pubkey))
 	}
 	if len(privkey) != NaClBoxKeySize {
-		return nil, nil, nil, common.NewBasicError(InvalidPrivKeySize, nil, "algo",
+		return nil, nil, nil, common.NewBasicError(ErrInvalidPrivKeySize, nil, "algo",
 			Curve25519xSalsa20Poly1305, "expected size", NaClBoxKeySize, "actual size",
 			len(privkey))
 	}

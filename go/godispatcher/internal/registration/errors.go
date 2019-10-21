@@ -14,14 +14,16 @@
 
 package registration
 
+import "github.com/scionproto/scion/go/lib/common"
+
 const (
-	ErrNoPublicAddress    = "no public address"
-	ErrBindWithoutSvc     = "bind address without svc address"
-	ErrOverlappingAddress = "overlapping address"
-	ErrNoValue            = "nil value"
-	ErrZeroIP             = "zero address"
-	ErrZeroPort           = "zero port"
-	ErrNilAddress         = "nil address"
-	ErrSvcNone            = "svc none"
-	ErrNoPorts            = "no free ports"
+	ErrNoPublicAddress    common.ErrMsg = "no public address"
+	ErrBindWithoutSvc     common.ErrMsg = "bind address without svc address"
+	ErrOverlappingAddress common.ErrMsg = "overlapping address"
+	ErrNoValue            common.ErrMsg = "nil value"
+	ErrZeroIP             common.ErrMsg = "zero address"
+	ErrZeroPort           common.ErrMsg = "zero port"
+	ErrNilAddress         common.ErrMsg = "nil address"
+	ErrSvcNone            common.ErrMsg = "svc none"
+	ErrNoPorts            common.ErrMsg = "no free ports"
 )

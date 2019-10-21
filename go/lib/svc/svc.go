@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-const ErrHandler = "Unable to handle SVC request"
+const ErrHandler common.ErrMsg = "Unable to handle SVC request"
 
 // Result is used to inform Handler users on the outcome of handler execution.
 type Result int

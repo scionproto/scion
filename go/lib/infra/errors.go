@@ -16,9 +16,11 @@
 // messaging layer.
 package infra
 
+import "github.com/scionproto/scion/go/lib/common"
+
 const (
-	StrClosedError    = "layer closed"
-	StrAdapterError   = "msg adapter error"
-	StrInternalError  = "internal error"
-	StrTransportError = "transport error"
+	ErrLayerClosed common.ErrMsg = "layer closed"
+	ErrAdapter     common.ErrMsg = "msg adapter error"
+	ErrInternal    common.ErrMsg = "internal error"
+	ErrTransport   common.ErrMsg = "transport error"
 )

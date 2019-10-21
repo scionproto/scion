@@ -31,7 +31,7 @@ const (
 )
 
 const (
-	ErrorSCMPHdrUnpack = "Failed to unpack SCMP header"
+	ErrSCMPHdrUnpack common.ErrMsg = "Failed to unpack SCMP header"
 )
 
 type Hdr struct {
@@ -53,7 +53,7 @@ func NewHdr(ct ClassType, len int) *Hdr {
 func HdrFromRaw(b common.RawBytes) (*Hdr, error) {
 	h := &Hdr{}
 	if err := restruct.Unpack(b, common.Order, h); err != nil {
-		return nil, common.NewBasicError(ErrorSCMPHdrUnpack, err)
+		return nil, common.NewBasicError(ErrSCMPHdrUnpack, err)
 	}
 	return h, nil
 }

@@ -34,14 +34,14 @@ import (
 // Internal resolver errors. These are implementation details and can change,
 // and calling code should not depend on them.
 const (
-	errNilPacket      = "packet is nil"
-	errNilOverlay     = "overlay is nil"
-	errUnsupportedPld = "unsupported payload type"
-	errRegistration   = "unable to open conn"
-	errWrite          = "unable to write"
-	errRead           = "unable to read"
-	errDecode         = "decode failed"
-	errBadPath        = "unable to parse return path"
+	errNilPacket      common.ErrMsg = "packet is nil"
+	errNilOverlay     common.ErrMsg = "overlay is nil"
+	errUnsupportedPld common.ErrMsg = "unsupported payload type"
+	errRegistration   common.ErrMsg = "unable to open conn"
+	errWrite          common.ErrMsg = "unable to write"
+	errRead           common.ErrMsg = "unable to read"
+	errDecode         common.ErrMsg = "decode failed"
+	errBadPath        common.ErrMsg = "unable to parse return path"
 )
 
 // Resolver performs SVC address resolution.

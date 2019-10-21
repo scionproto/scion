@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -29,7 +29,7 @@ import (
 func TestAsValidate(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(*conf.ASCfg)
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		"valid AS cert from template": {
 			Modify: func(cfg *conf.ASCfg) {
@@ -189,12 +189,7 @@ func TestAsValidate(t *testing.T) {
 			}
 			test.Modify(&as)
 			err := as.Validate()
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
 		})
 	}
 }

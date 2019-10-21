@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -41,7 +42,7 @@ var (
 func TestTRCValidateInvariant(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(base *trc.TRC)
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		"Valid invariant": {
 			Modify: func(_ *trc.TRC) {},
@@ -50,7 +51,7 @@ func TestTRCValidateInvariant(t *testing.T) {
 			Modify: func(base *trc.TRC) {
 				base.Validity.NotAfter.Time = base.Validity.NotBefore.Time
 			},
-			ExpectedErrMsg: trc.InvalidValidityPeriod,
+			ExpectedErrMsg: trc.ErrInvalidValidityPeriod,
 		},
 		"No Issuing AS": {
 			Modify: func(base *trc.TRC) {
@@ -61,51 +62,51 @@ func TestTRCValidateInvariant(t *testing.T) {
 				delete(base.PrimaryASes, a130)
 				delete(base.ProofOfPossession, a130)
 			},
-			ExpectedErrMsg: trc.ErrNoIssuingAS.Error(),
+			ExpectedErrMsg: trc.ErrNoIssuingAS,
 		},
 		"Zero VotingQuorum": {
 			Modify: func(base *trc.TRC) {
 				quorum := uint8(0)
 				base.VotingQuorumPtr = &quorum
 			},
-			ExpectedErrMsg: trc.ErrZeroVotingQuorum.Error(),
+			ExpectedErrMsg: trc.ErrZeroVotingQuorum,
 		},
 		"VotingQuorum larger than voting ASes": {
 			Modify: func(base *trc.TRC) {
 				quorum := uint8(base.PrimaryASes.Count(trc.Voting) + 1)
 				base.VotingQuorumPtr = &quorum
 			},
-			ExpectedErrMsg: trc.VotingQuorumTooLarge,
+			ExpectedErrMsg: trc.ErrVotingQuorumTooLarge,
 		},
 		"PrimaryASes invariant violated": {
 			Modify: func(base *trc.TRC) {
 				delete(base.PrimaryASes[a110].Keys, trc.OfflineKey)
 			},
-			ExpectedErrMsg: trc.MissingKey,
+			ExpectedErrMsg: trc.ErrMissingKey,
 		},
 		"Zero GracePeriod, TRCVersion != BaseVersion": {
 			Modify: func(base *trc.TRC) {
 				base.Version = 2
 			},
-			ExpectedErrMsg: trc.ErrUpdateWithZeroGracePeriod.Error(),
+			ExpectedErrMsg: trc.ErrUpdateWithZeroGracePeriod,
 		},
 		"Non-Zero GracePeriod, TRCVersion == BaseVersion": {
 			Modify: func(base *trc.TRC) {
 				base.GracePeriod = &trc.Period{Duration: time.Hour}
 			},
-			ExpectedErrMsg: trc.ErrBaseWithNonZeroGracePeriod.Error(),
+			ExpectedErrMsg: trc.ErrBaseWithNonZeroGracePeriod,
 		},
 		"Base missing AS in pops": {
 			Modify: func(base *trc.TRC) {
 				delete(base.ProofOfPossession, a130)
 			},
-			ExpectedErrMsg: trc.MissingProofOfPossession,
+			ExpectedErrMsg: trc.ErrMissingProofOfPossession,
 		},
 		"Base missing pop for AS": {
 			Modify: func(base *trc.TRC) {
 				base.ProofOfPossession[a110] = base.ProofOfPossession[a110][:1]
 			},
-			ExpectedErrMsg: trc.MissingProofOfPossession,
+			ExpectedErrMsg: trc.ErrMissingProofOfPossession,
 		},
 		"Base with votes": {
 			Modify: func(base *trc.TRC) {
@@ -114,19 +115,19 @@ func TestTRCValidateInvariant(t *testing.T) {
 					KeyVersion: 1,
 				}
 			},
-			ExpectedErrMsg: trc.ErrBaseWithVotes.Error(),
+			ExpectedErrMsg: trc.ErrBaseWithVotes,
 		},
 		"Base pop for unexpected key": {
 			Modify: func(base *trc.TRC) {
 				base.ProofOfPossession[a130] = append(base.ProofOfPossession[a130], trc.OnlineKey)
 			},
-			ExpectedErrMsg: trc.UnexpectedProofOfPossession,
+			ExpectedErrMsg: trc.ErrUnexpectedProofOfPossession,
 		},
 		"Base pop from unexpected AS": {
 			Modify: func(base *trc.TRC) {
 				base.ProofOfPossession[a190] = []trc.KeyType{trc.OnlineKey}
 			},
-			ExpectedErrMsg: trc.UnexpectedProofOfPossession,
+			ExpectedErrMsg: trc.ErrUnexpectedProofOfPossession,
 		},
 	}
 	for name, test := range tests {
@@ -134,12 +135,7 @@ func TestTRCValidateInvariant(t *testing.T) {
 			base := newBaseTRC(time.Now())
 			test.Modify(base)
 			err := base.ValidateInvariant()
-			if test.ExpectedErrMsg == "" {
-				assert.NoError(t, err)
-			} else {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
 		})
 	}
 }

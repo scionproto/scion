@@ -31,9 +31,9 @@ import (
 const (
 	// ErrReadingRows is the error message in case we fail to read more from
 	// the database.
-	ErrReadingRows = "Failed to read rows"
+	ErrReadingRows common.ErrMsg = "Failed to read rows"
 	// ErrParse is the error message in case the parsing a db entry fails.
-	ErrParse = "Failed to parse entry"
+	ErrParse common.ErrMsg = "Failed to parse entry"
 )
 
 // DBRead defines all read operations of the beacon DB.

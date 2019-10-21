@@ -24,12 +24,13 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-const (
-	InfoFieldLength    = common.LineLen
-	ErrorInfoFTooShort = "InfoF too short"
-)
+// InfoFieldLength is the length of the info field.
+const InfoFieldLength = common.LineLen
 
-// Info Field format:
+// ErrInfoFTooShort indicates that the info field is to short to be parsed.
+const ErrInfoFTooShort common.ErrMsg = "InfoF too short"
+
+// InfoField hast the following format:
 //
 //   0                   1                   2                   3
 //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -54,7 +55,7 @@ type InfoField struct {
 
 func InfoFFromRaw(b []byte) (*InfoField, error) {
 	if len(b) < InfoFieldLength {
-		return nil, common.NewBasicError(ErrorInfoFTooShort, nil,
+		return nil, common.NewBasicError(ErrInfoFTooShort, nil,
 			"min", InfoFieldLength, "actual", len(b))
 	}
 	inf := &InfoField{}
