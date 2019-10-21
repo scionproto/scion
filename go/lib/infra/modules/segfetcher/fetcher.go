@@ -40,10 +40,6 @@ type ReplyHandler interface {
 		earlyTrigger <-chan struct{}) *seghandler.ProcessedResult
 }
 
-type Stats struct {
-	Revocations int
-}
-
 // FetcherConfig is the configuration for the fetcher.
 type FetcherConfig struct {
 	// QueryInterval specifies after how much time segments should be
