@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -100,6 +101,13 @@ func (h *scmpHandler) Handle(pkt *SCIONPacket) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if !ok {
 		return common.NewBasicError("scmp handler invoked with non-scmp packet", nil, "pkt", pkt)
+	}
+	if hdr.Class != scmp.C_General {
+		metrics.M.SCMPErrors().Inc()
+	}
+	if hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_Unspecified {
+		// SCMP::General::Unspecified is used for errors
+		metrics.M.SCMPErrors().Inc()
 	}
 
 	// Only handle revocations for now
