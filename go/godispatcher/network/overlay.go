@@ -66,11 +66,11 @@ func (dp *NetToRingDataplane) Run() error {
 		if err != nil {
 			log.Warn("unable to route packet", "err", err)
 			metrics.M.NetReadPkts(
-				metrics.IncomingPacket{Outcome: metrics.PacketOutcomeRouteNotFound},
+				metrics.IncomingPacket{Result: metrics.PacketResultRouteNotFound},
 			).Inc()
 			continue
 		}
-		metrics.M.NetReadPkts(metrics.IncomingPacket{Outcome: metrics.PacketOutcomeOk}).Inc()
+		metrics.M.NetReadPkts(metrics.IncomingPacket{Result: metrics.PacketResultOk}).Inc()
 		dst.Send(dp, pkt)
 	}
 }

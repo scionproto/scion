@@ -212,9 +212,12 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.RegReference,
 				h.Logger.Info("[app->network] EOF received from client")
 			} else {
 				h.Logger.Error("[app->network] Client connection error", "err", err)
+				metrics.M.AppReadErrors().Inc()
 			}
 			return
 		}
+		metrics.M.AppReadBytes().Add(float64(pkt.Len()))
+		metrics.M.AppReadPkts().Inc()
 
 		if err := registerIfSCMPRequest(ref, &pkt.Info); err != nil {
 			log.Warn("SCMP Request ID error, packet still sent", "err", err)
@@ -273,11 +276,15 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 				h.Logger.Warn("[network->app] Unable to encode overlay address.", "err", err)
 				continue
 			}
-			if _, err := pkt.SendOnConn(h.Conn, overlayAddr); err != nil {
+			n, err := pkt.SendOnConn(h.Conn, overlayAddr)
+			if err != nil {
+				metrics.M.AppWriteErrors().Inc()
 				h.Logger.Error("[network->app] App connection error.", "err", err)
 				h.Conn.Close()
 				return
 			}
+			metrics.M.AppWritePkts().Inc()
+			metrics.M.AppWriteBytes().Add(float64(n))
 			pkt.Free()
 		}
 	}

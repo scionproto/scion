@@ -52,6 +52,11 @@ type Packet struct {
 	refCount *int
 }
 
+// Len returns the length of the packet.
+func (p *Packet) Len() int {
+	return len(p.buffer)
+}
+
 func newPacket() *Packet {
 	refCount := 1
 	return &Packet{
@@ -105,7 +110,7 @@ func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 	if err = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
 		metrics.M.NetReadPkts(
 			metrics.IncomingPacket{
-				Outcome: metrics.PacketOutcomeParseError,
+				Result: metrics.PacketResultParseError,
 			},
 		).Inc()
 		return err

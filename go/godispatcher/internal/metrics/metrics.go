@@ -17,18 +17,17 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
 // Namespace is the metrics namespace for the dispatcher.
 const Namespace = "disp"
 
-// Packet outcome labels
+// Packet result labels
 const (
-	PacketOutcomeParseError    = "parse_error"
-	PacketOutcomeRouteNotFound = "route_not_found"
-	PacketOutcomeOk            = "ok"
+	PacketResultParseError    = "parse_error"
+	PacketResultRouteNotFound = "route_not_found"
+	PacketResultOk            = "ok"
 )
 
 var (
@@ -38,17 +37,17 @@ var (
 
 // IncomingPacket contains the labels for incoming packet metrics.
 type IncomingPacket struct {
-	Outcome string
+	Result string
 }
 
 // Labels returns the list of labels.
 func (l IncomingPacket) Labels() []string {
-	return []string{"incoming_packet_outcome"}
+	return []string{"incoming_packet_result"}
 }
 
 // Values returns the label values in the order defined by Labels.
 func (l IncomingPacket) Values() []string {
-	return []string{l.Outcome}
+	return []string{l.Result}
 }
 
 // SVC contains the labels for SVC-related metrics.
@@ -89,6 +88,12 @@ type metrics struct {
 	netReadBytes       prometheus.Counter
 	netReadPkts        *prometheus.CounterVec
 	netReadParseErrors prometheus.Counter
+	appWriteBytes      prometheus.Counter
+	appWritePkts       prometheus.Counter
+	appWriteErrors     prometheus.Counter
+	appReadBytes       prometheus.Counter
+	appReadPkts        prometheus.Counter
+	appReadErrors      prometheus.Counter
 	openSockets        *prometheus.GaugeVec
 	appConnErrors      prometheus.Counter
 	scmpReadPkts       *prometheus.CounterVec
@@ -100,42 +105,45 @@ type metrics struct {
 
 func newMetrics() metrics {
 	return metrics{
-		netWriteBytes: prom.NewCounter(Namespace, "", "net_write_total_bytes",
+		netWriteBytes: prom.NewCounter(Namespace, "", "net_write_bytes_total",
 			"Total bytes sent on the network."),
-		netWritePkts: prom.NewCounter(Namespace, "", "net_write_total_pkts",
+		netWritePkts: prom.NewCounter(Namespace, "", "net_write_pkts_total",
 			"Total packets sent on the network."),
-		netWriteErrors: prom.NewCounter(Namespace, "", "net_write_error_total",
+		netWriteErrors: prom.NewCounter(Namespace, "", "net_write_errors_total",
 			"Network packet send errors"),
-		netReadBytes: prom.NewCounter(Namespace, "", "net_read_total_bytes",
+		netReadBytes: prom.NewCounter(Namespace, "", "net_read_bytes_total",
 			"Total bytes received from the network irrespective of packet outcome."),
-		netReadPkts: prom.NewCounterVec(Namespace, "", "net_read_total_pkts",
+		netReadPkts: prom.NewCounterVec(Namespace, "", "net_read_pkts_total",
 			"Total packets received from the network.", IncomingPacket{}.Labels()),
 		netReadParseErrors: prom.NewCounter(Namespace, "", "net_read_parse_errors_total",
 			"Total network packet parse error"),
+		appWriteBytes: prom.NewCounter(Namespace, "", "app_write_bytes_total",
+			"Total bytes sent to applications."),
+		appWritePkts: prom.NewCounter(Namespace, "", "app_write_pkts_total",
+			"Total packets sent to applications."),
+		appWriteErrors: prom.NewCounter(Namespace, "", "app_write_errors_total",
+			"Send packet to applications errors."),
+		appReadBytes: prom.NewCounter(Namespace, "", "app_read_bytes_total",
+			"Total bytes read from applications."),
+		appReadPkts: prom.NewCounter(Namespace, "", "app_read_pkts_total",
+			"Total packets read from applications"),
+		appReadErrors: prom.NewCounter(Namespace, "", "app_read_errors_total",
+			"Total errors when reading packets from applications."),
 		openSockets: prom.NewGaugeVec(Namespace, "", "app_sockets_open",
 			"Number of sockets currently opened by applications.", SVC{}.Labels()),
-		appConnErrors: prom.NewCounter(Namespace, "", "app_conn_error_total",
+		appConnErrors: prom.NewCounter(Namespace, "", "app_conn_reg_errors_total",
 			"Application socket registration errors"),
-		scmpReadPkts: prom.NewCounterVec(Namespace, "", "scmp_read_total_pkts",
+		scmpReadPkts: prom.NewCounterVec(Namespace, "", "scmp_read_pkts_total",
 			"Total SCMP packets received from the network.", SCMP{}.Labels()),
-		scmpWritePkts: prom.NewCounterVec(Namespace, "", "scmp_write_total_pkts",
+		scmpWritePkts: prom.NewCounterVec(Namespace, "", "scmp_write_pkts_total",
 			"Total SCMP packets received from the network.", SCMP{}.Labels()),
-		appNotFoundErrors: prom.NewCounter(Namespace, "", "app_not_found_total",
+		appNotFoundErrors: prom.NewCounter(Namespace, "", "app_not_found_errors_total",
 			"Number of packets for which the destination application was not found."),
-		appWriteSVCPkts: prom.NewCounterVec(Namespace, "", "app_write_svc_total_pkts",
+		appWriteSVCPkts: prom.NewCounterVec(Namespace, "", "app_write_svc_pkts_total",
 			"Total SVC packets delivered to applications", SVC{}.Labels()),
-		netReadOverflows: prom.NewCounter(Namespace, "", "net_read_overflow_total_pkts",
+		netReadOverflows: prom.NewCounter(Namespace, "", "net_read_overflow_pkts_total",
 			"Total ingress packets that were dropped on the OS socket"),
 	}
-}
-
-// GetOpenConnectionLabel returns an SVC address string representation for sockets
-// that are opened on an SVC address, or a different string otherwise.
-func GetOpenConnectionLabel(svc addr.HostSVC) string {
-	if svc == addr.SvcNone {
-		return "no_svc"
-	}
-	return svc.BaseString()
 }
 
 func (m metrics) NetWriteBytes() prometheus.Counter {
@@ -156,6 +164,30 @@ func (m metrics) NetReadPkts(labels IncomingPacket) prometheus.Counter {
 
 func (m metrics) NetReadParseErrors() prometheus.Counter {
 	return m.netReadParseErrors
+}
+
+func (m metrics) AppWriteBytes() prometheus.Counter {
+	return m.appWriteBytes
+}
+
+func (m metrics) AppWritePkts() prometheus.Counter {
+	return m.appWritePkts
+}
+
+func (m metrics) AppWriteErrors() prometheus.Counter {
+	return m.appWriteErrors
+}
+
+func (m metrics) AppReadBytes() prometheus.Counter {
+	return m.appReadBytes
+}
+
+func (m metrics) AppReadPkts() prometheus.Counter {
+	return m.appReadPkts
+}
+
+func (m metrics) AppReadErrors() prometheus.Counter {
+	return m.appReadErrors
 }
 
 func (m metrics) OpenSockets(labels SVC) prometheus.Gauge {
