@@ -6,7 +6,6 @@ go_library(
     importpath = "github.com/scionproto/scion/go/godispatcher/internal/metrics",
     visibility = ["//go/godispatcher:__subpackages__"],
     deps = [
-        "//go/lib/addr:go_default_library",
         "//go/lib/prom:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
