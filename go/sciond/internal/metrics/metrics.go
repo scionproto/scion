@@ -157,8 +157,8 @@ type Revocation struct {
 
 func newRevocation() Revocation {
 	return Revocation{
-		count: prom.NewCounterVecWithLabels(Namespace, subsystemRevocation, "total",
-			"The amount of revocations received.", RevocationLabels{}),
+		count: prom.NewCounterVecWithLabels(Namespace, "", "recv_revocations_total",
+			"The amount of revocations received by src type and result", RevocationLabels{}),
 		latency: prom.NewHistogramVec(Namespace, subsystemRevocation,
 			"notification_duration_seconds", "Time to process revocation notifications.",
 			resultLabel{}.Labels(), prom.DefaultLatencyBuckets),

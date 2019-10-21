@@ -19,10 +19,13 @@ import (
 	"net"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -74,6 +77,8 @@ type FetcherConfig struct {
 	// SciondMode enables sciond mode, this means it uses the local CS to fetch
 	// crypto material and considers revocations in the path lookup.
 	SciondMode bool
+	// The namespace used for metrics.
+	MetricsNamespace string
 }
 
 // New creates a new fetcher from the configuration.
@@ -91,6 +96,7 @@ func (cfg FetcherConfig) New() *Fetcher {
 		QueryInterval:         cfg.QueryInterval,
 		NextQueryCleaner:      NextQueryCleaner{PathDB: cfg.PathDB},
 		CryptoLookupAtLocalCS: cfg.SciondMode,
+		metrics:               metrics.NewFetcher(cfg.MetricsNamespace),
 	}
 }
 
@@ -105,6 +111,7 @@ type Fetcher struct {
 	QueryInterval         time.Duration
 	NextQueryCleaner      NextQueryCleaner
 	CryptoLookupAtLocalCS bool
+	metrics               metrics.Fetcher
 }
 
 // FetchSegs fetches the required segments to build a path between src and dst
@@ -162,16 +169,33 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
 		if reply.Err != nil {
-			return reqSet, serrors.Wrap(errFetch, reply.Err)
+			f.metrics.SegRequests(metrics.ErrNotClassified).Inc()
 		}
 		if reply.Reply == nil || reply.Reply.Recs == nil {
+			f.metrics.SegRequests(metrics.OkSuccess).Inc()
 			continue
 		}
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), f.verifyServer(reply), nil)
 		select {
 		case <-r.FullReplyProcessed():
+			// sets revocation metrics
+			defer func() {
+				f.metrics.RevocationsReceived(metrics.OkSuccess).Add(
+					float64(len(r.Stats().StoredRevs)))
+				f.metrics.RevocationsReceived(metrics.ErrDB).Add(
+					float64(len(r.Stats().StoredRevs) - len(r.Stats().VerifiedRevs)))
+				revErrors := 0
+				for _, err := range r.VerificationErrors() {
+					if xerrors.Is(err, seghandler.ErrRevVerification) {
+						revErrors++
+					}
+				}
+				f.metrics.RevocationsReceived(metrics.ErrVerify).Add(float64(revErrors))
+			}()
 			if err := r.Err(); err != nil {
+				f.metrics.SegRequests(metrics.ErrProcess).Inc()
 				return reqSet, serrors.Wrap(errDB, err)
+
 			}
 			// TODO(lukedirtwalker): should we return an error if verification
 			// of all segments failed?
@@ -192,7 +216,9 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			if err != nil {
 				logger.Warn("Failed to insert next query", "err", err)
 			}
+			f.metrics.SegRequests(metrics.OkSuccess).Inc()
 		case <-ctx.Done():
+			f.metrics.SegRequests(metrics.ErrTimeout).Inc()
 			return reqSet, ctx.Err()
 		}
 	}
