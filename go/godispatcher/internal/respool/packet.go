@@ -52,6 +52,11 @@ type Packet struct {
 	refCount *int
 }
 
+// Len returns the length of the packet.
+func (p *Packet) Len() int {
+	return len(p.buffer)
+}
+
 func newPacket() *Packet {
 	refCount := 1
 	return &Packet{
@@ -99,11 +104,15 @@ func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 		return err
 	}
 	pkt.buffer = pkt.buffer[:n]
-	metrics.IncomingBytesTotal.Add(float64(n))
+	metrics.M.NetReadBytes().Add(float64(n))
 
 	pkt.OverlayRemote = readExtra.(*net.UDPAddr)
 	if err = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
-		metrics.IncomingPackets.WithLabelValues(metrics.PacketOutcomeParseError).Inc()
+		metrics.M.NetReadPkts(
+			metrics.IncomingPacket{
+				Result: metrics.PacketResultParseError,
+			},
+		).Inc()
 		return err
 	}
 	return nil
