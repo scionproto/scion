@@ -442,7 +442,9 @@ SrcHost     []byte
 DstHost     []byte
 ```
 
-### First-Level Key Exchange
+### Key Exchange
+
+#### First Level
 
 For the first-level key exchange between CS, we can use SignedCtrlPld. Thus,
 the request ID, timestamp, signature, certificate and TRC version do not need
@@ -467,7 +469,7 @@ DRKeyLvl1Rep {
 }
 ```
 
-### Second-Level Key Exchange
+#### Second Level
 
 The second level key response will also be transmitted with SignedCtrlPld.
 

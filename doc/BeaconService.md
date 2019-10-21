@@ -10,17 +10,18 @@ PCBs to propagate or register are selected according to an AS-level policy.
 Additionally, the BS is also responsible for determining the state of all interfaces in the AS. For this,
 each BS pings the neighboring AS' BS over each interface. If a ping isn't received for a certain
 amount of time on an interface, the BS assumes the interface is down and sends a revocation to
-all border routers (BRs) in the AS, to the local [path server (PS)](/doc/PathService.md), and to all core PSes.
+all border routers (BRs) in the AS, to the local [path server (PS)](PathService.md), and to all core
+PSes.
 
 ## General Structure
 
 The BS is structured similar to the existing go infra services.
 It reuses the existing building blocks for go services:
 
-* [go/lib/env](/go/lib/env): Is used for configuration and setup of the service.
-* [go/lib/infra/modules/trust](/go/lib/infra/modules/trust): Is used for TRCs and other crypto material.
-* [go/lib/infra](/go/lib/infra): Is used for the messenger to send and receive messages.
-* [go/lib/periodic](go/lib/periodic): Is used for periodic tasks.
+* [go/lib/env](../go/lib/env): Is used for configuration and setup of the service.
+* [go/lib/infra/modules/trust](../go/lib/infra/modules/trust): Is used for TRCs and other crypto material.
+* [go/lib/infra](../go/lib/infra): Is used for the messenger to send and receive messages.
+* [go/lib/periodic](../go/lib/periodic): Is used for periodic tasks.
 * etc. ...
 
 The main parts of the BS are
@@ -30,7 +31,7 @@ The main parts of the BS are
 * **beacon storage**.
 
 Each part is described in a separate chapter below. These parts can be grouped together into two
-subjects. *Beaconing* and *interface state keeping*.
+subjects: *beaconing* and *interface state keeping*.
 
 The beaconing part takes care of handling beacons and registering them.
 The following diagram shows an overview of the components related to beaconing and their dependency
@@ -85,7 +86,7 @@ type BeaconStore interface {
 
 ### Policy
 
-A [policy](/doc/PathPolicy.md) contains the parameters for the selection heuristic and the filters for inserting the
+A policy contains the parameters for the selection heuristic and the filters for inserting the
 beacon into the BeaconDB. BSes have multiple policies for different purposes. Beacons that
 are filtered by all policies are not added to the BeaconDB.
 
