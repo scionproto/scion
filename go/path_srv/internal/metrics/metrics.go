@@ -29,6 +29,8 @@ var (
 	Requests = newRequests()
 	// Sync contains metrics for segment synchronization.
 	Sync = newSync()
+	// Revocation contains metrics for revocations.
+	Revocation = newRevocation()
 )
 
 // Result values
@@ -61,6 +63,13 @@ const (
 	ErrNotClassified = prom.ErrNotClassified
 	// ErrNoPath indicates no path is available to send a message.
 	ErrNoPath = "err_nopath"
+)
+
+// Revocation sources
+const (
+	RevSrcNotification = "notification"
+	RevSrcSCMP         = "scmp"
+	RevSrcPathReply    = "path_reply"
 )
 
 // Label values
