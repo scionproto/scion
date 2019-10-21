@@ -15,6 +15,7 @@
 package db
 
 import (
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -31,27 +32,27 @@ var (
 	ErrTx = serrors.New("db: transaction error")
 )
 
-func NewTxError(msg string, err error, logCtx ...interface{}) error {
+func NewTxError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
 	return serrors.Wrap(ErrTx, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
-func NewInputDataError(msg string, err error, logCtx ...interface{}) error {
+func NewInputDataError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
 	return serrors.Wrap(ErrInvalidInputData, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
-func NewDataError(msg string, err error, logCtx ...interface{}) error {
+func NewDataError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
 	return serrors.Wrap(ErrDataInvalid, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
-func NewReadError(msg string, err error, logCtx ...interface{}) error {
+func NewReadError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
 	return serrors.Wrap(ErrReadFailed, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
-func NewWriteError(msg string, err error, logCtx ...interface{}) error {
+func NewWriteError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
 	return serrors.Wrap(ErrWriteFailed, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }

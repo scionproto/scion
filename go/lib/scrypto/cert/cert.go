@@ -32,11 +32,11 @@ import (
 )
 
 const (
-	EarlyUsage      = "Certificate IssuingTime in the future"
-	Expired         = "Certificate expired"
-	InvalidSubject  = "Invalid subject"
-	ReservedVersion = "Invalid version 0"
-	UnableSigPack   = "Cert: Unable to create signature input"
+	ErrEarlyUsage      common.ErrMsg = "Certificate IssuingTime in the future"
+	ErrExpired         common.ErrMsg = "Certificate expired"
+	ErrInvalidSubject  common.ErrMsg = "Invalid subject"
+	ErrReservedVersion common.ErrMsg = "Invalid version 0"
+	ErrUnableSigPack   common.ErrMsg = "Cert: Unable to create signature input"
 )
 
 const (
@@ -91,7 +91,7 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 		return nil, common.NewBasicError("Unable to parse Certificate", err)
 	}
 	if cert.Version.IsLatest() {
-		return nil, common.NewBasicError(ReservedVersion, nil)
+		return nil, common.NewBasicError(ErrReservedVersion, nil)
 	}
 	return cert, nil
 }
@@ -101,7 +101,7 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 // subject, and that it is valid at the current time.
 func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlgo string) error {
 	if !subject.Equal(c.Subject) {
-		return common.NewBasicError(InvalidSubject, nil,
+		return common.NewBasicError(ErrInvalidSubject, nil,
 			"expected", c.Subject, "actual", subject)
 	}
 	if err := c.VerifyTime(util.TimeToSecs(time.Now())); err != nil {
@@ -114,12 +114,12 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 // not check the validity of the signature.
 func (c *Certificate) VerifyTime(ts uint32) error {
 	if ts < c.IssuingTime {
-		return common.NewBasicError(EarlyUsage, nil,
+		return common.NewBasicError(ErrEarlyUsage, nil,
 			"IssuingTime", util.SecsToCompact(c.IssuingTime),
 			"current", util.SecsToCompact(ts))
 	}
 	if ts > c.ExpirationTime {
-		return common.NewBasicError(Expired, nil,
+		return common.NewBasicError(ErrExpired, nil,
 			"ExpirationTime", util.SecsToCompact(c.ExpirationTime),
 			"current", util.SecsToCompact(ts))
 	}
@@ -131,7 +131,7 @@ func (c *Certificate) VerifyTime(ts uint32) error {
 func (c *Certificate) VerifySignature(verifyKey common.RawBytes, signAlgo string) error {
 	sigInput, err := c.sigPack()
 	if err != nil {
-		return common.NewBasicError(UnableSigPack, err)
+		return common.NewBasicError(ErrUnableSigPack, err)
 	}
 	return scrypto.Verify(sigInput, c.Signature, verifyKey, signAlgo)
 }
@@ -154,7 +154,7 @@ func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
 // sigPack creates a sorted json object of all fields, except for the signature field.
 func (c *Certificate) sigPack() (common.RawBytes, error) {
 	if c.Version.IsLatest() {
-		return nil, common.NewBasicError(ReservedVersion, nil)
+		return nil, common.NewBasicError(ErrReservedVersion, nil)
 	}
 	m := make(map[string]interface{})
 	m[canIssue] = c.CanIssue
@@ -216,7 +216,7 @@ func (c *Certificate) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if err = validateFields(m, certFields); err != nil {
-		return common.NewBasicError(UnableValidateFields, err)
+		return common.NewBasicError(ErrUnableValidateFields, err)
 	}
 	// XXX(roosd): Unmarshalling twice might affect performance.
 	// After switching to go 1.10 we might make use of

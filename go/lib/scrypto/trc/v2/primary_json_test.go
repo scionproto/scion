@@ -102,7 +102,7 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 					}
 				}
 			}`,
-			ExpectedErrMsg: trc.InvalidKeyType,
+			ExpectedErrMsg: trc.ErrInvalidKeyType.Error(),
 		},
 	}
 	for name, test := range tests {

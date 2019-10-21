@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	ErrAppUnableToInitMessenger = "Unable to initialize SCION Infra Messenger"
+	ErrAppUnableToInitMessenger common.ErrMsg = "Unable to initialize SCION Infra Messenger"
 )
 
 var resolutionRequestPayload = []byte{0x00, 0x00, 0x00, 0x00}

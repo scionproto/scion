@@ -24,8 +24,8 @@ import (
 // when requesting certificate chains and TRCs.
 const LatestVer Version = 0
 
-// ErrInvalidVersion indicates an invalid trust file version.
-var ErrInvalidVersion = errors.New("version must not be zero")
+// ErrErrInvalidVersion indicates an invalid trust file version.
+var ErrErrInvalidVersion = errors.New("version must not be zero")
 
 var _ json.Unmarshaler = (*Version)(nil)
 var _ json.Marshaler = (*Version)(nil)
@@ -46,7 +46,7 @@ func (v *Version) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if Version(parsed) == LatestVer {
-		return ErrInvalidVersion
+		return ErrErrInvalidVersion
 	}
 	*v = Version(parsed)
 	return nil
@@ -55,7 +55,7 @@ func (v *Version) UnmarshalJSON(b []byte) error {
 // MarshalJSON checks that the value is not LatestVer.
 func (v Version) MarshalJSON() ([]byte, error) {
 	if v == LatestVer {
-		return nil, ErrInvalidVersion
+		return nil, ErrErrInvalidVersion
 	}
 	return json.Marshal(uint64(v))
 }

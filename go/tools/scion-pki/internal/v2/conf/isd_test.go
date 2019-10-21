@@ -61,13 +61,13 @@ func TestValidatingTrc(t *testing.T) {
 			Modify: func(trc *conf.TRC) {
 				trc.Version = 0
 			},
-			ExpectedErrMsg: conf.ErrTrcVersionNotSet,
+			ExpectedErrMsg: conf.ErrTrcVersionNotSet.Error(),
 		},
 		"invalid validity duration": {
 			Modify: func(trc *conf.TRC) {
 				trc.RawValidity = "18"
 			},
-			ExpectedErrMsg: conf.ErrInvalidValidityDuration,
+			ExpectedErrMsg: conf.ErrInvalidValidityDuration.Error(),
 		},
 		"authoritative not set": {
 			Modify: func(trc *conf.TRC) {
@@ -109,31 +109,31 @@ func TestValidatingTrc(t *testing.T) {
 			Modify: func(trc *conf.TRC) {
 				trc.RawCoreASes = trc.RawCoreASes[:len(trc.RawCoreASes)-2]
 			},
-			ExpectedErrMsg: conf.ErrAuthoritativeNotCore,
+			ExpectedErrMsg: conf.ErrAuthoritativeNotCore.Error(),
 		},
 		"VotingQuorum not set": {
 			Modify: func(trc *conf.TRC) {
 				trc.VotingQuorum = 0
 			},
-			ExpectedErrMsg: conf.ErrVotingQuorumNotSet,
+			ExpectedErrMsg: conf.ErrVotingQuorumNotSet.Error(),
 		},
 		"invalid GracePeriod": {
 			Modify: func(trc *conf.TRC) {
 				trc.RawGracePeriod = "18"
 			},
-			ExpectedErrMsg: conf.ErrInvalidGracePeriod,
+			ExpectedErrMsg: conf.ErrInvalidGracePeriod.Error(),
 		},
 		"base and non-zero GracePeriod": {
 			Modify: func(trc *conf.TRC) {
 				trc.RawGracePeriod = "6h"
 			},
-			ExpectedErrMsg: conf.ErrInvalidGracePeriod,
+			ExpectedErrMsg: conf.ErrInvalidGracePeriod.Error(),
 		},
 		"VotingQuorum greater than number of voting ASes": {
 			Modify: func(trc *conf.TRC) {
 				trc.VotingQuorum = len(trc.RawVotingASes) + 1
 			},
-			ExpectedErrMsg: conf.ErrVotingQuorumGreaterThanVotingASes,
+			ExpectedErrMsg: conf.ErrVotingQuorumGreaterThanVotingASes.Error(),
 		},
 	}
 

@@ -29,8 +29,8 @@ var (
 	ErrNotAfterNotSet = errors.New("not_after not set")
 	// ErrNotBeforeNotSet indicates not_before is not set.
 	ErrNotBeforeNotSet = errors.New("not_before not set")
-	// ErrInvalidValidityPeriod indicates an invalid validity period.
-	ErrInvalidValidityPeriod = errors.New("not_after before not_before")
+	// ErrErrInvalidValidityPeriod indicates an invalid validity period.
+	ErrErrInvalidValidityPeriod = errors.New("not_after before not_before")
 )
 
 // Validity indicates a validity period.
@@ -52,7 +52,7 @@ func (v Validity) Covers(other Validity) bool {
 // Validate checks that NotAfter is after NotBefore.
 func (v Validity) Validate() error {
 	if !v.NotAfter.After(v.NotBefore.Time) {
-		return ErrInvalidValidityPeriod
+		return ErrErrInvalidValidityPeriod
 	}
 	return nil
 }

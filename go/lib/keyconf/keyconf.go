@@ -65,10 +65,13 @@ const (
 	TRCIssuingKeyFile = "trc-issuing.key"
 
 	RawKey = "raw"
+)
 
-	ErrorOpen    = "Unable to load key"
-	ErrorParse   = "Unable to parse key file"
-	ErrorUnknown = "Unknown algorithm"
+// Errors
+const (
+	ErrorOpen    common.ErrMsg = "Unable to load key"
+	ErrorParse   common.ErrMsg = "Unable to parse key file"
+	ErrorUnknown common.ErrMsg = "Unknown algorithm"
 )
 
 // Load loads key configuration from specified path.

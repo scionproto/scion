@@ -76,7 +76,7 @@ func TestChainUnmarshalJSONError(t *testing.T) {
 				}
 			]
 			`,
-			ExpectedErrMsg: cert.InvalidChainLength,
+			ExpectedErrMsg: cert.ErrInvalidChainLength.Error(),
 		},
 		"too long": {
 			Input: `
@@ -98,7 +98,7 @@ func TestChainUnmarshalJSONError(t *testing.T) {
 				}
 			]
 			`,
-			ExpectedErrMsg: cert.InvalidChainLength,
+			ExpectedErrMsg: cert.ErrInvalidChainLength.Error(),
 		},
 	}
 	for name, test := range tests {

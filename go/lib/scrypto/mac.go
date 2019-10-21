@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	ErrorCipherFailure = "Unable to initialize AES cipher"
-	ErrorMacFailure    = "Unable to initialize Mac"
+	ErrCipherFailure common.ErrMsg = "Unable to initialize AES cipher"
+	ErrMacFailure    common.ErrMsg = "Unable to initialize Mac"
 )
 
 var (
@@ -37,11 +37,11 @@ var (
 func InitMac(key []byte) (hash.Hash, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, common.NewBasicError(ErrorCipherFailure, err)
+		return nil, common.NewBasicError(ErrCipherFailure, err)
 	}
 	mac, err := cmac.New(block)
 	if err != nil {
-		return nil, common.NewBasicError(ErrorMacFailure, err)
+		return nil, common.NewBasicError(ErrMacFailure, err)
 	}
 	return mac, nil
 }

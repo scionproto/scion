@@ -23,20 +23,20 @@ import (
 )
 
 const (
-	// ASValidityNotCovered indicates the AS certificate's validity period is
+	// ErrASValidityNotCovered indicates the AS certificate's validity period is
 	// not covered by the issuer certificate's validity period.
-	ASValidityNotCovered = "AS validity not covered"
-	// IssuerValidityNotCovered indicates the issuer certificate's validity
+	ErrASValidityNotCovered common.ErrMsg = "AS validity not covered"
+	// ErrIssuerValidityNotCovered indicates the issuer certificate's validity
 	// period is not covered by the TRC's validity period.
-	IssuerValidityNotCovered = "AS validity not covered"
-	// UnexpectedIssuer indicates another issuer is expected.
-	UnexpectedIssuer = "wrong issuer"
-	// UnexpectedCertificateVersion indicates another issuer certificate version is expected.
-	UnexpectedCertificateVersion = "wrong certificate version"
-	// UnexpectedTRCVersion indicates another TRC version is expected.
-	UnexpectedTRCVersion = "wrong TRC version"
-	// InvalidProtected indicates an invalid protected meta.
-	InvalidProtected = "invalid protected meta"
+	ErrIssuerValidityNotCovered common.ErrMsg = "AS validity not covered"
+	// ErrUnexpectedIssuer indicates another issuer is expected.
+	ErrUnexpectedIssuer common.ErrMsg = "wrong issuer"
+	// ErrUnexpectedCertificateVersion indicates another issuer certificate version is expected.
+	ErrUnexpectedCertificateVersion common.ErrMsg = "wrong certificate version"
+	// ErrUnexpectedTRCVersion indicates another TRC version is expected.
+	ErrUnexpectedTRCVersion common.ErrMsg = "wrong TRC version"
+	// ErrInvalidProtected indicates an invalid protected meta.
+	ErrInvalidProtected common.ErrMsg = "invalid protected meta"
 )
 
 var (
@@ -73,15 +73,15 @@ func (v ASVerifier) Verify() error {
 
 func (v ASVerifier) checkIssuer(p ProtectedAS) error {
 	if !v.Issuer.Subject.Equal(v.AS.Issuer.IA) {
-		return common.NewBasicError(UnexpectedIssuer, nil,
+		return common.NewBasicError(ErrUnexpectedIssuer, nil,
 			"expected", v.AS.Issuer.IA, "actual", v.Issuer.Subject)
 	}
 	if v.Issuer.Version != v.AS.Issuer.CertificateVersion {
-		return common.NewBasicError(UnexpectedCertificateVersion, nil,
+		return common.NewBasicError(ErrUnexpectedCertificateVersion, nil,
 			"expected", v.AS.Issuer.CertificateVersion, "actual", v.Issuer.Version)
 	}
 	if !v.Issuer.Validity.Covers(*v.AS.Validity) {
-		return common.NewBasicError(ASValidityNotCovered, nil,
+		return common.NewBasicError(ErrASValidityNotCovered, nil,
 			"issuer", v.Issuer.Validity, "as", v.AS.Validity)
 	}
 	expected := ProtectedAS{
@@ -90,7 +90,7 @@ func (v ASVerifier) checkIssuer(p ProtectedAS) error {
 		IA:                 v.Issuer.Subject,
 	}
 	if p != expected {
-		return common.NewBasicError(InvalidProtected, nil, "expected", expected, "actual", p)
+		return common.NewBasicError(ErrInvalidProtected, nil, "expected", expected, "actual", p)
 	}
 	return nil
 }
@@ -128,11 +128,11 @@ func (v IssuerVerifier) checkIssuer(p ProtectedIssuer) error {
 		return ErrNotIssuing
 	}
 	if v.TRC.Version != v.Issuer.Issuer.TRCVersion {
-		return common.NewBasicError(UnexpectedTRCVersion, nil,
+		return common.NewBasicError(ErrUnexpectedTRCVersion, nil,
 			"expected", v.Issuer.Issuer.TRCVersion, "actual", v.TRC.Version)
 	}
 	if !v.TRC.Validity.Covers(*v.Issuer.Validity) {
-		return common.NewBasicError(IssuerValidityNotCovered, nil,
+		return common.NewBasicError(ErrIssuerValidityNotCovered, nil,
 			"trc", v.TRC.Validity, "issuer", v.Issuer.Validity)
 	}
 	expected := ProtectedIssuer{
@@ -140,7 +140,7 @@ func (v IssuerVerifier) checkIssuer(p ProtectedIssuer) error {
 		TRCVersion: v.TRC.Version,
 	}
 	if p != expected {
-		return common.NewBasicError(InvalidProtected, nil, "expected", expected, "actual", p)
+		return common.NewBasicError(ErrInvalidProtected, nil, "expected", expected, "actual", p)
 	}
 	return nil
 }

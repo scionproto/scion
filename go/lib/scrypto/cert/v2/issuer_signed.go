@@ -153,7 +153,7 @@ type SignatureTypeTRC struct{}
 // UnmarshalText checks the signature type is correct.
 func (t *SignatureTypeTRC) UnmarshalText(b []byte) error {
 	if string(b) != SignatureTypeTRCJSON {
-		return common.NewBasicError(InvalidSignatureType, nil, "input", string(b))
+		return common.NewBasicError(ErrInvalidSignatureType, nil, "input", string(b))
 	}
 	return nil
 }

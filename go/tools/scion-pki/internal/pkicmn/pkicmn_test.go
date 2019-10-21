@@ -66,7 +66,7 @@ func TestProcessSelector(t *testing.T) {
 	tests := map[string]struct {
 		selector string
 		isdAsMap map[addr.ISD][]addr.IA
-		err      string
+		err      common.ErrMsg
 	}{
 		"Empty selector string": {
 			err: ErrInvalidSelector,

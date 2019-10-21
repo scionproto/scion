@@ -29,9 +29,9 @@ import (
 const CfgName = "topology.json"
 
 const (
-	ErrorOpen    = "Unable to open topology"
-	ErrorParse   = "Unable to parse topology from JSON"
-	ErrorConvert = "Unable to convert RawTopo to Topo"
+	ErrorOpen    common.ErrMsg = "Unable to open topology"
+	ErrorParse   common.ErrMsg = "Unable to parse topology from JSON"
+	ErrorConvert common.ErrMsg = "Unable to convert RawTopo to Topo"
 )
 
 // Structures directly filled from JSON

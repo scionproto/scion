@@ -28,18 +28,22 @@ import (
 )
 
 const (
-	CertNameFmt        = "ISD%d-AS%s-V%d.crt"
-	CoreCertNameFmt    = "ISD%d-AS%s-V%d-core.crt"
-	TrcNameFmt         = "ISD%d-V%d.trc"
-	TRCPartsDirFmt     = "ISD%d-V%d.parts"
-	TRCSigPartFmt      = "ISD%d-V%d.sig.%s"
-	TRCProtoNameFmt    = "ISD%d-V%d.proto"
-	ErrInvalidSelector = "Invalid selector."
-	ErrNoISDDirFound   = "No ISD directories found"
-	ErrNoASDirFound    = "No AS directories found"
-	TRCsDir            = "trcs"
-	CertsDir           = "certs"
-	KeysDir            = "keys"
+	CertNameFmt     = "ISD%d-AS%s-V%d.crt"
+	CoreCertNameFmt = "ISD%d-AS%s-V%d-core.crt"
+	TrcNameFmt      = "ISD%d-V%d.trc"
+	TRCPartsDirFmt  = "ISD%d-V%d.parts"
+	TRCSigPartFmt   = "ISD%d-V%d.sig.%s"
+	TRCProtoNameFmt = "ISD%d-V%d.proto"
+	TRCsDir         = "trcs"
+	CertsDir        = "certs"
+	KeysDir         = "keys"
+)
+
+// Error values
+const (
+	ErrInvalidSelector common.ErrMsg = "Invalid selector."
+	ErrNoISDDirFound   common.ErrMsg = "No ISD directories found"
+	ErrNoASDirFound    common.ErrMsg = "No AS directories found"
 )
 
 var (

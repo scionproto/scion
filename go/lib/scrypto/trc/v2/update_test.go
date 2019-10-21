@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -31,38 +31,38 @@ import (
 func TestCommonUpdate(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(updated, prev *trc.TRC)
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		"Trust reset": {
 			Modify: func(updated, _ *trc.TRC) {
 				*updated = *newBaseTRC(time.Now())
 				updated.BaseVersion = updated.Version
 			},
-			ExpectedErrMsg: trc.ErrBaseNotUpdate.Error(),
+			ExpectedErrMsg: trc.ErrBaseNotUpdate,
 		},
 		"Invariant violation": {
 			Modify: func(updated, _ *trc.TRC) {
 				updated.Validity.NotAfter = updated.Validity.NotBefore
 			},
-			ExpectedErrMsg: trc.InvalidValidityPeriod,
+			ExpectedErrMsg: trc.ErrInvalidValidityPeriod,
 		},
 		"Wrong ISD": {
 			Modify: func(updated, _ *trc.TRC) {
 				updated.ISD = updated.ISD + 1
 			},
-			ExpectedErrMsg: trc.ImmutableISD,
+			ExpectedErrMsg: trc.ErrImmutableISD,
 		},
 		"Wrong Version": {
 			Modify: func(updated, prev *trc.TRC) {
 				updated.Version = prev.Version + 2
 			},
-			ExpectedErrMsg: trc.InvalidVersionIncrement,
+			ExpectedErrMsg: trc.ErrInvalidVersionIncrement,
 		},
 		"Changed TrustResetAllowed": {
 			Modify: func(updated, prev *trc.TRC) {
 				*updated.TrustResetAllowedPtr = !prev.TrustResetAllowed()
 			},
-			ExpectedErrMsg: trc.ImmutableTrustResetAllowed,
+			ExpectedErrMsg: trc.ErrImmutableTrustResetAllowed,
 		},
 		"New NotBefore not in Validity": {
 			Modify: func(updated, prev *trc.TRC) {
@@ -71,7 +71,7 @@ func TestCommonUpdate(t *testing.T) {
 					NotAfter:  util.UnixTime{Time: prev.Validity.NotAfter.Add(8760 * time.Hour)},
 				}
 			},
-			ExpectedErrMsg: trc.NotInsidePreviousValidityPeriod,
+			ExpectedErrMsg: trc.ErrNotInsidePreviousValidityPeriod,
 		},
 		"Changed BaseVersion": {
 			Modify: func(updated, prev *trc.TRC) {
@@ -79,7 +79,7 @@ func TestCommonUpdate(t *testing.T) {
 				updated.Version = 6
 				updated.BaseVersion = 2
 			},
-			ExpectedErrMsg: trc.ImmutableBaseVersion,
+			ExpectedErrMsg: trc.ErrImmutableBaseVersion,
 		},
 	}
 	for name, test := range tests {
@@ -91,12 +91,9 @@ func TestCommonUpdate(t *testing.T) {
 				Next: updated,
 			}
 			info, err := v.Validate()
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			if test.ExpectedErrMsg == nil {
 				assert.Equal(t, ut, info.Type)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 			}
 		}
 		t.Run(name+" (regular)", func(t *testing.T) {
@@ -117,7 +114,7 @@ func TestSensitiveUpdate(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(updated, prev *trc.TRC)
 		Info           trc.UpdateInfo
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		// Valid updates
 
@@ -351,19 +348,19 @@ func TestSensitiveUpdate(t *testing.T) {
 			Modify: func(updated, _ *trc.TRC) {
 				*updated.VotingQuorumPtr = 0
 			},
-			ExpectedErrMsg: trc.ErrZeroVotingQuorum.Error(),
+			ExpectedErrMsg: trc.ErrZeroVotingQuorum,
 		},
 		"VotingQuorum larger than voting ASes": {
 			Modify: func(updated, _ *trc.TRC) {
 				*updated.VotingQuorumPtr = uint8(updated.PrimaryASes.Count(trc.Voting) + 1)
 			},
-			ExpectedErrMsg: trc.VotingQuorumTooLarge,
+			ExpectedErrMsg: trc.ErrVotingQuorumTooLarge,
 		},
 		"Underflow voting quorum": {
 			Modify: func(updated, _ *trc.TRC) {
 				delete(updated.PrimaryASes, a140)
 			},
-			ExpectedErrMsg: trc.VotingQuorumTooLarge,
+			ExpectedErrMsg: trc.ErrVotingQuorumTooLarge,
 		},
 		"Vote quorum too small": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -372,7 +369,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				delete(updated.Votes, a120)
 				delete(updated.Votes, a140)
 			},
-			ExpectedErrMsg: trc.QuorumUnmet,
+			ExpectedErrMsg: trc.ErrQuorumUnmet,
 		},
 		"New Voting AS that does not sign with offline key": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -393,7 +390,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				}
 				updated.ProofOfPossession[a190] = []trc.KeyType{trc.OnlineKey}
 			},
-			ExpectedErrMsg: trc.MissingProofOfPossession,
+			ExpectedErrMsg: trc.ErrMissingProofOfPossession,
 		},
 		"New Voting AS that does not sign with online key": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -414,7 +411,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				}
 				updated.ProofOfPossession[a190] = []trc.KeyType{trc.OnlineKey}
 			},
-			ExpectedErrMsg: trc.MissingProofOfPossession,
+			ExpectedErrMsg: trc.ErrMissingProofOfPossession,
 		},
 		"Promoted Issuing AS has no key": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -422,7 +419,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				primary.Attributes = append(primary.Attributes, trc.Issuing)
 				updated.PrimaryASes[a150] = primary
 			},
-			ExpectedErrMsg: trc.MissingKey,
+			ExpectedErrMsg: trc.ErrMissingKey,
 		},
 		"Demoted AS keeps offline key": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -431,14 +428,14 @@ func TestSensitiveUpdate(t *testing.T) {
 				primary.Attributes = trc.Attributes{trc.Issuing, trc.Core}
 				updated.PrimaryASes[a110] = primary
 			},
-			ExpectedErrMsg: trc.UnexpectedKey,
+			ExpectedErrMsg: trc.ErrUnexpectedKey,
 		},
 		"Unexpected proof of possession": {
 			Modify: func(updated, _ *trc.TRC) {
 				*updated.VotingQuorumPtr -= 1
 				updated.ProofOfPossession[a110] = []trc.KeyType{trc.OnlineKey}
 			},
-			ExpectedErrMsg: trc.UnexpectedProofOfPossession,
+			ExpectedErrMsg: trc.ErrUnexpectedProofOfPossession,
 		},
 		"Update offline key without proof of possession": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -448,7 +445,7 @@ func TestSensitiveUpdate(t *testing.T) {
 					Key:        []byte{1, 110, 2},
 				}
 			},
-			ExpectedErrMsg: trc.MissingProofOfPossession,
+			ExpectedErrMsg: trc.ErrMissingProofOfPossession,
 		},
 		"Increase offline key version without modification": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -458,7 +455,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				updated.ProofOfPossession[a110] = append(updated.ProofOfPossession[a110],
 					trc.OfflineKey)
 			},
-			ExpectedErrMsg: trc.InvalidKeyVersion,
+			ExpectedErrMsg: trc.ErrInvalidKeyVersion,
 		},
 		"Modify offline key without increasing version": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -468,7 +465,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				updated.ProofOfPossession[a110] = append(updated.ProofOfPossession[a110],
 					trc.OfflineKey)
 			},
-			ExpectedErrMsg: trc.InvalidKeyVersion,
+			ExpectedErrMsg: trc.ErrInvalidKeyVersion,
 		},
 		"Increase offline key version by 2": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -479,7 +476,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				updated.ProofOfPossession[a110] = append(updated.ProofOfPossession[a110],
 					trc.OfflineKey)
 			},
-			ExpectedErrMsg: trc.InvalidKeyVersion,
+			ExpectedErrMsg: trc.ErrInvalidKeyVersion,
 		},
 		"Signature from non-Voting AS": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -489,7 +486,7 @@ func TestSensitiveUpdate(t *testing.T) {
 					KeyVersion: 1,
 				}
 			},
-			ExpectedErrMsg: trc.ErrNoVotingRight.Error(),
+			ExpectedErrMsg: trc.ErrNoVotingRight,
 		},
 		"Signature from unknown AS": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -501,7 +498,7 @@ func TestSensitiveUpdate(t *testing.T) {
 					KeyVersion: 1,
 				}
 			},
-			ExpectedErrMsg: trc.ErrUnexpectedVote.Error(),
+			ExpectedErrMsg: trc.ErrUnexpectedVote,
 		},
 		"Wrong KeyType on Vote": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -511,7 +508,7 @@ func TestSensitiveUpdate(t *testing.T) {
 					KeyVersion: 1,
 				}
 			},
-			ExpectedErrMsg: trc.WrongVotingKeyType,
+			ExpectedErrMsg: trc.ErrWrongVotingKeyType,
 		},
 		"Wrong KeyVersion": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -521,7 +518,7 @@ func TestSensitiveUpdate(t *testing.T) {
 					KeyVersion: 10,
 				}
 			},
-			ExpectedErrMsg: trc.WrongVotingKeyVersion,
+			ExpectedErrMsg: trc.ErrWrongVotingKeyVersion,
 		},
 	}
 	for name, test := range tests {
@@ -533,15 +530,12 @@ func TestSensitiveUpdate(t *testing.T) {
 				Next: updated,
 			}
 			info, err := v.Validate()
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			if test.ExpectedErrMsg == nil {
 				assert.Equal(t, trc.SensitiveUpdate, info.Type)
 				initKeyChanges(&test.Info)
 				assert.Equal(t, test.Info.KeyChanges, info.KeyChanges)
 				//assert.Equal(t, test.Info, info)
-			} else {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 			}
 		})
 	}
@@ -551,7 +545,7 @@ func TestRegularUpdate(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(updated, prev *trc.TRC)
 		Info           trc.UpdateInfo
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		// Valid updates
 
@@ -631,7 +625,7 @@ func TestRegularUpdate(t *testing.T) {
 					KeyVersion: 1,
 				}
 			},
-			ExpectedErrMsg: trc.ErrUnexpectedVote.Error(),
+			ExpectedErrMsg: trc.ErrUnexpectedVote,
 		},
 		"Signature from non-Voting AS": {
 			Modify: func(updated, prev *trc.TRC) {
@@ -640,7 +634,7 @@ func TestRegularUpdate(t *testing.T) {
 					KeyVersion: 1,
 				}
 			},
-			ExpectedErrMsg: trc.ErrNoVotingRight.Error(),
+			ExpectedErrMsg: trc.ErrNoVotingRight,
 		},
 		"Wrong KeyType": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -649,7 +643,7 @@ func TestRegularUpdate(t *testing.T) {
 					KeyVersion: 1,
 				}
 			},
-			ExpectedErrMsg: trc.WrongVotingKeyType,
+			ExpectedErrMsg: trc.ErrWrongVotingKeyType,
 		},
 		"Wrong KeyVersion": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -658,13 +652,13 @@ func TestRegularUpdate(t *testing.T) {
 					KeyVersion: 10,
 				}
 			},
-			ExpectedErrMsg: trc.WrongVotingKeyVersion,
+			ExpectedErrMsg: trc.ErrWrongVotingKeyVersion,
 		},
 		"Signature Quorum too small": {
 			Modify: func(updated, _ *trc.TRC) {
 				delete(updated.Votes, a140)
 			},
-			ExpectedErrMsg: trc.QuorumUnmet,
+			ExpectedErrMsg: trc.ErrQuorumUnmet,
 		},
 		"Missing proof of possession": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -678,13 +672,13 @@ func TestRegularUpdate(t *testing.T) {
 					KeyVersion: 1,
 				}
 			},
-			ExpectedErrMsg: trc.MissingProofOfPossession,
+			ExpectedErrMsg: trc.ErrMissingProofOfPossession,
 		},
 		"Unexpected proof of possession": {
 			Modify: func(updated, _ *trc.TRC) {
 				updated.ProofOfPossession[a110] = []trc.KeyType{trc.IssuingKey}
 			},
-			ExpectedErrMsg: trc.UnexpectedProofOfPossession,
+			ExpectedErrMsg: trc.ErrUnexpectedProofOfPossession,
 		},
 		"Update online key with online vote": {
 			Modify: func(updated, _ *trc.TRC) {
@@ -695,7 +689,7 @@ func TestRegularUpdate(t *testing.T) {
 				}
 				updated.ProofOfPossession[a110] = []trc.KeyType{trc.OnlineKey}
 			},
-			ExpectedErrMsg: trc.WrongVotingKeyType,
+			ExpectedErrMsg: trc.ErrWrongVotingKeyType,
 		},
 		"Update online key without any vote": {
 			Modify: func(updated, prev *trc.TRC) {
@@ -709,7 +703,7 @@ func TestRegularUpdate(t *testing.T) {
 				updated.ProofOfPossession[a110] = []trc.KeyType{trc.OnlineKey}
 				delete(updated.Votes, a110)
 			},
-			ExpectedErrMsg: trc.MissingVote,
+			ExpectedErrMsg: trc.ErrMissingVote,
 		},
 	}
 	for name, test := range tests {
@@ -721,15 +715,12 @@ func TestRegularUpdate(t *testing.T) {
 				Next: updated,
 			}
 			info, err := v.Validate()
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			if test.ExpectedErrMsg == nil {
 				assert.Equal(t, trc.RegularUpdate, info.Type)
 				initKeyChanges(&test.Info)
 				assert.Equal(t, test.Info.KeyChanges, info.KeyChanges)
 				//assert.Equal(t, test.Info, info)
-			} else {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 			}
 		})
 	}

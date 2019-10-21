@@ -26,10 +26,10 @@ import (
 )
 
 const (
-	// InvalidCrit indicates that the value for the crit key is invalid.
-	InvalidCrit = "invalid crit"
-	// InvalidSignatureType indicates an invalid signature type.
-	InvalidSignatureType = "invalid signature type"
+	// ErrInvalidCrit indicates that the value for the crit key is invalid.
+	ErrInvalidCrit common.ErrMsg = "invalid crit"
+	// ErrInvalidSignatureType indicates an invalid signature type.
+	ErrInvalidSignatureType common.ErrMsg = "invalid signature type"
 )
 
 var (
@@ -202,7 +202,7 @@ func (t *SignatureType) UnmarshalText(b []byte) error {
 	case VoteSignature:
 		*t = VoteSignature
 	default:
-		return common.NewBasicError(InvalidSignatureType, nil, "input", string(b))
+		return common.NewBasicError(ErrInvalidSignatureType, nil, "input", string(b))
 	}
 	return nil
 }
@@ -225,11 +225,11 @@ func (c Crit) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if len(list) != len(allCritFields) {
-		return common.NewBasicError(InvalidCrit, nil, "len", len(list))
+		return common.NewBasicError(ErrInvalidCrit, nil, "len", len(list))
 	}
 	for i, expected := range allCritFields {
 		if list[i] != expected {
-			return common.NewBasicError(InvalidCrit, nil, "idx", i,
+			return common.NewBasicError(ErrInvalidCrit, nil, "idx", i,
 				"expected", expected, "actual", list[i])
 		}
 	}

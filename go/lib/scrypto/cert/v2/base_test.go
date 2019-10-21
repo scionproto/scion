@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -36,7 +36,7 @@ var (
 func TestBaseValidate(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(*cert.Base)
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		"Valid": {
 			Modify: func(_ *cert.Base) {},
@@ -45,25 +45,25 @@ func TestBaseValidate(t *testing.T) {
 			Modify: func(c *cert.Base) {
 				c.Subject.A = 0
 			},
-			ExpectedErrMsg: cert.InvalidSubject,
+			ExpectedErrMsg: cert.ErrInvalidSubject,
 		},
 		"Subject wildcard ISD": {
 			Modify: func(c *cert.Base) {
 				c.Subject.I = 0
 			},
-			ExpectedErrMsg: cert.InvalidSubject,
+			ExpectedErrMsg: cert.ErrInvalidSubject,
 		},
 		"DistributionPoint wildcard": {
 			Modify: func(c *cert.Base) {
 				c.OptionalDistributionPoints = append(c.OptionalDistributionPoints, addr.IA{I: 1})
 			},
-			ExpectedErrMsg: cert.InvalidDistributionPoint,
+			ExpectedErrMsg: cert.ErrInvalidDistributionPoint,
 		},
 		"Wrong validity period": {
 			Modify: func(c *cert.Base) {
 				c.Validity.NotAfter.Time = c.Validity.NotBefore.Time
 			},
-			ExpectedErrMsg: cert.InvalidValidityPeriod,
+			ExpectedErrMsg: cert.ErrInvalidValidityPeriod,
 		},
 	}
 	for name, test := range tests {
@@ -71,12 +71,7 @@ func TestBaseValidate(t *testing.T) {
 			c := newBaseCert(time.Now())
 			test.Modify(&c)
 			err := c.Validate()
-			if test.ExpectedErrMsg == "" {
-				assert.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
 		})
 	}
 }

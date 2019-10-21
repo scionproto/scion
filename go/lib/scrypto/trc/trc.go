@@ -35,20 +35,22 @@ import (
 
 const (
 	MaxTRCByteLength uint32 = 1 << 20
+)
 
-	// Error strings
-	EarlyUsage          = "Creation time in the future"
-	EarlyAnnouncement   = "Early announcement"
-	Expired             = "TRC expired"
-	GracePeriodPassed   = "TRC grace period has passed"
-	InactiveVersion     = "Inactive TRC version"
-	InvalidCreationTime = "Invalid TRC creation time"
-	InvalidISD          = "Invalid TRC ISD"
-	InvalidQuorum       = "Not enough valid signatures"
-	InvalidVersion      = "Invalid TRC version"
-	ReservedVersion     = "Invalid version 0"
-	SignatureMissing    = "Signature missing"
-	UnableSigPack       = "TRC: Unable to create signature input"
+// Error strings
+const (
+	EarlyUsage          common.ErrMsg = "Creation time in the future"
+	EarlyAnnouncement   common.ErrMsg = "Early announcement"
+	Expired             common.ErrMsg = "TRC expired"
+	GracePeriodPassed   common.ErrMsg = "TRC grace period has passed"
+	InactiveVersion     common.ErrMsg = "Inactive TRC version"
+	InvalidCreationTime common.ErrMsg = "Invalid TRC creation time"
+	InvalidISD          common.ErrMsg = "Invalid TRC ISD"
+	InvalidQuorum       common.ErrMsg = "Not enough valid signatures"
+	ErrInvalidVersion   common.ErrMsg = "Invalid TRC version"
+	ReservedVersion     common.ErrMsg = "Invalid version 0"
+	SignatureMissing    common.ErrMsg = "Signature missing"
+	UnableSigPack       common.ErrMsg = "TRC: Unable to create signature input"
 )
 
 const (
@@ -287,7 +289,7 @@ func (t *TRC) verifyUpdate(old *TRC) (*TRCVerResult, error) {
 		return nil, common.NewBasicError(InvalidISD, nil, "expected", old.ISD, "actual", t.ISD)
 	}
 	if old.Version+1 != t.Version {
-		return nil, common.NewBasicError(InvalidVersion, nil,
+		return nil, common.NewBasicError(ErrInvalidVersion, nil,
 			"expected", old.Version+1, "actual", t.Version)
 	}
 	if t.CreationTime < old.CreationTime+old.GracePeriod {
@@ -410,7 +412,7 @@ func (t *TRC) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if err = validateFields(m, trcFields); err != nil {
-		return common.NewBasicError(UnableValidateFields, err)
+		return common.NewBasicError(ErrUnableValidateFields, err)
 	}
 	// XXX(roosd): Unmarshalling twice might affect performance.
 	// After switching to go 1.10 we might make use of

@@ -31,14 +31,16 @@ import (
 
 // Possible write errors
 const (
-	ErrNoAddr               = "remote address required, but none set"
-	ErrDuplicateAddr        = "remote address specified as argument, but address set in conn"
-	ErrAddressIsNil         = "address is nil"
-	ErrNoApplicationAddress = "SCION host address is missing"
-	ErrExtraPath            = "path set, but none required for local AS"
-	ErrBadOverlay           = "overlay address not set, and construction from SCION address failed"
-	ErrMustHavePath         = "overlay address set, but no path set"
-	ErrPath                 = "no path set, and error during path resolution"
+	ErrNoAddr        common.ErrMsg = "remote address required, but none set"
+	ErrDuplicateAddr common.ErrMsg = "remote address specified as argument, " +
+		"but address set in conn"
+	ErrAddressIsNil         common.ErrMsg = "address is nil"
+	ErrNoApplicationAddress common.ErrMsg = "SCION host address is missing"
+	ErrExtraPath            common.ErrMsg = "path set, but none required for local AS"
+	ErrBadOverlay           common.ErrMsg = "overlay address not set, " +
+		"and construction from SCION address failed"
+	ErrMustHavePath common.ErrMsg = "overlay address set, but no path set"
+	ErrPath         common.ErrMsg = "no path set, and error during path resolution"
 )
 
 const (

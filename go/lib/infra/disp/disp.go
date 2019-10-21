@@ -107,23 +107,23 @@ func New(conn net.PacketConn, adapter MessageAdapter, logger log.Logger) *Dispat
 func (d *Dispatcher) Request(ctx context.Context, msg proto.Cerealizable,
 	address net.Addr) (proto.Cerealizable, error) {
 	if err := d.waitTable.addRequest(msg); err != nil {
-		return nil, common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.AddRequest")
+		return nil, common.NewBasicError(infra.ErrInternal, err, "op", "waitTable.AddRequest")
 	}
 	// Delete request entry when we exit this context
 	defer d.waitTable.cancelRequest(msg)
 
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return nil, common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
+		return nil, common.NewBasicError(infra.ErrAdapter, err, "op", "MsgToRaw")
 	}
 	// FIXME(scrye): Writes rarely block on packet conns.
 	if _, err := d.conn.WriteTo(b, address); err != nil {
-		return nil, common.NewBasicError(infra.StrTransportError, err, "op", "WriteTo")
+		return nil, common.NewBasicError(infra.ErrTransport, err, "op", "WriteTo")
 	}
 
 	reply, err := d.waitTable.waitForReply(ctx, msg)
 	if err != nil {
-		return nil, common.NewBasicError(infra.StrInternalError, err,
+		return nil, common.NewBasicError(infra.ErrInternal, err,
 			"op", "waitTable.WaitForReply")
 	}
 	return reply, nil
@@ -135,10 +135,10 @@ func (d *Dispatcher) Request(ctx context.Context, msg proto.Cerealizable,
 func (d *Dispatcher) Notify(ctx context.Context, msg proto.Cerealizable, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
+		return common.NewBasicError(infra.ErrAdapter, err, "op", "MsgToRaw")
 	}
 	if _, err := d.conn.WriteTo(b, address); err != nil {
-		return common.NewBasicError(infra.StrTransportError, err, "op", "WriteTo")
+		return common.NewBasicError(infra.ErrTransport, err, "op", "WriteTo")
 	}
 	return nil
 }
@@ -148,10 +148,10 @@ func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg proto.Cerealizabl
 	address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
+		return common.NewBasicError(infra.ErrAdapter, err, "op", "MsgToRaw")
 	}
 	if _, err := d.conn.WriteTo(b, address); err != nil {
-		return common.NewBasicError(infra.StrTransportError, err, "op", "WriteTo")
+		return common.NewBasicError(infra.ErrTransport, err, "op", "WriteTo")
 	}
 	return nil
 }
@@ -166,7 +166,7 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, int, net
 		return nil, 0, nil, ctx.Err()
 	case <-d.closedChan:
 		// Some other goroutine closed the dispatcher
-		return nil, 0, nil, common.NewBasicError(infra.StrClosedError, nil)
+		return nil, 0, nil, common.NewBasicError(infra.ErrLayerClosed, nil)
 	}
 }
 
@@ -202,7 +202,7 @@ func (d *Dispatcher) recvNext() bool {
 			return true
 		} else {
 			d.log.Warn("error", "err",
-				common.NewBasicError(infra.StrTransportError, err, "op", "RecvFrom"))
+				common.NewBasicError(infra.ErrTransport, err, "op", "RecvFrom"))
 		}
 		return false
 	}
@@ -210,14 +210,14 @@ func (d *Dispatcher) recvNext() bool {
 	msg, err := d.adapter.RawToMsg(b)
 	if err != nil {
 		d.log.Warn("error", "err",
-			common.NewBasicError(infra.StrAdapterError, err, "op", "RawToMsg"))
+			common.NewBasicError(infra.ErrAdapter, err, "op", "RawToMsg"))
 		return false
 	}
 
 	found, err := d.waitTable.reply(msg)
 	if err != nil {
 		d.log.Warn("error", "err",
-			common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.Reply"))
+			common.NewBasicError(infra.ErrInternal, err, "op", "waitTable.Reply"))
 		return false
 	}
 	if found {

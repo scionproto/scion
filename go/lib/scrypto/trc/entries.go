@@ -46,7 +46,7 @@ func (t *CoreAS) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if err = validateFields(m, coreASFields); err != nil {
-		return common.NewBasicError(UnableValidateFields, err)
+		return common.NewBasicError(ErrUnableValidateFields, err)
 	}
 	return json.Unmarshal(b, (*Alias)(t))
 }
