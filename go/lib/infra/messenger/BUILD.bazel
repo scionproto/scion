@@ -7,7 +7,6 @@ go_library(
         "addr.go",
         "counter.go",
         "messenger.go",
-        "messenger_with_metrics.go",
         "metrics.go",
         "quic_handler.go",
         "quic_response_writer.go",
@@ -54,13 +53,11 @@ go_test(
     srcs = [
         "addr_test.go",
         "messenger_test.go",
-        "messenger_with_metrics_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/infra/messenger/mock_messenger:go_default_library",
-        "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/overlay:go_default_library",
         "//go/lib/sciond:go_default_library",
