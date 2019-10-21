@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/periodic/metrics"
+	"github.com/scionproto/scion/go/lib/periodic/internal/metrics"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
