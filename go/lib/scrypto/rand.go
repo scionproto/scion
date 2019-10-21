@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	InvalidNonceSize      = "Invalid nonce size"
-	UnableToGenerateNonce = "Unable to generate nonce"
+	ErrInvalidNonceSize      common.ErrMsg = "Invalid nonce size"
+	ErrUnableToGenerateNonce common.ErrMsg = "Unable to generate nonce"
 )
 
 func init() {
@@ -50,12 +50,12 @@ func RandInt64() int64 {
 // Nonce takes an input length and returns a random nonce of the given length.
 func Nonce(l int) (common.RawBytes, error) {
 	if l <= 0 {
-		return nil, common.NewBasicError(InvalidNonceSize, nil)
+		return nil, common.NewBasicError(ErrInvalidNonceSize, nil)
 	}
 	nonce := make([]byte, l)
 	_, err := io.ReadFull(rand.Reader, nonce)
 	if err != nil {
-		return nil, common.NewBasicError(UnableToGenerateNonce, err)
+		return nil, common.NewBasicError(ErrUnableToGenerateNonce, err)
 	}
 	return nonce, nil
 }

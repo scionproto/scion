@@ -139,7 +139,7 @@ func realMain() int {
 	}
 	msger, err := nc.Messenger()
 	if err != nil {
-		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
+		log.Crit(infraenv.ErrAppUnableToInitMessenger.Error(), "err", err)
 		return 1
 	}
 	defer msger.CloseServer()

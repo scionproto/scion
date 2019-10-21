@@ -31,11 +31,11 @@ import (
 const ISDCfgFileName = "isd.ini"
 
 const (
-	ErrAuthoritativeNotCore              = "authoritative must be core"
-	ErrInvalidGracePeriod                = "invalid GracePeriod duration"
-	ErrVotingQuorumGreaterThanVotingASes = "VotingQuorun > # Voting ASes"
-	ErrVotingQuorumNotSet                = "VotingQuorum not set"
-	ErrTrcVersionNotSet                  = "Version not set for TRC"
+	ErrAuthoritativeNotCore              common.ErrMsg = "authoritative must be core"
+	ErrInvalidGracePeriod                common.ErrMsg = "invalid GracePeriod duration"
+	ErrVotingQuorumGreaterThanVotingASes common.ErrMsg = "VotingQuorun > # Voting ASes"
+	ErrVotingQuorumNotSet                common.ErrMsg = "VotingQuorum not set"
+	ErrTrcVersionNotSet                  common.ErrMsg = "Version not set for TRC"
 )
 
 // ISDCfg holds config parameters read from isd.ini.

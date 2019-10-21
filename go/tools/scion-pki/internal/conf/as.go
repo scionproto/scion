@@ -29,14 +29,14 @@ import (
 )
 
 const (
-	ErrAsCertMissing           = "AS Certificate section missing"
-	ErrInvalidValidityDuration = "Invalid validity duration"
-	ErrIssuerMissing           = "Parameter Issuer not set in AS certificate"
-	ErrTRCVersionNotSet        = "Parameter TRCVersion not set in Base Certificate"
-	ErrValidityDurationNotSet  = "Validity duration not set"
-	ErrVersionNotSet           = "Parameter Version not set for Base Certificate"
-	ErrInvalidSignAlgorithm    = "Invalid sign algorithm"
-	ErrInvalidEncAlgorithm     = "Invalid encryption algorithm"
+	ErrAsCertMissing           common.ErrMsg = "AS Certificate section missing"
+	ErrInvalidValidityDuration common.ErrMsg = "Invalid validity duration"
+	ErrIssuerMissing           common.ErrMsg = "Parameter Issuer not set in AS certificate"
+	ErrTRCVersionNotSet        common.ErrMsg = "Parameter TRCVersion not set in Base Certificate"
+	ErrValidityDurationNotSet  common.ErrMsg = "Validity duration not set"
+	ErrVersionNotSet           common.ErrMsg = "Parameter Version not set for Base Certificate"
+	ErrInvalidSignAlgorithm    common.ErrMsg = "Invalid sign algorithm"
+	ErrInvalidEncAlgorithm     common.ErrMsg = "Invalid encryption algorithm"
 )
 
 const (

@@ -26,7 +26,7 @@ import (
 
 // ErrPoolClosed is the error returned when operations on a closed pool are
 // executed.
-const ErrPoolClosed = "Pool closed"
+const ErrPoolClosed common.ErrMsg = "Pool closed"
 
 // InfoSet is a set of infos.
 type InfoSet map[Info]struct{}

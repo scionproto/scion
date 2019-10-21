@@ -26,10 +26,10 @@ import (
 )
 
 const (
-	ErrNoResolver = "no resolver set"
-	ErrNoPath     = "path not found"
-	ErrInitPath   = "raw forwarding path offsets could not be initialized"
-	ErrBadOverlay = "unable to extract next hop from sciond path entry"
+	ErrNoResolver common.ErrMsg = "no resolver set"
+	ErrNoPath     common.ErrMsg = "path not found"
+	ErrInitPath   common.ErrMsg = "raw forwarding path offsets could not be initialized"
+	ErrBadOverlay common.ErrMsg = "unable to extract next hop from sciond path entry"
 )
 
 // PathSource is a source of paths and overlay addresses for snet.

@@ -37,9 +37,12 @@ import (
 
 const (
 	HandlerTimeout = 5 * time.Second
+)
 
-	KeyChanged   = "Verifying key has changed in the meantime"
-	NotACustomer = "ISD-AS not in customer mapping"
+// Errors
+const (
+	ErrKeyChanged   common.ErrMsg = "Verifying key has changed in the meantime"
+	ErrNotACustomer common.ErrMsg = "ISD-AS not in customer mapping"
 )
 
 // Handler handles certificate chain reissue requests.
@@ -258,7 +261,7 @@ func (h *Handler) getVerifyingKey(ctx context.Context,
 		return nil, 0, err
 	}
 	if k == nil {
-		return nil, 0, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
+		return nil, 0, common.NewBasicError(ErrNotACustomer, nil, "ISD-AS", ia)
 	}
 	return k.Key, k.Version, nil
 }

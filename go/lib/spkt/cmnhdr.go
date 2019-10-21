@@ -39,7 +39,7 @@ type CmnHdr struct {
 }
 
 const (
-	ErrorUnsuppVersion = "Unsupported SCION version"
+	ErrorUnsuppVersion common.ErrMsg = "Unsupported SCION version"
 )
 
 func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, error) {

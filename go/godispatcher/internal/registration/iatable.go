@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	ErrBadISD = "0 is not valid ISD"
-	ErrBadAS  = "0 is not valid AS"
+	ErrBadISD common.ErrMsg = "0 is not valid ISD"
+	ErrBadAS  common.ErrMsg = "0 is not valid AS"
 )
 
 // Reference tracks an object from a collection.

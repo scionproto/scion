@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
@@ -28,7 +28,7 @@ import (
 func TestASValidate(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(*cert.AS)
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		"Valid": {
 			Modify: func(_ *cert.AS) {},
@@ -46,7 +46,7 @@ func TestASValidate(t *testing.T) {
 			Modify: func(c *cert.AS) {
 				c.Subject.A = 0
 			},
-			ExpectedErrMsg: cert.InvalidSubject,
+			ExpectedErrMsg: cert.ErrInvalidSubject,
 		},
 		"Issuing Key": {
 			Modify: func(c *cert.AS) {
@@ -56,31 +56,31 @@ func TestASValidate(t *testing.T) {
 					Key:        []byte{2, 110, 1},
 				}
 			},
-			ExpectedErrMsg: cert.UnexpectedKey,
+			ExpectedErrMsg: cert.ErrUnexpectedKey,
 		},
 		"No SigningKey": {
 			Modify: func(c *cert.AS) {
 				delete(c.Keys, cert.SigningKey)
 			},
-			ExpectedErrMsg: cert.MissingKey,
+			ExpectedErrMsg: cert.ErrMissingKey,
 		},
 		"No EncryptionKey": {
 			Modify: func(c *cert.AS) {
 				delete(c.Keys, cert.EncryptionKey)
 			},
-			ExpectedErrMsg: cert.MissingKey,
+			ExpectedErrMsg: cert.ErrMissingKey,
 		},
 		"Issuer ISD mismatch": {
 			Modify: func(c *cert.AS) {
 				c.Issuer.IA.I = c.Subject.I + 1
 			},
-			ExpectedErrMsg: cert.IssuerDifferentISD,
+			ExpectedErrMsg: cert.ErrIssuerDifferentISD,
 		},
 		"Wildcard Issuer": {
 			Modify: func(c *cert.AS) {
 				c.Issuer.IA.A = 0
 			},
-			ExpectedErrMsg: cert.WildcardIssuer,
+			ExpectedErrMsg: cert.ErrWildcardIssuer,
 		},
 	}
 	for name, test := range tests {
@@ -88,12 +88,7 @@ func TestASValidate(t *testing.T) {
 			c := newASCert(time.Now())
 			test.Modify(&c)
 			err := c.Validate()
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
 		})
 	}
 }

@@ -21,27 +21,27 @@ import (
 )
 
 const (
-	// DecodeProtectedFailed indicates the signatrue metadata fails to decode.
-	DecodeProtectedFailed = "unable to decode protected signature metadata"
-	// UnexpectedVoteSignature indicates an unexpected voting signature.
-	UnexpectedVoteSignature = "unexpected vote signature"
-	// UnexpectedPOPSignature indicates an unexpected proof of possession signature.
-	UnexpectedPOPSignature = "unexpected proof of possession signature"
-	// InvalidProtected indicates that the protected signature metadata is invalid.
-	InvalidProtected = "invalid protected signature metadata"
-	// MissingVoteSignature indicates a voting signature of an AS is missing.
-	MissingVoteSignature = "missing vote signature"
-	// MissingPOPSignature indicates a missing proof of possession signature.
-	MissingPOPSignature = "missing proof of possession signature"
-	// VoteVerificationError indicates the signature verification of a vote failed.
-	VoteVerificationError = "vote signature verification error"
-	// POPVerificationError indicates the signature verification of a proof of possession failed.
-	POPVerificationError = "proof of possession signature verification error"
-	// DuplicateVoteSignature indicates a duplicate voting signature for the same AS.
-	DuplicateVoteSignature = "duplicate vote signature"
-	// DuplicatePOPSignature indicates a duplicate proof of possession signature
+	// ErrDecodeProtectedFailed indicates the signatrue metadata fails to decode.
+	ErrDecodeProtectedFailed common.ErrMsg = "unable to decode protected signature metadata"
+	// ErrUnexpectedVoteSignature indicates an unexpected voting signature.
+	ErrUnexpectedVoteSignature common.ErrMsg = "unexpected vote signature"
+	// ErrUnexpectedPOPSignature indicates an unexpected proof of possession signature.
+	ErrUnexpectedPOPSignature common.ErrMsg = "unexpected proof of possession signature"
+	// ErrInvalidProtected indicates that the protected signature metadata is invalid.
+	ErrInvalidProtected common.ErrMsg = "invalid protected signature metadata"
+	// ErrErrMissingVoteSignature indicates a voting signature of an AS is missing.
+	ErrErrMissingVoteSignature common.ErrMsg = "missing vote signature"
+	// ErrMissingPOPSignature indicates a missing proof of possession signature.
+	ErrMissingPOPSignature common.ErrMsg = "missing proof of possession signature"
+	// ErrVoteVerification indicates the signature verification of a vote failed.
+	ErrVoteVerification common.ErrMsg = "vote signature verification error"
+	// ErrPOPVerification indicates the signature verification of a proof of possession failed.
+	ErrPOPVerification common.ErrMsg = "proof of possession signature verification error"
+	// ErrDuplicateVoteSignature indicates a duplicate voting signature for the same AS.
+	ErrDuplicateVoteSignature common.ErrMsg = "duplicate vote signature"
+	// ErrDuplicatePOPSignature indicates a duplicate proof of possession signature
 	// for the same AS and key type.
-	DuplicatePOPSignature = "duplicate proof of possession signature"
+	ErrDuplicatePOPSignature common.ErrMsg = "duplicate proof of possession signature"
 )
 
 // Votes maps ASes to their decoded vote.
@@ -69,7 +69,7 @@ type UpdateVerifier struct {
 func (v UpdateVerifier) Verify() error {
 	votes, pops, err := decodeSignatures(v.Signatures)
 	if err != nil {
-		return common.NewBasicError(DecodeProtectedFailed, err)
+		return common.NewBasicError(ErrDecodeProtectedFailed, err)
 	}
 	pv := popVerifier{
 		TRC:        v.Next,
@@ -95,7 +95,7 @@ func (v UpdateVerifier) checkVotes(votes Votes) error {
 	for as, sig := range votes {
 		vote, ok := v.Next.Votes[as]
 		if !ok {
-			return common.NewBasicError(UnexpectedVoteSignature, nil, "as", as)
+			return common.NewBasicError(ErrUnexpectedVoteSignature, nil, "as", as)
 		}
 		expected := Protected{
 			Algorithm:  v.Prev.PrimaryASes[as].Keys[vote.KeyType].Algorithm,
@@ -105,13 +105,13 @@ func (v UpdateVerifier) checkVotes(votes Votes) error {
 			AS:         as,
 		}
 		if sig.Protected != expected {
-			return common.NewBasicError(InvalidProtected, nil,
+			return common.NewBasicError(ErrInvalidProtected, nil,
 				"expected", expected, "actual", sig.Protected)
 		}
 	}
 	for as := range v.Next.Votes {
 		if _, ok := votes[as]; !ok {
-			return common.NewBasicError(MissingVoteSignature, nil, "as", as)
+			return common.NewBasicError(ErrErrMissingVoteSignature, nil, "as", as)
 		}
 	}
 	return nil
@@ -122,7 +122,7 @@ func (v UpdateVerifier) verifyVotes(votes Votes) error {
 		meta := v.Prev.PrimaryASes[as].Keys[sig.Protected.KeyType]
 		input := SigInput(sig.EncodedProtected, v.NextEncoded)
 		if err := scrypto.Verify(input, sig.Signature, meta.Key, meta.Algorithm); err != nil {
-			return common.NewBasicError(VoteVerificationError, err, "as", as, "meta", meta)
+			return common.NewBasicError(ErrVoteVerification, err, "as", as, "meta", meta)
 		}
 	}
 	return nil
@@ -145,7 +145,7 @@ type POPVerifier struct {
 func (v POPVerifier) Verify() error {
 	_, pops, err := decodeSignatures(v.Signatures)
 	if err != nil {
-		return common.NewBasicError(DecodeProtectedFailed, err)
+		return common.NewBasicError(ErrDecodeProtectedFailed, err)
 	}
 	pv := popVerifier{
 		TRC:        v.TRC,
@@ -171,7 +171,7 @@ func (v *popVerifier) check() error {
 	for as, pops := range v.signatures {
 		for _, sig := range pops {
 			if !containsKeyType(sig.Protected.KeyType, v.TRC.ProofOfPossession[as]) {
-				return common.NewBasicError(UnexpectedPOPSignature, nil,
+				return common.NewBasicError(ErrUnexpectedPOPSignature, nil,
 					"as", as, "key_type", sig.Protected.KeyType)
 			}
 			meta := v.TRC.PrimaryASes[as].Keys[sig.Protected.KeyType]
@@ -183,7 +183,7 @@ func (v *popVerifier) check() error {
 				AS:         as,
 			}
 			if sig.Protected != expected {
-				return common.NewBasicError(InvalidProtected, nil,
+				return common.NewBasicError(ErrInvalidProtected, nil,
 					"expected", expected, "actual", sig.Protected)
 			}
 		}
@@ -191,7 +191,8 @@ func (v *popVerifier) check() error {
 	for as, keyTypes := range v.TRC.ProofOfPossession {
 		for _, keyType := range keyTypes {
 			if _, ok := v.signatures[as][keyType]; !ok {
-				return common.NewBasicError(MissingPOPSignature, nil, "as", as, "key_type", keyType)
+				return common.NewBasicError(ErrMissingPOPSignature, nil,
+					"as", as, "key_type", keyType)
 			}
 		}
 	}
@@ -204,7 +205,7 @@ func (v *popVerifier) verify() error {
 			meta := v.TRC.PrimaryASes[as].Keys[keyType]
 			input := SigInput(sig.EncodedProtected, v.Encoded)
 			if err := scrypto.Verify(input, sig.Signature, meta.Key, meta.Algorithm); err != nil {
-				return common.NewBasicError(POPVerificationError, err,
+				return common.NewBasicError(ErrPOPVerification, err,
 					"as", as, "key_type", keyType)
 			}
 		}
@@ -238,13 +239,13 @@ func decodeSignatures(signatures []Signature) (Votes, POPs, error) {
 		switch sig.Protected.Type {
 		case VoteSignature:
 			if _, ok := votes[sig.Protected.AS]; ok {
-				return nil, nil, common.NewBasicError(DuplicateVoteSignature, nil,
+				return nil, nil, common.NewBasicError(ErrDuplicateVoteSignature, nil,
 					"as", sig.Protected.AS)
 			}
 			votes[sig.Protected.AS] = sig
 		case POPSignature:
 			if _, ok := pops[sig.Protected.AS][sig.Protected.KeyType]; ok {
-				return nil, nil, common.NewBasicError(DuplicatePOPSignature, nil,
+				return nil, nil, common.NewBasicError(ErrDuplicatePOPSignature, nil,
 					"as", sig.Protected.AS, "key_type", sig.Protected.KeyType)
 			}
 			if _, ok := pops[sig.Protected.AS]; !ok {

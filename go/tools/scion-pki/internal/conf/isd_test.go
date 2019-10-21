@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -28,7 +29,7 @@ func TestValidatingTrc(t *testing.T) {
 	var coreIA = []addr.IA{xtest.MustParseIA("1-ff00:0:10")}
 	tests := map[string]struct {
 		trc *Trc
-		err string
+		err common.ErrMsg
 	}{
 		"Empty TRC": {
 			trc: &Trc{

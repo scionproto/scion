@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	errCurrIntfInvalid = "Invalid current interface"
-	errIntfRevoked     = "Interface revoked"
-	errHookResponse    = "Extension hook return value unrecognised"
+	errCurrIntfInvalid common.ErrMsg = "Invalid current interface"
+	errIntfRevoked     common.ErrMsg = "Interface revoked"
+	errHookResponse    common.ErrMsg = "Extension hook return value unrecognised"
 )
 
 // Validate performs basic validation of a packet, including calling any
