@@ -34,6 +34,8 @@ const (
 	LabelSrc = "src"
 	// LabelDst is the label for the destination.
 	LabelDst = "dst"
+	// LabelInit is the label for the default init value.
+	LabelInit = "init"
 )
 
 // Common result values.
@@ -79,6 +81,12 @@ var (
 	DefaultSizeBuckets = []float64{32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 )
 
+// Labels allows to safely pass label values into prometheus.
+type Labels interface {
+	Labels() []string
+	Values() []string
+}
+
 // ExportElementID exports the element ID as configured in the config file.
 func ExportElementID(id string) {
 	NewGaugeVec("scion", "", "elem_id",
@@ -119,19 +127,39 @@ func NewCounter(namespace, subsystem, name, help string) prometheus.Counter {
 	)
 }
 
+// NewCounterVecWithLabels creates a prometheus counter vec that is registered with
+// the default registry and with a default init values for labels to avoid missing metrics.
+func NewCounterVecWithLabels(ns, sub, name, help string, label Labels) *prometheus.CounterVec {
+	opts := prometheus.CounterOpts{
+		Namespace: ns,
+		Subsystem: sub,
+		Name:      name,
+		Help:      help,
+	}
+	c := prometheus.NewCounterVec(opts, label.Labels())
+	ret := SafeRegister(c).(*prometheus.CounterVec)
+	ret.WithLabelValues(label.Values()...)
+	return ret
+}
+
 // NewCounterVec creates a new prometheus counter vec that is registered with the default registry.
 func NewCounterVec(namespace, subsystem, name, help string,
+	// Not to be used https://github.com/scionproto/scion/issues/3274
 	labelNames []string) *prometheus.CounterVec {
-
-	return promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      name,
-			Help:      help,
-		},
-		labelNames,
-	)
+	opts := prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: subsystem,
+		Name:      name,
+		Help:      help,
+	}
+	c := prometheus.NewCounterVec(opts, labelNames)
+	ret := SafeRegister(c).(*prometheus.CounterVec)
+	val := make([]string, len(labelNames))
+	for i := range val {
+		val[i] = LabelInit
+	}
+	ret.WithLabelValues(val...)
+	return ret
 }
 
 // NewGauge creates a new prometheus gauge that is registered with the default registry.

@@ -126,8 +126,8 @@ func newUpdates() updates {
 	return updates{
 		last: prom.NewGaugeVec(Namespace, "", "last_updates",
 			"Timestamp of the last update attempts.", UpdateLabels{}.Labels()),
-		total: prom.NewCounterVec(Namespace, "", "updates_total",
-			"The total number of updates.", UpdateLabels{}.Labels()),
+		total: prom.NewCounterVecWithLabels(Namespace, "", "updates_total",
+			"The total number of updates.", UpdateLabels{}),
 	}
 }
 

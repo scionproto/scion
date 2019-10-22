@@ -47,14 +47,14 @@ func newRingbuf() ringbuf {
 	rl := &RingbufLabels{}
 	l := rl.Labels()
 	return ringbuf{
-		writeCalls: prom.NewCounterVec(Namespace, "",
-			"write_calls_total", "Number of calls to Write.", l),
-		readCalls: prom.NewCounterVec(Namespace, "",
-			"read_calls_total", "Number of calls to Read.", l),
-		writesBlocked: prom.NewCounterVec(Namespace, "",
-			"writes_blocked_total", "Number of blocked Writes.", l),
-		readsBlocked: prom.NewCounterVec(Namespace, "",
-			"reads_blocked_total", "Number of blocked Reads.", l),
+		writeCalls: prom.NewCounterVecWithLabels(Namespace, "",
+			"write_calls_total", "Number of calls to Write.", rl),
+		readCalls: prom.NewCounterVecWithLabels(Namespace, "",
+			"read_calls_total", "Number of calls to Read.", rl),
+		writesBlocked: prom.NewCounterVecWithLabels(Namespace, "",
+			"writes_blocked_total", "Number of blocked Writes.", rl),
+		readsBlocked: prom.NewCounterVecWithLabels(Namespace, "",
+			"reads_blocked_total", "Number of blocked Reads.", rl),
 		writeEntries: prom.NewHistogramVec(Namespace, "",
 			"write_entries", "Number of written entries.", l,
 			prometheus.ExponentialBuckets(1, 2, 8)),

@@ -74,13 +74,13 @@ type Request struct {
 func newRequests() Request {
 	subsystem := "requests"
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystem, "total",
+		count: prom.NewCounterVecWithLabels(Namespace, subsystem, "total",
 			"Number of segment requests total. \"result\" indicates the outcome.",
-			RequestLabels{}.Labels()),
-		repliedSegs: prom.NewCounterVec(Namespace, subsystem, "replied_segments_total",
-			"Number of segments in reply to segment requests.", RequestOkLabels{}.Labels()),
-		repliedRevs: prom.NewCounterVec(Namespace, subsystem, "replied_revocations_total",
-			"Number of revocations in reply to segments requests.", RequestOkLabels{}.Labels()),
+			RequestLabels{}),
+		repliedSegs: prom.NewCounterVecWithLabels(Namespace, subsystem, "replied_segments_total",
+			"Number of segments in reply to segment requests.", RequestOkLabels{}),
+		repliedRevs: prom.NewCounterVecWithLabels(Namespace, subsystem, "replied_revocations_total",
+			"Number of revocations in reply to segments requests.", RequestOkLabels{}),
 	}
 }
 

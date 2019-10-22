@@ -59,14 +59,14 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	if !ok {
 		logger.Error("[RevHandler] wrong message type, expected path_mgmt.SignedRevInfo",
 			"msg", request.Message, "type", common.TypeOf(request.Message))
-		metrics.Revocation.Receives(labels).Inc()
+		metrics.Revocation.Received(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	rw, ok := infra.ResponseWriterFromContext(request.Context())
 	if !ok {
 		logger.Error("[RevHandler] Unable to service request, no ResponseWriter found",
 			"msg", request.Message)
-		metrics.Revocation.Receives(labels).Inc()
+		metrics.Revocation.Received(labels).Inc()
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(request.Context(), h.timeout)
@@ -78,19 +78,19 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		logger.Warn("[RevHandler] Parsing/Verifying failed",
 			"signer", revocation.Sign.Src, "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
-		metrics.Revocation.Receives(labels).Inc()
+		metrics.Revocation.Received(labels).Inc()
 		return infra.MetricsErrInvalid
 	}
 
 	if err = h.revStore.InsertRevocations(subCtx, revocation); err != nil {
 		logger.Error("[RevHandler] Failed to store", "rev", revInfo, "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
-		metrics.Revocation.Receives(labels).Inc()
+		metrics.Revocation.Received(labels).Inc()
 		return ErrBeaconStore(err)
 
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
 	labels.Result = metrics.Success
-	metrics.Revocation.Receives(labels).Inc()
+	metrics.Revocation.Received(labels).Inc()
 	return infra.MetricsResultOk
 }
