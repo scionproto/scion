@@ -26,20 +26,20 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type hpCfgReqHandler struct {
+type handler struct {
 	request *infra.Request
-	// groupMap maps ASes to all groups of which they are a reader
-	groupMap map[addr.IA][]*path_mgmt.HPCfg
-	localIA  addr.IA
+	localIA addr.IA
+	// localGroups contains all groups of which the local IA is a reader
+	localGroups []*path_mgmt.HPCfg
 }
 
-// NewCfgReqHandler returns a hidden path configuration request handler
-func NewCfgReqHandler(groups []*hiddenpath.Group, ia addr.IA) infra.Handler {
+// NewHandler returns a hidden path configuration request handler
+func NewHandler(groups []*hiddenpath.Group, localIA addr.IA) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
-		handler := &hpCfgReqHandler{
-			request:  r,
-			groupMap: createMap(groups),
-			localIA:  ia,
+		handler := &handler{
+			request:     r,
+			localGroups: filterGroups(groups, localIA),
+			localIA:     localIA,
 		}
 		return handler.Handle()
 	}
@@ -47,7 +47,9 @@ func NewCfgReqHandler(groups []*hiddenpath.Group, ia addr.IA) infra.Handler {
 }
 
 // Handle handles a hidden path configuration request
-func (h *hpCfgReqHandler) Handle() *infra.HandlerResult {
+// It replies to clients in the same AS with all hidden path group configurations
+// of which the AS is a reader.
+func (h *handler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	res, err := h.handle(logger)
 	if err != nil {
@@ -56,7 +58,7 @@ func (h *hpCfgReqHandler) Handle() *infra.HandlerResult {
 	return res
 }
 
-func (h *hpCfgReqHandler) handle(logger log.Logger) (*infra.HandlerResult, error) {
+func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	ctx := h.request.Context()
 	hpCfgReq, ok := h.request.Message.(*path_mgmt.HPCfgReq)
 	if !ok {
@@ -86,7 +88,7 @@ func (h *hpCfgReqHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 		return infra.MetricsErrInvalid, nil
 	}
 
-	reply := &path_mgmt.HPCfgReply{Cfgs: h.groupMap[snetPeer.IA]}
+	reply := &path_mgmt.HPCfgReply{Cfgs: h.localGroups}
 
 	if err := rw.SendHPCfgReply(ctx, reply); err != nil {
 		logger.Error("[hpSegReqHandler] Failed to send reply", "err", err)
@@ -96,16 +98,12 @@ func (h *hpCfgReqHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 	return infra.MetricsResultOk, nil
 }
 
-func createMap(groups []*hiddenpath.Group) map[addr.IA][]*path_mgmt.HPCfg {
-	m := make(map[addr.IA][]*path_mgmt.HPCfg)
+func filterGroups(groups []*hiddenpath.Group, localIA addr.IA) []*path_mgmt.HPCfg {
+	var local = []*path_mgmt.HPCfg{}
 	for _, g := range groups {
-		m[g.Owner] = append(m[g.Owner], g.ToMsg())
-		for _, reader := range g.Readers {
-			m[reader] = append(m[reader], g.ToMsg())
-		}
-		for _, writer := range g.Writers {
-			m[writer] = append(m[writer], g.ToMsg())
+		if g.Owner == localIA || g.HasReader(localIA) || g.HasWriter(localIA) {
+			local = append(local, g.ToMsg())
 		}
 	}
-	return m
+	return local
 }

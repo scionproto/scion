@@ -38,10 +38,10 @@ import (
 )
 
 var (
-	as110 = xtest.MustParseAS("ff00:0:110")
-	as111 = xtest.MustParseAS("ff00:0:111")
 	ia110 = xtest.MustParseIA("1-ff00:0:110")
 	ia111 = xtest.MustParseIA("1-ff00:0:111")
+	as110 = ia110.A
+	as111 = ia111.A
 )
 
 var group1 = &hiddenpath.Group{
@@ -93,8 +93,7 @@ func TestCfgReq(t *testing.T) {
 				ChangedSince: 0,
 			}
 			peer := &snet.Addr{
-				IA:   ia110,
-				Host: addr.NewSVCUDPAppAddr(addr.SvcHPS),
+				IA: ia110,
 			}
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			reply := &path_mgmt.HPCfgReply{
@@ -161,7 +160,7 @@ func TestCfgReq(t *testing.T) {
 			rw := mock_infra.NewMockResponseWriter(ctrl)
 			ctx := infra.NewContextWithResponseWriter(
 				context.Background(), rw)
-			handler := hpcfgreq.NewCfgReqHandler(
+			handler := hpcfgreq.NewHandler(
 				[]*hiddenpath.Group{group1, group2, group3, group4},
 				ia110,
 			)
