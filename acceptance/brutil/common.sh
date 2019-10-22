@@ -21,10 +21,6 @@ BR_TOML=$TEST_ARTIFACTS_DIR/conf/$BR_TOML_FN
 test_setup() {
     set -e
 
-    # XXX(kormat): This is conditional on the binary existing, because when
-    # running on CI 'setup' is run on the host, where the binary doesn't exist.
-    [ -e $BRACCEPT ] && make -s setcap
-
     test_config
 
     local disp_dir="/run/shm/dispatcher"
@@ -64,6 +60,11 @@ test_config() {
 
 test_run() {
     set -e
+
+    # XXX(kormat): This is conditional on the binary existing, because when
+    # running on CI 'setup' is run on the host, where the binary doesn't exist.
+    [ -e $BRACCEPT ] && make -s setcap
+
     $BRACCEPT -testName "${TEST_NAME:?}" -keysDirPath "$TEST_ARTIFACTS_DIR/conf/keys" "$@"
 }
 
