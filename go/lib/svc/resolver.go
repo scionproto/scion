@@ -206,3 +206,7 @@ func (p *path) Copy() snet.Path {
 		destination: p.destination,
 	}
 }
+
+func (p *path) String() string {
+	return ""
+}

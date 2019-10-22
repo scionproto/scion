@@ -512,3 +512,7 @@ func (t *testPath) Expiry() time.Time {
 func (t *testPath) Copy() snet.Path {
 	panic("not implemented")
 }
+
+func (t *testPath) String() string {
+	panic("not implemented")
+}

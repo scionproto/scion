@@ -158,6 +158,8 @@ type Path interface {
 	Expiry() time.Time
 	// Copy create a copy of the path.
 	Copy() Path
+	// String returns textual representation of the path.
+	String() string
 }
 
 var _ Path = (*path)(nil)
@@ -231,6 +233,13 @@ func (p *path) Copy() Path {
 	}
 }
 
+func (p *path) String() string {
+	if p.sciondPath == nil {
+		return ""
+	}
+	return p.sciondPath.String()
+}
+
 // partialPath is a path object with incomplete metadata. It is used as a
 // temporary solution where a full path cannot be reconstituted from other
 // objects, notably snet.Addr.
@@ -277,6 +286,10 @@ func (p *partialPath) Copy() Path {
 		overlay:     p.overlay.Copy(),
 		destination: p.destination,
 	}
+}
+
+func (p *partialPath) String() string {
+	return ""
 }
 
 // LocalMachine describes aspects of the host system and its network.

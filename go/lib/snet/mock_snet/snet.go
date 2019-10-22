@@ -578,6 +578,20 @@ func (mr *MockPathMockRecorder) Path() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Path", reflect.TypeOf((*MockPath)(nil).Path))
 }
 
+// String mocks base method
+func (m *MockPath) String() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "String")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// String indicates an expected call of String
+func (mr *MockPathMockRecorder) String() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockPath)(nil).String))
+}
+
 // MockRouter is a mock of Router interface
 type MockRouter struct {
 	ctrl     *gomock.Controller
