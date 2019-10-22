@@ -109,7 +109,7 @@ reasonable static checking at compile time. Label structs should have the suffix
 `Labels`. Label structs can be shared between components if they contain the
 same label set.
 
-An example metric struct:
+An example of metric component:
 
 ```go
 // beacon_srv/internal/metrics/originator.go
@@ -156,6 +156,8 @@ func (o *originator) Duration() prometheus.Counter {
 }
 ```
 
+Another example:
+
 ```go
 // beacon_srv/internal/metrics/keepalive.go
 
@@ -176,8 +178,7 @@ func (l KeepaliveLabels) Values() []string {
 }
 
 type keepalive struct {
-    out prometheus.CounterVec
-    in prometheus.CounterVec
+    in,out *prometheus.CounterVec
 }
 
 func newKeepalive() keepalive {...}
@@ -294,8 +295,9 @@ Top:
 ## Best Practices
 
 1. [prometheus.io/docs/practices/naming/](https://prometheus.io/docs/practices/naming/)
-1. Namespace should be one word
-1. Subsystem should be one word (if present)
+1. Namespace should be one word.
+1. Subsystem should be one word (if present).
 1. Use values that can be searched with regex. E.g. prepend `err_` for every error result.
-1. `snake_case` label names and values
-1. Put shared label names and values into `go/lib/prom`
+1. `snake_case` label names and values.
+1. Put shared label names and values into `go/lib/prom`.
+1. Initialize  `CounterVec` to avoid hidden metrics [link](https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics).

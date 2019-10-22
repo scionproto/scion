@@ -34,6 +34,8 @@ const (
 	LabelSrc = "src"
 	// LabelDst is the label for the destination.
 	LabelDst = "dst"
+	// LabelInit is the label for the default init value.
+	LabelInit = "init"
 )
 
 // Common result values.
@@ -122,16 +124,21 @@ func NewCounter(namespace, subsystem, name, help string) prometheus.Counter {
 // NewCounterVec creates a new prometheus counter vec that is registered with the default registry.
 func NewCounterVec(namespace, subsystem, name, help string,
 	labelNames []string) *prometheus.CounterVec {
+	opts := prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: subsystem,
+		Name:      name,
+		Help:      help,
+	}
+	c := prometheus.NewCounterVec(opts, labelNames)
+	SafeRegister(c)
+	val := make([]string, len(labelNames))
+	for i := range val {
+		val[i] = LabelInit
+	}
+	c.WithLabelValues(val...)
+	return c
 
-	return promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      name,
-			Help:      help,
-		},
-		labelNames,
-	)
 }
 
 // NewGauge creates a new prometheus gauge that is registered with the default registry.
