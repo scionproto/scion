@@ -72,7 +72,7 @@ Necessary steps in order to run SCION:
    ```bash
    mkdir -p "$GOPATH/src/github.com/scionproto"
    cd "$GOPATH/src/github.com/scionproto"
-   git clone https://github.com:scionproto/scion
+   git clone https://github.com/scionproto/scion
    cd scion
    ```
 
