@@ -35,21 +35,19 @@ func (l RevocationLabels) Values() []string {
 }
 
 type exporterR struct {
-	in prometheus.CounterVec
+	received *prometheus.CounterVec
 }
 
 func newRevocation() exporterR {
-	sub := "revocation"
-	labels := RevocationLabels{}.Labels()
-
+	ns, sub := Namespace, "revocation"
+	l := RevocationLabels{Result: RevNew, Method: RevFromCtrl}
 	return exporterR{
-		in: *prom.NewCounterVec(Namespace, sub, "received_revocations_total",
-			"Total number of received revocation msgs.", labels),
+		received: prom.NewCounterVecWithLabels(ns, sub, "received_revocations_total",
+			"Total number of received revocation msgs.", l),
 	}
-
 }
 
-// Receives returns receive counter.
-func (e *exporterR) Receives(l RevocationLabels) prometheus.Counter {
-	return e.in.WithLabelValues(l.Values()...)
+// Received returns receive counter.
+func (e *exporterR) Received(l RevocationLabels) prometheus.Counter {
+	return e.received.WithLabelValues(l.Values()...)
 }

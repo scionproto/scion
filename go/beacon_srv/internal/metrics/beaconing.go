@@ -53,8 +53,8 @@ type beaconing struct {
 func newBeaconing() beaconing {
 	ns, sub := Namespace, "beaconing"
 	return beaconing{
-		receivedBeacons: prom.NewCounterVec(ns, sub, "received_beacons_total",
-			"Total number of received beacons.", BeaconingLabels{}.Labels()),
+		receivedBeacons: prom.NewCounterVecWithLabels(ns, sub, "received_beacons_total",
+			"Total number of received beacons.", BeaconingLabels{}),
 	}
 }
 

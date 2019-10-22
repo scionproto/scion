@@ -21,17 +21,14 @@ import (
 
 	"github.com/iancoleman/strcase"
 	"github.com/stretchr/testify/assert"
-)
 
-type labels interface {
-	Labels() []string
-	Values() []string
-}
+	"github.com/scionproto/scion/go/lib/prom"
+)
 
 // CheckLabelsStruct checks that labels has a Values and Labels method. It also
 // checks that labels.Labels() returns the struct field names.
 func CheckLabelsStruct(t *testing.T, xLabels interface{}) {
-	v, ok := xLabels.(labels)
+	v, ok := xLabels.(prom.Labels)
 	if ok != true {
 		assert.Fail(t, "should implement labels interface")
 	}
@@ -41,14 +38,14 @@ func CheckLabelsStruct(t *testing.T, xLabels interface{}) {
 	assert.ElementsMatch(t, fields, v.Labels(), "Expected %v but was %v", fields, v.Labels())
 }
 
-func fieldNames(xLabels labels) []string {
+func fieldNames(xLabels prom.Labels) []string {
 	names := []string{}
 	labelsType := reflect.TypeOf(xLabels)
 	for i := 0; i < labelsType.NumField(); i++ {
 		field := labelsType.Field(i)
 		// handle nesting of other labels structs:
-		if field.Type.Implements(reflect.TypeOf((*labels)(nil)).Elem()) {
-			names = append(names, fieldNames(reflect.Zero(field.Type).Interface().(labels))...)
+		if field.Type.Implements(reflect.TypeOf((*prom.Labels)(nil)).Elem()) {
+			names = append(names, fieldNames(reflect.Zero(field.Type).Interface().(prom.Labels))...)
 		} else {
 			names = append(names, strcase.ToSnake(field.Name))
 		}

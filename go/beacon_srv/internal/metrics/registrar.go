@@ -62,13 +62,13 @@ type registrar struct {
 func newRegistrar() registrar {
 	ns, sub := Namespace, "beaconing"
 	return registrar{
-		registeredBeacons: prom.NewCounterVec(ns, sub, "registered_beacons_total",
+		registeredBeacons: prom.NewCounterVecWithLabels(ns, sub, "registered_beacons_total",
 			"Number of beacons registered",
-			RegistrarLabels{}.Labels()),
-		runtime: prom.NewCounterVec(ns, sub, "registrar_run_durations_seconds_total",
-			"Registrar total time spent on every periodic run", TypeOnlyLabel{}.Labels()),
-		internalErrors: prom.NewCounterVec(ns, sub, "registrar_errors_total",
-			"Registrar total internal errors", TypeOnlyLabel{}.Labels()),
+			RegistrarLabels{}),
+		runtime: prom.NewCounterVecWithLabels(ns, sub, "registrar_run_durations_seconds_total",
+			"Registrar total time spent on every periodic run", TypeOnlyLabel{"up"}),
+		internalErrors: prom.NewCounterVecWithLabels(ns, sub, "registrar_errors_total",
+			"Registrar total internal errors", TypeOnlyLabel{"up"}),
 	}
 }
 

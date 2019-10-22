@@ -35,12 +35,15 @@ func newIfstate() ifstate {
 			IfstateLabels{}.Labels(),
 			prometheus.Labels{},
 		),
-		issued: *prom.NewCounterVec(Namespace, sub, "issued_revocations_total",
-			"Total number of issued revocations.", IssuedLabels{}.Labels()),
-		duration: *prom.NewCounterVec(Namespace, sub, "revocations_duration_seconds_total",
-			"Duration in seconds of issued revocations.", DurationLabels{}.Labels()),
-		out: *prom.NewCounterVec(Namespace, sub, "sent_revocations_total",
-			"Total number of sent revocations.", SentLabels{}.Labels()),
+		issued: *prom.NewCounterVecWithLabels(Namespace, sub,
+			"issued_revocations_total",
+			"Total number of issued revocations.", IssuedLabels{}),
+		duration: *prom.NewCounterVecWithLabels(Namespace, sub,
+			"revocations_duration_seconds_total",
+			"Duration in seconds of issued revocations.", DurationLabels{}),
+		out: *prom.NewCounterVecWithLabels(Namespace, sub,
+			"sent_revocations_total",
+			"Total number of sent revocations.", SentLabels{}),
 	}
 }
 

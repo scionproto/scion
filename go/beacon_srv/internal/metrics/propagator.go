@@ -47,10 +47,12 @@ type propagator struct {
 func newPropagator() propagator {
 	ns, sub := Namespace, "beaconing"
 	return propagator{
-		propagatedBeacons: prom.NewCounterVec(ns, sub, "propagated_beacons_total",
-			"Number of beacons propagated", PropagatorLabels{}.Labels()),
-		intfTime: prom.NewCounterVec(ns, sub, "propagator_interface_duration_seconds_total",
-			"Propagator total time spent per egress interface", PropagatorLabels{}.Labels()),
+		propagatedBeacons: prom.NewCounterVecWithLabels(ns, sub,
+			"propagated_beacons_total",
+			"Number of beacons propagated", PropagatorLabels{}),
+		intfTime: prom.NewCounterVecWithLabels(ns, sub,
+			"propagator_interface_duration_seconds_total",
+			"Propagator total time spent per egress interface", PropagatorLabels{}),
 		runtime: prom.NewCounter(ns, sub, "propagator_run_duration_seconds_total",
 			"Propagator total run time spent on every periodic run"),
 		internalErrors: prom.NewCounter(ns, sub, "propagator_errors_total",

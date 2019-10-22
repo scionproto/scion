@@ -44,12 +44,12 @@ type exporter struct {
 
 func newKeepalive() exporter {
 	sub := "keepalive"
-	labels := KeepaliveLabels{}.Labels()
+	labels := KeepaliveLabels{}
 
 	return exporter{
-		out: *prom.NewCounterVec(Namespace, sub, "sent_msgs_total",
+		out: *prom.NewCounterVecWithLabels(Namespace, sub, "sent_msgs_total",
 			"Total number of sent keepalive msgs.", labels),
-		in: *prom.NewCounterVec(Namespace, sub, "received_msgs_total",
+		in: *prom.NewCounterVecWithLabels(Namespace, sub, "received_msgs_total",
 			"Total number of received keepalive msgs.", labels),
 	}
 
