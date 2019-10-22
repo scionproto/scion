@@ -50,11 +50,19 @@ type originator struct {
 
 func newOriginator() originator {
 	ns, sub := Namespace, "beaconing"
+	lab := OriginatorLabels{}
+
+	b := prom.NewCounterVec(ns, sub, "originated_beacons_total",
+		"Number of beacons originated", lab.Labels())
+	b.WithLabelValues(lab.Values()...).Inc()
+
+	r := prom.NewCounter(ns, sub, "originator_run_duration_seconds_total",
+		"Originator total time spent on every periodic run")
+	r.Inc()
+
 	return originator{
-		originatedBeacons: prom.NewCounterVec(ns, sub, "originated_beacons_total",
-			"Number of beacons originated", OriginatorLabels{}.Labels()),
-		runtime: prom.NewCounter(ns, sub, "originator_run_duration_seconds_total",
-			"Originator total time spent on every periodic run"),
+		originatedBeacons: b,
+		runtime:           r,
 	}
 }
 
