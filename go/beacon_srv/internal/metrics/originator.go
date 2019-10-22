@@ -51,8 +51,8 @@ type originator struct {
 func newOriginator() originator {
 	ns, sub := Namespace, "beaconing"
 	return originator{
-		originatedBeacons: prom.NewCounterVec(ns, sub, "originated_beacons_total",
-			"Number of beacons originated", OriginatorLabels{}.Labels()),
+		originatedBeacons: prom.NewCounterVecWithLabels(ns, sub, "originated_beacons_total",
+			"Number of beacons originated", OriginatorLabels{}),
 		runtime: prom.NewCounter(ns, sub, "originator_run_duration_seconds_total",
 			"Originator total time spent on every periodic run"),
 	}

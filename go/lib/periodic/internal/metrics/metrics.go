@@ -56,14 +56,8 @@ func newExporter(prefix string) exporter {
 	namespace := strcase.ToSnake(strings.Replace(prefix, ".", "_", -1))
 	subsystem := "periodic"
 
-	events := prom.SafeRegister(
-		prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "event_total",
-			Help:      "Total number of events.",
-		}, EventLabels{}.Labels()),
-	).(*prometheus.CounterVec)
+	events := prom.NewCounterVecWithLabels(namespace, subsystem, "event_total",
+		"Total number of events.", EventLabels{EventTrigger})
 
 	runtime := prom.SafeRegister(
 		prometheus.NewCounter(prometheus.CounterOpts{
