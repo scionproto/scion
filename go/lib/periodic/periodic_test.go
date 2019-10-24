@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 type taskFunc func(context.Context)
@@ -42,7 +43,7 @@ func TestPeriodicExecution(t *testing.T) {
 	})
 	want := 5
 	p := time.Duration(want) * time.Millisecond
-	r := Start(fn, p, time.Microsecond)
+	r := Start(fn, p, time.Hour)
 	defer r.Stop()
 
 	start := time.Now()
@@ -62,33 +63,26 @@ func TestPeriodicExecution(t *testing.T) {
 			}
 		}
 	}()
-	<-done
-	end := time.Now()
-
-	assert.WithinDurationf(t, start, end, time.Duration(want+2)*p,
+	xtest.AssertReadReturnsBefore(t, done, time.Second)
+	assert.WithinDurationf(t, start, time.Now(), time.Duration(want+2)*p,
 		"more or less %d * periods", want+2)
 }
 
 func TestKillExitsLongRunningFunc(t *testing.T) {
-	cnt, errChan := make(chan struct{}), make(chan error, 1)
+	done, errChan := make(chan struct{}), make(chan error, 1)
 	p := 10 * time.Millisecond
 	fn := taskFunc(func(ctx context.Context) {
-		cnt <- struct{}{}
+		close(done)
 		select { // Simulate long work by blocking on the done channel.
 		case <-ctx.Done():
+			// Happy path r.Kill() cancels context
 		case <-time.After(4 * p):
 			t.Fatalf("goroutine took too long to finish")
 		}
 		errChan <- ctx.Err()
 	})
-	r := Start(fn, p, 2*p)
-
-	select {
-	case <-cnt:
-	case <-time.After(3 * p):
-		t.Fatalf("time out while waiting on first run")
-	}
-
+	r := Start(fn, p, time.Hour)
+	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	r.Kill()
 
 	select {
@@ -105,7 +99,7 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 		cnt <- struct{}{}
 	})
 	p := 10 * time.Millisecond
-	r := Start(fn, p, 2*p)
+	r := Start(fn, p, time.Hour)
 
 	done := make(chan struct{})
 	go func() {
@@ -118,7 +112,7 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 		time.Sleep(p)
 		close(done)
 	}()
-	<-done
+	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.Equal(t, len(cnt), 0, "No other run within a period")
 }
 
@@ -145,8 +139,7 @@ func TestTriggerNow(t *testing.T) {
 		}
 		close(done)
 	}()
-	<-done
-
+	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.GreaterOrEqual(t, len(cnt), want-1, "Must run %v times within short time", want-1)
 }
 

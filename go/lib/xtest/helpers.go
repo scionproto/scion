@@ -185,6 +185,7 @@ func AssertReadReturnsBetween(t testing.TB, ch <-chan struct{}, x, y time.Durati
 // AssertReadReturnsBefore will call t.Fatalf if the first read from the
 // channel doesn't happen before timeout.
 func AssertReadReturnsBefore(t testing.TB, ch <-chan struct{}, timeout time.Duration) {
+	t.Helper()
 	select {
 	case <-ch:
 	case <-time.After(timeout):
