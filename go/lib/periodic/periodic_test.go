@@ -16,6 +16,7 @@ package periodic
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -36,6 +37,7 @@ func (tf taskFunc) Name() string {
 }
 
 func TestPeriodicExecution(t *testing.T) {
+	t.Parallel()
 	cnt := make(chan struct{})
 	fn := taskFunc(func(ctx context.Context) {
 		cnt <- struct{}{}
@@ -62,33 +64,27 @@ func TestPeriodicExecution(t *testing.T) {
 			}
 		}
 	}()
-	<-done
-	end := time.Now()
-
-	assert.WithinDurationf(t, start, end, time.Duration(want+2)*p,
+	assert.NoError(t, waitWithTimeout(done, 100*time.Millisecond))
+	assert.WithinDurationf(t, start, time.Now(), time.Duration(want+2)*p,
 		"more or less %d * periods", want+2)
 }
 
 func TestKillExitsLongRunningFunc(t *testing.T) {
-	cnt, errChan := make(chan struct{}), make(chan error, 1)
+	t.Parallel()
+	done, errChan := make(chan struct{}), make(chan error, 1)
 	p := 10 * time.Millisecond
 	fn := taskFunc(func(ctx context.Context) {
-		cnt <- struct{}{}
+		done <- struct{}{}
 		select { // Simulate long work by blocking on the done channel.
 		case <-ctx.Done():
+			// Happy path r.Kill() cancels context
 		case <-time.After(4 * p):
 			t.Fatalf("goroutine took too long to finish")
 		}
 		errChan <- ctx.Err()
 	})
 	r := Start(fn, p, 2*p)
-
-	select {
-	case <-cnt:
-	case <-time.After(3 * p):
-		t.Fatalf("time out while waiting on first run")
-	}
-
+	assert.NoError(t, waitWithTimeout(done, 100*time.Millisecond))
 	r.Kill()
 
 	select {
@@ -100,6 +96,7 @@ func TestKillExitsLongRunningFunc(t *testing.T) {
 }
 
 func TestTaskDoesntRunAfterKill(t *testing.T) {
+	t.Parallel()
 	cnt := make(chan struct{}, 50)
 	fn := taskFunc(func(ctx context.Context) {
 		cnt <- struct{}{}
@@ -118,11 +115,12 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 		time.Sleep(p)
 		close(done)
 	}()
-	<-done
+	assert.NoError(t, waitWithTimeout(done, 3*p))
 	assert.Equal(t, len(cnt), 0, "No other run within a period")
 }
 
 func TestTriggerNow(t *testing.T) {
+	t.Parallel()
 	want := 10
 
 	cnt := make(chan struct{}, 50)
@@ -145,12 +143,20 @@ func TestTriggerNow(t *testing.T) {
 		}
 		close(done)
 	}()
-	<-done
-
+	assert.NoError(t, waitWithTimeout(done, 3*p))
 	assert.GreaterOrEqual(t, len(cnt), want-1, "Must run %v times within short time", want-1)
 }
 
 func TestMain(m *testing.M) {
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
+}
+
+func waitWithTimeout(ch <-chan struct{}, d time.Duration) error {
+	select {
+	case <-ch:
+		return nil
+	case <-time.After(d):
+		return fmt.Errorf("timeout")
+	}
 }
