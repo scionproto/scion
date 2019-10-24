@@ -19,16 +19,16 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// InvalidRequest indicates an invalid request.
-const InvalidRequest = "Invalid request"
+// ErrInvalidRequest indicates an invalid request.
+var ErrInvalidRequest = serrors.New("invalid request")
 
 // Resolver resolves segments that are locally cached.
 type Resolver interface {
@@ -255,7 +255,7 @@ func (r *DefaultResolver) expandNonCoreToNonCore(segs Segments,
 		return req.Cores, nil
 	}
 	if !coreReq.Src.IsWildcard() || !coreReq.Dst.IsWildcard() {
-		return nil, common.NewBasicError(InvalidRequest, nil,
+		return nil, serrors.WithCtx(ErrInvalidRequest,
 			"req", req, "reason", "Core either src & dst should be wildcard or none.")
 	}
 	upIAs := segs.Up.FirstIAs()

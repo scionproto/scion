@@ -17,8 +17,8 @@ package segreq
 import (
 	"context"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // BaseValidator is the base validation for all PSes.
@@ -41,10 +41,10 @@ func (v *BaseValidator) Validate(ctx context.Context, r segfetcher.Request) erro
 	}
 	switch {
 	case r.IsZero() || r.Src.IsZero() || r.Dst.IsZero():
-		return common.NewBasicError(segfetcher.InvalidRequest, nil,
+		return serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"req", r, "reason", "zero src or dst")
 	case wildSrc && wildDst:
-		return common.NewBasicError(segfetcher.InvalidRequest, nil,
+		return serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"req", r, "reason", "wildcard src & dst")
 	case !coreSrc && (coreDst || wildDst) && sameIsd:
 		// up segment
@@ -56,7 +56,7 @@ func (v *BaseValidator) Validate(ctx context.Context, r segfetcher.Request) erro
 		// down segment
 		return nil
 	default:
-		return common.NewBasicError(segfetcher.InvalidRequest, nil,
+		return serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"req", r, "reason", "not a single segment")
 	}
 }
@@ -76,7 +76,7 @@ func (v *CoreValidator) Validate(ctx context.Context, r segfetcher.Request) erro
 		return err
 	}
 	if !coreSrc {
-		return common.NewBasicError(segfetcher.InvalidRequest, nil,
+		return serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"req", r, "reason", "src should be core")
 	}
 	return nil
