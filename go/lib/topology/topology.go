@@ -39,10 +39,10 @@ func (m IDAddrMap) GetById(id string) *TopoAddr {
 	return nil
 }
 
-type ServiceNames []string
+type serviceNames []string
 
 // GetRandom returns a random entry, or an error if the slice is empty.
-func (s ServiceNames) GetRandom() (string, error) {
+func (s serviceNames) GetRandom() (string, error) {
 	numServers := len(s)
 	if numServers == 0 {
 		return "", serrors.New("No names present")
@@ -52,17 +52,6 @@ func (s ServiceNames) GetRandom() (string, error) {
 
 // IfInfoMap maps interface ids to the interface information.
 type IfInfoMap map[common.IFIDType]IFInfo
-
-// OfLinkType returns all interface info in the map that have the given link type.
-func (iim IfInfoMap) OfLinkType(lt proto.LinkType) IfInfoMap {
-	infos := make(IfInfoMap)
-	for id, info := range iim {
-		if info.LinkType == lt {
-			infos[id] = info
-		}
-	}
-	return infos
-}
 
 // Topo is the main struct encompassing topology information for use in Go code.
 // The first section contains metadata about the topology. All of these fields
@@ -98,24 +87,24 @@ type Topo struct {
 	IFInfoMap IfInfoMap
 
 	BS       IDAddrMap
-	BSNames  ServiceNames
+	BSNames  serviceNames
 	CS       IDAddrMap
-	CSNames  ServiceNames
+	CSNames  serviceNames
 	PS       IDAddrMap
-	PSNames  ServiceNames
+	PSNames  serviceNames
 	SB       IDAddrMap
-	SBNames  ServiceNames
+	SBNames  serviceNames
 	RS       IDAddrMap
-	RSNames  ServiceNames
+	RSNames  serviceNames
 	DS       IDAddrMap
-	DSNames  ServiceNames
+	DSNames  serviceNames
 	SIG      IDAddrMap
-	SIGNames ServiceNames
+	SIGNames serviceNames
 
 	ZK map[int]*addr.AppAddr
 }
 
-// Create new empty Topo object, including all possible service maps etc.
+// NewTopo creates new empty Topo object, including all possible service maps etc.
 func NewTopo() *Topo {
 	return &Topo{
 		BR:        make(map[string]BRInfo),
@@ -131,7 +120,7 @@ func NewTopo() *Topo {
 	}
 }
 
-// Convert a JSON-filled RawTopo to a Topo usabled by Go code.
+// TopoFromRaw converts a JSON-filled RawTopo to a Topo usable by Go code.
 func TopoFromRaw(raw *RawTopo) (*Topo, error) {
 	t := NewTopo()
 
@@ -295,7 +284,7 @@ func (t *Topo) Expiry() time.Time {
 }
 
 func (t *Topo) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, error) {
-	svcInfo, err := t.GetSvcInfo(svc)
+	svcInfo, err := t.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +296,7 @@ func (t *Topo) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, error) 
 }
 
 func (t *Topo) GetAnyTopoAddr(svc proto.ServiceType) (*TopoAddr, error) {
-	svcInfo, err := t.GetSvcInfo(svc)
+	svcInfo, err := t.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
 	}
@@ -319,54 +308,46 @@ func (t *Topo) GetAnyTopoAddr(svc proto.ServiceType) (*TopoAddr, error) {
 }
 
 func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
-	svcInfo, err := t.GetSvcInfo(svc)
+	svcInfo, err := t.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
 	}
-	topoAddrs := svcInfo.GetAllTopoAddrs()
+	topoAddrs := svcInfo.getAllTopoAddrs()
 	if topoAddrs == nil {
 		return nil, serrors.New("Address not found")
 	}
 	return topoAddrs, nil
 }
 
-func (t *Topo) GetSvcInfo(svc proto.ServiceType) (*SVCInfo, error) {
+func (t *Topo) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 	switch svc {
 	case proto.ServiceType_unset:
 		return nil, serrors.New("Service type unset")
 	case proto.ServiceType_bs:
-		return &SVCInfo{overlay: t.Overlay, names: t.BSNames, idTopoAddrMap: t.BS}, nil
+		return &svcInfo{overlay: t.Overlay, names: t.BSNames, idTopoAddrMap: t.BS}, nil
 	case proto.ServiceType_ps:
-		return &SVCInfo{overlay: t.Overlay, names: t.PSNames, idTopoAddrMap: t.PS}, nil
+		return &svcInfo{overlay: t.Overlay, names: t.PSNames, idTopoAddrMap: t.PS}, nil
 	case proto.ServiceType_cs:
-		return &SVCInfo{overlay: t.Overlay, names: t.CSNames, idTopoAddrMap: t.CS}, nil
+		return &svcInfo{overlay: t.Overlay, names: t.CSNames, idTopoAddrMap: t.CS}, nil
 	case proto.ServiceType_sb:
-		return &SVCInfo{overlay: t.Overlay, names: t.SBNames, idTopoAddrMap: t.SB}, nil
+		return &svcInfo{overlay: t.Overlay, names: t.SBNames, idTopoAddrMap: t.SB}, nil
 	case proto.ServiceType_sig:
-		return &SVCInfo{overlay: t.Overlay, names: t.SIGNames, idTopoAddrMap: t.SIG}, nil
+		return &svcInfo{overlay: t.Overlay, names: t.SIGNames, idTopoAddrMap: t.SIG}, nil
 	case proto.ServiceType_ds:
-		return &SVCInfo{overlay: t.Overlay, names: t.DSNames, idTopoAddrMap: t.DS}, nil
+		return &svcInfo{overlay: t.Overlay, names: t.DSNames, idTopoAddrMap: t.DS}, nil
 	default:
 		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
 	}
 }
 
-// SVCInfo contains topology information for a single SCION service
-type SVCInfo struct {
+// svcInfo contains topology information for a single SCION service
+type svcInfo struct {
 	overlay       overlay.Type
-	names         ServiceNames
+	names         serviceNames
 	idTopoAddrMap IDAddrMap
 }
 
-func (svc *SVCInfo) GetAnyTopoAddr() *TopoAddr {
-	id, err := svc.names.GetRandom()
-	if err != nil {
-		return nil
-	}
-	return svc.idTopoAddrMap.GetById(id)
-}
-
-func (svc *SVCInfo) GetAllTopoAddrs() []TopoAddr {
+func (svc *svcInfo) getAllTopoAddrs() []TopoAddr {
 	var topoAddrs []TopoAddr
 	for _, topoAddr := range svc.idTopoAddrMap {
 		topoAddrs = append(topoAddrs, topoAddr)
@@ -408,7 +389,7 @@ func (t *Topo) zkSvcFromRaw(zksvc map[int]*RawAddrPort) error {
 	return nil
 }
 
-// A list of AS-wide unique interface IDs for a router. These IDs are also used
+// BRInfo is a list of AS-wide unique interface IDs for a router. These IDs are also used
 // to point to the specific internal address clients should send their traffic
 // to in order to use that interface, via the IFInfoMap member of the Topo
 // struct.
