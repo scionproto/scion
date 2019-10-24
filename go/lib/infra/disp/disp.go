@@ -157,16 +157,16 @@ func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg proto.Cerealizabl
 }
 
 // RecvFrom returns the next non-reply message.
-func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, net.Addr, error) {
+func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, int, net.Addr, error) {
 	select {
 	case event := <-d.readEvents:
-		return event.msg, event.address, nil
+		return event.msg, event.size, event.address, nil
 	case <-ctx.Done():
 		// We timed out, return with failure
-		return nil, nil, ctx.Err()
+		return nil, 0, nil, ctx.Err()
 	case <-d.closedChan:
 		// Some other goroutine closed the dispatcher
-		return nil, nil, common.NewBasicError(infra.StrClosedError, nil)
+		return nil, 0, nil, common.NewBasicError(infra.StrClosedError, nil)
 	}
 }
 
@@ -225,7 +225,7 @@ func (d *Dispatcher) recvNext() bool {
 		return false
 	}
 
-	event := &readEventDesc{address: address, msg: msg}
+	event := &readEventDesc{address: address, msg: msg, size: len(b)}
 	select {
 	case d.readEvents <- event:
 		// Do nothing
@@ -262,6 +262,7 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 type readEventDesc struct {
 	address net.Addr
 	msg     proto.Cerealizable
+	size    int
 }
 
 func isCleanShutdownError(err error) bool {
