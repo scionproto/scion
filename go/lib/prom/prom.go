@@ -93,15 +93,6 @@ func ExportElementID(id string) {
 		"The element ID from the config file", []string{"cfg"}).WithLabelValues(id).Set(1)
 }
 
-// FIXME(roosd): remove.
-func CopyLabels(labels prometheus.Labels) prometheus.Labels {
-	l := make(prometheus.Labels)
-	for k, v := range labels {
-		l[k] = v
-	}
-	return l
-}
-
 // SafeRegister registers c and returns the registered collector. If c was
 // already registered the already registered collector is returned. In case of
 // any other error this method panicks (as MustRegister).
@@ -186,6 +177,20 @@ func NewGaugeVec(namespace, subsystem, name, help string,
 			Help:      help,
 		},
 		labelNames,
+	)
+}
+
+// NewHistogram creates a new prometheus histogram that is registered with the default registry.
+func NewHistogram(namespace, subsystem, name, help string, buckets []float64) prometheus.Histogram {
+
+	return promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      name,
+			Help:      help,
+			Buckets:   buckets,
+		},
 	)
 }
 

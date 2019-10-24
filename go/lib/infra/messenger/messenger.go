@@ -97,6 +97,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/messenger/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -766,7 +767,7 @@ func (m *Messenger) listenAndServeUDP() {
 		// CloseServer() calls the context's cancel function, thus unblocking Recv. The
 		// server's main loop then detects that closeChan has been closed, and shuts
 		// down cleanly.
-		genericMsg, address, err := m.dispatcher.RecvFrom(m.ctx)
+		genericMsg, size, address, err := m.dispatcher.RecvFrom(m.ctx)
 		if err != nil {
 			// Do not log errors caused after close signal sent
 			select {
@@ -774,6 +775,7 @@ func (m *Messenger) listenAndServeUDP() {
 				// CloseServer was called
 				return
 			default:
+				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrRead}).Inc()
 				m.log.Error("Receive error", "err", err)
 			}
 			continue
@@ -783,6 +785,7 @@ func (m *Messenger) listenAndServeUDP() {
 
 		signedPld, ok := genericMsg.(*ctrl.SignedPld)
 		if !ok {
+			metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrInvalidReq}).Inc()
 			logger.Error("Type assertion failure", "from", address, "expected", "*ctrl.SignedPld",
 				"actual", common.TypeOf(genericMsg))
 			continue
@@ -795,24 +798,26 @@ func (m *Messenger) listenAndServeUDP() {
 			// functionality in the main ctrl libraries is still missing.
 			verifier := m.verifier.WithIA(address.(*snet.Addr).IA)
 			if pld, err = signedPld.GetVerifiedPld(serveCtx, verifier); err != nil {
+				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrVerify}).Inc()
 				logger.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
 				continue
 			}
 		} else {
 			if pld, err = signedPld.UnsafePld(); err != nil {
+				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrParse}).Inc()
 				logger.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
 				serveCancelF()
 				continue
 			}
 		}
 		serveCtx = log.CtxWith(serveCtx, logger)
-		m.serve(serveCtx, serveCancelF, pld, signedPld, address)
+		m.serve(serveCtx, serveCancelF, pld, signedPld, size, address)
 	}
 }
 
 func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *ctrl.Pld,
-	signedPld *ctrl.SignedPld, address net.Addr) {
+	signedPld *ctrl.SignedPld, size int, address net.Addr) {
 
 	logger := log.FromCtx(ctx)
 	ctx = infra.NewContextWithResponseWriter(ctx,
@@ -826,6 +831,7 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	// signature is correct.
 	msgType, msg, err := validate(pld)
 	if err != nil {
+		metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrValidate}).Inc()
 		logger.Error("Received message, but unable to validate message",
 			"from", address, "err", err)
 		return
@@ -836,6 +842,7 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	handler := m.handlers[msgType]
 	m.handlersLock.RUnlock()
 	if handler == nil {
+		metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrInvalidReq}).Inc()
 		// TODO(lukedirtwalker): Remove once we expect Acks everywhere.
 		// Until then silently drop Acks so that we don't fill the logs.
 		if msgType == infra.Ack {
@@ -845,6 +852,8 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 			"msgType", msgType, "id", pld.ReqId)
 		return
 	}
+	metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.OkSuccess}).Inc()
+	metrics.Dispatcher.ReadSizes().Observe(float64(size))
 
 	ctx = log.CtxWith(ctx, logger)
 	if tracer := opentracing.GlobalTracer(); tracer != nil {
