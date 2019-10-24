@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/messenger/internal/metrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -51,6 +52,7 @@ func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
 	if !ok {
 		// FIXME(scrye): Change interface to handle key errors instead of
 		// logging it here
+		metrics.Adapter.Errors(metrics.ResultLabels{Result: metrics.ErrInvalidReq})
 		log.Warn("Unable to type assert disp.Message to ctrl.SignedPld", "msg", msg,
 			"type", common.TypeOf(msg))
 		return ""
@@ -61,6 +63,7 @@ func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
 	// response to make it match any outstanding request.
 	ctrlPld, err := signedCtrlPld.UnsafePld()
 	if err != nil {
+		metrics.Adapter.Errors(metrics.ResultLabels{Result: metrics.ErrParse})
 		log.Warn("Unable to extract CtrlPld from SignedCtrlPld", "err", err)
 		return ""
 	}

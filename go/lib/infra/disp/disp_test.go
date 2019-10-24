@@ -53,7 +53,7 @@ func TestRequestReply(t *testing.T) {
 		}, func(sc *xtest.SC) {
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 			defer cancelF()
-			recvRequest, _, err := dispB.RecvFrom(ctx)
+			recvRequest, _, _, err := dispB.RecvFrom(ctx)
 			sc.SoMsg("b recv err", err, ShouldBeNil)
 			sc.SoMsg("b recv msg", recvRequest, ShouldResemble, request)
 			err = dispB.Notify(ctx, reply, nil)
@@ -92,7 +92,7 @@ func TestRequestBadReply(t *testing.T) {
 			// Create reply with bad ID
 			badReply := &customObject{73, "reply"}
 
-			recvRequest, _, err := dispB.RecvFrom(ctx)
+			recvRequest, _, _, err := dispB.RecvFrom(ctx)
 			sc.SoMsg("b recv err", err, ShouldBeNil)
 			sc.SoMsg("b recv msg", recvRequest, ShouldResemble, request)
 			err = dispB.Notify(ctx, badReply, nil)
@@ -112,7 +112,7 @@ func TestNotifyOk(t *testing.T) {
 		}, func(sc *xtest.SC) {
 			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 			defer cancelF()
-			recvNotification, _, err := dispB.RecvFrom(ctx)
+			recvNotification, _, _, err := dispB.RecvFrom(ctx)
 			sc.SoMsg("b recv err", err, ShouldBeNil)
 			sc.SoMsg("b recv notification", recvNotification, ShouldResemble, notification)
 		}))
