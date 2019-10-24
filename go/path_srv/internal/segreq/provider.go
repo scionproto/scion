@@ -79,7 +79,7 @@ type nonCoreDstProvider struct {
 // since they should be locally resolved.
 func (p *nonCoreDstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
 	if p.localIA.Equal(req.Src) {
-		return nil, common.NewBasicError(segfetcher.InvalidRequest, nil,
+		return nil, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"req", req, "reason", "up segments should be resolved locally")
 	}
 	dstCore, err := p.coreChecker.IsCore(ctx, req.Dst)
