@@ -27,11 +27,21 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
 	minQueryInterval   = 2 * time.Second
 	expirationLeadTime = 2 * time.Minute
+)
+
+var (
+	// ErrValidate inidicates that validation of the request failed.
+	ErrValidate = serrors.New("request validation failed")
+	// ErrFetch indicates that fetching segments failed.
+	ErrFetch = serrors.New("fetching failed")
+	// ErrDB indicates an error while looking up segments in the DB.
+	ErrDB = serrors.New("error with the db")
 )
 
 // ReplyHandler handles replies.
@@ -105,7 +115,7 @@ type Fetcher struct {
 func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) {
 	if f.Validator != nil {
 		if err := f.Validator.Validate(ctx, req); err != nil {
-			return Segments{}, err
+			return Segments{}, serrors.Wrap(ErrValidate, err)
 		}
 	}
 	reqSet, err := f.Splitter.Split(ctx, req)
@@ -118,7 +128,7 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 			"req", reqSet, "segs", segs, "iteration", i+1)
 		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
 		if err != nil {
-			return Segments{}, err
+			return Segments{}, serrors.Wrap(ErrDB, err)
 		}
 		log.FromCtx(ctx).Trace("After resolving",
 			"req", reqSet, "segs", segs, "iteration", i+1)
@@ -154,7 +164,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
 		if reply.Err != nil {
-			return reqSet, reply.Err
+			return reqSet, serrors.Wrap(ErrFetch, reply.Err)
 		}
 		if reply.Reply == nil || reply.Reply.Recs == nil {
 			continue
@@ -163,8 +173,10 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 		select {
 		case <-r.FullReplyProcessed():
 			if err := r.Err(); err != nil {
-				return reqSet, err
+				return reqSet, serrors.Wrap(ErrDB, err)
 			}
+			// TODO(lukedirtwalker): should we return an error if verification
+			// of all segments failed?
 			// TODO(lukedirtwalker): move state update to separate func
 			if reqSet.Up.EqualAddr(reply.Req) {
 				reqSet.Up.State = Fetched

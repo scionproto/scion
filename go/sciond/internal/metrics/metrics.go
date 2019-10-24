@@ -43,9 +43,13 @@ const (
 
 // Result values
 const (
-	OkSuccess   = prom.Success
-	ErrInternal = prom.ErrInternal
-	ErrNetwork  = prom.ErrNetwork
+	OkSuccess        = prom.Success
+	ErrInternal      = prom.ErrInternal
+	ErrNetwork       = prom.ErrNetwork
+	ErrDB            = prom.ErrDB
+	ErrTimeout       = prom.ErrTimeout
+	ErrParse         = prom.ErrParse
+	ErrNotClassified = prom.ErrNotClassified
 )
 
 // Metric accessors.
