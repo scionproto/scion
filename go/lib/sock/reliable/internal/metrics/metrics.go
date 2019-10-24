@@ -85,10 +85,10 @@ type metrics struct {
 
 func newMetrics() metrics {
 	return metrics{
-		dials: prom.NewCounterVec(Namespace, sub, "dials_total",
-			"Total number of Dial calls.", DialLabels{}.Labels()),
-		registers: prom.NewCounterVec(Namespace, sub, "registers_total",
-			"Total number of Register calls.", RegisterLabels{}.Labels()),
+		dials: prom.NewCounterVecWithLabels(Namespace, sub, "dials_total",
+			"Total number of Dial calls.", DialLabels{}),
+		registers: prom.NewCounterVecWithLabels(Namespace, sub, "registers_total",
+			"Total number of Register calls.", RegisterLabels{}),
 		reads: prom.NewHistogramVec(Namespace, sub, "reads_total",
 			"Total number of Read calls", IOLabels{}.Labels(), prom.DefaultSizeBuckets),
 		writes: prom.NewHistogramVec(Namespace, sub, "writes_total",

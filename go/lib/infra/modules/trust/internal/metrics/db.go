@@ -69,8 +69,8 @@ type db struct {
 
 func newDB() db {
 	return db{
-		queries: prom.NewCounterVec(Namespace, "", "db_queries_total",
-			"Total queries to the database", QueryLabels{}.Labels()),
+		queries: prom.NewCounterVecWithLabels(Namespace, "", "db_queries_total",
+			"Total queries to the database", QueryLabels{}),
 	}
 }
 

@@ -111,12 +111,12 @@ type store struct {
 
 func newStore() store {
 	return store{
-		lookup: *prom.NewCounterVec(Namespace, "", "lookups_total",
-			"Number of crypto lookups in the trust store", LookupLabels{}.Labels()),
-		sent: *prom.NewCounterVec(Namespace, "", "sent_requests_total",
-			"Number of requests initiated by the trust store", SentLabels{}.Labels()),
-		verification: *prom.NewCounterVec(Namespace, "", "signature_verifications_total",
-			"Number of signature verifications done by trust store", VerificationLabels{}.Labels()),
+		lookup: *prom.NewCounterVecWithLabels(Namespace, "", "lookups_total",
+			"Number of crypto lookups in the trust store", LookupLabels{}),
+		sent: *prom.NewCounterVecWithLabels(Namespace, "", "sent_requests_total",
+			"Number of requests initiated by the trust store", SentLabels{}),
+		verification: *prom.NewCounterVecWithLabels(Namespace, "", "signature_verifications_total",
+			"Number of signature verifications done by trust store", VerificationLabels{}),
 	}
 }
 

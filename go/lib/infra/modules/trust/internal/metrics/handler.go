@@ -52,8 +52,8 @@ type handler struct {
 
 func newHandler() handler {
 	return handler{
-		requests: *prom.NewCounterVec(Namespace, "", "received_requests_total",
-			"Number of requests served by the trust store", (HandlerLabels{}).Labels()),
+		requests: *prom.NewCounterVecWithLabels(Namespace, "", "received_requests_total",
+			"Number of requests served by the trust store", HandlerLabels{}),
 	}
 }
 

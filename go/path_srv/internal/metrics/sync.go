@@ -73,11 +73,11 @@ type sync struct {
 func newSync() sync {
 	subsystem := "segment_sync"
 	return sync{
-		registrations: prom.NewCounterVec(Namespace, subsystem, "registrations_total",
+		registrations: prom.NewCounterVecWithLabels(Namespace, subsystem, "registrations_total",
 			"Number of segments registered in down segment synchronizations",
-			SyncRegLabels{}.Labels()),
-		pushes: prom.NewCounterVec(Namespace, subsystem, "pushes_total",
-			"Number of pushes towards a destination", SyncPushLabels{}.Labels()),
+			SyncRegLabels{}),
+		pushes: prom.NewCounterVecWithLabels(Namespace, subsystem, "pushes_total",
+			"Number of pushes towards a destination", SyncPushLabels{}),
 	}
 }
 

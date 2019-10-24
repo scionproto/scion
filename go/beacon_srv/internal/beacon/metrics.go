@@ -43,13 +43,36 @@ var (
 	initMetricsOnce sync.Once
 )
 
+type dbLabels struct {
+	db, op string
+}
+
+func (l dbLabels) Labels() []string {
+	return []string{labelDbName, prom.LabelOperation}
+}
+
+func (l dbLabels) Values() []string {
+	return []string{l.db, l.op}
+}
+
+type dbLabelsWithResult struct {
+	db, op, result string
+}
+
+func (l dbLabelsWithResult) Labels() []string {
+	return []string{labelDbName, prom.LabelOperation, prom.LabelResult}
+}
+
+func (l dbLabelsWithResult) Values() []string {
+	return []string{l.db, l.op, l.result}
+}
+
 func initMetrics() {
 	initMetricsOnce.Do(func() {
-		queriesTotal = prom.NewCounterVec(dbNamespace, "", "queries_total",
-			"Total queries to the database.", []string{labelDbName, prom.LabelOperation})
-		resultsTotal = prom.NewCounterVec(dbNamespace, "", "results_total",
-			"Results of trustdb operations.",
-			[]string{labelDbName, prom.LabelOperation, prom.LabelResult})
+		queriesTotal = prom.NewCounterVecWithLabels(dbNamespace, "", "queries_total",
+			"Total queries to the database.", dbLabels{})
+		resultsTotal = prom.NewCounterVecWithLabels(dbNamespace, "", "results_total",
+			"Results of trustdb operations.", dbLabelsWithResult{})
 	})
 }
 

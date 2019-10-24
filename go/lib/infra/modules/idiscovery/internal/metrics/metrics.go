@@ -72,10 +72,10 @@ type fetcher struct {
 
 func newFetcher() fetcher {
 	return fetcher{
-		sent: prom.NewCounterVec(Namespace, "", "sent_requests_total",
-			"The total number of requests sent to the discovey service", FetcherLabels{}.Labels()),
-		file: prom.NewCounterVec(Namespace, "", "file_writes_total",
-			"The total number of file writes on updated topology", FetcherLabels{}.Labels()),
+		sent: prom.NewCounterVecWithLabels(Namespace, "", "sent_requests_total",
+			"The total number of requests sent to the discovey service", FetcherLabels{}),
+		file: prom.NewCounterVecWithLabels(Namespace, "", "file_writes_total",
+			"The total number of file writes on updated topology", FetcherLabels{}),
 	}
 }
 
