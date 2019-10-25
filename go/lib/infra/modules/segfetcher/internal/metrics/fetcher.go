@@ -84,7 +84,8 @@ func NewFetcher(namespace string) Fetcher {
 		segRequest: prom.NewCounterVecWithLabels(namespace, sub, "seg_requests_total",
 			"The number of segment request sent.", RequestLabels{Result: OkSuccess}),
 		revocations: prom.NewCounterVecWithLabels(namespace, "", "received_revocations_total",
-			"The amount of revocations received.", RevocationLabels{Result: OkSuccess, Src: revSrcPathReply}),
+			"The amount of revocations received.",
+			RevocationLabels{Result: OkSuccess, Src: revSrcPathReply}),
 	}
 }
 
