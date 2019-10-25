@@ -330,7 +330,7 @@ class TopoGenerator(object):
 
     def _gen_zk_entries(self, topo_id, as_conf):
         if ("defaults" not in self.args.topo_config_dict or
-            "zookeepers" not in self.args.topo_config_dict["defaults"]):
+                "zookeepers" not in self.args.topo_config_dict["defaults"]):
             return
         zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]
         if len(zk_conf) > 1:
