@@ -48,9 +48,9 @@ type revocation struct {
 
 func newRevocation() revocation {
 	return revocation{
-		count: prom.NewCounterVecWithLabels(Namespace, "revocations", "received_total",
-			"The amount of revocations received by src type and result",
-			RevocationLabels{}),
+		count: prom.NewCounterVecWithLabels(Namespace, "", "received_revocations_total",
+			"The amount of revocations received.",
+			RevocationLabels{Result: OkSuccess, Src: RevSrcNotification}),
 	}
 }
 

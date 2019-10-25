@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -74,6 +75,8 @@ type FetcherConfig struct {
 	// SciondMode enables sciond mode, this means it uses the local CS to fetch
 	// crypto material and considers revocations in the path lookup.
 	SciondMode bool
+	// The namespace used for metrics.
+	MetricsNamespace string
 }
 
 // New creates a new fetcher from the configuration.
@@ -91,6 +94,7 @@ func (cfg FetcherConfig) New() *Fetcher {
 		QueryInterval:         cfg.QueryInterval,
 		NextQueryCleaner:      NextQueryCleaner{PathDB: cfg.PathDB},
 		CryptoLookupAtLocalCS: cfg.SciondMode,
+		metrics:               metrics.NewFetcher(cfg.MetricsNamespace),
 	}
 }
 
@@ -105,6 +109,7 @@ type Fetcher struct {
 	QueryInterval         time.Duration
 	NextQueryCleaner      NextQueryCleaner
 	CryptoLookupAtLocalCS bool
+	metrics               metrics.Fetcher
 }
 
 // FetchSegs fetches the required segments to build a path between src and dst
@@ -161,16 +166,21 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 	logger := log.FromCtx(ctx)
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
+		labels := metrics.RequestLabels{Result: metrics.ErrNotClassified}
 		if reply.Err != nil {
-			return reqSet, serrors.Wrap(errFetch, reply.Err)
+			f.metrics.SegRequests(labels).Inc()
 		}
 		if reply.Reply == nil || reply.Reply.Recs == nil {
+			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 			continue
 		}
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), f.verifyServer(reply), nil)
 		select {
 		case <-r.FullReplyProcessed():
+			defer f.metrics.UpdateRevocation(r.Stats().RevStored(),
+				r.Stats().RevDBErrs(), r.Stats().RevVerifyErrors())
 			if err := r.Err(); err != nil {
+				f.metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
 				return reqSet, serrors.Wrap(errDB, err)
 			}
 			// TODO(lukedirtwalker): should we return an error if verification
@@ -192,7 +202,9 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			if err != nil {
 				logger.Warn("Failed to insert next query", "err", err)
 			}
+			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 		case <-ctx.Done():
+			f.metrics.SegRequests(labels.WithResult(metrics.ErrTimeout)).Inc()
 			return reqSet, ctx.Err()
 		}
 	}

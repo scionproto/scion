@@ -23,6 +23,7 @@ go_library(
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
+        "//go/lib/infra/modules/segfetcher/internal/metrics:go_default_library",
         "//go/lib/infra/modules/seghandler:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathdb:go_default_library",

@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/sciond/internal/config"
+	"github.com/scionproto/scion/go/sciond/internal/metrics"
 )
 
 const (
@@ -80,6 +81,7 @@ func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore Trus
 			DstProvider:         &dstProvider{IA: localIA},
 			Splitter:            NewRequestSplitter(localIA, trustStore),
 			SciondMode:          true,
+			MetricsNamespace:    metrics.Namespace,
 		}.New(),
 	}
 }

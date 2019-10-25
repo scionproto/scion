@@ -29,6 +29,7 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/sciond/internal/config:go_default_library",
+        "//go/sciond/internal/metrics:go_default_library",
     ],
 )
 

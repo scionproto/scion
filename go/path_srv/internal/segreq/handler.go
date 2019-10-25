@@ -49,6 +49,7 @@ func NewHandler(args handlers.HandlerArgs) infra.Handler {
 			RequestAPI:          args.SegRequestAPI,
 			DstProvider:         createDstProvider(args, core),
 			Splitter:            &Splitter{ASInspector: args.ASInspector},
+			MetricsNamespace:    metrics.Namespace,
 		}.New(),
 		revCache: args.RevCache,
 	}
