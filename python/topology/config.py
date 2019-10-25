@@ -136,7 +136,10 @@ class ConfigGenerator(object):
         self._generate_with_topo(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
-        self._write_conf_policies(topo_dicts)
+        all_go = all(t == "go" for t in [self.args.beacon_server, self.args.cert_server,
+                                         self.args.sciond, self.args.path_server])
+        if not all_go:
+            self._write_conf_policies(topo_dicts)
         self._write_networks_conf(self.networks, NETWORKS_FILE)
         if self.args.bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
