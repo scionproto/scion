@@ -3,8 +3,9 @@
 package proto
 
 import (
+	"zombiezen.com/go/capnproto2"
+
 	"github.com/scionproto/scion/go/lib/common"
-	capnp "zombiezen.com/go/capnproto2"
 )
 
 // NewRootStruct calls the appropriate NewRoot<x> function corresponding to the capnp proto type ID,
