@@ -28,11 +28,10 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+// errors for metrics classification.
 var (
-	// ErrRevVerification indicates an error while verifying a revocation.
-	ErrRevVerification = serrors.New("error verifying revocation")
-	// ErrSegVerification indicates an error while verifying a segment.
-	ErrSegVerification = serrors.New("error verifying segment")
+	errRevVerification = serrors.New("error verifying revocation")
+	errSegVerification = serrors.New("error verifying segment")
 )
 
 // Segments is a list of segments and revocations belonging to them.
@@ -112,6 +111,7 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 	}
 	verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
 	result.verifyErrs = append(allVerifyErrs, verifyErrs...)
+	result.stats.verificationErrs(result.verifyErrs)
 	result.err = err
 }
 
@@ -123,7 +123,7 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 	var revs []*path_mgmt.SignedRevInfo
 	for _, unit := range verifiedUnits {
 		if err := unit.SegError(); err != nil {
-			verifyErrs = append(verifyErrs, serrors.Wrap(ErrSegVerification, err,
+			verifyErrs = append(verifyErrs, serrors.Wrap(errSegVerification, err,
 				"seg", unit.Unit.SegMeta.Segment))
 		} else {
 			segs = append(segs, &SegWithHP{
@@ -137,7 +137,7 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 		}
 		for idx, rev := range unit.Unit.SRevInfos {
 			if err, ok := unit.Errors[idx]; ok {
-				verifyErrs = append(verifyErrs, serrors.Wrap(ErrRevVerification, err, "rev", rev))
+				verifyErrs = append(verifyErrs, serrors.Wrap(errRevVerification, err, "rev", rev))
 			} else {
 				revs = append(revs, rev)
 				stats.VerifiedRevs = append(stats.VerifiedRevs, rev)

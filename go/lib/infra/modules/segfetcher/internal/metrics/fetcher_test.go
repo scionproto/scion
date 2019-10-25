@@ -12,24 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics
+package metrics_test
 
 import (
-	"github.com/scionproto/scion/go/lib/prom"
+	"testing"
+
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/internal/metrics"
+	"github.com/scionproto/scion/go/lib/prom/promtest"
 )
 
-// Result values
-const (
-	// ErrDB is used for db related errors.
-	ErrDB = prom.ErrDB
-	// ErrNotClassified is an error that is not further classified.
-	ErrNotClassified = prom.ErrNotClassified
-	// ErrTimeout is a timeout error.
-	ErrProcess = prom.ErrProcess
-	// ErrVerify is used for validation related errors.
-	ErrTimeout = prom.ErrTimeout
-	// ErrProcess is an error during processing e.g. parsing failed.
-	ErrVerify = prom.ErrVerify
-	// OkSuccess is no error.
-	OkSuccess = prom.Success
-)
+func TestLabels(t *testing.T) {
+	promtest.CheckLabelsStruct(t, metrics.RequestLabels{})
+	promtest.CheckLabelsStruct(t, metrics.RevocationLabels{})
+}

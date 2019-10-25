@@ -19,8 +19,6 @@ import (
 	"net"
 	"time"
 
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -168,34 +166,22 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 	logger := log.FromCtx(ctx)
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
+		labels := metrics.RequestLabels{Result: metrics.ErrNotClassified}
 		if reply.Err != nil {
-			f.metrics.SegRequests(metrics.ErrNotClassified).Inc()
+			f.metrics.SegRequests(labels).Inc()
 		}
 		if reply.Reply == nil || reply.Reply.Recs == nil {
-			f.metrics.SegRequests(metrics.OkSuccess).Inc()
+			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 			continue
 		}
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), f.verifyServer(reply), nil)
 		select {
 		case <-r.FullReplyProcessed():
-			// sets revocation metrics
-			defer func() {
-				f.metrics.RevocationsReceived(metrics.OkSuccess).Add(
-					float64(len(r.Stats().StoredRevs)))
-				f.metrics.RevocationsReceived(metrics.ErrDB).Add(
-					float64(len(r.Stats().StoredRevs) - len(r.Stats().VerifiedRevs)))
-				revErrors := 0
-				for _, err := range r.VerificationErrors() {
-					if xerrors.Is(err, seghandler.ErrRevVerification) {
-						revErrors++
-					}
-				}
-				f.metrics.RevocationsReceived(metrics.ErrVerify).Add(float64(revErrors))
-			}()
+			defer f.metrics.UpdateRevocation(r.Stats().RevStored(),
+				r.Stats().RevDBErrs(), r.Stats().RevVerifyErrors())
 			if err := r.Err(); err != nil {
-				f.metrics.SegRequests(metrics.ErrProcess).Inc()
+				f.metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
 				return reqSet, serrors.Wrap(errDB, err)
-
 			}
 			// TODO(lukedirtwalker): should we return an error if verification
 			// of all segments failed?
@@ -216,9 +202,9 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			if err != nil {
 				logger.Warn("Failed to insert next query", "err", err)
 			}
-			f.metrics.SegRequests(metrics.OkSuccess).Inc()
+			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 		case <-ctx.Done():
-			f.metrics.SegRequests(metrics.ErrTimeout).Inc()
+			f.metrics.SegRequests(labels.WithResult(metrics.ErrTimeout)).Inc()
 			return reqSet, ctx.Err()
 		}
 	}

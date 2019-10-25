@@ -20,12 +20,56 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-const RevSrcPathReply = "path_reply"
+const revSrcPathReply = "path_reply"
+
+// RequestLabels contains the labels for the request metrics.
+type RequestLabels struct {
+	Result string
+}
+
+// Labels returns the labels.
+func (l RequestLabels) Labels() []string {
+	return []string{prom.LabelResult}
+}
+
+// Values returns the values.
+func (l RequestLabels) Values() []string {
+	return []string{l.Result}
+}
+
+// WithResult returns a copy of l with the result changed.
+func (l RequestLabels) WithResult(result string) RequestLabels {
+	l.Result = result
+	return l
+}
+
+// RevocationLabels are the labels for revocation metrics.
+type RevocationLabels struct {
+	Result string
+	Src    string
+}
+
+// Labels returns the labels.
+func (l RevocationLabels) Labels() []string {
+	return []string{prom.LabelResult, prom.LabelSrc}
+}
+
+// Values returns the values.
+func (l RevocationLabels) Values() []string {
+	return []string{l.Result, l.Src}
+}
+
+// WithResult returns a copy of l with the result changed.
+func (l RevocationLabels) WithResult(result string) RevocationLabels {
+	l.Result = result
+	return l
+}
 
 // Fetcher exposes all metrics for the fetcher.
 type Fetcher interface {
-	SegRequests(result string) prometheus.Counter
-	RevocationsReceived(result string) prometheus.Counter
+	SegRequests(labels RequestLabels) prometheus.Counter
+	RevocationsReceived(labels RevocationLabels) prometheus.Counter
+	UpdateRevocation(stored int, dbErrs int, verifyErrs int)
 }
 
 type fetcher struct {
@@ -35,28 +79,26 @@ type fetcher struct {
 
 // NewFetcher creates fetcher metrics struct.
 func NewFetcher(namespace string) Fetcher {
-	subst := "fetcher"
-	requests := prom.SafeRegister(prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: subst,
-		Name:      "seg_requests_total",
-		Help:      "The number of segment request sent, grouped by result",
-	}, []string{prom.LabelResult})).(*prometheus.CounterVec)
-	revocations := prom.SafeRegister(prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Name:      "recv_revocations_total",
-		Help:      "The amount of revocations received by src type and result",
-	}, []string{prom.LabelResult, prom.LabelSrc})).(*prometheus.CounterVec)
+	sub := "fetcher"
 	return fetcher{
-		segRequest:  requests,
-		revocations: revocations,
+		segRequest: prom.NewCounterVecWithLabels(namespace, sub, "seg_requests_total",
+			"The number of segment request sent.", RequestLabels{Result: OkSuccess}),
+		revocations: prom.NewCounterVecWithLabels(namespace, "", "received_revocations_total",
+			"The amount of revocations received.", RevocationLabels{Result: OkSuccess, Src: revSrcPathReply}),
 	}
 }
 
-func (f fetcher) SegRequests(result string) prometheus.Counter {
-	return f.segRequest.WithLabelValues(result)
+func (f fetcher) SegRequests(l RequestLabels) prometheus.Counter {
+	return f.segRequest.WithLabelValues(l.Values()...)
 }
 
-func (f fetcher) RevocationsReceived(result string) prometheus.Counter {
-	return f.revocations.WithLabelValues(result, RevSrcPathReply)
+func (f fetcher) RevocationsReceived(l RevocationLabels) prometheus.Counter {
+	l.Src = revSrcPathReply
+	return f.revocations.WithLabelValues(l.Values()...)
+}
+
+func (f fetcher) UpdateRevocation(stored int, dbErrs int, verifyErrs int) {
+	f.RevocationsReceived(RevocationLabels{Result: OkSuccess}).Add(float64(stored))
+	f.RevocationsReceived(RevocationLabels{Result: ErrDB}).Add(float64(dbErrs))
+	f.RevocationsReceived(RevocationLabels{Result: ErrVerify}).Add(float64(verifyErrs))
 }

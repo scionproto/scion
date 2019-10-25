@@ -14,7 +14,11 @@
 
 package seghandler
 
-import "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+import (
+	"golang.org/x/xerrors"
+
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+)
 
 // Stats provides statistics about handling segments.
 type Stats struct {
@@ -26,11 +30,35 @@ type Stats struct {
 	StoredRevs []*path_mgmt.SignedRevInfo
 	// VerifiedRevs contains all revocations that were verified.
 	VerifiedRevs []*path_mgmt.SignedRevInfo
+	revErrors    int
+}
+
+// RevStored returns the amount of stored revocations.
+func (s Stats) RevStored() int {
+	return len(s.StoredRevs)
+}
+
+// RevDBErrs returns the amount of db errors for storing revocations.
+func (s Stats) RevDBErrs() int {
+	return len(s.StoredRevs) - len(s.VerifiedRevs)
+}
+
+// RevVerifyErrors returns the amount of verification errors for revocations.
+func (s Stats) RevVerifyErrors() int {
+	return s.revErrors
 }
 
 func (s *Stats) addStoredSegs(segs SegStats) {
 	s.SegDB.InsertedSegs = append(s.SegDB.InsertedSegs, segs.InsertedSegs...)
 	s.SegDB.UpdatedSegs = append(s.SegDB.UpdatedSegs, segs.UpdatedSegs...)
+}
+
+func (s *Stats) verificationErrs(errors []error) {
+	for _, err := range errors {
+		if xerrors.Is(err, errRevVerification) {
+			s.revErrors++
+		}
+	}
 }
 
 // ProcessedResult is the result of handling a segment reply.
