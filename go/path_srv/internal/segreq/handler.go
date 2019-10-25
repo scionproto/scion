@@ -17,8 +17,6 @@ package segreq
 import (
 	"time"
 
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -27,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
@@ -88,7 +85,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 		// occur and depending on them reply / return different error codes.
 		logger.Error("Failed to handle request", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
-		metrics.Requests.Count(labels.WithResult(errToMetricsLabel(err))).Inc()
+		metrics.Requests.Count(labels.WithResult(segfetcher.ErrToMetricsLabel(err))).Inc()
 		return infra.MetricsErrInternal
 	}
 	labels.SegType = metrics.DetermineReplyType(segs)
@@ -115,21 +112,6 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	metrics.Requests.RepliedSegs(labels.RequestOkLabels).Add(float64(len(reply.Recs.Recs)))
 	metrics.Requests.RepliedRevs(labels.RequestOkLabels).Add(float64(len(reply.Recs.SRevInfos)))
 	return infra.MetricsResultOk
-}
-
-func errToMetricsLabel(err error) string {
-	switch {
-	case serrors.IsTimeout(err):
-		return metrics.ErrTimeout
-	case xerrors.Is(err, segfetcher.ErrDB):
-		return metrics.ErrDB
-	case xerrors.Is(err, segfetcher.ErrFetch):
-		return metrics.ErrNetwork
-	case xerrors.Is(err, segfetcher.ErrValidate):
-		return metrics.ErrParse
-	default:
-		return metrics.ErrNotClassified
-	}
 }
 
 func createValidator(args handlers.HandlerArgs, core bool) segfetcher.Validator {
