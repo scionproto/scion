@@ -121,9 +121,6 @@ class ConfigGenerator(object):
             priv_net = DEFAULT_PRIV_NETWORK
         self.subnet_gen = SubnetGenerator(def_network, self.args.docker, self.args.in_docker)
         self.prvnet_gen = SubnetGenerator(priv_net, self.args.docker, self.args.in_docker)
-        if "zookeepers" not in defaults:
-            logging.critical("No zookeeper configured in the topology!")
-            sys.exit(1)
         self.default_mtu = defaults.get("mtu", DEFAULT_MTU)
 
     def generate_all(self):
