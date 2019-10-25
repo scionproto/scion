@@ -329,10 +329,15 @@ class TopoGenerator(object):
         self.topo_dicts[topo_id]['SIG'][elem_id] = d
 
     def _gen_zk_entries(self, topo_id, as_conf):
+        if ("defaults" not in self.args.topo_config_dict or
+            "zookeepers" not in self.args.topo_config_dict["defaults"]):
+            return
         zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]
         if len(zk_conf) > 1:
             logging.critical("Only one zk instance is supported!")
             sys.exit(1)
+        if len(zk_conf) < 1:
+            return
         addr = zk_conf[1].get("addr", None)
         port = zk_conf[1].get("port", None)
         zk_entry = self._gen_zk_entry(addr, port, self.args.in_docker, self.args.docker)
