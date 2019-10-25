@@ -20,8 +20,6 @@ import (
 	"net"
 	"time"
 
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -65,7 +63,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 	pld *sciond.Pld) {
 
 	metricsDone := metrics.PathRequests.Start()
-	labels := metrics.PathRequestLabels{Dst: pld.PathReq.Dst.IA().I, Result: metrics.ErrInternal}
+	labels := metrics.PathRequestLabels{Dst: pld.PathReq.Dst.IA().I, Result: metrics.OkSuccess}
 	logger := log.FromCtx(ctx)
 	logger.Debug("[PathRequestHandler] Received request", "req", pld.PathReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
@@ -73,9 +71,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 	getPathsReply, err := h.Fetcher.GetPaths(workCtx, pld.PathReq, DefaultEarlyReply, logger)
 	if err != nil {
 		logger.Error("Unable to get paths", "err", err)
-		labels.Result = errToMetricsLabel(err)
-	} else {
-		labels.Result = metrics.OkSuccess
+		labels.Result = segfetcher.ErrToMetricsLabel(err)
 	}
 	// Always reply, as the Fetcher will fill in the relevant error bits of the reply
 	reply := &sciond.Pld{
@@ -359,19 +355,4 @@ func sendReply(pld *sciond.Pld, conn net.PacketConn, src net.Addr) error {
 	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
 	_, err = conn.WriteTo(b, src)
 	return err
-}
-
-func errToMetricsLabel(err error) string {
-	switch {
-	case serrors.IsTimeout(err):
-		return metrics.ErrTimeout
-	case xerrors.Is(err, segfetcher.ErrDB):
-		return metrics.ErrDB
-	case xerrors.Is(err, segfetcher.ErrFetch):
-		return metrics.ErrNetwork
-	case xerrors.Is(err, segfetcher.ErrValidate):
-		return metrics.ErrParse
-	default:
-		return metrics.ErrNotClassified
-	}
 }
