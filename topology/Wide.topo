@@ -1,9 +1,4 @@
 ---
-defaults:
-  zookeepers:
-    1:
-      addr: 127.0.0.1
-
 ASes:
   "1-ff00:0:110": {core: true}
   "1-ff00:0:120": {core: true}
