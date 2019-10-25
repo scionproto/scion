@@ -245,7 +245,9 @@ func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) er
 	pkt.Extensions = append(pkt.Extensions, scnPkt.E2EExt...)
 	pkt.L4Header = scnPkt.L4
 	pkt.Payload = scnPkt.Pld
-	*ov = *lastHop
+	if ov != nil {
+		*ov = *lastHop
+	}
 	return nil
 }
 
