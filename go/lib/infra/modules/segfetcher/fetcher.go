@@ -37,12 +37,9 @@ const (
 
 // errors for metrics classification.
 var (
-	// errValidate inidicates that validation of the request failed.
 	errValidate = serrors.New("request validation failed")
-	// errFetch indicates that fetching segments failed.
-	errFetch = serrors.New("fetching failed")
-	// errDB indicates an error while looking up segments in the DB.
-	errDB = serrors.New("error with the db")
+	errFetch    = serrors.New("fetching failed")
+	errDB       = serrors.New("error with the db")
 )
 
 // ReplyHandler handles replies.
