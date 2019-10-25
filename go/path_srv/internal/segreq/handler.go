@@ -83,11 +83,9 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	if err != nil {
 		// TODO(lukedirtwalker): Define clearer the different errors that can
 		// occur and depending on them reply / return different error codes.
-		logger.Error("Failed to handler request", "err", err)
+		logger.Error("Failed to handle request", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
-		// TODO(lukedirtwalker): set result label if we have error
-		// categorization. (see https://github.com/scionproto/scion/issues/3240)
-		metrics.Requests.Count(labels).Inc()
+		metrics.Requests.Count(labels.WithResult(segfetcher.ErrToMetricsLabel(err))).Inc()
 		return infra.MetricsErrInternal
 	}
 	labels.SegType = metrics.DetermineReplyType(segs)

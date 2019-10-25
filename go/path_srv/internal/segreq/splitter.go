@@ -16,12 +16,11 @@ package segreq
 
 import (
 	"context"
-	"errors"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Splitter splits requests for the PS.
@@ -48,13 +47,13 @@ func (s *Splitter) Split(ctx context.Context,
 	case srcCore && !dstCore:
 		return segfetcher.RequestSet{Down: r}, nil
 	default:
-		return segfetcher.RequestSet{}, errors.New(segfetcher.InvalidRequest)
+		return segfetcher.RequestSet{}, segfetcher.ErrInvalidRequest
 	}
 }
 
 func (s *Splitter) isCore(ctx context.Context, ia addr.IA) (bool, error) {
 	if ia.IsZero() {
-		return false, common.NewBasicError(segfetcher.InvalidRequest, nil, "reason", "empty ia")
+		return false, serrors.WithCtx(segfetcher.ErrInvalidRequest, "reason", "empty ia")
 	}
 	if ia.IsWildcard() {
 		return true, nil

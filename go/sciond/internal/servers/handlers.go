@@ -63,7 +63,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 	pld *sciond.Pld) {
 
 	metricsDone := metrics.PathRequests.Start()
-	labels := metrics.PathRequestLabels{Dst: pld.PathReq.Dst.IA().I, Result: metrics.ErrInternal}
+	labels := metrics.PathRequestLabels{Dst: pld.PathReq.Dst.IA().I, Result: metrics.OkSuccess}
 	logger := log.FromCtx(ctx)
 	logger.Debug("[PathRequestHandler] Received request", "req", pld.PathReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
@@ -71,9 +71,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 	getPathsReply, err := h.Fetcher.GetPaths(workCtx, pld.PathReq, DefaultEarlyReply, logger)
 	if err != nil {
 		logger.Error("Unable to get paths", "err", err)
-		// TODO(lukedirtwalker): classify error
-		// (https://github.com/scionproto/scion/issues/3240)
-		// labels.Result = ...
+		labels.Result = segfetcher.ErrToMetricsLabel(err)
 	}
 	// Always reply, as the Fetcher will fill in the relevant error bits of the reply
 	reply := &sciond.Pld{
@@ -87,7 +85,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 	} else {
 		logger.Debug("Replied with paths", "num_paths", len(getPathsReply.Entries))
 		logger.Trace("Full reply", "paths", getPathsReply)
-		metricsDone(labels.WithResult(metrics.OkSuccess))
+		metricsDone(labels)
 	}
 }
 

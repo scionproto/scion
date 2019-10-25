@@ -103,8 +103,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 	// wait until processing is done.
 	<-res.FullReplyProcessed()
 	if err := res.Err(); err != nil {
-		// TODO(lukedirtwalker): classify error (https://github.com/scionproto/scion/issues/3240)
-		metrics.Sync.Registrations(labels).Inc()
+		metrics.Sync.Registrations(labels.WithResult(metrics.ErrDB)).Inc()
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
