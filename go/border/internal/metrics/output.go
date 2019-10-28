@@ -34,21 +34,21 @@ type output struct {
 
 func newOutput() output {
 	sub := "output"
-	l := IntfLabels{}.Labels()
+	l := IntfLabels{}
 	return output{
-		pkts: prom.NewCounterVec(Namespace, sub,
+		pkts: prom.NewCounterVecWithLabels(Namespace, sub,
 			"pkts_total", "Total number of packets sent.", l),
-		bytes: prom.NewCounterVec(Namespace, sub,
+		bytes: prom.NewCounterVecWithLabels(Namespace, sub,
 			"bytes_total", "Total number of bytes sent.", l),
-		pktSize: prom.NewHistogramVec(Namespace, sub,
+		pktSize: prom.NewHistogramVecWithLabels(Namespace, sub,
 			"pkt_size_bytes", "Size of output packets in bytes", l,
 			[]float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000}),
 
-		writes: prom.NewCounterVec(Namespace, sub,
+		writes: prom.NewCounterVecWithLabels(Namespace, sub,
 			"writes_total", "Total number of output socket writes.", l),
-		writeErrors: prom.NewCounterVec(Namespace, sub,
+		writeErrors: prom.NewCounterVecWithLabels(Namespace, sub,
 			"write_errors_total", "Total number of output socket write errors.", l),
-		duration: prom.NewCounterVec(Namespace, sub,
+		duration: prom.NewCounterVecWithLabels(Namespace, sub,
 			"write_duration_seconds_total",
 			"Total time spent writing packets to the kernel, in seconds.", l),
 	}

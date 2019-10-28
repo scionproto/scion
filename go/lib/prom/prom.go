@@ -89,8 +89,15 @@ type Labels interface {
 
 // ExportElementID exports the element ID as configured in the config file.
 func ExportElementID(id string) {
-	NewGaugeVec("scion", "", "elem_id",
-		"The element ID from the config file", []string{"cfg"}).WithLabelValues(id).Set(1)
+	promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "scion",
+			Subsystem: "",
+			Name:      "elem_id",
+			Help:      "The element ID from the config file",
+		},
+		[]string{"cfg"},
+	).WithLabelValues(id).Set(1)
 }
 
 // SafeRegister registers c and returns the registered collector. If c was
@@ -135,22 +142,11 @@ func NewCounterVecWithLabels(ns, sub, name, help string, label Labels) *promethe
 
 // NewCounterVec creates a new prometheus counter vec that is registered with the default registry.
 func NewCounterVec(namespace, subsystem, name, help string,
-	// Not to be used https://github.com/scionproto/scion/issues/3274
 	labelNames []string) *prometheus.CounterVec {
-	opts := prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: subsystem,
-		Name:      name,
-		Help:      help,
-	}
-	c := prometheus.NewCounterVec(opts, labelNames)
-	ret := SafeRegister(c).(*prometheus.CounterVec)
-	val := make([]string, len(labelNames))
-	for i := range val {
-		val[i] = LabelInit
-	}
-	ret.WithLabelValues(val...)
-	return ret
+	// Not to be used https://github.com/scionproto/scion/issues/3274
+
+	return NewCounterVecWithLabels(namespace, subsystem, name, help,
+		initLabels{labelNames: labelNames})
 }
 
 // NewGauge creates a new prometheus gauge that is registered with the default registry.
@@ -165,19 +161,30 @@ func NewGauge(namespace, subsystem, name, help string) prometheus.Gauge {
 	)
 }
 
+// NewGaugeVecWithLabels creates a new prometheus gauge vec that is registered
+// with the default registry.
+func NewGaugeVecWithLabels(namespace, subsystem, name, help string,
+	label Labels) *prometheus.GaugeVec {
+	opts := prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: subsystem,
+		Name:      name,
+		Help:      help,
+	}
+
+	c := prometheus.NewGaugeVec(opts, label.Labels())
+	ret := SafeRegister(c).(*prometheus.GaugeVec)
+	ret.WithLabelValues(label.Values()...)
+	return ret
+}
+
 // NewGaugeVec creates a new prometheus gauge vec that is registered with the default registry.
 func NewGaugeVec(namespace, subsystem, name, help string,
 	labelNames []string) *prometheus.GaugeVec {
+	// Not to be used https://github.com/scionproto/scion/issues/3274
 
-	return promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      name,
-			Help:      help,
-		},
-		labelNames,
-	)
+	return NewGaugeVecWithLabels(namespace, subsystem, name, help,
+		initLabels{labelNames: labelNames})
 }
 
 // NewHistogram creates a new prometheus histogram that is registered with the default registry.
@@ -194,19 +201,47 @@ func NewHistogram(namespace, subsystem, name, help string, buckets []float64) pr
 	)
 }
 
+// NewHistogramVecWithLabels creates a new prometheus histogram vec
+// that is registered with the default registry.
+func NewHistogramVecWithLabels(namespace, subsystem, name, help string,
+	label Labels, buckets []float64) *prometheus.HistogramVec {
+
+	opts := prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: subsystem,
+		Name:      name,
+		Help:      help,
+		Buckets:   buckets,
+	}
+
+	c := prometheus.NewHistogramVec(opts, label.Labels())
+	ret := SafeRegister(c).(*prometheus.HistogramVec)
+	ret.WithLabelValues(label.Values()...)
+	return ret
+}
+
 // NewHistogramVec creates a new prometheus histogram vec
 // that is registered with the default registry.
 func NewHistogramVec(namespace, subsystem, name, help string,
 	labelNames []string, buckets []float64) *prometheus.HistogramVec {
+	// Not to be used https://github.com/scionproto/scion/issues/3274
 
-	return promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      name,
-			Help:      help,
-			Buckets:   buckets,
-		},
-		labelNames,
-	)
+	return NewHistogramVecWithLabels(namespace, subsystem, name, help,
+		initLabels{labelNames: labelNames}, buckets)
+}
+
+type initLabels struct {
+	labelNames []string
+}
+
+func (l initLabels) Labels() []string {
+	return l.labelNames
+}
+
+func (l initLabels) Values() []string {
+	val := make([]string, len(l.labelNames))
+	for i := range val {
+		val[i] = LabelInit
+	}
+	return val
 }

@@ -73,24 +73,24 @@ type control struct {
 func newControl() control {
 	sub := "ctrl"
 	return control{
-		reads: prom.NewCounterVec(Namespace, sub,
-			"reads_total", "Total number of read messages.", ControlLabels{}.Labels()),
-		processErrors: prom.NewCounterVec(Namespace, sub,
-			"process_errors", "Total number of process errors.", ControlLabels{}.Labels()),
-		receivedIFStateInfo: prom.NewCounterVec(Namespace, sub,
+		reads: prom.NewCounterVecWithLabels(Namespace, sub,
+			"reads_total", "Total number of read messages.", ControlLabels{}),
+		processErrors: prom.NewCounterVecWithLabels(Namespace, sub,
+			"process_errors", "Total number of process errors.", ControlLabels{}),
+		receivedIFStateInfo: prom.NewCounterVecWithLabels(Namespace, sub,
 			"received_ifstateinfo_total", "Total number of recevied ifstate infos.",
-			ControlLabels{}.Labels()),
-		sentIFStateReq: prom.NewCounterVec(Namespace, sub,
+			ControlLabels{}),
+		sentIFStateReq: prom.NewCounterVecWithLabels(Namespace, sub,
 			"sent_ifstatereq_total", "Total number of sent ifstate requests.",
-			ControlLabels{}.Labels()),
-		ifstate: prom.NewGaugeVec(Namespace, sub,
-			"interface_active", "Interface is active.", IntfLabels{}.Labels()),
+			ControlLabels{}),
+		ifstate: prom.NewGaugeVecWithLabels(Namespace, sub,
+			"interface_active", "Interface is active.", IntfLabels{}),
 		ifstateTick: prom.NewCounter(Namespace, sub,
 			"ifstate_ticks_total", "Total number of IFState requests ticks."),
-		readRevInfos: prom.NewCounterVec(Namespace, sub,
-			"read_revinfos_total", "Total number of read revinfos.", ControlLabels{}.Labels()),
-		sentRevInfos: prom.NewCounterVec(Namespace, sub,
-			"sent_revinfos_total", "Total number of sent revinfos.", SentRevInfoLabels{}.Labels()),
+		readRevInfos: prom.NewCounterVecWithLabels(Namespace, sub,
+			"read_revinfos_total", "Total number of read revinfos.", ControlLabels{}),
+		sentRevInfos: prom.NewCounterVecWithLabels(Namespace, sub,
+			"sent_revinfos_total", "Total number of sent revinfos.", SentRevInfoLabels{}),
 	}
 }
 
