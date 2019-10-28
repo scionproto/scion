@@ -21,10 +21,6 @@ BR_TOML=$TEST_ARTIFACTS_DIR/conf/$BR_TOML_FN
 test_setup() {
     set -e
 
-    # XXX(kormat): This is conditional on the binary existing, because when
-    # running on CI 'setup' is run on the host, where the binary doesn't exist.
-    [ -e $BRACCEPT ] && make -s setcap
-
     test_config
 
     local disp_dir="/run/shm/dispatcher"
@@ -64,6 +60,15 @@ test_config() {
 
 test_run() {
     set -e
+
+    # XXX(sgmonroy): this sets capabilities on the braccept binary.
+    # Initially this was done during setup and effectively a NOOP in CI given that there is no
+    # bracecpt binary when doing setup in the CI host. Instead capabilities are set when generating
+    # the container.
+    # This change allows to rebuild braccept binary without having to teardown/setup a test, at the cost
+    # of setting the capabilities twice on CI.
+    make -s setcap
+
     $BRACCEPT -testName "${TEST_NAME:?}" -keysDirPath "$TEST_ARTIFACTS_DIR/conf/keys" "$@"
 }
 
