@@ -45,7 +45,6 @@ type ringbuf struct {
 
 func newRingbuf() ringbuf {
 	rl := &RingbufLabels{}
-	l := rl.Labels()
 	return ringbuf{
 		writeCalls: prom.NewCounterVecWithLabels(Namespace, "",
 			"write_calls_total", "Number of calls to Write.", rl),
@@ -55,16 +54,16 @@ func newRingbuf() ringbuf {
 			"writes_blocked_total", "Number of blocked Writes.", rl),
 		readsBlocked: prom.NewCounterVecWithLabels(Namespace, "",
 			"reads_blocked_total", "Number of blocked Reads.", rl),
-		writeEntries: prom.NewHistogramVec(Namespace, "",
-			"write_entries", "Number of written entries.", l,
+		writeEntries: prom.NewHistogramVecWithLabels(Namespace, "",
+			"write_entries", "Number of written entries.", rl,
 			prometheus.ExponentialBuckets(1, 2, 8)),
-		readEntries: prom.NewHistogramVec(Namespace, "",
-			"read_entries", "Number of read entries.", l,
+		readEntries: prom.NewHistogramVecWithLabels(Namespace, "",
+			"read_entries", "Number of read entries.", rl,
 			prometheus.ExponentialBuckets(1, 2, 8)),
-		maxEntries: prom.NewGaugeVec(Namespace, "",
-			"max_entries", "Maximum number of entries.", l),
-		usedEntries: prom.NewGaugeVec(Namespace, "",
-			"used_entries", "Number of used entries.", l),
+		maxEntries: prom.NewGaugeVecWithLabels(Namespace, "",
+			"max_entries", "Maximum number of entries.", rl),
+		usedEntries: prom.NewGaugeVecWithLabels(Namespace, "",
+			"used_entries", "Number of used entries.", rl),
 	}
 }
 

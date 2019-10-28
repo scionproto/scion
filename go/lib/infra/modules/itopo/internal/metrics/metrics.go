@@ -70,12 +70,12 @@ type current struct {
 
 func newCurrent() current {
 	return current{
-		timestamp: prom.NewGaugeVec(Namespace, "", "creation_time_seconds",
+		timestamp: prom.NewGaugeVecWithLabels(Namespace, "", "creation_time_seconds",
 			"The creation time specified in the current topology."+
-				"Remains set for dynamic topology, even when inactive.", CurrentLabels{}.Labels()),
-		expiry: prom.NewGaugeVec(Namespace, "", "expiry_time_seconds",
+				"Remains set for dynamic topology, even when inactive.", CurrentLabels{}),
+		expiry: prom.NewGaugeVecWithLabels(Namespace, "", "expiry_time_seconds",
 			"The expiry time specified in the current topology. Set to +Inf, if TTL is zero."+
-				"Remains set for dynamic topology, even when inactive.", CurrentLabels{}.Labels()),
+				"Remains set for dynamic topology, even when inactive.", CurrentLabels{}),
 		active: prom.NewGauge(Namespace, "", "dynamic_active",
 			"Indicate whether the dynamic topology is set and active. 0=inactive, 1=active."),
 	}
@@ -124,8 +124,8 @@ type updates struct {
 
 func newUpdates() updates {
 	return updates{
-		last: prom.NewGaugeVec(Namespace, "", "last_updates",
-			"Timestamp of the last update attempts.", UpdateLabels{}.Labels()),
+		last: prom.NewGaugeVecWithLabels(Namespace, "", "last_updates",
+			"Timestamp of the last update attempts.", UpdateLabels{}),
 		total: prom.NewCounterVecWithLabels(Namespace, "", "updates_total",
 			"The total number of updates.", UpdateLabels{}),
 	}
