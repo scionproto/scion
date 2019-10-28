@@ -110,5 +110,6 @@ func svc_multicast_same_host_parent_to_internal_host() int {
 
 	SendPackets(pkt0)
 
-	return ExpectedPackets("SVC multicast (same host) parent to internal/host", defaultTimeout, pkt1)
+	return ExpectedPackets("SVC multicast (same host) parent to internal/host",
+		defaultTimeout, pkt1)
 }
