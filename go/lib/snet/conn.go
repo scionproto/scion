@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	// Receive and send buffer sizes
+	// BufSize is the receive and send buffer sizes
 	BufSize = 1<<16 - 1
 )
 

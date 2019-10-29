@@ -108,6 +108,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 		return nil, common.NewBasicError("listening failed", err)
 	}
 	defer snetConn.Close()
+	snetConn.SetDeadline(deadline)
 	var sendErrors common.MultiError
 	for _, path := range paths {
 		scmpH.setStatus(PathKey(path), timeout)

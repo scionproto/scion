@@ -28,6 +28,7 @@ type Network interface {
 		laddr, raddr, baddr *Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error)
 }
 
+// Conn represents a SCION connection.
 type Conn interface {
 	Read(b []byte) (int, error)
 	ReadFrom(b []byte) (int, net.Addr, error)
@@ -39,7 +40,10 @@ type Conn interface {
 	LocalAddr() net.Addr
 	BindAddr() net.Addr
 	SVC() addr.HostSVC
+	// RemoteAddr returns the remote network address.
 	RemoteAddr() net.Addr
+	// SetDeadline sets read and write deadlines. Implements the net.Conn
+	// SetDeadline method.
 	SetDeadline(deadline time.Time) error
 	SetReadDeadline(deadline time.Time) error
 	SetWriteDeadline(deadline time.Time) error
