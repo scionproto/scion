@@ -129,8 +129,11 @@ type SCIONPacketConn struct {
 
 // NewSCIONPacketConn creates a new conn with packet serialization/decoding
 // support that transfers data over conn.
-func NewSCIONPacketConn(conn net.PacketConn) *SCIONPacketConn {
-	return &SCIONPacketConn{conn: conn}
+func NewSCIONPacketConn(conn net.PacketConn, scmpHandler SCMPHandler) *SCIONPacketConn {
+	return &SCIONPacketConn{
+		conn:        conn,
+		scmpHandler: scmpHandler,
+	}
 }
 
 func (c *SCIONPacketConn) SetDeadline(d time.Time) error {

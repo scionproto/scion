@@ -172,7 +172,7 @@ func TestSetDeadline(t *testing.T) {
 		).AnyTimes()
 		connMock := mock_net.NewMockPacketConn(ctrl)
 		connMock.EXPECT().SetWriteDeadline(gomock.Any()).AnyTimes().Return(nil)
-		packetConn := NewSCIONPacketConn(connMock)
+		packetConn := NewSCIONPacketConn(connMock, nil)
 
 		conn := newScionConnWriter(&scionConnBase{
 			laddr: MustParseAddr("2-ff00:0:1,[127.0.0.1]:80"),
