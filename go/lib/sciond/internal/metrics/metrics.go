@@ -39,7 +39,19 @@ const (
 	ErrNotClassified = prom.ErrNotClassified
 )
 
-var resultLabel = []string{prom.LabelResult}
+type resultLabel struct {
+	Result string
+}
+
+// Labels returns the labels.
+func (l resultLabel) Labels() []string {
+	return []string{prom.LabelResult}
+}
+
+// Values returns the values for the labels.
+func (l resultLabel) Values() []string {
+	return []string{l.Result}
+}
 
 // Metric accessors.
 var (
@@ -69,42 +81,42 @@ func (r Request) Inc(result string) {
 
 func newConn() Request {
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystemConn, "connections_total",
-			"The amount of SCIOND connection attempts.", resultLabel),
+		count: prom.NewCounterVecWithLabels(Namespace, subsystemConn, "connections_total",
+			"The amount of SCIOND connection attempts.", resultLabel{}),
 	}
 }
 
 func newPathRequest() Request {
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystemPath, "requests_total",
-			"The amount of Path requests sent.", resultLabel),
+		count: prom.NewCounterVecWithLabels(Namespace, subsystemPath, "requests_total",
+			"The amount of Path requests sent.", resultLabel{}),
 	}
 }
 
 func newRevocation() Request {
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystemRevocation, "requests_total",
-			"The amount of Revocation requests sent.", resultLabel),
+		count: prom.NewCounterVecWithLabels(Namespace, subsystemRevocation, "requests_total",
+			"The amount of Revocation requests sent.", resultLabel{}),
 	}
 }
 
 func newASInfoRequest() Request {
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystemASInfo, "requests_total",
-			"The amount of AS info requests sent.", resultLabel),
+		count: prom.NewCounterVecWithLabels(Namespace, subsystemASInfo, "requests_total",
+			"The amount of AS info requests sent.", resultLabel{}),
 	}
 }
 
 func newSVCInfo() Request {
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystemSVCInfo, "requests_total",
-			"The amount of SVC info requests sent.", resultLabel),
+		count: prom.NewCounterVecWithLabels(Namespace, subsystemSVCInfo, "requests_total",
+			"The amount of SVC info requests sent.", resultLabel{}),
 	}
 }
 
 func newIFInfo() Request {
 	return Request{
-		count: prom.NewCounterVec(Namespace, subsystemIFInfo, "requests_total",
-			"The amount of IF info requests sent.", resultLabel),
+		count: prom.NewCounterVecWithLabels(Namespace, subsystemIFInfo, "requests_total",
+			"The amount of IF info requests sent.", resultLabel{}),
 	}
 }

@@ -52,10 +52,10 @@ type process struct {
 func newProcess() process {
 	sub := "process"
 	return process{
-		pkts: prom.NewCounterVec(Namespace, sub,
-			"pkts_total", "Total number of processed packets.", ProcessLabels{}.Labels()),
-		duration: prom.NewCounterVec(Namespace, sub,
-			"duration_seconds_total", "Total packet processing duration.", IntfLabels{}.Labels()),
+		pkts: prom.NewCounterVecWithLabels(Namespace, sub,
+			"pkts_total", "Total number of processed packets.", ProcessLabels{}),
+		duration: prom.NewCounterVecWithLabels(Namespace, sub,
+			"duration_seconds_total", "Total packet processing duration.", IntfLabels{}),
 	}
 }
 

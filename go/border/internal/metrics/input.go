@@ -35,24 +35,24 @@ type input struct {
 
 func newInput() input {
 	sub := "input"
-	l := IntfLabels{}.Labels()
+	l := IntfLabels{}
 	return input{
-		pkts: prom.NewCounterVec(Namespace, sub,
+		pkts: prom.NewCounterVecWithLabels(Namespace, sub,
 			"pkts_total", "Total number of packets received.", l),
-		bytes: prom.NewCounterVec(Namespace, sub,
+		bytes: prom.NewCounterVecWithLabels(Namespace, sub,
 			"bytes_total", "Total number of bytes received.", l),
-		pktSize: prom.NewHistogramVec(Namespace, sub,
+		pktSize: prom.NewHistogramVecWithLabels(Namespace, sub,
 			"pkt_size_bytes", "Size of input packets in bytes", l,
 			[]float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000}),
 
-		reads: prom.NewCounterVec(Namespace, sub,
+		reads: prom.NewCounterVecWithLabels(Namespace, sub,
 			"reads_total", "Total number of input socket reads.", l),
-		readErrors: prom.NewCounterVec(Namespace, sub,
+		readErrors: prom.NewCounterVecWithLabels(Namespace, sub,
 			"read_errors_total", "Total number of input socket read errors.", l),
-		rcvOvfl: prom.NewGaugeVec(Namespace, sub,
+		rcvOvfl: prom.NewGaugeVecWithLabels(Namespace, sub,
 			"overflow_packets_total",
 			"Total number of packets dropped by kernel due to receive buffer overflow.", l),
-		latency: prom.NewCounterVec(Namespace, sub,
+		latency: prom.NewCounterVecWithLabels(Namespace, sub,
 			"read_latency_seconds_total",
 			"Total time packets wait in the kernel to be read, in seconds", l),
 	}

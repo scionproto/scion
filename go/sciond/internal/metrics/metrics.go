@@ -134,8 +134,9 @@ func newPathRequest() PathRequest {
 	return PathRequest{
 		count: prom.NewCounterVecWithLabels(Namespace, subsystemPath, "requests_total",
 			"The amount of path requests received.", PathRequestLabels{}),
-		latency: prom.NewHistogramVec(Namespace, subsystemPath, "request_duration_seconds",
-			"Time to handle path requests.", resultLabel{}.Labels(), prom.DefaultLatencyBuckets),
+		latency: prom.NewHistogramVecWithLabels(Namespace, subsystemPath,
+			"request_duration_seconds", "Time to handle path requests.",
+			resultLabel{}, prom.DefaultLatencyBuckets),
 	}
 }
 
@@ -160,9 +161,9 @@ func newRevocation() Revocation {
 		count: prom.NewCounterVecWithLabels(Namespace, "", "received_revocations_total",
 			"The amount of revocations received.",
 			RevocationLabels{Result: OkSuccess, Src: RevSrcNotification}),
-		latency: prom.NewHistogramVec(Namespace, subsystemRevocation,
+		latency: prom.NewHistogramVecWithLabels(Namespace, subsystemRevocation,
 			"notification_duration_seconds", "Time to process revocation notifications.",
-			resultLabel{}.Labels(), prom.DefaultLatencyBuckets),
+			resultLabel{}, prom.DefaultLatencyBuckets),
 	}
 }
 
@@ -202,8 +203,9 @@ func newASInfoRequest() Request {
 	return Request{
 		count: prom.NewCounterVecWithLabels(Namespace, subsystemASInfo, "requests_total",
 			"The amount of AS info requests received.", resultLabel{}),
-		latency: prom.NewHistogramVec(Namespace, subsystemASInfo, "request_duration_seconds",
-			"Time to handle AS info requests.", resultLabel{}.Labels(), prom.DefaultLatencyBuckets),
+		latency: prom.NewHistogramVecWithLabels(Namespace, subsystemASInfo,
+			"request_duration_seconds", "Time to handle AS info requests.",
+			resultLabel{}, prom.DefaultLatencyBuckets),
 	}
 }
 
@@ -211,9 +213,9 @@ func newSVCInfo() Request {
 	return Request{
 		count: prom.NewCounterVecWithLabels(Namespace, subsystemSVCInfo, "requests_total",
 			"The amount of SVC info requests received.", resultLabel{}),
-		latency: prom.NewHistogramVec(Namespace, subsystemSVCInfo, "request_duration_seconds",
-			"Time to handle SVC info requests.",
-			resultLabel{}.Labels(), prom.DefaultLatencyBuckets),
+		latency: prom.NewHistogramVecWithLabels(Namespace, subsystemSVCInfo,
+			"request_duration_seconds", "Time to handle SVC info requests.",
+			resultLabel{}, prom.DefaultLatencyBuckets),
 	}
 }
 
@@ -221,7 +223,8 @@ func newIFInfo() Request {
 	return Request{
 		count: prom.NewCounterVecWithLabels(Namespace, subsystemIFInfo, "requests_total",
 			"The amount of IF info requests received.", resultLabel{}),
-		latency: prom.NewHistogramVec(Namespace, subsystemIFInfo, "request_duration_seconds",
-			"Time to handle IF info requests.", resultLabel{}.Labels(), prom.DefaultLatencyBuckets),
+		latency: prom.NewHistogramVecWithLabels(Namespace, subsystemIFInfo,
+			"request_duration_seconds", "Time to handle IF info requests.",
+			resultLabel{}, prom.DefaultLatencyBuckets),
 	}
 }
