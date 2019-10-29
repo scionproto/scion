@@ -231,6 +231,13 @@ func (p *path) Copy() Path {
 	}
 }
 
+func (p *path) String() string {
+	if p.sciondPath == nil {
+		return ""
+	}
+	return p.sciondPath.String()
+}
+
 // partialPath is a path object with incomplete metadata. It is used as a
 // temporary solution where a full path cannot be reconstituted from other
 // objects, notably snet.Addr.
