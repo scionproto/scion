@@ -62,7 +62,8 @@ import (
 )
 
 var (
-	// Default SCION networking context for package-level Dial and Listen
+	// DefNetwork is the default SCION networking context for package-level Dial
+	// and Listen
 	DefNetwork *SCIONNetwork
 )
 
@@ -94,8 +95,8 @@ func IA() addr.IA {
 
 var _ Network = (*SCIONNetwork)(nil)
 
-// SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
-// Path resolver.
+// SCIONNetwork is the SCION networking context, containing local ISD-AS,
+// SCIOND, Dispatcher and Path resolver.
 type SCIONNetwork struct {
 	dispatcher PacketDispatcherService
 	// pathResolver references the default source of paths for a Network. This
@@ -186,7 +187,8 @@ func getResolver(sciondPath string) (pathmgr.Resolver, error) {
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
 //
-// A timeout of 0 means infinite timeout.
+// The timeout is used for connection setup, it doesn't affect the returned
+// connection. A timeout of 0 means infinite timeout.
 func (n *SCIONNetwork) DialSCION(network string, laddr, raddr *Addr,
 	timeout time.Duration) (Conn, error) {
 
@@ -197,7 +199,8 @@ func (n *SCIONNetwork) DialSCION(network string, laddr, raddr *Addr,
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
 //
-// A timeout of 0 means infinite timeout.
+// The timeout is used for connection setup, it doesn't affect the returned
+// connection. A timeout of 0 means infinite timeout.
 func (n *SCIONNetwork) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
 
@@ -219,7 +222,8 @@ func (n *SCIONNetwork) DialSCIONWithBindSVC(network string, laddr, raddr, baddr 
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
 //
-// A timeout of 0 means infinite timeout.
+// The timeout is used for connection setup, it doesn't affect the returned
+// connection. A timeout of 0 means infinite timeout.
 func (n *SCIONNetwork) ListenSCION(network string, laddr *Addr,
 	timeout time.Duration) (Conn, error) {
 
@@ -231,7 +235,8 @@ func (n *SCIONNetwork) ListenSCION(network string, laddr *Addr,
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
 //
-// A timeout of 0 means infinite timeout.
+// The timeout is used for connection setup, it doesn't affect the returned
+// connection. A timeout of 0 means infinite timeout.
 func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
 
