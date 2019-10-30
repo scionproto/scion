@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/svc/internal/ctxconn"
@@ -183,7 +182,7 @@ func (p *path) Path() *spath.Path {
 	return p.spath
 }
 
-func (p *path) Interfaces() []sciond.PathInterface {
+func (p *path) Interfaces() []snet.PathInterface {
 	return nil
 }
 
