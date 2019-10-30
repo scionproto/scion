@@ -9,6 +9,7 @@ go_library(
         "dispatcher.go",
         "interface.go",
         "packet_conn.go",
+        "path.go",
         "reader.go",
         "router.go",
         "snet.go",

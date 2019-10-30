@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package snet
 import (
 	"context"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -26,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
@@ -76,7 +74,7 @@ func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 		return nil, serrors.New("unable to find paths")
 	}
 	ap := aps.GetAppPath("")
-	return r.appPathToPath(ap)
+	return newPathFromSDReply(r.IA, ap.Entry)
 }
 
 // AllRoutes is the same as Route except that it returns multiple paths.
@@ -95,7 +93,7 @@ func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error)
 	}
 	paths := make([]Path, 0, len(aps))
 	for _, ap := range aps {
-		p, err := r.appPathToPath(ap)
+		p, err := newPathFromSDReply(r.IA, ap.Entry)
 		if err != nil {
 			return nil, err
 		}
@@ -104,60 +102,8 @@ func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error)
 	return paths, nil
 }
 
-func (r *BaseRouter) appPathToPath(ap *spathmeta.AppPath) (Path, error) {
-	p := spath.New(ap.Entry.Path.FwdPath)
-	// Preinitialize offsets, we don't want to propagate unusable paths
-	if err := p.InitOffsets(); err != nil {
-		return nil, common.NewBasicError("path error", err)
-	}
-	overlayAddr, err := ap.Entry.HostInfo.Overlay()
-	if err != nil {
-		return nil, common.NewBasicError("path error", err)
-	}
-	return &path{
-		sciondPath: ap.Entry,
-		spath:      p,
-		overlay:    overlayAddr,
-		source:     r.IA,
-	}, nil
-}
-
 func (r *BaseRouter) LocalIA() addr.IA {
 	return r.IA
-}
-
-// Path is an abstract representation of a path. Most applications do not need
-// access to the raw internals.
-//
-// An empty path is a special kind of path that can be used for intra-AS
-// traffic. Empty paths are valid return values for certain route calls (e.g.,
-// if the source and destination ASes match, or if a router was configured
-// without a source of paths).
-type Path interface {
-	// Fingerprint uniquely identifies the path based on the sequence of
-	// ASes and BRs. Other metadata, such as MTU or NextHop have no effect
-	// on the fingerprint. Empty string means unknown fingerprint.
-	Fingerprint() string
-	// OverlayNextHop returns the address:port pair of a local-AS overlay
-	// speaker. Usually, this is a border router that will forward the traffic.
-	OverlayNextHop() *overlay.OverlayAddr
-	// Path returns a raw (data-plane compatible) representation of the path.
-	// The returned path is initialized and ready for use in snet calls that
-	// deal with raw paths.
-	Path() *spath.Path
-	// Interfaces returns a list of interfaces on the path. If the list is not
-	// available the result is nil.
-	Interfaces() []sciond.PathInterface
-	// Destination is the AS the path points to. Empty paths return the local
-	// AS of the router that created them.
-	Destination() addr.IA
-	// MTU returns the MTU of the path. If the result is zero, MTU is unknown.
-	MTU() uint16
-	// Expiry returns the expiration time of the path. If the result is a zero
-	// value expiration time is unknown.
-	Expiry() time.Time
-	// Copy create a copy of the path.
-	Copy() Path
 }
 
 // PathReplyEntryFromPath extracts PathReplyEntry. If not possible, nil is returned.
@@ -167,132 +113,6 @@ func PathReplyEntryFromPath(p Path) *sciond.PathReplyEntry {
 		return nil
 	}
 	return pth.sciondPath.Copy()
-}
-
-var _ Path = (*path)(nil)
-
-type path struct {
-	// sciondPath contains SCIOND-related path metadata.
-	sciondPath *sciond.PathReplyEntry
-	// spath is the raw SCION forwarding path.
-	spath *spath.Path
-	// overlay is the intra-AS next-hop to use for this path.
-	overlay *overlay.OverlayAddr
-	// source is the AS where the path starts.
-	source addr.IA
-}
-
-func (p *path) Fingerprint() string {
-	if p.sciondPath == nil {
-		return ""
-	}
-	ap := spathmeta.AppPath{Entry: p.sciondPath}
-	return string(ap.Key())
-}
-
-func (p *path) OverlayNextHop() *overlay.OverlayAddr {
-	return p.overlay.Copy()
-}
-
-func (p *path) Path() *spath.Path {
-	if p.spath == nil {
-		return nil
-	}
-	return p.spath.Copy()
-}
-
-func (p *path) Interfaces() []sciond.PathInterface {
-	if p.spath == nil {
-		return nil
-	}
-	res := make([]sciond.PathInterface, len(p.sciondPath.Path.Interfaces))
-	copy(res, p.sciondPath.Path.Interfaces)
-	return res
-}
-
-func (p *path) Destination() addr.IA {
-	if p.sciondPath == nil {
-		return p.source
-	}
-	return p.sciondPath.Path.DstIA()
-}
-
-func (p *path) MTU() uint16 {
-	if p.sciondPath == nil {
-		return 0
-	}
-	return p.sciondPath.Path.Mtu
-}
-
-func (p *path) Expiry() time.Time {
-	if p.sciondPath == nil {
-		return time.Time{}
-	}
-	return p.sciondPath.Path.Expiry()
-}
-
-func (p *path) Copy() Path {
-	return &path{
-		sciondPath: p.sciondPath.Copy(),
-		spath:      p.spath.Copy(),
-		overlay:    p.overlay.Copy(),
-		source:     p.source,
-	}
-}
-
-func (p *path) String() string {
-	if p.sciondPath == nil {
-		return ""
-	}
-	return p.sciondPath.String()
-}
-
-// partialPath is a path object with incomplete metadata. It is used as a
-// temporary solution where a full path cannot be reconstituted from other
-// objects, notably snet.Addr.
-type partialPath struct {
-	spath       *spath.Path
-	overlay     *overlay.OverlayAddr
-	destination addr.IA
-}
-
-func (p *partialPath) Fingerprint() string {
-	return ""
-}
-
-func (p *partialPath) OverlayNextHop() *overlay.OverlayAddr {
-	return p.overlay
-}
-
-func (p *partialPath) Path() *spath.Path {
-	if p.spath == nil {
-		return nil
-	}
-	return p.spath.Copy()
-}
-
-func (p *partialPath) Interfaces() []sciond.PathInterface {
-	return nil
-}
-
-func (p *partialPath) Destination() addr.IA {
-	return p.destination
-}
-
-func (p *partialPath) MTU() uint16 {
-	return 0
-}
-
-func (p *partialPath) Expiry() time.Time {
-	return time.Time{}
-}
-
-func (p *partialPath) Copy() Path {
-	return &partialPath{
-		spath:       p.spath.Copy(),
-		overlay:     p.overlay.Copy(),
-		destination: p.destination,
-	}
 }
 
 // LocalMachine describes aspects of the host system and its network.

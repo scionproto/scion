@@ -13,7 +13,6 @@ import (
 	sciond "github.com/scionproto/scion/go/lib/sciond"
 	proto "github.com/scionproto/scion/go/proto"
 	reflect "reflect"
-	time "time"
 )
 
 // MockService is a mock of Service interface
@@ -40,33 +39,18 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Connect mocks base method
-func (m *MockService) Connect() (sciond.Connector, error) {
+func (m *MockService) Connect(arg0 context.Context) (sciond.Connector, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Connect")
+	ret := m.ctrl.Call(m, "Connect", arg0)
 	ret0, _ := ret[0].(sciond.Connector)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Connect indicates an expected call of Connect
-func (mr *MockServiceMockRecorder) Connect() *gomock.Call {
+func (mr *MockServiceMockRecorder) Connect(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockService)(nil).Connect))
-}
-
-// ConnectTimeout mocks base method
-func (m *MockService) ConnectTimeout(arg0 time.Duration) (sciond.Connector, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConnectTimeout", arg0)
-	ret0, _ := ret[0].(sciond.Connector)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ConnectTimeout indicates an expected call of ConnectTimeout
-func (mr *MockServiceMockRecorder) ConnectTimeout(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectTimeout", reflect.TypeOf((*MockService)(nil).ConnectTimeout), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockService)(nil).Connect), arg0)
 }
 
 // MockConnector is a mock of Connector interface
