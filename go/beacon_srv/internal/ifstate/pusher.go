@@ -21,12 +21,12 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 )
 
 // PusherConf is the configuration to create a new pusher.
 type PusherConf struct {
-	TopoProvider topology.Provider
+	TopoProvider itopo.ProviderI
 	Intfs        *Interfaces
 	Msgr         infra.Messenger
 }
@@ -34,7 +34,7 @@ type PusherConf struct {
 // Pusher pushes interface state infos to all border routers to remove the
 // revocations. It is called when an interface comes back up.
 type Pusher struct {
-	topoProvider topology.Provider
+	topoProvider itopo.ProviderI
 	intfs        *Interfaces
 	pusher       brPusher
 }

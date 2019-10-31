@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -68,11 +67,11 @@ func setup() error {
 		return common.NewBasicError("Unable to validate config", err)
 	}
 	itopo.Init(cfg.General.ID, proto.ServiceType_cs, itopo.Callbacks{})
-	topo, err := topology.LoadFromFile(cfg.General.Topology)
+	topo, err := itopo.LoadFromFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
-	if _, _, err := itopo.SetStatic(topo, false); err != nil {
+	if _, _, err := itopo.SetStatic(topo.Raw(), false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
 	// Set environment to listen for signals.
@@ -81,7 +80,7 @@ func setup() error {
 			log.Error("Unable to reload", "err", err)
 		}
 	})
-	router, err := infraenv.NewRouter(topo.ISD_AS, cfg.Sciond)
+	router, err := infraenv.NewRouter(topo.IA(), cfg.Sciond)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize path router", err)
 	}
@@ -129,16 +128,16 @@ func initState(cfg *config.Config, router snet.Router) error {
 		Router:             router,
 		TopoProvider:       itopo.Provider(),
 	}
-	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	trustStore := trust.NewStore(trustDB, topo.IA(), trustConf, log.Root())
 	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
 		return common.NewBasicError("Unable to load local crypto", err)
 	}
-	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore)
+	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core(), trustDB, trustStore)
 	if err != nil {
 		return common.NewBasicError("Unable to load CS state", err)
 	}
-	if err = setDefaultSignerVerifier(state, topo.ISD_AS); err != nil {
+	if err = setDefaultSignerVerifier(state, topo.IA()); err != nil {
 		return common.NewBasicError("Unable to set default signer and verifier", err)
 	}
 	return nil
@@ -166,14 +165,13 @@ func setDefaultSignerVerifier(c *config.State, pubIA addr.IA) error {
 // cfg.CS. This function may only be called once per config.
 func setMessenger(cfg *config.Config, router snet.Router) error {
 	topo := itopo.Get()
-	topoAddress := topo.CS.GetById(cfg.General.ID)
-	if topoAddress == nil {
-		return serrors.New("Unable to find topo address")
+	if !topo.Exists(addr.SvcCS, cfg.General.ID) {
+		return serrors.New("unable to find topo address")
 	}
 	nc := infraenv.NetworkConfig{
-		IA:                    topo.ISD_AS,
-		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
-		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
+		IA:                    topo.IA(),
+		Public:                topo.SPublicAddress(addr.SvcCS, cfg.General.ID),
+		Bind:                  topo.SBindAddress(addr.SvcCS, cfg.General.ID),
 		SVC:                   addr.SvcCS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
@@ -198,10 +196,10 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(state.GetVerifier())
 	// Only core CS handles certificate reissuance requests.
-	if topo.Core {
+	if topo.Core() {
 		msgr.AddHandler(infra.ChainIssueRequest, &reiss.Handler{
 			State: state,
-			IA:    topo.ISD_AS,
+			IA:    topo.IA(),
 		})
 	}
 	return nil

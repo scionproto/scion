@@ -34,17 +34,14 @@ import (
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -203,30 +200,6 @@ func ReloadTopology(topologyPath string) {
 		return
 	}
 	log.Info("Reloaded topology")
-}
-
-func GetPublicSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
-	// snet only supports udp4 for now
-	if topoAddr.Overlay != overlay.UDPIPv4 {
-		panic("unsupported overlay")
-	}
-	pub := topoAddr.PublicAddr(topoAddr.Overlay)
-	if pub == nil {
-		return nil
-	}
-	return &snet.Addr{IA: ia, Host: pub}
-}
-
-func GetBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
-	// snet only supports udp4 for now
-	if topoAddr.Overlay != overlay.UDPIPv4 {
-		panic("unsupported overlay")
-	}
-	bind := topoAddr.BindAddr(topoAddr.Overlay)
-	if bind == nil {
-		return nil
-	}
-	return &snet.Addr{IA: ia, Host: bind}
 }
 
 var _ config.Config = (*Metrics)(nil)

@@ -110,7 +110,7 @@ func startReissRunner() {
 	if !cfg.CS.DisableCorePush {
 		corePusher = periodic.Start(
 			&reiss.CorePusher{
-				LocalIA: itopo.Get().ISD_AS,
+				LocalIA: itopo.Get().IA(),
 				TrustDB: state.TrustDB,
 				Msger:   msgr,
 			},
@@ -123,13 +123,13 @@ func startReissRunner() {
 		log.Info("Reissue disabled, not starting reiss task.")
 		return
 	}
-	if itopo.Get().Core {
+	if itopo.Get().Core() {
 		log.Info("Starting periodic reiss.Self task")
 		reissRunner = periodic.Start(
 			&reiss.Self{
 				Msgr:       msgr,
 				State:      state,
-				IA:         itopo.Get().ISD_AS,
+				IA:         itopo.Get().IA(),
 				IssTime:    cfg.CS.IssuerReissueLeadTime.Duration,
 				LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
 				CorePusher: corePusher,
@@ -145,7 +145,7 @@ func startReissRunner() {
 		&reiss.Requester{
 			Msgr:       msgr,
 			State:      state,
-			IA:         itopo.Get().ISD_AS,
+			IA:         itopo.Get().IA(),
 			LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
 			CorePusher: corePusher,
 		},

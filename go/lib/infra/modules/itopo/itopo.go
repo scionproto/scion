@@ -42,11 +42,15 @@ type Callbacks struct {
 	UpdateStatic func()
 }
 
+type ProviderI interface {
+	Get() Topology
+}
+
 // providerFunc wraps the Get call as a topology provider.
-type providerFunc func() *topology.Topo
+type providerFunc func() Topology
 
 // Provider returns a topology provider that calls Get internally.
-func Provider() topology.Provider {
+func Provider() ProviderI {
 	st.RLock()
 	defer st.RUnlock()
 	if st.topo.static == nil {
@@ -55,7 +59,7 @@ func Provider() topology.Provider {
 	return providerFunc(Get)
 }
 
-func (f providerFunc) Get() *topology.Topo {
+func (f providerFunc) Get() Topology {
 	return f()
 }
 
@@ -69,10 +73,12 @@ func Init(id string, svc proto.ServiceType, clbks Callbacks) {
 }
 
 // Get atomically gets the pointer to the current topology.
-func Get() *topology.Topo {
+func Get() Topology {
 	st.RLock()
 	defer st.RUnlock()
-	return st.topo.Get()
+	return &topologyS{
+		Topology: st.topo.Get(),
+	}
 }
 
 // SetDynamic atomically sets the dynamic topology. The returned topology is a pointer

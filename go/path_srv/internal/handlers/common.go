@@ -24,11 +24,11 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const (
@@ -43,7 +43,7 @@ type HandlerArgs struct {
 	VerifierFactory infra.VerificationFactory
 	QueryInterval   time.Duration
 	IA              addr.IA
-	TopoProvider    topology.Provider
+	TopoProvider    itopo.ProviderI
 	SegRequestAPI   segfetcher.RequestAPI
 }
 
@@ -53,7 +53,7 @@ type baseHandler struct {
 	revCache        revcache.RevCache
 	inspector       infra.ASInspector
 	verifierFactory infra.VerificationFactory
-	topoProvider    topology.Provider
+	topoProvider    itopo.ProviderI
 	retryInt        time.Duration
 	queryInt        time.Duration
 }

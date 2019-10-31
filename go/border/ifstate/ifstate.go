@@ -109,7 +109,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 				return
 			}
 		}
-		intf, ok := ctx.Conf.Topo.IFInfoMap[ifid]
+		intf, ok := ctx.Conf.Topo.IFInfoMap()[ifid]
 		if !ok {
 			log.Warn("Interface ID does not exist", "ifid", ifid)
 			continue

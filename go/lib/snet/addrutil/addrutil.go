@@ -21,39 +21,38 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // GetPath creates a path from the given segment and then creates a snet.Addr.
-func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
-
+func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv itopo.ProviderI) (net.Addr, error) {
 	x := &bytes.Buffer{}
 	if _, err := ps.RawWriteTo(x); err != nil {
-		return nil, common.NewBasicError("Failed to write segment to buffer", err)
+		return nil, common.NewBasicError("failed to write segment to buffer", err)
 	}
 	p := spath.New(x.Bytes())
 	if err := p.Reverse(); err != nil {
-		return nil, common.NewBasicError("Failed to reverse path", err)
+		return nil, common.NewBasicError("failed to reverse path", err)
 	}
 	if err := p.InitOffsets(); err != nil {
-		return nil, common.NewBasicError("Failed to init offsets", err)
+		return nil, common.NewBasicError("failed to init offsets", err)
 	}
 	hopF, err := p.GetHopField(p.HopOff)
 	if err != nil {
-		return nil, common.NewBasicError("Failed to extract first HopField", err, "p", p)
+		return nil, common.NewBasicError("failed to extract first HopField", err, "p", p)
 	}
 	topo := topoProv.Get()
-	ifId := hopF.ConsIngress
-	ifInfo, ok := topo.IFInfoMap[ifId]
+	ifID := hopF.ConsIngress
+	overlayNextHop, ok := topo.OverlayNextHop2(ifID)
 	if !ok {
-		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil, "ifId", ifId)
+		return nil, common.NewBasicError("unable to find first-hop BR for path", nil, "ifID", ifID)
 	}
 	return &snet.Addr{
 		IA:      ps.FirstIA(),
 		Host:    addr.NewSVCUDPAppAddr(svc),
 		Path:    p,
-		NextHop: ifInfo.InternalAddrs.PublicOverlay(topo.Overlay),
+		NextHop: overlayNextHop,
 	}, nil
 }

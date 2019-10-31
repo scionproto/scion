@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -141,16 +142,16 @@ func TestPropagatorRun(t *testing.T) {
 		Convey(test.name, t, func() {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			topoProvider := xtest.TopoProviderFromFile(t, topoFile[test.core])
+			topoProvider := itopotest.TopoProviderFromFile(t, topoFile[test.core])
 			provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 			conn := mock_snet.NewMockPacketConn(mctrl)
 			cfg := PropagatorConf{
 				Config: ExtenderConf{
-					Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+					Signer: testSigner(t, priv, topoProvider.Get().IA()),
 					Mac:    macProp,
-					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
 						ifstate.Config{}),
-					MTU:           uint16(topoProvider.Get().MTU),
+					MTU:           topoProvider.Get().MTU(),
 					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 				},
 				Period:         time.Hour,
@@ -158,7 +159,7 @@ func TestPropagatorRun(t *testing.T) {
 				Core:           test.core,
 				BeaconSender: &onehop.BeaconSender{
 					Sender: onehop.Sender{
-						IA:   topoProvider.Get().ISD_AS,
+						IA:   topoProvider.Get().IA(),
 						Conn: conn,
 						Addr: &addr.AppAddr{
 							L3: addr.HostFromIPStr("127.0.0.1"),
@@ -203,7 +204,7 @@ func TestPropagatorRun(t *testing.T) {
 			p.Run(nil)
 			for i, msg := range msgs {
 				Convey(fmt.Sprintf("Packet %d is correct", i), func() {
-					checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap)
+					checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap())
 				})
 			}
 			// Check that no beacons are sent, since the period has not passed yet.
@@ -213,16 +214,16 @@ func TestPropagatorRun(t *testing.T) {
 	Convey("Fast recovery", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		topoProvider := xtest.TopoProviderFromFile(t, topoCore)
+		topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
 		provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		cfg := PropagatorConf{
 			Config: ExtenderConf{
-				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Signer: testSigner(t, priv, topoProvider.Get().IA()),
 				Mac:    macProp,
-				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
 					ifstate.Config{}),
-				MTU:           uint16(topoProvider.Get().MTU),
+				MTU:           uint16(topoProvider.Get().MTU()),
 				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Period:         2 * time.Second,
@@ -230,7 +231,7 @@ func TestPropagatorRun(t *testing.T) {
 			Core:           true,
 			BeaconSender: &onehop.BeaconSender{
 				Sender: onehop.Sender{
-					IA:   topoProvider.Get().ISD_AS,
+					IA:   topoProvider.Get().IA(),
 					Conn: conn,
 					Addr: &addr.AppAddr{
 						L3: addr.HostFromIPStr("127.0.0.1"),

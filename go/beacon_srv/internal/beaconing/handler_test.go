@@ -31,11 +31,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -59,7 +60,7 @@ func TestNewHandler(t *testing.T) {
 	pseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}).Segment
 	rw := mock_infra.NewMockResponseWriter(mctrl)
 	rw.EXPECT().SendAckReply(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	topoProvider := xtest.TopoProviderFromFile(t, topoCore)
+	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
 	t.Run("Correct beacon is inserted", func(t *testing.T) {
 		inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
 		expectedBeacon := beacon.Beacon{Segment: pseg, InIfId: localIF}
@@ -222,8 +223,8 @@ func testPath(ingressIfid common.IFIDType) *spath.Path {
 	return path
 }
 
-func testInterfaces(topo *topology.Topo) *ifstate.Interfaces {
-	intfs := ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
+func testInterfaces(topo itopo.Topology) *ifstate.Interfaces {
+	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	intfs.Get(graph.If_110_X_120_A).Activate(graph.If_120_A_110_X)
 	return intfs
 }

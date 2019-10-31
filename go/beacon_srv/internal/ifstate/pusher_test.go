@@ -23,8 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 )
 
 // TestPusherPush tests that if an interface is active the interface state info
@@ -32,9 +31,9 @@ import (
 func TestPusherPush(t *testing.T) {
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
-	topoProvider := xtest.TopoProviderFromFile(t, "testdata/topology.json")
+	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology.json")
 	msgr := mock_infra.NewMockMessenger(mctrl)
-	intfs := NewInterfaces(topoProvider.Get().IFInfoMap, Config{})
+	intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
 	p := PusherConf{
 		TopoProvider: topoProvider,
 		Intfs:        intfs,
@@ -57,12 +56,8 @@ func TestPusherPush(t *testing.T) {
 		t.Run(fmt.Sprintf("Interface state: %s", state), func(t *testing.T) {
 			intfs.Get(101).state = state
 			if expectMsg {
-				for _, br := range topoProvider.Get().BR {
-					a := &snet.Addr{
-						IA:      topoProvider.Get().ISD_AS,
-						Host:    br.CtrlAddrs.PublicAddr(br.CtrlAddrs.Overlay),
-						NextHop: br.CtrlAddrs.OverlayAddr(br.CtrlAddrs.Overlay),
-					}
+				for _, br := range topoProvider.Get().BRNames() {
+					a := topoProvider.Get().SBRAddress(br)
 					msgr.EXPECT().SendIfStateInfos(gomock.Any(), gomock.Eq(expectedMsg),
 						gomock.Eq(a), gomock.Any())
 				}

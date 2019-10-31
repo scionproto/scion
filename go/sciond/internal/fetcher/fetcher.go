@@ -25,9 +25,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -37,7 +37,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/sciond/internal/config"
 	"github.com/scionproto/scion/go/sciond/internal/metrics"
@@ -55,16 +54,16 @@ type TrustStore interface {
 type Fetcher struct {
 	pathDB          pathdb.PathDB
 	revocationCache revcache.RevCache
-	topoProvider    topology.Provider
+	topoProvider    itopo.ProviderI
 	config          config.SDConfig
 	segfetcher      *segfetcher.Fetcher
 }
 
 func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore TrustStore,
-	revCache revcache.RevCache, cfg config.SDConfig, topoProvider topology.Provider,
+	revCache revcache.RevCache, cfg config.SDConfig, topoProvider itopo.ProviderI,
 	logger log.Logger) *Fetcher {
 
-	localIA := topoProvider.Get().ISD_AS
+	localIA := topoProvider.Get().IA()
 	return &Fetcher{
 		pathDB:          pathDB,
 		revocationCache: revCache,
@@ -101,7 +100,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 // received by the Fetcher.
 type fetcherHandler struct {
 	*Fetcher
-	topology *topology.Topo
+	topology itopo.Topology
 	logger   log.Logger
 }
 
@@ -121,9 +120,9 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	}
 	// Check source
 	if req.Src.IA().IsZero() {
-		req.Src = f.topology.ISD_AS.IAInt()
+		req.Src = f.topology.IA().IAInt()
 	}
-	if !req.Src.IA().Equal(f.topology.ISD_AS) {
+	if !req.Src.IA().Equal(f.topology.IA()) {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
@@ -132,7 +131,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadDstIA),
 			common.NewBasicError("Bad destination AS", nil, "ia", req.Dst.IA())
 	}
-	if req.Dst.IA().Equal(f.topology.ISD_AS) {
+	if req.Dst.IA().Equal(f.topology.IA()) {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorOk), nil
 	}
 	if req.Flags.Refresh {
@@ -212,7 +211,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
 			{
 				Path: &sciond.FwdPathMeta{
 					FwdPath:    []byte{},
-					Mtu:        uint16(f.topology.MTU),
+					Mtu:        f.topology.MTU(),
 					Interfaces: []sciond.PathInterface{},
 					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
 				},
@@ -226,7 +225,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
 			// In-memory write should never fail
 			panic(err)
 		}
-		ifInfo, ok := f.topology.IFInfoMap[path.Interfaces[0].IfID]
+		hostInfo, ok := f.topology.OverlayNextHop(path.Interfaces[0].IfID)
 		if !ok {
 			f.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
 			continue
@@ -238,7 +237,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
 				Interfaces: path.Interfaces,
 				ExpTime:    uint32(path.ComputeExpTime().Unix()),
 			},
-			HostInfo: hostinfo.FromTopoBRAddr(*ifInfo.InternalAddrs),
+			HostInfo: hostInfo,
 		})
 		if maxPaths != 0 && len(entries) == int(maxPaths) {
 			break
@@ -277,12 +276,13 @@ func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
 }
 
 func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context) error {
-	intfs := make([]*query.IntfSpec, 0, len(f.topology.IFInfoMap))
-	for ifid := range f.topology.IFInfoMap {
-		intfs = append(intfs, &query.IntfSpec{
-			IA:   f.topology.ISD_AS,
-			IfID: ifid,
-		})
+	ifIDs := f.topology.InterfaceIDs()
+	intfs := make([]*query.IntfSpec, len(ifIDs))
+	for i, ifID := range ifIDs {
+		intfs[i] = &query.IntfSpec{
+			IA:   f.topology.IA(),
+			IfID: ifID,
+		}
 	}
 	q := &query.Params{
 		Intfs: intfs,
@@ -327,7 +327,7 @@ func (f *fetcherHandler) determineDsts(req *sciond.PathReq,
 
 	wildcardDst := req.Dst.IA().A == 0
 	if wildcardDst {
-		isdLocal := req.Dst.IA().I == f.topology.ISD_AS.I
+		isdLocal := req.Dst.IA().I == f.topology.IA().I
 		return wildcardDsts(wildcardDst, isdLocal, ups, cores)
 	}
 	return map[addr.IA]struct{}{req.Dst.IA(): {}}

@@ -308,7 +308,7 @@ func NewFetcher(handler TopoHandler, params discovery.FetchParams,
 	}
 	var err error
 	t.fetcher, err = topofetcher.New(
-		itopo.Get().DS,
+		itopo.Get().DS(),
 		params,
 		topofetcher.Callbacks{
 			Error: t.handleErr,
@@ -328,7 +328,7 @@ func (t *task) Name() string {
 }
 
 func (t *task) Run(ctx context.Context) {
-	if err := t.fetcher.UpdateInstances(itopo.Get().DS); err != nil {
+	if err := t.fetcher.UpdateInstances(itopo.Get().DS()); err != nil {
 		t.logger(ctx).Error("[discovery] Unable to update instances", "err", err)
 		return
 	}

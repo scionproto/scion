@@ -36,7 +36,7 @@ type handler struct {
 }
 
 func NewHandler(args handlers.HandlerArgs) infra.Handler {
-	core := args.TopoProvider.Get().Core
+	core := args.TopoProvider.Get().Core()
 	args.PathDB = createPathDB(args, core)
 	return &handler{
 		fetcher: segfetcher.FetcherConfig{

@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -38,7 +39,7 @@ func TestSenderRun(t *testing.T) {
 	t.Log("Run sends ifid packets on all interfaces")
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
-	topoProvider := xtest.TopoProviderFromFile(t, "testdata/topology.json")
+	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology.json")
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	require.NoError(t, err)
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
@@ -57,7 +58,7 @@ func TestSenderRun(t *testing.T) {
 		Signer:       createTestSigner(t, priv),
 		TopoProvider: topoProvider,
 	}
-	pkts := make([]*snet.SCIONPacket, 0, len(topoProvider.Get().IFInfoMap))
+	pkts := make([]*snet.SCIONPacket, 0, len(topoProvider.Get().IFInfoMap()))
 	conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(cap(pkts)).DoAndReturn(
 		func(ipkts, _ interface{}) error {
 			pkts = append(pkts, ipkts.(*snet.SCIONPacket))
@@ -72,7 +73,7 @@ func TestSenderRun(t *testing.T) {
 		assert.NoError(t, err, "SPldErr")
 		pld, err := spld.GetVerifiedPld(nil, testVerifier(pub))
 		assert.NoError(t, err, "PldErr")
-		_, ok := topoProvider.Get().IFInfoMap[pld.IfID.OrigIfID]
+		_, ok := topoProvider.Get().IFInfoMap()[pld.IfID.OrigIfID]
 		assert.True(t, ok)
 	}
 }
