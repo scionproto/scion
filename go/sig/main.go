@@ -81,7 +81,7 @@ func realMain() int {
 		return 1
 	}
 	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
-		log.Crit("Error during initialization", err)
+		log.Crit("Error during initialization", "err", err)
 		return 1
 	}
 	env.SetupEnv(
