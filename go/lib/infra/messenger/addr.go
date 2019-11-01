@@ -22,13 +22,12 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/svc"
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // Resolver performs SVC resolution for a remote AS, thus converting an anycast
@@ -269,34 +268,16 @@ type LocalSVCRouter interface {
 
 // NewSVCRouter build a SVC router backed by topology information from the
 // specified provider.
-func NewSVCRouter(tp topology.Provider) LocalSVCRouter {
+func NewSVCRouter(tp itopo.ProviderI) LocalSVCRouter {
 	return &baseSVCRouter{
 		topology: tp,
 	}
 }
 
 type baseSVCRouter struct {
-	topology topology.Provider
+	topology itopo.ProviderI
 }
 
 func (r *baseSVCRouter) GetOverlay(svc addr.HostSVC) (*overlay.OverlayAddr, error) {
-	topo := r.topology.Get()
-	topoAddr, err := topo.GetAnyTopoAddr(toProtoServiceType(svc))
-	if err != nil {
-		return nil, common.NewBasicError("Failed to look up SVC in topology", err, "svc", svc)
-	}
-	return topoAddr.OverlayAddr(topo.Overlay), nil
-}
-
-func toProtoServiceType(svc addr.HostSVC) proto.ServiceType {
-	switch svc {
-	case addr.SvcCS:
-		return proto.ServiceType_cs
-	case addr.SvcPS:
-		return proto.ServiceType_ps
-	case addr.SvcBS:
-		return proto.ServiceType_bs
-	default:
-		panic("bad service address")
-	}
+	return r.topology.Get().OverlayAnycast(svc)
 }

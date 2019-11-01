@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -47,20 +48,20 @@ const (
 )
 
 func TestOriginatorRun(t *testing.T) {
-	topoProvider := xtest.TopoProviderFromFile(t, topoCore)
+	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	xtest.FailOnErr(t, err)
-	signer := testSigner(t, priv, topoProvider.Get().ISD_AS)
+	signer := testSigner(t, priv, topoProvider.Get().IA())
 	Convey("Run originates ifid packets on all active core and child interfaces", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
-				MTU:           uint16(topoProvider.Get().MTU),
+				MTU:           topoProvider.Get().MTU(),
 				Signer:        signer,
 				Intfs:         intfs,
 				Mac:           mac,
@@ -101,7 +102,7 @@ func TestOriginatorRun(t *testing.T) {
 		o.Run(nil)
 		for i, msg := range msgs {
 			Convey(fmt.Sprintf("Packet %d is correct", i), func() {
-				checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap)
+				checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap())
 			})
 		}
 		// The second run should not cause any beacons to originate.
@@ -110,11 +111,11 @@ func TestOriginatorRun(t *testing.T) {
 	Convey("Fast recovery", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
-				MTU:           uint16(topoProvider.Get().MTU),
+				MTU:           topoProvider.Get().MTU(),
 				Signer:        signer,
 				Intfs:         intfs,
 				Mac:           mac,

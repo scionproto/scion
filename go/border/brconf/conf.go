@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -31,7 +32,7 @@ import (
 type BRConf struct {
 	// Topo contains the names of all local infrastructure elements, a map
 	// of interface IDs to routers, and the actual topology.
-	Topo *topology.Topo
+	Topo itopo.Topology
 	// IA is the current ISD-AS.
 	IA addr.IA
 	// BR is the topology information of this router.
@@ -58,7 +59,7 @@ func Load(id, confDir string) (*BRConf, error) {
 
 // WithNewTopo creates config that shares all content except fields related
 // to topology with the oldConf.
-func WithNewTopo(id string, topo *topology.Topo, oldConf *BRConf) (*BRConf, error) {
+func WithNewTopo(id string, topo itopo.Topology, oldConf *BRConf) (*BRConf, error) {
 	conf := &BRConf{
 		Dir:        oldConf.Dir,
 		MasterKeys: oldConf.MasterKeys,
@@ -73,7 +74,7 @@ func WithNewTopo(id string, topo *topology.Topo, oldConf *BRConf) (*BRConf, erro
 // entries related to topo in the config.
 func (cfg *BRConf) loadTopo(id string) error {
 	topoPath := filepath.Join(cfg.Dir, topology.CfgName)
-	topo, err := topology.LoadFromFile(topoPath)
+	topo, err := itopo.LoadFromFile(topoPath)
 	if err != nil {
 		return err
 	}
@@ -84,11 +85,11 @@ func (cfg *BRConf) loadTopo(id string) error {
 }
 
 // initTopo initializesthe entries related to topo in the config.
-func (cfg *BRConf) initTopo(id string, topo *topology.Topo) error {
+func (cfg *BRConf) initTopo(id string, topo itopo.Topology) error {
 	cfg.Topo = topo
-	cfg.IA = cfg.Topo.ISD_AS
+	cfg.IA = cfg.Topo.IA()
 	// Find the config for this router.
-	topoBR, ok := cfg.Topo.BR[id]
+	topoBR, ok := cfg.Topo.BR(id)
 	if !ok {
 		return common.NewBasicError("Unable to find element ID in topology", nil,
 			"id", id)

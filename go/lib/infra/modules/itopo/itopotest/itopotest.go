@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package xtest
+package itopotest
 
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -30,11 +33,11 @@ type TestTopoProvider struct {
 func TopoProviderFromFile(t *testing.T, fName string) *TestTopoProvider {
 	t.Helper()
 	topo, err := topology.LoadFromFile(fName)
-	FailOnErr(t, err)
+	require.NoError(t, err)
 	return &TestTopoProvider{Topo: topo}
 }
 
 // Get returns the stored topology.
-func (t *TestTopoProvider) Get() *topology.Topo {
-	return t.Topo
+func (t *TestTopoProvider) Get() itopo.Topology {
+	return itopo.NewTopologyFromRaw(t.Topo)
 }

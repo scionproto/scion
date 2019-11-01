@@ -43,7 +43,6 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/config"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
@@ -85,7 +84,7 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	if err := startDiscovery(); err != nil {
+	if err := startDiscovery(cfg.Discovery); err != nil {
 		log.Crit("Unable to start topology fetcher", "err", err)
 		return 1
 	}
@@ -103,7 +102,7 @@ func realMain() int {
 	}
 	defer trustDB.Close()
 	trustConf := trust.Config{TopoProvider: itopo.Provider()}
-	trustStore := trust.NewStore(trustDB, itopo.Get().ISD_AS, trustConf, log.Root())
+	trustStore := trust.NewStore(trustDB, itopo.Get().IA(), trustConf, log.Root())
 	err = trustStore.LoadAuthoritativeTRC(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
 		log.Crit("Unable to load local TRC", "err", err)
@@ -117,7 +116,7 @@ func realMain() int {
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
-		IA:                    itopo.Get().ISD_AS,
+		IA:                    itopo.Get().IA(),
 		Public:                cfg.SD.Public,
 		Bind:                  cfg.SD.Bind,
 		SVC:                   addr.SvcNone,
@@ -198,23 +197,23 @@ func setupBasic() error {
 
 func setup() error {
 	if err := cfg.Validate(); err != nil {
-		return common.NewBasicError("Unable to validate config", err)
+		return common.NewBasicError("unable to validate config", err)
 	}
 	itopo.Init("", proto.ServiceType_unset, itopo.Callbacks{})
-	topo, err := topology.LoadFromFile(cfg.General.Topology)
+	topo, err := itopo.LoadFromFile(cfg.General.Topology)
 	if err != nil {
-		return common.NewBasicError("Unable to load topology", err)
+		return common.NewBasicError("unable to load topology", err)
 	}
-	if _, _, err := itopo.SetStatic(topo, false); err != nil {
-		return common.NewBasicError("Unable to set initial static topology", err)
+	if _, _, err := itopo.SetStatic(topo.Raw(), false); err != nil {
+		return common.NewBasicError("unable to set initial static topology", err)
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)
 	return cfg.SD.CreateSocketDirs()
 }
 
-func startDiscovery() error {
+func startDiscovery(file idiscovery.Config) error {
 	var err error
-	discRunners, err = idiscovery.StartRunners(cfg.Discovery, discovery.Default,
+	discRunners, err = idiscovery.StartRunners(file, discovery.Default,
 		idiscovery.TopoHandlers{}, nil, "sd")
 	return err
 }

@@ -24,13 +24,13 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -71,7 +71,7 @@ type nonCoreDstProvider struct {
 	coreChecker  CoreChecker
 	localIA      addr.IA
 	pathDB       pathdb.PathDB
-	topoProvider topology.Provider
+	topoProvider itopo.ProviderI
 }
 
 // Dst provides the server to lookup the segment for the given request.
@@ -120,7 +120,7 @@ type coreDstProvider struct {
 	SegSelector
 	localIA      addr.IA
 	pathDB       pathdb.PathDB
-	topoProvider topology.Provider
+	topoProvider itopo.ProviderI
 }
 
 func (p *coreDstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {

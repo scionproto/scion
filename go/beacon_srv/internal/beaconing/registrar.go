@@ -28,11 +28,11 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -48,7 +48,7 @@ var _ periodic.Task = (*Registrar)(nil)
 type RegistrarConf struct {
 	Config       ExtenderConf
 	SegProvider  SegmentProvider
-	TopoProvider topology.Provider
+	TopoProvider itopo.ProviderI
 	Msgr         infra.Messenger
 	Period       time.Duration
 	SegType      proto.PathSegType
@@ -61,7 +61,7 @@ type Registrar struct {
 	*segExtender
 	msgr         infra.Messenger
 	segProvider  SegmentProvider
-	topoProvider topology.Provider
+	topoProvider itopo.ProviderI
 	segType      proto.PathSegType
 
 	// mutable fields
@@ -247,7 +247,7 @@ func (r *segmentRegistrar) onSuccess() {
 func (r *segmentRegistrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
 	if r.segType != proto.PathSegType_down {
 		topo := r.topoProvider.Get()
-		return &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}, nil
+		return &snet.Addr{IA: topo.IA(), Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}, nil
 	}
 	return addrutil.GetPath(addr.SvcPS, pseg, r.topoProvider)
 }

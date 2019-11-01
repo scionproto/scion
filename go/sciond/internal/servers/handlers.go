@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/metrics"
@@ -109,11 +108,11 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 	topo := itopo.Get()
 	reqIA := pld.AsInfoReq.Isdas.IA()
 	if reqIA.IsZero() {
-		reqIA = topo.ISD_AS
+		reqIA = topo.IA()
 	}
 	mtu := uint16(0)
-	if reqIA.Equal(topo.ISD_AS) {
-		mtu = uint16(topo.MTU)
+	if reqIA.Equal(topo.IA()) {
+		mtu = uint16(topo.MTU())
 	}
 	var entries []sciond.ASInfoReplyEntry
 	opts := infra.ASInspectorOpts{RequiredAttributes: []infra.Attribute{infra.Core}}
@@ -163,23 +162,28 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 	topo := itopo.Get()
 	if len(ifInfoRequest.IfIDs) == 0 {
 		// Reply with all the IFIDs we know
-		for ifid, ifInfo := range topo.IFInfoMap {
-			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
-				IfID:     ifid,
-				HostInfo: hostinfo.FromTopoBRAddr(*ifInfo.InternalAddrs),
-			})
-		}
-	} else {
-		// Reply with only the IFIDs the client requested
-		for _, ifid := range ifInfoRequest.IfIDs {
-			ifInfo, ok := topo.IFInfoMap[ifid]
+		for _, ifid := range topo.InterfaceIDs() {
+			hostInfo, ok := topo.OverlayNextHop(ifid)
 			if !ok {
 				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
 				continue
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: hostinfo.FromTopoBRAddr(*ifInfo.InternalAddrs),
+				HostInfo: hostInfo,
+			})
+		}
+	} else {
+		// Reply with only the IFIDs the client requested
+		for _, ifid := range ifInfoRequest.IfIDs {
+			hostInfo, ok := topo.OverlayNextHop(ifid)
+			if !ok {
+				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
+				continue
+			}
+			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
+				IfID:     ifid,
+				HostInfo: hostInfo,
 			})
 		}
 	}
@@ -213,7 +217,7 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	topo := itopo.Get()
 	for _, t := range svcInfoRequest.ServiceTypes {
 		var hostInfos []hostinfo.Host
-		hostInfos = makeHostInfos(topo, t)
+		hostInfos = topo.MakeHostInfos(t)
 		replyEntry := sciond.ServiceInfoReplyEntry{
 			ServiceType: t,
 			Ttl:         DefaultServiceTTL,
@@ -233,20 +237,6 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 		logger.Trace("Sent reply", "svcInfo", svcInfoReply)
 		metricsDone(metrics.OkSuccess)
 	}
-}
-
-func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []hostinfo.Host {
-	var hostInfos []hostinfo.Host
-	addresses, err := topo.GetAllTopoAddrs(t)
-	if err != nil {
-		// FIXME(lukedirtwalker): inform client about this:
-		// see https://github.com/scionproto/scion/issues/1673
-		return hostInfos
-	}
-	for _, a := range addresses {
-		hostInfos = append(hostInfos, hostinfo.FromTopoAddr(a))
-	}
-	return hostInfos
 }
 
 // RevNotificationHandler represents the shared global state for the handling of all

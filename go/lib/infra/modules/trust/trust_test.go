@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -644,7 +645,7 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	topotestutil.AddServer(topo, proto.ServiceType_cs, "foo",
 		topology.TestTopoAddr(nil, nil, nil, nil))
 	cfg := Config{
-		TopoProvider: &xtest.TestTopoProvider{
+		TopoProvider: &itopotest.TestTopoProvider{
 			Topo: topo,
 		},
 	}

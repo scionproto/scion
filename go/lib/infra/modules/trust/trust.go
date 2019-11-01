@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
@@ -41,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -217,7 +217,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 		return trcObj, nil
 	}
 	if store.config.ServiceType == proto.ServiceType_cs &&
-		store.config.TopoProvider.Get().Core && store.ia.I == isd {
+		store.config.TopoProvider.Get().Core() && store.ia.I == isd {
 		// Core CS can't find TRC for its own ISD
 
 		metrics.Store.Lookup(l.WithResult(metrics.ErrNotFoundAuth)).Inc()
@@ -375,7 +375,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 		return chain, nil
 	}
 	isCS := store.config.ServiceType == proto.ServiceType_cs
-	isCore := store.config.TopoProvider.Get().Core
+	isCore := store.config.TopoProvider.Get().Core()
 	if (isCS && store.ia.Equal(ia)) ||
 		(isCS && isCore && store.ia.I == ia.I) ||
 		(store.config.MustHaveLocalChain && store.ia.Equal(ia) && version.IsLatest()) {
@@ -776,15 +776,15 @@ func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.
 //  * a local core CS if destination is isd-local or any core CS.
 //  * a remote core CS if destination is remote isd.
 func (store *Store) chooseDestCSIsd(ctx context.Context, destination addr.IA,
-	topo *topology.Topo) (addr.ISD, error) {
+	topo itopo.Topology) (addr.ISD, error) {
 
 	// For isd-local dests use local core.
-	if destination.I == topo.ISD_AS.I {
-		return topo.ISD_AS.I, nil
+	if destination.I == topo.IA().I {
+		return topo.IA().I, nil
 	}
 	// For wildcards or any core dest use local core.
 	if destination.A == 0 {
-		return topo.ISD_AS.I, nil
+		return topo.IA().I, nil
 	}
 	opts := infra.ASInspectorOpts{RequiredAttributes: []infra.Attribute{infra.Core}}
 	core, err := store.HasAttributes(ctx, destination, opts)
@@ -792,7 +792,7 @@ func (store *Store) chooseDestCSIsd(ctx context.Context, destination addr.IA,
 		return 0, err
 	}
 	if core {
-		return topo.ISD_AS.I, nil
+		return topo.IA().I, nil
 	}
 	// For non-core dests in a remote isd use remote core.
 	return destination.I, nil

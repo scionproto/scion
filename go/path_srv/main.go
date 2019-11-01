@@ -44,7 +44,6 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
@@ -106,14 +105,13 @@ func realMain() int {
 		ServiceType:        proto.ServiceType_ps,
 		TopoProvider:       itopo.Provider(),
 	}
-	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	trustStore := trust.NewStore(trustDB, topo.IA(), trustConf, log.Root())
 	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
 		log.Crit("Unable to load local crypto", "err", err)
 		return 1
 	}
-	topoAddress := topo.PS.GetById(cfg.General.ID)
-	if topoAddress == nil {
+	if !topo.Exists(addr.SvcPS, cfg.General.ID) {
 		log.Crit("Unable to find topo address")
 		return 1
 	}
@@ -125,9 +123,9 @@ func realMain() int {
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
-		IA:                    topo.ISD_AS,
-		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
-		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
+		IA:                    topo.IA(),
+		Public:                topo.SPublicAddress(addr.SvcPS, cfg.General.ID),
+		Bind:                  topo.SBindAddress(addr.SvcPS, cfg.General.ID),
 		SVC:                   addr.SvcPS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
@@ -155,15 +153,14 @@ func realMain() int {
 		ASInspector:     trustStore,
 		VerifierFactory: trustStore,
 		QueryInterval:   cfg.PS.QueryInterval.Duration,
-		IA:              topo.ISD_AS,
+		IA:              topo.IA(),
 		TopoProvider:    itopo.Provider(),
 		SegRequestAPI:   msger,
 	}
-	core := topo.Core
 	msger.AddHandler(infra.SegRequest, segreq.NewHandler(args))
 	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
 	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStateInfoHandler(args))
-	if cfg.PS.SegSync && core {
+	if cfg.PS.SegSync && topo.Core() {
 		// Old down segment sync mechanism
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
 	}
@@ -221,7 +218,7 @@ func (t *periodicTasks) Start() error {
 	}
 	t.running = true
 	var err error
-	if cfg.PS.SegSync && itopo.Get().Core {
+	if cfg.PS.SegSync && itopo.Get().Core() {
 		t.segSyncers, err = segsyncer.StartAll(t.args, t.msger)
 		if err != nil {
 			return common.NewBasicError("Unable to start seg syncer", err)
@@ -273,11 +270,11 @@ func setup() error {
 		return common.NewBasicError("Unable to validate config", err)
 	}
 	itopo.Init(cfg.General.ID, proto.ServiceType_ps, itopo.Callbacks{})
-	topo, err := topology.LoadFromFile(cfg.General.Topology)
+	topo, err := itopo.LoadFromFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
-	if _, _, err := itopo.SetStatic(topo, false); err != nil {
+	if _, _, err := itopo.SetStatic(topo.Raw(), false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)

@@ -138,8 +138,8 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		rp.RefInc(1)
 		return rp.reprocess()
 	}
-	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
-	dst := nextBR.InternalAddrs.PublicOverlay(rp.Ctx.Conf.Topo.Overlay)
+	nextBR := rp.Ctx.Conf.Topo.IFInfoMap()[*rp.ifNext]
+	dst := nextBR.InternalAddrs.PublicOverlay(rp.Ctx.Conf.Topo.Overlay())
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }
@@ -194,7 +194,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 		return nil
 	}
 	prevLink := rp.Ctx.Conf.BR.IFs[origIFCurr].LinkType
-	nextLink := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext].LinkType
+	nextLink := rp.Ctx.Conf.Topo.IFInfoMap()[*rp.ifNext].LinkType
 	// Never allowed to switch between core segments.
 	if prevLink == proto.LinkType_core && nextLink == proto.LinkType_core {
 		return common.NewBasicError("Segment change between CORE links",

@@ -25,10 +25,10 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -360,22 +360,15 @@ func closeAllSocks(ctx *rctx.Ctx) {
 }
 
 func loadConfig(t *testing.T) *brconf.BRConf {
-	topo := loadTopo(t)
-	topo, err := topology.LoadFromFile("testdata/topology.json")
+	topo, err := itopo.LoadFromFile("testdata/topology.json")
 	xtest.FailOnErr(t, err)
-	topoBr, ok := topo.BR["br1-ff00_0_111-1"]
+	topoBR, ok := topo.BR("br1-ff00_0_111-1")
 	if !ok {
 		t.Fatal("BR ID not found")
 	}
 	return &brconf.BRConf{
 		Topo: topo,
-		IA:   topo.ISD_AS,
-		BR:   &topoBr,
+		IA:   topo.IA(),
+		BR:   &topoBR,
 	}
-}
-
-func loadTopo(t *testing.T) *topology.Topo {
-	topo, err := topology.LoadFromFile("testdata/topology.json")
-	xtest.FailOnErr(t, err)
-	return topo
 }

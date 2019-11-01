@@ -42,7 +42,7 @@ func (rp *RtrPkt) Validate() (bool, error) {
 		}
 		mtu = intf.MTU
 	} else {
-		mtu = rp.Ctx.Conf.Topo.MTU
+		mtu = int(rp.Ctx.Conf.Topo.MTU())
 	}
 	// XXX(kormat): the rest of the common header is checked by the parsing phase.
 	if !addr.HostTypeCheck(rp.CmnHdr.DstType) {

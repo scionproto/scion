@@ -26,10 +26,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -49,7 +49,7 @@ type RevokerConf struct {
 	Intfs        *Interfaces
 	Msgr         infra.Messenger
 	Signer       infra.Signer
-	TopoProvider topology.Provider
+	TopoProvider itopo.ProviderI
 	RevInserter  RevInserter
 	RevConfig    RevConfig
 }
@@ -141,8 +141,8 @@ func (r *Revoker) createSignedRev(ifid common.IFIDType) (*path_mgmt.SignedRevInf
 	now := util.TimeToSecs(time.Now())
 	revInfo := &path_mgmt.RevInfo{
 		IfID:         ifid,
-		RawIsdas:     r.cfg.TopoProvider.Get().ISD_AS.IAInt(),
-		LinkType:     r.cfg.TopoProvider.Get().IFInfoMap[ifid].LinkType,
+		RawIsdas:     r.cfg.TopoProvider.Get().IA().IAInt(),
+		LinkType:     r.cfg.TopoProvider.Get().IFInfoMap()[ifid].LinkType,
 		RawTimestamp: now,
 		RawTTL:       uint32(r.cfg.RevConfig.RevTTL.Seconds()),
 	}
@@ -169,7 +169,7 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 
 	topo := r.cfg.TopoProvider.Get()
 	labels := metrics.SentLabels{Dst: metrics.DstPS}
-	a := &snet.Addr{IA: topo.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
+	a := &snet.Addr{IA: topo.IA(), Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
 	for ifid, srev := range revs {
 		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
 			log.FromCtx(ctx).Error("[ifstate.Revoker] Failed to send revocation to PS",
@@ -185,15 +185,10 @@ type brPusher struct {
 }
 
 func (p *brPusher) sendIfStateToAllBRs(ctx context.Context, msg *path_mgmt.IFStateInfos,
-	topo *topology.Topo, wg *sync.WaitGroup) {
+	topo itopo.Topology, wg *sync.WaitGroup) {
 
-	for id, br := range topo.BR {
-		a := &snet.Addr{
-			IA:      topo.ISD_AS,
-			Host:    br.CtrlAddrs.PublicAddr(br.CtrlAddrs.Overlay),
-			NextHop: br.CtrlAddrs.OverlayAddr(br.CtrlAddrs.Overlay),
-		}
-		p.sendIfStateToBr(ctx, msg, id, a, wg)
+	for _, br := range topo.BRNames() {
+		p.sendIfStateToBr(ctx, msg, br, topo.SBRAddress(br), wg)
 	}
 }
 

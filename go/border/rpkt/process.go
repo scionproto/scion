@@ -188,14 +188,14 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 
 	intf := rp.Ctx.Conf.BR.IFs[*rp.ifCurr]
 	rp.SrcIA() // Ensure that rp.srcIA has been set
-	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.LinkType == proto.LinkType_core) ||
-		(rp.srcIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.LinkType == proto.LinkType_parent) {
+	if (rp.dstIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == proto.LinkType_core) ||
+		(rp.srcIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == proto.LinkType_parent) {
 		// Case 1 & 2
 		args.Addrs = append(args.Addrs, addr.SvcBS)
-		if len(rp.Ctx.Conf.Topo.PS) > 0 {
+		if len(rp.Ctx.Conf.Topo.SVCNames(addr.SvcPS)) > 0 {
 			args.Addrs = append(args.Addrs, addr.SvcPS)
 		}
-	} else if rp.dstIA.Equal(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.Topo.PS) > 0 {
+	} else if rp.dstIA.Equal(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.Topo.SVCNames(addr.SvcPS)) > 0 {
 		// Case 3
 		args.Addrs = append(args.Addrs, addr.SvcPS)
 	}

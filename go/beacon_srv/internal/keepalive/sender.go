@@ -25,10 +25,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 var _ periodic.Task = (*Sender)(nil)
@@ -37,7 +37,7 @@ var _ periodic.Task = (*Sender)(nil)
 type Sender struct {
 	*onehop.Sender
 	Signer       infra.Signer
-	TopoProvider topology.Provider
+	TopoProvider itopo.ProviderI
 }
 
 // Name returns the tasks name.
@@ -54,7 +54,7 @@ func (s *Sender) Run(ctx context.Context) {
 		return
 	}
 	var sentIfids []common.IFIDType
-	for ifid, intf := range topo.IFInfoMap {
+	for ifid, intf := range topo.IFInfoMap() {
 		l := metrics.KeepaliveLabels{IfID: ifid, Result: metrics.ErrProcess}
 		pld, err := s.createPld(ifid)
 		if err != nil {

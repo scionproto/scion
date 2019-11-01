@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -92,16 +93,16 @@ func TestRegistrarRun(t *testing.T) {
 		Convey("Run registers a verifiable "+test.name+" to the correct path server", t, func() {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			topoProvider := xtest.TopoProviderFromFile(t, test.fn)
+			topoProvider := itopotest.TopoProviderFromFile(t, test.fn)
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			msgr := mock_infra.NewMockMessenger(mctrl)
 			cfg := RegistrarConf{
 				Config: ExtenderConf{
-					Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+					Signer: testSigner(t, priv, topoProvider.Get().IA()),
 					Mac:    mac,
-					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
 						ifstate.Config{}),
-					MTU:           uint16(topoProvider.Get().MTU),
+					MTU:           topoProvider.Get().MTU(),
 					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 				},
 				Period:       time.Hour,
@@ -163,7 +164,7 @@ func TestRegistrarRun(t *testing.T) {
 				})
 				Convey(fmt.Sprintf("Segment %d is sent to the PS", segIdx), func() {
 					if !test.remotePS {
-						SoMsg("IA", s.Addr.IA, ShouldResemble, topoProvider.Get().ISD_AS)
+						SoMsg("IA", s.Addr.IA, ShouldResemble, topoProvider.Get().IA())
 						a := addr.NewSVCUDPAppAddr(addr.SvcPS)
 						SoMsg("Host", s.Addr.Host, ShouldResemble, a)
 						return
@@ -174,7 +175,7 @@ func TestRegistrarRun(t *testing.T) {
 					SoMsg("err", err, ShouldBeNil)
 					SoMsg("HopField", []uint8(hopF.Pack()), ShouldResemble,
 						pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField)
-					a := topoProvider.Get().IFInfoMap[hopF.ConsIngress].InternalAddrs
+					a := topoProvider.Get().IFInfoMap()[hopF.ConsIngress].InternalAddrs
 					SoMsg("Next", s.Addr.NextHop, ShouldResemble, a.PublicOverlay(a.Overlay))
 				})
 			}
@@ -185,16 +186,16 @@ func TestRegistrarRun(t *testing.T) {
 	Convey("Run drains the channel", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		topoProvider := xtest.TopoProviderFromFile(t, topoCore)
+		topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		cfg := RegistrarConf{
 			Config: ExtenderConf{
-				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Signer: testSigner(t, priv, topoProvider.Get().IA()),
 				Mac:    mac,
-				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
 					ifstate.Config{}),
-				MTU:           uint16(topoProvider.Get().MTU),
+				MTU:           topoProvider.Get().MTU(),
 				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Msgr:         msgr,
@@ -224,16 +225,16 @@ func TestRegistrarRun(t *testing.T) {
 	Convey("Faulty beacons are not sent", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		topoProvider := xtest.TopoProviderFromFile(t, topoNonCore)
+		topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		cfg := RegistrarConf{
 			Config: ExtenderConf{
-				Signer: testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Signer: testSigner(t, priv, topoProvider.Get().IA()),
 				Mac:    mac,
-				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap,
+				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
 					ifstate.Config{}),
-				MTU:           uint16(topoProvider.Get().MTU),
+				MTU:           topoProvider.Get().MTU(),
 				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			},
 			Msgr:         msgr,

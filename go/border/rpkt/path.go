@@ -85,7 +85,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	if ifid == nil {
 		return serrors.New("validateLocalIF: Interface is nil")
 	}
-	if _, ok := rp.Ctx.Conf.Topo.IFInfoMap[*ifid]; !ok {
+	if _, ok := rp.Ctx.Conf.Topo.IFInfoMap()[*ifid]; !ok {
 		// No such interface.
 		return common.NewBasicError(
 			"Unknown IF",

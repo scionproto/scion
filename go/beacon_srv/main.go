@@ -113,14 +113,13 @@ func realMain() int {
 		ServiceType:        proto.ServiceType_bs,
 		TopoProvider:       itopo.Provider(),
 	}
-	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	trustStore := trust.NewStore(trustDB, topo.IA(), trustConf, log.Root())
 	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
 		log.Crit("Unable to load local crypto", "err", err)
 		return 1
 	}
-	topoAddress := topo.BS.GetById(cfg.General.ID)
-	if topoAddress == nil {
+	if !topo.Exists(addr.SvcBS, cfg.General.ID) {
 		log.Crit("Unable to find topo address")
 		return 1
 	}
@@ -132,9 +131,9 @@ func realMain() int {
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
-		IA:                    topo.ISD_AS,
-		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
-		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
+		IA:                    topo.IA(),
+		Public:                topo.SPublicAddress(addr.SvcBS, cfg.General.ID),
+		Bind:                  topo.SBindAddress(addr.SvcBS, cfg.General.ID),
 		SVC:                   addr.SvcBS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
@@ -152,22 +151,22 @@ func realMain() int {
 		return 1
 	}
 	defer msgr.CloseServer()
-	store, err := loadStore(topo.Core, topo.ISD_AS, cfg)
+	store, err := loadStore(topo.Core(), topo.IA(), cfg)
 	if err != nil {
 		log.Crit("Unable to open beacon store", "err", err)
 		return 1
 	}
 	defer store.Close()
-	intfs = ifstate.NewInterfaces(topo.IFInfoMap, ifstate.Config{})
+	intfs = ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	prometheus.MustRegister(ifstate.NewCollector(intfs))
 	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
 	msgr.AddHandler(infra.SignedRev, revocation.NewHandler(store,
 		trustStore.NewVerifier(), 5*time.Second))
-	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.ISD_AS, intfs, store,
+	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.IA(), intfs, store,
 		trustStore.NewVerifier()))
-	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.ISD_AS, intfs,
+	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.IA(), intfs,
 		keepalive.StateChangeTasks{
 			RevDropper: store,
 			IfStatePusher: ifstate.PusherConf{
@@ -183,7 +182,6 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		msgr.ListenAndServe()
 	}()
-	ovAddr := &addr.AppAddr{L3: topoAddress.PublicAddr(topoAddress.Overlay).L3}
 	dispatcherService := reliable.NewDispatcherService("")
 	if cfg.General.ReconnectToDispatcher {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
@@ -193,7 +191,9 @@ func realMain() int {
 	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
-	conn, _, err := pktDisp.RegisterTimeout(topo.ISD_AS, ovAddr, nil, addr.SvcNone, time.Second)
+	ovAddr := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
+	ovAddr.L4 = addr.NewL4UDPInfo(0)
+	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), ovAddr, nil, addr.SvcNone, time.Second)
 	if err != nil {
 		log.Crit("Unable to create SCION packet conn", "err", err)
 		return 1
@@ -213,7 +213,7 @@ func realMain() int {
 			},
 		),
 	}
-	signer, err := tasks.createSigner(topo)
+	signer, err := tasks.createSigner(topo.IA())
 	if err != nil {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
@@ -265,7 +265,7 @@ type periodicTasks struct {
 	trustDB         trustdb.TrustDB
 	store           beaconstorage.Store
 	msgr            infra.Messenger
-	topoProvider    topology.Provider
+	topoProvider    itopo.ProviderI
 	allowIsdLoop    bool
 	addressRewriter *messenger.AddressRewriter
 
@@ -291,7 +291,7 @@ func (t *periodicTasks) Start() error {
 	}
 	t.running = true
 	topo := t.topoProvider.Get()
-	topoAddress := topo.BS.GetById(cfg.General.ID)
+	topoAddress := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
 	if topoAddress == nil {
 		return serrors.New("Unable to find topo address")
 	}
@@ -323,7 +323,7 @@ func (t *periodicTasks) Start() error {
 
 func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 	topo := t.topoProvider.Get()
-	signer, err := t.createSigner(topo)
+	signer, err := t.createSigner(topo.IA())
 	if err != nil {
 		return nil, err
 	}
@@ -342,13 +342,13 @@ func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 		cfg.BS.ExpiredCheckInterval.Duration), nil
 }
 
-func (t *periodicTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startKeepaliveSender(a *addr.AppAddr) (*periodic.Runner, error) {
 	s := &keepalive.Sender{
 		Sender: &onehop.Sender{
 			Conn: t.conn,
-			IA:   t.topoProvider.Get().ISD_AS,
+			IA:   t.topoProvider.Get().IA(),
 			MAC:  t.genMac(),
-			Addr: a.PublicAddr(a.Overlay),
+			Addr: a,
 		},
 		Signer:       infra.NullSigner,
 		TopoProvider: t.topoProvider,
@@ -357,12 +357,12 @@ func (t *periodicTasks) startKeepaliveSender(a *topology.TopoAddr) (*periodic.Ru
 		cfg.BS.KeepaliveInterval.Duration), nil
 }
 
-func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startOriginator(a *addr.AppAddr) (*periodic.Runner, error) {
 	topo := t.topoProvider.Get()
-	if !topo.Core {
+	if !topo.Core() {
 		return nil, nil
 	}
-	signer, err := t.createSigner(topo)
+	signer, err := t.createSigner(topo.IA())
 	if err != nil {
 		return nil, err
 	}
@@ -370,9 +370,9 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
 				Conn: t.conn,
-				IA:   topo.ISD_AS,
+				IA:   topo.IA(),
 				MAC:  t.genMac(),
-				Addr: a.PublicAddr(a.Overlay),
+				Addr: a,
 			},
 			AddressRewriter:  t.addressRewriter,
 			QUICBeaconSender: t.msgr,
@@ -380,7 +380,7 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 		Config: beaconing.ExtenderConf{
 			Intfs:         t.intfs,
 			Mac:           t.genMac(),
-			MTU:           uint16(topo.MTU),
+			MTU:           topo.MTU(),
 			Signer:        signer,
 			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
 		},
@@ -393,22 +393,22 @@ func (t *periodicTasks) startOriginator(a *topology.TopoAddr) (*periodic.Runner,
 		cfg.BS.OriginationInterval.Duration), nil
 }
 
-func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startPropagator(a *addr.AppAddr) (*periodic.Runner, error) {
 	topo := t.topoProvider.Get()
-	signer, err := t.createSigner(topo)
+	signer, err := t.createSigner(topo.IA())
 	if err != nil {
 		return nil, err
 	}
 	p, err := beaconing.PropagatorConf{
 		BeaconProvider: t.store,
 		AllowIsdLoop:   t.allowIsdLoop,
-		Core:           topo.Core,
+		Core:           topo.Core(),
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
 				Conn: t.conn,
-				IA:   topo.ISD_AS,
+				IA:   topo.IA(),
 				MAC:  t.genMac(),
-				Addr: a.PublicAddr(a.Overlay),
+				Addr: a,
 			},
 			AddressRewriter:  t.addressRewriter,
 			QUICBeaconSender: t.msgr,
@@ -416,7 +416,7 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 		Config: beaconing.ExtenderConf{
 			Intfs:         t.intfs,
 			Mac:           t.genMac(),
-			MTU:           uint16(topo.MTU),
+			MTU:           topo.MTU(),
 			Signer:        signer,
 			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
 		},
@@ -431,7 +431,7 @@ func (t *periodicTasks) startPropagator(a *topology.TopoAddr) (*periodic.Runner,
 
 func (t *periodicTasks) startSegRegRunners() (segRegRunners, error) {
 	topo := t.topoProvider.Get()
-	s := segRegRunners{core: topo.Core}
+	s := segRegRunners{core: topo.Core()}
 	var err error
 	if s.core {
 		s.coreRegistrar, err = t.startRegistrar(topo, proto.PathSegType_core, beacon.CoreRegPolicy)
@@ -451,10 +451,10 @@ func (t *periodicTasks) startSegRegRunners() (segRegRunners, error) {
 	return s, nil
 }
 
-func (t *periodicTasks) startRegistrar(topo *topology.Topo, segType proto.PathSegType,
+func (t *periodicTasks) startRegistrar(topo itopo.Topology, segType proto.PathSegType,
 	policyType beacon.PolicyType) (*periodic.Runner, error) {
 
-	signer, err := t.createSigner(topo)
+	signer, err := t.createSigner(topo.IA())
 	if err != nil {
 		return nil, err
 	}
@@ -467,33 +467,33 @@ func (t *periodicTasks) startRegistrar(topo *topology.Topo, segType proto.PathSe
 		Config: beaconing.ExtenderConf{
 			Intfs:         t.intfs,
 			Mac:           t.genMac(),
-			MTU:           uint16(topo.MTU),
+			MTU:           topo.MTU(),
 			Signer:        signer,
 			GetMaxExpTime: maxExpTimeFactory(t.store, policyType),
 		},
 	}.New()
 	if err != nil {
-		return nil, common.NewBasicError("Unable to start registrar", err, "type", segType)
+		return nil, common.NewBasicError("unable to start registrar", err, "type", segType)
 	}
 	return periodic.Start(r, 500*time.Millisecond,
 		cfg.BS.RegistrationInterval.Duration), nil
 }
 
-func (t *periodicTasks) createSigner(topo *topology.Topo) (infra.Signer, error) {
+func (t *periodicTasks) createSigner(ia addr.IA) (infra.Signer, error) {
 	dir := filepath.Join(cfg.General.ConfigDir, "keys")
 	cfg, err := keyconf.Load(dir, false, false, false, false)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to load key config", err)
+		return nil, common.NewBasicError("unable to load key config", err)
 	}
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	meta, err := trust.CreateSignMeta(ctx, topo.ISD_AS, t.trustDB)
+	meta, err := trust.CreateSignMeta(ctx, ia, t.trustDB)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to create sign meta", err)
+		return nil, common.NewBasicError("unable to create sign meta", err)
 	}
 	signer, err := trust.NewBasicSigner(cfg.SignKey, meta)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to create signer", err)
+		return nil, common.NewBasicError("unable to create signer", err)
 	}
 	return signer, nil
 }
@@ -566,7 +566,7 @@ func handleTopoUpdate() {
 	if intfs == nil {
 		return
 	}
-	intfs.Update(itopo.Get().IFInfoMap)
+	intfs.Update(itopo.Get().IFInfoMap())
 }
 
 func loadStore(core bool, ia addr.IA, cfg config.Config) (beaconstorage.Store, error) {

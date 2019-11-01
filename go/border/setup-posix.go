@@ -82,7 +82,7 @@ func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 
 func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx) error {
 	// Get Bind address if set, Public otherwise
-	bind := ctx.Conf.BR.InternalAddrs.BindOrPublicOverlay(ctx.Conf.Topo.Overlay)
+	bind := ctx.Conf.BR.InternalAddrs.BindOrPublicOverlay(ctx.Conf.Topo.Overlay())
 	log.Debug("Setting up new local socket.", "bind", bind)
 	// Listen on the socket.
 	over, err := conn.New(bind, nil, nil)
@@ -112,7 +112,7 @@ func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo, oldCtx 
 		// Reuse socket if the interface has not changed.
 		if !interfaceChanged(intf, oldIntf) {
 			log.Trace("No change detected for external socket.", "conn",
-				intf.Local.BindOrPublicOverlay(ctx.Conf.Topo.Overlay))
+				intf.Local.BindOrPublicOverlay(ctx.Conf.Topo.Overlay()))
 			ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
 			ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
 			return nil

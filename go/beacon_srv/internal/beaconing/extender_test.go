@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -41,7 +42,7 @@ import (
 )
 
 func TestExtenderExtend(t *testing.T) {
-	topoProvider := xtest.TopoProviderFromFile(t, topoNonCore)
+	topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	xtest.FailOnErr(t, err)
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
@@ -112,13 +113,13 @@ func TestExtenderExtend(t *testing.T) {
 			defer mctrl.Finish()
 			g := graph.NewDefaultGraph(mctrl)
 			// Setup interfaces with active parent, child and one peer interface.
-			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
+			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 			intfs.Get(graph.If_111_A_112_X).Activate(graph.If_112_X_111_A)
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
 			ext, err := ExtenderConf{
 				MTU:           1337,
-				Signer:        testSigner(t, priv, topoProvider.Get().ISD_AS),
+				Signer:        testSigner(t, priv, topoProvider.Get().IA()),
 				Mac:           mac,
 				Intfs:         intfs,
 				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
@@ -155,7 +156,7 @@ func TestExtenderExtend(t *testing.T) {
 				SoMsg("TRCVer", entry.TrcVer, ShouldEqual, 84)
 				SoMsg("IfIDSize", entry.IfIDSize, ShouldEqual, DefaultIfidSize)
 				SoMsg("MTU", entry.MTU, ShouldEqual, 1337)
-				SoMsg("IA", entry.IA(), ShouldResemble, topoProvider.Get().ISD_AS)
+				SoMsg("IA", entry.IA(), ShouldResemble, topoProvider.Get().IA())
 				// Checks that inactive peers are ignored, even when provided.
 				SoMsg("HopEntries length", len(entry.HopEntries), ShouldEqual, 2)
 			})
@@ -184,12 +185,12 @@ func TestExtenderExtend(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		xtest.FailOnErr(t, err)
 		intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 		ext, err := ExtenderConf{
 			MTU:           1337,
-			Signer:        testSigner(t, priv, topoProvider.Get().ISD_AS),
+			Signer:        testSigner(t, priv, topoProvider.Get().IA()),
 			Mac:           mac,
 			GetMaxExpTime: maxExpTimeFactory(1),
 			Intfs:         intfs,
@@ -207,11 +208,11 @@ func TestExtenderExtend(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap, ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		xtest.FailOnErr(t, err)
 		ext, err := ExtenderConf{
 			MTU:           1337,
-			Signer:        testSigner(t, priv, topoProvider.Get().ISD_AS),
+			Signer:        testSigner(t, priv, topoProvider.Get().IA()),
 			Mac:           mac,
 			Intfs:         intfs,
 			GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
@@ -252,7 +253,7 @@ func TestExtenderExtend(t *testing.T) {
 				Src: ctrl.SignSrcDef{
 					ChainVer: 42,
 					TRCVer:   84,
-					IA:       topoProvider.Get().ISD_AS,
+					IA:       topoProvider.Get().IA(),
 				},
 				Algo:    scrypto.Ed25519,
 				ExpTime: time.Now(),
