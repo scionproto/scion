@@ -76,6 +76,19 @@ func (r RequestSet) IsLoaded() bool {
 		r.Cores.AllLoaded()
 }
 
+func (r RequestSet) resolveUp() bool {
+	return !r.Up.IsZero() && (r.Up.State == Unresolved || r.Up.State == Fetched)
+}
+
+func (r RequestSet) resolveDown() bool {
+	return !r.Down.IsZero() && (r.Down.State == Unresolved || r.Down.State == Fetched)
+}
+
+func (r RequestSet) upDownResolved() bool {
+	return (r.Up.IsZero() || r.Up.State == Loaded) &&
+		(r.Down.IsZero() || r.Down.State == Loaded)
+}
+
 // Requests is a list of requests and provides some convenience methods on top
 // of it.
 type Requests []Request

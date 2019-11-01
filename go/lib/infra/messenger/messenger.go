@@ -986,8 +986,7 @@ func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	logger := log.FromCtx(ctx)
 	if redirect && pr.quicRequester != nil {
 		logger.Trace("Request upgraded to QUIC", "remote", newAddr)
-		pld, err := pr.quicRequester.Request(ctx, pld, newAddr)
-		return pld, err
+		return pr.quicRequester.Request(ctx, pld, newAddr)
 	}
 	logger.Trace("Request could not be upgraded to QUIC, using UDP", "remote", newAddr)
 	if downgradeToNotify {
@@ -1041,6 +1040,7 @@ func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 
 	request := &rpc.Request{Message: msg}
 	reply, err := r.QUICClientConfig.Request(ctx, request, newAddr)
+	log.FromCtx(ctx).Trace("QUICRequester", "err", err)
 	if err != nil {
 		return nil, err
 	}

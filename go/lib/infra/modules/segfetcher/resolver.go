@@ -62,21 +62,25 @@ func (r *DefaultResolver) Resolve(ctx context.Context, segs Segments,
 	req RequestSet) (Segments, RequestSet, error) {
 
 	var err error
-	if !req.Up.IsZero() && (req.Up.State == Unresolved || req.Up.State == Fetched) {
+	if req.resolveUp() {
 		if segs, req, err = r.resolveUpSegs(ctx, segs, req); err != nil {
 			return segs, req, err
 		}
 	}
-	if !req.Down.IsZero() && (req.Down.State == Unresolved || req.Down.State == Fetched) {
+	if req.resolveDown() {
 		if segs, req, err = r.resolveDownSegs(ctx, segs, req); err != nil {
 			return segs, req, err
 		}
 	}
+	if zeroUpDownSegsCached(req, segs) {
+		for i := range req.Cores {
+			req.Cores[i].State = Loaded
+		}
+		return segs, req, nil
+	}
 	// If there are still up or down segments to request, or if there are no
 	// core segments no more action can be done here.
-	if (!req.Up.IsZero() && req.Up.State != Loaded) ||
-		(!req.Down.IsZero() && req.Down.State != Loaded) ||
-		req.Cores.IsEmpty() {
+	if !req.upDownResolved() || req.Cores.IsEmpty() {
 		return segs, req, nil
 	}
 	// now resolve core segs:
@@ -308,4 +312,9 @@ func (r *DefaultResolver) resultsToSegs(ctx context.Context,
 		return nil, 0, err
 	}
 	return segs, filtered, nil
+}
+
+func zeroUpDownSegsCached(r RequestSet, segs Segments) bool {
+	return (!r.Up.IsZero() && r.Up.State == Loaded && len(segs.Up) == 0) ||
+		(!r.Down.IsZero() && r.Down.State == Loaded && len(segs.Down) == 0)
 }
