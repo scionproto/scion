@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -164,6 +164,11 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 	}
 	msg, err := proto.SafeDecode(capnp.NewDecoder(stream))
 	if err != nil {
+		// if we have a timeout make it visible.
+		if strings.Contains(err.Error(),
+			fmt.Sprintf("canceled with error code %d", CtxTimedOutError)) && ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, err
 	}
 
