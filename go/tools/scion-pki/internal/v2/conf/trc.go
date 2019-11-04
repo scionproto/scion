@@ -86,8 +86,10 @@ func (cfg TRC2) Validate() error {
 		return serrors.New("voting_quorum not set")
 	case cfg.TrustResetAllowed == nil:
 		return serrors.New("trust_reset_allowed not set")
-	case len(cfg.Votes) == 0:
+	case cfg.BaseVersion != cfg.Version && len(cfg.Votes) == 0:
 		return serrors.New("votes not set")
+	case cfg.BaseVersion == cfg.Version && len(cfg.Votes) != 0:
+		return serrors.New("votes set in base TRC")
 	}
 	if err := cfg.Validity.Validate(); err != nil {
 		return serrors.WrapStr("invalid validity", err)
@@ -107,7 +109,7 @@ func (cfg TRC2) Validate() error {
 
 // Primary holds the primary AS configuration.
 type Primary struct {
-	Attributes              []trc.Attribute     `toml:"attributes"`
+	Attributes              trc.Attributes      `toml:"attributes"`
 	IssuingKeyVersion       *scrypto.KeyVersion `toml:"issuing_key_version"`
 	VotingOnlineKeyVersion  *scrypto.KeyVersion `toml:"voting_online_key_version"`
 	VotingOfflineKeyVersion *scrypto.KeyVersion `toml:"voting_offline_key_version"`
