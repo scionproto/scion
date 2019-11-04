@@ -138,17 +138,21 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 		if reqSet.IsLoaded() {
 			break
 		}
-		// in 3 iteration (i==2) everything should be resolved.
+		// in 3 iteration (i==2) everything should be resolved, worst case:
+		// 1 iteration: up & down segment fetched.
+		// 2 iteration: up & down resolved, core fetched.
+		// 3 iteration: core resolved -> done.
 		if i >= 2 {
-			log.FromCtx(ctx).Error("No convergence in lookup", "iteration", i+1)
-			return segs, common.NewBasicError("Segment lookup doesn't converge", nil,
-				"iterations", i+1)
+			return segs, common.NewBasicError(
+				"Segment lookup not done in expected amount of iterations (implementation bug)",
+				nil, "iterations", i+1)
 		}
 		// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
 		// here. The problem is that revocations can't be differentiated from
 		// timeouts. And having 10s timeouts plays really bad together with
 		// revocations. See also: https://github.com/scionproto/scion/issues/3052
 		reqCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
+		reqCtx = log.CtxWith(reqCtx, log.FromCtx(ctx))
 		replies := f.Requester.Request(reqCtx, reqSet)
 		// TODO(lukedirtwalker): We need to have early trigger for the last request.
 		if reqSet, err = f.waitOnProcessed(ctx, replies, reqSet); err != nil {
@@ -168,10 +172,15 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 		// TODO(lukedirtwalker): Should we do this in go routines?
 		labels := metrics.RequestLabels{Result: metrics.ErrNotClassified}
 		if reply.Err != nil {
+			if serrors.IsTimeout(reply.Err) {
+				labels.Result = metrics.ErrTimeout
+			}
 			f.metrics.SegRequests(labels).Inc()
+			return reqSet, reply.Err
 		}
 		if reply.Reply == nil || reply.Reply.Recs == nil {
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
+			reqSet = updateRequestState(reqSet, reply.Req, Fetched)
 			continue
 		}
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), f.verifyServer(reply), nil)
@@ -185,18 +194,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			}
 			// TODO(lukedirtwalker): should we return an error if verification
 			// of all segments failed?
-			// TODO(lukedirtwalker): move state update to separate func
-			if reqSet.Up.EqualAddr(reply.Req) {
-				reqSet.Up.State = Fetched
-			} else if reqSet.Down.EqualAddr(reply.Req) {
-				reqSet.Down.State = Fetched
-			} else {
-				for i, coreReq := range reqSet.Cores {
-					if coreReq.EqualAddr(reply.Req) {
-						reqSet.Cores[i].State = Fetched
-					}
-				}
-			}
+			reqSet = updateRequestState(reqSet, reply.Req, Fetched)
 			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 			if err != nil {
@@ -254,4 +252,19 @@ func replyToRecs(reply *path_mgmt.SegReply) seghandler.Segments {
 		Segs:      reply.Recs.Recs,
 		SRevInfos: reply.Recs.SRevInfos,
 	}
+}
+
+func updateRequestState(reqSet RequestSet, reqToUpdate Request, newState RequestState) RequestSet {
+	if reqSet.Up.EqualAddr(reqToUpdate) {
+		reqSet.Up.State = newState
+	} else if reqSet.Down.EqualAddr(reqToUpdate) {
+		reqSet.Down.State = newState
+	} else {
+		for i, coreReq := range reqSet.Cores {
+			if coreReq.EqualAddr(reqToUpdate) {
+				reqSet.Cores[i].State = newState
+			}
+		}
+	}
+	return reqSet
 }

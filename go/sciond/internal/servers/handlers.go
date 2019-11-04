@@ -82,7 +82,9 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		metricsDone(labels.WithResult(metrics.ErrNetwork))
 	} else {
-		logger.Debug("Replied with paths", "num_paths", len(getPathsReply.Entries))
+		logger.Debug("Replied with paths",
+			"num_paths", len(getPathsReply.Entries),
+			"err_code", getPathsReply.ErrorCode)
 		logger.Trace("Full reply", "paths", getPathsReply)
 		metricsDone(labels)
 	}
