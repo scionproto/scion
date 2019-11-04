@@ -15,16 +15,16 @@
 package keys
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 var Cmd = &cobra.Command{
 	Use:   "keys",
-	Short: "Generate keys for the SCION control plane PKI.",
+	Short: "Generate keys for the SCION control plane PKI. [DEPRECATED]",
 	Long: `
 'keys' can be used to generate all the necessary keys used in the SCION control plane PKI as well
 as the AS master key.
@@ -51,15 +51,42 @@ var genCmd = &cobra.Command{
 	},
 }
 
-var cleanKeysCmd = &cobra.Command{
-	Use:   "clean",
-	Short: "Remove all the keys [NOT IMPLEMENTED]",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("clean sub command is not implemented")
+var privateCmd = &cobra.Command{
+	Use:   "private",
+	Short: "Generate private keys",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g := privGen{Dirs: pkicmn.GetDirs()}
+		asMap, err := pkicmn.ProcessSelector(args[0])
+		if err != nil {
+			return serrors.WrapStr("invalid selector", err)
+		}
+		if err := g.Run(asMap); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var publicCmd = &cobra.Command{
+	Use:   "public",
+	Short: "Generate public keys",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g := pubGen{Dirs: pkicmn.GetDirs()}
+		asMap, err := pkicmn.ProcessSelector(args[0])
+		if err != nil {
+			return serrors.WrapStr("invalid selector", err)
+		}
+		if err := g.Run(asMap); err != nil {
+			return err
+		}
+		return nil
 	},
 }
 
 func init() {
+	Cmd.AddCommand(privateCmd)
+	Cmd.AddCommand(publicCmd)
 	Cmd.AddCommand(genCmd)
-	Cmd.AddCommand(cleanKeysCmd)
 }

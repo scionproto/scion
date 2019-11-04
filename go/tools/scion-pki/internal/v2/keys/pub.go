@@ -88,18 +88,9 @@ func (g pubGen) generateKeys(priv map[addr.IA][]keyconf.Key) (map[addr.IA][]keyc
 	for ia, privKeys := range priv {
 		var keys []keyconf.Key
 		for _, privKey := range privKeys {
-			raw, err := scrypto.GetPubKey(privKey.Bytes, privKey.Algorithm)
+			key, err := PublicKey(privKey)
 			if err != nil {
-				return nil, serrors.WrapStr("error generating public key", err)
-			}
-			key := keyconf.Key{
-				Type:      keyconf.PublicKey,
-				Usage:     privKey.Usage,
-				Algorithm: privKey.Algorithm,
-				Validity:  privKey.Validity,
-				Version:   privKey.Version,
-				IA:        privKey.IA,
-				Bytes:     raw,
+				return nil, err
 			}
 			keys = append(keys, key)
 		}
@@ -128,6 +119,27 @@ func (g pubGen) writeKeys(pubKeys map[addr.IA][]keyconf.Key) error {
 		}
 	}
 	return nil
+}
+
+// PublicKey translates a private to a public key.
+func PublicKey(priv keyconf.Key) (keyconf.Key, error) {
+	if priv.Type != keyconf.PrivateKey {
+		return keyconf.Key{}, serrors.New("provided key is not a private key", "type", priv.Type)
+	}
+	raw, err := scrypto.GetPubKey(priv.Bytes, priv.Algorithm)
+	if err != nil {
+		return keyconf.Key{}, serrors.WrapStr("error generating public key", err)
+	}
+	key := keyconf.Key{
+		Type:      keyconf.PublicKey,
+		Usage:     priv.Usage,
+		Algorithm: priv.Algorithm,
+		Validity:  priv.Validity,
+		Version:   priv.Version,
+		IA:        priv.IA,
+		Bytes:     raw,
+	}
+	return key, nil
 }
 
 func readPrivKey(file string) (keyconf.Key, error) {
