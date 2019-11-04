@@ -36,6 +36,7 @@ import (
 )
 
 func TestCryptoProviderGetTRC(t *testing.T) {
+	t.SkipNow()
 	internal := serrors.New("internal")
 	type mocks struct {
 		DB       *mock_v2.MockDB
@@ -257,6 +258,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 }
 
 func TestCryptoProviderGetTRCLatest(t *testing.T) {
+	t.SkipNow()
 	internal := serrors.New("internal")
 	type mocks struct {
 		DB       *mock_v2.MockDB
