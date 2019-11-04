@@ -142,7 +142,6 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 		// 1 iteration: up & down segment fetched.
 		// 2 iteration: up & down resolved, core fetched.
 		// 3 iteration: core resolved -> done.
-		// If we need more than that something breaks assumptions.
 		if i >= 2 {
 			return segs, common.NewBasicError(
 				"Segment lookup not done in expected amount of iterations (implementation bug)",
