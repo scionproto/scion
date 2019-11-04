@@ -6,14 +6,8 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 # BEGIN subcommand functions
 
-cmd_topology() {
+cmd_topo_clean() {
     set -e
-    local zkclean
-    local nobuild
-    if [ "$1" = "nobuild" ]; then
-        shift
-        nobuild="y"
-    fi
     if is_docker_be; then
         echo "Shutting down dockerized topology..."
         ./tools/quiet ./tools/dc down
@@ -24,6 +18,17 @@ cmd_topology() {
     stop_jaeger
     mkdir -p logs traces gen gen-cache
     find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
+}
+
+cmd_topology() {
+    set -e
+    local zkclean
+    local nobuild
+    if [ "$1" = "nobuild" ]; then
+        shift
+        nobuild="y"
+    fi
+    cmd_topo_clean
     if [ "$1" = "zkclean" ]; then
         shift
         zkclean="y"
@@ -442,8 +447,8 @@ cmd_help() {
 	Usage:
 	    $PROGRAM topology [nobuild] [zkclean]
 	        Create topology, configuration, and execution files. With the 'nobuild'
-            option, don't build the code. With the 'zkclean' option, also reset 
-            all local Zookeeper state. All other arguments or options are passed 
+            option, don't build the code. With the 'zkclean' option, also reset
+            all local Zookeeper state. All other arguments or options are passed
             to topology/generator.py
 	    $PROGRAM run
 	        Run network.
@@ -482,7 +487,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces)
+    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces|topo_clean)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;
