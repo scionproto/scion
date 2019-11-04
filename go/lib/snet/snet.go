@@ -114,7 +114,7 @@ func NewNetworkWithPR(ia addr.IA, dispatcher reliable.DispatcherService,
 		&DefaultPacketDispatcherService{
 			Dispatcher: dispatcher,
 			SCMPHandler: &scmpHandler{
-				pathResolver: pr,
+				revocationHandler: pr,
 			},
 		},
 		pr,

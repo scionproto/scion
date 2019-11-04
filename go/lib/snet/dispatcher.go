@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -60,6 +59,12 @@ func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *add
 	return &SCIONPacketConn{conn: rconn, scmpHandler: s.SCMPHandler}, port, err
 }
 
+// RevocationHandler is called by the default SCMP Handler whenever revocations are encountered.
+type RevocationHandler interface {
+	// RevokeRaw handles a revocation received as raw bytes.
+	RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes)
+}
+
 // SCMPHandler customizes the way snet connections deal with SCMP.
 type SCMPHandler interface {
 	// Handle processes the packet as an SCMP packet. If packet is not SCMP, it
@@ -76,25 +81,23 @@ type SCMPHandler interface {
 	Handle(pkt *SCIONPacket) error
 }
 
-// NewSCMPHandler creates a default SCMP handler that forwards revocations to
-// the path resolver. SCMP packets are also forwarded to snet callers via
-// errors returned by Read calls.
+// NewSCMPHandler creates a default SCMP handler that forwards revocations to the revocation
+// handler. SCMP packets are also forwarded to snet callers via errors returned by Read calls.
 //
-// If the resolver is nil, revocations are not forwarded to any resolver.
-// However, they are still sent back to the caller during read operations.
-func NewSCMPHandler(pr pathmgr.Resolver) SCMPHandler {
+// If the revocation handler is nil, revocations are not forwarded. However, they are still sent
+// back to the caller during read operations.
+func NewSCMPHandler(rh RevocationHandler) SCMPHandler {
 	return &scmpHandler{
-		pathResolver: pr,
+		revocationHandler: rh,
 	}
 }
 
-// scmpHandler handles SCMP messages received from the network.
-// If a resolver is configured, it is informed of any received revocations. All
-// revocations are passed back to the caller embedded in the error, so
-// applications can handle them manually.
+// scmpHandler handles SCMP messages received from the network. If a revocation handler is
+// configured, it is informed of any received revocations. All revocations are passed back to the
+// caller embedded in the error, so applications can handle them manually.
 type scmpHandler struct {
-	// pathResolver manages revocations received via SCMP. If nil, nothing is informed.
-	pathResolver pathmgr.Resolver
+	// revocationHandler manages revocations received via SCMP. If nil, the handler is not called.
+	revocationHandler RevocationHandler
 }
 
 func (h *scmpHandler) Handle(pkt *SCIONPacket) error {
@@ -131,8 +134,8 @@ func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *SCIONPacket) error {
 	}
 	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String(),
 		"src", pkt.Source)
-	if h.pathResolver != nil {
-		h.pathResolver.RevokeRaw(context.TODO(), info.RawSRev)
+	if h.revocationHandler != nil {
+		h.revocationHandler.RevokeRaw(context.TODO(), info.RawSRev)
 	}
 	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(info.RawSRev)
 	if err != nil {
