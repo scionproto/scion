@@ -18,9 +18,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testInfo struct {
@@ -29,135 +28,151 @@ type testInfo struct {
 }
 
 func TestNewPool(t *testing.T) {
-	Convey("Given a non-empty info set", t, func() {
-		_, _, infos := testInfoSet()
-		p, err := NewPool(infos, PoolOptions{})
-		SoMsg("err", err, ShouldBeNil)
-		Convey("The pool should contain all infos", func() {
-			containsAll(p, infos)
+	_, _, infos := testInfoSet()
+	tests := map[string]struct {
+		Infos     InfoSet
+		Options   PoolOptions
+		Assertion require.ErrorAssertionFunc
+	}{
+		"valid": {
+			Infos:     infos,
+			Assertion: require.NoError,
+		},
+		"allow empty": {
+			Options:   PoolOptions{AllowEmpty: true},
+			Assertion: require.NoError,
+		},
+		"empty": {
+			Assertion: require.Error,
+		},
+		"invalid algorithm": {
+			Options:   PoolOptions{Algorithm: "invalid", AllowEmpty: true},
+			Assertion: require.Error,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			p, err := NewPool(test.Infos, test.Options)
+			test.Assertion(t, err)
+			if err == nil {
+				match(t, p, test.Infos)
+			}
 		})
-	})
-	Convey("Given an empty info set, initialize only when AllowEmpty is set", t, func() {
-		_, err := NewPool(nil, PoolOptions{})
-		SoMsg("!AllowEmpty", err, ShouldNotBeNil)
-		_, err = NewPool(nil, PoolOptions{AllowEmpty: true})
-		SoMsg("AllowEmpty", err, ShouldBeNil)
-	})
-	Convey("Given an invalid algorithm, the pool does not initialize", t, func() {
-		_, err := NewPool(nil, PoolOptions{Algorithm: "invalid", AllowEmpty: true})
-		SoMsg("err", err, ShouldNotBeNil)
-	})
+	}
 }
 
 func TestPoolUpdate(t *testing.T) {
-	Convey("Given an initialized pool", t, func() {
-		_, two, infos := testInfoSet()
-		p, err := NewPool(infos, PoolOptions{})
-		SoMsg("err", err, ShouldBeNil)
-		Convey("An added entry should be part of the pool", func() {
-			cInfos := copyInfoSet(infos)
-			cInfos[newTestInfo("three")] = struct{}{}
-			err := p.Update(cInfos)
-			SoMsg("err", err, ShouldBeNil)
-			containsAll(p, cInfos)
-		})
-		Convey("A removed entry should no longer be part of the pool", func() {
-			cInfos := copyInfoSet(infos)
-			delete(cInfos, two)
-			err := p.Update(cInfos)
-			SoMsg("err", err, ShouldBeNil)
-			containsAll(p, cInfos)
-			SoMsg("Deleted entry", p.infos[two], ShouldBeNil)
-		})
-		Convey("An empty update should only succeed when AllowEmpty is set", func() {
-			SoMsg("!AllowEmpty", p.Update(nil), ShouldNotBeNil)
-			p.opts.AllowEmpty = true
-			SoMsg("AllowEmpty", p.Update(nil), ShouldBeNil)
-		})
-	})
+	_, two, infos := testInfoSet()
+	p, err := NewPool(infos, PoolOptions{})
+	require.NoError(t, err)
+
+	// Added entry should be part of the pool.
+	infos[newTestInfo("three")] = struct{}{}
+	err = p.Update(infos)
+	require.NoError(t, err)
+	match(t, p, infos)
+
+	// Removed entry should no longer be part of the pool.
+	delete(infos, two)
+	err = p.Update(infos)
+	require.NoError(t, err)
+	match(t, p, infos)
+	assert.Nil(t, p.infos[two])
+
+	// Empty update only succeeds when allow empty is set.
+	err = p.Update(nil)
+	require.Error(t, err)
+	p.opts.AllowEmpty = true
+	err = p.Update(nil)
+	require.NoError(t, err)
 }
 
 func TestPoolChoose(t *testing.T) {
-	Convey("Given an initialized pool with default algorithm", t, func() {
-		one, two, infos := testInfoSet()
-		p, err := NewPool(infos, PoolOptions{})
-		xtest.FailOnErr(t, err)
-		one.Fail()
-		i, err := p.Choose()
-		xtest.FailOnErr(t, err)
-		SoMsg("err two", i, ShouldEqual, two)
-		two.Fail()
-		two.Fail()
-		i, err = p.Choose()
-		xtest.FailOnErr(t, err)
-		SoMsg("err one", i, ShouldEqual, one)
-		two.ResetCount()
-		i, err = p.Choose()
-		xtest.FailOnErr(t, err)
-		SoMsg("err reset", i, ShouldEqual, two)
-		one.(*testInfo).Info.(*info).fails = uint16(MaxFailCount)
-		two.(*testInfo).Info.(*info).fails = uint16(MaxFailCount)
-		_, err = p.Choose()
-		SoMsg("err maxFailCount", err, ShouldBeNil)
-	})
-	Convey("Given an empty pool, an error is returned", t, func() {
-		p, err := NewPool(nil, PoolOptions{AllowEmpty: true})
-		xtest.FailOnErr(t, err)
-		_, err = p.Choose()
-		SoMsg("err", err, ShouldNotBeNil)
-	})
+	one, two, infos := testInfoSet()
+	p, err := NewPool(infos, PoolOptions{})
+	require.NoError(t, err)
+
+	one.Fail()
+	i, err := p.Choose()
+	require.NoError(t, err)
+	assert.Equal(t, two, i)
+
+	two.Fail()
+	two.Fail()
+	i, err = p.Choose()
+	require.NoError(t, err)
+	assert.Equal(t, one, i)
+
+	two.ResetCount()
+	i, err = p.Choose()
+	require.NoError(t, err)
+	assert.Equal(t, two, i)
+
+	one.(*testInfo).Info.(*info).fails = uint16(MaxFailCount)
+	two.(*testInfo).Info.(*info).fails = uint16(MaxFailCount)
+	_, err = p.Choose()
+	assert.NoError(t, err)
+}
+
+func TestPoolChooseEmpty(t *testing.T) {
+	p, err := NewPool(nil, PoolOptions{AllowEmpty: true})
+	require.NoError(t, err)
+	_, err = p.Choose()
+	assert.Error(t, err)
 }
 
 func TestPoolClose(t *testing.T) {
-	Convey("Given a closed pool", t, func() {
-		_, _, infos := testInfoSet()
-		p, err := NewPool(infos, PoolOptions{})
-		xtest.FailOnErr(t, err)
-		p.Close()
-		_, err = p.Choose()
-		SoMsg("Choose should fail", err, ShouldNotBeNil)
-		SoMsg("Update should fail", p.Update(infos), ShouldNotBeNil)
-		SoMsg("Close should not panic", p.Close, ShouldNotPanic)
-	})
+	_, _, infos := testInfoSet()
+	p, err := NewPool(infos, PoolOptions{})
+	require.NoError(t, err)
+	p.Close()
+	_, err = p.Choose()
+	assert.Error(t, err)
+	assert.Error(t, p.Update(infos))
+	assert.NotPanics(t, p.Close)
 }
 
 func TestPoolExpiresFails(t *testing.T) {
-	Convey("The pool expires fails", t, func() {
-		initTime := time.Now().Add(-(time.Hour + time.Second))
-		one := &info{
-			lastExp:  initTime,
-			lastFail: initTime,
-			fails:    64,
-		}
-		two := &info{
-			lastExp:  initTime,
-			lastFail: initTime,
-			fails:    128,
-		}
-		infos := InfoSet{
-			one: {},
-			two: {},
-		}
-		p, err := NewPool(
-			infos,
-			PoolOptions{
-				Expire: ExpireOptions{
-					Interval: time.Hour / 2,
-					Start:    time.Microsecond,
-				},
+	initTime := time.Now().Add(-(time.Hour + 10*time.Second))
+	one := &info{
+		lastExp:  initTime,
+		lastFail: initTime,
+		fails:    64,
+	}
+	two := &info{
+		lastExp:  initTime,
+		lastFail: initTime,
+		fails:    128,
+	}
+	infos := InfoSet{
+		one: {},
+		two: {},
+	}
+	p, err := NewPool(
+		infos,
+		PoolOptions{
+			Expire: ExpireOptions{
+				Interval: time.Hour / 2,
+				Start:    time.Nanosecond,
 			},
-		)
-		xtest.FailOnErr(t, err)
-		p.expirer.TriggerRun()
-		SoMsg("one", one.FailCount(), ShouldEqual, 16)
-		SoMsg("two", two.FailCount(), ShouldEqual, 32)
-	})
+		},
+	)
+	require.NoError(t, err)
+	p.expirer.TriggerRun()
+	assert.Equal(t, 16, one.FailCount())
+	assert.Equal(t, 32, two.FailCount())
 }
 
-func containsAll(p *Pool, infos InfoSet) {
-	for info := range infos {
-		SoMsg(info.(*testInfo).name, p.infos[info], ShouldEqual, info)
+func match(t *testing.T, p *Pool, infos InfoSet) {
+	var pool, expected []Info
+	for info := range p.infos {
+		pool = append(pool, info)
 	}
+	for info := range infos {
+		expected = append(expected, info)
+	}
+	assert.ElementsMatch(t, expected, pool)
 }
 
 func testInfoSet() (Info, Info, InfoSet) {
@@ -175,12 +190,4 @@ func newTestInfo(name string) *testInfo {
 		Info: NewInfo(),
 		name: name,
 	}
-}
-
-func copyInfoSet(infos InfoSet) InfoSet {
-	m := make(InfoSet, len(infos))
-	for info := range infos {
-		m[info] = struct{}{}
-	}
-	return m
 }
