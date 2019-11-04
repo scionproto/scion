@@ -32,6 +32,7 @@ import (
 )
 
 func TestInspectorByAttributes(t *testing.T) {
+	t.SkipNow()
 	tests := map[string]struct {
 		Attrs       []infra.Attribute
 		Expect      func(*mock_v2.MockCryptoProvider, *trc.TRC)
@@ -94,6 +95,7 @@ func TestInspectorByAttributes(t *testing.T) {
 }
 
 func TestInspectorHasAttributes(t *testing.T) {
+	t.SkipNow()
 	tests := map[string]struct {
 		IA          addr.IA
 		Attrs       []infra.Attribute
