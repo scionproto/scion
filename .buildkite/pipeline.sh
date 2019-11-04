@@ -31,22 +31,3 @@ fi
 
 # Linting and Unit tests
 cat "$STEPS/test.yml"
-
-# we need to wait for the build_all step
-if [ "$RUN_ALL_TESTS" = "y" ]; then
-echo "- wait"
-fi
-
-# integration testing
-"$STEPS/integration"
-
-# conditionally run more tests
-if [ "$RUN_ALL_TESTS" = "y" ]; then
-    # docker integration testing
-    cat "$STEPS/docker-integration.yml"
-    # acceptance testing
-    cat "$TRIGGERS/acceptance-trigger.yml"
-fi
-
-# deploy
-cat "$STEPS/deploy.yml"

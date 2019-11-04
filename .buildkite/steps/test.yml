@@ -14,6 +14,7 @@
       - exit_status: -1  # Agent was lost
       - exit_status: 255 # Forced agent shutdown
   timeout_in_minutes: 10
+  parallelism: 100
 - label: "Lint :bazel:"
   command: $BASE/run_step lint
   artifact_paths:

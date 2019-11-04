@@ -14,7 +14,13 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["periodic_test.go"],
+    srcs = [
+        "exec_test.go",
+        "kill_test.go",
+        "long_test.go",
+        "now_test.go",
+        "periodic_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/log:go_default_library",
