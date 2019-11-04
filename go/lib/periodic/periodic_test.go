@@ -16,6 +16,7 @@ package periodic
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -44,18 +45,21 @@ func TestPeriodicExecution(t *testing.T) {
 	want := 5
 	p := time.Duration(want) * time.Millisecond
 	r := Start(fn, p, time.Hour)
-	defer r.Stop()
+	defer func() {
+		err := runWithTimeout(r.Stop, time.Second)
+		assert.NoError(t, err)
+	}()
 
 	start := time.Now()
 	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		v := 0
 		for {
 			select {
 			case <-cnt:
 				v++
 				if v == want {
-					close(done)
 					return
 				}
 			case <-time.After(2 * p):
@@ -83,7 +87,8 @@ func TestKillExitsLongRunningFunc(t *testing.T) {
 	})
 	r := Start(fn, p, time.Hour)
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
-	r.Kill()
+	err := runWithTimeout(r.Kill, time.Second)
+	assert.NoError(t, err)
 
 	select {
 	case err := <-errChan:
@@ -103,14 +108,17 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		select {
 		case <-cnt:
 		case <-time.After(2 * p):
 			t.Fatalf("time out while waiting on first run")
 		}
-		r.Kill()
-		time.Sleep(p)
-		close(done)
+
+		err := runWithTimeout(r.Kill, 2*p)
+		assert.NoError(t, err)
+
+		<-time.After(p)
 	}()
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.Equal(t, len(cnt), 0, "No other run within a period")
@@ -129,15 +137,16 @@ func TestTriggerNow(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		select {
 		case <-cnt:
 		case <-time.After(2 * p):
 			t.Fatalf("time out while waiting on first run")
 		}
 		for i := 0; i < want; i++ {
-			r.TriggerRun()
+			err := runWithTimeout(r.TriggerRun, p)
+			assert.NoError(t, err)
 		}
-		close(done)
 	}()
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.GreaterOrEqual(t, len(cnt), want-1, "Must run %v times within short time", want-1)
@@ -146,4 +155,18 @@ func TestTriggerNow(t *testing.T) {
 func TestMain(m *testing.M) {
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
+}
+
+func runWithTimeout(f func(), t time.Duration) error {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		f()
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-time.After(t):
+		return fmt.Errorf("timed out after %v", t)
+	}
 }
