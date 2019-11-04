@@ -104,13 +104,8 @@ type PrimaryAS struct {
 }
 
 // Is returns true if the primary AS holds this property.
-func (p *PrimaryAS) Is(a Attribute) bool {
-	for _, v := range p.Attributes {
-		if v == a {
-			return true
-		}
-	}
-	return false
+func (p *PrimaryAS) Is(attr Attribute) bool {
+	return p.Attributes.Contains(attr)
 }
 
 // ValidateInvariant ensures that the TRC invariant holds for the primary AS.
@@ -167,6 +162,16 @@ var _ json.Unmarshaler = (*Attributes)(nil)
 
 // Attributes holds all attributes of a primary AS.
 type Attributes []Attribute
+
+// Contains indicates whether the attribute is contained.
+func (t Attributes) Contains(attr Attribute) bool {
+	for _, v := range t {
+		if v == attr {
+			return true
+		}
+	}
+	return false
+}
 
 // Validate checks that the attributes list is valid.
 func (t *Attributes) Validate() error {
