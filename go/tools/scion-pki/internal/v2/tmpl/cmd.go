@@ -15,13 +15,15 @@
 package tmpl
 
 import (
+	"io/ioutil"
 	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
 
@@ -38,59 +40,26 @@ var topo = &cobra.Command{
 	Short: "Generate isd.ini and as.ini templates for the provided topo",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runGenTopoTmpl(args[0]); err != nil {
-			return common.NewBasicError("unable to generate templates from topo", err,
-				"file", args[0])
+		val, err := validityFromFlags()
+		if err != nil {
+			return serrors.WrapStr("invalid validity period", err)
 		}
-		return nil
-	},
-}
-
-var isd = &cobra.Command{
-	Use:   "isd",
-	Short: "Generate an isd.ini template.",
-	Long: `Arguments for isd
-Selector:
-	*
-		All ISDs under the root directory.
-	X
-		A specific ISD X.
-`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runGenISDTmpl(args[0]); err != nil {
-			return common.NewBasicError("unable to generate ISD templates", err,
-				"selector", args[0])
+		topo, err := readTopo(args[0])
+		if err != nil {
+			return serrors.WithCtx(err, "file", args[0])
 		}
-		return nil
-	},
-}
-
-var as = &cobra.Command{
-	Use:   "as",
-	Short: "Generate an as.ini template.",
-	Long: `Arguments for as
-Selector:
-	*-*
-		All ISDs and ASes under the root directory.
-	X-*
-		All ASes in ISD X.
-	X-Y
-		A specific AS X-Y, e.g. AS 1-ff00:0:300
-`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runGenASTmpl(args[0]); err != nil {
-			return common.NewBasicError("unable to generate AS templates", err, "selector", args[0])
+		g := topoGen{
+			Dirs:     pkicmn.GetDirs(),
+			Validity: val,
+		}
+		if err := g.Run(topo); err != nil {
+			return serrors.WrapStr("unable to generate templates from topo", err, "file", args[0])
 		}
 		return nil
 	},
 }
 
 func init() {
-	Cmd.AddCommand(isd)
-	Cmd.AddCommand(as)
-
 	topo.PersistentFlags().Uint32VarP(&notBefore, "notbefore", "b", 0,
 		"set not_before time in all configs")
 	topo.PersistentFlags().StringVar(&rawValidity, "validity", "365d",
@@ -111,4 +80,16 @@ func validityFromFlags() (conf.Validity, error) {
 		v.NotBefore = util.TimeToSecs(time.Now())
 	}
 	return v, v.Validate()
+}
+
+func readTopo(file string) (topoFile, error) {
+	var topo topoFile
+	raw, err := ioutil.ReadFile(file)
+	if err != nil {
+		return topo, serrors.WrapStr("unable to read topology file", err)
+	}
+	if err := yaml.Unmarshal(raw, &topo); err != nil {
+		return topo, serrors.WrapStr("unable to parse topology file", err)
+	}
+	return topo, nil
 }
