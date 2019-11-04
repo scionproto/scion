@@ -117,6 +117,7 @@ type Primary struct {
 func (p Primary) Validate() error {
 	for _, attr := range p.Attributes {
 		switch attr {
+		case trc.Core, trc.Authoritative:
 		case trc.Issuing:
 			if p.IssuingKeyVersion == nil {
 				return serrors.New("issuing_key_version not set")
@@ -128,6 +129,8 @@ func (p Primary) Validate() error {
 			if p.VotingOfflineKeyVersion == nil {
 				return serrors.New("voting_offline_key_version not set")
 			}
+		default:
+			return serrors.New("unknown attribute", "value", attr)
 		}
 	}
 	return nil
