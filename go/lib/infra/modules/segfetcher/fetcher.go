@@ -138,10 +138,15 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 		if reqSet.IsLoaded() {
 			break
 		}
-		// in 3 iteration (i==2) everything should be resolved.
+		// in 3 iteration (i==2) everything should be resolved, worst case:
+		// 1 iteration: up & down segment fetched.
+		// 2 iteration: up & down resolved, core fetched.
+		// 3 iteration: core resolved -> done.
+		// If we need more than that something breaks assumptions.
 		if i >= 2 {
-			return segs, common.NewBasicError("Segment lookup doesn't converge", nil,
-				"iterations", i+1)
+			return segs, common.NewBasicError(
+				"Segment lookup not done in expected amount of iterations (implementation bug)",
+				nil, "iterations", i+1)
 		}
 		// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
 		// here. The problem is that revocations can't be differentiated from
