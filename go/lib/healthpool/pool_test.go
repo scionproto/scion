@@ -53,10 +53,11 @@ func TestNewPool(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			p, err := NewPool(test.Infos, test.Options)
 			test.Assertion(t, err)
 			if err == nil {
-				match(t, p, test.Infos)
+				assert.ElementsMatch(t, test.Infos.List(), p.Infos())
 			}
 		})
 	}
@@ -71,14 +72,14 @@ func TestPoolUpdate(t *testing.T) {
 	infos[newTestInfo("three")] = struct{}{}
 	err = p.Update(infos)
 	require.NoError(t, err)
-	match(t, p, infos)
+	assert.ElementsMatch(t, infos.List(), p.Infos())
 
 	// Removed entry should no longer be part of the pool.
 	delete(infos, two)
 	err = p.Update(infos)
 	require.NoError(t, err)
-	match(t, p, infos)
-	assert.Nil(t, p.infos[two])
+	assert.ElementsMatch(t, infos.List(), p.Infos())
+	assert.NotContains(t, p.Infos(), two)
 
 	// Empty update only succeeds when allow empty is set.
 	err = p.Update(nil)
@@ -160,19 +161,9 @@ func TestPoolExpiresFails(t *testing.T) {
 	)
 	require.NoError(t, err)
 	p.expirer.TriggerRun()
+	time.Sleep(time.Second)
 	assert.Equal(t, 16, one.FailCount())
 	assert.Equal(t, 32, two.FailCount())
-}
-
-func match(t *testing.T, p *Pool, infos InfoSet) {
-	var pool, expected []Info
-	for info := range p.infos {
-		pool = append(pool, info)
-	}
-	for info := range infos {
-		expected = append(expected, info)
-	}
-	assert.ElementsMatch(t, expected, pool)
 }
 
 func testInfoSet() (Info, Info, InfoSet) {
