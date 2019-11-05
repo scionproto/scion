@@ -95,15 +95,17 @@ class DockerGenerator(object):
         self._bs_conf(topo_id, topo, base)
         self._ps_conf(topo_id, topo, base)
         self._sciond_conf(topo_id, base)
-        self._vol_conf(topo_id)
+        self._vol_conf(topo_id, topo)
 
     def _gen_sig(self):
         sig_gen = SIGGenerator(self._sig_args())
         self.dc_conf = sig_gen.generate()
 
-    def _vol_conf(self, topo_id):
+    def _vol_conf(self, topo_id, topo):
         self.dc_conf['volumes']['vol_%sdisp_%s' % (self.prefix, topo_id.file_fmt())] = None
-        self.dc_conf['volumes']['vol_%sdisp_br_%s' % (self.prefix, topo_id.file_fmt())] = None
+        for k, _ in topo.get("BorderRouters", {}).items():
+            disp_id = '%s%s' % (topo_id.file_fmt(), k[-2:])
+            self.dc_conf['volumes']['vol_%sdisp_br_%s' % (self.prefix, disp_id)] = None
         self.dc_conf['volumes']['vol_%ssciond_%s' % (self.prefix, topo_id.file_fmt())] = None
 
     def _create_networks(self):
@@ -128,26 +130,27 @@ class DockerGenerator(object):
             }
 
     def _br_conf(self, topo_id, topo, base):
-        raw_entry = {
-            'image': docker_image(self.args, 'border'),
-            'depends_on': [
-                'scion_disp_br_%s' % topo_id.file_fmt(),
-            ],
-            'environment': {
-                'SU_EXEC_USERSPEC': self.user_spec,
-            },
-            'networks': {},
-            'volumes': [
-                *DOCKER_USR_VOL,
-                'vol_%sdisp_br_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt()),
-                self._logs_vol()
-            ],
-            'command': []
-        }
-        for k, v in topo.get("BorderRouters", {}).items():
-            entry = copy.deepcopy(raw_entry)
-            entry['container_name'] = self.prefix + k
-            entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
+        for k, _ in topo.get("BorderRouters", {}).items():
+            disp_id = '%s%s' % (topo_id.file_fmt(), k[-2:])
+            entry = {
+                'image': docker_image(self.args, 'border'),
+                'container_name': self.prefix + k,
+                'depends_on': [
+                    'scion_disp_br_%s' % disp_id,
+                ],
+                'environment': {
+                    'SU_EXEC_USERSPEC': self.user_spec,
+                },
+                'networks': {},
+                'volumes': [
+                    *DOCKER_USR_VOL,
+                    self._disp_br_vol(disp_id),
+                    self._logs_vol(),
+                    '%s:/share/conf:ro' % os.path.join(base, k)
+                ],
+                'command': []
+            }
+            
             # Set BR IPs
             in_net = self.elem_networks[k + "_internal"][0]
             entry['networks'][self.bridges[in_net['net']]] = {'ipv4_address': str(in_net['ipv4'])}
@@ -259,20 +262,19 @@ class DockerGenerator(object):
         self._br_dispatcher(copy.deepcopy(entry), topo_id, topo, base)
         self._infra_dispatcher(copy.deepcopy(entry), topo_id, base)
 
-    def _br_dispatcher(self, entry, topo_id, topo, base):
+    def _br_dispatcher(self, prep_entry, topo_id, topo, base):
         # Create dispatcher for BR Ctrl Port
         for k in topo.get("BorderRouters", {}):
-            if k.endswith('-1'):
-                ctrl_net = self.elem_networks[k + "_ctrl"][0]
-                ctrl_ip = str(ctrl_net['ipv4'])
-                break
-        entry['networks'][self.bridges[ctrl_net['net']]] = {'ipv4_address': ctrl_ip}
-        entry['container_name'] = '%sdisp_br_%s' % (self.prefix, topo_id.file_fmt())
-        vol = 'vol_%sdisp_br_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
-        entry['volumes'].append(vol)
-        conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_br_%s' % topo_id.file_fmt())
-        entry['volumes'].append(conf)
-        self.dc_conf['services']['scion_disp_br_%s' % topo_id.file_fmt()] = entry
+            entry = copy.deepcopy(prep_entry)
+            ctrl_net = self.elem_networks[k + "_ctrl"][0]
+            ctrl_ip = str(ctrl_net['ipv4'])
+            disp_id = '%s%s' % (topo_id.file_fmt(), k[-2:])            
+            entry['networks'][self.bridges[ctrl_net['net']]] = {'ipv4_address': ctrl_ip}
+            entry['container_name'] = '%sdisp_br_%s' % (self.prefix, disp_id)
+            entry['volumes'].append(self._disp_br_vol(disp_id))
+            conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_br_%s' % disp_id)
+            entry['volumes'].append(conf)
+            self.dc_conf['services']['scion_disp_br_%s' % disp_id] = entry
 
     def _infra_dispatcher(self, entry, topo_id, base):
         # Create dispatcher for Infra
@@ -316,6 +318,9 @@ class DockerGenerator(object):
                 'conf'
             ]
         self.dc_conf['services'][name] = entry
+
+    def _disp_br_vol(self, disp_id):
+        return 'vol_%sdisp_br_%s:/run/shm/dispatcher:rw' % (self.prefix, disp_id)
 
     def _disp_vol(self, topo_id):
         return 'vol_%sdisp_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
