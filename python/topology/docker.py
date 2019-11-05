@@ -150,7 +150,7 @@ class DockerGenerator(object):
                 ],
                 'command': []
             }
-            
+
             # Set BR IPs
             in_net = self.elem_networks[k + "_internal"][0]
             entry['networks'][self.bridges[in_net['net']]] = {'ipv4_address': str(in_net['ipv4'])}
@@ -268,7 +268,7 @@ class DockerGenerator(object):
             entry = copy.deepcopy(prep_entry)
             ctrl_net = self.elem_networks[k + "_ctrl"][0]
             ctrl_ip = str(ctrl_net['ipv4'])
-            disp_id = '%s%s' % (topo_id.file_fmt(), k[-2:])            
+            disp_id = '%s%s' % (topo_id.file_fmt(), k[-2:])    
             entry['networks'][self.bridges[ctrl_net['net']]] = {'ipv4_address': ctrl_ip}
             entry['container_name'] = '%sdisp_br_%s' % (self.prefix, disp_id)
             entry['volumes'].append(self._disp_br_vol(disp_id))
