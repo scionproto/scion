@@ -216,7 +216,7 @@ func (c *Certificate) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if err = validateFields(m, certFields); err != nil {
-		return common.NewBasicError(ErrUnableValidateFields, err)
+		return common.NewBasicError(ErrValidatingFields, err)
 	}
 	// XXX(roosd): Unmarshalling twice might affect performance.
 	// After switching to go 1.10 we might make use of

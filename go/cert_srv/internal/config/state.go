@@ -62,7 +62,7 @@ func (s *State) loadKeyConf(confDir string, isCore bool) error {
 	var err error
 	s.keyConf, err = keyconf.Load(filepath.Join(confDir, "keys"), isCore, isCore, false, true)
 	if err != nil {
-		return common.NewBasicError(ErrorKeyConf, err)
+		return common.NewBasicError(ErrKeyConf, err)
 	}
 	return nil
 }

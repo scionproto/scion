@@ -29,8 +29,8 @@ const (
 	ErrUnexpectedPOPSignature common.ErrMsg = "unexpected proof of possession signature"
 	// ErrInvalidProtected indicates that the protected signature metadata is invalid.
 	ErrInvalidProtected common.ErrMsg = "invalid protected signature metadata"
-	// ErrErrMissingVoteSignature indicates a voting signature of an AS is missing.
-	ErrErrMissingVoteSignature common.ErrMsg = "missing vote signature"
+	// ErrMissingVoteSignature indicates a voting signature of an AS is missing.
+	ErrMissingVoteSignature common.ErrMsg = "missing vote signature"
 	// ErrMissingPOPSignature indicates a missing proof of possession signature.
 	ErrMissingPOPSignature common.ErrMsg = "missing proof of possession signature"
 	// ErrVoteVerification indicates the signature verification of a vote failed.
@@ -111,7 +111,7 @@ func (v UpdateVerifier) checkVotes(votes Votes) error {
 	}
 	for as := range v.Next.Votes {
 		if _, ok := votes[as]; !ok {
-			return common.NewBasicError(ErrErrMissingVoteSignature, nil, "as", as)
+			return common.NewBasicError(ErrMissingVoteSignature, nil, "as", as)
 		}
 	}
 	return nil

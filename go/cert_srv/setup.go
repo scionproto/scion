@@ -40,11 +40,11 @@ import (
 )
 
 const (
-	ErrorConf      common.ErrMsg = "Unable to load configuration"
-	ErrorDispClose common.ErrMsg = "Unable to close dispatcher"
-	ErrorDispInit  common.ErrMsg = "Unable to initialize dispatcher"
-	ErrorSign      common.ErrMsg = "Unable to create sign"
-	ErrorSNET      common.ErrMsg = "Unable to create local SCION Network context"
+	ErrConf      common.ErrMsg = "Unable to load configuration"
+	ErrDispClose common.ErrMsg = "Unable to close dispatcher"
+	ErrDispInit  common.ErrMsg = "Unable to initialize dispatcher"
+	ErrSign      common.ErrMsg = "Unable to create sign"
+	ErrSNET      common.ErrMsg = "Unable to create local SCION Network context"
 )
 
 // setupBasic loads the config from file and initializes logging.

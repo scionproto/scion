@@ -140,7 +140,7 @@ var (
 				i := findSignature(t, *sigs, a110, trc.VoteSignature)
 				*sigs = append((*sigs)[:i], (*sigs)[i+1:]...)
 			},
-			ExpectedErrMsg: trc.ErrErrMissingVoteSignature,
+			ExpectedErrMsg: trc.ErrMissingVoteSignature,
 		},
 		"Vote wrong Algorithm": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
