@@ -31,6 +31,15 @@ const ErrPoolClosed common.ErrMsg = "Pool closed"
 // InfoSet is a set of infos.
 type InfoSet map[Info]struct{}
 
+// List transforms the info set to a list.
+func (s InfoSet) List() []Info {
+	infos := make([]Info, 0, len(s))
+	for info := range s {
+		infos = append(infos, info)
+	}
+	return infos
+}
+
 // Pool holds entries and their health. It allows to choose entries based
 // on their health.
 type Pool struct {
@@ -94,6 +103,17 @@ func (p *Pool) Choose() (Info, error) {
 		return nil, common.NewBasicError(ErrPoolClosed, nil)
 	}
 	return p.choose()
+}
+
+// Infos returns a list of all infos in the pool.
+func (p *Pool) Infos() []Info {
+	p.infosMtx.RLock()
+	defer p.infosMtx.RUnlock()
+	infos := make([]Info, 0, len(p.infos))
+	for info := range p.infos {
+		infos = append(infos, info)
+	}
+	return infos
 }
 
 // Close closes the pool and stops the periodic fail expiration. After
