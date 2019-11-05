@@ -39,10 +39,10 @@ func (m IDAddrMap) GetById(id string) *TopoAddr {
 	return nil
 }
 
-type serviceNames []string
+type ServiceNames []string
 
 // GetRandom returns a random entry, or an error if the slice is empty.
-func (s serviceNames) GetRandom() (string, error) {
+func (s ServiceNames) GetRandom() (string, error) {
 	numServers := len(s)
 	if numServers == 0 {
 		return "", serrors.New("No names present")
@@ -87,19 +87,19 @@ type Topo struct {
 	IFInfoMap IfInfoMap
 
 	BS       IDAddrMap
-	BSNames  serviceNames
+	BSNames  ServiceNames
 	CS       IDAddrMap
-	CSNames  serviceNames
+	CSNames  ServiceNames
 	PS       IDAddrMap
-	PSNames  serviceNames
+	PSNames  ServiceNames
 	SB       IDAddrMap
-	SBNames  serviceNames
+	SBNames  ServiceNames
 	RS       IDAddrMap
-	RSNames  serviceNames
+	RSNames  ServiceNames
 	DS       IDAddrMap
-	DSNames  serviceNames
+	DSNames  ServiceNames
 	SIG      IDAddrMap
-	SIGNames serviceNames
+	SIGNames ServiceNames
 
 	ZK map[int]*addr.AppAddr
 }
@@ -343,7 +343,7 @@ func (t *Topo) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 // svcInfo contains topology information for a single SCION service
 type svcInfo struct {
 	overlay       overlay.Type
-	names         serviceNames
+	names         ServiceNames
 	idTopoAddrMap IDAddrMap
 }
 
