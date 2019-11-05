@@ -71,11 +71,7 @@ func (h *Host) Host() addr.HostAddr {
 }
 
 func (h *Host) Overlay() (*overlay.OverlayAddr, error) {
-	var l4 addr.L4Info
-	if h.Port != 0 {
-		l4 = addr.NewL4UDPInfo(h.Port)
-	}
-	return overlay.NewOverlayAddr(h.Host(), l4)
+	return overlay.NewOverlayAddr(h.Host(), h.Port)
 }
 
 func (h *Host) Copy() *Host {
@@ -97,14 +93,14 @@ func topoAddrToIPv4AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 	var port uint16
 	if pubAddr := topoAddr.PublicAddr(overlay.IPv4); pubAddr != nil {
 		ip = pubAddr.L3.IP()
-		port = pubAddr.L4.Port()
+		port = pubAddr.L4
 	}
 	return ip, port
 }
 
 func topoAddrToIPv6AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 	if pubAddr := topoAddr.PublicAddr(overlay.IPv6); pubAddr != nil {
-		return pubAddr.L3.IP(), pubAddr.L4.Port()
+		return pubAddr.L3.IP(), pubAddr.L4
 	}
 	return nil, 0
 }
@@ -112,7 +108,7 @@ func topoAddrToIPv6AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 func topoBRAddrToIPv4AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
 	if topoBRAddr.IPv4 != nil {
 		if v4Addr := topoBRAddr.IPv4.PublicOverlay; v4Addr != nil {
-			return v4Addr.L3().IP(), v4Addr.L4().Port()
+			return v4Addr.L3().IP(), v4Addr.L4()
 		}
 	}
 	return nil, 0
@@ -121,7 +117,7 @@ func topoBRAddrToIPv4AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
 func topoBRAddrToIPv6AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
 	if topoBRAddr.IPv6 != nil {
 		if v6Addr := topoBRAddr.IPv6.PublicOverlay; v6Addr != nil {
-			return v6Addr.L3().IP(), v6Addr.L4().Port()
+			return v6Addr.L3().IP(), v6Addr.L4()
 		}
 	}
 	return nil, 0

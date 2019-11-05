@@ -20,7 +20,7 @@ import (
 
 type AppAddr struct {
 	L3 HostAddr
-	L4 L4Info
+	L4 uint16
 }
 
 func (a *AppAddr) Copy() *AppAddr {
@@ -28,25 +28,21 @@ func (a *AppAddr) Copy() *AppAddr {
 	if a.L3 != nil {
 		l3 = a.L3.Copy()
 	}
-	var l4 L4Info
-	if a.L4 != nil {
-		l4 = a.L4.Copy()
-	}
-	return &AppAddr{L3: l3, L4: l4}
+	return &AppAddr{L3: l3, L4: a.L4}
 }
 
 func (a *AppAddr) Equal(o *AppAddr) bool {
 	if (a == nil) || (o == nil) {
 		return a == o
 	}
-	return a.L3.Equal(o.L3) && a.L4.Equal(o.L4)
+	return a.L3.Equal(o.L3) && a.L4 == o.L4
 }
 
 func (a *AppAddr) EqType(o *AppAddr) bool {
 	if (a == nil) || (o == nil) {
 		return a == o
 	}
-	return a.L3.Type() == o.L3.Type() && a.L4.Type() == o.L4.Type()
+	return a.L3.Type() == o.L3.Type()
 }
 
 func (a *AppAddr) Network() string {
@@ -56,8 +52,5 @@ func (a *AppAddr) Network() string {
 }
 
 func (a *AppAddr) String() string {
-	if a.L4 != nil {
-		return fmt.Sprintf("[%v]:%d", a.L3, a.L4.Port())
-	}
-	return fmt.Sprintf("[%v]", a.L3)
+	return fmt.Sprintf("[%v]:%d", a.L3, a.L4)
 }

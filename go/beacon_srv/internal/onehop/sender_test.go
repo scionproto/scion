@@ -84,7 +84,7 @@ func TestSenderCreatePkt(t *testing.T) {
 			IA: xtest.MustParseIA("1-ff00:0:110"),
 			Addr: &addr.AppAddr{
 				L3: addr.HostFromIPStr("127.0.0.1"),
-				L4: addr.NewL4UDPInfo(4242),
+				L4: 4242,
 			},
 			MAC: createMac(t),
 		}
@@ -105,13 +105,13 @@ func TestSenderSend(t *testing.T) {
 			Conn: conn,
 			Addr: &addr.AppAddr{
 				L3: addr.HostFromIPStr("127.0.0.1"),
-				L4: addr.NewL4UDPInfo(4242),
+				L4: 4242,
 			},
 			MAC: createMac(t),
 		}
 		// Read from connection to unblock sender.
 		host := addr.HostFromIP(net.IP{127, 0, 0, 42})
-		ov, err := overlay.NewOverlayAddr(host, addr.NewL4UDPInfo(1337))
+		ov, err := overlay.NewOverlayAddr(host, 1337)
 		xtest.FailOnErr(t, err)
 		var pkt *snet.SCIONPacket
 		conn.EXPECT().WriteTo(gomock.Any(), ov).DoAndReturn(

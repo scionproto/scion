@@ -102,7 +102,7 @@ func TestRemoteAddressResolver(t *testing.T) {
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("address", outAddress, ShouldNotBeNil)
 				SoMsg("overlay addr", outAddress.NextHop.L3(), ShouldResemble, outAddress.Host.L3)
-				SoMsg("overlay port", outAddress.NextHop.L4().Port(), ShouldResemble,
+				SoMsg("overlay port", outAddress.NextHop.L4(), ShouldResemble,
 					uint16(overlay.EndhostPort))
 			})
 		})

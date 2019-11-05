@@ -36,17 +36,19 @@ const (
 var dsInfos = map[string]*addr.AppAddr{
 	ds1: {
 		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-		L4: addr.NewL4UDPInfo(30084)},
+		L4: 30084,
+	},
 	ds2: {
 		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 80)),
-		L4: addr.NewL4UDPInfo(30085)},
+		L4: 30085,
+	},
 	ds3new: {
 		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-		L4: addr.NewL4UDPInfo(30084),
+		L4: 30084,
 	},
 	ds1updated: {
 		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 21)),
-		L4: addr.NewL4UDPInfo(30084),
+		L4: 30084,
 	},
 }
 
@@ -149,7 +151,7 @@ func contains(p *Pool, name string, a *addr.AppAddr) {
 		info, ok := p.infos[name]
 		SoMsg("Not found", ok, ShouldBeTrue)
 		SoMsg("Ip", info.addr.L3.IP(), ShouldResemble, a.L3.IP())
-		SoMsg("Port", info.addr.L4.Port(), ShouldEqual, a.L4.Port())
+		SoMsg("Port", info.addr.L4, ShouldEqual, a.L4)
 	})
 }
 

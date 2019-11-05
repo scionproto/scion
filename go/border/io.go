@@ -308,7 +308,7 @@ func (r *Router) posixPrepOutput(epkts ringbuf.EntryList, msgs []ipv4.Message,
 			// Unconnected socket, use supplied address
 			uaddr := msgs[i].Addr.(*net.UDPAddr)
 			uaddr.IP = erp.Dst.L3().IP()
-			uaddr.Port = int(erp.Dst.L4().Port())
+			uaddr.Port = int(erp.Dst.L4())
 		}
 	}
 	return epkts, true

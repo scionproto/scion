@@ -192,7 +192,7 @@ func realMain() int {
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
 	ovAddr := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
-	ovAddr.L4 = addr.NewL4UDPInfo(0)
+	ovAddr.L4 = 0
 	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), ovAddr, nil, addr.SvcNone, time.Second)
 	if err != nil {
 		log.Crit("Unable to create SCION packet conn", "err", err)

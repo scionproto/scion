@@ -65,7 +65,7 @@ func (pn *DispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
 	var newPublic *addr.AppAddr
 	if public != nil {
 		newPublic = public.Copy()
-		newPublic.L4 = addr.NewL4UDPInfo(port)
+		newPublic.L4 = port
 	}
 	reconnecter = pn.newReconnecterFromListenArgs(ia, newPublic, bind, svc, timeout)
 	return NewPacketConn(conn, reconnecter), port, nil

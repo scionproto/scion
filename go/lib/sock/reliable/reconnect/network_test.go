@@ -42,7 +42,7 @@ func TestReconnect(t *testing.T) {
 					RegisterTimeout(localAddr.IA, localNoPortAddr.Host, bindAddr, svc, timeout).
 					Return(mockConn, uint16(80), nil)
 				newExpectedAddr := localNoPortAddr.Host.Copy()
-				newExpectedAddr.L4 = addr.NewL4UDPInfo(80)
+				newExpectedAddr.L4 = 80
 				mockNetwork.EXPECT().
 					RegisterTimeout(localAddr.IA, newExpectedAddr, bindAddr, svc, timeout).
 					Return(mockConn, uint16(80), nil)

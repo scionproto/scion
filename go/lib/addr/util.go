@@ -31,6 +31,5 @@ func IsIPv6(ip net.IP) bool {
 func NewSVCUDPAppAddr(svc HostSVC) *AppAddr {
 	return &AppAddr{
 		L3: svc,
-		L4: NewL4UDPInfo(0),
 	}
 }

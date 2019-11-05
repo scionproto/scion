@@ -75,7 +75,7 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 	}
 	dst := &snet.Addr{
 		IA:   ia,
-		Host: &addr.AppAddr{L3: dstHost, L4: addr.NewL4UDPInfo(0)},
+		Host: &addr.AppAddr{L3: dstHost},
 	}
 	dst.NextHop, err = ctx.ResolveSVCAny(dstHost)
 	if err != nil {

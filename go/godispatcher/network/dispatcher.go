@@ -130,10 +130,7 @@ func openConn(network, address string, p SocketMetaHandler) (net.PacketConn, err
 		return nil, common.NewBasicError("unsupported network", nil, "network", network)
 	}
 
-	ov, err := overlay.NewOverlayAddr(
-		hostIP,
-		addr.NewL4UDPInfo(uint16(listeningAddress.Port)),
-	)
+	ov, err := overlay.NewOverlayAddr(hostIP, uint16(listeningAddress.Port))
 	if err != nil {
 		return nil, common.NewBasicError("unable to construct overlay address", err)
 	}
@@ -205,10 +202,7 @@ func (o *overlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	if !ok {
 		return 0, common.NewBasicError("address is not UDP", nil, "addr", a)
 	}
-	ov, err := overlay.NewOverlayAddr(
-		addr.HostFromIP(udpAddr.IP),
-		addr.NewL4UDPInfo(uint16(udpAddr.Port)),
-	)
+	ov, err := overlay.NewOverlayAddr(addr.HostFromIP(udpAddr.IP), uint16(udpAddr.Port))
 	if err != nil {
 		return 0, common.NewBasicError("unable to construct overlay address", err)
 	}

@@ -111,11 +111,8 @@ func validateFlags() {
 		if remote.Host == nil {
 			LogFatal("Missing remote address")
 		}
-		if remote.Host.L4 == nil {
-			LogFatal("Missing remote port")
-		}
-		if remote.Host.L4.Port() == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
+		if remote.Host.L4 == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.Host.L4)
 		}
 	}
 	if local.Host == nil {
@@ -356,7 +353,7 @@ func (s server) run() {
 	}
 	if len(os.Getenv(integration.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
-		fmt.Printf("Port=%d\n", qsock.Addr().(*snet.Addr).Host.L4.Port())
+		fmt.Printf("Port=%d\n", qsock.Addr().(*snet.Addr).Host.L4)
 		fmt.Printf("%s%s\n", integration.ReadySignal, local.IA)
 	}
 	log.Info("Listening", "local", qsock.Addr())

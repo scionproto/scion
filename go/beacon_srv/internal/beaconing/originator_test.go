@@ -74,7 +74,7 @@ func TestOriginatorRun(t *testing.T) {
 					Conn: conn,
 					Addr: &addr.AppAddr{
 						L3: addr.HostFromIPStr("127.0.0.1"),
-						L4: addr.NewL4UDPInfo(4242),
+						L4: 4242,
 					},
 					MAC: mac,
 				},
@@ -128,7 +128,7 @@ func TestOriginatorRun(t *testing.T) {
 					Conn: conn,
 					Addr: &addr.AppAddr{
 						L3: addr.HostFromIPStr("127.0.0.1"),
-						L4: addr.NewL4UDPInfo(4242),
+						L4: 4242,
 					},
 					MAC: mac,
 				},

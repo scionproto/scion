@@ -249,13 +249,9 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	// considers it to be a fixed address instead of a wildcard). To avoid
 	// misuse, disallow binding to nil or 0.0.0.0 addresses for now.
 	var l3Type addr.HostAddrType
-	var l4Type common.L4ProtocolType
-	var defL4 addr.L4Info
 	switch network {
 	case "udp4":
 		l3Type = addr.HostTypeIPv4
-		l4Type = common.L4UDP
-		defL4 = addr.NewL4UDPInfo(0)
 	default:
 		return nil, common.NewBasicError("Network not implemented", nil, "net", network)
 	}
@@ -274,14 +270,6 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	}
 	if laddr.Host.L3.IP().IsUnspecified() {
 		return nil, serrors.New("Binding to unspecified address not supported")
-	}
-	if laddr.Host.L4 == nil {
-		// If no port has been specified, default to 0 to get a random port from the dispatcher
-		laddr.Host.L4 = defL4
-	}
-	if laddr.Host.L4.Type() != l4Type {
-		return nil, common.NewBasicError("Supplied local address does not match network", nil,
-			"expected L4", l4Type, "actual L4", laddr.Host.L4.Type())
 	}
 	conn := &scionConnBase{
 		net:      network,
@@ -315,9 +303,9 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	if err != nil {
 		return nil, err
 	}
-	if port != conn.laddr.Host.L4.Port() {
+	if port != conn.laddr.Host.L4 {
 		// Update port
-		conn.laddr.Host.L4 = addr.NewL4UDPInfo(port)
+		conn.laddr.Host.L4 = port
 	}
 	log.Debug("Registered with dispatcher", "addr", conn.laddr)
 	return newSCIONConn(conn, n.pathResolver, packetConn), nil

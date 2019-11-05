@@ -190,7 +190,7 @@ func (c *Client) sendRequest() error {
 func computeAddressStr(address net.Addr) string {
 	snetAddr, ok := address.(*snet.Addr)
 	if ok {
-		return fmt.Sprintf("%s:%d", snetAddr.Host.L3.String(), snetAddr.Host.L4.Port())
+		return fmt.Sprintf("%s:%d", snetAddr.Host.L3.String(), snetAddr.Host.L4)
 	}
 	return address.String()
 }

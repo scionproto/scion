@@ -172,7 +172,7 @@ func getRemote() error {
 	}
 	appAddr := &addr.AppAddr{
 		L3: hostInfo.Host(),
-		L4: addr.NewL4UDPInfo(hostInfo.Port),
+		L4: hostInfo.Port,
 	}
 	svc = snet.Addr{IA: integration.Local.IA, Host: appAddr}
 	return nil

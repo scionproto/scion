@@ -25,7 +25,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
@@ -133,13 +132,7 @@ func ValidateFlags() {
 	if Remote.Host == nil {
 		Fatal("Invalid remote address")
 	}
-	// scmp-tool does not use ports, thus they should not be set
-	if Local.Host.L4 != nil {
-		Fatal("Local port should not be provided")
-	}
-	if Remote.Host.L4 != nil {
-		Fatal("Remote port should not be provided")
-	}
+	// scmp-tool does not use ports, so we ignore them
 	if Interval == 0 {
 		Interval = 1
 	}
@@ -175,8 +168,7 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 func NextHopAddr() net.Addr {
 	var nhAddr *overlay.OverlayAddr
 	if Remote.NextHop == nil {
-		l4 := addr.NewL4UDPInfo(overlay.EndhostPort)
-		nhAddr, _ = overlay.NewOverlayAddr(Remote.Host.L3, l4)
+		nhAddr, _ = overlay.NewOverlayAddr(Remote.Host.L3, overlay.EndhostPort)
 	} else {
 		nhAddr = Remote.NextHop
 	}

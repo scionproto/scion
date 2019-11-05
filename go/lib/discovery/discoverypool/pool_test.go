@@ -33,11 +33,11 @@ type testInfo struct {
 var ds = []testInfo{
 	{"ds1-ff00_0_111-1", &addr.AppAddr{
 		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-		L4: addr.NewL4UDPInfo(30084)},
+		L4: 30084},
 	},
 	{"ds1-ff00_0_111-2", &addr.AppAddr{
 		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 80)),
-		L4: addr.NewL4UDPInfo(30085)},
+		L4: 30085},
 	},
 }
 
@@ -46,7 +46,7 @@ func contains(pool *Pool, v testInfo) {
 		info, ok := pool.m[v.key]
 		SoMsg("Not found", ok, ShouldBeTrue)
 		SoMsg("Ip", info.Addr().L3.IP(), ShouldResemble, v.addr.L3.IP())
-		SoMsg("Port", info.Addr().L4.Port(), ShouldEqual, v.addr.L4.Port())
+		SoMsg("Port", info.Addr().L4, ShouldEqual, v.addr.L4)
 	})
 }
 
@@ -86,8 +86,7 @@ func TestPoolUpdate(t *testing.T) {
 					key: ds[0].key,
 					addr: &addr.AppAddr{
 						L3: addr.HostFromIP(net.IPv4(127, 0, 0, 21)),
-						L4: addr.NewL4UDPInfo(
-							svcInfo[ds[0].key].IPv4.PublicAddr().L4.Port()),
+						L4: svcInfo[ds[0].key].IPv4.PublicAddr().L4,
 					},
 				})
 			})
@@ -103,7 +102,7 @@ func TestPoolUpdate(t *testing.T) {
 					key: "ds-new",
 					addr: &addr.AppAddr{
 						L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-						L4: addr.NewL4UDPInfo(30084)},
+						L4: 30084},
 				})
 			})
 		})

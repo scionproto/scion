@@ -61,9 +61,8 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
 	PathMgr = snet.DefNetwork.PathResolver()
-	l4 := addr.NewL4UDPInfo(cfg.CtrlPort)
 	CtrlConn, err = snet.ListenSCIONWithBindSVC("udp4",
-		&snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}}, nil, addr.SvcSIG)
+		&snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: cfg.CtrlPort}}, nil, addr.SvcSIG)
 	if err != nil {
 		return common.NewBasicError("Error creating ctrl socket", err)
 	}
@@ -71,8 +70,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 }
 
 func EncapSnetAddr() *snet.Addr {
-	l4 := addr.NewL4UDPInfo(uint16(encapPort))
-	return &snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}}
+	return &snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: uint16(encapPort)}}
 }
 
 func ValidatePort(desc string, port int) error {

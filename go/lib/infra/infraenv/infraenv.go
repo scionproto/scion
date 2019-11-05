@@ -230,7 +230,7 @@ func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 		IA: nc.IA,
 		Host: &addr.AppAddr{
 			L3: addr.HostFromIP(udpAddr.IP),
-			L4: addr.NewL4UDPInfo(uint16(udpAddr.Port)),
+			L4: uint16(udpAddr.Port),
 		},
 	}
 	conn, err := network.ListenSCIONWithBindSVC("udp4", public, nil, addr.SvcNone, 0)

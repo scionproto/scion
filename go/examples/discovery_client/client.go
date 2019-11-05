@@ -130,7 +130,7 @@ func validateFlags() error {
 		if err != nil {
 			return common.NewBasicError("Unable to parse port", nil, "port", port)
 		}
-		dsAddr.L4 = addr.NewL4TCPInfo(uint16(p))
+		dsAddr.L4 = uint16(p)
 	}
 	return nil
 }

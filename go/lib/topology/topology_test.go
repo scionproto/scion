@@ -41,9 +41,9 @@ func mkO(l3 addr.HostAddr, op int) *overlay.OverlayAddr {
 		return nil
 	}
 	if op == 0 {
-		o, _ = overlay.NewOverlayAddr(l3, nil)
+		o, _ = overlay.NewOverlayAddr(l3, 0)
 	} else {
-		o, _ = overlay.NewOverlayAddr(l3, addr.NewL4UDPInfo(uint16(op)))
+		o, _ = overlay.NewOverlayAddr(l3, uint16(op))
 	}
 	return o
 }
@@ -53,12 +53,12 @@ func mkPBO(ip string, port int, bindip string, bindport int, op int) *pubBindAdd
 	pbo := &pubBindAddr{}
 	pbo.pub = &addr.AppAddr{L3: pub}
 	if port != 0 {
-		pbo.pub.L4 = addr.NewL4UDPInfo(uint16(port))
+		pbo.pub.L4 = uint16(port)
 	}
 	if bindip != "" {
 		pbo.bind = &addr.AppAddr{L3: addr.HostFromIPStr(bindip)}
 		if bindport != 0 {
-			pbo.bind.L4 = addr.NewL4UDPInfo(uint16(bindport))
+			pbo.bind.L4 = uint16(bindport)
 		}
 	}
 	pbo.overlay = mkO(pub, op)
@@ -207,11 +207,11 @@ func Test_ZK(t *testing.T) {
 	zks := map[int]*addr.AppAddr{
 		1: {
 			L3: addr.HostFromIPStr("192.0.2.144"),
-			L4: addr.NewL4TCPInfo(2181),
+			L4: 2181,
 		},
 		2: {
 			L3: addr.HostFromIPStr("2001:db8:ffff::1"),
-			L4: addr.NewL4TCPInfo(2181),
+			L4: 2181,
 		},
 	}
 	fn := "testdata/basic.json"
