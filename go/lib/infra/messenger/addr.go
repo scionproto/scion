@@ -123,7 +123,6 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 	if newAddr.Path == nil {
 		// SVC addresses in the local AS get resolved via topology lookup
 		if svc, ok := newAddr.Host.L3.(addr.HostSVC); ok && r.Router.LocalIA() == newAddr.IA {
-
 			ov, err := r.SVCRouter.GetOverlay(svc)
 			if err != nil {
 				return nil, common.NewBasicError("Unable to resolve overlay", err)
