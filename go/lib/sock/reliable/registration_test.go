@@ -19,6 +19,8 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -28,7 +30,7 @@ func TestRegistrationMessageSerializeTo(t *testing.T) {
 	type TestCase struct {
 		Name          string
 		Registration  *Registration
-		ExpectedError string
+		ExpectedError error
 		ExpectedData  []byte
 	}
 	testCases := []TestCase{
@@ -110,7 +112,7 @@ func TestRegistrationMessageSerializeTo(t *testing.T) {
 			Convey(tc.Name, func() {
 				b := make([]byte, 1500)
 				n, err := tc.Registration.SerializeTo(b)
-				xtest.SoMsgErrorStr("err", err, tc.ExpectedError)
+				assert.True(t, xerrors.Is(err, tc.ExpectedError))
 				SoMsg("data", b[:n], ShouldResemble, tc.ExpectedData)
 			})
 		}
@@ -121,7 +123,7 @@ func TestRegistrationMessageDecodeFromBytes(t *testing.T) {
 	type TestCase struct {
 		Name                 string
 		Data                 []byte
-		ExpectedError        string
+		ExpectedError        error
 		ExpectedRegistration Registration
 	}
 	testCases := []TestCase{
@@ -243,7 +245,7 @@ func TestRegistrationMessageDecodeFromBytes(t *testing.T) {
 			Convey(tc.Name, func() {
 				var r Registration
 				err := r.DecodeFromBytes(tc.Data)
-				xtest.SoMsgErrorStr("err", err, tc.ExpectedError)
+				assert.True(t, xerrors.Is(err, tc.ExpectedError))
 				SoMsg("registration", r, ShouldResemble, tc.ExpectedRegistration)
 			})
 		}
@@ -256,7 +258,7 @@ func TestConfirmationMessageSerializeTo(t *testing.T) {
 		Convey("bad buffer", func() {
 			b := make([]byte, 1)
 			n, err := confirmation.SerializeTo(b)
-			xtest.SoMsgErrorStr("err", err, ErrBufferTooSmall)
+			xtest.SoMsgErrorStr("err", err, ErrBufferTooSmall.Error())
 			SoMsg("n", n, ShouldEqual, 0)
 		})
 		Convey("success", func() {
@@ -274,7 +276,7 @@ func TestConfirmationDecodeFromBytes(t *testing.T) {
 		Convey("bad buffer", func() {
 			b := []byte{0xaa}
 			err := confirmation.DecodeFromBytes(b)
-			xtest.SoMsgErrorStr("err", err, ErrIncompletePort)
+			xtest.SoMsgErrorStr("err", err, ErrIncompletePort.Error())
 			SoMsg("data", confirmation, ShouldResemble, Confirmation{})
 		})
 		Convey("success", func() {

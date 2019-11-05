@@ -24,16 +24,16 @@ import (
 )
 
 const (
-	ErrUnsupportedOverlay   = "Unsupported overlay"
-	ErrUnsupportedAddrType  = "Unsupported address type"
-	ErrInvalidPub           = "Invalid public address"
-	ErrInvalidBind          = "Invalid bind address"
-	ErrAtLeastOnePub        = "Overlay requires at least one public address"
-	ErrOverlayPort          = "Overlay port set for non-UDP overlay"
-	ErrBindAddrEqPubAddr    = "Bind address equal to Public address"
-	ErrMismatchOverlayAddr  = "Mismatch overlay type and address"
-	ErrMismatchPubAddrType  = "Mismatch public address and type "
-	ErrMismatchBindAddrType = "Mismatch bind address and type"
+	ErrUnsupportedOverlay   common.ErrMsg = "Unsupported overlay"
+	ErrUnsupportedAddrType  common.ErrMsg = "Unsupported address type"
+	ErrInvalidPub           common.ErrMsg = "Invalid public address"
+	ErrInvalidBind          common.ErrMsg = "Invalid bind address"
+	ErrAtLeastOnePub        common.ErrMsg = "Overlay requires at least one public address"
+	ErrOverlayPort          common.ErrMsg = "Overlay port set for non-UDP overlay"
+	ErrBindAddrEqPubAddr    common.ErrMsg = "Bind address equal to Public address"
+	ErrMismatchOverlayAddr  common.ErrMsg = "Mismatch overlay type and address"
+	ErrMismatchPubAddrType  common.ErrMsg = "Mismatch public address and type "
+	ErrMismatchBindAddrType common.ErrMsg = "Mismatch bind address and type"
 )
 
 // TopoAddr wraps the possible addresses of a SCION service and describes

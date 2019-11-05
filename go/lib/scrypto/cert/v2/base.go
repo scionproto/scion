@@ -25,26 +25,26 @@ import (
 
 // Parsing errors with context.
 const (
-	// InvalidKeyType indicates an inexistent key type.
-	InvalidKeyType = "invalid key type"
-	// InvalidVersion indicates an invalid certificate version.
-	InvalidVersion = "Invalid certificate version"
-	// UnsupportedFormat indicates an invalid certificate format.
-	UnsupportedFormat = "Unsupported certificate format"
+	// ErrInvalidKeyType indicates an inexistent key type.
+	ErrInvalidKeyType common.ErrMsg = "invalid key type"
+	// ErrInvalidVersion indicates an invalid certificate version.
+	ErrInvalidVersion common.ErrMsg = "Invalid certificate version"
+	// ErrUnsupportedFormat indicates an invalid certificate format.
+	ErrUnsupportedFormat common.ErrMsg = "Unsupported certificate format"
 )
 
 // Validation errors with context.
 const (
-	// InvalidValidityPeriod indicates an invalid validity period.
-	InvalidValidityPeriod = "invalid validity period"
-	// InvalidSubject indicates that the subject contains a wildcard.
-	InvalidSubject = "subject contains wildcard"
-	// InvalidDistributionPoint indicates that the distribution point is a wildcard.
-	InvalidDistributionPoint = "distribution point contains wildcard"
-	// UnexpectedKey indicates that the certificate holds an excess key.
-	UnexpectedKey = "unexpected key"
-	// MissingKey indicates that the certificate is missing a key.
-	MissingKey = "missing key"
+	// ErrInvalidValidityPeriod indicates an invalid validity period.
+	ErrInvalidValidityPeriod common.ErrMsg = "invalid validity period"
+	// ErrInvalidSubject indicates that the subject contains a wildcard.
+	ErrInvalidSubject common.ErrMsg = "subject contains wildcard"
+	// ErrInvalidDistributionPoint indicates that the distribution point is a wildcard.
+	ErrInvalidDistributionPoint common.ErrMsg = "distribution point contains wildcard"
+	// ErrUnexpectedKey indicates that the certificate holds an excess key.
+	ErrUnexpectedKey common.ErrMsg = "unexpected key"
+	// ErrMissingKey indicates that the certificate is missing a key.
+	ErrMissingKey common.ErrMsg = "missing key"
 )
 
 // Parsing errors.
@@ -97,13 +97,13 @@ type Base struct {
 // Validate validates the shared fields are set correctly.
 func (b *Base) Validate() error {
 	if b.Subject.IsWildcard() {
-		return common.NewBasicError(InvalidSubject, nil, "subject", b.Subject)
+		return common.NewBasicError(ErrInvalidSubject, nil, "subject", b.Subject)
 	}
 	if err := b.validateDistributionPoints(); err != nil {
 		return err
 	}
 	if err := b.Validity.Validate(); err != nil {
-		return common.NewBasicError(InvalidValidityPeriod, err, "validity", b.Validity)
+		return common.NewBasicError(ErrInvalidValidityPeriod, err, "validity", b.Validity)
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func (b *Base) Validate() error {
 func (b *Base) validateDistributionPoints() error {
 	for _, ia := range b.OptionalDistributionPoints {
 		if ia.IsWildcard() {
-			return common.NewBasicError(InvalidDistributionPoint, nil, "IA", ia)
+			return common.NewBasicError(ErrInvalidDistributionPoint, nil, "IA", ia)
 		}
 	}
 	return nil
@@ -133,10 +133,10 @@ func (b *Base) validateKeys(issuerCertificate bool) error {
 func (b *Base) checkKeyExistence(keyType KeyType, shouldExist bool) error {
 	_, ok := b.Keys[keyType]
 	if ok && !shouldExist {
-		return common.NewBasicError(UnexpectedKey, nil, "type", keyType)
+		return common.NewBasicError(ErrUnexpectedKey, nil, "type", keyType)
 	}
 	if !ok && shouldExist {
-		return common.NewBasicError(MissingKey, nil, "type", keyType)
+		return common.NewBasicError(ErrMissingKey, nil, "type", keyType)
 	}
 	return nil
 }
@@ -198,7 +198,7 @@ func (t *KeyType) UnmarshalText(b []byte) error {
 	case RevocationKeyJSON:
 		*t = RevocationKey
 	default:
-		return common.NewBasicError(InvalidKeyType, nil, "input", string(b))
+		return common.NewBasicError(ErrInvalidKeyType, nil, "input", string(b))
 	}
 	return nil
 }
@@ -217,7 +217,7 @@ func (t KeyType) MarshalText() ([]byte, error) {
 	case RevocationKey:
 		return []byte(RevocationKeyJSON), nil
 	}
-	return nil, common.NewBasicError(InvalidKeyType, nil, "type", int(t))
+	return nil, common.NewBasicError(ErrInvalidKeyType, nil, "type", int(t))
 }
 
 // FormatVersion indicates the certificate format version. Currently, only format
@@ -231,7 +231,7 @@ func (v *FormatVersion) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if parsed != 1 {
-		return common.NewBasicError(UnsupportedFormat, nil, "fmt", parsed)
+		return common.NewBasicError(ErrUnsupportedFormat, nil, "fmt", parsed)
 	}
 	*v = FormatVersion(parsed)
 	return nil

@@ -35,20 +35,22 @@ import (
 
 const (
 	MaxTRCByteLength uint32 = 1 << 20
+)
 
-	// Error strings
-	EarlyUsage          = "Creation time in the future"
-	EarlyAnnouncement   = "Early announcement"
-	Expired             = "TRC expired"
-	GracePeriodPassed   = "TRC grace period has passed"
-	InactiveVersion     = "Inactive TRC version"
-	InvalidCreationTime = "Invalid TRC creation time"
-	InvalidISD          = "Invalid TRC ISD"
-	InvalidQuorum       = "Not enough valid signatures"
-	InvalidVersion      = "Invalid TRC version"
-	ReservedVersion     = "Invalid version 0"
-	SignatureMissing    = "Signature missing"
-	UnableSigPack       = "TRC: Unable to create signature input"
+// Error constants
+const (
+	ErrEarlyUsage          common.ErrMsg = "Creation time in the future"
+	ErrEarlyAnnouncement   common.ErrMsg = "Early announcement"
+	ErrExpired             common.ErrMsg = "TRC expired"
+	ErrGracePeriodPassed   common.ErrMsg = "TRC grace period has passed"
+	ErrInactiveVersion     common.ErrMsg = "Inactive TRC version"
+	ErrInvalidCreationTime common.ErrMsg = "Invalid TRC creation time"
+	ErrInvalidISD          common.ErrMsg = "Invalid TRC ISD"
+	ErrInvalidQuorum       common.ErrMsg = "Not enough valid signatures"
+	ErrInvalidVersion      common.ErrMsg = "Invalid TRC version"
+	ErrReservedVersion     common.ErrMsg = "Invalid version 0"
+	ErrSignatureMissing    common.ErrMsg = "Signature missing"
+	ErrUnableSigPack       common.ErrMsg = "TRC: Unable to create signature input"
 )
 
 const (
@@ -175,7 +177,7 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 		return nil, err
 	}
 	if t.Version.IsLatest() {
-		return nil, common.NewBasicError(ReservedVersion, nil)
+		return nil, common.NewBasicError(ErrReservedVersion, nil)
 	}
 	return t, nil
 }
@@ -232,27 +234,27 @@ func (t *TRC) Key() *Key {
 // the newest active TRC of the same ISD which we know of.
 func (t *TRC) IsActive(maxTRC *TRC) error {
 	if t.Quarantine {
-		return common.NewBasicError(EarlyAnnouncement, nil)
+		return common.NewBasicError(ErrEarlyAnnouncement, nil)
 	}
 	currTime := util.TimeToSecs(time.Now())
 	if currTime < t.CreationTime {
-		return common.NewBasicError(EarlyUsage, nil,
+		return common.NewBasicError(ErrEarlyUsage, nil,
 			"now", util.SecsToCompact(currTime),
 			"creation", util.SecsToCompact(t.CreationTime))
 	} else if currTime > t.ExpirationTime {
-		return common.NewBasicError(Expired, nil,
+		return common.NewBasicError(ErrExpired, nil,
 			"now", util.SecsToCompact(currTime),
 			"expiration", util.SecsToCompact(t.ExpirationTime))
 	} else if t.Version == maxTRC.Version {
 		return nil
 	} else if t.Version+1 != maxTRC.Version {
 		return common.NewBasicError(
-			InactiveVersion, nil,
+			ErrInactiveVersion, nil,
 			"expected", fmt.Sprintf("%d or %d", maxTRC.Version-1, maxTRC.Version),
 			"actual", t.Version,
 		)
 	} else if currTime > maxTRC.CreationTime+maxTRC.GracePeriod {
-		return common.NewBasicError(GracePeriodPassed, nil, "now", util.SecsToCompact(currTime),
+		return common.NewBasicError(ErrGracePeriodPassed, nil, "now", util.SecsToCompact(currTime),
 			"expiration", util.SecsToCompact(maxTRC.CreationTime+maxTRC.GracePeriod))
 	}
 	return nil
@@ -284,21 +286,21 @@ func (t *TRC) Verify(trust *TRC) (*TRCVerResult, error) {
 // verifyUpdate checks the validity of a updated TRC.
 func (t *TRC) verifyUpdate(old *TRC) (*TRCVerResult, error) {
 	if old.ISD != t.ISD {
-		return nil, common.NewBasicError(InvalidISD, nil, "expected", old.ISD, "actual", t.ISD)
+		return nil, common.NewBasicError(ErrInvalidISD, nil, "expected", old.ISD, "actual", t.ISD)
 	}
 	if old.Version+1 != t.Version {
-		return nil, common.NewBasicError(InvalidVersion, nil,
+		return nil, common.NewBasicError(ErrInvalidVersion, nil,
 			"expected", old.Version+1, "actual", t.Version)
 	}
 	if t.CreationTime < old.CreationTime+old.GracePeriod {
 		return nil, common.NewBasicError(
-			InvalidCreationTime, nil,
+			ErrInvalidCreationTime, nil,
 			"expected >", util.SecsToCompact(old.CreationTime+old.GracePeriod),
 			"actual", util.SecsToCompact(t.CreationTime),
 		)
 	}
 	if t.Quarantine || old.Quarantine {
-		return nil, common.NewBasicError(EarlyAnnouncement, nil)
+		return nil, common.NewBasicError(ErrEarlyAnnouncement, nil)
 	}
 	return t.verifySignatures(old)
 }
@@ -314,7 +316,7 @@ func (t *TRC) verifySignatures(old *TRC) (*TRCVerResult, error) {
 	for signer, coreAS := range old.CoreASes {
 		sig, ok := t.Signatures[signer.String()]
 		if !ok {
-			tvr.Failed[signer] = common.NewBasicError(SignatureMissing, nil, "as", signer)
+			tvr.Failed[signer] = common.NewBasicError(ErrSignatureMissing, nil, "as", signer)
 			continue
 		}
 		err = scrypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg)
@@ -325,7 +327,7 @@ func (t *TRC) verifySignatures(old *TRC) (*TRCVerResult, error) {
 		}
 	}
 	if !tvr.QuorumOk() {
-		return tvr, common.NewBasicError(InvalidQuorum, nil,
+		return tvr, common.NewBasicError(ErrInvalidQuorum, nil,
 			"expected", old.QuorumTRC, "actual", len(tvr.Verified))
 	}
 	return tvr, nil
@@ -340,7 +342,7 @@ func (t *TRC) verifyXSig(trust *TRC) error {
 // sigPack creates a sorted json object of all fields, except for the signature map.
 func (t *TRC) sigPack() (common.RawBytes, error) {
 	if t.Version.IsLatest() {
-		return nil, common.NewBasicError(ReservedVersion, nil)
+		return nil, common.NewBasicError(ErrReservedVersion, nil)
 	}
 	m := make(map[string]interface{})
 	m[certLogs] = t.CertLogs
@@ -359,7 +361,7 @@ func (t *TRC) sigPack() (common.RawBytes, error) {
 	m[coreASes] = t.CoreASes
 	sigInput, err := json.Marshal(m)
 	if err != nil {
-		return nil, common.NewBasicError(UnableSigPack, err)
+		return nil, common.NewBasicError(ErrUnableSigPack, err)
 	}
 	return sigInput, nil
 }
@@ -410,7 +412,7 @@ func (t *TRC) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if err = validateFields(m, trcFields); err != nil {
-		return common.NewBasicError(UnableValidateFields, err)
+		return common.NewBasicError(ErrValidatingFields, err)
 	}
 	// XXX(roosd): Unmarshalling twice might affect performance.
 	// After switching to go 1.10 we might make use of

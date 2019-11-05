@@ -18,6 +18,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
@@ -38,9 +39,12 @@ const (
 	ReissReqRate = 10 * time.Second
 	// ReissueReqTimeout is the default timeout of a reissue request.
 	ReissueReqTimeout = 5 * time.Second
+)
 
-	ErrorKeyConf   = "Unable to load KeyConf"
-	ErrorCustomers = "Unable to load Customers"
+// Error values
+const (
+	ErrKeyConf   common.ErrMsg = "Unable to load KeyConf"
+	ErrCustomers common.ErrMsg = "Unable to load Customers"
 )
 
 var _ config.Config = (*Config)(nil)

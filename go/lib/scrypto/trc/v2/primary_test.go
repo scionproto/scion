@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
@@ -159,7 +159,7 @@ func TestPrimaryASesCount(t *testing.T) {
 func TestPrimaryASValidateInvariant(t *testing.T) {
 	tests := map[string]struct {
 		Primary        trc.PrimaryAS
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		"Non-Core and Authoritative": {
 			Primary: trc.PrimaryAS{
@@ -169,7 +169,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 					trc.OfflineKey: {},
 				},
 			},
-			ExpectedErrMsg: trc.AuthoritativeButNotCore,
+			ExpectedErrMsg: trc.ErrAuthoritativeButNotCore,
 		},
 		"Voting AS without online key": {
 			Primary: trc.PrimaryAS{
@@ -178,7 +178,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 					trc.OfflineKey: {},
 				},
 			},
-			ExpectedErrMsg: trc.MissingKey,
+			ExpectedErrMsg: trc.ErrMissingKey,
 		},
 		"Voting AS without offline key": {
 			Primary: trc.PrimaryAS{
@@ -187,7 +187,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 					trc.OnlineKey: {},
 				},
 			},
-			ExpectedErrMsg: trc.MissingKey,
+			ExpectedErrMsg: trc.ErrMissingKey,
 		},
 		"Voting AS with issuing key": {
 			Primary: trc.PrimaryAS{
@@ -198,14 +198,14 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 					trc.IssuingKey: {},
 				},
 			},
-			ExpectedErrMsg: trc.UnexpectedKey,
+			ExpectedErrMsg: trc.ErrUnexpectedKey,
 		},
 		"Issuer AS without issuing key": {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Issuing},
 				Keys:       make(map[trc.KeyType]scrypto.KeyMeta),
 			},
-			ExpectedErrMsg: trc.MissingKey,
+			ExpectedErrMsg: trc.ErrMissingKey,
 		},
 		"Issuer AS with online key": {
 			Primary: trc.PrimaryAS{
@@ -215,7 +215,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 					trc.IssuingKey: {},
 				},
 			},
-			ExpectedErrMsg: trc.UnexpectedKey,
+			ExpectedErrMsg: trc.ErrUnexpectedKey,
 		},
 		"Valid Core": {
 			Primary: trc.PrimaryAS{
@@ -258,12 +258,7 @@ func TestPrimaryASValidateInvariant(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			err := test.Primary.ValidateInvariant()
-			if test.ExpectedErrMsg == "" {
-				assert.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
 		})
 	}
 }

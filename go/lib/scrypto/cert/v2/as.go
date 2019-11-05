@@ -25,12 +25,12 @@ import (
 )
 
 const (
-	// WildcardIssuer indicates the issuer is a wildcard IA.
-	WildcardIssuer = "issuer.ia is wildcard"
-	// IssuerDifferentISD indicates that the issuing AS is in a different ISD.
-	IssuerDifferentISD = "issuing.ia in different ISD"
-	// InvalidCertificateType indicates the certificate type is invalid.
-	InvalidCertificateType = "invalid certificate_type"
+	// ErrWildcardIssuer indicates the issuer is a wildcard IA.
+	ErrWildcardIssuer common.ErrMsg = "issuer.ia is wildcard"
+	// ErrIssuerDifferentISD indicates that the issuing AS is in a different ISD.
+	ErrIssuerDifferentISD common.ErrMsg = "issuing.ia in different ISD"
+	// ErrInvalidCertificateType indicates the certificate type is invalid.
+	ErrInvalidCertificateType common.ErrMsg = "invalid certificate_type"
 )
 
 var (
@@ -58,10 +58,10 @@ func (c *AS) Validate() error {
 		return err
 	}
 	if c.Issuer.IA.IsWildcard() {
-		return common.NewBasicError(WildcardIssuer, nil, "issuer", c.Issuer.IA)
+		return common.NewBasicError(ErrWildcardIssuer, nil, "issuer", c.Issuer.IA)
 	}
 	if c.Subject.I != c.Issuer.IA.I {
-		return common.NewBasicError(IssuerDifferentISD, nil,
+		return common.NewBasicError(ErrIssuerDifferentISD, nil,
 			"subject", c.Subject, "issuer", c.Issuer.IA)
 	}
 	return nil
@@ -144,7 +144,7 @@ type TypeAS struct{}
 // UnmarshalText checks that the certificate type matches.
 func (TypeAS) UnmarshalText(b []byte) error {
 	if TypeASJSON != string(b) {
-		return common.NewBasicError(InvalidCertificateType, nil,
+		return common.NewBasicError(ErrInvalidCertificateType, nil,
 			"expected", TypeASJSON, "actual", string(b))
 	}
 	return nil

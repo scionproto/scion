@@ -35,7 +35,7 @@ type rExtension interface {
 
 const (
 	// FIXME(kormat): remove when generic header walker is implemented.
-	ErrExtChainTooLong = "Extension header chain longer than packet"
+	ErrExtChainTooLong common.ErrMsg = "Extension header chain longer than packet"
 )
 
 // extnParseHBH parses a specified hop-by-hop extension in a packet.

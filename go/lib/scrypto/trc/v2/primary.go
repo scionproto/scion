@@ -26,29 +26,29 @@ import (
 
 // Parsing errors with context.
 const (
-	// InvalidKeyType indicates an inexistent key type.
-	InvalidKeyType = "invalid key type"
-	// InvalidAttribute indicates an inexistent attribute.
-	InvalidAttribute = "invalid attribute"
-	// InvalidAttributesSize indicates invalid number of attributes in the attributes list.
-	InvalidAttributesSize = "invalid attributes size"
-	// DuplicateAttributes indicates attribute duplication in the attributes list.
-	DuplicateAttributes = "duplicate attributes"
+	// ErrInvalidKeyType indicates an inexistent key type.
+	ErrInvalidKeyType common.ErrMsg = "invalid key type"
+	// ErrInvalidAttribute indicates an inexistent attribute.
+	ErrInvalidAttribute common.ErrMsg = "invalid attribute"
+	// ErrInvalidAttributesSize indicates invalid number of attributes in the attributes list.
+	ErrInvalidAttributesSize common.ErrMsg = "invalid attributes size"
+	// ErrDuplicateAttributes indicates attribute duplication in the attributes list.
+	ErrDuplicateAttributes common.ErrMsg = "duplicate attributes"
 )
 
 // Invariant errors
 const (
-	// AuthoritativeButNotCore indicates a primary AS that is authoritative but not core.
-	AuthoritativeButNotCore = "authoritative but not core"
-	// UnexpectedKey indicates that a primary AS has an excess key. Voting ASes must
+	// ErrAuthoritativeButNotCore indicates a primary AS that is authoritative but not core.
+	ErrAuthoritativeButNotCore common.ErrMsg = "authoritative but not core"
+	// ErrUnexpectedKey indicates that a primary AS has an excess key. Voting ASes must
 	// have an online and offline key. Non-Voting ASes must not have an offline
 	// key. Issuer ASes must have an online key. Core-only ASes must not have
 	// any key.
-	UnexpectedKey = "unexpected key"
-	// MissingKey indicates that the primary AS is missing a key.
-	MissingKey = "missing key"
-	// InvalidPrimaryAS indicates an invalid primary AS entry.
-	InvalidPrimaryAS = "invalid primary as entry"
+	ErrUnexpectedKey common.ErrMsg = "unexpected key"
+	// ErrMissingKey indicates that the primary AS is missing a key.
+	ErrMissingKey common.ErrMsg = "missing key"
+	// ErrInvalidPrimaryAS indicates an invalid primary AS entry.
+	ErrInvalidPrimaryAS common.ErrMsg = "invalid primary as entry"
 )
 
 // Parsing errors
@@ -66,7 +66,7 @@ type PrimaryASes map[addr.AS]PrimaryAS
 func (p *PrimaryASes) ValidateInvariant() error {
 	for as, primary := range *p {
 		if err := primary.ValidateInvariant(); err != nil {
-			return common.NewBasicError(InvalidPrimaryAS, err, "as", as)
+			return common.NewBasicError(ErrInvalidPrimaryAS, err, "as", as)
 		}
 	}
 	return nil
@@ -134,10 +134,10 @@ func (p *PrimaryAS) ValidateInvariant() error {
 func (p *PrimaryAS) checkKeyExistence(keyType KeyType, shouldExist bool) error {
 	_, ok := p.Keys[keyType]
 	if ok && !shouldExist {
-		return common.NewBasicError(UnexpectedKey, nil, "key_type", keyType)
+		return common.NewBasicError(ErrUnexpectedKey, nil, "key_type", keyType)
 	}
 	if !ok && shouldExist {
-		return common.NewBasicError(MissingKey, nil, "key_type", keyType)
+		return common.NewBasicError(ErrMissingKey, nil, "key_type", keyType)
 	}
 	return nil
 }
@@ -171,7 +171,7 @@ type Attributes []Attribute
 // Validate checks that the attributes list is valid.
 func (t *Attributes) Validate() error {
 	if len(*t) > 4 || len(*t) <= 0 {
-		return common.NewBasicError(InvalidAttributesSize, nil, "len", len(*t))
+		return common.NewBasicError(ErrInvalidAttributesSize, nil, "len", len(*t))
 	}
 	var core, authoritative bool
 	for i := 0; i < len(*t); i++ {
@@ -179,12 +179,12 @@ func (t *Attributes) Validate() error {
 		authoritative = authoritative || (*t)[i] == Authoritative
 		for j := i + 1; j < len(*t); j++ {
 			if (*t)[i] == (*t)[j] {
-				return common.NewBasicError(DuplicateAttributes, nil, "attribute", (*t)[i])
+				return common.NewBasicError(ErrDuplicateAttributes, nil, "attribute", (*t)[i])
 			}
 		}
 	}
 	if authoritative && !core {
-		return common.NewBasicError(AuthoritativeButNotCore, nil)
+		return common.NewBasicError(ErrAuthoritativeButNotCore, nil)
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ func (t *Attribute) UnmarshalText(b []byte) error {
 	case Core:
 		*t = Core
 	default:
-		return common.NewBasicError(InvalidAttribute, nil, "input", string(b))
+		return common.NewBasicError(ErrInvalidAttribute, nil, "input", string(b))
 	}
 	return nil
 }
@@ -270,7 +270,7 @@ func (t *KeyType) UnmarshalText(b []byte) error {
 	case IssuingKeyJSON:
 		*t = IssuingKey
 	default:
-		return common.NewBasicError(InvalidKeyType, nil, "input", string(b))
+		return common.NewBasicError(ErrInvalidKeyType, nil, "input", string(b))
 	}
 	return nil
 
@@ -288,5 +288,5 @@ func (t KeyType) MarshalText() ([]byte, error) {
 	case IssuingKey:
 		return []byte(IssuingKeyJSON), nil
 	}
-	return nil, common.NewBasicError(InvalidKeyType, nil, "key_type", int(t))
+	return nil, common.NewBasicError(ErrInvalidKeyType, nil, "key_type", int(t))
 }

@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
@@ -28,7 +28,7 @@ import (
 func TestIssuerValidate(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(*cert.Issuer)
-		ExpectedErrMsg string
+		ExpectedErrMsg error
 	}{
 		"Valid": {
 			Modify: func(_ *cert.Issuer) {},
@@ -46,13 +46,13 @@ func TestIssuerValidate(t *testing.T) {
 			Modify: func(c *cert.Issuer) {
 				c.Subject.A = 0
 			},
-			ExpectedErrMsg: cert.InvalidSubject,
+			ExpectedErrMsg: cert.ErrInvalidSubject,
 		},
 		"No Issuing Key": {
 			Modify: func(c *cert.Issuer) {
 				delete(c.Keys, cert.IssuingKey)
 			},
-			ExpectedErrMsg: cert.MissingKey,
+			ExpectedErrMsg: cert.ErrMissingKey,
 		},
 		"SigningKey": {
 			Modify: func(c *cert.Issuer) {
@@ -62,7 +62,7 @@ func TestIssuerValidate(t *testing.T) {
 					Key:        []byte{2, 110, 1},
 				}
 			},
-			ExpectedErrMsg: cert.UnexpectedKey,
+			ExpectedErrMsg: cert.ErrUnexpectedKey,
 		},
 		"EncryptionKey": {
 			Modify: func(c *cert.Issuer) {
@@ -72,7 +72,7 @@ func TestIssuerValidate(t *testing.T) {
 					Key:        []byte{1, 110, 1},
 				}
 			},
-			ExpectedErrMsg: cert.UnexpectedKey,
+			ExpectedErrMsg: cert.ErrUnexpectedKey,
 		},
 	}
 	for name, test := range tests {
@@ -80,12 +80,7 @@ func TestIssuerValidate(t *testing.T) {
 			c := newIssuerCert(time.Now())
 			test.Modify(&c)
 			err := c.Validate()
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), test.ExpectedErrMsg)
-			}
+			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
 		})
 	}
 }

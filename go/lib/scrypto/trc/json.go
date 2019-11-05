@@ -17,9 +17,9 @@ package trc
 import "github.com/scionproto/scion/go/lib/common"
 
 const (
-	InvalidNumFields     = "Invalid number of fields"
-	MissingField         = "Missing json field"
-	UnableValidateFields = "Unable to validate fields"
+	ErrInvalidNumFields common.ErrMsg = "Invalid number of fields"
+	ErrMissingField     common.ErrMsg = "Missing json field"
+	ErrValidatingFields common.ErrMsg = "Unable to validate fields"
 )
 
 var trcFields = []string{certLogs, coreASes, creationTime, description,
@@ -31,11 +31,11 @@ var coreASFields = []string{"OfflineKey", "OfflineKeyAlg", "OnlineKey", "OnlineK
 func validateFields(m map[string]interface{}, fields []string) error {
 	for _, field := range fields {
 		if _, ok := m[field]; !ok {
-			return common.NewBasicError(MissingField, nil, "field", field)
+			return common.NewBasicError(ErrMissingField, nil, "field", field)
 		}
 	}
 	if len(m) != len(fields) {
-		return common.NewBasicError(InvalidNumFields, nil,
+		return common.NewBasicError(ErrInvalidNumFields, nil,
 			"expected", len(fields), "actual", len(m))
 	}
 	return nil

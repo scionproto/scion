@@ -29,9 +29,9 @@ import (
 const CfgName = "topology.json"
 
 const (
-	ErrorOpen    = "Unable to open topology"
-	ErrorParse   = "Unable to parse topology from JSON"
-	ErrorConvert = "Unable to convert RawTopo to Topo"
+	ErrOpen    common.ErrMsg = "Unable to open topology"
+	ErrParse   common.ErrMsg = "Unable to parse topology from JSON"
+	ErrConvert common.ErrMsg = "Unable to convert RawTopo to Topo"
 )
 
 // Structures directly filled from JSON
@@ -216,11 +216,11 @@ func (a RawAddr) String() string {
 func Load(b common.RawBytes) (*Topo, error) {
 	rt := &RawTopo{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewBasicError(ErrorParse, err)
+		return nil, common.NewBasicError(ErrParse, err)
 	}
 	ct, err := TopoFromRaw(rt)
 	if err != nil {
-		return nil, common.NewBasicError(ErrorConvert, err)
+		return nil, common.NewBasicError(ErrConvert, err)
 	}
 	return ct, nil
 }
@@ -228,7 +228,7 @@ func Load(b common.RawBytes) (*Topo, error) {
 func LoadFromFile(path string) (*Topo, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, common.NewBasicError(ErrorOpen, err, "path", path)
+		return nil, common.NewBasicError(ErrOpen, err, "path", path)
 	}
 	return Load(b)
 }
@@ -236,7 +236,7 @@ func LoadFromFile(path string) (*Topo, error) {
 func LoadRaw(b common.RawBytes) (*RawTopo, error) {
 	rt := &RawTopo{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewBasicError(ErrorParse, err)
+		return nil, common.NewBasicError(ErrParse, err)
 	}
 	return rt, nil
 }
@@ -244,7 +244,7 @@ func LoadRaw(b common.RawBytes) (*RawTopo, error) {
 func LoadRawFromFile(path string) (*RawTopo, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, common.NewBasicError(ErrorOpen, err, "path", path)
+		return nil, common.NewBasicError(ErrOpen, err, "path", path)
 	}
 	return LoadRaw(b)
 }

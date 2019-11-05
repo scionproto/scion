@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
@@ -31,7 +32,7 @@ func TestASVerifierVerify(t *testing.T) {
 	tests := map[string]struct {
 		Modify         func(as *cert.AS, issuer *cert.Issuer, p *cert.ProtectedAS)
 		ModifySigned   func(signed *cert.SignedAS)
-		ExpectedErrMsg string
+		ExpectedErrMsg common.ErrMsg
 	}{
 		"valid": {
 			Modify:       func(*cert.AS, *cert.Issuer, *cert.ProtectedAS) {},
@@ -49,14 +50,14 @@ func TestASVerifierVerify(t *testing.T) {
 				issuer.Subject.A++
 			},
 			ModifySigned:   func(*cert.SignedAS) {},
-			ExpectedErrMsg: cert.UnexpectedIssuer,
+			ExpectedErrMsg: cert.ErrUnexpectedIssuer,
 		},
 		"Issuer version mismatch": {
 			Modify: func(_ *cert.AS, issuer *cert.Issuer, _ *cert.ProtectedAS) {
 				issuer.Version++
 			},
 			ModifySigned:   func(*cert.SignedAS) {},
-			ExpectedErrMsg: cert.UnexpectedCertificateVersion,
+			ExpectedErrMsg: cert.ErrUnexpectedCertificateVersion,
 		},
 		"Validity not covered": {
 			Modify: func(cert *cert.AS, issuer *cert.Issuer, _ *cert.ProtectedAS) {
@@ -64,28 +65,28 @@ func TestASVerifierVerify(t *testing.T) {
 				issuer.Validity.NotAfter.Time = cert.Validity.NotAfter.Add(-time.Second)
 			},
 			ModifySigned:   func(*cert.SignedAS) {},
-			ExpectedErrMsg: cert.ASValidityNotCovered,
+			ExpectedErrMsg: cert.ErrASValidityNotCovered,
 		},
 		"Protected.IA mismatch": {
 			Modify: func(_ *cert.AS, _ *cert.Issuer, p *cert.ProtectedAS) {
 				p.IA.A++
 			},
 			ModifySigned:   func(*cert.SignedAS) {},
-			ExpectedErrMsg: cert.InvalidProtected,
+			ExpectedErrMsg: cert.ErrInvalidProtected,
 		},
 		"Protected.Algorithm mismatch": {
 			Modify: func(_ *cert.AS, _ *cert.Issuer, p *cert.ProtectedAS) {
 				p.Algorithm = "other"
 			},
 			ModifySigned:   func(*cert.SignedAS) {},
-			ExpectedErrMsg: cert.InvalidProtected,
+			ExpectedErrMsg: cert.ErrInvalidProtected,
 		},
 		"Protected.CertificateVersion mismatch": {
 			Modify: func(_ *cert.AS, _ *cert.Issuer, p *cert.ProtectedAS) {
 				p.CertificateVersion++
 			},
 			ModifySigned:   func(*cert.SignedAS) {},
-			ExpectedErrMsg: cert.InvalidProtected,
+			ExpectedErrMsg: cert.ErrInvalidProtected,
 		},
 		"Mangled signature": {
 			Modify: func(*cert.AS, *cert.Issuer, *cert.ProtectedAS) {},
@@ -179,7 +180,7 @@ func TestIssuerVerifierVerify(t *testing.T) {
 				trc.Version++
 			},
 			ModifySigned:   func(*cert.SignedIssuer) {},
-			ExpectedErrMsg: cert.UnexpectedTRCVersion,
+			ExpectedErrMsg: cert.ErrUnexpectedTRCVersion.Error(),
 		},
 		"Validity not covered": {
 			Modify: func(issuer *cert.Issuer, trc *trc.TRC, _ *cert.ProtectedIssuer) {
@@ -187,21 +188,21 @@ func TestIssuerVerifierVerify(t *testing.T) {
 				trc.Validity.NotAfter.Time = issuer.Validity.NotAfter.Time.Add(-time.Second)
 			},
 			ModifySigned:   func(*cert.SignedIssuer) {},
-			ExpectedErrMsg: cert.ASValidityNotCovered,
+			ExpectedErrMsg: cert.ErrASValidityNotCovered.Error(),
 		},
 		"Protected.Algorithm mismatch": {
 			Modify: func(_ *cert.Issuer, _ *trc.TRC, p *cert.ProtectedIssuer) {
 				p.Algorithm = "other"
 			},
 			ModifySigned:   func(*cert.SignedIssuer) {},
-			ExpectedErrMsg: cert.InvalidProtected,
+			ExpectedErrMsg: cert.ErrInvalidProtected.Error(),
 		},
 		"Protected.TRCVersion mismatch": {
 			Modify: func(_ *cert.Issuer, _ *trc.TRC, p *cert.ProtectedIssuer) {
 				p.TRCVersion++
 			},
 			ModifySigned:   func(*cert.SignedIssuer) {},
-			ExpectedErrMsg: cert.InvalidProtected,
+			ExpectedErrMsg: cert.ErrInvalidProtected.Error(),
 		},
 		"Mangled signature": {
 			Modify: func(*cert.Issuer, *trc.TRC, *cert.ProtectedIssuer) {},

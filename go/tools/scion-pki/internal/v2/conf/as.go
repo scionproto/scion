@@ -30,17 +30,17 @@ import (
 )
 
 const (
-	ErrASCertMissing            = "AS Certificate section missing"
-	ErrInvalidValidityDuration  = "invalid validity duration"
-	ErrIssuerMissing            = "issuer not set in AS certificate"
-	ErrInvalidIssuer            = "issuer is not valid"
-	ErrInvalidIssuerCertVersion = "issuer certificate version must not be zero"
-	ErrInvalidIssuerTRCVersion  = "TRC version must not be zero"
-	ErrInvalidOptDistPoint      = "invalid optional distribution point"
-	ErrValidityDurationNotSet   = "validity duration not set"
-	ErrVersionNotSet            = "version not set for certificate"
-	ErrInvalidSignAlgorithm     = "invalid signature algorithm"
-	ErrInvalidEncAlgorithm      = "invalid encryption algorithm"
+	ErrASCertMissing            common.ErrMsg = "AS Certificate section missing"
+	ErrInvalidValidityDuration  common.ErrMsg = "invalid validity duration"
+	ErrIssuerMissing            common.ErrMsg = "issuer not set in AS certificate"
+	ErrInvalidIssuer            common.ErrMsg = "issuer is not valid"
+	ErrInvalidIssuerCertVersion common.ErrMsg = "issuer certificate version must not be zero"
+	ErrInvalidIssuerTRCVersion  common.ErrMsg = "TRC version must not be zero"
+	ErrInvalidOptDistPoint      common.ErrMsg = "invalid optional distribution point"
+	ErrValidityDurationNotSet   common.ErrMsg = "validity duration not set"
+	ErrVersionNotSet            common.ErrMsg = "version not set for certificate"
+	ErrInvalidSignAlgorithm     common.ErrMsg = "invalid signature algorithm"
+	ErrInvalidEncAlgorithm      common.ErrMsg = "invalid encryption algorithm"
 )
 
 const (

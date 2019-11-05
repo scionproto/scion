@@ -124,7 +124,7 @@ type TypeIssuer struct{}
 // UnmarshalText checks that the certificate type matches.
 func (TypeIssuer) UnmarshalText(b []byte) error {
 	if TypeIssuerJSON != string(b) {
-		return common.NewBasicError(InvalidCertificateType, nil,
+		return common.NewBasicError(ErrInvalidCertificateType, nil,
 			"expected", TypeIssuerJSON, "actual", string(b))
 	}
 	return nil

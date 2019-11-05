@@ -90,12 +90,12 @@ func TestIATableRegister(t *testing.T) {
 		value := "test value"
 		Convey("ISD zero is error", func() {
 			ref, err := table.Register(addr.IA{I: 0, A: 1}, public, nil, addr.SvcNone, value)
-			xtest.SoMsgErrorStr("err", err, ErrBadISD)
+			xtest.SoMsgErrorStr("err", err, ErrBadISD.Error())
 			SoMsg("ref", ref, ShouldBeNil)
 		})
 		Convey("AS zero is error", func() {
 			ref, err := table.Register(addr.IA{I: 1, A: 0}, public, nil, addr.SvcNone, value)
-			xtest.SoMsgErrorStr("err", err, ErrBadAS)
+			xtest.SoMsgErrorStr("err", err, ErrBadAS.Error())
 			SoMsg("ref", ref, ShouldBeNil)
 		})
 		Convey("for a good AS number", func() {

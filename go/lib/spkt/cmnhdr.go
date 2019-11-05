@@ -39,7 +39,7 @@ type CmnHdr struct {
 }
 
 const (
-	ErrorUnsuppVersion = "Unsupported SCION version"
+	ErrUnsuppVersion common.ErrMsg = "Unsupported SCION version"
 )
 
 func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, error) {
@@ -74,7 +74,7 @@ func (c *CmnHdr) Parse(b common.RawBytes) error {
 		// This can only usefully be replied to if the version specified is one
 		// that the current router supports, but has deprecated.
 		return common.NewBasicError(
-			ErrorUnsuppVersion,
+			ErrUnsuppVersion,
 			scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadVersion, nil, nil),
 			"expected", SCIONVersion, "actual", c.Ver,
 		)

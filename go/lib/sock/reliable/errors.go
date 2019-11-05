@@ -24,18 +24,18 @@ import (
 )
 
 const (
-	ErrNoAddress             = "no address found"
-	ErrNoPort                = "missing port"
-	ErrPayloadTooLong        = "payload too long"
-	ErrIncompleteFrameHeader = "incomplete frame header"
-	ErrBadFrameLength        = "bad frame length"
-	ErrBadCookie             = "bad cookie"
-	ErrBadAddressType        = "bad address type"
-	ErrIncompleteAddress     = "incomplete IP address"
-	ErrIncompletePort        = "incomplete UDP port"
-	ErrIncompleteMessage     = "incomplete message"
-	ErrBadLength             = "bad length"
-	ErrBufferTooSmall        = "buffer too small"
+	ErrNoAddress             common.ErrMsg = "no address found"
+	ErrNoPort                common.ErrMsg = "missing port"
+	ErrPayloadTooLong        common.ErrMsg = "payload too long"
+	ErrIncompleteFrameHeader common.ErrMsg = "incomplete frame header"
+	ErrBadFrameLength        common.ErrMsg = "bad frame length"
+	ErrBadCookie             common.ErrMsg = "bad cookie"
+	ErrBadAddressType        common.ErrMsg = "bad address type"
+	ErrIncompleteAddress     common.ErrMsg = "incomplete IP address"
+	ErrIncompletePort        common.ErrMsg = "incomplete UDP port"
+	ErrIncompleteMessage     common.ErrMsg = "incomplete message"
+	ErrBadLength             common.ErrMsg = "bad length"
+	ErrBufferTooSmall        common.ErrMsg = "buffer too small"
 )
 
 func IsDispatcherError(err error) bool {

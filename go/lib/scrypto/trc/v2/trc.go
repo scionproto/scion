@@ -28,17 +28,17 @@ import (
 
 // Invariant errors with context
 const (
-	// InvariantViolation indicates a TRC invariant violation.
-	InvariantViolation = "TRC invariant violation"
-	// InvalidValidityPeriod indicates an invalid validity period.
-	InvalidValidityPeriod = "invalid validity period"
-	// VotingQuorumTooLarge indicates that the number of voting ASes is smaller
+	// ErrInvariantViolation indicates a TRC invariant violation.
+	ErrInvariantViolation common.ErrMsg = "TRC invariant violation"
+	// ErrInvalidValidityPeriod indicates an invalid validity period.
+	ErrInvalidValidityPeriod common.ErrMsg = "invalid validity period"
+	// ErrVotingQuorumTooLarge indicates that the number of voting ASes is smaller
 	// than the voting quorum.
-	VotingQuorumTooLarge = "voting quorum too large"
+	ErrVotingQuorumTooLarge common.ErrMsg = "voting quorum too large"
 )
 
-// UnsupportedFormat indicates an invalid TRC format.
-const UnsupportedFormat = "unsupported TRC format"
+// ErrUnsupportedFormat indicates an invalid TRC format.
+const ErrUnsupportedFormat common.ErrMsg = "unsupported TRC format"
 
 // Invariant errors
 var (
@@ -159,14 +159,15 @@ func (t *TRC) Base() bool {
 // ValidateInvariant ensures that the TRC invariant holds.
 func (t *TRC) ValidateInvariant() error {
 	if err := t.Validity.Validate(); err != nil {
-		return common.NewBasicError(InvalidValidityPeriod, err, "validity", t.Validity)
+		return common.NewBasicError(ErrInvalidValidityPeriod, err, "validity", t.Validity)
 	}
 	if t.VotingQuorum() <= 0 {
 		return ErrZeroVotingQuorum
 	}
 	c := t.PrimaryASes.Count(Voting)
 	if t.VotingQuorum() > c {
-		return common.NewBasicError(VotingQuorumTooLarge, nil, "max", c, "actual", t.VotingQuorum)
+		return common.NewBasicError(ErrVotingQuorumTooLarge, nil,
+			"max", c, "actual", t.VotingQuorum)
 	}
 	if t.PrimaryASes.Count(Issuing) <= 0 {
 		return ErrNoIssuingAS
@@ -298,7 +299,7 @@ func (v *FormatVersion) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if parsed != 1 {
-		return common.NewBasicError(UnsupportedFormat, nil, "fmt", parsed)
+		return common.NewBasicError(ErrUnsupportedFormat, nil, "fmt", parsed)
 	}
 	*v = FormatVersion(parsed)
 	return nil

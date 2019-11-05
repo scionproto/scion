@@ -30,7 +30,7 @@ import (
 
 type verifyTestCase struct {
 	Modify         func(*testing.T, *[]trc.Signature)
-	ExpectedErrMsg string
+	ExpectedErrMsg common.ErrMsg
 }
 
 var (
@@ -64,21 +64,21 @@ var (
 						"de2a08ae2a09de2a091"),
 				})
 			},
-			ExpectedErrMsg: trc.UnexpectedPOPSignature,
+			ExpectedErrMsg: trc.ErrUnexpectedPOPSignature,
 		},
 		"Duplicate proof of possession": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				i := findSignature(t, *sigs, a110, trc.POPSignature)
 				*sigs = append((*sigs), (*sigs)[i])
 			},
-			ExpectedErrMsg: trc.DuplicatePOPSignature,
+			ExpectedErrMsg: trc.ErrDuplicatePOPSignature,
 		},
 		"Missing proof of possession": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				i := findSignature(t, *sigs, a110, trc.POPSignature)
 				*sigs = append((*sigs)[:i], (*sigs)[i+1:]...)
 			},
-			ExpectedErrMsg: trc.MissingPOPSignature,
+			ExpectedErrMsg: trc.ErrMissingPOPSignature,
 		},
 		"Proof of possession wrong Algorithm": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
@@ -87,7 +87,7 @@ var (
 					p.Algorithm = "invalid"
 				})
 			},
-			ExpectedErrMsg: trc.InvalidProtected,
+			ExpectedErrMsg: trc.ErrInvalidProtected,
 		},
 		// A wrong KeyType would be caught by a previous check.
 		"Proof of possession wrong KeyVersion": {
@@ -97,14 +97,14 @@ var (
 					p.KeyVersion += 1
 				})
 			},
-			ExpectedErrMsg: trc.InvalidProtected,
+			ExpectedErrMsg: trc.ErrInvalidProtected,
 		},
 		"Mangled proof of possession signature": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.POPSignature)]
 				sig.Signature[0] ^= 0xFF
 			},
-			ExpectedErrMsg: trc.POPVerificationError,
+			ExpectedErrMsg: trc.ErrPOPVerification,
 		},
 	}
 
@@ -126,21 +126,21 @@ var (
 						"0e2a08ee2a08ae2a09be2a09de2a081e2a09ee2a0a5e2a097e2a091"),
 				})
 			},
-			ExpectedErrMsg: trc.UnexpectedVoteSignature,
+			ExpectedErrMsg: trc.ErrUnexpectedVoteSignature,
 		},
 		"Duplicate vote": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				i := findSignature(t, *sigs, a110, trc.VoteSignature)
 				*sigs = append((*sigs), (*sigs)[i])
 			},
-			ExpectedErrMsg: trc.DuplicateVoteSignature,
+			ExpectedErrMsg: trc.ErrDuplicateVoteSignature,
 		},
 		"Missing vote": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				i := findSignature(t, *sigs, a110, trc.VoteSignature)
 				*sigs = append((*sigs)[:i], (*sigs)[i+1:]...)
 			},
-			ExpectedErrMsg: trc.MissingVoteSignature,
+			ExpectedErrMsg: trc.ErrMissingVoteSignature,
 		},
 		"Vote wrong Algorithm": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
@@ -149,7 +149,7 @@ var (
 					p.Algorithm = "invalid"
 				})
 			},
-			ExpectedErrMsg: trc.InvalidProtected,
+			ExpectedErrMsg: trc.ErrInvalidProtected,
 		},
 		"Vote wrong KeyType": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
@@ -158,7 +158,7 @@ var (
 					p.KeyType = trc.OnlineKey
 				})
 			},
-			ExpectedErrMsg: trc.InvalidProtected,
+			ExpectedErrMsg: trc.ErrInvalidProtected,
 		},
 		"Vote wrong KeyVersion": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
@@ -167,14 +167,14 @@ var (
 					p.KeyVersion += 1
 				})
 			},
-			ExpectedErrMsg: trc.InvalidProtected,
+			ExpectedErrMsg: trc.ErrInvalidProtected,
 		},
 		"Mangled Vote signature": {
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.VoteSignature)]
 				sig.Signature[0] ^= 0xFF
 			},
-			ExpectedErrMsg: trc.VoteVerificationError,
+			ExpectedErrMsg: trc.ErrVoteVerification,
 		},
 	}
 )
