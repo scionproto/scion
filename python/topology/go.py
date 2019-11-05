@@ -239,21 +239,21 @@ class GoGenerator(object):
             write_file(config_file_path, toml.dumps(self._build_disp_conf("dispatcher")))
 
     def _gen_disp_docker(self):
-        for topo_id, _ in self.args.topo_dicts.items():
-            for elem in ["disp", "disp_br", "disp_sig"]:
+        for topo_id, topo in self.args.topo_dicts.items():
+            for elem in ["disp", "disp_sig"]:
                 elem = "%s_%s" % (elem, topo_id.file_fmt())
                 elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
                 disp_conf = self._build_disp_conf(elem, topo_id)
                 write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
+            for k, _ in topo.get("BorderRouters", {}).items():
+                disp_id = '%s_%s%s' % ('disp_br', topo_id.file_fmt(), k[-2:])
+                elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), disp_id)
+                disp_conf = self._build_disp_conf(disp_id, topo_id)
+                write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
 
     def _build_disp_conf(self, name, topo_id=None):
-        disp_type = ''
-        if name.startswith('disp_br'):
-            disp_type = 'br'
-        elif name.startswith('disp_sig'):
-            disp_type = 'sig'
         prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
-                                               self.args.networks, DISP_PROM_PORT, disp_type)
+                                               self.args.networks, DISP_PROM_PORT, name)
         return {
             'dispatcher': {
                 'ID': name,
