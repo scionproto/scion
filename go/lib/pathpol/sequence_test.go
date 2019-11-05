@@ -19,9 +19,10 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSequence(t *testing.T) {

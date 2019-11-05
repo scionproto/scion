@@ -36,7 +36,7 @@ func TestNewACL(t *testing.T) {
 		},
 		"No default entry": {
 			Entries: []*ACLEntry{
-				&ACLEntry{Action: Allow, Rule: mustHopPredicate(t, "1-0#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "1-0#0")},
 			},
 			ExpectedErr: ErrNoDefault,
 		},
@@ -45,8 +45,8 @@ func TestNewACL(t *testing.T) {
 		},
 		"Entry with hop predicates": {
 			Entries: []*ACLEntry{
-				&ACLEntry{Action: Allow, Rule: mustHopPredicate(t, "1-0#0")},
-				&ACLEntry{Action: Deny, Rule: mustHopPredicate(t, "0-0#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "1-0#0")},
+				{Action: Deny, Rule: mustHopPredicate(t, "0-0#0")},
 			},
 		},
 	}
