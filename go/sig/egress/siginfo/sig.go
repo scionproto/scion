@@ -30,13 +30,11 @@ type Sig struct {
 }
 
 func (s *Sig) CtrlSnetAddr() *snet.Addr {
-	l4 := addr.NewL4UDPInfo(uint16(s.CtrlL4Port))
-	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: l4}}
+	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: uint16(s.CtrlL4Port)}}
 }
 
 func (s *Sig) EncapSnetAddr() *snet.Addr {
-	l4 := addr.NewL4UDPInfo(uint16(s.EncapL4Port))
-	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: l4}}
+	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: uint16(s.EncapL4Port)}}
 }
 
 func (s *Sig) Equal(x *Sig) bool {

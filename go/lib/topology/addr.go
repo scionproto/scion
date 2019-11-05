@@ -190,7 +190,7 @@ func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error 
 	}
 	pbo.pub = &addr.AppAddr{
 		L3: l3,
-		L4: addr.NewL4UDPInfo(uint16(rpbo.Public.L4Port)),
+		L4: uint16(rpbo.Public.L4Port),
 	}
 	pbo.overlay, err = newOverlayAddr(udpOverlay, pbo.pub.L3, rpbo.Public.OverlayPort)
 	if err != nil {
@@ -203,7 +203,7 @@ func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error 
 		}
 		pbo.bind = &addr.AppAddr{
 			L3: l3,
-			L4: addr.NewL4UDPInfo(uint16(rpbo.Bind.L4Port)),
+			L4: uint16(rpbo.Bind.L4Port),
 		}
 	}
 	return nil
@@ -261,14 +261,14 @@ func (a *pubBindAddr) String() string {
 }
 
 func newOverlayAddr(udpOverlay bool, l3 addr.HostAddr, port int) (*overlay.OverlayAddr, error) {
-	var ol4 addr.L4Info
+	var ol4 uint16
 	if !udpOverlay && port != 0 {
 		return nil, common.NewBasicError(ErrOverlayPort, nil)
 	} else if udpOverlay {
 		if port == 0 {
 			port = overlay.EndhostPort
 		}
-		ol4 = addr.NewL4UDPInfo(uint16(port))
+		ol4 = uint16(port)
 	}
 	return overlay.NewOverlayAddr(l3, ol4)
 }

@@ -144,7 +144,6 @@ func (p Prober) send(scionConn snet.Conn, path sciond.PathReplyEntry) error {
 		IA: p.DstIA,
 		Host: &addr.AppAddr{
 			L3: addr.HostSVCFromString("NONE"),
-			L4: addr.NewL4UDPInfo(0),
 		},
 		NextHop: nextHop,
 		Path:    sPath,

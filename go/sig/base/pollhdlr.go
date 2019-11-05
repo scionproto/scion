@@ -58,10 +58,9 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error packing signed Ctrl payload", "err", err)
 			break
 		}
-		l4 := addr.NewL4UDPInfo(req.Addr.Ctrl.Port)
 		sigCtrlAddr := &snet.Addr{
 			IA:      rpld.Addr.IA,
-			Host:    &addr.AppAddr{L3: req.Addr.Ctrl.Host(), L4: l4},
+			Host:    &addr.AppAddr{L3: req.Addr.Ctrl.Host(), L4: req.Addr.Ctrl.Port},
 			Path:    rpld.Addr.Path,
 			NextHop: rpld.Addr.NextHop.Copy(),
 		}

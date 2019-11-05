@@ -74,7 +74,7 @@ func genIFStateReq() error {
 	}
 	dst := &snet.Addr{
 		IA:   ia,
-		Host: &addr.AppAddr{L3: addr.SvcBS.Multicast(), L4: addr.NewL4UDPInfo(0)},
+		Host: &addr.AppAddr{L3: addr.SvcBS.Multicast()},
 	}
 	bsAddrs, err := rctx.Get().ResolveSVCMulti(addr.SvcBS)
 	if err != nil {

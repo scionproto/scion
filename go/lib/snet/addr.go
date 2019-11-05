@@ -143,15 +143,14 @@ func AddrFromString(s string) (*Addr, error) {
 			return nil, common.NewBasicError("Invalid IP address string", nil, "ip", parts["host"])
 		}
 	}
-	var l4 addr.L4Info
+	var l4 uint16
 	if parts["port"] != "" {
 		// skip the : (first character) from the port string
 		p, err := strconv.ParseUint(parts["port"][1:], 10, 16)
 		if err != nil {
 			return nil, common.NewBasicError("Invalid port string", err, "port", parts["port"][1:])
 		}
-		// FIXME(sgmonroy) We should not assume UDP as the L4 protocol
-		l4 = addr.NewL4UDPInfo(uint16(p))
+		l4 = uint16(p)
 	}
 	return &Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}, nil
 }

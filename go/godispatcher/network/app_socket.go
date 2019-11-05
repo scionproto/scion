@@ -270,7 +270,7 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 			pkt := entries[0].(*respool.Packet)
 			overlayAddr, err := overlay.NewOverlayAddr(
 				addr.HostFromIP(pkt.OverlayRemote.IP),
-				addr.NewL4UDPInfo(uint16(pkt.OverlayRemote.Port)),
+				uint16(pkt.OverlayRemote.Port),
 			)
 			if err != nil {
 				h.Logger.Warn("[network->app] Unable to encode overlay address.", "err", err)

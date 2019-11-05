@@ -7,7 +7,6 @@ go_library(
         "doc.go",
         "host.go",
         "isdas.go",
-        "l4info.go",
         "util.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/addr",

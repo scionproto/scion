@@ -307,17 +307,13 @@ func (m *LocalMachine) AppAddress() *addr.AppAddr {
 	}
 	return &addr.AppAddr{
 		L3: addr.HostFromIP(ip),
-		L4: addr.NewL4UDPInfo(0),
 	}
 }
 
 // BindAddress returns a bind address for the local machine. The port is
 // set to 0.
 func (m *LocalMachine) BindAddress() *overlay.OverlayAddr {
-	ov, err := overlay.NewOverlayAddr(
-		addr.HostFromIP(m.InterfaceIP),
-		addr.NewL4UDPInfo(0),
-	)
+	ov, err := overlay.NewOverlayAddr(addr.HostFromIP(m.InterfaceIP), 0)
 	if err != nil {
 		// XXX(scrye): due to the hardcoded types in this function, this should
 		// never panic

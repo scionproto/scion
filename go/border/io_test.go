@@ -148,10 +148,7 @@ func newTestPktList(t *testing.T, length int) (ringbuf.EntryList, func(expected 
 }
 
 func newTestDst(t *testing.T) *overlay.OverlayAddr {
-	dst, err := overlay.NewOverlayAddr(
-		addr.HostFromIP(net.IP{127, 0, 0, 1}),
-		addr.NewL4UDPInfo(overlay.EndhostPort),
-	)
+	dst, err := overlay.NewOverlayAddr(addr.HostFromIP(net.IP{127, 0, 0, 1}), overlay.EndhostPort)
 	require.NoError(t, err)
 	return dst
 }

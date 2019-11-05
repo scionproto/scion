@@ -300,8 +300,7 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 		c.readMeta.Src = c.Remote
 	} else {
 		l3 := addr.HostFromIP(src.IP)
-		l4 := addr.NewL4UDPInfo(uint16(src.Port))
-		c.readMeta.Src, _ = overlay.NewOverlayAddr(l3, l4)
+		c.readMeta.Src, _ = overlay.NewOverlayAddr(l3, uint16(src.Port))
 	}
 	return n, &c.readMeta, err
 }
@@ -349,9 +348,9 @@ func (c *connUDPBase) WriteTo(b common.RawBytes, dst *overlay.OverlayAddr) (int,
 		return c.conn.Write(b)
 	}
 	if assert.On {
-		assert.Must(dst.L4().Port() != 0, "OverlayPort must not be 0")
+		assert.Must(dst.L4() != 0, "OverlayPort must not be 0")
 	}
-	addr := &net.UDPAddr{IP: dst.L3().IP(), Port: int(dst.L4().Port())}
+	addr := &net.UDPAddr{IP: dst.L3().IP(), Port: int(dst.L4())}
 	return c.conn.WriteTo(b, addr)
 }
 
@@ -401,11 +400,7 @@ func (m *ReadMeta) setSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay
 		m.Src = a
 	} else {
 		l3 := addr.HostFromIP(raddr.IP)
-		var l4 addr.L4Info
-		if ot.IsUDP() {
-			l4 = addr.NewL4UDPInfo(uint16(raddr.Port))
-		}
-		m.Src, _ = overlay.NewOverlayAddr(l3, l4)
+		m.Src, _ = overlay.NewOverlayAddr(l3, uint16(raddr.Port))
 	}
 }
 

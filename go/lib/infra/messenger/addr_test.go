@@ -59,26 +59,11 @@ func TestBuildFullAddress(t *testing.T) {
 			ExpectedError: true,
 		},
 		{
-			Description:   "snet address without L4",
-			InputAddress:  &snet.Addr{Host: &addr.AppAddr{L3: addr.SvcBS}},
-			ExpectedError: true,
-		},
-		{
 			Description: "snet address with bad L3 type",
 			InputAddress: &snet.Addr{
 				Host: &addr.AppAddr{
 					L3: &addr.HostNone{},
-					L4: addr.NewL4UDPInfo(5),
-				},
-			},
-			ExpectedError: true,
-		},
-		{
-			Description: "snet address with bad L4 type",
-			InputAddress: &snet.Addr{
-				Host: &addr.AppAddr{
-					L3: addr.SvcBS,
-					L4: addr.NewL4TCPInfo(5),
+					L4: 5,
 				},
 			},
 			ExpectedError: true,
@@ -119,7 +104,7 @@ func TestBuildFullAddress(t *testing.T) {
 				IA: remoteIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
-					L4: addr.NewL4UDPInfo(1),
+					L4: 1,
 				},
 			}
 			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("err"))
@@ -131,7 +116,7 @@ func TestBuildFullAddress(t *testing.T) {
 				IA: remoteIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
-					L4: addr.NewL4UDPInfo(1),
+					L4: 1,
 				},
 				Path: &spath.Path{},
 			}
@@ -148,7 +133,7 @@ func TestBuildFullAddress(t *testing.T) {
 				IA: remoteIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
-					L4: addr.NewL4UDPInfo(1),
+					L4: 1,
 				},
 			}
 			a, err := aw.buildFullAddress(context.Background(), inputAddress)
@@ -156,7 +141,7 @@ func TestBuildFullAddress(t *testing.T) {
 				IA: remoteIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
-					L4: addr.NewL4UDPInfo(1),
+					L4: 1,
 				},
 				Path:    &spath.Path{},
 				NextHop: &overlay.OverlayAddr{},
@@ -166,7 +151,7 @@ func TestBuildFullAddress(t *testing.T) {
 		Convey("snet address in local AS, overlay address extraction succeeds", func() {
 			overlayAddr, err := overlay.NewOverlayAddr(
 				addr.HostFromIP(net.IP{192, 168, 0, 1}),
-				addr.NewL4UDPInfo(10),
+				10,
 			)
 			xtest.FailOnErr(t, err)
 			router.EXPECT().LocalIA().Return(localIA).AnyTimes()
@@ -176,7 +161,7 @@ func TestBuildFullAddress(t *testing.T) {
 				IA: localIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
-					L4: addr.NewL4UDPInfo(1),
+					L4: 1,
 				},
 			}
 
@@ -185,7 +170,7 @@ func TestBuildFullAddress(t *testing.T) {
 				IA: localIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
-					L4: addr.NewL4UDPInfo(1),
+					L4: 1,
 				},
 				NextHop: overlayAddr,
 			})
@@ -199,7 +184,7 @@ func TestBuildFullAddress(t *testing.T) {
 				IA: localIA,
 				Host: &addr.AppAddr{
 					L3: addr.SvcBS,
-					L4: addr.NewL4UDPInfo(1),
+					L4: 1,
 				},
 			}
 
@@ -225,31 +210,31 @@ func TestResolveIfSVC(t *testing.T) {
 			Description: "non-svc address does not trigger lookup",
 			InputAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 			SVCResolutionFraction: 1.0,
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 		},
 		{
 			Description: "disabling SVC resolution does not trigger lookup, same addr is returned",
 			InputAddress: &addr.AppAddr{
 				L3: addr.SvcBS,
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 			SVCResolutionFraction: 0.0,
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.SvcBS,
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 		},
 		{
 			Description: "svc address, lookup fails",
 			InputAddress: &addr.AppAddr{
 				L3: addr.SvcBS,
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
@@ -262,7 +247,7 @@ func TestResolveIfSVC(t *testing.T) {
 			Description: "svc address, half time allowed for resolution, lookup fails",
 			InputAddress: &addr.AppAddr{
 				L3: addr.SvcBS,
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
@@ -271,14 +256,14 @@ func TestResolveIfSVC(t *testing.T) {
 			SVCResolutionFraction: 0.5,
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.SvcBS,
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 		},
 		{
 			Description: "svc address, lookup succeeds",
 			InputAddress: &addr.AppAddr{
 				L3: addr.SvcBS,
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
@@ -296,7 +281,7 @@ func TestResolveIfSVC(t *testing.T) {
 			ExpectedPath:          &testPath{},
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
-				L4: addr.NewL4UDPInfo(8000),
+				L4: 8000,
 			},
 			ExpectedQUICRedirect: true,
 		},
@@ -304,7 +289,7 @@ func TestResolveIfSVC(t *testing.T) {
 			Description: "svc address, half time allowed for resolution, lookup succeeds",
 			InputAddress: &addr.AppAddr{
 				L3: addr.SvcBS,
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
@@ -320,7 +305,7 @@ func TestResolveIfSVC(t *testing.T) {
 			SVCResolutionFraction: 0.5,
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
-				L4: addr.NewL4UDPInfo(8000),
+				L4: 8000,
 			},
 			ExpectedQUICRedirect: true,
 		},
@@ -388,7 +373,7 @@ func TestParseReply(t *testing.T) {
 			},
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
-				L4: addr.NewL4UDPInfo(8000),
+				L4: 8000,
 			},
 			ExpectedError: false,
 		},
@@ -401,7 +386,7 @@ func TestParseReply(t *testing.T) {
 			},
 			ExpectedAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.ParseIP("2001:db8::1")),
-				L4: addr.NewL4UDPInfo(8000),
+				L4: 8000,
 			},
 			ExpectedError: false,
 		},
@@ -430,7 +415,7 @@ func TestBuildReply(t *testing.T) {
 		},
 		{
 			Description:   "nil L3",
-			InputAddress:  &addr.AppAddr{L4: addr.NewL4UDPInfo(1)},
+			InputAddress:  &addr.AppAddr{L4: 1},
 			ExpectedReply: &svc.Reply{},
 		},
 		{
@@ -442,7 +427,7 @@ func TestBuildReply(t *testing.T) {
 			Description: "IPv4 L3, UDP L4",
 			InputAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 			ExpectedReply: &svc.Reply{
 				Transports: map[svc.Transport]string{
@@ -454,7 +439,7 @@ func TestBuildReply(t *testing.T) {
 			Description: "IPv6 L3, UDP L4",
 			InputAddress: &addr.AppAddr{
 				L3: addr.HostFromIP(net.ParseIP("2001:db8::1")),
-				L4: addr.NewL4UDPInfo(1),
+				L4: 1,
 			},
 			ExpectedReply: &svc.Reply{
 				Transports: map[svc.Transport]string{

@@ -70,11 +70,6 @@ func validateFlags() {
 	if Local.Host == nil {
 		LogFatal("Missing local address")
 	}
-	if Mode == ModeServer {
-		if Local.Host.L4 == nil {
-			LogFatal("Missing local port")
-		}
-	}
 }
 
 func initNetwork() {

@@ -77,11 +77,8 @@ func validateFlags() {
 		if remote.Host == nil {
 			integration.LogFatal("Missing remote address")
 		}
-		if remote.Host.L4 == nil {
-			integration.LogFatal("Missing remote port")
-		}
-		if remote.Host.L4.Port() == 0 {
-			integration.LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
+		if remote.Host.L4 == 0 {
+			integration.LogFatal("Invalid remote port", "remote port", remote.Host.L4)
 		}
 		if timeout.Duration == 0 {
 			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
@@ -190,10 +187,7 @@ func (c client) ping(ctx context.Context, n int) error {
 	c.conn.SetWriteDeadline(getDeadline(ctx))
 	if remote.NextHop == nil {
 		var err error
-		remote.NextHop, err = overlay.NewOverlayAddr(
-			remote.Host.L3,
-			addr.NewL4UDPInfo(overlay.EndhostPort),
-		)
+		remote.NextHop, err = overlay.NewOverlayAddr(remote.Host.L3, overlay.EndhostPort)
 		if err != nil {
 			return common.NewBasicError("Error building overlay", err)
 		}
@@ -220,7 +214,7 @@ func (c client) ping(ctx context.Context, n int) error {
 				},
 				L4Header: &l4.UDP{
 					SrcPort: c.port,
-					DstPort: remote.Host.L4.Port(),
+					DstPort: remote.Host.L4,
 				},
 				Payload: common.RawBytes(
 					pingMessage(remote.IA),

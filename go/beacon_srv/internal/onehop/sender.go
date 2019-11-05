@@ -96,7 +96,7 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.SCIONPacket, error) {
 			Path:       (*spath.Path)(path),
 			Extensions: []common.Extension{&layers.ExtnOHP{}},
 			L4Header: &l4.UDP{
-				SrcPort: s.Addr.L4.Port(),
+				SrcPort: s.Addr.L4,
 			},
 			Payload: msg.Pld,
 		},
