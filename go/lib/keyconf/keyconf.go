@@ -69,9 +69,9 @@ const (
 
 // Errors
 const (
-	ErrorOpen    common.ErrMsg = "Unable to load key"
-	ErrorParse   common.ErrMsg = "Unable to parse key file"
-	ErrorUnknown common.ErrMsg = "Unknown algorithm"
+	ErrOpen    common.ErrMsg = "Unable to load key"
+	ErrParse   common.ErrMsg = "Unable to parse key file"
+	ErrUnknown common.ErrMsg = "Unknown algorithm"
 )
 
 // Load loads key configuration from specified path.
@@ -125,12 +125,12 @@ func loadMasterCond(path string, load bool) (Master, error) {
 func LoadKey(file string, algo string) (common.RawBytes, error) {
 	b, err := ioutil.ReadFile(file)
 	if err != nil {
-		return nil, common.NewBasicError(ErrorOpen, err)
+		return nil, common.NewBasicError(ErrOpen, err)
 	}
 	dbuf := make([]byte, base64.StdEncoding.DecodedLen(len(b)))
 	n, err := base64.StdEncoding.Decode(dbuf, b)
 	if err != nil {
-		return nil, common.NewBasicError(ErrorParse, err)
+		return nil, common.NewBasicError(ErrParse, err)
 	}
 	dbuf = dbuf[:n]
 	switch strings.ToLower(algo) {
@@ -139,7 +139,7 @@ func LoadKey(file string, algo string) (common.RawBytes, error) {
 	case scrypto.Ed25519:
 		return common.RawBytes(ed25519.NewKeyFromSeed(dbuf)), nil
 	default:
-		return nil, common.NewBasicError(ErrorUnknown, nil, "algo", algo)
+		return nil, common.NewBasicError(ErrUnknown, nil, "algo", algo)
 	}
 }
 

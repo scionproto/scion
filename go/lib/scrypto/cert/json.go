@@ -17,9 +17,9 @@ package cert
 import "github.com/scionproto/scion/go/lib/common"
 
 const (
-	ErrInvalidNumFields     common.ErrMsg = "Invalid number of fields"
-	ErrMissingField         common.ErrMsg = "Missing json field"
-	ErrUnableValidateFields common.ErrMsg = "Unable to validate fields"
+	ErrInvalidNumFields common.ErrMsg = "Invalid number of fields"
+	ErrMissingField     common.ErrMsg = "Missing json field"
+	ErrValidatingFields common.ErrMsg = "Unable to validate fields"
 )
 
 var certFields = []string{canIssue, comment, encAlgorithm, expirationTime,
