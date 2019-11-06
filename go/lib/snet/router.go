@@ -160,6 +160,15 @@ type Path interface {
 	Copy() Path
 }
 
+// PathReplyEntryFromPath extracts PathReplyEntry. If not possible, nil is returned.
+func PathReplyEntryFromPath(p Path) *sciond.PathReplyEntry {
+	pth, ok := p.(*path)
+	if !ok {
+		return nil
+	}
+	return pth.sciondPath.Copy()
+}
+
 var _ Path = (*path)(nil)
 
 type path struct {
