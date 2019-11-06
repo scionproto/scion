@@ -52,6 +52,7 @@ func TestNewPool(t *testing.T) {
 	}
 
 	for name, test := range tests {
+		name, test := name, test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			p, err := NewPool(test.Infos, test.Options)
@@ -161,7 +162,7 @@ func TestPoolExpiresFails(t *testing.T) {
 	)
 	require.NoError(t, err)
 	p.expirer.TriggerRun()
-	time.Sleep(time.Second)
+	time.Sleep(time.Millisecond)
 	assert.Equal(t, 16, one.FailCount())
 	assert.Equal(t, 32, two.FailCount())
 }
