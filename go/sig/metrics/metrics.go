@@ -49,6 +49,13 @@ var (
 	SessionTimedOut       *prometheus.CounterVec
 	SessionPathSwitched   *prometheus.CounterVec
 	SessionOldPollReplies *prometheus.CounterVec
+	SessionProbes         *prometheus.CounterVec
+	SessionProbeReplies   *prometheus.CounterVec
+	SessionProbeRTT       *prometheus.HistogramVec
+	SessionPaths          *prometheus.GaugeVec
+	SessionMTU            *prometheus.GaugeVec
+	SessionHealth         *prometheus.GaugeVec
+	SessionRemoteSwitched *prometheus.CounterVec
 
 	EgressRxQueueFull *prometheus.CounterVec
 )
@@ -66,6 +73,14 @@ func init() {
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
 		return prom.NewCounterVec(Namespace, "", name, help, lNames)
 	}
+	newHVec := func(name, help string, lNames []string,
+		buckets []float64) *prometheus.HistogramVec {
+
+		return prom.NewHistogramVec(Namespace, "", name, help, lNames, buckets)
+	}
+	newGVec := func(name, help string, lNames []string) *prometheus.GaugeVec {
+		return prom.NewGaugeVec(Namespace, "", name, help, lNames)
+	}
 	// FIXME(kormat): these metrics should probably have more informative labels
 	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", iaLabels)
 	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", iaLabels)
@@ -80,9 +95,20 @@ func init() {
 	FramesTooOld = newC("frames_too_old_total", "Number of frames that are too old.")
 	FramesDuplicated = newC("frames_duplicated_total", "Number of duplicate frames.")
 	SessionTimedOut = newCVec("session_timeout", "Number of pollreq timeouts", iaLabels)
-	SessionPathSwitched = newCVec("session_switch_path", "Number of path switches", iaLabels)
+	SessionPathSwitched = newCVec("session_switch_path", "Number of path switches",
+		append(iaLabels, "reason"))
 	SessionOldPollReplies = newCVec("session_old_poll_replies",
 		"Number of poll replies received after next poll request was sent", iaLabels)
+	SessionProbes = newCVec("session_probes", "Number of probes sent", iaLabels)
+	SessionProbeReplies = newCVec("session_probe_replies",
+		"Number of probe replies received", iaLabels)
+	SessionProbeRTT = newHVec("session_probe_rtt", "Probe roundtrip time",
+		iaLabels, prom.DefaultLatencyBuckets)
+	SessionPaths = newGVec("session_paths", "Number of available paths", iaLabels)
+	SessionMTU = newGVec("session_mtu", "MTU used by the session", iaLabels)
+	SessionHealth = newGVec("session_health", "Session health (either 1 or 0)", iaLabels)
+	SessionRemoteSwitched = newCVec("session_switch_remote",
+		"Number of times the remote has changed.", iaLabels)
 
 	EgressRxQueueFull = newCVec("egress_recv_queue_full_total",
 		"Egress packets dropped due to full queues.", []string{"IA"})
