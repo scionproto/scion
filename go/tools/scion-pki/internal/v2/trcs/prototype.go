@@ -43,6 +43,9 @@ type protoGen struct {
 	Version scrypto.Version
 }
 
+// Run generates the prototype TRCs for all ISDs in the provided map. If no
+// version is specified, the TRC configuration file with the highest version is
+// chosen for each ISD. The generated TRCs are then written to disk.
 func (g protoGen) Run(asMap map[addr.ISD][]addr.IA) error {
 	cfgs, err := loader{Dirs: g.Dirs, Version: g.Version}.LoadConfigs(asMap)
 	if err != nil {
@@ -61,6 +64,7 @@ func (g protoGen) Run(asMap map[addr.ISD][]addr.IA) error {
 	return nil
 }
 
+// Generate generates the prototype TRCs for all provided configurations.
 func (g protoGen) Generate(cfgs map[addr.ISD]conf.TRC2) (map[addr.ISD]signedMeta, error) {
 	trcs := make(map[addr.ISD]signedMeta)
 	for isd, cfg := range cfgs {
@@ -74,6 +78,7 @@ func (g protoGen) Generate(cfgs map[addr.ISD]conf.TRC2) (map[addr.ISD]signedMeta
 	return trcs, nil
 }
 
+// generate generates the prototype TRC for a specific configuration.
 func (g protoGen) generate(isd addr.ISD, cfg conf.TRC2) (signedMeta, error) {
 	pubKeys, err := g.loadPubKeys(isd, cfg)
 	if err != nil {
@@ -94,6 +99,7 @@ func (g protoGen) generate(isd addr.ISD, cfg conf.TRC2) (signedMeta, error) {
 	return meta, nil
 }
 
+// loadPubKeys loads all public keys necessary for the given configuration.
 func (g protoGen) loadPubKeys(isd addr.ISD,
 	cfg conf.TRC2) (map[addr.AS]map[trc.KeyType]keyconf.Key, error) {
 
@@ -126,8 +132,8 @@ func (g protoGen) loadPubKeys(isd addr.ISD,
 	return keys, nil
 }
 
-// loadPubKey attempts to load the private key and use that to generate the
-// public key. If that fails, it attempts to load the public key directly.
+// loadPubKey attempts to load the private key and use it to generate the public
+// key. If that fails, loadPubKey attempts to load the public key directly.
 func (g protoGen) loadPubKey(ia addr.IA, usage keyconf.Usage,
 	version scrypto.KeyVersion) (keyconf.Key, error) {
 
