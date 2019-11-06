@@ -68,10 +68,7 @@ func MustBuildOverlay(str string) *overlay.OverlayAddr {
 	if err != nil {
 		panic(fmt.Sprintf("bad overlay address %v, err=%v", str, err))
 	}
-	ov, err := overlay.NewOverlayAddr(
-		addr.HostFromIP(udpAddr.IP),
-		addr.NewL4UDPInfo(uint16(udpAddr.Port)),
-	)
+	ov, err := overlay.NewOverlayAddr(addr.HostFromIP(udpAddr.IP), uint16(udpAddr.Port))
 	if err != nil {
 		panic(fmt.Sprintf("cannot build overlay, err=%v", err))
 	}

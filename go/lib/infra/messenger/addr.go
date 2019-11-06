@@ -112,14 +112,8 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 	if snetAddr.Host.L3 == nil {
 		return nil, common.NewBasicError("host address missing L3 address", nil, "addr", snetAddr)
 	}
-	if snetAddr.Host.L4 == nil {
-		return nil, common.NewBasicError("host address missing L4 address", nil, "addr", snetAddr)
-	}
 	if t := snetAddr.Host.L3.Type(); !addr.HostTypeCheck(t) {
 		return nil, common.NewBasicError("host address L3 address not supported", nil, "type", t)
-	}
-	if t := snetAddr.Host.L4.Type(); t != common.L4UDP {
-		return nil, common.NewBasicError("host address L4 address not supported", nil, "type", t)
 	}
 	newAddr := snetAddr.Copy()
 
@@ -226,7 +220,7 @@ func parseReply(reply *svc.Reply) (*addr.AppAddr, error) {
 	}
 	return &addr.AppAddr{
 		L3: addr.HostFromIP(udpAddr.IP),
-		L4: addr.NewL4UDPInfo(uint16(udpAddr.Port)),
+		L4: uint16(udpAddr.Port),
 	}, nil
 }
 
@@ -234,13 +228,10 @@ func parseReply(reply *svc.Reply) (*addr.AppAddr, error) {
 // application address is not well formed (has L3, has L4, UDP/IP protocols),
 // the returned reply is non-nil and empty.
 func BuildReply(address *addr.AppAddr) *svc.Reply {
-	if address == nil || address.L3 == nil || address.L4 == nil {
+	if address == nil || address.L3 == nil {
 		return &svc.Reply{}
 	}
-	if address.L4.Type() != common.L4UDP {
-		return &svc.Reply{}
-	}
-	port := fmt.Sprintf("%v", address.L4.Port())
+	port := fmt.Sprintf("%v", address.L4)
 
 	var ip string
 	switch t := address.L3.(type) {

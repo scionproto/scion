@@ -189,11 +189,7 @@ func (b RawBRIntf) remoteBRAddr(o overlay.Type) (*overlay.OverlayAddr, error) {
 	if !o.IsUDP() && (b.RemoteOverlay.OverlayPort != 0) {
 		return nil, common.NewBasicError(ErrOverlayPort, nil, "addr", b.RemoteOverlay)
 	}
-	var l4 addr.L4Info
-	if o.IsUDP() {
-		l4 = addr.NewL4UDPInfo(uint16(b.RemoteOverlay.OverlayPort))
-	}
-	return overlay.NewOverlayAddr(l3, l4)
+	return overlay.NewOverlayAddr(l3, uint16(b.RemoteOverlay.OverlayPort))
 }
 
 type RawAddrOverlay struct {

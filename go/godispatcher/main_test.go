@@ -69,10 +69,10 @@ func getSocketName(dir string) (string, error) {
 type ClientAddress struct {
 	IA             addr.IA
 	PublicAddress  addr.HostAddr
-	PublicPort     addr.L4Info
+	PublicPort     uint16
 	ServiceAddress addr.HostSVC
 	OverlayAddress *overlay.OverlayAddr
-	OverlayPort    addr.L4Info
+	OverlayPort    uint16
 }
 
 // Addressing information
@@ -80,19 +80,19 @@ var (
 	commonIA               = xtest.MustParseIA("1-ff00:0:1")
 	commonPublicL3Address  = addr.HostFromIP(net.IP{127, 0, 0, 1})
 	commonOverlayL3Address = addr.HostFromIP(net.IP{127, 0, 0, 1})
-	commonOverlayL4Address = addr.NewL4UDPInfo(dispatcherTestPort)
+	commonOverlayL4Address = dispatcherTestPort
 	commonOverlayAddress   = MustNewOverlayAddr(commonOverlayL3Address, commonOverlayL4Address)
 	clientXAddress         = &ClientAddress{
 		IA:             commonIA,
 		PublicAddress:  commonPublicL3Address,
-		PublicPort:     addr.NewL4UDPInfo(8080),
+		PublicPort:     8080,
 		ServiceAddress: addr.SvcNone,
 		OverlayAddress: commonOverlayAddress,
 	}
 	clientYAddress = &ClientAddress{
 		IA:             commonIA,
 		PublicAddress:  commonPublicL3Address,
-		PublicPort:     addr.NewL4UDPInfo(8081),
+		PublicPort:     8081,
 		ServiceAddress: addr.SvcPS,
 		OverlayAddress: commonOverlayAddress,
 	}
@@ -117,8 +117,8 @@ var testCases = []*TestCase{
 				SrcHost: clientXAddress.PublicAddress,
 				DstHost: clientXAddress.PublicAddress,
 				L4: &l4.UDP{
-					SrcPort: clientXAddress.PublicPort.Port(),
-					DstPort: clientXAddress.PublicPort.Port(),
+					SrcPort: clientXAddress.PublicPort,
+					DstPort: clientXAddress.PublicPort,
 				},
 				Pld: common.RawBytes{1, 2, 3, 4},
 			},
@@ -130,8 +130,8 @@ var testCases = []*TestCase{
 			SrcHost: clientXAddress.PublicAddress,
 			DstHost: clientXAddress.PublicAddress,
 			L4: &l4.UDP{
-				SrcPort:  clientXAddress.PublicPort.Port(),
-				DstPort:  clientXAddress.PublicPort.Port(),
+				SrcPort:  clientXAddress.PublicPort,
+				DstPort:  clientXAddress.PublicPort,
 				TotalLen: 12,
 				Checksum: common.RawBytes{0xc0, 0xb3},
 			},
@@ -148,8 +148,8 @@ var testCases = []*TestCase{
 				SrcHost: clientYAddress.PublicAddress,
 				DstHost: clientYAddress.ServiceAddress,
 				L4: &l4.UDP{
-					SrcPort: clientYAddress.PublicPort.Port(),
-					DstPort: clientYAddress.PublicPort.Port(),
+					SrcPort: clientYAddress.PublicPort,
+					DstPort: clientYAddress.PublicPort,
 				},
 				Pld: common.RawBytes{5, 6, 7, 8},
 			},
@@ -161,8 +161,8 @@ var testCases = []*TestCase{
 			SrcHost: clientYAddress.PublicAddress,
 			DstHost: clientYAddress.ServiceAddress,
 			L4: &l4.UDP{
-				SrcPort:  clientYAddress.PublicPort.Port(),
-				DstPort:  clientYAddress.PublicPort.Port(),
+				SrcPort:  clientYAddress.PublicPort,
+				DstPort:  clientYAddress.PublicPort,
 				TotalLen: 12,
 				Checksum: common.RawBytes{0x37, 0xaa},
 			},
@@ -184,7 +184,7 @@ var testCases = []*TestCase{
 				},
 				Pld: &scmp.Payload{
 					Meta:  &scmp.Meta{L4Proto: common.L4UDP, L4HdrLen: 1},
-					L4Hdr: MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort.Port()}),
+					L4Hdr: MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
 				},
 			},
 		},
@@ -204,7 +204,7 @@ var testCases = []*TestCase{
 				AddrHdr: common.RawBytes{},
 				PathHdr: common.RawBytes{},
 				ExtHdrs: common.RawBytes{},
-				L4Hdr:   MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort.Port()}),
+				L4Hdr:   MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
 			},
 		},
 	},
@@ -486,7 +486,7 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 	}
 }
 
-func MustNewOverlayAddr(l3 addr.HostAddr, l4 addr.L4Info) *overlay.OverlayAddr {
+func MustNewOverlayAddr(l3 addr.HostAddr, l4 uint16) *overlay.OverlayAddr {
 	address, err := overlay.NewOverlayAddr(l3, l4)
 	if err != nil {
 		panic(err)

@@ -162,7 +162,7 @@ func createURL(params FetchParams, ds *addr.AppAddr) (string, error) {
 	if params.Https {
 		protocol = "https"
 	}
-	return fmt.Sprintf("%s://%s:%d/%s", protocol, ds.L3.IP(), ds.L4.Port(),
+	return fmt.Sprintf("%s://%s:%d/%s", protocol, ds.L3.IP(), ds.L4,
 		Path(params.Mode, params.File)), nil
 }
 

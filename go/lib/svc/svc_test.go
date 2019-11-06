@@ -246,10 +246,7 @@ func TestDefaultHandler(t *testing.T) {
 
 		conn := mock_snet.NewMockPacketConn(ctrl)
 		packet := &snet.SCIONPacket{}
-		ov, err := overlay.NewOverlayAddr(
-			addr.HostIPv4(net.IP{192, 168, 0, 1}),
-			addr.NewL4UDPInfo(0x29a),
-		)
+		ov, err := overlay.NewOverlayAddr(addr.HostIPv4(net.IP{192, 168, 0, 1}), 0x29a)
 		xtest.FailOnErr(t, err)
 		conn.EXPECT().WriteTo(packet, ov).Times(1)
 		sender := &svc.BaseHandler{}

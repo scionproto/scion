@@ -108,8 +108,8 @@ func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 			Source:      SCIONAddress{IA: c.base.laddr.IA, Host: c.base.laddr.Host.L3},
 			Path:        raddr.Path,
 			L4Header: &l4.UDP{
-				SrcPort:  c.base.laddr.Host.L4.Port(),
-				DstPort:  raddr.Host.L4.Port(),
+				SrcPort:  c.base.laddr.Host.L4,
+				DstPort:  raddr.Host.L4,
 				TotalLen: uint16(l4.UDPLen + len(b)),
 			},
 			Payload: common.RawBytes(b),
@@ -209,8 +209,7 @@ func (r *remoteAddressResolver) addPath(address *Addr) (*Addr, error) {
 func addOverlayFromScionAddress(address *Addr) (*Addr, error) {
 	var err error
 	address = address.Copy()
-	address.NextHop, err = overlay.NewOverlayAddr(address.Host.L3,
-		addr.NewL4UDPInfo(overlay.EndhostPort))
+	address.NextHop, err = overlay.NewOverlayAddr(address.Host.L3, overlay.EndhostPort)
 	if err != nil {
 		return nil, common.NewBasicError(ErrBadOverlay, err)
 	}

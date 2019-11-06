@@ -25,10 +25,10 @@ import (
 
 type OverlayAddr struct {
 	l3 addr.HostAddr
-	l4 addr.L4Info
+	l4 uint16
 }
 
-func NewOverlayAddr(l3 addr.HostAddr, l4 addr.L4Info) (*OverlayAddr, error) {
+func NewOverlayAddr(l3 addr.HostAddr, l4 uint16) (*OverlayAddr, error) {
 	if l3 == nil {
 		return nil, serrors.New("L3 required")
 	}
@@ -37,13 +37,6 @@ func NewOverlayAddr(l3 addr.HostAddr, l4 addr.L4Info) (*OverlayAddr, error) {
 	default:
 		return nil, common.NewBasicError("Unsupported L3 protocol", nil, "type", l3.Type())
 	}
-	if l4 != nil {
-		switch l4.Type() {
-		case common.L4UDP:
-		default:
-			return nil, common.NewBasicError("Unsupported L4 protocol", nil, "type", l4.Type())
-		}
-	}
 	return &OverlayAddr{l3: l3, l4: l4}, nil
 }
 
@@ -51,32 +44,24 @@ func (a *OverlayAddr) L3() addr.HostAddr {
 	return a.l3
 }
 
-func (a *OverlayAddr) L4() addr.L4Info {
+func (a *OverlayAddr) L4() uint16 {
 	return a.l4
 }
 
 func (a *OverlayAddr) Type() Type {
-	if a.l4 != nil {
-		// must be UDP
-		if a.l3.Type() == addr.HostTypeIPv4 {
-			return UDPIPv4
-		} else {
-			// must be IPv6
-			return UDPIPv6
-		}
-	}
 	if a.l3.Type() == addr.HostTypeIPv4 {
-		return IPv4
+		return UDPIPv4
+	} else {
+		// must be IPv6
+		return UDPIPv6
 	}
-	// must be IPv6
-	return IPv6
 }
 
 func (a *OverlayAddr) Copy() *OverlayAddr {
 	if a == nil {
 		return nil
 	}
-	return &OverlayAddr{l3: a.l3.Copy(), l4: a.l4.Copy()}
+	return &OverlayAddr{l3: a.l3.Copy(), l4: a.l4}
 }
 
 func (a *OverlayAddr) Equal(o *OverlayAddr) bool {
@@ -92,16 +77,7 @@ func (a *OverlayAddr) Equal(o *OverlayAddr) bool {
 			return false
 		}
 	}
-	if a.l4 != nil {
-		if !a.l4.Equal(o.l4) {
-			return false
-		}
-	} else if o.l4 != nil {
-		if !o.l4.Equal(a.l4) {
-			return false
-		}
-	}
-	return true
+	return o.l4 == a.l4
 }
 
 func (a *OverlayAddr) Network() string {
@@ -112,15 +88,12 @@ func (a *OverlayAddr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
-	if a.l4 != nil {
-		return fmt.Sprintf("[%s]:%d", a.l3, a.l4.Port())
-	}
-	return fmt.Sprintf("[%s]", a.l3)
+	return fmt.Sprintf("[%s]:%d", a.l3, a.l4)
 }
 
 func (a *OverlayAddr) ToUDPAddr() *net.UDPAddr {
-	if a.l3 == nil || a.l4 == nil || a.l4.Type() != common.L4UDP {
+	if a.l3 == nil {
 		return nil
 	}
-	return &net.UDPAddr{IP: a.l3.IP(), Port: int(a.l4.Port())}
+	return &net.UDPAddr{IP: a.l3.IP(), Port: int(a.l4)}
 }

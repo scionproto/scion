@@ -108,12 +108,11 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 		remote.NextHop = lastHop.Copy()
 
 		var err error
-		var l4i addr.L4Info
+		var l4i uint16
 		switch hdr := pkt.L4Header.(type) {
 		case *l4.UDP:
-			l4i = addr.NewL4UDPInfo(hdr.SrcPort)
+			l4i = hdr.SrcPort
 		case *scmp.Hdr:
-			l4i = addr.NewL4SCMPInfo()
 		default:
 			err = common.NewBasicError("Unexpected SCION L4 protocol", nil,
 				"expected", "UDP or SCMP", "actual", pkt.L4Header.L4Type())

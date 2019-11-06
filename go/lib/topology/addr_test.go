@@ -187,7 +187,7 @@ func newPub(rapo *RawAddrPortOverlay) *addr.AppAddr {
 	}
 	return &addr.AppAddr{
 		L3: addr.HostFromIPStr(rapo.Addr),
-		L4: addr.NewL4UDPInfo(uint16(rapo.L4Port)),
+		L4: uint16(rapo.L4Port),
 	}
 }
 
@@ -197,7 +197,7 @@ func newBind(rap *RawAddrPort) *addr.AppAddr {
 	}
 	return &addr.AppAddr{
 		L3: addr.HostFromIPStr(rap.Addr),
-		L4: addr.NewL4UDPInfo(uint16(rap.L4Port)),
+		L4: uint16(rap.L4Port),
 	}
 }
 
@@ -205,11 +205,7 @@ func newOverlay(rapo *RawAddrPortOverlay) *overlay.OverlayAddr {
 	if rapo == nil {
 		return nil
 	}
-	var l4 addr.L4Info
-	if rapo.OverlayPort != 0 {
-		l4 = addr.NewL4UDPInfo(uint16(rapo.OverlayPort))
-	}
-	o, _ := overlay.NewOverlayAddr(addr.HostFromIPStr(rapo.Addr), l4)
+	o, _ := overlay.NewOverlayAddr(addr.HostFromIPStr(rapo.Addr), uint16(rapo.OverlayPort))
 	return o
 }
 
