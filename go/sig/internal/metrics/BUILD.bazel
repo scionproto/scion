@@ -3,7 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = ["metrics.go"],
-    importpath = "github.com/scionproto/scion/go/sig/metrics",
+    importpath = "github.com/scionproto/scion/go/sig/internal/metrics",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",

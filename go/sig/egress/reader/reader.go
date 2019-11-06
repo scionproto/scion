@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/router"
-	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/scionproto/scion/go/sig/internal/metrics"
 )
 
 const (

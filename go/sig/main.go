@@ -38,9 +38,9 @@ import (
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/ingress"
 	"github.com/scionproto/scion/go/sig/internal/disp"
+	"github.com/scionproto/scion/go/sig/internal/metrics"
 	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/internal/xnet"
-	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
