@@ -4,7 +4,7 @@ base_version = 1
 voting_quorum = 1
 grace_period = "0s"
 trust_reset_allowed = true
-votes = ["ff00:0:110"]
+votes = []
 
 [validity]
   not_before = 42424242

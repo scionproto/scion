@@ -43,7 +43,7 @@ func TRCv1(notBefore uint32) conf.TRC2 {
 		VotingQuorum:      1,
 		GracePeriod:       util.DurWrap{},
 		TrustResetAllowed: &t,
-		Votes:             []addr.AS{xtest.MustParseAS("ff00:0:110")},
+		Votes:             []addr.AS{},
 		Validity: conf.Validity{
 			NotBefore: notBefore,
 			Validity:  util.DurWrap{Duration: 5 * 24 * time.Hour},
