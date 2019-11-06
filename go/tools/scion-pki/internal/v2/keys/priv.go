@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"golang.org/x/crypto/ed25519"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -204,5 +206,21 @@ func usageFromIssuerKeyType(keyType cert.KeyType) (keyconf.Usage, error) {
 		return keyconf.IssRevocationKey, nil
 	default:
 		return "", serrors.New("unsupported key type", "type", keyType)
+	}
+}
+
+func genKey(algo string) ([]byte, error) {
+	switch algo {
+	case scrypto.Ed25519:
+		_, private, err := scrypto.GenKeyPair(algo)
+		if err != nil {
+			return nil, err
+		}
+		return ed25519.PrivateKey(private).Seed(), nil
+	case scrypto.Curve25519xSalsa20Poly1305:
+		_, private, err := scrypto.GenKeyPair(algo)
+		return private, err
+	default:
+		return nil, serrors.New("unsupported key algorithm", "algo", algo)
 	}
 }
