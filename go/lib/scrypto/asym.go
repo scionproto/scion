@@ -100,9 +100,13 @@ func GetPubKey(privKey []byte, algo string) ([]byte, error) {
 func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, error) {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
-		if len(signKey) != ed25519.PrivateKeySize {
-			return nil, common.NewBasicError(ErrInvalidPrivKeySize, nil, "expected",
-				ed25519.PrivateKeySize, "actual", len(signKey))
+		switch len(signKey) {
+		case ed25519.PrivateKeySize:
+		case ed25519.SeedSize:
+			signKey = common.RawBytes(ed25519.NewKeyFromSeed(signKey))
+		default:
+			return nil, common.NewBasicError(ErrInvalidPrivKeySize, nil,
+				"expected", ed25519.PrivateKeySize, "actual", len(signKey))
 		}
 		return ed25519.Sign(ed25519.PrivateKey(signKey), sigInput), nil
 	default:

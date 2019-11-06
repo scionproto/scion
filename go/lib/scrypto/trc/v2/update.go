@@ -86,17 +86,11 @@ func (v *UpdateValidator) Validate() (UpdateInfo, error) {
 	if err := v.sanity(); err != nil {
 		return UpdateInfo{}, common.NewBasicError(ErrSanityCheck, err)
 	}
-	keyChanges, err := v.keyChanges()
+	info, err := v.UpdateInfo()
 	if err != nil {
 		return UpdateInfo{}, err
 	}
-	attrChanges := v.attrChanges()
-	info := UpdateInfo{
-		Type:             v.updateType(keyChanges, attrChanges),
-		KeyChanges:       keyChanges,
-		AttributeChanges: attrChanges,
-	}
-	if err := v.checkProofOfPossesion(keyChanges); err != nil {
+	if err := v.checkProofOfPossesion(info.KeyChanges); err != nil {
 		return info, err
 	}
 	if err := v.checkVotes(info); err != nil {
@@ -133,6 +127,21 @@ func (v *UpdateValidator) sanity() error {
 			"previous validity", v.Prev.Validity, "not_before", v.Next.Validity.NotBefore)
 	}
 	return nil
+}
+
+// UpdateInfo returns information about the TRC update.
+func (v *UpdateValidator) UpdateInfo() (UpdateInfo, error) {
+	keyChanges, err := v.keyChanges()
+	if err != nil {
+		return UpdateInfo{}, err
+	}
+	attrChanges := v.attrChanges()
+	info := UpdateInfo{
+		Type:             v.updateType(keyChanges, attrChanges),
+		KeyChanges:       keyChanges,
+		AttributeChanges: attrChanges,
+	}
+	return info, nil
 }
 
 func (v *UpdateValidator) keyChanges() (*KeyChanges, error) {
