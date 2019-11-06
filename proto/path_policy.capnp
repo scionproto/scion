@@ -9,14 +9,9 @@ struct Policy {
     options @2 :List(Option);
 }
 
-struct ExtPolicy {
-    extends @0 :List(Text);
-    policy @1 :Policy;
-}
-
 struct Option {
     weight @0 :Int32;
-    policy @1 :ExtPolicy;
+    policy @1 :Policy;
 }
 
 struct ACL {

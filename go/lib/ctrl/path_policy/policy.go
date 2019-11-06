@@ -52,36 +52,11 @@ func (p *Policy) Copy() *Policy {
 	}
 }
 
-var _ proto.Cerealizable = (*ExtPolicy)(nil)
-
-type ExtPolicy struct {
-	Extends []string
-	*Policy
-}
-
-func (p *ExtPolicy) ProtoId() proto.ProtoIdType {
-	return proto.ExtPolicy_TypeID
-}
-
-func (p *ExtPolicy) String() string {
-	return fmt.Sprintf("{Extends: %v, Policy: %s}", p.Extends, p.Policy)
-}
-
-func (p *ExtPolicy) Copy() *ExtPolicy {
-	if p == nil {
-		return nil
-	}
-	return &ExtPolicy{
-		Extends: append([]string{}, p.Extends...),
-		Policy:  p.Policy.Copy(),
-	}
-}
-
 var _ proto.Cerealizable = (*Option)(nil)
 
 type Option struct {
 	Weight int
-	Policy *ExtPolicy
+	Policy *Policy
 }
 
 func (o *Option) ProtoId() proto.ProtoIdType {

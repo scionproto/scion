@@ -132,111 +132,6 @@ func (p Policy_Promise) Acl() ACL_Promise {
 	return ACL_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-type ExtPolicy struct{ capnp.Struct }
-
-// ExtPolicy_TypeID is the unique identifier for the type ExtPolicy.
-const ExtPolicy_TypeID = 0xd4de36af92a5d3b7
-
-func NewExtPolicy(s *capnp.Segment) (ExtPolicy, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return ExtPolicy{st}, err
-}
-
-func NewRootExtPolicy(s *capnp.Segment) (ExtPolicy, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return ExtPolicy{st}, err
-}
-
-func ReadRootExtPolicy(msg *capnp.Message) (ExtPolicy, error) {
-	root, err := msg.RootPtr()
-	return ExtPolicy{root.Struct()}, err
-}
-
-func (s ExtPolicy) String() string {
-	str, _ := text.Marshal(0xd4de36af92a5d3b7, s.Struct)
-	return str
-}
-
-func (s ExtPolicy) Extends() (capnp.TextList, error) {
-	p, err := s.Struct.Ptr(0)
-	return capnp.TextList{List: p.List()}, err
-}
-
-func (s ExtPolicy) HasExtends() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s ExtPolicy) SetExtends(v capnp.TextList) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
-}
-
-// NewExtends sets the extends field to a newly
-// allocated capnp.TextList, preferring placement in s's segment.
-func (s ExtPolicy) NewExtends(n int32) (capnp.TextList, error) {
-	l, err := capnp.NewTextList(s.Struct.Segment(), n)
-	if err != nil {
-		return capnp.TextList{}, err
-	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
-	return l, err
-}
-
-func (s ExtPolicy) Policy() (Policy, error) {
-	p, err := s.Struct.Ptr(1)
-	return Policy{Struct: p.Struct()}, err
-}
-
-func (s ExtPolicy) HasPolicy() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
-}
-
-func (s ExtPolicy) SetPolicy(v Policy) error {
-	return s.Struct.SetPtr(1, v.Struct.ToPtr())
-}
-
-// NewPolicy sets the policy field to a newly
-// allocated Policy struct, preferring placement in s's segment.
-func (s ExtPolicy) NewPolicy() (Policy, error) {
-	ss, err := NewPolicy(s.Struct.Segment())
-	if err != nil {
-		return Policy{}, err
-	}
-	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
-	return ss, err
-}
-
-// ExtPolicy_List is a list of ExtPolicy.
-type ExtPolicy_List struct{ capnp.List }
-
-// NewExtPolicy creates a new list of ExtPolicy.
-func NewExtPolicy_List(s *capnp.Segment, sz int32) (ExtPolicy_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return ExtPolicy_List{l}, err
-}
-
-func (s ExtPolicy_List) At(i int) ExtPolicy { return ExtPolicy{s.List.Struct(i)} }
-
-func (s ExtPolicy_List) Set(i int, v ExtPolicy) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s ExtPolicy_List) String() string {
-	str, _ := text.MarshalList(0xd4de36af92a5d3b7, s.List)
-	return str
-}
-
-// ExtPolicy_Promise is a wrapper for a ExtPolicy promised by a client call.
-type ExtPolicy_Promise struct{ *capnp.Pipeline }
-
-func (p ExtPolicy_Promise) Struct() (ExtPolicy, error) {
-	s, err := p.Pipeline.Struct()
-	return ExtPolicy{s}, err
-}
-
-func (p ExtPolicy_Promise) Policy() Policy_Promise {
-	return Policy_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
-}
-
 type Option struct{ capnp.Struct }
 
 // Option_TypeID is the unique identifier for the type Option.
@@ -270,9 +165,9 @@ func (s Option) SetWeight(v int32) {
 	s.Struct.SetUint32(0, uint32(v))
 }
 
-func (s Option) Policy() (ExtPolicy, error) {
+func (s Option) Policy() (Policy, error) {
 	p, err := s.Struct.Ptr(0)
-	return ExtPolicy{Struct: p.Struct()}, err
+	return Policy{Struct: p.Struct()}, err
 }
 
 func (s Option) HasPolicy() bool {
@@ -280,16 +175,16 @@ func (s Option) HasPolicy() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Option) SetPolicy(v ExtPolicy) error {
+func (s Option) SetPolicy(v Policy) error {
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewPolicy sets the policy field to a newly
-// allocated ExtPolicy struct, preferring placement in s's segment.
-func (s Option) NewPolicy() (ExtPolicy, error) {
-	ss, err := NewExtPolicy(s.Struct.Segment())
+// allocated Policy struct, preferring placement in s's segment.
+func (s Option) NewPolicy() (Policy, error) {
+	ss, err := NewPolicy(s.Struct.Segment())
 	if err != nil {
-		return ExtPolicy{}, err
+		return Policy{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -321,8 +216,8 @@ func (p Option_Promise) Struct() (Option, error) {
 	return Option{s}, err
 }
 
-func (p Option_Promise) Policy() ExtPolicy_Promise {
-	return ExtPolicy_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Option_Promise) Policy() Policy_Promise {
+	return Policy_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 type ACL struct{ capnp.Struct }
@@ -633,45 +528,41 @@ func (l ACLAction_List) Set(i int, v ACLAction) {
 	ul.Set(i, uint16(v))
 }
 
-const schema_e45bfd61f120454d = "x\xda\x84S\xcfk\x13a\x10\x9d7\x9b\x9a\x16\xd3&" +
-	"\xdbm\x0f\x82%\xa5\xb4\xd0\x16\x94\x1a\xaaH\xb1\xa4?" +
-	"\x0c\xadZi>\xf0 (\xca\xbaY\xcd\xc2\xba\xbb&" +
-	"\x1b\xdb\x9cz\xf2*T\xf0\xe6QEA-V\xd4\xa3" +
-	"x\xf0`\xa1\x07Q\x10EE\x8a\xff\x80\x07\x0f\x0a\xb2" +
-	"\xb2_\xdal\x08)\xde\x86\xe11\xef\xcd\xbc7c\xa7" +
-	"0\xc5\x87\xda\\&\x12\xfb\xdb\xf6\x04\xd7{o\x1f;" +
-	"\xbfz\xe9\x06\xa9\xdd\x08N\xe7\xfa\x7f\xea\x7f\xcf\xfd\xa0" +
-	"6%N\xa4\xf5aC\x1bAX\x0da\x8d\x10\xe4\xf7" +
-	"\xde\x19\xdf(~\xb9O\xa2\x1b\x8d`\x09y\x87\xcf\xda" +
-	"WY}\xc2\x12!\xf8~\xb3<\xf4\xeb\xee\xec\x93\x96" +
-	"\xe0\xc3\xfcG\x9b\xe6\xb0\x9a\xe4\x10|\xe1\xf1\x8b\x07\x8f" +
-	"\x9e\xf5\xbf&\xb5\x9b#,A{\xc8[\xdas\x09|" +
-	"\xca\x8b\x84`\xb6\xbfku\xeeU\xd7f\x93\\9\xf4" +
-	"\x0d\xafk\x9b\x12\xfb\x96\xb3\x84\xe0\xe5\xfb{\xb7\xd6\x8e" +
-	"|\xfb\xd0\x84\x95\x88\xdf\xbc\xa5\xd5\x96\x84\x12\x0aX\xff" +
-	"87pvx_\xd0R\xedUeC\xabJpE" +
-	"\x82=\xdd/^\xf4\\\x9b-\xa3z\xd0\xd0=\xc7\x9b" +
-	"\xc8\xbb\xb6eT\x89\xf2\x80H(1\xa2\x18\x88\xd4\xdc" +
-	"\x00\x91\x98R \x16\x18*\xd0\x83\xb0y\xe2$\x91\x98" +
-	"W \xce0T\xe6\x1e0\x91*f\x88\xc4\x82\x02Q" +
-	"d\xc4u\xc3F*Z\x95\x80\x14!(\x9b\xd7*\xa6" +
-	"c\x98D\x84\x041\x12\x84\x15\xd7\xf3-\xd7)\xa3\x8b" +
-	"\x90W\x80T\xb4\x07!l\xb6\x92:=\xbb\x90s|" +
-	"\xa5T\x0d\xb5\xb6\xd7\xb5\x8eL\x10\x89A\x05b\x8c\xb1" +
-	"#\xf5\xc0(\x91\x18V \xc6\x19Y\xdd\x08\xb9\x90\x8c" +
-	"\xcc\" IH\x96*\xb6\x89Td\xf8\xb6\xde\x16\xd4" +
-	"\xf3\xae\x97/\x99\xd9\x82e\xe8\xbe\xd9D\x9fiA\x9f" +
-	"\xd9\xa6?\xceH[\xe5\x82^F\x071:\x08i\xeb" +
-	"\xb2U\xa8\xaf\x1d6w_v\xda\xf0\xe3\x96\xebHg" +
-	"\xe4\xad\xfb2\xa1D\xb5w\x94\x08\xacvf\x88\xd2\x15" +
-	"\xa7l\xfa\xc9\x82\xe9T\xd3\xbam\xbbK\xf5Q\xd8\x19" +
-	"\x95\x96\xb3\xc2!\xb1\xba\xe6\xce\xd0\xb4v\x05b\x90\xb1" +
-	"b:~\xc92\x1b\xac\xa8\x7f\xcb\xeeV\xe4\x96\xfd\xbc" +
-	"k\xc7-\xa3\xd9\x8b\x99\xedcL5\xe4f24\xe8" +
-	"h\xed\x1a+\xe6\xb2o:\xd1\x05\x12\xb5\x0bd=\x19" +
-	"C\xa4\xa2\xb7\xde\xdd\x8cE\x99\x9dZd\xff\x13\x83\x89" +
-	"\x86\x18,\x99\xd6\x95\xa2\x8f\x181b\x8d\x8c\xf5o\xab" +
-	"1\xfe\x0b\x00\x00\xff\xff-%\x15l"
+const schema_e45bfd61f120454d = "x\xda\x84\x93\xc1K\x14a\x18\xc6\x9f\xe7\x9d\xb5UR" +
+	"w\xc7Q\xb2C\xac\x88\x81\x09\x85-\x9e$X\xcdD" +
+	"\x0b\xc3\xfd\xa0CP\x14\xd3\xec\xd4\x0e,3\xd3\xce\x98" +
+	"\xec!<y\xe8\x12x\xe8\x10\xd4!\xa8\xe8\x90E\x06" +
+	"]\xa3\xab\xe01\xa2\xe8\x10\xd1?\xe0\xa1C\x81L\xcc" +
+	"\xa8;\x8b\xact\x9a\x8f\x97\x87\xf7\xfd\xbd\xf3\xfb\xbe\xf1" +
+	"AN\xc9\xd9\x8ec\x02\xa8\xc1\x8e#\xd1\xbd\x81G\xe7" +
+	"\xae\xaf\xddZ\x85\xde\xc7\xe8\xf2\xec\xd0\xb6\xb9s\xed\x17" +
+	":\xb4,\xa0oo\xea;\xf1\xf7\xcf[0*\x1f}" +
+	"2\xb1Y\xfd\xfe\x12\xaa\x8f\xadIf\x01\xe3\x05\xbf\x19" +
+	"\xef\x92\xd3:\x97\xc1\xe8\xc7\xc3\xe0\xe4\xef\xe73o\xda" +
+	"\x86\xbb\xe4\xaf1 \xf1I\x978|c\xfd\xc3\xab\xd7" +
+	"\xef\x87>A\xef\x934\x0b\x1a\xf7\xe5\xa7\xf1 \x09\xae" +
+	"\xca\"\x18\xcd\x0c\xf5\xae\xcd}\xec\xdd:\xc0\x9a4}" +
+	",\x1b\xc6\xb3$\xfbTJ`\xb4\xf1en\xf8\xea\xe8" +
+	"\xf1\xa8-\xc1\x96l\x1a_\x93\xf0\xe7\x84\xc07\xc3\xea" +
+	"M\xdf\xab\x89c5\xceX\xa6\xef\xfa\x93e\xaf\xe6X" +
+	"\x0d\xa0L\xaan-\x03d\x08\xe8\xb3\xc3\x80\x9a\xd2\xa8" +
+	"\x16\x84:\xd9\xcf\xb8x\xf1\x12\xa0\xe65\xaa+B]" +
+	"\xa4\x9f\x02\xe8\xea<\xa0\x164\xaa\xaa0kZ5\xe6" +
+	"S|\x90y0\x0a\xec\xbbK\xb6k\xd9\x00\xd8\x0da" +
+	"7\xb8\xe2\xf9\xa1\xe3\xb9\x01{\xc1\xb2F\xe6\xd3=\xc0" +
+	"\xb8\xd8\x0euzfa\xd6\x0d\xb5z#f\xedl\xb2" +
+	"\x9e\x9a\x04\xd4\x88F5.\xdcG==\x06\xa8Q\x8d" +
+	"jBX2\xadx\x16s\xa9\x00\x9090W_\xaa" +
+	"\xd9\xcc\xa7\x12\xf7x\xdb\x8c\x9e\xf7\xfcr\xdd.U\x1c" +
+	"\xcb\x0c\xed\x03\xe3\x8bm\xc6\x17\xf7\xc6_\x10\x16\x9c\xa0" +
+	"b\x06\xec\x82\xb0\x0b,8\xb7\x9dJs\xed\xb8x\xf8" +
+	"\xb2\xd3V\x98u<71\x93\xfc\xeb\x13\xc5\x18Q\x1f" +
+	"\x18\x03(zO\x11(,\xb9\x81\x1d\xe6*\xb6\xdb(" +
+	"\x98\xb5\x9a\xb7\xdcl\xc5\xfdV\x85\xa4W\xdc$\xd3d" +
+	"\xee\x89\xa5ujT#\xc2\x15\xdb\x0d\xeb\x8e\xdd\xa2\xa2" +
+	"\xf9\x02\x0eW\xb1\x98\xe8\xdb\xbd5\xff11\xd9bb" +
+	"\xd9v\xeeTCf \xcc\x80%?\xb9{\xcc\xa7\x8f" +
+	"s\xd7\xc0\xbf\x00\x00\x00\xff\xff\xe4;\xea\xc9"
 
 func init() {
 	schemas.Register(schema_e45bfd61f120454d,
@@ -680,6 +571,5 @@ func init() {
 		0xae43a4f525738ee0,
 		0xc120b3aca8b6ad5e,
 		0xcd0ebf47910e2043,
-		0xd4de36af92a5d3b7,
 		0xff1928582247d7b2)
 }
