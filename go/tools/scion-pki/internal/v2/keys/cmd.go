@@ -17,14 +17,13 @@ package keys
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 var Cmd = &cobra.Command{
 	Use:   "keys",
-	Short: "Generate keys for the SCION control plane PKI. [DEPRECATED]",
+	Short: "Generate keys for the SCION control plane PKI.",
 	Long: `
 'keys' can be used to generate all the necessary keys used in the SCION control plane PKI as well
 as the AS master key.
@@ -37,18 +36,6 @@ Selector:
 	X-Y
 		A specific AS X-Y, e.g. AS 1-ff00:0:300
 `,
-}
-
-var genCmd = &cobra.Command{
-	Use:   "gen",
-	Short: "Generate new keys",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runGenKey(args[0]); err != nil {
-			return common.NewBasicError("unable to generate keys", err)
-		}
-		return nil
-	},
 }
 
 var privateCmd = &cobra.Command{
@@ -88,5 +75,4 @@ var publicCmd = &cobra.Command{
 func init() {
 	Cmd.AddCommand(privateCmd)
 	Cmd.AddCommand(publicCmd)
-	Cmd.AddCommand(genCmd)
 }
