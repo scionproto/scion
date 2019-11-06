@@ -16,16 +16,13 @@
 package topology
 
 import (
-	// Stdlib
 	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
 
-	// External
 	. "github.com/smartystreets/goconvey/convey"
 
-	// Local
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -36,16 +33,13 @@ var testTopo *Topo
 
 // Helpers
 func mkO(l3 addr.HostAddr, op int) *overlay.OverlayAddr {
-	var o *overlay.OverlayAddr
 	if l3 == nil {
 		return nil
 	}
 	if op == 0 {
-		o, _ = overlay.NewOverlayAddr(l3, 0)
-	} else {
-		o, _ = overlay.NewOverlayAddr(l3, uint16(op))
+		return overlay.NewOverlayAddr(l3.IP(), 0)
 	}
-	return o
+	return overlay.NewOverlayAddr(l3.IP(), uint16(op))
 }
 
 func mkPBO(ip string, port int, bindip string, bindport int, op int) *pubBindAddr {

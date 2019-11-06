@@ -176,7 +176,7 @@ func (r *remoteAddressResolver) resolveLocalDestination(address *Addr) (*Addr, e
 		return nil, common.NewBasicError(ErrExtraPath, nil)
 	}
 	if address.NextHop == nil {
-		return addOverlayFromScionAddress(address)
+		return addOverlayFromScionAddress(address), nil
 	}
 	return address, nil
 }
@@ -206,12 +206,8 @@ func (r *remoteAddressResolver) addPath(address *Addr) (*Addr, error) {
 	return address, nil
 }
 
-func addOverlayFromScionAddress(address *Addr) (*Addr, error) {
-	var err error
+func addOverlayFromScionAddress(address *Addr) *Addr {
 	address = address.Copy()
-	address.NextHop, err = overlay.NewOverlayAddr(address.Host.L3, overlay.EndhostPort)
-	if err != nil {
-		return nil, common.NewBasicError(ErrBadOverlay, err)
-	}
-	return address, nil
+	address.NextHop = overlay.NewOverlayAddr(address.Host.L3.IP(), overlay.EndhostPort)
+	return address
 }

@@ -68,10 +68,7 @@ func main() {
 	// Connect to the dispatcher
 	var overlayBindAddr *overlay.OverlayAddr
 	if cmn.Bind.Host != nil {
-		overlayBindAddr, err = overlay.NewOverlayAddr(cmn.Bind.Host.L3, cmn.Bind.Host.L4)
-		if err != nil {
-			cmn.Fatal("Failed to create bind address: %v\n", err)
-		}
+		overlayBindAddr = overlay.NewOverlayAddr(cmn.Bind.Host.L3.IP(), cmn.Bind.Host.L4)
 	}
 	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host,
 		overlayBindAddr, addr.SvcNone)

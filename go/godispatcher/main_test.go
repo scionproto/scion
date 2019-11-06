@@ -79,9 +79,9 @@ type ClientAddress struct {
 var (
 	commonIA               = xtest.MustParseIA("1-ff00:0:1")
 	commonPublicL3Address  = addr.HostFromIP(net.IP{127, 0, 0, 1})
-	commonOverlayL3Address = addr.HostFromIP(net.IP{127, 0, 0, 1})
+	commonOverlayL3Address = net.IP{127, 0, 0, 1}
 	commonOverlayL4Address = dispatcherTestPort
-	commonOverlayAddress   = MustNewOverlayAddr(commonOverlayL3Address, commonOverlayL4Address)
+	commonOverlayAddress   = overlay.NewOverlayAddr(commonOverlayL3Address, commonOverlayL4Address)
 	clientXAddress         = &ClientAddress{
 		IA:             commonIA,
 		PublicAddress:  commonPublicL3Address,
@@ -484,14 +484,6 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 			t.Errorf("== payload: have %#v, expect %#v", packet.Pld, tc.ExpectedPacket.Pld)
 		}
 	}
-}
-
-func MustNewOverlayAddr(l3 addr.HostAddr, l4 uint16) *overlay.OverlayAddr {
-	address, err := overlay.NewOverlayAddr(l3, l4)
-	if err != nil {
-		panic(err)
-	}
-	return address
 }
 
 func MustPackL4Header(header l4.L4Header) common.RawBytes {

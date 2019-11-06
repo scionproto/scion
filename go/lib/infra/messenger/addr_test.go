@@ -149,11 +149,7 @@ func TestBuildFullAddress(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("snet address in local AS, overlay address extraction succeeds", func() {
-			overlayAddr, err := overlay.NewOverlayAddr(
-				addr.HostFromIP(net.IP{192, 168, 0, 1}),
-				10,
-			)
-			xtest.FailOnErr(t, err)
+			overlayAddr := overlay.NewOverlayAddr(net.IP{192, 168, 0, 1}, 10)
 			router.EXPECT().LocalIA().Return(localIA).AnyTimes()
 			svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(overlayAddr, nil)
 

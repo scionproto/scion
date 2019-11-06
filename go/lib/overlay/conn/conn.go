@@ -27,7 +27,6 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -299,8 +298,7 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	if c.Remote != nil {
 		c.readMeta.Src = c.Remote
 	} else {
-		l3 := addr.HostFromIP(src.IP)
-		c.readMeta.Src, _ = overlay.NewOverlayAddr(l3, uint16(src.Port))
+		c.readMeta.Src = overlay.NewOverlayAddr(src.IP, uint16(src.Port))
 	}
 	return n, &c.readMeta, err
 }
@@ -399,8 +397,7 @@ func (m *ReadMeta) setSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay
 	if a != nil {
 		m.Src = a
 	} else {
-		l3 := addr.HostFromIP(raddr.IP)
-		m.Src, _ = overlay.NewOverlayAddr(l3, uint16(raddr.Port))
+		m.Src = overlay.NewOverlayAddr(raddr.IP, uint16(raddr.Port))
 	}
 }
 

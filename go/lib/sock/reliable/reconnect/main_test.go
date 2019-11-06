@@ -68,11 +68,7 @@ func MustBuildOverlay(str string) *overlay.OverlayAddr {
 	if err != nil {
 		panic(fmt.Sprintf("bad overlay address %v, err=%v", str, err))
 	}
-	ov, err := overlay.NewOverlayAddr(addr.HostFromIP(udpAddr.IP), uint16(udpAddr.Port))
-	if err != nil {
-		panic(fmt.Sprintf("cannot build overlay, err=%v", err))
-	}
-	return ov
+	return overlay.NewOverlayAddr(udpAddr.IP, uint16(udpAddr.Port))
 }
 
 // tickerMultiplier computes durations relative to the default reconnect

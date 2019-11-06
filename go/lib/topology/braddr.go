@@ -157,24 +157,17 @@ type OverBindAddr struct {
 }
 
 func (ob *OverBindAddr) fromRaw(rob *RawOverlayBind, udpOverlay bool) error {
-	var err error
 	l3 := addr.HostFromIPStr(rob.PublicOverlay.Addr)
 	if l3 == nil {
 		return common.NewBasicError(ErrInvalidPub, nil, "ip", rob.PublicOverlay.Addr)
 	}
-	ob.PublicOverlay, err = newOverlayAddr(udpOverlay, l3, rob.PublicOverlay.OverlayPort)
-	if err != nil {
-		return err
-	}
+	ob.PublicOverlay = overlay.NewOverlayAddr(l3.IP(), uint16(rob.PublicOverlay.OverlayPort))
 	if rob.BindOverlay != nil {
 		l3 := addr.HostFromIPStr(rob.BindOverlay.Addr)
 		if l3 == nil {
 			return common.NewBasicError(ErrInvalidBind, nil, "ip", rob.BindOverlay.Addr)
 		}
-		ob.BindOverlay, err = newOverlayAddr(udpOverlay, l3, rob.PublicOverlay.OverlayPort)
-		if err != nil {
-			return err
-		}
+		ob.BindOverlay = overlay.NewOverlayAddr(l3.IP(), uint16(rob.PublicOverlay.OverlayPort))
 	}
 	return nil
 }

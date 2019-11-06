@@ -16,6 +16,7 @@ package topology
 
 import (
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,7 +122,6 @@ func Test_pubBindAddr(t *testing.T) {
 		// Errors
 		{"Invaild Public IP Address", false, pubBad, nil, nil, ErrInvalidPub},
 		{"Invaild Bind IP Address", false, pubIPv4, nil, bindBad, ErrInvalidBind},
-		{"No UDP Overlay", false, pubUDPIPv4, nil, bindBad, ErrOverlayPort},
 		// IPv4 Overlay
 		{"IPv4 Pub", false, pubIPv4, nil, nil, nil},
 		{"IPv4 PubBind", false, pubIPv4, nil, bindIPv4, nil},
@@ -134,7 +134,7 @@ func Test_pubBindAddr(t *testing.T) {
 		{"IPv6 PubBind", false, pubIPv6, nil, bindIPv6, nil},
 		// IPv6+UDP Overlay
 		{"IPv6+UDP Pub", true, pubUDPIPv6, nil, nil, nil},
-		{"IPv4+UDP Pub Default Port", true, pubIPv6, pubUDPIPv6, nil, nil},
+		{"IPv6+UDP Pub Default Port", true, pubIPv6, pubUDPIPv6, nil, nil},
 		{"IPv6+UDP PubBind", true, pubUDPIPv6, nil, bindIPv6, nil},
 	}
 	for i, test := range basic_tests {
@@ -205,8 +205,11 @@ func newOverlay(rapo *RawAddrPortOverlay) *overlay.OverlayAddr {
 	if rapo == nil {
 		return nil
 	}
-	o, _ := overlay.NewOverlayAddr(addr.HostFromIPStr(rapo.Addr), uint16(rapo.OverlayPort))
-	return o
+	ip := net.ParseIP(rapo.Addr)
+	if ip.To4() != nil {
+		ip = ip.To4()
+	}
+	return overlay.NewOverlayAddr(ip, uint16(rapo.OverlayPort))
 }
 
 func shouldEqPubBindAddr(actual interface{}, expected ...interface{}) string {

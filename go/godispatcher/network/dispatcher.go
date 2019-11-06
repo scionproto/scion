@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -119,21 +118,14 @@ func openConn(network, address string, p SocketMetaHandler) (net.PacketConn, err
 	if err != nil {
 		return nil, common.NewBasicError("unable to construct UDP addr", err)
 	}
-
-	var hostIP addr.HostAddr
-	switch network {
-	case "udp4":
-		hostIP = addr.HostIPv4(listeningAddress.IP)
-	case "udp6":
-		hostIP = addr.HostIPv6(listeningAddress.IP)
-	default:
-		return nil, common.NewBasicError("unsupported network", nil, "network", network)
+	if network == "udp4" && listeningAddress.IP == nil {
+		listeningAddress.IP = net.IPv4zero
+	}
+	if network == "udp6" && listeningAddress.IP == nil {
+		listeningAddress.IP = net.IPv6zero
 	}
 
-	ov, err := overlay.NewOverlayAddr(hostIP, uint16(listeningAddress.Port))
-	if err != nil {
-		return nil, common.NewBasicError("unable to construct overlay address", err)
-	}
+	ov := overlay.NewOverlayAddr(listeningAddress.IP, uint16(listeningAddress.Port))
 	c, err := conn.New(ov, nil, &conn.Config{ReceiveBufferSize: ReceiveBufferSize})
 	if err != nil {
 		return nil, common.NewBasicError("unable to open conn", err)
@@ -202,10 +194,7 @@ func (o *overlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	if !ok {
 		return 0, common.NewBasicError("address is not UDP", nil, "addr", a)
 	}
-	ov, err := overlay.NewOverlayAddr(addr.HostFromIP(udpAddr.IP), uint16(udpAddr.Port))
-	if err != nil {
-		return 0, common.NewBasicError("unable to construct overlay address", err)
-	}
+	ov := overlay.NewOverlayAddr(udpAddr.IP, uint16(udpAddr.Port))
 	return o.Conn.WriteTo(common.RawBytes(p), ov)
 }
 

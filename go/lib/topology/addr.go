@@ -183,7 +183,6 @@ type pubBindAddr struct {
 }
 
 func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error {
-	var err error
 	l3 := addr.HostFromIPStr(rpbo.Public.Addr)
 	if l3 == nil {
 		return common.NewBasicError(ErrInvalidPub, nil, "ip", rpbo.Public.Addr)
@@ -192,10 +191,11 @@ func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error 
 		L3: l3,
 		L4: uint16(rpbo.Public.L4Port),
 	}
-	pbo.overlay, err = newOverlayAddr(udpOverlay, pbo.pub.L3, rpbo.Public.OverlayPort)
-	if err != nil {
-		return err
+	port := uint16(rpbo.Public.OverlayPort)
+	if port == 0 && udpOverlay {
+		port = overlay.EndhostPort
 	}
+	pbo.overlay = overlay.NewOverlayAddr(pbo.pub.L3.IP(), port)
 	if rpbo.Bind != nil {
 		l3 := addr.HostFromIPStr(rpbo.Bind.Addr)
 		if l3 == nil {
@@ -258,19 +258,6 @@ func (t1 *pubBindAddr) Equal(t2 *pubBindAddr) bool {
 
 func (a *pubBindAddr) String() string {
 	return fmt.Sprintf("public: %v bind: %v overlay: %v", a.pub, a.bind, a.overlay)
-}
-
-func newOverlayAddr(udpOverlay bool, l3 addr.HostAddr, port int) (*overlay.OverlayAddr, error) {
-	var ol4 uint16
-	if !udpOverlay && port != 0 {
-		return nil, common.NewBasicError(ErrOverlayPort, nil)
-	} else if udpOverlay {
-		if port == 0 {
-			port = overlay.EndhostPort
-		}
-		ol4 = uint16(port)
-	}
-	return overlay.NewOverlayAddr(l3, ol4)
 }
 
 func overlayCheck(ot overlay.Type) error {
