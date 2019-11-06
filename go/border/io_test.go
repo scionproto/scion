@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
@@ -149,9 +148,7 @@ func newTestPktList(t *testing.T, length int) (ringbuf.EntryList, func(expected 
 }
 
 func newTestDst(t *testing.T) *overlay.OverlayAddr {
-	dst, err := overlay.NewOverlayAddr(addr.HostFromIP(net.IP{127, 0, 0, 1}), overlay.EndhostPort)
-	require.NoError(t, err)
-	return dst
+	return overlay.NewOverlayAddr(net.IP{127, 0, 0, 1}, overlay.EndhostPort)
 }
 
 func newTestSock(r *Router, ringSize int, mconn conn.Conn) *rctx.Sock {

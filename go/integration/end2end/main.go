@@ -186,11 +186,7 @@ func (c client) ping(ctx context.Context, n int) error {
 	}
 	c.conn.SetWriteDeadline(getDeadline(ctx))
 	if remote.NextHop == nil {
-		var err error
-		remote.NextHop, err = overlay.NewOverlayAddr(remote.Host.L3, overlay.EndhostPort)
-		if err != nil {
-			return common.NewBasicError("Error building overlay", err)
-		}
+		remote.NextHop = overlay.NewOverlayAddr(remote.Host.L3.IP(), overlay.EndhostPort)
 	}
 	var debugID [common.ExtnFirstLineLen]byte
 	// API guarantees return values are ok

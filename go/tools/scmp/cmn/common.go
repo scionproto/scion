@@ -168,7 +168,7 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 func NextHopAddr() net.Addr {
 	var nhAddr *overlay.OverlayAddr
 	if Remote.NextHop == nil {
-		nhAddr, _ = overlay.NewOverlayAddr(Remote.Host.L3, overlay.EndhostPort)
+		nhAddr = overlay.NewOverlayAddr(Remote.Host.L3.IP(), overlay.EndhostPort)
 	} else {
 		nhAddr = Remote.NextHop
 	}

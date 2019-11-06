@@ -282,14 +282,7 @@ func (conn *Conn) readFrom(buf []byte) (int, net.Addr, error) {
 	p.DecodeFromBytes(conn.readBuffer[:n])
 	var overlayAddr *overlay.OverlayAddr
 	if p.Address != nil {
-		var err error
-		overlayAddr, err = overlay.NewOverlayAddr(
-			addr.HostFromIP(p.Address.IP),
-			uint16(p.Address.Port),
-		)
-		if err != nil {
-			return 0, nil, common.NewBasicError("overlay error", err)
-		}
+		overlayAddr = overlay.NewOverlayAddr(p.Address.IP, uint16(p.Address.Port))
 	}
 	if len(buf) < len(p.Payload) {
 		return 0, nil, serrors.New("buffer too small")

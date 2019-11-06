@@ -115,10 +115,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		rp.CmnHdr.HdrLenBytes()
 	if onLastSeg && rp.dstIA.Equal(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
-		dst, err := overlay.NewOverlayAddr(rp.dstHost, overlay.EndhostPort)
-		if err != nil {
-			return HookError, err
-		}
+		dst := overlay.NewOverlayAddr(rp.dstHost.IP(), overlay.EndhostPort)
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 		return HookContinue, nil
 	}
