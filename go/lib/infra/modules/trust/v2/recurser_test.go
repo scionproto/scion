@@ -25,7 +25,6 @@ import (
 )
 
 func TestASLocalRecurserAllowRecursion(t *testing.T) {
-	t.SkipNow()
 	tests := map[string]struct {
 		Addr      net.Addr
 		Assertion assert.ErrorAssertionFunc

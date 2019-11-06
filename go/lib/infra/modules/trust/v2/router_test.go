@@ -36,7 +36,6 @@ import (
 )
 
 func TestLocalRouterChooseServer(t *testing.T) {
-	t.SkipNow()
 	tests := map[string]addr.ISD{
 		"ISD local":  1,
 		"Remote ISD": 2,
@@ -53,7 +52,6 @@ func TestLocalRouterChooseServer(t *testing.T) {
 }
 
 func TestCSRouterChooseServer(t *testing.T) {
-	t.SkipNow()
 	tests := map[string]struct {
 		ISD         addr.ISD
 		Expect      func(*mock_v2.MockDB, *mock_snet.MockRouter, *mock_snet.MockPath)
