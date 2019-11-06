@@ -78,8 +78,8 @@ func Encode(trc *TRC) (Encoded, error) {
 }
 
 // Decode returns the decoded Decode.
-func (p *Encoded) Decode() (*TRC, error) {
-	b, err := scrypto.Base64.DecodeString(string(*p))
+func (p Encoded) Decode() (*TRC, error) {
+	b, err := scrypto.Base64.DecodeString(string(p))
 	if err != nil {
 		return nil, err
 	}
@@ -110,8 +110,8 @@ func EncodeProtected(p Protected) (EncodedProtected, error) {
 }
 
 // Decode decodes and return the protected header.
-func (h *EncodedProtected) Decode() (Protected, error) {
-	b, err := scrypto.Base64.DecodeString(string(*h))
+func (h EncodedProtected) Decode() (Protected, error) {
+	b, err := scrypto.Base64.DecodeString(string(h))
 	if err != nil {
 		return Protected{}, err
 	}

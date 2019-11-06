@@ -33,7 +33,7 @@ const (
 	TrcNameFmt      = "ISD%d-V%d.trc"
 	TRCPartsDirFmt  = "ISD%d-V%d.parts"
 	TRCSigPartFmt   = "ISD%d-V%d.sig.%s"
-	TRCProtoNameFmt = "ISD%d-V%d.proto"
+	TRCProtoNameFmt = "ISD%d-V%d.prototype"
 	TRCsDir         = "trcs"
 	CertsDir        = "certs"
 	KeysDir         = "keys"
