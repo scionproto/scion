@@ -10,6 +10,9 @@
     }
   },
   "nilness": {
+    "only_files": {
+      "//go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+    },
     "exclude_files": {
       "gazelle/cmd/gazelle/diff.go": "",
       "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
@@ -26,11 +29,15 @@
   },
   "unreachable": {
     "exclude_files": {
+      "gazelle/pathtools/path.go": "",
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
       "/com_github_uber_jaeger_client_go": ""
     }
   },
   "unsafeptr": {
+    "only_files": {
+      "//go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+    },
     "exclude_files": {
       "/com_github_mattn_go_sqlite3/": "",
       "/com_github_google_gopacket/afpacket/": ""
@@ -52,6 +59,9 @@
     }
   },
   "gocall": {
+    "only_files": {
+      "//go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+    },
     "exclude_files": {
       "(vendor|external)/*": "Only applies to internal files",
       "xtest/*": "",

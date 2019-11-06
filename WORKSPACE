@@ -6,7 +6,7 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file"
 git_repository(
     name = "io_bazel_rules_go",
     remote = "https://github.com/bazelbuild/rules_go.git",
-    tag = "0.18.7",
+    tag = "v0.20.2",
 )
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_download_sdk", "go_rules_dependencies", "go_register_toolchains")
@@ -25,8 +25,11 @@ go_register_toolchains(nogo = "@//:nogo")
 # Gazelle
 http_archive(
     name = "bazel_gazelle",
-    urls = ["https://github.com/bazelbuild/bazel-gazelle/releases/download/0.17.0/bazel-gazelle-0.17.0.tar.gz"],
-    sha256 = "3c681998538231a2d24d0c07ed5a7658cb72bfb5fd4bf9911157c0e9ac6a2687",
+    urls = [
+        "https://storage.googleapis.com/bazel-mirror/github.com/bazelbuild/bazel-gazelle/releases/download/v0.19.0/bazel-gazelle-v0.19.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.19.0/bazel-gazelle-v0.19.0.tar.gz",
+    ],
+    sha256 = "41bff2a0b32b02f20c227d234aa25ef3783998e5453f7eade929704dcff7cd4b",
 )
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
@@ -325,7 +328,7 @@ go_repository(
 
 go_repository(
     name = "com_github_prometheus_client_golang",
-    commit = "170205fb58decfd011f1550d4cfb737230d7ae4f", #v1.1.0
+    commit = "170205fb58decfd011f1550d4cfb737230d7ae4f",  #v1.1.0
     importpath = "github.com/prometheus/client_golang",  # prometheus
 )
 
@@ -337,13 +340,13 @@ go_repository(
 
 go_repository(
     name = "com_github_prometheus_common",
-    commit = "31bed53e4047fd6c510e43a941f90cb31be0972a", #v0.6.0
+    commit = "31bed53e4047fd6c510e43a941f90cb31be0972a",  #v0.6.0
     importpath = "github.com/prometheus/common",  # model
 )
 
 go_repository(
     name = "com_github_prometheus_procfs",
-    commit = "3f98efb27840a48a7a2898ec80be07674d19f9c8", #v0.0.3
+    commit = "3f98efb27840a48a7a2898ec80be07674d19f9c8",  #v0.0.3
     importpath = "github.com/prometheus/procfs",
 )
 
@@ -491,4 +494,18 @@ go_repository(
     name = "com_github_iancoleman_strcase",
     commit = "e506e3ef73653e84c592ba44aab577a46678f68c",
     importpath = "github.com/iancoleman/strcase",
+)
+
+go_repository(
+    name = "org_golang_x_net",
+    importpath = "golang.org/x/net",
+    sum = "h1:QPlSTtPE2k6PZPasQUbzuK3p9JbS+vMXYVto8g/yrsg=",
+    version = "v0.0.0-20191105084925-a882066a44e0",
+)
+
+go_repository(
+    name = "org_golang_x_ctx",
+    importpath = "golang.org/x/ctx",
+    sum = "",
+    version = "latest",
 )
