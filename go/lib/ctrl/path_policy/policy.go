@@ -26,9 +26,9 @@ var _ proto.Cerealizable = (*Policy)(nil)
 
 // Policy is the high level capnp msg representation for policies.
 type Policy struct {
-	ACL      *ACL
-	Sequence string
-	Options  []Option
+	ACL      *ACL     `capnp:"acl"`
+	Sequence string   `capnp:"sequence"`
+	Options  []Option `capnp:"options"`
 }
 
 func (p *Policy) ProtoId() proto.ProtoIdType {
@@ -55,8 +55,8 @@ func (p *Policy) Copy() *Policy {
 var _ proto.Cerealizable = (*Option)(nil)
 
 type Option struct {
-	Weight int
-	Policy *Policy
+	Weight int32   `capnp:"weight"`
+	Policy *Policy `capnp:"policy"`
 }
 
 func (o *Option) ProtoId() proto.ProtoIdType {
@@ -70,7 +70,7 @@ func (o *Option) String() string {
 var _ proto.Cerealizable = (*ACL)(nil)
 
 type ACL struct {
-	Entries []*ACLEntry
+	Entries []*ACLEntry `capnp:"entries"`
 }
 
 func (a *ACL) ProtoId() proto.ProtoIdType {
@@ -93,8 +93,8 @@ func (a *ACL) Copy() *ACL {
 var _ proto.Cerealizable = (*ACLEntry)(nil)
 
 type ACLEntry struct {
-	Action proto.ACLAction
-	Rule   *HopPredicate
+	Action proto.ACLAction `capnp:"action"`
+	Rule   *HopPredicate   `capnp:"rule"`
 }
 
 func (e *ACLEntry) ProtoId() proto.ProtoIdType {
@@ -115,8 +115,8 @@ func (e *ACLEntry) Copy() *ACLEntry {
 var _ proto.Cerealizable = (*HopPredicate)(nil)
 
 type HopPredicate struct {
-	IA    addr.IA
-	IfIDs []common.IFIDType
+	IA    addr.IA           `capnp:"isdas"`
+	IfIDs []common.IFIDType `capnp:"ifids"`
 }
 
 func (p *HopPredicate) ProtoId() proto.ProtoIdType {
@@ -137,20 +137,20 @@ func (p *HopPredicate) Copy() *HopPredicate {
 }
 
 func copyOptions(options []Option) []Option {
-	copy := make([]Option, 0, len(options))
+	optCopy := make([]Option, 0, len(options))
 	for _, option := range options {
-		copy = append(copy, Option{
+		optCopy = append(optCopy, Option{
 			Weight: option.Weight,
 			Policy: option.Policy.Copy(),
 		})
 	}
-	return copy
+	return optCopy
 }
 
 func copyEntries(entries []*ACLEntry) []*ACLEntry {
-	copy := make([]*ACLEntry, 0, len(entries))
+	entriesCopy := make([]*ACLEntry, 0, len(entries))
 	for _, entry := range entries {
-		copy = append(copy, entry)
+		entriesCopy = append(entriesCopy, entry.Copy())
 	}
-	return copy
+	return entriesCopy
 }
