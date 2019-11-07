@@ -9,6 +9,8 @@ filegroup(
 go_library(
     name = "go_default_library",
     srcs = [
+        "as.go",
+        "issuer.go",
         "keys.go",
         "trc.go",
     ],
