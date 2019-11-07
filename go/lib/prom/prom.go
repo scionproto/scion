@@ -34,8 +34,6 @@ const (
 	LabelSrc = "src"
 	// LabelDst is the label for the destination.
 	LabelDst = "dst"
-	// LabelInit is the label for the default init value.
-	LabelInit = "init"
 )
 
 // Common result values.
@@ -136,7 +134,6 @@ func NewCounterVecWithLabels(ns, sub, name, help string, label Labels) *promethe
 	}
 	c := prometheus.NewCounterVec(opts, label.Labels())
 	ret := SafeRegister(c).(*prometheus.CounterVec)
-	ret.WithLabelValues(label.Values()...)
 	return ret
 }
 
@@ -174,7 +171,6 @@ func NewGaugeVecWithLabels(namespace, subsystem, name, help string,
 
 	c := prometheus.NewGaugeVec(opts, label.Labels())
 	ret := SafeRegister(c).(*prometheus.GaugeVec)
-	ret.WithLabelValues(label.Values()...)
 	return ret
 }
 
@@ -216,7 +212,6 @@ func NewHistogramVecWithLabels(namespace, subsystem, name, help string,
 
 	c := prometheus.NewHistogramVec(opts, label.Labels())
 	ret := SafeRegister(c).(*prometheus.HistogramVec)
-	ret.WithLabelValues(label.Values()...)
 	return ret
 }
 
@@ -239,9 +234,5 @@ func (l initLabels) Labels() []string {
 }
 
 func (l initLabels) Values() []string {
-	val := make([]string, len(l.labelNames))
-	for i := range val {
-		val[i] = LabelInit
-	}
-	return val
+	return nil
 }

@@ -109,9 +109,8 @@ func TestContent(t *testing.T) {
 		want := fmt.Sprintf(`
 # HELP %s_periodic_event_total Total number of events.
 # TYPE %s_periodic_event_total counter
-%s_periodic_event_total{event_type="triggered"} 0
 %s_periodic_event_total{event_type="kill"} 1
-	`, sn, sn, sn, sn)
+	`, sn, sn, sn)
 		v.Event(EventKill)
 		err := testutil.CollectAndCompare(v.events, strings.NewReader(want))
 		assert.NoError(t, err)
