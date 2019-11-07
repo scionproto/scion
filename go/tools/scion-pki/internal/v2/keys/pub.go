@@ -21,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -119,6 +121,30 @@ func (g pubGen) writeKeys(pubKeys map[addr.IA][]keyconf.Key) error {
 		}
 	}
 	return nil
+}
+
+// LoadPublicKey attempts to load the private key and use that to generate the
+// public key. If that fails, it attempts to load the public key directly. The
+// boolean return value indicates whether the public key was derived from the
+// private key.
+func LoadPublicKey(dir string, ia addr.IA, usage keyconf.Usage,
+	version scrypto.KeyVersion) (keyconf.Key, bool, error) {
+
+	file := filepath.Join(PrivateDir(dir, ia), keyconf.PrivateKeyFile(usage, version))
+	priv, err := pkicmn.LoadKey(file, ia, usage, version)
+	if err == nil {
+		pub, err := PublicKey(priv)
+		return pub, true, err
+	}
+	if !xerrors.Is(err, pkicmn.ErrReadFile) {
+		return keyconf.Key{}, false, err
+	}
+	file = filepath.Join(PublicDir(dir, ia), keyconf.PublicKeyFile(usage, ia, version))
+	pub, err := pkicmn.LoadKey(file, ia, usage, version)
+	if err != nil {
+		return keyconf.Key{}, false, serrors.WrapStr("unable to load public key", err, "file", file)
+	}
+	return pub, false, nil
 }
 
 // PublicKey translates a private to a public key.
