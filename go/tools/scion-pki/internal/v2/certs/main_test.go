@@ -12,25 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package certs
 
 import (
-	"github.com/spf13/cobra"
-
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/certs"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/keys"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/tmpl"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/trcs"
+	"flag"
 )
 
-var Cmd = &cobra.Command{
-	Use:   "v2",
-	Short: "Use the new format",
-}
-
-func init() {
-	Cmd.AddCommand(certs.Cmd)
-	Cmd.AddCommand(tmpl.Cmd)
-	Cmd.AddCommand(keys.Cmd)
-	Cmd.AddCommand(trcs.Cmd)
-}
+// update is a cmd line flag that enables golden file updates. To update the
+// golden files simply run 'go test -run Update -update ./...'.
+var update = flag.Bool("update", false, "set to true to regenerate golden files")

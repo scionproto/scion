@@ -17,6 +17,7 @@
 package pkicmn
 
 import (
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,11 +26,15 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/keyconf"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
 	CertNameFmt     = "ISD%d-AS%s-V%d.crt"
 	CoreCertNameFmt = "ISD%d-AS%s-V%d-core.crt"
+	IssuerNameFmt   = "ISD%d-AS%s-V%d.issuer"
 	TrcNameFmt      = "ISD%d-V%d.trc"
 	TRCPartsDirFmt  = "ISD%d-V%d.parts"
 	TRCSigPartFmt   = "ISD%d-V%d.%s.sig"
@@ -52,6 +57,9 @@ var (
 	Force   bool
 	Quiet   bool
 )
+
+// ErrReadFile indicates an error while reading a file.
+var ErrReadFile = serrors.New("error reading file")
 
 // Dirs holds the directory configuration.
 type Dirs struct {
@@ -220,4 +228,34 @@ func QuietPrint(format string, a ...interface{}) {
 	if !Quiet {
 		fmt.Printf(format, a...)
 	}
+}
+
+// LoadKey loads a PEM encoded key from file.
+func LoadKey(file string, ia addr.IA, usage keyconf.Usage,
+	version scrypto.KeyVersion) (keyconf.Key, error) {
+
+	raw, err := ioutil.ReadFile(file)
+	if err != nil {
+		return keyconf.Key{}, serrors.Wrap(ErrReadFile, err)
+	}
+	block, _ := pem.Decode(raw)
+	if block == nil {
+		return keyconf.Key{}, serrors.New("unable to parse PEM")
+	}
+	key, err := keyconf.KeyFromPEM(block)
+	if err != nil {
+		return keyconf.Key{}, serrors.WrapStr("unable to decode key", err)
+	}
+	if !key.IA.Equal(ia) {
+		return keyconf.Key{}, serrors.New("IA does not match", "expected", ia, "actual", key.IA)
+	}
+	if key.Usage != usage {
+		return keyconf.Key{}, serrors.New("usage does not match",
+			"expected", usage, "actual", key.Usage)
+	}
+	if key.Version != version {
+		return keyconf.Key{}, serrors.New("version does not match",
+			"expected", version, "actual", key.Version)
+	}
+	return key, nil
 }

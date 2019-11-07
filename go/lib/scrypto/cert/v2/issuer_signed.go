@@ -41,6 +41,20 @@ func (s SignedIssuer) SigInput() common.RawBytes {
 	return scrypto.JWSignatureInput(s.EncodedProtected, s.Encoded)
 }
 
+// ParseSignedIssuer parses the raw signed issuer certificate.
+func ParseSignedIssuer(raw []byte) (SignedIssuer, error) {
+	var signed SignedIssuer
+	if err := json.Unmarshal(raw, &signed); err != nil {
+		return SignedIssuer{}, err
+	}
+	return signed, nil
+}
+
+// EncodeSignedIssuer encodes the signed issuer certificate to raw bytes.
+func EncodeSignedIssuer(signed SignedIssuer) ([]byte, error) {
+	return json.Marshal(signed)
+}
+
 // EncodedIssuer is the the base64url encoded marshaled issuer certificate.
 type EncodedIssuer []byte
 

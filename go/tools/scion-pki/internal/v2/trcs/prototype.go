@@ -20,8 +20,6 @@ import (
 	"sort"
 	"time"
 
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -156,22 +154,16 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 func (g protoGen) loadPubKey(ia addr.IA, usage keyconf.Usage,
 	version scrypto.KeyVersion) (keyconf.Key, error) {
 
-	file := filepath.Join(keys.PrivateDir(g.Dirs.Out, ia), keyconf.PrivateKeyFile(usage, version))
-	priv, err := loadKey(file, ia, usage, version)
-	if err == nil {
-		pkicmn.QuietPrint("Using private key %s\n", file)
-		return keys.PublicKey(priv)
-	}
-	if !xerrors.Is(err, errReadFile) {
-		return keyconf.Key{}, err
-	}
-	file = filepath.Join(keys.PublicDir(g.Dirs.Out, ia), keyconf.PublicKeyFile(usage, ia, version))
-	pub, err := loadKey(file, ia, usage, version)
+	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, ia, usage, version)
 	if err != nil {
-		return keyconf.Key{}, serrors.WrapStr("unable to load public key", err, "file", file)
+		return keyconf.Key{}, nil
 	}
-	pkicmn.QuietPrint("Using public key %s\n", file)
-	return pub, nil
+	if fromPriv {
+		pkicmn.QuietPrint("Using private %s key for %s\n", usage, ia)
+	} else {
+		pkicmn.QuietPrint("Using public %s key for %s\n", usage, ia)
+	}
+	return key, nil
 }
 
 func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC2, keys map[addr.AS]pubKeys) (*trc.TRC, error) {
