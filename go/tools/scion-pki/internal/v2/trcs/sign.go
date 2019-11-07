@@ -184,7 +184,7 @@ func (g signatureGen) loadKey(ia addr.IA, usage keyconf.Usage,
 	version scrypto.KeyVersion) (keyconf.Key, error) {
 
 	file := filepath.Join(keys.PrivateDir(g.Dirs.Out, ia), keyconf.PrivateKeyFile(usage, version))
-	priv, err := loadKey(file, ia, usage, version)
+	priv, err := pkicmn.LoadKey(file, ia, usage, version)
 	if err != nil {
 		return keyconf.Key{}, serrors.WrapStr("unable to load private key", err, "file", file)
 	}
