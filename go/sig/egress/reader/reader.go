@@ -89,7 +89,7 @@ BatchLoop:
 			if dstRing == nil {
 				// Release buffer back to free buffer pool
 				iface.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
-				// FIXME(kormat): replace with metric.
+				metrics.PktUnroutable.Inc()
 				r.log.Error("EgressReader: unable to find dest IA", "ip", dstIP)
 				continue
 			}
