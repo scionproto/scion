@@ -18,15 +18,13 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExpTimeType(t *testing.T) {
 	type TimeErrPair struct {
 		ExpTime ExpTimeType
-		ExpErr  bool
+		Error   assert.ErrorAssertionFunc
 	}
 	tests := []struct {
 		Name      string
@@ -40,9 +38,10 @@ func TestExpTimeType(t *testing.T) {
 			Duration: 300 * time.Second,
 			RoundUp: TimeErrPair{
 				ExpTime: 0,
+				Error:   assert.NoError,
 			},
 			RoundDown: TimeErrPair{
-				ExpErr: true,
+				Error: assert.Error,
 			},
 			Rounded: true,
 		},
@@ -51,9 +50,11 @@ func TestExpTimeType(t *testing.T) {
 			Duration: ExpTimeUnit * time.Second,
 			RoundUp: TimeErrPair{
 				ExpTime: 0,
+				Error:   assert.NoError,
 			},
 			RoundDown: TimeErrPair{
 				ExpTime: 0,
+				Error:   assert.NoError,
 			},
 		},
 		{
@@ -61,9 +62,11 @@ func TestExpTimeType(t *testing.T) {
 			Duration: 400 * time.Second,
 			RoundUp: TimeErrPair{
 				ExpTime: 1,
+				Error:   assert.NoError,
 			},
 			RoundDown: TimeErrPair{
 				ExpTime: 0,
+				Error:   assert.NoError,
 			},
 			Rounded: true,
 		},
@@ -72,9 +75,11 @@ func TestExpTimeType(t *testing.T) {
 			Duration: 650 * time.Second,
 			RoundUp: TimeErrPair{
 				ExpTime: 1,
+				Error:   assert.NoError,
 			},
 			RoundDown: TimeErrPair{
 				ExpTime: 0,
+				Error:   assert.NoError,
 			},
 			Rounded: true,
 		},
@@ -83,9 +88,11 @@ func TestExpTimeType(t *testing.T) {
 			Duration: 2 * ExpTimeUnit * time.Second,
 			RoundUp: TimeErrPair{
 				ExpTime: 1,
+				Error:   assert.NoError,
 			},
 			RoundDown: TimeErrPair{
 				ExpTime: 1,
+				Error:   assert.NoError,
 			},
 		},
 		{
@@ -93,9 +100,11 @@ func TestExpTimeType(t *testing.T) {
 			Duration: 840 * time.Second,
 			RoundUp: TimeErrPair{
 				ExpTime: 2,
+				Error:   assert.NoError,
 			},
 			RoundDown: TimeErrPair{
 				ExpTime: 1,
+				Error:   assert.NoError,
 			},
 			Rounded: true,
 		},
@@ -104,50 +113,51 @@ func TestExpTimeType(t *testing.T) {
 			Duration: (time.Duration(MaxTTLField) + 1) * ExpTimeUnit * time.Second,
 			RoundUp: TimeErrPair{
 				ExpTime: MaxTTLField,
+				Error:   assert.NoError,
 			},
 			RoundDown: TimeErrPair{
 				ExpTime: MaxTTLField,
+				Error:   assert.NoError,
 			},
 		},
 		{
 			Name:     "Larger than maximum relative expiration",
 			Duration: 87000 * time.Second,
 			RoundUp: TimeErrPair{
-				ExpErr: true,
+				Error: assert.Error,
 			},
 			RoundDown: TimeErrPair{
 				ExpTime: MaxTTLField,
+				Error:   assert.NoError,
 			},
 			Rounded: true,
 		},
 	}
-	Convey("Conversion from duration to relative expiration time should be correct", t, func() {
-		for _, test := range tests {
-			Convey(test.Name, func() {
-				Convey("Rounding up", func() {
-					expTime, err := ExpTimeFromDuration(test.Duration, true)
-					xtest.SoMsgError("err", err, test.RoundUp.ExpErr)
-					if !test.RoundUp.ExpErr {
-						SoMsg("ExpTime", expTime, ShouldEqual, test.RoundUp.ExpTime)
-					}
-				})
-				Convey("Rounding down", func() {
-					expTime, err := ExpTimeFromDuration(test.Duration, false)
-					xtest.SoMsgError("err", err, test.RoundDown.ExpErr)
-					if !test.RoundDown.ExpErr {
-						SoMsg("ExpTime", expTime, ShouldEqual, test.RoundDown.ExpTime)
-					}
-				})
-			})
-		}
-	})
-	Convey("Conversion from relative expiration time to duration should be correct", t, func() {
-		for _, test := range tests {
-			if !test.Rounded {
-				Convey(test.Name, func() {
-					SoMsg("ExpTime", test.RoundUp.ExpTime.ToDuration(), ShouldEqual, test.Duration)
+	t.Run("Conversion from duration to relative expiration time should be correct",
+		func(t *testing.T) {
+			for _, test := range tests {
+				t.Run(test.Name, func(t *testing.T) {
+					t.Run("Rounding up", func(t *testing.T) {
+						expTime, err := ExpTimeFromDuration(test.Duration, true)
+						test.RoundUp.Error(t, err)
+						assert.Equal(t, test.RoundUp.ExpTime, expTime)
+					})
+					t.Run("Rounding down", func(t *testing.T) {
+						expTime, err := ExpTimeFromDuration(test.Duration, false)
+						test.RoundDown.Error(t, err)
+						assert.Equal(t, test.RoundDown.ExpTime, expTime)
+					})
 				})
 			}
-		}
-	})
+		})
+	t.Run("Conversion from relative expiration time to duration should be correct",
+		func(t *testing.T) {
+			for _, test := range tests {
+				if !test.Rounded {
+					t.Run(test.Name, func(t *testing.T) {
+						assert.Equal(t, test.Duration, test.RoundUp.ExpTime.ToDuration())
+					})
+				}
+			}
+		})
 }

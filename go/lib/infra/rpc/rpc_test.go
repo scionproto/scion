@@ -21,12 +21,12 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -39,7 +39,7 @@ type handler struct {
 func (h *handler) ServeRPC(rw ReplyWriter, request *Request) {
 	reply := &Reply{Message: getMessage(h.t)}
 	err := rw.WriteReply(reply)
-	xtest.FailOnErr(h.t, err)
+	require.NoError(h.t, err)
 }
 
 const (
@@ -48,54 +48,46 @@ const (
 )
 
 func TestServer(t *testing.T) {
-	Convey("Given a server", t, func() {
-		cliConn, srvConn := getTestUDPConns(t, 60000, 60001)
-		defer cliConn.Close()
-		defer srvConn.Close()
+	cliConn, srvConn := getTestUDPConns(t, 60000, 60001)
+	defer cliConn.Close()
+	defer srvConn.Close()
 
-		server := &Server{
-			Conn: srvConn,
-			TLSConfig: &tls.Config{
-				Certificates: []tls.Certificate{
-					MustLoadCertificate(defPemPath, defKeyPath),
-				},
+	server := &Server{
+		Conn: srvConn,
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{
+				MustLoadCertificate(defPemPath, defKeyPath),
 			},
-			Handler: &handler{t: t},
-		}
-		go server.ListenAndServe()
-		time.Sleep(40 * time.Millisecond)
-		Convey("Double listen returns an error", func() {
-			err := server.ListenAndServe()
-			So(err, ShouldNotBeNil)
-		})
-		Convey("Closing does not return an error", func() {
-			err := server.Close()
-			So(err, ShouldBeNil)
-		})
+		},
+		Handler: &handler{t: t},
+	}
+	go server.ListenAndServe()
+	time.Sleep(40 * time.Millisecond)
+	t.Run("Double listen returns an error", func(t *testing.T) {
+		err := server.ListenAndServe()
+		assert.Error(t, err)
+	})
+	t.Run("Closing does not return an error", func(t *testing.T) {
+		err := server.Close()
+		assert.NoError(t, err)
 	})
 }
 
 func TestClientServer(t *testing.T) {
-	Convey("", t, func() {
-		client, server, _ := getCliSrv(t, 60002, 60003)
-		go func() {
-			err := server.ListenAndServe()
-			xtest.FailOnErr(t, err)
-		}()
-		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-		defer cancelF()
-		reply, err := client.Request(
-			ctx,
-			&Request{Message: getMessage(t)},
-			&net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: 60003},
-		)
-		xtest.FailOnErr(t, err)
-		So(
-			mustMarshalMessage(reply.Message),
-			ShouldResemble,
-			mustMarshalMessage(getMessage(t)),
-		)
-	})
+	client, server, _ := getCliSrv(t, 60002, 60003)
+	go func() {
+		err := server.ListenAndServe()
+		require.NoError(t, err)
+	}()
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	reply, err := client.Request(
+		ctx,
+		&Request{Message: getMessage(t)},
+		&net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: 60003},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, mustMarshalMessage(t, getMessage(t)), mustMarshalMessage(t, reply.Message))
 }
 
 func MustLoadCertificate(pem, key string) tls.Certificate {
@@ -131,27 +123,25 @@ func getCliSrv(t testing.TB, cliPort, srvPort int) (*Client, *Server, func()) {
 
 func getTestUDPConns(t testing.TB, cliPort, srvPort int) (net.PacketConn, net.PacketConn) {
 	srvConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: srvPort})
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	cliConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: cliPort})
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return cliConn, srvConn
 }
 
 func getMessage(t testing.TB) *capnp.Message {
 	signedPld := &ctrl.SignedPld{}
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	root, err := proto.NewRootSignedCtrlPld(seg)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	err = pogs.Insert(proto.SignedCtrlPld_TypeID, root.Struct, signedPld)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return msg
 }
 
-func mustMarshalMessage(msg *capnp.Message) []byte {
+func mustMarshalMessage(t *testing.T, msg *capnp.Message) []byte {
 	b, err := msg.Marshal()
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	return b
 }

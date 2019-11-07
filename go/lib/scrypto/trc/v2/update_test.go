@@ -19,12 +19,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 // TestCommonUpdate tests shared error cases between regular and sensitive updates.
@@ -91,7 +91,7 @@ func TestCommonUpdate(t *testing.T) {
 				Next: updated,
 			}
 			info, err := v.Validate()
-			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			xtest.AssertErrorsIs(t, err, test.ExpectedErrMsg)
 			if test.ExpectedErrMsg == nil {
 				assert.Equal(t, ut, info.Type)
 			}
@@ -530,7 +530,7 @@ func TestSensitiveUpdate(t *testing.T) {
 				Next: updated,
 			}
 			info, err := v.Validate()
-			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			xtest.AssertErrorsIs(t, err, test.ExpectedErrMsg)
 			if test.ExpectedErrMsg == nil {
 				assert.Equal(t, trc.SensitiveUpdate, info.Type)
 				initKeyChanges(&test.Info)
@@ -715,7 +715,7 @@ func TestRegularUpdate(t *testing.T) {
 				Next: updated,
 			}
 			info, err := v.Validate()
-			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			xtest.AssertErrorsIs(t, err, test.ExpectedErrMsg)
 			if test.ExpectedErrMsg == nil {
 				assert.Equal(t, trc.RegularUpdate, info.Type)
 				initKeyChanges(&test.Info)

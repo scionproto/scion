@@ -17,9 +17,6 @@ package conf_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -189,7 +186,7 @@ func TestAsValidate(t *testing.T) {
 			}
 			test.Modify(&as)
 			err := as.Validate()
-			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			xtest.AssertErrorsIs(t, err, test.ExpectedErrMsg)
 		})
 	}
 }

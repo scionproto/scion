@@ -18,15 +18,14 @@ import (
 	"bytes"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/svc/internal/proto"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestSVCResolutionSerialization(t *testing.T) {
 	// Sanity check to test that the decoder/serializer operate correctly.
-	Convey("Serializing and deserializing should return the initial object", t, func() {
+	t.Run("Serializing and deserializing should return the initial object", func(t *testing.T) {
 		message := Reply{
 			Transports: map[Transport]string{
 				"foo": "bar",
@@ -36,12 +35,12 @@ func TestSVCResolutionSerialization(t *testing.T) {
 		buffer := &bytes.Buffer{}
 
 		err := message.SerializeTo(buffer)
-		SoMsg("serialize error", err, ShouldBeNil)
+		assert.NoError(t, err)
 
 		var newMessage Reply
 		err = newMessage.DecodeFrom(buffer)
-		SoMsg("decode error", err, ShouldBeNil)
-		SoMsg("message", newMessage, ShouldResemble, message)
+		assert.NoError(t, err)
+		assert.Equal(t, message, newMessage)
 	})
 }
 
@@ -89,11 +88,11 @@ func TestReplyToProtoFormat(t *testing.T) {
 		},
 	}
 
-	Convey("Replies should be converted to the correct proto objects", t, func() {
+	t.Run("Replies should be converted to the correct proto objects", func(t *testing.T) {
 		for _, tc := range testCases {
-			Convey(tc.Name, func() {
+			t.Run(tc.Name, func(t *testing.T) {
 				protoReply := tc.Reply.toProtoFormat()
-				So(protoReply, ShouldResemble, tc.ExpectedProtoReply)
+				assert.Equal(t, tc.ExpectedProtoReply, protoReply)
 			})
 		}
 	})
@@ -104,7 +103,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 		Name          string
 		ProtoReply    *proto.SVCResolutionReply
 		ExpectedReply *Reply
-		ExpectedError bool
+		Error         assert.ErrorAssertionFunc
 	}{
 		{
 			Name:       "nil capnp object",
@@ -112,6 +111,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 			ExpectedReply: &Reply{
 				Transports: make(map[Transport]string),
 			},
+			Error: assert.NoError,
 		},
 		{
 			Name:       "reply with nil slice",
@@ -119,6 +119,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 			ExpectedReply: &Reply{
 				Transports: make(map[Transport]string),
 			},
+			Error: assert.NoError,
 		},
 		{
 			Name: "reply with empty slice",
@@ -128,6 +129,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 			ExpectedReply: &Reply{
 				Transports: make(map[Transport]string),
 			},
+			Error: assert.NoError,
 		},
 		{
 			Name: "reply with one element",
@@ -141,6 +143,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 					"foo": "bar",
 				},
 			},
+			Error: assert.NoError,
 		},
 		{
 			Name: "reply with two elements with different keys",
@@ -156,6 +159,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 					"bar": "baz",
 				},
 			},
+			Error: assert.NoError,
 		},
 		{
 			Name: "duplicate keys",
@@ -165,29 +169,32 @@ func TestReplyFromProtoFormat(t *testing.T) {
 					{Key: "foo", Value: "baz"},
 				},
 			},
-			ExpectedError: true,
+			ExpectedReply: &Reply{
+				Transports: map[Transport]string{
+					"foo": "bar",
+				},
+			},
+			Error: assert.Error,
 		},
 	}
-	Convey("Proto objects should be converted to the correct reply", t, func() {
+	t.Run("Proto objects should be converted to the correct reply", func(t *testing.T) {
 		for _, tc := range testCases {
-			Convey(tc.Name, func() {
+			t.Run(tc.Name, func(t *testing.T) {
 				var reply Reply
 				err := reply.fromProtoFormat(tc.ProtoReply)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				if !tc.ExpectedError {
-					SoMsg("reply", &reply, ShouldResemble, tc.ExpectedReply)
-				}
+				tc.Error(t, err)
+				assert.Equal(t, tc.ExpectedReply, &reply)
 			})
 		}
 	})
-	Convey("Initializing from a proto object should reset state", t, func() {
+	t.Run("Initializing from a proto object should reset state", func(t *testing.T) {
 		reply := &Reply{
 			Transports: map[Transport]string{
 				"foo": "bar",
 			},
 		}
 		err := reply.fromProtoFormat(nil)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("data", reply, ShouldResemble, &Reply{Transports: make(map[Transport]string)})
+		assert.NoError(t, err)
+		assert.Equal(t, &Reply{Transports: make(map[Transport]string)}, reply)
 	})
 }

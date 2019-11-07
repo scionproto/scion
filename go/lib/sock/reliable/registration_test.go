@@ -18,9 +18,7 @@ import (
 	"net"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -107,16 +105,14 @@ func TestRegistrationMessageSerializeTo(t *testing.T) {
 				0, 81, 1, 10, 5, 6, 7, 0, 2},
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				b := make([]byte, 1500)
-				n, err := tc.Registration.SerializeTo(b)
-				assert.True(t, xerrors.Is(err, tc.ExpectedError))
-				SoMsg("data", b[:n], ShouldResemble, tc.ExpectedData)
-			})
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			b := make([]byte, 1500)
+			n, err := tc.Registration.SerializeTo(b)
+			xtest.AssertErrorsIs(t, err, tc.ExpectedError)
+			assert.Equal(t, tc.ExpectedData, b[:n])
+		})
+	}
 }
 
 func TestRegistrationMessageDecodeFromBytes(t *testing.T) {
@@ -240,50 +236,44 @@ func TestRegistrationMessageDecodeFromBytes(t *testing.T) {
 			},
 		},
 	}
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				var r Registration
-				err := r.DecodeFromBytes(tc.Data)
-				assert.True(t, xerrors.Is(err, tc.ExpectedError))
-				SoMsg("registration", r, ShouldResemble, tc.ExpectedRegistration)
-			})
-		}
-	})
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			var r Registration
+			err := r.DecodeFromBytes(tc.Data)
+			xtest.AssertErrorsIs(t, err, tc.ExpectedError)
+			assert.Equal(t, tc.ExpectedRegistration, r)
+		})
+	}
 }
 
 func TestConfirmationMessageSerializeTo(t *testing.T) {
-	Convey("", t, func() {
-		confirmation := &Confirmation{Port: 0xaabb}
-		Convey("bad buffer", func() {
-			b := make([]byte, 1)
-			n, err := confirmation.SerializeTo(b)
-			xtest.SoMsgErrorStr("err", err, ErrBufferTooSmall.Error())
-			SoMsg("n", n, ShouldEqual, 0)
-		})
-		Convey("success", func() {
-			b := make([]byte, 1500)
-			n, err := confirmation.SerializeTo(b)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("data", b[:n], ShouldResemble, []byte{0xaa, 0xbb})
-		})
+	confirmation := &Confirmation{Port: 0xaabb}
+	t.Run("bad buffer", func(t *testing.T) {
+		b := make([]byte, 1)
+		n, err := confirmation.SerializeTo(b)
+		xtest.AssertErrorsIs(t, err, ErrBufferTooSmall)
+		assert.Zero(t, n)
+	})
+	t.Run("success", func(t *testing.T) {
+		b := make([]byte, 1500)
+		n, err := confirmation.SerializeTo(b)
+		assert.NoError(t, err)
+		assert.Equal(t, []byte{0xaa, 0xbb}, b[:n])
 	})
 }
 
 func TestConfirmationDecodeFromBytes(t *testing.T) {
-	Convey("", t, func() {
-		var confirmation Confirmation
-		Convey("bad buffer", func() {
-			b := []byte{0xaa}
-			err := confirmation.DecodeFromBytes(b)
-			xtest.SoMsgErrorStr("err", err, ErrIncompletePort.Error())
-			SoMsg("data", confirmation, ShouldResemble, Confirmation{})
-		})
-		Convey("success", func() {
-			b := []byte{0xaa, 0xbb}
-			err := confirmation.DecodeFromBytes(b)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("data", confirmation, ShouldResemble, Confirmation{Port: 0xaabb})
-		})
+	var confirmation Confirmation
+	t.Run("bad buffer", func(t *testing.T) {
+		b := []byte{0xaa}
+		err := confirmation.DecodeFromBytes(b)
+		xtest.AssertErrorsIs(t, err, ErrIncompletePort)
+		assert.Equal(t, Confirmation{}, confirmation)
+	})
+	t.Run("success", func(t *testing.T) {
+		b := []byte{0xaa, 0xbb}
+		err := confirmation.DecodeFromBytes(b)
+		assert.NoError(t, err)
+		assert.Equal(t, Confirmation{Port: 0xaabb}, confirmation)
 	})
 }

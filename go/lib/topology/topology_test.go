@@ -24,6 +24,8 @@ import (
 
 	// External
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	// Local
 	"github.com/scionproto/scion/go/lib/addr"
@@ -87,29 +89,23 @@ func mkTAv6(ip string, port int, bindip string, bindport int, ot overlay.Type, o
 
 func loadTopo(filename string, t *testing.T) {
 	topo, err := LoadFromFile(filename)
-	if err != nil {
-		t.Fatalf("Error loading config from '%s': %v", filename, err)
-	}
+	require.NoError(t, err, "Error loading config from '%s': %v", filename, err)
 	testTopo = topo
 }
 
-func Test_Meta(t *testing.T) {
+func TestMeta(t *testing.T) {
 	fn := "testdata/basic.json"
-	Convey("Checking metadata", t, func() {
-		loadTopo(fn, t)
-		c := testTopo
-		SoMsg("Checking field 'Timestamp'",
-			c.Timestamp.Equal(time.Unix(168570123, 0)), ShouldBeTrue)
-		// Is testing this piece of data really useful?
-		SoMsg("Checking field 'TimestampHuman", c.TimestampHuman,
-			ShouldContainSubstring, "1975-05-06 01:02:03.000000+0000")
-		SoMsg("Checking field 'TTL'", c.TTL, ShouldEqual, time.Hour)
-		SoMsg("Checking field 'ISD_AS'", c.ISD_AS, ShouldResemble, addr.IA{I: 1, A: 0xff0000000311})
-		SoMsg("Checking field 'Overlay'", c.Overlay, ShouldEqual, overlay.IPv46)
-		SoMsg("Checking field 'MTU'", c.MTU, ShouldEqual, 1472)
-		SoMsg("Checking field 'Core'", c.Core, ShouldBeFalse)
-
-	})
+	loadTopo(fn, t)
+	c := testTopo
+	assert.Equal(t, time.Unix(168570123, 0), c.Timestamp, "Field 'Timestamp'")
+	// Is testing this piece of data really useful?
+	assert.Contains(t, c.TimestampHuman, "1975-05-06 01:02:03.000000+0000",
+		"Field 'TimestampHuman'")
+	assert.Equal(t, time.Hour, c.TTL, "Field 'TTL'")
+	assert.Equal(t, addr.IA{I: 1, A: 0xff0000000311}, c.ISD_AS, "Field 'ISD_AS'")
+	assert.Equal(t, overlay.IPv46, c.Overlay, "Field 'Overlay'")
+	assert.Equal(t, 1472, c.MTU, "Field 'MTU'")
+	assert.False(t, c.Core, "Field 'Core'")
 }
 
 func Test_Active(t *testing.T) {
@@ -159,11 +155,11 @@ func Test_BRs(t *testing.T) {
 	})
 }
 
-func Test_Service_Details(t *testing.T) {
+func TestServiceDetails(t *testing.T) {
 	fn := "testdata/basic.json"
 	ot := overlay.IPv46
 	// We do this just for CSs since the code for the other non-BR, non-ZK services is identical
-	cses := map[string]TopoAddr{
+	cses := IDAddrMap{
 		// v4 with bind
 		"cs1-ff00:0:311-1": mkTAv4("127.0.0.66", 30081, "127.0.0.67", 30081, ot, 0),
 		// v4 without bind
@@ -175,35 +171,25 @@ func Test_Service_Details(t *testing.T) {
 	}
 	loadTopo(fn, t)
 	c := testTopo
-	for name := range cses {
-		Convey(fmt.Sprintf("Checking service details for %s", name), t, func() {
-			So(c.CS[name], ShouldResemble, cses[name])
-		})
-	}
-	Convey("Checking if CS map has extra entries", t, func() {
-		So(len(c.CS), ShouldEqual, len(cses))
-	})
+	assert.Equal(t, cses, c.CS)
 }
 
-func Test_Service_Count(t *testing.T) {
+func TestServiceCount(t *testing.T) {
 	// This just checks the count of all the service types, actual population
 	// testing is done elsewhere
 	// The simple counting check for CS is done in the detailed population test as well
 	fn := "testdata/basic.json"
 	loadTopo(fn, t)
 	c := testTopo
-	Convey(fmt.Sprintf("Checking count of service entries"), t, func() {
-		SoMsg("Checking BS", len(c.BS), ShouldEqual, 3)
-		SoMsg("Checking PS", len(c.PS), ShouldEqual, 2)
-		SoMsg("Checking SB", len(c.SB), ShouldEqual, 2)
-		SoMsg("Checking RS", len(c.RS), ShouldEqual, 2)
-		SoMsg("Checking SIG", len(c.SIG), ShouldEqual, 2)
-		SoMsg("Checking DS", len(c.DS), ShouldEqual, 2)
-	})
-
+	assert.Len(t, c.BS, 3, "BS")
+	assert.Len(t, c.PS, 2, "PS")
+	assert.Len(t, c.SB, 2, "SB")
+	assert.Len(t, c.RS, 2, "RS")
+	assert.Len(t, c.SIG, 2, "SIG")
+	assert.Len(t, c.DS, 2, "DS")
 }
 
-func Test_ZK(t *testing.T) {
+func TestZK(t *testing.T) {
 	zks := map[int]*addr.AppAddr{
 		1: {
 			L3: addr.HostFromIPStr("192.0.2.144"),
@@ -217,18 +203,11 @@ func Test_ZK(t *testing.T) {
 	fn := "testdata/basic.json"
 	loadTopo(fn, t)
 	c := testTopo
-	for name := range zks {
-		Convey(fmt.Sprintf("Checking ZK details for ZK id %d", name), t, func() {
-			So(c.ZK[name], ShouldResemble, zks[name])
-		})
-	}
-	Convey("Checking that ZK map has no extra entries", t, func() {
-		So(len(c.ZK), ShouldEqual, len(zks))
-	})
+	assert.Equal(t, zks, c.ZK)
 }
 
-func Test_IFInfoMap(t *testing.T) {
-	ifm := make(map[common.IFIDType]IFInfo)
+func TestIFInfoMap(t *testing.T) {
+	ifm := make(IfInfoMap)
 	isdas, _ := addr.IAFromString("1-ff00:0:312")
 	ifm[1] = IFInfo{
 		Id:     1,
@@ -297,16 +276,11 @@ func Test_IFInfoMap(t *testing.T) {
 	}
 	fn := "testdata/basic.json"
 	loadTopo(fn, t)
-	for _, id := range []common.IFIDType{1, 3, 8} {
-		Convey(fmt.Sprintf("Checking IFInfoMap entry for Interface %d", id), t, func() {
-			c := testTopo
-			So(c.IFInfoMap[id], ShouldResemble, ifm[id])
-		})
-	}
+	assert.Equal(t, ifm, testTopo.IFInfoMap)
 }
 
-func Test_IFInfoMap_COREAS(t *testing.T) {
-	ifm := make(map[common.IFIDType]IFInfo)
+func TestIFInfoMapCoreAS(t *testing.T) {
+	ifm := make(IfInfoMap)
 	isdas, _ := addr.IAFromString("6-ff00:0:363")
 	ifm[91] = IFInfo{
 		Id:     91,
@@ -353,50 +327,42 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	}
 	fn := "testdata/core.json"
 	loadTopo(fn, t)
-	for _, id := range []common.IFIDType{91, 32} {
-		Convey(fmt.Sprintf("Checking IFInfoMap entry for Interface %d", id), t, func() {
-			c := testTopo
-			So(c.IFInfoMap[id], ShouldResemble, ifm[id])
-		})
+	assert.Equal(t, ifm, testTopo.IFInfoMap)
+}
+
+func TestBRsCoreAS(t *testing.T) {
+	brCases := []struct {
+		name    string
+		intfids []common.IFIDType
+	}{
+		{name: "borderrouter6-ff00:0:362-1", intfids: []common.IFIDType{91}},
+		{name: "borderrouter6-ff00:0:362-9", intfids: []common.IFIDType{32}},
 	}
-}
-
-var br_cases = []struct {
-	name    string
-	intfids []common.IFIDType
-}{
-	{name: "borderrouter6-ff00:0:362-1", intfids: []common.IFIDType{91}},
-	{name: "borderrouter6-ff00:0:362-9", intfids: []common.IFIDType{32}},
-}
-
-func Test_BRs_COREAS(t *testing.T) {
 	fn := "testdata/core.json"
 	loadTopo(fn, t)
 	c := testTopo
-	for _, case_ := range br_cases {
-		Convey(fmt.Sprintf("Checking BR details for %s", case_.name), t, func() {
-			Convey(fmt.Sprintf("Checking whether topo has a BR named %s", case_.name), func() {
-				So(c.BR, ShouldContainKey, case_.name)
+	for _, test := range brCases {
+		Convey(fmt.Sprintf("Checking BR details for %s", test.name), t, func() {
+			Convey(fmt.Sprintf("Checking whether topo has a BR named %s", test.name), func() {
+				So(c.BR, ShouldContainKey, test.name)
 			})
-			for _, i := range case_.intfids {
-				Convey(fmt.Sprintf("Checking if %s has interface with id %v", case_.name, i),
+			for _, i := range test.intfids {
+				Convey(fmt.Sprintf("Checking if %s has interface with id %v", test.name, i),
 					func() {
-						So(c.BR[case_.name].IFIDs, ShouldContain, i)
+						So(c.BR[test.name].IFIDs, ShouldContain, i)
 					})
 			}
 		})
 	}
 	Convey("Checking if the number of BRs in the Topo is correct", t, func() {
-		So(len(c.BR), ShouldEqual, len(br_cases))
+		So(len(c.BR), ShouldEqual, len(brCases))
 	})
 }
 
-func Test_TopoFromStripped(t *testing.T) {
+func TestTopoFromStripped(t *testing.T) {
 	fn := "testdata/basic.json"
 	rt, err := LoadRawFromFile(fn)
-	if err != nil {
-		t.Fatalf("Error loading raw topo from '%s': %v", fn, err)
-	}
+	require.NoError(t, err, "Error loading raw topo from '%s': %v", fn, err)
 	Convey("Check that stripped bind topology can be parsed", t, func() {
 		StripBind(rt)
 		b, err := json.Marshal(rt)
@@ -419,5 +385,4 @@ func Test_TopoFromStripped(t *testing.T) {
 		_, err = Load(b)
 		SoMsg("errParse", err, ShouldBeNil)
 	})
-
 }

@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -66,7 +65,7 @@ func TestProcessSelector(t *testing.T) {
 	tests := map[string]struct {
 		selector string
 		isdAsMap map[addr.ISD][]addr.IA
-		err      common.ErrMsg
+		err      error
 	}{
 		"Empty selector string": {
 			err: ErrInvalidSelector,
@@ -120,12 +119,7 @@ func TestProcessSelector(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			isdAsMap, err := ProcessSelector(test.selector)
 			assert.Equal(t, test.isdAsMap, isdAsMap)
-			if test.err != "" {
-				be := err.(common.BasicError)
-				assert.Equal(t, common.ErrMsg(test.err), be.Msg)
-			} else {
-				assert.NoError(t, err)
-			}
+			xtest.AssertErrorsIs(t, err, test.err)
 		})
 	}
 }

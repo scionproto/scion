@@ -18,11 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestIssuerValidate(t *testing.T) {
@@ -80,7 +78,7 @@ func TestIssuerValidate(t *testing.T) {
 			c := newIssuerCert(time.Now())
 			test.Modify(&c)
 			err := c.Validate()
-			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			xtest.AssertErrorsIs(t, err, test.ExpectedErrMsg)
 		})
 	}
 }

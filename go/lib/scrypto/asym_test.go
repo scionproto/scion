@@ -17,7 +17,7 @@ package scrypto
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -60,31 +60,32 @@ var (
 )
 
 func TestGenKeyPairs(t *testing.T) {
-	Convey("GenKeyPairs should return a valid Curve25519xSalsa20Poly1305 key pair", t, func() {
-		rawPubkey, rawPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", len(rawPubkey), ShouldEqual, NaClBoxKeySize)
-		SoMsg("rawPrivkey", len(rawPrivkey), ShouldEqual, NaClBoxKeySize)
-		newPubkey, newPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", rawPubkey, ShouldNotResemble, newPubkey)
-		SoMsg("rawPrivkey", rawPrivkey, ShouldNotResemble, newPrivkey)
-	})
+	t.Run("GenKeyPairs should return a valid Curve25519xSalsa20Poly1305 key pair",
+		func(t *testing.T) {
+			rawPubkey, rawPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
+			assert.NoError(t, err)
+			assert.Len(t, rawPubkey, NaClBoxKeySize)
+			assert.Len(t, rawPrivkey, NaClBoxKeySize)
+			newPubkey, newPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
+			assert.NoError(t, err)
+			assert.NotEqual(t, newPubkey, rawPubkey)
+			assert.NotEqual(t, newPrivkey, rawPrivkey)
+		})
 
-	Convey("GenKeyPairs should return a valid Ed25519 key pair", t, func() {
+	t.Run("GenKeyPairs should return a valid Ed25519 key pair", func(t *testing.T) {
 		rawPubkey, rawPrivkey, err := GenKeyPair(Ed25519)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", len(rawPubkey), ShouldEqual, ed25519.PublicKeySize)
-		SoMsg("rawPrivkey", len(rawPrivkey), ShouldEqual, ed25519.PrivateKeySize)
+		assert.NoError(t, err)
+		assert.Len(t, rawPubkey, ed25519.PublicKeySize)
+		assert.Len(t, rawPrivkey, ed25519.PrivateKeySize)
 		newPubkey, newPrivkey, err := GenKeyPair(Ed25519)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", rawPubkey, ShouldNotResemble, newPubkey)
-		SoMsg("rawPrivkey", rawPrivkey, ShouldNotResemble, newPrivkey)
+		assert.NoError(t, err)
+		assert.NotEqual(t, newPubkey, rawPubkey)
+		assert.NotEqual(t, newPrivkey, rawPrivkey)
 	})
 
-	Convey("GenKeyPairs should throw error for unknown algo", t, func() {
+	t.Run("GenKeyPairs should throw error for unknown algo", func(t *testing.T) {
 		_, _, err := GenKeyPair("asdf")
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 }
 
@@ -93,114 +94,114 @@ func TestSign(t *testing.T) {
 	// "...this package's private key representation includes a public key suffix to make
 	// multiple signing operations with the same key more efficient...""
 	privKey := common.RawBytes(ed25519.NewKeyFromSeed(Ed25519TestPrivateKey))
-	Convey("Sign should sign message correctly", t, func() {
+	t.Run("Sign should sign message correctly", func(t *testing.T) {
 		sig, err := Sign(Ed25519TestMsg, privKey, Ed25519)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("sig", sig, ShouldResemble, Ed25519TestSignature)
+		assert.NoError(t, err)
+		assert.Equal(t, Ed25519TestSignature, sig)
 	})
 
-	Convey("Sign should throw error for invalid key size", t, func() {
+	t.Run("Sign should throw error for invalid key size", func(t *testing.T) {
 		_, err := Sign(Ed25519TestMsg, privKey[:63], Ed25519)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Sign should throw error for unknown algo", t, func() {
+	t.Run("Sign should throw error for unknown algo", func(t *testing.T) {
 		_, err := Sign(Ed25519TestMsg, privKey, "asdf")
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 }
 
 func TestVerify(t *testing.T) {
-	Convey("Verify should verify signature correctly", t, func() {
+	t.Run("Verify should verify signature correctly", func(t *testing.T) {
 		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey, Ed25519)
-		SoMsg("err", err, ShouldBeNil)
+		assert.NoError(t, err)
 	})
 
-	Convey("Verify should throw an error for an invalid signature length", t, func() {
+	t.Run("Verify should throw an error for an invalid signature length", func(t *testing.T) {
 		err := Verify(Ed25519TestMsg, Ed25519TestSignature[:63], Ed25519TestPublicKey, Ed25519)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Verify should throw an error for a mangled signature", t, func() {
+	t.Run("Verify should throw an error for a mangled signature", func(t *testing.T) {
 		mangled := append(common.RawBytes{}, Ed25519TestSignature...)
 		mangled[0] ^= 0xFF
 		err := Verify(Ed25519TestMsg, mangled, Ed25519TestPublicKey, Ed25519)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Verify should throw an error for an invalid key size", t, func() {
+	t.Run("Verify should throw an error for an invalid key size", func(t *testing.T) {
 		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey[:31], Ed25519)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Verify should throw an error for unknown algo", t, func() {
+	t.Run("Verify should throw an error for unknown algo", func(t *testing.T) {
 		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey, "asdf")
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 }
 
 func TestEncrypt(t *testing.T) {
-	Convey("Encrypt should encrypt a plaintext correctly", t, func() {
+	t.Run("Encrypt should encrypt a plaintext correctly", func(t *testing.T) {
 		rawCipher, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawCipher", rawCipher, ShouldResemble, NaClBoxTestCiphertext)
+		assert.NoError(t, err)
+		assert.Equal(t, NaClBoxTestCiphertext, rawCipher)
 	})
 
-	Convey("Encrypt should throw error for invalid nonce size", t, func() {
+	t.Run("Encrypt should throw error for invalid nonce size", func(t *testing.T) {
 		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce[:23], NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Encrypt should throw error for invalid public key size", t, func() {
+	t.Run("Encrypt should throw error for invalid public key size", func(t *testing.T) {
 		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey[:31],
 			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Encrypt should throw error for invalid private key size", t, func() {
+	t.Run("Encrypt should throw error for invalid private key size", func(t *testing.T) {
 		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey[:31], Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Encrypt should throw an error for unknown algo", t, func() {
+	t.Run("Encrypt should throw an error for unknown algo", func(t *testing.T) {
 		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey, "asdf")
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 }
 
 func TestDecrypt(t *testing.T) {
-	Convey("Decrypt should decrypt a ciphertex correctly", t, func() {
+	t.Run("Decrypt should decrypt a ciphertex correctly", func(t *testing.T) {
 		rawMsg, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawMsg", rawMsg, ShouldResemble, NaClBoxTestMsg)
+		assert.NoError(t, err)
+		assert.Equal(t, NaClBoxTestMsg, rawMsg)
 	})
 
-	Convey("Decrypt should throw error for invalid nonce size", t, func() {
+	t.Run("Decrypt should throw error for invalid nonce size", func(t *testing.T) {
 		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce[:23], NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Decrypt should throw error for invalid public key size", t, func() {
+	t.Run("Decrypt should throw error for invalid public key size", func(t *testing.T) {
 		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey[:31],
 			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Decrypt should throw error for invalid private key size", t, func() {
+	t.Run("Decrypt should throw error for invalid private key size", func(t *testing.T) {
 		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey[:31], Curve25519xSalsa20Poly1305)
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 
-	Convey("Decrypt should throw an error for unknown algo", t, func() {
+	t.Run("Decrypt should throw an error for unknown algo", func(t *testing.T) {
 		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey, "asdf")
-		SoMsg("err", err, ShouldNotBeNil)
+		assert.Error(t, err)
 	})
 }

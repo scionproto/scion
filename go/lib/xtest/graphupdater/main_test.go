@@ -17,21 +17,19 @@ package main
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
 func TestGeneratedUpToDate(t *testing.T) {
-	Convey("Generated up to date", t, func() {
-		g, err := LoadGraph("../../../../" + DefaultTopoFile)
-		xtest.FailOnErr(t, err)
-		graphMapping := make(map[string]int)
-		for i, id := range g.IfaceIds {
-			graphMapping[i.Name()] = id
-		}
-		SoMsg("Generated graph is out of date, run graphupdater",
-			graphMapping, ShouldResemble, graph.StaticIfaceIdMapping)
-	})
+	g, err := LoadGraph("../../../../" + DefaultTopoFile)
+	require.NoError(t, err)
+	graphMapping := make(map[string]int)
+	for i, id := range g.IfaceIds {
+		graphMapping[i.Name()] = id
+	}
+	assert.Equal(t, graph.StaticIfaceIdMapping, graphMapping,
+		"Generated graph is out of date, run graphupdater")
 }

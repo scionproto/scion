@@ -24,6 +24,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 type testErrType struct {
@@ -89,8 +90,8 @@ func TestWithCtx(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
 		errWithCtx := serrors.WithCtx(err, "someCtx", "someValue")
-		assert.True(t, xerrors.Is(errWithCtx, err))
-		assert.True(t, xerrors.Is(errWithCtx, errWithCtx))
+		xtest.AssertErrorsIs(t, errWithCtx, err)
+		xtest.AssertErrorsIs(t, errWithCtx, errWithCtx)
 	})
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
@@ -112,9 +113,9 @@ func TestWrap(t *testing.T) {
 		err := serrors.New("simple err")
 		msg := serrors.New("msg err")
 		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
-		assert.True(t, xerrors.Is(wrappedErr, err))
-		assert.True(t, xerrors.Is(wrappedErr, msg))
-		assert.True(t, xerrors.Is(wrappedErr, wrappedErr))
+		xtest.AssertErrorsIs(t, wrappedErr, err)
+		xtest.AssertErrorsIs(t, wrappedErr, msg)
+		xtest.AssertErrorsIs(t, wrappedErr, wrappedErr)
 	})
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
@@ -144,8 +145,8 @@ func TestWrapStr(t *testing.T) {
 		err := serrors.New("simple err")
 		msg := "msg"
 		wrappedErr := serrors.WrapStr(msg, err, "someCtx", "someValue")
-		assert.True(t, xerrors.Is(wrappedErr, err))
-		assert.True(t, xerrors.Is(wrappedErr, wrappedErr))
+		xtest.AssertErrorsIs(t, wrappedErr, err)
+		xtest.AssertErrorsIs(t, wrappedErr, wrappedErr)
 	})
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
@@ -174,14 +175,14 @@ func TestNew(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		err1 := serrors.New("err msg")
 		err2 := serrors.New("err msg")
-		assert.True(t, xerrors.Is(err1, err1))
-		assert.True(t, xerrors.Is(err2, err2))
+		xtest.AssertErrorsIs(t, err1, err1)
+		xtest.AssertErrorsIs(t, err2, err2)
 		assert.False(t, xerrors.Is(err1, err2))
 		assert.False(t, xerrors.Is(err2, err1))
 		err1 = serrors.New("err msg", "someCtx", "value")
 		err2 = serrors.New("err msg", "someCtx", "value")
-		assert.True(t, xerrors.Is(err1, err1))
-		assert.True(t, xerrors.Is(err2, err2))
+		xtest.AssertErrorsIs(t, err1, err1)
+		xtest.AssertErrorsIs(t, err2, err2)
 		assert.False(t, xerrors.Is(err1, err2))
 		assert.False(t, xerrors.Is(err2, err1))
 	})

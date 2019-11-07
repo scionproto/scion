@@ -19,10 +19,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var (
@@ -101,7 +101,7 @@ func Test_topoAddrFromRaw(t *testing.T) {
 		}
 		t.Run(desc, func(t *testing.T) {
 			ta, err := topoAddrFromRAM(test.ram, test.overlay)
-			assert.True(t, xerrors.Is(err, test.err))
+			xtest.AssertErrorsIs(t, err, test.err)
 			if test.err == nil {
 				assert.Equal(t, exp, ta)
 			}
@@ -148,7 +148,7 @@ func Test_pubBindAddr(t *testing.T) {
 		t.Run(desc, func(t *testing.T) {
 			pbo := &pubBindAddr{}
 			err := pbo.fromRaw(rpbo, test.udpOverlay)
-			assert.True(t, xerrors.Is(err, test.err))
+			xtest.AssertErrorsIs(t, err, test.err)
 			if test.err == nil {
 				assert.Equal(t, exp, pbo)
 			}

@@ -18,7 +18,7 @@ package l4
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -30,59 +30,47 @@ func createUDP() UDP {
 }
 
 func TestUDPFromRaw(t *testing.T) {
-	Convey("Content must match", t, func() {
-		raw := common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0}
-		original := createUDP()
+	raw := common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0}
+	original := createUDP()
 
-		fromRaw, err := UDPFromRaw(raw)
-		SoMsg("Must build from raw without error", err, ShouldBeNil)
-		SoMsg("Wrongly rebuilt from raw", fromRaw, ShouldResemble, &original)
-	})
+	fromRaw, err := UDPFromRaw(raw)
+	assert.NoError(t, err)
+	assert.Equal(t, &original, fromRaw)
 }
 
 func TestUDPValidate(t *testing.T) {
-	Convey("It is structure of size 10, must be ok", t, func() {
-		u := createUDP()
+	u := createUDP()
 
-		So(u.TotalLen, ShouldEqual, 10)
-		err := u.Validate(int(u.TotalLen) - UDPLen)
-		SoMsg("This structure must be seen as valid", err, ShouldBeNil)
-	})
+	assert.Equal(t, uint16(10), u.TotalLen)
+	err := u.Validate(int(u.TotalLen) - UDPLen)
+	assert.NoError(t, err)
 }
 
 func TestUDPParse(t *testing.T) {
-	Convey("Must parse into the same representation", t, func() {
-		// assuming we have tested UDPPack
-		u := createUDP()
-		raw, err := u.Pack(true)
-		u2 := UDP{0, 0, 0xA,
-			make(common.RawBytes, 2)}
+	// assuming we have tested UDPPack
+	expected := createUDP()
+	raw, err := expected.Pack(true)
+	actual := UDP{0, 0, 0xA,
+		make(common.RawBytes, 2)}
 
-		u2.Parse(raw)
-		SoMsg("Must parse this valid input", err, ShouldBeNil)
-		SoMsg("Parsed content must match expected", u2, ShouldResemble, u)
-	})
+	actual.Parse(raw)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
 }
 
 func TestUDPPack(t *testing.T) {
-	Convey("Binary content must match", t, func() {
-		u := createUDP()
-		raw, err := u.Pack(true)
+	u := createUDP()
+	raw, err := u.Pack(true)
 
-		SoMsg("Must pack without error", err, ShouldBeNil)
-		SoMsg("Packed content must match expected", raw, ShouldResemble,
-			common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0})
-	})
+	assert.NoError(t, err)
+	assert.Equal(t, common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0}, raw)
 }
 
 func TestUDPWrite(t *testing.T) {
-	Convey("Binary content must match", t, func() {
-		u := createUDP()
-		raw := make(common.RawBytes, 8)
-		err := u.Write(raw)
+	u := createUDP()
+	raw := make(common.RawBytes, 8)
+	err := u.Write(raw)
 
-		SoMsg("Must write without error", err, ShouldBeNil)
-		SoMsg("Wrong content written", raw,
-			ShouldResemble, common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0})
-	})
+	assert.NoError(t, err)
+	assert.Equal(t, common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0}, raw)
 }

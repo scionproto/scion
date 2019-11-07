@@ -18,14 +18,14 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 )
 
 func TestReadPacketizer(t *testing.T) {
 	// FIXME(scrye): This will get deleted when we move from to SEQPACKET.
-	Convey("Packetizer should extract multiple packets from an input stream", t, func() {
+	t.Run("Packetizer should extract multiple packets from an input stream", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -50,23 +50,18 @@ func TestReadPacketizer(t *testing.T) {
 			}).AnyTimes()
 		packetizer := NewReadPacketizer(conn)
 		b := make([]byte, 128)
-		Convey("first read", func() {
-			n, err := packetizer.Read(b)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("n", n, ShouldEqual, 32)
-			Convey("second read", func() {
-				n, err := packetizer.Read(b)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("n", n, ShouldEqual, 32)
-			})
-		})
-
+		n, err := packetizer.Read(b)
+		assert.NoError(t, err, "first packet err")
+		assert.Equal(t, 32, n, "first packet size")
+		n, err = packetizer.Read(b)
+		assert.NoError(t, err, "second packet err")
+		assert.Equal(t, 32, n, "second packet err")
 	})
 }
 
 func TestWriteStreamer(t *testing.T) {
 	// FIXME(scrye): This will get deleted when we move from to SEQPACKET.
-	Convey("Streamer should do repeated calls to send a full message", t, func() {
+	t.Run("Streamer should do repeated calls to send a full message", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -79,6 +74,6 @@ func TestWriteStreamer(t *testing.T) {
 		)
 		streamer := NewWriteStreamer(conn)
 		err := streamer.Write(data)
-		So(err, ShouldBeNil)
+		assert.NoError(t, err)
 	})
 }

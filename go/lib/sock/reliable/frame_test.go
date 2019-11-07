@@ -18,9 +18,8 @@ import (
 	"net"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -29,7 +28,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 		Name          string
 		Packet        *OverlayPacket
 		ExpectedData  []byte
-		ExpectedError common.ErrMsg
+		ExpectedError error
 	}
 	testCases := []TestCase{
 		{
@@ -97,13 +96,13 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 				10, 2, 3, 4, 0, 80, 10, 5, 6, 7},
 		},
 	}
-	Convey("Different packets serialize correctly", t, func() {
+	t.Run("Different packets serialize correctly", func(t *testing.T) {
 		for _, tc := range testCases {
-			Convey(tc.Name, func() {
+			t.Run(tc.Name, func(t *testing.T) {
 				b := make([]byte, 1500)
 				n, err := tc.Packet.SerializeTo(b)
-				xtest.SoMsgErrorStr("err", err, tc.ExpectedError.Error())
-				SoMsg("data", b[:n], ShouldResemble, tc.ExpectedData)
+				xtest.AssertErrorsIs(t, err, tc.ExpectedError)
+				assert.Equal(t, tc.ExpectedData, b[:n])
 			})
 		}
 	})
@@ -114,7 +113,7 @@ func TestOverlayPacketDecodeFromBytes(t *testing.T) {
 		Name           string
 		Buffer         []byte
 		ExpectedPacket OverlayPacket
-		ExpectedError  common.ErrMsg
+		ExpectedError  error
 	}
 	testCases := []TestCase{
 		{
@@ -183,13 +182,13 @@ func TestOverlayPacketDecodeFromBytes(t *testing.T) {
 			},
 		},
 	}
-	Convey("Different packets decode correctly", t, func() {
+	t.Run("Different packets decode correctly", func(t *testing.T) {
 		for _, tc := range testCases {
-			Convey(tc.Name, func() {
+			t.Run(tc.Name, func(t *testing.T) {
 				var p OverlayPacket
 				err := p.DecodeFromBytes(tc.Buffer)
-				xtest.SoMsgErrorStr("err", err, tc.ExpectedError.Error())
-				SoMsg("packet", p, ShouldResemble, tc.ExpectedPacket)
+				xtest.AssertErrorsIs(t, err, tc.ExpectedError)
+				assert.Equal(t, tc.ExpectedPacket, p)
 			})
 		}
 	})

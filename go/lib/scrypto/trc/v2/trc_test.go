@@ -18,9 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	trc "github.com/scionproto/scion/go/lib/scrypto/trc/v2"
@@ -135,7 +132,7 @@ func TestTRCValidateInvariant(t *testing.T) {
 			base := newBaseTRC(time.Now())
 			test.Modify(base)
 			err := base.ValidateInvariant()
-			assert.True(t, xerrors.Is(err, test.ExpectedErrMsg))
+			xtest.AssertErrorsIs(t, err, test.ExpectedErrMsg)
 		})
 	}
 }
