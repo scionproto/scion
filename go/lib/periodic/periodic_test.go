@@ -17,13 +17,11 @@ package periodic
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -43,11 +41,11 @@ func TestPeriodicExecution(t *testing.T) {
 		cnt <- struct{}{}
 	})
 	want := 5
-	p := time.Duration(want) * time.Millisecond
+	p := time.Duration(want) * 20 * time.Millisecond
 	r := Start(fn, p, time.Hour)
 	defer func() {
-		err := runWithTimeout(r.Stop, time.Second)
-		assert.NoError(t, err)
+		err := runWithTimeout(r.Stop, 2*time.Second)
+		assert.NoError(t, err, "r.Stop() action timed out")
 	}()
 
 	start := time.Now()
@@ -62,8 +60,8 @@ func TestPeriodicExecution(t *testing.T) {
 				if v == want {
 					return
 				}
-			case <-time.After(2 * p):
-				t.Fatalf("time out while waiting on first run")
+			case <-time.After(5 * p):
+				t.Fatalf("timed out while waiting %d run", v)
 			}
 		}
 	}()
@@ -112,7 +110,7 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 		select {
 		case <-cnt:
 		case <-time.After(2 * p):
-			t.Fatalf("time out while waiting on first run")
+			t.Fatalf("timed out while waiting on first run")
 		}
 
 		err := runWithTimeout(r.Kill, 2*p)
@@ -141,7 +139,7 @@ func TestTriggerNow(t *testing.T) {
 		select {
 		case <-cnt:
 		case <-time.After(2 * p):
-			t.Fatalf("time out while waiting on first run")
+			t.Fatalf("timed out while waiting on first run")
 		}
 		for i := 0; i < want; i++ {
 			err := runWithTimeout(r.TriggerRun, p)
@@ -150,11 +148,6 @@ func TestTriggerNow(t *testing.T) {
 	}()
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.GreaterOrEqual(t, len(cnt), want-1, "Must run %v times within short time", want-1)
-}
-
-func TestMain(m *testing.M) {
-	log.Root().SetHandler(log.DiscardHandler())
-	os.Exit(m.Run())
 }
 
 func runWithTimeout(f func(), t time.Duration) error {

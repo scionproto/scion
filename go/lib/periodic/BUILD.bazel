@@ -17,7 +17,6 @@ go_test(
     srcs = ["periodic_test.go"],
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/log:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
