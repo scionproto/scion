@@ -43,11 +43,11 @@ func TestPeriodicExecution(t *testing.T) {
 		cnt <- struct{}{}
 	})
 	want := 5
-	p := time.Duration(want) * time.Millisecond
+	p := time.Duration(want) * 20 * time.Millisecond
 	r := Start(fn, p, time.Hour)
 	defer func() {
-		err := runWithTimeout(r.Stop, time.Second)
-		assert.NoError(t, err)
+		err := runWithTimeout(r.Stop, 2*time.Second)
+		assert.NoError(t, err, "r.Stop() action timed out")
 	}()
 
 	start := time.Now()
@@ -62,7 +62,7 @@ func TestPeriodicExecution(t *testing.T) {
 				if v == want {
 					return
 				}
-			case <-time.After(2 * p):
+			case <-time.After(5 * p):
 				t.Fatalf("time out while waiting on first run")
 			}
 		}
