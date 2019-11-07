@@ -32,6 +32,11 @@ func IssuerFile(dir string, ia addr.IA, version scrypto.Version) string {
 	return filepath.Join(pkicmn.GetAsPath(dir, ia), fmt.Sprintf("issuer-v%d.toml", version))
 }
 
+// AllIssuerFiles returns a glob string that matches all issuer files for the given IA.
+func AllIssuerFiles(dir string, ia addr.IA) string {
+	return filepath.Join(pkicmn.GetAsPath(dir, ia), "issuer-v*.toml")
+}
+
 // Issuer holds the issuer certificate configuration.
 type Issuer struct {
 	Description          string              `toml:"description"`
