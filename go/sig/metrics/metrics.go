@@ -34,6 +34,7 @@ const Namespace = "sig"
 
 // Declare prometheus metrics to export.
 var (
+	PktUnroutable         prometheus.Counter
 	PktsRecv              *prometheus.CounterVec
 	PktsSent              *prometheus.CounterVec
 	PktBytesRecv          *prometheus.CounterVec
@@ -82,6 +83,8 @@ func init() {
 		return prom.NewGaugeVec(Namespace, "", name, help, lNames)
 	}
 	// FIXME(kormat): these metrics should probably have more informative labels
+	PktUnroutable = newC("pkt_unroutable",
+		"Number of egress packets that can't be routed to any remote AS.")
 	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", iaLabels)
 	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", iaLabels)
 	PktBytesRecv = newCVec("pkt_bytes_recv_total", "Number of packet bytes received.", iaLabels)
