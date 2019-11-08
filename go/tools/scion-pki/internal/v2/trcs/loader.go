@@ -58,16 +58,24 @@ func (l loader) selectConfig(isd addr.ISD) (string, error) {
 	if len(files) == 0 {
 		return "", serrors.WrapStr("no TRC config files found", err)
 	}
+	max, err := l.findMax(files)
+	if err != nil {
+		return "", serrors.WrapStr("unable to find max version", err)
+	}
+	return conf.TRCFile(l.Dirs.Root, isd, max), nil
+}
+
+func (l loader) findMax(files []string) (scrypto.Version, error) {
 	re := regexp.MustCompile(`trc-v(\d*)\.toml$`)
 	var max uint64
 	for _, file := range files {
 		ver, err := strconv.ParseUint(re.FindStringSubmatch(file)[1], 10, 64)
 		if err != nil {
-			return "", serrors.WrapStr("unable to parse version", err, "file", file)
+			return 0, serrors.WrapStr("unable to parse version", err, "file", file)
 		}
 		if ver > max {
 			max = ver
 		}
 	}
-	return conf.TRCFile(l.Dirs.Root, isd, scrypto.Version(max)), nil
+	return scrypto.Version(max), nil
 }

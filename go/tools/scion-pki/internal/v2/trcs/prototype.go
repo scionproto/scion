@@ -32,11 +32,14 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/keys"
 )
 
-// signedMeta keeps track of the version.
+// signedMeta keeps track of the TRC version.
 type signedMeta struct {
 	Signed  trc.Signed
 	Version scrypto.Version
 }
+
+// pubKeys holds the public keys for a primary AS.
+type pubKeys map[trc.KeyType]keyconf.Key
 
 type protoGen struct {
 	Dirs    pkicmn.Dirs
@@ -100,36 +103,52 @@ func (g protoGen) generate(isd addr.ISD, cfg conf.TRC2) (signedMeta, error) {
 }
 
 // loadPubKeys loads all public keys necessary for the given configuration.
-func (g protoGen) loadPubKeys(isd addr.ISD,
-	cfg conf.TRC2) (map[addr.AS]map[trc.KeyType]keyconf.Key, error) {
-
-	keys := make(map[addr.AS]map[trc.KeyType]keyconf.Key)
+func (g protoGen) loadPubKeys(isd addr.ISD, cfg conf.TRC2) (map[addr.AS]pubKeys, error) {
+	all := make(map[addr.AS]pubKeys)
 	for as, primary := range cfg.PrimaryASes {
-		keys[as] = make(map[trc.KeyType]keyconf.Key)
 		ia := addr.IA{I: isd, A: as}
-		if primary.Attributes.Contains(trc.Issuing) {
-			key, err := g.loadPubKey(ia, keyconf.TRCIssuingKey, *primary.IssuingKeyVersion)
-			if err != nil {
-				return nil, serrors.WrapStr("unable to load issuing key", err, "as", as)
-			}
-			keys[as][trc.IssuingKey] = key
+		keys := make(pubKeys)
+		if err := g.insertIssuingKey(keys, ia, primary); err != nil {
+			return nil, serrors.WithCtx(err, "as", as)
 		}
-		if primary.Attributes.Contains(trc.Voting) {
-			online, err := g.loadPubKey(ia, keyconf.TRCVotingOnlineKey,
-				*primary.VotingOnlineKeyVersion)
-			if err != nil {
-				return nil, serrors.WrapStr("unable to load voting online key", err, "as", as)
-			}
-			keys[as][trc.OnlineKey] = online
-			offline, err := g.loadPubKey(ia, keyconf.TRCVotingOfflineKey,
-				*primary.VotingOfflineKeyVersion)
-			if err != nil {
-				return nil, serrors.WrapStr("unable to load voting offline key", err, "as", as)
-			}
-			keys[as][trc.OfflineKey] = offline
+		if err := g.insertVotingKeys(keys, ia, primary); err != nil {
+			return nil, serrors.WithCtx(err, "as", as)
 		}
+		all[as] = keys
 	}
-	return keys, nil
+	return all, nil
+}
+
+// insertIssuingKey inserts the issuing key if the primary is an issuing AS.
+func (g protoGen) insertIssuingKey(dst pubKeys, ia addr.IA, primary conf.Primary) error {
+	if !primary.Attributes.Contains(trc.Issuing) {
+		return nil
+	}
+	key, err := g.loadPubKey(ia, keyconf.TRCIssuingKey, *primary.IssuingKeyVersion)
+	if err != nil {
+		return serrors.WrapStr("unable to load issuing key", err)
+	}
+	dst[trc.IssuingKey] = key
+	return nil
+}
+
+// insertVotingKeys inserts the online and offline voting keys if the primary is
+// a voting AS.
+func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary) error {
+	if !primary.Attributes.Contains(trc.Voting) {
+		return nil
+	}
+	online, err := g.loadPubKey(ia, keyconf.TRCVotingOnlineKey, *primary.VotingOnlineKeyVersion)
+	if err != nil {
+		return serrors.WrapStr("unable to load voting online key", err)
+	}
+	dst[trc.OnlineKey] = online
+	offline, err := g.loadPubKey(ia, keyconf.TRCVotingOfflineKey, *primary.VotingOfflineKeyVersion)
+	if err != nil {
+		return serrors.WrapStr("unable to load voting offline key", err)
+	}
+	dst[trc.OfflineKey] = offline
+	return nil
 }
 
 // loadPubKey attempts to load the private key and use it to generate the public
@@ -155,9 +174,7 @@ func (g protoGen) loadPubKey(ia addr.IA, usage keyconf.Usage,
 	return pub, nil
 }
 
-func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC2,
-	pubKeys map[addr.AS]map[trc.KeyType]keyconf.Key) (*trc.TRC, error) {
-
+func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC2, keys map[addr.AS]pubKeys) (*trc.TRC, error) {
 	quorum := uint8(cfg.VotingQuorum)
 	reset := *cfg.TrustResetAllowed
 	val := cfg.Validity.Eval(time.Now())
@@ -177,8 +194,8 @@ func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC2,
 	}
 	for as, primary := range cfg.PrimaryASes {
 		t.PrimaryASes[as] = trc.PrimaryAS{
-			Attributes: sortedAttributes(primary.Attributes),
-			Keys:       getKeys(pubKeys[as]),
+			Attributes: sortAttributes(primary.Attributes),
+			Keys:       getKeys(keys[as]),
 		}
 	}
 	var prev *trc.TRC
@@ -291,7 +308,7 @@ func (g protoGen) writeTRCs(trcs map[addr.ISD]signedMeta) error {
 	return nil
 }
 
-func sortedAttributes(attrs []trc.Attribute) []trc.Attribute {
+func sortAttributes(attrs []trc.Attribute) []trc.Attribute {
 	a := append([]trc.Attribute{}, attrs...)
 	sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
 	return a
