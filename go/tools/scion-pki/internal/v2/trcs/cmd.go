@@ -75,6 +75,29 @@ var proto = &cobra.Command{
 	},
 }
 
+var sign = &cobra.Command{
+	Use:   "sign",
+	Short: "Sign the proto TRCs",
+	Long: `
+	'sign' generates new signatures for the proto TRCs.
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g := signatureGen{
+			Dirs:    pkicmn.GetDirs(),
+			Version: scrypto.Version(version),
+		}
+		asMap, err := pkicmn.ProcessSelector(args[0])
+		if err != nil {
+			return serrors.WrapStr("unable to select target ISDs", err, "selector", args[0])
+		}
+		if err := g.Run(asMap); err != nil {
+			return serrors.WrapStr("unable to sign TRCs", err)
+		}
+		return nil
+	},
+}
+
 var human = &cobra.Command{
 	Use:   "human",
 	Short: "Display human readable",
@@ -93,5 +116,6 @@ var human = &cobra.Command{
 func init() {
 	Cmd.PersistentFlags().Uint64Var(&version, "version", 0, "TRC version (0 indicates newest)")
 	Cmd.AddCommand(proto)
+	Cmd.AddCommand(sign)
 	Cmd.AddCommand(human)
 }

@@ -32,7 +32,7 @@ const (
 	CoreCertNameFmt = "ISD%d-AS%s-V%d-core.crt"
 	TrcNameFmt      = "ISD%d-V%d.trc"
 	TRCPartsDirFmt  = "ISD%d-V%d.parts"
-	TRCSigPartFmt   = "ISD%d-V%d.sig.%s"
+	TRCSigPartFmt   = "ISD%d-V%d.%s.sig"
 	TRCProtoNameFmt = "ISD%d-V%d.prototype"
 	TRCsDir         = "trcs"
 	CertsDir        = "certs"
