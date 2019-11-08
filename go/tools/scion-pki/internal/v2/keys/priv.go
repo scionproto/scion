@@ -85,7 +85,7 @@ func (g privGen) generateKeys(ia addr.IA, cfg conf.Keys) ([]keyconf.Key, error) 
 	var keys []keyconf.Key
 	for keyType, metas := range cfg.Primary {
 		for version, meta := range metas {
-			usage, err := usageFromTRCKeyType(keyType)
+			usage, err := UsageFromTRCKeyType(keyType)
 			if err != nil {
 				return nil, serrors.WrapStr("error determining key usage", err,
 					"type", keyType, "version", version)
@@ -172,7 +172,8 @@ func (g privGen) writeKeys(keys map[addr.IA][]keyconf.Key) error {
 	return nil
 }
 
-func usageFromTRCKeyType(keyType trc.KeyType) (keyconf.Usage, error) {
+// UsageFromTRCKeyType converts the TRC key type to the appropriate usage.
+func UsageFromTRCKeyType(keyType trc.KeyType) (keyconf.Usage, error) {
 	switch keyType {
 	case trc.IssuingKey:
 		return keyconf.TRCIssuingKey, nil
