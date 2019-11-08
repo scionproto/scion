@@ -51,6 +51,26 @@ Selector:
 `,
 }
 
+var gen = &cobra.Command{
+	Use:   "gen",
+	Short: "Generate new TRCs",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g := fullGen{
+			Dirs:    pkicmn.GetDirs(),
+			Version: scrypto.Version(version),
+		}
+		asMap, err := pkicmn.ProcessSelector(args[0])
+		if err != nil {
+			return serrors.WrapStr("unable to select target ISDs", err, "selector", args[0])
+		}
+		if err := g.Run(asMap); err != nil {
+			return serrors.WrapStr("unable to generate prototype TRCs", err)
+		}
+		return nil
+	},
+}
+
 var proto = &cobra.Command{
 	Use:   "proto",
 	Short: "Generate new proto TRCs",
@@ -138,6 +158,7 @@ var human = &cobra.Command{
 
 func init() {
 	Cmd.PersistentFlags().Uint64Var(&version, "version", 0, "TRC version (0 indicates newest)")
+	Cmd.AddCommand(gen)
 	Cmd.AddCommand(proto)
 	Cmd.AddCommand(sign)
 	Cmd.AddCommand(combine)
