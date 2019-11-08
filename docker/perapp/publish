@@ -7,8 +7,7 @@ REMOTE="scionproto"
 echo "Tag: ${1:-}"
 
 go_images="border dispatcher_go sig beacon cert path sciond"
-py_images="beacon_py cert_py path_py sciond_py"
-images="$go_images $py_images"
+images="$go_images"
 
 # Tag local apps and push to remote
 for app in $images; do
