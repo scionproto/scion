@@ -34,6 +34,11 @@ func TRCFile(dir string, isd addr.ISD, version scrypto.Version) string {
 	return filepath.Join(pkicmn.GetIsdPath(dir, isd), fmt.Sprintf("trc-v%d.toml", version))
 }
 
+// AllTRCFiles returns a glob string that matches all TRC files for the given isd.
+func AllTRCFiles(dir string, isd addr.ISD) string {
+	return filepath.Join(pkicmn.GetIsdPath(dir, isd), "trc-v*.toml")
+}
+
 // TRC2 holds the TRC configuration.
 // TODO(roosd): rename to TRC.
 type TRC2 struct {

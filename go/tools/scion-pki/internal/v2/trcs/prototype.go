@@ -15,155 +15,313 @@
 package trcs
 
 import (
-	"encoding/json"
 	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/keys"
 )
 
-func runProto(selector string) error {
-	asMap, err := pkicmn.ProcessSelector(selector)
+// signedMeta keeps track of the TRC version.
+type signedMeta struct {
+	Signed  trc.Signed
+	Version scrypto.Version
+}
+
+// pubKeys holds the public keys for a primary AS.
+type pubKeys map[trc.KeyType]keyconf.Key
+
+type protoGen struct {
+	Dirs    pkicmn.Dirs
+	Version scrypto.Version
+}
+
+// Run generates the prototype TRCs for all ISDs in the provided mapping. If no
+// version is specified, the TRC configuration file with the highest version is
+// chosen for each ISD. The generated TRCs are then written to disk.
+func (g protoGen) Run(asMap pkicmn.ASMap) error {
+	cfgs, err := loader{Dirs: g.Dirs, Version: g.Version}.LoadConfigs(asMap.ISDs())
 	if err != nil {
-		return err
+		return serrors.WrapStr("unable to load TRC configs", err)
 	}
-	for isd := range asMap {
-		if err = genAndWriteProto(isd); err != nil {
-			return common.NewBasicError("unable to generating prototype TRC", err, "isd", isd)
+	protos, err := g.Generate(cfgs)
+	if err != nil {
+		return serrors.WrapStr("unable to generate prototype TRCs", err)
+	}
+	if err := g.createDirs(protos); err != nil {
+		return serrors.WrapStr("unable to create output directories", err)
+	}
+	if err := g.writeTRCs(protos); err != nil {
+		return serrors.WrapStr("unable to write prototype TRCs", err)
+	}
+	return nil
+}
+
+// Generate generates the prototype TRCs for all provided configurations.
+func (g protoGen) Generate(cfgs map[addr.ISD]conf.TRC2) (map[addr.ISD]signedMeta, error) {
+	trcs := make(map[addr.ISD]signedMeta)
+	for isd, cfg := range cfgs {
+		signed, err := g.generate(isd, cfg)
+		if err != nil {
+			return nil, serrors.WrapStr("unable to generate TRC", err,
+				"isd", isd, "version", cfg.Version)
+		}
+		trcs[isd] = signed
+	}
+	return trcs, nil
+}
+
+// generate generates the prototype TRC for a specific configuration.
+func (g protoGen) generate(isd addr.ISD, cfg conf.TRC2) (signedMeta, error) {
+	pubKeys, err := g.loadPubKeys(isd, cfg)
+	if err != nil {
+		return signedMeta{}, serrors.WrapStr("unable to load all public keys", err)
+	}
+	t, err := g.newTRC(isd, cfg, pubKeys)
+	if err != nil {
+		return signedMeta{}, serrors.WrapStr("unable to create prototype TRC", err)
+	}
+	enc, err := trc.Encode(t)
+	if err != nil {
+		return signedMeta{}, serrors.WrapStr("unable to encode TRC payload", err)
+	}
+	meta := signedMeta{
+		Signed:  trc.Signed{EncodedTRC: enc},
+		Version: t.Version,
+	}
+	return meta, nil
+}
+
+// loadPubKeys loads all public keys necessary for the given configuration.
+func (g protoGen) loadPubKeys(isd addr.ISD, cfg conf.TRC2) (map[addr.AS]pubKeys, error) {
+	all := make(map[addr.AS]pubKeys)
+	for as, primary := range cfg.PrimaryASes {
+		ia := addr.IA{I: isd, A: as}
+		keys := make(pubKeys)
+		if err := g.insertIssuingKey(keys, ia, primary); err != nil {
+			return nil, serrors.WithCtx(err, "as", as)
+		}
+		if err := g.insertVotingKeys(keys, ia, primary); err != nil {
+			return nil, serrors.WithCtx(err, "as", as)
+		}
+		all[as] = keys
+	}
+	return all, nil
+}
+
+// insertIssuingKey inserts the issuing key if the primary is an issuing AS.
+func (g protoGen) insertIssuingKey(dst pubKeys, ia addr.IA, primary conf.Primary) error {
+	if !primary.Attributes.Contains(trc.Issuing) {
+		return nil
+	}
+	key, err := g.loadPubKey(ia, keyconf.TRCIssuingKey, *primary.IssuingKeyVersion)
+	if err != nil {
+		return serrors.WrapStr("unable to load issuing key", err)
+	}
+	dst[trc.IssuingKey] = key
+	return nil
+}
+
+// insertVotingKeys inserts the online and offline voting keys if the primary is
+// a voting AS.
+func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary) error {
+	if !primary.Attributes.Contains(trc.Voting) {
+		return nil
+	}
+	online, err := g.loadPubKey(ia, keyconf.TRCVotingOnlineKey, *primary.VotingOnlineKeyVersion)
+	if err != nil {
+		return serrors.WrapStr("unable to load voting online key", err)
+	}
+	dst[trc.OnlineKey] = online
+	offline, err := g.loadPubKey(ia, keyconf.TRCVotingOfflineKey, *primary.VotingOfflineKeyVersion)
+	if err != nil {
+		return serrors.WrapStr("unable to load voting offline key", err)
+	}
+	dst[trc.OfflineKey] = offline
+	return nil
+}
+
+// loadPubKey attempts to load the private key and use it to generate the public
+// key. If that fails, loadPubKey attempts to load the public key directly.
+func (g protoGen) loadPubKey(ia addr.IA, usage keyconf.Usage,
+	version scrypto.KeyVersion) (keyconf.Key, error) {
+
+	file := filepath.Join(keys.PrivateDir(g.Dirs.Out, ia), keyconf.PrivateKeyFile(usage, version))
+	priv, err := loadKey(file, ia, usage, version)
+	if err == nil {
+		pkicmn.QuietPrint("Using private key %s\n", file)
+		return keys.PublicKey(priv)
+	}
+	if !xerrors.Is(err, errReadFile) {
+		return keyconf.Key{}, err
+	}
+	file = filepath.Join(keys.PublicDir(g.Dirs.Out, ia), keyconf.PublicKeyFile(usage, ia, version))
+	pub, err := loadKey(file, ia, usage, version)
+	if err != nil {
+		return keyconf.Key{}, serrors.WrapStr("unable to load public key", err, "file", file)
+	}
+	pkicmn.QuietPrint("Using public key %s\n", file)
+	return pub, nil
+}
+
+func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC2, keys map[addr.AS]pubKeys) (*trc.TRC, error) {
+	quorum := uint8(cfg.VotingQuorum)
+	reset := *cfg.TrustResetAllowed
+	val := cfg.Validity.Eval(time.Now())
+	t := &trc.TRC{
+		ISD:                  isd,
+		Version:              cfg.Version,
+		BaseVersion:          cfg.BaseVersion,
+		Description:          cfg.Description,
+		VotingQuorumPtr:      &quorum,
+		FormatVersion:        1,
+		GracePeriod:          &trc.Period{Duration: cfg.GracePeriod.Duration},
+		TrustResetAllowedPtr: &reset,
+		Validity:             &val,
+		PrimaryASes:          make(trc.PrimaryASes),
+		Votes:                make(map[addr.AS]trc.Vote),
+		ProofOfPossession:    make(map[addr.AS][]trc.KeyType),
+	}
+	for as, primary := range cfg.PrimaryASes {
+		t.PrimaryASes[as] = trc.PrimaryAS{
+			Attributes: sortAttributes(primary.Attributes),
+			Keys:       getKeys(keys[as]),
+		}
+	}
+	var prev *trc.TRC
+	if !t.Base() {
+		var err error
+		file := SignedFile(g.Dirs.Out, isd, t.Version-1)
+		if prev, _, err = loadTRC(file); err != nil {
+			return nil, serrors.WrapStr("unable to load previous TRC", err, "file", file)
+		}
+	}
+	if err := g.attachVotes(t, prev, cfg.Votes); err != nil {
+		return nil, serrors.WrapStr("unable to attach votes", err)
+	}
+	if err := g.attachPOPs(t, prev); err != nil {
+		return nil, serrors.WrapStr("unable to attach proof of possessions", err)
+	}
+	if err := t.ValidateInvariant(); err != nil {
+		return nil, serrors.WrapStr("invariant violated", err)
+	}
+	if !t.Base() {
+		if _, err := (&trc.UpdateValidator{Next: t, Prev: prev}).Validate(); err != nil {
+			return nil, serrors.WrapStr("invalid update", err)
+		}
+	}
+	return t, nil
+}
+
+func (g protoGen) attachVotes(next, prev *trc.TRC, voters []addr.AS) error {
+	if next.Base() {
+		return nil
+	}
+	info, err := (&trc.UpdateValidator{Next: next, Prev: prev}).UpdateInfo()
+	if err != nil {
+		return serrors.WrapStr("unable to get update info", err)
+	}
+	for _, voter := range voters {
+		prevPrimary, ok := prev.PrimaryASes[voter]
+		if !ok || !prevPrimary.Is(trc.Voting) {
+			return serrors.New("non-voting AS cannot cast vote", "as", voter)
+		}
+		_, modifiedOnline := info.KeyChanges.Modified[trc.OnlineKey][voter]
+		if info.Type != trc.RegularUpdate || modifiedOnline {
+			next.Votes[voter] = trc.Vote{
+				KeyType:    trc.OfflineKey,
+				KeyVersion: prevPrimary.Keys[trc.OfflineKey].KeyVersion,
+			}
+		} else {
+			next.Votes[voter] = trc.Vote{
+				KeyType:    trc.OnlineKey,
+				KeyVersion: prevPrimary.Keys[trc.OnlineKey].KeyVersion,
+			}
 		}
 	}
 	return nil
 }
 
-func genAndWriteProto(isd addr.ISD) error {
-	isdCfg, err := conf.LoadISDCfg(pkicmn.GetIsdPath(pkicmn.RootDir, isd))
-	if err != nil {
-		return common.NewBasicError("error loading ISD config", err)
-	}
-	t, encoded, err := genProto(isd, isdCfg)
-	if err != nil {
-		return common.NewBasicError("unable to generate TRC", err)
-	}
-	signed := &trc.Signed{EncodedTRC: encoded}
-	raw, err := json.Marshal(signed)
-	if err != nil {
-		return common.NewBasicError("unable to marshal", err)
-	}
-	if err := os.MkdirAll(PartsDir(isd, uint64(t.Version)), 0755); err != nil {
-		return err
-	}
-	return pkicmn.WriteToFile(raw, ProtoFile(isd, uint64(t.Version)), 0644)
-}
-
-func genProto(isd addr.ISD, isdCfg *conf.ISDCfg) (*trc.TRC, trc.Encoded, error) {
-	pkicmn.QuietPrint("Generating prototype TRC for ISD %d\n", isd)
-	primaryASes, err := loadPrimaryASes(isd, isdCfg, nil)
-	if err != nil {
-		return nil, nil, common.NewBasicError("error loading primary ASes configs", err)
-	}
-	t, err := newTRC(isd, isdCfg, primaryASes)
-	if err != nil {
-		return nil, nil, err
-	}
-	encoded, err := trc.Encode(t)
-	if err != nil {
-		return nil, nil, common.NewBasicError("unable to encode TRC", err)
-	}
-	return t, encoded, nil
-}
-
-func newTRC(isd addr.ISD, isdCfg *conf.ISDCfg, primaryASes map[addr.AS]*asCfg) (*trc.TRC, error) {
-	quorum := uint8(isdCfg.TRC.VotingQuorum)
-	reset := isdCfg.TRC.TrustResetAllowed
-	t := &trc.TRC{
-		ISD:                  isd,
-		Version:              scrypto.Version(isdCfg.TRC.Version),
-		BaseVersion:          scrypto.Version(isdCfg.TRC.BaseVersion),
-		Description:          isdCfg.Desc,
-		VotingQuorumPtr:      &quorum,
-		FormatVersion:        1,
-		GracePeriod:          &trc.Period{Duration: isdCfg.TRC.GracePeriod},
-		TrustResetAllowedPtr: &reset,
-		Validity:             createValidity(isdCfg.TRC.NotBefore, isdCfg.TRC.Validity),
-		PrimaryASes:          make(trc.PrimaryASes),
-		Votes:                make(map[addr.AS]trc.Vote),
-		ProofOfPossession:    make(map[addr.AS][]trc.KeyType),
-	}
-	if !t.Base() {
-		return nil, common.NewBasicError("TRC updates not supported yet", nil,
-			"version", t.Version, "base", t.BaseVersion)
-	}
-	for as, cfg := range primaryASes {
-		t.PrimaryASes[as] = trc.PrimaryAS{
-			Attributes: getAttributes(isdCfg, as),
-			Keys:       getKeys(cfg),
+func (g protoGen) attachPOPs(next, prev *trc.TRC) error {
+	if next.Base() {
+		for as, primary := range next.PrimaryASes {
+			keyTypes := make([]trc.KeyType, 0, len(primary.Keys))
+			for keyType := range primary.Keys {
+				keyTypes = append(keyTypes, keyType)
+			}
+			sort.Slice(keyTypes, func(i, j int) bool { return keyTypes[i] < keyTypes[j] })
+			next.ProofOfPossession[as] = keyTypes
 		}
-		t.ProofOfPossession[as] = getKeyTypes(cfg)
+		return nil
 	}
-	if err := t.ValidateInvariant(); err != nil {
-		return nil, common.NewBasicError("invariant violated", err)
+	info, err := (&trc.UpdateValidator{Next: next, Prev: prev}).UpdateInfo()
+	if err != nil {
+		return serrors.WrapStr("unable to get update info", err)
 	}
-	return t, nil
-}
-
-func createValidity(notBefore uint32, validity time.Duration) *scrypto.Validity {
-	val := &scrypto.Validity{
-		NotBefore: util.UnixTime{Time: util.SecsToTime(notBefore)},
-	}
-	if notBefore == 0 {
-		val.NotBefore.Time = time.Now()
-	}
-	val.NotAfter = util.UnixTime{Time: val.NotBefore.Add(validity)}
-	return val
-}
-
-func getAttributes(isdCfg *conf.ISDCfg, as addr.AS) []trc.Attribute {
-	var a []trc.Attribute
-	m := map[trc.Attribute][]addr.AS{
-		trc.Authoritative: isdCfg.AuthoritativeASes,
-		trc.Core:          isdCfg.CoreASes,
-		trc.Issuing:       isdCfg.IssuingASes,
-		trc.Voting:        isdCfg.VotingASes,
-	}
-	for attr, list := range m {
-		if pkicmn.ContainsAS(list, as) {
-			a = append(a, attr)
+	for keyType, metas := range info.KeyChanges.Fresh {
+		for as := range metas {
+			next.ProofOfPossession[as] = append(next.ProofOfPossession[as], keyType)
 		}
 	}
+	for keyType, metas := range info.KeyChanges.Modified {
+		for as := range metas {
+			next.ProofOfPossession[as] = append(next.ProofOfPossession[as], keyType)
+		}
+	}
+	for _, keyTypes := range next.ProofOfPossession {
+		sort.Slice(keyTypes, func(i, j int) bool { return keyTypes[i] < keyTypes[j] })
+	}
+	return nil
+}
+
+func (g protoGen) createDirs(trcs map[addr.ISD]signedMeta) error {
+	for isd, meta := range trcs {
+		dir := filepath.Dir(ProtoFile(g.Dirs.Out, isd, meta.Version))
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return serrors.WrapStr("unable to make TRC parts directory", err, "dir", dir)
+		}
+	}
+	return nil
+}
+
+func (g protoGen) writeTRCs(trcs map[addr.ISD]signedMeta) error {
+	for isd, meta := range trcs {
+		raw, err := trc.EncodeSigned(meta.Signed)
+		if err != nil {
+			return serrors.WrapStr("unable to marshal prototype TRC", err, "isd", isd)
+		}
+		file := ProtoFile(g.Dirs.Out, isd, meta.Version)
+		if err := pkicmn.WriteToFile(raw, file, 0644); err != nil {
+			return serrors.WrapStr("unable to write prototype TRC", err, "file", file)
+		}
+	}
+	return nil
+}
+
+func sortAttributes(attrs []trc.Attribute) []trc.Attribute {
+	a := append([]trc.Attribute{}, attrs...)
 	sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
 	return a
 }
 
-func getKeys(cfg *asCfg) map[trc.KeyType]scrypto.KeyMeta {
-	// FIXME(roosd): allow for different key versions.
+func getKeys(keys map[trc.KeyType]keyconf.Key) map[trc.KeyType]scrypto.KeyMeta {
 	m := make(map[trc.KeyType]scrypto.KeyMeta)
-	for keyType, key := range cfg.Keys {
-		algo := cfg.KeyTypeToAlgo(keyType)
-		pubKey, err := scrypto.GetPubKey(key, algo)
-		if err != nil {
-			pkicmn.ErrorAndExit("unsupported algorithm passed validation algo=%s", algo)
-		}
+	for keyType, key := range keys {
 		m[keyType] = scrypto.KeyMeta{
-			Algorithm:  algo,
-			Key:        pubKey,
-			KeyVersion: 1,
+			Algorithm:  key.Algorithm,
+			Key:        append([]byte{}, key.Bytes...),
+			KeyVersion: key.Version,
 		}
 	}
 	return m
-}
-
-func getKeyTypes(cfg *asCfg) []trc.KeyType {
-	keyTypes := make([]trc.KeyType, 0, len(cfg.Keys))
-	for keyType := range cfg.Keys {
-		keyTypes = append(keyTypes, keyType)
-	}
-	sort.Slice(keyTypes, func(i, j int) bool { return keyTypes[i] < keyTypes[j] })
-	return keyTypes
 }

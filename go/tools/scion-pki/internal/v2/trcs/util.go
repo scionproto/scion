@@ -15,101 +15,82 @@
 package trcs
 
 import (
-	"encoding/json"
+	"encoding/pem"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"path/filepath"
-	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/keyconf"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
+var errReadFile = serrors.New("error reading file")
+
 // Dir returns the directory where TRCs are written to.
-func Dir(isd addr.ISD) string {
-	return filepath.Join(pkicmn.GetIsdPath(pkicmn.OutDir, isd), pkicmn.TRCsDir)
+func Dir(dir string, isd addr.ISD) string {
+	return filepath.Join(pkicmn.GetIsdPath(dir, isd), pkicmn.TRCsDir)
 }
 
 // PartsDir returns the directory where the partially signed TRC is written to.
-func PartsDir(isd addr.ISD, ver uint64) string {
-	return filepath.Join(Dir(isd), fmt.Sprintf(pkicmn.TRCPartsDirFmt, isd, ver))
+func PartsDir(dir string, isd addr.ISD, ver scrypto.Version) string {
+	return filepath.Join(Dir(dir, isd), fmt.Sprintf(pkicmn.TRCPartsDirFmt, isd, ver))
 }
 
 // ProtoFile returns the file path for the prototype TRC.
-func ProtoFile(isd addr.ISD, ver uint64) string {
-	return filepath.Join(PartsDir(isd, ver), fmt.Sprintf(pkicmn.TRCProtoNameFmt, isd, ver))
-}
-
-// PartsFile returns the file path for the partially signed TRC with the selector.
-func PartsFile(isd addr.ISD, ver uint64, selector string) string {
-	return filepath.Join(PartsDir(isd, ver),
-		fmt.Sprintf(pkicmn.TRCSigPartFmt, isd, ver, selector))
+func ProtoFile(dir string, isd addr.ISD, ver scrypto.Version) string {
+	return filepath.Join(PartsDir(dir, isd, ver), fmt.Sprintf(pkicmn.TRCProtoNameFmt, isd, ver))
 }
 
 // SignedFile returns the file path for the signed TRC.
-func SignedFile(isd addr.ISD, ver uint64) string {
-	return filepath.Join(Dir(isd), fmt.Sprintf(pkicmn.TrcNameFmt, isd, ver))
+func SignedFile(dir string, isd addr.ISD, ver scrypto.Version) string {
+	return filepath.Join(Dir(dir, isd), fmt.Sprintf(pkicmn.TrcNameFmt, isd, ver))
 }
 
-func validateAndWrite(t *trc.TRC, signed *trc.Signed) error {
-	raw, err := json.Marshal(signed)
+func loadTRC(file string) (*trc.TRC, trc.Encoded, error) {
+	raw, err := ioutil.ReadFile(file)
 	if err != nil {
-		return common.NewBasicError("unable to marshal signed TRC", err)
+		return nil, nil, err
 	}
-	if err := validateResult(raw); err != nil {
-		return common.NewBasicError("unable to validate signed TRC", err)
-	}
-	if err := os.MkdirAll(Dir(t.ISD), 0755); err != nil {
-		return common.NewBasicError("unable to create TRC dir", err)
-	}
-	return pkicmn.WriteToFile(raw, SignedFile(t.ISD, uint64(t.Version)), 0644)
-}
-
-func validateResult(raw []byte) error {
-	var signed trc.Signed
-	if err := json.Unmarshal(raw, &signed); err != nil {
-		return common.NewBasicError("invalid signed TRC", err)
+	signed, err := trc.ParseSigned(raw)
+	if err != nil {
+		return nil, nil, err
 	}
 	t, err := signed.EncodedTRC.Decode()
 	if err != nil {
-		return common.NewBasicError("invalid TRC payload", err)
+		return nil, nil, err
 	}
-	if err := t.ValidateInvariant(); err != nil {
-		return common.NewBasicError("violated TRC invariant", err)
-	}
-	// FIXME(roosd): Should also verify votes when supported.
-	v := trc.POPVerifier{
-		TRC:        t,
-		Encoded:    signed.EncodedTRC,
-		Signatures: signed.Signatures,
-	}
-	if err := v.Verify(); err != nil {
-		return common.NewBasicError("proof of possesions fail to verify", err)
-	}
-	return nil
+	return t, signed.EncodedTRC, nil
 }
 
-func sortSignatures(signatures map[trc.Protected]trc.Signature) []trc.Signature {
-	keys := make([]trc.Protected, 0, len(signatures))
-	for key := range signatures {
-		keys = append(keys, key)
+func loadKey(file string, ia addr.IA, usage keyconf.Usage,
+	version scrypto.KeyVersion) (keyconf.Key, error) {
+
+	raw, err := ioutil.ReadFile(file)
+	if err != nil {
+		return keyconf.Key{}, serrors.Wrap(errReadFile, err)
 	}
-	sort.Slice(keys, func(i, j int) bool {
-		switch {
-		case keys[i].AS != keys[j].AS:
-			return keys[i].AS < keys[j].AS
-		case keys[i].Type != keys[j].Type:
-			return keys[i].Type < keys[j].Type
-		case keys[i].KeyType != keys[j].KeyType:
-			return keys[i].KeyType < keys[j].KeyType
-		}
-		return false
-	})
-	sigs := make([]trc.Signature, 0, len(keys))
-	for _, key := range keys {
-		sigs = append(sigs, signatures[key])
+	block, _ := pem.Decode(raw)
+	if block == nil {
+		return keyconf.Key{}, serrors.New("unable to parse PEM")
 	}
-	return sigs
+	key, err := keyconf.KeyFromPEM(block)
+	if err != nil {
+		return keyconf.Key{}, serrors.WrapStr("unable to decode key", err)
+	}
+	if !key.IA.Equal(ia) {
+		return keyconf.Key{}, serrors.New("IA does not match", "expected", ia, "actual", key.IA)
+	}
+	if key.Usage != usage {
+		return keyconf.Key{}, serrors.New("usage does not match",
+			"expected", usage, "actual", key.Usage)
+	}
+	if key.Version != version {
+		return keyconf.Key{}, serrors.New("version does not match",
+			"expected", version, "actual", key.Version)
+	}
+	return key, nil
 }

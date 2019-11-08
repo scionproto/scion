@@ -1,0 +1,13 @@
+[primary]
+  [primary.offline]
+    [primary.offline.1]
+      algorithm = "ed25519"
+      [primary.offline.1.validity]
+        not_before = 1573033769
+        validity = "1y"
+  [primary.online]
+    [primary.online.1]
+      algorithm = "ed25519"
+      [primary.online.1.validity]
+        not_before = 1573033769
+        validity = "1y"

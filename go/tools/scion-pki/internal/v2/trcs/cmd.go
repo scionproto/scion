@@ -19,7 +19,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
+
+var version uint64
+
+// TODO(roosd): Expand help text with the new TRC configuration format.
 
 var Cmd = &cobra.Command{
 	Use:   "trcs",
@@ -41,67 +48,7 @@ Selector:
 		All ISDs under the root directory.
 	X
 		ISD X.
-'trc' needs to be pointed to the root directory where all keys and certificates are
-stored on disk (-d flag). It expects the contents of the root directory to follow
-a predefined structure:
-	<root>/
-		ISD1/
-			isd.ini
-			AS1/
-			AS2/
-			...
-		ISD2/
-			isd.ini
-			AS1/
-			...
-		...
-isd.ini contains the preconfigured parameters according to which 'trc' generates
-the TRCs. It follows the ini format and can contain only the default section with
-the following values:
-	Description [required]
-		arbitrary non-empty string used to describe the ISD/TRC
-and a section 'TRC' with the following values:
-	Version [required]
-		integer representing the version of the TRC
-	BaseVersion [required]
-		integer representing the base version of the TRC
-	VotingQuorum [required]
-		integer representing the number of voting ASes needed to sign an updated TRC.
-	GracePeriod [required]
-		duration string indicating how long the previous TRC is still valid.
-		Must be 0s for base TRC.
-	TrustResetAllowed [required]
-		boolean indicating whether trust resets are allowed for this ISD.
-	NotBefore [optional]
-		integer representing the not_before time in the TRC represented as seconds
-		since UNIX epoch. If 0 will be set to now.
-	Validity [required]
-		duration string determining the validity of the TRC, e.g., 180d or 36h.
-	AuthoritativeASes [required]
-		comma-separated list of AS identifiers representing the authoritative
-		ASes of the ISD, e.g., ff00:0:110,ff00:0:120.
-	CoreASes [required]
-		comma-separated list of AS identifiers representing the core
-		ASes of the ISD, e.g., ff00:0:110,ff00:0:120.
-	IssuingASes [required]
-		comma-separated list of AS identifiers representing the issuing
-		ASes of the ISD, e.g., ff00:0:110,ff00:0:120.
-	VotingASes [required]
-		comma-separated list of AS identifiers representing the voting
-		ASes of the ISD, e.g., ff00:0:110,ff00:0:120.
 `,
-}
-
-var gen = &cobra.Command{
-	Use:   "gen",
-	Short: "Generate new TRCs",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runGenTrc(args[0]); err != nil {
-			return common.NewBasicError("unable to generate TRCs", err)
-		}
-		return nil
-	},
 }
 
 var proto = &cobra.Command{
@@ -113,38 +60,16 @@ var proto = &cobra.Command{
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runProto(args[0]); err != nil {
-			return common.NewBasicError("unable to generate prototype TRCs", err)
+		g := protoGen{
+			Dirs:    pkicmn.GetDirs(),
+			Version: scrypto.Version(version),
 		}
-		return nil
-	},
-}
-
-var sign = &cobra.Command{
-	Use:   "sign",
-	Short: "Sign the proto TRCs",
-	Long: `
-	'sign' generates new signatures for the proto TRCs.
-`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runSign(args[0]); err != nil {
-			return common.NewBasicError("unable to sign TRCs", err)
+		asMap, err := pkicmn.ProcessSelector(args[0])
+		if err != nil {
+			return serrors.WrapStr("unable to select target ISDs", err, "selector", args[0])
 		}
-		return nil
-	},
-}
-
-var combine = &cobra.Command{
-	Use:   "combine",
-	Short: "Combine the proto TRCs with their signatures",
-	Long: `
-	'combine' generates a new signed TRC from the prototype TRC and the signatures.
-`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runCombine(args[0]); err != nil {
-			return common.NewBasicError("unable to combine TRCs", err)
+		if err := g.Run(asMap); err != nil {
+			return serrors.WrapStr("unable to generate prototype TRCs", err)
 		}
 		return nil
 	},
@@ -166,9 +91,7 @@ var human = &cobra.Command{
 }
 
 func init() {
-	Cmd.AddCommand(gen)
+	Cmd.PersistentFlags().Uint64Var(&version, "version", 0, "TRC version (0 indicates newest)")
 	Cmd.AddCommand(proto)
-	Cmd.AddCommand(sign)
-	Cmd.AddCommand(combine)
 	Cmd.AddCommand(human)
 }

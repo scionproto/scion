@@ -64,7 +64,7 @@ func TestProcessSelector(t *testing.T) {
 	setupTest(t)
 	tests := map[string]struct {
 		selector string
-		isdAsMap map[addr.ISD][]addr.IA
+		isdAsMap ASMap
 		err      error
 	}{
 		"Empty selector string": {
@@ -72,7 +72,7 @@ func TestProcessSelector(t *testing.T) {
 		},
 		"ISD only selector with empty AS selector": {
 			selector: "1",
-			isdAsMap: map[addr.ISD][]addr.IA{
+			isdAsMap: ASMap{
 				addr.ISD(1): getIAFromASes(addr.ISD(1), ases),
 			},
 		},
@@ -82,7 +82,7 @@ func TestProcessSelector(t *testing.T) {
 		},
 		"Wildcard ISD selector with empty AS selector": {
 			selector: "*",
-			isdAsMap: map[addr.ISD][]addr.IA{
+			isdAsMap: ASMap{
 				addr.ISD(1): getIAFromASes(addr.ISD(1), ases),
 			},
 		},
@@ -92,13 +92,13 @@ func TestProcessSelector(t *testing.T) {
 		},
 		"Wildcard AS selector with fixed ISD selector": {
 			selector: "1-*",
-			isdAsMap: map[addr.ISD][]addr.IA{
+			isdAsMap: ASMap{
 				addr.ISD(1): getIAFromASes(addr.ISD(1), ases),
 			},
 		},
 		"Fixed ISD-AS selector": {
 			selector: "1-ff00:0:10",
-			isdAsMap: map[addr.ISD][]addr.IA{
+			isdAsMap: ASMap{
 				addr.ISD(1): getIAFromASes(addr.ISD(1), ases[:1]),
 			},
 		},

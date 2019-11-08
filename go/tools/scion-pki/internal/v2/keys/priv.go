@@ -36,7 +36,7 @@ type privGen struct {
 	Dirs pkicmn.Dirs
 }
 
-func (g privGen) Run(asMap map[addr.ISD][]addr.IA) error {
+func (g privGen) Run(asMap pkicmn.ASMap) error {
 	cfgs, err := g.loadConfigs(asMap)
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func (g privGen) Run(asMap map[addr.ISD][]addr.IA) error {
 	return nil
 }
 
-func (g privGen) loadConfigs(asMap map[addr.ISD][]addr.IA) (map[addr.IA]conf.Keys, error) {
+func (g privGen) loadConfigs(asMap pkicmn.ASMap) (map[addr.IA]conf.Keys, error) {
 	cfgs := make(map[addr.IA]conf.Keys)
 	for _, ases := range asMap {
 		for _, ia := range ases {

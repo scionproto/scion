@@ -20,14 +20,14 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 func runHuman(files []string) error {
 	for _, file := range files {
 		if err := genHuman(file); err != nil {
-			return common.NewBasicError("unable to generate human output", err, "file", file)
+			return serrors.WrapStr("unable to generate human output", err, "file", file)
 		}
 	}
 	return nil
@@ -40,15 +40,15 @@ func genHuman(file string) error {
 	}
 	var signed trc.Signed
 	if err := json.Unmarshal(raw, &signed); err != nil {
-		return common.NewBasicError("unable to parse signed TRC", err, "file", file)
+		return serrors.WrapStr("unable to parse signed TRC", err, "file", file)
 	}
 	t, err := signed.EncodedTRC.Decode()
 	if err != nil {
-		return common.NewBasicError("unable to parse TRC payload", err, "file", file)
+		return serrors.WrapStr("unable to parse TRC payload", err, "file", file)
 	}
 	signatures, err := parseSignatures(signed.Signatures)
 	if err != nil {
-		return common.NewBasicError("unable to parse signatures", err, "file", file)
+		return serrors.WrapStr("unable to parse signatures", err, "file", file)
 	}
 	humanReadable := struct {
 		Payload    *trc.TRC    `json:"payload"`
@@ -58,7 +58,7 @@ func genHuman(file string) error {
 		Signatures: signatures,
 	}
 	if raw, err = json.MarshalIndent(humanReadable, "", "  "); err != nil {
-		return common.NewBasicError("unable to write human readable trc", err, "file", file)
+		return serrors.WrapStr("unable to write human readable trc", err, "file", file)
 	}
 	_, err = fmt.Fprintln(os.Stdout, string(raw))
 	return err
@@ -69,7 +69,7 @@ func parseSignatures(packed []trc.Signature) ([]signature, error) {
 	for i, s := range packed {
 		p, err := s.EncodedProtected.Decode()
 		if err != nil {
-			return nil, common.NewBasicError("unable to parse protected meta", err, "idx", i)
+			return nil, serrors.WrapStr("unable to parse protected meta", err, "idx", i)
 		}
 		signatures = append(signatures, signature{Protected: p, Signature: s.Signature})
 	}
