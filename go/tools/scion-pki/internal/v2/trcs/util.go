@@ -52,6 +52,11 @@ func PartsFile(dir string, ia addr.IA, ver scrypto.Version) string {
 		fmt.Sprintf(pkicmn.TRCSigPartFmt, ia.I, ver, ia.FileFmt(false)))
 }
 
+// AllPartsFiles returns a glob string that matches all TRC parts for the given ISD and version.
+func AllPartsFiles(dir string, isd addr.ISD, ver scrypto.Version) string {
+	return filepath.Join(PartsDir(dir, isd, ver), fmt.Sprintf(pkicmn.TRCSigPartFmt, isd, ver, "*"))
+}
+
 // SignedFile returns the file path for the signed TRC.
 func SignedFile(dir string, isd addr.ISD, ver scrypto.Version) string {
 	return filepath.Join(Dir(dir, isd), fmt.Sprintf(pkicmn.TrcNameFmt, isd, ver))

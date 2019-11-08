@@ -98,6 +98,29 @@ var sign = &cobra.Command{
 	},
 }
 
+var combine = &cobra.Command{
+	Use:   "combine",
+	Short: "Combine the proto TRCs with their signatures",
+	Long: `
+	'combine' generates a new signed TRC from the prototype TRC and the signatures.
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g := combiner{
+			Dirs:    pkicmn.GetDirs(),
+			Version: scrypto.Version(version),
+		}
+		asMap, err := pkicmn.ProcessSelector(args[0])
+		if err != nil {
+			return serrors.WrapStr("unable to select target ISDs", err, "selector", args[0])
+		}
+		if err := g.Run(asMap); err != nil {
+			return serrors.WrapStr("unable to combine TRCs", err)
+		}
+		return nil
+	},
+}
+
 var human = &cobra.Command{
 	Use:   "human",
 	Short: "Display human readable",
@@ -117,5 +140,6 @@ func init() {
 	Cmd.PersistentFlags().Uint64Var(&version, "version", 0, "TRC version (0 indicates newest)")
 	Cmd.AddCommand(proto)
 	Cmd.AddCommand(sign)
+	Cmd.AddCommand(combine)
 	Cmd.AddCommand(human)
 }

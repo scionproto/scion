@@ -4,11 +4,13 @@ go_library(
     name = "go_default_library",
     srcs = [
         "cmd.go",
+        "combine.go",
         "human.go",
         "loader.go",
         "prototype.go",
         "sign.go",
         "util.go",
+        "validator.go",
     ],
     importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/trcs",
     visibility = ["//go/tools/scion-pki:__subpackages__"],
@@ -30,6 +32,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "combine_test.go",
         "prototype_test.go",
         "sign_test.go",
     ],
