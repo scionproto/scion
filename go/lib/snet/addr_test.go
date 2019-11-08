@@ -19,7 +19,7 @@ import (
 	"net"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
@@ -41,14 +41,12 @@ func Test_Addr_String(t *testing.T) {
 		{address: &Addr{IA: ia, Host: host4}, result: "1-ff00:0:320,[1.2.3.4]:10000"},
 		{address: &Addr{IA: ia, Host: host6}, result: "1-ff00:0:320,[2001::1]:20000"},
 	}
-	Convey("Method String", t, func() {
-		for _, test := range tests {
-			Convey(fmt.Sprintf("given address object %v", test.address), func() {
-				s := test.address.String()
-				SoMsg("String should match", s, ShouldResemble, test.result)
-			})
-		}
-	})
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("given address object %v", test.address), func(t *testing.T) {
+			s := test.address.String()
+			assert.Equal(t, s, test.result, "String should match")
+		})
+	}
 }
 
 func Test_AddrFromString(t *testing.T) {
@@ -105,19 +103,16 @@ func Test_AddrFromString(t *testing.T) {
 			host: "CS M (0x8002)",
 		},
 	}
-	Convey("Function AddrFromString", t, func() {
-		for _, test := range tests {
-			Convey(fmt.Sprintf("given address %q", test.address), func() {
-				a, err := AddrFromString(test.address)
-				if test.isError {
-					SoMsg("error", err, ShouldNotBeNil)
-				} else {
-					SoMsg("error", err, ShouldBeNil)
-					SoMsg("ia", a.IA.String(), ShouldResemble, test.ia)
-					SoMsg("host", a.Host.L3.String(), ShouldResemble, test.host)
-					SoMsg("port", a.Host.L4, ShouldResemble, test.l4)
-				}
-			})
+	for _, test := range tests {
+		t.Log(fmt.Sprintf("given address %q", test.address))
+		a, err := AddrFromString(test.address)
+		if test.isError {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, a.IA.String(), test.ia)
+			assert.Equal(t, a.Host.L3.String(), test.host)
+			assert.Equal(t, a.Host.L4, test.l4)
 		}
-	})
+	}
 }
