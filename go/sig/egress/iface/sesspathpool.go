@@ -74,6 +74,10 @@ func (spp SessPathPool) GetByKey(key spathmeta.PathKey) *SessPath {
 	return res.SessPath
 }
 
+func (spp SessPathPool) PathCount() int {
+	return len(spp)
+}
+
 func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
 	// Remove any old entries that aren't present in the update.
 	for key := range spp {
