@@ -43,11 +43,11 @@ type protoGen struct {
 	Version scrypto.Version
 }
 
-// Run generates the prototype TRCs for all ISDs in the provided map. If no
+// Run generates the prototype TRCs for all ISDs in the provided mapping. If no
 // version is specified, the TRC configuration file with the highest version is
 // chosen for each ISD. The generated TRCs are then written to disk.
-func (g protoGen) Run(asMap map[addr.ISD][]addr.IA) error {
-	cfgs, err := loader{Dirs: g.Dirs, Version: g.Version}.LoadConfigs(asMap)
+func (g protoGen) Run(asMap pkicmn.ASMap) error {
+	cfgs, err := loader{Dirs: g.Dirs, Version: g.Version}.LoadConfigs(asMap.ISDs())
 	if err != nil {
 		return serrors.WrapStr("unable to load TRC configs", err)
 	}

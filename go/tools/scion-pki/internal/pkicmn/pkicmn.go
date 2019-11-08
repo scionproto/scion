@@ -67,6 +67,18 @@ func GetDirs() Dirs {
 	}
 }
 
+// ASMap contains all ASes matched by the selector.
+type ASMap map[addr.ISD][]addr.IA
+
+// ISDs returns all ISDs in the mapping.
+func (m ASMap) ISDs() []addr.ISD {
+	list := make([]addr.ISD, 0, len(m))
+	for isd := range m {
+		list = append(list, isd)
+	}
+	return list
+}
+
 // ParseSelector parses the given selector. The returned strings are in file format.
 func ParseSelector(selector string) (string, string, error) {
 	toks := strings.Split(selector, "-")
@@ -100,7 +112,7 @@ func ParseSelector(selector string) (string, string, error) {
 // ProcessSelector processes the given selector and returns a mapping from ISD id to ASes
 // of that ISD. In case of an ISD-only selector, i.e., a '*' or any number the lists of
 // ASes will be empty.
-func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
+func ProcessSelector(selector string) (ASMap, error) {
 	isdTok, asTok, err := ParseSelector(selector)
 	if err != nil {
 		return nil, err

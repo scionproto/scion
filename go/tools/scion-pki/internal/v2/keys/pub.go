@@ -32,7 +32,7 @@ type pubGen struct {
 	Dirs pkicmn.Dirs
 }
 
-func (g pubGen) Run(asMap map[addr.ISD][]addr.IA) error {
+func (g pubGen) Run(asMap pkicmn.ASMap) error {
 	privKeys, err := g.loadPrivateKeys(asMap)
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func (g pubGen) Run(asMap map[addr.ISD][]addr.IA) error {
 	return nil
 }
 
-func (g pubGen) loadPrivateKeys(asMap map[addr.ISD][]addr.IA) (map[addr.IA][]keyconf.Key, error) {
+func (g pubGen) loadPrivateKeys(asMap pkicmn.ASMap) (map[addr.IA][]keyconf.Key, error) {
 	priv := make(map[addr.IA][]keyconf.Key)
 	for _, ases := range asMap {
 		for _, ia := range ases {

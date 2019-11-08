@@ -31,9 +31,9 @@ type loader struct {
 	Version scrypto.Version
 }
 
-func (l loader) LoadConfigs(asMap map[addr.ISD][]addr.IA) (map[addr.ISD]conf.TRC2, error) {
+func (l loader) LoadConfigs(isds []addr.ISD) (map[addr.ISD]conf.TRC2, error) {
 	cfgs := make(map[addr.ISD]conf.TRC2)
-	for isd := range asMap {
+	for _, isd := range isds {
 		file, err := l.selectConfig(isd)
 		if err != nil {
 			return nil, serrors.WrapStr("unable to select config", err, "isd", isd)
