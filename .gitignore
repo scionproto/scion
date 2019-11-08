@@ -72,3 +72,4 @@ tags
 
 # bazel artifacts
 /bazel-*
+/.bazel-cache
