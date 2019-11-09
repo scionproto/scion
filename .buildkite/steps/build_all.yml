@@ -6,7 +6,7 @@
   # docker.sh tester depends on scion:latest (needs to be tagged)
   - docker tag $SCION_IMG scion:latest
   - echo "$(date -u +"%F %T.%6N%z") Build perapp images"
-  - ./docker.sh run -c "mkdir docker/_build && touch docker/_build/scion.stamp && make -C docker/perapp app_builder apps"
+  - ./docker.sh run -c "mkdir docker/_build && touch docker/_build/scion.stamp && make -C docker/perapp app_builder app_base apps"
   - echo "$(date -u +"%F %T.%6N%z") Build tester image"
   - ./docker.sh tester
   - $BASE/scripts/all_images push
