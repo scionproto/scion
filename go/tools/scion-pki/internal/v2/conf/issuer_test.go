@@ -26,25 +26,31 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf/testdata"
 )
 
-func TestIssuer(t *testing.T) {
-	var buf bytes.Buffer
-	err := testdata.GoldenIssuer.Encode(&buf)
+func TestIssuerEncode(t *testing.T) {
+	rawGolden, err := ioutil.ReadFile("testdata/issuer-v1.toml")
 	require.NoError(t, err)
 
+	var buf bytes.Buffer
+	err = testdata.GoldenIssuer.Encode(&buf)
+	require.NoError(t, err)
+	assert.Equal(t, rawGolden, buf.Bytes())
+
+}
+
+func TestLoadIssuer(t *testing.T) {
+	cfg, err := conf.LoadIssuer("testdata/issuer-v1.toml")
+	require.NoError(t, err)
+	assert.Equal(t, testdata.GoldenIssuer, cfg)
+}
+
+// TestUpdateGoldenIssuer provides an easy way to update the golden file after
+// the format has changed.
+func TestUpdateGoldenIssuer(t *testing.T) {
 	if *update {
-		err := ioutil.WriteFile("testdata/issuer-v1.toml", buf.Bytes(), 0644)
+		var buf bytes.Buffer
+		err := testdata.GoldenIssuer.Encode(&buf)
+		require.NoError(t, err)
+		err = ioutil.WriteFile("testdata/issuer-v1.toml", buf.Bytes(), 0644)
 		require.NoError(t, err)
 	}
-
-	t.Run("loaded issuer certificate config matches", func(t *testing.T) {
-		cfg, err := conf.LoadIssuer("testdata/issuer-v1.toml")
-		require.NoError(t, err)
-		assert.Equal(t, testdata.GoldenIssuer, cfg)
-	})
-
-	t.Run("encoded issuer certificate config matches", func(t *testing.T) {
-		raw, err := ioutil.ReadFile("testdata/issuer-v1.toml")
-		require.NoError(t, err)
-		assert.Equal(t, raw, buf.Bytes())
-	})
 }

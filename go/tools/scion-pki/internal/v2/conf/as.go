@@ -69,22 +69,23 @@ func (cfg AS) Encode(w io.Writer) error {
 
 // Validate checks all values are set.
 func (cfg AS) Validate() error {
+	var errs serrors.List
 	switch {
 	case cfg.Description == "":
-		return serrors.New("description not set")
+		errs = append(errs, serrors.New("description not set"))
 	case cfg.Version == scrypto.LatestVer:
-		return serrors.New("version not set")
+		errs = append(errs, serrors.New("version not set"))
 	case cfg.SigningKeyVersion == nil:
-		return serrors.New("signing_key_version not set")
+		errs = append(errs, serrors.New("signing_key_version not set"))
 	case cfg.EncryptionKeyVersion == nil:
-		return serrors.New("encryption_key_version not set")
+		errs = append(errs, serrors.New("encryption_key_version not set"))
 	case cfg.IssuerIA.IsWildcard():
-		return serrors.New("issuer_ia is wildcard", "input", cfg.IssuerIA)
+		errs = append(errs, serrors.New("issuer_ia is wildcard", "input", cfg.IssuerIA))
 	case cfg.IssuerCertVersion == scrypto.LatestVer:
-		return serrors.New("issuer_cert_version not set")
+		errs = append(errs, serrors.New("issuer_cert_version not set"))
 	}
 	if err := cfg.Validity.Validate(); err != nil {
-		return serrors.WrapStr("invalid validity", err)
+		errs = append(errs, serrors.WrapStr("invalid validity", err))
 	}
-	return nil
+	return errs.ToError()
 }
