@@ -34,7 +34,7 @@ import (
 func TestTRCEncode(t *testing.T) {
 	tests := map[string]struct {
 		File   string
-		Config conf.TRC2
+		Config conf.TRC
 	}{
 		"v1": {
 			File:   "testdata/trc-v1.toml",
@@ -61,7 +61,7 @@ func TestTRCEncode(t *testing.T) {
 func TestLoadTRC(t *testing.T) {
 	tests := map[string]struct {
 		File   string
-		Config conf.TRC2
+		Config conf.TRC
 	}{
 		"v1": {
 			File:   "testdata/trc-v1.toml",
@@ -85,7 +85,7 @@ func TestLoadTRC(t *testing.T) {
 // the format has changed.
 func TestUpdateGoldenTRC(t *testing.T) {
 	if *update {
-		cfgs := map[string]conf.TRC2{
+		cfgs := map[string]conf.TRC{
 			"testdata/trc-v1.toml": TRCv1(),
 			"testdata/trc-v2.toml": TRCv2(),
 		}
@@ -100,10 +100,10 @@ func TestUpdateGoldenTRC(t *testing.T) {
 }
 
 // TRCv1 generates a TRC configuration for testing.
-func TRCv1() conf.TRC2 {
+func TRCv1() conf.TRC {
 	t := true
 	v1 := scrypto.KeyVersion(1)
-	return conf.TRC2{
+	return conf.TRC{
 		Description:       "Testing TRC",
 		Version:           1,
 		BaseVersion:       1,
@@ -128,11 +128,11 @@ func TRCv1() conf.TRC2 {
 }
 
 // TRCv2 generates a TRC configuration for testing.
-func TRCv2() conf.TRC2 {
+func TRCv2() conf.TRC {
 	t := true
 	v1 := scrypto.KeyVersion(1)
 	v2 := scrypto.KeyVersion(2)
-	return conf.TRC2{
+	return conf.TRC{
 		Description:       "Testing TRC",
 		Version:           2,
 		BaseVersion:       1,

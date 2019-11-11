@@ -53,7 +53,7 @@ func (g signatureGen) Run(asMap pkicmn.ASMap) error {
 	return nil
 }
 
-func (g signatureGen) Generate(asMap pkicmn.ASMap, cfgs map[addr.ISD]conf.TRC2,
+func (g signatureGen) Generate(asMap pkicmn.ASMap, cfgs map[addr.ISD]conf.TRC,
 	protos map[addr.ISD]signedMeta) (map[addr.ISD]trcParts, error) {
 
 	parts := make(map[addr.ISD]trcParts)
@@ -83,7 +83,7 @@ func (g signatureGen) Generate(asMap pkicmn.ASMap, cfgs map[addr.ISD]conf.TRC2,
 	return parts, nil
 }
 
-func (g signatureGen) generate(ia addr.IA, cfg conf.TRC2, signed trc.Signed,
+func (g signatureGen) generate(ia addr.IA, cfg conf.TRC, signed trc.Signed,
 	t *trc.TRC) (trc.Signed, error) {
 
 	if err := g.sanityChecks(ia.I, cfg, t); err != nil {
@@ -104,7 +104,7 @@ func (g signatureGen) generate(ia addr.IA, cfg conf.TRC2, signed trc.Signed,
 }
 
 // sanityChecks does some small sanity checks to ensure the right TRC is signed.
-func (g signatureGen) sanityChecks(isd addr.ISD, cfg conf.TRC2, t *trc.TRC) error {
+func (g signatureGen) sanityChecks(isd addr.ISD, cfg conf.TRC, t *trc.TRC) error {
 	if isd != t.ISD {
 		return serrors.New("ISD does not match", "proto", t.ISD, "cfg", isd)
 	}
@@ -119,7 +119,7 @@ func (g signatureGen) sanityChecks(isd addr.ISD, cfg conf.TRC2, t *trc.TRC) erro
 }
 
 func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia addr.IA,
-	cfg conf.TRC2, signed trc.Signed, t *trc.TRC) error {
+	cfg conf.TRC, signed trc.Signed, t *trc.TRC) error {
 
 	vote, ok := t.Votes[ia.A]
 	if !ok {
@@ -155,7 +155,7 @@ func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia ad
 }
 
 func (g signatureGen) showPOP(signatures map[trc.Protected]trc.Signature, ia addr.IA,
-	cfg conf.TRC2, signed trc.Signed, t *trc.TRC) error {
+	cfg conf.TRC, signed trc.Signed, t *trc.TRC) error {
 
 	for _, keyType := range t.ProofOfPossession[ia.A] {
 		id := keyconf.ID{
