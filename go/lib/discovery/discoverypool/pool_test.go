@@ -21,6 +21,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -137,7 +138,7 @@ func mustLoadPool(t *testing.T) *Pool {
 }
 
 func mustLoadSvcInfo(t *testing.T) topology.IDAddrMap {
-	topo, err := topology.LoadFromFile("testdata/topology.json")
+	topo, err := itopo.LoadFromFile("testdata/topology.json")
 	xtest.FailOnErr(t, err)
 	return topo.DS
 }

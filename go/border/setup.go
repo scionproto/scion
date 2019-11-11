@@ -77,7 +77,7 @@ func (r *Router) setup() error {
 	}
 	// Initialize itopo.
 	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{CleanDynamic: r.setupCtxOnClean})
-	if _, _, err := itopo.SetStatic(conf.Topo.Raw(), true); err != nil {
+	if _, _, err := itopo.SetStatic(conf.Topo, true); err != nil {
 		return err
 	}
 	// Setup new context.

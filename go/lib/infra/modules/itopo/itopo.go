@@ -116,9 +116,9 @@ func BeginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
 // It might differ from the input topology (same contents as existing static,
 // or dynamic set and still valid). The second return value indicates whether the in-memory
 // copy of the static topology has been updated.
-func SetStatic(static *topology.Topo, semiMutAllowed bool) (*topology.Topo, bool, error) {
+func SetStatic(static Topology, semiMutAllowed bool) (Topology, bool, error) {
 	l := metrics.UpdateLabels{Type: metrics.Static}
-	topo, updated, err := st.setStatic(static, semiMutAllowed)
+	topo, updated, err := st.setStatic(static.Raw(), semiMutAllowed)
 	switch {
 	case err != nil:
 		l.Result = metrics.ErrValidate
@@ -128,7 +128,7 @@ func SetStatic(static *topology.Topo, semiMutAllowed bool) (*topology.Topo, bool
 		l.Result = metrics.OkIgnored
 	}
 	incUpdateMetric(l)
-	return topo, updated, err
+	return NewTopologyFromRaw(topo), updated, err
 }
 
 // BeginSetStatic checks whether setting the static topology is permissible. The returned

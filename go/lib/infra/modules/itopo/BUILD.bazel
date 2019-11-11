@@ -38,6 +38,7 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//bazel-scion/go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/overlay:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/xtest:go_default_library",

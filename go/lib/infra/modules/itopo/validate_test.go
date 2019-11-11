@@ -20,6 +20,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/bazel-scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -268,7 +269,7 @@ func testGenImmutable(v internalValidator, topo, oldTopo *topology.Topo, t *test
 
 func loadTopo(filename string, t *testing.T) *topology.Topo {
 	t.Helper()
-	topo, err := topology.LoadFromFile(filename)
+	topo, err := itopo.LoadFromFile(filename)
 	if err != nil {
 		t.Fatalf("Error loading config from '%s': %v", filename, err)
 	}

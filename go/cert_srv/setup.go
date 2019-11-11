@@ -71,15 +71,9 @@ func setup() error {
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
-	if _, _, err := itopo.SetStatic(topo.Raw(), false); err != nil {
-		return common.NewBasicError("Unable to set initial static topology", err)
+	if err := initTopo(topo); err != nil {
+		return err
 	}
-	// Set environment to listen for signals.
-	infraenv.InitInfraEnvironmentFunc(cfg.General.Topology, func() {
-		if err := reload(); err != nil {
-			log.Error("Unable to reload", "err", err)
-		}
-	})
 	router, err := infraenv.NewRouter(topo.IA(), cfg.Sciond)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize path router", err)
@@ -202,5 +196,18 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 			IA:    topo.IA(),
 		})
 	}
+	return nil
+}
+
+func initTopo(topo itopo.Topology) error {
+	if _, _, err := itopo.SetStatic(topo, false); err != nil {
+		return common.NewBasicError("Unable to set initial static topology", err)
+	}
+	// Set environment to listen for signals.
+	infraenv.InitInfraEnvironmentFunc(cfg.General.Topology, func() {
+		if err := reload(); err != nil {
+			log.Error("Unable to reload", "err", err)
+		}
+	})
 	return nil
 }
