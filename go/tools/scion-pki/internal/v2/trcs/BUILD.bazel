@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "cmd.go",
         "combine.go",
+        "doc.go",
         "gen.go",
         "human.go",
         "loader.go",

@@ -31,14 +31,21 @@ var Cmd = &cobra.Command{
 	Use:   "tmpl",
 	Short: "Generate configuration templates for ISDs and ASes.",
 	Long: `
-'tmpl' can be used to generate configuration file templates for ISDs and ASes.
+'tmpl' generates configuration file templates of ISDs and ASes.
 `,
 }
 
 var topo = &cobra.Command{
 	Use:   "topo",
-	Short: "Generate isd.ini and as.ini templates for the provided topo",
-	Args:  cobra.ExactArgs(1),
+	Short: "Generate configuration files for the provided topo",
+	Long: `
+'topo' generates the necessary configuration files for the provided topology.
+
+Keys, TRCs and certificates are all configured to be version '1'. Based on these
+configuration files, the 'keys', 'trcs' and 'certs' commands can be run to
+generated the respective trust material.
+`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		val, err := validityFromFlags()
 		if err != nil {

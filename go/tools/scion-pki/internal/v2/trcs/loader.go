@@ -33,8 +33,8 @@ type loader struct {
 	Version scrypto.Version
 }
 
-func (l loader) LoadConfigs(isds []addr.ISD) (map[addr.ISD]conf.TRC2, error) {
-	cfgs := make(map[addr.ISD]conf.TRC2)
+func (l loader) LoadConfigs(isds []addr.ISD) (map[addr.ISD]conf.TRC, error) {
+	cfgs := make(map[addr.ISD]conf.TRC)
 	for _, isd := range isds {
 		file, err := l.selectConfig(isd)
 		if err != nil {
@@ -82,7 +82,7 @@ func (l loader) findMaxVersion(files []string) (scrypto.Version, error) {
 	return scrypto.Version(max), nil
 }
 
-func (l loader) LoadProtos(cfgs map[addr.ISD]conf.TRC2) (map[addr.ISD]signedMeta, error) {
+func (l loader) LoadProtos(cfgs map[addr.ISD]conf.TRC) (map[addr.ISD]signedMeta, error) {
 	protos := make(map[addr.ISD]signedMeta)
 	for isd, cfg := range cfgs {
 		file := ProtoFile(l.Dirs.Out, isd, cfg.Version)

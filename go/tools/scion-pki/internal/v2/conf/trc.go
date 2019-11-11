@@ -39,9 +39,8 @@ func AllTRCFiles(dir string, isd addr.ISD) string {
 	return filepath.Join(pkicmn.GetIsdPath(dir, isd), "trc-v*.toml")
 }
 
-// TRC2 holds the TRC configuration.
-// TODO(roosd): rename to TRC.
-type TRC2 struct {
+// TRC holds the TRC configuration.
+type TRC struct {
 	Description       string
 	Version           scrypto.Version
 	BaseVersion       scrypto.Version
@@ -54,23 +53,23 @@ type TRC2 struct {
 }
 
 // LoadTRC loads the TRC configuration from the provided file. The contents are already validated.
-func LoadTRC(file string) (TRC2, error) {
+func LoadTRC(file string) (TRC, error) {
 	var t tomlTRC
 	if _, err := toml.DecodeFile(file, &t); err != nil {
-		return TRC2{}, serrors.WrapStr("unable to load TRC config from file", err, "file", file)
+		return TRC{}, serrors.WrapStr("unable to load TRC config from file", err, "file", file)
 	}
 	cfg, err := t.TRC()
 	if err != nil {
-		return TRC2{}, serrors.WithCtx(err, "file", file)
+		return TRC{}, serrors.WithCtx(err, "file", file)
 	}
 	if err := cfg.Validate(); err != nil {
-		return TRC2{}, serrors.WrapStr("unable to validate TRC config", err, "file", file)
+		return TRC{}, serrors.WrapStr("unable to validate TRC config", err, "file", file)
 	}
 	return cfg, nil
 }
 
 // Encode writes the encoded TRC config to the writer.
-func (cfg TRC2) Encode(w io.Writer) error {
+func (cfg TRC) Encode(w io.Writer) error {
 	t := tomlTRCFromTRC(cfg)
 	if err := toml.NewEncoder(w).Encode(t); err != nil {
 		return serrors.WrapStr("unable to encode TRC config", err)
@@ -79,7 +78,7 @@ func (cfg TRC2) Encode(w io.Writer) error {
 }
 
 // Validate checks all values are set.
-func (cfg TRC2) Validate() error {
+func (cfg TRC) Validate() error {
 	switch {
 	case cfg.Description == "":
 		return serrors.New("description is not set")
@@ -155,8 +154,8 @@ type tomlTRC struct {
 	PrimaryASes       map[string]Primary `toml:"primary_ases"`
 }
 
-func (t tomlTRC) TRC() (TRC2, error) {
-	cfg := TRC2{
+func (t tomlTRC) TRC() (TRC, error) {
+	cfg := TRC{
 		Description:       t.Description,
 		Version:           t.Version,
 		BaseVersion:       t.BaseVersion,
@@ -170,14 +169,14 @@ func (t tomlTRC) TRC() (TRC2, error) {
 	for raw, primary := range t.PrimaryASes {
 		as, err := addr.ASFromString(raw)
 		if err != nil {
-			return TRC2{}, serrors.WrapStr("unable to parse AS number", err, "input", raw)
+			return TRC{}, serrors.WrapStr("unable to parse AS number", err, "input", raw)
 		}
 		cfg.PrimaryASes[as] = primary
 	}
 	return cfg, nil
 }
 
-func tomlTRCFromTRC(cfg TRC2) tomlTRC {
+func tomlTRCFromTRC(cfg TRC) tomlTRC {
 	t := tomlTRC{
 		Description:       cfg.Description,
 		Version:           cfg.Version,
