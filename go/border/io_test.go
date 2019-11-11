@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/overlay/conn/mock_conn"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
@@ -154,7 +155,7 @@ func newTestDst(t *testing.T) *overlay.OverlayAddr {
 }
 
 func newTestSock(r *Router, ringSize int, mconn conn.Conn) *rctx.Sock {
-	return rctx.NewSock(ringbuf.New(ringSize, nil, "loc_out"), mconn, 0, 12, "neigh_ia",
+	return rctx.NewSock(ringbuf.New(ringSize, nil, "loc_out"), mconn, 0, 12, prom.LabelNeighIA,
 		nil, r.posixOutput, PosixSock)
 }
 

@@ -91,7 +91,7 @@ type IfstateLabels struct {
 
 // Labels returns the list of labels.
 func (l IfstateLabels) Labels() []string {
-	return []string{"if_id", "neigh_as"}
+	return []string{"if_id", prom.LabelNeighIA}
 }
 
 // Values returns the label values in the order defined by Labels.
@@ -108,7 +108,7 @@ type IssuedLabels struct {
 
 // Labels returns the list of labels.
 func (l IssuedLabels) Labels() []string {
-	return []string{"if_id", "neigh_as", "state"}
+	return []string{"if_id", prom.LabelNeighIA, "state"}
 }
 
 // Values returns the label values in the order defined by Labels.
@@ -124,7 +124,7 @@ type DurationLabels struct {
 
 // Labels returns the list of labels.
 func (l DurationLabels) Labels() []string {
-	return []string{"if_id", "neigh_as"}
+	return []string{"if_id", prom.LabelNeighIA}
 }
 
 // Values returns the label values in the order defined by Labels.

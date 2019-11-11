@@ -34,6 +34,8 @@ const (
 	LabelSrc = "src"
 	// LabelDst is the label for the destination.
 	LabelDst = "dst"
+	// LabelNeighIA is label for the neighbouring IA.
+	LabelNeighIA = "neigh_ia"
 )
 
 // Common result values.

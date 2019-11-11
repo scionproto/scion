@@ -32,7 +32,7 @@ type BeaconingLabels struct {
 
 // Labels returns the name of the labels in correct order.
 func (l BeaconingLabels) Labels() []string {
-	return []string{"in_if_id", "neigh_as", prom.LabelResult}
+	return []string{"in_if_id", prom.LabelNeighIA, prom.LabelResult}
 }
 
 // Values returns the values of the label in correct order.
