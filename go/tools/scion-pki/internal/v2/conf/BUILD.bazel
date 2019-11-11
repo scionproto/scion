@@ -29,6 +29,7 @@ go_test(
         "as_test.go",
         "issuer_test.go",
         "key_test.go",
+        "main_test.go",
         "trc_test.go",
     ],
     data = ["//go/tools/scion-pki/internal/v2/conf/testdata:data"],
