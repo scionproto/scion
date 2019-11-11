@@ -264,6 +264,25 @@ go_repository(
     name = "com_github_lucas_clemente_quic_go",
     commit = "fd7246d7ed6eeb79eb4dc8b7b1bfa8a13047105a",
     importpath = "github.com/lucas-clemente/quic-go",
+    build_extra_args = ["-exclude=vendor"]
+)
+
+go_repository(
+    name = "com_github_marten_seemann_qtls",
+    commit = "591c71538704125b0b189f4cd3c0e61485dd6ef7", # vendored in quic-go, fd7246
+    importpath = "github.com/marten-seemann/qtls"
+)
+
+go_repository(
+    name = "com_github_cloudflare_sidh",
+    commit = "fc8e6378752b38efe6d5814630911b5fc654c223", # vendored in quic-go, fd7246
+    importpath = "github.com/cloudflare/sidh"
+)
+
+go_repository(
+    name = "com_github_cheekybits_genny",
+    commit = "9127e812e1e9e501ce899a18121d316ecb52e4ba", # vendored in quic-go, fd7246
+    importpath = "github.com/cheekybits/genny",
 )
 
 go_repository(
