@@ -59,7 +59,7 @@ import (
 type TopoHandler func(topo *topology.Topo) (bool, error)
 
 func staticSetter(topo *topology.Topo) (bool, error) {
-	_, updated, err := itopo.SetStatic(topo, false)
+	_, updated, err := itopo.SetStatic(itopo.NewTopologyFromRaw(topo), false)
 	return updated, err
 }
 

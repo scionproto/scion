@@ -42,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -190,7 +189,7 @@ func setupSignals(reloadF func()) {
 }
 
 func ReloadTopology(topologyPath string) {
-	topo, err := topology.LoadFromFile(topologyPath)
+	topo, err := itopo.LoadFromFile(topologyPath)
 	if err != nil {
 		log.Error("Unable to reload topology", "err", err)
 		return

@@ -60,7 +60,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -551,7 +550,7 @@ func setup() error {
 	}
 	clbks := itopo.Callbacks{UpdateStatic: handleTopoUpdate}
 	itopo.Init(cfg.General.ID, proto.ServiceType_bs, clbks)
-	topo, err := topology.LoadFromFile(cfg.General.Topology)
+	topo, err := itopo.LoadFromFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
