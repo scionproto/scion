@@ -26,25 +26,30 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf/testdata"
 )
 
-func TestAS(t *testing.T) {
-	var buf bytes.Buffer
-	err := testdata.GoldenAS.Encode(&buf)
+func TestASEncode(t *testing.T) {
+	rawGolden, err := ioutil.ReadFile("testdata/as-v1.toml")
 	require.NoError(t, err)
 
+	var buf bytes.Buffer
+	err = testdata.GoldenAS.Encode(&buf)
+	require.NoError(t, err)
+	assert.Equal(t, rawGolden, buf.Bytes())
+}
+
+func TestLoadAS(t *testing.T) {
+	cfg, err := conf.LoadAS("testdata/as-v1.toml")
+	require.NoError(t, err)
+	assert.Equal(t, testdata.GoldenAS, cfg)
+}
+
+// TestUpdateGoldenAS provides an easy way to update the golden file after
+// the format has changed.
+func TestUpdateGoldenAS(t *testing.T) {
 	if *update {
-		err := ioutil.WriteFile("testdata/as-v1.toml", buf.Bytes(), 0644)
+		var buf bytes.Buffer
+		err := testdata.GoldenAS.Encode(&buf)
+		require.NoError(t, err)
+		err = ioutil.WriteFile("testdata/as-v1.toml", buf.Bytes(), 0644)
 		require.NoError(t, err)
 	}
-
-	t.Run("loaded AS certificate config matches", func(t *testing.T) {
-		cfg, err := conf.LoadAS("testdata/as-v1.toml")
-		require.NoError(t, err)
-		assert.Equal(t, testdata.GoldenAS, cfg)
-	})
-
-	t.Run("encoded AS certificate config matches", func(t *testing.T) {
-		raw, err := ioutil.ReadFile("testdata/as-v1.toml")
-		require.NoError(t, err)
-		assert.Equal(t, raw, buf.Bytes())
-	})
 }
