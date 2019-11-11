@@ -86,7 +86,7 @@ func (l SentLabels) Values() []string {
 // IfstateLabels define the labels attached to interface state.
 type IfstateLabels struct {
 	IfID    common.IFIDType
-	NeighAS addr.IA
+	NeighIA addr.IA
 }
 
 // Labels returns the list of labels.
@@ -96,13 +96,13 @@ func (l IfstateLabels) Labels() []string {
 
 // Values returns the label values in the order defined by Labels.
 func (l IfstateLabels) Values() []string {
-	return []string{l.IfID.String(), l.NeighAS.String()}
+	return []string{l.IfID.String(), l.NeighIA.String()}
 }
 
 // IssuedLabels define the labels attached to revocation metrics.
 type IssuedLabels struct {
 	IfID    common.IFIDType
-	NeighAS addr.IA
+	NeighIA addr.IA
 	State   string
 }
 
@@ -113,13 +113,13 @@ func (l IssuedLabels) Labels() []string {
 
 // Values returns the label values in the order defined by Labels.
 func (l IssuedLabels) Values() []string {
-	return []string{l.IfID.String(), l.NeighAS.String(), l.State}
+	return []string{l.IfID.String(), l.NeighIA.String(), l.State}
 }
 
 // DurationLabels define the labels attached to duration metric.
 type DurationLabels struct {
 	IfID    common.IFIDType
-	NeighAS addr.IA
+	NeighIA addr.IA
 }
 
 // Labels returns the list of labels.
@@ -129,5 +129,5 @@ func (l DurationLabels) Labels() []string {
 
 // Values returns the label values in the order defined by Labels.
 func (l DurationLabels) Values() []string {
-	return []string{l.IfID.String(), l.NeighAS.String()}
+	return []string{l.IfID.String(), l.NeighIA.String()}
 }
