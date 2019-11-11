@@ -88,7 +88,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 		metrics.Beaconing.Received(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid, err
 	}
-	labels.InIfID, labels.NeighAS = ifid, as
+	labels.InIfID, labels.NeighIA = ifid, as
 	b, res, err := h.buildBeacon(ifid)
 	if err != nil {
 		metrics.Beaconing.Received(labels.WithResult(metrics.ErrParse)).Inc()
