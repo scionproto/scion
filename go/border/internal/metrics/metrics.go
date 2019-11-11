@@ -60,7 +60,7 @@ type IntfLabels struct {
 
 // Labels returns the list of labels.
 func (l IntfLabels) Labels() []string {
-	return []string{"intf", "neigh_ia"}
+	return []string{"intf", prom.LabelNeighIA}
 }
 
 // Values returns the label values in the order defined by Labels.
