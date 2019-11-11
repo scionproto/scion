@@ -18,159 +18,155 @@ import (
 	"net"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
+var (
+	public = &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
+	value  = "test value"
+	ia     = xtest.MustParseIA("1-ff00:0:1")
+)
+
 func TestIATable(t *testing.T) {
-	Convey("Given a table with one entry", t, func() {
+
+	t.Run("Given a table with one entry that is only public and no svc", func(t *testing.T) {
 		table := NewIATable(minPort, maxPort)
-		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
-		value := "test value"
-		ia := xtest.MustParseIA("1-ff00:0:1")
-		Convey("if the entry is only public", func() {
-			ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-			Convey("lookups for the same AS", func() {
-				Convey("work correctly for public", func() {
-					retValue, ok := table.LookupPublic(ia, public)
-					SoMsg("ok", ok, ShouldBeTrue)
-					SoMsg("value", retValue, ShouldEqual, value)
-				})
-				Convey("work correctly for SVC", func() {
-					retValues := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
-					So(retValues, ShouldBeEmpty)
-				})
-			})
-			Convey("lookups for a different AS", func() {
-				otherIA := xtest.MustParseIA("1-ff00:0:2")
-				Convey("work correctly for public", func() {
-					retValue, ok := table.LookupPublic(otherIA, public)
-					SoMsg("ok", ok, ShouldBeFalse)
-					SoMsg("value", retValue, ShouldBeNil)
-				})
-				Convey("work correctly for SVC", func() {
-					retValues := table.LookupService(otherIA, addr.SvcCS, net.IP{192, 0, 2, 1})
-					So(retValues, ShouldBeEmpty)
-				})
-			})
-			Convey("free", func() {
-				ref.Free()
-				Convey("double free panics", func() {
-					So(ref.Free, ShouldPanic)
-				})
-			})
+		ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
+		assert.NoError(t, err)
+		assert.NotNil(t, ref)
+		t.Run("lookups for the same AS", func(t *testing.T) {
+			retValue, ok := table.LookupPublic(ia, public)
+			assert.True(t, ok)
+			assert.Equal(t, retValue, value)
+			retValues := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
+			assert.Empty(t, retValues)
 		})
-		Convey("if the entry is public and svc", func() {
+
+		t.Run("lookups for a different AS", func(t *testing.T) {
+			otherIA := xtest.MustParseIA("1-ff00:0:2")
+			retValue, ok := table.LookupPublic(otherIA, public)
+			assert.False(t, ok)
+			assert.Nil(t, retValue)
+			retValues := table.LookupService(otherIA, addr.SvcCS, net.IP{192, 0, 2, 1})
+			assert.Empty(t, retValues)
+		})
+
+		t.Run("calling free twice panics", func(t *testing.T) {
+			ref.Free()
+			require.Panics(t, ref.Free)
+		})
+	})
+
+	t.Run("Given a table with one entry that is only public and svc", func(t *testing.T) {
+		table := NewIATable(minPort, maxPort)
+		t.Run("lookups for the same AS works", func(t *testing.T) {
 			ref, err := table.Register(ia, public, nil, addr.SvcCS, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-			Convey("lookups for the same AS", func() {
-				Convey("work correctly for public", func() {
-					retValue, ok := table.LookupPublic(ia, public)
-					SoMsg("ok", ok, ShouldBeTrue)
-					SoMsg("value", retValue, ShouldEqual, value)
-				})
-				Convey("work correctly for SVC", func() {
-					retValues := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
-					So(retValues, ShouldResemble, []interface{}{value})
-				})
-			})
+			assert.NoError(t, err)
+			assert.NotNil(t, ref)
+			retValue, ok := table.LookupPublic(ia, public)
+			assert.True(t, ok)
+			assert.Equal(t, retValue, value)
+			retValues := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
+			assert.Equal(t, retValues, []interface{}{value})
 		})
 	})
 }
 
 func TestIATableRegister(t *testing.T) {
-	Convey("Given an empty table", t, func() {
+	t.Log("Given an empty table")
+
+	t.Run("ISD zero is error", func(t *testing.T) {
 		table := NewIATable(minPort, maxPort)
-		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
-		value := "test value"
-		Convey("ISD zero is error", func() {
-			ref, err := table.Register(addr.IA{I: 0, A: 1}, public, nil, addr.SvcNone, value)
-			xtest.SoMsgErrorStr("err", err, ErrBadISD.Error())
-			SoMsg("ref", ref, ShouldBeNil)
+		ref, err := table.Register(addr.IA{I: 0, A: 1}, public, nil, addr.SvcNone, value)
+		assert.EqualError(t, err, ErrBadISD.Error())
+		assert.Nil(t, ref)
+	})
+
+	t.Run("AS zero is error", func(t *testing.T) {
+		table := NewIATable(minPort, maxPort)
+		ref, err := table.Register(addr.IA{I: 1, A: 0}, public, nil, addr.SvcNone, value)
+		assert.EqualError(t, err, ErrBadAS.Error())
+		assert.Nil(t, ref)
+	})
+
+	t.Run("for a good AS number", func(t *testing.T) {
+		ia := xtest.MustParseIA("1-ff00:0:1")
+		t.Run("already registered ports will cause error", func(t *testing.T) {
+			table := NewIATable(minPort, maxPort)
+			_, err := table.Register(ia, public, nil, addr.SvcNone, value)
+			xtest.FailOnErr(t, err)
+			ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
+			assert.Error(t, err)
+			assert.Nil(t, ref)
 		})
-		Convey("AS zero is error", func() {
-			ref, err := table.Register(addr.IA{I: 1, A: 0}, public, nil, addr.SvcNone, value)
-			xtest.SoMsgErrorStr("err", err, ErrBadAS.Error())
-			SoMsg("ref", ref, ShouldBeNil)
-		})
-		Convey("for a good AS number", func() {
-			ia := xtest.MustParseIA("1-ff00:0:1")
-			Convey("already registered ports will cause error", func() {
-				_, err := table.Register(ia, public, nil, addr.SvcNone, value)
-				xtest.FailOnErr(t, err)
-				ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
-				SoMsg("err", err, ShouldNotBeNil)
-				SoMsg("ref", ref, ShouldBeNil)
-			})
-			Convey("good ports will return success", func() {
-				ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("ref", ref, ShouldNotBeNil)
-			})
+
+		t.Run("good ports will return success", func(t *testing.T) {
+			table := NewIATable(minPort, maxPort)
+			ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
+			assert.NoError(t, err)
+			assert.NotNil(t, ref)
 		})
 	})
 }
 
 func TestIATableSCMPRegistration(t *testing.T) {
-	Convey("Given a reference to an IATable registration", t, func() {
-		table := NewIATable(minPort, maxPort)
-		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
-		value := "test value"
-		ia := xtest.MustParseIA("1-ff00:0:1")
-		ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
-		xtest.FailOnErr(t, err)
-		Convey("Performing SCMP lookup fails", func() {
-			value, ok := table.LookupID(ia, 42)
-			SoMsg("ok", ok, ShouldBeFalse)
-			SoMsg("value", value, ShouldBeNil)
-		})
-		Convey("Registering an SCMP ID on the reference succeeds", func() {
-			err := ref.RegisterID(42)
-			So(err, ShouldBeNil)
-		})
-	})
+	table := NewIATable(minPort, maxPort)
+
+	t.Log("Given a reference to an IATable registration")
+	ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
+	require.NoError(t, err)
+	v, ok := table.LookupID(ia, 42)
+	assert.False(t, ok, "Performing SCMP lookup fails")
+	assert.Nil(t, v)
+	err = ref.RegisterID(42)
+	assert.NoError(t, err, "Registering an SCMP ID on the reference succeeds")
 }
 
 func TestIATableSCMPExistingRegistration(t *testing.T) {
-	Convey("Given an existing SCMP General ID registration", t, func() {
+
+	t.Run("Registering a second SCMP ID on the same reference succeeds", func(t *testing.T) {
 		table := NewIATable(minPort, maxPort)
-		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
-		value := "test value"
-		ia := xtest.MustParseIA("1-ff00:0:1")
 		ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
+		t.Log("Given an existing SCMP General ID registration")
 		err = ref.RegisterID(42)
-		xtest.FailOnErr(t, err)
-		Convey("Performing an SCMP lookup succeeds", func() {
-			retValue, ok := table.LookupID(ia, 42)
-			SoMsg("ok", ok, ShouldBeTrue)
-			SoMsg("value", retValue, ShouldEqual, value)
-		})
-		Convey("Performing an SCMP lookup on a different IA fails", func() {
-			retValue, ok := table.LookupID(xtest.MustParseIA("1-ff00:0:2"), 42)
-			SoMsg("ok", ok, ShouldBeFalse)
-			SoMsg("value", retValue, ShouldBeNil)
-		})
-		Convey("Freeing the reference makes lookup fail", func() {
-			ref.Free()
-			value, ok := table.LookupID(ia, 42)
-			SoMsg("ok", ok, ShouldBeFalse)
-			SoMsg("value", value, ShouldBeNil)
-		})
-		Convey("Registering a second SCMP ID on the same reference succeeds", func() {
-			err := ref.RegisterID(43)
-			So(err, ShouldBeNil)
-			Convey("Freeing the reference makes lookup on first registered id fail", func() {
-				ref.Free()
-				value, ok := table.LookupID(ia, 42)
-				SoMsg("ok", ok, ShouldBeFalse)
-				SoMsg("value", value, ShouldBeNil)
-			})
-		})
+		require.NoError(t, err)
+
+		t.Log("Performing an SCMP lookup on the same IA succeeds")
+		retValue, ok := table.LookupID(ia, 42)
+		assert.True(t, ok)
+		assert.Equal(t, retValue, value)
+
+		t.Log("Performing an SCMP lookup on a different IA fails")
+		retValue, ok = table.LookupID(xtest.MustParseIA("1-ff00:0:2"), 42)
+		assert.False(t, ok)
+		assert.Nil(t, retValue)
+
+		t.Log("Freeing the reference makes lookup fail")
+		ref.Free()
+		retValue, ok = table.LookupID(ia, 42)
+		assert.False(t, ok)
+		assert.Nil(t, retValue)
+	})
+
+	t.Run("Registering a second SCMP ID on the same reference succeeds", func(t *testing.T) {
+		table := NewIATable(minPort, maxPort)
+		ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
+		require.NoError(t, err)
+		t.Log("Given an existing SCMP General ID registration")
+		err = ref.RegisterID(42)
+		require.NoError(t, err)
+		err = ref.RegisterID(43)
+		assert.NoError(t, err)
+
+		t.Log("Freeing the reference makes lookup on first registered id fail")
+		ref.Free()
+		retValue, ok := table.LookupID(ia, 42)
+		assert.False(t, ok)
+		assert.Nil(t, retValue)
 	})
 }
