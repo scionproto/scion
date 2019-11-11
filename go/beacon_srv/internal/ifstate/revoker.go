@@ -87,12 +87,12 @@ func (r *Revoker) Run(ctx context.Context) {
 	for ifid, intf := range r.cfg.Intfs.All() {
 		labelsIssued := metrics.IssuedLabels{
 			IfID:    ifid,
-			NeighAS: intf.TopoInfo().ISD_AS,
+			NeighIA: intf.TopoInfo().ISD_AS,
 			State:   metrics.RevRenew,
 		}
 		labelsDuration := metrics.DurationLabels{
 			IfID:    ifid,
-			NeighAS: intf.TopoInfo().ISD_AS,
+			NeighIA: intf.TopoInfo().ISD_AS,
 		}
 
 		if intf.Expire() && !r.hasValidRevocation(intf) {

@@ -26,7 +26,7 @@ import (
 // values to prometheus metric types (e.g. counter).
 type BeaconingLabels struct {
 	InIfID  common.IFIDType
-	NeighAS addr.IA
+	NeighIA addr.IA
 	Result  string
 }
 
@@ -37,7 +37,7 @@ func (l BeaconingLabels) Labels() []string {
 
 // Values returns the values of the label in correct order.
 func (l BeaconingLabels) Values() []string {
-	return []string{l.InIfID.String(), l.NeighAS.String(), l.Result}
+	return []string{l.InIfID.String(), l.NeighIA.String(), l.Result}
 }
 
 // WithResult returns the label set with the modfied result.
