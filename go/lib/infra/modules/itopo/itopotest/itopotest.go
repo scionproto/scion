@@ -34,7 +34,7 @@ func TopoProviderFromFile(t *testing.T, fName string) *TestTopoProvider {
 	t.Helper()
 	topo, err := itopo.LoadFromFile(fName)
 	require.NoError(t, err)
-	return &TestTopoProvider{Topo: topo}
+	return &TestTopoProvider{Topo: topo.Raw()}
 }
 
 // Get returns the stored topology.

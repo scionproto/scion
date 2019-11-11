@@ -165,5 +165,5 @@ func mustLoadPool(t *testing.T) *Pool {
 func mustLoadSvcInfo(t *testing.T) topology.IDAddrMap {
 	topo, err := itopo.LoadFromFile("testdata/topology.json")
 	xtest.FailOnErr(t, err)
-	return topo.DS
+	return topo.DS()
 }
