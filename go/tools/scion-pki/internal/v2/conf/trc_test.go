@@ -18,43 +18,140 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf/testdata"
 )
 
-func TestTRC(t *testing.T) {
-	var v1, v2 bytes.Buffer
-	err := testdata.GoldenTRCv1.Encode(&v1)
-	require.NoError(t, err)
-	err = testdata.GoldenTRCv2.Encode(&v2)
-	require.NoError(t, err)
-
-	if *update {
-		err = ioutil.WriteFile("testdata/trc-v1.toml", v1.Bytes(), 0644)
-		require.NoError(t, err)
-		err = ioutil.WriteFile("testdata/trc-v2.toml", v2.Bytes(), 0644)
-		require.NoError(t, err)
+func TestTRCEncode(t *testing.T) {
+	tests := map[string]struct {
+		File   string
+		Config conf.TRC2
+	}{
+		"v1": {
+			File:   "testdata/trc-v1.toml",
+			Config: TRCv1(),
+		},
+		"v2": {
+			File:   "testdata/trc-v2.toml",
+			Config: TRCv2(),
+		},
 	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			rawGolden, err := ioutil.ReadFile(test.File)
+			require.NoError(t, err)
 
-	t.Run("loaded TRC configs match", func(t *testing.T) {
-		parsed, err := conf.LoadTRC("testdata/trc-v1.toml")
-		require.NoError(t, err)
-		assert.Equal(t, testdata.GoldenTRCv1, parsed)
-		parsed, err = conf.LoadTRC("testdata/trc-v2.toml")
-		require.NoError(t, err)
-		assert.Equal(t, testdata.GoldenTRCv2, parsed)
-	})
+			var buf bytes.Buffer
+			err = test.Config.Encode(&buf)
+			require.NoError(t, err)
+			assert.Equal(t, rawGolden, buf.Bytes())
+		})
+	}
+}
 
-	t.Run("encoded TRC configs match", func(t *testing.T) {
-		raw, err := ioutil.ReadFile("testdata/trc-v1.toml")
-		require.NoError(t, err)
-		assert.Equal(t, raw, v1.Bytes())
-		raw, err = ioutil.ReadFile("testdata/trc-v2.toml")
-		require.NoError(t, err)
-		assert.Equal(t, raw, v2.Bytes())
-	})
+func TestLoadTRC(t *testing.T) {
+	tests := map[string]struct {
+		File   string
+		Config conf.TRC2
+	}{
+		"v1": {
+			File:   "testdata/trc-v1.toml",
+			Config: TRCv1(),
+		},
+		"v2": {
+			File:   "testdata/trc-v2.toml",
+			Config: TRCv2(),
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			cfg, err := conf.LoadTRC(test.File)
+			require.NoError(t, err)
+			assert.Equal(t, test.Config, cfg)
+		})
+	}
+}
+
+// TestUpdateGoldenTRC provides an easy way to update the golden file after
+// the format has changed.
+func TestUpdateGoldenTRC(t *testing.T) {
+	if *update {
+		cfgs := map[string]conf.TRC2{
+			"testdata/trc-v1.toml": TRCv1(),
+			"testdata/trc-v2.toml": TRCv2(),
+		}
+		for file, cfg := range cfgs {
+			var buf bytes.Buffer
+			err := cfg.Encode(&buf)
+			require.NoError(t, err)
+			err = ioutil.WriteFile(file, buf.Bytes(), 0644)
+			require.NoError(t, err)
+		}
+	}
+}
+
+// TRCv1 generates a TRC configuration for testing.
+func TRCv1() conf.TRC2 {
+	t := true
+	v1 := scrypto.KeyVersion(1)
+	return conf.TRC2{
+		Description:       "Testing TRC",
+		Version:           1,
+		BaseVersion:       1,
+		VotingQuorum:      1,
+		GracePeriod:       util.DurWrap{},
+		TrustResetAllowed: &t,
+		Votes:             []addr.AS{},
+		Validity: conf.Validity{
+			NotBefore: 42424242,
+			Validity:  util.DurWrap{Duration: 5 * 24 * time.Hour},
+		},
+		PrimaryASes: map[addr.AS]conf.Primary{
+			xtest.MustParseAS("ff00:0:110"): {
+				Attributes: []trc.Attribute{trc.Authoritative, trc.Core,
+					trc.Issuing, trc.Voting},
+				IssuingKeyVersion:       &v1,
+				VotingOnlineKeyVersion:  &v1,
+				VotingOfflineKeyVersion: &v1,
+			},
+		},
+	}
+}
+
+// TRCv2 generates a TRC configuration for testing.
+func TRCv2() conf.TRC2 {
+	t := true
+	v1 := scrypto.KeyVersion(1)
+	v2 := scrypto.KeyVersion(2)
+	return conf.TRC2{
+		Description:       "Testing TRC",
+		Version:           2,
+		BaseVersion:       1,
+		VotingQuorum:      1,
+		GracePeriod:       util.DurWrap{Duration: time.Hour},
+		TrustResetAllowed: &t,
+		Votes:             []addr.AS{xtest.MustParseAS("ff00:0:110")},
+		Validity: conf.Validity{
+			NotBefore: 42424248,
+			Validity:  util.DurWrap{Duration: 5 * 24 * time.Hour},
+		},
+		PrimaryASes: map[addr.AS]conf.Primary{
+			xtest.MustParseAS("ff00:0:110"): {
+				Attributes: []trc.Attribute{trc.Authoritative, trc.Core,
+					trc.Issuing, trc.Voting},
+				IssuingKeyVersion:       &v1,
+				VotingOnlineKeyVersion:  &v2,
+				VotingOfflineKeyVersion: &v1,
+			},
+		},
+	}
 }

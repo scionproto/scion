@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf/testdata"
 )
 
 func TestPubGenRun(t *testing.T) {
@@ -41,7 +40,7 @@ func TestPubGenRun(t *testing.T) {
 	defer cleanF()
 
 	var buf bytes.Buffer
-	err := testdata.Keys(0).Encode(&buf)
+	err := Keys().Encode(&buf)
 	require.NoError(t, err)
 	file := conf.KeysFile(tmpDir, ia110)
 	err = os.MkdirAll(filepath.Dir(file), 0755)

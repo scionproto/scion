@@ -29,10 +29,12 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
+	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf/testdata"
 )
 
 var ia110 = xtest.MustParseIA("1-ff00:0:110")
@@ -43,7 +45,7 @@ func TestPrivGenRun(t *testing.T) {
 
 	// Write keys config.
 	var buf bytes.Buffer
-	err := testdata.Keys(0).Encode(&buf)
+	err := Keys().Encode(&buf)
 	require.NoError(t, err)
 	file := conf.KeysFile(tmpDir, ia110)
 	err = os.MkdirAll(filepath.Dir(file), 0755)
@@ -138,5 +140,51 @@ func TestPrivGenRun(t *testing.T) {
 				float64(10*time.Second))
 		})
 	}
+}
 
+// Keys generates a key configuration for testing.
+func Keys() conf.Keys {
+	return conf.Keys{
+		Primary: map[trc.KeyType]map[scrypto.KeyVersion]conf.KeyMeta{
+			trc.IssuingKey: {
+				1: keyMeta(scrypto.Ed25519, 42424242, 365*24*time.Hour),
+			},
+			trc.OfflineKey: {
+				1: keyMeta(scrypto.Ed25519, 42424242, 365*24*time.Hour),
+			},
+			trc.OnlineKey: {
+				1: keyMeta(scrypto.Ed25519, 42424242, 365*24*time.Hour),
+				2: keyMeta(scrypto.Ed25519, 42424242, 365*24*time.Hour),
+			},
+		},
+		Issuer: map[cert.KeyType]map[scrypto.KeyVersion]conf.KeyMeta{
+			cert.IssuingKey: {
+				1: keyMeta(scrypto.Ed25519, 42424242, 180*24*time.Hour),
+			},
+			cert.RevocationKey: {
+				2: keyMeta(scrypto.Ed25519, 42424242, 180*24*time.Hour),
+			},
+		},
+		AS: map[cert.KeyType]map[scrypto.KeyVersion]conf.KeyMeta{
+			cert.EncryptionKey: {
+				1: keyMeta(scrypto.Curve25519xSalsa20Poly1305, 42424242, 90*24*time.Hour),
+			},
+			cert.RevocationKey: {
+				2: keyMeta(scrypto.Ed25519, 42424242, 90*24*time.Hour),
+			},
+			cert.SigningKey: {
+				3: keyMeta(scrypto.Ed25519, 42424242, 90*24*time.Hour),
+			},
+		},
+	}
+}
+
+func keyMeta(algo string, notBefore uint32, validity time.Duration) conf.KeyMeta {
+	return conf.KeyMeta{
+		Algorithm: algo,
+		Validity: conf.Validity{
+			NotBefore: notBefore,
+			Validity:  util.DurWrap{Duration: validity},
+		},
+	}
 }
