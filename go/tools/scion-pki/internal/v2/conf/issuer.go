@@ -68,19 +68,18 @@ func (cfg Issuer) Encode(w io.Writer) error {
 
 // Validate checks all values are set.
 func (cfg Issuer) Validate() error {
-	var errs serrors.List
 	switch {
 	case cfg.Description == "":
-		errs = append(errs, serrors.New("description not set"))
+		return serrors.New("description not set")
 	case cfg.Version == scrypto.LatestVer:
-		errs = append(errs, serrors.New("version not set"))
+		return serrors.New("version not set")
 	case cfg.IssuingKeyVersion == nil:
-		errs = append(errs, serrors.New("issuing_key_version not set"))
+		return serrors.New("issuing_key_version not set")
 	case cfg.TRCVersion == scrypto.LatestVer:
-		errs = append(errs, serrors.New("trc_version not set"))
+		return serrors.New("trc_version not set")
 	}
 	if err := cfg.Validity.Validate(); err != nil {
-		errs = append(errs, serrors.WrapStr("invalid validity", err))
+		return serrors.WrapStr("invalid validity", err)
 	}
-	return errs.ToError()
+	return nil
 }
