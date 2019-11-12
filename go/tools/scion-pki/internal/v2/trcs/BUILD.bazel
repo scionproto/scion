@@ -7,6 +7,7 @@ go_library(
         "human.go",
         "loader.go",
         "prototype.go",
+        "sign.go",
         "util.go",
     ],
     importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/trcs",
@@ -28,7 +29,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["prototype_test.go"],
+    srcs = [
+        "prototype_test.go",
+        "sign_test.go",
+    ],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [

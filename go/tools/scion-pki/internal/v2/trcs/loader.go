@@ -15,12 +15,14 @@
 package trcs
 
 import (
+	"io/ioutil"
 	"path/filepath"
 	"regexp"
 	"strconv"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
@@ -78,4 +80,21 @@ func (l loader) findMaxVersion(files []string) (scrypto.Version, error) {
 		}
 	}
 	return scrypto.Version(max), nil
+}
+
+func (l loader) LoadProtos(cfgs map[addr.ISD]conf.TRC2) (map[addr.ISD]signedMeta, error) {
+	protos := make(map[addr.ISD]signedMeta)
+	for isd, cfg := range cfgs {
+		file := ProtoFile(l.Dirs.Out, isd, cfg.Version)
+		raw, err := ioutil.ReadFile(file)
+		if err != nil {
+			return nil, serrors.WrapStr("unable to read prototype TRC", err, "file", file)
+		}
+		signed, err := trc.ParseSigned(raw)
+		if err != nil {
+			return nil, serrors.WrapStr("unable to parse prototype TRC", err, "file", file)
+		}
+		protos[isd] = signedMeta{Signed: signed, Version: cfg.Version}
+	}
+	return protos, nil
 }

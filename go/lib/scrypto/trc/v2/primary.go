@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -285,13 +286,27 @@ func (t *KeyType) UnmarshalText(b []byte) error {
 // must be a value receiver in order for KeyType fields in a struct to marshal
 // correctly.
 func (t KeyType) MarshalText() ([]byte, error) {
-	switch t {
-	case OnlineKey:
-		return []byte(OnlineKeyJSON), nil
-	case OfflineKey:
-		return []byte(OfflineKeyJSON), nil
-	case IssuingKey:
-		return []byte(IssuingKeyJSON), nil
+	if s, ok := t.string(); ok {
+		return []byte(s), nil
 	}
 	return nil, common.NewBasicError(ErrInvalidKeyType, nil, "key_type", int(t))
+}
+
+func (t KeyType) String() string {
+	if s, ok := t.string(); ok {
+		return s
+	}
+	return fmt.Sprintf("UNKNOWN (%d)", t)
+}
+
+func (t KeyType) string() (string, bool) {
+	switch t {
+	case OnlineKey:
+		return OnlineKeyJSON, true
+	case OfflineKey:
+		return OfflineKeyJSON, true
+	case IssuingKey:
+		return IssuingKeyJSON, true
+	}
+	return "", false
 }
