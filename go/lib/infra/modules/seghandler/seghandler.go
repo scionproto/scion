@@ -28,10 +28,10 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// errors for metrics classification.
+// Errors
 var (
-	errRevVerification = serrors.New("error verifying revocation")
-	errSegVerification = serrors.New("error verifying segment")
+	ErrVerification = serrors.New("all segments failed to verify")
+	ErrDB           = serrors.New("database error")
 )
 
 // Segments is a list of segments and revocations belonging to them.
@@ -79,12 +79,12 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 	units int, hpGroupID hiddenpath.GroupId) {
 
 	verifiedUnits := make([]segverifier.UnitResult, 0, units)
-	var allVerifyErrs []error
+	var allVerifyErrs serrors.List
 	defer close(result.full)
 	defer func() {
 		if earlyTrigger != nil {
 			// Unblock channel if done before triggered
-			result.early <- result.stats.SegDB.Total()
+			result.early <- result.stats.segDB.Total()
 		}
 	}()
 	for u := 0; u < units; u++ {
@@ -96,14 +96,15 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 			u--
 			verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
 			allVerifyErrs = append(allVerifyErrs, verifyErrs...)
-			result.early <- result.stats.SegDB.Total()
-			// TODO(lukedirtwalker): log early store failure
+			result.early <- result.stats.segDB.Total()
 			if err == nil {
 				// clear already processed units
 				verifiedUnits = verifiedUnits[:0]
 			} else {
 				// reset stats
 				result.stats = Stats{}
+				log.FromCtx(ctx).Warn("Storing on early trigger failed, continue processing",
+					"err", err)
 			}
 			// Make sure we do not select from this channel again
 			earlyTrigger = nil
@@ -112,7 +113,13 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 	verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
 	result.verifyErrs = append(allVerifyErrs, verifyErrs...)
 	result.stats.verificationErrs(result.verifyErrs)
-	result.err = err
+	if err == nil && result.stats.SegVerifyErrors() == units {
+		result.err = serrors.Wrap(ErrVerification, result.verifyErrs.ToError())
+		return
+	}
+	if err != nil {
+		result.err = serrors.Wrap(ErrDB, err)
+	}
 }
 
 func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.UnitResult,
@@ -123,8 +130,7 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 	var revs []*path_mgmt.SignedRevInfo
 	for _, unit := range verifiedUnits {
 		if err := unit.SegError(); err != nil {
-			verifyErrs = append(verifyErrs, serrors.Wrap(errSegVerification, err,
-				"seg", unit.Unit.SegMeta.Segment))
+			verifyErrs = append(verifyErrs, err)
 		} else {
 			segs = append(segs, &SegWithHP{
 				Seg:     unit.Unit.SegMeta,
@@ -137,7 +143,7 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 		}
 		for idx, rev := range unit.Unit.SRevInfos {
 			if err, ok := unit.Errors[idx]; ok {
-				verifyErrs = append(verifyErrs, serrors.Wrap(errRevVerification, err, "rev", rev))
+				verifyErrs = append(verifyErrs, err)
 			} else {
 				revs = append(revs, rev)
 				stats.VerifiedRevs = append(stats.VerifiedRevs, rev)

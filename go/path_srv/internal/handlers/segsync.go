@@ -107,10 +107,13 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
+	if len(res.VerificationErrors()) > 0 {
+		log.FromCtx(ctx).Warn("[syncHandler] Error during verification of segments/revocations",
+			"errors", res.VerificationErrors().ToError())
+	}
 	metrics.Sync.RegistrationSuccess(labels,
-		len(res.Stats().SegDB.InsertedSegs),
-		len(res.Stats().SegDB.UpdatedSegs),
-	)
+		res.Stats().SegsInserted(),
+		res.Stats().SegsUpdated())
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
 }
