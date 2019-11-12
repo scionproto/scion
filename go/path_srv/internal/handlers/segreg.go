@@ -112,6 +112,10 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid
 	}
+	if len(res.VerificationErrors()) > 0 {
+		log.FromCtx(ctx).Warn("[segRegHandler] Error during verification of segments/revocations",
+			"errors", res.VerificationErrors().ToError())
+	}
 	h.incMetrics(labels, res.Stats())
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk
@@ -119,9 +123,9 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 
 func (h *segRegHandler) incMetrics(labels metrics.RegistrationLabels, stats seghandler.Stats) {
 	labels.Result = metrics.OkRegistrationNew
-	metrics.Registrations.ResultsTotal(labels).Add(float64(len(stats.SegDB.InsertedSegs)))
+	metrics.Registrations.ResultsTotal(labels).Add(float64(stats.SegsInserted()))
 	labels.Result = metrics.OkRegiststrationUpdated
-	metrics.Registrations.ResultsTotal(labels).Add(float64(len(stats.SegDB.UpdatedSegs)))
+	metrics.Registrations.ResultsTotal(labels).Add(float64(stats.SegsUpdated()))
 }
 
 // classifySegs determines the type of segments that are registered. In the

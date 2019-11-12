@@ -12,5 +12,6 @@ go_library(
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/serrors:go_default_library",
     ],
 )

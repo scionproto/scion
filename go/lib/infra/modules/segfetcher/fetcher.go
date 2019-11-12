@@ -190,10 +190,12 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				r.Stats().RevDBErrs(), r.Stats().RevVerifyErrors())
 			if err := r.Err(); err != nil {
 				f.metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
-				return reqSet, serrors.Wrap(errDB, err)
+				return reqSet, err
 			}
-			// TODO(lukedirtwalker): should we return an error if verification
-			// of all segments failed?
+			if len(r.VerificationErrors()) > 0 {
+				log.FromCtx(ctx).Warn("Error during verification of segments/revocations",
+					"errors", r.VerificationErrors().ToError())
+			}
 			reqSet = updateRequestState(reqSet, reply.Req, Fetched)
 			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)

@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -118,6 +118,10 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 		logger.Error("[hpSegRegHandler] Failed to handle path segments", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid, nil
+	}
+	if len(res.VerificationErrors()) > 0 {
+		log.FromCtx(ctx).Warn("[hpSegRegHandler] Error during verification of segments/revocations",
+			"errors", res.VerificationErrors().ToError())
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")
 	return infra.MetricsResultOk, nil

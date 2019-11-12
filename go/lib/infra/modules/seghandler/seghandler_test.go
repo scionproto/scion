@@ -64,14 +64,15 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
 	assert.Zero(t, len(stats.VerifiedSegs))
-	assert.Zero(t, stats.SegDB.Total())
+	assert.Zero(t, stats.SegsUpdated())
+	assert.Zero(t, stats.SegsInserted())
 	assert.Empty(t, stats.VerifiedRevs)
 	assert.Empty(t, stats.StoredRevs)
 }
 
-// TestReplyHandlerErrors tests erros that happen during verification are
-// properly stored in the result struct.
-func TestReplyHandlerErrors(t *testing.T) {
+// TestHandleAllVerificationsFail tests erros that happen during verification
+// are properly stored in the result struct and that the result sets the Err.
+func TestHandleAllVerificationsFail(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
@@ -82,10 +83,10 @@ func TestReplyHandlerErrors(t *testing.T) {
 	verified := make(chan segverifier.UnitResult)
 
 	verifyErrs := []error{
-		serrors.New("test err 1"),
-		serrors.New("test err 2"),
-		serrors.New("test err 3"),
-		serrors.New("test err rev 1"),
+		serrors.WrapStr("test err 1", segverifier.ErrSegment),
+		serrors.WrapStr("test err 2", segverifier.ErrSegment),
+		serrors.WrapStr("test err 3", segverifier.ErrSegment),
+		serrors.WrapStr("test err rev 1", segverifier.ErrRevocation),
 	}
 	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
 	xtest.FailOnErr(t, err)
@@ -121,11 +122,12 @@ func TestReplyHandlerErrors(t *testing.T) {
 		Errors: map[int]error{-1: verifyErrs[2], 0: verifyErrs[3]},
 	}
 	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
-	assert.NoError(t, r.Err())
+	assert.Error(t, r.Err())
 	assert.Len(t, r.VerificationErrors(), len(verifyErrs))
 	stats := r.Stats()
 	assert.Zero(t, len(stats.VerifiedSegs))
-	assert.Zero(t, stats.SegDB.Total())
+	assert.Zero(t, stats.SegsUpdated())
+	assert.Zero(t, stats.SegsInserted())
 	assert.Empty(t, stats.VerifiedRevs)
 	assert.Empty(t, stats.StoredRevs)
 }
@@ -194,7 +196,8 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
 	assert.Equal(t, 3, len(stats.VerifiedSegs))
-	assert.Equal(t, 3, stats.SegDB.Total())
+	assert.Equal(t, 3, stats.SegsInserted())
+	assert.Zero(t, stats.SegsUpdated())
 	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
 	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
 	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
@@ -249,7 +252,8 @@ func TestReplyHandlerAllVerifiedInEarlyInterval(t *testing.T) {
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
 	assert.Equal(t, 2, len(stats.VerifiedSegs))
-	assert.Equal(t, 2, stats.SegDB.Total())
+	assert.Equal(t, 2, stats.SegsInserted())
+	assert.Zero(t, stats.SegsUpdated())
 	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
 	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
 	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
@@ -310,7 +314,8 @@ func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
 
 	stats := r.Stats()
 	assert.Equal(t, 2, len(stats.VerifiedSegs))
-	assert.Equal(t, 2, stats.SegDB.Total())
+	assert.Equal(t, 2, stats.SegsInserted())
+	assert.Zero(t, stats.SegsUpdated())
 	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
 	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
 	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
@@ -362,7 +367,8 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
 	assert.Equal(t, 2, len(stats.VerifiedSegs))
-	assert.Zero(t, stats.SegDB.Total())
+	assert.Zero(t, stats.SegsUpdated())
+	assert.Zero(t, stats.SegsInserted())
 	assert.Empty(t, stats.VerifiedRevs)
 	assert.Empty(t, stats.StoredRevs)
 }
