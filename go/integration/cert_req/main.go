@@ -64,7 +64,7 @@ type client struct {
 
 func (c client) run() int {
 	var err error
-	c.conn, err = snet.ListenSCION("udp4", &integration.Local)
+	c.conn, err = integration.Network.ListenSCION("udp4", &integration.Local, 0)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
@@ -179,7 +179,7 @@ func getRemote() error {
 }
 
 func getSVCAddress() (*hostinfo.Host, error) {
-	connector := snet.DefNetwork.Sciond()
+	connector := integration.Network.Sciond()
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
 	defer cancelF()
 	reply, err := connector.SVCInfo(ctx, []proto.ServiceType{proto.ServiceType_cs})

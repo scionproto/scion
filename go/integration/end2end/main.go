@@ -93,7 +93,7 @@ func (s server) run() {
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcherService(""),
 		SCMPHandler: snet.NewSCMPHandler(
-			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}),
+			pathmgr.New(integration.Network.Sciond(), pathmgr.Timers{}),
 		),
 	}
 	conn, port, err := connFactory.RegisterTimeout(integration.Local.IA, integration.Local.Host,
@@ -148,7 +148,7 @@ func (c client) run() int {
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcherService(""),
 		SCMPHandler: snet.NewSCMPHandler(
-			pathmgr.New(snet.DefNetwork.Sciond(), pathmgr.Timers{}),
+			pathmgr.New(integration.Network.Sciond(), pathmgr.Timers{}),
 		),
 	}
 
@@ -160,7 +160,7 @@ func (c client) run() int {
 	}
 	log.Debug("Send on", "local",
 		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.L3, c.port))
-	c.sdConn = snet.DefNetwork.Sciond()
+	c.sdConn = integration.Network.Sciond()
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
 
