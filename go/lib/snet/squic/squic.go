@@ -92,7 +92,7 @@ func sListen(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 	svc addr.HostSVC) (snet.Conn, error) {
 
 	if network == nil {
-		network = snet.DefNetwork
+		return nil, serrors.New("squic:  SCION network must not be nil")
 	}
 	return network.ListenSCIONWithBindSVC("udp4", laddr, baddr, svc, 0)
 }

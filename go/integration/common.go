@@ -43,7 +43,6 @@ var (
 func Setup() {
 	addFlags()
 	validateFlags()
-	initNetwork()
 }
 
 func addFlags() {
@@ -72,12 +71,14 @@ func validateFlags() {
 	}
 }
 
-func initNetwork() {
-	// Initialize default SCION networking context
-	if err := snet.Init(Local.IA, Sciond, reliable.NewDispatcherService("")); err != nil {
+func InitNetwork() *snet.SCIONNetwork {
+	ds := reliable.NewDispatcherService("")
+	n, err := snet.NewNetwork(Local.IA, Sciond, ds)
+	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")
+	return n
 }
 
 // AttemptFunc attempts a request repeatedly, receives the attempt number
