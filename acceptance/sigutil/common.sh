@@ -45,3 +45,8 @@ do_command() {
         *) print_help; exit 1 ;;
     esac
 }
+
+reload_sig() {
+    id="$(./tools/dc scion exec -T scion_sig_$1 pgrep -x sig)"
+    ./tools/dc scion exec -T scion_sig_"$1" kill -SIGHUP "$id"
+}
