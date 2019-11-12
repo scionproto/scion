@@ -56,24 +56,23 @@ const (
 )
 
 var (
-	local  snet.Addr
-	remote snet.Addr
-	file   = flag.String("file", "",
-		"File containing the data to send, optional to test larger data (only client)")
-	interactive = flag.Bool("i", false, "Interactive mode")
-	id          = flag.String("id", "pingpong", "Element ID")
-	mode        = flag.String("mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
-	sciond      = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher  = flag.String("dispatcher", "", "Path to dispatcher socket")
-	count       = flag.Int("count", 0,
+	local, remote snet.Addr
+	fileData      []byte
+	network       *snet.SCIONNetwork
+
+	count = flag.Int("count", 0,
 		fmt.Sprintf("Number of pings, between 0 and %d; a count of 0 means infinity", MaxPings))
-	timeout = flag.Duration("timeout", DefaultTimeout,
-		"Timeout for the ping response")
+	dispatcher = flag.String("dispatcher", "", "Path to dispatcher socket")
+	file       = flag.String("file", "",
+		"File containing the data to send, optional to test larger data (only client)")
+	id           = flag.String("id", "pingpong", "Element ID")
+	interactive  = flag.Bool("i", false, "Interactive mode")
 	interval     = flag.Duration("interval", DefaultInterval, "time between pings")
+	mode         = flag.String("mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
+	sciond       = flag.String("sciond", "", "Path to sciond socket")
+	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
+	timeout      = flag.Duration("timeout", DefaultTimeout, "Timeout for the ping response")
 	verbose      = flag.Bool("v", false, "sets verbose output")
-	sciondFromIA = flag.Bool("sciondFromIA", false,
-		"SCIOND socket path from IA address:ISD-AS")
-	fileData []byte
 )
 
 func init() {
@@ -151,10 +150,13 @@ func LogFatal(msg string, a ...interface{}) {
 }
 
 func initNetwork() {
-	// Initialize default SCION networking context
-	if err := snet.Init(local.IA, *sciond, reliable.NewDispatcherService(*dispatcher)); err != nil {
+	ds := reliable.NewDispatcherService(*dispatcher)
+	var err error
+	network, err = snet.NewNetwork(local.IA, *sciond, ds)
+	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
+
 	log.Debug("SCION network successfully initialized")
 	if err := squic.Init("", ""); err != nil {
 		LogFatal("Unable to initialize QUIC/SCION", "err", err)
@@ -237,7 +239,7 @@ func (c *client) run() {
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
 	var err error
-	c.qsess, err = squic.DialSCION(nil, &local, &remote, nil)
+	c.qsess, err = squic.DialSCION(network, &local, &remote, nil)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
@@ -347,7 +349,7 @@ type server struct {
 // On any error, the server exits.
 func (s server) run() {
 	// Listen on SCION address
-	qsock, err := squic.ListenSCION(nil, &local, nil)
+	qsock, err := squic.ListenSCION(network, &local, nil)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}
@@ -404,7 +406,7 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	var paths []*sd.PathReplyEntry
 	var pathIndex uint64
 
-	pathMgr := snet.DefNetwork.PathResolver()
+	pathMgr := network.PathResolver()
 	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sd.PathReqFlags{})
 
 	if len(pathSet) == 0 {

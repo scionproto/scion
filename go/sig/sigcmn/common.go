@@ -17,7 +17,6 @@ package sigcmn
 
 import (
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -40,32 +39,38 @@ var (
 )
 
 var (
-	IA        addr.IA
-	Host      addr.HostAddr
+	IA   addr.IA
+	Host addr.HostAddr
+
 	PathMgr   pathmgr.Resolver
+	Network   *snet.SCIONNetwork
 	CtrlConn  snet.Conn
 	MgmtAddr  *mgmt.Addr
 	encapPort uint16
 )
 
 func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
-	var err error
 	IA = cfg.IA
 	Host = addr.HostFromIP(cfg.IP)
 	MgmtAddr = mgmt.NewAddr(Host, cfg.CtrlPort, cfg.EncapPort)
 	encapPort = cfg.EncapPort
 
-	// Initialize SCION local networking module
-	err = initSNET(cfg, sdCfg)
+	ds := reliable.NewDispatcherService(cfg.Dispatcher)
+	network, err := snet.NewNetwork(cfg.IA, sdCfg.Path, ds)
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
-	PathMgr = snet.DefNetwork.PathResolver()
-	CtrlConn, err = snet.ListenSCIONWithBindSVC("udp4",
-		&snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: cfg.CtrlPort}}, nil, addr.SvcSIG)
+	conn, err := network.ListenSCIONWithBindSVC("udp4",
+		&snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: cfg.CtrlPort}},
+		nil, addr.SvcSIG, 0)
 	if err != nil {
 		return common.NewBasicError("Error creating ctrl socket", err)
 	}
+
+	CtrlConn = conn
+	Network = network
+	PathMgr = network.PathResolver()
+
 	return nil
 }
 
@@ -79,28 +84,4 @@ func ValidatePort(desc string, port int) error {
 			"min", 1, "max", MaxPort, "actual", port, "desc", desc)
 	}
 	return nil
-}
-
-// initSNET initializes snet. Tries in second interval until sdCfg.InitialConnectPeriod is up.
-// Copied from infraenv.initNetwork. Should be adapted once we have
-// https://github.com/scionproto/scion/issues/1974
-func initSNET(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
-	var err error
-	ticker := time.NewTicker(time.Second)
-	timer := time.NewTimer(sdCfg.InitialConnectPeriod.Duration)
-	defer ticker.Stop()
-	defer timer.Stop()
-Top:
-	for {
-		err = snet.Init(cfg.IA, sdCfg.Path, reliable.NewDispatcherService(cfg.Dispatcher))
-		if err == nil {
-			break
-		}
-		select {
-		case <-ticker.C:
-		case <-timer.C:
-			break Top
-		}
-	}
-	return err
 }
