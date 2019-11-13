@@ -96,8 +96,8 @@ func TestTopoGen(t *testing.T) {
 				t.Helper()
 				assert.Equal(t, algo, meta.Algorithm)
 				assert.Equal(t, g.Validity, meta.Validity)
-
 			}
+
 			checkMeta(t, cfg.AS[cert.SigningKey][1], scrypto.Ed25519)
 			checkMeta(t, cfg.AS[cert.RevocationKey][1], scrypto.Ed25519)
 			checkMeta(t, cfg.AS[cert.EncryptionKey][1], scrypto.Curve25519xSalsa20Poly1305)
