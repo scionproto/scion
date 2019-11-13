@@ -82,9 +82,9 @@ func TestSenderCreatePkt(t *testing.T) {
 	Convey("CreatePkt creates a correct packet", t, func() {
 		s := &Sender{
 			IA: xtest.MustParseIA("1-ff00:0:110"),
-			Addr: &addr.AppAddr{
-				L3: addr.HostFromIPStr("127.0.0.1"),
-				L4: 4242,
+			Addr: &net.UDPAddr{
+				IP:   net.ParseIP("127.0.0.1"),
+				Port: 4242,
 			},
 			MAC: createMac(t),
 		}
@@ -103,9 +103,9 @@ func TestSenderSend(t *testing.T) {
 		s := &Sender{
 			IA:   xtest.MustParseIA("1-ff00:0:110"),
 			Conn: conn,
-			Addr: &addr.AppAddr{
-				L3: addr.HostFromIPStr("127.0.0.1"),
-				L4: 4242,
+			Addr: &net.UDPAddr{
+				IP:   net.ParseIP("127.0.0.1"),
+				Port: 4242,
 			},
 			MAC: createMac(t),
 		}

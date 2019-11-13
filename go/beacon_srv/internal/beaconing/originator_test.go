@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -28,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -72,9 +72,9 @@ func TestOriginatorRun(t *testing.T) {
 				Sender: onehop.Sender{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
 					Conn: conn,
-					Addr: &addr.AppAddr{
-						L3: addr.HostFromIPStr("127.0.0.1"),
-						L4: 4242,
+					Addr: &net.UDPAddr{
+						IP:   net.ParseIP("127.0.0.1"),
+						Port: 4242,
 					},
 					MAC: mac,
 				},
@@ -126,9 +126,9 @@ func TestOriginatorRun(t *testing.T) {
 				Sender: onehop.Sender{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
 					Conn: conn,
-					Addr: &addr.AppAddr{
-						L3: addr.HostFromIPStr("127.0.0.1"),
-						L4: 4242,
+					Addr: &net.UDPAddr{
+						IP:   net.ParseIP("127.0.0.1"),
+						Port: 4242,
 					},
 					MAC: mac,
 				},
