@@ -151,6 +151,9 @@ func (i *IFStateInfoTaggedLayer) Update(lines []string) {
 		kvs := getKeyValueMap(kvStr)
 		i.RevInfo.updateFields(kvs)
 		i.SRevInfo = i.RevInfo.sign()
+	} else {
+		// If we are updating and the layer is not present, remove it.
+		i.SRevInfo = nil
 	}
 	infos := &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{&i.IFStateInfo}}
 	pmpld, err := path_mgmt.NewPld(infos, nil)
