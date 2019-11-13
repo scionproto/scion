@@ -29,52 +29,53 @@ import (
 )
 
 var (
-	ia110    = xtest.MustParseIA("1-ff00:0:110")
-	issASMap = pkicmn.ASMap{1: {ia110}}
+	ia111      = xtest.MustParseIA("1-ff00:0:111")
+	chainASMap = pkicmn.ASMap{1: {ia111}}
 )
 
-func TestIssuerGenRun(t *testing.T) {
-	tmpDir, cleanF := xtest.MustTempDir("", "test-certs-issuer")
+func TestChainGenRun(t *testing.T) {
+	tmpDir, cleanF := xtest.MustTempDir("", "test-certs-chain")
 	defer cleanF()
 
 	isdDir := filepath.Join(tmpDir, "ISD1")
 	require.NoError(t, os.MkdirAll(isdDir, 0777))
 	err := exec.Command("cp", "-r",
+		"./testdata/ISD1/ASff00_0_110",
 		"./testdata/ISD1/trcs",
 		"./testdata/ISD1/trc-v1.toml",
 		isdDir).Run()
 	require.NoError(t, err)
 
-	asDir := filepath.Join(isdDir, "ASff00_0_110")
+	asDir := filepath.Join(isdDir, "ASff00_0_111")
 	require.NoError(t, os.MkdirAll(asDir, 0777))
 	err = exec.Command("cp", "-r",
-		"./testdata/ISD1/ASff00_0_110/keys",
-		"./testdata/ISD1/ASff00_0_110/issuer-v1.toml",
+		"./testdata/ISD1/ASff00_0_111/keys",
+		"./testdata/ISD1/ASff00_0_111/as-v1.toml",
 		asDir).Run()
 	require.NoError(t, err)
 
-	g := issGen{
+	g := chainGen{
 		Dirs: pkicmn.Dirs{Root: "./testdata", Out: tmpDir},
 	}
-	err = g.Run(issASMap)
+	err = g.Run(chainASMap)
 	require.NoError(t, err)
 
-	golden, err := ioutil.ReadFile(IssuerFile("./testdata", ia110, 1))
+	golden, err := ioutil.ReadFile(ASFile("./testdata", ia111, 1))
 	require.NoError(t, err)
-	result, err := ioutil.ReadFile(IssuerFile(tmpDir, ia110, 1))
+	result, err := ioutil.ReadFile(ASFile(tmpDir, ia111, 1))
 	require.NoError(t, err)
 	assert.Equal(t, golden, result)
 }
 
-// TestUpdateGoldenIssuer provides an easy way to update the golden file after
+// TestUpdateGoldenChain provides an easy way to update the golden file after
 // the format has changed.
-func TestUpdateGoldenIssuer(t *testing.T) {
+func TestUpdateGoldenChain(t *testing.T) {
 	if *update {
 		force := pkicmn.Force
 		pkicmn.Force = true
 		defer func() { pkicmn.Force = force }()
-		g := issGen{Dirs: pkicmn.Dirs{Root: "./testdata", Out: "./testdata"}, Version: 1}
-		err := g.Run(issASMap)
+		g := chainGen{Dirs: pkicmn.Dirs{Root: "./testdata", Out: "./testdata"}, Version: 1}
+		err := g.Run(chainASMap)
 		require.NoError(t, err)
 	}
 }

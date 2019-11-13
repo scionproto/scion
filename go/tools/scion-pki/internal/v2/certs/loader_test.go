@@ -40,9 +40,32 @@ func TestLoaderLoadIssuerConfigs(t *testing.T) {
 				Dirs:    pkicmn.Dirs{Root: "./testdata", Out: "./testdata"},
 				Version: test.Version,
 			}
-			cfgs, err := l.LoadIssuerConfigs(testASMap)
+			cfgs, err := l.LoadIssuerConfigs(issASMap)
 			require.NoError(t, err)
 			assert.Equal(t, test.Expected, cfgs[ia110].Version)
+		})
+	}
+}
+
+func TestLoaderLoadASConfigs(t *testing.T) {
+	tests := map[string]struct {
+		Version  scrypto.Version
+		Expected scrypto.Version
+	}{
+		"v1":  {Version: 1, Expected: 1},
+		"max": {Version: 0, Expected: 1},
+	}
+	for name, test := range tests {
+		name, test := name, test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			l := loader{
+				Dirs:    pkicmn.Dirs{Root: "./testdata", Out: "./testdata"},
+				Version: test.Version,
+			}
+			cfgs, err := l.LoadASConfigs(chainASMap)
+			require.NoError(t, err)
+			assert.Equal(t, test.Expected, cfgs[ia111].Version)
 		})
 	}
 }
