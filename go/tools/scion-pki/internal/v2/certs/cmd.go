@@ -77,6 +77,27 @@ var genIssuerCmd = &cobra.Command{
 	},
 }
 
+var genChainCmd = &cobra.Command{
+	Use:   "chain",
+	Short: "Generate the certificate chain",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g := chainGen{
+			Dirs:    pkicmn.GetDirs(),
+			Version: scrypto.Version(version),
+		}
+		asMap, err := pkicmn.ProcessSelector(args[0])
+		if err != nil {
+			return serrors.WrapStr("unable to select target ISDs", err, "selector", args[0])
+		}
+		if err := g.Run(asMap); err != nil {
+			return serrors.WrapStr("unable to generate certificate chains", err)
+		}
+		return nil
+	},
+}
+
 func init() {
 	Cmd.AddCommand(genIssuerCmd)
+	Cmd.AddCommand(genChainCmd)
 }

@@ -37,16 +37,50 @@ func (v verifier) VerifyIssuer(raw []byte) error {
 	if err != nil {
 		return serrors.WrapStr("unable to parse signed issuer certificate", err)
 	}
+	if _, err = v.verifyIssuer(signed); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v verifier) VerifyChain(raw []byte) error {
+	chain, err := cert.ParseChain(raw)
+	if err != nil {
+		return serrors.WrapStr("unable to parse signed certificate chain", err)
+	}
+	issCert, err := v.verifyIssuer(chain.Issuer)
+	if err != nil {
+		return err
+	}
+	asCert, err := chain.AS.Encoded.Decode()
+	if err != nil {
+		return serrors.WrapStr("unable to parse AS certificate payload", err)
+	}
+	if err := asCert.Validate(); err != nil {
+		return serrors.WrapStr("unable to validate AS certificate", err)
+	}
+	asVer := cert.ASVerifier{
+		Issuer:   issCert,
+		AS:       asCert,
+		SignedAS: &chain.AS,
+	}
+	if err := asVer.Verify(); err != nil {
+		return serrors.WrapStr("unable to verify AS certificate", err)
+	}
+	return nil
+}
+
+func (v verifier) verifyIssuer(signed cert.SignedIssuer) (*cert.Issuer, error) {
 	c, err := signed.Encoded.Decode()
 	if err != nil {
-		return serrors.WrapStr("unable to parse issuer certificate payload", err)
+		return nil, serrors.WrapStr("unable to parse issuer certificate payload", err)
 	}
 	if err := c.Validate(); err != nil {
-		return serrors.WrapStr("unable to validate issuer certificate", err)
+		return nil, serrors.WrapStr("unable to validate issuer certificate", err)
 	}
 	t, err := v.loadTRC(c.Subject.I, c.Issuer.TRCVersion)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	issVer := cert.IssuerVerifier{
 		Issuer:       c,
@@ -54,9 +88,9 @@ func (v verifier) VerifyIssuer(raw []byte) error {
 		TRC:          t,
 	}
 	if err := issVer.Verify(); err != nil {
-		return serrors.WrapStr("unable to verify issuer certificate", err)
+		return nil, serrors.WrapStr("unable to verify issuer certificate", err)
 	}
-	return nil
+	return c, nil
 }
 
 func (v verifier) loadTRC(isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {

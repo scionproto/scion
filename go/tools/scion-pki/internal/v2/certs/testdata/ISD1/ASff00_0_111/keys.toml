@@ -1,0 +1,21 @@
+[as_cert]
+  [as_cert.signing]
+    [as_cert.signing.1]
+      algorithm = "ed25519"
+      [as_cert.signing.1.validity]
+          not_before = 1573033769
+          validity = "1y"
+
+  [as_cert.encryption]
+    [as_cert.encryption.2]
+      algorithm = "ed25519"
+      [as_cert.encryption.2.validity]
+          not_before = 1573033769
+          validity = "1y"
+
+  [as_cert.revocation]
+    [as_cert.revocation.2]
+      algorithm = "ed25519"
+      [as_cert.revocation.2.validity]
+          not_before = 1573033769
+          validity = "1y"
