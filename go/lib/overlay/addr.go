@@ -34,7 +34,7 @@ func NewOverlayAddr(l3 net.IP, l4 uint16) *OverlayAddr {
 }
 
 func (a *OverlayAddr) L3() addr.HostAddr {
-	return addr.HostFromIP(copyIP(a.l3))
+	return addr.HostFromIP(a.l3)
 }
 
 func (a *OverlayAddr) L4() uint16 {
