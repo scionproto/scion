@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -161,9 +160,9 @@ func TestPropagatorRun(t *testing.T) {
 					Sender: onehop.Sender{
 						IA:   topoProvider.Get().IA(),
 						Conn: conn,
-						Addr: &addr.AppAddr{
-							L3: addr.HostFromIPStr("127.0.0.1"),
-							L4: 4242,
+						Addr: &net.UDPAddr{
+							IP:   net.ParseIP("127.0.0.1"),
+							Port: 4242,
 						},
 						MAC: macSender,
 					},
@@ -233,9 +232,9 @@ func TestPropagatorRun(t *testing.T) {
 				Sender: onehop.Sender{
 					IA:   topoProvider.Get().IA(),
 					Conn: conn,
-					Addr: &addr.AppAddr{
-						L3: addr.HostFromIPStr("127.0.0.1"),
-						L4: 4242,
+					Addr: &net.UDPAddr{
+						IP:   net.ParseIP("127.0.0.1"),
+						Port: 4242,
 					},
 					MAC: macSender,
 				},

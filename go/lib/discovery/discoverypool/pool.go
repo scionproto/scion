@@ -16,6 +16,7 @@ package discoverypool
 
 import (
 	"math"
+	"net"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -53,10 +54,15 @@ func (p *Pool) Update(svcInfo topology.IDAddrMap) error {
 	defer p.mu.Unlock()
 	// Add missing DS servers.
 	for k, v := range svcInfo {
+		x := v.PublicAddr(v.Overlay)
+		y := &net.UDPAddr{
+			IP:   x.L3.IP(),
+			Port: int(x.L4),
+		}
 		if info, ok := p.m[k]; !ok {
-			p.m[k] = discoveryinfo.New(k, v.PublicAddr(v.Overlay))
+			p.m[k] = discoveryinfo.New(k, y)
 		} else {
-			info.Update(v.PublicAddr(v.Overlay))
+			info.Update(y)
 		}
 	}
 	// Get list of outdated DS servers.

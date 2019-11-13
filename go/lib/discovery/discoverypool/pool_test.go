@@ -28,17 +28,19 @@ import (
 
 type testInfo struct {
 	key  string
-	addr *addr.AppAddr
+	addr *net.UDPAddr
 }
 
 var ds = []testInfo{
-	{"ds1-ff00_0_111-1", &addr.AppAddr{
-		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-		L4: 30084},
+	{"ds1-ff00_0_111-1", &net.UDPAddr{
+		IP:   net.IPv4(127, 0, 0, 22),
+		Port: 30084,
 	},
-	{"ds1-ff00_0_111-2", &addr.AppAddr{
-		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 80)),
-		L4: 30085},
+	},
+	{"ds1-ff00_0_111-2", &net.UDPAddr{
+		IP:   net.IPv4(127, 0, 0, 80),
+		Port: 30085,
+	},
 	},
 }
 
@@ -46,8 +48,8 @@ func contains(pool *Pool, v testInfo) {
 	Convey("The pool contains "+v.key, func() {
 		info, ok := pool.m[v.key]
 		SoMsg("Not found", ok, ShouldBeTrue)
-		SoMsg("Ip", info.Addr().L3.IP(), ShouldResemble, v.addr.L3.IP())
-		SoMsg("Port", info.Addr().L4, ShouldEqual, v.addr.L4)
+		SoMsg("Ip", info.Addr().IP.Equal(v.addr.IP), ShouldBeTrue)
+		SoMsg("Port", info.Addr().Port, ShouldEqual, v.addr.Port)
 	})
 }
 
@@ -85,9 +87,9 @@ func TestPoolUpdate(t *testing.T) {
 			Convey("The pool should contain the updated info", func() {
 				contains(pool, testInfo{
 					key: ds[0].key,
-					addr: &addr.AppAddr{
-						L3: addr.HostFromIP(net.IPv4(127, 0, 0, 21)),
-						L4: svcInfo[ds[0].key].IPv4.PublicAddr().L4,
+					addr: &net.UDPAddr{
+						IP:   net.IPv4(127, 0, 0, 21),
+						Port: int(svcInfo[ds[0].key].IPv4.PublicAddr().L4),
 					},
 				})
 			})
@@ -101,9 +103,9 @@ func TestPoolUpdate(t *testing.T) {
 				}
 				contains(pool, testInfo{
 					key: "ds-new",
-					addr: &addr.AppAddr{
-						L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-						L4: 30084},
+					addr: &net.UDPAddr{
+						IP:   net.IPv4(127, 0, 0, 22),
+						Port: 30084},
 				})
 			})
 		})
