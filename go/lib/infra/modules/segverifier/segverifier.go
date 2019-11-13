@@ -39,6 +39,15 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
+)
+
+// Errors
+var (
+	// ErrRevocation indicates the revocation failed to verify.
+	ErrRevocation = serrors.New("revocation verification error")
+	// ErrSegment indicates the segment failed to verify.
+	ErrSegment = serrors.New("segment verification error")
 )
 
 const (
@@ -169,7 +178,7 @@ func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 			TRCVer:   asEntry.TrcVer,
 		})
 		if err := segment.VerifyASEntry(ctx, verifier, i); err != nil {
-			return common.NewBasicError("segverifier.VerifySegment", err, "segment", segment,
+			return serrors.Wrap(ErrSegment, err, "seg", segment,
 				"asEntry", asEntry, "sign", segment.RawASEntries[i].Sign)
 		}
 	}
@@ -190,6 +199,8 @@ func verifyRevInfo(ctx context.Context, verifier infra.Verifier, server net.Addr
 func VerifyRevInfo(ctx context.Context, verifier infra.Verifier, server net.Addr,
 	signedRevInfo *path_mgmt.SignedRevInfo) error {
 
-	_, err := signedRevInfo.VerifiedRevInfo(ctx, verifier.WithServer(server))
-	return err
+	if _, err := signedRevInfo.VerifiedRevInfo(ctx, verifier.WithServer(server)); err != nil {
+		return serrors.Wrap(ErrRevocation, err, "rev", signedRevInfo)
+	}
+	return nil
 }

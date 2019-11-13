@@ -18,12 +18,15 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Stats provides statistics about handling segments.
 type Stats struct {
-	// SegDB contains stats about segment insertions/updates.
-	SegDB SegStats
+	// segDB contains stats about segment insertions/updates.
+	segDB           SegStats
+	segVerifyErrors int
 	// VerifiedSegs contains all segments that were successfully verified.
 	VerifiedSegs []*SegWithHP
 	// StoredRevs contains all revocations that were verified and stored.
@@ -31,6 +34,21 @@ type Stats struct {
 	// VerifiedRevs contains all revocations that were verified.
 	VerifiedRevs []*path_mgmt.SignedRevInfo
 	revErrors    int
+}
+
+// SegsInserted returns the amount of inserted segments.
+func (s Stats) SegsInserted() int {
+	return len(s.segDB.InsertedSegs)
+}
+
+// SegsUpdated returns the amount of updated segments.
+func (s Stats) SegsUpdated() int {
+	return len(s.segDB.UpdatedSegs)
+}
+
+// SegVerifyErrors returns the amount of segment verification errors.
+func (s Stats) SegVerifyErrors() int {
+	return s.segVerifyErrors
 }
 
 // RevStored returns the amount of stored revocations.
@@ -49,14 +67,17 @@ func (s Stats) RevVerifyErrors() int {
 }
 
 func (s *Stats) addStoredSegs(segs SegStats) {
-	s.SegDB.InsertedSegs = append(s.SegDB.InsertedSegs, segs.InsertedSegs...)
-	s.SegDB.UpdatedSegs = append(s.SegDB.UpdatedSegs, segs.UpdatedSegs...)
+	s.segDB.InsertedSegs = append(s.segDB.InsertedSegs, segs.InsertedSegs...)
+	s.segDB.UpdatedSegs = append(s.segDB.UpdatedSegs, segs.UpdatedSegs...)
 }
 
 func (s *Stats) verificationErrs(errors []error) {
 	for _, err := range errors {
-		if xerrors.Is(err, errRevVerification) {
+		if xerrors.Is(err, segverifier.ErrRevocation) {
 			s.revErrors++
+		}
+		if xerrors.Is(err, segverifier.ErrSegment) {
+			s.segVerifyErrors++
 		}
 	}
 }
@@ -68,7 +89,7 @@ type ProcessedResult struct {
 	stats      Stats
 	revs       []*path_mgmt.SignedRevInfo
 	err        error
-	verifyErrs []error
+	verifyErrs serrors.List
 }
 
 // EarlyTriggerProcessed returns a channel that will contain the number of
@@ -95,6 +116,6 @@ func (r *ProcessedResult) Err() error {
 }
 
 // VerificationErrors returns the list of verification errors that happened.
-func (r *ProcessedResult) VerificationErrors() []error {
+func (r *ProcessedResult) VerificationErrors() serrors.List {
 	return r.verifyErrs
 }
