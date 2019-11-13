@@ -44,16 +44,10 @@ RUN sudo mkdir -p /scioncache;
 
 # Pip packages
 COPY env/pip3 env/pip3
-COPY env/pip2 env/pip2
 RUN set -ex; \
-    env/pip2/deps; \
     env/pip3/deps; \
     sudo tar czf /scioncache/python_local.tar.gz --owner=scion -C ~ .local; \
     rm -r ~/.cache/pip ~/.local
-
-# Pip2 packages
-COPY env/pip2 env/pip2
-RUN env/pip2/deps && rm -r ~/.cache/pip
 
 # Dependencies managed by Bazel.
 COPY WORKSPACE .
