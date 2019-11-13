@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
@@ -38,7 +37,7 @@ var (
 	ia120 = xtest.MustParseIA("1-ff00:0:120")
 	ia130 = xtest.MustParseIA("1-ff00:0:130")
 
-	testASMap = map[addr.ISD][]addr.IA{1: {ia110, ia120, ia130}}
+	testASMap = pkicmn.ASMap{1: {ia110, ia120, ia130}}
 )
 
 func TestProtoGen(t *testing.T) {
