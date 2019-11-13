@@ -165,27 +165,27 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 	if len(ifInfoRequest.IfIDs) == 0 {
 		// Reply with all the IFIDs we know
 		for _, ifid := range topo.InterfaceIDs() {
-			hostInfo, ok := topo.OverlayNextHop(ifid)
+			nextHop, ok := topo.OverlayNextHop(ifid)
 			if !ok {
 				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
 				continue
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: hostInfo,
+				HostInfo: hostinfo.FromUDPAddr(*nextHop),
 			})
 		}
 	} else {
 		// Reply with only the IFIDs the client requested
 		for _, ifid := range ifInfoRequest.IfIDs {
-			hostInfo, ok := topo.OverlayNextHop(ifid)
+			nextHop, ok := topo.OverlayNextHop(ifid)
 			if !ok {
 				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
 				continue
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: hostInfo,
+				HostInfo: hostinfo.FromUDPAddr(*nextHop),
 			})
 		}
 	}
@@ -218,8 +218,11 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	svcInfoReply := &sciond.ServiceInfoReply{}
 	topo := itopo.Get()
 	for _, t := range svcInfoRequest.ServiceTypes {
-		var hostInfos []hostinfo.Host
-		hostInfos = topo.MakeHostInfos(t)
+		svcHosts := topo.MakeHostInfos(t)
+		hostInfos := make([]hostinfo.Host, 0, len(svcHosts))
+		for _, a := range svcHosts {
+			hostInfos = append(hostInfos, hostinfo.FromUDPAddr(a))
+		}
 		replyEntry := sciond.ServiceInfoReplyEntry{
 			ServiceType: t,
 			Ttl:         DefaultServiceTTL,
