@@ -98,3 +98,27 @@ func (l loader) LoadProtos(cfgs map[addr.ISD]conf.TRC2) (map[addr.ISD]signedMeta
 	}
 	return protos, nil
 }
+
+func (l loader) LoadParts(protos map[addr.ISD]signedMeta) (map[addr.ISD]trcParts, error) {
+	all := make(map[addr.ISD]trcParts)
+	for isd, proto := range protos {
+		parts := make(trcParts)
+		fnames, err := filepath.Glob(AllPartsFiles(l.Dirs.Out, isd, proto.Version))
+		if err != nil {
+			return nil, serrors.WrapStr("unable to list all signed parts", err, "isd", isd)
+		}
+		for _, fname := range fnames {
+			raw, err := ioutil.ReadFile(fname)
+			if err != nil {
+				return nil, serrors.WrapStr("unable to read signed part", err, "file", fname)
+			}
+			signed, err := trc.ParseSigned(raw)
+			if err != nil {
+				return nil, serrors.WrapStr("unable to parse signed part", err, "file", fname)
+			}
+			parts[fname] = signed
+		}
+		all[isd] = parts
+	}
+	return all, nil
+}
