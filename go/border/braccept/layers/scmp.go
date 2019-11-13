@@ -108,6 +108,9 @@ func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 func (s *SCMP) String() string {
 	var str []string
 	str = append(str, fmt.Sprintf("%s", &s.Hdr))
+	if s.Pld == nil {
+		return strings.Join(str, " ")
+	}
 	if s.Meta != nil {
 		str = append(str, fmt.Sprintf("Meta={ %s }", s.Meta))
 	}
