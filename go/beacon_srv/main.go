@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"hash"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -291,6 +292,10 @@ func (t *periodicTasks) Start() error {
 	t.running = true
 	topo := t.topoProvider.Get()
 	topoAddress := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
+	bs := &net.UDPAddr{
+		IP:   topoAddress.L3.IP(),
+		Port: int(topoAddress.L4),
+	}
 	if topoAddress == nil {
 		return serrors.New("Unable to find topo address")
 	}
@@ -301,13 +306,13 @@ func (t *periodicTasks) Start() error {
 	if t.revoker, err = t.startRevoker(); err != nil {
 		return err
 	}
-	if t.keepalive, err = t.startKeepaliveSender(topoAddress); err != nil {
+	if t.keepalive, err = t.startKeepaliveSender(bs); err != nil {
 		return err
 	}
-	if t.originator, err = t.startOriginator(topoAddress); err != nil {
+	if t.originator, err = t.startOriginator(bs); err != nil {
 		return err
 	}
-	if t.propagator, err = t.startPropagator(topoAddress); err != nil {
+	if t.propagator, err = t.startPropagator(bs); err != nil {
 		return err
 	}
 
@@ -341,7 +346,7 @@ func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 		cfg.BS.ExpiredCheckInterval.Duration), nil
 }
 
-func (t *periodicTasks) startKeepaliveSender(a *addr.AppAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startKeepaliveSender(a *net.UDPAddr) (*periodic.Runner, error) {
 	s := &keepalive.Sender{
 		Sender: &onehop.Sender{
 			Conn: t.conn,
@@ -356,7 +361,7 @@ func (t *periodicTasks) startKeepaliveSender(a *addr.AppAddr) (*periodic.Runner,
 		cfg.BS.KeepaliveInterval.Duration), nil
 }
 
-func (t *periodicTasks) startOriginator(a *addr.AppAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startOriginator(a *net.UDPAddr) (*periodic.Runner, error) {
 	topo := t.topoProvider.Get()
 	if !topo.Core() {
 		return nil, nil
@@ -392,7 +397,7 @@ func (t *periodicTasks) startOriginator(a *addr.AppAddr) (*periodic.Runner, erro
 		cfg.BS.OriginationInterval.Duration), nil
 }
 
-func (t *periodicTasks) startPropagator(a *addr.AppAddr) (*periodic.Runner, error) {
+func (t *periodicTasks) startPropagator(a *net.UDPAddr) (*periodic.Runner, error) {
 	topo := t.topoProvider.Get()
 	signer, err := t.createSigner(topo.IA())
 	if err != nil {
