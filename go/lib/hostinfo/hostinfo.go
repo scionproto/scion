@@ -21,9 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // Host contains connectivity information for a host.
@@ -48,16 +46,21 @@ func FromHostAddr(host addr.HostAddr, port uint16) *Host {
 	return h
 }
 
-func FromTopoAddr(topoAddr topology.TopoAddr) Host {
-	ipv4, port4 := topoAddrToIPv4AndPort(topoAddr)
-	ipv6, port6 := topoAddrToIPv6AndPort(topoAddr)
-	return buildHostInfo(ipv4, ipv6, port4, port6)
-}
-
-func FromTopoBRAddr(topoBRAddr topology.TopoBRAddr) Host {
-	ipv4, port4 := topoBRAddrToIPv4AndPort(topoBRAddr)
-	ipv6, port6 := topoBRAddrToIPv6AndPort(topoBRAddr)
-	return buildHostInfo(ipv4, ipv6, port4, port6)
+func FromUDPAddr(addr net.UDPAddr) Host {
+	if addr.IP.To4() != nil {
+		return Host{
+			Addrs: Addrs{
+				IPv4: addr.IP,
+			},
+			Port: uint16(addr.Port),
+		}
+	}
+	return Host{
+		Addrs: Addrs{
+			IPv6: addr.IP,
+		},
+		Port: uint16(addr.Port),
+	}
 }
 
 func (h *Host) Host() addr.HostAddr {
@@ -66,6 +69,16 @@ func (h *Host) Host() addr.HostAddr {
 	}
 	if len(h.Addrs.IPv6) > 0 {
 		return addr.HostIPv6(h.Addrs.IPv6)
+	}
+	return nil
+}
+
+func (h *Host) UDP() *net.UDPAddr {
+	if len(h.Addrs.IPv4) > 0 {
+		return &net.UDPAddr{IP: h.Addrs.IPv4, Port: int(h.Port)}
+	}
+	if len(h.Addrs.IPv6) > 0 {
+		return &net.UDPAddr{IP: h.Addrs.IPv6, Port: int(h.Port)}
 	}
 	return nil
 }
@@ -89,59 +102,4 @@ func (h *Host) Copy() *Host {
 
 func (h *Host) String() string {
 	return fmt.Sprintf("[%v]:%d", h.Host(), h.Port)
-}
-
-func topoAddrToIPv4AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
-	var ip net.IP
-	var port uint16
-	if pubAddr := topoAddr.PublicAddr(overlay.IPv4); pubAddr != nil {
-		ip = pubAddr.L3.IP()
-		port = pubAddr.L4
-	}
-	return ip, port
-}
-
-func topoAddrToIPv6AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
-	if pubAddr := topoAddr.PublicAddr(overlay.IPv6); pubAddr != nil {
-		return pubAddr.L3.IP(), pubAddr.L4
-	}
-	return nil, 0
-}
-
-func topoBRAddrToIPv4AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
-	if topoBRAddr.IPv4 != nil {
-		if v4Addr := topoBRAddr.IPv4.PublicOverlay; v4Addr != nil {
-			return v4Addr.L3().IP(), v4Addr.L4()
-		}
-	}
-	return nil, 0
-}
-
-func topoBRAddrToIPv6AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
-	if topoBRAddr.IPv6 != nil {
-		if v6Addr := topoBRAddr.IPv6.PublicOverlay; v6Addr != nil {
-			return v6Addr.L3().IP(), v6Addr.L4()
-		}
-	}
-	return nil, 0
-}
-
-func buildHostInfo(ipv4, ipv6 net.IP, port4, port6 uint16) Host {
-	if port4 != 0 && port6 != 0 && port4 != port6 {
-		// NOTE: https://github.com/scionproto/scion/issues/1842 will change
-		// the behavior of this.
-		log.Warn("port mismatch", "port4", port4, "port6", port6)
-	}
-	// XXX This assumes that Ipv4 and IPv6 use the same port!
-	port := port4
-	if port == 0 {
-		port = port6
-	}
-	return Host{
-		Addrs: Addrs{
-			IPv4: ipv4,
-			IPv6: ipv6,
-		},
-		Port: port,
-	}
 }

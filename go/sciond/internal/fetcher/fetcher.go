@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
@@ -225,7 +226,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
 			// In-memory write should never fail
 			panic(err)
 		}
-		hostInfo, ok := f.topology.OverlayNextHop(path.Interfaces[0].IfID)
+		nextHop, ok := f.topology.OverlayNextHop(path.Interfaces[0].IfID)
 		if !ok {
 			f.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
 			continue
@@ -237,7 +238,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
 				Interfaces: path.Interfaces,
 				ExpTime:    uint32(path.ComputeExpTime().Unix()),
 			},
-			HostInfo: hostInfo,
+			HostInfo: hostinfo.FromUDPAddr(*nextHop),
 		})
 		if maxPaths != 0 && len(entries) == int(maxPaths) {
 			break
