@@ -50,7 +50,7 @@ func (g topoGen) Run(topo topoFile) error {
 	if err := g.genKeys(topo, trcs); err != nil {
 		return serrors.WrapStr("unable to generate key configs", err)
 	}
-	if err := g.genCerts(topo, trcs); err != nil {
+	if err := g.genCerts(topo); err != nil {
 		return serrors.WrapStr("unable to generate certificate configs", err)
 	}
 	pkicmn.QuietPrint("Generated all configuration files\n")
@@ -163,9 +163,81 @@ func (g topoGen) genASKeys(as addr.AS, cfg conf.TRC2) conf.Keys {
 	return keys
 }
 
-func (g topoGen) genCerts(topo topoFile, cfg map[addr.ISD]conf.TRC2) error {
-	// TODO(roosd): implement.
+func (g topoGen) genCerts(topo topoFile) error {
+	if err := g.genIssuerCerts(topo); err != nil {
+		return serrors.WrapStr("unable to generate issuer certificates", err)
+	}
+	if err := g.genASCerts(topo); err != nil {
+		return serrors.WrapStr("unable to generate AS certificates", err)
+	}
 	return nil
+}
+
+func (g topoGen) genIssuerCerts(topo topoFile) error {
+	for ia, entry := range topo.ASes {
+		if !entry.Core {
+			continue
+		}
+		cfg := g.genIssuerCert(ia)
+		var buf bytes.Buffer
+		if err := cfg.Encode(&buf); err != nil {
+			return serrors.WithCtx(err, "ia", ia)
+		}
+		file := conf.IssuerFile(g.Dirs.Root, ia, cfg.Version)
+		if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
+			return serrors.WrapStr("unable to write issuer config", err, "ia", ia, "file", file)
+		}
+	}
+	return nil
+}
+
+func (g topoGen) genIssuerCert(ia addr.IA) conf.Issuer {
+	issKey := scrypto.KeyVersion(1)
+	cfg := conf.Issuer{
+		Description:          fmt.Sprintf("Issuer certificate %s", ia),
+		Version:              1,
+		IssuingKeyVersion:    &issKey,
+		RevocationKeyVersion: nil,
+		TRCVersion:           1,
+		OptDistPoints:        []addr.IA{},
+		Validity:             g.Validity,
+	}
+	return cfg
+}
+
+func (g topoGen) genASCerts(topo topoFile) error {
+	for ia, entry := range topo.ASes {
+		issuer := entry.Issuer
+		if entry.Core {
+			issuer = ia
+		}
+		cfg := g.genASCert(ia, issuer)
+		var buf bytes.Buffer
+		if err := cfg.Encode(&buf); err != nil {
+			return serrors.WithCtx(err, "ia", ia)
+		}
+		file := conf.ASFile(g.Dirs.Root, ia, cfg.Version)
+		if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
+			return serrors.WrapStr("unable to write AS config", err, "ia", ia, "file", file)
+		}
+	}
+	return nil
+}
+
+func (g topoGen) genASCert(ia, issuer addr.IA) conf.AS {
+	sigKey, encKey, revKey := scrypto.KeyVersion(1), scrypto.KeyVersion(1), scrypto.KeyVersion(1)
+	cfg := conf.AS{
+		Description:          fmt.Sprintf("Issuer certificate %s", ia),
+		Version:              1,
+		SigningKeyVersion:    &sigKey,
+		EncryptionKeyVersion: &encKey,
+		RevocationKeyVersion: &revKey,
+		IssuerIA:             issuer,
+		IssuerCertVersion:    1,
+		OptDistPoints:        []addr.IA{},
+		Validity:             g.Validity,
+	}
+	return cfg
 }
 
 // topoFile is used to parse the topology description.

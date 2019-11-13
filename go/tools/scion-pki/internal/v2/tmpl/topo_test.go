@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -86,4 +87,66 @@ func TestTopoGen(t *testing.T) {
 		assert.Equal(t, exp, cfg.PrimaryASes)
 	})
 
+	for ia, entry := range topo.ASes {
+		t.Run("Keys config "+ia.String(), func(t *testing.T) {
+			cfg, err := conf.LoadKeys(conf.KeysFile(tmpDir, ia))
+			require.NoError(t, err)
+
+			checkMeta := func(t *testing.T, meta conf.KeyMeta, algo string) {
+				t.Helper()
+				assert.Equal(t, algo, meta.Algorithm)
+				assert.Equal(t, g.Validity, meta.Validity)
+			}
+
+			checkMeta(t, cfg.AS[cert.SigningKey][1], scrypto.Ed25519)
+			checkMeta(t, cfg.AS[cert.RevocationKey][1], scrypto.Ed25519)
+			checkMeta(t, cfg.AS[cert.EncryptionKey][1], scrypto.Curve25519xSalsa20Poly1305)
+			if !entry.Core {
+				return
+			}
+			checkMeta(t, cfg.Issuer[cert.IssuingKey][1], scrypto.Ed25519)
+			checkMeta(t, cfg.Primary[trc.IssuingKey][1], scrypto.Ed25519)
+			checkMeta(t, cfg.Primary[trc.OnlineKey][1], scrypto.Ed25519)
+			checkMeta(t, cfg.Primary[trc.OfflineKey][1], scrypto.Ed25519)
+		})
+	}
+
+	for ia, entry := range topo.ASes {
+		if !entry.Core {
+			continue
+		}
+		t.Run("Issuer config "+ia.String(), func(t *testing.T) {
+			cfg, err := conf.LoadIssuer(conf.IssuerFile(tmpDir, ia, 1))
+			require.NoError(t, err)
+
+			assert.Contains(t, cfg.Description, "Issuer certificate")
+			assert.Equal(t, scrypto.Version(1), cfg.Version)
+			assert.Equal(t, scrypto.KeyVersion(1), *cfg.IssuingKeyVersion)
+			assert.Nil(t, cfg.RevocationKeyVersion)
+			assert.Equal(t, scrypto.Version(1), cfg.TRCVersion)
+			assert.Empty(t, cfg.OptDistPoints)
+			assert.Equal(t, g.Validity, cfg.Validity)
+		})
+	}
+
+	for ia, entry := range topo.ASes {
+		issuer := entry.Issuer
+		if entry.Core {
+			issuer = ia
+		}
+		t.Run("AS config "+ia.String(), func(t *testing.T) {
+			cfg, err := conf.LoadAS(conf.ASFile(tmpDir, ia, 1))
+			require.NoError(t, err)
+
+			assert.Contains(t, cfg.Description, "Issuer certificate")
+			assert.Equal(t, scrypto.Version(1), cfg.Version)
+			assert.Equal(t, scrypto.KeyVersion(1), *cfg.SigningKeyVersion)
+			assert.Equal(t, scrypto.KeyVersion(1), *cfg.EncryptionKeyVersion)
+			assert.Equal(t, scrypto.KeyVersion(1), *cfg.RevocationKeyVersion)
+			assert.Equal(t, issuer, cfg.IssuerIA)
+			assert.Equal(t, scrypto.Version(1), cfg.IssuerCertVersion)
+			assert.Empty(t, cfg.OptDistPoints)
+			assert.Equal(t, g.Validity, cfg.Validity)
+		})
+	}
 }
