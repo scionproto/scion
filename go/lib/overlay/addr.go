@@ -19,29 +19,22 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type OverlayAddr struct {
-	l3 addr.HostAddr
+	l3 net.IP
 	l4 uint16
 }
 
-func NewOverlayAddr(l3 addr.HostAddr, l4 uint16) (*OverlayAddr, error) {
-	if l3 == nil {
-		return nil, serrors.New("L3 required")
+func NewOverlayAddr(l3 net.IP, l4 uint16) *OverlayAddr {
+	if l3.To4() != nil {
+		l3 = l3.To4()
 	}
-	switch l3.Type() {
-	case addr.HostTypeIPv4, addr.HostTypeIPv6:
-	default:
-		return nil, common.NewBasicError("Unsupported L3 protocol", nil, "type", l3.Type())
-	}
-	return &OverlayAddr{l3: l3, l4: l4}, nil
+	return &OverlayAddr{l3: copyIP(l3), l4: l4}
 }
 
 func (a *OverlayAddr) L3() addr.HostAddr {
-	return a.l3
+	return addr.HostFromIP(a.l3)
 }
 
 func (a *OverlayAddr) L4() uint16 {
@@ -49,19 +42,17 @@ func (a *OverlayAddr) L4() uint16 {
 }
 
 func (a *OverlayAddr) Type() Type {
-	if a.l3.Type() == addr.HostTypeIPv4 {
+	if a.l3.To4() != nil {
 		return UDPIPv4
-	} else {
-		// must be IPv6
-		return UDPIPv6
 	}
+	return UDPIPv6
 }
 
 func (a *OverlayAddr) Copy() *OverlayAddr {
 	if a == nil {
 		return nil
 	}
-	return &OverlayAddr{l3: a.l3.Copy(), l4: a.l4}
+	return &OverlayAddr{l3: copyIP(a.l3), l4: a.l4}
 }
 
 func (a *OverlayAddr) Equal(o *OverlayAddr) bool {
@@ -92,8 +83,9 @@ func (a *OverlayAddr) String() string {
 }
 
 func (a *OverlayAddr) ToUDPAddr() *net.UDPAddr {
-	if a.l3 == nil {
-		return nil
-	}
-	return &net.UDPAddr{IP: a.l3.IP(), Port: int(a.l4)}
+	return &net.UDPAddr{IP: copyIP(a.l3), Port: int(a.l4)}
+}
+
+func copyIP(ip net.IP) net.IP {
+	return append(ip[:0:0], ip...)
 }

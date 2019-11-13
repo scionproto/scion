@@ -322,11 +322,5 @@ func (m *LocalMachine) AppAddress() *addr.AppAddr {
 // BindAddress returns a bind address for the local machine. The port is
 // set to 0.
 func (m *LocalMachine) BindAddress() *overlay.OverlayAddr {
-	ov, err := overlay.NewOverlayAddr(addr.HostFromIP(m.InterfaceIP), 0)
-	if err != nil {
-		// XXX(scrye): due to the hardcoded types in this function, this should
-		// never panic
-		panic(err)
-	}
-	return ov
+	return overlay.NewOverlayAddr(m.InterfaceIP, 0)
 }

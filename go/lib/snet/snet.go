@@ -287,12 +287,8 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	}
 	var bindAddr *overlay.OverlayAddr
 	if baddr != nil {
-		var err error
 		conn.baddr = baddr.Copy()
-		bindAddr, err = overlay.NewOverlayAddr(baddr.Host.L3, baddr.Host.L4)
-		if err != nil {
-			return nil, common.NewBasicError("Unable to construct overlay bind address", err)
-		}
+		bindAddr = overlay.NewOverlayAddr(baddr.Host.L3.IP(), baddr.Host.L4)
 		if !conn.baddr.IA.Equal(conn.scionNet.localIA) {
 			return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")

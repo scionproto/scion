@@ -71,7 +71,10 @@ func (h *Host) Host() addr.HostAddr {
 }
 
 func (h *Host) Overlay() (*overlay.OverlayAddr, error) {
-	return overlay.NewOverlayAddr(h.Host(), h.Port)
+	if h.Host().IP() == nil {
+		return nil, common.NewBasicError("unsupported overlay L3 address", nil, "addr", h.Host())
+	}
+	return overlay.NewOverlayAddr(h.Host().IP(), h.Port), nil
 }
 
 func (h *Host) Copy() *Host {

@@ -70,7 +70,7 @@ func TestLocalMachineBuildBindAddress(t *testing.T) {
 			Machine: &LocalMachine{
 				InterfaceIP: net.IP{192, 0, 2, 1},
 			},
-			ExpectedBindAddr: mustNewOverlayAddr(addr.HostFromIP(net.IP{192, 0, 2, 1}), 0),
+			ExpectedBindAddr: overlay.NewOverlayAddr(net.IP{192, 0, 2, 1}, 0),
 		},
 	}
 
@@ -79,12 +79,4 @@ func TestLocalMachineBuildBindAddress(t *testing.T) {
 			assert.Equal(t, test.ExpectedBindAddr, test.Machine.BindAddress())
 		})
 	}
-}
-
-func mustNewOverlayAddr(l3 addr.HostAddr, l4 uint16) *overlay.OverlayAddr {
-	ov, err := overlay.NewOverlayAddr(l3, l4)
-	if err != nil {
-		panic(err)
-	}
-	return ov
 }

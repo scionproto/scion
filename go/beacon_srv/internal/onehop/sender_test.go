@@ -110,9 +110,7 @@ func TestSenderSend(t *testing.T) {
 			MAC: createMac(t),
 		}
 		// Read from connection to unblock sender.
-		host := addr.HostFromIP(net.IP{127, 0, 0, 42})
-		ov, err := overlay.NewOverlayAddr(host, 1337)
-		xtest.FailOnErr(t, err)
+		ov := overlay.NewOverlayAddr(net.IP{127, 0, 0, 42}, 1337)
 		var pkt *snet.SCIONPacket
 		conn.EXPECT().WriteTo(gomock.Any(), ov).DoAndReturn(
 			func(ipkt, _ interface{}) error {
@@ -121,7 +119,7 @@ func TestSenderSend(t *testing.T) {
 			},
 		)
 		msg := testPacket()
-		err = s.Send(msg, ov)
+		err := s.Send(msg, ov)
 		SoMsg("err", err, ShouldBeNil)
 		checkTestPkt(t, s, msg, pkt)
 	})
