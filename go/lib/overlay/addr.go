@@ -27,11 +27,14 @@ type OverlayAddr struct {
 }
 
 func NewOverlayAddr(l3 net.IP, l4 uint16) *OverlayAddr {
-	return &OverlayAddr{l3: l3, l4: l4}
+	if l3.To4() != nil {
+		l3 = l3.To4()
+	}
+	return &OverlayAddr{l3: copyIP(l3), l4: l4}
 }
 
 func (a *OverlayAddr) L3() addr.HostAddr {
-	return addr.HostFromIP(a.l3)
+	return addr.HostFromIP(copyIP(a.l3))
 }
 
 func (a *OverlayAddr) L4() uint16 {
@@ -49,7 +52,7 @@ func (a *OverlayAddr) Copy() *OverlayAddr {
 	if a == nil {
 		return nil
 	}
-	return &OverlayAddr{l3: append(a.l3[0:0], a.l3...), l4: a.l4}
+	return &OverlayAddr{l3: copyIP(a.l3), l4: a.l4}
 }
 
 func (a *OverlayAddr) Equal(o *OverlayAddr) bool {
@@ -80,5 +83,9 @@ func (a *OverlayAddr) String() string {
 }
 
 func (a *OverlayAddr) ToUDPAddr() *net.UDPAddr {
-	return &net.UDPAddr{IP: a.l3, Port: int(a.l4)}
+	return &net.UDPAddr{IP: copyIP(a.l3), Port: int(a.l4)}
+}
+
+func copyIP(ip net.IP) net.IP {
+	return append(ip[:0:0], ip...)
 }
