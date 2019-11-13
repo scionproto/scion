@@ -17,6 +17,7 @@ go_library(
         "//go/lib/infra/disp:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/sciond/internal/metrics:go_default_library",
+        "//go/lib/scrypto:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/util:go_default_library",
