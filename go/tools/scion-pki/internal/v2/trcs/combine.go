@@ -67,11 +67,17 @@ func (c combiner) Combine(protos map[addr.ISD]signedMeta,
 		for fname, part := range parts[isd] {
 			if !bytes.Equal(proto.Signed.EncodedTRC, part.EncodedTRC) {
 				pkicmn.QuietPrint("Ignoring signed in %s. Payload is different\n", fname)
+				continue
 			}
 			for _, sign := range part.Signatures {
 				protected, err := sign.EncodedProtected.Decode()
 				if err != nil {
 					return nil, serrors.WrapStr("unable to parse protected", err, "file", fname)
+				}
+				if _, ok := signatures[protected]; ok {
+					ia := addr.IA{I: isd, A: protected.AS}
+					return nil, serrors.New("duplicate signature", "ia", ia,
+						"key_type", protected.KeyType, "signature_type", protected.Type)
 				}
 				signatures[protected] = sign
 			}

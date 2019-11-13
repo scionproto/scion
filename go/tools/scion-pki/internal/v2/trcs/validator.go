@@ -25,6 +25,9 @@ type validator struct {
 	Dirs pkicmn.Dirs
 }
 
+// Validate checks that all TRCs in the map are valid and verifiable. For base
+// TRCs, the TRC invariants are validated and all proof of possessions are
+// verified. TRC updates are validated and verified based on the previous TRC.
 func (v validator) Validate(combined map[addr.ISD]signedMeta) error {
 	for isd, meta := range combined {
 		if err := v.validate(isd, meta); err != nil {
