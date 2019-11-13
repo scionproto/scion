@@ -503,9 +503,3 @@ go_repository(
     version = "v0.0.0-20191105084925-a882066a44e0",
 )
 
-go_repository(
-    name = "org_golang_x_ctx",
-    importpath = "golang.org/x/ctx",
-    sum = "",
-    version = "latest",
-)
