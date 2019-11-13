@@ -275,7 +275,7 @@ func revocation_owned_peer() int {
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:01 EthernetType=IPv4
 		IP4: Src=192.168.0.71 Dst=192.168.0.11 NextHdr=UDP Flags=DF
-		UDP: Src=30031 Dst=30001
+		UDP: Src=30041 Dst=30001
 		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.71 DstIA=1-ff00:0:2 Dst=172.16.2.1
 			IF_1: ISD=1 Hops=3 Flags=Peer,Shortcut
@@ -299,7 +299,7 @@ func revocation_owned_peer() int {
 	pkt1.ParsePacket(fmt.Sprintf(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
 		IP4: Src=192.168.0.11 Dst=192.168.0.71 NextHdr=UDP Flags=DF Checksum=0
-		UDP: Src=30001 Dst=30031 Checksum=0
+		UDP: Src=30001 Dst=30041 Checksum=0
 		SCION: NextHdr=HBH CurrInfoF=8 CurrHopF=10 SrcType=IPv4 DstType=IPv4
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.11 DstIA=1-ff00:0:1 Dst=192.168.0.71
 			IF_1: ISD=2 Hops=3 Flags=Peer,Shortcut
@@ -377,7 +377,7 @@ func revocation_owned_parent() int {
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:01 EthernetType=IPv4
 		IP4: Src=192.168.0.71 Dst=192.168.0.11 NextHdr=UDP Flags=DF
-		UDP: Src=30031 Dst=30001
+		UDP: Src=30041 Dst=30001
 		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=IPv4
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.71 DstIA=1-ff00:0:3 Dst=172.16.3.1
 			IF_1: ISD=1 Hops=2
@@ -395,7 +395,7 @@ func revocation_owned_parent() int {
 	pkt1.ParsePacket(fmt.Sprintf(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
 		IP4: Src=192.168.0.11 Dst=192.168.0.71 NextHdr=UDP Flags=DF Checksum=0
-		UDP: Src=30001 Dst=30031 Checksum=0
+		UDP: Src=30001 Dst=30041 Checksum=0
 		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.11 DstIA=1-ff00:0:1 Dst=192.168.0.71
 			IF_1: ISD=1 Hops=2 Flags=ConsDir
