@@ -6,7 +6,7 @@ go_library(
         "events.go",
         "pollhdlr.go",
     ],
-    importpath = "github.com/scionproto/scion/go/sig/base",
+    importpath = "github.com/scionproto/scion/go/sig/internal/base",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
