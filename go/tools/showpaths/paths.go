@@ -64,9 +64,12 @@ func main() {
 	}
 	defer log.LogPanicAndExit()
 
+	ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
+	defer cancelF()
+
 	sd := sciond.NewService(*sciondPath)
 	var err error
-	sdConn, err := sd.ConnectTimeout(*timeout)
+	sdConn, err := sd.Connect(ctx)
 	if err != nil {
 		LogFatal("Failed to connect to SCIOND", "err", err)
 	}
@@ -82,12 +85,10 @@ func main() {
 	fmt.Println("Available paths to", dstIA)
 	var pathStatuses map[string]pathprobe.Status
 	if *status {
-		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 		pathStatuses, err = pathprobe.Prober{
 			Local: local,
 			DstIA: dstIA,
 		}.GetStatuses(ctx, reply.Entries)
-		cancelF()
 		if err != nil {
 			LogFatal("Failed to get status", "err", err)
 		}

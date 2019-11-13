@@ -18,6 +18,7 @@ package infraenv
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"net"
 	"time"
@@ -297,6 +298,8 @@ func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, erro
 func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 	ticker := time.NewTicker(time.Second)
 	timer := time.NewTimer(sd.InitialConnectPeriod.Duration)
+	ctx, cancelF := context.WithTimeout(context.Background(), sd.InitialConnectPeriod.Duration)
+	defer cancelF()
 	defer ticker.Stop()
 	defer timer.Stop()
 	// XXX(roosd): Initial retrying is implemented here temporarily.
@@ -304,7 +307,7 @@ func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 	// done transparently and pushed to snet.NewNetwork.
 	var router snet.Router
 	for {
-		sciondConn, err := sciond.NewService(sd.Path).Connect()
+		sciondConn, err := sciond.NewService(sd.Path).Connect(ctx)
 		if err == nil {
 			router = &snet.BaseRouter{
 				IA: localIA,
