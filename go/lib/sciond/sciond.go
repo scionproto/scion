@@ -30,7 +30,6 @@ package sciond
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -39,7 +38,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond/internal/metrics"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
@@ -48,10 +46,6 @@ import (
 // Errors for SCIOND API requests
 var (
 	ErrUnableToConnect = serrors.New("unable to connect to SCIOND")
-)
-
-var (
-	requestID = scrypto.RandUint64()
 )
 
 const (
@@ -185,7 +179,6 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 	reply, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    nextID(),
 			Which: proto.SCIONDMsg_Which_pathReq,
 			PathReq: &PathReq{
 				Dst:      dst.IAInt(),
@@ -214,7 +207,6 @@ func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    nextID(),
 			Which: proto.SCIONDMsg_Which_asInfoReq,
 			AsInfoReq: &ASInfoReq{
 				Isdas: ia.IAInt(),
@@ -240,7 +232,6 @@ func (c *conn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply,
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    nextID(),
 			Which: proto.SCIONDMsg_Which_ifInfoRequest,
 			IfInfoRequest: &IFInfoRequest{
 				IfIDs: ifs,
@@ -268,7 +259,6 @@ func (c *conn) SVCInfo(ctx context.Context,
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    nextID(),
 			Which: proto.SCIONDMsg_Which_serviceInfoRequest,
 			ServiceInfoRequest: &ServiceInfoRequest{
 				ServiceTypes: svcTypes,
@@ -305,7 +295,6 @@ func (c *conn) RevNotification(ctx context.Context,
 	reply, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    nextID(),
 			Which: proto.SCIONDMsg_Which_revNotification,
 			RevNotification: &RevNotification{
 				SRevInfo: sRevInfo,
@@ -323,11 +312,6 @@ func (c *conn) RevNotification(ctx context.Context,
 
 func (c *conn) Close(_ context.Context) error {
 	return nil
-}
-
-// nextID returns a unique value for identifiying SCIOND requests.
-func nextID() uint64 {
-	return atomic.AddUint64(&requestID, 1)
 }
 
 func connectTimeout(socketName string, timeout time.Duration) (*disp.Dispatcher, error) {
