@@ -66,11 +66,11 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 
 	"golang.org/x/net/context/ctxhttp"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -115,19 +115,10 @@ const (
 	Base = "discovery/v1"
 )
 
-// FetchTopo fetches the topology with the specified parameters from the
-// discovery service. If client is nil, the default http client is used.
-func FetchTopo(ctx context.Context, params FetchParams, ds *addr.AppAddr,
-	client *http.Client) (*topology.Topo, error) {
-
-	topo, _, err := FetchTopoRaw(ctx, params, ds, client)
-	return topo, err
-}
-
 // FetchTopoRaw fetches the topology with the specified parameters from the
 // discovery service. If client is nil, the default http client is used.
 // Both the topology and the raw response body are returned.
-func FetchTopoRaw(ctx context.Context, params FetchParams, ds *addr.AppAddr,
+func FetchTopoRaw(ctx context.Context, params FetchParams, ds *net.UDPAddr,
 	client *http.Client) (*topology.Topo, common.RawBytes, error) {
 
 	url, err := createURL(params, ds)
@@ -154,7 +145,7 @@ func FetchTopoRaw(ctx context.Context, params FetchParams, ds *addr.AppAddr,
 }
 
 // createURL builds the url to the topology file.
-func createURL(params FetchParams, ds *addr.AppAddr) (string, error) {
+func createURL(params FetchParams, ds *net.UDPAddr) (string, error) {
 	if ds == nil {
 		return "", serrors.New("Addr not set")
 	}
@@ -162,7 +153,7 @@ func createURL(params FetchParams, ds *addr.AppAddr) (string, error) {
 	if params.Https {
 		protocol = "https"
 	}
-	return fmt.Sprintf("%s://%s:%d/%s", protocol, ds.L3.IP(), ds.L4,
+	return fmt.Sprintf("%s://%s:%d/%s", protocol, ds.IP, ds.Port,
 		Path(params.Mode, params.File)), nil
 }
 
