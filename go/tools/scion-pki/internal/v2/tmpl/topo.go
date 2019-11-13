@@ -50,7 +50,7 @@ func (g topoGen) Run(topo topoFile) error {
 	if err := g.genKeys(topo, trcs); err != nil {
 		return serrors.WrapStr("unable to generate key configs", err)
 	}
-	if err := g.genCerts(topo, trcs); err != nil {
+	if err := g.genCerts(topo); err != nil {
 		return serrors.WrapStr("unable to generate certificate configs", err)
 	}
 	pkicmn.QuietPrint("Generated all configuration files\n")
@@ -163,17 +163,17 @@ func (g topoGen) genASKeys(as addr.AS, cfg conf.TRC2) conf.Keys {
 	return keys
 }
 
-func (g topoGen) genCerts(topo topoFile, cfg map[addr.ISD]conf.TRC2) error {
-	if err := g.genIssuerCerts(topo, cfg); err != nil {
+func (g topoGen) genCerts(topo topoFile) error {
+	if err := g.genIssuerCerts(topo); err != nil {
 		return serrors.WrapStr("unable to generate issuer certificates", err)
 	}
-	if err := g.genASCerts(topo, cfg); err != nil {
+	if err := g.genASCerts(topo); err != nil {
 		return serrors.WrapStr("unable to generate AS certificates", err)
 	}
 	return nil
 }
 
-func (g topoGen) genIssuerCerts(topo topoFile, cfg map[addr.ISD]conf.TRC2) error {
+func (g topoGen) genIssuerCerts(topo topoFile) error {
 	for ia, entry := range topo.ASes {
 		if !entry.Core {
 			continue
@@ -205,7 +205,7 @@ func (g topoGen) genIssuerCert(ia addr.IA) conf.Issuer {
 	return cfg
 }
 
-func (g topoGen) genASCerts(topo topoFile, cfg map[addr.ISD]conf.TRC2) error {
+func (g topoGen) genASCerts(topo topoFile) error {
 	for ia, entry := range topo.ASes {
 		issuer := entry.Issuer
 		if entry.Core {
