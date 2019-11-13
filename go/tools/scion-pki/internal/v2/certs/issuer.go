@@ -40,7 +40,7 @@ type issGen struct {
 	Version scrypto.Version
 }
 
-func (g issGen) Run(asMap map[addr.ISD][]addr.IA) error {
+func (g issGen) Run(asMap pkicmn.ASMap) error {
 	cfgs, err := loader{Dirs: g.Dirs, Version: g.Version}.LoadIssuerConfigs(asMap)
 	if err != nil {
 		return serrors.WrapStr("unable to load issuer certifcate configs", err)
@@ -148,12 +148,8 @@ func (g issGen) newCert(ia addr.IA, cfg conf.Issuer,
 
 func (g issGen) Sign(protos map[addr.IA]issMeta, cfgs map[addr.IA]conf.Issuer) error {
 	for ia, meta := range protos {
-		c, err := meta.Cert.Encoded.Decode()
-		if err != nil {
-			return serrors.WrapStr("unable to parse issuer certificate payload", err, "ia", ia)
-		}
-		meta.Cert, err = g.sign(ia, cfgs[ia], meta.Cert, c)
-		if err != nil {
+		var err error
+		if meta.Cert, err = g.sign(ia, cfgs[ia], meta.Cert); err != nil {
 			return serrors.WrapStr("unable to sign issuer certificate", err, "ia", ia)
 		}
 		protos[ia] = meta
@@ -161,8 +157,8 @@ func (g issGen) Sign(protos map[addr.IA]issMeta, cfgs map[addr.IA]conf.Issuer) e
 	return nil
 }
 
-func (g issGen) sign(ia addr.IA, cfg conf.Issuer, signed cert.SignedIssuer,
-	c *cert.Issuer) (cert.SignedIssuer, error) {
+func (g issGen) sign(ia addr.IA, cfg conf.Issuer,
+	signed cert.SignedIssuer) (cert.SignedIssuer, error) {
 
 	file := conf.TRCFile(g.Dirs.Root, ia.I, cfg.TRCVersion)
 	trcCfg, err := conf.LoadTRC(file)

@@ -31,7 +31,7 @@ type loader struct {
 	Version scrypto.Version
 }
 
-func (l loader) LoadIssuerConfigs(asMap map[addr.ISD][]addr.IA) (map[addr.IA]conf.Issuer, error) {
+func (l loader) LoadIssuerConfigs(asMap pkicmn.ASMap) (map[addr.IA]conf.Issuer, error) {
 	cfgs := make(map[addr.IA]conf.Issuer)
 	for _, ias := range asMap {
 		for _, ia := range ias {
