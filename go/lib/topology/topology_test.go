@@ -33,13 +33,9 @@ import (
 
 var testTopo *Topo
 
-// Helpers
 func mkO(l3 addr.HostAddr, op int) *overlay.OverlayAddr {
 	if l3 == nil {
 		return nil
-	}
-	if op == 0 {
-		return overlay.NewOverlayAddr(l3.IP(), 0)
 	}
 	return overlay.NewOverlayAddr(l3.IP(), uint16(op))
 }

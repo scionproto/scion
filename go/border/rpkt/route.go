@@ -115,6 +115,11 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		rp.CmnHdr.HdrLenBytes()
 	if onLastSeg && rp.dstIA.Equal(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
+		if rp.dstHost.IP() == nil {
+			// Not an IP address, cannot build an overlay with this
+			return HookError, common.NewBasicError("invalid overlay L3 address", nil,
+				"addr", rp.dstHost)
+		}
 		dst := overlay.NewOverlayAddr(rp.dstHost.IP(), overlay.EndhostPort)
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 		return HookContinue, nil
