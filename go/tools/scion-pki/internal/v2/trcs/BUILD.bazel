@@ -35,6 +35,7 @@ go_test(
     srcs = [
         "combine_test.go",
         "gen_test.go",
+        "loader_test.go",
         "prototype_test.go",
         "sign_test.go",
     ],
