@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,23 +17,23 @@ package mgmt
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*Addr)(nil)
 
 type Addr struct {
-	Ctrl      *hostinfo.Host
+	Ctrl      *net.UDPAddr
 	EncapPort uint16
 }
 
 func NewAddr(host addr.HostAddr, ctrlPort, encapPort uint16) *Addr {
 	return &Addr{
-		Ctrl:      hostinfo.FromHostAddr(host, ctrlPort),
+		Ctrl:      &net.UDPAddr{IP: host.IP(), Port: int(ctrlPort)},
 		EncapPort: encapPort,
 	}
 }
@@ -52,5 +53,5 @@ func (a *Addr) Write(b common.RawBytes) (int, error) {
 
 func (a *Addr) String() string {
 	return fmt.Sprintf("Host: %s CtrlPort: %d EncapPort: %d",
-		a.Ctrl.Host(), a.Ctrl.Port, a.EncapPort)
+		a.Ctrl.IP, a.Ctrl.Port, a.EncapPort)
 }

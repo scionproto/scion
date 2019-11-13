@@ -18,13 +18,13 @@ package main
 import (
 	"context"
 	"flag"
+	"net"
 	"os"
 
 	"github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -166,20 +166,16 @@ func (c client) requestTRC(chain *cert.Chain) error {
 
 func getRemote() error {
 	// Fetch address of service
-	var hostInfo *hostinfo.Host
+	var svcHost *net.UDPAddr
 	var err error
-	if hostInfo, err = getSVCAddress(); err != nil {
+	if svcHost, err = getSVCAddress(); err != nil {
 		return err
 	}
-	appAddr := &addr.AppAddr{
-		L3: hostInfo.Host(),
-		L4: hostInfo.Port,
-	}
-	svc = snet.Addr{IA: integration.Local.IA, Host: appAddr}
+	svc = snet.Addr{IA: integration.Local.IA, Host: addr.AppAddrFromUDP(svcHost)}
 	return nil
 }
 
-func getSVCAddress() (*hostinfo.Host, error) {
+func getSVCAddress() (*net.UDPAddr, error) {
 	network := integration.InitNetwork()
 	connector := network.Sciond()
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
@@ -188,5 +184,5 @@ func getSVCAddress() (*hostinfo.Host, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &reply.Entries[0].HostInfos[0], nil
+	return reply.Entries[0].HostInfos[0].UDP(), nil
 }
