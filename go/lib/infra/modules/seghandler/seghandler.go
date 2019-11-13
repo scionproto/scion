@@ -113,12 +113,11 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 	verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
 	result.verifyErrs = append(allVerifyErrs, verifyErrs...)
 	result.stats.verificationErrs(result.verifyErrs)
-	if err == nil && result.stats.SegVerifyErrors() == units {
-		result.err = serrors.Wrap(ErrVerification, result.verifyErrs.ToError())
-		return
-	}
-	if err != nil {
+	switch {
+	case err != nil:
 		result.err = serrors.Wrap(ErrDB, err)
+	case result.stats.SegVerifyErrors() == units:
+		result.err = serrors.Wrap(ErrVerification, result.verifyErrs.ToError())
 	}
 }
 
