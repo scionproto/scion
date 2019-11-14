@@ -38,18 +38,18 @@ const (
 	NaClBoxKeySize   = 32
 )
 
-const (
-	ErrInvalidPubKeySize      common.ErrMsg = "Invalid public key size"
-	ErrInvalidPrivKeySize     common.ErrMsg = "Invalid private key size"
-	ErrInvalidSignatureSize   common.ErrMsg = "Invalid signature size"
-	ErrInvalidSignatureFormat common.ErrMsg = "Invalid signature format: " +
-		"sig[63]&224 should equal 0"
-	ErrVerification            common.ErrMsg = "Signature verification failed"
-	ErrUnableToGenerateKeyPair common.ErrMsg = "Unable to generate key pair"
-	ErrUnableToDecrypt         common.ErrMsg = "Unable to decrypt message"
-	ErrUnsupportedAlgo         common.ErrMsg = "Unsupported algorithm"
-	ErrUnsupportedSignAlgo     common.ErrMsg = "Unsupported signing algorithm"
-	ErrUnsupportedEncAlgo      common.ErrMsg = "Unsupported encryption algorithm"
+// Errors
+var (
+	ErrInvalidPubKeySize       = serrors.New("Invalid public key size")
+	ErrInvalidPrivKeySize      = serrors.New("Invalid private key size")
+	ErrInvalidSignatureSize    = serrors.New("Invalid signature size")
+	ErrInvalidSignatureFormat  = serrors.New("Invalid signature format: sig[63]&224 should equal 0")
+	ErrVerification            = serrors.New("Signature verification failed")
+	ErrUnableToGenerateKeyPair = serrors.New("Unable to generate key pair")
+	ErrUnableToDecrypt         = serrors.New("Unable to decrypt message")
+	ErrUnsupportedAlgo         = serrors.New("Unsupported algorithm")
+	ErrUnsupportedSignAlgo     = serrors.New("Unsupported signing algorithm")
+	ErrUnsupportedEncAlgo      = serrors.New("Unsupported encryption algorithm")
 )
 
 // GenKeyPair generates a public/private key pair.
@@ -58,19 +58,17 @@ func GenKeyPair(algo string) (common.RawBytes, common.RawBytes, error) {
 	case Curve25519xSalsa20Poly1305:
 		pubkey, privkey, err := box.GenerateKey(rand.Reader)
 		if err != nil {
-			return nil, nil, common.NewBasicError(ErrUnableToGenerateKeyPair, err,
-				"algo", algo)
+			return nil, nil, serrors.Wrap(ErrUnableToGenerateKeyPair, err, "algo", algo)
 		}
 		return pubkey[:], privkey[:], nil
 	case Ed25519:
 		pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
-			return nil, nil, common.NewBasicError(ErrUnableToGenerateKeyPair, err,
-				"algo", algo)
+			return nil, nil, serrors.Wrap(ErrUnableToGenerateKeyPair, err, "algo", algo)
 		}
 		return common.RawBytes(pubkey), common.RawBytes(privkey), nil
 	default:
-		return nil, nil, common.NewBasicError(ErrUnsupportedAlgo, nil, "algo", algo)
+		return nil, nil, serrors.WithCtx(ErrUnsupportedAlgo, "algo", algo)
 	}
 }
 
@@ -89,10 +87,10 @@ func GetPubKey(privKey []byte, algo string) ([]byte, error) {
 		case ed25519.SeedSize:
 			return ed25519.NewKeyFromSeed(privKey).Public().(ed25519.PublicKey), nil
 		default:
-			return nil, serrors.New("unsupported key size", "len", len(privKey), "algo", Ed25519)
+			return nil, serrors.WithCtx(ErrInvalidPrivKeySize, "len", len(privKey), "algo", Ed25519)
 		}
 	}
-	return nil, serrors.New("unsupported key type")
+	return nil, serrors.WithCtx(ErrUnsupportedAlgo, "algo", algo)
 }
 
 // Sign takes a signature input and a signing key to create a signature. Currently only
@@ -105,12 +103,12 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 		case ed25519.SeedSize:
 			signKey = common.RawBytes(ed25519.NewKeyFromSeed(signKey))
 		default:
-			return nil, common.NewBasicError(ErrInvalidPrivKeySize, nil,
-				"expected", ed25519.PrivateKeySize, "actual", len(signKey))
+			return nil, serrors.WithCtx(ErrInvalidPrivKeySize, "expected", ed25519.PrivateKeySize,
+				"actual", len(signKey))
 		}
 		return ed25519.Sign(ed25519.PrivateKey(signKey), sigInput), nil
 	default:
-		return nil, common.NewBasicError(ErrUnsupportedSignAlgo, nil, "algo", signAlgo)
+		return nil, serrors.WithCtx(ErrUnsupportedSignAlgo, "algo", signAlgo)
 	}
 }
 
@@ -120,22 +118,22 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(verifyKey) != ed25519.PublicKeySize {
-			return common.NewBasicError(ErrInvalidPubKeySize, nil,
-				"expected", ed25519.PublicKeySize, "actual", len(verifyKey))
+			return serrors.WithCtx(ErrInvalidPubKeySize, "expected", ed25519.PublicKeySize,
+				"actual", len(verifyKey))
 		}
 		if len(sig) != ed25519.SignatureSize {
-			return common.NewBasicError(ErrInvalidSignatureSize, nil,
-				"expected", ed25519.SignatureSize, "actual", len(sig))
+			return serrors.WithCtx(ErrInvalidSignatureSize, "expected", ed25519.SignatureSize,
+				"actual", len(sig))
 		}
 		if sig[63]&224 != 0 {
-			return common.NewBasicError(ErrInvalidSignatureFormat, nil)
+			return ErrInvalidSignatureFormat
 		}
 		if !ed25519.Verify(ed25519.PublicKey(verifyKey), sigInput, sig) {
-			return common.NewBasicError(ErrVerification, nil, "msg", sigInput)
+			return ErrVerification
 		}
 		return nil
 	default:
-		return common.NewBasicError(ErrUnsupportedSignAlgo, nil, "algo", signAlgo)
+		return serrors.WithCtx(ErrUnsupportedSignAlgo, "algo", signAlgo)
 	}
 }
 
@@ -151,7 +149,7 @@ func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 		}
 		return box.Seal(nil, msg, nonceRaw, pubKeyRaw, privKeyRaw), nil
 	default:
-		return nil, common.NewBasicError(ErrUnsupportedEncAlgo, nil, "algo", algo)
+		return nil, serrors.WithCtx(ErrUnsupportedEncAlgo, "algo", algo)
 	}
 }
 
@@ -165,11 +163,11 @@ func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 		}
 		dec, ok := box.Open(nil, msg, nonceRaw, pubKeyRaw, privKeyRaw)
 		if !ok {
-			return nil, common.NewBasicError(ErrUnableToDecrypt, nil, "algo", algo)
+			return nil, serrors.WithCtx(ErrUnableToDecrypt, "algo", algo)
 		}
 		return dec, nil
 	default:
-		return nil, common.NewBasicError(ErrUnsupportedEncAlgo, nil, "algo", algo)
+		return nil, serrors.WithCtx(ErrUnsupportedEncAlgo, "algo", algo)
 	}
 }
 
@@ -177,16 +175,16 @@ func prepNaClBox(nonce, pubkey, privkey common.RawBytes) (*[NaClBoxNonceSize]byt
 	*[NaClBoxKeySize]byte, *[NaClBoxKeySize]byte, error) {
 
 	if len(nonce) != NaClBoxNonceSize {
-		return nil, nil, nil, common.NewBasicError(ErrInvalidNonceSize, nil, "algo",
+		return nil, nil, nil, serrors.WithCtx(ErrInvalidNonceSize, "algo",
 			Curve25519xSalsa20Poly1305, "expected size", NaClBoxNonceSize, "actual size",
 			len(nonce))
 	}
 	if len(pubkey) != NaClBoxKeySize {
-		return nil, nil, nil, common.NewBasicError(ErrInvalidPubKeySize, nil, "algo",
+		return nil, nil, nil, serrors.WithCtx(ErrInvalidPubKeySize, "algo",
 			Curve25519xSalsa20Poly1305, "expected size", NaClBoxKeySize, "actual size", len(pubkey))
 	}
 	if len(privkey) != NaClBoxKeySize {
-		return nil, nil, nil, common.NewBasicError(ErrInvalidPrivKeySize, nil, "algo",
+		return nil, nil, nil, serrors.WithCtx(ErrInvalidPrivKeySize, "algo",
 			Curve25519xSalsa20Poly1305, "expected size", NaClBoxKeySize, "actual size",
 			len(privkey))
 	}
