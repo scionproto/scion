@@ -277,7 +277,7 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 			return
 		}
 		topoInfo := intf.TopoInfo()
-		ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
+		ov := topoInfo.InternalAddrs.PublicOverlayUDP(topoInfo.InternalAddrs.Overlay)
 
 		err := p.beaconSender.Send(
 			ctx,

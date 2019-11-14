@@ -144,7 +144,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap()[*rp.ifNext]
-	dst := nextBR.InternalAddrs.PublicOverlay(rp.Ctx.Conf.Topo.Overlay())
+	dst := nextBR.InternalAddrs.PublicOverlayUDP(rp.Ctx.Conf.Topo.Overlay())
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }

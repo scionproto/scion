@@ -89,7 +89,7 @@ func (t *TopoBRAddr) fromRaw(s RawBRAddrMap) error {
 	return nil
 }
 
-func (t *TopoBRAddr) PublicOverlay(ot overlay.Type) *net.UDPAddr {
+func (t *TopoBRAddr) PublicOverlayUDP(ot overlay.Type) *net.UDPAddr {
 	if oba := t.getAddr(overlay.Type(ot)); oba != nil {
 		return oba.PublicOverlay.ShallowUDPAddr()
 	}
@@ -103,11 +103,27 @@ func (t *TopoBRAddr) BindOverlay(ot overlay.Type) *overlay.OverlayAddr {
 	return nil
 }
 
+func (t *TopoBRAddr) BindOverlayUDP(ot overlay.Type) *net.UDPAddr {
+	ov := t.BindOverlay(ot)
+	if ov == nil {
+		return nil
+	}
+	return ov.ToUDPAddr()
+}
+
 func (t *TopoBRAddr) BindOrPublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
 	if oba := t.getAddr(ot); oba != nil {
 		return oba.BindOrPublicOverlay()
 	}
 	return nil
+}
+
+func (t *TopoBRAddr) BindOrPublicOverlayUDP(ot overlay.Type) *net.UDPAddr {
+	ov := t.BindOrPublicOverlay(ot)
+	if ov == nil {
+		return nil
+	}
+	return ov.ToUDPAddr()
 }
 
 func (t *TopoBRAddr) getAddr(ot overlay.Type) *OverBindAddr {

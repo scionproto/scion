@@ -130,7 +130,7 @@ func (t *TopoAddr) BindAddr(ot overlay.Type) *addr.AppAddr {
 	return t.getAddr(overlay.Type(ot)).BindAddr()
 }
 
-func (t *TopoAddr) OverlayAddr(ot overlay.Type) *net.UDPAddr {
+func (t *TopoAddr) OverlayAddrUDP(ot overlay.Type) *net.UDPAddr {
 	ovAddr := t.getAddr(overlay.Type(ot)).OverlayAddr()
 	if ovAddr == nil {
 		return nil

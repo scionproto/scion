@@ -177,7 +177,7 @@ func TestRegistrarRun(t *testing.T) {
 						pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField)
 					a := topoProvider.Get().IFInfoMap()[hopF.ConsIngress].InternalAddrs
 					SoMsg("Next", s.Addr.NextHop, ShouldResemble,
-						a.PublicOverlay(a.Overlay))
+						a.PublicOverlayUDP(a.Overlay))
 				})
 			}
 			// The second run should not do anything, since the period has not passed.
