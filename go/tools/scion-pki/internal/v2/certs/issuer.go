@@ -44,11 +44,11 @@ func (g issGen) Run(asMap pkicmn.ASMap) error {
 	if err != nil {
 		return serrors.WrapStr("unable to load issuer certifcate configs", err)
 	}
-	certs, err := g.Generate(cfgs)
+	certs, err := g.generateAll(cfgs)
 	if err != nil {
 		return serrors.WrapStr("unable to generate issuer certificates", err)
 	}
-	if err := g.Sign(certs, cfgs); err != nil {
+	if err := g.signAll(certs, cfgs); err != nil {
 		return serrors.WrapStr("unable to sign issuer certificates", err)
 	}
 	if err := g.verify(certs); err != nil {
@@ -63,7 +63,7 @@ func (g issGen) Run(asMap pkicmn.ASMap) error {
 	return nil
 }
 
-func (g issGen) Generate(cfgs map[addr.IA]conf.Issuer) (map[addr.IA]issMeta, error) {
+func (g issGen) generateAll(cfgs map[addr.IA]conf.Issuer) (map[addr.IA]issMeta, error) {
 	certs := make(map[addr.IA]issMeta)
 	for ia, cfg := range cfgs {
 		signed, err := g.generate(ia, cfg)
@@ -119,7 +119,6 @@ func (g issGen) loadPubKeys(ia addr.IA, cfg conf.Issuer) (map[cert.KeyType]keyco
 }
 
 func (g issGen) loadPubKey(desc pkicmn.KeyDesc) (keyconf.Key, error) {
-
 	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, desc)
 	if err != nil {
 		return keyconf.Key{}, err
@@ -144,7 +143,7 @@ func (g issGen) newCert(ia addr.IA, cfg conf.Issuer,
 			Description:                cfg.Description,
 			OptionalDistributionPoints: cfg.OptDistPoints,
 			Validity:                   &val,
-			Keys:                       getKeys(pubKeys),
+			Keys:                       translateKeys(pubKeys),
 		},
 		Issuer: cert.IssuerTRC{
 			TRCVersion: cfg.TRCVersion,
@@ -153,7 +152,7 @@ func (g issGen) newCert(ia addr.IA, cfg conf.Issuer,
 	return c
 }
 
-func (g issGen) Sign(protos map[addr.IA]issMeta, cfgs map[addr.IA]conf.Issuer) error {
+func (g issGen) signAll(protos map[addr.IA]issMeta, cfgs map[addr.IA]conf.Issuer) error {
 	for ia, meta := range protos {
 		var err error
 		if meta.Cert, err = g.sign(ia, cfgs[ia], meta.Cert); err != nil {

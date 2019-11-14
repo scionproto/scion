@@ -35,7 +35,8 @@ func IssuerFile(dir string, ia addr.IA, ver scrypto.Version) string {
 	return filepath.Join(Dir(dir, ia), fmt.Sprintf(pkicmn.IssuerNameFmt, ia.I, ia.A.FileFmt(), ver))
 }
 
-func getKeys(keys map[cert.KeyType]keyconf.Key) map[cert.KeyType]scrypto.KeyMeta {
+// translateKeys translates the keys to certificate key metadata.
+func translateKeys(keys map[cert.KeyType]keyconf.Key) map[cert.KeyType]scrypto.KeyMeta {
 	m := make(map[cert.KeyType]scrypto.KeyMeta)
 	for keyType, key := range keys {
 		m[keyType] = scrypto.KeyMeta{
