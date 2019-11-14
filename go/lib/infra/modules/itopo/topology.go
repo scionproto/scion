@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -128,7 +129,7 @@ type Topology interface {
 	// Overlay returns the overlay running in the current AS.
 	//
 	// FIXME(scrye): Remove this.
-	Overlay() topology.OverlayType
+	Overlay() overlay.Type
 
 	// DS returns the discovery servers in the topology.
 	//
@@ -201,7 +202,7 @@ func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return ifInfo.InternalAddrs.PublicOverlay(topology.OverlayType(t.Topology.Overlay)), true
+	return ifInfo.InternalAddrs.PublicOverlay(t.Topology.Overlay), true
 }
 
 func (t *topologyS) MakeHostInfos(st proto.ServiceType) []hostinfo.Host {
@@ -243,7 +244,7 @@ func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *addr.AppAddr {
 	if topoAddr == nil {
 		return nil
 	}
-	publicAddr := topoAddr.PublicAddr(topology.OverlayType(topoAddr.Overlay))
+	publicAddr := topoAddr.PublicAddr(topoAddr.Overlay)
 	if publicAddr == nil {
 		return nil
 	}
@@ -270,7 +271,7 @@ func (t *topologyS) BindAddress(svc addr.HostSVC, name string) *addr.AppAddr {
 	if topoAddr == nil {
 		return nil
 	}
-	bindAddr := topoAddr.BindAddr(topology.OverlayType(topoAddr.Overlay))
+	bindAddr := topoAddr.BindAddr(topoAddr.Overlay)
 	if bindAddr == nil {
 		return nil
 	}
@@ -307,7 +308,7 @@ func (t *topologyS) OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 		return nil, common.NewBasicError("No instances found for SVC address",
 			scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
 	}
-	ov := topoAddr.OverlayAddr(topology.OverlayType(t.Topology.Overlay))
+	ov := topoAddr.OverlayAddr(t.Topology.Overlay)
 	if ov == nil {
 		return nil, serrors.New("overlay address not found", "svc", svc)
 	}
@@ -335,7 +336,7 @@ func (t *topologyS) OverlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 	// multiple times by the remote dispatcher.
 	uniqueOverlayAddrs := make(map[string]*net.UDPAddr)
 	for _, topoAddr := range topoAddrs {
-		overlayAddr := topoAddr.OverlayAddr(topology.OverlayType(t.Topology.Overlay))
+		overlayAddr := topoAddr.OverlayAddr(t.Topology.Overlay)
 		if overlayAddr == nil {
 			continue
 		}
@@ -358,7 +359,7 @@ func (t *topologyS) OverlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, 
 	if err != nil {
 		return nil, serrors.WrapStr("SVC not supported", err, "svc", svc)
 	}
-	overlayAddr := topoAddr.OverlayAddr(topology.OverlayType(t.Topology.Overlay))
+	overlayAddr := topoAddr.OverlayAddr(t.Topology.Overlay)
 	if overlayAddr == nil {
 		return nil, serrors.New("overlay address not found", "svc", svc)
 	}
@@ -398,8 +399,8 @@ func (t *topologyS) SBRAddress(name string) *snet.Addr {
 	}
 	return &snet.Addr{
 		IA:      t.IA(),
-		Host:    br.CtrlAddrs.PublicAddr(topology.OverlayType(br.CtrlAddrs.Overlay)),
-		NextHop: br.CtrlAddrs.OverlayAddr(topology.OverlayType(br.CtrlAddrs.Overlay)),
+		Host:    br.CtrlAddrs.PublicAddr(br.CtrlAddrs.Overlay),
+		NextHop: br.CtrlAddrs.OverlayAddr(br.CtrlAddrs.Overlay),
 	}
 }
 
@@ -418,8 +419,8 @@ func (t *topologyS) SVCNames(svc addr.HostSVC) []string {
 	}
 }
 
-func (t *topologyS) Overlay() topology.OverlayType {
-	return topology.OverlayType(t.Topology.Overlay)
+func (t *topologyS) Overlay() overlay.Type {
+	return t.Topology.Overlay
 }
 
 func (t *topologyS) Raw() *topology.Topo {

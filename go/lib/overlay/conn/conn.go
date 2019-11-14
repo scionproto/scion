@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sockctrl"
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
 // ReceiveBufferSize is the default size, in bytes, of receive buffers for
@@ -132,7 +132,7 @@ func (c *connUDPIPv4) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 		if msg.NN > 0 {
 			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
 		}
-		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), topology.UDPIPv4)
+		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv4)
 	}
 	return n, err
 }
@@ -185,7 +185,7 @@ func (c *connUDPIPv6) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 		if msg.NN > 0 {
 			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
 		}
-		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), topology.UDPIPv6)
+		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv6)
 	}
 	return n, err
 }
@@ -381,7 +381,7 @@ func (m *ReadMeta) reset() {
 	m.ReadDelay = 0
 }
 
-func (m *ReadMeta) setSrc(a *net.UDPAddr, raddr *net.UDPAddr, ot topology.OverlayType) {
+func (m *ReadMeta) setSrc(a *net.UDPAddr, raddr *net.UDPAddr, ot overlay.Type) {
 	if a != nil {
 		m.Src = a
 	} else {

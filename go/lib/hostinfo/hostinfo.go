@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
 // Host contains connectivity information for a host.
@@ -90,7 +91,7 @@ func (h *Host) String() string {
 func topoAddrToIPv4AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 	var ip net.IP
 	var port uint16
-	if pubAddr := topoAddr.PublicAddr(topology.IPv4); pubAddr != nil {
+	if pubAddr := topoAddr.PublicAddr(overlay.IPv4); pubAddr != nil {
 		ip = pubAddr.L3.IP()
 		port = pubAddr.L4
 	}
@@ -98,7 +99,7 @@ func topoAddrToIPv4AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 }
 
 func topoAddrToIPv6AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
-	if pubAddr := topoAddr.PublicAddr(topology.IPv6); pubAddr != nil {
+	if pubAddr := topoAddr.PublicAddr(overlay.IPv6); pubAddr != nil {
 		return pubAddr.L3.IP(), pubAddr.L4
 	}
 	return nil, 0

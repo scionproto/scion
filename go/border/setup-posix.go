@@ -158,7 +158,7 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo) error
 
 	// Connect to remote address.
 	log.Debug("Setting up new external socket.", "intf", intf)
-	bindOv := intf.Local.BindOrPublicOverlay(topology.OverlayType(intf.Local.Overlay))
+	bindOv := intf.Local.BindOrPublicOverlay(intf.Local.Overlay)
 	var bind *net.UDPAddr
 	if bindOv != nil {
 		bind = bindOv.ToUDPAddr()

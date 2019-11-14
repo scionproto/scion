@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -278,9 +277,7 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 			return
 		}
 		topoInfo := intf.TopoInfo()
-		ov := topoInfo.InternalAddrs.PublicOverlay(
-			topology.OverlayType(topoInfo.InternalAddrs.Overlay),
-		)
+		ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
 
 		err := p.beaconSender.Send(
 			ctx,

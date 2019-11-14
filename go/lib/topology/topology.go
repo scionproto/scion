@@ -24,29 +24,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology/internal/overlay"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/proto"
 )
-
-type OverlayType int
-
-// FIXME(scrye): When the intermediate topology format goes away (topology.Topo), these should
-// also be deleted.
-const (
-	Invalid  OverlayType = OverlayType(overlay.Invalid)
-	IPv4     OverlayType = OverlayType(overlay.IPv4)
-	IPv6     OverlayType = OverlayType(overlay.IPv6)
-	IPv46    OverlayType = OverlayType(overlay.IPv46)
-	UDPIPv4  OverlayType = OverlayType(overlay.UDPIPv4)
-	UDPIPv6  OverlayType = OverlayType(overlay.UDPIPv6)
-	UDPIPv46 OverlayType = OverlayType(overlay.UDPIPv46)
-)
-
-func (ot OverlayType) Type() overlay.Type {
-	// FIXME(scrye): When the intermediate topology format goes away (topology.Topo), this should
-	// also be deleted.
-	return overlay.Type(ot)
-}
 
 // EndhostPort is the overlay port that the dispatcher binds to on non-routers.
 const EndhostPort = overlay.EndhostPort

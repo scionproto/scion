@@ -22,6 +22,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/mock_xtest"
 	"github.com/scionproto/scion/go/proto"
@@ -86,7 +87,7 @@ func TestStateSetStatic(t *testing.T) {
 			topo.IFInfoMap[1] = ifinfo
 			// modify other cs
 			cs := topo.CS["cs1-ff00:0:311-2"]
-			cs.Overlay = topology.IPv6.Type()
+			cs.Overlay = overlay.IPv6
 			topo.CS["cs1-ff00:0:311-2"] = cs
 			clbks.update.EXPECT().Call().Do(wg.Done)
 			newTopo, updated, err := s.setStatic(topo, true)
@@ -98,7 +99,7 @@ func TestStateSetStatic(t *testing.T) {
 		})
 		Convey("Modifying the element's entry should not be allowed", func() {
 			cs := topo.CS[id]
-			cs.Overlay = topology.IPv6.Type()
+			cs.Overlay = overlay.IPv6
 			topo.CS[id] = cs
 			_, updated, err := s.setStatic(topo, true)
 			SoMsg("err", err, ShouldNotBeNil)
@@ -125,7 +126,7 @@ func TestStateSetStatic(t *testing.T) {
 			topo.IFInfoMap[2] = ifinfo
 			// modify other cs
 			cs := topo.CS["cs1-ff00:0:311-2"]
-			cs.Overlay = topology.IPv6.Type()
+			cs.Overlay = overlay.IPv6
 			topo.CS["cs1-ff00:0:311-2"] = cs
 			Convey("If semi-mutation is allowed", func() {
 				clbks.update.EXPECT().Call().Do(wg.Done)
@@ -148,7 +149,7 @@ func TestStateSetStatic(t *testing.T) {
 		})
 		Convey("Modifying the internal address is not allowed", func() {
 			brInfo := topo.BR[id]
-			brInfo.InternalAddrs.Overlay = topology.IPv6.Type()
+			brInfo.InternalAddrs.Overlay = overlay.IPv6
 			topo.BR[id] = brInfo
 			Convey("If semi-mutation is allowed", func() {
 				_, updated, err := s.setStatic(topo, true)
@@ -229,7 +230,7 @@ func TestStateSetDynamic(t *testing.T) {
 			topo.IFInfoMap[1] = ifinfo
 			// modify other cs
 			cs := topo.CS["cs1-ff00:0:311-2"]
-			cs.Overlay = topology.IPv6.Type()
+			cs.Overlay = overlay.IPv6
 			topo.CS["cs1-ff00:0:311-2"] = cs
 			newTopo, updated, err := s.setDynamic(topo)
 			SoMsg("err", err, ShouldBeNil)
@@ -238,7 +239,7 @@ func TestStateSetDynamic(t *testing.T) {
 		})
 		Convey("Modifying the element's entry should not be allowed", func() {
 			cs := topo.CS[id]
-			cs.Overlay = topology.IPv6.Type()
+			cs.Overlay = overlay.IPv6
 			topo.CS[id] = cs
 			_, updated, err := s.setDynamic(topo)
 			SoMsg("err", err, ShouldNotBeNil)
@@ -263,7 +264,7 @@ func TestStateSetDynamic(t *testing.T) {
 			topo.IFInfoMap[2] = ifinfo
 			// modify other cs
 			cs := topo.CS["cs1-ff00:0:311-2"]
-			cs.Overlay = topology.IPv6.Type()
+			cs.Overlay = overlay.IPv6
 			topo.CS["cs1-ff00:0:311-2"] = cs
 			newTopo, updated, err := s.setDynamic(topo)
 			SoMsg("err", err, ShouldBeNil)
@@ -272,7 +273,7 @@ func TestStateSetDynamic(t *testing.T) {
 		})
 		Convey("Modifying the internal address is not allowed", func() {
 			brInfo := topo.BR[id]
-			brInfo.InternalAddrs.Overlay = topology.IPv6.Type()
+			brInfo.InternalAddrs.Overlay = overlay.IPv6
 			topo.BR[id] = brInfo
 			_, updated, err := s.setDynamic(topo)
 			SoMsg("err", err, ShouldNotBeNil)
