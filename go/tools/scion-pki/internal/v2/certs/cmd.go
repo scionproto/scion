@@ -73,10 +73,7 @@ var genIssuerCmd = &cobra.Command{
 		if err != nil {
 			return serrors.WrapStr("unable to select target ISDs", err, "selector", args[0])
 		}
-		if err := g.Run(asMap); err != nil {
-			return serrors.WrapStr("unable to generate issuer certificates", err)
-		}
-		return nil
+		return g.Run(asMap)
 	},
 }
 
