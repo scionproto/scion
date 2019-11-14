@@ -33,7 +33,7 @@ var (
 	testASMap = pkicmn.ASMap{1: {ia110}}
 )
 
-func TestIssuerGen(t *testing.T) {
+func TestIssuerGenRun(t *testing.T) {
 	tmpDir, cleanF := xtest.MustTempDir("", "test-certs-issuer")
 	defer cleanF()
 

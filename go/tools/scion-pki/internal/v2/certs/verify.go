@@ -30,6 +30,8 @@ type verifier struct {
 	Dirs pkicmn.Dirs
 }
 
+// VerifyIssuer validates and verifies a raw signed issuer certificate. For
+// verification, the issuing TRC is loaded from the file system.
 func (v verifier) VerifyIssuer(raw []byte) error {
 	signed, err := cert.ParseSignedIssuer(raw)
 	if err != nil {
@@ -39,12 +41,12 @@ func (v verifier) VerifyIssuer(raw []byte) error {
 	if err != nil {
 		return serrors.WrapStr("unable to parse issuer certificate payload", err)
 	}
+	if err := c.Validate(); err != nil {
+		return serrors.WrapStr("unable to validate issuer certificate", err)
+	}
 	t, err := v.loadTRC(c.Subject.I, c.Issuer.TRCVersion)
 	if err != nil {
 		return err
-	}
-	if err := c.Validate(); err != nil {
-		return serrors.WrapStr("unable to validate issuer certificate", err)
 	}
 	issVer := cert.IssuerVerifier{
 		Issuer:       c,
