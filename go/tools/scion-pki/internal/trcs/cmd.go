@@ -18,7 +18,6 @@ package trcs
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
@@ -182,6 +181,22 @@ See 'scion-pki help trcs' for information on the selector.
 	},
 }
 
+var verify = &cobra.Command{
+	Use:   "verify",
+	Short: "Verify all provided TRCs",
+	Example: `  scion-pki trcs verify ISD1/trcs/ISD1-V1.trc
+  scion-pki trcs verify ISD1/trcs/*`,
+	Long: `
+	'verify' validates and verifies all the provided TRCs. In order to verify
+	non-base TRCs, the predecessor TRC must be available.
+`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		v := validator{Dirs: pkicmn.GetDirs()}
+		return v.Run(args)
+	},
+}
+
 var human = &cobra.Command{
 	Use:   "human",
 	Short: "Display human readable",
@@ -192,7 +207,7 @@ var human = &cobra.Command{
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := runHuman(args); err != nil {
-			return common.NewBasicError("unable to display human TRCs", err)
+			return serrors.WrapStr("unable to display human TRCs", err)
 		}
 		return nil
 	},
@@ -204,5 +219,6 @@ func init() {
 	Cmd.AddCommand(proto)
 	Cmd.AddCommand(sign)
 	Cmd.AddCommand(combine)
+	Cmd.AddCommand(verify)
 	Cmd.AddCommand(human)
 }

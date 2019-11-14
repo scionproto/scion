@@ -112,10 +112,30 @@ and displays them in a human readable format.
 	},
 }
 
+var verifyCmd = &cobra.Command{
+	Use:   "verify",
+	Short: "Verify all provided issuer certificates and certificate chains",
+	Example: `  scion-pki certs verify ISD1/ASff00_0_110/certs/ISD1-ASff00_0_110.crt
+  scion-pki certs verify ISD1/ASff00_0_110/certs/ISD1-ASff00_0_110.issuer
+  scion-pki certs verify ISD1/ASff00_0_110/certs/*`,
+	Long: `
+	'verify' validates and verifies all the issuer certificates and certificate chains.
+	The TRC that is used to authenticate the issuer certificate must be present.
+	Whether the file is an issuer certificate or a certificate chain is decided
+	based on the file ending.
+`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		v := verifier{Dirs: pkicmn.GetDirs()}
+		return v.Run(args)
+	},
+}
+
 func init() {
 	Cmd.PersistentFlags().Uint64Var(&version, "version", 0,
 		"certificate version (0 indicates newest)")
 	Cmd.AddCommand(genChainCmd)
 	Cmd.AddCommand(genIssuerCmd)
 	Cmd.AddCommand(humanCmd)
+	Cmd.AddCommand(verifyCmd)
 }

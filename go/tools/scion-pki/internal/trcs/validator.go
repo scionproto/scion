@@ -25,16 +25,36 @@ type validator struct {
 	Dirs pkicmn.Dirs
 }
 
+// Run checks that all TRCs provided in the file list are valid and verifiable.
+func (v validator) Run(files []string) error {
+	var errs serrors.List
+	trcs := make(map[addr.ISD]signedMeta)
+	for _, file := range files {
+		dec, err := loadTRC(file)
+		if err != nil {
+			errs = append(errs, serrors.WrapStr("unable to load TRC", err, "file", file))
+			continue
+		}
+		trcs[dec.TRC.ISD] = signedMeta{Signed: dec.Signed, Version: dec.TRC.Version}
+	}
+	if err := v.Validate(trcs); err != nil {
+		errs = append(errs, err)
+	}
+	return errs.ToError()
+}
+
 // Validate checks that all TRCs in the map are valid and verifiable. For base
 // TRCs, the TRC invariants are validated and all proof of possessions are
 // verified. TRC updates are validated and verified based on the previous TRC.
 func (v validator) Validate(combined map[addr.ISD]signedMeta) error {
+	var errs serrors.List
 	for isd, meta := range combined {
 		if err := v.validate(isd, meta); err != nil {
-			return serrors.WrapStr("TRC cannot be validated/verified", err, "isd", isd)
+			errs = append(errs, serrors.WrapStr("TRC cannot be validated/verified", err,
+				"isd", isd, "version", meta.Version))
 		}
 	}
-	return nil
+	return errs.ToError()
 }
 
 func (v validator) validate(isd addr.ISD, meta signedMeta) error {
@@ -56,13 +76,13 @@ func (v validator) validate(isd addr.ISD, meta signedMeta) error {
 	if t.Base() {
 		return nil
 	}
-	prev, _, err := loadTRC(SignedFile(v.Dirs.Out, isd, meta.Version-1))
+	dec, err := loadTRC(SignedFile(v.Dirs.Out, isd, meta.Version-1))
 	if err != nil {
 		return serrors.WrapStr("unable to load previous TRC", err, "version", meta.Version-1)
 	}
 	val := trc.UpdateValidator{
 		Next: t,
-		Prev: prev,
+		Prev: dec.TRC,
 	}
 	if _, err := val.Validate(); err != nil {
 		return serrors.WrapStr("unable to validate TRC update", err)
@@ -71,7 +91,7 @@ func (v validator) validate(isd addr.ISD, meta signedMeta) error {
 		Next:        t,
 		NextEncoded: meta.Signed.EncodedTRC,
 		Signatures:  meta.Signed.Signatures,
-		Prev:        prev,
+		Prev:        dec.TRC,
 	}
 	if err := ver.Verify(); err != nil {
 		return serrors.WrapStr("unable to verify TRC update", err)

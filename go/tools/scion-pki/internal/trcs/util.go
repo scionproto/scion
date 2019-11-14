@@ -80,18 +80,22 @@ func sortSignatures(signatures map[trc.Protected]trc.Signature) []trc.Signature 
 	return sigs
 }
 
-func loadTRC(file string) (*trc.TRC, trc.Encoded, error) {
+type decoded struct {
+	Signed trc.Signed
+	TRC    *trc.TRC
+}
+
+func loadTRC(file string) (decoded, error) {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
-		return nil, "", err
+		return decoded{}, err
 	}
-	signed, err := trc.ParseSigned(raw)
-	if err != nil {
-		return nil, "", err
+	var dec decoded
+	if dec.Signed, err = trc.ParseSigned(raw); err != nil {
+		return decoded{}, err
 	}
-	t, err := signed.EncodedTRC.Decode()
-	if err != nil {
-		return nil, "", err
+	if dec.TRC, err = dec.Signed.EncodedTRC.Decode(); err != nil {
+		return decoded{}, err
 	}
-	return t, signed.EncodedTRC, nil
+	return dec, nil
 }
