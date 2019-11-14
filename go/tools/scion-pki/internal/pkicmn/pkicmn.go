@@ -230,10 +230,15 @@ func QuietPrint(format string, a ...interface{}) {
 	}
 }
 
-// LoadKey loads a PEM encoded key from file.
-func LoadKey(file string, ia addr.IA, usage keyconf.Usage,
-	version scrypto.KeyVersion) (keyconf.Key, error) {
+// KeyDesc describes a key.
+type KeyDesc struct {
+	IA      addr.IA
+	Usage   keyconf.Usage
+	Version scrypto.KeyVersion
+}
 
+// LoadKey loads a PEM encoded key from file.
+func LoadKey(file string, desc KeyDesc) (keyconf.Key, error) {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
 		return keyconf.Key{}, serrors.Wrap(ErrReadFile, err)
@@ -246,16 +251,17 @@ func LoadKey(file string, ia addr.IA, usage keyconf.Usage,
 	if err != nil {
 		return keyconf.Key{}, serrors.WrapStr("unable to decode key", err)
 	}
-	if !key.IA.Equal(ia) {
-		return keyconf.Key{}, serrors.New("IA does not match", "expected", ia, "actual", key.IA)
+	if !key.IA.Equal(desc.IA) {
+		return keyconf.Key{}, serrors.New("IA does not match",
+			"expected", desc.IA, "actual", key.IA)
 	}
-	if key.Usage != usage {
+	if key.Usage != desc.Usage {
 		return keyconf.Key{}, serrors.New("usage does not match",
-			"expected", usage, "actual", key.Usage)
+			"expected", desc.Usage, "actual", key.Usage)
 	}
-	if key.Version != version {
+	if key.Version != desc.Version {
 		return keyconf.Key{}, serrors.New("version does not match",
-			"expected", version, "actual", key.Version)
+			"expected", desc.Version, "actual", key.Version)
 	}
 	return key, nil
 }
