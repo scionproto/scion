@@ -30,7 +30,7 @@ func AppAddrFromUDP(a *net.UDPAddr) *AppAddr {
 		return nil
 	}
 	return &AppAddr{
-		L3: HostFromIP(a.IP),
+		L3: HostFromIP(append(a.IP[:0:0], a.IP...)),
 		L4: uint16(a.Port),
 	}
 }

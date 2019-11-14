@@ -193,12 +193,14 @@ func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	}
 	if ifInfo.InternalAddrs.IPv4 != nil {
 		if v4Addr := ifInfo.InternalAddrs.IPv4.PublicOverlay; v4Addr != nil {
-			return &net.UDPAddr{IP: v4Addr.L3().IP(), Port: int(v4Addr.L4())}, true
+			ip := v4Addr.L3().IP()
+			return &net.UDPAddr{IP: append(ip[:0:0], ip...), Port: int(v4Addr.L4())}, true
 		}
 	}
 	if ifInfo.InternalAddrs.IPv6 != nil {
 		if v6Addr := ifInfo.InternalAddrs.IPv6.PublicOverlay; v6Addr != nil {
-			return &net.UDPAddr{IP: v6Addr.L3().IP(), Port: int(v6Addr.L4())}, true
+			ip := v6Addr.L3().IP()
+			return &net.UDPAddr{IP: append(ip[:0:0], ip...), Port: int(v6Addr.L4())}, true
 		}
 	}
 	return nil, false
@@ -222,10 +224,18 @@ func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
 	}
 	for _, a := range addresses {
 		if v4Addr := a.PublicAddr(overlay.IPv4); v4Addr != nil {
-			hostInfos = append(hostInfos, net.UDPAddr{IP: v4Addr.L3.IP(), Port: int(v4Addr.L4)})
+			ip := v4Addr.L3.IP()
+			hostInfos = append(hostInfos, net.UDPAddr{
+				IP:   append(ip[:0:0], ip...),
+				Port: int(v4Addr.L4),
+			})
 		}
 		if v6Addr := a.PublicAddr(overlay.IPv6); v6Addr != nil {
-			hostInfos = append(hostInfos, net.UDPAddr{IP: v6Addr.L3.IP(), Port: int(v6Addr.L4)})
+			ip := v6Addr.L3.IP()
+			hostInfos = append(hostInfos, net.UDPAddr{
+				IP:   append(ip[:0:0], ip...),
+				Port: int(v6Addr.L4),
+			})
 		}
 	}
 	return hostInfos
