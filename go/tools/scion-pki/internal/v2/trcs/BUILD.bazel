@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "cmd.go",
         "combine.go",
+        "gen.go",
         "human.go",
         "loader.go",
         "prototype.go",
@@ -33,6 +34,8 @@ go_test(
     name = "go_default_test",
     srcs = [
         "combine_test.go",
+        "gen_test.go",
+        "loader_test.go",
         "prototype_test.go",
         "sign_test.go",
     ],

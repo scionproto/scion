@@ -15,7 +15,6 @@
 package trcs
 
 import (
-	"flag"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -30,23 +29,13 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-var update = flag.Bool("update", false, "set to true to regenerate golden files")
-
-var (
-	ia110 = xtest.MustParseIA("1-ff00:0:110")
-	ia120 = xtest.MustParseIA("1-ff00:0:120")
-	ia130 = xtest.MustParseIA("1-ff00:0:130")
-
-	testASMap = pkicmn.ASMap{1: {ia110, ia120, ia130}}
-)
-
-func TestProtoGen(t *testing.T) {
+func TestFullGen(t *testing.T) {
 	if *update {
 		create := func(v scrypto.Version) error {
 			force := pkicmn.Force
 			pkicmn.Force = true
 			defer func() { pkicmn.Force = force }()
-			g := protoGen{Dirs: pkicmn.Dirs{Root: "./testdata", Out: "./testdata"}, Version: v}
+			g := fullGen{Dirs: pkicmn.Dirs{Root: "./testdata", Out: "./testdata"}, Version: v}
 			return g.Run(testASMap)
 		}
 		require.NoError(t, create(1))
@@ -65,7 +54,7 @@ func TestProtoGen(t *testing.T) {
 		name, test := name, test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			tmpDir, cleanF := xtest.MustTempDir("", "test-trcs-proto")
+			tmpDir, cleanF := xtest.MustTempDir("", "test-trcs-gen")
 			defer cleanF()
 
 			// Setup file structure in temporary directory.
@@ -79,22 +68,22 @@ func TestProtoGen(t *testing.T) {
 			require.NoError(t, err)
 			if test.Version > 1 {
 				require.NoError(t, os.MkdirAll(Dir(tmpDir, 1), 0777))
-				err = exec.Command("cp", ProtoFile("./testdata", 1, test.Version-1),
+				err = exec.Command("cp", SignedFile("./testdata", 1, test.Version-1),
 					SignedFile(tmpDir, 1, test.Version-1)).Run()
 				require.NoError(t, err)
 			}
 
-			// Run protoGen generator and compare golden files.
-			g := protoGen{
+			// Run fullGen generator and compare golden files.
+			g := fullGen{
 				Dirs:    pkicmn.Dirs{Root: "./testdata", Out: tmpDir},
 				Version: test.Version,
 			}
 			err = g.Run(testASMap)
 			require.NoError(t, err)
 
-			golden, err := ioutil.ReadFile(ProtoFile("./testdata", 1, test.Version))
+			golden, err := ioutil.ReadFile(SignedFile("./testdata", 1, test.Version))
 			require.NoError(t, err)
-			result, err := ioutil.ReadFile(ProtoFile(tmpDir, 1, test.Version))
+			result, err := ioutil.ReadFile(SignedFile(tmpDir, 1, test.Version))
 			require.NoError(t, err)
 			assert.Equal(t, golden, result)
 		})
