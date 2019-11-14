@@ -272,14 +272,6 @@ func (n *SCIONNetwork) PathResolver() pathmgr.Resolver {
 	return n.pathResolver
 }
 
-// Sciond returns the sciond API endpoint that the network is using.
-func (n *SCIONNetwork) Sciond() sciond.Connector {
-	if n.pathResolver != nil {
-		return n.pathResolver.Sciond()
-	}
-	return nil
-}
-
 func (n *SCIONNetwork) ia() addr.IA {
 	return n.localIA
 }
