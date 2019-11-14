@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "cmd.go",
+        "human.go",
         "issuer.go",
         "loader.go",
         "util.go",
