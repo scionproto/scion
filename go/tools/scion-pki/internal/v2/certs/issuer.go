@@ -16,7 +16,6 @@ package certs
 
 import (
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -95,33 +94,41 @@ func (g issGen) generate(ia addr.IA, cfg conf.Issuer) (issMeta, error) {
 
 func (g issGen) loadPubKeys(ia addr.IA, cfg conf.Issuer) (map[cert.KeyType]keyconf.Key, error) {
 	keys := make(map[cert.KeyType]keyconf.Key)
-	key, err := g.loadPubKey(ia, keyconf.IssCertSigningKey, *cfg.IssuingKeyVersion)
-	if err != nil {
-		return nil, serrors.WrapStr("unable to load certificate issuing key", err)
+	descs := map[cert.KeyType]pkicmn.KeyDesc{
+		cert.IssuingKey: {
+			IA:      ia,
+			Usage:   keyconf.IssCertSigningKey,
+			Version: *cfg.IssuingKeyVersion,
+		},
 	}
-	keys[cert.IssuingKey] = key
 	if cfg.RevocationKeyVersion != nil {
-		key, err := g.loadPubKey(ia, keyconf.IssRevocationKey, *cfg.RevocationKeyVersion)
-		if err != nil {
-			return nil, serrors.WrapStr("unable to load revocation key", err)
+		descs[cert.RevocationKey] = pkicmn.KeyDesc{
+			IA:      ia,
+			Usage:   keyconf.IssRevocationKey,
+			Version: *cfg.RevocationKeyVersion,
 		}
-		keys[cert.RevocationKey] = key
+	}
+	for keyType, desc := range descs {
+		key, err := g.loadPubKey(desc)
+		if err != nil {
+			return nil, serrors.WithCtx(err, "usage", desc.Usage)
+		}
+		keys[keyType] = key
 	}
 	return keys, nil
 }
 
-func (g issGen) loadPubKey(ia addr.IA, usage keyconf.Usage,
-	version scrypto.KeyVersion) (keyconf.Key, error) {
+func (g issGen) loadPubKey(desc pkicmn.KeyDesc) (keyconf.Key, error) {
 
-	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, ia, usage, version)
+	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, desc)
 	if err != nil {
 		return keyconf.Key{}, err
 	}
 	if fromPriv {
-		pkicmn.QuietPrint("Using private %s key for %s\n", usage, ia)
+		pkicmn.QuietPrint("Using private %s key for %s\n", desc.Usage, desc.IA)
 		return key, nil
 	}
-	pkicmn.QuietPrint("Using public %s key for %s\n", usage, ia)
+	pkicmn.QuietPrint("Using public %s key for %s\n", desc.Usage, desc.IA)
 	return key, nil
 }
 
@@ -169,9 +176,12 @@ func (g issGen) sign(ia addr.IA, cfg conf.Issuer,
 	if !ok || !primary.Attributes.Contains(trc.Issuing) || primary.IssuingKeyVersion == nil {
 		return cert.SignedIssuer{}, serrors.New("not an issuing AS")
 	}
-	file = filepath.Join(keys.PrivateDir(g.Dirs.Out, ia),
-		keyconf.PrivateKeyFile(keyconf.TRCIssuingKey, *primary.IssuingKeyVersion))
-	key, err := pkicmn.LoadKey(file, ia, keyconf.TRCIssuingKey, *primary.IssuingKeyVersion)
+	desc := pkicmn.KeyDesc{
+		IA:      ia,
+		Usage:   keyconf.TRCIssuingKey,
+		Version: *primary.IssuingKeyVersion,
+	}
+	key, err := pkicmn.LoadKey(keys.PrivateFile(g.Dirs.Out, desc), desc)
 	if err != nil {
 		return cert.SignedIssuer{}, serrors.WrapStr("unable to load issuing key", err, "file", file)
 	}

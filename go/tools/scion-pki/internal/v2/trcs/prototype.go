@@ -122,7 +122,12 @@ func (g protoGen) insertIssuingKey(dst pubKeys, ia addr.IA, primary conf.Primary
 	if !primary.Attributes.Contains(trc.Issuing) {
 		return nil
 	}
-	key, err := g.loadPubKey(ia, keyconf.TRCIssuingKey, *primary.IssuingKeyVersion)
+	desc := pkicmn.KeyDesc{
+		IA:      ia,
+		Usage:   keyconf.TRCIssuingKey,
+		Version: *primary.IssuingKeyVersion,
+	}
+	key, err := g.loadPubKey(desc)
 	if err != nil {
 		return serrors.WrapStr("unable to load issuing key", err)
 	}
@@ -136,32 +141,40 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 	if !primary.Attributes.Contains(trc.Voting) {
 		return nil
 	}
-	online, err := g.loadPubKey(ia, keyconf.TRCVotingOnlineKey, *primary.VotingOnlineKeyVersion)
-	if err != nil {
-		return serrors.WrapStr("unable to load voting online key", err)
+	keys := map[trc.KeyType]pkicmn.KeyDesc{
+		trc.OnlineKey: {
+			IA:      ia,
+			Usage:   keyconf.TRCVotingOnlineKey,
+			Version: *primary.VotingOnlineKeyVersion,
+		},
+		trc.OfflineKey: {
+			IA:      ia,
+			Usage:   keyconf.TRCVotingOfflineKey,
+			Version: *primary.VotingOfflineKeyVersion,
+		},
 	}
-	dst[trc.OnlineKey] = online
-	offline, err := g.loadPubKey(ia, keyconf.TRCVotingOfflineKey, *primary.VotingOfflineKeyVersion)
-	if err != nil {
-		return serrors.WrapStr("unable to load voting offline key", err)
+	for keyType, desc := range keys {
+		key, err := g.loadPubKey(desc)
+		if err != nil {
+			return serrors.WithCtx(err, "usage", desc.Usage)
+		}
+		dst[keyType] = key
 	}
-	dst[trc.OfflineKey] = offline
 	return nil
 }
 
 // loadPubKey attempts to load the private key and use it to generate the public
 // key. If that fails, loadPubKey attempts to load the public key directly.
-func (g protoGen) loadPubKey(ia addr.IA, usage keyconf.Usage,
-	version scrypto.KeyVersion) (keyconf.Key, error) {
+func (g protoGen) loadPubKey(desc pkicmn.KeyDesc) (keyconf.Key, error) {
 
-	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, ia, usage, version)
+	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, desc)
 	if err != nil {
 		return keyconf.Key{}, nil
 	}
 	if fromPriv {
-		pkicmn.QuietPrint("Using private %s key for %s\n", usage, ia)
+		pkicmn.QuietPrint("Using private %s key for %s\n", desc.Usage, desc.IA)
 	} else {
-		pkicmn.QuietPrint("Using public %s key for %s\n", usage, ia)
+		pkicmn.QuietPrint("Using public %s key for %s\n", desc.Usage, desc.IA)
 	}
 	return key, nil
 }

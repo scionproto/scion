@@ -127,11 +127,8 @@ func (g pubGen) writeKeys(pubKeys map[addr.IA][]keyconf.Key) error {
 // public key. If that fails, it attempts to load the public key directly. The
 // boolean return value indicates whether the public key was derived from the
 // private key.
-func LoadPublicKey(dir string, ia addr.IA, usage keyconf.Usage,
-	version scrypto.KeyVersion) (keyconf.Key, bool, error) {
-
-	file := filepath.Join(PrivateDir(dir, ia), keyconf.PrivateKeyFile(usage, version))
-	priv, err := pkicmn.LoadKey(file, ia, usage, version)
+func LoadPublicKey(dir string, desc pkicmn.KeyDesc) (keyconf.Key, bool, error) {
+	priv, err := pkicmn.LoadKey(PrivateFile(dir, desc), desc)
 	if err == nil {
 		pub, err := PublicKey(priv)
 		return pub, true, err
@@ -139,8 +136,9 @@ func LoadPublicKey(dir string, ia addr.IA, usage keyconf.Usage,
 	if !xerrors.Is(err, pkicmn.ErrReadFile) {
 		return keyconf.Key{}, false, err
 	}
-	file = filepath.Join(PublicDir(dir, ia), keyconf.PublicKeyFile(usage, ia, version))
-	pub, err := pkicmn.LoadKey(file, ia, usage, version)
+	pkicmn.QuietPrint("Unable to load private key for %s. Trying public key.\n", desc.IA)
+	file := PublicFile(dir, desc)
+	pub, err := pkicmn.LoadKey(file, desc)
 	if err != nil {
 		return keyconf.Key{}, false, serrors.WrapStr("unable to load public key", err, "file", file)
 	}

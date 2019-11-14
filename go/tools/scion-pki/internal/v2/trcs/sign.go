@@ -15,8 +15,6 @@
 package trcs
 
 import (
-	"path/filepath"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -127,11 +125,16 @@ func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia ad
 	if !ok {
 		return nil
 	}
-	usage, err := keys.UsageFromTRCKeyType(vote.KeyType)
+	desc := pkicmn.KeyDesc{
+		IA:      ia,
+		Version: vote.KeyVersion,
+	}
+	var err error
+	desc.Usage, err = keys.UsageFromTRCKeyType(vote.KeyType)
 	if err != nil {
 		return err
 	}
-	priv, err := g.loadKey(ia, usage, vote.KeyVersion)
+	priv, err := g.loadKey(desc)
 	if err != nil {
 		return err
 	}
@@ -155,11 +158,16 @@ func (g signatureGen) showPOP(signatures map[trc.Protected]trc.Signature, ia add
 	cfg conf.TRC2, signed trc.Signed, t *trc.TRC) error {
 
 	for _, keyType := range t.ProofOfPossession[ia.A] {
-		usage, err := keys.UsageFromTRCKeyType(keyType)
+		desc := pkicmn.KeyDesc{
+			IA:      ia,
+			Version: t.PrimaryASes[ia.A].Keys[keyType].KeyVersion,
+		}
+		var err error
+		desc.Usage, err = keys.UsageFromTRCKeyType(keyType)
 		if err != nil {
 			return err
 		}
-		priv, err := g.loadKey(ia, usage, t.PrimaryASes[ia.A].Keys[keyType].KeyVersion)
+		priv, err := g.loadKey(desc)
 		if err != nil {
 			return err
 		}
@@ -180,11 +188,9 @@ func (g signatureGen) showPOP(signatures map[trc.Protected]trc.Signature, ia add
 	return nil
 }
 
-func (g signatureGen) loadKey(ia addr.IA, usage keyconf.Usage,
-	version scrypto.KeyVersion) (keyconf.Key, error) {
-
-	file := filepath.Join(keys.PrivateDir(g.Dirs.Out, ia), keyconf.PrivateKeyFile(usage, version))
-	priv, err := pkicmn.LoadKey(file, ia, usage, version)
+func (g signatureGen) loadKey(desc pkicmn.KeyDesc) (keyconf.Key, error) {
+	file := keys.PrivateFile(g.Dirs.Out, desc)
+	priv, err := pkicmn.LoadKey(file, desc)
 	if err != nil {
 		return keyconf.Key{}, serrors.WrapStr("unable to load private key", err, "file", file)
 	}
