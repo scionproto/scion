@@ -42,6 +42,12 @@ const (
 	UDPIPv46 OverlayType = OverlayType(overlay.UDPIPv46)
 )
 
+func (ot OverlayType) Type() overlay.Type {
+	// FIXME(scrye): When the intermediate topology format goes away (topology.Topo), this should
+	// also be deleted.
+	return overlay.Type(ot)
+}
+
 // EndhostPort is the overlay port that the dispatcher binds to on non-routers.
 const EndhostPort = overlay.EndhostPort
 

@@ -20,7 +20,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -71,13 +70,13 @@ func TestSvcValidatorImmutable(t *testing.T) {
 		testGenImmutable(v, topo, oldTopo, t)
 		Convey("Modifying a different service of the same type is allowed", func() {
 			svcInfo := topo.CS[other]
-			svcInfo.Overlay = overlay.IPv6
+			svcInfo.Overlay = topology.IPv6.Type()
 			topo.CS[other] = svcInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
 		Convey("Modifying the own service entry is not allowed", func() {
 			svcInfo := topo.CS[v.id]
-			svcInfo.Overlay = overlay.IPv6
+			svcInfo.Overlay = topology.IPv6.Type()
 			topo.CS[v.id] = svcInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 		})
@@ -108,25 +107,25 @@ func TestBrValidatorImmutable(t *testing.T) {
 		testGenImmutable(v, topo, oldTopo, t)
 		Convey("Modifying a different br's internal address is allowed", func() {
 			brInfo := topo.BR[other]
-			brInfo.InternalAddrs.Overlay = overlay.IPv6
+			brInfo.InternalAddrs.Overlay = topology.IPv6.Type()
 			topo.BR[other] = brInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
 		Convey("Modifying a different br's control address is allowed", func() {
 			brInfo := topo.BR[other]
-			brInfo.CtrlAddrs.Overlay = overlay.IPv6
+			brInfo.CtrlAddrs.Overlay = topology.IPv6.Type()
 			topo.BR[other] = brInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
 		Convey("Modifying the own internal address is not allowed", func() {
 			brInfo := topo.BR[v.id]
-			brInfo.InternalAddrs.Overlay = overlay.IPv6
+			brInfo.InternalAddrs.Overlay = topology.IPv6.Type()
 			topo.BR[v.id] = brInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 		})
 		Convey("Modifying the own control address is not allowed", func() {
 			brInfo := topo.BR[v.id]
-			brInfo.CtrlAddrs.Overlay = overlay.IPv6
+			brInfo.CtrlAddrs.Overlay = topology.IPv6.Type()
 			topo.BR[v.id] = brInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 		})
@@ -254,7 +253,7 @@ func testGenImmutable(v internalValidator, topo, oldTopo *topology.Topo, t *test
 		SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 	})
 	Convey("Updating the overlay is not allowed", func() {
-		topo.Overlay = overlay.IPv6
+		topo.Overlay = topology.IPv6.Type()
 		SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 	})
 	Convey("Updating the mtu is not allowed", func() {

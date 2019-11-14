@@ -25,13 +25,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr/mock_pathmgr"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor/mock_ctxmonitor"
 	"github.com/scionproto/scion/go/lib/snet/internal/pathsource/mock_pathsource"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -106,7 +106,7 @@ func TestRemoteAddressResolver(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, outAddress)
 			assert.Equal(t, outAddress.NextHop.IP, outAddress.Host.L3.IP(), "overlay addr")
-			assert.Equal(t, outAddress.NextHop.Port, overlay.EndhostPort, "overlay port")
+			assert.Equal(t, outAddress.NextHop.Port, topology.EndhostPort, "overlay port")
 		})
 	})
 	t.Run("if destination is not in local AS", func(t *testing.T) {

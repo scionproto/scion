@@ -99,11 +99,11 @@ func createMap(svcInfo topology.IDAddrMap, oldInfos infoMap) infoMap {
 	for k, svc := range svcInfo {
 		if oldInfo, ok := oldInfos[k]; ok {
 			infos[k] = oldInfo
-			oldInfo.update(svc.PublicAddr(svc.Overlay))
+			oldInfo.update(svc.PublicAddr(topology.OverlayType(svc.Overlay)))
 		} else {
 			infos[k] = &info{
 				Info: healthpool.NewInfo(),
-				addr: svc.PublicAddr(svc.Overlay),
+				addr: svc.PublicAddr(topology.OverlayType(svc.Overlay)),
 				name: k,
 			}
 		}

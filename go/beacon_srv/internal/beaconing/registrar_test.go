@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
@@ -176,7 +177,8 @@ func TestRegistrarRun(t *testing.T) {
 					SoMsg("HopField", []uint8(hopF.Pack()), ShouldResemble,
 						pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField)
 					a := topoProvider.Get().IFInfoMap()[hopF.ConsIngress].InternalAddrs
-					SoMsg("Next", s.Addr.NextHop, ShouldResemble, a.PublicOverlay(a.Overlay))
+					SoMsg("Next", s.Addr.NextHop, ShouldResemble,
+						a.PublicOverlay(topology.OverlayType(a.Overlay)))
 				})
 			}
 			// The second run should not do anything, since the period has not passed.

@@ -37,7 +37,6 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/overlay:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/lib/xtest/mock_xtest:go_default_library",
