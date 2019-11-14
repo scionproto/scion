@@ -19,12 +19,16 @@ import (
 	"regexp"
 	"strconv"
 
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/v2/conf"
 )
+
+var errNoFilesFound = serrors.New("no config files found")
 
 type loader struct {
 	Dirs    pkicmn.Dirs
@@ -41,7 +45,11 @@ func (l loader) LoadIssuerConfigs(asMap pkicmn.ASMap) (map[addr.IA]conf.Issuer, 
 	for _, ias := range asMap {
 		for _, ia := range ias {
 			file, err := l.selectConfig(ia, s)
-			if err != nil {
+			switch {
+			case xerrors.Is(err, errNoFilesFound):
+				pkicmn.QuietPrint("Ignoring AS without issuer certificate config: %s\n", ia)
+				continue
+			case err != nil:
 				return nil, serrors.WrapStr("unable to select config", err, "ia", ia)
 			}
 			cfg, err := conf.LoadIssuer(file)
@@ -86,7 +94,7 @@ func (l loader) selectConfig(ia addr.IA, s selector) (string, error) {
 		return "", serrors.WrapStr("unable to search all available versions", err)
 	}
 	if len(files) == 0 {
-		return "", serrors.WrapStr("no config files found", err)
+		return "", errNoFilesFound
 	}
 	max, err := findMaxVersion(files, s.Regex)
 	if err != nil {

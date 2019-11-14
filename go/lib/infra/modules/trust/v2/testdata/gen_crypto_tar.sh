@@ -22,4 +22,7 @@ do
     $1 v2 trcs gen -d $TMP --version $i "1" > /dev/null
 done
 
+$1 v2 certs issuer -d $TMP "*-*" > /dev/null
+$1 v2 certs chain -d $TMP "*-*" > /dev/null
+
 tar -C $TMP -cf $2 .
