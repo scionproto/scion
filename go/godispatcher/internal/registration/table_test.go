@@ -18,190 +18,211 @@ import (
 	"net"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
+var dummyValue = "test value"
+
 func TestRegister(t *testing.T) {
-	public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
-	bind := net.IP{10, 2, 3, 4}
-	value := "test value"
-	Convey("Given a table", t, func() {
-		table := NewTable(minPort, maxPort)
-		Convey("Initial size is 0", func() {
-			So(table.Size(), ShouldEqual, 0)
-		})
-		Convey("Register with no public address -> failure", func() {
-			ref, err := table.Register(nil, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", ref, ShouldBeNil)
-		})
-		Convey("Register with zero public IPv4 address -> success", func() {
-			public := &net.UDPAddr{
-				IP:   net.IPv4zero,
-				Port: 80,
+	tests := map[string]struct {
+		a   *net.UDPAddr
+		b   net.IP
+		svc addr.HostSVC
+		af  assert.ErrorAssertionFunc
+	}{
+		"no public address fails": {
+			a:   nil,
+			svc: addr.SvcNone,
+			af:  assert.Error,
+		},
+		"zero public IPv4 address succeeds": {
+			a:   &net.UDPAddr{IP: net.IPv4zero, Port: 80},
+			svc: addr.SvcNone,
+			af:  assert.NoError,
+		},
+		"zero public IPv6 address succeeds": {
+			a:   &net.UDPAddr{IP: net.IPv6zero, Port: 80},
+			svc: addr.SvcNone,
+			af:  assert.NoError,
+		},
+		"public address with port, no bind, no svc succeeds": {
+			a:  &net.UDPAddr{IP: net.IP{192, 0, 5, 1}, Port: 8080},
+			af: assert.NoError,
+		},
+		"public address without port, no bind, no svc succeeds": {
+			a:   &net.UDPAddr{IP: net.IP{192, 0, 9, 1}},
+			svc: addr.SvcNone,
+			af:  assert.NoError,
+		},
+		"public address, bind, no svc fails": {
+			a:   &net.UDPAddr{IP: net.IP{192, 0, 20, 1}, Port: 8880},
+			b:   net.IP{10, 2, 3, 4},
+			svc: addr.SvcNone,
+			af:  assert.Error,
+		},
+
+		"public address, no bind, svc succeeds": {
+			a:   &net.UDPAddr{IP: net.IP{192, 0, 22, 1}, Port: 8889},
+			svc: addr.SvcPS,
+			af:  assert.NoError,
+		},
+
+		"zero bind IPv4 address fails": {
+			a:   &net.UDPAddr{IP: net.IP{192, 0, 23, 1}, Port: 8888},
+			b:   net.IPv4zero,
+			svc: addr.SvcCS,
+			af:  assert.Error,
+		},
+
+		"zero bind IPv6 address fails": {
+			a:   &net.UDPAddr{IP: net.IP{192, 0, 23, 1}, Port: 8888},
+			b:   net.IPv6zero,
+			svc: addr.SvcCS,
+			af:  assert.Error,
+		},
+		"public address, bind, svc succeeds": {
+			a:   &net.UDPAddr{IP: net.IP{192, 0, 23, 1}, Port: 8888},
+			b:   net.IP{10, 2, 3, 4},
+			svc: addr.SvcCS,
+			af:  assert.NoError,
+		},
+	}
+
+	for n, tc := range tests {
+		t.Run(n, func(t *testing.T) {
+			table := NewTable(minPort, maxPort)
+			assert.Equal(t, table.Size(), 0, "initial size is 0")
+			ref, err := table.Register(tc.a, tc.b, tc.svc, dummyValue)
+			tc.af(t, err)
+			if err != nil {
+				assert.Nil(t, ref)
+				return
 			}
-			ref, err := table.Register(public, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
+			assert.NotNil(t, ref)
 		})
-		Convey("Register with zero public IPv6 address -> success", func() {
-			public := &net.UDPAddr{
-				IP:   net.IPv6zero,
-				Port: 80,
-			}
-			ref, err := table.Register(public, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-		})
-		Convey("Register with public address with port, no bind, no svc -> success", func() {
-			ref, err := table.Register(public, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-		})
-		Convey("Register with public address without port, no bind, no svc -> success", func() {
-			public := &net.UDPAddr{
-				IP: public.IP,
-			}
-			ref, err := table.Register(public, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-		})
-		Convey("Register with public address, bind, no svc -> failure", func() {
-			ref, err := table.Register(public, bind, addr.SvcNone, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", ref, ShouldBeNil)
-		})
-		Convey("Register with public address, no bind, svc -> success", func() {
-			ref, err := table.Register(public, nil, addr.SvcPS, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-		})
-		Convey("Register with zero bind IPv4 address -> failure", func() {
-			ref, err := table.Register(public, net.IPv4zero, addr.SvcCS, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", ref, ShouldBeNil)
-		})
-		Convey("Register with zero bind IPv6 address -> failure", func() {
-			ref, err := table.Register(public, net.IPv6zero, addr.SvcCS, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", ref, ShouldBeNil)
-		})
-		Convey("Register with public address, bind, svc -> success", func() {
-			ref, err := table.Register(public, bind, addr.SvcCS, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-		})
-	})
+	}
+
+	table := NewTable(minPort, maxPort)
+	assert.Equal(t, table.Size(), 0, "initial size is 0")
+
 }
 
 func TestRegisterOnlyPublic(t *testing.T) {
-	public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
-	value := "test value"
-	Convey("Given a table with a public address registration", t, func() {
+
+	t.Run("Free reference, size is 0", func(t *testing.T) {
+		t.Log("Given a table with a public address registration")
 		table := NewTable(minPort, maxPort)
-		ref, err := table.Register(public, nil, addr.SvcNone, value)
-		xtest.FailOnErr(t, err)
-		Convey("Initial size is 1", func() {
-			So(table.Size(), ShouldEqual, 1)
-		})
-		Convey("Lookup is successful", func() {
-			retValue, ok := table.LookupPublic(public)
-			SoMsg("ok", ok, ShouldBeTrue)
-			SoMsg("value", retValue, ShouldEqual, value)
-		})
-		Convey("Free reference, size is 0", func() {
-			ref.Free()
-			So(table.Size(), ShouldEqual, 0)
-			Convey("Free same reference again, panic", func() {
-				So(ref.Free, ShouldPanic)
-			})
-			Convey("Lookup now fails", func() {
-				retValue, ok := table.LookupPublic(public)
-				SoMsg("ok", ok, ShouldBeFalse)
-				SoMsg("value", retValue, ShouldBeNil)
-			})
-		})
-		Convey("Register same address returns error", func() {
-			ref, err := table.Register(public, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", ref, ShouldBeNil)
-		})
-		Convey("Register 0.0.0.0, error due to overlap", func() {
-			public := &net.UDPAddr{IP: net.IPv4zero, Port: 80}
-			ref, err := table.Register(public, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", ref, ShouldBeNil)
-		})
-		Convey("Register ::, success", func() {
-			public := &net.UDPAddr{IP: net.IPv6zero, Port: 80}
-			ref, err := table.Register(public, nil, addr.SvcNone, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-		})
+		assert.Equal(t, table.Size(), 0, "initial size is 0")
+		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
+		ref, err := table.Register(public, nil, addr.SvcNone, dummyValue)
+		require.NoError(t, err)
+		assert.Equal(t, table.Size(), 1, "size is 1")
+		assert.NotNil(t, ref)
+
+		t.Log("Lookup is successful")
+		retValue, ok := table.LookupPublic(public)
+		assert.True(t, ok)
+		assert.Equal(t, retValue, dummyValue)
+
+		ref.Free()
+		assert.Equal(t, table.Size(), 0, "size is 0")
+		assert.Panics(t, ref.Free, "Free same reference again, panic")
+		retValue, ok = table.LookupPublic(public)
+		assert.False(t, ok, "lookup should fail")
+		assert.Nil(t, retValue)
+	})
+
+	t.Run("Register", func(t *testing.T) {
+		t.Log("Given a table with a public address registration")
+		table := NewTable(minPort, maxPort)
+		assert.Equal(t, table.Size(), 0, "initial size is 0")
+		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
+		ref, err := table.Register(public, nil, addr.SvcNone, dummyValue)
+		require.NoError(t, err)
+		assert.Equal(t, table.Size(), 1, "size is 1")
+		assert.NotNil(t, ref)
+
+		t.Log("Lookup is successful")
+		retValue, ok := table.LookupPublic(public)
+		assert.True(t, ok)
+		assert.Equal(t, retValue, dummyValue)
+
+		t.Log("Register same address returns error")
+		ref, err = table.Register(public, nil, addr.SvcNone, dummyValue)
+		assert.Error(t, err)
+		assert.Nil(t, ref)
+
+		t.Log("Register 0.0.0.0, error due to overlap")
+		public = &net.UDPAddr{IP: net.IPv4zero, Port: 80}
+		ref, err = table.Register(public, nil, addr.SvcNone, dummyValue)
+		assert.Error(t, err)
+		assert.Nil(t, ref)
+
+		t.Log("Register ::, success")
+		public = &net.UDPAddr{IP: net.IPv6zero, Port: 80}
+		ref, err = table.Register(public, nil, addr.SvcNone, dummyValue)
+		assert.NoError(t, err)
+		assert.NotNil(t, ref)
 	})
 }
 
 func TestRegisterPublicAndSVC(t *testing.T) {
-	public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
-	value := "test value"
-	Convey("Given a table with a public address registration", t, func() {
-		table := NewTable(minPort, maxPort)
-		_, err := table.Register(public, nil, addr.SvcCS, value)
-		xtest.FailOnErr(t, err)
-		Convey("Initial size is 1", func() {
-			So(table.Size(), ShouldEqual, 1)
-		})
-		Convey("Public lookup is successful", func() {
-			retValue, ok := table.LookupPublic(public)
-			SoMsg("ok", ok, ShouldBeTrue)
-			SoMsg("value", retValue, ShouldEqual, value)
-		})
-		Convey("SVC lookup is successful (bind inherits from public)", func() {
-			retValues := table.LookupService(addr.SvcCS, public.IP)
-			So(retValues, ShouldResemble, []interface{}{value})
-		})
-	})
+	table := NewTable(minPort, maxPort)
+	assert.Equal(t, table.Size(), 0, "size is 0")
+
+	t.Log("Given a table with a public address registration")
+	p := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
+	_, err := table.Register(p, nil, addr.SvcCS, dummyValue)
+	require.NoError(t, err)
+	assert.Equal(t, table.Size(), 1, "size is 1")
+
+	t.Log("Public lookup is successful")
+	retValue, ok := table.LookupPublic(p)
+	assert.True(t, ok)
+	assert.Equal(t, retValue, dummyValue)
+
+	t.Log("SVC lookup is successful (bind inherits from public)")
+	retValues := table.LookupService(addr.SvcCS, p.IP)
+	assert.Equal(t, retValues, []interface{}{dummyValue})
 }
 
 func TestRegisterWithBind(t *testing.T) {
-	public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
+	table := NewTable(minPort, maxPort)
+
+	t.Log("Given a table with a bind address registration")
+	p := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
 	bind := net.IP{10, 2, 3, 4}
-	value := "test value"
-	Convey("Given a table with a bind address registration", t, func() {
-		table := NewTable(minPort, maxPort)
-		ref, err := table.Register(public, bind, addr.SvcCS, value)
-		xtest.FailOnErr(t, err)
-		Convey("Initial size is 1", func() {
-			So(table.Size(), ShouldEqual, 1)
-		})
-		Convey("Public lookup is successful", func() {
-			retValue, ok := table.LookupPublic(public)
-			SoMsg("ok", ok, ShouldBeTrue)
-			SoMsg("value", retValue, ShouldEqual, value)
-		})
-		Convey("SVC lookup is successful", func() {
-			retValues := table.LookupService(addr.SvcCS, bind)
-			So(retValues, ShouldResemble, []interface{}{value})
-		})
-		Convey("Bind lookup on different svc fails", func() {
-			retValues := table.LookupService(addr.SvcBS, bind)
-			So(retValues, ShouldBeEmpty)
-		})
-		Convey("Colliding binds return error, and public port is released", func() {
-			otherPublic := &net.UDPAddr{IP: net.IP{192, 0, 2, 2}, Port: 80}
-			_, err := table.Register(otherPublic, bind, addr.SvcCS, value)
-			SoMsg("first err", err, ShouldNotBeNil)
-			SoMsg("size", table.Size(), ShouldEqual, 1)
-			_, err = table.Register(otherPublic, nil, addr.SvcNone, value)
-			SoMsg("second err", err, ShouldBeNil)
-		})
-		Convey("Freeing the entry allows for reregistration", func() {
-			ref.Free()
-			_, err := table.Register(public, bind, addr.SvcCS, value)
-			So(err, ShouldBeNil)
-		})
-	})
+	ref, err := table.Register(p, bind, addr.SvcCS, dummyValue)
+	require.NoError(t, err)
+	assert.NotNil(t, ref)
+	assert.Equal(t, table.Size(), 1, "size is 1")
+
+	t.Log("Public lookup is successful")
+	retValue, ok := table.LookupPublic(p)
+	assert.True(t, ok)
+	assert.Equal(t, retValue, dummyValue)
+
+	t.Log("SVC lookup is successful")
+	retValues := table.LookupService(addr.SvcCS, bind)
+	assert.Equal(t, retValues, []interface{}{dummyValue})
+
+	t.Log("Bind lookup on different svc fails")
+	retValues = table.LookupService(addr.SvcBS, bind)
+	assert.Empty(t, retValues)
+
+	t.Log("Colliding binds returns error, and public port is released")
+	otherPublic := &net.UDPAddr{IP: net.IP{192, 0, 2, 2}, Port: 80}
+	_, err = table.Register(otherPublic, bind, addr.SvcCS, dummyValue)
+	assert.Error(t, err)
+	assert.Equal(t, table.Size(), 1, "size is 1")
+	_, err = table.Register(otherPublic, nil, addr.SvcNone, dummyValue)
+	assert.NoError(t, err)
+
+	t.Log("Freeing the entry allows for reregistration")
+	ref.Free()
+	_, err = table.Register(p, bind, addr.SvcCS, dummyValue)
+	assert.NoError(t, err)
 }
