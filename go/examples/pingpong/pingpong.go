@@ -61,7 +61,6 @@ var (
 	file   = flag.String("file", "",
 		"File containing the data to send, optional to test larger data (only client)")
 	interactive = flag.Bool("i", false, "Interactive mode")
-	id          = flag.String("id", "pingpong", "Element ID")
 	mode        = flag.String("mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	sciond      = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher  = flag.String("dispatcher", "", "Path to dispatcher socket")
@@ -77,7 +76,7 @@ var (
 )
 
 func init() {
-	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
+	flag.Var((*snet.Addr)(&local), "local", "(Optional) address to listen on")
 	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
 }
 
@@ -114,9 +113,6 @@ func validateFlags() {
 		if remote.Host.L4 == 0 {
 			LogFatal("Invalid remote port", "remote port", remote.Host.L4)
 		}
-	}
-	if local.Host == nil {
-		LogFatal("Missing local address")
 	}
 	if *sciondFromIA {
 		if *sciond != "" {
@@ -272,7 +268,7 @@ func (c *client) Close() error {
 }
 
 func (c client) setupPath() {
-	if !remote.IA.Equal(local.IA) {
+	if !remote.IA.Equal(snet.IA()) {
 		pathEntry := choosePath(*interactive)
 		if pathEntry == nil {
 			LogFatal("No paths available to remote destination")
@@ -354,7 +350,7 @@ func (s server) run() {
 	if len(os.Getenv(integration.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
 		fmt.Printf("Port=%d\n", qsock.Addr().(*snet.Addr).Host.L4)
-		fmt.Printf("%s%s\n", integration.ReadySignal, local.IA)
+		fmt.Printf("%s%s\n", integration.ReadySignal, snet.IA())
 	}
 	log.Info("Listening", "local", qsock.Addr())
 	for {
@@ -405,7 +401,7 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	var pathIndex uint64
 
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sd.PathReqFlags{})
+	pathSet := pathMgr.Query(context.Background(), snet.IA(), remote.IA, sd.PathReqFlags{})
 
 	if len(pathSet) == 0 {
 		return nil
