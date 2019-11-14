@@ -49,6 +49,7 @@ package snet
 
 import (
 	"context"
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -249,13 +250,6 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
 
 	metrics.M.Listens().Inc()
-	// FIXME(scrye): If no local address is specified, we want to
-	// bind to the address of the outbound interface on a random
-	// free port. However, the current dispatcher version cannot
-	// expose that address. Additionally, the dispatcher does not follow
-	// normal operating system semantics for binding on 0.0.0.0 (it
-	// considers it to be a fixed address instead of a wildcard). To avoid
-	// misuse, disallow binding to nil or 0.0.0.0 addresses for now.
 	var l3Type addr.HostAddrType
 	switch network {
 	case "udp4":
@@ -263,46 +257,48 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	default:
 		return nil, common.NewBasicError("Network not implemented", nil, "net", network)
 	}
-	if laddr == nil {
-		return nil, serrors.New("Nil laddr not supported")
+	if laddr != nil {
+		laddr = laddr.Copy()
+	} else {
+		laddr = &Addr{}
+	}
+	// Make sure the IA is set.
+	if laddr.IA.IsZero() {
+		laddr.IA = n.localIA
 	}
 	if laddr.Host == nil {
-		return nil, serrors.New("Nil Host laddr not supported")
+		laddr.Host = &addr.AppAddr{}
+	} else {
+		laddr.Host = laddr.Host.Copy()
 	}
 	if laddr.Host.L3 == nil {
-		return nil, serrors.New("Nil Host L3 laddr not supported")
+		laddr.Host.L3 = addr.HostIPv4(net.IPv4zero)
 	}
+
 	if laddr.Host.L3.Type() != l3Type {
 		return nil, common.NewBasicError("Supplied local address does not match network", nil,
 			"expected L3", l3Type, "actual L3", laddr.Host.L3.Type())
 	}
-	if laddr.Host.L3.IP().IsUnspecified() {
-		return nil, serrors.New("Binding to unspecified address not supported")
+	if !laddr.IA.Equal(n.localIA) {
+		return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
+			"expected", n.localIA, "actual", laddr.IA, "type", "public")
 	}
 	conn := &scionConnBase{
 		net:      network,
 		scionNet: n,
 		svc:      svc,
-		laddr:    laddr.Copy(),
-	}
-	// Make sure the IA is set.
-	if conn.laddr.IA.IsZero() {
-		conn.laddr.IA = n.IA()
-	}
-	if !conn.laddr.IA.Equal(conn.scionNet.localIA) {
-		return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
-			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA, "type", "public")
+		laddr:    laddr,
 	}
 	var bindAddr *overlay.OverlayAddr
 	if baddr != nil {
 		conn.baddr = baddr.Copy()
 		bindAddr = overlay.NewOverlayAddr(baddr.Host.L3.IP(), baddr.Host.L4)
-		if !conn.baddr.IA.Equal(conn.scionNet.localIA) {
+		if !conn.baddr.IA.Equal(n.localIA) {
 			return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
-				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
+				"expected", n.localIA, "actual", conn.baddr.IA, "type", "bind")
 		}
 	}
-	packetConn, port, err := conn.scionNet.dispatcher.RegisterTimeout(conn.laddr.IA,
+	packetConn, port, err := n.dispatcher.RegisterTimeout(conn.laddr.IA,
 		conn.laddr.Host, bindAddr, svc, timeout)
 	if err != nil {
 		return nil, err

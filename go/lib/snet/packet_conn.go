@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/vishvananda/netlink"
 )
 
 // PacketConn gives applications easy access to writing and reading custom
@@ -151,13 +152,22 @@ func (c *SCIONPacketConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) err
 	if err != nil {
 		return common.NewBasicError("Bad extension list", err)
 	}
+
+	srcHost := pkt.Source.Host
+	if srcHost.IP().IsUnspecified() {
+		src, err := srcFromRoute(ov.L3().IP())
+		if err != nil {
+			return err
+		}
+		srcHost = addr.HostFromIP(src)
+	}
 	// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
 	// absorbed by the easier to use SCIONPacket structure in this package.
 	scnPkt := &spkt.ScnPkt{
 		DstIA:   pkt.Destination.IA,
 		SrcIA:   pkt.Source.IA,
 		DstHost: pkt.Destination.Host,
-		SrcHost: pkt.Source.Host,
+		SrcHost: srcHost,
 		E2EExt:  e2e,
 		HBHExt:  hbh,
 		Path:    pkt.Path,
@@ -304,4 +314,12 @@ func getPriority(x common.Extension) int {
 	default:
 		return 100
 	}
+}
+
+func srcFromRoute(nextHop net.IP) (net.IP, error) {
+	routes, err := netlink.RouteGet(nextHop)
+	if err != nil {
+		return nil, err
+	}
+	return routes[0].Src, nil
 }
