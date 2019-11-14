@@ -9,7 +9,7 @@ go_library(
         "rlist.go",
         "worker.go",
     ],
-    importpath = "github.com/scionproto/scion/go/sig/ingress",
+    importpath = "github.com/scionproto/scion/go/sig/internal/ingress",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
