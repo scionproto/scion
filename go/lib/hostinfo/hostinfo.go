@@ -40,14 +40,14 @@ func FromUDPAddr(addr net.UDPAddr) Host {
 	if addr.IP.To4() != nil {
 		return Host{
 			Addrs: Addrs{
-				IPv4: append(addr.IP[:0:0], addr.IP...),
+				IPv4: copyIP(addr.IP),
 			},
 			Port: uint16(addr.Port),
 		}
 	}
 	return Host{
 		Addrs: Addrs{
-			IPv6: append(addr.IP[:0:0], addr.IP...),
+			IPv6: copyIP(addr.IP),
 		},
 		Port: uint16(addr.Port),
 	}
@@ -66,13 +66,13 @@ func (h *Host) host() addr.HostAddr {
 func (h *Host) UDP() *net.UDPAddr {
 	if len(h.Addrs.IPv4) > 0 {
 		return &net.UDPAddr{
-			IP:   append(h.Addrs.IPv4[:0:0], h.Addrs.IPv4...),
+			IP:   copyIP(h.Addrs.IPv4),
 			Port: int(h.Port),
 		}
 	}
 	if len(h.Addrs.IPv6) > 0 {
 		return &net.UDPAddr{
-			IP:   append(h.Addrs.IPv6[:0:0], h.Addrs.IPv6...),
+			IP:   copyIP(h.Addrs.IPv6),
 			Port: int(h.Port),
 		}
 	}
@@ -92,11 +92,15 @@ func (h *Host) Copy() *Host {
 		return nil
 	}
 	res := &Host{Port: h.Port}
-	res.Addrs.IPv4 = append(h.Addrs.IPv4[:0:0], h.Addrs.IPv4...)
-	res.Addrs.IPv6 = append(h.Addrs.IPv6[:0:0], h.Addrs.IPv6...)
+	res.Addrs.IPv4 = copyIP(h.Addrs.IPv4)
+	res.Addrs.IPv6 = copyIP(h.Addrs.IPv6)
 	return res
 }
 
 func (h *Host) String() string {
 	return fmt.Sprintf("[%v]:%d", h.host(), h.Port)
+}
+
+func copyIP(ip net.IP) net.IP {
+	return append(ip[:0:0], ip...)
 }
