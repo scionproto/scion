@@ -57,8 +57,9 @@ func New(key string, addr *net.UDPAddr) *Info {
 func (h *Info) Update(a *net.UDPAddr) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if !h.addr.IP.Equal(a.IP) {
-		h.addr = a
+	if !h.addr.IP.Equal(a.IP) || h.addr.Port != a.Port {
+		h.addr.Port = a.Port
+		copy(h.addr.IP, a.IP)
 		h.failCount = 0
 		h.lastFail = time.Now()
 		h.lastExp = time.Now()
@@ -74,6 +75,9 @@ func (h *Info) Key() string {
 func (h *Info) Addr() *net.UDPAddr {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	ret := &net.UDPAddr{}
+	ret.Port = h.addr.Port
+	copy(ret.IP, h.addr.IP)
 	return h.addr
 }
 

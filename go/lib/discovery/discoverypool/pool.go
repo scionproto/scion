@@ -64,7 +64,6 @@ func (p *Pool) Update(svcInfo topology.IDAddrMap) error {
 		} else {
 			info.Update(y)
 		}
-
 	}
 	// Get list of outdated DS servers.
 	var del []string
