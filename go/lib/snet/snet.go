@@ -130,23 +130,14 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 	if network != "udp" {
 		return nil, common.NewBasicError("Unknown network", nil, "network", network)
 	}
-
-	// FIXME(scrye): If no local address is specified, we want to
-	// bind to the address of the outbound interface on a random
-	// free port. However, the current dispatcher version cannot
-	// expose that address. Additionally, the dispatcher does not follow
-	// normal operating system semantics for binding on 0.0.0.0 (it
-	// considers it to be a fixed address instead of a wildcard). To avoid
-	// misuse, disallow binding to nil or 0.0.0.0 addresses for now.
 	if listen == nil {
-		return nil, serrors.New("nil listen addr not supported")
+		listen = &net.UDPAddr{}
 	}
+	// XXX(matzf): switch IPv4 or IPv6
 	if listen.IP == nil {
-		return nil, serrors.New("nil listen IP no supported")
+		listen.IP = net.IPv4zero
 	}
-	if listen.IP.IsUnspecified() {
-		return nil, serrors.New("unspecified listen IP not supported")
-	}
+
 	conn := &scionConnBase{
 		net:      network,
 		scionNet: n,
