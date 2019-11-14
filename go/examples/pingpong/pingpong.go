@@ -279,7 +279,7 @@ func (c client) setupPath() {
 		}
 		remote.Path = spath.New(pathEntry.Path.FwdPath)
 		remote.Path.InitOffsets()
-		remote.NextHop, _ = pathEntry.HostInfo.Overlay()
+		remote.NextHop = pathEntry.HostInfo.Overlay()
 	}
 }
 

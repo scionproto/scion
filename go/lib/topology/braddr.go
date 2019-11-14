@@ -16,11 +16,12 @@ package topology
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/topology/internal/overlay"
 )
 
 type TopoBRAddr struct {
@@ -88,22 +89,22 @@ func (t *TopoBRAddr) fromRaw(s RawBRAddrMap) error {
 	return nil
 }
 
-func (t *TopoBRAddr) PublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
-	if oba := t.getAddr(ot); oba != nil {
-		return oba.PublicOverlay
+func (t *TopoBRAddr) PublicOverlay(ot OverlayType) *net.UDPAddr {
+	if oba := t.getAddr(overlay.Type(ot)); oba != nil {
+		return oba.PublicOverlay.ShallowUDPAddr()
 	}
 	return nil
 }
 
-func (t *TopoBRAddr) BindOverlay(ot overlay.Type) *overlay.OverlayAddr {
-	if oba := t.getAddr(ot); oba != nil {
+func (t *TopoBRAddr) BindOverlay(ot OverlayType) *overlay.OverlayAddr {
+	if oba := t.getAddr(overlay.Type(ot)); oba != nil {
 		return oba.BindOverlay
 	}
 	return nil
 }
 
-func (t *TopoBRAddr) BindOrPublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
-	if oba := t.getAddr(ot); oba != nil {
+func (t *TopoBRAddr) BindOrPublicOverlay(ot OverlayType) *overlay.OverlayAddr {
+	if oba := t.getAddr(overlay.Type(ot)); oba != nil {
 		return oba.BindOrPublicOverlay()
 	}
 	return nil

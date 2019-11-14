@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -74,7 +73,7 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 	pkt := SCIONPacket{
 		Bytes: Bytes(c.buffer),
 	}
-	var lastHop overlay.OverlayAddr
+	var lastHop net.UDPAddr
 	err := c.conn.ReadFrom(&pkt, &lastHop)
 	if err != nil {
 		return 0, nil, err
@@ -105,7 +104,7 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 
 		// Copy the address to prevent races. See
 		// https://github.com/scionproto/scion/issues/1659.
-		remote.NextHop = lastHop.Copy()
+		remote.NextHop = CopyUDPAddr(&lastHop)
 
 		var err error
 		var l4i uint16

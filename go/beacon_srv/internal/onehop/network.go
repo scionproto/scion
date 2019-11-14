@@ -15,11 +15,11 @@
 package onehop
 
 import (
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/layers"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -32,7 +32,7 @@ type OHPPacketDispatcherService struct {
 }
 
 func (s *OHPPacketDispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC,
+	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (snet.PacketConn, uint16, error) {
 
 	conn, port, err := s.PacketDispatcherService.RegisterTimeout(ia, public, bind, svc, timeout)
@@ -48,7 +48,7 @@ type ohpPacketConn struct {
 	snet.PacketConn
 }
 
-func (c *ohpPacketConn) WriteTo(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+func (c *ohpPacketConn) WriteTo(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
 	return c.PacketConn.WriteTo(
 		&snet.SCIONPacket{
 			Bytes: pkt.Bytes,

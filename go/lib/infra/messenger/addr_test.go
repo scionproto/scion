@@ -27,7 +27,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/messenger/mock_messenger"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -127,7 +126,7 @@ func TestBuildFullAddress(t *testing.T) {
 		Convey("snet address without path, successful retrieving path", func() {
 			path := mock_snet.NewMockPath(ctrl)
 			path.EXPECT().Path().Return(&spath.Path{})
-			path.EXPECT().OverlayNextHop().Return(&overlay.OverlayAddr{})
+			path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{})
 			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 			inputAddress := &snet.Addr{
 				IA: remoteIA,
@@ -144,12 +143,15 @@ func TestBuildFullAddress(t *testing.T) {
 					L4: 1,
 				},
 				Path:    &spath.Path{},
-				NextHop: &overlay.OverlayAddr{},
+				NextHop: &net.UDPAddr{},
 			})
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("snet address in local AS, overlay address extraction succeeds", func() {
-			overlayAddr := overlay.NewOverlayAddr(net.IP{192, 168, 0, 1}, 10)
+			overlayAddr := &net.UDPAddr{
+				IP:   net.IP{192, 168, 0, 1},
+				Port: 10,
+			}
 			router.EXPECT().LocalIA().Return(localIA).AnyTimes()
 			svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(overlayAddr, nil)
 
@@ -466,7 +468,7 @@ func (t *testPath) Fingerprint() string {
 	panic("not implemented")
 }
 
-func (t *testPath) OverlayNextHop() *overlay.OverlayAddr {
+func (t *testPath) OverlayNextHop() *net.UDPAddr {
 	panic("not implemented")
 }
 

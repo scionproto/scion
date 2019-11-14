@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -164,7 +165,7 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		return serrors.New("Interface does not exist")
 	}
 	topoInfo := intf.TopoInfo()
-	ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
+	ov := topoInfo.InternalAddrs.PublicOverlay(topology.OverlayType(topoInfo.InternalAddrs.Overlay))
 
 	bseg, err := o.createBeacon()
 	if err != nil {

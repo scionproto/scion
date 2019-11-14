@@ -17,6 +17,7 @@ package svc
 import (
 	"bytes"
 	"context"
+	"net"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -24,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -105,7 +105,7 @@ func (r *Resolver) getRoundTripper() RoundTripper {
 type RoundTripper interface {
 	// RoundTrip performs the round trip interaction.
 	RoundTrip(ctx context.Context, c snet.PacketConn, request *snet.SCIONPacket,
-		ov *overlay.OverlayAddr) (*Reply, error)
+		ov *net.UDPAddr) (*Reply, error)
 }
 
 // DefaultRoundTripper returns a basic implementation of the RoundTripper
@@ -119,7 +119,7 @@ var _ RoundTripper = (*roundTripper)(nil)
 type roundTripper struct{}
 
 func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.SCIONPacket,
-	ov *overlay.OverlayAddr) (*Reply, error) {
+	ov *net.UDPAddr) (*Reply, error) {
 
 	cancelF := ctxconn.CloseConnOnDone(ctx, c)
 	defer cancelF()
@@ -136,7 +136,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	}
 
 	var replyPacket snet.SCIONPacket
-	var replyOv overlay.OverlayAddr
+	var replyOv net.UDPAddr
 	if err := c.ReadFrom(&replyPacket, &replyOv); err != nil {
 		return nil, common.NewBasicError(errRead, err)
 	}
@@ -167,7 +167,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 
 type path struct {
 	spath       *spath.Path
-	overlay     *overlay.OverlayAddr
+	overlay     *net.UDPAddr
 	destination addr.IA
 }
 
@@ -175,7 +175,7 @@ func (p *path) Fingerprint() string {
 	return ""
 }
 
-func (p *path) OverlayNextHop() *overlay.OverlayAddr {
+func (p *path) OverlayNextHop() *net.UDPAddr {
 	return p.overlay
 }
 
@@ -202,7 +202,7 @@ func (p *path) Expiry() time.Time {
 func (p *path) Copy() snet.Path {
 	return &path{
 		spath:       p.spath.Copy(),
-		overlay:     p.overlay.Copy(),
+		overlay:     snet.CopyUDPAddr(p.overlay),
 		destination: p.destination,
 	}
 }

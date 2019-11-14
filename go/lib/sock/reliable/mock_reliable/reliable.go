@@ -7,7 +7,6 @@ package mock_reliable
 import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	overlay "github.com/scionproto/scion/go/lib/overlay"
 	net "net"
 	reflect "reflect"
 	time "time"
@@ -37,7 +36,7 @@ func (m *MockDispatcherService) EXPECT() *MockDispatcherServiceMockRecorder {
 }
 
 // Register mocks base method
-func (m *MockDispatcherService) Register(arg0 addr.IA, arg1 *addr.AppAddr, arg2 *overlay.OverlayAddr, arg3 addr.HostSVC) (net.PacketConn, uint16, error) {
+func (m *MockDispatcherService) Register(arg0 addr.IA, arg1 *addr.AppAddr, arg2 *net.UDPAddr, arg3 addr.HostSVC) (net.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Register", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(net.PacketConn)
@@ -53,7 +52,7 @@ func (mr *MockDispatcherServiceMockRecorder) Register(arg0, arg1, arg2, arg3 int
 }
 
 // RegisterTimeout mocks base method
-func (m *MockDispatcherService) RegisterTimeout(arg0 addr.IA, arg1 *addr.AppAddr, arg2 *overlay.OverlayAddr, arg3 addr.HostSVC, arg4 time.Duration) (net.PacketConn, uint16, error) {
+func (m *MockDispatcherService) RegisterTimeout(arg0 addr.IA, arg1 *addr.AppAddr, arg2 *net.UDPAddr, arg3 addr.HostSVC, arg4 time.Duration) (net.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterTimeout", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(net.PacketConn)

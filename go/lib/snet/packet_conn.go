@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -33,8 +32,8 @@ import (
 // PacketConn gives applications easy access to writing and reading custom
 // SCION packets.
 type PacketConn interface {
-	ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error
-	WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error
+	ReadFrom(pkt *SCIONPacket, ov *net.UDPAddr) error
+	WriteTo(pkt *SCIONPacket, ov *net.UDPAddr) error
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
 	SetDeadline(t time.Time) error
@@ -145,7 +144,7 @@ func (c *SCIONPacketConn) Close() error {
 	return c.conn.Close()
 }
 
-func (c *SCIONPacketConn) WriteTo(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+func (c *SCIONPacketConn) WriteTo(pkt *SCIONPacket, ov *net.UDPAddr) error {
 	StableSortExtensions(pkt.Extensions)
 	hbh, e2e, err := hpkt.ValidateExtensions(pkt.Extensions)
 	if err != nil {
@@ -184,7 +183,7 @@ func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 	return c.conn.SetWriteDeadline(d)
 }
 
-func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *net.UDPAddr) error {
 	for {
 		// Read until we get an error or a data packet
 		if err := c.readFrom(pkt, ov); err != nil {
@@ -209,7 +208,7 @@ func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) er
 	}
 }
 
-func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) error {
+func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *net.UDPAddr) error {
 	pkt.Prepare()
 	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {
@@ -220,10 +219,10 @@ func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *overlay.OverlayAddr) er
 	metrics.M.ReadPackets().Inc()
 
 	pkt.Bytes = pkt.Bytes[:n]
-	var lastHop *overlay.OverlayAddr
+	var lastHop *net.UDPAddr
 
 	var ok bool
-	lastHop, ok = lastHopNetAddr.(*overlay.OverlayAddr)
+	lastHop, ok = lastHopNetAddr.(*net.UDPAddr)
 	if !ok {
 		return common.NewBasicError("Invalid lastHop address Type", nil,
 			"Actual", lastHopNetAddr)

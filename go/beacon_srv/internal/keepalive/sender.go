@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 var _ periodic.Task = (*Sender)(nil)
@@ -71,7 +72,7 @@ func (s *Sender) Run(ctx context.Context) {
 			InfoTime: time.Now(),
 			Pld:      pld,
 		}
-		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
+		ov := intf.InternalAddrs.PublicOverlay(topology.OverlayType(intf.InternalAddrs.Overlay))
 		if err := s.Send(msg, ov); err != nil {
 			logger.Error("[keepalive.Sender] Unable to send packet", "err", err)
 			metrics.Keepalive.Transmits(l).Inc()

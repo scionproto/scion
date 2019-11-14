@@ -23,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -37,7 +36,7 @@ type Addr struct {
 	IA      addr.IA
 	Host    *addr.AppAddr
 	Path    *spath.Path
-	NextHop *overlay.OverlayAddr
+	NextHop *net.UDPAddr
 }
 
 func (a *Addr) Network() string {
@@ -101,7 +100,7 @@ func (a *Addr) Copy() *Addr {
 		newA.Path = a.Path.Copy()
 	}
 	if a.NextHop != nil {
-		newA.NextHop = a.NextHop.Copy()
+		newA.NextHop = CopyUDPAddr(a.NextHop)
 	}
 	return newA
 }
@@ -178,4 +177,14 @@ func (a *Addr) Set(s string) error {
 	}
 	a.IA, a.Host = other.IA, other.Host
 	return nil
+}
+
+func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
+	if a == nil {
+		return nil
+	}
+	return &net.UDPAddr{
+		IP:   append(a.IP[:0:0], a.IP...),
+		Port: a.Port,
+	}
 }

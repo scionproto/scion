@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
@@ -37,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const (
@@ -166,9 +166,12 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 }
 
 func NextHopAddr() net.Addr {
-	var nhAddr *overlay.OverlayAddr
+	var nhAddr *net.UDPAddr
 	if Remote.NextHop == nil {
-		nhAddr = overlay.NewOverlayAddr(Remote.Host.L3.IP(), overlay.EndhostPort)
+		nhAddr = &net.UDPAddr{
+			IP:   Remote.Host.L3.IP(),
+			Port: topology.EndhostPort,
+		}
 	} else {
 		nhAddr = Remote.NextHop
 	}

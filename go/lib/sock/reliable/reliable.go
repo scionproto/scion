@@ -69,7 +69,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable/internal/metrics"
@@ -89,9 +88,9 @@ const (
 
 // DispatcherService controls how SCION applications open sockets in the SCION world.
 type DispatcherService interface {
-	Register(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
+	Register(ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
 		svc addr.HostSVC) (net.PacketConn, uint16, error)
-	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
+	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
 		svc addr.HostSVC, timeout time.Duration) (net.PacketConn, uint16, error)
 }
 
@@ -109,14 +108,14 @@ type dispatcherService struct {
 	Address string
 }
 
-func (d *dispatcherService) Register(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
+func (d *dispatcherService) Register(ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
 	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	return Register(d.Address, ia, public, bind, svc)
 }
 
 func (d *dispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC,
+	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (net.PacketConn, uint16, error) {
 
 	return RegisterTimeout(d.Address, ia, public, bind, svc, timeout)
@@ -178,7 +177,7 @@ func dialTimeout(address string, timeout time.Duration) (*Conn, error) {
 // Register connects to a SCION Dispatcher's UNIX socket.
 // Future messages for address public or bind in AS ia which arrive at the dispatcher can be
 // read by calling Read on the returned Conn structure.
-func Register(dispatcher string, ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
+func Register(dispatcher string, ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
 	svc addr.HostSVC) (*Conn, uint16, error) {
 
 	return RegisterTimeout(dispatcher, ia, public, bind, svc, time.Duration(0))
@@ -190,7 +189,7 @@ func Register(dispatcher string, ia addr.IA, public *addr.AppAddr, bind *overlay
 //
 // To check for timeout errors, call serrors.IsTimeout on the error.
 func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
+	bind *net.UDPAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
 
 	conn, port, err := registerTimeout(dispatcher, ia, public, bind, svc, timeout)
 	labels := metrics.RegisterLabels{Result: labelResult(err), SVC: svc.BaseString()}
@@ -199,21 +198,16 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
 }
 
 func registerTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
+	bind *net.UDPAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
 
 	publicUDP, err := createUDPAddrFromAppAddr(public)
 	if err != nil {
 		return nil, 0, err
 	}
-
-	var bindUDP *net.UDPAddr
-	if bind != nil {
-		bindUDP = bind.ToUDPAddr()
-	}
 	reg := &Registration{
 		IA:            ia,
 		PublicAddress: publicUDP,
-		BindAddress:   bindUDP,
+		BindAddress:   bind,
 		SVCAddress:    svc,
 	}
 
@@ -280,9 +274,12 @@ func (conn *Conn) readFrom(buf []byte) (int, net.Addr, error) {
 	}
 	var p OverlayPacket
 	p.DecodeFromBytes(conn.readBuffer[:n])
-	var overlayAddr *overlay.OverlayAddr
+	var overlayAddr *net.UDPAddr
 	if p.Address != nil {
-		overlayAddr = overlay.NewOverlayAddr(p.Address.IP, uint16(p.Address.Port))
+		overlayAddr = &net.UDPAddr{
+			IP:   append(p.Address.IP[:0:0], p.Address.IP...),
+			Port: p.Address.Port,
+		}
 	}
 	if len(buf) < len(p.Payload) {
 		return 0, nil, serrors.New("buffer too small")
@@ -305,17 +302,16 @@ func (conn *Conn) writeTo(buf []byte, dst net.Addr) (int, error) {
 	conn.writeMutex.Lock()
 	defer conn.writeMutex.Unlock()
 
-	var publicAddress *net.UDPAddr
+	var udpAddr *net.UDPAddr
 	if dst != nil {
-		overlayAddr := dst.(*overlay.OverlayAddr)
-		if overlayAddr != nil {
-			publicAddress = overlayAddr.ToUDPAddr()
+		var ok bool
+		udpAddr, ok = dst.(*net.UDPAddr)
+		if !ok {
+			return 0, serrors.New("unsupported address type, must be UDP",
+				"address", fmt.Sprintf("%#v", dst))
 		}
 	}
-	p := &OverlayPacket{
-		Address: publicAddress,
-		Payload: buf,
-	}
+	p := &OverlayPacket{Address: udpAddr, Payload: buf}
 	n, err := p.SerializeTo(conn.writeBuffer)
 	if err != nil {
 		return 0, err

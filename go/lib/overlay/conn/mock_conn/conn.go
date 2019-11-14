@@ -7,8 +7,8 @@ package mock_conn
 import (
 	gomock "github.com/golang/mock/gomock"
 	common "github.com/scionproto/scion/go/lib/common"
-	overlay "github.com/scionproto/scion/go/lib/overlay"
 	conn "github.com/scionproto/scion/go/lib/overlay/conn"
+	net "net"
 	reflect "reflect"
 	time "time"
 )
@@ -51,10 +51,10 @@ func (mr *MockConnMockRecorder) Close() *gomock.Call {
 }
 
 // LocalAddr mocks base method
-func (m *MockConn) LocalAddr() *overlay.OverlayAddr {
+func (m *MockConn) LocalAddr() *net.UDPAddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LocalAddr")
-	ret0, _ := ret[0].(*overlay.OverlayAddr)
+	ret0, _ := ret[0].(*net.UDPAddr)
 	return ret0
 }
 
@@ -96,10 +96,10 @@ func (mr *MockConnMockRecorder) ReadBatch(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // RemoteAddr mocks base method
-func (m *MockConn) RemoteAddr() *overlay.OverlayAddr {
+func (m *MockConn) RemoteAddr() *net.UDPAddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemoteAddr")
-	ret0, _ := ret[0].(*overlay.OverlayAddr)
+	ret0, _ := ret[0].(*net.UDPAddr)
 	return ret0
 }
 
@@ -182,7 +182,7 @@ func (mr *MockConnMockRecorder) WriteBatch(arg0 interface{}) *gomock.Call {
 }
 
 // WriteTo mocks base method
-func (m *MockConn) WriteTo(arg0 common.RawBytes, arg1 *overlay.OverlayAddr) (int, error) {
+func (m *MockConn) WriteTo(arg0 common.RawBytes, arg1 *net.UDPAddr) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteTo", arg0, arg1)
 	ret0, _ := ret[0].(int)

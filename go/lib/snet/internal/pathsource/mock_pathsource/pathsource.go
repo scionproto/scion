@@ -8,8 +8,8 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	overlay "github.com/scionproto/scion/go/lib/overlay"
 	spath "github.com/scionproto/scion/go/lib/spath"
+	net "net"
 	reflect "reflect"
 )
 
@@ -37,10 +37,10 @@ func (m *MockPathSource) EXPECT() *MockPathSourceMockRecorder {
 }
 
 // Get mocks base method
-func (m *MockPathSource) Get(arg0 context.Context, arg1, arg2 addr.IA) (*overlay.OverlayAddr, *spath.Path, error) {
+func (m *MockPathSource) Get(arg0 context.Context, arg1, arg2 addr.IA) (*net.UDPAddr, *spath.Path, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*overlay.OverlayAddr)
+	ret0, _ := ret[0].(*net.UDPAddr)
 	ret1, _ := ret[1].(*spath.Path)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2

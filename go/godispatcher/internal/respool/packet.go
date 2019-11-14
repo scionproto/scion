@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
@@ -128,7 +127,7 @@ func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
 	if readExtra == nil {
 		return serrors.New("missing next-hop")
 	}
-	pkt.OverlayRemote = readExtra.(*overlay.OverlayAddr).ToUDPAddr()
+	pkt.OverlayRemote = readExtra.(*net.UDPAddr)
 
 	// XXX(scrye): We ignore the return value of packet parsing on egress
 	// because some tests (e.g., the Python SCMP error test) rely on being able

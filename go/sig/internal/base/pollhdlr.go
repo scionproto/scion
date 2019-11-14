@@ -62,7 +62,7 @@ func PollReqHdlr() {
 			IA:      rpld.Addr.IA,
 			Host:    &addr.AppAddr{L3: req.Addr.Ctrl.Host(), L4: req.Addr.Ctrl.Port},
 			Path:    rpld.Addr.Path,
-			NextHop: rpld.Addr.NextHop.Copy(),
+			NextHop: snet.CopyUDPAddr(rpld.Addr.NextHop),
 		}
 		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
 		if err != nil {

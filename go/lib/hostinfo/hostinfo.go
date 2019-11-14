@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -70,11 +69,8 @@ func (h *Host) Host() addr.HostAddr {
 	return nil
 }
 
-func (h *Host) Overlay() (*overlay.OverlayAddr, error) {
-	if h.Host().IP() == nil {
-		return nil, common.NewBasicError("unsupported overlay L3 address", nil, "addr", h.Host())
-	}
-	return overlay.NewOverlayAddr(h.Host().IP(), h.Port), nil
+func (h *Host) Overlay() *net.UDPAddr {
+	return &net.UDPAddr{IP: h.Host().IP(), Port: int(h.Port)}
 }
 
 func (h *Host) Copy() *Host {
@@ -94,7 +90,7 @@ func (h *Host) String() string {
 func topoAddrToIPv4AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 	var ip net.IP
 	var port uint16
-	if pubAddr := topoAddr.PublicAddr(overlay.IPv4); pubAddr != nil {
+	if pubAddr := topoAddr.PublicAddr(topology.IPv4); pubAddr != nil {
 		ip = pubAddr.L3.IP()
 		port = pubAddr.L4
 	}
@@ -102,7 +98,7 @@ func topoAddrToIPv4AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 }
 
 func topoAddrToIPv6AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
-	if pubAddr := topoAddr.PublicAddr(overlay.IPv6); pubAddr != nil {
+	if pubAddr := topoAddr.PublicAddr(topology.IPv6); pubAddr != nil {
 		return pubAddr.L3.IP(), pubAddr.L4
 	}
 	return nil, 0

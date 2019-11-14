@@ -147,8 +147,11 @@ func newTestPktList(t *testing.T, length int) (ringbuf.EntryList, func(expected 
 	}
 }
 
-func newTestDst(t *testing.T) *overlay.OverlayAddr {
-	return overlay.NewOverlayAddr(net.IP{127, 0, 0, 1}, overlay.EndhostPort)
+func newTestDst(t *testing.T) *net.UDPAddr {
+	return &net.UDPAddr{
+		IP:   net.IP{127, 0, 0, 1},
+		Port: overlay.EndhostPort,
+	}
 }
 
 func newTestSock(r *Router, ringSize int, mconn conn.Conn) *rctx.Sock {

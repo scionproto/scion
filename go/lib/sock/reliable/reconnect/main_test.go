@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
@@ -40,8 +39,8 @@ var (
 	localNoPortAddr = MustParseSnet("1-ff00:0:1,[192.168.0.1]:0")
 	localAddr       = MustParseSnet("1-ff00:0:1,[192.168.0.1]:80")
 	otherLocalAddr  = MustParseSnet("1-ff00:0:1,[192.168.0.1]:10080")
-	bindAddr        = MustBuildOverlay("[192.168.0.2]:80")
-	otherBindAddr   = MustBuildOverlay("[192.168.0.2]:10080")
+	bindAddr        = &net.UDPAddr{IP: net.IP{192, 168, 0, 2}, Port: 80}
+	otherBindAddr   = &net.UDPAddr{IP: net.IP{192, 168, 0, 2}, Port: 10080}
 	remoteAddr      = MustParseSnet("2-ff00:0:2,[172.16.0.1]:80")
 	svc             = addr.SvcNone
 	timeout         = time.Duration(0)
@@ -61,14 +60,6 @@ func MustParseSnet(str string) *snet.Addr {
 		panic(fmt.Sprintf("bad snet string %v, err=%v", str, err))
 	}
 	return address
-}
-
-func MustBuildOverlay(str string) *overlay.OverlayAddr {
-	udpAddr, err := net.ResolveUDPAddr("udp4", str)
-	if err != nil {
-		panic(fmt.Sprintf("bad overlay address %v, err=%v", str, err))
-	}
-	return overlay.NewOverlayAddr(udpAddr.IP, uint16(udpAddr.Port))
 }
 
 // tickerMultiplier computes durations relative to the default reconnect

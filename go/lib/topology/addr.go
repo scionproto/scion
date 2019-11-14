@@ -16,11 +16,12 @@ package topology
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/topology/internal/overlay"
 )
 
 const (
@@ -121,20 +122,24 @@ func (t *TopoAddr) fromRaw(s RawAddrMap) error {
 	return nil
 }
 
-func (t *TopoAddr) PublicAddr(ot overlay.Type) *addr.AppAddr {
-	return t.getAddr(ot).PublicAddr()
+func (t *TopoAddr) PublicAddr(ot OverlayType) *addr.AppAddr {
+	return t.getAddr(overlay.Type(ot)).PublicAddr()
 }
 
-func (t *TopoAddr) BindAddr(ot overlay.Type) *addr.AppAddr {
-	return t.getAddr(ot).BindAddr()
+func (t *TopoAddr) BindAddr(ot OverlayType) *addr.AppAddr {
+	return t.getAddr(overlay.Type(ot)).BindAddr()
 }
 
-func (t *TopoAddr) OverlayAddr(ot overlay.Type) *overlay.OverlayAddr {
-	return t.getAddr(ot).OverlayAddr()
+func (t *TopoAddr) OverlayAddr(ot OverlayType) *net.UDPAddr {
+	ovAddr := t.getAddr(overlay.Type(ot)).OverlayAddr()
+	if ovAddr == nil {
+		return nil
+	}
+	return ovAddr.ToUDPAddr()
 }
 
-func (t *TopoAddr) BindOrPublic(ot overlay.Type) *addr.AppAddr {
-	return t.getAddr(ot).BindOrPublic()
+func (t *TopoAddr) BindOrPublic(ot OverlayType) *addr.AppAddr {
+	return t.getAddr(overlay.Type(ot)).BindOrPublic()
 }
 
 func (t *TopoAddr) getAddr(ot overlay.Type) *pubBindAddr {

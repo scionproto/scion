@@ -18,13 +18,13 @@
 package rctx
 
 import (
+	"net"
 	"sync"
 	"sync/atomic"
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
@@ -74,7 +74,7 @@ func (ctx *Ctx) InitMacPool() error {
 	return nil
 }
 
-func (ctx *Ctx) ResolveSVC(svc addr.HostSVC) ([]*overlay.OverlayAddr, error) {
+func (ctx *Ctx) ResolveSVC(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 	if svc.IsMulticast() {
 		return ctx.ResolveSVCMulti(svc)
 	}
@@ -82,18 +82,18 @@ func (ctx *Ctx) ResolveSVC(svc addr.HostSVC) ([]*overlay.OverlayAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []*overlay.OverlayAddr{resolvedAddr}, nil
+	return []*net.UDPAddr{resolvedAddr}, nil
 }
 
 // ResolveSVCAny resolves an anycast SVC address (i.e. a single instance of a local
 // infrastructure service).
-func (ctx *Ctx) ResolveSVCAny(svc addr.HostSVC) (*overlay.OverlayAddr, error) {
+func (ctx *Ctx) ResolveSVCAny(svc addr.HostSVC) (*net.UDPAddr, error) {
 	return ctx.Conf.Topo.OverlayAnycast(svc)
 }
 
 // ResolveSVCMulti resolves a multicast SVC address (i.e. one packet per machine hosting
 // instances for a local infrastructure service).
-func (ctx *Ctx) ResolveSVCMulti(svc addr.HostSVC) ([]*overlay.OverlayAddr, error) {
+func (ctx *Ctx) ResolveSVCMulti(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 	return ctx.Conf.Topo.OverlayMulticast(svc)
 }
 

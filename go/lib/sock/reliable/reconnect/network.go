@@ -21,7 +21,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect/internal/metrics"
 )
@@ -45,13 +44,13 @@ func NewDispatcherService(dispatcher reliable.DispatcherService) *DispatcherServ
 }
 
 func (pn *DispatcherService) Register(ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC) (net.PacketConn, uint16, error) {
+	bind *net.UDPAddr, svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	return pn.RegisterTimeout(ia, public, bind, svc, 0)
 }
 
 func (pn *DispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC,
+	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (net.PacketConn, uint16, error) {
 
 	// Perform initial connection to allocate port. We use a reconnecter here
@@ -72,7 +71,7 @@ func (pn *DispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
 }
 
 func (pn *DispatcherService) newReconnecterFromListenArgs(ia addr.IA,
-	public *addr.AppAddr, bind *overlay.OverlayAddr,
+	public *addr.AppAddr, bind *net.UDPAddr,
 	svc addr.HostSVC, timeout time.Duration) *TickingReconnecter {
 
 	// f represents individual connection attempts

@@ -16,13 +16,13 @@ package snet
 
 import (
 	"context"
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -31,7 +31,7 @@ import (
 // PacketDispatcherService constructs SCION sockets where applications have
 // fine-grained control over header fields.
 type PacketDispatcherService interface {
-	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
+	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
 		svc addr.HostSVC, timeout time.Duration) (PacketConn, uint16, error)
 }
 
@@ -49,7 +49,7 @@ type DefaultPacketDispatcherService struct {
 }
 
 func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC,
+	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (PacketConn, uint16, error) {
 
 	rconn, port, err := s.Dispatcher.RegisterTimeout(ia, public, bind, svc, timeout)

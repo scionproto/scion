@@ -16,10 +16,10 @@ package pathsource
 
 import (
 	"context"
+	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -29,12 +29,11 @@ const (
 	ErrNoResolver common.ErrMsg = "no resolver set"
 	ErrNoPath     common.ErrMsg = "path not found"
 	ErrInitPath   common.ErrMsg = "raw forwarding path offsets could not be initialized"
-	ErrBadOverlay common.ErrMsg = "unable to extract next hop from sciond path entry"
 )
 
 // PathSource is a source of paths and overlay addresses for snet.
 type PathSource interface {
-	Get(ctx context.Context, src, dst addr.IA) (*overlay.OverlayAddr, *spath.Path, error)
+	Get(ctx context.Context, src, dst addr.IA) (*net.UDPAddr, *spath.Path, error)
 }
 
 type pathSource struct {
@@ -49,7 +48,7 @@ func NewPathSource(resolver pathmgr.Resolver) PathSource {
 }
 
 func (ps *pathSource) Get(ctx context.Context,
-	src, dst addr.IA) (*overlay.OverlayAddr, *spath.Path, error) {
+	src, dst addr.IA) (*net.UDPAddr, *spath.Path, error) {
 
 	if ps.resolver == nil {
 		return nil, nil, common.NewBasicError(ErrNoResolver, nil)
@@ -63,9 +62,6 @@ func (ps *pathSource) Get(ctx context.Context,
 	if err := path.InitOffsets(); err != nil {
 		return nil, nil, common.NewBasicError(ErrInitPath, nil)
 	}
-	overlayAddr, err := sciondPath.Entry.HostInfo.Overlay()
-	if err != nil {
-		return nil, nil, common.NewBasicError(ErrBadOverlay, nil)
-	}
+	overlayAddr := sciondPath.Entry.HostInfo.Overlay()
 	return overlayAddr, path, nil
 }

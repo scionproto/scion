@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -110,14 +109,10 @@ func (r *BaseRouter) appPathToPath(ap *spathmeta.AppPath) (Path, error) {
 	if err := p.InitOffsets(); err != nil {
 		return nil, common.NewBasicError("path error", err)
 	}
-	overlayAddr, err := ap.Entry.HostInfo.Overlay()
-	if err != nil {
-		return nil, common.NewBasicError("path error", err)
-	}
 	return &path{
 		sciondPath: ap.Entry,
 		spath:      p,
-		overlay:    overlayAddr,
+		overlay:    ap.Entry.HostInfo.Overlay(),
 		source:     r.IA,
 	}, nil
 }
@@ -140,7 +135,7 @@ type Path interface {
 	Fingerprint() string
 	// OverlayNextHop returns the address:port pair of a local-AS overlay
 	// speaker. Usually, this is a border router that will forward the traffic.
-	OverlayNextHop() *overlay.OverlayAddr
+	OverlayNextHop() *net.UDPAddr
 	// Path returns a raw (data-plane compatible) representation of the path.
 	// The returned path is initialized and ready for use in snet calls that
 	// deal with raw paths.
@@ -177,7 +172,7 @@ type path struct {
 	// spath is the raw SCION forwarding path.
 	spath *spath.Path
 	// overlay is the intra-AS next-hop to use for this path.
-	overlay *overlay.OverlayAddr
+	overlay *net.UDPAddr
 	// source is the AS where the path starts.
 	source addr.IA
 }
@@ -190,8 +185,8 @@ func (p *path) Fingerprint() string {
 	return string(ap.Key())
 }
 
-func (p *path) OverlayNextHop() *overlay.OverlayAddr {
-	return p.overlay.Copy()
+func (p *path) OverlayNextHop() *net.UDPAddr {
+	return CopyUDPAddr(p.overlay)
 }
 
 func (p *path) Path() *spath.Path {
@@ -235,7 +230,7 @@ func (p *path) Copy() Path {
 	return &path{
 		sciondPath: p.sciondPath.Copy(),
 		spath:      p.spath.Copy(),
-		overlay:    p.overlay.Copy(),
+		overlay:    CopyUDPAddr(p.overlay),
 		source:     p.source,
 	}
 }
@@ -252,7 +247,7 @@ func (p *path) String() string {
 // objects, notably snet.Addr.
 type partialPath struct {
 	spath       *spath.Path
-	overlay     *overlay.OverlayAddr
+	overlay     *net.UDPAddr
 	destination addr.IA
 }
 
@@ -260,7 +255,7 @@ func (p *partialPath) Fingerprint() string {
 	return ""
 }
 
-func (p *partialPath) OverlayNextHop() *overlay.OverlayAddr {
+func (p *partialPath) OverlayNextHop() *net.UDPAddr {
 	return p.overlay
 }
 
@@ -290,7 +285,7 @@ func (p *partialPath) Expiry() time.Time {
 func (p *partialPath) Copy() Path {
 	return &partialPath{
 		spath:       p.spath.Copy(),
-		overlay:     p.overlay.Copy(),
+		overlay:     CopyUDPAddr(p.overlay),
 		destination: p.destination,
 	}
 }
@@ -321,6 +316,6 @@ func (m *LocalMachine) AppAddress() *addr.AppAddr {
 
 // BindAddress returns a bind address for the local machine. The port is
 // set to 0.
-func (m *LocalMachine) BindAddress() *overlay.OverlayAddr {
-	return overlay.NewOverlayAddr(m.InterfaceIP, 0)
+func (m *LocalMachine) BindAddress() *net.UDPAddr {
+	return &net.UDPAddr{IP: m.InterfaceIP}
 }

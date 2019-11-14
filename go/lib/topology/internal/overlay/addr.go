@@ -86,6 +86,20 @@ func (a *OverlayAddr) ToUDPAddr() *net.UDPAddr {
 	return &net.UDPAddr{IP: copyIP(a.l3), Port: int(a.l4)}
 }
 
+// ShallowUDPAddr returns a net.UDPAddr interpretation of the overlay L3 address field. The IP is a
+// slice pointing to the same memory region as the overlay address, so it can be edited (note that
+// since the port is an integer and always copied, the port of the overlay address cannot be
+// edited).
+//
+// FIXME(scrye): This is used only for some unit tests which effect topology changes by editing an
+// address in-place. This should never be used and should be removed.
+func (a *OverlayAddr) ShallowUDPAddr() *net.UDPAddr {
+	return &net.UDPAddr{
+		IP:   a.l3,
+		Port: int(a.l4),
+	}
+}
+
 func copyIP(ip net.IP) net.IP {
 	return append(ip[:0:0], ip...)
 }

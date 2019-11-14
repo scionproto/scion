@@ -282,11 +282,7 @@ func (sm *sessMonitor) sendReq() {
 	if err := raddr.Path.InitOffsets(); err != nil {
 		sm.Error("sessMonitor: Error initializing path offsets", "err", err)
 	}
-	nh, err := sm.smRemote.SessPath.PathEntry().HostInfo.Overlay()
-	if err != nil {
-		sm.Error("sessMonitor: Unsupported NextHop", "err", err)
-	}
-	raddr.NextHop = nh
+	raddr.NextHop = sm.smRemote.SessPath.PathEntry().HostInfo.Overlay()
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
 	// goroutines will block. Can't just use SetWriteDeadline, as both
 	// goroutines write to it.

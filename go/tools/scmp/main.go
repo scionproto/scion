@@ -20,12 +20,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -68,9 +68,12 @@ func main() {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
 	}
 	// Connect to the dispatcher
-	var overlayBindAddr *overlay.OverlayAddr
+	var overlayBindAddr *net.UDPAddr
 	if cmn.Bind.Host != nil {
-		overlayBindAddr = overlay.NewOverlayAddr(cmn.Bind.Host.L3.IP(), cmn.Bind.Host.L4)
+		overlayBindAddr = &net.UDPAddr{
+			IP:   cmn.Bind.Host.L3.IP(),
+			Port: int(cmn.Bind.Host.L4),
+		}
 	}
 	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host,
 		overlayBindAddr, addr.SvcNone)
@@ -153,7 +156,7 @@ func setPathAndMtu() uint16 {
 	cmn.PathEntry = &path
 	cmn.Remote.Path = spath.New(cmn.PathEntry.Path.FwdPath)
 	cmn.Remote.Path.InitOffsets()
-	cmn.Remote.NextHop, _ = cmn.PathEntry.HostInfo.Overlay()
+	cmn.Remote.NextHop = cmn.PathEntry.HostInfo.Overlay()
 	return cmn.PathEntry.Path.Mtu
 }
 

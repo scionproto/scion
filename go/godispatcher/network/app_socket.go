@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -268,10 +267,7 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 		}
 		if n > 0 {
 			pkt := entries[0].(*respool.Packet)
-			overlayAddr := overlay.NewOverlayAddr(
-				pkt.OverlayRemote.IP,
-				uint16(pkt.OverlayRemote.Port),
-			)
+			overlayAddr := &net.UDPAddr{IP: pkt.OverlayRemote.IP, Port: pkt.OverlayRemote.Port}
 			n, err := pkt.SendOnConn(h.Conn, overlayAddr)
 			if err != nil {
 				metrics.M.AppWriteErrors().Inc()

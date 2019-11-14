@@ -54,9 +54,9 @@ func (p *Pool) Update(svcInfo topology.IDAddrMap) error {
 	// Add missing DS servers.
 	for k, v := range svcInfo {
 		if info, ok := p.m[k]; !ok {
-			p.m[k] = discoveryinfo.New(k, v.PublicAddr(v.Overlay))
+			p.m[k] = discoveryinfo.New(k, v.PublicAddr(topology.OverlayType(v.Overlay)))
 		} else {
-			info.Update(v.PublicAddr(v.Overlay))
+			info.Update(v.PublicAddr(topology.OverlayType(v.Overlay)))
 		}
 	}
 	// Get list of outdated DS servers.
