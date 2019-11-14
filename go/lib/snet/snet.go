@@ -48,6 +48,7 @@
 package snet
 
 import (
+	"context"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -168,7 +169,7 @@ func NewCustomNetwork(ia addr.IA, sciondPath string,
 func getResolver(sciondPath string) (pathmgr.Resolver, error) {
 	var pathResolver pathmgr.Resolver
 	if sciondPath != "" {
-		sciondConn, err := sciond.NewService(sciondPath).Connect()
+		sciondConn, err := sciond.NewService(sciondPath).Connect(context.Background())
 		if err != nil {
 			return nil, common.NewBasicError("Unable to initialize SCIOND service", err)
 		}

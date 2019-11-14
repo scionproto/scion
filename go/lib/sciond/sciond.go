@@ -30,7 +30,6 @@ package sciond
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -57,26 +56,15 @@ const (
 )
 
 // Service describes a SCIOND endpoint. New connections to SCIOND can be
-// initialized via Connect and ConnectTimeout.
+// initialized via Connect.
 type Service interface {
 	// Connect connects to the SCIOND server described by Service. Future
 	// method calls on the returned Connector request information from SCIOND.
-	// The information is not guaranteed to be fresh, as the returned connector
-	// caches ASInfo replies for ASInfoTTL time, IFInfo replies for IFInfoTTL
-	// time and SVCInfo for SVCInfoTTL time.
-	Connect() (Connector, error)
-	// ConnectTimeout acts like Connect but takes a timeout.
-	//
-	// A timeout of 0 means infinite timeout.
-	//
-	// To check for timeout errors, type assert the returned error to
-	// *net.OpError and call method Timeout().
-	ConnectTimeout(timeout time.Duration) (Connector, error)
+	Connect(context.Context) (Connector, error)
 }
 
 type service struct {
-	path       string
-	reconnects bool
+	path string
 }
 
 // NewService returns a SCIOND API connection factory.
@@ -84,12 +72,8 @@ func NewService(name string) Service {
 	return &service{path: name}
 }
 
-func (s *service) Connect() (Connector, error) {
-	return newConn(s.path, 0)
-}
-
-func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
-	return newConn(s.path, timeout)
+func (s *service) Connect(ctx context.Context) (Connector, error) {
+	return newConn(ctx, s.path)
 }
 
 // A Connector is used to query SCIOND. The connector maintains an internal
@@ -124,25 +108,18 @@ type conn struct {
 	path      string
 }
 
-func newConn(path string, initialCheckTimeout time.Duration) (*conn, error) {
+func newConn(ctx context.Context, path string) (*conn, error) {
 	c := &conn{path: path}
 	// Test during initialization that SCIOND is alive; this helps catch some
 	// unfixable issues (like bad socket name) while apps are still
 	// initializing their networking.
-	if err := c.checkForSciond(initialCheckTimeout); err != nil {
+	if err := c.checkForSciond(ctx); err != nil {
 		return nil, err
 	}
 	return c, nil
 }
 
-func (c *conn) checkForSciond(initialCheckTimeout time.Duration) error {
-	ctx := context.Background()
-	if initialCheckTimeout != 0 {
-		timeoutCtx, cancelF := context.WithTimeout(context.Background(), initialCheckTimeout)
-		defer cancelF()
-		ctx = timeoutCtx
-	}
-
+func (c *conn) checkForSciond(ctx context.Context) error {
 	dispatcher, err := c.ctxAwareConnect(ctx)
 	if err != nil {
 		return serrors.Wrap(ErrUnableToConnect, err)
@@ -202,7 +179,6 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 	reply, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_pathReq,
 			PathReq: &PathReq{
 				Dst:      dst.IAInt(),
@@ -231,7 +207,6 @@ func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_asInfoReq,
 			AsInfoReq: &ASInfoReq{
 				Isdas: ia.IAInt(),
@@ -257,7 +232,6 @@ func (c *conn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply,
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_ifInfoRequest,
 			IfInfoRequest: &IFInfoRequest{
 				IfIDs: ifs,
@@ -285,7 +259,6 @@ func (c *conn) SVCInfo(ctx context.Context,
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_serviceInfoRequest,
 			ServiceInfoRequest: &ServiceInfoRequest{
 				ServiceTypes: svcTypes,
@@ -322,7 +295,6 @@ func (c *conn) RevNotification(ctx context.Context,
 	reply, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_revNotification,
 			RevNotification: &RevNotification{
 				SRevInfo: sRevInfo,
@@ -340,11 +312,6 @@ func (c *conn) RevNotification(ctx context.Context,
 
 func (c *conn) Close(_ context.Context) error {
 	return nil
-}
-
-// nextID returns a unique value for identifiying SCIOND requests.
-func (c *conn) nextID() uint64 {
-	return atomic.AddUint64(&c.requestID, 1)
 }
 
 func connectTimeout(socketName string, timeout time.Duration) (*disp.Dispatcher, error) {
