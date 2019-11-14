@@ -77,6 +77,23 @@ var genIssuerCmd = &cobra.Command{
 	},
 }
 
+var humanCmd = &cobra.Command{
+	Use:   "human",
+	Short: "Display human readable issuer certificates and certificate chains",
+	Long: `
+	'human' parses the provided issuer certificate and certificate chain files
+	and displays them in a human readable format.
+`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := runHuman(args); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
 func init() {
 	Cmd.AddCommand(genIssuerCmd)
+	Cmd.AddCommand(humanCmd)
 }
