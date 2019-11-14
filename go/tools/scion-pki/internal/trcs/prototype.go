@@ -206,9 +206,11 @@ func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC, keys map[addr.AS]pubKeys) (
 	if !t.Base() {
 		var err error
 		file := SignedFile(g.Dirs.Out, isd, t.Version-1)
-		if prev, _, err = loadTRC(file); err != nil {
+		dec, err := loadTRC(file)
+		if err != nil {
 			return nil, serrors.WrapStr("unable to load previous TRC", err, "file", file)
 		}
+		prev = dec.TRC
 	}
 	if err := g.attachVotes(t, prev, cfg.Votes); err != nil {
 		return nil, serrors.WrapStr("unable to attach votes", err)
