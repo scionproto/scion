@@ -22,7 +22,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -128,11 +127,7 @@ func getTopo() (*topology.Topo, error) {
 		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 		defer cancelF()
 
-		ip, sport, err := net.SplitHostPort(*ds)
-		if err != nil {
-			return nil, err
-		}
-		port, err := strconv.Atoi(sport)
+		a, err := net.ResolveUDPAddr("udp", *ds)
 		if err != nil {
 			return nil, err
 		}
@@ -141,10 +136,8 @@ func getTopo() (*topology.Topo, error) {
 			File:  file(),
 			Mode:  mode(),
 			Https: *https,
-		}, &net.UDPAddr{
-			IP:   net.ParseIP(ip),
-			Port: port,
-		}, nil)
+		}, a,
+			nil)
 		return ret, err
 	}
 	log.Info("Load initial topology from disk", "topo", topoPath)

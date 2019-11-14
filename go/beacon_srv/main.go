@@ -292,13 +292,14 @@ func (t *periodicTasks) Start() error {
 	t.running = true
 	topo := t.topoProvider.Get()
 	topoAddress := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
+	if topoAddress == nil {
+		return serrors.New("Unable to find topo address")
+	}
 	bs := &net.UDPAddr{
 		IP:   topoAddress.L3.IP(),
 		Port: int(topoAddress.L4),
 	}
-	if topoAddress == nil {
-		return serrors.New("Unable to find topo address")
-	}
+
 	var err error
 	if t.registrars, err = t.startSegRegRunners(); err != nil {
 		return err
