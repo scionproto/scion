@@ -106,6 +106,18 @@ http_file(
     urls = ["https://busybox.net/downloads/binaries/1.27.1-i686/busybox"],
 )
 
+# Protobuf
+git_repository(
+    name = "com_google_protobuf",
+    commit = "09745575a923640154bcf307fba8aedff47f240a",
+    remote = "https://github.com/protocolbuffers/protobuf",
+    shallow_since = "1558721209 -0700",
+)
+
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+
+protobuf_deps()
+
 # Note the comments in the rules below. These point to an arbitrary directory within the repo
 # that contains Go files. The comment is not needed if the root directory contains Go files.
 # To understand how it works see tools/fetch.sh
@@ -294,6 +306,7 @@ go_repository(
     name = "com_github_oncilla_gochecks",
     commit = "8931c0e330384f8cfbff5ea8d260350ec4de893b",
     importpath = "github.com/oncilla/gochecks",  # serrorscheck
+    build_file_generation = "off",
 )
 
 go_repository(
@@ -498,7 +511,7 @@ go_repository(
 
 go_repository(
     name = "org_golang_x_net",
-    importpath = "golang.org/x/net",
+    importpath = "golang.org/x/net", # ipv4
     sum = "h1:QPlSTtPE2k6PZPasQUbzuK3p9JbS+vMXYVto8g/yrsg=",
     version = "v0.0.0-20191105084925-a882066a44e0",
 )
