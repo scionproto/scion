@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	// Namespace is the metrics namespace for the SCIOND client API.
+	// Namespace is the metrics namespace for the snet client API.
 	Namespace = "lib_snet"
 
 	subDials           = "dials"
