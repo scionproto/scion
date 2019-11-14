@@ -116,8 +116,6 @@ type Resolver interface {
 	RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes)
 	// Revoke informs SCIOND of a revocation.
 	Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo)
-	// Sciond returns a reference to the SCIOND connection.
-	Sciond() sciond.Connector
 }
 
 type resolver struct {
@@ -246,10 +244,6 @@ func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo
 	case sciond.RevInvalid:
 		logger.Warn("Found invalid revocation notification", "revInfo", revInfo)
 	}
-}
-
-func (r *resolver) Sciond() sciond.Connector {
-	return r.sciondConn
 }
 
 func (r *resolver) logger(ctx context.Context) log.Logger {

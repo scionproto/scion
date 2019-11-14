@@ -176,11 +176,9 @@ func getRemote() error {
 }
 
 func getSVCAddress() (*net.UDPAddr, error) {
-	network := integration.InitNetwork()
-	connector := network.Sciond()
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
 	defer cancelF()
-	reply, err := connector.SVCInfo(ctx, []proto.ServiceType{proto.ServiceType_cs})
+	reply, err := integration.SDConn().SVCInfo(ctx, []proto.ServiceType{proto.ServiceType_cs})
 	if err != nil {
 		return nil, err
 	}

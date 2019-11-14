@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +16,7 @@
 package integration
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -79,6 +81,16 @@ func InitNetwork() *snet.SCIONNetwork {
 	}
 	log.Debug("SCION network successfully initialized")
 	return n
+}
+
+func SDConn() sciond.Connector {
+	ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
+	defer cancelF()
+	conn, err := sciond.NewService(Sciond).Connect(ctx)
+	if err != nil {
+		LogFatal("Unable to initialize sciond connection", "err", err)
+	}
+	return conn
 }
 
 // AttemptFunc attempts a request repeatedly, receives the attempt number
