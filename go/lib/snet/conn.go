@@ -18,11 +18,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -73,43 +71,6 @@ func newSCIONConn(base *scionConnBase, pr pathmgr.Resolver, conn PacketConn) *SC
 	c.scionConnWriter = *newScionConnWriter(&c.scionConnBase, pr, conn)
 	c.scionConnReader = *newScionConnReader(&c.scionConnBase, conn)
 	return c
-}
-
-// DialSCION calls DialSCION with infinite timeout on the default networking
-// context.
-func DialSCION(network string, laddr, raddr *Addr) (Conn, error) {
-	if DefNetwork == nil {
-		return nil, serrors.New("SCION network not initialized")
-	}
-	return DefNetwork.DialSCION(network, laddr, raddr, 0)
-}
-
-// DialSCIONWithBindSVC calls DialSCIONWithBindSVC with infinite timeout on the
-// default networking context.
-func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
-	svc addr.HostSVC) (Conn, error) {
-	if DefNetwork == nil {
-		return nil, serrors.New("SCION network not initialized")
-	}
-	return DefNetwork.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc, 0)
-}
-
-// ListenSCION calls ListenSCION with infinite timeout on the default
-// networking context.
-func ListenSCION(network string, laddr *Addr) (Conn, error) {
-	if DefNetwork == nil {
-		return nil, serrors.New("SCION network not initialized")
-	}
-	return DefNetwork.ListenSCION(network, laddr, 0)
-}
-
-// ListenSCIONWithBindSVC calls ListenSCIONWithBindSVC with infinite timeout on
-// the default networking context.
-func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC) (Conn, error) {
-	if DefNetwork == nil {
-		return nil, serrors.New("SCION network not initialized")
-	}
-	return DefNetwork.ListenSCIONWithBindSVC(network, laddr, baddr, svc, 0)
 }
 
 func (c *SCIONConn) SetDeadline(t time.Time) error {

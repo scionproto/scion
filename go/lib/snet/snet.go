@@ -16,9 +16,9 @@
 // Package snet implements interfaces net.Conn and net.PacketConn for SCION
 // connections.
 //
-// The default (package-wide) SCION network must first be initialized by
-// calling Init. All future package scoped DialSCION and ListenSCION calls will
-// use this initial context to get the local ISD-AS, dispatcher or sciond.
+// New networking contexts can be created using NewNetwork. Calling the
+// DialSCION or ListenSCION methods on the networking context yields
+// connections that run in that context.
 //
 // A connection can be created by calling DialSCION or ListenSCION; both
 // functions register an address-port pair with the local dispatcher. For Dial,
@@ -29,10 +29,7 @@
 // sender's address; WriteTo and WriteToSCION can be used to send a message to
 // a chosen destination.
 //
-// For applications that need to run in multiple ASes, new networking contexts
-// can be created using NewNetwork. Calling the DialSCION or ListenSCION
-// methods on the networking context yields connections that run in that context.
-//
+
 // Multiple networking contexts can share the same SCIOND and/or dispatcher.
 //
 // Write calls never return SCMP errors directly. If a write call caused an
@@ -61,38 +58,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
-
-var (
-	// DefNetwork is the default SCION networking context for package-level Dial
-	// and Listen
-	DefNetwork *SCIONNetwork
-)
-
-// Init initializes the default SCION networking context.
-func Init(ia addr.IA, sciondPath string, dispatcher reliable.DispatcherService) error {
-	network, err := NewNetwork(ia, sciondPath, dispatcher)
-	if err != nil {
-		return err
-	}
-	return InitWithNetwork(network)
-}
-
-// InitWithNetwork initializes snet with the provided SCION networking context.
-func InitWithNetwork(network *SCIONNetwork) error {
-	if DefNetwork != nil {
-		return serrors.New("Cannot initialize global SCION network twice")
-	}
-	DefNetwork = network
-	return nil
-}
-
-// IA returns the default ISD-AS
-func IA() addr.IA {
-	if DefNetwork == nil {
-		return addr.IA{}
-	}
-	return DefNetwork.localIA
-}
 
 var _ Network = (*SCIONNetwork)(nil)
 
@@ -280,7 +245,7 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	}
 	// Make sure the IA is set.
 	if conn.laddr.IA.IsZero() {
-		conn.laddr.IA = n.IA()
+		conn.laddr.IA = n.ia()
 	}
 	if !conn.laddr.IA.Equal(conn.scionNet.localIA) {
 		return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
@@ -321,7 +286,6 @@ func (n *SCIONNetwork) Sciond() sciond.Connector {
 	return nil
 }
 
-// IA returns the ISD-AS assigned to n
-func (n *SCIONNetwork) IA() addr.IA {
+func (n *SCIONNetwork) ia() addr.IA {
 	return n.localIA
 }
