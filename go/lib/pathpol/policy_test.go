@@ -657,8 +657,8 @@ type testPathIntf struct {
 	ifid common.IFIDType
 }
 
-func (i testPathIntf) IfId() common.IFIDType { return i.ifid }
-func (i testPathIntf) IA() addr.IA           { return i.ia }
+func (i testPathIntf) ID() common.IFIDType { return i.ifid }
+func (i testPathIntf) IA() addr.IA         { return i.ia }
 
 func mustHopPredicate(t *testing.T, str string) *HopPredicate {
 	hp, err := HopPredicateFromString(str)

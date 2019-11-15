@@ -32,8 +32,8 @@ type Path interface {
 
 // PathInterface is an interface on the path.
 type PathInterface interface {
-	// IfId is the id of the interface.
-	IfId() common.IFIDType
+	// ID is the ID of the interface.
+	ID() common.IFIDType
 	// IA is the ISD AS identifier of the interface.
 	IA() addr.IA
 }

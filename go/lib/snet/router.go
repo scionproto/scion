@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
@@ -61,20 +60,11 @@ type BaseRouter struct {
 // Route uses the specified path resolver (if one exists) to obtain a path from
 // the local AS to dst.
 func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
-	if r.PathResolver == nil || dst.Equal(r.IA) {
-		return &path{}, nil
+	paths, err := r.AllRoutes(ctx, dst)
+	if err != nil {
+		return nil, err
 	}
-	var aps spathmeta.AppPathSet
-	if r.PathPolicy == nil {
-		aps = r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
-	} else {
-		aps = r.PathResolver.QueryFilter(ctx, r.IA, dst, r.PathPolicy)
-	}
-	if len(aps) == 0 {
-		return nil, serrors.New("unable to find paths")
-	}
-	ap := aps.GetAppPath("")
-	return newPathFromSDReply(r.IA, ap.Entry)
+	return paths[0], nil
 }
 
 // AllRoutes is the same as Route except that it returns multiple paths.

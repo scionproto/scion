@@ -272,7 +272,7 @@ func (iface PathInterface) IA() addr.IA {
 	return iface.RawIsdas.IA()
 }
 
-func (iface PathInterface) IfId() common.IFIDType {
+func (iface PathInterface) ID() common.IFIDType {
 	return iface.IfID
 }
 

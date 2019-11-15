@@ -61,6 +61,9 @@ type Path interface {
 	Copy() Path
 }
 
+// PathInterface is an interface of the path. This is currently an interface so
+// that packages which can not depend on snet can still implement the snet.Path
+// interface.
 type PathInterface interface {
 	ID() common.IFIDType
 	IA() addr.IA
@@ -126,7 +129,7 @@ func (p *path) Interfaces() []PathInterface {
 	}
 	res := make([]PathInterface, 0, len(p.sciondPath.Path.Interfaces))
 	for _, intf := range p.sciondPath.Path.Interfaces {
-		res = append(res, pathInterface{ia: intf.IA(), id: intf.IfID})
+		res = append(res, intf)
 	}
 	return res
 }
@@ -215,11 +218,3 @@ func (p *partialPath) Copy() Path {
 		destination: p.destination,
 	}
 }
-
-type pathInterface struct {
-	ia addr.IA
-	id common.IFIDType
-}
-
-func (i pathInterface) IA() addr.IA         { return i.ia }
-func (i pathInterface) ID() common.IFIDType { return i.id }
