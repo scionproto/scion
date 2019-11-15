@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -57,7 +58,6 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 	encapPort = cfg.EncapPort
 
 	ds := reliable.NewDispatcherService(cfg.Dispatcher)
-
 	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
 	wait := func() (*snet.SCIONNetwork, error) {
 		deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
@@ -65,14 +65,14 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 		for tries := 0; time.Now().Before(deadline); tries++ {
 			n, err := snet.NewNetwork(cfg.IA, sdCfg.Path, ds)
 			if err == nil {
-				return n, nil // success
+				return n, nil
 			}
+			log.Debug("SIG is retrying to get NewNetwork", err)
 			retErr = err
-			time.Sleep(time.Second << uint(tries)) // exponential back-off
+			time.Sleep(time.Second)
 		}
 		return nil, retErr
 	}
-
 	network, err := wait()
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
