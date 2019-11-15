@@ -72,6 +72,13 @@ func main() {
 	if cmn.Bind.Host != nil {
 		overlayBindAddr = overlay.NewOverlayAddr(cmn.Bind.Host.L3.IP(), cmn.Bind.Host.L4)
 	}
+	if cmn.Local.IA.I == 0 && cmn.Local.IA.A == 0 {
+		rp, err := sdConn.ASInfo(ctx, addr.IA{})
+		if err != nil {
+			cmn.Fatal("Unable to get ASInfo from SCIOND\nerr=%v", err)
+		}
+		cmn.Local.IA = rp.Entries[0].ISD_AS()
+	}
 	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host,
 		overlayBindAddr, addr.SvcNone)
 	if err != nil {

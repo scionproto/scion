@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
@@ -77,8 +78,9 @@ func init() {
 	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets (echo only)")
 	flag.DurationVar(&Timeout, "timeout", DefaultTimeout, "timeout per packet")
 	flag.UintVar(&Count, "c", 0, "Total number of packet to send (echo only). Maximum value 65535")
-	flag.Var((*snet.Addr)(&Local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var((*snet.Addr)(&Local), "local", "Address to listen on (format: isd-as,[ipaddr]:port)")
+	flag.Var((*snet.Addr)(&Remote), "remote",
+		"(Mandatory for clients) address to connect to (format: isd-as,[ipaddr]:port)")
 	flag.Var((*snet.Addr)(&Bind), "bind", "address to bind to, if running behind NAT")
 	flag.Usage = scmpUsage
 	Stats = &ScmpStats{}
@@ -127,7 +129,7 @@ func ParseFlags(version *bool) string {
 
 func ValidateFlags() {
 	if Local.Host == nil {
-		Fatal("Invalid local address")
+		Local.Host = &addr.AppAddr{L3: addr.HostFromIPStr("127.0.0.1")}
 	}
 	if Remote.Host == nil {
 		Fatal("Invalid remote address")
