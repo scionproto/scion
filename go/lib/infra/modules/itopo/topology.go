@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,10 @@
 package itopo
 
 import (
+	"net"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -79,16 +80,14 @@ type Topology interface {
 	// supported.
 	OverlayNextHop2(ifID common.IFIDType) (*overlay.OverlayAddr, bool)
 
-	// OverlayNextHop returns the internal overlay address of the router containing the interface
-	// ID. The return value is encoded as a SCIOND host info struct.
+	// OverlayNextHop returns the internal overlay address of the router
+	// containing the interface ID.
 	//
 	// XXX(scrye): Return value is a shallow copy.
-	OverlayNextHop(ifID common.IFIDType) (hostinfo.Host, bool)
+	OverlayNextHop(ifID common.IFIDType) (*net.UDPAddr, bool)
 
 	// MakeHostInfos returns the overlay addresses of all services for the specified service type.
-	//
-	// XXX(scrye): The return values are shallow copies.
-	MakeHostInfos(st proto.ServiceType) []hostinfo.Host
+	MakeHostInfos(st proto.ServiceType) []net.UDPAddr
 
 	// BR returns information for a specific border router
 	//
@@ -187,12 +186,22 @@ func (t *topologyS) InterfaceIDs() []common.IFIDType {
 	return intfs
 }
 
-func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (hostinfo.Host, bool) {
+func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	ifInfo, ok := t.Topology.IFInfoMap[ifid]
 	if !ok {
-		return hostinfo.Host{}, false
+		return nil, false
 	}
-	return hostinfo.FromTopoBRAddr(*ifInfo.InternalAddrs), true
+	if ifInfo.InternalAddrs.IPv4 != nil {
+		if v4Addr := ifInfo.InternalAddrs.IPv4.PublicOverlay; v4Addr != nil {
+			return &net.UDPAddr{IP: copyIP(v4Addr.L3().IP()), Port: int(v4Addr.L4())}, true
+		}
+	}
+	if ifInfo.InternalAddrs.IPv6 != nil {
+		if v6Addr := ifInfo.InternalAddrs.IPv6.PublicOverlay; v6Addr != nil {
+			return &net.UDPAddr{IP: copyIP(v6Addr.L3().IP()), Port: int(v6Addr.L4())}, true
+		}
+	}
+	return nil, false
 }
 
 func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*overlay.OverlayAddr, bool) {
@@ -203,8 +212,8 @@ func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*overlay.OverlayAddr,
 	return ifInfo.InternalAddrs.PublicOverlay(t.Topology.Overlay).Copy(), true
 }
 
-func (t *topologyS) MakeHostInfos(st proto.ServiceType) []hostinfo.Host {
-	var hostInfos []hostinfo.Host
+func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
+	var hostInfos []net.UDPAddr
 	addresses, err := t.Topology.GetAllTopoAddrs(st)
 	if err != nil {
 		// FIXME(lukedirtwalker): inform client about this:
@@ -212,7 +221,18 @@ func (t *topologyS) MakeHostInfos(st proto.ServiceType) []hostinfo.Host {
 		return hostInfos
 	}
 	for _, a := range addresses {
-		hostInfos = append(hostInfos, hostinfo.FromTopoAddr(a))
+		if v4Addr := a.PublicAddr(overlay.IPv4); v4Addr != nil {
+			hostInfos = append(hostInfos, net.UDPAddr{
+				IP:   copyIP(v4Addr.L3.IP()),
+				Port: int(v4Addr.L4),
+			})
+		}
+		if v6Addr := a.PublicAddr(overlay.IPv6); v6Addr != nil {
+			hostInfos = append(hostInfos, net.UDPAddr{
+				IP:   copyIP(v6Addr.L3.IP()),
+				Port: int(v6Addr.L4),
+			})
+		}
 	}
 	return hostInfos
 }
@@ -423,4 +443,8 @@ func (t *topologyS) Overlay() overlay.Type {
 
 func (t *topologyS) Raw() *topology.Topo {
 	return t.Topology
+}
+
+func copyIP(ip net.IP) net.IP {
+	return append(ip[:0:0], ip...)
 }

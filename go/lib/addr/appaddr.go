@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +17,22 @@ package addr
 
 import (
 	"fmt"
+	"net"
 )
 
 type AppAddr struct {
 	L3 HostAddr
 	L4 uint16
+}
+
+func AppAddrFromUDP(a *net.UDPAddr) *AppAddr {
+	if a == nil {
+		return nil
+	}
+	return &AppAddr{
+		L3: HostFromIP(append(a.IP[:0:0], a.IP...)),
+		L4: uint16(a.Port),
+	}
 }
 
 func (a *AppAddr) Copy() *AppAddr {

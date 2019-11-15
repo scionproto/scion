@@ -324,7 +324,7 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 		// Update sessmon's remote.
 		sm.smRemote.Sig = &siginfo.Sig{
 			IA:          sm.smRemote.Sig.IA,
-			Host:        pollRep.Addr.Ctrl.Host(),
+			Host:        addr.HostFromIP(pollRep.Addr.Ctrl.IP),
 			CtrlL4Port:  int(pollRep.Addr.Ctrl.Port),
 			EncapL4Port: int(pollRep.Addr.EncapPort),
 		}
