@@ -70,7 +70,7 @@ func (timers *Timers) GetWait(isError bool) time.Duration {
 
 const (
 	// DefaultNormalRefire is the wait time after a successful path lookup (for periodic lookups)
-	DefaultNormalRefire = time.Minute
+	DefaultNormalRefire = 10 * time.Second
 	// DefaultErorrRefire is the wait time after a failed path lookup (for periodic lookups)
 	DefaultErrorRefire = time.Second
 	// DefaultQueryTimeout is the time allocated for a query to SCIOND
