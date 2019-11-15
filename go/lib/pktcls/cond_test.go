@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pktcls
+package pktcls_test
 
 import (
 	"net"
@@ -20,89 +21,91 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/pktcls"
 )
 
 func TestBasicCond(t *testing.T) {
 	testCases := []struct {
 		Name    string
-		Cond    Cond
+		Cond    pktcls.Cond
 		ExpEval bool
 	}{
 		{
 			Name:    "Any()",
-			Cond:    NewCondAnyOf(),
+			Cond:    pktcls.NewCondAnyOf(),
 			ExpEval: true,
 		},
 		{
 			Name:    "Any(True)",
-			Cond:    NewCondAnyOf(CondTrue),
+			Cond:    pktcls.NewCondAnyOf(pktcls.CondTrue),
 			ExpEval: true,
 		},
 		{
 			Name:    "Any(False)",
-			Cond:    NewCondAnyOf(CondFalse),
+			Cond:    pktcls.NewCondAnyOf(pktcls.CondFalse),
 			ExpEval: false,
 		},
 		{
 			Name:    "Any(False, True, False)",
-			Cond:    NewCondAnyOf(CondFalse, CondTrue, CondFalse),
+			Cond:    pktcls.NewCondAnyOf(pktcls.CondFalse, pktcls.CondTrue, pktcls.CondFalse),
 			ExpEval: true,
 		},
 		{
 			Name:    "All()",
-			Cond:    NewCondAllOf(),
+			Cond:    pktcls.NewCondAllOf(),
 			ExpEval: true,
 		},
 		{
 			Name:    "All(True)",
-			Cond:    NewCondAllOf(CondTrue),
+			Cond:    pktcls.NewCondAllOf(pktcls.CondTrue),
 			ExpEval: true,
 		},
 		{
 			Name:    "All(False)",
-			Cond:    NewCondAllOf(CondFalse),
+			Cond:    pktcls.NewCondAllOf(pktcls.CondFalse),
 			ExpEval: false,
 		},
 		{
 			Name:    "All(False, True, False)",
-			Cond:    NewCondAllOf(CondFalse, CondTrue, CondFalse),
+			Cond:    pktcls.NewCondAllOf(pktcls.CondFalse, pktcls.CondTrue, pktcls.CondFalse),
 			ExpEval: false,
 		},
 		{
-			Name:    "All(Any(), All(), False)",
-			Cond:    NewCondAllOf(NewCondAnyOf(), NewCondAllOf(), CondFalse),
+			Name: "All(Any(), All(), False)",
+			Cond: pktcls.NewCondAllOf(pktcls.NewCondAnyOf(),
+				pktcls.NewCondAllOf(), pktcls.CondFalse),
 			ExpEval: false,
 		},
 		{
-			Name:    "All(Any(), All(), Not(Not(True)))",
-			Cond:    NewCondAllOf(NewCondAnyOf(), NewCondAllOf(), NewCondNot(NewCondNot(CondTrue))),
+			Name: "All(Any(), All(), Not(Not(True)))",
+			Cond: pktcls.NewCondAllOf(pktcls.NewCondAnyOf(), pktcls.NewCondAllOf(),
+				pktcls.NewCondNot(pktcls.NewCondNot(pktcls.CondTrue))),
 			ExpEval: true,
 		},
 	}
 
-	Convey("TestCond", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				SoMsg("eval", tc.Cond.Eval(nil), ShouldEqual, tc.ExpEval)
-			})
-		}
-	})
+	for _, test := range testCases {
+		t.Run(test.Name, func(t *testing.T) {
+			assert.Equal(t, test.ExpEval, test.Cond.Eval(nil))
+		})
+	}
 }
 
 func TestIPCond(t *testing.T) {
 	testCases := []struct {
 		Name    string
-		Cond    Cond
-		Packet  *Packet
+		Cond    pktcls.Cond
+		Packet  *pktcls.Packet
 		ExpEval bool
 	}{
 		{
 			Name: "Match IPv4 destination",
-			Cond: NewCondAllOf(
-				NewCondIPv4(
-					&IPv4MatchDestination{
-						&net.IPNet{
+			Cond: pktcls.NewCondAllOf(
+				pktcls.NewCondIPv4(
+					&pktcls.IPv4MatchDestination{
+						Net: &net.IPNet{
 							IP:   net.IP{192, 168, 1, 0},
 							Mask: net.IPv4Mask(255, 255, 255, 240),
 						},
@@ -120,15 +123,15 @@ func TestIPCond(t *testing.T) {
 		},
 		{
 			Name: "Match IP source but not ToS",
-			Cond: NewCondAllOf(
-				NewCondIPv4(
-					&IPv4MatchToS{
+			Cond: pktcls.NewCondAllOf(
+				pktcls.NewCondIPv4(
+					&pktcls.IPv4MatchToS{
 						TOS: 0x80,
 					},
 				),
-				NewCondIPv4(
-					&IPv4MatchSource{
-						&net.IPNet{
+				pktcls.NewCondIPv4(
+					&pktcls.IPv4MatchSource{
+						Net: &net.IPNet{
 							IP:   net.IP{192, 168, 1, 1},
 							Mask: net.IPv4Mask(255, 255, 255, 255),
 						},
@@ -146,16 +149,53 @@ func TestIPCond(t *testing.T) {
 		},
 	}
 
-	Convey("TestIPCond", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				SoMsg("eval", tc.Cond.Eval(tc.Packet), ShouldEqual, tc.ExpEval)
-			})
-		}
-	})
+	for _, test := range testCases {
+		t.Run(test.Name, func(t *testing.T) {
+			assert.Equal(t, test.ExpEval, test.Cond.Eval(test.Packet))
+		})
+	}
 }
 
-func newTestPacket(ipv4 *layers.IPv4, pld []byte) *Packet {
+func TestStringer(t *testing.T) {
+	_, net, _ := net.ParseCIDR("12.12.12.0/26")
+	tests := map[string]struct {
+		Cond pktcls.Cond
+		Str  string
+	}{
+		"AllAnyNot": {
+			Str: "all(any(BOOL=true),all(BOOL=false),not(not(BOOL=true)))",
+			Cond: pktcls.NewCondAllOf(
+				pktcls.NewCondAnyOf(pktcls.CondTrue),
+				pktcls.NewCondAllOf(pktcls.CondFalse),
+				pktcls.NewCondNot(pktcls.NewCondNot(pktcls.CondTrue)),
+			),
+		},
+		"ANY ALL NOT src dst dscp tos": {
+			Str: "any(dscp=0x2,all(dst=12.12.12.0/26,tos=0x2,not(src=12.12.12.0/26)))",
+			Cond: pktcls.CondAnyOf{
+				pktcls.NewCondIPv4(&pktcls.IPv4MatchDSCP{DSCP: uint8(0x2)}),
+				pktcls.CondAllOf{
+					pktcls.NewCondIPv4(&pktcls.IPv4MatchDestination{Net: net}),
+					pktcls.NewCondIPv4(&pktcls.IPv4MatchToS{TOS: uint8(0x2)}),
+					pktcls.CondNot{Operand: pktcls.NewCondIPv4(
+						&pktcls.IPv4MatchSource{Net: net},
+					)},
+				},
+			},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			strCond := test.Cond.String()
+			assert.Equal(t, test.Str, strCond)
+			parsedCond, err := pktcls.BuildClassTree(strCond)
+			assert.NoError(t, err)
+			assert.Equal(t, test.Cond, parsedCond)
+		})
+	}
+}
+
+func newTestPacket(ipv4 *layers.IPv4, pld []byte) *pktcls.Packet {
 	buf := gopacket.NewSerializeBuffer()
 	gopacket.SerializeLayers(
 		buf,
@@ -163,5 +203,5 @@ func newTestPacket(ipv4 *layers.IPv4, pld []byte) *Packet {
 		ipv4,
 		gopacket.Payload(pld),
 	)
-	return NewPacket(buf.Bytes())
+	return pktcls.NewPacket(buf.Bytes())
 }

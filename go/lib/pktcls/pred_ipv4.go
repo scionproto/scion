@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +30,7 @@ type IPv4Predicate interface {
 	// Eval returns true if the IPv4 packet matched the predicate
 	Eval(*layers.IPv4) bool
 	Typer
+	fmt.Stringer
 }
 
 var _ IPv4Predicate = (*IPv4MatchSource)(nil)
@@ -44,6 +46,13 @@ func (m *IPv4MatchSource) Type() string {
 
 func (m *IPv4MatchSource) Eval(p *layers.IPv4) bool {
 	return m.Net.Contains(p.SrcIP)
+}
+
+func (m *IPv4MatchSource) String() string {
+	if m.Net == nil {
+		return "src="
+	}
+	return fmt.Sprintf("src=%s", m.Net)
 }
 
 func (m *IPv4MatchSource) MarshalJSON() ([]byte, error) {
@@ -84,6 +93,13 @@ func (m *IPv4MatchDestination) Eval(p *layers.IPv4) bool {
 	return m.Net.Contains(p.DstIP)
 }
 
+func (m *IPv4MatchDestination) String() string {
+	if m.Net == nil {
+		return "dst="
+	}
+	return fmt.Sprintf("dst=%s", m.Net)
+}
+
 func (m *IPv4MatchDestination) MarshalJSON() ([]byte, error) {
 	return json.Marshal(
 		jsonContainer{
@@ -120,12 +136,20 @@ func (m *IPv4MatchToS) Eval(p *layers.IPv4) bool {
 	return m.TOS == p.TOS
 }
 
+func (m *IPv4MatchToS) String() string {
+	return fmt.Sprintf("tos=%s", m.toHex())
+}
+
 func (m *IPv4MatchToS) MarshalJSON() ([]byte, error) {
 	return json.Marshal(
 		jsonContainer{
-			"TOS": fmt.Sprintf("%#x", m.TOS),
+			"TOS": m.toHex(),
 		},
 	)
+}
+
+func (m *IPv4MatchToS) toHex() string {
+	return fmt.Sprintf("%#x", m.TOS)
 }
 
 func (m *IPv4MatchToS) UnmarshalJSON(b []byte) error {
@@ -153,12 +177,19 @@ func (m *IPv4MatchDSCP) Eval(p *layers.IPv4) bool {
 	return m.DSCP == p.TOS>>2
 }
 
+func (m *IPv4MatchDSCP) String() string {
+	return fmt.Sprintf("dscp=%s", m.toHex())
+}
+
 func (m *IPv4MatchDSCP) MarshalJSON() ([]byte, error) {
 	return json.Marshal(
 		jsonContainer{
-			"DSCP": fmt.Sprintf("%#x", m.DSCP),
+			"DSCP": m.toHex(),
 		},
 	)
+}
+func (m *IPv4MatchDSCP) toHex() string {
+	return fmt.Sprintf("%#x", m.DSCP)
 }
 
 func (m *IPv4MatchDSCP) UnmarshalJSON(b []byte) error {

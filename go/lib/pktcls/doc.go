@@ -33,4 +33,8 @@
 // classes. Due to the custom formatting of the JSON output, marshaling must be
 // done by first adding the classes to a ClassMap. Unmarshaling back to the Map
 // is guaranteed to yield an object that is identical to the initial one.
+//
+// All conditions also implement fmt.Stringer, the `String` method produces a
+// human readable representation. The human readable representation can also be
+// parsed with `BuildClassTree` and can be validated by `ValidateTrafficClass`.
 package pktcls
