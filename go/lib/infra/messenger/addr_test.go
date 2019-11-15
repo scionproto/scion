@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/messenger/mock_messenger"
 	"github.com/scionproto/scion/go/lib/overlay"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -474,7 +473,7 @@ func (t *testPath) Path() *spath.Path {
 	panic("not implemented")
 }
 
-func (t *testPath) Interfaces() []sciond.PathInterface {
+func (t *testPath) Interfaces() []snet.PathInterface {
 	panic("not implemented")
 }
 

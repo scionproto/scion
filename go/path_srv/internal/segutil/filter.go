@@ -116,5 +116,5 @@ type pathInterface struct {
 	ifid common.IFIDType
 }
 
-func (i pathInterface) IA() addr.IA           { return i.ia }
-func (i pathInterface) IfId() common.IFIDType { return i.ifid }
+func (i pathInterface) IA() addr.IA         { return i.ia }
+func (i pathInterface) ID() common.IFIDType { return i.ifid }

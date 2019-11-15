@@ -9,7 +9,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	overlay "github.com/scionproto/scion/go/lib/overlay"
-	sciond "github.com/scionproto/scion/go/lib/sciond"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	spath "github.com/scionproto/scion/go/lib/spath"
 	net "net"
@@ -523,10 +522,10 @@ func (mr *MockPathMockRecorder) Fingerprint() *gomock.Call {
 }
 
 // Interfaces mocks base method
-func (m *MockPath) Interfaces() []sciond.PathInterface {
+func (m *MockPath) Interfaces() []snet.PathInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Interfaces")
-	ret0, _ := ret[0].([]sciond.PathInterface)
+	ret0, _ := ret[0].([]snet.PathInterface)
 	return ret0
 }
 
