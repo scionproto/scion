@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -119,13 +120,16 @@ func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 func (ins *fwdInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
-	if insert, err := ins.shouldInsertChain(ctx, chain, trcProvider); err != nil || !insert {
+	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
+	switch {
+	case err != nil:
 		return err
+	case !insert:
+		return nil
 	}
 	cs := ins.router.chooseServer()
 	if err := ins.rpc.SendCertChain(ctx, chain.Raw, cs); err != nil {
-		return serrors.WrapStr("unable to push chain to certificate server", err,
-			"addr", cs)
+		return serrors.WrapStr("unable to push chain to certificate server", err, "addr", cs)
 	}
 	if _, _, err := ins.db.InsertChain(ctx, chain); err != nil {
 		return serrors.WrapStr("unable to insert chain", err)
@@ -191,5 +195,50 @@ func (ins *baseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next de
 func (ins *baseInserter) shouldInsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) (bool, error) {
 
-	return false, serrors.New("not implemented")
+	found, err := ins.db.ChainExists(ctx, chain)
+	if err != nil || found {
+		return !found, err
+	}
+	if err := ins.validateChain(chain); err != nil {
+		return false, serrors.WrapStr("error validating the certificate chain", err)
+	}
+	t, err := trcProvider(ctx, chain.Issuer.Subject.I, chain.Issuer.Issuer.TRCVersion)
+	if err != nil {
+		return false, serrors.WrapStr("unable to get issuing TRC", err,
+			"isd", chain.Issuer.Subject.I, "version", chain.Issuer.Issuer.TRCVersion)
+	}
+	if err := ins.verifyChain(chain, t); err != nil {
+		return false, serrors.WrapStr("error verifying the certificate chain", err)
+	}
+	return true, nil
+}
+
+func (ins *baseInserter) validateChain(chain decoded.Chain) error {
+	if err := chain.Issuer.Validate(); err != nil {
+		return serrors.Wrap(ErrValidation, err, "part", "issuer")
+	}
+	if err := chain.AS.Validate(); err != nil {
+		return serrors.Wrap(ErrValidation, err, "part", "AS")
+	}
+	return nil
+}
+
+func (ins *baseInserter) verifyChain(chain decoded.Chain, t *trc.TRC) error {
+	issVerifier := cert.IssuerVerifier{
+		TRC:          t,
+		Issuer:       chain.Issuer,
+		SignedIssuer: &chain.Chain.Issuer,
+	}
+	if err := issVerifier.Verify(); err != nil {
+		return serrors.Wrap(ErrVerification, err, "part", "issuer")
+	}
+	asVerifier := cert.ASVerifier{
+		Issuer:   chain.Issuer,
+		AS:       chain.AS,
+		SignedAS: &chain.Chain.AS,
+	}
+	if err := asVerifier.Verify(); err != nil {
+		return serrors.Wrap(ErrVerification, err, "part", "AS")
+	}
+	return nil
 }

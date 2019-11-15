@@ -125,7 +125,7 @@ func (mr *MockDBMockRecorder) BeginTransaction(arg0, arg1 interface{}) *gomock.C
 }
 
 // ChainExists mocks base method
-func (m *MockDB) ChainExists(arg0 context.Context, arg1 decoded.TRC) (bool, error) {
+func (m *MockDB) ChainExists(arg0 context.Context, arg1 decoded.Chain) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ChainExists", arg0, arg1)
 	ret0, _ := ret[0].(bool)
