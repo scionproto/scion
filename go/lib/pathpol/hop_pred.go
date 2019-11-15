@@ -100,7 +100,7 @@ func (hp *HopPredicate) pathIFMatch(pi PathInterface, in bool) bool {
 	if len(hp.IfIDs) == 2 && !in {
 		ifInd = 1
 	}
-	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.IfId() {
+	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.ID() {
 		return false
 	}
 	return true
