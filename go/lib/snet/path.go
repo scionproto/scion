@@ -33,7 +33,8 @@ import (
 // An empty path is a special kind of path that can be used for intra-AS
 // traffic. Empty paths are valid return values for certain route calls (e.g.,
 // if the source and destination ASes match, or if a router was configured
-// without a source of paths).
+// without a source of paths). An empty path only contains a Destination value,
+// all other values are zero values.
 type Path interface {
 	// Fingerprint uniquely identifies the path based on the sequence of
 	// ASes and BRs. Other metadata, such as MTU or NextHop have no effect
