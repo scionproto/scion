@@ -18,6 +18,7 @@
 package rpkt
 
 import (
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -27,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -179,8 +179,8 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 	}
 	sp.SrcIA = rp.Ctx.Conf.IA
 	// Use the local address as the source host
-	pub := rp.Ctx.Conf.BR.InternalAddrs.PublicOverlay(rp.Ctx.Conf.Topo.Overlay())
-	sp.SrcHost = pub.L3()
+	pub := rp.Ctx.Conf.BR.InternalAddrs.PublicOverlayUDP(rp.Ctx.Conf.Topo.Overlay())
+	sp.SrcHost = addr.HostFromIP(pub.IP)
 	return sp, nil
 }
 
@@ -230,7 +230,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
-func (rp *RtrPkt) replyEgress(dir rcmn.Dir, dst *overlay.OverlayAddr, ifid common.IFIDType) error {
+func (rp *RtrPkt) replyEgress(dir rcmn.Dir, dst *net.UDPAddr, ifid common.IFIDType) error {
 	// Destination is the local AS
 	if rp.dstIA.Equal(rp.Ctx.Conf.IA) {
 		// Write to local socket

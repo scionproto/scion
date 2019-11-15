@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 

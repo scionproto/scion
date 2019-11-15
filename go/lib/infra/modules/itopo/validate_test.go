@@ -20,8 +20,8 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/proto"
 )
 

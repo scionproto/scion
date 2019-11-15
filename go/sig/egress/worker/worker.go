@@ -204,11 +204,7 @@ func (w *worker) write(f *frame) error {
 		if err := snetAddr.Path.InitOffsets(); err != nil {
 			return common.NewBasicError("Error initializing path offsets", err)
 		}
-		nh, err := w.currPathEntry.HostInfo.Overlay()
-		if err != nil {
-			return common.NewBasicError("Egress unsupported NextHop", err)
-		}
-		snetAddr.NextHop = nh
+		snetAddr.NextHop = w.currPathEntry.HostInfo.Overlay()
 	}
 
 	f.writeHdr(w.sess.ID(), w.epoch, seq)

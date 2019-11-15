@@ -18,16 +18,17 @@ package rpkt
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -120,7 +121,10 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 			return HookError, common.NewBasicError("invalid overlay L3 address", nil,
 				"addr", rp.dstHost)
 		}
-		dst := overlay.NewOverlayAddr(rp.dstHost.IP(), overlay.EndhostPort)
+		dst := &net.UDPAddr{
+			IP:   rp.dstHost.IP(),
+			Port: int(topology.EndhostPort),
+		}
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 		return HookContinue, nil
 	}
@@ -140,7 +144,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap()[*rp.ifNext]
-	dst := nextBR.InternalAddrs.PublicOverlay(rp.Ctx.Conf.Topo.Overlay())
+	dst := nextBR.InternalAddrs.PublicOverlayUDP(rp.Ctx.Conf.Topo.Overlay())
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }

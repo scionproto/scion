@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -52,7 +51,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
 			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &addr.AppAddr{},
-				&overlay.OverlayAddr{}, addr.SvcPS, 0)
+				&net.UDPAddr{}, addr.SvcPS, 0)
 			SoMsg("conn", conn, ShouldBeNil)
 			SoMsg("port", port, ShouldEqual, 0)
 			SoMsg("err", err, ShouldNotBeNil)
@@ -64,16 +63,16 @@ func TestSVCResolutionServer(t *testing.T) {
 			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
 			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &addr.AppAddr{},
-				&overlay.OverlayAddr{}, addr.SvcPS, 0)
+				&net.UDPAddr{}, addr.SvcPS, 0)
 			SoMsg("conn", conn, ShouldNotBeNil)
 			SoMsg("port", port, ShouldEqual, 1337)
 			SoMsg("err", err, ShouldBeNil)
 
 			var pkt snet.SCIONPacket
-			var ov overlay.OverlayAddr
+			var ov net.UDPAddr
 			Convey("If handler fails, caller sees error", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+					func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcPS,
 						}
@@ -88,7 +87,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			})
 			Convey("If handler returns forward, caller sees data", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+					func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcPS,
 						}
@@ -102,7 +101,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			})
 			Convey("If handler succeeds", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+					func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcPS,
 						}
@@ -112,7 +111,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockReqHandler.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
 				Convey("return from conn with no error next internal read yields data", func() {
 					mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-						func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+						func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
 							pkt.Destination = snet.SCIONAddress{
 								Host: addr.HostIPv4(net.IP{192, 168, 0, 1}),
 							}
@@ -124,7 +123,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				})
 				Convey("return from socket with error if next internal read fails", func() {
 					mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-						func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+						func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
 							return serrors.New("forced exit")
 						},
 					)
@@ -134,7 +133,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			})
 			Convey("Multicast SVC packets get delivered to caller", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+					func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcBS.Multicast(),
 						}
@@ -246,7 +245,7 @@ func TestDefaultHandler(t *testing.T) {
 
 		conn := mock_snet.NewMockPacketConn(ctrl)
 		packet := &snet.SCIONPacket{}
-		ov := overlay.NewOverlayAddr(net.IP{192, 168, 0, 1}, 0x29a)
+		ov := &net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 0x29a}
 		conn.EXPECT().WriteTo(packet, ov).Times(1)
 		sender := &svc.BaseHandler{}
 

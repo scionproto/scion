@@ -306,7 +306,7 @@ func (r *Router) startDiscovery() error {
 func (r *Router) discoveryClient() (*http.Client, error) {
 	internalAddr := rctx.Get().Conf.BR.InternalAddrs
 	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0",
-		internalAddr.PublicOverlay(internalAddr.Overlay).L3()))
+		internalAddr.PublicOverlayUDP(internalAddr.Overlay).IP))
 	if err != nil {
 		return nil, err
 	}

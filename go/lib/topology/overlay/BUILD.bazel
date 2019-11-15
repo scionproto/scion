@@ -6,7 +6,7 @@ go_library(
         "addr.go",
         "defs.go",
     ],
-    importpath = "github.com/scionproto/scion/go/lib/overlay",
+    importpath = "github.com/scionproto/scion/go/lib/topology/overlay",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",

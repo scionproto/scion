@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/overlay"
 )
 
 func TestLocalMachineBuildAppAddress(t *testing.T) {
@@ -64,13 +63,13 @@ func TestLocalMachineBuildAppAddress(t *testing.T) {
 func TestLocalMachineBuildBindAddress(t *testing.T) {
 	tests := map[string]struct {
 		Machine          *LocalMachine
-		ExpectedBindAddr *overlay.OverlayAddr
+		ExpectedBindAddr *net.UDPAddr
 	}{
 		"bind IP is computed based on default IP": {
 			Machine: &LocalMachine{
 				InterfaceIP: net.IP{192, 0, 2, 1},
 			},
-			ExpectedBindAddr: overlay.NewOverlayAddr(net.IP{192, 0, 2, 1}, 0),
+			ExpectedBindAddr: &net.UDPAddr{IP: net.IP{192, 0, 2, 1}},
 		},
 	}
 

@@ -32,7 +32,7 @@ test_run() {
     # Wait for 1 (PS crypto push interval) + 1 (logging flush interval)
     # + 1  to guarantee a push is seen
     sleep 3
-    grep -q "\[TRACE\] \[Acceptance\] .*overlay=\[127\.42\.42\.42\]" "logs/ps$IA_FILE-1.log" || \
+    grep -q "\[TRACE\] \[Acceptance\] .*overlay=127\.42\.42\.42" "logs/ps$IA_FILE-1.log" || \
         fail "Push request to 127.42.42.42 not found in logs"
 }
 

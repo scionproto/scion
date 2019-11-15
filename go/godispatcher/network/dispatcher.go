@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
@@ -125,8 +124,7 @@ func openConn(network, address string, p SocketMetaHandler) (net.PacketConn, err
 		listeningAddress.IP = net.IPv6zero
 	}
 
-	ov := overlay.NewOverlayAddr(listeningAddress.IP, uint16(listeningAddress.Port))
-	c, err := conn.New(ov, nil, &conn.Config{ReceiveBufferSize: ReceiveBufferSize})
+	c, err := conn.New(listeningAddress, nil, &conn.Config{ReceiveBufferSize: ReceiveBufferSize})
 	if err != nil {
 		return nil, common.NewBasicError("unable to open conn", err)
 	}
@@ -186,7 +184,7 @@ func (o *overlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
 		return n, nil, err
 	}
 	o.Handler.Handle(meta)
-	return n, meta.Src.ToUDPAddr(), err
+	return n, meta.Src, err
 }
 
 func (o *overlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
@@ -194,8 +192,7 @@ func (o *overlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	if !ok {
 		return 0, common.NewBasicError("address is not UDP", nil, "addr", a)
 	}
-	ov := overlay.NewOverlayAddr(udpAddr.IP, uint16(udpAddr.Port))
-	return o.Conn.WriteTo(common.RawBytes(p), ov)
+	return o.Conn.WriteTo(common.RawBytes(p), udpAddr)
 }
 
 func (o *overlayConnWrapper) Close() error {
@@ -203,7 +200,7 @@ func (o *overlayConnWrapper) Close() error {
 }
 
 func (o *overlayConnWrapper) LocalAddr() net.Addr {
-	return o.Conn.LocalAddr().ToUDPAddr()
+	return o.Conn.LocalAddr()
 }
 
 func (o *overlayConnWrapper) SetDeadline(t time.Time) error {

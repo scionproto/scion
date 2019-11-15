@@ -17,6 +17,7 @@ package beaconing
 import (
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -31,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -196,7 +196,7 @@ func TestPropagatorRun(t *testing.T) {
 					defer msgsMtx.Unlock()
 					msgs = append(msgs, msg{
 						pkt: ipkt.(*snet.SCIONPacket),
-						ov:  iov.(*overlay.OverlayAddr),
+						ov:  iov.(*net.UDPAddr),
 					})
 					return nil
 				},

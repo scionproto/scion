@@ -8,9 +8,9 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	overlay "github.com/scionproto/scion/go/lib/overlay"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	svc "github.com/scionproto/scion/go/lib/svc"
+	net "net"
 	reflect "reflect"
 )
 
@@ -38,10 +38,10 @@ func (m *MockLocalSVCRouter) EXPECT() *MockLocalSVCRouterMockRecorder {
 }
 
 // GetOverlay mocks base method
-func (m *MockLocalSVCRouter) GetOverlay(arg0 addr.HostSVC) (*overlay.OverlayAddr, error) {
+func (m *MockLocalSVCRouter) GetOverlay(arg0 addr.HostSVC) (*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOverlay", arg0)
-	ret0, _ := ret[0].(*overlay.OverlayAddr)
+	ret0, _ := ret[0].(*net.UDPAddr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

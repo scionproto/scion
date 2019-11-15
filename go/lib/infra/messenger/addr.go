@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/svc"
@@ -254,7 +253,7 @@ func BuildReply(address *addr.AppAddr) *svc.Reply {
 type LocalSVCRouter interface {
 	// GetOverlay returns the overlay address of a SVC server of the specified
 	// type. When multiple servers are available, the choice is random.
-	GetOverlay(svc addr.HostSVC) (*overlay.OverlayAddr, error)
+	GetOverlay(svc addr.HostSVC) (*net.UDPAddr, error)
 }
 
 // NewSVCRouter build a SVC router backed by topology information from the
@@ -269,6 +268,6 @@ type baseSVCRouter struct {
 	topology itopo.ProviderI
 }
 
-func (r *baseSVCRouter) GetOverlay(svc addr.HostSVC) (*overlay.OverlayAddr, error) {
+func (r *baseSVCRouter) GetOverlay(svc addr.HostSVC) (*net.UDPAddr, error) {
 	return r.topology.Get().OverlayAnycast(svc)
 }

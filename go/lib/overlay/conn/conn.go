@@ -30,9 +30,9 @@ import (
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sockctrl"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
 // ReceiveBufferSize is the default size, in bytes, of receive buffers for
@@ -56,10 +56,10 @@ type Conn interface {
 	Read(common.RawBytes) (int, *ReadMeta, error)
 	ReadBatch(Messages, []ReadMeta) (int, error)
 	Write(common.RawBytes) (int, error)
-	WriteTo(common.RawBytes, *overlay.OverlayAddr) (int, error)
+	WriteTo(common.RawBytes, *net.UDPAddr) (int, error)
 	WriteBatch(Messages) (int, error)
-	LocalAddr() *overlay.OverlayAddr
-	RemoteAddr() *overlay.OverlayAddr
+	LocalAddr() *net.UDPAddr
+	RemoteAddr() *net.UDPAddr
 	SetReadDeadline(time.Time) error
 	SetWriteDeadline(time.Time) error
 	SetDeadline(time.Time) error
@@ -84,24 +84,21 @@ func (c *Config) getReceiveBufferSize() int {
 //
 // The config can be used to customize socket behavior. If config is nil,
 // default values are used.
-func New(listen, remote *overlay.OverlayAddr, cfg *Config) (Conn, error) {
+func New(listen, remote *net.UDPAddr, cfg *Config) (Conn, error) {
 	if cfg == nil {
 		cfg = &Config{}
-	}
-	if assert.On {
-		assert.Must(listen != nil || remote != nil, "Either listen or remote must be set")
 	}
 	a := listen
 	if remote != nil {
 		a = remote
 	}
-	switch a.Type() {
-	case overlay.UDPIPv6:
-		return newConnUDPIPv6(listen, remote, cfg)
-	case overlay.UDPIPv4:
+	if assert.On {
+		assert.Must(listen != nil || remote != nil, "Either listen or remote must be set")
+	}
+	if a.IP.To4() != nil {
 		return newConnUDPIPv4(listen, remote, cfg)
 	}
-	return nil, common.NewBasicError("Unsupported overlay type", nil, "overlay", a.Type())
+	return newConnUDPIPv6(listen, remote, cfg)
 }
 
 type connUDPIPv4 struct {
@@ -109,7 +106,7 @@ type connUDPIPv4 struct {
 	pconn *ipv4.PacketConn
 }
 
-func newConnUDPIPv4(listen, remote *overlay.OverlayAddr, cfg *Config) (*connUDPIPv4, error) {
+func newConnUDPIPv4(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv4, error) {
 	cc := &connUDPIPv4{}
 	if err := cc.initConnUDP("udp4", listen, remote, cfg); err != nil {
 		return nil, err
@@ -162,7 +159,7 @@ type connUDPIPv6 struct {
 	pconn *ipv6.PacketConn
 }
 
-func newConnUDPIPv6(listen, remote *overlay.OverlayAddr, cfg *Config) (*connUDPIPv6, error) {
+func newConnUDPIPv6(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv6, error) {
 	cc := &connUDPIPv6{}
 	if err := cc.initConnUDP("udp6", listen, remote, cfg); err != nil {
 		return nil, err
@@ -212,64 +209,53 @@ func (c *connUDPIPv6) SetDeadline(t time.Time) error {
 
 type connUDPBase struct {
 	conn     *net.UDPConn
-	Listen   *overlay.OverlayAddr
-	Remote   *overlay.OverlayAddr
+	Listen   *net.UDPAddr
+	Remote   *net.UDPAddr
 	oob      common.RawBytes
 	closed   bool
 	readMeta ReadMeta
 }
 
-func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.OverlayAddr,
-	cfg *Config) error {
-
-	var laddr, raddr *net.UDPAddr
+func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cfg *Config) error {
 	var c *net.UDPConn
 	var err error
-	if listen == nil {
+	if laddr == nil {
 		return serrors.New("listen address must be specified")
 	}
-	laddr = listen.ToUDPAddr()
-	if laddr == nil {
-		return common.NewBasicError("Invalid listen address", nil, "addr", listen)
-	}
-	if remote == nil {
+	if raddr == nil {
 		if c, err = net.ListenUDP(network, laddr); err != nil {
 			return common.NewBasicError("Error listening on socket", err,
-				"network", network, "listen", listen)
+				"network", network, "listen", laddr)
 		}
 	} else {
-		raddr = remote.ToUDPAddr()
-		if raddr == nil {
-			return common.NewBasicError("Invalid remote address", nil, "addr", remote)
-		}
 		if c, err = net.DialUDP(network, laddr, raddr); err != nil {
 			return common.NewBasicError("Error setting up connection", err,
-				"network", network, "listen", listen, "remote", remote)
+				"network", network, "listen", laddr, "remote", raddr)
 		}
 	}
 	// Set reporting socket options
 	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1); err != nil {
 		return common.NewBasicError("Error setting SO_RXQ_OVFL socket option", err,
-			"listen", listen, "remote", remote)
+			"listen", laddr, "remote", raddr)
 	}
 	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_TIMESTAMPNS, 1); err != nil {
 		return common.NewBasicError("Error setting SO_TIMESTAMPNS socket option", err,
-			"listen", listen, "remote", remote)
+			"listen", laddr, "remote", raddr)
 	}
 	// Set and confirm receive buffer size
 	before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 	if err != nil {
 		return common.NewBasicError("Error getting SO_RCVBUF socket option (before)", err,
-			"listen", listen, "remote", remote)
+			"listen", laddr, "remote", raddr)
 	}
 	if err = c.SetReadBuffer(cfg.getReceiveBufferSize()); err != nil {
 		return common.NewBasicError("Error setting recv buffer size", err,
-			"listen", listen, "remote", remote)
+			"listen", laddr, "remote", raddr)
 	}
 	after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 	if err != nil {
 		return common.NewBasicError("Error getting SO_RCVBUF socket option (after)", err,
-			"listen", listen, "remote", remote)
+			"listen", laddr, "remote", raddr)
 	}
 	if after/2 != ReceiveBufferSize {
 		msg := "Receive buffer size smaller than requested"
@@ -282,8 +268,8 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 	}
 	oob := make(common.RawBytes, oobSize)
 	cc.conn = c
-	cc.Listen = listen
-	cc.Remote = remote
+	cc.Listen = laddr
+	cc.Remote = raddr
 	cc.oob = oob
 	return nil
 }
@@ -298,7 +284,10 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	if c.Remote != nil {
 		c.readMeta.Src = c.Remote
 	} else {
-		c.readMeta.Src = overlay.NewOverlayAddr(src.IP, uint16(src.Port))
+		c.readMeta.Src = &net.UDPAddr{
+			IP:   src.IP,
+			Port: src.Port,
+		}
 	}
 	return n, &c.readMeta, err
 }
@@ -341,22 +330,21 @@ func (c *connUDPBase) Write(b common.RawBytes) (int, error) {
 	return c.conn.Write(b)
 }
 
-func (c *connUDPBase) WriteTo(b common.RawBytes, dst *overlay.OverlayAddr) (int, error) {
+func (c *connUDPBase) WriteTo(b common.RawBytes, dst *net.UDPAddr) (int, error) {
 	if c.Remote != nil {
 		return c.conn.Write(b)
 	}
 	if assert.On {
-		assert.Must(dst.L4() != 0, "OverlayPort must not be 0")
+		assert.Must(dst.Port != 0, "Underlay port must not be 0")
 	}
-	addr := &net.UDPAddr{IP: dst.L3().IP(), Port: int(dst.L4())}
-	return c.conn.WriteTo(b, addr)
+	return c.conn.WriteTo(b, dst)
 }
 
-func (c *connUDPBase) LocalAddr() *overlay.OverlayAddr {
+func (c *connUDPBase) LocalAddr() *net.UDPAddr {
 	return c.Listen
 }
 
-func (c *connUDPBase) RemoteAddr() *overlay.OverlayAddr {
+func (c *connUDPBase) RemoteAddr() *net.UDPAddr {
 	return c.Remote
 }
 
@@ -371,9 +359,9 @@ func (c *connUDPBase) Close() error {
 // ReadMeta contains extra information about socket reads.
 type ReadMeta struct {
 	// Src is the remote address from which the datagram was received
-	Src *overlay.OverlayAddr
+	Src *net.UDPAddr
 	// Local is the address on which the datagram was received
-	Local *overlay.OverlayAddr
+	Local *net.UDPAddr
 	// RcvOvfl is the total number of packets that were dropped by the OS due
 	// to the receive buffers being full.
 	RcvOvfl uint32
@@ -393,11 +381,14 @@ func (m *ReadMeta) reset() {
 	m.ReadDelay = 0
 }
 
-func (m *ReadMeta) setSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay.Type) {
+func (m *ReadMeta) setSrc(a *net.UDPAddr, raddr *net.UDPAddr, ot overlay.Type) {
 	if a != nil {
 		m.Src = a
 	} else {
-		m.Src = overlay.NewOverlayAddr(raddr.IP, uint16(raddr.Port))
+		m.Src = &net.UDPAddr{
+			IP:   raddr.IP,
+			Port: raddr.Port,
+		}
 	}
 }
 

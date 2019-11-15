@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -30,13 +31,13 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -110,7 +111,7 @@ func (s server) run() {
 	// Receive ping message
 	for {
 		var p snet.SCIONPacket
-		var ov overlay.OverlayAddr
+		var ov net.UDPAddr
 		if err := conn.ReadFrom(&p, &ov); err != nil {
 			log.Error("Error reading packet", "err", err)
 			continue
@@ -186,7 +187,10 @@ func (c client) ping(ctx context.Context, n int) error {
 	}
 	c.conn.SetWriteDeadline(getDeadline(ctx))
 	if remote.NextHop == nil {
-		remote.NextHop = overlay.NewOverlayAddr(remote.Host.L3.IP(), overlay.EndhostPort)
+		remote.NextHop = &net.UDPAddr{
+			IP:   remote.Host.L3.IP(),
+			Port: topology.EndhostPort,
+		}
 	}
 	var debugID [common.ExtnFirstLineLen]byte
 	// API guarantees return values are ok
@@ -241,17 +245,14 @@ func (c client) getRemote(ctx context.Context, n int) error {
 	}
 	// Extract forwarding path from sciond response
 	remote.Path = path
-	remote.NextHop, err = pathEntry.HostInfo.Overlay()
-	if err != nil {
-		return common.NewBasicError("Error getting overlay", err)
-	}
+	remote.NextHop = pathEntry.HostInfo.Overlay()
 	return nil
 }
 
 func (c client) pong(ctx context.Context) error {
 	c.conn.SetReadDeadline(getDeadline(ctx))
 	var p snet.SCIONPacket
-	var ov overlay.OverlayAddr
+	var ov net.UDPAddr
 	if err := c.conn.ReadFrom(&p, &ov); err != nil {
 		return common.NewBasicError("Error reading packet", err)
 	}

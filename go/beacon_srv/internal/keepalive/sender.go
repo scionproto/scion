@@ -71,7 +71,7 @@ func (s *Sender) Run(ctx context.Context) {
 			InfoTime: time.Now(),
 			Pld:      pld,
 		}
-		ov := intf.InternalAddrs.PublicOverlay(intf.InternalAddrs.Overlay)
+		ov := intf.InternalAddrs.PublicOverlayUDP(intf.InternalAddrs.Overlay)
 		if err := s.Send(msg, ov); err != nil {
 			logger.Error("[keepalive.Sender] Unable to send packet", "err", err)
 			metrics.Keepalive.Transmits(l).Inc()

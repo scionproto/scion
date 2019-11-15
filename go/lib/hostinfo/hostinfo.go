@@ -20,8 +20,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 )
 
 // Host contains connectivity information for a host.
@@ -89,12 +87,8 @@ func (h *Host) UDP() *net.UDPAddr {
 	return nil
 }
 
-func (h *Host) Overlay() (*overlay.OverlayAddr, error) {
-	if h.Host().IP() == nil {
-		return nil, common.NewBasicError("unsupported overlay L3 address", nil, "addr", h.Host())
-	}
-	ip := h.Host().IP()
-	return overlay.NewOverlayAddr(append(ip[:0:0], ip...), h.Port), nil
+func (h *Host) Overlay() *net.UDPAddr {
+	return &net.UDPAddr{IP: h.Host().IP(), Port: int(h.Port)}
 }
 
 func (h *Host) Copy() *Host {
