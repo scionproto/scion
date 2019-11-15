@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -157,8 +158,37 @@ func (r *resolver) trcCheck(req TRCReq, t *trc.TRC) error {
 func (r *resolver) Chain(ctx context.Context, req ChainReq,
 	server net.Addr) (decoded.Chain, error) {
 
-	// TODO(roosd): implement
-	return decoded.Chain{}, serrors.New("not implemented")
+	msg, err := r.rpc.GetCertChain(ctx, req, server)
+	if err != nil {
+		return decoded.Chain{}, serrors.WrapStr("error requesting certificate chain", err)
+	}
+	dec, err := decoded.DecodeChain(msg)
+	if err != nil {
+		return decoded.Chain{}, serrors.WrapStr("error parsing certificate chain", err)
+	}
+	if err := r.chainCheck(req, dec.AS); err != nil {
+		return decoded.Chain{}, serrors.Wrap(ErrInvalidResponse, err)
+	}
+	w := resolveWrap{
+		resolver:  r,
+		server:    server,
+		cacheOnly: req.CacheOnly,
+	}
+	if err := r.inserter.InsertChain(ctx, dec, w.TRC); err != nil {
+		return decoded.Chain{}, serrors.WrapStr("unable to insert certificate chain", err,
+			"chain", dec)
+	}
+	return dec, nil
+}
+
+func (r *resolver) chainCheck(req ChainReq, as *cert.AS) error {
+	switch {
+	case !req.IA.Equal(as.Subject):
+		return serrors.New("wrong subject", "expected", req.IA, "actual", as.Subject)
+	case !req.Version.IsLatest() && req.Version != as.Version:
+		return serrors.New("wrong version", "expected", req.Version, "actual", as.Version)
+	}
+	return nil
 }
 
 type resOrErr struct {
@@ -183,4 +213,34 @@ func (w *prevWrap) TRC(_ context.Context, isd addr.ISD, version scrypto.Version)
 			"actual_isd", isd, "actual_version", version)
 	}
 	return w.prev, nil
+}
+
+// resolverWrap provides TRCs that are backed by the resolver. If a TRC is
+// missing in the DB, network requests are allowed.
+type resolveWrap struct {
+	resolver  *resolver
+	server    net.Addr
+	cacheOnly bool
+}
+
+func (w resolveWrap) TRC(ctx context.Context, isd addr.ISD,
+	version scrypto.Version) (*trc.TRC, error) {
+
+	t, err := w.resolver.db.GetTRC(ctx, isd, version)
+	switch {
+	case err == nil:
+		return t, nil
+	case !xerrors.Is(err, ErrNotFound):
+		return nil, serrors.WrapStr("error querying DB for TRC", err)
+	}
+	req := TRCReq{
+		ISD:       isd,
+		Version:   version,
+		CacheOnly: w.cacheOnly,
+	}
+	decoded, err := w.resolver.TRC(ctx, req, w.server)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to fetch TRC from network", err)
+	}
+	return decoded.TRC, nil
 }
