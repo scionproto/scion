@@ -60,7 +60,7 @@ func PollReqHdlr() {
 		}
 		sigCtrlAddr := &snet.Addr{
 			IA:      rpld.Addr.IA,
-			Host:    addr.AppAddrFromUDP(req.Addr.Ctrl),
+			Host:    addr.AppAddrFromUDP(req.Addr.Ctrl.UDP()),
 			Path:    rpld.Addr.Path,
 			NextHop: rpld.Addr.NextHop.Copy(),
 		}

@@ -17,23 +17,23 @@ package mgmt
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*Addr)(nil)
 
 type Addr struct {
-	Ctrl      *net.UDPAddr
+	Ctrl      *hostinfo.Host
 	EncapPort uint16
 }
 
 func NewAddr(host addr.HostAddr, ctrlPort, encapPort uint16) *Addr {
 	return &Addr{
-		Ctrl:      &net.UDPAddr{IP: host.IP(), Port: int(ctrlPort)},
+		Ctrl:      hostinfo.FromHostAddr(host, ctrlPort),
 		EncapPort: encapPort,
 	}
 }
@@ -53,5 +53,5 @@ func (a *Addr) Write(b common.RawBytes) (int, error) {
 
 func (a *Addr) String() string {
 	return fmt.Sprintf("Host: %s CtrlPort: %d EncapPort: %d",
-		a.Ctrl.IP, a.Ctrl.Port, a.EncapPort)
+		a.Ctrl.Host(), a.Ctrl.Port, a.EncapPort)
 }

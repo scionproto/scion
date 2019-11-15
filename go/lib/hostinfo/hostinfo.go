@@ -36,6 +36,16 @@ type Addrs struct {
 	IPv6 []byte `capnp:"ipv6"`
 }
 
+func FromHostAddr(host addr.HostAddr, port uint16) *Host {
+	h := &Host{Port: port}
+	if host.Type() == addr.HostTypeIPv4 {
+		h.Addrs.IPv4 = host.IP()
+	} else {
+		h.Addrs.IPv6 = host.IP()
+	}
+	return h
+}
+
 func FromUDPAddr(addr net.UDPAddr) Host {
 	if addr.IP.To4() != nil {
 		return Host{
@@ -53,7 +63,7 @@ func FromUDPAddr(addr net.UDPAddr) Host {
 	}
 }
 
-func (h *Host) host() addr.HostAddr {
+func (h *Host) Host() addr.HostAddr {
 	if len(h.Addrs.IPv4) > 0 {
 		return addr.HostIPv4(h.Addrs.IPv4)
 	}
@@ -80,10 +90,10 @@ func (h *Host) UDP() *net.UDPAddr {
 }
 
 func (h *Host) Overlay() (*overlay.OverlayAddr, error) {
-	if h.host().IP() == nil {
-		return nil, common.NewBasicError("unsupported overlay L3 address", nil, "addr", h.host())
+	if h.Host().IP() == nil {
+		return nil, common.NewBasicError("unsupported overlay L3 address", nil, "addr", h.Host())
 	}
-	ip := h.host().IP()
+	ip := h.Host().IP()
 	return overlay.NewOverlayAddr(append(ip[:0:0], ip...), h.Port), nil
 }
 
@@ -98,7 +108,7 @@ func (h *Host) Copy() *Host {
 }
 
 func (h *Host) String() string {
-	return fmt.Sprintf("[%v]:%d", h.host(), h.Port)
+	return fmt.Sprintf("[%v]:%d", h.Host(), h.Port)
 }
 
 func copyIP(ip net.IP) net.IP {
