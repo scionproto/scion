@@ -138,13 +138,7 @@ func getResolver(sciondPath string) (pathmgr.Resolver, error) {
 		if err != nil {
 			return nil, common.NewBasicError("Unable to initialize SCIOND service", err)
 		}
-		pathResolver = pathmgr.New(
-			sciondConn,
-			pathmgr.Timers{
-				NormalRefire: time.Minute,
-				ErrorRefire:  3 * time.Second,
-			},
-		)
+		pathResolver = pathmgr.New(sciondConn, pathmgr.Timers{})
 	}
 	return pathResolver, nil
 }
