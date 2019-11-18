@@ -190,16 +190,17 @@ func (scn *ScionTaggedLayer) updateAddr(kvs propMap) {
 			var dst addr.HostAddr
 			dst = addr.HostSVCFromString(v)
 			if dst == addr.SvcNone {
+				// Try to parse IP address
 				dst = addr.HostFromIPStr(v)
 				if dst == nil {
-					panic(fmt.Errorf("invalid dst host address '%s'", v))
+					dst = layers.HostBad(HexToBytes(v))
 				}
 			}
 			scn.AddrHdr.DstHost = dst
 		case "Src":
 			src := addr.HostFromIPStr(v)
 			if src == nil {
-				panic(fmt.Errorf("invalid src host address '%s'", v))
+				src = layers.HostBad(HexToBytes(v))
 			}
 			scn.AddrHdr.SrcHost = src
 		default:

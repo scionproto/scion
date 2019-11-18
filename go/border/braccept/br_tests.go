@@ -74,7 +74,7 @@ func br_parent() int {
 
 	// XXX(sgmonroy) the following tests are only run for this specific BR configuration
 	// with a single parent interface. In the current implementation, the behavior would be
-	// the same regardless of the external interface type that the packet was recevied on.
+	// the same regardless of the link type that the packet was recevied on.
 	failures += svc_anycast_parent_to_internal_host()
 	failures += svc_multicast_parent_to_internal_host()
 	failures += svc_multicast_same_host_parent_to_internal_host()
@@ -86,6 +86,8 @@ func br_parent() int {
 	failures += ohp_udp_parent_to_internal_bs()
 	failures += ohp_udp_internal_bs_to_parent()
 	failures += ohp_internal_bs_to_parent()
+
+	failures += parent_scmp_routing_bad_host()
 
 	return failures
 }
