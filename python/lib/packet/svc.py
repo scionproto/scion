@@ -37,8 +37,6 @@ class SVCType(object):
     PS_A = HostAddrSVC(1, raw=False)
     # Certificate service
     CS_A = HostAddrSVC(2, raw=False)
-    # SIBRA service
-    SB_A = HostAddrSVC(3, raw=False)
     # SIG service
     SIG_A = HostAddrSVC(4, raw=False)
     # No service, used e.g., in TCP socket.
@@ -50,13 +48,11 @@ SVC_TO_SERVICE = {
     SVCType.PS_A.addr:  ServiceType.PS,
     SVCType.CS_A.addr:  ServiceType.CS,
     SVCType.SIG_A.addr: ServiceType.SIG,
-    SVCType.SB_A.addr:  ServiceType.SIBRA,
 }
 
 SERVICE_TO_SVC_A = {
     ServiceType.BS:    SVCType.BS_A,
     ServiceType.CS:    SVCType.CS_A,
     ServiceType.PS:    SVCType.PS_A,
-    ServiceType.SIBRA: SVCType.SB_A,
     ServiceType.SIG:   SVCType.SIG_A,
 }

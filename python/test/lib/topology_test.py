@@ -165,7 +165,6 @@ class TestTopologyParseSrvDicts(object):
             'BeaconService': {"bs1": "bs1 val"},
             'CertificateService': {"cs1": "cs1 val"},
             'PathService': {"ps1": "ps1 val", "ps2": "ps2 val"},
-            'SibraService': {"sb1": "sb1 val"},
             'SIG': {"sig1": "sig1 val"},
             'DiscoveryService': {"ds1": "ds1 val"},
         }
@@ -179,7 +178,6 @@ class TestTopologyParseSrvDicts(object):
             call("cs1 val", "cs1"),
             call("ps1 val", "ps1"),
             call("ps2 val", "ps2"),
-            call("sb1 val", "sb1"),
             call("sig1 val", "sig1"),
             call("ds1 val", "ds1"),
         ], any_order=True)

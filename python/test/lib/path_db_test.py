@@ -72,8 +72,7 @@ class TestPathSegmentDBUpdate(object):
         # Tests
         db_rec.assert_called_once_with(pcb)
         inst._db.assert_called_once_with(id="id str")
-        inst._db.insert.assert_called_once_with(record, "id str", 1, 2, 3, 4,
-                                                True)
+        inst._db.insert.assert_called_once_with(record, "id str", 1, 2, 3, 4)
 
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
     def test_outdated(self, db_rec):
