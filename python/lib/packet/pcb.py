@@ -319,9 +319,6 @@ class PathSegment(Cerealizable):
                     return True, LinkType.CORE if core else LinkType.CHILD
         return False, None
 
-    def is_sibra(self):
-        return False  # Nope! Kept for compatibility with path server.
-
     def __str__(self):
         s = []
         s.append("%s:" % self.NAME)
