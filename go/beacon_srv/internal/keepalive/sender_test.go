@@ -16,6 +16,7 @@ package keepalive
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -23,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -49,9 +49,9 @@ func TestSenderRun(t *testing.T) {
 		Sender: &onehop.Sender{
 			IA:   xtest.MustParseIA("1-ff00:0:111"),
 			Conn: conn,
-			Addr: &addr.AppAddr{
-				L3: addr.HostFromIPStr("127.0.0.1"),
-				L4: 4242,
+			Addr: &net.UDPAddr{
+				IP:   net.ParseIP("127.0.0.1"),
+				Port: 4242,
 			},
 			MAC: mac,
 		},

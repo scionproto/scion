@@ -16,8 +16,8 @@ package discovery
 
 import (
 	"fmt"
+	"net"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -35,11 +35,11 @@ type InstancePool interface {
 type InstanceInfo interface {
 	fmt.Stringer
 	// Update updates the address.
-	Update(*addr.AppAddr)
+	Update(*net.UDPAddr)
 	// Key returns the key of the instance.
 	Key() string
 	// Addr returns the address of the instance.
-	Addr() *addr.AppAddr
+	Addr() *net.UDPAddr
 	// FailCount returns a number indicating how often
 	// the instance has failed.
 	FailCount() int

@@ -61,7 +61,7 @@ type Sender struct {
 	// IA is the ISD-AS of the local AS.
 	IA addr.IA
 	// Addr is the address that is set as the source.
-	Addr *addr.AppAddr
+	Addr *net.UDPAddr
 	// Conn is used to send the packets.
 	Conn snet.PacketConn
 	// macMtx protects the MAC.
@@ -90,12 +90,12 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.SCIONPacket, error) {
 			Destination: msg.Dst,
 			Source: snet.SCIONAddress{
 				IA:   s.IA,
-				Host: s.Addr.L3,
+				Host: addr.HostFromIP(s.Addr.IP),
 			},
 			Path:       (*spath.Path)(path),
 			Extensions: []common.Extension{&layers.ExtnOHP{}},
 			L4Header: &l4.UDP{
-				SrcPort: s.Addr.L4,
+				SrcPort: uint16(s.Addr.Port),
 			},
 			Payload: msg.Pld,
 		},

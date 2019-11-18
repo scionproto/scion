@@ -17,10 +17,10 @@ package discoveryinfo
 import (
 	"fmt"
 	"math"
+	"net"
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/discovery"
 )
 
@@ -36,7 +36,7 @@ var _ discovery.InstanceInfo = (*Info)(nil)
 // Info keeps track of the discovery service and its health.
 type Info struct {
 	mu        sync.Mutex
-	addr      *addr.AppAddr
+	addr      *net.UDPAddr
 	key       string
 	lastFail  time.Time
 	lastExp   time.Time
@@ -44,7 +44,7 @@ type Info struct {
 }
 
 // New creates a new info with the specified key and address.
-func New(key string, addr *addr.AppAddr) *Info {
+func New(key string, addr *net.UDPAddr) *Info {
 	return &Info{
 		addr:     addr,
 		key:      key,
@@ -54,11 +54,12 @@ func New(key string, addr *addr.AppAddr) *Info {
 }
 
 // Update updates the address. If changed, the fail count is reset.
-func (h *Info) Update(a *addr.AppAddr) {
+func (h *Info) Update(a *net.UDPAddr) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if !a.Equal(h.addr) {
-		h.addr = a.Copy()
+	if !h.addr.IP.Equal(a.IP) || h.addr.Port != a.Port {
+		h.addr.IP = append(h.addr.IP[:0:0], a.IP...)
+		h.addr.Port = a.Port
 		h.failCount = 0
 		h.lastFail = time.Now()
 		h.lastExp = time.Now()
@@ -71,10 +72,13 @@ func (h *Info) Key() string {
 }
 
 // Addr returns the address of the discovery service instance.
-func (h *Info) Addr() *addr.AppAddr {
+func (h *Info) Addr() *net.UDPAddr {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.addr.Copy()
+	ret := &net.UDPAddr{}
+	ret.IP = append(h.addr.IP[:0:0], h.addr.IP...)
+	ret.Port = h.addr.Port
+	return ret
 }
 
 // FailCount returns the fail count.

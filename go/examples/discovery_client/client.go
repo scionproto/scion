@@ -20,12 +20,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/url"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/discovery/topofetcher"
@@ -45,8 +44,6 @@ var (
 	timeout  = flag.Duration("timeout", 2*time.Second, "Timeout for single request")
 	ds       = flag.String("addr", "", "Discovery service to query for initial topology "+
 		"(form \"host:port\" or \"[host]:port\"")
-	// FIXME(roosd): Use AppAddr parsing once code base does no longer assume L4 is UDP.
-	dsAddr addr.AppAddr
 )
 
 func main() {
@@ -118,19 +115,8 @@ func validateFlags() error {
 	if *ds != "" && *topoPath != "" {
 		return serrors.New("Both topology and discovery service address specified")
 	}
-	if *ds != "" {
-		host, port, err := net.SplitHostPort(*ds)
-		if err != nil {
-			return common.NewBasicError("Unable to parse discovery service address", err)
-		}
-		if dsAddr.L3 = addr.HostFromIPStr(host); dsAddr.L3 == nil {
-			return common.NewBasicError("Unable to parse host", nil, "host", host)
-		}
-		p, err := strconv.Atoi(port)
-		if err != nil {
-			return common.NewBasicError("Unable to parse port", nil, "port", port)
-		}
-		dsAddr.L4 = uint16(p)
+	if _, err := url.Parse(*ds); err != nil {
+		return err
 	}
 	return nil
 }
@@ -140,11 +126,19 @@ func getTopo() (*topology.Topo, error) {
 		log.Info("Fetch initial topology from discovery service", "addr", ds)
 		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 		defer cancelF()
-		return discovery.FetchTopo(ctx, discovery.FetchParams{
+
+		a, err := net.ResolveUDPAddr("udp", *ds)
+		if err != nil {
+			return nil, err
+		}
+
+		ret, _, err := discovery.FetchTopoRaw(ctx, discovery.FetchParams{
 			File:  file(),
 			Mode:  mode(),
 			Https: *https,
-		}, &dsAddr, nil)
+		}, a,
+			nil)
+		return ret, err
 	}
 	log.Info("Load initial topology from disk", "topo", topoPath)
 	return topology.LoadFromFile(*topoPath)

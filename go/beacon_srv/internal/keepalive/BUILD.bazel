@@ -37,7 +37,6 @@ go_test(
         "//go/beacon_srv/internal/ifstate:go_default_library",
         "//go/beacon_srv/internal/keepalive/mock_keepalive:go_default_library",
         "//go/beacon_srv/internal/onehop:go_default_library",
-        "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/ifid:go_default_library",
