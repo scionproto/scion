@@ -164,7 +164,7 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		return serrors.New("Interface does not exist")
 	}
 	topoInfo := intf.TopoInfo()
-	ov := topoInfo.InternalAddrs.PublicOverlay(topoInfo.InternalAddrs.Overlay)
+	ov := topoInfo.InternalAddrs.PublicOverlayUDP(topoInfo.InternalAddrs.Overlay)
 
 	bseg, err := o.createBeacon()
 	if err != nil {

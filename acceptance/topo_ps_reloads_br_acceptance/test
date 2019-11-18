@@ -33,7 +33,7 @@ test_run() {
     sleep 6
     ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
     sleep 2
-    grep -q "\[TRACE\] \[Acceptance\] .*overlay=\[127\.42\.42\.42\]" "logs/ps$SRC_IA_FILE-1.log" || \
+    grep -q "\[TRACE\] \[Acceptance\] .*overlay=127\.42\.42\.42" "logs/ps$SRC_IA_FILE-1.log" || \
         fail "Request to 127.42.42.42 not found in logs"
 }
 

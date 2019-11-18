@@ -23,10 +23,13 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/proto"
 )
+
+// EndhostPort is the overlay port that the dispatcher binds to on non-routers.
+const EndhostPort = overlay.EndhostPort
 
 type IDAddrMap map[string]TopoAddr
 

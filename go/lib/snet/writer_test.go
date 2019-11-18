@@ -17,6 +17,7 @@ package snet
 import (
 	"context"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -24,13 +25,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr/mock_pathmgr"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor/mock_ctxmonitor"
 	"github.com/scionproto/scion/go/lib/snet/internal/pathsource/mock_pathsource"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -94,7 +95,7 @@ func TestRemoteAddressResolver(t *testing.T) {
 		})
 		t.Run("return same address if path unset, and overlay address set.", func(t *testing.T) {
 			inAddress := MustParseAddr("1-ff00:0:110,[127.0.0.1]:80")
-			inAddress.NextHop = &overlay.OverlayAddr{}
+			inAddress.NextHop = &net.UDPAddr{}
 			outAddress, err := resolver.resolveAddr(inAddress)
 			assert.NoError(t, err, "err")
 			assert.Equal(t, outAddress, inAddress)
@@ -104,8 +105,8 @@ func TestRemoteAddressResolver(t *testing.T) {
 			outAddress, err := resolver.resolveAddr(inAddress)
 			assert.NoError(t, err)
 			assert.NotNil(t, outAddress)
-			assert.Equal(t, outAddress.NextHop.L3(), outAddress.Host.L3, "overlay addr")
-			assert.Equal(t, outAddress.NextHop.L4(), uint16(overlay.EndhostPort), "overlay port")
+			assert.Equal(t, outAddress.NextHop.IP, outAddress.Host.L3.IP(), "overlay addr")
+			assert.Equal(t, outAddress.NextHop.Port, topology.EndhostPort, "overlay port")
 		})
 	})
 	t.Run("if destination is not in local AS", func(t *testing.T) {
@@ -118,7 +119,7 @@ func TestRemoteAddressResolver(t *testing.T) {
 		})
 		t.Run("error if overlay set but path unset.", func(t *testing.T) {
 			inAddress := MustParseAddr("1-ff00:0:113,[127.0.0.1]:80")
-			inAddress.NextHop = &overlay.OverlayAddr{}
+			inAddress.NextHop = &net.UDPAddr{}
 			outAddress, err := resolver.resolveAddr(inAddress)
 			assert.EqualError(t, err, string(ErrMustHavePath))
 			assert.Nil(t, outAddress, "address")
@@ -126,7 +127,7 @@ func TestRemoteAddressResolver(t *testing.T) {
 		t.Run("return same address if path and overlay set.", func(t *testing.T) {
 			inAddress := MustParseAddr("1-ff00:0:113,[127.0.0.1]:80")
 			inAddress.Path = &spath.Path{}
-			inAddress.NextHop = &overlay.OverlayAddr{}
+			inAddress.NextHop = &net.UDPAddr{}
 			outAddress, err := resolver.resolveAddr(inAddress)
 			assert.NoError(t, err, "err")
 			assert.Equal(t, outAddress, inAddress)
@@ -143,7 +144,7 @@ func TestRemoteAddressResolver(t *testing.T) {
 			t.Run("if request successful, return address.", func(t *testing.T) {
 				inAddress := MustParseAddr("1-ff00:0:113,[127.0.0.1]:80")
 				path := &spath.Path{}
-				overlayAddr := &overlay.OverlayAddr{}
+				overlayAddr := &net.UDPAddr{}
 				pathSource.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(overlayAddr, path, nil)
 				outAddress, err := resolver.resolveAddr(inAddress)

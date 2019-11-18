@@ -16,12 +16,12 @@
 package svc
 
 import (
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -73,7 +73,7 @@ type ResolverPacketDispatcher struct {
 }
 
 func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
-	bind *overlay.OverlayAddr, svc addr.HostSVC,
+	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (snet.PacketConn, uint16, error) {
 
 	c, port, err := d.dispService.RegisterTimeout(ia, public, bind, svc, timeout)
@@ -102,7 +102,7 @@ type resolverPacketConn struct {
 	handler RequestHandler
 }
 
-func (c *resolverPacketConn) ReadFrom(pkt *snet.SCIONPacket, ov *overlay.OverlayAddr) error {
+func (c *resolverPacketConn) ReadFrom(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
 	for {
 		if err := c.PacketConn.ReadFrom(pkt, ov); err != nil {
 			return err
@@ -157,7 +157,7 @@ type Request struct {
 	// Conn is the connection to send the reply on. Conn must not be nil.
 	Conn    snet.PacketConn
 	Packet  *snet.SCIONPacket
-	Overlay *overlay.OverlayAddr
+	Overlay *net.UDPAddr
 }
 
 var _ RequestHandler = (*BaseHandler)(nil)

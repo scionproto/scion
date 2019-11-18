@@ -36,7 +36,6 @@ go_test(
         "//go/lib/hpkt:go_default_library",
         "//go/lib/l4:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/lib/overlay:go_default_library",
         "//go/lib/scmp:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/spkt:go_default_library",

@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -72,7 +71,7 @@ type Sender struct {
 }
 
 // Send sends the payload on a one-hop path.
-func (s *Sender) Send(msg *Msg, nextHop *overlay.OverlayAddr) error {
+func (s *Sender) Send(msg *Msg, nextHop *net.UDPAddr) error {
 	pkt, err := s.CreatePkt(msg)
 	if err != nil {
 		return common.NewBasicError("Unable to create packet", err)
@@ -126,7 +125,7 @@ type BeaconSender struct {
 // Send packs and sends out the beacon. QUIC is first attempted, and if that
 // fails the method falls back on UDP.
 func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
-	egIfid common.IFIDType, signer infra.Signer, ov *overlay.OverlayAddr) error {
+	egIfid common.IFIDType, signer infra.Signer, ov *net.UDPAddr) error {
 
 	path, err := s.CreatePath(egIfid, time.Now())
 	if err != nil {
@@ -167,7 +166,7 @@ func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
 }
 
 func (s *BeaconSender) attemptQUIC(ctx context.Context, ia addr.IA, path *spath.Path,
-	nextHop *overlay.OverlayAddr, bseg *seg.Beacon) (bool, error) {
+	nextHop *net.UDPAddr, bseg *seg.Beacon) (bool, error) {
 
 	if s.AddressRewriter == nil {
 		return false, nil

@@ -23,10 +23,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
 	"github.com/scionproto/scion/go/lib/snet/internal/pathsource"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // Possible write errors
@@ -208,6 +208,6 @@ func (r *remoteAddressResolver) addPath(address *Addr) (*Addr, error) {
 
 func addOverlayFromScionAddress(address *Addr) *Addr {
 	address = address.Copy()
-	address.NextHop = overlay.NewOverlayAddr(address.Host.L3.IP(), overlay.EndhostPort)
+	address.NextHop = &net.UDPAddr{IP: address.Host.L3.IP(), Port: topology.EndhostPort}
 	return address
 }

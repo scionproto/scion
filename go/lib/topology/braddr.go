@@ -16,11 +16,12 @@ package topology
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
 type TopoBRAddr struct {
@@ -95,6 +96,16 @@ func (t *TopoBRAddr) PublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
 	return nil
 }
 
+func (t *TopoBRAddr) PublicOverlayUDP(ot overlay.Type) *net.UDPAddr {
+	ov := t.PublicOverlay(ot)
+	if ov == nil {
+		return nil
+	}
+	// XXX(scrye): Return only a shallow copy here because some tests use the
+	// returned value to edit the topology in place.
+	return ov.ShallowUDPAddr()
+}
+
 func (t *TopoBRAddr) BindOverlay(ot overlay.Type) *overlay.OverlayAddr {
 	if oba := t.getAddr(ot); oba != nil {
 		return oba.BindOverlay
@@ -102,11 +113,27 @@ func (t *TopoBRAddr) BindOverlay(ot overlay.Type) *overlay.OverlayAddr {
 	return nil
 }
 
+func (t *TopoBRAddr) BindOverlayUDP(ot overlay.Type) *net.UDPAddr {
+	ov := t.BindOverlay(ot)
+	if ov == nil {
+		return nil
+	}
+	return ov.ToUDPAddr()
+}
+
 func (t *TopoBRAddr) BindOrPublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
 	if oba := t.getAddr(ot); oba != nil {
 		return oba.BindOrPublicOverlay()
 	}
 	return nil
+}
+
+func (t *TopoBRAddr) BindOrPublicOverlayUDP(ot overlay.Type) *net.UDPAddr {
+	ov := t.BindOrPublicOverlay(ot)
+	if ov == nil {
+		return nil
+	}
+	return ov.ToUDPAddr()
 }
 
 func (t *TopoBRAddr) getAddr(ot overlay.Type) *OverBindAddr {

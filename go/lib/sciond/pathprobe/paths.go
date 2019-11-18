@@ -136,20 +136,16 @@ func (p Prober) send(scionConn snet.Conn, path sciond.PathReplyEntry) error {
 	if err := sPath.InitOffsets(); err != nil {
 		return common.NewBasicError("unable to initialize path", err)
 	}
-	nextHop, err := path.HostInfo.Overlay()
-	if err != nil {
-		return common.NewBasicError("unable to get overlay info", err)
-	}
 	addr := &snet.Addr{
 		IA: p.DstIA,
 		Host: &addr.AppAddr{
 			L3: addr.HostSVCFromString("NONE"),
 		},
-		NextHop: nextHop,
+		NextHop: path.HostInfo.Overlay(),
 		Path:    sPath,
 	}
 	log.Debug("Sending test packet.", "path", path.Path.String())
-	_, err = scionConn.WriteTo([]byte{}, addr)
+	_, err := scionConn.WriteTo([]byte{}, addr)
 	if err != nil {
 		return common.NewBasicError("cannot send packet", err)
 	}

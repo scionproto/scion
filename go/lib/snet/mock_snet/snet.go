@@ -8,7 +8,6 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	overlay "github.com/scionproto/scion/go/lib/overlay"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	spath "github.com/scionproto/scion/go/lib/spath"
 	net "net"
@@ -267,7 +266,7 @@ func (m *MockPacketDispatcherService) EXPECT() *MockPacketDispatcherServiceMockR
 }
 
 // RegisterTimeout mocks base method
-func (m *MockPacketDispatcherService) RegisterTimeout(arg0 addr.IA, arg1 *addr.AppAddr, arg2 *overlay.OverlayAddr, arg3 addr.HostSVC, arg4 time.Duration) (snet.PacketConn, uint16, error) {
+func (m *MockPacketDispatcherService) RegisterTimeout(arg0 addr.IA, arg1 *addr.AppAddr, arg2 *net.UDPAddr, arg3 addr.HostSVC, arg4 time.Duration) (snet.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterTimeout", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(snet.PacketConn)
@@ -373,7 +372,7 @@ func (mr *MockPacketConnMockRecorder) Close() *gomock.Call {
 }
 
 // ReadFrom mocks base method
-func (m *MockPacketConn) ReadFrom(arg0 *snet.SCIONPacket, arg1 *overlay.OverlayAddr) error {
+func (m *MockPacketConn) ReadFrom(arg0 *snet.SCIONPacket, arg1 *net.UDPAddr) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadFrom", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -429,7 +428,7 @@ func (mr *MockPacketConnMockRecorder) SetWriteDeadline(arg0 interface{}) *gomock
 }
 
 // WriteTo mocks base method
-func (m *MockPacketConn) WriteTo(arg0 *snet.SCIONPacket, arg1 *overlay.OverlayAddr) error {
+func (m *MockPacketConn) WriteTo(arg0 *snet.SCIONPacket, arg1 *net.UDPAddr) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteTo", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -550,10 +549,10 @@ func (mr *MockPathMockRecorder) MTU() *gomock.Call {
 }
 
 // OverlayNextHop mocks base method
-func (m *MockPath) OverlayNextHop() *overlay.OverlayAddr {
+func (m *MockPath) OverlayNextHop() *net.UDPAddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "OverlayNextHop")
-	ret0, _ := ret[0].(*overlay.OverlayAddr)
+	ret0, _ := ret[0].(*net.UDPAddr)
 	return ret0
 }
 

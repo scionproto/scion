@@ -27,11 +27,11 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/overlay/conn/mock_conn"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 func TestPosixOutputNoLeakNoErrors(t *testing.T) {
@@ -147,8 +147,11 @@ func newTestPktList(t *testing.T, length int) (ringbuf.EntryList, func(expected 
 	}
 }
 
-func newTestDst(t *testing.T) *overlay.OverlayAddr {
-	return overlay.NewOverlayAddr(net.IP{127, 0, 0, 1}, overlay.EndhostPort)
+func newTestDst(t *testing.T) *net.UDPAddr {
+	return &net.UDPAddr{
+		IP:   net.IP{127, 0, 0, 1},
+		Port: topology.EndhostPort,
+	}
 }
 
 func newTestSock(r *Router, ringSize int, mconn conn.Conn) *rctx.Sock {

@@ -17,6 +17,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -82,7 +83,11 @@ func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 
 func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx) error {
 	// Get Bind address if set, Public otherwise
-	bind := ctx.Conf.BR.InternalAddrs.BindOrPublicOverlay(ctx.Conf.Topo.Overlay())
+	bindOv := ctx.Conf.BR.InternalAddrs.BindOrPublicOverlay(ctx.Conf.Topo.Overlay())
+	var bind *net.UDPAddr
+	if bindOv != nil {
+		bind = bindOv.ToUDPAddr()
+	}
 	log.Debug("Setting up new local socket.", "bind", bind)
 	// Listen on the socket.
 	over, err := conn.New(bind, nil, nil)
@@ -153,8 +158,17 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo) error
 
 	// Connect to remote address.
 	log.Debug("Setting up new external socket.", "intf", intf)
-	bind := intf.Local.BindOrPublicOverlay(intf.Local.Overlay)
-	c, err := conn.New(bind, intf.Remote, nil)
+	bindOv := intf.Local.BindOrPublicOverlay(intf.Local.Overlay)
+	var bind *net.UDPAddr
+	if bindOv != nil {
+		bind = bindOv.ToUDPAddr()
+	}
+	remoteOv := intf.Remote
+	var remote *net.UDPAddr
+	if remoteOv != nil {
+		remote = remoteOv.ToUDPAddr()
+	}
+	c, err := conn.New(bind, remote, nil)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}

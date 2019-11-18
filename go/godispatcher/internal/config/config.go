@@ -21,9 +21,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -59,7 +59,7 @@ func (cfg *Config) InitDefaults() {
 		cfg.Dispatcher.SocketFileMode = reliable.DefaultDispSocketFileMode
 	}
 	if cfg.Dispatcher.OverlayPort == 0 {
-		cfg.Dispatcher.OverlayPort = overlay.EndhostPort
+		cfg.Dispatcher.OverlayPort = topology.EndhostPort
 	}
 }
 

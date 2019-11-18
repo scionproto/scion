@@ -23,8 +23,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -50,7 +50,7 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	assert.Equal(t, id, cfg.Dispatcher.ID)
 	assert.Equal(t, reliable.DefaultDispPath, cfg.Dispatcher.ApplicationSocket)
 	assert.Equal(t, reliable.DefaultDispSocketFileMode, int(cfg.Dispatcher.SocketFileMode))
-	assert.Equal(t, overlay.EndhostPort, cfg.Dispatcher.OverlayPort)
+	assert.Equal(t, topology.EndhostPort, cfg.Dispatcher.OverlayPort)
 	assert.Empty(t, cfg.Dispatcher.PerfData)
 	assert.False(t, cfg.Dispatcher.DeleteSocket)
 }

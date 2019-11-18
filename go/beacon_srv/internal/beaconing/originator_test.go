@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -93,7 +93,7 @@ func TestOriginatorRun(t *testing.T) {
 				defer msgsMtx.Unlock()
 				msgs = append(msgs, msg{
 					pkt: ipkt.(*snet.SCIONPacket),
-					ov:  iov.(*overlay.OverlayAddr),
+					ov:  iov.(*net.UDPAddr),
 				})
 				return nil
 			},
@@ -161,7 +161,7 @@ func TestOriginatorRun(t *testing.T) {
 
 type msg struct {
 	pkt *snet.SCIONPacket
-	ov  *overlay.OverlayAddr
+	ov  *net.UDPAddr
 }
 
 func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoMap) {
@@ -188,7 +188,8 @@ func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoM
 		xtest.FailOnErr(t, err)
 		SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
 		brAddr := infos[hopF.ConsEgress].InternalAddrs
-		SoMsg("ov", msg.ov, ShouldResemble, brAddr.PublicOverlay(brAddr.Overlay))
+		SoMsg("ov", msg.ov, ShouldResemble,
+			brAddr.PublicOverlayUDP(brAddr.Overlay))
 	})
 }
 

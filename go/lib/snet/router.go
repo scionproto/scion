@@ -20,7 +20,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -131,6 +130,6 @@ func (m *LocalMachine) AppAddress() *addr.AppAddr {
 
 // BindAddress returns a bind address for the local machine. The port is
 // set to 0.
-func (m *LocalMachine) BindAddress() *overlay.OverlayAddr {
-	return overlay.NewOverlayAddr(m.InterfaceIP, 0)
+func (m *LocalMachine) BindAddress() *net.UDPAddr {
+	return &net.UDPAddr{IP: m.InterfaceIP}
 }

@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spkt"
@@ -37,9 +36,9 @@ import (
 )
 
 const (
-	dispatcherTestPort  uint16 = 40031
-	defaultTimeout             = 2 * time.Second
-	defaultWaitDuration        = 200 * time.Millisecond
+	dispatcherTestPort  = 40031
+	defaultTimeout      = 2 * time.Second
+	defaultWaitDuration = 200 * time.Millisecond
 )
 
 type TestSettings struct {
@@ -71,18 +70,16 @@ type ClientAddress struct {
 	PublicAddress  addr.HostAddr
 	PublicPort     uint16
 	ServiceAddress addr.HostSVC
-	OverlayAddress *overlay.OverlayAddr
+	OverlayAddress *net.UDPAddr
 	OverlayPort    uint16
 }
 
 // Addressing information
 var (
-	commonIA               = xtest.MustParseIA("1-ff00:0:1")
-	commonPublicL3Address  = addr.HostFromIP(net.IP{127, 0, 0, 1})
-	commonOverlayL3Address = net.IP{127, 0, 0, 1}
-	commonOverlayL4Address = dispatcherTestPort
-	commonOverlayAddress   = overlay.NewOverlayAddr(commonOverlayL3Address, commonOverlayL4Address)
-	clientXAddress         = &ClientAddress{
+	commonIA              = xtest.MustParseIA("1-ff00:0:1")
+	commonPublicL3Address = addr.HostFromIP(net.IP{127, 0, 0, 1})
+	commonOverlayAddress  = &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: dispatcherTestPort}
+	clientXAddress        = &ClientAddress{
 		IA:             commonIA,
 		PublicAddress:  commonPublicL3Address,
 		PublicPort:     8080,
@@ -102,7 +99,7 @@ type TestCase struct {
 	Name           string
 	ClientAddress  *ClientAddress
 	TestPackets    []*spkt.ScnPkt
-	OverlayAddress *overlay.OverlayAddr
+	OverlayAddress *net.UDPAddr
 	ExpectedPacket *spkt.ScnPkt
 }
 

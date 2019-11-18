@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/layers"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -110,7 +109,7 @@ func TestSenderSend(t *testing.T) {
 			MAC: createMac(t),
 		}
 		// Read from connection to unblock sender.
-		ov := overlay.NewOverlayAddr(net.IP{127, 0, 0, 42}, 1337)
+		ov := &net.UDPAddr{IP: net.IP{127, 0, 0, 42}, Port: 1337}
 		var pkt *snet.SCIONPacket
 		conn.EXPECT().WriteTo(gomock.Any(), ov).DoAndReturn(
 			func(ipkt, _ interface{}) error {
@@ -159,7 +158,7 @@ type testConn struct {
 
 func (conn *testConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, _, err := conn.PacketConn.ReadFrom(b)
-	return n, &overlay.OverlayAddr{}, err
+	return n, &net.UDPAddr{}, err
 }
 
 func createMac(t *testing.T) hash.Hash {
