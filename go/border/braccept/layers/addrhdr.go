@@ -15,7 +15,9 @@
 package layers
 
 import (
+	"bytes"
 	"fmt"
+	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -128,4 +130,37 @@ func (a *AddrHdr) Equal(o *AddrHdr) bool {
 func (a *AddrHdr) String() string {
 	return fmt.Sprintf("SrcIA: %s, SrcHost: %s, DstIA: %s, DstHost: %s",
 		a.SrcIA, a.SrcHost, a.DstIA, a.DstHost)
+}
+
+var _ addr.HostAddr = (HostBad)(nil)
+
+type HostBad common.RawBytes
+
+func (h HostBad) Size() int {
+	return len(h)
+}
+
+func (h HostBad) Type() addr.HostAddrType {
+	return addr.HostTypeNone
+}
+
+func (h HostBad) Pack() common.RawBytes {
+	return common.RawBytes(h)
+}
+
+func (h HostBad) IP() net.IP {
+	return nil
+}
+
+func (h HostBad) Copy() addr.HostAddr {
+	return HostBad(append(common.RawBytes(nil), h...))
+}
+
+func (h HostBad) Equal(o addr.HostAddr) bool {
+	hb, ok := o.(HostBad)
+	return ok && bytes.Equal(h, hb)
+}
+
+func (h HostBad) String() string {
+	return fmt.Sprintf("%s", common.RawBytes(h))
 }
