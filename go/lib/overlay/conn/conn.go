@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sockctrl"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
 // ReceiveBufferSize is the default size, in bytes, of receive buffers for
@@ -132,12 +131,17 @@ func (c *connUDPIPv4) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 		if msg.NN > 0 {
 			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
 		}
-		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv4)
+		meta.Src = msg.Addr.(*net.UDPAddr)
 	}
 	return n, err
 }
 
 func (c *connUDPIPv4) WriteBatch(msgs Messages) (int, error) {
+	if c.Remote != nil {
+		for i, _ := range msgs {
+			msgs[i].Addr = c.Remote
+		}
+	}
 	return c.pconn.WriteBatch(msgs, 0)
 }
 
@@ -185,12 +189,17 @@ func (c *connUDPIPv6) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 		if msg.NN > 0 {
 			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
 		}
-		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv6)
+		meta.Src = msg.Addr.(*net.UDPAddr)
 	}
 	return n, err
 }
 
 func (c *connUDPIPv6) WriteBatch(msgs Messages) (int, error) {
+	if c.Remote != nil {
+		for i, _ := range msgs {
+			msgs[i].Addr = c.Remote
+		}
+	}
 	return c.pconn.WriteBatch(msgs, 0)
 }
 
@@ -222,16 +231,9 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 	if laddr == nil {
 		return serrors.New("listen address must be specified")
 	}
-	if raddr == nil {
-		if c, err = net.ListenUDP(network, laddr); err != nil {
-			return common.NewBasicError("Error listening on socket", err,
-				"network", network, "listen", laddr)
-		}
-	} else {
-		if c, err = net.DialUDP(network, laddr, raddr); err != nil {
-			return common.NewBasicError("Error setting up connection", err,
-				"network", network, "listen", laddr, "remote", raddr)
-		}
+	if c, err = net.ListenUDP(network, laddr); err != nil {
+		return common.NewBasicError("Error listening on socket", err,
+			"network", network, "listen", laddr)
 	}
 	// Set reporting socket options
 	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1); err != nil {
@@ -281,14 +283,7 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	if oobn > 0 {
 		c.handleCmsg(c.oob[:oobn], &c.readMeta, readTime)
 	}
-	if c.Remote != nil {
-		c.readMeta.Src = c.Remote
-	} else {
-		c.readMeta.Src = &net.UDPAddr{
-			IP:   src.IP,
-			Port: src.Port,
-		}
-	}
+	c.readMeta.Src = src
 	return n, &c.readMeta, err
 }
 
@@ -327,7 +322,7 @@ func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime t
 }
 
 func (c *connUDPBase) Write(b common.RawBytes) (int, error) {
-	return c.conn.Write(b)
+	return c.conn.WriteTo(b, c.Remote)
 }
 
 func (c *connUDPBase) WriteTo(b common.RawBytes, dst *net.UDPAddr) (int, error) {
@@ -379,17 +374,6 @@ func (m *ReadMeta) reset() {
 	m.RcvOvfl = 0
 	m.Recvd = time.Unix(0, 0)
 	m.ReadDelay = 0
-}
-
-func (m *ReadMeta) setSrc(a *net.UDPAddr, raddr *net.UDPAddr, ot overlay.Type) {
-	if a != nil {
-		m.Src = a
-	} else {
-		m.Src = &net.UDPAddr{
-			IP:   raddr.IP,
-			Port: raddr.Port,
-		}
-	}
 }
 
 // NewReadMessages allocates memory for reading IPv4 Linux network stack
