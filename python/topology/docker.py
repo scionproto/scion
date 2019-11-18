@@ -18,9 +18,7 @@ import os
 # External packages
 import yaml
 # SCION
-from lib.app.sciond import get_default_sciond_path
-from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, SCIOND_API_SOCKDIR
-from lib.packet.scion_addr import ISD_AS
+from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION
 from lib.util import (
     write_file,
 )
@@ -28,16 +26,9 @@ from topology.common import (
     ArgsTopoDicts,
     docker_image,
     DOCKER_USR_VOL,
-    prom_addr_infra,
-    sciond_name,
     sciond_svc_name
 )
 from topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
-from topology.prometheus import (
-    BS_PROM_PORT,
-    CS_PROM_PORT,
-    PS_PROM_PORT
-)
 from topology.sig import SIGGenArgs, SIGGenerator
 
 DOCKER_CONF = 'scion-dc.yml'

@@ -37,11 +37,6 @@ from topology.common import (
     prom_addr_infra,
     PS_CONFIG_NAME,
 )
-from topology.prometheus import (
-    BS_PROM_PORT,
-    CS_PROM_PORT,
-    PS_PROM_PORT,
-)
 
 
 SUPERVISOR_CONF = 'supervisord.conf'
