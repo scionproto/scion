@@ -143,7 +143,6 @@ class TestTopologyParseDict(object):
         inst = Topology()
         inst._parse_srv_dicts = create_mock()
         inst._parse_router_dicts = create_mock()
-        inst._parse_zk_dicts = create_mock()
         # Call
         inst.parse_dict(topo_dict)
         # Tests
@@ -152,7 +151,6 @@ class TestTopologyParseDict(object):
         ntools.eq_(inst.mtu, 440)
         inst._parse_srv_dicts.assert_called_once_with(topo_dict)
         inst._parse_router_dicts.assert_called_once_with(topo_dict)
-        inst._parse_zk_dicts.assert_called_once_with(topo_dict)
 
 
 class TestTopologyParseSrvDicts(object):
@@ -208,25 +206,6 @@ class TestTopologyParseRouterDicts(object):
         inst._parse_router_dicts({"BorderRouters": router_dict})
         # Tests
         ntools.assert_count_equal(inst.border_routers, routers["parent"])
-
-
-class TestTopologyParseZkDicts(object):
-    """
-    Unit tests for lib.topology.Topology.parse_zk_dicts
-    """
-    @patch("lib.topology.haddr_parse_interface", autospec=True)
-    def test(self, parse):
-        zk_dict = {
-            'zk0': {'Addr': 'zkv4', 'L4Port': 2181},
-            'zk1': {'Addr': 'zkv6', 'L4Port': 2182},
-        }
-        inst = Topology()
-        parse.side_effect = lambda x: x
-        # Call
-        inst._parse_zk_dicts({"ZookeeperService": zk_dict})
-        # Tests
-        ntools.assert_count_equal(inst.zookeepers,
-                                  ["[zkv4]:2181", "[zkv6]:2182"])
 
 
 class TestTopologyGetAllInterfaces(object):

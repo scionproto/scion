@@ -24,7 +24,6 @@ go_library(
         "sign.go",
         "structs.gen.go",
         "svc_resolution.capnp.go",
-        "zkid.capnp.go",
     ],
     importpath = "github.com/scionproto/scion/go/proto",
     visibility = ["//visibility:public"],

@@ -67,5 +67,3 @@ See `./docker.sh help` for further commands/usage.
   review/etc, make sure your working directory is clean before building the image. Any new files
   must be at least added to git, even if you haven't committed them, otherwise docker.sh will skip
   them.
-- When running `./scion.sh topology -d` in a container, make sure the zookeeper instance on your
-  host is stopped.

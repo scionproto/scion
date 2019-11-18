@@ -111,7 +111,7 @@ class ScionDocker(Scion):
     @LogExec(logger, "creating dockerized topology")
     def topology(self, topo_file: str, *args: str):
         """ Create the dockerized topology files. """
-        self.scion_sh('topology', 'nobuild', 'zkclean', '-c', topo_file,
+        self.scion_sh('topology', 'nobuild', '-c', topo_file,
                       '-d', *args)
 
     def _send_signals(self, svc_names: List[str], sig: str):
@@ -131,7 +131,7 @@ class ScionSupervisor(Scion):
     @LogExec(logger, "creating supervisor topology")
     def topology(self, topo_file: str, *args: str):
         """ Create the topology files. """
-        self.scion_sh('topology', 'nobuild', 'zkclean', '-c', topo_file, *args)
+        self.scion_sh('topology', 'nobuild', '-c', topo_file, *args)
 
     def _send_signals(self, svc_names: List[str], sig: str):
         for svc_name in svc_names:

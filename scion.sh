@@ -22,17 +22,12 @@ cmd_topo_clean() {
 
 cmd_topology() {
     set -e
-    local zkclean
     local nobuild
     if [ "$1" = "nobuild" ]; then
         shift
         nobuild="y"
     fi
     cmd_topo_clean
-    if [ "$1" = "zkclean" ]; then
-        shift
-        zkclean="y"
-    fi
     if [ -z "$nobuild" ]; then
         echo "Compiling..."
         cmd_build || exit 1
@@ -44,7 +39,6 @@ cmd_topology() {
         ./tools/quiet ./tools/dc run utils_chowner
     fi
     run_jaeger
-    run_zk "$zkclean"
     load_cust_keys
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)
@@ -93,26 +87,6 @@ load_cust_keys() {
     fi
 }
 
-run_zk() {
-    if [ ! -f "gen/zk-dc.yml" ]; then
-        return
-    fi
-    echo "Running zookeeper..."
-    ./tools/quiet ./tools/dc zk up -d
-    if [ -n "$1" ]; then
-        echo "Deleting all Zookeeper state"
-        # Wait some time, such that zookeeper accepts connections again after startup
-        sleep 3
-        local addr="127.0.0.1:2181"
-        if is_running_in_docker; then
-            addr="${DOCKER0:-172.17.0.1}:2182"
-        elif is_docker_be; then
-            addr="$(./tools/docker-ip):2181"
-        fi
-        tools/zkcleanslate --zk "$addr"
-    fi
-}
-
 run_jaeger() {
     if [ ! -f "gen/jaeger-dc.yml" ]; then
         return
@@ -150,8 +124,6 @@ run_setup() {
     local sciond_dir="/run/shm/sciond"
     [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
     [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
-    # Make sure zookeeper is running
-    run_zk
 }
 
 cmd_stop() {
@@ -445,10 +417,9 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM topology [nobuild] [zkclean]
+	    $PROGRAM topology [nobuild]
 	        Create topology, configuration, and execution files. With the 'nobuild'
-            option, don't build the code. With the 'zkclean' option, also reset
-            all local Zookeeper state. All other arguments or options are passed
+            option, don't build the code. All other arguments or options are passed
             to topology/generator.py
 	    $PROGRAM run
 	        Run network.

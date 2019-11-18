@@ -15,11 +15,11 @@ And the different `scion.sh` backends are
 
 All services run native on the host, controlled by supervisor. In this case, one dispatcher is run
 on loopback. There is one SCIOND per AS, the sockets can be found in
-`/run/shm/<dispatcher|sciond>`. One zookeeper instance is run on the host.
+`/run/shm/<dispatcher|sciond>`.
 
 ## Development with docker
 
-`docker-compose` is used to run every service in its own container (including zookeeper). We run
+`docker-compose` is used to run every service in its own container. We run
 multiple dispatchers and one SCIOND per AS. One dispatcher and the SCIOND share their sockets with
 the infra services using docker volumes. And there is one dispatcher per BR, with which it shares its
 socket. Each AS has its own docker network and every BR-to-BR link is a docker network.
@@ -27,8 +27,7 @@ socket. Each AS has its own docker network and every BR-to-BR link is a docker n
 ## Testing with supervisor and docker (CI and `./tools/ci/local`)
 
 In this case the services are run by supervisor inside a testing container (scion_ci). This case
-has the same properties as "Development with supervisor" except it is run inside a container. A
-normal zookeeper instance is run in the container.
+has the same properties as "Development with supervisor" except it is run inside a container.
 
 ## Testing with docker only
 

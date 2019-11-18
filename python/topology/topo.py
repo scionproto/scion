@@ -21,11 +21,9 @@ import json
 import logging
 import os
 import random
-import sys
 from collections import defaultdict
 
 # External packages
-from external.ipaddress import ip_address
 import yaml
 
 # SCION
@@ -43,7 +41,6 @@ from lib.types import LinkType
 from lib.util import write_file
 from topology.common import (
     ArgsBase,
-    docker_host,
     json_default,
     SCION_SERVICE_NAMES,
     srv_iter,
@@ -57,8 +54,6 @@ DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
 DEFAULT_DISCOVERY_SERVERS = 1
-
-DEFAULT_ZK_PORT = 2181
 
 
 class TopoGenArgs(ArgsBase):
@@ -201,7 +196,6 @@ class TopoGenerator(object):
         if self.args.sig:
             self.topo_dicts[topo_id]['SIG'] = {}
             self._gen_sig_entries(topo_id)
-        self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
         for conf_key, def_num, nick, topo_key in (
@@ -322,34 +316,6 @@ class TopoGenerator(object):
             }
         }
         self.topo_dicts[topo_id]['SIG'][elem_id] = d
-
-    def _gen_zk_entries(self, topo_id, as_conf):
-        if ("defaults" not in self.args.topo_config_dict or
-                "zookeepers" not in self.args.topo_config_dict["defaults"]):
-            return
-        zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]
-        if len(zk_conf) > 1:
-            logging.critical("Only one zk instance is supported!")
-            sys.exit(1)
-        if len(zk_conf) < 1:
-            return
-        addr = zk_conf[1].get("addr", None)
-        port = zk_conf[1].get("port", None)
-        zk_entry = self._gen_zk_entry(addr, port, self.args.in_docker, self.args.docker)
-        self.topo_dicts[topo_id]["ZookeeperService"][1] = zk_entry
-
-    def _gen_zk_entry(self, addr, port, in_docker, docker):
-        if not port:
-            port = DEFAULT_ZK_PORT
-        if in_docker:
-            # If we're in-docker, we need to set the port to not conflict with the host port
-            port = port + 1
-
-        addr = docker_host(in_docker, docker, str(ip_address(addr)))
-        return {
-            'Addr': addr,
-            'L4Port': port
-        }
 
     def _generate_as_list(self, topo_id, as_conf):
         if as_conf.get('core', False):
