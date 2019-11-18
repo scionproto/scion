@@ -8,7 +8,6 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	sciond "github.com/scionproto/scion/go/lib/sciond"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	spath "github.com/scionproto/scion/go/lib/spath"
 	net "net"
