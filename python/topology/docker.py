@@ -159,9 +159,8 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _cs_conf(self, topo_id, topo, base):
-        image = 'cert_py' if self.args.cert_server == 'py' else 'cert'
         raw_entry = {
-            'image': docker_image(self.args, image),
+            'image': docker_image(self.args, 'cert'),
             'depends_on': [
                 sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
@@ -177,20 +176,11 @@ class DockerGenerator(object):
             entry = copy.deepcopy(raw_entry)
             entry['container_name'] = self.prefix + k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            if self.args.cert_server == 'py':
-                sciond = get_default_sciond_path(ISD_AS(topo["ISD_AS"]))
-                entry['command'].append('--spki_cache_dir=cache')
-                prom_addr = prom_addr_infra(self.args.docker, k, v, CS_PROM_PORT)
-                entry['command'].append('--prom=%s' % prom_addr)
-                entry['command'].append('--sciond_path=%s' % sciond)
-                entry['command'].append(k)
-                entry['command'].append('conf')
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _bs_conf(self, topo_id, topo, base):
-        image = 'beacon_py' if self.args.beacon_server == 'py' else 'beacon'
         raw_entry = {
-            'image': docker_image(self.args, image),
+            'image': docker_image(self.args, 'beacon'),
             'depends_on': [
                 sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
@@ -206,20 +196,11 @@ class DockerGenerator(object):
             entry = copy.deepcopy(raw_entry)
             entry['container_name'] = self.prefix + k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            if self.args.beacon_server == 'py':
-                entry['command'].append('--spki_cache_dir=cache')
-                prom_addr = prom_addr_infra(self.args.docker, k, v, BS_PROM_PORT)
-                entry['command'].append('--prom=%s' % prom_addr)
-                entry['command'].append('--sciond_path=%s' %
-                                        get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
-                entry['command'].append(k)
-                entry['command'].append('conf')
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _ps_conf(self, topo_id, topo, base):
-        image = 'path_py' if self.args.path_server == 'py' else 'path'
         raw_entry = {
-            'image': docker_image(self.args, image),
+            'image': docker_image(self.args, 'path'),
             'depends_on': [
                 sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
@@ -236,14 +217,6 @@ class DockerGenerator(object):
             name = self.prefix + k
             entry['container_name'] = name
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            if self.args.path_server == 'py':
-                entry['command'].append('--spki_cache_dir=cache')
-                prom_addr = prom_addr_infra(self.args.docker, k, v, PS_PROM_PORT)
-                entry['command'].append('--prom=%s' % prom_addr)
-                entry['command'].append('--sciond_path=%s' %
-                                        get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
-                entry['command'].append(k)
-                entry['command'].append('conf')
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _dispatcher_conf(self, topo_id, topo, base):
@@ -289,11 +262,10 @@ class DockerGenerator(object):
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)
-        image = 'sciond_py' if self.args.sciond == 'py' else 'sciond'
         net = self.elem_networks["sd" + topo_id.file_fmt()][0]
         ip = str(net['ipv4'])
         entry = {
-            'image': docker_image(self.args, image),
+            'image': docker_image(self.args, 'sciond'),
             'container_name': '%ssd%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
                 'scion_disp_%s' % topo_id.file_fmt()
@@ -309,14 +281,6 @@ class DockerGenerator(object):
                 self.bridges[net['net']]: {'ipv4_address': ip}
             }
         }
-        if self.args.sciond == 'py':
-            entry['command'] = [
-                '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
-                '--log_dir=logs',
-                '--spki_cache_dir=cache',
-                sciond_name(topo_id),
-                'conf'
-            ]
         self.dc_conf['services'][name] = entry
 
     def _disp_br_vol(self, disp_id):
