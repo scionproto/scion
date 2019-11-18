@@ -20,9 +20,6 @@ Internet architecture.
     * [lib](/go/lib): shared SCION Go libraries
 * [python/](/python): the parts of the infrastructure
   implemented in Python.
-    * [beacon_server](/python/beacon_server): Beacon Server
-    * [certificate_server](/python/cert_server): Certificate Server
-    * [path_server](/python/path_server): Path Server
     * [lib/](/python/lib): shared SCION Python libraries
     * [topology](/python/topology): generator for generating a local topology,
         including all the necessary configuration, key, and certificate files

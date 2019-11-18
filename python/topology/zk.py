@@ -63,4 +63,4 @@ class ZKGenerator(object):
                    yaml.dump(self.zk_conf, default_flow_style=False))
 
     def any_py_service(self):
-        return 'py' in (self.args.beacon_server, self.args.cert_server, self.args.path_server)
+        return False

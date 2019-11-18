@@ -34,7 +34,6 @@ from lib.packet.packet_base import CerealBox, Cerealizable
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.pcb import PCB
 from lib.packet.proto_sign import ProtoSign, ProtoSignType
-from lib.sibra.payload import SIBRAPayload
 from lib.types import PayloadClass
 from lib.util import Raw
 
@@ -89,7 +88,6 @@ class CtrlPayload(CerealBox):
         IFIDPayload: PayloadClass.IFID,
         CertMgmt: PayloadClass.CERT,
         PathMgmt: PayloadClass.PATH,
-        SIBRAPayload: PayloadClass.SIBRA,
         DRKeyMgmt: PayloadClass.DRKEY,
     }
 
