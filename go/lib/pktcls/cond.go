@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +17,7 @@ package pktcls
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/google/gopacket/layers"
 )
@@ -28,6 +30,7 @@ import (
 type Cond interface {
 	Eval(v interface{}) bool
 	Typer
+	fmt.Stringer
 }
 
 var _ Cond = CondAnyOf{}
@@ -52,12 +55,11 @@ func (c CondAnyOf) Eval(v interface{}) bool {
 }
 
 func (c CondAnyOf) String() string {
-	s := "any("
+	options := make([]string, 0, len(c))
 	for _, cond := range c {
-		s += fmt.Sprintf("%v,", cond)
+		options = append(options, cond.String())
 	}
-	s += ")"
-	return s
+	return fmt.Sprintf("any(%s)", strings.Join(options, ","))
 }
 
 func (c CondAnyOf) Type() string {
@@ -93,12 +95,11 @@ func (c CondAllOf) Eval(v interface{}) bool {
 }
 
 func (c CondAllOf) String() string {
-	s := "any("
+	args := make([]string, 0, len(c))
 	for _, cond := range c {
-		s += fmt.Sprintf("%v,", cond)
+		args = append(args, cond.String())
 	}
-	s += ")"
-	return s
+	return fmt.Sprintf("all(%s)", strings.Join(args, ","))
 }
 
 func (c CondAllOf) Type() string {
@@ -166,6 +167,10 @@ func (c CondBool) Type() string {
 	return TypeCondBool
 }
 
+func (c CondBool) String() string {
+	return fmt.Sprintf("BOOL=%t", bool(c))
+}
+
 var _ Cond = (*CondIPv4)(nil)
 
 // CondIPv4 conditions return true if the embedded IPv4 predicate returns true.
@@ -197,6 +202,10 @@ func (c *CondIPv4) Type() string {
 	return TypeCondIPv4
 }
 
+func (c *CondIPv4) String() string {
+	return c.Predicate.String()
+}
+
 func (c *CondIPv4) MarshalJSON() ([]byte, error) {
 	return marshalInterface(c.Predicate)
 }
@@ -205,4 +214,23 @@ func (c *CondIPv4) UnmarshalJSON(b []byte) error {
 	var err error
 	c.Predicate, err = unmarshalPredicate(b)
 	return err
+}
+
+const typeCondClass = "CondClass"
+
+// CondClass conditions return true if the embedded traffic class returns true
+type CondClass struct {
+	TrafficClass string
+}
+
+func (c CondClass) Eval(v interface{}) bool {
+	return false
+}
+
+func (c CondClass) Type() string {
+	return typeCondClass
+}
+
+func (c CondClass) String() string {
+	return fmt.Sprintf("cls=%s", c.TrafficClass)
 }

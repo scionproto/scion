@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pktcls
+package pktcls_test
 
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -32,43 +34,43 @@ var (
 	update = flag.Bool("update", false, "set to true to update reference testdata files")
 )
 
-func TestClassMap(t *testing.T) {
+func TestClassMapMarshalUnMarshal(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		FileName string
-		Classes  ClassMap
+		Classes  pktcls.ClassMap
 	}{
 		{
 			Name:     "ABC",
 			FileName: "class_1",
-			Classes: ClassMap{
-				"transit ISD 1": NewClass(
+			Classes: pktcls.ClassMap{
+				"transit ISD 1": pktcls.NewClass(
 					"transit ISD 1",
-					NewCondAllOf(
-						NewCondIPv4(&IPv4MatchToS{0x80}),
-						NewCondIPv4(&IPv4MatchDestination{
-							&net.IPNet{
+					pktcls.NewCondAllOf(
+						pktcls.NewCondIPv4(&pktcls.IPv4MatchToS{TOS: 0x80}),
+						pktcls.NewCondIPv4(&pktcls.IPv4MatchDestination{
+							Net: &net.IPNet{
 								IP:   net.IP{192, 168, 1, 0},
 								Mask: net.IPv4Mask(255, 255, 255, 0),
 							},
 						}),
 					),
 				),
-				"transit ISD 2": NewClass(
+				"transit ISD 2": pktcls.NewClass(
 					"transit ISD 2",
-					NewCondAnyOf(
-						NewCondIPv4(&IPv4MatchToS{0x0}),
-						NewCondIPv4(&IPv4MatchSource{
-							&net.IPNet{
+					pktcls.NewCondAnyOf(
+						pktcls.NewCondIPv4(&pktcls.IPv4MatchToS{TOS: 0x0}),
+						pktcls.NewCondIPv4(&pktcls.IPv4MatchSource{
+							Net: &net.IPNet{
 								IP:   net.IP{10, 0, 0, 0},
 								Mask: net.IPv4Mask(255, 0, 0, 0),
 							},
 						}),
 					),
 				),
-				"classC": NewClass(
+				"classC": pktcls.NewClass(
 					"classC",
-					NewCondAllOf(),
+					pktcls.NewCondAllOf(),
 				),
 			},
 		},
@@ -79,35 +81,30 @@ func TestClassMap(t *testing.T) {
 		},
 	}
 
-	Convey("Test class marshal/unmarshal", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				if *update {
-					xtest.MustMarshalJSONToFile(t, tc.Classes, tc.FileName+".json")
-				}
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if *update {
+				xtest.MustMarshalJSONToFile(t, tc.Classes, tc.FileName+".json")
+			}
 
-				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName + ".json"))
-				xtest.FailOnErr(t, err)
+			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName + ".json"))
+			require.NoError(t, err)
 
-				// Check that marshaling matches reference files
-				enc, err := json.MarshalIndent(tc.Classes, "", "    ")
-				SoMsg("err marshal", err, ShouldBeNil)
-				SoMsg("bytes",
-					string(enc),
-					ShouldResemble,
-					strings.TrimRight(string(expected), "\n"))
+			// Check that marshaling matches reference files
+			enc, err := json.MarshalIndent(tc.Classes, "", "    ")
+			require.NoError(t, err)
+			assert.Equal(t, strings.TrimRight(string(expected), "\n"), string(enc))
 
-				// Check that unmarshaling from reference files matches structure
-				var classes ClassMap
-				err = json.Unmarshal(expected, &classes)
-				SoMsg("err unmarshal", err, ShouldBeNil)
-				SoMsg("object", classes, ShouldResemble, tc.Classes)
-			})
-		}
-	})
+			// Check that unmarshaling from reference files matches structure
+			var classes pktcls.ClassMap
+			err = json.Unmarshal(expected, &classes)
+			require.NoError(t, err)
+			assert.Equal(t, tc.Classes, classes)
+		})
+	}
 }
 
-func TestBadJSON(t *testing.T) {
+func TestClassUnmarshalError(t *testing.T) {
 	testCases := []string{`
 		{
 			"Name": "Undefined condition"
@@ -223,11 +220,9 @@ func TestBadJSON(t *testing.T) {
 			"Name": "Unable to parse source operand string"
 		}
 	`}
-	Convey("Marshaling bad JSON should return errors", t, func() {
-		for i, tc := range testCases {
-			var c Class
-			err := json.Unmarshal([]byte(tc), &c)
-			SoMsg(fmt.Sprintf("err %d", i), err, ShouldNotBeNil)
-		}
-	})
+	for i, tc := range testCases {
+		var c pktcls.Class
+		err := json.Unmarshal([]byte(tc), &c)
+		assert.Error(t, err, "err %d", i)
+	}
 }
