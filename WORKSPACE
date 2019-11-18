@@ -16,7 +16,7 @@ go_rules_dependencies()
 go_download_sdk(
     name = "go_sdk",
     sdks = {
-        "linux_amd64": ("go1.11.13.linux-amd64.tar.gz", "50fe8e13592f8cf22304b9c4adfc11849a2c3d281b1d7e09c924ae24874c6daa"),
+        "linux_amd64": ("go1.13.4.linux-amd64.tar.gz", "692d17071736f74be04a72a06dab9cac1cd759377bd85316e52b2227604c004c"),
     },
 )
 
@@ -238,7 +238,7 @@ go_repository(
 
 go_repository(
     name = "com_github_jtolds_gls",
-    commit = "8ddce2a84170772b95dd5d576c48d517b22cac63",
+    commit = "b4936e06046bbecbb94cae9c18127ebe510a2cb9",
     importpath = "github.com/jtolds/gls",
 )
 
@@ -365,13 +365,13 @@ go_repository(
 
 go_repository(
     name = "com_github_smartystreets_assertions",
-    commit = "2063fd1cc7c975db70502811a34b06ad034ccdf2",
+    commit = "b2de0cb4f26d0705483a2f495d89896d0b808573",
     importpath = "github.com/smartystreets/assertions",
 )
 
 go_repository(
     name = "com_github_smartystreets_goconvey",
-    commit = "a9793712606dd72b256bcbb0fad0858aa0e72d67",
+    commit = "63cc4eee0dbc998a86d3aef8b7d7eb8fc765b748",
     importpath = "github.com/smartystreets/goconvey",
     vcs = "git",
     remote = "https://github.com/kormat/goconvey.git",
