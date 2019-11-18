@@ -119,7 +119,6 @@ class PayloadClass(object):
     IFID = "ifid"
     CERT = "certMgmt"
     PATH = "pathMgmt"
-    SIBRA = "sibra"
     DRKEY = "drkeyMgmt"
 
 

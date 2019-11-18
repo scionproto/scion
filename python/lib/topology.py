@@ -215,7 +215,6 @@ class Topology(object):
         self.beacon_servers = []
         self.certificate_servers = []
         self.path_servers = []
-        self.sibra_servers = []
         self.sigs = []
         self.discovery_servers = []
         self.border_routers = []
@@ -266,7 +265,6 @@ class Topology(object):
             ("BeaconService", self.beacon_servers),
             ("CertificateService", self.certificate_servers),
             ("PathService", self.path_servers),
-            ("SibraService", self.sibra_servers),
             ("SIG", self.sigs),
             ("DiscoveryService", self.discovery_servers),
         ):
@@ -311,7 +309,6 @@ class Topology(object):
             ServiceType.BS: self.beacon_servers,
             ServiceType.CS: self.certificate_servers,
             ServiceType.PS: self.path_servers,
-            ServiceType.SIBRA: self.sibra_servers,
             ServiceType.SIG: self.sigs,
             ServiceType.DS: self.discovery_servers,
         }

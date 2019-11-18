@@ -108,7 +108,7 @@ class PathSegmentDB(object):
         with self._lock:
             self._db = Base("", save_to_file=False)
             self._db.create('record', 'id', 'first_isd', 'first_as', 'last_isd',
-                            'last_as', 'sibra', mode='override')
+                            'last_as', mode='override')
             self._db.create_index('id')
             self._db.create_index('last_isd')
             self._db.create_index('last_as')
@@ -149,12 +149,12 @@ class PathSegmentDB(object):
         else:
             record = PathSegmentDBRecord(pcb)
         with self._lock:
-            recs = self._db(id=record.id, sibra=pcb.is_sibra())
+            recs = self._db(id=record.id)
             assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
             if not recs:
                 self._db.insert(
                     record, record.id, first_ia[0], first_ia[1],
-                    last_ia[0], last_ia[1], pcb.is_sibra())
+                    last_ia[0], last_ia[1])
                 logging.debug("Added segment from %s to %s: %s",
                               first_ia, last_ia, pcb.short_desc())
                 if self._labels:
@@ -229,8 +229,6 @@ class PathSegmentDB(object):
         if last_ia:
             kwargs["last_isd"] = last_ia[0]
             kwargs["last_as"] = last_ia[1]
-        if "sibra" not in kwargs:
-            kwargs["sibra"] = False
         return kwargs
 
     def _exp_call_records(self, recs):

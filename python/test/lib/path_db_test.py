@@ -57,7 +57,7 @@ class TestPathSegmentDBUpdate(object):
         return create_mock_full({
             'get_hops_hash()': "hash", "get_n_hops()": 42,
             "get_expiration_time()": exp, "first_ia()": (1, 2),
-            "last_ia()": (3, 4), "is_sibra()": True, "short_desc()": "short",
+            "last_ia()": (3, 4), "short_desc()": "short",
         })
 
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
@@ -71,7 +71,7 @@ class TestPathSegmentDBUpdate(object):
         ntools.eq_(inst.update(pcb), DBResult.ENTRY_ADDED)
         # Tests
         db_rec.assert_called_once_with(pcb)
-        inst._db.assert_called_once_with(id="id str", sibra=True)
+        inst._db.assert_called_once_with(id="id str")
         inst._db.insert.assert_called_once_with(record, "id str", 1, 2, 3, 4,
                                                 True)
 

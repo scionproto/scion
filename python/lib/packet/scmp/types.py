@@ -211,16 +211,6 @@ class SCMPExtClass(TypeBase):
     BAD_END2END = 3
 
 
-class SCMPSibraClass(TypeBase):
-    """SIBRA errors."""
-    #: Unsupported SIBRA version
-    # Payload: basic, sibra ext header
-    BAD_VERSION = 0
-    #: Request flag not set in setup packet
-    # Payload: basic, sibra ext header
-    SETUP_NO_REQ = 1
-
-
 class SCMPIncParts(TypeBase):
     CMN = 0
     ADDRS = 1

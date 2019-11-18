@@ -20,7 +20,7 @@ import capnp  # noqa
 
 # SCION
 import proto.path_mgmt_capnp as P
-from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
+from lib.defines import PATH_FLAG_CACHEONLY
 from lib.packet.packet_base import Cerealizable
 from lib.packet.path_mgmt.seg_recs import PathSegmentRecords
 from lib.packet.scion_addr import ISD_AS
@@ -36,8 +36,6 @@ class PathSegmentReq(Cerealizable):  # pragma: no cover
         if not flags:
             flags = set()
         p = cls.P_CLS.new_message(srcIA=int(src_ia), dstIA=int(dst_ia))
-        if PATH_FLAG_SIBRA in flags:
-            p.flags.sibra = True
         if PATH_FLAG_CACHEONLY in flags:
             p.flags.cacheOnly = True
         return cls(p)
@@ -50,8 +48,6 @@ class PathSegmentReq(Cerealizable):  # pragma: no cover
 
     def flags(self):
         flags = set()
-        if self.p.flags.sibra:
-            flags.add(PATH_FLAG_SIBRA)
         if self.p.flags.cacheOnly:
             flags.add(PATH_FLAG_CACHEONLY)
         return tuple(flags)
