@@ -245,12 +245,7 @@ class TopoGenerator(object):
     def _srv_count(self, as_conf, conf_key, def_num):
         count = as_conf.get(conf_key, def_num)
         # only a single Go-PS/Go-CS per AS is currently supported
-        go_singles = {
-            "path_servers": self.args.path_server,
-            "certificate_servers": self.args.cert_server,
-            "beacon_servers": self.args.beacon_server,
-        }
-        if go_singles.get(conf_key) == "go":
+        if conf_key in ["path_servers", "certificate_servers", "beacon_servers"]:
             count = 1
         if conf_key == "discovery_servers" and not self.args.discovery:
             count = 0

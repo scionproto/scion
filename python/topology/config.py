@@ -71,11 +71,6 @@ from topology.zk import ZKGenArgs, ZKGenerator
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
 
-DEFAULT_BEACON_SERVER = "go"
-DEFAULT_CERTIFICATE_SERVER = "go"
-DEFAULT_SCIOND = "go"
-DEFAULT_PATH_SERVER = "go"
-
 GENERATE_BIND_ADDRESS = False
 
 
@@ -133,10 +128,6 @@ class ConfigGenerator(object):
         self._generate_with_topo(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
-        all_go = all(t == "go" for t in [self.args.beacon_server, self.args.cert_server,
-                                         self.args.sciond, self.args.path_server])
-        if not all_go:
-            self._write_conf_policies(topo_dicts)
         self._write_networks_conf(self.networks, NETWORKS_FILE)
         if self.args.bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
@@ -180,14 +171,10 @@ class ConfigGenerator(object):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
         go_gen.generate_br()
-        if self.args.beacon_server == "go":
-            go_gen.generate_bs()
-        if self.args.cert_server == "go":
-            go_gen.generate_cs()
-        if self.args.sciond == "go":
-            go_gen.generate_sciond()
-        if self.args.path_server == "go":
-            go_gen.generate_ps()
+        go_gen.generate_bs()
+        go_gen.generate_cs()
+        go_gen.generate_sciond()
+        go_gen.generate_ps()
         go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
@@ -251,8 +238,7 @@ class ConfigGenerator(object):
             if not path.exists() or (path.exists() and (len(path.list()) <= 0)):
                 continue
             for elem in as_topo["CertificateService"]:
-                if self.args.cert_server == 'go':
-                    cust_pk[base / elem / 'customers'] = elem
+                cust_pk[base / elem / 'customers'] = elem
         if cust_pk:
             script_name = 'gen/load_custs.sh'
             with open(script_name, 'w') as script:

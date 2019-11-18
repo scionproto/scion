@@ -27,14 +27,12 @@ from lib.packet.ext.path_transport import PathTransportExt
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.spse.parse import parse_spse
-from lib.sibra.ext.util import parse_sibra_ext
 from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType, L4Proto
 
 # Dictionary of supported extensions
 EXTENSION_MAP = {
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.SCMP): SCMPExt,
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.ONE_HOP_PATH): OneHopPathExt,
-    (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.SIBRA): parse_sibra_ext,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
         PathTransportExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_PROBE): PathProbeExt,
