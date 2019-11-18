@@ -67,7 +67,6 @@ class SCMPClass(TypeBase):
     CMNHDR = 2
     PATH = 3
     EXT = 4
-    SIBRA = 5
 
 
 class SCMPGeneralClass(TypeBase):

@@ -36,11 +36,6 @@ class FlagBase(object):  # pragma: no cover
                 ret.append(false)
         return "|".join(ret) or "None"
 
-
-PathSegFlags = FlagBase((
-    (1, "SIBRA", "SCION"),
-))
-
 InfoOFFlags = FlagBase((
     (1, "CONS_DIR", "NOT_CONS_DIR"),
     (2, "SHORTCUT", ""),
