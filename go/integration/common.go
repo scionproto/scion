@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +16,7 @@
 package integration
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -36,7 +38,7 @@ const (
 var (
 	Local    snet.Addr
 	Mode     string
-	Sciond   string
+	sdSocket string
 	Attempts int
 )
 
@@ -48,7 +50,7 @@ func Setup() {
 func addFlags() {
 	flag.Var((*snet.Addr)(&Local), "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
-	flag.StringVar(&Sciond, "sciond", "", "Path to sciond socket")
+	flag.StringVar(&sdSocket, "sciond", "", "Path to sciond socket")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	log.AddLogConsFlags()
 }
@@ -63,8 +65,8 @@ func validateFlags() {
 	if Mode != ModeClient && Mode != ModeServer {
 		LogFatal("Unknown mode, must be either '" + ModeClient + "' or '" + ModeServer + "'")
 	}
-	if Sciond == "" {
-		Sciond = sciond.GetDefaultSCIONDPath(&Local.IA)
+	if sdSocket == "" {
+		sdSocket = sciond.GetDefaultSCIONDPath(&Local.IA)
 	}
 	if Local.Host == nil {
 		LogFatal("Missing local address")
@@ -73,12 +75,22 @@ func validateFlags() {
 
 func InitNetwork() *snet.SCIONNetwork {
 	ds := reliable.NewDispatcherService("")
-	n, err := snet.NewNetwork(Local.IA, Sciond, ds)
+	n, err := snet.NewNetwork(Local.IA, sdSocket, ds)
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")
 	return n
+}
+
+func SDConn() sciond.Connector {
+	ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
+	defer cancelF()
+	conn, err := sciond.NewService(sdSocket).Connect(ctx)
+	if err != nil {
+		LogFatal("Unable to initialize sciond connection", "err", err)
+	}
+	return conn
 }
 
 // AttemptFunc attempts a request repeatedly, receives the attempt number
