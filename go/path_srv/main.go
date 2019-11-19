@@ -159,7 +159,6 @@ func realMain() int {
 	}
 	msger.AddHandler(infra.SegRequest, segreq.NewHandler(args))
 	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
-	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStateInfoHandler(args))
 	if cfg.PS.SegSync && topo.Core() {
 		// Old down segment sync mechanism
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
