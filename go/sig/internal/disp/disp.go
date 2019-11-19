@@ -28,7 +28,8 @@ import (
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
-func Init(conn snet.Conn) {
+func Init(conn snet.Conn, useid bool) {
+	useID = useid
 	go func() {
 		defer log.LogPanicAndExit()
 		pktdisp.PktDispatcher(conn, dispFunc, nil)
@@ -59,6 +60,7 @@ type RegPldChan chan *RegPld
 
 var (
 	Dispatcher = newDispReg()
+	useID      bool
 )
 
 type dispRegistry struct {
@@ -116,7 +118,7 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 			log.Error("Incomplete SIG PollRep received", "src", addr, "pld", pld)
 			return
 		}
-		entry, ok := dm.pollRep[MkRegPollKey(addr.IA, pld.Session)]
+		entry, ok := dm.pollRep[MkRegPollKey(addr.IA, pld.Session, msgId)]
 		if !ok {
 			log.Warn("Unexpected SIG PollRep received", "src", addr, "pld", pld)
 			return
@@ -154,6 +156,10 @@ func dispFunc(dp *pktdisp.DispPkt) {
 
 type RegPollKey string
 
-func MkRegPollKey(ia addr.IA, session mgmt.SessionType) RegPollKey {
-	return RegPollKey(fmt.Sprintf("%s-%s", ia, session))
+func MkRegPollKey(ia addr.IA, session mgmt.SessionType, id mgmt.MsgIdType) RegPollKey {
+	if useID {
+		return RegPollKey(fmt.Sprintf("%s-%s-%d", ia, session, id))
+	} else {
+		return RegPollKey(fmt.Sprintf("%s-%s", ia, session))
+	}
 }
