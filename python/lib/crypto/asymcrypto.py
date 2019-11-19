@@ -15,10 +15,6 @@
 :mod:`asymcrypto` --- SCION asymmetric crypto functions
 =======================================================
 """
-# stdlib
-import base64
-import os
-
 # External
 from nacl.exceptions import BadSignatureError
 from nacl.public import Box, PrivateKey, PublicKey
@@ -26,77 +22,7 @@ from nacl.signing import SigningKey, VerifyKey
 from nacl.utils import random
 
 # SCION
-from lib.crypto.util import KEYS_DIR
 from lib.errors import SCIONVerificationError
-from lib.util import read_file
-
-
-def get_sig_key_file_path(conf_dir):
-    """
-    Return the signing key seed file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "as-sig.seed")
-
-
-def get_sig_key(conf_dir):
-    """
-    Return the raw signing key.
-
-    :rtype: bytes
-    """
-    return base64.b64decode(read_file(get_sig_key_file_path(conf_dir)))
-
-
-def get_core_sig_key_file_path(conf_dir):
-    """
-    Return the core signing key seed file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "core-sig.seed")
-
-
-def get_core_sig_key(conf_dir):
-    """
-    Return the raw core signing key.
-
-    :rtype: bytes
-    """
-    return base64.b64decode(read_file(get_core_sig_key_file_path(conf_dir)))
-
-
-def get_enc_key_file_path(conf_dir):
-    """
-    Return the encryption key file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "as-decrypt.key")
-
-
-def get_enc_key(conf_dir):
-    """
-    Return the raw private key.
-    :rtype: bytes
-    """
-    return base64.b64decode(read_file(get_enc_key_file_path(conf_dir)))
-
-
-def generate_sign_keypair():
-    """
-    Generate Ed25519 keypair.
-
-    :returns: a pair containing the verifying (public) key and the signing (private) key.
-    :rtype: (bytes, bytes)
-    """
-    sk = SigningKey.generate()
-    return sk.verify_key.encode(), sk.encode()
-
-
-def generate_enc_keypair():
-    """
-    Generate Curve25519 keypair
-
-    :returns tuple: A byte pair containing the public key and the private key, used for encryption.
-    """
-    private_key = PrivateKey.generate()
-    return private_key.public_key.encode(), private_key.encode()
 
 
 def sign(msg, signing_key):

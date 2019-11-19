@@ -2,6 +2,7 @@
 
 . tools/ci/common.sh
 
+./docker.sh base || exit 1
 ./docker.sh build || exit 1
 [ -n "$DOCKER_BE" ] && { make -sC docker/perapp || exit 1; }
 

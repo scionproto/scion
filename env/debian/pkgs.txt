@@ -11,9 +11,6 @@ git
 jq
 libcapnp-dev
 libffi-dev
-libjs-jquery-hotkeys
-libjs-jquery-isonscreen
-libjs-jquery-tablesorter
 libssl-dev
 make
 moreutils
@@ -37,7 +34,6 @@ python3-pygments
 python3-setuptools
 python3-wheel
 python3-yaml
-screen
 software-properties-common
 sqlite3
 sudo

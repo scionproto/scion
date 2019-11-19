@@ -19,26 +19,21 @@ Various utilities for SCION functionality.
 """
 # Stdlib
 import atexit
-import json
 import logging
 import os
-import shutil
 import signal
 import sys
-import time
 from binascii import hexlify
 from datetime import datetime, timezone
 from socket import MSG_DONTWAIT
 
 # External packages
 import yaml
-from external.stacktracer import trace_start
 
 # SCION
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
-    SCIONJSONError,
     SCIONParseError,
     SCIONTypeError,
     SCIONYAMLError,
@@ -106,42 +101,6 @@ def write_file(file_path, text):
                            (tmp_file, file_path, e.strerror)) from None
 
 
-def copy_file(src, dst):
-    dst_dir = os.path.dirname(dst)
-    try:
-        os.makedirs(dst_dir, exist_ok=True)
-    except OSError as e:
-        raise SCIONIOError("Error creating dir '%s': %s" %
-                           (dst_dir, e.strerror)) from None
-    try:
-        shutil.copyfile(src, dst)
-    except OSError as e:
-        raise SCIONIOError("Error copying '%s' to '%s': %s" %
-                           (src, dst, e.strerror)) from None
-
-
-def load_json_file(file_path):
-    """
-    Read and parse a JSON config file.
-
-    :param str file_path: the path to the file.
-    :returns: JSON data
-    :rtype: dict
-    :raises:
-        lib.errors.SCIONIOError: error opening/reading from file.
-        lib.errors.SCIONJSONError: error parsing file.
-    """
-    try:
-        with open(file_path) as f:
-            return json.load(f)
-    except OSError as e:
-        raise SCIONIOError("Error opening '%s': %s" %
-                           (file_path, e.strerror)) from None
-    except (ValueError, KeyError, TypeError) as e:
-        raise SCIONJSONError("Error parsing '%s': %s" %
-                             (file_path, e)) from None
-
-
 def load_yaml_file(file_path):
     """
     Read and parse a YAML config file.
@@ -164,17 +123,6 @@ def load_yaml_file(file_path):
                              (file_path, e)) from None
 
 
-def update_dict(dictionary, key, values, elem_num=0):
-    """
-    Update dictionary. Used for managing a temporary paths' cache.
-    """
-    if key in dictionary:
-        dictionary[key].extend(values)
-    else:
-        dictionary[key] = values
-    dictionary[key] = dictionary[key][-elem_num:]
-
-
 def calc_padding(length, block_size):
     """
     Calculate how much padding is needed to bring `length` to a multiple of
@@ -187,34 +135,6 @@ def calc_padding(length, block_size):
         return block_size - (length % block_size)
     else:
         return 0
-
-
-def trace(id_):
-    path = os.path.join(TRACE_DIR, "%s.trace.html" % id_)
-    trace_start(path)
-
-
-def sleep_interval(start, interval, desc, quiet=False):
-    """
-    Sleep until the `interval` seconds have elapsed since `start`.
-
-    If the interval is already over, log a warning with `desc` at the start.
-
-    :param float start:
-        Time (in seconds since the Epoch) the current interval started.
-    :param float interval: Length (in seconds) of an interval.
-    :param str desc: Description of the operation.
-    :param bool quiet: If set, don't log warnings.
-    """
-    now = SCIONTime.get_time()
-    delay = start + interval - now
-    if delay < 0:
-        if not quiet:
-            logging.warning(
-                "%s took too long: %.3fs (should have been <= %.3fs)",
-                desc, now - start, interval)
-        delay = 0
-    time.sleep(delay)
 
 
 def handle_signals():
@@ -278,26 +198,6 @@ def recv_all(sock, total_len, flags):
             return None
         barr += buf
     return bytes(barr)
-
-
-class SCIONTime(object):
-    """A class to return current time."""
-    # Function which would return time upon calling it
-    #  Can be set using set_time_method
-    _custom_time = None
-
-    @classmethod
-    def get_time(cls):
-        """Get current time."""
-        if cls._custom_time:
-            return cls._custom_time()
-        else:
-            return time.time()
-
-    @classmethod
-    def set_time_method(cls, method=None):
-        """Set the method used to get time."""
-        cls._custom_time = method
 
 
 class Raw(object):

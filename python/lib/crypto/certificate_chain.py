@@ -17,63 +17,18 @@
 """
 # Stdlib
 import json
-import os
 
 # External
 import lz4
 
 # SCION
-from lib.crypto.asymcrypto import verify
 from lib.crypto.certificate import Certificate
 from lib.crypto.trc import (
     ONLINE_KEY_STRING,
-    TRC,
 )
-from lib.crypto.util import CERT_DIR
 from lib.errors import SCIONVerificationError, SCIONParseError
 from lib.packet.scion_addr import ISD_AS
 from lib.util import iso_timestamp
-
-
-def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
-    """
-    Return the certificate chain file path for a given ISD.
-    """
-    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-AS%s-V%s.crt' %
-                        (isd_as.isd_str(), isd_as.as_file_fmt(), version))
-
-
-def verify_chain_trc(subject, chain, trc):
-    """
-    Verify the certificate chain for subject.
-    """
-    subject = str(subject)
-    try:
-        chain.verify(subject, trc)
-    except SCIONVerificationError as e:
-        raise SCIONVerificationError("The certificate chain verification failed:\n%s" % e)
-
-
-def verify_sig_chain_trc(msg, sig, subject, chain, trc):
-    """
-    Verify whether the packed message with attached signature is validly
-    signed by a particular subject belonging to a valid certificate chain.
-
-    :param bytes msg: message corresponding to the given signature.
-    :param bytes sig: signature computed on msg.
-    :param ISD_AS subject: signer identity.
-    :param CertificateChain chain: Certificate chain containing the signing entity's certificate.
-    :param TRC trc: Issuing TRC containing all root of trust certificates for one ISD.
-
-    :raises: SCIONVerificationError if the verification fails.
-    """
-    assert isinstance(chain, CertificateChain), type(chain)
-    assert isinstance(trc, TRC), type(trc)
-    verify_chain_trc(subject, chain, trc)
-    verifying_key = chain.as_cert.subject_sig_key_raw
-    if not verifying_key:
-        raise SCIONVerificationError("Signer's public key has not been found: %s" % subject)
-    verify(msg, sig, verifying_key)
 
 
 class CertificateChain(object):
