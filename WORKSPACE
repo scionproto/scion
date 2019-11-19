@@ -379,7 +379,7 @@ go_repository(
 
 go_repository(
     name = "com_github_songgao_water",
-    commit = "99d07fc117afd4d997bc5ebca77c241644ffe24a",
+    commit = "fd331bda3f4bbc9aad07ccd4bd2abaa1e363a852",
     importpath = "github.com/songgao/water",
 )
 
