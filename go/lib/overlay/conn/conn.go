@@ -138,7 +138,7 @@ func (c *connUDPIPv4) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 
 func (c *connUDPIPv4) WriteBatch(msgs Messages) (int, error) {
 	if c.Remote != nil {
-		for i, _ := range msgs {
+		for i := range msgs {
 			msgs[i].Addr = c.Remote
 		}
 	}
@@ -196,7 +196,7 @@ func (c *connUDPIPv6) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 
 func (c *connUDPIPv6) WriteBatch(msgs Messages) (int, error) {
 	if c.Remote != nil {
-		for i, _ := range msgs {
+		for i := range msgs {
 			msgs[i].Addr = c.Remote
 		}
 	}
