@@ -90,7 +90,7 @@ class ConfigGenerator(object):
 
     def _read_defaults(self, network):
         """
-        Configure default network and ZooKeeper setup.
+        Configure default network.
         """
         defaults = self.topo_config.get("defaults", {})
         def_network = network
