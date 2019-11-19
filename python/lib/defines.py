@@ -16,8 +16,6 @@
 ============================
 Contains constant definitions used throughout the codebase.
 """
-# Stdlib
-import os
 
 #: SCION protocol version
 SCION_PROTO_VERSION = 0
@@ -33,12 +31,8 @@ MAX_HOPBYHOP_EXT = 3
 #: Number of bytes per 'line'. Used for padding in many places.
 LINE_LEN = 8
 
-#: Base path of project
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 #: Generated files directory
 GEN_PATH = 'gen'
-#: Path for retrieved TRCs and certificates
-GEN_CACHE_PATH = 'gen-cache'
 #: Topology configuration
 TOPO_FILE = "topology.json"
 #: Networks config
@@ -57,16 +51,8 @@ OVERLAY_FILE = "overlay"
 SCION_BUFLEN = 65535
 #: Default SCION endhost data port
 SCION_UDP_EH_DATA_PORT = 30041
-#: Default SCION filter command port
-SCION_FILTER_CMD_PORT = 30042
-#: Default DNS UDP/TCP port
-SCION_DNS_PORT = 30053
 #: Default SCION router UDP port.
 SCION_ROUTER_PORT = 50000
-#: Default SCION dispatcher host addr
-SCION_DISPATCHER_ADDR = "/run/shm/dispatcher.sock"
-#: Default SCION dispatcher port
-SCION_DISPATCHER_PORT = 3334
 #: Default SCION dispatcher UNIX socket directory
 DISPATCHER_DIR = "/run/shm/dispatcher"
 #: Default SCION dispatcher ID
@@ -79,27 +65,18 @@ SCIOND_API_DEFAULT_SOCK = "default.sock"
 #: Dispatcher registration timeout
 DISPATCHER_TIMEOUT = 60.0
 
-#: How often IFID packet is sent to neighboring router.
-IFID_PKT_TOUT = 1
 #: Default MTU - assumes overlay is ipv4+udp
 DEFAULT_MTU = 1500 - 20 - 8
 #: IPv6 min value
 SCION_MIN_MTU = 1280
 #: Length of opaque fields
 OPAQUE_FIELD_LEN = 8
-#: How long certain warnings should be suppresed after startup
-STARTUP_QUIET_PERIOD = 30
 
 PATH_FLAG_CACHEONLY = "CACHE_ONLY"
-
-MAX_HOST_ADDR_LEN = 16
 
 # Minimum revocation TTL in seconds
 MIN_REVOCATION_TTL = 10
 REVOCATION_GRACE = 1
-
-# Max time for a path lookup to succeed/fail.
-PATH_REQ_TOUT = 2
 
 # Default IPv6 network, our equivalent to 127.0.0.0/8
 # https://en.wikipedia.org/wiki/Unique_local_address#Definition
