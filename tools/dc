@@ -37,7 +37,6 @@ cmd_help() {
 	    - [SERVICE]: As scion service glob, e.g. cs1*.
 	    - [GROUP]:
 	        - scion:    For all scion services.
-	        - zk:       For the zookeeper service.
 	        - prom:     For the prometheus service.
 	    - [COMMAND]: A docker-compose command like 'up -d' or 'down'
 	    - [IA]: An IA number like 1-ff00:0:110
@@ -71,10 +70,6 @@ cmd_run() {
 
 cmd_scion() {
     dc "scion" "$@"
-}
-
-cmd_zk() {
-    dc "zk" "$@"
 }
 
 cmd_jaeger() {
@@ -147,7 +142,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    start|stop|down|run|scion|zk|jaeger|prom|collect_logs)
+    start|stop|down|run|scion|jaeger|prom|collect_logs)
         "cmd_$COMMAND" "$@" ;;
     exec_tester)
         "exec_tester" "$@" ;;

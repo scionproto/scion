@@ -47,7 +47,6 @@ type RawTopo struct {
 	MTU                int
 	Core               bool
 	BorderRouters      map[string]*RawBRInfo  `json:",omitempty"`
-	ZookeeperService   map[int]*RawAddrPort   `json:",omitempty"`
 	BeaconService      map[string]*RawSrvInfo `json:",omitempty"`
 	CertificateService map[string]*RawSrvInfo `json:",omitempty"`
 	PathService        map[string]*RawSrvInfo `json:",omitempty"`

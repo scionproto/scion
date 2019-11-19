@@ -206,7 +206,6 @@ class Topology(object):
     :ivar list child_interfaces: BR interfaces linking to downstream ASes.
     :ivar list peer_interfaces: BR interfaces linking to peer ASes.
     :ivar list core_interfaces: BR interfaces linking to core ASes.
-    :ivar list zookeepers: zookeeper instances in the AS.
     """
     def __init__(self):  # pragma: no cover
         self.is_core_as = False
@@ -222,7 +221,6 @@ class Topology(object):
         self.child_interfaces = []
         self.peer_interfaces = []
         self.core_interfaces = []
-        self.zookeepers = []
 
     @classmethod
     def from_file(cls, topology_file):  # pragma: no cover
@@ -258,7 +256,6 @@ class Topology(object):
         self.overlay = topology['Overlay']
         self._parse_srv_dicts(topology)
         self._parse_router_dicts(topology)
-        self._parse_zk_dicts(topology)
 
     def _parse_srv_dicts(self, topology):
         for type_, list_ in (
@@ -283,12 +280,6 @@ class Topology(object):
                     LinkType.CORE: self.core_interfaces,
                 }
                 ntype_map[intf.link_type].append(intf)
-
-    def _parse_zk_dicts(self, topology):
-        for zk in topology.get('ZookeeperService', {}).values():
-            haddr = haddr_parse_interface(zk['Addr'])
-            zk_host = "[%s]:%s" % (haddr, zk['L4Port'])
-            self.zookeepers.append(zk_host)
 
     def get_all_interfaces(self):
         """

@@ -29,7 +29,6 @@ func StripServices(rt *RawTopo) {
 	// Clear services that don't need to be publicly visible
 	rt.BeaconService = make(map[string]*RawSrvInfo)
 	rt.SibraService = make(map[string]*RawSrvInfo)
-	rt.ZookeeperService = make(map[int]*RawAddrPort)
 }
 
 func removeSrvBind(svc map[string]*RawSrvInfo) {

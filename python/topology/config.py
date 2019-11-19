@@ -59,7 +59,6 @@ from topology.net import (
 from topology.prometheus import PrometheusGenArgs, PrometheusGenerator
 from topology.supervisor import SupervisorGenArgs, SupervisorGenerator
 from topology.topo import TopoGenArgs, TopoGenerator
-from topology.zk import ZKGenArgs, ZKGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 
@@ -91,7 +90,7 @@ class ConfigGenerator(object):
 
     def _read_defaults(self, network):
         """
-        Configure default network and ZooKeeper setup.
+        Configure default network.
         """
         defaults = self.topo_config.get("defaults", {})
         def_network = network
@@ -140,7 +139,6 @@ class ConfigGenerator(object):
         else:
             self._generate_supervisor(topo_dicts)
         self._generate_jaeger(topo_dicts)
-        self._generate_zk(topo_dicts)
         self._generate_prom_conf(topo_dicts)
         self._generate_certs_trcs(topo_dicts)
         self._generate_load_custs_sh(topo_dicts)
@@ -200,10 +198,6 @@ class ConfigGenerator(object):
 
     def _docker_args(self, topo_dicts):
         return DockerGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
-
-    def _generate_zk(self, topo_dicts):
-        zk_gen = ZKGenerator(ZKGenArgs(self.args, topo_dicts))
-        zk_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
         args = self._prometheus_args(topo_dicts)

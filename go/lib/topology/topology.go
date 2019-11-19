@@ -103,8 +103,6 @@ type Topo struct {
 	DSNames  ServiceNames
 	SIG      IDAddrMap
 	SIGNames ServiceNames
-
-	ZK map[int]*addr.AppAddr
 }
 
 // NewTopo creates new empty Topo object, including all possible service maps etc.
@@ -118,7 +116,6 @@ func NewTopo() *Topo {
 		RS:        make(IDAddrMap),
 		SIG:       make(IDAddrMap),
 		DS:        make(IDAddrMap),
-		ZK:        make(map[int]*addr.AppAddr),
 		IFInfoMap: make(IfInfoMap),
 	}
 }
@@ -134,9 +131,6 @@ func TopoFromRaw(raw *RawTopo) (*Topo, error) {
 		return nil, err
 	}
 	if err := t.populateServices(raw); err != nil {
-		return nil, err
-	}
-	if err := t.zkSvcFromRaw(raw.ZookeeperService); err != nil {
 		return nil, err
 	}
 
@@ -376,20 +370,6 @@ func svcMapFromRaw(ras map[string]*RawSrvInfo, stype string, smap IDAddrMap,
 	}
 	sort.Strings(snames)
 	return snames, nil
-}
-
-func (t *Topo) zkSvcFromRaw(zksvc map[int]*RawAddrPort) error {
-	for id, ap := range zksvc {
-		l3 := addr.HostFromIPStr(ap.Addr)
-		if l3 == nil {
-			return common.NewBasicError("Parsing ZooKeeper address", nil, "addr", ap.Addr)
-		}
-		t.ZK[id] = &addr.AppAddr{
-			L3: l3,
-			L4: uint16(ap.L4Port),
-		}
-	}
-	return nil
 }
 
 // BRInfo is a list of AS-wide unique interface IDs for a router. These IDs are also used

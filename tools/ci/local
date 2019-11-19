@@ -21,8 +21,6 @@ result=$((result+$?))
 
 echo "Artifacts dir: $tmpdir"
 
-[ $result -eq 0 ] && { ./docker.sh exec ./tools/dc zk down; ./docker.sh stop; }
-
 if [ $result -eq 0 ]; then
     echo "All tests successful"
 else

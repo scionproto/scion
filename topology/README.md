@@ -2,9 +2,6 @@
 
 Brief description of sections in .topo files
 
-The 'defaults' section describes configuration that applies to all ASes, like
-zookeeper information.
-
 The 'ASes' section describes all the ASes in a topology.
 You can specify different attributes like Core, MTU, certificate issuer and number
 of services among other things.

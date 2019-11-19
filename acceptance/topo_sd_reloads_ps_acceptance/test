@@ -16,7 +16,7 @@ DST_IA=${DST_IA:-1-ff00:0:110}
 
 test_setup() {
     set -e
-    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -t
+    ./scion.sh topology nobuild -c $TEST_TOPOLOGY -d -t
     sed -i '/\[logging\.file\]/a FlushInterval = 1' gen/ISD1/*/endhost/sd.toml
     ./scion.sh run nobuild
     ./tools/dc start tester_$SRC_IA_FILE
@@ -32,7 +32,7 @@ test_run() {
     sleep 1
     ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
     sleep 2
-    grep -q "\[TRACE\] \[Acceptance\] .*overlay=127\.42\.42\.42" "logs/sd$SRC_IA_FILE.log" || \
+    grep -q "\[TRACE\] \[Acceptance\] .*overlay=\127\.42\.42\.42\" "logs/sd$SRC_IA_FILE.log" || \
         fail "Request to 127.42.42.42 not found in logs"
 }
 

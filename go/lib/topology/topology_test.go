@@ -148,7 +148,7 @@ func Test_BRs(t *testing.T) {
 func TestServiceDetails(t *testing.T) {
 	fn := "testdata/basic.json"
 	ot := overlay.IPv46
-	// We do this just for CSs since the code for the other non-BR, non-ZK services is identical
+	// We do this just for CSs since the code for the other non-BR
 	cses := IDAddrMap{
 		// v4 with bind
 		"cs1-ff00:0:311-1": mkTAv4("127.0.0.66", 30081, "127.0.0.67", 30081, ot, 0),
@@ -177,23 +177,6 @@ func TestServiceCount(t *testing.T) {
 	assert.Len(t, c.RS, 2, "RS")
 	assert.Len(t, c.SIG, 2, "SIG")
 	assert.Len(t, c.DS, 2, "DS")
-}
-
-func TestZK(t *testing.T) {
-	zks := map[int]*addr.AppAddr{
-		1: {
-			L3: addr.HostFromIPStr("192.0.2.144"),
-			L4: 2181,
-		},
-		2: {
-			L3: addr.HostFromIPStr("2001:db8:ffff::1"),
-			L4: 2181,
-		},
-	}
-	fn := "testdata/basic.json"
-	loadTopo(fn, t)
-	c := testTopo
-	assert.Equal(t, zks, c.ZK)
 }
 
 func TestIFInfoMap(t *testing.T) {

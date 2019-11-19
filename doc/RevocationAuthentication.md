@@ -58,9 +58,8 @@ affected up, down or core PCB.
 
 ### Reception: Beacon and Path Server
 
-Upon reception from the network or zookeeper BS and PS check the revocations validity and try to
-verify the signature. Then the revocation is added to the local cache (and sent to zookeeper if not
-received from it).
+Upon reception from the network BS and PS check the revocations validity and try to
+verify the signature. Then the revocation is added to the local cache.
 
 * A BS removes affected PCBs. And sends the revocation to the local PS.
 * A PS removes all revoked segments by looping over all segments. Further it forwards the

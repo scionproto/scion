@@ -15,7 +15,7 @@ AS_FILE="$(as_file $IA)"
 
 test_setup() {
     set -e
-    ./scion.sh topology nobuild zkclean -c $TEST_TOPOLOGY -d -t
+    ./scion.sh topology nobuild -c $TEST_TOPOLOGY -d -t
     sed -i -e '/\[logging\.file\]/a FlushInterval = 1'\
             -e '/\[ps\]/a\CryptoSyncInterval="1s"' gen/ISD1/*/ps*/ps.toml
     ./scion.sh run nobuild
