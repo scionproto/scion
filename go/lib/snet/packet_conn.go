@@ -19,6 +19,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/vishvananda/netlink"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
@@ -28,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
-	"github.com/vishvananda/netlink"
 )
 
 // PacketConn gives applications easy access to writing and reading custom
