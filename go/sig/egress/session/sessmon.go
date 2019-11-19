@@ -83,7 +83,8 @@ func (sm *sessMonitor) run() {
 	defer pathExpiryTick.Stop()
 	// Register with SIG ctrl dispatcher
 	regc := make(disp.RegPldChan, 1)
-	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId), regc)
+	disp.Dispatcher.Register(disp.RegPollRep,
+		disp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId, 0), regc)
 	sm.lastReply = time.Now()
 	// Start by querying for the remote SIG instance.
 	sm.smRemote = &iface.RemoteInfo{
@@ -109,7 +110,7 @@ Top:
 		}
 	}
 	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(),
-		sm.sess.SessId))
+		sm.sess.SessId, 0))
 	if err != nil {
 		log.Error("sessMonitor: unable to unregister from ctrl dispatcher", "err", err)
 	}

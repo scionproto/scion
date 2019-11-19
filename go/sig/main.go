@@ -91,7 +91,7 @@ func realMain() int {
 			log.Info("reloadOnSIGHUP: reload done", "success", success)
 		},
 	)
-	disp.Init(sigcmn.CtrlConn)
+	disp.Init(sigcmn.CtrlConn, false)
 	// Parse sig config
 	if loadConfig(cfg.Sig.SIGConfig) != true {
 		log.Crit("Unable to load sig config on startup")
