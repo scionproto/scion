@@ -26,24 +26,18 @@ from io import StringIO
 
 # External packages
 import toml
-import yaml
 from plumbum import local
 
 # SCION
-from lib.config import Config
 from lib.defines import (
-    AS_CONF_FILE,
     DEFAULT_MTU,
     DEFAULT6_NETWORK,
     DEFAULT6_PRIV_NETWORK,
     NETWORKS_FILE,
-    PATH_POLICY_FILE,
     PRV_NETWORKS_FILE,
 )
-from lib.path_store import PathPolicy
 from lib.packet.scion_addr import ISD_AS
 from lib.util import (
-    copy_file,
     load_yaml_file,
     write_file,
 )
@@ -51,7 +45,6 @@ from topology.ca import CAGenArgs, CAGenerator
 from topology.cert import CertGenArgs, CertGenerator
 from topology.common import (
     ArgsBase,
-    srv_iter,
     trust_db_conf_entry,
 )
 from topology.docker import DockerGenArgs, DockerGenerator
@@ -69,7 +62,6 @@ from topology.topo import TopoGenArgs, TopoGenerator
 from topology.zk import ZKGenArgs, ZKGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
-DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
 
 GENERATE_BIND_ADDRESS = False
 
