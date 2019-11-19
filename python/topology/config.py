@@ -26,24 +26,18 @@ from io import StringIO
 
 # External packages
 import toml
-import yaml
 from plumbum import local
 
 # SCION
-from lib.config import Config
 from lib.defines import (
-    AS_CONF_FILE,
     DEFAULT_MTU,
     DEFAULT6_NETWORK,
     DEFAULT6_PRIV_NETWORK,
     NETWORKS_FILE,
-    PATH_POLICY_FILE,
     PRV_NETWORKS_FILE,
 )
-from lib.path_store import PathPolicy
 from lib.packet.scion_addr import ISD_AS
 from lib.util import (
-    copy_file,
     load_yaml_file,
     write_file,
 )
@@ -51,7 +45,6 @@ from topology.ca import CAGenArgs, CAGenerator
 from topology.cert import CertGenArgs, CertGenerator
 from topology.common import (
     ArgsBase,
-    srv_iter,
     trust_db_conf_entry,
 )
 from topology.docker import DockerGenArgs, DockerGenerator
@@ -69,12 +62,6 @@ from topology.topo import TopoGenArgs, TopoGenerator
 from topology.zk import ZKGenArgs, ZKGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
-DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
-
-DEFAULT_BEACON_SERVER = "go"
-DEFAULT_CERTIFICATE_SERVER = "go"
-DEFAULT_SCIOND = "go"
-DEFAULT_PATH_SERVER = "go"
 
 GENERATE_BIND_ADDRESS = False
 
@@ -133,10 +120,6 @@ class ConfigGenerator(object):
         self._generate_with_topo(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
-        all_go = all(t == "go" for t in [self.args.beacon_server, self.args.cert_server,
-                                         self.args.sciond, self.args.path_server])
-        if not all_go:
-            self._write_conf_policies(topo_dicts)
         self._write_networks_conf(self.networks, NETWORKS_FILE)
         if self.args.bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
@@ -180,14 +163,10 @@ class ConfigGenerator(object):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
         go_gen.generate_br()
-        if self.args.beacon_server == "go":
-            go_gen.generate_bs()
-        if self.args.cert_server == "go":
-            go_gen.generate_cs()
-        if self.args.sciond == "go":
-            go_gen.generate_sciond()
-        if self.args.path_server == "go":
-            go_gen.generate_ps()
+        go_gen.generate_bs()
+        go_gen.generate_cs()
+        go_gen.generate_sciond()
+        go_gen.generate_ps()
         go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
@@ -251,8 +230,7 @@ class ConfigGenerator(object):
             if not path.exists() or (path.exists() and (len(path.list()) <= 0)):
                 continue
             for elem in as_topo["CertificateService"]:
-                if self.args.cert_server == 'go':
-                    cust_pk[base / elem / 'customers'] = elem
+                cust_pk[base / elem / 'customers'] = elem
         if cust_pk:
             script_name = 'gen/load_custs.sh'
             with open(script_name, 'w') as script:
@@ -273,34 +251,6 @@ class ConfigGenerator(object):
         # from docker, but the tool runs on the host, so we resolve the bind mount here.
         conf_entry['Connection'] = conf_entry['Connection'].replace('/share/cache', 'gen-cache')
         return conf_entry
-
-    def _write_conf_policies(self, topo_dicts):
-        """
-        Write AS configurations and path policies.
-        """
-        as_confs = {}
-        for topo_id, as_topo, base in srv_iter(
-                topo_dicts, self.args.output_dir, common=True):
-            as_confs.setdefault(topo_id, yaml.dump(
-                self._gen_as_conf(as_topo), default_flow_style=False))
-            conf_file = os.path.join(base, AS_CONF_FILE)
-            write_file(conf_file, as_confs[topo_id])
-            # Confirm that config parses cleanly.
-            Config.from_file(conf_file)
-            copy_file(self.args.path_policy,
-                      os.path.join(base, PATH_POLICY_FILE))
-        # Confirm that parser actually works on path policy file
-        PathPolicy.from_file(self.args.path_policy)
-
-    def _gen_as_conf(self, as_topo):
-        return {
-            'RegisterTime': 5,
-            'PropagateTime': 5,
-            'CertChainVersion': 1,
-            # FIXME(kormat): This seems to always be true..:
-            'RegisterPath': True if as_topo["PathService"] else False,
-            'PathSegmentTTL': self.args.pseg_ttl,
-        }
 
     def _write_networks_conf(self, networks, out_file):
         config = configparser.ConfigParser(interpolation=None)

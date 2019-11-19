@@ -41,10 +41,6 @@ GEN_PATH = 'gen'
 GEN_CACHE_PATH = 'gen-cache'
 #: Topology configuration
 TOPO_FILE = "topology.json"
-#: AS configuration
-AS_CONF_FILE = "as.yml"
-#: Path policy config
-PATH_POLICY_FILE = "path_policy.yml"
 #: Networks config
 NETWORKS_FILE = "networks.conf"
 PRV_NETWORKS_FILE = "private_networks.conf"
@@ -94,23 +90,7 @@ OPAQUE_FIELD_LEN = 8
 #: How long certain warnings should be suppresed after startup
 STARTUP_QUIET_PERIOD = 30
 
-#: Number of seconds per sibra tick
-SIBRA_TICK = 4
-#: How far in the future a steady path can reserve at a time.
-SIBRA_MAX_STEADY_TICKS = 45
-#: How far in the future an ephemeral path can reserve at a time.
-SIBRA_MAX_EPHEMERAL_TICKS = 4
-#: Length of steady path ID in bytes
-SIBRA_STEADY_ID_LEN = 8
-#: Length of ephemeral path ID in bytes
-SIBRA_EPHEMERAL_ID_LEN = 16
-#: SIBRA Bandwidth multiplier
-SIBRA_BW_FACTOR = 16 * 1024
-#: SIBRA max reservation index
-SIBRA_MAX_IDX = 16
-
 PATH_FLAG_CACHEONLY = "CACHE_ONLY"
-PATH_FLAG_SIBRA = "SIBRA"
 
 MAX_HOST_ADDR_LEN = 16
 

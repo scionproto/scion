@@ -28,11 +28,6 @@ from lib.defines import (
 from topology.config import (
     ConfigGenerator,
     ConfigGenArgs,
-    DEFAULT_BEACON_SERVER,
-    DEFAULT_CERTIFICATE_SERVER,
-    DEFAULT_PATH_POLICY_FILE,
-    DEFAULT_PATH_SERVER,
-    DEFAULT_SCIOND,
     DEFAULT_TOPOLOGY_FILE,
     GENERATE_BIND_ADDRESS,
 )
@@ -42,8 +37,6 @@ def add_arguments(parser):
     parser.add_argument('-6', '--ipv6', action='store_true',
                         help='Generate IPv6 addresses')
     parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
-                        help='Default topology config')
-    parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
                         help='Path policy file')
     parser.add_argument('-d', '--docker', action='store_true',
                         help='Create a docker-compose configuration')
@@ -57,14 +50,6 @@ def add_arguments(parser):
                         help='Enable TRACE level file logging in Go services')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
                         help='Path segment TTL (in seconds)')
-    parser.add_argument('-bs', '--beacon-server', default=DEFAULT_BEACON_SERVER,
-                        help='Certificate Server implementation to use ("go" or "py")')
-    parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,
-                        help='Certificate Server implementation to use ("go" or "py")')
-    parser.add_argument('-sd', '--sciond', default=DEFAULT_SCIOND,
-                        help='SCIOND implementation to use ("go" or "py")')
-    parser.add_argument('-ps', '--path-server', default=DEFAULT_PATH_SERVER,
-                        help='Path Server implementation to use ("go or "py")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
     parser.add_argument('-f', '--svcfrac', type=float, default=0.4,

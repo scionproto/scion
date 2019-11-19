@@ -37,11 +37,6 @@ from topology.common import (
     prom_addr_infra,
     PS_CONFIG_NAME,
 )
-from topology.prometheus import (
-    BS_PROM_PORT,
-    CS_PROM_PORT,
-    PS_PROM_PORT,
-)
 
 
 SUPERVISOR_CONF = 'supervisord.conf'
@@ -91,9 +86,6 @@ class SupervisorGenerator(object):
         return entries
 
     def _bs_entries(self, topo, base):
-        if self.args.beacon_server == "py":
-            return self._std_entries(topo, "BeaconService", "python/bin/beacon_server", base,
-                                     BS_PROM_PORT)
         entries = []
         for k, v in topo.get("BeaconService", {}).items():
             # only a single Go-BS per AS is currently supported
@@ -103,9 +95,6 @@ class SupervisorGenerator(object):
         return entries
 
     def _cs_entries(self, topo, base):
-        if self.args.cert_server == "py":
-            return self._std_entries(topo, "CertificateService", "python/bin/cert_server", base,
-                                     CS_PROM_PORT)
         entries = []
         for k, v in topo.get("CertificateService", {}).items():
             # only a single Go-CS per AS is currently supported
@@ -115,9 +104,6 @@ class SupervisorGenerator(object):
         return entries
 
     def _ps_entries(self, topo, base):
-        if self.args.path_server == "py":
-            return self._std_entries(topo, "PathService", "python/bin/path_server", base,
-                                     PS_PROM_PORT)
         entries = []
         for k, v in topo.get("PathService", {}).items():
             # only a single Go-PS per AS is currently supported
@@ -127,10 +113,6 @@ class SupervisorGenerator(object):
         return entries
 
     def _sciond_entry(self, name, conf_dir):
-        path = self._sciond_path(name)
-        if self.args.sciond == "py":
-            return self._common_entry(
-                name, ["python/bin/sciond", "--api-addr", path, name, conf_dir])
         return self._common_entry(
                 name, ["bin/sciond", "-config", os.path.join(conf_dir, SD_CONFIG_NAME)])
 
@@ -175,7 +157,7 @@ class SupervisorGenerator(object):
         entry = {
             'autostart': 'false',
             'autorestart': 'false',
-            'environment': 'PYTHONPATH=python/:.,TZ=UTC',
+            'environment': 'TZ=UTC',
             'stdout_logfile': "NONE",
             'stderr_logfile': "NONE",
             'startretries': 0,

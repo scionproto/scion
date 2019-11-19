@@ -60,8 +60,6 @@ class ServiceType(TypeBase):
     PS = "ps"
     #: Certificate service
     CS = "cs"
-    #: SIBRA service
-    SIBRA = "sb"
     #: Discovery service
     DS = "ds"
     #: Border router
@@ -82,7 +80,6 @@ class ExtensionClass(TypeBase):
 class ExtHopByHopType(TypeBase):
     SCMP = 0
     ONE_HOP_PATH = 1
-    SIBRA = 2
 
 
 class ExtEndToEndType(TypeBase):
@@ -119,7 +116,6 @@ class PayloadClass(object):
     IFID = "ifid"
     CERT = "certMgmt"
     PATH = "pathMgmt"
-    SIBRA = "sibra"
     DRKEY = "drkeyMgmt"
 
 
@@ -171,14 +167,6 @@ class RouterFlag(TypeBase):
     DELIVER = 4
     # Deliver packet even if it hasn't reached its destination ISD-AS
     FORCE_DELIVER = 5
-
-
-############################
-# SIBRA types
-############################
-class SIBRAPathType(TypeBase):
-    STEADY = 0
-    EPHEMERAL = 1
 
 
 ############################
