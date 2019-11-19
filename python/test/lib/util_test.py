@@ -29,7 +29,6 @@ import yaml
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
-    SCIONJSONError,
     SCIONYAMLError,
     SCIONParseError,
     SCIONTypeError,
@@ -37,18 +36,12 @@ from lib.errors import (
 from lib.util import (
     Raw,
     SCIONTime,
-    TRACE_DIR,
     _SIG_MAP,
     _signal_handler,
     calc_padding,
-    copy_file,
     handle_signals,
-    load_json_file,
     load_yaml_file,
     read_file,
-    sleep_interval,
-    trace,
-    update_dict,
     write_file,
 )
 
@@ -111,39 +104,9 @@ class TestWriteFile(object):
         ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
 
 
-class TestCopyFile(object):
-    """
-    Unit tests for lib.util.copy_file
-    """
-    @patch("lib.util.shutil.copyfile", autospec=True)
-    @patch("lib.util.os.makedirs", autospec=True)
-    @patch("lib.util.os.path.dirname", autospec=True)
-    def test_basic(self, dirname, mkdirs, cpfile):
-        # Call
-        copy_file("a", "b")
-        # Tests
-        mkdirs.assert_called_once_with(dirname.return_value, exist_ok=True)
-        cpfile.assert_called_once_with("a", "b")
-
-    @patch("lib.util.os.makedirs", autospec=True)
-    @patch("lib.util.os.path.dirname", autospec=True)
-    def test_mkdir_error(self, dirname, mkdirs):
-        mkdirs.side_effect = PermissionError
-        # Call
-        ntools.assert_raises(SCIONIOError, copy_file, "a", "b")
-
-    @patch("lib.util.shutil.copyfile", autospec=True)
-    @patch("lib.util.os.makedirs", autospec=True)
-    @patch("lib.util.os.path.dirname", autospec=True)
-    def test_copy_error(self, dirname, mkdirs, cpfile):
-        cpfile.side_effect = PermissionError
-        # Call
-        ntools.assert_raises(SCIONIOError, copy_file, "a", "b")
-
-
 class Loader(object):
     """
-    Helper class for load_json_file and load_yaml_file tests.
+    Helper class for load_yaml_file tests.
     """
     def _basic(self, target, loader):
         loader.return_value = "loader dict"
@@ -162,25 +125,6 @@ class Loader(object):
         with patch(loader_path, autospec=True) as loader:
             loader.side_effect = excp
             ntools.assert_raises(expected, target, "File_Path")
-
-
-class TestLoadJSONFile(Loader):
-    """
-    Unit tests for lib.util.load_json_file
-    """
-    @patch("lib.util.json.load", autospec=True)
-    def test_basic(self, loader):
-        self._basic(load_json_file, loader)
-
-    def test_file_error(self):
-        self._file_error(load_json_file)
-
-    def test_json_error(self):
-        for excp in ValueError, KeyError, TypeError:
-            yield (
-                self._check_loader_error, load_json_file, "lib.util.json.load",
-                excp, SCIONJSONError,
-            )
 
 
 class TestLoadYAMLFile(Loader):
@@ -202,28 +146,6 @@ class TestLoadYAMLFile(Loader):
             )
 
 
-class TestUpdateDict(object):
-    """
-    Unit tests for lib.util.update_dict
-    """
-    def test_basic(self):
-        dictionary = {}
-        dictionary['key'] = [1, 2]
-        update_dict(dictionary, 'key', [3], 2)
-        ntools.eq_(dictionary['key'], [2, 3])
-
-    def test_len(self):
-        dictionary = {}
-        dictionary['key'] = [1, 2]
-        update_dict(dictionary, 'key', [3])
-        ntools.eq_(dictionary['key'], [1, 2, 3])
-
-    def test_not_present(self):
-        dictionary = {}
-        update_dict(dictionary, 'key', [1, 2, 3, 4], 2)
-        ntools.eq_(dictionary['key'], [3, 4])
-
-
 class TestCalcPadding(object):
     """
     Unit tests for lib.util.calc_padding
@@ -238,40 +160,6 @@ class TestCalcPadding(object):
             (16, 0),
         ):
             yield self._check, length, expected
-
-
-class TestTrace(object):
-    """
-    Unit tests for lib.util.trace
-    """
-    @patch("lib.util.trace_start", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_basic(self, join, trace_start):
-        join.return_value = "Path"
-        trace(3)
-        join.assert_any_call(TRACE_DIR, "3.trace.html")
-        trace_start.assert_called_once_with("Path")
-
-
-@patch("lib.util.time.sleep", autospec=True)
-@patch("lib.util.time.time", autospec=True)
-@patch("lib.util.logging.warning", autospec=True)
-class TestSleepInterval(object):
-    """
-    Unit tests for lib.util.sleep_interval
-    """
-    def test_basic(self, warning, time_, sleep_):
-        time_.return_value = 3
-        sleep_interval(3, 2, "desc")
-        time_.assert_called_once_with()
-        ntools.eq_(warning.call_count, 0)
-        sleep_.assert_called_once_with(2)
-
-    def test_zero(self, warning, time_, sleep_):
-        time_.return_value = 3
-        sleep_interval(0, 2, "desc")
-        ntools.eq_(warning.call_count, 1)
-        sleep_.assert_called_once_with(0)
 
 
 class TestHandleSignals(object):

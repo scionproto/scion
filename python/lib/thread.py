@@ -20,10 +20,6 @@ Threading utilities for SCION.
 # Stdlib
 import os
 import signal
-import threading
-
-# SCION
-from lib.log import log_exception
 
 
 def kill_self():  # pragma: no cover
@@ -33,20 +29,3 @@ def kill_self():  # pragma: no cover
     """
     os.kill(os.getpid(), signal.SIGUSR2)
     signal.pause()
-
-
-def thread_safety_net(func, *args, **kwargs):
-    """
-    Wrapper function to handle uncaught thread exceptions, log them, then kill
-    the process.
-
-    :type name: string
-    :param func: function to call
-    :type func: function
-    """
-    name = threading.current_thread().name
-    try:
-        return func(*args, **kwargs)
-    except:
-        log_exception("Exception in %s thread:", name)
-        kill_self()
