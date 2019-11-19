@@ -157,7 +157,7 @@ class SupervisorGenerator(object):
         entry = {
             'autostart': 'false',
             'autorestart': 'false',
-            'environment': 'PYTHONPATH=python/:.,TZ=UTC',
+            'environment': 'TZ=UTC',
             'stdout_logfile': "NONE",
             'stderr_logfile': "NONE",
             'startretries': 0,

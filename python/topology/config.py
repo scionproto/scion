@@ -260,34 +260,6 @@ class ConfigGenerator(object):
         conf_entry['Connection'] = conf_entry['Connection'].replace('/share/cache', 'gen-cache')
         return conf_entry
 
-    def _write_conf_policies(self, topo_dicts):
-        """
-        Write AS configurations and path policies.
-        """
-        as_confs = {}
-        for topo_id, as_topo, base in srv_iter(
-                topo_dicts, self.args.output_dir, common=True):
-            as_confs.setdefault(topo_id, yaml.dump(
-                self._gen_as_conf(as_topo), default_flow_style=False))
-            conf_file = os.path.join(base, AS_CONF_FILE)
-            write_file(conf_file, as_confs[topo_id])
-            # Confirm that config parses cleanly.
-            Config.from_file(conf_file)
-            copy_file(self.args.path_policy,
-                      os.path.join(base, PATH_POLICY_FILE))
-        # Confirm that parser actually works on path policy file
-        PathPolicy.from_file(self.args.path_policy)
-
-    def _gen_as_conf(self, as_topo):
-        return {
-            'RegisterTime': 5,
-            'PropagateTime': 5,
-            'CertChainVersion': 1,
-            # FIXME(kormat): This seems to always be true..:
-            'RegisterPath': True if as_topo["PathService"] else False,
-            'PathSegmentTTL': self.args.pseg_ttl,
-        }
-
     def _write_networks_conf(self, networks, out_file):
         config = configparser.ConfigParser(interpolation=None)
         for i, net in enumerate(networks):
