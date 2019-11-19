@@ -28,7 +28,6 @@ from lib.defines import (
 from topology.config import (
     ConfigGenerator,
     ConfigGenArgs,
-    DEFAULT_PATH_POLICY_FILE,
     DEFAULT_TOPOLOGY_FILE,
     GENERATE_BIND_ADDRESS,
 )
@@ -38,8 +37,6 @@ def add_arguments(parser):
     parser.add_argument('-6', '--ipv6', action='store_true',
                         help='Generate IPv6 addresses')
     parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
-                        help='Default topology config')
-    parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
                         help='Path policy file')
     parser.add_argument('-d', '--docker', action='store_true',
                         help='Create a docker-compose configuration')

@@ -41,10 +41,6 @@ GEN_PATH = 'gen'
 GEN_CACHE_PATH = 'gen-cache'
 #: Topology configuration
 TOPO_FILE = "topology.json"
-#: AS configuration
-AS_CONF_FILE = "as.yml"
-#: Path policy config
-PATH_POLICY_FILE = "path_policy.yml"
 #: Networks config
 NETWORKS_FILE = "networks.conf"
 PRV_NETWORKS_FILE = "private_networks.conf"
