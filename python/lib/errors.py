@@ -45,10 +45,6 @@ class SCIONKeyError(SCIONBaseError):
     """Key error (trying to access invalid entry in dictionary)"""
 
 
-class SCIONJSONError(SCIONBaseError):
-    """JSON parsing error"""
-
-
 class SCIONYAMLError(SCIONBaseError):
     """YAML parsing error"""
 
@@ -61,16 +57,8 @@ class SCIONTypeError(SCIONBaseError):
     """Wrong type"""
 
 
-class SCIONServiceLookupError(SCIONBaseError):
-    """Service lookup failed"""
-
-
 class SCIONChecksumFailed(SCIONBaseError):
     """Checksum failed"""
-
-
-class SCIONSigVerError(SCIONBaseError):
-    """SCION Signature Version error"""
 
 
 class SCIONVerificationError(SCIONBaseError):
