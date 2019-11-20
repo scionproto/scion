@@ -37,5 +37,7 @@ func Init(tunIO io.ReadWriteCloser) {
 }
 
 func ReloadConfig(cfg *config.Cfg) bool {
-	return asmap.Map.ReloadConfig(cfg)
+	res := asmap.Map.ReloadConfig(cfg)
+	log.Info("Config reloaded")
+	return res
 }
