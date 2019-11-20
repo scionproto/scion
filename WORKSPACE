@@ -499,6 +499,12 @@ go_repository(
 )
 
 go_repository(
+    name = "org_uber_go_atomic",
+    commit = "9dc4df04d0d1c39369750a9f6c32c39560672089",
+    importpath = "go.uber.org/atomic",
+)
+
+go_repository(
     name = "com_github_uber_jaeger_client_go",
     commit = "5b163d27fabddbb0e7fae4548c8933c379210610",
     importpath = "github.com/uber/jaeger-client-go",
