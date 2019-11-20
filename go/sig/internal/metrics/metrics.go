@@ -109,7 +109,8 @@ func init() {
 		iaLabels, prom.DefaultLatencyBuckets)
 	SessionPaths = newGVec("session_paths", "Number of available paths", iaLabels)
 	SessionMTU = newGVec("session_mtu", "MTU used by the session", iaLabels)
-	SessionHealth = newGVec("session_health", "Session health (either 1 or 0)", iaLabels)
+	SessionHealth = newGVec("session_health", "Session health (1: healthy or 0: unhealthy)",
+		iaLabels)
 	SessionRemoteSwitched = newCVec("session_switch_remote",
 		"Number of times the remote has changed.", iaLabels)
 
