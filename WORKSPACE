@@ -276,7 +276,7 @@ go_repository(
 go_repository(
     name = "com_github_cloudflare_sidh",
     commit = "fc8e6378752b38efe6d5814630911b5fc654c223", # vendored in quic-go, fd7246
-    importpath = "github.com/cloudflare/sidh"
+    importpath = "github.com/cloudflare/sidh" # sidh
 )
 
 go_repository(
