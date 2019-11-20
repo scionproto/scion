@@ -78,12 +78,12 @@ genrule(
         "@package_bundle//file:packages.bzl",
 EOF
 
-for q in $(bazel query "kind('go_repository rule', //external:*)"); do
+for q in $(bazel query "kind('go_repository rule', //external:*)" --noshow_progress); do
     if [[ $q == *com_github_jmhodges_bazel_gomock ]]; then
         continue
     fi
     if [[ $q == //external* ]]; then
-        dep_name=${q:11} # in front is "//external:"
+        dep_name=${q#//external:} # remove "//external:" in front.
         extra=$(extra_import $dep_name)
         echo "        \"@$dep_name//$extra:go_default_library\","
     fi
