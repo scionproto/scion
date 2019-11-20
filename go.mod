@@ -1,0 +1,61 @@
+module github.com/scionproto/scion
+
+require (
+	github.com/BurntSushi/toml v0.3.1
+	github.com/antlr/antlr4 v0.0.0-20181218183524-be58ebffde8e
+	github.com/buildkite/go-buildkite v2.2.1-0.20190413010238-568b6651b687+incompatible
+	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
+	github.com/cheekybits/genny v0.0.0-20170328200008-9127e812e1e9 // indirect
+	github.com/cloudflare/sidh v0.0.0-20181111220428-fc8e6378752b // indirect
+	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
+	github.com/go-ini/ini v1.32.0
+	github.com/golang/mock v1.2.1-0.20190329180013-73dc87cad333
+	github.com/google/go-cmp v0.3.0
+	github.com/google/go-querystring v1.0.1-0.20190318165438-c8c88dbee036 // indirect
+	github.com/google/gopacket v1.1.16-0.20190123011826-102d5ca2098c
+	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
+	github.com/inconshreveable/log15 v0.0.0-20161013181240-944cbfb97b44
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
+	github.com/lucas-clemente/quic-go v0.7.1-0.20190212114006-fd7246d7ed6e
+	github.com/marten-seemann/qtls v0.0.0-20190207043627-591c71538704 // indirect
+	github.com/mattn/go-colorable v0.0.7-0.20160930084157-6c903ff4aa50 // indirect
+	github.com/mattn/go-isatty v0.0.2
+	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
+	github.com/onsi/ginkgo v1.10.3 // indirect
+	github.com/onsi/gomega v1.7.1 // indirect
+	github.com/opentracing/opentracing-go v1.1.0
+	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
+	github.com/pierrec/lz4 v1.0.1
+	github.com/pierrec/xxHash v0.0.0-20170714082455-a0006b13c722 // indirect
+	github.com/pkg/errors v0.8.2-0.20190227000051-27936f6d90f9 // indirect
+	github.com/prometheus/client_golang v1.1.0
+	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
+	github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44
+	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d
+	github.com/smartystreets/goconvey v1.6.4
+	github.com/songgao/water v0.0.0-20170524165202-99d07fc117af
+	github.com/spf13/cobra v0.0.3-0.20180408161736-cd30c2a7e91a
+	github.com/spf13/pflag v1.0.1-0.20180403115518-1ce0cc6db402 // indirect
+	github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709
+	github.com/syndtr/gocapability v0.0.0-20160928074757-e7cb7fa329f4
+	github.com/uber/jaeger-client-go v2.20.1+incompatible
+	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
+	github.com/vishvananda/netlink v0.0.0-20170924180554-177f1ceba557
+	github.com/vishvananda/netns v0.0.0-20170219233438-54f0e4339ce7 // indirect
+	go.uber.org/atomic v1.5.1 // indirect
+	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+	golang.org/x/net v0.0.0-20191105084925-a882066a44e0
+	golang.org/x/tools v0.0.0-20191029041327-9cc4af7d6b2c
+	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
+	gopkg.in/ini.v1 v1.51.0 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20161007184028-e21e5cbec0cd
+	gopkg.in/restruct.v1 v1.0.0-20151213023948-80ede2e57cc2
+	gopkg.in/yaml.v2 v2.2.4
+	zombiezen.com/go/capnproto2 v0.0.0-20190813022230-ddfb9bb855fa
+)
+
+replace github.com/smartystreets/goconvey => github.com/kormat/goconvey v0.0.0-20191113114839-63cc4eee0dbc
+
+go 1.13
