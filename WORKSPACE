@@ -255,27 +255,9 @@ go_repository(
 )
 
 go_repository(
-    name = "com_github_lucas_clemente_aes12",
-    commit = "cd47fb39b79f867c6e4e5cd39cf7abd799f71670",
-    importpath = "github.com/lucas-clemente/aes12",
-)
-
-go_repository(
     name = "com_github_lucas_clemente_quic_go",
     commit = "fd7246d7ed6eeb79eb4dc8b7b1bfa8a13047105a",
     importpath = "github.com/lucas-clemente/quic-go",
-)
-
-go_repository(
-    name = "com_github_lucas_clemente_quic_go_certificates",
-    commit = "d2f86524cced5186554df90d92529757d22c1cb6",
-    importpath = "github.com/lucas-clemente/quic-go-certificates",
-)
-
-go_repository(
-    name = "com_github_matm_gocov_html",
-    commit = "f6dd0fd0ebc7c8cff8b24c0a585caeef250627a3",
-    importpath = "github.com/matm/gocov-html",
 )
 
 go_repository(
