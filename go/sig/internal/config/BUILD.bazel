@@ -6,7 +6,7 @@ go_library(
         "config.go",
         "ipnet.go",
     ],
-    importpath = "github.com/scionproto/scion/go/sig/config",
+    importpath = "github.com/scionproto/scion/go/sig/internal/config",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
