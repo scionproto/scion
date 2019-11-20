@@ -51,7 +51,7 @@ RUN set -ex; \
 
 # Dependencies managed by Bazel.
 COPY WORKSPACE .
-COPY lint_deps.bzl .
+COPY tool_deps.bzl .
 COPY go_deps.bzl .
 COPY tools/fetch.sh tools/
 RUN set -ex ; \

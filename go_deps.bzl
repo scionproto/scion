@@ -1,9 +1,6 @@
 load("@bazel_gazelle//:deps.bzl", "go_repository")
 
 def go_deps():
-    # Note the comments in the rules below. These point to an arbitrary directory within the repo
-    # that contains Go files. The comment is not needed if the root directory contains Go files.
-    # To understand how it works see tools/fetch.sh
     go_repository(
         name = "com_github_burntsushi_toml",
         commit = "a368813c5e648fee92e5f6c30e3944ff9d5e8895",

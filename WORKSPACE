@@ -118,9 +118,9 @@ load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
 protobuf_deps()
 
-load("//:lint_deps.bzl", "lint_deps")
+load("//:tool_deps.bzl", "tool_deps")
 
-lint_deps()
+tool_deps()
 
 load("//:go_deps.bzl", "go_deps")
 

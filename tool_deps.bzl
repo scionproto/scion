@@ -1,6 +1,6 @@
 load("@bazel_gazelle//:deps.bzl", "go_repository")
 
-def lint_deps():
+def tool_deps():
     go_repository(
         name = "com_github_jeanmertz_lll",
         commit = "c7683829ec0c1f892b2d0468356597573afafb03",
