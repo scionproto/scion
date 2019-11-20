@@ -500,7 +500,7 @@ go_repository(
 
 go_repository(
     name = "com_github_uber_jaeger_client_go",
-    commit = "2f47546e3facd43297739439600bcf43f44cce5d",
+    commit = "5b163d27fabddbb0e7fae4548c8933c379210610",
     importpath = "github.com/uber/jaeger-client-go",
 )
 
