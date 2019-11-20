@@ -177,3 +177,8 @@ class ReliableSocket(object):
         except OSError as e:
             logging.critical("Error unlinking unix socket: %s", e)
             kill_self()
+
+    def settimeout(self, timeout):  # pragma: no cover
+        prev = self.sock.gettimeout()
+        self.sock.settimeout(timeout)
+        return prev
