@@ -1,0 +1,169 @@
+module scion-types {
+  namespace "urn:scion:scion-types";
+  prefix "sc-ty";
+
+  import ietf-inet-types{
+    prefix "inet";
+  }
+
+  organization
+    "SCION group";
+
+  contact
+  "Some contact here";
+
+  description 
+  "This module contains a useful collection of data defining 
+   common types and enumerations present within the SCION 
+   architecture.
+  ";
+
+  revision 2019-11-15 {
+      description "First revision for proposal.";
+  }
+
+  identity underlay-proto {
+        description "Base identity for all underlay-proto.";
+  }
+
+  identity underlay-udp-ipv4{
+    description "underlay UDP over IPv4.";
+    base "sc-ty:underlay-proto";
+  }
+
+  identity underlay-tcp-ipv4{
+    description "underlay TCP over IPv4.";
+    base "sc-ty:underlay-proto";
+  }
+
+  identity base-underlay-type{
+    description "Base type for purpose of underlays in SCION.";
+  }
+
+  identity public-underlay-type{
+    description "Public underlay type,";
+    base base-underlay-type;
+  }
+
+  identity remote-underlay-type{
+    description "Remote underlay type.";
+    base base-underlay-type;
+  }
+
+  identity base-address-type{
+    description "Base type for kind of address.";
+  }
+
+  identity control-address-type{
+    description "Type of address for control purpose.";
+    base base-address-type;
+  }
+
+  identity internal-address-type{
+    description "Type of address for internal purpose.";
+    base base-address-type;
+  }
+
+  typedef base-service-name{
+    type string{
+      //common pattern for all services ccn-xxxx_x_xxx-n; where c = ascii char, x = hexa digit, n = natural digit{
+      pattern "[a-z]{2}[0-9]+-[0-9a-f]{4}_[0-9]_[0-9]+-[0-9]+"{
+        error-message "This service name does not follow the correct syntax";
+      }
+    }
+    description   "This type definition express a common pattern for all services";
+    
+  }
+
+  typedef br-name{
+    description "This is the type definition for the border router name"; 
+    type sc-ty:base-service-name{
+      pattern 'br\S*';
+    }
+  }
+
+  typedef bs-name{
+    description "This is the type definition for the beacon server name"; 
+    type sc-ty:base-service-name{
+      pattern 'bs\S*';
+    }
+  }
+
+  typedef cs-name{
+    description "This is the type definition for the certificate server name"; 
+    type sc-ty:base-service-name{
+      pattern 'cs\S*';
+    }
+    
+  }
+
+  typedef ps-name{
+    description "This is the type definition for the path server name"; 
+    type sc-ty:base-service-name{
+      pattern 'ps\S*';
+    }
+  }
+
+  typedef isd-as-type{
+    description "This is the type definition for the ISD-AS name";
+    type string{
+      pattern "[0-9]+-[0-9a-f]{4}:[0-9]:[0-9]+";
+    } 
+    
+  }
+
+  typedef link-type{
+    description 
+    "The type of link definition between two AS which can take any
+    of the values in the enumeration.
+    ";
+    type enumeration {
+      enum Child{
+        description "Link to CHILD.";
+      }
+      enum Parent{
+        description "Link to PARENT ISD-AS.";
+      }
+      enum Peer{
+        description "Link to PEER ISD-AS.";
+      }
+      enum Core{
+        description "Link to CORE ISD-AS";
+      }
+    }
+  }
+
+  typedef mtu-type{
+    description "Maximum transmission unit type in SCION.";
+    type uint16;
+  }
+
+  grouping address-port{
+    leaf address{
+      type inet:ip-address;
+      reference 
+        "RFC 6991: Common YANG Data Types";
+    }
+    leaf l4-port{
+      type inet:port-number;
+      reference 
+        "RFC 6991: Common YANG Data Types";
+    }
+  }
+
+  grouping service-attributes {
+    description
+      "Recurrent container for service attributes.";
+    uses sc-ty:address-port;
+  }
+
+  //Look if some standard could be applied
+  grouping underlay-proto-attributes {
+        description "Recurrent leaf for indicating underlay type.";
+        leaf underlay-proto {
+            type identityref {
+                base "sc-ty:underlay-proto";
+            }
+        }
+  }
+}

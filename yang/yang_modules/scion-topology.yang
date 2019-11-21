@@ -1,0 +1,167 @@
+module scion-topology {
+    namespace "urn:scion:scion-topology";
+    prefix "sc-topo";
+
+    import scion-types{
+      prefix "sc-ty";
+    }
+
+    import scion-interfaces{
+      prefix "sc-if";
+    }
+
+    organization
+    "SCION group";
+
+    contact
+    "Some contact here";
+
+    description 
+    "This module contains a collection of data defining the topology
+    configuration within the Autonomous System (AS) identified by its
+    ISD-AS number.
+    ";
+
+    revision 2019-11-15 {
+        description "First revision for proposal.";
+    }
+
+    container topology{
+      leaf core{
+        description "This boolean expresses whether or not this module belongs to the ISD core.";
+        type boolean;
+        mandatory true;
+      }
+
+      leaf isd-as{
+        description "The ISD-AS number identifies the AS within the ISD.";
+        type sc-ty:isd-as-type;
+        mandatory true;
+      }
+
+      uses sc-ty:underlay-proto-attributes{
+        description "Definition of the underlay protocol protocol used for communication within the AS.";
+      }
+
+      leaf mtu{
+        description "Maximum Transmission Unit within the AS.";
+        type sc-ty:mtu-type;
+        mandatory true;
+      }
+
+      container beacon-service{
+        
+        list beacon-server{
+          key name;
+          description 
+          "Beacon server list for the AS.
+
+          Every Beacon server is uniquely identified within the AS by its 
+          name and can be reached at the provided address and port.
+          ";
+          leaf name{
+            type sc-ty:bs-name;
+            must 'translate( substring-after(/sc-topo:topology/isd-as,"-"), ":","_") = substring-before(substring-after(current(),"-"), "-") ';
+          }
+          uses sc-ty:service-attributes;
+        }
+      }
+
+      container certificate-service{
+        list certificate-server{
+          key name;
+          description 
+          "Certificate server list for the AS.
+
+          Every Certificate server is uniquely identified within the AS by its 
+          name and can be reached at the provided address and port.
+          ";
+          leaf name{
+            type sc-ty:cs-name;
+            must 'translate( substring-after(/sc-topo:topology/isd-as,"-"), ":","_") = substring-before(substring-after(current(),"-"), "-") ';
+          }
+          uses sc-ty:service-attributes;
+        }
+      }
+
+      container path-service{
+        list path-server{
+          key name;
+          description 
+          "Path server list for the AS.
+
+          Every Path server is uniquely identified within the AS by its 
+          name and can be reached at the provided address and port.
+          ";
+          leaf name{
+            type sc-ty:ps-name; 
+            must 'translate( substring-after(/sc-topo:topology/isd-as,"-"), ":","_") = substring-before(substring-after(current(),"-"), "-") ';
+          }
+          uses sc-ty:service-attributes;
+        }
+      }
+
+      container zookeeper-service{
+        list zookeeper-server{
+          key number;
+          description 
+          "ZooKeeper server list for the AS.
+
+          Every ZooKeeper server is uniquely identified within the AS by its number 
+          and can be reached at the provided address and port.
+          ";
+          leaf number{
+            type uint16;
+          }
+          uses sc-ty:service-attributes;
+        }
+      }
+
+      container border-routers{
+        list border-router{
+          key name;
+          description 
+          "Border router list for the AS. 
+
+          Every Border router is identified by its name. Every instance must
+          define two addresses, one control address and one internal-address.
+          ";
+          leaf name{
+            type sc-ty:br-name;
+            must 'translate( substring-after(/sc-topo:topology/isd-as,"-"), ":","_") = substring-before(substring-after(current(),"-"), "-") ';
+          }
+
+          
+          container addresses{
+            list address {
+              key "address-type";
+              description
+              "
+              The control address is used to send control-plane traffic to the border router from inside the AS, 
+              whereas the internal address is used to send data-plane traffic.
+              ";
+              //Forcing always control-address && internal-address
+              min-elements 2;
+              leaf address-type {
+                  description "Address type suported within definition of the border router";
+                  type identityref {
+                      base sc-ty:base-address-type;
+                  }
+              }
+              uses sc-ty:address-port;
+            }
+          }
+
+          uses sc-if:interfaces-top;
+          
+        }//end list br
+      }//end container br
+    }
+
+    
+    //TODO: Is it necessary defining any state data?
+    /*container scion-state {
+        description "State data container of SCION topology";
+        config false;
+    }*/
+}

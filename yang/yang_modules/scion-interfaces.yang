@@ -1,0 +1,118 @@
+module scion-interfaces {
+  namespace "urn:scion:scion-interfaces";
+  prefix "sc-if";
+
+  /*imports here*/
+  import scion-types{
+    prefix "sc-ty";
+  }
+
+  organization
+    "SCION group";
+
+  contact
+  "Some contact here";
+
+  description 
+  "This module contains a collection of data defining the common 
+  interface configuration within the Autonomous System (AS) devices.
+  ";
+
+  revision 2019-11-15 {
+        description "First revision for proposal.";
+  }
+
+  grouping interfaces-top{
+    description "Top level grouping for interfaces";
+    container interfaces{
+      list interface{
+        description 
+        "The list of interfaces on the device.
+
+        Every interface is uniquely identified by a number. Every instance 
+        must define a public underlay and a remote underlay.
+        ";
+        key number;
+
+        leaf number{
+          type uint16;
+        }
+
+        leaf isd-as{
+          description 
+          "
+          The ISD-AS name identifier of the next hop.
+          ";
+          type sc-ty:isd-as-type;
+        }
+
+        leaf bandwidth{
+          description 
+          "
+          The bandwith defined on the interface level
+          ";
+          type uint16;
+        }
+
+        leaf mtu{
+          description "Maximum transmission unit for the interface";
+          type sc-ty:mtu-type;
+        }
+
+        leaf link{
+          description 
+          "
+          The type of link definition.
+          ";
+          reference 
+            "urn:scion:scion-types";
+          type sc-ty:link-type;
+        }
+
+        leaf underlay-proto {
+            description 
+            "
+            The underlay protocol used between the two border routers on each side of the link.
+            ";
+            type identityref {
+                base "sc-ty:underlay-proto";
+            }
+        }
+
+        container underlays{
+          list underlay {
+            key "underlay-type";
+            description 
+            "
+            The public underlay defines the address and port for the given interface,
+            whereas the remote underlay defines the address and port on the other side
+            of the link.
+            ";
+            //Forcing remote-underlay && public-underlay
+            min-elements 2;
+            leaf underlay-type {
+                description "Underlay type supported by SCION interfaces.";
+                type identityref {
+                    base "sc-ty:base-underlay-type";
+                }
+            }
+            uses sc-ty:address-port;
+          }
+        }
+
+        /*Alternative:
+        container public-underlay{
+          uses sc-ty:address-port;
+        }
+
+        container remote-underlay{
+          uses sc-ty:address-port;
+        }*/
+
+        
+      }//end list interfaces
+    }//end container interfaces
+  }
+  
+}
+
