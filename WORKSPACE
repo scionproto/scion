@@ -122,6 +122,7 @@ load("//:tool_deps.bzl", "tool_deps")
 
 tool_deps()
 
+# gazelle:repository_macro go_deps.bzl%go_deps
 load("//:go_deps.bzl", "go_deps")
 
 go_deps()
