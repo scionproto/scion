@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -79,7 +80,9 @@ func (c client) run() int {
 				log.Root(),
 			),
 			AddressRewriter: &messenger.AddressRewriter{
-				Router: &snet.BaseRouter{IA: integration.Local.IA},
+				Router: &snet.BaseRouter{
+					Querier: &snetmigrate.PathQuerier{IA: integration.Local.IA},
+				},
 			},
 		},
 	)

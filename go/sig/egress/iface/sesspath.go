@@ -20,20 +20,19 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // A SessPath contains a path and metadata related to path health.
 type SessPath struct {
-	key       spathmeta.PathKey
+	key       string
 	pathEntry *sciond.PathReplyEntry
 }
 
-func NewSessPath(key spathmeta.PathKey, pathEntry *sciond.PathReplyEntry) *SessPath {
+func NewSessPath(key string, pathEntry *sciond.PathReplyEntry) *SessPath {
 	return &SessPath{key: key, pathEntry: pathEntry}
 }
 
-func (sp *SessPath) Key() spathmeta.PathKey {
+func (sp *SessPath) Key() string {
 	return sp.key
 }
 

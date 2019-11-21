@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package pathprobe contains methods to probe scion paths. This is heplful to
+// detect path status.
 package pathprobe
 
 import (
@@ -26,12 +28,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // StatusName defines the different states a path can be in.
@@ -70,8 +70,22 @@ func (s Status) String() string {
 
 // PathKey is the mapping of a path reply entry to a key that is returned in
 // GetStatuses.
-func PathKey(path sciond.PathReplyEntry) string {
-	return string(path.Path.FwdPath)
+func PathKey(path snet.Path) string {
+	return string(path.Path().Raw)
+}
+
+// FilterEmptyPaths removes all empty paths from paths and returns a copy.
+func FilterEmptyPaths(paths []snet.Path) []snet.Path {
+	if paths == nil {
+		return nil
+	}
+	filtered := make([]snet.Path, 0, len(paths))
+	for _, path := range paths {
+		if path.Path() != nil && len(path.Path().Raw) > 0 {
+			filtered = append(filtered, path)
+		}
+	}
+	return filtered
 }
 
 // Prober can be used to get the status of a path.
@@ -82,9 +96,10 @@ type Prober struct {
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
-// returned map is keyed with path.Path.FwdPath.
+// returned map is keyed with path.Path.FwdPath. The input should only be
+// non-empty paths.
 func (p Prober) GetStatuses(ctx context.Context,
-	paths []sciond.PathReplyEntry) (map[string]Status, error) {
+	paths []snet.Path) (map[string]Status, error) {
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -131,20 +146,16 @@ func (p Prober) GetStatuses(ctx context.Context,
 	return scmpH.statuses, nil
 }
 
-func (p Prober) send(scionConn snet.Conn, path sciond.PathReplyEntry) error {
-	sPath := spath.New(path.Path.FwdPath)
-	if err := sPath.InitOffsets(); err != nil {
-		return common.NewBasicError("unable to initialize path", err)
-	}
+func (p Prober) send(scionConn snet.Conn, path snet.Path) error {
 	addr := &snet.Addr{
 		IA: p.DstIA,
 		Host: &addr.AppAddr{
 			L3: addr.HostSVCFromString("NONE"),
 		},
-		NextHop: path.HostInfo.Overlay(),
-		Path:    sPath,
+		NextHop: path.OverlayNextHop(),
+		Path:    path.Path(),
 	}
-	log.Debug("Sending test packet.", "path", path.Path.String())
+	log.Debug("Sending test packet.", "path", fmt.Sprintf("%s", path))
 	_, err := scionConn.WriteTo([]byte{}, addr)
 	if err != nil {
 		return common.NewBasicError("cannot send packet", err)

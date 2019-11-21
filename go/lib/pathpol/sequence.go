@@ -107,6 +107,10 @@ func (s *Sequence) Eval(inputSet PathSet) PathSet {
 	return resultSet
 }
 
+func (s *Sequence) String() string {
+	return s.srcstr
+}
+
 func (s *Sequence) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.srcstr)
 }

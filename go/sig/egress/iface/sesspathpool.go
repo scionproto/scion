@@ -24,14 +24,14 @@ import (
 
 const pathFailExpiration = 5 * time.Minute
 
-type SessPathPool map[spathmeta.PathKey]*SessPathStats
+type SessPathPool map[string]*SessPathStats
 
 func NewSessPathPool() *SessPathPool {
 	return &SessPathPool{}
 }
 
 // Get returns the most suitable path. Excludes a specific path, if possible.
-func (spp SessPathPool) Get(exclude spathmeta.PathKey) *SessPath {
+func (spp SessPathPool) Get(exclude string) *SessPath {
 	var bestSessPath *SessPathStats
 	var minFail uint16 = math.MaxUint16
 	var bestNonExpiringSessPath *SessPathStats
@@ -66,7 +66,7 @@ func (spp SessPathPool) Get(exclude spathmeta.PathKey) *SessPath {
 	return res.SessPath
 }
 
-func (spp SessPathPool) GetByKey(key spathmeta.PathKey) *SessPath {
+func (spp SessPathPool) GetByKey(key string) *SessPath {
 	res := spp[key]
 	if res == nil {
 		return nil
@@ -81,15 +81,15 @@ func (spp SessPathPool) PathCount() int {
 func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
 	// Remove any old entries that aren't present in the update.
 	for key := range spp {
-		if _, ok := aps[key]; !ok {
+		if _, ok := aps[spathmeta.PathKey(key)]; !ok {
 			delete(spp, key)
 		}
 	}
 	for key, ap := range aps {
-		e, ok := spp[key]
+		e, ok := spp[string(key)]
 		if !ok {
 			// This is a new path, add an entry.
-			spp[key] = NewSessPathStats(key, ap.Entry)
+			spp[string(key)] = NewSessPathStats(string(key), ap.Entry)
 		} else {
 			// This path already exists, update it.
 			e.SessPath.pathEntry = ap.Entry
@@ -129,7 +129,7 @@ type SessPathStats struct {
 	failCount uint16
 }
 
-func NewSessPathStats(key spathmeta.PathKey, pathEntry *sciond.PathReplyEntry) *SessPathStats {
+func NewSessPathStats(key string, pathEntry *sciond.PathReplyEntry) *SessPathStats {
 	return &SessPathStats{
 		SessPath: NewSessPath(key, pathEntry),
 		lastFail: time.Now(),

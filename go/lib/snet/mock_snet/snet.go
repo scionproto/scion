@@ -614,20 +614,6 @@ func (mr *MockRouterMockRecorder) AllRoutes(arg0, arg1 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllRoutes", reflect.TypeOf((*MockRouter)(nil).AllRoutes), arg0, arg1)
 }
 
-// LocalIA mocks base method
-func (m *MockRouter) LocalIA() addr.IA {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LocalIA")
-	ret0, _ := ret[0].(addr.IA)
-	return ret0
-}
-
-// LocalIA indicates an expected call of LocalIA
-func (mr *MockRouterMockRecorder) LocalIA() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalIA", reflect.TypeOf((*MockRouter)(nil).LocalIA))
-}
-
 // Route mocks base method
 func (m *MockRouter) Route(arg0 context.Context, arg1 addr.IA) (snet.Path, error) {
 	m.ctrl.T.Helper()
