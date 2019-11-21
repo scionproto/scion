@@ -2,8 +2,6 @@
 
 BRACCEPT = bin/braccept
 
-GAZELLE_MODE?=fix
-
 all: bazel
 
 clean:
@@ -26,7 +24,7 @@ godeps:
 endif
 
 go_deps.bzl: go.mod
-	bazel run //:gazelle -- update-repos -from_file=go.mod -to_macro=go_deps.bzl%go_deps -prune
+	@tools/godeps.sh
 
 bazel: godeps gogen
 	rm -f bin/*
