@@ -194,7 +194,7 @@ var DispAddr HostAddr = func(ia addr.IA) snet.Addr {
 		os.Exit(1)
 	}
 	bs := topo.BS["bs"+ia.FileFmt(false)+"-1"]
-	return snet.Addr{Host: &addr.AppAddr{L3: bs.IPv4.PublicAddr().L3}, IA: ia}
+	return snet.Addr{Host: bs.SCIONAddress, IA: ia}
 }
 
 // interface kept similar to go 1.10

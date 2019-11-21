@@ -57,12 +57,8 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 		},
 	)
 	ctrlAddr := ctx.Conf.BR.CtrlAddrs
-	pub := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.PublicAddr()}
-	bind := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.BindAddr()}
-	if bind.Host == nil {
-		bind = nil
-	}
-	snetConn, err = scionNetwork.ListenSCIONWithBindSVC("udp4", pub, bind, addr.SvcNone, 0)
+	pub := &snet.Addr{IA: ia, Host: ctrlAddr.SCIONAddress}
+	snetConn, err = scionNetwork.ListenSCIONWithBindSVC("udp4", pub, nil, addr.SvcNone, 0)
 	if err != nil {
 		fatal.Fatal(common.NewBasicError("Listening on address", err, "addr", ctrlAddr))
 	}

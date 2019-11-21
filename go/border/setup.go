@@ -305,8 +305,7 @@ func (r *Router) startDiscovery() error {
 // discoveryClient returns a client with the source address set to the internal address.
 func (r *Router) discoveryClient() (*http.Client, error) {
 	internalAddr := rctx.Get().Conf.BR.InternalAddrs
-	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0",
-		internalAddr.PublicOverlayUDP(internalAddr.Overlay).IP))
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0", internalAddr.IP))
 	if err != nil {
 		return nil, err
 	}
@@ -384,18 +383,18 @@ func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 		}
 
 		// Validate interface does not take over local address.
-		if intf.Local.Equal(oldCtx.Conf.BR.InternalAddrs) {
+		if intf.Local.String() == oldCtx.Conf.BR.InternalAddrs.String() {
 			return common.NewBasicError("Address must not switch from local", nil,
 				"intf", intf, "locAddr", oldCtx.Conf.BR.InternalAddrs)
 		}
 		for _, oldIntf := range oldCtx.Conf.BR.IFs {
 			// Validate interface does not take over the address of old interface.
-			if intf.Local.Equal(oldIntf.Local) && intf.Id != oldIntf.Id {
+			if intf.Local.String() == oldIntf.Local.String() && intf.Id != oldIntf.Id {
 				return common.NewBasicError("Address must not switch interface", nil,
 					"intf", intf, "oldIntf", oldIntf)
 			}
 			// Validate local sock does not take over the address of old interface.
-			if ctx.Conf.BR.InternalAddrs.Equal(oldIntf.Local) {
+			if ctx.Conf.BR.InternalAddrs.String() == oldIntf.Local.String() {
 				return common.NewBasicError("Address must not switch to local", nil,
 					"oldIntf", intf, "locAddr", oldCtx.Conf.BR.InternalAddrs)
 			}

@@ -187,8 +187,7 @@ func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoM
 		xtest.FailOnErr(t, err)
 		SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
 		brAddr := infos[hopF.ConsEgress].InternalAddrs
-		SoMsg("ov", msg.ov, ShouldResemble,
-			brAddr.PublicOverlayUDP(brAddr.Overlay))
+		SoMsg("ov", msg.ov, ShouldResemble, brAddr)
 	})
 }
 

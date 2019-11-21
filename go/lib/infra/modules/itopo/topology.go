@@ -51,17 +51,6 @@ type Topology interface {
 	// Exists returns true if the service and name are present in the topology file.
 	Exists(svc addr.HostSVC, name string) bool
 
-	// BindAddress gets the bind address of a server with the requested type and name, and nil
-	// if no such server exists.
-	//
-	// FIXME(scrye): See whether this or its snet variant below can be removed.
-	BindAddress(svc addr.HostSVC, name string) *addr.AppAddr
-	// BindAddress gets the bind address of a server with the requested type and name, and nil
-	// if no such server exists.
-	//
-	// FIXME(scrye): See whether this or its app variant above can be removed.
-	SBindAddress(svc addr.HostSVC, name string) *snet.Addr
-
 	// SBRAddress returns the internal public address of the BR with the specified name.
 	SBRAddress(name string) *snet.Addr
 
@@ -191,17 +180,7 @@ func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	if ifInfo.InternalAddrs.IPv4 != nil {
-		if v4Addr := ifInfo.InternalAddrs.IPv4.PublicOverlay; v4Addr != nil {
-			return &net.UDPAddr{IP: copyIP(v4Addr.L3().IP()), Port: int(v4Addr.L4())}, true
-		}
-	}
-	if ifInfo.InternalAddrs.IPv6 != nil {
-		if v6Addr := ifInfo.InternalAddrs.IPv6.PublicOverlay; v6Addr != nil {
-			return &net.UDPAddr{IP: copyIP(v6Addr.L3().IP()), Port: int(v6Addr.L4())}, true
-		}
-	}
-	return nil, false
+	return copyUDP(ifInfo.InternalAddrs), true
 }
 
 func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
@@ -209,7 +188,7 @@ func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return ifInfo.InternalAddrs.PublicOverlayUDP(t.Topology.Overlay), true
+	return copyUDP(ifInfo.InternalAddrs), true
 }
 
 func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
@@ -221,13 +200,13 @@ func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
 		return hostInfos
 	}
 	for _, a := range addresses {
-		if v4Addr := a.PublicAddr(overlay.IPv4); v4Addr != nil {
+		if v4Addr := a.SCIONAddress; v4Addr != nil {
 			hostInfos = append(hostInfos, net.UDPAddr{
 				IP:   copyIP(v4Addr.L3.IP()),
 				Port: int(v4Addr.L4),
 			})
 		}
-		if v6Addr := a.PublicAddr(overlay.IPv6); v6Addr != nil {
+		if v6Addr := a.SCIONAddress; v6Addr != nil {
 			hostInfos = append(hostInfos, net.UDPAddr{
 				IP:   copyIP(v6Addr.L3.IP()),
 				Port: int(v6Addr.L4),
@@ -262,7 +241,7 @@ func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *addr.AppAddr {
 	if topoAddr == nil {
 		return nil
 	}
-	publicAddr := topoAddr.PublicAddr(topoAddr.Overlay)
+	publicAddr := topoAddr.SCIONAddress
 	if publicAddr == nil {
 		return nil
 	}
@@ -271,29 +250,6 @@ func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *addr.AppAddr {
 
 func (t *topologyS) Exists(svc addr.HostSVC, name string) bool {
 	return t.PublicAddress(svc, name) != nil
-}
-
-func (t *topologyS) SBindAddress(svc addr.HostSVC, name string) *snet.Addr {
-	address := t.BindAddress(svc, name)
-	if address == nil {
-		return nil
-	}
-	return &snet.Addr{
-		IA:   t.IA(),
-		Host: address.Copy(),
-	}
-}
-
-func (t *topologyS) BindAddress(svc addr.HostSVC, name string) *addr.AppAddr {
-	topoAddr := t.topoAddress(svc, name)
-	if topoAddr == nil {
-		return nil
-	}
-	bindAddr := topoAddr.BindAddr(topoAddr.Overlay)
-	if bindAddr == nil {
-		return nil
-	}
-	return bindAddr.Copy()
 }
 
 func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *topology.TopoAddr {
@@ -326,11 +282,8 @@ func (t *topologyS) OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 		return nil, common.NewBasicError("No instances found for SVC address",
 			scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
 	}
-	ov := topoAddr.OverlayAddrUDP(t.Topology.Overlay)
-	if ov == nil {
-		return nil, serrors.New("overlay address not found", "svc", svc)
-	}
-	return ov, nil
+	// FIXME(scrye): This should return net.Addr
+	return copyUDP(topoAddr.UnderlayAddr()), nil
 }
 
 func (t *topologyS) OverlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
@@ -354,7 +307,7 @@ func (t *topologyS) OverlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 	// multiple times by the remote dispatcher.
 	uniqueOverlayAddrs := make(map[string]*net.UDPAddr)
 	for _, topoAddr := range topoAddrs {
-		overlayAddr := topoAddr.OverlayAddrUDP(t.Topology.Overlay)
+		overlayAddr := topoAddr.UnderlayAddr()
 		if overlayAddr == nil {
 			continue
 		}
@@ -377,7 +330,7 @@ func (t *topologyS) OverlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, 
 	if err != nil {
 		return nil, serrors.WrapStr("SVC not supported", err, "svc", svc)
 	}
-	overlayAddr := topoAddr.OverlayAddrUDP(t.Topology.Overlay)
+	overlayAddr := topoAddr.UnderlayAddr()
 	if overlayAddr == nil {
 		return nil, serrors.New("overlay address not found", "svc", svc)
 	}
@@ -417,8 +370,8 @@ func (t *topologyS) SBRAddress(name string) *snet.Addr {
 	}
 	return &snet.Addr{
 		IA:      t.IA(),
-		Host:    br.CtrlAddrs.PublicAddr(br.CtrlAddrs.Overlay),
-		NextHop: br.CtrlAddrs.OverlayAddrUDP(br.CtrlAddrs.Overlay),
+		Host:    br.CtrlAddrs.SCIONAddress,
+		NextHop: br.CtrlAddrs.UnderlayAddr(),
 	}
 }
 
@@ -447,4 +400,14 @@ func (t *topologyS) Raw() *topology.Topo {
 
 func copyIP(ip net.IP) net.IP {
 	return append(ip[:0:0], ip...)
+}
+
+func copyUDP(a *net.UDPAddr) *net.UDPAddr {
+	if a == nil {
+		return nil
+	}
+	return &net.UDPAddr{
+		IP:   copyIP(a.IP),
+		Port: a.Port,
+	}
 }

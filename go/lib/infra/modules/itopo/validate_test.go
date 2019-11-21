@@ -15,6 +15,7 @@
 package itopo
 
 import (
+	"net"
 	"testing"
 	"time"
 
@@ -71,13 +72,13 @@ func TestSvcValidatorImmutable(t *testing.T) {
 		testGenImmutable(v, topo, oldTopo, t)
 		Convey("Modifying a different service of the same type is allowed", func() {
 			svcInfo := topo.CS[other]
-			svcInfo.Overlay = overlay.IPv6
+			svcInfo.UnderlayAddress = &net.UDPAddr{Port: 42}
 			topo.CS[other] = svcInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
 		Convey("Modifying the own service entry is not allowed", func() {
 			svcInfo := topo.CS[v.id]
-			svcInfo.Overlay = overlay.IPv6
+			svcInfo.UnderlayAddress = &net.UDPAddr{Port: 42}
 			topo.CS[v.id] = svcInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 		})
@@ -107,26 +108,20 @@ func TestBrValidatorImmutable(t *testing.T) {
 		topo := loadTopo(fn, t)
 		testGenImmutable(v, topo, oldTopo, t)
 		Convey("Modifying a different br's internal address is allowed", func() {
-			brInfo := topo.BR[other]
-			brInfo.InternalAddrs.Overlay = overlay.IPv6
-			topo.BR[other] = brInfo
+			topo.BR[other].InternalAddrs.Port = 42
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
 		Convey("Modifying a different br's control address is allowed", func() {
-			brInfo := topo.BR[other]
-			brInfo.CtrlAddrs.Overlay = overlay.IPv6
-			topo.BR[other] = brInfo
+			topo.BR[other].CtrlAddrs.UnderlayAddress = &net.UDPAddr{Port: 42}
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
 		Convey("Modifying the own internal address is not allowed", func() {
-			brInfo := topo.BR[v.id]
-			brInfo.InternalAddrs.Overlay = overlay.IPv6
-			topo.BR[v.id] = brInfo
+			topo.BR[v.id].InternalAddrs.Port = 42
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 		})
 		Convey("Modifying the own control address is not allowed", func() {
 			brInfo := topo.BR[v.id]
-			brInfo.CtrlAddrs.Overlay = overlay.IPv6
+			brInfo.CtrlAddrs.UnderlayAddress = &net.UDPAddr{Port: 42}
 			topo.BR[v.id] = brInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 		})

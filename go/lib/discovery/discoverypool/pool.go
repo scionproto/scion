@@ -54,10 +54,9 @@ func (p *Pool) Update(svcInfo topology.IDAddrMap) error {
 	defer p.mu.Unlock()
 	// Add missing DS servers.
 	for k, v := range svcInfo {
-		x := v.PublicAddr(v.Overlay)
 		y := &net.UDPAddr{
-			IP:   x.L3.IP(),
-			Port: int(x.L4),
+			IP:   v.SCIONAddress.L3.IP(),
+			Port: int(v.SCIONAddress.L4),
 		}
 		if info, ok := p.m[k]; !ok {
 			p.m[k] = discoveryinfo.New(k, y)

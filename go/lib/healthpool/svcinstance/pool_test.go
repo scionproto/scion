@@ -74,7 +74,7 @@ func TestPoolUpdate(t *testing.T) {
 		pool := mustLoadPool(t)
 		svcInfo := mustLoadSvcInfo(t)
 		Convey("And an instance map containing an updated discovery service entry", func() {
-			svcInfo[ds1].IPv4.PublicAddr().L3 = dsInfos[ds1updated].L3
+			svcInfo[ds1].SCIONAddress.L3 = dsInfos[ds1updated].L3
 			pool.infos[ds1].Fail()
 			err := pool.Update(svcInfo)
 			SoMsg("err", err, ShouldBeNil)

@@ -4,7 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = [
         "addr.go",
-        "braddr.go",
         "doc.go",
         "raw.go",
         "strip.go",

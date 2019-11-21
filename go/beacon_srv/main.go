@@ -133,7 +133,6 @@ func realMain() int {
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
 		Public:                topo.SPublicAddress(addr.SvcBS, cfg.General.ID),
-		Bind:                  topo.SBindAddress(addr.SvcBS, cfg.General.ID),
 		SVC:                   addr.SvcBS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
