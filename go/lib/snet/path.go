@@ -83,7 +83,13 @@ type path struct {
 	source addr.IA
 }
 
-func newPathFromSDReply(srcIA addr.IA, replyEntry *sciond.PathReplyEntry) (Path, error) {
+// NewPathFromSDReply creates a snet.Path from a sciond.PathReplyEntry. It
+// should only be used to refactor code depending on SCIOND into code depending
+// on snet.
+func NewPathFromSDReply(srcIA addr.IA, replyEntry *sciond.PathReplyEntry) (Path, error) {
+	if replyEntry == nil {
+		return &path{source: srcIA}, nil
+	}
 	sp := spath.New(replyEntry.Path.FwdPath)
 	// Preinitialize offsets, we don't want to propagate unusable paths
 	if err := sp.InitOffsets(); err != nil {

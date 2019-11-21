@@ -166,20 +166,6 @@ func (mr *MockResolverMockRecorder) RevokeRaw(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeRaw", reflect.TypeOf((*MockResolver)(nil).RevokeRaw), arg0, arg1)
 }
 
-// Sciond mocks base method
-func (m *MockResolver) Sciond() sciond.Connector {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Sciond")
-	ret0, _ := ret[0].(sciond.Connector)
-	return ret0
-}
-
-// Sciond indicates an expected call of Sciond
-func (mr *MockResolverMockRecorder) Sciond() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sciond", reflect.TypeOf((*MockResolver)(nil).Sciond))
-}
-
 // Watch mocks base method
 func (m *MockResolver) Watch(arg0 context.Context, arg1, arg2 addr.IA) (*pathmgr.SyncPaths, error) {
 	m.ctrl.T.Helper()

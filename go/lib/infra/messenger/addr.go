@@ -120,8 +120,14 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 		log.Trace("[Acceptance]", "overlay", newAddr.NextHop)
 	}()
 	if newAddr.Path == nil {
+		p, err := r.Router.Route(ctx, newAddr.IA)
+		if err != nil {
+			return nil, err
+		}
+		newAddr.Path = p.Path()
+		newAddr.NextHop = p.OverlayNextHop()
 		// SVC addresses in the local AS get resolved via topology lookup
-		if svc, ok := newAddr.Host.L3.(addr.HostSVC); ok && r.Router.LocalIA() == newAddr.IA {
+		if svc, ok := newAddr.Host.L3.(addr.HostSVC); ok && p.Fingerprint() == "" {
 			ov, err := r.SVCRouter.GetOverlay(svc)
 			if err != nil {
 				return nil, common.NewBasicError("Unable to resolve overlay", err)
@@ -129,12 +135,6 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 			newAddr.NextHop = ov
 			return newAddr, nil
 		}
-		p, err := r.Router.Route(ctx, newAddr.IA)
-		if err != nil {
-			return nil, err
-		}
-		newAddr.Path = p.Path()
-		newAddr.NextHop = p.OverlayNextHop()
 	}
 	return newAddr, nil
 }

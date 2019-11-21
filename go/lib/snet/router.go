@@ -19,12 +19,11 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
+
+type PathQuerier interface {
+	Query(context.Context, addr.IA) ([]Path, error)
+}
 
 // Router performs path resolution for SCION-speaking applications.
 //
@@ -37,23 +36,10 @@ type Router interface {
 	Route(ctx context.Context, dst addr.IA) (Path, error)
 	// AllRoutes is similar to Route except that it returns multiple paths.
 	AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error)
-	// LocalIA returns the IA from which this router routes.
-	LocalIA() addr.IA
 }
 
-var _ Router = (*BaseRouter)(nil)
-
-// BaseRouter is a path router implementation that uses a path resolver to
-// query SCIOND for paths, or returns empty paths if a path resolver is not
-// specified.
 type BaseRouter struct {
-	// IA is the source AS for paths, usually the local AS.
-	IA addr.IA
-	// PathResolver to solve path requests. If nil, all path requests yield
-	// empty paths.
-	PathResolver pathmgr.Resolver
-	// PathPolicy is used to filter the paths. If set to nil, no filtering is done.
-	PathPolicy *pathpol.Policy
+	Querier PathQuerier
 }
 
 // Route uses the specified path resolver (if one exists) to obtain a path from
@@ -68,40 +54,7 @@ func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 
 // AllRoutes is the same as Route except that it returns multiple paths.
 func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error) {
-	if r.PathResolver == nil || dst.Equal(r.IA) {
-		return []Path{&path{}}, nil
-	}
-	var aps spathmeta.AppPathSet
-	if r.PathPolicy == nil {
-		aps = r.PathResolver.Query(ctx, r.IA, dst, sciond.PathReqFlags{})
-	} else {
-		aps = r.PathResolver.QueryFilter(ctx, r.IA, dst, r.PathPolicy)
-	}
-	if len(aps) == 0 {
-		return nil, common.NewBasicError("unable to find paths", nil)
-	}
-	paths := make([]Path, 0, len(aps))
-	for _, ap := range aps {
-		p, err := newPathFromSDReply(r.IA, ap.Entry)
-		if err != nil {
-			return nil, err
-		}
-		paths = append(paths, p)
-	}
-	return paths, nil
-}
-
-func (r *BaseRouter) LocalIA() addr.IA {
-	return r.IA
-}
-
-// PathReplyEntryFromPath extracts PathReplyEntry. If not possible, nil is returned.
-func PathReplyEntryFromPath(p Path) *sciond.PathReplyEntry {
-	pth, ok := p.(*path)
-	if !ok {
-		return nil
-	}
-	return pth.sciondPath.Copy()
+	return r.Querier.Query(ctx, dst)
 }
 
 // LocalMachine describes aspects of the host system and its network.

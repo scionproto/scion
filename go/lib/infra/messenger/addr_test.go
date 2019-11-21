@@ -71,7 +71,6 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		router.EXPECT().LocalIA().Return(addr.IA{}).AnyTimes()
 		resolver := mock_messenger.NewMockResolver(ctrl)
 		aw := AddressRewriter{
 			Resolver: resolver,
@@ -91,7 +90,6 @@ func TestBuildFullAddress(t *testing.T) {
 		router := mock_snet.NewMockRouter(ctrl)
 		localIA := xtest.MustParseIA("1-ff00:0:1")
 		remoteIA := xtest.MustParseIA("1-ff00:0:2")
-		router.EXPECT().LocalIA().Return(localIA).AnyTimes()
 		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
 		aw := AddressRewriter{
 			Router:    router,
@@ -126,6 +124,7 @@ func TestBuildFullAddress(t *testing.T) {
 			path := mock_snet.NewMockPath(ctrl)
 			path.EXPECT().Path().Return(&spath.Path{})
 			path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{})
+			path.EXPECT().Fingerprint().Return("foo")
 			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 			inputAddress := &snet.Addr{
 				IA: remoteIA,
@@ -151,8 +150,13 @@ func TestBuildFullAddress(t *testing.T) {
 				IP:   net.IP{192, 168, 0, 1},
 				Port: 10,
 			}
-			router.EXPECT().LocalIA().Return(localIA).AnyTimes()
 			svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(overlayAddr, nil)
+
+			path := mock_snet.NewMockPath(ctrl)
+			path.EXPECT().Fingerprint()
+			path.EXPECT().Path()
+			path.EXPECT().OverlayNextHop()
+			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 
 			inputAddress := &snet.Addr{
 				IA: localIA,
@@ -174,8 +178,13 @@ func TestBuildFullAddress(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("snet address in local AS, overlay address extraction fails", func() {
-			router.EXPECT().LocalIA().Return(localIA).AnyTimes()
 			svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(nil, errors.New("err"))
+
+			path := mock_snet.NewMockPath(ctrl)
+			path.EXPECT().Fingerprint()
+			path.EXPECT().Path()
+			path.EXPECT().OverlayNextHop()
+			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 
 			inputAddress := &snet.Addr{
 				IA: localIA,

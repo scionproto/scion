@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -66,38 +67,26 @@ func main() {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 	defer cancelF()
-
-	sd := sciond.NewService(*sciondPath)
-	var err error
-	sdConn, err := sd.Connect(ctx)
+	paths, err := getPaths(ctx)
 	if err != nil {
-		LogFatal("Failed to connect to SCIOND", "err", err)
+		LogFatal("Failed to get paths", "err", err)
 	}
-	reply, err := sdConn.Paths(context.Background(), dstIA, srcIA, uint16(*maxPaths),
-		sciond.PathReqFlags{Refresh: *refresh})
-	if err != nil {
-		LogFatal("Failed to retrieve paths from SCIOND", "err", err)
-	}
-	if reply.ErrorCode != sciond.ErrorOk {
-		LogFatal("SCIOND unable to retrieve paths", "ErrorCode", reply.ErrorCode)
-	}
-
 	fmt.Println("Available paths to", dstIA)
 	var pathStatuses map[string]pathprobe.Status
 	if *status {
 		pathStatuses, err = pathprobe.Prober{
 			Local: local,
 			DstIA: dstIA,
-		}.GetStatuses(ctx, reply.Entries)
+		}.GetStatuses(ctx, paths)
 		if err != nil {
 			LogFatal("Failed to get status", "err", err)
 		}
 	}
-	for i, path := range reply.Entries {
-		fmt.Printf("[%2d] %s", i, path.Path.String())
+	for i, path := range paths {
+		fmt.Printf("[%2d] %s", i, fmt.Sprintf("%s", path))
 		if *expiration {
-			fmt.Printf(" Expires: %s (%s)", path.Path.Expiry(),
-				time.Until(path.Path.Expiry()).Truncate(time.Second))
+			fmt.Printf(" Expires: %s (%s)", path.Expiry(),
+				time.Until(path.Expiry()).Truncate(time.Second))
 		}
 		if *status {
 			fmt.Printf(" Status: %s", pathStatuses[pathprobe.PathKey(path)])
@@ -143,6 +132,41 @@ func validateFlags() {
 	if *status && (local.IA.IsZero() || local.Host == nil) {
 		LogFatal("Local address is required for health checks")
 	}
+}
+
+// TODO(lukedirtwalker): Replace this with snet.Router once we have the
+// possibility to have the same functionality, i.e. refresh, fetch all paths.
+// https://github.com/scionproto/scion/issues/3348
+func getPaths(ctx context.Context) ([]snet.Path, error) {
+	sdConn, err := sciond.NewService(*sciondPath).Connect(ctx)
+	if err != nil {
+		return nil, serrors.WrapStr("failed to connect to SCIOND", err)
+	}
+	reply, err := sdConn.Paths(ctx, dstIA, srcIA, uint16(*maxPaths),
+		sciond.PathReqFlags{Refresh: *refresh})
+	if err != nil {
+		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
+	}
+	if reply.ErrorCode != sciond.ErrorOk {
+		return nil, serrors.New("SCIOND unable to retrieve paths", "ErrorCode", reply.ErrorCode)
+	}
+	asEntries, err := sdConn.ASInfo(ctx, addr.IA{})
+	if err != nil {
+		return nil, serrors.WrapStr("SCIOND unable to get ASInfo", err)
+	}
+	if len(asEntries.Entries) == 0 {
+		return nil, serrors.New("no AS entries received")
+	}
+	localIA := asEntries.Entries[0].ISD_AS()
+	paths := make([]snet.Path, 0, len(reply.Entries))
+	for _, pre := range reply.Entries {
+		p, err := snet.NewPathFromSDReply(localIA, &pre)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, p)
+	}
+	return paths, nil
 }
 
 func flagUsage() {
