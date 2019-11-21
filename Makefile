@@ -1,6 +1,8 @@
-.PHONY: all clean godeps gogen mocks bazel setcap
+.PHONY: all clean godeps gogen mocks bazel gazelle setcap
 
 BRACCEPT = bin/braccept
+
+GAZELLE_MODE?=fix
 
 all: bazel
 
@@ -34,6 +36,9 @@ bazel: godeps gogen
 
 mocks:
 	./tools/gomocks
+
+gazelle:
+	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
 
 setcap:
 	tools/setcap cap_net_admin,cap_net_raw+ep $(BRACCEPT)
