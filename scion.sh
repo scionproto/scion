@@ -276,7 +276,7 @@ cmd_lint() {
 py_lint() {
     lint_header "python"
     local ret=0
-    for i in acceptance python; do
+    for i in acceptance python yang; do
       [ -d "$i" ] || continue
       local cmd="flake8"
       lint_step "$cmd /$i"

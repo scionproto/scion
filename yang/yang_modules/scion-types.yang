@@ -1,0 +1,204 @@
+module scion-types {
+  namespace "urn:scion:scion-types";
+  prefix "sc-ty";
+
+  import ietf-inet-types{
+    prefix "inet";
+  }
+
+  organization
+    "SCION group";
+
+  contact
+  "Some contact here";
+
+  description 
+  "This module contains a useful collection of data defining 
+   common types and enumerations present within the SCION 
+   architecture.
+  ";
+
+  revision 2019-11-15 {
+      description "First revision for proposal.";
+  }
+
+  identity underlay-proto {
+        description "Base identity for all underlay-proto.";
+  }
+
+  identity underlay-proto-ipv4{
+    description "underlay IPv4.";
+    base "sc-ty:underlay-proto";
+  }
+
+  identity underlay-udp-ipv4{
+    description "underlay UDP over IPv4.";
+    base "sc-ty:underlay-proto-ipv4";
+  }
+
+  identity underlay-tcp-ipv4{
+    description "underlay TCP over IPv4.";
+    base "sc-ty:underlay-proto-ipv4";
+  }
+
+  identity underlay-proto-ipv6{
+    description "underlay IPv6.";
+    base "sc-ty:underlay-proto";
+  }
+
+  identity underlay-udp-ipv6{
+    description "underlay UDP over IPv6.";
+    base "sc-ty:underlay-proto-ipv6";
+  }
+
+  identity underlay-tcp-ipv6{
+    description "underlay TCP over IPv6.";
+    base "sc-ty:underlay-proto-ipv6";
+  }
+  identity db-backend-base{
+    description "Base identity for DB backend";
+  }
+
+  identity db-sqlite{
+    description "Sqlite type for DB backend ";
+    base db-backend-base;
+  }
+
+  identity cache-backend-base{
+    description "Base identity for cache backend";
+  }
+
+  identity mem-cache{
+    description "Mem-cache type for cache backend";
+    base cache-backend-base;
+  }
+
+  identity topology-attribute-base{
+    description "Base identity for attributes list on topology";
+    reference 
+    "https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md#primary-ases";
+  }
+
+  identity topology-attribute-core{
+    description "Core attribute on topology";
+    base topology-attribute-base;
+  }
+
+  identity topology-attribute-voting{
+    description "Voting attribute on topology";
+    base topology-attribute-base;
+  }
+
+  identity topology-attribute-authoritative{
+    description "Authoritative attribute on topology";
+    base topology-attribute-base;
+  }
+
+  identity topology-attribute-issuing{
+    description "Issuing attribute on topology";
+    base topology-attribute-base;
+  }
+
+  typedef isd-as-type{
+    description "This is the type definition for the ISD-AS name";
+    type string{
+      pattern "[0-9]+-[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}";
+    }  
+  }
+
+  typedef file-mode-string{
+    description "Unix file mode in octal-string representation ";
+    type string{
+      pattern "[0-7]{4}";
+    }
+  }
+
+  typedef time-string{
+    description "It expresses time type configurations";
+    type string{
+      pattern '([0-9]+)(y|w|d|h|m|s|ms|us|µs|ns)';
+    }
+  }
+
+  typedef link-type{
+    description 
+    "The type of link definition between two AS which can take any
+    of the values in the enumeration.
+    ";
+    type enumeration {
+      enum Child{
+        description "Link to CHILD.";
+      }
+      enum Parent{
+        description "Link to PARENT ISD-AS.";
+      }
+      enum Peer{
+        description "Link to PEER ISD-AS.";
+      }
+      enum Core{
+        description "Link to CORE ISD-AS";
+      }
+    }
+  }
+
+  typedef loggin-level{
+    description 
+    "
+    File logging level.
+    ";
+    type enumeration{
+      enum Trace;
+      enum Debug;
+      enum Info;
+      enum Warn;
+      enum Error;
+      enum Crit;
+    }
+  }
+
+  typedef fail-action{
+    description
+    "
+    Enumeration of possible actions to take in case of fail
+    of fetching topology from the discovery service on start.
+    ";
+
+    type enumeration{
+      enum Fatal{
+        description "Exit process.";
+      }
+      enum Continue{
+        description "Log error and continue with execution.";
+      }
+    }
+  }
+
+  grouping address-port{
+    leaf address{
+      type inet:ip-address;
+      mandatory true;
+      reference 
+        "RFC 6991: Common YANG Data Types";
+    }
+    leaf l4-port{
+      type inet:port-number;
+      mandatory true;
+      reference 
+        "RFC 6991: Common YANG Data Types";
+    }
+  }
+
+  grouping host-ip-port{
+    leaf address{
+      type union{
+        type inet:ip-address;
+        type string;
+      }
+    }
+    leaf l4-port{
+      type inet:port-number;
+      reference 
+        "RFC 6991: Common YANG Data Types";
+    }
+  }
+}
