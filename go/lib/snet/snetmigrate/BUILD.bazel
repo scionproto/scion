@@ -2,7 +2,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["querier.go"],
+    srcs = [
+        "querier.go",
+        "resolver.go",
+    ],
     importpath = "github.com/scionproto/scion/go/lib/snet/snetmigrate",
     visibility = ["//visibility:public"],
     deps = [

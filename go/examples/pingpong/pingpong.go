@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -226,10 +227,11 @@ func (c *client) run() {
 	defer c.Close()
 
 	ds := reliable.NewDispatcherService(*dispatcher)
-	network, err := snet.NewNetwork(local.IA, *sciond, ds)
+	resolver, err := snetmigrate.ResolverFromSD(*sciond)
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
+	network := snet.NewNetworkWithPR(local.IA, ds, resolver)
 
 	// Connect to remote address. Note that currently the SCION library
 	// does not support automatic binding to local addresses, so the local
@@ -346,7 +348,11 @@ type server struct {
 // On any error, the server exits.
 func (s server) run() {
 	ds := reliable.NewDispatcherService(*dispatcher)
-	network, err := snet.NewNetwork(local.IA, *sciond, ds)
+	resolver, err := snetmigrate.ResolverFromSD(*sciond)
+	if err != nil {
+		LogFatal("Unable to initialize SCION network", "err", err)
+	}
+	network := snet.NewNetworkWithPR(local.IA, ds, resolver)
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
@@ -407,12 +413,10 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	var paths []*sd.PathReplyEntry
 	var pathIndex uint64
 
-	ds := reliable.NewDispatcherService(*dispatcher)
-	network, err := snet.NewNetwork(local.IA, *sciond, ds)
+	pathMgr, err := snetmigrate.ResolverFromSD(*sciond)
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	pathMgr := network.PathResolver()
 	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sd.PathReqFlags{})
 
 	if len(pathSet) == 0 {

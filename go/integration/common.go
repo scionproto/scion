@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -75,10 +76,12 @@ func validateFlags() {
 
 func InitNetwork() *snet.SCIONNetwork {
 	ds := reliable.NewDispatcherService("")
-	n, err := snet.NewNetwork(Local.IA, sdSocket, ds)
+
+	resolver, err := snetmigrate.ResolverFromSD(sdSocket)
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
+	n := snet.NewNetworkWithPR(Local.IA, ds, resolver)
 	log.Debug("SCION network successfully initialized")
 	return n
 }

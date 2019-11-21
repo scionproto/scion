@@ -45,7 +45,6 @@
 package snet
 
 import (
-	"context"
 	"net"
 	"time"
 
@@ -53,7 +52,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -97,50 +95,6 @@ func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService,
 		pathResolver: pr,
 		localIA:      ia,
 	}
-}
-
-// NewNetwork creates a new networking context, on which future Dial or Listen
-// calls can be made. The new connections use the SCIOND server at sciondPath,
-// the dispatcher at dispatcherPath, and ia for the local ISD-AS.
-//
-// If sciondPath is the empty string, the network will run without SCIOND. In
-// this mode of operation, the app is fully responsible with supplying paths
-// for sent traffic.
-func NewNetwork(ia addr.IA, sciondPath string,
-	dispatcher reliable.DispatcherService) (*SCIONNetwork, error) {
-
-	pathResolver, err := getResolver(sciondPath)
-	if err != nil {
-		return nil, err
-	}
-	return NewNetworkWithPR(ia, dispatcher, pathResolver), nil
-}
-
-// NewCustomNetwork is similar to NewNetwork, except it gives control over the
-// packet processing socket in the snet backend. It can be used to implement
-// specialized sockets that implement firewall rules, custom SCMP handlers, or
-// custom network access (e.g., dispatcher bypass).
-func NewCustomNetwork(ia addr.IA, sciondPath string,
-	pktDispatcher PacketDispatcherService) (*SCIONNetwork, error) {
-
-	pathResolver, err := getResolver(sciondPath)
-	if err != nil {
-		return nil, err
-	}
-	return NewCustomNetworkWithPR(ia, pktDispatcher, pathResolver), nil
-}
-
-// getResolver builds a default resolver for snet internals.
-func getResolver(sciondPath string) (pathmgr.Resolver, error) {
-	var pathResolver pathmgr.Resolver
-	if sciondPath != "" {
-		sciondConn, err := sciond.NewService(sciondPath).Connect(context.Background())
-		if err != nil {
-			return nil, common.NewBasicError("Unable to initialize SCIOND service", err)
-		}
-		pathResolver = pathmgr.New(sciondConn, pathmgr.Timers{})
-	}
-	return pathResolver, nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not

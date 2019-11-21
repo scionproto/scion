@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/mgmt"
@@ -63,9 +64,9 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 		deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
 		var retErr error
 		for tries := 0; time.Now().Before(deadline); tries++ {
-			n, err := snet.NewNetwork(cfg.IA, sdCfg.Path, ds)
+			resolver, err := snetmigrate.ResolverFromSD(sdCfg.Path)
 			if err == nil {
-				return n, nil
+				return snet.NewNetworkWithPR(cfg.IA, ds, resolver), nil
 			}
 			log.Debug("SIG is retrying to get NewNetwork", err)
 			retErr = err
