@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -ex
+
+./docker.sh exec "set -eo pipefail; ( cp go_deps.bzl /tmp/; make godeps -B; diff -u /tmp/go_deps.bzl go_deps.bzl ) |& tee logs/checkgodeps.run"
