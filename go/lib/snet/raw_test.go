@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snet
+package snet_test
 
 import (
 	"testing"
@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/layers"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func TestExtensionSort(t *testing.T) {
@@ -68,7 +69,7 @@ func TestExtensionSort(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			StableSortExtensions(test.InputSlice)
+			snet.StableSortExtensions(test.InputSlice)
 			assert.Equal(t, test.ExpectedSlice, test.InputSlice)
 		})
 	}

@@ -76,12 +76,14 @@ func validateFlags() {
 
 func InitNetwork() *snet.SCIONNetwork {
 	ds := reliable.NewDispatcherService("")
-
 	resolver, err := snetmigrate.ResolverFromSD(sdSocket)
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	n := snet.NewNetworkWithPR(Local.IA, ds, resolver)
+	n := snet.NewNetworkWithPR(Local.IA, ds, &snetmigrate.PathQuerier{
+		Resolver: resolver,
+		IA:       Local.IA,
+	}, resolver)
 	log.Debug("SCION network successfully initialized")
 	return n
 }

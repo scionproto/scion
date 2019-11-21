@@ -231,7 +231,10 @@ func (c *client) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	network := snet.NewNetworkWithPR(local.IA, ds, resolver)
+	network := snet.NewNetworkWithPR(local.IA, ds, &snetmigrate.PathQuerier{
+		Resolver: resolver,
+		IA:       local.IA,
+	}, resolver)
 
 	// Connect to remote address. Note that currently the SCION library
 	// does not support automatic binding to local addresses, so the local
@@ -352,7 +355,10 @@ func (s server) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	network := snet.NewNetworkWithPR(local.IA, ds, resolver)
+	network := snet.NewNetworkWithPR(local.IA, ds, &snetmigrate.PathQuerier{
+		Resolver: resolver,
+		IA:       local.IA,
+	}, resolver)
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}

@@ -197,7 +197,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 			ExpectedPayload: resolutionRequestPayload,
 		},
 	)
-	network := snet.NewCustomNetworkWithPR(nc.IA, packetDispatcher, nil)
+	network := snet.NewCustomNetworkWithPR(nc.IA, packetDispatcher)
 	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
@@ -216,7 +216,6 @@ func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 			Dispatcher:  dispatcherService,
 			SCMPHandler: ignoreSCMP{},
 		},
-		nil,
 	)
 	// FIXME(scrye): Add support for bind addresses.
 	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)

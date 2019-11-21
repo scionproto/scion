@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
 
@@ -63,12 +63,12 @@ type SCIONConn struct {
 	scionConnReader
 }
 
-func newSCIONConn(base *scionConnBase, pr pathmgr.Resolver, conn PacketConn) *SCIONConn {
+func newSCIONConn(base *scionConnBase, querier PathQuerier, conn PacketConn) *SCIONConn {
 	c := &SCIONConn{
 		conn:          conn,
 		scionConnBase: *base,
 	}
-	c.scionConnWriter = *newScionConnWriter(&c.scionConnBase, pr, conn)
+	c.scionConnWriter = *newScionConnWriter(&c.scionConnBase, querier, conn)
 	c.scionConnReader = *newScionConnReader(&c.scionConnBase, conn)
 	return c
 }

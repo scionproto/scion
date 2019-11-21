@@ -116,7 +116,6 @@ func (p Prober) GetStatuses(ctx context.Context,
 			Dispatcher:  reliable.NewDispatcherService(p.DispPath),
 			SCMPHandler: scmpH,
 		},
-		nil,
 	)
 	snetConn, err := network.ListenSCION("udp4", &p.Local, deadline.Sub(time.Now()))
 	if err != nil {

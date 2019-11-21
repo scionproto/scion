@@ -57,10 +57,9 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Policy,Querier,Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
         (SCION_PACKAGE_PREFIX + "/go/lib/sciond", "Service,Connector"),
-        (SCION_PACKAGE_PREFIX +
-            "/go/lib/snet", "Conn,PacketDispatcherService,Network,PacketConn,Path,Router"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet", "Conn,PacketDispatcherService,Network,PacketConn,"+
+            "Path,PathQuerier,Router"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/ctxmonitor", "Monitor"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/pathsource", "PathSource"),
         (SCION_PACKAGE_PREFIX + "/go/lib/sock/reliable", "DispatcherService"),
         (SCION_PACKAGE_PREFIX + "/go/lib/sock/reliable/reconnect", "IOOperation,Reconnecter"),
         (SCION_PACKAGE_PREFIX + "/go/lib/svc", "RequestHandler,RoundTripper"),
