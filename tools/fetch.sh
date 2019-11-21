@@ -50,6 +50,8 @@ extra_import() {
             echo "unix" ;;
         org_golang_x_sync)
             echo "semaphore" ;;
+        org_golang_x_tools)
+            echo "go/packages" ;;
         com_github_pmezard_go_difflib)
             echo "difflib" ;;
         com_github_bazelbuild_buildtools)
@@ -79,7 +81,18 @@ genrule(
 EOF
 
 for q in $(bazel query "kind('go_repository rule', //external:*)" --noshow_progress); do
-    if [[ $q == *com_github_jmhodges_bazel_gomock ]]; then
+    # Ignore a bunch of irrelevant listed dependencies that would require extra_import for fetching
+    if echo $q | grep -qF -e "com_github_jmhodges_bazel_gomock" \
+                          -e "com_github_tinylib_msgp" \
+                          -e "com_github_kylelemons_godebug" \
+                          -e "com_github_gopherjs_gopherjs" \
+                          -e "com_github_golang_protobuf" \
+                          -e "com_github_gogo_protobuf" \
+                          -e "com_github_go_kit_kit" \
+                          -e "com_github_davecgh_go_spew" \
+                          -e "com_github_cloudflare_sidh" \
+                          -e "org_golang_google_appengine"
+    then
         continue
     fi
     if [[ $q == //external* ]]; then
