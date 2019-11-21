@@ -81,7 +81,7 @@ genrule(
 EOF
 
 for q in $(bazel query "kind('go_repository rule', //external:*)" --noshow_progress); do
-    # Ignore a bunch of irrelevant listed dependencies that would require extra_import for fetching
+    # Ignore some indirect test dependencies (will not be used) that would require extra_import for fetching
     if echo $q | grep -qF -e "com_github_jmhodges_bazel_gomock" \
                           -e "com_github_tinylib_msgp" \
                           -e "com_github_kylelemons_godebug" \
