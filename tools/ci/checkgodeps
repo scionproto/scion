@@ -2,4 +2,11 @@
 
 set -ex
 
-./docker.sh exec "set -eo pipefail; ( cp go_deps.bzl /tmp/; make godeps -B; diff -u /tmp/go_deps.bzl go_deps.bzl ) |& tee logs/checkgodeps.run"
+./docker.sh exec "set -eo pipefail; (
+                    cp go.mod go.sum go_deps.bzl /tmp/;
+                    go mod tidy;
+                    make godeps -B;
+                    diff -u /tmp/go.mod go.mod;
+                    diff -u /tmp/go.sum go.sum;
+                    diff -u /tmp/go_deps.bzl go_deps.bzl;
+                  ) |& tee logs/checkgodeps.run"
