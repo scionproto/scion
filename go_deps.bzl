@@ -233,14 +233,14 @@ def go_deps():
     go_repository(
         name = "com_github_mattn_go_colorable",
         importpath = "github.com/mattn/go-colorable",
-        sum = "h1:+lj/MTidgAcsu6wyXg7By2rgbT5kVFT5GFKq/VZZwi4=",
-        version = "v0.0.7-0.20160930084157-6c903ff4aa50",
+        sum = "h1:snbPLB8fVfU9iwbbo30TPtbLRzwWu6aJS6Xh4eaaviA=",
+        version = "v0.1.4",
     )
     go_repository(
         name = "com_github_mattn_go_isatty",
         importpath = "github.com/mattn/go-isatty",
-        sum = "h1:F+DnWktyadxnOrohKLNUC9/GjFii5RJgY4GFG6ilggw=",
-        version = "v0.0.2",
+        sum = "h1:HLtExJ+uU2HOZ+wI0Tt5DtUDrx8yhUqDcp7fYERX4CE=",
+        version = "v0.0.8",
     )
     go_repository(
         name = "com_github_mattn_go_sqlite3",

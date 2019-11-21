@@ -20,8 +20,8 @@ require (
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/lucas-clemente/quic-go v0.7.1-0.20190212114006-fd7246d7ed6e
 	github.com/marten-seemann/qtls v0.0.0-20190207043627-591c71538704 // indirect
-	github.com/mattn/go-colorable v0.0.7-0.20160930084157-6c903ff4aa50 // indirect
-	github.com/mattn/go-isatty v0.0.2
+	github.com/mattn/go-colorable v0.1.4 // indirect
+	github.com/mattn/go-isatty v0.0.8
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/onsi/ginkgo v1.10.3 // indirect
 	github.com/onsi/gomega v1.7.1 // indirect
