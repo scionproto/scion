@@ -31,10 +31,8 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/svc"
@@ -140,7 +138,7 @@ func (nc *NetworkConfig) AddressRewriter(
 
 	router := nc.Router
 	if router == nil {
-		router = &snet.BaseRouter{Querier: &snetmigrate.PathQuerier{IA: nc.IA}}
+		router = &snet.BaseRouter{Querier: snet.IntraASPathQuerier{IA: nc.IA}}
 	}
 	if connFactory == nil {
 		connFactory = &snet.DefaultPacketDispatcherService{
@@ -305,15 +303,9 @@ func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 		sciondConn, err := sciond.NewService(sd.Path).Connect(ctx)
 		if err == nil {
 			router = &snet.BaseRouter{
-				Querier: &snetmigrate.PathQuerier{
-					IA: localIA,
-					Resolver: pathmgr.New(
-						sciondConn,
-						pathmgr.Timers{
-							NormalRefire: time.Minute,
-							ErrorRefire:  3 * time.Second,
-						},
-					),
+				Querier: sciond.Querier{
+					Connector: sciondConn,
+					IA:        localIA,
 				},
 			}
 			break

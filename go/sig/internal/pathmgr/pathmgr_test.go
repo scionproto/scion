@@ -30,12 +30,12 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/pathmgr/mock_pathmgr"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/mock_sciond"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/sig/internal/pathmgr"
+	"github.com/scionproto/scion/go/sig/internal/pathmgr/mock_pathmgr"
 )
 
 const timeUnitDuration time.Duration = 10 * time.Millisecond

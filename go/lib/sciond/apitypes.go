@@ -15,6 +15,7 @@
 package sciond
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -24,10 +25,67 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/proto"
 )
+
+type Querier struct {
+	Connector Connector
+	IA        addr.IA
+	MaxPaths  uint16
+}
+
+func (q Querier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
+	return q.Connector.Paths(ctx, dst, q.IA, q.MaxPaths, PathReqFlags{})
+}
+
+// RevHandler is an adapter for sciond connector to implement snet.RevocationHandler.
+type RevHandler struct {
+	Connector Connector
+}
+
+func (h RevHandler) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
+	_, err := h.Connector.RevNotificationFromRaw(ctx, rawSRevInfo)
+	if err != nil {
+		log.FromCtx(ctx).Error("Revocation notification to sciond failed", "err", err)
+	}
+}
+
+// TopoQuerier can be used to get topology information from sciond.
+type TopoQuerier struct {
+	Connector Connector
+}
+
+// OverlayAnycast provides any address for the given svc type.
+func (h TopoQuerier) OverlayAnycast(ctx context.Context, svc addr.HostSVC) (*net.UDPAddr, error) {
+	psvc := svcAddrToProto(svc)
+	if psvc == proto.ServiceType_unset {
+		return nil, serrors.New("invalid svc type", "svc", svc)
+	}
+	r, err := h.Connector.SVCInfo(ctx, []proto.ServiceType{psvc})
+	if err != nil {
+		return nil, err
+	}
+	return r.Entries[0].HostInfos[0].UDP(), nil
+}
+
+func svcAddrToProto(svc addr.HostSVC) proto.ServiceType {
+	switch svc {
+	case addr.SvcBS:
+		return proto.ServiceType_bs
+	case addr.SvcPS:
+		return proto.ServiceType_ps
+	case addr.SvcCS:
+		return proto.ServiceType_cs
+	case addr.SvcSIG:
+		return proto.ServiceType_sig
+	default:
+		return proto.ServiceType_unset
+	}
+}
 
 type Path struct {
 	interfaces []pathInterface
@@ -35,15 +93,16 @@ type Path struct {
 	spath      *spath.Path
 	mtu        uint16
 	expiry     time.Time
+	dst        addr.IA
 }
 
-func pathReplyToPaths(pathReply *PathReply) ([]snet.Path, error) {
+func pathReplyToPaths(pathReply *PathReply, dst addr.IA) ([]snet.Path, error) {
 	if pathReply.ErrorCode != ErrorOk {
 		return nil, serrors.New("Path lookup had an error", "err_code", pathReply.ErrorCode)
 	}
 	paths := make([]snet.Path, 0, len(pathReply.Entries))
 	for _, pe := range pathReply.Entries {
-		p, err := pathReplyEntryToPath(pe)
+		p, err := pathReplyEntryToPath(pe, dst)
 		if err != nil {
 			return nil, serrors.WrapStr("invalid path received", err)
 		}
@@ -52,7 +111,12 @@ func pathReplyToPaths(pathReply *PathReply) ([]snet.Path, error) {
 	return paths, nil
 }
 
-func pathReplyEntryToPath(pe PathReplyEntry) (Path, error) {
+func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
+	if len(pe.Path.Interfaces) == 0 {
+		return Path{
+			dst: dst,
+		}, nil
+	}
 	sp := spath.New(pe.Path.FwdPath)
 	if err := sp.InitOffsets(); err != nil {
 		return Path{}, serrors.WrapStr("path error", err)
@@ -84,6 +148,9 @@ func (p Path) Fingerprint() string {
 }
 
 func (p Path) OverlayNextHop() *net.UDPAddr {
+	if p.overlay == nil {
+		return nil
+	}
 	return &net.UDPAddr{
 		IP:   append(p.overlay.IP[:0:0], p.overlay.IP...),
 		Port: p.overlay.Port,
@@ -92,6 +159,9 @@ func (p Path) OverlayNextHop() *net.UDPAddr {
 }
 
 func (p Path) Path() *spath.Path {
+	if p.spath == nil {
+		return nil
+	}
 	return p.spath.Copy()
 }
 
@@ -108,7 +178,7 @@ func (p Path) Interfaces() []snet.PathInterface {
 
 func (p Path) Destination() addr.IA {
 	if len(p.interfaces) == 0 {
-		return addr.IA{}
+		return p.dst
 	}
 	return p.interfaces[len(p.interfaces)-1].IA()
 }
@@ -122,7 +192,13 @@ func (p Path) Expiry() time.Time {
 }
 
 func (p Path) Copy() snet.Path {
-	panic("TODO")
+	return Path{
+		interfaces: append(p.interfaces[:0:0], p.interfaces...),
+		overlay:    p.OverlayNextHop(), // creates copy
+		spath:      p.Path(),           // creates copy
+		mtu:        p.mtu,
+		expiry:     p.expiry,
+	}
 }
 
 func (p Path) String() string {

@@ -17,7 +17,6 @@ package sciond
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -246,26 +245,6 @@ func (fpm *FwdPathMeta) fmtIfaces() []string {
 type PathInterface struct {
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	IfID     common.IFIDType
-}
-
-func NewPathInterface(str string) (PathInterface, error) {
-	tokens := strings.Split(str, "#")
-	if len(tokens) != 2 {
-		return PathInterface{},
-			common.NewBasicError("Failed to parse interface spec", nil, "value", str)
-	}
-	var iface PathInterface
-	ia, err := addr.IAFromString(tokens[0])
-	if err != nil {
-		return PathInterface{}, err
-	}
-	iface.RawIsdas = ia.IAInt()
-	ifid, err := strconv.ParseUint(tokens[1], 10, 64)
-	if err != nil {
-		return PathInterface{}, err
-	}
-	iface.IfID = common.IFIDType(ifid)
-	return iface, nil
 }
 
 func (iface PathInterface) IA() addr.IA {

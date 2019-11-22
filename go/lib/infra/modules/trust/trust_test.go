@@ -41,7 +41,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/topology/topotestutil"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -598,7 +597,7 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, name string) infra.Messenge
 		),
 		AddressRewriter: &messenger.AddressRewriter{
 			Router: &snet.BaseRouter{
-				Querier: &snetmigrate.PathQuerier{IA: ia},
+				Querier: snet.IntraASPathQuerier{IA: ia},
 			},
 		},
 		DisableSignatureVerification: true,

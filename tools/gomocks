@@ -54,7 +54,6 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),
         (SCION_PACKAGE_PREFIX + "/go/lib/overlay/conn", "Conn"),
         (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Policy,Querier,Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
         (SCION_PACKAGE_PREFIX + "/go/lib/sciond", "Service,Connector"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet", "Conn,PacketDispatcherService,Network,PacketConn,"+
@@ -69,6 +68,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/path_srv/internal/segreq", "LocalInfo"),
         (SCION_PACKAGE_PREFIX + "/go/path_srv/internal/segutil", "Policy"),
         (SCION_PACKAGE_PREFIX + "/go/sciond/internal/fetcher", "Policy"),
+        (SCION_PACKAGE_PREFIX + "/go/sig/internal/pathmgr", "Policy,Querier,Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/sig/egress/iface", "Session"),
         (SCION_PACKAGE_PREFIX + "/go/sig/egress/worker", "SCIONWriter"),
 ]

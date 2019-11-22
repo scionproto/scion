@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -93,7 +92,7 @@ func (s server) run() {
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcherService(""),
 		SCMPHandler: snet.NewSCMPHandler(
-			pathmgr.New(integration.SDConn(), pathmgr.Timers{}),
+			sciond.RevHandler{Connector: integration.SDConn()},
 		),
 	}
 	conn, port, err := connFactory.RegisterTimeout(integration.Local.IA, integration.Local.Host,
@@ -148,7 +147,7 @@ func (c client) run() int {
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcherService(""),
 		SCMPHandler: snet.NewSCMPHandler(
-			pathmgr.New(integration.SDConn(), pathmgr.Timers{}),
+			sciond.RevHandler{Connector: integration.SDConn()},
 		),
 	}
 

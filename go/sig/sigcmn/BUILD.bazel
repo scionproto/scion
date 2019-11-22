@@ -10,11 +10,11 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/lib/pathmgr:go_default_library",
         "//go/lib/snet:go_default_library",
-        "//go/lib/snet/snetmigrate:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
+        "//go/sig/internal/pathmgr:go_default_library",
         "//go/sig/internal/sigconfig:go_default_library",
+        "//go/sig/internal/snetmigrate:go_default_library",
         "//go/sig/mgmt:go_default_library",
     ],
 )

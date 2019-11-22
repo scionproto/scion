@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/sig/internal/pathmgr"
 )
 
 func ResolverFromSD(sciondPath string) (pathmgr.Resolver, error) {

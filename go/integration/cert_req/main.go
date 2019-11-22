@@ -29,12 +29,11 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -81,7 +80,7 @@ func (c client) run() int {
 			),
 			AddressRewriter: &messenger.AddressRewriter{
 				Router: &snet.BaseRouter{
-					Querier: &snetmigrate.PathQuerier{IA: integration.Local.IA},
+					Querier: snet.IntraASPathQuerier{IA: integration.Local.IA},
 				},
 			},
 		},
@@ -181,9 +180,5 @@ func getRemote() error {
 func getSVCAddress() (*net.UDPAddr, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
 	defer cancelF()
-	reply, err := integration.SDConn().SVCInfo(ctx, []proto.ServiceType{proto.ServiceType_cs})
-	if err != nil {
-		return nil, err
-	}
-	return reply.Entries[0].HostInfos[0].UDP(), nil
+	return sciond.TopoQuerier{Connector: integration.SDConn()}.OverlayAnycast(ctx, addr.SvcCS)
 }

@@ -86,10 +86,6 @@ type Connector interface {
 	Paths(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
-	// IFInfo requests from SCIOND addresses and ports of interfaces.  Slice
-	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
-	// answer containing all interfaces is returned.
-	IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error)
 	// SVCInfo requests from SCIOND information about addresses and ports of
 	// infrastructure services.  Slice svcTypes contains a list of desired
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
@@ -195,7 +191,7 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 		return nil, serrors.WrapStr("[sciond-API] Failed to get Paths", err)
 	}
 	metrics.PathRequests.Inc(metrics.OkSuccess)
-	return pathReplyToPaths(reply.(*Pld).PathReply)
+	return pathReplyToPaths(reply.(*Pld).PathReply, dst)
 }
 
 func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {

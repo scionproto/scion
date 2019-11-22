@@ -57,6 +57,19 @@ func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error)
 	return r.Querier.Query(ctx, dst)
 }
 
+// IntraASPathQuerier implements the PathQuerier interface. It will only provide
+// AS internal paths, i.e., empty paths with only the IA as destination. This
+// should only be used in places where you know that you only need to
+// communicate inside the AS.
+type IntraASPathQuerier struct {
+	IA addr.IA
+}
+
+// Query implements PathQuerier.
+func (q IntraASPathQuerier) Query(_ context.Context, _ addr.IA) ([]Path, error) {
+	return []Path{&partialPath{destination: q.IA}}, nil
+}
+
 // LocalMachine describes aspects of the host system and its network.
 type LocalMachine struct {
 	// InterfaceIP is the default L3 address for connections originating from
