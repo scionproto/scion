@@ -33,3 +33,9 @@ func NewSVCUDPAppAddr(svc HostSVC) *AppAddr {
 		L3: svc,
 	}
 }
+func NewUDPAppAddr(u *net.UDPAddr) *AppAddr {
+	return &AppAddr{
+		L3: HostFromIP(u.IP),
+		L4: uint16(u.Port),
+	}
+}
