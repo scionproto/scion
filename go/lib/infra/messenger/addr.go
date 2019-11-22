@@ -71,16 +71,23 @@ type AddressRewriter struct {
 //
 // If the address is already unicast, no redirection to QUIC is attempted.
 func (r AddressRewriter) RedirectToQUIC(ctx context.Context, a net.Addr) (net.Addr, bool, error) {
+	//TODO(karampok). to discuss: if of type UDPAddr, can i just return?
+
 	// FIXME(scrye): This is not legitimate use. It's only included for
 	// compatibility with older unit tests. See
 	// https://github.com/scionproto/scion/issues/2611.
 	if a == nil {
 		return nil, false, nil
 	}
+	if r.SVCResolutionFraction <= 0.0 {
+		return a, false, nil
+	}
+
 	ta, err := r.buildFullAddress(ctx, a)
 	if err != nil {
 		return nil, false, err
 	}
+
 	fullAddress, ok := ta.(*snet.Addr)
 	if !ok {
 		return nil, false, common.NewBasicError("address type not supported", nil, "addr", a)
@@ -91,7 +98,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context, a net.Addr) (net.Ad
 	}
 
 	v, ok := fullAddress.Host.L3.(addr.HostSVC)
-	if !ok || r.SVCResolutionFraction <= 0.0 { //if not SVC or Fraction return
+	if !ok { //if not SVC
 		return fullAddress, false, nil
 	}
 
@@ -225,6 +232,8 @@ func parseReply(reply *svc.Reply) (*net.UDPAddr, error) {
 // application address is not well formed (has L3, has L4, UDP/IP protocols),
 // the returned reply is non-nil and empty.
 func BuildReply(address *addr.AppAddr) *svc.Reply {
+	//TODO(karampok). to discuss this function does not really belong here
+	//Should we place to svc pkg and refactor to net.UDPAddr
 	if address == nil || address.L3 == nil {
 		return &svc.Reply{}
 	}
@@ -240,6 +249,8 @@ func BuildReply(address *addr.AppAddr) *svc.Reply {
 		return &svc.Reply{}
 	}
 	return &svc.Reply{
+		//TODO(karampok). to discuss: do we want to keep string around
+		//or have a map to net.UDPAddr?
 		Transports: map[svc.Transport]string{
 			svc.UDP: net.JoinHostPort(ip, port),
 		},

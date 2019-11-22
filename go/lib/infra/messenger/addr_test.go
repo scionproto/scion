@@ -35,53 +35,70 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
+//TODO(karampok). to discuss: should we refactor to test only the public API
+// to enable easier refactor?
 func TestRedirectQUIC(t *testing.T) {
 	testCases := map[string]struct {
-		input        net.Addr
-		wantAddr     net.Addr
-		wantRedirect bool
-		assertErr    assert.ErrorAssertionFunc
+		input                 net.Addr
+		wantAddr              net.Addr
+		wantRedirect          bool
+		SVCResolutionFraction float64
+		assertErr             assert.ErrorAssertionFunc
 	}{
 		"nil addr, no error": {
-			input:        nil,
-			wantAddr:     nil,
-			wantRedirect: false,
-			assertErr:    assert.NoError,
+			input:     nil,
+			wantAddr:  nil,
+			assertErr: assert.NoError,
+		},
+		"disabling SVC resolution, returns unchanged": {
+			input:                 &snet.Addr{Host: newSVCAppAddr(addr.SvcBS)},
+			wantAddr:              &snet.Addr{Host: newSVCAppAddr(addr.SvcBS)},
+			SVCResolutionFraction: 0.0,
+			assertErr:             assert.NoError,
 		},
 		"not nil invalid addr, error": {
-			input:        &net.TCPAddr{},
-			wantAddr:     nil,
-			wantRedirect: false,
-			assertErr:    assert.Error,
+			input:                 &net.TCPAddr{},
+			wantAddr:              nil,
+			wantRedirect:          false,
+			SVCResolutionFraction: 1.0,
+			assertErr:             assert.Error,
 		},
 		"valid empty UDP, ?error": {
-			input:        newUDPAppAddr(&net.UDPAddr{}),
-			wantAddr:     nil,
-			wantRedirect: false,
-			assertErr:    assert.Error,
+			input:                 newUDPAppAddr(&net.UDPAddr{}),
+			wantAddr:              nil,
+			wantRedirect:          false,
+			SVCResolutionFraction: 1.0,
+			assertErr:             assert.Error,
 		},
-		"valid UDP, ?error": {
-			input:        newUDPAppAddr(&net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1}),
-			wantAddr:     nil,
-			wantRedirect: false,
-			assertErr:    assert.Error,
-		},
-		// "valid empty SVC, ?error": {
+		// "valid UDPAddr": {
+		// 	input:        newUDPAppAddr(&net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1}),
+		// 	wantAddr:     nil,
+		// 	wantRedirect: false,
+		// 	assertErr:    assert.NoError,
+		// },
+		// "valid SVCAddr, ?error": {
 		// 	input:        &snet.Addr{},
 		// 	wantAddr:     nil,
 		// 	wantRedirect: false,
 		// 	assertErr:    assert.Error,
 		// },
+		// "non-svc address does not trigger lookup": {
+		// never happens
+		// 	},
 	}
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			router := mock_snet.NewMockRouter(ctrl)
+			router.EXPECT().Route(gomock.Any(), gomock.Any()).Times(0)
 			resolver := mock_messenger.NewMockResolver(ctrl)
+			resolver.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
 			aw := messenger.AddressRewriter{
-				Resolver: resolver,
-				Router:   router,
+				Resolver:              resolver,
+				Router:                router,
+				SVCResolutionFraction: tc.SVCResolutionFraction,
 			}
 
 			a, r, err := aw.RedirectToQUIC(context.Background(), tc.input)
@@ -285,12 +302,6 @@ func TestResolveIfSVC(t *testing.T) {
 		wantQUICRedirect      bool
 		assertErr             assert.ErrorAssertionFunc
 	}{
-		// "non-svc address does not trigger lookup": {
-		// never happens
-		// 	},
-		// "disabling SVC resolution does not trigger lookup": {
-		// never happens
-		// },
 		"svc address, lookup fails": {
 			input: addr.SvcBS,
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
