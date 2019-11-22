@@ -36,7 +36,6 @@ pkg_tar(
         "//go/border/braccept:braccept",
         "//go/integration/cert_req:cert_req",
         "//go/integration/cert_req_integration:cert_req_integration",
-        "//go/integration/cli_srv_ext_pyintegration:cli_srv_ext_pyintegration",
         "//go/examples/discovery_client:discovery_client",
         "//go/integration/end2end:end2end",
         "//go/integration/end2end_integration:end2end_integration",
