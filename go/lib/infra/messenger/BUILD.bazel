@@ -49,6 +49,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "addr_test.go",
+        "export_test.go",
         "messenger_test.go",
     ],
     embed = [":go_default_library"],
@@ -62,6 +63,6 @@ go_test(
         "//go/lib/svc:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
-        "@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )
