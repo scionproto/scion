@@ -117,8 +117,8 @@ func realMain() int {
 	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
 		IA:                    itopo.Get().IA(),
-		Public:                cfg.SD.Public,
-		Bind:                  cfg.SD.Bind,
+		Public:                cfg.SD.Public.ToNetUDPAddr(),
+		Bind:                  cfg.SD.Bind.ToNetUDPAddr(),
 		SVC:                   addr.SvcNone,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{

@@ -162,10 +162,13 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	if !topo.Exists(addr.SvcCS, cfg.General.ID) {
 		return serrors.New("unable to find topo address")
 	}
+
+	pip := topo.SPublicAddress(addr.SvcCS, cfg.General.ID)
+	bip := topo.SBindAddress(addr.SvcCS, cfg.General.ID)
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.SPublicAddress(addr.SvcCS, cfg.General.ID),
-		Bind:                  topo.SBindAddress(addr.SvcCS, cfg.General.ID),
+		Public:                pip.ToNetUDPAddr(),
+		Bind:                  bip.ToNetUDPAddr(),
 		SVC:                   addr.SvcCS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{

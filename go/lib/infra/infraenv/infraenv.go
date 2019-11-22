@@ -63,9 +63,9 @@ type NetworkConfig struct {
 	IA addr.IA
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
-	Public *snet.Addr
+	Public *net.UDPAddr
 	// Bind is the local address the server should listen on.
-	Bind *snet.Addr
+	Bind *net.UDPAddr
 	// SVC registers this server to receive packets with the specified SVC
 	// destination address.
 	SVC addr.HostSVC
@@ -172,7 +172,12 @@ func (nc *NetworkConfig) AddressRewriter(
 // resolution requests. If argument address is not the empty string, it will be
 // included as the QUIC address in SVC resolution replies.
 func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, error) {
-	reply := messenger.BuildReply(nc.Public.Host)
+	reply := &svc.Reply{
+		Transports: map[svc.Transport]string{
+			svc.UDP: nc.Public.String(),
+		},
+	}
+
 	if quicAddress != "" {
 		reply.Transports[svc.QUIC] = quicAddress
 	}
@@ -201,7 +206,9 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create network", err)
 	}
-	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
+	sladdr := &snet.Addr{IA: nc.IA, Host: addr.AppAddrFromUDP(nc.Public)}
+	sbaddr := &snet.Addr{IA: nc.IA, Host: addr.AppAddrFromUDP(nc.Bind)}
+	conn, err := network.ListenSCIONWithBindSVC("udp4", sladdr, sbaddr, nc.SVC, 0)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
 	}
@@ -256,15 +263,15 @@ func (nc *NetworkConfig) buildQUICConfig(conn net.PacketConn) (*messenger.QUICCo
 	}, nil
 }
 
-func buildLocalMachine(bind, public *snet.Addr) snet.LocalMachine {
-	var mi snet.LocalMachine
-	mi.PublicIP = public.Host.L3.IP()
-	if bind != nil {
-		mi.InterfaceIP = bind.Host.L3.IP()
-	} else {
-		mi.InterfaceIP = mi.PublicIP
+func buildLocalMachine(bind, public *net.UDPAddr) snet.LocalMachine {
+	ret := snet.LocalMachine{
+		PublicIP:    public.IP,
+		InterfaceIP: public.IP,
 	}
-	return mi
+	if bind != nil {
+		ret.InterfaceIP = bind.IP
+	}
+	return ret
 }
 
 // LegacyForwardingHandler is an SVC resolution handler that only responds to

@@ -16,7 +16,6 @@ package messenger
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"time"
 
@@ -221,31 +220,6 @@ func parseReply(reply *svc.Reply) (*addr.AppAddr, error) {
 		L3: addr.HostFromIP(udpAddr.IP),
 		L4: uint16(udpAddr.Port),
 	}, nil
-}
-
-// BuildReply constructs a reply from an application address. If the
-// application address is not well formed (has L3, has L4, UDP/IP protocols),
-// the returned reply is non-nil and empty.
-func BuildReply(address *addr.AppAddr) *svc.Reply {
-	if address == nil || address.L3 == nil {
-		return &svc.Reply{}
-	}
-	port := fmt.Sprintf("%v", address.L4)
-
-	var ip string
-	switch t := address.L3.(type) {
-	case addr.HostIPv4:
-		ip = t.String()
-	case addr.HostIPv6:
-		ip = t.String()
-	default:
-		return &svc.Reply{}
-	}
-	return &svc.Reply{
-		Transports: map[svc.Transport]string{
-			svc.UDP: net.JoinHostPort(ip, port),
-		},
-	}
 }
 
 // LocalSVCRouter is used to construct overlay information for SVC servers
