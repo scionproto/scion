@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package messenger
+package messenger_test
 
 import (
 	"context"
@@ -23,9 +23,10 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/messenger/mock_messenger"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -34,243 +35,267 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestBuildFullAddress(t *testing.T) {
-	testCases := []struct {
-		Description     string
-		InputAddress    net.Addr
-		ExpectedAddress *snet.Addr
-		ExpectedError   bool
+func TestRedirectQUIC(t *testing.T) {
+	testCases := map[string]struct {
+		input        net.Addr
+		wantAddr     net.Addr
+		wantRedirect bool
+		assertErr    assert.ErrorAssertionFunc
 	}{
-		{
-			Description:   "non-snet address",
-			InputAddress:  &net.UDPAddr{},
-			ExpectedError: true,
+		"nil input": {
+			input:        nil,
+			wantAddr:     nil,
+			wantRedirect: false,
+			assertErr:    assert.NoError,
 		},
-		{
-			Description:   "snet address without host",
-			InputAddress:  &snet.Addr{},
-			ExpectedError: true,
+	}
+	for tn, tc := range testCases {
+		t.Run(tn, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			router := mock_snet.NewMockRouter(ctrl)
+			resolver := mock_messenger.NewMockResolver(ctrl)
+			aw := messenger.AddressRewriter{
+				Resolver: resolver,
+				Router:   router,
+			}
+
+			a, r, err := aw.RedirectToQUIC(context.Background(), tc.input)
+			tc.assertErr(t, err)
+			assert.Equal(t, a, tc.wantAddr)
+			assert.Equal(t, r, tc.wantRedirect)
+		})
+	}
+}
+
+func TestBuildFullAddress(t *testing.T) {
+	testCases := map[string]struct {
+		input     net.Addr
+		want      *snet.Addr
+		assertErr assert.ErrorAssertionFunc
+	}{
+		"non-snet address": {
+			input:     &net.UDPAddr{},
+			assertErr: assert.Error,
 		},
-		{
-			Description:   "snet address without L3",
-			InputAddress:  &snet.Addr{Host: &addr.AppAddr{}},
-			ExpectedError: true,
+		"snet address without host": {
+			input:     &snet.Addr{},
+			assertErr: assert.Error,
 		},
-		{
-			Description: "snet address with bad L3 type",
-			InputAddress: &snet.Addr{
+		"snet address without L3": {
+			input:     &snet.Addr{Host: &addr.AppAddr{}},
+			assertErr: assert.Error,
+		},
+		"snet address with bad L3 type": {
+			input: &snet.Addr{
 				Host: &addr.AppAddr{
 					L3: &addr.HostNone{},
 					L4: 5,
 				},
 			},
-			ExpectedError: true,
+			assertErr: assert.Error,
 		},
 	}
-	Convey("", t, func() {
+	for tn, tc := range testCases {
+		t.Run(tn, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			router := mock_snet.NewMockRouter(ctrl)
+			resolver := mock_messenger.NewMockResolver(ctrl)
+			aw := messenger.AddressRewriter{
+				Resolver: resolver,
+				Router:   router,
+			}
+
+			a, err := aw.BuildFullAddress(context.Background(), tc.input)
+			assert.Equal(t, a, tc.want)
+			tc.assertErr(t, err)
+		})
+	}
+
+	t.Run("snet address without path, error retrieving path", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		resolver := mock_messenger.NewMockResolver(ctrl)
-		aw := AddressRewriter{
-			Resolver: resolver,
-			Router:   router,
+		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		aw := messenger.AddressRewriter{
+			Router:    router,
+			SVCRouter: svcRouter,
 		}
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				a, err := aw.buildFullAddress(context.Background(), tc.InputAddress)
-				SoMsg("addr", a, ShouldResemble, tc.ExpectedAddress)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-			})
+
+		input := &snet.Addr{
+			IA:   remoteIA,
+			Host: newSVCAppAddr(addr.SvcBS),
 		}
+		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("err"))
+		_, err := aw.BuildFullAddress(context.Background(), input)
+		assert.Error(t, err)
 	})
-	Convey("", t, func() {
+
+	t.Run("snet address with path", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		router := mock_snet.NewMockRouter(ctrl)
+		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		aw := messenger.AddressRewriter{
+			Router:    router,
+			SVCRouter: svcRouter,
+		}
+
+		input := &snet.Addr{
+			IA:   remoteIA,
+			Host: newSVCAppAddr(addr.SvcBS),
+			Path: &spath.Path{},
+		}
+		a, err := aw.BuildFullAddress(context.Background(), input)
+		assert.Equal(t, a, input)
+		assert.NoError(t, err)
+	})
+
+	t.Run("snet address without path, successful retrieving path", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		router := mock_snet.NewMockRouter(ctrl)
+		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		aw := messenger.AddressRewriter{
+			Router:    router,
+			SVCRouter: svcRouter,
+		}
+
+		path := mock_snet.NewMockPath(ctrl)
+		path.EXPECT().Path().Return(&spath.Path{})
+		path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{})
+		path.EXPECT().Fingerprint().Return("foo")
+		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
+		input := &snet.Addr{
+			IA:   remoteIA,
+			Host: newSVCAppAddr(addr.SvcBS),
+		}
+		a, err := aw.BuildFullAddress(context.Background(), input)
+		assert.Equal(t, a, &snet.Addr{
+			IA:      remoteIA,
+			Host:    newSVCAppAddr(addr.SvcBS),
+			Path:    &spath.Path{},
+			NextHop: &net.UDPAddr{},
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("snet address in local AS, overlay address extraction succeeds", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		localIA := xtest.MustParseIA("1-ff00:0:1")
-		remoteIA := xtest.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
-		aw := AddressRewriter{
+		aw := messenger.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
 		}
-		Convey("snet address without path, error retrieving path", func() {
-			inputAddress := &snet.Addr{
-				IA: remoteIA,
-				Host: &addr.AppAddr{
-					L3: addr.SvcBS,
-					L4: 1,
-				},
-			}
-			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("err"))
-			_, err := aw.buildFullAddress(context.Background(), inputAddress)
-			SoMsg("err", err, ShouldNotBeNil)
+
+		overlayAddr := &net.UDPAddr{
+			IP:   net.IP{192, 168, 0, 1},
+			Port: 10,
+		}
+		svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(overlayAddr, nil)
+
+		path := mock_snet.NewMockPath(ctrl)
+		path.EXPECT().Fingerprint()
+		path.EXPECT().Path()
+		path.EXPECT().OverlayNextHop()
+		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
+
+		input := &snet.Addr{
+			IA:   localIA,
+			Host: newSVCAppAddr(addr.SvcBS),
+		}
+
+		a, err := aw.BuildFullAddress(context.Background(), input)
+		assert.Equal(t, a, &snet.Addr{
+			IA:      localIA,
+			Host:    newSVCAppAddr(addr.SvcBS),
+			NextHop: overlayAddr,
 		})
-		Convey("snet address with path", func() {
-			inputAddress := &snet.Addr{
-				IA: remoteIA,
-				Host: &addr.AppAddr{
-					L3: addr.SvcBS,
-					L4: 1,
-				},
-				Path: &spath.Path{},
-			}
-			a, err := aw.buildFullAddress(context.Background(), inputAddress)
-			SoMsg("addr", a, ShouldResemble, inputAddress)
-			SoMsg("err", err, ShouldBeNil)
-		})
-		Convey("snet address without path, successful retrieving path", func() {
-			path := mock_snet.NewMockPath(ctrl)
-			path.EXPECT().Path().Return(&spath.Path{})
-			path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{})
-			path.EXPECT().Fingerprint().Return("foo")
-			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
-			inputAddress := &snet.Addr{
-				IA: remoteIA,
-				Host: &addr.AppAddr{
-					L3: addr.SvcBS,
-					L4: 1,
-				},
-			}
-			a, err := aw.buildFullAddress(context.Background(), inputAddress)
-			SoMsg("addr", a, ShouldResemble, &snet.Addr{
-				IA: remoteIA,
-				Host: &addr.AppAddr{
-					L3: addr.SvcBS,
-					L4: 1,
-				},
-				Path:    &spath.Path{},
-				NextHop: &net.UDPAddr{},
-			})
-			SoMsg("err", err, ShouldBeNil)
-		})
-		Convey("snet address in local AS, overlay address extraction succeeds", func() {
-			overlayAddr := &net.UDPAddr{
-				IP:   net.IP{192, 168, 0, 1},
-				Port: 10,
-			}
-			svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(overlayAddr, nil)
+		assert.NoError(t, err)
+	})
 
-			path := mock_snet.NewMockPath(ctrl)
-			path.EXPECT().Fingerprint()
-			path.EXPECT().Path()
-			path.EXPECT().OverlayNextHop()
-			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
+	t.Run("snet address in local AS, overlay address extraction fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		router := mock_snet.NewMockRouter(ctrl)
+		localIA := xtest.MustParseIA("1-ff00:0:1")
+		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		aw := messenger.AddressRewriter{
+			Router:    router,
+			SVCRouter: svcRouter,
+		}
 
-			inputAddress := &snet.Addr{
-				IA: localIA,
-				Host: &addr.AppAddr{
-					L3: addr.SvcBS,
-					L4: 1,
-				},
-			}
+		svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(nil, errors.New("err"))
 
-			a, err := aw.buildFullAddress(context.Background(), inputAddress)
-			SoMsg("addr", a, ShouldResemble, &snet.Addr{
-				IA: localIA,
-				Host: &addr.AppAddr{
-					L3: addr.SvcBS,
-					L4: 1,
-				},
-				NextHop: overlayAddr,
-			})
-			SoMsg("err", err, ShouldBeNil)
-		})
-		Convey("snet address in local AS, overlay address extraction fails", func() {
-			svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(nil, errors.New("err"))
+		path := mock_snet.NewMockPath(ctrl)
+		path.EXPECT().Fingerprint()
+		path.EXPECT().Path()
+		path.EXPECT().OverlayNextHop()
+		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 
-			path := mock_snet.NewMockPath(ctrl)
-			path.EXPECT().Fingerprint()
-			path.EXPECT().Path()
-			path.EXPECT().OverlayNextHop()
-			router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
+		input := &snet.Addr{
+			IA:   localIA,
+			Host: newSVCAppAddr(addr.SvcBS),
+		}
 
-			inputAddress := &snet.Addr{
-				IA: localIA,
-				Host: &addr.AppAddr{
-					L3: addr.SvcBS,
-					L4: 1,
-				},
-			}
-
-			a, err := aw.buildFullAddress(context.Background(), inputAddress)
-			SoMsg("addr", a, ShouldBeNil)
-			SoMsg("err", err, ShouldNotBeNil)
-		})
+		a, err := aw.BuildFullAddress(context.Background(), input)
+		assert.Nil(t, a)
+		assert.Error(t, err)
 	})
 }
 
 func TestResolveIfSVC(t *testing.T) {
-	testCases := []struct {
-		Description           string
-		InputAddress          *addr.AppAddr
+	testCases := map[string]struct {
+		input                 *addr.AppAddr
 		ResolverSetup         func(*mock_messenger.MockResolver)
 		SVCResolutionFraction float64
-		ExpectedPath          snet.Path
-		ExpectedAddress       *addr.AppAddr
-		ExpectedQUICRedirect  bool
-		ExpectedError         bool
+		wantPath              snet.Path
+		want                  *addr.AppAddr
+		wantQUICRedirect      bool
+		assertErr             assert.ErrorAssertionFunc
 	}{
-		{
-			Description: "non-svc address does not trigger lookup",
-			InputAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
-				L4: 1,
-			},
+		"non-svc address does not trigger lookup": {
+			input: newUDPAppAddr(
+				&net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1}),
 			SVCResolutionFraction: 1.0,
-			ExpectedAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
-				L4: 1,
-			},
+			want: newUDPAppAddr(&net.UDPAddr{
+				IP: net.IP{192, 168, 0, 1}, Port: 1}),
+			assertErr: assert.NoError,
 		},
-		{
-			Description: "disabling SVC resolution does not trigger lookup, same addr is returned",
-			InputAddress: &addr.AppAddr{
-				L3: addr.SvcBS,
-				L4: 1,
-			},
+		"disabling SVC resolution does not trigger lookup, same addr": {
+			input:                 newSVCAppAddr(addr.SvcBS),
 			SVCResolutionFraction: 0.0,
-			ExpectedAddress: &addr.AppAddr{
-				L3: addr.SvcBS,
-				L4: 1,
-			},
+			want:                  newSVCAppAddr(addr.SvcBS),
+			assertErr:             assert.NoError,
 		},
-		{
-			Description: "svc address, lookup fails",
-			InputAddress: &addr.AppAddr{
-				L3: addr.SvcBS,
-				L4: 1,
-			},
+		"svc address, lookup fails": {
+			input: newSVCAppAddr(addr.SvcBS),
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, fmt.Errorf("err"))
 			},
 			SVCResolutionFraction: 1.0,
-			ExpectedError:         true,
+			assertErr:             assert.Error,
 		},
-		{
-			Description: "svc address, half time allowed for resolution, lookup fails",
-			InputAddress: &addr.AppAddr{
-				L3: addr.SvcBS,
-				L4: 1,
-			},
+		"svc address, half time allowed for resolution, lookup fails": {
+			input: newSVCAppAddr(addr.SvcBS),
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, fmt.Errorf("err"))
 			},
 			SVCResolutionFraction: 0.5,
-			ExpectedAddress: &addr.AppAddr{
-				L3: addr.SvcBS,
-				L4: 1,
-			},
+			want:                  newSVCAppAddr(addr.SvcBS),
+			assertErr:             assert.NoError,
 		},
-		{
-			Description: "svc address, lookup succeeds",
-			InputAddress: &addr.AppAddr{
-				L3: addr.SvcBS,
-				L4: 1,
-			},
+		"svc address, lookup succeeds": {
+			input: newSVCAppAddr(addr.SvcBS),
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(
@@ -284,19 +309,14 @@ func TestResolveIfSVC(t *testing.T) {
 					)
 			},
 			SVCResolutionFraction: 1.0,
-			ExpectedPath:          &testPath{},
-			ExpectedAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
-				L4: 8000,
-			},
-			ExpectedQUICRedirect: true,
+			wantPath:              &testPath{},
+			want: newUDPAppAddr(
+				&net.UDPAddr{IP: net.IP{192, 168, 1, 1}, Port: 8000}),
+			wantQUICRedirect: true,
+			assertErr:        assert.NoError,
 		},
-		{
-			Description: "svc address, half time allowed for resolution, lookup succeeds",
-			InputAddress: &addr.AppAddr{
-				L3: addr.SvcBS,
-				L4: 1,
-			},
+		"svc address, half time allowed for resolution, lookup succeeds": {
+			input: newSVCAppAddr(addr.SvcBS),
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(
@@ -309,145 +329,119 @@ func TestResolveIfSVC(t *testing.T) {
 					)
 			},
 			SVCResolutionFraction: 0.5,
-			ExpectedAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
-				L4: 8000,
-			},
-			ExpectedQUICRedirect: true,
+			want: newUDPAppAddr(
+				&net.UDPAddr{IP: net.IP{192, 168, 1, 1}, Port: 8000}),
+			wantQUICRedirect: true,
+			assertErr:        assert.NoError,
 		},
 	}
 
-	Convey("", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		resolver := mock_messenger.NewMockResolver(ctrl)
-		path := mock_snet.NewMockPath(ctrl)
-		path.EXPECT().Destination().Return(addr.IA{}).AnyTimes()
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				aw := AddressRewriter{
-					Resolver:              resolver,
-					SVCResolutionFraction: tc.SVCResolutionFraction,
-				}
-				initResolver(resolver, tc.ResolverSetup)
-				p, a, redirect, err := aw.resolveIfSVC(context.Background(), path, tc.InputAddress)
-				SoMsg("path", p, ShouldResemble, tc.ExpectedPath)
-				SoMsg("addr", a, ShouldResemble, tc.ExpectedAddress)
-				SoMsg("redirect", redirect, ShouldEqual, tc.ExpectedQUICRedirect)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-			})
-		}
-	})
+	for tn, tc := range testCases {
+		t.Run(tn, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			resolver := mock_messenger.NewMockResolver(ctrl)
+			path := mock_snet.NewMockPath(ctrl)
+			path.EXPECT().Destination().Return(addr.IA{}).AnyTimes()
+			aw := messenger.AddressRewriter{
+				Resolver:              resolver,
+				SVCResolutionFraction: tc.SVCResolutionFraction,
+			}
+			initResolver(resolver, tc.ResolverSetup)
+			p, a, redirect, err := aw.ResolveIfSVC(context.Background(), path, tc.input)
+			assert.Equal(t, p, tc.wantPath)
+			assert.Equal(t, a, tc.want)
+			assert.Equal(t, redirect, tc.wantQUICRedirect)
+			tc.assertErr(t, err)
+		})
+	}
 }
 
 func TestParseReply(t *testing.T) {
-	testCases := []struct {
-		Description     string
-		Reply           *svc.Reply
-		ExpectedAddress *addr.AppAddr
-		ExpectedError   bool
+	testCases := map[string]struct {
+		Reply     *svc.Reply
+		want      *net.UDPAddr
+		assertErr assert.ErrorAssertionFunc
 	}{
-		{
-			Description:   "nil reply",
-			ExpectedError: true,
+		"nil reply": {
+			assertErr: assert.Error,
 		},
-		{
-			Description:   "empty reply",
-			Reply:         &svc.Reply{},
-			ExpectedError: true,
+		"empty reply": {
+			Reply:     &svc.Reply{},
+			assertErr: assert.Error,
 		},
-		{
-			Description:   "key not found in reply",
-			Reply:         &svc.Reply{Transports: map[svc.Transport]string{svc.UDP: "foo"}},
-			ExpectedError: true,
+		"key not found in reply": {
+			Reply:     &svc.Reply{Transports: map[svc.Transport]string{svc.UDP: "foo"}},
+			assertErr: assert.Error,
 		},
-		{
-			Description: "key found in reply, but parsing fails",
+		"key found in reply, but parsing fails": {
 			Reply: &svc.Reply{
 				Transports: map[svc.Transport]string{
 					svc.QUIC: "foo",
 				},
 			},
-			ExpectedError: true,
+			assertErr: assert.Error,
 		},
-		{
-			Description: "key found in reply, IPv4 address",
+		"key found in reply, IPv4 address": {
 			Reply: &svc.Reply{
 				Transports: map[svc.Transport]string{
 					svc.QUIC: "192.168.1.1:8000",
 				},
 			},
-			ExpectedAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
-				L4: 8000,
-			},
-			ExpectedError: false,
+			want:      &net.UDPAddr{IP: net.IP{192, 168, 1, 1}, Port: 8000},
+			assertErr: assert.NoError,
 		},
-		{
-			Description: "key found in reply, IPv6 address",
+		"key found in reply, IPv6 address": {
 			Reply: &svc.Reply{
 				Transports: map[svc.Transport]string{
 					svc.QUIC: "[2001:db8::1]:8000",
 				},
 			},
-			ExpectedAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.ParseIP("2001:db8::1")),
-				L4: 8000,
-			},
-			ExpectedError: false,
+			want:      &net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: 8000},
+			assertErr: assert.NoError,
 		},
 	}
 
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				a, err := parseReply(tc.Reply)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
-				SoMsg("addr", a, ShouldResemble, tc.ExpectedAddress)
-			})
-		}
-	})
+	for tn, tc := range testCases {
+		t.Run(tn, func(t *testing.T) {
+			a, err := messenger.ParseReply(tc.Reply)
+			tc.assertErr(t, err)
+			if err != nil {
+				return
+			}
+			want := newUDPAppAddr(tc.want)
+			assert.Equal(t, a, want)
+		})
+	}
 }
 
 func TestBuildReply(t *testing.T) {
-	testCases := []struct {
-		Description   string
-		InputAddress  *addr.AppAddr
-		ExpectedReply *svc.Reply
+	testCases := map[string]struct {
+		input *addr.AppAddr
+		want  *svc.Reply
 	}{
-		{
-			Description:   "nil app address",
-			ExpectedReply: &svc.Reply{},
+		"nil app address": {
+			want: &svc.Reply{},
 		},
-		{
-			Description:   "nil L3",
-			InputAddress:  &addr.AppAddr{L4: 1},
-			ExpectedReply: &svc.Reply{},
+		"nil L3": {
+			input: &addr.AppAddr{L4: 1},
+			want:  &svc.Reply{},
 		},
-		{
-			Description:   "nil L4",
-			InputAddress:  &addr.AppAddr{L3: addr.SvcBS},
-			ExpectedReply: &svc.Reply{},
+		"nil L4": {
+			input: newSVCAppAddr(addr.SvcBS),
+			want:  &svc.Reply{},
 		},
-		{
-			Description: "IPv4 L3, UDP L4",
-			InputAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.IP{192, 168, 0, 1}),
-				L4: 1,
-			},
-			ExpectedReply: &svc.Reply{
+		"IPv4 L3, UDP L4": {
+			input: newUDPAppAddr(&net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1}),
+			want: &svc.Reply{
 				Transports: map[svc.Transport]string{
 					svc.UDP: "192.168.0.1:1",
 				},
 			},
 		},
-		{
-			Description: "IPv6 L3, UDP L4",
-			InputAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.ParseIP("2001:db8::1")),
-				L4: 1,
-			},
-			ExpectedReply: &svc.Reply{
+		"IPv6 L3, UDP L4": {
+			input: newUDPAppAddr(&net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: 1}),
+			want: &svc.Reply{
 				Transports: map[svc.Transport]string{
 					svc.UDP: "[2001:db8::1]:1",
 				},
@@ -455,13 +449,12 @@ func TestBuildReply(t *testing.T) {
 		},
 	}
 
-	Convey("", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Description, func() {
-				So(BuildReply(tc.InputAddress), ShouldResemble, tc.ExpectedReply)
-			})
-		}
-	})
+	for tn, tc := range testCases {
+		t.Run(tn, func(t *testing.T) {
+			got := messenger.BuildReply(tc.input)
+			assert.Equal(t, got, tc.want)
+		})
+	}
 }
 
 func initResolver(resolver *mock_messenger.MockResolver, f func(*mock_messenger.MockResolver)) {
@@ -502,4 +495,16 @@ func (t *testPath) Expiry() time.Time {
 
 func (t *testPath) Copy() snet.Path {
 	panic("not implemented")
+}
+
+func newSVCAppAddr(svc addr.HostSVC) *addr.AppAddr {
+	return &addr.AppAddr{
+		L3: svc,
+	}
+}
+func newUDPAppAddr(u *net.UDPAddr) *addr.AppAddr {
+	return &addr.AppAddr{
+		L3: addr.HostFromIP(u.IP),
+		L4: uint16(u.Port),
+	}
 }
