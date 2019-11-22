@@ -70,28 +70,47 @@ type AddressRewriter struct {
 //
 // If the address is already unicast, no redirection to QUIC is attempted.
 func (r AddressRewriter) RedirectToQUIC(ctx context.Context, a net.Addr) (net.Addr, bool, error) {
+
 	// FIXME(scrye): This is not legitimate use. It's only included for
 	// compatibility with older unit tests. See
 	// https://github.com/scionproto/scion/issues/2611.
-	if a == nil {
-		return nil, false, nil
+	if a == nil || r.SVCResolutionFraction <= 0.0 {
+		return a, false, nil
 	}
-	fullAddress, err := r.buildFullAddress(ctx, a)
+
+	// If already of type UDPAddr then return
+	if v, ok := a.(*snet.Addr); ok && v.Host.L3.Type() != addr.HostTypeSVC {
+		return a, false, nil
+	}
+
+	t, err := r.buildFullAddress(ctx, a)
 	if err != nil {
 		return nil, false, err
+	}
+
+	fullAddress, ok := t.(*snet.Addr)
+	if !ok {
+		return nil, false, common.NewBasicError("address type not supported", nil, "addr", a)
 	}
 	path, err := fullAddress.GetPath()
 	if err != nil {
 		return nil, false, common.NewBasicError("bad path", err)
 	}
-	var quicRedirect bool
-	var p snet.Path
-	// During One-Hop Path operation, use SVC resolution to also bootstrap the
-	// path.
-	p, fullAddress.Host, quicRedirect, err = r.resolveIfSVC(ctx, path, fullAddress.Host)
+
+	v, ok := fullAddress.Host.L3.(addr.HostSVC)
+	if !ok { //if not SVC
+		return fullAddress, false, nil
+	}
+
+	// During One-Hop Path operation, use SVC resolution to also bootstrap the path.
+	p, u, quicRedirect, err := r.resolveSVC(ctx, path, v)
 	if p != nil {
 		fullAddress.Path = p.Path()
 	}
+	if u != nil {
+		fullAddress.Host = addr.AppAddrFromUDP(u)
+	}
+
 	return fullAddress, quicRedirect, err
 }
 
@@ -99,7 +118,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context, a net.Addr) (net.Ad
 // non-nil, only supported protocols). If the path is missing, the path and
 // next-hop are added by performing a routing lookup. The returned address is
 // always a copy, and the input address is guaranteed to not change.
-func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*snet.Addr, error) {
+func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (net.Addr, error) {
 	snetAddr, ok := a.(*snet.Addr)
 	if !ok {
 		return nil, common.NewBasicError("address type not supported", nil, "addr", a)
@@ -138,54 +157,46 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (*sne
 	return newAddr, nil
 }
 
-// resolveIfSvc performs SVC resolution and returns an UDP/IP address if the
-// input address is an SVC destination. If the UDP/IP address is for a
-// QUIC-compatible server, the returned boolean value is set to true. If the
-// address does not have an SVC destination, it is returned unchanged. If
-// address is not a well-formed application address (all fields set, non-nil,
-// supported protocols), the function's behavior is undefined. The returned
-// address is always a copy. The returned path is the path contained in the
-// reply; the path can be used to talk to the remote AS after One-Hop Path
-// construction.
-func (r AddressRewriter) resolveIfSVC(ctx context.Context, p snet.Path,
-	address *addr.AppAddr) (snet.Path, *addr.AppAddr, bool, error) {
-
-	svcAddress, ok := address.L3.(addr.HostSVC)
-	if !ok {
-		return nil, address.Copy(), false, nil
-	}
-	if r.SVCResolutionFraction <= 0.0 {
-		return nil, address.Copy(), false, nil
-	}
-
+// resolveSVC performs SVC resolution and returns an UDP/IP address. If the UDP/IP
+// address is for a QUIC-compatible server, the returned boolean value is set
+// to true. If the address does not have an SVC destination, it is returned
+// unchanged. If address is not a well-formed application address (all fields
+// set, non-nil, supported protocols), the function's behavior is undefined.
+// The returned path is the path contained in the reply; the path can be used
+// to talk to the remote AS after One-Hop Path construction.
+func (r AddressRewriter) resolveSVC(ctx context.Context, p snet.Path,
+	s addr.HostSVC) (snet.Path, *net.UDPAddr, bool, error) {
+	logger := log.FromCtx(ctx)
 	if r.SVCResolutionFraction < 1.0 {
 		var cancelF context.CancelFunc
 		ctx, cancelF = r.resolutionCtx(ctx)
 		defer cancelF()
 	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("Sending SVC resolution request", "ia", p.Destination(), "svc", svcAddress,
+
+	logger.Trace("Sending SVC resolution request", "ia", p.Destination(), "svc", s,
 		"svcResFraction", r.SVCResolutionFraction)
-	reply, err := r.Resolver.LookupSVC(ctx, p, svcAddress)
+
+	reply, err := r.Resolver.LookupSVC(ctx, p, s)
 	if err != nil {
+		logger.Trace("SVC resolution failed", "err", err)
 		if r.SVCResolutionFraction < 1.0 {
 			// SVC resolution failed but we allow legacy behavior and have some
 			// fraction of the timeout left for data transfers, so return
 			// address with SVC destination still set
-			logger.Trace("SVC resolution failed, falling back to legacy mode", "err", err)
-			return nil, address.Copy(), false, nil
+			logger.Trace("Falling back to legacy mode, ignore error", "err", err)
+			return nil, nil, false, nil
 		}
 		// Legacy behavior is disallowed, so propagate a hard failure back to the app.
-		logger.Trace("SVC resolution failed and legacy mode disabled", "err", err)
+		logger.Trace("Legacy mode disabled, propagate error", "err", err)
 		return nil, nil, false, err
 	}
-	logger.Trace("SVC resolution successful", "reply", reply)
 
-	appAddr, err := parseReply(reply)
+	logger.Trace("SVC resolution successful", "reply", reply)
+	u, err := parseReply(reply)
 	if err != nil {
 		return nil, nil, false, err
 	}
-	return reply.ReturnPath, appAddr, true, nil
+	return reply.ReturnPath, u, true, nil
 }
 
 func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -201,7 +212,7 @@ func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, co
 
 // parseReply searches for a QUIC server on the remote address. If one is not
 // found, an error is returned.
-func parseReply(reply *svc.Reply) (*addr.AppAddr, error) {
+func parseReply(reply *svc.Reply) (*net.UDPAddr, error) {
 	if reply == nil {
 		return nil, serrors.New("nil reply")
 	}
@@ -212,14 +223,7 @@ func parseReply(reply *svc.Reply) (*addr.AppAddr, error) {
 	if !ok {
 		return nil, serrors.New("QUIC server address not found")
 	}
-	udpAddr, err := net.ResolveUDPAddr("udp", addressStr)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to parse address", err)
-	}
-	return &addr.AppAddr{
-		L3: addr.HostFromIP(udpAddr.IP),
-		L4: uint16(udpAddr.Port),
-	}, nil
+	return net.ResolveUDPAddr("udp", addressStr)
 }
 
 // LocalSVCRouter is used to construct overlay information for SVC servers
