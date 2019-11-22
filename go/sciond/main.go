@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -115,10 +116,19 @@ func realMain() int {
 	}
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
+
+	var pip, bip *net.UDPAddr
+	if p := cfg.SD.Public; p != nil {
+		pip = p.ToNetUDPAddr()
+	}
+	if b := cfg.SD.Bind; b != nil {
+		bip = b.ToNetUDPAddr()
+	}
+
 	nc := infraenv.NetworkConfig{
 		IA:                    itopo.Get().IA(),
-		Public:                cfg.SD.Public,
-		Bind:                  cfg.SD.Bind,
+		Public:                pip,
+		Bind:                  bip,
 		SVC:                   addr.SvcNone,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{

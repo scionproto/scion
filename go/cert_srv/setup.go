@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"net"
 	"path/filepath"
 	"time"
 
@@ -162,10 +163,19 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	if !topo.Exists(addr.SvcCS, cfg.General.ID) {
 		return serrors.New("unable to find topo address")
 	}
+
+	var pip, bip *net.UDPAddr
+	if p := topo.SPublicAddress(addr.SvcCS, cfg.General.ID); p != nil {
+		pip = p.ToNetUDPAddr()
+	}
+	if b := topo.SBindAddress(addr.SvcCS, cfg.General.ID); bip != nil {
+		bip = b.ToNetUDPAddr()
+	}
+
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.SPublicAddress(addr.SvcCS, cfg.General.ID),
-		Bind:                  topo.SBindAddress(addr.SvcCS, cfg.General.ID),
+		Public:                pip,
+		Bind:                  bip,
 		SVC:                   addr.SvcCS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{

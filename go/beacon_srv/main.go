@@ -130,10 +130,19 @@ func realMain() int {
 	}
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
+
+	var pip, bip *net.UDPAddr
+	if p := topo.SPublicAddress(addr.SvcBS, cfg.General.ID); p != nil {
+		pip = p.ToNetUDPAddr()
+	}
+	if b := topo.SBindAddress(addr.SvcBS, cfg.General.ID); bip != nil {
+		bip = b.ToNetUDPAddr()
+	}
+
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.SPublicAddress(addr.SvcBS, cfg.General.ID),
-		Bind:                  topo.SBindAddress(addr.SvcBS, cfg.General.ID),
+		Public:                pip,
+		Bind:                  bip,
 		SVC:                   addr.SvcBS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{

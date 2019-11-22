@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -122,10 +123,19 @@ func realMain() int {
 	}
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
+
+	var pip, bip *net.UDPAddr
+	if p := topo.SPublicAddress(addr.SvcPS, cfg.General.ID); p != nil {
+		pip = p.ToNetUDPAddr()
+	}
+	if b := topo.SBindAddress(addr.SvcPS, cfg.General.ID); bip != nil {
+		bip = b.ToNetUDPAddr()
+	}
+
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.SPublicAddress(addr.SvcPS, cfg.General.ID),
-		Bind:                  topo.SBindAddress(addr.SvcPS, cfg.General.ID),
+		Public:                pip,
+		Bind:                  bip,
 		SVC:                   addr.SvcPS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{

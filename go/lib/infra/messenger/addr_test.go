@@ -415,48 +415,6 @@ func TestParseReply(t *testing.T) {
 	}
 }
 
-func TestBuildReply(t *testing.T) {
-	testCases := map[string]struct {
-		input *addr.AppAddr
-		want  *svc.Reply
-	}{
-		"nil app address": {
-			want: &svc.Reply{},
-		},
-		"nil L3": {
-			input: &addr.AppAddr{L4: 1},
-			want:  &svc.Reply{},
-		},
-		"nil L4": {
-			input: newSVCAppAddr(addr.SvcBS),
-			want:  &svc.Reply{},
-		},
-		"IPv4 L3, UDP L4": {
-			input: newUDPAppAddr(&net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1}),
-			want: &svc.Reply{
-				Transports: map[svc.Transport]string{
-					svc.UDP: "192.168.0.1:1",
-				},
-			},
-		},
-		"IPv6 L3, UDP L4": {
-			input: newUDPAppAddr(&net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: 1}),
-			want: &svc.Reply{
-				Transports: map[svc.Transport]string{
-					svc.UDP: "[2001:db8::1]:1",
-				},
-			},
-		},
-	}
-
-	for tn, tc := range testCases {
-		t.Run(tn, func(t *testing.T) {
-			got := messenger.BuildReply(tc.input)
-			assert.Equal(t, got, tc.want)
-		})
-	}
-}
-
 func initResolver(resolver *mock_messenger.MockResolver, f func(*mock_messenger.MockResolver)) {
 	if f != nil {
 		f(resolver)
