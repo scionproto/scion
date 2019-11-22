@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 )
 
 var (
@@ -160,7 +161,7 @@ func getPaths(ctx context.Context) ([]snet.Path, error) {
 	localIA := asEntries.Entries[0].ISD_AS()
 	paths := make([]snet.Path, 0, len(reply.Entries))
 	for _, pre := range reply.Entries {
-		p, err := snet.NewPathFromSDReply(localIA, &pre)
+		p, err := snetmigrate.NewPathFromSDReply(localIA, &pre)
 		if err != nil {
 			return nil, err
 		}

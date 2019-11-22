@@ -37,7 +37,7 @@ type PathQuerier struct {
 
 func (q *PathQuerier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
 	if q.Resolver == nil || dst.Equal(q.IA) {
-		p, err := snet.NewPathFromSDReply(q.IA, nil)
+		p, err := NewPathFromSDReply(q.IA, nil)
 		if err != nil { // shouldn't happen
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func (q *PathQuerier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, erro
 	}
 	paths := make([]snet.Path, 0, len(aps))
 	for _, ap := range aps {
-		p, err := snet.NewPathFromSDReply(q.IA, ap.Entry)
+		p, err := NewPathFromSDReply(q.IA, ap.Entry)
 		if err != nil {
 			return nil, err
 		}
