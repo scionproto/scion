@@ -9,15 +9,15 @@ import (
 	"github.com/scionproto/scion/go/lib/svc"
 )
 
-func (r AddressRewriter) BuildFullAddress(ctx context.Context, a net.Addr) (*snet.Addr, error) {
+func (r AddressRewriter) BuildFullAddress(ctx context.Context, a net.Addr) (net.Addr, error) {
 	return r.buildFullAddress(ctx, a)
 }
 
-func (r AddressRewriter) ResolveIfSVC(ctx context.Context, p snet.Path,
-	a *addr.AppAddr) (snet.Path, *addr.AppAddr, bool, error) {
-	return r.resolveIfSVC(ctx, p, a)
+func (r AddressRewriter) ResolveSVC(ctx context.Context, p snet.Path,
+	s addr.HostSVC) (snet.Path, *net.UDPAddr, bool, error) {
+	return r.resolveSVC(ctx, p, s)
 }
 
-func ParseReply(reply *svc.Reply) (*addr.AppAddr, error) {
+func ParseReply(reply *svc.Reply) (*net.UDPAddr, error) {
 	return parseReply(reply)
 }
