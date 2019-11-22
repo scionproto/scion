@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -235,17 +234,13 @@ func (c client) getRemote(ctx context.Context, n int) error {
 	if err != nil {
 		return common.NewBasicError("Error requesting paths", err)
 	}
-	if len(paths.Entries) == 0 {
+	if len(paths) == 0 {
 		return serrors.New("No path entries found")
 	}
-	pathEntry := paths.Entries[0]
-	path := spath.New(pathEntry.Path.FwdPath)
-	if err = path.InitOffsets(); err != nil {
-		return common.NewBasicError("Unable to initialize path", err)
-	}
+	path := paths[0]
 	// Extract forwarding path from sciond response
-	remote.Path = path
-	remote.NextHop = pathEntry.HostInfo.Overlay()
+	remote.Path = path.Path()
+	remote.NextHop = path.OverlayNextHop()
 	return nil
 }
 

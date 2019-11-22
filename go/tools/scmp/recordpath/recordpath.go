@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/layers"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 )
@@ -38,7 +39,7 @@ func Run() {
 
 	cmn.SetupSignals(nil)
 	if cmn.PathEntry != nil {
-		n = len(cmn.PathEntry.Path.Interfaces)
+		n = len(cmn.PathEntry.Interfaces())
 		ext = &layers.ExtnSCMP{Error: false, HopByHop: true}
 	}
 	entries := make([]*scmp.RecordPathEntry, 0, n)
@@ -102,7 +103,7 @@ func prettyPrint(pkt *spkt.ScnPkt, pktLen int, info *scmp.InfoRecordPath, rtt ti
 	}
 }
 
-func validate(pkt *spkt.ScnPkt, pathEntry *sciond.PathReplyEntry) (*scmp.Hdr,
+func validate(pkt *spkt.ScnPkt, path snet.Path) (*scmp.Hdr,
 	*scmp.InfoRecordPath, error) {
 
 	scmpHdr, scmpPld, err := cmn.Validate(pkt)
@@ -118,23 +119,23 @@ func validate(pkt *spkt.ScnPkt, pathEntry *sciond.PathReplyEntry) (*scmp.Hdr,
 		return nil, nil,
 			common.NewBasicError("Wrong SCMP ID", nil, "expected", id, "actual", info.Id)
 	}
-	if pathEntry == nil {
+	if path == nil {
 		return scmpHdr, info, nil
 	}
-	interfaces := pathEntry.Path.Interfaces
+	interfaces := path.Interfaces()
 	if len(info.Entries) != len(interfaces) {
 		return nil, nil,
 			common.NewBasicError("Invalid number of entries", nil,
 				"Expected", len(interfaces), "Actual", len(info.Entries))
 	}
 	for i, e := range info.Entries {
-		ia := interfaces[i].RawIsdas.IA()
+		ia := interfaces[i].IA()
 		if e.IA != ia {
 			return nil, nil,
 				common.NewBasicError("Invalid ISD-AS", nil, "entry", i,
 					"Expected", ia, "Actual", e.IA)
 		}
-		ifid := common.IFIDType(interfaces[i].IfID)
+		ifid := interfaces[i].ID()
 		if e.IfID != ifid {
 			return nil, nil,
 				common.NewBasicError("Invalid IfID", nil, "entry", i,

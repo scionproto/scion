@@ -10,7 +10,6 @@ go_library(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/lib/sciond:go_default_library",
         "//go/lib/scmp:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/serrors:go_default_library",

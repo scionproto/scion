@@ -17,37 +17,30 @@
 package spathmeta
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
+	"fmt"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // AppPathSet represents a set of SCIOND path entries, keyed by AppPath.Key().
-type AppPathSet map[PathKey]*AppPath
+type AppPathSet map[string]snet.Path
 
 // NewAppPathSet creates a new set of paths from a SCIOND path reply.
-func NewAppPathSet(reply *sciond.PathReply) AppPathSet {
+func NewAppPathSet(paths []snet.Path) AppPathSet {
 	aps := AppPathSet{}
-	if reply == nil {
+	if paths == nil {
 		return aps
 	}
-	for i := range reply.Entries {
-		aps.Add(&reply.Entries[i])
+	for _, path := range paths {
+		aps.Add(path)
 	}
 	return aps
 }
 
-// Add converts the SCIOND path entry to an AppPath and adds it to the
-// set.
-func (aps AppPathSet) Add(entry *sciond.PathReplyEntry) *AppPath {
-	ap := &AppPath{
-		Entry: entry,
-	}
-	aps[ap.Key()] = ap
-	return ap
+// Add adds the given path to the path set.
+func (aps AppPathSet) Add(path snet.Path) {
+	aps[path.Fingerprint()] = path
 }
 
 func (aps AppPathSet) Copy() AppPathSet {
@@ -61,7 +54,7 @@ func (aps AppPathSet) Copy() AppPathSet {
 // GetAppPath returns an AppPath from the set. It first tries to find
 // a path with key pref; if one cannot be found, an arbitrary one
 // is returned.
-func (aps AppPathSet) GetAppPath(pref PathKey) *AppPath {
+func (aps AppPathSet) GetAppPath(pref string) snet.Path {
 	if len(pref) > 0 {
 		ap, ok := aps[pref]
 		if ok {
@@ -77,36 +70,7 @@ func (aps AppPathSet) GetAppPath(pref PathKey) *AppPath {
 func (aps AppPathSet) String() string {
 	var desc []string
 	for _, path := range aps {
-		desc = append(desc, path.Entry.Path.String())
+		desc = append(desc, fmt.Sprintf("%s", path))
 	}
 	return "{" + strings.Join(desc, "; ") + "}"
-}
-
-// AppPath contains a SCIOND path entry.
-type AppPath struct {
-	Entry *sciond.PathReplyEntry
-}
-
-// Key returns a unique PathKey that can be used for map indexing.
-func (ap *AppPath) Key() PathKey {
-	h := sha256.New()
-	for _, iface := range ap.Entry.Path.Interfaces {
-		binary.Write(h, common.Order, iface.RawIsdas)
-		binary.Write(h, common.Order, iface.IfID)
-	}
-	return PathKey(h.Sum(nil))
-}
-
-func (ap *AppPath) Copy() *AppPath {
-	// FIXME(scrye): this might need deep copying as well
-	return &AppPath{
-		Entry: ap.Entry,
-	}
-}
-
-// Helper type for pretty printing of maps using paths as keys.
-type PathKey string
-
-func (pk PathKey) String() string {
-	return common.RawBytes(pk).String()
 }

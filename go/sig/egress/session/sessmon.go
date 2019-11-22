@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/siginfo"
 	"github.com/scionproto/scion/go/sig/internal/disp"
@@ -123,19 +122,19 @@ func (sm *sessMonitor) updatePaths() {
 		return
 	}
 	currPath := sm.smRemote.SessPath
-	expTime := currPath.PathEntry().Path.ExpTime
-	mtu := currPath.PathEntry().Path.Mtu
+	expTime := currPath.Path().Expiry()
+	mtu := currPath.Path().MTU()
 	sm.sessPathPool.Update(sm.pool.Paths())
 	metrics.SessionPaths.WithLabelValues(sm.sess.IA().String(),
 		sm.sess.SessId.String()).Set(float64(sm.sessPathPool.PathCount()))
 	// Expiration or MTU of the current path may have changed during the update.
 	// In such a case we want to push the updated path to the Session.
-	if currPath.PathEntry().Path.ExpTime != expTime || currPath.PathEntry().Path.Mtu != mtu {
+	if currPath.Path().Expiry() != expTime || currPath.Path().MTU() != mtu {
 		sm.Trace("sessMonitor: Path metadata changed",
 			"oldExpiration", expTime,
-			"newExpiration", currPath.PathEntry().Path.ExpTime,
+			"newExpiration", currPath.Path().Expiry(),
 			"oldMTU", mtu,
-			"newMTU", currPath.PathEntry().Path.Mtu)
+			"newMTU", currPath.Path().Expiry())
 		sm.updateSessSnap()
 	}
 }
@@ -226,7 +225,7 @@ func (sm *sessMonitor) updateSessSnap() {
 	}
 	sm.sess.currRemote.Store(remote)
 	if remote.SessPath != nil {
-		mtu := remote.SessPath.PathEntry().Path.Mtu
+		mtu := remote.SessPath.Path().MTU()
 		metrics.SessionMTU.WithLabelValues(sm.sess.IA().String(),
 			sm.sess.SessId.String()).Set(float64(mtu))
 	}
@@ -279,11 +278,8 @@ func (sm *sessMonitor) sendReq() {
 		return
 	}
 	raddr := sm.smRemote.Sig.CtrlSnetAddr()
-	raddr.Path = spath.New(sm.smRemote.SessPath.PathEntry().Path.FwdPath)
-	if err := raddr.Path.InitOffsets(); err != nil {
-		sm.Error("sessMonitor: Error initializing path offsets", "err", err)
-	}
-	raddr.NextHop = sm.smRemote.SessPath.PathEntry().HostInfo.Overlay()
+	raddr.Path = sm.smRemote.SessPath.Path().Path()
+	raddr.NextHop = sm.smRemote.SessPath.Path().OverlayNextHop()
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
 	// goroutines will block. Can't just use SetWriteDeadline, as both
 	// goroutines write to it.

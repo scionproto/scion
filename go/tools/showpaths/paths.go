@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 )
 
 var (
@@ -143,29 +142,10 @@ func getPaths(ctx context.Context) ([]snet.Path, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("failed to connect to SCIOND", err)
 	}
-	reply, err := sdConn.Paths(ctx, dstIA, srcIA, uint16(*maxPaths),
+	paths, err := sdConn.Paths(ctx, dstIA, srcIA, uint16(*maxPaths),
 		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
 		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
-	}
-	if reply.ErrorCode != sciond.ErrorOk {
-		return nil, serrors.New("SCIOND unable to retrieve paths", "ErrorCode", reply.ErrorCode)
-	}
-	asEntries, err := sdConn.ASInfo(ctx, addr.IA{})
-	if err != nil {
-		return nil, serrors.WrapStr("SCIOND unable to get ASInfo", err)
-	}
-	if len(asEntries.Entries) == 0 {
-		return nil, serrors.New("no AS entries received")
-	}
-	localIA := asEntries.Entries[0].ISD_AS()
-	paths := make([]snet.Path, 0, len(reply.Entries))
-	for _, pre := range reply.Entries {
-		p, err := snetmigrate.NewPathFromSDReply(localIA, &pre)
-		if err != nil {
-			return nil, err
-		}
-		paths = append(paths, p)
 	}
 	return paths, nil
 }

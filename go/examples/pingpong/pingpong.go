@@ -42,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 const (
@@ -277,13 +276,12 @@ func (c *client) Close() error {
 
 func (c client) setupPath() {
 	if !remote.IA.Equal(local.IA) {
-		pathEntry := choosePath(*interactive)
-		if pathEntry == nil {
+		path := choosePath(*interactive)
+		if path == nil {
 			LogFatal("No paths available to remote destination")
 		}
-		remote.Path = spath.New(pathEntry.Path.FwdPath)
-		remote.Path.InitOffsets()
-		remote.NextHop = pathEntry.HostInfo.Overlay()
+		remote.Path = path.Path()
+		remote.NextHop = path.OverlayNextHop()
 	}
 }
 
@@ -415,26 +413,22 @@ func (s server) handleClient(qsess quic.Session) {
 	}
 }
 
-func choosePath(interactive bool) *sd.PathReplyEntry {
-	var paths []*sd.PathReplyEntry
+func choosePath(interactive bool) snet.Path {
 	var pathIndex uint64
 
-	pathMgr, err := snetmigrate.ResolverFromSD(*sciond)
+	sdConn, err := sd.NewService(*sciond).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sd.PathReqFlags{})
+	paths, err := sdConn.Paths(context.Background(), remote.IA, local.IA, 0, sd.PathReqFlags{})
+	if err != nil {
+		LogFatal("Failed to lookup paths", "err", err)
+	}
 
-	if len(pathSet) == 0 {
-		return nil
-	}
-	for _, p := range pathSet {
-		paths = append(paths, p.Entry)
-	}
 	if interactive {
 		fmt.Printf("Available paths to %v\n", remote.IA)
 		for i := range paths {
-			fmt.Printf("[%2d] %s\n", i, paths[i].Path.String())
+			fmt.Printf("[%2d] %s\n", i, fmt.Sprintf("%s", paths[i]))
 		}
 		reader := bufio.NewReader(os.Stdin)
 		for {
@@ -449,7 +443,7 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 				len(paths))
 		}
 	}
-	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
+	fmt.Printf("Using path:\n  %s\n", fmt.Sprintf("%s", paths[pathIndex]))
 	return paths[pathIndex]
 }
 

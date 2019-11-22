@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,38 +16,72 @@
 package pathmgr_test
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"strconv"
 	"strings"
+	"testing"
 
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/golang/mock/gomock"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/mock_snet"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func buildSDAnswer(pathStrings ...string) *sciond.PathReply {
-	reply := &sciond.PathReply{
-		ErrorCode: sciond.ErrorOk,
-		Entries:   make([]sciond.PathReplyEntry, len(pathStrings)),
+func buildSDAnswer(t testing.TB, ctrl *gomock.Controller, pathStrings ...string) []snet.Path {
+	var paths []snet.Path
+	for _, path := range pathStrings {
+		paths = append(paths, createPath(t, ctrl, path))
 	}
-	for i, pathString := range pathStrings {
-		reply.Entries[i] = sciond.PathReplyEntry{
-			Path: &sciond.FwdPathMeta{
-				Interfaces: mustParseMultiplePI(strings.Split(pathString, " ")),
-			},
+	return paths
+}
+
+func createPath(t testing.TB, ctrl *gomock.Controller, desc string) snet.Path {
+	parts := strings.Split(desc, " ")
+	path := mock_snet.NewMockPath(ctrl)
+	interfaces := make([]snet.PathInterface, 0, len(parts))
+	for _, part := range parts {
+		tokens := strings.Split(part, "#")
+		if len(tokens) != 2 {
+			t.Fatalf("Invalid path description: %s", desc)
 		}
+		interfaces = append(interfaces, intf{
+			ia: xtest.MustParseIA(tokens[0]),
+			id: mustIfID(t, tokens[1]),
+		})
 	}
-	return reply
+	path.EXPECT().Interfaces().Return(interfaces).AnyTimes()
+	path.EXPECT().Fingerprint().Return(fingerprint(interfaces)).AnyTimes()
+	return path
 }
 
-func mustParseMultiplePI(strs []string) []sciond.PathInterface {
-	var pis []sciond.PathInterface
-	for _, str := range strs {
-		pis = append(pis, mustParsePI(str))
-	}
-	return pis
-}
-
-func mustParsePI(str string) sciond.PathInterface {
-	pi, err := sciond.NewPathInterface(str)
+func mustIfID(t testing.TB, s string) common.IFIDType {
+	ifID, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to parse interface: %s", s)
 	}
-	return pi
+	return common.IFIDType(ifID)
 }
+
+func fingerprint(interfaces []snet.PathInterface) string {
+	if len(interfaces) == 0 {
+		return ""
+	}
+	h := sha256.New()
+	for _, intf := range interfaces {
+		binary.Write(h, common.Order, intf.IA().IAInt())
+		binary.Write(h, common.Order, intf.ID())
+	}
+	return string(h.Sum(nil))
+}
+
+type intf struct {
+	ia addr.IA
+	id common.IFIDType
+}
+
+func (i intf) IA() addr.IA         { return i.ia }
+func (i intf) ID() common.IFIDType { return i.id }

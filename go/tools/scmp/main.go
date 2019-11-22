@@ -27,8 +27,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 	"github.com/scionproto/scion/go/tools/scmp/echo"
 	"github.com/scionproto/scion/go/tools/scmp/recordpath"
@@ -85,8 +85,8 @@ func main() {
 	// If remote is not in local AS, we need a path!
 	var pathStr string
 	if !cmn.Remote.IA.Equal(cmn.Local.IA) {
-		cmn.Mtu = setPathAndMtu()
-		pathStr = cmn.PathEntry.Path.String()
+		setPathAndMtu()
+		pathStr = fmt.Sprintf("%s", cmn.PathEntry)
 	} else {
 		cmn.Mtu = setLocalMtu()
 	}
@@ -116,24 +116,20 @@ func doCommand(cmd string) int {
 	return 0
 }
 
-func choosePath() sciond.PathReplyEntry {
-	reply, err := sdConn.Paths(context.Background(), cmn.Remote.IA, cmn.Local.IA, 0,
+func choosePath() snet.Path {
+	paths, err := sdConn.Paths(context.Background(), cmn.Remote.IA, cmn.Local.IA, 0,
 		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
 		cmn.Fatal("Failed to retrieve paths from SCIOND: %v\n", err)
 	}
-	if reply.ErrorCode != sciond.ErrorOk {
-		cmn.Fatal("SCIOND unable to retrieve paths: %s\n", reply.ErrorCode)
-	}
 	var pathIndex uint64
-	paths := reply.Entries
 	if len(paths) == 0 {
 		cmn.Fatal("No paths available to remote destination")
 	}
 	if cmn.Interactive {
 		fmt.Printf("Available paths to %v\n", cmn.Remote.IA)
 		for i := range paths {
-			fmt.Printf("[%2d] %s\n", i, paths[i].Path.String())
+			fmt.Printf("[%2d] %s\n", i, fmt.Sprintf("%s", paths[i]))
 		}
 		reader := bufio.NewReader(os.Stdin)
 		for {
@@ -151,13 +147,12 @@ func choosePath() sciond.PathReplyEntry {
 	return paths[pathIndex]
 }
 
-func setPathAndMtu() uint16 {
+func setPathAndMtu() {
 	path := choosePath()
-	cmn.PathEntry = &path
-	cmn.Remote.Path = spath.New(cmn.PathEntry.Path.FwdPath)
-	cmn.Remote.Path.InitOffsets()
-	cmn.Remote.NextHop = cmn.PathEntry.HostInfo.Overlay()
-	return cmn.PathEntry.Path.Mtu
+	cmn.PathEntry = path
+	cmn.Remote.Path = path.Path()
+	cmn.Remote.NextHop = path.OverlayNextHop()
+	cmn.Mtu = path.MTU()
 }
 
 func setLocalMtu() uint16 {
