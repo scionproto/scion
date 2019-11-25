@@ -20,7 +20,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
 var (
@@ -55,28 +54,4 @@ func (t *TopoAddr) UnderlayAddr() *net.UDPAddr {
 
 func (t *TopoAddr) String() string {
 	return fmt.Sprintf("TopoAddr{SCION: %v, Underlay: %v}", t.SCIONAddress, t.UnderlayAddress)
-}
-
-func overlayCheck(ot overlay.Type) error {
-	switch ot {
-	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,
-		overlay.UDPIPv6, overlay.UDPIPv46:
-		return nil
-	default:
-		return serrors.WithCtx(ErrUnsupportedUnderlay, "type", ot)
-	}
-}
-
-func toUDPAddr(a net.Addr) *net.UDPAddr {
-	if a == nil {
-		return nil
-	}
-	udpAddr, ok := a.(*net.UDPAddr)
-	if !ok {
-		return nil
-	}
-	return &net.UDPAddr{
-		IP:   append(udpAddr.IP[:0:0], udpAddr.IP...),
-		Port: udpAddr.Port,
-	}
 }
