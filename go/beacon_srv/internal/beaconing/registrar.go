@@ -145,7 +145,7 @@ func (r *Registrar) run(ctx context.Context) error {
 		return nil
 	}
 	if s.count <= 0 {
-		return common.NewBasicError("No beacons propagated", nil, "candidates", expected)
+		return common.NewBasicError("No beacons registered", nil, "candidates", expected)
 	}
 	r.lastSucc = r.tick.now
 	r.logSummary(logger, s)
