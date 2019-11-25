@@ -20,8 +20,8 @@ MACH="$(uname -m)"
 
 mkdir -p ~/bin
 
-BAZEL_VER=0.26.1
-BAZEL_CKSUM=6c50e142a0a405d3d8598050d6c1b3920c8cdb82a7ffca6fc067cb474275148f
+BAZEL_VER=1.2.0
+BAZEL_CKSUM=34eb178663a9f9c6765db72dd58958cdac64c5f08dd51e5b67e28d466079bd1e
 BAZEL_FILE="bazel-${BAZEL_VER}-linux-${MACH}"
 BAZEL_URL=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VER}/${BAZEL_FILE}
 
