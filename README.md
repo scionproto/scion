@@ -35,13 +35,13 @@ Necessary steps in order to run SCION:
 1. Make sure that you are using a clean and recently updated **Ubuntu 16.04**.
    This environment assumes you're running as a non-root user with sudo access.
 
-1. Install [Bazel](https://bazel.build) version 0.26.1:
+1. Install [Bazel](https://bazel.build) version 1.2.0:
 
    ```bash
-   sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3
-   wget https://github.com/bazelbuild/bazel/releases/download/0.26.1/bazel-0.26.1-installer-linux-x86_64.sh
-   bash ./bazel-0.26.1-installer-linux-x86_64.sh --user
-   rm ./bazel-0.26.1-installer-linux-x86_64.sh
+   sudo apt-get install g++ unzip zip
+   wget https://github.com/bazelbuild/bazel/releases/download/1.2.0/bazel-1.2.0-installer-linux-x86_64.sh
+   bash ./bazel-1.2.0-installer-linux-x86_64.sh --user
+   rm ./bazel-1.2.0-installer-linux-x86_64.sh
    ```
 
 1. Make sure that you have a
