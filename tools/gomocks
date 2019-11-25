@@ -56,7 +56,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
         (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
         (SCION_PACKAGE_PREFIX + "/go/lib/sciond", "Service,Connector"),
-        (SCION_PACKAGE_PREFIX + "/go/lib/snet", "Conn,PacketDispatcherService,Network,PacketConn,"+
+        (SCION_PACKAGE_PREFIX + "/go/lib/snet", "Conn,PacketDispatcherService,Network,PacketConn," +
             "Path,PathQuerier,Router"),
         (SCION_PACKAGE_PREFIX + "/go/lib/snet/internal/ctxmonitor", "Monitor"),
         (SCION_PACKAGE_PREFIX + "/go/lib/sock/reliable", "DispatcherService"),
