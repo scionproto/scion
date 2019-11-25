@@ -17,7 +17,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -46,7 +45,7 @@ func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 	// Check if the existing socket can be reused. On startup, oldCtx is nil.
 	if oldCtx != nil {
 		// The socket can be reused if the local address does not change.
-		if ctx.Conf.BR.InternalAddrs.Equal(oldCtx.Conf.BR.InternalAddrs) {
+		if ctx.Conf.BR.InternalAddrs.String() == oldCtx.Conf.BR.InternalAddrs.String() {
 			log.Trace("No change detected for local socket.")
 			// Nothing changed. Copy I/O functions from old context.
 			ctx.LocSockIn = oldCtx.LocSockIn
@@ -64,7 +63,8 @@ func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 
 	// Do nothing if socket is reused.
-	if oldCtx != nil && ctx.Conf.BR.InternalAddrs.Equal(oldCtx.Conf.BR.InternalAddrs) {
+	if oldCtx != nil &&
+		ctx.Conf.BR.InternalAddrs.String() == oldCtx.Conf.BR.InternalAddrs.String() {
 		return nil
 	}
 	// Remove new socket if it exists. It might not be set if the setup failed.
@@ -83,11 +83,7 @@ func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 
 func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx) error {
 	// Get Bind address if set, Public otherwise
-	bindOv := ctx.Conf.BR.InternalAddrs.BindOrPublicOverlay(ctx.Conf.Topo.Overlay())
-	var bind *net.UDPAddr
-	if bindOv != nil {
-		bind = bindOv.ToUDPAddr()
-	}
+	bind := ctx.Conf.BR.InternalAddrs
 	log.Debug("Setting up new local socket.", "bind", bind)
 	// Listen on the socket.
 	over, err := conn.New(bind, nil, nil)
@@ -116,8 +112,7 @@ func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo, oldCtx 
 	if oldIntf, ok := oldCtx.Conf.BR.IFs[intf.Id]; ok {
 		// Reuse socket if the interface has not changed.
 		if !interfaceChanged(intf, oldIntf) {
-			log.Trace("No change detected for external socket.", "conn",
-				intf.Local.BindOrPublicOverlay(ctx.Conf.Topo.Overlay()))
+			log.Trace("No change detected for external socket.", "conn", intf.Local)
 			ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
 			ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
 			return nil
@@ -158,17 +153,7 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo) error
 
 	// Connect to remote address.
 	log.Debug("Setting up new external socket.", "intf", intf)
-	bindOv := intf.Local.BindOrPublicOverlay(intf.Local.Overlay)
-	var bind *net.UDPAddr
-	if bindOv != nil {
-		bind = bindOv.ToUDPAddr()
-	}
-	remoteOv := intf.Remote
-	var remote *net.UDPAddr
-	if remoteOv != nil {
-		remote = remoteOv.ToUDPAddr()
-	}
-	c, err := conn.New(bind, remote, nil)
+	c, err := conn.New(intf.Local, intf.Remote, nil)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
@@ -197,7 +182,7 @@ func (p posixExt) Teardown(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo, oldC
 // interfaceChanged returns true if a new input goroutine is needed for the
 // corresponding interface.
 func interfaceChanged(newIntf *topology.IFInfo, oldIntf *topology.IFInfo) bool {
-	return (newIntf.Id != oldIntf.Id ||
-		!newIntf.Local.Equal(oldIntf.Local) ||
-		!newIntf.Remote.Equal(oldIntf.Remote))
+	return newIntf.Id != oldIntf.Id ||
+		newIntf.Local.String() != oldIntf.Local.String() ||
+		newIntf.Remote.String() != oldIntf.Remote.String()
 }

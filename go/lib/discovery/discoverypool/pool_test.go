@@ -81,7 +81,7 @@ func TestPoolUpdate(t *testing.T) {
 		pool := mustLoadPool(t)
 		svcInfo := mustLoadSvcInfo(t)
 		Convey("And a topology containing an updated discovery service entry", func() {
-			svcInfo[ds[0].key].IPv4.PublicAddr().L3 = addr.HostFromIP(
+			svcInfo[ds[0].key].SCIONAddress.L3 = addr.HostFromIP(
 				net.IPv4(127, 0, 0, 21))
 			pool.Update(svcInfo)
 			Convey("The pool should contain the updated info", func() {
@@ -89,7 +89,7 @@ func TestPoolUpdate(t *testing.T) {
 					key: ds[0].key,
 					addr: &net.UDPAddr{
 						IP:   net.IPv4(127, 0, 0, 21),
-						Port: int(svcInfo[ds[0].key].IPv4.PublicAddr().L4),
+						Port: int(svcInfo[ds[0].key].SCIONAddress.L4),
 					},
 				})
 			})

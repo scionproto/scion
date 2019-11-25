@@ -18,6 +18,7 @@ package topology
 import (
 	"fmt"
 	"math/rand"
+	"net"
 	"sort"
 	"time"
 
@@ -74,13 +75,16 @@ type IfInfoMap map[common.IFIDType]IFInfo
 // there is again a sorted slice of names of the servers that provide the service.
 // Additionally, there is a map from those names to TopoAddr structs.
 type Topo struct {
-	Timestamp      time.Time
-	TimestampHuman string // This can vary wildly in format and is only for informational purposes.
+	Timestamp time.Time
+	// TimestampHuman is a human readable format of the Timestamp field. This can vary wildly in
+	// format and is only for informational purposes.
+	TimestampHuman string
 	TTL            time.Duration
 	ISD_AS         addr.IA
-	Overlay        overlay.Type
-	MTU            int
 	Core           bool
+
+	Overlay overlay.Type
+	MTU     int
 
 	BR      map[string]BRInfo
 	BRNames []string
@@ -95,10 +99,6 @@ type Topo struct {
 	CSNames  ServiceNames
 	PS       IDAddrMap
 	PSNames  ServiceNames
-	SB       IDAddrMap
-	SBNames  ServiceNames
-	RS       IDAddrMap
-	RSNames  ServiceNames
 	DS       IDAddrMap
 	DSNames  ServiceNames
 	SIG      IDAddrMap
@@ -112,8 +112,6 @@ func NewTopo() *Topo {
 		BS:        make(IDAddrMap),
 		CS:        make(IDAddrMap),
 		PS:        make(IDAddrMap),
-		SB:        make(IDAddrMap),
-		RS:        make(IDAddrMap),
 		SIG:       make(IDAddrMap),
 		DS:        make(IDAddrMap),
 		IFInfoMap: make(IfInfoMap),
@@ -133,7 +131,6 @@ func TopoFromRaw(raw *RawTopo) (*Topo, error) {
 	if err := t.populateServices(raw); err != nil {
 		return nil, err
 	}
-
 	return t, nil
 }
 
@@ -166,13 +163,13 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if rawBr.InternalAddrs == nil {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		ctrlAddr, err := topoAddrFromRAM(rawBr.CtrlAddr, t.Overlay)
+		ctrlAddr, err := rawBr.CtrlAddr.ToTopoAddr()
 		if err != nil {
-			return err
+			return serrors.WrapStr("unable to extract SCION control-plane address", err)
 		}
-		intAddr, err := topoBRAddrFromRBRAM(rawBr.InternalAddrs, t.Overlay)
+		intAddr, err := rawBr.InternalAddrs.ToUDPAddr()
 		if err != nil {
-			return err
+			return serrors.WrapStr("unable to extract underlay internal data-plane address", err)
 		}
 		brInfo := BRInfo{
 			Name:          name,
@@ -212,13 +209,15 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 				continue
 			}
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
-				return err
+				return serrors.WrapStr("unable to extract underlay type", err)
 			}
-			if ifinfo.Local, err = rawIntf.localTopoBRAddr(ifinfo.Overlay); err != nil {
-				return err
+			if ifinfo.Local, err = rawIntf.TopoBRAddr(); err != nil {
+				return serrors.WrapStr("unable to extract "+
+					"underlay external data-plane local address", err)
 			}
 			if ifinfo.Remote, err = rawIntf.remoteBRAddr(ifinfo.Overlay); err != nil {
-				return err
+				return serrors.WrapStr("unable to extract "+
+					"underlay external data-plane remote address", err)
 			}
 			brInfo.IFs[ifid] = &ifinfo
 			t.IFInfoMap[ifid] = ifinfo
@@ -245,14 +244,6 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 		return err
 	}
 	t.PSNames, err = svcMapFromRaw(raw.PathService, common.PS, t.PS, t.Overlay)
-	if err != nil {
-		return err
-	}
-	t.SBNames, err = svcMapFromRaw(raw.SibraService, common.SB, t.SB, t.Overlay)
-	if err != nil {
-		return err
-	}
-	t.RSNames, err = svcMapFromRaw(raw.RainsService, common.RS, t.RS, t.Overlay)
 	if err != nil {
 		return err
 	}
@@ -326,8 +317,6 @@ func (t *Topo) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 		return &svcInfo{overlay: t.Overlay, names: t.PSNames, idTopoAddrMap: t.PS}, nil
 	case proto.ServiceType_cs:
 		return &svcInfo{overlay: t.Overlay, names: t.CSNames, idTopoAddrMap: t.CS}, nil
-	case proto.ServiceType_sb:
-		return &svcInfo{overlay: t.Overlay, names: t.SBNames, idTopoAddrMap: t.SB}, nil
 	case proto.ServiceType_sig:
 		return &svcInfo{overlay: t.Overlay, names: t.SIGNames, idTopoAddrMap: t.SIG}, nil
 	case proto.ServiceType_ds:
@@ -359,7 +348,7 @@ func svcMapFromRaw(ras map[string]*RawSrvInfo, stype string, smap IDAddrMap,
 
 	var snames []string
 	for name, svc := range ras {
-		svcTopoAddr, err := svc.Addrs.ToTopoAddr(ot)
+		svcTopoAddr, err := svc.Addrs.ToTopoAddr()
 		if err != nil {
 			return nil, common.NewBasicError(
 				"Could not convert RawAddrMap to TopoAddr", err,
@@ -381,7 +370,7 @@ type BRInfo struct {
 	// CtrlAddrs are the local control-plane addresses.
 	CtrlAddrs *TopoAddr
 	// InternalAddrs are the local data-plane addresses.
-	InternalAddrs *TopoBRAddr
+	InternalAddrs *net.UDPAddr
 	// IFIDs is a sorted list of the interface IDs.
 	IFIDs []common.IFIDType
 	// IFs is a map of interface IDs.
@@ -397,9 +386,9 @@ type IFInfo struct {
 	BRName        string
 	CtrlAddrs     *TopoAddr
 	Overlay       overlay.Type
-	InternalAddrs *TopoBRAddr
-	Local         *TopoBRAddr
-	Remote        *overlay.OverlayAddr
+	InternalAddrs *net.UDPAddr
+	Local         *net.UDPAddr
+	Remote        *net.UDPAddr
 	RemoteIFID    common.IFIDType
 	Bandwidth     int
 	ISD_AS        addr.IA
@@ -430,4 +419,14 @@ func (i IFInfo) String() string {
 	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v "+
 		"Remote:%+v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddrs, i.CtrlAddrs, i.Overlay,
 		i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType, i.MTU)
+}
+
+func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
+	if a == nil {
+		return nil
+	}
+	return &net.UDPAddr{
+		IP:   append(a.IP[:0:0], a.IP...),
+		Port: a.Port,
+	}
 }

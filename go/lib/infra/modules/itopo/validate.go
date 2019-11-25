@@ -15,6 +15,8 @@
 package itopo
 
 import (
+	"reflect"
+
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -156,7 +158,10 @@ func (v *svcValidator) Immutable(topo, oldTopo *topology.Topo) error {
 	// We already checked that the service is in the map.
 	nAddr, _ := topo.GetTopoAddr(v.id, v.svc)
 	oAddr, _ := oldTopo.GetTopoAddr(v.id, v.svc)
-	if !nAddr.Equal(oAddr) {
+	// FIXME(scrye): The equality check below is protocol specific. Use reflect.DeepEqual for now,
+	// but it's better to define what "entry must not change" actually means w.r.t. all possible
+	// internal addresses.
+	if !reflect.DeepEqual(nAddr, oAddr) {
 		return common.NewBasicError("Local service entry must not change", nil,
 			"id", v.id, "svc", v.svc, "expected", oAddr, "actual", nAddr)
 	}
@@ -190,11 +195,11 @@ func (v *brValidator) Immutable(topo, oldTopo *topology.Topo) error {
 	if err := v.generalValidator.Immutable(topo, oldTopo); err != nil {
 		return err
 	}
-	if !topo.BR[v.id].InternalAddrs.Equal(oldTopo.BR[v.id].InternalAddrs) {
+	if topo.BR[v.id].InternalAddrs.String() != oldTopo.BR[v.id].InternalAddrs.String() {
 		return common.NewBasicError("InternalAddrs is immutable", nil, "expected",
 			oldTopo.BR[v.id].InternalAddrs, "actual", topo.BR[v.id].InternalAddrs)
 	}
-	if !topo.BR[v.id].CtrlAddrs.Equal(oldTopo.BR[v.id].CtrlAddrs) {
+	if !reflect.DeepEqual(topo.BR[v.id].CtrlAddrs, oldTopo.BR[v.id].CtrlAddrs) {
 		return common.NewBasicError("CtrlAddrs is immutable", nil, "expected",
 			oldTopo.BR[v.id].CtrlAddrs, "actual", topo.BR[v.id].CtrlAddrs)
 	}

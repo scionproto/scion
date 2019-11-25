@@ -277,15 +277,13 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 			return
 		}
 		topoInfo := intf.TopoInfo()
-		ov := topoInfo.InternalAddrs.PublicOverlayUDP(topoInfo.InternalAddrs.Overlay)
-
 		err := p.beaconSender.Send(
 			ctx,
 			&seg.Beacon{Segment: bseg.Segment},
 			topoInfo.ISD_AS,
 			egIfid,
 			p.cfg.Signer,
-			ov,
+			topoInfo.InternalAddrs,
 		)
 		if err != nil {
 			p.logger.Error("[beaconing.Propagator] Unable to send packet",

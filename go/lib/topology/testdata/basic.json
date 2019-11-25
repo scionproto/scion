@@ -9,39 +9,81 @@
     "BorderRouters": {
         "br1-ff00:0:311-1": {
             "InternalAddrs": {
-                "IPv4": {"PublicOverlay": {"Addr": "10.1.0.1"}},
-                "IPv6": {"PublicOverlay": {"Addr": "2001:db8:a0b:12f0::1"}}
+                "IPv4": {
+                    "PublicOverlay": {
+                        "Addr": "10.1.0.1"
+                    }
+                },
+                "IPv6": {
+                    "PublicOverlay": {
+                        "Addr": "2001:db8:a0b:12f0::1"
+                    }
+                }
             },
             "CtrlAddr": {
-                "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30098}},
-                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098}}
+                "IPv4": {
+                    "Public": {
+                        "Addr": "10.1.0.1",
+                        "L4Port": 30098
+                    }
+                },
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:a0b:12f0::1",
+                        "L4Port": 30098
+                    }
+                }
             },
             "Interfaces": {
                 "1": {
                     "Overlay": "UDP/IPv4",
-                    "BindOverlay": {"Addr": "10.0.0.1"},
-                    "PublicOverlay": {"Addr": "192.0.2.1", "OverlayPort": 44997},
-                    "RemoteOverlay": {"Addr": "192.0.2.2", "OverlayPort": 44998},
+                    "BindOverlay": {
+                        "Addr": "10.0.0.1"
+                    },
+                    "PublicOverlay": {
+                        "Addr": "192.0.2.1",
+                        "OverlayPort": 44997
+                    },
+                    "RemoteOverlay": {
+                        "Addr": "192.0.2.2",
+                        "OverlayPort": 44998
+                    },
                     "Bandwidth": 1000,
                     "ISD_AS": "1-ff00:0:312",
                     "LinkTo": "PARENT",
                     "MTU": 1472
                 },
                 "3": {
-                    "Overlay": "IPv6",
-                    "PublicOverlay": {"Addr": "2001:db8:a0b:12f0::1"},
-                    "RemoteOverlay": {"Addr":"2001:db8:a0b:12f0::2"},
-                    "BindOverlay": {"Addr":"2001:db8:a0b:12f0::8"},
+                    "Overlay": "UDP/IPv6",
+                    "PublicOverlay": {
+                        "Addr": "2001:db8:a0b:12f0::1",
+                        "OverlayPort": 44997
+                    },
+                    "RemoteOverlay": {
+                        "Addr": "2001:db8:a0b:12f0::2",
+                        "OverlayPort": 44998
+                    },
+                    "BindOverlay": {
+                        "Addr": "2001:db8:a0b:12f0::8"
+                    },
                     "Bandwidth": 5000,
                     "ISD_AS": "1-ff00:0:314",
                     "LinkTo": "CHILD",
                     "MTU": 4430
                 },
                 "8": {
-                    "Overlay": "IPv4",
-                    "BindOverlay": {"Addr": "10.0.0.2"},
-                    "PublicOverlay": {"Addr": "192.0.2.2"},
-                    "RemoteOverlay": {"Addr": "192.0.2.3"},
+                    "Overlay": "UDP/IPv4",
+                    "BindOverlay": {
+                        "Addr": "10.0.0.2"
+                    },
+                    "PublicOverlay": {
+                        "Addr": "192.0.2.2",
+                        "OverlayPort": 44997
+                    },
+                    "RemoteOverlay": {
+                        "Addr": "192.0.2.3",
+                        "OverlayPort": 44998
+                    },
                     "Bandwidth": 2000,
                     "ISD_AS": "1-ff00:0:313",
                     "LinkTo": "PEER",
@@ -51,55 +93,173 @@
         }
     },
     "BeaconService": {
-        "bs1-ff00:0:311-1": {"Addrs": {
-            "IPv4": {"Public": {"Addr": "127.0.0.65", "L4Port": 30054}}}},
-        "bs1-ff00:0:311-2": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::65", "L4Port": 30054}}}},
-        "bs1-ff00:0:311-3": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::123", "L4Port": 10054}},
-            "IPv4": {"Public": {"Addr": "127.0.0.123", "L4Port": 10054}}}}
+        "bs1-ff00:0:311-1": {
+            "Addrs": {
+                "IPv4": {
+                    "Public": {
+                        "Addr": "127.0.0.65",
+                        "L4Port": 30054
+                    }
+                }
+            }
+        },
+        "bs1-ff00:0:311-2": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::65",
+                        "L4Port": 30054
+                    }
+                }
+            }
+        },
+        "bs1-ff00:0:311-3": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::123",
+                        "L4Port": 10054
+                    }
+                },
+                "IPv4": {
+                    "Public": {
+                        "Addr": "127.0.0.123",
+                        "L4Port": 10054
+                    }
+                }
+            }
+        }
     },
     "CertificateService": {
-        "cs1-ff00:0:311-1": {"Addrs": {
-            "IPv4": {"Public": {"Addr": "127.0.0.66", "L4Port": 30081},
-                     "Bind": {"Addr": "127.0.0.67", "L4Port": 30081}}}
+        "cs1-ff00:0:311-2": {
+            "Addrs": {
+                "IPv4": {
+                    "Public": {
+                        "Addr": "127.0.0.67",
+                        "L4Port": 30073
+                    }
+                }
+            }
         },
-        "cs1-ff00:0:311-2": {"Addrs": {
-            "IPv4": {"Public": {"Addr": "127.0.0.67", "L4Port": 30073}}}},
-        "cs1-ff00:0:311-3": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::1", "L4Port": 23421}}}},
-        "cs1-ff00:0:311-4": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::2", "L4Port": 23421},
-                     "Bind": {"Addr": "2001:db8:1714::1", "L4Port": 13373}}}}
+        "cs1-ff00:0:311-3": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::1",
+                        "L4Port": 23421
+                    }
+                }
+            }
+        }
     },
     "PathService": {
-        "ps1-ff00:0:311-1": {"Addrs": {
-            "IPv4": {"Public": {"Addr": "127.0.0.73", "L4Port": 30091}}}},
-        "ps1-ff00:0:311-2": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::73", "L4Port": 30091}}}}
+        "ps1-ff00:0:311-1": {
+            "Addrs": {
+                "IPv4": {
+                    "Public": {
+                        "Addr": "127.0.0.73",
+                        "L4Port": 30091
+                    }
+                }
+            }
+        },
+        "ps1-ff00:0:311-2": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::73",
+                        "L4Port": 30091
+                    }
+                }
+            }
+        }
     },
     "SibraService": {
-        "sb1-ff00:0:311-1": {"Addrs": {
-            "IPv4": {"Public": {"Addr": "127.0.0.76", "L4Port": 30058}}}},
-        "sb1-ff00:0:311-2": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::76", "L4Port": 30058}}}}
+        "sb1-ff00:0:311-1": {
+            "Addrs": {
+                "IPv4": {
+                    "Public": {
+                        "Addr": "127.0.0.76",
+                        "L4Port": 30058
+                    }
+                }
+            }
+        },
+        "sb1-ff00:0:311-2": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::76",
+                        "L4Port": 30058
+                    }
+                }
+            }
+        }
     },
     "RainsService": {
-        "rs1-ff00:0:311-1": {"Addrs": {
-            "IPv4": {"Public": {"Addr": "127.0.0.78", "L4Port": 30098}}}},
-        "rs1-ff00:0:311-2": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::78", "L4Port": 30098}}}}
+        "rs1-ff00:0:311-1": {
+            "Addrs": {
+                "IPv4": {
+                    "Public": {
+                        "Addr": "127.0.0.78",
+                        "L4Port": 30098
+                    }
+                }
+            }
+        },
+        "rs1-ff00:0:311-2": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::78",
+                        "L4Port": 30098
+                    }
+                }
+            }
+        }
     },
     "SIG": {
-        "sig1-ff00:0:311-1": {"Addrs": {
-            "IPv4": {"Public": {"Addr": "127.0.0.82", "L4Port": 30100}}}},
-        "sig1-ff00:0:311-2": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::82", "L4Port": 30100}}}}
+        "sig1-ff00:0:311-1": {
+            "Addrs": {
+                "IPv4": {
+                    "Public": {
+                        "Addr": "127.0.0.82",
+                        "L4Port": 30100
+                    }
+                }
+            }
+        },
+        "sig1-ff00:0:311-2": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::82",
+                        "L4Port": 30100
+                    }
+                }
+            }
+        }
     },
     "DiscoveryService": {
-        "ds1-ff00:0:311-1": {"Addrs": {
-            "IPv4": {"Public": {"Addr": "127.0.0.99", "L4Port": 53535}}}},
-        "ds1-ff00:0:311-2": {"Addrs": {
-            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::99", "L4Port": 53535}}}}
+        "ds1-ff00:0:311-1": {
+            "Addrs": {
+                "IPv4": {
+                    "Public": {
+                        "Addr": "127.0.0.99",
+                        "L4Port": 53535
+                    }
+                }
+            }
+        },
+        "ds1-ff00:0:311-2": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::99",
+                        "L4Port": 53535
+                    }
+                }
+            }
+        }
     }
 }

@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -52,8 +51,7 @@ func TestSetupNet(t *testing.T) {
 		ctx := rctx.New(loadConfig(t))
 		// Modify local socket address. A new socket should be opened when
 		// setting up the context.
-		addr := ctx.Conf.BR.InternalAddrs
-		addr.PublicOverlayUDP(addr.Overlay).IP[3] = 255
+		ctx.Conf.BR.InternalAddrs.IP[3] = 255
 		SoMsg("In", oldCtx.LocSockIn, ShouldNotBeNil)
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
@@ -69,7 +67,7 @@ func TestSetupNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.BR.IFs[12].Local.PublicOverlayUDP(overlay.IPv4).IP[3] = 255
+		ctx.Conf.BR.IFs[12].Local.IP[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Check that unaffected sockets have not changed.
@@ -90,7 +88,7 @@ func TestSetupNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.BR.IFs[12].Remote.L3().IP()[3] = 255
+		ctx.Conf.BR.IFs[12].Remote.IP[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Check that unaffected sockets have not changed.
@@ -132,8 +130,7 @@ func TestRollbackNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		addr := ctx.Conf.BR.InternalAddrs
-		addr.PublicOverlayUDP(addr.Overlay).IP[3] = 255
+		ctx.Conf.BR.InternalAddrs.IP[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Rollback the changes.
@@ -151,7 +148,7 @@ func TestRollbackNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.BR.IFs[12].Local.PublicOverlayUDP(overlay.IPv4).IP[3] = 255
+		ctx.Conf.BR.IFs[12].Local.IP[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Rollback the changes.
@@ -190,8 +187,7 @@ func TestTeardownNet(t *testing.T) {
 	Convey("Tearing down config with changed local address  should be a noop", t, func() {
 		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
-		addr := ctx.Conf.BR.InternalAddrs
-		addr.PublicOverlayUDP(addr.Overlay).IP[3] = 255
+		ctx.Conf.BR.InternalAddrs.IP[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Start sockets on the new context.
@@ -209,7 +205,7 @@ func TestTeardownNet(t *testing.T) {
 	Convey("Tearing down config with changed interface should be a noop", t, func() {
 		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.BR.IFs[12].Local.PublicOverlayUDP(overlay.IPv4).IP[3] = 255
+		ctx.Conf.BR.IFs[12].Local.IP[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Start sockets on the new context.

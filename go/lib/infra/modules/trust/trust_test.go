@@ -42,10 +42,8 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/topology/topotestutil"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
-	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -642,8 +640,8 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	db, err := trustdbsqlite.New(":memory:")
 	xtest.FailOnErr(t, err)
 	topo := topology.NewTopo()
-	topotestutil.AddServer(topo, proto.ServiceType_cs, "foo",
-		topology.TestTopoAddr(nil, nil, nil, nil))
+	topo.CSNames = append(topo.CSNames, "foo")
+	topo.CS["foo"] = topology.TopoAddr{}
 	cfg := Config{
 		TopoProvider: &itopotest.TestTopoProvider{
 			Topo: topo,
