@@ -39,6 +39,15 @@ type Addr struct {
 	NextHop *net.UDPAddr
 }
 
+// ToNetUDPAddr returns a net.UDPAddr or nil.
+func (a *Addr) ToNetUDPAddr() *net.UDPAddr {
+	switch a.Host.L3.Type() {
+	case addr.HostTypeIPv4, addr.HostTypeIPv6:
+		return &net.UDPAddr{IP: a.Host.L3.IP(), Port: int(a.Host.L4)}
+	}
+	return nil
+}
+
 func (a *Addr) Network() string {
 	return "scion"
 }

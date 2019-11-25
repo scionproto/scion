@@ -124,7 +124,7 @@ func realMain() int {
 	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.SPublicAddress(addr.SvcPS, cfg.General.ID),
+		Public:                topo.PublicAddress(addr.SvcPS, cfg.General.ID),
 		SVC:                   addr.SvcPS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{

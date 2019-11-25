@@ -56,7 +56,7 @@ func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *add
 	if err != nil {
 		return nil, 0, err
 	}
-	return &SCIONPacketConn{conn: rconn, scmpHandler: s.SCMPHandler}, port, err
+	return &SCIONPacketConn{conn: rconn, scmpHandler: s.SCMPHandler}, port, nil
 }
 
 // RevocationHandler is called by the default SCMP Handler whenever revocations are encountered.

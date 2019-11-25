@@ -61,9 +61,7 @@ type NetworkConfig struct {
 	IA addr.IA
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
-	Public *snet.Addr
-	// Bind is the local address the server should listen on.
-	Bind *snet.Addr
+	Public *net.UDPAddr
 	// SVC registers this server to receive packets with the specified SVC
 	// destination address.
 	SVC addr.HostSVC
@@ -152,7 +150,10 @@ func (nc *NetworkConfig) AddressRewriter(
 		Resolver: &svc.Resolver{
 			LocalIA:     nc.IA,
 			ConnFactory: connFactory,
-			Machine:     buildLocalMachine(nc.Bind, nc.Public),
+			Machine: snet.LocalMachine{
+				PublicIP:    nc.Public.IP,
+				InterfaceIP: nc.Public.IP,
+			},
 			// Legacy control payloads have a 4-byte length prefix. A
 			// 0-value for the prefix is invalid, so SVC resolution-aware
 			// servers can use this to detect that the client is attempting
@@ -170,7 +171,12 @@ func (nc *NetworkConfig) AddressRewriter(
 // resolution requests. If argument address is not the empty string, it will be
 // included as the QUIC address in SVC resolution replies.
 func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, error) {
-	reply := messenger.BuildReply(nc.Public.Host)
+	reply := &svc.Reply{
+		Transports: map[svc.Transport]string{
+			svc.UDP: nc.Public.String(),
+		},
+	}
+
 	if quicAddress != "" {
 		reply.Transports[svc.QUIC] = quicAddress
 	}
@@ -196,7 +202,12 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 		},
 	)
 	network := snet.NewCustomNetworkWithPR(nc.IA, packetDispatcher)
-	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
+	var listenAddr *snet.Addr
+	if nc.Public != nil {
+		listenAddr = &snet.Addr{IA: nc.IA, Host: addr.AppAddrFromUDP(nc.Public)}
+	}
+
+	conn, err := network.ListenSCIONWithBindSVC("udp4", listenAddr, nil, nc.SVC, 0)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
 	}
@@ -246,17 +257,6 @@ func (nc *NetworkConfig) buildQUICConfig(conn net.PacketConn) (*messenger.QUICCo
 			InsecureSkipVerify: true,
 		},
 	}, nil
-}
-
-func buildLocalMachine(bind, public *snet.Addr) snet.LocalMachine {
-	var mi snet.LocalMachine
-	mi.PublicIP = public.Host.L3.IP()
-	if bind != nil {
-		mi.InterfaceIP = bind.Host.L3.IP()
-	} else {
-		mi.InterfaceIP = mi.PublicIP
-	}
-	return mi
 }
 
 // LegacyForwardingHandler is an SVC resolution handler that only responds to
