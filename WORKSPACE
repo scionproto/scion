@@ -39,19 +39,22 @@ gazelle_dependencies()
 # Docker rules
 http_archive(
     name = "io_bazel_rules_docker",
-    sha256 = "aed1c249d4ec8f703edddf35cbe9dfaca0b5f5ea6e4cd9e83e99f3b0d1136c3d",
-    strip_prefix = "rules_docker-0.7.0",
-    urls = ["https://github.com/bazelbuild/rules_docker/archive/v0.7.0.tar.gz"],
+    sha256 = "14ac30773fdb393ddec90e158c9ec7ebb3f8a4fd533ec2abbfd8789ad81a284b",
+    strip_prefix = "rules_docker-0.12.1",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.12.1/rules_docker-v0.12.1.tar.gz"],
 )
-
 load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
 
 container_repositories()
 
+load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
+
+container_deps()
+
 # Distroless
 git_repository(
     name = "distroless",
-    commit = "0a3d642379d577a09225f1275e5c96e336472dfc",
+    commit = "07399042ca65818d19aa0a2b0325716e237c4d01",
     remote = "https://github.com/GoogleContainerTools/distroless.git",
 )
 
@@ -65,9 +68,25 @@ dpkg_src(
     name = "debian_stretch",
     arch = "amd64",
     distro = "stretch",
-    sha256 = "4cb2fac3e32292613b92d3162e99eb8a1ed7ce47d1b142852b0de3092b25910c",
-    snapshot = "20180406T095535Z",
-    url = "http://snapshot.debian.org/archive",
+    sha256 = "2b13362808b7bd90d24db2e0804c799288694ae44bd7e3d123becc191451fc67",
+    snapshot = "20191028T085816Z",
+    url = "https://snapshot.debian.org/archive",
+)
+
+dpkg_src(
+    name = "debian_stretch_backports",
+    arch = "amd64",
+    distro = "stretch-backports",
+    sha256 = "e9170a8f37a1bbb8ce2df49e6ab557d65ef809d19bf607fd91bcf8ba6b85e3f6",
+    snapshot = "20191028T085816Z",
+    url = "https://snapshot.debian.org/archive",
+)
+
+dpkg_src(
+    name = "debian_stretch_security",
+    package_prefix = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/",
+    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/dists/stretch/updates/main/binary-amd64/Packages.gz",
+    sha256 = "acea7d952d8ab84de3cd2c26934a1bcf5ad244d344ecdb7b2d0173712bbd9d7b",
 )
 
 dpkg_list(
@@ -87,7 +106,47 @@ dpkg_list(
         "tzdata",
     ],
     sources = [
+        "@debian_stretch_security//file:Packages.json",
+        "@debian_stretch_backports//file:Packages.json",
         "@debian_stretch//file:Packages.json",
+    ],
+)
+
+dpkg_src(
+    name = "debian10",
+    arch = "amd64",
+    distro = "buster",
+    sha256 = "ca19e4187523f4b087a2e7aaa2662c6a0b46dc81ff2f3dd44d9c5d95df0df212",
+    snapshot = "20191028T085816Z",
+    url = "https://snapshot.debian.org/archive",
+)
+
+dpkg_src(
+    name = "debian10_security",
+    package_prefix = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/",
+    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/dists/buster/updates/main/binary-amd64/Packages.gz",
+    sha256 = "dace61a2f1c4031f33dbc78e416a7211fad9946a3d997e96256561ed92b034be",
+)
+
+dpkg_list(
+    name = "package_bundle_debian10",
+    packages = [
+        "libc6",
+        "libcap2",
+        "libcap2-bin",
+        "libgcc1",
+        "libstdc++6",
+        # These are needed by distroless.
+        "base-files",
+        "ca-certificates",
+        "libssl1.1",
+        "netbase",
+        "openssl",
+        "tzdata",
+    ],
+    sources = [
+        "@debian10_security//file:Packages.json",
+        "@debian10//file:Packages.json",
     ],
 )
 
