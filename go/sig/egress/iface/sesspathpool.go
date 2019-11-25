@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/snet"
-
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
