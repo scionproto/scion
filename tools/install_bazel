@@ -26,10 +26,3 @@ BAZEL_FILE="bazel-${BAZEL_VER}-linux-${MACH}"
 BAZEL_URL=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VER}/${BAZEL_FILE}
 
 dl_install "$BAZEL_URL" "$BAZEL_CKSUM" ~/bin/bazel
-
-BZLCOMPAT_VER=v0.6
-BZLCOMPAT_CKSUM=6bc16ca57421d2a33408dbdc75e5eed8e5e29df9352cc0e3871086db44c5b03c
-BZLCOMPAT_FILE="bzlcompat-${BZLCOMPAT_VER}-linux-${MACH}"
-BZLCOMPAT_URL=https://github.com/kormat/bzlcompat/releases/download/${BZLCOMPAT_VER}/${BZLCOMPAT_FILE}
-
-dl_install "$BZLCOMPAT_URL" "$BZLCOMPAT_CKSUM" ~/bin/bzlcompat

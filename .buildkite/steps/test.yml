@@ -1,3 +1,10 @@
+- label: "Check generated go_deps.bzl file is up to date with go.mod"
+  command: $BASE/run_step checkgodeps
+  retry:
+    automatic:
+      - exit_status: -1  # Agent was lost
+      - exit_status: 255 # Forced agent shutdown
+  timeout_in_minutes: 10
 - label: "Check generated go/proto files in git"
   command: $BASE/run_step checkgogen
   retry:

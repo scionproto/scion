@@ -2,7 +2,7 @@
 
 set -e
 
-BASE_IMG=${BASE_IMG:-0205ea7cec1b767e10117a341730b08907233c5351e8ed0d7ca135ea8a5caa59}
+BASE_IMG=${BASE_IMG:-c0c1ef3cd34839113931328fd2400d38ce79c22b322070a1e03df5837290c124}
 
 docker pull scionproto/scion_base@sha256:$BASE_IMG
 docker tag scionproto/scion_base@sha256:$BASE_IMG scion_base:latest
