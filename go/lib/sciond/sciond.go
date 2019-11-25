@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -82,13 +83,9 @@ func (s *service) Connect(ctx context.Context) (Connector, error) {
 type Connector interface {
 	// Paths requests from SCIOND a set of end to end paths between src and
 	// dst. max specifies the maximum number of paths returned.
-	Paths(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error)
+	Paths(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
-	// IFInfo requests from SCIOND addresses and ports of interfaces.  Slice
-	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
-	// answer containing all interfaces is returned.
-	IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error)
 	// SVCInfo requests from SCIOND information about addresses and ports of
 	// infrastructure services.  Slice svcTypes contains a list of desired
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
@@ -168,7 +165,7 @@ func (c *conn) ctxAwareConnect(ctx context.Context) (*disp.Dispatcher, error) {
 }
 
 func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
-	f PathReqFlags) (*PathReply, error) {
+	f PathReqFlags) ([]snet.Path, error) {
 
 	roundTripper, err := c.ctxAwareConnect(ctx)
 	if err != nil {
@@ -194,7 +191,7 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 		return nil, serrors.WrapStr("[sciond-API] Failed to get Paths", err)
 	}
 	metrics.PathRequests.Inc(metrics.OkSuccess)
-	return reply.(*Pld).PathReply, nil
+	return pathReplyToPaths(reply.(*Pld).PathReply, dst)
 }
 
 func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {

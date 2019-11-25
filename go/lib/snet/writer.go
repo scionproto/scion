@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,9 +24,8 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
-	"github.com/scionproto/scion/go/lib/snet/internal/pathsource"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -56,16 +56,16 @@ type scionConnWriter struct {
 	buffer common.RawBytes
 }
 
-func newScionConnWriter(base *scionConnBase, pr pathmgr.Resolver,
+func newScionConnWriter(base *scionConnBase, querier PathQuerier,
 	conn PacketConn) *scionConnWriter {
 
 	return &scionConnWriter{
 		base: base,
 		conn: conn,
 		resolver: &remoteAddressResolver{
-			localIA:      base.laddr.IA,
-			pathResolver: pathsource.NewPathSource(pr),
-			monitor:      ctxmonitor.NewMonitor(),
+			localIA:     base.laddr.IA,
+			pathQuerier: querier,
+			monitor:     ctxmonitor.NewMonitor(),
 		},
 		buffer: make(common.RawBytes, common.MaxMTU),
 	}
@@ -91,7 +91,7 @@ func (c *scionConnWriter) Write(b []byte) (int, error) {
 }
 
 func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
-	raddr, err := c.resolver.resolveAddrPair(c.base.raddr, raddr)
+	raddr, err := c.resolver.ResolveAddrPair(c.base.raddr, raddr)
 	if err != nil {
 		return 0, err
 	}
@@ -139,26 +139,26 @@ type remoteAddressResolver struct {
 	// other ASes.
 	localIA addr.IA
 	// pathResolver is a source of paths and overlay addresses for snet.
-	pathResolver pathsource.PathSource
+	pathQuerier PathQuerier
 	// monitor tracks contexts created for sciond
 	monitor ctxmonitor.Monitor
 }
 
-func (r *remoteAddressResolver) resolveAddrPair(connAddr, argAddr *Addr) (*Addr, error) {
+func (r *remoteAddressResolver) ResolveAddrPair(connAddr, argAddr *Addr) (*Addr, error) {
 	switch {
 	case connAddr == nil && argAddr == nil:
 		return nil, common.NewBasicError(ErrNoAddr, nil)
 	case connAddr != nil && argAddr != nil:
 		return nil, common.NewBasicError(ErrDuplicateAddr, nil)
 	case connAddr != nil:
-		return r.resolveAddr(connAddr)
+		return r.ResolveAddr(connAddr)
 	default:
 		// argAddr != nil
-		return r.resolveAddr(argAddr)
+		return r.ResolveAddr(argAddr)
 	}
 }
 
-func (r *remoteAddressResolver) resolveAddr(address *Addr) (*Addr, error) {
+func (r *remoteAddressResolver) ResolveAddr(address *Addr) (*Addr, error) {
 	if address == nil {
 		return nil, common.NewBasicError(ErrAddressIsNil, nil)
 	}
@@ -199,10 +199,15 @@ func (r *remoteAddressResolver) addPath(address *Addr) (*Addr, error) {
 	address = address.Copy()
 	ctx, cancelF := r.monitor.WithTimeout(context.Background(), DefaultPathQueryTimeout)
 	defer cancelF()
-	address.NextHop, address.Path, err = r.pathResolver.Get(ctx, r.localIA, address.IA)
+	paths, err := r.pathQuerier.Query(ctx, address.IA)
 	if err != nil {
-		return nil, common.NewBasicError(ErrPath, nil)
+		return nil, serrors.Wrap(ErrPath, err)
 	}
+	if len(paths) == 0 {
+		return nil, serrors.WithCtx(ErrPath, "reason", "no path found")
+	}
+	address.NextHop = paths[0].OverlayNextHop()
+	address.Path = paths[0].Path()
 	return address, nil
 }
 

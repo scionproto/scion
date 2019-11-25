@@ -11,6 +11,7 @@ import (
 	common "github.com/scionproto/scion/go/lib/common"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	sciond "github.com/scionproto/scion/go/lib/sciond"
+	snet "github.com/scionproto/scion/go/lib/snet"
 	proto "github.com/scionproto/scion/go/proto"
 	reflect "reflect"
 )
@@ -121,10 +122,10 @@ func (mr *MockConnectorMockRecorder) IFInfo(arg0, arg1 interface{}) *gomock.Call
 }
 
 // Paths mocks base method
-func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 uint16, arg4 sciond.PathReqFlags) (*sciond.PathReply, error) {
+func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 uint16, arg4 sciond.PathReqFlags) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Paths", arg0, arg1, arg2, arg3, arg4)
-	ret0, _ := ret[0].(*sciond.PathReply)
+	ret0, _ := ret[0].([]snet.Path)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

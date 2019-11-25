@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/layers"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
@@ -43,9 +44,8 @@ func Run() {
 
 	cmn.SetupSignals(nil)
 	if cmn.PathEntry != nil {
-		path = spath.New(cmn.PathEntry.Path.FwdPath)
-		path.InitOffsets()
-		total += uint(len(cmn.PathEntry.Path.Interfaces))
+		path = cmn.PathEntry.Path()
+		total += uint(len(cmn.PathEntry.Interfaces()))
 		hopOff = hopPktOff(path.HopOff)
 		ext = &layers.ExtnSCMP{Error: false, HopByHop: true}
 	}
@@ -176,7 +176,7 @@ func updateHopField(pkt *spkt.ScnPkt, info *scmp.InfoTraceRoute, path *spath.Pat
 	info.Write(pldBuf[scmp.MetaLen:])
 }
 
-func validate(pkt *spkt.ScnPkt, pathEntry *sciond.PathReplyEntry) (*scmp.Hdr,
+func validate(pkt *spkt.ScnPkt, path snet.Path) (*scmp.Hdr,
 	*scmp.InfoTraceRoute, error) {
 
 	scmpHdr, scmpPld, err := cmn.Validate(pkt)
@@ -192,12 +192,11 @@ func validate(pkt *spkt.ScnPkt, pathEntry *sciond.PathReplyEntry) (*scmp.Hdr,
 		return nil, nil,
 			common.NewBasicError("Wrong SCMP ID", nil, "expected", id, "actual", info.Id)
 	}
-	if pathEntry == nil || info.HopOff == 0 {
+	if path == nil || info.HopOff == 0 {
 		return scmpHdr, info, nil
 	}
-	interfaces := pathEntry.Path.Interfaces
-	for _, e := range interfaces {
-		if info.IA == e.RawIsdas.IA() && info.IfID == e.IfID {
+	for _, e := range path.Interfaces() {
+		if info.IA == e.IA() && info.IfID == e.ID() {
 			return scmpHdr, info, nil
 		}
 	}

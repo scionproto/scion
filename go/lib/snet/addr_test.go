@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snet
+package snet_test
 
 import (
 	"fmt"
@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func Test_Addr_String(t *testing.T) {
@@ -35,11 +36,11 @@ func Test_Addr_String(t *testing.T) {
 		L4: 20000,
 	}
 	tests := []struct {
-		address *Addr
+		address *snet.Addr
 		result  string
 	}{
-		{address: &Addr{IA: ia, Host: host4}, result: "1-ff00:0:320,[1.2.3.4]:10000"},
-		{address: &Addr{IA: ia, Host: host6}, result: "1-ff00:0:320,[2001::1]:20000"},
+		{address: &snet.Addr{IA: ia, Host: host4}, result: "1-ff00:0:320,[1.2.3.4]:10000"},
+		{address: &snet.Addr{IA: ia, Host: host6}, result: "1-ff00:0:320,[2001::1]:20000"},
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("given address object %v", test.address), func(t *testing.T) {
@@ -105,7 +106,7 @@ func Test_AddrFromString(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Log(fmt.Sprintf("given address %q", test.address))
-		a, err := AddrFromString(test.address)
+		a, err := snet.AddrFromString(test.address)
 		if test.isError {
 			assert.Error(t, err)
 		} else {

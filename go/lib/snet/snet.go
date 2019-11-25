@@ -45,15 +45,12 @@
 package snet
 
 import (
-	"context"
 	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -67,80 +64,35 @@ type SCIONNetwork struct {
 	dispatcher PacketDispatcherService
 	// pathResolver references the default source of paths for a Network. This
 	// is set to nil when operating on a SCIOND-less Network.
-	pathResolver pathmgr.Resolver
-	localIA      addr.IA
+	querier PathQuerier
+	localIA addr.IA
 }
 
 // NewNetworkWithPR creates a new networking context with path resolver pr. A
 // nil path resolver means the Network will run without SCIOND.
 func NewNetworkWithPR(ia addr.IA, dispatcher reliable.DispatcherService,
-	pr pathmgr.Resolver) *SCIONNetwork {
+	querier PathQuerier, revHandler RevocationHandler) *SCIONNetwork {
 
-	return NewCustomNetworkWithPR(ia,
-		&DefaultPacketDispatcherService{
+	return &SCIONNetwork{
+		dispatcher: &DefaultPacketDispatcherService{
 			Dispatcher: dispatcher,
 			SCMPHandler: &scmpHandler{
-				revocationHandler: pr,
+				revocationHandler: revHandler,
 			},
 		},
-		pr,
-	)
+		querier: querier,
+		localIA: ia,
+	}
 }
 
 // NewCustomNetworkWithPR is similar to NewNetworkWithPR, while giving control
 // over packet processing via pktDispatcher.
-func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService,
-	pr pathmgr.Resolver) *SCIONNetwork {
+func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService) *SCIONNetwork {
 
 	return &SCIONNetwork{
-		dispatcher:   pktDispatcher,
-		pathResolver: pr,
-		localIA:      ia,
+		dispatcher: pktDispatcher,
+		localIA:    ia,
 	}
-}
-
-// NewNetwork creates a new networking context, on which future Dial or Listen
-// calls can be made. The new connections use the SCIOND server at sciondPath,
-// the dispatcher at dispatcherPath, and ia for the local ISD-AS.
-//
-// If sciondPath is the empty string, the network will run without SCIOND. In
-// this mode of operation, the app is fully responsible with supplying paths
-// for sent traffic.
-func NewNetwork(ia addr.IA, sciondPath string,
-	dispatcher reliable.DispatcherService) (*SCIONNetwork, error) {
-
-	pathResolver, err := getResolver(sciondPath)
-	if err != nil {
-		return nil, err
-	}
-	return NewNetworkWithPR(ia, dispatcher, pathResolver), nil
-}
-
-// NewCustomNetwork is similar to NewNetwork, except it gives control over the
-// packet processing socket in the snet backend. It can be used to implement
-// specialized sockets that implement firewall rules, custom SCMP handlers, or
-// custom network access (e.g., dispatcher bypass).
-func NewCustomNetwork(ia addr.IA, sciondPath string,
-	pktDispatcher PacketDispatcherService) (*SCIONNetwork, error) {
-
-	pathResolver, err := getResolver(sciondPath)
-	if err != nil {
-		return nil, err
-	}
-	return NewCustomNetworkWithPR(ia, pktDispatcher, pathResolver), nil
-}
-
-// getResolver builds a default resolver for snet internals.
-func getResolver(sciondPath string) (pathmgr.Resolver, error) {
-	var pathResolver pathmgr.Resolver
-	if sciondPath != "" {
-		sciondConn, err := sciond.NewService(sciondPath).Connect(context.Background())
-		if err != nil {
-			return nil, common.NewBasicError("Unable to initialize SCIOND service", err)
-		}
-		pathResolver = pathmgr.New(sciondConn, pathmgr.Timers{})
-	}
-	return pathResolver, nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
@@ -267,12 +219,7 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		conn.laddr.Host.L4 = port
 	}
 	log.Debug("Registered with dispatcher", "addr", conn.laddr)
-	return newSCIONConn(conn, n.pathResolver, packetConn), nil
-}
-
-// PathResolver returns the pathmgr.PR that the network is using.
-func (n *SCIONNetwork) PathResolver() pathmgr.Resolver {
-	return n.pathResolver
+	return newSCIONConn(conn, n.querier, packetConn), nil
 }
 
 func (n *SCIONNetwork) ia() addr.IA {

@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -66,7 +65,7 @@ var (
 var (
 	Conn      *reliable.Conn
 	Mtu       uint16
-	PathEntry *sciond.PathReplyEntry
+	PathEntry snet.Path
 	Stats     *ScmpStats
 	Start     time.Time
 )

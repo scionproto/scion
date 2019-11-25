@@ -55,7 +55,6 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 		&snet.DefaultPacketDispatcherService{
 			Dispatcher: dispatcherService,
 		},
-		nil,
 	)
 	ctrlAddr := ctx.Conf.BR.CtrlAddrs
 	pub := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.PublicAddr()}

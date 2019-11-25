@@ -23,9 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/sig/egress/iface"
@@ -67,7 +65,7 @@ type worker struct {
 	sess          iface.Session
 	writer        SCIONWriter
 	currSig       *siginfo.Sig
-	currPathEntry *sciond.PathReplyEntry
+	currPathEntry snet.Path
 	frameSentCtrs metrics.CtrPair
 
 	epoch uint16
@@ -200,11 +198,8 @@ func (w *worker) write(f *frame) error {
 			return nil
 		}
 		snetAddr = w.currSig.EncapSnetAddr()
-		snetAddr.Path = spath.New(w.currPathEntry.Path.FwdPath)
-		if err := snetAddr.Path.InitOffsets(); err != nil {
-			return common.NewBasicError("Error initializing path offsets", err)
-		}
-		snetAddr.NextHop = w.currPathEntry.HostInfo.Overlay()
+		snetAddr.Path = w.currPathEntry.Path()
+		snetAddr.NextHop = w.currPathEntry.OverlayNextHop()
 	}
 
 	f.writeHdr(w.sess.ID(), w.epoch, seq)
@@ -228,11 +223,11 @@ func (w *worker) resetFrame(f *frame) {
 		}
 		w.currPathEntry = nil
 		if remote.SessPath != nil {
-			w.currPathEntry = remote.SessPath.PathEntry()
+			w.currPathEntry = remote.SessPath.Path()
 		}
 		if w.currPathEntry != nil {
-			mtu = w.currPathEntry.Path.Mtu
-			pathLen = uint16(len(w.currPathEntry.Path.FwdPath))
+			mtu = w.currPathEntry.MTU()
+			pathLen = uint16(len(w.currPathEntry.Path().Raw))
 		}
 	}
 	// FIXME(kormat): to do this properly, need to account for any ext headers.

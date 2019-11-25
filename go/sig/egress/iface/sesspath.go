@@ -19,29 +19,29 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // A SessPath contains a path and metadata related to path health.
 type SessPath struct {
-	key       string
-	pathEntry *sciond.PathReplyEntry
+	key  string
+	path snet.Path
 }
 
-func NewSessPath(key string, pathEntry *sciond.PathReplyEntry) *SessPath {
-	return &SessPath{key: key, pathEntry: pathEntry}
+func NewSessPath(key string, path snet.Path) *SessPath {
+	return &SessPath{key: key, path: path}
 }
 
 func (sp *SessPath) Key() string {
 	return sp.key
 }
 
-func (sp *SessPath) PathEntry() *sciond.PathReplyEntry {
-	return sp.pathEntry
+func (sp *SessPath) Path() snet.Path {
+	return sp.path
 }
 
 func (sp *SessPath) IsCloseToExpiry() bool {
-	return sp.PathEntry().Path.Expiry().Before(time.Now().Add(SafetyInterval))
+	return sp.Path().Expiry().Before(time.Now().Add(SafetyInterval))
 }
 
 func (sp *SessPath) Copy() *SessPath {
@@ -49,11 +49,11 @@ func (sp *SessPath) Copy() *SessPath {
 		return nil
 	}
 	return &SessPath{
-		key:       sp.key,
-		pathEntry: sp.pathEntry.Copy(),
+		key:  sp.key,
+		path: sp.path.Copy(),
 	}
 }
 
 func (sp *SessPath) String() string {
-	return fmt.Sprintf("Key: %s %s", sp.key, sp.pathEntry.Path)
+	return fmt.Sprintf("Key: %s %s", sp.key, fmt.Sprintf("%s", sp.path))
 }

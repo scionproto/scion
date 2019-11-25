@@ -1,9 +1,10 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
     srcs = [
         "adapter.go",
+        "apitypes.go",
         "sciond.go",
         "types.go",
     ],
@@ -18,18 +19,10 @@ go_library(
         "//go/lib/log:go_default_library",
         "//go/lib/sciond/internal/metrics:go_default_library",
         "//go/lib/serrors:go_default_library",
+        "//go/lib/snet:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
+        "//go/lib/spath:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/proto:go_default_library",
-    ],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["types_test.go"],
-    embed = [":go_default_library"],
-    deps = [
-        "@com_github_stretchr_testify//assert:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

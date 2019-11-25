@@ -31,10 +31,8 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetmigrate"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/svc"
@@ -140,7 +138,7 @@ func (nc *NetworkConfig) AddressRewriter(
 
 	router := nc.Router
 	if router == nil {
-		router = &snet.BaseRouter{Querier: &snetmigrate.PathQuerier{IA: nc.IA}}
+		router = &snet.BaseRouter{Querier: snet.IntraASPathQuerier{IA: nc.IA}}
 	}
 	if connFactory == nil {
 		connFactory = &snet.DefaultPacketDispatcherService{
@@ -197,10 +195,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 			ExpectedPayload: resolutionRequestPayload,
 		},
 	)
-	network, err := snet.NewCustomNetwork(nc.IA, "", packetDispatcher)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create network", err)
-	}
+	network := snet.NewCustomNetworkWithPR(nc.IA, packetDispatcher)
 	conn, err := network.ListenSCIONWithBindSVC("udp4", nc.Public, nc.Bind, nc.SVC, 0)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
@@ -214,15 +209,12 @@ func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
 
-	network, err := snet.NewCustomNetwork(nc.IA, "",
+	network := snet.NewCustomNetworkWithPR(nc.IA,
 		&snet.DefaultPacketDispatcherService{
 			Dispatcher:  dispatcherService,
 			SCMPHandler: ignoreSCMP{},
 		},
 	)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create network", err)
-	}
 	// FIXME(scrye): Add support for bind addresses.
 	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
@@ -311,15 +303,9 @@ func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 		sciondConn, err := sciond.NewService(sd.Path).Connect(ctx)
 		if err == nil {
 			router = &snet.BaseRouter{
-				Querier: &snetmigrate.PathQuerier{
-					IA: localIA,
-					Resolver: pathmgr.New(
-						sciondConn,
-						pathmgr.Timers{
-							NormalRefire: time.Minute,
-							ErrorRefire:  3 * time.Second,
-						},
-					),
+				Querier: sciond.Querier{
+					Connector: sciondConn,
+					IA:        localIA,
 				},
 			}
 			break

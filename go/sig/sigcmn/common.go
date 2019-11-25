@@ -23,10 +23,11 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/sig/internal/pathmgr"
 	"github.com/scionproto/scion/go/sig/internal/sigconfig"
+	"github.com/scionproto/scion/go/sig/internal/snetmigrate"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
@@ -59,21 +60,24 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 
 	ds := reliable.NewDispatcherService(cfg.Dispatcher)
 	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
-	wait := func() (*snet.SCIONNetwork, error) {
+	wait := func() (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 		deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
 		var retErr error
 		for tries := 0; time.Now().Before(deadline); tries++ {
-			n, err := snet.NewNetwork(cfg.IA, sdCfg.Path, ds)
+			resolver, err := snetmigrate.ResolverFromSD(sdCfg.Path)
 			if err == nil {
-				return n, nil
+				return snet.NewNetworkWithPR(cfg.IA, ds, &snetmigrate.PathQuerier{
+					Resolver: resolver,
+					IA:       cfg.IA,
+				}, resolver), resolver, nil
 			}
 			log.Debug("SIG is retrying to get NewNetwork", err)
 			retErr = err
 			time.Sleep(time.Second)
 		}
-		return nil, retErr
+		return nil, nil, retErr
 	}
-	network, err := wait()
+	network, resolver, err := wait()
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
@@ -86,7 +90,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 
 	CtrlConn = conn
 	Network = network
-	PathMgr = network.PathResolver()
+	PathMgr = resolver
 
 	return nil
 }

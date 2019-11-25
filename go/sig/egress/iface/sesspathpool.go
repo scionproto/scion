@@ -18,7 +18,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
@@ -81,18 +81,18 @@ func (spp SessPathPool) PathCount() int {
 func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
 	// Remove any old entries that aren't present in the update.
 	for key := range spp {
-		if _, ok := aps[spathmeta.PathKey(key)]; !ok {
+		if _, ok := aps[key]; !ok {
 			delete(spp, key)
 		}
 	}
-	for key, ap := range aps {
+	for key, path := range aps {
 		e, ok := spp[string(key)]
 		if !ok {
 			// This is a new path, add an entry.
-			spp[string(key)] = NewSessPathStats(string(key), ap.Entry)
+			spp[string(key)] = newSessPathStats(string(key), path)
 		} else {
 			// This path already exists, update it.
-			e.SessPath.pathEntry = ap.Entry
+			e.SessPath.path = path
 		}
 	}
 }
@@ -129,9 +129,9 @@ type SessPathStats struct {
 	failCount uint16
 }
 
-func NewSessPathStats(key string, pathEntry *sciond.PathReplyEntry) *SessPathStats {
+func newSessPathStats(key string, path snet.Path) *SessPathStats {
 	return &SessPathStats{
-		SessPath: NewSessPath(key, pathEntry),
+		SessPath: NewSessPath(key, path),
 		lastFail: time.Now(),
 	}
 }

@@ -41,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
@@ -144,16 +145,12 @@ func New(conn sciond.Connector, timers Timers) Resolver {
 func (r *resolver) Query(ctx context.Context, src, dst addr.IA,
 	flags sciond.PathReqFlags) spathmeta.AppPathSet {
 
-	reply, err := r.sciondConn.Paths(ctx, dst, src, numReqPaths, flags)
+	paths, err := r.sciondConn.Paths(ctx, dst, src, numReqPaths, flags)
 	if err != nil {
 		r.logger(ctx).Error("SCIOND network error", "err", err)
 		return make(spathmeta.AppPathSet)
 	}
-	if reply.ErrorCode != sciond.ErrorOk {
-		r.logger(ctx).Error("Unable to find path", "src", src, "dst", dst, "code", reply.ErrorCode)
-		return make(spathmeta.AppPathSet)
-	}
-	return spathmeta.NewAppPathSet(reply)
+	return spathmeta.NewAppPathSet(paths)
 }
 
 func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
@@ -260,9 +257,9 @@ func dropRevoked(aps spathmeta.AppPathSet, pi sciond.PathInterface) spathmeta.Ap
 	return other
 }
 
-func matches(path *spathmeta.AppPath, predicatePI sciond.PathInterface) bool {
-	for _, pi := range path.Entry.Path.Interfaces {
-		if pi.Equal(&predicatePI) {
+func matches(path snet.Path, predicatePI sciond.PathInterface) bool {
+	for _, pi := range path.Interfaces() {
+		if pi.IA().Equal(predicatePI.IA()) && pi.ID() == predicatePI.ID() {
 			return true
 		}
 	}
@@ -270,13 +267,13 @@ func matches(path *spathmeta.AppPath, predicatePI sciond.PathInterface) bool {
 }
 
 type pathWrap struct {
-	*spathmeta.AppPath
+	snet.Path
 }
 
-func (p pathWrap) Key() string { return p.AppPath.Key().String() }
+func (p pathWrap) Key() string { return p.Fingerprint() }
 func (p pathWrap) Interfaces() []pathpol.PathInterface {
-	intfs := make([]pathpol.PathInterface, 0, len(p.Entry.Path.Interfaces))
-	for _, intf := range p.Entry.Path.Interfaces {
+	intfs := make([]pathpol.PathInterface, 0, len(p.Path.Interfaces()))
+	for _, intf := range p.Path.Interfaces() {
 		intfs = append(intfs, intf)
 	}
 	return intfs
@@ -285,7 +282,7 @@ func (p pathWrap) Interfaces() []pathpol.PathInterface {
 func apsToPs(aps spathmeta.AppPathSet) pathpol.PathSet {
 	ps := make(pathpol.PathSet, len(aps))
 	for key, path := range aps {
-		ps[key.String()] = pathWrap{AppPath: path}
+		ps[key] = pathWrap{Path: path}
 	}
 	return ps
 }
@@ -293,8 +290,8 @@ func apsToPs(aps spathmeta.AppPathSet) pathpol.PathSet {
 func psToAps(ps pathpol.PathSet) spathmeta.AppPathSet {
 	aps := make(spathmeta.AppPathSet)
 	for _, path := range ps {
-		ap := path.(pathWrap).AppPath
-		aps[ap.Key()] = ap
+		ap := path.(pathWrap).Path
+		aps[ap.Fingerprint()] = ap
 	}
 	return aps
 }
