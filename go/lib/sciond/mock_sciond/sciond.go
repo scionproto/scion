@@ -8,7 +8,6 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	common "github.com/scionproto/scion/go/lib/common"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	sciond "github.com/scionproto/scion/go/lib/sciond"
 	snet "github.com/scionproto/scion/go/lib/snet"
@@ -104,21 +103,6 @@ func (m *MockConnector) Close(arg0 context.Context) error {
 func (mr *MockConnectorMockRecorder) Close(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close), arg0)
-}
-
-// IFInfo mocks base method
-func (m *MockConnector) IFInfo(arg0 context.Context, arg1 []common.IFIDType) (*sciond.IFInfoReply, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IFInfo", arg0, arg1)
-	ret0, _ := ret[0].(*sciond.IFInfoReply)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IFInfo indicates an expected call of IFInfo
-func (mr *MockConnectorMockRecorder) IFInfo(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IFInfo", reflect.TypeOf((*MockConnector)(nil).IFInfo), arg0, arg1)
 }
 
 // Paths mocks base method

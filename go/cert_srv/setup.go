@@ -164,7 +164,7 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	}
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.SPublicAddress(addr.SvcCS, cfg.General.ID),
+		Public:                topo.PublicAddress(addr.SvcCS, cfg.General.ID),
 		SVC:                   addr.SvcCS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{

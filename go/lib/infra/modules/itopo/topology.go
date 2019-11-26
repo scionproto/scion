@@ -39,14 +39,7 @@ type Topology interface {
 
 	// PublicAddress gets the public address of a server with the requested type and name, and nil
 	// if no such server exists.
-	//
-	// FIXME(scrye): See whether this or its snet variant below can be removed.
-	PublicAddress(svc addr.HostSVC, name string) *addr.AppAddr
-	// SPublicAddress gets the public address of a server with the requested type and name, and nil
-	// if no such server exists.
-	//
-	// FIXME(scrye): See whether this or its app variant above can be removed.
-	SPublicAddress(svc addr.HostSVC, name string) *snet.Addr
+	PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr
 
 	// Exists returns true if the service and name are present in the topology file.
 	Exists(svc addr.HostSVC, name string) bool
@@ -225,27 +218,16 @@ func (t *topologyS) BR(name string) (topology.BRInfo, bool) {
 	return br, ok
 }
 
-func (t *topologyS) SPublicAddress(svc addr.HostSVC, name string) *snet.Addr {
-	address := t.PublicAddress(svc, name)
-	if address == nil {
-		return nil
-	}
-	return &snet.Addr{
-		IA:   t.IA(),
-		Host: address.Copy(),
-	}
-}
-
-func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *addr.AppAddr {
+func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr {
 	topoAddr := t.topoAddress(svc, name)
 	if topoAddr == nil {
 		return nil
 	}
-	publicAddr := topoAddr.SCIONAddress
-	if publicAddr == nil {
+	pa := topoAddr.SCIONAddress
+	if pa == nil {
 		return nil
 	}
-	return publicAddr.Copy()
+	return &net.UDPAddr{IP: pa.L3.IP(), Port: int(pa.L4)}
 }
 
 func (t *topologyS) Exists(svc addr.HostSVC, name string) bool {

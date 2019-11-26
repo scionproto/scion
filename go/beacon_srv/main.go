@@ -132,7 +132,7 @@ func realMain() int {
 	opentracing.SetGlobalTracer(tracer)
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.SPublicAddress(addr.SvcBS, cfg.General.ID),
+		Public:                topo.PublicAddress(addr.SvcBS, cfg.General.ID),
 		SVC:                   addr.SvcBS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
@@ -191,8 +191,9 @@ func realMain() int {
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
 	ovAddr := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
-	ovAddr.L4 = 0
-	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), ovAddr, nil, addr.SvcNone, time.Second)
+	t := addr.AppAddrFromUDP(ovAddr)
+	t.L4 = 0
+	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), t, nil, addr.SvcNone, time.Second)
 	if err != nil {
 		log.Crit("Unable to create SCION packet conn", "err", err)
 		return 1
@@ -290,15 +291,10 @@ func (t *periodicTasks) Start() error {
 	}
 	t.running = true
 	topo := t.topoProvider.Get()
-	topoAddress := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
-	if topoAddress == nil {
+	bs := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
+	if bs == nil {
 		return serrors.New("Unable to find topo address")
 	}
-	bs := &net.UDPAddr{
-		IP:   topoAddress.L3.IP(),
-		Port: int(topoAddress.L4),
-	}
-
 	var err error
 	if t.registrars, err = t.startSegRegRunners(); err != nil {
 		return err
