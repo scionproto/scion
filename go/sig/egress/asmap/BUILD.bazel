@@ -13,12 +13,12 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/ringbuf:go_default_library",
+        "//go/sig/config:go_default_library",
         "//go/sig/egress/dispatcher:go_default_library",
         "//go/sig/egress/iface:go_default_library",
         "//go/sig/egress/router:go_default_library",
         "//go/sig/egress/selector:go_default_library",
         "//go/sig/egress/session:go_default_library",
         "//go/sig/internal/base:go_default_library",
-        "//go/sig/internal/config:go_default_library",
     ],
 )
