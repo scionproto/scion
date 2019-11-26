@@ -37,16 +37,47 @@ import (
 
 func TestRedirectQUIC(t *testing.T) {
 	testCases := map[string]struct {
-		input        net.Addr
-		wantAddr     net.Addr
-		wantRedirect bool
-		assertErr    assert.ErrorAssertionFunc
+		input                 net.Addr
+		wantAddr              net.Addr
+		wantRedirect          bool
+		SVCResolutionFraction float64
+		assertErr             assert.ErrorAssertionFunc
 	}{
-		"nil input": {
-			input:        nil,
-			wantAddr:     nil,
-			wantRedirect: false,
-			assertErr:    assert.NoError,
+		"nil addr, no error": {
+			input:     nil,
+			wantAddr:  nil,
+			assertErr: assert.NoError,
+		},
+		"disabling SVC resolution, returns unchanged": {
+			input:                 &snet.Addr{Host: newSVCAppAddr(addr.SvcBS)},
+			wantAddr:              &snet.Addr{Host: newSVCAppAddr(addr.SvcBS)},
+			SVCResolutionFraction: 0.0,
+			assertErr:             assert.NoError,
+		},
+		"not nil invalid addr, error": {
+			input:                 &net.TCPAddr{},
+			wantAddr:              nil,
+			wantRedirect:          false,
+			SVCResolutionFraction: 1.0,
+			assertErr:             assert.Error,
+		},
+		"valid empty UDP, ?error": {
+			input:                 newUDPAppAddr(&net.UDPAddr{}),
+			wantAddr:              nil,
+			wantRedirect:          false,
+			SVCResolutionFraction: 1.0,
+			assertErr:             assert.Error,
+		},
+		"valid UDPAddr, returns unchanged": {
+			input: &snet.Addr{
+				Host: newUDPAppAddr(&net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1}),
+			},
+			wantAddr: &snet.Addr{
+				Host: newUDPAppAddr(&net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1}),
+			},
+			SVCResolutionFraction: 1.0,
+			wantRedirect:          false,
+			assertErr:             assert.NoError,
 		},
 	}
 	for tn, tc := range testCases {
@@ -54,10 +85,14 @@ func TestRedirectQUIC(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			router := mock_snet.NewMockRouter(ctrl)
+			router.EXPECT().Route(gomock.Any(), gomock.Any()).Times(0)
 			resolver := mock_messenger.NewMockResolver(ctrl)
+			resolver.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
 			aw := messenger.AddressRewriter{
-				Resolver: resolver,
-				Router:   router,
+				Resolver:              resolver,
+				Router:                router,
+				SVCResolutionFraction: tc.SVCResolutionFraction,
 			}
 
 			a, r, err := aw.RedirectToQUIC(context.Background(), tc.input)
@@ -71,7 +106,7 @@ func TestRedirectQUIC(t *testing.T) {
 func TestBuildFullAddress(t *testing.T) {
 	testCases := map[string]struct {
 		input     net.Addr
-		want      *snet.Addr
+		want      net.Addr
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"non-snet address": {
@@ -251,32 +286,18 @@ func TestBuildFullAddress(t *testing.T) {
 	})
 }
 
-func TestResolveIfSVC(t *testing.T) {
+func TestResolve(t *testing.T) {
 	testCases := map[string]struct {
-		input                 *addr.AppAddr
+		input                 addr.HostSVC
 		ResolverSetup         func(*mock_messenger.MockResolver)
 		SVCResolutionFraction float64
 		wantPath              snet.Path
-		want                  *addr.AppAddr
+		want                  *net.UDPAddr
 		wantQUICRedirect      bool
 		assertErr             assert.ErrorAssertionFunc
 	}{
-		"non-svc address does not trigger lookup": {
-			input: newUDPAppAddr(
-				&net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1}),
-			SVCResolutionFraction: 1.0,
-			want: newUDPAppAddr(&net.UDPAddr{
-				IP: net.IP{192, 168, 0, 1}, Port: 1}),
-			assertErr: assert.NoError,
-		},
-		"disabling SVC resolution does not trigger lookup, same addr": {
-			input:                 newSVCAppAddr(addr.SvcBS),
-			SVCResolutionFraction: 0.0,
-			want:                  newSVCAppAddr(addr.SvcBS),
-			assertErr:             assert.NoError,
-		},
 		"svc address, lookup fails": {
-			input: newSVCAppAddr(addr.SvcBS),
+			input: addr.SvcBS,
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, fmt.Errorf("err"))
@@ -285,17 +306,17 @@ func TestResolveIfSVC(t *testing.T) {
 			assertErr:             assert.Error,
 		},
 		"svc address, half time allowed for resolution, lookup fails": {
-			input: newSVCAppAddr(addr.SvcBS),
+			input: addr.SvcBS,
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, fmt.Errorf("err"))
 			},
 			SVCResolutionFraction: 0.5,
-			want:                  newSVCAppAddr(addr.SvcBS),
+			want:                  nil,
 			assertErr:             assert.NoError,
 		},
 		"svc address, lookup succeeds": {
-			input: newSVCAppAddr(addr.SvcBS),
+			input: addr.SvcBS,
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(
@@ -310,13 +331,12 @@ func TestResolveIfSVC(t *testing.T) {
 			},
 			SVCResolutionFraction: 1.0,
 			wantPath:              &testPath{},
-			want: newUDPAppAddr(
-				&net.UDPAddr{IP: net.IP{192, 168, 1, 1}, Port: 8000}),
-			wantQUICRedirect: true,
-			assertErr:        assert.NoError,
+			want:                  &net.UDPAddr{IP: net.IP{192, 168, 1, 1}, Port: 8000},
+			wantQUICRedirect:      true,
+			assertErr:             assert.NoError,
 		},
 		"svc address, half time allowed for resolution, lookup succeeds": {
-			input: newSVCAppAddr(addr.SvcBS),
+			input: addr.SvcBS,
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(
@@ -329,10 +349,9 @@ func TestResolveIfSVC(t *testing.T) {
 					)
 			},
 			SVCResolutionFraction: 0.5,
-			want: newUDPAppAddr(
-				&net.UDPAddr{IP: net.IP{192, 168, 1, 1}, Port: 8000}),
-			wantQUICRedirect: true,
-			assertErr:        assert.NoError,
+			want:                  &net.UDPAddr{IP: net.ParseIP("192.168.1.1"), Port: 8000},
+			wantQUICRedirect:      true,
+			assertErr:             assert.NoError,
 		},
 	}
 
@@ -348,9 +367,9 @@ func TestResolveIfSVC(t *testing.T) {
 				SVCResolutionFraction: tc.SVCResolutionFraction,
 			}
 			initResolver(resolver, tc.ResolverSetup)
-			p, a, redirect, err := aw.ResolveIfSVC(context.Background(), path, tc.input)
+			p, a, redirect, err := aw.ResolveSVC(context.Background(), path, tc.input)
 			assert.Equal(t, p, tc.wantPath)
-			assert.Equal(t, a, tc.want)
+			assert.Equal(t, a.String(), tc.want.String())
 			assert.Equal(t, redirect, tc.wantQUICRedirect)
 			tc.assertErr(t, err)
 		})
@@ -359,7 +378,7 @@ func TestResolveIfSVC(t *testing.T) {
 
 func TestParseReply(t *testing.T) {
 	testCases := map[string]struct {
-		Reply     *svc.Reply
+		mockReply *svc.Reply
 		want      *net.UDPAddr
 		assertErr assert.ErrorAssertionFunc
 	}{
@@ -367,15 +386,15 @@ func TestParseReply(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"empty reply": {
-			Reply:     &svc.Reply{},
+			mockReply: &svc.Reply{},
 			assertErr: assert.Error,
 		},
 		"key not found in reply": {
-			Reply:     &svc.Reply{Transports: map[svc.Transport]string{svc.UDP: "foo"}},
+			mockReply: &svc.Reply{Transports: map[svc.Transport]string{svc.UDP: "foo"}},
 			assertErr: assert.Error,
 		},
 		"key found in reply, but parsing fails": {
-			Reply: &svc.Reply{
+			mockReply: &svc.Reply{
 				Transports: map[svc.Transport]string{
 					svc.QUIC: "foo",
 				},
@@ -383,7 +402,7 @@ func TestParseReply(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"key found in reply, IPv4 address": {
-			Reply: &svc.Reply{
+			mockReply: &svc.Reply{
 				Transports: map[svc.Transport]string{
 					svc.QUIC: "192.168.1.1:8000",
 				},
@@ -392,7 +411,7 @@ func TestParseReply(t *testing.T) {
 			assertErr: assert.NoError,
 		},
 		"key found in reply, IPv6 address": {
-			Reply: &svc.Reply{
+			mockReply: &svc.Reply{
 				Transports: map[svc.Transport]string{
 					svc.QUIC: "[2001:db8::1]:8000",
 				},
@@ -404,13 +423,12 @@ func TestParseReply(t *testing.T) {
 
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
-			a, err := messenger.ParseReply(tc.Reply)
+			a, err := messenger.ParseReply(tc.mockReply)
 			tc.assertErr(t, err)
 			if err != nil {
 				return
 			}
-			want := newUDPAppAddr(tc.want)
-			assert.Equal(t, a, want)
+			assert.Equal(t, a.String(), tc.want.String())
 		})
 	}
 }
