@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -67,7 +68,7 @@ func setup() error {
 		return common.NewBasicError("Unable to validate config", err)
 	}
 	itopo.Init(cfg.General.ID, proto.ServiceType_cs, itopo.Callbacks{})
-	topo, err := itopo.LoadFromFile(cfg.General.Topology)
+	topo, err := topology.FromJSONFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
@@ -198,7 +199,7 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	return nil
 }
 
-func initTopo(topo itopo.Topology) error {
+func initTopo(topo topology.Topology) error {
 	if _, _, err := itopo.SetStatic(topo, false); err != nil {
 		return common.NewBasicError("Unable to set initial static topology", err)
 	}

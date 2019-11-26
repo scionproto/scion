@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // BeaconProvider provides beacons to send to neighboring ASes.
@@ -104,7 +104,7 @@ func (p *Propagator) run(ctx context.Context) error {
 	if len(intfs) == 0 {
 		return nil
 	}
-	peers, nonActivePeers := sortedIntfs(p.cfg.Intfs, proto.LinkType_peer)
+	peers, nonActivePeers := sortedIntfs(p.cfg.Intfs, topology.Peer)
 	if len(nonActivePeers) > 0 && p.tick.passed() {
 		logger.Debug("[beaconing.Propagator] Ignore non-active peering interfaces",
 			"ifids", nonActivePeers)
@@ -146,9 +146,9 @@ func (p *Propagator) run(ctx context.Context) error {
 func (p *Propagator) needsBeacons(logger log.Logger) []common.IFIDType {
 	var activeIntfs, nonActiveIntfs []common.IFIDType
 	if p.core {
-		activeIntfs, nonActiveIntfs = sortedIntfs(p.cfg.Intfs, proto.LinkType_core)
+		activeIntfs, nonActiveIntfs = sortedIntfs(p.cfg.Intfs, topology.Core)
 	} else {
-		activeIntfs, nonActiveIntfs = sortedIntfs(p.cfg.Intfs, proto.LinkType_child)
+		activeIntfs, nonActiveIntfs = sortedIntfs(p.cfg.Intfs, topology.Child)
 	}
 	if len(nonActiveIntfs) > 0 && p.tick.passed() {
 		logger.Debug("[beaconing.Propagator] Ignore non-active interfaces", "ifids", nonActiveIntfs)
@@ -280,10 +280,10 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 		err := p.beaconSender.Send(
 			ctx,
 			&seg.Beacon{Segment: bseg.Segment},
-			topoInfo.ISD_AS,
+			topoInfo.IA,
 			egIfid,
 			p.cfg.Signer,
-			topoInfo.InternalAddrs,
+			topoInfo.InternalAddr,
 		)
 		if err != nil {
 			p.logger.Error("[beaconing.Propagator] Unable to send packet",
@@ -305,7 +305,7 @@ func (p *beaconPropagator) shouldIgnore(bseg beacon.Beacon, egIfid common.IFIDTy
 	if intf == nil {
 		return true
 	}
-	if err := beacon.FilterLoop(bseg, intf.TopoInfo().ISD_AS, p.allowIsdLoop); err != nil {
+	if err := beacon.FilterLoop(bseg, intf.TopoInfo().IA, p.allowIsdLoop); err != nil {
 		p.logger.Trace("[beaconing.Propagator] Ignoring beacon on loop", "ifid", egIfid, "err", err)
 		return true
 	}

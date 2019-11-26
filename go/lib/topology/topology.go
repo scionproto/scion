@@ -16,7 +16,9 @@
 package topology
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"sort"
@@ -25,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -32,82 +35,96 @@ import (
 // EndhostPort is the overlay port that the dispatcher binds to on non-routers.
 const EndhostPort = overlay.EndhostPort
 
-type IDAddrMap map[string]TopoAddr
+type (
+	// RWTopology is the topology type for applications and libraries that need write
+	// access to AS topology information (e.g., discovery, topology reloaders).
+	//
+	// The first section contains metadata about the topology. All of these fields
+	// should be self-explanatory. The unit of TTL is seconds, with the zero value
+	// indicating an infinite TTL.
+	//
+	// The second section concerns the Border routers. BRNames is just a sorted slice
+	// of the names of the BRs in this topolgy. Its contents is exactly the same as
+	// the keys in the BR map.
+	//
+	// The BR map points from border router names to BRInfo structs, which in turn
+	// are lists of IFID type slices, thus defines the IFIDs that belong to a
+	// particular border router. The IFInfoMap points from interface IDs to IFInfo structs.
+	//
+	// The third section in RWTopology concerns the SCION-specific services in the topology.
+	// The structure is identical between the various elements. For each service,
+	// there is again a sorted slice of names of the servers that provide the service.
+	// Additionally, there is a map from those names to TopoAddr structs.
+	RWTopology struct {
+		Timestamp time.Time
+		TTL       time.Duration
+		IA        addr.IA
+		Core      bool
+		MTU       int
 
-// GetById returns the TopoAddr for the given ID, or nil if there is none.
-func (m IDAddrMap) GetById(id string) *TopoAddr {
-	if _, ok := m[id]; ok {
-		cp := m[id]
-		return &cp
+		BR        map[string]BRInfo
+		BRNames   []string
+		IFInfoMap IfInfoMap
+
+		BS  IDAddrMap
+		CS  IDAddrMap
+		PS  IDAddrMap
+		DS  IDAddrMap
+		SIG IDAddrMap
 	}
-	return nil
-}
 
-type ServiceNames []string
-
-// GetRandom returns a random entry, or an error if the slice is empty.
-func (s ServiceNames) GetRandom() (string, error) {
-	numServers := len(s)
-	if numServers == 0 {
-		return "", serrors.New("No names present")
+	// BRInfo is a list of AS-wide unique interface IDs for a router. These IDs are also used
+	// to point to the specific internal address clients should send their traffic
+	// to in order to use that interface, via the IFInfoMap member of the Topo
+	// struct.
+	BRInfo struct {
+		Name string
+		// CtrlAddrs are the local control-plane addresses.
+		CtrlAddrs *TopoAddr
+		// InternalAddr is the local data-plane address.
+		InternalAddr *net.UDPAddr
+		// IFIDs is a sorted list of the interface IDs.
+		IFIDs []common.IFIDType
+		// IFs is a map of interface IDs.
+		IFs map[common.IFIDType]*IFInfo
 	}
-	return s[rand.Intn(numServers)], nil
-}
 
-// IfInfoMap maps interface ids to the interface information.
-type IfInfoMap map[common.IFIDType]IFInfo
+	// IfInfoMap maps interface ids to the interface information.
+	IfInfoMap map[common.IFIDType]IFInfo
 
-// Topo is the main struct encompassing topology information for use in Go code.
-// The first section contains metadata about the topology. All of these fields
-// should be self-explanatory. The unit of TTL is seconds, with the zero value
-// indicating an infinite TTL.
-//
-// The second section concerns the Border routers. BRNames is just a sorted slice
-// of the names of the BRs in this topolgy. Its contents is exactly the same as
-// the keys in the BR map.
-//
-// The BR map points from border router names to BRInfo structs, which in turn
-// are lists of IFID type slices, thus defines the IFIDs that belong to a
-// particular border router. The IFInfoMap points from interface IDs to IFInfo structs.
-//
-// The third section in Topo concerns the SCION-specific services in the topology.
-// The structure is identical between the various elements. For each service,
-// there is again a sorted slice of names of the servers that provide the service.
-// Additionally, there is a map from those names to TopoAddr structs.
-type Topo struct {
-	Timestamp time.Time
-	// TimestampHuman is a human readable format of the Timestamp field. This can vary wildly in
-	// format and is only for informational purposes.
-	TimestampHuman string
-	TTL            time.Duration
-	ISD_AS         addr.IA
-	Core           bool
+	// IFInfo describes a border router link to another AS, including the internal data-plane
+	// address applications should send traffic to and information about the link itself and the
+	// remote side of it.
+	IFInfo struct {
+		// ID is the interface ID. It is unique per AS.
+		ID           common.IFIDType
+		BRName       string
+		CtrlAddrs    *TopoAddr
+		Underlay     overlay.Type
+		InternalAddr *net.UDPAddr
+		Local        *net.UDPAddr
+		Remote       *net.UDPAddr
+		RemoteIFID   common.IFIDType
+		Bandwidth    int
+		IA           addr.IA
+		LinkType     LinkType
+		MTU          int
+	}
 
-	Overlay overlay.Type
-	MTU     int
+	// IDAddrMap maps process IDs to their topology addresses.
+	IDAddrMap map[string]TopoAddr
 
-	BR      map[string]BRInfo
-	BRNames []string
-	// This maps Interface IDs to internal addresses. Clients use this to
-	// figure out which internal BR address they have to send their traffic to
-	// if they want to use a given interface.
-	IFInfoMap IfInfoMap
+	// TopoAddr wraps the possible addresses of a SCION service and describes
+	// the underlay to be used for contacting said service.
+	TopoAddr struct {
+		SCIONAddress    *addr.AppAddr
+		UnderlayAddress net.Addr
+	}
+)
 
-	BS       IDAddrMap
-	BSNames  ServiceNames
-	CS       IDAddrMap
-	CSNames  ServiceNames
-	PS       IDAddrMap
-	PSNames  ServiceNames
-	DS       IDAddrMap
-	DSNames  ServiceNames
-	SIG      IDAddrMap
-	SIGNames ServiceNames
-}
-
-// NewTopo creates new empty Topo object, including all possible service maps etc.
-func NewTopo() *Topo {
-	return &Topo{
+// NewRWTopology creates new empty Topo object, including all possible service maps etc.
+func NewRWTopology() *RWTopology {
+	return &RWTopology{
 		BR:        make(map[string]BRInfo),
 		BS:        make(IDAddrMap),
 		CS:        make(IDAddrMap),
@@ -118,10 +135,10 @@ func NewTopo() *Topo {
 	}
 }
 
-// TopoFromRaw converts a JSON-filled RawTopo to a Topo usable by Go code.
-func TopoFromRaw(raw *RawTopo) (*Topo, error) {
-	t := NewTopo()
-
+// RWTopologyFromJSONTopology converts a parsed JSON struct topology to a topology usable by Go
+// code.
+func RWTopologyFromJSONTopology(raw *jsontopo.Topology) (*RWTopology, error) {
+	t := NewRWTopology()
 	if err := t.populateMeta(raw); err != nil {
 		return nil, err
 	}
@@ -134,20 +151,42 @@ func TopoFromRaw(raw *RawTopo) (*Topo, error) {
 	return t, nil
 }
 
-func (t *Topo) populateMeta(raw *RawTopo) error {
+// RWTopologyFromJSONBytes extracts the topology from a JSON representation in raw byte format.
+func RWTopologyFromJSONBytes(b common.RawBytes) (*RWTopology, error) {
+	rt := &jsontopo.Topology{}
+	if err := json.Unmarshal(b, rt); err != nil {
+		return nil, err
+	}
+	ct, err := RWTopologyFromJSONTopology(rt)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to convert raw topology to topology", err)
+	}
+	return ct, nil
+}
+
+// RWTopologyFromJSONFile extracts the topology from a file containing the JSON representation
+// of the topology.
+func RWTopologyFromJSONFile(path string) (*RWTopology, error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return RWTopologyFromJSONBytes(b)
+}
+
+func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	// These fields can be simply copied
 	var err error
 	t.Timestamp = time.Unix(raw.Timestamp, 0)
-	t.TimestampHuman = raw.TimestampHuman
 	t.TTL = time.Duration(raw.TTL) * time.Second
 
-	if t.ISD_AS, err = addr.IAFromString(raw.ISD_AS); err != nil {
+	if t.IA, err = addr.IAFromString(raw.IA); err != nil {
 		return err
 	}
-	if t.ISD_AS.IsWildcard() {
-		return common.NewBasicError("IA contains wildcard", nil, "ia", t.ISD_AS)
+	if t.IA.IsWildcard() {
+		return common.NewBasicError("IA contains wildcard", nil, "ia", t.IA)
 	}
-	if t.Overlay, err = overlay.TypeFromString(raw.Overlay); err != nil {
+	if _, err = overlay.TypeFromString(raw.Overlay); err != nil {
 		return err
 	}
 	t.MTU = raw.MTU
@@ -155,7 +194,7 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 	return nil
 }
 
-func (t *Topo) populateBR(raw *RawTopo) error {
+func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 	for name, rawBr := range raw.BorderRouters {
 		if rawBr.CtrlAddr == nil {
 			return common.NewBasicError("Missing Control Address", nil, "br", name)
@@ -163,19 +202,19 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if rawBr.InternalAddrs == nil {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		ctrlAddr, err := rawBr.CtrlAddr.ToTopoAddr()
+		ctrlAddr, err := rawAddrMapToTopoAddr(rawBr.CtrlAddr)
 		if err != nil {
 			return serrors.WrapStr("unable to extract SCION control-plane address", err)
 		}
-		intAddr, err := rawBr.InternalAddrs.ToUDPAddr()
+		intAddr, err := rawBRAddrMapToUDPAddr(rawBr.InternalAddrs)
 		if err != nil {
 			return serrors.WrapStr("unable to extract underlay internal data-plane address", err)
 		}
 		brInfo := BRInfo{
-			Name:          name,
-			CtrlAddrs:     ctrlAddr,
-			InternalAddrs: intAddr,
-			IFs:           make(map[common.IFIDType]*IFInfo),
+			Name:         name,
+			CtrlAddrs:    ctrlAddr,
+			InternalAddr: intAddr,
+			IFs:          make(map[common.IFIDType]*IFInfo),
 		}
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
@@ -185,37 +224,36 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			}
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
 			ifinfo := IFInfo{
-				Id:            ifid,
-				BRName:        name,
-				InternalAddrs: intAddr,
-				CtrlAddrs:     ctrlAddr,
-				Bandwidth:     rawIntf.Bandwidth,
-				MTU:           rawIntf.MTU,
+				ID:           ifid,
+				BRName:       name,
+				InternalAddr: intAddr,
+				CtrlAddrs:    ctrlAddr,
+				Bandwidth:    rawIntf.Bandwidth,
+				MTU:          rawIntf.MTU,
 			}
-			if ifinfo.ISD_AS, err = addr.IAFromString(rawIntf.ISD_AS); err != nil {
+			if ifinfo.IA, err = addr.IAFromString(rawIntf.IA); err != nil {
 				return err
 			}
-			if ifinfo.LinkType, err = LinkTypeFromString(rawIntf.LinkTo); err != nil {
-				return err
-			}
-			if err = ifinfo.Verify(t.Core, name); err != nil {
+			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
+			if err = ifinfo.CheckLinks(t.Core, name); err != nil {
 				return err
 			}
 			// These fields are only necessary for the border router.
 			// Parsing should not fail if they are missing.
-			if rawIntf.Overlay == "" && rawIntf.BindOverlay == nil && rawIntf.RemoteOverlay == nil {
+			if rawIntf.Underlay == "" && rawIntf.BindUnderlay == nil &&
+				rawIntf.RemoteUnderlay == nil {
 				brInfo.IFs[ifid] = &ifinfo
 				t.IFInfoMap[ifid] = ifinfo
 				continue
 			}
-			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
+			if ifinfo.Underlay, err = overlay.TypeFromString(rawIntf.Underlay); err != nil {
 				return serrors.WrapStr("unable to extract underlay type", err)
 			}
-			if ifinfo.Local, err = rawIntf.TopoBRAddr(); err != nil {
+			if ifinfo.Local, err = rawBRIntfTopoBRAddr(rawIntf); err != nil {
 				return serrors.WrapStr("unable to extract "+
 					"underlay external data-plane local address", err)
 			}
-			if ifinfo.Remote, err = rawIntf.remoteBRAddr(ifinfo.Overlay); err != nil {
+			if ifinfo.Remote, err = rawBRIntfRemoteBRAddr(rawIntf, ifinfo.Underlay); err != nil {
 				return serrors.WrapStr("unable to extract "+
 					"underlay external data-plane remote address", err)
 			}
@@ -232,70 +270,62 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 	return nil
 }
 
-func (t *Topo) populateServices(raw *RawTopo) error {
-	// Populate BS, CS, PS, SB, RS, SIG and DS maps
+func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	var err error
-	t.BSNames, err = svcMapFromRaw(raw.BeaconService, common.BS, t.BS, t.Overlay)
+	t.BS, err = svcMapFromRaw(raw.BeaconService)
 	if err != nil {
-		return err
+		return serrors.WrapStr("unable to extract BS address", err)
 	}
-	t.CSNames, err = svcMapFromRaw(raw.CertificateService, common.CS, t.CS, t.Overlay)
+	t.CS, err = svcMapFromRaw(raw.CertificateService)
 	if err != nil {
-		return err
+		return serrors.WrapStr("unable to extract CS address", err)
 	}
-	t.PSNames, err = svcMapFromRaw(raw.PathService, common.PS, t.PS, t.Overlay)
+	t.PS, err = svcMapFromRaw(raw.PathService)
 	if err != nil {
-		return err
+		return serrors.WrapStr("unable to extract PS address", err)
 	}
-	t.SIGNames, err = svcMapFromRaw(raw.SIG, common.SIG, t.SIG, t.Overlay)
+	t.SIG, err = svcMapFromRaw(raw.SIG)
 	if err != nil {
-		return err
+		return serrors.WrapStr("unable to extract SIG address", err)
 	}
-	t.DSNames, err = svcMapFromRaw(raw.DiscoveryService, common.DS, t.DS, t.Overlay)
+	t.DS, err = svcMapFromRaw(raw.DiscoveryService)
 	if err != nil {
-		return err
+		return serrors.WrapStr("unable to extract DS address", err)
 	}
 	return nil
 }
 
-func (t *Topo) Active(now time.Time) bool {
+// Active returns whether the topology is active at the point in time specified by the argument.
+// A topology is active if it is within a TTL window after the timestamp.
+func (t *RWTopology) Active(now time.Time) bool {
 	return !now.Before(t.Timestamp) && (t.TTL == 0 ||
 		now.Before(t.Timestamp.Add(t.TTL)))
 }
 
 // Expiry returns the expiration time of the topology. If TTL is zero, the zero value is returned.
-func (t *Topo) Expiry() time.Time {
+func (t *RWTopology) Expiry() time.Time {
 	if t.TTL == 0 {
 		return time.Time{}
 	}
 	return t.Timestamp.Add(t.TTL)
 }
 
-func (t *Topo) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, error) {
+// GetTopoAddr returns the address information for the process of the requested type with the
+// requested ID.
+func (t *RWTopology) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, error) {
 	svcInfo, err := t.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
 	}
-	topoAddr := svcInfo.idTopoAddrMap.GetById(id)
+	topoAddr := svcInfo.idTopoAddrMap.GetByID(id)
 	if topoAddr == nil {
 		return nil, common.NewBasicError("Element not found", nil, "id", id)
 	}
 	return topoAddr, nil
 }
 
-func (t *Topo) GetAnyTopoAddr(svc proto.ServiceType) (*TopoAddr, error) {
-	svcInfo, err := t.getSvcInfo(svc)
-	if err != nil {
-		return nil, err
-	}
-	id, err := svcInfo.names.GetRandom()
-	if err != nil {
-		return nil, err
-	}
-	return svcInfo.idTopoAddrMap.GetById(id), nil
-}
-
-func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
+// GetAllTopoAddrs returns the address information of all processes of the requested type.
+func (t *RWTopology) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
 	svcInfo, err := t.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
@@ -307,20 +337,20 @@ func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
 	return topoAddrs, nil
 }
 
-func (t *Topo) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
+func (t *RWTopology) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 	switch svc {
 	case proto.ServiceType_unset:
 		return nil, serrors.New("Service type unset")
 	case proto.ServiceType_bs:
-		return &svcInfo{overlay: t.Overlay, names: t.BSNames, idTopoAddrMap: t.BS}, nil
+		return &svcInfo{idTopoAddrMap: t.BS}, nil
 	case proto.ServiceType_ps:
-		return &svcInfo{overlay: t.Overlay, names: t.PSNames, idTopoAddrMap: t.PS}, nil
+		return &svcInfo{idTopoAddrMap: t.PS}, nil
 	case proto.ServiceType_cs:
-		return &svcInfo{overlay: t.Overlay, names: t.CSNames, idTopoAddrMap: t.CS}, nil
+		return &svcInfo{idTopoAddrMap: t.CS}, nil
 	case proto.ServiceType_sig:
-		return &svcInfo{overlay: t.Overlay, names: t.SIGNames, idTopoAddrMap: t.SIG}, nil
+		return &svcInfo{idTopoAddrMap: t.SIG}, nil
 	case proto.ServiceType_ds:
-		return &svcInfo{overlay: t.Overlay, names: t.DSNames, idTopoAddrMap: t.DS}, nil
+		return &svcInfo{idTopoAddrMap: t.DS}, nil
 	default:
 		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
 	}
@@ -328,8 +358,6 @@ func (t *Topo) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 
 // svcInfo contains topology information for a single SCION service
 type svcInfo struct {
-	overlay       overlay.Type
-	names         ServiceNames
 	idTopoAddrMap IDAddrMap
 }
 
@@ -341,72 +369,40 @@ func (svc *svcInfo) getAllTopoAddrs() []TopoAddr {
 	return topoAddrs
 }
 
-// Convert map of Name->RawSrvInfo into map of Name->TopoAddr and sorted slice of Names
-// stype is only used for error reporting
-func svcMapFromRaw(ras map[string]*RawSrvInfo, stype string, smap IDAddrMap,
-	ot overlay.Type) ([]string, error) {
-
-	var snames []string
+func svcMapFromRaw(ras map[string]*jsontopo.ServerInfo) (IDAddrMap, error) {
+	svcMap := make(IDAddrMap)
 	for name, svc := range ras {
-		svcTopoAddr, err := svc.Addrs.ToTopoAddr()
+		svcTopoAddr, err := rawAddrMapToTopoAddr(svc.Addrs)
 		if err != nil {
-			return nil, common.NewBasicError(
-				"Could not convert RawAddrMap to TopoAddr", err,
-				"servicetype", stype, "RawAddrMap", svc.Addrs, "name", name)
+			return nil, serrors.WrapStr("could not extract address from address_map", err,
+				"address_map", svc.Addrs, "process_name", name)
 		}
-		smap[name] = *svcTopoAddr
-		snames = append(snames, name)
+		svcMap[name] = *svcTopoAddr
 	}
-	sort.Strings(snames)
-	return snames, nil
+	return svcMap, nil
 }
 
-// BRInfo is a list of AS-wide unique interface IDs for a router. These IDs are also used
-// to point to the specific internal address clients should send their traffic
-// to in order to use that interface, via the IFInfoMap member of the Topo
-// struct.
-type BRInfo struct {
-	Name string
-	// CtrlAddrs are the local control-plane addresses.
-	CtrlAddrs *TopoAddr
-	// InternalAddrs are the local data-plane addresses.
-	InternalAddrs *net.UDPAddr
-	// IFIDs is a sorted list of the interface IDs.
-	IFIDs []common.IFIDType
-	// IFs is a map of interface IDs.
-	IFs map[common.IFIDType]*IFInfo
+// GetByID returns the TopoAddr for the given ID, or nil if there is none.
+func (m IDAddrMap) GetByID(id string) *TopoAddr {
+	if _, ok := m[id]; ok {
+		cp := m[id]
+		return &cp
+	}
+	return nil
 }
 
-// IFInfo describes a border router link to another AS, including the internal address
-// applications should send traffic for the link to (InternalAddrs) and information about
-// the link itself and the remote side of it.
-type IFInfo struct {
-	// Id is the interface ID. It is unique per AS.
-	Id            common.IFIDType
-	BRName        string
-	CtrlAddrs     *TopoAddr
-	Overlay       overlay.Type
-	InternalAddrs *net.UDPAddr
-	Local         *net.UDPAddr
-	Remote        *net.UDPAddr
-	RemoteIFID    common.IFIDType
-	Bandwidth     int
-	ISD_AS        addr.IA
-	LinkType      proto.LinkType
-	MTU           int
-}
-
-func (i IFInfo) Verify(isCore bool, brName string) error {
+// CheckLinks checks whether the link types are compatible with whether the AS is core or not.
+func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 	if isCore {
 		switch i.LinkType {
-		case proto.LinkType_core, proto.LinkType_child:
+		case Core, Child:
 		default:
 			return common.NewBasicError("Illegal link type for core AS", nil,
 				"type", i.LinkType, "br", brName)
 		}
 	} else {
 		switch i.LinkType {
-		case proto.LinkType_parent, proto.LinkType_child, proto.LinkType_peer:
+		case Parent, Child, Peer:
 		default:
 			return common.NewBasicError("Illegal link type for non-core AS", nil,
 				"type", i.LinkType, "br", brName)
@@ -417,8 +413,46 @@ func (i IFInfo) Verify(isCore bool, brName string) error {
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v "+
-		"Remote:%+v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddrs, i.CtrlAddrs, i.Overlay,
-		i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType, i.MTU)
+		"Remote:%+v Bw:%d IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr, i.CtrlAddrs, i.Underlay,
+		i.Local, i.Remote, i.Bandwidth, i.IA, i.LinkType, i.MTU)
+}
+
+// UnderlayAddr returns the underlay address interpreted as a net.UDPAddr.
+//
+// FIXME(scrye): This should be removed; applications should not need to look into the underlay
+// concrete type.
+func (a *TopoAddr) UnderlayAddr() *net.UDPAddr {
+	return a.UnderlayAddress.(*net.UDPAddr)
+}
+
+func (a *TopoAddr) String() string {
+	return fmt.Sprintf("TopoAddr{SCION: %v, Underlay: %v}", a.SCIONAddress, a.UnderlayAddress)
+}
+
+func toUDPAddr(a net.Addr) *net.UDPAddr {
+	if a == nil {
+		return nil
+	}
+	udpAddr, ok := a.(*net.UDPAddr)
+	if !ok {
+		return nil
+	}
+	return &net.UDPAddr{
+		IP:   append(udpAddr.IP[:0:0], udpAddr.IP...),
+		Port: udpAddr.Port,
+	}
+}
+
+// ServiceNames is a slice of process names (e.g., "bs-1", "bs-2").
+type ServiceNames []string
+
+// GetRandom returns a random entry, or an error if the slice is empty.
+func (s ServiceNames) GetRandom() (string, error) {
+	numServers := len(s)
+	if numServers == 0 {
+		return "", serrors.New("No names present")
+	}
+	return s[rand.Intn(numServers)], nil
 }
 
 func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {

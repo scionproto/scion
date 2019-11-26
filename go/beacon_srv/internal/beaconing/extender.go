@@ -146,10 +146,10 @@ func (s *segExtender) remoteInfo(ifid common.IFIDType) (
 	if topoInfo.RemoteIFID == 0 {
 		return 0, 0, 0, serrors.New("Remote ifid is not set")
 	}
-	if topoInfo.ISD_AS.IsWildcard() {
-		return 0, 0, 0, common.NewBasicError("Remote IA is wildcard", nil, "ia", topoInfo.ISD_AS)
+	if topoInfo.IA.IsWildcard() {
+		return 0, 0, 0, common.NewBasicError("Remote IA is wildcard", nil, "ia", topoInfo.IA)
 	}
-	return topoInfo.ISD_AS.IAInt(), topoInfo.RemoteIFID, uint16(topoInfo.MTU), nil
+	return topoInfo.IA.IAInt(), topoInfo.RemoteIFID, uint16(topoInfo.MTU), nil
 }
 
 // createHopF creates a hop field with the provided parameters. The previous hop

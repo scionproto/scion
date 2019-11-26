@@ -33,9 +33,9 @@ test_run() {
 test_ps_immutable() {
     test_immutable $1 $2 "$3"
     jq '.PathService[].Addrs.IPv4.Public.Addr = "242.42.42.42"' $TOPO | sponge $2
-    check_no_reload $1 5 "$3: Addr"
+    check_no_reload $1 4 "$3: Addr"
     jq '.PathService[].Addrs.IPv4.Public.L4Port = 42424' $TOPO | sponge $2
-    check_no_reload $1 6 "$3: L4Port"
+    check_no_reload $1 5 "$3: L4Port"
 }
 
 test_immutable() {
@@ -43,10 +43,8 @@ test_immutable() {
     check_no_reload "$1" 1 "$3: ISD_AS"
     jq '.Core = true | del( .BorderRouters[].Interfaces )' $TOPO | sponge $2
     check_no_reload "$1" 2 "$3: Core"
-    jq '.Overlay = "UDP/IPv4+6"' $TOPO | sponge $2
-    check_no_reload "$1" 3 "$3: Overlay"
     jq '.MTU = 42' $TOPO | sponge $2
-    check_no_reload "$1" 4 "$3: MTU"
+    check_no_reload "$1" 3 "$3: MTU"
 }
 
 check_no_reload() {

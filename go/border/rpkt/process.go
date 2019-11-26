@@ -24,7 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // NeedsLocalProcessing determines if the router needs to do more than just
@@ -188,8 +188,8 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 
 	intf := rp.Ctx.Conf.BR.IFs[*rp.ifCurr]
 	rp.SrcIA() // Ensure that rp.srcIA has been set
-	if (rp.dstIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == proto.LinkType_core) ||
-		(rp.srcIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == proto.LinkType_parent) {
+	if (rp.dstIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == topology.Core) ||
+		(rp.srcIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == topology.Parent) {
 		// Case 1 & 2
 		args.Addrs = append(args.Addrs, addr.SvcBS)
 		if len(rp.Ctx.Conf.Topo.SVCNames(addr.SvcPS)) > 0 {

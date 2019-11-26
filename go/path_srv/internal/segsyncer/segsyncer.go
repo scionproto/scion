@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -37,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
@@ -58,7 +58,7 @@ type SegSyncer struct {
 	msger        infra.Messenger
 	dstIA        addr.IA
 	localIA      addr.IA
-	topoProvider itopo.ProviderI
+	topoProvider topology.Provider
 	repErrCnt    int
 }
 

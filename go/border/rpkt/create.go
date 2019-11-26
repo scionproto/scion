@@ -179,7 +179,7 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 	}
 	sp.SrcIA = rp.Ctx.Conf.IA
 	// Use the local address as the source host
-	pub := rp.Ctx.Conf.BR.InternalAddrs
+	pub := rp.Ctx.Conf.BR.InternalAddr
 	sp.SrcHost = addr.HostFromIP(pub.IP)
 	return sp, nil
 }

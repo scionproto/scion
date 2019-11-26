@@ -301,7 +301,7 @@ func testHopEntry(hop *seg.HopEntry, intfs *ifstate.Interfaces, inIfid, egIfid c
 	if inIfid != 0 {
 		intf := intfs.Get(inIfid)
 		SoMsg("Intf", intf, ShouldNotBeNil)
-		ia = intf.TopoInfo().ISD_AS
+		ia = intf.TopoInfo().IA
 		ifid = intf.TopoInfo().RemoteIFID
 		mtu = uint16(intf.TopoInfo().MTU)
 	}
@@ -313,7 +313,7 @@ func testHopEntry(hop *seg.HopEntry, intfs *ifstate.Interfaces, inIfid, egIfid c
 	// contain zero values.
 	if egIfid != 0 {
 		intf := intfs.Get(egIfid)
-		ia = intf.TopoInfo().ISD_AS
+		ia = intf.TopoInfo().IA
 		ifid = intf.TopoInfo().RemoteIFID
 	}
 	SoMsg("Hop.OutIA", hop.OutIA(), ShouldResemble, ia)

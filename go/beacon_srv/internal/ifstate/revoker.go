@@ -26,11 +26,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // RevInserter stores revocation into persistent storage.
@@ -49,7 +50,7 @@ type RevokerConf struct {
 	Intfs        *Interfaces
 	Msgr         infra.Messenger
 	Signer       infra.Signer
-	TopoProvider itopo.ProviderI
+	TopoProvider topology.Provider
 	RevInserter  RevInserter
 	RevConfig    RevConfig
 }
@@ -87,12 +88,12 @@ func (r *Revoker) Run(ctx context.Context) {
 	for ifid, intf := range r.cfg.Intfs.All() {
 		labelsIssued := metrics.IssuedLabels{
 			IfID:    ifid,
-			NeighIA: intf.TopoInfo().ISD_AS,
+			NeighIA: intf.TopoInfo().IA,
 			State:   metrics.RevRenew,
 		}
 		labelsDuration := metrics.DurationLabels{
 			IfID:    ifid,
-			NeighIA: intf.TopoInfo().ISD_AS,
+			NeighIA: intf.TopoInfo().IA,
 		}
 
 		if intf.Expire() && !r.hasValidRevocation(intf) {
@@ -142,7 +143,7 @@ func (r *Revoker) createSignedRev(ifid common.IFIDType) (*path_mgmt.SignedRevInf
 	revInfo := &path_mgmt.RevInfo{
 		IfID:         ifid,
 		RawIsdas:     r.cfg.TopoProvider.Get().IA().IAInt(),
-		LinkType:     r.cfg.TopoProvider.Get().IFInfoMap()[ifid].LinkType,
+		LinkType:     proto.LinkType(r.cfg.TopoProvider.Get().IFInfoMap()[ifid].LinkType),
 		RawTimestamp: now,
 		RawTTL:       uint32(r.cfg.RevConfig.RevTTL.Seconds()),
 	}
@@ -185,7 +186,7 @@ type brPusher struct {
 }
 
 func (p *brPusher) sendIfStateToAllBRs(ctx context.Context, msg *path_mgmt.IFStateInfos,
-	topo itopo.Topology, wg *sync.WaitGroup) {
+	topo topology.Topology, wg *sync.WaitGroup) {
 
 	for _, br := range topo.BRNames() {
 		p.sendIfStateToBr(ctx, msg, br, topo.SBRAddress(br), wg)

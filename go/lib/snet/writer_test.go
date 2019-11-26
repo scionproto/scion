@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor/mock_ctxmonitor"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -107,7 +107,7 @@ func TestRemoteAddressResolver(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, outAddress)
 			assert.Equal(t, outAddress.NextHop.IP, outAddress.Host.L3.IP(), "overlay addr")
-			assert.Equal(t, outAddress.NextHop.Port, topology.EndhostPort, "overlay port")
+			assert.Equal(t, outAddress.NextHop.Port, overlay.EndhostPort, "overlay port")
 		})
 	})
 	t.Run("if destination is not in local AS", func(t *testing.T) {

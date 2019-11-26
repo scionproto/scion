@@ -81,11 +81,11 @@ func realMain() int {
 			Error: func(ctx context.Context, err error) {
 				log.FromCtx(ctx).Error("Unable to fetch topology", "err", err)
 			},
-			Update: func(ctx context.Context, topo *topology.Topo) {
+			Update: func(ctx context.Context, topo *topology.RWTopology) {
 				log.FromCtx(ctx).Info("Fetched new topology",
-					"ia", topo.ISD_AS, "ts", topo.Timestamp)
+					"ia", topo.IA, "ts", topo.Timestamp)
 			},
-			Raw: func(ctx context.Context, raw common.RawBytes, _ *topology.Topo) {
+			Raw: func(ctx context.Context, raw common.RawBytes, _ *topology.RWTopology) {
 				writeOnce.Do(func() {
 					fmt.Println(string(raw))
 					if *out == "" {
@@ -121,7 +121,7 @@ func validateFlags() error {
 	return nil
 }
 
-func getTopo() (*topology.Topo, error) {
+func getTopo() (*topology.RWTopology, error) {
 	if *ds != "" {
 		log.Info("Fetch initial topology from discovery service", "addr", ds)
 		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
@@ -141,7 +141,7 @@ func getTopo() (*topology.Topo, error) {
 		return ret, err
 	}
 	log.Info("Load initial topology from disk", "topo", topoPath)
-	return topology.LoadFromFile(*topoPath)
+	return topology.RWTopologyFromJSONFile(*topoPath)
 }
 
 func mode() discovery.Mode {

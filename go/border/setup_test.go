@@ -25,9 +25,9 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -51,7 +51,7 @@ func TestSetupNet(t *testing.T) {
 		ctx := rctx.New(loadConfig(t))
 		// Modify local socket address. A new socket should be opened when
 		// setting up the context.
-		ctx.Conf.BR.InternalAddrs.IP[3] = 255
+		ctx.Conf.BR.InternalAddr.IP[3] = 255
 		SoMsg("In", oldCtx.LocSockIn, ShouldNotBeNil)
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
@@ -130,7 +130,7 @@ func TestRollbackNet(t *testing.T) {
 		r, oldCtx := setupTestRouter(t)
 		copyCtx := copyContext(oldCtx)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.BR.InternalAddrs.IP[3] = 255
+		ctx.Conf.BR.InternalAddr.IP[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Rollback the changes.
@@ -187,7 +187,7 @@ func TestTeardownNet(t *testing.T) {
 	Convey("Tearing down config with changed local address  should be a noop", t, func() {
 		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
-		ctx.Conf.BR.InternalAddrs.IP[3] = 255
+		ctx.Conf.BR.InternalAddr.IP[3] = 255
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Start sockets on the new context.
@@ -356,7 +356,7 @@ func closeAllSocks(ctx *rctx.Ctx) {
 }
 
 func loadConfig(t *testing.T) *brconf.BRConf {
-	topo, err := itopo.LoadFromFile("testdata/topology.json")
+	topo, err := topology.FromJSONFile("testdata/topology.json")
 	xtest.FailOnErr(t, err)
 	topoBR, ok := topo.BR("br1-ff00_0_111-1")
 	if !ok {

@@ -30,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // validatePath validates the path header.
@@ -47,7 +47,7 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	// Check for shorcuts in packets from core links
 	if rp.infoF.Shortcut {
 		currentLinkType := rp.Ctx.Conf.BR.IFs[*rp.ifCurr].LinkType
-		if currentLinkType == proto.LinkType_core {
+		if currentLinkType == topology.Core {
 			return serrors.New("Shortcut not allowed on core segment")
 		}
 	}
@@ -125,7 +125,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
 		intf := rp.Ctx.Conf.BR.IFs[*ifid]
-		newState := ifstate.NewInfo(*ifid, intf.ISD_AS, true, nil, nil)
+		newState := ifstate.NewInfo(*ifid, intf.IA, true, nil, nil)
 		ifstate.UpdateIfNew(*ifid, state, newState)
 		return nil
 	}

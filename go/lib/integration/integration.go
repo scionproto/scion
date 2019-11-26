@@ -188,7 +188,7 @@ type HostAddr func(ia addr.IA) snet.Addr
 // connecting to the dispatcher of the services.
 var DispAddr HostAddr = func(ia addr.IA) snet.Addr {
 	path := fmt.Sprintf("gen/ISD%d/AS%s/endhost/topology.json", ia.I, ia.A.FileFmt())
-	topo, err := topology.LoadFromFile(path)
+	topo, err := topology.RWTopologyFromJSONFile(path)
 	if err != nil {
 		log.Error("Error loading topology", "err", err)
 		os.Exit(1)

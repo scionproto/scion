@@ -25,10 +25,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 var _ periodic.Task = (*Sender)(nil)
@@ -37,7 +37,7 @@ var _ periodic.Task = (*Sender)(nil)
 type Sender struct {
 	*onehop.Sender
 	Signer       infra.Signer
-	TopoProvider itopo.ProviderI
+	TopoProvider topology.Provider
 }
 
 // Name returns the tasks name.
@@ -64,14 +64,14 @@ func (s *Sender) Run(ctx context.Context) {
 		}
 		msg := &onehop.Msg{
 			Dst: snet.SCIONAddress{
-				IA:   intf.ISD_AS,
+				IA:   intf.IA,
 				Host: addr.SvcBS | addr.SVCMcast,
 			},
 			Ifid:     ifid,
 			InfoTime: time.Now(),
 			Pld:      pld,
 		}
-		if err := s.Send(msg, intf.InternalAddrs); err != nil {
+		if err := s.Send(msg, intf.InternalAddr); err != nil {
 			logger.Error("[keepalive.Sender] Unable to send packet", "err", err)
 			metrics.Keepalive.Transmits(l).Inc()
 			continue

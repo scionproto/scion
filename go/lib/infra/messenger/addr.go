@@ -21,11 +21,11 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/svc"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // Resolver performs SVC resolution for a remote AS, thus converting an anycast
@@ -236,14 +236,14 @@ type LocalSVCRouter interface {
 
 // NewSVCRouter build a SVC router backed by topology information from the
 // specified provider.
-func NewSVCRouter(tp itopo.ProviderI) LocalSVCRouter {
+func NewSVCRouter(tp topology.Provider) LocalSVCRouter {
 	return &baseSVCRouter{
 		topology: tp,
 	}
 }
 
 type baseSVCRouter struct {
-	topology itopo.ProviderI
+	topology topology.Provider
 }
 
 func (r *baseSVCRouter) GetOverlay(svc addr.HostSVC) (*net.UDPAddr, error) {

@@ -16,7 +16,6 @@
 package topology
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"testing"
@@ -28,20 +27,16 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/proto"
 )
 
 func TestMeta(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/basic.json")
 	assert.Equal(t, time.Unix(168570123, 0), c.Timestamp, "Field 'Timestamp'")
-	// Is testing this piece of data really useful?
-	assert.Contains(t, c.TimestampHuman, "1975-05-06 01:02:03.000000+0000",
-		"Field 'TimestampHuman'")
 	assert.Equal(t, time.Hour, c.TTL, "Field 'TTL'")
-	assert.Equal(t, addr.IA{I: 1, A: 0xff0000000311}, c.ISD_AS, "Field 'ISD_AS'")
-	assert.Equal(t, overlay.IPv46, c.Overlay, "Field 'Overlay'")
+	assert.Equal(t, addr.IA{I: 1, A: 0xff0000000311}, c.IA, "Field 'ISD_AS'")
 	assert.Equal(t, 1472, c.MTU, "Field 'MTU'")
 	assert.False(t, c.Core, "Field 'Core'")
 }
@@ -132,9 +127,9 @@ func TestIFInfoMap(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/basic.json")
 	ifm := IfInfoMap{
 		1: IFInfo{
-			Id:     1,
+			ID:     1,
 			BRName: "br1-ff00:0:311-1",
-			InternalAddrs: &net.UDPAddr{
+			InternalAddr: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
 				Port: 0,
 			},
@@ -145,7 +140,7 @@ func TestIFInfoMap(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
-			Overlay: overlay.UDPIPv4,
+			Underlay: overlay.UDPIPv4,
 			Local: &net.UDPAddr{
 				IP:   net.IP{10, 0, 0, 1},
 				Port: 44997,
@@ -155,14 +150,14 @@ func TestIFInfoMap(t *testing.T) {
 				Port: 44998,
 			},
 			Bandwidth: 1000,
-			ISD_AS:    xtest.MustParseIA("1-ff00:0:312"),
-			LinkType:  proto.LinkType_parent,
+			IA:        xtest.MustParseIA("1-ff00:0:312"),
+			LinkType:  Parent,
 			MTU:       1472,
 		},
 		3: IFInfo{
-			Id:     3,
+			ID:     3,
 			BRName: "br1-ff00:0:311-1",
-			InternalAddrs: &net.UDPAddr{
+			InternalAddr: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
 				Port: 0,
 			},
@@ -173,7 +168,7 @@ func TestIFInfoMap(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
-			Overlay: overlay.UDPIPv6,
+			Underlay: overlay.UDPIPv6,
 			Local: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::8"),
 				Port: 44997,
@@ -183,14 +178,14 @@ func TestIFInfoMap(t *testing.T) {
 				Port: 44998,
 			},
 			Bandwidth: 5000,
-			ISD_AS:    xtest.MustParseIA("1-ff00:0:314"),
-			LinkType:  proto.LinkType_child,
+			IA:        xtest.MustParseIA("1-ff00:0:314"),
+			LinkType:  Child,
 			MTU:       4430,
 		},
 		8: IFInfo{
-			Id:     8,
+			ID:     8,
 			BRName: "br1-ff00:0:311-1",
-			InternalAddrs: &net.UDPAddr{
+			InternalAddr: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
 				Port: 0,
 			},
@@ -201,7 +196,7 @@ func TestIFInfoMap(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
-			Overlay: overlay.UDPIPv4,
+			Underlay: overlay.UDPIPv4,
 			Local: &net.UDPAddr{
 				IP:   net.IP{10, 0, 0, 2},
 				Port: 44997,
@@ -211,8 +206,8 @@ func TestIFInfoMap(t *testing.T) {
 				Port: 44998,
 			},
 			Bandwidth: 2000,
-			ISD_AS:    xtest.MustParseIA("1-ff00:0:313"),
-			LinkType:  proto.LinkType_peer,
+			IA:        xtest.MustParseIA("1-ff00:0:313"),
+			LinkType:  Peer,
 			MTU:       1480,
 		},
 	}
@@ -223,9 +218,9 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/core.json")
 	ifm := IfInfoMap{
 		91: IFInfo{
-			Id:     91,
+			ID:     91,
 			BRName: "borderrouter6-ff00:0:362-1",
-			InternalAddrs: &net.UDPAddr{
+			InternalAddr: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
 				Port: 0,
 			},
@@ -236,7 +231,7 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
-			Overlay: overlay.UDPIPv4,
+			Underlay: overlay.UDPIPv4,
 			Local: &net.UDPAddr{
 				IP:   net.IP{10, 0, 0, 1},
 				Port: 4997,
@@ -246,14 +241,14 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				Port: 4998,
 			},
 			Bandwidth: 100000,
-			ISD_AS:    xtest.MustParseIA("6-ff00:0:363"),
-			LinkType:  proto.LinkType_core,
+			IA:        xtest.MustParseIA("6-ff00:0:363"),
+			LinkType:  Core,
 			MTU:       1472,
 		},
 		32: IFInfo{
-			Id:     32,
+			ID:     32,
 			BRName: "borderrouter6-ff00:0:362-9",
-			InternalAddrs: &net.UDPAddr{
+			InternalAddr: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::2"),
 				Port: 0,
 			},
@@ -264,7 +259,7 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::2"), Port: 30041},
 			},
-			Overlay: overlay.UDPIPv6,
+			Underlay: overlay.UDPIPv6,
 			Local: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::8"),
 				Port: 4997,
@@ -274,8 +269,8 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				Port: 4998,
 			},
 			Bandwidth: 5000,
-			ISD_AS:    xtest.MustParseIA("6-ff00:0:364"),
-			LinkType:  proto.LinkType_child,
+			IA:        xtest.MustParseIA("6-ff00:0:364"),
+			LinkType:  Child,
 			MTU:       4430,
 		},
 	}
@@ -309,53 +304,25 @@ func TestBRsCoreAS(t *testing.T) {
 	})
 }
 
-func TestTopoFromStripped(t *testing.T) {
-	fn := "testdata/basic.json"
-	rt, err := LoadRawFromFile(fn)
-	require.NoError(t, err, "Error loading raw topo from '%s': %v", fn, err)
-	Convey("Check that stripped bind topology can be parsed", t, func() {
-		StripBind(rt)
-		b, err := json.Marshal(rt)
-		SoMsg("errPack", err, ShouldBeNil)
-		_, err = Load(b)
-		SoMsg("errParse", err, ShouldBeNil)
-	})
-	Convey("Check that stripped svc topology can be parsed", t, func() {
-		StripServices(rt)
-		b, err := json.Marshal(rt)
-		SoMsg("errPack", err, ShouldBeNil)
-		_, err = Load(b)
-		SoMsg("errParse", err, ShouldBeNil)
-	})
-	Convey("Check that stripped topology can be parsed", t, func() {
-		StripBind(rt)
-		StripServices(rt)
-		b, err := json.Marshal(rt)
-		SoMsg("errPack", err, ShouldBeNil)
-		_, err = Load(b)
-		SoMsg("errParse", err, ShouldBeNil)
-	})
-}
-
 func TestInternalDataPlanePort(t *testing.T) {
 	testCases := []struct {
 		Name            string
-		Map             RawBRAddrMap
+		Map             jsontopo.UnderlayAddressMap
 		ExpectedAddress *net.UDPAddr
 		ExpectedError   assert.ErrorAssertionFunc
 	}{
 		{
 			Name:          "Empty",
-			Map:           RawBRAddrMap{},
+			Map:           jsontopo.UnderlayAddressMap{},
 			ExpectedError: assert.Error,
 		},
 		{
 			Name: "Bad IPv4 only",
-			Map: RawBRAddrMap{
-				"IPv4": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "foo",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv4": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "foo",
+						UnderlayPort: 42,
 					},
 				},
 			},
@@ -363,11 +330,11 @@ func TestInternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "Good IPv4 only",
-			Map: RawBRAddrMap{
-				"IPv4": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "127.0.0.1",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv4": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "127.0.0.1",
+						UnderlayPort: 42,
 					},
 				},
 			},
@@ -379,11 +346,11 @@ func TestInternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv4 contains IPv6",
-			Map: RawBRAddrMap{
-				"IPv4": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "::1",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv4": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "::1",
+						UnderlayPort: 42,
 					},
 				},
 			},
@@ -391,13 +358,13 @@ func TestInternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv4 with bind underlay",
-			Map: RawBRAddrMap{
-				"IPv4": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "127.0.0.1",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv4": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "127.0.0.1",
+						UnderlayPort: 42,
 					},
-					BindOverlay: &RawAddr{
+					BindUnderlay: &jsontopo.L3Address{
 						Addr: "127.255.255.255",
 					},
 				},
@@ -406,11 +373,11 @@ func TestInternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "Bad IPv6 only",
-			Map: RawBRAddrMap{
-				"IPv6": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "foo",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv6": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "foo",
+						UnderlayPort: 42,
 					},
 				},
 			},
@@ -418,11 +385,11 @@ func TestInternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "Good IPv6 only",
-			Map: RawBRAddrMap{
-				"IPv6": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "::1",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv6": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "::1",
+						UnderlayPort: 42,
 					},
 				},
 			},
@@ -434,11 +401,11 @@ func TestInternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv6 contains IPv4",
-			Map: RawBRAddrMap{
-				"IPv6": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "127.0.0.1",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv6": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "127.0.0.1",
+						UnderlayPort: 42,
 					},
 				},
 			},
@@ -446,13 +413,13 @@ func TestInternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv6 with bind underlay",
-			Map: RawBRAddrMap{
-				"IPv6": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "::1",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv6": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "::1",
+						UnderlayPort: 42,
 					},
-					BindOverlay: &RawAddr{
+					BindUnderlay: &jsontopo.L3Address{
 						Addr: "2001:db8::1",
 					},
 				},
@@ -461,17 +428,17 @@ func TestInternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "Prefer IPv6 to IPv4",
-			Map: RawBRAddrMap{
-				"IPv4": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "127.0.0.1",
-						OverlayPort: 42,
+			Map: jsontopo.UnderlayAddressMap{
+				"IPv4": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "127.0.0.1",
+						UnderlayPort: 42,
 					},
 				},
-				"IPv6": &RawOverlayBind{
-					PublicOverlay: RawAddrOverlay{
-						Addr:        "::1",
-						OverlayPort: 73,
+				"IPv6": &jsontopo.NATUnderlayAddress{
+					PublicUnderlay: jsontopo.UnderlayAddress{
+						Addr:         "::1",
+						UnderlayPort: 73,
 					},
 				},
 			},
@@ -484,7 +451,7 @@ func TestInternalDataPlanePort(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			topoBRAddr, err := tc.Map.ToUDPAddr()
+			topoBRAddr, err := RawBRAddrMapToUDPAddr(tc.Map)
 			tc.ExpectedError(t, err)
 			assert.Equal(t, tc.ExpectedAddress, topoBRAddr)
 		})
@@ -494,40 +461,40 @@ func TestInternalDataPlanePort(t *testing.T) {
 func TestExternalDataPlanePort(t *testing.T) {
 	testCases := []struct {
 		Name            string
-		Raw             *RawBRIntf
+		Raw             *jsontopo.BRInterface
 		ExpectedAddress *net.UDPAddr
 		ExpectedError   assert.ErrorAssertionFunc
 	}{
 		{
 			Name:          "Empty",
-			Raw:           &RawBRIntf{},
+			Raw:           &jsontopo.BRInterface{},
 			ExpectedError: assert.Error,
 		},
 		{
 			Name: "Empty with overlay",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv4",
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv4",
 			},
 			ExpectedError: assert.Error,
 		},
 		{
 			Name: "Bad IPv4 only",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv4",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "foo",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv4",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "foo",
+					UnderlayPort: 42,
 				},
 			},
 			ExpectedError: assert.Error,
 		},
 		{
 			Name: "Good IPv4 only",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv4",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "127.0.0.1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv4",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "127.0.0.1",
+					UnderlayPort: 42,
 				},
 			},
 			ExpectedError: assert.NoError,
@@ -538,24 +505,24 @@ func TestExternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv4 contains IPv6",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv4",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "::1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv4",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "::1",
+					UnderlayPort: 42,
 				},
 			},
 			ExpectedError: assert.Error,
 		},
 		{
 			Name: "IPv4 with bind underlay",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv4",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "127.0.0.1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv4",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "127.0.0.1",
+					UnderlayPort: 42,
 				},
-				BindOverlay: &RawAddr{
+				BindUnderlay: &jsontopo.L3Address{
 					Addr: "127.255.255.255",
 				},
 			},
@@ -567,13 +534,13 @@ func TestExternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv4 with bad underlay",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv4",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "127.0.0.1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv4",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "127.0.0.1",
+					UnderlayPort: 42,
 				},
-				BindOverlay: &RawAddr{
+				BindUnderlay: &jsontopo.L3Address{
 					Addr: "foo",
 				},
 			},
@@ -581,13 +548,13 @@ func TestExternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv4 with IPv6 underlay",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv4",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "127.0.0.1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv4",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "127.0.0.1",
+					UnderlayPort: 42,
 				},
-				BindOverlay: &RawAddr{
+				BindUnderlay: &jsontopo.L3Address{
 					Addr: "::1",
 				},
 			},
@@ -595,22 +562,22 @@ func TestExternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "Bad IPv6 only",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv6",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "foo",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv6",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "foo",
+					UnderlayPort: 42,
 				},
 			},
 			ExpectedError: assert.Error,
 		},
 		{
 			Name: "Good IPv6 only",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv6",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "::1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv6",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "::1",
+					UnderlayPort: 42,
 				},
 			},
 			ExpectedError: assert.NoError,
@@ -621,24 +588,24 @@ func TestExternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv6 contains IPv4",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv6",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "127.0.0.1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv6",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "127.0.0.1",
+					UnderlayPort: 42,
 				},
 			},
 			ExpectedError: assert.Error,
 		},
 		{
 			Name: "IPv6 with bind underlay",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv6",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "::1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv6",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "::1",
+					UnderlayPort: 42,
 				},
-				BindOverlay: &RawAddr{
+				BindUnderlay: &jsontopo.L3Address{
 					Addr: "2001:db8::1",
 				},
 			},
@@ -650,13 +617,13 @@ func TestExternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv6 with bad underlay",
-			Raw: &RawBRIntf{
-				Overlay: "UDP/IPv6",
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "::1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				Underlay: "UDP/IPv6",
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "::1",
+					UnderlayPort: 42,
 				},
-				BindOverlay: &RawAddr{
+				BindUnderlay: &jsontopo.L3Address{
 					Addr: "foo",
 				},
 			},
@@ -664,12 +631,12 @@ func TestExternalDataPlanePort(t *testing.T) {
 		},
 		{
 			Name: "IPv6 with IPv4 underlay",
-			Raw: &RawBRIntf{
-				PublicOverlay: &RawAddrOverlay{
-					Addr:        "::1",
-					OverlayPort: 42,
+			Raw: &jsontopo.BRInterface{
+				PublicUnderlay: &jsontopo.UnderlayAddress{
+					Addr:         "::1",
+					UnderlayPort: 42,
 				},
-				BindOverlay: &RawAddr{
+				BindUnderlay: &jsontopo.L3Address{
 					Addr: "127.0.0.1",
 				},
 			},
@@ -678,15 +645,271 @@ func TestExternalDataPlanePort(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			topoBRAddr, err := tc.Raw.TopoBRAddr()
+			topoBRAddr, err := RawBRIntfTopoBRAddr(tc.Raw)
 			tc.ExpectedError(t, err)
 			assert.Equal(t, tc.ExpectedAddress, topoBRAddr)
 		})
 	}
 }
 
-func MustLoadTopo(t *testing.T, filename string) *Topo {
-	topo, err := LoadFromFile(filename)
+func TestRawAddrMap_ToTopoAddr(t *testing.T) {
+	testCases := []struct {
+		name string
+		err  error
+		ram  jsontopo.NATSCIONAddressMap
+		addr *TopoAddr
+	}{
+		{
+			name: "No addresses",
+			err:  errAtLeastOnePub,
+			ram:  make(jsontopo.NATSCIONAddressMap),
+			addr: nil,
+		},
+		{
+			name: "IPv4 invalid address",
+			err:  errInvalidPub,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv4": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "foo",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv4 empty address",
+			err:  errInvalidPub,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv4": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv6 address in IPv4 property",
+			err:  errInvalidPub,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv4": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "2001:db8:f00:b43::1",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv4 address in IPv6 property",
+			err:  errInvalidPub,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv6": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "192.168.1.1",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv6 invalid address",
+			err:  errInvalidPub,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv6": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "foo",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv6 empty address",
+			err:  errInvalidPub,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv6": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv4 good address",
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv4": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "192.168.1.1",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: &TopoAddr{
+				SCIONAddress: &addr.AppAddr{
+					L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
+					L4: 42,
+				},
+				UnderlayAddress: &net.UDPAddr{
+					IP:   net.IP{192, 168, 1, 1},
+					Port: 30041,
+				},
+			},
+		},
+		{
+			name: "IPv6 good address",
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv6": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "2001:db8:f00:b43::1",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: &TopoAddr{
+				SCIONAddress: &addr.AppAddr{
+					L3: addr.HostFromIP(net.ParseIP("2001:db8:f00:b43::1")),
+					L4: 42,
+				},
+				UnderlayAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:f00:b43::1"),
+					Port: 30041,
+				},
+			},
+		},
+		{
+			name: "IPv4 with bind",
+			err:  errBindNotSupported,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv4": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "192.168.1.1",
+							L4Port: 42,
+						},
+					},
+					Bind: &jsontopo.Address{},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv6 with bind",
+			err:  errBindNotSupported,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv6": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "2001:db8:f00:b43::1",
+							L4Port: 42,
+						},
+					},
+					Bind: &jsontopo.Address{},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv4 with custom underlay",
+			err:  errCustomUnderlayPort,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv4": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "192.168.1.1",
+							L4Port: 42,
+						},
+						UnderlayPort: 73,
+					},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv6 with custom underlay",
+			err:  errCustomUnderlayPort,
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv6": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "2001:db8:f00:b43::1",
+							L4Port: 42,
+						},
+						UnderlayPort: 73,
+					},
+				},
+			},
+			addr: nil,
+		},
+		{
+			name: "IPv4 with IPv6",
+			ram: jsontopo.NATSCIONAddressMap{
+				"IPv4": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "192.168.1.1",
+							L4Port: 42,
+						},
+					},
+				},
+				"IPv6": &jsontopo.NATSCIONAddress{
+					Public: jsontopo.FullSCIONAddress{
+						Address: jsontopo.Address{
+							Addr:   "2001:db8:f00:b43::1",
+							L4Port: 42,
+						},
+					},
+				},
+			},
+			addr: &TopoAddr{
+				SCIONAddress: &addr.AppAddr{
+					L3: addr.HostFromIP(net.ParseIP("2001:db8:f00:b43::1")),
+					L4: 42,
+				},
+				UnderlayAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:f00:b43::1"),
+					Port: 30041,
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			topoAddr, err := RawAddrMapToTopoAddr(tc.ram)
+			xtest.AssertErrorsIs(t, err, tc.err)
+			if tc.err == nil {
+				assert.Equal(t, tc.addr, topoAddr)
+			}
+		})
+	}
+}
+
+func MustLoadTopo(t *testing.T, filename string) *RWTopology {
+	topo, err := RWTopologyFromJSONFile(filename)
 	require.NoError(t, err, "Error loading config from '%s': %v", filename, err)
 	return topo
 }

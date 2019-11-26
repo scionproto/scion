@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
@@ -122,6 +123,7 @@ func realMain() int {
 	}
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
+
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
 		Public:                topo.PublicAddress(addr.SvcPS, cfg.General.ID),
@@ -268,7 +270,7 @@ func setup() error {
 		return common.NewBasicError("Unable to validate config", err)
 	}
 	itopo.Init(cfg.General.ID, proto.ServiceType_ps, itopo.Callbacks{})
-	topo, err := itopo.LoadFromFile(cfg.General.Topology)
+	topo, err := topology.FromJSONFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}

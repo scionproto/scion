@@ -43,7 +43,7 @@ func (c *Collector) Collect(mc chan<- prometheus.Metric) {
 		}
 		l := metrics.IfstateLabels{
 			IfID:    ifid,
-			NeighIA: intf.TopoInfo().ISD_AS,
+			NeighIA: intf.TopoInfo().IA,
 		}
 		mc <- metrics.Ifstate.IfstateMetric(l, up)
 	}

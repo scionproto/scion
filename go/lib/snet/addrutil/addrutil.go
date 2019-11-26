@@ -21,13 +21,13 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // GetPath creates a path from the given segment and then creates a snet.Addr.
-func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv itopo.ProviderI) (net.Addr, error) {
+func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
 	x := &bytes.Buffer{}
 	if _, err := ps.RawWriteTo(x); err != nil {
 		return nil, common.NewBasicError("failed to write segment to buffer", err)

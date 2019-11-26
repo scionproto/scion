@@ -33,12 +33,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/matchers"
@@ -237,7 +237,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 // TODO(lukedirtwalker): test revoking multiple interfaces at once.
 
 func expectMessengerCalls(msger *mock_infra.MockMessenger,
-	revokedIfId common.IFIDType, topoProvider itopo.ProviderI) func(*testing.T, revVerifier) {
+	revokedIfId common.IFIDType, topoProvider topology.Provider) func(*testing.T, revVerifier) {
 
 	var brMsgs []brMsg
 	var brMsgsMtx sync.Mutex
@@ -281,7 +281,7 @@ func expectMessengerCalls(msger *mock_infra.MockMessenger,
 }
 
 func checkBRMessage(t *testing.T, brId string, infos *path_mgmt.IFStateInfos,
-	revokedIfId common.IFIDType, verifier revVerifier, topoProvider itopo.ProviderI) {
+	revokedIfId common.IFIDType, verifier revVerifier, topoProvider topology.Provider) {
 
 	Convey(fmt.Sprintf("Check ifstateinfo for %s", brId), func() {
 		SoMsg("Should contain correct amount of infos", len(infos.Infos), ShouldEqual, 1)
@@ -292,7 +292,7 @@ func checkBRMessage(t *testing.T, brId string, infos *path_mgmt.IFStateInfos,
 }
 
 func checkRevocation(t *testing.T, srev *path_mgmt.SignedRevInfo,
-	revokedIfId common.IFIDType, verifier revVerifier, topoProvider itopo.ProviderI) {
+	revokedIfId common.IFIDType, verifier revVerifier, topoProvider topology.Provider) {
 
 	Convey("Check revocation", func() {
 		revInfo, err := srev.VerifiedRevInfo(context.Background(), verifier)
@@ -320,7 +320,7 @@ func checkInterfaces(intfs *Interfaces, nonActive map[common.IFIDType]State) {
 	})
 }
 
-func brId(t *testing.T, topoProvider itopo.ProviderI, saddr *snet.Addr) string {
+func brId(t *testing.T, topoProvider topology.Provider, saddr *snet.Addr) string {
 	topo := topoProvider.Get()
 	for _, brID := range topo.BRNames() {
 		if topo.SBRAddress(brID).Host.Equal(saddr.Host) {
@@ -332,7 +332,7 @@ func brId(t *testing.T, topoProvider itopo.ProviderI, saddr *snet.Addr) string {
 }
 
 // expectedBRs return a set of BR ids for which we expect a if state update push.
-func expectedBRs(topoProvider itopo.ProviderI) map[string]struct{} {
+func expectedBRs(topoProvider topology.Provider) map[string]struct{} {
 	brIds := make(map[string]struct{})
 	for _, brId := range topoProvider.Get().BRNames() {
 		brIds[brId] = struct{}{}

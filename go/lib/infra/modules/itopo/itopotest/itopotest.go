@@ -19,25 +19,24 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // TestTopoProvider is a provider for a specific topology object.
 type TestTopoProvider struct {
-	*topology.Topo
+	*topology.RWTopology
 }
 
 // TopoProviderFromFile creates a topo provider from a topology file.
 // It fails the test if loading the file fails.
 func TopoProviderFromFile(t *testing.T, fName string) *TestTopoProvider {
 	t.Helper()
-	topo, err := itopo.LoadFromFile(fName)
+	topo, err := topology.FromJSONFile(fName)
 	require.NoError(t, err)
-	return &TestTopoProvider{Topo: topo.Raw()}
+	return &TestTopoProvider{RWTopology: topo.Writable()}
 }
 
 // Get returns the stored topology.
-func (t *TestTopoProvider) Get() itopo.Topology {
-	return itopo.NewTopologyFromRaw(t.Topo)
+func (t *TestTopoProvider) Get() topology.Topology {
+	return topology.FromRWTopology(t.RWTopology)
 }

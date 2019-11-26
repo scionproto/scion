@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -38,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/sciond/internal/config"
 	"github.com/scionproto/scion/go/sciond/internal/metrics"
@@ -55,14 +55,13 @@ type TrustStore interface {
 type Fetcher struct {
 	pathDB          pathdb.PathDB
 	revocationCache revcache.RevCache
-	topoProvider    itopo.ProviderI
+	topoProvider    topology.Provider
 	config          config.SDConfig
 	segfetcher      *segfetcher.Fetcher
 }
 
 func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore TrustStore,
-	revCache revcache.RevCache, cfg config.SDConfig, topoProvider itopo.ProviderI,
-	logger log.Logger) *Fetcher {
+	revCache revcache.RevCache, cfg config.SDConfig, topoProvider topology.Provider) *Fetcher {
 
 	localIA := topoProvider.Get().IA()
 	return &Fetcher{
@@ -101,7 +100,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 // received by the Fetcher.
 type fetcherHandler struct {
 	*Fetcher
-	topology itopo.Topology
+	topology topology.Topology
 	logger   log.Logger
 }
 

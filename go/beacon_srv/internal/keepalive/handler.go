@@ -108,7 +108,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	if lastState := info.Activate(keepalive.OrigIfID); lastState != ifstate.Active {
 		logger.Info("[KeepaliveHandler] Activated interface", "ifid", ifid)
 		h.startPush(ifid)
-		if err := h.dropRevs(ifid, keepalive.OrigIfID, info.TopoInfo().ISD_AS); err != nil {
+		if err := h.dropRevs(ifid, keepalive.OrigIfID, info.TopoInfo().IA); err != nil {
 			metrics.Keepalive.Receives(labels).Inc()
 			return infra.MetricsErrInternal, common.NewBasicError("Unable to drop revocations", err)
 		}
@@ -134,8 +134,8 @@ func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Interface, error) {
 		return 0, nil, common.NewBasicError("Received keepalive for non-existent ifid", nil,
 			"ifid", hopF.ConsIngress)
 	}
-	originIA := info.TopoInfo().ISD_AS
-	if !info.TopoInfo().ISD_AS.Equal(peer.IA) {
+	originIA := info.TopoInfo().IA
+	if !info.TopoInfo().IA.Equal(peer.IA) {
 		return 0, nil, common.NewBasicError("Keepalive origin IA does not match", nil,
 			"ifid", hopF.ConsIngress, "expected", originIA, "actual", peer.IA)
 	}

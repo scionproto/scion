@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/config"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
@@ -151,7 +152,6 @@ func realMain() int {
 				revCache,
 				cfg.SD,
 				itopo.Provider(),
-				log.Root(),
 			),
 		},
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
@@ -206,7 +206,7 @@ func setup() error {
 		return common.NewBasicError("unable to validate config", err)
 	}
 	itopo.Init("", proto.ServiceType_unset, itopo.Callbacks{})
-	topo, err := itopo.LoadFromFile(cfg.General.Topology)
+	topo, err := topology.FromJSONFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("unable to load topology", err)
 	}
