@@ -12,21 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package itopo
+package topology
 
 import (
 	"net"
+	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/proto"
 )
 
+// Provider provides a topology snapshot. The snapshot is guaranteed to not change.
+type Provider interface {
+	// Get returns a topology. The returned topology is guaranteed to not be
+	// nil.
+	Get() Topology
+}
+
+// Topology is the topology type for applications and libraries that only need read access to AS
+// topology information. This is the case of most applications and libraries that use the topology
+// file to discover information about the local AS. Libraries that need to edit the topology (e.g.,
+// a topology reloading library that computes a new topology file based on information found on
+// disk) should instead use the writable topology type present in this package.
 type Topology interface {
 	// IA returns the local ISD-AS number.
 	IA() addr.IA
@@ -76,13 +87,13 @@ type Topology interface {
 	// FIXME(scrye): Simplify return type and make it topology format agnostic.
 	//
 	// XXX(scrye): Return value is a shallow copy.
-	BR(name string) (topology.BRInfo, bool)
+	BR(name string) (BRInfo, bool)
 	// IFInfoMap returns the mapping between interface IDs an internal addresses.
 	//
 	// FIXME(scrye): Simplify return type and make it topology format agnostic.
 	//
 	// XXX(scrye): Return value is a shallow copy.
-	IFInfoMap() topology.IfInfoMap
+	IFInfoMap() IfInfoMap
 
 	// BRNames returns the names of all BRs in the topology.
 	//
@@ -96,46 +107,42 @@ type Topology interface {
 	// FIXME(scrye): Remove this, callers shouldn't care about names.
 	//
 	// XXX(scrye): Return value is a shallow copy.
-	SVCNames(svc addr.HostSVC) []string
+	SVCNames(svc addr.HostSVC) ServiceNames
 
-	// Raw returns a pointer to the underlying topology object. This is included for legacy
+	// Writable returns a pointer to the underlying topology object. This is included for legacy
 	// reasons and should never be used.
 	//
 	// FIXME(scrye): Remove this.
 	//
 	// XXX(scrye): Return value is a shallow copy.
-	Raw() *topology.Topo
-	// Overlay returns the overlay running in the current AS.
-	//
-	// FIXME(scrye): Remove this.
-	Overlay() overlay.Type
+	Writable() *RWTopology
 
 	// DS returns the discovery servers in the topology.
 	//
 	// FIXME(scrye): Simplify return type and make it topology format agnostic.
 	//
 	// XXX(scrye): Return value is a shallow copy.
-	DS() topology.IDAddrMap
+	DS() IDAddrMap
 }
 
 // NewTopology creates a new empty topology.
 func NewTopology() Topology {
 	return &topologyS{
-		Topology: &topology.Topo{},
+		Topology: &RWTopology{},
 	}
 }
 
-// NewTopologyFromRaw wraps the high level topology interface API around a raw topology object.
-func NewTopologyFromRaw(topo *topology.Topo) Topology {
+// FromRWTopology wraps the high level topology interface API around a raw topology object.
+func FromRWTopology(topo *RWTopology) Topology {
 	return &topologyS{
 		Topology: topo,
 	}
 }
 
-type ServiceType string
-
-func LoadFromFile(path string) (Topology, error) {
-	t, err := topology.LoadFromFile(path)
+// FromJSONFile extracts the topology from a file containing the JSON representation of the
+// topology.
+func FromJSONFile(path string) (Topology, error) {
+	t, err := RWTopologyFromJSONFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -145,15 +152,15 @@ func LoadFromFile(path string) (Topology, error) {
 }
 
 type topologyS struct {
-	Topology *topology.Topo
+	Topology *RWTopology
 }
 
-func (t *topologyS) DS() topology.IDAddrMap {
+func (t *topologyS) DS() IDAddrMap {
 	return t.Topology.DS
 }
 
 func (t *topologyS) IA() addr.IA {
-	return t.Topology.ISD_AS
+	return t.Topology.IA
 }
 
 func (t *topologyS) MTU() uint16 {
@@ -173,7 +180,7 @@ func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return copyUDP(ifInfo.InternalAddrs), true
+	return copyUDP(ifInfo.InternalAddr), true
 }
 
 func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
@@ -181,7 +188,7 @@ func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return copyUDP(ifInfo.InternalAddrs), true
+	return copyUDP(ifInfo.InternalAddr), true
 }
 
 func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
@@ -213,7 +220,7 @@ func (t *topologyS) Core() bool {
 	return t.Topology.Core
 }
 
-func (t *topologyS) BR(name string) (topology.BRInfo, bool) {
+func (t *topologyS) BR(name string) (BRInfo, bool) {
 	br, ok := t.Topology.BR[name]
 	return br, ok
 }
@@ -223,19 +230,25 @@ func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr {
 	if topoAddr == nil {
 		return nil
 	}
-	pa := topoAddr.SCIONAddress
-	if pa == nil {
+	if topoAddr.SCIONAddress == nil {
 		return nil
 	}
-	return &net.UDPAddr{IP: pa.L3.IP(), Port: int(pa.L4)}
+	// FIXME(scrye): The interface this type implements offers read-only access. The copy below
+	// shouldn't be needed, but this can cause tricky to find bugs. We should tackle removing
+	// the copy in a separate PR.
+	ip := topoAddr.SCIONAddress.L3.IP()
+	return &net.UDPAddr{
+		IP:   append(ip[:0:0], ip...),
+		Port: int(topoAddr.SCIONAddress.L4),
+	}
 }
 
 func (t *topologyS) Exists(svc addr.HostSVC, name string) bool {
 	return t.PublicAddress(svc, name) != nil
 }
 
-func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *topology.TopoAddr {
-	var addresses topology.IDAddrMap
+func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *TopoAddr {
+	var addresses IDAddrMap
 	switch svc.Base() {
 	case addr.SvcBS:
 		addresses = t.Topology.BS
@@ -249,23 +262,36 @@ func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *topology.TopoAdd
 	if addresses == nil {
 		return nil
 	}
-	return addresses.GetById(name)
+	return addresses.GetByID(name)
 }
 
 func (t *topologyS) OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
-	st, err := toProtoServiceType(svc)
+	names := t.SVCNames(svc)
+	name, err := names.GetRandom()
 	if err != nil {
-		return nil, err
-	}
-	topoAddr, err := t.Topology.GetAnyTopoAddr(st)
-	if err != nil {
+		if supportedSVC(svc) {
+			// FIXME(scrye): Return this error because some calling code in the BR searches for it.
+			// Ideally, the error should be communicated in a more explicit way.
+			return nil, common.NewBasicError("No instances found for SVC address",
+				scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
+		}
 		// FIXME(scrye): Return this error because some calling code in the BR searches for it.
 		// Ideally, the error should be communicated in a more explicit way.
-		return nil, common.NewBasicError("No instances found for SVC address",
-			scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
+		return nil, common.NewBasicError("Unsupported SVC address",
+			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
+	}
+	underlay, err := t.OverlayByName(svc, name)
+	if err != nil {
+		return nil, serrors.WrapStr("BUG! Selected random service name, but service info not found",
+			err, "service_names", names, "selected_name", name)
 	}
 	// FIXME(scrye): This should return net.Addr
-	return copyUDP(topoAddr.UnderlayAddr()), nil
+	return underlay, nil
+}
+
+func supportedSVC(svc addr.HostSVC) bool {
+	b := svc.Base()
+	return b == addr.SvcBS || b == addr.SvcCS || b == addr.SvcPS || b == addr.SvcSIG
 }
 
 func (t *topologyS) OverlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
@@ -316,7 +342,7 @@ func (t *topologyS) OverlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, 
 	if overlayAddr == nil {
 		return nil, serrors.New("overlay address not found", "svc", svc)
 	}
-	return overlayAddr, nil
+	return copyUDPAddr(overlayAddr), nil
 }
 
 func toProtoServiceType(svc addr.HostSVC) (proto.ServiceType, error) {
@@ -337,7 +363,7 @@ func toProtoServiceType(svc addr.HostSVC) (proto.ServiceType, error) {
 	}
 }
 
-func (t *topologyS) IFInfoMap() topology.IfInfoMap {
+func (t *topologyS) IFInfoMap() IfInfoMap {
 	return t.Topology.IFInfoMap
 }
 
@@ -357,26 +383,28 @@ func (t *topologyS) SBRAddress(name string) *snet.Addr {
 	}
 }
 
-func (t *topologyS) SVCNames(svc addr.HostSVC) []string {
+func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {
+	var m IDAddrMap
 	switch svc.Base() {
 	case addr.SvcBS:
-		return t.Topology.BSNames
+		m = t.Topology.BS
 	case addr.SvcCS:
-		return t.Topology.CSNames
+		m = t.Topology.CS
 	case addr.SvcPS:
-		return t.Topology.PSNames
+		m = t.Topology.PS
 	case addr.SvcSIG:
-		return t.Topology.SIGNames
-	default:
-		return nil
+		m = t.Topology.SIG
 	}
+
+	var names ServiceNames
+	for k := range m {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
 }
 
-func (t *topologyS) Overlay() overlay.Type {
-	return t.Topology.Overlay
-}
-
-func (t *topologyS) Raw() *topology.Topo {
+func (t *topologyS) Writable() *RWTopology {
 	return t.Topology
 }
 

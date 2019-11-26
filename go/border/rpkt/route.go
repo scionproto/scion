@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // Route handles routing of packets. Registered hooks are called, allowing them
@@ -144,7 +143,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap()[*rp.ifNext]
-	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: nextBR.InternalAddrs})
+	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: nextBR.InternalAddr})
 	return HookContinue, nil
 }
 
@@ -200,13 +199,13 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	prevLink := rp.Ctx.Conf.BR.IFs[origIFCurr].LinkType
 	nextLink := rp.Ctx.Conf.Topo.IFInfoMap()[*rp.ifNext].LinkType
 	// Never allowed to switch between core segments.
-	if prevLink == proto.LinkType_core && nextLink == proto.LinkType_core {
+	if prevLink == topology.Core && nextLink == topology.Core {
 		return common.NewBasicError("Segment change between CORE links",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment,
 				rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil))
 	}
 	// Only allowed to switch from up- to up-segment if the next link is CORE.
-	if !infoF.ConsDir && !rp.infoF.ConsDir && nextLink != proto.LinkType_core {
+	if !infoF.ConsDir && !rp.infoF.ConsDir && nextLink != topology.Core {
 		return common.NewBasicError(
 			"Segment change from up segment to up segment with non-CORE next link",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment,
@@ -215,7 +214,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 		)
 	}
 	// Only allowed to switch from down- to down-segment if the previous link is CORE.
-	if infoF.ConsDir && rp.infoF.ConsDir && prevLink != proto.LinkType_core {
+	if infoF.ConsDir && rp.infoF.ConsDir && prevLink != topology.Core {
 		return common.NewBasicError(
 			"Segment change from down segment to down segment with non-CORE previous link",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment,
@@ -224,7 +223,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 		)
 	}
 	// Make sure we drop packets with shortcuts in core links.
-	if rp.infoF.Shortcut && nextLink == proto.LinkType_core {
+	if rp.infoF.Shortcut && nextLink == topology.Core {
 		return serrors.New("Shortcut not allowed on core segment")
 	}
 	return nil

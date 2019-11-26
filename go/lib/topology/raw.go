@@ -16,93 +16,50 @@
 package topology
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net"
-	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
-const CfgName = "topology.json"
-
-const (
-	ErrOpen    common.ErrMsg = "Unable to open topology"
-	ErrParse   common.ErrMsg = "Unable to parse topology from JSON"
-	ErrConvert common.ErrMsg = "Unable to convert RawTopo to Topo"
-)
-
-// Structures directly filled from JSON
-
-// RawTopo is used to un/marshal from/to JSON and should usually not be used by
-// Go code directly. Use Topo (from lib/topology/topology.go) instead.
-type RawTopo struct {
-	Timestamp          int64
-	TimestampHuman     string
-	TTL                uint32
-	ISD_AS             string
-	Overlay            string
-	MTU                int
-	Core               bool
-	BorderRouters      map[string]*RawBRInfo  `json:",omitempty"`
-	BeaconService      map[string]*RawSrvInfo `json:",omitempty"`
-	CertificateService map[string]*RawSrvInfo `json:",omitempty"`
-	PathService        map[string]*RawSrvInfo `json:",omitempty"`
-	SibraService       map[string]*RawSrvInfo `json:",omitempty"`
-	RainsService       map[string]*RawSrvInfo `json:",omitempty"`
-	SIG                map[string]*RawSrvInfo `json:",omitempty"`
-	DiscoveryService   map[string]*RawSrvInfo `json:",omitempty"`
-}
-
-type RawSrvInfo struct {
-	Addrs RawAddrMap
-}
-
-func (ras RawSrvInfo) String() string {
-	return fmt.Sprintf("Addr: %s", ras.Addrs)
-}
-
-type RawAddrMap map[string]*RawPubBindOverlay
-
-func (ram RawAddrMap) ToTopoAddr() (*TopoAddr, error) {
-	addressInfo, mustBeIPv6 := ram.extractAddressInfo()
+func rawAddrMapToTopoAddr(ram jsontopo.NATSCIONAddressMap) (*TopoAddr, error) {
+	addressInfo, mustBeIPv6 := rawAddrMapExtractAddressInfo(ram)
 	mustBeIPv4 := !mustBeIPv6
 	if addressInfo == nil {
-		return nil, serrors.WithCtx(ErrAtLeastOnePub, "address", ram)
+		return nil, serrors.WithCtx(errAtLeastOnePub, "address", ram)
 	}
 	if addressInfo.Bind != nil {
-		return nil, serrors.WithCtx(ErrBindNotSupported, "address", addressInfo.Bind)
+		return nil, serrors.WithCtx(errBindNotSupported, "address", addressInfo.Bind)
 	}
-	if addressInfo.Public.OverlayPort != 0 {
-		return nil, serrors.WithCtx(ErrCustomUnderlayPortNotSupported,
-			"port", addressInfo.Public.OverlayPort)
+	if addressInfo.Public.UnderlayPort != 0 {
+		return nil, serrors.WithCtx(errCustomUnderlayPort,
+			"port", addressInfo.Public.UnderlayPort)
 	}
 
-	ip := net.ParseIP(addressInfo.Public.RawAddrPort.Addr)
+	ip := net.ParseIP(addressInfo.Public.Address.Addr)
 	if ip == nil {
-		return nil, serrors.WithCtx(ErrInvalidPub, "address", addressInfo.Public.RawAddrPort.Addr)
+		return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.Public.Address.Addr)
 	}
 
 	if mustBeIPv6 && ip.To4() != nil {
-		return nil, serrors.WithCtx(ErrInvalidPub, "address", addressInfo.Public.RawAddrPort.Addr)
+		return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.Public.Address.Addr)
 	}
 	if mustBeIPv4 {
 		// Convert to 4-byte format to simplify testing
 		ip = ip.To4()
 		if ip == nil {
-			return nil, serrors.WithCtx(ErrInvalidPub,
-				"address", addressInfo.Public.RawAddrPort.Addr)
+			return nil, serrors.WithCtx(errInvalidPub,
+				"address", addressInfo.Public.Address.Addr)
 		}
 	}
 
 	return &TopoAddr{
 		SCIONAddress: &addr.AppAddr{
 			L3: addr.HostFromIP(ip),
-			L4: uint16(addressInfo.Public.RawAddrPort.L4Port),
+			L4: uint16(addressInfo.Public.Address.L4Port),
 		},
 		UnderlayAddress: &net.UDPAddr{
 			IP:   append(ip[:0:0], ip...),
@@ -111,7 +68,9 @@ func (ram RawAddrMap) ToTopoAddr() (*TopoAddr, error) {
 	}, nil
 }
 
-func (ram RawAddrMap) extractAddressInfo() (info *RawPubBindOverlay, is6 bool) {
+func rawAddrMapExtractAddressInfo(
+	ram jsontopo.NATSCIONAddressMap) (info *jsontopo.NATSCIONAddress, is6 bool) {
+
 	a, ok := ram["IPv6"]
 	if ok {
 		return a, true
@@ -123,100 +82,41 @@ func (ram RawAddrMap) extractAddressInfo() (info *RawPubBindOverlay, is6 bool) {
 	return nil, false
 }
 
-func (ram RawAddrMap) String() string {
-	var s []string
-	for k, v := range ram {
-		s = append(s, fmt.Sprintf("%s: %s", k, v))
-	}
-	return strings.Join(s, "\n")
-}
-
-type RawPubBindOverlay struct {
-	Public RawAddrPortOverlay
-	Bind   *RawAddrPort `json:",omitempty"`
-}
-
-func (rpbo RawPubBindOverlay) String() string {
-	var s []string
-	s = append(s, fmt.Sprintf("Public: %s", rpbo.Public))
-	if rpbo.Bind != nil {
-		s = append(s, fmt.Sprintf("Bind: %s", rpbo.Bind))
-	}
-	return strings.Join(s, ", ")
-}
-
-// Since Public addresses may be associated with an Overlay port, extend the
-// structure used for Bind addresses.
-type RawAddrPortOverlay struct {
-	RawAddrPort
-	OverlayPort int `json:",omitempty"`
-}
-
-func (a RawAddrPortOverlay) String() string {
-	return fmt.Sprintf("%s:%d/%d", a.Addr, a.L4Port, a.OverlayPort)
-}
-
-type RawAddrPort struct {
-	Addr   string
-	L4Port int
-}
-
-func (a RawAddrPort) String() string {
-	return fmt.Sprintf("%s:%d", a.Addr, a.L4Port)
-}
-
-// RawBRInfo contains Border Router specific information.
-type RawBRInfo struct {
-	InternalAddrs RawBRAddrMap
-	CtrlAddr      RawAddrMap
-	Interfaces    map[common.IFIDType]*RawBRIntf
-}
-
-func (b RawBRInfo) String() string {
-	var s []string
-	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nControl addrs:\n  %s\nInterfaces:",
-		b.InternalAddrs, b.CtrlAddr))
-	for ifid, intf := range b.Interfaces {
-		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
-	}
-	return strings.Join(s, "\n")
-}
-
-type RawBRAddrMap map[string]*RawOverlayBind
-
-func (m RawBRAddrMap) ToUDPAddr() (*net.UDPAddr, error) {
-	addressInfo, mustBeIPv6 := m.extractAddressInfo()
+func rawBRAddrMapToUDPAddr(m jsontopo.UnderlayAddressMap) (*net.UDPAddr, error) {
+	addressInfo, mustBeIPv6 := rawBRAddrMapExtractAddressInfo(m)
 	mustBeIPv4 := !mustBeIPv6
 	if addressInfo == nil {
-		return nil, serrors.WithCtx(ErrAtLeastOnePub, "address", m)
+		return nil, serrors.WithCtx(errAtLeastOnePub, "address", m)
 	}
-	if addressInfo.BindOverlay != nil {
-		return nil, serrors.WithCtx(ErrBindNotSupported, "address", addressInfo.BindOverlay)
+	if addressInfo.BindUnderlay != nil {
+		return nil, serrors.WithCtx(errBindNotSupported, "address", addressInfo.BindUnderlay)
 	}
 
-	ip := net.ParseIP(addressInfo.PublicOverlay.Addr)
+	ip := net.ParseIP(addressInfo.PublicUnderlay.Addr)
 	if ip == nil {
-		return nil, serrors.WithCtx(ErrInvalidPub, "address", addressInfo.PublicOverlay.Addr)
+		return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.PublicUnderlay.Addr)
 	}
 
 	if mustBeIPv6 && ip.To4() != nil {
-		return nil, serrors.WithCtx(ErrInvalidPub, "address", addressInfo.PublicOverlay.Addr)
+		return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.PublicUnderlay.Addr)
 	}
 	if mustBeIPv4 {
 		// Convert to 4-byte format to simplify testing
 		ip = ip.To4()
 		if ip == nil {
-			return nil, serrors.WithCtx(ErrInvalidPub, "address", addressInfo.PublicOverlay.Addr)
+			return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.PublicUnderlay.Addr)
 		}
 	}
 
 	return &net.UDPAddr{
 		IP:   append(ip[:0:0], ip...),
-		Port: addressInfo.PublicOverlay.OverlayPort,
+		Port: addressInfo.PublicUnderlay.UnderlayPort,
 	}, nil
 }
 
-func (m RawBRAddrMap) extractAddressInfo() (info *RawOverlayBind, is6 bool) {
+func rawBRAddrMapExtractAddressInfo(
+	m jsontopo.UnderlayAddressMap) (info *jsontopo.NATUnderlayAddress, is6 bool) {
+
 	a, ok := m["IPv6"]
 	if ok {
 		return a, true
@@ -228,137 +128,50 @@ func (m RawBRAddrMap) extractAddressInfo() (info *RawOverlayBind, is6 bool) {
 	return nil, false
 }
 
-func (roa RawBRAddrMap) String() string {
-	var s []string
-	for k, v := range roa {
-		s = append(s, fmt.Sprintf("%s: %s", k, v))
-	}
-	return strings.Join(s, "\n")
-}
-
-type RawOverlayBind struct {
-	PublicOverlay RawAddrOverlay
-	BindOverlay   *RawAddr `json:",omitempty"`
-}
-
-func (b RawOverlayBind) String() string {
-	var s []string
-	s = append(s, fmt.Sprintf("PublicOverlay: %s", b.PublicOverlay))
-	if b.BindOverlay != nil {
-		s = append(s, fmt.Sprintf("BindOverlay: %s", b.BindOverlay))
-	}
-	return strings.Join(s, "\n")
-}
-
-type RawBRIntf struct {
-	Overlay       string          `json:",omitempty"`
-	PublicOverlay *RawAddrOverlay `json:",omitempty"`
-	BindOverlay   *RawAddr        `json:",omitempty"`
-	RemoteOverlay *RawAddrOverlay `json:",omitempty"`
-	Bandwidth     int
-	ISD_AS        string
-	LinkTo        string
-	MTU           int
-}
-
-// make an OverlayAddr object from a BR interface Remote entry
-func (b RawBRIntf) remoteBRAddr(o overlay.Type) (*net.UDPAddr, error) {
-	l3 := addr.HostFromIPStr(b.RemoteOverlay.Addr)
+func rawBRIntfRemoteBRAddr(b *jsontopo.BRInterface, o overlay.Type) (*net.UDPAddr, error) {
+	l3 := addr.HostFromIPStr(b.RemoteUnderlay.Addr)
 	if l3 == nil {
 		return nil, common.NewBasicError("Could not parse remote IP from string", nil,
-			"ip", b.RemoteOverlay.Addr)
+			"ip", b.RemoteUnderlay.Addr)
 	}
-	if !o.IsUDP() && (b.RemoteOverlay.OverlayPort != 0) {
-		return nil, serrors.WithCtx(ErrUnderlayPort, "addr", b.RemoteOverlay)
+	if !o.IsUDP() && (b.RemoteUnderlay.UnderlayPort != 0) {
+		return nil, serrors.WithCtx(errUnderlayPort, "addr", b.RemoteUnderlay)
 	}
-	return &net.UDPAddr{IP: l3.IP(), Port: b.RemoteOverlay.OverlayPort}, nil
+	return &net.UDPAddr{IP: l3.IP(), Port: b.RemoteUnderlay.UnderlayPort}, nil
 }
 
-func (i *RawBRIntf) TopoBRAddr() (*net.UDPAddr, error) {
-	if i.Overlay != "UDP/IPv4" && i.Overlay != "UDP/IPv6" {
-		return nil, serrors.WithCtx(ErrUnsupportedUnderlay, "underlay", i.Overlay)
+func rawBRIntfTopoBRAddr(i *jsontopo.BRInterface) (*net.UDPAddr, error) {
+	if i.Underlay != "UDP/IPv4" && i.Underlay != "UDP/IPv6" {
+		return nil, serrors.WithCtx(errUnsupportedUnderlay, "underlay", i.Underlay)
 	}
 
-	mustBeIPv4 := i.Overlay == "UDP/IPv4"
-	mustBeIPv6 := i.Overlay == "UDP/IPv6"
+	mustBeIPv4 := i.Underlay == "UDP/IPv4"
+	mustBeIPv6 := i.Underlay == "UDP/IPv6"
 
 	var udpAddr net.UDPAddr
-	if i.BindOverlay != nil {
-		udpAddr.IP = net.ParseIP(i.BindOverlay.Addr)
+	if i.BindUnderlay != nil {
+		udpAddr.IP = net.ParseIP(i.BindUnderlay.Addr)
 	} else {
-		if i.PublicOverlay == nil {
-			return nil, serrors.WithCtx(ErrUnderlayAddressNotFound, "underlay", i.Overlay)
+		if i.PublicUnderlay == nil {
+			return nil, serrors.WithCtx(errUnderlayAddrNotFound, "underlay", i.Underlay)
 		}
-		udpAddr.IP = net.ParseIP(i.PublicOverlay.Addr)
+		udpAddr.IP = net.ParseIP(i.PublicUnderlay.Addr)
 	}
-	if i.PublicOverlay != nil {
-		udpAddr.Port = i.PublicOverlay.OverlayPort
+	if i.PublicUnderlay != nil {
+		udpAddr.Port = i.PublicUnderlay.UnderlayPort
 	}
 
 	if udpAddr.IP == nil {
-		return nil, serrors.WithCtx(ErrInvalidPub, "address", i.PublicOverlay.Addr)
+		return nil, serrors.WithCtx(errInvalidPub, "address", i.PublicUnderlay.Addr)
 	}
 	if mustBeIPv4 {
 		udpAddr.IP = udpAddr.IP.To4()
 		if udpAddr.IP == nil {
-			return nil, serrors.WithCtx(ErrExpectedIPv4FoundIPv6, "address", i.PublicOverlay.Addr)
+			return nil, serrors.WithCtx(errExpectedIPv4FoundIPv6, "address", i.PublicUnderlay.Addr)
 		}
 	}
 	if mustBeIPv6 && udpAddr.IP.To4() != nil {
-		return nil, serrors.WithCtx(ErrExpectedIPv6FoundIPv4, "address", i.PublicOverlay.Addr)
+		return nil, serrors.WithCtx(errExpectedIPv6FoundIPv4, "address", i.PublicUnderlay.Addr)
 	}
 	return &udpAddr, nil
-}
-
-type RawAddrOverlay struct {
-	Addr        string
-	OverlayPort int `json:",omitempty"`
-}
-
-func (a RawAddrOverlay) String() string {
-	return fmt.Sprintf("%s:%d", a.Addr, a.OverlayPort)
-}
-
-type RawAddr struct {
-	Addr string
-}
-
-func (a RawAddr) String() string {
-	return fmt.Sprintf("%s", a.Addr)
-}
-
-func Load(b common.RawBytes) (*Topo, error) {
-	rt := &RawTopo{}
-	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewBasicError(ErrParse, err)
-	}
-	ct, err := TopoFromRaw(rt)
-	if err != nil {
-		return nil, common.NewBasicError(ErrConvert, err)
-	}
-	return ct, nil
-}
-
-func LoadFromFile(path string) (*Topo, error) {
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, common.NewBasicError(ErrOpen, err, "path", path)
-	}
-	return Load(b)
-}
-
-func LoadRaw(b common.RawBytes) (*RawTopo, error) {
-	rt := &RawTopo{}
-	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewBasicError(ErrParse, err)
-	}
-	return rt, nil
-}
-
-func LoadRawFromFile(path string) (*RawTopo, error) {
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, common.NewBasicError(ErrOpen, err, "path", path)
-	}
-	return LoadRaw(b)
 }

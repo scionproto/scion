@@ -13,10 +13,9 @@
 // limitations under the License.
 
 /*
-Package topology wraps two versions of the topology. The first is RawTopo (in raw.go), which closely
-matches the JSON format. It is mainly used for loading the topology from disk. The second data
-structure is Topo. It is used by Go code directly and thus has a different structure and stricter
-types.
+Package topology wraps two versions of the topology. The first is RWTopology, which permits
+other packages to change topology information. The second topology type is Topology. It is
+used by packages that only need read access to the topology.
 
 The full JSON format for a SCION address looks like the following:
 

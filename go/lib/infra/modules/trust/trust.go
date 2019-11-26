@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
@@ -42,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -776,7 +776,7 @@ func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.
 //  * a local core CS if destination is isd-local or any core CS.
 //  * a remote core CS if destination is remote isd.
 func (store *Store) chooseDestCSIsd(ctx context.Context, destination addr.IA,
-	topo itopo.Topology) (addr.ISD, error) {
+	topo topology.Topology) (addr.ISD, error) {
 
 	// For isd-local dests use local core.
 	if destination.I == topo.IA().I {

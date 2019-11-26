@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // packBeaconMsg packs the provided beacon and creates a one-hop message.
@@ -61,7 +61,7 @@ func packBeaconMsg(bseg *seg.Beacon, ia addr.IA, egIfid common.IFIDType,
 // sortedIntfs returns two sorted lists. The first list contains all active
 // interfaces of the given type. The second list contains all non-active
 // interfaces of the given type.
-func sortedIntfs(intfs *ifstate.Interfaces, linkType proto.LinkType) ([]common.IFIDType,
+func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) ([]common.IFIDType,
 	[]common.IFIDType) {
 
 	var active, nonActive []common.IFIDType

@@ -27,7 +27,7 @@ import (
 
 type dynDropper interface {
 	// MustDropDynamic indicates whether the dynamic topology shall be dropped.
-	MustDropDynamic(topo, oldTopo *topology.Topo) bool
+	MustDropDynamic(topo, oldTopo *topology.RWTopology) bool
 }
 
 // validator is used to validate that the topology update is permissible.
@@ -36,7 +36,7 @@ type validator interface {
 	// Validate checks that the topology update is valid according to the mutability rules.
 	// The validation rules differ between service types. However, at the very least, it
 	// is checked that topo is not nil and the immutable parts do not change.
-	Validate(topo, oldTopo *topology.Topo, allowed bool) error
+	Validate(topo, oldTopo *topology.RWTopology, allowed bool) error
 }
 
 func validatorFactory(id string, svc proto.ServiceType) validator {
@@ -58,7 +58,7 @@ type validatorWrap struct {
 }
 
 // Validate checks that the topology update is valid.
-func (v *validatorWrap) Validate(topo, oldTopo *topology.Topo, allowed bool) error {
+func (v *validatorWrap) Validate(topo, oldTopo *topology.RWTopology, allowed bool) error {
 	if err := v.General(topo); err != nil {
 		return err
 	}
@@ -76,11 +76,11 @@ type internalValidator interface {
 	// General checks that the topology is generally valid. The exact check is implementation
 	// specific to the validator. However, at the very least, this check ensures that the
 	// provided topology is non-nil.
-	General(topo *topology.Topo) error
+	General(topo *topology.RWTopology) error
 	// Immutable checks that the immutable parts of the topology do not change.
-	Immutable(topo, oldTopo *topology.Topo) error
+	Immutable(topo, oldTopo *topology.RWTopology) error
 	// SemiMutable checks that the semi-mutable parts of the topology update are valid.
-	SemiMutable(topo, oldTopo *topology.Topo, allowed bool) error
+	SemiMutable(topo, oldTopo *topology.RWTopology, allowed bool) error
 }
 
 var _ internalValidator = (*generalValidator)(nil)
@@ -90,28 +90,24 @@ var _ internalValidator = (*generalValidator)(nil)
 // not modified.
 type generalValidator struct{}
 
-func (v *generalValidator) General(topo *topology.Topo) error {
+func (v *generalValidator) General(topo *topology.RWTopology) error {
 	if topo == nil {
 		return serrors.New("Topo must not be nil")
 	}
 	return nil
 }
 
-func (v *generalValidator) Immutable(topo, oldTopo *topology.Topo) error {
+func (v *generalValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 	if oldTopo == nil {
 		return nil
 	}
-	if !topo.ISD_AS.Equal(oldTopo.ISD_AS) {
+	if !topo.IA.Equal(oldTopo.IA) {
 		return common.NewBasicError("IA is immutable", nil,
-			"expected", oldTopo.ISD_AS, "actual", topo.ISD_AS)
+			"expected", oldTopo.IA, "actual", topo.IA)
 	}
 	if topo.Core != oldTopo.Core {
 		return common.NewBasicError("Core is immutable", nil,
 			"expected", oldTopo.Core, "actual", topo.Core)
-	}
-	if topo.Overlay != oldTopo.Overlay {
-		return common.NewBasicError("Overlay is immutable", nil,
-			"expected", oldTopo.Overlay, "actual", topo.Overlay)
 	}
 	if topo.MTU != oldTopo.MTU {
 		return common.NewBasicError("MTU is immutable", nil,
@@ -120,11 +116,11 @@ func (v *generalValidator) Immutable(topo, oldTopo *topology.Topo) error {
 	return nil
 }
 
-func (*generalValidator) SemiMutable(_, _ *topology.Topo, _ bool) error {
+func (*generalValidator) SemiMutable(_, _ *topology.RWTopology, _ bool) error {
 	return nil
 }
 
-func (*generalValidator) MustDropDynamic(_, _ *topology.Topo) bool {
+func (*generalValidator) MustDropDynamic(_, _ *topology.RWTopology) bool {
 	return false
 }
 
@@ -138,7 +134,7 @@ type svcValidator struct {
 	svc proto.ServiceType
 }
 
-func (v *svcValidator) General(topo *topology.Topo) error {
+func (v *svcValidator) General(topo *topology.RWTopology) error {
 	if err := v.generalValidator.General(topo); err != nil {
 		return err
 	}
@@ -148,7 +144,7 @@ func (v *svcValidator) General(topo *topology.Topo) error {
 	return nil
 }
 
-func (v *svcValidator) Immutable(topo, oldTopo *topology.Topo) error {
+func (v *svcValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 	if oldTopo == nil {
 		return nil
 	}
@@ -178,7 +174,7 @@ type brValidator struct {
 	id string
 }
 
-func (v *brValidator) General(topo *topology.Topo) error {
+func (v *brValidator) General(topo *topology.RWTopology) error {
 	if err := v.generalValidator.General(topo); err != nil {
 		return err
 	}
@@ -188,16 +184,16 @@ func (v *brValidator) General(topo *topology.Topo) error {
 	return nil
 }
 
-func (v *brValidator) Immutable(topo, oldTopo *topology.Topo) error {
+func (v *brValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 	if oldTopo == nil {
 		return nil
 	}
 	if err := v.generalValidator.Immutable(topo, oldTopo); err != nil {
 		return err
 	}
-	if topo.BR[v.id].InternalAddrs.String() != oldTopo.BR[v.id].InternalAddrs.String() {
+	if topo.BR[v.id].InternalAddr.String() != oldTopo.BR[v.id].InternalAddr.String() {
 		return common.NewBasicError("InternalAddrs is immutable", nil, "expected",
-			oldTopo.BR[v.id].InternalAddrs, "actual", topo.BR[v.id].InternalAddrs)
+			oldTopo.BR[v.id].InternalAddr, "actual", topo.BR[v.id].InternalAddr)
 	}
 	if !reflect.DeepEqual(topo.BR[v.id].CtrlAddrs, oldTopo.BR[v.id].CtrlAddrs) {
 		return common.NewBasicError("CtrlAddrs is immutable", nil, "expected",
@@ -206,7 +202,7 @@ func (v *brValidator) Immutable(topo, oldTopo *topology.Topo) error {
 	return nil
 }
 
-func (v *brValidator) SemiMutable(topo, oldTopo *topology.Topo, allowed bool) error {
+func (v *brValidator) SemiMutable(topo, oldTopo *topology.RWTopology, allowed bool) error {
 	if oldTopo == nil {
 		return nil
 	}
@@ -217,14 +213,14 @@ func (v *brValidator) SemiMutable(topo, oldTopo *topology.Topo, allowed bool) er
 	return nil
 }
 
-func (v *brValidator) MustDropDynamic(topo, oldTopo *topology.Topo) bool {
+func (v *brValidator) MustDropDynamic(topo, oldTopo *topology.RWTopology) bool {
 	if oldTopo == nil {
 		return false
 	}
 	return v.interfacesChanged(topo, oldTopo)
 }
 
-func (v *brValidator) interfacesChanged(topo, oldTopo *topology.Topo) bool {
+func (v *brValidator) interfacesChanged(topo, oldTopo *topology.RWTopology) bool {
 	if v.interfaceSetChanged(topo, oldTopo) {
 		return true
 	}
@@ -236,7 +232,7 @@ func (v *brValidator) interfacesChanged(topo, oldTopo *topology.Topo) bool {
 	return false
 }
 
-func (v *brValidator) interfaceSetChanged(topo, oldTopo *topology.Topo) bool {
+func (v *brValidator) interfaceSetChanged(topo, oldTopo *topology.RWTopology) bool {
 	if len(topo.BR[v.id].IFIDs) != len(oldTopo.BR[v.id].IFIDs) {
 		return true
 	}

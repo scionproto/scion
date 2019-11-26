@@ -186,7 +186,7 @@ func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoM
 		bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
 		xtest.FailOnErr(t, err)
 		SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
-		brAddr := infos[hopF.ConsEgress].InternalAddrs
+		brAddr := infos[hopF.ConsEgress].InternalAddr
 		SoMsg("ov", msg.ov, ShouldResemble, brAddr)
 	})
 }

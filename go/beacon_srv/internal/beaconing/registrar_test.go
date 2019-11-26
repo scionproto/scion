@@ -175,7 +175,7 @@ func TestRegistrarRun(t *testing.T) {
 					SoMsg("err", err, ShouldBeNil)
 					SoMsg("HopField", []uint8(hopF.Pack()), ShouldResemble,
 						pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField)
-					a := topoProvider.Get().IFInfoMap()[hopF.ConsIngress].InternalAddrs
+					a := topoProvider.Get().IFInfoMap()[hopF.ConsIngress].InternalAddr
 					SoMsg("Next", s.Addr.NextHop, ShouldResemble, a)
 				})
 			}

@@ -28,10 +28,10 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type updateTestFunc func(*topology.Topo) (*topology.Topo, bool, error)
+type updateTestFunc func(*topology.RWTopology) (*topology.RWTopology, bool, error)
 
 func setStaticTestFunc(s *state) updateTestFunc {
-	return func(t *topology.Topo) (*topology.Topo, bool, error) {
+	return func(t *topology.RWTopology) (*topology.RWTopology, bool, error) {
 		return s.setStatic(t, false)
 	}
 }
@@ -148,7 +148,7 @@ func TestStateSetStatic(t *testing.T) {
 			})
 		})
 		Convey("Modifying the internal address is not allowed", func() {
-			topo.BR[id].InternalAddrs.Port = 42
+			topo.BR[id].InternalAddr.Port = 42
 			Convey("If semi-mutation is allowed", func() {
 				_, updated, err := s.setStatic(topo, true)
 				SoMsg("err", err, ShouldNotBeNil)
@@ -270,7 +270,7 @@ func TestStateSetDynamic(t *testing.T) {
 			SoMsg("topo", newTopo, ShouldEqual, topo)
 		})
 		Convey("Modifying the internal address is not allowed", func() {
-			topo.BR[id].InternalAddrs.Port = 42
+			topo.BR[id].InternalAddr.Port = 42
 			_, updated, err := s.setDynamic(topo)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
@@ -296,7 +296,7 @@ func testNilTopo(update updateTestFunc, t *testing.T) {
 	})
 }
 
-func testNoModified(update updateTestFunc, prevTopo *topology.Topo,
+func testNoModified(update updateTestFunc, prevTopo *topology.RWTopology,
 	clbks *mockClbks, updateCalled bool, t *testing.T) {
 
 	t.Helper()

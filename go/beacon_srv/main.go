@@ -61,6 +61,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -130,6 +131,7 @@ func realMain() int {
 	}
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
+
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
 		Public:                topo.PublicAddress(addr.SvcBS, cfg.General.ID),
@@ -190,10 +192,10 @@ func realMain() int {
 	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
-	ovAddr := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
-	t := addr.AppAddrFromUDP(ovAddr)
-	t.L4 = 0
-	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), t, nil, addr.SvcNone, time.Second)
+	ohpAddress := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
+	ohpAddress.Port = 0
+	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), addr.AppAddrFromUDP(ohpAddress), nil,
+		addr.SvcNone, time.Second)
 	if err != nil {
 		log.Crit("Unable to create SCION packet conn", "err", err)
 		return 1
@@ -265,7 +267,7 @@ type periodicTasks struct {
 	trustDB         trustdb.TrustDB
 	store           beaconstorage.Store
 	msgr            infra.Messenger
-	topoProvider    itopo.ProviderI
+	topoProvider    topology.Provider
 	allowIsdLoop    bool
 	addressRewriter *messenger.AddressRewriter
 
@@ -295,6 +297,7 @@ func (t *periodicTasks) Start() error {
 	if bs == nil {
 		return serrors.New("Unable to find topo address")
 	}
+
 	var err error
 	if t.registrars, err = t.startSegRegRunners(); err != nil {
 		return err
@@ -451,7 +454,7 @@ func (t *periodicTasks) startSegRegRunners() (segRegRunners, error) {
 	return s, nil
 }
 
-func (t *periodicTasks) startRegistrar(topo itopo.Topology, segType proto.PathSegType,
+func (t *periodicTasks) startRegistrar(topo topology.Topology, segType proto.PathSegType,
 	policyType beacon.PolicyType) (*periodic.Runner, error) {
 
 	signer, err := t.createSigner(topo.IA())
@@ -551,7 +554,7 @@ func setup() error {
 	}
 	clbks := itopo.Callbacks{UpdateStatic: handleTopoUpdate}
 	itopo.Init(cfg.General.ID, proto.ServiceType_bs, clbks)
-	topo, err := itopo.LoadFromFile(cfg.General.Topology)
+	topo, err := topology.FromJSONFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}

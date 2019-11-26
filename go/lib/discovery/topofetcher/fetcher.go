@@ -32,9 +32,9 @@ var _ discovery.Fetcher = (*Fetcher)(nil)
 // an associated event occurs. If the function is nil, it is ignored.
 type Callbacks struct {
 	// Raw is called with the raw body from the discovery service response and the parsed topology.
-	Raw func(context.Context, common.RawBytes, *topology.Topo)
+	Raw func(context.Context, common.RawBytes, *topology.RWTopology)
 	// Update is called with the parsed topology from the discovery service response.
-	Update func(context.Context, *topology.Topo)
+	Update func(context.Context, *topology.RWTopology)
 	// Error is called with any error that occurs.
 	Error func(context.Context, error)
 }

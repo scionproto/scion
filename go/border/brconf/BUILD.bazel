@@ -16,7 +16,6 @@ go_library(
         "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
-        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/keyconf:go_default_library",
         "//go/lib/topology:go_default_library",
     ],

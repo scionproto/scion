@@ -28,11 +28,11 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -48,7 +48,7 @@ var _ periodic.Task = (*Registrar)(nil)
 type RegistrarConf struct {
 	Config       ExtenderConf
 	SegProvider  SegmentProvider
-	TopoProvider itopo.ProviderI
+	TopoProvider topology.Provider
 	Msgr         infra.Messenger
 	Period       time.Duration
 	SegType      proto.PathSegType
@@ -61,7 +61,7 @@ type Registrar struct {
 	*segExtender
 	msgr         infra.Messenger
 	segProvider  SegmentProvider
-	topoProvider itopo.ProviderI
+	topoProvider topology.Provider
 	segType      proto.PathSegType
 
 	// mutable fields
@@ -112,7 +112,7 @@ func (r *Registrar) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	peers, nonActivePeers := sortedIntfs(r.cfg.Intfs, proto.LinkType_peer)
+	peers, nonActivePeers := sortedIntfs(r.cfg.Intfs, topology.Peer)
 	if len(nonActivePeers) > 0 {
 		logger.Debug("[beaconing.Registrar] Ignore non-active peer interfaces", "type", r.segType,
 			"intfs", nonActivePeers)

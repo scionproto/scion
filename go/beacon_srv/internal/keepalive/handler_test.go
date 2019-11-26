@@ -143,7 +143,7 @@ func TestNewHandler(t *testing.T) {
 }
 
 func testInterfaces() *ifstate.Interfaces {
-	infoMap := topology.IfInfoMap{localIF: topology.IFInfo{ISD_AS: originIA}}
+	infoMap := topology.IfInfoMap{localIF: topology.IFInfo{IA: originIA}}
 	return ifstate.NewInterfaces(infoMap, ifstate.Config{})
 }
 

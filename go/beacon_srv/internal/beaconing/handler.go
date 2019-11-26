@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -150,7 +151,7 @@ func (h *handler) getIFID() (common.IFIDType, addr.IA, error) {
 		return 0, ia, common.NewBasicError("Received beacon on non-existent ifid", nil,
 			"ifid", hopF.ConsIngress)
 	}
-	return hopF.ConsIngress, intf.TopoInfo().ISD_AS, nil
+	return hopF.ConsIngress, intf.TopoInfo().IA, nil
 }
 
 func (h *handler) verifyBeacon(b beacon.Beacon) error {
@@ -170,14 +171,14 @@ func (h *handler) validateASEntry(b beacon.Beacon) error {
 		return common.NewBasicError("Received beacon on non-existent ifid", nil, "ifid", b.InIfId)
 	}
 	topoInfo := intf.TopoInfo()
-	if topoInfo.LinkType != proto.LinkType_parent && topoInfo.LinkType != proto.LinkType_core {
+	if topoInfo.LinkType != topology.Parent && topoInfo.LinkType != topology.Core {
 		return common.NewBasicError("Beacon received on invalid link", nil,
 			"ifid", b.InIfId, "linkType", topoInfo.LinkType)
 	}
 	asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
-	if !asEntry.IA().Equal(topoInfo.ISD_AS) {
+	if !asEntry.IA().Equal(topoInfo.IA) {
 		return common.NewBasicError("Invalid remote IA", nil,
-			"expected", topoInfo.ISD_AS, "actual", asEntry.IA())
+			"expected", topoInfo.IA, "actual", asEntry.IA())
 	}
 	for i, hopEntry := range asEntry.HopEntries {
 		if !hopEntry.OutIA().Equal(h.ia) {
