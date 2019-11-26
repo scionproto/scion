@@ -25,13 +25,13 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/egress/dispatcher"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/router"
 	"github.com/scionproto/scion/go/sig/egress/selector"
 	"github.com/scionproto/scion/go/sig/egress/session"
 	"github.com/scionproto/scion/go/sig/internal/base"
-	"github.com/scionproto/scion/go/sig/internal/config"
 )
 
 const (

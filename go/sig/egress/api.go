@@ -20,10 +20,10 @@ import (
 
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/egress/asmap"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/reader"
-	"github.com/scionproto/scion/go/sig/internal/config"
 )
 
 func Init(tunIO io.ReadWriteCloser) {
