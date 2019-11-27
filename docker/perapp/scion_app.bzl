@@ -38,7 +38,7 @@ def scion_app_base():
     # Base for prod images.
     container_image(
         name = "app_base",
-        base = "@distroless//base:static_debian10",
+        base = "@distroless//base:static_debian9",
         env = env,
         debs = debs,
         tars = [
@@ -51,7 +51,7 @@ def scion_app_base():
     # base for debug images.
     container_image(
         name = "app_base_debug",
-        base = "@distroless//base:debug_debian10",
+        base = "@distroless//base:debug_debian9",
         env = env,
         debs = debs,
         tars = [
