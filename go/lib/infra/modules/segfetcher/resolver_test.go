@@ -94,7 +94,7 @@ func (rt resolverTest) run(t *testing.T) {
 	} else {
 		revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 	}
-	resolver := segfetcher.NewResolver(db, revCache, false)
+	resolver := segfetcher.NewResolver(db, revCache)
 	segs, remainingReqs, err := resolver.Resolve(context.Background(), rt.Segs, rt.Req)
 	assert.Equal(t, rt.ExpectedSegments, segs)
 	assert.Equal(t, rt.ExpectedReqSet, remainingReqs)
@@ -788,14 +788,14 @@ func TestResolverWithRevocations(t *testing.T) {
 				revoke(t, revCache, key111_130)
 				revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 			},
-			ExpectedSegments: segfetcher.Segments{
-				Up: seg.Segments{},
-			},
+			// On the initial fetch, if everything is revoked, just try again
+			// and fetch it.
+			ExpectedSegments: segfetcher.Segments{},
 			ExpectedReqSet: segfetcher.RequestSet{
 				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Fetch},
 			},
 		},
-		"Core (cached) with revocations returns partial result": {
+		"Core (cached) with revocations returns full result": {
 			Req: segfetcher.RequestSet{
 				Cores: []segfetcher.Request{
 					{Src: core_210, Dst: core_110},
@@ -817,8 +817,6 @@ func TestResolverWithRevocations(t *testing.T) {
 				// Other calls return 0
 				db.EXPECT().Get(gomock.Any(), gomock.Any()).Times(2)
 			},
-			// Revoke the shorter path via 110, so it should only return the
-			// longer path via 120.
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
 				key110 := revcache.Key{IA: core_110, IfId: graph.If_110_X_130_A}
 				ksMatcher := keySetContains{keys: []revcache.Key{key110}}
@@ -830,7 +828,7 @@ func TestResolverWithRevocations(t *testing.T) {
 				revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 			},
 			ExpectedSegments: segfetcher.Segments{
-				Core: seg.Segments{tg.seg210_130_2},
+				Core: seg.Segments{tg.seg210_130, tg.seg210_130_2},
 			},
 			ExpectedReqSet: segfetcher.RequestSet{
 				Cores: []segfetcher.Request{
