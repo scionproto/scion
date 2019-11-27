@@ -170,7 +170,7 @@ type path struct {
 	destination addr.IA
 }
 
-func (p *path) Fingerprint() string {
+func (p *path) Fingerprint() snet.PathFingerprint {
 	return ""
 }
 

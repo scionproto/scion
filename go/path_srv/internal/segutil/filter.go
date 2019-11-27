@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathpol"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 type Direction int
@@ -73,7 +74,7 @@ func psToSegs(ps pathpol.PathSet) seg.Segments {
 
 type segWrap struct {
 	intfs   []pathpol.PathInterface
-	key     string
+	key     snet.PathFingerprint
 	origSeg *seg.PathSegment
 }
 
@@ -103,13 +104,13 @@ func wrap(seg *seg.PathSegment, dir Direction) segWrap {
 	}
 	return segWrap{
 		intfs:   intfs,
-		key:     strings.Join(keyParts, " "),
+		key:     snet.PathFingerprint(strings.Join(keyParts, " ")),
 		origSeg: seg,
 	}
 }
 
 func (s segWrap) Interfaces() []pathpol.PathInterface { return s.intfs }
-func (s segWrap) Key() string                         { return s.key }
+func (s segWrap) Key() snet.PathFingerprint           { return s.key }
 
 type pathInterface struct {
 	ia   addr.IA

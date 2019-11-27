@@ -28,7 +28,7 @@ type emptyPath struct {
 	source addr.IA
 }
 
-func (p *emptyPath) Fingerprint() string {
+func (p *emptyPath) Fingerprint() snet.PathFingerprint {
 	return ""
 }
 

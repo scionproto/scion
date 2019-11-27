@@ -17,17 +17,18 @@ package pathpol
 import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // PathSet is a set of paths. PathSet is used for policy filtering.
-type PathSet map[string]Path
+type PathSet map[snet.PathFingerprint]Path
 
 // Path describes a path or a partial path, e.g. a segment.
 type Path interface {
 	// Interfaces returns all the interfaces of this path.
 	Interfaces() []PathInterface
 	// Returns a string that uniquely identifies this path.
-	Key() string
+	Key() snet.PathFingerprint
 }
 
 // PathInterface is an interface on the path.

@@ -24,15 +24,15 @@ import (
 
 // A SessPath contains a path and metadata related to path health.
 type SessPath struct {
-	key  string
+	key  snet.PathFingerprint
 	path snet.Path
 }
 
-func NewSessPath(key string, path snet.Path) *SessPath {
+func NewSessPath(key snet.PathFingerprint, path snet.Path) *SessPath {
 	return &SessPath{key: key, path: path}
 }
 
-func (sp *SessPath) Key() string {
+func (sp *SessPath) Key() snet.PathFingerprint {
 	return sp.key
 }
 

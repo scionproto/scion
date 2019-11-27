@@ -24,7 +24,7 @@ import (
 )
 
 // AppPathSet represents a set of SCIOND path entries, keyed by AppPath.Key().
-type AppPathSet map[string]snet.Path
+type AppPathSet map[snet.PathFingerprint]snet.Path
 
 // NewAppPathSet creates a new set of paths from a SCIOND path reply.
 func NewAppPathSet(paths []snet.Path) AppPathSet {
@@ -54,7 +54,7 @@ func (aps AppPathSet) Copy() AppPathSet {
 // GetAppPath returns an AppPath from the set. It first tries to find
 // a path with key pref; if one cannot be found, an arbitrary one
 // is returned.
-func (aps AppPathSet) GetAppPath(pref string) snet.Path {
+func (aps AppPathSet) GetAppPath(pref snet.PathFingerprint) snet.Path {
 	if len(pref) > 0 {
 		ap, ok := aps[pref]
 		if ok {

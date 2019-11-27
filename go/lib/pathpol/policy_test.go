@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -636,21 +637,24 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 			pathIntfs = append(pathIntfs, testPathIntf{ia: ia, ifid: ifid})
 			key.WriteString(fmt.Sprintf("%s-%d", ia, ifid))
 		}
-		result[key.String()] = &testPath{interfaces: pathIntfs, key: key.String()}
+		result[snet.PathFingerprint(key.String())] = &testPath{
+			interfaces: pathIntfs,
+			key:        snet.PathFingerprint(key.String()),
+		}
 	}
 	return result
 }
 
 type testPath struct {
 	interfaces []PathInterface
-	key        string
+	key        snet.PathFingerprint
 }
 
 func (p *testPath) Interfaces() []PathInterface {
 	return p.interfaces
 }
 
-func (p *testPath) Key() string { return p.key }
+func (p *testPath) Key() snet.PathFingerprint { return p.key }
 
 type testPathIntf struct {
 	ia   addr.IA

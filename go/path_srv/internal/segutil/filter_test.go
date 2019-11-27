@@ -59,7 +59,7 @@ func TestFilter(t *testing.T) {
 					DoAndReturn(func(paths pathpol.PathSet,
 						f pathpol.FilterOptions) pathpol.PathSet {
 						for key := range paths {
-							if strings.Contains(key, "120") {
+							if strings.Contains(string(key), "120") {
 								delete(paths, key)
 							}
 						}
