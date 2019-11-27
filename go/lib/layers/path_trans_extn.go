@@ -12,6 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file implements the path transport end-to-end extension.
+// This extension allows communicating end hosts to pass or update a
+// path. It is designed to transport a forwarding path in the data-plane format.
+// The transported path can be accompanied with a SCION address, to indicate
+// that the end host can be reached via another address and path to support
+// host mobility. The Path field is not mandatory and an empty path can be sent.
+//
+// The format of the extension is the presented below.
+//  0B       1        2        3        4        5        6        7
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  |  222   |  len   |   0    |adr type|       isd       |     as id...    |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  |     (cont., ad id)       |          host addr...                      |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  |     (cont., host addr, var len)   + padding (if necessary)            |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  |    Path (var len) + padding (if necessary)                            |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+
 package layers
 
 import (
@@ -148,10 +167,14 @@ func (o *ExtnPathTrans) String() string {
 	return "E2EPathTrans"
 }
 
+// paddedExtnPldLen computes the padded length to the common.LineLen for an extensin payload.
+// This takes into account the account the 3-byte extension sub header, which is not included in length.
 func paddedExtnPldLen(length int) int {
 	return util.PaddedLen(common.ExtnSubHdrLen+length, common.LineLen) - common.ExtnSubHdrLen
 }
 
+// fillExtnPldPadding fills the padding of an extension payload to the next multiple of common.LineLen,
+// taking into account the 3-byte extension sub header, which is not included in length.
 func fillExtnPldPadding(b common.RawBytes, length int) int {
 	padded := paddedExtnPldLen(length)
 	for i := range b[length:padded] {
