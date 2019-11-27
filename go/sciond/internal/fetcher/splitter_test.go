@@ -156,6 +156,20 @@ func TestRequestSplitter(t *testing.T) {
 				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
 			},
 		},
+		"Up down non-local passes state": {
+			LocalIA: non_core_111,
+			Request: segfetcher.Request{
+				State: segfetcher.Fetch,
+				Src:   non_core_111,
+				Dst:   non_core_211,
+			},
+			ExpectedSet: segfetcher.RequestSet{
+				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
+				Cores: []segfetcher.Request{{Src: isd1, Dst: isd2}},
+				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
+				Fetch: true,
+			},
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {

@@ -123,6 +123,10 @@ func (r *DefaultResolver) Resolve(ctx context.Context, segs Segments,
 func (r *DefaultResolver) resolveUpSegs(ctx context.Context, segs Segments,
 	req RequestSet) (Segments, RequestSet, error) {
 
+	if req.Fetch && req.Up.State == Unresolved {
+		req.Up.State = Fetch
+		return segs, req, nil
+	}
 	var err error
 	segs.Up, req.Up, err = r.resolveSegment(ctx, req.Up, false)
 	return segs, req, err
@@ -131,6 +135,10 @@ func (r *DefaultResolver) resolveUpSegs(ctx context.Context, segs Segments,
 func (r *DefaultResolver) resolveDownSegs(ctx context.Context, segs Segments,
 	req RequestSet) (Segments, RequestSet, error) {
 
+	if req.Fetch && req.Down.State == Unresolved {
+		req.Down.State = Fetch
+		return segs, req, nil
+	}
 	var err error
 	segs.Down, req.Down, err = r.resolveSegment(ctx, req.Down, true)
 	return segs, req, err
@@ -220,11 +228,14 @@ func (r *DefaultResolver) expandNonCoreToCore(segs Segments,
 		// already resolved
 		return req.Cores, nil
 	}
+	if req.Fetch && coreReq.State == Unresolved {
+		coreReq.State = Fetch
+	}
 	upIAs := segs.Up.FirstIAs()
 	coreReqs := make([]Request, 0, len(upIAs))
 	for _, upIA := range upIAs {
 		if !upIA.Equal(coreReq.Dst) {
-			coreReqs = append(coreReqs, Request{Src: upIA, Dst: coreReq.Dst})
+			coreReqs = append(coreReqs, Request{State: coreReq.State, Src: upIA, Dst: coreReq.Dst})
 		}
 	}
 	return coreReqs, nil
@@ -239,11 +250,15 @@ func (r *DefaultResolver) expandCoreToNonCore(segs Segments,
 		// already resolved
 		return req.Cores, nil
 	}
+	if req.Fetch && coreReq.State == Unresolved {
+		coreReq.State = Fetch
+	}
 	downIAs := segs.Down.FirstIAs()
 	coreReqs := make([]Request, 0, len(downIAs))
 	for _, downIA := range downIAs {
 		if !downIA.Equal(coreReq.Src) {
-			coreReqs = append(coreReqs, Request{Src: coreReq.Src, Dst: downIA})
+			coreReqs = append(coreReqs,
+				Request{State: coreReq.State, Src: coreReq.Src, Dst: downIA})
 		}
 	}
 	return coreReqs, nil
@@ -262,13 +277,16 @@ func (r *DefaultResolver) expandNonCoreToNonCore(segs Segments,
 		return nil, serrors.WithCtx(ErrInvalidRequest,
 			"req", req, "reason", "Core either src & dst should be wildcard or none.")
 	}
+	if req.Fetch && coreReq.State == Unresolved {
+		coreReq.State = Fetch
+	}
 	upIAs := segs.Up.FirstIAs()
 	downIAs := segs.Down.FirstIAs()
 	var coreReqs []Request
 	for _, upIA := range upIAs {
 		for _, downIA := range downIAs {
 			if !upIA.Equal(downIA) {
-				coreReqs = append(coreReqs, Request{Src: upIA, Dst: downIA})
+				coreReqs = append(coreReqs, Request{State: coreReq.State, Src: upIA, Dst: downIA})
 			}
 		}
 	}
@@ -282,7 +300,11 @@ func (r *DefaultResolver) resolveCores(ctx context.Context,
 	needsFetching := make(map[Request]bool)
 	for i, coreReq := range req.Cores {
 		if coreReq.State == Fetched {
-			needsFetching[coreReq] = false
+			req.Cores[i].State = Cached
+			continue
+		}
+		if coreReq.State == Fetch {
+			continue
 		}
 		coreFetch, ok := needsFetching[coreReq]
 		if !ok {
