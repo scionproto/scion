@@ -37,15 +37,13 @@ type ScionTaggedLayer struct {
 	layers.Scion
 	tagged
 	options
-	// Tags is just a map of tag to SCION fields, use for GenerateMac or field update.
-	// This is slightly different than the packet layers where the order matters, hence the slice.
-	tags map[string]interface{}
+	tags scionTags
 }
 
 func ScionParser(lines []string) TaggedLayer {
 	// default Scion layer values
 	scn := &ScionTaggedLayer{}
-	scn.tags = make(map[string]interface{})
+	scn.tags = newScionTags()
 
 	//SerializeOptions
 	scn.opts.FixLengths = true
@@ -71,6 +69,20 @@ func (scn *ScionTaggedLayer) Layer() gopacket.Layer {
 
 func (scn *ScionTaggedLayer) Clone() TaggedLayer {
 	clone := *scn
+	// copy scion path
+	path := scn.Path.Clone()
+	clone.Path = *path
+	// update cloned tags to point to the cloned info/hop fields in the path
+	clone.tags = newScionTags()
+	for i := range scn.Path.Segs {
+		seg := scn.Path.Segs[i]
+		tag := scn.tags.getTag(seg.Inf)
+		clone.tags.add(tag, clone.Path.Segs[i].Inf)
+		for j := range seg.Hops {
+			tag := scn.tags.getTag(seg.Hops[j])
+			clone.tags.add(tag, clone.Path.Segs[i].Hops[j])
+		}
+	}
 	return &clone
 }
 
@@ -178,16 +190,17 @@ func (scn *ScionTaggedLayer) updateAddr(kvs propMap) {
 			var dst addr.HostAddr
 			dst = addr.HostSVCFromString(v)
 			if dst == addr.SvcNone {
+				// Try to parse IP address
 				dst = addr.HostFromIPStr(v)
 				if dst == nil {
-					panic(fmt.Errorf("invalid dst host address '%s'", v))
+					dst = layers.HostBad(HexToBytes(v))
 				}
 			}
 			scn.AddrHdr.DstHost = dst
 		case "Src":
 			src := addr.HostFromIPStr(v)
 			if src == nil {
-				panic(fmt.Errorf("invalid src host address '%s'", v))
+				src = layers.HostBad(HexToBytes(v))
 			}
 			scn.AddrHdr.SrcHost = src
 		default:
@@ -201,11 +214,11 @@ func (scn *ScionTaggedLayer) newIF(tag string) {
 	inf := &spath.InfoField{TsInt: shared.TsNow32}
 	seg.Inf = inf
 	scn.Path.Segs = append(scn.Path.Segs, seg)
-	scn.addTag(tag, inf)
+	scn.tags.add(tag, inf)
 }
 
 func (scn *ScionTaggedLayer) updateIF(tag string, kvs propMap) {
-	inf := scn.getTag(tag).(*spath.InfoField)
+	inf := scn.tags.get(tag).(*spath.InfoField)
 	if inf == nil {
 		panic(fmt.Errorf("Invalid IF tag '%s'\n", tag))
 	}
@@ -260,11 +273,11 @@ func (scn *ScionTaggedLayer) newHF(tag string) {
 	hf := &spath.HopField{}
 	hf.Mac = common.RawBytes{0xc0, 0xff, 0xee}
 	seg.Hops = append(seg.Hops, hf)
-	scn.addTag(tag, hf)
+	scn.tags.add(tag, hf)
 }
 
 func (scn *ScionTaggedLayer) updateHF(tag string, kvs propMap) {
-	hf := scn.getTag(tag).(*spath.HopField)
+	hf := scn.tags.get(tag).(*spath.HopField)
 	if hf == nil {
 		panic(fmt.Errorf("Invalid HF tag '%s'\n", tag))
 	}
@@ -314,12 +327,12 @@ func (scn *ScionTaggedLayer) GenerateMac(hMac hash.Hash, infTag, hfTag, hfMacTag
 	if hMac == nil {
 		panic(fmt.Errorf("GenerateMac: Invalid Mac %v", hMac))
 	}
-	inf := scn.getTag(infTag).(*spath.InfoField)
-	hf := scn.getTag(hfTag).(*spath.HopField)
+	inf := scn.tags.get(infTag).(*spath.InfoField)
+	hf := scn.tags.get(hfTag).(*spath.HopField)
 	var hfMac *spath.HopField
 	buf := make(common.RawBytes, spath.HopFieldLength)
 	if hfMacTag != "" {
-		hfMac = scn.getTag(hfMacTag).(*spath.HopField)
+		hfMac = scn.tags.get(hfMacTag).(*spath.HopField)
 		hfMac.Write(buf)
 	}
 	hMac.Reset()
@@ -328,19 +341,43 @@ func (scn *ScionTaggedLayer) GenerateMac(hMac hash.Hash, infTag, hfTag, hfMacTag
 	hf.Mac = hf.CalcMac(hMac, inf.TsInt, buf[1:])
 }
 
-func (scn *ScionTaggedLayer) addTag(tag string, v interface{}) {
-	if _, ok := scn.tags[tag]; ok {
-		panic(fmt.Errorf("Duplicated tag '%s'", tag))
-	}
-	scn.tags[tag] = v
+// Tags is just a map of tag to SCION fields, used for GenerateMac or field update.
+type scionTags map[string]interface{}
+
+func newScionTags() scionTags {
+	return make(map[string]interface{})
 }
 
-func (scn *ScionTaggedLayer) getTag(tag string) interface{} {
+func (tags scionTags) add(tag string, v interface{}) {
+	if _, ok := tags[tag]; ok {
+		panic(fmt.Errorf("Duplicated tag '%s'", tag))
+	}
+	tags[tag] = v
+}
+
+func (tags scionTags) get(tag string) interface{} {
 	if tag == "" {
 		panic(fmt.Errorf("Invalid empty tag"))
 	}
-	if _, ok := scn.tags[tag]; !ok {
+	v, ok := tags[tag]
+	if !ok {
 		panic(fmt.Errorf("Tag '%s' does not exists", tag))
 	}
-	return scn.tags[tag]
+	return v
+}
+
+func (tags scionTags) getTag(v interface{}) string {
+	matchedTags := []string{}
+	for tag, val := range tags {
+		if val == v {
+			matchedTags = append(matchedTags, tag)
+		}
+	}
+	if len(matchedTags) == 0 {
+		panic(fmt.Errorf("No tag for layer '%v'", v))
+	}
+	if len(matchedTags) > 1 {
+		panic(fmt.Errorf("Invalid! multiple tags found for layer '%v'", v))
+	}
+	return matchedTags[0]
 }

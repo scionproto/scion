@@ -77,7 +77,7 @@ func HexToInt(s string) uint {
 func HexToBytes(s string) common.RawBytes {
 	b, err := hex.DecodeString(s)
 	if err != nil {
-		panic(fmt.Sprintf("HexToBytes error converting '%s'\n", b))
+		panic(fmt.Sprintf("HexToBytes error converting '%s'\n", s))
 	}
 	return b
 }
