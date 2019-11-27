@@ -91,7 +91,10 @@ for q in $(bazel query "kind('go_repository rule', //external:*)" --noshow_progr
                           -e "com_github_go_kit_kit" \
                           -e "com_github_davecgh_go_spew" \
                           -e "com_github_cloudflare_sidh" \
-                          -e "org_golang_google_appengine"
+                          -e "org_golang_google_appengine" \
+                          -e "com_github_google_go_containerregistry" \
+                          -e "com_github_onsi_ginkgo" \
+                          -e "com_github_onsi_gomega"
     then
         continue
     fi

@@ -1,6 +1,6 @@
 load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("@package_bundle//file:packages.bzl", "packages")
+load("@package_bundle_debian10//file:packages.bzl", "packages")
 
 # NOTE: In the git repo licenses.tar is an empty tarball.
 # It is replaced by an actual tarball in the base docker image.
@@ -38,7 +38,7 @@ def scion_app_base():
     # Base for prod images.
     container_image(
         name = "app_base",
-        base = "@distroless//base:static",
+        base = "@distroless//base:static_debian9",
         env = env,
         debs = debs,
         tars = [
@@ -51,7 +51,7 @@ def scion_app_base():
     # base for debug images.
     container_image(
         name = "app_base_debug",
-        base = "@distroless//base:debug",
+        base = "@distroless//base:debug_debian9",
         env = env,
         debs = debs,
         tars = [
