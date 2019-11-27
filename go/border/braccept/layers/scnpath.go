@@ -27,14 +27,13 @@ type ScnPath struct {
 	raw  common.RawBytes
 }
 
-func (p *ScnPath) Clone() ScnPath {
-	clone := ScnPath{}
+func (p *ScnPath) Clone() *ScnPath {
+	clone := &ScnPath{}
 	clone.raw = make(common.RawBytes, len(p.raw))
 	copy(clone.raw, p.raw)
 	clone.Segs = make([]*Segment, len(p.Segs))
 	for i := range p.Segs {
-		seg := p.Segs[i].Clone()
-		clone.Segs[i] = &seg
+		clone.Segs[i] = p.Segs[i].Clone()
 	}
 	return clone
 }
@@ -99,8 +98,8 @@ type Segment struct {
 	Hops []*spath.HopField
 }
 
-func (s *Segment) Clone() Segment {
-	clone := Segment{}
+func (s *Segment) Clone() *Segment {
+	clone := &Segment{}
 	inf := *s.Inf
 	clone.Inf = &inf
 	clone.Hops = make([]*spath.HopField, len(s.Hops))
