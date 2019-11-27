@@ -378,8 +378,8 @@ def go_deps():
     go_repository(
         name = "com_github_songgao_water",
         importpath = "github.com/songgao/water",
-        sum = "h1:ubYDIJXsE4CmJ0CB0j57XpQ4s8hdxQhnl/OOpe9EA8s=",
-        version = "v0.0.0-20170524165202-99d07fc117af",
+        sum = "h1:+y4hCMc/WKsDbAPsOQZgBSaSZ26uh2afyaWeVg/3s/c=",
+        version = "v0.0.0-20190725173103-fd331bda3f4b",
     )
     go_repository(
         name = "com_github_spf13_cobra",

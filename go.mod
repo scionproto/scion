@@ -35,7 +35,7 @@ require (
 	github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d
 	github.com/smartystreets/goconvey v1.6.4
-	github.com/songgao/water v0.0.0-20170524165202-99d07fc117af
+	github.com/songgao/water v0.0.0-20190725173103-fd331bda3f4b
 	github.com/spf13/cobra v0.0.3-0.20180408161736-cd30c2a7e91a
 	github.com/spf13/pflag v1.0.1-0.20180403115518-1ce0cc6db402 // indirect
 	github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709
