@@ -70,17 +70,17 @@ func (scn *ScionTaggedLayer) Layer() gopacket.Layer {
 func (scn *ScionTaggedLayer) Clone() TaggedLayer {
 	clone := *scn
 	// copy scion path
-	clone.Path = scn.Path.Clone()
-	// copy tags, assumes that the scion header fields have already been cloned
+	path := scn.Path.Clone()
+	clone.Path = *path
+	// update cloned tags to point to the cloned info/hop fields in the path
 	clone.tags = newScionTags()
-	for k, v := range scn.tags.toIndex {
-		clone.tags.toIndex[k] = v
-	}
-	for i := range clone.Path.Segs {
-		seg := clone.Path.Segs[i]
-		clone.tags.fields = append(clone.tags.fields, seg.Inf)
+	for i := range scn.Path.Segs {
+		seg := scn.Path.Segs[i]
+		tag := scn.tags.getTag(seg.Inf)
+		clone.tags.add(tag, clone.Path.Segs[i].Inf)
 		for j := range seg.Hops {
-			clone.tags.fields = append(clone.tags.fields, seg.Hops[j])
+			tag := scn.tags.getTag(seg.Hops[j])
+			clone.tags.add(tag, clone.Path.Segs[i].Hops[j])
 		}
 	}
 	return &clone
@@ -342,33 +342,42 @@ func (scn *ScionTaggedLayer) GenerateMac(hMac hash.Hash, infTag, hfTag, hfMacTag
 }
 
 // Tags is just a map of tag to SCION fields, used for GenerateMac or field update.
-type scionTags struct {
-	fields  []interface{}
-	toIndex map[string]int
-}
+type scionTags map[string]interface{}
 
 func newScionTags() scionTags {
-	tags := scionTags{}
-	tags.fields = []interface{}{}
-	tags.toIndex = make(map[string]int)
-	return tags
+	return make(map[string]interface{})
 }
 
-func (tags *scionTags) add(tag string, v interface{}) {
-	if _, ok := tags.toIndex[tag]; ok {
+func (tags scionTags) add(tag string, v interface{}) {
+	if _, ok := tags[tag]; ok {
 		panic(fmt.Errorf("Duplicated tag '%s'", tag))
 	}
-	tags.toIndex[tag] = len(tags.fields)
-	tags.fields = append(tags.fields, v)
+	tags[tag] = v
 }
 
-func (tags *scionTags) get(tag string) interface{} {
+func (tags scionTags) get(tag string) interface{} {
 	if tag == "" {
 		panic(fmt.Errorf("Invalid empty tag"))
 	}
-	index, ok := tags.toIndex[tag]
+	v, ok := tags[tag]
 	if !ok {
 		panic(fmt.Errorf("Tag '%s' does not exists", tag))
 	}
-	return tags.fields[index]
+	return v
+}
+
+func (tags scionTags) getTag(v interface{}) string {
+	matchedTags := []string{}
+	for tag, val := range tags {
+		if val == v {
+			matchedTags = append(matchedTags, tag)
+		}
+	}
+	if len(matchedTags) == 0 {
+		panic(fmt.Errorf("No tag for layer '%v'", v))
+	}
+	if len(matchedTags) > 1 {
+		panic(fmt.Errorf("Invalid! multiple tags found for layer '%v'", v))
+	}
+	return matchedTags[0]
 }
