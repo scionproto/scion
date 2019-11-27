@@ -270,7 +270,7 @@ type pathWrap struct {
 	snet.Path
 }
 
-func (p pathWrap) Key() string { return p.Fingerprint() }
+func (p pathWrap) Key() snet.PathFingerprint { return p.Fingerprint() }
 func (p pathWrap) Interfaces() []pathpol.PathInterface {
 	intfs := make([]pathpol.PathInterface, 0, len(p.Path.Interfaces()))
 	for _, intf := range p.Path.Interfaces() {

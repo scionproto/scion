@@ -66,7 +66,7 @@ func mustIfID(t testing.TB, s string) common.IFIDType {
 	return common.IFIDType(ifID)
 }
 
-func fingerprint(interfaces []snet.PathInterface) string {
+func fingerprint(interfaces []snet.PathInterface) snet.PathFingerprint {
 	if len(interfaces) == 0 {
 		return ""
 	}
@@ -75,7 +75,7 @@ func fingerprint(interfaces []snet.PathInterface) string {
 		binary.Write(h, common.Order, intf.IA().IAInt())
 		binary.Write(h, common.Order, intf.ID())
 	}
-	return string(h.Sum(nil))
+	return snet.PathFingerprint(h.Sum(nil))
 }
 
 type intf struct {

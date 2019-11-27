@@ -23,6 +23,12 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
+type PathFingerprint string
+
+func (pf PathFingerprint) String() string {
+	return common.RawBytes(pf).String()
+}
+
 // Path is an abstract representation of a path. Most applications do not need
 // access to the raw internals.
 //
@@ -35,7 +41,7 @@ type Path interface {
 	// Fingerprint uniquely identifies the path based on the sequence of
 	// ASes and BRs. Other metadata, such as MTU or NextHop have no effect
 	// on the fingerprint. Empty string means unknown fingerprint.
-	Fingerprint() string
+	Fingerprint() PathFingerprint
 	// OverlayNextHop returns the address:port pair of a local-AS overlay
 	// speaker. Usually, this is a border router that will forward the traffic.
 	OverlayNextHop() *net.UDPAddr
@@ -75,7 +81,7 @@ type partialPath struct {
 	destination addr.IA
 }
 
-func (p *partialPath) Fingerprint() string {
+func (p *partialPath) Fingerprint() PathFingerprint {
 	return ""
 }
 

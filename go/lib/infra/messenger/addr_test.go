@@ -203,7 +203,7 @@ func TestBuildFullAddress(t *testing.T) {
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Path().Return(&spath.Path{})
 		path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{})
-		path.EXPECT().Fingerprint().Return("foo")
+		path.EXPECT().Fingerprint().Return(snet.PathFingerprint("foo"))
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		input := &snet.Addr{
 			IA:   remoteIA,
@@ -441,7 +441,7 @@ func initResolver(resolver *mock_messenger.MockResolver, f func(*mock_messenger.
 
 type testPath struct{}
 
-func (t *testPath) Fingerprint() string {
+func (t *testPath) Fingerprint() snet.PathFingerprint {
 	panic("not implemented")
 }
 

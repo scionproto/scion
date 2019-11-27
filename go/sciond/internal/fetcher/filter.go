@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/pathpol"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // Policy is a filter on path sets.
@@ -51,7 +52,7 @@ func psToPaths(ps pathpol.PathSet) []*combinator.Path {
 }
 
 type pathWrap struct {
-	key      string
+	key      snet.PathFingerprint
 	intfs    []pathpol.PathInterface
 	origPath *combinator.Path
 }
@@ -64,11 +65,11 @@ func newPathWrap(p *combinator.Path) pathWrap {
 		keyParts = append(keyParts, fmt.Sprintf("%s#%d", intf.IA(), intf.ID()))
 	}
 	return pathWrap{
-		key:      strings.Join(keyParts, " "),
+		key:      snet.PathFingerprint(strings.Join(keyParts, " ")),
 		intfs:    intfs,
 		origPath: p,
 	}
 }
 
 func (p pathWrap) Interfaces() []pathpol.PathInterface { return p.intfs }
-func (p pathWrap) Key() string                         { return p.key }
+func (p pathWrap) Key() snet.PathFingerprint           { return p.key }

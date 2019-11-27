@@ -135,7 +135,7 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 	return p, nil
 }
 
-func (p Path) Fingerprint() string {
+func (p Path) Fingerprint() snet.PathFingerprint {
 	if len(p.interfaces) == 0 {
 		return ""
 	}
@@ -144,7 +144,7 @@ func (p Path) Fingerprint() string {
 		binary.Write(h, common.Order, intf.IA().IAInt())
 		binary.Write(h, common.Order, intf.ID())
 	}
-	return string(h.Sum(nil))
+	return snet.PathFingerprint(h.Sum(nil))
 }
 
 func (p Path) OverlayNextHop() *net.UDPAddr {

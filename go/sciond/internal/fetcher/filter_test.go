@@ -59,7 +59,7 @@ func TestFilter(t *testing.T) {
 				pol.EXPECT().Filter(gomock.Any()).DoAndReturn(
 					func(paths pathpol.PathSet) pathpol.PathSet {
 						for key := range paths {
-							if strings.Contains(key, "120") {
+							if strings.Contains(string(key), "120") {
 								delete(paths, key)
 							}
 						}

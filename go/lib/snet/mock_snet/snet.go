@@ -507,10 +507,10 @@ func (mr *MockPathMockRecorder) Expiry() *gomock.Call {
 }
 
 // Fingerprint mocks base method
-func (m *MockPath) Fingerprint() string {
+func (m *MockPath) Fingerprint() snet.PathFingerprint {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Fingerprint")
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(snet.PathFingerprint)
 	return ret0
 }
 

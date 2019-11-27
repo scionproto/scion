@@ -24,14 +24,14 @@ import (
 
 const pathFailExpiration = 5 * time.Minute
 
-type SessPathPool map[string]*SessPathStats
+type SessPathPool map[snet.PathFingerprint]*SessPathStats
 
 func NewSessPathPool() *SessPathPool {
 	return &SessPathPool{}
 }
 
 // Get returns the most suitable path. Excludes a specific path, if possible.
-func (spp SessPathPool) Get(exclude string) *SessPath {
+func (spp SessPathPool) Get(exclude snet.PathFingerprint) *SessPath {
 	var bestSessPath *SessPathStats
 	var minFail uint16 = math.MaxUint16
 	var bestNonExpiringSessPath *SessPathStats
@@ -66,7 +66,7 @@ func (spp SessPathPool) Get(exclude string) *SessPath {
 	return res.SessPath
 }
 
-func (spp SessPathPool) GetByKey(key string) *SessPath {
+func (spp SessPathPool) GetByKey(key snet.PathFingerprint) *SessPath {
 	res := spp[key]
 	if res == nil {
 		return nil
@@ -86,10 +86,10 @@ func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
 		}
 	}
 	for key, path := range aps {
-		e, ok := spp[string(key)]
+		e, ok := spp[key]
 		if !ok {
 			// This is a new path, add an entry.
-			spp[string(key)] = newSessPathStats(string(key), path)
+			spp[key] = newSessPathStats(key, path)
 		} else {
 			// This path already exists, update it.
 			e.SessPath.path = path
@@ -129,7 +129,7 @@ type SessPathStats struct {
 	failCount uint16
 }
 
-func newSessPathStats(key string, path snet.Path) *SessPathStats {
+func newSessPathStats(key snet.PathFingerprint, path snet.Path) *SessPathStats {
 	return &SessPathStats{
 		SessPath: NewSessPath(key, path),
 		lastFail: time.Now(),
