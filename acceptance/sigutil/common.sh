@@ -52,4 +52,10 @@ reload_sig() {
     ./tools/dc scion exec -T scion_sig_"$1" kill -SIGHUP "$id"
     # Wait till the new config takes effect.
     sleep 3
+    # Make sure that the reload actually happened.
+    COUNT=$(grep --text ".*Config reloaded.*" "logs/sig$1.log" | wc -l)
+    if [ "$COUNT" != "$2" ]; then
+            echo "Expected $2 config reloads, found $COUNT."
+        exit 1
+    fi
 }

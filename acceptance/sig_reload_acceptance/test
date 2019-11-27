@@ -16,12 +16,12 @@ test_run() {
     # Remove $DST_IA from sig.json
     HOP_JSON=$(jq -c ".ASes.\"$DST_IA\"" $SIG_JSON)
     jq "del(.ASes.\"$DST_IA\")" $SIG_JSON | sponge $SIG_JSON
-    reload_sig "$SRC_IA_FILE"
+    reload_sig "$SRC_IA_FILE" 2
     # Must fail
     ./bin/sig_ping_acceptance -d -src $SRC_IA -dst $DST_IA || [ $? -eq 1 ]
     # Add $DST_IA again to sig.json
     jq ".ASes.\"$DST_IA\" = $HOP_JSON" $SIG_JSON | sponge $SIG_JSON
-    reload_sig "$SRC_IA_FILE"
+    reload_sig "$SRC_IA_FILE" 3
     # should work again
     ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
 }
