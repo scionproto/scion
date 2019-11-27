@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -135,14 +134,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if req.Dst.IA().Equal(f.topology.IA()) {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorOk), nil
 	}
-	if req.Flags.Refresh {
-		// This is a workaround for https://github.com/scionproto/scion/issues/1876
-		err := f.flushSegmentsWithFirstHopInterfaces(ctx)
-		if err != nil {
-			f.logger.Error("Failed to flush segments with first hop interfaces", "err", err)
-			// continue anyway, things might still work out for the client.
-		}
-	}
+
 	// A ISD-0 destination should not require a TRC lookup in sciond, it could lead to a
 	// lookup loop: If sciond doesn't have the TRC, it would ask the CS, the CS would try to connect
 	// to the CS in the destination ISD and for that it will ask sciond for paths to ISD-0.
@@ -151,8 +143,11 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// which will forward the query to a ISD-local core PS, so there won't be
 	// any loop.
 
-	segs, err := f.segfetcher.FetchSegs(ctx,
-		segfetcher.Request{Src: req.Src.IA(), Dst: req.Dst.IA()})
+	segReq := segfetcher.Request{Src: req.Src.IA(), Dst: req.Dst.IA()}
+	if req.Flags.Refresh {
+		segReq.State = segfetcher.Fetch
+	}
+	segs, err := f.segfetcher.FetchSegs(ctx, segReq)
 	if err != nil {
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
 	}
@@ -274,42 +269,6 @@ func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
 	f.logger.Trace("Filtered paths with revocations",
 		"paths", prevPaths, "nonrevoked", len(newPaths))
 	return newPaths, nil
-}
-
-func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context) error {
-	ifIDs := f.topology.InterfaceIDs()
-	intfs := make([]*query.IntfSpec, len(ifIDs))
-	for i, ifID := range ifIDs {
-		intfs[i] = &query.IntfSpec{
-			IA:   f.topology.IA(),
-			IfID: ifID,
-		}
-	}
-	q := &query.Params{
-		Intfs: intfs,
-	}
-	// this is a bit involved, we have to delete the next query cache,
-	// otherwise it could be that next query is in the future but we don't have
-	// any segments stored. Note that just deleting nextquery with start or end
-	// IA equal to local IA is not enough, e.g. down segments can actually pass
-	// through our AS but neither end nor start in our AS.
-	tx, err := f.pathDB.BeginTransaction(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	res, err := tx.Get(ctx, q)
-	if err != nil {
-		return err
-	}
-	if err := segfetcher.DeleteNextQueryEntries(ctx, tx, res); err != nil {
-		return err
-	}
-	_, err = tx.Delete(ctx, q)
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 func (f *fetcherHandler) buildPathsToAllDsts(req *sciond.PathReq,

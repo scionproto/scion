@@ -693,6 +693,67 @@ func TestResolver(t *testing.T) {
 	}
 }
 
+func TestResolverCacheBypass(t *testing.T) {
+	rootCtrl := gomock.NewController(t)
+	defer rootCtrl.Finish()
+	tg := newTestGraph(rootCtrl)
+	// futureT := time.Now().Add(2 * time.Minute)
+
+	tests := map[string]resolverTest{
+		"Up(cache-bypass) Core Down(cache-bypass)": {
+			Req: segfetcher.RequestSet{
+				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
+				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
+				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111},
+				Fetch: true,
+			},
+			ExpectCalls:      func(db *mock_pathdb.MockPathDB) {},
+			ExpectedSegments: segfetcher.Segments{},
+			ExpectedReqSet: segfetcher.RequestSet{
+				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Fetch},
+				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
+				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Fetch},
+				Fetch: true,
+			},
+		},
+		"Up(fetched) Core Down(fetched)": {
+			Req: segfetcher.RequestSet{
+				Up:    segfetcher.Request{State: segfetcher.Fetched, Src: non_core_211, Dst: isd2},
+				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
+				Down:  segfetcher.Request{State: segfetcher.Fetched, Src: isd1, Dst: non_core_111},
+				Fetch: true,
+			},
+			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
+				// cached up segments
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
+					SegTypes: []proto.PathSegType{proto.PathSegType_up},
+					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
+				})).Return(resultsFromSegs(tg.seg210_211), nil)
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
+					SegTypes: []proto.PathSegType{proto.PathSegType_down},
+					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
+				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
+			},
+			ExpectedSegments: segfetcher.Segments{
+				Up:   seg.Segments{tg.seg210_211},
+				Down: seg.Segments{tg.seg120_111, tg.seg130_111},
+			},
+			ExpectedReqSet: segfetcher.RequestSet{
+				Up: segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Loaded},
+				Cores: []segfetcher.Request{
+					{Src: core_210, Dst: core_120, State: segfetcher.Fetch},
+					{Src: core_210, Dst: core_130, State: segfetcher.Fetch},
+				},
+				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Loaded},
+				Fetch: true,
+			},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, test.run)
+	}
+}
+
 func TestResolverWithRevocations(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
 	defer rootCtrl.Finish()

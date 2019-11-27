@@ -20,7 +20,6 @@ go_library(
         "//go/lib/infra/modules/segfetcher:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathdb:go_default_library",
-        "//go/lib/pathdb/query:go_default_library",
         "//go/lib/pathpol:go_default_library",
         "//go/lib/revcache:go_default_library",
         "//go/lib/sciond:go_default_library",

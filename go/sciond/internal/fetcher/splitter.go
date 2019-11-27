@@ -55,22 +55,31 @@ func (s *sciondRequestSplitter) Split(ctx context.Context,
 			Up:    segfetcher.Request{Src: r.Src, Dst: s.toWildCard(r.Src)},
 			Cores: []segfetcher.Request{{Src: s.toWildCard(r.Src), Dst: s.toWildCard(r.Dst)}},
 			Down:  segfetcher.Request{Src: s.toWildCard(r.Dst), Dst: r.Dst},
+			Fetch: r.State == segfetcher.Fetch,
 		}, nil
 	case !srcCore && dstCore:
 		if s.isISDLocal(r.Dst) && s.isWildCard(r.Dst) {
-			return segfetcher.RequestSet{Up: r}, nil
+			return segfetcher.RequestSet{
+				Up:    r,
+				Fetch: r.State == segfetcher.Fetch,
+			}, nil
 		}
 		return segfetcher.RequestSet{
 			Up:    segfetcher.Request{Src: r.Src, Dst: s.toWildCard(r.Src)},
 			Cores: []segfetcher.Request{{Src: s.toWildCard(r.Src), Dst: r.Dst}},
+			Fetch: r.State == segfetcher.Fetch,
 		}, nil
 	case srcCore && !dstCore:
 		return segfetcher.RequestSet{
 			Cores: []segfetcher.Request{{Src: r.Src, Dst: s.toWildCard(r.Dst)}},
 			Down:  segfetcher.Request{Src: s.toWildCard(r.Dst), Dst: r.Dst},
+			Fetch: r.State == segfetcher.Fetch,
 		}, nil
 	default:
-		return segfetcher.RequestSet{Cores: []segfetcher.Request{r}}, nil
+		return segfetcher.RequestSet{
+			Cores: []segfetcher.Request{r},
+			Fetch: r.State == segfetcher.Fetch,
+		}, nil
 	}
 }
 
