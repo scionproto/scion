@@ -66,6 +66,9 @@ type RequestSet struct {
 	Up    Request
 	Cores Requests
 	Down  Request
+	// Fetch indicates the request should always be fetched from remote,
+	// regardless of whether is is cached.
+	Fetch bool
 }
 
 // IsLoaded returns true if all non-zero requests in the set are in state

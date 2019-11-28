@@ -84,7 +84,7 @@ func (cfg FetcherConfig) New() *Fetcher {
 	return &Fetcher{
 		Validator: cfg.Validator,
 		Splitter:  cfg.Splitter,
-		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache, !cfg.SciondMode),
+		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache),
 		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
 		ReplyHandler: &seghandler.Handler{
 			Verifier: &seghandler.DefaultVerifier{Verifier: cfg.VerificationFactory.NewVerifier()},
