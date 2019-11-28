@@ -104,6 +104,13 @@ dpkg_list(
         "netbase",
         "openssl",
         "tzdata",
+        # Needed by sig acceptance
+        "iputils-ping",
+        "libidn11",
+        "libnettle6",
+        "iproute2",
+        "libelf1",
+        "libmnl0",
     ],
     sources = [
         "@debian_stretch_security//file:Packages.json",
@@ -148,6 +155,15 @@ dpkg_list(
         "@debian10_security//file:Packages.json",
         "@debian10//file:Packages.json",
     ],
+)
+
+load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
+
+container_pull(
+    name = "ubuntu16",
+    registry = "index.docker.io",
+    repository = "library/ubuntu",
+    tag = "16.04",
 )
 
 # su-exec (used in app docker images)

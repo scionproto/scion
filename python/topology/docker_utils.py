@@ -1,4 +1,5 @@
 # Copyright 2018 ETH Zurich
+# Copyright 2019 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -73,7 +74,7 @@ class DockerUtilsGenerator(object):
 
     def _test_conf(self, topo_id):
         docker = 'docker_' if self.args.in_docker else ''
-        cntr_base = '/home/scion/go/src/github.com/scionproto/scion'
+        cntr_base = '/share'
         name = 'tester_%s' % topo_id.file_fmt()
         entry = {
             'image': docker_image(self.args, 'tester'),
