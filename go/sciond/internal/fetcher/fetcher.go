@@ -80,6 +80,7 @@ func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore Trus
 			Splitter:            NewRequestSplitter(localIA, trustStore),
 			SciondMode:          true,
 			MetricsNamespace:    metrics.Namespace,
+			LocalInfo:           neverLocal{},
 		}.New(),
 	}
 }
@@ -323,3 +324,7 @@ type dstProvider struct {
 func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, error) {
 	return &snet.Addr{IA: r.IA, Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}, nil
 }
+
+type neverLocal struct{}
+
+func (neverLocal) IsSegLocal(_ context.Context, _, _ addr.IA) (bool, error) { return false, nil }
