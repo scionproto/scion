@@ -9,7 +9,8 @@ import (
 	"github.com/scionproto/scion/go/lib/svc"
 )
 
-func (r AddressRewriter) BuildFullAddress(ctx context.Context, a net.Addr) (net.Addr, error) {
+func (r AddressRewriter) BuildFullAddress(ctx context.Context,
+	a *snet.SVCAddr) (*snet.SVCAddr, error) {
 	return r.buildFullAddress(ctx, a)
 }
 

@@ -48,6 +48,27 @@ func (a *Addr) ToNetUDPAddr() *net.UDPAddr {
 	return nil
 }
 
+func newAddr(ia addr.IA, p *spath.Path, nh *net.UDPAddr) *Addr {
+	return &Addr{
+		IA:      ia,
+		Path:    p,
+		NextHop: nh,
+	}
+}
+
+// ToXAddr returns an snet.{SVC,UDP}addr.
+// TODO(karampok): Remove this once snet.Addr is removed.
+func (a *Addr) ToXAddr() net.Addr {
+	switch a.Host.L3.Type() {
+	case addr.HostTypeSVC:
+		return NewSVCAddr(a.IA, a.Path, a.NextHop, a.Host.L3.(addr.HostSVC))
+	case addr.HostTypeIPv4, addr.HostTypeIPv6:
+		u := &net.UDPAddr{IP: a.Host.L3.IP(), Port: int(a.Host.L4)}
+		return NewUDPAddr(a.IA, a.Path, a.NextHop, u)
+	}
+	return &net.TCPAddr{} //TODO(karampok). discuss: return nil
+}
+
 func (a *Addr) Network() string {
 	return "scion"
 }

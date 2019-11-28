@@ -16,6 +16,7 @@ package messenger
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -69,92 +70,91 @@ type AddressRewriter struct {
 // QUIC-compatible and we have successfully discovered its address.
 //
 // If the address is already unicast, no redirection to QUIC is attempted.
-func (r AddressRewriter) RedirectToQUIC(ctx context.Context, a net.Addr) (net.Addr, bool, error) {
+func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
+	address net.Addr) (net.Addr, bool, error) {
+	logger := log.FromCtx(ctx)
 
 	// FIXME(scrye): This is not legitimate use. It's only included for
 	// compatibility with older unit tests. See
 	// https://github.com/scionproto/scion/issues/2611.
-	if a == nil || r.SVCResolutionFraction <= 0.0 {
+	if address == nil || r.SVCResolutionFraction <= 0.0 {
+		return address, false, nil
+	}
+
+	switch a := address.(type) {
+	case *snet.UDPAddr:
 		return a, false, nil
+	case *snet.Addr:
+		logger.Trace("Legacy snet.Addr is still being used", "addr", fmt.Sprintf("%v(%T)", a, a))
+		return r.RedirectToQUIC(ctx, a.ToXAddr())
+	case *snet.SVCAddr:
+
+		fa, err := r.buildFullAddress(ctx, a)
+		if err != nil {
+			return nil, false, err
+		}
+
+		path, err := fa.GetPath()
+		if err != nil {
+			return nil, false, common.NewBasicError("bad path", err)
+		}
+
+		// During One-Hop Path operation, use SVC resolution to also bootstrap the path.
+		p, u, quicRedirect, err := r.resolveSVC(ctx, path, fa.SVC)
+		if err != nil {
+			if r.SVCResolutionFraction < 1.0 {
+				// SVC resolution failed but we allow legacy behavior and have some
+				// fraction of the timeout left for data transfers, so return
+				// address with SVC destination still set
+				logger.Trace("Falling back to legacy mode, ignore error", "err", err)
+				return fa, false, nil
+			}
+			return a, false, err
+		}
+
+		ret := snet.NewUDPAddr(fa.IA, p.Path(), fa.NextHop, u)
+		return ret, quicRedirect, err
 	}
 
-	// If already of type UDPAddr then return
-	if v, ok := a.(*snet.Addr); ok && v.Host.L3.Type() != addr.HostTypeSVC {
-		return a, false, nil
-	}
-
-	t, err := r.buildFullAddress(ctx, a)
-	if err != nil {
-		return nil, false, err
-	}
-
-	fullAddress, ok := t.(*snet.Addr)
-	if !ok {
-		return nil, false, common.NewBasicError("address type not supported", nil, "addr", a)
-	}
-	path, err := fullAddress.GetPath()
-	if err != nil {
-		return nil, false, common.NewBasicError("bad path", err)
-	}
-
-	v, ok := fullAddress.Host.L3.(addr.HostSVC)
-	if !ok { //if not SVC
-		return fullAddress, false, nil
-	}
-
-	// During One-Hop Path operation, use SVC resolution to also bootstrap the path.
-	p, u, quicRedirect, err := r.resolveSVC(ctx, path, v)
-	if p != nil {
-		fullAddress.Path = p.Path()
-	}
-	if u != nil {
-		fullAddress.Host = addr.AppAddrFromUDP(u)
-	}
-
-	return fullAddress, quicRedirect, err
+	return nil, false, common.NewBasicError("address type not supported", nil,
+		"addr", fmt.Sprintf("%v(%T)", address, address))
 }
 
 // buildFullAddress checks that a is a well-formed address (all fields set,
 // non-nil, only supported protocols). If the path is missing, the path and
 // next-hop are added by performing a routing lookup. The returned address is
 // always a copy, and the input address is guaranteed to not change.
-func (r AddressRewriter) buildFullAddress(ctx context.Context, a net.Addr) (net.Addr, error) {
-	snetAddr, ok := a.(*snet.Addr)
-	if !ok {
-		return nil, common.NewBasicError("address type not supported", nil, "addr", a)
-	}
-	if snetAddr.Host == nil {
-		return nil, common.NewBasicError("host address not specified", nil, "addr", snetAddr)
-	}
-	if snetAddr.Host.L3 == nil {
-		return nil, common.NewBasicError("host address missing L3 address", nil, "addr", snetAddr)
-	}
-	if t := snetAddr.Host.L3.Type(); !addr.HostTypeCheck(t) {
-		return nil, common.NewBasicError("host address L3 address not supported", nil, "type", t)
-	}
-	newAddr := snetAddr.Copy()
+func (r AddressRewriter) buildFullAddress(ctx context.Context,
+	s *snet.SVCAddr) (*snet.SVCAddr, error) {
 
-	defer func() {
-		log.Trace("[Acceptance]", "overlay", newAddr.NextHop)
-	}()
-	if newAddr.Path == nil {
-		p, err := r.Router.Route(ctx, newAddr.IA)
-		if err != nil {
-			return nil, err
-		}
-		newAddr.Path = p.Path()
-		newAddr.NextHop = p.OverlayNextHop()
-		// SVC addresses in the local AS get resolved via topology lookup
-		if svc, ok := newAddr.Host.L3.(addr.HostSVC); ok && p.Fingerprint() == "" {
-			ov, err := r.SVCRouter.GetOverlay(svc)
-			if err != nil {
-				return nil, common.NewBasicError("Unable to resolve overlay", err)
-			}
-			newAddr.NextHop = ov
-			return newAddr, nil
-		}
+	if s.Path != nil {
+		ret := snet.NewSVCAddr(s.IA, s.Path.Copy(), snet.CopyUDPAddr(s.NextHop), s.SVC)
+		log.Trace("[Acceptance]", "overlay", ret.NextHop)
+		return ret, nil
 	}
-	return newAddr, nil
+
+	ret := snet.NewSVCAddr(s.IA, nil, nil, s.SVC)
+	p, err := r.Router.Route(ctx, s.IA)
+	if err != nil {
+		return nil, err
+	}
+
+	ret.Path = p.Path()
+	ret.NextHop = p.OverlayNextHop()
+	defer func() {
+		log.Trace("[Acceptance]", "overlay", ret.NextHop)
+	}()
+
+	// SVC addresses in the local AS get resolved via topology lookup
+	if p.Fingerprint() == "" { //when local AS
+		ov, err := r.SVCRouter.GetOverlay(s.SVC)
+		if err != nil {
+			return nil, common.NewBasicError("Unable to resolve overlay", err)
+		}
+		ret.NextHop = ov
+	}
+
+	return ret, nil
 }
 
 // resolveSVC performs SVC resolution and returns an UDP/IP address. If the UDP/IP
@@ -179,15 +179,6 @@ func (r AddressRewriter) resolveSVC(ctx context.Context, p snet.Path,
 	reply, err := r.Resolver.LookupSVC(ctx, p, s)
 	if err != nil {
 		logger.Trace("SVC resolution failed", "err", err)
-		if r.SVCResolutionFraction < 1.0 {
-			// SVC resolution failed but we allow legacy behavior and have some
-			// fraction of the timeout left for data transfers, so return
-			// address with SVC destination still set
-			logger.Trace("Falling back to legacy mode, ignore error", "err", err)
-			return nil, nil, false, nil
-		}
-		// Legacy behavior is disallowed, so propagate a hard failure back to the app.
-		logger.Trace("Legacy mode disabled, propagate error", "err", err)
 		return nil, nil, false, err
 	}
 

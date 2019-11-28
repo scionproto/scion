@@ -57,7 +57,16 @@ type Handler struct {
 }
 
 func (h *Handler) Handle(r *infra.Request) *infra.HandlerResult {
-	addr := r.Peer.(*snet.Addr)
+	var addr *snet.Addr
+	switch peer := r.Peer.(type) {
+	case *snet.Addr:
+		addr = peer
+	case *snet.UDPAddr:
+		addr = peer.ToAddr()
+	case *snet.SVCAddr:
+		addr = peer.ToAddr()
+	}
+
 	req := r.Message.(*cert_mgmt.ChainIssReq)
 	if err := h.handle(r, addr, req); err != nil {
 		log.Error("[reiss.Handler] Dropping certificate reissue request",

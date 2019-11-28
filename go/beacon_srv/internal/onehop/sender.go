@@ -172,13 +172,8 @@ func (s *BeaconSender) attemptQUIC(ctx context.Context, ia addr.IA, path *spath.
 		return false, nil
 	}
 
-	newAddr, redirect, err := s.AddressRewriter.RedirectToQUIC(ctx,
-		&snet.Addr{
-			IA:      ia,
-			Path:    path,
-			NextHop: nextHop,
-			Host:    addr.NewSVCUDPAppAddr(addr.SvcBS),
-		})
+	t := snet.NewSVCAddr(ia, path, nextHop, addr.SvcBS)
+	newAddr, redirect, err := s.AddressRewriter.RedirectToQUIC(ctx, t)
 
 	if err != nil || !redirect {
 		log.Trace("Beaconing could not be upgraded to QUIC, using UDP", "remote", newAddr)

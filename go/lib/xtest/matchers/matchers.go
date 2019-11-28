@@ -44,7 +44,7 @@ func IsSnetAddrWithIA(ia addr.IA) gomock.Matcher {
 }
 
 func (m *addrIAMatcher) Matches(x interface{}) bool {
-	sAddr, ok := x.(*snet.Addr)
+	sAddr, ok := x.(*snet.SVCAddr)
 	if !ok {
 		return false
 	}

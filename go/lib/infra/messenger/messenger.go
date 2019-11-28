@@ -347,7 +347,8 @@ func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFState
 	}
 	// FIXME(scrye): Use only UDP because the BR doesn't support QUIC.
 	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.IfStateInfos, "to", a, "id", id)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.IfStateInfos,
+		"to", a, "id", id)
 	return m.getFallbackRequester(infra.SegReply).Notify(ctx, pld, a)
 }
 
@@ -675,12 +676,17 @@ func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 }
 
 func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error {
-	if svc, ok := a.(*snet.Addr).Host.L3.(addr.HostSVC); ok {
+	logger := log.FromCtx(ctx)
+	switch a.(type) {
+	case *snet.Addr:
+	case *snet.UDPAddr:
+	case *snet.SVCAddr:
 		return common.NewBasicError("[Messenger] Cannot send to SVC address on QUIC-only RPC", nil,
-			"svc", svc)
+			"svc", a.(*snet.SVCAddr).Host)
+	default:
+		return common.NewBasicError("[Messenger] Cannot send to unknown address", nil)
 	}
 
-	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
 	if err != nil {
 		return err

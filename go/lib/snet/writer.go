@@ -17,6 +17,7 @@ package snet
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -76,12 +77,18 @@ func (c *scionConnWriter) WriteToSCION(b []byte, raddr *Addr) (int, error) {
 	return c.write(b, raddr)
 }
 
-func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
-	sraddr, ok := raddr.(*Addr)
-	if !ok {
-		return 0, common.NewBasicError("Unable to write to non-SCION address", nil, "addr", raddr)
+func (c *scionConnWriter) WriteTo(b []byte, a net.Addr) (int, error) {
+	switch addr := a.(type) {
+	case *Addr:
+		return c.WriteToSCION(b, addr)
+	case *UDPAddr:
+		return c.WriteToSCION(b, addr.ToAddr())
+	case *SVCAddr:
+		return c.WriteToSCION(b, addr.ToAddr())
+	default:
+		return 0, common.NewBasicError("Unable to write to non-SCION address", nil,
+			"addr", fmt.Sprintf("%v(%T)", a, a))
 	}
-	return c.WriteToSCION(b, sraddr)
 }
 
 // Write sends b through a connection with fixed remote address. If the remote
