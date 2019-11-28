@@ -167,14 +167,16 @@ func (o *ExtnPathTrans) String() string {
 	return "E2EPathTrans"
 }
 
-// paddedExtnPldLen computes the padded length to the common.LineLen for an extensin payload.
-// This takes into account the account the 3-byte extension sub header, which is not included in length.
+// paddedExtnPldLen computes the padded length to the common.LineLen for an
+// extensin payload. This takes into account the account the 3-byte extension
+// sub header, which is not included in length.
 func paddedExtnPldLen(length int) int {
 	return util.PaddedLen(common.ExtnSubHdrLen+length, common.LineLen) - common.ExtnSubHdrLen
 }
 
-// fillExtnPldPadding fills the padding of an extension payload to the next multiple of common.LineLen,
-// taking into account the 3-byte extension sub header, which is not included in length.
+// fillExtnPldPadding fills the padding of an extension payload to the next
+// multiple of common.LineLen, taking into account the 3-byte extension sub
+// header, which is not included in length.
 func fillExtnPldPadding(b common.RawBytes, length int) int {
 	padded := paddedExtnPldLen(length)
 	for i := range b[length:padded] {

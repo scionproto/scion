@@ -217,7 +217,11 @@ func TestExtnPathTransDecodeFromLayer(t *testing.T) {
 				return extnFlattened{o.SrcIA, o.SrcHost, p}
 			}
 
-			assert.Equal(t, extnToCompare(&test.ExpectedExtension), extnToCompare(&extn), "extension must match")
+			assert.Equal(t,
+				extnToCompare(&test.ExpectedExtension),
+				extnToCompare(&extn),
+				"extension must match",
+			)
 
 			if !test.SkipPackCheck {
 				packed, err := test.ExpectedExtension.Pack()
