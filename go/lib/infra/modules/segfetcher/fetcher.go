@@ -75,8 +75,10 @@ type FetcherConfig struct {
 	// SciondMode enables sciond mode, this means it uses the local CS to fetch
 	// crypto material and considers revocations in the path lookup.
 	SciondMode bool
-	// The namespace used for metrics.
+	// MetricsNamespace is the namespace used for metrics.
 	MetricsNamespace string
+	// LocalInfo provides information about local segments.
+	LocalInfo LocalInfo
 }
 
 // New creates a new fetcher from the configuration.
@@ -84,7 +86,7 @@ func (cfg FetcherConfig) New() *Fetcher {
 	return &Fetcher{
 		Validator: cfg.Validator,
 		Splitter:  cfg.Splitter,
-		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache),
+		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache, cfg.LocalInfo),
 		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
 		ReplyHandler: &seghandler.Handler{
 			Verifier: &seghandler.DefaultVerifier{Verifier: cfg.VerificationFactory.NewVerifier()},

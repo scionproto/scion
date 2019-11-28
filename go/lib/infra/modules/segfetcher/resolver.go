@@ -37,21 +37,30 @@ type Resolver interface {
 	Resolve(ctx context.Context, segs Segments, req RequestSet) (Segments, RequestSet, error)
 }
 
+// LocalInfo provides information about which segments are always locally
+// stored.
+type LocalInfo interface {
+	// IsSegLocal returns whether this segment should always be locally cached.
+	IsSegLocal(ctx context.Context, src, dst addr.IA) (bool, error)
+}
+
 // NewResolver creates a new resolver with the given DB. The DB might be
 // customized. E.g. a PS could inject a wrapper around GetNextQuery so that it
 // always returns that the cache is up to date for segments that should be
 // available local.
-func NewResolver(DB pathdb.Read, revCache revcache.RevCache) *DefaultResolver {
+func NewResolver(DB pathdb.Read, revCache revcache.RevCache, localInfo LocalInfo) *DefaultResolver {
 	return &DefaultResolver{
-		DB:       DB,
-		RevCache: revCache,
+		DB:        DB,
+		RevCache:  revCache,
+		LocalInfo: localInfo,
 	}
 }
 
 // DefaultResolver is the default resolver implementation.
 type DefaultResolver struct {
-	DB       pathdb.Read
-	RevCache revcache.RevCache
+	DB        pathdb.Read
+	RevCache  revcache.RevCache
+	LocalInfo LocalInfo
 }
 
 // Resolve resolves a request set. It returns the segments that are locally
@@ -93,6 +102,11 @@ func (r *DefaultResolver) Resolve(ctx context.Context, segs Segments,
 		req.Cores = nil
 	}
 	for i, coreReq := range req.Cores {
+		if local, err := r.LocalInfo.IsSegLocal(ctx, coreReq.Src, coreReq.Dst); err != nil {
+			return segs, req, err
+		} else if local {
+			coreReq.State = Cached
+		}
 		if coreReq.State != Cached && coreReq.State != Fetched {
 			continue
 		}
@@ -145,6 +159,11 @@ func (r *DefaultResolver) resolveDownSegs(ctx context.Context, segs Segments,
 func (r *DefaultResolver) resolveSegment(ctx context.Context,
 	req Request, consDir bool) (seg.Segments, Request, error) {
 
+	if local, err := r.LocalInfo.IsSegLocal(ctx, req.Src, req.Dst); err != nil {
+		return nil, req, err
+	} else if local {
+		req.State = Cached
+	}
 	if req.State == Unresolved {
 		fetch, err := r.needsFetching(ctx, req)
 		if err != nil || fetch {

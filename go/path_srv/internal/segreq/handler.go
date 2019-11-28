@@ -50,6 +50,7 @@ func NewHandler(args handlers.HandlerArgs) infra.Handler {
 			DstProvider:         createDstProvider(args, core),
 			Splitter:            &Splitter{ASInspector: args.ASInspector},
 			MetricsNamespace:    metrics.Namespace,
+			LocalInfo:           args.PathDB.(*PathDB).LocalInfo,
 		}.New(),
 		revCache: args.RevCache,
 	}
