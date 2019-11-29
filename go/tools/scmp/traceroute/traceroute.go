@@ -83,7 +83,7 @@ func Run() {
 		cmn.Stats.Sent += 1
 		// Receive packet with timeout
 		cmn.Conn.SetReadDeadline(ts.Add(cmn.Timeout))
-		pktLen, err = cmn.Conn.Read(b)
+		pktLen, _, err = cmn.Conn.ReadFrom(b)
 		if err != nil {
 			if common.IsTimeoutErr(err) {
 				rtt = cmn.Timeout + 1

@@ -15,6 +15,7 @@
 package reconnect_test
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
@@ -87,7 +88,7 @@ func reconnectWithoutTimeoutAfter(reconnecter *reconnect.TickingReconnecter,
 	sleepAtStart time.Duration) error {
 
 	time.Sleep(sleepAtStart)
-	_, _, err := reconnecter.Reconnect(0)
+	_, _, err := reconnecter.Reconnect(context.Background())
 	return err
 }
 

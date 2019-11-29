@@ -30,7 +30,6 @@ package sciond
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -131,14 +130,6 @@ func (c *conn) checkForSciond(ctx context.Context) error {
 // used for its request-response matching capabilities (because a single RPC is happening on each
 // underlying connection), but rather for its context-aware API.
 func (c *conn) ctxAwareConnect(ctx context.Context) (*disp.Dispatcher, error) {
-	var timeout time.Duration
-	if deadline, ok := ctx.Deadline(); ok {
-		timeout = deadline.Sub(time.Now())
-		if timeout < 0 {
-			timeout = 0
-		}
-	}
-
 	type returnValue struct {
 		dispatcher *disp.Dispatcher
 		err        error
@@ -146,7 +137,7 @@ func (c *conn) ctxAwareConnect(ctx context.Context) (*disp.Dispatcher, error) {
 	barrier := make(chan returnValue, 1)
 	go func() {
 		defer log.LogPanicAndExit()
-		dispatcher, err := connectTimeout(c.path, timeout)
+		dispatcher, err := dial(ctx, c.path)
 		barrier <- returnValue{dispatcher: dispatcher, err: err}
 	}()
 
@@ -311,8 +302,8 @@ func (c *conn) Close(_ context.Context) error {
 	return nil
 }
 
-func connectTimeout(socketName string, timeout time.Duration) (*disp.Dispatcher, error) {
-	rConn, err := reliable.DialTimeout(socketName, timeout)
+func dial(ctx context.Context, socketName string) (*disp.Dispatcher, error) {
+	rConn, err := reliable.Dial(ctx, socketName)
 	if err != nil {
 		return nil, err
 	}

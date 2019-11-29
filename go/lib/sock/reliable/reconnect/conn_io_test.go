@@ -15,6 +15,7 @@
 package reconnect_test
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
@@ -81,7 +82,7 @@ func TestPacketConnIO(t *testing.T) {
 			gomock.InOrder(
 				mockIO.EXPECT().Do(mockConn).Return(writeDispatcherError),
 				mockReconnecter.EXPECT().Reconnect(Any()).DoAndReturn(
-					func(_ time.Duration) (net.PacketConn, uint16, error) {
+					func(_ context.Context) (net.PacketConn, uint16, error) {
 						time.Sleep(tickerMultiplier(4))
 						return mockConn, uint16(0), nil
 					}),
@@ -96,7 +97,7 @@ func TestPacketConnIO(t *testing.T) {
 			gomock.InOrder(
 				mockIO.EXPECT().Do(mockConn).Return(writeDispatcherError),
 				mockReconnecter.EXPECT().Reconnect(Any()).DoAndReturn(
-					func(_ time.Duration) (net.PacketConn, uint16, error) {
+					func(_ context.Context) (net.PacketConn, uint16, error) {
 						time.Sleep(tickerMultiplier(6))
 						return mockConn, uint16(0), nil
 					}),
@@ -121,7 +122,7 @@ func TestPacketConnIO(t *testing.T) {
 			gomock.InOrder(
 				mockIO.EXPECT().Do(mockConn).Return(writeDispatcherError),
 				mockReconnecter.EXPECT().Reconnect(Any()).DoAndReturn(
-					func(_ time.Duration) (net.PacketConn, uint16, error) {
+					func(_ context.Context) (net.PacketConn, uint16, error) {
 						time.Sleep(tickerMultiplier(6))
 						return mockConn, uint16(0), nil
 					}),
@@ -271,7 +272,7 @@ func TestPacketConnClose(t *testing.T) {
 			mockReconnecter.EXPECT().Stop().AnyTimes()
 			mockReconnecter.EXPECT().
 				Reconnect(Any()).
-				DoAndReturn(func(_ time.Duration) (net.PacketConn, uint16, error) {
+				DoAndReturn(func(_ context.Context) (net.PacketConn, uint16, error) {
 					select {}
 				})
 			mockIO := mock_reconnect.NewMockIOOperation(ctrl)

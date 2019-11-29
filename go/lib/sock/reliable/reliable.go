@@ -62,6 +62,7 @@
 package reliable
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -69,6 +70,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable/internal/metrics"
@@ -86,18 +88,19 @@ const (
 	DefaultDispSocketFileMode = 0770
 )
 
-// DispatcherService controls how SCION applications open sockets in the SCION world.
-type DispatcherService interface {
-	Register(ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
+// Dispatcher controls how SCION applications open sockets in the SCION world.
+type Dispatcher interface {
+	// Register connects to a SCION Dispatcher's UNIX socket. Future messages for address public or
+	// bind in AS ia which arrive at the dispatcher can be read by calling Read on the returned Conn
+	// structure.
+	Register(ctx context.Context, ia addr.IA, public *addr.AppAddr,
 		svc addr.HostSVC) (net.PacketConn, uint16, error)
-	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
-		svc addr.HostSVC, timeout time.Duration) (net.PacketConn, uint16, error)
 }
 
-// NewDispatcherService creates a new dispatcher API endpoint on top of a UNIX
+// NewDispatcher creates a new dispatcher API endpoint on top of a UNIX
 // STREAM reliable socket. If name is empty, the default dispatcher path is
 // chosen.
-func NewDispatcherService(name string) DispatcherService {
+func NewDispatcher(name string) Dispatcher {
 	if name == "" {
 		name = DefaultDispPath
 	}
@@ -108,17 +111,10 @@ type dispatcherService struct {
 	Address string
 }
 
-func (d *dispatcherService) Register(ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
+func (d *dispatcherService) Register(ctx context.Context, ia addr.IA, public *addr.AppAddr,
 	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
-	return Register(d.Address, ia, public, bind, svc)
-}
-
-func (d *dispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
-	bind *net.UDPAddr, svc addr.HostSVC,
-	timeout time.Duration) (net.PacketConn, uint16, error) {
-
-	return RegisterTimeout(d.Address, ia, public, bind, svc, timeout)
+	return registerMetricsWrapper(ctx, d.Address, ia, public, svc)
 }
 
 var _ net.Conn = (*Conn)(nil)
@@ -149,56 +145,31 @@ func newConn(c net.Conn) *Conn {
 }
 
 // Dial connects to the UNIX socket specified by address.
-func Dial(address string) (*Conn, error) {
-	return DialTimeout(address, 0)
-}
-
-// DialTimeout acts like Dial but takes a timeout.
 //
-// A timeout of 0 means infinite timeout.
-//
-// To check for timeout errors, call serrors.IsTimeout on the error.
-func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
-	conn, err := dialTimeout(address, timeout)
+// The provided context must be non-nil. If the context expires before the connection is complete,
+// an error is returned. Once successfully connected, any expiration of the context will not affect
+// the connection.
+func Dial(ctx context.Context, address string) (*Conn, error) {
+	dialer := net.Dialer{}
+	c, err := dialer.DialContext(ctx, "unix", address)
 	metrics.M.Dials(metrics.DialLabels{Result: labelResult(err)}).Inc()
-	return conn, err
-}
-
-func dialTimeout(address string, timeout time.Duration) (*Conn, error) {
-	var err error
-	var c net.Conn
-	c, err = net.DialTimeout("unix", address, timeout)
 	if err != nil {
 		return nil, err
 	}
 	return newConn(c), nil
 }
 
-// Register connects to a SCION Dispatcher's UNIX socket.
-// Future messages for address public or bind in AS ia which arrive at the dispatcher can be
-// read by calling Read on the returned Conn structure.
-func Register(dispatcher string, ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
-	svc addr.HostSVC) (*Conn, uint16, error) {
+func registerMetricsWrapper(ctx context.Context, dispatcher string, ia addr.IA,
+	public *addr.AppAddr, svc addr.HostSVC) (*Conn, uint16, error) {
 
-	return RegisterTimeout(dispatcher, ia, public, bind, svc, time.Duration(0))
-}
-
-// RegisterTimeout acts like Register but takes a timeout.
-//
-// A timeout of 0 means infinite timeout.
-//
-// To check for timeout errors, call serrors.IsTimeout on the error.
-func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
-	bind *net.UDPAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
-
-	conn, port, err := registerTimeout(dispatcher, ia, public, bind, svc, timeout)
+	conn, port, err := register(ctx, dispatcher, ia, public, svc)
 	labels := metrics.RegisterLabels{Result: labelResult(err), SVC: svc.BaseString()}
 	metrics.M.Registers(labels).Inc()
 	return conn, port, err
 }
 
-func registerTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
-	bind *net.UDPAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
+func register(ctx context.Context, dispatcher string, ia addr.IA, public *addr.AppAddr,
+	svc addr.HostSVC) (*Conn, uint16, error) {
 
 	publicUDP, err := createUDPAddrFromAppAddr(public)
 	if err != nil {
@@ -207,53 +178,84 @@ func registerTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
 	reg := &Registration{
 		IA:            ia,
 		PublicAddress: publicUDP,
-		BindAddress:   bind,
 		SVCAddress:    svc,
 	}
 
-	// Compute deadline prior to Dial, because timeout is relative to current time.
-	deadline := time.Now().Add(timeout)
-	conn, err := dialTimeout(dispatcher, timeout)
+	conn, err := Dial(ctx, dispatcher)
 	if err != nil {
 		return nil, 0, err
 	}
-	// If a timeout was specified, make reads and writes return if deadline exceeded.
-	if timeout != 0 {
-		conn.SetDeadline(deadline)
-	}
 
+	type RegistrationReturn struct {
+		port int
+		err  error
+	}
+	resultChannel := make(chan RegistrationReturn)
+	go func() {
+		defer log.LogPanicAndExit()
+
+		// If a timeout was specified, make reads and writes return if deadline exceeded.
+		if deadline, ok := ctx.Deadline(); ok {
+			conn.SetDeadline(deadline)
+		}
+
+		port, err := registrationExchange(conn, reg)
+		resultChannel <- RegistrationReturn{port: port, err: err}
+	}()
+
+	select {
+	case registrationReturn := <-resultChannel:
+		if registrationReturn.err != nil {
+			conn.Close()
+			return nil, 0, registrationReturn.err
+		}
+		if publicUDP.Port != 0 && publicUDP.Port != int(registrationReturn.port) {
+			conn.Close()
+			return nil, 0, serrors.New("port mismatch", "requested", publicUDP.Port,
+				"received", registrationReturn.port)
+		}
+		// Disable deadline to not affect future I/O
+		conn.SetDeadline(time.Time{})
+		return conn, uint16(registrationReturn.port), nil
+	case <-ctx.Done():
+		// Unblock registration worker I/O
+		conn.Close()
+		// Wait for registration worker to finish before exiting. Worker should exit quickly
+		// because all pending I/O immediately times out.
+		<-resultChannel
+		// The returned values aren't needed, we already decided to error out when the connection
+		// was closed. Note that the registration might succeed in the short window of time between
+		// the context being marked as done (canceled) and the I/O getting informed of the new
+		// deadline.
+		return nil, 0, serrors.WrapStr("timed out during dispatcher registration", ctx.Err())
+	}
+}
+
+func registrationExchange(conn *Conn, reg *Registration) (int, error) {
 	b := make([]byte, 1500)
 	n, err := reg.SerializeTo(b)
 	if err != nil {
-		conn.Close()
-		return nil, 0, err
+		return 0, err
 	}
 	_, err = conn.WriteTo(b[:n], nil)
 	if err != nil {
-		conn.Close()
-		return nil, 0, err
+		return 0, err
 	}
 
 	n, _, err = conn.ReadFrom(b)
 	if err != nil {
 		conn.Close()
-		return nil, 0, err
+		return 0, err
 	}
 
 	var c Confirmation
 	err = c.DecodeFromBytes(b[:n])
 	if err != nil {
 		conn.Close()
-		return nil, 0, err
+		return 0, err
 	}
-	if publicUDP.Port != 0 && publicUDP.Port != int(c.Port) {
-		conn.Close()
-		return nil, 0, common.NewBasicError("port mismatch", nil, "requested", publicUDP.Port,
-			"received", c.Port)
-	}
-	// Disable deadline to not affect calling code
-	conn.SetDeadline(time.Time{})
-	return conn, c.Port, nil
+	return int(c.Port), nil
+
 }
 
 // ReadFrom works similarly to Read. In addition to Read, it also returns the last hop

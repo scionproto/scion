@@ -33,7 +33,6 @@ import (
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -63,7 +62,7 @@ var (
 )
 
 var (
-	Conn      *reliable.Conn
+	Conn      net.PacketConn
 	Mtu       uint16
 	PathEntry snet.Path
 	Stats     *ScmpStats
