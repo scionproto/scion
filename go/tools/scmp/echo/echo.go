@@ -99,7 +99,7 @@ func recvPkts() {
 	start := time.Now()
 	updateDeadline(start, 0)
 	for cmn.Count == 0 || expectedSeq < uint16(cmn.Count) {
-		pktLen, err := cmn.Conn.Read(b)
+		pktLen, _, err := cmn.Conn.ReadFrom(b)
 		if err != nil {
 			if common.IsTimeoutErr(err) {
 				if expectedSeq > recvSeq {

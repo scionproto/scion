@@ -224,7 +224,7 @@ func (c *client) run() {
 	c.setupPath()
 	defer c.Close()
 
-	ds := reliable.NewDispatcherService(*dispatcher)
+	ds := reliable.NewDispatcher(*dispatcher)
 	sciondConn, err := sd.NewService(*sciond).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
@@ -347,7 +347,7 @@ type server struct {
 // run listens on a SCION address and replies to any ping message.
 // On any error, the server exits.
 func (s server) run() {
-	ds := reliable.NewDispatcherService(*dispatcher)
+	ds := reliable.NewDispatcher(*dispatcher)
 	sciondConn, err := sd.NewService(*sciond).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)

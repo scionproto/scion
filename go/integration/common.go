@@ -74,7 +74,7 @@ func validateFlags() {
 }
 
 func InitNetwork() *snet.SCIONNetwork {
-	ds := reliable.NewDispatcherService("")
+	ds := reliable.NewDispatcher("")
 	sciondConn, err := sciond.NewService(sdSocket).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)

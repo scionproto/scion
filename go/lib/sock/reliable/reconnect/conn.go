@@ -15,6 +15,7 @@
 package reconnect
 
 import (
+	"context"
 	"net"
 	"sync"
 	"time"
@@ -160,7 +161,7 @@ func (conn *PacketConn) asyncReconnectWrapper() {
 // Reconnect is only used internally and should never be called from outside
 // the package.
 func (conn *PacketConn) Reconnect() (net.PacketConn, error) {
-	newConn, _, err := conn.reconnecter.Reconnect(0)
+	newConn, _, err := conn.reconnecter.Reconnect(context.Background())
 	if err != nil {
 		return nil, err
 	}

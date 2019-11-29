@@ -58,7 +58,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 	MgmtAddr = mgmt.NewAddr(Host, cfg.CtrlPort, cfg.EncapPort)
 	encapPort = cfg.EncapPort
 
-	ds := reliable.NewDispatcherService(cfg.Dispatcher)
+	ds := reliable.NewDispatcher(cfg.Dispatcher)
 	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
 	wait := func() (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 		deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)

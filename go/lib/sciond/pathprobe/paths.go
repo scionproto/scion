@@ -113,7 +113,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 	scmpH := &scmpHandler{statuses: pathStatuses}
 	network := snet.NewCustomNetworkWithPR(p.Local.IA,
 		&snet.DefaultPacketDispatcherService{
-			Dispatcher:  reliable.NewDispatcherService(p.DispPath),
+			Dispatcher:  reliable.NewDispatcher(p.DispPath),
 			SCMPHandler: scmpH,
 		},
 	)

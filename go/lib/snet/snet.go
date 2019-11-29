@@ -70,7 +70,7 @@ type SCIONNetwork struct {
 
 // NewNetworkWithPR creates a new networking context with path resolver pr. A
 // nil path resolver means the Network will run without SCIOND.
-func NewNetworkWithPR(ia addr.IA, dispatcher reliable.DispatcherService,
+func NewNetworkWithPR(ia addr.IA, dispatcher reliable.Dispatcher,
 	querier PathQuerier, revHandler RevocationHandler) *SCIONNetwork {
 
 	return &SCIONNetwork{

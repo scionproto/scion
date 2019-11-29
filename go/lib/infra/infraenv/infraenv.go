@@ -140,7 +140,7 @@ func (nc *NetworkConfig) AddressRewriter(
 	}
 	if connFactory == nil {
 		connFactory = &snet.DefaultPacketDispatcherService{
-			Dispatcher: reliable.NewDispatcherService(""),
+			Dispatcher: reliable.NewDispatcher(""),
 		}
 	}
 
@@ -186,7 +186,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 		return nil, common.NewBasicError("Unable to build SVC resolution reply", err)
 	}
 
-	dispatcherService := reliable.NewDispatcherService("")
+	dispatcherService := reliable.NewDispatcher("")
 	if nc.ReconnectToDispatcher {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
@@ -215,7 +215,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 }
 
 func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
-	dispatcherService := reliable.NewDispatcherService("")
+	dispatcherService := reliable.NewDispatcher("")
 	if nc.ReconnectToDispatcher {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}

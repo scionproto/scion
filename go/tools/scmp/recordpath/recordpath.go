@@ -69,7 +69,7 @@ func Run() {
 	cmn.Stats.Sent += 1
 	// Receive packet with timeout
 	cmn.Conn.SetReadDeadline(ts.Add(cmn.Timeout))
-	pktLen, err = cmn.Conn.Read(b)
+	pktLen, _, err = cmn.Conn.ReadFrom(b)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		return

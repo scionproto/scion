@@ -47,7 +47,7 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 	logger = log.New("Part", "Control")
 	ctx := rctx.Get()
 	ia = ctx.Conf.IA
-	dispatcherService := reliable.NewDispatcherService("")
+	dispatcherService := reliable.NewDispatcher("")
 	if dispatcherReconnect {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}

@@ -15,6 +15,7 @@
 package reconnect_test
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -67,6 +68,12 @@ func MustParseSnet(str string) *snet.Addr {
 // values to stay fairly close to the ticking interval.
 func tickerMultiplier(multiplier time.Duration) time.Duration {
 	return multiplier * reconnect.DefaultTickerInterval
+}
+
+func ctxMultiplier(multiplier time.Duration) context.Context {
+	ctx, cancelF := context.WithTimeout(context.Background(), tickerMultiplier(multiplier))
+	_ = cancelF
+	return ctx
 }
 
 func TestMain(m *testing.M) {

@@ -20,7 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"strconv"
 	"time"
@@ -68,15 +67,9 @@ func main() {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
 	}
 	// Connect to the dispatcher
-	var overlayBindAddr *net.UDPAddr
-	if cmn.Bind.Host != nil {
-		overlayBindAddr = &net.UDPAddr{
-			IP:   cmn.Bind.Host.L3.IP(),
-			Port: int(cmn.Bind.Host.L4),
-		}
-	}
-	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host,
-		overlayBindAddr, addr.SvcNone)
+	dispatcherService := reliable.NewDispatcher(*dispatcher)
+	cmn.Conn, _, err = dispatcherService.Register(context.Background(), cmn.Local.IA,
+		cmn.Local.Host, addr.SvcNone)
 	if err != nil {
 		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local, err)
 	}

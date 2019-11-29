@@ -90,7 +90,7 @@ type server struct {
 
 func (s server) run() {
 	connFactory := &snet.DefaultPacketDispatcherService{
-		Dispatcher: reliable.NewDispatcherService(""),
+		Dispatcher: reliable.NewDispatcher(""),
 		SCMPHandler: snet.NewSCMPHandler(
 			sciond.RevHandler{Connector: integration.SDConn()},
 		),
@@ -145,7 +145,7 @@ type client struct {
 
 func (c client) run() int {
 	connFactory := &snet.DefaultPacketDispatcherService{
-		Dispatcher: reliable.NewDispatcherService(""),
+		Dispatcher: reliable.NewDispatcher(""),
 		SCMPHandler: snet.NewSCMPHandler(
 			sciond.RevHandler{Connector: integration.SDConn()},
 		),

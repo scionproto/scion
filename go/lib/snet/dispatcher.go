@@ -41,7 +41,7 @@ var _ PacketDispatcherService = (*DefaultPacketDispatcherService)(nil)
 // sent to the dispatcher.
 type DefaultPacketDispatcherService struct {
 	// Dispatcher is used to get packets from the local SCION Dispatcher process.
-	Dispatcher reliable.DispatcherService
+	Dispatcher reliable.Dispatcher
 	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
@@ -52,7 +52,14 @@ func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *add
 	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (PacketConn, uint16, error) {
 
-	rconn, port, err := s.Dispatcher.RegisterTimeout(ia, public, bind, svc, timeout)
+	ctx := context.Background()
+	if timeout != 0 {
+		var cancelF context.CancelFunc
+		ctx, cancelF = context.WithTimeout(ctx, timeout)
+		defer cancelF()
+	}
+
+	rconn, port, err := s.Dispatcher.Register(ctx, ia, public, svc)
 	if err != nil {
 		return nil, 0, err
 	}

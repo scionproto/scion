@@ -183,7 +183,7 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		msgr.ListenAndServe()
 	}()
-	dispatcherService := reliable.NewDispatcherService("")
+	dispatcherService := reliable.NewDispatcher("")
 	if cfg.General.ReconnectToDispatcher {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
@@ -210,7 +210,7 @@ func realMain() int {
 		addressRewriter: nc.AddressRewriter(
 			&onehop.OHPPacketDispatcherService{
 				PacketDispatcherService: &snet.DefaultPacketDispatcherService{
-					Dispatcher: reliable.NewDispatcherService(""),
+					Dispatcher: reliable.NewDispatcher(""),
 				},
 			},
 		),

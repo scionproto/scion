@@ -15,6 +15,7 @@
 package reconnect
 
 import (
+	"context"
 	"net"
 	"sync"
 	"time"
@@ -29,7 +30,7 @@ var (
 )
 
 type Reconnecter interface {
-	Reconnect(timeout time.Duration) (net.PacketConn, uint16, error)
+	Reconnect(ctx context.Context) (net.PacketConn, uint16, error)
 	Stop()
 }
 
@@ -62,12 +63,17 @@ func NewTickingReconnecter(
 // subject to timeout. Attempts that receive dispatcher connection errors are
 // followed by reattempts. Critical errors (e.g., port mismatches) return
 // immediately.
-func (r *TickingReconnecter) Reconnect(timeout time.Duration) (net.PacketConn, uint16, error) {
+func (r *TickingReconnecter) Reconnect(ctx context.Context) (net.PacketConn, uint16, error) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	start := time.Now()
 	t := time.NewTicker(DefaultTickerInterval)
 	defer t.Stop()
+
+	var timeout time.Duration
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = deadline.Sub(time.Now())
+	}
 
 	timeoutExpired := afterTimeout(timeout)
 	for r.stopping.IsFalse() {
