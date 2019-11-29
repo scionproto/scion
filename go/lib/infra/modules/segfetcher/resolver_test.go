@@ -94,7 +94,7 @@ func (rt resolverTest) run(t *testing.T) {
 	} else {
 		revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 	}
-	resolver := segfetcher.NewResolver(db, revCache, localInfoNever{})
+	resolver := segfetcher.NewResolver(db, revCache, neverLocal{})
 	segs, remainingReqs, err := resolver.Resolve(context.Background(), rt.Segs, rt.Req)
 	assert.Equal(t, rt.ExpectedSegments, segs)
 	assert.Equal(t, rt.ExpectedReqSet, remainingReqs)
@@ -876,9 +876,6 @@ func (m keySetContains) String() string {
 	return fmt.Sprintf("revcache.KeySet containing %v", m.keys)
 }
 
-type localInfoNever struct {
-}
+type neverLocal struct{}
 
-func (localInfoNever) IsSegLocal(_ context.Context, _, _ addr.IA) (bool, error) {
-	return false, nil
-}
+func (neverLocal) IsSegLocal(_ context.Context, _, _ addr.IA) (bool, error) { return false, nil }
