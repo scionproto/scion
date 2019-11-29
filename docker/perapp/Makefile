@@ -1,6 +1,6 @@
 DOCKER_ARGS += --no-cache
 ifndef DEBUG
-DOCKER_ARGS += -q
+# DOCKER_ARGS += -q
 endif
 
 ALL_TARGETS = base apps debug
