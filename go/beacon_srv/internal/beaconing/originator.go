@@ -27,8 +27,8 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var _ periodic.Task = (*Originator)(nil)
@@ -72,15 +72,15 @@ func (o *Originator) Name() string {
 // Run originates core and downstream beacons.
 func (o *Originator) Run(ctx context.Context) {
 	o.tick.now = time.Now()
-	o.originateBeacons(ctx, proto.LinkType_core)
-	o.originateBeacons(ctx, proto.LinkType_child)
+	o.originateBeacons(ctx, topology.Core)
+	o.originateBeacons(ctx, topology.Child)
 	metrics.Originator.Runtime().Add(time.Since(o.tick.now).Seconds())
 	o.tick.updateLast()
 }
 
 // originateBeacons creates and sends a beacon for each active interface of
 // the specified link type.
-func (o *Originator) originateBeacons(ctx context.Context, linkType proto.LinkType) {
+func (o *Originator) originateBeacons(ctx context.Context, linkType topology.LinkType) {
 	logger := log.FromCtx(ctx)
 	active, nonActive := sortedIntfs(o.cfg.Intfs, linkType)
 	if len(nonActive) > 0 && o.tick.passed() {
@@ -135,7 +135,7 @@ func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
 	return stale
 }
 
-func (o *Originator) logSummary(logger log.Logger, s *summary, linkType proto.LinkType) {
+func (o *Originator) logSummary(logger log.Logger, s *summary, linkType topology.LinkType) {
 	if o.tick.passed() {
 		logger.Info("[beaconing.Originator] Originated beacons",
 			"type", linkType.String(), "egIfIds", s.IfIds())
@@ -173,10 +173,10 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	err = o.beaconSender.Send(
 		ctx,
 		bseg,
-		topoInfo.ISD_AS,
+		topoInfo.IA,
 		o.ifID,
 		o.cfg.Signer,
-		topoInfo.InternalAddrs,
+		topoInfo.InternalAddr,
 	)
 	if err != nil {
 		metrics.Originator.Beacons(labels.WithResult(metrics.ErrSend)).Inc()

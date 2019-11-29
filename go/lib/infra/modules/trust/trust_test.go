@@ -639,12 +639,11 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	t.Helper()
 	db, err := trustdbsqlite.New(":memory:")
 	xtest.FailOnErr(t, err)
-	topo := topology.NewTopo()
-	topo.CSNames = append(topo.CSNames, "foo")
-	topo.CS["foo"] = topology.TopoAddr{}
+	topo := topology.NewRWTopology()
+	topo.CS = topology.IDAddrMap{"foo": topology.TopoAddr{}}
 	cfg := Config{
 		TopoProvider: &itopotest.TestTopoProvider{
-			Topo: topo,
+			RWTopology: topo,
 		},
 	}
 	store := NewStore(db, ia, cfg, log.Root())

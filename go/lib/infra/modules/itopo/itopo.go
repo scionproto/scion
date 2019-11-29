@@ -42,15 +42,11 @@ type Callbacks struct {
 	UpdateStatic func()
 }
 
-type ProviderI interface {
-	Get() Topology
-}
-
 // providerFunc wraps the Get call as a topology provider.
-type providerFunc func() Topology
+type providerFunc func() topology.Topology
 
 // Provider returns a topology provider that calls Get internally.
-func Provider() ProviderI {
+func Provider() topology.Provider {
 	st.RLock()
 	defer st.RUnlock()
 	if st.topo.static == nil {
@@ -59,7 +55,7 @@ func Provider() ProviderI {
 	return providerFunc(Get)
 }
 
-func (f providerFunc) Get() Topology {
+func (f providerFunc) Get() topology.Topology {
 	return f()
 }
 
@@ -73,19 +69,17 @@ func Init(id string, svc proto.ServiceType, clbks Callbacks) {
 }
 
 // Get atomically gets the pointer to the current topology.
-func Get() Topology {
+func Get() topology.Topology {
 	st.RLock()
 	defer st.RUnlock()
-	return &topologyS{
-		Topology: st.topo.Get(),
-	}
+	return topology.FromRWTopology(st.topo.Get())
 }
 
 // SetDynamic atomically sets the dynamic topology. The returned topology is a pointer
 // to the currently active topology at the end of the function call. It might differ from
 // the input topology. The second return value indicates whether the in-memory
 // copy of the dynamic topology has been updated.
-func SetDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error) {
+func SetDynamic(dynamic *topology.RWTopology) (*topology.RWTopology, bool, error) {
 	l := metrics.UpdateLabels{Type: metrics.Dynamic}
 	topo, updated, err := st.setDynamic(dynamic)
 	switch {
@@ -102,7 +96,7 @@ func SetDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error) {
 
 // BeginSetDynamic checks whether setting the dynamic topology is permissible. The returned
 // transaction provides a view on which topology would be active, if committed.
-func BeginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
+func BeginSetDynamic(dynamic *topology.RWTopology) (Transaction, error) {
 	tx, err := st.beginSetDynamic(dynamic)
 	if err != nil {
 		incUpdateMetric(metrics.UpdateLabels{Type: metrics.Dynamic, Result: metrics.ErrValidate})
@@ -116,9 +110,11 @@ func BeginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
 // It might differ from the input topology (same contents as existing static,
 // or dynamic set and still valid). The second return value indicates whether the in-memory
 // copy of the static topology has been updated.
-func SetStatic(static Topology, semiMutAllowed bool) (Topology, bool, error) {
+func SetStatic(static topology.Topology,
+	semiMutAllowed bool) (topology.Topology, bool, error) {
+
 	l := metrics.UpdateLabels{Type: metrics.Static}
-	topo, updated, err := st.setStatic(static.Raw(), semiMutAllowed)
+	topo, updated, err := st.setStatic(static.Writable(), semiMutAllowed)
 	switch {
 	case err != nil:
 		l.Result = metrics.ErrValidate
@@ -128,12 +124,12 @@ func SetStatic(static Topology, semiMutAllowed bool) (Topology, bool, error) {
 		l.Result = metrics.OkIgnored
 	}
 	incUpdateMetric(l)
-	return NewTopologyFromRaw(topo), updated, err
+	return topology.FromRWTopology(topo), updated, err
 }
 
 // BeginSetStatic checks whether setting the static topology is permissible. The returned
 // transaction provides a view on which topology would be active, if committed.
-func BeginSetStatic(static *topology.Topo, semiMutAllowed bool) (Transaction, error) {
+func BeginSetStatic(static *topology.RWTopology, semiMutAllowed bool) (Transaction, error) {
 	tx, err := st.beginSetStatic(static, semiMutAllowed)
 	if err != nil {
 		incUpdateMetric(metrics.UpdateLabels{Type: metrics.Static, Result: metrics.ErrValidate})
@@ -149,11 +145,11 @@ type Transaction struct {
 	candidateTopo topo
 	// staticAtTxStart stores a snapshot of the currently active static
 	// topology at transaction start.
-	staticAtTxStart *topology.Topo
+	staticAtTxStart *topology.RWTopology
 	// inputStatic stores the provided static topology.
-	inputStatic *topology.Topo
+	inputStatic *topology.RWTopology
 	// inputDynamic stores the provided dynamic topology.
-	inputDynamic *topology.Topo
+	inputDynamic *topology.RWTopology
 }
 
 // Commit commits the change. An error is returned, if the static topology changed in the meantime.
@@ -185,7 +181,7 @@ func (tx *Transaction) Commit() error {
 }
 
 // Get returns the topology that will be active if the transaction is committed.
-func (tx *Transaction) Get() *topology.Topo {
+func (tx *Transaction) Get() *topology.RWTopology {
 	return tx.candidateTopo.Get()
 }
 
@@ -199,13 +195,13 @@ func (tx *Transaction) IsUpdate() bool {
 
 // topo stores the currently active static and dynamic topologies.
 type topo struct {
-	static  *topology.Topo
-	dynamic *topology.Topo
+	static  *topology.RWTopology
+	dynamic *topology.RWTopology
 }
 
 // Get returns the dynamic topology if it is set and has not expired. Otherwise,
 // the static topology is returned.
-func (t *topo) Get() *topology.Topo {
+func (t *topo) Get() *topology.RWTopology {
 	if t.dynamic != nil && t.dynamic.Active(time.Now()) {
 		return t.dynamic
 	}
@@ -229,7 +225,7 @@ func newState(id string, svc proto.ServiceType, clbks Callbacks) *state {
 }
 
 // setDynamic atomically sets the dynamic topology.
-func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error) {
+func (s *state) setDynamic(dynamic *topology.RWTopology) (*topology.RWTopology, bool, error) {
 	s.Lock()
 	defer s.Unlock()
 	if err := s.dynamicPreCheck(dynamic); err != nil {
@@ -245,7 +241,7 @@ func (s *state) setDynamic(dynamic *topology.Topo) (*topology.Topo, bool, error)
 	return s.topo.Get(), true, nil
 }
 
-func (s *state) updateDynamic(dynamic *topology.Topo) {
+func (s *state) updateDynamic(dynamic *topology.RWTopology) {
 	s.topo.dynamic = dynamic
 	cl := metrics.CurrentLabels{Type: metrics.Dynamic}
 	metrics.Current.Active().Set(1)
@@ -253,7 +249,7 @@ func (s *state) updateDynamic(dynamic *topology.Topo) {
 	metrics.Current.Expiry(cl).Set(metrics.Expiry(dynamic.Expiry()))
 }
 
-func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
+func (s *state) beginSetDynamic(dynamic *topology.RWTopology) (Transaction, error) {
 	s.Lock()
 	defer s.Unlock()
 	if err := s.dynamicPreCheck(dynamic); err != nil {
@@ -274,7 +270,7 @@ func (s *state) beginSetDynamic(dynamic *topology.Topo) (Transaction, error) {
 	return tx, nil
 }
 
-func (s *state) dynamicPreCheck(dynamic *topology.Topo) error {
+func (s *state) dynamicPreCheck(dynamic *topology.RWTopology) error {
 	if dynamic == nil {
 		return serrors.New("Provided topology must not be nil")
 	}
@@ -290,7 +286,9 @@ func (s *state) dynamicPreCheck(dynamic *topology.Topo) error {
 }
 
 // setStatic atomically sets the static topology.
-func (s *state) setStatic(static *topology.Topo, allowed bool) (*topology.Topo, bool, error) {
+func (s *state) setStatic(static *topology.RWTopology,
+	allowed bool) (*topology.RWTopology, bool, error) {
+
 	s.Lock()
 	defer s.Unlock()
 	if err := s.validator.Validate(static, s.topo.static, allowed); err != nil {
@@ -304,7 +302,7 @@ func (s *state) setStatic(static *topology.Topo, allowed bool) (*topology.Topo, 
 	return s.topo.Get(), true, nil
 }
 
-func (s *state) beginSetStatic(static *topology.Topo, allowed bool) (Transaction, error) {
+func (s *state) beginSetStatic(static *topology.RWTopology, allowed bool) (Transaction, error) {
 	s.Lock()
 	defer s.Unlock()
 	if err := s.validator.Validate(static, s.topo.static, allowed); err != nil {
@@ -327,7 +325,7 @@ func (s *state) beginSetStatic(static *topology.Topo, allowed bool) (Transaction
 }
 
 // updateStatic updates the static topology, if necessary, and calls the corresponding callbacks.
-func (s *state) updateStatic(static *topology.Topo) {
+func (s *state) updateStatic(static *topology.RWTopology) {
 	// Drop dynamic topology if necessary.
 	if s.validator.MustDropDynamic(static, s.topo.static) && s.topo.dynamic != nil {
 		s.topo.dynamic = nil
@@ -341,16 +339,16 @@ func (s *state) updateStatic(static *topology.Topo) {
 	metrics.Current.Expiry(cl).Set(metrics.Expiry(static.Expiry()))
 }
 
-func keepOld(newTopo, oldTopo *topology.Topo) bool {
+func keepOld(newTopo, oldTopo *topology.RWTopology) bool {
 	return topoEq(newTopo, oldTopo) && !expiresLater(newTopo, oldTopo)
 }
 
-func topoEq(newTopo, oldTopo *topology.Topo) bool {
+func topoEq(newTopo, oldTopo *topology.RWTopology) bool {
 	return cmp.Equal(newTopo, oldTopo, cmpopts.IgnoreFields(
-		topology.Topo{}, "Timestamp", "TimestampHuman", "TTL"))
+		topology.RWTopology{}, "Timestamp", "TTL"))
 }
 
-func expiresLater(newTopo, oldTopo *topology.Topo) bool {
+func expiresLater(newTopo, oldTopo *topology.RWTopology) bool {
 	if oldTopo == nil {
 		return true
 	}

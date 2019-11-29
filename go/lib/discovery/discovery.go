@@ -119,7 +119,7 @@ const (
 // discovery service. If client is nil, the default http client is used.
 // Both the topology and the raw response body are returned.
 func FetchTopoRaw(ctx context.Context, params FetchParams, ds *net.UDPAddr,
-	client *http.Client) (*topology.Topo, common.RawBytes, error) {
+	client *http.Client) (*topology.RWTopology, common.RawBytes, error) {
 
 	url, err := createURL(params, ds)
 	if err != nil {
@@ -137,7 +137,7 @@ func FetchTopoRaw(ctx context.Context, params FetchParams, ds *net.UDPAddr,
 	if err != nil {
 		return nil, nil, common.NewBasicError("Unable to read body", err)
 	}
-	topo, err := topology.Load(raw)
+	topo, err := topology.RWTopologyFromJSONBytes(raw)
 	if err != nil {
 		return nil, nil, common.NewBasicError("Unable to parse topo", err)
 	}

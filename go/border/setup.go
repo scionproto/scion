@@ -127,14 +127,14 @@ func (r *Router) setupCtxFromConfig(config *brconf.BRConf) error {
 	// We want to keep in sync itopo and the context that is set.
 	// We attempt to set the context with the topology that will be current
 	// after setting itopo. If setting itopo fails in the end, we rollback the context.
-	tx, err := itopo.BeginSetStatic(config.Topo.Raw(), true)
+	tx, err := itopo.BeginSetStatic(config.Topo.Writable(), true)
 	if err != nil {
 		return err
 	}
 	// Set config to use the appropriate topology. The returned topology is
 	// not necessarily the same as config.Topo. It can be another static
 	// or dynamic topology.
-	newConf, err := brconf.WithNewTopo(r.Id, itopo.NewTopologyFromRaw(tx.Get()), config)
+	newConf, err := brconf.WithNewTopo(r.Id, topology.FromRWTopology(tx.Get()), config)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (r *Router) setupCtxFromConfig(config *brconf.BRConf) error {
 
 // setupCtxFromStatic sets up a new router context after receiving an updated
 // static topology from the discovey service.
-func (r *Router) setupCtxFromStatic(topo *topology.Topo) (bool, error) {
+func (r *Router) setupCtxFromStatic(topo *topology.RWTopology) (bool, error) {
 	r.setCtxMtx.Lock()
 	defer r.setCtxMtx.Unlock()
 	tx, err := itopo.BeginSetStatic(topo, cfg.Discovery.AllowSemiMutable)
@@ -152,7 +152,7 @@ func (r *Router) setupCtxFromStatic(topo *topology.Topo) (bool, error) {
 
 // setupCtxFromDynamic sets up a new router context after receiving an updated
 // dynamic topology from the discovey service.
-func (r *Router) setupCtxFromDynamic(topo *topology.Topo) (bool, error) {
+func (r *Router) setupCtxFromDynamic(topo *topology.RWTopology) (bool, error) {
 	r.setCtxMtx.Lock()
 	defer r.setCtxMtx.Unlock()
 	tx, err := itopo.BeginSetDynamic(topo)
@@ -170,7 +170,7 @@ func (r *Router) setupCtxFromTopoUpdate(mode discovery.Mode, tx itopo.Transactio
 		return false, nil
 	}
 	log.Trace("====> Setting up new context from topology update", "mode", mode)
-	newConf, err := brconf.WithNewTopo(r.Id, itopo.NewTopologyFromRaw(tx.Get()), rctx.Get().Conf)
+	newConf, err := brconf.WithNewTopo(r.Id, topology.FromRWTopology(tx.Get()), rctx.Get().Conf)
 	if err != nil {
 		return false, err
 	}
@@ -239,7 +239,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, sockConf brconf.SockC
 	}
 	// Iterate over interfaces, configuring them via provided setup function.
 	for _, intf := range ctx.Conf.BR.IFs {
-		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Setup(r, ctx, intf, oldCtx)
+		err := registeredExtSockOps[sockConf.Ext(intf.ID)].Setup(r, ctx, intf, oldCtx)
 		if err != nil {
 			return err
 		}
@@ -253,7 +253,7 @@ func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx,
 
 	// Rollback of external interfaces.
 	for _, intf := range ctx.Conf.BR.IFs {
-		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Rollback(r, ctx, intf, oldCtx)
+		err := registeredExtSockOps[sockConf.Ext(intf.ID)].Rollback(r, ctx, intf, oldCtx)
 		if err != nil {
 			handleErr(common.NewBasicError("Unable to rollback external interface",
 				err, "intf", intf))
@@ -277,7 +277,7 @@ func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
 	}
 	// Iterate on oldCtx to catch removed interfaces.
 	for _, intf := range oldCtx.Conf.BR.IFs {
-		registeredExtSockOps[sockConf.Ext(intf.Id)].Teardown(r, ctx, intf, oldCtx)
+		registeredExtSockOps[sockConf.Ext(intf.ID)].Teardown(r, ctx, intf, oldCtx)
 	}
 }
 
@@ -304,7 +304,7 @@ func (r *Router) startDiscovery() error {
 
 // discoveryClient returns a client with the source address set to the internal address.
 func (r *Router) discoveryClient() (*http.Client, error) {
-	internalAddr := rctx.Get().Conf.BR.InternalAddrs
+	internalAddr := rctx.Get().Conf.BR.InternalAddr
 	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0", internalAddr.IP))
 	if err != nil {
 		return nil, err
@@ -370,33 +370,33 @@ func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 	}
 	// Validate interfaces.
 	for _, intf := range ctx.Conf.BR.IFs {
-		sockType := sockConf.Ext(intf.Id)
+		sockType := sockConf.Ext(intf.ID)
 		// Validate socket type is registered
 		if _, ok := registeredExtSockOps[sockType]; !ok {
 			return common.NewBasicError("No ExtSockOps found", nil,
-				"sockType", sockType, "ifid", intf.Id)
+				"sockType", sockType, "ifid", intf.ID)
 		}
 		// Validate same socket type.
-		if oldCtx.ExtSockIn[intf.Id] != nil && oldCtx.ExtSockIn[intf.Id].Type != sockType {
+		if oldCtx.ExtSockIn[intf.ID] != nil && oldCtx.ExtSockIn[intf.ID].Type != sockType {
 			return common.NewBasicError("Unable to switch external socket type", nil,
-				"expected", oldCtx.ExtSockIn[intf.Id].Type, "actual", sockType)
+				"expected", oldCtx.ExtSockIn[intf.ID].Type, "actual", sockType)
 		}
 
 		// Validate interface does not take over local address.
-		if intf.Local.String() == oldCtx.Conf.BR.InternalAddrs.String() {
+		if intf.Local.String() == oldCtx.Conf.BR.InternalAddr.String() {
 			return common.NewBasicError("Address must not switch from local", nil,
-				"intf", intf, "locAddr", oldCtx.Conf.BR.InternalAddrs)
+				"intf", intf, "locAddr", oldCtx.Conf.BR.InternalAddr)
 		}
 		for _, oldIntf := range oldCtx.Conf.BR.IFs {
 			// Validate interface does not take over the address of old interface.
-			if intf.Local.String() == oldIntf.Local.String() && intf.Id != oldIntf.Id {
+			if intf.Local.String() == oldIntf.Local.String() && intf.ID != oldIntf.ID {
 				return common.NewBasicError("Address must not switch interface", nil,
 					"intf", intf, "oldIntf", oldIntf)
 			}
 			// Validate local sock does not take over the address of old interface.
-			if ctx.Conf.BR.InternalAddrs.String() == oldIntf.Local.String() {
+			if ctx.Conf.BR.InternalAddr.String() == oldIntf.Local.String() {
 				return common.NewBasicError("Address must not switch to local", nil,
-					"oldIntf", intf, "locAddr", oldCtx.Conf.BR.InternalAddrs)
+					"oldIntf", intf, "locAddr", oldCtx.Conf.BR.InternalAddr)
 			}
 		}
 	}

@@ -56,15 +56,15 @@ import (
 
 // TopoHandler handles a topology fetched from the discovery service, and
 // returns whether the provided topology is an update.
-type TopoHandler func(topo *topology.Topo) (bool, error)
+type TopoHandler func(topo *topology.RWTopology) (bool, error)
 
-func staticSetter(topo *topology.Topo) (bool, error) {
-	_, updated, err := itopo.SetStatic(itopo.NewTopologyFromRaw(topo), false)
+func staticSetter(topo *topology.RWTopology) (bool, error) {
+	_, updated, err := itopo.SetStatic(topology.FromRWTopology(topo), false)
 	return updated, err
 }
 
 // dynamicSetter sets the dynamic topology in itopo with the provided topology.
-func dynamicSetter(topo *topology.Topo) (bool, error) {
+func dynamicSetter(topo *topology.RWTopology) (bool, error) {
 	_, updated, err := itopo.SetDynamic(topo)
 	return updated, err
 }
@@ -273,7 +273,7 @@ func (r *Runner) startFetch(fetcher *task, timeout time.Duration) {
 
 // handler wraps the handler provided by the caller and sets the set flag if a topology
 // is handled successfully without error.
-func (r *Runner) handler(topo *topology.Topo) (bool, error) {
+func (r *Runner) handler(topo *topology.RWTopology) (bool, error) {
 	updated, err := r.rawHandler(topo)
 	if err != nil {
 		return updated, err
@@ -341,7 +341,7 @@ func (t *task) handleErr(ctx context.Context, err error) {
 	metrics.Fetcher.Sent(l).Inc()
 }
 
-func (t *task) handleRaw(ctx context.Context, raw common.RawBytes, topo *topology.Topo) {
+func (t *task) handleRaw(ctx context.Context, raw common.RawBytes, topo *topology.RWTopology) {
 	l := metrics.FetcherLabels{Static: t.static(), Result: metrics.Success}
 	updated, err := t.callHandler(ctx, topo)
 	switch {
@@ -373,7 +373,7 @@ func (t *task) writeFile(ctx context.Context, raw common.RawBytes) error {
 	return nil
 }
 
-func (t *task) callHandler(ctx context.Context, topo *topology.Topo) (bool, error) {
+func (t *task) callHandler(ctx context.Context, topo *topology.RWTopology) (bool, error) {
 	updated, err := t.handler(topo)
 	if err != nil {
 		t.logger(ctx).Error("[discovery] Unable to handle topology", "err", err)

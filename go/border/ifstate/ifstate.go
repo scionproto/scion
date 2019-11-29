@@ -114,7 +114,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 			log.Warn("Interface ID does not exist", "ifid", ifid)
 			continue
 		}
-		stateInfo := NewInfo(ifid, intf.ISD_AS, info.Active, info.SRevInfo, rawSRev)
+		stateInfo := NewInfo(ifid, intf.IA, info.Active, info.SRevInfo, rawSRev)
 		s, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)

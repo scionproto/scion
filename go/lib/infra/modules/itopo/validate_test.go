@@ -22,7 +22,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -108,7 +107,7 @@ func TestBrValidatorImmutable(t *testing.T) {
 		topo := loadTopo(fn, t)
 		testGenImmutable(v, topo, oldTopo, t)
 		Convey("Modifying a different br's internal address is allowed", func() {
-			topo.BR[other].InternalAddrs.Port = 42
+			topo.BR[other].InternalAddr.Port = 42
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
 		Convey("Modifying a different br's control address is allowed", func() {
@@ -116,7 +115,7 @@ func TestBrValidatorImmutable(t *testing.T) {
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
 		Convey("Modifying the own internal address is not allowed", func() {
-			topo.BR[v.id].InternalAddrs.Port = 42
+			topo.BR[v.id].InternalAddr.Port = 42
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 		})
 		Convey("Modifying the own control address is not allowed", func() {
@@ -238,18 +237,14 @@ func TestBrValidatorMustDropDynamic(t *testing.T) {
 	})
 }
 
-func testGenImmutable(v internalValidator, topo, oldTopo *topology.Topo, t *testing.T) {
+func testGenImmutable(v internalValidator, topo, oldTopo *topology.RWTopology, t *testing.T) {
 	t.Helper()
 	Convey("Updating the IA is not allowed", func() {
-		topo.ISD_AS.I = 0
+		topo.IA.I = 0
 		SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 	})
 	Convey("Updating the core flag is not allowed", func() {
 		topo.Core = true
-		SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
-	})
-	Convey("Updating the overlay is not allowed", func() {
-		topo.Overlay = overlay.IPv6
 		SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 	})
 	Convey("Updating the mtu is not allowed", func() {
@@ -261,9 +256,9 @@ func testGenImmutable(v internalValidator, topo, oldTopo *topology.Topo, t *test
 	})
 }
 
-func loadTopo(filename string, t *testing.T) *topology.Topo {
+func loadTopo(filename string, t *testing.T) *topology.RWTopology {
 	t.Helper()
-	topo, err := topology.LoadFromFile(filename)
+	topo, err := topology.RWTopologyFromJSONFile(filename)
 	if err != nil {
 		t.Fatalf("Error loading config from '%s': %v", filename, err)
 	}

@@ -65,7 +65,6 @@ go_test(
         "//go/border/rctx:go_default_library",
         "//go/border/rpkt:go_default_library",
         "//go/lib/common:go_default_library",
-        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/overlay/conn:go_default_library",
         "//go/lib/overlay/conn/mock_conn:go_default_library",

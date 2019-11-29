@@ -26,8 +26,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -111,7 +111,7 @@ func TestHandler(t *testing.T) {
 	}
 }
 
-func interfaces(t *testing.T, topoProvider itopo.ProviderI,
+func interfaces(t *testing.T, topoProvider topology.Provider,
 	expectedIfSate *path_mgmt.IFStateInfos) *Interfaces {
 
 	intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})

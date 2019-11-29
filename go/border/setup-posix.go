@@ -45,7 +45,7 @@ func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 	// Check if the existing socket can be reused. On startup, oldCtx is nil.
 	if oldCtx != nil {
 		// The socket can be reused if the local address does not change.
-		if ctx.Conf.BR.InternalAddrs.String() == oldCtx.Conf.BR.InternalAddrs.String() {
+		if ctx.Conf.BR.InternalAddr.String() == oldCtx.Conf.BR.InternalAddr.String() {
 			log.Trace("No change detected for local socket.")
 			// Nothing changed. Copy I/O functions from old context.
 			ctx.LocSockIn = oldCtx.LocSockIn
@@ -64,7 +64,7 @@ func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 
 	// Do nothing if socket is reused.
 	if oldCtx != nil &&
-		ctx.Conf.BR.InternalAddrs.String() == oldCtx.Conf.BR.InternalAddrs.String() {
+		ctx.Conf.BR.InternalAddr.String() == oldCtx.Conf.BR.InternalAddr.String() {
 		return nil
 	}
 	// Remove new socket if it exists. It might not be set if the setup failed.
@@ -83,7 +83,7 @@ func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 
 func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx) error {
 	// Get Bind address if set, Public otherwise
-	bind := ctx.Conf.BR.InternalAddrs
+	bind := ctx.Conf.BR.InternalAddr
 	log.Debug("Setting up new local socket.", "bind", bind)
 	// Listen on the socket.
 	over, err := conn.New(bind, nil, nil)
@@ -109,17 +109,17 @@ func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo, oldCtx 
 	if oldCtx == nil {
 		return p.addIntf(r, ctx, intf)
 	}
-	if oldIntf, ok := oldCtx.Conf.BR.IFs[intf.Id]; ok {
+	if oldIntf, ok := oldCtx.Conf.BR.IFs[intf.ID]; ok {
 		// Reuse socket if the interface has not changed.
 		if !interfaceChanged(intf, oldIntf) {
 			log.Trace("No change detected for external socket.", "conn", intf.Local)
-			ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
-			ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
+			ctx.ExtSockIn[intf.ID] = oldCtx.ExtSockIn[intf.ID]
+			ctx.ExtSockOut[intf.ID] = oldCtx.ExtSockOut[intf.ID]
 			return nil
 		}
 		log.Debug("Closing existing external socket", "old", oldIntf, "new", intf)
-		oldCtx.ExtSockIn[intf.Id].Stop()
-		oldCtx.ExtSockOut[intf.Id].Stop()
+		oldCtx.ExtSockIn[intf.ID].Stop()
+		oldCtx.ExtSockOut[intf.ID].Stop()
 	}
 	return p.addIntf(r, ctx, intf)
 }
@@ -129,21 +129,21 @@ func (p posixExt) Rollback(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo,
 
 	var oldIntf *topology.IFInfo
 	if oldCtx != nil {
-		oldIntf = oldCtx.Conf.BR.IFs[intf.Id]
+		oldIntf = oldCtx.Conf.BR.IFs[intf.ID]
 	}
 	// Do not rollback socket if it is reused by new context.
 	if oldIntf != nil && !interfaceChanged(intf, oldIntf) {
 		return nil
 	}
 	// Stop new socket if it exists. It might not exist if the Setup failed.
-	if _, ok := ctx.ExtSockIn[intf.Id]; ok {
+	if _, ok := ctx.ExtSockIn[intf.ID]; ok {
 		log.Debug("Rolling back external socket", "intf", intf)
-		ctx.ExtSockIn[intf.Id].Stop()
-		ctx.ExtSockOut[intf.Id].Stop()
+		ctx.ExtSockIn[intf.ID].Stop()
+		ctx.ExtSockOut[intf.ID].Stop()
 	}
 	// No need to start socket if it is not present in old context or still running.
 	// The socket is still running if setupNet failed before iterating over this socket.
-	if oldIntf == nil || oldCtx.ExtSockIn[oldIntf.Id].Running() {
+	if oldIntf == nil || oldCtx.ExtSockIn[oldIntf.ID].Running() {
 		return nil
 	}
 	return p.addIntf(r, oldCtx, oldIntf)
@@ -158,31 +158,31 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo) error
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
 	// Setup input goroutine.
-	ctx.ExtSockIn[intf.Id] = rctx.NewSock(
-		ringbuf.New(64, nil, fmt.Sprintf("ext_in_%s", intf.Id)),
-		c, rcmn.DirExternal, intf.Id, intf.ISD_AS.String(), r.posixInput, r.handleSock, PosixSock)
-	ctx.ExtSockOut[intf.Id] = rctx.NewSock(
-		ringbuf.New(64, nil, fmt.Sprintf("ext_out_%s", intf.Id)),
-		c, rcmn.DirExternal, intf.Id, intf.ISD_AS.String(), nil, r.posixOutput, PosixSock)
+	ctx.ExtSockIn[intf.ID] = rctx.NewSock(
+		ringbuf.New(64, nil, fmt.Sprintf("ext_in_%s", intf.ID)),
+		c, rcmn.DirExternal, intf.ID, intf.IA.String(), r.posixInput, r.handleSock, PosixSock)
+	ctx.ExtSockOut[intf.ID] = rctx.NewSock(
+		ringbuf.New(64, nil, fmt.Sprintf("ext_out_%s", intf.ID)),
+		c, rcmn.DirExternal, intf.ID, intf.IA.String(), nil, r.posixOutput, PosixSock)
 	log.Debug("Done setting up new external socket.", "intf", intf)
 	return nil
 }
 
 func (p posixExt) Teardown(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo, oldCtx *rctx.Ctx) {
-	if oldCtx == nil || oldCtx.ExtSockIn[intf.Id] == nil {
+	if oldCtx == nil || oldCtx.ExtSockIn[intf.ID] == nil {
 		return
 	}
-	if _, ok := ctx.ExtSockIn[intf.Id]; !ok {
+	if _, ok := ctx.ExtSockIn[intf.ID]; !ok {
 		log.Debug("Tearing down socket from removed external interface", "intf", intf)
-		oldCtx.ExtSockIn[intf.Id].Stop()
-		oldCtx.ExtSockOut[intf.Id].Stop()
+		oldCtx.ExtSockIn[intf.ID].Stop()
+		oldCtx.ExtSockOut[intf.ID].Stop()
 	}
 }
 
 // interfaceChanged returns true if a new input goroutine is needed for the
 // corresponding interface.
 func interfaceChanged(newIntf *topology.IFInfo, oldIntf *topology.IFInfo) bool {
-	return newIntf.Id != oldIntf.Id ||
+	return newIntf.ID != oldIntf.ID ||
 		newIntf.Local.String() != oldIntf.Local.String() ||
 		newIntf.Remote.String() != oldIntf.Remote.String()
 }
