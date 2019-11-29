@@ -37,7 +37,8 @@ type handler struct {
 
 func NewHandler(args handlers.HandlerArgs) infra.Handler {
 	core := args.TopoProvider.Get().Core()
-	args.PathDB = createPathDB(args, core)
+	localInfo := createLocalInfo(args, core)
+	args.PathDB = createPathDB(args.PathDB, localInfo)
 	return &handler{
 		fetcher: segfetcher.FetcherConfig{
 			QueryInterval:       args.QueryInterval,
@@ -50,7 +51,7 @@ func NewHandler(args handlers.HandlerArgs) infra.Handler {
 			DstProvider:         createDstProvider(args, core),
 			Splitter:            &Splitter{ASInspector: args.ASInspector},
 			MetricsNamespace:    metrics.Namespace,
-			LocalInfo:           args.PathDB.(*PathDB).LocalInfo,
+			LocalInfo:           localInfo,
 		}.New(),
 		revCache: args.RevCache,
 	}
@@ -126,20 +127,21 @@ func createValidator(args handlers.HandlerArgs, core bool) segfetcher.Validator 
 	return &CoreValidator{BaseValidator: base}
 }
 
-func createPathDB(args handlers.HandlerArgs, core bool) pathdb.PathDB {
-	var localInfo LocalInfo
+func createLocalInfo(args handlers.HandlerArgs, core bool) LocalInfo {
 	if core {
-		localInfo = &CoreLocalInfo{
+		return &CoreLocalInfo{
 			CoreChecker: CoreChecker{Inspector: args.ASInspector},
 			LocalIA:     args.IA,
 		}
-	} else {
-		localInfo = &NonCoreLocalInfo{
-			LocalIA: args.IA,
-		}
 	}
+	return &NonCoreLocalInfo{
+		LocalIA: args.IA,
+	}
+}
+
+func createPathDB(db pathdb.PathDB, localInfo LocalInfo) pathdb.PathDB {
 	return &PathDB{
-		PathDB:     args.PathDB,
+		PathDB:     db,
 		LocalInfo:  localInfo,
 		RetrySleep: 500 * time.Millisecond,
 	}
