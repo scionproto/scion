@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"net"
 	"os"
@@ -434,13 +435,14 @@ func TestDataplaneIntegration(t *testing.T) {
 }
 
 func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
-	conn, _, err := reliable.RegisterTimeout(
-		settings.ApplicationSocket,
+	dispatcherService := reliable.NewDispatcher(settings.ApplicationSocket)
+	ctx, cancelF := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancelF()
+	conn, _, err := dispatcherService.Register(
+		ctx,
 		tc.ClientAddress.IA,
 		&addr.AppAddr{L3: tc.ClientAddress.PublicAddress, L4: tc.ClientAddress.PublicPort},
-		nil,
 		tc.ClientAddress.ServiceAddress,
-		defaultTimeout,
 	)
 	xtest.FailOnErr(t, err, "unable to open socket")
 	// Always destroy the connection s.t. future tests aren't compromised by a

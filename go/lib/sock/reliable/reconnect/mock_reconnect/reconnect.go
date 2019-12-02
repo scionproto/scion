@@ -5,10 +5,10 @@
 package mock_reconnect
 
 import (
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 	net "net"
 	reflect "reflect"
-	time "time"
 )
 
 // MockIOOperation is a mock of IOOperation interface
@@ -86,7 +86,7 @@ func (m *MockReconnecter) EXPECT() *MockReconnecterMockRecorder {
 }
 
 // Reconnect mocks base method
-func (m *MockReconnecter) Reconnect(arg0 time.Duration) (net.PacketConn, uint16, error) {
+func (m *MockReconnecter) Reconnect(arg0 context.Context) (net.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Reconnect", arg0)
 	ret0, _ := ret[0].(net.PacketConn)

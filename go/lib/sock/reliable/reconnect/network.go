@@ -15,6 +15,7 @@
 package reconnect
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -34,30 +35,29 @@ import (
 // validating the new connection themselves should use the connection
 // constructors directly.
 type DispatcherService struct {
-	dispatcher reliable.DispatcherService
+	dispatcher reliable.Dispatcher
 }
 
 // NewDispatcherService adds transparent reconnection capabilities
 // to dispatcher connections.
-func NewDispatcherService(dispatcher reliable.DispatcherService) *DispatcherService {
+func NewDispatcherService(dispatcher reliable.Dispatcher) *DispatcherService {
 	return &DispatcherService{dispatcher: dispatcher}
 }
 
-func (pn *DispatcherService) Register(ia addr.IA, public *addr.AppAddr,
-	bind *net.UDPAddr, svc addr.HostSVC) (net.PacketConn, uint16, error) {
+func (pn *DispatcherService) Register(ctx context.Context, ia addr.IA, public *addr.AppAddr,
+	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
-	return pn.RegisterTimeout(ia, public, bind, svc, 0)
+	return pn.RegisterTimeout(ctx, ia, public, svc)
 }
 
-func (pn *DispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
-	bind *net.UDPAddr, svc addr.HostSVC,
-	timeout time.Duration) (net.PacketConn, uint16, error) {
+func (pn *DispatcherService) RegisterTimeout(ctx context.Context, ia addr.IA, public *addr.AppAddr,
+	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	// Perform initial connection to allocate port. We use a reconnecter here
 	// to set up the initial connection using the same retry logic we use when
 	// losing the connection to the dispatcher.
-	reconnecter := pn.newReconnecterFromListenArgs(ia, public, bind, svc, timeout)
-	conn, port, err := reconnecter.Reconnect(timeout)
+	reconnecter := pn.newReconnecterFromListenArgs(ctx, ia, public, svc)
+	conn, port, err := reconnecter.Reconnect(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -66,18 +66,23 @@ func (pn *DispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
 		newPublic = public.Copy()
 		newPublic.L4 = port
 	}
-	reconnecter = pn.newReconnecterFromListenArgs(ia, newPublic, bind, svc, timeout)
+	reconnecter = pn.newReconnecterFromListenArgs(ctx, ia, newPublic, svc)
 	return NewPacketConn(conn, reconnecter), port, nil
 }
 
-func (pn *DispatcherService) newReconnecterFromListenArgs(ia addr.IA,
-	public *addr.AppAddr, bind *net.UDPAddr,
-	svc addr.HostSVC, timeout time.Duration) *TickingReconnecter {
+func (pn *DispatcherService) newReconnecterFromListenArgs(ctx context.Context, ia addr.IA,
+	public *addr.AppAddr, svc addr.HostSVC) *TickingReconnecter {
 
 	// f represents individual connection attempts
 	f := func(timeout time.Duration) (net.PacketConn, uint16, error) {
 		metrics.M.Retries().Inc()
-		conn, port, err := pn.dispatcher.RegisterTimeout(ia, public, bind, svc, timeout)
+		ctx := context.Background()
+		if timeout != 0 {
+			var cancelF context.CancelFunc
+			ctx, cancelF = context.WithTimeout(ctx, timeout)
+			defer cancelF()
+		}
+		conn, port, err := pn.dispatcher.Register(ctx, ia, public, svc)
 		if xerrors.Is(err, ErrReconnecterTimeoutExpired) {
 			metrics.M.Timeouts().Inc()
 		}
