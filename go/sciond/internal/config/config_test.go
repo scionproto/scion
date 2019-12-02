@@ -66,7 +66,7 @@ func CheckTestSDConfig(t *testing.T, cfg *SDConfig, id string) {
 	assert.Equal(t, sciond.DefaultSCIONDPath, cfg.Reliable)
 	assert.Equal(t, "/run/shm/sciond/default-unix.sock", cfg.Unix)
 	assert.Equal(t, sciond.DefaultSocketFileMode, int(cfg.SocketFileMode))
-	assert.Equal(t, "1-ff00:0:110,[127.0.0.1]:0", cfg.Public.String())
+	assert.Equal(t, "1-ff00:0:110,[127.0.0.1]:0", cfg.Public)
 	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
 	assert.False(t, cfg.DeleteSocket)
 }

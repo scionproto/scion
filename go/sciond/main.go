@@ -118,9 +118,10 @@ func realMain() int {
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
 
-	var publicIP *net.UDPAddr
-	if p := cfg.SD.Public; p != nil {
-		publicIP = p.ToNetUDPAddr()
+	publicIP, err := net.ResolveUDPAddr("udp", cfg.SD.Public)
+	if err != nil {
+		log.Crit("Unable to resolve listening address", "err", err, "addr", publicIP)
+		return 1
 	}
 
 	nc := infraenv.NetworkConfig{
