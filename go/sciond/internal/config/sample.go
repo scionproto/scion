@@ -31,13 +31,9 @@ SocketFileMode = "0770"
 # If set to True, the socket is removed before being created. (default false)
 DeleteSocket = false
 
-# Local address to listen on for SCION messages (if Bind is not set),
+# Local address to listen on for SCION messages,
 # and to send out messages to other nodes. (required)
 Public = "1-ff00:0:110,[127.0.0.1]:0"
-
-# If set, Bind is the preferred local address to listen on for SCION
-# messages.
-# Bind = "1-ff00:0:110,[127.0.0.1]:0"
 
 # The time after which segments for a destination are refetched. (default 5m)
 QueryInterval = "5m"

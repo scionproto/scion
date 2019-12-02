@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -107,10 +106,7 @@ type SDConfig struct {
 	DeleteSocket bool
 	// Public is the local address to listen on for SCION messages (if Bind is
 	// not set), and to send out messages to other nodes.
-	Public *snet.Addr
-	// If set, Bind is the preferred local address to listen on for SCION
-	// messages.
-	Bind *snet.Addr
+	Public string
 	// PathDB contains the configuration for the PathDB connection.
 	PathDB pathstorage.PathDBConf
 	// RevCache contains the configuration for the RevCache connection.
