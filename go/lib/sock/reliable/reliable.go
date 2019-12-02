@@ -90,10 +90,9 @@ const (
 
 // Dispatcher controls how SCION applications open sockets in the SCION world.
 type Dispatcher interface {
-	// Register connects to a SCION Dispatcher's UNIX socket. Future messages for address public or
-	// bind in AS ia which arrive at the dispatcher can be read by calling Read on the returned Conn
-	// structure.
-	Register(ctx context.Context, ia addr.IA, public *addr.AppAddr,
+	// Register connects to a SCION Dispatcher's UNIX socket. Future messages for the address in AS
+	// ia which arrive at the dispatcher can be read by calling Read on the returned connection.
+	Register(ctx context.Context, ia addr.IA, address *addr.AppAddr,
 		svc addr.HostSVC) (net.PacketConn, uint16, error)
 }
 
