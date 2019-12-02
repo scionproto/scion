@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +30,26 @@ func br_multi() int {
 
 	failures += revocation_parent_to_child()
 
+	failures += scmpBadVersion()
+	failures += scmpBadDstType()
+	failures += scmpBadSrcType()
+	failures += scmpBadPktLenShort()
+	failures += scmpBadPktLenLong()
+	failures += scmpBadHdrLenShort()
+	failures += scmpBadHdrLenLong()
+	failures += scmpBadInfoFieldOffsetLow()
+	failures += scmpBadInfoFieldOffsetHigh()
+	failures += scmpBadHopFieldOffsetLow()
+	failures += scmpBadHopFieldOffsetHigh()
+	failures += scmpPathRequired()
+	failures += scmpBadMac()
+	failures += scmpExpiredHopField()
+	failures += scmpBadInterface()
+	failures += scmpNonRoutingHopField()
+	failures += scmpTooManyHopByHop()
+	failures += scmpBadExtensionOrder()
+	failures += scmpBadHopByHop()
+
 	return failures
 }
 
@@ -41,6 +62,26 @@ func br_peer() int {
 	failures += shortcut_internal_child_to_peer()
 
 	failures += revocation_owned_peer()
+
+	failures += scmpBadVersion()
+	failures += scmpBadDstType()
+	failures += scmpBadSrcType()
+	failures += scmpBadPktLenShort()
+	failures += scmpBadPktLenLong()
+	failures += scmpBadHdrLenShort()
+	failures += scmpBadHdrLenLong()
+	failures += scmpBadInfoFieldOffsetLow()
+	failures += scmpBadInfoFieldOffsetHigh()
+	failures += scmpBadHopFieldOffsetLow()
+	failures += scmpBadHopFieldOffsetHigh()
+	failures += scmpPathRequired()
+	failures += scmpBadMac()
+	failures += scmpExpiredHopField()
+	failures += scmpBadInterface()
+	failures += scmpNonRoutingHopField()
+	failures += scmpTooManyHopByHop()
+	failures += scmpBadExtensionOrder()
+	failures += scmpBadHopByHop()
 
 	return failures
 }
@@ -60,6 +101,26 @@ func br_child() int {
 	failures += shortcut_internal_child_to_child()
 
 	failures += revocation_child_to_internal_host()
+
+	failures += scmpBadVersion()
+	failures += scmpBadDstType()
+	failures += scmpBadSrcType()
+	failures += scmpBadPktLenShort()
+	failures += scmpBadPktLenLong()
+	failures += scmpBadHdrLenShort()
+	failures += scmpBadHdrLenLong()
+	failures += scmpBadInfoFieldOffsetLow()
+	failures += scmpBadInfoFieldOffsetHigh()
+	failures += scmpBadHopFieldOffsetLow()
+	failures += scmpBadHopFieldOffsetHigh()
+	failures += scmpPathRequired()
+	failures += scmpBadMac()
+	failures += scmpExpiredHopField()
+	failures += scmpBadInterface()
+	failures += scmpNonRoutingHopField()
+	failures += scmpTooManyHopByHop()
+	failures += scmpBadExtensionOrder()
+	failures += scmpBadHopByHop()
 
 	return failures
 }
@@ -88,6 +149,26 @@ func br_parent() int {
 	failures += ohp_internal_bs_to_parent()
 
 	failures += parent_scmp_routing_bad_host()
+
+	failures += scmpBadVersion()
+	failures += scmpBadDstType()
+	failures += scmpBadSrcType()
+	failures += scmpBadPktLenShort()
+	failures += scmpBadPktLenLong()
+	failures += scmpBadHdrLenShort()
+	failures += scmpBadHdrLenLong()
+	failures += scmpBadInfoFieldOffsetLow()
+	failures += scmpBadInfoFieldOffsetHigh()
+	failures += scmpBadHopFieldOffsetLow()
+	failures += scmpBadHopFieldOffsetHigh()
+	failures += scmpPathRequired()
+	failures += scmpBadMac()
+	failures += scmpExpiredHopField()
+	failures += scmpBadInterface()
+	failures += scmpNonRoutingHopField()
+	failures += scmpTooManyHopByHop()
+	failures += scmpBadExtensionOrder()
+	failures += scmpBadHopByHop()
 
 	return failures
 }

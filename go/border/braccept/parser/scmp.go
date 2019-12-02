@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -95,6 +95,18 @@ func (s *SCMPTaggedLayer) Update(lines []string) {
 			s.Info = info
 		case "QUOTED":
 			s.updateQuotes(kvs)
+		case "InfoPktSize":
+			info := &InfoPktSize{}
+			skip = info.parse(lines[i:])
+			s.Info = info
+		case "InfoPathOffsets":
+			info := &InfoPathOffsets{}
+			skip = info.parse(lines[i:])
+			s.Info = info
+		case "InfoExtIdx":
+			info := &InfoExtIdx{}
+			skip = info.parse(lines[i:])
+			s.Info = info
 		default:
 			panic(fmt.Errorf("Unknown SCMP sub layer type '%s'\n", layerType))
 		}
@@ -134,8 +146,38 @@ func (info *InfoRevocation) parse(lines []string) int {
 	return 1
 }
 
+type InfoPktSize struct {
+	scmp.InfoPktSize
+}
+
+func (i *InfoPktSize) parse(lines []string) int {
+	if len(lines) < 1 {
+		panic(fmt.Sprintf("Bad InfoPktSize layer!\n%s\n", strings.Join(lines, "\n")))
+	}
+	_, _, kvStr := decodeLayerLine(lines[0])
+	kvs := getKeyValueMap(kvStr)
+	for k, v := range kvs {
+		switch k {
+		case "Size":
+			i.Size = uint16(StrToInt(v))
+		case "MTU":
+			i.MTU = uint16(StrToInt(v))
+		}
+	}
+	return 0
+}
+
 type InfoPathOffsets struct {
 	scmp.InfoPathOffsets
+}
+
+func (i *InfoPathOffsets) parse(lines []string) int {
+	if len(lines) < 1 {
+		panic(fmt.Sprintf("Bad InfoPathOffsets layer!\n%s\n", lines))
+	}
+	_, _, kvStr := decodeLayerLine(lines[0])
+	i.updateFields(getKeyValueMap(kvStr))
+	return 0
 }
 
 func (i *InfoPathOffsets) updateFields(kvs propMap) {
@@ -153,6 +195,26 @@ func (i *InfoPathOffsets) updateFields(kvs propMap) {
 			panic(fmt.Errorf("Unknown InfoPathOffsets field: %s", k))
 		}
 	}
+}
+
+type InfoExtIdx struct {
+	scmp.InfoExtIdx
+}
+
+func (i *InfoExtIdx) parse(lines []string) int {
+	if len(lines) < 1 {
+		panic(fmt.Sprintf("Bad InfoExtIdx layer!\n%s\n", lines))
+	}
+	_, _, kvStr := decodeLayerLine(lines[0])
+	for k, v := range getKeyValueMap(kvStr) {
+		switch k {
+		case "Idx":
+			i.Idx = uint8(StrToInt(v))
+		default:
+			panic(fmt.Sprintf("Invalid InfoExtIdx field: %s=%v", k, v))
+		}
+	}
+	return 0
 }
 
 func (s *SCMPTaggedLayer) updateHeaderFields(kvs propMap) {

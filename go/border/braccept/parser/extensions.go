@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -98,6 +98,9 @@ func (hbh *HBHTaggedLayer) Update(lines []string) {
 		scmp := &hbh_scmp{}
 		scmp.updateFields(kvs)
 		e = scmp
+	case "HBH.Empty":
+		hbh.Data = []byte{}
+		return
 	default:
 		panic(fmt.Errorf("Unknown HBH layer Type '%s'", layerType))
 	}
@@ -173,6 +176,8 @@ func parseHBHType(t string) uint8 {
 		e = common.ExtnOneHopPathType
 	case "SIBRA":
 		panic(fmt.Errorf("Unsupported HBH Type: %s", t))
+	case "InvHBH":
+		e = common.ExtnType{Class: common.HopByHopClass, Type: 255}
 	default:
 		panic(fmt.Errorf("Unknown HBH Type: %s", t))
 	}
