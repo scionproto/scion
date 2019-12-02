@@ -27,7 +27,6 @@ if [ "$RUN_ALL_TESTS" = "y" ]; then
     for mode in $MODES; do
         run_test "e2e_integration" "$mode"
     done
-    run_test "py_scmp_integration"
 fi
 
 for test in $TESTS; do

@@ -43,7 +43,6 @@ pkg_tar(
         "//go/examples/pingpong:pingpong",
         "//go/examples/pingpong/pp_integration:pp_integration",
         "//go/tools/buildkite_log_downloader:buildkite_log_downloader",
-        "//go/integration/scmp_error_pyintegration:scmp_error_pyintegration",
         "//go/tools/scmp/scmp_integration:scmp_integration",
         "//go/acceptance/sig_ping_acceptance:sig_ping_acceptance",
     ],

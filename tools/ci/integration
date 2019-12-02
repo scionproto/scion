@@ -6,10 +6,6 @@ go_integration() {
     ./docker.sh exec "set -eo pipefail; integration/go_integration |& tee -a logs/integration.run"
 }
 
-py_scmp_integration() {
-    ./docker.sh exec "set -eo pipefail; integration/py_scmp_integration |& tee -a logs/integration.run"
-}
-
 revocation() {
     echo "========> ($(date -u --rfc-3339=seconds)) End2end: starting"
     ./docker.sh exec "set -eo pipefail; time bin/end2end_integration -log.console error $DOCKER_BE |& tee -a logs/integration.run"
@@ -26,10 +22,6 @@ run_tests() {
     result=0
     go_integration
     result=$((result+$?))
-    if [ -n "$ALL" ]; then
-        py_scmp_integration
-        result=$((result+$?))
-    fi
     revocation
     result=$((result+$?))
     if [ $result -eq 0 ]; then
@@ -66,7 +58,7 @@ sleep 5
 COMMAND="$1"
 shift
 case "$COMMAND" in
-    go_integration|py_scmp_integration|revocation)
+    go_integration|revocation)
         "$COMMAND"; result=$? ;;
     e2e_integration)
         e2e_integration $1; result=$? ;;

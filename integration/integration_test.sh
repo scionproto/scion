@@ -54,10 +54,6 @@ result=0
 integration/go_integration
 result=$((result+$?))
 
-# Run python integration tests
-integration/py_scmp_integration
-result=$((result+$?))
-
 integration/revocation_test.sh -b "$REV_BRS"
 result=$((result+$?))
 

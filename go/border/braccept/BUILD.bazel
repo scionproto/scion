@@ -19,6 +19,7 @@ go_library(
         "peer_tests.go",
         "print.go",
         "revocation_tests.go",
+        "scmp_tests.go",
         "send.go",
         "sleep.go",
         "svc_tests.go",
