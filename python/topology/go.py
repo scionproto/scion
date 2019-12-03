@@ -178,10 +178,10 @@ class GoGenerator(object):
                     write_file(os.path.join(base, elem_id, CO_CONFIG_NAME), toml.dumps(co_conf))
                     traffic_matrix = self._build_co_traffic_matrix(topo_id)
                     write_file(os.path.join(base, elem_id, 'matrix.yml'),
-                        yaml.dump(traffic_matrix, default_flow_style=False))
+                               yaml.dump(traffic_matrix, default_flow_style=False))
                     rsvps = self._build_co_reservations(topo_id)
                     write_file(os.path.join(base, elem_id, 'reservations.json'),
-                        json.dumps(rsvps, sort_keys=True, indent=4))
+                               json.dumps(rsvps, sort_keys=True, indent=4))
 
     def _build_co_conf(self, topo_id, ia, base, name, infra_elem):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
