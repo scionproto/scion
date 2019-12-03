@@ -19,6 +19,8 @@
 # Stdlib
 import os
 import toml
+import json
+import yaml
 
 # SCION
 from lib.app.sciond import get_default_sciond_path
@@ -42,6 +44,7 @@ from topology.common import (
     sciond_name,
     SD_CONFIG_NAME,
     trust_db_conf_entry,
+    CO_CONFIG_NAME,
 )
 from topology.prometheus import (
     BS_PROM_PORT,
@@ -50,11 +53,14 @@ from topology.prometheus import (
     PS_PROM_PORT,
     SCIOND_PROM_PORT,
     DISP_PROM_PORT,
+    CO_PROM_PORT,
 )
+from topology.topo import DEFAULT_LINK_BW
 
 BS_QUIC_PORT = 30352
 PS_QUIC_PORT = 30353
 CS_QUIC_PORT = 30354
+CO_QUIC_PORT = 30355
 SD_QUIC_PORT = 0
 
 
@@ -159,6 +165,95 @@ class GoGenerator(object):
             'quic': self._quic_conf_entry(PS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
+
+    def generate_co(self):
+        if not self.args.colibri:
+            return
+        for topo_id, topo in self.args.topo_dicts.items():
+            for elem_id, elem in topo.get("ColibriService", {}).items():
+                # only a single Go-CO per AS is currently supported
+                if elem_id.endswith("-1"):
+                    base = topo_id.base_dir(self.args.output_dir)
+                    co_conf = self._build_co_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id, CO_CONFIG_NAME), toml.dumps(co_conf))
+                    traffic_matrix = self._build_co_traffic_matrix(topo_id)
+                    write_file(os.path.join(base, elem_id, 'matrix.yml'),
+                        yaml.dump(traffic_matrix, default_flow_style=False))
+                    rsvps = self._build_co_reservations(topo_id)
+                    write_file(os.path.join(base, elem_id, 'reservations.json'),
+                        json.dumps(rsvps, sort_keys=True, indent=4))
+
+    def _build_co_conf(self, topo_id, ia, base, name, infra_elem):
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': config_dir,
+                'ReconnectToDispatcher': True,
+            },
+            'logging': self._log_entry(name),
+            'trustDB': trust_db_conf_entry(self.args, name),
+            'discovery': self._discovery_entry(),
+            'tracing': self._tracing_entry(),
+            'metrics': self._metrics_entry(name, infra_elem, CO_PROM_PORT),
+            'quic': self._quic_conf_entry(CO_QUIC_PORT, self.args.svcfrac, infra_elem),
+        }
+        return raw_entry
+
+    def _build_co_traffic_matrix(self, ia):
+        """
+        Creates a NxN traffic matrix for colibri with N = len(interfaces)
+        """
+        topo = self.args.topo_dicts[ia]
+        if_ids = {iface for br in topo['BorderRouters'].values() for iface in br['Interfaces']}
+        if_ids.add(0)
+        bw = int(DEFAULT_LINK_BW / (len(if_ids) - 1))
+        traffic_matrix = {}
+        for inIfid in if_ids:
+            traffic_matrix[inIfid] = {}
+            for egIfid in if_ids.difference({inIfid}):
+                traffic_matrix[inIfid][egIfid] = bw
+        return traffic_matrix
+
+    def _build_co_reservations(self, ia):
+        """
+        Generates a dictionary of reservations with one entry per core AS (if "ia" is core)
+        excluding itself, or a pair (up and down) per core AS in the ISD if "ia" is not core.
+        """
+        rsvps = {}
+        this_as = self.args.topo_dicts[ia]
+        if this_as['Core']:
+            for dst_ia, topo in self.args.topo_dicts.items():
+                if dst_ia != ia and topo['Core']:
+                    rsvps['Core-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Core')
+        else:
+            for dst_ia, topo in self.args.topo_dicts.items():
+                if dst_ia != ia and dst_ia._isd == ia._isd and topo['Core']:
+                    # reach this core AS in the same ISD
+                    rsvps['Up-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Up')
+                    rsvps['Down-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Down')
+        return rsvps
+
+    def _build_co_reservation(self, dst_ia, path_type):
+        start_props = {'L', 'T'}
+        end_props = {'L', 'T'}
+        if path_type == 'Up':
+            start_props.remove('T')
+        elif path_type == 'Down':
+            end_props.remove('T')
+        return {
+            'DesiredSize': 27,
+            'IA': str(dst_ia),
+            'MaxSize': 30,
+            'MinSize': 1,
+            'PathPredicate': '%s#0' % dst_ia,
+            'PathType': path_type,
+            'SplitCls': 8,
+            'EndProps': {
+                'Start': list(start_props),
+                'End': list(end_props)
+            }
+        }
 
     def generate_sciond(self):
         for topo_id, topo in self.args.topo_dicts.items():

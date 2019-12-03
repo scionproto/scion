@@ -53,6 +53,7 @@ DEFAULT_BEACON_SERVERS = 1
 DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
+DEFAULT_COLIBRI_SERVERS = 1
 DEFAULT_DISCOVERY_SERVERS = 1
 
 
@@ -198,12 +199,15 @@ class TopoGenerator(object):
             self._gen_sig_entries(topo_id)
 
     def _gen_srv_entries(self, topo_id, as_conf):
-        for conf_key, def_num, nick, topo_key in (
+        srvs = [
             ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconService"),
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
              "CertificateService"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
-        ):
+        ]
+        if self.args.colibri:
+            srvs.append( ("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService") )
+        for conf_key, def_num, nick, topo_key in srvs:
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
         # The discovery service does not run on top of the dispatcher.
