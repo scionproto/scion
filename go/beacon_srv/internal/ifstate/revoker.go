@@ -170,7 +170,8 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 
 	topo := r.cfg.TopoProvider.Get()
 	labels := metrics.SentLabels{Dst: metrics.DstPS}
-	a := &snet.Addr{IA: topo.IA(), Host: addr.NewSVCUDPAppAddr(addr.SvcPS)}
+
+	a := snet.NewSVCAddr(topo.IA(), nil, nil, addr.SvcPS)
 	for ifid, srev := range revs {
 		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
 			log.FromCtx(ctx).Error("[ifstate.Revoker] Failed to send revocation to PS",
@@ -189,7 +190,8 @@ func (p *brPusher) sendIfStateToAllBRs(ctx context.Context, msg *path_mgmt.IFSta
 	topo topology.Topology, wg *sync.WaitGroup) {
 
 	for _, br := range topo.BRNames() {
-		p.sendIfStateToBr(ctx, msg, br, topo.SBRAddress(br), wg)
+		t := topo.SBRAddress(br)
+		p.sendIfStateToBr(ctx, msg, br, t.ToXAddr(), wg)
 	}
 }
 
@@ -202,7 +204,7 @@ func (p *brPusher) sendIfStateToBr(ctx context.Context, msg *path_mgmt.IFStateIn
 		defer wg.Done()
 		if err := p.msgr.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
 			log.FromCtx(ctx).Error("Failed to send interface state to BR",
-				"br", id, "mode", p.mode, "err", err)
+				"br", id, "mode", p.mode, "err", err, "address", a)
 		}
 	}()
 }

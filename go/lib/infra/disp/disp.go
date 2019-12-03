@@ -138,7 +138,7 @@ func (d *Dispatcher) Notify(ctx context.Context, msg proto.Cerealizable, address
 		return common.NewBasicError(infra.ErrAdapter, err, "op", "MsgToRaw")
 	}
 	if _, err := d.conn.WriteTo(b, address); err != nil {
-		return common.NewBasicError(infra.ErrTransport, err, "op", "WriteTo")
+		return common.NewBasicError(infra.ErrTransport, err, "op", "WriteTo", "address", address)
 	}
 	return nil
 }

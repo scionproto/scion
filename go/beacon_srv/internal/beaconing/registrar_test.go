@@ -125,7 +125,7 @@ func TestRegistrarRun(t *testing.T) {
 				})
 			type regMsg struct {
 				Reg  *path_mgmt.SegReg
-				Addr *snet.Addr
+				Addr *snet.SVCAddr
 			}
 			segMu := sync.Mutex{}
 			var sent []regMsg
@@ -137,7 +137,7 @@ func TestRegistrarRun(t *testing.T) {
 					defer segMu.Unlock()
 					sent = append(sent, regMsg{
 						Reg:  isegreg.(*path_mgmt.SegReg),
-						Addr: iaddr.(*snet.Addr),
+						Addr: iaddr.(*snet.SVCAddr),
 					})
 					return nil
 				},
@@ -165,12 +165,11 @@ func TestRegistrarRun(t *testing.T) {
 				Convey(fmt.Sprintf("Segment %d is sent to the PS", segIdx), func() {
 					if !test.remotePS {
 						SoMsg("IA", s.Addr.IA, ShouldResemble, topoProvider.Get().IA())
-						a := addr.NewSVCUDPAppAddr(addr.SvcPS)
-						SoMsg("Host", s.Addr.Host, ShouldResemble, a)
+						SoMsg("Host", s.Addr.SVC, ShouldResemble, addr.SvcPS)
 						return
 					}
 					SoMsg("IA", s.Addr.IA, ShouldResemble, pseg.FirstIA())
-					SoMsg("Host", s.Addr.Host.L3, ShouldResemble, addr.SvcPS)
+					SoMsg("Host", s.Addr.SVC, ShouldResemble, addr.SvcPS)
 					hopF, err := s.Addr.Path.GetHopField(s.Addr.Path.HopOff)
 					SoMsg("err", err, ShouldBeNil)
 					SoMsg("HopField", []uint8(hopF.Pack()), ShouldResemble,

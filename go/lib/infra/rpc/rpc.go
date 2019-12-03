@@ -188,9 +188,8 @@ func (c *Client) sendRequest() error {
 // computeAddressStr returns a parseable version of the SCION address for use
 // with QUIC SNI.
 func computeAddressStr(address net.Addr) string {
-	snetAddr, ok := address.(*snet.Addr)
-	if ok {
-		return fmt.Sprintf("%s:%d", snetAddr.Host.L3.String(), snetAddr.Host.L4)
+	if v, ok := address.(*snet.UDPAddr); ok {
+		return fmt.Sprintf("%s:%d", v.Host.IP, v.Host.Port)
 	}
 	return address.String()
 }

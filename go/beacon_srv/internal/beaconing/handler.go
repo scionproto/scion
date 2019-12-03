@@ -199,11 +199,7 @@ func (h *handler) verifySegment(segment *seg.PathSegment) error {
 	if err != nil {
 		return common.NewBasicError("path error", err)
 	}
-	svcToQuery := &snet.Addr{
-		IA:      snetPeer.IA,
-		Path:    peerPath.Path(),
-		NextHop: peerPath.OverlayNextHop(),
-		Host:    addr.NewSVCUDPAppAddr(addr.SvcBS),
-	}
+	svcToQuery := snet.NewSVCAddr(snetPeer.IA, peerPath.Path(),
+		peerPath.OverlayNextHop(), addr.SvcBS)
 	return segverifier.VerifySegment(h.request.Context(), h.verifier, svcToQuery, segment)
 }

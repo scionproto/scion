@@ -49,7 +49,7 @@ func (c *Syncer) Run(ctx context.Context) {
 		logger.Error("[cryptosyncer.Syncer] Failed to read TRCs", "err", err)
 		return
 	}
-	cs := &snet.Addr{IA: c.IA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	cs := snet.NewSVCAddr(c.IA, nil, nil, addr.SvcCS)
 	trcCount := c.sendTRCs(ctx, trcChan, cs)
 	chainChan, err := c.DB.GetAllChains(ctx)
 	if err != nil {

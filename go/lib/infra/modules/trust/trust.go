@@ -752,7 +752,8 @@ func (store *Store) isLocal(address net.Addr) error {
 func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.Addr, error) {
 	topo := store.config.TopoProvider.Get()
 	if store.config.ServiceType != proto.ServiceType_cs {
-		return &snet.Addr{IA: store.ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}, nil
+		ret := snet.NewSVCAddr(store.ia, nil, nil, addr.SvcCS)
+		return ret, nil
 	}
 	destISD, err := store.chooseDestCSIsd(ctx, destination, topo)
 	if err != nil {
@@ -763,13 +764,8 @@ func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.
 		return nil, common.NewBasicError("Unable to find path to any core AS", err,
 			"isd", destISD)
 	}
-	a := &snet.Addr{
-		IA:      path.Destination(),
-		Host:    addr.NewSVCUDPAppAddr(addr.SvcCS),
-		Path:    path.Path(),
-		NextHop: path.OverlayNextHop(),
-	}
-	return a, nil
+	ret := snet.NewSVCAddr(path.Destination(), path.Path(), path.OverlayNextHop(), addr.SvcCS)
+	return ret, nil
 }
 
 // chooseDestCSIsd selects the CS to ask for crypto material, using the following strategy:

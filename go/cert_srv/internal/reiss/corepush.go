@@ -151,8 +151,8 @@ func (p *CorePusher) hasChain(ctx context.Context, coreAS addr.IA,
 		Version:   ver,
 		CacheOnly: true,
 	}
-	coreAddr := &snet.Addr{IA: coreAS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-	reply, err := p.Msger.GetCertChain(ctx, req, coreAddr, messenger.NextId())
+	a := snet.NewSVCAddr(coreAS, nil, nil, addr.SvcCS)
+	reply, err := p.Msger.GetCertChain(ctx, req, a, messenger.NextId())
 	if err != nil {
 		return false, common.NewBasicError("Error during fetch", err)
 	}
@@ -168,9 +168,9 @@ func (p *CorePusher) sendChain(ctx context.Context, coreAS addr.IA, chain *cert.
 	msg := &cert_mgmt.Chain{
 		RawChain: rawChain,
 	}
-	coreAddr := &snet.Addr{IA: coreAS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	a := snet.NewSVCAddr(coreAS, nil, nil, addr.SvcCS)
 	// TODO(lukedirtwalker): Expect Acks.
-	return p.Msger.SendCertChain(ctx, msg, coreAddr, messenger.NextId())
+	return p.Msger.SendCertChain(ctx, msg, a, messenger.NextId())
 }
 
 type iaList struct {

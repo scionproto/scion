@@ -264,17 +264,16 @@ func expectMessengerCalls(msger *mock_infra.MockMessenger,
 				ShouldEqual, len(topoProvider.Get().BRNames()))
 			sentBRs := expectedBRs(topoProvider)
 			for _, brMsg := range brMsgs {
-				brName := brId(t, topoProvider, brMsg.a.(*snet.Addr))
+				brName := brId(t, topoProvider, brMsg.a.(*snet.UDPAddr))
 				delete(sentBRs, brName)
 				checkBRMessage(t, brName, brMsg.msg, revokedIfId, verifier, topoProvider)
 			}
 			SoMsg("Should have sent to all brs", sentBRs, ShouldBeEmpty)
 		})
 		Convey("Check sent PS message", func() {
-			saddr := psAddr.(*snet.Addr)
+			saddr := psAddr.(*snet.SVCAddr)
 			SoMsg("Should send to local IA", saddr.IA, ShouldResemble, ia)
-			a := addr.NewSVCUDPAppAddr(addr.SvcPS)
-			SoMsg("Should send to PS", saddr.Host, ShouldResemble, a)
+			SoMsg("Should send to PS", saddr.SVC, ShouldResemble, addr.SvcPS)
 			checkRevocation(t, psMsg, revokedIfId, verifier, topoProvider)
 		})
 	}
@@ -320,13 +319,15 @@ func checkInterfaces(intfs *Interfaces, nonActive map[common.IFIDType]State) {
 	})
 }
 
-func brId(t *testing.T, topoProvider topology.Provider, saddr *snet.Addr) string {
+func brId(t *testing.T, topoProvider topology.Provider, saddr *snet.UDPAddr) string {
 	topo := topoProvider.Get()
 	for _, brID := range topo.BRNames() {
-		if topo.SBRAddress(brID).Host.Equal(saddr.Host) {
+		leg := topo.SBRAddress(brID)
+		if leg.Host.L3.String() == saddr.Host.IP.String() && leg.IA == saddr.IA {
 			return brID
 		}
 	}
+
 	t.Fatalf("Didn't find br ID for %s", saddr.Host)
 	return "" // meh, makes the compiler happy.
 }
