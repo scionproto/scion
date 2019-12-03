@@ -206,7 +206,7 @@ class TopoGenerator(object):
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
         ]
         if self.args.colibri:
-            srvs.append( ("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService") )
+            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService"))
         for conf_key, def_num, nick, topo_key in srvs:
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
