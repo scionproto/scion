@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +15,10 @@
 
 package main
 
+import (
+	"github.com/scionproto/scion/go/lib/xtest"
+)
+
 func br_multi() int {
 	var failures int
 
@@ -28,6 +33,30 @@ func br_multi() int {
 	failures += shortcut_child_to_child()
 
 	failures += revocation_parent_to_child()
+
+	scmpCfg := scmpTestCfg{
+		DstIA:          xtest.MustParseIA("2-ff00:0:3"),
+		LocalInterface: 131,
+	}
+	failures += scmpCfg.scmpBadVersion()
+	failures += scmpCfg.scmpBadDstType()
+	failures += scmpCfg.scmpBadSrcType()
+	failures += scmpCfg.scmpBadPktLenShort()
+	failures += scmpCfg.scmpBadPktLenLong()
+	failures += scmpCfg.scmpBadHdrLenShort()
+	failures += scmpCfg.scmpBadHdrLenLong()
+	failures += scmpCfg.scmpBadInfoFieldOffsetLow()
+	failures += scmpCfg.scmpBadInfoFieldOffsetHigh()
+	failures += scmpCfg.scmpBadHopFieldOffsetLow()
+	failures += scmpCfg.scmpBadHopFieldOffsetHigh()
+	failures += scmpCfg.scmpPathRequired()
+	failures += scmpCfg.scmpBadMac()
+	failures += scmpCfg.scmpExpiredHopField()
+	failures += scmpCfg.scmpBadInterface()
+	failures += scmpCfg.scmpNonRoutingHopField()
+	failures += scmpCfg.scmpTooManyHopByHop()
+	failures += scmpCfg.scmpBadExtensionOrder()
+	failures += scmpCfg.scmpBadHopByHop()
 
 	return failures
 }

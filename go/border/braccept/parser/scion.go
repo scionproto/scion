@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import (
 	"hash"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/gopacket"
 
@@ -230,12 +229,10 @@ func updateFieldsIF(inf *spath.InfoField, kvs propMap) {
 		switch k {
 		case "Flags":
 			updateFlagsIF(inf, v)
-		case "Ts":
-			t, err := time.Parse(common.TimeFmt, v)
-			if err != nil {
-				panic(err)
-			}
-			inf.TsInt = uint32(t.Unix())
+		case "TsInt":
+			// Note that users can still pass a normally formatted timestamp
+			// with fmt.Sprintf("%d", timeStamp.Unix()).
+			inf.TsInt = uint32(StrToInt(v))
 		case "ISD":
 			inf.ISD = uint16(StrToInt(v))
 		case "Hops":
