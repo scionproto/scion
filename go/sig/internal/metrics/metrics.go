@@ -65,7 +65,7 @@ var (
 var ConfigVersion uint64
 
 func init() {
-	iaLabels := []string{"IA", "sessId"}
+	iaLabels := []string{"dst_isd_as", "sessId"}
 
 	// Some closures to reduce boiler-plate.
 	newC := func(name, help string) prometheus.Counter {
@@ -115,7 +115,7 @@ func init() {
 		"Number of times the remote has changed.", iaLabels)
 
 	EgressRxQueueFull = newCVec("egress_recv_queue_full_total",
-		"Egress packets dropped due to full queues.", []string{"IA"})
+		"Egress packets dropped due to full queues.", []string{"dst_isd_as"})
 
 	// Add handler for ConfigVersion
 	http.HandleFunc("/configversion", func(w http.ResponseWriter, _ *http.Request) {
