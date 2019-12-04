@@ -33,7 +33,7 @@ DeleteSocket = false
 
 # Local address to listen on for SCION messages,
 # and to send out messages to other nodes. (required)
-Public = "1-ff00:0:110,[127.0.0.1]:0"
+Public = "127.0.0.1:0"
 
 # The time after which segments for a destination are refetched. (default 5m)
 QueryInterval = "5m"
