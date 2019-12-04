@@ -92,7 +92,7 @@ const (
 type Dispatcher interface {
 	// Register connects to a SCION Dispatcher's UNIX socket. Future messages for the address in AS
 	// ia which arrive at the dispatcher can be read by calling Read on the returned connection.
-	Register(ctx context.Context, ia addr.IA, address *addr.AppAddr,
+	Register(ctx context.Context, ia addr.IA, address *net.UDPAddr,
 		svc addr.HostSVC) (net.PacketConn, uint16, error)
 }
 
@@ -110,7 +110,7 @@ type dispatcherService struct {
 	Address string
 }
 
-func (d *dispatcherService) Register(ctx context.Context, ia addr.IA, public *addr.AppAddr,
+func (d *dispatcherService) Register(ctx context.Context, ia addr.IA, public *net.UDPAddr,
 	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	return registerMetricsWrapper(ctx, d.Address, ia, public, svc)
@@ -159,7 +159,7 @@ func Dial(ctx context.Context, address string) (*Conn, error) {
 }
 
 func registerMetricsWrapper(ctx context.Context, dispatcher string, ia addr.IA,
-	public *addr.AppAddr, svc addr.HostSVC) (*Conn, uint16, error) {
+	public *net.UDPAddr, svc addr.HostSVC) (*Conn, uint16, error) {
 
 	conn, port, err := register(ctx, dispatcher, ia, public, svc)
 	labels := metrics.RegisterLabels{Result: labelResult(err), SVC: svc.BaseString()}
@@ -167,16 +167,12 @@ func registerMetricsWrapper(ctx context.Context, dispatcher string, ia addr.IA,
 	return conn, port, err
 }
 
-func register(ctx context.Context, dispatcher string, ia addr.IA, public *addr.AppAddr,
+func register(ctx context.Context, dispatcher string, ia addr.IA, public *net.UDPAddr,
 	svc addr.HostSVC) (*Conn, uint16, error) {
 
-	publicUDP, err := createUDPAddrFromAppAddr(public)
-	if err != nil {
-		return nil, 0, err
-	}
 	reg := &Registration{
 		IA:            ia,
-		PublicAddress: publicUDP,
+		PublicAddress: public,
 		SVCAddress:    svc,
 	}
 
@@ -208,9 +204,9 @@ func register(ctx context.Context, dispatcher string, ia addr.IA, public *addr.A
 			conn.Close()
 			return nil, 0, registrationReturn.err
 		}
-		if publicUDP.Port != 0 && publicUDP.Port != int(registrationReturn.port) {
+		if public.Port != 0 && public.Port != int(registrationReturn.port) {
 			conn.Close()
-			return nil, 0, serrors.New("port mismatch", "requested", publicUDP.Port,
+			return nil, 0, serrors.New("port mismatch", "requested", public.Port,
 				"received", registrationReturn.port)
 		}
 		// Disable deadline to not affect future I/O
@@ -359,21 +355,6 @@ func (listener *Listener) Accept() (net.Conn, error) {
 
 func (listener *Listener) String() string {
 	return fmt.Sprintf("&{addr: %v}", listener.UnixListener.Addr())
-}
-
-func createUDPAddrFromAppAddr(address *addr.AppAddr) (*net.UDPAddr, error) {
-	if address == nil || address.L3 == nil {
-		return nil, serrors.New("nil application address")
-	}
-	if address.L3.Type() != addr.HostTypeIPv4 && address.L3.Type() != addr.HostTypeIPv6 {
-		return nil, common.NewBasicError("unsupported application address type", nil,
-			"type", address.L3.Type())
-	}
-	ip := address.L3.IP()
-	if ip == nil {
-		panic("inconsistent app address, ip should never be nil")
-	}
-	return &net.UDPAddr{IP: ip, Port: int(address.L4)}, nil
 }
 
 func labelResult(err error) string {

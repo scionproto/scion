@@ -69,7 +69,7 @@ func main() {
 	// Connect to the dispatcher
 	dispatcherService := reliable.NewDispatcher(*dispatcher)
 	cmn.Conn, _, err = dispatcherService.Register(context.Background(), cmn.Local.IA,
-		cmn.Local.Host, addr.SvcNone)
+		cmn.Local.ToNetUDPAddr(), addr.SvcNone)
 	if err != nil {
 		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local, err)
 	}

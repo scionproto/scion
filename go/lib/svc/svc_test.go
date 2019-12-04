@@ -50,7 +50,7 @@ func TestSVCResolutionServer(t *testing.T) {
 
 			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
-			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &addr.AppAddr{},
+			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &net.UDPAddr{},
 				&net.UDPAddr{}, addr.SvcPS, 0)
 			SoMsg("conn", conn, ShouldBeNil)
 			SoMsg("port", port, ShouldEqual, 0)
@@ -62,7 +62,7 @@ func TestSVCResolutionServer(t *testing.T) {
 
 			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
-			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &addr.AppAddr{},
+			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &net.UDPAddr{},
 				&net.UDPAddr{}, addr.SvcPS, 0)
 			SoMsg("conn", conn, ShouldNotBeNil)
 			SoMsg("port", port, ShouldEqual, 1337)

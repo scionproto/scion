@@ -31,7 +31,7 @@ import (
 // PacketDispatcherService constructs SCION sockets where applications have
 // fine-grained control over header fields.
 type PacketDispatcherService interface {
-	RegisterTimeout(ia addr.IA, public *addr.AppAddr, bind *net.UDPAddr,
+	RegisterTimeout(ia addr.IA, public *net.UDPAddr, bind *net.UDPAddr,
 		svc addr.HostSVC, timeout time.Duration) (PacketConn, uint16, error)
 }
 
@@ -48,7 +48,7 @@ type DefaultPacketDispatcherService struct {
 	SCMPHandler SCMPHandler
 }
 
-func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
+func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *net.UDPAddr,
 	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (PacketConn, uint16, error) {
 

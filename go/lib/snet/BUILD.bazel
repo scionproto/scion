@@ -43,7 +43,6 @@ go_test(
         "addr_test.go",
         "export_test.go",
         "raw_test.go",
-        "router_test.go",
         "svcaddr_test.go",
         "udpaddr_test.go",
         "writer_test.go",

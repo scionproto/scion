@@ -49,8 +49,8 @@ type Resolver struct {
 	LocalIA addr.IA
 	// ConnFactory is used to open ports for SVC resolution messages.
 	ConnFactory snet.PacketDispatcherService
-	// Machine is used to derive addressing information for local conns.
-	Machine snet.LocalMachine
+	// LocalIP is the default L3 address for connections originating from this process.
+	LocalIP net.IP
 	// RoundTripper performs the request/reply exchange for SVC resolutions. If
 	// nil, the default round tripper is used.
 	RoundTripper RoundTripper
@@ -66,8 +66,11 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 
 	// FIXME(scrye): Assume registration is always instant for now. This,
 	// however, should respect ctx.
-	conn, port, err := r.ConnFactory.RegisterTimeout(r.LocalIA, r.Machine.AppAddress(),
-		nil, addr.SvcNone, 0)
+	u := &net.UDPAddr{
+		IP: r.LocalIP,
+	}
+
+	conn, port, err := r.ConnFactory.RegisterTimeout(r.LocalIA, u, nil, addr.SvcNone, 0)
 	if err != nil {
 		return nil, common.NewBasicError(errRegistration, err)
 	}
@@ -76,7 +79,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		SCIONPacketInfo: snet.SCIONPacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   r.LocalIA,
-				Host: r.Machine.AppAddress().L3,
+				Host: addr.HostFromIP(r.LocalIP),
 			},
 			Destination: snet.SCIONAddress{
 				IA:   p.Destination(),

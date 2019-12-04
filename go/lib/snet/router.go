@@ -16,7 +16,6 @@ package snet
 
 import (
 	"context"
-	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
@@ -68,34 +67,4 @@ type IntraASPathQuerier struct {
 // Query implements PathQuerier.
 func (q IntraASPathQuerier) Query(_ context.Context, _ addr.IA) ([]Path, error) {
 	return []Path{&partialPath{destination: q.IA}}, nil
-}
-
-// LocalMachine describes aspects of the host system and its network.
-type LocalMachine struct {
-	// InterfaceIP is the default L3 address for connections originating from
-	// this machine. It should be an address configured on a host interface
-	// that is reachable from the network.
-	InterfaceIP net.IP
-	// If this machine is behind a NAT, PublicIP should be set to the public IP
-	// of the NAT. If the local IP is already public, PublicIP should be set to
-	// nil.
-	PublicIP net.IP
-}
-
-// AppAddress returns a public address for the local machine. The port is
-// set to 0.
-func (m *LocalMachine) AppAddress() *addr.AppAddr {
-	ip := m.InterfaceIP
-	if m.PublicIP != nil {
-		ip = m.PublicIP
-	}
-	return &addr.AppAddr{
-		L3: addr.HostFromIP(ip),
-	}
-}
-
-// BindAddress returns a bind address for the local machine. The port is
-// set to 0.
-func (m *LocalMachine) BindAddress() *net.UDPAddr {
-	return &net.UDPAddr{IP: m.InterfaceIP}
 }

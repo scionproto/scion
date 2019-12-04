@@ -62,11 +62,10 @@ func TestResolver(t *testing.T) {
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Local machine information is used to build conns", func() {
-			machine := snet.LocalMachine{InterfaceIP: net.IP{192, 0, 2, 1}}
 			mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
 			mockConn := mock_snet.NewMockPacketConn(ctrl)
 			mockPacketDispatcherService.EXPECT().RegisterTimeout(srcIA,
-				machine.AppAddress(),
+				&net.UDPAddr{IP: net.IP{192, 0, 2, 1}},
 				nil,
 				addr.SvcNone,
 				time.Duration(0)).Return(mockConn, uint16(42), nil)
@@ -77,7 +76,7 @@ func TestResolver(t *testing.T) {
 			resolver := &svc.Resolver{
 				LocalIA:      srcIA,
 				ConnFactory:  mockPacketDispatcherService,
-				Machine:      machine,
+				LocalIP:      net.IP{192, 0, 2, 1},
 				RoundTripper: mockRoundTripper,
 			}
 			resolver.LookupSVC(context.Background(), mockPath, addr.SvcCS)

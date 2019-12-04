@@ -40,17 +40,22 @@ func TestReconnect(t *testing.T) {
 			mockConn := mock_net.NewMockPacketConn(ctrl)
 			Convey("Allocated ports are reused on subsequent attempts", func() {
 				mockDispatcher.EXPECT().
-					Register(context.Background(), localAddr.IA, localNoPortAddr.Host, svc).
+					Register(context.Background(), localAddr.IA,
+						localNoPortAddr.ToNetUDPAddr(), svc).
 					Return(mockConn, uint16(80), nil)
-				newExpectedAddr := localNoPortAddr.Host.Copy()
-				newExpectedAddr.L4 = 80
+
+				want := &net.UDPAddr{
+					IP:   localNoPortAddr.Host.Copy().L3.IP(),
+					Port: 80,
+				}
+
 				mockDispatcher.EXPECT().
-					Register(context.Background(), localAddr.IA, newExpectedAddr, svc).
+					Register(context.Background(), localAddr.IA, want, svc).
 					Return(mockConn, uint16(80), nil)
 
 				network := reconnect.NewDispatcherService(mockDispatcher)
 				packetConn, _, _ := network.RegisterTimeout(context.Background(), localAddr.IA,
-					localNoPortAddr.Host, svc)
+					localNoPortAddr.ToNetUDPAddr(), svc)
 				packetConn.(*reconnect.PacketConn).Reconnect()
 			})
 		})
