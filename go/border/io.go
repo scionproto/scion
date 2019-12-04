@@ -343,8 +343,7 @@ func isHostUnreachable(err error) bool {
 	return isSyscallErrno(err, syscall.EHOSTUNREACH)
 }
 
-func isSyscallErrno(err error, errno syscall.Errno) bool
-{
+func isSyscallErrno(err error, errno syscall.Errno) bool {
 	netErr, ok := err.(*net.OpError)
 	if !ok {
 		return false
