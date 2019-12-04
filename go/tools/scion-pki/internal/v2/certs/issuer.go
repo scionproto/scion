@@ -94,7 +94,7 @@ func (g issGen) generate(ia addr.IA, cfg conf.Issuer) (issMeta, error) {
 
 func (g issGen) loadPubKeys(ia addr.IA, cfg conf.Issuer) (map[cert.KeyType]keyconf.Key, error) {
 	keys := make(map[cert.KeyType]keyconf.Key)
-	descs := map[cert.KeyType]pkicmn.KeyDesc{
+	ids := map[cert.KeyType]keyconf.KeyID{
 		cert.IssuingKey: {
 			IA:      ia,
 			Usage:   keyconf.IssCertSigningKey,
@@ -102,32 +102,32 @@ func (g issGen) loadPubKeys(ia addr.IA, cfg conf.Issuer) (map[cert.KeyType]keyco
 		},
 	}
 	if cfg.RevocationKeyVersion != nil {
-		descs[cert.RevocationKey] = pkicmn.KeyDesc{
+		ids[cert.RevocationKey] = keyconf.KeyID{
 			IA:      ia,
 			Usage:   keyconf.IssRevocationKey,
 			Version: *cfg.RevocationKeyVersion,
 		}
 	}
-	for keyType, desc := range descs {
-		key, err := g.loadPubKey(desc)
+	for keyType, id := range ids {
+		key, err := g.loadPubKey(id)
 		if err != nil {
-			return nil, serrors.WithCtx(err, "usage", desc.Usage)
+			return nil, serrors.WithCtx(err, "usage", id.Usage)
 		}
 		keys[keyType] = key
 	}
 	return keys, nil
 }
 
-func (g issGen) loadPubKey(desc pkicmn.KeyDesc) (keyconf.Key, error) {
-	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, desc)
+func (g issGen) loadPubKey(id keyconf.KeyID) (keyconf.Key, error) {
+	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, id)
 	if err != nil {
 		return keyconf.Key{}, err
 	}
 	if fromPriv {
-		pkicmn.QuietPrint("Using private %s key for %s\n", desc.Usage, desc.IA)
+		pkicmn.QuietPrint("Using private %s key for %s\n", id.Usage, id.IA)
 		return key, nil
 	}
-	pkicmn.QuietPrint("Using public %s key for %s\n", desc.Usage, desc.IA)
+	pkicmn.QuietPrint("Using public %s key for %s\n", id.Usage, id.IA)
 	return key, nil
 }
 
@@ -175,12 +175,12 @@ func (g issGen) sign(ia addr.IA, cfg conf.Issuer,
 	if !ok || !primary.Attributes.Contains(trc.Issuing) || primary.IssuingKeyVersion == nil {
 		return cert.SignedIssuer{}, serrors.New("not an issuing AS")
 	}
-	desc := pkicmn.KeyDesc{
+	id := keyconf.KeyID{
 		IA:      ia,
 		Usage:   keyconf.TRCIssuingKey,
 		Version: *primary.IssuingKeyVersion,
 	}
-	key, err := pkicmn.LoadKey(keys.PrivateFile(g.Dirs.Out, desc), desc)
+	key, err := keyconf.LoadKeyFromFile(keys.PrivateFile(g.Dirs.Out, id), keyconf.PrivateKey, id)
 	if err != nil {
 		return cert.SignedIssuer{}, serrors.WrapStr("unable to load issuing key", err, "file", file)
 	}

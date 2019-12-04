@@ -32,14 +32,14 @@ type loader struct {
 }
 
 func (l loader) LoadIssuerConfigs(asMap pkicmn.ASMap) (map[addr.IA]conf.Issuer, error) {
+	s := selector{
+		File:  conf.IssuerFile,
+		All:   conf.AllIssuerFiles,
+		Regex: `issuer-v(\d*)\.toml$`,
+	}
 	cfgs := make(map[addr.IA]conf.Issuer)
 	for _, ias := range asMap {
 		for _, ia := range ias {
-			s := selector{
-				File:  conf.IssuerFile,
-				All:   conf.AllIssuerFiles,
-				Regex: `issuer-v(\d*)\.toml$`,
-			}
 			file, err := l.selectConfig(ia, s)
 			if err != nil {
 				return nil, serrors.WrapStr("unable to select config", err, "ia", ia)
@@ -65,14 +65,14 @@ func (l loader) selectConfig(ia addr.IA, s selector) (string, error) {
 	if len(files) == 0 {
 		return "", serrors.WrapStr("no config files found", err)
 	}
-	max, err := l.findMaxVersion(files, s.Regex)
+	max, err := findMaxVersion(files, s.Regex)
 	if err != nil {
 		return "", serrors.WrapStr("unable to find max version", err)
 	}
 	return s.File(l.Dirs.Root, ia, max), nil
 }
 
-func (l loader) findMaxVersion(files []string, matcher string) (scrypto.Version, error) {
+func findMaxVersion(files []string, matcher string) (scrypto.Version, error) {
 	re := regexp.MustCompile(matcher)
 	var max uint64
 	for _, file := range files {

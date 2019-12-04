@@ -127,18 +127,18 @@ func (g pubGen) writeKeys(pubKeys map[addr.IA][]keyconf.Key) error {
 // public key. If that fails, it attempts to load the public key directly. The
 // boolean return value indicates whether the public key was derived from the
 // private key.
-func LoadPublicKey(dir string, desc pkicmn.KeyDesc) (keyconf.Key, bool, error) {
-	priv, err := pkicmn.LoadKey(PrivateFile(dir, desc), desc)
+func LoadPublicKey(dir string, id keyconf.KeyID) (keyconf.Key, bool, error) {
+	priv, err := keyconf.LoadKeyFromFile(PrivateFile(dir, id), keyconf.PrivateKey, id)
 	if err == nil {
 		pub, err := PublicKey(priv)
 		return pub, true, err
 	}
-	if !xerrors.Is(err, pkicmn.ErrReadFile) {
+	if !xerrors.Is(err, keyconf.ErrReadFile) {
 		return keyconf.Key{}, false, err
 	}
-	pkicmn.QuietPrint("Unable to load private key for %s. Trying public key.\n", desc.IA)
-	file := PublicFile(dir, desc)
-	pub, err := pkicmn.LoadKey(file, desc)
+	pkicmn.QuietPrint("Unable to load private key for %s. Trying public key.\n", id.IA)
+	file := PublicFile(dir, id)
+	pub, err := keyconf.LoadKeyFromFile(file, keyconf.PublicKey, id)
 	if err != nil {
 		return keyconf.Key{}, false, serrors.WrapStr("unable to load public key", err, "file", file)
 	}
@@ -155,12 +155,14 @@ func PublicKey(priv keyconf.Key) (keyconf.Key, error) {
 		return keyconf.Key{}, serrors.WrapStr("error generating public key", err)
 	}
 	key := keyconf.Key{
+		KeyID: keyconf.KeyID{
+			Usage:   priv.Usage,
+			IA:      priv.IA,
+			Version: priv.Version,
+		},
 		Type:      keyconf.PublicKey,
-		Usage:     priv.Usage,
 		Algorithm: priv.Algorithm,
 		Validity:  priv.Validity,
-		Version:   priv.Version,
-		IA:        priv.IA,
 		Bytes:     raw,
 	}
 	return key, nil

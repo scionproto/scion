@@ -28,8 +28,8 @@ func PrivateDir(out string, ia addr.IA) string {
 }
 
 // PrivateFile returns the file where the private key is written to.
-func PrivateFile(out string, desc pkicmn.KeyDesc) string {
-	return filepath.Join(PrivateDir(out, desc.IA), keyconf.PrivateKeyFile(desc.Usage, desc.Version))
+func PrivateFile(out string, id keyconf.KeyID) string {
+	return filepath.Join(PrivateDir(out, id.IA), keyconf.PrivateKeyFile(id.Usage, id.Version))
 }
 
 // PublicDir returns the directory where the public keys are written to.
@@ -38,7 +38,7 @@ func PublicDir(out string, ia addr.IA) string {
 }
 
 // PublicFile returns the file where the public key is written to.
-func PublicFile(out string, desc pkicmn.KeyDesc) string {
-	return filepath.Join(PublicDir(out, desc.IA),
-		keyconf.PublicKeyFile(desc.Usage, desc.IA, desc.Version))
+func PublicFile(out string, id keyconf.KeyID) string {
+	return filepath.Join(PublicDir(out, id.IA),
+		keyconf.PublicKeyFile(id.Usage, id.IA, id.Version))
 }

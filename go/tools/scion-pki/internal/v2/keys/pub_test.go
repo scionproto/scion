@@ -19,6 +19,7 @@ import (
 	"encoding/pem"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -165,6 +166,79 @@ func TestPubGenRun(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoadPublicKey(t *testing.T) {
+	tmpDir, clean := xtest.MustTempDir("", "test-keys")
+	defer clean()
+	protoKey := keyconf.Key{
+		KeyID: keyconf.KeyID{
+			Usage:   keyconf.ASSigningKey,
+			IA:      xtest.MustParseIA("1-ff00:0:110"),
+			Version: 1,
+		},
+		Type: keyconf.PublicKey,
+	}
+	t.Run("load pub file", func(t *testing.T) {
+		dir := path.Join(tmpDir, "pub")
+		err := os.MkdirAll(PublicDir(dir, protoKey.IA), 0777)
+		require.NoError(t, err)
+		block := protoKey.PEM()
+		err = ioutil.WriteFile(PublicFile(dir, protoKey.KeyID), pem.EncodeToMemory(&block), 0644)
+		require.NoError(t, err)
+
+		_, derived, err := LoadPublicKey(dir, protoKey.KeyID)
+		require.NoError(t, err)
+		assert.False(t, derived)
+	})
+	t.Run("load priv file", func(t *testing.T) {
+		dir := path.Join(tmpDir, "priv")
+		err := os.MkdirAll(PublicDir(dir, protoKey.IA), 0777)
+		require.NoError(t, err)
+		block := protoKey.PEM()
+		err = ioutil.WriteFile(PublicFile(dir, protoKey.KeyID), pem.EncodeToMemory(&block), 0644)
+		require.NoError(t, err)
+
+		err = os.MkdirAll(PrivateDir(dir, protoKey.IA), 0777)
+		require.NoError(t, err)
+		priv := keyconf.Key{
+			KeyID:     protoKey.KeyID,
+			Type:      keyconf.PrivateKey,
+			Algorithm: scrypto.Ed25519,
+			Bytes:     make([]byte, 32),
+		}
+		block = priv.PEM()
+		err = ioutil.WriteFile(PrivateFile(dir, priv.KeyID), pem.EncodeToMemory(&block), 0644)
+		require.NoError(t, err)
+
+		_, derived, err := LoadPublicKey(dir, protoKey.KeyID)
+		require.NoError(t, err)
+		assert.True(t, derived)
+	})
+	t.Run("invalid contents", func(t *testing.T) {
+		dir := path.Join(tmpDir, "priv")
+		err := os.MkdirAll(PrivateDir(dir, protoKey.IA), 0777)
+		require.NoError(t, err)
+		priv := keyconf.Key{
+			KeyID:     protoKey.KeyID,
+			Type:      keyconf.PublicKey,
+			Algorithm: scrypto.Ed25519,
+			Bytes:     make([]byte, 32),
+		}
+		block := priv.PEM()
+		err = ioutil.WriteFile(PrivateFile(dir, priv.KeyID), pem.EncodeToMemory(&block), 0644)
+		require.NoError(t, err)
+
+		_, derived, err := LoadPublicKey(dir, protoKey.KeyID)
+		require.Error(t, err)
+		assert.False(t, derived)
+	})
+	t.Run("no key", func(t *testing.T) {
+		_, derived, err := LoadPublicKey(tmpDir, protoKey.KeyID)
+		require.Error(t, err)
+		assert.False(t, derived)
+	})
+
 }
 
 func loadKey(t *testing.T, file string) keyconf.Key {

@@ -32,11 +32,6 @@ func ASFile(dir string, ia addr.IA, version scrypto.Version) string {
 	return filepath.Join(pkicmn.GetAsPath(dir, ia), fmt.Sprintf("as-v%d.toml", version))
 }
 
-// AllASFiles returns a glob string that matches all AS files for the given IA.
-func AllASFiles(dir string, ia addr.IA) string {
-	return filepath.Join(pkicmn.GetAsPath(dir, ia), "as-v*.toml")
-}
-
 // AS holds the AS certificate configuration.
 type AS struct {
 	Description          string              `toml:"description"`
