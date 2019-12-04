@@ -195,8 +195,8 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		}
 	} else {
 		opts := infra.ChainOpts{
-			TrustStoreOpts:   infra.TrustStoreOpts{LocalOnly: !h.recurse},
-			AllowInactiveTRC: true,
+			TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: !h.recurse},
+			AllowInactive:  true,
 		}
 
 		chain, err = h.store.getChain(subCtx, chainReq.IA(), scrypto.Version(chainReq.Version),
