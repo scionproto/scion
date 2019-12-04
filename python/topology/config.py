@@ -165,6 +165,7 @@ class ConfigGenerator(object):
         go_gen.generate_cs()
         go_gen.generate_sciond()
         go_gen.generate_ps()
+        go_gen.generate_co()
         go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
