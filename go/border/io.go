@@ -328,10 +328,22 @@ func shiftUnwrittenPkts(epkts ringbuf.EntryList, pktsWritten int) ringbuf.EntryL
 
 // isRecoverableErr checks whether an non-temporary error is recoverable.
 func isRecoverableErr(err error) bool {
-	return isConnRefused(err)
+	return isConnRefused(err) || isNetUnreachable(err) || isHostUnreachable(err)
 }
 
 func isConnRefused(err error) bool {
+	return isSyscallErrno(err, syscall.ECONNREFUSED)
+}
+
+func isNetUnreachable(err error) bool {
+	return isSyscallErrno(err, syscall.ENETUNREACH)
+}
+
+func isHostUnreachable(err error) bool {
+	return isSyscallErrno(err, syscall.EHOSTUNREACH)
+}
+
+func isSyscallErrno(err error, errno syscall.Errno) bool {
 	netErr, ok := err.(*net.OpError)
 	if !ok {
 		return false
@@ -340,7 +352,7 @@ func isConnRefused(err error) bool {
 	if !ok {
 		return false
 	}
-	return osErr.Err == syscall.ECONNREFUSED
+	return osErr.Err == errno
 }
 
 func min(a, b int) int {
