@@ -71,30 +71,6 @@ func br_peer() int {
 
 	failures += revocation_owned_peer()
 
-	scmpCfg := scmpTestCfg{
-		DstIA:          xtest.MustParseIA("1-ff00:0:2"),
-		LocalInterface: 121,
-	}
-	failures += scmpCfg.scmpBadVersion()
-	failures += scmpCfg.scmpBadDstType()
-	failures += scmpCfg.scmpBadSrcType()
-	failures += scmpCfg.scmpBadPktLenShort()
-	failures += scmpCfg.scmpBadPktLenLong()
-	failures += scmpCfg.scmpBadHdrLenShort()
-	failures += scmpCfg.scmpBadHdrLenLong()
-	failures += scmpCfg.scmpBadInfoFieldOffsetLow()
-	failures += scmpCfg.scmpBadInfoFieldOffsetHigh()
-	failures += scmpCfg.scmpBadHopFieldOffsetLow()
-	failures += scmpCfg.scmpBadHopFieldOffsetHigh()
-	failures += scmpCfg.scmpPathRequired()
-	failures += scmpCfg.scmpBadMac()
-	failures += scmpCfg.scmpExpiredHopField()
-	failures += scmpCfg.scmpBadInterface()
-	failures += scmpCfg.scmpNonRoutingHopField()
-	failures += scmpCfg.scmpTooManyHopByHop()
-	failures += scmpCfg.scmpBadExtensionOrder()
-	failures += scmpCfg.scmpBadHopByHop()
-
 	return failures
 }
 
@@ -113,30 +89,6 @@ func br_child() int {
 	failures += shortcut_internal_child_to_child()
 
 	failures += revocation_child_to_internal_host()
-
-	scmpCfg := scmpTestCfg{
-		DstIA:          xtest.MustParseIA("1-ff00:0:4"),
-		LocalInterface: 141,
-	}
-	failures += scmpCfg.scmpBadVersion()
-	failures += scmpCfg.scmpBadDstType()
-	failures += scmpCfg.scmpBadSrcType()
-	failures += scmpCfg.scmpBadPktLenShort()
-	failures += scmpCfg.scmpBadPktLenLong()
-	failures += scmpCfg.scmpBadHdrLenShort()
-	failures += scmpCfg.scmpBadHdrLenLong()
-	failures += scmpCfg.scmpBadInfoFieldOffsetLow()
-	failures += scmpCfg.scmpBadInfoFieldOffsetHigh()
-	failures += scmpCfg.scmpBadHopFieldOffsetLow()
-	failures += scmpCfg.scmpBadHopFieldOffsetHigh()
-	failures += scmpCfg.scmpPathRequired()
-	failures += scmpCfg.scmpBadMac()
-	failures += scmpCfg.scmpExpiredHopField()
-	failures += scmpCfg.scmpBadInterface()
-	failures += scmpCfg.scmpNonRoutingHopField()
-	failures += scmpCfg.scmpTooManyHopByHop()
-	failures += scmpCfg.scmpBadExtensionOrder()
-	failures += scmpCfg.scmpBadHopByHop()
 
 	return failures
 }
@@ -165,30 +117,6 @@ func br_parent() int {
 	failures += ohp_internal_bs_to_parent()
 
 	failures += parent_scmp_routing_bad_host()
-
-	scmpCfg := scmpTestCfg{
-		DstIA:          xtest.MustParseIA("2-ff00:0:3"),
-		LocalInterface: 131,
-	}
-	failures += scmpCfg.scmpBadVersion()
-	failures += scmpCfg.scmpBadDstType()
-	failures += scmpCfg.scmpBadSrcType()
-	failures += scmpCfg.scmpBadPktLenShort()
-	failures += scmpCfg.scmpBadPktLenLong()
-	failures += scmpCfg.scmpBadHdrLenShort()
-	failures += scmpCfg.scmpBadHdrLenLong()
-	failures += scmpCfg.scmpBadInfoFieldOffsetLow()
-	failures += scmpCfg.scmpBadInfoFieldOffsetHigh()
-	failures += scmpCfg.scmpBadHopFieldOffsetLow()
-	failures += scmpCfg.scmpBadHopFieldOffsetHigh()
-	failures += scmpCfg.scmpPathRequired()
-	failures += scmpCfg.scmpBadMac()
-	failures += scmpCfg.scmpExpiredHopField()
-	failures += scmpCfg.scmpBadInterface()
-	failures += scmpCfg.scmpNonRoutingHopField()
-	failures += scmpCfg.scmpTooManyHopByHop()
-	failures += scmpCfg.scmpBadExtensionOrder()
-	failures += scmpCfg.scmpBadHopByHop()
 
 	return failures
 }

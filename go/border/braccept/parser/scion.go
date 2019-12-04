@@ -230,6 +230,8 @@ func updateFieldsIF(inf *spath.InfoField, kvs propMap) {
 		case "Flags":
 			updateFlagsIF(inf, v)
 		case "TsInt":
+			// Note that users can still pass a normally formatted timestamp
+			// with fmt.Sprintf("%d", timeStamp.Unix()).
 			inf.TsInt = uint32(StrToInt(v))
 		case "ISD":
 			inf.ISD = uint16(StrToInt(v))
