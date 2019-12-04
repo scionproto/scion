@@ -27,16 +27,18 @@ import (
 
 func ExampleKey_encoding() {
 	k := Key{
+		KeyID: KeyID{
+			Usage:   ASSigKeyFile,
+			IA:      xtest.MustParseIA("1-ff00:0:110"),
+			Version: 2,
+		},
 		Type:      PublicKey,
-		Usage:     ASSigKeyFile,
 		Algorithm: scrypto.Ed25519,
 		Validity: scrypto.Validity{
 			NotBefore: util.UnixTime{Time: util.SecsToTime(1560000000)},
 			NotAfter:  util.UnixTime{Time: util.SecsToTime(1600000000)},
 		},
-		Version: 2,
-		IA:      xtest.MustParseIA("1-ff00:0:110"),
-		Bytes:   make([]byte, ed25519.PublicKeySize),
+		Bytes: make([]byte, ed25519.PublicKeySize),
 	}
 	block := k.PEM()
 	fmt.Println(string(pem.EncodeToMemory(&block)))
@@ -55,16 +57,20 @@ func ExampleKey_encoding() {
 
 func ExampleKey_filename() {
 	publicKey := Key{
-		Type:    PublicKey,
-		Usage:   ASSigningKey,
-		Version: 2,
-		IA:      xtest.MustParseIA("1-ff00:0:110"),
+		KeyID: KeyID{
+			Usage:   ASSigningKey,
+			Version: 2,
+			IA:      xtest.MustParseIA("1-ff00:0:110"),
+		},
+		Type: PublicKey,
 	}
 	privateKey := Key{
-		Type:    PrivateKey,
-		Usage:   ASRevocationKey,
-		Version: 10,
-		IA:      xtest.MustParseIA("1-ff00:0:110"),
+		KeyID: KeyID{
+			Usage:   ASRevocationKey,
+			Version: 10,
+			IA:      xtest.MustParseIA("1-ff00:0:110"),
+		},
+		Type: PrivateKey,
 	}
 	fmt.Println("Public key: ", publicKey.File())
 	fmt.Println("Private key:", privateKey.File())

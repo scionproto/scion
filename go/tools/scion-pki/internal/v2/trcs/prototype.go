@@ -122,7 +122,7 @@ func (g protoGen) insertIssuingKey(dst pubKeys, ia addr.IA, primary conf.Primary
 	if !primary.Attributes.Contains(trc.Issuing) {
 		return nil
 	}
-	desc := pkicmn.KeyDesc{
+	desc := keyconf.KeyID{
 		IA:      ia,
 		Usage:   keyconf.TRCIssuingKey,
 		Version: *primary.IssuingKeyVersion,
@@ -141,7 +141,7 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 	if !primary.Attributes.Contains(trc.Voting) {
 		return nil
 	}
-	keys := map[trc.KeyType]pkicmn.KeyDesc{
+	ids := map[trc.KeyType]keyconf.KeyID{
 		trc.OnlineKey: {
 			IA:      ia,
 			Usage:   keyconf.TRCVotingOnlineKey,
@@ -153,10 +153,10 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 			Version: *primary.VotingOfflineKeyVersion,
 		},
 	}
-	for keyType, desc := range keys {
-		key, err := g.loadPubKey(desc)
+	for keyType, id := range ids {
+		key, err := g.loadPubKey(id)
 		if err != nil {
-			return serrors.WithCtx(err, "usage", desc.Usage)
+			return serrors.WithCtx(err, "usage", id.Usage)
 		}
 		dst[keyType] = key
 	}
@@ -165,17 +165,16 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 
 // loadPubKey attempts to load the private key and use it to generate the public
 // key. If that fails, loadPubKey attempts to load the public key directly.
-func (g protoGen) loadPubKey(desc pkicmn.KeyDesc) (keyconf.Key, error) {
-
-	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, desc)
+func (g protoGen) loadPubKey(id keyconf.KeyID) (keyconf.Key, error) {
+	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, id)
 	if err != nil {
 		return keyconf.Key{}, nil
 	}
 	if fromPriv {
-		pkicmn.QuietPrint("Using private %s key for %s\n", desc.Usage, desc.IA)
-	} else {
-		pkicmn.QuietPrint("Using public %s key for %s\n", desc.Usage, desc.IA)
+		pkicmn.QuietPrint("Using private %s key for %s\n", id.Usage, id.IA)
+		return key, nil
 	}
+	pkicmn.QuietPrint("Using public %s key for %s\n", id.Usage, id.IA)
 	return key, nil
 }
 

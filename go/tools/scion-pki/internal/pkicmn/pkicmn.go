@@ -17,7 +17,6 @@
 package pkicmn
 
 import (
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -26,9 +25,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/keyconf"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -57,9 +53,6 @@ var (
 	Force   bool
 	Quiet   bool
 )
-
-// ErrReadFile indicates an error while reading a file.
-var ErrReadFile = serrors.New("error reading file")
 
 // Dirs holds the directory configuration.
 type Dirs struct {
@@ -228,40 +221,4 @@ func QuietPrint(format string, a ...interface{}) {
 	if !Quiet {
 		fmt.Printf(format, a...)
 	}
-}
-
-// KeyDesc describes a key.
-type KeyDesc struct {
-	IA      addr.IA
-	Usage   keyconf.Usage
-	Version scrypto.KeyVersion
-}
-
-// LoadKey loads a PEM encoded key from file.
-func LoadKey(file string, desc KeyDesc) (keyconf.Key, error) {
-	raw, err := ioutil.ReadFile(file)
-	if err != nil {
-		return keyconf.Key{}, serrors.Wrap(ErrReadFile, err)
-	}
-	block, _ := pem.Decode(raw)
-	if block == nil {
-		return keyconf.Key{}, serrors.New("unable to parse PEM")
-	}
-	key, err := keyconf.KeyFromPEM(block)
-	if err != nil {
-		return keyconf.Key{}, serrors.WrapStr("unable to decode key", err)
-	}
-	if !key.IA.Equal(desc.IA) {
-		return keyconf.Key{}, serrors.New("IA does not match",
-			"expected", desc.IA, "actual", key.IA)
-	}
-	if key.Usage != desc.Usage {
-		return keyconf.Key{}, serrors.New("usage does not match",
-			"expected", desc.Usage, "actual", key.Usage)
-	}
-	if key.Version != desc.Version {
-		return keyconf.Key{}, serrors.New("version does not match",
-			"expected", desc.Version, "actual", key.Version)
-	}
-	return key, nil
 }

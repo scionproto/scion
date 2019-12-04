@@ -125,16 +125,16 @@ func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia ad
 	if !ok {
 		return nil
 	}
-	desc := pkicmn.KeyDesc{
+	id := keyconf.KeyID{
 		IA:      ia,
 		Version: vote.KeyVersion,
 	}
 	var err error
-	desc.Usage, err = keys.UsageFromTRCKeyType(vote.KeyType)
+	id.Usage, err = keys.UsageFromTRCKeyType(vote.KeyType)
 	if err != nil {
 		return err
 	}
-	priv, err := g.loadKey(desc)
+	priv, err := g.loadKey(id)
 	if err != nil {
 		return err
 	}
@@ -158,16 +158,16 @@ func (g signatureGen) showPOP(signatures map[trc.Protected]trc.Signature, ia add
 	cfg conf.TRC2, signed trc.Signed, t *trc.TRC) error {
 
 	for _, keyType := range t.ProofOfPossession[ia.A] {
-		desc := pkicmn.KeyDesc{
+		id := keyconf.KeyID{
 			IA:      ia,
 			Version: t.PrimaryASes[ia.A].Keys[keyType].KeyVersion,
 		}
 		var err error
-		desc.Usage, err = keys.UsageFromTRCKeyType(keyType)
+		id.Usage, err = keys.UsageFromTRCKeyType(keyType)
 		if err != nil {
 			return err
 		}
-		priv, err := g.loadKey(desc)
+		priv, err := g.loadKey(id)
 		if err != nil {
 			return err
 		}
@@ -188,9 +188,9 @@ func (g signatureGen) showPOP(signatures map[trc.Protected]trc.Signature, ia add
 	return nil
 }
 
-func (g signatureGen) loadKey(desc pkicmn.KeyDesc) (keyconf.Key, error) {
-	file := keys.PrivateFile(g.Dirs.Out, desc)
-	priv, err := pkicmn.LoadKey(file, desc)
+func (g signatureGen) loadKey(id keyconf.KeyID) (keyconf.Key, error) {
+	file := keys.PrivateFile(g.Dirs.Out, id)
+	priv, err := keyconf.LoadKeyFromFile(file, keyconf.PrivateKey, id)
 	if err != nil {
 		return keyconf.Key{}, serrors.WrapStr("unable to load private key", err, "file", file)
 	}

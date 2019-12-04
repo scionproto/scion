@@ -32,8 +32,8 @@ func TestLoaderLoadIssuerConfigs(t *testing.T) {
 		"v1":  {Version: 1, Expected: 1},
 		"max": {Version: 0, Expected: 1},
 	}
-	for name, test := range tests {
-		name, test := name, test
+	for n, tc := range tests {
+		name, test := n, tc // Enable t.Parallel().
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			l := loader{
