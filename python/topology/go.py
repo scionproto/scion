@@ -60,7 +60,7 @@ from topology.topo import DEFAULT_LINK_BW
 BS_QUIC_PORT = 30352
 PS_QUIC_PORT = 30353
 CS_QUIC_PORT = 30354
-CO_QUIC_PORT = 30355
+CO_QUIC_PORT = 30357
 SD_QUIC_PORT = 0
 
 
@@ -242,16 +242,16 @@ class GoGenerator(object):
         elif path_type == 'Down':
             end_props.remove('T')
         return {
-            'DesiredSize': 27,
-            'IA': str(dst_ia),
-            'MaxSize': 30,
-            'MinSize': 1,
-            'PathPredicate': '%s#0' % dst_ia,
-            'PathType': path_type,
-            'SplitCls': 8,
-            'EndProps': {
-                'Start': list(start_props),
-                'End': list(end_props)
+            'desired_size': 27,
+            'ia': str(dst_ia),
+            'max_size': 30,
+            'min_size': 1,
+            'path_predicate': '%s#0' % dst_ia,
+            'path_type': path_type,
+            'split_cls': 8,
+            'end_props': {
+                'start': list(start_props),
+                'end': list(end_props)
             }
         }
 
