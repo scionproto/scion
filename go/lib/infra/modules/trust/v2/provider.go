@@ -171,8 +171,118 @@ func (p *cryptoProvider) fetchTRC(ctx context.Context, isd addr.ISD, version scr
 func (p *cryptoProvider) GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version,
 	opts infra.ChainOpts, client net.Addr) ([]byte, error) {
 
-	// TODO(roosd): implement.
-	return nil, serrors.New("not implemented")
+	chain, err := p.getChain(ctx, ia, version, opts, client)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to get requested certificate chain", err)
+	}
+	if !opts.AllowInactive {
+		err := p.issuerActive(ctx, chain, opts.TrustStoreOpts, client)
+		switch {
+		case err == nil:
+		case opts.LocalOnly, !version.IsLatest(), !xerrors.Is(err, ErrInactive):
+			return nil, err
+		default:
+			// There might exist a more recent certificate chain that is not
+			// available locally yet.
+			fetched, err := p.fetchChain(ctx, ia, scrypto.LatestVer, opts, client)
+			if err != nil {
+				return nil, serrors.WrapStr("unable to fetch latest certificate chain from network",
+					err)
+			}
+			if err := p.issuerActive(ctx, fetched, opts.TrustStoreOpts, client); err != nil {
+				return nil, serrors.WrapStr("latest certificate chain from network not active", err)
+			}
+			return fetched.Raw, nil
+		}
+	}
+	return chain.Raw, nil
+}
+
+func (p *cryptoProvider) issuerActive(ctx context.Context, chain decoded.Chain,
+	opts infra.TrustStoreOpts, client net.Addr) error {
+
+	if !chain.AS.Validity.Contains(time.Now()) {
+		return serrors.WrapStr("AS certificate outside of validity period", ErrInactive,
+			"validity", chain.AS.Validity)
+	}
+	// Ensure that an active TRC is available locally.
+	trcOpts := infra.TRCOpts{TrustStoreOpts: opts}
+	_, _, err := p.getCheckedTRC(ctx, chain.Issuer.Subject.I, scrypto.LatestVer, trcOpts, client)
+	if err != nil {
+		return serrors.WrapStr("unable to preload latest TRC", err)
+	}
+	iss, err := p.db.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, chain.Issuer.Issuer.TRCVersion)
+	if err != nil {
+		return serrors.WrapStr("unable to get issuing key info for issuing TRC", err,
+			"version", chain.Issuer.Issuer.TRCVersion)
+	}
+	latest, err := p.db.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, scrypto.LatestVer)
+	if err != nil {
+		return serrors.WrapStr("unable to get issuing key info for latest TRC", err)
+	}
+	if iss.Version != latest.Version {
+		if latest.TRC.Base() || graceExpired(latest.TRC) {
+			return serrors.WrapStr("different issuing key in latest TRC", ErrInactive,
+				"latest_trc_version", latest.TRC.Version,
+				"expected", iss.Version, "actual", latest.Version)
+		}
+		inGrace, err := p.db.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, latest.TRC.Version-1)
+		if err != nil {
+			return serrors.WrapStr("unable to get issuing key info for TRC in grace period", err,
+				"version", latest.TRC.Version-1)
+		}
+		if iss.Version != inGrace.Version {
+			return serrors.WrapStr("different issuing key in latest TRC", ErrInactive,
+				"latest_trc_version", latest.TRC.Version,
+				"expected", iss.Version, "actual", latest.Version)
+		}
+	}
+	return nil
+}
+
+func (p *cryptoProvider) getChain(ctx context.Context, ia addr.IA, version scrypto.Version,
+	opts infra.ChainOpts, client net.Addr) (decoded.Chain, error) {
+
+	raw, err := p.db.GetRawChain(ctx, ia, version)
+	switch {
+	case err == nil:
+		return decoded.DecodeChain(raw)
+	case !xerrors.Is(err, ErrNotFound):
+		return decoded.Chain{}, serrors.WrapStr("error querying DB for certificate chain", err)
+	case opts.LocalOnly:
+		return decoded.Chain{}, serrors.WrapStr("localOnly requested", err)
+	default:
+		return p.fetchChain(ctx, ia, version, opts, client)
+	}
+}
+
+func (p *cryptoProvider) fetchChain(ctx context.Context, ia addr.IA, version scrypto.Version,
+	opts infra.ChainOpts, client net.Addr) (decoded.Chain, error) {
+
+	server := opts.Server
+	if err := p.recurser.AllowRecursion(client); err != nil {
+		return decoded.Chain{}, err
+	}
+	// In case the server is provided, cache-only should be set.
+	cacheOnly := server != nil || p.alwaysCacheOnly
+	req := ChainReq{
+		IA:        ia,
+		Version:   version,
+		CacheOnly: cacheOnly,
+	}
+	// Choose remote server, if not set.
+	if server == nil {
+		var err error
+		if server, err = p.router.ChooseServer(ctx, ia.I); err != nil {
+			return decoded.Chain{}, serrors.WrapStr("unable to route TRC request", err)
+		}
+	}
+	chain, err := p.resolver.Chain(ctx, req, server)
+	if err != nil {
+		return decoded.Chain{}, serrors.WrapStr("unable to resolve signed certificate chain"+
+			"from network", err)
+	}
+	return chain, nil
 }
 
 func graceExpired(info TRCInfo) bool {
