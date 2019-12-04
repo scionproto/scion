@@ -15,6 +15,10 @@
 
 package main
 
+import (
+	"github.com/scionproto/scion/go/lib/xtest"
+)
+
 func br_multi() int {
 	var failures int
 
@@ -30,25 +34,29 @@ func br_multi() int {
 
 	failures += revocation_parent_to_child()
 
-	failures += scmpBadVersion()
-	failures += scmpBadDstType()
-	failures += scmpBadSrcType()
-	failures += scmpBadPktLenShort()
-	failures += scmpBadPktLenLong()
-	failures += scmpBadHdrLenShort()
-	failures += scmpBadHdrLenLong()
-	failures += scmpBadInfoFieldOffsetLow()
-	failures += scmpBadInfoFieldOffsetHigh()
-	failures += scmpBadHopFieldOffsetLow()
-	failures += scmpBadHopFieldOffsetHigh()
-	failures += scmpPathRequired()
-	failures += scmpBadMac()
-	failures += scmpExpiredHopField()
-	failures += scmpBadInterface()
-	failures += scmpNonRoutingHopField()
-	failures += scmpTooManyHopByHop()
-	failures += scmpBadExtensionOrder()
-	failures += scmpBadHopByHop()
+	scmpCfg := scmpTestCfg{
+		DstIA:          xtest.MustParseIA("2-ff00:0:3"),
+		LocalInterface: 131,
+	}
+	failures += scmpCfg.scmpBadVersion()
+	failures += scmpCfg.scmpBadDstType()
+	failures += scmpCfg.scmpBadSrcType()
+	failures += scmpCfg.scmpBadPktLenShort()
+	failures += scmpCfg.scmpBadPktLenLong()
+	failures += scmpCfg.scmpBadHdrLenShort()
+	failures += scmpCfg.scmpBadHdrLenLong()
+	failures += scmpCfg.scmpBadInfoFieldOffsetLow()
+	failures += scmpCfg.scmpBadInfoFieldOffsetHigh()
+	failures += scmpCfg.scmpBadHopFieldOffsetLow()
+	failures += scmpCfg.scmpBadHopFieldOffsetHigh()
+	failures += scmpCfg.scmpPathRequired()
+	failures += scmpCfg.scmpBadMac()
+	failures += scmpCfg.scmpExpiredHopField()
+	failures += scmpCfg.scmpBadInterface()
+	failures += scmpCfg.scmpNonRoutingHopField()
+	failures += scmpCfg.scmpTooManyHopByHop()
+	failures += scmpCfg.scmpBadExtensionOrder()
+	failures += scmpCfg.scmpBadHopByHop()
 
 	return failures
 }
@@ -63,25 +71,29 @@ func br_peer() int {
 
 	failures += revocation_owned_peer()
 
-	failures += scmpBadVersion()
-	failures += scmpBadDstType()
-	failures += scmpBadSrcType()
-	failures += scmpBadPktLenShort()
-	failures += scmpBadPktLenLong()
-	failures += scmpBadHdrLenShort()
-	failures += scmpBadHdrLenLong()
-	failures += scmpBadInfoFieldOffsetLow()
-	failures += scmpBadInfoFieldOffsetHigh()
-	failures += scmpBadHopFieldOffsetLow()
-	failures += scmpBadHopFieldOffsetHigh()
-	failures += scmpPathRequired()
-	failures += scmpBadMac()
-	failures += scmpExpiredHopField()
-	failures += scmpBadInterface()
-	failures += scmpNonRoutingHopField()
-	failures += scmpTooManyHopByHop()
-	failures += scmpBadExtensionOrder()
-	failures += scmpBadHopByHop()
+	scmpCfg := scmpTestCfg{
+		DstIA:          xtest.MustParseIA("1-ff00:0:2"),
+		LocalInterface: 121,
+	}
+	failures += scmpCfg.scmpBadVersion()
+	failures += scmpCfg.scmpBadDstType()
+	failures += scmpCfg.scmpBadSrcType()
+	failures += scmpCfg.scmpBadPktLenShort()
+	failures += scmpCfg.scmpBadPktLenLong()
+	failures += scmpCfg.scmpBadHdrLenShort()
+	failures += scmpCfg.scmpBadHdrLenLong()
+	failures += scmpCfg.scmpBadInfoFieldOffsetLow()
+	failures += scmpCfg.scmpBadInfoFieldOffsetHigh()
+	failures += scmpCfg.scmpBadHopFieldOffsetLow()
+	failures += scmpCfg.scmpBadHopFieldOffsetHigh()
+	failures += scmpCfg.scmpPathRequired()
+	failures += scmpCfg.scmpBadMac()
+	failures += scmpCfg.scmpExpiredHopField()
+	failures += scmpCfg.scmpBadInterface()
+	failures += scmpCfg.scmpNonRoutingHopField()
+	failures += scmpCfg.scmpTooManyHopByHop()
+	failures += scmpCfg.scmpBadExtensionOrder()
+	failures += scmpCfg.scmpBadHopByHop()
 
 	return failures
 }
@@ -102,25 +114,29 @@ func br_child() int {
 
 	failures += revocation_child_to_internal_host()
 
-	failures += scmpBadVersion()
-	failures += scmpBadDstType()
-	failures += scmpBadSrcType()
-	failures += scmpBadPktLenShort()
-	failures += scmpBadPktLenLong()
-	failures += scmpBadHdrLenShort()
-	failures += scmpBadHdrLenLong()
-	failures += scmpBadInfoFieldOffsetLow()
-	failures += scmpBadInfoFieldOffsetHigh()
-	failures += scmpBadHopFieldOffsetLow()
-	failures += scmpBadHopFieldOffsetHigh()
-	failures += scmpPathRequired()
-	failures += scmpBadMac()
-	failures += scmpExpiredHopField()
-	failures += scmpBadInterface()
-	failures += scmpNonRoutingHopField()
-	failures += scmpTooManyHopByHop()
-	failures += scmpBadExtensionOrder()
-	failures += scmpBadHopByHop()
+	scmpCfg := scmpTestCfg{
+		DstIA:          xtest.MustParseIA("1-ff00:0:4"),
+		LocalInterface: 141,
+	}
+	failures += scmpCfg.scmpBadVersion()
+	failures += scmpCfg.scmpBadDstType()
+	failures += scmpCfg.scmpBadSrcType()
+	failures += scmpCfg.scmpBadPktLenShort()
+	failures += scmpCfg.scmpBadPktLenLong()
+	failures += scmpCfg.scmpBadHdrLenShort()
+	failures += scmpCfg.scmpBadHdrLenLong()
+	failures += scmpCfg.scmpBadInfoFieldOffsetLow()
+	failures += scmpCfg.scmpBadInfoFieldOffsetHigh()
+	failures += scmpCfg.scmpBadHopFieldOffsetLow()
+	failures += scmpCfg.scmpBadHopFieldOffsetHigh()
+	failures += scmpCfg.scmpPathRequired()
+	failures += scmpCfg.scmpBadMac()
+	failures += scmpCfg.scmpExpiredHopField()
+	failures += scmpCfg.scmpBadInterface()
+	failures += scmpCfg.scmpNonRoutingHopField()
+	failures += scmpCfg.scmpTooManyHopByHop()
+	failures += scmpCfg.scmpBadExtensionOrder()
+	failures += scmpCfg.scmpBadHopByHop()
 
 	return failures
 }
@@ -150,25 +166,29 @@ func br_parent() int {
 
 	failures += parent_scmp_routing_bad_host()
 
-	failures += scmpBadVersion()
-	failures += scmpBadDstType()
-	failures += scmpBadSrcType()
-	failures += scmpBadPktLenShort()
-	failures += scmpBadPktLenLong()
-	failures += scmpBadHdrLenShort()
-	failures += scmpBadHdrLenLong()
-	failures += scmpBadInfoFieldOffsetLow()
-	failures += scmpBadInfoFieldOffsetHigh()
-	failures += scmpBadHopFieldOffsetLow()
-	failures += scmpBadHopFieldOffsetHigh()
-	failures += scmpPathRequired()
-	failures += scmpBadMac()
-	failures += scmpExpiredHopField()
-	failures += scmpBadInterface()
-	failures += scmpNonRoutingHopField()
-	failures += scmpTooManyHopByHop()
-	failures += scmpBadExtensionOrder()
-	failures += scmpBadHopByHop()
+	scmpCfg := scmpTestCfg{
+		DstIA:          xtest.MustParseIA("2-ff00:0:3"),
+		LocalInterface: 131,
+	}
+	failures += scmpCfg.scmpBadVersion()
+	failures += scmpCfg.scmpBadDstType()
+	failures += scmpCfg.scmpBadSrcType()
+	failures += scmpCfg.scmpBadPktLenShort()
+	failures += scmpCfg.scmpBadPktLenLong()
+	failures += scmpCfg.scmpBadHdrLenShort()
+	failures += scmpCfg.scmpBadHdrLenLong()
+	failures += scmpCfg.scmpBadInfoFieldOffsetLow()
+	failures += scmpCfg.scmpBadInfoFieldOffsetHigh()
+	failures += scmpCfg.scmpBadHopFieldOffsetLow()
+	failures += scmpCfg.scmpBadHopFieldOffsetHigh()
+	failures += scmpCfg.scmpPathRequired()
+	failures += scmpCfg.scmpBadMac()
+	failures += scmpCfg.scmpExpiredHopField()
+	failures += scmpCfg.scmpBadInterface()
+	failures += scmpCfg.scmpNonRoutingHopField()
+	failures += scmpCfg.scmpTooManyHopByHop()
+	failures += scmpCfg.scmpBadExtensionOrder()
+	failures += scmpCfg.scmpBadHopByHop()
 
 	return failures
 }
