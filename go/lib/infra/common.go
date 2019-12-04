@@ -523,9 +523,9 @@ type ASInspectorOpts struct {
 // ChainOpts contains the options when fetching certificate chains.
 type ChainOpts struct {
 	TrustStoreOpts
-	// AllowInactiveTRC allows retrieving chains authenticated by no longer
+	// AllowInactive allows retrieving chains authenticated by no longer
 	// active TRCs.
-	AllowInactiveTRC bool
+	AllowInactive bool
 }
 
 // TRCOpts contains the options when fetching TRCs.
