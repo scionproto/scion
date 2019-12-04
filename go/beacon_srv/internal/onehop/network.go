@@ -31,7 +31,7 @@ type OHPPacketDispatcherService struct {
 	snet.PacketDispatcherService
 }
 
-func (s *OHPPacketDispatcherService) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
+func (s *OHPPacketDispatcherService) RegisterTimeout(ia addr.IA, public *net.UDPAddr,
 	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (snet.PacketConn, uint16, error) {
 

@@ -441,7 +441,10 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 	conn, _, err := dispatcherService.Register(
 		ctx,
 		tc.ClientAddress.IA,
-		&addr.AppAddr{L3: tc.ClientAddress.PublicAddress, L4: tc.ClientAddress.PublicPort},
+		&net.UDPAddr{
+			IP:   tc.ClientAddress.PublicAddress.IP(),
+			Port: int(tc.ClientAddress.PublicPort),
+		},
 		tc.ClientAddress.ServiceAddress,
 	)
 	xtest.FailOnErr(t, err, "unable to open socket")

@@ -194,7 +194,7 @@ func realMain() int {
 	// to contain the topo address.
 	ohpAddress := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
 	ohpAddress.Port = 0
-	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), addr.AppAddrFromUDP(ohpAddress), nil,
+	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), ohpAddress, nil,
 		addr.SvcNone, time.Second)
 	if err != nil {
 		log.Crit("Unable to create SCION packet conn", "err", err)

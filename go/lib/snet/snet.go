@@ -209,8 +209,9 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
 		}
 	}
+	p := conn.laddr.ToNetUDPAddr()
 	packetConn, port, err := conn.scionNet.dispatcher.RegisterTimeout(conn.laddr.IA,
-		conn.laddr.Host, bindAddr, svc, timeout)
+		p, bindAddr, svc, timeout)
 	if err != nil {
 		return nil, err
 	}

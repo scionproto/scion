@@ -44,13 +44,13 @@ func NewDispatcherService(dispatcher reliable.Dispatcher) *DispatcherService {
 	return &DispatcherService{dispatcher: dispatcher}
 }
 
-func (pn *DispatcherService) Register(ctx context.Context, ia addr.IA, public *addr.AppAddr,
+func (pn *DispatcherService) Register(ctx context.Context, ia addr.IA, public *net.UDPAddr,
 	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	return pn.RegisterTimeout(ctx, ia, public, svc)
 }
 
-func (pn *DispatcherService) RegisterTimeout(ctx context.Context, ia addr.IA, public *addr.AppAddr,
+func (pn *DispatcherService) RegisterTimeout(ctx context.Context, ia addr.IA, public *net.UDPAddr,
 	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	// Perform initial connection to allocate port. We use a reconnecter here
@@ -61,17 +61,23 @@ func (pn *DispatcherService) RegisterTimeout(ctx context.Context, ia addr.IA, pu
 	if err != nil {
 		return nil, 0, err
 	}
-	var newPublic *addr.AppAddr
-	if public != nil {
-		newPublic = public.Copy()
-		newPublic.L4 = port
+
+	updatePort := func(a *net.UDPAddr, port int) *net.UDPAddr {
+		if a == nil {
+			return nil
+		}
+		return &net.UDPAddr{
+			IP:   append(a.IP[:0:0], a.IP...),
+			Port: port,
+		}
 	}
+	newPublic := updatePort(public, int(port))
 	reconnecter = pn.newReconnecterFromListenArgs(ctx, ia, newPublic, svc)
 	return NewPacketConn(conn, reconnecter), port, nil
 }
 
 func (pn *DispatcherService) newReconnecterFromListenArgs(ctx context.Context, ia addr.IA,
-	public *addr.AppAddr, svc addr.HostSVC) *TickingReconnecter {
+	public *net.UDPAddr, svc addr.HostSVC) *TickingReconnecter {
 
 	// f represents individual connection attempts
 	f := func(timeout time.Duration) (net.PacketConn, uint16, error) {

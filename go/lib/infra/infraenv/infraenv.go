@@ -150,10 +150,7 @@ func (nc *NetworkConfig) AddressRewriter(
 		Resolver: &svc.Resolver{
 			LocalIA:     nc.IA,
 			ConnFactory: connFactory,
-			Machine: snet.LocalMachine{
-				PublicIP:    nc.Public.IP,
-				InterfaceIP: nc.Public.IP,
-			},
+			LocalIP:     nc.Public.IP,
 			// Legacy control payloads have a 4-byte length prefix. A
 			// 0-value for the prefix is invalid, so SVC resolution-aware
 			// servers can use this to detect that the client is attempting

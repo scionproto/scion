@@ -266,7 +266,7 @@ func (m *MockPacketDispatcherService) EXPECT() *MockPacketDispatcherServiceMockR
 }
 
 // RegisterTimeout mocks base method
-func (m *MockPacketDispatcherService) RegisterTimeout(arg0 addr.IA, arg1 *addr.AppAddr, arg2 *net.UDPAddr, arg3 addr.HostSVC, arg4 time.Duration) (snet.PacketConn, uint16, error) {
+func (m *MockPacketDispatcherService) RegisterTimeout(arg0 addr.IA, arg1, arg2 *net.UDPAddr, arg3 addr.HostSVC, arg4 time.Duration) (snet.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RegisterTimeout", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(snet.PacketConn)

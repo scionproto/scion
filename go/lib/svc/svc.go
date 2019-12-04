@@ -72,7 +72,7 @@ type ResolverPacketDispatcher struct {
 	handler     RequestHandler
 }
 
-func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *addr.AppAddr,
+func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *net.UDPAddr,
 	bind *net.UDPAddr, svc addr.HostSVC,
 	timeout time.Duration) (snet.PacketConn, uint16, error) {
 
@@ -84,7 +84,7 @@ func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *addr.AppA
 		PacketConn: c,
 		source: snet.SCIONAddress{
 			IA:   ia,
-			Host: public.L3,
+			Host: addr.HostFromIP(public.IP),
 		},
 		handler: d.handler,
 	}
