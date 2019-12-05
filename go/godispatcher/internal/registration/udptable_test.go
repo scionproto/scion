@@ -124,42 +124,46 @@ func TestUDPPortTableInsert(t *testing.T) {
 	Convey("", t, func() {
 		Convey("Given an empty table", func() {
 			table := NewUDPPortTable(minPort, maxPort)
-			Convey("Inserting an IPv4 address with a port returns a copy of the same address", func() {
-				address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
-				retAddress, err := table.Insert(address, value)
-				_, lookupOk := table.Lookup(address)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("address content", retAddress, ShouldResemble, address)
-				SoMsg("address not same object", retAddress, ShouldNotEqual, address)
-				SoMsg("lookup ok", lookupOk, ShouldBeTrue)
-			})
-			Convey("Inserting an IPv4 address with a 0 port returns an allocated port", func() {
-				address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}}
-				expectedAddress := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 1024}
-				retAddress, err := table.Insert(address, value)
-				_, lookupOk := table.Lookup(expectedAddress)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("address", retAddress, ShouldResemble, expectedAddress)
-				SoMsg("lookup ok", lookupOk, ShouldBeTrue)
-			})
-			Convey("Inserting an IPv6 address with a port returns a copy of the same address", func() {
-				address := &net.UDPAddr{IP: docIPv6Address, Port: 10080}
-				retAddress, err := table.Insert(address, value)
-				_, lookupOk := table.Lookup(address)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("address content", retAddress, ShouldResemble, address)
-				SoMsg("address not same object", retAddress, ShouldNotEqual, address)
-				SoMsg("lookup ok", lookupOk, ShouldBeTrue)
-			})
-			Convey("Inserting an IPv6 address with a 0 port returns an allocated port", func() {
-				address := &net.UDPAddr{IP: docIPv6Address}
-				expectedAddress := &net.UDPAddr{IP: docIPv6Address, Port: 1024}
-				retAddress, err := table.Insert(address, value)
-				_, lookupOk := table.Lookup(expectedAddress)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("address", retAddress, ShouldResemble, expectedAddress)
-				SoMsg("lookup ok", lookupOk, ShouldBeTrue)
-			})
+			Convey("Inserting an IPv4 address with a port returns a copy of the same address",
+				func() {
+					address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
+					retAddress, err := table.Insert(address, value)
+					_, lookupOk := table.Lookup(address)
+					SoMsg("err", err, ShouldBeNil)
+					SoMsg("address content", retAddress, ShouldResemble, address)
+					SoMsg("address not same object", retAddress, ShouldNotEqual, address)
+					SoMsg("lookup ok", lookupOk, ShouldBeTrue)
+				})
+			Convey("Inserting an IPv4 address with a 0 port returns an allocated port",
+				func() {
+					address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}}
+					expectedAddress := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 1024}
+					retAddress, err := table.Insert(address, value)
+					_, lookupOk := table.Lookup(expectedAddress)
+					SoMsg("err", err, ShouldBeNil)
+					SoMsg("address", retAddress, ShouldResemble, expectedAddress)
+					SoMsg("lookup ok", lookupOk, ShouldBeTrue)
+				})
+			Convey("Inserting an IPv6 address with a port returns a copy of the same address",
+				func() {
+					address := &net.UDPAddr{IP: docIPv6Address, Port: 10080}
+					retAddress, err := table.Insert(address, value)
+					_, lookupOk := table.Lookup(address)
+					SoMsg("err", err, ShouldBeNil)
+					SoMsg("address content", retAddress, ShouldResemble, address)
+					SoMsg("address not same object", retAddress, ShouldNotEqual, address)
+					SoMsg("lookup ok", lookupOk, ShouldBeTrue)
+				})
+			Convey("Inserting an IPv6 address with a 0 port returns an allocated port",
+				func() {
+					address := &net.UDPAddr{IP: docIPv6Address}
+					expectedAddress := &net.UDPAddr{IP: docIPv6Address, Port: 1024}
+					retAddress, err := table.Insert(address, value)
+					_, lookupOk := table.Lookup(expectedAddress)
+					SoMsg("err", err, ShouldBeNil)
+					SoMsg("address", retAddress, ShouldResemble, expectedAddress)
+					SoMsg("lookup ok", lookupOk, ShouldBeTrue)
+				})
 			Convey("Inserting an address without a value is not permitted", func() {
 				address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 				retAddress, err := table.Insert(address, nil)
