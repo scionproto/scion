@@ -33,11 +33,11 @@ func TestASLocalRecurserAllowRecursion(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"AS local": {
-			Addr:      &snet.Addr{IA: ia110},
+			Addr:      snet.NewUDPAddr(ia110, nil, nil, nil),
 			Assertion: assert.NoError,
 		},
 		"remote AS": {
-			Addr:      &snet.Addr{IA: ia120},
+			Addr:      snet.NewUDPAddr(ia120, nil, nil, nil),
 			Assertion: assert.Error,
 		},
 		"invalid Address": {
@@ -63,11 +63,11 @@ func TestLocalOnlyRecurserAllowRecursion(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"AS local": {
-			Addr:      &snet.Addr{IA: ia110},
+			Addr:      snet.NewUDPAddr(ia110, nil, nil, nil),
 			Assertion: assert.Error,
 		},
 		"remote AS": {
-			Addr:      &snet.Addr{IA: ia120},
+			Addr:      snet.NewUDPAddr(ia120, nil, nil, nil),
 			Assertion: assert.Error,
 		},
 		"invalid Address": {

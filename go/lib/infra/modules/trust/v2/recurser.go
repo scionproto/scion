@@ -44,15 +44,18 @@ type ASLocalRecurser struct {
 // AllowRecursion returns an error if address is not part of the local AS (or if
 // the check cannot be made).
 func (r *ASLocalRecurser) AllowRecursion(peer net.Addr) error {
-	if peer != nil {
-		switch saddr, ok := peer.(*snet.Addr); {
-		case !ok:
-			return serrors.WrapStr("unable to determine AS of peer", ErrRecursionNotAllowed,
-				"addr", peer)
-		case !r.IA.Equal(saddr.IA):
-			return serrors.WrapStr("client outside local AS", ErrRecursionNotAllowed,
-				"addr", peer)
-		}
+	if peer == nil {
+		return nil
+	}
+
+	a, ok := peer.(*snet.UDPAddr)
+	if !ok {
+		return serrors.WrapStr("unable to determine AS of peer", ErrRecursionNotAllowed,
+			"addr", peer)
+	}
+	if !r.IA.Equal(a.IA) {
+		return serrors.WrapStr("client outside local AS", ErrRecursionNotAllowed,
+			"addr", peer)
 	}
 	return nil
 }

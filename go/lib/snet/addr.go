@@ -66,7 +66,7 @@ func (a *Addr) ToXAddr() net.Addr {
 		u := &net.UDPAddr{IP: a.Host.L3.IP(), Port: int(a.Host.L4)}
 		return NewUDPAddr(a.IA, a.Path, a.NextHop, u)
 	}
-	return &net.TCPAddr{} //TODO(karampok). discuss: return nil
+	return nil
 }
 
 func (a *Addr) Network() string {
