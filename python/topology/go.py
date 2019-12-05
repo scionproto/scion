@@ -275,7 +275,7 @@ class GoGenerator(object):
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
-                'Public': '%s,[127.0.0.1]:0' % ia,
+                'Public': '127.0.0.1:0',
                 'pathDB': {
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
