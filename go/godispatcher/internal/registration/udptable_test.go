@@ -29,6 +29,12 @@ var minPort = 1024
 var maxPort = 65535
 
 func testUDPTableWithPorts(v4, v6 map[int]IPTable) *UDPPortTable {
+	if v4 == nil {
+		v4 = map[int]IPTable{}
+	}
+	if v6 == nil {
+		v6 = map[int]IPTable{}
+	}
 	return NewUDPPortTableFromMap(minPort, maxPort, v4, v6)
 }
 
@@ -118,25 +124,49 @@ func TestUDPPortTableInsert(t *testing.T) {
 	Convey("", t, func() {
 		Convey("Given an empty table", func() {
 			table := NewUDPPortTable(minPort, maxPort)
-			Convey("Inserting an address with a port returns a copy of the same address", func() {
+			Convey("Inserting an IPv4 address with a port returns a copy of the same address", func() {
 				address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 				retAddress, err := table.Insert(address, value)
+				_, lookupOk := table.Lookup(address)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("address content", retAddress, ShouldResemble, address)
 				SoMsg("address not same object", retAddress, ShouldNotEqual, address)
+				SoMsg("lookup ok", lookupOk, ShouldBeTrue)
 			})
-			Convey("Inserting an address with a 0 port returns an allocated port", func() {
+			Convey("Inserting an IPv4 address with a 0 port returns an allocated port", func() {
 				address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}}
 				expectedAddress := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 1024}
 				retAddress, err := table.Insert(address, value)
+				_, lookupOk := table.Lookup(expectedAddress)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("address", retAddress, ShouldResemble, expectedAddress)
+				SoMsg("lookup ok", lookupOk, ShouldBeTrue)
+			})
+			Convey("Inserting an IPv6 address with a port returns a copy of the same address", func() {
+				address := &net.UDPAddr{IP: docIPv6Address, Port: 10080}
+				retAddress, err := table.Insert(address, value)
+				_, lookupOk := table.Lookup(address)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("address content", retAddress, ShouldResemble, address)
+				SoMsg("address not same object", retAddress, ShouldNotEqual, address)
+				SoMsg("lookup ok", lookupOk, ShouldBeTrue)
+			})
+			Convey("Inserting an IPv6 address with a 0 port returns an allocated port", func() {
+				address := &net.UDPAddr{IP: docIPv6Address}
+				expectedAddress := &net.UDPAddr{IP: docIPv6Address, Port: 1024}
+				retAddress, err := table.Insert(address, value)
+				_, lookupOk := table.Lookup(expectedAddress)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("address", retAddress, ShouldResemble, expectedAddress)
+				SoMsg("lookup ok", lookupOk, ShouldBeTrue)
 			})
 			Convey("Inserting an address without a value is not permitted", func() {
 				address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 				retAddress, err := table.Insert(address, nil)
+				_, lookupOk := table.Lookup(address)
 				SoMsg("err", err, ShouldNotBeNil)
 				SoMsg("address", retAddress, ShouldBeNil)
+				SoMsg("lookup ok", lookupOk, ShouldBeFalse)
 			})
 			Convey("Inserting a zero IPv4 address is permitted", func() {
 				address := &net.UDPAddr{IP: net.IPv4zero, Port: 10080}
