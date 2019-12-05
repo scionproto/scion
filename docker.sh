@@ -34,8 +34,8 @@ cmd_build() {
 
 cmd_tester() {
     set -eo pipefail
-    docker build -t "scion_tester:latest" - < docker/Dockerfile.tester
-    docker build -f docker/acceptance/sig/Dockerfile -t "scion_sig_acceptance:latest" docker/acceptance/sig
+    bazel run //docker/testimages:scion_testing_bundle
+    docker build -f "docker/testimages/Dockerfile.sig_accept" -t "scion_sig_acceptance" docker/testimages
 }
 
 copy_tree() {
