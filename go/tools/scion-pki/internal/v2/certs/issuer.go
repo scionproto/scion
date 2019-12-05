@@ -94,7 +94,7 @@ func (g issGen) generate(ia addr.IA, cfg conf.Issuer) (issMeta, error) {
 
 func (g issGen) loadPubKeys(ia addr.IA, cfg conf.Issuer) (map[cert.KeyType]keyconf.Key, error) {
 	keys := make(map[cert.KeyType]keyconf.Key)
-	ids := map[cert.KeyType]keyconf.KeyID{
+	ids := map[cert.KeyType]keyconf.ID{
 		cert.IssuingKey: {
 			IA:      ia,
 			Usage:   keyconf.IssCertSigningKey,
@@ -102,7 +102,7 @@ func (g issGen) loadPubKeys(ia addr.IA, cfg conf.Issuer) (map[cert.KeyType]keyco
 		},
 	}
 	if cfg.RevocationKeyVersion != nil {
-		ids[cert.RevocationKey] = keyconf.KeyID{
+		ids[cert.RevocationKey] = keyconf.ID{
 			IA:      ia,
 			Usage:   keyconf.IssRevocationKey,
 			Version: *cfg.RevocationKeyVersion,
@@ -118,7 +118,7 @@ func (g issGen) loadPubKeys(ia addr.IA, cfg conf.Issuer) (map[cert.KeyType]keyco
 	return keys, nil
 }
 
-func (g issGen) loadPubKey(id keyconf.KeyID) (keyconf.Key, error) {
+func (g issGen) loadPubKey(id keyconf.ID) (keyconf.Key, error) {
 	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, id)
 	if err != nil {
 		return keyconf.Key{}, err
@@ -175,7 +175,7 @@ func (g issGen) sign(ia addr.IA, cfg conf.Issuer,
 	if !ok || !primary.Attributes.Contains(trc.Issuing) || primary.IssuingKeyVersion == nil {
 		return cert.SignedIssuer{}, serrors.New("not an issuing AS")
 	}
-	id := keyconf.KeyID{
+	id := keyconf.ID{
 		IA:      ia,
 		Usage:   keyconf.TRCIssuingKey,
 		Version: *primary.IssuingKeyVersion,

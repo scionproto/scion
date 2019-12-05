@@ -127,7 +127,7 @@ func (g pubGen) writeKeys(pubKeys map[addr.IA][]keyconf.Key) error {
 // public key. If that fails, it attempts to load the public key directly. The
 // boolean return value indicates whether the public key was derived from the
 // private key.
-func LoadPublicKey(dir string, id keyconf.KeyID) (keyconf.Key, bool, error) {
+func LoadPublicKey(dir string, id keyconf.ID) (keyconf.Key, bool, error) {
 	priv, err := keyconf.LoadKeyFromFile(PrivateFile(dir, id), keyconf.PrivateKey, id)
 	if err == nil {
 		pub, err := PublicKey(priv)
@@ -155,7 +155,7 @@ func PublicKey(priv keyconf.Key) (keyconf.Key, error) {
 		return keyconf.Key{}, serrors.WrapStr("error generating public key", err)
 	}
 	key := keyconf.Key{
-		KeyID: keyconf.KeyID{
+		ID: keyconf.ID{
 			Usage:   priv.Usage,
 			IA:      priv.IA,
 			Version: priv.Version,

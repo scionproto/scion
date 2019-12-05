@@ -139,7 +139,7 @@ func (g privGen) generateKey(ia addr.IA, version scrypto.KeyVersion,
 		return keyconf.Key{}, err
 	}
 	key := keyconf.Key{
-		KeyID: keyconf.KeyID{
+		ID: keyconf.ID{
 			Usage:   usage,
 			IA:      ia,
 			Version: version,

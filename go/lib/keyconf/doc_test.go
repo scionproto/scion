@@ -27,7 +27,7 @@ import (
 
 func ExampleKey_encoding() {
 	k := Key{
-		KeyID: KeyID{
+		ID: ID{
 			Usage:   ASSigKeyFile,
 			IA:      xtest.MustParseIA("1-ff00:0:110"),
 			Version: 2,
@@ -57,7 +57,7 @@ func ExampleKey_encoding() {
 
 func ExampleKey_filename() {
 	publicKey := Key{
-		KeyID: KeyID{
+		ID: ID{
 			Usage:   ASSigningKey,
 			Version: 2,
 			IA:      xtest.MustParseIA("1-ff00:0:110"),
@@ -65,7 +65,7 @@ func ExampleKey_filename() {
 		Type: PublicKey,
 	}
 	privateKey := Key{
-		KeyID: KeyID{
+		ID: ID{
 			Usage:   ASRevocationKey,
 			Version: 10,
 			IA:      xtest.MustParseIA("1-ff00:0:110"),

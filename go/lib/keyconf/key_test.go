@@ -37,13 +37,13 @@ func TestLoadKeyFromFile(t *testing.T) {
 	tests := map[string]struct {
 		Key          []byte
 		Type         keyconf.Type
-		ID           keyconf.KeyID
+		ID           keyconf.ID
 		ErrAssertion require.ErrorAssertionFunc
 	}{
 		"valid": {
 			Key:  pem.EncodeToMemory(&block),
 			Type: keyconf.PrivateKey,
-			ID: keyconf.KeyID{
+			ID: keyconf.ID{
 				Usage:   keyconf.ASSigningKey,
 				IA:      xtest.MustParseIA("1-ff00:0:110"),
 				Version: 2,
@@ -61,7 +61,7 @@ func TestLoadKeyFromFile(t *testing.T) {
 		"invalid type": {
 			Key:  pem.EncodeToMemory(&block),
 			Type: keyconf.PublicKey,
-			ID: keyconf.KeyID{
+			ID: keyconf.ID{
 				Usage:   keyconf.ASSigningKey,
 				IA:      xtest.MustParseIA("1-ff00:0:111"),
 				Version: 2,
@@ -71,7 +71,7 @@ func TestLoadKeyFromFile(t *testing.T) {
 		"invalid IA": {
 			Key:  pem.EncodeToMemory(&block),
 			Type: keyconf.PrivateKey,
-			ID: keyconf.KeyID{
+			ID: keyconf.ID{
 				Usage:   keyconf.ASSigningKey,
 				IA:      xtest.MustParseIA("1-ff00:0:111"),
 				Version: 2,
@@ -81,7 +81,7 @@ func TestLoadKeyFromFile(t *testing.T) {
 		"invalid Usage": {
 			Key:  pem.EncodeToMemory(&block),
 			Type: keyconf.PrivateKey,
-			ID: keyconf.KeyID{
+			ID: keyconf.ID{
 				Usage:   keyconf.ASRevocationKey,
 				IA:      xtest.MustParseIA("1-ff00:0:110"),
 				Version: 2,
@@ -91,7 +91,7 @@ func TestLoadKeyFromFile(t *testing.T) {
 		"invalid version": {
 			Key:  pem.EncodeToMemory(&block),
 			Type: keyconf.PrivateKey,
-			ID: keyconf.KeyID{
+			ID: keyconf.ID{
 				Usage:   keyconf.ASSigningKey,
 				IA:      xtest.MustParseIA("1-ff00:0:110"),
 				Version: 3,
@@ -248,7 +248,7 @@ func TestKeyFile(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			k := keyconf.Key{
 				Type: keyconf.PublicKey,
-				KeyID: keyconf.KeyID{
+				ID: keyconf.ID{
 					Usage:   test.Usage,
 					Version: test.Version,
 					IA:      test.IA,

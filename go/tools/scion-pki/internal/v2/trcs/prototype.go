@@ -122,7 +122,7 @@ func (g protoGen) insertIssuingKey(dst pubKeys, ia addr.IA, primary conf.Primary
 	if !primary.Attributes.Contains(trc.Issuing) {
 		return nil
 	}
-	desc := keyconf.KeyID{
+	desc := keyconf.ID{
 		IA:      ia,
 		Usage:   keyconf.TRCIssuingKey,
 		Version: *primary.IssuingKeyVersion,
@@ -141,7 +141,7 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 	if !primary.Attributes.Contains(trc.Voting) {
 		return nil
 	}
-	ids := map[trc.KeyType]keyconf.KeyID{
+	ids := map[trc.KeyType]keyconf.ID{
 		trc.OnlineKey: {
 			IA:      ia,
 			Usage:   keyconf.TRCVotingOnlineKey,
@@ -165,7 +165,7 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 
 // loadPubKey attempts to load the private key and use it to generate the public
 // key. If that fails, loadPubKey attempts to load the public key directly.
-func (g protoGen) loadPubKey(id keyconf.KeyID) (keyconf.Key, error) {
+func (g protoGen) loadPubKey(id keyconf.ID) (keyconf.Key, error) {
 	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, id)
 	if err != nil {
 		return keyconf.Key{}, nil

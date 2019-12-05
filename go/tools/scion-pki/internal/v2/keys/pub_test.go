@@ -172,7 +172,7 @@ func TestLoadPublicKey(t *testing.T) {
 	tmpDir, clean := xtest.MustTempDir("", "test-keys")
 	defer clean()
 	protoKey := keyconf.Key{
-		KeyID: keyconf.KeyID{
+		ID: keyconf.ID{
 			Usage:   keyconf.ASSigningKey,
 			IA:      xtest.MustParseIA("1-ff00:0:110"),
 			Version: 1,
@@ -184,10 +184,10 @@ func TestLoadPublicKey(t *testing.T) {
 		err := os.MkdirAll(PublicDir(dir, protoKey.IA), 0777)
 		require.NoError(t, err)
 		block := protoKey.PEM()
-		err = ioutil.WriteFile(PublicFile(dir, protoKey.KeyID), pem.EncodeToMemory(&block), 0644)
+		err = ioutil.WriteFile(PublicFile(dir, protoKey.ID), pem.EncodeToMemory(&block), 0644)
 		require.NoError(t, err)
 
-		_, derived, err := LoadPublicKey(dir, protoKey.KeyID)
+		_, derived, err := LoadPublicKey(dir, protoKey.ID)
 		require.NoError(t, err)
 		assert.False(t, derived)
 	})
@@ -196,22 +196,22 @@ func TestLoadPublicKey(t *testing.T) {
 		err := os.MkdirAll(PublicDir(dir, protoKey.IA), 0777)
 		require.NoError(t, err)
 		block := protoKey.PEM()
-		err = ioutil.WriteFile(PublicFile(dir, protoKey.KeyID), pem.EncodeToMemory(&block), 0644)
+		err = ioutil.WriteFile(PublicFile(dir, protoKey.ID), pem.EncodeToMemory(&block), 0644)
 		require.NoError(t, err)
 
 		err = os.MkdirAll(PrivateDir(dir, protoKey.IA), 0777)
 		require.NoError(t, err)
 		priv := keyconf.Key{
-			KeyID:     protoKey.KeyID,
+			ID:        protoKey.ID,
 			Type:      keyconf.PrivateKey,
 			Algorithm: scrypto.Ed25519,
 			Bytes:     make([]byte, 32),
 		}
 		block = priv.PEM()
-		err = ioutil.WriteFile(PrivateFile(dir, priv.KeyID), pem.EncodeToMemory(&block), 0644)
+		err = ioutil.WriteFile(PrivateFile(dir, priv.ID), pem.EncodeToMemory(&block), 0644)
 		require.NoError(t, err)
 
-		_, derived, err := LoadPublicKey(dir, protoKey.KeyID)
+		_, derived, err := LoadPublicKey(dir, protoKey.ID)
 		require.NoError(t, err)
 		assert.True(t, derived)
 	})
@@ -220,21 +220,21 @@ func TestLoadPublicKey(t *testing.T) {
 		err := os.MkdirAll(PrivateDir(dir, protoKey.IA), 0777)
 		require.NoError(t, err)
 		priv := keyconf.Key{
-			KeyID:     protoKey.KeyID,
+			ID:        protoKey.ID,
 			Type:      keyconf.PublicKey,
 			Algorithm: scrypto.Ed25519,
 			Bytes:     make([]byte, 32),
 		}
 		block := priv.PEM()
-		err = ioutil.WriteFile(PrivateFile(dir, priv.KeyID), pem.EncodeToMemory(&block), 0644)
+		err = ioutil.WriteFile(PrivateFile(dir, priv.ID), pem.EncodeToMemory(&block), 0644)
 		require.NoError(t, err)
 
-		_, derived, err := LoadPublicKey(dir, protoKey.KeyID)
+		_, derived, err := LoadPublicKey(dir, protoKey.ID)
 		require.Error(t, err)
 		assert.False(t, derived)
 	})
 	t.Run("no key", func(t *testing.T) {
-		_, derived, err := LoadPublicKey(tmpDir, protoKey.KeyID)
+		_, derived, err := LoadPublicKey(tmpDir, protoKey.ID)
 		require.Error(t, err)
 		assert.False(t, derived)
 	})

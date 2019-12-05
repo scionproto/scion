@@ -125,7 +125,7 @@ func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia ad
 	if !ok {
 		return nil
 	}
-	id := keyconf.KeyID{
+	id := keyconf.ID{
 		IA:      ia,
 		Version: vote.KeyVersion,
 	}
@@ -158,7 +158,7 @@ func (g signatureGen) showPOP(signatures map[trc.Protected]trc.Signature, ia add
 	cfg conf.TRC2, signed trc.Signed, t *trc.TRC) error {
 
 	for _, keyType := range t.ProofOfPossession[ia.A] {
-		id := keyconf.KeyID{
+		id := keyconf.ID{
 			IA:      ia,
 			Version: t.PrimaryASes[ia.A].Keys[keyType].KeyVersion,
 		}
@@ -188,7 +188,7 @@ func (g signatureGen) showPOP(signatures map[trc.Protected]trc.Signature, ia add
 	return nil
 }
 
-func (g signatureGen) loadKey(id keyconf.KeyID) (keyconf.Key, error) {
+func (g signatureGen) loadKey(id keyconf.ID) (keyconf.Key, error) {
 	file := keys.PrivateFile(g.Dirs.Out, id)
 	priv, err := keyconf.LoadKeyFromFile(file, keyconf.PrivateKey, id)
 	if err != nil {

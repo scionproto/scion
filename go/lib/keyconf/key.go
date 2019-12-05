@@ -115,8 +115,8 @@ func (t *Type) UnmarshalText(text []byte) error {
 	return serrors.WithCtx(ErrUnsupportedType, "input", string(text))
 }
 
-// KeyID identifies a specific key.
-type KeyID struct {
+// ID identifies a specific key.
+type ID struct {
 	Usage   Usage
 	IA      addr.IA
 	Version scrypto.KeyVersion
@@ -130,7 +130,7 @@ type KeyID struct {
 //
 // To see the resulting filename, check the example.
 type Key struct {
-	KeyID
+	ID
 	Type      Type
 	Algorithm string
 	Validity  scrypto.Validity
@@ -139,7 +139,7 @@ type Key struct {
 
 // LoadKeyFromFile loads the key from file and checks that the contained
 // identifiers match.
-func LoadKeyFromFile(file string, keyType Type, id KeyID) (Key, error) {
+func LoadKeyFromFile(file string, keyType Type, id ID) (Key, error) {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
 		return Key{}, serrors.Wrap(ErrReadFile, err)
