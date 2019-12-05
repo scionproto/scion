@@ -57,13 +57,5 @@ class SCIONTypeError(SCIONBaseError):
     """Wrong type"""
 
 
-class SCIONChecksumFailed(SCIONBaseError):
-    """Checksum failed"""
-
-
 class SCIONVerificationError(SCIONBaseError):
     """MAC/Signature verification error"""
-
-
-class SCIONPathPolicyViolated(SCIONBaseError):
-    """Path policy violated error"""

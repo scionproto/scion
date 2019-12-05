@@ -18,14 +18,8 @@
 Various utilities for SCION functionality.
 """
 # Stdlib
-import atexit
-import logging
 import os
-import signal
-import sys
-from binascii import hexlify
 from datetime import datetime, timezone
-from socket import MSG_DONTWAIT
 
 # External packages
 import yaml
@@ -40,14 +34,6 @@ from lib.errors import (
 )
 
 TRACE_DIR = 'traces'
-
-_SIG_MAP = {
-    signal.SIGHUP: "SIGHUP",
-    signal.SIGINT: "SIGINT",
-    signal.SIGQUIT: "SIGQUIT",
-    signal.SIGTERM: "SIGTERM",
-    signal.SIGUSR2: "SIGUSR2"
-}
 
 
 def read_file(file_path):
@@ -123,42 +109,6 @@ def load_yaml_file(file_path):
                              (file_path, e)) from None
 
 
-def calc_padding(length, block_size):
-    """
-    Calculate how much padding is needed to bring `length` to a multiple of
-    `block_size`.
-
-    :param int length: The length of the data that needs padding.
-    :param int block_size: The block size.
-    """
-    if length % block_size:
-        return block_size - (length % block_size)
-    else:
-        return 0
-
-
-def handle_signals():
-    """Setup basic signal handler for the most common signals."""
-    # FIXME(kormat): the SIGUSR1 handler is actually silently overridden by
-    # pycapnp, so we can't use/catch it.
-    # https://github.com/jparyani/pycapnp/issues/101
-    for sig in _SIG_MAP.keys():
-        signal.signal(sig, _signal_handler)
-
-
-def _signal_handler(signum, _):
-    """Basic signal handler function."""
-    text = "Received %s" % _SIG_MAP[signum]
-    if signum == signal.SIGTERM:
-        atexit.register(lambda: logging.info(text))
-        sys.exit(0)
-    elif signum == signal.SIGINT:
-        atexit.register(lambda: logging.info(text))
-    else:
-        atexit.register(lambda: logging.error(text))
-    sys.exit(1)
-
-
 def iso_timestamp(ts):  # pragma: no cover
     """
     Format a unix timestamp as a UTC ISO 8601 format string
@@ -167,37 +117,6 @@ def iso_timestamp(ts):  # pragma: no cover
     :param float ts: Seconds since the UNIX epoch.
     """
     return str(datetime.fromtimestamp(ts, tz=timezone.utc))
-
-
-def hex_str(raw):
-    """Format a byte string as hex characters."""
-    return hexlify(raw).decode("ascii")
-
-
-def recv_all(sock, total_len, flags):
-    barr = bytearray()
-    while len(barr) < total_len:
-        # The first recv call must support non-blocking mode to raise an error
-        # if the socket is not ready. Subsequent calls should be blocking to
-        # avoid sync problems.
-        if flags & MSG_DONTWAIT and len(barr) > 0:
-            flags &= ~MSG_DONTWAIT
-        try:
-            buf = sock.recv(total_len - len(barr), flags)
-        except InterruptedError:
-            continue
-        except ConnectionResetError:
-            # Peer closed the connection without reading
-            logging.error("socket closed by peer")
-            return None
-        if not buf:
-            if not barr:
-                logging.debug("recv returned nil, socket closed")
-            else:
-                logging.error("socket connection prematurely terminated")
-            return None
-        barr += buf
-    return bytes(barr)
 
 
 class Raw(object):
