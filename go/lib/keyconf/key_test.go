@@ -16,6 +16,8 @@ package keyconf_test
 
 import (
 	"encoding/pem"
+	"io/ioutil"
+	"path"
 	"strconv"
 	"testing"
 	"time"
@@ -29,6 +31,101 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
+
+func TestLoadKeyFromFile(t *testing.T) {
+	block := pemBlock(t)
+	tests := map[string]struct {
+		Key          []byte
+		Type         keyconf.Type
+		ID           keyconf.ID
+		ErrAssertion require.ErrorAssertionFunc
+	}{
+		"valid": {
+			Key:  pem.EncodeToMemory(&block),
+			Type: keyconf.PrivateKey,
+			ID: keyconf.ID{
+				Usage:   keyconf.ASSigningKey,
+				IA:      xtest.MustParseIA("1-ff00:0:110"),
+				Version: 2,
+			},
+			ErrAssertion: require.NoError,
+		},
+		"invalid pem": {
+			Key:          []byte{},
+			ErrAssertion: require.Error,
+		},
+		"invalid key": {
+			Key:          pem.EncodeToMemory(&pem.Block{Type: "garbage"}),
+			ErrAssertion: require.Error,
+		},
+		"invalid type": {
+			Key:  pem.EncodeToMemory(&block),
+			Type: keyconf.PublicKey,
+			ID: keyconf.ID{
+				Usage:   keyconf.ASSigningKey,
+				IA:      xtest.MustParseIA("1-ff00:0:111"),
+				Version: 2,
+			},
+			ErrAssertion: require.Error,
+		},
+		"invalid IA": {
+			Key:  pem.EncodeToMemory(&block),
+			Type: keyconf.PrivateKey,
+			ID: keyconf.ID{
+				Usage:   keyconf.ASSigningKey,
+				IA:      xtest.MustParseIA("1-ff00:0:111"),
+				Version: 2,
+			},
+			ErrAssertion: require.Error,
+		},
+		"invalid Usage": {
+			Key:  pem.EncodeToMemory(&block),
+			Type: keyconf.PrivateKey,
+			ID: keyconf.ID{
+				Usage:   keyconf.ASRevocationKey,
+				IA:      xtest.MustParseIA("1-ff00:0:110"),
+				Version: 2,
+			},
+			ErrAssertion: require.Error,
+		},
+		"invalid version": {
+			Key:  pem.EncodeToMemory(&block),
+			Type: keyconf.PrivateKey,
+			ID: keyconf.ID{
+				Usage:   keyconf.ASSigningKey,
+				IA:      xtest.MustParseIA("1-ff00:0:110"),
+				Version: 3,
+			},
+			ErrAssertion: require.Error,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			tmpDir, cleanF := xtest.MustTempDir("", "test-trust")
+			defer cleanF()
+			file := path.Join(tmpDir, name)
+			err := ioutil.WriteFile(file, test.Key, 0644)
+			require.NoError(t, err)
+
+			k, err := keyconf.LoadKeyFromFile(file, test.Type, test.ID)
+			test.ErrAssertion(t, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, block.Type, string(k.Type))
+			assert.Equal(t, block.Headers["usage"], string(k.Usage))
+			assert.Equal(t, block.Headers["algorithm"], k.Algorithm)
+			assert.Equal(t, block.Headers["not_after"],
+				util.TimeToCompact(k.Validity.NotAfter.Time))
+			assert.Equal(t, block.Headers["not_before"],
+				util.TimeToCompact(k.Validity.NotBefore.Time))
+			assert.Equal(t, block.Headers["version"], strconv.FormatUint(uint64(k.Version), 10))
+			assert.Equal(t, block.Headers["ia"], k.IA.String())
+			assert.Equal(t, block.Bytes, k.Bytes)
+			assert.Equal(t, block, k.PEM())
+		})
+	}
+}
 
 func TestKeyFromPEM(t *testing.T) {
 	tests := map[string]struct {
@@ -150,10 +247,12 @@ func TestKeyFile(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			k := keyconf.Key{
-				Type:    keyconf.PublicKey,
-				Usage:   test.Usage,
-				Version: test.Version,
-				IA:      test.IA,
+				Type: keyconf.PublicKey,
+				ID: keyconf.ID{
+					Usage:   test.Usage,
+					Version: test.Version,
+					IA:      test.IA,
+				},
 			}
 			assert.Equal(t, test.Public, k.File())
 			k.Type = keyconf.PrivateKey

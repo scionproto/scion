@@ -17,6 +17,7 @@ package keyconf
 import (
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"time"
 
@@ -28,10 +29,15 @@ import (
 )
 
 var (
+	// ErrContentsMismatch indicates that the contents of a loaded key do not
+	// match the expected identifiers.
+	ErrContentsMismatch = serrors.New("contents mismatch")
 	// ErrNoAlgorithm indicates no algorithm was provided.
 	ErrNoAlgorithm = serrors.New("no algorithm")
 	// ErrNoKey indicates no key was provided.
 	ErrNoKey = serrors.New("no key")
+	// ErrReadFile indicates an error while reading a file.
+	ErrReadFile = serrors.New("error reading file")
 	// ErrUnsupportedUsage indicates the key usage is not known.
 	ErrUnsupportedUsage = serrors.New("unsupported key usage")
 	// ErrUnsupportedType indicates the key type is not known.
@@ -109,6 +115,13 @@ func (t *Type) UnmarshalText(text []byte) error {
 	return serrors.WithCtx(ErrUnsupportedType, "input", string(text))
 }
 
+// ID identifies a specific key.
+type ID struct {
+	Usage   Usage
+	IA      addr.IA
+	Version scrypto.KeyVersion
+}
+
 // Key contains the key with additional metada.
 //
 // On disk, the key is encoded in PEM with a file name specific to the type,
@@ -117,13 +130,45 @@ func (t *Type) UnmarshalText(text []byte) error {
 //
 // To see the resulting filename, check the example.
 type Key struct {
+	ID
 	Type      Type
-	Usage     Usage
 	Algorithm string
 	Validity  scrypto.Validity
-	Version   scrypto.KeyVersion
-	IA        addr.IA
 	Bytes     []byte
+}
+
+// LoadKeyFromFile loads the key from file and checks that the contained
+// identifiers match.
+func LoadKeyFromFile(file string, keyType Type, id ID) (Key, error) {
+	raw, err := ioutil.ReadFile(file)
+	if err != nil {
+		return Key{}, serrors.Wrap(ErrReadFile, err)
+	}
+	block, _ := pem.Decode(raw)
+	if block == nil {
+		return Key{}, serrors.New("unable to parse PEM")
+	}
+	key, err := KeyFromPEM(block)
+	if err != nil {
+		return Key{}, serrors.WrapStr("unable to decode key", err)
+	}
+	if key.Type != keyType {
+		return Key{}, serrors.WithCtx(ErrContentsMismatch, "field", "type",
+			"expected", keyType, "actual", key.Type)
+	}
+	if !key.IA.Equal(id.IA) {
+		return Key{}, serrors.WithCtx(ErrContentsMismatch, "field", "ia",
+			"expected", id.IA, "actual", key.IA)
+	}
+	if key.Usage != id.Usage {
+		return Key{}, serrors.WithCtx(ErrContentsMismatch, "field", "usage",
+			"expected", id.Usage, "actual", key.Usage)
+	}
+	if key.Version != id.Version {
+		return Key{}, serrors.WithCtx(ErrContentsMismatch, "field", "version",
+			"expected", id.Version, "actual", key.Version)
+	}
+	return key, nil
 }
 
 // KeyFromPEM parses the PEM block.

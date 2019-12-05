@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
@@ -26,7 +27,18 @@ func PrivateDir(out string, ia addr.IA) string {
 	return filepath.Join(pkicmn.GetAsPath(out, ia), "keys")
 }
 
+// PrivateFile returns the file where the private key is written to.
+func PrivateFile(out string, id keyconf.ID) string {
+	return filepath.Join(PrivateDir(out, id.IA), keyconf.PrivateKeyFile(id.Usage, id.Version))
+}
+
 // PublicDir returns the directory where the public keys are written to.
 func PublicDir(out string, ia addr.IA) string {
 	return filepath.Join(pkicmn.GetAsPath(out, ia), "pub")
+}
+
+// PublicFile returns the file where the public key is written to.
+func PublicFile(out string, id keyconf.ID) string {
+	return filepath.Join(PublicDir(out, id.IA),
+		keyconf.PublicKeyFile(id.Usage, id.IA, id.Version))
 }

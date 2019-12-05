@@ -30,6 +30,7 @@ import (
 const (
 	CertNameFmt     = "ISD%d-AS%s-V%d.crt"
 	CoreCertNameFmt = "ISD%d-AS%s-V%d-core.crt"
+	IssuerNameFmt   = "ISD%d-AS%s-V%d.issuer"
 	TrcNameFmt      = "ISD%d-V%d.trc"
 	TRCPartsDirFmt  = "ISD%d-V%d.parts"
 	TRCSigPartFmt   = "ISD%d-V%d.%s.sig"

@@ -20,8 +20,6 @@ import (
 	"sort"
 	"time"
 
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -124,7 +122,12 @@ func (g protoGen) insertIssuingKey(dst pubKeys, ia addr.IA, primary conf.Primary
 	if !primary.Attributes.Contains(trc.Issuing) {
 		return nil
 	}
-	key, err := g.loadPubKey(ia, keyconf.TRCIssuingKey, *primary.IssuingKeyVersion)
+	desc := keyconf.ID{
+		IA:      ia,
+		Usage:   keyconf.TRCIssuingKey,
+		Version: *primary.IssuingKeyVersion,
+	}
+	key, err := g.loadPubKey(desc)
 	if err != nil {
 		return serrors.WrapStr("unable to load issuing key", err)
 	}
@@ -138,40 +141,41 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 	if !primary.Attributes.Contains(trc.Voting) {
 		return nil
 	}
-	online, err := g.loadPubKey(ia, keyconf.TRCVotingOnlineKey, *primary.VotingOnlineKeyVersion)
-	if err != nil {
-		return serrors.WrapStr("unable to load voting online key", err)
+	ids := map[trc.KeyType]keyconf.ID{
+		trc.OnlineKey: {
+			IA:      ia,
+			Usage:   keyconf.TRCVotingOnlineKey,
+			Version: *primary.VotingOnlineKeyVersion,
+		},
+		trc.OfflineKey: {
+			IA:      ia,
+			Usage:   keyconf.TRCVotingOfflineKey,
+			Version: *primary.VotingOfflineKeyVersion,
+		},
 	}
-	dst[trc.OnlineKey] = online
-	offline, err := g.loadPubKey(ia, keyconf.TRCVotingOfflineKey, *primary.VotingOfflineKeyVersion)
-	if err != nil {
-		return serrors.WrapStr("unable to load voting offline key", err)
+	for keyType, id := range ids {
+		key, err := g.loadPubKey(id)
+		if err != nil {
+			return serrors.WithCtx(err, "usage", id.Usage)
+		}
+		dst[keyType] = key
 	}
-	dst[trc.OfflineKey] = offline
 	return nil
 }
 
 // loadPubKey attempts to load the private key and use it to generate the public
 // key. If that fails, loadPubKey attempts to load the public key directly.
-func (g protoGen) loadPubKey(ia addr.IA, usage keyconf.Usage,
-	version scrypto.KeyVersion) (keyconf.Key, error) {
-
-	file := filepath.Join(keys.PrivateDir(g.Dirs.Out, ia), keyconf.PrivateKeyFile(usage, version))
-	priv, err := loadKey(file, ia, usage, version)
-	if err == nil {
-		pkicmn.QuietPrint("Using private key %s\n", file)
-		return keys.PublicKey(priv)
-	}
-	if !xerrors.Is(err, errReadFile) {
-		return keyconf.Key{}, err
-	}
-	file = filepath.Join(keys.PublicDir(g.Dirs.Out, ia), keyconf.PublicKeyFile(usage, ia, version))
-	pub, err := loadKey(file, ia, usage, version)
+func (g protoGen) loadPubKey(id keyconf.ID) (keyconf.Key, error) {
+	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, id)
 	if err != nil {
-		return keyconf.Key{}, serrors.WrapStr("unable to load public key", err, "file", file)
+		return keyconf.Key{}, nil
 	}
-	pkicmn.QuietPrint("Using public key %s\n", file)
-	return pub, nil
+	if fromPriv {
+		pkicmn.QuietPrint("Using private %s key for %s\n", id.Usage, id.IA)
+		return key, nil
+	}
+	pkicmn.QuietPrint("Using public %s key for %s\n", id.Usage, id.IA)
+	return key, nil
 }
 
 func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC2, keys map[addr.AS]pubKeys) (*trc.TRC, error) {

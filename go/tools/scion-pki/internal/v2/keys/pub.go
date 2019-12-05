@@ -21,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/xerrors"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -121,6 +123,28 @@ func (g pubGen) writeKeys(pubKeys map[addr.IA][]keyconf.Key) error {
 	return nil
 }
 
+// LoadPublicKey attempts to load the private key and use that to generate the
+// public key. If that fails, it attempts to load the public key directly. The
+// boolean return value indicates whether the public key was derived from the
+// private key.
+func LoadPublicKey(dir string, id keyconf.ID) (keyconf.Key, bool, error) {
+	priv, err := keyconf.LoadKeyFromFile(PrivateFile(dir, id), keyconf.PrivateKey, id)
+	if err == nil {
+		pub, err := PublicKey(priv)
+		return pub, true, err
+	}
+	if !xerrors.Is(err, keyconf.ErrReadFile) {
+		return keyconf.Key{}, false, err
+	}
+	pkicmn.QuietPrint("Unable to load private key for %s. Trying public key.\n", id.IA)
+	file := PublicFile(dir, id)
+	pub, err := keyconf.LoadKeyFromFile(file, keyconf.PublicKey, id)
+	if err != nil {
+		return keyconf.Key{}, false, serrors.WrapStr("unable to load public key", err, "file", file)
+	}
+	return pub, false, nil
+}
+
 // PublicKey translates a private to a public key.
 func PublicKey(priv keyconf.Key) (keyconf.Key, error) {
 	if priv.Type != keyconf.PrivateKey {
@@ -131,12 +155,14 @@ func PublicKey(priv keyconf.Key) (keyconf.Key, error) {
 		return keyconf.Key{}, serrors.WrapStr("error generating public key", err)
 	}
 	key := keyconf.Key{
+		ID: keyconf.ID{
+			Usage:   priv.Usage,
+			IA:      priv.IA,
+			Version: priv.Version,
+		},
 		Type:      keyconf.PublicKey,
-		Usage:     priv.Usage,
 		Algorithm: priv.Algorithm,
 		Validity:  priv.Validity,
-		Version:   priv.Version,
-		IA:        priv.IA,
 		Bytes:     raw,
 	}
 	return key, nil

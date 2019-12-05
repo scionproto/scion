@@ -15,21 +15,16 @@
 package trcs
 
 import (
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
-
-var errReadFile = serrors.New("error reading file")
 
 // Dir returns the directory where TRCs are written to.
 func Dir(dir string, isd addr.ISD) string {
@@ -99,33 +94,4 @@ func loadTRC(file string) (*trc.TRC, trc.Encoded, error) {
 		return nil, nil, err
 	}
 	return t, signed.EncodedTRC, nil
-}
-
-func loadKey(file string, ia addr.IA, usage keyconf.Usage,
-	version scrypto.KeyVersion) (keyconf.Key, error) {
-
-	raw, err := ioutil.ReadFile(file)
-	if err != nil {
-		return keyconf.Key{}, serrors.Wrap(errReadFile, err)
-	}
-	block, _ := pem.Decode(raw)
-	if block == nil {
-		return keyconf.Key{}, serrors.New("unable to parse PEM")
-	}
-	key, err := keyconf.KeyFromPEM(block)
-	if err != nil {
-		return keyconf.Key{}, serrors.WrapStr("unable to decode key", err)
-	}
-	if !key.IA.Equal(ia) {
-		return keyconf.Key{}, serrors.New("IA does not match", "expected", ia, "actual", key.IA)
-	}
-	if key.Usage != usage {
-		return keyconf.Key{}, serrors.New("usage does not match",
-			"expected", usage, "actual", key.Usage)
-	}
-	if key.Version != version {
-		return keyconf.Key{}, serrors.New("version does not match",
-			"expected", version, "actual", key.Version)
-	}
-	return key, nil
 }
