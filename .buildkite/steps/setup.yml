@@ -1,9 +1,7 @@
 - label: "Scion image :docker: "
   command:
-    - $BASE/scripts/build_scion_img
-    - make -C docker/perapp app_builder
-    - docker tag scion_app_builder "$SCION_IMG"
-    - docker push $SCION_IMG
+    - docker run -e  BAZEL_REMOTE_S3_BUCKET=buildkite-bazel-cache -e BAZEL_REMOTE_S3_ENDPOINT=s3.eu-central-1.amazonaws.com -e BAZEL_REMOTE_S3_ACCESS_KEY_ID=$BAZEL_REMOTE_S3_ACCESS_KEY_ID -e BAZEL_REMOTE_S3_SECRET_ACCESS_KEY=$BAZEL_REMOTE_S3_SECRET_ACCESS_KEY --net=host -d buchgr/bazel-remote-cache
+    - make -s GODEPS_SKIP=1 GOGEN_SKIP=1 all setcap
   artifact_paths:
     - "artifacts.out/**/*"
   retry:

@@ -1,0 +1,12 @@
+version: '2'
+services:
+    scion_base_build:
+        build:
+            context: ..
+            dockerfile: docker/ci/build/Dockerfile
+        image: scion_base_build:latest
+    scion_base_test:
+        build:
+            context: ..
+            dockerfile: docker/ci/test/Dockerfile
+        image: scion_base_test:latest

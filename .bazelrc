@@ -1,1 +1,1 @@
-build --workspace_status_command=./tools/bazel-build-env --disk_cache=./.bazel-cache --stamp
+build --workspace_status_command=./tools/bazel-build-env --python_version=PY3 --host_force_python=PY3 --disk_cache=./.bazel-cache --stamp

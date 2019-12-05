@@ -18,11 +18,13 @@ dl_install() {
 MACH="$(uname -m)"
 [ "$MACH" == "x86_64" ] || { echo "Error: bazel does not provide binaries for $MACH"; exit 1; }
 
-mkdir -p ~/bin
+ROOT_DIR="${1:-~}"; shift
+
+mkdir -p "$ROOT_DIR/bin"
 
 BAZEL_VER=1.2.0
 BAZEL_CKSUM=34eb178663a9f9c6765db72dd58958cdac64c5f08dd51e5b67e28d466079bd1e
 BAZEL_FILE="bazel-${BAZEL_VER}-linux-${MACH}"
 BAZEL_URL=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VER}/${BAZEL_FILE}
 
-dl_install "$BAZEL_URL" "$BAZEL_CKSUM" ~/bin/bazel
+dl_install "$BAZEL_URL" "$BAZEL_CKSUM" "$ROOT_DIR/bin/bazel"
