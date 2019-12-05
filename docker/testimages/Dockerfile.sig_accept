@@ -5,5 +5,7 @@
 # https://github.com/bazelbuild/rules_docker/issues/752
 # NOTE: this process needs explicit CAP_NET_ADMIN from docker.
 # E.g. with `cap_add: NET_ADMIN` from docker-compose.
+FROM scionproto/docker-caps as caps
 FROM scion_sig_acceptance_nocap:latest
-RUN ["setcap", "cap_net_admin+ei", "/app/sig"]
+COPY --from=caps /bin/setcap /bin
+RUN setcap cap_net_admin+ei /app/sig && rm /bin/setcap

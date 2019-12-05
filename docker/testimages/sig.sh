@@ -13,4 +13,4 @@ for net in $(echo $1 | tr , ' '); do
 done
 
 shift
-/sbin/su-exec /app/sig -config conf/sig.toml
+exec /sbin/su-exec /app/sig -config conf/sig.toml
