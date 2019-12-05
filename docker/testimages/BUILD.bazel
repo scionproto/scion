@@ -36,16 +36,15 @@ container_image(
     env = {"TZ": "UTC"},
     debs = [
         packages["libc6"],
-        # we need setcap so that we can add network capabilities to apps
-        packages["libcap2"],
-        packages["libcap2-bin"],
         # needed by su-exec
         packages["libgcc1"],
         packages["libstdc++6"],
         # needed for sig.sh
+        # ping and its dependencies
         packages["iputils-ping"],
         packages["libidn11"],
         packages["libnettle6"],
+        # iproute2 and its dependencies
         packages["iproute2"],
         packages["libelf1"],
         packages["libmnl0"],
@@ -100,16 +99,15 @@ container_image(
     env = {"TZ": "UTC"},
     debs = [
         packages["libc6"],
-        # we need setcap so that we can add network capabilities to apps
-        packages["libcap2"],
-        packages["libcap2-bin"],
         # needed by su-exec
         packages["libgcc1"],
         packages["libstdc++6"],
         # needed for tester.sh
+        # ping and its dependencies
         packages["iputils-ping"],
         packages["libidn11"],
         packages["libnettle6"],
+        # iproute2 and its dependencies
         packages["iproute2"],
         packages["libelf1"],
         packages["libmnl0"],

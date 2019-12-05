@@ -105,9 +105,11 @@ dpkg_list(
         "openssl",
         "tzdata",
         # Needed by sig acceptance
+        # ping and its dependencies
         "iputils-ping",
         "libidn11",
         "libnettle6",
+        # iproute2 and its dependencies
         "iproute2",
         "libelf1",
         "libmnl0",
