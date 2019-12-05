@@ -97,10 +97,11 @@ func (t *UDPPortTable) computeAddressWithPort(address *net.UDPAddr) (*net.UDPAdd
 }
 
 func (t *UDPPortTable) insertUDPAddress(address *net.UDPAddr, value interface{}) {
-	ipTable, ok := t.v4PortTable[address.Port]
+	portTable := t.getPortTableByIP(address.IP)
+	ipTable, ok := portTable[address.Port]
 	if !ok {
 		ipTable = make(IPTable)
-		t.v4PortTable[address.Port] = ipTable
+		portTable[address.Port] = ipTable
 	}
 	ipTable[address.IP.String()] = value
 }
