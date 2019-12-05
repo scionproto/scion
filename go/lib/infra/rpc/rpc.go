@@ -189,7 +189,7 @@ func (c *Client) sendRequest() error {
 // with QUIC SNI.
 func computeAddressStr(address net.Addr) string {
 	if v, ok := address.(*snet.UDPAddr); ok {
-		return fmt.Sprintf("%s:%d", v.Host.IP, v.Host.Port)
+		return fmt.Sprintf("[%s]:%d", v.Host.IP, v.Host.Port)
 	}
 	return address.String()
 }
