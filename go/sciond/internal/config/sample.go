@@ -31,8 +31,8 @@ SocketFileMode = "0770"
 # If set to True, the socket is removed before being created. (default false)
 DeleteSocket = false
 
-# Local address to listen on for SCION messages,
-# and to send out messages to other nodes. (required)
+# Listening address to register with the local dispatcher
+# in order to receive and send SCION messages to other nodes. (required)
 Public = "127.0.0.1:0"
 
 # The time after which segments for a destination are refetched. (default 5m)
