@@ -1,31 +1,19 @@
-# pycapnp: licenses/BSD-2-Clause
-pycapnp==0.6.1 --hash=sha256:ea60837533307849e98bb3494555cea28a52ea0c301cfdf32bce661931940696 # Direct dependency
 # cryptography: licenses/cryptography
-cryptography==1.8.1 --hash=sha256:323524312bb467565ebca7e50c8ae5e9674e544951d28a2904a50012a8828190 # Direct dependency
+cryptography==2.8 --hash=sha256:3cda1f0ed8747339bbdf71b9f38ca74c7b592f24f65cdb3ab3765e4b02871651 # Direct dependency
 # six: licenses/MIT
 six==1.10.0 --hash=sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1
-# idna: licenses/inda
-idna==2.5 --hash=sha256:cc19709fd6d0cbfed39ea875d29ba6d4e22c0cebc510a76d6302a28385e8bb70
-# asn1crypto: licenses/MIT
-asn1crypto==0.22.0 --hash=sha256:d232509fefcfcdb9a331f37e9c9dc20441019ad927c7d2176cf18ed5da0ba097
-# packaging: licenses/BSD-2-Clause
-packaging==17.1 --hash=sha256:e9215d2d2535d3ae866c3d6efc77d5b24a0192cce0ff20e42896cc0664f889c0
-# setuptools: licenses/MIT
-setuptools==35.0.2 --hash=sha256:19d753940f8cdbee7548da318f8b56159aead279ef811a6efc8b8a33d89c86a4
 # cffi: licenses/MIT
-cffi==1.10.0 --hash=sha256:b3b02911eb1f6ada203b0763ba924234629b51586f72a21faacc638269f4ced5 --hash=sha256:4fc9c2ff7924b3a1fa326e1799e5dd58cac585d7fb25fe53ccaa1333b0453d65 --hash=sha256:afa7d8b8d38ad40db8713ee053d41b36d87d6ae5ec5ad36f9210b548a18dc214 # tarball, x86_64 wheel, i686 wheel
-# pyparsing: licenses/MIT
-pyparsing==2.2.0 --hash=sha256:fee43f17a9c4087e7ed1605bd6df994c6173c1e977d7ade7b651292fab2bd010
-# appdirs: licenses/MIT
-appdirs==1.4.3 --hash=sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e
+cffi==1.13.2 --hash=sha256:135f69aecbf4517d5b3d6429207b2dff49c876be724ac0c8bf8e1ea99df3d7e5
 # pycparser: licenses/pycparser
-pycparser==2.17 --hash=sha256:0aac31e917c24cb3357f5a4d5566f2cc91a19ca41862f6c3c22dc60a629673b6
-# pypacker: licenses/GPLv2
-pypacker==4.1 --hash=sha256:05bc5c873cfef620ce8b07df4aa286ea199e328b5b1eabd0b10aa0bb699c464f # Direct dependency
+pycparser==2.19 --hash=sha256:a988718abfad80b6b157acce7bf130a30876d27603738ac39f140993246b25b3
 # toml: licenses/MIT
 toml==0.9.4 --hash=sha256:8e86bd6ce8cc11b9620cb637466453d94f5d57ad86f17e98a98d1f73e3baab2d # Direct dependency
 # plumbum: licenses/MIT
 plumbum==1.6.7 --hash=sha256:df96a5facf621db4a6d682bdc93afa5ed6b107a8667c73c3f0a0f0fab4217c81 # Direct dependency
+# pyyaml
+pyyaml==5.1.1 --hash=sha256:b4bb4d3f5e232425e25dda21c070ce05168a786ac9eda43768ab7f3ac2770955
+#pyOpenSSL
+pyOpenSSL==19.1.0 --hash=sha256:621880965a720b8ece2f1b2f54ea2071966ab00e2970ad2ce11d596102063504
 # supervisor: licenses/supervisor
 supervisor==4.1.0 --hash=sha256:2dc86fe0476e945e61483d614ceb2cf4f93b95282eb243bdf792621994360383 --hash=sha256:a76b2f77a560f2dc411c0254a4eb15f555e99faac48621b0f1fc9ab013944f47 # Direct dependency
 # supervisor-wildcards: licenses/BSD-3-Clause

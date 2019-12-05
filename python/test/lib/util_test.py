@@ -17,8 +17,7 @@
 """
 # Stdlib
 import builtins
-from signal import SIGINT, SIGQUIT, SIGTERM
-from unittest.mock import patch, call, mock_open, MagicMock
+from unittest.mock import patch, mock_open, MagicMock
 
 # External packages
 import nose
@@ -35,10 +34,6 @@ from lib.errors import (
 )
 from lib.util import (
     Raw,
-    _SIG_MAP,
-    _signal_handler,
-    calc_padding,
-    handle_signals,
     load_yaml_file,
     read_file,
     write_file,
@@ -143,59 +138,6 @@ class TestLoadYAMLFile(Loader):
                 self._check_loader_error, load_yaml_file, "lib.util.yaml.load",
                 excp, SCIONYAMLError,
             )
-
-
-class TestCalcPadding(object):
-    """
-    Unit tests for lib.util.calc_padding
-    """
-    def _check(self, length, expected):
-        ntools.eq_(calc_padding(length, 8), expected)
-
-    def test(self):
-        for length, expected in (
-            (0, 0), (1, 7), (7, 1),
-            (8, 0), (9, 7), (15, 1),
-            (16, 0),
-        ):
-            yield self._check, length, expected
-
-
-class TestHandleSignals(object):
-    """
-    Unit tests for lib.util.handle_signals
-    """
-    @patch("lib.util.signal.signal", autospec=True)
-    def test_basic(self, sgnl):
-        handle_signals()
-        sgnl.assert_has_calls([call(sig, _signal_handler) for sig in
-                               _SIG_MAP.keys()])
-
-
-class TestSignalHandler(object):
-    """
-    Unit tests for lib.util._signal_handler
-    """
-    @patch("lib.util.sys.exit", autospec=True)
-    @patch("lib.util.atexit.register", autospec=True)
-    def test_term(self, atexit, exit):
-        exit.side_effect = SystemExit
-        ntools.assert_raises(SystemExit, _signal_handler, SIGTERM, "")
-        ntools.ok_(atexit.called)
-        exit.assert_called_once_with(0)
-
-    @patch("lib.util.sys.exit", autospec=True)
-    @patch("lib.util.atexit.register", autospec=True)
-    def test_int(self, atexit, exit):
-        _signal_handler(SIGINT, "")
-        exit.assert_called_once_with(1)
-
-    @patch("lib.util.sys.exit", autospec=True)
-    @patch("lib.util.atexit.register", autospec=True)
-    def test_error(self, atexit, exit):
-        _signal_handler(SIGQUIT, "")
-        ntools.ok_(atexit.called)
-        exit.assert_called_once_with(1)
 
 
 class TestRawCheckType(object):
@@ -329,6 +271,7 @@ class TestRawLen(object):
             (0, 4), (1, 3), (3, 1), (4, 0), (10, 0),
         ):
             yield self._check, start_off, expected
+
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

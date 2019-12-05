@@ -35,13 +35,6 @@ from lib.types import AddrType
 from lib.util import Raw
 
 
-class HostAddrBaseError(SCIONBaseError):
-    """
-    Base exception for HostAddr errors.
-    """
-    pass
-
-
 class HostAddrInvalidType(SCIONBaseError):
     """
     HostAddr type is invalid.
