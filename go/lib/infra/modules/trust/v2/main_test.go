@@ -46,6 +46,9 @@ func (desc TRCDesc) File() string {
 
 var (
 	trc1v1 = TRCDesc{ISD: 1, Version: 1}
+	trc1v2 = TRCDesc{ISD: 1, Version: 2}
+	trc1v3 = TRCDesc{ISD: 1, Version: 3}
+	trc1v4 = TRCDesc{ISD: 1, Version: 4}
 
 	// primary ASes
 	ia110 = xtest.MustParseIA("1-ff00:0:110")
