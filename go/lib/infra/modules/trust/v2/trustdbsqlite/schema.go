@@ -1,5 +1,4 @@
-// Copyright 2017 ETH Zurich
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2019 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +20,7 @@ const (
 	// SchemaVersion is the version of the SQLite schema understood by this backend.
 	// Whenever changes to the schema are made, this version number should be increased
 	// to prevent data corruption between incompatible database schemas.
-	SchemaVersion = 8
+	SchemaVersion = 1
 	// Schema is the SQLite database layout.
 	Schema = `
 	CREATE TABLE TRCs(
@@ -55,5 +54,7 @@ const (
 		PRIMARY KEY (IsdID, AsID, Version)
 	);
 	`
-	TRCsTable = "TRCs"
+	TRCsTable        = "TRCs"
+	ChainsTable      = "Chains"
+	IssuerCertsTable = "IssuerCerts"
 )
