@@ -54,13 +54,10 @@ func MatchFiles(files []string) ([]string, []string) {
 	var issuers, chains []string
 	for _, file := range files {
 		_, name := filepath.Split(file)
-		iss, _ := filepath.Match(toMatchString(pkicmn.IssuerNameFmt), name)
-		chain, _ := filepath.Match(toMatchString(pkicmn.CertNameFmt), name)
 		switch {
-		// Check iss first, because chain will match too.
-		case iss:
+		case match(pkicmn.IssuerNameFmt, name):
 			issuers = append(issuers, file)
-		case chain:
+		case match(pkicmn.CertNameFmt, name):
 			chains = append(chains, file)
 		default:
 			pkicmn.QuietPrint("Skipping non-certificate file: %s\n", file)
@@ -69,7 +66,7 @@ func MatchFiles(files []string) ([]string, []string) {
 	return issuers, chains
 }
 
-// toMatchString modifies format strings to be used in filepath.Match.
-func toMatchString(fmtString string) string {
-	return strings.NewReplacer("%v", "*", "%d", "*", "%s", "*").Replace(fmtString)
+func match(fmtString, name string) bool {
+	matched, _ := filepath.Match(strings.NewReplacer("%d", "*", "%s", "*").Replace(fmtString), name)
+	return matched
 }
