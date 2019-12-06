@@ -81,7 +81,7 @@ func (g issGen) generate(ia addr.IA, cfg conf.Issuer) (issMeta, error) {
 	if err != nil {
 		return issMeta{}, serrors.WrapStr("unable to load all public keys", err)
 	}
-	enc, err := cert.EncodeIssuer(g.newCert(ia, cfg, pubKeys))
+	enc, err := cert.EncodeIssuer(newIssuerCert(ia, cfg, pubKeys))
 	if err != nil {
 		return issMeta{}, serrors.WrapStr("unable to encode issuer certificate", err)
 	}
@@ -129,27 +129,6 @@ func (g issGen) loadPubKey(id keyconf.ID) (keyconf.Key, error) {
 	}
 	pkicmn.QuietPrint("Using public %s key for %s\n", id.Usage, id.IA)
 	return key, nil
-}
-
-func (g issGen) newCert(ia addr.IA, cfg conf.Issuer,
-	pubKeys map[cert.KeyType]keyconf.Key) *cert.Issuer {
-
-	val := cfg.Validity.Eval(time.Now())
-	c := &cert.Issuer{
-		Base: cert.Base{
-			Subject:                    ia,
-			Version:                    cfg.Version,
-			FormatVersion:              1,
-			Description:                cfg.Description,
-			OptionalDistributionPoints: cfg.OptDistPoints,
-			Validity:                   &val,
-			Keys:                       translateKeys(pubKeys),
-		},
-		Issuer: cert.IssuerTRC{
-			TRCVersion: cfg.TRCVersion,
-		},
-	}
-	return c
 }
 
 func (g issGen) signAll(protos map[addr.IA]issMeta, cfgs map[addr.IA]conf.Issuer) error {
@@ -233,4 +212,24 @@ func (g issGen) write(certs map[addr.IA]issMeta) error {
 		}
 	}
 	return nil
+}
+
+func newIssuerCert(ia addr.IA, cfg conf.Issuer, pubKeys map[cert.KeyType]keyconf.Key) *cert.Issuer {
+
+	val := cfg.Validity.Eval(time.Now())
+	c := &cert.Issuer{
+		Base: cert.Base{
+			Subject:                    ia,
+			Version:                    cfg.Version,
+			FormatVersion:              1,
+			Description:                cfg.Description,
+			OptionalDistributionPoints: cfg.OptDistPoints,
+			Validity:                   &val,
+			Keys:                       translateKeys(pubKeys),
+		},
+		Issuer: cert.IssuerTRC{
+			TRCVersion: cfg.TRCVersion,
+		},
+	}
+	return c
 }

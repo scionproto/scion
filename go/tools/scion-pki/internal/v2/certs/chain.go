@@ -45,11 +45,11 @@ func (g chainGen) Run(asMap pkicmn.ASMap) error {
 	if err != nil {
 		return serrors.WrapStr("unable to load AS certificate configs", err)
 	}
-	certs, err := g.Generate(cfgs)
+	certs, err := g.generateAll(cfgs)
 	if err != nil {
 		return serrors.WrapStr("unable to generate AS certificates", err)
 	}
-	if err := g.Sign(certs, cfgs); err != nil {
+	if err := g.signAll(certs, cfgs); err != nil {
 		return serrors.WrapStr("unable to sign AS certificates", err)
 	}
 	if err := g.verify(certs); err != nil {
@@ -64,7 +64,7 @@ func (g chainGen) Run(asMap pkicmn.ASMap) error {
 	return nil
 }
 
-func (g chainGen) Generate(cfgs map[addr.IA]conf.AS) (map[addr.IA]chainMeta, error) {
+func (g chainGen) generateAll(cfgs map[addr.IA]conf.AS) (map[addr.IA]chainMeta, error) {
 	certs := make(map[addr.IA]chainMeta)
 	for ia, cfg := range cfgs {
 		signed, err := g.generate(ia, cfg)
@@ -82,7 +82,7 @@ func (g chainGen) generate(ia addr.IA, cfg conf.AS) (chainMeta, error) {
 	if err != nil {
 		return chainMeta{}, serrors.WrapStr("unable to load all public keys", err)
 	}
-	enc, err := cert.EncodeAS(g.newCert(ia, cfg, pubKeys))
+	enc, err := cert.EncodeAS(newASCert(ia, cfg, pubKeys))
 	if err != nil {
 		return chainMeta{}, serrors.WrapStr("unable to encode AS certificate", err)
 	}
@@ -153,27 +153,7 @@ func (g chainGen) loadPubKey(id keyconf.ID) (keyconf.Key, error) {
 	return key, nil
 }
 
-func (g chainGen) newCert(ia addr.IA, cfg conf.AS, pubKeys map[cert.KeyType]keyconf.Key) *cert.AS {
-	val := cfg.Validity.Eval(time.Now())
-	c := &cert.AS{
-		Base: cert.Base{
-			Subject:                    ia,
-			Version:                    cfg.Version,
-			FormatVersion:              1,
-			Description:                cfg.Description,
-			OptionalDistributionPoints: cfg.OptDistPoints,
-			Validity:                   &val,
-			Keys:                       translateKeys(pubKeys),
-		},
-		Issuer: cert.IssuerCertID{
-			IA:                 cfg.IssuerIA,
-			CertificateVersion: cfg.IssuerCertVersion,
-		},
-	}
-	return c
-}
-
-func (g chainGen) Sign(protos map[addr.IA]chainMeta, cfgs map[addr.IA]conf.AS) error {
+func (g chainGen) signAll(protos map[addr.IA]chainMeta, cfgs map[addr.IA]conf.AS) error {
 	for ia, meta := range protos {
 		var err error
 		if meta.Chain, err = g.sign(cfgs[ia], meta.Chain); err != nil {
@@ -251,4 +231,24 @@ func (g chainGen) write(certs map[addr.IA]chainMeta) error {
 		}
 	}
 	return nil
+}
+
+func newASCert(ia addr.IA, cfg conf.AS, pubKeys map[cert.KeyType]keyconf.Key) *cert.AS {
+	val := cfg.Validity.Eval(time.Now())
+	c := &cert.AS{
+		Base: cert.Base{
+			Subject:                    ia,
+			Version:                    cfg.Version,
+			FormatVersion:              1,
+			Description:                cfg.Description,
+			OptionalDistributionPoints: cfg.OptDistPoints,
+			Validity:                   &val,
+			Keys:                       translateKeys(pubKeys),
+		},
+		Issuer: cert.IssuerCertID{
+			IA:                 cfg.IssuerIA,
+			CertificateVersion: cfg.IssuerCertVersion,
+		},
+	}
+	return c
 }
