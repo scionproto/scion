@@ -17,6 +17,7 @@ package certs
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
@@ -46,4 +47,26 @@ func translateKeys(keys map[cert.KeyType]keyconf.Key) map[cert.KeyType]scrypto.K
 		}
 	}
 	return m
+}
+
+// MatchFiles matches all issuer certificate and certificate chain file names.
+func MatchFiles(files []string) ([]string, []string) {
+	var issuers, chains []string
+	for _, file := range files {
+		_, name := filepath.Split(file)
+		switch {
+		case match(pkicmn.IssuerNameFmt, name):
+			issuers = append(issuers, file)
+		case match(pkicmn.CertNameFmt, name):
+			chains = append(chains, file)
+		default:
+			pkicmn.QuietPrint("Skipping non-certificate file: %s\n", file)
+		}
+	}
+	return issuers, chains
+}
+
+func match(fmtString, name string) bool {
+	matched, _ := filepath.Match(strings.NewReplacer("%d", "*", "%s", "*").Replace(fmtString), name)
+	return matched
 }
