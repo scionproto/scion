@@ -32,6 +32,8 @@ var (
 	// ErrResolveSuperseded indicates that the latest locally available TRC
 	// supersedes the TRC to resolve.
 	ErrResolveSuperseded = serrors.New("latest locally available is newer")
+	// ErrInvalidResponse indicates an invalid response to an RPC call.
+	ErrInvalidResponse = serrors.New("invalid RPC response")
 )
 
 // Resolver resolves verified trust material.
@@ -72,10 +74,11 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 	if err == nil {
 		min = prev.Version + 1
 	}
-	results := make([]chan rawOrErr, req.Version-min+1)
+	// Use slice of channels because the ordering of TRC replies matters.
+	results := make([]chan resOrErr, req.Version-min+1)
 	for i := range results {
 		// buffered channel to avoid go routine leak.
-		results[i] = make(chan rawOrErr, 1)
+		results[i] = make(chan resOrErr, 1)
 		ireq := req.withVersion(min + scrypto.Version(i))
 		r.startFetchTRC(ctx, results[i], ireq, server)
 	}
@@ -87,9 +90,7 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 		if res.Err != nil {
 			return decoded.TRC{}, serrors.WrapStr("unable to fetch parts of TRC chain", err)
 		}
-		if decTRC, err = decoded.DecodeTRC(res.Raw); err != nil {
-			return decoded.TRC{}, serrors.WrapStr("failed to parse parts of TRC chain", err)
-		}
+		decTRC = res.Decoded
 		if err = r.inserter.InsertTRC(ctx, decTRC, w.TRC); err != nil {
 			return decoded.TRC{}, serrors.WrapStr("unable to insert parts of TRC chain", err,
 				"trc", decTRC)
@@ -112,22 +113,45 @@ func (r *resolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 	if err != nil {
 		return 0, serrors.WrapStr("error parsing latest TRC", err)
 	}
+	if err := r.trcCheck(req, decTRC.TRC); err != nil {
+		return 0, serrors.Wrap(ErrInvalidResponse, err)
+	}
 	return decTRC.TRC.Version, nil
 }
 
-func (r *resolver) startFetchTRC(ctx context.Context, res chan<- rawOrErr,
+func (r *resolver) startFetchTRC(ctx context.Context, res chan<- resOrErr,
 	req TRCReq, server net.Addr) {
 
 	go func() {
 		defer log.LogPanicAndExit()
 		rawTRC, err := r.rpc.GetTRC(ctx, req, server)
 		if err != nil {
-			res <- rawOrErr{Err: serrors.WrapStr("error requesting TRC", err,
+			res <- resOrErr{Err: serrors.WrapStr("error requesting TRC", err,
 				"isd", req.ISD, "version", req.Version)}
 			return
 		}
-		res <- rawOrErr{Raw: rawTRC}
+		decTRC, err := decoded.DecodeTRC(rawTRC)
+		if err != nil {
+			res <- resOrErr{Err: serrors.WrapStr("failed to parse TRC", err,
+				"isd", req.ISD, "version", req.Version)}
+			return
+		}
+		if err := r.trcCheck(req, decTRC.TRC); err != nil {
+			res <- resOrErr{Err: serrors.Wrap(ErrInvalidResponse, err)}
+			return
+		}
+		res <- resOrErr{Decoded: decTRC}
 	}()
+}
+
+func (r *resolver) trcCheck(req TRCReq, t *trc.TRC) error {
+	switch {
+	case req.ISD != t.ISD:
+		return serrors.New("wrong isd", "expected", req.ISD, "actual", t.ISD)
+	case !req.Version.IsLatest() && req.Version != t.Version:
+		return serrors.New("wrong version", "expected", req.Version, "actual", t.Version)
+	}
+	return nil
 }
 
 func (r *resolver) Chain(ctx context.Context, req ChainReq,
@@ -137,9 +161,9 @@ func (r *resolver) Chain(ctx context.Context, req ChainReq,
 	return decoded.Chain{}, serrors.New("not implemented")
 }
 
-type rawOrErr struct {
-	Raw []byte
-	Err error
+type resOrErr struct {
+	Decoded decoded.TRC
+	Err     error
 }
 
 // prevWrap provides one single previous TRC. It is used in the TRC chain

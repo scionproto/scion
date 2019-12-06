@@ -21,15 +21,14 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	trust "github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/mock_v2"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestResolverTRC(t *testing.T) {
@@ -46,27 +45,26 @@ func TestResolverTRC(t *testing.T) {
 	}{
 		"Fetch missing links successfully": {
 			Expect: func(t *testing.T, m mocks) decoded.TRC {
-				trcs := testTRCs(t, 1)
 				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer).Return(
-					trcs[1].TRC, nil,
+					loadTRC(t, trc1v1).TRC, nil,
 				)
 				req := trust.TRCReq{ISD: 1, Version: scrypto.LatestVer}
-				m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(trcs[4].Raw, nil)
-				for i := scrypto.Version(2); i <= scrypto.Version(4); i++ {
-					v := i
-					req := trust.TRCReq{ISD: 1, Version: v}
-					m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(trcs[req.Version].Raw, nil)
-					m.Inserter.EXPECT().InsertTRC(gomock.Any(), trcs[v], gomock.Any()).DoAndReturn(
+				m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(loadTRC(t, trc1v4).Raw, nil)
+				for _, desc := range []TRCDesc{trc1v2, trc1v3, trc1v4} {
+					req := trust.TRCReq{ISD: desc.ISD, Version: desc.Version}
+					dec := loadTRC(t, desc)
+					m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(dec.Raw, nil)
+					m.Inserter.EXPECT().InsertTRC(gomock.Any(), dec, gomock.Any()).DoAndReturn(
 						func(_ interface{}, decTRC decoded.TRC, p trust.TRCProviderFunc) error {
-							prev, err := p(nil, 1, v-1)
+							prev, err := p(nil, 1, req.Version-1)
 							require.NoError(t, err)
-							assert.Equal(t, trcs[v-1].TRC, prev)
-							assert.Equal(t, trcs[v], decTRC)
+							assert.Equal(t, req.Version-1, prev.Version)
+							assert.Equal(t, dec, decTRC)
 							return nil
 						},
 					)
 				}
-				return trcs[4]
+				return loadTRC(t, trc1v4)
 			},
 			TRCReq: trust.TRCReq{ISD: 1, Version: scrypto.LatestVer},
 		},
@@ -82,9 +80,8 @@ func TestResolverTRC(t *testing.T) {
 		},
 		"Superseded": {
 			Expect: func(t *testing.T, m mocks) decoded.TRC {
-				trcs := testTRCs(t, 1)
 				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer).Return(
-					trcs[3].TRC, nil,
+					loadTRC(t, trc1v3).TRC, nil,
 				)
 				return decoded.TRC{}
 			},
@@ -112,35 +109,8 @@ func TestResolverTRC(t *testing.T) {
 			expected := test.Expect(t, m)
 			r := trust.NewResolver(m.DB, m.Inserter, m.RPC)
 			decTRC, err := r.TRC(context.Background(), test.TRCReq, nil)
+			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, expected, decTRC)
-			if test.ExpectedErr != nil {
-				require.Error(t, err)
-				assert.Truef(t, xerrors.Is(err, test.ExpectedErr),
-					"actual: %s\nexpected: %s", err, test.ExpectedErr)
-			} else {
-				require.NoError(t, err)
-			}
 		})
 	}
-}
-
-// testTRCs returns a map of parsable TRCs. They are not verifiable.
-// FIXME(roosd): Replace this with actual verifiable TRCs in the crypto tar.
-func testTRCs(t *testing.T, isd addr.ISD) map[scrypto.Version]decoded.TRC {
-	baseTRC := loadTRC(t, TRCDesc{ISD: isd, Version: 1})
-	trcs := map[scrypto.Version]decoded.TRC{1: baseTRC}
-	for i := scrypto.Version(2); i < scrypto.Version(5); i++ {
-		update := *baseTRC.TRC
-		update.Version = i
-		enc, err := trc.Encode(&update)
-		require.NoError(t, err)
-		raw, err := trc.EncodeSigned(trc.Signed{
-			Signatures: baseTRC.Signed.Signatures,
-			EncodedTRC: enc,
-		})
-		require.NoError(t, err)
-		trcs[i], err = decoded.DecodeTRC(raw)
-		require.NoError(t, err)
-	}
-	return trcs
 }
