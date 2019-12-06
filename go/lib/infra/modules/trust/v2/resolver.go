@@ -74,6 +74,7 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 	if err == nil {
 		min = prev.Version + 1
 	}
+	// Use slice of channels because the ordering of TRC replies matters.
 	results := make([]chan resOrErr, req.Version-min+1)
 	for i := range results {
 		// buffered channel to avoid go routine leak.
