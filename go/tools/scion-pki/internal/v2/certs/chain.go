@@ -67,12 +67,12 @@ func (g chainGen) Run(asMap pkicmn.ASMap) error {
 func (g chainGen) generateAll(cfgs map[addr.IA]conf.AS) (map[addr.IA]chainMeta, error) {
 	certs := make(map[addr.IA]chainMeta)
 	for ia, cfg := range cfgs {
-		signed, err := g.generate(ia, cfg)
+		chain, err := g.generate(ia, cfg)
 		if err != nil {
 			return nil, serrors.WrapStr("unable to generate issuer certificate", err,
 				"ia", ia, "version", cfg.Version)
 		}
-		certs[ia] = signed
+		certs[ia] = chain
 	}
 	return certs, nil
 }
