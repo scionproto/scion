@@ -106,7 +106,7 @@ type ChainRead interface {
 	// ChainExists returns whether the certificate chain is found in the
 	// database and the content matches. ErrContentMismatch is returned if any
 	// of the two certificates exist in the database with differing contents.
-	ChainExists(ctx context.Context, d decoded.TRC) (bool, error)
+	ChainExists(ctx context.Context, d decoded.Chain) (bool, error)
 }
 
 // ChainWrite defines the certificate chain write operations.
