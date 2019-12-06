@@ -33,6 +33,21 @@ var (
 	chainASMap = pkicmn.ASMap{1: {ia111}}
 )
 
+// TestChainGenRun checks that the chain generator creates verifiable chains.
+//
+// Given the folders:
+// - ISD1                   with the trc config
+// - ISD1/trcs              with the issuing TRC
+// - ISD1/ASff00_0_110      with the issuer AS, all its configs, keys and issuer certificate
+// - ISD1/ASff00_0_111      with the AS certifcate config
+//
+// When running chain.Run with the AS map that contains AS 1-ff00:0:111.
+//
+// Then a certificate chain is generated under ISD1/ASff00_0_111/certs.
+// The certificate chain is:
+// - valid
+// - verifiable using TRC ISD1-V1.trc that can be found at ISD1/trcs
+// - Byte for byte the same as the golden file.
 func TestChainGenRun(t *testing.T) {
 	tmpDir, cleanF := xtest.MustTempDir("", "test-certs-chain")
 	defer cleanF()

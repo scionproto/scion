@@ -37,10 +37,7 @@ func (v verifier) VerifyIssuer(raw []byte) error {
 	if err != nil {
 		return serrors.WrapStr("unable to parse signed issuer certificate", err)
 	}
-	if _, err = v.verifyIssuer(signed); err != nil {
-		return err
-	}
-	return nil
+	return v.verifyIssuer(signed)
 }
 
 func (v verifier) VerifyChain(raw []byte) error {
@@ -48,9 +45,12 @@ func (v verifier) VerifyChain(raw []byte) error {
 	if err != nil {
 		return serrors.WrapStr("unable to parse signed certificate chain", err)
 	}
-	issCert, err := v.verifyIssuer(chain.Issuer)
-	if err != nil {
+	if err := v.verifyIssuer(chain.Issuer); err != nil {
 		return err
+	}
+	issCert, err := chain.Issuer.Encoded.Decode()
+	if err != nil {
+		return serrors.WrapStr("unable to parse issuer certificate payload", err)
 	}
 	asCert, err := chain.AS.Encoded.Decode()
 	if err != nil {
@@ -70,17 +70,17 @@ func (v verifier) VerifyChain(raw []byte) error {
 	return nil
 }
 
-func (v verifier) verifyIssuer(signed cert.SignedIssuer) (*cert.Issuer, error) {
+func (v verifier) verifyIssuer(signed cert.SignedIssuer) error {
 	c, err := signed.Encoded.Decode()
 	if err != nil {
-		return nil, serrors.WrapStr("unable to parse issuer certificate payload", err)
+		return serrors.WrapStr("unable to parse issuer certificate payload", err)
 	}
 	if err := c.Validate(); err != nil {
-		return nil, serrors.WrapStr("unable to validate issuer certificate", err)
+		return serrors.WrapStr("unable to validate issuer certificate", err)
 	}
 	t, err := v.loadTRC(c.Subject.I, c.Issuer.TRCVersion)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	issVer := cert.IssuerVerifier{
 		Issuer:       c,
@@ -88,9 +88,9 @@ func (v verifier) verifyIssuer(signed cert.SignedIssuer) (*cert.Issuer, error) {
 		TRC:          t,
 	}
 	if err := issVer.Verify(); err != nil {
-		return nil, serrors.WrapStr("unable to verify issuer certificate", err)
+		return serrors.WrapStr("unable to verify issuer certificate", err)
 	}
-	return c, nil
+	return nil
 }
 
 func (v verifier) loadTRC(isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
