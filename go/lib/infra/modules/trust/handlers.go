@@ -16,6 +16,7 @@ package trust
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -28,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -46,11 +48,20 @@ type trcReqHandler struct {
 
 func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+
 	l := metrics.HandlerLabels{
-		Client:  addrLocation(h.request.Peer, h.store.ia),
 		ReqType: metrics.TRCReq,
 		Result:  metrics.ErrInternal,
 	}
+
+	peer, err := redirectToUDP(h.request.Peer)
+	if err != nil {
+		logger.Error("[TrustStore:trcReqHandler] wrong address type", "err", err)
+		metrics.Handler.Request(l).Inc()
+		return infra.MetricsErrInternal
+	}
+	l.Client = addrLocation(peer, h.store.ia)
+
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {
 		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
@@ -73,7 +84,6 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	subCtx = metrics.CtxWith(subCtx, metrics.TRCReq)
 
 	var trcObj *trc.TRC
-	var err error
 	// Only allow network traffic to be sent out if recursion is enabled and
 	// CacheOnly is not requested.
 	// FIXME(scrye): when protocol support is in, the below needs to select
@@ -91,8 +101,8 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 			TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: !h.recurse},
 			AllowInactive:  true,
 		}
-		trcObj, err = h.store.getTRC(subCtx, trcReq.ISD,
-			scrypto.Version(trcReq.Version), opts, h.request.Peer)
+
+		trcObj, err = h.store.getTRC(subCtx, trcReq.ISD, trcReq.Version, opts, peer)
 		if err != nil {
 			logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
 			metrics.Handler.Request(l).Inc()
@@ -135,11 +145,20 @@ type chainReqHandler struct {
 
 func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+
 	l := metrics.HandlerLabels{
-		Client:  addrLocation(h.request.Peer, h.store.ia),
 		ReqType: metrics.ChainReq,
 		Result:  metrics.ErrInternal,
 	}
+
+	peer, err := redirectToUDP(h.request.Peer)
+	if err != nil {
+		logger.Error("[TrustStore:trcReqHandler] wrong address type", "err", err)
+		metrics.Handler.Request(l).Inc()
+		return infra.MetricsErrInternal
+	}
+	l.Client = addrLocation(peer, h.store.ia)
+
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {
 		logger.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
@@ -149,7 +168,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	}
 	l.CacheOnly = chainReq.CacheOnly
 	logger.Debug("[TrustStore:chainReqHandler] Received request", "chainReq", chainReq,
-		"peer", h.request.Peer)
+		"peer", peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, no Messenger found")
@@ -162,7 +181,6 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	subCtx = metrics.CtxWith(subCtx, metrics.ChainReq)
 
 	var chain *cert.Chain
-	var err error
 	// Only allow network traffic to be sent out if recursion is enabled and
 	// CacheOnly is not requested.
 	// FIXME(scrye): when protocol support is in, the below needs to select
@@ -180,8 +198,9 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 			TrustStoreOpts:   infra.TrustStoreOpts{LocalOnly: !h.recurse},
 			AllowInactiveTRC: true,
 		}
+
 		chain, err = h.store.getChain(subCtx, chainReq.IA(), scrypto.Version(chainReq.Version),
-			opts, h.request.Peer)
+			opts, peer)
 		if err != nil {
 			logger.Error("[TrustStore:chainReqHandler] Unable to retrieve Chain", "err", err)
 			metrics.Handler.Request(l).Inc()
@@ -219,11 +238,20 @@ type trcPushHandler struct {
 
 func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+
 	l := metrics.HandlerLabels{
-		Client:  addrLocation(h.request.Peer, h.store.ia),
 		ReqType: metrics.TRCPush,
 		Result:  metrics.ErrInternal,
 	}
+
+	peer, err := redirectToUDP(h.request.Peer)
+	if err != nil {
+		logger.Error("[TrustStore:trcReqHandler] wrong address type", "err", err)
+		metrics.Handler.Request(l).Inc()
+		return infra.MetricsErrInternal
+	}
+	l.Client = addrLocation(peer, h.store.ia)
+
 	// FIXME(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
 	// new chain from the issuer. If a chain is not obtained within the
@@ -289,11 +317,20 @@ type chainPushHandler struct {
 
 func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
+
 	l := metrics.HandlerLabels{
-		Client:  addrLocation(h.request.Peer, h.store.ia),
 		ReqType: metrics.ChainPush,
 		Result:  metrics.ErrInternal,
 	}
+
+	peer, err := redirectToUDP(h.request.Peer)
+	if err != nil {
+		logger.Error("[TrustStore:trcReqHandler] wrong address type", "err", err)
+		metrics.Handler.Request(l).Inc()
+		return infra.MetricsErrInternal
+	}
+	l.Client = addrLocation(peer, h.store.ia)
+
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
 		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
@@ -350,19 +387,37 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 
 // addrLocation extracts the client from an infra request. If the request is nil,
 // "app" is returned.
-func addrLocation(client net.Addr, localIA addr.IA) string {
-	if client == nil {
+func addrLocation(address net.Addr, localIA addr.IA) string {
+	switch p := address.(type) {
+	case *snet.Addr:
+		return addrLocation(p.ToXAddr(), localIA)
+	case *snet.UDPAddr:
+		if p == nil {
+			return metrics.App
+		}
+
+		if localIA.Equal(p.IA) {
+			return infra.PromSrcASLocal
+		}
+		if localIA.I == p.IA.I {
+			return infra.PromSrcISDLocal
+		}
+		return infra.PromSrcISDRemote
+
+	default:
 		return metrics.App
 	}
-	sAddr, ok := client.(*snet.Addr)
-	if !ok {
-		return infra.PromSrcUnknown
+}
+
+func redirectToUDP(a net.Addr) (*snet.UDPAddr, error) {
+	switch p := a.(type) {
+	case nil:
+		return nil, nil
+	case *snet.Addr:
+		return redirectToUDP(p.ToXAddr())
+	case *snet.UDPAddr:
+		return p, nil
+	default:
+		return nil, serrors.New("invalid address type", "address", fmt.Sprintf("%v(%T)", p, p))
 	}
-	if localIA.Equal(sAddr.IA) {
-		return infra.PromSrcASLocal
-	}
-	if localIA.I == sAddr.IA.I {
-		return infra.PromSrcISDLocal
-	}
-	return infra.PromSrcISDRemote
 }

@@ -198,7 +198,7 @@ func (store *Store) GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 // client contains the node that caused the function to be called, or nil if the
 // function was called due to a local feature.
 func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
-	opts infra.TRCOpts, client net.Addr) (*trc.TRC, error) {
+	opts infra.TRCOpts, client *snet.UDPAddr) (*trc.TRC, error) {
 
 	l := metrics.LookupLabels{
 		Client:    addrLocation(client, store.ia),
@@ -256,7 +256,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version scrypto.Ve
 	return trcObj, err
 }
 
-func (store *Store) getTRClabels(ctx context.Context, client, server net.Addr,
+func (store *Store) getTRClabels(ctx context.Context, client *snet.UDPAddr, server net.Addr,
 	err error) metrics.SentLabels {
 
 	l := metrics.SentLabels{
@@ -356,7 +356,7 @@ func (store *Store) GetChain(ctx context.Context, ia addr.IA, version scrypto.Ve
 }
 
 func (store *Store) getChain(ctx context.Context, ia addr.IA, version scrypto.Version,
-	opts infra.ChainOpts, client net.Addr) (*cert.Chain, error) {
+	opts infra.ChainOpts, client *snet.UDPAddr) (*cert.Chain, error) {
 
 	l := metrics.LookupLabels{
 		Client:    addrLocation(client, store.ia),
@@ -500,7 +500,7 @@ func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
 	return nil
 }
 
-func (store *Store) getChainLabels(ctx context.Context, client, server net.Addr,
+func (store *Store) getChainLabels(ctx context.Context, client *snet.UDPAddr, server net.Addr,
 	err error) metrics.SentLabels {
 
 	l := metrics.SentLabels{
@@ -726,19 +726,18 @@ func (store *Store) NewChainPushHandler() infra.Handler {
 
 // isLocal returns an error if address is not part of the local AS (or if the
 // check cannot be made).
-func (store *Store) isLocal(address net.Addr) error {
+func (store *Store) isLocal(address *snet.UDPAddr) error {
 	// We need to send out a network request, but only do so if we're
 	// servicing a request coming from our own AS.
-	if address != nil {
-		switch saddr, ok := address.(*snet.Addr); {
-		case !ok:
-			return common.NewBasicError("Unable to determine AS of address",
-				nil, "addr", address)
-		case !store.ia.Equal(saddr.IA):
-			return common.NewBasicError("Object not found in DB, and recursion not "+
-				"allowed for clients outside AS", nil, "addr", address)
-		}
+	if address == nil {
+		return nil
 	}
+
+	if !store.ia.Equal(address.IA) {
+		return common.NewBasicError("Object not found in DB, and recursion not "+
+			"allowed for clients outside AS", nil, "addr", address)
+	}
+
 	return nil
 }
 

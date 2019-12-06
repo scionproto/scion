@@ -44,7 +44,7 @@ func (r *localRouter) ChooseServer(_ context.Context, _ addr.ISD) (net.Addr, err
 }
 
 func (r *localRouter) chooseServer() net.Addr {
-	return &snet.Addr{IA: r.ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	return snet.NewSVCAddr(r.ia, nil, nil, addr.SvcCS)
 }
 
 type csRouter struct {
@@ -66,13 +66,8 @@ func (r *csRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.A
 	if err != nil {
 		return nil, serrors.WrapStr("unable to find path to any core AS", err, "isd", dstISD)
 	}
-	a := &snet.Addr{
-		IA:      path.Destination(),
-		Host:    addr.NewSVCUDPAppAddr(addr.SvcCS),
-		Path:    path.Path(),
-		NextHop: path.OverlayNextHop(),
-	}
-	return a, nil
+	ret := snet.NewSVCAddr(path.Destination(), path.Path(), path.OverlayNextHop(), addr.SvcCS)
+	return ret, nil
 }
 
 // dstISD selects the CS to ask for crypto material, using the following strategy:
