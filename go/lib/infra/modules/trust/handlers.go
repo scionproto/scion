@@ -56,7 +56,7 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 
 	peer, err := redirectToUDP(h.request.Peer)
 	if err != nil {
-		logger.Error("[TrustStore:trcReqHandler] wrong address type, err", err)
+		logger.Error("[TrustStore:trcReqHandler] wrong address type", "err", err)
 		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
@@ -102,8 +102,7 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 			AllowInactive:  true,
 		}
 
-		trcObj, err = h.store.getTRC(subCtx, trcReq.ISD,
-			scrypto.Version(trcReq.Version), opts, peer)
+		trcObj, err = h.store.getTRC(subCtx, trcReq.ISD, trcReq.Version, opts, peer)
 		if err != nil {
 			logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
 			metrics.Handler.Request(l).Inc()
@@ -154,7 +153,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 
 	peer, err := redirectToUDP(h.request.Peer)
 	if err != nil {
-		logger.Error("[TrustStore:trcReqHandler] wrong address type, err", err)
+		logger.Error("[TrustStore:trcReqHandler] wrong address type", "err", err)
 		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
@@ -247,7 +246,7 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 
 	peer, err := redirectToUDP(h.request.Peer)
 	if err != nil {
-		logger.Error("[TrustStore:trcReqHandler] wrong address type, err", err)
+		logger.Error("[TrustStore:trcReqHandler] wrong address type", "err", err)
 		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
@@ -326,7 +325,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 
 	peer, err := redirectToUDP(h.request.Peer)
 	if err != nil {
-		logger.Error("[TrustStore:trcReqHandler] wrong address type, err", err)
+		logger.Error("[TrustStore:trcReqHandler] wrong address type", "err", err)
 		metrics.Handler.Request(l).Inc()
 		return infra.MetricsErrInternal
 	}
