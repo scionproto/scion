@@ -37,6 +37,60 @@ import (
 // not found.
 const AckNotFound string = "not found"
 
+// chainReqHandler contains the state of a handler for a specific Certificate
+// Chain Request message, received via the Messenger's ListenAndServe method.
+type chainReqHandler struct {
+	request  *infra.Request
+	provider CryptoProvider
+}
+
+func (h *chainReqHandler) Handle() *infra.HandlerResult {
+	if h.request == nil {
+		log.Error("[TrustStore:chainReqHandler] Request is nil")
+		return infra.MetricsErrInternal
+	}
+	logger := log.FromCtx(h.request.Context())
+	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
+	if !ok {
+		logger.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
+			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		return infra.MetricsErrInternal
+	}
+	logger.Debug("[TrustStore:chainReqHandler] Received request", "chainReq", chainReq,
+		"peer", h.request.Peer)
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	if !ok {
+		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, " +
+			"no ResponseWriter found")
+		return infra.MetricsErrInternal
+	}
+	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
+	opts := infra.ChainOpts{
+		TrustStoreOpts: infra.TrustStoreOpts{
+			LocalOnly: chainReq.CacheOnly,
+		},
+		AllowInactiveTRC: true,
+	}
+	raw, err := h.provider.GetRawChain(h.request.Context(), chainReq.IA(), chainReq.Version,
+		opts, h.request.Peer)
+	if err != nil {
+		// FIXME(roosd): We should send a negative response.
+		logger.Error("[TrustStore:chainReqHandler] Unable to retrieve chain", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
+		return infra.MetricsErrTrustStore(err)
+	}
+	chainMessage := &cert_mgmt.Chain{
+		RawChain: raw,
+	}
+	if err = rw.SendCertChainReply(h.request.Context(), chainMessage); err != nil {
+		logger.Error("[TrustStore:chainReqHandler] Messenger API error", "err", err)
+		return infra.MetricsErrMsger(err)
+	}
+	logger.Debug("[TrustStore:chainReqHandler] Replied with chain",
+		"ia", chainReq.IA(), "version", chainReq.Version, "peer", h.request.Peer)
+	return infra.MetricsResultOk
+}
+
 // trcReqHandler contains the state of a handler for a specific TRC Request
 // message, received via the Messenger's ListenAndServe method.
 type trcReqHandler struct {
