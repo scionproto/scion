@@ -191,8 +191,8 @@ func (e *executor) GetTRCInfo(ctx context.Context, isd addr.ISD,
 }
 
 func (e *executor) InsertTRC(ctx context.Context, d decoded.TRC) (bool, error) {
-	e.RLock()
-	defer e.RUnlock()
+	e.Lock()
+	defer e.Unlock()
 
 	h := hash(d.Signed.EncodedTRC)
 	query := `INSERT INTO TRCs (IsdID, Version, Raw, Pld, PldHash, NotBefore, NotAfter, GracePeriod)
@@ -247,8 +247,8 @@ func (e *executor) ChainExists(ctx context.Context, d decoded.Chain) (bool, erro
 }
 
 func (e *executor) InsertChain(ctx context.Context, d decoded.Chain) (bool, bool, error) {
-	e.RLock()
-	defer e.RUnlock()
+	e.Lock()
+	defer e.Unlock()
 
 	asHash, issHash := hash(d.Chain.AS.Encoded), hash(d.Chain.Issuer.Encoded)
 	var asInserted, issInserted bool
