@@ -99,8 +99,12 @@ type fwdInserter struct {
 func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
-	if insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider); err != nil || !insert {
+	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
+	switch {
+	case err != nil:
 		return err
+	case !insert:
+		return nil
 	}
 	cs := ins.router.chooseServer()
 	if err := ins.rpc.SendTRC(ctx, decTRC.Raw, cs); err != nil {
