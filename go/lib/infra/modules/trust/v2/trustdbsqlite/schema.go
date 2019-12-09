@@ -23,38 +23,35 @@ const (
 	SchemaVersion = 1
 	// Schema is the SQLite database layout.
 	Schema = `
-	CREATE TABLE TRCs(
-		IsdID INTEGER NOT NULL,
-		Version INTEGER NOT NULL,
-		Raw DATA NOT NULL,
-		Pld DATA NOT NULL,
-		PldHash DATA NOT NULL,
-		NotBefore INTEGER NOT NULL,
-		NotAfter INTEGER NOT NULL,
-		GracePeriod INTEGER NOT NULL,
-		PRIMARY KEY (IsdID, Version)
+	CREATE TABLE trcs(
+		isd_id INTEGER NOT NULL,
+		version INTEGER NOT NULL,
+		raw DATA NOT NULL,
+		pld DATA NOT NULL,
+		pld_hash DATA NOT NULL,
+		not_before INTEGER NOT NULL,
+		not_after INTEGER NOT NULL,
+		grace_period INTEGER NOT NULL,
+		PRIMARY KEY (isd_id, version)
 	);
-	CREATE TABLE Chains(
-		IsdID INTEGER NOT NULL,
-		AsID INTEGER NOT NULL,
-		Version INTEGER NOT NULL,
-		Raw DATA NOT NULL,
-		AsHash DATA NOT NULL,
-		IssuerHash DATA NOT NULL,
-		PRIMARY KEY (IsdID, AsID, Version)
+	CREATE TABLE chains(
+		isd_id INTEGER NOT NULL,
+		as_id INTEGER NOT NULL,
+		version INTEGER NOT NULL,
+		raw DATA NOT NULL,
+		as_hash DATA NOT NULL,
+		issuer_hash DATA NOT NULL,
+		PRIMARY KEY (isd_id, as_id, version)
 	);
-	CREATE TABLE IssuerCerts(
-		IsdID INTEGER NOT NULL,
-		AsID INTEGER NOT NULL,
-		Version INTEGER NOT NULL,
-		Pld DATA NOT NULL,
-		PldHash DATA NOT NULL,
-		Protected DATA NOT NULL,
-		Signature DATA NOT NULL,
-		PRIMARY KEY (IsdID, AsID, Version)
+	CREATE TABLE issuer_certs(
+		isd_id INTEGER NOT NULL,
+		as_id INTEGER NOT NULL,
+		version INTEGER NOT NULL,
+		pld DATA NOT NULL,
+		pld_hash DATA NOT NULL,
+		protected DATA NOT NULL,
+		signature DATA NOT NULL,
+		PRIMARY KEY (isd_id, as_id, version)
 	);
 	`
-	TRCsTable        = "TRCs"
-	ChainsTable      = "Chains"
-	IssuerCertsTable = "IssuerCerts"
 )
