@@ -1,6 +1,6 @@
 // Copyright 2019 Anapaya Systems
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
+// Licensed under the Apache License, version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -126,10 +126,10 @@ func (e *executor) GetTRC(ctx context.Context, isd addr.ISD,
 	e.RLock()
 	defer e.RUnlock()
 	var pld []byte
-	query := `SELECT Pld FROM TRCs WHERE IsdID=? AND Version=?`
+	query := `SELECT pld FROM trcs WHERE isd_id=? AND version=?`
 	if version.IsLatest() {
-		query = `SELECT Pld FROM (SELECT Pld, max(Version) FROM TRCs WHERE IsdID=?)
-		         WHERE Pld IS NOT NULL`
+		query = `SELECT pld FROM (SELECT pld, max(version) FROM trcs WHERE isd_id=?)
+		         WHERE pld IS NOT NULL`
 	}
 	err := e.db.QueryRowContext(ctx, query, isd, version).Scan(&pld)
 	switch {
@@ -146,10 +146,10 @@ func (e *executor) GetRawTRC(ctx context.Context, isd addr.ISD,
 
 	e.RLock()
 	defer e.RUnlock()
-	query := `SELECT Raw FROM TRCs WHERE IsdID=? AND Version=?`
+	query := `SELECT raw FROM trcs WHERE isd_id=? AND version=?`
 	if version.IsLatest() {
-		query = `SELECT Raw FROM (SELECT Raw, max(Version) FROM TRCs WHERE IsdID=?)
-		         WHERE Raw IS NOT NULL`
+		query = `SELECT raw FROM (SELECT raw, max(version) FROM trcs WHERE isd_id=?)
+		         WHERE raw IS NOT NULL`
 	}
 	var raw []byte
 	err := e.db.QueryRowContext(ctx, query, isd, version).Scan(&raw)
@@ -164,10 +164,10 @@ func (e *executor) GetTRCInfo(ctx context.Context, isd addr.ISD,
 
 	e.RLock()
 	defer e.RUnlock()
-	query := `SELECT Version, NotBefore, NotAfter, GracePeriod from TRCs
-	          WHERE IsdID=? AND Version=?`
+	query := `SELECT version, not_before, not_after, grace_period from trcs
+	          WHERE isd_id=? AND version=?`
 	if version.IsLatest() {
-		query = `SELECT max(Version), NotBefore, NotAfter, GracePeriod from TRCs WHERE IsdID=?`
+		query = `SELECT max(version), not_before, not_after, grace_period from trcs WHERE isd_id=?`
 	}
 	var ver scrypto.Version
 	var grace int
@@ -195,8 +195,8 @@ func (e *executor) InsertTRC(ctx context.Context, d decoded.TRC) (bool, error) {
 	defer e.Unlock()
 
 	h := hash(d.Signed.EncodedTRC)
-	query := `INSERT INTO TRCs (IsdID, Version, Raw, Pld, PldHash, NotBefore, NotAfter, GracePeriod)
-			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	query := `INSERT INTO trcs (isd_id, version, raw, pld, pld_hash, not_before,
+	          not_after, grace_period) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	var inserted bool
 	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		exists, err := trcExists(ctx, tx, d)
@@ -227,10 +227,10 @@ func (e *executor) GetRawChain(ctx context.Context, ia addr.IA,
 
 	e.RLock()
 	defer e.RUnlock()
-	query := `SELECT Raw FROM Chains WHERE IsdID=? AND AsID=? AND Version=?`
+	query := `SELECT raw FROM chains WHERE isd_id=? AND as_id=? AND version=?`
 	if version.IsLatest() {
-		query = `SELECT Raw FROM (SELECT Raw, max(Version) FROM Chains WHERE IsdID=? AND AsID=?)
-		         WHERE Raw IS NOT NULL`
+		query = `SELECT raw FROM (SELECT raw, max(version) FROM chains WHERE isd_id=? AND as_id=?)
+		         WHERE raw IS NOT NULL`
 	}
 	var raw []byte
 	err := e.db.QueryRowContext(ctx, query, ia.I, ia.A, version).Scan(&raw)
@@ -263,7 +263,7 @@ func (e *executor) InsertChain(ctx context.Context, d decoded.Chain) (bool, bool
 		if issInserted, err = insertIssuer(ctx, tx, d.Issuer, d.Chain.Issuer); err != nil {
 			return serrors.WrapStr("unable to insert issuer certificate", err)
 		}
-		query := `INSERT INTO Chains (IsdID, AsID, Version, Raw, AsHash, IssuerHash)
+		query := `INSERT INTO chains (isd_id, as_id, version, raw, as_hash, issuer_hash)
 		          VALUES ($1, $2, $3, $4, $5, $6)`
 		_, err = tx.ExecContext(ctx, query, d.AS.Subject.I, d.AS.Subject.A, d.AS.Version,
 			d.Raw, asHash, issHash)
@@ -282,7 +282,7 @@ func (e *executor) InsertChain(ctx context.Context, d decoded.Chain) (bool, bool
 func insertIssuer(ctx context.Context, db db.Sqler, iss *cert.Issuer,
 	signed cert.SignedIssuer) (bool, error) {
 
-	query := `INSERT INTO IssuerCerts (IsdID, AsID, Version, Pld, PldHash, Protected, Signature)
+	query := `INSERT INTO issuer_certs (isd_id, as_id, version, pld, pld_hash, protected, signature)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	exists, err := issuerExists(ctx, db, iss, signed)
 	switch {
@@ -301,7 +301,7 @@ func insertIssuer(ctx context.Context, db db.Sqler, iss *cert.Issuer,
 
 func trcExists(ctx context.Context, db db.Sqler, d decoded.TRC) (bool, error) {
 	var dbHash []byte
-	query := `SELECT PldHash FROM TRCs WHERE IsdID=? AND Version=?`
+	query := `SELECT pld_hash FROM trcs WHERE isd_id=? AND version=?`
 	err := db.QueryRowContext(ctx, query, d.TRC.ISD, d.TRC.Version).Scan(&dbHash)
 	switch {
 	case err == sql.ErrNoRows:
@@ -317,7 +317,7 @@ func trcExists(ctx context.Context, db db.Sqler, d decoded.TRC) (bool, error) {
 
 func chainExists(ctx context.Context, db db.Sqler, d decoded.Chain) (bool, error) {
 	var asHash, issHash []byte
-	query := `SELECT AsHash, IssuerHash FROM Chains WHERE IsdID=? AND AsID=? AND Version=?`
+	query := `SELECT as_hash, issuer_hash FROM chains WHERE isd_id=? AND as_id=? AND version=?`
 	err := db.QueryRowContext(ctx, query, d.AS.Subject.I, d.AS.Subject.A, d.AS.Version).Scan(
 		&asHash, &issHash)
 	switch {
@@ -338,7 +338,7 @@ func issuerExists(ctx context.Context, db db.Sqler, iss *cert.Issuer,
 	signed cert.SignedIssuer) (bool, error) {
 
 	var dbHash []byte
-	query := `SELECT PldHash FROM IssuerCerts Where IsdID=? AND AsID=? AND Version=?`
+	query := `SELECT pld_hash FROM issuer_certs Where isd_id=? AND as_id=? AND version=?`
 	err := db.QueryRowContext(ctx, query, iss.Subject.I, iss.Subject.A, iss.Version).Scan(&dbHash)
 	switch {
 	case err == sql.ErrNoRows:
