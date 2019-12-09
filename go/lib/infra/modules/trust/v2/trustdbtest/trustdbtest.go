@@ -16,9 +16,8 @@ package trustdbtest
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
-	"strings"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -32,75 +31,94 @@ import (
 )
 
 var (
-	Timeout         = time.Second
-	TestDataRelPath = "../trustdbtest/testdata"
+	// DefaultTimeout is the default timeout for running the test harness.
+	DefaultTimeout = time.Second
+	// DefaultRelPath is the default relative path to the test data.
+	DefaultRelPath = "../trustdbtest/testdata"
 )
 
-// TestableTrustDB extends the trust db interface with methods that are needed for testing.
-type TestableTrustDB interface {
+// Config holds the configuration for the trust database testing harness.
+type Config struct {
+	Timeout time.Duration
+	RelPath string
+}
+
+// InitDefaults initializes the default values for the config.
+func (cfg *Config) InitDefaults() {
+	if cfg.Timeout == 0 {
+		cfg.Timeout = DefaultTimeout
+	}
+	if cfg.RelPath == "" {
+		cfg.RelPath = DefaultRelPath
+	}
+}
+
+func (cfg *Config) filePath(name string) string {
+	return filepath.Join(cfg.RelPath, name)
+}
+
+// TestableDB extends the trust db interface with methods that are needed for testing.
+type TestableDB interface {
 	trust.DB
 	// Prepare should reset the internal state so that the db is empty and is ready to be tested.
 	Prepare(*testing.T, context.Context)
 }
 
-// TestTrustDB should be used to test any implementation of the trust.DB
-// interface. An implementation interface should at least have on test method
-// that calls this test-suite.
-//
-// Prepare should return a trust database in a clean state, i.e. no entries in the
-// DB.
-func TestTrustDB(t *testing.T, db TestableTrustDB) {
-	tests := map[string]func(*testing.T, trust.ReadWrite){
+// TestDB should be used to test any implementation of the trust.DB interface.
+// An implementation interface should at least have one test method that calls
+// this test-suite.
+func TestDB(t *testing.T, db TestableDB, cfg Config) {
+	cfg.InitDefaults()
+	tests := map[string]func(*testing.T, trust.ReadWrite, Config){
 		"test TRC":   testTRC,
 		"test chain": testChain,
 	}
 	// Run test suite on DB directly.
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
+		t.Run("DB: "+name, func(t *testing.T) {
+			ctx, cancelF := context.WithTimeout(context.Background(), cfg.Timeout)
 			defer cancelF()
 			db.Prepare(t, ctx)
-			test(t, db)
+			test(t, db, cfg)
 		})
 	}
-	t.Run("test rollback", func(t *testing.T) {
-		ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
+	t.Run("DB: test rollback", func(t *testing.T) {
+		ctx, cancelF := context.WithTimeout(context.Background(), cfg.Timeout)
 		defer cancelF()
 		db.Prepare(t, ctx)
-		testRollback(t, db)
+		testRollback(t, db, cfg)
 	})
 	// Run test suite on transaction.
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
+		t.Run("TX: "+name, func(t *testing.T) {
+			ctx, cancelF := context.WithTimeout(context.Background(), cfg.Timeout)
 			defer cancelF()
 			db.Prepare(t, ctx)
 			tx, err := db.BeginTransaction(ctx, nil)
 			require.NoError(t, err)
-			test(t, tx)
+			test(t, tx, cfg)
 			err = tx.Commit()
 			require.NoError(t, err)
 		})
 	}
-
 }
 
-func testTRC(t *testing.T, db trust.ReadWrite) {
-	ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
+func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
+	ctx, cancelF := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancelF()
-	dec, err := decoded.DecodeTRC(loadFile(t, "ISD1-V1.trc"))
+	dec, err := decoded.DecodeTRC(loadFile(t, cfg.filePath("ISD1-V1.trc")))
 	require.NoError(t, err)
 	inserted, err := db.InsertTRC(ctx, dec)
 	assert.NoError(t, err)
 	assert.True(t, inserted)
 	t.Run("TRCExists", func(t *testing.T) {
-		other, err := decoded.DecodeTRC(loadFile(t, "ISD2-V1.trc"))
-		require.NoError(t, err)
 		// Check existing TRC.
 		exists, err := db.TRCExists(ctx, dec)
 		assert.NoError(t, err)
 		assert.True(t, exists)
 		// Check inexistent TRC.
+		other, err := decoded.DecodeTRC(loadFile(t, cfg.filePath("ISD2-V1.trc")))
+		require.NoError(t, err)
 		exists, err = db.TRCExists(ctx, other)
 		assert.NoError(t, err)
 		assert.False(t, exists)
@@ -169,24 +187,23 @@ func testTRC(t *testing.T, db trust.ReadWrite) {
 	})
 }
 
-func testChain(t *testing.T, db trust.ReadWrite) {
-	ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
+func testChain(t *testing.T, db trust.ReadWrite, cfg Config) {
+	ctx, cancelF := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancelF()
-	dec, err := decoded.DecodeChain(loadFile(t, "ISD1-ASff00_0_110-V1.crt"))
+	dec, err := decoded.DecodeChain(loadFile(t, cfg.filePath("ISD1-ASff00_0_110-V1.crt")))
 	require.NoError(t, err)
 	asInserted, issInserted, err := db.InsertChain(ctx, dec)
 	assert.NoError(t, err)
 	assert.True(t, asInserted)
 	assert.True(t, issInserted)
 	t.Run("ChainExists", func(t *testing.T) {
-		other, err := decoded.DecodeChain(loadFile(t, "ISD1-ASff00_0_111-V1.crt"))
-		require.NoError(t, err)
-
 		// Check existing certificate chain.
 		exists, err := db.ChainExists(ctx, dec)
 		assert.NoError(t, err)
 		assert.True(t, exists)
 		// Check inexistent certificate chain.
+		other, err := decoded.DecodeChain(loadFile(t, cfg.filePath("ISD1-ASff00_0_111-V1.crt")))
+		require.NoError(t, err)
 		exists, err = db.ChainExists(ctx, other)
 		assert.NoError(t, err)
 		assert.False(t, exists)
@@ -217,7 +234,7 @@ func testChain(t *testing.T, db trust.ReadWrite) {
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 	})
 	t.Run("InsertChain", func(t *testing.T) {
-		other, err := decoded.DecodeChain(loadFile(t, "ISD1-ASff00_0_111-V1.crt"))
+		other, err := decoded.DecodeChain(loadFile(t, cfg.filePath("ISD1-ASff00_0_111-V1.crt")))
 		require.NoError(t, err)
 		// Check inexistent certificate chain with existing issuer certifcate.
 		asInserted, issInserted, err := db.InsertChain(ctx, other)
@@ -246,13 +263,13 @@ func testChain(t *testing.T, db trust.ReadWrite) {
 	})
 }
 
-func testRollback(t *testing.T, db trust.DB) {
+func testRollback(t *testing.T, db trust.DB, cfg Config) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	tx, err := db.BeginTransaction(ctx, nil)
 	require.NoError(t, err)
 
-	trcobj, err := decoded.DecodeTRC(loadFile(t, "ISD1-V1.trc"))
+	trcobj, err := decoded.DecodeTRC(loadFile(t, cfg.filePath("ISD1-V1.trc")))
 	require.NoError(t, err)
 	inserted, err := tx.InsertTRC(ctx, trcobj)
 	assert.NoError(t, err)
@@ -266,11 +283,7 @@ func testRollback(t *testing.T, db trust.DB) {
 
 func loadFile(t *testing.T, name string) []byte {
 	t.Helper()
-	raw, err := ioutil.ReadFile(filePath(name))
+	raw, err := ioutil.ReadFile(name)
 	require.NoError(t, err)
 	return raw
-}
-
-func filePath(fName string) string {
-	return fmt.Sprintf("%s/%s", strings.TrimSuffix(TestDataRelPath, "/"), fName)
 }

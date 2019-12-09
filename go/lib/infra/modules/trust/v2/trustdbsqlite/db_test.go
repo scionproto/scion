@@ -23,18 +23,18 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/trustdbtest"
 )
 
-var _ trustdbtest.TestableTrustDB = (*TestTrustDB)(nil)
+var _ trustdbtest.TestableDB = (*TestDB)(nil)
 
-type TestTrustDB struct {
+type TestDB struct {
 	*Backend
 }
 
-func (b *TestTrustDB) Prepare(t *testing.T, _ context.Context) {
+func (b *TestDB) Prepare(t *testing.T, _ context.Context) {
 	b.Backend = newDatabase(t)
 }
 
 func TestTrustDBSuite(t *testing.T) {
-	trustdbtest.TestTrustDB(t, &TestTrustDB{})
+	trustdbtest.TestDB(t, &TestDB{}, trustdbtest.Config{})
 }
 
 func newDatabase(t *testing.T) *Backend {
