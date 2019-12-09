@@ -103,10 +103,7 @@ var humanCmd = &cobra.Command{
 `,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runHuman(args); err != nil {
-			return err
-		}
-		return nil
+		return runHuman(args)
 	},
 }
 
