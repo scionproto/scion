@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"time"
 
 	"golang.org/x/xerrors"
 
@@ -32,6 +33,57 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/proto"
 )
+
+// HandlerTimeout is the lifetime of the handlers.
+const HandlerTimeout = 3 * time.Second
+
+// trcReqHandler contains the state of a handler for a specific TRC Request
+// message, received via the Messenger's ListenAndServe method.
+type trcReqHandler struct {
+	request  *infra.Request
+	provider CryptoProvider
+}
+
+func (h *trcReqHandler) Handle() *infra.HandlerResult {
+	logger := log.FromCtx(h.request.Context())
+	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
+	if !ok {
+		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
+			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		return infra.MetricsErrInternal
+	}
+	logger.Debug("[TrustStore:trcReqHandler] Received request", "trcReq", trcReq,
+		"peer", h.request.Peer)
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	if !ok {
+		logger.Warn("[TrustStore:trcReqHandler] Unable to service request, no Messenger found")
+		return infra.MetricsErrInternal
+	}
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
+	opts := infra.TRCOpts{
+		TrustStoreOpts: infra.TrustStoreOpts{
+			LocalOnly: trcReq.CacheOnly,
+		},
+		AllowInactive: true,
+	}
+	raw, err := h.provider.GetRawTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
+		opts, h.request.Peer)
+	if err != nil {
+		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
+		return infra.MetricsErrTrustStore(err)
+	}
+	trcMessage := &cert_mgmt.TRC{
+		RawTRC: raw,
+	}
+	if err := rw.SendTRCReply(subCtx, trcMessage); err != nil {
+		logger.Error("[TrustStore:trcReqHandler] Messenger error", "err", err)
+		return infra.MetricsErrMsger(err)
+	}
+	logger.Debug("[TrustStore:trcReqHandler] Replied with TRC", "isd", trcReq.ISD,
+		"version", trcReq.Version, "peer", h.request.Peer)
+	return infra.MetricsResultOk
+}
 
 type chainPushHandler struct {
 	request  *infra.Request
