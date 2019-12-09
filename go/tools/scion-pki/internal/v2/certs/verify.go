@@ -37,6 +37,40 @@ func (v verifier) VerifyIssuer(raw []byte) error {
 	if err != nil {
 		return serrors.WrapStr("unable to parse signed issuer certificate", err)
 	}
+	return v.verifyIssuer(signed)
+}
+
+func (v verifier) VerifyChain(raw []byte) error {
+	chain, err := cert.ParseChain(raw)
+	if err != nil {
+		return serrors.WrapStr("unable to parse signed certificate chain", err)
+	}
+	if err := v.verifyIssuer(chain.Issuer); err != nil {
+		return err
+	}
+	issCert, err := chain.Issuer.Encoded.Decode()
+	if err != nil {
+		return serrors.WrapStr("unable to parse issuer certificate payload", err)
+	}
+	asCert, err := chain.AS.Encoded.Decode()
+	if err != nil {
+		return serrors.WrapStr("unable to parse AS certificate payload", err)
+	}
+	if err := asCert.Validate(); err != nil {
+		return serrors.WrapStr("unable to validate AS certificate", err)
+	}
+	asVer := cert.ASVerifier{
+		Issuer:   issCert,
+		AS:       asCert,
+		SignedAS: &chain.AS,
+	}
+	if err := asVer.Verify(); err != nil {
+		return serrors.WrapStr("unable to verify AS certificate", err)
+	}
+	return nil
+}
+
+func (v verifier) verifyIssuer(signed cert.SignedIssuer) error {
 	c, err := signed.Encoded.Decode()
 	if err != nil {
 		return serrors.WrapStr("unable to parse issuer certificate payload", err)

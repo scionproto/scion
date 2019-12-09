@@ -77,6 +77,23 @@ var genIssuerCmd = &cobra.Command{
 	},
 }
 
+var genChainCmd = &cobra.Command{
+	Use:   "chain",
+	Short: "Generate the certificate chain",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g := chainGen{
+			Dirs:    pkicmn.GetDirs(),
+			Version: scrypto.Version(version),
+		}
+		asMap, err := pkicmn.ProcessSelector(args[0])
+		if err != nil {
+			return serrors.WrapStr("unable to select target ISDs", err, "selector", args[0])
+		}
+		return g.Run(asMap)
+	},
+}
+
 var humanCmd = &cobra.Command{
 	Use:   "human",
 	Short: "Display human readable issuer certificates and certificate chains",
@@ -86,14 +103,12 @@ var humanCmd = &cobra.Command{
 `,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := runHuman(args); err != nil {
-			return err
-		}
-		return nil
+		return runHuman(args)
 	},
 }
 
 func init() {
+	Cmd.AddCommand(genChainCmd)
 	Cmd.AddCommand(genIssuerCmd)
 	Cmd.AddCommand(humanCmd)
 }

@@ -54,6 +54,29 @@ func (l loader) LoadIssuerConfigs(asMap pkicmn.ASMap) (map[addr.IA]conf.Issuer, 
 	return cfgs, nil
 }
 
+func (l loader) LoadASConfigs(asMap pkicmn.ASMap) (map[addr.IA]conf.AS, error) {
+	s := selector{
+		File:  conf.ASFile,
+		All:   conf.AllASFiles,
+		Regex: `as-v(\d*)\.toml$`,
+	}
+	cfgs := make(map[addr.IA]conf.AS)
+	for _, ias := range asMap {
+		for _, ia := range ias {
+			file, err := l.selectConfig(ia, s)
+			if err != nil {
+				return nil, serrors.WrapStr("unable to select config", err, "ia", ia)
+			}
+			cfg, err := conf.LoadAS(file)
+			if err != nil {
+				return nil, serrors.WithCtx(err, "ia", ia)
+			}
+			cfgs[ia] = cfg
+		}
+	}
+	return cfgs, nil
+}
+
 func (l loader) selectConfig(ia addr.IA, s selector) (string, error) {
 	if l.Version != scrypto.LatestVer {
 		return s.File(l.Dirs.Root, ia, l.Version), nil
