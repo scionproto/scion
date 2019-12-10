@@ -33,11 +33,9 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-const (
-	// AckNotFound is sent as the error description if the crypto material is
-	// not found.
-	AckNotFound string = "not found"
-)
+// AckNotFound is sent as the error description if the crypto material is
+// not found.
+const AckNotFound string = "not found"
 
 // trcReqHandler contains the state of a handler for a specific TRC Request
 // message, received via the Messenger's ListenAndServe method.
