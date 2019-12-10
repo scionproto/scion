@@ -16,6 +16,7 @@ package trustdbtest
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -24,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -183,6 +185,55 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		// Fetch inexistent TRC.
 		_, err = db.GetTRCInfo(ctx, 42, scrypto.LatestVer)
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
+	})
+	t.Run("GetIssuingKeyInfo", func(t *testing.T) {
+		ia110 := xtest.MustParseIA("1-ff00:0:110")
+		ia120 := xtest.MustParseIA("1-ff00:0:120")
+		ia130 := xtest.MustParseIA("1-ff00:0:130")
+		trcInfo1 := trust.TRCInfo{
+			Validity:    *v1.TRC.Validity,
+			GracePeriod: v1.TRC.GracePeriod.Duration,
+			Version:     v1.TRC.Version,
+		}
+		expectedKeyInfos1 := map[addr.IA]trust.KeyInfo{
+			ia110: trust.KeyInfo{TRC: trcInfo1, Version: 1},
+			ia120: trust.KeyInfo{TRC: trcInfo1, Version: 1},
+			ia130: trust.KeyInfo{TRC: trcInfo1, Version: 1},
+		}
+		trcInfo7 := trust.TRCInfo{
+			Validity:    *v7.TRC.Validity,
+			GracePeriod: v7.TRC.GracePeriod.Duration,
+			Version:     v7.TRC.Version,
+		}
+		expectedKeyInfos7 := map[addr.IA]trust.KeyInfo{
+			ia110: trust.KeyInfo{TRC: trcInfo7, Version: 1},
+			ia120: trust.KeyInfo{TRC: trcInfo7, Version: 1},
+			ia130: trust.KeyInfo{TRC: trcInfo7, Version: 1},
+		}
+		okTests := map[scrypto.Version]map[addr.IA]trust.KeyInfo{
+			1: expectedKeyInfos1,
+			7: expectedKeyInfos7,
+		}
+		for ver, expectedKeyInfos := range okTests {
+			for ia, expected := range expectedKeyInfos {
+				t.Run(fmt.Sprintf("fetch existing %s-v%d", ia, ver), func(t *testing.T) {
+					actual, err := db.GetIssuingKeyInfo(context.Background(), ia, ver)
+					assert.NoError(t, err)
+					assert.Equal(t, expected, actual)
+				})
+			}
+		}
+		t.Run("fetch non-existant ia", func(t *testing.T) {
+			ia140 := xtest.MustParseIA("1-ff00:0:140")
+			actual, err := db.GetIssuingKeyInfo(context.Background(), ia140, 1)
+			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
+			assert.Equal(t, trust.KeyInfo{}, actual)
+		})
+		t.Run("fetch non-existant version", func(t *testing.T) {
+			actual, err := db.GetIssuingKeyInfo(context.Background(), ia110, 42)
+			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
+			assert.Equal(t, trust.KeyInfo{}, actual)
+		})
 	})
 	t.Run("InsertTRC", func(t *testing.T) {
 		// Insert existing TRC.

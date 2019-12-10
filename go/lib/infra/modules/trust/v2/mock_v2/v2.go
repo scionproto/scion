@@ -153,6 +153,21 @@ func (mr *MockDBMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDB)(nil).Close))
 }
 
+// GetIssuingKeyInfo mocks base method
+func (m *MockDB) GetIssuingKeyInfo(arg0 context.Context, arg1 addr.IA, arg2 scrypto.Version) (v2.KeyInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIssuingKeyInfo", arg0, arg1, arg2)
+	ret0, _ := ret[0].(v2.KeyInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIssuingKeyInfo indicates an expected call of GetIssuingKeyInfo
+func (mr *MockDBMockRecorder) GetIssuingKeyInfo(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIssuingKeyInfo", reflect.TypeOf((*MockDB)(nil).GetIssuingKeyInfo), arg0, arg1, arg2)
+}
+
 // GetRawChain mocks base method
 func (m *MockDB) GetRawChain(arg0 context.Context, arg1 addr.IA, arg2 scrypto.Version) ([]byte, error) {
 	m.ctrl.T.Helper()
