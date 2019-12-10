@@ -45,10 +45,6 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	logger := log.FromCtx(h.request.Context())
-	if h.request.Message == nil {
-		logger.Error("[TrustStore:chainPushHandler] Request message is nil")
-		return infra.MetricsErrInternal
-	}
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
 		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
@@ -106,10 +102,6 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	logger := log.FromCtx(h.request.Context())
-	if h.request.Message == nil {
-		logger.Error("[TrustStore:trcPushHandler] Request message is nil")
-		return infra.MetricsErrInternal
-	}
 	// XXX(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
 	// new chain from the issuer. If a chain is not obtained within the
