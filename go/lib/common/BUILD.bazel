@@ -21,6 +21,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "binary_test.go",
+        "defs_test.go",
         "errors_test.go",
     ],
     embed = [":go_default_library"],
