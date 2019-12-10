@@ -35,6 +35,10 @@ type chainReqHandler struct {
 }
 
 func (h *chainReqHandler) Handle() *infra.HandlerResult {
+	if h.request == nil {
+		log.Error("[TrustStore:chainReqHandler] received nil request")
+		return infra.MetricsErrInternal
+	}
 	logger := log.FromCtx(h.request.Context())
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {

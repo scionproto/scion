@@ -1,0 +1,151 @@
+// Copyright 2019 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package trust_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/mock_infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/mock_v2"
+	"github.com/scionproto/scion/go/lib/scrypto"
+)
+
+func TestChainReqHandler(t *testing.T) {
+	tests := map[string]struct {
+		Request        func(ctrl *gomock.Controller) *infra.Request
+		Provider       func(ctrl *gomock.Controller) trust.CryptoProvider
+		ExpectedResult *infra.HandlerResult
+	}{
+		"nil request": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				return nil
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				return mock_v2.NewMockCryptoProvider(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		"wrong message type": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				return &infra.Request{Message: &cert_mgmt.Chain{}}
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				return mock_v2.NewMockCryptoProvider(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		"no messenger": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				return &infra.Request{Message: &cert_mgmt.ChainReq{}}
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				return mock_v2.NewMockCryptoProvider(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		"trust store error": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				rw := mock_infra.NewMockResponseWriter(ctrl)
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), rw),
+					&cert_mgmt.ChainReq{RawIA: ia110.IAInt(), Version: scrypto.LatestVer},
+					nil, nil, 0,
+				)
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				opts := infra.ChainOpts{
+					TrustStoreOpts: infra.TrustStoreOpts{
+						LocalOnly: false,
+					},
+					AllowInactiveTRC: true,
+				}
+				p := mock_v2.NewMockCryptoProvider(ctrl)
+				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
+					opts, nil).Return(nil, trust.ErrNotFound)
+				return p
+			},
+			ExpectedResult: infra.MetricsErrTrustStore(trust.ErrNotFound),
+		},
+		"send error": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				rw := mock_infra.NewMockResponseWriter(ctrl)
+				pld := &cert_mgmt.Chain{RawChain: []byte("test")}
+				rw.EXPECT().SendCertChainReply(gomock.Any(), pld).Return(infra.ErrTransport)
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), rw),
+					&cert_mgmt.ChainReq{RawIA: ia110.IAInt(), Version: scrypto.LatestVer},
+					nil, nil, 0,
+				)
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				opts := infra.ChainOpts{
+					TrustStoreOpts: infra.TrustStoreOpts{
+						LocalOnly: false,
+					},
+					AllowInactiveTRC: true,
+				}
+				p := mock_v2.NewMockCryptoProvider(ctrl)
+				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
+					opts, nil).Return([]byte("test"), nil)
+				return p
+			},
+			ExpectedResult: infra.MetricsErrMsger(infra.ErrTransport),
+		},
+		"valid": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				rw := mock_infra.NewMockResponseWriter(ctrl)
+				pld := &cert_mgmt.Chain{RawChain: []byte("test")}
+				rw.EXPECT().SendCertChainReply(gomock.Any(), pld).Return(nil)
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), rw),
+					&cert_mgmt.ChainReq{RawIA: ia110.IAInt(), Version: scrypto.LatestVer},
+					nil, nil, 0,
+				)
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				opts := infra.ChainOpts{
+					TrustStoreOpts: infra.TrustStoreOpts{
+						LocalOnly: false,
+					},
+					AllowInactiveTRC: true,
+				}
+				p := mock_v2.NewMockCryptoProvider(ctrl)
+				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
+					opts, nil).Return([]byte("test"), nil)
+				return p
+			},
+			ExpectedResult: infra.MetricsResultOk,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			handler := trust.NewChainReqHandler(
+				test.Request(ctrl),
+				test.Provider(ctrl),
+			)
+			result := handler.Handle()
+			assert.Equal(t, test.ExpectedResult, result)
+		})
+	}
+}
