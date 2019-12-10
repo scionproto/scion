@@ -21,15 +21,139 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/mock_v2"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
+
+func TestTRCReqHandler(t *testing.T) {
+	tests := map[string]struct {
+		Request        func(ctrl *gomock.Controller) *infra.Request
+		Provider       func(ctrl *gomock.Controller) trust.CryptoProvider
+		ExpectedResult *infra.HandlerResult
+	}{
+		"nil request": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				return nil
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				return mock_v2.NewMockCryptoProvider(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		"wrong message type": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				return &infra.Request{Message: &cert_mgmt.TRC{}}
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				return mock_v2.NewMockCryptoProvider(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		"no messenger": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				return &infra.Request{Message: &cert_mgmt.TRCReq{}}
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				return mock_v2.NewMockCryptoProvider(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		"trust store error": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				rw := mock_infra.NewMockResponseWriter(ctrl)
+				rw.EXPECT().SendAckReply(gomock.Any(), gomock.Any())
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), rw),
+					&cert_mgmt.TRCReq{ISD: 1, Version: scrypto.LatestVer},
+					nil, nil, 0,
+				)
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				opts := infra.TRCOpts{
+					TrustStoreOpts: infra.TrustStoreOpts{
+						LocalOnly: false,
+					},
+					AllowInactive: true,
+				}
+				p := mock_v2.NewMockCryptoProvider(ctrl)
+				p.EXPECT().GetRawTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer,
+					opts, nil).Return(nil, trust.ErrNotFound)
+				return p
+			},
+			ExpectedResult: infra.MetricsErrTrustStore(trust.ErrNotFound),
+		},
+		"send error": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				rw := mock_infra.NewMockResponseWriter(ctrl)
+				pld := &cert_mgmt.TRC{RawTRC: []byte("test")}
+				rw.EXPECT().SendTRCReply(gomock.Any(), pld).Return(infra.ErrTransport)
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), rw),
+					&cert_mgmt.TRCReq{ISD: 1, Version: scrypto.LatestVer},
+					nil, nil, 0,
+				)
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				opts := infra.TRCOpts{
+					TrustStoreOpts: infra.TrustStoreOpts{
+						LocalOnly: false,
+					},
+					AllowInactive: true,
+				}
+				p := mock_v2.NewMockCryptoProvider(ctrl)
+				p.EXPECT().GetRawTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer,
+					opts, nil).Return([]byte("test"), nil)
+				return p
+			},
+			ExpectedResult: infra.MetricsErrMsger(infra.ErrTransport),
+		},
+		"valid": {
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				rw := mock_infra.NewMockResponseWriter(ctrl)
+				pld := &cert_mgmt.TRC{RawTRC: []byte("test")}
+				rw.EXPECT().SendTRCReply(gomock.Any(), pld).Return(nil)
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), rw),
+					&cert_mgmt.TRCReq{ISD: 1, Version: scrypto.LatestVer},
+					nil, nil, 0,
+				)
+			},
+			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
+				opts := infra.TRCOpts{
+					TrustStoreOpts: infra.TrustStoreOpts{
+						LocalOnly: false,
+					},
+					AllowInactive: true,
+				}
+				p := mock_v2.NewMockCryptoProvider(ctrl)
+				p.EXPECT().GetRawTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer,
+					opts, nil).Return([]byte("test"), nil)
+				return p
+			},
+			ExpectedResult: infra.MetricsResultOk,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			handler := trust.NewTRCReqHandler(
+				test.Request(ctrl),
+				test.Provider(ctrl),
+			)
+			result := handler.Handle()
+			assert.Equal(t, test.ExpectedResult, result)
+		})
+	}
+}
 
 func TestChainPushHandler(t *testing.T) {
 	chain := loadChain(t, ChainDesc{IA: xtest.MustParseIA("1-ff00:0:110"), Version: 1})

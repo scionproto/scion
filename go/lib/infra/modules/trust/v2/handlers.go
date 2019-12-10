@@ -33,6 +33,63 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+// AckNotFound is sent as the error description if the crypto material is
+// not found.
+const AckNotFound string = "not found"
+
+// trcReqHandler contains the state of a handler for a specific TRC Request
+// message, received via the Messenger's ListenAndServe method.
+type trcReqHandler struct {
+	request  *infra.Request
+	provider CryptoProvider
+}
+
+func (h *trcReqHandler) Handle() *infra.HandlerResult {
+	if h.request == nil {
+		log.Error("[TrustStore:trcReqHandler] Request is nil")
+		return infra.MetricsErrInternal
+	}
+	logger := log.FromCtx(h.request.Context())
+	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
+	if !ok {
+		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
+			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		return infra.MetricsErrInternal
+	}
+	logger.Debug("[TrustStore:trcReqHandler] Received request", "trcReq", trcReq,
+		"peer", h.request.Peer)
+	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	if !ok {
+		logger.Error("[TrustStore:trcReqHandler] Unable to service request," +
+			" no ResponseWriter found")
+		return infra.MetricsErrInternal
+	}
+	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
+	opts := infra.TRCOpts{
+		TrustStoreOpts: infra.TrustStoreOpts{
+			LocalOnly: trcReq.CacheOnly,
+		},
+		AllowInactive: true,
+	}
+	raw, err := h.provider.GetRawTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
+		opts, h.request.Peer)
+	if err != nil {
+		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
+		return infra.MetricsErrTrustStore(err)
+	}
+	trcMessage := &cert_mgmt.TRC{
+		RawTRC: raw,
+	}
+	if err := rw.SendTRCReply(h.request.Context(), trcMessage); err != nil {
+		logger.Error("[TrustStore:trcReqHandler] Messenger error", "err", err)
+		return infra.MetricsErrMsger(err)
+	}
+	logger.Debug("[TrustStore:trcReqHandler] Replied with TRC", "isd", trcReq.ISD,
+		"version", trcReq.Version, "peer", h.request.Peer)
+	return infra.MetricsResultOk
+}
+
 type chainPushHandler struct {
 	request  *infra.Request
 	provider CryptoProvider
