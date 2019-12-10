@@ -380,6 +380,9 @@ type ResponseWriter interface {
 }
 
 func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {
+	if ctx == nil {
+		return nil, false
+	}
 	rw, ok := ctx.Value(responseWriterContextKey).(ResponseWriter)
 	return rw, ok
 }
