@@ -2,16 +2,23 @@
 
 set -euo pipefail
 
-if [ ! "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ];
+# Currently this only if for the new pipeline, so if we aren't on the new
+# pipeline just exit.
+if [ ! "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
     exit 0
 fi
 
+# Now we build the artifact name next, for this we first need TARGET and BUILD,
+# see below.
+#
+# For PRs the target is the pull request, otherwise it is the branch.
 if [ "$BUILDKITE_PULL_REQUEST" == "false" ]; then
     TARGET="$BUILDKITE_BRANCH"
 else
     TARGET="$BUILDKITE_PULL_REQUEST"
 fi
 TARGET="${TARGET//\//_}"
+# For nightly builds instead of the build number print nightly and the date.
 BUILD="build-${BUILDKITE_BUILD_NUMBER}"
 [ -n "$NIGHTLY" ] && BUILD=nightly-"$(date +%s)"
 
