@@ -45,6 +45,10 @@ type trcReqHandler struct {
 }
 
 func (h *trcReqHandler) Handle() *infra.HandlerResult {
+	if h.request == nil {
+		log.Error("[TrustStore:trcReqHandler] received nil request")
+		return infra.MetricsErrInternal
+	}
 	logger := log.FromCtx(h.request.Context())
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {

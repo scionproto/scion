@@ -48,6 +48,9 @@ var (
 	// NewTRCPushHandler allows instantiating the private TRC push handler for black-box
 	// testing.
 	NewTRCPushHandler = newTestTRCPushHandler
+	// NewTRCReqHandler allows instantiating the private trc request handler for
+	// black-box testing.
+	NewTRCReqHandler = newTestTRCReqResolver
 )
 
 // newTestCryptoProvider returns a new crypto provider for testing.
@@ -110,6 +113,14 @@ func newTestResolver(db DBRead, inserter Inserter, rpc RPC) Resolver {
 		db:       db,
 		inserter: inserter,
 		rpc:      rpc,
+	}
+}
+
+// newTestResolver returns a new resolver for testing.
+func newTestTRCReqResolver(request *infra.Request, provider CryptoProvider) *trcReqHandler {
+	return &trcReqHandler{
+		request:  request,
+		provider: provider,
 	}
 }
 
