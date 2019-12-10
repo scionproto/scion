@@ -2,12 +2,18 @@
 
 set -euo pipefail
 
+if [ ! "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ];
+    exit 0
+fi
+
 if [ "$BUILDKITE_PULL_REQUEST" == "false" ]; then
     TARGET="$BUILDKITE_BRANCH"
 else
     TARGET="$BUILDKITE_PULL_REQUEST"
 fi
 TARGET="${TARGET//\//_}"
+BUILD="build-${BUILDKITE_BUILD_NUMBER}"
+[ -n "$NIGHTLY" ] && BUILD=nightly-"$(date +%s)"
 
 ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY}"
 ARTIFACTS_DIR="artifacts"
