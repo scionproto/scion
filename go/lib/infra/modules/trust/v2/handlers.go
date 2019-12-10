@@ -15,17 +15,17 @@
 package trust
 
 import (
-	"context"
-	"time"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/proto"
 )
 
-// HandlerTimeout is the lifetime of the handlers.
-const HandlerTimeout = 3 * time.Second
+// AckNotFound is sent as the error description if the crypto material is
+// not found.
+const AckNotFound string = "not found"
 
 // chainReqHandler contains the state of a handler for a specific Certificate
 // Chain Request message, received via the Messenger's ListenAndServe method.
@@ -36,7 +36,7 @@ type chainReqHandler struct {
 
 func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	if h.request == nil {
-		log.Error("[TrustStore:chainReqHandler] received nil request")
+		log.Error("[TrustStore:chainReqHandler] Request is nil")
 		return infra.MetricsErrInternal
 	}
 	logger := log.FromCtx(h.request.Context())
@@ -50,12 +50,11 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
-		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, no Messenger found")
+		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, " +
+			"no ResponseWriter found")
 		return infra.MetricsErrInternal
 	}
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
-
+	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
 	opts := infra.ChainOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{
 			LocalOnly: chainReq.CacheOnly,
@@ -67,12 +66,13 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	if err != nil {
 		// FIXME(roosd): We should send a negative response.
 		logger.Error("[TrustStore:chainReqHandler] Unable to retrieve chain", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
 		return infra.MetricsErrTrustStore(err)
 	}
 	chainMessage := &cert_mgmt.Chain{
 		RawChain: raw,
 	}
-	if err = rw.SendCertChainReply(subCtx, chainMessage); err != nil {
+	if err = rw.SendCertChainReply(h.request.Context(), chainMessage); err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Messenger API error", "err", err)
 		return infra.MetricsErrMsger(err)
 	}

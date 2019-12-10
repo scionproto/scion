@@ -65,6 +65,7 @@ func TestChainReqHandler(t *testing.T) {
 		"trust store error": {
 			Request: func(ctrl *gomock.Controller) *infra.Request {
 				rw := mock_infra.NewMockResponseWriter(ctrl)
+				rw.EXPECT().SendAckReply(gomock.Any(), gomock.Any())
 				return infra.NewRequest(
 					infra.NewContextWithResponseWriter(context.Background(), rw),
 					&cert_mgmt.ChainReq{RawIA: ia110.IAInt(), Version: scrypto.LatestVer},
