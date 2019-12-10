@@ -16,6 +16,7 @@ package trust
 
 import (
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -41,6 +42,9 @@ var (
 	// NewResolver allows instantiating the private resolver for black-box
 	// testing.
 	NewResolver = newTestResolver
+	// NewChainPushHandler allows instantiating the private chain push handler for black-box
+	// testing.
+	NewChainPushHandler = newTestChainPushHandler
 )
 
 // newTestCryptoProvider returns a new crypto provider for testing.
@@ -103,5 +107,16 @@ func newTestResolver(db DBRead, inserter Inserter, rpc RPC) Resolver {
 		db:       db,
 		inserter: inserter,
 		rpc:      rpc,
+	}
+}
+
+// newChainPushHandler returns a new chain push handler for testing.
+func newTestChainPushHandler(request *infra.Request, provider CryptoProvider,
+	inserter Inserter) *chainPushHandler {
+
+	return &chainPushHandler{
+		request:  request,
+		provider: provider,
+		inserter: inserter,
 	}
 }
