@@ -196,9 +196,9 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 			Version:     v1.TRC.Version,
 		}
 		expectedKeyInfos1 := map[addr.IA]trust.KeyInfo{
-			ia110: trust.KeyInfo{TRC: trcInfo1, Version: 1},
-			ia120: trust.KeyInfo{TRC: trcInfo1, Version: 1},
-			ia130: trust.KeyInfo{TRC: trcInfo1, Version: 1},
+			ia110: {TRC: trcInfo1, Version: 1},
+			ia120: {TRC: trcInfo1, Version: 1},
+			ia130: {TRC: trcInfo1, Version: 1},
 		}
 		trcInfo7 := trust.TRCInfo{
 			Validity:    *v7.TRC.Validity,
@@ -206,9 +206,9 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 			Version:     v7.TRC.Version,
 		}
 		expectedKeyInfos7 := map[addr.IA]trust.KeyInfo{
-			ia110: trust.KeyInfo{TRC: trcInfo7, Version: 1},
-			ia120: trust.KeyInfo{TRC: trcInfo7, Version: 1},
-			ia130: trust.KeyInfo{TRC: trcInfo7, Version: 1},
+			ia110: {TRC: trcInfo7, Version: 1},
+			ia120: {TRC: trcInfo7, Version: 1},
+			ia130: {TRC: trcInfo7, Version: 1},
 		}
 		okTests := map[scrypto.Version]map[addr.IA]trust.KeyInfo{
 			1: expectedKeyInfos1,
@@ -223,13 +223,13 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 				})
 			}
 		}
-		t.Run("fetch non-existant ia", func(t *testing.T) {
+		t.Run("fetch non-existent ia", func(t *testing.T) {
 			ia140 := xtest.MustParseIA("1-ff00:0:140")
 			actual, err := db.GetIssuingKeyInfo(context.Background(), ia140, 1)
 			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 			assert.Equal(t, trust.KeyInfo{}, actual)
 		})
-		t.Run("fetch non-existant version", func(t *testing.T) {
+		t.Run("fetch non-existent version", func(t *testing.T) {
 			actual, err := db.GetIssuingKeyInfo(context.Background(), ia110, 42)
 			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 			assert.Equal(t, trust.KeyInfo{}, actual)
