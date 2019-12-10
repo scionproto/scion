@@ -19,8 +19,6 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
@@ -30,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestInserterInsertTRC(t *testing.T) {
@@ -94,18 +93,14 @@ func TestInserterInsertTRC(t *testing.T) {
 			ins := trust.NewInserter(db, test.Unsafe)
 
 			err := ins.InsertTRC(context.Background(), decoded, nil)
-			if test.ExpectedErr != nil {
-				require.Truef(t, xerrors.Is(err, test.ExpectedErr),
-					"Expected: %s Actual: %s", test.ExpectedErr, err)
-			} else {
-				require.NoError(t, err)
-			}
+			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 		})
 	}
 }
 
 func TestInserterInsertChain(t *testing.T) {
 	notFound := serrors.New("not found")
+	dbErr := serrors.New("db error")
 	tests := map[string]struct {
 		Expect      func(*mock_v2.MockDB, decoded.Chain)
 		ExpectedErr error
@@ -153,10 +148,10 @@ func TestInserterInsertChain(t *testing.T) {
 					false, nil,
 				)
 				db.EXPECT().InsertChain(gomock.Any(), dec).Return(
-					false, false, trust.ErrContentMismatch,
+					false, false, dbErr,
 				)
 			},
-			ExpectedErr: trust.ErrContentMismatch,
+			ExpectedErr: dbErr,
 		},
 		"invalid AS certificate": {
 			Expect: func(db *mock_v2.MockDB, dec decoded.Chain) {
@@ -214,12 +209,7 @@ func TestInserterInsertChain(t *testing.T) {
 			}
 
 			err := ins.InsertChain(context.Background(), decoded, p)
-			if test.ExpectedErr != nil {
-				require.Truef(t, xerrors.Is(err, test.ExpectedErr),
-					"Expected: %s Actual: %s", test.ExpectedErr, err)
-			} else {
-				require.NoError(t, err)
-			}
+			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 		})
 	}
 }
@@ -310,12 +300,7 @@ func TestFwdInserterInsertChain(t *testing.T) {
 			}
 
 			err := ins.InsertChain(context.Background(), decoded, p)
-			if test.ExpectedErr != nil {
-				require.Truef(t, xerrors.Is(err, test.ExpectedErr),
-					"Expected: %s Actual: %s", test.ExpectedErr, err)
-			} else {
-				require.NoError(t, err)
-			}
+			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 		})
 	}
 }
