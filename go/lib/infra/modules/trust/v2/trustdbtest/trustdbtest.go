@@ -234,6 +234,13 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 			assert.Equal(t, trust.KeyInfo{}, actual)
 		})
+		t.Run("fetch non-issuing ia", func(t *testing.T) {
+			insert("ISD2-V2.trc")
+			ia210 := xtest.MustParseIA("2-ff00:0:210")
+			actual, err := db.GetIssuingKeyInfo(context.Background(), ia210, 2)
+			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
+			assert.Equal(t, trust.KeyInfo{}, actual)
+		})
 	})
 	t.Run("InsertTRC", func(t *testing.T) {
 		// Insert existing TRC.
