@@ -15,17 +15,19 @@
 package trust
 
 import (
-	"context"
-	"time"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/proto"
 )
 
-// HandlerTimeout is the lifetime of the handlers.
-const HandlerTimeout = 3 * time.Second
+const (
+	// AckNotFound is sent as the error description if the crypto material is
+	// not found.
+	AckNotFound string = "not found"
+)
 
 // trcReqHandler contains the state of a handler for a specific TRC Request
 // message, received via the Messenger's ListenAndServe method.
@@ -50,11 +52,11 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
-		logger.Warn("[TrustStore:trcReqHandler] Unable to service request, no Messenger found")
+		logger.Error("[TrustStore:trcReqHandler] Unable to service request," +
+			" no ResponseWriter found")
 		return infra.MetricsErrInternal
 	}
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
+	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
 	opts := infra.TRCOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{
 			LocalOnly: trcReq.CacheOnly,
@@ -65,12 +67,13 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 		opts, h.request.Peer)
 	if err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
 		return infra.MetricsErrTrustStore(err)
 	}
 	trcMessage := &cert_mgmt.TRC{
 		RawTRC: raw,
 	}
-	if err := rw.SendTRCReply(subCtx, trcMessage); err != nil {
+	if err := rw.SendTRCReply(h.request.Context(), trcMessage); err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Messenger error", "err", err)
 		return infra.MetricsErrMsger(err)
 	}
