@@ -190,6 +190,34 @@ func (e *executor) GetTRCInfo(ctx context.Context, isd addr.ISD,
 	return info, nil
 }
 
+func (e *executor) GetIssuingKeyInfo(ctx context.Context, ia addr.IA,
+	version scrypto.Version) (trust.KeyInfo, error) {
+
+	// we chose the simple way to implement this, if this ever becomes a
+	// performance bottleneck we can still add a separate table which contains
+	// this information.
+	t, err := e.GetTRC(ctx, ia.I, version)
+	if err != nil {
+		return trust.KeyInfo{}, err
+	}
+	prim, ok := t.PrimaryASes[ia.A]
+	if !ok {
+		return trust.KeyInfo{}, trust.ErrNotFound
+	}
+	km, ok := prim.Keys[trc.IssuingKey]
+	if !ok {
+		return trust.KeyInfo{}, trust.ErrNotFound
+	}
+	return trust.KeyInfo{
+		TRC: trust.TRCInfo{
+			Validity:    *t.Validity,
+			GracePeriod: t.GracePeriod.Duration,
+			Version:     t.Version,
+		},
+		Version: km.KeyVersion,
+	}, nil
+}
+
 func (e *executor) InsertTRC(ctx context.Context, d decoded.TRC) (bool, error) {
 	e.Lock()
 	defer e.Unlock()

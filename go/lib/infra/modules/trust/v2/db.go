@@ -87,6 +87,9 @@ type TRCRead interface {
 	// GetTRCInfo returns the infos for the requested TRC. If it is not found,
 	// ErrNotFound is returned.
 	GetTRCInfo(ctx context.Context, isd addr.ISD, version scrypto.Version) (TRCInfo, error)
+	// GetIssuingKeyInfo returns the infos of the requested AS. If it is not
+	// found, ErrNotFound is returned.
+	GetIssuingKeyInfo(ctx context.Context, ia addr.IA, version scrypto.Version) (KeyInfo, error)
 }
 
 // TRCWrite defines the TRC write operations.
@@ -125,4 +128,15 @@ type TRCInfo struct {
 	Validity    scrypto.Validity
 	GracePeriod time.Duration
 	Version     scrypto.Version
+}
+
+// Base indicates if the TRC is a base TRC.
+func (i TRCInfo) Base() bool {
+	return i.GracePeriod == 0
+}
+
+// KeyInfo contains metadata about a primary key.
+type KeyInfo struct {
+	TRC     TRCInfo
+	Version scrypto.KeyVersion
 }
