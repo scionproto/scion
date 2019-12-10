@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -58,4 +59,41 @@ func TestResourceHealth(t *testing.T) {
 	}))
 	req := infra.NewRequest(ctx, nil, nil, nil, 1)
 	rHandler.Handle(req)
+}
+
+func TestResponseWriterFromContext(t *testing.T) {
+	tests := map[string]struct {
+		Ctx        context.Context
+		ExpectedRW infra.ResponseWriter
+		ExpectedOK bool
+	}{
+		"nil context": {
+			Ctx:        nil,
+			ExpectedRW: nil,
+			ExpectedOK: false,
+		},
+		"key not found": {
+			Ctx:        context.Background(),
+			ExpectedRW: nil,
+			ExpectedOK: false,
+		},
+		"value is nil": {
+			Ctx:        infra.NewContextWithResponseWriter(context.Background(), nil),
+			ExpectedRW: nil,
+			ExpectedOK: false,
+		},
+		"valid": {
+			Ctx: infra.NewContextWithResponseWriter(context.Background(),
+				&mock_infra.MockResponseWriter{}),
+			ExpectedRW: &mock_infra.MockResponseWriter{},
+			ExpectedOK: true,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			rw, ok := infra.ResponseWriterFromContext(test.Ctx)
+			assert.Equal(t, test.ExpectedRW, rw)
+			assert.Equal(t, test.ExpectedOK, ok)
+		})
+	}
 }
