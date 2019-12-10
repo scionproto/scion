@@ -506,7 +506,7 @@ type CryptoMaterialProvider interface {
 // TrustStoreOpts contains the base options when interacting with the trust store.
 type TrustStoreOpts struct {
 	// Server provides an address where the store should send crypto material
-	// request, if they are not available locally. If it is not set, the
+	// requests, if they are not available locally. If it is not set, the
 	// trust store does its own server resolution.
 	Server net.Addr
 	// LocalOnly indicates that the store should only check locally.

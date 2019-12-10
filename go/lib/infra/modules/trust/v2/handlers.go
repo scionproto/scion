@@ -16,10 +16,9 @@ package trust
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
-
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -67,21 +66,17 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
-	w := netWrap{
-		peer:     h.request.Peer,
-		provider: h.provider,
-	}
-	err = h.inserter.InsertChain(h.request.Context(), dec, w.TRC)
+	err = h.inserter.InsertChain(h.request.Context(), dec, newTRCGetter(h.provider, h.request.Peer))
 	switch {
 	case err == nil:
 		sendAck(proto.Ack_ErrCode_ok, "")
 		return infra.MetricsResultOk
-	case xerrors.Is(err, ErrContentMismatch):
-		logger.Error("[TrustStore:chainPushHandler] Certifcate already exists with different hash",
+	case errors.Is(err, ErrContentMismatch):
+		logger.Error("[TrustStore:chainPushHandler] Certificate already exists with different hash",
 			"err", err, "chain", dec, "peer", h.request.Peer)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid
-	case xerrors.Is(err, ErrValidation), xerrors.Is(err, ErrVerification):
+	case errors.Is(err, ErrValidation), errors.Is(err, ErrVerification):
 		logger.Error("[TrustStore:chainPushHandler] Unable to verify certificate chain",
 			"err", err, "chain", dec, "peer", h.request.Peer)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
@@ -94,17 +89,16 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	}
 }
 
-type netWrap struct {
-	provider CryptoProvider
-	peer     net.Addr
-}
+func newTRCGetter(provider CryptoProvider, peer net.Addr) func(context.Context,
+	addr.ISD, scrypto.Version) (*trc.TRC, error) {
 
-func (w netWrap) TRC(ctx context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
-	opts := infra.TRCOpts{
-		TrustStoreOpts: infra.TrustStoreOpts{
-			Server: w.peer,
-		},
-		AllowInactive: true,
+	return func(ctx context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
+		opts := infra.TRCOpts{
+			TrustStoreOpts: infra.TrustStoreOpts{
+				Server: peer,
+			},
+			AllowInactive: true,
+		}
+		return provider.GetTRC(ctx, isd, version, opts)
 	}
-	return w.provider.GetTRC(ctx, isd, version, opts)
 }
