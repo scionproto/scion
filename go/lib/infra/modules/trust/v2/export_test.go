@@ -45,6 +45,9 @@ var (
 	// NewChainPushHandler allows instantiating the private chain push handler for black-box
 	// testing.
 	NewChainPushHandler = newTestChainPushHandler
+	// NewTRCPushHandler allows instantiating the private TRC push handler for black-box
+	// testing.
+	NewTRCPushHandler = newTestTRCPushHandler
 )
 
 // newTestCryptoProvider returns a new crypto provider for testing.
@@ -115,6 +118,17 @@ func newTestChainPushHandler(request *infra.Request, provider CryptoProvider,
 	inserter Inserter) *chainPushHandler {
 
 	return &chainPushHandler{
+		request:  request,
+		provider: provider,
+		inserter: inserter,
+	}
+}
+
+// newTRCPushHandler returns a new TRC push handler for testing.
+func newTestTRCPushHandler(request *infra.Request, provider CryptoProvider,
+	inserter Inserter) *trcPushHandler {
+
+	return &trcPushHandler{
 		request:  request,
 		provider: provider,
 		inserter: inserter,

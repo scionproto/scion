@@ -18,8 +18,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net"
-	"time"
 
 	"golang.org/x/xerrors"
 
@@ -103,8 +101,16 @@ type trcPushHandler struct {
 }
 
 func (h *trcPushHandler) Handle() *infra.HandlerResult {
+	if h.request == nil {
+		log.Error("[TrustStore:trcPushHandler] Request is nil")
+		return infra.MetricsErrInternal
+	}
 	logger := log.FromCtx(h.request.Context())
-	// FIXME(scrye): In case a TRC update will invalidate the local certificate
+	if h.request.Message == nil {
+		logger.Error("[TrustStore:trcPushHandler] Request message is nil")
+		return infra.MetricsErrInternal
+	}
+	// XXX(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
 	// new chain from the issuer. If a chain is not obtained within the
 	// gracePeriod, manual intervention is required to install a valid chain.
@@ -131,6 +137,10 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInvalid
 	}
 	err = h.inserter.InsertTRC(h.request.Context(), dec, newTRCGetter(h.provider, h.request.Peer))
+	switch {
+	case err == nil:
+		sendAck(proto.Ack_ErrCode_ok, "")
+		return infra.MetricsResultOk
 	case errors.Is(err, ErrContentMismatch):
 		logger.Error("[TrustStore:trcPushHandler] TRC already exists with different hash",
 			"err", err, "trc", dec, "peer", h.request.Peer)
