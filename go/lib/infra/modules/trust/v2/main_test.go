@@ -128,12 +128,12 @@ func loadChain(t *testing.T, desc ChainDesc) decoded.Chain {
 	var err error
 	var chain decoded.Chain
 	chain.Raw, err = ioutil.ReadFile(file)
-	require.NoError(t, err)
+	require.NoError(t, err, help)
 	chain.Chain, err = cert.ParseChain(chain.Raw)
-	require.NoError(t, err)
+	require.NoError(t, err, help)
 	chain.Issuer, err = chain.Chain.Issuer.Encoded.Decode()
-	require.NoError(t, err)
+	require.NoError(t, err, help)
 	chain.AS, err = chain.Chain.AS.Encoded.Decode()
-	require.NoError(t, err)
+	require.NoError(t, err, help)
 	return chain
 }

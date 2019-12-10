@@ -99,8 +99,12 @@ type fwdInserter struct {
 func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
-	if insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider); err != nil || !insert {
+	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
+	if err != nil {
 		return err
+	}
+	if !insert {
+		return nil
 	}
 	cs := ins.router.chooseServer()
 	if err := ins.rpc.SendTRC(ctx, decTRC.Raw, cs); err != nil {
@@ -120,8 +124,12 @@ func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 func (ins *fwdInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
-	if insert, err := ins.shouldInsertChain(ctx, chain, trcProvider); err != nil || !insert {
+	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
+	if err != nil {
 		return err
+	}
+	if !insert {
+		return nil
 	}
 	cs := ins.router.chooseServer()
 	if err := ins.rpc.SendCertChain(ctx, chain.Raw, cs); err != nil {
@@ -143,8 +151,12 @@ type baseInserter struct {
 func (ins *baseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) (bool, error) {
 
-	if found, err := ins.db.TRCExists(ctx, decTRC); err != nil || found {
+	found, err := ins.db.TRCExists(ctx, decTRC)
+	if err != nil {
 		return false, err
+	}
+	if found {
+		return true, nil
 	}
 	if decTRC.TRC.Base() {
 		// XXX(roosd): remove when TAACs are supported.
@@ -190,8 +202,12 @@ func (ins *baseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next de
 func (ins *baseInserter) shouldInsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) (bool, error) {
 
-	if found, err := ins.db.ChainExists(ctx, chain); err != nil || found {
+	found, err := ins.db.ChainExists(ctx, chain)
+	if err != nil {
 		return false, err
+	}
+	if found {
+		return true, nil
 	}
 	if err := ins.validateChain(chain); err != nil {
 		return false, serrors.WrapStr("error validating the certificate chain", err)
