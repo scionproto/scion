@@ -210,3 +210,183 @@ func TestChainPushHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestTRCPushHandler(t *testing.T) {
+	trc := loadTRC(t, TRCDesc{ISD: 1, Version: 1})
+	testCases := []*struct {
+		Name           string
+		Request        func(ctrl *gomock.Controller) *infra.Request
+		Inserter       func(ctrl *gomock.Controller) trust.Inserter
+		ExpectedResult *infra.HandlerResult
+	}{
+		{
+			Name: "nil request",
+			Request: func(_ *gomock.Controller) *infra.Request {
+				return nil
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				return mock_v2.NewMockInserter(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		{
+			Name: "empty message",
+			Request: func(_ *gomock.Controller) *infra.Request {
+				return infra.NewRequest(nil, nil, nil, nil, 0)
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				return mock_v2.NewMockInserter(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		{
+			Name: "bad message type",
+			Request: func(_ *gomock.Controller) *infra.Request {
+				return infra.NewRequest(nil, &cert_mgmt.Chain{}, nil, nil, 0)
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				return mock_v2.NewMockInserter(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		{
+			Name: "no response writer",
+			Request: func(_ *gomock.Controller) *infra.Request {
+				return infra.NewRequest(nil, &cert_mgmt.TRC{}, nil, nil, 0)
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				return mock_v2.NewMockInserter(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		{
+			Name: "TRC cannot be decoded",
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				mockRW := mock_infra.NewMockResponseWriter(ctrl)
+				mockRW.EXPECT().SendAckReply(gomock.Any(), gomock.Any())
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), mockRW),
+					&cert_mgmt.TRC{
+						RawTRC: common.RawBytes{1, 2, 3, 4},
+					},
+					nil,
+					nil,
+					0,
+				)
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				return mock_v2.NewMockInserter(ctrl)
+			},
+			ExpectedResult: infra.MetricsErrInvalid,
+		},
+		{
+			Name: "insert mismatch error",
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				mockRW := mock_infra.NewMockResponseWriter(ctrl)
+				mockRW.EXPECT().SendAckReply(gomock.Any(), gomock.Any())
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), mockRW),
+					&cert_mgmt.TRC{
+						RawTRC: trc.Raw,
+					},
+					nil,
+					nil,
+					0,
+				)
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				mockInserter := mock_v2.NewMockInserter(ctrl)
+				mockInserter.EXPECT().
+					InsertTRC(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(trust.ErrContentMismatch)
+				return mockInserter
+			},
+			ExpectedResult: infra.MetricsErrInvalid,
+		},
+		{
+			Name: "insert verification error",
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				mockRW := mock_infra.NewMockResponseWriter(ctrl)
+				mockRW.EXPECT().SendAckReply(gomock.Any(), gomock.Any())
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), mockRW),
+					&cert_mgmt.TRC{
+						RawTRC: trc.Raw,
+					},
+					nil,
+					nil,
+					0,
+				)
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				mockInserter := mock_v2.NewMockInserter(ctrl)
+				mockInserter.EXPECT().
+					InsertTRC(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(trust.ErrVerification)
+				return mockInserter
+			},
+			ExpectedResult: infra.MetricsErrInvalid,
+		},
+		{
+			Name: "insert other error",
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				mockRW := mock_infra.NewMockResponseWriter(ctrl)
+				mockRW.EXPECT().SendAckReply(gomock.Any(), gomock.Any())
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), mockRW),
+					&cert_mgmt.TRC{
+						RawTRC: trc.Raw,
+					},
+					nil,
+					nil,
+					0,
+				)
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				mockInserter := mock_v2.NewMockInserter(ctrl)
+				mockInserter.EXPECT().
+					InsertTRC(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(serrors.New("foo"))
+				return mockInserter
+			},
+			ExpectedResult: infra.MetricsErrInternal,
+		},
+		{
+			Name: "insert success",
+			Request: func(ctrl *gomock.Controller) *infra.Request {
+				mockRW := mock_infra.NewMockResponseWriter(ctrl)
+				mockRW.EXPECT().SendAckReply(gomock.Any(), gomock.Any())
+				return infra.NewRequest(
+					infra.NewContextWithResponseWriter(context.Background(), mockRW),
+					&cert_mgmt.TRC{
+						RawTRC: trc.Raw,
+					},
+					nil,
+					nil,
+					0,
+				)
+			},
+			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
+				mockInserter := mock_v2.NewMockInserter(ctrl)
+				mockInserter.EXPECT().InsertTRC(gomock.Any(), gomock.Any(), gomock.Any())
+				return mockInserter
+			},
+			ExpectedResult: infra.MetricsResultOk,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			trcPushHandler := trust.NewTRCPushHandler(
+				tc.Request(ctrl),
+				nil,
+				tc.Inserter(ctrl),
+			)
+			result := trcPushHandler.Handle()
+			assert.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
