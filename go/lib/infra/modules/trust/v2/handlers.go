@@ -42,7 +42,14 @@ type chainPushHandler struct {
 }
 
 func (h *chainPushHandler) Handle() *infra.HandlerResult {
+	if h.request == nil {
+		return infra.MetricsErrInternal
+	}
 	logger := log.FromCtx(h.request.Context())
+	if h.request.Message == nil {
+		logger.Error("[TrustStore:chainPushHandler] Request message is nil")
+		return infra.MetricsErrInternal
+	}
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
 		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
