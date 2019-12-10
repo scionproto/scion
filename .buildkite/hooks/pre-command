@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+# Start bazel remote cache proxy for S3
+docker run -e  BAZEL_REMOTE_S3_BUCKET=buildkite-bazel-cache\
+           -e BAZEL_REMOTE_S3_ENDPOINT=s3.eu-central-1.amazonaws.com\
+           -e BAZEL_REMOTE_S3_ACCESS_KEY_ID=$BAZEL_REMOTE_S3_ACCESS_KEY_ID\
+           -e BAZEL_REMOTE_S3_SECRET_ACCESS_KEY=$BAZEL_REMOTE_S3_SECRET_ACCESS_KEY\
+           --net=host -d buchgr/bazel-remote-cache
+# To use it replace the bazelrc file
+cp .bazelrc_ci .bazelrc
