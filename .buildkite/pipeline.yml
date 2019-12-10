@@ -1,0 +1,19 @@
+steps:
+  - label: ":bazel: Build scion code"
+    command: 
+      - make -s GODEPS_SKIP=1 GOGEN_SKIP=1 all
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    timeout_in_minutes: 10
+  - label: ":bazel: Go tests"
+    command:
+      - ./scion.sh test go
+    artifact_paths:
+      - "bazel-testlogs/**/*"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    timeout_in_minutes: 10
