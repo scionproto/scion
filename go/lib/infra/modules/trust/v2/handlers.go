@@ -61,9 +61,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 			"[TrustStore:chainPushHandler] Unable to service request, no ResponseWriter found")
 		return infra.MetricsErrInternal
 	}
-	ctx, cancelF := context.WithTimeout(h.request.Context(), messenger.DefaultHandlerTimeout)
-	defer cancelF()
-	sendAck := messenger.SendAckHelper(ctx, rw)
+	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
 
 	dec, err := decoded.DecodeChain(chainPush.RawChain)
 	if err != nil {
