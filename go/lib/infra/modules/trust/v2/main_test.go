@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -47,26 +48,46 @@ func (desc TRCDesc) File() string {
 	return fmt.Sprintf("ISD%d/trcs/ISD%d-V%d.trc", desc.ISD, desc.ISD, desc.Version)
 }
 
+type ChainDesc struct {
+	IA      addr.IA
+	Version scrypto.Version
+}
+
+func (desc ChainDesc) File() string {
+	return fmt.Sprintf("ISD%d/AS%s/certs/%s-V%d.crt", desc.IA.I, desc.IA.A.FileFmt(),
+		desc.IA.FileFmt(true), desc.Version)
+}
+
+// Primary ASes ISD 1
+var (
+	ia110 = xtest.MustParseIA("1-ff00:0:110")
+	ia120 = xtest.MustParseIA("1-ff00:0:120")
+	ia130 = xtest.MustParseIA("1-ff00:0:130")
+)
+
+// Non-primary ASes ISD 1
+var (
+	ia122 = xtest.MustParseIA("1-ff00:0:122")
+)
+
+// Primary ASes ISD 2
+var (
+	ia210 = xtest.MustParseIA("2-ff00:0:210")
+)
+
+// TRCs
 var (
 	trc1v1 = TRCDesc{ISD: 1, Version: 1}
 	trc1v2 = TRCDesc{ISD: 1, Version: 2}
 	trc1v3 = TRCDesc{ISD: 1, Version: 3}
 	trc1v4 = TRCDesc{ISD: 1, Version: 4}
 
-	// primary ASes
-	ia110 = xtest.MustParseIA("1-ff00:0:110")
-	ia120 = xtest.MustParseIA("1-ff00:0:120")
-	ia130 = xtest.MustParseIA("1-ff00:0:130")
+	trc2v1 = TRCDesc{ISD: 2, Version: 1}
 )
 
+// Chains
 var (
-	trc2v1 = TRCDesc{ISD: 2, Version: 1}
-
-	// primary ASes
-	ia210 = xtest.MustParseIA("2-ff00:0:210")
-
-	// non-primary ASes
-	ia122 = xtest.MustParseIA("1-ff00:0:122")
+	chain110v1 = ChainDesc{IA: ia110, Version: 1}
 )
 
 func TestMain(m *testing.M) {
@@ -99,4 +120,20 @@ func loadTRC(t *testing.T, desc TRCDesc) decoded.TRC {
 		Signed: signed,
 		TRC:    trcObj,
 	}
+}
+
+func loadChain(t *testing.T, desc ChainDesc) decoded.Chain {
+	t.Helper()
+	file := filepath.Join(tmpDir, desc.File())
+	var err error
+	var chain decoded.Chain
+	chain.Raw, err = ioutil.ReadFile(file)
+	require.NoError(t, err, help)
+	chain.Chain, err = cert.ParseChain(chain.Raw)
+	require.NoError(t, err, help)
+	chain.Issuer, err = chain.Chain.Issuer.Encoded.Decode()
+	require.NoError(t, err, help)
+	chain.AS, err = chain.Chain.AS.Encoded.Decode()
+	require.NoError(t, err, help)
+	return chain
 }
