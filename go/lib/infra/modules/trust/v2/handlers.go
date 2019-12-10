@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -32,9 +31,6 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// HandlerTimeout is the lifetime of the handlers.
-const HandlerTimeout = 3 * time.Second
-
 type chainPushHandler struct {
 	request  *infra.Request
 	provider CryptoProvider
@@ -43,6 +39,7 @@ type chainPushHandler struct {
 
 func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	if h.request == nil {
+		log.Error("[TrustStore:chainPushHandler] Request is nil")
 		return infra.MetricsErrInternal
 	}
 	logger := log.FromCtx(h.request.Context())
@@ -63,7 +60,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
 		return infra.MetricsErrInternal
 	}
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), messenger.DefaultHandlerTimeout)
 	defer cancelF()
 	sendAck := messenger.SendAckHelper(subCtx, rw)
 
