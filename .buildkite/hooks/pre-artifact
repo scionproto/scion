@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if [ "$BUILDKITE_PULL_REQUEST" == "false" ]; then
+    TARGET="$BUILDKITE_BRANCH"
+else
+    TARGET="$BUILDKITE_PULL_REQUEST"
+fi
+TARGET="${TARGET//\//_}"
+
+ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY}"
+ARTIFACTS_DIR="artifacts"
+mkdir -p "$ARTIFACTS_DIR" artifacts.out
+cp -R "bazel-testlogs" "$ARTIFACTS_DIR"
+cp -R "logs" artifacts "$ARTIFACTS_DIR"
+tar caf "$artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"

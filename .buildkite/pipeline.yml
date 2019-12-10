@@ -1,7 +1,7 @@
 steps:
   - label: ":bazel: Build scion code"
     command: 
-      - make -s GODEPS_SKIP=1 GOGEN_SKIP=1 all
+      - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
@@ -9,9 +9,9 @@ steps:
     timeout_in_minutes: 10
   - label: ":bazel: Go tests"
     command:
-      - ./scion.sh test go
+      - bazel --bazelrc=.bazelrc_ci test //go/... --print_relative_test_log_paths
     artifact_paths:
-      - "bazel-testlogs/**/*"
+      - "artifacts.out/**/*"
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
