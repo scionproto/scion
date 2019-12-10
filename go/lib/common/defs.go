@@ -59,5 +59,9 @@ func (ifid *IFIDType) UnmarshalText(text []byte) error {
 const IFIDBytes = 8
 
 func TypeOf(v interface{}) string {
-	return reflect.TypeOf(v).String()
+	t := reflect.TypeOf(v)
+	if t != nil {
+		return t.String()
+	}
+	return "<nil>"
 }
