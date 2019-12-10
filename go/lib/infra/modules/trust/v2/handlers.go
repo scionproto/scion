@@ -57,7 +57,8 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		"peer", h.request.Peer)
 	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
 	if !ok {
-		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
+		logger.Warn(
+			"[TrustStore:chainPushHandler] Unable to service request, no ResponseWriter found")
 		return infra.MetricsErrInternal
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), messenger.DefaultHandlerTimeout)
