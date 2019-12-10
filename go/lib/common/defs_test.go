@@ -25,10 +25,10 @@ import (
 func TestTypeOf(t *testing.T) {
 	type A struct{}
 	tests := map[string]interface{}{
-		"nil":          nil,
-		"typed nil":    (*A)(nil),
-		"typed ptr":    &A{},
-		"typed struct": A{},
+		"nil":       nil,
+		"typed nil": (*A)(nil),
+		"ptr":       &A{},
+		"struct":    A{},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
