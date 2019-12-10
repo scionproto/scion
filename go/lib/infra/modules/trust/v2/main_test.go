@@ -58,33 +58,42 @@ func (desc ChainDesc) File() string {
 		desc.IA.FileFmt(true), desc.Version)
 }
 
+// Primary ASes ISD 1
 var (
-	trc1v1     = TRCDesc{ISD: 1, Version: 1}
-	trc1v2     = TRCDesc{ISD: 1, Version: 2}
-	trc1v3     = TRCDesc{ISD: 1, Version: 3}
-	trc1v4     = TRCDesc{ISD: 1, Version: 4}
-	chain110v1 = ChainDesc{IA: ia110, Version: 1}
-
-	// primary ASes
 	ia110 = xtest.MustParseIA("1-ff00:0:110")
 	ia120 = xtest.MustParseIA("1-ff00:0:120")
 	ia130 = xtest.MustParseIA("1-ff00:0:130")
 )
 
+// Non-primary ASes ISD 1
 var (
-	trc2v1 = TRCDesc{ISD: 2, Version: 1}
-
-	// primary ASes
-	ia210 = xtest.MustParseIA("2-ff00:0:210")
-
-	// non-primary ASes
 	ia122 = xtest.MustParseIA("1-ff00:0:122")
 )
 
+// Primary ASes ISD 2
+var (
+	ia210 = xtest.MustParseIA("2-ff00:0:210")
+)
+
+// TRCs
+var (
+	trc1v1 = TRCDesc{ISD: 1, Version: 1}
+	trc1v2 = TRCDesc{ISD: 1, Version: 2}
+	trc1v3 = TRCDesc{ISD: 1, Version: 3}
+	trc1v4 = TRCDesc{ISD: 1, Version: 4}
+
+	trc2v1 = TRCDesc{ISD: 2, Version: 1}
+)
+
+// Chains
+var (
+	chain110v1 = ChainDesc{IA: ia110, Version: 1}
+)
+
 func TestMain(m *testing.M) {
-	//var cleanF func()
-	tmpDir, _ = xtest.MustTempDir("", "test-trust")
-	//defer cleanF()
+	var cleanF func()
+	tmpDir, cleanF = xtest.MustTempDir("", "test-trust")
+	defer cleanF()
 	cmd := exec.Command("tar", "-x", "-f", "testdata/crypto.tar", "-C", tmpDir)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

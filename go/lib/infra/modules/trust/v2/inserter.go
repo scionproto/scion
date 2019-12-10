@@ -99,12 +99,8 @@ type fwdInserter struct {
 func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
-	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
-	switch {
-	case err != nil:
+	if insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider); err != nil || !insert {
 		return err
-	case !insert:
-		return nil
 	}
 	cs := ins.router.chooseServer()
 	if err := ins.rpc.SendTRC(ctx, decTRC.Raw, cs); err != nil {
@@ -124,12 +120,8 @@ func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 func (ins *fwdInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
-	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
-	switch {
-	case err != nil:
+	if insert, err := ins.shouldInsertChain(ctx, chain, trcProvider); err != nil || !insert {
 		return err
-	case !insert:
-		return nil
 	}
 	cs := ins.router.chooseServer()
 	if err := ins.rpc.SendCertChain(ctx, chain.Raw, cs); err != nil {
@@ -151,9 +143,8 @@ type baseInserter struct {
 func (ins *baseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) (bool, error) {
 
-	found, err := ins.db.TRCExists(ctx, decTRC)
-	if err != nil || found {
-		return !found, err
+	if found, err := ins.db.TRCExists(ctx, decTRC); err != nil || found {
+		return false, err
 	}
 	if decTRC.TRC.Base() {
 		// XXX(roosd): remove when TAACs are supported.
@@ -199,9 +190,8 @@ func (ins *baseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next de
 func (ins *baseInserter) shouldInsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) (bool, error) {
 
-	found, err := ins.db.ChainExists(ctx, chain)
-	if err != nil || found {
-		return !found, err
+	if found, err := ins.db.ChainExists(ctx, chain); err != nil || found {
+		return false, err
 	}
 	if err := ins.validateChain(chain); err != nil {
 		return false, serrors.WrapStr("error validating the certificate chain", err)
