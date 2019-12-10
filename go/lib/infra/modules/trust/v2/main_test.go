@@ -32,6 +32,9 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
+const help = "Make sure you have generated crypto material: " +
+	"'./go/lib/infra/modules/trust/v2/testdata/gen_crypto_tar.sh'"
+
 // tmpDir contains the generated crypto material.
 var tmpDir string
 
@@ -75,6 +78,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Println(string(out))
 		fmt.Println(err)
+		fmt.Println(help)
 		os.Exit(1)
 	}
 	log.Root().SetHandler(log.DiscardHandler())
@@ -85,11 +89,11 @@ func loadTRC(t *testing.T, desc TRCDesc) decoded.TRC {
 	t.Helper()
 	file := filepath.Join(tmpDir, desc.File())
 	raw, err := ioutil.ReadFile(file)
-	require.NoError(t, err)
+	require.NoError(t, err, help)
 	signed, err := trc.ParseSigned(raw)
-	require.NoError(t, err)
+	require.NoError(t, err, help)
 	trcObj, err := signed.EncodedTRC.Decode()
-	require.NoError(t, err)
+	require.NoError(t, err, help)
 	return decoded.TRC{
 		Raw:    raw,
 		Signed: signed,
