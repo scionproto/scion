@@ -156,7 +156,7 @@ func (ins *baseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC
 		return false, err
 	}
 	if found {
-		return true, nil
+		return false, nil
 	}
 	if decTRC.TRC.Base() {
 		// XXX(roosd): remove when TAACs are supported.
@@ -207,7 +207,7 @@ func (ins *baseInserter) shouldInsertChain(ctx context.Context, chain decoded.Ch
 		return false, err
 	}
 	if found {
-		return true, nil
+		return false, nil
 	}
 	if err := ins.validateChain(chain); err != nil {
 		return false, serrors.WrapStr("error validating the certificate chain", err)
