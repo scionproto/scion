@@ -49,7 +49,8 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		log.Error("[TrustStore:chainReqHandler] Request is nil")
 		return infra.MetricsErrInternal
 	}
-	logger := log.FromCtx(h.request.Context())
+	ctx := h.request.Context()
+	logger := log.FromCtx(ctx)
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {
 		logger.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
@@ -58,20 +59,20 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	}
 	logger.Debug("[TrustStore:chainReqHandler] Received request", "chainReq", chainReq,
 		"peer", h.request.Peer)
-	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, " +
 			"no ResponseWriter found")
 		return infra.MetricsErrInternal
 	}
-	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
+	sendAck := messenger.SendAckHelper(ctx, rw)
 	opts := infra.ChainOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{
 			LocalOnly: chainReq.CacheOnly,
 		},
 		AllowInactiveTRC: true,
 	}
-	raw, err := h.provider.GetRawChain(h.request.Context(), chainReq.IA(), chainReq.Version,
+	raw, err := h.provider.GetRawChain(ctx, chainReq.IA(), chainReq.Version,
 		opts, h.request.Peer)
 	if err != nil {
 		// FIXME(roosd): We should send a negative response.
@@ -82,7 +83,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	chainMessage := &cert_mgmt.Chain{
 		RawChain: raw,
 	}
-	if err = rw.SendCertChainReply(h.request.Context(), chainMessage); err != nil {
+	if err = rw.SendCertChainReply(ctx, chainMessage); err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Messenger API error", "err", err)
 		return infra.MetricsErrMsger(err)
 	}
@@ -103,7 +104,8 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 		log.Error("[TrustStore:trcReqHandler] Request is nil")
 		return infra.MetricsErrInternal
 	}
-	logger := log.FromCtx(h.request.Context())
+	ctx := h.request.Context()
+	logger := log.FromCtx(ctx)
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {
 		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
@@ -112,20 +114,20 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	}
 	logger.Debug("[TrustStore:trcReqHandler] Received request", "trcReq", trcReq,
 		"peer", h.request.Peer)
-	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Error("[TrustStore:trcReqHandler] Unable to service request," +
 			" no ResponseWriter found")
 		return infra.MetricsErrInternal
 	}
-	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
+	sendAck := messenger.SendAckHelper(ctx, rw)
 	opts := infra.TRCOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{
 			LocalOnly: trcReq.CacheOnly,
 		},
 		AllowInactive: true,
 	}
-	raw, err := h.provider.GetRawTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
+	raw, err := h.provider.GetRawTRC(ctx, trcReq.ISD, trcReq.Version,
 		opts, h.request.Peer)
 	if err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
@@ -135,7 +137,7 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 	trcMessage := &cert_mgmt.TRC{
 		RawTRC: raw,
 	}
-	if err := rw.SendTRCReply(h.request.Context(), trcMessage); err != nil {
+	if err := rw.SendTRCReply(ctx, trcMessage); err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Messenger error", "err", err)
 		return infra.MetricsErrMsger(err)
 	}
@@ -155,7 +157,8 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		log.Error("[TrustStore:chainPushHandler] Request is nil")
 		return infra.MetricsErrInternal
 	}
-	logger := log.FromCtx(h.request.Context())
+	ctx := h.request.Context()
+	logger := log.FromCtx(ctx)
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
 		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
@@ -164,13 +167,13 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 	}
 	logger.Trace("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
 		"peer", h.request.Peer)
-	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Warn(
 			"[TrustStore:chainPushHandler] Unable to service request, no ResponseWriter found")
 		return infra.MetricsErrInternal
 	}
-	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
+	sendAck := messenger.SendAckHelper(ctx, rw)
 
 	dec, err := decoded.DecodeChain(chainPush.RawChain)
 	if err != nil {
@@ -178,7 +181,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
-	err = h.inserter.InsertChain(h.request.Context(), dec, newTRCGetter(h.provider, h.request.Peer))
+	err = h.inserter.InsertChain(ctx, dec, newTRCGetter(h.provider, h.request.Peer))
 	switch {
 	case err == nil:
 		sendAck(proto.Ack_ErrCode_ok, "")
@@ -212,7 +215,8 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 		log.Error("[TrustStore:trcPushHandler] Request is nil")
 		return infra.MetricsErrInternal
 	}
-	logger := log.FromCtx(h.request.Context())
+	ctx := h.request.Context()
+	logger := log.FromCtx(ctx)
 	// XXX(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
 	// new chain from the issuer. If a chain is not obtained within the
@@ -225,13 +229,13 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 	}
 	logger.Trace("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
 		"peer", h.request.Peer)
-	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
+	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		logger.Warn(
 			"[TrustStore:trcPushHandler] Unable to service request, no ResponseWriter found")
 		return infra.MetricsErrInternal
 	}
-	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
+	sendAck := messenger.SendAckHelper(ctx, rw)
 
 	dec, err := decoded.DecodeTRC(trcPush.RawTRC)
 	if err != nil {
@@ -239,7 +243,7 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
-	err = h.inserter.InsertTRC(h.request.Context(), dec, newTRCGetter(h.provider, h.request.Peer))
+	err = h.inserter.InsertTRC(ctx, dec, newTRCGetter(h.provider, h.request.Peer))
 	switch {
 	case err == nil:
 		sendAck(proto.Ack_ErrCode_ok, "")

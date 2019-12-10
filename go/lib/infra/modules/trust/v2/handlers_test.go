@@ -265,8 +265,10 @@ func TestTRCReqHandler(t *testing.T) {
 			ExpectedResult: infra.MetricsResultOk,
 		},
 	}
-	for name, test := range tests {
+	for n, tc := range tests {
+		name, test := n, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			handler := trust.NewTRCReqHandler(
@@ -625,8 +627,10 @@ func TestTRCPushHandler(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
+	for _, test := range testCases {
+		tc := test
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
