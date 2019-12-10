@@ -117,7 +117,7 @@ type (
 	// TopoAddr wraps the possible addresses of a SCION service and describes
 	// the underlay to be used for contacting said service.
 	TopoAddr struct {
-		SCIONAddress    *addr.AppAddr
+		SCIONAddress    *net.UDPAddr
 		UnderlayAddress net.Addr
 	}
 )
@@ -427,6 +427,20 @@ func (a *TopoAddr) UnderlayAddr() *net.UDPAddr {
 
 func (a *TopoAddr) String() string {
 	return fmt.Sprintf("TopoAddr{SCION: %v, Underlay: %v}", a.SCIONAddress, a.UnderlayAddress)
+}
+
+func (a *TopoAddr) copy() *TopoAddr {
+	// TODO(scrye): Investigate how this can be removed.
+	if a == nil {
+		return nil
+	}
+	return &TopoAddr{
+		SCIONAddress: &net.UDPAddr{
+			IP:   append(a.SCIONAddress.IP[:0:0], a.SCIONAddress.IP...),
+			Port: a.SCIONAddress.Port,
+		},
+		UnderlayAddress: toUDPAddr(a.UnderlayAddress.(*net.UDPAddr)),
+	}
 }
 
 func toUDPAddr(a net.Addr) *net.UDPAddr {

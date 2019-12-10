@@ -322,8 +322,8 @@ func checkInterfaces(intfs *Interfaces, nonActive map[common.IFIDType]State) {
 func brId(t *testing.T, topoProvider topology.Provider, saddr *snet.UDPAddr) string {
 	topo := topoProvider.Get()
 	for _, brID := range topo.BRNames() {
-		leg := topo.SBRAddress(brID)
-		if leg.Host.L3.String() == saddr.Host.IP.String() && leg.IA == saddr.IA {
+		a := topo.SBRAddress(brID)
+		if a.Host.IP.Equal(saddr.Host.IP) && a.IA == saddr.IA {
 			return brID
 		}
 	}

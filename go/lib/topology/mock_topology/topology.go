@@ -269,10 +269,10 @@ func (mr *MockTopologyMockRecorder) PublicAddress(arg0, arg1 interface{}) *gomoc
 }
 
 // SBRAddress mocks base method
-func (m *MockTopology) SBRAddress(arg0 string) *snet.Addr {
+func (m *MockTopology) SBRAddress(arg0 string) *snet.UDPAddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SBRAddress", arg0)
-	ret0, _ := ret[0].(*snet.Addr)
+	ret0, _ := ret[0].(*snet.UDPAddr)
 	return ret0
 }
 

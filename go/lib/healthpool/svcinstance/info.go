@@ -15,9 +15,9 @@
 package svcinstance
 
 import (
+	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/healthpool"
 )
 
@@ -33,7 +33,7 @@ func (i Info) Fail() {
 }
 
 // Addr returns the service instance address.
-func (i Info) Addr() *addr.AppAddr {
+func (i Info) Addr() *net.UDPAddr {
 	return i.info.addrCopy()
 }
 
@@ -45,20 +45,24 @@ func (i Info) Name() string {
 type info struct {
 	healthpool.Info
 	mtx  sync.RWMutex
-	addr *addr.AppAddr
+	addr *net.UDPAddr
 	name string
 }
 
-func (i *info) addrCopy() *addr.AppAddr {
+func (i *info) addrCopy() *net.UDPAddr {
 	i.mtx.RLock()
 	defer i.mtx.RUnlock()
-	return i.addr.Copy()
+	return &net.UDPAddr{
+		IP:   append(i.addr.IP[:0:0], i.addr.IP...),
+		Port: i.addr.Port,
+	}
+
 }
 
-func (i *info) update(a *addr.AppAddr) {
+func (i *info) update(a *net.UDPAddr) {
 	i.mtx.Lock()
 	defer i.mtx.Unlock()
-	if !a.Equal(i.addr) {
+	if !a.IP.Equal(i.addr.IP) || a.Port != i.addr.Port {
 		i.addr = a
 		i.ResetCount()
 	}

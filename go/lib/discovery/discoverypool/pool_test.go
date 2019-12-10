@@ -20,7 +20,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -80,15 +79,14 @@ func TestPoolUpdate(t *testing.T) {
 		pool := mustLoadPool(t)
 		svcInfo := mustLoadSvcInfo(t)
 		Convey("And a topology containing an updated discovery service entry", func() {
-			svcInfo[ds[0].key].SCIONAddress.L3 = addr.HostFromIP(
-				net.IPv4(127, 0, 0, 21))
+			svcInfo[ds[0].key].SCIONAddress.IP = net.IPv4(127, 0, 0, 21)
 			pool.Update(svcInfo)
 			Convey("The pool should contain the updated info", func() {
 				contains(pool, testInfo{
 					key: ds[0].key,
 					addr: &net.UDPAddr{
 						IP:   net.IPv4(127, 0, 0, 21),
-						Port: int(svcInfo[ds[0].key].SCIONAddress.L4),
+						Port: svcInfo[ds[0].key].SCIONAddress.Port,
 					},
 				})
 			})

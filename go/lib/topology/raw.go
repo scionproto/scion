@@ -57,9 +57,9 @@ func rawAddrMapToTopoAddr(ram jsontopo.NATSCIONAddressMap) (*TopoAddr, error) {
 	}
 
 	return &TopoAddr{
-		SCIONAddress: &addr.AppAddr{
-			L3: addr.HostFromIP(ip),
-			L4: uint16(addressInfo.Public.Address.L4Port),
+		SCIONAddress: &net.UDPAddr{
+			IP:   ip,
+			Port: addressInfo.Public.Address.L4Port,
 		},
 		UnderlayAddress: &net.UDPAddr{
 			IP:   append(ip[:0:0], ip...),

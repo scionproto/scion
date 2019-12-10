@@ -20,7 +20,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/healthpool"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -33,22 +32,22 @@ const (
 	ds3new     = "ds1-ff00_0_111-3-new"
 )
 
-var dsInfos = map[string]*addr.AppAddr{
+var dsInfos = map[string]*net.UDPAddr{
 	ds1: {
-		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-		L4: 30084,
+		IP:   net.IPv4(127, 0, 0, 22),
+		Port: 30084,
 	},
 	ds2: {
-		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 80)),
-		L4: 30085,
+		IP:   net.IPv4(127, 0, 0, 80),
+		Port: 30085,
 	},
 	ds3new: {
-		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 22)),
-		L4: 30084,
+		IP:   net.IPv4(127, 0, 0, 22),
+		Port: 30084,
 	},
 	ds1updated: {
-		L3: addr.HostFromIP(net.IPv4(127, 0, 0, 21)),
-		L4: 30084,
+		IP:   net.IPv4(127, 0, 0, 21),
+		Port: 30084,
 	},
 }
 
@@ -73,7 +72,7 @@ func TestPoolUpdate(t *testing.T) {
 		pool := mustLoadPool(t)
 		svcInfo := mustLoadSvcInfo(t)
 		Convey("And an instance map containing an updated discovery service entry", func() {
-			svcInfo[ds1].SCIONAddress.L3 = dsInfos[ds1updated].L3
+			svcInfo[ds1].SCIONAddress.IP = dsInfos[ds1updated].IP
 			pool.infos[ds1].Fail()
 			err := pool.Update(svcInfo)
 			SoMsg("err", err, ShouldBeNil)
@@ -118,13 +117,13 @@ func TestPoolChoose(t *testing.T) {
 		p.infos[ds1].Fail()
 		i, err := p.Choose()
 		SoMsg("err first", err, ShouldBeNil)
-		SoMsg("Choose first", i.Addr().Equal(p.infos[ds2].addr), ShouldBeTrue)
+		SoMsg("Choose first", i.Addr().IP.Equal(p.infos[ds2].addr.IP), ShouldBeTrue)
 		SoMsg("Name first", i.Name(), ShouldEqual, ds2)
 		i.Fail()
 		i.Fail()
 		i, err = p.Choose()
 		SoMsg("err second", err, ShouldBeNil)
-		SoMsg("Choose second", i.Addr().Equal(p.infos[ds1].addr), ShouldBeTrue)
+		SoMsg("Choose second", i.Addr().IP.Equal(p.infos[ds1].addr.IP), ShouldBeTrue)
 		SoMsg("Name second", i.Name(), ShouldEqual, ds1)
 	})
 }
@@ -146,12 +145,12 @@ func containsAll(p *Pool, names ...string) {
 	}
 }
 
-func contains(p *Pool, name string, a *addr.AppAddr) {
+func contains(p *Pool, name string, a *net.UDPAddr) {
 	Convey("The pool contains "+name, func() {
 		info, ok := p.infos[name]
 		SoMsg("Not found", ok, ShouldBeTrue)
-		SoMsg("Ip", info.addr.L3.IP(), ShouldResemble, a.L3.IP())
-		SoMsg("Port", info.addr.L4, ShouldEqual, a.L4)
+		SoMsg("Ip", info.addr.IP.String(), ShouldResemble, a.IP.String())
+		SoMsg("Port", info.addr.Port, ShouldEqual, a.Port)
 	})
 }
 

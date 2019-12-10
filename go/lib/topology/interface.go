@@ -56,7 +56,7 @@ type Topology interface {
 	Exists(svc addr.HostSVC, name string) bool
 
 	// SBRAddress returns the internal public address of the BR with the specified name.
-	SBRAddress(name string) *snet.Addr
+	SBRAddress(name string) *snet.UDPAddr
 
 	// OverlayAnycast returns the overlay address for an arbitrary server of the requested type.
 	OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error)
@@ -200,17 +200,8 @@ func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
 		return hostInfos
 	}
 	for _, a := range addresses {
-		if v4Addr := a.SCIONAddress; v4Addr != nil {
-			hostInfos = append(hostInfos, net.UDPAddr{
-				IP:   copyIP(v4Addr.L3.IP()),
-				Port: int(v4Addr.L4),
-			})
-		}
-		if v6Addr := a.SCIONAddress; v6Addr != nil {
-			hostInfos = append(hostInfos, net.UDPAddr{
-				IP:   copyIP(v6Addr.L3.IP()),
-				Port: int(v6Addr.L4),
-			})
+		if tmp := a.SCIONAddress; tmp != nil {
+			hostInfos = append(hostInfos, *tmp)
 		}
 	}
 	return hostInfos
@@ -230,17 +221,7 @@ func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr {
 	if topoAddr == nil {
 		return nil
 	}
-	if topoAddr.SCIONAddress == nil {
-		return nil
-	}
-	// FIXME(scrye): The interface this type implements offers read-only access. The copy below
-	// shouldn't be needed, but this can cause tricky to find bugs. We should tackle removing
-	// the copy in a separate PR.
-	ip := topoAddr.SCIONAddress.L3.IP()
-	return &net.UDPAddr{
-		IP:   append(ip[:0:0], ip...),
-		Port: int(topoAddr.SCIONAddress.L4),
-	}
+	return topoAddr.SCIONAddress
 }
 
 func (t *topologyS) Exists(svc addr.HostSVC, name string) bool {
@@ -371,16 +352,12 @@ func (t *topologyS) BRNames() []string {
 	return t.Topology.BRNames
 }
 
-func (t *topologyS) SBRAddress(name string) *snet.Addr {
+func (t *topologyS) SBRAddress(name string) *snet.UDPAddr {
 	br, ok := t.Topology.BR[name]
 	if !ok {
 		return nil
 	}
-	return &snet.Addr{
-		IA:      t.IA(),
-		Host:    br.CtrlAddrs.SCIONAddress,
-		NextHop: br.CtrlAddrs.UnderlayAddr(),
-	}
+	return snet.NewUDPAddr(t.IA(), nil, br.CtrlAddrs.UnderlayAddr(), br.CtrlAddrs.SCIONAddress)
 }
 
 func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {

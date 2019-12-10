@@ -89,9 +89,9 @@ func TestServiceDetails(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/basic.json")
 	cses := IDAddrMap{
 		"cs1-ff00:0:311-2": TopoAddr{
-			SCIONAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.IP{127, 0, 0, 67}),
-				L4: 30073,
+			SCIONAddress: &net.UDPAddr{
+				IP:   net.IP{127, 0, 0, 67},
+				Port: 30073,
 			},
 			UnderlayAddress: &net.UDPAddr{
 				IP:   net.IP{127, 0, 0, 67},
@@ -99,9 +99,9 @@ func TestServiceDetails(t *testing.T) {
 			},
 		},
 		"cs1-ff00:0:311-3": TopoAddr{
-			SCIONAddress: &addr.AppAddr{
-				L3: addr.HostFromIP(net.ParseIP("2001:db8:f00:b43::1")),
-				L4: 23421,
+			SCIONAddress: &net.UDPAddr{
+				IP:   net.ParseIP("2001:db8:f00:b43::1"),
+				Port: 23421,
 			},
 			UnderlayAddress: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:f00:b43::1"),
@@ -134,9 +134,9 @@ func TestIFInfoMap(t *testing.T) {
 				Port: 0,
 			},
 			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.ParseIP("2001:db8:a0b:12f0::1")),
-					L4: 30098,
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
+					Port: 30098,
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
@@ -162,9 +162,9 @@ func TestIFInfoMap(t *testing.T) {
 				Port: 0,
 			},
 			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.ParseIP("2001:db8:a0b:12f0::1")),
-					L4: 30098,
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
+					Port: 30098,
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
@@ -190,9 +190,9 @@ func TestIFInfoMap(t *testing.T) {
 				Port: 0,
 			},
 			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.ParseIP("2001:db8:a0b:12f0::1")),
-					L4: 30098,
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
+					Port: 30098,
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
@@ -225,9 +225,9 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				Port: 0,
 			},
 			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.ParseIP("2001:db8:a0b:12f0::1")),
-					L4: 30098,
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
+					Port: 30098,
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
@@ -253,9 +253,9 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				Port: 0,
 			},
 			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.ParseIP("2001:db8:a0b:12f0::2")),
-					L4: 30098,
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:a0b:12f0::2"),
+					Port: 30098,
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::2"), Port: 30041},
 			},
@@ -768,9 +768,9 @@ func TestRawAddrMap_ToTopoAddr(t *testing.T) {
 				},
 			},
 			addr: &TopoAddr{
-				SCIONAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.IP{192, 168, 1, 1}),
-					L4: 42,
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.IP{192, 168, 1, 1},
+					Port: 42,
 				},
 				UnderlayAddress: &net.UDPAddr{
 					IP:   net.IP{192, 168, 1, 1},
@@ -791,9 +791,9 @@ func TestRawAddrMap_ToTopoAddr(t *testing.T) {
 				},
 			},
 			addr: &TopoAddr{
-				SCIONAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.ParseIP("2001:db8:f00:b43::1")),
-					L4: 42,
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:f00:b43::1"),
+					Port: 42,
 				},
 				UnderlayAddress: &net.UDPAddr{
 					IP:   net.ParseIP("2001:db8:f00:b43::1"),
@@ -886,9 +886,9 @@ func TestRawAddrMap_ToTopoAddr(t *testing.T) {
 				},
 			},
 			addr: &TopoAddr{
-				SCIONAddress: &addr.AppAddr{
-					L3: addr.HostFromIP(net.ParseIP("2001:db8:f00:b43::1")),
-					L4: 42,
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:f00:b43::1"),
+					Port: 42,
 				},
 				UnderlayAddress: &net.UDPAddr{
 					IP:   net.ParseIP("2001:db8:f00:b43::1"),
