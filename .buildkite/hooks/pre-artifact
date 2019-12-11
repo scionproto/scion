@@ -26,4 +26,4 @@ ARTIFACTS_DIR="artifacts"
 mkdir -p "$ARTIFACTS_DIR" artifacts.out
 cp -R "bazel-testlogs" "$ARTIFACTS_DIR"
 cp -R "logs" "$ARTIFACTS_DIR"
-tar chaf "artifacts.out/$ARTIFACTS.tar.gz" artifacts
+tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C "$ARTIFACTS_DIR" .
