@@ -34,9 +34,8 @@ type RPC interface {
 
 // TRCReq holds the values of a TRC request.
 type TRCReq struct {
-	ISD       addr.ISD
-	Version   scrypto.Version
-	CacheOnly bool
+	ISD     addr.ISD
+	Version scrypto.Version
 }
 
 func (r TRCReq) withVersion(version scrypto.Version) TRCReq {
@@ -46,7 +45,6 @@ func (r TRCReq) withVersion(version scrypto.Version) TRCReq {
 
 // ChainReq holds the values of a certificate chain request.
 type ChainReq struct {
-	IA        addr.IA
-	Version   scrypto.Version
-	CacheOnly bool
+	IA      addr.IA
+	Version scrypto.Version
 }
