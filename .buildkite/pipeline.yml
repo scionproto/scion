@@ -1,7 +1,8 @@
 steps:
   - label: ":bazel: Build scion code"
-    command: 
+    command:
       - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci
+    key: build
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
@@ -10,6 +11,7 @@ steps:
   - label: ":bazel: Go tests"
     command:
       - bazel --bazelrc=.bazelrc_ci test //go/... --print_relative_test_log_paths
+    key: go_tests
     artifact_paths:
       - "artifacts.out/**/*"
     retry:

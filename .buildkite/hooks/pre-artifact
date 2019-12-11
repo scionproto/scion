@@ -12,19 +12,18 @@ fi
 # see below.
 #
 # For PRs the target is the pull request, otherwise it is the branch.
+TARGET="$BUILDKITE_PULL_REQUEST"
 if [ "$BUILDKITE_PULL_REQUEST" == "false" ]; then
     TARGET="$BUILDKITE_BRANCH"
-else
-    TARGET="$BUILDKITE_PULL_REQUEST"
 fi
 TARGET="${TARGET//\//_}"
 # For nightly builds instead of the build number print nightly and the date.
 BUILD="build-${BUILDKITE_BUILD_NUMBER}"
 [ -n "$NIGHTLY" ] && BUILD=nightly-"$(date +%s)"
 
-ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY}"
+ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY}.${BUILDKITE_JOB_ID}"
 ARTIFACTS_DIR="artifacts"
 mkdir -p "$ARTIFACTS_DIR" artifacts.out
 cp -R "bazel-testlogs" "$ARTIFACTS_DIR"
 cp -R "logs" "$ARTIFACTS_DIR"
-tar caf "$artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"
+tar caf "artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"
