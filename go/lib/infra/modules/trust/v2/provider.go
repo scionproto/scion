@@ -82,41 +82,42 @@ func (p *cryptoProvider) getCheckedTRC(ctx context.Context, isd addr.ISD, versio
 	if err != nil {
 		return nil, nil, serrors.WrapStr("unable to get requested TRC", err)
 	}
-	if !opts.AllowInactive {
-		info, err := p.db.GetTRCInfo(ctx, isd, scrypto.LatestVer)
+	if opts.AllowInactive {
+		return decTRC.TRC, decTRC.Raw, nil
+	}
+	info, err := p.db.GetTRCInfo(ctx, isd, scrypto.LatestVer)
+	if err != nil {
+		return nil, nil, serrors.WrapStr("unable to get latest TRC info", err)
+	}
+	switch {
+	case info.Version > decTRC.TRC.Version+1:
+		return nil, nil, serrors.WrapStr("inactivated by latest TRC version", ErrInactive,
+			"latest", info.Version)
+	case info.Version == decTRC.TRC.Version+1 && graceExpired(info):
+		return nil, nil, serrors.WrapStr("grace period has passed", ErrInactive,
+			"end", info.Validity.NotBefore.Add(info.GracePeriod), "latest", info.Version)
+	case !decTRC.TRC.Validity.Contains(time.Now()):
+		if !version.IsLatest() || opts.LocalOnly {
+			return nil, nil, serrors.WrapStr("requested TRC expired", ErrInactive,
+				"validity", decTRC.TRC.Validity)
+		}
+		// There might exist a more recent TRC that is not available locally
+		// yet. Fetch it if the latest version was requested and recursion
+		// is allowed.
+		fetched, err := p.fetchTRC(ctx, isd, scrypto.LatestVer, opts, client)
 		if err != nil {
-			return nil, nil, serrors.WrapStr("unable to get latest TRC info", err)
+			return nil, nil, serrors.WrapStr("unable to fetch latest TRC from network", err)
 		}
-		switch {
-		case info.Version > decTRC.TRC.Version+1:
-			return nil, nil, serrors.WrapStr("inactivated by latest TRC version", ErrInactive,
-				"latest", info.Version)
-		case info.Version == decTRC.TRC.Version+1 && graceExpired(info):
-			return nil, nil, serrors.WrapStr("grace period has passed", ErrInactive,
-				"end", info.Validity.NotBefore.Add(info.GracePeriod), "latest", info.Version)
-		case !decTRC.TRC.Validity.Contains(time.Now()):
-			if !version.IsLatest() || opts.LocalOnly {
-				return nil, nil, serrors.WrapStr("requested TRC expired", ErrInactive,
-					"validity", decTRC.TRC.Validity)
-			}
-			// There might exist a more recent TRC that is not available locally
-			// yet. Fetch it if the latest version was requested and recursion
-			// is allowed.
-			fetched, err := p.fetchTRC(ctx, isd, scrypto.LatestVer, opts, client)
-			if err != nil {
-				return nil, nil, serrors.WrapStr("unable to fetch latest TRC from network", err)
-			}
-			if fetched.TRC.Version <= decTRC.TRC.Version {
-				return nil, nil, serrors.WrapStr("latest TRC from network not newer than local",
-					ErrInactive, "net_version", fetched.TRC.Version,
-					"local_version", decTRC.TRC.Version, "validity", decTRC.TRC.Validity)
-			}
-			if !fetched.TRC.Validity.Contains(time.Now()) {
-				return nil, nil, serrors.WrapStr("latest TRC from network expired", ErrInactive,
-					"version", fetched.TRC.Version, "validity", fetched.TRC.Version)
-			}
-			return fetched.TRC, fetched.Raw, nil
+		if fetched.TRC.Version <= decTRC.TRC.Version {
+			return nil, nil, serrors.WrapStr("latest TRC from network not newer than local",
+				ErrInactive, "net_version", fetched.TRC.Version,
+				"local_version", decTRC.TRC.Version, "validity", decTRC.TRC.Validity)
 		}
+		if !fetched.TRC.Validity.Contains(time.Now()) {
+			return nil, nil, serrors.WrapStr("latest TRC from network expired", ErrInactive,
+				"version", fetched.TRC.Version, "validity", fetched.TRC.Version)
+		}
+		return fetched.TRC, fetched.Raw, nil
 	}
 	return decTRC.TRC, decTRC.Raw, nil
 }
@@ -175,27 +176,48 @@ func (p *cryptoProvider) GetRawChain(ctx context.Context, ia addr.IA, version sc
 	if err != nil {
 		return nil, serrors.WrapStr("unable to get requested certificate chain", err)
 	}
-	if !opts.AllowInactive {
-		err := p.issuerActive(ctx, chain, opts.TrustStoreOpts, client)
-		switch {
-		case err == nil:
-		case opts.LocalOnly, !version.IsLatest(), !xerrors.Is(err, ErrInactive):
-			return nil, err
-		default:
-			// There might exist a more recent certificate chain that is not
-			// available locally yet.
-			fetched, err := p.fetchChain(ctx, ia, scrypto.LatestVer, opts, client)
-			if err != nil {
-				return nil, serrors.WrapStr("unable to fetch latest certificate chain from network",
-					err)
-			}
-			if err := p.issuerActive(ctx, fetched, opts.TrustStoreOpts, client); err != nil {
-				return nil, serrors.WrapStr("latest certificate chain from network not active", err)
-			}
-			return fetched.Raw, nil
-		}
+	if opts.AllowInactive {
+		return chain.Raw, nil
 	}
-	return chain.Raw, nil
+	err = p.issuerActive(ctx, chain, opts.TrustStoreOpts, client)
+	switch {
+	case err == nil:
+		return chain.Raw, nil
+	case !xerrors.Is(err, ErrInactive):
+		return nil, err
+	case !version.IsLatest():
+		return nil, err
+	case opts.LocalOnly:
+		return nil, err
+	default:
+		// In case the latest certificate chain is requested, there might be a more
+		// recent and active one that is not locally available yet.
+		fetched, err := p.fetchChain(ctx, ia, scrypto.LatestVer, opts, client)
+		if err != nil {
+			return nil, serrors.WrapStr("unable to fetch latest certificate chain from network",
+				err)
+		}
+		if err := p.issuerActive(ctx, fetched, opts.TrustStoreOpts, client); err != nil {
+			return nil, serrors.WrapStr("latest certificate chain from network not active", err)
+		}
+		return fetched.Raw, nil
+	}
+}
+
+func (p *cryptoProvider) getChain(ctx context.Context, ia addr.IA, version scrypto.Version,
+	opts infra.ChainOpts, client net.Addr) (decoded.Chain, error) {
+
+	raw, err := p.db.GetRawChain(ctx, ia, version)
+	switch {
+	case err == nil:
+		return decoded.DecodeChain(raw)
+	case !xerrors.Is(err, ErrNotFound):
+		return decoded.Chain{}, serrors.WrapStr("error querying DB for certificate chain", err)
+	case opts.LocalOnly:
+		return decoded.Chain{}, serrors.WrapStr("localOnly requested", err)
+	default:
+		return p.fetchChain(ctx, ia, version, opts, client)
+	}
 }
 
 func (p *cryptoProvider) issuerActive(ctx context.Context, chain decoded.Chain,
@@ -220,40 +242,25 @@ func (p *cryptoProvider) issuerActive(ctx context.Context, chain decoded.Chain,
 	if err != nil {
 		return serrors.WrapStr("unable to get issuing key info for latest TRC", err)
 	}
-	if iss.Version != latest.Version {
-		if latest.TRC.Base() || graceExpired(latest.TRC) {
-			return serrors.WrapStr("different issuing key in latest TRC", ErrInactive,
-				"latest_trc_version", latest.TRC.Version,
-				"expected", iss.Version, "actual", latest.Version)
-		}
-		inGrace, err := p.db.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, latest.TRC.Version-1)
-		if err != nil {
-			return serrors.WrapStr("unable to get issuing key info for TRC in grace period", err,
-				"version", latest.TRC.Version-1)
-		}
-		if iss.Version != inGrace.Version {
-			return serrors.WrapStr("different issuing key in latest TRC", ErrInactive,
-				"latest_trc_version", latest.TRC.Version,
-				"expected", iss.Version, "actual", latest.Version)
-		}
+	if iss.Version == latest.Version {
+		return nil
+	}
+	if latest.TRC.Base() || graceExpired(latest.TRC) {
+		return serrors.WrapStr("different issuing key in latest TRC", ErrInactive,
+			"latest_trc_version", latest.TRC.Version,
+			"expected", iss.Version, "actual", latest.Version)
+	}
+	inGrace, err := p.db.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, latest.TRC.Version-1)
+	if err != nil {
+		return serrors.WrapStr("unable to get issuing key info for TRC in grace period", err,
+			"version", latest.TRC.Version-1)
+	}
+	if iss.Version != inGrace.Version {
+		return serrors.WrapStr("different issuing key in latest TRC", ErrInactive,
+			"latest_trc_version", latest.TRC.Version,
+			"expected", iss.Version, "actual", latest.Version)
 	}
 	return nil
-}
-
-func (p *cryptoProvider) getChain(ctx context.Context, ia addr.IA, version scrypto.Version,
-	opts infra.ChainOpts, client net.Addr) (decoded.Chain, error) {
-
-	raw, err := p.db.GetRawChain(ctx, ia, version)
-	switch {
-	case err == nil:
-		return decoded.DecodeChain(raw)
-	case !xerrors.Is(err, ErrNotFound):
-		return decoded.Chain{}, serrors.WrapStr("error querying DB for certificate chain", err)
-	case opts.LocalOnly:
-		return decoded.Chain{}, serrors.WrapStr("localOnly requested", err)
-	default:
-		return p.fetchChain(ctx, ia, version, opts, client)
-	}
 }
 
 func (p *cryptoProvider) fetchChain(ctx context.Context, ia addr.IA, version scrypto.Version,
@@ -263,12 +270,9 @@ func (p *cryptoProvider) fetchChain(ctx context.Context, ia addr.IA, version scr
 	if err := p.recurser.AllowRecursion(client); err != nil {
 		return decoded.Chain{}, err
 	}
-	// In case the server is provided, cache-only should be set.
-	cacheOnly := server != nil || p.alwaysCacheOnly
 	req := ChainReq{
-		IA:        ia,
-		Version:   version,
-		CacheOnly: cacheOnly,
+		IA:      ia,
+		Version: version,
 	}
 	// Choose remote server, if not set.
 	if server == nil {

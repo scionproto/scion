@@ -430,6 +430,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 		require.NoError(t, err)
 		return fake
 	}
+	dec110v1 := loadChain(t, chain110v1)
 	tests := map[string]struct {
 		DB          func(t *testing.T, ctrl *gomock.Controller) trust.DB
 		Recurser    func(t *testing.T, ctrl *gomock.Controller) trust.Recurser
@@ -438,7 +439,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 		ChainDesc   ChainDesc
 		Opts        infra.ChainOpts
 		ExpectedErr error
-		ExpectedRaw func(t *testing.T) []byte
+		ExpectedRaw []byte
 	}{
 		"chain in database, allow inactive": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -459,7 +460,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			},
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{AllowInactive: true},
-			ExpectedRaw: func(t *testing.T) []byte { return loadChain(t, chain110v1).Raw },
+			ExpectedRaw: dec110v1.Raw,
 		},
 		"not found, resolve success": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -478,9 +479,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				r := mock_v2.NewMockResolver(ctrl)
 				req := trust.ChainReq{
-					IA:        ia110,
-					Version:   scrypto.Version(1),
-					CacheOnly: false,
+					IA:      ia110,
+					Version: scrypto.Version(1),
 				}
 				r.EXPECT().Chain(gomock.Any(), req, ip).Return(loadChain(t, chain110v1), nil)
 				return r
@@ -493,7 +493,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			},
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{AllowInactive: true},
-			ExpectedRaw: func(t *testing.T) []byte { return loadChain(t, chain110v1).Raw },
+			ExpectedRaw: dec110v1.Raw,
 		},
 		"latest TRC with same key version": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -511,7 +511,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
-							GracePeriod: time.Hour,
+							GracePeriod: 0,
 							Version:     1,
 						},
 						Version: 1,
@@ -540,7 +540,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			},
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
-			ExpectedRaw: func(*testing.T) []byte { return loadChain(t, chain110v1).Raw },
+			ExpectedRaw: dec110v1.Raw,
 		},
 		"expired latest chain, fetch active latest": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -558,7 +558,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
-							GracePeriod: time.Hour,
+							GracePeriod: 0,
 							Version:     1,
 						},
 						Version: 1,
@@ -584,9 +584,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			Resolver: func(t *testing.T, ctrl *gomock.Controller) trust.Resolver {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				req := trust.ChainReq{
-					IA:        ia110,
-					Version:   scrypto.LatestVer,
-					CacheOnly: false,
+					IA:      ia110,
+					Version: scrypto.LatestVer,
 				}
 				r := mock_v2.NewMockResolver(ctrl)
 				r.EXPECT().Chain(gomock.Any(), req, ip).Return(loadChain(t, chain110v1), nil)
@@ -600,7 +599,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			},
 			ChainDesc:   ChainDesc{IA: ia110, Version: scrypto.LatestVer},
 			Opts:        infra.ChainOpts{},
-			ExpectedRaw: func(t *testing.T) []byte { return loadChain(t, chain110v1).Raw },
+			ExpectedRaw: dec110v1.Raw,
 		},
 		"grace TRC with same key version": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -618,7 +617,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
-							GracePeriod: time.Hour,
+							GracePeriod: 0,
 							Version:     1,
 						},
 						Version: 1,
@@ -661,7 +660,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			},
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
-			ExpectedRaw: func(t *testing.T) []byte { return loadChain(t, chain110v1).Raw },
+			ExpectedRaw: dec110v1.Raw,
 		},
 		"latest TRC with different key version": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -713,7 +712,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: trust.ErrInactive,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"grace TRC with different key version": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -775,7 +774,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: trust.ErrInactive,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"expired latest chain, fetch inactive": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -793,9 +792,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			Resolver: func(t *testing.T, ctrl *gomock.Controller) trust.Resolver {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				req := trust.ChainReq{
-					IA:        ia110,
-					Version:   scrypto.LatestVer,
-					CacheOnly: false,
+					IA:      ia110,
+					Version: scrypto.LatestVer,
 				}
 				r := mock_v2.NewMockResolver(ctrl)
 				r.EXPECT().Chain(gomock.Any(), req, ip).Return(expired(t, chain110v1), nil)
@@ -810,7 +808,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   ChainDesc{IA: ia110, Version: scrypto.LatestVer},
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: trust.ErrInactive,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"expired latest chain, fetch fails": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -828,9 +826,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			Resolver: func(t *testing.T, ctrl *gomock.Controller) trust.Resolver {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				req := trust.ChainReq{
-					IA:        ia110,
-					Version:   scrypto.LatestVer,
-					CacheOnly: false,
+					IA:      ia110,
+					Version: scrypto.LatestVer,
 				}
 				r := mock_v2.NewMockResolver(ctrl)
 				r.EXPECT().Chain(gomock.Any(), req, ip).Return(decoded.Chain{}, internal)
@@ -845,7 +842,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   ChainDesc{IA: ia110, Version: scrypto.LatestVer},
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"failing to fetch TRC": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -870,7 +867,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"failing to get key info for issuing TRC": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -901,7 +898,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"failing to get key info for latest TRC": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -919,7 +916,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
-							GracePeriod: time.Hour,
+							GracePeriod: 0,
 							Version:     1,
 						},
 						Version: 1,
@@ -942,7 +939,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 
 		"failing to get key info for grace TRC": {
@@ -998,7 +995,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"database error": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -1020,7 +1017,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"not found, local only": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -1042,7 +1039,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{LocalOnly: true}},
 			ExpectedErr: trust.ErrNotFound,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"not found, recursion not allowed": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -1066,7 +1063,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"not found, router error": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -1092,7 +1089,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"not found, resolve error": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -1110,9 +1107,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			Resolver: func(t *testing.T, ctrl *gomock.Controller) trust.Resolver {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				req := trust.ChainReq{
-					IA:        ia110,
-					Version:   scrypto.Version(1),
-					CacheOnly: false,
+					IA:      ia110,
+					Version: scrypto.Version(1),
 				}
 				r := mock_v2.NewMockResolver(ctrl)
 				r.EXPECT().Chain(gomock.Any(), req, ip).Return(decoded.Chain{}, internal)
@@ -1127,7 +1123,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			ChainDesc:   chain110v1,
 			Opts:        infra.ChainOpts{},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 		"not found, server set": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
@@ -1145,9 +1141,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			Resolver: func(t *testing.T, ctrl *gomock.Controller) trust.Resolver {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				req := trust.ChainReq{
-					IA:        ia110,
-					Version:   scrypto.Version(1),
-					CacheOnly: true,
+					IA:      ia110,
+					Version: scrypto.Version(1),
 				}
 				r := mock_v2.NewMockResolver(ctrl)
 				r.EXPECT().Chain(gomock.Any(), req, ip).Return(decoded.Chain{}, internal)
@@ -1163,7 +1158,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				},
 			},
 			ExpectedErr: internal,
-			ExpectedRaw: func(*testing.T) []byte { return nil },
+			ExpectedRaw: nil,
 		},
 	}
 	for n, tc := range tests {
@@ -1181,7 +1176,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			raw, err := p.GetRawChain(nil, test.ChainDesc.IA, test.ChainDesc.Version,
 				test.Opts, nil)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
-			assert.Equal(t, test.ExpectedRaw(t), raw)
+			assert.Equal(t, test.ExpectedRaw, raw)
 		})
 	}
 }
