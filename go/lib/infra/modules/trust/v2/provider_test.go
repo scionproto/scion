@@ -678,8 +678,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
-							GracePeriod: time.Hour,
-							Version:     dec.TRC.Version,
+							GracePeriod: 0,
+							Version:     1,
 						},
 						Version: 1,
 					}, nil,
@@ -730,8 +730,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
-							GracePeriod: time.Hour,
-							Version:     dec.TRC.Version,
+							GracePeriod: 0,
+							Version:     1,
 						},
 						Version: 1,
 					}, nil,
@@ -958,8 +958,8 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
-							GracePeriod: time.Hour,
-							Version:     dec.TRC.Version,
+							GracePeriod: 0,
+							Version:     1,
 						},
 						Version: 1,
 					}, nil,

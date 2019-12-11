@@ -67,7 +67,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
 	raw, err := h.provider.GetRawChain(ctx, chainReq.IA(), chainReq.Version,
-		infra.ChainOpts{AllowInactiveTRC: true}, h.request.Peer)
+		infra.ChainOpts{AllowInactive: true}, h.request.Peer)
 	if err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Unable to retrieve chain", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
