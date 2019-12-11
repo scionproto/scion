@@ -59,9 +59,6 @@ type cryptoProvider struct {
 	recurser Recurser
 	resolver Resolver
 	router   Router
-	// alwaysCacheOnly forces the cryptoProvider to always send cache-only
-	// requests. This should be set in the CS.
-	alwaysCacheOnly bool
 }
 
 func (p *cryptoProvider) GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version,
@@ -153,12 +150,9 @@ func (p *cryptoProvider) fetchTRC(ctx context.Context, isd addr.ISD, version scr
 	if err := p.recurser.AllowRecursion(client); err != nil {
 		return decoded.TRC{}, err
 	}
-	// In case the server is provided, cache-only should be set.
-	cacheOnly := server != nil || p.alwaysCacheOnly
 	req := TRCReq{
-		ISD:       isd,
-		Version:   version,
-		CacheOnly: cacheOnly,
+		ISD:     isd,
+		Version: version,
 	}
 	// Choose remote server, if not set.
 	if server == nil {

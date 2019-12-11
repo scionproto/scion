@@ -170,9 +170,8 @@ func (r *resolver) Chain(ctx context.Context, req ChainReq,
 		return decoded.Chain{}, serrors.Wrap(ErrInvalidResponse, err)
 	}
 	w := resolveWrap{
-		resolver:  r,
-		server:    server,
-		cacheOnly: req.CacheOnly,
+		resolver: r,
+		server:   server,
 	}
 	if err := r.inserter.InsertChain(ctx, dec, w.TRC); err != nil {
 		return decoded.Chain{}, serrors.WrapStr("unable to insert certificate chain", err,
@@ -218,9 +217,8 @@ func (w *prevWrap) TRC(_ context.Context, isd addr.ISD, version scrypto.Version)
 // resolverWrap provides TRCs that are backed by the resolver. If a TRC is
 // missing in the DB, network requests are allowed.
 type resolveWrap struct {
-	resolver  *resolver
-	server    net.Addr
-	cacheOnly bool
+	resolver *resolver
+	server   net.Addr
 }
 
 func (w resolveWrap) TRC(ctx context.Context, isd addr.ISD,
@@ -234,9 +232,8 @@ func (w resolveWrap) TRC(ctx context.Context, isd addr.ISD,
 		return nil, serrors.WrapStr("error querying DB for TRC", err)
 	}
 	req := TRCReq{
-		ISD:       isd,
-		Version:   version,
-		CacheOnly: w.cacheOnly,
+		ISD:     isd,
+		Version: version,
 	}
 	decoded, err := w.resolver.TRC(ctx, req, w.server)
 	if err != nil {

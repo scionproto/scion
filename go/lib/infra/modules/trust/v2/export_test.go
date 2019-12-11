@@ -57,15 +57,14 @@ var (
 )
 
 // newTestCryptoProvider returns a new crypto provider for testing.
-func newTestCryptoProvider(db DBRead, recurser Recurser, resolver Resolver, router Router,
-	alwaysCacheOnly bool) CryptoProvider {
+func newTestCryptoProvider(db DBRead, recurser Recurser, resolver Resolver,
+	router Router) CryptoProvider {
 
 	return &cryptoProvider{
-		db:              db,
-		recurser:        recurser,
-		resolver:        resolver,
-		router:          router,
-		alwaysCacheOnly: alwaysCacheOnly,
+		db:       db,
+		recurser: recurser,
+		resolver: resolver,
+		router:   router,
 	}
 }
 

@@ -47,7 +47,6 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 		Expect      func(m *mocks, dec *decoded.TRC)
 		Opts        infra.TRCOpts
 		ExpectedErr error
-		CacheOnly   bool
 	}{
 		"TRC in database, allow inactive": {
 			Expect: func(m *mocks, dec *decoded.TRC) {
@@ -90,9 +89,8 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				)
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(nil)
 				req := trust.TRCReq{
-					ISD:       dec.TRC.ISD,
-					Version:   dec.TRC.Version,
-					CacheOnly: true,
+					ISD:     dec.TRC.ISD,
+					Version: dec.TRC.Version,
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(*dec, nil)
 			},
@@ -202,9 +200,8 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(nil)
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
-					ISD:       dec.TRC.ISD,
-					Version:   dec.TRC.Version,
-					CacheOnly: false,
+					ISD:     dec.TRC.ISD,
+					Version: dec.TRC.Version,
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(decoded.TRC{}, internal)
 			},
@@ -218,9 +215,8 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				)
 				m.Recurser.EXPECT().AllowRecursion(gomock.Any()).Return(nil)
 				req := trust.TRCReq{
-					ISD:       dec.TRC.ISD,
-					Version:   dec.TRC.Version,
-					CacheOnly: true,
+					ISD:     dec.TRC.ISD,
+					Version: dec.TRC.Version,
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(decoded.TRC{}, internal)
 			},
@@ -242,7 +238,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 			}
 			decoded := loadTRC(t, trc1v1)
 			test.Expect(&m, &decoded)
-			provider := trust.NewCryptoProvider(m.DB, m.Recurser, m.Resolver, m.Router, false)
+			provider := trust.NewCryptoProvider(m.DB, m.Recurser, m.Resolver, m.Router)
 			ptrc, err := provider.GetTRC(nil, trc1v1.ISD, trc1v1.Version, test.Opts)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
@@ -268,7 +264,6 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 		Expect      func(m *mocks, dec *decoded.TRC) decoded.TRC
 		Opts        infra.TRCOpts
 		ExpectedErr error
-		CacheOnly   bool
 	}{
 		"TRC in database, allow inactive": {
 			Expect: func(m *mocks, dec *decoded.TRC) decoded.TRC {
@@ -288,9 +283,8 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
-					ISD:       dec.TRC.ISD,
-					Version:   scrypto.Version(scrypto.LatestVer),
-					CacheOnly: false,
+					ISD:     dec.TRC.ISD,
+					Version: scrypto.Version(scrypto.LatestVer),
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(*dec, nil)
 				return *dec
@@ -330,9 +324,8 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
-					ISD:       dec.TRC.ISD,
-					Version:   scrypto.Version(scrypto.LatestVer),
-					CacheOnly: false,
+					ISD:     dec.TRC.ISD,
+					Version: scrypto.Version(scrypto.LatestVer),
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(*dec, nil)
 				return decoded.TRC{}
@@ -354,9 +347,8 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
-					ISD:       dec.TRC.ISD,
-					Version:   scrypto.Version(scrypto.LatestVer),
-					CacheOnly: false,
+					ISD:     dec.TRC.ISD,
+					Version: scrypto.Version(scrypto.LatestVer),
 				}
 				newer := decoded.TRC{TRC: &(*dec.TRC)}
 				newer.TRC.Version += 1
@@ -382,9 +374,8 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				ip := &net.IPAddr{IP: []byte{127, 0, 0, 1}}
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
-					ISD:       dec.TRC.ISD,
-					Version:   scrypto.Version(scrypto.LatestVer),
-					CacheOnly: false,
+					ISD:     dec.TRC.ISD,
+					Version: scrypto.Version(scrypto.LatestVer),
 				}
 				newer := decoded.TRC{TRC: &(*dec.TRC)}
 				newer.TRC.Version += 1
@@ -410,8 +401,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 			}
 			decoded := loadTRC(t, trc1v1)
 			expected := test.Expect(&m, &decoded)
-			provider := trust.NewCryptoProvider(m.DB, m.Recurser, m.Resolver,
-				m.Router, test.CacheOnly)
+			provider := trust.NewCryptoProvider(m.DB, m.Recurser, m.Resolver, m.Router)
 			trcObj, err := provider.GetTRC(nil, trc1v1.ISD, scrypto.LatestVer, test.Opts)
 			assert.Equal(t, expected.TRC, trcObj)
 			if test.ExpectedErr != nil {

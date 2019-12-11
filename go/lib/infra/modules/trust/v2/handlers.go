@@ -66,16 +66,9 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
-	opts := infra.ChainOpts{
-		TrustStoreOpts: infra.TrustStoreOpts{
-			LocalOnly: chainReq.CacheOnly,
-		},
-		AllowInactiveTRC: true,
-	}
 	raw, err := h.provider.GetRawChain(ctx, chainReq.IA(), chainReq.Version,
-		opts, h.request.Peer)
+		infra.ChainOpts{AllowInactiveTRC: true}, h.request.Peer)
 	if err != nil {
-		// FIXME(roosd): We should send a negative response.
 		logger.Error("[TrustStore:chainReqHandler] Unable to retrieve chain", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
 		return infra.MetricsErrTrustStore(err)
@@ -121,14 +114,8 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
-	opts := infra.TRCOpts{
-		TrustStoreOpts: infra.TrustStoreOpts{
-			LocalOnly: trcReq.CacheOnly,
-		},
-		AllowInactive: true,
-	}
 	raw, err := h.provider.GetRawTRC(ctx, trcReq.ISD, trcReq.Version,
-		opts, h.request.Peer)
+		infra.TRCOpts{AllowInactive: true}, h.request.Peer)
 	if err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
