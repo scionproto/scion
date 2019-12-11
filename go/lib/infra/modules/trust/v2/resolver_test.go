@@ -21,7 +21,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	trust "github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
@@ -157,7 +156,7 @@ func TestResolverChain(t *testing.T) {
 				m.RPC.EXPECT().GetCertChain(gomock.Any(), req, nil).Return(
 					nil, internal,
 				)
-				return loadChain(t, chain110v1)
+				return decoded.Chain{}
 			},
 			ChainReq:    trust.ChainReq{IA: ia110, Version: scrypto.LatestVer},
 			ExpectedErr: internal,
@@ -168,7 +167,7 @@ func TestResolverChain(t *testing.T) {
 				m.RPC.EXPECT().GetCertChain(gomock.Any(), req, nil).Return(
 					[]byte("some_garbage"), nil,
 				)
-				return loadChain(t, chain110v1)
+				return decoded.Chain{}
 			},
 			ChainReq:    trust.ChainReq{IA: ia110, Version: scrypto.LatestVer},
 			ExpectedErr: decoded.ErrParse,
@@ -179,7 +178,7 @@ func TestResolverChain(t *testing.T) {
 				m.RPC.EXPECT().GetCertChain(gomock.Any(), req, nil).Return(
 					loadChain(t, chain120v1).Raw, nil,
 				)
-				return loadChain(t, chain110v1)
+				return decoded.Chain{}
 			},
 			ChainReq:    trust.ChainReq{IA: ia110, Version: scrypto.LatestVer},
 			ExpectedErr: trust.ErrInvalidResponse,
@@ -190,7 +189,7 @@ func TestResolverChain(t *testing.T) {
 				m.RPC.EXPECT().GetCertChain(gomock.Any(), req, nil).Return(
 					loadChain(t, chain110v1).Raw, nil,
 				)
-				return loadChain(t, chain110v1)
+				return decoded.Chain{}
 			},
 			ChainReq:    trust.ChainReq{IA: ia110, Version: 2},
 			ExpectedErr: trust.ErrInvalidResponse,
@@ -212,7 +211,7 @@ func TestResolverChain(t *testing.T) {
 				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.Version(1)).Return(
 					nil, internal,
 				)
-				return dec
+				return decoded.Chain{}
 			},
 			ChainReq:    trust.ChainReq{IA: ia110, Version: scrypto.LatestVer},
 			ExpectedErr: internal,
@@ -237,7 +236,7 @@ func TestResolverChain(t *testing.T) {
 				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer).Return(
 					nil, internal,
 				)
-				return dec
+				return decoded.Chain{}
 			},
 			ChainReq:    trust.ChainReq{IA: ia110, Version: scrypto.LatestVer},
 			ExpectedErr: internal,
@@ -255,14 +254,8 @@ func TestResolverChain(t *testing.T) {
 			expected := test.Expect(t, m)
 			r := trust.NewResolver(m.DB, m.Inserter, m.RPC)
 			dec, err := r.Chain(context.Background(), test.ChainReq, nil)
-			if test.ExpectedErr != nil {
-				require.Error(t, err)
-				assert.Truef(t, xerrors.Is(err, test.ExpectedErr),
-					"actual: %s\nexpected: %s", err, test.ExpectedErr)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, expected, dec)
-			}
+			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
+			assert.Equal(t, expected, dec)
 		})
 	}
 }
