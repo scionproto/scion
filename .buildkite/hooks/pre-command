@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -euo pipefail
+
+echo "Starting bazel remote cache proxy"
+
+# Start bazel remote cache proxy for S3
+# Note that S3 keys are injected by buildkite, see
+# https://buildkite.com/docs/pipelines/secrets#storing-secrets-with-the-elastic-ci-stack-for-aws
+docker run -e BAZEL_REMOTE_S3_BUCKET=buildkite-bazel-cache\
+           -e BAZEL_REMOTE_S3_ENDPOINT=s3.eu-central-1.amazonaws.com\
+           -e BAZEL_REMOTE_S3_ACCESS_KEY_ID=$BAZEL_REMOTE_S3_ACCESS_KEY_ID\
+           -e BAZEL_REMOTE_S3_SECRET_ACCESS_KEY=$BAZEL_REMOTE_S3_SECRET_ACCESS_KEY\
+           --net=host -d buchgr/bazel-remote-cache

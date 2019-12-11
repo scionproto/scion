@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -eo pipefail
+
+# Currently this only if for the new pipeline, so if we aren't on the new
+# pipeline just exit.
+if [ ! "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
+    exit 0
+fi
+
+# Now we build the artifact name next, for this we first need TARGET and BUILD,
+# see below.
+#
+# For PRs the target is the pull request, otherwise it is the branch.
+TARGET="$BUILDKITE_PULL_REQUEST"
+if [ "$BUILDKITE_PULL_REQUEST" == "false" ]; then
+    TARGET="$BUILDKITE_BRANCH"
+fi
+TARGET="${TARGET//\//_}"
+# For nightly builds instead of the build number print nightly and the date.
+BUILD="build-${BUILDKITE_BUILD_NUMBER}"
+[ -n "$NIGHTLY" ] && BUILD=nightly-"$(date +%s)"
+
+ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY}.${BUILDKITE_JOB_ID}"
+ARTIFACTS_DIR="artifacts"
+mkdir -p "$ARTIFACTS_DIR/$ARTIFACTS" artifacts.out
+cp -R "bazel-testlogs" "$ARTIFACTS_DIR/$ARTIFACTS"
+cp -R "logs" "$ARTIFACTS_DIR/$ARTIFACTS"
+tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C "$ARTIFACTS_DIR" "$ARTIFACTS"
