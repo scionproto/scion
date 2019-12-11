@@ -18,6 +18,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -48,10 +49,15 @@ func (r ASLocalRecurser) AllowRecursion(peer net.Addr) error {
 		return nil
 	}
 
+	// TODO(roosd): Remove when snet.Addr is removed.
+	if a, ok := peer.(*snet.Addr); ok {
+		peer = a.ToXAddr()
+	}
+
 	a, ok := peer.(*snet.UDPAddr)
 	if !ok {
 		return serrors.WrapStr("unable to determine AS of peer", ErrRecursionNotAllowed,
-			"addr", peer)
+			"addr", peer, "type", common.TypeOf(peer))
 	}
 	if !r.IA.Equal(a.IA) {
 		return serrors.WrapStr("client outside local AS", ErrRecursionNotAllowed,

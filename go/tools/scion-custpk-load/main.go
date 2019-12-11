@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
 )
 
@@ -106,10 +107,11 @@ func loadConfig() error {
 	if err != nil {
 		return common.NewBasicError("Unable to validate config", err)
 	}
-	if trustDB, err = cfg.TrustDB.New(); err != nil {
-		return common.NewBasicError("Failed to init the database", err)
-	}
-	return nil
+	// TODO(roosd): uncomment
+	// if trustDB, err = cfg.TrustDB.New(); err != nil {
+	// 	return common.NewBasicError("Failed to init the database", err)
+	// }
+	return serrors.New("not implemented")
 }
 
 func printSummary(files []string, loadedCusts []*CustKeyMeta) {

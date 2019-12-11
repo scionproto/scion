@@ -31,8 +31,8 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
-	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
+	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -109,9 +109,8 @@ func (c client) attemptRequest(n int) bool {
 
 func (c client) requestCert() (*cert.Chain, error) {
 	req := &cert_mgmt.ChainReq{
-		CacheOnly: false,
-		RawIA:     remoteIA.IAInt(),
-		Version:   scrypto.LatestVer,
+		RawIA:   remoteIA.IAInt(),
+		Version: scrypto.LatestVer,
 	}
 	log.Info("Request to SVC: Chain request", "req", req, "svc", svc)
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
@@ -120,26 +119,26 @@ func (c client) requestCert() (*cert.Chain, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get chain", err)
 	}
-	chain, err := rawChain.Chain()
+	chain, err := cert.ParseChain(rawChain.RawChain)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse chain", err)
 	}
-	if chain == nil {
-		return nil, serrors.New("Empty reply")
+	as, err := chain.AS.Encoded.Decode()
+	if err != nil {
+		return nil, common.NewBasicError("Unable to parse AS certificate", err)
 	}
-	if !chain.Leaf.Subject.Equal(remoteIA) {
+	if !as.Subject.Equal(remoteIA) {
 		return nil, common.NewBasicError("Invalid subject", nil,
-			"expected", remoteIA, "actual", chain.Leaf.Subject)
+			"expected", remoteIA, "actual", as.Subject)
 	}
 	log.Info("Response from SVC: Correct chain", "chain", chain)
-	return chain, nil
+	return &chain, nil
 }
 
 func (c client) requestTRC(chain *cert.Chain) error {
 	req := &cert_mgmt.TRCReq{
-		CacheOnly: false,
-		ISD:       remoteIA.I,
-		Version:   scrypto.LatestVer,
+		ISD:     remoteIA.I,
+		Version: scrypto.LatestVer,
 	}
 	log.Info("Request to SVC: TRC request", "req", req, "svc", svc)
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
@@ -148,21 +147,56 @@ func (c client) requestTRC(chain *cert.Chain) error {
 	if err != nil {
 		return common.NewBasicError("Unable to get trc", err)
 	}
-	trc, err := rawTrc.TRC()
+	signed, err := trc.ParseSigned(rawTrc.RawTRC)
 	if err != nil {
-		return common.NewBasicError("Unable to parse trc", err)
+		return common.NewBasicError("Unable to parse signed trc", err)
 	}
-	if trc == nil {
-		return serrors.New("Empty reply")
+	trc, err := signed.EncodedTRC.Decode()
+	if err != nil {
+		return common.NewBasicError("Unable to parse trc payload", err)
 	}
 	if trc.ISD != remoteIA.I {
 		return common.NewBasicError("Invalid ISD", nil,
 			"expected", remoteIA.I, "actual", trc.ISD)
 	}
-	if err := chain.Verify(remoteIA, trc); err != nil {
-		return common.NewBasicError("Certificate verification failed", err)
+	if err := c.verifyChain(chain, trc); err != nil {
+		return common.NewBasicError("unable to verify chain", err)
 	}
 	log.Info("Response from SVC: Correct TRC", "TRC", trc)
+	return nil
+}
+
+func (c client) verifyChain(chain *cert.Chain, t *trc.TRC) error {
+	as, err := chain.AS.Encoded.Decode()
+	if err != nil {
+		return common.NewBasicError("unable to parse AS certificate", err)
+	}
+	if err := as.Validate(); err != nil {
+		return common.NewBasicError("unable to validate AS certificate", err)
+	}
+	iss, err := chain.Issuer.Encoded.Decode()
+	if err != nil {
+		return common.NewBasicError("unable to parse issuer certificate", err)
+	}
+	if err := iss.Validate(); err != nil {
+		return common.NewBasicError("unable to validate issuer certificate", err)
+	}
+	issVerifier := cert.IssuerVerifier{
+		Issuer:       iss,
+		SignedIssuer: &chain.Issuer,
+		TRC:          t,
+	}
+	if err := issVerifier.Verify(); err != nil {
+		return common.NewBasicError("unable to verify issuer certificate", err)
+	}
+	asVerifier := cert.ASVerifier{
+		Issuer:   iss,
+		SignedAS: &chain.AS,
+		AS:       as,
+	}
+	if err := asVerifier.Verify(); err != nil {
+		return common.NewBasicError("unable to verify issuer certificate", err)
+	}
 	return nil
 }
 
