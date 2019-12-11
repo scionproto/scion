@@ -87,6 +87,16 @@ func svcAddrToProto(svc addr.HostSVC) proto.ServiceType {
 	}
 }
 
+func ifinfoReplyToMap(ifinfoReply *IFInfoReply) map[common.IFIDType]*net.UDPAddr {
+	m := make(map[common.IFIDType]*net.UDPAddr)
+
+	for _, entry := range ifinfoReply.RawEntries {
+		m[entry.IfID] = entry.HostInfo.UDP()
+	}
+
+	return m
+}
+
 type Path struct {
 	interfaces []pathInterface
 	overlay    *net.UDPAddr

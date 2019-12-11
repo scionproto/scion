@@ -30,6 +30,7 @@ package sciond
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -85,6 +86,10 @@ type Connector interface {
 	Paths(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
+	// IFInfo requests from SCIOND addresses and ports of interfaces. Slice
+	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
+	// answer containing all interfaces is returned.
+	IFInfo(ctx context.Context, ifs []common.IFIDType) (map[common.IFIDType]*net.UDPAddr, error)
 	// SVCInfo requests from SCIOND information about addresses and ports of
 	// infrastructure services.  Slice svcTypes contains a list of desired
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
@@ -210,7 +215,9 @@ func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	return pld.(*Pld).AsInfoReply, nil
 }
 
-func (c *conn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
+func (c *conn) IFInfo(ctx context.Context,
+	ifs []common.IFIDType) (map[common.IFIDType]*net.UDPAddr, error) {
+
 	roundTripper, err := c.ctxAwareConnect(ctx)
 	if err != nil {
 		metrics.IFInfos.Inc(errorToPrometheusLabel(err))
@@ -232,7 +239,7 @@ func (c *conn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply,
 		return nil, serrors.WrapStr("[sciond-API] Failed to get IFInfo", err)
 	}
 	metrics.IFInfos.Inc(metrics.OkSuccess)
-	return pld.(*Pld).IfInfoReply, nil
+	return ifinfoReplyToMap(pld.(*Pld).IfInfoReply), nil
 }
 
 func (c *conn) SVCInfo(ctx context.Context,
