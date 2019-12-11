@@ -191,7 +191,7 @@ func (p *brPusher) sendIfStateToAllBRs(ctx context.Context, msg *path_mgmt.IFSta
 
 	for _, br := range topo.BRNames() {
 		t := topo.SBRAddress(br)
-		p.sendIfStateToBr(ctx, msg, br, t.ToXAddr(), wg)
+		p.sendIfStateToBr(ctx, msg, br, t, wg)
 	}
 }
 

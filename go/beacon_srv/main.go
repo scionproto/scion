@@ -192,8 +192,10 @@ func realMain() int {
 	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
-	ohpAddress := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
-	ohpAddress.Port = 0
+	a := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
+	ohpAddress := &net.UDPAddr{
+		IP: append(a.IP[:0:0], a.IP...), Port: 0,
+	}
 	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), ohpAddress, nil,
 		addr.SvcNone, time.Second)
 	if err != nil {

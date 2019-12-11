@@ -59,7 +59,7 @@ func TestPusherPush(t *testing.T) {
 				for _, br := range topoProvider.Get().BRNames() {
 					a := topoProvider.Get().SBRAddress(br)
 					msgr.EXPECT().SendIfStateInfos(gomock.Any(), gomock.Eq(expectedMsg),
-						gomock.Eq(a.ToXAddr()), gomock.Any())
+						gomock.Eq(a), gomock.Any())
 				}
 			}
 			p.Push(context.Background(), 101)
