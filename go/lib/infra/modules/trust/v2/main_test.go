@@ -88,6 +88,7 @@ var (
 // Chains
 var (
 	chain110v1 = ChainDesc{IA: ia110, Version: 1}
+	chain120v1 = ChainDesc{IA: ia120, Version: 1}
 )
 
 func TestMain(m *testing.M) {
