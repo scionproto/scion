@@ -24,8 +24,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
@@ -104,11 +104,11 @@ func (cfg *TrustDBConf) validateBackend() error {
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }
 
-// New creates a TrustDB from the config.
-func (cfg *TrustDBConf) New() (trustdb.TrustDB, error) {
+// New creates a trust database from the config.
+func (cfg *TrustDBConf) New() (trust.DB, error) {
 	log.Info("Connecting TrustDB", "backend", cfg.Backend(), "connection", cfg.Connection())
 	var err error
-	var tdb trustdb.TrustDB
+	var tdb trust.DB
 
 	switch cfg.Backend() {
 	case BackendSqlite:

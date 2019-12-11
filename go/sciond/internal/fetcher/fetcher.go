@@ -59,8 +59,9 @@ type Fetcher struct {
 	segfetcher      *segfetcher.Fetcher
 }
 
-func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore TrustStore,
-	revCache revcache.RevCache, cfg config.SDConfig, topoProvider topology.Provider) *Fetcher {
+func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, inspector infra.ASInspector,
+	verificationFactory infra.VerificationFactory, revCache revcache.RevCache, cfg config.SDConfig,
+	topoProvider topology.Provider) *Fetcher {
 
 	localIA := topoProvider.Get().IA()
 	return &Fetcher{
@@ -71,13 +72,13 @@ func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore Trus
 		segfetcher: segfetcher.FetcherConfig{
 			QueryInterval:       cfg.QueryInterval.Duration,
 			LocalIA:             localIA,
-			ASInspector:         trustStore,
-			VerificationFactory: trustStore,
+			ASInspector:         inspector,
+			VerificationFactory: verificationFactory,
 			PathDB:              pathDB,
 			RevCache:            revCache,
 			RequestAPI:          messenger,
 			DstProvider:         &dstProvider{IA: localIA},
-			Splitter:            NewRequestSplitter(localIA, trustStore),
+			Splitter:            NewRequestSplitter(localIA, inspector),
 			SciondMode:          true,
 			MetricsNamespace:    metrics.Namespace,
 			LocalInfo:           neverLocal{},

@@ -49,8 +49,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -101,25 +100,8 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	trustDB, err := cfg.TrustDB.New()
-	if err != nil {
-		log.Crit("Unable to initialize trustDB", "err", err)
-		return 1
-	}
-	trustDB = trustdb.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
-	defer trustDB.Close()
+
 	topo := itopo.Get()
-	trustConf := trust.Config{
-		MustHaveLocalChain: true,
-		ServiceType:        proto.ServiceType_bs,
-		TopoProvider:       itopo.Provider(),
-	}
-	trustStore := trust.NewStore(trustDB, topo.IA(), trustConf, log.Root())
-	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
-	if err != nil {
-		log.Crit("Unable to load local crypto", "err", err)
-		return 1
-	}
 	if !topo.Exists(addr.SvcBS, cfg.General.ID) {
 		log.Crit("Unable to find topo address")
 		return 1
@@ -143,7 +125,6 @@ func realMain() int {
 			KeyFile:  cfg.QUIC.KeyFile,
 		},
 		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
-		TrustStore:            trustStore,
 		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	msgr, err := nc.Messenger()
@@ -152,6 +133,40 @@ func realMain() int {
 		return 1
 	}
 	defer msgr.CloseServer()
+
+	trustDB, err := cfg.TrustDB.New()
+	if err != nil {
+		log.Crit("Error initializing trust database", "err", err)
+		return 1
+	}
+	defer trustDB.Close()
+	inserter := &trust.ForwardingInserter{
+		BaseInserter: trust.BaseInserter{DB: trustDB},
+		Router:       trust.LocalRouter{IA: topo.IA()},
+		RPC:          trust.DefaultRPC{Msgr: msgr},
+	}
+	provider := &trust.Provider{
+		DB:       trustDB,
+		Recurser: trust.LocalOnlyRecurser{},
+		Resolver: &trust.DefaultResolver{
+			DB:       trustDB,
+			Inserter: inserter,
+			RPC:      trust.DefaultRPC{Msgr: msgr},
+		},
+		Router: trust.LocalRouter{IA: topo.IA()},
+	}
+	trustStore := &trust.Store{
+		Inspector:      trust.DefaultInspector{Provider: provider},
+		CryptoProvider: provider,
+		Inserter:       inserter,
+		DB:             trustDB,
+	}
+	certsDir := filepath.Join(cfg.General.ConfigDir, "certs")
+	if err = trustStore.LoadCryptoMaterial(context.Background(), certsDir); err != nil {
+		log.Crit("Error loading crypto material", "err", err)
+		return 1
+	}
+
 	store, err := loadStore(topo.Core(), topo.IA(), cfg)
 	if err != nil {
 		log.Crit("Unable to open beacon store", "err", err)
@@ -160,13 +175,13 @@ func realMain() int {
 	defer store.Close()
 	intfs = ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	prometheus.MustRegister(ifstate.NewCollector(intfs))
-	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
-	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
+	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler())
+	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler())
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
 	msgr.AddHandler(infra.SignedRev, revocation.NewHandler(store,
-		trustStore.NewVerifier(), 5*time.Second))
+		trust.NewVerifier(trustStore), 5*time.Second))
 	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.IA(), intfs, store,
-		trustStore.NewVerifier()))
+		trust.NewVerifier(trustStore)))
 	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.IA(), intfs,
 		keepalive.StateChangeTasks{
 			RevDropper: store,
@@ -205,7 +220,7 @@ func realMain() int {
 	tasks = &periodicTasks{
 		intfs:        intfs,
 		conn:         conn.(*snet.SCIONPacketConn),
-		trustDB:      trustDB,
+		trustStore:   trustStore,
 		store:        store,
 		msgr:         msgr,
 		topoProvider: itopo.Provider(),
@@ -266,7 +281,7 @@ type periodicTasks struct {
 	intfs           *ifstate.Interfaces
 	conn            *snet.SCIONPacketConn
 	genMac          func() hash.Hash
-	trustDB         trustdb.TrustDB
+	trustStore      *trust.Store
 	store           beaconstorage.Store
 	msgr            infra.Messenger
 	topoProvider    topology.Provider
@@ -485,22 +500,17 @@ func (t *periodicTasks) startRegistrar(topo topology.Topology, segType proto.Pat
 }
 
 func (t *periodicTasks) createSigner(ia addr.IA) (infra.Signer, error) {
-	dir := filepath.Join(cfg.General.ConfigDir, "keys")
-	cfg, err := keyconf.Load(dir, false, false, false, false)
-	if err != nil {
-		return nil, common.NewBasicError("unable to load key config", err)
-	}
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	meta, err := trust.CreateSignMeta(ctx, ia, t.trustDB)
-	if err != nil {
-		return nil, common.NewBasicError("unable to create sign meta", err)
+	gen := trust.SignerGen{
+		IA:       itopo.Get().IA(),
+		Provider: t.trustStore,
+		KeyRing: keyconf.LoadingRing{
+			Dir: filepath.Join(cfg.General.ConfigDir, "keys"),
+			IA:  ia,
+		},
 	}
-	signer, err := trust.NewBasicSigner(cfg.SignKey, meta)
-	if err != nil {
-		return nil, common.NewBasicError("unable to create signer", err)
-	}
-	return signer, nil
+	return gen.Signer(ctx)
 }
 
 func (t *periodicTasks) Kill() {
