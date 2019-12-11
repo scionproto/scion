@@ -1171,8 +1171,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				test.DB(t, mctrl),
 				test.Recurser(t, mctrl),
 				test.Resolver(t, mctrl),
-				test.Router(t, mctrl),
-				false)
+				test.Router(t, mctrl))
 			raw, err := p.GetRawChain(nil, test.ChainDesc.IA, test.ChainDesc.Version,
 				test.Opts, nil)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
