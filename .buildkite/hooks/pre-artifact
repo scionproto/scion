@@ -26,5 +26,5 @@ ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKI
 ARTIFACTS_DIR="artifacts"
 mkdir -p "$ARTIFACTS_DIR" artifacts.out
 cp -R "bazel-testlogs" "$ARTIFACTS_DIR"
-cp -R "logs" artifacts "$ARTIFACTS_DIR"
+cp -R "logs" "$ARTIFACTS_DIR"
 tar caf "$artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"
