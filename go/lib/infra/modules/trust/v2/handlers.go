@@ -80,10 +80,10 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
 		return infra.MetricsErrTrustStore(err)
 	}
-	chainMessage := &cert_mgmt.Chain{
+	reply := &cert_mgmt.Chain{
 		RawChain: raw,
 	}
-	if err = rw.SendCertChainReply(ctx, chainMessage); err != nil {
+	if err = rw.SendCertChainReply(ctx, reply); err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Messenger API error", "err", err)
 		return infra.MetricsErrMsger(err)
 	}
@@ -134,10 +134,10 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
 		return infra.MetricsErrTrustStore(err)
 	}
-	trcMessage := &cert_mgmt.TRC{
+	reply := &cert_mgmt.TRC{
 		RawTRC: raw,
 	}
-	if err := rw.SendTRCReply(ctx, trcMessage); err != nil {
+	if err := rw.SendTRCReply(ctx, reply); err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Messenger error", "err", err)
 		return infra.MetricsErrMsger(err)
 	}
