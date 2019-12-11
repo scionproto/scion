@@ -340,17 +340,6 @@ type IFInfoReply struct {
 	RawEntries []IFInfoReplyEntry `capnp:"entries"`
 }
 
-// Entries maps IFIDs to their addresses and ports; the map is rebuilt each time.
-func (reply *IFInfoReply) Entries() map[common.IFIDType]hostinfo.Host {
-	m := make(map[common.IFIDType]hostinfo.Host)
-
-	for _, entry := range reply.RawEntries {
-		m[entry.IfID] = entry.HostInfo
-	}
-
-	return m
-}
-
 type IFInfoReplyEntry struct {
 	IfID     common.IFIDType
 	HostInfo hostinfo.Host
