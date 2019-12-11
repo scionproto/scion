@@ -23,7 +23,7 @@ BUILD="build-${BUILDKITE_BUILD_NUMBER}"
 
 ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY}.${BUILDKITE_JOB_ID}"
 ARTIFACTS_DIR="artifacts"
-mkdir -p "$ARTIFACTS_DIR" artifacts.out
-cp -R "bazel-testlogs" "$ARTIFACTS_DIR"
-cp -R "logs" "$ARTIFACTS_DIR"
-tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C "$ARTIFACTS_DIR" .
+mkdir -p "$ARTIFACTS_DIR/$ARTIFACTS" artifacts.out
+cp -R "bazel-testlogs" "$ARTIFACTS_DIR/$ARTIFACTS"
+cp -R "logs" "$ARTIFACTS_DIR/$ARTIFACTS"
+tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C "$ARTIFACTS_DIR" "$ARTIFACTS"
