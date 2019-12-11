@@ -81,7 +81,7 @@ func TestChainReqHandler(t *testing.T) {
 					TrustStoreOpts: infra.TrustStoreOpts{
 						LocalOnly: false,
 					},
-					AllowInactiveTRC: true,
+					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
 				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
@@ -106,7 +106,7 @@ func TestChainReqHandler(t *testing.T) {
 					TrustStoreOpts: infra.TrustStoreOpts{
 						LocalOnly: false,
 					},
-					AllowInactiveTRC: true,
+					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
 				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
@@ -131,7 +131,7 @@ func TestChainReqHandler(t *testing.T) {
 					TrustStoreOpts: infra.TrustStoreOpts{
 						LocalOnly: false,
 					},
-					AllowInactiveTRC: true,
+					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
 				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,

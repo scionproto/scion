@@ -70,7 +70,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		TrustStoreOpts: infra.TrustStoreOpts{
 			LocalOnly: chainReq.CacheOnly,
 		},
-		AllowInactiveTRC: true,
+		AllowInactive: true,
 	}
 	raw, err := h.provider.GetRawChain(ctx, chainReq.IA(), chainReq.Version,
 		opts, h.request.Peer)
