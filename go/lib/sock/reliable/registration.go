@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -188,7 +189,7 @@ func (l *registrationAddressField) DecodeFromBytes(b []byte) error {
 func (l *registrationAddressField) SetFromUDPAddr(u *net.UDPAddr) {
 	l.Port = uint16(u.Port)
 	l.AddressType = byte(getIPAddressType(u.IP))
-	l.Address = []byte(u.IP)
+	l.Address = normalizeIP(u.IP)
 }
 
 func (l *registrationAddressField) length() int {
