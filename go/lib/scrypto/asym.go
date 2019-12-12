@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Available asymmetric crypto algorithms. The values must be lower case.
@@ -110,6 +111,13 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 	default:
 		return nil, serrors.WithCtx(ErrUnsupportedSignAlgo, "algo", signAlgo)
 	}
+}
+
+// VerifyED25519 reports whether sig is a valid signature of message by publicKey.
+// It works only for Ed25519.
+func VerifyED25519(publicKey, message []byte, sig *proto.SignS) error {
+	m, s := sig.SigInput(message, false), sig.Signature
+	return Verify(m, s, publicKey, Ed25519)
 }
 
 // Verify takes a signature input and a verifying key and returns an error, if the
