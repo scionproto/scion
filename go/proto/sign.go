@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -48,6 +49,24 @@ func (s *SignS) Copy() *SignS {
 		Src:       append(common.RawBytes(nil), s.Src...),
 		Signature: append(common.RawBytes(nil), s.Signature...),
 	}
+}
+
+// Valid reports whether the signature is valid.
+// TODO(karampok): discuss: if this is the right place and extend with TDD.
+func (s *SignS) Valid(threshold time.Duration) error {
+	if s == nil {
+		return fmt.Errorf("SignS is unset")
+	}
+	if len(s.Signature) == 0 {
+		return fmt.Errorf("SignedPld is missing signature, %v", s.Type)
+	}
+
+	age := time.Now().Sub(s.Time())
+	if age < -threshold {
+		return serrors.New("Invalid timestamp. Signature from future")
+	}
+
+	return nil
 }
 
 // SetTimestamp sets the timestamp.

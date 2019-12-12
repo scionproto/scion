@@ -52,6 +52,8 @@ type CryptoProvider interface {
 	// default server is determined differs between implementations.
 	GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version,
 		opts infra.ChainOpts, client net.Addr) ([]byte, error)
+	//GetASKey ...
+	GetASKey(context.Context, string, *infra.ChainOpts) ([]byte, error)
 }
 
 type cryptoProvider struct {
@@ -176,6 +178,13 @@ func (p *cryptoProvider) fetchTRC(ctx context.Context, isd addr.ISD, version scr
 
 func (p *cryptoProvider) GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version,
 	opts infra.ChainOpts, client net.Addr) ([]byte, error) {
+
+	// TODO(roosd): implement.
+	return nil, serrors.New("not implemented")
+}
+
+func (p *cryptoProvider) GetASKey(ctx context.Context,
+	id string, opts *infra.ChainOpts) ([]byte, error) {
 
 	// TODO(roosd): implement.
 	return nil, serrors.New("not implemented")

@@ -1,0 +1,126 @@
+package trust_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/mock_v2"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/proto"
+)
+
+var public, priv, _ = scrypto.GenKeyPair(scrypto.Ed25519)
+
+func TestNewVerifier(t *testing.T) {
+	_, ok := trust.NewVerifier(nil).(infra.Verifier)
+	assert.True(t, ok)
+}
+func TestVerifyPld(t *testing.T) {
+	testcases := map[string]struct {
+		v       *trust.Verifier
+		spld    *ctrl.SignedPld
+		wantErr assert.ErrorAssertionFunc
+	}{
+		"invalid payload": {
+			v: &trust.Verifier{},
+			spld: &ctrl.SignedPld{
+				Blob: []byte("msg"),
+				Sign: validSignS("msg", "1-ff00:0:110"),
+			},
+			wantErr: assert.Error,
+		},
+		//"invalid timestamp": {}
+		//"ignore sign": {}
+	}
+	for tn, tc := range testcases {
+		t.Run(tn, func(t *testing.T) {
+			_, err := tc.v.VerifyPld(context.Background(), tc.spld)
+			tc.wantErr(t, err)
+		})
+	}
+
+	// t.Run("happy path", func(t *testing.T) {
+	// })
+}
+
+func TestVerify(t *testing.T) {
+	errorcases := map[string]struct {
+		v    *trust.Verifier
+		msg  []byte
+		sign *proto.SignS
+	}{
+		"invalid sign": {
+			v: &trust.Verifier{},
+		},
+		"cannot init signature source": {
+			v:    &trust.Verifier{},
+			msg:  []byte("random"),
+			sign: invalidSignS("random", "1-ff00:0:110"),
+		},
+		"invalid bound source": {
+			v: &trust.Verifier{
+				IA: xtest.MustParseIA("1-ff00:0:111"),
+			},
+			msg:  []byte("random"),
+			sign: validSignS("random", "1-ff00:0:110"),
+		},
+	}
+	for tn, tc := range errorcases {
+		t.Run(tn, func(t *testing.T) {
+			err := tc.v.Verify(context.Background(), tc.msg, tc.sign)
+			assert.Error(t, err)
+		})
+	}
+
+	t.Run("happy path", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		p := mock_v2.NewMockCryptoProvider(ctrl)
+		p.EXPECT().GetASKey(gomock.Any(), gomock.Any(), nil).Return(public, nil)
+
+		v := &trust.Verifier{
+			IA:    xtest.MustParseIA("1-ff00:0:110"),
+			Store: p,
+		}
+
+		msg, sign := []byte("random"), validSignS("random", "1-ff00:0:110")
+		err := v.Verify(context.Background(), msg, sign)
+		assert.NoError(t, err)
+	})
+}
+
+func TestVerifierWithIA(t *testing.T) {
+	ia := xtest.MustParseIA("1-ff00:0:110")
+	x := &trust.Verifier{}
+	assert.NotNil(t, x)
+	y := x.WithIA(ia).(*trust.Verifier)
+	assert.Equal(t, y.IA, ia)
+}
+
+func validSignS(msg, ia string) *proto.SignS {
+	//_, priv, _ := scrypto.GenKeyPair(scrypto.Ed25519)
+	src := ctrl.SignSrcDef{
+		IA:       xtest.MustParseIA(ia),
+		ChainVer: 1,
+		TRCVer:   1,
+	}
+	sign := proto.NewSignS(proto.SignType_ed25519, src.Pack())
+	sign.SetTimestamp(time.Now())
+	sign.Signature, _ = scrypto.Sign(sign.SigInput([]byte(msg), false), priv, scrypto.Ed25519)
+	return sign
+}
+
+func invalidSignS(msg, ia string) *proto.SignS {
+	ret := validSignS(msg, ia)
+	ret.Src = []byte("wrongcontent")
+	return ret
+
+}
