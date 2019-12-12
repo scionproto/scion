@@ -87,3 +87,15 @@ func (s *SignSrcDef) Pack() common.RawBytes {
 func (s *SignSrcDef) String() string {
 	return fmt.Sprintf("IA: %s ChainVer: %d TRCVer: %d", s.IA, s.ChainVer, s.TRCVer)
 }
+
+func (s *SignSrcDef) Equal(t SignSrcDef) bool {
+	switch {
+	case !s.IA.Equal(t.IA):
+		return false
+	case s.ChainVer != t.ChainVer:
+		return false
+	case s.TRCVer != t.TRCVer:
+		return false
+	}
+	return true
+}
