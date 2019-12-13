@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
@@ -137,4 +138,13 @@ func loadChain(t *testing.T, desc ChainDesc) decoded.Chain {
 	chain.AS, err = chain.Chain.AS.Encoded.Decode()
 	require.NoError(t, err, help)
 	return chain
+}
+
+func loadPrivateKey(t *testing.T, id keyconf.ID) keyconf.Key {
+	t.Helper()
+	file := filepath.Join(tmpDir, fmt.Sprintf("ISD%d/AS%s/keys", id.IA.I, id.IA.A.FileFmt()),
+		keyconf.PrivateKeyFile(id.Usage, id.Version))
+	key, err := keyconf.LoadKeyFromFile(file, keyconf.PrivateKey, id)
+	require.NoError(t, err, help)
+	return key
 }
