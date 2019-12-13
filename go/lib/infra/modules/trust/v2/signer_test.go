@@ -139,7 +139,7 @@ func TestSignerSign(t *testing.T) {
 		require.NoError(t, err)
 
 		input := sign.SigInput([]byte("wasn't me"), false)
-		scrypto.Verify(input, sign.Signature, pub, scrypto.Ed25519)
+		assert.NoError(t, scrypto.Verify(input, sign.Signature, pub, scrypto.Ed25519))
 	})
 	t.Run("fail", func(t *testing.T) {
 		mcfg := cfg
@@ -336,14 +336,16 @@ func TestSignerGenSigner(t *testing.T) {
 			}
 			signer, err := g.Signer(context.Background())
 			test.ErrAssertion(t, err)
-			if signer != nil {
-				sign, err := signer.Sign([]byte("wasn't me"))
-				require.NoError(t, err)
-
-				meta := loadChain(t, chain110v1).AS.Keys[cert.SigningKey]
-				input := sign.SigInput([]byte("wasn't me"), false)
-				scrypto.Verify(input, sign.Signature, meta.Key, meta.Algorithm)
+			if signer == nil {
+				return
 			}
+			sign, err := signer.Sign([]byte("wasn't me"))
+			require.NoError(t, err)
+
+			meta := loadChain(t, chain110v1).AS.Keys[cert.SigningKey]
+			input := sign.SigInput([]byte("wasn't me"), false)
+			assert.NoError(t, scrypto.Verify(input, sign.Signature, meta.Key, meta.Algorithm))
+
 		})
 	}
 }
