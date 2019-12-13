@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -48,6 +49,20 @@ func (s *SignS) Copy() *SignS {
 		Src:       append(common.RawBytes(nil), s.Src...),
 		Signature: append(common.RawBytes(nil), s.Signature...),
 	}
+}
+
+// Valid reports whether the signature is valid.
+func (s *SignS) Valid(threshold time.Duration) error {
+	if s == nil {
+		return serrors.New("signature is unset")
+	}
+	if len(s.Signature) == 0 {
+		return serrors.New("missing signature", "type", s.Type)
+	}
+	if time.Now().Add(threshold).Before(s.Time()) {
+		return serrors.New("invalid timestamp, signature from future")
+	}
+	return nil
 }
 
 // SetTimestamp sets the timestamp.

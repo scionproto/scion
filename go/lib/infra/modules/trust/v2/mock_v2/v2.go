@@ -42,6 +42,21 @@ func (m *MockCryptoProvider) EXPECT() *MockCryptoProviderMockRecorder {
 	return m.recorder
 }
 
+// GetASKey mocks base method
+func (m *MockCryptoProvider) GetASKey(arg0 context.Context, arg1 v2.ChainID, arg2 *infra.ChainOpts) (*scrypto.KeyMeta, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetASKey", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*scrypto.KeyMeta)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetASKey indicates an expected call of GetASKey
+func (mr *MockCryptoProviderMockRecorder) GetASKey(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetASKey", reflect.TypeOf((*MockCryptoProvider)(nil).GetASKey), arg0, arg1, arg2)
+}
+
 // GetRawChain mocks base method
 func (m *MockCryptoProvider) GetRawChain(arg0 context.Context, arg1 addr.IA, arg2 scrypto.Version, arg3 infra.ChainOpts, arg4 net.Addr) ([]byte, error) {
 	m.ctrl.T.Helper()

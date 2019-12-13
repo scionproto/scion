@@ -432,8 +432,7 @@ type Verifier interface {
 	// objects from the specified server.
 	WithServer(server net.Addr) Verifier
 	// WithIA returns a verifier that only accepts signatures from the
-	// specified AS. Zero values in the ISD-AS pair are considered a wild
-	// card.
+	// specified IA.
 	WithIA(ia addr.IA) Verifier
 	// WithSrc returns a verifier that is bound to the specified source.
 	// It verifies against the specified source, and not the value

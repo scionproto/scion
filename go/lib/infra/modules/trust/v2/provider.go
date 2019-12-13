@@ -52,6 +52,14 @@ type CryptoProvider interface {
 	// default server is determined differs between implementations.
 	GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version,
 		opts infra.ChainOpts, client net.Addr) ([]byte, error)
+	//GetASKey returns from trust store the public key required to verify signature
+	//originated from an AS.
+	GetASKey(context.Context, ChainID, *infra.ChainOpts) (*scrypto.KeyMeta, error)
+}
+
+type ChainID struct {
+	IA      addr.IA
+	Version scrypto.Version
 }
 
 type cryptoProvider struct {
@@ -287,6 +295,13 @@ func (p *cryptoProvider) fetchChain(ctx context.Context, ia addr.IA, version scr
 			"from network", err)
 	}
 	return chain, nil
+}
+
+func (p *cryptoProvider) GetASKey(ctx context.Context,
+	id ChainID, opts *infra.ChainOpts) (*scrypto.KeyMeta, error) {
+
+	// TODO(karampok): implement.
+	return nil, serrors.New("not implemented")
 }
 
 func graceExpired(info TRCInfo) bool {
