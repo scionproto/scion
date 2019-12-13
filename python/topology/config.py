@@ -41,7 +41,6 @@ from lib.util import (
     load_yaml_file,
     write_file,
 )
-from topology.ca import CAGenArgs, CAGenerator
 from topology.cert import CertGenArgs, CertGenerator
 from topology.common import (
     ArgsBase,
@@ -114,11 +113,8 @@ class ConfigGenerator(object):
         Generate all needed files.
         """
         self._ensure_uniq_ases()
-        ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         topo_dicts, self.networks, prv_networks = self._generate_topology()
         self._generate_with_topo(topo_dicts)
-        self._write_ca_files(topo_dicts, ca_private_key_files)
-        self._write_ca_files(topo_dicts, ca_cert_files)
         self._write_networks_conf(self.networks, NETWORKS_FILE)
         if self.args.bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
@@ -142,13 +138,6 @@ class ConfigGenerator(object):
         self._generate_prom_conf(topo_dicts)
         self._generate_certs_trcs(topo_dicts)
         self._generate_load_custs_sh(topo_dicts)
-
-    def _generate_cas(self):
-        ca_gen = CAGenerator(self._ca_args())
-        return ca_gen.generate()
-
-    def _ca_args(self):
-        return CAGenArgs(self.args, self.topo_config)
 
     def _generate_certs_trcs(self, topo_dicts):
         certgen = CertGenerator(self._cert_args())
