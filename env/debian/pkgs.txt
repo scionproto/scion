@@ -4,6 +4,7 @@ cgroup-bin
 curl
 dnsutils
 file
+flake8
 g++
 gcc
 git
