@@ -54,7 +54,7 @@ type CryptoProvider interface {
 		opts infra.ChainOpts, client net.Addr) ([]byte, error)
 	//GetASKey returns from trust store the public key required to verify signature
 	//originated from an AS.
-	GetASKey(context.Context, ChainID, *infra.ChainOpts) ([]byte, error)
+	GetASKey(context.Context, ChainID, *infra.ChainOpts) (*scrypto.KeyMeta, error)
 }
 
 type ChainID struct {
@@ -298,9 +298,9 @@ func (p *cryptoProvider) fetchChain(ctx context.Context, ia addr.IA, version scr
 }
 
 func (p *cryptoProvider) GetASKey(ctx context.Context,
-	id ChainID, opts *infra.ChainOpts) ([]byte, error) {
+	id ChainID, opts *infra.ChainOpts) (*scrypto.KeyMeta, error) {
 
-	// TODO(roosd): implement.
+	// TODO(karampok): implement.
 	return nil, serrors.New("not implemented")
 }
 

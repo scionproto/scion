@@ -42,10 +42,10 @@ func (m *MockCryptoProvider) EXPECT() *MockCryptoProviderMockRecorder {
 }
 
 // GetASKey mocks base method
-func (m *MockCryptoProvider) GetASKey(arg0 context.Context, arg1 v2.ChainID, arg2 *infra.ChainOpts) ([]byte, error) {
+func (m *MockCryptoProvider) GetASKey(arg0 context.Context, arg1 v2.ChainID, arg2 *infra.ChainOpts) (*scrypto.KeyMeta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetASKey", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]byte)
+	ret0, _ := ret[0].(*scrypto.KeyMeta)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

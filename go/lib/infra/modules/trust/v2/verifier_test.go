@@ -38,8 +38,6 @@ func TestVerifyPld(t *testing.T) {
 			},
 			wantErr: assert.Error,
 		},
-		//"invalid timestamp": {}
-		//"ignore sign": {}
 	}
 	for tn, tc := range testcases {
 		t.Run(tn, func(t *testing.T) {
@@ -47,9 +45,6 @@ func TestVerifyPld(t *testing.T) {
 			tc.wantErr(t, err)
 		})
 	}
-
-	// t.Run("happy path", func(t *testing.T) {
-	// })
 }
 
 func TestVerify(t *testing.T) {
@@ -92,7 +87,8 @@ func TestVerify(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		p := mock_v2.NewMockCryptoProvider(ctrl)
-		p.EXPECT().GetASKey(gomock.Any(), gomock.Any(), gomock.Any()).Return(public, nil)
+		p.EXPECT().GetASKey(gomock.Any(), gomock.Any(),
+			gomock.Any()).Return(&scrypto.KeyMeta{Key: public, Algorithm: scrypto.Ed25519}, nil)
 
 		v := &trust.Verifier{
 			Store: p,

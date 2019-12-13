@@ -102,7 +102,8 @@ func (v *verifier) Verify(ctx context.Context, msg common.RawBytes, sign *proto.
 		return err
 	}
 
-	return scrypto.VerifyED25519(key, msg, sign)
+	m, s := sign.SigInput(msg, false), sign.Signature
+	return scrypto.Verify(m, s, key.Key, key.Algorithm)
 }
 
 //TODO(karampok). discuss: given we have create setters for fields,
