@@ -213,8 +213,8 @@ func (p Path) Copy() snet.Path {
 
 func (p Path) String() string {
 	hops := p.fmtInterfaces()
-	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s:%d",
-		strings.Join(hops, ">"), p.mtu, p.overlay.IP, p.overlay.Port)
+	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s",
+		strings.Join(hops, ">"), p.mtu, p.overlay)
 }
 
 func (p Path) fmtInterfaces() []string {
