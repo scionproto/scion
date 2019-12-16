@@ -32,7 +32,7 @@ type scionConnBase struct {
 	// Reference to SCION networking context
 	scionNet *SCIONNetwork
 
-	// Describes L3 and L4 protocol; currently only udp4 is implemented
+	// Describes L4 protocol; currently only udp is implemented
 	net string
 }
 

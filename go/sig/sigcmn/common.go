@@ -81,7 +81,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
-	conn, err := network.Listen("udp4",
+	conn, err := network.Listen("udp",
 		&net.UDPAddr{IP: Host.IP(), Port: int(cfg.CtrlPort)}, addr.SvcSIG, 0)
 	if err != nil {
 		return common.NewBasicError("Error creating ctrl socket", err)
