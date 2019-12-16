@@ -260,9 +260,14 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 			}
 			decoded := loadTRC(t, trc1v1)
 			test.Expect(&m, &decoded)
-			provider := trust.NewCryptoProvider(m.DB, m.Recurser, m.Resolver, m.Router)
-			ptrc, err := provider.GetTRC(nil,
-				trust.TRCID{ISD: trc1v1.ISD, Version: trc1v1.Version}, test.Opts)
+			provider := trust.Provider{
+				DB:       m.DB,
+				Recurser: m.Recurser,
+				Resolver: m.Resolver,
+				Router:   m.Router,
+			}
+			id := trust.TRCID{ISD: trc1v1.ISD, Version: trc1v1.Version}
+			ptrc, err := provider.GetTRC(nil, id, test.Opts)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
 				assert.Truef(t, xerrors.Is(err, test.ExpectedErr),
@@ -309,7 +314,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
 					ISD:     dec.TRC.ISD,
-					Version: scrypto.Version(scrypto.LatestVer),
+					Version: scrypto.LatestVer,
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(*dec, nil)
 				return *dec
@@ -354,7 +359,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
 					ISD:     dec.TRC.ISD,
-					Version: scrypto.Version(scrypto.LatestVer),
+					Version: scrypto.LatestVer,
 				}
 				m.Resolver.EXPECT().TRC(gomock.Any(), req, ip).Return(*dec, nil)
 				return decoded.TRC{}
@@ -379,7 +384,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
 					ISD:     dec.TRC.ISD,
-					Version: scrypto.Version(scrypto.LatestVer),
+					Version: scrypto.LatestVer,
 				}
 				newer := decoded.TRC{TRC: &(*dec.TRC)}
 				newer.TRC.Version += 1
@@ -408,7 +413,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				m.Router.EXPECT().ChooseServer(gomock.Any(), dec.TRC.ISD).Return(ip, nil)
 				req := trust.TRCReq{
 					ISD:     dec.TRC.ISD,
-					Version: scrypto.Version(scrypto.LatestVer),
+					Version: scrypto.LatestVer,
 				}
 				newer := decoded.TRC{TRC: &(*dec.TRC)}
 				newer.TRC.Version += 1
@@ -434,9 +439,14 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 			}
 			decoded := loadTRC(t, trc1v1)
 			expected := test.Expect(&m, &decoded)
-			provider := trust.NewCryptoProvider(m.DB, m.Recurser, m.Resolver, m.Router)
-			trcObj, err := provider.GetTRC(nil,
-				trust.TRCID{ISD: trc1v1.ISD, Version: scrypto.LatestVer}, test.Opts)
+			provider := trust.Provider{
+				DB:       m.DB,
+				Recurser: m.Recurser,
+				Resolver: m.Resolver,
+				Router:   m.Router,
+			}
+			id := trust.TRCID{ISD: trc1v1.ISD, Version: scrypto.LatestVer}
+			trcObj, err := provider.GetTRC(nil, id, test.Opts)
 			assert.Equal(t, expected.TRC, trcObj)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
@@ -1235,14 +1245,14 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			p := trust.NewCryptoProvider(
-				test.DB(t, mctrl),
-				test.Recurser(t, mctrl),
-				test.Resolver(t, mctrl),
-				test.Router(t, mctrl))
-			raw, err := p.GetRawChain(nil,
-				trust.ChainID{IA: test.ChainDesc.IA, Version: test.ChainDesc.Version},
-				test.Opts)
+			p := trust.Provider{
+				DB:       test.DB(t, mctrl),
+				Recurser: test.Recurser(t, mctrl),
+				Resolver: test.Resolver(t, mctrl),
+				Router:   test.Router(t, mctrl),
+			}
+			id := trust.ChainID{IA: test.ChainDesc.IA, Version: test.ChainDesc.Version}
+			raw, err := p.GetRawChain(nil, id, test.Opts)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, test.ExpectedRaw, raw)
 		})
@@ -1314,14 +1324,14 @@ func TestCryptoProviderGetASKey(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			p := trust.NewCryptoProvider(
-				test.DB(t, mctrl),
-				test.Recurser(t, mctrl),
-				test.Resolver(t, mctrl),
-				test.Router(t, mctrl))
-			km, err := p.GetASKey(nil,
-				trust.ChainID{IA: test.ChainDesc.IA, Version: test.ChainDesc.Version},
-				test.Opts)
+			p := trust.Provider{
+				DB:       test.DB(t, mctrl),
+				Recurser: test.Recurser(t, mctrl),
+				Resolver: test.Resolver(t, mctrl),
+				Router:   test.Router(t, mctrl),
+			}
+			id := trust.ChainID{IA: test.ChainDesc.IA, Version: test.ChainDesc.Version}
+			km, err := p.GetASKey(nil, id, test.Opts)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, test.ExpectedKeyMeta, km)
 		})
