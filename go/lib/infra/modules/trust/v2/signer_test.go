@@ -196,8 +196,9 @@ func TestSignerGenSigner(t *testing.T) {
 		"chain lookup fails": {
 			Provider: func(t *testing.T, ctrl *gomock.Controller) trust.CryptoProvider {
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					infra.ChainOpts{}, nil).Return(nil, internal)
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					infra.ChainOpts{}).Return(nil, internal)
 				return p
 			},
 			KeyRing: func(t *testing.T, ctrl *gomock.Controller) trust.KeyRing {
@@ -208,8 +209,9 @@ func TestSignerGenSigner(t *testing.T) {
 		"garbage chain": {
 			Provider: func(t *testing.T, ctrl *gomock.Controller) trust.CryptoProvider {
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					infra.ChainOpts{}, nil).Return([]byte("garbage"), nil)
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					infra.ChainOpts{}).Return([]byte("garbage"), nil)
 				return p
 			},
 			KeyRing: func(t *testing.T, ctrl *gomock.Controller) trust.KeyRing {
@@ -220,8 +222,9 @@ func TestSignerGenSigner(t *testing.T) {
 		"key not found": {
 			Provider: func(t *testing.T, ctrl *gomock.Controller) trust.CryptoProvider {
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					infra.ChainOpts{}, nil).Return(loadChain(t, chain110v1).Raw, nil)
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					infra.ChainOpts{}).Return(loadChain(t, chain110v1).Raw, nil)
 				return p
 			},
 			KeyRing: func(t *testing.T, ctrl *gomock.Controller) trust.KeyRing {
@@ -234,8 +237,9 @@ func TestSignerGenSigner(t *testing.T) {
 		"garbage private key": {
 			Provider: func(t *testing.T, ctrl *gomock.Controller) trust.CryptoProvider {
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					infra.ChainOpts{}, nil).Return(loadChain(t, chain110v1).Raw, nil)
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					infra.ChainOpts{}).Return(loadChain(t, chain110v1).Raw, nil)
 				return p
 			},
 			KeyRing: func(t *testing.T, ctrl *gomock.Controller) trust.KeyRing {
@@ -251,8 +255,9 @@ func TestSignerGenSigner(t *testing.T) {
 		"differing key": {
 			Provider: func(t *testing.T, ctrl *gomock.Controller) trust.CryptoProvider {
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					infra.ChainOpts{}, nil).Return(loadChain(t, chain110v1).Raw, nil)
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					infra.ChainOpts{}).Return(loadChain(t, chain110v1).Raw, nil)
 				return p
 			},
 			KeyRing: func(t *testing.T, ctrl *gomock.Controller) trust.KeyRing {
@@ -268,9 +273,11 @@ func TestSignerGenSigner(t *testing.T) {
 		"getting TRC fails": {
 			Provider: func(t *testing.T, ctrl *gomock.Controller) trust.CryptoProvider {
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					infra.ChainOpts{}, nil).Return(loadChain(t, chain110v1).Raw, nil)
-				p.EXPECT().GetTRC(gomock.Any(), ia110.I, scrypto.LatestVer, gomock.Any()).Return(
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					infra.ChainOpts{}).Return(loadChain(t, chain110v1).Raw, nil)
+				p.EXPECT().GetTRC(gomock.Any(),
+					trust.TRCID{ia110.I, scrypto.LatestVer}, infra.TRCOpts{}).Return(
 					nil, internal,
 				)
 				return p
@@ -286,9 +293,11 @@ func TestSignerGenSigner(t *testing.T) {
 		"invalid IA": {
 			Provider: func(t *testing.T, ctrl *gomock.Controller) trust.CryptoProvider {
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					infra.ChainOpts{}, nil).Return(loadChain(t, chain110v1).Raw, nil)
-				p.EXPECT().GetTRC(gomock.Any(), ia110.I, scrypto.LatestVer, gomock.Any()).Return(
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					infra.ChainOpts{}).Return(loadChain(t, chain110v1).Raw, nil)
+				p.EXPECT().GetTRC(gomock.Any(),
+					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}, infra.TRCOpts{}).Return(
 					loadTRC(t, trc1v1).TRC, nil,
 				)
 				return p
@@ -306,9 +315,11 @@ func TestSignerGenSigner(t *testing.T) {
 		"valid": {
 			Provider: func(t *testing.T, ctrl *gomock.Controller) trust.CryptoProvider {
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					infra.ChainOpts{}, nil).Return(loadChain(t, chain110v1).Raw, nil)
-				p.EXPECT().GetTRC(gomock.Any(), ia110.I, scrypto.LatestVer, gomock.Any()).Return(
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					infra.ChainOpts{}).Return(loadChain(t, chain110v1).Raw, nil)
+				p.EXPECT().GetTRC(gomock.Any(),
+					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}, infra.TRCOpts{}).Return(
 					loadTRC(t, trc1v1).TRC, nil,
 				)
 				return p

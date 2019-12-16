@@ -60,8 +60,8 @@ func TestInspectorByAttributes(t *testing.T) {
 		},
 		"error": {
 			Expect: func(provider *mock_v2.MockCryptoProvider, _ *trc.TRC) {
-				provider.EXPECT().GetTRC(gomock.Any(), trc1v1.ISD,
-					scrypto.LatestVer, gomock.Any()).Return(nil, trust.ErrNotFound)
+				provider.EXPECT().GetTRC(gomock.Any(), trust.TRCID{ISD: trc1v1.ISD,
+					Version: scrypto.LatestVer}, gomock.Any()).Return(nil, trust.ErrNotFound)
 			},
 			ExpectedErr: trust.ErrNotFound,
 		},
@@ -140,8 +140,8 @@ func TestInspectorHasAttributes(t *testing.T) {
 		"error": {
 			IA: ia110,
 			Expect: func(provider *mock_v2.MockCryptoProvider, _ *trc.TRC) {
-				provider.EXPECT().GetTRC(gomock.Any(), ia110.I,
-					scrypto.LatestVer, gomock.Any()).Return(nil, trust.ErrNotFound)
+				provider.EXPECT().GetTRC(gomock.Any(), trust.TRCID{ISD: ia110.I,
+					Version: scrypto.LatestVer}, gomock.Any()).Return(nil, trust.ErrNotFound)
 			},
 			ExpectedErr: trust.ErrNotFound,
 		},
@@ -182,6 +182,6 @@ func defaultExpect(provider *mock_v2.MockCryptoProvider, trcObj *trc.TRC) {
 	entry = trcObj.PrimaryASes[ia120.A]
 	entry.Attributes = []trc.Attribute{trc.Issuing}
 	trcObj.PrimaryASes[ia120.A] = entry
-	provider.EXPECT().GetTRC(gomock.Any(), addr.ISD(1),
-		scrypto.LatestVer, gomock.Any()).Return(trcObj, nil)
+	provider.EXPECT().GetTRC(gomock.Any(), trust.TRCID{ISD: addr.ISD(1),
+		Version: scrypto.LatestVer}, gomock.Any()).Return(trcObj, nil)
 }

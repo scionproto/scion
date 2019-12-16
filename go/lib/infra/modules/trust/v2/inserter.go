@@ -17,9 +17,7 @@ package trust
 import (
 	"context"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -47,7 +45,7 @@ type Inserter interface {
 
 // TRCProviderFunc provides TRCs. It is used to configure the TRC retrieval
 // method of the inserter.
-type TRCProviderFunc func(context.Context, addr.ISD, scrypto.Version) (*trc.TRC, error)
+type TRCProviderFunc func(context.Context, TRCID) (*trc.TRC, error)
 
 // inserter is used to verify and insert trust material into the database.
 type inserter struct {
@@ -168,7 +166,7 @@ func (ins *baseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC
 		}
 		return false, serrors.WithCtx(ErrBaseNotSupported, "trc", decTRC)
 	}
-	prev, err := trcProvider(ctx, decTRC.TRC.ISD, decTRC.TRC.Version-1)
+	prev, err := trcProvider(ctx, TRCID{ISD: decTRC.TRC.ISD, Version: decTRC.TRC.Version - 1})
 	if err != nil {
 		return false, serrors.WrapStr("unable to get previous TRC", err,
 			"isd", decTRC.TRC.ISD, "version", decTRC.TRC.Version-1)
@@ -212,7 +210,10 @@ func (ins *baseInserter) shouldInsertChain(ctx context.Context, chain decoded.Ch
 	if err := ins.validateChain(chain); err != nil {
 		return false, serrors.WrapStr("error validating the certificate chain", err)
 	}
-	t, err := trcProvider(ctx, chain.Issuer.Subject.I, chain.Issuer.Issuer.TRCVersion)
+	t, err := trcProvider(ctx, TRCID{
+		ISD:     chain.Issuer.Subject.I,
+		Version: chain.Issuer.Issuer.TRCVersion,
+	})
 	if err != nil {
 		return false, serrors.WrapStr("unable to get issuing TRC", err,
 			"isd", chain.Issuer.Subject.I, "version", chain.Issuer.Issuer.TRCVersion)

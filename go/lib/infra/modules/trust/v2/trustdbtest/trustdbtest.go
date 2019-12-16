@@ -139,28 +139,28 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 	})
 	t.Run("GetTRC", func(t *testing.T) {
 		// Fetch existing TRC.
-		fetched, err := db.GetTRC(ctx, v1.TRC.ISD, v1.TRC.Version)
+		fetched, err := db.GetTRC(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: v1.TRC.Version})
 		assert.NoError(t, err)
 		assert.Equal(t, v1.TRC, fetched)
 		// Fetch max of existing TRC.
-		max, err := db.GetTRC(ctx, v1.TRC.ISD, scrypto.LatestVer)
+		max, err := db.GetTRC(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: scrypto.LatestVer})
 		assert.NoError(t, err)
 		assert.Equal(t, v7.TRC, max)
 		// Fetch inexistent TRC.
-		_, err = db.GetTRC(ctx, 42, scrypto.LatestVer)
+		_, err = db.GetTRC(ctx, trust.TRCID{ISD: 42, Version: scrypto.LatestVer})
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 	})
 	t.Run("GetRawTRC", func(t *testing.T) {
 		// Fetch existing TRC.
-		fetched, err := db.GetRawTRC(ctx, v1.TRC.ISD, v1.TRC.Version)
+		fetched, err := db.GetRawTRC(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: v1.TRC.Version})
 		assert.NoError(t, err)
 		assert.Equal(t, v1.Raw, fetched)
 		// Fetch max of existing TRC.
-		max, err := db.GetRawTRC(ctx, v1.TRC.ISD, scrypto.LatestVer)
+		max, err := db.GetRawTRC(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: scrypto.LatestVer})
 		assert.NoError(t, err)
 		assert.Equal(t, v7.Raw, max)
 		// Fetch inexistent TRC.
-		_, err = db.GetRawTRC(ctx, 42, scrypto.LatestVer)
+		_, err = db.GetRawTRC(ctx, trust.TRCID{ISD: 42, Version: scrypto.LatestVer})
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 	})
 	t.Run("GetTRCInfo", func(t *testing.T) {
@@ -170,7 +170,7 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 			GracePeriod: v1.TRC.GracePeriod.Duration,
 			Version:     v1.TRC.Version,
 		}
-		fetched, err := db.GetTRCInfo(ctx, v1.TRC.ISD, v1.TRC.Version)
+		fetched, err := db.GetTRCInfo(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: v1.TRC.Version})
 		assert.NoError(t, err)
 		assert.Equal(t, info, fetched)
 		// Fetch max of existing TRC.
@@ -179,11 +179,11 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 			GracePeriod: v7.TRC.GracePeriod.Duration,
 			Version:     v7.TRC.Version,
 		}
-		max, err := db.GetTRCInfo(ctx, v1.TRC.ISD, scrypto.LatestVer)
+		max, err := db.GetTRCInfo(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: scrypto.LatestVer})
 		assert.NoError(t, err)
 		assert.Equal(t, info, max)
 		// Fetch inexistent TRC.
-		_, err = db.GetTRCInfo(ctx, 42, scrypto.LatestVer)
+		_, err = db.GetTRCInfo(ctx, trust.TRCID{ISD: 42, Version: scrypto.LatestVer})
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 	})
 	t.Run("GetIssuingKeyInfo", func(t *testing.T) {
@@ -297,15 +297,20 @@ func testChain(t *testing.T, db trust.ReadWrite, cfg Config) {
 	})
 	t.Run("GetRawChain", func(t *testing.T) {
 		// Check existing certificate chain.
-		fetched, err := db.GetRawChain(ctx, v1.AS.Subject, v1.AS.Version)
+		fetched, err := db.GetRawChain(ctx, trust.ChainID{
+			IA: v1.AS.Subject, Version: v1.AS.Version})
 		assert.NoError(t, err)
 		assert.Equal(t, v1.Raw, fetched)
 		// Check max of existing certificate chain.
-		max, err := db.GetRawChain(ctx, v1.AS.Subject, scrypto.LatestVer)
+		max, err := db.GetRawChain(ctx, trust.ChainID{
+			IA: v1.AS.Subject, Version: scrypto.LatestVer})
 		assert.NoError(t, err)
 		assert.Equal(t, v7.Raw, max)
 		// Check inexistent certificate chain.
-		_, err = db.GetRawChain(ctx, xtest.MustParseIA("42-ff00:0:142"), scrypto.LatestVer)
+		_, err = db.GetRawChain(ctx, trust.ChainID{
+			IA:      xtest.MustParseIA("42-ff00:0:142"),
+			Version: scrypto.LatestVer,
+		})
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 	})
 	t.Run("InsertChain", func(t *testing.T) {
@@ -352,7 +357,7 @@ func testRollback(t *testing.T, db trust.DB, cfg Config) {
 	err = tx.Rollback()
 	assert.NoError(t, err)
 	// Check that TRC is not in database after rollback.
-	_, err = db.GetTRCInfo(ctx, 1, scrypto.LatestVer)
+	_, err = db.GetTRCInfo(ctx, trust.TRCID{ISD: 1, Version: scrypto.LatestVer})
 	xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 }
 

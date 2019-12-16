@@ -106,7 +106,7 @@ func (v *verifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) er
 	}
 
 	id := ChainID{IA: src.IA, Version: src.ChainVer}
-	opts := &infra.ChainOpts{
+	opts := infra.ChainOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{Server: v.Server},
 	}
 

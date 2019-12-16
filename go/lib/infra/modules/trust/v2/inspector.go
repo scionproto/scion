@@ -44,7 +44,9 @@ func (i *inspector) ByAttributes(ctx context.Context, isd addr.ISD,
 	opts infra.ASInspectorOpts) ([]addr.IA, error) {
 
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
-	t, err := i.provider.GetTRC(ctx, isd, scrypto.Version(scrypto.LatestVer), trcOpts)
+	t, err := i.provider.GetTRC(ctx, TRCID{
+		ISD: isd, Version: scrypto.Version(scrypto.LatestVer)},
+		trcOpts)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to get latest TRC", err, "isd", isd)
 	}
@@ -63,7 +65,9 @@ func (i *inspector) HasAttributes(ctx context.Context, ia addr.IA,
 	opts infra.ASInspectorOpts) (bool, error) {
 
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
-	trc, err := i.provider.GetTRC(ctx, ia.I, scrypto.Version(scrypto.LatestVer), trcOpts)
+	trc, err := i.provider.GetTRC(ctx, TRCID{
+		ISD: ia.I, Version: scrypto.Version(scrypto.LatestVer)},
+		trcOpts)
 	if err != nil {
 		return false, serrors.WrapStr("unable to get latest TRC", err, "isd", ia.I)
 	}

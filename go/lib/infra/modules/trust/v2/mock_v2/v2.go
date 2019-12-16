@@ -43,10 +43,10 @@ func (m *MockCryptoProvider) EXPECT() *MockCryptoProviderMockRecorder {
 }
 
 // GetASKey mocks base method
-func (m *MockCryptoProvider) GetASKey(arg0 context.Context, arg1 v2.ChainID, arg2 *infra.ChainOpts) (*scrypto.KeyMeta, error) {
+func (m *MockCryptoProvider) GetASKey(arg0 context.Context, arg1 v2.ChainID, arg2 infra.ChainOpts) (scrypto.KeyMeta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetASKey", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*scrypto.KeyMeta)
+	ret0, _ := ret[0].(scrypto.KeyMeta)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -58,48 +58,48 @@ func (mr *MockCryptoProviderMockRecorder) GetASKey(arg0, arg1, arg2 interface{})
 }
 
 // GetRawChain mocks base method
-func (m *MockCryptoProvider) GetRawChain(arg0 context.Context, arg1 addr.IA, arg2 scrypto.Version, arg3 infra.ChainOpts, arg4 net.Addr) ([]byte, error) {
+func (m *MockCryptoProvider) GetRawChain(arg0 context.Context, arg1 v2.ChainID, arg2 infra.ChainOpts) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRawChain", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "GetRawChain", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRawChain indicates an expected call of GetRawChain
-func (mr *MockCryptoProviderMockRecorder) GetRawChain(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockCryptoProviderMockRecorder) GetRawChain(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawChain", reflect.TypeOf((*MockCryptoProvider)(nil).GetRawChain), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawChain", reflect.TypeOf((*MockCryptoProvider)(nil).GetRawChain), arg0, arg1, arg2)
 }
 
 // GetRawTRC mocks base method
-func (m *MockCryptoProvider) GetRawTRC(arg0 context.Context, arg1 addr.ISD, arg2 scrypto.Version, arg3 infra.TRCOpts, arg4 net.Addr) ([]byte, error) {
+func (m *MockCryptoProvider) GetRawTRC(arg0 context.Context, arg1 v2.TRCID, arg2 infra.TRCOpts) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRawTRC", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "GetRawTRC", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRawTRC indicates an expected call of GetRawTRC
-func (mr *MockCryptoProviderMockRecorder) GetRawTRC(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockCryptoProviderMockRecorder) GetRawTRC(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawTRC", reflect.TypeOf((*MockCryptoProvider)(nil).GetRawTRC), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawTRC", reflect.TypeOf((*MockCryptoProvider)(nil).GetRawTRC), arg0, arg1, arg2)
 }
 
 // GetTRC mocks base method
-func (m *MockCryptoProvider) GetTRC(arg0 context.Context, arg1 addr.ISD, arg2 scrypto.Version, arg3 infra.TRCOpts) (*v20.TRC, error) {
+func (m *MockCryptoProvider) GetTRC(arg0 context.Context, arg1 v2.TRCID, arg2 infra.TRCOpts) (*v20.TRC, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTRC", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "GetTRC", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*v20.TRC)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetTRC indicates an expected call of GetTRC
-func (mr *MockCryptoProviderMockRecorder) GetTRC(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockCryptoProviderMockRecorder) GetTRC(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTRC", reflect.TypeOf((*MockCryptoProvider)(nil).GetTRC), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTRC", reflect.TypeOf((*MockCryptoProvider)(nil).GetTRC), arg0, arg1, arg2)
 }
 
 // MockDB is a mock of DB interface
@@ -185,63 +185,63 @@ func (mr *MockDBMockRecorder) GetIssuingKeyInfo(arg0, arg1, arg2 interface{}) *g
 }
 
 // GetRawChain mocks base method
-func (m *MockDB) GetRawChain(arg0 context.Context, arg1 addr.IA, arg2 scrypto.Version) ([]byte, error) {
+func (m *MockDB) GetRawChain(arg0 context.Context, arg1 v2.ChainID) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRawChain", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetRawChain", arg0, arg1)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRawChain indicates an expected call of GetRawChain
-func (mr *MockDBMockRecorder) GetRawChain(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockDBMockRecorder) GetRawChain(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawChain", reflect.TypeOf((*MockDB)(nil).GetRawChain), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawChain", reflect.TypeOf((*MockDB)(nil).GetRawChain), arg0, arg1)
 }
 
 // GetRawTRC mocks base method
-func (m *MockDB) GetRawTRC(arg0 context.Context, arg1 addr.ISD, arg2 scrypto.Version) ([]byte, error) {
+func (m *MockDB) GetRawTRC(arg0 context.Context, arg1 v2.TRCID) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRawTRC", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetRawTRC", arg0, arg1)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetRawTRC indicates an expected call of GetRawTRC
-func (mr *MockDBMockRecorder) GetRawTRC(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockDBMockRecorder) GetRawTRC(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawTRC", reflect.TypeOf((*MockDB)(nil).GetRawTRC), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawTRC", reflect.TypeOf((*MockDB)(nil).GetRawTRC), arg0, arg1)
 }
 
 // GetTRC mocks base method
-func (m *MockDB) GetTRC(arg0 context.Context, arg1 addr.ISD, arg2 scrypto.Version) (*v20.TRC, error) {
+func (m *MockDB) GetTRC(arg0 context.Context, arg1 v2.TRCID) (*v20.TRC, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTRC", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetTRC", arg0, arg1)
 	ret0, _ := ret[0].(*v20.TRC)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetTRC indicates an expected call of GetTRC
-func (mr *MockDBMockRecorder) GetTRC(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockDBMockRecorder) GetTRC(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTRC", reflect.TypeOf((*MockDB)(nil).GetTRC), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTRC", reflect.TypeOf((*MockDB)(nil).GetTRC), arg0, arg1)
 }
 
 // GetTRCInfo mocks base method
-func (m *MockDB) GetTRCInfo(arg0 context.Context, arg1 addr.ISD, arg2 scrypto.Version) (v2.TRCInfo, error) {
+func (m *MockDB) GetTRCInfo(arg0 context.Context, arg1 v2.TRCID) (v2.TRCInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTRCInfo", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetTRCInfo", arg0, arg1)
 	ret0, _ := ret[0].(v2.TRCInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetTRCInfo indicates an expected call of GetTRCInfo
-func (mr *MockDBMockRecorder) GetTRCInfo(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockDBMockRecorder) GetTRCInfo(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTRCInfo", reflect.TypeOf((*MockDB)(nil).GetTRCInfo), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTRCInfo", reflect.TypeOf((*MockDB)(nil).GetTRCInfo), arg0, arg1)
 }
 
 // InsertChain mocks base method

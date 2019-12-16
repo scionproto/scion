@@ -123,7 +123,8 @@ type SignerGen struct {
 
 // Signer returns the active signer.
 func (g *SignerGen) Signer(ctx context.Context) (*Signer, error) {
-	raw, err := g.Provider.GetRawChain(ctx, g.IA, scrypto.LatestVer, infra.ChainOpts{}, nil)
+	raw, err := g.Provider.GetRawChain(ctx, ChainID{IA: g.IA, Version: scrypto.LatestVer},
+		infra.ChainOpts{})
 	if err != nil {
 		return nil, serrors.WrapStr("error fetching latest chain", err)
 	}
@@ -144,7 +145,8 @@ func (g *SignerGen) Signer(ctx context.Context) (*Signer, error) {
 		return nil, serrors.WrapStr("public key does not match", err,
 			"chain_version", dec.AS.Version)
 	}
-	trc, err := g.Provider.GetTRC(ctx, g.IA.I, scrypto.LatestVer, infra.TRCOpts{})
+	trc, err := g.Provider.GetTRC(ctx, TRCID{ISD: g.IA.I, Version: scrypto.LatestVer},
+		infra.TRCOpts{})
 	if err != nil {
 		return nil, serrors.WrapStr("unable to get latest TRC", err)
 	}

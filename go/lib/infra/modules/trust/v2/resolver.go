@@ -20,7 +20,6 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -62,7 +61,7 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 		}
 		req = req.withVersion(latest)
 	}
-	prev, err := r.db.GetTRC(ctx, req.ISD, scrypto.LatestVer)
+	prev, err := r.db.GetTRC(ctx, TRCID{ISD: req.ISD, Version: scrypto.LatestVer})
 	if err != nil && !xerrors.Is(err, ErrNotFound) {
 		return decoded.TRC{}, serrors.WrapStr("error fetching latest locally available TRC", err)
 	}
@@ -205,11 +204,11 @@ func (w *prevWrap) SetTRC(prev *trc.TRC) {
 	w.prev = prev
 }
 
-func (w *prevWrap) TRC(_ context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
-	if isd != w.prev.ISD || version != w.prev.Version {
+func (w *prevWrap) TRC(_ context.Context, id TRCID) (*trc.TRC, error) {
+	if id.ISD != w.prev.ISD || id.Version != w.prev.Version {
 		return nil, serrors.New("previous wrapper can only provide a single TRC",
-			"expected_isd", w.prev.ISD, "expted_version", w.prev.Version,
-			"actual_isd", isd, "actual_version", version)
+			"expected_isd", w.prev.ISD, "expected_version", w.prev.Version,
+			"actual_isd", id.ISD, "actual_version", id.Version)
 	}
 	return w.prev, nil
 }
@@ -221,10 +220,9 @@ type resolveWrap struct {
 	server   net.Addr
 }
 
-func (w resolveWrap) TRC(ctx context.Context, isd addr.ISD,
-	version scrypto.Version) (*trc.TRC, error) {
+func (w resolveWrap) TRC(ctx context.Context, id TRCID) (*trc.TRC, error) {
 
-	t, err := w.resolver.db.GetTRC(ctx, isd, version)
+	t, err := w.resolver.db.GetTRC(ctx, id)
 	switch {
 	case err == nil:
 		return t, nil
@@ -232,8 +230,8 @@ func (w resolveWrap) TRC(ctx context.Context, isd addr.ISD,
 		return nil, serrors.WrapStr("error querying DB for TRC", err)
 	}
 	req := TRCReq{
-		ISD:     isd,
-		Version: version,
+		ISD:     id.ISD,
+		Version: id.Version,
 	}
 	decoded, err := w.resolver.TRC(ctx, req, w.server)
 	if err != nil {
