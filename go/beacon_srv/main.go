@@ -16,11 +16,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"hash"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -194,7 +196,12 @@ func realMain() int {
 		}),
 	)
 
+	// Setup metrics and status pages
+	http.HandleFunc("/config", configHandler)
+	http.HandleFunc("/info", env.InfoHandler)
+	http.HandleFunc("/topology", itopo.TopologyHandler)
 	cfg.Metrics.StartPrometheus()
+
 	go func() {
 		defer log.LogPanicAndExit()
 		msgr.ListenAndServe()
@@ -652,4 +659,11 @@ func checkFlags(cfg *config.Config) (int, bool) {
 		return 0, false
 	}
 	return env.CheckFlags(cfg)
+}
+
+func configHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	var buf bytes.Buffer
+	toml.NewEncoder(&buf).Encode(cfg)
+	fmt.Fprint(w, buf.String())
 }

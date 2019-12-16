@@ -20,8 +20,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/user"
@@ -33,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/profile"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -66,6 +69,9 @@ func realMain() int {
 	defer log.Flush()
 	defer env.LogAppStopped(common.BR, cfg.General.ID)
 	defer log.LogPanicAndExit()
+	http.HandleFunc("/config", configHandler)
+	http.HandleFunc("/info", env.InfoHandler)
+	http.HandleFunc("/topology", itopo.TopologyHandler)
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
@@ -137,4 +143,11 @@ func checkPerms() error {
 		return serrors.New("Running as root is not allowed for security reasons")
 	}
 	return nil
+}
+
+func configHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	var buf bytes.Buffer
+	toml.NewEncoder(&buf).Encode(cfg)
+	fmt.Fprint(w, buf.String())
 }

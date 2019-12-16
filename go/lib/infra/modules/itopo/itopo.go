@@ -16,6 +16,9 @@
 package itopo
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -369,4 +372,14 @@ func call(clbk func()) {
 func incUpdateMetric(l metrics.UpdateLabels) {
 	metrics.Updates.Last(l).SetToCurrentTime()
 	metrics.Updates.Total(l).Inc()
+}
+
+func TopologyHandler(w http.ResponseWriter, r *http.Request) {
+	st.RLock()
+	defer st.RUnlock()
+	w.Header().Set("Content-Type", "application/json")
+	bytes, err := json.MarshalIndent(st.topo.Get(), "", "    ")
+	if err == nil {
+		fmt.Fprint(w, string(bytes)+"\n")
+	}
 }

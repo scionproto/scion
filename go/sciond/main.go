@@ -15,10 +15,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -202,6 +204,9 @@ func realMain() int {
 	unixpacketServer, shutdownF := NewServer("unixpacket", cfg.SD.Unix, handlers)
 	defer shutdownF()
 	StartServer("UnixServer", cfg.SD.Unix, unixpacketServer)
+	http.HandleFunc("/config", configHandler)
+	http.HandleFunc("/info", env.InfoHandler)
+	http.HandleFunc("/topology", itopo.TopologyHandler)
 	cfg.Metrics.StartPrometheus()
 	select {
 	case <-fatal.ShutdownChan():
@@ -285,3 +290,11 @@ func StartServer(name, sockPath string, server *servers.Server) {
 		}
 	}()
 }
+
+}
+
+func configHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	var buf bytes.Buffer
+	toml.NewEncoder(&buf).Encode(cfg)
+	fmt.Fprint(w, buf.String())
