@@ -20,6 +20,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"net"
 	"sync/atomic"
 	"time"
 
@@ -75,8 +76,8 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
 	s.healthy.Store(false)
 	s.ring = ringbuf.New(64, nil, fmt.Sprintf("egress_%s_%s", dstIA, sessId))
 	// Not using a fixed local port, as this is for outgoing data only.
-	s.conn, err = sigcmn.Network.ListenSCION("udp4",
-		&snet.Addr{IA: sigcmn.IA, Host: &addr.AppAddr{L3: sigcmn.Host}}, 0)
+	s.conn, err = sigcmn.Network.Listen("udp4",
+		&net.UDPAddr{IP: sigcmn.Host.IP()}, addr.SvcNone, 0)
 	s.sessMonStop = make(chan struct{})
 	s.sessMonStopped = make(chan struct{})
 	s.pktDispStop = make(chan struct{})

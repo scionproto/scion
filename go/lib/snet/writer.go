@@ -64,7 +64,7 @@ func newScionConnWriter(base *scionConnBase, querier PathQuerier,
 		base: base,
 		conn: conn,
 		resolver: &remoteAddressResolver{
-			localIA:     base.laddr.IA,
+			localIA:     base.scionNet.localIA,
 			pathQuerier: querier,
 			monitor:     ctxmonitor.NewMonitor(),
 		},
@@ -98,7 +98,11 @@ func (c *scionConnWriter) Write(b []byte) (int, error) {
 }
 
 func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
-	raddr, err := c.resolver.ResolveAddrPair(c.base.raddr, raddr)
+	var connRemote *Addr
+	if c.base.remote != nil {
+		connRemote = c.base.remote.ToAddr()
+	}
+	raddr, err := c.resolver.ResolveAddrPair(connRemote, raddr)
 	if err != nil {
 		return 0, err
 	}
@@ -112,10 +116,11 @@ func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 		Bytes: Bytes(c.buffer),
 		SCIONPacketInfo: SCIONPacketInfo{
 			Destination: SCIONAddress{IA: raddr.IA, Host: raddr.Host.L3},
-			Source:      SCIONAddress{IA: c.base.laddr.IA, Host: c.base.laddr.Host.L3},
-			Path:        raddr.Path,
+			Source: SCIONAddress{IA: c.base.scionNet.localIA,
+				Host: addr.HostFromIP(c.base.listen.IP)},
+			Path: raddr.Path,
 			L4Header: &l4.UDP{
-				SrcPort:  c.base.laddr.Host.L4,
+				SrcPort:  uint16(c.base.listen.Port),
 				DstPort:  raddr.Host.L4,
 				TotalLen: uint16(l4.UDPLen + len(b)),
 			},

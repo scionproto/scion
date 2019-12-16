@@ -184,7 +184,7 @@ func TestSetDeadline(t *testing.T) {
 	packetConn := snet.NewSCIONPacketConn(connMock, nil)
 
 	conn := snet.NewScionConnWriter(snet.NewScionConnBase(
-		MustParseAddr("2-ff00:0:1,[127.0.0.1]:80"),
+		xtest.MustParseIA("2-ff00:0:1"), MustParseUDPAddr("[127.0.0.1]:80"),
 	), querierMock, packetConn)
 	t.Run("And writes to multiple destinations for which path resolution is slow",
 		func(t *testing.T) {
@@ -211,4 +211,12 @@ func MustParseAddr(str string) *snet.Addr {
 		panic(fmt.Sprintf("cannot parse address %s", str))
 	}
 	return address
+}
+
+func MustParseUDPAddr(ipPort string) *net.UDPAddr {
+	a, err := net.ResolveUDPAddr("udp", ipPort)
+	if err != nil {
+		panic(fmt.Sprintf("cannot resolve udp addr %s, %v", ipPort, err))
+	}
+	return a
 }

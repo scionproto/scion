@@ -15,15 +15,18 @@
 package snet
 
 import (
+	"net"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
 )
 
 var NewScionConnWriter = newScionConnWriter
 
-func NewScionConnBase(laddr *Addr) *scionConnBase {
+func NewScionConnBase(localIA addr.IA, listen *net.UDPAddr) *scionConnBase {
 	return &scionConnBase{
-		laddr: laddr,
+		listen:   listen,
+		scionNet: &SCIONNetwork{localIA: localIA},
 	}
 }
 

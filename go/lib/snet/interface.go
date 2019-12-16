@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,10 +23,10 @@ import (
 )
 
 type Network interface {
-	ListenSCIONWithBindSVC(network string,
-		laddr, baddr *Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error)
-	DialSCIONWithBindSVC(network string,
-		laddr, raddr, baddr *Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error)
+	Listen(network string, listen *net.UDPAddr, svc addr.HostSVC,
+		timeout time.Duration) (Conn, error)
+	Dial(network string, listen *net.UDPAddr, remote *UDPAddr, svc addr.HostSVC,
+		timeout time.Duration) (Conn, error)
 }
 
 // Conn represents a SCION connection.
@@ -38,7 +39,6 @@ type Conn interface {
 	WriteToSCION(b []byte, address *Addr) (int, error)
 	Close() error
 	LocalAddr() net.Addr
-	BindAddr() net.Addr
 	SVC() addr.HostSVC
 	// RemoteAddr returns the remote network address.
 	RemoteAddr() net.Addr

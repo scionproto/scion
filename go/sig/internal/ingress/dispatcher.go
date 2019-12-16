@@ -60,7 +60,7 @@ func NewDispatcher(tio io.ReadWriteCloser) *Dispatcher {
 
 func (d *Dispatcher) Run() error {
 	var err error
-	d.extConn, err = sigcmn.Network.ListenSCION("udp4", d.laddr, 0)
+	d.extConn, err = sigcmn.Network.Listen("udp4", d.laddr.ToNetUDPAddr(), addr.SvcNone, 0)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize extConn", err)
 	}
