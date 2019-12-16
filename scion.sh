@@ -66,7 +66,6 @@ cmd_run() {
             ./tools/quiet ./docker.sh tester
         fi
     fi
-    run_setup
     echo "Running the network..."
     # Start dispatcher first, as it is requrired by the border routers.
     ./tools/quiet ./scion.sh mstart '*disp*'
@@ -104,7 +103,6 @@ stop_jaeger() {
 }
 
 cmd_mstart() {
-    run_setup
     # Run with docker-compose or supervisor
     if is_docker_be; then
         services="$(glob_docker "$@")"
@@ -113,17 +111,6 @@ cmd_mstart() {
     else
         supervisor/supervisor.sh mstart "$@"
     fi
-}
-
-run_setup() {
-    python/integration/set_ipv6_addr.py -a
-     # Create dispatcher and sciond dirs or change owner
-    local disp_dir="/run/shm/dispatcher"
-    [ -d "$disp_dir" ] || mkdir "$disp_dir"
-    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
-    local sciond_dir="/run/shm/sciond"
-    [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
-    [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
 }
 
 cmd_stop() {

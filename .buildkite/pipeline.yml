@@ -12,8 +12,6 @@ steps:
     command:
       - bazel --bazelrc=.bazelrc_ci test //go/... --print_relative_test_log_paths
     key: go_tests
-    artifact_paths:
-      - "artifacts.out/**/*"
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
@@ -47,6 +45,25 @@ steps:
   - label: "Lint :bazel:"
     command: ./scion.sh lint
     key: lint
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+  - label: "Integration: {cert_req,pp,end2end}_integration"
+    command:
+    - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+    - tar -kxf bazel-bin/scion.tar -C bin --overwrite
+    - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
+    - ./scion.sh topology nobuild
+    - ./scion.sh run nobuild && sleep 10
+    - ./bin/cert_req_integration  > /dev/null 2>&1
+    - ./bin/pp_integration  > /dev/null 2>&1
+    - ./bin/end2end_integration  > /dev/null 2>&1
+    - tar -czf "logs-${BUILDKITE_COMMIT:-local}.tar.gz" logs/*
+    - ./scion.sh stop
+    artifact_paths:
+    - "logs-*.tar.gz"
+    timeout_in_minutes: 5
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
