@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"time"
 
@@ -96,7 +97,7 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 		if err != nil {
 			return nil, err
 		}
-		quicAddress = quicConn.LocalAddr().(*snet.Addr).Host.String()
+		quicAddress = fmt.Sprintf("%s", quicConn.LocalAddr()) // assuming net.UDPAddr.
 		log.Trace("QUIC conn initialized", "local_addr", quicAddress)
 	}
 
@@ -199,12 +200,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 		},
 	)
 	network := snet.NewCustomNetworkWithPR(nc.IA, packetDispatcher)
-	var listenAddr *snet.Addr
-	if nc.Public != nil {
-		listenAddr = &snet.Addr{IA: nc.IA, Host: addr.AppAddrFromUDP(nc.Public)}
-	}
-
-	conn, err := network.ListenSCIONWithBindSVC("udp4", listenAddr, nil, nc.SVC, 0)
+	conn, err := network.Listen("udp4", nc.Public, nc.SVC, 0)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
 	}
@@ -223,19 +219,11 @@ func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 			SCMPHandler: ignoreSCMP{},
 		},
 	)
-	// FIXME(scrye): Add support for bind addresses.
 	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse address", err)
 	}
-	public := &snet.Addr{
-		IA: nc.IA,
-		Host: &addr.AppAddr{
-			L3: addr.HostFromIP(udpAddr.IP),
-			L4: uint16(udpAddr.Port),
-		},
-	}
-	conn, err := network.ListenSCIONWithBindSVC("udp4", public, nil, addr.SvcNone, 0)
+	conn, err := network.Listen("udp4", udpAddr, addr.SvcNone, 0)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
 	}

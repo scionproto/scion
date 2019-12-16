@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,10 +22,9 @@ import (
 )
 
 type scionConnBase struct {
-	// Local, remote and bind SCION addresses (IA, L3, L4)
-	laddr *Addr
-	raddr *Addr
-	baddr *Addr
+	// Local and remote SCION addresses (IA, L3, L4)
+	listen *net.UDPAddr
+	remote *UDPAddr
 
 	// svc address
 	svc addr.HostSVC
@@ -36,28 +36,12 @@ type scionConnBase struct {
 	net string
 }
 
-func (c *scionConnBase) BindAddr() net.Addr {
-	return c.baddr
-}
-
-func (c *scionConnBase) BindSnetAddr() *Addr {
-	return c.baddr
-}
-
 func (c *scionConnBase) LocalAddr() net.Addr {
-	return c.laddr
-}
-
-func (c *scionConnBase) LocalSnetAddr() *Addr {
-	return c.laddr
+	return c.listen
 }
 
 func (c *scionConnBase) RemoteAddr() net.Addr {
-	return c.raddr
-}
-
-func (c *scionConnBase) RemoteSnetAddr() *Addr {
-	return c.raddr
+	return c.remote
 }
 
 func (c *scionConnBase) SVC() addr.HostSVC {

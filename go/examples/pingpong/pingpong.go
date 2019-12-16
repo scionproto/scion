@@ -34,6 +34,7 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -219,7 +220,7 @@ func newClient() *client {
 // while receiving pong messages. For each successful ping-pong, a message
 // with the round trip time is printed.
 func (c *client) run() {
-	// Needs to happen before DialSCION, as it will 'copy' the remote to the connection.
+	// Needs to happen before Dial, as it will 'copy' the remote to the connection.
 	// If remote is not in local AS, we need a path!
 	c.setupPath()
 	defer c.Close()
@@ -237,9 +238,10 @@ func (c *client) run() {
 	// Connect to remote address. Note that currently the SCION library
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
-	// port of 0, DialSCION will assign a random free local port.
+	// port of 0, Dial will assign a random free local port.
 
-	c.qsess, err = squic.DialSCION(network, &local, &remote, nil)
+	remoteUDP := snet.NewUDPAddr(remote.IA, remote.Path, remote.NextHop, remote.ToNetUDPAddr())
+	c.qsess, err = squic.Dial(network, local.ToNetUDPAddr(), remoteUDP, addr.SvcNone, nil)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
@@ -359,13 +361,13 @@ func (s server) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	qsock, err := squic.ListenSCION(network, &local, nil)
+	qsock, err := squic.Listen(network, local.ToNetUDPAddr(), addr.SvcNone, nil)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}
 	if len(os.Getenv(integration.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
-		fmt.Printf("Port=%d\n", qsock.Addr().(*snet.Addr).Host.L4)
+		fmt.Printf("Port=%d\n", qsock.Addr().(*net.UDPAddr).Port)
 		fmt.Printf("%s%s\n", integration.ReadySignal, local.IA)
 	}
 	log.Info("Listening", "local", qsock.Addr())

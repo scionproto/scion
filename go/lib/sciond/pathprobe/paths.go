@@ -117,7 +117,8 @@ func (p Prober) GetStatuses(ctx context.Context,
 			SCMPHandler: scmpH,
 		},
 	)
-	snetConn, err := network.ListenSCION("udp4", &p.Local, deadline.Sub(time.Now()))
+	snetConn, err := network.Listen("udp4", p.Local.ToNetUDPAddr(),
+		addr.SvcNone, deadline.Sub(time.Now()))
 	if err != nil {
 		return nil, common.NewBasicError("listening failed", err)
 	}
