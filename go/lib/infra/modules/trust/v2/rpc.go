@@ -50,17 +50,13 @@ type ChainReq struct {
 	Version scrypto.Version
 }
 
-// NewRPC returns a new RPC implementation using the given messenger.
-func NewRPC(m infra.Messenger) RPC {
-	return rpc{m: m}
+// DefaultRPC implements the RPC interface using the given messenger.
+type DefaultRPC struct {
+	M infra.Messenger
 }
 
-type rpc struct {
-	m infra.Messenger
-}
-
-func (r rpc) GetTRC(ctx context.Context, req TRCReq, a net.Addr) ([]byte, error) {
-	reply, err := r.m.GetTRC(ctx, &cert_mgmt.TRCReq{
+func (r DefaultRPC) GetTRC(ctx context.Context, req TRCReq, a net.Addr) ([]byte, error) {
+	reply, err := r.M.GetTRC(ctx, &cert_mgmt.TRCReq{
 		ISD:     req.ISD,
 		Version: req.Version,
 	}, a, messenger.NextId())
@@ -70,8 +66,8 @@ func (r rpc) GetTRC(ctx context.Context, req TRCReq, a net.Addr) ([]byte, error)
 	return reply.RawTRC, nil
 }
 
-func (r rpc) GetCertChain(ctx context.Context, req ChainReq, a net.Addr) ([]byte, error) {
-	reply, err := r.m.GetCertChain(ctx, &cert_mgmt.ChainReq{
+func (r DefaultRPC) GetCertChain(ctx context.Context, req ChainReq, a net.Addr) ([]byte, error) {
+	reply, err := r.M.GetCertChain(ctx, &cert_mgmt.ChainReq{
 		RawIA:   req.IA.IAInt(),
 		Version: req.Version,
 	}, a, messenger.NextId())
@@ -81,14 +77,14 @@ func (r rpc) GetCertChain(ctx context.Context, req ChainReq, a net.Addr) ([]byte
 	return reply.RawChain, nil
 }
 
-func (r rpc) SendTRC(ctx context.Context, trc []byte, a net.Addr) error {
-	return r.m.SendTRC(ctx, &cert_mgmt.TRC{
+func (r DefaultRPC) SendTRC(ctx context.Context, trc []byte, a net.Addr) error {
+	return r.M.SendTRC(ctx, &cert_mgmt.TRC{
 		RawTRC: trc,
 	}, a, messenger.NextId())
 }
 
-func (r rpc) SendCertChain(ctx context.Context, chain []byte, a net.Addr) error {
-	return r.m.SendCertChain(ctx, &cert_mgmt.Chain{
+func (r DefaultRPC) SendCertChain(ctx context.Context, chain []byte, a net.Addr) error {
+	return r.M.SendCertChain(ctx, &cert_mgmt.Chain{
 		RawChain: chain,
 	}, a, messenger.NextId())
 }
