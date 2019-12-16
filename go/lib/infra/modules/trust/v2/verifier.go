@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -84,7 +83,7 @@ func (v *verifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*ctrl.P
 	return cpld, nil
 }
 
-func (v *verifier) Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error {
+func (v *verifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) error {
 	if err := sign.Valid(v.AllowSkew); err != nil {
 		return err
 	}

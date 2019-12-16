@@ -37,13 +37,13 @@ import (
 // Signer signs path segments.
 type Signer interface {
 	// Sign signs the packed segment and returns the signature meta data.
-	Sign(packedSegment common.RawBytes) (*proto.SignS, error)
+	Sign(packedSegment []byte) (*proto.SignS, error)
 }
 
 // Verifier verifies path segments.
 type Verifier interface {
 	// Verify verifies the packed segment based on the signature meta data.
-	Verify(ctx context.Context, packedSegment common.RawBytes, sign *proto.SignS) error
+	Verify(ctx context.Context, packedSegment []byte, sign *proto.SignS) error
 }
 
 var _ proto.Cerealizable = (*Beacon)(nil)

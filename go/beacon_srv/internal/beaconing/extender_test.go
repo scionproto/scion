@@ -324,7 +324,7 @@ type failSigner struct {
 	infra.Signer
 }
 
-func (f *failSigner) Sign(msg common.RawBytes) (*proto.SignS, error) {
+func (f *failSigner) Sign(msg []byte) (*proto.SignS, error) {
 	return nil, errors.New("fail")
 }
 
