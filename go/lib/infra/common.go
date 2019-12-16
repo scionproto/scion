@@ -427,7 +427,7 @@ type SignatureTimestampRange struct {
 // certificates.
 type Verifier interface {
 	ctrl.Verifier
-	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
+	Verify(ctx context.Context, msg []byte, sign *proto.SignS) error
 	// WithServer returns a verifier that fetches the necessary crypto
 	// objects from the specified server.
 	WithServer(server net.Addr) Verifier
@@ -556,7 +556,7 @@ var _ Signer = nullSigner{}
 
 type nullSigner struct{}
 
-func (nullSigner) Sign(raw common.RawBytes) (*proto.SignS, error) {
+func (nullSigner) Sign(raw []byte) (*proto.SignS, error) {
 	return &proto.SignS{}, nil
 }
 
@@ -568,7 +568,7 @@ var _ Verifier = nullSigVerifier{}
 
 type nullSigVerifier struct{}
 
-func (nullSigVerifier) Verify(_ context.Context, _ common.RawBytes, _ *proto.SignS) error {
+func (nullSigVerifier) Verify(_ context.Context, _ []byte, _ *proto.SignS) error {
 	return nil
 }
 

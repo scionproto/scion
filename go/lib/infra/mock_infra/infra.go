@@ -772,7 +772,7 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 }
 
 // Verify mocks base method
-func (m *MockVerifier) Verify(arg0 context.Context, arg1 common.RawBytes, arg2 *proto.SignS) error {
+func (m *MockVerifier) Verify(arg0 context.Context, arg1 []byte, arg2 *proto.SignS) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Verify", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)

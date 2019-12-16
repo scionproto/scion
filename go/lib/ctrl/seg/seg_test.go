@@ -167,8 +167,8 @@ func getIds(t *testing.T, seg *PathSegment) (common.RawBytes, common.RawBytes) {
 }
 
 type keyPair struct {
-	pubKey  common.RawBytes
-	privKey common.RawBytes
+	pubKey  []byte
+	privKey []byte
 }
 
 func newKeyPair(t *testing.T) *keyPair {
@@ -180,21 +180,21 @@ func newKeyPair(t *testing.T) *keyPair {
 	}
 }
 
-func (t *keyPair) Sign(packedSegment common.RawBytes) (*proto.SignS, error) {
+func (t *keyPair) Sign(packedSegment []byte) (*proto.SignS, error) {
 	sign := &proto.SignS{
-		Src: common.RawBytes{1, 4, 4, 2},
+		Src: []byte{1, 4, 4, 2},
 	}
 	signature, err := scrypto.Sign(packedSegment, t.privKey, scrypto.Ed25519)
 	sign.Signature = signature
 	return sign, err
 }
 
-func (t *keyPair) Verify(_ context.Context, msg common.RawBytes,
+func (t *keyPair) Verify(_ context.Context, msg []byte,
 	sign *proto.SignS) error {
 
-	if !bytes.Equal(sign.Src, common.RawBytes{1, 4, 4, 2}) {
+	if !bytes.Equal(sign.Src, []byte{1, 4, 4, 2}) {
 		return common.NewBasicError("Invalid sign", nil,
-			"expected", common.RawBytes{1, 4, 4, 2}, "actual", sign.Src)
+			"expected", []byte{1, 4, 4, 2}, "actual", sign.Src)
 	}
 	return scrypto.Verify(msg, sign.Signature, t.pubKey, scrypto.Ed25519)
 }

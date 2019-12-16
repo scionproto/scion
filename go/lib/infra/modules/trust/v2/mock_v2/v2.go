@@ -611,15 +611,3 @@ func (mr *MockRPCMockRecorder) SendTRC(arg0, arg1, arg2 interface{}) *gomock.Cal
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendTRC", reflect.TypeOf((*MockRPC)(nil).SendTRC), arg0, arg1, arg2)
 }
-
-// SetMsgr mocks base method
-func (m *MockRPC) SetMsgr(arg0 infra.Messenger) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMsgr", arg0)
-}
-
-// SetMsgr indicates an expected call of SetMsgr
-func (mr *MockRPCMockRecorder) SetMsgr(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMsgr", reflect.TypeOf((*MockRPC)(nil).SetMsgr), arg0)
-}

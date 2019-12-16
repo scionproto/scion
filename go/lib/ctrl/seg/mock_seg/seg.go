@@ -6,7 +6,6 @@ package mock_seg
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	common "github.com/scionproto/scion/go/lib/common"
 	proto "github.com/scionproto/scion/go/proto"
 	reflect "reflect"
 )
@@ -35,7 +34,7 @@ func (m *MockSigner) EXPECT() *MockSignerMockRecorder {
 }
 
 // Sign mocks base method
-func (m *MockSigner) Sign(arg0 common.RawBytes) (*proto.SignS, error) {
+func (m *MockSigner) Sign(arg0 []byte) (*proto.SignS, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Sign", arg0)
 	ret0, _ := ret[0].(*proto.SignS)

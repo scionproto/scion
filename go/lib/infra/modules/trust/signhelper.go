@@ -45,13 +45,13 @@ var _ infra.Signer = (*BasicSigner)(nil)
 type BasicSigner struct {
 	meta      infra.SignerMeta
 	signType  proto.SignType
-	packedSrc common.RawBytes
-	key       common.RawBytes
+	packedSrc []byte
+	key       []byte
 }
 
 // NewBasicSigner creates a Signer that uses the supplied meta to sign
 // messages.
-func NewBasicSigner(key common.RawBytes, meta infra.SignerMeta) (*BasicSigner, error) {
+func NewBasicSigner(key []byte, meta infra.SignerMeta) (*BasicSigner, error) {
 	if meta.Src.IA.IsWildcard() {
 		return nil, common.NewBasicError("IA must not contain wildcard", nil, "ia", meta.Src.IA)
 	}
@@ -76,9 +76,9 @@ func NewBasicSigner(key common.RawBytes, meta infra.SignerMeta) (*BasicSigner, e
 }
 
 // Sign signs the message.
-func (b *BasicSigner) Sign(msg common.RawBytes) (*proto.SignS, error) {
+func (b *BasicSigner) Sign(msg []byte) (*proto.SignS, error) {
 	var err error
-	sign := proto.NewSignS(b.signType, append(common.RawBytes(nil), b.packedSrc...))
+	sign := proto.NewSignS(b.signType, append([]byte(nil), b.packedSrc...))
 	sign.Signature, err = scrypto.Sign(sign.SigInput(msg, true), b.key, b.meta.Algo)
 	return sign, err
 }
@@ -147,7 +147,7 @@ func (v *BasicVerifier) WithSignatureTimestampRange(
 }
 
 // Verify verifies the message based on the provided sign meta data.
-func (v *BasicVerifier) Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error {
+func (v *BasicVerifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) error {
 	if err := v.sanityChecks(sign, false); err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func (v *BasicVerifier) sanityChecks(sign *proto.SignS, isPldSignature bool) err
 	return nil
 }
 
-func (v *BasicVerifier) verify(ctx context.Context, msg common.RawBytes,
+func (v *BasicVerifier) verify(ctx context.Context, msg []byte,
 	sign *proto.SignS) error {
 
 	var err error
