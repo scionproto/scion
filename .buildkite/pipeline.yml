@@ -23,7 +23,7 @@ steps:
     command:
       - "mkdir /tmp/$BUILDKITE_STEP_ID/"
       - "cp go.mod go.sum go_deps.bzl /tmp/$BUILDKITE_STEP_ID/"
-      - "make godeps -B;"
+      - "make godeps -B"
       - "bazel-${BUILDKITE_PIPELINE_SLUG}/external/go_sdk/bin/go mod tidy"
       - "diff -u /tmp/$BUILDKITE_STEP_ID/go.mod go.mod"
       - "diff -u /tmp/$BUILDKITE_STEP_ID/go.sum go.sum"
