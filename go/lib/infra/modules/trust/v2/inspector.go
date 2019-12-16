@@ -34,19 +34,18 @@ type Inspector interface {
 	HasAttributes(ctx context.Context, ia addr.IA, opts infra.ASInspectorOpts) (bool, error)
 }
 
-type inspector struct {
-	provider CryptoProvider
+// DefaultInspector is used to inspect primary ASes.
+type DefaultInspector struct {
+	Provider CryptoProvider
 }
 
 // ByAttributes returns a list of primary ASes in the specified ISD that hold
 // all the requested attributes.
-func (i *inspector) ByAttributes(ctx context.Context, isd addr.ISD,
+func (i DefaultInspector) ByAttributes(ctx context.Context, isd addr.ISD,
 	opts infra.ASInspectorOpts) ([]addr.IA, error) {
 
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
-	t, err := i.provider.GetTRC(ctx, TRCID{
-		ISD: isd, Version: scrypto.Version(scrypto.LatestVer)},
-		trcOpts)
+	t, err := i.Provider.GetTRC(ctx, TRCID{ISD: isd, Version: scrypto.LatestVer}, trcOpts)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to get latest TRC", err, "isd", isd)
 	}
@@ -61,13 +60,11 @@ func (i *inspector) ByAttributes(ctx context.Context, isd addr.ISD,
 
 // HasAttributes indicates whether an AS holds all the specified attributes.
 // The first return value is always false for non-primary ASes.
-func (i *inspector) HasAttributes(ctx context.Context, ia addr.IA,
+func (i DefaultInspector) HasAttributes(ctx context.Context, ia addr.IA,
 	opts infra.ASInspectorOpts) (bool, error) {
 
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
-	trc, err := i.provider.GetTRC(ctx, TRCID{
-		ISD: ia.I, Version: scrypto.Version(scrypto.LatestVer)},
-		trcOpts)
+	trc, err := i.Provider.GetTRC(ctx, TRCID{ISD: ia.I, Version: scrypto.LatestVer}, trcOpts)
 	if err != nil {
 		return false, serrors.WrapStr("unable to get latest TRC", err, "isd", ia.I)
 	}

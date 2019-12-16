@@ -52,11 +52,11 @@ type ChainReq struct {
 
 // DefaultRPC implements the RPC interface using the given messenger.
 type DefaultRPC struct {
-	M infra.Messenger
+	Msgr infra.Messenger
 }
 
 func (r DefaultRPC) GetTRC(ctx context.Context, req TRCReq, a net.Addr) ([]byte, error) {
-	reply, err := r.M.GetTRC(ctx, &cert_mgmt.TRCReq{
+	reply, err := r.Msgr.GetTRC(ctx, &cert_mgmt.TRCReq{
 		ISD:     req.ISD,
 		Version: req.Version,
 	}, a, messenger.NextId())
@@ -67,7 +67,7 @@ func (r DefaultRPC) GetTRC(ctx context.Context, req TRCReq, a net.Addr) ([]byte,
 }
 
 func (r DefaultRPC) GetCertChain(ctx context.Context, req ChainReq, a net.Addr) ([]byte, error) {
-	reply, err := r.M.GetCertChain(ctx, &cert_mgmt.ChainReq{
+	reply, err := r.Msgr.GetCertChain(ctx, &cert_mgmt.ChainReq{
 		RawIA:   req.IA.IAInt(),
 		Version: req.Version,
 	}, a, messenger.NextId())
@@ -78,13 +78,13 @@ func (r DefaultRPC) GetCertChain(ctx context.Context, req ChainReq, a net.Addr) 
 }
 
 func (r DefaultRPC) SendTRC(ctx context.Context, trc []byte, a net.Addr) error {
-	return r.M.SendTRC(ctx, &cert_mgmt.TRC{
+	return r.Msgr.SendTRC(ctx, &cert_mgmt.TRC{
 		RawTRC: trc,
 	}, a, messenger.NextId())
 }
 
 func (r DefaultRPC) SendCertChain(ctx context.Context, chain []byte, a net.Addr) error {
-	return r.M.SendCertChain(ctx, &cert_mgmt.Chain{
+	return r.Msgr.SendCertChain(ctx, &cert_mgmt.Chain{
 		RawChain: chain,
 	}, a, messenger.NextId())
 }

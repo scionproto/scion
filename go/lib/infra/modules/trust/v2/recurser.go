@@ -43,7 +43,7 @@ type ASLocalRecurser struct {
 
 // AllowRecursion returns an error if address is not part of the local AS (or if
 // the check cannot be made).
-func (r *ASLocalRecurser) AllowRecursion(peer net.Addr) error {
+func (r ASLocalRecurser) AllowRecursion(peer net.Addr) error {
 	if peer == nil {
 		return nil
 	}

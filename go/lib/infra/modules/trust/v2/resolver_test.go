@@ -109,7 +109,11 @@ func TestResolverTRC(t *testing.T) {
 				RPC:      mock_v2.NewMockRPC(mctrl),
 			}
 			expected := test.Expect(t, m)
-			r := trust.NewResolver(m.DB, m.Inserter, m.RPC)
+			r := trust.DefaultResolver{
+				DB:       m.DB,
+				Inserter: m.Inserter,
+				RPC:      m.RPC,
+			}
 			decTRC, err := r.TRC(context.Background(), test.TRCReq, nil)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, expected, decTRC)
@@ -264,7 +268,11 @@ func TestResolverChain(t *testing.T) {
 				RPC:      mock_v2.NewMockRPC(mctrl),
 			}
 			expected := test.Expect(t, m)
-			r := trust.NewResolver(m.DB, m.Inserter, m.RPC)
+			r := trust.DefaultResolver{
+				DB:       m.DB,
+				Inserter: m.Inserter,
+				RPC:      m.RPC,
+			}
 			dec, err := r.Chain(context.Background(), test.ChainReq, nil)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, expected, dec)

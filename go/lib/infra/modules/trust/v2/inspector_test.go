@@ -74,7 +74,9 @@ func TestInspectorByAttributes(t *testing.T) {
 			provider := mock_v2.NewMockCryptoProvider(mctrl)
 			decoded := loadTRC(t, trc1v1)
 			test.Expect(provider, decoded.TRC)
-			ins := trust.NewTestInspector(provider)
+			ins := trust.DefaultInspector{
+				Provider: provider,
+			}
 			// Prepare the request.
 			opts := infra.ASInspectorOpts{
 				RequiredAttributes: test.Attrs,
@@ -154,7 +156,9 @@ func TestInspectorHasAttributes(t *testing.T) {
 			provider := mock_v2.NewMockCryptoProvider(mctrl)
 			decoded := loadTRC(t, trc1v1)
 			test.Expect(provider, decoded.TRC)
-			ins := trust.NewTestInspector(provider)
+			ins := trust.DefaultInspector{
+				Provider: provider,
+			}
 			// Prepare the request.
 			opts := infra.ASInspectorOpts{
 				RequiredAttributes: test.Attrs,

@@ -46,14 +46,18 @@ type Resolver interface {
 	Chain(ctx context.Context, req ChainReq, server net.Addr) (decoded.Chain, error)
 }
 
-// resolver resolves trust material.
-type resolver struct {
-	db       DBRead
-	inserter Inserter
-	rpc      RPC
+// DefaultResolver resolves trust material.
+type DefaultResolver struct {
+	DB       DBRead
+	Inserter Inserter
+	RPC      RPC
 }
 
-func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decoded.TRC, error) {
+// TRC resolves the decoded signed TRC. Missing links in the TRC
+// verification chain are also requested.
+func (r *DefaultResolver) TRC(ctx context.Context, req TRCReq,
+	server net.Addr) (decoded.TRC, error) {
+
 	if req.Version.IsLatest() {
 		latest, err := r.resolveLatestVersion(ctx, req, server)
 		if err != nil {
@@ -61,7 +65,7 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 		}
 		req = req.withVersion(latest)
 	}
-	prev, err := r.db.GetTRC(ctx, TRCID{ISD: req.ISD, Version: scrypto.LatestVer})
+	prev, err := r.DB.GetTRC(ctx, TRCID{ISD: req.ISD, Version: scrypto.LatestVer})
 	if err != nil && !xerrors.Is(err, ErrNotFound) {
 		return decoded.TRC{}, serrors.WrapStr("error fetching latest locally available TRC", err)
 	}
@@ -91,7 +95,7 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 			return decoded.TRC{}, serrors.WrapStr("unable to fetch parts of TRC chain", err)
 		}
 		decTRC = res.Decoded
-		if err = r.inserter.InsertTRC(ctx, decTRC, w.TRC); err != nil {
+		if err = r.Inserter.InsertTRC(ctx, decTRC, w.TRC); err != nil {
 			return decoded.TRC{}, serrors.WrapStr("unable to insert parts of TRC chain", err,
 				"trc", decTRC)
 		}
@@ -102,10 +106,10 @@ func (r *resolver) TRC(ctx context.Context, req TRCReq, server net.Addr) (decode
 
 // FIXME(roosd): Add RPC that resolves just the latest version instead of the
 // full TRC.
-func (r *resolver) resolveLatestVersion(ctx context.Context, req TRCReq,
+func (r *DefaultResolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 	server net.Addr) (scrypto.Version, error) {
 
-	rawTRC, err := r.rpc.GetTRC(ctx, req, server)
+	rawTRC, err := r.RPC.GetTRC(ctx, req, server)
 	if err != nil {
 		return 0, serrors.WrapStr("unable to resolve latest TRC", err)
 	}
@@ -119,12 +123,12 @@ func (r *resolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 	return decTRC.TRC.Version, nil
 }
 
-func (r *resolver) startFetchTRC(ctx context.Context, res chan<- resOrErr,
+func (r *DefaultResolver) startFetchTRC(ctx context.Context, res chan<- resOrErr,
 	req TRCReq, server net.Addr) {
 
 	go func() {
 		defer log.LogPanicAndExit()
-		rawTRC, err := r.rpc.GetTRC(ctx, req, server)
+		rawTRC, err := r.RPC.GetTRC(ctx, req, server)
 		if err != nil {
 			res <- resOrErr{Err: serrors.WrapStr("error requesting TRC", err,
 				"isd", req.ISD, "version", req.Version)}
@@ -144,7 +148,7 @@ func (r *resolver) startFetchTRC(ctx context.Context, res chan<- resOrErr,
 	}()
 }
 
-func (r *resolver) trcCheck(req TRCReq, t *trc.TRC) error {
+func (r *DefaultResolver) trcCheck(req TRCReq, t *trc.TRC) error {
 	switch {
 	case req.ISD != t.ISD:
 		return serrors.New("wrong isd", "expected", req.ISD, "actual", t.ISD)
@@ -154,10 +158,12 @@ func (r *resolver) trcCheck(req TRCReq, t *trc.TRC) error {
 	return nil
 }
 
-func (r *resolver) Chain(ctx context.Context, req ChainReq,
+// Chain resolves the raw signed certificate chain. If the issuing TRC is
+// missing, it is also requested.
+func (r *DefaultResolver) Chain(ctx context.Context, req ChainReq,
 	server net.Addr) (decoded.Chain, error) {
 
-	msg, err := r.rpc.GetCertChain(ctx, req, server)
+	msg, err := r.RPC.GetCertChain(ctx, req, server)
 	if err != nil {
 		return decoded.Chain{}, serrors.WrapStr("error requesting certificate chain", err)
 	}
@@ -172,14 +178,14 @@ func (r *resolver) Chain(ctx context.Context, req ChainReq,
 		resolver: r,
 		server:   server,
 	}
-	if err := r.inserter.InsertChain(ctx, dec, w.TRC); err != nil {
+	if err := r.Inserter.InsertChain(ctx, dec, w.TRC); err != nil {
 		return decoded.Chain{}, serrors.WrapStr("unable to insert certificate chain", err,
 			"chain", dec)
 	}
 	return dec, nil
 }
 
-func (r *resolver) chainCheck(req ChainReq, as *cert.AS) error {
+func (r *DefaultResolver) chainCheck(req ChainReq, as *cert.AS) error {
 	switch {
 	case !req.IA.Equal(as.Subject):
 		return serrors.New("wrong subject", "expected", req.IA, "actual", as.Subject)
@@ -216,13 +222,13 @@ func (w *prevWrap) TRC(_ context.Context, id TRCID) (*trc.TRC, error) {
 // resolverWrap provides TRCs that are backed by the resolver. If a TRC is
 // missing in the DB, network requests are allowed.
 type resolveWrap struct {
-	resolver *resolver
+	resolver *DefaultResolver
 	server   net.Addr
 }
 
 func (w resolveWrap) TRC(ctx context.Context, id TRCID) (*trc.TRC, error) {
 
-	t, err := w.resolver.db.GetTRC(ctx, id)
+	t, err := w.resolver.DB.GetTRC(ctx, id)
 	switch {
 	case err == nil:
 		return t, nil
