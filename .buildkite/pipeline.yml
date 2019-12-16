@@ -21,14 +21,14 @@ steps:
     timeout_in_minutes: 10
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
     command:
-      - "rm -rf mkdir /tmp/$BUILDKITE_STEP_ID/"
-      - "mkdir -p /tmp/$BUILDKITE_STEP_ID/"
-      - "cp go.mod go.sum go_deps.bzl /tmp/$BUILDKITE_STEP_ID/"
+      - "rm -rf  /tmp/${BUILDKITE_STEP_ID:-local}/"
+      - "mkdir -p /tmp/${BUILDKITE_STEP_ID:-local}/"
+      - "cp go.mod go.sum go_deps.bzl /tmp/${BUILDKITE_STEP_ID:-local}/"
       - "make godeps -B"
       - "bazel-${BUILDKITE_PIPELINE_SLUG}/external/go_sdk/bin/go mod tidy"
-      - "diff -u /tmp/$BUILDKITE_STEP_ID/go.mod go.mod"
-      - "diff -u /tmp/$BUILDKITE_STEP_ID/go.sum go.sum"
-      - "diff -u /tmp/$BUILDKITE_STEP_ID/go_deps.bzl go_deps.bzl"
+      - "diff -u /tmp/${BUILDKITE_STEP_ID:-local}/go.mod go.mod"
+      - "diff -u /tmp/${BUILDKITE_STEP_ID:-local}/go.sum go.sum"
+      - "diff -u /tmp/${BUILDKITE_STEP_ID:-local}/go_deps.bzl go_deps.bzl"
     key: go_deps_lint
     retry:
       automatic:
@@ -36,11 +36,11 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go/proto files in git"
     command:
-      - "rm -rf mkdir /tmp/$BUILDKITE_STEP_ID/"
-      - "mkdir -p /tmp/$BUILDKITE_STEP_ID/"
-      - "cp -R go/proto/ /tmp/$BUILDKITE_STEP_ID/"
+      - "rm -rf /tmp/${BUILDKITE_STEP_ID:-local}/"
+      - "mkdir -p /tmp/${BUILDKITE_STEP_ID:-local}/"
+      - "cp -R go/proto/ /tmp/${BUILDKITE_STEP_ID:-local}/"
       - "make gogen"
-      - "diff -ur /tmp/$BUILDKITE_STEP_ID/proto/ go/proto/"
+      - "diff -ur /tmp/${BUILDKITE_STEP_ID:-local}/proto/ go/proto/"
     key: go_gen_lint
     retry:
       automatic:
@@ -49,6 +49,26 @@ steps:
   - label: "Lint :bazel:"
     command: ./scion.sh lint
     key: lint
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+  - label: "Integration: {cert_req,pp,end2end,scmp}_integration"
+    command:
+    - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+    - tar -kxf bazel-bin/scion.tar -C bin --overwrite
+    - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
+    - ./scion.sh topology nobuild
+    - ./scion.sh run nobuild && sleep 10
+    - ./bin/cert_req_integration  > /dev/null 2>&1
+    - ./bin/pp_integration  > /dev/null 2>&1
+    - ./bin/scmp_integration  > /dev/null 2>&1
+    - ./bin/end2end_integration  > /dev/null 2>&1
+    - tar -czf "logs-${BUILDKITE_COMMIT:-local}.tar.gz" logs/*
+    - ./scion.sh topo_clean
+    artifact_paths:
+    - "logs-*.tar.gz"
+    timeout_in_minutes: 5
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
