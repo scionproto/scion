@@ -19,7 +19,9 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
@@ -29,7 +31,6 @@ type RPC interface {
 	GetCertChain(ctx context.Context, msg ChainReq, a net.Addr) ([]byte, error)
 	SendTRC(context.Context, []byte, net.Addr) error
 	SendCertChain(context.Context, []byte, net.Addr) error
-	SetMsgr(msgr infra.Messenger)
 }
 
 // TRCReq holds the values of a TRC request.
@@ -47,4 +48,47 @@ func (r TRCReq) withVersion(version scrypto.Version) TRCReq {
 type ChainReq struct {
 	IA      addr.IA
 	Version scrypto.Version
+}
+
+// NewRPC returns a new RPC implementation using the given messenger.
+func NewRPC(m infra.Messenger) RPC {
+	return rpc{m: m}
+}
+
+type rpc struct {
+	m infra.Messenger
+}
+
+func (r rpc) GetTRC(ctx context.Context, req TRCReq, a net.Addr) ([]byte, error) {
+	reply, err := r.m.GetTRC(ctx, &cert_mgmt.TRCReq{
+		ISD:     req.ISD,
+		Version: req.Version,
+	}, a, messenger.NextId())
+	if err != nil {
+		return nil, err
+	}
+	return reply.RawTRC, nil
+}
+
+func (r rpc) GetCertChain(ctx context.Context, req ChainReq, a net.Addr) ([]byte, error) {
+	reply, err := r.m.GetCertChain(ctx, &cert_mgmt.ChainReq{
+		RawIA:   req.IA.IAInt(),
+		Version: req.Version,
+	}, a, messenger.NextId())
+	if err != nil {
+		return nil, err
+	}
+	return reply.RawChain, nil
+}
+
+func (r rpc) SendTRC(ctx context.Context, trc []byte, a net.Addr) error {
+	return r.m.SendTRC(ctx, &cert_mgmt.TRC{
+		RawTRC: trc,
+	}, a, messenger.NextId())
+}
+
+func (r rpc) SendCertChain(ctx context.Context, chain []byte, a net.Addr) error {
+	return r.m.SendCertChain(ctx, &cert_mgmt.Chain{
+		RawChain: chain,
+	}, a, messenger.NextId())
 }
