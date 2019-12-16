@@ -19,3 +19,43 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
+  - label: "Check generated go_deps.bzl file is up to date with go.mod"
+    command: |
+      set -eo pipefail; (
+      cp go.mod go.sum go_deps.bzl /tmp/;
+      make godeps -B;
+      bazel-scion/external/go_sdk/bin/go mod tidy;
+      diff -u /tmp/go.mod go.mod;
+      diff -u /tmp/go.sum go.sum;
+      diff -u /tmp/go_deps.bzl go_deps.bzl;
+      ) |& tee checkgodeps.run
+    key: go_deps_lint
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    artifact_paths:
+      - checkgodeps.run
+  - label: "Check generated go/proto files in git"
+    command: |
+      set -eo pipefail; (
+      cp -R go/proto/ /tmp/;
+      make gogen;
+      diff -ur /tmp/proto/ go/proto/
+      ) |& tee checkgogen.run
+    key: go_gen_lint
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    artifact_paths:
+      - checkgogen.run
+  - label: "Lint :bazel:"
+    command: ./scion.sh lint |& tee lint.run
+    key: lint
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    artifact_paths:
+      - lint.run
