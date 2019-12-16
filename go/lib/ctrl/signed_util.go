@@ -27,7 +27,7 @@ import (
 
 // Signer takes a message and signs it, producing the signature metadata.
 type Signer interface {
-	Sign(msg common.RawBytes) (*proto.SignS, error)
+	Sign(msg []byte) (*proto.SignS, error)
 }
 
 // Verifier verifies the signature of a signed payload.

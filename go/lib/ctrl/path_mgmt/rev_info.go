@@ -141,14 +141,14 @@ func (r *RevInfo) SameIntf(other *RevInfo) bool {
 
 // Signer is used to sign raw bytes.
 type Signer interface {
-	Sign(msg common.RawBytes) (*proto.SignS, error)
+	Sign(msg []byte) (*proto.SignS, error)
 }
 
 // Verifier is used to verify signatures.
 type Verifier interface {
 	// Verify verifies the packed signed revocation based on the signature meta
 	// data.
-	Verify(ctx context.Context, msg common.RawBytes, sign *proto.SignS) error
+	Verify(ctx context.Context, msg []byte, sign *proto.SignS) error
 }
 
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)

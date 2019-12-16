@@ -360,9 +360,8 @@ func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
 	return signer
 }
 
-type revVerifier common.RawBytes
+type revVerifier []byte
 
-func (v revVerifier) Verify(_ context.Context, msg common.RawBytes, sign *proto.SignS) error {
-	return scrypto.Verify(sign.SigInput(msg, false), sign.Signature,
-		common.RawBytes(v), scrypto.Ed25519)
+func (v revVerifier) Verify(_ context.Context, msg []byte, sign *proto.SignS) error {
+	return scrypto.Verify(sign.SigInput(msg, false), sign.Signature, []byte(v), scrypto.Ed25519)
 }

@@ -38,20 +38,6 @@ func (m *MockConn) EXPECT() *MockConnMockRecorder {
 	return m.recorder
 }
 
-// BindAddr mocks base method
-func (m *MockConn) BindAddr() net.Addr {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BindAddr")
-	ret0, _ := ret[0].(net.Addr)
-	return ret0
-}
-
-// BindAddr indicates an expected call of BindAddr
-func (mr *MockConnMockRecorder) BindAddr() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BindAddr", reflect.TypeOf((*MockConn)(nil).BindAddr))
-}
-
 // Close mocks base method
 func (m *MockConn) Close() error {
 	m.ctrl.T.Helper()
@@ -304,34 +290,34 @@ func (m *MockNetwork) EXPECT() *MockNetworkMockRecorder {
 	return m.recorder
 }
 
-// DialSCIONWithBindSVC mocks base method
-func (m *MockNetwork) DialSCIONWithBindSVC(arg0 string, arg1, arg2, arg3 *snet.Addr, arg4 addr.HostSVC, arg5 time.Duration) (snet.Conn, error) {
+// Dial mocks base method
+func (m *MockNetwork) Dial(arg0 string, arg1 *net.UDPAddr, arg2 *snet.UDPAddr, arg3 addr.HostSVC, arg4 time.Duration) (snet.Conn, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DialSCIONWithBindSVC", arg0, arg1, arg2, arg3, arg4, arg5)
+	ret := m.ctrl.Call(m, "Dial", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(snet.Conn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DialSCIONWithBindSVC indicates an expected call of DialSCIONWithBindSVC
-func (mr *MockNetworkMockRecorder) DialSCIONWithBindSVC(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+// Dial indicates an expected call of Dial
+func (mr *MockNetworkMockRecorder) Dial(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DialSCIONWithBindSVC", reflect.TypeOf((*MockNetwork)(nil).DialSCIONWithBindSVC), arg0, arg1, arg2, arg3, arg4, arg5)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dial", reflect.TypeOf((*MockNetwork)(nil).Dial), arg0, arg1, arg2, arg3, arg4)
 }
 
-// ListenSCIONWithBindSVC mocks base method
-func (m *MockNetwork) ListenSCIONWithBindSVC(arg0 string, arg1, arg2 *snet.Addr, arg3 addr.HostSVC, arg4 time.Duration) (snet.Conn, error) {
+// Listen mocks base method
+func (m *MockNetwork) Listen(arg0 string, arg1 *net.UDPAddr, arg2 addr.HostSVC, arg3 time.Duration) (snet.Conn, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListenSCIONWithBindSVC", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "Listen", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(snet.Conn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListenSCIONWithBindSVC indicates an expected call of ListenSCIONWithBindSVC
-func (mr *MockNetworkMockRecorder) ListenSCIONWithBindSVC(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+// Listen indicates an expected call of Listen
+func (mr *MockNetworkMockRecorder) Listen(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListenSCIONWithBindSVC", reflect.TypeOf((*MockNetwork)(nil).ListenSCIONWithBindSVC), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Listen", reflect.TypeOf((*MockNetwork)(nil).Listen), arg0, arg1, arg2, arg3)
 }
 
 // MockPacketConn is a mock of PacketConn interface
