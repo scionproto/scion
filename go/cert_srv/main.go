@@ -16,9 +16,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -177,6 +179,12 @@ func realMain() int {
 	msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(trust.NewVerifier(trustStore))
 
+	// Setup metrics and status pages
+	http.HandleFunc("/config", configHandler)
+	http.HandleFunc("/info", env.InfoHandler)
+	http.HandleFunc("/topology", itopo.TopologyHandler)
+	cfg.Metrics.StartPrometheus()
+
 	// Start the messenger.
 	go func() {
 		defer log.LogPanicAndExit()
@@ -287,4 +295,11 @@ func setup() error {
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)
 	return nil
+}
+
+func configHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	var buf bytes.Buffer
+	toml.NewEncoder(&buf).Encode(cfg)
+	fmt.Fprint(w, buf.String())
 }
