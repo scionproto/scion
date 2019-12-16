@@ -121,11 +121,12 @@ func copyIPAddr(ip net.IP) net.IP {
 }
 
 func (t *UDPPortTable) Remove(address *net.UDPAddr) {
-	ipTable, ok := t.v4PortTable[address.Port]
+	portTable := t.getPortTableByIP(address.IP)
+	ipTable, ok := portTable[address.Port]
 	if ok {
 		delete(ipTable, address.IP.String())
 		if len(ipTable) == 0 {
-			delete(t.v4PortTable, address.Port)
+			delete(portTable, address.Port)
 		}
 	}
 }
