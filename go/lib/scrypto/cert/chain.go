@@ -214,6 +214,9 @@ func (c *Chain) Compress() (common.RawBytes, error) {
 }
 
 func (c *Chain) Copy() *Chain {
+	if c == nil {
+		return nil
+	}
 	return &Chain{Issuer: c.Issuer.Copy(), Leaf: c.Leaf.Copy()}
 }
 

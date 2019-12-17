@@ -177,6 +177,9 @@ func (c *Certificate) sigPack() (common.RawBytes, error) {
 }
 
 func (c *Certificate) Copy() *Certificate {
+	if c == nil {
+		return nil
+	}
 	n := &Certificate{
 		CanIssue:       c.CanIssue,
 		Comment:        c.Comment,

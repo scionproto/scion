@@ -134,6 +134,9 @@ func (s *HashTreeExtn) Pack() (common.RawBytes, error) {
 }
 
 func (s *HashTreeExtn) Copy() common.Extension {
+	if s == nil {
+		return nil
+	}
 	c, _ := NewHashTreeExtn(s.Height)
 	copy(c.Order, s.Order)
 	copy(c.Signature, s.Signature)

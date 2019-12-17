@@ -76,6 +76,9 @@ func InfoEchoFromRaw(b common.RawBytes) (*InfoEcho, error) {
 }
 
 func (e *InfoEcho) Copy() Info {
+	if e == nil {
+		return nil
+	}
 	return &InfoEcho{Id: e.Id, Seq: e.Seq}
 }
 
@@ -110,6 +113,9 @@ func InfoPktSizeFromRaw(b common.RawBytes) (*InfoPktSize, error) {
 }
 
 func (p *InfoPktSize) Copy() Info {
+	if p == nil {
+		return nil
+	}
 	return &InfoPktSize{Size: p.Size, MTU: p.MTU}
 }
 
@@ -160,6 +166,9 @@ func InfoPathOffsetsFromRaw(b common.RawBytes) (*InfoPathOffsets, error) {
 }
 
 func (p *InfoPathOffsets) Copy() Info {
+	if p == nil {
+		return nil
+	}
 	return &InfoPathOffsets{InfoF: p.InfoF, HopF: p.HopF, IfID: p.IfID, Ingress: p.Ingress}
 }
 
@@ -213,6 +222,9 @@ func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
 	return p, nil
 }
 func (r *InfoRevocation) Copy() Info {
+	if r == nil {
+		return nil
+	}
 	return &InfoRevocation{
 		r.InfoPathOffsets.Copy().(*InfoPathOffsets),
 		append(common.RawBytes(nil), r.RawSRev...),
@@ -257,6 +269,9 @@ func InfoExtIdxFromRaw(b common.RawBytes) (*InfoExtIdx, error) {
 }
 
 func (e *InfoExtIdx) Copy() Info {
+	if e == nil {
+		return nil
+	}
 	return &InfoExtIdx{Idx: e.Idx}
 }
 

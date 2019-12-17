@@ -121,6 +121,9 @@ func (h *Hdr) L4Len() int {
 func (h *Hdr) Reverse() {}
 
 func (h *Hdr) Copy() l4.L4Header {
+	if h == nil {
+		return nil
+	}
 	return &Hdr{
 		h.Class, h.Type, h.TotalLen, append(common.RawBytes(nil), h.Checksum...), h.Timestamp,
 	}
