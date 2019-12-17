@@ -79,7 +79,8 @@ func TestCSRouterChooseServer(t *testing.T) {
 			ISD: 2,
 			Expect: func(db *mock_v2.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
 				future := util.UnixTime{Time: time.Now().Add(time.Hour)}
-				db.EXPECT().GetTRCInfo(gomock.Any(), addr.ISD(2), scrypto.Version(0)).Return(
+				db.EXPECT().GetTRCInfo(gomock.Any(),
+					trust.TRCID{ISD: addr.ISD(2), Version: scrypto.LatestVer}).Return(
 					trust.TRCInfo{Validity: scrypto.Validity{NotAfter: future}}, nil,
 				)
 				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("remote ISD path")})
@@ -91,7 +92,8 @@ func TestCSRouterChooseServer(t *testing.T) {
 		"Remote ISD, TRC not found": {
 			ISD: 2,
 			Expect: func(db *mock_v2.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
-				db.EXPECT().GetTRCInfo(gomock.Any(), addr.ISD(2), scrypto.Version(0)).Return(
+				db.EXPECT().GetTRCInfo(gomock.Any(),
+					trust.TRCID{ISD: addr.ISD(2), Version: scrypto.LatestVer}).Return(
 					trust.TRCInfo{}, trust.ErrNotFound,
 				)
 				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("isd local path")})
@@ -104,7 +106,8 @@ func TestCSRouterChooseServer(t *testing.T) {
 			ISD: 2,
 			Expect: func(db *mock_v2.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
 				passed := util.UnixTime{Time: time.Now().Add(-time.Second)}
-				db.EXPECT().GetTRCInfo(gomock.Any(), addr.ISD(2), scrypto.Version(0)).Return(
+				db.EXPECT().GetTRCInfo(gomock.Any(),
+					trust.TRCID{ISD: addr.ISD(2), Version: scrypto.LatestVer}).Return(
 					trust.TRCInfo{Validity: scrypto.Validity{NotAfter: passed}}, nil,
 				)
 				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("isd local path")})
@@ -116,7 +119,8 @@ func TestCSRouterChooseServer(t *testing.T) {
 		"Remote ISD, DB error": {
 			ISD: 2,
 			Expect: func(db *mock_v2.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
-				db.EXPECT().GetTRCInfo(gomock.Any(), addr.ISD(2), scrypto.Version(0)).Return(
+				db.EXPECT().GetTRCInfo(gomock.Any(),
+					trust.TRCID{ISD: addr.ISD(2), Version: scrypto.LatestVer}).Return(
 					trust.TRCInfo{}, common.NewBasicError("DB error", nil),
 				)
 			},

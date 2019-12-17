@@ -120,18 +120,17 @@ func (e *executor) TRCExists(ctx context.Context, d decoded.TRC) (bool, error) {
 	return trcExists(ctx, e.db, d)
 }
 
-func (e *executor) GetTRC(ctx context.Context, isd addr.ISD,
-	version scrypto.Version) (*trc.TRC, error) {
+func (e *executor) GetTRC(ctx context.Context, id trust.TRCID) (*trc.TRC, error) {
 
 	e.RLock()
 	defer e.RUnlock()
 	var pld []byte
 	query := `SELECT pld FROM trcs WHERE isd_id=? AND version=?`
-	if version.IsLatest() {
+	if id.Version.IsLatest() {
 		query = `SELECT pld FROM (SELECT pld, max(version) FROM trcs WHERE isd_id=?)
 		         WHERE pld IS NOT NULL`
 	}
-	err := e.db.QueryRowContext(ctx, query, isd, version).Scan(&pld)
+	err := e.db.QueryRowContext(ctx, query, id.ISD, id.Version).Scan(&pld)
 	switch {
 	case err == sql.ErrNoRows:
 		return nil, trust.ErrNotFound
@@ -141,38 +140,36 @@ func (e *executor) GetTRC(ctx context.Context, isd addr.ISD,
 	return trc.Encoded(pld).Decode()
 }
 
-func (e *executor) GetRawTRC(ctx context.Context, isd addr.ISD,
-	version scrypto.Version) ([]byte, error) {
+func (e *executor) GetRawTRC(ctx context.Context, id trust.TRCID) ([]byte, error) {
 
 	e.RLock()
 	defer e.RUnlock()
 	query := `SELECT raw FROM trcs WHERE isd_id=? AND version=?`
-	if version.IsLatest() {
+	if id.Version.IsLatest() {
 		query = `SELECT raw FROM (SELECT raw, max(version) FROM trcs WHERE isd_id=?)
 		         WHERE raw IS NOT NULL`
 	}
 	var raw []byte
-	err := e.db.QueryRowContext(ctx, query, isd, version).Scan(&raw)
+	err := e.db.QueryRowContext(ctx, query, id.ISD, id.Version).Scan(&raw)
 	if err == sql.ErrNoRows {
 		return nil, trust.ErrNotFound
 	}
 	return raw, err
 }
 
-func (e *executor) GetTRCInfo(ctx context.Context, isd addr.ISD,
-	version scrypto.Version) (trust.TRCInfo, error) {
-
+func (e *executor) GetTRCInfo(ctx context.Context, id trust.TRCID) (trust.TRCInfo, error) {
 	e.RLock()
 	defer e.RUnlock()
 	query := `SELECT version, not_before, not_after, grace_period from trcs
 	          WHERE isd_id=? AND version=?`
-	if version.IsLatest() {
+	if id.Version.IsLatest() {
 		query = `SELECT max(version), not_before, not_after, grace_period from trcs WHERE isd_id=?`
 	}
 	var ver scrypto.Version
 	var grace int
 	var notBefore, notAfter uint32
-	err := e.db.QueryRowContext(ctx, query, isd, version).Scan(&ver, &notBefore, &notAfter, &grace)
+	err := e.db.QueryRowContext(ctx, query, id.ISD, id.Version).
+		Scan(&ver, &notBefore, &notAfter, &grace)
 	switch {
 	case err == sql.ErrNoRows:
 		return trust.TRCInfo{}, trust.ErrNotFound
@@ -196,7 +193,7 @@ func (e *executor) GetIssuingKeyInfo(ctx context.Context, ia addr.IA,
 	// we chose the simple way to implement this, if this ever becomes a
 	// performance bottleneck we can still add a separate table which contains
 	// this information.
-	t, err := e.GetTRC(ctx, ia.I, version)
+	t, err := e.GetTRC(ctx, trust.TRCID{ISD: ia.I, Version: version})
 	if err != nil {
 		return trust.KeyInfo{}, err
 	}
@@ -250,18 +247,17 @@ func (e *executor) InsertTRC(ctx context.Context, d decoded.TRC) (bool, error) {
 	return inserted, nil
 }
 
-func (e *executor) GetRawChain(ctx context.Context, ia addr.IA,
-	version scrypto.Version) ([]byte, error) {
+func (e *executor) GetRawChain(ctx context.Context, id trust.ChainID) ([]byte, error) {
 
 	e.RLock()
 	defer e.RUnlock()
 	query := `SELECT raw FROM chains WHERE isd_id=? AND as_id=? AND version=?`
-	if version.IsLatest() {
+	if id.Version.IsLatest() {
 		query = `SELECT raw FROM (SELECT raw, max(version) FROM chains WHERE isd_id=? AND as_id=?)
 		         WHERE raw IS NOT NULL`
 	}
 	var raw []byte
-	err := e.db.QueryRowContext(ctx, query, ia.I, ia.A, version).Scan(&raw)
+	err := e.db.QueryRowContext(ctx, query, id.IA.I, id.IA.A, id.Version).Scan(&raw)
 	if err == sql.ErrNoRows {
 		return nil, trust.ErrNotFound
 	}

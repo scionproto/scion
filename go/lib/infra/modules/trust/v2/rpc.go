@@ -28,7 +28,7 @@ import (
 // RPC abstracts the RPC calls over the messenger.
 type RPC interface {
 	GetTRC(context.Context, TRCReq, net.Addr) ([]byte, error)
-	GetCertChain(ctx context.Context, msg ChainReq, a net.Addr) ([]byte, error)
+	GetCertChain(context.Context, ChainReq, net.Addr) ([]byte, error)
 	SendTRC(context.Context, []byte, net.Addr) error
 	SendCertChain(context.Context, []byte, net.Addr) error
 }

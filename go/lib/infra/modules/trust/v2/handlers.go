@@ -21,14 +21,12 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -66,8 +64,13 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
-	raw, err := h.provider.GetRawChain(ctx, chainReq.IA(), chainReq.Version,
-		infra.ChainOpts{AllowInactive: true}, h.request.Peer)
+	raw, err := h.provider.GetRawChain(ctx,
+		ChainID{IA: chainReq.IA(), Version: chainReq.Version},
+		infra.ChainOpts{
+			TrustStoreOpts: infra.TrustStoreOpts{Client: h.request.Peer},
+			AllowInactive:  true,
+		},
+	)
 	if err != nil {
 		logger.Error("[TrustStore:chainReqHandler] Unable to retrieve chain", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
@@ -114,8 +117,13 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
-	raw, err := h.provider.GetRawTRC(ctx, trcReq.ISD, trcReq.Version,
-		infra.TRCOpts{AllowInactive: true}, h.request.Peer)
+	raw, err := h.provider.GetRawTRC(ctx,
+		TRCID{ISD: trcReq.ISD, Version: trcReq.Version},
+		infra.TRCOpts{
+			TrustStoreOpts: infra.TrustStoreOpts{Client: h.request.Peer},
+			AllowInactive:  true,
+		},
+	)
 	if err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, AckNotFound)
@@ -254,15 +262,15 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 }
 
 func newTRCGetter(provider CryptoProvider, peer net.Addr) func(context.Context,
-	addr.ISD, scrypto.Version) (*trc.TRC, error) {
+	TRCID) (*trc.TRC, error) {
 
-	return func(ctx context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
+	return func(ctx context.Context, id TRCID) (*trc.TRC, error) {
 		opts := infra.TRCOpts{
 			TrustStoreOpts: infra.TrustStoreOpts{
 				Server: peer,
 			},
 			AllowInactive: true,
 		}
-		return provider.GetTRC(ctx, isd, version, opts)
+		return provider.GetTRC(ctx, id, opts)
 	}
 }

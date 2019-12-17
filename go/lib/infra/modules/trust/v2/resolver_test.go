@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	trust "github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/mock_v2"
@@ -45,7 +44,8 @@ func TestResolverTRC(t *testing.T) {
 	}{
 		"Fetch missing links successfully": {
 			Expect: func(t *testing.T, m mocks) decoded.TRC {
-				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer).Return(
+				m.DB.EXPECT().GetTRC(gomock.Any(),
+					trust.TRCID{ISD: 1, Version: scrypto.LatestVer}).Return(
 					loadTRC(t, trc1v1).TRC, nil,
 				)
 				req := trust.TRCReq{ISD: 1, Version: scrypto.LatestVer}
@@ -56,7 +56,7 @@ func TestResolverTRC(t *testing.T) {
 					m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(dec.Raw, nil)
 					m.Inserter.EXPECT().InsertTRC(gomock.Any(), dec, gomock.Any()).DoAndReturn(
 						func(_ interface{}, decTRC decoded.TRC, p trust.TRCProviderFunc) error {
-							prev, err := p(nil, 1, req.Version-1)
+							prev, err := p(nil, trust.TRCID{ISD: 1, Version: req.Version - 1})
 							require.NoError(t, err)
 							assert.Equal(t, req.Version-1, prev.Version)
 							assert.Equal(t, dec, decTRC)
@@ -70,7 +70,8 @@ func TestResolverTRC(t *testing.T) {
 		},
 		"DB error": {
 			Expect: func(t *testing.T, m mocks) decoded.TRC {
-				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer).Return(
+				m.DB.EXPECT().GetTRC(gomock.Any(),
+					trust.TRCID{ISD: 1, Version: scrypto.LatestVer}).Return(
 					nil, internal,
 				)
 				return decoded.TRC{}
@@ -80,7 +81,8 @@ func TestResolverTRC(t *testing.T) {
 		},
 		"Superseded": {
 			Expect: func(t *testing.T, m mocks) decoded.TRC {
-				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer).Return(
+				m.DB.EXPECT().GetTRC(gomock.Any(),
+					trust.TRCID{ISD: 1, Version: scrypto.LatestVer}).Return(
 					loadTRC(t, trc1v3).TRC, nil,
 				)
 				return decoded.TRC{}
@@ -137,13 +139,16 @@ func TestResolverChain(t *testing.T) {
 				decTRC := loadTRC(t, trc1v1)
 				m.Inserter.EXPECT().InsertChain(gomock.Any(), dec, gomock.Any()).DoAndReturn(
 					func(ctx context.Context, dec decoded.Chain, p trust.TRCProviderFunc) error {
-						trc, err := p(ctx, dec.Issuer.Subject.I, dec.Issuer.Issuer.TRCVersion)
+						trc, err := p(ctx, trust.TRCID{
+							ISD:     dec.Issuer.Subject.I,
+							Version: dec.Issuer.Issuer.TRCVersion,
+						})
 						require.NoError(t, err)
 						assert.Equal(t, decTRC.TRC, trc)
 						return err
 					},
 				)
-				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.Version(1)).Return(
+				m.DB.EXPECT().GetTRC(gomock.Any(), trust.TRCID{ISD: 1, Version: 1}).Return(
 					decTRC.TRC, nil,
 				)
 				return dec
@@ -203,12 +208,15 @@ func TestResolverChain(t *testing.T) {
 				)
 				m.Inserter.EXPECT().InsertChain(gomock.Any(), dec, gomock.Any()).DoAndReturn(
 					func(ctx context.Context, dec decoded.Chain, p trust.TRCProviderFunc) error {
-						_, err := p(ctx, dec.Issuer.Subject.I, dec.Issuer.Issuer.TRCVersion)
+						_, err := p(ctx, trust.TRCID{
+							ISD:     dec.Issuer.Subject.I,
+							Version: dec.Issuer.Issuer.TRCVersion,
+						})
 						require.Error(t, err)
 						return err
 					},
 				)
-				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.Version(1)).Return(
+				m.DB.EXPECT().GetTRC(gomock.Any(), trust.TRCID{ISD: 1, Version: 1}).Return(
 					nil, internal,
 				)
 				return decoded.Chain{}
@@ -225,15 +233,19 @@ func TestResolverChain(t *testing.T) {
 				)
 				m.Inserter.EXPECT().InsertChain(gomock.Any(), dec, gomock.Any()).DoAndReturn(
 					func(ctx context.Context, dec decoded.Chain, p trust.TRCProviderFunc) error {
-						_, err := p(ctx, dec.Issuer.Subject.I, dec.Issuer.Issuer.TRCVersion)
+						_, err := p(ctx, trust.TRCID{
+							ISD:     dec.Issuer.Subject.I,
+							Version: dec.Issuer.Issuer.TRCVersion,
+						})
 						xtest.AssertErrorsIs(t, err, internal)
 						return err
 					},
 				)
-				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.Version(1)).Return(
+				m.DB.EXPECT().GetTRC(gomock.Any(), trust.TRCID{ISD: 1, Version: 1}).Return(
 					nil, trust.ErrNotFound,
 				)
-				m.DB.EXPECT().GetTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer).Return(
+				m.DB.EXPECT().GetTRC(gomock.Any(),
+					trust.TRCID{ISD: 1, Version: scrypto.LatestVer}).Return(
 					nil, internal,
 				)
 				return decoded.Chain{}

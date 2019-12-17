@@ -103,7 +103,7 @@ func TestVerify(t *testing.T) {
 		defer ctrl.Finish()
 		p := mock_v2.NewMockCryptoProvider(ctrl)
 		p.EXPECT().GetASKey(gomock.Any(), gomock.Any(),
-			gomock.Any()).Return(&scrypto.KeyMeta{Key: public, Algorithm: scrypto.Ed25519}, nil)
+			gomock.Any()).Return(scrypto.KeyMeta{Key: public, Algorithm: scrypto.Ed25519}, nil)
 
 		v := &trust.Verifier{
 			Store: p,

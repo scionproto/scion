@@ -78,7 +78,7 @@ func (r *csRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, 
 	if destination == r.isd {
 		return r.isd, nil
 	}
-	info, err := r.db.GetTRCInfo(ctx, destination, scrypto.Version(scrypto.LatestVer))
+	info, err := r.db.GetTRCInfo(ctx, TRCID{ISD: destination, Version: scrypto.LatestVer})
 	if err != nil {
 		if xerrors.Is(err, ErrNotFound) {
 			return r.isd, nil

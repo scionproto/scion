@@ -508,6 +508,9 @@ type TrustStoreOpts struct {
 	// requests, if they are not available locally. If it is not set, the
 	// trust store does its own server resolution.
 	Server net.Addr
+	// Client indicates the peer who sent this request to the trust store, if
+	// applicable.
+	Client net.Addr
 	// LocalOnly indicates that the store should only check locally.
 	LocalOnly bool
 }

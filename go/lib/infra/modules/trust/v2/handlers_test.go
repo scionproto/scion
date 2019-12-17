@@ -84,8 +84,9 @@ func TestChainReqHandler(t *testing.T) {
 					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					opts, nil).Return(nil, trust.ErrNotFound)
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					opts).Return(nil, trust.ErrNotFound)
 				return p
 			},
 			ExpectedResult: infra.MetricsErrTrustStore(trust.ErrNotFound),
@@ -109,8 +110,9 @@ func TestChainReqHandler(t *testing.T) {
 					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					opts, nil).Return([]byte("test"), nil)
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					opts).Return([]byte("test"), nil)
 				return p
 			},
 			ExpectedResult: infra.MetricsErrMsger(infra.ErrTransport),
@@ -134,8 +136,9 @@ func TestChainReqHandler(t *testing.T) {
 					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawChain(gomock.Any(), ia110, scrypto.LatestVer,
-					opts, nil).Return([]byte("test"), nil)
+				p.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.LatestVer},
+					opts).Return([]byte("test"), nil)
 				return p
 			},
 			ExpectedResult: infra.MetricsResultOk,
@@ -208,8 +211,9 @@ func TestTRCReqHandler(t *testing.T) {
 					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer,
-					opts, nil).Return(nil, trust.ErrNotFound)
+				p.EXPECT().GetRawTRC(gomock.Any(),
+					trust.TRCID{ISD: addr.ISD(1), Version: scrypto.LatestVer},
+					opts).Return(nil, trust.ErrNotFound)
 				return p
 			},
 			ExpectedResult: infra.MetricsErrTrustStore(trust.ErrNotFound),
@@ -233,8 +237,9 @@ func TestTRCReqHandler(t *testing.T) {
 					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer,
-					opts, nil).Return([]byte("test"), nil)
+				p.EXPECT().GetRawTRC(gomock.Any(),
+					trust.TRCID{ISD: addr.ISD(1), Version: scrypto.LatestVer},
+					opts).Return([]byte("test"), nil)
 				return p
 			},
 			ExpectedResult: infra.MetricsErrMsger(infra.ErrTransport),
@@ -258,8 +263,9 @@ func TestTRCReqHandler(t *testing.T) {
 					AllowInactive: true,
 				}
 				p := mock_v2.NewMockCryptoProvider(ctrl)
-				p.EXPECT().GetRawTRC(gomock.Any(), addr.ISD(1), scrypto.LatestVer,
-					opts, nil).Return([]byte("test"), nil)
+				p.EXPECT().GetRawTRC(gomock.Any(),
+					trust.TRCID{ISD: addr.ISD(1), Version: scrypto.LatestVer},
+					opts).Return([]byte("test"), nil)
 				return p
 			},
 			ExpectedResult: infra.MetricsResultOk,

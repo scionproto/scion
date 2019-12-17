@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/mock_v2"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -137,7 +136,7 @@ func TestInserterInsertChain(t *testing.T) {
 					false, nil,
 				)
 			},
-			TRCProvider: func(context.Context, addr.ISD, scrypto.Version) (*trc.TRC, error) {
+			TRCProvider: func(context.Context, trust.TRCID) (*trc.TRC, error) {
 				return nil, notFound
 			},
 			ExpectedErr: notFound,
@@ -201,7 +200,7 @@ func TestInserterInsertChain(t *testing.T) {
 			ins := trust.NewInserter(db, false)
 
 			decTRC := loadTRC(t, trc1v1)
-			p := func(ctx context.Context, isd addr.ISD, ver scrypto.Version) (*trc.TRC, error) {
+			p := func(_ context.Context, _ trust.TRCID) (*trc.TRC, error) {
 				return decTRC.TRC, nil
 			}
 			if test.TRCProvider != nil {
@@ -292,7 +291,7 @@ func TestFwdInserterInsertChain(t *testing.T) {
 			ins := trust.NewFwdInserter(m.DB, m.RPC)
 
 			decTRC := loadTRC(t, trc1v1)
-			p := func(ctx context.Context, isd addr.ISD, ver scrypto.Version) (*trc.TRC, error) {
+			p := func(_ context.Context, _ trust.TRCID) (*trc.TRC, error) {
 				return decTRC.TRC, nil
 			}
 			if test.TRCProvider != nil {

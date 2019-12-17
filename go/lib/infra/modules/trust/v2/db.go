@@ -80,13 +80,13 @@ type TRCRead interface {
 	// database with differing contents.
 	TRCExists(ctx context.Context, d decoded.TRC) (bool, error)
 	// GetTRC returns the TRC. If it is not found, ErrNotFound is returned.
-	GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version) (*trc.TRC, error)
+	GetTRC(ctx context.Context, id TRCID) (*trc.TRC, error)
 	// GetRawTRC returns the raw signed TRC bytes. If it is not found,
 	// ErrNotFound is returned.
-	GetRawTRC(ctx context.Context, isd addr.ISD, version scrypto.Version) ([]byte, error)
+	GetRawTRC(ctx context.Context, id TRCID) ([]byte, error)
 	// GetTRCInfo returns the infos for the requested TRC. If it is not found,
 	// ErrNotFound is returned.
-	GetTRCInfo(ctx context.Context, isd addr.ISD, version scrypto.Version) (TRCInfo, error)
+	GetTRCInfo(ctx context.Context, id TRCID) (TRCInfo, error)
 	// GetIssuingKeyInfo returns the infos of the requested AS. If it is not
 	// found, ErrNotFound is returned.
 	GetIssuingKeyInfo(ctx context.Context, ia addr.IA, version scrypto.Version) (KeyInfo, error)
@@ -105,7 +105,7 @@ type TRCWrite interface {
 type ChainRead interface {
 	// GetRawChain returns the raw signed certificate chain bytes. If it is not
 	// found, ErrNotFound is returned.
-	GetRawChain(ctx context.Context, ia addr.IA, version scrypto.Version) ([]byte, error)
+	GetRawChain(ctx context.Context, id ChainID) ([]byte, error)
 	// ChainExists returns whether the certificate chain is found in the
 	// database and the content matches. ErrContentMismatch is returned if any
 	// of the two certificates exist in the database with differing contents.
