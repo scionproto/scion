@@ -92,5 +92,5 @@ func (d Chain) String() string {
 	if d.AS == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("ISD%s-V%d", d.AS.Subject.FileFmt(true), d.AS.Version)
+	return fmt.Sprintf("ISD%d-AS%s-V%d", d.AS.Subject.I, d.AS.Subject.A, d.AS.Version)
 }

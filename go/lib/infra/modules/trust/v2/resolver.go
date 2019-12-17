@@ -18,6 +18,8 @@ import (
 	"context"
 	"net"
 
+	"github.com/opentracing/opentracing-go"
+	opentracingext "github.com/opentracing/opentracing-go/ext"
 	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
@@ -55,15 +57,25 @@ type DefaultResolver struct {
 
 // TRC resolves the decoded signed TRC. Missing links in the TRC
 // verification chain are also requested.
-func (r DefaultResolver) TRC(ctx context.Context, req TRCReq,
+func (r DefaultResolver) TRC(parentCtx context.Context, req TRCReq,
 	server net.Addr) (decoded.TRC, error) {
 
+	span, ctx := opentracing.StartSpanFromContext(parentCtx, "resolve_trc")
+	defer span.Finish()
+	opentracingext.Component.Set(span, "trust")
+	span.SetTag("isd", req.ISD)
+	span.SetTag("version", req.Version)
+	logger := log.SpanFromCtx(ctx)
+
 	if req.Version.IsLatest() {
+		logger.Debug("[TrustStore:Resolver] Resolving latest version of TRC", "isd", req.ISD)
 		latest, err := r.resolveLatestVersion(ctx, req, server)
 		if err != nil {
 			return decoded.TRC{}, serrors.WrapStr("unable to resolve latest version", err)
 		}
 		req = req.withVersion(latest)
+		logger.Debug("[TrustStore:Resolver] Resolved latest version of TRC",
+			"isd", req.ISD, "version", req.Version)
 	}
 	prev, err := r.DB.GetTRC(ctx, TRCID{ISD: req.ISD, Version: scrypto.LatestVer})
 	if err != nil && !xerrors.Is(err, ErrNotFound) {
@@ -99,6 +111,8 @@ func (r DefaultResolver) TRC(ctx context.Context, req TRCReq,
 			return decoded.TRC{}, serrors.WrapStr("unable to insert parts of TRC chain", err,
 				"trc", decTRC)
 		}
+		logger.Debug("[TrustStore:Resolver] Inserted resolved TRC", "isd", decTRC.TRC.ISD,
+			"version", decTRC.TRC.Version)
 		w.SetTRC(decTRC.TRC)
 	}
 	return decTRC, nil
@@ -123,17 +137,28 @@ func (r DefaultResolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 	return decTRC.TRC.Version, nil
 }
 
-func (r DefaultResolver) startFetchTRC(ctx context.Context, res chan<- resOrErr,
+func (r DefaultResolver) startFetchTRC(parentCtx context.Context, res chan<- resOrErr,
 	req TRCReq, server net.Addr) {
 
 	go func() {
+		span, ctx := opentracing.StartSpanFromContext(parentCtx, "resolve_trc_link")
+		defer span.Finish()
+		opentracingext.Component.Set(span, "trust")
+		span.SetTag("isd", req.ISD)
+		span.SetTag("version", req.Version)
+		logger := log.SpanFromCtx(ctx)
+
 		defer log.LogPanicAndExit()
+		logger.Debug("[TrustStore:Resolver] Fetch TRC from remote", "isd", req.ISD,
+			"version", req.Version, "server", server)
 		rawTRC, err := r.RPC.GetTRC(ctx, req, server)
 		if err != nil {
 			res <- resOrErr{Err: serrors.WrapStr("error requesting TRC", err,
 				"isd", req.ISD, "version", req.Version)}
 			return
 		}
+		logger.Debug("[TrustStore:Resolver] Received TRC from remote",
+			"isd", req.ISD, "version", req.Version)
 		decTRC, err := decoded.DecodeTRC(rawTRC)
 		if err != nil {
 			res <- resOrErr{Err: serrors.WrapStr("failed to parse TRC", err,
@@ -160,13 +185,24 @@ func (r DefaultResolver) trcCheck(req TRCReq, t *trc.TRC) error {
 
 // Chain resolves the raw signed certificate chain. If the issuing TRC is
 // missing, it is also requested.
-func (r DefaultResolver) Chain(ctx context.Context, req ChainReq,
+func (r DefaultResolver) Chain(parentCtx context.Context, req ChainReq,
 	server net.Addr) (decoded.Chain, error) {
 
+	span, ctx := opentracing.StartSpanFromContext(parentCtx, "resolve_chain")
+	defer span.Finish()
+	opentracingext.Component.Set(span, "trust")
+	span.SetTag("ia", req.IA)
+	span.SetTag("version", req.Version)
+	logger := log.SpanFromCtx(ctx)
+
+	logger.Debug("[TrustStore:Resolver] Fetch certificate chain from remote", "ia", req.IA,
+		"version", req.Version, "server", server)
 	msg, err := r.RPC.GetCertChain(ctx, req, server)
 	if err != nil {
 		return decoded.Chain{}, serrors.WrapStr("error requesting certificate chain", err)
 	}
+	logger.Debug("[TrustStore:Resolver] Received certificate chain from remote", "ia", req.IA,
+		"version", req.Version)
 	dec, err := decoded.DecodeChain(msg)
 	if err != nil {
 		return decoded.Chain{}, serrors.WrapStr("error parsing certificate chain", err)
@@ -227,7 +263,6 @@ type resolveWrap struct {
 }
 
 func (w resolveWrap) TRC(ctx context.Context, id TRCID) (*trc.TRC, error) {
-
 	t, err := w.resolver.DB.GetTRC(ctx, id)
 	switch {
 	case err == nil:

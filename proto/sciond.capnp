@@ -25,6 +25,7 @@ struct SCIONDMsg {
         segTypeHopReq @12 :SegTypeHopReq;
         segTypeHopReply @13 :SegTypeHopReply;
     }
+    traceId @14 :Data;
 }
 
 struct PathReq {

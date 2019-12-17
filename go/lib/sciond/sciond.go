@@ -41,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -172,7 +173,8 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 	reply, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Which: proto.SCIONDMsg_Which_pathReq,
+			TraceId: tracing.IDFromCtx(ctx),
+			Which:   proto.SCIONDMsg_Which_pathReq,
 			PathReq: &PathReq{
 				Dst:      dst.IAInt(),
 				Src:      src.IAInt(),
@@ -200,7 +202,8 @@ func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Which: proto.SCIONDMsg_Which_asInfoReq,
+			TraceId: tracing.IDFromCtx(ctx),
+			Which:   proto.SCIONDMsg_Which_asInfoReq,
 			AsInfoReq: &ASInfoReq{
 				Isdas: ia.IAInt(),
 			},
@@ -227,7 +230,8 @@ func (c *conn) IFInfo(ctx context.Context,
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Which: proto.SCIONDMsg_Which_ifInfoRequest,
+			TraceId: tracing.IDFromCtx(ctx),
+			Which:   proto.SCIONDMsg_Which_ifInfoRequest,
 			IfInfoRequest: &IFInfoRequest{
 				IfIDs: ifs,
 			},
@@ -254,7 +258,8 @@ func (c *conn) SVCInfo(ctx context.Context,
 	pld, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Which: proto.SCIONDMsg_Which_serviceInfoRequest,
+			TraceId: tracing.IDFromCtx(ctx),
+			Which:   proto.SCIONDMsg_Which_serviceInfoRequest,
 			ServiceInfoRequest: &ServiceInfoRequest{
 				ServiceTypes: svcTypes,
 			},
@@ -290,7 +295,8 @@ func (c *conn) RevNotification(ctx context.Context,
 	reply, err := roundTripper.Request(
 		ctx,
 		&Pld{
-			Which: proto.SCIONDMsg_Which_revNotification,
+			TraceId: tracing.IDFromCtx(ctx),
+			Which:   proto.SCIONDMsg_Which_revNotification,
 			RevNotification: &RevNotification{
 				SRevInfo: sRevInfo,
 			},

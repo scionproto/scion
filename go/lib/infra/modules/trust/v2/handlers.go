@@ -48,7 +48,7 @@ func (h *chainReqHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	ctx := h.request.Context()
-	logger := log.FromCtx(ctx)
+	logger := log.SpanFromCtx(ctx)
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {
 		logger.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
@@ -101,7 +101,7 @@ func (h *trcReqHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	ctx := h.request.Context()
-	logger := log.FromCtx(ctx)
+	logger := log.SpanFromCtx(ctx)
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {
 		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
@@ -153,7 +153,7 @@ func (h *chainPushHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	ctx := h.request.Context()
-	logger := log.FromCtx(ctx)
+	logger := log.SpanFromCtx(ctx)
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
 		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
@@ -211,7 +211,7 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	ctx := h.request.Context()
-	logger := log.FromCtx(ctx)
+	logger := log.SpanFromCtx(ctx)
 	// XXX(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
 	// new chain from the issuer. If a chain is not obtained within the

@@ -109,9 +109,9 @@ func (h *QUICHandler) prepareServeCtx(pld *ctrl.Pld, messageType infra.MessageTy
 	)
 
 	// Tracing
-	var err error
 	var spanCtx opentracing.SpanContext
-	if pld.Data.TraceId.Len() > 0 {
+	if len(pld.Data.TraceId) > 0 {
+		var err error
 		spanCtx, err = opentracing.GlobalTracer().Extract(opentracing.Binary,
 			bytes.NewReader(pld.Data.TraceId))
 		if err != nil {
@@ -119,10 +119,9 @@ func (h *QUICHandler) prepareServeCtx(pld *ctrl.Pld, messageType infra.MessageTy
 		}
 	}
 
-	var span opentracing.Span
-	serveCtx, span = tracing.CtxWith(serveCtx, h.parentLogger,
+	ctx, span := tracing.CtxWith(serveCtx, h.parentLogger,
 		fmt.Sprintf("%s-handler", messageType), opentracingext.RPCServerOption(spanCtx))
-	return serveCtx, serveCancelF, span
+	return ctx, serveCancelF, span
 }
 
 func msgToSignedPld(msg *capnp.Message) (*ctrl.SignedPld, error) {
