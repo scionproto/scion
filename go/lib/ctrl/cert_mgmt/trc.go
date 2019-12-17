@@ -19,7 +19,8 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	legacy "github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -29,11 +30,11 @@ type TRC struct {
 	RawTRC common.RawBytes `capnp:"trc"`
 }
 
-func (t *TRC) TRC() (*trc.TRC, error) {
+func (t *TRC) TRC() (*legacy.TRC, error) {
 	if t.RawTRC == nil {
 		return nil, nil
 	}
-	return trc.TRCFromRaw(t.RawTRC, true)
+	return legacy.TRCFromRaw(t.RawTRC, true)
 }
 
 func (t *TRC) ProtoId() proto.ProtoIdType {
@@ -41,9 +42,13 @@ func (t *TRC) ProtoId() proto.ProtoIdType {
 }
 
 func (t *TRC) String() string {
-	u, err := t.TRC()
+	signed, err := trc.ParseSigned(t.RawTRC)
 	if err != nil {
-		return fmt.Sprintf("Invalid TRC: %v", err)
+		return fmt.Sprintf("Invalid signed TRC: %v", err)
 	}
-	return u.String()
+	pld, err := signed.EncodedTRC.Decode()
+	if err != nil {
+		return fmt.Sprintf("Invalid TRC payload: %v", err)
+	}
+	return fmt.Sprintf("ISD%d-V%d", pld.ISD, pld.Version)
 }

@@ -19,7 +19,8 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	legacy "github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -29,11 +30,11 @@ type Chain struct {
 	RawChain common.RawBytes `capnp:"chain"`
 }
 
-func (c *Chain) Chain() (*cert.Chain, error) {
+func (c *Chain) Chain() (*legacy.Chain, error) {
 	if c.RawChain == nil {
 		return nil, nil
 	}
-	return cert.ChainFromRaw(c.RawChain, true)
+	return legacy.ChainFromRaw(c.RawChain, true)
 }
 
 func (c *Chain) ProtoId() proto.ProtoIdType {
@@ -41,9 +42,13 @@ func (c *Chain) ProtoId() proto.ProtoIdType {
 }
 
 func (c *Chain) String() string {
-	chain, err := c.Chain()
+	raw, err := cert.ParseChain(c.RawChain)
 	if err != nil {
 		return fmt.Sprintf("Invalid CertificateChain: %v", err)
 	}
-	return chain.String()
+	as, err := raw.AS.Encoded.Decode()
+	if err != nil {
+		return fmt.Sprintf("Invalid AS certificate: %v", err)
+	}
+	return fmt.Sprintf("ISD%d-AS%s-V%d", as.Subject.I, as.Subject.A, as.Version)
 }

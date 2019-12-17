@@ -281,7 +281,7 @@ type periodicTasks struct {
 	intfs           *ifstate.Interfaces
 	conn            *snet.SCIONPacketConn
 	genMac          func() hash.Hash
-	trustStore      *trust.Store
+	trustStore      trust.Store
 	store           beaconstorage.Store
 	msgr            infra.Messenger
 	topoProvider    topology.Provider
