@@ -18,7 +18,7 @@ clean:
 	docker image prune -f
 
 # Base images
-BASE_TARGETS = app_builder debug_base
+BASE_TARGETS = app_builder
 .PHONY: $(BASE_TARGETS)
 base: $(BASE_TARGETS)
 
@@ -26,16 +26,12 @@ app_builder: hashes/app_builder
 hashes/app_builder: base/Dockerfile.builder hashes/scion
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $< files/
 
-debug_base: hashes/debug_base
-hashes/debug_base: base/Dockerfile.debug hashes/scion
-	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $< files/
-
 # App images
 APP_TARGETS = bazel
 .PHONY: $(APP_TARGETS)
 apps: $(APP_TARGETS)
 
-bazel: ../_build/scion.stamp
+bazel:
 	./build-images.sh prod
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build hashes/sig app/Dockerfile.sig
 
@@ -44,6 +40,6 @@ DEBUG_TARGETS = bazel_debug
 .PHONY: $(DEBUG_TARGETS)
 debug: $(DEBUG_TARGETS)
 
-bazel_debug: ../_build/scion.stamp debug_base
+bazel_debug:
 	./build-images.sh debug
-	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build hashes/sig_debug app/Dockerfile.sig
+	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build hashes/sig_debug debug/Dockerfile.sig
