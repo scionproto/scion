@@ -47,20 +47,20 @@ type Inserter interface {
 // method of the inserter.
 type TRCProviderFunc func(context.Context, TRCID) (*trc.TRC, error)
 
-// inserter is used to verify and insert trust material into the database.
-type inserter struct {
-	baseInserter
+// DefaultInserter is used to verify and insert trust material into the database.
+type DefaultInserter struct {
+	BaseInserter
 }
 
 // InsertTRC verifies the signed TRC and inserts it into the database.
 // The previous TRC is queried through the provider function, when necessary.
-func (ins *inserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
+func (ins DefaultInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
 	if insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider); err != nil || !insert {
 		return err
 	}
-	if _, err := ins.db.InsertTRC(ctx, decTRC); err != nil {
+	if _, err := ins.DB.InsertTRC(ctx, decTRC); err != nil {
 		return serrors.WrapStr("unable to insert TRC", err)
 	}
 	return nil
@@ -69,32 +69,32 @@ func (ins *inserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 // InsertChain verifies the signed certificate chain and inserts it into the
 // database. The issuing TRC is queried through the provider function, when
 // necessary.
-func (ins *inserter) InsertChain(ctx context.Context, chain decoded.Chain,
+func (ins DefaultInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
 	if insert, err := ins.shouldInsertChain(ctx, chain, trcProvider); err != nil || !insert {
 		return err
 	}
-	if _, _, err := ins.db.InsertChain(ctx, chain); err != nil {
+	if _, _, err := ins.DB.InsertChain(ctx, chain); err != nil {
 		return serrors.WrapStr("unable to insert chain", err)
 	}
 	return nil
 }
 
-// fwdInserter is an inserter that always forwards the trust material to the
+// ForwardingInserter is an inserter that always forwards the trust material to the
 // certificate server before inserting it into the database. Forwarding must be
 // successful, otherwise the material is not inserted into the database.
-type fwdInserter struct {
-	baseInserter
-	router localRouter
-	rpc    RPC
+type ForwardingInserter struct {
+	BaseInserter
+	Router LocalRouter
+	RPC    RPC
 }
 
 // InsertTRC verifies the signed TRC and inserts it into the database. The
 // previous TRC is queried through the provider function, when necessary. Before
 // insertion, the TRC is forwarded to the certificate server. If the certificate
 // server does not successfully handle the TRC, the insertion fails.
-func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
+func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
 	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
@@ -104,11 +104,11 @@ func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	if !insert {
 		return nil
 	}
-	cs := ins.router.chooseServer()
-	if err := ins.rpc.SendTRC(ctx, decTRC.Raw, cs); err != nil {
+	cs := ins.Router.chooseServer()
+	if err := ins.RPC.SendTRC(ctx, decTRC.Raw, cs); err != nil {
 		return serrors.WrapStr("unable to push TRC to certificate server", err, "addr", cs)
 	}
-	if _, err := ins.db.InsertTRC(ctx, decTRC); err != nil {
+	if _, err := ins.DB.InsertTRC(ctx, decTRC); err != nil {
 		return serrors.WrapStr("unable to insert TRC", err)
 	}
 	return nil
@@ -119,7 +119,7 @@ func (ins *fwdInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 // necessary. Before insertion, the certificate chain is forwarded to the
 // certificate server. If the certificate server does not successfully handle
 // the certificate chain, the insertion fails.
-func (ins *fwdInserter) InsertChain(ctx context.Context, chain decoded.Chain,
+func (ins ForwardingInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
 	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
@@ -129,27 +129,28 @@ func (ins *fwdInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	if !insert {
 		return nil
 	}
-	cs := ins.router.chooseServer()
-	if err := ins.rpc.SendCertChain(ctx, chain.Raw, cs); err != nil {
+	cs := ins.Router.chooseServer()
+	if err := ins.RPC.SendCertChain(ctx, chain.Raw, cs); err != nil {
 		return serrors.WrapStr("unable to push chain to certificate server", err, "addr", cs)
 	}
-	if _, _, err := ins.db.InsertChain(ctx, chain); err != nil {
+	if _, _, err := ins.DB.InsertChain(ctx, chain); err != nil {
 		return serrors.WrapStr("unable to insert chain", err)
 	}
 	return nil
 }
 
-type baseInserter struct {
-	db ReadWrite
-	// unsafe allows inserts of base TRCs. This is used as a workaround until
+// BaseInserter implements the common functionality of the inserters.
+type BaseInserter struct {
+	DB ReadWrite
+	// Unsafe allows inserts of base TRCs. This is used as a workaround until
 	// TAAC support is implemented.
-	unsafe bool
+	Unsafe bool
 }
 
-func (ins *baseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC,
+func (ins BaseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) (bool, error) {
 
-	found, err := ins.db.TRCExists(ctx, decTRC)
+	found, err := ins.DB.TRCExists(ctx, decTRC)
 	if err != nil {
 		return false, err
 	}
@@ -158,8 +159,8 @@ func (ins *baseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC
 	}
 	if decTRC.TRC.Base() {
 		// XXX(roosd): remove when TAACs are supported.
-		if ins.unsafe {
-			if _, err := ins.db.InsertTRC(ctx, decTRC); err != nil {
+		if ins.Unsafe {
+			if _, err := ins.DB.InsertTRC(ctx, decTRC); err != nil {
 				return false, serrors.WrapStr("unable to insert base TRC", err)
 			}
 			return false, nil
@@ -177,7 +178,7 @@ func (ins *baseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC
 	return true, nil
 }
 
-func (ins *baseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next decoded.TRC) error {
+func (ins BaseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next decoded.TRC) error {
 	validator := trc.UpdateValidator{
 		Next: next.TRC,
 		Prev: prev,
@@ -197,10 +198,10 @@ func (ins *baseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next de
 	return nil
 }
 
-func (ins *baseInserter) shouldInsertChain(ctx context.Context, chain decoded.Chain,
+func (ins BaseInserter) shouldInsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) (bool, error) {
 
-	found, err := ins.db.ChainExists(ctx, chain)
+	found, err := ins.DB.ChainExists(ctx, chain)
 	if err != nil {
 		return false, err
 	}
@@ -224,7 +225,7 @@ func (ins *baseInserter) shouldInsertChain(ctx context.Context, chain decoded.Ch
 	return true, nil
 }
 
-func (ins *baseInserter) validateChain(chain decoded.Chain) error {
+func (ins BaseInserter) validateChain(chain decoded.Chain) error {
 	if err := chain.Issuer.Validate(); err != nil {
 		return serrors.Wrap(ErrValidation, err, "part", "issuer")
 	}
@@ -234,7 +235,7 @@ func (ins *baseInserter) validateChain(chain decoded.Chain) error {
 	return nil
 }
 
-func (ins *baseInserter) verifyChain(chain decoded.Chain, t *trc.TRC) error {
+func (ins BaseInserter) verifyChain(chain decoded.Chain, t *trc.TRC) error {
 	issVerifier := cert.IssuerVerifier{
 		TRC:          t,
 		Issuer:       chain.Issuer,

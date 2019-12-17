@@ -34,35 +34,40 @@ type Router interface {
 	ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error)
 }
 
-type localRouter struct {
-	ia addr.IA
+// LocalRouter routes requests to the local CS.
+type LocalRouter struct {
+	IA addr.IA
 }
 
 // ChooseServer always routes to the local CS.
-func (r *localRouter) ChooseServer(_ context.Context, _ addr.ISD) (net.Addr, error) {
+func (r LocalRouter) ChooseServer(_ context.Context, _ addr.ISD) (net.Addr, error) {
 	return r.chooseServer(), nil
 }
 
-func (r *localRouter) chooseServer() net.Addr {
-	return snet.NewSVCAddr(r.ia, nil, nil, addr.SvcCS)
+func (r LocalRouter) chooseServer() net.Addr {
+	return snet.NewSVCAddr(r.IA, nil, nil, addr.SvcCS)
 }
 
-type csRouter struct {
-	isd    addr.ISD
-	router snet.Router
-	db     TRCRead
+// AuthRouter routes requests for missing crypto material to the authoritative
+// ASes of the appropriate ISD.
+//
+// TODO(roosd): Add implementation of snet.Router that routes to authoritative AS.
+type AuthRouter struct {
+	ISD    addr.ISD
+	Router snet.Router
+	DB     TRCRead
 }
 
 // ChooseServer builds a CS address for crypto with the subject in a given ISD.
 //  * a local authoritative CS if subject is ISD-local.
 //  * a local authoritative CS if subject is in remote ISD, but no active TRC is available.
 //  * a remote authoritative CS otherwise.
-func (r *csRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
+func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
 	dstISD, err := r.dstISD(ctx, subjectISD)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to determine dest ISD to query", err)
 	}
-	path, err := r.router.Route(ctx, addr.IA{I: dstISD})
+	path, err := r.Router.Route(ctx, addr.IA{I: dstISD})
 	if err != nil {
 		return nil, serrors.WrapStr("unable to find path to any core AS", err, "isd", dstISD)
 	}
@@ -70,23 +75,19 @@ func (r *csRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.A
 	return ret, nil
 }
 
-// dstISD selects the CS to ask for crypto material, using the following strategy:
-//  * a local authoritative CS if subject is ISD-local.
-//  * a local authoritative CS if subject is in remote ISD, but no active TRC is available.
-//  * a remote authoritative CS otherwise.
-func (r *csRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, error) {
-	if destination == r.isd {
-		return r.isd, nil
+func (r AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, error) {
+	if destination == r.ISD {
+		return r.ISD, nil
 	}
-	info, err := r.db.GetTRCInfo(ctx, TRCID{ISD: destination, Version: scrypto.LatestVer})
+	info, err := r.DB.GetTRCInfo(ctx, TRCID{ISD: destination, Version: scrypto.LatestVer})
 	if err != nil {
 		if xerrors.Is(err, ErrNotFound) {
-			return r.isd, nil
+			return r.ISD, nil
 		}
 		return 0, serrors.WrapStr("error querying DB for TRC", err)
 	}
 	if !info.Validity.Contains(time.Now()) {
-		return r.isd, nil
+		return r.ISD, nil
 	}
 	return destination, nil
 }

@@ -16,7 +16,6 @@ package trust
 
 import (
 	"context"
-	"net"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -67,38 +66,42 @@ type ChainID struct {
 	Version scrypto.Version
 }
 
-type cryptoProvider struct {
-	db       DBRead
-	recurser Recurser
-	resolver Resolver
-	router   Router
+// Provider provides crypto material. A crypto provider can spawn network
+// requests if necessary and permitted.
+type Provider struct {
+	DB       DBRead
+	Recurser Recurser
+	Resolver Resolver
+	Router   Router
 }
 
-func (p *cryptoProvider) GetTRC(ctx context.Context, id TRCID,
-	opts infra.TRCOpts) (*trc.TRC, error) {
-
+// GetTRC asks the trust store to return a valid and active TRC for isd,
+// unless inactive TRCs are specifically allowed. The optionally configured
+// server is queried over the network if the TRC is not available locally.
+// Otherwise, the default server is queried. How the default server is
+// determined differs between implementations.
+func (p Provider) GetTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (*trc.TRC, error) {
 	t, _, err := p.getCheckedTRC(ctx, id, opts)
 	return t, err
 }
 
-func (p *cryptoProvider) GetRawTRC(ctx context.Context, id TRCID,
-	opts infra.TRCOpts) ([]byte, error) {
-
+// GetRawTRC behaves the same as GetTRC, except returning the raw signed TRC.
+func (p Provider) GetRawTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) ([]byte, error) {
 	_, raw, err := p.getCheckedTRC(ctx, id, opts)
 	return raw, err
 }
 
-func (p *cryptoProvider) getCheckedTRC(ctx context.Context, id TRCID,
+func (p Provider) getCheckedTRC(ctx context.Context, id TRCID,
 	opts infra.TRCOpts) (*trc.TRC, []byte, error) {
 
-	decTRC, err := p.getTRC(ctx, id, opts, nil)
+	decTRC, err := p.getTRC(ctx, id, opts)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("unable to get requested TRC", err)
 	}
 	if opts.AllowInactive {
 		return decTRC.TRC, decTRC.Raw, nil
 	}
-	info, err := p.db.GetTRCInfo(ctx, TRCID{ISD: id.ISD, Version: scrypto.LatestVer})
+	info, err := p.DB.GetTRCInfo(ctx, TRCID{ISD: id.ISD, Version: scrypto.LatestVer})
 	if err != nil {
 		return nil, nil, serrors.WrapStr("unable to get latest TRC info", err)
 	}
@@ -140,10 +143,8 @@ func (p *cryptoProvider) getCheckedTRC(ctx context.Context, id TRCID,
 // whether this function is allowed to create new network requests. Parameter
 // client contains the node that caused the function to be called, or nil if the
 // function was called due to a local feature.
-func (p *cryptoProvider) getTRC(ctx context.Context, id TRCID,
-	opts infra.TRCOpts, client net.Addr) (decoded.TRC, error) {
-
-	raw, err := p.db.GetRawTRC(ctx, id)
+func (p Provider) getTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (decoded.TRC, error) {
+	raw, err := p.DB.GetRawTRC(ctx, id)
 	switch {
 	case err == nil:
 		return decoded.DecodeTRC(raw)
@@ -157,11 +158,11 @@ func (p *cryptoProvider) getTRC(ctx context.Context, id TRCID,
 }
 
 // fetchTRC fetches a TRC via a network request, if allowed.
-func (p *cryptoProvider) fetchTRC(ctx context.Context, id TRCID,
+func (p Provider) fetchTRC(ctx context.Context, id TRCID,
 	opts infra.TRCOpts) (decoded.TRC, error) {
 
 	server := opts.Server
-	if err := p.recurser.AllowRecursion(opts.Client); err != nil {
+	if err := p.Recurser.AllowRecursion(opts.Client); err != nil {
 		return decoded.TRC{}, err
 	}
 	req := TRCReq{
@@ -171,26 +172,33 @@ func (p *cryptoProvider) fetchTRC(ctx context.Context, id TRCID,
 	// Choose remote server, if not set.
 	if server == nil {
 		var err error
-		if server, err = p.router.ChooseServer(ctx, id.ISD); err != nil {
+		if server, err = p.Router.ChooseServer(ctx, id.ISD); err != nil {
 			return decoded.TRC{}, serrors.WrapStr("unable to route TRC request", err)
 		}
 	}
-	decTRC, err := p.resolver.TRC(ctx, req, server)
+	decTRC, err := p.Resolver.TRC(ctx, req, server)
 	if err != nil {
 		return decoded.TRC{}, serrors.WrapStr("unable to resolve signed TRC from network", err)
 	}
 	return decTRC, nil
 }
 
-func (p *cryptoProvider) GetRawChain(ctx context.Context, id ChainID,
+// GetRawChain asks the trust store to return a valid and active certificate
+// chain, unless inactive chains are specifically allowed. The optionally
+// configured server is queried over the network if the certificate chain is
+// not available locally. Otherwise, the default server is queried. How the
+// default server is determined differs between implementations.
+func (p Provider) GetRawChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) ([]byte, error) {
 
 	chain, err := p.getCheckedChain(ctx, id, opts)
 	return chain.Raw, err
 }
 
-func (p *cryptoProvider) GetASKey(ctx context.Context,
-	id ChainID, opts infra.ChainOpts) (scrypto.KeyMeta, error) {
+// GetASKey returns from trust store the public key required to verify signature
+// originated from an AS.
+func (p Provider) GetASKey(ctx context.Context, id ChainID,
+	opts infra.ChainOpts) (scrypto.KeyMeta, error) {
 
 	chain, err := p.getCheckedChain(ctx, id, opts)
 	if err != nil {
@@ -199,7 +207,7 @@ func (p *cryptoProvider) GetASKey(ctx context.Context,
 	return chain.AS.Keys[cert.SigningKey], nil
 }
 
-func (p *cryptoProvider) getCheckedChain(ctx context.Context, id ChainID,
+func (p Provider) getCheckedChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
 
 	chain, err := p.getChain(ctx, id, opts)
@@ -235,10 +243,10 @@ func (p *cryptoProvider) getCheckedChain(ctx context.Context, id ChainID,
 	}
 }
 
-func (p *cryptoProvider) getChain(ctx context.Context, id ChainID,
+func (p Provider) getChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
 
-	raw, err := p.db.GetRawChain(ctx, id)
+	raw, err := p.DB.GetRawChain(ctx, id)
 	switch {
 	case err == nil:
 		return decoded.DecodeChain(raw)
@@ -251,7 +259,7 @@ func (p *cryptoProvider) getChain(ctx context.Context, id ChainID,
 	}
 }
 
-func (p *cryptoProvider) issuerActive(ctx context.Context, chain decoded.Chain,
+func (p Provider) issuerActive(ctx context.Context, chain decoded.Chain,
 	opts infra.TrustStoreOpts) error {
 
 	if !chain.AS.Validity.Contains(time.Now()) {
@@ -266,12 +274,12 @@ func (p *cryptoProvider) issuerActive(ctx context.Context, chain decoded.Chain,
 	if err != nil {
 		return serrors.WrapStr("unable to preload latest TRC", err)
 	}
-	iss, err := p.db.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, chain.Issuer.Issuer.TRCVersion)
+	iss, err := p.DB.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, chain.Issuer.Issuer.TRCVersion)
 	if err != nil {
 		return serrors.WrapStr("unable to get issuing key info for issuing TRC", err,
 			"version", chain.Issuer.Issuer.TRCVersion)
 	}
-	latest, err := p.db.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, scrypto.LatestVer)
+	latest, err := p.DB.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, scrypto.LatestVer)
 	if err != nil {
 		return serrors.WrapStr("unable to get issuing key info for latest TRC", err)
 	}
@@ -283,7 +291,7 @@ func (p *cryptoProvider) issuerActive(ctx context.Context, chain decoded.Chain,
 			"latest_trc_version", latest.TRC.Version,
 			"expected", iss.Version, "actual", latest.Version)
 	}
-	inGrace, err := p.db.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, latest.TRC.Version-1)
+	inGrace, err := p.DB.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, latest.TRC.Version-1)
 	if err != nil {
 		return serrors.WrapStr("unable to get issuing key info for TRC in grace period", err,
 			"version", latest.TRC.Version-1)
@@ -296,11 +304,11 @@ func (p *cryptoProvider) issuerActive(ctx context.Context, chain decoded.Chain,
 	return nil
 }
 
-func (p *cryptoProvider) fetchChain(ctx context.Context, id ChainID,
+func (p Provider) fetchChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
 
 	server := opts.Server
-	if err := p.recurser.AllowRecursion(opts.Client); err != nil {
+	if err := p.Recurser.AllowRecursion(opts.Client); err != nil {
 		return decoded.Chain{}, err
 	}
 	req := ChainReq{
@@ -310,11 +318,11 @@ func (p *cryptoProvider) fetchChain(ctx context.Context, id ChainID,
 	// Choose remote server, if not set.
 	if server == nil {
 		var err error
-		if server, err = p.router.ChooseServer(ctx, id.IA.I); err != nil {
+		if server, err = p.Router.ChooseServer(ctx, id.IA.I); err != nil {
 			return decoded.Chain{}, serrors.WrapStr("unable to route TRC request", err)
 		}
 	}
-	chain, err := p.resolver.Chain(ctx, req, server)
+	chain, err := p.Resolver.Chain(ctx, req, server)
 	if err != nil {
 		return decoded.Chain{}, serrors.WrapStr("unable to resolve signed certificate chain"+
 			"from network", err)

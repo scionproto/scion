@@ -89,8 +89,12 @@ func TestInserterInsertTRC(t *testing.T) {
 			db := mock_v2.NewMockDB(mctrl)
 			decoded := loadTRC(t, trc1v1)
 			test.Expect(db, decoded)
-			ins := trust.NewInserter(db, test.Unsafe)
-
+			ins := trust.DefaultInserter{
+				BaseInserter: trust.BaseInserter{
+					DB:     db,
+					Unsafe: test.Unsafe,
+				},
+			}
 			err := ins.InsertTRC(context.Background(), decoded, nil)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 		})
@@ -197,7 +201,11 @@ func TestInserterInsertChain(t *testing.T) {
 			db := mock_v2.NewMockDB(mctrl)
 			decoded := loadChain(t, chain110v1)
 			test.Expect(db, decoded)
-			ins := trust.NewInserter(db, false)
+			ins := trust.DefaultInserter{
+				BaseInserter: trust.BaseInserter{
+					DB: db,
+				},
+			}
 
 			decTRC := loadTRC(t, trc1v1)
 			p := func(_ context.Context, _ trust.TRCID) (*trc.TRC, error) {
@@ -216,9 +224,8 @@ func TestInserterInsertChain(t *testing.T) {
 func TestFwdInserterInsertChain(t *testing.T) {
 	internal := serrors.New("internal")
 	type mocks struct {
-		DB     *mock_v2.MockDB
-		Router *mock_v2.MockRouter
-		RPC    *mock_v2.MockRPC
+		DB  *mock_v2.MockDB
+		RPC *mock_v2.MockRPC
 	}
 	tests := map[string]struct {
 		Expect      func(*mocks, decoded.Chain)
@@ -282,13 +289,17 @@ func TestFwdInserterInsertChain(t *testing.T) {
 			defer mctrl.Finish()
 
 			m := &mocks{
-				DB:     mock_v2.NewMockDB(mctrl),
-				RPC:    mock_v2.NewMockRPC(mctrl),
-				Router: mock_v2.NewMockRouter(mctrl),
+				DB:  mock_v2.NewMockDB(mctrl),
+				RPC: mock_v2.NewMockRPC(mctrl),
 			}
 			decoded := loadChain(t, chain110v1)
 			test.Expect(m, decoded)
-			ins := trust.NewFwdInserter(m.DB, m.RPC)
+			ins := trust.ForwardingInserter{
+				RPC: m.RPC,
+				BaseInserter: trust.BaseInserter{
+					DB: m.DB,
+				},
+			}
 
 			decTRC := loadTRC(t, trc1v1)
 			p := func(_ context.Context, _ trust.TRCID) (*trc.TRC, error) {

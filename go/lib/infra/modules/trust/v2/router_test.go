@@ -43,7 +43,9 @@ func TestLocalRouterChooseServer(t *testing.T) {
 	for name, isd := range tests {
 		t.Run(name, func(t *testing.T) {
 			localCS := snet.NewSVCAddr(ia122, nil, nil, addr.SvcCS)
-			router := trust.NewLocalRouter(localCS.IA)
+			router := trust.LocalRouter{
+				IA: localCS.IA,
+			}
 			routed, err := router.ChooseServer(context.Background(), isd)
 			require.NoError(t, err)
 			assert.Equal(t, localCS, routed)
@@ -134,7 +136,11 @@ func TestCSRouterChooseServer(t *testing.T) {
 			db := mock_v2.NewMockDB(mctrl)
 			r, p := mock_snet.NewMockRouter(mctrl), mock_snet.NewMockPath(mctrl)
 			test.Expect(db, r, p)
-			router := trust.NewCSRouter(1, r, db)
+			router := trust.AuthRouter{
+				ISD:    1,
+				Router: r,
+				DB:     db,
+			}
 			res, err := router.ChooseServer(context.Background(), test.ISD)
 			if test.ExpectedErr != nil {
 				xtest.AssertErrorsIs(t, err, test.ExpectedErr)
