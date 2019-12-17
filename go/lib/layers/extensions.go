@@ -149,6 +149,9 @@ func ExtnSCMPFromRaw(b common.RawBytes) (*ExtnSCMP, error) {
 }
 
 func (e *ExtnSCMP) Copy() common.Extension {
+	if e == nil {
+		return nil
+	}
 	return &ExtnSCMP{Error: e.Error, HopByHop: e.HopByHop}
 }
 

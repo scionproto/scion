@@ -50,6 +50,9 @@ func MetaFromRaw(b []byte) (*Meta, error) {
 }
 
 func (m *Meta) Copy() *Meta {
+	if m == nil {
+		return nil
+	}
 	return &Meta{
 		InfoLen: m.InfoLen, CmnHdrLen: m.CmnHdrLen, AddrHdrLen: m.AddrHdrLen,
 		PathHdrLen: m.PathHdrLen, ExtHdrsLen: m.ExtHdrsLen,

@@ -130,6 +130,9 @@ type PathReq struct {
 }
 
 func (pathReq *PathReq) Copy() *PathReq {
+	if pathReq == nil {
+		return nil
+	}
 	return &PathReq{
 		Dst:      pathReq.Dst,
 		Src:      pathReq.Src,

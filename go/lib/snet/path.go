@@ -113,6 +113,9 @@ func (p *partialPath) Expiry() time.Time {
 }
 
 func (p *partialPath) Copy() Path {
+	if p == nil {
+		return nil
+	}
 	return &partialPath{
 		spath:       p.spath.Copy(),
 		overlay:     copyUDP(p.overlay),

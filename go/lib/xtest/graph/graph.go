@@ -349,6 +349,9 @@ func newSolution(start addr.IA) *solution {
 }
 
 func (s *solution) Copy() *solution {
+	if s == nil {
+		return nil
+	}
 	newS := &solution{}
 	newS.CurrentIA = s.CurrentIA
 	newS.visited = make(map[addr.IA]struct{})

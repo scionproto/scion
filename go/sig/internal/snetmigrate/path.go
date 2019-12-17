@@ -57,6 +57,9 @@ func (p *emptyPath) Expiry() time.Time {
 }
 
 func (p *emptyPath) Copy() snet.Path {
+	if p == nil {
+		return nil
+	}
 	return &emptyPath{
 		source: p.source,
 	}

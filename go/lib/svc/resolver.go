@@ -202,6 +202,9 @@ func (p *path) Expiry() time.Time {
 }
 
 func (p *path) Copy() snet.Path {
+	if p == nil {
+		return nil
+	}
 	return &path{
 		spath:       p.spath.Copy(),
 		overlay:     snet.CopyUDPAddr(p.overlay),

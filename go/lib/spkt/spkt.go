@@ -36,6 +36,9 @@ type ScnPkt struct {
 }
 
 func (s *ScnPkt) Copy() (*ScnPkt, error) {
+	if s == nil {
+		return nil, nil
+	}
 	var err error
 	c := &ScnPkt{}
 	c.DstIA = s.DstIA

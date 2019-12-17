@@ -70,6 +70,9 @@ func InfoTraceRouteFromRaw(b common.RawBytes) (*InfoTraceRoute, error) {
 }
 
 func (e *InfoTraceRoute) Copy() Info {
+	if e == nil {
+		return nil
+	}
 	return &InfoTraceRoute{Id: e.Id, IfID: e.IfID, IA: e.IA, HopOff: e.HopOff, In: e.In}
 }
 

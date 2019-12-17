@@ -188,6 +188,9 @@ func (s *Extn) Pack() (common.RawBytes, error) {
 }
 
 func (s *Extn) Copy() common.Extension {
+	if s == nil {
+		return nil
+	}
 	c, _ := NewExtn(s.SecMode)
 	copy(c.Metadata, s.Metadata)
 	copy(c.Authenticator, s.Authenticator)
