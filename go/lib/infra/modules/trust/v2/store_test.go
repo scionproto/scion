@@ -23,9 +23,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/trustdbsqlite"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -96,11 +98,20 @@ func TestStoreLoadCryptoMaterial(t *testing.T) {
 			if err != nil {
 				return
 			}
-			id := trust.TRCID{ISD: 1, Version: 1}
-			opts := infra.TRCOpts{AllowInactive: true}
-			raw, err := store.GetRawTRC(context.Background(), id, opts)
-			assert.NoError(t, err)
-			assert.Equal(t, loadTRC(t, trc1v1).Raw, raw)
+			trcOpts := infra.TRCOpts{AllowInactive: true}
+			for v := scrypto.Version(1); v < 5; v++ {
+				id := trust.TRCID{ISD: 1, Version: v}
+				raw, err := store.GetRawTRC(context.Background(), id, trcOpts)
+				assert.NoError(t, err)
+				assert.Equal(t, loadTRC(t, TRCDesc{ISD: 1, Version: v}).Raw, raw)
+			}
+			chainOpts := infra.ChainOpts{AllowInactive: true}
+			for _, ia := range []addr.IA{ia110, ia120, ia122, ia130, ia210} {
+				id := trust.ChainID{IA: ia, Version: 1}
+				raw, err := store.GetRawChain(context.Background(), id, chainOpts)
+				assert.NoError(t, err)
+				assert.Equal(t, loadChain(t, ChainDesc{IA: ia, Version: 1}).Raw, raw)
+			}
 		})
 	}
 }
@@ -124,10 +135,10 @@ func collectChains(t *testing.T, origDir, outDir string) {
 	chains, err := filepath.Glob(filepath.Join(origDir, "ISD*/AS*/certs/*.crt"))
 	require.NoError(t, err, help)
 	require.Greater(t, len(chains), 0)
-	for _, trc := range chains {
-		raw, err := ioutil.ReadFile(trc)
+	for _, chain := range chains {
+		raw, err := ioutil.ReadFile(chain)
 		require.NoError(t, err)
-		_, file := filepath.Split(trc)
+		_, file := filepath.Split(chain)
 		err = ioutil.WriteFile(filepath.Join(outDir, file), raw, 0x777)
 		require.NoError(t, err)
 	}
