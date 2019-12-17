@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -85,6 +86,9 @@ func TestStoreLoadCryptoMaterial(t *testing.T) {
 			require.NoError(t, err)
 			store := trust.Store{
 				DB: db,
+				CryptoProvider: trust.Provider{
+					DB: db,
+				},
 			}
 			test.Prepare(t, scratch)
 			err = store.LoadCryptoMaterial(context.Background(), scratch)
@@ -92,7 +96,11 @@ func TestStoreLoadCryptoMaterial(t *testing.T) {
 			if err != nil {
 				return
 			}
-			// check fetches
+			id := trust.TRCID{ISD: 1, Version: 1}
+			opts := infra.TRCOpts{AllowInactive: true}
+			raw, err := store.GetRawTRC(context.Background(), id, opts)
+			assert.NoError(t, err)
+			assert.Equal(t, loadTRC(t, trc1v1).Raw, raw)
 		})
 	}
 }

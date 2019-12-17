@@ -139,20 +139,20 @@ func realMain() int {
 		return 1
 	}
 	defer trustDB.Close()
-	inserter := &trust.DefaultInserter{
+	inserter := trust.DefaultInserter{
 		BaseInserter: trust.BaseInserter{DB: trustDB},
 	}
-	provider := &trust.Provider{
+	provider := trust.Provider{
 		DB:       trustDB,
 		Recurser: trust.LocalOnlyRecurser{},
-		Resolver: &trust.DefaultResolver{
+		Resolver: trust.DefaultResolver{
 			DB:       trustDB,
 			Inserter: inserter,
 			RPC:      trust.DefaultRPC{Msgr: msger},
 		},
 		Router: trust.LocalRouter{IA: itopo.Get().IA()},
 	}
-	trustStore := &trust.Store{
+	trustStore := trust.Store{
 		Inspector:      trust.DefaultInspector{Provider: provider},
 		CryptoProvider: provider,
 		Inserter:       inserter,
