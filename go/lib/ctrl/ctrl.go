@@ -103,6 +103,9 @@ func (p *Pld) Len() int {
 }
 
 func (p *Pld) Copy() (*Pld, error) {
+	if p == nil {
+		return nil, nil
+	}
 	raw, err := proto.PackRoot(p)
 	if err != nil {
 		return nil, err

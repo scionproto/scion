@@ -85,6 +85,9 @@ func PldFromQuotes(ct ClassType, info Info, l4 common.L4ProtocolType, f QuoteFun
 }
 
 func (p *Payload) Copy() (common.Payload, error) {
+	if p == nil {
+		return nil, nil
+	}
 	c := &Payload{}
 	c.Meta = p.Meta.Copy()
 	c.Info = p.Info

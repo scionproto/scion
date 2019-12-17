@@ -382,6 +382,9 @@ func (ps *PathSegment) validateIdx(idx int) error {
 
 // ShallowCopy creates a shallow copy of the path segment.
 func (ps *PathSegment) ShallowCopy() *PathSegment {
+	if ps == nil {
+		return nil
+	}
 	rawEntries := make([]*proto.SignedBlobS, len(ps.RawASEntries))
 	copy(rawEntries, ps.RawASEntries)
 	entries := make([]*ASEntry, len(ps.ASEntries))

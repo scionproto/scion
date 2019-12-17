@@ -69,6 +69,9 @@ func NewOneHop(isd addr.ISD, ifid common.IFIDType, ts time.Time, exp ExpTimeType
 }
 
 func (p *Path) Copy() *Path {
+	if p == nil {
+		return nil
+	}
 	return &Path{append(common.RawBytes(nil), p.Raw...), p.InfOff, p.HopOff}
 }
 

@@ -103,6 +103,9 @@ func (u *UDP) SetPldLen(pldLen int) {
 }
 
 func (u *UDP) Copy() L4Header {
+	if u == nil {
+		return nil
+	}
 	return &UDP{u.SrcPort, u.DstPort, u.TotalLen, append(common.RawBytes(nil), u.Checksum...)}
 }
 

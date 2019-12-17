@@ -125,6 +125,9 @@ func InfoRecordPathFromRaw(b common.RawBytes) (*InfoRecordPath, error) {
 }
 
 func (rec *InfoRecordPath) Copy() Info {
+	if rec == nil {
+		return nil
+	}
 	r := &InfoRecordPath{Id: rec.Id}
 	r.Entries = make([]*RecordPathEntry, rec.NumHops(), rec.TotalHops())
 	for i, e := range rec.Entries {

@@ -132,6 +132,9 @@ func (s *DRKeyExtn) Pack() (common.RawBytes, error) {
 }
 
 func (s *DRKeyExtn) Copy() common.Extension {
+	if s == nil {
+		return nil
+	}
 	c := NewDRKeyExtn()
 	c.Direction = s.Direction
 	copy(c.MAC, s.MAC)

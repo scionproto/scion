@@ -36,31 +36,24 @@ type ScnPkt struct {
 }
 
 func (s *ScnPkt) Copy() (*ScnPkt, error) {
+	if s == nil {
+		return nil, nil
+	}
 	var err error
 	c := &ScnPkt{}
 	c.DstIA = s.DstIA
 	c.SrcIA = s.SrcIA
-	if s.DstHost != nil {
-		c.DstHost = s.DstHost.Copy()
-	}
-	if s.SrcHost != nil {
-		c.SrcHost = s.SrcHost.Copy()
-	}
-	if s.Path != nil {
-		c.Path = s.Path.Copy()
-	}
+	c.DstHost = s.DstHost.Copy()
+	c.SrcHost = s.SrcHost.Copy()
+	c.Path = s.Path.Copy()
 	for _, e := range s.HBHExt {
 		c.HBHExt = append(c.HBHExt, e.Copy())
 	}
 	for _, e := range s.E2EExt {
 		c.E2EExt = append(c.E2EExt, e.Copy())
 	}
-	if s.L4 != nil {
-		c.L4 = s.L4.Copy()
-	}
-	if s.Pld != nil {
-		c.Pld, err = s.Pld.Copy()
-	}
+	c.L4 = s.L4.Copy()
+	c.Pld, err = s.Pld.Copy()
 	return c, err
 }
 
