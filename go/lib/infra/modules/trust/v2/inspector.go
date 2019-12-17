@@ -17,6 +17,9 @@ package trust
 import (
 	"context"
 
+	"github.com/opentracing/opentracing-go"
+	opentracingext "github.com/opentracing/opentracing-go/ext"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -41,8 +44,14 @@ type DefaultInspector struct {
 
 // ByAttributes returns a list of primary ASes in the specified ISD that hold
 // all the requested attributes.
-func (i DefaultInspector) ByAttributes(ctx context.Context, isd addr.ISD,
+func (i DefaultInspector) ByAttributes(parentCtx context.Context, isd addr.ISD,
 	opts infra.ASInspectorOpts) ([]addr.IA, error) {
+
+	span, ctx := opentracing.StartSpanFromContext(parentCtx, "by_attributes")
+	defer span.Finish()
+	opentracingext.Component.Set(span, "trust")
+	span.SetTag("isd", isd)
+	span.SetTag("opts", opts)
 
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	t, err := i.Provider.GetTRC(ctx, TRCID{ISD: isd, Version: scrypto.LatestVer}, trcOpts)
@@ -62,6 +71,12 @@ func (i DefaultInspector) ByAttributes(ctx context.Context, isd addr.ISD,
 // The first return value is always false for non-primary ASes.
 func (i DefaultInspector) HasAttributes(ctx context.Context, ia addr.IA,
 	opts infra.ASInspectorOpts) (bool, error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "has_attributes")
+	defer span.Finish()
+	opentracingext.Component.Set(span, "trust")
+	span.SetTag("ia", ia)
+	span.SetTag("opts", opts)
 
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	trc, err := i.Provider.GetTRC(ctx, TRCID{ISD: ia.I, Version: scrypto.LatestVer}, trcOpts)

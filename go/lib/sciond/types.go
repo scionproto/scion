@@ -62,6 +62,7 @@ var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
 	Id                 uint64
+	TraceId            []byte
 	Which              proto.SCIONDMsg_Which
 	PathReq            *PathReq
 	PathReply          *PathReply

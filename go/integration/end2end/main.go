@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -59,6 +60,13 @@ func realMain() int {
 	addFlags()
 	integration.Setup()
 	validateFlags()
+
+	close, err := integration.InitTracer("end_2_end")
+	if err != nil {
+		log.Crit("Unable to create tracer", "err", err)
+		return 1
+	}
+	defer close()
 	if integration.Mode == integration.ModeServer {
 		server{}.run()
 		return 0
@@ -165,18 +173,26 @@ func (c client) run() int {
 }
 
 func (c client) attemptRequest(n int) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
+	ctx, span := tracing.CtxWith(timeoutCtx, log.Root(), "run")
+	span.SetTag("attempt", n)
+	span.SetTag("src", integration.Local.IA)
+	span.SetTag("dst", remote.IA)
+	defer span.Finish()
+	logger := log.SpanFromCtx(ctx)
+
 	// Send ping
 	if err := c.ping(ctx, n); err != nil {
-		log.Error("Could not send packet", "err", err)
+		logger.Error("Could not send packet", "err", err)
 		return false
 	}
 	// Receive pong
 	if err := c.pong(ctx); err != nil {
-		log.Debug("Error receiving pong", "err", err)
+		logger.Debug("Error receiving pong", "err", err)
 		return false
 	}
+	logger.Info("Received pong")
 	return true
 }
 

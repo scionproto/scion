@@ -6,6 +6,7 @@ go_library(
         "context.go",
         "flags.go",
         "log.go",
+        "span.go",
         "syncbuf.go",
         "wrappers.go",
     ],
@@ -19,6 +20,7 @@ go_library(
         #"@com_github_inconshreveable_log15_ext//:go_default_library",
         "@com_github_kormat_fmt15//:go_default_library",
         "@com_github_mattn_go_isatty//:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
         "@in_gopkg_natefinch_lumberjack_v2//:go_default_library",
     ],
 )

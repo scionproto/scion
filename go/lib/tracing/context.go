@@ -15,6 +15,7 @@
 package tracing
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/opentracing/opentracing-go"
@@ -33,9 +34,23 @@ func CtxWith(parentCtx context.Context, parentLogger log.Logger, operationName s
 	span, ctx := opentracing.StartSpanFromContext(parentCtx, operationName, opts...)
 	if spanCtx, ok := span.Context().(jaeger.SpanContext); ok {
 		ctx = log.CtxWith(ctx, parentLogger.New("debug_id", debugId, "trace_id", spanCtx.TraceID()))
-		span.SetTag("LogDebugId", debugId)
+		span.SetTag("debug_id", debugId)
 	} else {
 		ctx = log.CtxWith(ctx, parentLogger.New("debug_id", util.GetDebugID()))
 	}
 	return ctx, span
+}
+
+// IDFromCtx reads the tracing ID from the context.
+func IDFromCtx(ctx context.Context) []byte {
+	span, tracer := opentracing.SpanFromContext(ctx), opentracing.GlobalTracer()
+	if span != nil && tracer != nil {
+		var tracingBin bytes.Buffer
+		err := tracer.Inject(span.Context(), opentracing.Binary, &tracingBin)
+		if err != nil {
+			panic(err)
+		}
+		return tracingBin.Bytes()
+	}
+	return nil
 }

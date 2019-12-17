@@ -101,7 +101,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -257,7 +257,8 @@ func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id ui
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, data)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +298,8 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
 	logger := log.FromCtx(ctx)
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, data)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +343,8 @@ func (m *Messenger) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id
 func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
 	a net.Addr, id uint64) error {
 
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
 	if err != nil {
 		return err
 	}
@@ -390,7 +393,8 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
 	logger := log.FromCtx(ctx)
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +450,8 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
 
 	logger := log.FromCtx(ctx)
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
 	if err != nil {
 		return nil, err
 	}
@@ -490,7 +495,8 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
 
 	logger := log.FromCtx(ctx)
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +553,8 @@ func (m *Messenger) GetHPSegs(ctx context.Context, msg *path_mgmt.HPSegReq, a ne
 	id uint64) (*path_mgmt.HPSegReply, error) {
 
 	logger := log.FromCtx(ctx)
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
 	if err != nil {
 		return nil, err
 	}
@@ -593,7 +600,8 @@ func (m *Messenger) GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq, a ne
 	id uint64) (*path_mgmt.HPCfgReply, error) {
 
 	logger := log.FromCtx(ctx)
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
 	if err != nil {
 		return nil, err
 	}
@@ -636,7 +644,8 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
 	logger := log.FromCtx(ctx)
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, data)
 	if err != nil {
 		return nil, err
 	}
@@ -687,7 +696,7 @@ func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
 		return common.NewBasicError("[Messenger] Cannot send to unknown address", nil)
 	}
 
-	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)})
 	if err != nil {
 		return err
 	}
@@ -721,7 +730,7 @@ func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
 func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a net.Addr,
 	id uint64, msgType infra.MessageType) error {
 
-	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id, TraceId: traceId(ctx)})
+	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)})
 	if err != nil {
 		return err
 	}
@@ -786,13 +795,10 @@ func (m *Messenger) listenAndServeUDP() {
 			}
 			continue
 		}
-		debugId := util.GetDebugID()
-		logger := m.log.New("debug_id", debugId)
-
 		signedPld, ok := genericMsg.(*ctrl.SignedPld)
 		if !ok {
 			metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrInvalidReq}).Inc()
-			logger.Error("Type assertion failure", "from", address, "expected", "*ctrl.SignedPld",
+			m.log.Error("Type assertion failure", "from", address, "expected", "*ctrl.SignedPld",
 				"actual", common.TypeOf(genericMsg))
 			continue
 		}
@@ -805,43 +811,58 @@ func (m *Messenger) listenAndServeUDP() {
 			verifier := m.verifier.WithIA(address.(*snet.Addr).IA)
 			if pld, err = signedPld.GetVerifiedPld(serveCtx, verifier); err != nil {
 				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrVerify}).Inc()
-				logger.Error("Verification error", "from", address, "err", err)
+				m.log.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
 				continue
 			}
 		} else {
 			if pld, err = signedPld.UnsafePld(); err != nil {
 				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrParse}).Inc()
-				logger.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
+				m.log.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
 				serveCancelF()
 				continue
 			}
 		}
-		serveCtx = log.CtxWith(serveCtx, logger)
 		m.serve(serveCtx, serveCancelF, pld, signedPld, size, address)
 	}
 }
 
-func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *ctrl.Pld,
+func (m *Messenger) serve(parentCtx context.Context, cancelF context.CancelFunc, pld *ctrl.Pld,
 	signedPld *ctrl.SignedPld, size int, address net.Addr) {
 
-	logger := log.FromCtx(ctx)
-	ctx = infra.NewContextWithResponseWriter(ctx,
+	// Validate that the message is of acceptable type, and that its top-level
+	// signature is correct.
+	msgType, msg, err := validate(pld)
+	if err != nil {
+		metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrValidate}).Inc()
+		m.log.Error("Received message, but unable to validate message",
+			"from", address, "err", err)
+		return
+	}
+
+	rwCtx := infra.NewContextWithResponseWriter(parentCtx,
 		&UDPResponseWriter{
 			Messenger: m,
 			Remote:    address,
 			ID:        pld.ReqId,
 		},
 	)
-	// Validate that the message is of acceptable type, and that its top-level
-	// signature is correct.
-	msgType, msg, err := validate(pld)
-	if err != nil {
-		metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrValidate}).Inc()
-		logger.Error("Received message, but unable to validate message",
-			"from", address, "err", err)
-		return
+
+	// Tracing
+	var spanCtx opentracing.SpanContext
+	if len(pld.Data.TraceId) > 0 {
+		var err error
+		spanCtx, err = opentracing.GlobalTracer().Extract(opentracing.Binary,
+			bytes.NewReader(pld.Data.TraceId))
+		if err != nil {
+			log.Error("Failed to extract span", "err", err)
+		}
 	}
+
+	ctx, span := tracing.CtxWith(rwCtx, m.log, fmt.Sprintf("%s-handler-udp", msgType),
+		opentracingext.RPCServerOption(spanCtx))
+	logger := log.SpanFromCtx(ctx)
+
 	logger.Trace("[Messenger] Received message", "type", msgType, "from", address, "id", pld.ReqId)
 
 	m.handlersLock.RLock()
@@ -861,26 +882,10 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.OkSuccess}).Inc()
 	metrics.Dispatcher.ReadSizes().Observe(float64(size))
 
-	ctx = log.CtxWith(ctx, logger)
-	if tracer := opentracing.GlobalTracer(); tracer != nil {
-		var spanCtx opentracing.SpanContext
-		if pld.Data.TraceId.Len() > 0 {
-			spanCtx, err = tracer.Extract(opentracing.Binary, bytes.NewReader(pld.Data.TraceId))
-			if err != nil {
-				log.Error("Failed to extract span", "err", err)
-			}
-		}
-		var span opentracing.Span
-		span, ctx = opentracing.StartSpanFromContext(ctx,
-			fmt.Sprintf("%s-handler-udp", msgType), opentracingext.RPCServerOption(spanCtx))
-		// TODO(lukedirtwalker) optimally the logger should use the same
-		// debug_id as the span.
-		defer span.Finish()
-	}
-
 	go func() {
 		defer log.LogPanicAndExit()
 		defer cancelF()
+		defer span.Finish()
 		handler.Handle(infra.NewRequest(ctx, msg, signedPld, address, pld.ReqId))
 	}()
 }
