@@ -57,7 +57,7 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 		},
 	)
 	ctrlAddr := ctx.Conf.BR.CtrlAddrs
-	snetConn, err = scionNetwork.Listen("udp4", ctrlAddr.SCIONAddress, addr.SvcNone, 0)
+	snetConn, err = scionNetwork.Listen("udp", ctrlAddr.SCIONAddress, addr.SvcNone, 0)
 	if err != nil {
 		fatal.Fatal(common.NewBasicError("Listening on address", err, "addr", ctrlAddr))
 	}

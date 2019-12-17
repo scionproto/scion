@@ -87,7 +87,7 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 
 	var remote *Addr
 	// On UDP4 network we can get either UDP traffic or SCMP messages
-	if c.base.net == "udp4" {
+	if c.base.net == "udp" {
 		// Extract remote address
 		remote = &Addr{
 			IA: pkt.Source.IA,

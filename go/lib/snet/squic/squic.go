@@ -85,5 +85,5 @@ func sListen(network *snet.SCIONNetwork, listen *net.UDPAddr,
 	if network == nil {
 		return nil, serrors.New("squic:  SCION network must not be nil")
 	}
-	return network.Listen("udp4", listen, svc, 0)
+	return network.Listen("udp", listen, svc, 0)
 }

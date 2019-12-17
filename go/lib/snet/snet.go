@@ -94,7 +94,7 @@ func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService) *
 }
 
 // Dial returns a SCION connection to remote. Nil values for listen are not
-// supported yet.  Parameter network must be "udp4". The returned connection's
+// supported yet.  Parameter network must be "udp". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
 //
 // The timeout is used for connection setup, it doesn't affect the returned
@@ -118,7 +118,7 @@ func (n *SCIONNetwork) Dial(network string, listen *net.UDPAddr, remote *UDPAddr
 // Listen registers laddr with the dispatcher. Nil values for laddr are
 // not supported yet. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
-// Parameter network must be "udp4".
+// Parameter network must be "udp".
 //
 // The timeout is used for connection setup, it doesn't affect the returned
 // connection. A timeout of 0 means infinite timeout.
@@ -126,6 +126,11 @@ func (n *SCIONNetwork) Listen(network string, listen *net.UDPAddr,
 	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
 
 	metrics.M.Listens().Inc()
+
+	if network != "udp" {
+		return nil, common.NewBasicError("Unknown network", nil, "network", network)
+	}
+
 	// FIXME(scrye): If no local address is specified, we want to
 	// bind to the address of the outbound interface on a random
 	// free port. However, the current dispatcher version cannot
@@ -133,11 +138,6 @@ func (n *SCIONNetwork) Listen(network string, listen *net.UDPAddr,
 	// normal operating system semantics for binding on 0.0.0.0 (it
 	// considers it to be a fixed address instead of a wildcard). To avoid
 	// misuse, disallow binding to nil or 0.0.0.0 addresses for now.
-	switch network {
-	case "udp4":
-	default:
-		return nil, common.NewBasicError("Network not implemented", nil, "net", network)
-	}
 	if listen == nil {
 		return nil, serrors.New("nil listen addr not supported")
 	}
