@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -49,8 +50,8 @@ type CryptoProvider interface {
 	// not available locally. Otherwise, the default server is queried. How the
 	// default server is determined differs between implementations.
 	GetRawChain(context.Context, ChainID, infra.ChainOpts) ([]byte, error)
-	//GetASKey returns from trust store the public key required to verify signature
-	//originated from an AS.
+	// GetASKey returns from trust store the public key required to verify
+	// signature originated from an AS.
 	GetASKey(context.Context, ChainID, infra.ChainOpts) (scrypto.KeyMeta, error)
 }
 
@@ -184,35 +185,53 @@ func (p *cryptoProvider) fetchTRC(ctx context.Context, id TRCID,
 func (p *cryptoProvider) GetRawChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) ([]byte, error) {
 
+	chain, err := p.getCheckedChain(ctx, id, opts)
+	return chain.Raw, err
+}
+
+func (p *cryptoProvider) GetASKey(ctx context.Context,
+	id ChainID, opts infra.ChainOpts) (scrypto.KeyMeta, error) {
+
+	chain, err := p.getCheckedChain(ctx, id, opts)
+	if err != nil {
+		return scrypto.KeyMeta{}, err
+	}
+	return chain.AS.Keys[cert.SigningKey], nil
+}
+
+func (p *cryptoProvider) getCheckedChain(ctx context.Context, id ChainID,
+	opts infra.ChainOpts) (decoded.Chain, error) {
+
 	chain, err := p.getChain(ctx, id, opts)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to get requested certificate chain", err)
+		return decoded.Chain{}, serrors.WrapStr("unable to get requested certificate chain", err)
 	}
 	if opts.AllowInactive {
-		return chain.Raw, nil
+		return chain, nil
 	}
 	err = p.issuerActive(ctx, chain, opts.TrustStoreOpts)
 	switch {
 	case err == nil:
-		return chain.Raw, nil
+		return chain, nil
 	case !xerrors.Is(err, ErrInactive):
-		return nil, err
+		return decoded.Chain{}, err
 	case !id.Version.IsLatest():
-		return nil, err
+		return decoded.Chain{}, err
 	case opts.LocalOnly:
-		return nil, err
+		return decoded.Chain{}, err
 	default:
 		// In case the latest certificate chain is requested, there might be a more
 		// recent and active one that is not locally available yet.
 		fetched, err := p.fetchChain(ctx, id, opts)
 		if err != nil {
-			return nil, serrors.WrapStr("unable to fetch latest certificate chain from network",
-				err)
+			return decoded.Chain{},
+				serrors.WrapStr("unable to fetch latest certificate chain from network", err)
 		}
 		if err := p.issuerActive(ctx, fetched, opts.TrustStoreOpts); err != nil {
-			return nil, serrors.WrapStr("latest certificate chain from network not active", err)
+			return decoded.Chain{},
+				serrors.WrapStr("latest certificate chain from network not active", err)
 		}
-		return fetched.Raw, nil
+		return fetched, nil
 	}
 }
 
@@ -301,13 +320,6 @@ func (p *cryptoProvider) fetchChain(ctx context.Context, id ChainID,
 			"from network", err)
 	}
 	return chain, nil
-}
-
-func (p *cryptoProvider) GetASKey(ctx context.Context,
-	id ChainID, opts infra.ChainOpts) (scrypto.KeyMeta, error) {
-
-	// TODO(karampok): implement.
-	return scrypto.KeyMeta{}, serrors.New("not implemented")
 }
 
 func graceExpired(info TRCInfo) bool {

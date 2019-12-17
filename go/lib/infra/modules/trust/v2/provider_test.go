@@ -1248,3 +1248,82 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 		})
 	}
 }
+
+func TestCryptoProviderGetASKey(t *testing.T) {
+	internal := serrors.New("internal")
+	dec110v1 := loadChain(t, chain110v1)
+	tests := map[string]struct {
+		DB              func(t *testing.T, ctrl *gomock.Controller) trust.DB
+		Recurser        func(t *testing.T, ctrl *gomock.Controller) trust.Recurser
+		Resolver        func(t *testing.T, ctrl *gomock.Controller) trust.Resolver
+		Router          func(t *testing.T, ctrl *gomock.Controller) trust.Router
+		ChainDesc       ChainDesc
+		Opts            infra.ChainOpts
+		ExpectedErr     error
+		ExpectedKeyMeta scrypto.KeyMeta
+	}{
+		"chain in database, allow inactive": {
+			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
+				db := mock_v2.NewMockDB(ctrl)
+				db.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.Version(1)}).Return(
+					dec110v1.Raw, nil,
+				)
+				return db
+			},
+			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
+				return mock_v2.NewMockRecurser(ctrl)
+			},
+			Resolver: func(t *testing.T, ctrl *gomock.Controller) trust.Resolver {
+				return mock_v2.NewMockResolver(ctrl)
+			},
+			Router: func(t *testing.T, ctrl *gomock.Controller) trust.Router {
+				return mock_v2.NewMockRouter(ctrl)
+			},
+			ChainDesc:       chain110v1,
+			Opts:            infra.ChainOpts{AllowInactive: true},
+			ExpectedKeyMeta: dec110v1.AS.Keys[cert.SigningKey],
+		},
+		"database error": {
+			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
+				db := mock_v2.NewMockDB(ctrl)
+				db.EXPECT().GetRawChain(gomock.Any(),
+					trust.ChainID{IA: ia110, Version: scrypto.Version(1)}).Return(
+					nil, internal,
+				)
+				return db
+			},
+			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
+				return mock_v2.NewMockRecurser(ctrl)
+			},
+			Resolver: func(t *testing.T, ctrl *gomock.Controller) trust.Resolver {
+				return mock_v2.NewMockResolver(ctrl)
+			},
+			Router: func(t *testing.T, ctrl *gomock.Controller) trust.Router {
+				return mock_v2.NewMockRouter(ctrl)
+			},
+			ChainDesc:       chain110v1,
+			Opts:            infra.ChainOpts{},
+			ExpectedErr:     internal,
+			ExpectedKeyMeta: scrypto.KeyMeta{},
+		},
+	}
+	for n, tc := range tests {
+		name, test := n, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			mctrl := gomock.NewController(t)
+			defer mctrl.Finish()
+			p := trust.NewCryptoProvider(
+				test.DB(t, mctrl),
+				test.Recurser(t, mctrl),
+				test.Resolver(t, mctrl),
+				test.Router(t, mctrl))
+			km, err := p.GetASKey(nil,
+				trust.ChainID{IA: test.ChainDesc.IA, Version: test.ChainDesc.Version},
+				test.Opts)
+			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
+			assert.Equal(t, test.ExpectedKeyMeta, km)
+		})
+	}
+}
