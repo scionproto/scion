@@ -140,22 +140,22 @@ func realMain() int {
 		return 1
 	}
 	defer trustDB.Close()
-	inserter := &trust.ForwardingInserter{
+	inserter := trust.ForwardingInserter{
 		BaseInserter: trust.BaseInserter{DB: trustDB},
 		Router:       trust.LocalRouter{IA: topo.IA()},
 		RPC:          trust.DefaultRPC{Msgr: msgr},
 	}
-	provider := &trust.Provider{
+	provider := trust.Provider{
 		DB:       trustDB,
 		Recurser: trust.LocalOnlyRecurser{},
-		Resolver: &trust.DefaultResolver{
+		Resolver: trust.DefaultResolver{
 			DB:       trustDB,
 			Inserter: inserter,
 			RPC:      trust.DefaultRPC{Msgr: msgr},
 		},
 		Router: trust.LocalRouter{IA: topo.IA()},
 	}
-	trustStore := &trust.Store{
+	trustStore := trust.Store{
 		Inspector:      trust.DefaultInspector{Provider: provider},
 		CryptoProvider: provider,
 		Inserter:       inserter,

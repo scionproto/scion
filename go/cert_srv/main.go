@@ -132,21 +132,21 @@ func realMain() int {
 	inserter := trust.DefaultInserter{
 		BaseInserter: trust.BaseInserter{DB: trustDB},
 	}
-	provider := &trust.Provider{
+	provider := trust.Provider{
 		DB:       trustDB,
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
-		Resolver: &trust.DefaultResolver{
+		Resolver: trust.DefaultResolver{
 			DB:       trustDB,
 			Inserter: inserter,
 			RPC:      trust.DefaultRPC{Msgr: msgr},
 		},
-		Router: &trust.AuthRouter{
+		Router: trust.AuthRouter{
 			ISD:    topo.IA().I,
 			Router: router,
 			DB:     trustDB,
 		},
 	}
-	trustStore := &trust.Store{
+	trustStore := trust.Store{
 		Inspector:      trust.DefaultInspector{Provider: provider},
 		CryptoProvider: provider,
 		Inserter:       inserter,

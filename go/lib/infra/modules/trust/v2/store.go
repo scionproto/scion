@@ -38,7 +38,7 @@ type Store struct {
 // peer, backed by the trust store. The configured recurser defines whether the
 // trust store is allowed to issue new TRC requests over the network.  This
 // method should only be used when servicing requests coming from remote nodes.
-func (s *Store) NewTRCReqHandler() infra.Handler {
+func (s Store) NewTRCReqHandler() infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &trcReqHandler{
 			request:  r,
@@ -54,7 +54,7 @@ func (s *Store) NewTRCReqHandler() infra.Handler {
 // defines whether the trust store is allowed to issue new TRC and certificate
 // chain requests over the network. This method should only be used when
 // servicing requests coming from remote nodes.
-func (s *Store) NewChainReqHandler() infra.Handler {
+func (s Store) NewChainReqHandler() infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := chainReqHandler{
 			request:  r,
@@ -68,7 +68,7 @@ func (s *Store) NewChainReqHandler() infra.Handler {
 // NewTRCPushHandler returns an infra.Handler for TRC pushes coming from a peer,
 // backed by the trust store. TRCs are pushed by local BSes and PSes. Pushes are
 // allowed from all local AS sources.
-func (s *Store) NewTRCPushHandler() infra.Handler {
+func (s Store) NewTRCPushHandler() infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := trcPushHandler{
 			request:  r,
@@ -84,7 +84,7 @@ func (s *Store) NewTRCPushHandler() infra.Handler {
 // coming from a peer, backed by the trust store. Certificate chains are pushed
 // by other ASes during core registration, or the local BSes and PSes. Pushes
 // are allowed from all local ISD sources.
-func (s *Store) NewChainPushHandler() infra.Handler {
+func (s Store) NewChainPushHandler() infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := chainPushHandler{
 			request:  r,
@@ -98,7 +98,7 @@ func (s *Store) NewChainPushHandler() infra.Handler {
 
 // LoadCryptoMaterial loads the crypto material from the file system and
 // populates the trust database.
-func (s *Store) LoadCryptoMaterial(ctx context.Context, dir string) error {
+func (s Store) LoadCryptoMaterial(ctx context.Context, dir string) error {
 	if err := s.LoadTRCs(ctx, dir); err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (s *Store) LoadCryptoMaterial(ctx context.Context, dir string) error {
 // LoadTRCs loads the TRCs from the file system. This call ensures that the
 // hashes match for TRCs that are already in the database. Before insertion,
 // TRCs are verified.
-func (s *Store) LoadTRCs(ctx context.Context, dir string) error {
+func (s Store) LoadTRCs(ctx context.Context, dir string) error {
 	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-V*.trc", dir))
 	if err != nil {
 		panic(err)
@@ -125,7 +125,7 @@ func (s *Store) LoadTRCs(ctx context.Context, dir string) error {
 	return nil
 }
 
-func (s *Store) loadTRC(ctx context.Context, file string) error {
+func (s Store) loadTRC(ctx context.Context, file string) error {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
@@ -146,7 +146,7 @@ func (s *Store) loadTRC(ctx context.Context, file string) error {
 // LoadChains loads the certificate chains from the file system. This call
 // ensures that the hashes match for the chains that are already in the
 // database. Before insertion, certificate chains are verified.
-func (s *Store) LoadChains(ctx context.Context, dir string) error {
+func (s Store) LoadChains(ctx context.Context, dir string) error {
 	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.crt", dir))
 	if err != nil {
 		panic(err)
@@ -160,7 +160,7 @@ func (s *Store) LoadChains(ctx context.Context, dir string) error {
 	return nil
 }
 
-func (s *Store) loadChain(ctx context.Context, file string) error {
+func (s Store) loadChain(ctx context.Context, file string) error {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
