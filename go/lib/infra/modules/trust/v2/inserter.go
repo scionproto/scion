@@ -54,7 +54,7 @@ type DefaultInserter struct {
 
 // InsertTRC verifies the signed TRC and inserts it into the database.
 // The previous TRC is queried through the provider function, when necessary.
-func (ins *DefaultInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
+func (ins DefaultInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
 	if insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider); err != nil || !insert {
@@ -69,7 +69,7 @@ func (ins *DefaultInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 // InsertChain verifies the signed certificate chain and inserts it into the
 // database. The issuing TRC is queried through the provider function, when
 // necessary.
-func (ins *DefaultInserter) InsertChain(ctx context.Context, chain decoded.Chain,
+func (ins DefaultInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
 	if insert, err := ins.shouldInsertChain(ctx, chain, trcProvider); err != nil || !insert {
@@ -94,7 +94,7 @@ type ForwardingInserter struct {
 // previous TRC is queried through the provider function, when necessary. Before
 // insertion, the TRC is forwarded to the certificate server. If the certificate
 // server does not successfully handle the TRC, the insertion fails.
-func (ins *ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
+func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
 	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
@@ -119,7 +119,7 @@ func (ins *ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC
 // necessary. Before insertion, the certificate chain is forwarded to the
 // certificate server. If the certificate server does not successfully handle
 // the certificate chain, the insertion fails.
-func (ins *ForwardingInserter) InsertChain(ctx context.Context, chain decoded.Chain,
+func (ins ForwardingInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
 	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
@@ -147,7 +147,7 @@ type BaseInserter struct {
 	Unsafe bool
 }
 
-func (ins *BaseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC,
+func (ins BaseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) (bool, error) {
 
 	found, err := ins.DB.TRCExists(ctx, decTRC)
@@ -178,7 +178,7 @@ func (ins *BaseInserter) shouldInsertTRC(ctx context.Context, decTRC decoded.TRC
 	return true, nil
 }
 
-func (ins *BaseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next decoded.TRC) error {
+func (ins BaseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next decoded.TRC) error {
 	validator := trc.UpdateValidator{
 		Next: next.TRC,
 		Prev: prev,
@@ -198,7 +198,7 @@ func (ins *BaseInserter) checkUpdate(ctx context.Context, prev *trc.TRC, next de
 	return nil
 }
 
-func (ins *BaseInserter) shouldInsertChain(ctx context.Context, chain decoded.Chain,
+func (ins BaseInserter) shouldInsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) (bool, error) {
 
 	found, err := ins.DB.ChainExists(ctx, chain)
@@ -225,7 +225,7 @@ func (ins *BaseInserter) shouldInsertChain(ctx context.Context, chain decoded.Ch
 	return true, nil
 }
 
-func (ins *BaseInserter) validateChain(chain decoded.Chain) error {
+func (ins BaseInserter) validateChain(chain decoded.Chain) error {
 	if err := chain.Issuer.Validate(); err != nil {
 		return serrors.Wrap(ErrValidation, err, "part", "issuer")
 	}
@@ -235,7 +235,7 @@ func (ins *BaseInserter) validateChain(chain decoded.Chain) error {
 	return nil
 }
 
-func (ins *BaseInserter) verifyChain(chain decoded.Chain, t *trc.TRC) error {
+func (ins BaseInserter) verifyChain(chain decoded.Chain, t *trc.TRC) error {
 	issVerifier := cert.IssuerVerifier{
 		TRC:          t,
 		Issuer:       chain.Issuer,

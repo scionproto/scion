@@ -51,7 +51,7 @@ func (r LocalRouter) chooseServer() net.Addr {
 // AuthRouter routes requests for missing crypto material to the authoritative
 // ASes of the appropriate ISD.
 //
-// TODO(roosd): Add implementation of snet.Router that routs to authoritative AS.
+// TODO(roosd): Add implementation of snet.Router that routes to authoritative AS.
 type AuthRouter struct {
 	ISD    addr.ISD
 	Router snet.Router
@@ -62,7 +62,7 @@ type AuthRouter struct {
 //  * a local authoritative CS if subject is ISD-local.
 //  * a local authoritative CS if subject is in remote ISD, but no active TRC is available.
 //  * a remote authoritative CS otherwise.
-func (r *AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
+func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
 	dstISD, err := r.dstISD(ctx, subjectISD)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to determine dest ISD to query", err)
@@ -75,7 +75,7 @@ func (r *AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net
 	return ret, nil
 }
 
-func (r *AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, error) {
+func (r AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, error) {
 	if destination == r.ISD {
 		return r.ISD, nil
 	}

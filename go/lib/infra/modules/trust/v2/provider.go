@@ -80,18 +80,18 @@ type Provider struct {
 // server is queried over the network if the TRC is not available locally.
 // Otherwise, the default server is queried. How the default server is
 // determined differs between implementations.
-func (p *Provider) GetTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (*trc.TRC, error) {
+func (p Provider) GetTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (*trc.TRC, error) {
 	t, _, err := p.getCheckedTRC(ctx, id, opts)
 	return t, err
 }
 
 // GetRawTRC behaves the same as GetTRC, except returning the raw signed TRC.
-func (p *Provider) GetRawTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) ([]byte, error) {
+func (p Provider) GetRawTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) ([]byte, error) {
 	_, raw, err := p.getCheckedTRC(ctx, id, opts)
 	return raw, err
 }
 
-func (p *Provider) getCheckedTRC(ctx context.Context, id TRCID,
+func (p Provider) getCheckedTRC(ctx context.Context, id TRCID,
 	opts infra.TRCOpts) (*trc.TRC, []byte, error) {
 
 	decTRC, err := p.getTRC(ctx, id, opts)
@@ -143,7 +143,7 @@ func (p *Provider) getCheckedTRC(ctx context.Context, id TRCID,
 // whether this function is allowed to create new network requests. Parameter
 // client contains the node that caused the function to be called, or nil if the
 // function was called due to a local feature.
-func (p *Provider) getTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (decoded.TRC, error) {
+func (p Provider) getTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (decoded.TRC, error) {
 	raw, err := p.DB.GetRawTRC(ctx, id)
 	switch {
 	case err == nil:
@@ -158,7 +158,7 @@ func (p *Provider) getTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (de
 }
 
 // fetchTRC fetches a TRC via a network request, if allowed.
-func (p *Provider) fetchTRC(ctx context.Context, id TRCID,
+func (p Provider) fetchTRC(ctx context.Context, id TRCID,
 	opts infra.TRCOpts) (decoded.TRC, error) {
 
 	server := opts.Server
@@ -188,7 +188,7 @@ func (p *Provider) fetchTRC(ctx context.Context, id TRCID,
 // configured server is queried over the network if the certificate chain is
 // not available locally. Otherwise, the default server is queried. How the
 // default server is determined differs between implementations.
-func (p *Provider) GetRawChain(ctx context.Context, id ChainID,
+func (p Provider) GetRawChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) ([]byte, error) {
 
 	chain, err := p.getCheckedChain(ctx, id, opts)
@@ -197,7 +197,7 @@ func (p *Provider) GetRawChain(ctx context.Context, id ChainID,
 
 // GetASKey returns from trust store the public key required to verify signature
 // originated from an AS.
-func (p *Provider) GetASKey(ctx context.Context, 
+func (p Provider) GetASKey(ctx context.Context,
 	id ChainID, opts infra.ChainOpts) (scrypto.KeyMeta, error) {
 
 	chain, err := p.getCheckedChain(ctx, id, opts)
@@ -207,7 +207,7 @@ func (p *Provider) GetASKey(ctx context.Context,
 	return chain.AS.Keys[cert.SigningKey], nil
 }
 
-func (p *Provider) getCheckedChain(ctx context.Context, id ChainID,
+func (p Provider) getCheckedChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
 
 	chain, err := p.getChain(ctx, id, opts)
@@ -243,7 +243,7 @@ func (p *Provider) getCheckedChain(ctx context.Context, id ChainID,
 	}
 }
 
-func (p *Provider) getChain(ctx context.Context, id ChainID,
+func (p Provider) getChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
 
 	raw, err := p.DB.GetRawChain(ctx, id)
@@ -259,7 +259,7 @@ func (p *Provider) getChain(ctx context.Context, id ChainID,
 	}
 }
 
-func (p *Provider) issuerActive(ctx context.Context, chain decoded.Chain,
+func (p Provider) issuerActive(ctx context.Context, chain decoded.Chain,
 	opts infra.TrustStoreOpts) error {
 
 	if !chain.AS.Validity.Contains(time.Now()) {
@@ -304,7 +304,7 @@ func (p *Provider) issuerActive(ctx context.Context, chain decoded.Chain,
 	return nil
 }
 
-func (p *Provider) fetchChain(ctx context.Context, id ChainID,
+func (p Provider) fetchChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
 
 	server := opts.Server

@@ -55,7 +55,7 @@ type DefaultResolver struct {
 
 // TRC resolves the decoded signed TRC. Missing links in the TRC
 // verification chain are also requested.
-func (r *DefaultResolver) TRC(ctx context.Context, req TRCReq,
+func (r DefaultResolver) TRC(ctx context.Context, req TRCReq,
 	server net.Addr) (decoded.TRC, error) {
 
 	if req.Version.IsLatest() {
@@ -106,7 +106,7 @@ func (r *DefaultResolver) TRC(ctx context.Context, req TRCReq,
 
 // FIXME(roosd): Add RPC that resolves just the latest version instead of the
 // full TRC.
-func (r *DefaultResolver) resolveLatestVersion(ctx context.Context, req TRCReq,
+func (r DefaultResolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 	server net.Addr) (scrypto.Version, error) {
 
 	rawTRC, err := r.RPC.GetTRC(ctx, req, server)
@@ -123,7 +123,7 @@ func (r *DefaultResolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 	return decTRC.TRC.Version, nil
 }
 
-func (r *DefaultResolver) startFetchTRC(ctx context.Context, res chan<- resOrErr,
+func (r DefaultResolver) startFetchTRC(ctx context.Context, res chan<- resOrErr,
 	req TRCReq, server net.Addr) {
 
 	go func() {
@@ -148,7 +148,7 @@ func (r *DefaultResolver) startFetchTRC(ctx context.Context, res chan<- resOrErr
 	}()
 }
 
-func (r *DefaultResolver) trcCheck(req TRCReq, t *trc.TRC) error {
+func (r DefaultResolver) trcCheck(req TRCReq, t *trc.TRC) error {
 	switch {
 	case req.ISD != t.ISD:
 		return serrors.New("wrong isd", "expected", req.ISD, "actual", t.ISD)
@@ -160,7 +160,7 @@ func (r *DefaultResolver) trcCheck(req TRCReq, t *trc.TRC) error {
 
 // Chain resolves the raw signed certificate chain. If the issuing TRC is
 // missing, it is also requested.
-func (r *DefaultResolver) Chain(ctx context.Context, req ChainReq,
+func (r DefaultResolver) Chain(ctx context.Context, req ChainReq,
 	server net.Addr) (decoded.Chain, error) {
 
 	msg, err := r.RPC.GetCertChain(ctx, req, server)
@@ -185,7 +185,7 @@ func (r *DefaultResolver) Chain(ctx context.Context, req ChainReq,
 	return dec, nil
 }
 
-func (r *DefaultResolver) chainCheck(req ChainReq, as *cert.AS) error {
+func (r DefaultResolver) chainCheck(req ChainReq, as *cert.AS) error {
 	switch {
 	case !req.IA.Equal(as.Subject):
 		return serrors.New("wrong subject", "expected", req.IA, "actual", as.Subject)
@@ -222,7 +222,7 @@ func (w *prevWrap) TRC(_ context.Context, id TRCID) (*trc.TRC, error) {
 // resolverWrap provides TRCs that are backed by the resolver. If a TRC is
 // missing in the DB, network requests are allowed.
 type resolveWrap struct {
-	resolver *DefaultResolver
+	resolver DefaultResolver
 	server   net.Addr
 }
 
