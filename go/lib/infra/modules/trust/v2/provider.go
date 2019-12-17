@@ -197,8 +197,8 @@ func (p Provider) GetRawChain(ctx context.Context, id ChainID,
 
 // GetASKey returns from trust store the public key required to verify signature
 // originated from an AS.
-func (p Provider) GetASKey(ctx context.Context,
-	id ChainID, opts infra.ChainOpts) (scrypto.KeyMeta, error) {
+func (p Provider) GetASKey(ctx context.Context, id ChainID,
+	opts infra.ChainOpts) (scrypto.KeyMeta, error) {
 
 	chain, err := p.getCheckedChain(ctx, id, opts)
 	if err != nil {
