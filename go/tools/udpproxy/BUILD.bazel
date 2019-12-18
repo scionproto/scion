@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["udpproxy.go"],
+    importpath = "github.com/scionproto/scion/go/tools/udpproxy",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/log:go_default_library",
+        "//go/lib/serrors:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "udpproxy",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
