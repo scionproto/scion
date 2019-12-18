@@ -61,5 +61,4 @@ func Proxy(listen, to string) error {
 			return serrors.New("unable to write to destination", "err", err)
 		}
 	}
-
 }
