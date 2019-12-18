@@ -150,11 +150,10 @@ func TestChainReqHandler(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			handler := trust.NewChainReqHandler(
-				test.Request(ctrl),
-				test.Provider(ctrl),
-			)
-			result := handler.Handle()
+			store := trust.Store{
+				CryptoProvider: test.Provider(ctrl),
+			}
+			result := store.NewChainReqHandler().Handle(test.Request(ctrl))
 			assert.Equal(t, test.ExpectedResult, result)
 		})
 	}
@@ -277,11 +276,10 @@ func TestTRCReqHandler(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			handler := trust.NewTRCReqHandler(
-				test.Request(ctrl),
-				test.Provider(ctrl),
-			)
-			result := handler.Handle()
+			store := trust.Store{
+				CryptoProvider: test.Provider(ctrl),
+			}
+			result := store.NewTRCReqHandler().Handle(test.Request(ctrl))
 			assert.Equal(t, test.ExpectedResult, result)
 		})
 	}
@@ -451,20 +449,18 @@ func TestChainPushHandler(t *testing.T) {
 		},
 	}
 
-	for _, test := range testCases {
-		tc := test
-		t.Run(tc.Name, func(t *testing.T) {
+	for _, tc := range testCases {
+		test := tc
+		t.Run(test.Name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			chainPushHandler := trust.NewChainPushHandler(
-				tc.Request(ctrl),
-				nil,
-				tc.Inserter(ctrl),
-			)
-			result := chainPushHandler.Handle()
-			assert.Equal(t, tc.ExpectedResult, result)
+			store := trust.Store{
+				Inserter: test.Inserter(ctrl),
+			}
+			result := store.NewChainPushHandler().Handle(test.Request(ctrl))
+			assert.Equal(t, test.ExpectedResult, result)
 		})
 	}
 }
@@ -633,20 +629,18 @@ func TestTRCPushHandler(t *testing.T) {
 		},
 	}
 
-	for _, test := range testCases {
-		tc := test
-		t.Run(tc.Name, func(t *testing.T) {
+	for _, tc := range testCases {
+		test := tc
+		t.Run(test.Name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			trcPushHandler := trust.NewTRCPushHandler(
-				tc.Request(ctrl),
-				nil,
-				tc.Inserter(ctrl),
-			)
-			result := trcPushHandler.Handle()
-			assert.Equal(t, tc.ExpectedResult, result)
+			store := trust.Store{
+				Inserter: test.Inserter(ctrl),
+			}
+			result := store.NewTRCPushHandler().Handle(test.Request(ctrl))
+			assert.Equal(t, test.ExpectedResult, result)
 		})
 	}
 }

@@ -23,13 +23,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
-	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
@@ -40,8 +38,8 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -84,12 +82,12 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
+
 	topo := itopo.Get()
 	if !topo.Exists(addr.SvcCS, cfg.General.ID) {
 		log.Crit("Unable to find topo address")
 		return 1
 	}
-
 	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
 	if err != nil {
 		log.Crit("Unable to create tracer", "err", err)
@@ -101,31 +99,6 @@ func realMain() int {
 	router, err := infraenv.NewRouter(topo.IA(), cfg.Sciond)
 	if err != nil {
 		log.Crit("Unable to initialize path router", "err", err)
-		return 1
-	}
-	trustDB, err := cfg.TrustDB.New()
-	if err != nil {
-		log.Crit("Unable to initialize trustDB", "err", err)
-		return 1
-	}
-	trustDB = trustdb.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
-	defer trustDB.Close()
-	trustConf := trust.Config{
-		MustHaveLocalChain: true,
-		ServiceType:        proto.ServiceType_cs,
-		Router:             router,
-		TopoProvider:       itopo.Provider(),
-	}
-	trustStore := trust.NewStore(trustDB, topo.IA(), trustConf, log.Root())
-	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
-	if err != nil {
-		log.Crit("Unable to load local crypto", "err", err)
-		return 1
-	}
-
-	state, err := newState(topo, trustDB, trustStore)
-	if err != nil {
-		log.Crit("Unable to load state", "err", err)
 		return 1
 	}
 
@@ -140,7 +113,6 @@ func realMain() int {
 			KeyFile:  cfg.QUIC.KeyFile,
 		},
 		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
-		TrustStore:            trustStore,
 		Router:                router,
 		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
@@ -151,25 +123,66 @@ func realMain() int {
 	}
 	defer msgr.CloseServer()
 
-	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(true))
-	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(true))
-	msgr.AddHandler(infra.Chain, trustStore.NewChainPushHandler())
-	msgr.AddHandler(infra.TRC, trustStore.NewTRCPushHandler())
-	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
-	msgr.UpdateVerifier(trust.NewBasicVerifier(trustStore))
-	// Only core CS handles certificate reissuance requests.
-	if topo.Core() {
-		msgr.AddHandler(infra.ChainIssueRequest, &reiss.Handler{
-			State: state,
-			IA:    topo.IA(),
-		})
+	trustDB, err := cfg.TrustDB.New()
+	if err != nil {
+		log.Crit("Error initializing trust database", "err", err)
+		return 1
+	}
+	defer trustDB.Close()
+	inserter := trust.DefaultInserter{
+		BaseInserter: trust.BaseInserter{DB: trustDB},
+	}
+	provider := trust.Provider{
+		DB:       trustDB,
+		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
+		Resolver: trust.DefaultResolver{
+			DB:       trustDB,
+			Inserter: inserter,
+			RPC:      trust.DefaultRPC{Msgr: msgr},
+		},
+		Router: trust.AuthRouter{
+			ISD:    topo.IA().I,
+			Router: router,
+			DB:     trustDB,
+		},
+	}
+	trustStore := trust.Store{
+		Inspector:      trust.DefaultInspector{Provider: provider},
+		CryptoProvider: provider,
+		Inserter:       inserter,
+		DB:             trustDB,
+	}
+	certsDir := filepath.Join(cfg.General.ConfigDir, "certs")
+	if err = trustStore.LoadCryptoMaterial(context.Background(), certsDir); err != nil {
+		log.Crit("Error loading crypto material", "err", err)
+		return 1
+	}
+	gen := trust.SignerGen{
+		IA: topo.IA(),
+		KeyRing: keyconf.LoadingRing{
+			Dir: filepath.Join(cfg.General.ConfigDir, "keys"),
+			IA:  topo.IA(),
+		},
+		Provider: trustStore,
+	}
+	signer, err := gen.Signer(context.Background())
+	if err != nil {
+		log.Crit("Error initializing signer", "err", err)
+		return 1
 	}
 
+	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler())
+	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler())
+	msgr.AddHandler(infra.Chain, trustStore.NewChainPushHandler())
+	msgr.AddHandler(infra.TRC, trustStore.NewTRCPushHandler())
+	msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
+	msgr.UpdateVerifier(trust.NewVerifier(trustStore))
+
+	// Start the messenger.
 	go func() {
 		defer log.LogPanicAndExit()
 		msgr.ListenAndServe()
 	}()
-	cfg.Metrics.StartPrometheus()
 
 	discoRunners, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full,
 		idiscovery.TopoHandlers{}, nil, "cs")
@@ -183,7 +196,6 @@ func realMain() int {
 		TopoProvider: itopo.Provider(),
 		Msgr:         msgr,
 		TrustDB:      trustDB,
-		State:        state,
 	}
 	if err := tasks.Start(); err != nil {
 		log.Crit("Unable to start periodic tasks", "err", err)
@@ -202,8 +214,7 @@ func realMain() int {
 type periodicTasks struct {
 	TopoProvider topology.Provider
 	Msgr         infra.Messenger
-	TrustDB      trustdb.TrustDB
-	State        *config.State
+	TrustDB      trust.DB
 
 	corePusher *periodic.Runner
 	reissuance *periodic.Runner
@@ -220,62 +231,10 @@ func (t *periodicTasks) Start() error {
 		return nil
 	}
 	t.running = true
-	t.corePusher = t.startCorePusher()
-	t.reissuance = t.startReissuance(t.corePusher)
+	// t.corePusher = t.startCorePusher()
+	// t.reissuance = t.startReissuance(t.corePusher)
 	log.Info("Started periodic tasks")
 	return nil
-}
-
-func (t *periodicTasks) startCorePusher() *periodic.Runner {
-	if cfg.CS.DisableCorePush {
-		return nil
-	}
-	p := periodic.Start(
-		&reiss.CorePusher{
-			LocalIA: t.TopoProvider.Get().IA(),
-			TrustDB: t.TrustDB,
-			Msger:   t.Msgr,
-		},
-		time.Hour,
-		time.Minute,
-	)
-	p.TriggerRun()
-	return p
-}
-
-func (t *periodicTasks) startReissuance(corePusher *periodic.Runner) *periodic.Runner {
-	if !cfg.CS.AutomaticRenewal {
-		log.Info("Certificate reissuance disabled, not starting periodic task.")
-		return nil
-	}
-	if t.TopoProvider.Get().Core() {
-		log.Info("Starting periodic self-issuing reissuance task.")
-		return periodic.Start(
-			&reiss.Self{
-				Msgr:       t.Msgr,
-				State:      t.State,
-				IA:         t.TopoProvider.Get().IA(),
-				IssTime:    cfg.CS.IssuerReissueLeadTime.Duration,
-				LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
-				CorePusher: corePusher,
-				Caller:     "cs",
-			},
-			cfg.CS.ReissueRate.Duration,
-			cfg.CS.ReissueTimeout.Duration,
-		)
-	}
-	log.Info("Starting periodic reissuance requester task.")
-	return periodic.Start(
-		&reiss.Requester{
-			Msgr:       t.Msgr,
-			State:      t.State,
-			IA:         t.TopoProvider.Get().IA(),
-			LeafTime:   cfg.CS.LeafReissueLeadTime.Duration,
-			CorePusher: corePusher,
-		},
-		cfg.CS.ReissueRate.Duration,
-		cfg.CS.ReissueTimeout.Duration,
-	)
 }
 
 func (t *periodicTasks) Kill() {
@@ -329,27 +288,4 @@ func setup() error {
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)
 	return nil
-}
-
-// TODO(roosd): Remove with trust store v2
-func newState(topo topology.Topology, db trustdb.TrustDB,
-	store *trust.Store) (*config.State, error) {
-
-	state, err := config.LoadState(cfg.General.ConfigDir, topo.Core(), db, store)
-	if err != nil {
-		return nil, serrors.WrapStr("unable to load CS state", err)
-	}
-	ctx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancelF()
-	meta, err := trust.CreateSignMeta(ctx, topo.IA(), db)
-	if err != nil {
-		return nil, err
-	}
-	signer, err := trust.NewBasicSigner(state.GetSigningKey(), meta)
-	if err != nil {
-		return nil, err
-	}
-	state.SetSigner(signer)
-	state.SetVerifier(state.Store.NewVerifier())
-	return state, nil
 }

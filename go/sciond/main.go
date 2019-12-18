@@ -32,18 +32,20 @@ import (
 	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/config"
@@ -97,19 +99,6 @@ func realMain() int {
 	}
 	defer pathDB.Close()
 	defer revCache.Close()
-	trustDB, err := cfg.TrustDB.New()
-	if err != nil {
-		log.Crit("Unable to initialize trustDB", "err", err)
-		return 1
-	}
-	defer trustDB.Close()
-	trustConf := trust.Config{TopoProvider: itopo.Provider()}
-	trustStore := trust.NewStore(trustDB, itopo.Get().IA(), trustConf, log.Root())
-	err = trustStore.LoadAuthoritativeTRC(filepath.Join(cfg.General.ConfigDir, "certs"))
-	if err != nil {
-		log.Crit("Unable to load local TRC", "err", err)
-		return 1
-	}
 	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
 	if err != nil {
 		log.Crit("Unable to create tracer", "err", err)
@@ -135,7 +124,6 @@ func realMain() int {
 			KeyFile:  cfg.QUIC.KeyFile,
 		},
 		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
-		TrustStore:            trustStore,
 		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	msger, err := nc.Messenger()
@@ -143,6 +131,40 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger.Error(), "err", err)
 		return 1
 	}
+	defer msger.CloseServer()
+
+	trustDB, err := cfg.TrustDB.New()
+	if err != nil {
+		log.Crit("Error initializing trust database", "err", err)
+		return 1
+	}
+	defer trustDB.Close()
+	inserter := trust.DefaultInserter{
+		BaseInserter: trust.BaseInserter{DB: trustDB},
+	}
+	provider := trust.Provider{
+		DB:       trustDB,
+		Recurser: trust.LocalOnlyRecurser{},
+		Resolver: trust.DefaultResolver{
+			DB:       trustDB,
+			Inserter: inserter,
+			RPC:      trust.DefaultRPC{Msgr: msger},
+		},
+		Router: trust.LocalRouter{IA: itopo.Get().IA()},
+	}
+	trustStore := trust.Store{
+		Inspector:      trust.DefaultInspector{Provider: provider},
+		CryptoProvider: provider,
+		Inserter:       inserter,
+		DB:             trustDB,
+	}
+	certsDir := filepath.Join(cfg.General.ConfigDir, "certs")
+	err = trustStore.LoadCryptoMaterial(context.Background(), certsDir)
+	if err != nil {
+		log.Crit("Error loading crypto material", "err", err)
+		return 1
+	}
+
 	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
@@ -150,6 +172,7 @@ func realMain() int {
 				msger,
 				pathDB,
 				trustStore,
+				verificationFactory{Provider: trustStore},
 				revCache,
 				cfg.SD,
 				itopo.Provider(),
@@ -162,7 +185,7 @@ func realMain() int {
 		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
 			RevCache:         revCache,
-			VerifierFactory:  trustStore,
+			VerifierFactory:  verificationFactory{Provider: trustStore},
 			NextQueryCleaner: segfetcher.NextQueryCleaner{PathDB: pathDB},
 		},
 	}
@@ -188,6 +211,18 @@ func realMain() int {
 	case <-fatal.FatalChan():
 		return 1
 	}
+}
+
+type verificationFactory struct {
+	Provider trust.CryptoProvider
+}
+
+func (v verificationFactory) NewSigner(common.RawBytes, infra.SignerMeta) (infra.Signer, error) {
+	return nil, serrors.New("signer generation not supported")
+}
+
+func (v verificationFactory) NewVerifier() infra.Verifier {
+	return trust.NewVerifier(v.Provider)
 }
 
 func setupBasic() error {

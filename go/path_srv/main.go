@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	_ "net/http/pprof"
@@ -36,17 +37,16 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/config"
-	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/segreq"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
@@ -93,25 +93,8 @@ func realMain() int {
 	defer revCache.Close()
 	pathDB = pathdb.WithMetrics("std", pathDB)
 	defer pathDB.Close()
-	trustDB, err := cfg.TrustDB.New()
-	if err != nil {
-		log.Crit("Unable to initialize trustDB", "err", err)
-		return 1
-	}
-	trustDB = trustdb.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
-	defer trustDB.Close()
+
 	topo := itopo.Get()
-	trustConf := trust.Config{
-		MustHaveLocalChain: true,
-		ServiceType:        proto.ServiceType_ps,
-		TopoProvider:       itopo.Provider(),
-	}
-	trustStore := trust.NewStore(trustDB, topo.IA(), trustConf, log.Root())
-	err = trustStore.LoadAuthoritativeCrypto(filepath.Join(cfg.General.ConfigDir, "certs"))
-	if err != nil {
-		log.Crit("Unable to load local crypto", "err", err)
-		return 1
-	}
 	if !topo.Exists(addr.SvcPS, cfg.General.ID) {
 		log.Crit("Unable to find topo address")
 		return 1
@@ -135,7 +118,6 @@ func realMain() int {
 			KeyFile:  cfg.QUIC.KeyFile,
 		},
 		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
-		TrustStore:            trustStore,
 		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	msger, err := nc.Messenger()
@@ -144,15 +126,49 @@ func realMain() int {
 		return 1
 	}
 	defer msger.CloseServer()
-	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
+
+	trustDB, err := cfg.TrustDB.New()
+	if err != nil {
+		log.Crit("Error initializing trust database", "err", err)
+		return 1
+	}
+	defer trustDB.Close()
+	inserter := trust.ForwardingInserter{
+		BaseInserter: trust.BaseInserter{DB: trustDB},
+		Router:       trust.LocalRouter{IA: topo.IA()},
+		RPC:          trust.DefaultRPC{Msgr: msger},
+	}
+	provider := trust.Provider{
+		DB:       trustDB,
+		Recurser: trust.LocalOnlyRecurser{},
+		Resolver: trust.DefaultResolver{
+			DB:       trustDB,
+			Inserter: inserter,
+			RPC:      trust.DefaultRPC{Msgr: msger},
+		},
+		Router: trust.LocalRouter{IA: topo.IA()},
+	}
+	trustStore := trust.Store{
+		Inspector:      trust.DefaultInspector{Provider: provider},
+		CryptoProvider: provider,
+		Inserter:       inserter,
+		DB:             trustDB,
+	}
+	certsDir := filepath.Join(cfg.General.ConfigDir, "certs")
+	if err = trustStore.LoadCryptoMaterial(context.Background(), certsDir); err != nil {
+		log.Crit("Error loading crypto material", "err", err)
+		return 1
+	}
+
+	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler())
 	// TODO(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.
-	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
+	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler())
 	args := handlers.HandlerArgs{
 		PathDB:          pathDB,
 		RevCache:        revCache,
 		ASInspector:     trustStore,
-		VerifierFactory: trustStore,
+		VerifierFactory: verificationFactory{Provider: trustStore},
 		QueryInterval:   cfg.PS.QueryInterval.Duration,
 		IA:              topo.IA(),
 		TopoProvider:    itopo.Provider(),
@@ -200,7 +216,7 @@ func realMain() int {
 type periodicTasks struct {
 	args          handlers.HandlerArgs
 	msger         infra.Messenger
-	trustDB       trustdb.TrustDB
+	trustDB       trust.DB
 	mtx           sync.Mutex
 	running       bool
 	segSyncers    []*periodic.Runner
@@ -226,11 +242,12 @@ func (t *periodicTasks) Start() error {
 	}
 	t.pathDBCleaner = periodic.Start(pathdb.NewCleaner(t.args.PathDB, "ps_segments"),
 		300*time.Second, 295*time.Second)
-	t.cryptosyncer = periodic.Start(&cryptosyncer.Syncer{
-		DB:    t.trustDB,
-		Msger: t.msger,
-		IA:    t.args.IA,
-	}, cfg.PS.CryptoSyncInterval.Duration, cfg.PS.CryptoSyncInterval.Duration)
+	// TODO(roosd): Re-enable
+	// t.cryptosyncer = periodic.Start(&cryptosyncer.Syncer{
+	// 	DB:    t.trustDB,
+	// 	Msger: t.msger,
+	// 	IA:    t.args.IA,
+	// }, cfg.PS.CryptoSyncInterval.Duration, cfg.PS.CryptoSyncInterval.Duration)
 	t.rcCleaner = periodic.Start(revcache.NewCleaner(t.args.RevCache, "ps_revocation"),
 		10*time.Second, 10*time.Second)
 	return nil
@@ -251,6 +268,18 @@ func (t *periodicTasks) Kill() {
 	t.cryptosyncer.Kill()
 	t.rcCleaner.Kill()
 	t.running = false
+}
+
+type verificationFactory struct {
+	Provider trust.CryptoProvider
+}
+
+func (v verificationFactory) NewSigner(common.RawBytes, infra.SignerMeta) (infra.Signer, error) {
+	return nil, serrors.New("signer generation not supported")
+}
+
+func (v verificationFactory) NewVerifier() infra.Verifier {
+	return trust.NewVerifier(v.Provider)
 }
 
 func setupBasic() error {
