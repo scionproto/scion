@@ -1,0 +1,19 @@
+{
+    "Entries": [
+        {
+            "Seconds": 0,
+            "Paths": [
+                {
+                    "Fingerprint": "PathAAAA",
+                    "NextHop": "242.254.200.3:50000",
+                    "IA": "1-ff00:0:110"
+                },
+                {
+                    "Fingerprint": "PathBBBB",
+                    "NextHop": "242.254.200.4:50000",
+                    "IA": "1-ff00:0:110"
+                }
+            ]
+        }
+    ]
+}

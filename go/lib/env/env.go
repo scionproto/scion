@@ -132,6 +132,9 @@ type SciondClient struct {
 	// InitialConnectPeriod is the maximum amount of time spent attempting to
 	// connect to sciond on start.
 	InitialConnectPeriod util.DurWrap
+	// FakeData can be used to replace the local SCIOND with a fake data source.
+	// It must point to a fake SCIOND configuration file.
+	FakeData string
 }
 
 func (cfg *SciondClient) InitDefaults() {
