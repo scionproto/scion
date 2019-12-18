@@ -134,7 +134,7 @@ func (sm *sessMonitor) updatePaths() {
 			"oldExpiration", expTime,
 			"newExpiration", currPath.Path().Expiry(),
 			"oldMTU", mtu,
-			"newMTU", currPath.Path().Expiry())
+			"newMTU", currPath.Path().MTU)
 		sm.updateSessSnap()
 	}
 }

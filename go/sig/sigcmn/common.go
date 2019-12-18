@@ -23,6 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond/fake"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/sig/internal/pathmgr"
@@ -58,26 +60,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 	MgmtAddr = mgmt.NewAddr(Host, cfg.CtrlPort, cfg.EncapPort)
 	encapPort = cfg.EncapPort
 
-	ds := reliable.NewDispatcher(cfg.Dispatcher)
-	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
-	wait := func() (*snet.SCIONNetwork, pathmgr.Resolver, error) {
-		deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
-		var retErr error
-		for tries := 0; time.Now().Before(deadline); tries++ {
-			resolver, err := snetmigrate.ResolverFromSD(sdCfg.Path)
-			if err == nil {
-				return snet.NewNetworkWithPR(cfg.IA, ds, &snetmigrate.PathQuerier{
-					Resolver: resolver,
-					IA:       cfg.IA,
-				}, resolver), resolver, nil
-			}
-			log.Debug("SIG is retrying to get NewNetwork", err)
-			retErr = err
-			time.Sleep(time.Second)
-		}
-		return nil, nil, retErr
-	}
-	network, resolver, err := wait()
+	network, resolver, err := initNetwork(cfg, sdCfg)
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
@@ -92,6 +75,53 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 	PathMgr = resolver
 
 	return nil
+}
+
+func initNetwork(cfg sigconfig.SigConf,
+	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+
+	if sdCfg.FakeData != "" {
+		return initNetworkWithFakeSCIOND(cfg, sdCfg)
+	}
+	return initNetworkWithRealSCIOND(cfg, sdCfg)
+}
+
+func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
+	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+
+	ds := reliable.NewDispatcher(cfg.Dispatcher)
+	sciondConn, err := fake.NewFromFile(sdCfg.FakeData)
+	if err != nil {
+		return nil, nil, serrors.WrapStr("unable to initialize fake SCIOND service", err)
+	}
+	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{})
+	network := snet.NewNetworkWithPR(cfg.IA, ds, &snetmigrate.PathQuerier{
+		Resolver: pathResolver,
+		IA:       cfg.IA,
+	}, pathResolver)
+	return network, pathResolver, nil
+}
+
+func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
+	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+
+	ds := reliable.NewDispatcher(cfg.Dispatcher)
+	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
+	deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
+	var retErr error
+	for tries := 0; time.Now().Before(deadline); tries++ {
+		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Path)
+		if err == nil {
+			return snet.NewNetworkWithPR(cfg.IA, ds, &snetmigrate.PathQuerier{
+				Resolver: resolver,
+				IA:       cfg.IA,
+			}, resolver), resolver, nil
+		}
+		log.Debug("SIG is retrying to get NewNetwork", err)
+		retErr = err
+		time.Sleep(time.Second)
+	}
+	return nil, nil, retErr
 }
 
 func EncapSnetAddr() *snet.Addr {

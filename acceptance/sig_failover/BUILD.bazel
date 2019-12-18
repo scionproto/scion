@@ -1,0 +1,59 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+
+sh_test(
+    name = "sig_failover_test",
+    size = "small",
+    srcs = ["test"],
+    args = ["setup"],
+    deps = [
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+    data = [
+        "//go/tools/udpproxy:udpproxy",
+        "//acceptance/sig_failover:dispatcher1",
+        "//acceptance/sig_failover:dispatcher2",
+        "//acceptance/sig_failover:sig1",
+        "//acceptance/sig_failover:sig2",
+        "docker-compose.yml",
+    ] + glob(["testdata/**/*"]),
+)
+
+container_image(
+    name = "dispatcher1",
+    base = "//docker/perapp:dispatcher_go_debug",
+    files = ["testdata/1-ff00_0_110/dispatcher/disp.toml"],
+    entrypoint = ["/app/godispatcher", "-config", "/disp.toml"],
+    stamp = True,
+)
+
+container_image(
+    name = "dispatcher2",
+    base = "//docker/perapp:dispatcher_go_debug",
+    files = ["testdata/1-ff00_0_111/dispatcher/disp.toml"],
+    entrypoint = ["/app/godispatcher", "-config", "/disp.toml"],
+    stamp = True,
+)
+
+container_image(
+    name = "sig1",
+    base = "//docker/perapp:sig_debug",
+    files = [
+        "testdata/1-ff00_0_110/sig/cfg.json",
+        "testdata/1-ff00_0_110/sig/sig.toml",
+        "testdata/1-ff00_0_110/sig/fake_sciond.json",
+    ],
+    entrypoint = ["/app/sig", "-config", "/sig.toml"],
+    stamp = True,
+)
+
+container_image(
+    name = "sig2",
+    base = "//docker/perapp:sig_debug",
+    files = [
+        "testdata/1-ff00_0_111/sig/cfg.json",
+        "testdata/1-ff00_0_111/sig/sig.toml",
+        "testdata/1-ff00_0_111/sig/fake_sciond.json",
+    ],
+    entrypoint = ["/app/sig", "-config", "/sig.toml"],
+    stamp = True,
+)

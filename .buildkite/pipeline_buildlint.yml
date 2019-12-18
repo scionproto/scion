@@ -53,3 +53,17 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
+  - label: "Acceptance: sig_failover"
+    command:
+      - mkdir -p $$ACCEPTANCE_ARTIFACTS
+      - bazel test --action_env=ACCEPTANCE_ARTIFACTS //acceptance/sig_failover:sig_failover_test
+    key: sig_failover
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    artifact_paths:
+      - "artifacts.out/**/*"
+    env:
+      ACCEPTANCE_ARTIFACTS: "$BUILDKITE_BUILD_CHECKOUT_PATH/accept_artifacts"
+
