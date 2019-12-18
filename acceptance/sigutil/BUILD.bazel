@@ -1,0 +1,12 @@
+sh_library (
+    name = "command_wrapper",
+    srcs = ["command_wrapper.sh"],
+    visibility = ["//visibility:public"],
+)
+
+sh_library (
+    name = "common",
+    srcs = ["common.sh"],
+    deps = [":command_wrapper"],
+    visibility = ["//visibility:public"],
+)
