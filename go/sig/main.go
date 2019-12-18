@@ -139,7 +139,7 @@ func validateConfig() error {
 
 func setupTun() (io.ReadWriteCloser, error) {
 	if err := checkPerms(); err != nil {
-		return nil, serrors.New("Permissions checks failed")
+		return nil, serrors.WrapStr("Permissions checks failed", err)
 	}
 	tunLink, tunIO, err := xnet.ConnectTun(cfg.Sig.Tun)
 	if err != nil {
@@ -176,7 +176,7 @@ func checkPerms() error {
 	if err != nil {
 		return common.NewBasicError("Error retrieving user", err)
 	}
-	if u.Uid == "0" {
+	if u.Uid == "0" && !cfg.Features.AllowRunAsRoot {
 		return serrors.New("Running as root is not allowed for security reasons")
 	}
 	caps, err := capability.NewPid(0)
