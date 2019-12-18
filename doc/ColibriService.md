@@ -16,6 +16,12 @@ The border router is also modified so it understands COLIBRI type packets in the
 
 ## Design
 
+There are three main components that need to be modified or created: the colibri service itself, the border router and `sciond` in the endhost:
+
+* ***COS*** Enables the COLIBRI control plane. Used to negotiate both segment and end to end reservations.
+* **Border Router** Needs to forward the COLIBRI traffic with higher priority than best effort. Needs to monitor COLIBRI traffic.
+* **sciond** Needs to expose a COLIBRI *API*. Needs to manage end to end reservations in behalf of the applications.
+
 The COS is structured similarly to other existing Go infrastructure services. It reuses the following:
 
 * [go/lib/env](../go/lib/env): Is used for configuration and setup of the service.
@@ -32,8 +38,104 @@ The COS is differentiated into these parts:
 
 ![COS parts overview](fig/colibri_srv/COS.png).
 
-(which components do what, no UML)
-(pretty figures with colors, group the classes per functionallity: handler, periodic task, etc)
+
+## Sequence Diagrams
+
+TODO(juagargi) for now a simple list, move to diagram
+
+### Segment Reservations
+
+We use "forward the request" with the following meaning: if the current AS is not the last AS in the reservation path, send the request to the next AS in the resevation path. If the current AS is the last one, do nothing.
+
+#### Handle a Setup Response
+
+The response message originated from another AS's *COS* handling a request.
+The request is forwarded from AS<sub>i</sub> to AS<sub>i+1</sub>, where AS<sub>i+1</sub> is the next AS after AS<sub>i</sub> in the path of the reservation.
+
+1. The store saves the reservation as final.
+1. If this AS is the first one in the reservation path (aka *resevation initiator*), the store sends an index confirmation request to the next AS in the path.
+1. If this AS is the not the first one in the reservation path, the store sends a response message to the previous AS's *COS*.
+
+
+#### Handle a Setup Request
+
+(the reservation message originated from another AS nearer to the origin of the path in the reservation)
+
+1. The *COS* store is queried to admit the segment reservation.
+1. The store decides the admission for the reservation (how much bandwidth). It uses the _traffic_matrix_ from the configuration package.
+1. The store saves an intermediate reservation entry in the DB.
+1. If this AS is the last one in the path, the *COS* store saves the reservation as final and notifies the previous AS in the path with a reservation response.
+1. The store forwards the request with the decided bandwidth.
+
+
+#### Setup a Segment Reservation
+
+The configuration specifies which segment reservations should be created from this AS to other ASes. Whenever that configuration changes, the service should be notified.
+
+1. The service triggers the creation of a new segment reservation at boot time and whenever the segment reservation configuration file changes.
+1. The service reads the configuration file and creates a segment reservation request per each entry.
+    * The path used in the request must be obtained using the _path predicate_ in the configuration.
+1. The store in the *COS* saves the intermediate request and sends the request to the next AS in the path.
+1. If there is a timeout, this store will send a cleanup request to the next AS in the path.
+
+
+#### Handle an Index Confirmation Request
+
+1. The store in the *COS* checks that the appropriate reservation is already final.
+1. The store modifies the reservation to be confirmed
+1. The *COS* forwards the confirmation request.
+
+
+#### Handle a Cleanup Request
+
+1. The *COS* removes the referenced reservation from its store.
+1. The *COS* forwards the cleanup request.
+
+
+#### Handle a Teardown Request
+
+<!-- TODO: telescoped reservations using this reservations as base ? -->
+1. The *COS* checks the reservation is confirmed but has no allocated end to end reservations.
+1. The store removes the reservation.
+1. The *COS* forwards the teardown request.
+
+
+#### Handle a Renewal Request
+
+The renewal request handler is the same as the [setup request](#handle-a-setup-request). The renewal is initiated differently (by adding a new index to an existing reservation), but handled the same way.
+
+
+#### Renew a Segment Reservation
+
+1. The service triggers the renewal of the existing segment reservations with constant frequency.
+1. The store in the *COS* retrieves each one of the reservations that originate in this AS.
+1. Per reservation retrieved, the store adds a new index to it and pushes it forward.
+
+
+#### Handle a Reservation Query
+
+1. The store in the *COS* receives the query and returns the collection of segment reservations matching it.
+
+
+### End to End Reservations
+
+All end to end reservation requests should be authenticated.
+
+#### Handle a E2E Setup Request
+
+1. The *COS* queries the store to admit the reservation
+1. The store computes the allowed bandwidth (knowing the current segment reservation and the existing E2E reservations in it).
+1. The store pushes forward the setup request.
+
+
+#### Handle a Renewal Request
+
+The renewal request handler is the same as the [setup request](#handle-a-e2e-setup-request).
+
+#### Handle a Cleanup Request
+
+1. The *COS* removes the request from its store.
+1. The *COS* forwards the cleanup request.
 
 
 ## Interfaces
@@ -45,20 +147,29 @@ The store provides the following interface:
 
 ```go
 type ReservationStore {
-    // TODO(juagargi): two segment reservations can differ only in their path;
-    // this means that the path is part of the unique fields. pathAsIndex_t is some kind of ID for a path.
+    GetSegmentReservation(ctx context.Context, id SegmentReservationID) (SegmentReservation, error)
+    GetSegmentReservations(ctx context.Context, validTime time.Time, path []InterfaceId]) ([]SegmentReservation, error)
 
-    GetSegmentReservations(ctx context.Context, validTime time.Time, path pathAsIndex_t) ([]SegmentReservation, error)
-    GetSegmentReservation(ctx context.Context, token ReservationToken) (SegmentReservation, error)
-    InsertSegmentReservation(ctx context.Context, resv SegmentReservation) error
-    DeleteSegmentReservation(ctx context.Context, token ReservationToken) error
+    AdmitSegmentReservation(ctx context.Context, req SegmentReservationReq) error
+    ConfirmSegmentReservation(ctx context.Context, id SegmentReservationID) error
+    CleanupSegmentReservation(ctx context.Context, id SegmentReservationID) error
+    TearDownSegmentReservation(ctx context.Context, id SegmentReservationID) error
 
-    // GetE2EReservationCount will return the number of existing end to end reservations
-    // that are using the segment reservation specified by the token. If hostID is not empty, it will
-    // check if there already exists an E2E reservation for that host with this token.
-    GetE2EReservationCount(ctx context.Context, validTime time.Time, segmentReservationToken ReservationToken, host HostID) (int, error)
-    InsertE2EReservation(ctx context.Context, resv E2EResevation) error
-    // TODO(juagargi) other functions pending ...
+    AdmitE2EReservation(ctx context.Context, req E2EReservationReq) error
+    CleanupE2EReservation(ctx context.Context, id E2EReservationID) error
+}
+```
+
+The `sciond` endhost daemon will expose the *API* that enables the use of COLIBRI by applications:
+
+```go
+type sciond {
+    ...
+    AllowIPNet(ctx context.Context, ia IA, net IPNet) error  // TODO(juagargi) allow processes to just be notified of requests
+    BlockIPNet(ctx context.Context, ia IA, net IPNet) error
+    WatchSegmentRsv(ctx context.Context, pathConf PathConfiguration) (WatchState, error)
+    WatchE2ERsv(ctx context.Context, resvConf E2EResvConfiguration) (WatchState, error)
+    Unwatch(watchState WatchState) error
 }
 ```
 
@@ -68,26 +179,53 @@ type ReservationStore {
 (just the main classes, arity and relationship)
 (data relationships seem simple enough that we can probably skip them)
 
+```go
+type InterfaceIdPair struct
+    Ingress uint64
+    Egress  uint64
+}
+type SegmentReservationID struct {
+    Ifids   []InterfaceIdPair
+    Index   byte
+}
 
-## Sequence Diagrams
+type E2EReservationID uint16
+```
 
-(just one or two UML sequence diagrams to validate)
+## ReservationDB
 
-TODO(juagargi) for now a simple list, move to diagram
+### Segment reservations
 
-1. The service triggers the creation of a new segment reservation periodically (also at boot time).
-1. The store contained in the service is queried to admit the segment reservation.
-1. The store decides the admission for the reservation (how much bandwidth)
-1. The store saves an intermediate reservation entry in the DB
-1. The store requests the next AS in the reservation path for the decided bandwidth.
-1. The COLIBRI service in the next AS in the path receives the request.
-1. That service handles the request. This AS might be the last one in the path. If it is not, it repeats the previous steps.
-1. When the AS is the last one, the COLIBRI service via its store saves the reservation as final and notifies the previous AS in the path of the transaction.
-1. The COLIBRI service in the previous AS receives the notification (request to commit to this reservation).
-1. That service, via its store, saves the reservation as final and notifies the previous AS again. These steps are repeated until the first AS is reached.
-1. The COLIBRI service in the first AS is reached.
-1. That service, via its store, also writes down the reservation as final.
+```
+Table SegmentResvBase
+------------------------------------------
+ResvID              integer     unique              index
+Path                blob        unique              index
+PathType            smallint
+```
 
+```
+Table SegmentResvs
+------------------------------------------
+ResvID              integer     FK, unique_together     index_multicol
+Index               smallint    unique_together         index_multicol
+ExpirationTick      integer
+BWClass             smallint
+RLC                 smallint
+Token               blob
+```
+
+* Records can be found either by reservation ID or by path.
+* Path is a serialized byte array from the interface identifier pairs along the reservation path (16 bytes per pair). The IA (64 bits) of the origin and destination ASes is prepended and appended to the array. This builds a identifier which should be unique per path.
+
+```
+Table E2EResv
+------------------------------------------
+ResvID              integer     unique              index
+SegmentRsvID        integer     FK
+```
+
+### End to end reservations
 
 
 
