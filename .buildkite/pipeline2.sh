@@ -8,7 +8,6 @@ gen_acceptance() {
         name="$(basename ${test%_acceptance})"
         echo "  - label: \"Acceptance: $name\""
         echo "    command:"
-        echo "      - \"rm -rf \$\$ACCEPTANCE_ARTIFACTS\""
         echo "      - \"mkdir -p \$\$ACCEPTANCE_ARTIFACTS\""
         echo "      - ./acceptance/ctl gsetup"
         echo "      - ./acceptance/ctl grun $name"
