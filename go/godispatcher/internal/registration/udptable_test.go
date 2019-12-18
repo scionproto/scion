@@ -214,6 +214,55 @@ func TestUDPPortTableInsert(t *testing.T) {
 	})
 }
 
+func TestUDPPortTableRemove(t *testing.T) {
+	value := "test value"
+	Convey("", t, func() {
+		Convey("", func() {
+			table := testUDPTableWithPorts(
+				map[int]IPTable{
+					10080: {"10.2.3.4": value},
+					10081: {"0.0.0.0": value}},
+				map[int]IPTable{
+					10082: {docIPv6AddressStr: value},
+					10083: {"::": value}},
+			)
+
+			Convey("Remove non-zero addresses", func() {
+				addrs := []*net.UDPAddr{
+					{IP: net.IP{10, 2, 3, 4}, Port: 10080},
+					{IP: docIPv6Address, Port: 10082},
+				}
+				for _, address := range addrs {
+					_, lookupOk := table.Lookup(address)
+					SoMsg("lookup succeeds before removing", lookupOk, ShouldBeTrue)
+					table.Remove(address)
+					_, lookupOk = table.Lookup(address)
+					SoMsg("lookup fails after removing", lookupOk, ShouldBeFalse)
+				}
+			})
+			Convey("Remove zero address", func() {
+				addrs := map[*net.UDPAddr]net.IP{
+					{IP: net.IPv4zero, Port: 10081}: {10, 1, 2, 3},
+					{IP: net.IPv6zero, Port: 10083}: docIPv6Address,
+				}
+
+				for address, lookupAddress := range addrs {
+					_, lookupOk := table.Lookup(&net.UDPAddr{IP: lookupAddress, Port: address.Port})
+					SoMsg("lookup succeeds before removing", lookupOk, ShouldBeTrue)
+					table.Remove(address)
+					_, lookupOk = table.Lookup(&net.UDPAddr{IP: lookupAddress, Port: address.Port})
+					SoMsg("lookup fails after removing", lookupOk, ShouldBeFalse)
+				}
+			})
+		})
+		Convey("Removing non-existent entry does not panic", func() {
+			table := NewUDPPortTable(minPort, maxPort)
+			address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 666}
+			So(func() { table.Remove(address) }, ShouldNotPanic)
+		})
+	})
+}
+
 func TestUDPPortAllocator(t *testing.T) {
 	address := net.IP{10, 2, 3, 4}
 	value := "test value"
