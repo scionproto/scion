@@ -15,6 +15,7 @@
 package trust_test
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"testing"
@@ -267,7 +268,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 				Router:   m.Router,
 			}
 			id := trust.TRCID{ISD: trc1v1.ISD, Version: trc1v1.Version}
-			ptrc, err := provider.GetTRC(nil, id, test.Opts)
+			ptrc, err := provider.GetTRC(context.Background(), id, test.Opts)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
 				assert.Truef(t, xerrors.Is(err, test.ExpectedErr),
@@ -446,7 +447,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 				Router:   m.Router,
 			}
 			id := trust.TRCID{ISD: trc1v1.ISD, Version: scrypto.LatestVer}
-			trcObj, err := provider.GetTRC(nil, id, test.Opts)
+			trcObj, err := provider.GetTRC(context.Background(), id, test.Opts)
 			assert.Equal(t, expected.TRC, trcObj)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
@@ -1252,7 +1253,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				Router:   test.Router(t, mctrl),
 			}
 			id := trust.ChainID{IA: test.ChainDesc.IA, Version: test.ChainDesc.Version}
-			raw, err := p.GetRawChain(nil, id, test.Opts)
+			raw, err := p.GetRawChain(context.Background(), id, test.Opts)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, test.ExpectedRaw, raw)
 		})
@@ -1331,7 +1332,7 @@ func TestCryptoProviderGetASKey(t *testing.T) {
 				Router:   test.Router(t, mctrl),
 			}
 			id := trust.ChainID{IA: test.ChainDesc.IA, Version: test.ChainDesc.Version}
-			km, err := p.GetASKey(nil, id, test.Opts)
+			km, err := p.GetASKey(context.Background(), id, test.Opts)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, test.ExpectedKeyMeta, km)
 		})

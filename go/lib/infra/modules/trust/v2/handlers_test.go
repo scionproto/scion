@@ -306,7 +306,7 @@ func TestChainPushHandler(t *testing.T) {
 		{
 			Name: "empty message",
 			Request: func(_ *gomock.Controller) *infra.Request {
-				return infra.NewRequest(nil, nil, nil, nil, 0)
+				return infra.NewRequest(context.Background(), nil, nil, nil, 0)
 			},
 			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
 				return mock_v2.NewMockInserter(ctrl)
@@ -316,7 +316,7 @@ func TestChainPushHandler(t *testing.T) {
 		{
 			Name: "bad message type",
 			Request: func(_ *gomock.Controller) *infra.Request {
-				return infra.NewRequest(nil, &cert_mgmt.TRC{}, nil, nil, 0)
+				return infra.NewRequest(context.Background(), &cert_mgmt.TRC{}, nil, nil, 0)
 			},
 			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
 				return mock_v2.NewMockInserter(ctrl)
@@ -326,7 +326,7 @@ func TestChainPushHandler(t *testing.T) {
 		{
 			Name: "no response writer",
 			Request: func(_ *gomock.Controller) *infra.Request {
-				return infra.NewRequest(nil, &cert_mgmt.Chain{}, nil, nil, 0)
+				return infra.NewRequest(context.Background(), &cert_mgmt.Chain{}, nil, nil, 0)
 			},
 			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
 				return mock_v2.NewMockInserter(ctrl)
@@ -486,7 +486,7 @@ func TestTRCPushHandler(t *testing.T) {
 		{
 			Name: "empty message",
 			Request: func(_ *gomock.Controller) *infra.Request {
-				return infra.NewRequest(nil, nil, nil, nil, 0)
+				return infra.NewRequest(context.Background(), nil, nil, nil, 0)
 			},
 			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
 				return mock_v2.NewMockInserter(ctrl)
@@ -496,7 +496,7 @@ func TestTRCPushHandler(t *testing.T) {
 		{
 			Name: "bad message type",
 			Request: func(_ *gomock.Controller) *infra.Request {
-				return infra.NewRequest(nil, &cert_mgmt.Chain{}, nil, nil, 0)
+				return infra.NewRequest(context.Background(), &cert_mgmt.Chain{}, nil, nil, 0)
 			},
 			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
 				return mock_v2.NewMockInserter(ctrl)
@@ -506,7 +506,7 @@ func TestTRCPushHandler(t *testing.T) {
 		{
 			Name: "no response writer",
 			Request: func(_ *gomock.Controller) *infra.Request {
-				return infra.NewRequest(nil, &cert_mgmt.TRC{}, nil, nil, 0)
+				return infra.NewRequest(context.Background(), &cert_mgmt.TRC{}, nil, nil, 0)
 			},
 			Inserter: func(ctrl *gomock.Controller) trust.Inserter {
 				return mock_v2.NewMockInserter(ctrl)
