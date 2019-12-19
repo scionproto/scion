@@ -22,6 +22,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -53,6 +56,26 @@ func addFlags() {
 	flag.StringVar(&sdSocket, "sciond", "", "Path to sciond socket")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	log.AddLogConsFlags()
+}
+
+// InitTracer initializes the global tracer and returns a closer function.
+func InitTracer(name string) (func(), error) {
+	cfg := &env.Tracing{
+		Enabled: true,
+		Debug:   true,
+	}
+	cfg.InitDefaults()
+	tr, closer, err := cfg.NewTracer(name)
+	if err != nil {
+		return nil, err
+	}
+	opentracing.SetGlobalTracer(tr)
+	closeTracer := func() {
+		if err := closer.Close(); err != nil {
+			log.Error("Unable to close tracer", "err", err)
+		}
+	}
+	return closeTracer, nil
 }
 
 func validateFlags() {

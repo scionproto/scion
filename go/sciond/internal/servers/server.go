@@ -39,7 +39,6 @@ type Server struct {
 	address  string
 	filemode os.FileMode
 	handlers map[proto.SCIONDMsg_Which]Handler
-	log      log.Logger
 
 	mu          sync.Mutex
 	listener    net.Listener
@@ -51,15 +50,13 @@ type Server struct {
 // HandlerMap. To start listening on the address, call ListenAndServe.
 //
 // Network must be "unixpacket" or "rsock".
-func NewServer(network string, address string, filemode os.FileMode, handlers HandlerMap,
-	logger log.Logger) *Server {
+func NewServer(network string, address string, filemode os.FileMode, handlers HandlerMap) *Server {
 
 	return &Server{
 		network:  network,
 		address:  address,
 		filemode: filemode,
 		handlers: handlers,
-		log:      logger,
 	}
 }
 
@@ -88,7 +85,7 @@ func (srv *Server) ListenAndServe() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				return err
 			}
-			srv.log.Warn("unable to accept conn", "err", err)
+			log.Warn("unable to accept conn", "err", err)
 			continue
 		}
 
@@ -96,9 +93,9 @@ func (srv *Server) ListenAndServe() error {
 		go func() {
 			defer log.LogPanicAndExit()
 			pconn := conn.(net.PacketConn)
-			hdl := NewConnHandler(pconn, srv.handlers, srv.log)
+			hdl := NewConnHandler(pconn, srv.handlers)
 			if err := hdl.Serve(); err != nil && err != io.EOF {
-				srv.log.Error("Transport handler error", "err", err)
+				log.Error("Transport handler error", "err", err)
 			}
 		}()
 	}

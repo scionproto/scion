@@ -22,6 +22,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -67,6 +68,8 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 	if err != nil {
 		return nil, serrors.WrapStr("unable to determine dest ISD to query", err)
 	}
+	logger := log.FromCtx(ctx)
+	logger.Debug("[TrustStore:AuthRouter] Getting paths to any authoritative server", "isd", dstISD)
 	path, err := r.Router.Route(ctx, addr.IA{I: dstISD})
 	if err != nil {
 		return nil, serrors.WrapStr("unable to find path to any core AS", err, "isd", dstISD)

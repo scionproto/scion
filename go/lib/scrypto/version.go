@@ -39,6 +39,13 @@ func (v Version) IsLatest() bool {
 	return v == LatestVer
 }
 
+func (v Version) String() string {
+	if v.IsLatest() {
+		return "latest"
+	}
+	return strconv.FormatUint(uint64(v), 10)
+}
+
 // UnmarshalJSON checks that the value is not LatestVer.
 func (v *Version) UnmarshalJSON(b []byte) error {
 	parsed, err := strconv.ParseUint(string(b), 10, 64)

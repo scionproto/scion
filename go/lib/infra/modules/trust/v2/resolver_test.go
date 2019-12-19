@@ -56,7 +56,8 @@ func TestResolverTRC(t *testing.T) {
 					m.RPC.EXPECT().GetTRC(gomock.Any(), req, nil).Return(dec.Raw, nil)
 					m.Inserter.EXPECT().InsertTRC(gomock.Any(), dec, gomock.Any()).DoAndReturn(
 						func(_ interface{}, decTRC decoded.TRC, p trust.TRCProviderFunc) error {
-							prev, err := p(nil, trust.TRCID{ISD: 1, Version: req.Version - 1})
+							prev, err := p(context.Background(),
+								trust.TRCID{ISD: 1, Version: req.Version - 1})
 							require.NoError(t, err)
 							assert.Equal(t, req.Version-1, prev.Version)
 							assert.Equal(t, dec, decTRC)

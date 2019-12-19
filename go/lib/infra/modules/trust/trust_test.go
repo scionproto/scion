@@ -599,7 +599,6 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, name string) infra.Messenge
 			},
 		},
 		DisableSignatureVerification: true,
-		Logger:                       log.Root().New("name", name),
 	}
 	return messenger.New(config)
 }

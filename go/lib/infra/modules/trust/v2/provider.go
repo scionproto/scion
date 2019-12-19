@@ -18,11 +18,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+	opentracingext "github.com/opentracing/opentracing-go/ext"
 	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
@@ -91,8 +94,15 @@ func (p Provider) GetRawTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (
 	return raw, err
 }
 
-func (p Provider) getCheckedTRC(ctx context.Context, id TRCID,
+func (p Provider) getCheckedTRC(parentCtx context.Context, id TRCID,
 	opts infra.TRCOpts) (*trc.TRC, []byte, error) {
+
+	span, ctx := opentracing.StartSpanFromContext(parentCtx, "get_checked_trc")
+	defer span.Finish()
+	opentracingext.Component.Set(span, "trust")
+	span.SetTag("isd", id.ISD)
+	span.SetTag("version", id.Version)
+	logger := log.FromCtx(ctx)
 
 	decTRC, err := p.getTRC(ctx, id, opts)
 	if err != nil {
@@ -101,10 +111,12 @@ func (p Provider) getCheckedTRC(ctx context.Context, id TRCID,
 	if opts.AllowInactive {
 		return decTRC.TRC, decTRC.Raw, nil
 	}
+	logger.Trace("[TrustStore:Provider] Get latest TRC info", "isd", id.ISD)
 	info, err := p.DB.GetTRCInfo(ctx, TRCID{ISD: id.ISD, Version: scrypto.LatestVer})
 	if err != nil {
 		return nil, nil, serrors.WrapStr("unable to get latest TRC info", err)
 	}
+	logger.Trace("[TrustStore:Provider] Latest TRC info", "isd", id.ISD, "version", info.Version)
 	switch {
 	case info.Version > decTRC.TRC.Version+1:
 		return nil, nil, serrors.WrapStr("inactivated by latest TRC version", ErrInactive,
@@ -120,6 +132,8 @@ func (p Provider) getCheckedTRC(ctx context.Context, id TRCID,
 		// There might exist a more recent TRC that is not available locally
 		// yet. Fetch it if the latest version was requested and recursion
 		// is allowed.
+		logger.Debug("[TrustStore:Provider] Local latest TRC inactive, fetching from network",
+			"isd", id.ISD)
 		fetched, err := p.fetchTRC(ctx, TRCID{ISD: id.ISD, Version: scrypto.LatestVer}, opts)
 		if err != nil {
 			return nil, nil, serrors.WrapStr("unable to fetch latest TRC from network", err)
@@ -161,6 +175,7 @@ func (p Provider) getTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (dec
 func (p Provider) fetchTRC(ctx context.Context, id TRCID,
 	opts infra.TRCOpts) (decoded.TRC, error) {
 
+	logger := log.FromCtx(ctx)
 	server := opts.Server
 	if err := p.Recurser.AllowRecursion(opts.Client); err != nil {
 		return decoded.TRC{}, err
@@ -172,9 +187,13 @@ func (p Provider) fetchTRC(ctx context.Context, id TRCID,
 	// Choose remote server, if not set.
 	if server == nil {
 		var err error
+		logger.Debug("[TrustStore:Provider] Start choosing remote server for TRC resolution",
+			"isd", id.ISD, "addr", server)
 		if server, err = p.Router.ChooseServer(ctx, id.ISD); err != nil {
 			return decoded.TRC{}, serrors.WrapStr("unable to route TRC request", err)
 		}
+		logger.Debug("[TrustStore:Provider] Done choosing remote server for TRC resolution",
+			"isd", id.ISD, "addr", server)
 	}
 	decTRC, err := p.Resolver.TRC(ctx, req, server)
 	if err != nil {
@@ -207,8 +226,15 @@ func (p Provider) GetASKey(ctx context.Context, id ChainID,
 	return chain.AS.Keys[cert.SigningKey], nil
 }
 
-func (p Provider) getCheckedChain(ctx context.Context, id ChainID,
+func (p Provider) getCheckedChain(parentCtx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
+
+	span, ctx := opentracing.StartSpanFromContext(parentCtx, "get_checked_chain")
+	defer span.Finish()
+	opentracingext.Component.Set(span, "trust")
+	span.SetTag("ia", id.IA)
+	span.SetTag("version", id.Version)
+	logger := log.FromCtx(ctx)
 
 	chain, err := p.getChain(ctx, id, opts)
 	if err != nil {
@@ -230,6 +256,8 @@ func (p Provider) getCheckedChain(ctx context.Context, id ChainID,
 	default:
 		// In case the latest certificate chain is requested, there might be a more
 		// recent and active one that is not locally available yet.
+		logger.Debug("[TrustStore:Provider] Local latest certificate chain inactive, "+
+			"fetching from network", "ia", id.IA)
 		fetched, err := p.fetchChain(ctx, id, opts)
 		if err != nil {
 			return decoded.Chain{},
@@ -307,6 +335,7 @@ func (p Provider) issuerActive(ctx context.Context, chain decoded.Chain,
 func (p Provider) fetchChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
 
+	logger := log.FromCtx(ctx)
 	server := opts.Server
 	if err := p.Recurser.AllowRecursion(opts.Client); err != nil {
 		return decoded.Chain{}, err
@@ -318,9 +347,13 @@ func (p Provider) fetchChain(ctx context.Context, id ChainID,
 	// Choose remote server, if not set.
 	if server == nil {
 		var err error
+		logger.Debug("[TrustStore:Provider] Start choosing remote server for certifcate chain "+
+			"resolution", "ia", id.IA)
 		if server, err = p.Router.ChooseServer(ctx, id.IA.I); err != nil {
 			return decoded.Chain{}, serrors.WrapStr("unable to route TRC request", err)
 		}
+		logger.Debug("[TrustStore:Provider] Done choosing remote server for certifcate chain "+
+			"resolution", "ia", id.IA, "addr", server)
 	}
 	chain, err := p.Resolver.Chain(ctx, req, server)
 	if err != nil {

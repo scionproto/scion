@@ -24,6 +24,9 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/opentracing/opentracing-go"
+	opentracingext "github.com/opentracing/opentracing-go/ext"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -38,16 +41,12 @@ type ConnHandler struct {
 	Conn net.PacketConn
 	// State for request Handlers
 	Handlers map[proto.SCIONDMsg_Which]Handler
-	Logger   log.Logger
 }
 
-func NewConnHandler(conn net.PacketConn,
-	handlers HandlerMap, logger log.Logger) *ConnHandler {
-
+func NewConnHandler(conn net.PacketConn, handlers HandlerMap) *ConnHandler {
 	return &ConnHandler{
 		Conn:     conn,
 		Handlers: handlers,
-		Logger:   logger,
 	}
 }
 
@@ -76,8 +75,19 @@ func (srv *ConnHandler) Handle(b common.RawBytes, address net.Addr) {
 		log.Error("handler not found for capnp message", "which", p.Which)
 		return
 	}
-	ctx, span := tracing.CtxWith(context.Background(), srv.Logger,
-		fmt.Sprintf("%s.handler", p.Which))
+
+	var spanCtx opentracing.SpanContext
+	if len(p.TraceId) > 0 {
+		var err error
+		spanCtx, err = opentracing.GlobalTracer().Extract(opentracing.Binary,
+			bytes.NewReader(p.TraceId))
+		if err != nil {
+			log.Error("Failed to extract span", "err", err)
+		}
+	}
+
+	span, ctx := tracing.CtxWith(context.Background(), fmt.Sprintf("%s.handler", p.Which),
+		opentracingext.RPCServerOption(spanCtx))
 	defer span.Finish()
 	handler.Handle(ctx, srv.Conn, address, p)
 }

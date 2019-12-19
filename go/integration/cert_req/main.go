@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/tracing"
 )
 
 var (
@@ -50,6 +51,13 @@ func realMain() int {
 	defer log.Flush()
 	addFlags()
 	integration.Setup()
+
+	closeTracer, err := integration.InitTracer("cert_req")
+	if err != nil {
+		log.Crit("Unable to create tracer", "err", err)
+		return 1
+	}
+	defer closeTracer()
 	return client{}.run()
 }
 
@@ -92,28 +100,35 @@ func (c client) run() int {
 }
 
 func (c client) attemptRequest(n int) bool {
+	span, ctx := tracing.CtxWith(context.Background(), "run")
+	span.SetTag("attempt", n)
+	span.SetTag("src", integration.Local.IA)
+	span.SetTag("subject", remoteIA)
+	defer span.Finish()
+
 	// Send certchain request
 	var chain *cert.Chain
 	var err error
-	if chain, err = c.requestCert(); err != nil {
+	if chain, err = c.requestCert(ctx); err != nil {
 		log.Error("Error requesting certificate chain", "err", err)
 		return false
 	}
 	// Send TRC request
-	if err = c.requestTRC(chain); err != nil {
+	if err = c.requestTRC(ctx, chain); err != nil {
 		log.Error("Error requesting TRC", "err", err)
 		return false
 	}
 	return true
 }
 
-func (c client) requestCert() (*cert.Chain, error) {
+func (c client) requestCert(parentCtx context.Context) (*cert.Chain, error) {
+	logger := log.FromCtx(parentCtx)
 	req := &cert_mgmt.ChainReq{
 		RawIA:   remoteIA.IAInt(),
 		Version: scrypto.LatestVer,
 	}
-	log.Info("Request to SVC: Chain request", "req", req, "svc", svc)
-	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
+	logger.Info("Request to SVC: Chain request", "req", req, "svc", svc)
+	ctx, cancelF := context.WithTimeout(parentCtx, integration.DefaultIOTimeout)
 	defer cancelF()
 	rawChain, err := c.msgr.GetCertChain(ctx, req, &svc, messenger.NextId())
 	if err != nil {
@@ -131,17 +146,18 @@ func (c client) requestCert() (*cert.Chain, error) {
 		return nil, common.NewBasicError("Invalid subject", nil,
 			"expected", remoteIA, "actual", as.Subject)
 	}
-	log.Info("Response from SVC: Correct chain", "chain", chain)
+	logger.Info("Response from SVC: Correct chain", "chain", chain)
 	return &chain, nil
 }
 
-func (c client) requestTRC(chain *cert.Chain) error {
+func (c client) requestTRC(parentCtx context.Context, chain *cert.Chain) error {
+	logger := log.FromCtx(parentCtx)
 	req := &cert_mgmt.TRCReq{
 		ISD:     remoteIA.I,
 		Version: scrypto.LatestVer,
 	}
-	log.Info("Request to SVC: TRC request", "req", req, "svc", svc)
-	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
+	logger.Info("Request to SVC: TRC request", "req", req, "svc", svc)
+	ctx, cancelF := context.WithTimeout(parentCtx, integration.DefaultIOTimeout)
 	defer cancelF()
 	rawTrc, err := c.msgr.GetTRC(ctx, req, &svc, messenger.NextId())
 	if err != nil {
@@ -162,7 +178,7 @@ func (c client) requestTRC(chain *cert.Chain) error {
 	if err := c.verifyChain(chain, trc); err != nil {
 		return common.NewBasicError("unable to verify chain", err)
 	}
-	log.Info("Response from SVC: Correct TRC", "TRC", trc)
+	logger.Info("Response from SVC: Correct TRC", "TRC", trc)
 	return nil
 }
 

@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -97,6 +98,7 @@ type ForwardingInserter struct {
 func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
+	logger := log.FromCtx(ctx)
 	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
 	if err != nil {
 		return err
@@ -104,10 +106,15 @@ func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	if !insert {
 		return nil
 	}
+
 	cs := ins.Router.chooseServer()
+	logger.Debug("[TrustStore:ForwardingInserter] Forward TRC to certificate server",
+		"trc", decTRC, "addr", cs)
 	if err := ins.RPC.SendTRC(ctx, decTRC.Raw, cs); err != nil {
 		return serrors.WrapStr("unable to push TRC to certificate server", err, "addr", cs)
 	}
+	logger.Debug("[TrustStore:ForwardingInserter] Successfully forwarded TRC",
+		"trc", decTRC, "addr", cs)
 	if _, err := ins.DB.InsertTRC(ctx, decTRC); err != nil {
 		return serrors.WrapStr("unable to insert TRC", err)
 	}
@@ -122,6 +129,7 @@ func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 func (ins ForwardingInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
+	logger := log.FromCtx(ctx)
 	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
 	if err != nil {
 		return err
@@ -130,9 +138,13 @@ func (ins ForwardingInserter) InsertChain(ctx context.Context, chain decoded.Cha
 		return nil
 	}
 	cs := ins.Router.chooseServer()
+	logger.Debug("[TrustStore:ForwardingInserter] Forward certificate chain to certificate server",
+		"chain", chain, "addr", cs)
 	if err := ins.RPC.SendCertChain(ctx, chain.Raw, cs); err != nil {
 		return serrors.WrapStr("unable to push chain to certificate server", err, "addr", cs)
 	}
+	logger.Debug("[TrustStore:ForwardingInserter] Successfully forwarded certificate chain",
+		"chain", chain)
 	if _, _, err := ins.DB.InsertChain(ctx, chain); err != nil {
 		return serrors.WrapStr("unable to insert chain", err)
 	}
