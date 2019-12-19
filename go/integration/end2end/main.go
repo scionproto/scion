@@ -61,12 +61,12 @@ func realMain() int {
 	integration.Setup()
 	validateFlags()
 
-	close, err := integration.InitTracer("end_2_end")
+	closeTracer, err := integration.InitTracer("end_2_end")
 	if err != nil {
 		log.Crit("Unable to create tracer", "err", err)
 		return 1
 	}
-	defer close()
+	defer closeTracer()
 	if integration.Mode == integration.ModeServer {
 		server{}.run()
 		return 0
@@ -175,12 +175,12 @@ func (c client) run() int {
 func (c client) attemptRequest(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
-	ctx, span := tracing.CtxWith(timeoutCtx, log.Root(), "run")
+	span, ctx := tracing.CtxWith(timeoutCtx, "run")
 	span.SetTag("attempt", n)
 	span.SetTag("src", integration.Local.IA)
 	span.SetTag("dst", remote.IA)
 	defer span.Finish()
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 
 	// Send ping
 	if err := c.ping(ctx, n); err != nil {

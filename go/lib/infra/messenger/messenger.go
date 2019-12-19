@@ -127,9 +127,6 @@ type Config struct {
 	// verification of the top level signature in received signed control
 	// payloads.
 	DisableSignatureVerification bool
-	// Logger is used for internal Messenger logging. If it is nil, the default
-	// root logger is used.
-	Logger log.Logger
 	// QUIC defines whether the Messenger should also operate on top of QUIC
 	// instead of only on UDP.
 	QUIC *QUICConfig
@@ -144,9 +141,6 @@ type QUICConfig struct {
 func (c *Config) InitDefaults() {
 	if c.HandlerTimeout == 0 {
 		c.HandlerTimeout = DefaultHandlerTimeout
-	}
-	if c.Logger == nil {
-		c.Logger = log.Root()
 	}
 }
 
@@ -179,8 +173,7 @@ type Messenger struct {
 	ctx     context.Context
 	cancelF context.CancelFunc
 
-	ia  addr.IA
-	log log.Logger
+	ia addr.IA
 
 	quicClient  *rpc.Client
 	quicServer  *rpc.Server
@@ -208,10 +201,9 @@ func New(config *Config) *Messenger {
 			QUICConfig: config.QUIC.QUICConfig,
 		}
 		quicHandler = &QUICHandler{
-			handlers:     make(map[infra.MessageType]infra.Handler),
-			timeout:      config.HandlerTimeout,
-			parentLogger: config.Logger,
-			parentCtx:    ctx,
+			handlers:  make(map[infra.MessageType]infra.Handler),
+			timeout:   config.HandlerTimeout,
+			parentCtx: ctx,
 		}
 		quicServer = &rpc.Server{
 			Conn:       config.QUIC.Conn,
@@ -237,7 +229,6 @@ func New(config *Config) *Messenger {
 		closeChan:       make(chan struct{}),
 		ctx:             ctx,
 		cancelF:         cancelF,
-		log:             config.Logger,
 		quicServer:      quicServer,
 		quicClient:      quicClient,
 		quicHandler:     quicHandler,
@@ -373,20 +364,6 @@ func (m *Messenger) SendSegReg(ctx context.Context, msg *path_mgmt.SegReg,
 		return err
 	}
 	return m.sendMessage(ctx, pld, a, id, infra.SegReg)
-}
-
-func traceId(ctx context.Context) common.RawBytes {
-	span := opentracing.SpanFromContext(ctx)
-	tracer := opentracing.GlobalTracer()
-	if span != nil && tracer != nil {
-		var tracingBin bytes.Buffer
-		err := tracer.Inject(span.Context(), opentracing.Binary, &tracingBin)
-		if err != nil {
-			panic(err)
-		}
-		return tracingBin.Bytes()
-	}
-	return nil
 }
 
 func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
@@ -767,16 +744,16 @@ func (m *Messenger) ListenAndServe() {
 }
 
 func (m *Messenger) listenAndServeQUIC() {
-	m.log.Info("Started listening QUIC")
-	defer m.log.Info("Stopped listening QUIC")
+	log.Info("Started listening QUIC")
+	defer log.Info("Stopped listening QUIC")
 	if err := m.quicServer.ListenAndServe(); err != nil {
-		m.log.Error("QUIC server listen error", "err", err)
+		log.Error("QUIC server listen error", "err", err)
 	}
 }
 
 func (m *Messenger) listenAndServeUDP() {
-	m.log.Info("Started listening UDP")
-	defer m.log.Info("Stopped listening UDP")
+	log.Info("Started listening UDP")
+	defer log.Info("Stopped listening UDP")
 	for {
 		// Recv blocks until a new message is received. To close the server,
 		// CloseServer() calls the context's cancel function, thus unblocking Recv. The
@@ -791,14 +768,14 @@ func (m *Messenger) listenAndServeUDP() {
 				return
 			default:
 				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrRead}).Inc()
-				m.log.Error("Receive error", "err", err)
+				log.Error("Receive error", "err", err)
 			}
 			continue
 		}
 		signedPld, ok := genericMsg.(*ctrl.SignedPld)
 		if !ok {
 			metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrInvalidReq}).Inc()
-			m.log.Error("Type assertion failure", "from", address, "expected", "*ctrl.SignedPld",
+			log.Error("Type assertion failure", "from", address, "expected", "*ctrl.SignedPld",
 				"actual", common.TypeOf(genericMsg))
 			continue
 		}
@@ -811,14 +788,14 @@ func (m *Messenger) listenAndServeUDP() {
 			verifier := m.verifier.WithIA(address.(*snet.Addr).IA)
 			if pld, err = signedPld.GetVerifiedPld(serveCtx, verifier); err != nil {
 				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrVerify}).Inc()
-				m.log.Error("Verification error", "from", address, "err", err)
+				log.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
 				continue
 			}
 		} else {
 			if pld, err = signedPld.UnsafePld(); err != nil {
 				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrParse}).Inc()
-				m.log.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
+				log.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
 				serveCancelF()
 				continue
 			}
@@ -835,7 +812,7 @@ func (m *Messenger) serve(parentCtx context.Context, cancelF context.CancelFunc,
 	msgType, msg, err := validate(pld)
 	if err != nil {
 		metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrValidate}).Inc()
-		m.log.Error("Received message, but unable to validate message",
+		log.Error("Received message, but unable to validate message",
 			"from", address, "err", err)
 		return
 	}
@@ -859,9 +836,9 @@ func (m *Messenger) serve(parentCtx context.Context, cancelF context.CancelFunc,
 		}
 	}
 
-	ctx, span := tracing.CtxWith(rwCtx, m.log, fmt.Sprintf("%s-handler-udp", msgType),
+	span, ctx := tracing.CtxWith(rwCtx, fmt.Sprintf("%s-handler-udp", msgType),
 		opentracingext.RPCServerOption(spanCtx))
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 
 	logger.Trace("[Messenger] Received message", "type", msgType, "from", address, "id", pld.ReqId)
 

@@ -65,7 +65,7 @@ func (r DefaultResolver) TRC(parentCtx context.Context, req TRCReq,
 	opentracingext.Component.Set(span, "trust")
 	span.SetTag("isd", req.ISD)
 	span.SetTag("version", req.Version)
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 
 	if req.Version.IsLatest() {
 		logger.Debug("[TrustStore:Resolver] Resolving latest version of TRC", "isd", req.ISD)
@@ -146,7 +146,7 @@ func (r DefaultResolver) startFetchTRC(parentCtx context.Context, res chan<- res
 		opentracingext.Component.Set(span, "trust")
 		span.SetTag("isd", req.ISD)
 		span.SetTag("version", req.Version)
-		logger := log.SpanFromCtx(ctx)
+		logger := log.FromCtx(ctx)
 
 		defer log.LogPanicAndExit()
 		logger.Debug("[TrustStore:Resolver] Fetch TRC from remote", "isd", req.ISD,
@@ -193,7 +193,7 @@ func (r DefaultResolver) Chain(parentCtx context.Context, req ChainReq,
 	opentracingext.Component.Set(span, "trust")
 	span.SetTag("ia", req.IA)
 	span.SetTag("version", req.Version)
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 
 	logger.Debug("[TrustStore:Resolver] Fetch certificate chain from remote", "ia", req.IA,
 		"version", req.Version, "server", server)

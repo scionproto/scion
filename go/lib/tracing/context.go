@@ -27,30 +27,28 @@ import (
 
 // CtxWith creates a new span and attaches it to the context, it also sets the
 // debug id of the logger and the span id and attaches the logger to the context.
-func CtxWith(parentCtx context.Context, parentLogger log.Logger, operationName string,
-	opts ...opentracing.StartSpanOption) (context.Context, opentracing.Span) {
+func CtxWith(parentCtx context.Context, operationName string,
+	opts ...opentracing.StartSpanOption) (opentracing.Span, context.Context) {
 
-	debugId := util.GetDebugID()
 	span, ctx := opentracing.StartSpanFromContext(parentCtx, operationName, opts...)
 	if spanCtx, ok := span.Context().(jaeger.SpanContext); ok {
-		ctx = log.CtxWith(ctx, parentLogger.New("debug_id", debugId, "trace_id", spanCtx.TraceID()))
-		span.SetTag("debug_id", debugId)
-	} else {
-		ctx = log.CtxWith(ctx, parentLogger.New("debug_id", util.GetDebugID()))
+		return span, log.CtxWith(ctx, log.New("trace_id", spanCtx.TraceID()))
 	}
-	return ctx, span
+	return span, log.CtxWith(ctx, log.New("debug_id", util.GetDebugID()))
 }
 
 // IDFromCtx reads the tracing ID from the context.
 func IDFromCtx(ctx context.Context) []byte {
-	span, tracer := opentracing.SpanFromContext(ctx), opentracing.GlobalTracer()
-	if span != nil && tracer != nil {
-		var tracingBin bytes.Buffer
-		err := tracer.Inject(span.Context(), opentracing.Binary, &tracingBin)
-		if err != nil {
-			panic(err)
-		}
-		return tracingBin.Bytes()
+	span := opentracing.SpanFromContext(ctx)
+	if span == nil {
+		return nil
 	}
-	return nil
+	var tracingBin bytes.Buffer
+	err := opentracing.GlobalTracer().Inject(span.Context(), opentracing.Binary, &tracingBin)
+	if err != nil {
+		// According to the opentracing documentation, this error should never happen:
+		// "All opentracing.Tracer implementations MUST support all BuiltinFormats."
+		panic(err)
+	}
+	return tracingBin.Bytes()
 }

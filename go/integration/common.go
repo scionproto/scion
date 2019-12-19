@@ -70,12 +70,12 @@ func InitTracer(name string) (func(), error) {
 		return nil, err
 	}
 	opentracing.SetGlobalTracer(tr)
-	close := func() {
+	closeTracer := func() {
 		if err := closer.Close(); err != nil {
 			log.Error("Unable to close tracer", "err", err)
 		}
 	}
-	return close, nil
+	return closeTracer, nil
 }
 
 func validateFlags() {

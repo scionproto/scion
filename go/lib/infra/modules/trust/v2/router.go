@@ -68,7 +68,7 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 	if err != nil {
 		return nil, serrors.WrapStr("unable to determine dest ISD to query", err)
 	}
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Debug("[TrustStore:AuthRouter] Getting paths to any authoritative server", "isd", dstISD)
 	path, err := r.Router.Route(ctx, addr.IA{I: dstISD})
 	if err != nil {

@@ -41,16 +41,12 @@ type ConnHandler struct {
 	Conn net.PacketConn
 	// State for request Handlers
 	Handlers map[proto.SCIONDMsg_Which]Handler
-	Logger   log.Logger
 }
 
-func NewConnHandler(conn net.PacketConn,
-	handlers HandlerMap, logger log.Logger) *ConnHandler {
-
+func NewConnHandler(conn net.PacketConn, handlers HandlerMap) *ConnHandler {
 	return &ConnHandler{
 		Conn:     conn,
 		Handlers: handlers,
-		Logger:   logger,
 	}
 }
 
@@ -90,8 +86,8 @@ func (srv *ConnHandler) Handle(b common.RawBytes, address net.Addr) {
 		}
 	}
 
-	ctx, span := tracing.CtxWith(context.Background(), srv.Logger,
-		fmt.Sprintf("%s.handler", p.Which), opentracingext.RPCServerOption(spanCtx))
+	span, ctx := tracing.CtxWith(context.Background(), fmt.Sprintf("%s.handler", p.Which),
+		opentracingext.RPCServerOption(spanCtx))
 	defer span.Finish()
 	handler.Handle(ctx, srv.Conn, address, p)
 }

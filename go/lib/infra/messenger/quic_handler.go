@@ -42,9 +42,8 @@ type QUICHandler struct {
 	handlersLock sync.RWMutex
 	handlers     map[infra.MessageType]infra.Handler
 
-	timeout      time.Duration
-	parentLogger log.Logger
-	parentCtx    context.Context
+	timeout   time.Duration
+	parentCtx context.Context
 }
 
 func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
@@ -119,8 +118,8 @@ func (h *QUICHandler) prepareServeCtx(pld *ctrl.Pld, messageType infra.MessageTy
 		}
 	}
 
-	ctx, span := tracing.CtxWith(serveCtx, h.parentLogger,
-		fmt.Sprintf("%s-handler", messageType), opentracingext.RPCServerOption(spanCtx))
+	span, ctx := tracing.CtxWith(serveCtx, fmt.Sprintf("%s-handler", messageType),
+		opentracingext.RPCServerOption(spanCtx))
 	return ctx, serveCancelF, span
 }
 

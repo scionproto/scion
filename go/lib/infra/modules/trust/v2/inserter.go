@@ -98,7 +98,7 @@ type ForwardingInserter struct {
 func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 func (ins ForwardingInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
 	if err != nil {
 		return err

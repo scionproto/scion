@@ -102,7 +102,7 @@ func (p Provider) getCheckedTRC(parentCtx context.Context, id TRCID,
 	opentracingext.Component.Set(span, "trust")
 	span.SetTag("isd", id.ISD)
 	span.SetTag("version", id.Version)
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 
 	decTRC, err := p.getTRC(ctx, id, opts)
 	if err != nil {
@@ -175,7 +175,7 @@ func (p Provider) getTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (dec
 func (p Provider) fetchTRC(ctx context.Context, id TRCID,
 	opts infra.TRCOpts) (decoded.TRC, error) {
 
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 	server := opts.Server
 	if err := p.Recurser.AllowRecursion(opts.Client); err != nil {
 		return decoded.TRC{}, err
@@ -234,7 +234,7 @@ func (p Provider) getCheckedChain(parentCtx context.Context, id ChainID,
 	opentracingext.Component.Set(span, "trust")
 	span.SetTag("ia", id.IA)
 	span.SetTag("version", id.Version)
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 
 	chain, err := p.getChain(ctx, id, opts)
 	if err != nil {
@@ -335,7 +335,7 @@ func (p Provider) issuerActive(ctx context.Context, chain decoded.Chain,
 func (p Provider) fetchChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (decoded.Chain, error) {
 
-	logger := log.SpanFromCtx(ctx)
+	logger := log.FromCtx(ctx)
 	server := opts.Server
 	if err := p.Recurser.AllowRecursion(opts.Client); err != nil {
 		return decoded.Chain{}, err

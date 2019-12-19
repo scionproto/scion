@@ -15,28 +15,13 @@
 package log
 
 import (
-	"context"
-
 	"github.com/opentracing/opentracing-go"
 )
 
 // Span is a logger that attaches all logs to the span.
 type Span struct {
-	Logger Logger
-	Span   opentracing.Span
-}
-
-// SpanFromCtx returns a span logger. The span is nil, if the context has no
-// span attached.
-func SpanFromCtx(ctx context.Context) Span {
-	var span opentracing.Span
-	if ctx != nil {
-		span = opentracing.SpanFromContext(ctx)
-	}
-	return Span{
-		Logger: FromCtx(ctx),
-		Span:   span,
-	}
+	Logger
+	Span opentracing.Span
 }
 
 // Trace logs to the logger and span.

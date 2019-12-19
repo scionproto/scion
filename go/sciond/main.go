@@ -196,10 +196,10 @@ func realMain() int {
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 	// Start servers
-	rsockServer, shutdownF := NewServer("rsock", cfg.SD.Reliable, handlers, log.Root())
+	rsockServer, shutdownF := NewServer("rsock", cfg.SD.Reliable, handlers)
 	defer shutdownF()
 	StartServer("ReliableSockServer", cfg.SD.Reliable, rsockServer)
-	unixpacketServer, shutdownF := NewServer("unixpacket", cfg.SD.Unix, handlers, log.Root())
+	unixpacketServer, shutdownF := NewServer("unixpacket", cfg.SD.Unix, handlers)
 	defer shutdownF()
 	StartServer("UnixServer", cfg.SD.Unix, unixpacketServer)
 	cfg.Metrics.StartPrometheus()
@@ -260,11 +260,10 @@ func startDiscovery(file idiscovery.Config) error {
 	return err
 }
 
-func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
-	logger log.Logger) (*servers.Server, func()) {
+func NewServer(network string, rsockPath string,
+	handlers servers.HandlerMap) (*servers.Server, func()) {
 
-	server := servers.NewServer(network, rsockPath, os.FileMode(cfg.SD.SocketFileMode), handlers,
-		logger)
+	server := servers.NewServer(network, rsockPath, os.FileMode(cfg.SD.SocketFileMode), handlers)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
 		server.Shutdown(ctx)

@@ -52,12 +52,12 @@ func realMain() int {
 	addFlags()
 	integration.Setup()
 
-	close, err := integration.InitTracer("cert_req")
+	closeTracer, err := integration.InitTracer("cert_req")
 	if err != nil {
 		log.Crit("Unable to create tracer", "err", err)
 		return 1
 	}
-	defer close()
+	defer closeTracer()
 	return client{}.run()
 }
 
@@ -100,7 +100,7 @@ func (c client) run() int {
 }
 
 func (c client) attemptRequest(n int) bool {
-	ctx, span := tracing.CtxWith(context.Background(), log.Root(), "run")
+	span, ctx := tracing.CtxWith(context.Background(), "run")
 	span.SetTag("attempt", n)
 	span.SetTag("src", integration.Local.IA)
 	span.SetTag("subject", remoteIA)
@@ -122,7 +122,7 @@ func (c client) attemptRequest(n int) bool {
 }
 
 func (c client) requestCert(parentCtx context.Context) (*cert.Chain, error) {
-	logger := log.SpanFromCtx(parentCtx)
+	logger := log.FromCtx(parentCtx)
 	req := &cert_mgmt.ChainReq{
 		RawIA:   remoteIA.IAInt(),
 		Version: scrypto.LatestVer,
@@ -151,7 +151,7 @@ func (c client) requestCert(parentCtx context.Context) (*cert.Chain, error) {
 }
 
 func (c client) requestTRC(parentCtx context.Context, chain *cert.Chain) error {
-	logger := log.SpanFromCtx(parentCtx)
+	logger := log.FromCtx(parentCtx)
 	req := &cert_mgmt.TRCReq{
 		ISD:     remoteIA.I,
 		Version: scrypto.LatestVer,
