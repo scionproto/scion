@@ -111,7 +111,7 @@ func EncodeProtected(p Protected) (EncodedProtected, error) {
 	return EncodedProtected(scrypto.Base64.EncodeToString(b)), nil
 }
 
-// Decode decodes and return the protected header.
+// Decode decodes and returns the protected header.
 func (h EncodedProtected) Decode() (Protected, error) {
 	b, err := scrypto.Base64.DecodeString(string(h))
 	if err != nil {
@@ -222,20 +222,7 @@ type Crit struct{}
 
 // UnmarshalJSON checks that all expected elements and no other are in the array.
 func (c Crit) UnmarshalJSON(b []byte) error {
-	var list []string
-	if err := json.Unmarshal(b, &list); err != nil {
-		return err
-	}
-	if len(list) != len(allCritFields) {
-		return common.NewBasicError(ErrInvalidCrit, nil, "len", len(list))
-	}
-	for i, expected := range allCritFields {
-		if list[i] != expected {
-			return common.NewBasicError(ErrInvalidCrit, nil, "idx", i,
-				"expected", expected, "actual", list[i])
-		}
-	}
-	return nil
+	return scrypto.CheckCrit(b, allCritFields)
 }
 
 // MarshalJSON returns a json array with the expected crit elements.

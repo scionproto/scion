@@ -167,7 +167,6 @@ func TestSignatureTypeCertificateMarshalJSON(t *testing.T) {
 func TestCritASUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Input     []byte
-		Expected  time.Duration
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
