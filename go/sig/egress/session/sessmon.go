@@ -27,8 +27,8 @@ import (
 	"github.com/scionproto/scion/go/sig/egress/siginfo"
 	"github.com/scionproto/scion/go/sig/internal/disp"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
+	"github.com/scionproto/scion/go/sig/internal/sigcmn"
 	"github.com/scionproto/scion/go/sig/mgmt"
-	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
 const (

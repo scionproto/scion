@@ -34,8 +34,8 @@ import (
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/worker"
 	"github.com/scionproto/scion/go/sig/internal/pathmgr"
+	"github.com/scionproto/scion/go/sig/internal/sigcmn"
 	"github.com/scionproto/scion/go/sig/mgmt"
-	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
 var _ iface.Session = (*Session)(nil)
