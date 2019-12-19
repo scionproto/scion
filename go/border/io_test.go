@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/border/rctx"
@@ -30,8 +31,59 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay/conn/mock_conn"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 )
+
+func TestIsSyscallErrno(t *testing.T) {
+	tests := map[string]struct {
+		Error     error
+		Errno     syscall.Errno
+		Assertion assert.BoolAssertionFunc
+	}{
+		"ECONNREFUSED": {
+			Error:     &net.OpError{Err: &os.SyscallError{Err: syscall.ECONNREFUSED}},
+			Errno:     syscall.ECONNREFUSED,
+			Assertion: assert.True,
+		},
+		"ENETUNREACH": {
+			Error:     &net.OpError{Err: &os.SyscallError{Err: syscall.ENETUNREACH}},
+			Errno:     syscall.ENETUNREACH,
+			Assertion: assert.True,
+		},
+		"EHOSTUNREACH": {
+			Error:     &net.OpError{Err: &os.SyscallError{Err: syscall.EHOSTUNREACH}},
+			Errno:     syscall.EHOSTUNREACH,
+			Assertion: assert.True,
+		},
+		"EPERM": {
+			Error:     &net.OpError{Err: &os.SyscallError{Err: syscall.EPERM}},
+			Errno:     syscall.EPERM,
+			Assertion: assert.True,
+		},
+		"Wrapped(EPERM)": {
+			Error:     serrors.WrapStr("wrapped", syscall.EPERM),
+			Errno:     syscall.EPERM,
+			Assertion: assert.True,
+		},
+		"mismatch": {
+			Error:     &net.OpError{Err: &os.SyscallError{Err: syscall.EHOSTUNREACH}},
+			Errno:     syscall.EPERM,
+			Assertion: assert.False,
+		},
+		"other": {
+			Error:     serrors.New("other"),
+			Errno:     syscall.EPERM,
+			Assertion: assert.False,
+		},
+	}
+	for n, tc := range tests {
+		name, test := n, tc
+		t.Run(name, func(t *testing.T) {
+			test.Assertion(t, isSyscallErrno(test.Error, test.Errno))
+		})
+	}
+}
 
 func TestPosixOutputNoLeakNoErrors(t *testing.T) {
 	mctrl := gomock.NewController(t)

@@ -18,8 +18,8 @@
 package main
 
 import (
+	"errors"
 	"net"
-	"os"
 	"syscall"
 	"time"
 
@@ -329,15 +329,11 @@ func isRecoverableErr(err error) bool {
 }
 
 func isSyscallErrno(err error, errno syscall.Errno) bool {
-	netErr, ok := err.(*net.OpError)
-	if !ok {
-		return false
+	var target syscall.Errno
+	if errors.As(err, &target) {
+		return target == errno
 	}
-	osErr, ok := netErr.Err.(*os.SyscallError)
-	if !ok {
-		return false
-	}
-	return osErr.Err == errno
+	return false
 }
 
 func min(a, b int) int {
