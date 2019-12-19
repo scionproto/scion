@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "asym.go",
+        "crit.go",
         "defs.go",
         "keymeta.go",
         "mac.go",
@@ -29,6 +30,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "asym_test.go",
+        "crit_test.go",
         "defs_test.go",
         "keymeta_test.go",
         "rand_test.go",

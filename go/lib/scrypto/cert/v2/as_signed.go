@@ -179,7 +179,7 @@ type CritAS struct{}
 
 // UnmarshalJSON checks that all expected elements and no other are in the array.
 func (CritAS) UnmarshalJSON(b []byte) error {
-	return checkCrit(b, critASFields)
+	return scrypto.CheckCrit(b, critASFields)
 }
 
 // MarshalJSON returns a json array with the expected crit elements.

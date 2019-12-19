@@ -15,15 +15,12 @@
 package cert
 
 import (
-	"encoding/json"
 	"errors"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
 
 const (
-	// ErrInvalidCrit indicates that the value for the crit key is invalid.
-	ErrInvalidCrit common.ErrMsg = "invalid crit"
 	// ErrInvalidSignatureType indicates an invalid signature type.
 	ErrInvalidSignatureType common.ErrMsg = "invalid signature type"
 )
@@ -36,20 +33,3 @@ var (
 	// ErrSignatureTypeNotSet indicates the signature type is not set.
 	ErrSignatureTypeNotSet = errors.New("signature type not set")
 )
-
-func checkCrit(b []byte, critFields []string) error {
-	var list []string
-	if err := json.Unmarshal(b, &list); err != nil {
-		return err
-	}
-	if len(list) != len(critFields) {
-		return common.NewBasicError(ErrInvalidCrit, nil, "len", len(list))
-	}
-	for i, expected := range critFields {
-		if list[i] != expected {
-			return common.NewBasicError(ErrInvalidCrit, nil, "idx", i,
-				"expected", expected, "actual", list[i])
-		}
-	}
-	return nil
-}
