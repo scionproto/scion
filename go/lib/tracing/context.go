@@ -32,7 +32,8 @@ func CtxWith(parentCtx context.Context, operationName string,
 
 	span, ctx := opentracing.StartSpanFromContext(parentCtx, operationName, opts...)
 	if spanCtx, ok := span.Context().(jaeger.SpanContext); ok {
-		return span, log.CtxWith(ctx, log.New("trace_id", spanCtx.TraceID()))
+		id := spanCtx.TraceID()
+		return span, log.CtxWith(ctx, log.New("debug_id", id.String()[:8], "trace_id", id))
 	}
 	return span, log.CtxWith(ctx, log.New("debug_id", util.GetDebugID()))
 }
