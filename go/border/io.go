@@ -18,8 +18,8 @@
 package main
 
 import (
+	"errors"
 	"net"
-	"os"
 	"syscall"
 	"time"
 
@@ -30,9 +30,11 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -176,7 +178,7 @@ func (r *Router) posixInputRead(msgs []ipv4.Message, metas []conn.ReadMeta,
 	// Loop until a read succeeds, or a non-trivial error occurs
 	for {
 		n, err := c.ReadBatch(msgs, metas)
-		if err != nil && isConnRefused(err) {
+		if err != nil && isSyscallErrno(err, syscall.ECONNREFUSED) {
 			// As we are using a connected UDP socket for interface sockets,
 			// any ECONNREFUSED errors that happen while sending to the
 			// neighbouring BR show up as read errors on the socket. As these
@@ -193,7 +195,6 @@ func (r *Router) posixInputRead(msgs []ipv4.Message, metas []conn.ReadMeta,
 func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	defer log.LogPanicAndExit()
 	defer close(stopped)
-	var ringClosed bool
 	src := s.Conn.LocalAddr()
 	dst := s.Conn.RemoteAddr()
 	log.Info("posixOutput starting", "addr", src)
@@ -218,7 +219,6 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 		var t float64 // Needs to be declared before goto
 		var ok bool
 		if epkts, ok = r.posixPrepOutput(epkts, msgs, s.Ring, dst != nil); !ok {
-			ringClosed = true
 			break
 		}
 		toWrite := min(len(epkts), outputBatchCnt)
@@ -243,7 +243,8 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 					continue
 				}
 				// Shutdown writer if the error is non-recoverable.
-				break
+				fatal.Fatal(serrors.WrapStr("shutdown on irrecoverable error to avoid broken state",
+					err, "ifid", s.Ifid))
 			}
 		}
 		t = time.Since(start).Seconds()
@@ -268,18 +269,6 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	// Release any remaining unsent pkts.
 	releasePkts(epkts)
 	epkts = epkts[:0]
-	// If the ring is not already closed, drain it until it is closed. This
-	// prevents writers from blocking in case of an unrecoverable error.
-	if !ringClosed {
-		for {
-			var ok bool
-			if epkts, ok = r.posixPrepOutput(epkts, msgs, s.Ring, dst != nil); !ok {
-				break
-			}
-			releasePkts(epkts)
-			epkts = epkts[:0]
-		}
-	}
 }
 
 // posixPrepOutput fetches new packets if epkts is empty, and sets the msgs
@@ -328,31 +317,23 @@ func shiftUnwrittenPkts(epkts ringbuf.EntryList, pktsWritten int) ringbuf.EntryL
 
 // isRecoverableErr checks whether an non-temporary error is recoverable.
 func isRecoverableErr(err error) bool {
-	return isConnRefused(err) || isNetUnreachable(err) || isHostUnreachable(err)
-}
-
-func isConnRefused(err error) bool {
-	return isSyscallErrno(err, syscall.ECONNREFUSED)
-}
-
-func isNetUnreachable(err error) bool {
-	return isSyscallErrno(err, syscall.ENETUNREACH)
-}
-
-func isHostUnreachable(err error) bool {
-	return isSyscallErrno(err, syscall.EHOSTUNREACH)
+	switch {
+	case isSyscallErrno(err, syscall.ECONNREFUSED),
+		isSyscallErrno(err, syscall.ENETUNREACH),
+		isSyscallErrno(err, syscall.EHOSTUNREACH),
+		isSyscallErrno(err, syscall.EPERM):
+		return true
+	default:
+		return false
+	}
 }
 
 func isSyscallErrno(err error, errno syscall.Errno) bool {
-	netErr, ok := err.(*net.OpError)
-	if !ok {
-		return false
+	var target syscall.Errno
+	if errors.As(err, &target) {
+		return target == errno
 	}
-	osErr, ok := netErr.Err.(*os.SyscallError)
-	if !ok {
-		return false
-	}
-	return osErr.Err == errno
+	return false
 }
 
 func min(a, b int) int {
