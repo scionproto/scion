@@ -14,7 +14,7 @@ STAGE=${1:-prod}
 bazel build //:scion
 
 # Collect the licenses from the bazel cache.
-pushd $ROOTDIR/bazel-scion/external
+pushd $ROOTDIR/bazel-scion*/external
 find . -iregex '.*\(LICENSE\|COPYING\).*' -exec cp --parents '{}' $TMPDIR ';'
 popd
 

@@ -21,7 +21,7 @@ steps:
     timeout_in_minutes: 10
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
     command:
-      - "rm -rf mkdir /tmp/$BUILDKITE_STEP_ID/"
+      - "rm -rf /tmp/$BUILDKITE_STEP_ID/"
       - "mkdir -p /tmp/$BUILDKITE_STEP_ID/"
       - "cp go.mod go.sum go_deps.bzl /tmp/$BUILDKITE_STEP_ID/"
       - "make godeps -B"
@@ -36,7 +36,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go/proto files in git"
     command:
-      - "rm -rf mkdir /tmp/$BUILDKITE_STEP_ID/"
+      - "rm -rf /tmp/$BUILDKITE_STEP_ID/"
       - "mkdir -p /tmp/$BUILDKITE_STEP_ID/"
       - "cp -R go/proto/ /tmp/$BUILDKITE_STEP_ID/"
       - "make gogen"
