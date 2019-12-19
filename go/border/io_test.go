@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"net"
 	"os"
 	"syscall"
@@ -83,28 +82,6 @@ func TestPosixOutputNoLeakRecoverableErrors(t *testing.T) {
 	err := &net.OpError{Err: &os.SyscallError{Err: syscall.ECONNREFUSED}}
 	mconn.EXPECT().WriteBatch(gomock.Any()).Return(0, err)
 	mconn.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(testSuccessfulWrite(done))
-	sock := newTestSock(r, len(pkts), mconn)
-	sock.Start()
-	sock.Ring.Write(pkts, true)
-	<-done
-	sock.Stop()
-}
-
-func TestPosixOutputNoLeakUnrecoverableErrors(t *testing.T) {
-	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
-	r := initTestRouter(1)
-	pkts, checkAllReturned := newTestPktList(t, 2*outputBatchCnt)
-	defer checkAllReturned(len(pkts))
-	// Wait for both batches to be written.
-	done := make(chan struct{}, 1)
-	mconn := newTestConn(mctrl)
-	mconn.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
-		func(_ conn.Messages) (int, error) {
-			done <- struct{}{}
-			return 0, errors.New("unrecoverable")
-		},
-	)
 	sock := newTestSock(r, len(pkts), mconn)
 	sock.Start()
 	sock.Ring.Write(pkts, true)
