@@ -15,7 +15,12 @@ networks:
       - subnet: 242.254.200.0/24
 services:
   patha:
-    command: ["-lx", "242.254.100.3:50000", "-rx", "242.254.100.2:30041", "-ly", "242.254.200.3:50000", "-ry", "242.254.200.2:30041"]
+    command: [
+      "-local_x", "242.254.100.3:50000",
+      "-remote_x", "242.254.100.2:30041",
+      "-local_y", "242.254.200.3:50000",
+      "-remote_y", "242.254.200.2:30041",
+      ]
     container_name: patha
     image: bazel/go/tools/udpproxy:udpproxy
     networks:
@@ -24,7 +29,12 @@ services:
       bridge2:
         ipv4_address: 242.254.200.3
   pathb:
-    command: ["-lx", "242.254.100.4:50000", "-rx", "242.254.100.2:30041", "-ly", "242.254.200.4:50000", "-ry", "242.254.200.2:30041"]
+    command: [
+      "-local_x", "242.254.100.4:50000",
+      "-remote_x", "242.254.100.2:30041",
+      "-local_y", "242.254.200.4:50000",
+      "-remote_y", "242.254.200.2:30041",
+      ]
     container_name: pathb
     image: bazel/go/tools/udpproxy:udpproxy
     networks:

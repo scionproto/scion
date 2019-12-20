@@ -13,27 +13,31 @@ import (
 )
 
 var (
-	lx = flag.String("lx", "", "local UDP address on network x, in IP:port format  (required)")
-	rx = flag.String("rx", "", "remote UDP address on network x, in IP:port format (required)")
-	ly = flag.String("ly", "", "local UDP address on network y, in IP:port format (required)")
-	ry = flag.String("ry", "", "remote UDP address on network y, in IP:port format (required)")
+	localX = flag.String("local_x", "",
+		"local UDP address on network x, in IP:port format  (required)")
+	remoteX = flag.String("remote_x", "",
+		"remote UDP address on network x, in IP:port format (required)")
+	localY = flag.String("local_y", "",
+		"local UDP address on network y, in IP:port format (required)")
+	remoteY = flag.String("remote_y", "",
+		"remote UDP address on network y, in IP:port format (required)")
 )
 
 func main() {
 	flag.Parse()
 
-	if err := Proxy(*lx, *rx, *ly, *ry); err != nil {
+	if err := Proxy(*localX, *remoteX, *localY, *remoteY); err != nil {
 		log.Crit("Fatal proxy error", "err", err)
 		os.Exit(1)
 	}
 }
 
-func Proxy(lx, rx, ly, ry string) error {
-	lxAddr, err := net.ResolveUDPAddr("udp", lx)
+func Proxy(localX, remoteX, localY, remoteY string) error {
+	lxAddr, err := net.ResolveUDPAddr("udp", localX)
 	if err != nil {
 		return serrors.New("unable to parse local x address", "err", err)
 	}
-	rxAddr, err := net.ResolveUDPAddr("udp", rx)
+	rxAddr, err := net.ResolveUDPAddr("udp", remoteX)
 	if err != nil {
 		return serrors.New("unable to parse remote x address", "err", err)
 	}
@@ -42,11 +46,11 @@ func Proxy(lx, rx, ly, ry string) error {
 		return serrors.New("unable to open x conn", "err", err)
 	}
 
-	lyAddr, err := net.ResolveUDPAddr("udp", ly)
+	lyAddr, err := net.ResolveUDPAddr("udp", localY)
 	if err != nil {
 		return serrors.New("unable to parse local y address", "err", err)
 	}
-	ryAddr, err := net.ResolveUDPAddr("udp", ry)
+	ryAddr, err := net.ResolveUDPAddr("udp", remoteY)
 	if err != nil {
 		return serrors.New("unable to parse remote y address", "err", err)
 	}
@@ -59,14 +63,14 @@ func Proxy(lx, rx, ly, ry string) error {
 		fmt.Sprintf(
 			"Redirecting messages received on %v to %v",
 			xConn.LocalAddr(),
-			ry,
+			remoteY,
 		),
 	)
 	log.Info(
 		fmt.Sprintf(
 			"Redirecting messages received on %v to %v",
 			yConn.LocalAddr(),
-			rx,
+			remoteX,
 		),
 	)
 

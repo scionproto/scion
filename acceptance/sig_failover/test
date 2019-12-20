@@ -103,6 +103,11 @@ ls -la $ACCEPTANCE_ARTIFACTS
 echo "ls -la $ACCEPTANCE_ARTIFACTS/.."
 ls -la $ACCEPTANCE_ARTIFACTS/..
 
+echo "whoami"
+whoami
+
+echo "===="
+
 for FILE in sig1-ff00_0_110.log sig1-ff00_0_111.log disp_1-ff00_0_110.log disp_1-ff00_0_111.log; do
     docker-compose -f acceptance/sig_failover/docker-compose.yml run log_exporter cat /share/logs/$FILE > $ACCEPTANCE_ARTIFACTS/$FILE
 done
