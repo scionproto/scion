@@ -60,15 +60,15 @@ func (p POP) SigInput() []byte {
 }
 
 // EncodedBaseRequest is the base64url encoded marshaled base request.
-type EncodedBaseRequest []byte
+type EncodedBaseRequest string
 
 // EncodeBaseRequest encodes the base request.
 func EncodeBaseRequest(r *BaseRequest) (EncodedBaseRequest, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return []byte(scrypto.Base64.EncodeToString(b)), nil
+	return EncodedBaseRequest(scrypto.Base64.EncodeToString(b)), nil
 }
 
 // Decode decodes and returns the request.
