@@ -76,7 +76,7 @@ func TestEncodedDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage TRC": {
-			Input:     trc.Encoded(scrypto.Base64.EncodeToString([]byte(valid[:len(valid)/2]))),
+			Input:     trc.Encoded(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -141,8 +141,7 @@ func TestEncodedProtectedDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage JSON": {
-			Input: trc.EncodedProtected(scrypto.Base64.EncodeToString(
-				[]byte(valid[:len(valid)/2]))),
+			Input:     trc.EncodedProtected(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -152,6 +151,10 @@ func TestEncodedProtectedDecode(t *testing.T) {
 			test.Assertion(t, err)
 		})
 	}
+}
+
+func encode(input string) string {
+	return scrypto.Base64.EncodeToString([]byte(input))
 }
 
 func newBaseProtected() trc.Protected {

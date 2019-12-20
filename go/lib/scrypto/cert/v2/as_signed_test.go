@@ -75,7 +75,7 @@ func TestEncodedASDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage cert": {
-			Input:     cert.EncodedAS(scrypto.Base64.EncodeToString([]byte(valid[:len(valid)/2]))),
+			Input:     cert.EncodedAS(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -140,8 +140,7 @@ func TestEncodedProtectedASDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage JSON": {
-			Input: cert.EncodedProtectedAS(scrypto.Base64.EncodeToString(
-				[]byte(valid[:len(valid)/2]))),
+			Input:     cert.EncodedProtectedAS(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -151,6 +150,10 @@ func TestEncodedProtectedASDecode(t *testing.T) {
 			test.Assertion(t, err)
 		})
 	}
+}
+
+func encode(input string) string {
+	return scrypto.Base64.EncodeToString([]byte(input))
 }
 
 func newBaseProtectedAS() cert.ProtectedAS {

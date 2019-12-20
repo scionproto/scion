@@ -75,8 +75,7 @@ func TestEncodedIssuerDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage cert": {
-			Input: cert.EncodedIssuer(scrypto.Base64.EncodeToString(
-				[]byte(valid[:len(valid)/2]))),
+			Input:     cert.EncodedIssuer(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -141,8 +140,7 @@ func TestEncodedProtectedIssuerDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage JSON": {
-			Input: cert.EncodedProtectedIssuer(scrypto.Base64.EncodeToString(
-				[]byte(valid[:len(valid)/2]))),
+			Input:     cert.EncodedProtectedIssuer(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
