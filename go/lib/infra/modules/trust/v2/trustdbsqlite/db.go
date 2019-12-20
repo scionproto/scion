@@ -219,7 +219,7 @@ func (e *executor) InsertTRC(ctx context.Context, d decoded.TRC) (bool, error) {
 	e.Lock()
 	defer e.Unlock()
 
-	h := hash(d.Signed.EncodedTRC)
+	h := hash([]byte(d.Signed.EncodedTRC))
 	query := `INSERT INTO trcs (isd_id, version, raw, pld, pld_hash, not_before,
 	          not_after, grace_period) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	var inserted bool
@@ -274,7 +274,7 @@ func (e *executor) InsertChain(ctx context.Context, d decoded.Chain) (bool, bool
 	e.Lock()
 	defer e.Unlock()
 
-	asHash, issHash := hash(d.Chain.AS.Encoded), hash(d.Chain.Issuer.Encoded)
+	asHash, issHash := hash([]byte(d.Chain.AS.Encoded)), hash([]byte(d.Chain.Issuer.Encoded))
 	var asInserted, issInserted bool
 	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		exists, err := chainExists(ctx, tx, d)
@@ -316,7 +316,7 @@ func insertIssuer(ctx context.Context, db db.Sqler, iss *cert.Issuer,
 		return false, nil
 	}
 	_, err = db.ExecContext(ctx, query, iss.Subject.I, iss.Subject.A, iss.Version, signed.Encoded,
-		hash(signed.Encoded), signed.EncodedProtected, signed.Signature)
+		hash([]byte(signed.Encoded)), signed.EncodedProtected, signed.Signature)
 	if err != nil {
 		return false, err
 	}
@@ -332,7 +332,7 @@ func trcExists(ctx context.Context, db db.Sqler, d decoded.TRC) (bool, error) {
 		return false, nil
 	case err != nil:
 		return false, err
-	case !bytes.Equal(hash(d.Signed.EncodedTRC), dbHash):
+	case !bytes.Equal(hash([]byte(d.Signed.EncodedTRC)), dbHash):
 		return true, trust.ErrContentMismatch
 	default:
 		return true, nil
@@ -349,9 +349,9 @@ func chainExists(ctx context.Context, db db.Sqler, d decoded.Chain) (bool, error
 		return false, nil
 	case err != nil:
 		return false, err
-	case !bytes.Equal(hash(d.Chain.AS.Encoded), asHash):
+	case !bytes.Equal(hash([]byte(d.Chain.AS.Encoded)), asHash):
 		return false, serrors.WithCtx(trust.ErrContentMismatch, "part", "as")
-	case !bytes.Equal(hash(d.Chain.Issuer.Encoded), issHash):
+	case !bytes.Equal(hash([]byte(d.Chain.Issuer.Encoded)), issHash):
 		return false, serrors.WithCtx(trust.ErrContentMismatch, "part", "issuer")
 	default:
 		return true, nil
@@ -369,7 +369,7 @@ func issuerExists(ctx context.Context, db db.Sqler, iss *cert.Issuer,
 		return false, nil
 	case err != nil:
 		return false, err
-	case !bytes.Equal(hash(signed.Encoded), dbHash):
+	case !bytes.Equal(hash([]byte(signed.Encoded)), dbHash):
 		return false, trust.ErrContentMismatch
 	default:
 		return true, nil

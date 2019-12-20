@@ -72,11 +72,11 @@ func TestEncodedDecode(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"Invalid Base 64": {
-			Input:     []byte("invalid/base64"),
+			Input:     "invalid/base64",
 			Assertion: assert.Error,
 		},
 		"Garbage TRC": {
-			Input:     []byte(scrypto.Base64.EncodeToString(valid[:len(valid)/2])),
+			Input:     trc.Encoded(scrypto.Base64.EncodeToString([]byte(valid[:len(valid)/2]))),
 			Assertion: assert.Error,
 		},
 	}
@@ -133,15 +133,16 @@ func TestEncodedProtectedDecode(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"Invalid Base 64": {
-			Input:     []byte("invalid/base64"),
+			Input:     "invalid/base64",
 			Assertion: assert.Error,
 		},
 		"Invalid utf-8": {
-			Input:     []byte(scrypto.Base64.EncodeToString([]byte{0xfe})),
+			Input:     trc.EncodedProtected(scrypto.Base64.EncodeToString([]byte{0xfe})),
 			Assertion: assert.Error,
 		},
 		"Garbage JSON": {
-			Input:     []byte(scrypto.Base64.EncodeToString(valid[:len(valid)/2])),
+			Input: trc.EncodedProtected(scrypto.Base64.EncodeToString(
+				[]byte(valid[:len(valid)/2]))),
 			Assertion: assert.Error,
 		},
 	}

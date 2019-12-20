@@ -28,7 +28,7 @@ var Base64 = base64.RawURLEncoding
 
 // JWSignatureInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
-func JWSignatureInput(protected []byte, payload []byte) common.RawBytes {
+func JWSignatureInput(protected string, payload string) common.RawBytes {
 	input := make([]byte, len(protected)+len(payload)+1)
 	copy(input[:len(protected)], protected)
 	input[len(protected)] = '.'

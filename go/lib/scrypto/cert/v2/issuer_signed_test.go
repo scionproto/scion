@@ -71,11 +71,12 @@ func TestEncodedIssuerDecode(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"Invalid Base 64": {
-			Input:     []byte("invalid/base64"),
+			Input:     "invalid/base64",
 			Assertion: assert.Error,
 		},
 		"Garbage cert": {
-			Input:     []byte(scrypto.Base64.EncodeToString(valid[:len(valid)/2])),
+			Input: cert.EncodedIssuer(scrypto.Base64.EncodeToString(
+				[]byte(valid[:len(valid)/2]))),
 			Assertion: assert.Error,
 		},
 	}
@@ -132,15 +133,16 @@ func TestEncodedProtectedIssuerDecode(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"Invalid Base 64": {
-			Input:     []byte("invalid/base64"),
+			Input:     "invalid/base64",
 			Assertion: assert.Error,
 		},
 		"Invalid utf-8": {
-			Input:     []byte(scrypto.Base64.EncodeToString([]byte{0xfe})),
+			Input:     cert.EncodedProtectedIssuer(scrypto.Base64.EncodeToString([]byte{0xfe})),
 			Assertion: assert.Error,
 		},
 		"Garbage JSON": {
-			Input:     []byte(scrypto.Base64.EncodeToString(valid[:len(valid)/2])),
+			Input: cert.EncodedProtectedIssuer(scrypto.Base64.EncodeToString(
+				[]byte(valid[:len(valid)/2]))),
 			Assertion: assert.Error,
 		},
 	}

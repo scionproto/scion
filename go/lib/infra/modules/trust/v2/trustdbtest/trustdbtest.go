@@ -117,7 +117,7 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		return dec
 	}
 	v1 := insert("ISD1-V1.trc")
-	v7 := insert("ISD1-V7.trc")
+	v2 := insert("ISD1-V2.trc")
 
 	t.Run("TRCExists", func(t *testing.T) {
 		// Check existing TRC.
@@ -125,14 +125,14 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		assert.NoError(t, err)
 		assert.True(t, exists)
 		// Check inexistent TRC.
-		other, err := decoded.DecodeTRC(loadFile(t, cfg.filePath("ISD2-V1.trc")))
+		other, err := decoded.DecodeTRC(loadFile(t, cfg.filePath("ISD1-V3.trc")))
 		require.NoError(t, err)
 		exists, err = db.TRCExists(ctx, other)
 		assert.NoError(t, err)
 		assert.False(t, exists)
 		// Check existing TRC with different content.
 		mismatch := v1
-		mismatch.Signed.EncodedTRC = []byte("some garbage")
+		mismatch.Signed.EncodedTRC = "some garbage"
 		exists, err = db.TRCExists(ctx, mismatch)
 		xtest.AssertErrorsIs(t, err, trust.ErrContentMismatch)
 		assert.True(t, exists)
@@ -145,7 +145,7 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		// Fetch max of existing TRC.
 		max, err := db.GetTRC(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: scrypto.LatestVer})
 		assert.NoError(t, err)
-		assert.Equal(t, v7.TRC, max)
+		assert.Equal(t, v2.TRC, max)
 		// Fetch inexistent TRC.
 		_, err = db.GetTRC(ctx, trust.TRCID{ISD: 42, Version: scrypto.LatestVer})
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
@@ -158,7 +158,7 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		// Fetch max of existing TRC.
 		max, err := db.GetRawTRC(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: scrypto.LatestVer})
 		assert.NoError(t, err)
-		assert.Equal(t, v7.Raw, max)
+		assert.Equal(t, v2.Raw, max)
 		// Fetch inexistent TRC.
 		_, err = db.GetRawTRC(ctx, trust.TRCID{ISD: 42, Version: scrypto.LatestVer})
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
@@ -175,9 +175,9 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		assert.Equal(t, info, fetched)
 		// Fetch max of existing TRC.
 		info = trust.TRCInfo{
-			Validity:    *v7.TRC.Validity,
-			GracePeriod: v7.TRC.GracePeriod.Duration,
-			Version:     v7.TRC.Version,
+			Validity:    *v2.TRC.Validity,
+			GracePeriod: v2.TRC.GracePeriod.Duration,
+			Version:     v2.TRC.Version,
 		}
 		max, err := db.GetTRCInfo(ctx, trust.TRCID{ISD: v1.TRC.ISD, Version: scrypto.LatestVer})
 		assert.NoError(t, err)
@@ -200,19 +200,18 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 			ia120: {TRC: trcInfo1, Version: 1},
 			ia130: {TRC: trcInfo1, Version: 1},
 		}
-		trcInfo7 := trust.TRCInfo{
-			Validity:    *v7.TRC.Validity,
-			GracePeriod: v7.TRC.GracePeriod.Duration,
-			Version:     v7.TRC.Version,
+		trcInfo2 := trust.TRCInfo{
+			Validity:    *v2.TRC.Validity,
+			GracePeriod: v2.TRC.GracePeriod.Duration,
+			Version:     v2.TRC.Version,
 		}
-		expectedKeyInfos7 := map[addr.IA]trust.KeyInfo{
-			ia110: {TRC: trcInfo7, Version: 1},
-			ia120: {TRC: trcInfo7, Version: 1},
-			ia130: {TRC: trcInfo7, Version: 1},
+		expectedKeyInfos2 := map[addr.IA]trust.KeyInfo{
+			ia110: {TRC: trcInfo2, Version: 1},
+			ia120: {TRC: trcInfo2, Version: 1},
 		}
 		okTests := map[scrypto.Version]map[addr.IA]trust.KeyInfo{
 			1: expectedKeyInfos1,
-			7: expectedKeyInfos7,
+			2: expectedKeyInfos2,
 		}
 		for ver, expectedKeyInfos := range okTests {
 			for ia, expected := range expectedKeyInfos {
@@ -235,9 +234,7 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 			assert.Equal(t, trust.KeyInfo{}, actual)
 		})
 		t.Run("fetch non-issuing ia", func(t *testing.T) {
-			insert("ISD2-V2.trc")
-			ia210 := xtest.MustParseIA("2-ff00:0:210")
-			actual, err := db.GetIssuingKeyInfo(context.Background(), ia210, 2)
+			actual, err := db.GetIssuingKeyInfo(context.Background(), ia130, 2)
 			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 			assert.Equal(t, trust.KeyInfo{}, actual)
 		})
@@ -249,7 +246,7 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		assert.False(t, inserted)
 		// Insert existing TRC with different contents.
 		mismatch := v1
-		mismatch.Signed.EncodedTRC = []byte("some garbage")
+		mismatch.Signed.EncodedTRC = "some garbage"
 		inserted, err = db.InsertTRC(ctx, mismatch)
 		xtest.AssertErrorsIs(t, err, trust.ErrContentMismatch)
 		assert.False(t, inserted)
@@ -269,7 +266,7 @@ func testChain(t *testing.T, db trust.ReadWrite, cfg Config) {
 		return dec
 	}
 	v1 := insert("ISD1-ASff00_0_110-V1.crt", true)
-	v7 := insert("ISD1-ASff00_0_110-V10.crt", false)
+	v2 := insert("ISD1-ASff00_0_110-V10.crt", false)
 
 	t.Run("ChainExists", func(t *testing.T) {
 		// Check existing certificate chain.
@@ -284,13 +281,13 @@ func testChain(t *testing.T, db trust.ReadWrite, cfg Config) {
 		assert.False(t, exists)
 		// Check existing certificate chain with different content in AS certificate.
 		mismatch := v1
-		mismatch.Chain.AS.Encoded = []byte("some garbage")
+		mismatch.Chain.AS.Encoded = "some garbage"
 		exists, err = db.ChainExists(ctx, mismatch)
 		xtest.AssertErrorsIs(t, err, trust.ErrContentMismatch)
 		assert.False(t, exists)
 		// Check existing certificate chain with different content in issuer certificate.
 		mismatch = v1
-		mismatch.Chain.Issuer.Encoded = []byte("some garbage")
+		mismatch.Chain.Issuer.Encoded = "some garbage"
 		exists, err = db.ChainExists(ctx, mismatch)
 		xtest.AssertErrorsIs(t, err, trust.ErrContentMismatch)
 		assert.False(t, exists)
@@ -305,7 +302,7 @@ func testChain(t *testing.T, db trust.ReadWrite, cfg Config) {
 		max, err := db.GetRawChain(ctx, trust.ChainID{
 			IA: v1.AS.Subject, Version: scrypto.LatestVer})
 		assert.NoError(t, err)
-		assert.Equal(t, v7.Raw, max)
+		assert.Equal(t, v2.Raw, max)
 		// Check inexistent certificate chain.
 		_, err = db.GetRawChain(ctx, trust.ChainID{
 			IA:      xtest.MustParseIA("42-ff00:0:142"),
@@ -328,14 +325,14 @@ func testChain(t *testing.T, db trust.ReadWrite, cfg Config) {
 		assert.False(t, issInserted)
 		// Check existing certificate chain with different content in AS certificate.
 		mismatch := v1
-		mismatch.Chain.AS.Encoded = []byte("some garbage")
+		mismatch.Chain.AS.Encoded = "some garbage"
 		asInserted, issInserted, err = db.InsertChain(ctx, mismatch)
 		xtest.AssertErrorsIs(t, err, trust.ErrContentMismatch)
 		assert.False(t, asInserted)
 		assert.False(t, issInserted)
 		// Check existing certificate chain with different content in AS certificate.
 		mismatch = v1
-		mismatch.Chain.Issuer.Encoded = []byte("some garbage")
+		mismatch.Chain.Issuer.Encoded = "some garbage"
 		asInserted, issInserted, err = db.InsertChain(ctx, mismatch)
 		xtest.AssertErrorsIs(t, err, trust.ErrContentMismatch)
 		assert.False(t, asInserted)
