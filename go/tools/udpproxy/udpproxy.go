@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	lx = flag.String("lx", "", "address to listen on network x (e.g., 127.0.0.1:30041) (required)")
-	rx = flag.String("rx", "", "address to send to on network x (required)")
-	ly = flag.String("ly", "", "address to listen on network y (e.g., 127.0.0.1:30041) (required)")
-	ry = flag.String("ry", "", "address to send to on network y (required)")
+	lx = flag.String("lx", "", "local UDP address on network x, in IP:port format  (required)")
+	rx = flag.String("rx", "", "remote UDP address on network x, in IP:port format (required)")
+	ly = flag.String("ly", "", "local UDP address on network y, in IP:port format (required)")
+	ry = flag.String("ry", "", "remote UDP address on network y, in IP:port format (required)")
 )
 
 func main() {
