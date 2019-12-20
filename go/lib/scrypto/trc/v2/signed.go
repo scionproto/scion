@@ -65,16 +65,17 @@ func EncodeSigned(signed Signed) ([]byte, error) {
 	return json.Marshal(signed)
 }
 
-// Encoded is the the base64url encoded marshaled TRC.
-type Encoded []byte
+// Encoded is the the base64url encoded marshaled TRC. It is a string type to
+// prevent json.Marshal from encoding it to base64 a second time.
+type Encoded string
 
 // Encode encodes and returns the packed TRC.
 func Encode(trc *TRC) (Encoded, error) {
 	b, err := json.Marshal(trc)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return []byte(scrypto.Base64.EncodeToString(b)), nil
+	return Encoded(scrypto.Base64.EncodeToString(b)), nil
 }
 
 // Decode returns the decoded Decode.
@@ -96,17 +97,18 @@ type Signature struct {
 	Signature        []byte           `json:"signature"`
 }
 
-// EncodedProtected is the base64url encoded utf-8 metadata.
-type EncodedProtected []byte
+// EncodedProtected is the base64url encoded utf-8 metadata. It is a string type to
+// prevent json.Marshal from encoding it to base64 a second time.
+type EncodedProtected string
 
 // EncodeProtected encodes the protected header.
 func EncodeProtected(p Protected) (EncodedProtected, error) {
 	// json.Marshal forces the necessary utf-8 encoding.
 	b, err := json.Marshal(p)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return []byte(scrypto.Base64.EncodeToString(b)), nil
+	return EncodedProtected(scrypto.Base64.EncodeToString(b)), nil
 }
 
 // Decode decodes and return the protected header.
@@ -244,5 +246,5 @@ func (Crit) MarshalJSON() ([]byte, error) {
 // SigInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
 func SigInput(protected EncodedProtected, trc Encoded) common.RawBytes {
-	return scrypto.JWSignatureInput(protected, trc)
+	return scrypto.JWSignatureInput(string(protected), string(trc))
 }

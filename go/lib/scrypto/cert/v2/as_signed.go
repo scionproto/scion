@@ -37,24 +37,25 @@ type SignedAS struct {
 // SigInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
 func (s SignedAS) SigInput() common.RawBytes {
-	return scrypto.JWSignatureInput(s.EncodedProtected, s.Encoded)
+	return scrypto.JWSignatureInput(string(s.EncodedProtected), string(s.Encoded))
 }
 
-// EncodedAS is the the base64url encoded marshaled AS certificate.
-type EncodedAS []byte
+// EncodedAS is the the base64url encoded marshaled AS certificate. It is a
+// string type to prevent json.Marshal from encoding it to base64 a second time.
+type EncodedAS string
 
 // EncodeAS encodes and returns the packed AS certificate.
 func EncodeAS(c *AS) (EncodedAS, error) {
 	b, err := json.Marshal(c)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return []byte(scrypto.Base64.EncodeToString(b)), nil
+	return EncodedAS(scrypto.Base64.EncodeToString(b)), nil
 }
 
 // Decode returns the decoded Decode.
-func (p *EncodedAS) Decode() (*AS, error) {
-	b, err := scrypto.Base64.DecodeString(string(*p))
+func (p EncodedAS) Decode() (*AS, error) {
+	b, err := scrypto.Base64.DecodeString(string(p))
 	if err != nil {
 		return nil, err
 	}
@@ -65,22 +66,23 @@ func (p *EncodedAS) Decode() (*AS, error) {
 	return &c, nil
 }
 
-// EncodedProtectedAS is the base64url encoded utf-8 metadata.
-type EncodedProtectedAS []byte
+// EncodedProtectedAS is the base64url encoded utf-8 metadata. It is a string
+// type to prevent json.Marshal from encoding it to base64 a second time.
+type EncodedProtectedAS string
 
 // EncodeProtectedAS encodes the protected header.
 func EncodeProtectedAS(p ProtectedAS) (EncodedProtectedAS, error) {
 	// json.Marshal forces the necessary utf-8 encoding.
 	b, err := json.Marshal(p)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return []byte(scrypto.Base64.EncodeToString(b)), nil
+	return EncodedProtectedAS(scrypto.Base64.EncodeToString(b)), nil
 }
 
 // Decode decodes and return the protected header.
-func (h *EncodedProtectedAS) Decode() (ProtectedAS, error) {
-	b, err := scrypto.Base64.DecodeString(string(*h))
+func (h EncodedProtectedAS) Decode() (ProtectedAS, error) {
+	b, err := scrypto.Base64.DecodeString(string(h))
 	if err != nil {
 		return ProtectedAS{}, err
 	}

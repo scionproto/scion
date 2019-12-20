@@ -83,15 +83,15 @@ func sortSignatures(signatures map[trc.Protected]trc.Signature) []trc.Signature 
 func loadTRC(file string) (*trc.TRC, trc.Encoded, error) {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	signed, err := trc.ParseSigned(raw)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	t, err := signed.EncodedTRC.Decode()
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	return t, signed.EncodedTRC, nil
 }

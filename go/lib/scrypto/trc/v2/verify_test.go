@@ -40,7 +40,7 @@ var (
 		},
 		"Undecodable": {
 			Modify: func(_ *testing.T, sigs *[]trc.Signature) {
-				(*sigs)[0].EncodedProtected[1] = '!'
+				(*sigs)[0].EncodedProtected = "!"
 			},
 			ExpectedErrMsg: "illegal base64 data",
 		},

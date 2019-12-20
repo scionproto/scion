@@ -227,7 +227,7 @@ func (g topoGen) genASCerts(topo topoFile) error {
 func (g topoGen) genASCert(ia, issuer addr.IA) conf.AS {
 	sigKey, encKey, revKey := scrypto.KeyVersion(1), scrypto.KeyVersion(1), scrypto.KeyVersion(1)
 	cfg := conf.AS{
-		Description:          fmt.Sprintf("Issuer certificate %s", ia),
+		Description:          fmt.Sprintf("AS certificate %s", ia),
 		Version:              1,
 		SigningKeyVersion:    &sigKey,
 		EncryptionKeyVersion: &encKey,

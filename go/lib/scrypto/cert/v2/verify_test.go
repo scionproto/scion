@@ -41,7 +41,7 @@ func TestASVerifierVerify(t *testing.T) {
 		"unparsable protected": {
 			Modify: func(*cert.AS, *cert.Issuer, *cert.ProtectedAS) {},
 			ModifySigned: func(signed *cert.SignedAS) {
-				signed.EncodedProtected[0] ^= 0xFF
+				signed.EncodedProtected = "!"
 			},
 			ExpectedErrMsg: "illegal base64 data at input byte 0",
 		},
@@ -154,7 +154,7 @@ func TestIssuerVerifierVerify(t *testing.T) {
 		"unparsable protected": {
 			Modify: func(*cert.Issuer, *trc.TRC, *cert.ProtectedIssuer) {},
 			ModifySigned: func(signed *cert.SignedIssuer) {
-				signed.EncodedProtected[0] ^= 0xFF
+				signed.EncodedProtected = "!"
 			},
 			ExpectedErrMsg: "illegal base64 data at input byte 0",
 		},
