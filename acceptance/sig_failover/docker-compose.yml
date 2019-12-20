@@ -94,7 +94,5 @@ services:
 version: '2.4'
 volumes:
   vol_logs: null
-  vol_scion_disp_1-ff00_0_110: null
-  vol_scion_disp_1-ff00_0_111: null
   vol_scion_disp_sig1-ff00_0_110: null
   vol_scion_disp_sig1-ff00_0_111: null
