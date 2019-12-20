@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -77,6 +78,6 @@ func parseSignatures(packed []trc.Signature) ([]signature, error) {
 }
 
 type signature struct {
-	Protected trc.Protected `json:"protected"`
-	Signature []byte        `json:"signature"`
+	Protected trc.Protected       `json:"protected"`
+	Signature scrypto.JWSignature `json:"signature"`
 }

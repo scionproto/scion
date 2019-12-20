@@ -108,6 +108,8 @@ var humanCmd = &cobra.Command{
 }
 
 func init() {
+	Cmd.PersistentFlags().Uint64Var(&version, "version", 0,
+		"certificate version (0 indicates newest)")
 	Cmd.AddCommand(genChainCmd)
 	Cmd.AddCommand(genIssuerCmd)
 	Cmd.AddCommand(humanCmd)

@@ -93,8 +93,8 @@ func (p Encoded) Decode() (*TRC, error) {
 
 // Signature contains the signature and packed metadata for one single key.
 type Signature struct {
-	EncodedProtected EncodedProtected `json:"protected"`
-	Signature        []byte           `json:"signature"`
+	EncodedProtected EncodedProtected    `json:"protected"`
+	Signature        scrypto.JWSignature `json:"signature"`
 }
 
 // EncodedProtected is the base64url encoded utf-8 metadata. It is a string type to

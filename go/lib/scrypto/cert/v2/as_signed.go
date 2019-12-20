@@ -29,14 +29,14 @@ import (
 var ErrIANotSet = errors.New("ia not set")
 
 type SignedAS struct {
-	Encoded          EncodedAS          `json:"payload"`
-	EncodedProtected EncodedProtectedAS `json:"protected"`
-	Signature        common.RawBytes    `json:"signature"`
+	Encoded          EncodedAS           `json:"payload"`
+	EncodedProtected EncodedProtectedAS  `json:"protected"`
+	Signature        scrypto.JWSignature `json:"signature"`
 }
 
 // SigInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
-func (s SignedAS) SigInput() common.RawBytes {
+func (s SignedAS) SigInput() []byte {
 	return scrypto.JWSignatureInput(string(s.EncodedProtected), string(s.Encoded))
 }
 

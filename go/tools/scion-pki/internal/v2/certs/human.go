@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -85,9 +86,9 @@ func genHumanChain(file string) error {
 }
 
 type decodedCert struct {
-	Payload   interface{} `json:"payload"`
-	Protected interface{} `json:"protected"`
-	Signature []byte      `json:"signature"`
+	Payload   interface{}         `json:"payload"`
+	Protected interface{}         `json:"protected"`
+	Signature scrypto.JWSignature `json:"signature"`
 }
 
 func decodeAS(c *cert.SignedAS) (decodedCert, error) {

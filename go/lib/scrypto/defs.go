@@ -35,3 +35,25 @@ func JWSignatureInput(protected string, payload string) common.RawBytes {
 	copy(input[len(protected)+1:], payload)
 	return input
 }
+
+// JWSignature uses the encoding in accordance with rfc7515 when packing and
+// unpacking signatures.
+type JWSignature []byte
+
+// UnmarshalText parses the base64url encoded bytes.
+func (s *JWSignature) UnmarshalText(b []byte) error {
+	buf := make([]byte, Base64.DecodedLen(len(b)))
+	n, err := Base64.Decode(buf, b)
+	if err != nil {
+		return err
+	}
+	*s = buf[:n]
+	return nil
+}
+
+// MarshalText returns the base64url encoded bytes
+func (s JWSignature) MarshalText() ([]byte, error) {
+	b := make([]byte, Base64.EncodedLen(len(s)))
+	Base64.Encode(b, s)
+	return b, nil
+}

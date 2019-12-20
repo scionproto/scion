@@ -95,13 +95,13 @@ func GetPubKey(privKey []byte, algo string) ([]byte, error) {
 
 // Sign takes a signature input and a signing key to create a signature. Currently only
 // ed25519 is supported.
-func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, error) {
+func Sign(sigInput, signKey []byte, signAlgo string) ([]byte, error) {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		switch len(signKey) {
 		case ed25519.PrivateKeySize:
 		case ed25519.SeedSize:
-			signKey = common.RawBytes(ed25519.NewKeyFromSeed(signKey))
+			signKey = ed25519.NewKeyFromSeed(signKey)
 		default:
 			return nil, serrors.WithCtx(ErrInvalidPrivKeySize, "expected", ed25519.PrivateKeySize,
 				"actual", len(signKey))
@@ -114,7 +114,7 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 
 // Verify takes a signature input and a verifying key and returns an error, if the
 // signature does not match. Currently only ed25519 is supported.
-func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
+func Verify(sigInput, sig, verifyKey []byte, signAlgo string) error {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(verifyKey) != ed25519.PublicKeySize {
@@ -140,7 +140,7 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 // Encrypt takes a message, a nonce and a public/private keypair and
 // returns the encrypted and authenticated message.
 // Note: Nonce must be different for each message that is encrypted with the same key.
-func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.RawBytes, error) {
+func Encrypt(msg, nonce, pubkey, privkey []byte, algo string) ([]byte, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
 		nonceRaw, pubKeyRaw, privKeyRaw, err := prepNaClBox(nonce, pubkey, privkey)
@@ -154,7 +154,7 @@ func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 }
 
 // Decrypt decrypts a message for a given nonce and public/private keypair.
-func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.RawBytes, error) {
+func Decrypt(msg, nonce, pubkey, privkey []byte, algo string) ([]byte, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
 		nonceRaw, pubKeyRaw, privKeyRaw, err := prepNaClBox(nonce, pubkey, privkey)

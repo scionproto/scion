@@ -29,6 +29,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "asym_test.go",
+        "defs_test.go",
         "keymeta_test.go",
         "rand_test.go",
         "validity_test.go",

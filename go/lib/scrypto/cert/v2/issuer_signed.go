@@ -32,12 +32,12 @@ var (
 type SignedIssuer struct {
 	Encoded          EncodedIssuer          `json:"payload"`
 	EncodedProtected EncodedProtectedIssuer `json:"protected"`
-	Signature        common.RawBytes        `json:"signature"`
+	Signature        scrypto.JWSignature    `json:"signature"`
 }
 
 // SigInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
-func (s SignedIssuer) SigInput() common.RawBytes {
+func (s SignedIssuer) SigInput() []byte {
 	return scrypto.JWSignatureInput(string(s.EncodedProtected), string(s.Encoded))
 }
 
