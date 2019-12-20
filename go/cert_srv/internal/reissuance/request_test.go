@@ -55,7 +55,7 @@ func TestEncodeRequest(t *testing.T) {
 			base := reissuance.Request{
 				BaseRequest: newBaseRequest(time.Now()),
 				POPs: []reissuance.POP{{
-					Encoded:          []byte("encoded"),
+					Encoded:          "encoded",
 					EncodedProtected: "protected",
 					Signature:        []byte("sig"),
 				}},
@@ -77,7 +77,7 @@ func TestEncodedRequestDecode(t *testing.T) {
 	base := reissuance.Request{
 		BaseRequest: newBaseRequest(time.Now()),
 		POPs: []reissuance.POP{{
-			Encoded:          []byte("encoded"),
+			Encoded:          "encoded",
 			EncodedProtected: "protected",
 			Signature:        []byte("sig"),
 		}},
@@ -156,11 +156,11 @@ func TestEncodedBaseRequestDecode(t *testing.T) {
 			Assertion: assert.NoError,
 		},
 		"Invalid Base 64": {
-			Input:     []byte("invalid/base64"),
+			Input:     "invalid/base64",
 			Assertion: assert.Error,
 		},
 		"Garbage cert": {
-			Input:     []byte(scrypto.Base64.EncodeToString(valid[:len(valid)/2])),
+			Input:     valid[:len(valid)/2],
 			Assertion: assert.Error,
 		},
 	}
@@ -249,12 +249,29 @@ func newBaseRequest(now time.Time) reissuance.BaseRequest {
 	return reissuance.BaseRequest{
 		Base: cert.Base{
 			Subject:       xtest.MustParseIA("1-ff00:0:111"),
-			Version:       1,
+			Version:       2,
 			FormatVersion: 1,
 			Description:   "This is a base request",
 			Validity: &scrypto.Validity{
 				NotBefore: util.UnixTime{Time: now},
 				NotAfter:  util.UnixTime{Time: now.Add(8760 * time.Hour)},
+			},
+			Keys: map[cert.KeyType]scrypto.KeyMeta{
+				cert.EncryptionKey: {
+					KeyVersion: 1,
+					Algorithm:  scrypto.Curve25519xSalsa20Poly1305,
+					Key:        []byte("encryptKey1"),
+				},
+				cert.RevocationKey: {
+					KeyVersion: 1,
+					Algorithm:  scrypto.Ed25519,
+					Key:        []byte("revKey1"),
+				},
+				cert.SigningKey: {
+					KeyVersion: 1,
+					Algorithm:  scrypto.Ed25519,
+					Key:        []byte("signKey1"),
+				},
 			},
 		},
 		Issuer:      xtest.MustParseIA("1-ff00:0:110"),
