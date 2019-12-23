@@ -29,8 +29,8 @@ import (
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/siginfo"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
+	"github.com/scionproto/scion/go/sig/internal/sigcmn"
 	"github.com/scionproto/scion/go/sig/mgmt"
-	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence

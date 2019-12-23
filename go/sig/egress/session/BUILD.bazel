@@ -24,7 +24,7 @@ go_library(
         "//go/sig/internal/disp:go_default_library",
         "//go/sig/internal/metrics:go_default_library",
         "//go/sig/internal/pathmgr:go_default_library",
+        "//go/sig/internal/sigcmn:go_default_library",
         "//go/sig/mgmt:go_default_library",
-        "//go/sig/sigcmn:go_default_library",
     ],
 )
