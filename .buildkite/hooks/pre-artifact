@@ -2,11 +2,13 @@
 
 set -eo pipefail
 
-# Currently this is only needed for the new pipeline, so if we aren't on the new
-# pipeline just exit.
-if [ ! "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
-    exit 0
-fi
+case ${BUILDKITE_PIPELINE_SLUG} in
+  scionproto2 | scion )
+    ;;
+  *)
+    exit 0 # If we aren't on the new pipeline, then just exit.
+    ;;
+esac
 
 # Now we build the artifact name next, for this we first need TARGET and BUILD,
 # see below.
@@ -24,21 +26,15 @@ BUILD="build-${BUILDKITE_BUILD_NUMBER}"
 [ -n "$NIGHTLY" ] && BUILD=nightly-"$(date +%s)"
 echo "\$BUILD=$BUILD"
 
-ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY}.${BUILDKITE_JOB_ID}"
-echo "\$ARTIFACTS=$ARTIFACTS"
-
-ARTIFACTS_DIR="artifacts"
-echo "\$ARTIFACTS_DIR=$ARTIFACTS_DIR"
+ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY:-unset}.${BUILDKITE_JOB_ID}"
+mkdir -p "artifacts/$ARTIFACTS" artifacts.out
 
 function save {
-	if [ -d "$1" ]; then
-		echo Found artifacts: "$1"
-		find "$1"
-		cp -R "$1" "$ARTIFACTS_DIR/$ARTIFACTS"
-	fi
+    if [ -d "$1" ]; then
+        echo Found artifacts: "$1"
+        cp -R "$1" "artifacts/$ARTIFACTS"
+    fi
 }
-
-mkdir -p "$ARTIFACTS_DIR/$ARTIFACTS" artifacts.out
 
 save "bazel-testlogs"
 save "logs"
@@ -47,4 +43,7 @@ save "gen"
 save "gen-cache"
 save "$TEST_ARTIFACTS"
 
-tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C "$ARTIFACTS_DIR" "$ARTIFACTS"
+tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"
+rm -rf artifacts
+
+echo "Output tar= artifacts.out/$ARTIFACTS.tar.gz"
