@@ -32,13 +32,13 @@ var (
 type SignedIssuer struct {
 	Encoded          EncodedIssuer          `json:"payload"`
 	EncodedProtected EncodedProtectedIssuer `json:"protected"`
-	Signature        common.RawBytes        `json:"signature"`
+	Signature        scrypto.JWSignature    `json:"signature"`
 }
 
 // SigInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
-func (s SignedIssuer) SigInput() common.RawBytes {
-	return scrypto.JWSignatureInput(s.EncodedProtected, s.Encoded)
+func (s SignedIssuer) SigInput() []byte {
+	return scrypto.JWSignatureInput(string(s.EncodedProtected), string(s.Encoded))
 }
 
 // ParseSignedIssuer parses the raw signed issuer certificate.
@@ -55,21 +55,23 @@ func EncodeSignedIssuer(signed SignedIssuer) ([]byte, error) {
 	return json.Marshal(signed)
 }
 
-// EncodedIssuer is the the base64url encoded marshaled issuer certificate.
-type EncodedIssuer []byte
+// EncodedIssuer is the the base64url encoded marshaled issuer certificate. It
+// is a string type to prevent json.Marshal from encoding it to base64 a second
+// time.
+type EncodedIssuer string
 
 // EncodeIssuer encodes and returns the packed issuer certificate.
 func EncodeIssuer(c *Issuer) (EncodedIssuer, error) {
 	b, err := json.Marshal(c)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return []byte(scrypto.Base64.EncodeToString(b)), nil
+	return EncodedIssuer(scrypto.Base64.EncodeToString(b)), nil
 }
 
 // Decode returns the decoded Decode.
-func (p *EncodedIssuer) Decode() (*Issuer, error) {
-	b, err := scrypto.Base64.DecodeString(string(*p))
+func (p EncodedIssuer) Decode() (*Issuer, error) {
+	b, err := scrypto.Base64.DecodeString(string(p))
 	if err != nil {
 		return nil, err
 	}
@@ -80,22 +82,23 @@ func (p *EncodedIssuer) Decode() (*Issuer, error) {
 	return &c, nil
 }
 
-// EncodedProtectedIssuer is the base64url encoded utf-8 metadata.
-type EncodedProtectedIssuer []byte
+// EncodedProtectedIssuer is the base64url encoded utf-8 metadata. It is a
+// string type to prevent json.Marshal from encoding it to base64 a second time.
+type EncodedProtectedIssuer string
 
 // EncodeProtectedIssuer encodes the protected header.
 func EncodeProtectedIssuer(p ProtectedIssuer) (EncodedProtectedIssuer, error) {
 	// json.Marshal forces the necessary utf-8 encoding.
 	b, err := json.Marshal(p)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return []byte(scrypto.Base64.EncodeToString(b)), nil
+	return EncodedProtectedIssuer(scrypto.Base64.EncodeToString(b)), nil
 }
 
 // Decode decodes and return the protected header.
-func (h *EncodedProtectedIssuer) Decode() (ProtectedIssuer, error) {
-	b, err := scrypto.Base64.DecodeString(string(*h))
+func (h EncodedProtectedIssuer) Decode() (ProtectedIssuer, error) {
+	b, err := scrypto.Base64.DecodeString(string(h))
 	if err != nil {
 		return ProtectedIssuer{}, err
 	}

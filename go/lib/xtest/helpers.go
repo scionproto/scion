@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 // TempFileName creates a temporary file in dir with the specified prefix, and
@@ -158,7 +157,7 @@ func MustParseAS(s string) addr.AS {
 
 // MustParseHexString parses s and returns the corresponding byte slice.
 // It panics if the decoding fails.
-func MustParseHexString(s string) common.RawBytes {
+func MustParseHexString(s string) []byte {
 	// remove whitespace
 	reg, err := regexp.Compile(`\s+`)
 	if err != nil {

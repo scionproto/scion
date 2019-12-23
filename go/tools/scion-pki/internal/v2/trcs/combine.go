@@ -15,7 +15,6 @@
 package trcs
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 
@@ -65,7 +64,7 @@ func (c combiner) Combine(protos map[addr.ISD]signedMeta,
 	for isd, proto := range protos {
 		signatures := make(map[trc.Protected]trc.Signature)
 		for fname, part := range parts[isd] {
-			if !bytes.Equal(proto.Signed.EncodedTRC, part.EncodedTRC) {
+			if proto.Signed.EncodedTRC != part.EncodedTRC {
 				pkicmn.QuietPrint("Ignoring signed in %s. Payload is different\n", fname)
 				continue
 			}

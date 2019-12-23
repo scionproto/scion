@@ -138,7 +138,7 @@ func TestTopoGen(t *testing.T) {
 			cfg, err := conf.LoadAS(conf.ASFile(tmpDir, ia, 1))
 			require.NoError(t, err)
 
-			assert.Contains(t, cfg.Description, "Issuer certificate")
+			assert.Contains(t, cfg.Description, "AS certificate")
 			assert.Equal(t, scrypto.Version(1), cfg.Version)
 			assert.Equal(t, scrypto.KeyVersion(1), *cfg.SigningKeyVersion)
 			assert.Equal(t, scrypto.KeyVersion(1), *cfg.EncryptionKeyVersion)
