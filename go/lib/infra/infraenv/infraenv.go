@@ -182,7 +182,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 
 	dispatcherService := reliable.NewDispatcher("")
 	if nc.ReconnectToDispatcher {
-		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
+		dispatcherService = reconnect.NewDispatcher(dispatcherService)
 	}
 	packetDispatcher := svc.NewResolverPacketDispatcher(
 		&snet.DefaultPacketDispatcherService{
@@ -206,7 +206,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 	dispatcherService := reliable.NewDispatcher("")
 	if nc.ReconnectToDispatcher {
-		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
+		dispatcherService = reconnect.NewDispatcher(dispatcherService)
 	}
 
 	network := snet.NewCustomNetworkWithPR(nc.IA,

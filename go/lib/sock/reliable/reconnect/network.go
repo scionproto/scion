@@ -38,9 +38,9 @@ type DispatcherService struct {
 	dispatcher reliable.Dispatcher
 }
 
-// NewDispatcherService adds transparent reconnection capabilities
+// NewDispatcher adds transparent reconnection capabilities
 // to dispatcher connections.
-func NewDispatcherService(dispatcher reliable.Dispatcher) *DispatcherService {
+func NewDispatcher(dispatcher reliable.Dispatcher) *DispatcherService {
 	return &DispatcherService{dispatcher: dispatcher}
 }
 

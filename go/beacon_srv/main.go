@@ -200,7 +200,7 @@ func realMain() int {
 	}()
 	dispatcherService := reliable.NewDispatcher("")
 	if cfg.General.ReconnectToDispatcher {
-		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
+		dispatcherService = reconnect.NewDispatcher(dispatcherService)
 	}
 	pktDisp := &snet.DefaultPacketDispatcherService{
 		Dispatcher: dispatcherService,
