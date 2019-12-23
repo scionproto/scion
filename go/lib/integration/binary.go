@@ -100,9 +100,9 @@ func (bi *binaryIntegration) Name() string {
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Waiter, error) {
+func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.IA.String(), bi.serverArgs)
-	args = replacePattern(DstHostReplace, dst.Host.L3.String(), args)
+	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
@@ -151,11 +151,12 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	}
 }
 
-func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
+func (bi *binaryIntegration) StartClient(ctx context.Context,
+	src, dst *snet.UDPAddr) (Waiter, error) {
 	args := replacePattern(SrcIAReplace, src.IA.String(), bi.clientArgs)
-	args = replacePattern(SrcHostReplace, src.Host.L3.String(), args)
+	args = replacePattern(SrcHostReplace, src.Host.IP.String(), args)
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
-	args = replacePattern(DstHostReplace, dst.Host.L3.String(), args)
+	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
@@ -212,7 +213,7 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadClos
 	}
 }
 
-func clientId(src, dst snet.Addr) string {
+func clientId(src, dst *snet.UDPAddr) string {
 	return fmt.Sprintf("%s_%s", src.IA.FileFmt(false), dst.IA.FileFmt(false))
 }
 

@@ -81,11 +81,11 @@ type Integration interface {
 	// StartServer should start the server listening on the address dst.
 	// StartServer should return after it is ready to accept clients.
 	// The context should be used to make the server cancellable.
-	StartServer(ctx context.Context, dst snet.Addr) (Waiter, error)
+	StartServer(ctx context.Context, dst *snet.UDPAddr) (Waiter, error)
 	// StartClient should start the client on the src address connecting to the dst address.
 	// StartClient should return immediately.
 	// The context should be used to make the client cancellable.
-	StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error)
+	StartClient(ctx context.Context, src, dst *snet.UDPAddr) (Waiter, error)
 }
 
 // Waiter is a descriptor of a process running in the integration test.
@@ -132,8 +132,7 @@ func validateFlags(name string) error {
 
 // IAPair is a source, destination pair. The client (Src) will dial the server (Dst).
 type IAPair struct {
-	Src snet.Addr
-	Dst snet.Addr
+	Src, Dst *snet.UDPAddr
 }
 
 // IAPairs returns all IAPairs that should be tested.
@@ -146,12 +145,12 @@ func UniqueIAPairs(hostAddr HostAddr) []IAPair {
 	return generateAllSrcDst(hostAddr, true)
 }
 
-func generateSrcDst(hostAddr HostAddr) ([]snet.Addr, []snet.Addr) {
-	srcASes := make([]snet.Addr, 0, len(srcIAs))
+func generateSrcDst(hostAddr HostAddr) ([]*snet.UDPAddr, []*snet.UDPAddr) {
+	srcASes := make([]*snet.UDPAddr, 0, len(srcIAs))
 	for _, src := range srcIAs {
 		srcASes = append(srcASes, hostAddr(src))
 	}
-	dstASes := make([]snet.Addr, 0, len(dstIAs))
+	dstASes := make([]*snet.UDPAddr, 0, len(dstIAs))
 	for _, dst := range dstIAs {
 		dstASes = append(dstASes, hostAddr(dst))
 	}
@@ -179,14 +178,14 @@ func generateAllSrcDst(hostAddr HostAddr, unique bool) []IAPair {
 	return pairs
 }
 
-type HostAddr func(ia addr.IA) snet.Addr
+type HostAddr func(ia addr.IA) *snet.UDPAddr
 
 // DispAddr reads the BS host Addr from the topology for the specified IA. In general this
 // could be the IP of any service (PS/BS/CS) in that IA because they share the same dispatcher in
 // the dockerized topology.
 // The host IP is used as client or server address in the tests because the testing container is
 // connecting to the dispatcher of the services.
-var DispAddr HostAddr = func(ia addr.IA) snet.Addr {
+var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	path := fmt.Sprintf("gen/ISD%d/AS%s/endhost/topology.json", ia.I, ia.A.FileFmt())
 	topo, err := topology.RWTopologyFromJSONFile(path)
 	if err != nil {
@@ -194,7 +193,7 @@ var DispAddr HostAddr = func(ia addr.IA) snet.Addr {
 		os.Exit(1)
 	}
 	bs := topo.BS["bs"+ia.FileFmt(false)+"-1"]
-	return snet.Addr{Host: addr.AppAddrFromUDP(bs.SCIONAddress), IA: ia}
+	return snet.NewUDPAddr(ia, nil, nil, bs.SCIONAddress)
 }
 
 // interface kept similar to go 1.10
@@ -224,7 +223,7 @@ func WithTimestamp(s string) string {
 
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
 // To start a server with a custom context use in.StartServer directly.
-func StartServer(in Integration, dst snet.Addr) (io.Closer, error) {
+func StartServer(in Integration, dst *snet.UDPAddr) (io.Closer, error) {
 	serverCtx, serverCancel := context.WithCancel(context.Background())
 	s, err := in.StartServer(serverCtx, dst)
 	if err != nil {
@@ -265,9 +264,9 @@ func ExecuteTimed(name string, f func() error) error {
 }
 
 // ExtractUniqueDsts returns all unique destinations in pairs.
-func ExtractUniqueDsts(pairs []IAPair) []snet.Addr {
-	uniqueDsts := make(map[snet.Addr]bool)
-	var res []snet.Addr
+func ExtractUniqueDsts(pairs []IAPair) []*snet.UDPAddr {
+	uniqueDsts := make(map[*snet.UDPAddr]bool)
+	var res []*snet.UDPAddr
 	for _, pair := range pairs {
 		if !uniqueDsts[pair.Dst] {
 			res = append(res, pair.Dst)
