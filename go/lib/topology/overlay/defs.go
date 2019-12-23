@@ -17,7 +17,6 @@ package overlay
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -27,18 +26,12 @@ type Type int
 
 const (
 	Invalid Type = iota
-	IPv4
-	IPv6
-	IPv46
 	UDPIPv4
 	UDPIPv6
 	UDPIPv46
 )
 
 const (
-	IPv4Name     = "IPv4"
-	IPv6Name     = "IPv6"
-	IPv46Name    = "IPv4+6"
 	UDPIPv4Name  = "UDP/IPv4"
 	UDPIPv6Name  = "UDP/IPv6"
 	UDPIPv46Name = "UDP/IPv4+6"
@@ -52,12 +45,6 @@ const (
 
 func (o Type) String() string {
 	switch o {
-	case IPv4:
-		return IPv4Name
-	case IPv6:
-		return IPv6Name
-	case IPv46:
-		return IPv46Name
 	case UDPIPv4:
 		return UDPIPv4Name
 	case UDPIPv6:
@@ -71,12 +58,6 @@ func (o Type) String() string {
 
 func TypeFromString(s string) (Type, error) {
 	switch strings.ToLower(s) {
-	case strings.ToLower(IPv4Name):
-		return IPv4, nil
-	case strings.ToLower(IPv6Name):
-		return IPv6, nil
-	case strings.ToLower(IPv46Name):
-		return IPv46, nil
 	case strings.ToLower(UDPIPv4Name):
 		return UDPIPv4, nil
 	case strings.ToLower(UDPIPv6Name):
@@ -92,67 +73,10 @@ func (ot Type) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ot.String())
 }
 
-func (ot Type) IsIPv4() bool {
-	switch ot {
-	case IPv4, IPv46, UDPIPv4, UDPIPv46:
-		return true
-	}
-	return false
-}
-
-func (ot Type) IsIPv6() bool {
-	switch ot {
-	case IPv6, IPv46, UDPIPv6, UDPIPv46:
-		return true
-	}
-	return false
-}
-
 func (ot Type) IsUDP() bool {
 	switch ot {
 	case UDPIPv4, UDPIPv6, UDPIPv46:
 		return true
 	}
 	return false
-}
-
-func (ot Type) ToIP() Type {
-	switch ot {
-	case UDPIPv4:
-		return IPv4
-	case UDPIPv6:
-		return IPv6
-	case UDPIPv46:
-		return IPv46
-	}
-	return ot
-}
-
-func (ot Type) To6() Type {
-	if ot.IsUDP() {
-		return UDPIPv6
-	}
-	return IPv6
-}
-
-func (ot Type) To4() Type {
-	if ot.IsUDP() {
-		return UDPIPv4
-	}
-	return IPv4
-}
-
-func OverlayFromIP(ip net.IP, ot Type) Type {
-	if ip.To4() != nil {
-		// Address is IPv4
-		if ot.IsUDP() {
-			return UDPIPv4
-		}
-		return IPv4
-	}
-	// Address is IPv6
-	if ot.IsUDP() {
-		return UDPIPv6
-	}
-	return IPv6
 }
