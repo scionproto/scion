@@ -39,7 +39,7 @@ import (
 
 var (
 	remoteIA addr.IA
-	svc      snet.Addr
+	svc      net.Addr
 )
 
 func main() {
@@ -131,7 +131,7 @@ func (c client) requestCert(parentCtx context.Context) (*cert.Chain, error) {
 	logger.Info("Request to SVC: Chain request", "req", req, "svc", svc)
 	ctx, cancelF := context.WithTimeout(parentCtx, integration.DefaultIOTimeout)
 	defer cancelF()
-	rawChain, err := c.msgr.GetCertChain(ctx, req, &svc, messenger.NextId())
+	rawChain, err := c.msgr.GetCertChain(ctx, req, svc, messenger.NextId())
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get chain", err)
 	}
@@ -160,7 +160,7 @@ func (c client) requestTRC(parentCtx context.Context, chain *cert.Chain) error {
 	logger.Info("Request to SVC: TRC request", "req", req, "svc", svc)
 	ctx, cancelF := context.WithTimeout(parentCtx, integration.DefaultIOTimeout)
 	defer cancelF()
-	rawTrc, err := c.msgr.GetTRC(ctx, req, &svc, messenger.NextId())
+	rawTrc, err := c.msgr.GetTRC(ctx, req, svc, messenger.NextId())
 	if err != nil {
 		return common.NewBasicError("Unable to get trc", err)
 	}
@@ -224,7 +224,7 @@ func getRemote() error {
 	if svcHost, err = getSVCAddress(); err != nil {
 		return err
 	}
-	svc = snet.Addr{IA: integration.Local.IA, Host: addr.AppAddrFromUDP(svcHost)}
+	svc = snet.NewUDPAddr(integration.Local.IA, nil, nil, svcHost)
 	return nil
 }
 
