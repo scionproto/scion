@@ -40,7 +40,7 @@ func TestLoadRawFromFile(t *testing.T) {
 		IA:             "6-ff00:0:362",
 		MTU:            1472,
 		Core:           true,
-		Overlay:        overlay.IPv46Name,
+		Overlay:        overlay.UDPIPv46Name,
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {
 				InternalAddrs: jsontopo.UnderlayAddressMap{
