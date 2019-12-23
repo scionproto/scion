@@ -15,6 +15,7 @@ Thumbs.db
 /gen/
 /gen-cache/
 /gen-certs/
+/gen-test/
 /traces/
 
 # Python generated files #
@@ -73,3 +74,6 @@ tags
 # bazel artifacts
 /bazel-*
 /.bazel-cache
+
+# buildkite
+artifacts.out
