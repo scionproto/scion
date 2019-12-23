@@ -73,3 +73,6 @@ tags
 # bazel artifacts
 /bazel-*
 /.bazel-cache
+
+# local buildkite run
+/artifacts.out
