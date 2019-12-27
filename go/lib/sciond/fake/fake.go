@@ -21,11 +21,21 @@ import (
 )
 
 // New creates a new fake SCIOND implementation using the data in the script.
+//
+// New also initializes path expiry times according to the expiry seconds in the script.
 func New(script *Script) sciond.Connector {
-	return &connector{
+	c := &connector{
 		script:       script,
 		creationTime: time.Now(),
 	}
+	for _, entry := range script.Entries {
+		for _, path := range entry.Paths {
+			path.creationTime = c.creationTime
+			lifetime := time.Duration(path.JSONExpirySeconds) * time.Second
+			path.expirationTime = path.creationTime.Add(lifetime)
+		}
+	}
+	return c
 }
 
 // NewFromFile creates a new fake SCIOND implementation using the JSON representation in the file.
@@ -61,6 +71,15 @@ type Path struct {
 	JSONFingerprint string   `json:"fingerprint"`
 	JSONNextHop     *UDPAddr `json:"next_hop,omitempty"`
 	JSONIA          addr.IA  `json:"ia"`
+	// JSONExpirySeconds  contains the lifetime of the path, in seconds. The lifetime is relative to
+	// the time of fake connector creation. Negative lifetimes are also supported, and would mean
+	// SCIOND served a path that expired in the past.
+	JSONExpirySeconds int `json:"expiry_seconds"`
+
+	// creationTime contains the time when this object was constructed.
+	creationTime time.Time
+	// expirationTime contains the time when this path expires.
+	expirationTime time.Time
 }
 
 func (p Path) Fingerprint() snet.PathFingerprint {
@@ -96,7 +115,7 @@ func (p Path) MTU() uint16 {
 }
 
 func (p Path) Expiry() time.Time {
-	return time.Now().Add(time.Hour * 24 * 7 * 365 * 2) // 2 years
+	return p.expirationTime
 }
 
 func (p Path) Copy() snet.Path {
@@ -107,7 +126,10 @@ func (p Path) Copy() snet.Path {
 			Port: p.JSONNextHop.Port,
 			Zone: p.JSONNextHop.Zone,
 		},
-		JSONIA: p.JSONIA,
+		JSONIA:            p.JSONIA,
+		JSONExpirySeconds: p.JSONExpirySeconds,
+		creationTime:      p.creationTime,
+		expirationTime:    p.expirationTime,
 	}
 }
 
@@ -162,13 +184,13 @@ func (c connector) Paths(_ context.Context, _, _ addr.IA, max uint16,
 	if intMax > len(entry.Paths) {
 		intMax = len(entry.Paths)
 	}
-	return adapter(entry.Paths[:intMax]), nil
+	return c.adapter(entry.Paths[:intMax]), nil
 }
 
-func adapter(paths []*Path) []snet.Path {
+func (c connector) adapter(paths []*Path) []snet.Path {
 	var snetPaths []snet.Path
 	for _, path := range paths {
-		snetPaths = append(snetPaths, path)
+		snetPaths = append(snetPaths, path.Copy())
 	}
 	return snetPaths
 }
