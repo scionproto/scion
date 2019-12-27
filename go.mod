@@ -48,7 +48,6 @@ require (
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	golang.org/x/net v0.0.0-20191105084925-a882066a44e0
 	golang.org/x/tools v0.0.0-20191029041327-9cc4af7d6b2c
-	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20161007184028-e21e5cbec0cd
 	gopkg.in/restruct.v1 v1.0.0-20151213023948-80ede2e57cc2

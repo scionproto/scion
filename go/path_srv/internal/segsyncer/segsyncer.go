@@ -16,12 +16,11 @@ package segsyncer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
 	"time"
-
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -232,13 +231,13 @@ func errToMetricsLabel(err error) string {
 	switch {
 	case serrors.IsTimeout(err):
 		return metrics.ErrTimeout
-	case xerrors.Is(err, errPathDB):
+	case errors.Is(err, errPathDB):
 		return metrics.ErrDB
-	case xerrors.Is(err, errRevcache):
+	case errors.Is(err, errRevcache):
 		return metrics.ErrDB
-	case xerrors.Is(err, errNoPaths):
+	case errors.Is(err, errNoPaths):
 		return metrics.ErrNoPath
-	case xerrors.Is(err, errNet):
+	case errors.Is(err, errNet):
 		return metrics.ErrNetwork
 	default:
 		return metrics.ErrNotClassified

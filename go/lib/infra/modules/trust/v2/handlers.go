@@ -19,8 +19,6 @@ import (
 	"errors"
 	"net"
 
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -248,7 +246,7 @@ func (h *trcPushHandler) Handle() *infra.HandlerResult {
 			"err", err, "trc", dec, "peer", h.request.Peer)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid
-	case errors.Is(err, ErrValidation), xerrors.Is(err, ErrVerification):
+	case errors.Is(err, ErrValidation), errors.Is(err, ErrVerification):
 		logger.Error("[TrustStore:trcPushHandler] Unable to verify TRC",
 			"err", err, "trc", dec, "peer", h.request.Peer)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)

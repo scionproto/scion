@@ -17,6 +17,7 @@ package trust_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"testing"
 	"time"
@@ -24,7 +25,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2"
@@ -271,7 +271,7 @@ func TestCryptoProviderGetTRC(t *testing.T) {
 			ptrc, err := provider.GetTRC(context.Background(), id, test.Opts)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
-				assert.Truef(t, xerrors.Is(err, test.ExpectedErr),
+				assert.Truef(t, errors.Is(err, test.ExpectedErr),
 					"actual: %s expected: %s", err, test.ExpectedErr)
 			} else {
 				require.NoError(t, err)
@@ -451,7 +451,7 @@ func TestCryptoProviderGetTRCLatest(t *testing.T) {
 			assert.Equal(t, expected.TRC, trcObj)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
-				assert.Truef(t, xerrors.Is(err, test.ExpectedErr),
+				assert.Truef(t, errors.Is(err, test.ExpectedErr),
 					"actual: %s expected: %s", err, test.ExpectedErr)
 			} else {
 				require.NoError(t, err)

@@ -23,8 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/xerrors"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -170,7 +168,7 @@ func (p Prober) receive(scionConn snet.Conn) error {
 		// We've got an actual reply instead of SCMP error. This should not happen.
 		return nil
 	}
-	if xerrors.Is(err, errBadHost) || xerrors.Is(err, errSCMP) {
+	if errors.Is(err, errBadHost) || errors.Is(err, errSCMP) {
 		return nil
 	}
 	if common.IsTimeoutErr(err) {

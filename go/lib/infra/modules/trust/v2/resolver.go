@@ -16,11 +16,11 @@ package trust
 
 import (
 	"context"
+	"errors"
 	"net"
 
 	"github.com/opentracing/opentracing-go"
 	opentracingext "github.com/opentracing/opentracing-go/ext"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/v2/internal/decoded"
 	"github.com/scionproto/scion/go/lib/log"
@@ -78,7 +78,7 @@ func (r DefaultResolver) TRC(parentCtx context.Context, req TRCReq,
 			"isd", req.ISD, "version", req.Version)
 	}
 	prev, err := r.DB.GetTRC(ctx, TRCID{ISD: req.ISD, Version: scrypto.LatestVer})
-	if err != nil && !xerrors.Is(err, ErrNotFound) {
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		return decoded.TRC{}, serrors.WrapStr("error fetching latest locally available TRC", err)
 	}
 	if prev != nil && prev.Version >= req.Version {
@@ -267,7 +267,7 @@ func (w resolveWrap) TRC(ctx context.Context, id TRCID) (*trc.TRC, error) {
 	switch {
 	case err == nil:
 		return t, nil
-	case !xerrors.Is(err, ErrNotFound):
+	case !errors.Is(err, ErrNotFound):
 		return nil, serrors.WrapStr("error querying DB for TRC", err)
 	}
 	req := TRCReq{

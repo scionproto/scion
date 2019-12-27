@@ -35,12 +35,12 @@
 package xtest
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -123,6 +123,6 @@ func SoMsgErrorStr(msg string, err error, str string) {
 // AssertErrorsIs checks that errors.Is(actualErr, expectedErr) returns true, if
 // expectedErr is not nil.
 func AssertErrorsIs(t *testing.T, actualErr, expectedErr error) {
-	assert.True(t, xerrors.Is(actualErr, expectedErr), "Expect '%v' to be or contain '%v'",
+	assert.True(t, errors.Is(actualErr, expectedErr), "Expect '%v' to be or contain '%v'",
 		actualErr, expectedErr)
 }

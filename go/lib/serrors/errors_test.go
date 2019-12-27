@@ -15,13 +15,13 @@
 package serrors_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -97,7 +97,7 @@ func TestWithCtx(t *testing.T) {
 		err := &testErrType{msg: "test err"}
 		errWithCtx := serrors.WithCtx(err, "someCtx", "someVal")
 		var errAs *testErrType
-		require.True(t, xerrors.As(errWithCtx, &errAs))
+		require.True(t, errors.As(errWithCtx, &errAs))
 		assert.Equal(t, err, errAs)
 	})
 	t.Run("Fmt", func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestWrap(t *testing.T) {
 		msg := serrors.New("msg err")
 		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
 		var errAs *testErrType
-		require.True(t, xerrors.As(wrappedErr, &errAs))
+		require.True(t, errors.As(wrappedErr, &errAs))
 		assert.Equal(t, err, errAs)
 
 	})
@@ -153,7 +153,7 @@ func TestWrapStr(t *testing.T) {
 		msg := "msg"
 		wrappedErr := serrors.WrapStr(msg, err, "someCtx", "someValue")
 		var errAs *testErrType
-		require.True(t, xerrors.As(wrappedErr, &errAs))
+		require.True(t, errors.As(wrappedErr, &errAs))
 		assert.Equal(t, err, errAs)
 
 	})
@@ -177,14 +177,14 @@ func TestNew(t *testing.T) {
 		err2 := serrors.New("err msg")
 		xtest.AssertErrorsIs(t, err1, err1)
 		xtest.AssertErrorsIs(t, err2, err2)
-		assert.False(t, xerrors.Is(err1, err2))
-		assert.False(t, xerrors.Is(err2, err1))
+		assert.False(t, errors.Is(err1, err2))
+		assert.False(t, errors.Is(err2, err1))
 		err1 = serrors.New("err msg", "someCtx", "value")
 		err2 = serrors.New("err msg", "someCtx", "value")
 		xtest.AssertErrorsIs(t, err1, err1)
 		xtest.AssertErrorsIs(t, err2, err2)
-		assert.False(t, xerrors.Is(err1, err2))
-		assert.False(t, xerrors.Is(err2, err1))
+		assert.False(t, errors.Is(err1, err2))
+		assert.False(t, errors.Is(err2, err1))
 	})
 	t.Run("Fmt", func(t *testing.T) {
 		err := serrors.New("err msg\n", "k0", "v0", "k1", 1)
@@ -210,12 +210,12 @@ func ExampleNew() {
 	err2 := serrors.New("errtxt")
 
 	// Self equality always works:
-	fmt.Println(xerrors.Is(err1, err1))
-	fmt.Println(xerrors.Is(err2, err2))
+	fmt.Println(errors.Is(err1, err1))
+	fmt.Println(errors.Is(err2, err2))
 	// On the other hand different errors with same text should not be "equal".
 	// That is to prevent that errors with same message in different packages
 	// with same text are seen as the same thing:
-	fmt.Println(xerrors.Is(err1, err2))
+	fmt.Println(errors.Is(err1, err2))
 	// Output:
 	// true
 	// true
@@ -237,7 +237,7 @@ func ExampleWrapStr() {
 	var ErrNoSpace = serrors.New("no space")
 	wrappedErr := serrors.WrapStr("wrap with more context", ErrNoSpace, "ctx", 1)
 
-	fmt.Println(xerrors.Is(wrappedErr, ErrNoSpace))
+	fmt.Println(errors.Is(wrappedErr, ErrNoSpace))
 	fmt.Printf("\n%v", wrappedErr)
 	// Output:
 	// true
@@ -254,9 +254,9 @@ func ExampleWrap() {
 	wrapped := serrors.Wrap(ErrDB, ErrNoSpace, "ctx", 1)
 
 	// Now we can identify specific errors:
-	fmt.Println(xerrors.Is(wrapped, ErrNoSpace))
+	fmt.Println(errors.Is(wrapped, ErrNoSpace))
 	// But we can also identify the broader error class ErrDB:
-	fmt.Println(xerrors.Is(wrapped, ErrDB))
+	fmt.Println(errors.Is(wrapped, ErrDB))
 
 	fmt.Printf("\n%v", wrapped)
 	// Output:
