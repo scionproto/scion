@@ -33,19 +33,6 @@ type ErrorMsger interface {
 	GetMsg() string
 }
 
-// GetErrorMsg extracts the message from e, if e implements the ErrorMsger
-// interface. As a fall-back, if e implements ErrorNester, GetErrorMsg recurses on
-// the nested error. Otherwise returns an empty string.
-func GetErrorMsg(e error) string {
-	if e, _ := e.(ErrorMsger); e != nil {
-		return e.GetMsg()
-	}
-	if n := GetNestedError(e); n != nil {
-		return GetErrorMsg(n)
-	}
-	return ""
-}
-
 // ErrorNester allows recursing into nested errors.
 type ErrorNester interface {
 	error
