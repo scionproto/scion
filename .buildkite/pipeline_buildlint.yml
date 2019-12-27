@@ -53,3 +53,15 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
+  - label: "Env test :bazel:"
+    command:
+      - echo "$PWD"
+      - echo "$$PWD"
+      - echo "$$FOO"
+    env:
+      FOO: "$${!BUILDKITE_BUILD_CHECKOUT_PATH}/accept_artifacts"
+    key: testenv
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
