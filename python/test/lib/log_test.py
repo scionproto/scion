@@ -50,7 +50,7 @@ class TestHandleError(object):
         # Call
         try:
             raise SCIONTestError
-        except:
+        except SCIONTestError:
             ntools.assert_raises(SCIONTestError, _handleError, handler, "hi")
         # Tests
         ntools.eq_(handler.stream.write.call_count, 3)

@@ -114,5 +114,6 @@ def is_scion_package(target_package: str) -> bool:
 def strip_scion_package_prefix(target_package: str) -> str:
     return target_package[len(SCION_PACKAGE_PREFIX)+1:]
 
+
 if __name__ == "__main__":
     main()
