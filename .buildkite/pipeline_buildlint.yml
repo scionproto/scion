@@ -64,5 +64,3 @@ steps:
         - exit_status: 255 # Forced agent shutdown
     artifact_paths:
       - "artifacts.out/**/*"
-    env:
-      ACCEPTANCE_ARTIFACTS: $$PWD/logs
