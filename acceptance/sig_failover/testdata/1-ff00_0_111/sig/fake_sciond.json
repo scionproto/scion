@@ -6,12 +6,14 @@
                 {
                     "fingerprint": "PathAAAA",
                     "next_hop": "242.254.200.3:50000",
-                    "ia": "1-ff00:0:110"
+                    "ia": "1-ff00:0:110",
+                    "expiry_seconds": 7200
                 },
                 {
                     "fingerprint": "PathBBBB",
                     "next_hop": "242.254.200.4:50000",
-                    "ia": "1-ff00:0:110"
+                    "ia": "1-ff00:0:110",
+                    "expiry_seconds": 7200
                 }
             ]
         }
