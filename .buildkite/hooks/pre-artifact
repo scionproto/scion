@@ -38,9 +38,7 @@ function save {
 	fi
 }
 
-set -x
 mkdir -p "$ARTIFACTS_DIR/$ARTIFACTS" artifacts.out
-set +x
 
 save "bazel-testlogs"
 save "logs"
@@ -49,6 +47,4 @@ save "gen"
 save "gen-cache"
 save "accept_artifacts"
 
-set -x
 tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C "$ARTIFACTS_DIR" "$ARTIFACTS"
-set +x
