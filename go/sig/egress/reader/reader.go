@@ -78,7 +78,6 @@ BatchLoop:
 			}
 			buf = buf[:length]
 			dstIP, err := r.getDestIP(buf)
-			log.Debug("XXX", "read", buf[:length], "to", dstIP)
 			if err != nil {
 				// Release buffer back to free buffer pool
 				iface.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)

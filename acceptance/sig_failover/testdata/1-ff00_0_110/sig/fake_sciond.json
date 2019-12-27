@@ -1,17 +1,17 @@
 {
-    "Entries": [
+    "entries": [
         {
-            "Seconds": 0,
-            "Paths": [
+            "seconds": 0,
+            "paths": [
                 {
-                    "Fingerprint": "PathAAAA",
-                    "NextHop": "242.254.100.3:50000",
-                    "IA": "1-ff00:0:111"
+                    "fingerprint": "PathAAAA",
+                    "next_hop": "242.254.100.3:50000",
+                    "ia": "1-ff00:0:111"
                 },
                 {
-                    "Fingerprint": "PathBBBB",
-                    "NextHop": "242.254.100.4:50000",
-                    "IA": "1-ff00:0:111"
+                    "fingerprint": "PathBBBB",
+                    "next_hop": "242.254.100.4:50000",
+                    "ia": "1-ff00:0:111"
                 }
             ]
         }

@@ -44,6 +44,7 @@ func TestJSONConversion(t *testing.T) {
 
 	bytes, err := json.MarshalIndent(script, "  ", "  ")
 	require.NoError(t, err)
+	bytes = append(bytes, '\n')
 	if *update {
 		err = ioutil.WriteFile("testdata/sd.json", bytes, 0644)
 		require.NoError(t, err)
@@ -183,7 +184,7 @@ func TestRevNotification(t *testing.T) {
 
 func TestClose(t *testing.T) {
 	c := fake.New(&fake.Script{})
-	assert.PanicsWithValue(t, "not implemented", func() { c.Close(nil) })
+	assert.NoError(t, c.Close(nil))
 }
 
 func TestUDPAddrMarshalText(t *testing.T) {

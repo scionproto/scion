@@ -43,7 +43,7 @@ func NewFromFile(file string) (sciond.Connector, error) {
 
 // Script describes the path entries a fake SCIOND should respond with.
 type Script struct {
-	Entries []*Entry
+	Entries []*Entry `json:"entries"`
 }
 
 // Entry describes a path reply.
@@ -52,15 +52,15 @@ type Entry struct {
 	// before serving paths from the entry. The last entry whose timestamp has passed is selected.
 	// (so, if the seconds timestamps are 0, 4, 6, the paths selected at 5 seconds from creation
 	// would be the ones associated with timestamp 4)
-	Seconds int
+	Seconds int `json:"seconds"`
 	// Paths contains the paths for a fake SCIOND reply.
-	Paths []*Path
+	Paths []*Path `json:"paths"`
 }
 
 type Path struct {
-	JSONFingerprint string   `json:"Fingerprint"`
-	JSONNextHop     *UDPAddr `json:"NextHop,omitempty"`
-	JSONIA          addr.IA  `json:"IA"`
+	JSONFingerprint string   `json:"fingerprint"`
+	JSONNextHop     *UDPAddr `json:"next_hop,omitempty"`
+	JSONIA          addr.IA  `json:"ia"`
 }
 
 func (p Path) Fingerprint() snet.PathFingerprint {
@@ -145,8 +145,7 @@ type connector struct {
 func (c connector) Paths(_ context.Context, _, _ addr.IA, max uint16,
 	_ sciond.PathReqFlags) ([]snet.Path, error) {
 
-	currentTime := time.Now()
-	secondsElapsed := int(currentTime.Sub(c.creationTime).Seconds())
+	secondsElapsed := int(time.Since(c.creationTime).Seconds())
 	intMax := int(max)
 
 	var entry *Entry
@@ -201,5 +200,5 @@ func (c connector) RevNotification(ctx context.Context,
 }
 
 func (c connector) Close(ctx context.Context) error {
-	panic("not implemented")
+	return nil
 }

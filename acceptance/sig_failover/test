@@ -56,7 +56,8 @@ source "$(grep -sm1 "^$f " "$0.exe.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/
 # --- end runfiles.bash initialization v2 ---
 
 run_test() {(set -e
-
+    # Register with the docker daemon the docker images bazel created
+    # (--norun is used for docker images created via go_image because the script runs them by default)
     bash "$(rlocation __main__/go/tools/udpproxy/udpproxy)" --norun
     bash "$(rlocation __main__/acceptance/sig_failover/dispatcher1)"
     bash "$(rlocation __main__/acceptance/sig_failover/dispatcher2)"
@@ -105,6 +106,8 @@ ls -la $ACCEPTANCE_ARTIFACTS/..
 
 echo "whoami"
 whoami
+
+sleep 120
 
 echo "===="
 

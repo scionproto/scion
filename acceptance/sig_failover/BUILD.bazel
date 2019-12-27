@@ -4,18 +4,17 @@ sh_test(
     name = "sig_failover_test",
     size = "small",
     srcs = ["test"],
-    args = ["setup"],
     deps = [
         "@bazel_tools//tools/bash/runfiles",
     ],
     data = [
         "//go/tools/udpproxy:udpproxy",
-        "//acceptance/sig_failover:dispatcher1",
-        "//acceptance/sig_failover:dispatcher2",
-        "//acceptance/sig_failover:sig1",
-        "//acceptance/sig_failover:sig2",
+        ":dispatcher1",
+        ":dispatcher2",
+        ":sig1",
+        ":sig2",
         "docker-compose.yml",
-    ] + glob(["testdata/**/*"]),
+    ],
 )
 
 container_image(

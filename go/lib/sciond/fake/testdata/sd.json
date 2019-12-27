@@ -1,12 +1,12 @@
 {
-    "Entries": [
+    "entries": [
       {
-        "Seconds": 0,
-        "Paths": [
+        "seconds": 0,
+        "paths": [
           {
-            "Fingerprint": "Foo",
-            "NextHop": "192.168.0.1:80",
-            "IA": "1-ff00:0:1"
+            "fingerprint": "Foo",
+            "next_hop": "192.168.0.1:80",
+            "ia": "1-ff00:0:1"
           }
         ]
       }
