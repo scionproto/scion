@@ -39,25 +39,18 @@ func TestEncodeRequest(t *testing.T) {
 		},
 		"Valid no POP": {
 			Modify: func(base *reissuance.Request) {
-				base.POPs = []reissuance.POP{}
+				base.POPs = nil
 			},
 			Assertion: assert.NoError,
-		},
-		"Invalid version": {
-			Modify: func(base *reissuance.Request) {
-				base.Version = scrypto.LatestVer
-			},
-			Assertion: assert.Error,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			base := reissuance.Request{
-				BaseRequest: newBaseRequest(time.Now()),
+				Encoded: "request",
 				POPs: []reissuance.POP{{
-					Encoded:          "encoded",
-					EncodedProtected: "protected",
-					Signature:        []byte("sig"),
+					Protected: "protected",
+					Signature: []byte("sig"),
 				}},
 			}
 			test.Modify(&base)
@@ -75,11 +68,10 @@ func TestEncodeRequest(t *testing.T) {
 
 func TestEncodedRequestDecode(t *testing.T) {
 	base := reissuance.Request{
-		BaseRequest: newBaseRequest(time.Now()),
+		Encoded: "request",
 		POPs: []reissuance.POP{{
-			Encoded:          "encoded",
-			EncodedProtected: "protected",
-			Signature:        []byte("sig"),
+			Protected: "protected",
+			Signature: []byte("sig"),
 		}},
 	}
 	valid, err := reissuance.EncodeRequest(&base)
@@ -98,7 +90,7 @@ func TestEncodedRequestDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage request": {
-			Input:     valid[:len(valid)/2],
+			Input:     reissuance.EncodedRequest(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -110,17 +102,17 @@ func TestEncodedRequestDecode(t *testing.T) {
 	}
 }
 
-func TestEncodeBaseRequest(t *testing.T) {
+func TestEncodeRequestInfo(t *testing.T) {
 	tests := map[string]struct {
-		Modify    func(base *reissuance.BaseRequest)
+		Modify    func(base *reissuance.RequestInfo)
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Modify:    func(*reissuance.BaseRequest) {},
+			Modify:    func(*reissuance.RequestInfo) {},
 			Assertion: assert.NoError,
 		},
 		"Invalid version": {
-			Modify: func(base *reissuance.BaseRequest) {
+			Modify: func(base *reissuance.RequestInfo) {
 				base.Version = scrypto.LatestVer
 			},
 			Assertion: assert.Error,
@@ -128,9 +120,9 @@ func TestEncodeBaseRequest(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			base := newBaseRequest(time.Now())
+			base := newRequestInfo(time.Now())
 			test.Modify(&base)
-			packed, err := reissuance.EncodeBaseRequest(&base)
+			packed, err := reissuance.EncodeRequestInfo(&base)
 			test.Assertion(t, err)
 			if err != nil {
 				return
@@ -142,13 +134,13 @@ func TestEncodeBaseRequest(t *testing.T) {
 	}
 }
 
-func TestEncodedBaseRequestDecode(t *testing.T) {
-	base := newBaseRequest(time.Now())
-	valid, err := reissuance.EncodeBaseRequest(&base)
+func TestEncodedRequestInfoDecode(t *testing.T) {
+	base := newRequestInfo(time.Now())
+	valid, err := reissuance.EncodeRequestInfo(&base)
 	require.NoError(t, err)
 
 	tests := map[string]struct {
-		Input     reissuance.EncodedBaseRequest
+		Input     reissuance.EncodedRequestInfo
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
@@ -160,7 +152,7 @@ func TestEncodedBaseRequestDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage cert": {
-			Input:     valid[:len(valid)/2],
+			Input:     reissuance.EncodedRequestInfo(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -232,7 +224,7 @@ func TestEncodedProtectedDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage JSON": {
-			Input:     valid[:len(valid)/2],
+			Input:     reissuance.EncodedProtected(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -244,9 +236,13 @@ func TestEncodedProtectedDecode(t *testing.T) {
 	}
 }
 
-func newBaseRequest(now time.Time) reissuance.BaseRequest {
+func encode(input string) string {
+	return scrypto.Base64.EncodeToString([]byte(input))
+}
+
+func newRequestInfo(now time.Time) reissuance.RequestInfo {
 	now = now.Truncate(time.Second)
-	return reissuance.BaseRequest{
+	return reissuance.RequestInfo{
 		Base: cert.Base{
 			Subject:       xtest.MustParseIA("1-ff00:0:111"),
 			Version:       2,

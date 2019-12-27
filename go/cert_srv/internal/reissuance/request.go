@@ -33,8 +33,8 @@ var (
 	ErrNotUTF8 = serrors.New("not utf-8 encoded")
 )
 
-// BaseRequest is the base information of the reissuance request.
-type BaseRequest struct {
+// RequestInfo is the information of the reissuance request.
+type RequestInfo struct {
 	cert.Base
 	Issuer      addr.IA       `json:"issuer"`
 	RequestTime util.UnixTime `json:"request_time"`
@@ -42,59 +42,58 @@ type BaseRequest struct {
 
 // Request is the reissuance request.
 type Request struct {
-	BaseRequest
-	POPs []POP
+	Encoded EncodedRequestInfo `json:"payload"`
+	POPs    []POP              `json:"signatures"`
 }
 
 // POP is a proof of possession.
 type POP struct {
-	Encoded          EncodedBaseRequest `json:"payload"`
-	EncodedProtected EncodedProtected   `json:"protected"`
-	Signature        []byte             `json:"signature"`
+	Protected EncodedProtected    `json:"protected"`
+	Signature scrypto.JWSignature `json:"signature"`
 }
 
 // SigInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
-func (p POP) SigInput() []byte {
-	return scrypto.JWSignatureInput([]byte(p.EncodedProtected), []byte(p.Encoded))
+func (p POP) SigInput(info EncodedRequestInfo) []byte {
+	return scrypto.JWSignatureInput(string(p.Protected), string(info))
 }
 
-// EncodedBaseRequest is the base64url encoded marshaled base request.
-type EncodedBaseRequest string
+// EncodedRequestInfo is the base64url encoded marshaled request info.
+type EncodedRequestInfo string
 
-// EncodeBaseRequest encodes the base request.
-func EncodeBaseRequest(r *BaseRequest) (EncodedBaseRequest, error) {
+// EncodeRequestInfo encodes the base request.
+func EncodeRequestInfo(r *RequestInfo) (EncodedRequestInfo, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return "", err
 	}
-	return EncodedBaseRequest(scrypto.Base64.EncodeToString(b)), nil
+	return EncodedRequestInfo(scrypto.Base64.EncodeToString(b)), nil
 }
 
-// Decode decodes and returns the request.
-func (e EncodedBaseRequest) Decode() (BaseRequest, error) {
+// Decode decodes and returns the request info.
+func (e EncodedRequestInfo) Decode() (RequestInfo, error) {
 	b, err := scrypto.Base64.DecodeString(string(e))
 	if err != nil {
-		return BaseRequest{}, err
+		return RequestInfo{}, err
 	}
-	var request BaseRequest
+	var request RequestInfo
 	if err := json.Unmarshal(b, &request); err != nil {
-		return BaseRequest{}, err
+		return RequestInfo{}, err
 	}
 	return request, nil
 }
 
 // SignedRequest is a signed reissuance request.
 type SignedRequest struct {
-	Encoded          EncodedRequest   `json:"payload"`
-	EncodedProtected EncodedProtected `json:"protected"`
-	Signature        []byte           `json:"signature"`
+	Encoded          EncodedRequest      `json:"payload"`
+	EncodedProtected EncodedProtected    `json:"protected"`
+	Signature        scrypto.JWSignature `json:"signature"`
 }
 
 // SigInput computes the signature input according to rfc7517 (see:
 // https://tools.ietf.org/html/rfc7515#section-5.1)
 func (s SignedRequest) SigInput() []byte {
-	return scrypto.JWSignatureInput([]byte(s.EncodedProtected), []byte(s.Encoded))
+	return scrypto.JWSignatureInput(string(s.EncodedProtected), string(s.Encoded))
 }
 
 // ParseSignedRequest parses the raw signed request.
