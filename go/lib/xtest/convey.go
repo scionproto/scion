@@ -41,8 +41,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/xerrors"
-
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 type SC struct {
@@ -107,16 +105,6 @@ func SoMsgError(msg string, err error, shouldBeError bool) {
 		SoMsg(msg, err, ShouldNotBeNil)
 	} else {
 		SoMsg(msg, err, ShouldBeNil)
-	}
-}
-
-// SoMsgErrorStr checks whether the top error in err matches string str. If str
-// is empty, then the assertion succeeds if err is nil.
-func SoMsgErrorStr(msg string, err error, str string) {
-	if str == "" {
-		SoMsg(msg, err, ShouldBeNil)
-	} else {
-		SoMsg(msg, common.GetErrorMsg(err), ShouldEqual, str)
 	}
 }
 
