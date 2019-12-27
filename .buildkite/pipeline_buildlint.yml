@@ -65,5 +65,4 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     env:
-      ACCEPTANCE_ARTIFACTS: "$BUILDKITE_BUILD_CHECKOUT_PATH/accept_artifacts"
-
+      ACCEPTANCE_ARTIFACTS: "$$PWD/logs"
