@@ -18,9 +18,6 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
@@ -43,11 +40,6 @@ type Store interface {
 		<-chan beacon.BeaconOrErr, error)
 	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
-	// InsertRevocations inserts the revocation into the BeaconDB.
-	// The provided revocation must be verified by the caller.
-	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
-	// DeleteRevocation deletes the revocation from the BeaconDB.
-	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
 	// UpdatePolicy updates the policy. Beacons that are filtered by all
 	// policies after the update are removed.
 	UpdatePolicy(ctx context.Context, policy beacon.Policy) error
@@ -55,8 +47,6 @@ type Store interface {
 	MaxExpTime(policyType beacon.PolicyType) spath.ExpTimeType
 	// DeleteExpired deletes expired Beacons from the store.
 	DeleteExpiredBeacons(ctx context.Context) (int, error)
-	// DeleteExpiredRevocations deletes expired Revocations from the store.
-	DeleteExpiredRevocations(ctx context.Context) (int, error)
 	// Close closes the store.
 	Close() error
 }
@@ -66,11 +56,4 @@ func NewBeaconCleaner(s Store) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredBeacons(ctx)
 	}, "bs_beacon")
-}
-
-// NewRevocationCleaner creates a cleaner task, which deletes expired revocations.
-func NewRevocationCleaner(s Store) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		return s.DeleteExpiredRevocations(ctx)
-	}, "bs_revocation")
 }

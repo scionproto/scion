@@ -42,16 +42,6 @@ const (
 		FOREIGN KEY (BeaconRowID) REFERENCES Beacons(RowID) ON DELETE CASCADE,
 		PRIMARY KEY (BeaconRowID, IsdID, AsID, IntfID)
 	);
-	CREATE TABLE Revocations(
-		IsdID INTEGER NOT NULL,
-		AsID INTEGER NOT NULL,
-		IntfID INTEGER NOT NULL,
-		LinkType INTEGER NOT NULL,
-		IssuingTime INTEGER NOT NULL,
-		ExpirationTime INTEGER NOT NULL,
-		RawSignedRev BLOB NOT NULL,
-		PRIMARY KEY (IsdID, AsID, IntfID)
-	);
 	`
 	BeaconsTable      = "Beacons"
 	IntfToBeaconTable = "IntfToBeacon"

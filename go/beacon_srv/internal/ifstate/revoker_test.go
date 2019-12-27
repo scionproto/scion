@@ -26,7 +26,6 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate/mock_ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -41,7 +40,6 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/matchers"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -74,7 +72,6 @@ func TestNoRevocationIssued(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		msgr := mock_infra.NewMockMessenger(mctrl)
-		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
 		activateAll(intfs)
 		cfg := RevokerConf{
@@ -83,7 +80,6 @@ func TestNoRevocationIssued(t *testing.T) {
 			Signer:       signer,
 			RevConfig:    RevConfig{RevOverlap: overlapTime},
 			TopoProvider: topoProvider,
-			RevInserter:  revInserter,
 		}
 		revoker := cfg.New()
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -105,23 +101,15 @@ func TestRevokeInterface(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		msgr := mock_infra.NewMockMessenger(mctrl)
-		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
 		activateAll(intfs)
 		intfs.Get(101).lastActivate = time.Now().Add(-expireTime)
-		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
-			Verifier: revVerifier(pub),
-			MatchRevs: []path_mgmt.RevInfo{{
-				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
-			},
-		})
 		checkSentMessages := expectMessengerCalls(msgr, 101, topoProvider)
 		cfg := RevokerConf{
 			Intfs:        intfs,
 			Msgr:         msgr,
 			Signer:       signer,
 			TopoProvider: topoProvider,
-			RevInserter:  revInserter,
 			RevConfig: RevConfig{
 				RevTTL:     ttl,
 				RevOverlap: overlapTime,
@@ -147,7 +135,6 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		msgr := mock_infra.NewMockMessenger(mctrl)
-		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Revoked
@@ -165,7 +152,6 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 			Msgr:         msgr,
 			Signer:       signer,
 			TopoProvider: topoProvider,
-			RevInserter:  revInserter,
 			RevConfig: RevConfig{
 				RevTTL:     ttl,
 				RevOverlap: overlapTime,
@@ -192,7 +178,6 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		msgr := mock_infra.NewMockMessenger(mctrl)
-		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
 		activateAll(intfs)
 		intfs.Get(101).state = Revoked
@@ -205,19 +190,12 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
 		intfs.Get(101).SetRevocation(srev)
-		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
-			Verifier: revVerifier(pub),
-			MatchRevs: []path_mgmt.RevInfo{{
-				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
-			},
-		})
 		checkSentMessages := expectMessengerCalls(msgr, 101, topoProvider)
 		cfg := RevokerConf{
 			Intfs:        intfs,
 			Msgr:         msgr,
 			Signer:       signer,
 			TopoProvider: topoProvider,
-			RevInserter:  revInserter,
 			RevConfig: RevConfig{
 				RevTTL:     ttl,
 				RevOverlap: overlapTime,

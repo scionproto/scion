@@ -38,7 +38,6 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/keepalive"
 	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
-	"github.com/scionproto/scion/go/beacon_srv/internal/revocation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
@@ -178,13 +177,10 @@ func realMain() int {
 	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler())
 	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler())
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
-	msgr.AddHandler(infra.SignedRev, revocation.NewHandler(store,
-		trust.NewVerifier(trustStore), 5*time.Second))
 	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.IA(), intfs, store,
 		trust.NewVerifier(trustStore)))
 	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.IA(), intfs,
 		keepalive.StateChangeTasks{
-			RevDropper: store,
 			IfStatePusher: ifstate.PusherConf{
 				Intfs:        intfs,
 				Msgr:         msgr,
@@ -334,8 +330,6 @@ func (t *periodicTasks) Start() error {
 	t.beaconCleaner = periodic.Start(
 		beaconstorage.NewBeaconCleaner(t.store),
 		30*time.Second, 30*time.Second)
-	t.revCleaner = periodic.Start(
-		beaconstorage.NewRevocationCleaner(t.store), 5*time.Second, 5*time.Second)
 	log.Info("Started periodic tasks")
 	return nil
 }
@@ -349,7 +343,6 @@ func (t *periodicTasks) startRevoker() (*periodic.Runner, error) {
 	r := ifstate.RevokerConf{
 		Intfs:        t.intfs,
 		Msgr:         t.msgr,
-		RevInserter:  t.store,
 		Signer:       signer,
 		TopoProvider: t.topoProvider,
 		RevConfig: ifstate.RevConfig{

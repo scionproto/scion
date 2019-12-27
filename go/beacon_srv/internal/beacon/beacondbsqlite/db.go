@@ -26,11 +26,9 @@ import (
 	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 var _ beacon.DB = (*Backend)(nil)
@@ -124,42 +122,6 @@ type beaconMeta struct {
 	LastUpdated time.Time
 }
 
-func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.RevocationOrErr, error) {
-	e.RLock()
-	defer e.RUnlock()
-	query := `SELECT RawSignedRev FROM Revocations`
-	rows, err := e.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, db.NewReadError("Error selecting revocations", err)
-	}
-	res := make(chan beacon.RevocationOrErr)
-	go func() {
-		defer log.LogPanicAndExit()
-		defer close(res)
-		defer rows.Close()
-		for rows.Next() {
-			var rawRev common.RawBytes
-			err = rows.Scan(&rawRev)
-			if err != nil {
-				res <- beacon.RevocationOrErr{Err: db.NewReadError(beacon.ErrReadingRows, err)}
-				return
-			}
-			srev, err := path_mgmt.NewSignedRevInfoFromRaw(rawRev)
-			if err != nil {
-				err = db.NewDataError(beacon.ErrParse, err)
-			}
-			res <- beacon.RevocationOrErr{
-				Rev: srev,
-				Err: err,
-			}
-			// Continue here as this should not really happen if the insertion
-			// is properly guarded.
-			// Like this the client might still be able to proceed.
-		}
-	}()
-	return res, nil
-}
-
 func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 	e.RLock()
 	defer e.RUnlock()
@@ -190,22 +152,16 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 	defer e.RUnlock()
 	srcCond := ``
 	if !src.IsZero() {
-		srcCond = `AND StartIsd == ?4 AND StartAs == ?5`
+		srcCond = `AND StartIsd == ?3 AND StartAs == ?4`
 	}
 	query := fmt.Sprintf(`
 		SELECT b.Beacon, b.InIntfID
 		FROM Beacons b
-		WHERE ( b.Usage & ?1 ) == ?1 %s AND NOT EXISTS(
-			SELECT 1
-			FROM IntfToBeacon ib
-			JOIN Revocations r USING (IsdID, AsID, IntfID)
-			WHERE ib.BeaconRowID = RowID AND r.ExpirationTime >= ?3
-		)
+		WHERE ( b.Usage & ?1 ) == ?1 %s
 		ORDER BY b.HopsLength ASC
 		LIMIT ?2
 	`, srcCond)
-	rows, err := e.db.QueryContext(ctx, query, usage, setSize, util.TimeToSecs(time.Now()),
-		src.I, src.A)
+	rows, err := e.db.QueryContext(ctx, query, usage, setSize, src.I, src.A)
 	if err != nil {
 		return nil, db.NewReadError("Error selecting beacons", err)
 	}
@@ -446,87 +402,4 @@ func (e *executor) deleteInTx(ctx context.Context,
 	e.Lock()
 	defer e.Unlock()
 	return db.DeleteInTx(ctx, e.db, delFunc)
-}
-
-func (e *executor) DeleteRevokedBeacons(ctx context.Context, now time.Time) (int, error) {
-	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		delStmt := `
-		DELETE FROM Beacons
-		WHERE EXISTS(
-			SELECT 1
-			FROM IntfToBeacon ib
-			JOIN Revocations r USING (IsdID, AsID, IntfID)
-			WHERE ib.BeaconRowID = RowID AND r.ExpirationTime >= ?
-		)
-		`
-		return tx.ExecContext(ctx, delStmt, now.Unix())
-	})
-}
-
-func (e *executor) InsertRevocation(ctx context.Context,
-	revocation *path_mgmt.SignedRevInfo) error {
-
-	revInfo, err := revocation.RevInfo()
-	if err != nil {
-		return db.NewInputDataError("extract revocation", err)
-	}
-	packedRev, err := revocation.Pack()
-	if err != nil {
-		return db.NewInputDataError("pack revocation", err)
-	}
-	e.Lock()
-	defer e.Unlock()
-	query := `
-	INSERT OR REPLACE INTO Revocations
-	(IsdID, AsID, IntfID, LinkType, IssuingTime, ExpirationTime, RawSignedRev)
-	VALUES (?, ?, ?, ?, ?, ?, ?)
-	`
-	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		existingRev, err := containsNewerRev(ctx, tx, revInfo)
-		if err != nil {
-			return db.NewReadError("check for existing rev", err)
-		}
-		if !existingRev {
-			_, err = tx.ExecContext(ctx, query, revInfo.IA().I, revInfo.IA().A, revInfo.IfID,
-				revInfo.LinkType, revInfo.RawTimestamp, revInfo.Expiration().Unix(), packedRev)
-		}
-		return err
-	})
-}
-
-func containsNewerRev(ctx context.Context, tx *sql.Tx,
-	revInfo *path_mgmt.RevInfo) (bool, error) {
-
-	var one int
-	query := `
-	SELECT 1 FROM Revocations
-	WHERE IsdID = ? AND AsID = ? AND IntfID = ? AND IssuingTime > ?
-	`
-	err := tx.QueryRowContext(ctx, query, revInfo.IA().I, revInfo.IA().A,
-		revInfo.IfID, revInfo.RawTimestamp).Scan(&one)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-	return err == nil, err
-}
-
-func (e *executor) DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error {
-	query := `
-	DELETE FROM Revocations
-	WHERE IsdID = ? AND AsID = ? AND IntfID = ?
-	`
-	_, err := e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		return tx.ExecContext(ctx, query, ia.I, ia.A, ifid)
-	})
-	return err
-}
-
-func (e *executor) DeleteExpiredRevocations(ctx context.Context, now time.Time) (int, error) {
-	query := `
-	DELETE FROM Revocations
-	WHERE ExpirationTime < ?
-	`
-	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		return tx.ExecContext(ctx, query, now.Unix())
-	})
 }

@@ -34,11 +34,6 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// RevInserter stores revocation into persistent storage.
-type RevInserter interface {
-	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
-}
-
 // RevConfig configures the parameters for revocation creation.
 type RevConfig struct {
 	RevTTL     time.Duration
@@ -51,7 +46,6 @@ type RevokerConf struct {
 	Msgr         infra.Messenger
 	Signer       infra.Signer
 	TopoProvider topology.Provider
-	RevInserter  RevInserter
 	RevConfig    RevConfig
 }
 
@@ -120,10 +114,6 @@ func (r *Revoker) Run(ctx context.Context) {
 	}
 	if len(revs) > 0 {
 		wg := &sync.WaitGroup{}
-		if err := r.cfg.RevInserter.InsertRevocations(ctx, toSlice(revs)...); err != nil {
-			logger.Error("[ifstate.Revoker] Failed to insert revocations in store", "err", err)
-			// still continue to try to push it to BR/PS.
-		}
 		r.pushRevocationsToBRs(ctx, revs, wg)
 		r.pushRevocationsToPS(ctx, revs)
 		wg.Wait()

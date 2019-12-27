@@ -43,17 +43,10 @@ type IfStatePusher interface {
 	Push(ctx context.Context, ifid common.IFIDType)
 }
 
-// RevDropper is used to drop revocations from the beacon store for
-// interfaces that change their state to active.
-type RevDropper interface {
-	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
-}
-
 // StateChangeTasks holds the tasks that are executed when the state of an
 // interface changes to active.
 type StateChangeTasks struct {
 	IfStatePusher IfStatePusher
-	RevDropper    RevDropper
 }
 
 // NewHandler returns an infra.Handler for IFID keepalive messages. The state
@@ -108,10 +101,6 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	if lastState := info.Activate(keepalive.OrigIfID); lastState != ifstate.Active {
 		logger.Info("[KeepaliveHandler] Activated interface", "ifid", ifid)
 		h.startPush(ifid)
-		if err := h.dropRevs(ifid, keepalive.OrigIfID, info.TopoInfo().IA); err != nil {
-			metrics.Keepalive.Receives(labels).Inc()
-			return infra.MetricsErrInternal, common.NewBasicError("Unable to drop revocations", err)
-		}
 	}
 	logger.Trace("[KeepaliveHandler] Successfully handled", "keepalive", keepalive)
 	labels.Result = metrics.Success
@@ -149,13 +138,4 @@ func (h *handler) startPush(ifid common.IFIDType) {
 		defer cancelF()
 		h.tasks.IfStatePusher.Push(ctx, ifid)
 	}()
-}
-
-func (h *handler) dropRevs(localIfid, originIfid common.IFIDType, originIA addr.IA) error {
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), DropRevTimeout)
-	defer cancelF()
-	if err := h.tasks.RevDropper.DeleteRevocation(subCtx, h.ia, localIfid); err != nil {
-		return err
-	}
-	return h.tasks.RevDropper.DeleteRevocation(subCtx, originIA, originIfid)
 }
