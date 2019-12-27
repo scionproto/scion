@@ -197,7 +197,7 @@ _map = {
 
 
 def haddr_get_type(type_):  # pragma: no cover
-    """
+    r"""
     Look up host address class by type.
 
     :param type\_: host address type. E.g. ``1`` or ``"IPV4"``.
@@ -211,7 +211,7 @@ def haddr_get_type(type_):  # pragma: no cover
 
 
 def haddr_parse(type_, *args, **kwargs):  # pragma: no cover
-    """
+    r"""
     Parse host address and return object.
 
     :param type\_: host address type. E.g. ``1`` or ``"IPV4"``.

@@ -86,5 +86,6 @@ def main():
         net_clear(DEFAULT6_NETWORK)
         net_clear(DEFAULT6_PRIV_NETWORK)
 
+
 if __name__ == "__main__":
     main()
