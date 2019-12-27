@@ -65,4 +65,4 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     env:
-      ACCEPTANCE_ARTIFACTS: "$$PWD/logs"
+      ACCEPTANCE_ARTIFACTS: $$PWD/logs

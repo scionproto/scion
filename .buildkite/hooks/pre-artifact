@@ -2,6 +2,8 @@
 
 set -eo pipefail
 
+set -x
+
 # Currently this only if for the new pipeline, so if we aren't on the new
 # pipeline just exit.
 if [ ! "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
