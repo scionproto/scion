@@ -96,20 +96,14 @@ set +e
 run_test
 RC=$?
 
-echo "pwd"
-pwd
-echo "===="
+# Write outputs to bazel directory
+OUTPUT_DIR=$TEST_UNDECLARED_OUTPUTS_DIR
+mkdir -p $OUTPUT_DIR/logs
 
-mkdir -p logs
 for FILE in sig1-ff00_0_110.log sig1-ff00_0_111.log disp_1-ff00_0_110.log disp_1-ff00_0_111.log; do
-    docker-compose -f acceptance/sig_failover/docker-compose.yml run log_exporter cat /share/logs/$FILE > ./logs/$FILE
+    docker-compose -f acceptance/sig_failover/docker-compose.yml run log_exporter cat /share/logs/$FILE > $OUTPUT_DIR/logs/$FILE
 done
 
-echo "attempt write"
-echo "foo" > ./logs/foo
-
 docker-compose -f acceptance/sig_failover/docker-compose.yml down
-
-find logs
 
 exit $RC
