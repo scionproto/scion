@@ -19,6 +19,8 @@
 package main
 
 import (
+	"errors"
+
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
@@ -48,7 +50,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	}
 }
 
-// PackeError creates an SCMP error for the given packet and sends it to its source.
+// PacketError creates an SCMP error for the given packet and sends it to its source.
 func (r *Router) PacketError() {
 	// Run forever.
 	for args := range r.pktErrorQ {
@@ -61,8 +63,9 @@ func (r *Router) PacketError() {
 // metadata attached to the error object, then an SCMP error response is
 // generated and sent.
 func (r *Router) doPktError(rp *rpkt.RtrPkt, perr error) {
-	serr := scmp.ToError(perr)
-	if serr == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
+	var serr *scmp.Error
+	isSCMPErr := errors.As(perr, &serr)
+	if !isSCMPErr || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
 	}
