@@ -3,7 +3,6 @@ load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 sh_test(
     name = "sig_failover_test",
     size = "small",
-    timeout = "moderate", # TODO(scrye): remove this
     srcs = ["test"],
     deps = [
         "@bazel_tools//tools/bash/runfiles",

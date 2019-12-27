@@ -64,3 +64,15 @@ steps:
         - exit_status: 255 # Forced agent shutdown
     artifact_paths:
       - "artifacts.out/**/*"
+  - label: "Acceptance: sig_short_exp_time"
+    command:
+      - mkdir -p $$ACCEPTANCE_ARTIFACTS
+      - bazel test --action_env=ACCEPTANCE_ARTIFACTS //acceptance/sig_short_exp_time:sig_short_exp_time_test
+    key: sig_short_exp_time
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    artifact_paths:
+      - "artifacts.out/**/*"
+
