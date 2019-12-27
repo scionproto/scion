@@ -93,7 +93,7 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint):
         base = "//docker/perapp:app_base_debug",
         tars = [":" + name + "_docker_files"],
         workdir = workdir,
-        entrypoint = ["/sbin/su-exec"] + entrypoint,
+        entrypoint = entrypoint,
         stamp = True,
         visibility = ["//visibility:public"],
     )

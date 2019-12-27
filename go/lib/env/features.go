@@ -25,6 +25,7 @@ var _ config.Config = (*Features)(nil)
 // Add feature flags to this structure as needed.
 // Feature flags are always boolean. Don't use any other types here!
 type Features struct {
+	AllowRunAsRoot bool
 }
 
 func (cfg *Features) InitDefaults() {

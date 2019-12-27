@@ -172,7 +172,7 @@ func checkPerms() error {
 	if err != nil {
 		return common.NewBasicError("Error retrieving user", err)
 	}
-	if u.Uid == "0" {
+	if u.Uid == "0" && !cfg.Features.AllowRunAsRoot {
 		return serrors.New("Running as root is not allowed for security reasons")
 	}
 	return nil

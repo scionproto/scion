@@ -55,5 +55,5 @@ func (sp *SessPath) Copy() *SessPath {
 }
 
 func (sp *SessPath) String() string {
-	return fmt.Sprintf("Key: %s %s", sp.key[:8], fmt.Sprintf("%s", sp.path))
+	return fmt.Sprintf("Key: %s %s", sp.key[:8], sp.path)
 }

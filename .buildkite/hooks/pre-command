@@ -6,6 +6,8 @@ echo "Clean existing environment"
 
 . .buildkite/hooks/pre-exit
 
+export ACCEPTANCE_ARTIFACTS="$PWD/accept_artifacts"
+
 echo "Starting bazel remote cache proxy"
 
 # Start bazel remote cache proxy for S3

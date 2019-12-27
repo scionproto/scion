@@ -13,52 +13,83 @@ import (
 )
 
 var (
-	listen = flag.String("listen", "", "address to listen on (e.g., 127.0.0.1:30041) (required)")
-	to     = flag.String("to", "", "address to redirect to (e.g., 127.0.0.1:30041) (required)")
+	localX = flag.String("local_x", "",
+		"local UDP address on network x, in IP:port format  (required)")
+	remoteX = flag.String("remote_x", "",
+		"remote UDP address on network x, in IP:port format (required)")
+	localY = flag.String("local_y", "",
+		"local UDP address on network y, in IP:port format (required)")
+	remoteY = flag.String("remote_y", "",
+		"remote UDP address on network y, in IP:port format (required)")
 )
 
 func main() {
 	flag.Parse()
 
-	if err := Proxy(*listen, *to); err != nil {
+	if err := Proxy(*localX, *remoteX, *localY, *remoteY); err != nil {
 		log.Crit("Fatal proxy error", "err", err)
 		os.Exit(1)
 	}
 }
 
-func Proxy(listen, to string) error {
-	listenAddr, err := net.ResolveUDPAddr("udp", listen)
+func Proxy(localX, remoteX, localY, remoteY string) error {
+	lxAddr, err := net.ResolveUDPAddr("udp", localX)
 	if err != nil {
-		return serrors.New("unable to parse listen address", "err", err)
+		return serrors.New("unable to parse local x address", "err", err)
+	}
+	rxAddr, err := net.ResolveUDPAddr("udp", remoteX)
+	if err != nil {
+		return serrors.New("unable to parse remote x address", "err", err)
+	}
+	xConn, err := net.ListenUDP("udp", lxAddr)
+	if err != nil {
+		return serrors.New("unable to open x conn", "err", err)
 	}
 
-	listenConn, err := net.ListenUDP("udp", listenAddr)
+	lyAddr, err := net.ResolveUDPAddr("udp", localY)
 	if err != nil {
-		return serrors.New("unable to open listen conn", "err", err)
+		return serrors.New("unable to parse local y address", "err", err)
+	}
+	ryAddr, err := net.ResolveUDPAddr("udp", remoteY)
+	if err != nil {
+		return serrors.New("unable to parse remote y address", "err", err)
+	}
+	yConn, err := net.ListenUDP("udp", lyAddr)
+	if err != nil {
+		return serrors.New("unable to open y conn", "err", err)
 	}
 
-	redirectConn, err := net.Dial("udp", to)
-	if err != nil {
-		return serrors.New("unable to open conn to destination", "err", err)
-	}
 	log.Info(
 		fmt.Sprintf(
 			"Redirecting messages received on %v to %v",
-			listenConn.LocalAddr(),
-			redirectConn.RemoteAddr(),
+			xConn.LocalAddr(),
+			remoteY,
+		),
+	)
+	log.Info(
+		fmt.Sprintf(
+			"Redirecting messages received on %v to %v",
+			yConn.LocalAddr(),
+			remoteX,
 		),
 	)
 
+	go redirect(xConn, yConn, ryAddr)
+	go redirect(yConn, xConn, rxAddr)
+	select {}
+}
+
+func redirect(from, to net.PacketConn, toAddr *net.UDPAddr) {
 	b := make([]byte, 1<<16)
 	for {
-		n, _, err := listenConn.ReadFromUDP(b)
+		n, _, err := from.ReadFrom(b)
 		if err != nil {
-			return serrors.New("unable to read from listen conn", "err", err)
+			log.Error("Unable to read from listen conn", "err", err)
 		}
 
-		_, err = redirectConn.Write(b[:n])
+		_, err = to.WriteTo(b[:n], toAddr)
 		if err != nil {
-			return serrors.New("unable to write to destination", "err", err)
+			log.Error("unable to write to destination", "err", err)
 		}
 	}
 }
