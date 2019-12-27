@@ -6,7 +6,9 @@ echo "Clean existing environment"
 
 . .buildkite/hooks/pre-exit
 
-export ACCEPTANCE_ARTIFACTS="$PWD/accept_artifacts"
+if [ "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
+    export ACCEPTANCE_ARTIFACTS="$PWD/accept_artifacts"
+fi
 
 echo "Starting bazel remote cache proxy"
 
