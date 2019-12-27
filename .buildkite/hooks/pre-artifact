@@ -31,7 +31,7 @@ ARTIFACTS_DIR="artifacts"
 echo "\$ARTIFACTS_DIR=$ARTIFACTS_DIR"
 
 function save {
-	if [ ! -d "$1" ]; then
+	if [ -d "$1" ]; then
 		echo Found artifacts: "$1"
 		find "$1"
 		cp -R "$1" "$ARTIFACTS_DIR/$ARTIFACTS"
