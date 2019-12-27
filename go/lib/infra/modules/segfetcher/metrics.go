@@ -15,7 +15,7 @@
 package segfetcher
 
 import (
-	"golang.org/x/xerrors"
+	"errors"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -28,13 +28,13 @@ func ErrToMetricsLabel(err error) string {
 	switch {
 	case serrors.IsTimeout(err):
 		return prom.ErrTimeout
-	case xerrors.Is(err, errDB), xerrors.Is(err, seghandler.ErrDB):
+	case errors.Is(err, errDB), errors.Is(err, seghandler.ErrDB):
 		return prom.ErrDB
-	case xerrors.Is(err, errFetch):
+	case errors.Is(err, errFetch):
 		return prom.ErrNetwork
-	case xerrors.Is(err, errValidate):
+	case errors.Is(err, errValidate):
 		return prom.ErrParse
-	case xerrors.Is(err, seghandler.ErrVerification):
+	case errors.Is(err, seghandler.ErrVerification):
 		return prom.ErrVerify
 	default:
 		return prom.ErrNotClassified

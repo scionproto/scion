@@ -16,11 +16,11 @@ package trust
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
 	opentracingext "github.com/opentracing/opentracing-go/ext"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -162,7 +162,7 @@ func (p Provider) getTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (dec
 	switch {
 	case err == nil:
 		return decoded.DecodeTRC(raw)
-	case !xerrors.Is(err, ErrNotFound):
+	case !errors.Is(err, ErrNotFound):
 		return decoded.TRC{}, serrors.WrapStr("error querying DB for TRC", err)
 	case opts.LocalOnly:
 		return decoded.TRC{}, serrors.WrapStr("localOnly requested", err)
@@ -247,7 +247,7 @@ func (p Provider) getCheckedChain(parentCtx context.Context, id ChainID,
 	switch {
 	case err == nil:
 		return chain, nil
-	case !xerrors.Is(err, ErrInactive):
+	case !errors.Is(err, ErrInactive):
 		return decoded.Chain{}, err
 	case !id.Version.IsLatest():
 		return decoded.Chain{}, err
@@ -278,7 +278,7 @@ func (p Provider) getChain(ctx context.Context, id ChainID,
 	switch {
 	case err == nil:
 		return decoded.DecodeChain(raw)
-	case !xerrors.Is(err, ErrNotFound):
+	case !errors.Is(err, ErrNotFound):
 		return decoded.Chain{}, serrors.WrapStr("error querying DB for certificate chain", err)
 	case opts.LocalOnly:
 		return decoded.Chain{}, serrors.WrapStr("localOnly requested", err)

@@ -15,7 +15,7 @@
 package seghandler
 
 import (
-	"golang.org/x/xerrors"
+	"errors"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
@@ -71,12 +71,12 @@ func (s *Stats) addStoredSegs(segs SegStats) {
 	s.segDB.UpdatedSegs = append(s.segDB.UpdatedSegs, segs.UpdatedSegs...)
 }
 
-func (s *Stats) verificationErrs(errors []error) {
-	for _, err := range errors {
-		if xerrors.Is(err, segverifier.ErrRevocation) {
+func (s *Stats) verificationErrs(verErrors []error) {
+	for _, err := range verErrors {
+		if errors.Is(err, segverifier.ErrRevocation) {
 			s.revErrors++
 		}
-		if xerrors.Is(err, segverifier.ErrSegment) {
+		if errors.Is(err, segverifier.ErrSegment) {
 			s.segVerifyErrors++
 		}
 	}

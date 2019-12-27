@@ -15,11 +15,10 @@
 package certs
 
 import (
+	"errors"
 	"path/filepath"
 	"regexp"
 	"strconv"
-
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -46,7 +45,7 @@ func (l loader) LoadIssuerConfigs(asMap pkicmn.ASMap) (map[addr.IA]conf.Issuer, 
 		for _, ia := range ias {
 			file, err := l.selectConfig(ia, s)
 			switch {
-			case xerrors.Is(err, errNoFilesFound):
+			case errors.Is(err, errNoFilesFound):
 				pkicmn.QuietPrint("Ignoring AS without issuer certificate config: %s\n", ia)
 				continue
 			case err != nil:

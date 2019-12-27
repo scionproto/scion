@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 )
 
 func TestFmtError(t *testing.T) {
@@ -49,10 +48,10 @@ func TestUnwrap(t *testing.T) {
 	wrapBaseErr := NewBasicError("wrapping base once", baseErr)
 	wrapWrapBaseErr := NewBasicError("wrapping wrapper of base", wrapBaseErr)
 
-	assert.Nil(t, xerrors.Unwrap(baseErr))
-	assert.Nil(t, xerrors.Unwrap(noWrapErr))
-	assert.Equal(t, baseErr, xerrors.Unwrap(wrapBaseErr))
-	assert.Equal(t, wrapBaseErr, xerrors.Unwrap(wrapWrapBaseErr))
+	assert.Nil(t, errors.Unwrap(baseErr))
+	assert.Nil(t, errors.Unwrap(noWrapErr))
+	assert.Equal(t, baseErr, errors.Unwrap(wrapBaseErr))
+	assert.Equal(t, wrapBaseErr, errors.Unwrap(wrapWrapBaseErr))
 }
 
 func TestIs(t *testing.T) {
@@ -64,26 +63,26 @@ func TestIs(t *testing.T) {
 	wrapBaseErrMsg := NewBasicError("wrapping base msg once", baseErrMsg)
 	wrapWrapBaseErr := NewBasicError("wrapping wrapper of base", wrapBaseErr)
 
-	assert.False(t, xerrors.Is(baseErr, wrapBaseErr))
-	assert.False(t, xerrors.Is(noWrapErr, baseErr))
-	assert.False(t, xerrors.Is(noWrapErr, wrapNoWrapErr))
+	assert.False(t, errors.Is(baseErr, wrapBaseErr))
+	assert.False(t, errors.Is(noWrapErr, baseErr))
+	assert.False(t, errors.Is(noWrapErr, wrapNoWrapErr))
 
-	assert.True(t, xerrors.Is(wrapBaseErr, baseErr))
-	assert.True(t, xerrors.Is(wrapNoWrapErr, noWrapErr))
-	assert.True(t, xerrors.Is(wrapWrapBaseErr, baseErr))
-	assert.True(t, xerrors.Is(wrapWrapBaseErr, wrapBaseErr))
-	assert.True(t, xerrors.Is(wrapBaseErrMsg, baseErrMsg))
+	assert.True(t, errors.Is(wrapBaseErr, baseErr))
+	assert.True(t, errors.Is(wrapNoWrapErr, noWrapErr))
+	assert.True(t, errors.Is(wrapWrapBaseErr, baseErr))
+	assert.True(t, errors.Is(wrapWrapBaseErr, wrapBaseErr))
+	assert.True(t, errors.Is(wrapBaseErrMsg, baseErrMsg))
 
-	assert.True(t, xerrors.Is(noWrapErr, ErrMsg("test no wrap")))
-	assert.True(t, xerrors.Is(wrapWrapBaseErr, ErrMsg("wrapping base once")))
-	assert.True(t, xerrors.Is(wrapNoWrapErr, ErrMsg("test no wrap")))
+	assert.True(t, errors.Is(noWrapErr, ErrMsg("test no wrap")))
+	assert.True(t, errors.Is(wrapWrapBaseErr, ErrMsg("wrapping base once")))
+	assert.True(t, errors.Is(wrapNoWrapErr, ErrMsg("test no wrap")))
 
-	assert.True(t, xerrors.Is(ErrMsg("foo"), ErrMsg("foo")))
+	assert.True(t, errors.Is(ErrMsg("foo"), ErrMsg("foo")))
 }
 
 func ExampleErrMsg() {
 	var SomeErr ErrMsg = "this is the error msg"
 
-	fmt.Println(xerrors.Is(NewBasicError(SomeErr, nil, "ctx", 1), SomeErr))
+	fmt.Println(errors.Is(NewBasicError(SomeErr, nil, "ctx", 1), SomeErr))
 	// Output: true
 }

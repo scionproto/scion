@@ -21,12 +21,11 @@
 package rpkt
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync/atomic"
 	"time"
-
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -292,7 +291,7 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, error) {
 	}
 	// Try to parse L4 and Payload, but we might fail to do so, ie. unsupported L4 protocol
 	if sp.L4, err = rp.L4Hdr(verify); err != nil {
-		if xerrors.Is(err, ErrUnsupportedL4) {
+		if errors.Is(err, ErrUnsupportedL4) {
 			// In case of an unsupported L4 protocol return the sp we have so far.
 			// scion packets are created either in error scenarios, where we
 			// don't need L4, or in SCMP replies where we shouldn't reach this
@@ -303,7 +302,7 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, error) {
 	}
 	// L4 header was parsed without error, then parse payload
 	if sp.Pld, err = rp.Payload(verify); err != nil {
-		if !xerrors.Is(err, ErrUnsupportedL4) {
+		if !errors.Is(err, ErrUnsupportedL4) {
 			// See comment above for why we special case ErrUnsupportedL4.
 			return nil, err
 		}

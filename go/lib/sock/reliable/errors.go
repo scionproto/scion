@@ -39,7 +39,7 @@ var (
 	ErrBufferTooSmall        common.ErrMsg = "buffer too small"
 )
 
-// TODO(lukedirtwalker): Refactor methods in here to use `xerrors`.
+// TODO(lukedirtwalker): Refactor methods in here to use `errors`.
 
 func IsDispatcherError(err error) bool {
 	err = extractNestedError(err)

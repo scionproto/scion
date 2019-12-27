@@ -35,12 +35,12 @@
 package xtest
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 )
 
 type SC struct {
@@ -111,6 +111,6 @@ func SoMsgError(msg string, err error, shouldBeError bool) {
 // AssertErrorsIs checks that errors.Is(actualErr, expectedErr) returns true, if
 // expectedErr is not nil.
 func AssertErrorsIs(t *testing.T, actualErr, expectedErr error) {
-	assert.True(t, xerrors.Is(actualErr, expectedErr), "Expect '%v' to be or contain '%v'",
+	assert.True(t, errors.Is(actualErr, expectedErr), "Expect '%v' to be or contain '%v'",
 		actualErr, expectedErr)
 }

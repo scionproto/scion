@@ -26,14 +26,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"golang.org/x/xerrors"
 )
 
 // Wrapper allows recursing into nested errrors.
 type Wrapper interface {
 	error
-	xerrors.Wrapper
+	Unwrap() error
 	// TopError should return the top level error without the wrapped ones.
 	TopError() string
 }
@@ -67,7 +65,7 @@ func (e basicError) Is(err error) bool {
 
 func (e basicError) As(as interface{}) bool {
 	if e.msg.err != nil {
-		return xerrors.As(e.msg.err, as)
+		return errors.As(e.msg.err, as)
 	}
 	return false
 }
@@ -95,13 +93,13 @@ func (e basicError) msgString() string {
 // IsTimeout returns whether err is or is caused by a timeout error.
 func IsTimeout(err error) bool {
 	var t interface{ Timeout() bool }
-	return xerrors.As(err, &t) && t.Timeout()
+	return errors.As(err, &t) && t.Timeout()
 }
 
 // IsTemporary returns whether err is or is caused by a temporary error.
 func IsTemporary(err error) bool {
 	var t interface{ Temporary() bool }
-	return xerrors.As(err, &t) && t.Temporary()
+	return errors.As(err, &t) && t.Temporary()
 }
 
 // WithCtx returns an error that is the same as the given error but contains the
@@ -200,7 +198,7 @@ func innerFmtError(e error) ([]string, error) {
 			s = append(s, ">   "+line)
 		}
 	}
-	return s, xerrors.Unwrap(e)
+	return s, errors.Unwrap(e)
 }
 
 // fmtErrors formats a slice of errors for logging.
