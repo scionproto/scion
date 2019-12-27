@@ -37,7 +37,6 @@ go_library(
         "//go/proto:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_opentracing_opentracing_go//ext:go_default_library",
-        "@org_golang_x_xerrors//:go_default_library",
     ],
 )
 
@@ -86,6 +85,5 @@ go_test(
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
-        "@org_golang_x_xerrors//:go_default_library",
     ],
 )

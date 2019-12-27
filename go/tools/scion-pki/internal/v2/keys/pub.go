@@ -16,12 +16,11 @@ package keys
 
 import (
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
@@ -133,7 +132,7 @@ func LoadPublicKey(dir string, id keyconf.ID) (keyconf.Key, bool, error) {
 		pub, err := PublicKey(priv)
 		return pub, true, err
 	}
-	if !xerrors.Is(err, keyconf.ErrReadFile) {
+	if !errors.Is(err, keyconf.ErrReadFile) {
 		return keyconf.Key{}, false, err
 	}
 	pkicmn.QuietPrint("Unable to load private key for %s. Trying public key.\n", id.IA)

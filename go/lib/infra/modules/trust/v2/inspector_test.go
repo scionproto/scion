@@ -16,12 +16,12 @@ package trust_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -85,7 +85,7 @@ func TestInspectorByAttributes(t *testing.T) {
 			ias, err := ins.ByAttributes(context.Background(), trc1v1.ISD, opts)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
-				require.Truef(t, xerrors.Is(err, test.ExpectedErr),
+				require.Truef(t, errors.Is(err, test.ExpectedErr),
 					"actual: %s\nexpected %s", err, test.ExpectedErr)
 			} else {
 				require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestInspectorHasAttributes(t *testing.T) {
 			has, err := ins.HasAttributes(context.Background(), test.IA, opts)
 			if test.ExpectedErr != nil {
 				require.Error(t, err)
-				require.Truef(t, xerrors.Is(err, test.ExpectedErr),
+				require.Truef(t, errors.Is(err, test.ExpectedErr),
 					"actual: %s\nexpected %s", err, test.ExpectedErr)
 			} else {
 				require.NoError(t, err)

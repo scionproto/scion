@@ -21,7 +21,6 @@ go_library(
         "//go/tools/scion-pki/internal/v2/conf:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@org_golang_x_crypto//ed25519:go_default_library",
-        "@org_golang_x_xerrors//:go_default_library",
     ],
 )
 

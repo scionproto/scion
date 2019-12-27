@@ -15,7 +15,7 @@
 package db
 
 import (
-	"golang.org/x/xerrors"
+	"errors"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -28,15 +28,15 @@ func ErrToMetricLabel(err error) string {
 		return prom.Success
 	case common.IsTimeoutErr(err):
 		return prom.ErrTimeout
-	case xerrors.Is(err, ErrInvalidInputData):
+	case errors.Is(err, ErrInvalidInputData):
 		return "err_input_data_invalid"
-	case xerrors.Is(err, ErrDataInvalid):
+	case errors.Is(err, ErrDataInvalid):
 		return "err_db_data_invalid"
-	case xerrors.Is(err, ErrReadFailed):
+	case errors.Is(err, ErrReadFailed):
 		return "err_db_read"
-	case xerrors.Is(err, ErrWriteFailed):
+	case errors.Is(err, ErrWriteFailed):
 		return "err_db_write"
-	case xerrors.Is(err, ErrTx):
+	case errors.Is(err, ErrTx):
 		return "err_db_transaction"
 	default:
 		return prom.ErrNotClassified

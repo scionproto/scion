@@ -16,10 +16,9 @@ package reconnect
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
-
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -89,7 +88,7 @@ func (pn *DispatcherService) newReconnecterFromListenArgs(ctx context.Context, i
 			defer cancelF()
 		}
 		conn, port, err := pn.dispatcher.Register(ctx, ia, public, svc)
-		if xerrors.Is(err, ErrReconnecterTimeoutExpired) {
+		if errors.Is(err, ErrReconnecterTimeoutExpired) {
 			metrics.M.Timeouts().Inc()
 		}
 		return conn, port, err

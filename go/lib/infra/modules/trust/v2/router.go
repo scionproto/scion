@@ -16,10 +16,9 @@ package trust
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
-
-	"golang.org/x/xerrors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
@@ -84,7 +83,7 @@ func (r AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD,
 	}
 	info, err := r.DB.GetTRCInfo(ctx, TRCID{ISD: destination, Version: scrypto.LatestVer})
 	if err != nil {
-		if xerrors.Is(err, ErrNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return r.ISD, nil
 		}
 		return 0, serrors.WrapStr("error querying DB for TRC", err)

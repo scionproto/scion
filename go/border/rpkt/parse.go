@@ -19,7 +19,7 @@
 package rpkt
 
 import (
-	"golang.org/x/xerrors"
+	"errors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -78,7 +78,7 @@ func (rp *RtrPkt) parseBasic() error {
 	// Set index for destination host address and calculate its length.
 	rp.idxs.dstHost = rp.idxs.srcIA + addr.IABytes
 	if dstLen, err = addr.HostLen(rp.CmnHdr.DstType); err != nil {
-		if xerrors.Is(err, addr.ErrBadHostAddrType) {
+		if errors.Is(err, addr.ErrBadHostAddrType) {
 			err = scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil, err)
 		}
 		return err
@@ -86,7 +86,7 @@ func (rp *RtrPkt) parseBasic() error {
 	// Set index for source host address and calculate its length.
 	rp.idxs.srcHost = rp.idxs.dstHost + int(dstLen)
 	if srcLen, err = addr.HostLen(rp.CmnHdr.SrcType); err != nil {
-		if xerrors.Is(err, addr.ErrBadHostAddrType) {
+		if errors.Is(err, addr.ErrBadHostAddrType) {
 			err = scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil, err)
 		}
 		return err

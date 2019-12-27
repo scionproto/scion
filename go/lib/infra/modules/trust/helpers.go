@@ -17,8 +17,7 @@ package trust
 
 import (
 	"context"
-
-	"golang.org/x/xerrors"
+	"errors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -83,7 +82,7 @@ func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
 			return common.NewBasicError("Unable to verify chain", err)
 		}
 		if chain.Issuer.TRCVersion <= graceTrc.Version &&
-			xerrors.Is(err, cert.ErrIssCertInvalid) {
+			errors.Is(err, cert.ErrIssCertInvalid) {
 
 			if errG := chain.Verify(subject, graceTrc); errG != nil {
 				return common.NewBasicError("Unable to verify chain", err, "errGraceTRC", errG)
