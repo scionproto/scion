@@ -107,8 +107,6 @@ ls -la $ACCEPTANCE_ARTIFACTS/..
 echo "whoami"
 whoami
 
-sleep 120
-
 echo "===="
 
 for FILE in sig1-ff00_0_110.log sig1-ff00_0_111.log disp_1-ff00_0_110.log disp_1-ff00_0_111.log; do
@@ -118,5 +116,7 @@ done
 docker-compose -f acceptance/sig_failover/docker-compose.yml down
 
 find $ACCEPTANCE_ARTIFACTS
+
+sleep 120
 
 exit $RC
