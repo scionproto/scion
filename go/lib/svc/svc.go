@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 package svc
 
 import (
+	"context"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -72,11 +72,10 @@ type ResolverPacketDispatcher struct {
 	handler     RequestHandler
 }
 
-func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *net.UDPAddr,
-	bind *net.UDPAddr, svc addr.HostSVC,
-	timeout time.Duration) (snet.PacketConn, uint16, error) {
+func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
+	registration *net.UDPAddr, svc addr.HostSVC) (snet.PacketConn, uint16, error) {
 
-	c, port, err := d.dispService.RegisterTimeout(ia, public, bind, svc, timeout)
+	c, port, err := d.dispService.Register(ctx, ia, registration, svc)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -84,7 +83,7 @@ func (d *ResolverPacketDispatcher) RegisterTimeout(ia addr.IA, public *net.UDPAd
 		PacketConn: c,
 		source: snet.SCIONAddress{
 			IA:   ia,
-			Host: addr.HostFromIP(public.IP),
+			Host: addr.HostFromIP(registration.IP),
 		},
 		handler: d.handler,
 	}

@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,12 +45,6 @@ func NewDispatcherService(dispatcher reliable.Dispatcher) *DispatcherService {
 }
 
 func (pn *DispatcherService) Register(ctx context.Context, ia addr.IA, public *net.UDPAddr,
-	svc addr.HostSVC) (net.PacketConn, uint16, error) {
-
-	return pn.RegisterTimeout(ctx, ia, public, svc)
-}
-
-func (pn *DispatcherService) RegisterTimeout(ctx context.Context, ia addr.IA, public *net.UDPAddr,
 	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	// Perform initial connection to allocate port. We use a reconnecter here

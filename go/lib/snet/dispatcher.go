@@ -17,7 +17,6 @@ package snet
 import (
 	"context"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -31,8 +30,8 @@ import (
 // PacketDispatcherService constructs SCION sockets where applications have
 // fine-grained control over header fields.
 type PacketDispatcherService interface {
-	RegisterTimeout(ia addr.IA, public *net.UDPAddr, bind *net.UDPAddr,
-		svc addr.HostSVC, timeout time.Duration) (PacketConn, uint16, error)
+	Register(ctx context.Context, ia addr.IA, registration *net.UDPAddr,
+		svc addr.HostSVC) (PacketConn, uint16, error)
 }
 
 var _ PacketDispatcherService = (*DefaultPacketDispatcherService)(nil)
@@ -48,18 +47,10 @@ type DefaultPacketDispatcherService struct {
 	SCMPHandler SCMPHandler
 }
 
-func (s *DefaultPacketDispatcherService) RegisterTimeout(ia addr.IA, public *net.UDPAddr,
-	bind *net.UDPAddr, svc addr.HostSVC,
-	timeout time.Duration) (PacketConn, uint16, error) {
+func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
+	registration *net.UDPAddr, svc addr.HostSVC) (PacketConn, uint16, error) {
 
-	ctx := context.Background()
-	if timeout != 0 {
-		var cancelF context.CancelFunc
-		ctx, cancelF = context.WithTimeout(ctx, timeout)
-		defer cancelF()
-	}
-
-	rconn, port, err := s.Dispatcher.Register(ctx, ia, public, svc)
+	rconn, port, err := s.Dispatcher.Register(ctx, ia, registration, svc)
 	if err != nil {
 		return nil, 0, err
 	}

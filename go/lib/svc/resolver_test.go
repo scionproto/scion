@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import (
 	"errors"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
@@ -49,8 +48,8 @@ func TestResolver(t *testing.T) {
 
 		Convey("If opening up port fails, return error and no reply", func() {
 			mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
-			mockPacketDispatcherService.EXPECT().RegisterTimeout(gomock.Any(), gomock.Any(),
-				gomock.Any(), gomock.Any(), gomock.Any()).
+			mockPacketDispatcherService.EXPECT().Register(gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any()).
 				Return(nil, uint16(0), errors.New("no conn"))
 			resolver := &svc.Resolver{
 				LocalIA:     srcIA,
@@ -64,11 +63,9 @@ func TestResolver(t *testing.T) {
 		Convey("Local machine information is used to build conns", func() {
 			mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
 			mockConn := mock_snet.NewMockPacketConn(ctrl)
-			mockPacketDispatcherService.EXPECT().RegisterTimeout(srcIA,
+			mockPacketDispatcherService.EXPECT().Register(gomock.Any(), srcIA,
 				&net.UDPAddr{IP: net.IP{192, 0, 2, 1}},
-				nil,
-				addr.SvcNone,
-				time.Duration(0)).Return(mockConn, uint16(42), nil)
+				addr.SvcNone).Return(mockConn, uint16(42), nil)
 			mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
 			mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any())

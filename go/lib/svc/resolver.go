@@ -70,7 +70,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		IP: r.LocalIP,
 	}
 
-	conn, port, err := r.ConnFactory.RegisterTimeout(r.LocalIA, u, nil, addr.SvcNone, 0)
+	conn, port, err := r.ConnFactory.Register(ctx, r.LocalIA, u, addr.SvcNone)
 	if err != nil {
 		return nil, common.NewBasicError(errRegistration, err)
 	}
