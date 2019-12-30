@@ -27,7 +27,7 @@ func TestJSONConversion(t *testing.T) {
 	script := &fake.Script{
 		Entries: []*fake.Entry{
 			{
-				Seconds: 0,
+				ReplyStartTimestamp: 0,
 				Paths: []*fake.Path{
 					{
 						JSONFingerprint: "Foo",
@@ -35,7 +35,8 @@ func TestJSONConversion(t *testing.T) {
 							IP:   net.IP{192, 168, 0, 1},
 							Port: 80,
 						},
-						JSONIA: xtest.MustParseIA("1-ff00:0:1"),
+						JSONIA:                  xtest.MustParseIA("1-ff00:0:1"),
+						JSONExpirationTimestamp: 7200,
 					},
 				},
 			},
@@ -65,7 +66,7 @@ func TestPaths(t *testing.T) {
 	script := &fake.Script{
 		Entries: []*fake.Entry{
 			{
-				Seconds: 0,
+				ReplyStartTimestamp: 0,
 				Paths: []*fake.Path{
 					{
 						JSONFingerprint: "Foo",
@@ -73,12 +74,13 @@ func TestPaths(t *testing.T) {
 							IP:   net.IP{10, 0, 0, 1},
 							Port: 80,
 						},
-						JSONIA: xtest.MustParseIA("1-ff00:0:1"),
+						JSONIA:                  xtest.MustParseIA("1-ff00:0:1"),
+						JSONExpirationTimestamp: 7200,
 					},
 				},
 			},
 			{
-				Seconds: 1,
+				ReplyStartTimestamp: 1,
 				Paths: []*fake.Path{
 					{
 						JSONFingerprint: "Foo2",
@@ -86,7 +88,8 @@ func TestPaths(t *testing.T) {
 							IP:   net.IP{10, 0, 0, 2},
 							Port: 80,
 						},
-						JSONIA: xtest.MustParseIA("2-ff00:0:2"),
+						JSONIA:                  xtest.MustParseIA("2-ff00:0:2"),
+						JSONExpirationTimestamp: 10800,
 					},
 				},
 			},
@@ -110,8 +113,9 @@ func TestPaths(t *testing.T) {
 	assert.Equal(t, []snet.PathInterface{}, paths[0].Interfaces())
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
 	assert.Equal(t, uint16(1500), paths[0].MTU())
-	// path valid for more than an hour
+	// path valid for more than an hour, but less than three
 	assert.True(t, paths[0].Expiry().After(time.Now().Add(time.Hour)))
+	assert.True(t, paths[0].Expiry().Before(time.Now().Add(3*time.Hour)))
 
 	time.Sleep(time.Second)
 
@@ -131,8 +135,9 @@ func TestPaths(t *testing.T) {
 	assert.Equal(t, []snet.PathInterface{}, paths[0].Interfaces())
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())
 	assert.Equal(t, uint16(1500), paths[0].MTU())
-	// path valid for more than an hour
-	assert.True(t, paths[0].Expiry().After(time.Now().Add(time.Hour)))
+	// path valid for more than two hours, but less than four
+	assert.True(t, paths[0].Expiry().After(time.Now().Add(2*time.Hour)))
+	assert.True(t, paths[0].Expiry().Before(time.Now().Add(4*time.Hour)))
 }
 
 func TestPathCopy(t *testing.T) {

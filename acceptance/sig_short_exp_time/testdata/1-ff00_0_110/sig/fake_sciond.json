@@ -1,0 +1,32 @@
+{
+    "entries": [
+        {
+            "reply_start_timestamp": 0,
+            "paths": [
+                {
+                    "fingerprint": "PathAAAAExpiresSoon",
+                    "next_hop": "242.254.100.3:50000",
+                    "ia": "1-ff00:0:111",
+                    "expiration_timestamp": 10
+                }
+            ]
+        },
+        {
+            "reply_start_timestamp": 5,
+            "paths": [
+                {
+                    "fingerprint": "PathAAAAExpiresSoon",
+                    "next_hop": "242.254.100.3:50000",
+                    "ia": "1-ff00:0:111",
+                    "expiration_timestamp": 10
+                },
+                {
+                    "fingerprint": "PathBBBBExpiresLate",
+                    "next_hop": "242.254.100.4:50000",
+                    "ia": "1-ff00:0:111",
+                    "expiration_timestamp": 7200
+                }
+            ]
+        }
+    ]
+}

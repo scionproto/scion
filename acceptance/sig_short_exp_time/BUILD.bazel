@@ -1,7 +1,7 @@
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 
 sh_test(
-    name = "sig_failover_test",
+    name = "sig_short_exp_time_test",
     size = "small",
     srcs = ["test"],
     deps = [

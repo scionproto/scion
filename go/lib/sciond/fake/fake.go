@@ -21,11 +21,21 @@ import (
 )
 
 // New creates a new fake SCIOND implementation using the data in the script.
+//
+// New also initializes path expiry times according to the expiry seconds in the script.
 func New(script *Script) sciond.Connector {
-	return &connector{
+	c := &connector{
 		script:       script,
 		creationTime: time.Now(),
 	}
+	for _, entry := range script.Entries {
+		for _, path := range entry.Paths {
+			path.creationTime = c.creationTime
+			lifetime := time.Duration(path.JSONExpirationTimestamp) * time.Second
+			path.expirationTime = path.creationTime.Add(lifetime)
+		}
+	}
+	return c
 }
 
 // NewFromFile creates a new fake SCIOND implementation using the JSON representation in the file.
@@ -48,11 +58,11 @@ type Script struct {
 
 // Entry describes a path reply.
 type Entry struct {
-	// Seconds describes the number of seconds that should pass after a fake SCIOND has been created
-	// before serving paths from the entry. The last entry whose timestamp has passed is selected.
-	// (so, if the seconds timestamps are 0, 4, 6, the paths selected at 5 seconds from creation
-	// would be the ones associated with timestamp 4)
-	Seconds int `json:"seconds"`
+	// ReplyStartTimestamp describes the number of seconds that should pass after a fake SCIOND has
+	// been created before serving paths from the entry. The last entry whose timestamp has passed
+	// is selected. (so, if the seconds timestamps are 0, 4, 6, the paths selected at 5 seconds from
+	// creation would be the ones associated with timestamp 4)
+	ReplyStartTimestamp int `json:"reply_start_timestamp"`
 	// Paths contains the paths for a fake SCIOND reply.
 	Paths []*Path `json:"paths"`
 }
@@ -61,6 +71,15 @@ type Path struct {
 	JSONFingerprint string   `json:"fingerprint"`
 	JSONNextHop     *UDPAddr `json:"next_hop,omitempty"`
 	JSONIA          addr.IA  `json:"ia"`
+	// JSONExpirationTimestamp contains the point in time when the path expires, in seconds,
+	// relative to the time of fake connector creation. Negative timestamps are also supported, and
+	// would mean SCIOND served a path that expired in the past.
+	JSONExpirationTimestamp int `json:"expiration_timestamp"`
+
+	// creationTime contains the time when this object was constructed.
+	creationTime time.Time
+	// expirationTime contains the time when this path expires.
+	expirationTime time.Time
 }
 
 func (p Path) Fingerprint() snet.PathFingerprint {
@@ -96,7 +115,7 @@ func (p Path) MTU() uint16 {
 }
 
 func (p Path) Expiry() time.Time {
-	return time.Now().Add(time.Hour * 24 * 7 * 365 * 2) // 2 years
+	return p.expirationTime
 }
 
 func (p Path) Copy() snet.Path {
@@ -107,7 +126,10 @@ func (p Path) Copy() snet.Path {
 			Port: p.JSONNextHop.Port,
 			Zone: p.JSONNextHop.Zone,
 		},
-		JSONIA: p.JSONIA,
+		JSONIA:                  p.JSONIA,
+		JSONExpirationTimestamp: p.JSONExpirationTimestamp,
+		creationTime:            p.creationTime,
+		expirationTime:          p.expirationTime,
 	}
 }
 
@@ -151,7 +173,7 @@ func (c connector) Paths(_ context.Context, _, _ addr.IA, max uint16,
 	var entry *Entry
 	for i := 0; i < len(c.script.Entries); i++ {
 		entry = c.script.Entries[i]
-		if secondsElapsed <= entry.Seconds {
+		if secondsElapsed <= entry.ReplyStartTimestamp {
 			break
 		}
 	}
@@ -162,13 +184,13 @@ func (c connector) Paths(_ context.Context, _, _ addr.IA, max uint16,
 	if intMax > len(entry.Paths) {
 		intMax = len(entry.Paths)
 	}
-	return adapter(entry.Paths[:intMax]), nil
+	return c.adapter(entry.Paths[:intMax]), nil
 }
 
-func adapter(paths []*Path) []snet.Path {
+func (c connector) adapter(paths []*Path) []snet.Path {
 	var snetPaths []snet.Path
 	for _, path := range paths {
-		snetPaths = append(snetPaths, path)
+		snetPaths = append(snetPaths, path.Copy())
 	}
 	return snetPaths
 }

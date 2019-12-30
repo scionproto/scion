@@ -1,17 +1,19 @@
 {
     "entries": [
         {
-            "seconds": 0,
+            "reply_start_timestamp": 0,
             "paths": [
                 {
                     "fingerprint": "PathAAAA",
                     "next_hop": "242.254.100.3:50000",
-                    "ia": "1-ff00:0:111"
+                    "ia": "1-ff00:0:111",
+                    "expiration_timestamp": 7200
                 },
                 {
                     "fingerprint": "PathBBBB",
                     "next_hop": "242.254.100.4:50000",
-                    "ia": "1-ff00:0:111"
+                    "ia": "1-ff00:0:111",
+                    "expiration_timestamp": 7200
                 }
             ]
         }
