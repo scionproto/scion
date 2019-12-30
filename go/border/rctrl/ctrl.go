@@ -17,6 +17,8 @@
 package rctrl
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/border/ifstate"
 	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -57,7 +59,8 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 		},
 	)
 	ctrlAddr := ctx.Conf.BR.CtrlAddrs
-	snetConn, err = scionNetwork.Listen("udp", ctrlAddr.SCIONAddress, addr.SvcNone, 0)
+	snetConn, err = scionNetwork.Listen(context.Background(), "udp", ctrlAddr.SCIONAddress,
+		addr.SvcNone)
 	if err != nil {
 		fatal.Fatal(common.NewBasicError("Listening on address", err, "addr", ctrlAddr))
 	}

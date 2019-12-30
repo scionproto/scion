@@ -16,6 +16,7 @@
 
 
 import logging
+import time
 
 from plumbum import local
 
@@ -48,6 +49,8 @@ class TestSetup(Base):
         if not self.no_docker:
             self.tools_dc('start', 'tester*')
             self.docker_status()
+        # give some time for initial setup of control plane
+        time.sleep(4)
 
 
 @Test.subcommand("run")

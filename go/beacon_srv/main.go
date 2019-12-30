@@ -211,7 +211,7 @@ func realMain() int {
 	ohpAddress := &net.UDPAddr{
 		IP: append(a.IP[:0:0], a.IP...), Port: 0,
 	}
-	conn, _, err := pktDisp.RegisterTimeout(topo.IA(), ohpAddress, nil, addr.SvcNone, 0)
+	conn, _, err := pktDisp.Register(context.Background(), topo.IA(), ohpAddress, addr.SvcNone)
 	if err != nil {
 		log.Crit("Unable to create SCION packet conn", "err", err)
 		return 1
