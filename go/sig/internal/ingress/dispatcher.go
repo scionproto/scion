@@ -16,6 +16,7 @@
 package ingress
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -60,7 +61,8 @@ func NewDispatcher(tio io.ReadWriteCloser) *Dispatcher {
 
 func (d *Dispatcher) Run() error {
 	var err error
-	d.extConn, err = sigcmn.Network.Listen("udp", d.laddr.ToNetUDPAddr(), addr.SvcNone, 0)
+	d.extConn, err = sigcmn.Network.Listen(context.Background(), "udp",
+		d.laddr.ToNetUDPAddr(), addr.SvcNone)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize extConn", err)
 	}
