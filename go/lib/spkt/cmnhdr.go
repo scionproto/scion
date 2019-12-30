@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -38,11 +40,10 @@ type CmnHdr struct {
 	NextHdr   common.L4ProtocolType
 }
 
-const (
-	ErrUnsuppVersion common.ErrMsg = "Unsupported SCION version"
-)
+// ErrUnsupportedVersion indicates an unsupported SCION version.
+var ErrUnsupportedVersion = serrors.New("unsupported SCION version")
 
-func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, error) {
+func CmnHdrFromRaw(b []byte) (*CmnHdr, error) {
 	c := &CmnHdr{}
 	if err := c.Parse(b); err != nil {
 		return nil, err
@@ -50,9 +51,9 @@ func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, error) {
 	return c, nil
 }
 
-func (c *CmnHdr) Parse(b common.RawBytes) error {
+func (c *CmnHdr) Parse(b []byte) error {
 	if len(b) < CmnHdrLen {
-		return common.NewBasicError("Packet is shorter than the common header length", nil,
+		return serrors.New("Packet is shorter than the common header length",
 			"min", CmnHdrLen, "actual", len(b))
 	}
 	offset := 0
@@ -73,8 +74,7 @@ func (c *CmnHdr) Parse(b common.RawBytes) error {
 	if c.Ver != SCIONVersion {
 		// This can only usefully be replied to if the version specified is one
 		// that the current router supports, but has deprecated.
-		return common.NewBasicError(
-			ErrUnsuppVersion,
+		return serrors.Wrap(ErrUnsupportedVersion,
 			scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadVersion, nil, nil),
 			"expected", SCIONVersion, "actual", c.Ver,
 		)
@@ -82,7 +82,7 @@ func (c *CmnHdr) Parse(b common.RawBytes) error {
 	return nil
 }
 
-func (c *CmnHdr) Write(b common.RawBytes) {
+func (c *CmnHdr) Write(b []byte) {
 	offset := 0
 	var verDstSrc uint16
 	verDstSrc = uint16(c.Ver&0xF)<<12 | uint16(c.DstType&0x3F)<<6 | uint16(c.SrcType&0x3F)
@@ -99,7 +99,7 @@ func (c *CmnHdr) Write(b common.RawBytes) {
 	b[offset] = uint8(c.NextHdr)
 }
 
-func (c *CmnHdr) UpdatePathOffsets(b common.RawBytes, iOff, hOff uint8) {
+func (c *CmnHdr) UpdatePathOffsets(b []byte, iOff, hOff uint8) {
 	c.CurrInfoF = iOff
 	c.CurrHopF = hOff
 	b[5] = c.CurrInfoF

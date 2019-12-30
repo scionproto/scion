@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +19,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
-
-var _ common.ErrorNester = (*Error)(nil)
 
 // Error represents an SCMP error, with an optional nested error.
 type Error struct {
@@ -32,8 +31,8 @@ type Error struct {
 
 // NewError creates a new SCMP Error with the specified scmp Class/Type/Info,
 // and optional nested error.
-func NewError(class Class, type_ Type, info Info, e error) error {
-	return &Error{CT: ClassType{class, type_}, Info: info, Err: e}
+func NewError(class Class, t Type, info Info, e error) error {
+	return &Error{CT: ClassType{class, t}, Info: info, Err: e}
 }
 
 func (e *Error) TopError() string {
@@ -49,21 +48,9 @@ func (e *Error) TopError() string {
 }
 
 func (e *Error) Error() string {
-	return common.FmtError(e)
+	return serrors.FmtError(e)
 }
 
-func (e *Error) GetErr() error {
+func (e *Error) Unwrap() error {
 	return e.Err
-}
-
-// ToError converts an e to an Error. If that fails, it recurses on the nested
-// error, if any, and otherwise returns nil.
-func ToError(e error) *Error {
-	if e, ok := e.(*Error); ok {
-		return e
-	}
-	if n := common.GetNestedError(e); n != nil {
-		return ToError(n)
-	}
-	return nil
 }
