@@ -18,6 +18,7 @@ package rctrl
 
 import (
 	"context"
+
 	"github.com/scionproto/scion/go/border/ifstate"
 	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
