@@ -31,7 +31,7 @@ func New(script *Script) sciond.Connector {
 	for _, entry := range script.Entries {
 		for _, path := range entry.Paths {
 			path.creationTime = c.creationTime
-			lifetime := time.Duration(path.JSONExpirySeconds) * time.Second
+			lifetime := time.Duration(path.JSONExpirationTimestamp) * time.Second
 			path.expirationTime = path.creationTime.Add(lifetime)
 		}
 	}
@@ -58,11 +58,11 @@ type Script struct {
 
 // Entry describes a path reply.
 type Entry struct {
-	// Seconds describes the number of seconds that should pass after a fake SCIOND has been created
-	// before serving paths from the entry. The last entry whose timestamp has passed is selected.
-	// (so, if the seconds timestamps are 0, 4, 6, the paths selected at 5 seconds from creation
-	// would be the ones associated with timestamp 4)
-	Seconds int `json:"seconds"`
+	// ReplyStartTimestamp describes the number of seconds that should pass after a fake SCIOND has
+	// been created before serving paths from the entry. The last entry whose timestamp has passed
+	// is selected. (so, if the seconds timestamps are 0, 4, 6, the paths selected at 5 seconds from
+	// creation would be the ones associated with timestamp 4)
+	ReplyStartTimestamp int `json:"reply_start_timestamp"`
 	// Paths contains the paths for a fake SCIOND reply.
 	Paths []*Path `json:"paths"`
 }
@@ -71,10 +71,10 @@ type Path struct {
 	JSONFingerprint string   `json:"fingerprint"`
 	JSONNextHop     *UDPAddr `json:"next_hop,omitempty"`
 	JSONIA          addr.IA  `json:"ia"`
-	// JSONExpirySeconds  contains the lifetime of the path, in seconds. The lifetime is relative to
-	// the time of fake connector creation. Negative lifetimes are also supported, and would mean
-	// SCIOND served a path that expired in the past.
-	JSONExpirySeconds int `json:"expiry_seconds"`
+	// JSONExpirationTimestamp contains the point in time when the path expires, in seconds,
+	// relative to the time of fake connector creation. Negative timestamps are also supported, and
+	// would mean SCIOND served a path that expired in the past.
+	JSONExpirationTimestamp int `json:"expiration_timestamp"`
 
 	// creationTime contains the time when this object was constructed.
 	creationTime time.Time
@@ -126,10 +126,10 @@ func (p Path) Copy() snet.Path {
 			Port: p.JSONNextHop.Port,
 			Zone: p.JSONNextHop.Zone,
 		},
-		JSONIA:            p.JSONIA,
-		JSONExpirySeconds: p.JSONExpirySeconds,
-		creationTime:      p.creationTime,
-		expirationTime:    p.expirationTime,
+		JSONIA:                  p.JSONIA,
+		JSONExpirationTimestamp: p.JSONExpirationTimestamp,
+		creationTime:            p.creationTime,
+		expirationTime:          p.expirationTime,
 	}
 }
 
@@ -173,7 +173,7 @@ func (c connector) Paths(_ context.Context, _, _ addr.IA, max uint16,
 	var entry *Entry
 	for i := 0; i < len(c.script.Entries); i++ {
 		entry = c.script.Entries[i]
-		if secondsElapsed <= entry.Seconds {
+		if secondsElapsed <= entry.ReplyStartTimestamp {
 			break
 		}
 	}
