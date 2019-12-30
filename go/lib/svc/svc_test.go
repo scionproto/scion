@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package svc_test
 
 import (
+	"context"
 	"errors"
 	"net"
 	"testing"
@@ -44,26 +45,26 @@ func TestSVCResolutionServer(t *testing.T) {
 		mockReqHandler := mock_svc.NewMockRequestHandler(ctrl)
 
 		Convey("Underlying dispatcher service fails to set up underlying conn", func() {
-			mockPacketDispatcherService.EXPECT().RegisterTimeout(
-				gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+			mockPacketDispatcherService.EXPECT().Register(
+				gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
 			).Return(nil, uint16(0), errors.New("conn error"))
 
 			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
-			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &net.UDPAddr{},
-				&net.UDPAddr{}, addr.SvcPS, 0)
+			conn, port, err := dispatcherService.Register(context.Background(), addr.IA{},
+				&net.UDPAddr{}, addr.SvcPS)
 			SoMsg("conn", conn, ShouldBeNil)
 			SoMsg("port", port, ShouldEqual, 0)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Given an established resolver conn", func() {
-			mockPacketDispatcherService.EXPECT().RegisterTimeout(gomock.Any(), gomock.Any(),
-				gomock.Any(), gomock.Any(), gomock.Any()).Return(mockPacketConn, uint16(1337), nil)
+			mockPacketDispatcherService.EXPECT().Register(gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any()).Return(mockPacketConn, uint16(1337), nil)
 
 			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
-			conn, port, err := dispatcherService.RegisterTimeout(addr.IA{}, &net.UDPAddr{},
-				&net.UDPAddr{}, addr.SvcPS, 0)
+			conn, port, err := dispatcherService.Register(context.Background(), addr.IA{},
+				&net.UDPAddr{}, addr.SvcPS)
 			SoMsg("conn", conn, ShouldNotBeNil)
 			SoMsg("port", port, ShouldEqual, 1337)
 			SoMsg("err", err, ShouldBeNil)

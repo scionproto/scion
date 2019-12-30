@@ -251,20 +251,20 @@ func (m *MockPacketDispatcherService) EXPECT() *MockPacketDispatcherServiceMockR
 	return m.recorder
 }
 
-// RegisterTimeout mocks base method
-func (m *MockPacketDispatcherService) RegisterTimeout(arg0 addr.IA, arg1, arg2 *net.UDPAddr, arg3 addr.HostSVC, arg4 time.Duration) (snet.PacketConn, uint16, error) {
+// Register mocks base method
+func (m *MockPacketDispatcherService) Register(arg0 context.Context, arg1 addr.IA, arg2 *net.UDPAddr, arg3 addr.HostSVC) (snet.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterTimeout", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "Register", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(snet.PacketConn)
 	ret1, _ := ret[1].(uint16)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-// RegisterTimeout indicates an expected call of RegisterTimeout
-func (mr *MockPacketDispatcherServiceMockRecorder) RegisterTimeout(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+// Register indicates an expected call of Register
+func (mr *MockPacketDispatcherServiceMockRecorder) Register(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTimeout", reflect.TypeOf((*MockPacketDispatcherService)(nil).RegisterTimeout), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockPacketDispatcherService)(nil).Register), arg0, arg1, arg2, arg3)
 }
 
 // MockNetwork is a mock of Network interface

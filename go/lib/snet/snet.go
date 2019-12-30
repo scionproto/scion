@@ -43,6 +43,7 @@
 package snet
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -157,8 +158,13 @@ func (n *SCIONNetwork) Listen(network string, listen *net.UDPAddr,
 			Zone: listen.Zone,
 		},
 	}
-	packetConn, port, err := conn.scionNet.dispatcher.RegisterTimeout(n.localIA,
-		listen, nil, svc, timeout)
+	ctx := context.Background()
+	if timeout != 0 {
+		var cancelF context.CancelFunc
+		ctx, cancelF = context.WithTimeout(ctx, timeout)
+		defer cancelF()
+	}
+	packetConn, port, err := conn.scionNet.dispatcher.Register(ctx, n.localIA, listen, svc)
 	if err != nil {
 		return nil, err
 	}

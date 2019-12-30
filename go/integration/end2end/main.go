@@ -103,9 +103,8 @@ func (s server) run() {
 			sciond.RevHandler{Connector: integration.SDConn()},
 		),
 	}
-	conn, port, err := connFactory.RegisterTimeout(integration.Local.IA,
-		integration.Local.ToNetUDPAddr(),
-		nil, addr.SvcNone, 0)
+	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
+		integration.Local.ToNetUDPAddr(), addr.SvcNone)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
@@ -161,8 +160,8 @@ func (c client) run() int {
 	}
 
 	var err error
-	c.conn, c.port, err = connFactory.RegisterTimeout(integration.Local.IA,
-		integration.Local.ToNetUDPAddr(), nil, addr.SvcNone, 0)
+	c.conn, c.port, err = connFactory.Register(context.Background(), integration.Local.IA,
+		integration.Local.ToNetUDPAddr(), addr.SvcNone)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}

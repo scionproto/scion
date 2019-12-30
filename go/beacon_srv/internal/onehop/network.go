@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 package onehop
 
 import (
+	"context"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/layers"
@@ -31,11 +31,10 @@ type OHPPacketDispatcherService struct {
 	snet.PacketDispatcherService
 }
 
-func (s *OHPPacketDispatcherService) RegisterTimeout(ia addr.IA, public *net.UDPAddr,
-	bind *net.UDPAddr, svc addr.HostSVC,
-	timeout time.Duration) (snet.PacketConn, uint16, error) {
+func (s *OHPPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
+	registration *net.UDPAddr, svc addr.HostSVC) (snet.PacketConn, uint16, error) {
 
-	conn, port, err := s.PacketDispatcherService.RegisterTimeout(ia, public, bind, svc, timeout)
+	conn, port, err := s.PacketDispatcherService.Register(ctx, ia, registration, svc)
 	if err != nil {
 		return conn, port, err
 	}
