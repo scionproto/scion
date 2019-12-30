@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -115,8 +114,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 			SCMPHandler: scmpH,
 		},
 	)
-	snetConn, err := network.Listen("udp", p.Local.ToNetUDPAddr(),
-		addr.SvcNone, deadline.Sub(time.Now()))
+	snetConn, err := network.Listen(ctx, "udp", p.Local.ToNetUDPAddr(), addr.SvcNone)
 	if err != nil {
 		return nil, common.NewBasicError("listening failed", err)
 	}

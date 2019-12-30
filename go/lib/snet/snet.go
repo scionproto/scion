@@ -107,7 +107,13 @@ func (n *SCIONNetwork) Dial(network string, listen *net.UDPAddr, remote *UDPAddr
 	if remote == nil {
 		return nil, serrors.New("Unable to dial to nil remote")
 	}
-	conn, err := n.Listen(network, listen, svc, timeout)
+	ctx := context.Background()
+	if timeout != 0 {
+		var cancelF context.CancelFunc
+		ctx, cancelF = context.WithTimeout(ctx, timeout)
+		defer cancelF()
+	}
+	conn, err := n.Listen(ctx, network, listen, svc)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +129,8 @@ func (n *SCIONNetwork) Dial(network string, listen *net.UDPAddr, remote *UDPAddr
 //
 // The timeout is used for connection setup, it doesn't affect the returned
 // connection. A timeout of 0 means infinite timeout.
-func (n *SCIONNetwork) Listen(network string, listen *net.UDPAddr,
-	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
+func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.UDPAddr,
+	svc addr.HostSVC) (Conn, error) {
 
 	metrics.M.Listens().Inc()
 
@@ -157,12 +163,6 @@ func (n *SCIONNetwork) Listen(network string, listen *net.UDPAddr,
 			Port: listen.Port,
 			Zone: listen.Zone,
 		},
-	}
-	ctx := context.Background()
-	if timeout != 0 {
-		var cancelF context.CancelFunc
-		ctx, cancelF = context.WithTimeout(ctx, timeout)
-		defer cancelF()
 	}
 	packetConn, port, err := conn.scionNet.dispatcher.Register(ctx, n.localIA, listen, svc)
 	if err != nil {

@@ -73,7 +73,8 @@ type client struct {
 func (c client) run() int {
 	network := integration.InitNetwork()
 	var err error
-	c.conn, err = network.Listen("udp", integration.Local.ToNetUDPAddr(), addr.SvcNone, 0)
+	c.conn, err = network.Listen(context.Background(), "udp",
+		integration.Local.ToNetUDPAddr(), addr.SvcNone)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}

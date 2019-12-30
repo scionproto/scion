@@ -16,6 +16,7 @@
 package snet
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -23,8 +24,7 @@ import (
 )
 
 type Network interface {
-	Listen(network string, listen *net.UDPAddr, svc addr.HostSVC,
-		timeout time.Duration) (Conn, error)
+	Listen(ctx context.Context, network string, listen *net.UDPAddr, svc addr.HostSVC) (Conn, error)
 	Dial(network string, listen *net.UDPAddr, remote *UDPAddr, svc addr.HostSVC,
 		timeout time.Duration) (Conn, error)
 }
