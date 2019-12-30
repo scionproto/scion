@@ -41,7 +41,7 @@ type CmnHdr struct {
 }
 
 // ErrUnsupportedVersion indicates an unsupported SCION version.
-var ErrUnsupportedVersion = serrors.New("unsuppoerted SCION version")
+var ErrUnsupportedVersion = serrors.New("unsupported SCION version")
 
 func CmnHdrFromRaw(b []byte) (*CmnHdr, error) {
 	c := &CmnHdr{}
