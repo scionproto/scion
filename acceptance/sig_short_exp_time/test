@@ -70,8 +70,11 @@ run_test() {(set -e
 
     docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
 
-    # Set up forward route on network stack 1 and 2 through sig tunnel device
-    # If this fails, the test is not stopped.
+    # Set up forward route on network stack 1 and 2 through the sig tunnel
+    # device. The route is a property of the network stack, and persists after
+    # the container that added it has exited.
+    #
+    # If the route configuration fails, the test is not stopped.
     docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name route1 --rm tester1 ip route add 242.254.200.2/32 dev sig || true
     docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name route2 --rm tester2 ip route add 242.254.100.2/32 dev sig || true
 
