@@ -45,7 +45,6 @@ package snet
 import (
 	"context"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -95,23 +94,17 @@ func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService) *
 }
 
 // Dial returns a SCION connection to remote. Nil values for listen are not
-// supported yet.  Parameter network must be "udp". The returned connection's
+// supported yet. Parameter network must be "udp". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
 //
-// The timeout is used for connection setup, it doesn't affect the returned
-// connection. A timeout of 0 means infinite timeout.
-func (n *SCIONNetwork) Dial(network string, listen *net.UDPAddr, remote *UDPAddr,
-	svc addr.HostSVC, timeout time.Duration) (Conn, error) {
+// The context is used for connection setup, it doesn't affect the returned
+// connection.
+func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDPAddr,
+	remote *UDPAddr, svc addr.HostSVC) (Conn, error) {
 
 	metrics.M.Dials().Inc()
 	if remote == nil {
 		return nil, serrors.New("Unable to dial to nil remote")
-	}
-	ctx := context.Background()
-	if timeout != 0 {
-		var cancelF context.CancelFunc
-		ctx, cancelF = context.WithTimeout(ctx, timeout)
-		defer cancelF()
 	}
 	conn, err := n.Listen(ctx, network, listen, svc)
 	if err != nil {
@@ -122,13 +115,13 @@ func (n *SCIONNetwork) Dial(network string, listen *net.UDPAddr, remote *UDPAddr
 	return conn, nil
 }
 
-// Listen registers laddr with the dispatcher. Nil values for laddr are
+// Listen registers listen with the dispatcher. Nil values for listen are
 // not supported yet. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp".
 //
-// The timeout is used for connection setup, it doesn't affect the returned
-// connection. A timeout of 0 means infinite timeout.
+// The context is used for connection setup, it doesn't affect the returned
+// connection.
 func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.UDPAddr,
 	svc addr.HostSVC) (Conn, error) {
 
