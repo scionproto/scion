@@ -27,7 +27,7 @@ func TestJSONConversion(t *testing.T) {
 	script := &fake.Script{
 		Entries: []*fake.Entry{
 			{
-				Seconds: 0,
+				ReplyStartTimestamp: 0,
 				Paths: []*fake.Path{
 					{
 						JSONFingerprint: "Foo",
@@ -35,8 +35,8 @@ func TestJSONConversion(t *testing.T) {
 							IP:   net.IP{192, 168, 0, 1},
 							Port: 80,
 						},
-						JSONIA:            xtest.MustParseIA("1-ff00:0:1"),
-						JSONExpirySeconds: 7200,
+						JSONIA:                  xtest.MustParseIA("1-ff00:0:1"),
+						JSONExpirationTimestamp: 7200,
 					},
 				},
 			},
@@ -66,7 +66,7 @@ func TestPaths(t *testing.T) {
 	script := &fake.Script{
 		Entries: []*fake.Entry{
 			{
-				Seconds: 0,
+				ReplyStartTimestamp: 0,
 				Paths: []*fake.Path{
 					{
 						JSONFingerprint: "Foo",
@@ -74,13 +74,13 @@ func TestPaths(t *testing.T) {
 							IP:   net.IP{10, 0, 0, 1},
 							Port: 80,
 						},
-						JSONIA:            xtest.MustParseIA("1-ff00:0:1"),
-						JSONExpirySeconds: 7200,
+						JSONIA:                  xtest.MustParseIA("1-ff00:0:1"),
+						JSONExpirationTimestamp: 7200,
 					},
 				},
 			},
 			{
-				Seconds: 1,
+				ReplyStartTimestamp: 1,
 				Paths: []*fake.Path{
 					{
 						JSONFingerprint: "Foo2",
@@ -88,8 +88,8 @@ func TestPaths(t *testing.T) {
 							IP:   net.IP{10, 0, 0, 2},
 							Port: 80,
 						},
-						JSONIA:            xtest.MustParseIA("2-ff00:0:2"),
-						JSONExpirySeconds: 10800,
+						JSONIA:                  xtest.MustParseIA("2-ff00:0:2"),
+						JSONExpirationTimestamp: 10800,
 					},
 				},
 			},

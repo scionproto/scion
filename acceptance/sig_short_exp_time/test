@@ -68,24 +68,34 @@ run_test() {(set -e
     bash "$(rlocation __main__/acceptance/sig_short_exp_time/sig1)"
     bash "$(rlocation __main__/acceptance/sig_short_exp_time/sig2)"
 
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2
+    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
 
     # Set up forward route on network stack 1 and 2 through sig tunnel device
     # If this fails, the test is not stopped.
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --rm tester1 ip route add 242.254.200.2/32 dev sig || true
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --rm tester2 ip route add 242.254.100.2/32 dev sig || true
+    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name route1 --rm tester1 ip route add 242.254.200.2/32 dev sig || true
+    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name route2 --rm tester2 ip route add 242.254.100.2/32 dev sig || true
 
-    echo "Initial ping tests"
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d patha pathb
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --rm tester1 ping -c 1 242.254.200.2
+    echo "Start background ping, ping every 0.2 seconds"
+    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name tester1 -d tester1 ping -i 0.2 242.254.200.2
 
-    echo "Wait for path A to expire..."
+    echo "Waiting 10 seconds for path A to expire..."
     sleep 10
-
-    echo "Shutting down path A"
+    echo "Path A expired, simulating it by shutting down path A proxy"
+    # Traffic should have switched beforehand to path b, and no pings should be lost
     docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml stop patha
-    echo "Check no ping lost"
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --rm tester1 ping -c 1 242.254.200.2
+    sleep 1
+    docker kill -s SIGINT tester1
+
+    sleep 1
+    LINE=`docker logs tester1 | tail -n 2 | head -n 1`
+    echo "Ping results: $LINE"
+
+    ATTEMPTS=`echo $LINE | cut -d ' ' -f 1`
+    SUCCESSES=`echo $LINE | cut -d ' ' -f 4`
+    if [ $ATTEMPTS -ne $SUCCESSES ]; then
+        echo "Test failed, attempted $ATTEMPTS pings, but only $SUCCESSES succeeded"
+        return 1
+    fi
 )}
 
 set +e
