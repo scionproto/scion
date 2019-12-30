@@ -21,14 +21,12 @@ steps:
     timeout_in_minutes: 10
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
     command:
-      - "rm -rf /tmp/$BUILDKITE_STEP_ID/"
-      - "mkdir -p /tmp/$BUILDKITE_STEP_ID/"
-      - "cp go.mod go.sum go_deps.bzl /tmp/$BUILDKITE_STEP_ID/"
-      - "make godeps -B"
-      - "bazel-${BUILDKITE_PIPELINE_SLUG}/external/go_sdk/bin/go mod tidy"
-      - "diff -u /tmp/$BUILDKITE_STEP_ID/go.mod go.mod"
-      - "diff -u /tmp/$BUILDKITE_STEP_ID/go.sum go.sum"
-      - "diff -u /tmp/$BUILDKITE_STEP_ID/go_deps.bzl go_deps.bzl"
+      - "cp go.mod go.sum go_deps.bzl $$ACCEPTANCE_ARTIFACTS/"
+      - make godeps -B
+      - "bazel-${USER}/external/go_sdk/bin/go mod tidy"
+      - "diff -u $$ACCEPTANCE_ARTIFACTS/go.mod go.mod"
+      - "diff -u $$ACCEPTANCE_ARTIFACTS/go.sum go.sum"
+      - "diff -u $$ACCEPTANCE_ARTIFACTS/go_deps.bzl go_deps.bzl"
     key: go_deps_lint
     retry:
       automatic:
@@ -36,11 +34,9 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go/proto files in git"
     command:
-      - "rm -rf /tmp/$BUILDKITE_STEP_ID/"
-      - "mkdir -p /tmp/$BUILDKITE_STEP_ID/"
-      - "cp -R go/proto/ /tmp/$BUILDKITE_STEP_ID/"
-      - "make gogen"
-      - "diff -ur /tmp/$BUILDKITE_STEP_ID/proto/ go/proto/"
+      - "cp -R go/proto/ $$ACCEPTANCE_ARTIFACTS"
+      - make gogen
+      - "diff -ur $$ACCEPTANCE_ARTIFACTS/proto/ go/proto/"
     key: go_gen_lint
     retry:
       automatic:
@@ -53,26 +49,17 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "Acceptance: sig_failover"
+  - label: "Revocation tests"
     command:
-      - mkdir -p $$ACCEPTANCE_ARTIFACTS
-      - bazel test --action_env=ACCEPTANCE_ARTIFACTS //acceptance/sig_failover:sig_failover_test
-    key: sig_failover
+      - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+      - tar -kxf bazel-bin/scion.tar -C bin --overwrite
+      - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
+      - ./scion.sh topology nobuild
+      - ./scion.sh run nobuild && sleep 10
+      - ./bin/end2end_integration -log.console warn
+      - ./integration/revocation_test.sh
+    key: revocation_tests
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-    artifact_paths:
-      - "artifacts.out/**/*"
-  - label: "Acceptance: sig_short_exp_time"
-    command:
-      - mkdir -p $$ACCEPTANCE_ARTIFACTS
-      - bazel test --action_env=ACCEPTANCE_ARTIFACTS //acceptance/sig_short_exp_time:sig_short_exp_time_test
-    key: sig_short_exp_time
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-    artifact_paths:
-      - "artifacts.out/**/*"
-
