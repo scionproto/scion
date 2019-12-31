@@ -34,13 +34,8 @@ const (
 )
 
 const (
-	// Inactive indicates that the interface has not been activated or
-	// expired yet.
-	Inactive State = "Inactive"
 	// Active indicates that the interface is active.
 	Active State = "Active"
-	// Expired indicates that the interface is expired.
-	Expired State = "Expired"
 	// Revoked indicates that the interface is revoked.
 	Revoked State = "Revoked"
 )
@@ -94,7 +89,7 @@ func (intfs *Interfaces) Update(ifInfomap topology.IfInfoMap) {
 		} else {
 			m[ifid] = &Interface{
 				topoInfo:     info,
-				state:        Inactive,
+				state:        Active,
 				lastActivate: time.Now(),
 				cfg:          intfs.cfg,
 			}
@@ -165,13 +160,13 @@ func (intf *Interface) Activate(remote common.IFIDType) State {
 func (intf *Interface) Expire() bool {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
-	if intf.state == Expired || intf.state == Revoked {
+	if intf.state != Active {
 		return true
 	}
 	if time.Now().Sub(intf.lastActivate) > intf.cfg.KeepaliveTimeout {
 		intf.lastOriginate = time.Time{}
 		intf.lastPropagate = time.Time{}
-		intf.state = Expired
+		intf.state = Revoked
 		return true
 	}
 	return false
@@ -185,7 +180,7 @@ func (intf *Interface) Revoke(rev *path_mgmt.SignedRevInfo) error {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
 	if intf.state == Active {
-		return serrors.New("Interface activated in the meantime")
+		return serrors.New("interface activated in the meantime")
 	}
 	intf.state = Revoked
 	intf.revocation = rev
@@ -244,7 +239,7 @@ func (intf *Interface) LastPropagate() time.Time {
 func (intf *Interface) reset() {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
-	intf.state = Inactive
+	intf.state = Active
 	intf.revocation = nil
 	intf.lastOriginate = time.Time{}
 	intf.lastPropagate = time.Time{}
