@@ -8,6 +8,7 @@ echo "Clean existing environment"
 
 if [ "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
     export ACCEPTANCE_ARTIFACTS="$PWD/accept_artifacts"
+    mkdir -p "$ACCEPTANCE_ARTIFACTS"
 fi
 
 echo "Starting bazel remote cache proxy"

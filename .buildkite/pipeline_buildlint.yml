@@ -23,7 +23,7 @@ steps:
     command:
       - "cp go.mod go.sum go_deps.bzl $$ACCEPTANCE_ARTIFACTS/"
       - make godeps -B
-      - "bazel-${USER}/external/go_sdk/bin/go mod tidy"
+      - "bazel-${BUILDKITE_PIPELINE_SLUG}/external/go_sdk/bin/go mod tidy"
       - "diff -u $$ACCEPTANCE_ARTIFACTS/go.mod go.mod"
       - "diff -u $$ACCEPTANCE_ARTIFACTS/go.sum go.sum"
       - "diff -u $$ACCEPTANCE_ARTIFACTS/go_deps.bzl go_deps.bzl"
@@ -59,6 +59,8 @@ steps:
       - ./bin/end2end_integration -log.console warn
       - ./integration/revocation_test.sh
     key: revocation_tests
+    artifact_paths:
+      - "artifacts.out/**/*"
     retry:
       automatic:
         - exit_status: -1  # Agent was lost

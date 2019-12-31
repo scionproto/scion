@@ -8,7 +8,6 @@ gen_acceptance() {
         name="$(basename ${test%_acceptance})"
         echo "  - label: \"Acceptance: $name\""
         echo "    command:"
-        echo "      - \"mkdir -p \$\$ACCEPTANCE_ARTIFACTS\""
         echo "      - ./acceptance/ctl gsetup"
         echo "      - ./acceptance/ctl grun $name"
         echo "    key: ${name}_acceptance"
@@ -31,7 +30,6 @@ gen_acceptance2() {
         name=${name#'//acceptance/'}
         echo "  - label: \"Acceptance: $name\""
         echo "    command:"
-        echo "      - mkdir -p \$\$ACCEPTANCE_ARTIFACTS"
         echo "      - bazel test --action_env=ACCEPTANCE_ARTIFACTS $test"
         echo "    key: ${name}_acceptance"
         echo "    artifact_paths:"
