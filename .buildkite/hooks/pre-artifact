@@ -45,6 +45,6 @@ save "logs"
 save "traces"
 save "gen"
 save "gen-cache"
-save "accept_artifacts"
+save "$TEST_ARTIFACTS"
 
 tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C "$ARTIFACTS_DIR" "$ARTIFACTS"

@@ -22,15 +22,15 @@ gen_acceptance() {
     done
 }
 
-# gen_acceptance2 generates steps for bazel tests in acceptance folder.
-gen_acceptance2() {
+# gen_bazel_acceptance generates steps for bazel tests in acceptance folder.
+gen_bazel_acceptance() {
     for test in $(bazel query 'kind(sh_test, //acceptance/...)' 2>/dev/null); do
         # test has the format //acceptance/<name>:<name>_test
         name=$(echo $test | cut -d ':' -f 1)
         name=${name#'//acceptance/'}
         echo "  - label: \"Acceptance: $name\""
         echo "    command:"
-        echo "      - bazel test --action_env=ACCEPTANCE_ARTIFACTS $test"
+        echo "      - bazel test $test"
         echo "    key: ${name}_acceptance"
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""
@@ -42,5 +42,5 @@ gen_acceptance2() {
 }
 
 cat .buildkite/pipeline_buildlint.yml
-gen_acceptance2
+gen_bazel_acceptance
 gen_acceptance
