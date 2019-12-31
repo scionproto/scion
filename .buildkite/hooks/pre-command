@@ -4,10 +4,24 @@ set -euo pipefail
 
 echo "Clean existing environment"
 
+# TEST_ARTIFACTS is a generic folder for artifacts that need to be used during
+# testing. It will be collected in the artifacts in the end.
+# Note that this has to be defined in a hook, because in the pipeline the $PWD
+# would be evaluated to early (at pipeline expansion) and thus it would possibly
+# be the wrong value on the agent a step is actually executed.
+export TEST_ARTIFACTS="$PWD/test_artifacts"
+
 . .buildkite/hooks/pre-exit
 
+# Make sure the test artifacts folder exitsts.
+echo "Create test artifacts: mkdir -p $TEST_ARTIFACTS"
+mkdir -p "$TEST_ARTIFACTS"
+
+# Conditionally export ACCEPTANCE_ARTIFACTS it is needed for acceptance tests.
+# We only export it for the new pipeline because the old pipeline has its own
+# definition.
 if [ "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
-    export ACCEPTANCE_ARTIFACTS="$PWD/accept_artifacts"
+    export ACCEPTANCE_ARTIFACTS="$TEST_ARTIFACTS"
 fi
 
 echo "Starting bazel remote cache proxy"
