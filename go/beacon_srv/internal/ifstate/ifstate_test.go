@@ -19,64 +19,62 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
 func TestInterfacesUpdate(t *testing.T) {
-	Convey("Given an interface infos map with existing entries", t, func() {
-		intfs := testInterfaces()
-		Convey("The update retains the state of the interface", func() {
-			topoMap := topology.IfInfoMap{
-				1: {BRName: "BR-1-new"},
-				2: {BRName: "BR-2-new"},
-			}
-			intfs.Update(topoMap)
-			// The topo info should come from the updated map.
-			SoMsg("Name 1", intfs.Get(1).TopoInfo().BRName, ShouldEqual, "BR-1-new")
-			SoMsg("Name 2", intfs.Get(2).TopoInfo().BRName, ShouldEqual, "BR-2-new")
-			// The remote ifid should be kept
-			SoMsg("Ifid 1", intfs.Get(1).TopoInfo().RemoteIFID, ShouldEqual, 11)
-			SoMsg("Ifid 2", intfs.Get(2).TopoInfo().RemoteIFID, ShouldEqual, 22)
-			// The state should be kept
-			SoMsg("State 1", intfs.Get(1).State(), ShouldEqual, Active)
-			SoMsg("State 2", intfs.Get(2).State(), ShouldEqual, Revoked)
-		})
-		Convey("The update adds new interfaces and removes missing", func() {
-			topoMap := topology.IfInfoMap{
-				3: {BRName: "BR-3-new"},
-			}
-			intfs.Update(topoMap)
-			SoMsg("Gone 1", intfs.Get(1), ShouldBeNil)
-			SoMsg("Gone 2", intfs.Get(2), ShouldBeNil)
-			SoMsg("Name 3", intfs.Get(3).TopoInfo().BRName, ShouldEqual, "BR-3-new")
-		})
+	t.Run("The update retains the state of the interface", func(t *testing.T) {
+		intfs := testInterfaces(t)
+		topoMap := topology.IfInfoMap{
+			1: {BRName: "BR-1-new"},
+			2: {BRName: "BR-2-new"},
+		}
+		intfs.Update(topoMap)
+		// The topo info should come from the updated map.
+		assert.Equal(t, "BR-1-new", intfs.Get(1).TopoInfo().BRName)
+		assert.Equal(t, "BR-2-new", intfs.Get(2).TopoInfo().BRName)
+		// The remote ifid should be kept
+		assert.EqualValues(t, 11, intfs.Get(1).TopoInfo().RemoteIFID)
+		assert.EqualValues(t, 22, intfs.Get(2).TopoInfo().RemoteIFID)
+		// The state should be kept
+		assert.Equal(t, Active, intfs.Get(1).State())
+		assert.Equal(t, Revoked, intfs.Get(2).State())
+	})
+	t.Run("The update adds new interfaces and removes missing", func(t *testing.T) {
+		intfs := testInterfaces(t)
+		topoMap := topology.IfInfoMap{
+			3: {BRName: "BR-3-new"},
+		}
+		intfs.Update(topoMap)
+		assert.Nil(t, intfs.Get(1))
+		assert.Nil(t, intfs.Get(2))
+		assert.Equal(t, "BR-3-new", intfs.Get(3).TopoInfo().BRName)
 	})
 }
 
 func TestInterfacesReset(t *testing.T) {
-	Convey("Given an interface infos map with existing entries", t, func() {
-		intfs := testInterfaces()
-		Convey("Reset resets the info state", func() {
-			intfs.Reset()
-			// The topo info should remain.
-			SoMsg("Name 1", intfs.Get(1).TopoInfo().BRName, ShouldEqual, "BR-1")
-			SoMsg("Name 2", intfs.Get(2).TopoInfo().BRName, ShouldEqual, "BR-2")
-			SoMsg("Ifid 1", intfs.Get(1).TopoInfo().RemoteIFID, ShouldEqual, 11)
-			SoMsg("Ifid 2", intfs.Get(2).TopoInfo().RemoteIFID, ShouldEqual, 22)
-			// The state and revocations should be reset.
-			SoMsg("State 1", intfs.Get(1).State(), ShouldEqual, Inactive)
-			SoMsg("State 2", intfs.Get(2).State(), ShouldEqual, Inactive)
-			SoMsg("Revocation 1", intfs.Get(1).Revocation(), ShouldBeNil)
-			SoMsg("Revocation 2", intfs.Get(2).Revocation(), ShouldBeNil)
-		})
-	})
+	intfs := testInterfaces(t)
+	intfs.Reset()
+	// The topo info should remain.
+	assert.Equal(t, "BR-1", intfs.Get(1).TopoInfo().BRName)
+	assert.Equal(t, "BR-1", intfs.Get(1).TopoInfo().BRName)
+	assert.Equal(t, "BR-2", intfs.Get(2).TopoInfo().BRName)
+	assert.EqualValues(t, 11, intfs.Get(1).TopoInfo().RemoteIFID)
+	assert.EqualValues(t, 22, intfs.Get(2).TopoInfo().RemoteIFID)
+	// The state and revocations should be reset.
+	assert.Equal(t, Active, intfs.Get(1).State())
+	assert.Equal(t, Active, intfs.Get(2).State())
+	assert.Nil(t, intfs.Get(1).Revocation())
+	assert.Nil(t, intfs.Get(2).Revocation())
 }
 
 func TestInterfacesAll(t *testing.T) {
 	Convey("Given an interface infos map with existing entries", t, func() {
-		intfs := testInterfaces()
+		intfs := testInterfaces(t)
 		Convey("All should return all infos", func() {
 			all := intfs.All()
 			// The topo info should remain.
@@ -93,7 +91,7 @@ func TestInterfacesAll(t *testing.T) {
 }
 
 func TestInfoActivate(t *testing.T) {
-	for _, state := range []State{Inactive, Active, Expired, Revoked} {
+	for _, state := range []State{Active, Revoked} {
 		Convey("Activate switches correctly from "+string(state), t, func() {
 			intf := &Interface{state: state, revocation: &path_mgmt.SignedRevInfo{}}
 			intf.cfg.InitDefaults()
@@ -113,9 +111,7 @@ func TestInfoExpire(t *testing.T) {
 			PrevState State
 			NextState State
 		}{
-			{PrevState: Inactive, NextState: Expired},
-			{PrevState: Active, NextState: Expired},
-			{PrevState: Expired, NextState: Expired},
+			{PrevState: Active, NextState: Revoked},
 			{PrevState: Revoked, NextState: Revoked},
 		}
 		for _, test := range testCases {
@@ -134,7 +130,7 @@ func TestInfoExpire(t *testing.T) {
 		}
 	})
 	Convey("Given the keepalive has been received in the last keepalive timeout", t, func() {
-		for _, test := range []State{Inactive, Active, Expired, Revoked} {
+		for _, test := range []State{Active, Revoked} {
 			Convey("Test "+string(test), func() {
 				intf := &Interface{
 					state:        test,
@@ -142,7 +138,7 @@ func TestInfoExpire(t *testing.T) {
 				}
 				intf.cfg.InitDefaults()
 				expired := intf.Expire()
-				SoMsg("Expired", expired, ShouldEqual, test == Revoked || test == Expired)
+				SoMsg("Expired", expired, ShouldEqual, test == Revoked)
 				SoMsg("State", intf.State(), ShouldEqual, test)
 			})
 		}
@@ -156,9 +152,7 @@ func TestInfoRevoke(t *testing.T) {
 			NextState State
 			Error     bool
 		}{
-			{PrevState: Inactive, NextState: Revoked, Error: false},
 			{PrevState: Active, NextState: Active, Error: true},
-			{PrevState: Expired, NextState: Revoked, Error: false},
 			{PrevState: Revoked, NextState: Revoked, Error: false},
 		}
 		for _, test := range testCases {
@@ -181,7 +175,7 @@ func TestInfoRevoke(t *testing.T) {
 	})
 }
 
-func testInterfaces() *Interfaces {
+func testInterfaces(t *testing.T) *Interfaces {
 	topoMap := topology.IfInfoMap{
 		1: {BRName: "BR-1"},
 		2: {BRName: "BR-2"},
@@ -189,6 +183,8 @@ func testInterfaces() *Interfaces {
 	intfs := NewInterfaces(topoMap, Config{})
 	intfs.Get(1).Activate(11)
 	intfs.Get(2).topoInfo.RemoteIFID = 22
-	intfs.Get(2).Revoke(&path_mgmt.SignedRevInfo{})
+	intfs.Get(2).state = Revoked
+	err := intfs.Get(2).Revoke(&path_mgmt.SignedRevInfo{})
+	require.NoError(t, err)
 	return intfs
 }
