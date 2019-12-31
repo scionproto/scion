@@ -21,12 +21,12 @@ steps:
     timeout_in_minutes: 10
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
     command:
-      - "cp go.mod go.sum go_deps.bzl $$ACCEPTANCE_ARTIFACTS/"
+      - "cp go.mod go.sum go_deps.bzl $$TEST_ARTIFACTS/"
       - make godeps -B
       - "bazel-${BUILDKITE_PIPELINE_SLUG}/external/go_sdk/bin/go mod tidy"
-      - "diff -u $$ACCEPTANCE_ARTIFACTS/go.mod go.mod"
-      - "diff -u $$ACCEPTANCE_ARTIFACTS/go.sum go.sum"
-      - "diff -u $$ACCEPTANCE_ARTIFACTS/go_deps.bzl go_deps.bzl"
+      - "diff -u $$TEST_ARTIFACTS/go.mod go.mod"
+      - "diff -u $$TEST_ARTIFACTS/go.sum go.sum"
+      - "diff -u $$TEST_ARTIFACTS/go_deps.bzl go_deps.bzl"
     key: go_deps_lint
     retry:
       automatic:
@@ -34,9 +34,9 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go/proto files in git"
     command:
-      - "cp -R go/proto/ $$ACCEPTANCE_ARTIFACTS"
+      - "cp -R go/proto/ $$TEST_ARTIFACTS"
       - make gogen
-      - "diff -ur $$ACCEPTANCE_ARTIFACTS/proto/ go/proto/"
+      - "diff -ur $$TEST_ARTIFACTS/proto/ go/proto/"
     key: go_gen_lint
     retry:
       automatic:
