@@ -33,6 +33,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "export_test.go",
         "handler_test.go",
         "ifstate_test.go",
         "pusher_test.go",
@@ -59,8 +60,8 @@ go_test(
         "//go/lib/xtest/matchers:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
-        "@com_github_smartystreets_assertions//:go_default_library",
-        "@com_github_smartystreets_assertions//should:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

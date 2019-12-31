@@ -150,7 +150,7 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
 		activateAll(intfs)
-		intfs.Get(101).state = Expired
+		intfs.Get(101).state = Revoked
 		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
@@ -195,7 +195,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
 		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
 		activateAll(intfs)
-		intfs.Get(101).state = Expired
+		intfs.Get(101).state = Revoked
 		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
