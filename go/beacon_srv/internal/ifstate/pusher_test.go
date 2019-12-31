@@ -47,10 +47,8 @@ func TestPusherPush(t *testing.T) {
 	}
 	// When to expect a message being pushed.
 	tests := map[State]bool{
-		Inactive: false,
-		Active:   true,
-		Expired:  false,
-		Revoked:  false,
+		Active:  true,
+		Revoked: false,
 	}
 	for state, expectMsg := range tests {
 		t.Run(fmt.Sprintf("Interface state: %s", state), func(t *testing.T) {
