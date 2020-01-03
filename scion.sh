@@ -22,16 +22,12 @@ cmd_topo_clean() {
 
 cmd_topology() {
     set -e
-    local nobuild
-    if [ "$1" = "nobuild" ]; then
-        shift
-        nobuild="y"
-    fi
     cmd_topo_clean
-    if [ -z "$nobuild" ]; then
-        echo "Compiling..."
-        cmd_build || exit 1
-    fi
+
+    # Build the necessary binaries.
+    bazel build //:scion-topo || return 1
+	tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
+
     echo "Create topology, configuration, and execution files."
     is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
@@ -54,7 +50,7 @@ cmd_topology() {
 cmd_run() {
     if [ "$1" != "nobuild" ]; then
         echo "Compiling..."
-        cmd_build || exit 1
+        make -s || exit 1
         if is_docker_be; then
             echo "Build scion_base image"
             ./tools/quiet ./docker.sh base
@@ -352,14 +348,6 @@ cmd_version() {
 	_EOF
 }
 
-cmd_build() {
-    if [ "$1" == "bypass" ]; then
-        USER_OPTS=-DBYPASS_ROUTERS make -s
-    else
-        make -s
-    fi
-}
-
 cmd_clean() {
     make -s clean
 }
@@ -417,11 +405,10 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM topology [nobuild]
-	        Create topology, configuration, and execution files. With the 'nobuild'
-            option, don't build the code. All other arguments or options are passed
-            to topology/generator.py
-	    $PROGRAM run
+	    $PROGRAM topology
+	        Create topology, configuration, and execution files.
+            All arguments or options are passed to topology/generator.py
+	    $PROGRAM run [nobuild]
 	        Run network.
 	    $PROGRAM sciond ISD-AS [ADDR]
 	        Start sciond with provided ISD and AS parameters, and bind to ADDR.
@@ -458,7 +445,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces|topo_clean)
+    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|clean|sciond|traces|stop_traces|topo_clean)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;
