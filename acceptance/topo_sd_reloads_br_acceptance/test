@@ -17,7 +17,7 @@ DST_IA=${DST_IA:-1-ff00:0:110}
 
 test_setup() {
     set -e
-    ./scion.sh topology nobuild -c $TEST_TOPOLOGY -d -t
+    ./scion.sh topology -c $TEST_TOPOLOGY -d -t
     sed -i '/\[logging\.file\]/a FlushInterval = 1' gen/ISD1/*/endhost/sd.toml
     ./scion.sh run nobuild
     ./tools/dc start tester_$SRC_IA_FILE
