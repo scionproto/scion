@@ -100,7 +100,7 @@ def load_yaml_file(file_path):
     """
     try:
         with open(file_path) as f:
-            return yaml.load(f)
+            return yaml.load(f, Loader=yaml.FullLoader)
     except OSError as e:
         raise SCIONIOError("Error opening '%s': %s" %
                            (file_path, e.strerror)) from None
