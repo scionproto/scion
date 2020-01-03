@@ -102,13 +102,6 @@ class Loader(object):
     """
     Helper class for load_yaml_file tests.
     """
-    def _basic(self, target, loader):
-        loader.return_value = "loader dict"
-        with patch.object(builtins, 'open', mock_open()) as open_:
-            ntools.eq_(target("File_Path"), "loader dict")
-            open_.assert_called_once_with("File_Path")
-            loader.assert_called_once_with(open_.return_value)
-
     @patch.object(builtins, 'open', mock_open())
     def _file_error(self, target):
         builtins.open.side_effect = IsADirectoryError
@@ -125,10 +118,6 @@ class TestLoadYAMLFile(Loader):
     """
     Unit tests for lib.util.load_yaml_file
     """
-    @patch("lib.util.yaml.load", autospec=True)
-    def test_basic(self, loader):
-        self._basic(load_yaml_file, loader)
-
     def test_file_error(self):
         self._file_error(load_yaml_file)
 
