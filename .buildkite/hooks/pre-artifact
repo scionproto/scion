@@ -44,4 +44,6 @@ save "gen-cache"
 save "$TEST_ARTIFACTS"
 
 tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"
+rm -rf artifacts
+
 echo "Output tar= artifacts.out/$ARTIFACTS.tar.gz"
