@@ -15,6 +15,7 @@
 package tmpl
 
 import (
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -66,12 +67,48 @@ generated the respective trust material.
 	},
 }
 
+func commands() []*cobra.Command {
+	metas := map[string]struct {
+		Short, Out string
+	}{
+		"as": {
+			Short: "Output a sample AS certificate configuration",
+			Out:   conf.ASSample,
+		},
+		"issuer": {
+			Short: "Output a sample issuer certificate configuration",
+			Out:   conf.IssuerSample,
+		},
+		"trc": {
+			Short: "Output a sample TRC configuration",
+			Out:   conf.TRCSample,
+		},
+		"keys": {
+			Short: "Output a sample AS configuration",
+			Out:   conf.KeysSample,
+		},
+	}
+	var cmds []*cobra.Command
+	for usage, meta := range metas {
+		cmds = append(cmds, &cobra.Command{
+			Use:   usage,
+			Short: meta.Short,
+			Args:  cobra.NoArgs,
+			Run: func(cmd *cobra.Command, args []string) {
+				fmt.Println(meta.Out)
+			},
+		})
+	}
+	return cmds
+}
+
 func init() {
 	topo.PersistentFlags().Uint32VarP(&notBefore, "notbefore", "b", 0,
 		"set not_before time in all configs")
 	topo.PersistentFlags().StringVar(&rawValidity, "validity", "365d",
 		"set the validity of all crypto material")
 	Cmd.AddCommand(topo)
+	Cmd.AddCommand(commands()...)
 }
 
 func validityFromFlags() (conf.Validity, error) {
