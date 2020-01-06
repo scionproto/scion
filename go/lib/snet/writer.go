@@ -16,7 +16,6 @@
 package snet
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -25,8 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
 	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
@@ -49,9 +46,8 @@ const (
 )
 
 type scionConnWriter struct {
-	base     *scionConnBase
-	conn     PacketConn
-	resolver *remoteAddressResolver
+	base *scionConnBase
+	conn PacketConn
 
 	mtx    sync.Mutex
 	buffer common.RawBytes
@@ -61,13 +57,8 @@ func newScionConnWriter(base *scionConnBase, querier PathQuerier,
 	conn PacketConn) *scionConnWriter {
 
 	return &scionConnWriter{
-		base: base,
-		conn: conn,
-		resolver: &remoteAddressResolver{
-			localIA:     base.scionNet.localIA,
-			pathQuerier: querier,
-			monitor:     ctxmonitor.NewMonitor(),
-		},
+		base:   base,
+		conn:   conn,
 		buffer: make(common.RawBytes, common.MaxMTU),
 	}
 }
@@ -98,18 +89,6 @@ func (c *scionConnWriter) Write(b []byte) (int, error) {
 }
 
 func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
-	var connRemote *Addr
-	if c.base.remote != nil {
-		connRemote = c.base.remote.ToAddr()
-	}
-	raddr, err := c.resolver.ResolveAddrPair(connRemote, raddr)
-	if err != nil {
-		return 0, err
-	}
-	return c.writeWithLock(b, raddr)
-}
-
-func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	pkt := &SCIONPacket{
@@ -127,6 +106,11 @@ func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 			Payload: common.RawBytes(b),
 		},
 	}
+
+	if raddr.NextHop == nil && c.base.scionNet.localIA.Equal(raddr.IA) {
+		raddr.NextHop = &net.UDPAddr{IP: raddr.Host.L3.IP(), Port: overlay.EndhostPort}
+	}
+
 	if err := c.conn.WriteTo(pkt, raddr.NextHop); err != nil {
 		return 0, err
 	}
@@ -134,97 +118,5 @@ func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 }
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
-	if err := c.conn.SetWriteDeadline(t); err != nil {
-		return err
-	}
-	c.resolver.monitor.SetDeadline(t)
-	return nil
-}
-
-// remoteAddressResolver validates the contents of a remote snet address,
-// taking into account both the remote address that might be present on a conn
-// object, and the remote address passed in as argument to WriteTo or
-// WriteToSCION.
-type remoteAddressResolver struct {
-	// localIA is the local AS. Path and overlay resolution differs between
-	// destinations residing in the local AS, and destinations residing in
-	// other ASes.
-	localIA addr.IA
-	// pathResolver is a source of paths and overlay addresses for snet.
-	pathQuerier PathQuerier
-	// monitor tracks contexts created for sciond
-	monitor ctxmonitor.Monitor
-}
-
-func (r *remoteAddressResolver) ResolveAddrPair(connAddr, argAddr *Addr) (*Addr, error) {
-	switch {
-	case connAddr == nil && argAddr == nil:
-		return nil, common.NewBasicError(ErrNoAddr, nil)
-	case connAddr != nil && argAddr != nil:
-		return nil, common.NewBasicError(ErrDuplicateAddr, nil)
-	case connAddr != nil:
-		return r.ResolveAddr(connAddr)
-	default:
-		// argAddr != nil
-		return r.ResolveAddr(argAddr)
-	}
-}
-
-func (r *remoteAddressResolver) ResolveAddr(address *Addr) (*Addr, error) {
-	if address == nil {
-		return nil, common.NewBasicError(ErrAddressIsNil, nil)
-	}
-	if address.Host == nil {
-		return nil, common.NewBasicError(ErrNoApplicationAddress, nil)
-	}
-	if r.localIA.Equal(address.IA) {
-		return r.resolveLocalDestination(address)
-	}
-	return r.resolveRemoteDestination(address)
-}
-
-func (r *remoteAddressResolver) resolveLocalDestination(address *Addr) (*Addr, error) {
-	if address.Path != nil {
-		return nil, common.NewBasicError(ErrExtraPath, nil)
-	}
-	if address.NextHop == nil {
-		return addOverlayFromScionAddress(address), nil
-	}
-	return address, nil
-}
-
-func (r *remoteAddressResolver) resolveRemoteDestination(address *Addr) (*Addr, error) {
-	switch {
-	case address.Path != nil && address.NextHop == nil:
-		return nil, common.NewBasicError(ErrBadOverlay, nil)
-	case address.Path == nil && address.NextHop != nil:
-		return nil, common.NewBasicError(ErrMustHavePath, nil)
-	case address.Path != nil:
-		return address, nil
-	default:
-		return r.addPath(address)
-	}
-}
-
-func (r *remoteAddressResolver) addPath(address *Addr) (*Addr, error) {
-	var err error
-	address = address.Copy()
-	ctx, cancelF := r.monitor.WithTimeout(context.Background(), DefaultPathQueryTimeout)
-	defer cancelF()
-	paths, err := r.pathQuerier.Query(ctx, address.IA)
-	if err != nil {
-		return nil, serrors.Wrap(ErrPath, err)
-	}
-	if len(paths) == 0 {
-		return nil, serrors.WithCtx(ErrPath, "reason", "no path found")
-	}
-	address.NextHop = paths[0].OverlayNextHop()
-	address.Path = paths[0].Path()
-	return address, nil
-}
-
-func addOverlayFromScionAddress(address *Addr) *Addr {
-	address = address.Copy()
-	address.NextHop = &net.UDPAddr{IP: address.Host.L3.IP(), Port: overlay.EndhostPort}
-	return address
+	return c.conn.SetWriteDeadline(t)
 }
