@@ -3,6 +3,12 @@ load("@bazel_gazelle//:deps.bzl", "go_repository")
 
 def go_deps():
     go_repository(
+        name = "com_github_alangpierce_go_forceexport",
+        importpath = "github.com/alangpierce/go-forceexport",
+        sum = "h1:3ILjVyslFbc4jl1w5TWuvvslFD/nDfR2H8tVaMVLrEY=",
+        version = "v0.0.0-20160317203124-8f1d6941cd75",
+    )
+    go_repository(
         name = "com_github_alecthomas_template",
         importpath = "github.com/alecthomas/template",
         sum = "h1:cAKDfWh5VpdgMhJosfJnn5/FoN2SRZ4p7fJNX58YPaU=",
@@ -47,14 +53,8 @@ def go_deps():
     go_repository(
         name = "com_github_cheekybits_genny",
         importpath = "github.com/cheekybits/genny",
-        sum = "h1:a1zrFsLFac2xoM6zG1u72DWJwZG3ayttYLfmLbxVETk=",
-        version = "v0.0.0-20170328200008-9127e812e1e9",
-    )
-    go_repository(
-        name = "com_github_cloudflare_sidh",
-        importpath = "github.com/cloudflare/sidh",
-        sum = "h1:pqwbJdj1rgMkE38tDSNnP97wdMYHzV+Lt/aLL2qw2LQ=",
-        version = "v0.0.0-20181111220428-fc8e6378752b",
+        sum = "h1:uGGa4nei+j20rOSeDeP5Of12XVm7TGUd4dJA9RDitfE=",
+        version = "v1.0.0",
     )
     go_repository(
         name = "com_github_codahale_hdrhistogram",
@@ -215,14 +215,26 @@ def go_deps():
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
         importpath = "github.com/lucas-clemente/quic-go",
-        sum = "h1:Y07tY5Q2/7WwkwZHxYlQC4mQeD1kM6BQLk/6S64KHY4=",
-        version = "v0.7.1-0.20190212114006-fd7246d7ed6e",
+        sum = "h1:xmWt9+sRgvAAXmi2S9lrikUtNUPwxeOy400LD+I3Qw0=",
+        version = "v0.14.0",
+    )
+    go_repository(
+        name = "com_github_marten_seemann_chacha20",
+        importpath = "github.com/marten-seemann/chacha20",
+        sum = "h1:f40vqzzx+3GdOmzQoItkLX5WLvHgPgyYqFFIO5Gh4hQ=",
+        version = "v0.2.0",
+    )
+    go_repository(
+        name = "com_github_marten_seemann_qpack",
+        importpath = "github.com/marten-seemann/qpack",
+        sum = "h1:/0M7lkda/6mus9B8u34Asqm8ZhHAAt9Ho0vniNuVSVg=",
+        version = "v0.1.0",
     )
     go_repository(
         name = "com_github_marten_seemann_qtls",
         importpath = "github.com/marten-seemann/qtls",
-        sum = "h1:7Fx1paF8onfPhcIMlwgznBklz62TrCZjOjoBbUod/3Y=",
-        version = "v0.0.0-20190207043627-591c71538704",
+        sum = "h1:YlT8QP3WCCvvok7MGEZkMldXbyqgr8oFg5/n8Gtbkks=",
+        version = "v0.4.1",
     )
     go_repository(
         name = "com_github_mattn_go_colorable",
@@ -450,8 +462,8 @@ def go_deps():
     go_repository(
         name = "in_gopkg_natefinch_lumberjack_v2",
         importpath = "gopkg.in/natefinch/lumberjack.v2",
-        sum = "h1:AFxeG48hTWHhDTQDk/m2gorfVHUEa9vo3tp3D7TzwjI=",
-        version = "v2.0.0-20170531160350-a96e63847dc3",
+        sum = "h1:1Lc07Kr7qY4U2YPouBjpCLxpiyxIVoxqXgkXLknAOE8=",
+        version = "v2.0.0",
     )
     go_repository(
         name = "in_gopkg_restruct_v1",
@@ -478,10 +490,16 @@ def go_deps():
         version = "v1.4.0",
     )
     go_repository(
+        name = "org_golang_google_genproto",
+        importpath = "google.golang.org/genproto",
+        sum = "h1:lohp5blsw53GBXtLyLNaTXPXS9pJ1tiTw61ZHUoE9Qw=",
+        version = "v0.0.0-20180831171423-11092d34479b",
+    )
+    go_repository(
         name = "org_golang_x_crypto",
         importpath = "golang.org/x/crypto",
-        sum = "h1:VklqNMn3ovrHsnt90PveolxSbWFaJdECFbxSq0Mqo2M=",
-        version = "v0.0.0-20190308221718-c2843e01d9a2",
+        sum = "h1:Gv7RPwsi3eZ2Fgewe3CBsuOebPwO27PoXzRpJPsvSSM=",
+        version = "v0.0.0-20190829043050-9756ffdc2472",
     )
     go_repository(
         name = "org_golang_x_lint",
@@ -504,8 +522,8 @@ def go_deps():
     go_repository(
         name = "org_golang_x_sys",
         importpath = "golang.org/x/sys",
-        sum = "h1:4y9KwBHBgBNwDbtu44R5o1fdOCQUEXhbk/P4A9WmJq0=",
-        version = "v0.0.0-20190801041406-cbf593c0f2f3",
+        sum = "h1:DBH9mDw0zluJT/R+nGuV3jWFWLFaHyYZWD4tOT+cjn0=",
+        version = "v0.0.0-20190904154756-749cb33beabd",
     )
     go_repository(
         name = "org_golang_x_text",

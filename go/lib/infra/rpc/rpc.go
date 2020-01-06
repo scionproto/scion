@@ -63,7 +63,7 @@ func (s *Server) ListenAndServe() error {
 		return err
 	}
 	for {
-		session, err := s.listener.Accept()
+		session, err := s.listener.Accept(context.TODO())
 		if err != nil {
 			if strings.Contains(err.Error(), "server closed") {
 				return err
@@ -105,7 +105,7 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) handleQUICSession(session quic.Session) error {
-	stream, err := session.AcceptStream()
+	stream, err := session.AcceptStream(context.TODO())
 	if err != nil {
 		return err
 	}

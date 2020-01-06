@@ -36,8 +36,8 @@ const (
 
 var (
 	// Don't verify the server's cert, as we are not using the TLS PKI.
-	cliTlsCfg = &tls.Config{InsecureSkipVerify: true}
-	srvTlsCfg = &tls.Config{}
+	cliTlsCfg = &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"SCION"}}
+	srvTlsCfg = &tls.Config{NextProtos: []string{"SCION"}}
 )
 
 func Init(keyPath, pemPath string) error {

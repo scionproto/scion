@@ -59,7 +59,7 @@ RUN set -ex ; \
     bazel fetch --noshow_progress //:fetch 2>&1 ; \
     rm -rf /home/scion/.cache/bazel/_bazel_scion/*/external/*/\.git ; \
     sudo tar czf /scioncache/bazel.tar.gz --owner=scion -C ~ .cache/bazel; \
-    sudo rm -r ~/.cache/bazel; \
+    sudo rm -r ~/.cache; \
     sudo rm -r ./*
 
 # Install docker and docker-compose

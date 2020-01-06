@@ -33,7 +33,9 @@
     "exclude_files": {
       "gazelle/pathtools/path.go": "",
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
-      "/com_github_uber_jaeger_client_go": ""
+      "/com_github_uber_jaeger_client_go": "",
+      "/com_github_marten_seemann_qtls": "",
+      "/com_github_hpcloud_tail": ""
     }
   },
   "unsafeptr": {
