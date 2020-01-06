@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -ex
-
-./docker.sh exec "set -eo pipefail; ./scion.sh lint |& tee logs/lint.run"
