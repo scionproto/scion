@@ -83,12 +83,12 @@ func NewWorkerTester(t *testing.T) *WorkerTester {
 }
 
 func (wt *WorkerTester) ExpectFrame(frame []byte) {
-	wt.writer.EXPECT().WriteToSCION(MatchFrame(frame), gomock.Any()).Return(len(frame), nil)
+	wt.writer.EXPECT().WriteTo(MatchFrame(frame), gomock.Any()).Return(len(frame), nil)
 }
 
 func (wt *WorkerTester) ExpectLastFrame(frame []byte) {
-	wt.writer.EXPECT().WriteToSCION(MatchFrame(frame), gomock.Any()).DoAndReturn(
-		func(frame []byte, address *snet.Addr) (int, error) {
+	wt.writer.EXPECT().WriteTo(MatchFrame(frame), gomock.Any()).DoAndReturn(
+		func(frame []byte, address *snet.UDPAddr) (int, error) {
 			wt.ring.Close()
 			return len(frame), nil
 		})
