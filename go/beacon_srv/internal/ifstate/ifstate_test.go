@@ -105,7 +105,7 @@ func TestInfoActivate(t *testing.T) {
 	}
 }
 
-func TestInfoExpire(t *testing.T) {
+func TestInfoRevoke(t *testing.T) {
 	Convey("Given an interface that has not received a keepalive", t, func() {
 		testCases := []struct {
 			PrevState State
@@ -121,7 +121,7 @@ func TestInfoExpire(t *testing.T) {
 					lastActivate: time.Now().Add(-DefaultKeepaliveTimeout - time.Second),
 				}
 				intf.cfg.InitDefaults()
-				expired := intf.Expire()
+				expired := intf.Revoke()
 				SoMsg("Expired", expired, ShouldBeTrue)
 				SoMsg("State", intf.State(), ShouldEqual, test.NextState)
 				SoMsg("LastActivate", time.Now().Sub(intf.lastActivate), ShouldBeGreaterThan,
@@ -137,7 +137,7 @@ func TestInfoExpire(t *testing.T) {
 					lastActivate: time.Now().Add(-DefaultKeepaliveTimeout + time.Second),
 				}
 				intf.cfg.InitDefaults()
-				expired := intf.Expire()
+				expired := intf.Revoke()
 				SoMsg("Expired", expired, ShouldEqual, test == Revoked)
 				SoMsg("State", intf.State(), ShouldEqual, test)
 			})
@@ -145,7 +145,7 @@ func TestInfoExpire(t *testing.T) {
 	})
 }
 
-func TestInfoRevoke(t *testing.T) {
+func TestInfoSetRevocation(t *testing.T) {
 	Convey("Given an interface in a certain state", t, func() {
 		testCases := []struct {
 			PrevState State
@@ -161,7 +161,7 @@ func TestInfoRevoke(t *testing.T) {
 					state: test.PrevState,
 				}
 				intf.cfg.InitDefaults()
-				err := intf.Revoke(&path_mgmt.SignedRevInfo{})
+				err := intf.SetRevocation(&path_mgmt.SignedRevInfo{})
 				SoMsg("State", intf.State(), ShouldEqual, test.NextState)
 				if test.Error {
 					SoMsg("err", err, ShouldNotBeNil)
@@ -184,7 +184,7 @@ func testInterfaces(t *testing.T) *Interfaces {
 	intfs.Get(1).Activate(11)
 	intfs.Get(2).topoInfo.RemoteIFID = 22
 	intfs.Get(2).state = Revoked
-	err := intfs.Get(2).Revoke(&path_mgmt.SignedRevInfo{})
+	err := intfs.Get(2).SetRevocation(&path_mgmt.SignedRevInfo{})
 	require.NoError(t, err)
 	return intfs
 }

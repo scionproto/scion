@@ -146,7 +146,7 @@ func TestNewHandler(t *testing.T) {
 func testInterfaces(t *testing.T) *ifstate.Interfaces {
 	infoMap := topology.IfInfoMap{localIF: topology.IFInfo{IA: originIA}}
 	intfs := ifstate.NewInterfaces(infoMap, ifstate.Config{KeepaliveTimeout: time.Nanosecond})
-	require.True(t, intfs.Get(localIF).Expire(), "must expire interface")
+	require.True(t, intfs.Get(localIF).Revoke(), "must revoke interface")
 	return intfs
 }
 
