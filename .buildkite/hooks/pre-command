@@ -10,19 +10,15 @@ echo "Clean existing environment"
 # would be evaluated to early (at pipeline expansion) and thus it would possibly
 # be the wrong value on the agent a step is actually executed.
 export TEST_ARTIFACTS="$PWD/test_artifacts"
+# ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
+# acceptance framework
+export ACCEPTANCE_ARTIFACTS="$TEST_ARTIFACTS"
 
 . .buildkite/hooks/pre-exit
 
 # Make sure the test artifacts folder exitsts.
 echo "Create test artifacts: mkdir -p $TEST_ARTIFACTS"
 mkdir -p "$TEST_ARTIFACTS"
-
-# Conditionally export ACCEPTANCE_ARTIFACTS it is needed for acceptance tests.
-# We only export it for the new pipeline because the old pipeline has its own
-# definition.
-if [ "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
-    export ACCEPTANCE_ARTIFACTS="$TEST_ARTIFACTS"
-fi
 
 echo "Starting bazel remote cache proxy"
 

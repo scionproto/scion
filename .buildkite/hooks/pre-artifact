@@ -2,14 +2,6 @@
 
 set -eo pipefail
 
-case ${BUILDKITE_PIPELINE_SLUG} in
-  scionproto2 | scion )
-    ;;
-  *)
-    exit 0 # If we aren't on the new pipeline, then just exit.
-    ;;
-esac
-
 # Now we build the artifact name next, for this we first need TARGET and BUILD,
 # see below.
 #
