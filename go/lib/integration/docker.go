@@ -49,7 +49,7 @@ func dockerize(bi *binaryIntegration) Integration {
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (di *dockerIntegration) StartServer(ctx context.Context, dst snet.Addr) (Waiter, error) {
+func (di *dockerIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr) (Waiter, error) {
 	bi := *di.binaryIntegration
 	env := fmt.Sprintf("%s=1", GoIntegrationEnv)
 	bi.serverArgs = append([]string{dockerArg, dst.IA.FileFmt(false), env, bi.cmd},
@@ -59,7 +59,8 @@ func (di *dockerIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	return bi.StartServer(ctx, dst)
 }
 
-func (di *dockerIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
+func (di *dockerIntegration) StartClient(ctx context.Context,
+	src, dst *snet.UDPAddr) (Waiter, error) {
 	bi := *di.binaryIntegration
 	bi.clientArgs = append([]string{dockerArg, src.IA.FileFmt(false), bi.cmd}, bi.clientArgs...)
 	bi.cmd = dockerCmd

@@ -30,8 +30,8 @@ var (
 	IAIPMap = make(map[addr.IA]addr.HostIPv4)
 )
 
-var SigAddr integration.HostAddr = func(ia addr.IA) snet.Addr {
-	return snet.Addr{Host: &addr.AppAddr{L3: IAIPMap[ia]}, IA: ia}
+var SigAddr integration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
+	return snet.NewUDPAddr(ia, nil, nil, &net.UDPAddr{IP: net.IP(IAIPMap[ia])})
 }
 
 func ReadTestingConf() error {
