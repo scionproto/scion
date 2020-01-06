@@ -17,13 +17,6 @@ export TEST_ARTIFACTS="$PWD/test_artifacts"
 echo "Create test artifacts: mkdir -p $TEST_ARTIFACTS"
 mkdir -p "$TEST_ARTIFACTS"
 
-# Conditionally export ACCEPTANCE_ARTIFACTS it is needed for acceptance tests.
-# We only export it for the new pipeline because the old pipeline has its own
-# definition.
-if [ "$BUILDKITE_PIPELINE_SLUG" == "scionproto2" ]; then
-    export ACCEPTANCE_ARTIFACTS="$TEST_ARTIFACTS"
-fi
-
 echo "Starting bazel remote cache proxy"
 
 # Start bazel remote cache proxy for S3
