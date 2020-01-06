@@ -10,6 +10,9 @@ echo "Clean existing environment"
 # would be evaluated to early (at pipeline expansion) and thus it would possibly
 # be the wrong value on the agent a step is actually executed.
 export TEST_ARTIFACTS="$PWD/test_artifacts"
+# ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
+# acceptance framework
+export ACCEPTANCE_ARTIFACTS="$TEST_ARTIFACTS"
 
 . .buildkite/hooks/pre-exit
 
