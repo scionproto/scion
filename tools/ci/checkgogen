@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -ex
-
-./docker.sh exec "set -eo pipefail; ( cp -R go/proto/ /tmp/; make gogen; diff -ur /tmp/proto/ go/proto/ ) |& tee logs/checkgogen.run"

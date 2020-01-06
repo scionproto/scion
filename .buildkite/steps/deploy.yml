@@ -1,7 +1,0 @@
-- wait
-- label: "Push images :docker: :bazel:"
-  command:
-  - ./docker.sh run -c "mkdir docker/_build && touch docker/_build/scion.stamp && make -C docker/perapp"
-  - echo \$DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USER --password-stdin
-  - ./docker/perapp/publish "$BUILDKITE_TAG"
-  branches: "v*.*.*"
