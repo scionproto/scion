@@ -19,7 +19,7 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
-  - label: ":py: Python tests"
+  - label: ":python: Python tests"
     command: ./scion.sh test py
     key: py_tests
     retry:
