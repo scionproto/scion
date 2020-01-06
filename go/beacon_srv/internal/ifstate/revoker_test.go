@@ -159,7 +159,7 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 			RawTTL:       uint32(ttl.Seconds()),
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
-		intfs.Get(101).Revoke(srev)
+		intfs.Get(101).SetRevocation(srev)
 		cfg := RevokerConf{
 			Intfs:        intfs,
 			Msgr:         msgr,
@@ -204,7 +204,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 			RawTTL:       uint32(ttl.Seconds()),
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
-		intfs.Get(101).Revoke(srev)
+		intfs.Get(101).SetRevocation(srev)
 		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
 			Verifier: revVerifier(pub),
 			MatchRevs: []path_mgmt.RevInfo{{

@@ -96,7 +96,7 @@ func (r *Revoker) Run(ctx context.Context) {
 			NeighIA: intf.TopoInfo().IA,
 		}
 
-		if intf.Expire() && !r.hasValidRevocation(intf) {
+		if intf.Revoke() && !r.hasValidRevocation(intf) {
 			if intf.Revocation() == nil {
 				labelsIssued.State = metrics.RevNew
 				logger.Info("[ifstate.Revoker] interface went down", "ifid", ifid)
@@ -107,7 +107,7 @@ func (r *Revoker) Run(ctx context.Context) {
 					"ifid", ifid, "err", err)
 				continue
 			}
-			if err := intf.Revoke(srev); err != nil {
+			if err := intf.SetRevocation(srev); err != nil {
 				logger.Error("[ifstate.Revoker] Failed to revoke!", "ifid", ifid, "err", err)
 				continue
 			}
