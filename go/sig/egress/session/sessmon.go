@@ -277,13 +277,14 @@ func (sm *sessMonitor) sendReq() {
 		sm.Error("sessMonitor: Error packing signed Ctrl payload", "err", err)
 		return
 	}
-	raddr := sm.smRemote.Sig.CtrlSnetAddr()
-	raddr.Path = sm.smRemote.SessPath.Path().Path()
-	raddr.NextHop = sm.smRemote.SessPath.Path().OverlayNextHop()
+	raddr := sm.smRemote.Sig.CtrlSnetAddr(
+		sm.smRemote.SessPath.Path().Path(),
+		sm.smRemote.SessPath.Path().OverlayNextHop(),
+	)
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
 	// goroutines will block. Can't just use SetWriteDeadline, as both
 	// goroutines write to it.
-	_, err = sm.sess.conn.WriteToSCION(raw, raddr)
+	_, err = sm.sess.conn.WriteTo(raw, raddr)
 	if err != nil {
 		sm.Error("sessMonitor: Error sending signed Ctrl payload", "err", err)
 	}
