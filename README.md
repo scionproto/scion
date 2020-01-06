@@ -1,7 +1,7 @@
 # SCION
 
 [![Documentation](https://godoc.org/github.com/scionproto/scion?status.svg)](http://godoc.org/github.com/scionproto/scion)
-[![Build Status](https://badge.buildkite.com/cbb8e648c58d567991b445317d68955db5235b627dcfc97ab9.svg?branch=master)](https://buildkite.com/scionproto/scionproto)
+[![Build Status](https://badge.buildkite.com/e7ca347d947c23883ad7c3a4d091c2df5ae7feb52b238d29a1.svg?branch=master)](https://buildkite.com/scionproto/scion)
 [![Go Report Card](https://goreportcard.com/badge/github.com/scionproto/scion)](https://goreportcard.com/report/github.com/scionproto/scion)
 [![GitHub issues](https://img.shields.io/github/issues/scionproto/scion/help%20wanted.svg?label=help%20wanted&color=blue)](https://github.com/scionproto/scion/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
 [![Release](https://img.shields.io/github/release-pre/scionproto/scion.svg)](https://github.com/scionproto/scion/releases)
