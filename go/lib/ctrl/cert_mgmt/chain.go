@@ -18,7 +18,6 @@ package cert_mgmt
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/common"
 	legacy "github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/proto"
@@ -27,7 +26,7 @@ import (
 var _ proto.Cerealizable = (*Chain)(nil)
 
 type Chain struct {
-	RawChain common.RawBytes `capnp:"chain"`
+	RawChain []byte `capnp:"chain"`
 }
 
 func (c *Chain) Chain() (*legacy.Chain, error) {
