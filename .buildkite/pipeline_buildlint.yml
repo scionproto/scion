@@ -19,6 +19,13 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
+  - label: ":python: Python tests"
+    command: ./scion.sh test py
+    key: py_tests
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
     command:
       - "cp go.mod go.sum go_deps.bzl $$TEST_ARTIFACTS/"
