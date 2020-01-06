@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reissuance_test
+package renewal_test
 
 import (
 	"testing"
@@ -21,24 +21,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/cert_srv/internal/reissuance"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2/renewal"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestEncodeRequest(t *testing.T) {
 	tests := map[string]struct {
-		Modify    func(base *reissuance.Request)
+		Modify    func(base *renewal.Request)
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Modify:    func(*reissuance.Request) {},
+			Modify:    func(*renewal.Request) {},
 			Assertion: assert.NoError,
 		},
 		"Valid no POP": {
-			Modify: func(base *reissuance.Request) {
+			Modify: func(base *renewal.Request) {
 				base.POPs = nil
 			},
 			Assertion: assert.NoError,
@@ -46,15 +46,15 @@ func TestEncodeRequest(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			base := reissuance.Request{
+			base := renewal.Request{
 				Encoded: "request",
-				POPs: []reissuance.POP{{
+				POPs: []renewal.POP{{
 					Protected: "protected",
 					Signature: []byte("sig"),
 				}},
 			}
 			test.Modify(&base)
-			packed, err := reissuance.EncodeRequest(&base)
+			packed, err := renewal.EncodeRequest(&base)
 			test.Assertion(t, err)
 			if err != nil {
 				return
@@ -67,18 +67,18 @@ func TestEncodeRequest(t *testing.T) {
 }
 
 func TestEncodedRequestDecode(t *testing.T) {
-	base := reissuance.Request{
+	base := renewal.Request{
 		Encoded: "request",
-		POPs: []reissuance.POP{{
+		POPs: []renewal.POP{{
 			Protected: "protected",
 			Signature: []byte("sig"),
 		}},
 	}
-	valid, err := reissuance.EncodeRequest(&base)
+	valid, err := renewal.EncodeRequest(&base)
 	require.NoError(t, err)
 
 	tests := map[string]struct {
-		Input     reissuance.EncodedRequest
+		Input     renewal.EncodedRequest
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
@@ -90,7 +90,7 @@ func TestEncodedRequestDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage request": {
-			Input:     reissuance.EncodedRequest(encode("some_garbage")),
+			Input:     renewal.EncodedRequest(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -104,15 +104,15 @@ func TestEncodedRequestDecode(t *testing.T) {
 
 func TestEncodeRequestInfo(t *testing.T) {
 	tests := map[string]struct {
-		Modify    func(base *reissuance.RequestInfo)
+		Modify    func(base *renewal.RequestInfo)
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Modify:    func(*reissuance.RequestInfo) {},
+			Modify:    func(*renewal.RequestInfo) {},
 			Assertion: assert.NoError,
 		},
 		"Invalid version": {
-			Modify: func(base *reissuance.RequestInfo) {
+			Modify: func(base *renewal.RequestInfo) {
 				base.Version = scrypto.LatestVer
 			},
 			Assertion: assert.Error,
@@ -122,7 +122,7 @@ func TestEncodeRequestInfo(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			base := newRequestInfo(time.Now())
 			test.Modify(&base)
-			packed, err := reissuance.EncodeRequestInfo(&base)
+			packed, err := renewal.EncodeRequestInfo(&base)
 			test.Assertion(t, err)
 			if err != nil {
 				return
@@ -136,11 +136,11 @@ func TestEncodeRequestInfo(t *testing.T) {
 
 func TestEncodedRequestInfoDecode(t *testing.T) {
 	base := newRequestInfo(time.Now())
-	valid, err := reissuance.EncodeRequestInfo(&base)
+	valid, err := renewal.EncodeRequestInfo(&base)
 	require.NoError(t, err)
 
 	tests := map[string]struct {
-		Input     reissuance.EncodedRequestInfo
+		Input     renewal.EncodedRequestInfo
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
@@ -152,7 +152,7 @@ func TestEncodedRequestInfoDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Garbage cert": {
-			Input:     reissuance.EncodedRequestInfo(encode("some_garbage")),
+			Input:     renewal.EncodedRequestInfo(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -166,15 +166,15 @@ func TestEncodedRequestInfoDecode(t *testing.T) {
 
 func TestEncodeProtected(t *testing.T) {
 	tests := map[string]struct {
-		Modify    func(base *reissuance.Protected)
+		Modify    func(base *renewal.Protected)
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"No modification": {
-			Modify:    func(*reissuance.Protected) {},
+			Modify:    func(*renewal.Protected) {},
 			Assertion: assert.NoError,
 		},
 		"Invalid KeyType": {
-			Modify: func(base *reissuance.Protected) {
+			Modify: func(base *renewal.Protected) {
 				base.KeyType = cert.KeyType(404)
 			},
 			Assertion: assert.Error,
@@ -182,13 +182,13 @@ func TestEncodeProtected(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			base := reissuance.Protected{
+			base := renewal.Protected{
 				Algorithm:  scrypto.Ed25519,
 				KeyType:    cert.SigningKey,
 				KeyVersion: 2,
 			}
 			test.Modify(&base)
-			packed, err := reissuance.EncodeProtected(base)
+			packed, err := renewal.EncodeProtected(base)
 			test.Assertion(t, err)
 			if err != nil {
 				return
@@ -201,14 +201,14 @@ func TestEncodeProtected(t *testing.T) {
 }
 
 func TestEncodedProtectedDecode(t *testing.T) {
-	valid, err := reissuance.EncodeProtected(reissuance.Protected{
+	valid, err := renewal.EncodeProtected(renewal.Protected{
 		Algorithm:  scrypto.Ed25519,
 		KeyType:    cert.SigningKey,
 		KeyVersion: 2,
 	})
 	require.NoError(t, err)
 	tests := map[string]struct {
-		Input     reissuance.EncodedProtected
+		Input     renewal.EncodedProtected
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
@@ -220,11 +220,11 @@ func TestEncodedProtectedDecode(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Invalid utf-8": {
-			Input:     reissuance.EncodedProtected(scrypto.Base64.EncodeToString([]byte{0xfe})),
+			Input:     renewal.EncodedProtected(scrypto.Base64.EncodeToString([]byte{0xfe})),
 			Assertion: assert.Error,
 		},
 		"Garbage JSON": {
-			Input:     reissuance.EncodedProtected(encode("some_garbage")),
+			Input:     renewal.EncodedProtected(encode("some_garbage")),
 			Assertion: assert.Error,
 		},
 	}
@@ -240,9 +240,9 @@ func encode(input string) string {
 	return scrypto.Base64.EncodeToString([]byte(input))
 }
 
-func newRequestInfo(now time.Time) reissuance.RequestInfo {
+func newRequestInfo(now time.Time) renewal.RequestInfo {
 	now = now.Truncate(time.Second)
-	return reissuance.RequestInfo{
+	return renewal.RequestInfo{
 		Base: cert.Base{
 			Subject:       xtest.MustParseIA("1-ff00:0:111"),
 			Version:       2,

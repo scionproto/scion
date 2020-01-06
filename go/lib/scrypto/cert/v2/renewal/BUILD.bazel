@@ -3,8 +3,8 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = ["request.go"],
-    importpath = "github.com/scionproto/scion/go/cert_srv/internal/reissuance",
-    visibility = ["//go/cert_srv:__subpackages__"],
+    importpath = "github.com/scionproto/scion/go/lib/scrypto/cert/v2/renewal",
+    visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/scrypto:go_default_library",

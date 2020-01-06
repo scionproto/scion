@@ -18,7 +18,6 @@ package cert_mgmt
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -26,7 +25,7 @@ import (
 var _ proto.Cerealizable = (*ChainIssRep)(nil)
 
 type ChainIssRep struct {
-	RawChain common.RawBytes `capnp:"chain"`
+	RawChain []byte `capnp:"chain"`
 }
 
 func (c *ChainIssRep) ProtoId() proto.ProtoIdType {
