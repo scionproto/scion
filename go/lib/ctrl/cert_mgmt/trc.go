@@ -18,7 +18,6 @@ package cert_mgmt
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/common"
 	legacy "github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
 	"github.com/scionproto/scion/go/proto"
@@ -27,7 +26,7 @@ import (
 var _ proto.Cerealizable = (*TRC)(nil)
 
 type TRC struct {
-	RawTRC common.RawBytes `capnp:"trc"`
+	RawTRC []byte `capnp:"trc"`
 }
 
 func (t *TRC) TRC() (*legacy.TRC, error) {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reissuance_test
+package renewal_test
 
 import (
 	"encoding/json"
@@ -21,15 +21,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/cert_srv/internal/reissuance"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2/renewal"
 )
 
 func TestParseSignedRequest(t *testing.T) {
 	tests := map[string]struct {
 		Input          string
-		SignedRequest  reissuance.SignedRequest
+		SignedRequest  renewal.SignedRequest
 		ExpectedErrMsg string
 	}{
 		"Valid": {
@@ -40,7 +40,7 @@ func TestParseSignedRequest(t *testing.T) {
 				"signature": "c2lnbmF0dXJl"
 			}
 			`,
-			SignedRequest: reissuance.SignedRequest{
+			SignedRequest: renewal.SignedRequest{
 				Encoded:          "testrequest",
 				EncodedProtected: "protected",
 				Signature:        []byte("signature"),
@@ -59,7 +59,7 @@ func TestParseSignedRequest(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			sr, err := reissuance.ParseSignedRequest([]byte(test.Input))
+			sr, err := renewal.ParseSignedRequest([]byte(test.Input))
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)
 				assert.Equal(t, test.SignedRequest, sr)
@@ -74,7 +74,7 @@ func TestParseSignedRequest(t *testing.T) {
 func TestProtectedUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Input          string
-		Protected      reissuance.Protected
+		Protected      renewal.Protected
 		ExpectedErrMsg string
 	}{
 		"Valid": {
@@ -85,7 +85,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"key_version": 2,
 				"crit": ["key_type", "key_version"]
 			}`,
-			Protected: reissuance.Protected{
+			Protected: renewal.Protected{
 				Algorithm:  scrypto.Ed25519,
 				KeyType:    cert.SigningKey,
 				KeyVersion: 2,
@@ -98,7 +98,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"key_version": 2,
 				"crit": ["key_type", "key_version"]
 			}`,
-			ExpectedErrMsg: reissuance.ErrMissingProtectedField.Error(),
+			ExpectedErrMsg: renewal.ErrMissingProtectedField.Error(),
 		},
 		"Key type not set": {
 			Input: `
@@ -107,7 +107,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"key_version": 2,
 				"crit": ["key_type", "key_version"]
 			}`,
-			ExpectedErrMsg: reissuance.ErrMissingProtectedField.Error(),
+			ExpectedErrMsg: renewal.ErrMissingProtectedField.Error(),
 		},
 		"Key version not set": {
 			Input: `
@@ -116,7 +116,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"key_type": "signing",
 				"crit": ["key_type", "key_version"]
 			}`,
-			ExpectedErrMsg: reissuance.ErrMissingProtectedField.Error(),
+			ExpectedErrMsg: renewal.ErrMissingProtectedField.Error(),
 		},
 		"crit not set": {
 			Input: `
@@ -125,7 +125,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 				"key_type": "signing",
 				"key_version": 2
 			}`,
-			ExpectedErrMsg: reissuance.ErrMissingProtectedField.Error(),
+			ExpectedErrMsg: renewal.ErrMissingProtectedField.Error(),
 		},
 		"unknown field": {
 			Input: `
@@ -148,7 +148,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var protected reissuance.Protected
+			var protected renewal.Protected
 			err := json.Unmarshal([]byte(test.Input), &protected)
 			if test.ExpectedErrMsg == "" {
 				require.NoError(t, err)

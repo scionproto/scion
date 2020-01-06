@@ -16,14 +16,15 @@
 package cert_mgmt
 
 import (
-	"github.com/scionproto/scion/go/lib/common"
+	"fmt"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/v2/renewal"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*ChainIssReq)(nil)
 
 type ChainIssReq struct {
-	RawCert common.RawBytes `capnp:"cert"`
+	Raw []byte `capnp:"cert"`
 }
 
 func (c *ChainIssReq) ProtoId() proto.ProtoIdType {
@@ -31,5 +32,18 @@ func (c *ChainIssReq) ProtoId() proto.ProtoIdType {
 }
 
 func (c *ChainIssReq) String() string {
-	return c.RawCert.String()
+	sr, err := renewal.ParseSignedRequest(c.Raw)
+	if err != nil {
+		return fmt.Sprintf("Invalid renewal req: %v", err)
+	}
+	r, err := sr.Encoded.Decode()
+	if err != nil {
+		return fmt.Sprintf("Invalid renewal req(encoded): %v", err)
+	}
+	ri, err := r.Encoded.Decode()
+	if err != nil {
+		return fmt.Sprintf("Invalid renewal req(encoded.info): %v", err)
+	}
+	return fmt.Sprintf("Renewal request: IA: %s, Version: %d, ReqTime: %s",
+		ri.Base.Subject, ri.Base.Version, ri.RequestTime)
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reissuance
+package renewal
 
 import (
 	"bytes"
@@ -33,14 +33,14 @@ var (
 	ErrNotUTF8 = serrors.New("not utf-8 encoded")
 )
 
-// RequestInfo is the information of the reissuance request.
+// RequestInfo is the information of the renewal request.
 type RequestInfo struct {
 	cert.Base
 	Issuer      addr.IA       `json:"issuer"`
 	RequestTime util.UnixTime `json:"request_time"`
 }
 
-// Request is the reissuance request.
+// Request is the renewal request.
 type Request struct {
 	Encoded EncodedRequestInfo `json:"payload"`
 	POPs    []POP              `json:"signatures"`
@@ -83,7 +83,7 @@ func (e EncodedRequestInfo) Decode() (RequestInfo, error) {
 	return request, nil
 }
 
-// SignedRequest is a signed reissuance request.
+// SignedRequest is a signed renewal request.
 type SignedRequest struct {
 	Encoded          EncodedRequest      `json:"payload"`
 	EncodedProtected EncodedProtected    `json:"protected"`
@@ -105,10 +105,10 @@ func ParseSignedRequest(raw []byte) (SignedRequest, error) {
 	return signed, nil
 }
 
-// EncodedRequest is the base64Url encoded marshaled reissuance request.
+// EncodedRequest is the base64Url encoded marshaled renewal request.
 type EncodedRequest string
 
-// EncodeRequest encodes the reissuance request.
+// EncodeRequest encodes the renewal request.
 func EncodeRequest(r *Request) (EncodedRequest, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
@@ -213,7 +213,7 @@ var (
 	packedCritFields, _ = json.Marshal(critASFields)
 )
 
-// CritRequest is the "crit" section for the reissuance request (see:
+// CritRequest is the "crit" section for the renewal request (see:
 // https://tools.ietf.org/html/rfc7515#section-4.1.11).
 type CritRequest struct{}
 
