@@ -17,9 +17,11 @@ package siginfo
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 type Sig struct {
@@ -29,12 +31,38 @@ type Sig struct {
 	EncapL4Port int
 }
 
-func (s *Sig) CtrlSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: uint16(s.CtrlL4Port)}}
+func (s *Sig) CtrlSnetAddr(path *spath.Path, nextHop *net.UDPAddr) net.Addr {
+	switch s.Host.(type) {
+	case addr.HostSVC:
+		return snet.NewSVCAddr(
+			s.IA,
+			path,
+			nextHop,
+			addr.SvcSIG,
+		)
+	default:
+		return snet.NewUDPAddr(
+			s.IA,
+			path,
+			nextHop,
+			&net.UDPAddr{
+				IP:   s.Host.IP(),
+				Port: s.CtrlL4Port,
+			},
+		)
+	}
 }
 
-func (s *Sig) EncapSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: uint16(s.EncapL4Port)}}
+func (s *Sig) EncapSnetAddr() *snet.UDPAddr {
+	return snet.NewUDPAddr(
+		s.IA,
+		nil,
+		nil,
+		&net.UDPAddr{
+			IP:   s.Host.IP(),
+			Port: s.EncapL4Port,
+		},
+	)
 }
 
 func (s *Sig) Equal(x *Sig) bool {

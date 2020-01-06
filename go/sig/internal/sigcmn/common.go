@@ -125,8 +125,8 @@ func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
 	return nil, nil, retErr
 }
 
-func EncapSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: uint16(encapPort)}}
+func EncapSnetAddr() *snet.UDPAddr {
+	return snet.NewUDPAddr(IA, nil, nil, &net.UDPAddr{IP: Host.IP(), Port: int(encapPort)})
 }
 
 func ValidatePort(desc string, port int) error {

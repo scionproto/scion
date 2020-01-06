@@ -43,7 +43,7 @@ const (
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
 type Dispatcher struct {
-	laddr              *snet.Addr
+	laddr              *snet.UDPAddr
 	workers            map[string]*Worker
 	extConn            snet.Conn
 	tunIO              io.ReadWriteCloser
@@ -61,8 +61,7 @@ func NewDispatcher(tio io.ReadWriteCloser) *Dispatcher {
 
 func (d *Dispatcher) Run() error {
 	var err error
-	d.extConn, err = sigcmn.Network.Listen(context.Background(), "udp",
-		d.laddr.ToNetUDPAddr(), addr.SvcNone)
+	d.extConn, err = sigcmn.Network.Listen(context.Background(), "udp", d.laddr.Host, addr.SvcNone)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize extConn", err)
 	}
