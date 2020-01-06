@@ -1,9 +1,0 @@
-#!/bin/bash
-
-set -e
-
-BASE_IMG=${BASE_IMG:-555fce7eaf33d8e7d71715a1d0d74deebca8ffffbd61bda89c7f4c4d0dc22b13}
-
-docker pull scionproto/scion_base@sha256:$BASE_IMG
-docker tag scionproto/scion_base@sha256:$BASE_IMG scion_base:latest
-./docker.sh build

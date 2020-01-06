@@ -1,7 +1,0 @@
-#!/bin/bash
-
-set -e
-
-echo "Running acceptance: ${1:?}"
-
-./docker.sh exec ./acceptance/ctl grun "$1"
