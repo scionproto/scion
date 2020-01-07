@@ -25,8 +25,8 @@ cmd_topology() {
     cmd_topo_clean
 
     # Build the necessary binaries.
-    bazel build //:scion-topo || return 1
-	tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
+    bazel build //:scion-topo
+    tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
 
     echo "Create topology, configuration, and execution files."
     is_running_in_docker && set -- "$@" --in-docker
@@ -348,6 +348,10 @@ cmd_version() {
 	_EOF
 }
 
+cmd_build() {
+    make -s
+}
+
 cmd_clean() {
     make -s clean
 }
@@ -407,7 +411,7 @@ cmd_help() {
 	Usage:
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
-            All arguments or options are passed to topology/generator.py
+	        All arguments or options are passed to topology/generator.py
 	    $PROGRAM run [nobuild]
 	        Run network.
 	    $PROGRAM sciond ISD-AS [ADDR]
@@ -432,10 +436,10 @@ cmd_help() {
 	        Show this text.
 	    $PROGRAM version
 	        Show version information.
-        $PROGRAM traces [folder]
-            Serve jaeger traces from the specified folder (default: traces/)
-        $PROGRAM stop_traces
-            Stop the jaeger container started during the traces command
+	    $PROGRAM traces [folder]
+	        Serve jaeger traces from the specified folder (default: traces/)
+	    $PROGRAM stop_traces
+	        Stop the jaeger container started during the traces command
 	_EOF
 }
 # END subcommand functions
@@ -445,7 +449,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|clean|sciond|traces|stop_traces|topo_clean)
+    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces|topo_clean)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;
