@@ -4,6 +4,8 @@ BRACCEPT = bin/braccept
 
 GAZELLE_MODE?=fix
 
+BAZELRC?=.bazelrc
+
 all: bazel
 
 clean:
@@ -30,7 +32,7 @@ go_deps.bzl: go.mod
 
 bazel: godeps gogen
 	rm -f bin/*
-	bazel build //:scion //:scion-ci
+	bazel --bazelrc=${BAZELRC} build //:scion //:scion-ci
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
