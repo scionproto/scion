@@ -171,8 +171,10 @@ class TopoGenerator(object):
                 linkto_b = LinkType.CHILD
             a_br, a_ifid = self._br_name(a, assigned_br_id, br_ids, if_ids)
             b_br, b_ifid = self._br_name(b, assigned_br_id, br_ids, if_ids)
-            self.links[a].append((linkto_b, b, attrs, a_br, b_br, a_ifid, b_ifid))
-            self.links[b].append((linkto_a, a, attrs, b_br, a_br, b_ifid, a_ifid))
+            self.links[a].append(
+                (linkto_b, b, attrs, a_br, b_br, a_ifid, b_ifid))
+            self.links[b].append(
+                (linkto_a, a, attrs, b_br, a_br, b_ifid, a_ifid))
             a_desc = "%s %s" % (a_br, a_ifid)
             b_desc = "%s %s" % (b_br, b_ifid)
             self.ifid_map.setdefault(str(a), {})
@@ -208,7 +210,8 @@ class TopoGenerator(object):
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
         ]
         if self.args.colibri:
-            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService"))
+            srvs.append(
+                ("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService"))
         for conf_key, def_num, nick, topo_key in srvs:
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -222,25 +225,32 @@ class TopoGenerator(object):
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
-            reg_id = reg_id_func(elem_id) if reg_id_func else self._reg_id_disp(topo_id, elem_id)
+            reg_id = reg_id_func(
+                elem_id) if reg_id_func else self._reg_id_disp(topo_id, elem_id)
+
+            address_lookup_reg_id = reg_id
+            address_lookup_elem_id = elem_id
+            if self.args.monolith and (nick == "bs" or nick == "cs" or nick == "ps"):
+                address_lookup_reg_id = "cs"
+                address_lookup_elem_id = "%s%s-%s" % (
+                    address_lookup_reg_id, topo_id.file_fmt(), i)
             d = {
                 'Addrs': {
                     addr_type: {
                         'Public': {
-                            'Addr': self._reg_addr(topo_id, reg_id, addr_type),
-                            'L4Port': self.args.port_gen.register(elem_id),
+                            'Addr': self._reg_addr(topo_id, address_lookup_reg_id, addr_type),
+                            'L4Port': self.args.port_gen.register(address_lookup_elem_id),
                         }
                     }
                 }
             }
-            self.topo_dicts[topo_id][topo_key][elem_id] = d
+            self.topo_dicts[topo_id][topo_key][address_lookup_elem_id] = d
 
     def _reg_id_disp(self, topo_id, elem_id):
         return "disp" + topo_id.file_fmt() if self.args.docker else elem_id
 
     def _srv_count(self, as_conf, conf_key, def_num):
         count = as_conf.get(conf_key, def_num)
-        # only a single Go-PS/Go-CS per AS is currently supported
         if conf_key in ["path_servers", "certificate_servers", "beacon_servers"]:
             count = 1
         if conf_key == "discovery_servers" and not self.args.discovery:
@@ -283,12 +293,14 @@ class TopoGenerator(object):
                     }
                 },
                 'Interfaces': {
-                    l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
+                    l_ifid: self._gen_br_intf(
+                        remote, public_addr, remote_addr, attrs, remote_type)
                 }
             }
         else:
             # There is already a BR entry, add interface
-            intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
+            intf = self._gen_br_intf(
+                remote, public_addr, remote_addr, attrs, remote_type)
             self.topo_dicts[local]["BorderRouters"][local_br]['Interfaces'][l_ifid] = intf
 
     def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
@@ -297,16 +309,16 @@ class TopoGenerator(object):
             'PublicOverlay': {
                 'Addr': public_addr,
                 'OverlayPort': SCION_ROUTER_PORT
-                },
+            },
             'RemoteOverlay': {
                 'Addr': remote_addr,
                 'OverlayPort': SCION_ROUTER_PORT
-                },
+            },
             'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
             'ISD_AS': str(remote),
             'LinkTo': LinkType.to_str(remote_type.lower()),
             'MTU': attrs.get('mtu', DEFAULT_MTU)
-            }
+        }
 
     def _gen_sig_entries(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
@@ -374,6 +386,7 @@ class LinkEP(TopoID):
 
 class IFIDGenerator(object):
     """Generates unique interface IDs"""
+
     def __init__(self):
         self._ifids = set()
 

@@ -107,6 +107,35 @@ func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
 	// state
 	address = copyUDPAddr(address)
 
+	if svc == addr.SvcWildcard {
+		refBS, err := t.registerOne(addr.SvcBS, address, value)
+		if err != nil {
+			return nil, err
+		}
+		refCS, err := t.registerOne(addr.SvcCS, address, value)
+		if err != nil {
+			refBS.Free()
+			return nil, err
+		}
+		refPS, err := t.registerOne(addr.SvcPS, address, value)
+		if err != nil {
+			refBS.Free()
+			refCS.Free()
+			return nil, err
+		}
+		return &svcTableReference{
+			cleanF: func() {
+				refBS.Free()
+				refCS.Free()
+				refPS.Free()
+			},
+		}, nil
+	}
+	return t.registerOne(svc, address, value)
+}
+
+func (t *svcTable) registerOne(svc addr.HostSVC, address *net.UDPAddr,
+	value interface{}) (Reference, error) {
 	if _, ok := t.m[svc]; !ok {
 		t.m[svc] = make(unicastIpTable)
 	}

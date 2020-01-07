@@ -64,7 +64,7 @@ steps:
       - tar -kxf bazel-bin/scion.tar -C bin --overwrite
       - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
       - ./scion.sh topology
-      - ./scion.sh run nobuild && sleep 10
+      - ./scion.sh run && sleep 10
       - ./bin/end2end_integration -log.console warn
       - ./integration/revocation_test.sh
     key: revocation_tests
@@ -80,7 +80,7 @@ steps:
     - tar -kxf bazel-bin/scion.tar -C bin --overwrite
     - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
     - ./scion.sh topology
-    - ./scion.sh run nobuild && sleep 10
+    - ./scion.sh run && sleep 10
     - ./bin/cert_req_integration -log.console warn
     - ./bin/pp_integration  -log.console warn
     - ./bin/scmp_integration -log.console warn
@@ -89,6 +89,22 @@ steps:
       - "artifacts.out/**/*"
     timeout_in_minutes: 5
     key: integration_tests
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+  - label: "Integration: end2end_integration"
+    command:
+    - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+    - tar -kxf bazel-bin/scion.tar -C bin --overwrite
+    - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
+    - ./scion.sh topology --monolith
+    - ./scion.sh run && sleep 10
+    - ./bin/end2end_integration -log.console warn
+    artifact_paths:
+      - "artifacts.out/**/*"
+    timeout_in_minutes: 5
+    key: integration_tests_monolith
     retry:
       automatic:
         - exit_status: -1  # Agent was lost

@@ -63,9 +63,12 @@ class SupervisorGenerator(object):
     def _as_conf(self, topo, base):
         entries = []
         entries.extend(self._br_entries(topo, "bin/border", base))
-        entries.extend(self._bs_entries(topo, base))
-        entries.extend(self._cs_entries(topo, base))
-        entries.extend(self._ps_entries(topo, base))
+        if self.args.monolith:
+            entries.extend(self._control_service_entries(topo, base))
+        else:
+            entries.extend(self._bs_entries(topo, base))
+            entries.extend(self._cs_entries(topo, base))
+            entries.extend(self._ps_entries(topo, base))
         return entries
 
     def _std_entries(self, topo, topo_key, cmd, base, port):
@@ -74,7 +77,8 @@ class SupervisorGenerator(object):
             conf_dir = os.path.join(base, elem_id)
             prom_addr = prom_addr_infra(self.args.docker, elem_id, elem, port)
             entries.append((elem_id, [cmd, "--prom", prom_addr, "--sciond_path",
-                                      get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
+                                      get_default_sciond_path(
+                                          ISD_AS(topo["ISD_AS"])),
                                       elem_id, conf_dir]))
         return entries
 
@@ -83,6 +87,15 @@ class SupervisorGenerator(object):
         for k, v in topo.get("BorderRouters", {}).items():
             conf = os.path.join(base, k, BR_CONFIG_NAME)
             entries.append((k, [cmd, "-config", conf]))
+        return entries
+
+    def _control_service_entries(self, topo, base):
+        entries = []
+        for k, v in topo.get("CertificateService", {}).items():
+            # only a single control service instance per AS is currently supported
+            if k.endswith("-1"):
+                conf = os.path.join(base, k, CS_CONFIG_NAME)
+                entries.append((k, ["bin/cs", "-config", conf]))
         return entries
 
     def _bs_entries(self, topo, base):
@@ -114,7 +127,7 @@ class SupervisorGenerator(object):
 
     def _sciond_entry(self, name, conf_dir):
         return self._common_entry(
-                name, ["bin/sciond", "-config", os.path.join(conf_dir, SD_CONFIG_NAME)])
+            name, ["bin/sciond", "-config", os.path.join(conf_dir, SD_CONFIG_NAME)])
 
     def _sciond_path(self, name):
         return os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name)
@@ -131,10 +144,12 @@ class SupervisorGenerator(object):
         names.append(sd_name)
         conf_dir = os.path.join(base, COMMON_DIR)
         config["program:%s" % sd_name] = self._sciond_entry(sd_name, conf_dir)
-        config["group:as%s" % topo_id.file_fmt()] = {"programs": ",".join(names)}
+        config["group:as%s" % topo_id.file_fmt()] = {
+            "programs": ",".join(names)}
         text = StringIO()
         config.write(text)
-        conf_path = os.path.join(topo_id.base_dir(self.args.output_dir), SUPERVISOR_CONF)
+        conf_path = os.path.join(topo_id.base_dir(
+            self.args.output_dir), SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
     def _write_elem_conf(self, elem, entry, elem_dir, topo_id=None):
@@ -151,7 +166,8 @@ class SupervisorGenerator(object):
         elem = "dispatcher"
         elem_dir = os.path.join(self.args.output_dir, elem)
         config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
-        self._write_elem_conf(elem, ["bin/godispatcher", "-config", config_file_path], elem_dir)
+        self._write_elem_conf(
+            elem, ["bin/godispatcher", "-config", config_file_path], elem_dir)
 
     def _common_entry(self, name, cmd_args, elem_dir=None):
         entry = {
