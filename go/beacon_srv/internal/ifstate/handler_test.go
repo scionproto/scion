@@ -120,7 +120,7 @@ func interfaces(t *testing.T, topoProvider topology.Provider,
 			intf := intfs.Get(info.IfID)
 			intf.SetState(Revoked)
 			if info.SRevInfo != nil {
-				require.NoError(t, intf.Revoke(info.SRevInfo))
+				require.NoError(t, intf.SetRevocation(info.SRevInfo))
 			}
 		}
 	}
