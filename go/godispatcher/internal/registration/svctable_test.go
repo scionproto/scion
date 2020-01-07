@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -155,7 +157,6 @@ func TestSVCTableOneItem(t *testing.T) {
 			SoMsg("values", retValues, ShouldResemble, []interface{}{value})
 		})
 	})
-
 }
 
 func TestSVCTableTwoItems(t *testing.T) {
@@ -325,4 +326,114 @@ func runRandomRegistrations(count int, table SVCTable) []Reference {
 		}
 	}
 	return references
+}
+
+func TestSVCTableWildcard(t *testing.T) {
+	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
+	value := "test value"
+
+	table := NewSVCTable()
+	reference, err := table.Register(addr.SvcWildcard, address, value)
+	require.NoError(t, err)
+	defer reference.Free()
+
+	testCases := []*struct {
+		Name              string
+		Address           addr.HostSVC
+		LookupResultCount int
+	}{
+		{
+			Name:              "bs",
+			Address:           addr.SvcBS.Multicast(),
+			LookupResultCount: 1,
+		},
+		{
+			Name:              "cs",
+			Address:           addr.SvcCS.Multicast(),
+			LookupResultCount: 1,
+		},
+		{
+			Name:              "ps",
+			Address:           addr.SvcPS.Multicast(),
+			LookupResultCount: 1,
+		},
+		{
+			Name:              "sig",
+			Address:           addr.SvcSIG.Multicast(),
+			LookupResultCount: 0,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			retValues := table.Lookup(tc.Address, nil)
+			assert.Equal(t, tc.LookupResultCount, len(retValues))
+		})
+	}
+}
+
+func TestSVCTableWildcardFree(t *testing.T) {
+	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
+	value := "test value"
+
+	table := NewSVCTable()
+	reference, err := table.Register(addr.SvcWildcard, address, value)
+	require.NoError(t, err)
+	reference.Free()
+
+	assert.Equal(t, 0, len(table.Lookup(addr.SvcBS, nil)))
+	assert.Equal(t, 0, len(table.Lookup(addr.SvcCS, nil)))
+	assert.Equal(t, 0, len(table.Lookup(addr.SvcPS, nil)))
+}
+
+func TestSVCTableWildcardRollback(t *testing.T) {
+	// If any SVC registration fails on a wildcard, none should remain
+	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
+	value := "test value"
+
+	table := NewSVCTable()
+
+	testCases := []*struct {
+		Name                string
+		RegisteredAddress   addr.HostSVC
+		LookupResultBSCount int
+		LookupResultCSCount int
+		LookupResultPSCount int
+	}{
+		{
+			Name:                "bs",
+			RegisteredAddress:   addr.SvcBS,
+			LookupResultBSCount: 1,
+			LookupResultCSCount: 0,
+			LookupResultPSCount: 0,
+		},
+		{
+			Name:                "cs",
+			RegisteredAddress:   addr.SvcCS,
+			LookupResultBSCount: 0,
+			LookupResultCSCount: 1,
+			LookupResultPSCount: 0,
+		},
+		{
+			Name:                "ps",
+			RegisteredAddress:   addr.SvcPS,
+			LookupResultBSCount: 0,
+			LookupResultCSCount: 0,
+			LookupResultPSCount: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			reference, err := table.Register(tc.RegisteredAddress, address, value)
+			require.NoError(t, err)
+			defer reference.Free()
+
+			_, err = table.Register(addr.SvcWildcard, address, value)
+			assert.Error(t, err)
+
+			assert.Equal(t, tc.LookupResultBSCount, len(table.Lookup(addr.SvcBS, nil)))
+			assert.Equal(t, tc.LookupResultCSCount, len(table.Lookup(addr.SvcCS, nil)))
+			assert.Equal(t, tc.LookupResultPSCount, len(table.Lookup(addr.SvcPS, nil)))
+		})
+	}
 }

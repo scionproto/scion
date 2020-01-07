@@ -19,7 +19,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage"
+	"github.com/scionproto/scion/go/cs/beaconstorage"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
