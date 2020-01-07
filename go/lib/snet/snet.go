@@ -96,6 +96,8 @@ func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService) *
 // Dial returns a SCION connection to remote. Nil values for listen are not
 // supported yet. Parameter network must be "udp". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
+// Remote address requires a path and the underlay net hop to be set if the
+// destination is in a remote AS.
 //
 // The context is used for connection setup, it doesn't affect the returned
 // connection.

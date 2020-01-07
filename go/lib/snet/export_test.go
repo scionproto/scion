@@ -18,7 +18,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
 )
 
 var NewScionConnWriter = newScionConnWriter
@@ -27,15 +26,5 @@ func NewScionConnBase(localIA addr.IA, listen *net.UDPAddr) *scionConnBase {
 	return &scionConnBase{
 		listen:   listen,
 		scionNet: &SCIONNetwork{localIA: localIA},
-	}
-}
-
-func NewRemoteAddressResolver(localIA addr.IA, pq PathQuerier,
-	monitor ctxmonitor.Monitor) *remoteAddressResolver {
-
-	return &remoteAddressResolver{
-		localIA:     localIA,
-		pathQuerier: pq,
-		monitor:     monitor,
 	}
 }
