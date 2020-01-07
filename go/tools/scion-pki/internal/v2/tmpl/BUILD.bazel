@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "cmd.go",
+        "sample.go",
         "topo.go",
     ],
     importpath = "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/tmpl",

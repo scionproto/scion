@@ -15,6 +15,7 @@
 package tmpl
 
 import (
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -59,12 +60,25 @@ var topo = &cobra.Command{
 	},
 }
 
+var sample = &cobra.Command{
+	Use:   "sample",
+	Short: "Generate sample topology description",
+	Long: `
+'sample' outputs a sample topology description that can be used for following the
+examples in the README.
+`,
+	Args: cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Print(sampleTopo)
+	},
+}
+
 func init() {
 	topo.PersistentFlags().Uint32VarP(&notBefore, "notbefore", "b", 0,
 		"set not_before time in all configs")
 	topo.PersistentFlags().StringVar(&rawValidity, "validity", "365d",
 		"set the validity of all crypto material")
-	Cmd.AddCommand(topo)
+	Cmd.AddCommand(topo, sample)
 }
 
 func validityFromFlags() (conf.Validity, error) {

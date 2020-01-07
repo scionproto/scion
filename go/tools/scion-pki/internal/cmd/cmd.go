@@ -47,17 +47,17 @@ root configuration files used in the SCION control plane PKI.`,
 }
 
 const (
-	bashCompletionScript string = "scion_pki_bash"
-	zshCompletionScript  string = "_scion-pki"
+	bashCompletionScript string = "/tmp/scion-pki/scion_pki_bash"
+	zshCompletionScript  string = "/tmp/scion-pki/_scion-pki"
 	bashInstruction      string = `
 Instructions:
-sudo mv scion_pki_bash /etc/bash_completion.d
+sudo mv /tmp/scion-pki/scion_pki_bash /etc/bash_completion.d
 source ~/.bashrc
 `
 	zshInstruction string = `
 Instructions:
 mkdir -p ~/.zsh/completion
-mv _scion-pki ~/.zsh/completion
+mv /tmp/scion-pki/_scion-pki ~/.zsh/completion
 cat <<EOF >> ~/.zshrc
 fpath=(~/.zsh/completion \$fpath)
 autoload -U compinit
@@ -74,11 +74,11 @@ var autoCompleteCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if zsh {
 			RootCmd.GenZshCompletionFile(zshCompletionScript)
-			pkicmn.QuietPrint("Generated %s\n", zshCompletionScript)
+			pkicmn.QuietPrint("Generated: %s\n", zshCompletionScript)
 			pkicmn.QuietPrint(zshInstruction)
 		} else {
 			RootCmd.GenBashCompletionFile(bashCompletionScript)
-			pkicmn.QuietPrint("Generated %s\n", bashCompletionScript)
+			pkicmn.QuietPrint("Generated: %s\n", bashCompletionScript)
 			pkicmn.QuietPrint(bashInstruction)
 		}
 	},
