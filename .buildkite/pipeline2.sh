@@ -13,7 +13,7 @@ gen_acceptance() {
         echo "    key: ${name}_acceptance"
         echo "    env:"
         echo "      PYTHONPATH: \"python/:.\""
-        echo "      BAZELRC: .bazelrc"
+        echo "      BAZELRC: .bazelrc_ci"
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""
         echo "    retry:"
