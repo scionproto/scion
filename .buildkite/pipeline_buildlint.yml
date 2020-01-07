@@ -61,7 +61,7 @@ steps:
       - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
       - tar -kxf bazel-bin/scion.tar -C bin --overwrite
       - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
-      - ./scion.sh topology nobuild
+      - ./scion.sh topology
       - ./scion.sh run nobuild && sleep 10
       - ./bin/end2end_integration -log.console warn
       - ./integration/revocation_test.sh
@@ -77,7 +77,7 @@ steps:
     - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
     - tar -kxf bazel-bin/scion.tar -C bin --overwrite
     - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
-    - ./scion.sh topology nobuild
+    - ./scion.sh topology
     - ./scion.sh run nobuild && sleep 10
     - ./bin/cert_req_integration -log.console warn
     - ./bin/pp_integration  -log.console warn

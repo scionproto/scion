@@ -22,16 +22,12 @@ cmd_topo_clean() {
 
 cmd_topology() {
     set -e
-    local nobuild
-    if [ "$1" = "nobuild" ]; then
-        shift
-        nobuild="y"
-    fi
     cmd_topo_clean
-    if [ -z "$nobuild" ]; then
-        echo "Compiling..."
-        cmd_build || exit 1
-    fi
+
+    # Build the necessary binaries.
+    bazel build //:scion-topo
+    tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
+
     echo "Create topology, configuration, and execution files."
     is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
@@ -54,7 +50,7 @@ cmd_topology() {
 cmd_run() {
     if [ "$1" != "nobuild" ]; then
         echo "Compiling..."
-        cmd_build || exit 1
+        make -s || exit 1
         if is_docker_be; then
             echo "Build scion_base image"
             ./tools/quiet ./docker.sh base
@@ -353,11 +349,7 @@ cmd_version() {
 }
 
 cmd_build() {
-    if [ "$1" == "bypass" ]; then
-        USER_OPTS=-DBYPASS_ROUTERS make -s
-    else
-        make -s
-    fi
+    make -s
 }
 
 cmd_clean() {
@@ -417,11 +409,10 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM topology [nobuild]
-	        Create topology, configuration, and execution files. With the 'nobuild'
-            option, don't build the code. All other arguments or options are passed
-            to topology/generator.py
-	    $PROGRAM run
+	    $PROGRAM topology
+	        Create topology, configuration, and execution files.
+	        All arguments or options are passed to topology/generator.py
+	    $PROGRAM run [nobuild]
 	        Run network.
 	    $PROGRAM sciond ISD-AS [ADDR]
 	        Start sciond with provided ISD and AS parameters, and bind to ADDR.
@@ -445,10 +436,10 @@ cmd_help() {
 	        Show this text.
 	    $PROGRAM version
 	        Show version information.
-        $PROGRAM traces [folder]
-            Serve jaeger traces from the specified folder (default: traces/)
-        $PROGRAM stop_traces
-            Stop the jaeger container started during the traces command
+	    $PROGRAM traces [folder]
+	        Serve jaeger traces from the specified folder (default: traces/)
+	    $PROGRAM stop_traces
+	        Stop the jaeger container started during the traces command
 	_EOF
 }
 # END subcommand functions

@@ -50,6 +50,16 @@ pkg_tar(
     mode = "0755",
 )
 
+# This contains all of the binaries needed to run the topology generator.
+pkg_tar(
+    name = "scion-topo",
+    package_dir = "",
+    srcs = [
+        "//go/tools/scion-custpk-load:scion-custpk-load",
+        "//go/tools/scion-pki:scion-pki",
+    ],
+    mode = "0755",
+)
 
 # This is a package of tools used for linting the source code.
 pkg_tar(
