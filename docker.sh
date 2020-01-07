@@ -34,7 +34,7 @@ cmd_build() {
 
 cmd_tester() {
     set -eo pipefail
-    bazel run //docker/testimages:scion_testing_bundle
+    bazel --bazelrc=${BAZELRC:-.bazelrc} run //docker/testimages:scion_testing_bundle
     docker build -f "docker/testimages/Dockerfile.sig_accept" -t "scion_sig_acceptance" docker/testimages
 }
 
