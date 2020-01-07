@@ -67,6 +67,7 @@ class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
+
     def __init__(self, args):
         """
         Initialize an instance of the class ConfigGenerator.
@@ -131,10 +132,13 @@ class ConfigGenerator(object):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
         go_gen.generate_br()
-        go_gen.generate_bs()
-        go_gen.generate_cs()
         go_gen.generate_sciond()
-        go_gen.generate_ps()
+        if self.args.monolith:
+            go_gen.generate_control_service()
+        else:
+            go_gen.generate_bs()
+            go_gen.generate_cs()
+            go_gen.generate_ps()
         go_gen.generate_co()
         go_gen.generate_disp()
 
@@ -214,7 +218,8 @@ class ConfigGenerator(object):
         conf_entry = trust_db_conf_entry(self.args, cs_name)
         # If we build the dockerized topology the directory is setup to be reachable
         # from docker, but the tool runs on the host, so we resolve the bind mount here.
-        conf_entry['Connection'] = conf_entry['Connection'].replace('/share/cache', 'gen-cache')
+        conf_entry['Connection'] = conf_entry['Connection'].replace(
+            '/share/cache', 'gen-cache')
         return conf_entry
 
     def _write_networks_conf(self, networks, out_file):
@@ -226,4 +231,5 @@ class ConfigGenerator(object):
             config[net] = sub_conf
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(self.args.output_dir, out_file), text.getvalue())
+        write_file(os.path.join(self.args.output_dir,
+                                out_file), text.getvalue())

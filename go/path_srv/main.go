@@ -27,6 +27,9 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/opentracing/opentracing-go"
 
+	"github.com/scionproto/scion/go/cs/handlers"
+	"github.com/scionproto/scion/go/cs/segreq"
+	"github.com/scionproto/scion/go/cs/segsyncer"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
@@ -47,9 +50,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/config"
-	"github.com/scionproto/scion/go/path_srv/internal/handlers"
-	"github.com/scionproto/scion/go/path_srv/internal/segreq"
-	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
 	"github.com/scionproto/scion/go/proto"
 )
 
