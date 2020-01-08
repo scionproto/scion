@@ -45,6 +45,7 @@ func newScionConnWriter(base *scionConnBase, querier PathQuerier,
 	}
 }
 
+// WriteTo sends b to raddr.
 func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	pkt := &SCIONPacket{
 		Bytes: Bytes(c.buffer),
