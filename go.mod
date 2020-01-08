@@ -48,7 +48,7 @@ require (
 	golang.org/x/net v0.0.0-20191105084925-a882066a44e0
 	golang.org/x/tools v0.0.0-20191029041327-9cc4af7d6b2c
 	gopkg.in/ini.v1 v1.51.0 // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20161007184028-e21e5cbec0cd
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/restruct.v1 v1.0.0-20151213023948-80ede2e57cc2
 	gopkg.in/yaml.v2 v2.2.4
 	zombiezen.com/go/capnproto2 v0.0.0-20190813022230-ddfb9bb855fa

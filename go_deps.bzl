@@ -474,8 +474,8 @@ def go_deps():
     go_repository(
         name = "in_gopkg_natefinch_lumberjack_v2",
         importpath = "gopkg.in/natefinch/lumberjack.v2",
-        sum = "h1:UbkH2e+uFHEHh0PqjhdFQAdnx2KuBdcF6HpYSdJBDMw=",
-        version = "v2.0.0-20161007184028-e21e5cbec0cd",
+        sum = "h1:AFxeG48hTWHhDTQDk/m2gorfVHUEa9vo3tp3D7TzwjI=",
+        version = "v2.0.0-20170531160350-a96e63847dc3",
     )
     go_repository(
         name = "in_gopkg_restruct_v1",

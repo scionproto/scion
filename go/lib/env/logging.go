@@ -51,6 +51,8 @@ type Logging struct {
 		// FlushInterval specifies how frequently to flush to the log file,
 		// in seconds (defaults to lib/log default).
 		FlushInterval *int
+		// Compress can be set to enable rotated file compression.
+		Compress bool
 	}
 
 	Console struct {
@@ -122,6 +124,7 @@ func setupFileLogging(cfg *Logging) error {
 			int(cfg.File.MaxAge),
 			int(cfg.File.MaxBackups),
 			*cfg.File.FlushInterval,
+			cfg.File.Compress,
 		)
 	}
 	return nil
