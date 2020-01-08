@@ -72,7 +72,7 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 		MaxSize:    logSize, // MiB
 		MaxAge:     logAge,  // days
 		MaxBackups: logBackups,
-		Compress:   true,
+		Compress:   compress,
 	}
 
 	if logFlush != 0 {
