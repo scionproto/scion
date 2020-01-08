@@ -73,10 +73,7 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 		logger.Error("Writing RevInfo signed Ctrl payload", "err", err)
 		return
 	}
-	dst := &snet.Addr{
-		IA:   ia,
-		Host: &addr.AppAddr{L3: dstHost},
-	}
+	dst := snet.NewSVCAddr(ia, nil, nil, dstHost)
 	dst.NextHop, err = ctx.ResolveSVCAny(dstHost)
 	if err != nil {
 		cl.Result = metrics.ErrResolveSVC

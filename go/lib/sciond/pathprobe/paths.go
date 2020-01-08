@@ -143,14 +143,8 @@ func (p Prober) GetStatuses(ctx context.Context,
 }
 
 func (p Prober) send(scionConn snet.Conn, path snet.Path) error {
-	addr := &snet.Addr{
-		IA: p.DstIA,
-		Host: &addr.AppAddr{
-			L3: addr.HostSVCFromString("NONE"),
-		},
-		NextHop: path.OverlayNextHop(),
-		Path:    path.Path(),
-	}
+	addr := snet.NewSVCAddr(p.DstIA, path.Path(), path.OverlayNextHop(),
+		addr.HostSVCFromString("NONE"))
 	log.Debug("Sending test packet.", "path", fmt.Sprintf("%s", path))
 	_, err := scionConn.WriteTo([]byte{}, addr)
 	if err != nil {
