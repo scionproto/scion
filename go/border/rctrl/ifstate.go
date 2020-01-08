@@ -72,10 +72,6 @@ func genIFStateReq() error {
 		metrics.Control.SentIFStateReq(cl).Inc()
 		return common.NewBasicError("Writing IFStateReq signed Ctrl payload", err)
 	}
-	dst := &snet.Addr{
-		IA:   ia,
-		Host: &addr.AppAddr{L3: addr.SvcBS.Multicast()},
-	}
 	bsAddrs, err := rctx.Get().ResolveSVCMulti(addr.SvcBS)
 	if err != nil {
 		cl.Result = metrics.ErrResolveSVC
@@ -84,15 +80,15 @@ func genIFStateReq() error {
 	}
 
 	var errors common.MultiError
-	for _, addr := range bsAddrs {
-		dst.NextHop = addr
-		if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
+	for _, a := range bsAddrs {
+		dst := snet.NewSVCAddr(ia, nil, a, addr.SvcBS.Multicast())
+		if _, err := snetConn.WriteTo(pld, dst); err != nil {
 			cl.Result = metrics.ErrWrite
 			metrics.Control.SentIFStateReq(cl).Inc()
 			errors = append(errors, common.NewBasicError("Writing IFStateReq", err, "dst", dst))
 			continue
 		}
-		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", addr)
+		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", a)
 		cl.Result = metrics.Success
 		metrics.Control.SentIFStateReq(cl).Inc()
 	}

@@ -75,7 +75,7 @@ func (d *Dispatcher) read() error {
 		n := NewFrameBufs(frames)
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*FrameBuf)
-			read, src, err := d.extConn.ReadFromSCION(frame.raw)
+			read, src, err := d.extConn.ReadFrom(frame.raw)
 			if err != nil {
 				log.Error("IngressDispatcher: Unable to read from external ingress", "err", err)
 				if reliable.IsDispatcherError(err) {
@@ -83,10 +83,15 @@ func (d *Dispatcher) read() error {
 				}
 				frame.Release()
 			} else {
-				frame.frameLen = read
-				frame.sessId = mgmt.SessionType((frame.raw[0]))
-				d.updateMetrics(src.IA.IAInt(), frame.sessId, read)
-				d.dispatch(frame, src)
+				switch v := src.(type) {
+				case *snet.Addr:
+					frame.frameLen = read
+					frame.sessId = mgmt.SessionType((frame.raw[0]))
+					d.updateMetrics(v.IA.IAInt(), frame.sessId, read)
+					d.dispatch(frame, v)
+				default:
+					return common.NewBasicError("Not valid snet address", nil)
+				}
 			}
 			// Clear FrameBuf reference
 			frames[i] = nil

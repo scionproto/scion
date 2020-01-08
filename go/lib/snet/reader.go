@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -42,15 +41,11 @@ func newScionConnReader(base *scionConnBase, conn PacketConn) *scionConnReader {
 	}
 }
 
-// ReadFromSCION reads data into b, returning the length of copied data and the
-// address of the sender. If the remote address for the connection is already
-// known, ReadFromSCION returns an error.
-func (c *scionConnReader) ReadFromSCION(b []byte) (int, *Addr, error) {
-	return c.read(b)
-}
-
+// ReadFrom reads data into b, returning the length of copied data and the
+// address of the sender.
 func (c *scionConnReader) ReadFrom(b []byte) (int, net.Addr, error) {
-	return c.read(b)
+	n, a, err := c.read(b)
+	return n, a.ToAddr(), err
 }
 
 // Read reads data into b from a connection with a fixed remote address. If the
@@ -62,7 +57,7 @@ func (c *scionConnReader) Read(b []byte) (int, error) {
 
 // read returns the number of bytes read, the address that sent the bytes and
 // an error (if one occurred).
-func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
+func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	if c.base.scionNet == nil {
 		return 0, nil, serrors.New("SCION network not initialized")
 	}
@@ -85,13 +80,11 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 		return 0, nil, common.NewBasicError("Unable to copy payload", err)
 	}
 
-	var remote *Addr
-	// On UDP4 network we can get either UDP traffic or SCMP messages
+	remote := &UDPAddr{}
+	// On UDP network we can get either UDP traffic or SCMP messages
 	if c.base.net == "udp" {
 		// Extract remote address
-		remote = &Addr{
-			IA: pkt.Source.IA,
-		}
+		remote.IA = pkt.Source.IA
 
 		// Extract path
 		if pkt.Path != nil {
@@ -118,7 +111,8 @@ func (c *scionConnReader) read(b []byte) (int, *Addr, error) {
 		}
 		// Copy the address to prevent races. See
 		// https://github.com/scionproto/scion/issues/1659.
-		remote.Host = &addr.AppAddr{L3: pkt.Source.Host.Copy(), L4: l4i}
+		ip := pkt.Source.Host.IP()
+		remote.Host = &net.UDPAddr{IP: append(ip[:0:0], ip...), Port: int(l4i)}
 		return n, remote, err
 	}
 	return 0, nil, common.NewBasicError("Unknown network", nil, "net", c.base.net)

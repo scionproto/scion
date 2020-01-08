@@ -16,6 +16,8 @@
 package pktdisp
 
 import (
+	"net"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
@@ -25,7 +27,7 @@ import (
 
 type DispPkt struct {
 	Raw  common.RawBytes
-	Addr *snet.Addr
+	Addr net.Addr
 }
 
 type DispatchFunc func(*DispPkt)
@@ -44,7 +46,7 @@ func PktDispatcher(c snet.Conn, f DispatchFunc, pktDispStop chan struct{}) {
 			return
 		default:
 			dp.Raw = dp.Raw[:cap(dp.Raw)]
-			n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
+			n, dp.Addr, err = c.ReadFrom(dp.Raw)
 			if err != nil {
 				if reliable.IsDispatcherError(err) {
 					fatal.Fatal(err)

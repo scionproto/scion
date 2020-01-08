@@ -97,22 +97,6 @@ func (mr *MockConnMockRecorder) ReadFrom(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFrom", reflect.TypeOf((*MockConn)(nil).ReadFrom), arg0)
 }
 
-// ReadFromSCION mocks base method
-func (m *MockConn) ReadFromSCION(arg0 []byte) (int, *snet.Addr, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadFromSCION", arg0)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(*snet.Addr)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// ReadFromSCION indicates an expected call of ReadFromSCION
-func (mr *MockConnMockRecorder) ReadFromSCION(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromSCION", reflect.TypeOf((*MockConn)(nil).ReadFromSCION), arg0)
-}
-
 // RemoteAddr mocks base method
 func (m *MockConn) RemoteAddr() net.Addr {
 	m.ctrl.T.Helper()
@@ -211,21 +195,6 @@ func (m *MockConn) WriteTo(arg0 []byte, arg1 net.Addr) (int, error) {
 func (mr *MockConnMockRecorder) WriteTo(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteTo", reflect.TypeOf((*MockConn)(nil).WriteTo), arg0, arg1)
-}
-
-// WriteToSCION mocks base method
-func (m *MockConn) WriteToSCION(arg0 []byte, arg1 *snet.Addr) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WriteToSCION", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WriteToSCION indicates an expected call of WriteToSCION
-func (mr *MockConnMockRecorder) WriteToSCION(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteToSCION", reflect.TypeOf((*MockConn)(nil).WriteToSCION), arg0, arg1)
 }
 
 // MockPacketDispatcherService is a mock of PacketDispatcherService interface

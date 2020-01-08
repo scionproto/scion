@@ -34,6 +34,9 @@ func (a *UDPAddr) String() string {
 
 // ToAddr returns a legacy snet.Addr.
 func (a *UDPAddr) ToAddr() *Addr {
+	if a == nil {
+		return nil
+	}
 	ret := &Addr{
 		IA:      a.IA,
 		NextHop: CopyUDPAddr(a.NextHop),

@@ -143,14 +143,8 @@ func (p Prober) GetStatuses(ctx context.Context,
 }
 
 func (p Prober) send(scionConn snet.Conn, path snet.Path) error {
-	addr := &snet.Addr{
-		IA: p.DstIA,
-		Host: &addr.AppAddr{
-			L3: addr.HostSVCFromString("NONE"),
-		},
-		NextHop: path.OverlayNextHop(),
-		Path:    path.Path(),
-	}
+	addr := snet.NewSVCAddr(p.DstIA, path.Path(), path.OverlayNextHop(),
+		addr.SvcNone)
 	log.Debug("Sending test packet.", "path", fmt.Sprintf("%s", path))
 	_, err := scionConn.WriteTo([]byte{}, addr)
 	if err != nil {
@@ -161,7 +155,7 @@ func (p Prober) send(scionConn snet.Conn, path snet.Path) error {
 
 func (p Prober) receive(scionConn snet.Conn) error {
 	b := make([]byte, 1500, 1500)
-	_, _, err := scionConn.ReadFromSCION(b)
+	_, _, err := scionConn.ReadFrom(b)
 	if err == nil {
 		// We've got an actual reply instead of SCMP error. This should not happen.
 		return nil

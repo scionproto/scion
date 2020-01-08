@@ -785,7 +785,21 @@ func (m *Messenger) listenAndServeUDP() {
 		if !m.config.DisableSignatureVerification {
 			// FIXME(scrye): Always use default signature verifier here, as some
 			// functionality in the main ctrl libraries is still missing.
-			verifier := m.verifier.WithIA(address.(*snet.Addr).IA)
+			var ia addr.IA
+			switch v := address.(type) {
+			case *snet.Addr:
+				ia = v.IA
+			case *snet.UDPAddr:
+				ia = v.IA
+			default:
+				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrInvalidReq}).Inc()
+				log.Error("Type assertion failure", "from", address, "expected", "*snet.{,UDP}Addr",
+					"actual", common.TypeOf(address))
+				serveCancelF()
+				continue
+			}
+
+			verifier := m.verifier.WithIA(ia)
 			if pld, err = signedPld.GetVerifiedPld(serveCtx, verifier); err != nil {
 				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrVerify}).Inc()
 				log.Error("Verification error", "from", address, "err", err)
