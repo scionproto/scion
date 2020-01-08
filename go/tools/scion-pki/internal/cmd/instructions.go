@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich
+// Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,30 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tmpl
+package cmd
 
-const sampleTopo = `--- # Sample topology
-ASes:
-  "1-ff00:0:a":
-    core: true
-    voting: true
-    authoritative: true
-    cert_issuer: 1-ff00:0:c
-  "1-ff00:0:b":
-    voting: true
-    cert_issuer: 1-ff00:0:c
-  "1-ff00:0:c":
-    voting: true
-    issuing: true
-
-  "2-ff00:0:e":
-    core: true
-    voting: true
-    authoritative: true
-    issuing: true
-  "2-ff00:0:f":
-    core: true
-    voting: true
-    authoritative: true
-    issuing: true
+const (
+	bashInstr = `
+sudo mv /tmp/scion-pki/scion_pki_bash /etc/bash_completion.d
+source ~/.bashrc
 `
+
+	zshInstr = `
+mkdir -p ~/.zsh/completion
+mv /tmp/scion-pki/_scion-pki ~/.zsh/completion
+cat <<EOF >> ~/.zshrc
+fpath=(~/.zsh/completion \$fpath)
+autoload -U compinit
+compinit
+zstyle ':completion:*' menu select=2
+EOF
+source ~/.zshrc
+`
+)

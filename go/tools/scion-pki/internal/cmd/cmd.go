@@ -18,10 +18,12 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/certs"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/keys"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
@@ -46,41 +48,43 @@ root configuration files used in the SCION control plane PKI.`,
 	SilenceUsage:  true,
 }
 
-const (
-	bashCompletionScript string = "/tmp/scion-pki/scion_pki_bash"
-	zshCompletionScript  string = "/tmp/scion-pki/_scion-pki"
-	bashInstruction      string = `
-Instructions:
-sudo mv /tmp/scion-pki/scion_pki_bash /etc/bash_completion.d
-source ~/.bashrc
-`
-	zshInstruction string = `
-Instructions:
-mkdir -p ~/.zsh/completion
-mv /tmp/scion-pki/_scion-pki ~/.zsh/completion
-cat <<EOF >> ~/.zshrc
-fpath=(~/.zsh/completion \$fpath)
-autoload -U compinit
-compinit
-zstyle ':completion:*' menu select=2
-EOF
-source ~/.zshrc
-`
-)
+const completionDir string = "/tmp/scion-pki"
+
+var scripts = map[string]struct {
+	FileName     string
+	Gen          func(string) error
+	Instructions string
+}{
+	"bash": {
+		FileName:     "scion_pki_bash",
+		Gen:          RootCmd.GenBashCompletionFile,
+		Instructions: bashInstr,
+	},
+	"zsh": {
+		FileName:     "_scion-pki",
+		Gen:          RootCmd.GenZshCompletionFile,
+		Instructions: zshInstr,
+	},
+}
 
 var autoCompleteCmd = &cobra.Command{
 	Use:   "autocomplete",
 	Short: "Generate autocomplete files for bash and zsh",
-	Run: func(cmd *cobra.Command, args []string) {
-		if zsh {
-			RootCmd.GenZshCompletionFile(zshCompletionScript)
-			pkicmn.QuietPrint("Generated: %s\n", zshCompletionScript)
-			pkicmn.QuietPrint(zshInstruction)
-		} else {
-			RootCmd.GenBashCompletionFile(bashCompletionScript)
-			pkicmn.QuietPrint("Generated: %s\n", bashCompletionScript)
-			pkicmn.QuietPrint(bashInstruction)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		script, ok := scripts[shell]
+		if !ok {
+			return serrors.New("shell not supported", "type", shell)
 		}
+		if err := os.MkdirAll(completionDir, 0755); err != nil {
+			return err
+		}
+		name := filepath.Join(completionDir, script.FileName)
+		if err := script.Gen(name); err != nil {
+			return err
+		}
+		pkicmn.QuietPrint("Generated: %s\n", name)
+		pkicmn.QuietPrint("Instructions: %s", script.Instructions)
+		return nil
 	},
 }
 
@@ -97,7 +101,7 @@ func Execute() {
 	}
 }
 
-var zsh bool
+var shell string
 
 func init() {
 	RootCmd.PersistentFlags().BoolVarP(&pkicmn.Force, "force", "f", false,
@@ -109,8 +113,8 @@ func init() {
 		"Output directory where certificates and keys will be placed. Defaults to -root/-d.")
 	RootCmd.PersistentFlags().BoolVarP(&pkicmn.Quiet, "quiet", "q", false,
 		"Quiet mode, i.e., only errors will be printed.")
-	autoCompleteCmd.PersistentFlags().BoolVarP(&zsh, "zsh", "z", false,
-		"Generate autocompletion script for zsh")
+	autoCompleteCmd.PersistentFlags().StringVar(&shell, "shell", "bash",
+		"Select shell type [bash,zsh]")
 
 	RootCmd.AddCommand(certs.Cmd)
 	RootCmd.AddCommand(keys.Cmd)
