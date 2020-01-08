@@ -24,9 +24,9 @@
 // register an address-port pair with the local dispatcher. For Dial, the remote
 // address is fixed, meaning only Read and Write can be used. Attempting to
 // ReadFrom or WriteTo a connection created by Dial is an invalid operation. For
-// Listen, the remote address cannot be fixed. ReadFrom, ReadFromSCION can be
+// Listen, the remote address cannot be fixed. ReadFrom can be
 // used to read from the connection and find out the sender's address; WriteTo
-// and WriteToSCION can be used to send a message to a chosen destination.
+// and WriteTo can be used to send a message to a chosen destination.
 //
 // Multiple networking contexts can share the same SCIOND and/or dispatcher.
 //

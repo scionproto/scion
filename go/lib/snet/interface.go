@@ -33,10 +33,8 @@ type Network interface {
 type Conn interface {
 	Read(b []byte) (int, error)
 	ReadFrom(b []byte) (int, net.Addr, error)
-	ReadFromSCION(b []byte) (int, *Addr, error)
 	Write(b []byte) (int, error)
 	WriteTo(b []byte, address net.Addr) (int, error)
-	WriteToSCION(b []byte, address *Addr) (int, error)
 	Close() error
 	LocalAddr() net.Addr
 	SVC() addr.HostSVC

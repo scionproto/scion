@@ -79,7 +79,7 @@ func processCtrl() {
 	b := make(common.RawBytes, maxBufSize)
 	cl := metrics.ControlLabels{}
 	for {
-		pktLen, src, err := snetConn.ReadFromSCION(b)
+		pktLen, src, err := snetConn.ReadFrom(b)
 		if err != nil {
 			cl.Result = metrics.ErrRead
 			metrics.Control.Reads(cl).Inc()
