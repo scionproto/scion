@@ -41,7 +41,7 @@ ASes. Each step is explained in the sections bellow.
 
 ```bash
 # TL;DR
-mkdir /tmp/sample && cd /tmp/sample
+DIR=$(mktemp -d -t scion-pki-XXXXXXXXXX) && cd $DIR
 scion-pki v2 tmpl sample > sample.topo
 scion-pki v2 tmpl topo sample.topo
 scion-pki v2 keys private '*'
@@ -55,13 +55,13 @@ provided:
 
 ```bash
 # TL;DR
-mkdir /tmp/sample
-scion-pki v2 tmpl sample > /tmp/sample/sample.topo
-scion-pki v2 tmpl topo -d /tmp/sample /tmp/sample/sample.topo
-scion-pki v2 keys private -d /tmp/sample '*'
-scion-pki v2 trcs gen -d /tmp/sample '*'
-scion-pki v2 certs issuer -d /tmp/sample '*'
-scion-pki v2 certs chain -d /tmp/sample '*'
+DIR=$(mktemp -d -t scion-pki-XXXXXXXXXX)
+scion-pki v2 tmpl sample > $DIR/sample.topo
+scion-pki v2 tmpl topo -d $DIR $DIR/sample.topo
+scion-pki v2 keys private -d $DIR '*'
+scion-pki v2 trcs gen -d $DIR '*'
+scion-pki v2 certs issuer -d $DIR '*'
+scion-pki v2 certs chain -d $DIR '*'
 ```
 
 ### Generating configuration files
