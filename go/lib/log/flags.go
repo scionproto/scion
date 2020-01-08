@@ -21,13 +21,14 @@ import (
 )
 
 var (
-	logDir     string
-	logLevel   string
-	logConsole string
-	logSize    int
-	logAge     int
-	logBackups int
-	logFlush   int
+	logDir      string
+	logLevel    string
+	logConsole  string
+	logSize     int
+	logAge      int
+	logBackups  int
+	logFlush    int
+	logCompress bool
 )
 
 var (
@@ -58,6 +59,7 @@ func AddLogFileFlags() {
 		"Max number of log files to retain")
 	flag.IntVar(&logFlush, "log.flush", DefaultFileFlushSeconds,
 		"How frequently to flush to the log file, in seconds")
+	flag.BoolVar(&logCompress, "log.compress", false, "Enable rotated file compression")
 }
 
 func SetupFromFlags(name string) error {
@@ -73,7 +75,8 @@ func SetupFromFlags(name string) error {
 		if logDir == "" {
 			return serrors.New("Log dir flag not set")
 		}
-		err = SetupLogFile(name, logDir, logLevel, logSize, logAge, logBackups, logFlush)
+		err = SetupLogFile(name, logDir, logLevel, logSize, logAge, logBackups, logFlush,
+			logCompress)
 	}
 	return err
 }
