@@ -37,9 +37,9 @@ from topology.common import (
     get_pub_ip,
     prom_addr_br,
     prom_addr_infra,
-    prom_addr_sciond,
     prom_addr_dispatcher,
     PS_CONFIG_NAME,
+    sciond_ip,
     sciond_name,
     SD_CONFIG_NAME,
     trust_db_conf_entry,
@@ -263,6 +263,7 @@ class GoGenerator(object):
     def _build_sciond_conf(self, topo_id, ia, base):
         name = sciond_name(topo_id)
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, COMMON_DIR)
+        ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
         raw_entry = {
             'general': {
                 'ID': name,
@@ -275,18 +276,18 @@ class GoGenerator(object):
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
-                'Public': '127.0.0.1:0',
+                'Public': '[%s]:0' % ip,
                 'pathDB': {
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
             },
             'tracing': self._tracing_entry(),
             'metrics': {
-                'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
-                                               self.args.networks, SCIOND_PROM_PORT)
+                'Prometheus': '[%s]:%d' % (ip, SCIOND_PROM_PORT)
             },
             'quic': self._quic_conf_entry(SD_QUIC_PORT, self.args.svcfrac),
         }
+        raw_entry['quic']['Address'] = '[%s]:%d' % (ip, SD_QUIC_PORT)
         return raw_entry
 
     def generate_cs(self):

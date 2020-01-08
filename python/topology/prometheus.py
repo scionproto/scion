@@ -30,8 +30,8 @@ from topology.common import (
     ArgsTopoDicts,
     prom_addr_br,
     prom_addr_infra,
-    prom_addr_sciond,
     prom_addr_dispatcher,
+    sciond_ip,
 )
 
 PS_PROM_PORT = 30453
@@ -99,8 +99,8 @@ class PrometheusGenerator(object):
                 br_dispatcher = prom_addr_dispatcher(self.args.docker, topo_id,
                                                      self.args.networks, DISP_PROM_PORT, "br")
                 ele_dict["Dispatcher"] = [host_dispatcher, br_dispatcher]
-            sd_prom_addr = prom_addr_sciond(self.args.docker, topo_id,
-                                            self.args.networks, SCIOND_PROM_PORT)
+            sd_prom_addr = '[%s]:%d' % (sciond_ip(self.args.docker, topo_id, self.args.networks),
+                                        SCIOND_PROM_PORT)
             ele_dict["Sciond"].append(sd_prom_addr)
             config_dict[topo_id] = ele_dict
         self._write_config_files(config_dict)

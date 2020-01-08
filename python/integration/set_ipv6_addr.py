@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Copyright 2018 ETH Zurich
+# Copyright 2020 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +17,7 @@
 # Stdlib
 import os
 import argparse
-from ipaddress import IPv6Address, IPv6Network
+from ipaddress import IPv6Address, IPv6Network, AddressValueError
 
 # SCION
 from lib.defines import (
@@ -27,11 +28,6 @@ from lib.defines import (
     DEFAULT6_PRIV_NETWORK,
     DEFAULT6_SERVER,
     NETWORKS_FILE,
-    OVERLAY_FILE,
-)
-
-from lib.util import (
-    read_file,
 )
 
 
@@ -57,21 +53,16 @@ def set_interfaces():
             if (len(split) < 2):
                 continue
             address = split[1]
-            addr = IPv6Address(address[:-1])
-            if addr in IPv6Network(DEFAULT6_NETWORK):
-                ip_add(str(addr), DEFAULT6_MASK)
-
-
-def get_overlay():
-    file_path = os.path.join(GEN_PATH, OVERLAY_FILE)
-    return read_file(file_path).strip()
+            try:
+                addr = IPv6Address(address[:-1])
+                if addr in IPv6Network(DEFAULT6_NETWORK):
+                    ip_add(str(addr), DEFAULT6_MASK)
+            except AddressValueError:
+                # probably IPv4 so ignore it.
+                continue
 
 
 def main():
-    overlay = get_overlay()
-    if "IPv4" in overlay:
-        return
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--add', action='store_true',
                         help='Add IPv6 local host addresses to loopback')
@@ -85,6 +76,7 @@ def main():
     if args.delete:
         net_clear(DEFAULT6_NETWORK)
         net_clear(DEFAULT6_PRIV_NETWORK)
+
 
 if __name__ == "__main__":
     main()

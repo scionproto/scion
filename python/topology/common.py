@@ -110,11 +110,11 @@ def prom_addr_infra(docker, infra_id, infra_ele, port):
     return "[%s]:%s" % (pub['Public']['Addr'].ip, port)
 
 
-def prom_addr_sciond(docker, topo_id, networks, port):
+def sciond_ip(docker, topo_id, networks):
     for i, net in enumerate(networks):
         for prog, ip_net in networks[net].items():
             if prog == 'sd%s' % topo_id.file_fmt():
-                return '[%s]:%s' % (ip_net.ip, port)
+                return ip_net.ip
     return None
 
 

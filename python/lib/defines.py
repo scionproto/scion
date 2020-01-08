@@ -37,15 +37,12 @@ GEN_PATH = 'gen'
 TOPO_FILE = "topology.json"
 #: Networks config
 NETWORKS_FILE = "networks.conf"
-PRV_NETWORKS_FILE = "private_networks.conf"
 #: IFIDs list
 IFIDS_FILE = "ifids.yml"
 #: AS list
 AS_LIST_FILE = "as_list.yml"
 #: Prometheus config
 PROM_FILE = "prometheus.yml"
-#: Overlay
-OVERLAY_FILE = "overlay"
 
 #: Buffer size for receiving packets
 SCION_BUFLEN = 65535
