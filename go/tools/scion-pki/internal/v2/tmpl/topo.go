@@ -89,7 +89,7 @@ func (g topoGen) genTRCs(topo topoFile) (map[addr.ISD]conf.TRC2, error) {
 }
 
 func (g topoGen) genTRC(isd addr.ISD, topo topoFile) conf.TRC2 {
-	cores := topo.Cores(isd)
+	primaries := topo.Primaries(isd)
 	reset := true
 	cfg := conf.TRC2{
 		Description: fmt.Sprintf("ISD %d", isd),
@@ -97,21 +97,14 @@ func (g topoGen) genTRC(isd addr.ISD, topo topoFile) conf.TRC2 {
 		BaseVersion: 1,
 		// XXX(roosd): Choose quorum according to your security needs.
 		// This simply serves an example.
-		VotingQuorum:      uint16(len(cores)/2 + 1),
+		VotingQuorum:      uint16(primaries.Voters()/2 + 1),
 		TrustResetAllowed: &reset,
 		Votes:             []addr.AS{},
 		Validity:          g.Validity,
 		PrimaryASes:       make(map[addr.AS]conf.Primary),
 	}
-	for _, as := range cores {
-		iss, on, off := scrypto.KeyVersion(1), scrypto.KeyVersion(1), scrypto.KeyVersion(1)
-		cfg.PrimaryASes[as] = conf.Primary{
-			Attributes: []trc.Attribute{trc.Authoritative, trc.Core, trc.Issuing,
-				trc.Voting},
-			IssuingKeyVersion:       &iss,
-			VotingOfflineKeyVersion: &off,
-			VotingOnlineKeyVersion:  &on,
-		}
+	for _, primaryAS := range primaries {
+		cfg.PrimaryASes[primaryAS.AS] = primaryAS.ToConf()
 	}
 	return cfg
 }
@@ -253,17 +246,63 @@ func (t topoFile) ISDs() map[addr.ISD]struct{} {
 	return m
 }
 
-func (t topoFile) Cores(isd addr.ISD) []addr.AS {
-	var cores []addr.AS
+func (t topoFile) Primaries(isd addr.ISD) primaryASes {
+	var primaries primaryASes
 	for ia, entry := range t.ASes {
-		if ia.I == isd && entry.Core {
-			cores = append(cores, ia.A)
+		if ia.I == isd && entry.Primary() {
+			primaries = append(primaries, primaryAS{AS: ia.A, asEntry: entry})
 		}
 	}
-	return cores
+	return primaries
 }
 
 type asEntry struct {
-	Core   bool    `yaml:"core"`
-	Issuer addr.IA `yaml:"cert_issuer"`
+	Authoritative bool    `yaml:"authoritative"`
+	Core          bool    `yaml:"core"`
+	Issuing       bool    `yaml:"issuing"`
+	Voting        bool    `yaml:"voting"`
+	Issuer        addr.IA `yaml:"cert_issuer"`
+}
+
+func (e asEntry) Primary() bool {
+	return e.Authoritative || e.Core || e.Issuing || e.Voting
+}
+
+type primaryAS struct {
+	AS addr.AS
+	asEntry
+}
+
+func (p primaryAS) ToConf() conf.Primary {
+	cp := conf.Primary{}
+	if p.Authoritative {
+		cp.Attributes = append(cp.Attributes, trc.Authoritative)
+	}
+	if p.Core {
+		cp.Attributes = append(cp.Attributes, trc.Core)
+	}
+	if p.Issuing {
+		iss := scrypto.KeyVersion(1)
+		cp.Attributes = append(cp.Attributes, trc.Issuing)
+		cp.IssuingKeyVersion = &iss
+	}
+	if p.Voting {
+		on, off := scrypto.KeyVersion(1), scrypto.KeyVersion(1)
+		cp.Attributes = append(cp.Attributes, trc.Voting)
+		cp.VotingOnlineKeyVersion = &on
+		cp.VotingOfflineKeyVersion = &off
+	}
+	return cp
+}
+
+type primaryASes []primaryAS
+
+func (p primaryASes) Voters() int {
+	voters := 0
+	for _, pAS := range p {
+		if pAS.Voting {
+			voters++
+		}
+	}
+	return voters
 }
