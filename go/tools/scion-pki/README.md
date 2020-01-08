@@ -67,7 +67,8 @@ scion-pki v2 certs chain -d /tmp/sample '*'
 First, we generate the configuration files for the ISDs and all ASes:
 
 ```bash
-scion-pki v2 tmpl topo $SCION/topology/Default.topo
+scion-pki v2 tmpl sample > sample.topo
+scion-pki v2 tmpl topo sample.topo
 ```
 
 This command sets up the following file structure in the `sample` directory:
@@ -75,25 +76,19 @@ This command sets up the following file structure in the `sample` directory:
 ```bash
 sample
 ├── ISD1
-│   ├── ASff00_0_110
+│   ├── ASff00_0_a
+│   │   ├── as-v1.toml
+│   │   └── keys.toml
+│   ├── ASff00_0_b
+│   │   ├── as-v1.toml
+│   │   └── keys.toml
+│   ├── ASff00_0_c
 │   │   ├── as-v1.toml
 │   │   ├── issuer-v1.toml
 │   │   └── keys.toml
-│   ├── ASff00_0_111
-│   │   ├── as-v1.toml
-│   │   └── keys.toml
-│   ├── ...
 │   └── trc-v1.toml
 └── ISD2
-    ├── ASff00_0_210
-    │   ├── as-v1.toml
-    │   ├── issuer-v1.toml
-    │   └── keys.toml
-    ├── ASff00_0_211
-    │   ├── as-v1.toml
-    │   └── keys.toml
-    ├── ...
-    └── trc-v1.toml
+    └── ...
 ```
 
 There are four types of configuration files:
@@ -120,10 +115,10 @@ scion-pki v2 tmpl keys
 
 ### Generating keys
 
-Let us now generate the keys for AS `1-ff00:0:110`:
+Let us now generate the keys for AS `1-ff00:0:c`:
 
 ```bash
-scion-pki v2 keys private 1-ff00:0:110
+scion-pki v2 keys private 1-ff00:0:c
 ```
 
 This will create all the private keys configured in the `sample` directory:
@@ -131,7 +126,7 @@ This will create all the private keys configured in the `sample` directory:
 ```bash
 sample
 ├── ISD1
-│   ├── ASff00_0_110
+│   ├── ASff00_0_c
 │   │   ├── ..
 │   │   └── keys
 │   │       ├── as-decrypt-v1.key
@@ -151,22 +146,22 @@ To generate the public keys that can be shared with other entities run the
 following:
 
 ```bash
-scion-pki v2 keys public 1-ff00:0:110
+scion-pki v2 keys public 1-ff00:0:c
 ```
 
 ```bash
 sample
 ├── ISD1
-│   ├── ASff00_0_110
+│   ├── ASff00_0_c
 │   │   ├── ...
 │   │   └── pub
-│   │       ├── ISD1-ASff00_0_110-as-decrypt-v1.pub
-│   │       ├── ISD1-ASff00_0_110-as-revocation-v1.pub
-│   │       ├── ISD1-ASff00_0_110-as-signing-v1.pub
-│   │       ├── ISD1-ASff00_0_110-issuer-cert-signing-v1.pub
-│   │       ├── ISD1-ASff00_0_110-trc-issuing-v1.pub
-│   │       ├── ISD1-ASff00_0_110-trc-voting-offline-v1.pub
-│   │       └── ISD1-ASff00_0_110-trc-voting-online-v1.pub
+│   │       ├── ISD1-ASff00_0_c-as-decrypt-v1.pub
+│   │       ├── ISD1-ASff00_0_c-as-revocation-v1.pub
+│   │       ├── ISD1-ASff00_0_c-as-signing-v1.pub
+│   │       ├── ISD1-ASff00_0_c-issuer-cert-signing-v1.pub
+│   │       ├── ISD1-ASff00_0_c-trc-issuing-v1.pub
+│   │       ├── ISD1-ASff00_0_c-trc-voting-offline-v1.pub
+│   │       └── ISD1-ASff00_0_c-trc-voting-online-v1.pub
 ```
 
 The public key names are prepended with the ISD-AS identifier such that other
@@ -230,10 +225,10 @@ The generated files are placed in the 'certs' directory of the respective ASes:
 ```bash
 sample
 ├── ISD1
-│   ├── ASff00_0_110
+│   ├── ASff00_0_c
 │   │   ├── ...
 │   │   └── certs
-│   │       └── ISD1-ASff00_0_110-V1.issuer
+│   │       └── ISD1-ASff00_0_c-V1.issuer
 ```
 
 Again, the generated files are formatted according to [RFC 7515 JSON Web
@@ -241,7 +236,7 @@ Signature(JWS)](https://tools.ietf.org/html/rfc7515). To display them in a human
 readable form, run the following:
 
 ```bash
-scion-pki v2 certs human ISD1/ASff00_0_110/certs/ISD1-ASff00_0_110-V1.issuer
+scion-pki v2 certs human ISD1/ASff00_0_c/certs/ISD1-ASff00_0_c-V1.issuer
 ```
 
 ### Generating the AS certificates
@@ -260,17 +255,17 @@ The generated files are placed in the 'certs' directory of the respective ASes:
 ```bash
 sample
 ├── ISD1
-│   ├── ASff00_0_110
+│   ├── ASff00_0_c
 │   │   ├── ...
 │   │   └── certs
 │   │       ├── ...
-│   │       └── ISD1-ASff00_0_110-V1.crt
+│   │       └── ISD1-ASff00_0_c-V1.crt
 ```
 
 To display the certificate chain in a human readable form, run:
 
 ```bash
-scion-pki v2 certs human ISD1/ASff00_0_110/certs/ISD1-ASff00_0_110-V1.crt
+scion-pki v2 certs human ISD1/ASff00_0_c/certs/ISD1-ASff00_0_c-V1.crt
 ```
 
 With the certificate chains generated, we have all trust material that is
