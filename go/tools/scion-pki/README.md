@@ -19,6 +19,8 @@ configuration files used in the SCION control plane PKI.
     - [Establishing the base TRC](#establishing-the-base-trc)
     - [Creating the issuer certificate](#creating-the-issuer-certificate)
     - [Creating the AS certificates](#creating-the-as-certificates)
+- [Adding a new non-primary AS](#adding-a-new-non-primary-AS)
+- [Adding a new primary AS](#adding-a-new-primary-AS)
 - [Updating the TRC](#updating-the-trc)
 - [Renewing the certificates](#renewing-the-certificates)
 
@@ -85,6 +87,9 @@ sample
 │   ├── ASff00_0_c
 │   │   ├── as-v1.toml
 │   │   ├── issuer-v1.toml
+│   │   └── keys.toml
+│   ├── ASff00_0_d
+│   │   ├── as-v1.toml
 │   │   └── keys.toml
 │   └── trc-v1.toml
 └── ISD2
@@ -167,8 +172,15 @@ sample
 The public key names are prepended with the ISD-AS identifier such that other
 entities can easily store them in one single location.
 
+In this example, where we have access to all private keys, there is no need to
+generated the public keys. They become interesting when we have multiple parties
+that only have access to a subset of keys, which will be the normal use case.
+Then, operators will exchange those public keys, and put them in the appropriate
+locations on the file system. An example interaction with multiple parties is
+described in [Setting up a new ISD](#setting-up-a-new-isd).
+
 The `scion-pki` allows for different selectors. The following command will
-generate all keys for all ASes:
+generate all private keys for all ASes:
 
 ```bash
 scion-pki v2 keys private '*'
@@ -475,12 +487,128 @@ Now the generated chains
 respective subject and the ISD is equipped with the trust material to start
 ISD-local communication.
 
+## Adding a new non-primary AS
+
+When a new AS `1-ff00:0:d` wants to join the network, `$d` needs to get a
+certificate form the issuing AS `1-ff00:0:c`. For this, `$d` creates the
+necessary keys and the AS certificate configuration:
+
+```bash
+$d mkdir -p ISD1/ASff00_0_d
+$d scion-pki v2 tmpl keys > ISD1/ASff00_0_d/keys.toml
+$d # Edit the keys.toml with the desired keys
+$d scion-pki v2 keys private 1-ff00:0:d
+$d scion-pki v2 keys public 1-ff0:0:d
+$d scion-pki v2 tmpl as > ISD/ASff0_0_d/as-v1.toml
+```
+
+`$d` shares the configuration file plus the referenced public keys
+(`ISD1/ASff00_0_d/pub/ISD1-ASff00_0_d-as-{signing,decrypt}-v1.pub`)
+with `$c` that puts them on the filesystem.
+
+Now the AS certificate can be issued by `$c`:
+
+```bash
+$c scion-pki v2 certs chain 1-ff00:0:d
+```
+
+`$c` sends the generated certificate chain
+(`ISD1/ASff00_0_d/certs/ISD1-ASff00_0_d-V1.crt`) to `$d` which is now fully
+equipped with trust material to join the ISD.
+
+## Adding a new primary AS
+
+Adding a new primary AS requires additional work, since primary AS changes force
+a TRC update. First, the current voting ASes need to agree on what attributes
+the new primary AS will hold.
+
+For this example, we will consider `1-ff00:0:e` that wants to become a voting
+AS. It will first get the current state of the primary ASes (such as the public
+keys, the current TRC configuration file, and the latest TRC) and setup the
+appropriate folder structure.
+
+Then `$d` needs to setup the keys:
+
+```bash
+$d mkdir ISD1/ff00_0_d
+$d scion-pki v2 tmpl keys > ISD1/ff00_0_d/keys.toml
+$d scion-pki v2 keys private 1-ff00:0:d
+$d scion-pki v2 keys public 1-ff00:0:d
+```
+
+It shares the public keys
+`ISD1/ASff00_0_d/pub/ISD1-ASff00_0_d-trc-voting-{offline,online}-v1.pub` with
+the other voting ASes that store them on their local file system.
+
+Then, one operator has to take the lead an generate the configuration file for
+the new TRC:
+
+```bash
+$a scion-pki v2 tmpl trc > ISD1/trc-v2.toml
+```
+
+The file needs to be adapted to include the new AS. Also the `grace_period` must
+not be zero, and at least as many voters as `voting_quorum` must be present in
+`votes`. The file should look similar to this:
+
+```toml
+description = "ISD 1"
+version = 2
+base_version = 1
+voting_quorum = 2
+grace_period = "6h"
+trust_reset_allowed = true
+votes = ["ff00:0:a", "ff00:0:b", "ff00:0:c"]
+
+[validity]
+  not_before = 1588327410
+  validity = "1y"
+
+[primary_ases]
+  [primary_ases."ff00:0:a"]
+    attributes = ["authoritative", "core", "voting"]
+    voting_online_key_version = 1
+    voting_offline_key_version = 1
+  [primary_ases."ff00:0:b"]
+    attributes = ["voting"]
+    voting_online_key_version = 1
+    voting_offline_key_version = 1
+  [primary_ases."ff00:0:c"]
+    attributes = ["issuing", "voting"]
+    issuing_key_version = 1
+    voting_online_key_version = 1
+    voting_offline_key_version = 1
+  [primary_ases."ff00:0:d"]
+    attributes = ["voting"]
+    voting_online_key_version = 1
+    voting_offline_key_version = 1
+```
+
+Adding a new primary AS is considered a sensitive update and will force all
+voters to use their offline key to cast a vote. Since `$d` is not part of the
+voting ASes in the previous TRC, it cannot cast a vote. But, since the keys of
+`$d` are new, proof of possession must be shown in the new TRC. For this, `$a`
+creates a prototype TRC and sends it to all voters plus `$d`. The procedure is
+the same as signing the initial TRC:
+
+```bash
+# The commands select the latest version. Use --version to specify explicitly.
+$a scion-pki v2 trcs proto 1
+$x scion-pki v2 trcs sign 1
+$a scion-pki v2 trcs combine 1
+```
+
+Afterwards, the TRC update can be distributed in the network. For `$d` to be
+able to join the network, an AS certificate is required. The process is the same
+as in [Adding a new non-primary AS](#adding-a-new-non-primary-AS).
+
 ## Updating the TRC
 
-Updating the TRC is very similar to generating a base TRC for the operators
-point of view. First the desired TRC configuration file needs to be created. In
-a TRC update, the `grace_period` must not be zero, and at least as many voters
-as `voting_quorum` must be present in `votes`.
+AS we have seen above, updating the TRC is very similar to generating a base TRC
+for the operators point of view. Let's look at another example where the set of
+primary ASes does not change. First the desired TRC configuration file needs to
+be created. In a TRC update, the `grace_period` must not be zero, and at least
+as many voters as `voting_quorum` must be present in `votes`.
 
 `ISD1/trc-v2.toml` looks something like:
 

@@ -27,6 +27,8 @@ ASes:
   "1-ff00:0:c":
     voting: true
     issuing: true
+  "1-ff00:0:d":
+    cert_issuer: 1-ff00:0:c
 
   "2-ff00:0:e":
     core: true
