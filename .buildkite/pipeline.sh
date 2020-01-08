@@ -13,7 +13,7 @@ gen_acceptance() {
         echo "    key: ${name}_acceptance"
         echo "    env:"
         echo "      PYTHONPATH: \"python/:.\""
-        echo "      BAZELRC: .bazelrc_ci"
+        echo "      BAZELRC: \".bazelrc_ci --noworkspace_rc\""
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""
         echo "    retry:"
@@ -31,7 +31,7 @@ gen_bazel_acceptance() {
         name=${name#'//acceptance/'}
         echo "  - label: \":bazel: Acceptance: $name\""
         echo "    command:"
-        echo "      - bazel --bazelrc=.bazelrc_ci test $test"
+        echo "      - bazel --bazelrc=.bazelrc_ci --noworkspace_rc test $test"
         echo "    key: ${name}_acceptance"
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""

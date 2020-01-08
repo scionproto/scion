@@ -10,7 +10,7 @@ steps:
     timeout_in_minutes: 10
   - label: ":bazel: Go tests"
     command:
-      - bazel --bazelrc=.bazelrc_ci test //go/... --print_relative_test_log_paths
+      - bazel --bazelrc=.bazelrc_ci --noworkspace_rc test //go/... --print_relative_test_log_paths
     key: go_tests
     artifact_paths:
       - "artifacts.out/**/*"
@@ -54,13 +54,15 @@ steps:
   - label: "Lint"
     command: ./scion.sh lint
     key: lint
+    env:
+      BAZELRC: ".bazelrc_ci --noworkspace_rc"
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "Revocation tests"
     command:
-      - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+      - bazel --bazelrc=.bazelrc_ci --noworkspace_rc build //:scion //:scion-ci >/dev/null 2>&1
       - tar -kxf bazel-bin/scion.tar -C bin --overwrite
       - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
       - ./scion.sh topology
@@ -76,7 +78,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Integration: {cert_req,pp,end2end,scmp}_integration"
     command:
-    - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+    - bazel --bazelrc=.bazelrc_ci --noworkspace_rc build //:scion //:scion-ci >/dev/null 2>&1
     - tar -kxf bazel-bin/scion.tar -C bin --overwrite
     - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
     - ./scion.sh topology
