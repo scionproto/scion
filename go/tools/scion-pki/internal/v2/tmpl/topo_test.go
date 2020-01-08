@@ -35,6 +35,9 @@ var (
 	ia110 = xtest.MustParseIA("1-ff00:0:110")
 	ia111 = xtest.MustParseIA("1-ff00:0:111")
 	ia112 = xtest.MustParseIA("1-ff00:0:112")
+
+	ia120 = xtest.MustParseIA("1-ff00:0:120")
+	ia130 = xtest.MustParseIA("1-ff00:0:130")
 )
 
 func TestTopoGen(t *testing.T) {
@@ -44,6 +47,8 @@ func TestTopoGen(t *testing.T) {
 	topo := topoFile{
 		ASes: map[addr.IA]asEntry{
 			ia110: {Core: true, Authoritative: true, Issuing: true, Voting: true},
+			ia120: {Voting: true, Issuer: ia110},
+			ia130: {Issuing: true},
 			ia111: {Issuer: ia110},
 			ia112: {Issuer: ia110},
 		},
@@ -69,7 +74,7 @@ func TestTopoGen(t *testing.T) {
 		assert.Equal(t, "ISD 1", cfg.Description)
 		assert.Equal(t, scrypto.Version(1), cfg.Version)
 		assert.Equal(t, scrypto.Version(1), cfg.BaseVersion)
-		assert.Equal(t, uint16(1), cfg.VotingQuorum)
+		assert.Equal(t, uint16(2), cfg.VotingQuorum)
 		assert.Equal(t, util.DurWrap{}, cfg.GracePeriod)
 		assert.Equal(t, true, *cfg.TrustResetAllowed)
 		assert.Equal(t, []addr.AS{}, cfg.Votes)
@@ -82,6 +87,15 @@ func TestTopoGen(t *testing.T) {
 				IssuingKeyVersion:       &iss,
 				VotingOfflineKeyVersion: &off,
 				VotingOnlineKeyVersion:  &on,
+			},
+			ia120.A: {
+				Attributes:              trc.Attributes{trc.Voting},
+				VotingOfflineKeyVersion: &off,
+				VotingOnlineKeyVersion:  &on,
+			},
+			ia130.A: {
+				Attributes:        trc.Attributes{trc.Issuing},
+				IssuingKeyVersion: &iss,
 			},
 		}
 		assert.Equal(t, exp, cfg.PrimaryASes)
@@ -101,18 +115,19 @@ func TestTopoGen(t *testing.T) {
 			checkMeta(t, cfg.AS[cert.SigningKey][1], scrypto.Ed25519)
 			checkMeta(t, cfg.AS[cert.RevocationKey][1], scrypto.Ed25519)
 			checkMeta(t, cfg.AS[cert.EncryptionKey][1], scrypto.Curve25519xSalsa20Poly1305)
-			if !entry.Core {
-				return
+			if entry.Issuing {
+				checkMeta(t, cfg.Issuer[cert.IssuingKey][1], scrypto.Ed25519)
+				checkMeta(t, cfg.Primary[trc.IssuingKey][1], scrypto.Ed25519)
 			}
-			checkMeta(t, cfg.Issuer[cert.IssuingKey][1], scrypto.Ed25519)
-			checkMeta(t, cfg.Primary[trc.IssuingKey][1], scrypto.Ed25519)
-			checkMeta(t, cfg.Primary[trc.OnlineKey][1], scrypto.Ed25519)
-			checkMeta(t, cfg.Primary[trc.OfflineKey][1], scrypto.Ed25519)
+			if entry.Voting {
+				checkMeta(t, cfg.Primary[trc.OnlineKey][1], scrypto.Ed25519)
+				checkMeta(t, cfg.Primary[trc.OfflineKey][1], scrypto.Ed25519)
+			}
 		})
 	}
 
 	for ia, entry := range topo.ASes {
-		if !entry.Core {
+		if !entry.Issuing {
 			continue
 		}
 		t.Run("Issuer config "+ia.String(), func(t *testing.T) {
@@ -131,7 +146,7 @@ func TestTopoGen(t *testing.T) {
 
 	for ia, entry := range topo.ASes {
 		issuer := entry.Issuer
-		if entry.Core {
+		if entry.Issuing {
 			issuer = ia
 		}
 		t.Run("AS config "+ia.String(), func(t *testing.T) {
