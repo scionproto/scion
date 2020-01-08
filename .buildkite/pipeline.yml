@@ -36,6 +36,8 @@ steps:
       - diff -u /tmp/test-artifacts/go.sum go.sum
       - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
     key: go_deps_lint
+    env:
+      BAZELRC: ".bazelrc_ci --noworkspace_rc"
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
@@ -47,6 +49,8 @@ steps:
       - make gogen
       - diff -ur /tmp/test-artifacts/proto/ go/proto/
     key: go_gen_lint
+    env:
+      BAZELRC: ".bazelrc_ci --noworkspace_rc"
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
