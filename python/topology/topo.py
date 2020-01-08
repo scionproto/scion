@@ -31,7 +31,6 @@ from lib.defines import (
     AS_LIST_FILE,
     DEFAULT_MTU,
     IFIDS_FILE,
-    OVERLAY_FILE,
     SCION_MIN_MTU,
     SCION_ROUTER_PORT,
     TOPO_FILE,
@@ -56,21 +55,29 @@ DEFAULT_PATH_SERVERS = 1
 DEFAULT_COLIBRI_SERVERS = 1
 DEFAULT_DISCOVERY_SERVERS = 1
 
+UNDERLAY_4 = 'UDP/IPv4'
+UNDERLAY_6 = 'UDP/IPv6'
+DEFAULT_UNDERLAY = UNDERLAY_4
+ADDR_TYPE_4 = 'IPv4'
+ADDR_TYPE_6 = 'IPv6'
+
 
 class TopoGenArgs(ArgsBase):
-    def __init__(self, args, topo_config, subnet_gen, privnet_gen, default_mtu, port_gen):
+    def __init__(self, args, topo_config, subnet_gen4, subnet_gen6, default_mtu, port_gen):
         """
         :param ArgsBase args: Contains the passed command line arguments.
         :param dict topo_config: The parsed topology config.
-        :param SubnetGenerator subnet_gen: The default network generator.
-        :param SubnetGenerator privnet_gen: The private network generator.
+        :param SubnetGenerator subnet_gen4: The default network generator for IPv4.
+        :param SubnetGenerator subnet_gen6: The default network generator for IPv6.
         :param dict default_mtu: The default mtu.
         :param PortGenerator port_gen: The port generator
         """
         super().__init__(args)
         self.topo_config_dict = topo_config
-        self.subnet_gen = subnet_gen
-        self.privnet_gen = privnet_gen
+        self.subnet_gen = {
+            ADDR_TYPE_4: subnet_gen4,
+            ADDR_TYPE_6: subnet_gen6,
+        }
         self.default_mtu = default_mtu
         self.port_gen = port_gen
 
@@ -87,25 +94,15 @@ class TopoGenerator(object):
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
         self.ifid_map = {}
-        if args.ipv6:
-            self.overlay = "UDP/IPv6"
-            self.addr_type = "IPv6"
-        else:
-            self.overlay = "UDP/IPv4"
-            self.addr_type = "IPv4"
 
-    def _reg_addr(self, topo_id, elem_id):
-        subnet = self.args.subnet_gen.register(topo_id)
+    def _reg_addr(self, topo_id, elem_id, addr_type):
+        subnet = self.args.subnet_gen[addr_type].register(topo_id)
         return subnet.register(elem_id)
 
-    def _reg_bind_addr(self, topo_id, elem_id):
-        prvnet = self.args.privnet_gen.register(topo_id)
-        return prvnet.register(elem_id)
-
-    def _reg_link_addrs(self, local_br, remote_br, local_ifid, remote_ifid):
+    def _reg_link_addrs(self, local_br, remote_br, local_ifid, remote_ifid, addr_type):
         link_name = str(sorted((local_br, remote_br)))
         link_name += str(sorted((local_ifid, remote_ifid)))
-        subnet = self.args.subnet_gen.register(link_name)
+        subnet = self.args.subnet_gen[addr_type].register(link_name)
         return subnet.register(local_br), subnet.register(remote_br)
 
     def _iterate(self, f):
@@ -117,26 +114,26 @@ class TopoGenerator(object):
         self._iterate(self._generate_as_topo)
         self._iterate(self._generate_as_list)
         if self.args.sig:
-            self._register_sigs()
-        self._register_scionds()
-        networks = self.args.subnet_gen.alloc_subnets()
-        prv_networks = self.args.privnet_gen.alloc_subnets()
+            self._iterate(self._register_sig)
+        self._iterate(self._register_sciond)
+        networks = {}
+        for k, v in self.args.subnet_gen[ADDR_TYPE_4].alloc_subnets().items():
+            networks[k] = v
+        for k, v in self.args.subnet_gen[ADDR_TYPE_6].alloc_subnets().items():
+            networks[k] = v
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
-        self._write_overlay()
-        return self.topo_dicts, networks, prv_networks
+        return self.topo_dicts, networks
 
-    def _register_sigs(self):
-        for isd_as, _ in self.args.topo_config_dict["ASes"].items():
-            topo_id = TopoID(isd_as)
-            self._reg_addr(topo_id, "sig" + topo_id.file_fmt())
-            self._reg_addr(topo_id, "tester_" + topo_id.file_fmt())
+    def _register_sig(self, topo_id, as_conf):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
+        self._reg_addr(topo_id, "sig" + topo_id.file_fmt(), addr_type)
+        self._reg_addr(topo_id, "tester_" + topo_id.file_fmt(), addr_type)
 
-    def _register_scionds(self):
-        for isd_as, _ in self.args.topo_config_dict["ASes"].items():
-            topo_id = TopoID(isd_as)
-            self._reg_addr(topo_id, "sd" + topo_id.file_fmt())
+    def _register_sciond(self, topo_id, as_conf):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
+        self._reg_addr(topo_id, "sd" + topo_id.file_fmt(), addr_type)
 
     def _br_name(self, ep, assigned_br_id, br_ids, if_ids):
         br_name = ep.br_name()
@@ -193,12 +190,12 @@ class TopoGenerator(object):
             'Issuing': as_conf.get('issuing', False),
             'ISD_AS': str(topo_id),
             'MTU': mtu,
-            'Overlay': self.overlay,
+            'Overlay': as_conf.get('underlay', DEFAULT_UNDERLAY),
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
         self._gen_srv_entries(topo_id, as_conf)
-        self._gen_br_entries(topo_id)
+        self._gen_br_entries(topo_id, as_conf)
         if self.args.sig:
             self.topo_dicts[topo_id]['SIG'] = {}
             self._gen_sig_entries(topo_id)
@@ -221,25 +218,21 @@ class TopoGenerator(object):
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
                        topo_key, reg_id_func=None):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
             reg_id = reg_id_func(elem_id) if reg_id_func else self._reg_id_disp(topo_id, elem_id)
             d = {
                 'Addrs': {
-                    self.addr_type: {
+                    addr_type: {
                         'Public': {
-                            'Addr': self._reg_addr(topo_id, reg_id),
+                            'Addr': self._reg_addr(topo_id, reg_id, addr_type),
                             'L4Port': self.args.port_gen.register(elem_id),
                         }
                     }
                 }
             }
-            if self.args.bind_addr:
-                d['Addrs'][self.addr_type]['Bind'] = {
-                    'Addr': self._reg_bind_addr(topo_id, reg_id),
-                    'L4Port': self.args.port_gen.register(elem_id),
-                }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _reg_id_disp(self, topo_id, elem_id):
@@ -254,23 +247,27 @@ class TopoGenerator(object):
             count = 0
         return count
 
-    def _gen_br_entries(self, topo_id):
+    def _gen_br_entries(self, topo_id, as_conf):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         for (linkto, remote, attrs, l_br, r_br, l_ifid, r_ifid) in self.links[topo_id]:
-            self._gen_br_entry(topo_id, l_ifid, remote, r_ifid, linkto, attrs, l_br, r_br)
+            self._gen_br_entry(topo_id, l_ifid, remote, r_ifid,
+                               linkto, attrs, l_br, r_br, addr_type)
 
     def _gen_br_entry(self, local, l_ifid, remote, r_ifid, remote_type, attrs,
-                      local_br, remote_br):
-        public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid)
+                      local_br, remote_br, addr_type):
+        link_addr_type = addr_type_from_underlay(attrs.get('underlay', DEFAULT_UNDERLAY))
+        public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid,
+                                                        r_ifid, link_addr_type)
         if self.args.docker:
-            ctrl_addr = self._reg_addr(local, local_br + "_ctrl")
-            int_addr = self._reg_addr(local, local_br + "_internal")
+            ctrl_addr = self._reg_addr(local, local_br + "_ctrl", addr_type)
+            int_addr = self._reg_addr(local, local_br + "_internal", addr_type)
         else:
-            ctrl_addr = int_addr = self._reg_addr(local, local_br)
+            ctrl_addr = int_addr = self._reg_addr(local, local_br, addr_type)
 
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
                 'CtrlAddr': {
-                    self.addr_type: {
+                    addr_type: {
                         'Public': {
                             'Addr': ctrl_addr,
                             'L4Port': self.args.port_gen.register(local_br + "_ctrl"),
@@ -278,7 +275,7 @@ class TopoGenerator(object):
                     }
                 },
                 'InternalAddrs': {
-                    self.addr_type: {
+                    addr_type: {
                         'PublicOverlay': {
                             'Addr': int_addr,
                             'OverlayPort': self.args.port_gen.register(local_br + "_internal"),
@@ -296,7 +293,7 @@ class TopoGenerator(object):
 
     def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
         return {
-            'Overlay': self.overlay,
+            'Overlay': attrs.get('underlay', DEFAULT_UNDERLAY),
             'PublicOverlay': {
                 'Addr': public_addr,
                 'OverlayPort': SCION_ROUTER_PORT
@@ -311,14 +308,15 @@ class TopoGenerator(object):
             'MTU': attrs.get('mtu', DEFAULT_MTU)
             }
 
-    def _gen_sig_entries(self, topo_id):
+    def _gen_sig_entries(self, topo_id, as_conf):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         elem_id = "sig" + topo_id.file_fmt()
         reg_id = "sig" + topo_id.file_fmt()
         d = {
             'Addrs': {
-                self.addr_type: {
+                addr_type: {
                     'Public': {
-                        'Addr': self._reg_addr(topo_id, reg_id),
+                        'Addr': self._reg_addr(topo_id, reg_id, addr_type),
                         'L4Port': self.args.port_gen.register(elem_id),
                     }
                 }
@@ -351,10 +349,6 @@ class TopoGenerator(object):
         list_path = os.path.join(self.args.output_dir, IFIDS_FILE)
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
-
-    def _write_overlay(self):
-        file_path = os.path.join(self.args.output_dir, OVERLAY_FILE)
-        write_file(file_path, self.overlay + '\n')
 
 
 class LinkEP(TopoID):
@@ -399,3 +393,7 @@ class IFIDGenerator(object):
             logging.critical("IFID %d is invalid!" % ifid)
             exit(1)
         self._ifids.add(ifid)
+
+
+def addr_type_from_underlay(underlay: str) -> str:
+    return underlay.split('/')[1]
