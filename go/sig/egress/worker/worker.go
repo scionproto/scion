@@ -17,6 +17,7 @@
 package worker
 
 import (
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -56,7 +57,7 @@ const (
 )
 
 type SCIONWriter interface {
-	WriteToSCION(b []byte, address *snet.Addr) (int, error)
+	WriteTo(b []byte, address net.Addr) (int, error)
 }
 
 type worker struct {
@@ -187,7 +188,7 @@ func (w *worker) write(f *frame) error {
 		w.seq = 0
 	}
 
-	var snetAddr *snet.Addr
+	var snetAddr *snet.UDPAddr
 	if !w.ignoreAddress {
 		if w.currPathEntry == nil {
 			// FIXME(kormat): add some metrics to track this.
@@ -203,7 +204,7 @@ func (w *worker) write(f *frame) error {
 	}
 
 	f.writeHdr(w.sess.ID(), w.epoch, seq)
-	bytesWritten, err := w.writer.WriteToSCION(f.raw(), snetAddr)
+	bytesWritten, err := w.writer.WriteTo(f.raw(), snetAddr)
 	if err != nil {
 		return common.NewBasicError("Egress write error", err)
 	}

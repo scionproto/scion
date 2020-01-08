@@ -6,7 +6,7 @@ package mock_worker
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	snet "github.com/scionproto/scion/go/lib/snet"
+	net "net"
 	reflect "reflect"
 )
 
@@ -33,17 +33,17 @@ func (m *MockSCIONWriter) EXPECT() *MockSCIONWriterMockRecorder {
 	return m.recorder
 }
 
-// WriteToSCION mocks base method
-func (m *MockSCIONWriter) WriteToSCION(arg0 []byte, arg1 *snet.Addr) (int, error) {
+// WriteTo mocks base method
+func (m *MockSCIONWriter) WriteTo(arg0 []byte, arg1 net.Addr) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WriteToSCION", arg0, arg1)
+	ret := m.ctrl.Call(m, "WriteTo", arg0, arg1)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// WriteToSCION indicates an expected call of WriteToSCION
-func (mr *MockSCIONWriterMockRecorder) WriteToSCION(arg0, arg1 interface{}) *gomock.Call {
+// WriteTo indicates an expected call of WriteTo
+func (mr *MockSCIONWriterMockRecorder) WriteTo(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteToSCION", reflect.TypeOf((*MockSCIONWriter)(nil).WriteToSCION), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteTo", reflect.TypeOf((*MockSCIONWriter)(nil).WriteTo), arg0, arg1)
 }
