@@ -29,10 +29,13 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:   "tmpl",
-	Short: "Generate configuration templates for ISDs and ASes.",
-	Long: `
-'tmpl' can be used to generate configuration file templates for ISDs and ASes.
+	Use:     "tmpl",
+	Short:   "Generate configuration templates for ISDs and ASes.",
+	Example: "  scion-pki v2 tmpl topo sample.topo -d gen",
+	Long: `'tmpl' can be used to generate configuration file templates for ISDs and ASes
+from a topology description.
+
+A sample topology description can be generated with 'scion-pki tmpl topo sample'.
 `,
 }
 
@@ -61,11 +64,11 @@ var topo = &cobra.Command{
 }
 
 var sample = &cobra.Command{
-	Use:   "sample",
-	Short: "Generate sample topology description",
-	Long: `
-'sample' outputs a sample topology description that can be used for following the
-examples in the README.
+	Use:     "sample",
+	Short:   "Generate sample topology description",
+	Example: "  scion-pki v2 tmpl sample > sample.topo",
+	Long: `'sample' outputs a sample topology description that can be used by
+'scion-pki v2 tmpl topo' to template configuration files.
 `,
 	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
