@@ -161,7 +161,7 @@ func (p Prober) send(scionConn snet.Conn, path snet.Path) error {
 
 func (p Prober) receive(scionConn snet.Conn) error {
 	b := make([]byte, 1500, 1500)
-	_, _, err := scionConn.ReadFromSCION(b)
+	_, _, err := scionConn.ReadFrom(b)
 	if err == nil {
 		// We've got an actual reply instead of SCMP error. This should not happen.
 		return nil
