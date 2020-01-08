@@ -86,7 +86,7 @@ func genIFStateReq() error {
 	var errors common.MultiError
 	for _, addr := range bsAddrs {
 		dst.NextHop = addr
-		if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
+		if _, err := snetConn.WriteTo(pld, dst); err != nil {
 			cl.Result = metrics.ErrWrite
 			metrics.Control.SentIFStateReq(cl).Inc()
 			errors = append(errors, common.NewBasicError("Writing IFStateReq", err, "dst", dst))

@@ -213,21 +213,6 @@ func (mr *MockConnMockRecorder) WriteTo(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteTo", reflect.TypeOf((*MockConn)(nil).WriteTo), arg0, arg1)
 }
 
-// WriteToSCION mocks base method
-func (m *MockConn) WriteToSCION(arg0 []byte, arg1 *snet.Addr) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WriteToSCION", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WriteToSCION indicates an expected call of WriteToSCION
-func (mr *MockConnMockRecorder) WriteToSCION(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteToSCION", reflect.TypeOf((*MockConn)(nil).WriteToSCION), arg0, arg1)
-}
-
 // MockPacketDispatcherService is a mock of PacketDispatcherService interface
 type MockPacketDispatcherService struct {
 	ctrl     *gomock.Controller
