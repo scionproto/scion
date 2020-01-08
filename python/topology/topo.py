@@ -187,8 +187,13 @@ class TopoGenerator(object):
         mtu = as_conf.get('mtu', self.args.default_mtu)
         assert mtu >= SCION_MIN_MTU, mtu
         self.topo_dicts[topo_id] = {
-            'Core': as_conf.get('core', False), 'ISD_AS': str(topo_id),
-            'MTU': mtu, 'Overlay': self.overlay
+            'Core': as_conf.get('core', False),
+            'Voting': as_conf.get('voting', False),
+            'Authoritative': as_conf.get('authoritative', False),
+            'Issuing': as_conf.get('issuing', False),
+            'ISD_AS': str(topo_id),
+            'MTU': mtu,
+            'Overlay': self.overlay,
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}

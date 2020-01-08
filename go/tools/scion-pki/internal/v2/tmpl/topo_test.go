@@ -43,7 +43,7 @@ func TestTopoGen(t *testing.T) {
 
 	topo := topoFile{
 		ASes: map[addr.IA]asEntry{
-			ia110: {Core: true},
+			ia110: {Core: true, Authoritative: true, Issuing: true, Voting: true},
 			ia111: {Issuer: ia110},
 			ia112: {Issuer: ia110},
 		},

@@ -1,21 +1,21 @@
 ---
 ASes:
-  "1-ff00:0:110": {core: true}
-  "1-ff00:0:120": {core: true}
+  "1-ff00:0:110": {core: true, voting: true, authoritative: true, issuing: true}
+  "1-ff00:0:120": {core: true, voting: true, authoritative: true, issuing: true}
   "1-ff00:0:111": {cert_issuer: "1-ff00:0:110"}
   "1-ff00:0:121": {cert_issuer: "1-ff00:0:120"}
-  "2-ff00:0:210": {core: true}
-  "2-ff00:0:220": {core: true}
+  "2-ff00:0:210": {core: true, voting: true, authoritative: true, issuing: true}
+  "2-ff00:0:220": {core: true, voting: true, authoritative: true, issuing: true}
   "2-ff00:0:221": {cert_issuer: "2-ff00:0:220"}
   "2-ff00:0:222": {cert_issuer: "2-ff00:0:220"}
-  "3-ff00:0:310": {core: true}
+  "3-ff00:0:310": {core: true, voting: true, authoritative: true, issuing: true}
   "3-ff00:0:311": {cert_issuer: "3-ff00:0:310"}
   "3-ff00:0:312": {cert_issuer: "3-ff00:0:310"}
   "3-ff00:0:313": {cert_issuer: "3-ff00:0:310"}
-  "4-ff00:0:410": {core: true}
-  "5-ff00:0:510": {core: true}
-  "5-ff00:0:520": {core: true}
-  "5-ff00:0:530": {core: true}
+  "4-ff00:0:410": {core: true, voting: true, authoritative: true, issuing: true}
+  "5-ff00:0:510": {core: true, voting: true, authoritative: true, issuing: true}
+  "5-ff00:0:520": {core: true, voting: true, authoritative: true, issuing: true}
+  "5-ff00:0:530": {core: true, voting: true, authoritative: true, issuing: true}
   "5-ff00:0:511": {cert_issuer: "5-ff00:0:510"}
   "5-ff00:0:531": {cert_issuer: "5-ff00:0:530"}
 links:
