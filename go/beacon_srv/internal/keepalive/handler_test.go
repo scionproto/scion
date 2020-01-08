@@ -24,6 +24,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
 	"github.com/scionproto/scion/go/beacon_srv/internal/keepalive/mock_keepalive"
@@ -71,7 +72,7 @@ func TestNewHandler(t *testing.T) {
 		set(dropper.EXPECT().DeleteRevocation(gomock.Any(), localIA, localIF)).Return(nil)
 		set(dropper.EXPECT().DeleteRevocation(gomock.Any(), originIA, originIF)).Return(nil)
 
-		handler := NewHandler(localIA, testInterfaces(), StateChangeTasks{
+		handler := NewHandler(localIA, testInterfaces(t), StateChangeTasks{
 			IfStatePusher: pusher,
 			RevDropper:    dropper,
 		})
@@ -84,7 +85,7 @@ func TestNewHandler(t *testing.T) {
 	})
 
 	t.Run("Active interface should cause no tasks to execute", func(t *testing.T) {
-		intfs := testInterfaces()
+		intfs := testInterfaces(t)
 		intfs.Get(localIF).Activate(42)
 		handler := NewHandler(localIA, intfs, zeroCallTasks(mctrl))
 		req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
@@ -94,7 +95,7 @@ func TestNewHandler(t *testing.T) {
 	})
 
 	t.Run("Invalid requests cause an error", func(t *testing.T) {
-		handler := NewHandler(localIA, testInterfaces(), zeroCallTasks(mctrl))
+		handler := NewHandler(localIA, testInterfaces(t), zeroCallTasks(mctrl))
 
 		tests := []struct {
 			msg string
@@ -142,9 +143,11 @@ func TestNewHandler(t *testing.T) {
 	})
 }
 
-func testInterfaces() *ifstate.Interfaces {
+func testInterfaces(t *testing.T) *ifstate.Interfaces {
 	infoMap := topology.IfInfoMap{localIF: topology.IFInfo{IA: originIA}}
-	return ifstate.NewInterfaces(infoMap, ifstate.Config{})
+	intfs := ifstate.NewInterfaces(infoMap, ifstate.Config{KeepaliveTimeout: time.Nanosecond})
+	require.True(t, intfs.Get(localIF).Revoke(), "must revoke interface")
+	return intfs
 }
 
 func zeroCallTasks(mctrl *gomock.Controller) StateChangeTasks {

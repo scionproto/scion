@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/smartystreets/assertions"
-	"github.com/smartystreets/assertions/should"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -90,7 +90,6 @@ func TestHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			assert := assertions.New(t)
 			rw := mock_infra.NewMockResponseWriter(mctrl)
 			var reply *path_mgmt.IFStateInfos
 			rw.EXPECT().SendIfStateInfoReply(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -102,11 +101,11 @@ func TestHandler(t *testing.T) {
 			serveCtx := infra.NewContextWithResponseWriter(context.Background(), rw)
 			req := infra.NewRequest(serveCtx, test.req, nil, nil, 0)
 			handlerRes := h.Handle(req)
-			assert.So(handlerRes, should.Equal, infra.MetricsResultOk)
+			assert.Equal(t, infra.MetricsResultOk, handlerRes)
 			sort.Slice(reply.Infos, func(i, j int) bool {
 				return reply.Infos[i].IfID < reply.Infos[j].IfID
 			})
-			assert.So(reply, should.Resemble, test.expected)
+			assert.Equal(t, test.expected, reply)
 		})
 	}
 }
@@ -119,9 +118,9 @@ func interfaces(t *testing.T, topoProvider topology.Provider,
 	for _, info := range expectedIfSate.Infos {
 		if !info.Active {
 			intf := intfs.Get(info.IfID)
-			intf.state = Inactive
+			intf.SetState(Revoked)
 			if info.SRevInfo != nil {
-				xtest.FailOnErr(t, intf.Revoke(info.SRevInfo))
+				require.NoError(t, intf.SetRevocation(info.SRevInfo))
 			}
 		}
 	}

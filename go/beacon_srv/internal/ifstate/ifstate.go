@@ -34,13 +34,8 @@ const (
 )
 
 const (
-	// Inactive indicates that the interface has not been activated or
-	// expired yet.
-	Inactive State = "Inactive"
 	// Active indicates that the interface is active.
 	Active State = "Active"
-	// Expired indicates that the interface is expired.
-	Expired State = "Expired"
 	// Revoked indicates that the interface is revoked.
 	Revoked State = "Revoked"
 )
@@ -94,7 +89,7 @@ func (intfs *Interfaces) Update(ifInfomap topology.IfInfoMap) {
 		} else {
 			m[ifid] = &Interface{
 				topoInfo:     info,
-				state:        Inactive,
+				state:        Active,
 				lastActivate: time.Now(),
 				cfg:          intfs.cfg,
 			}
@@ -157,35 +152,31 @@ func (intf *Interface) Activate(remote common.IFIDType) State {
 	return prev
 }
 
-// Expire checks whether the interface has not been activated for a certain
-// amount of time. If that is the case and the current state is inactive or
-// active, the state changes to Expired. The times for last beacon origination
-// and propagation are reset to the zero value. The return value indicates,
-// whether the state is expired or revoked when the call returns.
-func (intf *Interface) Expire() bool {
+// Revoke checks whether the interface has not been activated for a certain
+// amount of time. If that is the case and the current state is active, the
+// state changes to Revoked. The times for last beacon origination and
+// propagation are reset to the zero value. The return value indicates, whether
+// the state is revoked when the call returns.
+func (intf *Interface) Revoke() bool {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
-	if intf.state == Expired || intf.state == Revoked {
-		return true
-	}
 	if time.Now().Sub(intf.lastActivate) > intf.cfg.KeepaliveTimeout {
 		intf.lastOriginate = time.Time{}
 		intf.lastPropagate = time.Time{}
-		intf.state = Expired
-		return true
+		intf.state = Revoked
 	}
-	return false
+	return intf.state == Revoked
 }
 
-// Revoke changes the state of the interface to revoked and updates the
-// revocation, unless the current state is active. In that case, the
-// interface has been activated in the meantime and should not be revoked.
+// SetRevocation sets the revocation for this interface. This can only be
+// invoked when the interface is in revoked state. Otherwise it is assumed that
+// the interface has been activated in the meantime and should not be revoked.
 // This is indicated through an error.
-func (intf *Interface) Revoke(rev *path_mgmt.SignedRevInfo) error {
+func (intf *Interface) SetRevocation(rev *path_mgmt.SignedRevInfo) error {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
 	if intf.state == Active {
-		return serrors.New("Interface activated in the meantime")
+		return serrors.New("interface activated in the meantime")
 	}
 	intf.state = Revoked
 	intf.revocation = rev
@@ -244,7 +235,7 @@ func (intf *Interface) LastPropagate() time.Time {
 func (intf *Interface) reset() {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
-	intf.state = Inactive
+	intf.state = Active
 	intf.revocation = nil
 	intf.lastOriginate = time.Time{}
 	intf.lastPropagate = time.Time{}

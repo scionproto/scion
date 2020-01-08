@@ -162,16 +162,17 @@ type Interface interface {
     // necessary, and sets the remote interface id. The return value indicates
     // the previous state of the interface.
     func Activate(remote common.IFIDType) State
-    // Expire checks whether the interface has not been activated for a certain
-    // amount of time. If that is the case and the current state is inactive or
-    // active, the state changes to Expired. The return value indicates,
-    // whether the state is expired or revoked when the call returns.
-    func Expire() bool
-    // Revoke changes the state of the interface to revoked and updates the
-    // revocation, unless the current state is active. In that case, the
-    // interface has been activated in the meantime and should not be revoked.
+    // Revoke checks whether the interface has not been activated for a certain
+    // amount of time. If that is the case and the current state is active, the
+    // state changes to Revoked. The times for last beacon origination and
+    // propagation are reset to the zero value. The return value indicates, whether
+    // the state is revoked when the call returns.
+    func Revoke() bool
+    // SetRevocation sets the revocation for this interface. This can only be
+    // invoked when the interface is in revoked state. Otherwise it is assumed that
+    // the interface has been activated in the meantime and should not be revoked.
     // This is indicated through an error.
-    func Revoke(rev *path_mgmt.SignedRevInfo) error
+    func SetRevocation(rev *path_mgmt.SignedRevInfo) error
     // Revocation returns the revocation.
     func Revocation() *path_mgmt.SignedRevInfo
     // TopoInfo returns the topology information.
@@ -184,13 +185,8 @@ type Interface interface {
 type State string
 
 const (
-    // Inactive indicates that the interface has not been activated or
-    // expired yet.
-    Inactive State = "Inactive"
     // Active indicates that the interface is active.
     Active State = "Active"
-    // Expired indicates that the interface is expired.
-    Expired State = "Expired"
     // Revoked indicates that the interface is revoked.
     Revoked State = "Revoked"
 )
@@ -316,14 +312,15 @@ after a stale period.
 
 #### Interface Revocation
 
-*(uses: `Interfaces.All`, `Interface.Expire`,  `Interface.Revoke`, `BeaconStore.InsertRevocation`).*
+*(uses: `Interfaces.All`, `Interface.Revoke`, `Interface.SetRevocation`,
+ `BeaconStore.InsertRevocation`).*
 
 Each BS instance keeps track of the interface state in an in-memory structure. When a configurable
 amount of keepalive messages for a given interface is not received, the interface is revoked by the
 BS.
 
-1. Call `Interface.Expire` on all infos.
-1. Revoke all expired interfaces in `InterfaceState`, update the revocation if necessary (certain
+1. Call `Interface.Revoke` on all infos.
+1. Revoke all revoked interfaces in `InterfaceState`, update the revocation if necessary (certain
    amount of previous revocation period has passed).
 1. Insert revocation in beacon store.
 1. Send revocation to all BRs in the local AS.
