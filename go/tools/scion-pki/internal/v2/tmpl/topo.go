@@ -168,7 +168,7 @@ func (g topoGen) genCerts(topo topoFile) error {
 
 func (g topoGen) genIssuerCerts(topo topoFile) error {
 	for ia, entry := range topo.ASes {
-		if !entry.Core {
+		if !entry.Issuing {
 			continue
 		}
 		cfg := g.genIssuerCert(ia)
@@ -201,7 +201,7 @@ func (g topoGen) genIssuerCert(ia addr.IA) conf.Issuer {
 func (g topoGen) genASCerts(topo topoFile) error {
 	for ia, entry := range topo.ASes {
 		issuer := entry.Issuer
-		if entry.Core {
+		if entry.Issuing {
 			issuer = ia
 		}
 		cfg := g.genASCert(ia, issuer)
