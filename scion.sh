@@ -298,7 +298,7 @@ go_lint() {
       -a '!' -ipath 'go/lib/pathpol/sequence/*' > $TMPDIR/gofiles.list
 
     lint_step "Building lint tools"
-    bazel build //:lint || return 1
+    bazel --bazelrc=${BAZELRC:-.bazelrc} build //:lint || return 1
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
     local ret=0
     lint_step "impi"
