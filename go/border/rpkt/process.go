@@ -191,7 +191,6 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 	if (rp.dstIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == topology.Core) ||
 		(rp.srcIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == topology.Parent) {
 		// Case 1 & 2
-		args.Addrs = append(args.Addrs, addr.SvcBS)
 		if len(rp.Ctx.Conf.Topo.SVCNames(addr.SvcPS)) > 0 {
 			args.Addrs = append(args.Addrs, addr.SvcPS)
 		}
