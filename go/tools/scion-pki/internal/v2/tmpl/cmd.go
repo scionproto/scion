@@ -36,7 +36,7 @@ var Cmd = &cobra.Command{
 `,
 }
 
-var topo = &cobra.Command{
+var topoCmd = &cobra.Command{
 	Use:   "topo",
 	Short: "Generate configuration files for the provided topo",
 	Long: `
@@ -67,48 +67,52 @@ generated the respective trust material.
 	},
 }
 
-func commands() []*cobra.Command {
-	metas := map[string]struct {
-		Short, Out string
-	}{
-		"as": {
-			Short: "Output a sample AS certificate configuration",
-			Out:   conf.ASSample,
-		},
-		"issuer": {
-			Short: "Output a sample issuer certificate configuration",
-			Out:   conf.IssuerSample,
-		},
-		"trc": {
-			Short: "Output a sample TRC configuration",
-			Out:   conf.TRCSample,
-		},
-		"keys": {
-			Short: "Output a sample AS configuration",
-			Out:   conf.KeysSample,
-		},
-	}
-	var cmds []*cobra.Command
-	for usage, meta := range metas {
-		cmds = append(cmds, &cobra.Command{
-			Use:   usage,
-			Short: meta.Short,
-			Args:  cobra.NoArgs,
-			Run: func(cmd *cobra.Command, args []string) {
-				fmt.Println(meta.Out)
-			},
-		})
-	}
-	return cmds
+var asCmd = &cobra.Command{
+	Use:     "as",
+	Short:   "Output a sample AS certificate configuration",
+	Example: "  scion-pki v2 tmpl as > ISD1/ASff00_0_110/as-v1.toml",
+	Args:    cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(conf.ASSample)
+	},
+}
+
+var issuerCmd = &cobra.Command{
+	Use:     "issuer",
+	Short:   "Output a sample issuer certificate configuration",
+	Example: "  scion-pki v2 tmpl issuer > ISD1/ASff00_0_110/issuer-v1.toml",
+	Args:    cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(conf.IssuerSample)
+	},
+}
+
+var trcCmd = &cobra.Command{
+	Use:     "trc",
+	Short:   "Output a sample TRC configuration",
+	Example: "  scion-pki v2 tmpl trc > ISD1/trc-v1.toml",
+	Args:    cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(conf.TRCSample)
+	},
+}
+
+var keysCmd = &cobra.Command{
+	Use:     "keys",
+	Short:   "Output a sample AS configuration",
+	Example: "  scion-pki v2 tmpl keys > ISD1/ASff00_0_110/keys.toml",
+	Args:    cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(conf.KeysSample)
+	},
 }
 
 func init() {
-	topo.PersistentFlags().Uint32VarP(&notBefore, "notbefore", "b", 0,
+	topoCmd.PersistentFlags().Uint32VarP(&notBefore, "notbefore", "b", 0,
 		"set not_before time in all configs")
-	topo.PersistentFlags().StringVar(&rawValidity, "validity", "365d",
+	topoCmd.PersistentFlags().StringVar(&rawValidity, "validity", "365d",
 		"set the validity of all crypto material")
-	Cmd.AddCommand(topo)
-	Cmd.AddCommand(commands()...)
+	Cmd.AddCommand(topoCmd, asCmd, issuerCmd, trcCmd, keysCmd)
 }
 
 func validityFromFlags() (conf.Validity, error) {
