@@ -81,12 +81,6 @@ def go_deps():
         version = "v1.4.7",
     )
     go_repository(
-        name = "com_github_go_ini_ini",
-        importpath = "github.com/go-ini/ini",
-        sum = "h1:/MArBHSS0TFR28yPPDK1vPIjt4wUnPBfb81i6iiyKvA=",
-        version = "v1.32.0",
-    )
-    go_repository(
         name = "com_github_go_kit_kit",
         importpath = "github.com/go-kit/kit",
         sum = "h1:Wz+5lgoB0kkuqLEc6NVmwRknTKP6dTGbSqvhZtBI/j0=",
@@ -303,18 +297,6 @@ def go_deps():
         version = "v1.0.0",
     )
     go_repository(
-        name = "com_github_pierrec_lz4",
-        importpath = "github.com/pierrec/lz4",
-        sum = "h1:w6GMGWSsCI04fTM8wQRdnW74MuJISakuUU0onU0TYB4=",
-        version = "v1.0.1",
-    )
-    go_repository(
-        name = "com_github_pierrec_xxhash",
-        importpath = "github.com/pierrec/xxHash",
-        sum = "h1:nDDVHJzMIpkkKZpBBhV60OLwII/BvZSn4PijkMEKdTo=",
-        version = "v0.0.0-20170714082455-a0006b13c722",
-    )
-    go_repository(
         name = "com_github_pkg_errors",
         importpath = "github.com/pkg/errors",
         sum = "h1:PCj9X21C4pet4sEcElTfAi6LSl5ShkjE8doieLc+cbU=",
@@ -464,12 +446,6 @@ def go_deps():
         importpath = "gopkg.in/fsnotify.v1",
         sum = "h1:xOHLXZwVvI9hhs+cLKq5+I5onOuwQLhQwiu63xxlHs4=",
         version = "v1.4.7",
-    )
-    go_repository(
-        name = "in_gopkg_ini_v1",
-        importpath = "gopkg.in/ini.v1",
-        sum = "h1:AQvPpx3LzTDM0AjnIRlVFwFFGC+npRopjZxLJj6gdno=",
-        version = "v1.51.0",
     )
     go_repository(
         name = "in_gopkg_natefinch_lumberjack_v2",
