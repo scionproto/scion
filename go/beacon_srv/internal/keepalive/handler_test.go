@@ -63,7 +63,8 @@ func TestNewHandler(t *testing.T) {
 		wg.Add(1)
 
 		pusher := mock_keepalive.NewMockIfStatePusher(mctrl)
-		pusher.EXPECT().Push(gomock.Any(), localIF).Times(1).Do(func(_ ...interface{}) { wg.Done() })
+		pusher.EXPECT().Push(gomock.Any(), localIF).Times(1).
+			Do(func(_ ...interface{}) { wg.Done() })
 
 		handler := NewHandler(localIA, testInterfaces(t), StateChangeTasks{
 			IfStatePusher: pusher,

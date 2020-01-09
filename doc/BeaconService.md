@@ -26,7 +26,7 @@ It reuses the existing building blocks for go services:
 
 The main parts of the BS are
 
-* **handlers** to handle incoming PCBs, revocations, and interface state keeping,
+* **handlers** to handle incoming PCBs and interface state keeping,
 * **periodic tasks** for PCB propagation, segment registration, interface keepalive and revocation,
 * **beacon storage**.
 
@@ -49,7 +49,6 @@ relation.
 
 The beacon store is the heart of the BS.
 It stores the received verified beacons according to the configured path policies.
-Also, it handles the verified revocations.
 The interface definition for handlers and periodic tasks to interact with the store is listed below.
 
 ```go
@@ -69,18 +68,11 @@ type BeaconStore interface {
     // InsertBeacons adds verified beacons to the store. Beacons that
     // contain revoked interfaces are not added and do not cause an error.
     InsertBeacons(ctx context.Context, beacon ...beacon.Beacon) error
-    // InsertRevocations inserts the revocation into the BeaconDB.
-    // The provided revocation must be verified by the caller.
-    InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
-    // DeleteRevocation deletes the revocation from the BeaconDB.
-    DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
     // UpdatePolicy updates the policy. Beacons that are filtered by all
     // policies after the update are removed.
     UpdatePolicy(ctx context.Context, policy beacon.Policy) error
     // DeleteExpired deletes expired Beacons from the store.
     DeleteExpiredBeacons(ctx context.Context) (int, error)
-    // DeleteExpired deletes expired Revocations from the store.
-    DeleteExpiredRevocations(ctx context.Context) (int, error)
 }
 ```
 
@@ -103,7 +95,6 @@ The BeaconDB consists of three tables:
 * `Beacons`: This table stores the raw beacons with some additional metadata used to select the
   beacons.
 * `IntfToBeacons`: This table maps the (ISD-AS, IfId) pair to all beacons containing that IfId.
-* `Revocations`: This table contains all revocations that are not expired.
 
 #### Beacon Insertion
 
@@ -127,9 +118,9 @@ The heuristic is as follows:
 
 On a policy update, the BS ejects all beacons that are filtered by all new policies.
 
-#### Beacon/Revocation Expiration
+#### Beacon Expiration
 
-Expired beacons/revocations are periodically removed from the database.
+Expired beacons are periodically removed from the database.
 The necessary deletions are cascaded to the other tables.
 
 #### Beacon Eviction
@@ -213,14 +204,6 @@ crypto material (with retries on timeout), the PCB is discarded.
 
 The BS then verifies the PCB and passes it to the beacon store.
 
-#### Revocation Handler
-
-*(uses: `BeaconStore.InsertRevocation`).*
-
-Under some circumstances, the BR extracts revocations from SCMP errors and pushes them to
-the BS. The BS stores verified revocations in the beacon store, which adds the revocation to the
-shared BeaconDB.
-
 ### Interface-State-Keeping Handlers
 
 #### IFStateInfoRequest Handler
@@ -235,12 +218,11 @@ messages by the BS.
 
 #### IfId Keepalive Handler
 
-*(uses: `Interface.Activate`, `Interfaces.All`, `BeaconStore.DeleteRevocation`).*
+*(uses: `Interface.Activate`, `Interfaces.All`).*
 
-Update the interface state of the given IfId. If it changes, send IfStateInfo to all BRs, remove
-associated revocations from the BeaconDB (if any), and immediately beacon on that interface (in a
-core AS this also includes sending an origination beacon). The associated revocations include both
-the local and the remote interface.
+Update the interface state of the given IfId. If it changes, send IfStateInfo to all BRs, and
+immediately beacon on that interface (in a core AS this also includes sending an origination
+beacon). The associated revocations include both the local and the remote interface.
 
 ## Periodic Tasks
 
@@ -312,8 +294,7 @@ after a stale period.
 
 #### Interface Revocation
 
-*(uses: `Interfaces.All`, `Interface.Revoke`, `Interface.SetRevocation`,
- `BeaconStore.InsertRevocation`).*
+*(uses: `Interfaces.All`, `Interface.Revoke`, `Interface.SetRevocation`).*
 
 Each BS instance keeps track of the interface state in an in-memory structure. When a configurable
 amount of keepalive messages for a given interface is not received, the interface is revoked by the
@@ -322,7 +303,6 @@ BS.
 1. Call `Interface.Revoke` on all infos.
 1. Revoke all revoked interfaces in `InterfaceState`, update the revocation if necessary (certain
    amount of previous revocation period has passed).
-1. Insert revocation in beacon store.
 1. Send revocation to all BRs in the local AS.
 1. Send revocation to local PS as `SignedRevInfo`.
 1. Send revocation to PS in all core ASes, if in non-core AS.
@@ -341,7 +321,6 @@ topology. This is done by using a one hop path extension.
 Periodically delete data that is no longer relevant. That includes
 
 * PCBs that are expired,
-* Revocations that are expired.
 
 ## Events
 
