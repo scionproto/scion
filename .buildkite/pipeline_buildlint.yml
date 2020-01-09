@@ -28,12 +28,13 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
     command:
-      - "cp go.mod go.sum go_deps.bzl $$TEST_ARTIFACTS/"
+      - mkdir -p /tmp/test-artifacts
+      - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
       - make godeps -B
-      - "bazel-${BUILDKITE_PIPELINE_SLUG}/external/go_sdk/bin/go mod tidy"
-      - "diff -u $$TEST_ARTIFACTS/go.mod go.mod"
-      - "diff -u $$TEST_ARTIFACTS/go.sum go.sum"
-      - "diff -u $$TEST_ARTIFACTS/go_deps.bzl go_deps.bzl"
+      - bazel-${BUILDKITE_PIPELINE_SLUG}/external/go_sdk/bin/go mod tidy
+      - diff -u /tmp/test-artifacts/go.mod go.mod
+      - diff -u /tmp/test-artifacts/go.sum go.sum
+      - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
     key: go_deps_lint
     retry:
       automatic:
@@ -41,9 +42,10 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go/proto files in git"
     command:
-      - "cp -R go/proto/ $$TEST_ARTIFACTS"
+      - mkdir -p /tmp/test-artifacts
+      - cp -R go/proto/ /tmp/test-artifacts/
       - make gogen
-      - "diff -ur $$TEST_ARTIFACTS/proto/ go/proto/"
+      - diff -ur /tmp/test-artifacts/proto/ go/proto/
     key: go_gen_lint
     retry:
       automatic:

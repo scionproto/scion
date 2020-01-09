@@ -33,7 +33,7 @@ save "logs"
 save "traces"
 save "gen"
 save "gen-cache"
-save "$TEST_ARTIFACTS"
+save "/tmp/test-artifacts"
 
 tar chaf "artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"
 rm -rf artifacts
