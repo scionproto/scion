@@ -1,8 +1,0 @@
-- trigger: "acceptance"
-  label: "Acceptance tests"
-  build:
-    commit: "${BUILDKITE_COMMIT}"
-    branch: "${BUILDKITE_BRANCH}"
-    env:
-      TAG: "${BUILDKITE_BUILD_NUMBER}"
-      RUN_DOCKER_BUILD: "false"

@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -ex
-
-./docker.sh exec "./scion.sh test > logs/unittests.run; ret=\$?; cat logs/unittests.run; rm -rf logs/bazel-testlogs; cp -rL bazel-testlogs logs; exit \$ret"
