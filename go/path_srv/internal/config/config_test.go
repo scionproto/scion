@@ -21,6 +21,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/assert"
 
+	controlconfig "github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 	"github.com/scionproto/scion/go/lib/pathstorage/pathstoragetest"
@@ -46,7 +47,7 @@ func InitTestConfig(cfg *Config) {
 	InitTestPSConfig(&cfg.PS)
 }
 
-func InitTestPSConfig(cfg *PSConfig) {
+func InitTestPSConfig(cfg *controlconfig.PSConfig) {
 	cfg.SegSync = true
 	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
 	pathstoragetest.InitTestRevCacheConf(&cfg.RevCache)
@@ -59,7 +60,7 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	CheckTestPSConfig(t, &cfg.PS, id)
 }
 
-func CheckTestPSConfig(t *testing.T, cfg *PSConfig, id string) {
+func CheckTestPSConfig(t *testing.T, cfg *controlconfig.PSConfig, id string) {
 	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
 	pathstoragetest.CheckTestRevCacheConf(t, &cfg.RevCache)
 	assert.False(t, cfg.SegSync)

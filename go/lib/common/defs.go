@@ -38,6 +38,8 @@ const (
 	RS  = "RS"
 	SIG = "SIG"
 	DS  = "DS"
+
+	CPService = "Control Plane Service"
 )
 
 // Interface ID

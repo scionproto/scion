@@ -22,7 +22,8 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage/beaconstoragetest"
+	"github.com/scionproto/scion/go/cs/beaconstorage/beaconstoragetest"
+	controlconfig "github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
@@ -64,11 +65,11 @@ func InitTestConfig(cfg *Config) {
 	InitTestBSConfig(&cfg.BS)
 }
 
-func InitTestBSConfig(cfg *BSConfig) {
+func InitTestBSConfig(cfg *controlconfig.BSConfig) {
 	InitTestPolicies(&cfg.Policies)
 }
 
-func InitTestPolicies(cfg *Policies) {
+func InitTestPolicies(cfg *controlconfig.Policies) {
 	cfg.Propagation = "test"
 	cfg.CoreRegistration = "test"
 	cfg.UpRegistration = "test"
@@ -83,7 +84,7 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	CheckTestBSConfig(t, &cfg.BS)
 }
 
-func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
+func CheckTestBSConfig(t *testing.T, cfg *controlconfig.BSConfig) {
 	assert.Equal(t, DefaultKeepaliveTimeout, cfg.KeepaliveTimeout.Duration)
 	assert.Equal(t, DefaultKeepaliveInterval, cfg.KeepaliveInterval.Duration)
 	assert.Equal(t, DefaultOriginationInterval, cfg.OriginationInterval.Duration)
@@ -95,7 +96,7 @@ func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
 	CheckTestPolicies(t, &cfg.Policies)
 }
 
-func CheckTestPolicies(t *testing.T, cfg *Policies) {
+func CheckTestPolicies(t *testing.T, cfg *controlconfig.Policies) {
 	assert.Empty(t, cfg.Propagation)
 	assert.Empty(t, cfg.CoreRegistration)
 	assert.Empty(t, cfg.UpRegistration)

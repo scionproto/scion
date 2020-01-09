@@ -11,6 +11,7 @@ go_library(
         "//go/cs/beacon:go_default_library",
         "//go/cs/beaconing:go_default_library",
         "//go/cs/beaconstorage:go_default_library",
+        "//go/cs/config:go_default_library",
         "//go/cs/ifstate:go_default_library",
         "//go/cs/keepalive:go_default_library",
         "//go/cs/onehop:go_default_library",

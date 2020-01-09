@@ -2,20 +2,18 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "config.go",
-        "sample.go",
-    ],
+    srcs = ["config.go"],
     importpath = "github.com/scionproto/scion/go/cert_srv/internal/config",
     visibility = ["//go/cert_srv:__subpackages__"],
     deps = [
+        "//go/cs/config:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
         "//go/lib/serrors:go_default_library",
+        "//go/lib/scrypto/cert:go_default_library",
         "//go/lib/truststorage:go_default_library",
-        "//go/lib/util:go_default_library",
     ],
 )
 
@@ -25,6 +23,7 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//go/cs/config:go_default_library",
         "//go/lib/env/envtest:go_default_library",
         "//go/lib/infra/modules/idiscovery/idiscoverytest:go_default_library",
         "//go/lib/truststorage/truststoragetest:go_default_library",

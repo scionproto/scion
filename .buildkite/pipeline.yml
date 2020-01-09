@@ -87,7 +87,7 @@ steps:
     - ./bin/end2end_integration -log.console warn
     artifact_paths:
       - "artifacts.out/**/*"
-    timeout_in_minutes: 5
+    timeout_in_minutes: 10
     key: integration_tests
     retry:
       automatic:
@@ -103,7 +103,7 @@ steps:
     - ./bin/end2end_integration -log.console warn
     artifact_paths:
       - "artifacts.out/**/*"
-    timeout_in_minutes: 5
+    timeout_in_minutes: 10
     key: integration_tests_monolith
     retry:
       automatic:

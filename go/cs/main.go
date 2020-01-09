@@ -100,7 +100,7 @@ func realMain() int {
 		return 1
 	}
 	defer log.Flush()
-	defer env.LogAppStopped(common.BS, cfg.General.ID)
+	defer env.LogAppStopped(common.CPService, cfg.General.ID)
 	defer log.LogPanicAndExit()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
@@ -230,8 +230,6 @@ func realMain() int {
 	msgr.AddHandler(infra.Chain, trustStore.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, trustStore.NewTRCPushHandler())
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
-	msgr.AddHandler(infra.SignedRev, revocation.NewHandler(beaconStore,
-		trust.NewVerifier(trustStore), 5*time.Second))
 	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.IA(), intfs, beaconStore,
 		trust.NewVerifier(trustStore)))
 	msgr.AddHandler(infra.IfId, keepalive.NewHandler(topo.IA(), intfs,
@@ -260,8 +258,12 @@ func realMain() int {
 		// Old down segment sync mechanism
 		msgr.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
 	}
-	// TODO(scrye): might need to run this too
-	// msger.AddHandler(infra.SignedRev, handlers.NewRevocHandler(args))
+	msgr.AddHandler(infra.SignedRev, &chainedHandler{
+		handlers: []infra.Handler{
+			handlers.NewRevocHandler(args),
+			revocation.NewHandler(beaconStore, trust.NewVerifier(trustStore), 5*time.Second),
+		},
+	})
 
 	cfg.Metrics.StartPrometheus()
 	go func() {
@@ -776,4 +778,22 @@ func (v verificationFactory) NewSigner(common.RawBytes, infra.SignerMeta) (infra
 
 func (v verificationFactory) NewVerifier() infra.Verifier {
 	return trust.NewVerifier(v.Provider)
+}
+
+type chainedHandler struct {
+	handlers []infra.Handler
+}
+
+func (h *chainedHandler) Handle(r *infra.Request) *infra.HandlerResult {
+	// go with the simple solution of sequencing them
+	for _, handler := range h.handlers {
+		result := handler.Handle(r)
+		if result.Status != prom.StatusOk {
+			return result
+		}
+	}
+	return &infra.HandlerResult{
+		Result: prom.Success,
+		Status: prom.StatusOk,
+	}
 }
