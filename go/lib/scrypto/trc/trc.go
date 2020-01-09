@@ -1,5 +1,4 @@
-// Copyright 2017 ETH Zurich
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2019 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,412 +16,312 @@ package trc
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"path/filepath"
-	"strings"
+	"errors"
+	"strconv"
 	"time"
-
-	"github.com/pierrec/lz4"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/util"
+)
+
+// Invariant errors with context
+const (
+	// ErrInvariantViolation indicates a TRC invariant violation.
+	ErrInvariantViolation common.ErrMsg = "TRC invariant violation"
+	// ErrInvalidValidityPeriod indicates an invalid validity period.
+	ErrInvalidValidityPeriod common.ErrMsg = "invalid validity period"
+	// ErrVotingQuorumTooLarge indicates that the number of voting ASes is smaller
+	// than the voting quorum.
+	ErrVotingQuorumTooLarge common.ErrMsg = "voting quorum too large"
+)
+
+// ErrUnsupportedFormat indicates an invalid TRC format.
+const ErrUnsupportedFormat common.ErrMsg = "unsupported TRC format"
+
+// Invariant errors
+var (
+	// ErrBaseWithNonZeroGracePeriod indicates a base TRC with a non-zero grace period.
+	ErrBaseWithNonZeroGracePeriod = errors.New("trust reset with non-zero grace period")
+	// ErrBaseWithVotes indicates a base TRC with votes. This violates the TRC invariant.
+	ErrBaseWithVotes = errors.New("base TRC with votes")
+	// ErrNoIssuingAS indicates that the TRC has no issuing AS.
+	ErrNoIssuingAS = errors.New("missing issuing AS")
+	// ErrUpdateWithZeroGracePeriod indicates a TRC update with a zero grace
+	// period. A grace period of zero is only allowed in trust resets, that are
+	// not covered by TRC updates.
+	ErrUpdateWithZeroGracePeriod = errors.New("update with zero grace period")
+	// ErrZeroVotingQuorum indicates that the voting quorum is zero.
+	ErrZeroVotingQuorum = errors.New("voting quorum of zero")
+)
+
+// Parse errors
+var (
+	// ErrISDNotSet indicates isd is not set.
+	ErrISDNotSet = errors.New("isd not set")
+	// ErrVersionNotSet indicates version is not set.
+	ErrVersionNotSet = errors.New("version not set")
+	// ErrBaseVersionNotSet indicates base_version is not set.
+	ErrBaseVersionNotSet = errors.New("base_version not set")
+	// ErrDescriptionNotSet indicates description is not set.
+	ErrDescriptionNotSet = errors.New("description not set")
+	// ErrVotingQuorumNotSet indicates voting_quorum is not set.
+	ErrVotingQuorumNotSet = errors.New("voting_quorum not set")
+	// ErrFormatVersionNotSet indicates format_version is not set.
+	ErrFormatVersionNotSet = errors.New("format_version not set")
+	// ErrGracePeriodNotSet indicates grace_period is not set.
+	ErrGracePeriodNotSet = errors.New("grace_period not set")
+	// ErrTrustResetAllowedNotSet indicates trust_reset_allowed is not set.
+	ErrTrustResetAllowedNotSet = errors.New("trust_reset_allowed not set")
+	// ErrValidityNotSet indicates validity is not set.
+	ErrValidityNotSet = errors.New("validity not set")
+	// ErrPrimaryASesNotSet indicates primary_ases is not set.
+	ErrPrimaryASesNotSet = errors.New("primary_ases not set")
+	// ErrVotesNotSet indicates votes is not set.
+	ErrVotesNotSet = errors.New("votes not set")
+	// ErrProofOfPossessionNotSet indicates proof_of_possession is not set.
+	ErrProofOfPossessionNotSet = errors.New("proof_of_possession not set")
+
+	// ErrKeyTypeNotSet indicates key_type is not set.
+	ErrKeyTypeNotSet = errors.New("key_type not set")
+	// ErrKeyVersionNotSet indicates key_version is not set.
+	ErrKeyVersionNotSet = errors.New("key_version not set")
 )
 
 const (
-	MaxTRCByteLength uint32 = 1 << 20
+	// RegularUpdate is a TRC update where the VotingQuorum parameter is not
+	// changed, and in the PrimaryASes section, only the issuing and online keys
+	// can change. No other parts of the PrimaryASes section may change.
+	RegularUpdate UpdateType = "regular"
+	// SensitiveUpdate is a TRC update that does not qualify as regular.
+	SensitiveUpdate UpdateType = "sensitive"
 )
 
-// Error constants
-const (
-	ErrEarlyUsage          common.ErrMsg = "Creation time in the future"
-	ErrEarlyAnnouncement   common.ErrMsg = "Early announcement"
-	ErrExpired             common.ErrMsg = "TRC expired"
-	ErrGracePeriodPassed   common.ErrMsg = "TRC grace period has passed"
-	ErrInactiveVersion     common.ErrMsg = "Inactive TRC version"
-	ErrInvalidCreationTime common.ErrMsg = "Invalid TRC creation time"
-	ErrInvalidISD          common.ErrMsg = "Invalid TRC ISD"
-	ErrInvalidQuorum       common.ErrMsg = "Not enough valid signatures"
-	ErrInvalidVersion      common.ErrMsg = "Invalid TRC version"
-	ErrReservedVersion     common.ErrMsg = "Invalid version 0"
-	ErrSignatureMissing    common.ErrMsg = "Signature missing"
-	ErrUnableSigPack       common.ErrMsg = "TRC: Unable to create signature input"
-)
+// UpdateType indicates the type of TRC update.
+type UpdateType string
 
-const (
-	certLogs       = "CertLogs"
-	coreASes       = "CoreASes"
-	creationTime   = "CreationTime"
-	description    = "Description"
-	expirationTime = "ExpirationTime"
-	gracePeriod    = "GracePeriod"
-	isd            = "ISD"
-	quarantine     = "Quarantine"
-	quorumCAs      = "QuorumCAs"
-	quorumTRC      = "QuorumTRC"
-	rains          = "RAINS"
-	rootCAs        = "RootCAs"
-	signatures     = "Signatures"
-	thresholdEEPKI = "ThresholdEEPKI"
-	version        = "Version"
-)
+// trcAlias is necessary to avoid an infinite recursion when unmarshalling.
+type trcAlias TRC
 
-type Key struct {
-	ISD addr.ISD
-	Ver scrypto.Version
-}
-
-func NewKey(isd addr.ISD, ver scrypto.Version) *Key {
-	return &Key{ISD: isd, Ver: ver}
-}
-
-func (k *Key) String() string {
-	return fmt.Sprintf("%dv%d", k.ISD, k.Ver)
-}
-
-// TRCVerResult is the result of verifying core AS signatures.
-type TRCVerResult struct {
-	Quorum   uint32
-	Verified []addr.IA
-	Failed   map[addr.IA]error
-}
-
-func (tvr *TRCVerResult) QuorumOk() bool {
-	return uint32(len(tvr.Verified)) >= tvr.Quorum
-}
-
-type CoreASMap map[addr.IA]*CoreAS
-
-// Contains returns whether a is in c.
-func (c CoreASMap) Contains(a addr.IA) bool {
-	_, ok := c[a]
-	return ok
-}
-
-// ASList returns a list of core ASes' IDs.
-func (c CoreASMap) ASList() []addr.IA {
-	l := make([]addr.IA, 0, len(c))
-	for key := range c {
-		l = append(l, key)
-	}
-	return l
-}
-
+// TRC is the trust root configuration for an ISD.
 type TRC struct {
-	// CertLogs is a map from end-entity certificate logs to their addresses and public-key
-	// certificate.
-	CertLogs map[string]*CertLog
-	// CoreASes is a map from core ASes to their online and offline key.
-	CoreASes CoreASMap
-	// CreationTime is the unix timestamp in seconds at which the TRC was created.
-	CreationTime uint32
-	// Description is an human-readable description of the ISD.
-	Description string
-	// ExpirationTime is the unix timestamp in seconds at which the TRC expires.
-	ExpirationTime uint32
-	// GracePeriod is the period during which the TRC is valid after creation of a new TRC in
-	// seconds.
-	GracePeriod uint32
 	// ISD is the integer identifier from 1 to 4095.
-	ISD addr.ISD
-	// Quarantine describes if the TRC is an early announcement (true) or valid (false).
-	Quarantine bool
-	// QuorumCAs is the quorum of root CAs required to change e RootCAs, CertLogs,
-	// ThresholdEEPKI, and QuorumCAs.
-	QuorumCAs uint32
-	// QuorumTRC is the quorum of core ASes required to sign a new TRC.
-	QuorumTRC uint32
-	// Rains is the Rains entry.
-	RAINS *Rains
-	// RootCAs is a map from root CA names to their RootCA entry.
-	RootCAs map[string]*RootCA
-	// Signatures is a map from entity names to their signatures.
-	Signatures map[string]common.RawBytes
-	// ThresholdEEPKI is the threshold number of trusted parties (CAs and one log) required to
-	// assert a domain’s policy.
-	ThresholdEEPKI uint32
+	ISD addr.ISD `json:"isd"`
 	// Version is the version number of the TRC.
 	// The value scrypto.LatestVer is reserved and shall not be used.
-	Version scrypto.Version
+	Version scrypto.Version `json:"trc_version"`
+	// BaseVersion indicates the initial TRC version for this TRC chain.
+	// If BaseVersion equals TRCVersion this TRC is a base TRC.
+	BaseVersion scrypto.Version `json:"base_version"`
+	// Description is an human-readable description of the ISD.
+	Description string `json:"description"`
+	// VotingQuorum is the number of signatures the next TRC needs from voting
+	// ASes in this TRC for an update to be valid. This is a pointer to check
+	// the field is set during parsing.
+	VotingQuorumPtr *uint8 `json:"voting_quorum"`
+	// FormatVersion is the TRC format version.
+	FormatVersion FormatVersion `json:"format_version"`
+	// GracePeriod indicates how long the previous unexpired version of the TRC
+	// should still be considered active, i.e., TRCvi is still active until the
+	// following time has passed (or TRCvi+2 has been announced):
+	//  TRC(i+1).Validity.NotBefore + TRC(i+1).GracePeriod
+	GracePeriod *Period `json:"grace_period"`
+	// TrustResetAllowed indicates whether a trust reset is allowed for this ISD.
+	TrustResetAllowedPtr *bool `json:"trust_reset_allowed"`
+	// Validity indicates the validity period of the TRC.
+	Validity *scrypto.Validity `json:"validity"`
+	// PrimaryASes contains all primary ASes in the ISD.
+	PrimaryASes PrimaryASes `json:"primary_ases"`
+	// Votes maps voting ASes to their cast vote.
+	Votes map[addr.AS]Vote `json:"votes"`
+	// ProofOfPossession maps ASes to their key types they need to show proof of possession.
+	ProofOfPossession map[addr.AS][]KeyType `json:"proof_of_possession"`
 }
 
-func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
-	if lz4_ {
-		// The python lz4 library uses lz4 block mode. To know the length of the
-		// compressed block, it prepends the length of the original data as 4 bytes, little
-		// endian, unsigned integer. We need to make sure that a malformed message does
-		// not exhaust the available memory.
-		if len(raw) < 4 {
-			return nil, common.NewBasicError("TRC raw input too small", nil,
-				"min", 4, "actual", len(raw))
-		}
-		bLen := binary.LittleEndian.Uint32(raw[:4])
-		if bLen > MaxTRCByteLength {
-			return nil, common.NewBasicError("TRC LZ4 block too large", nil,
-				"max", MaxTRCByteLength, "actual", bLen)
-		}
-		buf := make([]byte, bLen)
-		n, err := lz4.UncompressBlock(raw[4:], buf, 0)
-		if err != nil {
-			return nil, err
-		}
-		raw = buf[:n]
-	}
-	t := &TRC{}
-	if err := json.Unmarshal(raw, t); err != nil {
-		return nil, err
-	}
-	if t.Version.IsLatest() {
-		return nil, common.NewBasicError(ErrReservedVersion, nil)
-	}
-	return t, nil
+// VotingQuorum returns the voting quorum. It provides a convenience wrapper
+// around VotingQuorumPtr.
+func (t *TRC) VotingQuorum() int {
+	return int(*t.VotingQuorumPtr)
 }
 
-func TRCFromFile(path string, lz4_ bool) (*TRC, error) {
-	raw, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return TRCFromRaw(raw, lz4_)
+// TrustResetAllowed returns whether trust resets are allowed according to the
+// TRC. It provides a convenience wrapper around TrustResetAllowedPtr.
+func (t *TRC) TrustResetAllowed() bool {
+	return *t.TrustResetAllowedPtr
 }
 
-// TRCFromDir reads all the {ISD}-V*.trc (e.g., ISD1-V17.trc) files
-// contained directly in dir (no subdirectories), and out of those that match
-// ISD isd returns the newest one.  The TRCs must not be compressed. If an
-// error occurs when parsing one of the files, f() is called with the error as
-// argument. Execution continues with the remaining files.
-//
-// If no TRC is found, the returned TRC is nil and the error is set to nil.
-func TRCFromDir(dir string, isd addr.ISD, f func(err error)) (*TRC, error) {
-	files, err := filepath.Glob(fmt.Sprintf("%s/ISD%v-V*.trc", dir, isd))
-	if err != nil {
-		return nil, err
-	}
-	var bestVersion scrypto.Version
-	var bestTRC *TRC
-	for _, file := range files {
-		trcObj, err := TRCFromFile(file, false)
-		if err != nil {
-			f(common.NewBasicError("Unable to read TRC file", err))
-			continue
-		}
-		fileISD, version := trcObj.IsdVer()
-		if fileISD != isd {
-			return nil, common.NewBasicError("ISD mismatch", nil, "expected", isd, "found", fileISD)
-		}
-		if version > bestVersion {
-			bestTRC = trcObj
-			bestVersion = version
-		}
-	}
-	return bestTRC, nil
+// Base returns true if this TRC is a base TRC.
+func (t *TRC) Base() bool {
+	return t.BaseVersion == t.Version
 }
 
-func (t *TRC) IsdVer() (addr.ISD, scrypto.Version) {
-	return t.ISD, t.Version
-}
-
-func (t *TRC) Key() *Key {
-	return NewKey(t.ISD, t.Version)
-}
-
-// IsActive checks if TRC is active and can be used for certificate chain verification. MaxTRC is
-// the newest active TRC of the same ISD which we know of.
-func (t *TRC) IsActive(maxTRC *TRC) error {
-	if t.Quarantine {
-		return common.NewBasicError(ErrEarlyAnnouncement, nil)
+// ValidateInvariant ensures that the TRC invariant holds.
+func (t *TRC) ValidateInvariant() error {
+	if err := t.Validity.Validate(); err != nil {
+		return common.NewBasicError(ErrInvalidValidityPeriod, err, "validity", t.Validity)
 	}
-	currTime := util.TimeToSecs(time.Now())
-	if currTime < t.CreationTime {
-		return common.NewBasicError(ErrEarlyUsage, nil,
-			"now", util.SecsToCompact(currTime),
-			"creation", util.SecsToCompact(t.CreationTime))
-	} else if currTime > t.ExpirationTime {
-		return common.NewBasicError(ErrExpired, nil,
-			"now", util.SecsToCompact(currTime),
-			"expiration", util.SecsToCompact(t.ExpirationTime))
-	} else if t.Version == maxTRC.Version {
-		return nil
-	} else if t.Version+1 != maxTRC.Version {
-		return common.NewBasicError(
-			ErrInactiveVersion, nil,
-			"expected", fmt.Sprintf("%d or %d", maxTRC.Version-1, maxTRC.Version),
-			"actual", t.Version,
-		)
-	} else if currTime > maxTRC.CreationTime+maxTRC.GracePeriod {
-		return common.NewBasicError(ErrGracePeriodPassed, nil, "now", util.SecsToCompact(currTime),
-			"expiration", util.SecsToCompact(maxTRC.CreationTime+maxTRC.GracePeriod))
+	if t.VotingQuorum() <= 0 {
+		return ErrZeroVotingQuorum
+	}
+	c := t.PrimaryASes.Count(Voting)
+	if t.VotingQuorum() > c {
+		return common.NewBasicError(ErrVotingQuorumTooLarge, nil,
+			"max", c, "actual", t.VotingQuorum)
+	}
+	if t.PrimaryASes.Count(Issuing) <= 0 {
+		return ErrNoIssuingAS
+	}
+	if err := t.PrimaryASes.ValidateInvariant(); err != nil {
+		return err
+	}
+	if t.GracePeriod.Duration == 0 && !t.Base() {
+		return ErrUpdateWithZeroGracePeriod
+	}
+	if t.GracePeriod.Duration != 0 && t.Base() {
+		return ErrBaseWithNonZeroGracePeriod
+	}
+	if t.Base() {
+		return t.baseInvariant()
 	}
 	return nil
 }
 
-// Sign adds signature to the TRC. The signature is computed over the TRC without the signature map.
-func (t *TRC) Sign(name string, signKey common.RawBytes, signAlgo string) error {
-	sigInput, err := t.sigPack()
-	if err != nil {
-		return common.NewBasicError("Unable to pack TRC for signing", err)
+func (t *TRC) baseInvariant() error {
+	if len(t.Votes) > 0 {
+		return ErrBaseWithVotes
 	}
-	sig, err := scrypto.Sign(sigInput, signKey, signAlgo)
-	if err != nil {
-		return common.NewBasicError("Unable to create signature", err)
-	}
-	t.Signatures[name] = sig
-	return nil
+	return t.allProofOfPossesion()
 }
 
-// Verify checks the validity of the TRC based on a trusted TRC. The trusted TRC can either be
-// the direct predecessor TRC or a cross signing TRC.
-func (t *TRC) Verify(trust *TRC) (*TRCVerResult, error) {
-	if t.ISD == trust.ISD {
-		return t.verifyUpdate(trust)
+func (t *TRC) allProofOfPossesion() error {
+	pv := popValidator{
+		TRC:        t,
+		KeyChanges: newKeyChanges(),
 	}
-	return nil, t.verifyXSig(trust)
-}
-
-// verifyUpdate checks the validity of a updated TRC.
-func (t *TRC) verifyUpdate(old *TRC) (*TRCVerResult, error) {
-	if old.ISD != t.ISD {
-		return nil, common.NewBasicError(ErrInvalidISD, nil, "expected", old.ISD, "actual", t.ISD)
-	}
-	if old.Version+1 != t.Version {
-		return nil, common.NewBasicError(ErrInvalidVersion, nil,
-			"expected", old.Version+1, "actual", t.Version)
-	}
-	if t.CreationTime < old.CreationTime+old.GracePeriod {
-		return nil, common.NewBasicError(
-			ErrInvalidCreationTime, nil,
-			"expected >", util.SecsToCompact(old.CreationTime+old.GracePeriod),
-			"actual", util.SecsToCompact(t.CreationTime),
-		)
-	}
-	if t.Quarantine || old.Quarantine {
-		return nil, common.NewBasicError(ErrEarlyAnnouncement, nil)
-	}
-	return t.verifySignatures(old)
-}
-
-// verifySignatures checks the signatures of the updated TRC.
-func (t *TRC) verifySignatures(old *TRC) (*TRCVerResult, error) {
-	sigInput, err := t.sigPack()
-	if err != nil {
-		return nil, err
-	}
-	var tvr = &TRCVerResult{}
-	// Only verify signatures which are from core ASes defined in old TRC
-	for signer, coreAS := range old.CoreASes {
-		sig, ok := t.Signatures[signer.String()]
-		if !ok {
-			tvr.Failed[signer] = common.NewBasicError(ErrSignatureMissing, nil, "as", signer)
-			continue
-		}
-		err = scrypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg)
-		if err == nil {
-			tvr.Verified = append(tvr.Verified, signer)
-		} else {
-			tvr.Failed[signer] = err
+	for as, primary := range t.PrimaryASes {
+		for keyType, meta := range primary.Keys {
+			pv.KeyChanges.Fresh[keyType][as] = meta
 		}
 	}
-	if !tvr.QuorumOk() {
-		return tvr, common.NewBasicError(ErrInvalidQuorum, nil,
-			"expected", old.QuorumTRC, "actual", len(tvr.Verified))
-	}
-	return tvr, nil
+	return pv.checkProofOfPossession()
 }
 
-// verifyXSig checks the cross signatures of the updated TRC.
-func (t *TRC) verifyXSig(trust *TRC) error {
-	// FIXME(roosd): implement cross signatures
-	return nil
-}
-
-// sigPack creates a sorted json object of all fields, except for the signature map.
-func (t *TRC) sigPack() (common.RawBytes, error) {
-	if t.Version.IsLatest() {
-		return nil, common.NewBasicError(ErrReservedVersion, nil)
-	}
-	m := make(map[string]interface{})
-	m[certLogs] = t.CertLogs
-	m[creationTime] = t.CreationTime
-	m[description] = t.Description
-	m[expirationTime] = t.ExpirationTime
-	m[gracePeriod] = t.GracePeriod
-	m[isd] = t.ISD
-	m[quarantine] = t.Quarantine
-	m[quorumCAs] = t.QuorumCAs
-	m[quorumTRC] = t.QuorumTRC
-	m[rains] = t.RAINS
-	m[rootCAs] = t.RootCAs
-	m[thresholdEEPKI] = t.ThresholdEEPKI
-	m[version] = t.Version
-	m[coreASes] = t.CoreASes
-	sigInput, err := json.Marshal(m)
-	if err != nil {
-		return nil, common.NewBasicError(ErrUnableSigPack, err)
-	}
-	return sigInput, nil
-}
-
-// Compress compresses the JSON generated from the TRC using lz4 block mode and
-// prepends the original length (4 bytes, little endian, unsigned). This is necessary, since
-// the python lz4 library expects this format.
-func (t *TRC) Compress() (common.RawBytes, error) {
-	raw, err := json.Marshal(t)
-	if err != nil {
-		return nil, err
-	}
-	comp := make([]byte, lz4.CompressBlockBound(len(raw))+4)
-	binary.LittleEndian.PutUint32(comp[:4], uint32(len(raw)))
-	n, err := lz4.CompressBlock(raw, comp[4:], 0)
-	if err != nil {
-		return nil, err
-	}
-	return comp[:n+4], err
-}
-
-func (t *TRC) JSON(indent bool) ([]byte, error) {
-	if indent {
-		return json.MarshalIndent(t, "", strings.Repeat(" ", 4))
-	}
-	return json.Marshal(t)
-}
-
-// JSONEquals checks if two TRCs are the same based on their JSON
-// serializations.
-func (t *TRC) JSONEquals(other *TRC) (bool, error) {
-	tj, err := t.JSON(false)
-	if err != nil {
-		return false, common.NewBasicError("Unable to build JSON", err)
-	}
-	oj, err := other.JSON(false)
-	if err != nil {
-		return false, common.NewBasicError("Unable to build JSON", err)
-	}
-	return bytes.Compare(tj, oj) == 0, nil
-}
-
+// UnmarshalJSON checks that all fields are set.
 func (t *TRC) UnmarshalJSON(b []byte) error {
-	type Alias TRC
-	var m map[string]interface{}
-	err := json.Unmarshal(b, &m)
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode((*trcAlias)(t)); err != nil {
+		return err
+	}
+	return t.checkAllSet()
+}
+
+func (t *TRC) checkAllSet() error {
+	switch {
+	case t.ISD == 0:
+		return ErrISDNotSet
+	case t.Version == 0:
+		return ErrVersionNotSet
+	case t.BaseVersion == 0:
+		return ErrBaseVersionNotSet
+	case t.Description == "":
+		return ErrDescriptionNotSet
+	case t.VotingQuorumPtr == nil:
+		return ErrVotingQuorumNotSet
+	case t.FormatVersion == 0:
+		return ErrFormatVersionNotSet
+	case t.GracePeriod == nil:
+		return ErrGracePeriodNotSet
+	case t.TrustResetAllowedPtr == nil:
+		return ErrTrustResetAllowedNotSet
+	case t.Validity == nil:
+		return ErrValidityNotSet
+	case t.PrimaryASes == nil:
+		return ErrPrimaryASesNotSet
+	case t.Votes == nil:
+		return ErrVotesNotSet
+	case t.ProofOfPossession == nil:
+		return ErrProofOfPossessionNotSet
+	}
+	return nil
+}
+
+// Vote identifies the expected vote.
+type Vote struct {
+	// KeyType is the type of key that is used to issue the signature.
+	KeyType KeyType `json:"key_type"`
+	// KeyVersion is the key version of the key that is used to issue the signautre.
+	KeyVersion scrypto.KeyVersion `json:"key_version"`
+}
+
+// UnmarshalJSON checks that all fields are set.
+func (v *Vote) UnmarshalJSON(b []byte) error {
+	var alias voteAlias
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&alias); err != nil {
+		return err
+	}
+	if err := alias.checkAllSet(); err != nil {
+		return err
+	}
+	*v = Vote{
+		KeyType:    *alias.KeyType,
+		KeyVersion: *alias.KeyVersion,
+	}
+	return nil
+}
+
+type voteAlias struct {
+	KeyType    *KeyType            `json:"key_type"`
+	KeyVersion *scrypto.KeyVersion `json:"key_version"`
+}
+
+func (v *voteAlias) checkAllSet() error {
+	switch {
+	case v.KeyType == nil:
+		return ErrKeyTypeNotSet
+	case v.KeyVersion == nil:
+		return ErrKeyVersionNotSet
+	}
+	return nil
+}
+
+// FormatVersion indicates the TRC format version. Currently, only format
+// version 1 is supported.
+type FormatVersion uint8
+
+// UnmarshalJSON checks that the FormatVersion is supported.
+func (v *FormatVersion) UnmarshalJSON(b []byte) error {
+	parsed, err := strconv.ParseUint(string(b), 10, 8)
 	if err != nil {
 		return err
 	}
-	if err = validateFields(m, trcFields); err != nil {
-		return common.NewBasicError(ErrValidatingFields, err)
+	if parsed != 1 {
+		return common.NewBasicError(ErrUnsupportedFormat, nil, "fmt", parsed)
 	}
-	// XXX(roosd): Unmarshalling twice might affect performance.
-	// After switching to go 1.10 we might make use of
-	// https://golang.org/pkg/encoding/json/#Decoder.DisallowUnknownFields.
-	return json.Unmarshal(b, (*Alias)(t))
+	*v = FormatVersion(parsed)
+	return nil
 }
 
-func (t *TRC) String() string {
-	if t == nil {
-		return "TRC <nil>"
+// Period indicates a time duration.
+type Period struct {
+	time.Duration
+}
+
+// UnmarshalJSON parses seconds expressed as a uint32.
+func (t *Period) UnmarshalJSON(b []byte) error {
+	seconds, err := strconv.ParseUint(string(b), 10, 32)
+	if err != nil {
+		return err
 	}
-	return fmt.Sprintf("TRC %dv%d", t.ISD, t.Version)
+	t.Duration = time.Duration(seconds) * time.Second
+	return nil
+}
+
+// MarshalJSON packs the duration as seconds expressed in a uint32.
+func (t Period) MarshalJSON() ([]byte, error) {
+	seconds := uint32(t.Duration / time.Second)
+	return json.Marshal(seconds)
 }

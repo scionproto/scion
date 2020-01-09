@@ -31,8 +31,8 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
-	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/tracing"
 )

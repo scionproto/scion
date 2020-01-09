@@ -18,10 +18,8 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",
-        "//go/lib/scrypto/cert/v2:go_default_library",
-        "//go/lib/scrypto/cert/v2/renewal:go_default_library",
+        "//go/lib/scrypto/cert/renewal:go_default_library",
         "//go/lib/scrypto/trc:go_default_library",
-        "//go/lib/scrypto/trc/v2:go_default_library",
         "//go/proto:go_default_library",
     ],
 )

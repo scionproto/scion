@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,238 +15,81 @@
 package conf
 
 import (
-	"os"
+	"fmt"
+	"io"
 	"path/filepath"
-	"time"
 
-	"github.com/go-ini/ini"
+	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-const (
-	ErrAsCertMissing           common.ErrMsg = "AS Certificate section missing"
-	ErrInvalidValidityDuration common.ErrMsg = "Invalid validity duration"
-	ErrIssuerMissing           common.ErrMsg = "Parameter Issuer not set in AS certificate"
-	ErrTRCVersionNotSet        common.ErrMsg = "Parameter TRCVersion not set in Base Certificate"
-	ErrValidityDurationNotSet  common.ErrMsg = "Validity duration not set"
-	ErrVersionNotSet           common.ErrMsg = "Parameter Version not set for Base Certificate"
-	ErrInvalidSignAlgorithm    common.ErrMsg = "Invalid sign algorithm"
-	ErrInvalidEncAlgorithm     common.ErrMsg = "Invalid encryption algorithm"
-)
-
-const (
-	AsConfFileName    = "as.ini"
-	KeyAlgSectionName = "Key Algorithms"
-	AsSectionName     = "AS Certificate"
-	IssuerSectionName = "Issuer Certificate"
-)
-
-var (
-	validSignAlgorithms = []string{scrypto.Ed25519}
-	validEncAlgorithms  = []string{scrypto.Curve25519xSalsa20Poly1305}
-)
-
-// As contains the as.ini configuration parameters.
-type As struct {
-	*AsCert        `ini:"AS Certificate"`
-	*IssuerCert    `ini:"Issuer Certificate,omitempty"`
-	*KeyAlgorithms `ini:"Key Algorithms,omitempty"`
+// ASFile returns the file where the AS certificate config is written to.
+func ASFile(dir string, ia addr.IA, version scrypto.Version) string {
+	return filepath.Join(pkicmn.GetAsPath(dir, ia), fmt.Sprintf("as-v%d.toml", version))
 }
 
-func (a *As) validate() error {
-	if a.AsCert == nil {
-		return common.NewBasicError(ErrAsCertMissing, nil)
+// AllASFiles returns a glob string that matches all AS files for the given IA.
+func AllASFiles(dir string, ia addr.IA) string {
+	return filepath.Join(pkicmn.GetAsPath(dir, ia), "as-v*.toml")
+}
+
+// AS holds the AS certificate configuration.
+type AS struct {
+	Description          string              `toml:"description"`
+	Version              scrypto.Version     `toml:"version"`
+	SigningKeyVersion    *scrypto.KeyVersion `toml:"signing_key_version"`
+	EncryptionKeyVersion *scrypto.KeyVersion `toml:"encryption_key_version"`
+	RevocationKeyVersion *scrypto.KeyVersion `toml:"revocation_key_version"`
+	IssuerIA             addr.IA             `toml:"issuer_ia"`
+	IssuerCertVersion    scrypto.Version     `toml:"issuer_cert_version"`
+	OptDistPoints        []addr.IA           `toml:"optional_distribution_points"`
+	Validity             Validity            `toml:"validity"`
+}
+
+// LoadAS loads the AS certificate configuration from the provided file. The
+// contents are already validated.
+func LoadAS(file string) (AS, error) {
+	var cfg AS
+	if _, err := toml.DecodeFile(file, &cfg); err != nil {
+		return AS{}, serrors.WrapStr("unable to load AS certificate config from file", err,
+			"file", file)
 	}
-	if err := a.AsCert.validate(); err != nil {
-		return err
+	if err := cfg.Validate(); err != nil {
+		return AS{}, serrors.WrapStr("unable to validate AS certificate config", err, "file", file)
 	}
-	if a.IssuerCert != nil && a.IssuerCert.BaseCert != nil {
-		if err := a.IssuerCert.validate(); err != nil {
-			return err
-		}
-	}
-	if a.KeyAlgorithms != nil {
-		return a.KeyAlgorithms.validate()
+	return cfg, nil
+}
+
+// Encode writes the encoded AS certificate config to the writer.
+func (cfg AS) Encode(w io.Writer) error {
+	if err := toml.NewEncoder(w).Encode(cfg); err != nil {
+		return serrors.WrapStr("unable to encode AS certificate config", err)
 	}
 	return nil
 }
 
-func (a *As) Write(path string, force bool) error {
-	// Check if file exists and do not override without -f
-	if !force {
-		// Check if the file already exists.
-		if _, err := os.Stat(path); err == nil {
-			pkicmn.QuietPrint("%s already exists. Use -f to overwrite.\n", path)
-			return nil
-		}
+// Validate checks all values are set.
+func (cfg AS) Validate() error {
+	switch {
+	case cfg.Description == "":
+		return serrors.New("description not set")
+	case cfg.Version == scrypto.LatestVer:
+		return serrors.New("version not set")
+	case cfg.SigningKeyVersion == nil:
+		return serrors.New("signing_key_version not set")
+	case cfg.EncryptionKeyVersion == nil:
+		return serrors.New("encryption_key_version not set")
+	case cfg.IssuerIA.IsWildcard():
+		return serrors.New("issuer_ia is wildcard", "input", cfg.IssuerIA)
+	case cfg.IssuerCertVersion == scrypto.LatestVer:
+		return serrors.New("issuer_cert_version not set")
 	}
-	iniCfg := ini.Empty()
-	if err := iniCfg.ReflectFrom(a); err != nil {
-		return err
-	}
-	if err := iniCfg.SaveTo(path); err != nil {
-		return err
-	}
-	pkicmn.QuietPrint("Successfully written %s\n", path)
-	return nil
-}
-
-func NewTemplateAsConf(subject addr.IA, trcVer uint64, core bool) *As {
-	a := &As{}
-	bc := NewTemplateCertConf(trcVer)
-	a.AsCert = &AsCert{
-		Issuer:   "0-0",
-		BaseCert: bc,
-	}
-
-	if core {
-		ibc := NewTemplateCertConf(trcVer)
-		a.IssuerCert = &IssuerCert{
-			BaseCert: ibc,
-		}
-		a.AsCert.Issuer = subject.String()
-		a.KeyAlgorithms = &KeyAlgorithms{
-			Online:  scrypto.Ed25519,
-			Offline: scrypto.Ed25519,
-		}
-	}
-	return a
-}
-
-func LoadAsConf(dir string) (*As, error) {
-	cname := filepath.Join(dir, AsConfFileName)
-	cfg, err := ini.Load(cname)
-	if err != nil {
-		return nil, err
-	}
-	as := &As{}
-	if err := cfg.MapTo(as); err != nil {
-		return nil, err
-	}
-	if err := as.validate(); err != nil {
-		return nil, err
-	}
-	return as, nil
-}
-
-// AsCert corresponds to the "As Certificate" section.
-type AsCert struct {
-	Issuer    string
-	IssuerIA  addr.IA `ini:"-"`
-	*BaseCert `ini:"AS Certificate"`
-}
-
-func (ac *AsCert) validate() error {
-	if ac.Issuer == "" || ac.Issuer == "0-0" {
-		return common.NewBasicError(ErrIssuerMissing, nil)
-	}
-	var err error
-	if ac.IssuerIA, err = addr.IAFromString(ac.Issuer); err != nil {
-		return err
-	}
-	if ac.BaseCert == nil {
-		panic("ac.BaseCert is nil")
-	}
-	return ac.BaseCert.validate()
-}
-
-// IssuerCert corresponds to the "Issuer Certificate" section.
-type IssuerCert struct {
-	*BaseCert `ini:"Issuer Certificate"`
-}
-
-// BaseCert holds the parameters that are used to create certs.
-type BaseCert struct {
-	Comment       string        `comment:"Description of the AS and certificate"`
-	EncAlgorithm  string        `comment:"Encryption algorithm used by AS, e.g., curve25519xsalsa20poly1305"`
-	SignAlgorithm string        `comment:"Signing algotirhm used by AS, e.g., ed25519"`
-	IssuingTime   uint32        `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
-	TRCVersion    uint64        `comment:"The version of the current TRC"`
-	Version       uint64        `comment:"The version of the certificate. Cannot be 0"`
-	Validity      time.Duration `ini:"-"`
-	RawValidity   string        `ini:"Validity" comment:"The validity of the certificate as duration string, e.g., 180d or 36h"`
-}
-
-// KeyAlgorithms corresponds to the "Key Algorithms" section
-type KeyAlgorithms struct {
-	Online  string `comment:"Signing algorithm used by Online Key, e.g., ed25519"`
-	Offline string `comment:"Signing algorithm used by Offline Key, e.g., ed25519"`
-}
-
-func (c *BaseCert) validate() error {
-	if c.EncAlgorithm == "" {
-		c.EncAlgorithm = scrypto.Curve25519xSalsa20Poly1305
-	}
-	if err := validateEncAlgorithm(c.EncAlgorithm); err != nil {
-		return err
-	}
-	if c.SignAlgorithm == "" {
-		c.SignAlgorithm = scrypto.Ed25519
-	}
-	if err := validateSignAlgorithm(c.SignAlgorithm); err != nil {
-		return err
-	}
-	if c.TRCVersion == 0 {
-		return common.NewBasicError(ErrTRCVersionNotSet, nil)
-	}
-	if c.Version == 0 {
-		return common.NewBasicError(ErrVersionNotSet, nil)
-	}
-	if c.RawValidity == "" {
-		c.RawValidity = "0s"
-	}
-	var err error
-	c.Validity, err = util.ParseDuration(c.RawValidity)
-	if err != nil {
-		return common.NewBasicError(ErrInvalidValidityDuration, nil, "duration", c.RawValidity)
-	}
-	if int64(c.Validity) == 0 {
-		return common.NewBasicError(ErrValidityDurationNotSet, nil)
+	if err := cfg.Validity.Validate(); err != nil {
+		return serrors.WrapStr("invalid validity", err)
 	}
 	return nil
-}
-
-func (ka *KeyAlgorithms) validate() error {
-	if ka.Online == "" {
-		ka.Online = scrypto.Ed25519
-	}
-	if err := validateSignAlgorithm(ka.Online); err != nil {
-		return err
-	}
-	if ka.Offline == "" {
-		ka.Offline = scrypto.Ed25519
-	}
-	return validateSignAlgorithm(ka.Offline)
-}
-
-func validateSignAlgorithm(algorithm string) error {
-	return validateAlgorithm(algorithm, validSignAlgorithms, ErrInvalidSignAlgorithm)
-
-}
-
-func validateEncAlgorithm(algorithm string) error {
-	return validateAlgorithm(algorithm, validEncAlgorithms, ErrInvalidEncAlgorithm)
-}
-
-func validateAlgorithm(algorithm string, valid []string, errMsg common.ErrMsg) error {
-	for _, a := range valid {
-		if a == algorithm {
-			return nil
-		}
-	}
-	return common.NewBasicError(errMsg, nil, "algorithm", algorithm)
-}
-
-func NewTemplateCertConf(trcVer uint64) *BaseCert {
-	return &BaseCert{
-		EncAlgorithm:  scrypto.Curve25519xSalsa20Poly1305,
-		SignAlgorithm: scrypto.Ed25519,
-		Version:       1,
-		TRCVersion:    trcVer,
-	}
 }

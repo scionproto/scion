@@ -18,8 +18,7 @@ package cert_mgmt
 import (
 	"fmt"
 
-	legacy "github.com/scionproto/scion/go/lib/scrypto/trc"
-	"github.com/scionproto/scion/go/lib/scrypto/trc/v2"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -27,13 +26,6 @@ var _ proto.Cerealizable = (*TRC)(nil)
 
 type TRC struct {
 	RawTRC []byte `capnp:"trc"`
-}
-
-func (t *TRC) TRC() (*legacy.TRC, error) {
-	if t.RawTRC == nil {
-		return nil, nil
-	}
-	return legacy.TRCFromRaw(t.RawTRC, true)
 }
 
 func (t *TRC) ProtoId() proto.ProtoIdType {

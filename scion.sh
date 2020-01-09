@@ -35,7 +35,7 @@ cmd_topology() {
         ./tools/quiet ./tools/dc run utils_chowner
     fi
     run_jaeger
-    load_cust_keys
+    #FIXME(lukedirtwalker): Re-enalbe for v2 trust: load_cust_keys
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)
         echo "Generating TLS cert"

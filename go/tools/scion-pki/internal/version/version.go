@@ -22,7 +22,7 @@ import (
 
 const (
 	major = 0
-	minor = 2
+	minor = 3
 )
 
 func runVersion() {

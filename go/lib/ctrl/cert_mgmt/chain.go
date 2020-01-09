@@ -18,8 +18,7 @@ package cert_mgmt
 import (
 	"fmt"
 
-	legacy "github.com/scionproto/scion/go/lib/scrypto/cert"
-	"github.com/scionproto/scion/go/lib/scrypto/cert/v2"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -27,13 +26,6 @@ var _ proto.Cerealizable = (*Chain)(nil)
 
 type Chain struct {
 	RawChain []byte `capnp:"chain"`
-}
-
-func (c *Chain) Chain() (*legacy.Chain, error) {
-	if c.RawChain == nil {
-		return nil, nil
-	}
-	return legacy.ChainFromRaw(c.RawChain, true)
 }
 
 func (c *Chain) ProtoId() proto.ProtoIdType {
