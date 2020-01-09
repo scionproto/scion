@@ -5,7 +5,7 @@ set -euo pipefail
 
 # ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
 # acceptance framework
-export ACCEPTANCE_ARTIFACTS=test-artifacts
+export ACCEPTANCE_ARTIFACTS=/tmp/test-artifacts
 
 echo "Clean existing environment"
 . .buildkite/hooks/pre-exit
