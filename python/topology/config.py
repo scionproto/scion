@@ -32,9 +32,7 @@ from plumbum import local
 from lib.defines import (
     DEFAULT_MTU,
     DEFAULT6_NETWORK,
-    DEFAULT6_PRIV_NETWORK,
     NETWORKS_FILE,
-    PRV_NETWORKS_FILE,
 )
 from lib.packet.scion_addr import ISD_AS
 from lib.util import (
@@ -53,15 +51,12 @@ from topology.net import (
     PortGenerator,
     SubnetGenerator,
     DEFAULT_NETWORK,
-    DEFAULT_PRIV_NETWORK
 )
 from topology.prometheus import PrometheusGenArgs, PrometheusGenerator
 from topology.supervisor import SupervisorGenArgs, SupervisorGenerator
 from topology.topo import TopoGenArgs, TopoGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
-
-GENERATE_BIND_ADDRESS = False
 
 
 class ConfigGenArgs(ArgsBase):
@@ -92,20 +87,8 @@ class ConfigGenerator(object):
         Configure default network.
         """
         defaults = self.topo_config.get("defaults", {})
-        def_network = network
-        if not def_network:
-            def_network = defaults.get("subnet")
-        if not def_network:
-            if self.args.ipv6:
-                def_network = DEFAULT6_NETWORK
-            else:
-                def_network = DEFAULT_NETWORK
-        if self.args.ipv6:
-            priv_net = DEFAULT6_PRIV_NETWORK
-        else:
-            priv_net = DEFAULT_PRIV_NETWORK
-        self.subnet_gen = SubnetGenerator(def_network, self.args.docker, self.args.in_docker)
-        self.prvnet_gen = SubnetGenerator(priv_net, self.args.docker, self.args.in_docker)
+        self.subnet_gen4 = SubnetGenerator(DEFAULT_NETWORK, self.args.docker, self.args.in_docker)
+        self.subnet_gen6 = SubnetGenerator(DEFAULT6_NETWORK, self.args.docker, self.args.in_docker)
         self.default_mtu = defaults.get("mtu", DEFAULT_MTU)
 
     def generate_all(self):
@@ -113,11 +96,9 @@ class ConfigGenerator(object):
         Generate all needed files.
         """
         self._ensure_uniq_ases()
-        topo_dicts, self.networks, prv_networks = self._generate_topology()
+        topo_dicts, self.networks = self._generate_topology()
         self._generate_with_topo(topo_dicts)
         self._write_networks_conf(self.networks, NETWORKS_FILE)
-        if self.args.bind_addr:
-            self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
 
     def _ensure_uniq_ases(self):
         seen = set()
@@ -170,8 +151,8 @@ class ConfigGenerator(object):
         return topo_gen.generate()
 
     def _topo_args(self):
-        return TopoGenArgs(self.args, self.topo_config, self.subnet_gen,
-                           self.prvnet_gen, self.default_mtu, self.port_gen)
+        return TopoGenArgs(self.args, self.topo_config, self.subnet_gen4,
+                           self.subnet_gen6, self.default_mtu, self.port_gen)
 
     def _generate_supervisor(self, topo_dicts):
         args = self._supervisor_args(topo_dicts)

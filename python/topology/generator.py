@@ -29,13 +29,10 @@ from topology.config import (
     ConfigGenerator,
     ConfigGenArgs,
     DEFAULT_TOPOLOGY_FILE,
-    GENERATE_BIND_ADDRESS,
 )
 
 
 def add_arguments(parser):
-    parser.add_argument('-6', '--ipv6', action='store_true',
-                        help='Generate IPv6 addresses')
     parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
                         help='Path policy file')
     parser.add_argument('-d', '--docker', action='store_true',
@@ -44,8 +41,6 @@ def add_arguments(parser):
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
-    parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
-                        help='Generate bind addresses (E.g. "192.168.0.0/16"')
     parser.add_argument('-t', '--trace', action='store_true',
                         help='Enable TRACE level file logging in Go services')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
