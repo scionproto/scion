@@ -86,19 +86,10 @@ func revocation_core_to_local_isd() int {
 	pkt2.SetChecksum("UDP", "IP4")
 	pkt2.SetChecksum("UDP_1", "SCION")
 
-	pkt3 := pkt2.CloneAndUpdate(`
-		IP4: Dst=192.168.0.61
-		SCION:
-			ADDR: Dst=BS
-	`)
-	pkt3.SetDev("veth_int")
-	pkt3.SetChecksum("UDP", "IP4")
-	pkt3.SetChecksum("UDP_1", "SCION")
-
 	SendPackets(pkt0)
 
-	return ExpectedPackets("Revocation from core to local ISD, fork to PS and BS",
-		defaultTimeout, pkt1, pkt2, pkt3)
+	return ExpectedPackets("Revocation from core to local ISD and fork to PS",
+		defaultTimeout, pkt1, pkt2)
 }
 
 func revocation_child_to_internal_host() int {
@@ -234,19 +225,10 @@ func revocation_parent_to_child() int {
 	pkt2.SetChecksum("UDP", "IP4")
 	pkt2.SetChecksum("UDP_1", "SCION")
 
-	pkt3 := pkt2.CloneAndUpdate(`
-		IP4: Dst=192.168.0.61
-		SCION:
-			ADDR: Dst=BS
-	`)
-	pkt3.SetDev("veth_int")
-	pkt3.SetChecksum("UDP", "IP4")
-	pkt3.SetChecksum("UDP_1", "SCION")
-
 	SendPackets(pkt0)
 
-	return ExpectedPackets("Revocation from parent to child, fork to PS and BS",
-		defaultTimeout, pkt1, pkt2, pkt3)
+	return ExpectedPackets("Revocation from parent to child, fork to PS",
+		defaultTimeout, pkt1, pkt2)
 }
 
 func revocation_owned_peer() int {
