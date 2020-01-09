@@ -36,6 +36,7 @@ build_docker_perapp() {
 
 artifacts_dir() {
     export ACCEPTANCE_ARTIFACTS="${ACCEPTANCE_ARTIFACTS:-$(mktemp -d /tmp/acceptance-artifacts-$(date +"%Y%m%d-%H%M%S").XXXXXXX)}"
+    mkdir -p "${ACCEPTANCE_ARTIFACTS}"
     echo "Acceptance artifacts saved to $ACCEPTANCE_ARTIFACTS"
 }
 
