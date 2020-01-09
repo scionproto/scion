@@ -11,24 +11,16 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package trust
+// limitations under the License.
 
 package trust
 
 import (
-	"context"
-	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -86,184 +78,4 @@ func (b *BasicSigner) Sign(msg []byte) (*proto.SignS, error) {
 // Meta returns the meta data the signer uses when signing.
 func (b *BasicSigner) Meta() infra.SignerMeta {
 	return b.meta
-}
-
-var _ infra.Verifier = (*BasicVerifier)(nil)
-
-// BasicVerifier is a verifier that ignores signatures on cert_mgmt.TRC
-// and cert_mgmt.Chain messages, to avoid dependency cycles.
-type BasicVerifier struct {
-	tsRange infra.SignatureTimestampRange
-	store   *Store
-	ia      addr.IA
-	src     ctrl.SignSrcDef
-	server  net.Addr
-}
-
-// NewBasicVerifier creates a new verifier.
-func NewBasicVerifier(store *Store) *BasicVerifier {
-	return &BasicVerifier{
-		tsRange: infra.SignatureTimestampRange{
-			MaxPldAge:   MaxPldAge,
-			MaxInFuture: MaxInFuture,
-		},
-		store: store,
-	}
-}
-
-// WithIA creates a verifier that is bound to the remote AS. Only
-// signatures created by that AS are accepted.
-func (v *BasicVerifier) WithIA(ia addr.IA) infra.Verifier {
-	verifier := *v
-	verifier.ia = ia
-	return &verifier
-}
-
-// WithSrc returns a verifier that is bound to the specified source. The
-// verifies against the specified source, and not the value provided by the
-// sign meta data.
-func (v *BasicVerifier) WithSrc(src ctrl.SignSrcDef) infra.Verifier {
-	verifier := *v
-	verifier.src = src
-	return &verifier
-}
-
-// WithServer returns a verifier that requests the required crypto material
-// from the specified server.
-func (v *BasicVerifier) WithServer(server net.Addr) infra.Verifier {
-	verifier := *v
-	verifier.server = server
-	return &verifier
-}
-
-// WithSignatureTimestampRange returns a verifier that uses the specified
-// signature timestamp range configuration.
-func (v *BasicVerifier) WithSignatureTimestampRange(
-	timestampRange infra.SignatureTimestampRange) infra.Verifier {
-
-	verifier := *v
-	verifier.tsRange = timestampRange
-	return &verifier
-}
-
-// Verify verifies the message based on the provided sign meta data.
-func (v *BasicVerifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) error {
-	if err := v.sanityChecks(sign, false); err != nil {
-		return err
-	}
-	return v.verify(ctx, msg, sign)
-}
-
-// VerifyPld verifies and unpacks the signed payload. In addition to the
-// regular checks, this also verifies that the signature is not older than
-// SignatureValidity.
-func (v *BasicVerifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
-	cpld, err := ctrl.NewPldFromRaw(spld.Blob)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to parse payload", err)
-	}
-	if v.ignoreSign(cpld, spld.Sign) {
-		// Do not increase metric because we skip verification.
-		return cpld, nil
-	}
-	if err := v.sanityChecks(spld.Sign, true); err != nil {
-		return nil, common.NewBasicError("Sanity check failed", err, "pld", cpld)
-	}
-	if err := v.verify(ctx, spld.Blob, spld.Sign); err != nil {
-		return nil, common.NewBasicError("Unable to verify", err, "pld", cpld)
-	}
-	return cpld, nil
-}
-
-func (v *BasicVerifier) ignoreSign(p *ctrl.Pld, sign *proto.SignS) bool {
-	u0, _ := p.Union()
-	outer, ok := u0.(*cert_mgmt.Pld)
-	if !ok {
-		return false
-	}
-	u1, _ := outer.Union()
-	switch u1.(type) {
-	case *cert_mgmt.Chain, *cert_mgmt.TRC:
-		return true
-	case *cert_mgmt.ChainReq, *cert_mgmt.TRCReq:
-		if sign == nil || sign.Type == proto.SignType_none {
-			return true
-		}
-	}
-	return false
-}
-
-func (v *BasicVerifier) sanityChecks(sign *proto.SignS, isPldSignature bool) error {
-	l := metrics.VerificationLabels{Type: metrics.Signature, Result: metrics.ErrValidate}
-	if sign == nil {
-		metrics.Store.Verification(l).Inc()
-		return serrors.New("SignS is unset")
-	}
-	if len(sign.Signature) == 0 {
-		metrics.Store.Verification(l).Inc()
-		return common.NewBasicError("SignedPld is missing signature", nil, "type", sign.Type)
-	}
-	now := time.Now()
-	ts := sign.Time()
-	signatureAge := now.Sub(ts)
-	if timeInFuture := -signatureAge; timeInFuture > v.tsRange.MaxInFuture {
-		metrics.Store.Verification(l).Inc()
-		return common.NewBasicError("Invalid timestamp. Signature from future", nil,
-			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
-			"maxFuture", v.tsRange.MaxInFuture)
-	}
-	if isPldSignature && signatureAge > v.tsRange.MaxPldAge {
-		metrics.Store.Verification(l).Inc()
-		return common.NewBasicError("Invalid timestamp. Signature expired", nil,
-			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
-			"validity", v.tsRange.MaxPldAge)
-	}
-	return nil
-}
-
-func (v *BasicVerifier) verify(ctx context.Context, msg []byte,
-	sign *proto.SignS) error {
-
-	var err error
-	ctx = metrics.CtxWith(ctx, metrics.SigVerification)
-	l := metrics.VerificationLabels{Type: metrics.Signature, Result: metrics.ErrValidate}
-	src := v.src
-	if src.IsUninitialized() {
-		if src, err = ctrl.NewSignSrcDefFromRaw(sign.Src); err != nil {
-			metrics.Store.Verification(l).Inc()
-			return err
-		}
-	}
-	if err := v.checkSrc(src); err != nil {
-		metrics.Store.Verification(l).Inc()
-		return err
-	}
-	opts := infra.ChainOpts{
-		TrustStoreOpts: infra.TrustStoreOpts{Server: v.server},
-	}
-	chain, err := v.store.GetChain(ctx, src.IA, scrypto.Version(src.ChainVer), opts)
-	if err != nil {
-		metrics.Store.Verification(l.WithResult(metrics.ErrNotFound)).Inc()
-		return err
-	}
-	err = scrypto.Verify(sign.SigInput(msg, false), sign.Signature, chain.Leaf.SubjectSignKey,
-		chain.Leaf.SignAlgorithm)
-	if err != nil {
-		metrics.Store.Verification(l.WithResult(metrics.ErrVerify)).Inc()
-		return common.NewBasicError("Verification failed", err)
-	}
-	metrics.Store.Verification(l.WithResult(metrics.Success)).Inc()
-	return nil
-}
-
-func (v *BasicVerifier) checkSrc(src ctrl.SignSrcDef) error {
-	if v.ia.A != 0 && src.IA.A != v.ia.A {
-		return common.NewBasicError("AS does not match bound source", nil,
-			"srcSet", !v.src.IsUninitialized(), "expected", v.ia, "actual", src.IA)
-	}
-	if v.ia.I != 0 && src.IA.I != v.ia.I {
-		return common.NewBasicError("ISD does not match bound source", nil,
-			"srcSet", !v.src.IsUninitialized(), "expected", v.ia, "actual", src.IA)
-	}
-	return nil
 }
