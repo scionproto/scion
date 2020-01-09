@@ -23,8 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 var errNoFilesFound = serrors.New("no config files found")

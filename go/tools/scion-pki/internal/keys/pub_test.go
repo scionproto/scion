@@ -32,8 +32,8 @@ import (
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 func TestPubGenRun(t *testing.T) {

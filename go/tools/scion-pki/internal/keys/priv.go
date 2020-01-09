@@ -28,8 +28,8 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 type privGen struct {

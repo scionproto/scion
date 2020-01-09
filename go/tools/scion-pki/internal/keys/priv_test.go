@@ -33,8 +33,8 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 var ia110 = xtest.MustParseIA("1-ff00:0:110")
