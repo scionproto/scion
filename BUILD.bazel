@@ -13,7 +13,7 @@ pkg_tar(
     srcs = [
         "//go/beacon_srv:beacon_srv",
         "//go/border:border",
-		"//go/cs:cs",
+        "//go/cs:cs",
         "//go/cert_srv:cert_srv",
         "//go/godispatcher:godispatcher",
         "//go/tools/logdog:logdog",

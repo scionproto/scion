@@ -23,6 +23,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/assert"
 
+	controlconfig "github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
@@ -77,7 +78,7 @@ func InitTestConfig(cfg *Config) {
 	InitTestCSConfig(&cfg.CS)
 }
 
-func InitTestCSConfig(cfg *CSConfig) {
+func InitTestCSConfig(cfg *controlconfig.CSConfig) {
 	cfg.AutomaticRenewal = true
 	cfg.DisableCorePush = true
 }
@@ -89,7 +90,7 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	CheckTestCSConfig(t, &cfg.CS)
 }
 
-func CheckTestCSConfig(t *testing.T, cfg *CSConfig) {
+func CheckTestCSConfig(t *testing.T, cfg *controlconfig.CSConfig) {
 	assert.Equal(t, ReissReqRate, cfg.ReissueRate.Duration)
 	assert.Equal(t, ReissueReqTimeout, cfg.ReissueTimeout.Duration)
 	assert.False(t, cfg.AutomaticRenewal)

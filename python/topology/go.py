@@ -90,8 +90,7 @@ class GoGenerator(object):
                            toml.dumps(br_conf))
 
     def _build_br_conf(self, topo_id, ia, base, name, v):
-        config_dir = '/share/conf' if self.args.docker else os.path.join(
-            base, name)
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         raw_entry = {
             'general': {
                 'ID': name,

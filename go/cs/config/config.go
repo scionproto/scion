@@ -78,6 +78,14 @@ const (
 	ErrCustomers common.ErrMsg = "Unable to load Customers"
 )
 
+// Config samples
+const (
+	BSSample       = bsconfigSample
+	CSSample       = csconfigSample
+	PSSample       = psconfigSample
+	PoliciesSample = policiesSample
+)
+
 var _ config.Config = (*Config)(nil)
 
 // Config is the beacon server configuration.
@@ -341,7 +349,7 @@ func (cfg *PSConfig) Validate() error {
 }
 
 func (cfg *PSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, psSample)
+	config.WriteString(dst, psconfigSample)
 	config.WriteSample(dst, path, ctx, &cfg.PathDB, &cfg.RevCache)
 }
 
