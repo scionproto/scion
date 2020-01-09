@@ -25,7 +25,32 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "v2",
-	Short: "Use the new format",
+	Short: "Scion Public Key Infrastructure Management Tool",
+	Long: `scion-pki is a tool to generate keys, certificates, and trust
+root configuration files used in the SCION control plane PKI.
+
+The subcommands expect the contents of the root directory to follow a rigid and
+predefined file structure:
+
+<root>
+├── ISD1
+│   ├── ASff00_0_c
+│   │   ├── as-v1.toml      # AS certificate configuration (versioned)
+│   │   ├── certs           # Dir containing issuer certificates and certificate chains
+│   │   ├── issuer-v1.toml  # Issuer certificate configuration (versioned)
+│   │   ├── keys            # Dir containing private keys
+│   │   ├── keys.toml       # Keys configuration file
+│   │   └── pub             # Dir containing public keys
+│   ├── trcs                # Dir containing partial and signed TRCs
+│   │   └── ISD1-V1.parts   # Dir containing partially signed TRC for specific version
+│   └── trc-v1.toml         # TRC configuration (versioned)
+
+A sample file structure can be generated in 'DIR' by running:
+  scion-pki v2 tmpl sample > $DIR/sample.topo
+  scion-pki v2 tmpl topo -d $DIR sample.topo
+
+The 'certs', 'keys', 'trcs' directories are created on demand by the tool.
+`,
 }
 
 func init() {

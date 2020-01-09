@@ -31,30 +31,43 @@ var version uint64
 var Cmd = &cobra.Command{
 	Use:   "trcs",
 	Short: "Generate TRCs for the SCION control plane PKI",
-	Long: `
-'trc' can be used to generate Trust Root Configuration (TRC) files used in the SCION control
-plane PKI.
+	Long: `'trc' can be used to generate Trust Root Configuration (TRC) files used in the
+SCION control plane PKI.
 
 Generating a TRC can be split into three phases:
 1. 'proto': Generate the prototype TRC that contains the payload part of the signed TRC.
 2. 'sign': Sign the payload with the respective private keys.
 3. 'combine': Combine the signatures and the payload to a fully signed TRC.
 
-In case the caller has access to all private keys, the caller can use a short-cut command
-that generates the signed TRC in one call: 'gen'.
+In case the caller has access to all private keys, the caller can use a
+short-cut command that generates the signed TRC in one call: 'gen'.
 
 Selector:
-	*
-		All ISDs under the root directory.
-	X
-		ISD X.
+    *: All ISDs under the root directory.
+    X: ISD X.
+
+The subcommands expect the contents of the root directory to follow a predefined
+file structure. See 'scion-pki help v2' for more information.
 `,
 }
 
 var gen = &cobra.Command{
 	Use:   "gen",
 	Short: "Generate new TRCs",
-	Args:  cobra.ExactArgs(1),
+	Example: `  scion-pki v2 trcs gen 1
+  scion-pki v2 trcs gen '*' -d $SPKI_ROOT_DIR
+  scion-pki v2 trcs gen '*' --version 42`,
+	Long: `'gen' generates the TRCS based on the selector.
+
+This command coalesces the prototype, sign and combine step of the trc generation.
+
+This command requires a valid TRC configuration file. Further, all private keys
+for the signing ASes must be present. For non-base TRCs, the previous TRC must
+be present.
+
+See 'scion-pki help v2 trcs' for information on the selector.
+`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		g := fullGen{
 			Dirs:    pkicmn.GetDirs(),
@@ -74,9 +87,18 @@ var gen = &cobra.Command{
 var proto = &cobra.Command{
 	Use:   "proto",
 	Short: "Generate new proto TRCs",
-	Long: `
-	'proto' generates new prototype TRCs from the ISD configs. They need to be signed
-	using the sign command.
+	Example: `  scion-pki v2 trcs proto 1
+  scion-pki v2 trcs proto '*' -d $SPKI_ROOT_DIR
+  scion-pki v2 trcs proto '*' --version 42`,
+	Long: `'proto' generates the prototype TRCs based on the selector.
+
+This command requires a valid TRC configuration file. Further, the private or
+public key for each key referenced in the TRC must be present. For non-base TRCs,
+the previous TRC must be present.
+
+The prototype TRC is stored in a sub-directory of 'trcs'.
+
+See 'scion-pki help v2 trcs' for information on the selector.
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -98,8 +120,19 @@ var proto = &cobra.Command{
 var sign = &cobra.Command{
 	Use:   "sign",
 	Short: "Sign the proto TRCs",
-	Long: `
-	'sign' generates new signatures for the proto TRCs.
+	Example: `  scion-pki v2 trcs sign 1-ff00:0:110
+  scion-pki v2 trcs sign '1-*' -d $SPKI_ROOT_DIR
+  scion-pki v2 trcs sign '*' --version 42`,
+	Long: `'sign' generates the partial signatures for TRCs based on the selector.
+
+This command requires a valid TRC configuration file. Further, the private keys
+that issue the votes and/or proof of possessions are required. For non-base TRCs,
+the previous TRC must be present.
+
+Selector:
+    *-*: All ASes under the root directory.
+    X-*: All ASes in ISD X.
+    X-Y: A specific AS X-Y, e.g. AS 1-ff00:0:110.
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -121,8 +154,16 @@ var sign = &cobra.Command{
 var combine = &cobra.Command{
 	Use:   "combine",
 	Short: "Combine the proto TRCs with their signatures",
-	Long: `
-	'combine' generates a new signed TRC from the prototype TRC and the signatures.
+	Example: `  scion-pki v2 trcs combine 1
+  scion-pki v2 trcs combine '*' -d $SPKI_ROOT_DIR
+  scion-pki v2 trcs combine '*' --version 42`,
+	Long: `'combine' generates a new signed TRC from the prototype TRC and the signatures
+based on the selector.
+
+This command requires the prototype TRC and all partial signatures. For non-base
+TRCs, the previous TRC must be present.
+
+See 'scion-pki help v2 trcs' for information on the selector.
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -144,8 +185,9 @@ var combine = &cobra.Command{
 var human = &cobra.Command{
 	Use:   "human",
 	Short: "Display human readable",
-	Long: `
-	'human' parses the provided TRCs and displays them in a human readable format.
+	Example: `  scion-pki v2 trcs human ISD1/trcs/ISD1-V1.trc
+  scion-pki v2 trcs human ISD1/trcs/*`,
+	Long: `'human' parses the provided TRCs and displays them in a human readable format.
 `,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

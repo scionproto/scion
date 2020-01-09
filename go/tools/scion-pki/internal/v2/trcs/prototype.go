@@ -66,7 +66,7 @@ func (g protoGen) Run(asMap pkicmn.ASMap) error {
 }
 
 // Generate generates the prototype TRCs for all provided configurations.
-func (g protoGen) Generate(cfgs map[addr.ISD]conf.TRC2) (map[addr.ISD]signedMeta, error) {
+func (g protoGen) Generate(cfgs map[addr.ISD]conf.TRC) (map[addr.ISD]signedMeta, error) {
 	trcs := make(map[addr.ISD]signedMeta)
 	for isd, cfg := range cfgs {
 		signed, err := g.generate(isd, cfg)
@@ -80,7 +80,7 @@ func (g protoGen) Generate(cfgs map[addr.ISD]conf.TRC2) (map[addr.ISD]signedMeta
 }
 
 // generate generates the prototype TRC for a specific configuration.
-func (g protoGen) generate(isd addr.ISD, cfg conf.TRC2) (signedMeta, error) {
+func (g protoGen) generate(isd addr.ISD, cfg conf.TRC) (signedMeta, error) {
 	pubKeys, err := g.loadPubKeys(isd, cfg)
 	if err != nil {
 		return signedMeta{}, serrors.WrapStr("unable to load all public keys", err)
@@ -101,7 +101,7 @@ func (g protoGen) generate(isd addr.ISD, cfg conf.TRC2) (signedMeta, error) {
 }
 
 // loadPubKeys loads all public keys necessary for the given configuration.
-func (g protoGen) loadPubKeys(isd addr.ISD, cfg conf.TRC2) (map[addr.AS]pubKeys, error) {
+func (g protoGen) loadPubKeys(isd addr.ISD, cfg conf.TRC) (map[addr.AS]pubKeys, error) {
 	all := make(map[addr.AS]pubKeys)
 	for as, primary := range cfg.PrimaryASes {
 		ia := addr.IA{I: isd, A: as}
@@ -178,7 +178,7 @@ func (g protoGen) loadPubKey(id keyconf.ID) (keyconf.Key, error) {
 	return key, nil
 }
 
-func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC2, keys map[addr.AS]pubKeys) (*trc.TRC, error) {
+func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC, keys map[addr.AS]pubKeys) (*trc.TRC, error) {
 	quorum := uint8(cfg.VotingQuorum)
 	reset := *cfg.TrustResetAllowed
 	val := cfg.Validity.Eval(time.Now())

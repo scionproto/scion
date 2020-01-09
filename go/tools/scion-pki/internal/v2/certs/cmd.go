@@ -28,42 +28,33 @@ var version uint64
 var Cmd = &cobra.Command{
 	Use:   "certs",
 	Short: "Interact with certificates for the SCION control plane PKI.",
-	Long: `
-'certs' can be used to generate and verify certificates for the SCION control plane PKI.
+	Long: `'certs' can be used to generate and verify certificates for the SCION control plane PKI.
 
 Selector:
-	*-*
-		All ISDs and ASes under the root directory.
-	X-*
-		All ASes in ISD X.
-	X-Y
-		A specific AS X-Y, e.g. AS 1-ff00:0:300
+    *-*: All ISDs and ASes under the root directory.
+    X-*: All ASes in ISD X.
+    X-Y: A specific AS X-Y, e.g. AS 1-ff00:0:110.
 
-'certs' needs to be pointed to the root directory where all keys and certificates are
-stored on disk (-d flag). It expects the contents of the root directory to follow
-a predefined structure:
-	<root>/
-		ISD1/
-			trc-v1.toml
-			ASff00_0_110/
-				as-v1.toml
-				issuer-v1.toml
-				keys.toml
-				certs/
-				keys/
-			ASff00_0_120/
-			...
-		ISD2/
-			ASff00_0_210/
-			...
-		...
+The subcommands expect the contents of the root directory to follow a predefined
+file structure. See 'scion-pki help v2' for more information.
 `,
 }
 
 var genIssuerCmd = &cobra.Command{
 	Use:   "issuer",
 	Short: "Generate the issuer certificate",
-	Args:  cobra.ExactArgs(1),
+	Example: `  scion-pki v2 certs issuer 1-ff00:0:110
+  scion-pki v2 certs issuer '*'
+  scion-pki v2 certs issuer 1-ff00:0:110 -d $SPKI_ROOT_DIR
+  scion-pki v2 certs issuer 1-ff00:0:110 --version 42`,
+	Long: `'issuer' generates the issuer certificate based on the selector.
+
+This command requires a valid issuer configuration file. Further, the referenced
+TRC and its configuration file must be present.
+
+See 'scion-pki help v2 certs' for information on the selector.
+`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		g := issGen{
 			Dirs:    pkicmn.GetDirs(),
@@ -80,7 +71,19 @@ var genIssuerCmd = &cobra.Command{
 var genChainCmd = &cobra.Command{
 	Use:   "chain",
 	Short: "Generate the certificate chain",
-	Args:  cobra.ExactArgs(1),
+	Example: `  scion-pki v2 certs chain 1-ff00:0:110
+  scion-pki v2 certs chain '*'
+  scion-pki v2 certs chain 1-ff00:0:110 -d $SPKI_ROOT_DIR
+  scion-pki v2 certs chain 1-ff00:0:110 --version 42`,
+	Long: `'chain' generates the AS certificate and the resulting chain based on the selector.
+
+This command requires a valid AS configuration file. Further, the referenced
+issuer certificate and its configuration file must be present. For verification,
+the TRC referenced by the issuer certificate must also be present.
+
+See 'scion-pki help v2 certs' for information on the selector.
+`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		g := chainGen{
 			Dirs:    pkicmn.GetDirs(),
@@ -97,9 +100,11 @@ var genChainCmd = &cobra.Command{
 var humanCmd = &cobra.Command{
 	Use:   "human",
 	Short: "Display human readable issuer certificates and certificate chains",
-	Long: `
-	'human' parses the provided issuer certificate and certificate chain files
-	and displays them in a human readable format.
+	Example: `  scion-pki v2 certs human ISD1/ASff00_0_110/certs/ISD1-ASff00_0_110.crt
+  scion-pki v2 certs human ISD1/ASff00_0_110/certs/ISD1-ASff00_0_110.issuer
+  scion-pki v2 certs human ISD1/ASff00_0_110/certs/*`,
+	Long: `'human' parses the provided issuer certificate and certificate chain files
+and displays them in a human readable format.
 `,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

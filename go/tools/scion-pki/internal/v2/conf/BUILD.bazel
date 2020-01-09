@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "as.go",
+        "doc.go",
         "issuer.go",
         "key.go",
         "trc.go",

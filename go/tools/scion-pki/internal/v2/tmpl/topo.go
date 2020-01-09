@@ -72,8 +72,8 @@ func (g topoGen) setupDirs(topo topoFile) error {
 	return nil
 }
 
-func (g topoGen) genTRCs(topo topoFile) (map[addr.ISD]conf.TRC2, error) {
-	trcs := make(map[addr.ISD]conf.TRC2)
+func (g topoGen) genTRCs(topo topoFile) (map[addr.ISD]conf.TRC, error) {
+	trcs := make(map[addr.ISD]conf.TRC)
 	for isd := range topo.ISDs() {
 		trcs[isd] = g.genTRC(isd, topo)
 		var buf bytes.Buffer
@@ -88,10 +88,10 @@ func (g topoGen) genTRCs(topo topoFile) (map[addr.ISD]conf.TRC2, error) {
 	return trcs, nil
 }
 
-func (g topoGen) genTRC(isd addr.ISD, topo topoFile) conf.TRC2 {
+func (g topoGen) genTRC(isd addr.ISD, topo topoFile) conf.TRC {
 	primaries := topo.Primaries(isd)
 	reset := true
-	cfg := conf.TRC2{
+	cfg := conf.TRC{
 		Description: fmt.Sprintf("ISD %d", isd),
 		Version:     1,
 		BaseVersion: 1,
@@ -109,7 +109,7 @@ func (g topoGen) genTRC(isd addr.ISD, topo topoFile) conf.TRC2 {
 	return cfg
 }
 
-func (g topoGen) genKeys(topo topoFile, cfg map[addr.ISD]conf.TRC2) error {
+func (g topoGen) genKeys(topo topoFile, cfg map[addr.ISD]conf.TRC) error {
 	for ia := range topo.ASes {
 		keys := g.genASKeys(ia.A, cfg[ia.I])
 		var buf bytes.Buffer
@@ -124,7 +124,7 @@ func (g topoGen) genKeys(topo topoFile, cfg map[addr.ISD]conf.TRC2) error {
 	return nil
 }
 
-func (g topoGen) genASKeys(as addr.AS, cfg conf.TRC2) conf.Keys {
+func (g topoGen) genASKeys(as addr.AS, cfg conf.TRC) conf.Keys {
 	keys := conf.Keys{
 		Primary: make(map[trc.KeyType]map[scrypto.KeyVersion]conf.KeyMeta),
 		Issuer:  make(map[cert.KeyType]map[scrypto.KeyVersion]conf.KeyMeta),

@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Tool to generate and verify control-plane PKI primitives.
-package main
-
-import (
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/cmd"
-)
-
-func main() {
-	cmd.Execute()
-}
+// Package keys defines the commands to generate the private and public keys
+// from the key configuration files.
+package keys
