@@ -2,23 +2,13 @@
 
 set -euo pipefail
 
-echo "Clean existing environment"
 
-# TEST_ARTIFACTS is a generic folder for artifacts that need to be used during
-# testing. It will be collected in the artifacts in the end.
-# Note that this has to be defined in a hook, because in the pipeline the $PWD
-# would be evaluated to early (at pipeline expansion) and thus it would possibly
-# be the wrong value on the agent a step is actually executed.
-export TEST_ARTIFACTS="$PWD/test_artifacts"
 # ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
 # acceptance framework
-export ACCEPTANCE_ARTIFACTS="$TEST_ARTIFACTS"
+export ACCEPTANCE_ARTIFACTS=test-artifacts
 
+echo "Clean existing environment"
 . .buildkite/hooks/pre-exit
-
-# Make sure the test artifacts folder exitsts.
-echo "Create test artifacts: mkdir -p $TEST_ARTIFACTS"
-mkdir -p "$TEST_ARTIFACTS"
 
 if [ -z ${BAZEL_REMOTE_S3_ACCESS_KEY_ID+x} ]; then
     echo "S3 env not set, not starting bazel remote proxy"
