@@ -57,6 +57,10 @@ var (
 func SetupLogFile(name string, logDir string, logLevel string, logSize int, logAge int,
 	logBackups int, logFlush int, compress bool) error {
 
+	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
+		return common.NewBasicError("Unable create log directory:", err)
+	}
+
 	logLvl, err := log15.LvlFromString(changeTraceToDebug(logLevel))
 	if err != nil {
 		return common.NewBasicError("Unable to parse log.level flag:", err)
@@ -141,6 +145,7 @@ func setHandlers() {
 	log15.Root().SetHandler(handler)
 }
 
+// LogPanicAndExit catches panics and logs them.
 func LogPanicAndExit() {
 	if msg := recover(); msg != nil {
 		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
@@ -150,6 +155,7 @@ func LogPanicAndExit() {
 	}
 }
 
+// Flush writes the logs to the underlying buffer.
 func Flush() {
 	if logBuf != nil {
 		logBuf.Flush()
