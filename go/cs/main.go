@@ -785,13 +785,10 @@ type chainedHandler struct {
 }
 
 func (h *chainedHandler) Handle(r *infra.Request) *infra.HandlerResult {
-	// go with the simple solution of sequencing them
 	for _, handler := range h.handlers {
-		result := handler.Handle(r)
-		if result.Status != prom.StatusOk {
-			return result
-		}
+		handler.Handle(r)
 	}
+	// Always return success, since the metrics libraries ignore this result anyway
 	return &infra.HandlerResult{
 		Result: prom.Success,
 		Status: prom.StatusOk,

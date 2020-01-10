@@ -16,7 +16,7 @@ package config
 
 const idSample = "cs-1"
 
-const csconfigSample = `
+const CSSample = `
 # Time between starting reissue requests and leaf cert expiration. If not
 # specified, this is set to default PathSegmentTTL. (default 6h)
 LeafReissueLeadTime = "6h"

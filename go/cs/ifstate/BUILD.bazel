@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "doc.go",
+        "export_state.go",
         "handler.go",
         "ifstate.go",
         "metrics.go",

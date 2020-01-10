@@ -171,10 +171,8 @@ class TopoGenerator(object):
                 linkto_b = LinkType.CHILD
             a_br, a_ifid = self._br_name(a, assigned_br_id, br_ids, if_ids)
             b_br, b_ifid = self._br_name(b, assigned_br_id, br_ids, if_ids)
-            self.links[a].append(
-                (linkto_b, b, attrs, a_br, b_br, a_ifid, b_ifid))
-            self.links[b].append(
-                (linkto_a, a, attrs, b_br, a_br, b_ifid, a_ifid))
+            self.links[a].append((linkto_b, b, attrs, a_br, b_br, a_ifid, b_ifid))
+            self.links[b].append((linkto_a, a, attrs, b_br, a_br, b_ifid, a_ifid))
             a_desc = "%s %s" % (a_br, a_ifid)
             b_desc = "%s %s" % (b_br, b_ifid)
             self.ifid_map.setdefault(str(a), {})
@@ -210,8 +208,7 @@ class TopoGenerator(object):
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
         ]
         if self.args.colibri:
-            srvs.append(
-                ("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService"))
+            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService"))
         for conf_key, def_num, nick, topo_key in srvs:
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -293,14 +290,12 @@ class TopoGenerator(object):
                     }
                 },
                 'Interfaces': {
-                    l_ifid: self._gen_br_intf(
-                        remote, public_addr, remote_addr, attrs, remote_type)
+                    l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
                 }
             }
         else:
             # There is already a BR entry, add interface
-            intf = self._gen_br_intf(
-                remote, public_addr, remote_addr, attrs, remote_type)
+            intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
             self.topo_dicts[local]["BorderRouters"][local_br]['Interfaces'][l_ifid] = intf
 
     def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):

@@ -14,7 +14,7 @@
 
 package config
 
-const bsconfigSample = `
+const BSSample = `
 # The interval between sending interface keepalives. (default 1s)
 KeepaliveInterval = "1s"
 
@@ -42,7 +42,7 @@ RevTTL = "10s"
 RevOverlap = "5s"
 `
 
-const policiesSample = `
+const PoliciesSample = `
 # Output a sample policy file by providing the -help-policy flag.
 
 # The file path for the propagation policy. In case of the empty string,

@@ -84,10 +84,8 @@ class GoGenerator(object):
         for topo_id, topo in self.args.topo_dicts.items():
             for k, v in topo.get("BorderRouters", {}).items():
                 base = topo_id.base_dir(self.args.output_dir)
-                br_conf = self._build_br_conf(
-                    topo_id, topo["ISD_AS"], base, k, v)
-                write_file(os.path.join(base, k, BR_CONFIG_NAME),
-                           toml.dumps(br_conf))
+                br_conf = self._build_br_conf(topo_id, topo["ISD_AS"], base, k, v)
+                write_file(os.path.join(base, k, BR_CONFIG_NAME), toml.dumps(br_conf))
 
     def _build_br_conf(self, topo_id, ia, base, name, v):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
@@ -159,14 +157,11 @@ class GoGenerator(object):
                 # only a single Go-BS per AS is currently supported
                 if elem_id.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
-                    bs_conf = self._build_bs_conf(
-                        topo_id, topo["ISD_AS"], base, elem_id, elem)
-                    write_file(os.path.join(base, elem_id,
-                                            BS_CONFIG_NAME), toml.dumps(bs_conf))
+                    bs_conf = self._build_bs_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id, BS_CONFIG_NAME), toml.dumps(bs_conf))
 
     def _build_bs_conf(self, topo_id, ia, base, name, infra_elem):
-        config_dir = '/share/conf' if self.args.docker else os.path.join(
-            base, name)
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         raw_entry = {
             'general': {
                 'ID': name,
@@ -189,14 +184,11 @@ class GoGenerator(object):
                 # only a single Go-PS per AS is currently supported
                 if elem_id.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
-                    ps_conf = self._build_ps_conf(
-                        topo_id, topo["ISD_AS"], base, elem_id, elem)
-                    write_file(os.path.join(base, elem_id,
-                                            PS_CONFIG_NAME), toml.dumps(ps_conf))
+                    ps_conf = self._build_ps_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id, PS_CONFIG_NAME), toml.dumps(ps_conf))
 
     def _build_ps_conf(self, topo_id, ia, base, name, infra_elem):
-        config_dir = '/share/conf' if self.args.docker else os.path.join(
-            base, name)
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         raw_entry = {
             'general': {
                 'ID': name,
@@ -227,10 +219,8 @@ class GoGenerator(object):
                 # only a single Go-CO per AS is currently supported
                 if elem_id.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
-                    co_conf = self._build_co_conf(
-                        topo_id, topo["ISD_AS"], base, elem_id, elem)
-                    write_file(os.path.join(base, elem_id,
-                                            CO_CONFIG_NAME), toml.dumps(co_conf))
+                    co_conf = self._build_co_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id, CO_CONFIG_NAME), toml.dumps(co_conf))
                     traffic_matrix = self._build_co_traffic_matrix(topo_id)
                     write_file(os.path.join(base, elem_id, 'matrix.yml'),
                                yaml.dump(traffic_matrix, default_flow_style=False))
@@ -239,8 +229,7 @@ class GoGenerator(object):
                                yaml.dump(rsvps, default_flow_style=False))
 
     def _build_co_conf(self, topo_id, ia, base, name, infra_elem):
-        config_dir = '/share/conf' if self.args.docker else os.path.join(
-            base, name)
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         raw_entry = {
             'general': {
                 'ID': name,
@@ -261,8 +250,7 @@ class GoGenerator(object):
         Creates a NxN traffic matrix for colibri with N = len(interfaces)
         """
         topo = self.args.topo_dicts[ia]
-        if_ids = {iface for br in topo['BorderRouters'].values(
-        ) for iface in br['Interfaces']}
+        if_ids = {iface for br in topo['BorderRouters'].values() for iface in br['Interfaces']}
         if_ids.add(0)
         bw = int(DEFAULT_LINK_BW / (len(if_ids) - 1))
         traffic_matrix = {}
@@ -282,16 +270,13 @@ class GoGenerator(object):
         if this_as['Core']:
             for dst_ia, topo in self.args.topo_dicts.items():
                 if dst_ia != ia and topo['Core']:
-                    rsvps['Core-%s' %
-                          dst_ia] = self._build_co_reservation(dst_ia, 'Core')
+                    rsvps['Core-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Core')
         else:
             for dst_ia, topo in self.args.topo_dicts.items():
                 if dst_ia != ia and dst_ia._isd == ia._isd and topo['Core']:
                     # reach this core AS in the same ISD
-                    rsvps['Up-%s' %
-                          dst_ia] = self._build_co_reservation(dst_ia, 'Up')
-                    rsvps['Down-%s' %
-                          dst_ia] = self._build_co_reservation(dst_ia, 'Down')
+                    rsvps['Up-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Up')
+                    rsvps['Down-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Down')
         return rsvps
 
     def _build_co_reservation(self, dst_ia, path_type):
@@ -318,10 +303,8 @@ class GoGenerator(object):
     def generate_sciond(self):
         for topo_id, topo in self.args.topo_dicts.items():
             base = topo_id.base_dir(self.args.output_dir)
-            sciond_conf = self._build_sciond_conf(
-                topo_id, topo["ISD_AS"], base)
-            write_file(os.path.join(base, COMMON_DIR,
-                                    SD_CONFIG_NAME), toml.dumps(sciond_conf))
+            sciond_conf = self._build_sciond_conf(topo_id, topo["ISD_AS"], base)
+            write_file(os.path.join(base, COMMON_DIR, SD_CONFIG_NAME), toml.dumps(sciond_conf))
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = sciond_name(topo_id)
@@ -359,14 +342,11 @@ class GoGenerator(object):
                 # only a single Go-CS per AS is currently supported
                 if elem_id.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
-                    cs_conf = self._build_cs_conf(
-                        topo_id, topo["ISD_AS"], base, elem_id, elem)
-                    write_file(os.path.join(base, elem_id,
-                                            CS_CONFIG_NAME), toml.dumps(cs_conf))
+                    cs_conf = self._build_cs_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id, CS_CONFIG_NAME), toml.dumps(cs_conf))
 
     def _build_cs_conf(self, topo_id, ia, base, name, infra_elem):
-        config_dir = '/share/conf' if self.args.docker else os.path.join(
-            base, name)
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         raw_entry = {
             'general': {
                 'ID': name,
@@ -404,18 +384,14 @@ class GoGenerator(object):
         for topo_id, topo in self.args.topo_dicts.items():
             for elem in ["disp", "disp_sig"]:
                 elem = "%s_%s" % (elem, topo_id.file_fmt())
-                elem_dir = os.path.join(
-                    topo_id.base_dir(self.args.output_dir), elem)
+                elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
                 disp_conf = self._build_disp_conf(elem, topo_id)
-                write_file(os.path.join(elem_dir, DISP_CONFIG_NAME),
-                           toml.dumps(disp_conf))
+                write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
             for k, _ in topo.get("BorderRouters", {}).items():
                 disp_id = '%s_%s%s' % ('disp_br', topo_id.file_fmt(), k[-2:])
-                elem_dir = os.path.join(topo_id.base_dir(
-                    self.args.output_dir), disp_id)
+                elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), disp_id)
                 disp_conf = self._build_disp_conf(disp_id, topo_id)
-                write_file(os.path.join(elem_dir, DISP_CONFIG_NAME),
-                           toml.dumps(disp_conf))
+                write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
 
     def _build_disp_conf(self, name, topo_id=None):
         prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
@@ -463,8 +439,7 @@ class GoGenerator(object):
         return entry
 
     def _metrics_entry(self, name, infra_elem, base_port):
-        prom_addr = prom_addr_infra(
-            self.args.docker, name, infra_elem, base_port)
+        prom_addr = prom_addr_infra(self.args.docker, name, infra_elem, base_port)
         return {
             'Prometheus': prom_addr
         }

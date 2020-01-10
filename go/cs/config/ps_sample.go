@@ -14,7 +14,7 @@
 
 package config
 
-const psconfigSample = `
+const PSSample = `
 # Enable the "old" replication of down segments between cores using SegSync
 # messages. (default false)
 SegSync = false

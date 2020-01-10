@@ -78,14 +78,6 @@ const (
 	ErrCustomers common.ErrMsg = "Unable to load Customers"
 )
 
-// Config samples
-const (
-	BSSample       = bsconfigSample
-	CSSample       = csconfigSample
-	PSSample       = psconfigSample
-	PoliciesSample = policiesSample
-)
-
 var _ config.Config = (*Config)(nil)
 
 // Config is the beacon server configuration.
@@ -242,7 +234,7 @@ func (cfg *BSConfig) Validate() error {
 
 // Sample generates a sample for the beacon server specific configuration.
 func (cfg *BSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, bsconfigSample)
+	config.WriteString(dst, BSSample)
 	config.WriteSample(dst, path, ctx, &cfg.Policies)
 }
 
@@ -308,7 +300,7 @@ func (cfg *CSConfig) Validate() error {
 }
 
 func (cfg *CSConfig) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, csconfigSample)
+	config.WriteString(dst, CSSample)
 }
 
 func (cfg *CSConfig) ConfigName() string {
@@ -349,7 +341,7 @@ func (cfg *PSConfig) Validate() error {
 }
 
 func (cfg *PSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, psconfigSample)
+	config.WriteString(dst, PSSample)
 	config.WriteSample(dst, path, ctx, &cfg.PathDB, &cfg.RevCache)
 }
 
@@ -386,7 +378,7 @@ type Policies struct {
 
 // Sample generates a sample for the beacon server specific configuration.
 func (cfg *Policies) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
-	config.WriteString(dst, policiesSample)
+	config.WriteString(dst, PoliciesSample)
 }
 
 // ConfigName is the toml key for the beacon server specific configuration.
