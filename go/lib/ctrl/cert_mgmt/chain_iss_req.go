@@ -18,7 +18,7 @@ package cert_mgmt
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/scrypto/cert/v2/renewal"
+	"github.com/scionproto/scion/go/lib/scrypto/cert/renewal"
 	"github.com/scionproto/scion/go/proto"
 )
 

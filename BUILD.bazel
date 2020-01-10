@@ -17,7 +17,6 @@ pkg_tar(
         "//go/godispatcher:godispatcher",
         "//go/tools/logdog:logdog",
         "//go/path_srv:path_srv",
-        "//go/tools/scion-custpk-load:scion-custpk-load",
         "//go/sciond:sciond",
         "//go/tools/scion-pki:scion-pki",
         "//go/tools/scmp:scmp",
@@ -55,7 +54,6 @@ pkg_tar(
     name = "scion-topo",
     package_dir = "",
     srcs = [
-        "//go/tools/scion-custpk-load:scion-custpk-load",
         "//go/tools/scion-pki:scion-pki",
     ],
     mode = "0755",

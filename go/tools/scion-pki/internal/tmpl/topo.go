@@ -15,17 +15,16 @@
 package tmpl
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
-
-	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -35,95 +34,203 @@ var (
 	rawValidity string
 )
 
-func runGenTopoTmpl(args []string) error {
-	raw, err := ioutil.ReadFile(args[0])
-	if err != nil {
-		return common.NewBasicError("unable to read file", err, "file", args[0])
-	}
-	val, err := validityFromFlags()
-	if err != nil {
-		return err
-	}
-	var topo topoFile
-	if err := yaml.Unmarshal(raw, &topo); err != nil {
-		return common.NewBasicError("unable to parse topo", err, "file", args[0])
-	}
-	isdCfgs := make(map[addr.ISD]*conf.Isd)
-	for isd := range topo.ISDs() {
-		isdCfg := genISDCfg(isd, topo, val)
-		isdCfgs[isd] = isdCfg
-		dir := pkicmn.GetIsdPath(pkicmn.RootDir, isd)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return common.NewBasicError("unable to make ISD directory", err, "isd", isd)
-		}
-		if err := isdCfg.Write(filepath.Join(dir, conf.IsdConfFileName), pkicmn.Force); err != nil {
-			return common.NewBasicError("unable to write ISD config", err, "isd", isd)
-		}
-	}
-	for ia, entry := range topo.ASes {
-		asCfg := genASCfg(ia, entry, val, isdCfgs[ia.I])
-		dir := pkicmn.GetAsPath(pkicmn.RootDir, ia)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return common.NewBasicError("unable to make AS directory", err, "ia", ia)
-		}
-		if err := asCfg.Write(filepath.Join(dir, conf.AsConfFileName), pkicmn.Force); err != nil {
-			return common.NewBasicError("unable to write AS config", err, "ia", ia)
-		}
-	}
+type topoGen struct {
+	Dirs     pkicmn.Dirs
+	Validity conf.Validity
+}
 
+func (g topoGen) Run(topo topoFile) error {
+	if err := g.setupDirs(topo); err != nil {
+		return serrors.WrapStr("unable to setup dirs", err)
+	}
+	trcs, err := g.genTRCs(topo)
+	if err != nil {
+		return serrors.WrapStr("unable to generate TRC configs", err)
+	}
+	if err := g.genKeys(topo, trcs); err != nil {
+		return serrors.WrapStr("unable to generate key configs", err)
+	}
+	if err := g.genCerts(topo); err != nil {
+		return serrors.WrapStr("unable to generate certificate configs", err)
+	}
+	pkicmn.QuietPrint("Generated all configuration files\n")
 	return nil
 }
 
-func genISDCfg(isd addr.ISD, topo topoFile, val validity) *conf.Isd {
-	cores := topo.Cores(isd)
-	isdCfg := &conf.Isd{
-		Desc: fmt.Sprintf("ISD %d", isd),
-		Trc: &conf.Trc{
-			Version:     1,
-			IssuingTime: val.NotBefore,
-			Validity:    val.Validity,
-			CoreIAs:     cores,
-			GracePeriod: 0,
-			// XXX(roosd): Choose quorum according to your security needs. This
-			// simply serves an example.
-			QuorumTRC: uint32(len(cores)/2 + 1),
+func (g topoGen) setupDirs(topo topoFile) error {
+	for isd := range topo.ISDs() {
+		dir := filepath.Dir(conf.TRCFile(g.Dirs.Root, isd, 1))
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return serrors.WrapStr("unable to make ISD directory", err, "isd", isd, "dir", dir)
+		}
+	}
+	for ia := range topo.ASes {
+		if err := os.MkdirAll(filepath.Dir(conf.KeysFile(g.Dirs.Root, ia)), 0755); err != nil {
+			return serrors.WrapStr("unable to make AS directory", err, "ia", ia)
+		}
+	}
+	return nil
+}
+
+func (g topoGen) genTRCs(topo topoFile) (map[addr.ISD]conf.TRC, error) {
+	trcs := make(map[addr.ISD]conf.TRC)
+	for isd := range topo.ISDs() {
+		trcs[isd] = g.genTRC(isd, topo)
+		var buf bytes.Buffer
+		if err := trcs[isd].Encode(&buf); err != nil {
+			return nil, serrors.WithCtx(err, "isd", isd)
+		}
+		file := conf.TRCFile(g.Dirs.Root, isd, trcs[isd].Version)
+		if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
+			return nil, serrors.WrapStr("unable to write TRC config", err, "isd", isd, "file", file)
+		}
+	}
+	return trcs, nil
+}
+
+func (g topoGen) genTRC(isd addr.ISD, topo topoFile) conf.TRC {
+	primaries := topo.Primaries(isd)
+	reset := true
+	cfg := conf.TRC{
+		Description: fmt.Sprintf("ISD %d", isd),
+		Version:     1,
+		BaseVersion: 1,
+		// XXX(roosd): Choose quorum according to your security needs.
+		// This simply serves an example.
+		VotingQuorum:      uint16(primaries.Voters()/2 + 1),
+		TrustResetAllowed: &reset,
+		Votes:             []addr.AS{},
+		Validity:          g.Validity,
+		PrimaryASes:       make(map[addr.AS]conf.Primary),
+	}
+	for _, primaryAS := range primaries {
+		cfg.PrimaryASes[primaryAS.AS] = primaryAS.ToConf()
+	}
+	return cfg
+}
+
+func (g topoGen) genKeys(topo topoFile, cfg map[addr.ISD]conf.TRC) error {
+	for ia := range topo.ASes {
+		keys := g.genASKeys(ia.A, cfg[ia.I])
+		var buf bytes.Buffer
+		if err := keys.Encode(&buf); err != nil {
+			return serrors.WithCtx(err, "ia", ia)
+		}
+		file := conf.KeysFile(g.Dirs.Root, ia)
+		if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
+			return serrors.WrapStr("unable to write key config", err, "ia", ia, "file", file)
+		}
+	}
+	return nil
+}
+
+func (g topoGen) genASKeys(as addr.AS, cfg conf.TRC) conf.Keys {
+	keys := conf.Keys{
+		Primary: make(map[trc.KeyType]map[scrypto.KeyVersion]conf.KeyMeta),
+		Issuer:  make(map[cert.KeyType]map[scrypto.KeyVersion]conf.KeyMeta),
+		AS: map[cert.KeyType]map[scrypto.KeyVersion]conf.KeyMeta{
+			cert.SigningKey:    {1: {Algorithm: scrypto.Ed25519, Validity: g.Validity}},
+			cert.RevocationKey: {1: {Algorithm: scrypto.Ed25519, Validity: g.Validity}},
+			cert.EncryptionKey: {1: {Algorithm: scrypto.Curve25519xSalsa20Poly1305,
+				Validity: g.Validity}},
 		},
 	}
-	return isdCfg
+	primary, ok := cfg.PrimaryASes[as]
+	_ = ok
+	if primary.Attributes.Contains(trc.Voting) {
+		keys.Primary[trc.OnlineKey] = map[scrypto.KeyVersion]conf.KeyMeta{
+			1: {Algorithm: scrypto.Ed25519, Validity: g.Validity},
+		}
+		keys.Primary[trc.OfflineKey] = map[scrypto.KeyVersion]conf.KeyMeta{
+			1: {Algorithm: scrypto.Ed25519, Validity: g.Validity},
+		}
+	}
+	if primary.Attributes.Contains(trc.Issuing) {
+		keys.Primary[trc.IssuingKey] = map[scrypto.KeyVersion]conf.KeyMeta{
+			1: {Algorithm: scrypto.Ed25519, Validity: g.Validity},
+		}
+		keys.Issuer[cert.IssuingKey] = map[scrypto.KeyVersion]conf.KeyMeta{
+			1: {Algorithm: scrypto.Ed25519, Validity: g.Validity},
+		}
+	}
+	return keys
 }
 
-func genASCfg(ia addr.IA, entry asEntry, val validity, isdCfg *conf.Isd) *conf.As {
-	asCfg := conf.NewTemplateAsConf(ia, isdCfg.Trc.Version, pkicmn.Contains(isdCfg.Trc.CoreIAs, ia))
-	asCfg.AsCert.Comment = "AS certificate"
-	asCfg.AsCert.IssuingTime = val.NotBefore
-	asCfg.AsCert.Validity = val.Validity
-	asCfg.AsCert.RawValidity = util.FmtDuration(val.Validity)
-
-	if !entry.Issuer.IsZero() {
-		asCfg.AsCert.IssuerIA = entry.Issuer
-		asCfg.AsCert.Issuer = entry.Issuer.String()
+func (g topoGen) genCerts(topo topoFile) error {
+	if err := g.genIssuerCerts(topo); err != nil {
+		return serrors.WrapStr("unable to generate issuer certificates", err)
 	}
-	if asCfg.IssuerCert != nil {
-		asCfg.IssuerCert.Comment = "Issuer certificate"
-		asCfg.IssuerCert.IssuingTime = val.NotBefore
-		asCfg.IssuerCert.Validity = val.Validity
-		asCfg.IssuerCert.RawValidity = util.FmtDuration(val.Validity)
+	if err := g.genASCerts(topo); err != nil {
+		return serrors.WrapStr("unable to generate AS certificates", err)
 	}
-	return asCfg
+	return nil
 }
 
-// validity is a container for the provided flags.
-type validity struct {
-	NotBefore uint32
-	Validity  time.Duration
+func (g topoGen) genIssuerCerts(topo topoFile) error {
+	for ia, entry := range topo.ASes {
+		if !entry.Issuing {
+			continue
+		}
+		cfg := g.genIssuerCert(ia)
+		var buf bytes.Buffer
+		if err := cfg.Encode(&buf); err != nil {
+			return serrors.WithCtx(err, "ia", ia)
+		}
+		file := conf.IssuerFile(g.Dirs.Root, ia, cfg.Version)
+		if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
+			return serrors.WrapStr("unable to write issuer config", err, "ia", ia, "file", file)
+		}
+	}
+	return nil
 }
 
-func validityFromFlags() (validity, error) {
-	p, err := util.ParseDuration(rawValidity)
-	if err != nil {
-		return validity{}, common.NewBasicError("invalid validity", err, "input", rawValidity)
+func (g topoGen) genIssuerCert(ia addr.IA) conf.Issuer {
+	issKey := scrypto.KeyVersion(1)
+	cfg := conf.Issuer{
+		Description:          fmt.Sprintf("Issuer certificate %s", ia),
+		Version:              1,
+		IssuingKeyVersion:    &issKey,
+		RevocationKeyVersion: nil,
+		TRCVersion:           1,
+		OptDistPoints:        []addr.IA{},
+		Validity:             g.Validity,
 	}
-	return validity{NotBefore: notBefore, Validity: p}, nil
+	return cfg
+}
+
+func (g topoGen) genASCerts(topo topoFile) error {
+	for ia, entry := range topo.ASes {
+		issuer := entry.Issuer
+		if entry.Issuing {
+			issuer = ia
+		}
+		cfg := g.genASCert(ia, issuer)
+		var buf bytes.Buffer
+		if err := cfg.Encode(&buf); err != nil {
+			return serrors.WithCtx(err, "ia", ia)
+		}
+		file := conf.ASFile(g.Dirs.Root, ia, cfg.Version)
+		if err := pkicmn.WriteToFile(buf.Bytes(), file, 0644); err != nil {
+			return serrors.WrapStr("unable to write AS config", err, "ia", ia, "file", file)
+		}
+	}
+	return nil
+}
+
+func (g topoGen) genASCert(ia, issuer addr.IA) conf.AS {
+	sigKey, encKey, revKey := scrypto.KeyVersion(1), scrypto.KeyVersion(1), scrypto.KeyVersion(1)
+	cfg := conf.AS{
+		Description:          fmt.Sprintf("AS certificate %s", ia),
+		Version:              1,
+		SigningKeyVersion:    &sigKey,
+		EncryptionKeyVersion: &encKey,
+		RevocationKeyVersion: &revKey,
+		IssuerIA:             issuer,
+		IssuerCertVersion:    1,
+		OptDistPoints:        []addr.IA{},
+		Validity:             g.Validity,
+	}
+	return cfg
 }
 
 // topoFile is used to parse the topology description.
@@ -139,17 +246,63 @@ func (t topoFile) ISDs() map[addr.ISD]struct{} {
 	return m
 }
 
-func (t topoFile) Cores(isd addr.ISD) []addr.IA {
-	var cores []addr.IA
+func (t topoFile) Primaries(isd addr.ISD) primaryASes {
+	var primaries primaryASes
 	for ia, entry := range t.ASes {
-		if ia.I == isd && entry.Core {
-			cores = append(cores, ia)
+		if ia.I == isd && entry.Primary() {
+			primaries = append(primaries, primaryAS{AS: ia.A, asEntry: entry})
 		}
 	}
-	return cores
+	return primaries
 }
 
 type asEntry struct {
-	Core   bool    `yaml:"core"`
-	Issuer addr.IA `yaml:"cert_issuer"`
+	Authoritative bool    `yaml:"authoritative"`
+	Core          bool    `yaml:"core"`
+	Issuing       bool    `yaml:"issuing"`
+	Voting        bool    `yaml:"voting"`
+	Issuer        addr.IA `yaml:"cert_issuer"`
+}
+
+func (e asEntry) Primary() bool {
+	return e.Authoritative || e.Core || e.Issuing || e.Voting
+}
+
+type primaryAS struct {
+	AS addr.AS
+	asEntry
+}
+
+func (p primaryAS) ToConf() conf.Primary {
+	cp := conf.Primary{}
+	if p.Authoritative {
+		cp.Attributes = append(cp.Attributes, trc.Authoritative)
+	}
+	if p.Core {
+		cp.Attributes = append(cp.Attributes, trc.Core)
+	}
+	if p.Issuing {
+		iss := scrypto.KeyVersion(1)
+		cp.Attributes = append(cp.Attributes, trc.Issuing)
+		cp.IssuingKeyVersion = &iss
+	}
+	if p.Voting {
+		on, off := scrypto.KeyVersion(1), scrypto.KeyVersion(1)
+		cp.Attributes = append(cp.Attributes, trc.Voting)
+		cp.VotingOnlineKeyVersion = &on
+		cp.VotingOfflineKeyVersion = &off
+	}
+	return cp
+}
+
+type primaryASes []primaryAS
+
+func (p primaryASes) Voters() int {
+	voters := 0
+	for _, pAS := range p {
+		if pAS.Voting {
+			voters++
+		}
+	}
+	return voters
 }

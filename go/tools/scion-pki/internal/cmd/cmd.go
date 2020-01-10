@@ -26,8 +26,7 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/keys"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/tmpl"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/trc"
-	v2 "github.com/scionproto/scion/go/tools/scion-pki/internal/v2/cmd"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/trcs"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/version"
 )
 
@@ -35,7 +34,30 @@ var RootCmd = &cobra.Command{
 	Use:   "scion-pki",
 	Short: "Scion Public Key Infrastructure Management Tool",
 	Long: `scion-pki is a tool to generate keys, certificates, and trust
-root configuration files used in the SCION control plane PKI.`,
+	root configuration files used in the SCION control plane PKI.
+	
+	The subcommands expect the contents of the root directory to follow a rigid and
+	predefined file structure:
+	
+	<root>
+	├── ISD1
+	│   ├── ASff00_0_c
+	│   │   ├── as-v1.toml      # AS certificate configuration (versioned)
+	│   │   ├── certs           # Dir containing issuer certificates and certificate chains
+	│   │   ├── issuer-v1.toml  # Issuer certificate configuration (versioned)
+	│   │   ├── keys            # Dir containing private keys
+	│   │   ├── keys.toml       # Keys configuration file
+	│   │   └── pub             # Dir containing public keys
+	│   ├── trcs                # Dir containing partial and signed TRCs
+	│   │   └── ISD1-V1.parts   # Dir containing partially signed TRC for specific version
+	│   └── trc-v1.toml         # TRC configuration (versioned)
+	
+	A sample file structure can be generated in 'DIR' by running:
+	  scion-pki tmpl sample > $DIR/sample.topo
+	  scion-pki tmpl topo -d $DIR sample.topo
+	
+	The 'certs', 'keys', 'trcs' directories are created on demand by the tool.
+	`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Initialize global OutDir if not set on the cmdline.
 		if pkicmn.OutDir == "" {
@@ -111,10 +133,9 @@ func init() {
 		"Generate autocompletion script for zsh")
 
 	RootCmd.AddCommand(certs.Cmd)
-	RootCmd.AddCommand(keys.Cmd)
-	RootCmd.AddCommand(version.Cmd)
-	RootCmd.AddCommand(trc.Cmd)
 	RootCmd.AddCommand(tmpl.Cmd)
+	RootCmd.AddCommand(keys.Cmd)
+	RootCmd.AddCommand(trcs.Cmd)
+	RootCmd.AddCommand(version.Cmd)
 	RootCmd.AddCommand(autoCompleteCmd)
-	RootCmd.AddCommand(v2.Cmd)
 }

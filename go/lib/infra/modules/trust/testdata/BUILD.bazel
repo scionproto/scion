@@ -6,7 +6,7 @@ filegroup(
 
 genrule(
     name = "crypto_tar",
-    srcs = [":data"],
+    srcs = ["//topology:default"],
     outs = ["crypto.tar"],
     cmd = "$(location :gen_crypto_tar.sh) $(location //go/tools/scion-pki:scion-pki) $@",
     tools = [

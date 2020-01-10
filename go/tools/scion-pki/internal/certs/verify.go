@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,61 +15,96 @@
 package certs
 
 import (
-	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/trcs"
 )
 
-func runVerify(args []string) {
-	exitStatus := 0
-	for _, certPath := range args {
-		// Load file.
-		raw, err := ioutil.ReadFile(certPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading %s: %s\n", certPath, err)
-			continue
-		}
-		chain, err := cert.ChainFromRaw(raw, false)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing chain: %s\n", err)
-			continue
-		}
-		if err = verifyChain(chain, chain.Leaf.Subject); err != nil {
-			pkicmn.QuietPrint("Verification of %s FAILED. Reason: %s\n", certPath, err)
-			exitStatus = 2
-			continue
-		}
-		pkicmn.QuietPrint("Verification of %s SUCCEEDED.\n", certPath)
-	}
-	os.Exit(exitStatus)
+type verifier struct {
+	Dirs pkicmn.Dirs
 }
 
-func verifyChain(chain *cert.Chain, subject addr.IA) error {
-	// Load corresponding TRC.
-	t, err := loadTRC(subject, chain.Leaf.TRCVersion)
+// VerifyIssuer validates and verifies a raw signed issuer certificate. For
+// verification, the issuing TRC is loaded from the file system.
+func (v verifier) VerifyIssuer(raw []byte) error {
+	signed, err := cert.ParseSignedIssuer(raw)
+	if err != nil {
+		return serrors.WrapStr("unable to parse signed issuer certificate", err)
+	}
+	return v.verifyIssuer(signed)
+}
+
+func (v verifier) VerifyChain(raw []byte) error {
+	chain, err := cert.ParseChain(raw)
+	if err != nil {
+		return serrors.WrapStr("unable to parse signed certificate chain", err)
+	}
+	if err := v.verifyIssuer(chain.Issuer); err != nil {
+		return err
+	}
+	issCert, err := chain.Issuer.Encoded.Decode()
+	if err != nil {
+		return serrors.WrapStr("unable to parse issuer certificate payload", err)
+	}
+	asCert, err := chain.AS.Encoded.Decode()
+	if err != nil {
+		return serrors.WrapStr("unable to parse AS certificate payload", err)
+	}
+	if err := asCert.Validate(); err != nil {
+		return serrors.WrapStr("unable to validate AS certificate", err)
+	}
+	asVer := cert.ASVerifier{
+		Issuer:   issCert,
+		AS:       asCert,
+		SignedAS: &chain.AS,
+	}
+	if err := asVer.Verify(); err != nil {
+		return serrors.WrapStr("unable to verify AS certificate", err)
+	}
+	return nil
+}
+
+func (v verifier) verifyIssuer(signed cert.SignedIssuer) error {
+	c, err := signed.Encoded.Decode()
+	if err != nil {
+		return serrors.WrapStr("unable to parse issuer certificate payload", err)
+	}
+	if err := c.Validate(); err != nil {
+		return serrors.WrapStr("unable to validate issuer certificate", err)
+	}
+	t, err := v.loadTRC(c.Subject.I, c.Issuer.TRCVersion)
 	if err != nil {
 		return err
 	}
-	return chain.Verify(subject, t)
+	issVer := cert.IssuerVerifier{
+		Issuer:       c,
+		SignedIssuer: &signed,
+		TRC:          t,
+	}
+	if err := issVer.Verify(); err != nil {
+		return serrors.WrapStr("unable to verify issuer certificate", err)
+	}
+	return nil
 }
 
-func loadTRC(subject addr.IA, version scrypto.Version) (*trc.TRC, error) {
-	fname := fmt.Sprintf(pkicmn.TrcNameFmt, subject.I, version)
-	trcPath := filepath.Join(pkicmn.GetIsdPath(pkicmn.OutDir, subject.I), pkicmn.TRCsDir, fname)
-	trcRaw, err := ioutil.ReadFile(trcPath)
+func (v verifier) loadTRC(isd addr.ISD, version scrypto.Version) (*trc.TRC, error) {
+	raw, err := ioutil.ReadFile(trcs.SignedFile(v.Dirs.Out, isd, version))
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("unable to read issuing TRC", err)
 	}
-	t, err := trc.TRCFromRaw(trcRaw, false)
+	signed, err := trc.ParseSigned(raw)
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("unable to parse issuing TRC", err)
+	}
+	t, err := signed.EncodedTRC.Decode()
+	if err != nil {
+		return nil, serrors.WrapStr("unable to decode issuing TRC payload", err)
 	}
 	return t, nil
 }
