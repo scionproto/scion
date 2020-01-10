@@ -124,14 +124,14 @@ func (g protoGen) insertIssuingKey(dst pubKeys, ia addr.IA, primary conf.Primary
 	}
 	desc := keyconf.ID{
 		IA:      ia,
-		Usage:   keyconf.TRCIssuingKey,
-		Version: *primary.IssuingKeyVersion,
+		Usage:   keyconf.TRCIssuingGrantKey,
+		Version: *primary.IssuingGrantKeyVersion,
 	}
 	key, err := g.loadPubKey(desc)
 	if err != nil {
 		return serrors.WrapStr("unable to load issuing key", err)
 	}
-	dst[trc.IssuingKey] = key
+	dst[trc.IssuingGrantKey] = key
 	return nil
 }
 
@@ -142,12 +142,12 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 		return nil
 	}
 	ids := map[trc.KeyType]keyconf.ID{
-		trc.OnlineKey: {
+		trc.VotingOnlineKey: {
 			IA:      ia,
 			Usage:   keyconf.TRCVotingOnlineKey,
 			Version: *primary.VotingOnlineKeyVersion,
 		},
-		trc.OfflineKey: {
+		trc.VotingOfflineKey: {
 			IA:      ia,
 			Usage:   keyconf.TRCVotingOfflineKey,
 			Version: *primary.VotingOfflineKeyVersion,
@@ -193,7 +193,7 @@ func (g protoGen) newTRC(isd addr.ISD, cfg conf.TRC, keys map[addr.AS]pubKeys) (
 		TrustResetAllowedPtr: &reset,
 		Validity:             &val,
 		PrimaryASes:          make(trc.PrimaryASes),
-		Votes:                make(map[addr.AS]trc.Vote),
+		Votes:                make(map[addr.AS]trc.KeyType),
 		ProofOfPossession:    make(map[addr.AS][]trc.KeyType),
 	}
 	for as, primary := range cfg.PrimaryASes {
@@ -240,17 +240,11 @@ func (g protoGen) attachVotes(next, prev *trc.TRC, voters []addr.AS) error {
 		if !ok || !prevPrimary.Is(trc.Voting) {
 			return serrors.New("non-voting AS cannot cast vote", "as", voter)
 		}
-		_, modifiedOnline := info.KeyChanges.Modified[trc.OnlineKey][voter]
+		_, modifiedOnline := info.KeyChanges.Modified[trc.VotingOnlineKey][voter]
 		if info.Type != trc.RegularUpdate || modifiedOnline {
-			next.Votes[voter] = trc.Vote{
-				KeyType:    trc.OfflineKey,
-				KeyVersion: prevPrimary.Keys[trc.OfflineKey].KeyVersion,
-			}
+			next.Votes[voter] = trc.VotingOfflineKey
 		} else {
-			next.Votes[voter] = trc.Vote{
-				KeyType:    trc.OnlineKey,
-				KeyVersion: prevPrimary.Keys[trc.OnlineKey].KeyVersion,
-			}
+			next.Votes[voter] = trc.VotingOnlineKey
 		}
 	}
 	return nil

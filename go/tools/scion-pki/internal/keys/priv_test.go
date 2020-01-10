@@ -112,9 +112,9 @@ func TestPrivGenRun(t *testing.T) {
 			Version:   1,
 			Validity:  365 * 24 * time.Hour,
 		},
-		"trc-issuing-v1.key": {
+		"trc-issuing-grant-v1.key": {
 			Algorithm: scrypto.Ed25519,
-			Usage:     keyconf.TRCIssuingKey,
+			Usage:     keyconf.TRCIssuingGrantKey,
 			Version:   1,
 			Validity:  365 * 24 * time.Hour,
 		},
@@ -146,13 +146,13 @@ func TestPrivGenRun(t *testing.T) {
 func Keys() conf.Keys {
 	return conf.Keys{
 		Primary: map[trc.KeyType]map[scrypto.KeyVersion]conf.KeyMeta{
-			trc.IssuingKey: {
+			trc.IssuingGrantKey: {
 				1: keyMeta(scrypto.Ed25519, 42424242, 365*24*time.Hour),
 			},
-			trc.OfflineKey: {
+			trc.VotingOfflineKey: {
 				1: keyMeta(scrypto.Ed25519, 42424242, 365*24*time.Hour),
 			},
-			trc.OnlineKey: {
+			trc.VotingOnlineKey: {
 				1: keyMeta(scrypto.Ed25519, 42424242, 365*24*time.Hour),
 				2: keyMeta(scrypto.Ed25519, 42424242, 365*24*time.Hour),
 			},

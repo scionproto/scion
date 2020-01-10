@@ -201,7 +201,7 @@ func (e *executor) GetIssuingKeyInfo(ctx context.Context, ia addr.IA,
 	if !ok {
 		return trust.KeyInfo{}, trust.ErrNotFound
 	}
-	km, ok := prim.Keys[trc.IssuingKey]
+	km, ok := prim.Keys[trc.IssuingGrantKey]
 	if !ok {
 		return trust.KeyInfo{}, trust.ErrNotFound
 	}

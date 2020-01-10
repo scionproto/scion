@@ -40,8 +40,6 @@ const (
 	ErrQuorumUnmet common.ErrMsg = "voting_quorum unmet"
 	// ErrWrongVotingKeyType indicates the vote is cast with the wrong key type.
 	ErrWrongVotingKeyType common.ErrMsg = "vote with wrong key type"
-	// ErrWrongVotingKeyVersion indicates the vote is cast with the wrong key version
-	ErrWrongVotingKeyVersion common.ErrMsg = "vote with wrong key version"
 )
 
 // Update validation error wrappers.
@@ -204,17 +202,18 @@ func (v *UpdateValidator) checkVotes(info UpdateInfo) error {
 
 func (v *UpdateValidator) checkVotesRegular(info UpdateInfo) error {
 	// Check all votes from voting ASes with expected key.
-	for as, vote := range v.Next.Votes {
-		expectedKeyType := OnlineKey
-		if _, ok := info.KeyChanges.Modified[OnlineKey][as]; ok {
-			expectedKeyType = OfflineKey
+	for as, keyType := range v.Next.Votes {
+		expectedKeyType := VotingOnlineKey
+		if _, ok := info.KeyChanges.Modified[VotingOnlineKey][as]; ok {
+			expectedKeyType = VotingOfflineKey
 		}
-		if err := v.hasVotingRights(as, vote, expectedKeyType); err != nil {
-			return common.NewBasicError(ErrInvalidVote, err, "as", as, "vote", vote)
+		if err := v.hasVotingRights(as, keyType, expectedKeyType); err != nil {
+			return common.NewBasicError(ErrInvalidVote, err, "as", as,
+				"key_type", keyType)
 		}
 	}
 	// Check all ASes with changed online key have cast a vote.
-	for as := range info.KeyChanges.Modified[OnlineKey] {
+	for as := range info.KeyChanges.Modified[VotingOnlineKey] {
 		if _, ok := v.Next.Votes[as]; !ok {
 			return common.NewBasicError(ErrMissingVote, nil, "as", as)
 		}
@@ -225,14 +224,16 @@ func (v *UpdateValidator) checkVotesRegular(info UpdateInfo) error {
 func (v *UpdateValidator) checkVotesSensitive(info UpdateInfo) error {
 	// Check all votes from voting ASes with offline keys.
 	for as, vote := range v.Next.Votes {
-		if err := v.hasVotingRights(as, vote, OfflineKey); err != nil {
+		if err := v.hasVotingRights(as, vote, VotingOfflineKey); err != nil {
 			return common.NewBasicError(ErrInvalidVote, err, "as", as, "vote", vote)
 		}
 	}
 	return nil
 }
 
-func (v *UpdateValidator) hasVotingRights(as addr.AS, vote Vote, keyType KeyType) error {
+func (v *UpdateValidator) hasVotingRights(as addr.AS,
+	actual, expected KeyType) error {
+
 	primary, ok := v.Prev.PrimaryASes[as]
 	if !ok {
 		return ErrUnexpectedVote
@@ -240,13 +241,9 @@ func (v *UpdateValidator) hasVotingRights(as addr.AS, vote Vote, keyType KeyType
 	if !primary.Is(Voting) {
 		return ErrNoVotingRight
 	}
-	if vote.KeyType != keyType {
+	if actual != expected {
 		return common.NewBasicError(ErrWrongVotingKeyType, nil,
-			"expected", keyType, "actual", vote.KeyType)
-	}
-	if primary.Keys[keyType].KeyVersion != vote.KeyVersion {
-		return common.NewBasicError(ErrWrongVotingKeyVersion, nil,
-			"expected", primary.Keys[keyType].KeyVersion, "actual", vote.KeyVersion)
+			"expected", expected, "actual", actual)
 	}
 	return nil
 }

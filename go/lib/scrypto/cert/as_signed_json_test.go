@@ -38,8 +38,8 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 				"alg": "ed25519",
 				"type": "certificate",
 				"certificate_version": 2,
-				"ia": "1-ff00:0:110",
-				"crit": ["type", "certificate_version", "ia"]
+				"isd_as": "1-ff00:0:110",
+				"crit": ["type", "certificate_version", "isd_as"]
 			}`,
 			Protected: cert.ProtectedAS{
 				Algorithm:          scrypto.Ed25519,
@@ -52,8 +52,8 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 			{
 				"type": "certificate",
 				"certificate_version": 2,
-				"ia": "1-ff00:0:110",
-				"crit": ["type", "certificate_version", "ia"]
+				"isd_as": "1-ff00:0:110",
+				"crit": ["type", "certificate_version", "isd_as"]
 			}`,
 			ExpectedErrMsg: cert.ErrAlgorithmNotSet.Error(),
 		},
@@ -62,8 +62,8 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 			{
 				"alg": "ed25519",
 				"certificate_version": 2,
-				"ia": "1-ff00:0:110",
-				"crit": ["type", "certificate_version", "ia"]
+				"isd_as": "1-ff00:0:110",
+				"crit": ["type", "certificate_version", "isd_as"]
 			}`,
 			ExpectedErrMsg: cert.ErrSignatureTypeNotSet.Error(),
 		},
@@ -72,8 +72,8 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 			{
 				"alg": "ed25519",
 				"type": "certificate",
-				"ia": "1-ff00:0:110",
-				"crit": ["type", "certificate_version", "ia"]
+				"isd_as": "1-ff00:0:110",
+				"crit": ["type", "certificate_version", "isd_as"]
 			}`,
 			ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
 		},
@@ -83,7 +83,7 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 				"alg": "ed25519",
 				"type": "certificate",
 				"certificate_version": 2,
-				"crit": ["type", "certificate_version", "ia"]
+				"crit": ["type", "certificate_version", "isd_as"]
 			}`,
 			ExpectedErrMsg: cert.ErrIANotSet.Error(),
 		},
@@ -93,7 +93,7 @@ func TestProtectedASUnmarshalJSON(t *testing.T) {
 				"alg": "ed25519",
 				"type": "certificate",
 				"certificate_version": 2,
-				"ia": "1-ff00:0:110"
+				"isd_as": "1-ff00:0:110"
 			}`,
 			ExpectedErrMsg: cert.ErrCritNotSet.Error(),
 		},
@@ -170,11 +170,11 @@ func TestCritASUnmarshalJSON(t *testing.T) {
 		Assertion assert.ErrorAssertionFunc
 	}{
 		"Valid": {
-			Input:     []byte(`{"crit": ["type", "certificate_version", "ia"]}`),
+			Input:     []byte(`{"crit": ["type", "certificate_version", "isd_as"]}`),
 			Assertion: assert.NoError,
 		},
 		"Out of order": {
-			Input:     []byte(`{"crit": ["type", "ia", "certificate_version"]}`),
+			Input:     []byte(`{"crit": ["type", "isd_as", "certificate_version"]}`),
 			Assertion: assert.Error,
 		},
 		"Length mismatch": {
@@ -186,7 +186,7 @@ func TestCritASUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Unknown Entry": {
-			Input:     []byte(`{"crit": ["type", "certificate_version", "Garbage", "ia"]}`),
+			Input:     []byte(`{"crit": ["type", "certificate_version", "Garbage", "isd_as"]}`),
 			Assertion: assert.Error,
 		},
 	}
@@ -208,5 +208,5 @@ func TestCritASMarshalJSON(t *testing.T) {
 		Crit []string `json:"crit"`
 	}
 	require.NoError(t, json.Unmarshal(b, &protected))
-	assert.ElementsMatch(t, []string{"type", "certificate_version", "ia"}, protected.Crit)
+	assert.ElementsMatch(t, []string{"type", "certificate_version", "isd_as"}, protected.Crit)
 }

@@ -111,7 +111,7 @@ type issuerCertIDAlias IssuerCertID
 // IssuerCertID identifies the issuer certificate that authenticates the AS certificate.
 type IssuerCertID struct {
 	// IA is the subject of the issuing issuer certificate.
-	IA addr.IA `json:"ia"`
+	IA addr.IA `json:"isd_as"`
 	// CertificateVersion is the version of the issuing issuer certificate.
 	CertificateVersion scrypto.Version `json:"certificate_version"`
 }

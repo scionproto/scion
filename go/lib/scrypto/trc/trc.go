@@ -134,7 +134,7 @@ type TRC struct {
 	// PrimaryASes contains all primary ASes in the ISD.
 	PrimaryASes PrimaryASes `json:"primary_ases"`
 	// Votes maps voting ASes to their cast vote.
-	Votes map[addr.AS]Vote `json:"votes"`
+	Votes map[addr.AS]KeyType `json:"votes"`
 	// ProofOfPossession maps ASes to their key types they need to show proof of possession.
 	ProofOfPossession map[addr.AS][]KeyType `json:"proof_of_possession"`
 }
@@ -243,47 +243,6 @@ func (t *TRC) checkAllSet() error {
 		return ErrVotesNotSet
 	case t.ProofOfPossession == nil:
 		return ErrProofOfPossessionNotSet
-	}
-	return nil
-}
-
-// Vote identifies the expected vote.
-type Vote struct {
-	// KeyType is the type of key that is used to issue the signature.
-	KeyType KeyType `json:"key_type"`
-	// KeyVersion is the key version of the key that is used to issue the signautre.
-	KeyVersion scrypto.KeyVersion `json:"key_version"`
-}
-
-// UnmarshalJSON checks that all fields are set.
-func (v *Vote) UnmarshalJSON(b []byte) error {
-	var alias voteAlias
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&alias); err != nil {
-		return err
-	}
-	if err := alias.checkAllSet(); err != nil {
-		return err
-	}
-	*v = Vote{
-		KeyType:    *alias.KeyType,
-		KeyVersion: *alias.KeyVersion,
-	}
-	return nil
-}
-
-type voteAlias struct {
-	KeyType    *KeyType            `json:"key_type"`
-	KeyVersion *scrypto.KeyVersion `json:"key_version"`
-}
-
-func (v *voteAlias) checkAllSet() error {
-	switch {
-	case v.KeyType == nil:
-		return ErrKeyTypeNotSet
-	case v.KeyVersion == nil:
-		return ErrKeyVersionNotSet
 	}
 	return nil
 }

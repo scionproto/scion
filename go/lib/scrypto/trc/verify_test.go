@@ -52,7 +52,7 @@ var (
 				protected := trc.Protected{
 					Algorithm:  scrypto.Ed25519,
 					Type:       trc.POPSignature,
-					KeyType:    trc.OnlineKey,
+					KeyType:    trc.VotingOnlineKey,
 					KeyVersion: 1,
 					AS:         a190,
 				}
@@ -114,7 +114,7 @@ var (
 				protected := trc.Protected{
 					Algorithm:  scrypto.Ed25519,
 					Type:       trc.VoteSignature,
-					KeyType:    trc.OnlineKey,
+					KeyType:    trc.VotingOnlineKey,
 					KeyVersion: 1,
 					AS:         a190,
 				}
@@ -155,7 +155,7 @@ var (
 			Modify: func(t *testing.T, sigs *[]trc.Signature) {
 				sig := &(*sigs)[findSignature(t, *sigs, a110, trc.VoteSignature)]
 				recodeProtected(t, sig, func(p *trc.Protected) {
-					p.KeyType = trc.OnlineKey
+					p.KeyType = trc.VotingOnlineKey
 				})
 			},
 			ExpectedErrMsg: trc.ErrInvalidProtected,
@@ -251,18 +251,16 @@ type verifyTestTRC struct {
 
 func newVerifyTestTRC(t *testing.T, now time.Time) verifyTestTRC {
 	next, prev := newRegularUpdate(now)
-	meta := next.PrimaryASes[a110].Keys[trc.OnlineKey]
+	meta := next.PrimaryASes[a110].Keys[trc.VotingOnlineKey]
 	meta.KeyVersion += 1
-	next.PrimaryASes[a110].Keys[trc.OnlineKey] = meta
-	next.ProofOfPossession[a110] = append(next.ProofOfPossession[a110], trc.OnlineKey)
-	vote := next.Votes[a110]
-	vote.KeyType = trc.OfflineKey
-	next.Votes[a110] = vote
+	next.PrimaryASes[a110].Keys[trc.VotingOnlineKey] = meta
+	next.ProofOfPossession[a110] = append(next.ProofOfPossession[a110], trc.VotingOnlineKey)
+	next.Votes[a110] = trc.VotingOfflineKey
 
-	meta = next.PrimaryASes[a130].Keys[trc.IssuingKey]
+	meta = next.PrimaryASes[a130].Keys[trc.IssuingGrantKey]
 	meta.KeyVersion += 1
-	next.PrimaryASes[a130].Keys[trc.IssuingKey] = meta
-	next.ProofOfPossession[a130] = append(next.ProofOfPossession[a130], trc.IssuingKey)
+	next.PrimaryASes[a130].Keys[trc.IssuingGrantKey] = meta
+	next.ProofOfPossession[a130] = append(next.ProofOfPossession[a130], trc.IssuingGrantKey)
 
 	nextKeys, prevKeys := generateKeys(t, next, prev)
 	signed := signTRC(t, next, prev, nextKeys, prevKeys)
@@ -339,18 +337,18 @@ func signTRC(t *testing.T, next, prev *trc.TRC, nextKeys,
 	signed := trc.Signed{
 		EncodedTRC: encoded,
 	}
-	for as, vote := range next.Votes {
+	for as, keyType := range next.Votes {
 		protected := trc.Protected{
 			Algorithm:  scrypto.Ed25519,
 			Type:       trc.VoteSignature,
-			KeyType:    vote.KeyType,
-			KeyVersion: vote.KeyVersion,
+			KeyType:    keyType,
+			KeyVersion: prev.PrimaryASes[as].Keys[keyType].KeyVersion,
 			AS:         as,
 		}
 		encProtected, err := trc.EncodeProtected(protected)
 		require.NoError(t, err)
 
-		sig, err := scrypto.Sign(trc.SigInput(encProtected, encoded), prevKeys[as][vote.KeyType],
+		sig, err := scrypto.Sign(trc.SigInput(encProtected, encoded), prevKeys[as][keyType],
 			scrypto.Ed25519)
 		require.NoError(t, err)
 

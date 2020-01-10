@@ -77,7 +77,7 @@ func TestTRCValidateInvariant(t *testing.T) {
 		},
 		"PrimaryASes invariant violated": {
 			Modify: func(base *trc.TRC) {
-				delete(base.PrimaryASes[a110].Keys, trc.OfflineKey)
+				delete(base.PrimaryASes[a110].Keys, trc.VotingOfflineKey)
 			},
 			ExpectedErrMsg: trc.ErrMissingKey,
 		},
@@ -107,22 +107,20 @@ func TestTRCValidateInvariant(t *testing.T) {
 		},
 		"Base with votes": {
 			Modify: func(base *trc.TRC) {
-				base.Votes[a130] = trc.Vote{
-					KeyType:    trc.OnlineKey,
-					KeyVersion: 1,
-				}
+				base.Votes[a130] = trc.VotingOnlineKey
 			},
 			ExpectedErrMsg: trc.ErrBaseWithVotes,
 		},
 		"Base pop for unexpected key": {
 			Modify: func(base *trc.TRC) {
-				base.ProofOfPossession[a130] = append(base.ProofOfPossession[a130], trc.OnlineKey)
+				base.ProofOfPossession[a130] = append(base.ProofOfPossession[a130],
+					trc.VotingOnlineKey)
 			},
 			ExpectedErrMsg: trc.ErrUnexpectedProofOfPossession,
 		},
 		"Base pop from unexpected AS": {
 			Modify: func(base *trc.TRC) {
-				base.ProofOfPossession[a190] = []trc.KeyType{trc.OnlineKey}
+				base.ProofOfPossession[a190] = []trc.KeyType{trc.VotingOnlineKey}
 			},
 			ExpectedErrMsg: trc.ErrUnexpectedProofOfPossession,
 		},
@@ -158,17 +156,17 @@ func newBaseTRC(notBefore time.Time) *trc.TRC {
 			a110: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Authoritative, trc.Core, trc.Voting, trc.Issuing},
 				Keys: map[trc.KeyType]scrypto.KeyMeta{
-					trc.OnlineKey: {
+					trc.VotingOnlineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key:        []byte{0, 110, 1},
 					},
-					trc.OfflineKey: {
+					trc.VotingOfflineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key:        []byte{1, 110, 1},
 					},
-					trc.IssuingKey: {
+					trc.IssuingGrantKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key:        []byte{2, 110, 1},
@@ -178,12 +176,12 @@ func newBaseTRC(notBefore time.Time) *trc.TRC {
 			a120: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
 				Keys: map[trc.KeyType]scrypto.KeyMeta{
-					trc.OnlineKey: {
+					trc.VotingOnlineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key:        []byte{0, 120, 1},
 					},
-					trc.OfflineKey: {
+					trc.VotingOfflineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key:        []byte{1, 120, 1},
@@ -193,7 +191,7 @@ func newBaseTRC(notBefore time.Time) *trc.TRC {
 			a130: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Issuing},
 				Keys: map[trc.KeyType]scrypto.KeyMeta{
-					trc.IssuingKey: {
+					trc.IssuingGrantKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key:        []byte{2, 130, 1},
@@ -203,12 +201,12 @@ func newBaseTRC(notBefore time.Time) *trc.TRC {
 			a140: trc.PrimaryAS{
 				Attributes: trc.Attributes{trc.Voting},
 				Keys: map[trc.KeyType]scrypto.KeyMeta{
-					trc.OnlineKey: {
+					trc.VotingOnlineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key:        []byte{0, 140, 1},
 					},
-					trc.OfflineKey: {
+					trc.VotingOfflineKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key:        []byte{1, 140, 1},
@@ -219,23 +217,23 @@ func newBaseTRC(notBefore time.Time) *trc.TRC {
 				Attributes: trc.Attributes{trc.Authoritative, trc.Core},
 			},
 		},
-		Votes: make(map[addr.AS]trc.Vote),
+		Votes: make(map[addr.AS]trc.KeyType),
 		ProofOfPossession: map[addr.AS][]trc.KeyType{
 			a110: {
-				trc.OnlineKey,
-				trc.OfflineKey,
-				trc.IssuingKey,
+				trc.VotingOnlineKey,
+				trc.VotingOfflineKey,
+				trc.IssuingGrantKey,
 			},
 			a120: {
-				trc.OnlineKey,
-				trc.OfflineKey,
+				trc.VotingOnlineKey,
+				trc.VotingOfflineKey,
 			},
 			a130: {
-				trc.IssuingKey,
+				trc.IssuingGrantKey,
 			},
 			a140: {
-				trc.OnlineKey,
-				trc.OfflineKey,
+				trc.VotingOnlineKey,
+				trc.VotingOfflineKey,
 			},
 		},
 	}

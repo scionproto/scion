@@ -161,7 +161,7 @@ func newBaseProtected() trc.Protected {
 	return trc.Protected{
 		Algorithm:  scrypto.Ed25519,
 		Type:       trc.VoteSignature,
-		KeyType:    trc.OnlineKey,
+		KeyType:    trc.VotingOnlineKey,
 		KeyVersion: 1,
 		AS:         xtest.MustParseAS("ff00:0:111"),
 	}

@@ -37,7 +37,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			{
 				"alg": "ed25519",
 				"type": "vote",
-				"key_type": "online",
+				"key_type": "voting_online",
 				"key_version": 1,
 				"as": "ff00:0:110",
 				"crit": ["type", "key_type", "key_version", "as"]
@@ -45,7 +45,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
 				Type:       trc.VoteSignature,
-				KeyType:    trc.OnlineKey,
+				KeyType:    trc.VotingOnlineKey,
 				KeyVersion: 1,
 				AS:         a110,
 			},
@@ -55,7 +55,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			{
 				"alg": "ed25519",
 				"type": "vote",
-				"key_type": "offline",
+				"key_type": "voting_offline",
 				"key_version": 1,
 				"as": "ff00:0:110",
 				"crit": ["type", "key_type", "key_version", "as"]
@@ -63,7 +63,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
 				Type:       trc.VoteSignature,
-				KeyType:    trc.OfflineKey,
+				KeyType:    trc.VotingOfflineKey,
 				KeyVersion: 1,
 				AS:         a110,
 			},
@@ -73,7 +73,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			{
 				"alg": "ed25519",
 				"type": "proof_of_possession",
-				"key_type": "issuing",
+				"key_type": "issuing_grant",
 				"key_version": 1,
 				"as": "ff00:0:110",
 				"crit": ["type", "key_type", "key_version", "as"]
@@ -81,7 +81,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Protected: trc.Protected{
 				Algorithm:  scrypto.Ed25519,
 				Type:       trc.POPSignature,
-				KeyType:    trc.IssuingKey,
+				KeyType:    trc.IssuingGrantKey,
 				KeyVersion: 1,
 				AS:         a110,
 			},
@@ -90,7 +90,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"type": "proof_of_possession",
-				"key_type": "issuing",
+				"key_type": "issuing_grant",
 				"key_version": 1,
 				"as": "ff00:0:110",
 				"crit": ["type", "key_type", "key_version", "as"]
@@ -101,7 +101,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"alg": "ed25519",
-				"key_type": "issuing",
+				"key_type": "issuing_grant",
 				"key_version": 1,
 				"as": "ff00:0:110",
 				"crit": ["type", "key_type", "key_version", "as"]
@@ -124,7 +124,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			{
 				"alg": "ed25519",
 				"type": "proof_of_possession",
-				"key_type": "issuing",
+				"key_type": "issuing_grant",
 				"as": "ff00:0:110",
 				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
@@ -135,7 +135,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			{
 				"alg": "ed25519",
 				"type": "proof_of_possession",
-				"key_type": "issuing",
+				"key_type": "issuing_grant",
 				"key_version": 1,
 				"crit": ["type", "key_type", "key_version", "as"]
 			}`,
@@ -146,7 +146,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			{
 				"alg": "ed25519",
 				"type": "proof_of_possession",
-				"key_type": "issuing",
+				"key_type": "issuing_grant",
 				"key_version": 1,
 				"as": "ff00:0:110"
 			}`,

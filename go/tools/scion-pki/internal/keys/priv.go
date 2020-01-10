@@ -177,11 +177,11 @@ func (g privGen) writeKeys(keys map[addr.IA][]keyconf.Key) error {
 // UsageFromTRCKeyType converts the TRC key type to the appropriate usage.
 func UsageFromTRCKeyType(keyType trc.KeyType) (keyconf.Usage, error) {
 	switch keyType {
-	case trc.IssuingKey:
-		return keyconf.TRCIssuingKey, nil
-	case trc.OnlineKey:
+	case trc.IssuingGrantKey:
+		return keyconf.TRCIssuingGrantKey, nil
+	case trc.VotingOnlineKey:
 		return keyconf.TRCVotingOnlineKey, nil
-	case trc.OfflineKey:
+	case trc.VotingOfflineKey:
 		return keyconf.TRCVotingOfflineKey, nil
 	default:
 		return "", serrors.New("unsupported key type", "type", keyType)

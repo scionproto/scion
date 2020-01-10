@@ -71,10 +71,10 @@ func TestASUnmarshalJSON(t *testing.T) {
 				ExpectedErrMsg: cert.ErrInvalidCertificateType.Error(),
 			},
 		},
-		"Missing issuer.ia": {
+		"Missing issuer.isd_as": {
 			baseTest: baseTest{
 				Modify: func(g *genCert) {
-					delete(*g.Issuer, "ia")
+					delete(*g.Issuer, "isd_as")
 				},
 				ExpectedErrMsg: cert.ErrIssuerIANotSet.Error(),
 			},
@@ -133,7 +133,7 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"ia": "1-ff00:0:110",
+				"isd_as": "1-ff00:0:110",
 				"certificate_version": 2
 			}
 			`,
@@ -153,7 +153,7 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 		"CertificateVersion not set": {
 			Input: `
 			{
-				"ia": "1-ff00:0:110"
+				"isd_as": "1-ff00:0:110"
 			}
 			`,
 			ExpectedErrMsg: cert.ErrIssuerCertificateVersionNotSet.Error(),
@@ -161,7 +161,7 @@ func TestIssuerCertIDUnmarshalJSON(t *testing.T) {
 		"Unknown field": {
 			Input: `
 			{
-				"ia": "1-ff00:0:110",
+				"isd_as": "1-ff00:0:110",
 				"certificate_version": 2,
 				"UNKNOWN": true
 			}
@@ -234,7 +234,7 @@ func newGenASCert(now time.Time) (cert.AS, *genCert) {
 		CertificateType: cert.TypeASJSON,
 	}
 	g.Issuer = &map[string]interface{}{
-		"ia":                  c.Issuer.IA,
+		"isd_as":              c.Issuer.IA,
 		"certificate_version": c.Issuer.CertificateVersion,
 	}
 	return c, g

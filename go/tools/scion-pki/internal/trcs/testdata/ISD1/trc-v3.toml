@@ -13,17 +13,17 @@ votes = ["ff00:0:120", "ff00:0:130"]
 [primary_ases]
   [primary_ases."ff00:0:110"]
     attributes = ["issuing", "voting"]
-    issuing_key_version = 1
+    issuing_grant_key_version = 1
     voting_online_key_version = 2
     voting_offline_key_version = 1
   [primary_ases."ff00:0:120"]
     attributes = ["authoritative", "core", "voting"]
-    issuing_key_version = 1
+    issuing_grant_key_version = 1
     voting_online_key_version = 1
     voting_offline_key_version = 1
   [primary_ases."ff00:0:130"]
     attributes = ["authoritative", "core", "issuing", "voting"]
-    issuing_key_version = 1
+    issuing_grant_key_version = 1
     voting_online_key_version = 1
     voting_offline_key_version = 1
 

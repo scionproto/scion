@@ -151,13 +151,13 @@ func (g issGen) sign(ia addr.IA, cfg conf.Issuer,
 		return cert.SignedIssuer{}, serrors.WrapStr("unable to load TRC config", err, "file", file)
 	}
 	primary, ok := trcCfg.PrimaryASes[ia.A]
-	if !ok || !primary.Attributes.Contains(trc.Issuing) || primary.IssuingKeyVersion == nil {
+	if !ok || !primary.Attributes.Contains(trc.Issuing) || primary.IssuingGrantKeyVersion == nil {
 		return cert.SignedIssuer{}, serrors.New("not an issuing AS")
 	}
 	id := keyconf.ID{
 		IA:      ia,
-		Usage:   keyconf.TRCIssuingKey,
-		Version: *primary.IssuingKeyVersion,
+		Usage:   keyconf.TRCIssuingGrantKey,
+		Version: *primary.IssuingGrantKeyVersion,
 	}
 	key, err := keyconf.LoadKeyFromFile(keys.PrivateFile(g.Dirs.Out, id), keyconf.PrivateKey, id)
 	if err != nil {

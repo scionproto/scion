@@ -118,12 +118,12 @@ func TestPubGenRun(t *testing.T) {
 			Validity:  365 * 24 * time.Hour,
 			PrivFile:  "trc-voting-offline-v1.key",
 		},
-		"ISD1-ASff00_0_110-trc-issuing-v1.pub": {
+		"ISD1-ASff00_0_110-trc-issuing-grant-v1.pub": {
 			Algorithm: scrypto.Ed25519,
-			Usage:     keyconf.TRCIssuingKey,
+			Usage:     keyconf.TRCIssuingGrantKey,
 			Version:   1,
 			Validity:  365 * 24 * time.Hour,
-			PrivFile:  "trc-issuing-v1.key",
+			PrivFile:  "trc-issuing-grant-v1.key",
 		},
 	}
 	for file, exp := range files {

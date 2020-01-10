@@ -41,7 +41,7 @@ func AllIssuerFiles(dir string, ia addr.IA) string {
 type Issuer struct {
 	Description          string              `toml:"description"`
 	Version              scrypto.Version     `toml:"version"`
-	IssuingKeyVersion    *scrypto.KeyVersion `toml:"issuing_key_version"`
+	IssuingKeyVersion    *scrypto.KeyVersion `toml:"issuing_grant_key_version"`
 	RevocationKeyVersion *scrypto.KeyVersion `toml:"revocation_key_version"`
 	TRCVersion           scrypto.Version     `toml:"trc_version"`
 	OptDistPoints        []addr.IA           `toml:"optional_distribution_points"`
@@ -79,7 +79,7 @@ func (cfg Issuer) Validate() error {
 	case cfg.Version == scrypto.LatestVer:
 		return serrors.New("version not set")
 	case cfg.IssuingKeyVersion == nil:
-		return serrors.New("issuing_key_version not set")
+		return serrors.New("issuing_grant_key_version not set")
 	case cfg.TRCVersion == scrypto.LatestVer:
 		return serrors.New("trc_version not set")
 	}
