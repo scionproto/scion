@@ -42,6 +42,6 @@ gen_bazel_acceptance() {
     done
 }
 
-cat .buildkite/pipeline_buildlint.yml
+cat .buildkite/pipeline.yml
 gen_bazel_acceptance
 gen_acceptance
