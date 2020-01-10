@@ -377,8 +377,7 @@ class GoGenerator(object):
         else:
             elem_dir = os.path.join(self.args.output_dir, "dispatcher")
             config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
-            write_file(config_file_path, toml.dumps(
-                self._build_disp_conf("dispatcher")))
+            write_file(config_file_path, toml.dumps(self._build_disp_conf("dispatcher")))
 
     def _gen_disp_docker(self):
         for topo_id, topo in self.args.topo_dicts.items():
