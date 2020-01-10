@@ -19,7 +19,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage"
+	"github.com/scionproto/scion/go/cs/beaconstorage"
+	controlconfig "github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -28,6 +29,10 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
+)
+
+const (
+	idSample = "bs-1"
 )
 
 const (
@@ -67,7 +72,7 @@ type Config struct {
 	TrustDB        truststorage.TrustDBConf
 	BeaconDB       beaconstorage.BeaconDBConf
 	Discovery      idiscovery.Config
-	BS             BSConfig
+	BS             controlconfig.BSConfig
 	EnableQUICTest bool
 }
 
@@ -198,7 +203,7 @@ func (cfg *BSConfig) Validate() error {
 
 // Sample generates a sample for the beacon server specific configuration.
 func (cfg *BSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, bsconfigSample)
+	config.WriteString(dst, controlconfig.BSSample)
 	config.WriteSample(dst, path, ctx, &cfg.Policies)
 }
 
@@ -242,7 +247,7 @@ type Policies struct {
 
 // Sample generates a sample for the beacon server specific configuration.
 func (cfg *Policies) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
-	config.WriteString(dst, policiesSample)
+	config.WriteString(dst, controlconfig.PoliciesSample)
 }
 
 // ConfigName is the toml key for the beacon server specific configuration.

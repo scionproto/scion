@@ -31,14 +31,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v2"
 
-	"github.com/scionproto/scion/go/beacon_srv/internal/beacon"
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconing"
-	"github.com/scionproto/scion/go/beacon_srv/internal/beaconstorage"
 	"github.com/scionproto/scion/go/beacon_srv/internal/config"
-	"github.com/scionproto/scion/go/beacon_srv/internal/ifstate"
-	"github.com/scionproto/scion/go/beacon_srv/internal/keepalive"
-	"github.com/scionproto/scion/go/beacon_srv/internal/onehop"
-	"github.com/scionproto/scion/go/beacon_srv/internal/revocation"
+	"github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/cs/beaconing"
+	"github.com/scionproto/scion/go/cs/beaconstorage"
+	controlconfig "github.com/scionproto/scion/go/cs/config"
+	"github.com/scionproto/scion/go/cs/ifstate"
+	"github.com/scionproto/scion/go/cs/keepalive"
+	"github.com/scionproto/scion/go/cs/onehop"
+	"github.com/scionproto/scion/go/cs/revocation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
@@ -598,7 +599,7 @@ func loadStore(core bool, ia addr.IA, cfg config.Config) (beaconstorage.Store, e
 	return cfg.BeaconDB.NewStore(ia, policies)
 }
 
-func loadCorePolicies(cfg config.Policies) (beacon.CorePolicies, error) {
+func loadCorePolicies(cfg controlconfig.Policies) (beacon.CorePolicies, error) {
 	var err error
 	var policies beacon.CorePolicies
 	if policies.Prop, err = loadPolicy(cfg.Propagation, beacon.PropPolicy); err != nil {
@@ -610,7 +611,7 @@ func loadCorePolicies(cfg config.Policies) (beacon.CorePolicies, error) {
 	return policies, nil
 }
 
-func loadPolicies(cfg config.Policies) (beacon.Policies, error) {
+func loadPolicies(cfg controlconfig.Policies) (beacon.Policies, error) {
 	var err error
 	var policies beacon.Policies
 	if policies.Prop, err = loadPolicy(cfg.Propagation, beacon.PropPolicy); err != nil {

@@ -67,6 +67,7 @@ class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
+
     def __init__(self, args):
         """
         Initialize an instance of the class ConfigGenerator.
@@ -131,10 +132,13 @@ class ConfigGenerator(object):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
         go_gen.generate_br()
-        go_gen.generate_bs()
-        go_gen.generate_cs()
         go_gen.generate_sciond()
-        go_gen.generate_ps()
+        if self.args.monolith:
+            go_gen.generate_control_service()
+        else:
+            go_gen.generate_bs()
+            go_gen.generate_cs()
+            go_gen.generate_ps()
         go_gen.generate_co()
         go_gen.generate_disp()
 

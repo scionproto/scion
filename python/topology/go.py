@@ -105,6 +105,52 @@ class GoGenerator(object):
         }
         return raw_entry
 
+    def generate_control_service(self):
+        for topo_id, topo in self.args.topo_dicts.items():
+            for elem_id, elem in topo.get("CertificateService", {}).items():
+                # only a single Go-BS per AS is currently supported
+                if elem_id.endswith("-1"):
+                    base = topo_id.base_dir(self.args.output_dir)
+                    bs_conf = self._build_control_service_conf(
+                        topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id,
+                                            CS_CONFIG_NAME), toml.dumps(bs_conf))
+
+    def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem):
+        config_dir = '/share/conf' if self.args.docker else os.path.join(
+            base, name)
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': config_dir,
+                'ReconnectToDispatcher': True,
+            },
+            'logging': self._log_entry(name),
+            'trustDB': trust_db_conf_entry(self.args, name),
+            'beaconDB': beacon_db_conf_entry(self.args, name),
+            'discovery': self._discovery_entry(),
+            'tracing': self._tracing_entry(),
+            'metrics': self._metrics_entry(name, infra_elem, BS_PROM_PORT),
+            'quic': self._quic_conf_entry(BS_QUIC_PORT, self.args.svcfrac, infra_elem),
+            'sd_client': {
+                'Path': get_default_sciond_path(topo_id),
+            },
+            'cs': {
+                'LeafReissueLeadTime': "6h",
+                'IssuerReissueLeadTime': "3d",
+                'ReissueRate': "10s",
+                'ReissueTimeout': "5s",
+            },
+            'ps': {
+                'pathDB': {
+                    'Backend': 'sqlite',
+                    'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
+                },
+                'SegSync': True,
+            },
+        }
+        return raw_entry
+
     def generate_bs(self):
         for topo_id, topo in self.args.topo_dicts.items():
             for elem_id, elem in topo.get("BeaconService", {}).items():

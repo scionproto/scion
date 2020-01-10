@@ -19,13 +19,15 @@ import (
 	"io"
 	"time"
 
+	controlconfig "github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
-	"github.com/scionproto/scion/go/lib/pathstorage"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
-	"github.com/scionproto/scion/go/lib/util"
+)
+
+const (
+	idSample = "ps-1"
 )
 
 var (
@@ -44,7 +46,7 @@ type Config struct {
 	QUIC      env.QUIC `toml:"quic"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config
-	PS        PSConfig
+	PS        controlconfig.PSConfig
 }
 
 func (cfg *Config) InitDefaults() {
@@ -88,46 +90,4 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 
 func (cfg *Config) ConfigName() string {
 	return "ps_config"
-}
-
-var _ config.Config = (*PSConfig)(nil)
-
-type PSConfig struct {
-	// SegSync enables the "old" replication of down segments between cores,
-	// using SegSync messages.
-	SegSync  bool
-	PathDB   pathstorage.PathDBConf
-	RevCache pathstorage.RevCacheConf
-	// QueryInterval specifies after how much time segments
-	// for a destination should be refetched.
-	QueryInterval util.DurWrap
-	// CryptoSyncInterval specifies the interval of crypto pushes towards
-	// the local CS.
-	CryptoSyncInterval util.DurWrap
-}
-
-func (cfg *PSConfig) InitDefaults() {
-	if cfg.QueryInterval.Duration == 0 {
-		cfg.QueryInterval.Duration = DefaultQueryInterval
-	}
-	if cfg.CryptoSyncInterval.Duration == 0 {
-		cfg.CryptoSyncInterval.Duration = DefaultCryptoSyncInterval
-	}
-	config.InitAll(&cfg.PathDB, &cfg.RevCache)
-}
-
-func (cfg *PSConfig) Validate() error {
-	if cfg.QueryInterval.Duration == 0 {
-		return serrors.New("QueryInterval must not be zero")
-	}
-	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
-}
-
-func (cfg *PSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, psSample)
-	config.WriteSample(dst, path, ctx, &cfg.PathDB, &cfg.RevCache)
-}
-
-func (cfg *PSConfig) ConfigName() string {
-	return "ps"
 }

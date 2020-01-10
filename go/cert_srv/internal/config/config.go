@@ -18,13 +18,16 @@ import (
 	"io"
 	"time"
 
+	controlconfig "github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
-	"github.com/scionproto/scion/go/lib/util"
+)
+
+const (
+	idSample = "cs-1"
 )
 
 const (
@@ -58,7 +61,7 @@ type Config struct {
 	Sciond    env.SciondClient `toml:"sd_client"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config
-	CS        CSConfig
+	CS        controlconfig.CSConfig
 }
 
 func (cfg *Config) InitDefaults() {
@@ -105,62 +108,4 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 
 func (cfg *Config) ConfigName() string {
 	return "cs_config"
-}
-
-var _ config.Config = (*CSConfig)(nil)
-
-type CSConfig struct {
-	// LeafReissueLeadTime indicates how long in advance of leaf cert expiration
-	// the reissuance process starts.
-	LeafReissueLeadTime util.DurWrap
-	// IssuerReissueLeadTime indicates how long in advance core cert expiration
-	// the self reissuance process starts.
-	IssuerReissueLeadTime util.DurWrap
-	// ReissueRate is the interval between two consecutive reissue requests.
-	ReissueRate util.DurWrap
-	// ReissueTimeout is the timeout for resissue request.
-	ReissueTimeout util.DurWrap
-	// AutomaticRenewal whether automatic reissuing is enabled.
-	AutomaticRenewal bool
-	// DisableCorePush disables the core pusher task.
-	DisableCorePush bool
-}
-
-func (cfg *CSConfig) InitDefaults() {
-	if cfg.LeafReissueLeadTime.Duration == 0 {
-		cfg.LeafReissueLeadTime.Duration = LeafReissTime
-	}
-	if cfg.IssuerReissueLeadTime.Duration == 0 {
-		cfg.IssuerReissueLeadTime.Duration = IssuerReissTime
-	}
-	if cfg.ReissueRate.Duration == 0 {
-		cfg.ReissueRate.Duration = ReissReqRate
-	}
-	if cfg.ReissueTimeout.Duration == 0 {
-		cfg.ReissueTimeout.Duration = ReissueReqTimeout
-	}
-}
-
-func (cfg *CSConfig) Validate() error {
-	if cfg.LeafReissueLeadTime.Duration == 0 {
-		return serrors.New("LeafReissueLeadTime must not be zero")
-	}
-	if cfg.IssuerReissueLeadTime.Duration == 0 {
-		return serrors.New("IssuerReissueLeadTime must not be zero")
-	}
-	if cfg.ReissueRate.Duration == 0 {
-		return serrors.New("ReissueRate must not be zero")
-	}
-	if cfg.ReissueTimeout.Duration == 0 {
-		return serrors.New("ReissueTimeout must not be zero")
-	}
-	return nil
-}
-
-func (cfg *CSConfig) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, csconfigSample)
-}
-
-func (cfg *CSConfig) ConfigName() string {
-	return "cs"
 }
