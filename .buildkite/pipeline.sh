@@ -29,7 +29,7 @@ gen_bazel_acceptance() {
         # test has the format //acceptance/<name>:<name>_test
         name=$(echo $test | cut -d ':' -f 1)
         name=${name#'//acceptance/'}
-        echo "  - label: \"Acceptance: $name\""
+        echo "  - label: \":bazel: Acceptance: $name\""
         echo "    command:"
         echo "      - bazel --bazelrc=.bazelrc_ci test $test"
         echo "    key: ${name}_acceptance"
