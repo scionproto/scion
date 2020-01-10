@@ -52,7 +52,7 @@ var genIssuerCmd = &cobra.Command{
 This command requires a valid issuer configuration file. Further, the referenced
 TRC and its configuration file must be present.
 
-See 'scion-pki help v2 certs' for information on the selector.
+See 'scion-pki help certs' for information on the selector.
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,7 +81,7 @@ This command requires a valid AS configuration file. Further, the referenced
 issuer certificate and its configuration file must be present. For verification,
 the TRC referenced by the issuer certificate must also be present.
 
-See 'scion-pki help v2 certs' for information on the selector.
+See 'scion-pki help certs' for information on the selector.
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

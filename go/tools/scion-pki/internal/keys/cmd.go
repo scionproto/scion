@@ -33,7 +33,7 @@ Selector:
     X-Y: A specific AS X-Y, e.g. AS 1-ff00:0:110.
 
 The subcommands expect the contents of the root directory to follow a predefined
-file structure. See 'scion-pki help v2' for more information.
+file structure. See 'scion-pki help' for more information.
 `,
 }
 
@@ -47,7 +47,7 @@ var privateCmd = &cobra.Command{
 Already existing keys are not overwritten, unless the force flag is enabled.
 This command requires a valid keys.toml.
 
-See 'scion-pki help v2 keys' for information on the selector.
+See 'scion-pki help keys' for information on the selector.
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,7 +73,7 @@ var publicCmd = &cobra.Command{
 For all ASes covered by the selector, the public keys are derived from the existing
 private keys in the 'keys' directory. Non-existent private keys are not generated.
 
-See 'scion-pki help v2 keys' for information on the selector.
+See 'scion-pki help keys' for information on the selector.
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
