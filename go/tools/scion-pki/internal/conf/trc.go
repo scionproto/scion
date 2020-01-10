@@ -114,7 +114,7 @@ func (cfg TRC) Validate() error {
 // Primary holds the primary AS configuration.
 type Primary struct {
 	Attributes              trc.Attributes      `toml:"attributes"`
-	IssuingKeyVersion       *scrypto.KeyVersion `toml:"issuing_key_version"`
+	IssuingGrantKeyVersion  *scrypto.KeyVersion `toml:"issuing_grant_key_version"`
 	VotingOnlineKeyVersion  *scrypto.KeyVersion `toml:"voting_online_key_version"`
 	VotingOfflineKeyVersion *scrypto.KeyVersion `toml:"voting_offline_key_version"`
 }
@@ -125,8 +125,8 @@ func (p Primary) Validate() error {
 		switch attr {
 		case trc.Core, trc.Authoritative:
 		case trc.Issuing:
-			if p.IssuingKeyVersion == nil {
-				return serrors.New("issuing_key_version not set")
+			if p.IssuingGrantKeyVersion == nil {
+				return serrors.New("issuing_grant_key_version not set")
 			}
 		case trc.Voting:
 			if p.VotingOnlineKeyVersion == nil {

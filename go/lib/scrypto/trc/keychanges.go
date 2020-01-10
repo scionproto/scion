@@ -41,14 +41,14 @@ type KeyChanges struct {
 func newKeyChanges() *KeyChanges {
 	c := &KeyChanges{
 		Modified: map[KeyType]ASToKeyMeta{
-			OnlineKey:  make(ASToKeyMeta),
-			OfflineKey: make(ASToKeyMeta),
-			IssuingKey: make(ASToKeyMeta),
+			VotingOnlineKey:  make(ASToKeyMeta),
+			VotingOfflineKey: make(ASToKeyMeta),
+			IssuingGrantKey:  make(ASToKeyMeta),
 		},
 		Fresh: map[KeyType]ASToKeyMeta{
-			OnlineKey:  make(ASToKeyMeta),
-			OfflineKey: make(ASToKeyMeta),
-			IssuingKey: make(ASToKeyMeta),
+			VotingOnlineKey:  make(ASToKeyMeta),
+			VotingOfflineKey: make(ASToKeyMeta),
+			IssuingGrantKey:  make(ASToKeyMeta),
 		},
 	}
 	return c
@@ -57,7 +57,7 @@ func newKeyChanges() *KeyChanges {
 // Sensitive indicates whether the key changes are sensitive (i.e. any offline
 // key changes).
 func (c *KeyChanges) Sensitive() bool {
-	return len(c.Fresh[OfflineKey]) != 0 || len(c.Modified[OfflineKey]) != 0
+	return len(c.Fresh[VotingOfflineKey]) != 0 || len(c.Modified[VotingOfflineKey]) != 0
 }
 
 func (c *KeyChanges) insertModifications(as addr.AS, prev, next PrimaryAS) error {

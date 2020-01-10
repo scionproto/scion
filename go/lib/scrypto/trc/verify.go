@@ -93,15 +93,16 @@ func (v UpdateVerifier) Verify() error {
 
 func (v UpdateVerifier) checkVotes(votes Votes) error {
 	for as, sig := range votes {
-		vote, ok := v.Next.Votes[as]
+		keyType, ok := v.Next.Votes[as]
 		if !ok {
 			return common.NewBasicError(ErrUnexpectedVoteSignature, nil, "as", as)
 		}
+		meta := v.Prev.PrimaryASes[as].Keys[keyType]
 		expected := Protected{
-			Algorithm:  v.Prev.PrimaryASes[as].Keys[vote.KeyType].Algorithm,
+			Algorithm:  meta.Algorithm,
 			Type:       VoteSignature,
-			KeyType:    vote.KeyType,
-			KeyVersion: vote.KeyVersion,
+			KeyType:    keyType,
+			KeyVersion: meta.KeyVersion,
 			AS:         as,
 		}
 		if sig.Protected != expected {

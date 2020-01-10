@@ -223,7 +223,7 @@ func TestIssuerVerifierVerify(t *testing.T) {
 					issuer.Subject.A: {
 						Attributes: trc.Attributes{trc.Issuing},
 						Keys: map[trc.KeyType]scrypto.KeyMeta{
-							trc.IssuingKey: {
+							trc.IssuingGrantKey: {
 								Algorithm:  scrypto.Ed25519,
 								Key:        pub,
 								KeyVersion: 1,

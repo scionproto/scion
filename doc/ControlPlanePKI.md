@@ -147,32 +147,32 @@ not appear in the TRC.
 
 ## Overview of Keys and Certificates
 
-Voting ASes have online and offline key pairs. Issuing ASes have issuing keys. Offline keys are used
-for infrequent safety-critical operations that will require administrator involvement to cross an
-air gap, while online and issuing keys are used for frequent automated operations that do not
-require administrator involvement. The renewal of AS and Issuer certificates is an example of a
-fully automated operation that occurs every few days and only requires issuing keys.
+Voting ASes have online and offline key pairs. Issuing ASes have issuing grant keys. Offline keys are
+used for infrequent safety-critical operations that will require administrator involvement to cross an
+air gap, while online voting and issuing grant keys are used for frequent automated operations that do
+not require administrator involvement. The renewal of AS and Issuer certificates is an example of a
+fully automated operation that occurs every few days and only requires issuing and issuing grant keys.
 
 The tables below give an overview of the different keys and certificates used in the CP-PKI. The TRC
-contains the offline and/or online keys of primary ASes and is signed with a quorum of root keys
+contains the offline and/or online keys of primary ASes and is signed with a quorum of voting keys
 (online or offline, depending on the context); as such, it can be considered a self-signed root
-certificate, except that multiple parties are involved. Online, offline and issuing keys are
-included in TRCs while other keys are authenticated via certificates. All ASes (including the
+certificate, except that multiple parties are involved. Online/offline voting and issuing grant keys
+are included in TRCs while other keys are authenticated via certificates. All ASes (including the
 primary ASes) use AS certificates to carry out their regular operations (such as signing beacons).
 Issuing ASes hold an additional certificate whose only purpose is to authenticate (other ASes' and
 their own) AS certificates.
 
 ### Table: Private Keys
 
-| Name             | Notation      | Auth. ¹          | Validity ²  | Revocation  | Usage                       |
-| ---------------- | ------------- | ---------------- | ----------- | ----------- | --------------------------- |
-| Offline root key | `K_offline`   | TRC              | 5 years     | TRC update  | Sensitive TRC update        |
-| Online root key  | `K_online`    | TRC              | 1 year      | TRC update  | Regular TRC update          |
-| Issuing key      | `K_issuing`   | TRC              | 1 year      | TRC update  | Signing issuer certificates |
-| Issuer cert key  | `K_iss_cert`  | `C_issuer`       | 6 months    | Dedicated ³ | Signing AS certificates     |
-| Encryption key   | `K_enc`       | `C_AS`           | 3 months    | Dedicated ³ | DRKey                       |
-| Signing key      | `K_sign`      | `C_AS`           | 3 months    | Dedicated ³ | Signing CP messages         |
-| Revocation key   | `K_rev`       | `C_issuer`,`C_AS`| 6/3 months  | Dedicated ³ | Revoke certificate          |
+| Name               | Notation          | Auth. ¹          | Validity ²  | Revocation  | Usage                       |
+| ------------------ | ----------------- | ---------------- | ----------- | ----------- | --------------------------- |
+| Offline voting key | `K_offline`       | TRC              | 5 years     | TRC update  | Sensitive TRC update        |
+| Online voting key  | `K_online`        | TRC              | 1 year      | TRC update  | Regular TRC update          |
+| Issuing grant key  | `K_issuing_grant` | TRC              | 1 year      | TRC update  | Signing issuer certificates |
+| Issuing key        | `K_issuing`       | `C_issuer`       | 6 months    | Dedicated ³ | Signing AS certificates     |
+| Encryption key     | `K_enc`           | `C_AS`           | 3 months    | Dedicated ³ | DRKey                       |
+| Signing key        | `K_sign`          | `C_AS`           | 3 months    | Dedicated ³ | Signing CP messages         |
+| Revocation key     | `K_rev`           | `C_issuer`,`C_AS`| 6/3 months  | Dedicated ³ | Revoke certificate          |
 
 [¹]: Location of the corresponding (authenticated) public key.
 
@@ -183,10 +183,10 @@ section below.
 
 ### Table: Certificates
 
-| Name               | Notation      | Signed by       | Associated key    | Validity ⁴      |
-| ------------------ | ------------- | --------------- | ----------------- | --------------- |
-| Issuer certificate | `C_issuer`    | `K_issuing`     | `K_iss_cert`      | 1 week          |
-| AS certificate     | `C_AS`        | `K_iss_cert`    | `K_enc`, `K_sign` | 3 days          |
+| Name               | Notation      | Signed by         | Associated key    | Validity ⁴      |
+| ------------------ | ------------- | ----------------- | ----------------- | --------------- |
+| Issuer certificate | `C_issuer`    | `K_issuing_grant` | `K_issuing`       | 1 week          |
+| AS certificate     | `C_AS`        | `K_issuing`       | `K_enc`, `K_sign` | 3 days          |
 
 [⁴]: Recommended validity period (best practice).
 
@@ -249,24 +249,21 @@ This is an object that maps primary AS identifiers to their attributes and keys:
   The set of attributes cannot be empty as the AS would not be considered primary. An
   `authoritative` AS must be `core`.
 
-- __keys:__ Object that maps key types (`issuing`, `online` or `offline`) to an object with the
-  following fields:
+- __keys:__ Object that maps key types (`issuing_grant`, `voting_online` or `voting_offline`)
+  to an object with the following fields:
     - __key_version:__ 64-bit integer. Starts at 1, incremented every time this key is replaced.
     - __algorithm:__ string. Identifies the algorithm this key is used with.
     - __key:__ Base64-encoded string representation of the public key.
 
 An AS that has no core links must not be a core AS. An authoritative AS must be a core AS (this
 ensures it is reachable by other core ASes for bootstrap purposes). A voting AS is required to have
-both offline and online keys. Non-voting ASes must not have offline or online keys. An issuing AS is
-required to have an issuing key. Non-issuing ASes must not have an issuing key.
+both offline and online voting keys. Non-voting ASes must not have offline or online voting keys.
+An issuing AS is required to have an issuing grant key. Non-issuing ASes must not have an
+issuing grant key.
 
 ### TRC Section: `votes`
 
-This is an object that maps AS identifiers to a signature object which must contain exactly the
-following:
-
-- __key_type:__ string. The type of key used. (`online` or `offline`)
-- __key_version:__ 64-bit integer. The version of the key used.
+This is an object that maps AS identifiers to a key type (`voting_online` or `voting_offline`).
 
 The votes section lists all ASes that voted for the TRC update. They must hold the voting attribute
 in the previous TRC. A vote counts as valid, if the JWS signed TRC contains a signature from the
@@ -294,11 +291,11 @@ The following are conditions that must hold true for every TRC:
 1. `not_before < not_after`
 1. `1 <= voting_quorum <= count(voting ASes)`
 1. `1 <= count(issuing ASes)`
-1. Each `voting` AS has an offline and online key.
-1. Each `issuing` AS has an issuing key.
+1. Each `voting` AS has an offline and online voting key.
+1. Each `issuing` AS has an issuing grant key.
 1. Each `authoritative` AS is a `core` AS.
-1. No non-`voting` AS has an online or offline key.
-1. No non-`issuing` AS has an issuing key.
+1. No non-`voting` AS has an online or offline voting key.
+1. No non-`issuing` AS has an issuing grant key.
 1. `(base_version == version) <==> (grace_period == 0)` (Initial TRC or trust reset)
 1. `(base_version == version) ==> All keys must attach proof of possession to TRC`
 
@@ -322,17 +319,17 @@ The following are conditions that must hold true for every TRC:
         "ff00:0:110": {
             "attributes": ["authoritative", "core", "issuing", "voting"],
             "keys": {
-                "issuing": {
+                "issuing_grant": {
                     "key_version": 12,
                     "algorithm": "Ed25519",
                     "key": "PQCd00doU4nAFURE7Q9s/4nAFUJPQNaC7S..."
                 },
-                "offline": {
+                "voting_offline": {
                     "key_version": 34,
                     "algorithm": "Ed25519",
                     "key": "K3WE17Q9s/84djid00RREne6SJPQC7gpYS..."
                 },
-                "online": {
+                "voting_online": {
                     "key_version": 22,
                     "algorithm": "Ed25519",
                     "key": "JvgaODTGiO84O3XdoU4nAFUQO43uTPfDcN..."
@@ -342,12 +339,12 @@ The following are conditions that must hold true for every TRC:
         "ff00:0:120": {
             "attributes": ["core", "voting"],
             "keys": {
-                "offline": {
+                "voting_offline": {
                     "key_version": 11,
                     "algorithm": "Ed25519",
                     "key": "+XjIxmREKXId2cu9cNEvqMeVjvfBhFMu66..."
                 },
-                "online": {
+                "voting_online": {
                     "key_version": 1000000,
                     "algorithm": "Ed25519",
                     "key": "0lIsyTRewuHAhtnj2Gt3hVbnNF2wb+0rS..."
@@ -357,7 +354,7 @@ The following are conditions that must hold true for every TRC:
         "ff00:0:130": {
             "attributes": ["authoritative", "core", "issuing"],
             "keys": {
-                "issuing": {
+                "issuing_grant": {
                     "key_version": 42,
                     "algorithm": "Ed25519",
                     "key": "o9V50Hja2ajyyJYRcAEjrcYCzty+iZFE2d..."
@@ -366,18 +363,12 @@ The following are conditions that must hold true for every TRC:
         }
     },
     "votes": {
-        "ff00:0:110": {
-            "key_type": "offline",
-            "key_version": 34
-        },
-        "ff00:0:120": {
-            "key_type": "offline",
-            "key_version": 10
-        }
+        "ff00:0:110": "voting_offline",
+        "ff00:0:120": "voting_offline"
     },
     "proof_of_possession": {
-        "ff00:0:110": ["online"],
-        "ff00:0:120": ["offline"]
+        "ff00:0:110": ["voting_online", "issuing_grant"],
+        "ff00:0:120": ["voting_offline"]
     }
 }
 ````
@@ -403,7 +394,7 @@ The following fields must be present in the metadata object and no other must be
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
 - __crit:__ The following immutable array `["type", "key_type", "key_version", "as"]`
 - __type:__ The type of signature. (`proof_of_possession` or `vote`)
-- __key_type:__ The signing key type (`issuing`, `online` or `offline`).
+- __key_type:__ The signing key type (`issuing_grant`, `voting_online` or `voting_offline`).
 - __key_version:__ The signing key version.
 - __as:__ The ISD-AS of the signing AS.
 
@@ -470,21 +461,22 @@ For any kind of update, the following conditions must be met:
 ### Regular TRC Update
 
 In a regular update, the `voting_quorum` parameter must not be changed. In the `primary_ases` section,
-only the issuing and online keys can change. No other parts of the `primary_ases` section may change.
+only the issuing grant and online voting keys can change. No other parts of the `primary_ases` section
+may change.
 
-- All votes from ASes with unchanged online root keys must be cast with the online root key.
-- All ASes with changed online root keys must cast a vote with their offline root key.
+- All votes from ASes with unchanged online voting keys must be cast with the online voting key.
+- All ASes with changed online voting keys must cast a vote with their offline voting key.
 
 ### Sensitive TRC Update
 
 A sensitive update is any update that is not "regular" (as defined above). The following conditions
 must be met:
 
-- All votes must be issued with the offline root key authenticated by the previous TRC.
+- All votes must be issued with the offline voting key authenticated by the previous TRC.
 
-Compared to the regular update, the restriction that voting ASes with changed online key must
-cast a vote is lifted. This allows replacing the online and offline key of a voting AS that has lost
-its offline key without revoking the voting status.
+Compared to the regular update, the restriction that voting ASes with changed online voting key must
+cast a vote is lifted. This allows replacing the online and offline voting key of a voting AS that
+has lost its offline voting key without revoking the voting status.
 
 ## TRC Update Dissemination
 
@@ -528,7 +520,7 @@ The above code is simplified and does not implement the "version 0 means latest"
 ## TRC Trust Reset
 
 Aside from initial TRCs, trust anchors can be re-established with a trust reset. Typically, a trust
-reset is needed when at least a quorum of voting ASes' online or offline keys have been compromised,
+reset is needed when at least a quorum of voting ASes' online or offline voting keys have been compromised,
 or when a quorum can no longer be met. A trust reset is a worst case scenario, that is unlikely to
 happen. It is not considered a TRC update and may involve human intervention if necessary. A Trust
 reset is only permissible if `trust_reset_allowed` is set to `true`; otherwise, no trust reset is
@@ -595,7 +587,7 @@ notation is the same as in the [private keys table](#table-private-keys).
 
 | Key Type       | Issuer Certificate      | AS certificate      |
 | -------------- | ----------------------- | ------------------- |
-| `issuing`      | required (`K_iss_cert`) | illegal             |
+| `issuing`      | required (`K_issuing`)  | illegal             |
 | `encryption`   | illegal                 | required (`K_enc`)  |
 | `signing`      | illegal                 | required (`K_sign`) |
 | `revocation`   | optional (`K_rev`)      | optional (`K_rev`)  |
@@ -606,7 +598,7 @@ The contents depend on the certificate type:
 
 #### AS Certificate
 
-- __ia:__ string. ISD and AS identifiers of the entity that signed this certificate. The issuer must
+- __isd_as:__ string. ISD and AS identifiers of the entity that signed this certificate. The issuer must
   be in the same ISD as the subject of this certificate.
 - __certificate_version:__ 64-bit integer. The certificate version of the Issuer certificate.
 
@@ -617,7 +609,7 @@ The contents depend on the certificate type:
   longer active, so long as the issuing AS still has the same issuing key in any of the active TRC
   versions.
 
-The issuer certificate is self-signed with the `issuing` key in the TRC. Thus, the issuer is the
+The issuer certificate is self-signed with the `issuing_grant` key in the TRC. Thus, the issuer is the
 same as the certificate subject and does not need to be specified.
 
 ### Example of an AS Certificate Payload
@@ -646,7 +638,7 @@ same as the certificate subject and does not need to be specified.
         }
     },
     "issuer": {
-        "ia": "1-ff00:0:130",
+        "isd_as": "1-ff00:0:130",
         "certificate_version": 6
     }
 }
@@ -695,11 +687,11 @@ For AS certificates, the following fields and no other must be present in the me
 
 - __alg:__ The signing algorithm to mitigate algorithm substitution attacks [Section 10.7 of RFC
     7515](https://tools.ietf.org/html/rfc7515#section-10.7).
-- __crit:__ The following immutable array `["type", "certificate_version", "ia"]`
+- __crit:__ The following immutable array `["type", "certificate_version", "isd_as"]`
 - __type:__ Must be the string `"certificate"`, to indicate the public key is authenticated by an
     issuer certificate.
 - __certificate_version:__ The version of the Issuer certificate.
-- __ia:__ The ISD-AS of the signing AS.
+- __isd_as:__ The ISD-AS of the signing AS.
 
 For Issuer certificates, the following fields and no other must be present in the metadata object:
 
@@ -750,13 +742,13 @@ When validating signatures based on certificate chains, the following must be ch
 - The current time falls within the validity period of the certificate chain.
 - No revocation has been cached for either certificate in the chain.
   How often a relying party updates the cache depends on their own policy.
-- The certificate chain is authenticated by a currently active TRC. This means the issuing key that
-  was used to sign the Issuer certificate must be authenticated by a currently active TRC. The
+- The certificate chain is authenticated by a currently active TRC. This means the issuing grant key
+  that was used to sign the Issuer certificate must be authenticated by a currently active TRC. The
   active TRC's version must be greater than or equal to the `trc_version` specified in the Issuer
   certificate.
 
   This allows signature validation to succeed during the grace period of a TRC update with a
-  modified issuing key.
+  modified issuing grant key.
 
 ## Certificate Chain Dissemination
 
@@ -794,8 +786,8 @@ When verifying a certificate chain, the following must be checked:
 
 - The signature of the AS certificate can be verified with the public key authenticated by the
   Issuer certificate
-- The signature of the Issuer certificate can be verified with the issuing key in the referenced
-  TRC.
+- The signature of the Issuer certificate can be verified with the issuing grant key in the
+  referenced TRC.
 - The AS certificate validity period is covered by the Issuer certificate period.
 - The Issuer certificate validity period is covered by the referenced TRC validity period.
 
@@ -1137,7 +1129,7 @@ The following fields and no other must be present in the metadata object:
   7515](https://tools.ietf.org/html/rfc7515#section-10.7).
 - __crit:__ The following immutable array `["key_id", "key_type", "key_version"]`
 - __key_id:__ The offline key identifier.
-- __key_type:__ The signing key type (`attestation` or `offline`).
+- __key_type:__ The signing key type (`attestation` or `voting_offline`).
 - __key_version:__ The signing key version.
 
 The signature input is in accordance with the RFC: `ASCII(protected || '.' || payload)`
@@ -1190,7 +1182,7 @@ other hand, this also increases the impact in case of a key compromise. However,
 choose their own bootstrapping method according to their security and trust model.
 
 Note that attestations are only used for bootstrapping, and trust resets after catastrophic events
-that involved multiple AS offline root key compromises. During normal operation and non-catastrophic
+that involved multiple AS offline voting key compromises. During normal operation and non-catastrophic
 key compromises, the RAAs are not involved. ISDs can update their TRCs freely, without the consent
 or attestation of RAAs. This limits the power that an RAA holds. Misbehavior on the RAA's part is
 easily discoverable, as it is limited to issuing false trust resets.
@@ -1248,14 +1240,14 @@ def b64url(input: bytes) -> str:
 # Metadata serialization
 ############################################
 # First we create the protected headers for 1-ff00:0:110 and 1-ff00:0:120.
-# The online key of 1-ff00:0:110 is updated, and must thus sign the new
+# The online voting key of 1-ff00:0:110 is updated, and must thus sign the new
 # version.
 
 offline_110 = """
 {
     "alg": "Ed25519",
     "crit": ["type", "key_version", "as"]
-    "type": "offline"
+    "type": "voting_offline"
     "key_version": 34,
     "as": "1-ff00:0:110"
 }
@@ -1266,7 +1258,7 @@ online_110 = """
 {
     "alg": "Ed25519",
     "crit": ["type", "key_version", "as"]
-    "type": "online"
+    "type": "voting_online"
     "key_version": 22,
     "as": "1-ff00:0:110"
 }
@@ -1278,7 +1270,7 @@ offline_120 = """
 {
     "alg": "Ed25519",
     "crit": ["type", "key_version", "as"]
-    "type": "offline"
+    "type": "voting_offline"
     "key_version": 11,
     "as": "1-ff00:0:120"
 }
@@ -1355,10 +1347,10 @@ def b64url(input: bytes) -> str:
 as_cert_meta = """
 {
     "alg": "Ed25519",
-    "crit": ["type", "certificate_version", "ia"]
-    "type": "Certificate"
+    "crit": ["type", "certificate_version", "isd_as"]
+    "type": "certificate"
     "certificate_version": 6,
-    "ia": "1-ff00:0:130"
+    "isd_as": "1-ff00:0:130"
 }
 """
 as_cert_meta_enc = b64url(as_cert_meta.encode('utf-8'))
@@ -1383,7 +1375,7 @@ iss_cert_meta = """
 {
     "alg": "Ed25519",
     "crit": ["type", "trc_version"]
-    "type": "TRC"
+    "type": "trc"
     "trc_version": 2,
 }
 """

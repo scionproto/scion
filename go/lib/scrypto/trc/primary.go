@@ -114,14 +114,14 @@ func (p *PrimaryAS) ValidateInvariant() error {
 	if err := p.Attributes.Validate(); err != nil {
 		return err
 	}
-	if err := p.checkKeyExistence(IssuingKey, p.Is(Issuing)); err != nil {
+	if err := p.checkKeyExistence(IssuingGrantKey, p.Is(Issuing)); err != nil {
 		return err
 	}
 	isVoting := p.Is(Voting)
-	if err := p.checkKeyExistence(OnlineKey, isVoting); err != nil {
+	if err := p.checkKeyExistence(VotingOnlineKey, isVoting); err != nil {
 		return err
 	}
-	if err := p.checkKeyExistence(OfflineKey, isVoting); err != nil {
+	if err := p.checkKeyExistence(VotingOfflineKey, isVoting); err != nil {
 		return err
 	}
 	return nil
@@ -257,19 +257,19 @@ func (t *Attribute) UnmarshalText(b []byte) error {
 }
 
 const (
-	IssuingKeyJSON = "issuing"
-	OnlineKeyJSON  = "online"
-	OfflineKeyJSON = "offline"
+	IssuingGrantKeyJSON  = "issuing_grant"
+	VotingOnlineKeyJSON  = "voting_online"
+	VotingOfflineKeyJSON = "voting_offline"
 )
 
 const (
 	unknownKey KeyType = iota
-	// IssuingKey is the issuing key type.
-	IssuingKey
-	// OnlineKey is the online key type.
-	OnlineKey
-	// OfflineKey is the offline key type.
-	OfflineKey
+	// IssuingGrantKey is the issuing key type.
+	IssuingGrantKey
+	// VotingOnlineKey is the online key type.
+	VotingOnlineKey
+	// VotingOfflineKey is the offline key type.
+	VotingOfflineKey
 )
 
 // KeyType indicates the type of the key authenticated by the TRC.
@@ -281,12 +281,12 @@ type KeyType int
 // UnmarshalText allows KeyType to be used as a map key and do validation when parsing.
 func (t *KeyType) UnmarshalText(b []byte) error {
 	switch string(b) {
-	case OnlineKeyJSON:
-		*t = OnlineKey
-	case OfflineKeyJSON:
-		*t = OfflineKey
-	case IssuingKeyJSON:
-		*t = IssuingKey
+	case VotingOnlineKeyJSON:
+		*t = VotingOnlineKey
+	case VotingOfflineKeyJSON:
+		*t = VotingOfflineKey
+	case IssuingGrantKeyJSON:
+		*t = IssuingGrantKey
 	default:
 		return common.NewBasicError(ErrInvalidKeyType, nil, "input", string(b))
 	}
@@ -313,12 +313,12 @@ func (t KeyType) String() string {
 
 func (t KeyType) string() (string, bool) {
 	switch t {
-	case OnlineKey:
-		return OnlineKeyJSON, true
-	case OfflineKey:
-		return OfflineKeyJSON, true
-	case IssuingKey:
-		return IssuingKeyJSON, true
+	case VotingOnlineKey:
+		return VotingOnlineKeyJSON, true
+	case VotingOfflineKey:
+		return VotingOfflineKeyJSON, true
+	case IssuingGrantKey:
+		return IssuingGrantKeyJSON, true
 	}
 	return "", false
 }

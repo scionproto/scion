@@ -119,7 +119,7 @@ func TRCv1() conf.TRC {
 			xtest.MustParseAS("ff00:0:110"): {
 				Attributes: []trc.Attribute{trc.Authoritative, trc.Core,
 					trc.Issuing, trc.Voting},
-				IssuingKeyVersion:       &v1,
+				IssuingGrantKeyVersion:  &v1,
 				VotingOnlineKeyVersion:  &v1,
 				VotingOfflineKeyVersion: &v1,
 			},
@@ -148,7 +148,7 @@ func TRCv2() conf.TRC {
 			xtest.MustParseAS("ff00:0:110"): {
 				Attributes: []trc.Attribute{trc.Authoritative, trc.Core,
 					trc.Issuing, trc.Voting},
-				IssuingKeyVersion:       &v1,
+				IssuingGrantKeyVersion:  &v1,
 				VotingOnlineKeyVersion:  &v2,
 				VotingOfflineKeyVersion: &v1,
 			},

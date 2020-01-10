@@ -121,16 +121,19 @@ func (g signatureGen) sanityChecks(isd addr.ISD, cfg conf.TRC, t *trc.TRC) error
 func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia addr.IA,
 	cfg conf.TRC, signed trc.Signed, t *trc.TRC) error {
 
-	vote, ok := t.Votes[ia.A]
+	keyType, ok := t.Votes[ia.A]
 	if !ok {
 		return nil
 	}
+	prev, _, err := loadTRC(SignedFile(g.Dirs.Out, t.ISD, t.Version-1))
+	if err != nil {
+		return err
+	}
 	id := keyconf.ID{
 		IA:      ia,
-		Version: vote.KeyVersion,
+		Version: prev.PrimaryASes[ia.A].Keys[keyType].KeyVersion,
 	}
-	var err error
-	id.Usage, err = keys.UsageFromTRCKeyType(vote.KeyType)
+	id.Usage, err = keys.UsageFromTRCKeyType(keyType)
 	if err != nil {
 		return err
 	}
@@ -141,7 +144,7 @@ func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia ad
 	protected := trc.Protected{
 		AS:         ia.A,
 		Algorithm:  priv.Algorithm,
-		KeyType:    vote.KeyType,
+		KeyType:    keyType,
 		KeyVersion: priv.Version,
 		Type:       trc.VoteSignature,
 	}
@@ -150,7 +153,7 @@ func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia ad
 		return err
 	}
 	signatures[protected] = signature
-	pkicmn.QuietPrint("Primary %s casts vote using %s key\n", ia, vote.KeyType)
+	pkicmn.QuietPrint("Primary %s casts vote using %s key\n", ia, keyType)
 	return nil
 }
 

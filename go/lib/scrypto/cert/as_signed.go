@@ -102,7 +102,7 @@ type ProtectedAS struct {
 	Crit               CritAS                   `json:"crit"`
 	Type               SignatureTypeCertificate `json:"type"`
 	CertificateVersion scrypto.Version          `json:"certificate_version"`
-	IA                 addr.IA                  `json:"ia"`
+	IA                 addr.IA                  `json:"isd_as"`
 }
 
 // UnmarshalJSON checks that all fields are set.
@@ -130,7 +130,7 @@ type protectedASAlias struct {
 	Algorithm          *string                   `json:"alg"`
 	Type               *SignatureTypeCertificate `json:"type"`
 	CertificateVersion *scrypto.Version          `json:"certificate_version"`
-	IA                 *addr.IA                  `json:"ia"`
+	IA                 *addr.IA                  `json:"isd_as"`
 	Crit               *CritAS                   `json:"crit"`
 }
 
@@ -169,7 +169,7 @@ func (t SignatureTypeCertificate) MarshalText() ([]byte, error) {
 }
 
 var (
-	critASFields        = []string{"type", "certificate_version", "ia"}
+	critASFields        = []string{"type", "certificate_version", "isd_as"}
 	packedCritFields, _ = json.Marshal(critASFields)
 )
 
