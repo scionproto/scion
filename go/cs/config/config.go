@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
@@ -60,7 +59,7 @@ const (
 	LeafReissTime = 6 * time.Hour
 	// IssuerReissTime is the default value for CSConf.IssuerReissTime. It is larger
 	// than the leaf certificate validity period in order to provide optimal coverage.
-	IssuerReissTime = 1*time.Hour + cert.DefaultLeafCertValidity*time.Second
+	IssuerReissTime = (3*24 + 1) * time.Hour
 	// ReissReqRate is the default interval between two consecutive reissue requests.
 	ReissReqRate = 10 * time.Second
 	// ReissueReqTimeout is the default timeout of a reissue request.
