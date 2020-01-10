@@ -51,7 +51,7 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "Lint :bazel:"
+  - label: "Lint"
     command: ./scion.sh lint
     key: lint
     retry:
