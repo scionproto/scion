@@ -17,18 +17,15 @@ package config
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/cs/beaconstorage/beaconstoragetest"
 	controlconfig "github.com/scionproto/scion/go/cs/config"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -41,20 +38,6 @@ func TestConfigSample(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, meta.Undecoded())
 	CheckTestConfig(t, &cfg, idSample)
-}
-
-func TestInvalidTTL(t *testing.T) {
-	cfg := BSConfig{}
-	cfg.InitDefaults()
-	err := cfg.Validate()
-	assert.NoError(t, err)
-	cfg.RevOverlap = util.DurWrap{Duration: cfg.RevTTL.Duration + time.Second}
-	err = cfg.Validate()
-	assert.Error(t, err)
-	cfg.InitDefaults()
-	cfg.RevTTL = util.DurWrap{Duration: path_mgmt.MinRevTTL - time.Second}
-	err = cfg.Validate()
-	assert.Error(t, err)
 }
 
 func InitTestConfig(cfg *Config) {
