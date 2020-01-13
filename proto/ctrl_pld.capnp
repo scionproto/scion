@@ -13,6 +13,7 @@ using DRKeyMgmt = import "drkey_mgmt.capnp";
 using SIG = import "sig.capnp";
 using CtrlExtn = import "ctrl_extn.capnp";
 using Ack = import "ack.capnp";
+using ColibriMgmt = import "colibri_mgmt.capnp";
 
 struct SignedCtrlPld {
     blob @0 :Data;  # Raw CtrlPld
@@ -31,6 +32,7 @@ struct CtrlPld {
         sig @7 :SIG.SIGCtrl;
         extn @8 :CtrlExtn.CtrlExtnDataList;
         ack @11 :Ack.Ack;
+        colibriMgmt @12 :ColibriMgmt.ColibriMgmt;
     }
     reqId @9 :UInt64;
     traceId @10 :Data;
