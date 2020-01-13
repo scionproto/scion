@@ -7,7 +7,7 @@ This document will be reviewed and amended when necessary as the implementation 
 
 ## Overview
 
-The COLIBRI Service (*COS*) manages the reservation process of the COLIBRI QoS subsystem in SCION. It handles both the segment and end to end reservations (aka steady and ephemeral reservations).
+The COLIBRI Service (*COS*) manages the reservation process of the COLIBRI QoS subsystem in SCION. It handles both the segment and end to end reservations (formerly known as steady and ephemeral reservations).
 
 The border router is also modified so it understands COLIBRI type packets in the data plane.
 
@@ -41,11 +41,10 @@ The COS is differentiated into these parts:
 
 ## Sequence Diagrams
 
-TODO(juagargi) for now a simple list, move to diagram
 
 ### Segment Reservations
 
-We use "forward the request" with the following meaning: if the current AS is not the last AS in the reservation path, send the request to the next AS in the resevation path. If the current AS is the last one, do nothing.
+Note: we use "forward the request" with the following meaning: if the current AS is not the last AS in the reservation path, send the request to the next AS in the resevation path. If the current AS is the last one, do nothing.
 
 #### Handle a Setup Response
 
@@ -94,8 +93,8 @@ The configuration specifies which segment reservations should be created from th
 
 #### Handle a Teardown Request
 
-<!-- TODO: telescoped reservations using this reservations as base ? -->
 1. The *COS* checks the reservation is confirmed but has no allocated end to end reservations.
+1. The *COS* checks there are no telescoped reservations using this segment reservation.
 1. The store removes the reservation.
 1. The *COS* forwards the teardown request.
 
@@ -140,7 +139,7 @@ The renewal request handler is the same as the [setup request](#handle-a-e2e-set
 
 ## Interfaces
 
-(interfaces of the main classes)
+Interfaces of the main classes.
 
 The Reservation Store in the COS keeps track of the reservations created and accepted in this AS, both segment and E2E.
 The store provides the following interface:
@@ -165,10 +164,12 @@ The `sciond` endhost daemon will expose the *API* that enables the use of COLIBR
 ```go
 type sciond {
     ...
-    AllowIPNet(ctx context.Context, ia IA, net IPNet) error  // TODO(juagargi) allow processes to just be notified of requests
-    BlockIPNet(ctx context.Context, ia IA, net IPNet) error
+    AllowIPNet(ia IA, net IPNet) error
+    BlockIPNet(ia IA, net IPNet) error
     WatchSegmentRsv(ctx context.Context, pathConf PathConfiguration) (WatchState, error)
     WatchE2ERsv(ctx context.Context, resvConf E2EResvConfiguration) (WatchState, error)
+    // WatchRequests returns a WatchState that will notify the application of any COLIBRI e2e request ending here.
+    WatchRequests() (WatchState, error)
     Unwatch(watchState WatchState) error
 }
 ```
@@ -176,8 +177,7 @@ type sciond {
 
 ## Class Diagrams
 
-(just the main classes, arity and relationship)
-(data relationships seem simple enough that we can probably skip them)
+Main classes, arity and relationships.
 
 ```go
 type InterfaceIdPair struct
@@ -193,8 +193,6 @@ type E2EReservationID uint16
 ```
 
 ## ReservationDB
-
-### Segment reservations
 
 ```
 Table SegmentResvBase
@@ -224,13 +222,3 @@ Table E2EResv
 ResvID              integer     unique              index
 SegmentRsvID        integer     FK
 ```
-
-### End to end reservations
-
-
-
-## Detail per Class
-
-(explain with better detail each one of the main classes)
-
-
