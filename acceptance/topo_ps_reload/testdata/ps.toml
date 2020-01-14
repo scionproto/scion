@@ -1,0 +1,19 @@
+[general]
+ReconnectToDispatcher = true
+ConfigDir = "/"
+ID = "ps1-ff00_0_110-1"
+
+[trustDB]
+Connection = "ps1-ff00_0_110-1.trust.db"
+Backend = "sqlite"
+
+[logging.file]
+Path = "/share/logs/ps1-ff00_0_110-1.log"
+Level = "trace"
+
+[ps.pathDB]
+Connection = "ps1-ff00_0_110-1.path.db"
+Backend = "sqlite"
+
+[metrics]
+Prometheus = "242.253.100.2:30453"
