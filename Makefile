@@ -4,8 +4,6 @@ BRACCEPT = bin/braccept
 
 GAZELLE_MODE?=fix
 
-BAZELRC?=.bazelrc
-
 all: bazel
 
 clean:
@@ -32,7 +30,7 @@ go_deps.bzl: go.mod
 
 bazel: godeps gogen
 	rm -f bin/*
-	bazel --bazelrc=${BAZELRC} build //:scion //:scion-ci
+	bazel build //:scion //:scion-ci
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
@@ -40,7 +38,7 @@ mocks:
 	./tools/gomocks
 
 gazelle:
-	bazel --bazelrc=${BAZELRC} run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
+	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go
 
 setcap:
 	tools/setcap cap_net_admin,cap_net_raw+ep $(BRACCEPT)
