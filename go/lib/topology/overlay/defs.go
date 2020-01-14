@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,6 +68,19 @@ func TypeFromString(s string) (Type, error) {
 	default:
 		return Invalid, common.NewBasicError("Unknown overlay type", nil, "type", s)
 	}
+}
+
+func (ot *Type) UnmarshalJSON(data []byte) error {
+	var strVal string
+	if err := json.Unmarshal(data, &strVal); err != nil {
+		return err
+	}
+	t, err := TypeFromString(strVal)
+	if err != nil {
+		return err
+	}
+	*ot = t
+	return nil
 }
 
 func (ot Type) MarshalJSON() ([]byte, error) {
