@@ -6,11 +6,10 @@ package mock_beaconing
 
 import (
 	context "context"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	beacon "github.com/scionproto/scion/go/cs/beacon"
 	proto "github.com/scionproto/scion/go/proto"
+	reflect "reflect"
 )
 
 // MockBeaconInserter is a mock of BeaconInserter interface

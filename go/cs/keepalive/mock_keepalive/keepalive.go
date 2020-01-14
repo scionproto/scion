@@ -6,11 +6,10 @@ package mock_keepalive
 
 import (
 	context "context"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	common "github.com/scionproto/scion/go/lib/common"
+	reflect "reflect"
 )
 
 // MockIfStatePusher is a mock of IfStatePusher interface
