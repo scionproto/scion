@@ -16,9 +16,11 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/user"
@@ -104,6 +106,8 @@ func realMain() int {
 	}()
 	egress.Init(tunIO)
 	ingress.Init(tunIO)
+	http.HandleFunc("/config", configHandler)
+	http.HandleFunc("/info", env.InfoHandler)
 	cfg.Metrics.StartPrometheus()
 	select {
 	case <-fatal.ShutdownChan():
@@ -202,4 +206,11 @@ func loadConfig(path string) bool {
 	}
 	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
 	return true
+}
+
+func configHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	var buf bytes.Buffer
+	toml.NewEncoder(&buf).Encode(cfg)
+	fmt.Fprint(w, buf.String())
 }
