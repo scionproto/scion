@@ -38,7 +38,7 @@ func TestMeta(t *testing.T) {
 	assert.Equal(t, time.Hour, c.TTL, "Field 'TTL'")
 	assert.Equal(t, addr.IA{I: 1, A: 0xff0000000311}, c.IA, "Field 'ISD_AS'")
 	assert.Equal(t, 1472, c.MTU, "Field 'MTU'")
-	assert.False(t, c.Core, "Field 'Core'")
+	assert.Empty(t, c.Attributes, "Field 'Attributes'")
 }
 
 func Test_Active(t *testing.T) {

@@ -1,7 +1,7 @@
 {
   "ISD_AS": "1-ff00:0:1",
   "Overlay": "UDP/IPv4",
-  "Core": true,
+  "Attributes": ["authoritative", "core", "issuing", "voting"],
   "MTU": 1472,
   "BorderRouters": {
     "core-brA": {

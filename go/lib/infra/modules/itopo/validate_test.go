@@ -21,6 +21,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -243,8 +244,8 @@ func testGenImmutable(v internalValidator, topo, oldTopo *topology.RWTopology, t
 		topo.IA.I = 0
 		SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 	})
-	Convey("Updating the core flag is not allowed", func() {
-		topo.Core = true
+	Convey("Updating the attributes is not allowed", func() {
+		topo.Attributes = trc.Attributes{trc.Core}
 		SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 	})
 	Convey("Updating the mtu is not allowed", func() {

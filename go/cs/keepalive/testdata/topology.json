@@ -2,7 +2,7 @@
   "Overlay": "UDP/IPv4",
   "MTU": 1472,
   "ISD_AS": "1-ff00:0:111",
-  "Core": false,
+  "Attributes": [],
   "BorderRouters": {
     "br1-ff00_0_111-1": {
       "InternalAddrs": {

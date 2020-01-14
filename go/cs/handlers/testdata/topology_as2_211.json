@@ -88,7 +88,7 @@
       }
     }
   },
-  "Core": false,
+  "Attributes": [],
   "MTU": 1472,
   "PathService": {
     "ps2-ff00_0_211-1": {"Addrs": {

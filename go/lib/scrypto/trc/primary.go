@@ -174,6 +174,18 @@ func (t Attributes) Contains(attr Attribute) bool {
 	return false
 }
 
+func (t Attributes) Equal(other Attributes) bool {
+	if len(t) != len(other) {
+		return false
+	}
+	for i := range t {
+		if t[i] != other[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // Validate checks that the attributes list is valid.
 func (t *Attributes) Validate() error {
 	if len(*t) > 4 || len(*t) <= 0 {

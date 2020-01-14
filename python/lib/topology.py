@@ -194,7 +194,6 @@ class Topology(object):
     The Topology class parses the topology file of an AS and stores such
     information for further use.
 
-    :ivar bool is_core_as: tells whether an AS is a core AS or not.
     :ivar ISD_AS isd_is: the ISD-AS identifier.
     :ivar list beacon_servers: beacons servers in the AS.
     :ivar list certificate_servers: certificate servers in the AS.
@@ -208,7 +207,6 @@ class Topology(object):
     :ivar list core_interfaces: BR interfaces linking to core ASes.
     """
     def __init__(self):  # pragma: no cover
-        self.is_core_as = False
         self.isd_as = None
         self.mtu = None
         self.beacon_servers = []
@@ -250,7 +248,6 @@ class Topology(object):
 
         :param dict topology: dictionary representation of a topology
         """
-        self.is_core_as = topology['Core']
         self.isd_as = ISD_AS(topology['ISD_AS'])
         self.mtu = topology['MTU']
         self.overlay = topology['Overlay']

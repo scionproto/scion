@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/topology/overlay"
@@ -56,11 +57,11 @@ type (
 	// there is again a sorted slice of names of the servers that provide the service.
 	// Additionally, there is a map from those names to TopoAddr structs.
 	RWTopology struct {
-		Timestamp time.Time
-		TTL       time.Duration
-		IA        addr.IA
-		Core      bool
-		MTU       int
+		Timestamp  time.Time
+		TTL        time.Duration
+		IA         addr.IA
+		Attributes trc.Attributes
+		MTU        int
 
 		BR        map[string]BRInfo
 		BRNames   []string
@@ -190,7 +191,7 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 		return err
 	}
 	t.MTU = raw.MTU
-	t.Core = raw.Core
+	t.Attributes = raw.Attributes
 	return nil
 }
 
@@ -235,7 +236,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
-			if err = ifinfo.CheckLinks(t.Core, name); err != nil {
+			if err = ifinfo.CheckLinks(t.Attributes.Contains(trc.Core), name); err != nil {
 				return err
 			}
 			// These fields are only necessary for the border router.
