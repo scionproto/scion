@@ -37,4 +37,5 @@ docker-compose  -f gen/scion-dc.yml -p scion up -d $services
 docker-compose -f gen/scion-dc.yml -p scion ps
 docker version
 docker images
+free -h
 time ./bin/end2end_integration -d -log.console=debug
