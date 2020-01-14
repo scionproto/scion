@@ -34,8 +34,10 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/log/mock_log:go_default_library",
+        "//go/lib/xtest:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_inconshreveable_log15//:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )
