@@ -1,0 +1,40 @@
+#!/bin/bash
+
+set -euo pipefail
+
+bazel build //:scion-topo //:scion //:scion-ci
+bazel run //docker/testimages:scion_testing_bundle
+bazel run //docker/perapp:prod
+tar -kxf bazel-bin/scion.tar -C bin --overwrite
+tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
+
+docker-compose -f gen/scion-dc.yml -p scion down || true
+rm -rf logs traces gen gen-cache
+mkdir -p logs traces gen gen-cache
+# docker stop $(docker ps -a -q) || true
+# docker system prune -a
+
+PYTHONPATH=python/:. python/topology/generator.py -d "$@"
+if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
+        old=$(umask)
+        echo "Generating TLS cert"
+        mkdir -p "gen-certs"
+        umask 0177
+        openssl genrsa -out "gen-certs/tls.key" 2048
+        umask "$old"
+        openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
+fi
+
+
+docker-compose -f gen/scion-dc.yml -p scion run --rm utils_chowner
+services=$(docker-compose -f gen/scion-dc.yml config --services |grep disp)
+docker-compose  -f gen/scion-dc.yml -p scion up -d $services
+services=$(docker-compose -f gen/scion-dc.yml config --services |grep ^scion)
+docker-compose  -f gen/scion-dc.yml -p scion up -d $services
+services=$(docker-compose -f gen/scion-dc.yml config --services |grep ^test)
+docker-compose  -f gen/scion-dc.yml -p scion up -d $services
+
+docker-compose -f gen/scion-dc.yml -p scion ps
+docker version
+docker images
+time ./bin/end2end_integration -d -log.console=debug

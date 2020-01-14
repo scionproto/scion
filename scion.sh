@@ -34,7 +34,6 @@ cmd_topology() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
-    run_jaeger
     #FIXME(lukedirtwalker): Re-enalbe for v2 trust: load_cust_keys
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)

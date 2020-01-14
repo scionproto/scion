@@ -43,5 +43,5 @@ gen_bazel_acceptance() {
 }
 
 cat .buildkite/pipeline.yml
-gen_bazel_acceptance
-gen_acceptance
+#gen_bazel_acceptance
+#gen_acceptance

@@ -37,7 +37,7 @@ import (
 
 const (
 	// StartServerTimeout is the timeout for starting a server.
-	StartServerTimeout = 6 * time.Second
+	StartServerTimeout = 25 * time.Second
 	// DefaultRunTimeout is the timeout when running a server or a client.
 	DefaultRunTimeout = 8 * time.Second
 	// CtxTimeout is the timeout a context waits before being killed

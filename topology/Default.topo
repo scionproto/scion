@@ -5,7 +5,6 @@ ASes:
     voting: true
     authoritative: true
     issuing: true
-    underlay: UDP/IPv6
     path_servers: 3
   "1-ff00:0:120": # old 1-12
     core: true
@@ -18,10 +17,8 @@ ASes:
     authoritative: true
     issuing: true
     beacon_servers: 2
-    underlay: UDP/IPv6
   "1-ff00:0:111": # old 1-14
     cert_issuer: 1-ff00:0:110
-    underlay: UDP/IPv6
   "1-ff00:0:112": # old 1-17
     cert_issuer: 1-ff00:0:110
     mtu: 1450
@@ -29,14 +26,12 @@ ASes:
     cert_issuer: 1-ff00:0:120
   "1-ff00:0:122": # old 1-18
     cert_issuer: 1-ff00:0:120
-    underlay: UDP/IPv6
   "1-ff00:0:131": # old 1-16
     cert_issuer: 1-ff00:0:130
     beacon_servers: 3
   "1-ff00:0:132": # old 1-19
     cert_issuer: 1-ff00:0:130
     path_servers: 2
-    underlay: UDP/IPv6
   "1-ff00:0:133": # old 1-10
     cert_issuer: 1-ff00:0:130
   "2-ff00:0:210": # old 2-21
@@ -50,20 +45,17 @@ ASes:
     voting: true
     authoritative: true
     issuing: true
-    underlay: UDP/IPv6
   "2-ff00:0:211": # old 2-23
     cert_issuer: 2-ff00:0:210
-    underlay: UDP/IPv6
   "2-ff00:0:212": # old 2-25
     cert_issuer: 2-ff00:0:210
   "2-ff00:0:221": # old 2-24
     cert_issuer: 2-ff00:0:220
   "2-ff00:0:222": # old 2-26
     cert_issuer: 2-ff00:0:220
-    underlay: UDP/IPv6
 links:
   - {a: "1-ff00:0:110#1",      b: "1-ff00:0:120-A#6",    linkAtoB: CORE}
-  - {a: "1-ff00:0:110#2",      b: "1-ff00:0:130-A#1004", linkAtoB: CORE, underlay: UDP/IPv6}
+  - {a: "1-ff00:0:110#2",      b: "1-ff00:0:130-A#1004", linkAtoB: CORE,}
   - {a: "1-ff00:0:110#3",      b: "2-ff00:0:210#453",    linkAtoB: CORE}
   - {a: "1-ff00:0:120-A#1",    b: "1-ff00:0:130-B#1005", linkAtoB: CORE}
   - {a: "1-ff00:0:120-B#2",    b: "2-ff00:0:220#501",    linkAtoB: CORE, mtu: 1350}
@@ -71,22 +63,22 @@ links:
   - {a: "1-ff00:0:120-B#4",    b: "1-ff00:0:121#3",      linkAtoB: CHILD}
   - {a: "1-ff00:0:120#5",      b: "1-ff00:0:111-B#104",  linkAtoB: CHILD}
   - {a: "1-ff00:0:130-A#1001", b: "1-ff00:0:131#4079",   linkAtoB: CHILD}
-  - {a: "1-ff00:0:130-B#1002", b: "1-ff00:0:111-A#105",  linkAtoB: CHILD, underlay: UDP/IPv6}
+  - {a: "1-ff00:0:130-B#1002", b: "1-ff00:0:111-A#105",  linkAtoB: CHILD,}
   - {a: "1-ff00:0:130-A#1003", b: "1-ff00:0:112#4095",   linkAtoB: CHILD}
   - {a: "1-ff00:0:111-C#100",  b: "1-ff00:0:121#4",      linkAtoB: PEER}
-  - {a: "1-ff00:0:111-B#101",  b: "2-ff00:0:211-A#5",    linkAtoB: PEER, underlay: UDP/IPv6}
+  - {a: "1-ff00:0:111-B#101",  b: "2-ff00:0:211-A#5",    linkAtoB: PEER,}
   - {a: "1-ff00:0:111-C#102",  b: "2-ff00:0:211-A#6",    linkAtoB: PEER}
   - {a: "1-ff00:0:111-A#103",  b: "1-ff00:0:112#4094",   linkAtoB: CHILD}
   - {a: "1-ff00:0:121#1",      b: "1-ff00:0:131#4080",   linkAtoB: PEER}
-  - {a: "1-ff00:0:121#2",      b: "1-ff00:0:122#2",      linkAtoB: CHILD, underlay: UDP/IPv6}
+  - {a: "1-ff00:0:121#2",      b: "1-ff00:0:122#2",      linkAtoB: CHILD,}
   - {a: "1-ff00:0:122#1",      b: "1-ff00:0:133#1",      linkAtoB: PEER}
   - {a: "1-ff00:0:131#4078",   b: "1-ff00:0:132#2",      linkAtoB: CHILD}
   - {a: "1-ff00:0:132#1",      b: "1-ff00:0:133#2",      linkAtoB: CHILD}
-  - {a: "2-ff00:0:210#450",    b: "2-ff00:0:220#503",    linkAtoB: CORE, underlay: UDP/IPv6}
+  - {a: "2-ff00:0:210#450",    b: "2-ff00:0:220#503",    linkAtoB: CORE,}
   - {a: "2-ff00:0:210#451",    b: "2-ff00:0:211-A#7",    linkAtoB: CHILD}
   - {a: "2-ff00:0:210#452",    b: "2-ff00:0:211-A#8",    linkAtoB: CHILD}
   - {a: "2-ff00:0:220#500",    b: "2-ff00:0:221#2",      linkAtoB: CHILD}
-  - {a: "2-ff00:0:211-A#1",    b: "2-ff00:0:221#3",      linkAtoB: PEER, underlay: UDP/IPv6}
+  - {a: "2-ff00:0:211-A#1",    b: "2-ff00:0:221#3",      linkAtoB: PEER,}
   - {a: "2-ff00:0:211-A#2",    b: "2-ff00:0:212#201",    linkAtoB: CHILD}
   - {a: "2-ff00:0:211-A#3",    b: "2-ff00:0:212#200",    linkAtoB: CHILD}
   - {a: "2-ff00:0:211-A#4",    b: "2-ff00:0:222#301",    linkAtoB: CHILD}

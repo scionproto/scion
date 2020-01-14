@@ -20,12 +20,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -86,29 +88,51 @@ func addFlags() {
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
 	return integration.ExecuteTimed(in.Name(), func() error {
 		// First run all servers
-		var lastErr error
-		dsts := integration.ExtractUniqueDsts(pairs)
-		for _, dst := range dsts {
-			s, err := integration.StartServer(in, dst)
-			if err != nil {
-				log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
-				return err
-			}
-			defer s.Close()
-		}
-		// Now start the clients for srcDest pair
-		for i, conn := range pairs {
-			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
-			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
-			t := integration.DefaultRunTimeout + timeout.Duration*time.Duration(attempts)
-			if err := integration.RunClient(in, conn, t); err != nil {
-				log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
-				lastErr = err
-				if !runAll {
-					return err
+		var wgs sync.WaitGroup
+		for _, dst := range integration.ExtractUniqueDsts(pairs) {
+			wgs.Add(1)
+			go func(d *snet.UDPAddr) {
+				defer wgs.Done()
+				s, err := integration.StartServer(in, d)
+				if err != nil {
+					log.Error(fmt.Sprintf("Error in server: %s", d.String()), "err", err)
+					return
 				}
-			}
+				log.Info(fmt.Sprintf("server: %s up", d.String()))
+				defer s.Close() //TODO(karampok). this is not working when docker
+			}(dst)
 		}
+		wgs.Wait()
+
+		timeout := integration.DefaultRunTimeout + timeout.Duration*time.Duration(attempts)
+		var lastErr error
+
+		locks := make(chan struct{}, 10)
+		for i := 0; i < 10; i++ {
+			locks <- struct{}{}
+		}
+
+		var wgc sync.WaitGroup
+		for i, conn := range pairs {
+			wgc.Add(1)
+			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
+			go func(info string, p integration.IAPair) {
+				<-locks
+				defer func() {
+					locks <- struct{}{}
+				}()
+				defer wgc.Done()
+				log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
+				if err := integration.RunClient(in, p, timeout); err != nil {
+					log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
+					lastErr = err
+					return
+				}
+				log.Info(fmt.Sprintf("Test %v: %s ok", in.Name(), testInfo))
+			}(testInfo, conn)
+		}
+
+		wgc.Wait()
 		return lastErr
 	})
 }

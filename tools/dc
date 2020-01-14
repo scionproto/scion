@@ -86,6 +86,7 @@ dc() {
     local dc_file="gen/$1-dc.yml"
     shift
     is_running_in_docker && project="${project}_docker"
+    echo "COMPOSE_FILE=$dc_file docker-compose -p $project --no-ansi $@" >> ./logs/dc.commands
     COMPOSE_FILE="$dc_file" docker-compose -p "$project" --no-ansi "$@"
 }
 
@@ -102,7 +103,7 @@ cmd_collect_logs() {
 exec_tester() {
     local service="tester_$1"
     shift
-    service_running "$service" || cmd_start "$service" &>/dev/null
+    #service_running "$service" || cmd_start "$service" &>/dev/null
     cmd_scion exec -T "$service" bash -l -c "$*"
 }
 
