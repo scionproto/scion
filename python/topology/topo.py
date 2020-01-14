@@ -183,11 +183,12 @@ class TopoGenerator(object):
     def _generate_as_topo(self, topo_id, as_conf):
         mtu = as_conf.get('mtu', self.args.default_mtu)
         assert mtu >= SCION_MIN_MTU, mtu
+        attributes = []
+        for attr in ['authoritative', 'core', 'issuing', 'voting']:
+            if as_conf.get(attr, False):
+                attributes.append(attr)
         self.topo_dicts[topo_id] = {
-            'Core': as_conf.get('core', False),
-            'Voting': as_conf.get('voting', False),
-            'Authoritative': as_conf.get('authoritative', False),
-            'Issuing': as_conf.get('issuing', False),
+            'Attributes': attributes,
             'ISD_AS': str(topo_id),
             'MTU': mtu,
             'Overlay': as_conf.get('underlay', DEFAULT_UNDERLAY),

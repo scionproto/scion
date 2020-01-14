@@ -105,9 +105,9 @@ func (v *generalValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 		return common.NewBasicError("IA is immutable", nil,
 			"expected", oldTopo.IA, "actual", topo.IA)
 	}
-	if topo.Core != oldTopo.Core {
-		return common.NewBasicError("Core is immutable", nil,
-			"expected", oldTopo.Core, "actual", topo.Core)
+	if !topo.Attributes.Equal(oldTopo.Attributes) {
+		return common.NewBasicError("Attributes are immutable", nil,
+			"expected", oldTopo.Attributes, "actual", topo.Attributes)
 	}
 	if topo.MTU != oldTopo.MTU {
 		return common.NewBasicError("MTU is immutable", nil,

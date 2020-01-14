@@ -41,8 +41,8 @@ test_ps_immutable() {
 test_immutable() {
     jq '.ISD_AS = "1-ff00:0:111"' $TOPO | sponge $2
     check_no_reload "$1" 1 "$3: ISD_AS"
-    jq '.Core = true | del( .BorderRouters[].Interfaces )' $TOPO | sponge $2
-    check_no_reload "$1" 2 "$3: Core"
+    jq '.Attributes = ["core"] | del( .BorderRouters[].Interfaces )' $TOPO | sponge $2
+    check_no_reload "$1" 2 "$3: Attributes"
     jq '.MTU = 42' $TOPO | sponge $2
     check_no_reload "$1" 3 "$3: MTU"
 }

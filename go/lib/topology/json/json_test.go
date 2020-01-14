@@ -1,4 +1,5 @@
 // Copyright 2019 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
@@ -39,7 +41,7 @@ func TestLoadRawFromFile(t *testing.T) {
 		TimestampHuman: "May  6 00:00:00 CET 1975",
 		IA:             "6-ff00:0:362",
 		MTU:            1472,
-		Core:           true,
+		Attributes:     []trc.Attribute{trc.Authoritative, trc.Core, trc.Issuing, trc.Voting},
 		Overlay:        overlay.UDPIPv46Name,
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {

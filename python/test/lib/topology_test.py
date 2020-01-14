@@ -146,7 +146,6 @@ class TestTopologyParseDict(object):
         # Call
         inst.parse_dict(topo_dict)
         # Tests
-        ntools.eq_(inst.is_core_as, True)
         ntools.eq_(inst.isd_as, isd_as.return_value)
         ntools.eq_(inst.mtu, 440)
         inst._parse_srv_dicts.assert_called_once_with(topo_dict)
