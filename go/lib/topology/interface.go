@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
@@ -208,7 +209,7 @@ func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
 }
 
 func (t *topologyS) Core() bool {
-	return t.Topology.Core
+	return t.Topology.Attributes.Contains(trc.Core)
 }
 
 func (t *topologyS) BR(name string) (BRInfo, bool) {
