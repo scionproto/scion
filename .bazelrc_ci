@@ -1,1 +1,1 @@
-build --workspace_status_command=./tools/bazel-build-env --show_timestamps --remote_cache=http://localhost:8080 --stamp
+build --remote_cache=http://localhost:8080
