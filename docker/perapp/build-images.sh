@@ -11,7 +11,7 @@ STAGE=${1:-prod}
 
 # Build the binaries.
 # This will fetch everything that haven't been fetched yet.
-bazel --bazelrc="$ROOTDIR/${BAZELRC:-.bazelrc}" build //:scion
+bazel build //:scion
 
 # Collect the licenses from the bazel cache.
 pushd $ROOTDIR/bazel-scion*/external
@@ -23,7 +23,7 @@ tar cf $ROOTDIR/docker/perapp/licenses.tar -C $TMPDIR --transform 's,^,licenses/
 rm -rf $TMPDIR
 
 # Build the images and push them to local docker repository.
-bazel --bazelrc="$ROOTDIR/${BAZELRC:-.bazelrc}" run //docker/perapp:$STAGE
+bazel run //docker/perapp:$STAGE
 
 # Remove licenses
 tar cvf $ROOTDIR/docker/perapp/licenses.tar --files-from /dev/null

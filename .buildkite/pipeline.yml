@@ -1,7 +1,7 @@
 steps:
   - label: ":bazel: Build scion code"
     command:
-      - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci
+      - bazel build //:scion //:scion-ci
     key: build
     retry:
       automatic:
@@ -10,7 +10,7 @@ steps:
     timeout_in_minutes: 10
   - label: ":bazel: Go tests"
     command:
-      - bazel --bazelrc=.bazelrc_ci test //go/... --print_relative_test_log_paths
+      - bazel test //go/... --print_relative_test_log_paths
     key: go_tests
     artifact_paths:
       - "artifacts.out/**/*"
@@ -60,7 +60,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Revocation tests"
     command:
-      - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+      - bazel build //:scion //:scion-ci >/dev/null 2>&1
       - tar -kxf bazel-bin/scion.tar -C bin --overwrite
       - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
       - ./scion.sh topology
@@ -76,7 +76,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Integration: {cert_req,pp,end2end,scmp}_integration"
     command:
-    - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+    - bazel build //:scion //:scion-ci >/dev/null 2>&1
     - tar -kxf bazel-bin/scion.tar -C bin --overwrite
     - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
     - ./scion.sh topology
@@ -95,7 +95,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Integration: end2end_integration"
     command:
-    - bazel --bazelrc=.bazelrc_ci build //:scion //:scion-ci >/dev/null 2>&1
+    - bazel build //:scion //:scion-ci >/dev/null 2>&1
     - tar -kxf bazel-bin/scion.tar -C bin --overwrite
     - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
     - ./scion.sh topology --monolith
