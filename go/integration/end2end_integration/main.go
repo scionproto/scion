@@ -107,8 +107,8 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		timeout := integration.DefaultRunTimeout + timeout.Duration*time.Duration(attempts)
 		var lastErr error
 
-		locks := make(chan struct{}, 1)
-		for i := 0; i < 1; i++ {
+		locks := make(chan struct{}, 20)
+		for i := 0; i < 20; i++ {
 			locks <- struct{}{}
 		}
 

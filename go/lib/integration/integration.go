@@ -39,9 +39,9 @@ const (
 	// StartServerTimeout is the timeout for starting a server.
 	StartServerTimeout = 25 * time.Second
 	// DefaultRunTimeout is the timeout when running a server or a client.
-	DefaultRunTimeout = 8 * time.Second
+	DefaultRunTimeout = 16 * time.Second
 	// CtxTimeout is the timeout a context waits before being killed
-	CtxTimeout = 2 * time.Second
+	//	CtxTimeout = 2 * time.Second
 	// RetryTimeout is the timeout between different attempts
 	RetryTimeout = time.Second / 2
 )
@@ -240,10 +240,10 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 	defer cancel()
 	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
 	if err != nil {
-		return err
+		return fmt.Errorf("on start %v", err)
 	}
 	if err = c.Wait(); err != nil {
-		return err
+		return fmt.Errorf("on wait %v", err)
 	}
 	return nil
 }
