@@ -38,26 +38,6 @@ type PathDB struct {
 	RetrySleep time.Duration
 }
 
-// Get implements the path db's get function. It retries the underlying
-// connection for local segments. For example a non-core path server will retry
-// for local up segments since there is a chance it will receive them from the
-// beacon server. A core path server will retry on core segments since there is
-// a chance it receives them from the beacon server.
-func (db *PathDB) Get(ctx context.Context, params *query.Params) (query.Results, error) {
-	res, err := db.PathDB.Get(ctx, params)
-	if err == nil && db.LocalInfo.IsParamsLocal(params) {
-		for err == nil && len(query.Results(res).Segs()) == 0 {
-			select {
-			case <-ctx.Done():
-				return res, ctx.Err()
-			case <-time.After(db.RetrySleep):
-			}
-			res, err = db.PathDB.Get(ctx, params)
-		}
-	}
-	return res, err
-}
-
 func (db *PathDB) GetNextQuery(ctx context.Context, src, dst addr.IA,
 	policy pathdb.PolicyHash) (time.Time, error) {
 	if local, err := db.LocalInfo.IsSegLocal(ctx, src, dst); err != nil {
