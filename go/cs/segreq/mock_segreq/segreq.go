@@ -6,11 +6,10 @@ package mock_segreq
 
 import (
 	context "context"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	query "github.com/scionproto/scion/go/lib/pathdb/query"
+	reflect "reflect"
 )
 
 // MockLocalInfo is a mock of LocalInfo interface

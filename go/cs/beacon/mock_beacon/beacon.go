@@ -7,14 +7,13 @@ package mock_beacon
 import (
 	context "context"
 	sql "database/sql"
-	reflect "reflect"
-	time "time"
-
 	gomock "github.com/golang/mock/gomock"
 	beacon "github.com/scionproto/scion/go/cs/beacon"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	common "github.com/scionproto/scion/go/lib/common"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	reflect "reflect"
+	time "time"
 )
 
 // MockDB is a mock of DB interface

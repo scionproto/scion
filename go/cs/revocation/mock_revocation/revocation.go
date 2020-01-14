@@ -6,10 +6,9 @@ package mock_revocation
 
 import (
 	context "context"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	reflect "reflect"
 )
 
 // MockStore is a mock of Store interface
