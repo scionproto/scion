@@ -119,7 +119,7 @@ type (
 	// the underlay to be used for contacting said service.
 	TopoAddr struct {
 		SCIONAddress    *net.UDPAddr
-		UnderlayAddress net.Addr
+		UnderlayAddress *net.UDPAddr
 	}
 )
 
@@ -423,7 +423,7 @@ func (i IFInfo) String() string {
 // FIXME(scrye): This should be removed; applications should not need to look into the underlay
 // concrete type.
 func (a *TopoAddr) UnderlayAddr() *net.UDPAddr {
-	return a.UnderlayAddress.(*net.UDPAddr)
+	return a.UnderlayAddress
 }
 
 func (a *TopoAddr) String() string {
@@ -440,7 +440,7 @@ func (a *TopoAddr) copy() *TopoAddr {
 			IP:   append(a.SCIONAddress.IP[:0:0], a.SCIONAddress.IP...),
 			Port: a.SCIONAddress.Port,
 		},
-		UnderlayAddress: toUDPAddr(a.UnderlayAddress.(*net.UDPAddr)),
+		UnderlayAddress: toUDPAddr(a.UnderlayAddress),
 	}
 }
 
