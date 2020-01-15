@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/keepalive/mock_keepalive"
+	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
@@ -48,6 +49,7 @@ var (
 
 // Disable logging in all tests
 func TestMain(m *testing.M) {
+	metrics.InitBSMetrics()
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }

@@ -27,6 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/cs/ifstate/mock_ifstate"
+	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -59,6 +60,7 @@ type brMsg struct {
 }
 
 func TestMain(m *testing.M) {
+	metrics.InitBSMetrics()
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }

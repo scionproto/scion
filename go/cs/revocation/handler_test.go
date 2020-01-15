@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 
+	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/revocation/mock_revocation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -44,6 +45,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	metrics.InitBSMetrics()
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }

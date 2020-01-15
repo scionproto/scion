@@ -14,6 +14,7 @@ go_library(
         "//go/cs/config:go_default_library",
         "//go/cs/ifstate:go_default_library",
         "//go/cs/keepalive:go_default_library",
+        "//go/cs/metrics:go_default_library",
         "//go/cs/onehop:go_default_library",
         "//go/cs/revocation:go_default_library",
         "//go/lib/addr:go_default_library",

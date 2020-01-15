@@ -30,18 +30,18 @@ func newIfstate() ifstate {
 	sub := "ifstate"
 	return ifstate{
 		Desc: prometheus.NewDesc(
-			prometheus.BuildFQName(Namespace, sub, "state"),
+			prometheus.BuildFQName(BSNamespace, sub, "state"),
 			"Interface state, 0==inactive/expired/revoked, 1==active",
 			IfstateLabels{}.Labels(),
 			prometheus.Labels{},
 		),
-		issued: *prom.NewCounterVecWithLabels(Namespace, sub,
+		issued: *prom.NewCounterVecWithLabels(BSNamespace, sub,
 			"issued_revocations_total",
 			"Total number of issued revocations.", IssuedLabels{}),
-		duration: *prom.NewCounterVecWithLabels(Namespace, sub,
+		duration: *prom.NewCounterVecWithLabels(BSNamespace, sub,
 			"revocations_duration_seconds_total",
 			"Duration in seconds of issued revocations.", DurationLabels{}),
-		out: *prom.NewCounterVecWithLabels(Namespace, sub,
+		out: *prom.NewCounterVecWithLabels(BSNamespace, sub,
 			"sent_revocations_total",
 			"Total number of sent revocations.", SentLabels{}),
 	}

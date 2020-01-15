@@ -60,7 +60,7 @@ type registrar struct {
 }
 
 func newRegistrar() registrar {
-	ns, sub := Namespace, "beaconing"
+	ns, sub := BSNamespace, "beaconing"
 	return registrar{
 		registeredBeacons: prom.NewCounterVecWithLabels(ns, sub, "registered_beacons_total",
 			"Number of beacons registered",

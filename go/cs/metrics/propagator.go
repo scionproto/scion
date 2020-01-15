@@ -45,7 +45,7 @@ type propagator struct {
 }
 
 func newPropagator() propagator {
-	ns, sub := Namespace, "beaconing"
+	ns, sub := BSNamespace, "beaconing"
 	return propagator{
 		propagatedBeacons: prom.NewCounterVecWithLabels(ns, sub,
 			"propagated_beacons_total",
