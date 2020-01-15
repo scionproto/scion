@@ -40,6 +40,7 @@ import (
 	controlconfig "github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/keepalive"
+	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/onehop"
 	"github.com/scionproto/scion/go/cs/revocation"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -103,6 +104,7 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
+	metrics.InitBSMetrics()
 
 	topo := itopo.Get()
 	if !topo.Exists(addr.SvcBS, cfg.General.ID) {

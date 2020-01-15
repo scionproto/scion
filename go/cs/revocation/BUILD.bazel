@@ -25,6 +25,7 @@ go_test(
     srcs = ["handler_test.go"],
     embed = [":go_default_library"],
     deps = [
+        "//go/cs/metrics:go_default_library",
         "//go/cs/revocation/mock_revocation:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl:go_default_library",

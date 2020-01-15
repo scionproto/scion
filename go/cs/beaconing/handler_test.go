@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
+	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -48,6 +49,7 @@ var (
 
 // Disable logging in all tests
 func TestMain(m *testing.M) {
+	metrics.InitBSMetrics()
 	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }

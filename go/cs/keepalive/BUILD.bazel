@@ -36,6 +36,7 @@ go_test(
     deps = [
         "//go/cs/ifstate:go_default_library",
         "//go/cs/keepalive/mock_keepalive:go_default_library",
+        "//go/cs/metrics:go_default_library",
         "//go/cs/onehop:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl:go_default_library",

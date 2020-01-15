@@ -94,28 +94,47 @@ const (
 
 var (
 	// Beaconing is the single-instance struct to get prometheus metrics or counters.
-	Beaconing = newBeaconing()
+	Beaconing beaconing
 	// Ifstate is the single-instance struct to get prometheus metrics or counters.
-	Ifstate = newIfstate()
+	Ifstate ifstate
 	// Keepalive is the single-instance struct to get keepalive prometheus counters.
-	Keepalive = newKeepalive()
+	Keepalive exporter
 	// Originator is the single-instance struct to get prometheus counters.
-	Originator = newOriginator()
+	Originator originator
 	// Propagator is the single-instance struct to get prometheus metrics or counters.
-	Propagator = newPropagator()
+	Propagator propagator
 	// Revocation is the single-instance struct to get prometheus counters.
-	Revocation = newRevocation()
+	Revocation exporterR
 	// Registrar is the single-instance struct to get prometheus metrics or counters.
-	Registrar = newRegistrar()
+	Registrar registrar
 	// Registrations contains metrics for segments registrations.
-	Registrations = newRegistration()
+	Registrations Registration
 	// Requests contains metrics for segments requests.
-	Requests = newRequests()
+	Requests Request
 	// Sync contains metrics for segment synchronization.
-	Sync = newSync()
+	Sync sync
 	// PSRevocation contains metrics for revocations.
-	PSRevocation = psNewRevocation()
+	PSRevocation revocation
 )
+
+// InitBSMetrics initializes the metrics used by BS modules.
+func InitBSMetrics() {
+	Beaconing = newBeaconing()
+	Ifstate = newIfstate()
+	Keepalive = newKeepalive()
+	Originator = newOriginator()
+	Propagator = newPropagator()
+	Revocation = newRevocation()
+	Registrar = newRegistrar()
+}
+
+// InitPSMetrics initializes the metrics used by PS modules.
+func InitPSMetrics() {
+	Registrations = newRegistration()
+	Requests = newRequests()
+	Sync = newSync()
+	PSRevocation = psNewRevocation()
+}
 
 // Revocation sources
 const (

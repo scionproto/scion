@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/go/cs/handlers"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/keepalive"
+	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/onehop"
 	"github.com/scionproto/scion/go/cs/revocation"
 	"github.com/scionproto/scion/go/cs/segreq"
@@ -108,6 +109,8 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
+	metrics.InitBSMetrics()
+	metrics.InitPSMetrics()
 	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PS.PathDB, cfg.PS.RevCache)
 	if err != nil {
 		log.Crit("Unable to initialize path storage", "err", err)

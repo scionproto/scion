@@ -30,6 +30,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/cs/handlers"
+	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/segreq"
 	"github.com/scionproto/scion/go/cs/segsyncer"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -87,6 +88,7 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
+	metrics.InitPSMetrics()
 	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PS.PathDB, cfg.PS.RevCache)
 	if err != nil {
 		log.Crit("Unable to initialize path storage", "err", err)
