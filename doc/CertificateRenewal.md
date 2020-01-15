@@ -38,6 +38,8 @@ certificate.
 The full certificate renewal requests consists of the encoded request payload
 and the signature of that payload.
 
+### Field Types
+
 For the field definitions in this document, we use the **integer** type to
 refer to a whole number that is either 0 or positive. Every occurence has a
 bit-length attached, which dictates the range of valid values for that integer.
@@ -48,8 +50,8 @@ MUST error out when the number is not in integer representation (so floating poi
 or exponential notations are disallowed).
 
 Type **string** refers to a UTF-8 string, and type **timestamp** contains the
-number of seconds since UNIX epoch (as defined in the [CCPKI
-Document](https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md)).
+number of seconds since UNIX epoch (as defined in the [CPPKI
+Document](https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md#types)).
 
 ### Request Info Fields
 
@@ -65,16 +67,13 @@ Document](https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md
 - __validity__:  Object that hints desired validity time to the issuer. The
   issuer is allowed to cut the validity time as it sees fit.
     - __not_before__: timestamp. Desired time before which the certificate MUST
-      NOT be considered valid. Signature verification using the certificate
-      MUST fail if the time of verification is before this timestamp.
-    - __not_after__: timestamp. Desired time after which this the certificate
-      MUST NOT be considered valid. Signature verification using the certificate
-      MUST fail if the time of verification is after this timestamp.
+      NOT be considered valid.
+    - __not_after__: timestamp. Desired time after which the certificate
+      MUST NOT be considered valid.
 - __keys__: Object that maps key types (`signing`,`revocation`) to
   an object with the following fields:
     - __algorithm__: string. Identifies the algorithm this key is used with.
     - __key__: Base64-encoded string representation of the public key.
-    - __key_version__: 64-bit integer.
 - __issuer__: string. ISD and AS identifiers of the issuer, as defined in [ISD-AS numbering specification](https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering).
 - __request_time__: timestamp. Time of creating the request info.
 
@@ -94,7 +93,6 @@ Document](https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md
         "signing": {
             "algorithm": "Ed25519",
             "key": "TqL566mz2H+uslHYoAYBhQeNlyxUq25gsmx38JHK8XA=",
-            "key_version": 21
         },
     },
     "issuer": "1-ff00:0:130",
@@ -163,9 +161,19 @@ These are the properties that define the validity of a certificate renewal reque
   issuing AS.
 - The request MUST be compatible with the additional policies defined by the
   issuing AS.
+- `not_before - not_before` should not amount to more than 3 days (72 * 3600);
+  otherwise, an attacker that compromises the current AS certificate can request
+  a new one with very long lifetime and disseminate it, thus poisoning remote
+  caches. Certificate revocation lists could be used in this case, but since AS
+  certificates need to be regenerated periodically anyway, might as well enforce
+  a short lieftime as an additional measure.
+- current time (as seen from the issuer) should be greater or equal to
+  `not_before`, and less than or equal to `not_after`; otherwise, an attacker
+  that compromises the current AS certificate can request new ones in the
+  future.
 - All integers must be valid as defined in this document (not negative and not
-  overflowing defined bit size)
-- JWS compliance (correct fields in protected metadata)
+  overflowing defined bit size).
+- JWS compliance (correct fields in protected metadata).
 
 The issuing AS can define its own additional policies. We recommend the following
 default policy:
@@ -280,12 +288,10 @@ examples use tabs for indentantion and a newline at the end of the content.
         "signing": {
             "algorithm": "Ed25519",
             "key": "WmTLs8BiEdyLVOSLQR2Oopmt0Wz3ZtFd0v8FKCEB14M=",
-            "key_version": 21
         },
         "revocation": {
             "algorithm": "Ed25519",
             "key": "RUHOtezvoir6DWVCBBZjf3M_4giLbWgE0o3f4oJQu18=",
-            "key_version": 29
         }
     },
     "issuer": "1-ff00:0:130",
@@ -319,15 +325,15 @@ examples use tabs for indentantion and a newline at the end of the content.
 
 ```json
 {
-    "payload": "ewoJInN1YmplY3QiOiAiMS1mZjAwOjA6MTIwIiwKCSJ2ZXJzaW9uIjogMiwKCSJmb3JtYXRfdmVyc2lvbiI6IDEsCgkiZGVzY3JpcHRpb24iOiAiQVMgY2VydGlmaWNhdGUiLAoJInZhbGlkaXR5IjogewoJCSJub3RfYmVmb3JlIjogMTQ4MDkyNzcyMywKCQkibm90X2FmdGVyIjogMTUxMjQ2MzcyMwoJfSwKCSJrZXlzIjogewoJCSJzaWduaW5nIjogewoJCQkiYWxnb3JpdGhtIjogIkVkMjU1MTkiLAoJCQkia2V5IjogIldtVExzOEJpRWR5TFZPU0xRUjJPb3BtdDBXejNadEZkMHY4RktDRUIxNE09IiwKCQkJImtleV92ZXJzaW9uIjogMjEKCQl9LAoJCSJyZXZvY2F0aW9uIjogewoJCQkiYWxnb3JpdGhtIjogIkVkMjU1MTkiLAoJCQkia2V5IjogIlJVSE90ZXp2b2lyNkRXVkNCQlpqZjNNXzRnaUxiV2dFMG8zZjRvSlF1MTg9IiwKCQkJImtleV92ZXJzaW9uIjogMjkKCQl9Cgl9LAoJImlzc3VlciI6ICIxLWZmMDA6MDoxMzAiLAoJInJlcXVlc3RfdGltZSI6IDE0ODA5MjcwMDAKfQo=",
+    "payload": "ewoJInN1YmplY3QiOiAiMS1mZjAwOjA6MTIwIiwKCSJ2ZXJzaW9uIjogMiwKCSJmb3JtYXRfdmVyc2lvbiI6IDEsCgkiZGVzY3JpcHRpb24iOiAiQVMgY2VydGlmaWNhdGUiLAoJInZhbGlkaXR5IjogewoJCSJub3RfYmVmb3JlIjogMTQ4MDkyNzcyMywKCQkibm90X2FmdGVyIjogMTUxMjQ2MzcyMwoJfSwKCSJrZXlzIjogewoJCSJzaWduaW5nIjogewoJCQkiYWxnb3JpdGhtIjogIkVkMjU1MTkiLAoJCQkia2V5IjogIldtVExzOEJpRWR5TFZPU0xRUjJPb3BtdDBXejNadEZkMHY4RktDRUIxNE09IiwKCQl9LAoJCSJyZXZvY2F0aW9uIjogewoJCQkiYWxnb3JpdGhtIjogIkVkMjU1MTkiLAoJCQkia2V5IjogIlJVSE90ZXp2b2lyNkRXVkNCQlpqZjNNXzRnaUxiV2dFMG8zZjRvSlF1MTg9IiwKCQl9Cgl9LAoJImlzc3VlciI6ICIxLWZmMDA6MDoxMzAiLAoJInJlcXVlc3RfdGltZSI6IDE0ODA5MjcwMDAKfQo=",
     "signatures": [
         {
             "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJzaWduaW5nIl0sCgkia2V5X3ZlcnNpb24iOiAyMQp9Cg==",
-            "signature": "OCmYF_W1s8GMYb0hoYaJ4EQBsChVktNwBneJNGSh_LKXqMjT-IMEPH6Z3TDqRpqvsO3jSALxneME1Tp82_vTCQ=="
+            "signature": "pIEniKWwXzu6Pef2t1BqTbuPHeSNZrhPy08KxcgAYtGQYhZs3t8bhBdYPbyDqX63pQPfV3AIrK4udjBw1S0jAw=="
         },
         {
             "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJyZXZvY2F0aW9uIl0sCgkia2V5X3ZlcnNpb24iOiAyOQp9Cg==",
-            "signature": "JvU9Gpy8dHlkjuCvt7phoGNDBPnZHzhRqxGgGTNTKpaHjzc0UaB-mcI4vEJ-I09meqxrP2ciNUyWg-TaxlpyDA=="
+            "signature": "BjDC3Duvz-rlSBBWjenMiDSlRvb8H3x7VEyriOOP7ipQ414InIcAYeGzF-Pp4TaukWTgnqoHHpu9r0XJp6i6AQ=="
         }
     ]
 }
@@ -336,10 +342,10 @@ examples use tabs for indentantion and a newline at the end of the content.
 ### Example Old Signing Key
 
 This _signing key_ must be vouched for by a currently valid certificate of the
-same AS (if we go with Option 1).
+same AS.
 
 - Private: "O7egXeYMerDGfczXoUMqKA-qc0E6Xk4T8zZAEtP_HbI="
-- Public: "8bPVYzGOkcOG22Qgn_6WEel366mu3LihZ-OQ08q8dPs="
+- Public:  "8bPVYzGOkcOG22Qgn_6WEel366mu3LihZ-OQ08q8dPs="
 
 ### Example Signature Metadata - Top Signature
 
@@ -356,9 +362,9 @@ same AS (if we go with Option 1).
 
 ```json
 {
-    "payload": "ewoJInBheWxvYWQiOiAiZXdvSkluTjFZbXBsWTNRaU9pQWlNUzFtWmpBd09qQTZNVEl3SWl3S0NTSjJaWEp6YVc5dUlqb2dNaXdLQ1NKbWIzSnRZWFJmZG1WeWMybHZiaUk2SURFc0Nna2laR1Z6WTNKcGNIUnBiMjRpT2lBaVFWTWdZMlZ5ZEdsbWFXTmhkR1VpTEFvSkluWmhiR2xrYVhSNUlqb2dld29KQ1NKdWIzUmZZbVZtYjNKbElqb2dNVFE0TURreU56Y3lNeXdLQ1FraWJtOTBYMkZtZEdWeUlqb2dNVFV4TWpRMk16Y3lNd29KZlN3S0NTSnJaWGx6SWpvZ2V3b0pDU0p6YVdkdWFXNW5Jam9nZXdvSkNRa2lZV3huYjNKcGRHaHRJam9nSWtWa01qVTFNVGtpTEFvSkNRa2lhMlY1SWpvZ0lsZHRWRXh6T0VKcFJXUjVURlpQVTB4UlVqSlBiM0J0ZERCWGVqTmFkRVprTUhZNFJrdERSVUl4TkUwOUlpd0tDUWtKSW10bGVWOTJaWEp6YVc5dUlqb2dNakVLQ1FsOUxBb0pDU0p5WlhadlkyRjBhVzl1SWpvZ2V3b0pDUWtpWVd4bmIzSnBkR2h0SWpvZ0lrVmtNalUxTVRraUxBb0pDUWtpYTJWNUlqb2dJbEpWU0U5MFpYcDJiMmx5TmtSWFZrTkNRbHBxWmpOTlh6Um5hVXhpVjJkRk1HOHpaalJ2U2xGMU1UZzlJaXdLQ1FrSkltdGxlVjkyWlhKemFXOXVJam9nTWprS0NRbDlDZ2w5TEFvSkltbHpjM1ZsY2lJNklDSXhMV1ptTURBNk1Eb3hNekFpTEFvSkluSmxjWFZsYzNSZmRHbHRaU0k2SURFME9EQTVNamN3TURBS2ZRbz0iLAoJInNpZ25hdHVyZXMiOiBbCgkJewoJCQkicHJvdGVjdGVkIjogImV3b0pJbUZzWnlJNklDSkZaREkxTlRFNUlpd0tDU0pqY21sMElqb2dXeUpyWlhsZmRIbHdaU0lzSUNKclpYbGZkbVZ5YzJsdmJpSmRMQW9KSW10bGVWOTBlWEJsSWpvZ1d5SnphV2R1YVc1bklsMHNDZ2tpYTJWNVgzWmxjbk5wYjI0aU9pQXlNUXA5Q2c9PSIsCgkJCSJzaWduYXR1cmUiOiAiT0NtWUZfVzFzOEdNWWIwaG9ZYUo0RVFCc0NoVmt0TndCbmVKTkdTaF9MS1hxTWpULUlNRVBINlozVERxUnBxdnNPM2pTQUx4bmVNRTFUcDgyX3ZUQ1E9PSIKCQl9LAoJCXsKCQkJInByb3RlY3RlZCI6ICJld29KSW1Gc1p5STZJQ0pGWkRJMU5URTVJaXdLQ1NKamNtbDBJam9nV3lKclpYbGZkSGx3WlNJc0lDSnJaWGxmZG1WeWMybHZiaUpkTEFvSkltdGxlVjkwZVhCbElqb2dXeUp5WlhadlkyRjBhVzl1SWwwc0Nna2lhMlY1WDNabGNuTnBiMjRpT2lBeU9RcDlDZz09IiwKCQkJInNpZ25hdHVyZSI6ICJKdlU5R3B5OGRIbGtqdUN2dDdwaG9HTkRCUG5aSHpoUnF4R2dHVE5US3BhSGp6YzBVYUItbWNJNHZFSi1JMDltZXF4clAyY2lOVXlXZy1UYXhscHlEQT09IgoJCX0KCV0KfQo=",
+    "payload": "ewoJInBheWxvYWQiOiAiZXdvSkluTjFZbXBsWTNRaU9pQWlNUzFtWmpBd09qQTZNVEl3SWl3S0NTSjJaWEp6YVc5dUlqb2dNaXdLQ1NKbWIzSnRZWFJmZG1WeWMybHZiaUk2SURFc0Nna2laR1Z6WTNKcGNIUnBiMjRpT2lBaVFWTWdZMlZ5ZEdsbWFXTmhkR1VpTEFvSkluWmhiR2xrYVhSNUlqb2dld29KQ1NKdWIzUmZZbVZtYjNKbElqb2dNVFE0TURreU56Y3lNeXdLQ1FraWJtOTBYMkZtZEdWeUlqb2dNVFV4TWpRMk16Y3lNd29KZlN3S0NTSnJaWGx6SWpvZ2V3b0pDU0p6YVdkdWFXNW5Jam9nZXdvSkNRa2lZV3huYjNKcGRHaHRJam9nSWtWa01qVTFNVGtpTEFvSkNRa2lhMlY1SWpvZ0lsZHRWRXh6T0VKcFJXUjVURlpQVTB4UlVqSlBiM0J0ZERCWGVqTmFkRVprTUhZNFJrdERSVUl4TkUwOUlpd0tDUWw5TEFvSkNTSnlaWFp2WTJGMGFXOXVJam9nZXdvSkNRa2lZV3huYjNKcGRHaHRJam9nSWtWa01qVTFNVGtpTEFvSkNRa2lhMlY1SWpvZ0lsSlZTRTkwWlhwMmIybHlOa1JYVmtOQ1FscHFaak5OWHpSbmFVeGlWMmRGTUc4elpqUnZTbEYxTVRnOUlpd0tDUWw5Q2dsOUxBb0pJbWx6YzNWbGNpSTZJQ0l4TFdabU1EQTZNRG94TXpBaUxBb0pJbkpsY1hWbGMzUmZkR2x0WlNJNklERTBPREE1TWpjd01EQUtmUW89IiwKCSJzaWduYXR1cmVzIjogWwoJCXsKCQkJInByb3RlY3RlZCI6ICJld29KSW1Gc1p5STZJQ0pGWkRJMU5URTVJaXdLQ1NKamNtbDBJam9nV3lKclpYbGZkSGx3WlNJc0lDSnJaWGxmZG1WeWMybHZiaUpkTEFvSkltdGxlVjkwZVhCbElqb2dXeUp6YVdkdWFXNW5JbDBzQ2draWEyVjVYM1psY25OcGIyNGlPaUF5TVFwOUNnPT0iLAoJCQkic2lnbmF0dXJlIjogInBJRW5pS1d3WHp1NlBlZjJ0MUJxVGJ1UEhlU05acmhQeTA4S3hjZ0FZdEdRWWhaczN0OGJoQmRZUGJ5RHFYNjNwUVBmVjNBSXJLNHVkakJ3MVMwakF3PT0iCgkJfSwKCQl7CgkJCSJwcm90ZWN0ZWQiOiAiZXdvSkltRnNaeUk2SUNKRlpESTFOVEU1SWl3S0NTSmpjbWwwSWpvZ1d5SnJaWGxmZEhsd1pTSXNJQ0pyWlhsZmRtVnljMmx2YmlKZExBb0pJbXRsZVY5MGVYQmxJam9nV3lKeVpYWnZZMkYwYVc5dUlsMHNDZ2tpYTJWNVgzWmxjbk5wYjI0aU9pQXlPUXA5Q2c9PSIsCgkJCSJzaWduYXR1cmUiOiAiQmpEQzNEdXZ6LXJsU0JCV2plbk1pRFNsUnZiOEgzeDdWRXlyaU9PUDdpcFE0MTRJbkljQVllR3pGLVBwNFRhdWtXVGducW9ISHB1OXIwWEpwNmk2QVE9PSIKCQl9CgldCn0K",
     "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJzaWduaW5nIl0sCgkia2V5X3ZlcnNpb24iOiAyMAp9Cg==",
-    "signature": "iPdGUSjCqOBF83JSv8Nk35wbzkacPDdVdLDDgyCw8dY6l1jxgh4fil6RBkn0B1Fbj5ijkc7lL58x428oZufTDA==",
+    "signature": "RunUWcYVADY7FzNwub5zgh04mhgknvHAHgHlCru4hSEVo2vEvcxp3cx3EqX7umX7ObBgQT3C3zHlNsJcykDFBg==",
 }
 ```
 
