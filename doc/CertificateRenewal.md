@@ -38,28 +38,44 @@ certificate.
 The full certificate renewal requests consists of the encoded request payload
 and the signature of that payload.
 
+For the field definitions in this document, we use the **integer** type to
+refer to a whole number that is either 0 or positive. Every occurence has a
+bit-length attached, which dictates the range of valid values for that integer.
+Implementations MUST be able to parse all integer values in the range, MUST NOT
+create messages that contain values outside of the range, and MUST error out
+during validation if they encounter a number outside of the range. Implementations
+MUST error out when the number is not in integer representation (so floating point
+or exponential notations are disallowed).
+
+Type **string** refers to a UTF-8 string, and type **timestamp** contains the
+number of seconds since UNIX epoch (as defined in the [CCPKI
+Document](https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md)).
+
 ### Request Info Fields
 
 - __subject__: string. ISD and AS identifiers of the entity that owns the
-  certificate and the corresponding key pair.
+  certificate and the corresponding key pair, as
+  defined in [ISD-AS numbering specification](https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering).
 - __version__: 64-bit integer. Certificate version, starts at 1.
 - __format_version__: 8-bit integer. Version of the TRC/certificate format (currently 1).
-- __description__: UTF-8 string. Describes the certificate and/or AS.
+- __description__: string. Describes the certificate and/or AS.
 - __optional_distribution_points__: Array string. Additional certificate
-  revocation distribution points formatted as ISD-AS string. They must be
+  revocation distribution points formatted as ISD-AS string. They MUST be
   authoritative in their ISD.
 - __validity__:  Object that hints desired validity time to the issuer. The
   issuer is allowed to cut the validity time as it sees fit.
-    - __not_before__: timestamp. Desired time before which the certificate may
-      not be used.
+    - __not_before__: timestamp. Desired time before which the certificate MUST
+      NOT be considered valid. Signature verification using the certificate
+      MUST fail if the time of verification is before this timestamp.
     - __not_after__: timestamp. Desired time after which this the certificate
-      may no longer be used to verify signatures.
-- __keys__: Object that maps key types (`encryption`, `signing`,`revocation`) to
+      MUST NOT be considered valid. Signature verification using the certificate
+      MUST fail if the time of verification is after this timestamp.
+- __keys__: Object that maps key types (`signing`,`revocation`) to
   an object with the following fields:
     - __algorithm__: string. Identifies the algorithm this key is used with.
     - __key__: Base64-encoded string representation of the public key.
     - __key_version__: 64-bit integer.
-- __issuer__: string. ISD and AS identifiers of the issuer.
+- __issuer__: string. ISD and AS identifiers of the issuer, as defined in [ISD-AS numbering specification](https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering).
 - __request_time__: timestamp. Time of creating the request info.
 
 ### Example Request Info
@@ -75,11 +91,6 @@ and the signature of that payload.
         "not_after": 1512463723
     },
     "keys": {
-        "encryption": {
-            "algorithm": "curve25519",
-            "key": "Gfnet1MzpHGb3aUzbZQga+c44H+YNA6QM7b5p00dQkY=",
-            "key_version": 21
-        },
         "signing": {
             "algorithm": "Ed25519",
             "key": "TqL566mz2H+uslHYoAYBhQeNlyxUq25gsmx38JHK8XA=",
@@ -93,25 +104,32 @@ and the signature of that payload.
 
 ### Request Payload
 
-The proof-of-possessions are signatures of the request info using the JWS
-standard and the request payload is serialized using the General JWS JSON
-Serialization Syntax [Section 7.2.1 of RFC
+Requesters must prove that they hold the private keys for the public keys
+embedded in the Request Info; one proof for each key (_signing_, _revocation_)
+is required. The proof-of-possessions are signatures of the request info using
+the JWS standard and the request payload is serialized using the General JWS
+JSON Serialization Syntax [Section 7.2.1 of RFC
 7515](https://tools.ietf.org/html/rfc7515#section-7.2.1).
 
 The request payload consists of the following fields:
 
-- __payload__: The BASE64URL-encoded request info described above.
+- __payload__: The BASE64URL-encoded representation of the request info
+  described in the [Request Info section](#request-info).
 - __signatures__: JSON array of signature objects, building the proof-of-possession.
-    - __protected__: The BASE64URL(UTF8(metadata))-encoded metadata of the signature.
+    - __protected__: The BASE64URL(UTF8(metadata))-encoded metadata of the signature (see below).
     - __signature__: The BASE64URL encoded JWS signature.
 
-The following fields must be present in the metadata object and no others must be set:
+The following fields MUST be present in the metadata object:
 
 - __alg__: The signing algorithm to mitigate algorithm substitution attacks
   [Section 10.7 of RFC 7515](https://tools.ietf.org/html/rfc7515#section-10.7).
 - __crit__: The following immutable array `["key_type", "key_version"]`.
 - __key_type__: The signing key type (`signing` or `revocation`).
-- __key_version__: The signing key version.
+- __key_version__: 64-bit integer containing the signing key version.
+
+If any field other than the four above is present in the metadata, implementations MUST error out.
+
+Implementations MUST support the [Ed25519 signing algorithm](https://tools.ietf.org/html/rfc8032).
 
 The signature input is in accordance with the RFC: `ASCII(protected || '.' || payload)`
 
@@ -135,73 +153,28 @@ The signature input is in accordance with the RFC: `ASCII(protected || '.' || pa
 
 These are the properties that define the validity of a certificate renewal request:
 
-- The keys object MUST contain a `signing` and `encryption` key.
+- The keys object MUST contain a `signing` key.
 - Proof-of-possession of the `signing` key MUST be shown by signing the request
   info with the corresponding private key.
 - If a `revocation` key is present in the request info, proof-of-possession MUST
-  be shown by signing the request info with the corresponding private keys.
+  be shown by signing the request info with the corresponding private key.
 - The request SHOULD have a recent `request_time`.
-- The request MUST be signed by a key that is compatible with the issuing AS's
-  policy.
+- The request MUST be signed by a key that is compatible with the policy of the
+  issuing AS.
 - The request MUST be compatible with the additional policies defined by the
   issuing AS.
+- All integers must be valid as defined in this document (not negative and not
+  overflowing defined bit size)
+- JWS compliance (correct fields in protected metadata)
 
-The issuing AS can define its own additional polices. We recommend the following
+The issuing AS can define its own additional policies. We recommend the following
 default policy:
-
-### TODO Discuss what policy makes more sense for now
-
-_Option 1:_
-
-The issuing AS does the following additional checks:
 
 - The `request_time` is more recent than 10 seconds.
 - The request is signed with a signing key that is authenticated by a currently
   active AS certificate of the subject.
 - The subject has a customer relationship with the issuing AS.
-- The new version must be current latest + 1.
-
-_Pros:_
-
-- easy to implement (1 additional table with all customers in the DB)
-- powerful in the sense that it allows an AS to have multiple sets of keys that
-  can be updated individually.
-
-_Cons:_
-
-- Compromise recovery needs additional logic, i.e., there needs a way to disable
-  automatic renewal. It can only be activated again after all the compromised
-  certificates have expired, or some blacklist/whitelist mechanism for the
-  lifetime. In the meantime a new certificate has to be created out-of-band.
-
-_Option 2:_
-
-The issuing AS does the following additional checks:
-
-- The `request_time` is more recent than 10 seconds.
-- The reuest is signed with a signing key that is authenticated by the latest AS
-  certificate of the subject.
-- The subject has a customer relationship with the issuing AS.
-- The new version must be current latest + 1.
-
-_Pros:_
-
-- More restrictive, thus easier to recover from key compromise. I.e., the issuer
-  simply puts a garbage key into the database until a new certificate has been
-  created out-of-band.
-- Certificate renewal is still possible, even if the latest certificate chain
-  expired.
-
-_Cons:_
-
-- Less powerful, one single key that is allowed to do renewals
-- Need to pre-load keys instead of simply specify the customer relationship.
-- Updating the newest key becomes more involved.
-
-_Opinion_: I think option 1 is better at this point in time, because it is a lot
-easier to implement. While the pro of option 2, that certificate renewal is
-still possible is compelling, it can also be achieved with some minor extension
-to option 1 at a later stage.
+- The new `version` must be current latest + 1.
 
 ## Certificate Renewal Response
 
@@ -218,8 +191,8 @@ The payload consists of a json object with two fields:
   certificate.
 - __error__: Object indicating the error that occurred with the following
   fields:
-    - __name__: string. Specified [error identifier](#supported-errors)
-    - __message__: string. Arbitrary error message
+    - __name__: string. Specified [error name](#supported-error-names).
+    - __message__: string. Arbitrary error message.
     - __ctx__: dict (optional). Arbitrary additional context.
 
 In case of successful certificate renewal the payload consists of the
@@ -231,7 +204,7 @@ certificate chain containing the renewed AS certificate.
 - `invalid_signature`: Signature failed to verify.
 - `not_customer`: Subject is not a customer of the issuing AS.
 - `exists`: Requested certificate version already exists.
-- `request_expired`: The `request_time` timestamp is to old.
+- `request_expired`: The `request_time` timestamp is too old.
 - `policy_violation`: The request violates a policy defined by the issuing AS.
 
 ### Serialization
@@ -262,10 +235,131 @@ authoritative ASes before using it.
 ## Frequency
 
 AS certificates are [short-lived](ControlPlanePKI.md#table-certificates). Thus,
-AS certificates need to be renew fairly frequently. We suggest that ASes request
-certificate renewals one day before expiration.
+AS certificates need to be renewed fairly frequently. We recommend that ASes
+request certificate renewals one day before expiration.
 
-In order to provide optimal coverage to its customers, we suggest that the
+In order to provide optimal coverage to its customers, we recommend that the
 issuer ASes have an issuer certificate ready that covers the maximum AS
 certificate validity (under their policy) at all times.
 
+## Data example
+
+### AS Key pairs
+
+This section contains example key material for an AS. For reproducibility
+purposes, the example includes private keys. Implementations must take
+precautions to keep these secret. All values use Base64 URL-safe encoding (see
+[RFC 3548](https://tools.ietf.org/html/rfc3548))
+
+For reproducibility, the Base64 encodings of the multi-line JSONs in these
+examples use tabs for indentantion and a newline at the end of the content.
+
+#### Signing (Ed25519)
+
+- Private: `jJ15HZC6ECC5PH5nmXC5JsYoc7FgSUfWGU80jG_Y7Bg=`
+- Public:  `WmTLs8BiEdyLVOSLQR2Oopmt0Wz3ZtFd0v8FKCEB14M=`
+
+#### Revocation (Ed25519)
+
+- Private: `nKpYHbaoARsl1aY3Dzr45-19Ake6CD2CeJoa84ZkwWo=`
+- Public:  `RUHOtezvoir6DWVCBBZjf3M_4giLbWgE0o3f4oJQu18=`
+
+### Example Request Info
+
+````json
+{
+    "subject": "1-ff00:0:120",
+    "version": 2,
+    "format_version": 1,
+    "description": "AS certificate",
+    "validity": {
+        "not_before": 1480927723,
+        "not_after": 1512463723
+    },
+    "keys": {
+        "signing": {
+            "algorithm": "Ed25519",
+            "key": "WmTLs8BiEdyLVOSLQR2Oopmt0Wz3ZtFd0v8FKCEB14M=",
+            "key_version": 21
+        },
+        "revocation": {
+            "algorithm": "Ed25519",
+            "key": "RUHOtezvoir6DWVCBBZjf3M_4giLbWgE0o3f4oJQu18=",
+            "key_version": 29
+        }
+    },
+    "issuer": "1-ff00:0:130",
+    "request_time": 1480927000
+}
+````
+
+### Example Signature Metadata - Proof of Possession for Signing Key
+
+```json
+{
+    "alg": "Ed25519",
+    "crit": ["key_type", "key_version"],
+    "key_type": ["signing"],
+    "key_version": 21
+}
+```
+
+### Example Signature Metadata - Proof of Posession for Revocation Key
+
+```json
+{
+    "alg": "Ed25519",
+    "crit": ["key_type", "key_version"],
+    "key_type": ["revocation"],
+    "key_version": 29
+}
+```
+
+### Example Request Payload
+
+```json
+{
+    "payload": "ewoJInN1YmplY3QiOiAiMS1mZjAwOjA6MTIwIiwKCSJ2ZXJzaW9uIjogMiwKCSJmb3JtYXRfdmVyc2lvbiI6IDEsCgkiZGVzY3JpcHRpb24iOiAiQVMgY2VydGlmaWNhdGUiLAoJInZhbGlkaXR5IjogewoJCSJub3RfYmVmb3JlIjogMTQ4MDkyNzcyMywKCQkibm90X2FmdGVyIjogMTUxMjQ2MzcyMwoJfSwKCSJrZXlzIjogewoJCSJzaWduaW5nIjogewoJCQkiYWxnb3JpdGhtIjogIkVkMjU1MTkiLAoJCQkia2V5IjogIldtVExzOEJpRWR5TFZPU0xRUjJPb3BtdDBXejNadEZkMHY4RktDRUIxNE09IiwKCQkJImtleV92ZXJzaW9uIjogMjEKCQl9LAoJCSJyZXZvY2F0aW9uIjogewoJCQkiYWxnb3JpdGhtIjogIkVkMjU1MTkiLAoJCQkia2V5IjogIlJVSE90ZXp2b2lyNkRXVkNCQlpqZjNNXzRnaUxiV2dFMG8zZjRvSlF1MTg9IiwKCQkJImtleV92ZXJzaW9uIjogMjkKCQl9Cgl9LAoJImlzc3VlciI6ICIxLWZmMDA6MDoxMzAiLAoJInJlcXVlc3RfdGltZSI6IDE0ODA5MjcwMDAKfQo=",
+    "signatures": [
+        {
+            "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJzaWduaW5nIl0sCgkia2V5X3ZlcnNpb24iOiAyMQp9Cg==",
+            "signature": "OCmYF_W1s8GMYb0hoYaJ4EQBsChVktNwBneJNGSh_LKXqMjT-IMEPH6Z3TDqRpqvsO3jSALxneME1Tp82_vTCQ=="
+        },
+        {
+            "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJyZXZvY2F0aW9uIl0sCgkia2V5X3ZlcnNpb24iOiAyOQp9Cg==",
+            "signature": "JvU9Gpy8dHlkjuCvt7phoGNDBPnZHzhRqxGgGTNTKpaHjzc0UaB-mcI4vEJ-I09meqxrP2ciNUyWg-TaxlpyDA=="
+        }
+    ]
+}
+```
+
+### Example Old Signing Key
+
+This _signing key_ must be vouched for by a currently valid certificate of the
+same AS (if we go with Option 1).
+
+- Private: "O7egXeYMerDGfczXoUMqKA-qc0E6Xk4T8zZAEtP_HbI="
+- Public: "8bPVYzGOkcOG22Qgn_6WEel366mu3LihZ-OQ08q8dPs="
+
+### Example Signature Metadata - Top Signature
+
+```json
+{
+    "alg": "Ed25519",
+    "crit": ["key_type", "key_version"],
+    "key_type": ["signing"],
+    "key_version": 20
+}
+```
+
+### Example Signed Request Payload
+
+```json
+{
+    "payload": "ewoJInBheWxvYWQiOiAiZXdvSkluTjFZbXBsWTNRaU9pQWlNUzFtWmpBd09qQTZNVEl3SWl3S0NTSjJaWEp6YVc5dUlqb2dNaXdLQ1NKbWIzSnRZWFJmZG1WeWMybHZiaUk2SURFc0Nna2laR1Z6WTNKcGNIUnBiMjRpT2lBaVFWTWdZMlZ5ZEdsbWFXTmhkR1VpTEFvSkluWmhiR2xrYVhSNUlqb2dld29KQ1NKdWIzUmZZbVZtYjNKbElqb2dNVFE0TURreU56Y3lNeXdLQ1FraWJtOTBYMkZtZEdWeUlqb2dNVFV4TWpRMk16Y3lNd29KZlN3S0NTSnJaWGx6SWpvZ2V3b0pDU0p6YVdkdWFXNW5Jam9nZXdvSkNRa2lZV3huYjNKcGRHaHRJam9nSWtWa01qVTFNVGtpTEFvSkNRa2lhMlY1SWpvZ0lsZHRWRXh6T0VKcFJXUjVURlpQVTB4UlVqSlBiM0J0ZERCWGVqTmFkRVprTUhZNFJrdERSVUl4TkUwOUlpd0tDUWtKSW10bGVWOTJaWEp6YVc5dUlqb2dNakVLQ1FsOUxBb0pDU0p5WlhadlkyRjBhVzl1SWpvZ2V3b0pDUWtpWVd4bmIzSnBkR2h0SWpvZ0lrVmtNalUxTVRraUxBb0pDUWtpYTJWNUlqb2dJbEpWU0U5MFpYcDJiMmx5TmtSWFZrTkNRbHBxWmpOTlh6Um5hVXhpVjJkRk1HOHpaalJ2U2xGMU1UZzlJaXdLQ1FrSkltdGxlVjkyWlhKemFXOXVJam9nTWprS0NRbDlDZ2w5TEFvSkltbHpjM1ZsY2lJNklDSXhMV1ptTURBNk1Eb3hNekFpTEFvSkluSmxjWFZsYzNSZmRHbHRaU0k2SURFME9EQTVNamN3TURBS2ZRbz0iLAoJInNpZ25hdHVyZXMiOiBbCgkJewoJCQkicHJvdGVjdGVkIjogImV3b0pJbUZzWnlJNklDSkZaREkxTlRFNUlpd0tDU0pqY21sMElqb2dXeUpyWlhsZmRIbHdaU0lzSUNKclpYbGZkbVZ5YzJsdmJpSmRMQW9KSW10bGVWOTBlWEJsSWpvZ1d5SnphV2R1YVc1bklsMHNDZ2tpYTJWNVgzWmxjbk5wYjI0aU9pQXlNUXA5Q2c9PSIsCgkJCSJzaWduYXR1cmUiOiAiT0NtWUZfVzFzOEdNWWIwaG9ZYUo0RVFCc0NoVmt0TndCbmVKTkdTaF9MS1hxTWpULUlNRVBINlozVERxUnBxdnNPM2pTQUx4bmVNRTFUcDgyX3ZUQ1E9PSIKCQl9LAoJCXsKCQkJInByb3RlY3RlZCI6ICJld29KSW1Gc1p5STZJQ0pGWkRJMU5URTVJaXdLQ1NKamNtbDBJam9nV3lKclpYbGZkSGx3WlNJc0lDSnJaWGxmZG1WeWMybHZiaUpkTEFvSkltdGxlVjkwZVhCbElqb2dXeUp5WlhadlkyRjBhVzl1SWwwc0Nna2lhMlY1WDNabGNuTnBiMjRpT2lBeU9RcDlDZz09IiwKCQkJInNpZ25hdHVyZSI6ICJKdlU5R3B5OGRIbGtqdUN2dDdwaG9HTkRCUG5aSHpoUnF4R2dHVE5US3BhSGp6YzBVYUItbWNJNHZFSi1JMDltZXF4clAyY2lOVXlXZy1UYXhscHlEQT09IgoJCX0KCV0KfQo=",
+    "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJzaWduaW5nIl0sCgkia2V5X3ZlcnNpb24iOiAyMAp9Cg==",
+    "signature": "iPdGUSjCqOBF83JSv8Nk35wbzkacPDdVdLDDgyCw8dY6l1jxgh4fil6RBkn0B1Fbj5ijkc7lL58x428oZufTDA==",
+}
+```
+
+TODO: Reply example
