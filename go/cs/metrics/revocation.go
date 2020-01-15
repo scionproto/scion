@@ -39,7 +39,7 @@ type exporterR struct {
 }
 
 func newRevocation() exporterR {
-	ns, sub := Namespace, "revocation"
+	ns, sub := BSNamespace, "revocation"
 	l := RevocationLabels{Result: RevNew, Method: RevFromCtrl}
 	return exporterR{
 		received: prom.NewCounterVecWithLabels(ns, sub, "received_revocations_total",
@@ -80,7 +80,7 @@ type revocation struct {
 
 func psNewRevocation() revocation {
 	return revocation{
-		count: prom.NewCounterVecWithLabels(Namespace, "", "received_revocations_total",
+		count: prom.NewCounterVecWithLabels(PSNamespace, "", "received_revocations_total",
 			"The amount of revocations received.",
 			PSRevocationLabels{Result: OkSuccess, Src: RevSrcNotification}),
 	}

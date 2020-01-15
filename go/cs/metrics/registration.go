@@ -55,7 +55,7 @@ type Registration struct {
 
 func newRegistration() Registration {
 	return Registration{
-		regsTotal: prom.NewCounterVecWithLabels(Namespace, "", "registrations_total",
+		regsTotal: prom.NewCounterVecWithLabels(PSNamespace, "", "registrations_total",
 			fmt.Sprintf("Number of path registrations. \"result\" can be one of: [%s]",
 				strings.Join(regResults, ",")),
 			RegistrationLabels{}),

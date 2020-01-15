@@ -18,8 +18,12 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-// Namespace is the metrics namespace for the control service.
-const Namespace = "cs"
+// Metrics namespaces for control service subcomponents.
+const (
+	CSNamespace = "cs"
+	BSNamespace = "bs"
+	PSNamespace = "ps"
+)
 
 // Labels values.
 const (

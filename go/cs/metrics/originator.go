@@ -49,7 +49,7 @@ type originator struct {
 }
 
 func newOriginator() originator {
-	ns, sub := Namespace, "beaconing"
+	ns, sub := BSNamespace, "beaconing"
 	return originator{
 		originatedBeacons: prom.NewCounterVecWithLabels(ns, sub, "originated_beacons_total",
 			"Number of beacons originated", OriginatorLabels{}),
