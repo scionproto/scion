@@ -130,7 +130,7 @@ func (h *AppConnHandler) doRegExchange() (registration.RegReference, *TableEntry
 		return nil, nil, false, common.NewBasicError("registration message error", nil, "err", err)
 	}
 
-	tableEntry := newTableEntry(h.Conn)
+	tableEntry := newTableEntry()
 	ref, err := h.RoutingTable.Register(
 		regInfo.IA,
 		regInfo.PublicAddress,
