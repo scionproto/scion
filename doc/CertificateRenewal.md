@@ -72,7 +72,6 @@ Document](https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md
       MUST NOT be considered valid.
 - __keys__: Object that maps key types (`signing`,`revocation`) to
   an object with the following fields:
-    - __algorithm__: string. Identifies the algorithm this key is used with.
     - __key__: Base64-encoded string representation of the public key.
 - __issuer__: string. ISD and AS identifiers of the issuer, as defined in [ISD-AS numbering specification](https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering).
 - __request_time__: timestamp. Time of creating the request info.
@@ -91,7 +90,6 @@ Document](https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md
     },
     "keys": {
         "signing": {
-            "algorithm": "Ed25519",
             "key": "TqL566mz2H+uslHYoAYBhQeNlyxUq25gsmx38JHK8XA=",
         },
     },
@@ -286,11 +284,9 @@ examples use tabs for indentantion and a newline at the end of the content.
     },
     "keys": {
         "signing": {
-            "algorithm": "Ed25519",
             "key": "WmTLs8BiEdyLVOSLQR2Oopmt0Wz3ZtFd0v8FKCEB14M=",
         },
         "revocation": {
-            "algorithm": "Ed25519",
             "key": "RUHOtezvoir6DWVCBBZjf3M_4giLbWgE0o3f4oJQu18=",
         }
     },
@@ -325,15 +321,15 @@ examples use tabs for indentantion and a newline at the end of the content.
 
 ```json
 {
-    "payload": "ewoJInN1YmplY3QiOiAiMS1mZjAwOjA6MTIwIiwKCSJ2ZXJzaW9uIjogMiwKCSJmb3JtYXRfdmVyc2lvbiI6IDEsCgkiZGVzY3JpcHRpb24iOiAiQVMgY2VydGlmaWNhdGUiLAoJInZhbGlkaXR5IjogewoJCSJub3RfYmVmb3JlIjogMTQ4MDkyNzcyMywKCQkibm90X2FmdGVyIjogMTUxMjQ2MzcyMwoJfSwKCSJrZXlzIjogewoJCSJzaWduaW5nIjogewoJCQkiYWxnb3JpdGhtIjogIkVkMjU1MTkiLAoJCQkia2V5IjogIldtVExzOEJpRWR5TFZPU0xRUjJPb3BtdDBXejNadEZkMHY4RktDRUIxNE09IiwKCQl9LAoJCSJyZXZvY2F0aW9uIjogewoJCQkiYWxnb3JpdGhtIjogIkVkMjU1MTkiLAoJCQkia2V5IjogIlJVSE90ZXp2b2lyNkRXVkNCQlpqZjNNXzRnaUxiV2dFMG8zZjRvSlF1MTg9IiwKCQl9Cgl9LAoJImlzc3VlciI6ICIxLWZmMDA6MDoxMzAiLAoJInJlcXVlc3RfdGltZSI6IDE0ODA5MjcwMDAKfQo=",
+    "payload": "ewoJInN1YmplY3QiOiAiMS1mZjAwOjA6MTIwIiwKCSJ2ZXJzaW9uIjogMiwKCSJmb3JtYXRfdmVyc2lvbiI6IDEsCgkiZGVzY3JpcHRpb24iOiAiQVMgY2VydGlmaWNhdGUiLAoJInZhbGlkaXR5IjogewoJCSJub3RfYmVmb3JlIjogMTQ4MDkyNzcyMywKCQkibm90X2FmdGVyIjogMTUxMjQ2MzcyMwoJfSwKCSJrZXlzIjogewoJCSJzaWduaW5nIjogewoJCQkia2V5IjogIldtVExzOEJpRWR5TFZPU0xRUjJPb3BtdDBXejNadEZkMHY4RktDRUIxNE09IiwKCQl9LAoJCSJyZXZvY2F0aW9uIjogewoJCQkia2V5IjogIlJVSE90ZXp2b2lyNkRXVkNCQlpqZjNNXzRnaUxiV2dFMG8zZjRvSlF1MTg9IiwKCQl9Cgl9LAoJImlzc3VlciI6ICIxLWZmMDA6MDoxMzAiLAoJInJlcXVlc3RfdGltZSI6IDE0ODA5MjcwMDAKfQo=",
     "signatures": [
         {
             "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJzaWduaW5nIl0sCgkia2V5X3ZlcnNpb24iOiAyMQp9Cg==",
-            "signature": "pIEniKWwXzu6Pef2t1BqTbuPHeSNZrhPy08KxcgAYtGQYhZs3t8bhBdYPbyDqX63pQPfV3AIrK4udjBw1S0jAw=="
+            "signature": "vd3nUHB6OlF7iObtclsRfoN0VxuxrqY4cwQQulwFMKWk0KEDWsQX8H0-sUUQ-cwNpGnCXNTkqYwR7ue72hb_Cg=="
         },
         {
             "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJyZXZvY2F0aW9uIl0sCgkia2V5X3ZlcnNpb24iOiAyOQp9Cg==",
-            "signature": "BjDC3Duvz-rlSBBWjenMiDSlRvb8H3x7VEyriOOP7ipQ414InIcAYeGzF-Pp4TaukWTgnqoHHpu9r0XJp6i6AQ=="
+            "signature": "y5z6c85o_MTF2Otuww3yUyXZO3D-8TWir3J2g2SFVMSf_a_x4OWqkJdmeaxgiUsIzwrFYx66qmsgozj4Gq2XAQ=="
         }
     ]
 }
@@ -362,10 +358,8 @@ same AS.
 
 ```json
 {
-    "payload": "ewoJInBheWxvYWQiOiAiZXdvSkluTjFZbXBsWTNRaU9pQWlNUzFtWmpBd09qQTZNVEl3SWl3S0NTSjJaWEp6YVc5dUlqb2dNaXdLQ1NKbWIzSnRZWFJmZG1WeWMybHZiaUk2SURFc0Nna2laR1Z6WTNKcGNIUnBiMjRpT2lBaVFWTWdZMlZ5ZEdsbWFXTmhkR1VpTEFvSkluWmhiR2xrYVhSNUlqb2dld29KQ1NKdWIzUmZZbVZtYjNKbElqb2dNVFE0TURreU56Y3lNeXdLQ1FraWJtOTBYMkZtZEdWeUlqb2dNVFV4TWpRMk16Y3lNd29KZlN3S0NTSnJaWGx6SWpvZ2V3b0pDU0p6YVdkdWFXNW5Jam9nZXdvSkNRa2lZV3huYjNKcGRHaHRJam9nSWtWa01qVTFNVGtpTEFvSkNRa2lhMlY1SWpvZ0lsZHRWRXh6T0VKcFJXUjVURlpQVTB4UlVqSlBiM0J0ZERCWGVqTmFkRVprTUhZNFJrdERSVUl4TkUwOUlpd0tDUWw5TEFvSkNTSnlaWFp2WTJGMGFXOXVJam9nZXdvSkNRa2lZV3huYjNKcGRHaHRJam9nSWtWa01qVTFNVGtpTEFvSkNRa2lhMlY1SWpvZ0lsSlZTRTkwWlhwMmIybHlOa1JYVmtOQ1FscHFaak5OWHpSbmFVeGlWMmRGTUc4elpqUnZTbEYxTVRnOUlpd0tDUWw5Q2dsOUxBb0pJbWx6YzNWbGNpSTZJQ0l4TFdabU1EQTZNRG94TXpBaUxBb0pJbkpsY1hWbGMzUmZkR2x0WlNJNklERTBPREE1TWpjd01EQUtmUW89IiwKCSJzaWduYXR1cmVzIjogWwoJCXsKCQkJInByb3RlY3RlZCI6ICJld29KSW1Gc1p5STZJQ0pGWkRJMU5URTVJaXdLQ1NKamNtbDBJam9nV3lKclpYbGZkSGx3WlNJc0lDSnJaWGxmZG1WeWMybHZiaUpkTEFvSkltdGxlVjkwZVhCbElqb2dXeUp6YVdkdWFXNW5JbDBzQ2draWEyVjVYM1psY25OcGIyNGlPaUF5TVFwOUNnPT0iLAoJCQkic2lnbmF0dXJlIjogInBJRW5pS1d3WHp1NlBlZjJ0MUJxVGJ1UEhlU05acmhQeTA4S3hjZ0FZdEdRWWhaczN0OGJoQmRZUGJ5RHFYNjNwUVBmVjNBSXJLNHVkakJ3MVMwakF3PT0iCgkJfSwKCQl7CgkJCSJwcm90ZWN0ZWQiOiAiZXdvSkltRnNaeUk2SUNKRlpESTFOVEU1SWl3S0NTSmpjbWwwSWpvZ1d5SnJaWGxmZEhsd1pTSXNJQ0pyWlhsZmRtVnljMmx2YmlKZExBb0pJbXRsZVY5MGVYQmxJam9nV3lKeVpYWnZZMkYwYVc5dUlsMHNDZ2tpYTJWNVgzWmxjbk5wYjI0aU9pQXlPUXA5Q2c9PSIsCgkJCSJzaWduYXR1cmUiOiAiQmpEQzNEdXZ6LXJsU0JCV2plbk1pRFNsUnZiOEgzeDdWRXlyaU9PUDdpcFE0MTRJbkljQVllR3pGLVBwNFRhdWtXVGducW9ISHB1OXIwWEpwNmk2QVE9PSIKCQl9CgldCn0K",
+    "payload": "ewoJInBheWxvYWQiOiAiZXdvSkluTjFZbXBsWTNRaU9pQWlNUzFtWmpBd09qQTZNVEl3SWl3S0NTSjJaWEp6YVc5dUlqb2dNaXdLQ1NKbWIzSnRZWFJmZG1WeWMybHZiaUk2SURFc0Nna2laR1Z6WTNKcGNIUnBiMjRpT2lBaVFWTWdZMlZ5ZEdsbWFXTmhkR1VpTEFvSkluWmhiR2xrYVhSNUlqb2dld29KQ1NKdWIzUmZZbVZtYjNKbElqb2dNVFE0TURreU56Y3lNeXdLQ1FraWJtOTBYMkZtZEdWeUlqb2dNVFV4TWpRMk16Y3lNd29KZlN3S0NTSnJaWGx6SWpvZ2V3b0pDU0p6YVdkdWFXNW5Jam9nZXdvSkNRa2lhMlY1SWpvZ0lsZHRWRXh6T0VKcFJXUjVURlpQVTB4UlVqSlBiM0J0ZERCWGVqTmFkRVprTUhZNFJrdERSVUl4TkUwOUlpd0tDUWw5TEFvSkNTSnlaWFp2WTJGMGFXOXVJam9nZXdvSkNRa2lhMlY1SWpvZ0lsSlZTRTkwWlhwMmIybHlOa1JYVmtOQ1FscHFaak5OWHpSbmFVeGlWMmRGTUc4elpqUnZTbEYxTVRnOUlpd0tDUWw5Q2dsOUxBb0pJbWx6YzNWbGNpSTZJQ0l4TFdabU1EQTZNRG94TXpBaUxBb0pJbkpsY1hWbGMzUmZkR2x0WlNJNklERTBPREE1TWpjd01EQUtmUW89IiwKCSJzaWduYXR1cmVzIjogWwoJCXsKCQkJInByb3RlY3RlZCI6ICJld29KSW1Gc1p5STZJQ0pGWkRJMU5URTVJaXdLQ1NKamNtbDBJam9nV3lKclpYbGZkSGx3WlNJc0lDSnJaWGxmZG1WeWMybHZiaUpkTEFvSkltdGxlVjkwZVhCbElqb2dXeUp6YVdkdWFXNW5JbDBzQ2draWEyVjVYM1psY25OcGIyNGlPaUF5TVFwOUNnPT0iLAoJCQkic2lnbmF0dXJlIjogInZkM25VSEI2T2xGN2lPYnRjbHNSZm9OMFZ4dXhycVk0Y3dRUXVsd0ZNS1drMEtFRFdzUVg4SDAtc1VVUS1jd05wR25DWE5Ua3FZd1I3dWU3MmhiX0NnPT0iCgkJfSwKCQl7CgkJCSJwcm90ZWN0ZWQiOiAiZXdvSkltRnNaeUk2SUNKRlpESTFOVEU1SWl3S0NTSmpjbWwwSWpvZ1d5SnJaWGxmZEhsd1pTSXNJQ0pyWlhsZmRtVnljMmx2YmlKZExBb0pJbXRsZVY5MGVYQmxJam9nV3lKeVpYWnZZMkYwYVc5dUlsMHNDZ2tpYTJWNVgzWmxjbk5wYjI0aU9pQXlPUXA5Q2c9PSIsCgkJCSJzaWduYXR1cmUiOiAieTV6NmM4NW9fTVRGMk90dXd3M3lVeVhaTzNELThUV2lyM0oyZzJTRlZNU2ZfYV94NE9XcWtKZG1lYXhnaVVzSXp3ckZZeDY2cW1zZ296ajRHcTJYQVE9PSIKCQl9CgldCn0K",
     "protected": "ewoJImFsZyI6ICJFZDI1NTE5IiwKCSJjcml0IjogWyJrZXlfdHlwZSIsICJrZXlfdmVyc2lvbiJdLAoJImtleV90eXBlIjogWyJzaWduaW5nIl0sCgkia2V5X3ZlcnNpb24iOiAyMAp9Cg==",
-    "signature": "RunUWcYVADY7FzNwub5zgh04mhgknvHAHgHlCru4hSEVo2vEvcxp3cx3EqX7umX7ObBgQT3C3zHlNsJcykDFBg==",
+    "signature": "EVgX5QhzUo3Db2Mr_6R8e0CFzv6Oeadkl20ViD2U3mS37MIkRtUc-pfLbgs5B04YhPpIg5ICNyjTQfsNPT8RAw==",
 }
 ```
-
-TODO: Reply example
