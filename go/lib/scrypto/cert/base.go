@@ -169,7 +169,8 @@ const (
 )
 
 const (
-	unknownKey KeyType = iota
+	// UnknownKey is the default value for the KeyType, it's invalid.
+	UnknownKey KeyType = iota
 	// IssuingKey is the issuing key type. It must only appear in issuer certificates.
 	IssuingKey
 	// SigningKey is the signing key type. It must only appear in AS certificates.

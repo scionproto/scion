@@ -251,9 +251,9 @@ func newRequestInfo(now time.Time) renewal.RequestInfo {
 			NotBefore: util.UnixTime{Time: now},
 			NotAfter:  util.UnixTime{Time: now.Add(8760 * time.Hour)},
 		},
-		Keys: map[cert.KeyType]renewal.KeyMeta{
-			cert.RevocationKey: {Key: []byte("revKey1")},
-			cert.SigningKey:    {Key: []byte("signKey1")},
+		Keys: renewal.Keys{
+			Signing:    renewal.KeyMeta{Key: []byte("signKey1")},
+			Revocation: renewal.KeyMeta{Key: []byte("revKey1")},
 		},
 		Issuer:      xtest.MustParseIA("1-ff00:0:110"),
 		RequestTime: util.UnixTime{Time: now},

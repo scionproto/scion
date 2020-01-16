@@ -36,7 +36,13 @@ var (
 // KeyMeta is the meta information about a key.
 type KeyMeta struct {
 	// Key is the public key.
-	Key []byte
+	Key []byte `json:"key"`
+}
+
+// Keys contains the public keys.
+type Keys struct {
+	Signing    KeyMeta `json:"signing"`
+	Revocation KeyMeta `json:"revocation"`
 }
 
 // RequestInfo is the information of the renewal request.
@@ -55,7 +61,7 @@ type RequestInfo struct {
 	// Validity defines the requested validity period of the certificate.
 	Validity *scrypto.Validity `json:"validity"`
 	// Keys holds all keys authenticated by this certificate.
-	Keys map[cert.KeyType]KeyMeta `json:"keys"`
+	Keys Keys `json:"keys"`
 	// Issuer identifies the Issuer this request is addressed to.
 	Issuer addr.IA `json:"issuer"`
 	// RequestTime indicates when this request was created.
