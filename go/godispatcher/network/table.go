@@ -23,15 +23,13 @@ import (
 )
 
 type TableEntry struct {
-	conn           net.PacketConn
 	appIngressRing *ringbuf.Ring
 }
 
-func newTableEntry(conn net.PacketConn) *TableEntry {
+func newTableEntry() *TableEntry {
 	// Construct application ingress ring buffer
 	appIngressRing := ringbuf.New(128, nil, "net_to_app_ring")
 	return &TableEntry{
-		conn:           conn,
 		appIngressRing: appIngressRing,
 	}
 }
