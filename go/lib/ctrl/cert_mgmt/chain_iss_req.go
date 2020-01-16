@@ -46,5 +46,5 @@ func (c *ChainIssReq) String() string {
 		return fmt.Sprintf("Invalid renewal req(encoded.info): %v", err)
 	}
 	return fmt.Sprintf("Renewal request: IA: %s, Version: %d, ReqTime: %s",
-		ri.Base.Subject, ri.Base.Version, ri.RequestTime)
+		ri.Subject, ri.Version, ri.RequestTime)
 }
