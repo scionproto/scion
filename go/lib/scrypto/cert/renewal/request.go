@@ -33,10 +33,32 @@ var (
 	ErrNotUTF8 = serrors.New("not utf-8 encoded")
 )
 
+// KeyMeta is the meta information about a key.
+type KeyMeta struct {
+	// Key is the public key.
+	Key []byte
+}
+
 // RequestInfo is the information of the renewal request.
 type RequestInfo struct {
-	cert.Base
-	Issuer      addr.IA       `json:"issuer"`
+	// Subject identifies the subject of the requested certificate.
+	Subject addr.IA `json:"subject"`
+	// Version indicates the requested certificate version.
+	Version scrypto.Version `json:"version"`
+	// FormatVersion is the request format version.
+	FormatVersion cert.FormatVersion `json:"format_version"`
+	// Description is the requested human-readable description of the certificate.
+	Description string `json:"description"`
+	// OptionalDistributionPoints contains optional certificate revocation
+	// distribution points.
+	OptionalDistributionPoints []addr.IA `json:"optional_distribution_points"`
+	// Validity defines the requested validity period of the certificate.
+	Validity *scrypto.Validity `json:"validity"`
+	// Keys holds all keys authenticated by this certificate.
+	Keys map[cert.KeyType]KeyMeta `json:"keys"`
+	// Issuer identifies the Issuer this request is addressed to.
+	Issuer addr.IA `json:"issuer"`
+	// RequestTime indicates when this request was created.
 	RequestTime util.UnixTime `json:"request_time"`
 }
 

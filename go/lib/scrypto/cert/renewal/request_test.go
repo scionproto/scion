@@ -243,32 +243,17 @@ func encode(input string) string {
 func newRequestInfo(now time.Time) renewal.RequestInfo {
 	now = now.Truncate(time.Second)
 	return renewal.RequestInfo{
-		Base: cert.Base{
-			Subject:       xtest.MustParseIA("1-ff00:0:111"),
-			Version:       2,
-			FormatVersion: 1,
-			Description:   "This is a base request",
-			Validity: &scrypto.Validity{
-				NotBefore: util.UnixTime{Time: now},
-				NotAfter:  util.UnixTime{Time: now.Add(8760 * time.Hour)},
-			},
-			Keys: map[cert.KeyType]scrypto.KeyMeta{
-				cert.EncryptionKey: {
-					KeyVersion: 1,
-					Algorithm:  scrypto.Curve25519xSalsa20Poly1305,
-					Key:        []byte("encryptKey1"),
-				},
-				cert.RevocationKey: {
-					KeyVersion: 1,
-					Algorithm:  scrypto.Ed25519,
-					Key:        []byte("revKey1"),
-				},
-				cert.SigningKey: {
-					KeyVersion: 1,
-					Algorithm:  scrypto.Ed25519,
-					Key:        []byte("signKey1"),
-				},
-			},
+		Subject:       xtest.MustParseIA("1-ff00:0:111"),
+		Version:       2,
+		FormatVersion: 1,
+		Description:   "This is a base request",
+		Validity: &scrypto.Validity{
+			NotBefore: util.UnixTime{Time: now},
+			NotAfter:  util.UnixTime{Time: now.Add(8760 * time.Hour)},
+		},
+		Keys: map[cert.KeyType]renewal.KeyMeta{
+			cert.RevocationKey: {Key: []byte("revKey1")},
+			cert.SigningKey:    {Key: []byte("signKey1")},
 		},
 		Issuer:      xtest.MustParseIA("1-ff00:0:110"),
 		RequestTime: util.UnixTime{Time: now},
