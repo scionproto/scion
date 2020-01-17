@@ -189,7 +189,7 @@ func (e EncodedProtected) Decode() (Protected, error) {
 // Protected contains the signature metadata.
 type Protected struct {
 	Algorithm  string             `json:"alg"`
-	KeyType    KeyType       `json:"key_type"`
+	KeyType    KeyType            `json:"key_type"`
 	KeyVersion scrypto.KeyVersion `json:"key_version"`
 	Crit       CritRequest        `json:"crit"`
 }
@@ -217,7 +217,7 @@ func (p *Protected) UnmarshalJSON(b []byte) error {
 type protectedAlias struct {
 	Algorithm  *string             `json:"alg"`
 	Crit       *CritRequest        `json:"crit"`
-	KeyType    *KeyType    `json:"key_type"`
+	KeyType    *KeyType            `json:"key_type"`
 	KeyVersion *scrypto.KeyVersion `json:"key_version"`
 }
 
