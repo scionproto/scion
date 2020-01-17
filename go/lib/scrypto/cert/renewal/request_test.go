@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/renewal"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -175,7 +174,7 @@ func TestEncodeProtected(t *testing.T) {
 		},
 		"Invalid KeyType": {
 			Modify: func(base *renewal.Protected) {
-				base.KeyType = cert.KeyType(404)
+				base.KeyType = renewal.KeyType("not found")
 			},
 			Assertion: assert.Error,
 		},
@@ -184,7 +183,7 @@ func TestEncodeProtected(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			base := renewal.Protected{
 				Algorithm:  scrypto.Ed25519,
-				KeyType:    cert.SigningKey,
+				KeyType:    renewal.SigningKey,
 				KeyVersion: 2,
 			}
 			test.Modify(&base)
@@ -203,7 +202,7 @@ func TestEncodeProtected(t *testing.T) {
 func TestEncodedProtectedDecode(t *testing.T) {
 	valid, err := renewal.EncodeProtected(renewal.Protected{
 		Algorithm:  scrypto.Ed25519,
-		KeyType:    cert.SigningKey,
+		KeyType:    renewal.SigningKey,
 		KeyVersion: 2,
 	})
 	require.NoError(t, err)
@@ -243,32 +242,17 @@ func encode(input string) string {
 func newRequestInfo(now time.Time) renewal.RequestInfo {
 	now = now.Truncate(time.Second)
 	return renewal.RequestInfo{
-		Base: cert.Base{
-			Subject:       xtest.MustParseIA("1-ff00:0:111"),
-			Version:       2,
-			FormatVersion: 1,
-			Description:   "This is a base request",
-			Validity: &scrypto.Validity{
-				NotBefore: util.UnixTime{Time: now},
-				NotAfter:  util.UnixTime{Time: now.Add(8760 * time.Hour)},
-			},
-			Keys: map[cert.KeyType]scrypto.KeyMeta{
-				cert.EncryptionKey: {
-					KeyVersion: 1,
-					Algorithm:  scrypto.Curve25519xSalsa20Poly1305,
-					Key:        []byte("encryptKey1"),
-				},
-				cert.RevocationKey: {
-					KeyVersion: 1,
-					Algorithm:  scrypto.Ed25519,
-					Key:        []byte("revKey1"),
-				},
-				cert.SigningKey: {
-					KeyVersion: 1,
-					Algorithm:  scrypto.Ed25519,
-					Key:        []byte("signKey1"),
-				},
-			},
+		Subject:       xtest.MustParseIA("1-ff00:0:111"),
+		Version:       2,
+		FormatVersion: 1,
+		Description:   "This is a base request",
+		Validity: &scrypto.Validity{
+			NotBefore: util.UnixTime{Time: now},
+			NotAfter:  util.UnixTime{Time: now.Add(8760 * time.Hour)},
+		},
+		Keys: renewal.Keys{
+			Signing:    renewal.KeyMeta{Key: []byte("signKey1")},
+			Revocation: renewal.KeyMeta{Key: []byte("revKey1")},
 		},
 		Issuer:      xtest.MustParseIA("1-ff00:0:110"),
 		RequestTime: util.UnixTime{Time: now},
