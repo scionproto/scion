@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/renewal"
 )
 
@@ -87,7 +86,7 @@ func TestProtectedUnmarshalJSON(t *testing.T) {
 			}`,
 			Protected: renewal.Protected{
 				Algorithm:  scrypto.Ed25519,
-				KeyType:    cert.SigningKey,
+				KeyType:    renewal.SigningKey,
 				KeyVersion: 2,
 			},
 		},

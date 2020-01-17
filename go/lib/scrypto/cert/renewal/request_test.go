@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/cert/renewal"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -175,7 +174,7 @@ func TestEncodeProtected(t *testing.T) {
 		},
 		"Invalid KeyType": {
 			Modify: func(base *renewal.Protected) {
-				base.KeyType = cert.KeyType(404)
+				base.KeyType = renewal.KeyType("not found")
 			},
 			Assertion: assert.Error,
 		},
@@ -184,7 +183,7 @@ func TestEncodeProtected(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			base := renewal.Protected{
 				Algorithm:  scrypto.Ed25519,
-				KeyType:    cert.SigningKey,
+				KeyType:    renewal.SigningKey,
 				KeyVersion: 2,
 			}
 			test.Modify(&base)
@@ -203,7 +202,7 @@ func TestEncodeProtected(t *testing.T) {
 func TestEncodedProtectedDecode(t *testing.T) {
 	valid, err := renewal.EncodeProtected(renewal.Protected{
 		Algorithm:  scrypto.Ed25519,
-		KeyType:    cert.SigningKey,
+		KeyType:    renewal.SigningKey,
 		KeyVersion: 2,
 	})
 	require.NoError(t, err)
