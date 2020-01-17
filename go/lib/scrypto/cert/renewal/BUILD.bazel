@@ -27,7 +27,6 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/scrypto:go_default_library",
-        "//go/lib/scrypto/cert:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",

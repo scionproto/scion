@@ -19,9 +19,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/scionproto/scion/go/lib/scrypto/cert/renewal"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestKeyTypeValidate(t *testing.T) {
