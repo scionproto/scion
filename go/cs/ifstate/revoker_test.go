@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -43,6 +42,7 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/matchers"
+	"github.com/scionproto/scion/go/lib/xtest/xtrust"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -350,16 +350,18 @@ func activateAll(intfs *Interfaces) {
 }
 
 func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
-	signer, err := trust.NewBasicSigner(key, infra.SignerMeta{
-		Src: ctrl.SignSrcDef{
-			IA:       xtest.MustParseIA("1-ff00:0:84"),
-			ChainVer: 42,
-			TRCVer:   21,
+	return &xtrust.Signer{
+		Cfg: infra.SignerMeta{
+			Src: ctrl.SignSrcDef{
+				IA:       xtest.MustParseIA("1-ff00:0:84"),
+				ChainVer: 42,
+				TRCVer:   21,
+			},
+			Algo: scrypto.Ed25519,
 		},
-		Algo: scrypto.Ed25519,
-	})
-	xtest.FailOnErr(t, err)
-	return signer
+		SignType: proto.SignType_ed25519,
+		Key:      key,
+	}
 }
 
 type revVerifier []byte
