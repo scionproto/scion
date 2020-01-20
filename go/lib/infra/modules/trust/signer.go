@@ -126,7 +126,7 @@ func (g *SignerGen) Signer(ctx context.Context) (*Signer, error) {
 	raw, err := g.Provider.GetRawChain(ctx, ChainID{IA: g.IA, Version: scrypto.LatestVer},
 		infra.ChainOpts{})
 	if err != nil {
-		return nil, serrors.WrapStr("error fetching latest chain", err)
+		return nil, serrors.WrapStr("error fetching latest chain", err, "ia", g.IA)
 	}
 	dec, err := decoded.DecodeChain(raw)
 	if err != nil {
@@ -134,21 +134,22 @@ func (g *SignerGen) Signer(ctx context.Context) (*Signer, error) {
 	}
 	priv, err := g.KeyRing.PrivateKey(keyconf.ASSigningKey, dec.AS.Keys[cert.SigningKey].KeyVersion)
 	if err != nil {
-		return nil, serrors.WrapStr("private key not found", err,
+		return nil, serrors.WrapStr("private key not found", err, "chain", dec,
 			"key_version", dec.AS.Keys[cert.SigningKey].KeyVersion)
 	}
 	pub, err := scrypto.GetPubKey(priv.Bytes, priv.Algorithm)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to compute public key", err)
+		return nil, serrors.WrapStr("unable to compute public key", err, "chain", dec,
+			"key_version", dec.AS.Keys[cert.SigningKey].KeyVersion)
 	}
 	if !bytes.Equal(dec.AS.Keys[cert.SigningKey].Key, pub) {
-		return nil, serrors.WrapStr("public key does not match", err,
-			"chain_version", dec.AS.Version)
+		return nil, serrors.WrapStr("public key does not match", err, "chain", dec,
+			"key_version", dec.AS.Keys[cert.SigningKey].KeyVersion)
 	}
 	trc, err := g.Provider.GetTRC(ctx, TRCID{ISD: g.IA.I, Version: scrypto.LatestVer},
 		infra.TRCOpts{})
 	if err != nil {
-		return nil, serrors.WrapStr("unable to get latest TRC", err)
+		return nil, serrors.WrapStr("unable to get latest local TRC", err, "isd", g.IA.I)
 	}
 	return NewSigner(SignerConf{
 		ChainVer: dec.AS.Version,

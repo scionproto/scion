@@ -36,11 +36,11 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/lib/xtest/xtrust"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -273,15 +273,17 @@ func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr 
 }
 
 func testSigner(t *testing.T, priv common.RawBytes, ia addr.IA) infra.Signer {
-	signer, err := trust.NewBasicSigner(priv, infra.SignerMeta{
-		Src: ctrl.SignSrcDef{
-			ChainVer: 42,
-			TRCVer:   84,
-			IA:       ia,
+	return &xtrust.Signer{
+		Cfg: infra.SignerMeta{
+			Src: ctrl.SignSrcDef{
+				ChainVer: 42,
+				TRCVer:   84,
+				IA:       ia,
+			},
+			Algo:    scrypto.Ed25519,
+			ExpTime: time.Now().Add(time.Hour),
 		},
-		Algo:    scrypto.Ed25519,
-		ExpTime: time.Now().Add(time.Hour),
-	})
-	xtest.FailOnErr(t, err)
-	return signer
+		SignType: proto.SignType_ed25519,
+		Key:      priv,
+	}
 }

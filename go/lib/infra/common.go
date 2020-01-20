@@ -394,7 +394,7 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	return e.Message.ErrDesc
+	return e.Message.String()
 }
 
 // SignerMeta indicates what signature metadata the signer uses as a basis
