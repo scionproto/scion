@@ -71,7 +71,7 @@ func (r DefaultResolver) TRC(parentCtx context.Context, req TRCReq,
 		logger.Debug("[TrustStore:Resolver] Resolving latest version of TRC", "isd", req.ISD)
 		latest, err := r.resolveLatestVersion(ctx, req, server)
 		if err != nil {
-			return decoded.TRC{}, serrors.WrapStr("unable to resolve latest version", err)
+			return decoded.TRC{}, serrors.WrapStr("error fetching latest TRC version number", err)
 		}
 		req = req.withVersion(latest)
 		logger.Debug("[TrustStore:Resolver] Resolved latest version of TRC",
@@ -125,11 +125,11 @@ func (r DefaultResolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 
 	rawTRC, err := r.RPC.GetTRC(ctx, req, server)
 	if err != nil {
-		return 0, serrors.WrapStr("unable to resolve latest TRC", err)
+		return 0, err
 	}
 	decTRC, err := decoded.DecodeTRC(rawTRC)
 	if err != nil {
-		return 0, serrors.WrapStr("error parsing latest TRC", err)
+		return 0, err
 	}
 	if err := r.trcCheck(req, decTRC.TRC); err != nil {
 		return 0, serrors.Wrap(ErrInvalidResponse, err)
@@ -199,13 +199,13 @@ func (r DefaultResolver) Chain(parentCtx context.Context, req ChainReq,
 		"version", req.Version, "server", server)
 	msg, err := r.RPC.GetCertChain(ctx, req, server)
 	if err != nil {
-		return decoded.Chain{}, serrors.WrapStr("error requesting certificate chain", err)
+		return decoded.Chain{}, serrors.WrapStr("rpc failed", err)
 	}
 	logger.Debug("[TrustStore:Resolver] Received certificate chain from remote", "ia", req.IA,
 		"version", req.Version)
 	dec, err := decoded.DecodeChain(msg)
 	if err != nil {
-		return decoded.Chain{}, serrors.WrapStr("error parsing certificate chain", err)
+		return decoded.Chain{}, err
 	}
 	if err := r.chainCheck(req, dec.AS); err != nil {
 		return decoded.Chain{}, serrors.Wrap(ErrInvalidResponse, err)

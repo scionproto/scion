@@ -28,11 +28,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/xtest/xtrust"
+	"github.com/scionproto/scion/go/proto"
 )
 
 func TestSenderRun(t *testing.T) {
@@ -79,16 +80,18 @@ func TestSenderRun(t *testing.T) {
 }
 
 func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
-	signer, err := trust.NewBasicSigner(key, infra.SignerMeta{
-		Src: ctrl.SignSrcDef{
-			IA:       xtest.MustParseIA("1-ff00:0:84"),
-			ChainVer: 42,
-			TRCVer:   21,
+	return &xtrust.Signer{
+		Cfg: infra.SignerMeta{
+			Src: ctrl.SignSrcDef{
+				IA:       xtest.MustParseIA("1-ff00:0:84"),
+				ChainVer: 42,
+				TRCVer:   21,
+			},
+			Algo: scrypto.Ed25519,
 		},
-		Algo: scrypto.Ed25519,
-	})
-	require.NoError(t, err)
-	return signer
+		SignType: proto.SignType_ed25519,
+		Key:      key,
+	}
 }
 
 var _ ctrl.Verifier = testVerifier{}

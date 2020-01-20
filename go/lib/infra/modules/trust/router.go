@@ -81,14 +81,19 @@ func (r AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD,
 	if destination == r.ISD {
 		return r.ISD, nil
 	}
+	logger := log.FromCtx(ctx)
 	info, err := r.DB.GetTRCInfo(ctx, TRCID{ISD: destination, Version: scrypto.LatestVer})
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
+			logger.Info("[TrustStore:AuthRouter] Direct to ISD-local authoritative servers",
+				"reason", "remote TRC not found")
 			return r.ISD, nil
 		}
 		return 0, serrors.WrapStr("error querying DB for TRC", err)
 	}
 	if !info.Validity.Contains(time.Now()) {
+		logger.Info("[TrustStore:AuthRouter] Direct to ISD-local authoritative servers",
+			"reason", "remote TRC outside of validity period")
 		return r.ISD, nil
 	}
 	return destination, nil

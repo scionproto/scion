@@ -32,12 +32,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/lib/xtest/xtrust"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -249,17 +249,19 @@ func TestExtenderExtend(t *testing.T) {
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Signer expiration is to small", func() {
-			signer, err := trust.NewBasicSigner(priv, infra.SignerMeta{
-				Src: ctrl.SignSrcDef{
-					ChainVer: 42,
-					TRCVer:   84,
-					IA:       topoProvider.Get().IA(),
+			ext.cfg.Signer = &xtrust.Signer{
+				Cfg: infra.SignerMeta{
+					Src: ctrl.SignSrcDef{
+						ChainVer: 42,
+						TRCVer:   84,
+						IA:       topoProvider.Get().IA(),
+					},
+					ExpTime: time.Now(),
+					Algo:    scrypto.Ed25519,
 				},
-				Algo:    scrypto.Ed25519,
-				ExpTime: time.Now(),
-			})
-			xtest.FailOnErr(t, err)
-			ext.cfg.Signer = signer
+				SignType: proto.SignType_ed25519,
+				Key:      priv,
+			}
 			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 			err = ext.extend(pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
 			SoMsg("err", err, ShouldNotBeNil)
