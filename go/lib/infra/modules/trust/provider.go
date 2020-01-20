@@ -198,7 +198,7 @@ func (p Provider) fetchTRC(ctx context.Context, id TRCID,
 	}
 	decTRC, err := p.Resolver.TRC(ctx, req, server)
 	if err != nil {
-		return decoded.TRC{}, serrors.WrapStr("unable to resolve signed TRC from network", err,
+		return decoded.TRC{}, serrors.WrapStr("unable to fetch signed TRC from network", err,
 			"addr", server)
 	}
 	return decTRC, nil
@@ -361,7 +361,7 @@ func (p Provider) fetchChain(ctx context.Context, id ChainID,
 	}
 	chain, err := p.Resolver.Chain(ctx, req, server)
 	if err != nil {
-		return decoded.Chain{}, serrors.WrapStr("unable to resolve signed certificate chain "+
+		return decoded.Chain{}, serrors.WrapStr("unable to fetch signed certificate chain "+
 			"from network", err, "addr", server)
 	}
 	return chain, nil
