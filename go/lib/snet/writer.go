@@ -69,8 +69,12 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		dst, port, path = SCIONAddress{IA: a.IA, Host: a.SVC}, 0, a.Path
 		nextHop = a.NextHop
 	default:
-		return 0, common.NewBasicError("Unable to write to non-SCION address", nil,
-			"addr", fmt.Sprintf("%v(%T)", a, a))
+		if a == nil {
+			return 0, common.NewBasicError("Missing remote address", nil)
+		} else {
+			return 0, common.NewBasicError("Unable to write to non-SCION address", nil,
+				"addr", fmt.Sprintf("%v(%T)", a, a))
+		}
 	}
 
 	pkt := &SCIONPacket{
@@ -100,7 +104,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 // Write sends b through a connection with fixed remote address. If the remote
 // address for the connection is unknown, Write returns an error.
 func (c *scionConnWriter) Write(b []byte) (int, error) {
-	return c.WriteTo(b, nil)
+	return c.WriteTo(b, c.base.remote)
 }
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
