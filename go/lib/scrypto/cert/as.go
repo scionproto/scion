@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -51,6 +52,10 @@ type AS struct {
 
 // Validate checks that the certificate is in a valid format.
 func (c *AS) Validate() error {
+	if c == nil {
+		return serrors.New("nil cert")
+	}
+
 	if err := c.Base.Validate(); err != nil {
 		return err
 	}

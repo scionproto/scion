@@ -131,10 +131,25 @@ type ID struct {
 // To see the resulting filename, check the example.
 type Key struct {
 	ID
-	Type      Type
-	Algorithm string
-	Validity  scrypto.Validity
-	Bytes     []byte
+	Type         Type
+	Algorithm    string
+	Validity     scrypto.Validity
+	Bytes        []byte
+	Priv, Public []byte
+}
+
+// Validate returns if the key is valid and
+// completes missing information if needed.
+func (k *Key) Validate() error {
+	switch {
+	case k == nil:
+		return serrors.New("invalid key " + "key is nil")
+	case k.Algorithm == "":
+		return serrors.New("invalid key " + "algorithm is missing")
+	case k.Type == PublicKey && k.Public == nil:
+		return serrors.New("invalid key " + "algorithm is missing")
+	}
+	return nil
 }
 
 // LoadKeyFromFile loads the key from file and checks that the contained
