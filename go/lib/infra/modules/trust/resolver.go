@@ -71,7 +71,7 @@ func (r DefaultResolver) TRC(parentCtx context.Context, req TRCReq,
 		logger.Debug("[TrustStore:Resolver] Resolving latest version of TRC", "isd", req.ISD)
 		latest, err := r.resolveLatestVersion(ctx, req, server)
 		if err != nil {
-			return decoded.TRC{}, serrors.WrapStr("error fetching latest TRC version number", err)
+			return decoded.TRC{}, serrors.WrapStr("error resolving latest TRC version number", err)
 		}
 		req = req.withVersion(latest)
 		logger.Debug("[TrustStore:Resolver] Resolved latest version of TRC",
