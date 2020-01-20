@@ -246,7 +246,7 @@ func (c *client) run() {
 		LogFatal("Unable to dial", "err", err)
 	}
 
-	qstream, err := c.qsess.OpenStreamSync(context.TODO())
+	qstream, err := c.qsess.OpenStreamSync(context.Background())
 	if err != nil {
 		LogFatal("quic OpenStream failed", "err", err)
 	}
@@ -372,7 +372,7 @@ func (s server) run() {
 	}
 	log.Info("Listening", "local", qsock.Addr())
 	for {
-		qsess, err := qsock.Accept(context.TODO())
+		qsess, err := qsock.Accept(context.Background())
 		if err != nil {
 			log.Error("Unable to accept quic session", "err", err)
 			// Accept failing means the socket is unusable.
@@ -388,7 +388,7 @@ func (s server) run() {
 
 func (s server) handleClient(qsess quic.Session) {
 	defer qsess.Close()
-	qstream, err := qsess.AcceptStream(context.TODO())
+	qstream, err := qsess.AcceptStream(context.Background())
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
 		return
