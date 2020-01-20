@@ -388,7 +388,6 @@ func (s server) run() {
 
 func (s server) handleClient(qsess quic.Session) {
 	defer qsess.Close()
-
 	qstream, err := qsess.AcceptStream(context.Background())
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
