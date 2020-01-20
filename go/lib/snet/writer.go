@@ -56,6 +56,8 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	)
 
 	switch a := raddr.(type) {
+	case nil:
+		return 0, common.NewBasicError("Missing remote address", nil)
 	case *Addr:
 		return c.WriteTo(b, a.ToXAddr())
 	case *UDPAddr:
@@ -69,12 +71,8 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		dst, port, path = SCIONAddress{IA: a.IA, Host: a.SVC}, 0, a.Path
 		nextHop = a.NextHop
 	default:
-		if a == nil {
-			return 0, common.NewBasicError("Missing remote address", nil)
-		} else {
-			return 0, common.NewBasicError("Unable to write to non-SCION address", nil,
-				"addr", fmt.Sprintf("%v(%T)", a, a))
-		}
+		return 0, common.NewBasicError("Unable to write to non-SCION address", nil,
+			"addr", fmt.Sprintf("%v(%T)", a, a))
 	}
 
 	pkt := &SCIONPacket{
