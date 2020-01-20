@@ -4,9 +4,6 @@ sh_test(
     name = "sig_failover_test",
     size = "small",
     srcs = ["test"],
-    deps = [
-        "@bazel_tools//tools/bash/runfiles",
-    ],
     data = [
         "//go/tools/udpproxy:udpproxy",
         ":dispatcher1",

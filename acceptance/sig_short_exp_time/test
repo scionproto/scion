@@ -47,26 +47,14 @@
 #         | 242.254.100.3:50000 <-> 242.254.200.4:50000 |
 #         +---------------------------------------------+
 
-
-# --- begin runfiles.bash initialization v2 ---
-# Copy-pasted from the Bazel Bash runfiles library v2.
-set -uo pipefail; f=bazel_tools/tools/bash/runfiles/runfiles.bash
-source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
-source "$(grep -sm1 "^$f " "${RUNFILES_MANIFEST_FILE:-/dev/null}" | cut -f2- -d' ')" 2>/dev/null || \
-source "$0.runfiles/$f" 2>/dev/null || \
-source "$(grep -sm1 "^$f " "$0.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
-source "$(grep -sm1 "^$f " "$0.exe.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
-{ echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
-# --- end runfiles.bash initialization v2 ---
-
 run_test() {(set -e
     # Register with the docker daemon the docker images bazel created
     # (--norun is used for docker images created via go_image because the script runs them by default)
-    bash "$(rlocation __main__/go/tools/udpproxy/udpproxy)" --norun
-    bash "$(rlocation __main__/acceptance/sig_short_exp_time/dispatcher1)"
-    bash "$(rlocation __main__/acceptance/sig_short_exp_time/dispatcher2)"
-    bash "$(rlocation __main__/acceptance/sig_short_exp_time/sig1)"
-    bash "$(rlocation __main__/acceptance/sig_short_exp_time/sig2)"
+    bash go/tools/udpproxy/udpproxy --norun
+    bash acceptance/sig_short_exp_time/dispatcher1
+    bash acceptance/sig_short_exp_time/dispatcher2
+    bash acceptance/sig_short_exp_time/sig1
+    bash acceptance/sig_short_exp_time/sig2
 
     docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
 
