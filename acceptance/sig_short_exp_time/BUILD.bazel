@@ -4,9 +4,6 @@ sh_test(
     name = "sig_short_exp_time_test",
     size = "small",
     srcs = ["test"],
-    deps = [
-        "@bazel_tools//tools/bash/runfiles",
-    ],
     data = [
         "//go/tools/udpproxy:udpproxy",
         ":dispatcher1",
