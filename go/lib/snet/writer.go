@@ -56,6 +56,8 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	)
 
 	switch a := raddr.(type) {
+	case nil:
+		return 0, common.NewBasicError("Missing remote address", nil)
 	case *Addr:
 		return c.WriteTo(b, a.ToXAddr())
 	case *UDPAddr:
@@ -100,7 +102,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 // Write sends b through a connection with fixed remote address. If the remote
 // address for the connection is unknown, Write returns an error.
 func (c *scionConnWriter) Write(b []byte) (int, error) {
-	return c.WriteTo(b, nil)
+	return c.WriteTo(b, c.base.remote)
 }
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
