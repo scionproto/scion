@@ -56,6 +56,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdbmetrics"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -179,6 +180,7 @@ func realMain() int {
 		log.Crit("Error initializing trust database", "err", err)
 		return 1
 	}
+	trustDB = trustdbmetrics.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
 	defer trustDB.Close()
 	inserter := trust.DefaultInserter{
 		BaseInserter: trust.BaseInserter{DB: trustDB},
@@ -190,6 +192,7 @@ func realMain() int {
 			DB:       trustDB,
 			Inserter: inserter,
 			RPC:      trust.DefaultRPC{Msgr: msgr},
+			IA:       topo.IA(),
 		},
 		Router: trust.AuthRouter{
 			ISD:    topo.IA().I,
@@ -230,10 +233,10 @@ func realMain() int {
 	defer beaconStore.Close()
 	intfs = ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	prometheus.MustRegister(ifstate.NewCollector(intfs))
-	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler())
-	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler())
-	msgr.AddHandler(infra.Chain, trustStore.NewChainPushHandler())
-	msgr.AddHandler(infra.TRC, trustStore.NewTRCPushHandler())
+	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(topo.IA()))
+	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(topo.IA()))
+	msgr.AddHandler(infra.Chain, trustStore.NewChainPushHandler(topo.IA()))
+	msgr.AddHandler(infra.TRC, trustStore.NewTRCPushHandler(topo.IA()))
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
 	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.IA(), intfs, beaconStore,
 		trust.NewVerifier(trustStore)))

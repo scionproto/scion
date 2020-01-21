@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
@@ -84,24 +85,30 @@ func (v *verifier) VerifyPld(ctx context.Context, spld *ctrl.SignedPld) (*ctrl.P
 }
 
 func (v *verifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) error {
+	ctx = metrics.CtxWith(ctx, metrics.SigVerification)
+	l := metrics.VerifierLabels{}
 	if err := sign.Valid(v.AllowSkew); err != nil {
-		return err
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		return serrors.Wrap(ErrValidation, err)
 	}
 
 	src, err := ctrl.NewSignSrcDefFromRaw(sign.Src)
 	if err != nil {
-		return err
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrParse)).Inc()
+		return serrors.Wrap(ErrValidation, err)
 	}
 
 	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(src.IA) {
-		return serrors.New("IA does not match bound IA",
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		return serrors.WithCtx(ErrValidation, "msg", "IA does not match bound IA",
 			"expected", v.BoundIA, "actual", src.IA)
 	}
 
 	if v.BoundSrc != nil && !v.BoundSrc.Equal(src) {
-		// The entitiy that is the source of the RPC network request (BoundSrc)
-		// must be the same as the entitiy that signed the RPC (src).
-		return serrors.New("SRc does not match bound Src",
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		// The entity that is the source of the RPC network request (BoundSrc)
+		// must be the same as the entity that signed the RPC (src).
+		return serrors.WithCtx(ErrValidation, "msg", "source does not match bound source",
 			"expected", v.BoundSrc, "actual", src)
 	}
 
@@ -109,14 +116,19 @@ func (v *verifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) er
 	opts := infra.ChainOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{Server: v.Server},
 	}
-
 	key, err := v.Store.GetASKey(ctx, id, opts)
 	if err != nil {
+		metrics.Verifier.Verify(l.WithResult(errToLabel(err))).Inc()
 		return err
 	}
 
 	m, s := sign.SigInput(msg, false), sign.Signature
-	return scrypto.Verify(m, s, key.Key, key.Algorithm)
+	if err := scrypto.Verify(m, s, key.Key, key.Algorithm); err != nil {
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrVerify)).Inc()
+		return serrors.Wrap(ErrVerification, err)
+	}
+	metrics.Verifier.Verify(l.WithResult(metrics.Success)).Inc()
+	return nil
 }
 
 func (v *verifier) WithServer(server net.Addr) infra.Verifier {

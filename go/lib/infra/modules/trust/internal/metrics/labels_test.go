@@ -23,11 +23,14 @@ import (
 
 func TestQueryLabels(t *testing.T) {
 	tests := map[string]interface{}{
-		"QueryLabels":        metrics.QueryLabels{},
-		"HandlerLabels":      metrics.HandlerLabels{},
-		"LookupLabels":       metrics.LookupLabels{},
-		"SentLabels":         metrics.SentLabels{},
-		"VerificationLabels": metrics.VerificationLabels{},
+		"QueryLabels":     metrics.QueryLabels{},
+		"HandlerLabels":   metrics.HandlerLabels{},
+		"InserterLabels":  metrics.InserterLabels{},
+		"InspectorLabels": metrics.InspectorLabels{},
+		"ProviderLabels":  metrics.ProviderLabels{},
+		"ResolverLabels":  metrics.ResolverLabels{},
+		"SignerLabels":    metrics.SignerLabels{},
+		"VerifierLabels":  metrics.VerifierLabels{},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {

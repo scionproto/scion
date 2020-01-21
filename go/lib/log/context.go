@@ -29,6 +29,9 @@ const loggerKey loggerContextKey = "logger"
 // logger. The logger can be recovered using GetLogger. Attaching a logger to a
 // context which already contains one will overwrite the existing value.
 func CtxWith(ctx context.Context, logger Logger) context.Context {
+	if ctx == nil {
+		panic("nil context")
+	}
 	return context.WithValue(ctx, loggerKey, logger)
 }
 

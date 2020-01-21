@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/decoded"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -58,12 +59,21 @@ type DefaultInserter struct {
 func (ins DefaultInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
-	if insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider); err != nil || !insert {
+	l := metrics.InserterLabels{Type: metrics.TRC}
+	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
+	if err != nil {
+		metrics.Inserter.Request(l.WithResult(errToLabel(err))).Inc()
 		return err
 	}
+	if !insert {
+		metrics.Inserter.Request(l.WithResult(metrics.OkExists)).Inc()
+		return nil
+	}
 	if _, err := ins.DB.InsertTRC(ctx, decTRC); err != nil {
+		metrics.Inserter.Request(l.WithResult(metrics.ErrDB)).Inc()
 		return serrors.WrapStr("unable to insert TRC", err)
 	}
+	metrics.Inserter.Request(l.WithResult(metrics.OkInserted)).Inc()
 	return nil
 }
 
@@ -73,12 +83,21 @@ func (ins DefaultInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 func (ins DefaultInserter) InsertChain(ctx context.Context, chain decoded.Chain,
 	trcProvider TRCProviderFunc) error {
 
-	if insert, err := ins.shouldInsertChain(ctx, chain, trcProvider); err != nil || !insert {
+	l := metrics.InserterLabels{Type: metrics.Chain}
+	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
+	if err != nil {
+		metrics.Inserter.Request(l.WithResult(errToLabel(err))).Inc()
 		return err
 	}
+	if !insert {
+		metrics.Inserter.Request(l.WithResult(metrics.OkExists)).Inc()
+		return nil
+	}
 	if _, _, err := ins.DB.InsertChain(ctx, chain); err != nil {
+		metrics.Inserter.Request(l.WithResult(metrics.ErrDB)).Inc()
 		return serrors.WrapStr("unable to insert chain", err)
 	}
+	metrics.Inserter.Request(l.WithResult(metrics.OkInserted)).Inc()
 	return nil
 }
 
@@ -99,11 +118,14 @@ func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	trcProvider TRCProviderFunc) error {
 
 	logger := log.FromCtx(ctx)
+	l := metrics.InserterLabels{Type: metrics.TRC}
 	insert, err := ins.shouldInsertTRC(ctx, decTRC, trcProvider)
 	if err != nil {
+		metrics.Inserter.Request(l.WithResult(errToLabel(err))).Inc()
 		return err
 	}
 	if !insert {
+		metrics.Inserter.Request(l.WithResult(metrics.OkExists)).Inc()
 		return nil
 	}
 
@@ -111,13 +133,16 @@ func (ins ForwardingInserter) InsertTRC(ctx context.Context, decTRC decoded.TRC,
 	logger.Debug("[TrustStore:ForwardingInserter] Forward TRC to certificate server",
 		"trc", decTRC, "addr", cs)
 	if err := ins.RPC.SendTRC(ctx, decTRC.Raw, cs); err != nil {
+		metrics.Inserter.Request(l.WithResult(metrics.ErrTransmit)).Inc()
 		return serrors.WrapStr("unable to push TRC to certificate server", err, "addr", cs)
 	}
 	logger.Debug("[TrustStore:ForwardingInserter] Successfully forwarded TRC",
 		"trc", decTRC, "addr", cs)
 	if _, err := ins.DB.InsertTRC(ctx, decTRC); err != nil {
+		metrics.Inserter.Request(l.WithResult(metrics.ErrDB)).Inc()
 		return serrors.WrapStr("unable to insert TRC", err)
 	}
+	metrics.Inserter.Request(l.WithResult(metrics.OkInserted)).Inc()
 	return nil
 }
 
@@ -130,24 +155,30 @@ func (ins ForwardingInserter) InsertChain(ctx context.Context, chain decoded.Cha
 	trcProvider TRCProviderFunc) error {
 
 	logger := log.FromCtx(ctx)
+	l := metrics.InserterLabels{Type: metrics.Chain}
 	insert, err := ins.shouldInsertChain(ctx, chain, trcProvider)
 	if err != nil {
+		metrics.Inserter.Request(l.WithResult(errToLabel(err))).Inc()
 		return err
 	}
 	if !insert {
+		metrics.Inserter.Request(l.WithResult(metrics.OkExists)).Inc()
 		return nil
 	}
 	cs := ins.Router.chooseServer()
 	logger.Debug("[TrustStore:ForwardingInserter] Forward certificate chain to certificate server",
 		"chain", chain, "addr", cs)
 	if err := ins.RPC.SendCertChain(ctx, chain.Raw, cs); err != nil {
+		metrics.Inserter.Request(l.WithResult(metrics.ErrTransmit)).Inc()
 		return serrors.WrapStr("unable to push chain to certificate server", err, "addr", cs)
 	}
 	logger.Debug("[TrustStore:ForwardingInserter] Successfully forwarded certificate chain",
 		"chain", chain)
 	if _, _, err := ins.DB.InsertChain(ctx, chain); err != nil {
+		metrics.Inserter.Request(l.WithResult(metrics.ErrDB)).Inc()
 		return serrors.WrapStr("unable to insert chain", err)
 	}
+	metrics.Inserter.Request(l.WithResult(metrics.OkInserted)).Inc()
 	return nil
 }
 

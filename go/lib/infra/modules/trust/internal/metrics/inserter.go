@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,40 +20,39 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-// HandlerLabels defines the handler labels.
-type HandlerLabels struct {
-	Client  string
-	ReqType string
-	Result  string
+// InserterLabels defines the trust material insert labels.
+type InserterLabels struct {
+	Type   string
+	Result string
 }
 
 // Labels returns the list of labels.
-func (l HandlerLabels) Labels() []string {
-	return []string{"client", "req_type", prom.LabelResult}
+func (l InserterLabels) Labels() []string {
+	return []string{"type", prom.LabelResult}
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l HandlerLabels) Values() []string {
-	return []string{l.Client, l.ReqType, l.Result}
+func (l InserterLabels) Values() []string {
+	return []string{l.Type, l.Result}
 }
 
-// WithResult returns the handler labels with the modified result.
-func (l HandlerLabels) WithResult(result string) HandlerLabels {
+// WithResult returns the lookup labels with the modified result.
+func (l InserterLabels) WithResult(result string) InserterLabels {
 	l.Result = result
 	return l
 }
 
-type handler struct {
+type inserter struct {
 	requests prometheus.CounterVec
 }
 
-func newHandler() handler {
-	return handler{
-		requests: *prom.NewCounterVecWithLabels(Namespace, "", "received_requests_total",
-			"Number of requests served by the trust store", HandlerLabels{}),
+func newInserter() inserter {
+	return inserter{
+		requests: *prom.NewCounterVecWithLabels(Namespace, "", "insertions_total",
+			"Number of trust material insertions handled by the trust store", InserterLabels{}),
 	}
 }
 
-func (h *handler) Request(l HandlerLabels) prometheus.Counter {
-	return h.requests.WithLabelValues(l.Values()...)
+func (i *inserter) Request(l InserterLabels) prometheus.Counter {
+	return i.requests.WithLabelValues(l.Values()...)
 }
