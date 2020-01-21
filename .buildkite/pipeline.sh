@@ -24,7 +24,7 @@ gen_acceptance() {
 
 # gen_bazel_acceptance generates steps for bazel tests in acceptance folder.
 gen_bazel_acceptance() {
-    for test in $(bazel query 'kind(sh_test, //acceptance/...)' 2>/dev/null); do
+    for test in $(bazel query 'kind(test, //acceptance/...)' 2>/dev/null); do
         # test has the format //acceptance/<name>:<name>_test
         name=$(echo $test | cut -d ':' -f 1)
         name=${name#'//acceptance/'}
