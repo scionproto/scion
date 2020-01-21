@@ -50,8 +50,8 @@ type resolver struct {
 
 func newResolver() resolver {
 	return resolver{
-		fetches: *prom.NewCounterVecWithLabels(Namespace, "", "sent_rpcs_total",
-			"Number of crypto fetches started by the trust store", ResolverLabels{}),
+		fetches: *prom.NewCounterVecWithLabels(Namespace, "", "sent_requests_total",
+			"Number of trust material requests sent by the trust store", ResolverLabels{}),
 	}
 }
 

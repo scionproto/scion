@@ -95,7 +95,7 @@ func (v *verifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) er
 	src, err := ctrl.NewSignSrcDefFromRaw(sign.Src)
 	if err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrParse)).Inc()
-		return err
+		return serrors.Wrap(ErrValidation, err)
 	}
 
 	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(src.IA) {
