@@ -24,12 +24,12 @@ type operation string
 
 // Database operations.
 const (
-	GetTRC            = "get_trc"
-	GetRawTRC         = "get_raw_trc"
-	GetTRCInfo        = "get_trc_info"
-	GetIssuingKeyInfo = "get_issuing_key_info"
-	InsertTRC         = "insert_trc"
-	TRCExists         = "trc_exists"
+	GetTRC                 = "get_trc"
+	GetRawTRC              = "get_raw_trc"
+	GetTRCInfo             = "get_trc_info"
+	GetIssuingGrantKeyInfo = "get_issuing_grant_key_info"
+	InsertTRC              = "insert_trc"
+	TRCExists              = "trc_exists"
 
 	GetRawChain = "get_raw_chain"
 	ChainExists = "chain_exists"
