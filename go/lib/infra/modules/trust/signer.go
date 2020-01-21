@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/decoded"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -91,12 +92,15 @@ func NewSigner(cfg SignerConf) (*Signer, error) {
 // Sign signs the message.
 func (s *Signer) Sign(msg []byte) (*proto.SignS, error) {
 	var err error
+	l := metrics.SignerLabels{}
 	sign := proto.NewSignS(s.signType, append(s.src[:0:0], s.src...))
 	sign.Signature, err = scrypto.Sign(sign.SigInput(msg, true),
 		s.cfg.Key.Bytes, s.cfg.Key.Algorithm)
 	if err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
 		return nil, err
 	}
+	metrics.Signer.Sign(l.WithResult(metrics.Success)).Inc()
 	return sign, nil
 }
 
@@ -123,34 +127,42 @@ type SignerGen struct {
 
 // Signer returns the active signer.
 func (g *SignerGen) Signer(ctx context.Context) (*Signer, error) {
+	l := metrics.SignerLabels{}
 	raw, err := g.Provider.GetRawChain(ctx, ChainID{IA: g.IA, Version: scrypto.LatestVer},
 		infra.ChainOpts{})
 	if err != nil {
+		metrics.Signer.Generate(l.WithResult(errToLabel(err))).Inc()
 		return nil, serrors.WrapStr("error fetching latest chain", err, "ia", g.IA)
 	}
 	dec, err := decoded.DecodeChain(raw)
 	if err != nil {
+		metrics.Signer.Generate(l.WithResult(errToLabel(err))).Inc()
 		return nil, err
 	}
 	priv, err := g.KeyRing.PrivateKey(keyconf.ASSigningKey, dec.AS.Keys[cert.SigningKey].KeyVersion)
 	if err != nil {
+		metrics.Signer.Generate(l.WithResult(metrics.ErrKey)).Inc()
 		return nil, serrors.WrapStr("private key not found", err, "chain", dec,
 			"key_version", dec.AS.Keys[cert.SigningKey].KeyVersion)
 	}
 	pub, err := scrypto.GetPubKey(priv.Bytes, priv.Algorithm)
 	if err != nil {
+		metrics.Signer.Generate(l.WithResult(metrics.ErrKey)).Inc()
 		return nil, serrors.WrapStr("unable to compute public key", err, "chain", dec,
 			"key_version", dec.AS.Keys[cert.SigningKey].KeyVersion)
 	}
 	if !bytes.Equal(dec.AS.Keys[cert.SigningKey].Key, pub) {
+		metrics.Signer.Generate(l.WithResult(metrics.ErrKey)).Inc()
 		return nil, serrors.WrapStr("public key does not match", err, "chain", dec,
 			"key_version", dec.AS.Keys[cert.SigningKey].KeyVersion)
 	}
 	trc, err := g.Provider.GetTRC(ctx, TRCID{ISD: g.IA.I, Version: scrypto.LatestVer},
 		infra.TRCOpts{})
 	if err != nil {
+		metrics.Signer.Generate(l.WithResult(errToLabel(err))).Inc()
 		return nil, serrors.WrapStr("unable to get latest local TRC", err, "isd", g.IA.I)
 	}
+	metrics.Signer.Generate(l.WithResult(metrics.Success)).Inc()
 	return NewSigner(SignerConf{
 		ChainVer: dec.AS.Version,
 		TRCVer:   trc.Version,

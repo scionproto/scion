@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,40 +20,40 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-// HandlerLabels defines the handler labels.
-type HandlerLabels struct {
-	Client  string
-	ReqType string
+// ProviderLabels defines the trust material provider labels.
+type ProviderLabels struct {
+	Type    string
+	Trigger string
 	Result  string
 }
 
 // Labels returns the list of labels.
-func (l HandlerLabels) Labels() []string {
-	return []string{"client", "req_type", prom.LabelResult}
+func (l ProviderLabels) Labels() []string {
+	return []string{"type", "trigger", prom.LabelResult}
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l HandlerLabels) Values() []string {
-	return []string{l.Client, l.ReqType, l.Result}
+func (l ProviderLabels) Values() []string {
+	return []string{l.Type, l.Trigger, l.Result}
 }
 
-// WithResult returns the handler labels with the modified result.
-func (l HandlerLabels) WithResult(result string) HandlerLabels {
+// WithResult returns the lookup labels with the modified result.
+func (l ProviderLabels) WithResult(result string) ProviderLabels {
 	l.Result = result
 	return l
 }
 
-type handler struct {
+type provider struct {
 	requests prometheus.CounterVec
 }
 
-func newHandler() handler {
-	return handler{
-		requests: *prom.NewCounterVecWithLabels(Namespace, "", "received_rpcs_total",
-			"Number of RPCs served by the trust store", HandlerLabels{}),
+func newProvider() provider {
+	return provider{
+		requests: *prom.NewCounterVecWithLabels(Namespace, "", "lookups_total",
+			"Number of trust material lookups handled by the trust store", ProviderLabels{}),
 	}
 }
 
-func (h *handler) Request(l HandlerLabels) prometheus.Counter {
-	return h.requests.WithLabelValues(l.Values()...)
+func (p *provider) Request(l ProviderLabels) prometheus.Counter {
+	return p.requests.WithLabelValues(l.Values()...)
 }

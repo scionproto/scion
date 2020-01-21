@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,40 +20,38 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
-// HandlerLabels defines the handler labels.
-type HandlerLabels struct {
-	Client  string
-	ReqType string
-	Result  string
+// VerifierLabels defines the trust material resolver labels.
+type VerifierLabels struct {
+	Result string
 }
 
 // Labels returns the list of labels.
-func (l HandlerLabels) Labels() []string {
-	return []string{"client", "req_type", prom.LabelResult}
+func (l VerifierLabels) Labels() []string {
+	return []string{prom.LabelResult}
 }
 
 // Values returns the label values in the order defined by Labels.
-func (l HandlerLabels) Values() []string {
-	return []string{l.Client, l.ReqType, l.Result}
+func (l VerifierLabels) Values() []string {
+	return []string{l.Result}
 }
 
-// WithResult returns the handler labels with the modified result.
-func (l HandlerLabels) WithResult(result string) HandlerLabels {
+// WithResult returns the lookup labels with the modified result.
+func (l VerifierLabels) WithResult(result string) VerifierLabels {
 	l.Result = result
 	return l
 }
 
-type handler struct {
-	requests prometheus.CounterVec
+type verifier struct {
+	signatures prometheus.CounterVec
 }
 
-func newHandler() handler {
-	return handler{
-		requests: *prom.NewCounterVecWithLabels(Namespace, "", "received_rpcs_total",
-			"Number of RPCs served by the trust store", HandlerLabels{}),
+func newVerifier() verifier {
+	return verifier{
+		signatures: *prom.NewCounterVecWithLabels(Namespace, "", "verified_signatures_total",
+			"Number of signatures verifications backed by the trust store", VerifierLabels{}),
 	}
 }
 
-func (h *handler) Request(l HandlerLabels) prometheus.Counter {
-	return h.requests.WithLabelValues(l.Values()...)
+func (s *verifier) Verify(l VerifierLabels) prometheus.Counter {
+	return s.signatures.WithLabelValues(l.Values()...)
 }
