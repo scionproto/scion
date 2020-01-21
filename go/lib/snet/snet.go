@@ -144,7 +144,7 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		return nil, serrors.New("nil listen addr not supported")
 	}
 	if listen.IP == nil {
-		return nil, serrors.New("nil listen IP no supported")
+		return nil, serrors.New("nil listen IP not supported")
 	}
 	if listen.IP.IsUnspecified() {
 		return nil, serrors.New("unspecified listen IP not supported")
