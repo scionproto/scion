@@ -104,8 +104,13 @@ class DockerGenerator(object):
             for elem in self.args.networks[network]:
                 if elem not in self.elem_networks:
                     self.elem_networks[elem] = []
-                self.elem_networks[elem].append(
-                    {'net': str(network), 'ipv4': self.args.networks[network][elem].ip})
+                ipv = 'ipv4'
+                if self.args.networks[network][elem].ip.version == 6:
+                    ipv = 'ipv6'
+                self.elem_networks[elem].append({
+                    'net': str(network),
+                    ipv: self.args.networks[network][elem].ip
+                })
             # Create docker networks
             prefix = 'scnd_' if self.args.in_docker else 'scn_'
             net_name = "%s%03d" % (prefix, len(self.bridges))
@@ -119,6 +124,8 @@ class DockerGenerator(object):
                     'com.docker.network.bridge.name': net_name
                 }
             }
+            if network.version == 6:
+                self.dc_conf['networks'][net_name]['enable_ipv6'] = True
 
     def _br_conf(self, topo_id, topo, base):
         for k, _ in topo.get("BorderRouters", {}).items():
@@ -144,9 +151,19 @@ class DockerGenerator(object):
 
             # Set BR IPs
             in_net = self.elem_networks[k + "_internal"][0]
-            entry['networks'][self.bridges[in_net['net']]] = {'ipv4_address': str(in_net['ipv4'])}
+            ipv = 'ipv4'
+            if ipv not in in_net:
+                ipv = 'ipv6'
+            entry['networks'][self.bridges[in_net['net']]] = {
+                '%s_address' % ipv: str(in_net[ipv])
+            }
             for net in self.elem_networks[k]:
-                entry['networks'][self.bridges[net['net']]] = {'ipv4_address': str(net['ipv4'])}
+                ipv = 'ipv4'
+                if ipv not in net:
+                    ipv = 'ipv6'
+                entry['networks'][self.bridges[net['net']]] = {
+                    '%s_address' % ipv: str(net[ipv])
+                }
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _cs_conf(self, topo_id, topo, base):
@@ -231,9 +248,12 @@ class DockerGenerator(object):
         for k in topo.get("BorderRouters", {}):
             entry = copy.deepcopy(prep_entry)
             ctrl_net = self.elem_networks[k + "_ctrl"][0]
-            ctrl_ip = str(ctrl_net['ipv4'])
+            ipv = 'ipv4'
+            if ipv not in ctrl_net:
+                ipv = 'ipv6'
+            ctrl_ip = str(ctrl_net[ipv])
             disp_id = '%s%s' % (topo_id.file_fmt(), k[-2:])
-            entry['networks'][self.bridges[ctrl_net['net']]] = {'ipv4_address': ctrl_ip}
+            entry['networks'][self.bridges[ctrl_net['net']]] = {'%s_address' % ipv: ctrl_ip}
             entry['container_name'] = '%sdisp_br_%s' % (self.prefix, disp_id)
             entry['volumes'].append(self._disp_br_vol(disp_id))
             conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_br_%s' % disp_id)
@@ -243,8 +263,11 @@ class DockerGenerator(object):
     def _infra_dispatcher(self, entry, topo_id, base):
         # Create dispatcher for Infra
         net = self.elem_networks["disp" + topo_id.file_fmt()][0]
-        ip = str(net['ipv4'])
-        entry['networks'][self.bridges[net['net']]] = {'ipv4_address': ip}
+        ipv = 'ipv4'
+        if ipv not in net:
+            ipv = 'ipv6'
+        ip = str(net[ipv])
+        entry['networks'][self.bridges[net['net']]] = {'%s_address' % ipv: ip}
         entry['container_name'] = '%sdisp_%s' % (self.prefix, topo_id.file_fmt())
         entry['volumes'].append(self._disp_vol(topo_id))
         conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_%s' % topo_id.file_fmt())
@@ -254,7 +277,10 @@ class DockerGenerator(object):
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)
         net = self.elem_networks["sd" + topo_id.file_fmt()][0]
-        ip = str(net['ipv4'])
+        ipv = 'ipv4'
+        if ipv not in net:
+            ipv = 'ipv6'
+        ip = str(net[ipv])
         entry = {
             'image': docker_image(self.args, 'sciond'),
             'container_name': '%ssd%s' % (self.prefix, topo_id.file_fmt()),
@@ -269,7 +295,7 @@ class DockerGenerator(object):
                 '%s:/share/conf:ro' % os.path.join(base, 'endhost'),
             ],
             'networks': {
-                self.bridges[net['net']]: {'ipv4_address': ip}
+                self.bridges[net['net']]: {'%s_address' % ipv: ip}
             }
         }
         self.dc_conf['services'][name] = entry
