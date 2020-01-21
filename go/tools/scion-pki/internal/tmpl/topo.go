@@ -197,13 +197,13 @@ func (g topoGen) genIssuerCerts(topo topoFile) error {
 func (g topoGen) genIssuerCert(ia addr.IA) conf.Issuer {
 	issKey := scrypto.KeyVersion(1)
 	cfg := conf.Issuer{
-		Description:          fmt.Sprintf("Issuer certificate %s", ia),
-		Version:              1,
-		IssuingKeyVersion:    &issKey,
-		RevocationKeyVersion: nil,
-		TRCVersion:           1,
-		OptDistPoints:        []addr.IA{},
-		Validity:             g.Validity,
+		Description:            fmt.Sprintf("Issuer certificate %s", ia),
+		Version:                1,
+		IssuingGrantKeyVersion: &issKey,
+		RevocationKeyVersion:   nil,
+		TRCVersion:             1,
+		OptDistPoints:          []addr.IA{},
+		Validity:               g.Validity,
 	}
 	return cfg
 }

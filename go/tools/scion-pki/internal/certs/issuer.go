@@ -98,7 +98,7 @@ func (g issGen) loadPubKeys(ia addr.IA, cfg conf.Issuer) (map[cert.KeyType]keyco
 		cert.IssuingKey: {
 			IA:      ia,
 			Usage:   keyconf.IssCertSigningKey,
-			Version: *cfg.IssuingKeyVersion,
+			Version: *cfg.IssuingGrantKeyVersion,
 		},
 	}
 	if cfg.RevocationKeyVersion != nil {

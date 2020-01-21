@@ -136,7 +136,7 @@ func TestTopoGen(t *testing.T) {
 
 			assert.Contains(t, cfg.Description, "Issuer certificate")
 			assert.Equal(t, scrypto.Version(1), cfg.Version)
-			assert.Equal(t, scrypto.KeyVersion(1), *cfg.IssuingKeyVersion)
+			assert.Equal(t, scrypto.KeyVersion(1), *cfg.IssuingGrantKeyVersion)
 			assert.Nil(t, cfg.RevocationKeyVersion)
 			assert.Equal(t, scrypto.Version(1), cfg.TRCVersion)
 			assert.Empty(t, cfg.OptDistPoints)

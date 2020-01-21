@@ -39,13 +39,13 @@ func AllIssuerFiles(dir string, ia addr.IA) string {
 
 // Issuer holds the issuer certificate configuration.
 type Issuer struct {
-	Description          string              `toml:"description"`
-	Version              scrypto.Version     `toml:"version"`
-	IssuingKeyVersion    *scrypto.KeyVersion `toml:"issuing_grant_key_version"`
-	RevocationKeyVersion *scrypto.KeyVersion `toml:"revocation_key_version"`
-	TRCVersion           scrypto.Version     `toml:"trc_version"`
-	OptDistPoints        []addr.IA           `toml:"optional_distribution_points"`
-	Validity             Validity            `toml:"validity"`
+	Description            string              `toml:"description"`
+	Version                scrypto.Version     `toml:"version"`
+	IssuingGrantKeyVersion *scrypto.KeyVersion `toml:"issuing_grant_key_version"`
+	RevocationKeyVersion   *scrypto.KeyVersion `toml:"revocation_key_version"`
+	TRCVersion             scrypto.Version     `toml:"trc_version"`
+	OptDistPoints          []addr.IA           `toml:"optional_distribution_points"`
+	Validity               Validity            `toml:"validity"`
 }
 
 // LoadIssuer loads the issuer certificate configuration from the provided file.
@@ -78,7 +78,7 @@ func (cfg Issuer) Validate() error {
 		return serrors.New("description not set")
 	case cfg.Version == scrypto.LatestVer:
 		return serrors.New("version not set")
-	case cfg.IssuingKeyVersion == nil:
+	case cfg.IssuingGrantKeyVersion == nil:
 		return serrors.New("issuing_grant_key_version not set")
 	case cfg.TRCVersion == scrypto.LatestVer:
 		return serrors.New("trc_version not set")

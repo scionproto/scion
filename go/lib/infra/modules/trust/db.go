@@ -87,9 +87,10 @@ type TRCRead interface {
 	// GetTRCInfo returns the infos for the requested TRC. If it is not found,
 	// ErrNotFound is returned.
 	GetTRCInfo(ctx context.Context, id TRCID) (TRCInfo, error)
-	// GetIssuingKeyInfo returns the infos of the requested AS. If it is not
-	// found, ErrNotFound is returned.
-	GetIssuingKeyInfo(ctx context.Context, ia addr.IA, version scrypto.Version) (KeyInfo, error)
+	// GetIssuingGrantKeyInfo returns the infos of the requested AS. If it is
+	// not found, ErrNotFound is returned.
+	GetIssuingGrantKeyInfo(ctx context.Context, ia addr.IA,
+		version scrypto.Version) (KeyInfo, error)
 }
 
 // TRCWrite defines the TRC write operations.
