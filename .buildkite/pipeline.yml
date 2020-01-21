@@ -82,7 +82,7 @@ steps:
     - ./scion.sh topology -t
     - ./scion.sh run && sleep 10
     - ./bin/cert_req_integration -log.console warn
-    - ./bin/pp_integration  -log.console warn
+    - ./bin/pp_integration -log.console warn
     - ./bin/scmp_integration -log.console warn
     - ./bin/end2end_integration -log.console warn
     artifact_paths:
@@ -98,10 +98,10 @@ steps:
     - ./scion.sh topology -t -d -c topology/Tiny.topo
     - ./scion.sh run
     - sleep 10
-    - ./bin/cert_req_integration -log.console warn
-    - ./bin/pp_integration  -log.console warn
-    - ./bin/scmp_integration -log.console warn
-    - ./bin/end2end_integration -log.console warn
+    - ./bin/cert_req_integration -d -log.console warn
+    - ./bin/pp_integration -d -log.console warn
+    - ./bin/scmp_integration -d -log.console warn
+    - ./bin/end2end_integration -d -log.console warn
     artifact_paths:
       - "artifacts.out/**/*"
     timeout_in_minutes: 10
