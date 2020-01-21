@@ -112,11 +112,18 @@ func (v *verifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) er
 			"expected", v.BoundSrc, "actual", src)
 	}
 
-	id := ChainID{IA: src.IA, Version: src.ChainVer}
-	opts := infra.ChainOpts{
+	// Ensure that the TRC announced in source is available locally. Thus, not
+	// missing TRC updates.
+	tOpts := infra.TRCOpts{
 		TrustStoreOpts: infra.TrustStoreOpts{Server: v.Server},
+		AllowInactive:  true,
 	}
-	key, err := v.Store.GetASKey(ctx, id, opts)
+	if _, err := v.Store.GetTRC(ctx, TRCID{ISD: src.IA.I, Version: src.TRCVer}, tOpts); err != nil {
+		return err
+	}
+
+	opts := infra.ChainOpts{TrustStoreOpts: infra.TrustStoreOpts{Server: v.Server}}
+	key, err := v.Store.GetASKey(ctx, ChainID{IA: src.IA, Version: src.ChainVer}, opts)
 	if err != nil {
 		metrics.Verifier.Verify(l.WithResult(errToLabel(err))).Inc()
 		return err
