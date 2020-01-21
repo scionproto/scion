@@ -104,11 +104,11 @@ func (r DefaultResolver) TRC(parentCtx context.Context, req TRCReq,
 	for _, resC := range results {
 		res := <-resC
 		if res.Err != nil {
-			return decoded.TRC{}, serrors.WrapStr("unable to fetch parts of TRC chain", err)
+			return decoded.TRC{}, serrors.WrapStr("unable to fetch TRC chain link", err)
 		}
 		decTRC = res.Decoded
 		if err = r.Inserter.InsertTRC(ctx, decTRC, w.TRC); err != nil {
-			return decoded.TRC{}, serrors.WrapStr("unable to insert parts of TRC chain", err,
+			return decoded.TRC{}, serrors.WrapStr("unable to insert TRC chain link", err,
 				"trc", decTRC)
 		}
 		logger.Debug("[TrustStore:Resolver] Inserted resolved TRC", "isd", decTRC.TRC.ISD,
@@ -153,20 +153,18 @@ func (r DefaultResolver) startFetchTRC(parentCtx context.Context, res chan<- res
 			"version", req.Version, "server", server)
 		rawTRC, err := r.RPC.GetTRC(ctx, req, server)
 		if err != nil {
-			res <- resOrErr{Err: serrors.WrapStr("error requesting TRC", err,
-				"isd", req.ISD, "version", req.Version)}
+			res <- resOrErr{Err: serrors.WithCtx(err, "version", req.Version)}
 			return
 		}
 		logger.Debug("[TrustStore:Resolver] Received TRC from remote",
 			"isd", req.ISD, "version", req.Version)
 		decTRC, err := decoded.DecodeTRC(rawTRC)
 		if err != nil {
-			res <- resOrErr{Err: serrors.WrapStr("failed to parse TRC", err,
-				"isd", req.ISD, "version", req.Version)}
+			res <- resOrErr{Err: serrors.WithCtx(err, "version", req.Version)}
 			return
 		}
 		if err := r.trcCheck(req, decTRC.TRC); err != nil {
-			res <- resOrErr{Err: serrors.Wrap(ErrInvalidResponse, err)}
+			res <- resOrErr{Err: serrors.Wrap(ErrInvalidResponse, err, "version", req.Version)}
 			return
 		}
 		res <- resOrErr{Decoded: decTRC}
@@ -199,7 +197,7 @@ func (r DefaultResolver) Chain(parentCtx context.Context, req ChainReq,
 		"version", req.Version, "server", server)
 	msg, err := r.RPC.GetCertChain(ctx, req, server)
 	if err != nil {
-		return decoded.Chain{}, serrors.WrapStr("rpc failed", err)
+		return decoded.Chain{}, err
 	}
 	logger.Debug("[TrustStore:Resolver] Received certificate chain from remote", "ia", req.IA,
 		"version", req.Version)
