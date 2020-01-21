@@ -5,26 +5,26 @@ networks:
       com.docker.network.bridge.name: bridge1
     ipam:
       config:
-      - subnet: 242.253.100.0/24
+      - subnet: 242.254.100.0/24
 services:
-  topo_ps_reload_dispatcher:
-    container_name: topo_ps_reload_dispatcher
-    image: bazel/acceptance/topo_ps_reload:dispatcher
+  topo_sd_reload_dispatcher:
+    container_name: topo_sd_reload_dispatcher
+    image: bazel/acceptance/topo_sd_reload:dispatcher
     networks:
       bridge1:
-        ipv4_address: 242.253.100.2
+        ipv4_address: 242.254.100.2
     volumes:
     - vol_logs:/share/logs:rw
     - vol_scion_disp1-ff00_0_110:/run/shm/dispatcher:rw
-  topo_ps_reload_path_srv:
-    container_name: topo_ps_reload_path_srv
-    image: bazel/acceptance/topo_ps_reload:path_srv
+  topo_sd_reload_sciond:
+    container_name: topo_sd_reload_sciond
+    image: bazel/acceptance/topo_sd_reload:sciond
     volumes:
     - vol_logs:/share/logs:rw
     - vol_scion_disp1-ff00_0_110:/run/shm/dispatcher:ro
-    network_mode: service:topo_ps_reload_dispatcher
-  topo_ps_reload_log_exporter:
-    container_name: topo_ps_reload_log_exporter
+    network_mode: service:topo_sd_reload_dispatcher
+  topo_sd_reload_log_exporter:
+    container_name: topo_sd_reload_log_exporter
     image: alpine
     volumes:
     - vol_logs:/share/logs:ro
