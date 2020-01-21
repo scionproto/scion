@@ -27,33 +27,42 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
-type TestPSTopoReloadSuite struct {
-	suite.Suite
-	origTopo   *topology.RWTopology
-	reloadTopo *topology.RWTopology
+func TestPSTopoReload(t *testing.T) {
+	setupTest(t)
+	defer teardownTest(t)
+	// use a subtest to make sure that teardown is always executed.
+	origTopo, err := topology.RWTopologyFromJSONFile("testdata/topology.json")
+	assert.NoError(t, err, "Loading origTopo failed")
+	reloadTopo, err := topology.RWTopologyFromJSONFile("testdata/topology_reload.json")
+	assert.NoError(t, err, "Loading reloadTopo failed")
+	checkTopology(t, origTopo)
+	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "exec", "-T",
+		"topo_ps_reload_path_srv", "mv", "/topology_reload.json", "/topology.json")
+	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",
+		"topo_ps_reload_path_srv")
+	checkTopology(t, reloadTopo)
 }
 
-func (s *TestPSTopoReloadSuite) SetupTest() {
-	// first load the docker images from bazel into the docker deamon.
-	s.exec("dispatcher")
-	s.exec("path_srv")
-	s.exec("docker-compose", "-f", "docker-compose.yml", "up",
+func setupTest(t *testing.T) {
+	// first load the docker images from bazel into the docker deamon, the
+	// scripts are in the same folder as this test runs in bazel.
+	mustExec(t, "dispatcher")
+	mustExec(t, "path_srv")
+	// now start the docker containers
+	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up",
 		"-d", "topo_ps_reload_dispatcher", "topo_ps_reload_path_srv")
-	var err error
-	s.origTopo, err = topology.RWTopologyFromJSONFile("testdata/topology.json")
-	s.Require().NoError(err, "Loading origTopo failed")
-	s.reloadTopo, err = topology.RWTopologyFromJSONFile("testdata/topology_reload.json")
-	s.Require().NoError(err, "Loading reloadTopo failed")
+	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second)
 }
 
-func (s *TestPSTopoReloadSuite) TearDownTest() {
+func teardownTest(t *testing.T) {
+	defer mustExec(t, "docker-compose", "-f", "docker-compose.yml", "down", "-v")
+
 	outdir, exists := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR")
-	s.Require().True(exists, "TEST_UNDECLARED_OUTPUTS_DIR must be defined")
-	s.Require().NoError(os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
+	require.True(t, exists, "TEST_UNDECLARED_OUTPUTS_DIR must be defined")
+	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
 	// collect logs
 	for _, file := range []string{"disp_1-ff00_0_110.log", "ps1-ff00_0_110-1.log"} {
 		cmd := exec.Command("docker-compose", "-f", "docker-compose.yml", "run", "-T",
@@ -68,27 +77,13 @@ func (s *TestPSTopoReloadSuite) TearDownTest() {
 			fmt.Fprintf(os.Stderr, "Failed to write log file %s: %v\n", file, err)
 		}
 	}
-	s.exec("docker-compose", "-f", "docker-compose.yml", "down", "-v")
 }
 
-func (s *TestPSTopoReloadSuite) TestReload() {
-	checkTopology(s.T(), s.origTopo)
-	s.exec("docker-compose", "-f", "docker-compose.yml", "exec", "-T",
-		"topo_ps_reload_path_srv", "mv", "/topology_reload.json", "/topology.json")
-	s.exec("docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",
-		"topo_ps_reload_path_srv")
-	checkTopology(s.T(), s.reloadTopo)
-}
-
-func (s *TestPSTopoReloadSuite) exec(name string, arg ...string) {
+func mustExec(t *testing.T, name string, arg ...string) {
 	cmd := exec.Command(name, arg...)
 	output, err := cmd.Output()
-	s.T().Log(string(output))
-	s.Require().NoError(err, "Failed to run %s %v: %v\n%s", name, arg, err, string(output))
-}
-
-func TestPSTopoReload(t *testing.T) {
-	suite.Run(t, new(TestPSTopoReloadSuite))
+	fmt.Println(string(output))
+	require.NoError(t, err, "Failed to run %s %v: %v\n%s", name, arg, err, string(output))
 }
 
 func checkTopology(t *testing.T, expectedTopo *topology.RWTopology) {
