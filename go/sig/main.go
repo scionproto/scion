@@ -121,11 +121,11 @@ func realMain() int {
 func setupBasic() error {
 	// Load and initialize config.
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
-		return err
+		return serrors.New("Failed to load config", "err", err, "file", env.ConfigFile())
 	}
 	cfg.InitDefaults()
 	if err := env.InitLogging(&cfg.Logging); err != nil {
-		return err
+		return serrors.New("Failed to initialize logging", "err", err)
 	}
 	prom.ExportElementID(cfg.Sig.ID)
 	return env.LogAppStarted("SIG", cfg.Sig.ID)

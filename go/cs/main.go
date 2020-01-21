@@ -671,11 +671,11 @@ func maxExpTimeFactory(store beaconstorage.Store, p beacon.PolicyType) func() sp
 
 func setupBasic() error {
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
-		return err
+		return serrors.New("Failed to load config", "err", err, "file", env.ConfigFile())
 	}
 	cfg.InitDefaults()
 	if err := env.InitLogging(&cfg.Logging); err != nil {
-		return err
+		return serrors.New("Failed to initialize logging", "err", err)
 	}
 	prom.ExportElementID(cfg.General.ID)
 	return env.LogAppStarted(common.CS, cfg.General.ID)
