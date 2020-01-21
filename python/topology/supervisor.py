@@ -173,7 +173,7 @@ class SupervisorGenerator(object):
         entry = {
             'autostart': 'false',
             'autorestart': 'false',
-            'environment': 'TZ=UTC QUIC_GO_LOG_LEVEL=info',
+            'environment': 'TZ=UTC,QUIC_GO_LOG_LEVEL=info',
             'stdout_logfile': "NONE",
             'stderr_logfile': "NONE",
             'startretries': 0,
