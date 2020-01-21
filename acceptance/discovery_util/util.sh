@@ -8,7 +8,7 @@ AS_FILE="$(as_file $IA)"
 TOPO="gen/ISD1/AS$AS_FILE/br$IA_FILE-1/topology.json"
 
 UTIL_PATH="acceptance/discovery_util"
-TEST_TOPOLOGY="topology/Tiny.topo"
+TEST_TOPOLOGY="topology/Tiny4.topo"
 
 HTTP_DIR="gen/discovery_acceptance"
 STATIC_DIR="$HTTP_DIR/discovery/v1/static"
