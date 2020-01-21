@@ -24,23 +24,25 @@ import (
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/lib/xtest/xtrust"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -273,17 +275,19 @@ func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr 
 }
 
 func testSigner(t *testing.T, priv common.RawBytes, ia addr.IA) infra.Signer {
-	return &xtrust.Signer{
-		Cfg: infra.SignerMeta{
-			Src: ctrl.SignSrcDef{
-				ChainVer: 42,
-				TRCVer:   84,
-				IA:       ia,
+	signer, err := trust.NewSigner(
+		trust.SignerConf{
+			ChainVer: 42,
+			TRCVer:   84,
+			Validity: scrypto.Validity{NotAfter: util.UnixTime{Time: time.Now().Add(time.Hour)}},
+			Key: keyconf.Key{
+				Type:      keyconf.PrivateKey,
+				Algorithm: scrypto.Ed25519,
+				Bytes:     priv,
+				ID:        keyconf.ID{IA: ia},
 			},
-			Algo:    scrypto.Ed25519,
-			ExpTime: time.Now().Add(time.Hour),
 		},
-		SignType: proto.SignType_ed25519,
-		Key:      priv,
-	}
+	)
+	require.NoError(t, err)
+	return signer
 }
