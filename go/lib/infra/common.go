@@ -394,7 +394,7 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	return e.Message.ErrDesc
+	return fmt.Sprintf("rpc: error from remote: %q", e.Message.ErrDesc)
 }
 
 // SignerMeta indicates what signature metadata the signer uses as a basis

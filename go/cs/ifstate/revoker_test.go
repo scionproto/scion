@@ -25,17 +25,18 @@ import (
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/ifstate/mock_ifstate"
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -350,15 +351,20 @@ func activateAll(intfs *Interfaces) {
 }
 
 func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
-	signer, err := trust.NewBasicSigner(key, infra.SignerMeta{
-		Src: ctrl.SignSrcDef{
-			IA:       xtest.MustParseIA("1-ff00:0:84"),
+	signer, err := trust.NewSigner(
+		trust.SignerConf{
 			ChainVer: 42,
 			TRCVer:   21,
+			Validity: scrypto.Validity{NotAfter: util.UnixTime{Time: time.Now().Add(time.Hour)}},
+			Key: keyconf.Key{
+				Type:      keyconf.PrivateKey,
+				Algorithm: scrypto.Ed25519,
+				Bytes:     key,
+				ID:        keyconf.ID{IA: xtest.MustParseIA("1-ff00:0:84")},
+			},
 		},
-		Algo: scrypto.Ed25519,
-	})
-	xtest.FailOnErr(t, err)
+	)
+	require.NoError(t, err)
 	return signer
 }
 

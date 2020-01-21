@@ -106,7 +106,8 @@ func (p Provider) getCheckedTRC(parentCtx context.Context, id TRCID,
 
 	decTRC, err := p.getTRC(ctx, id, opts)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("unable to get requested TRC", err)
+		return nil, nil, serrors.WrapStr("unable to get requested TRC", err,
+			"isd", id.ISD, "version", id.Version)
 	}
 	if opts.AllowInactive {
 		return decTRC.TRC, decTRC.Raw, nil
@@ -197,7 +198,8 @@ func (p Provider) fetchTRC(ctx context.Context, id TRCID,
 	}
 	decTRC, err := p.Resolver.TRC(ctx, req, server)
 	if err != nil {
-		return decoded.TRC{}, serrors.WrapStr("unable to resolve signed TRC from network", err)
+		return decoded.TRC{}, serrors.WrapStr("unable to fetch signed TRC from network", err,
+			"addr", server)
 	}
 	return decTRC, nil
 }
@@ -238,7 +240,8 @@ func (p Provider) getCheckedChain(parentCtx context.Context, id ChainID,
 
 	chain, err := p.getChain(ctx, id, opts)
 	if err != nil {
-		return decoded.Chain{}, serrors.WrapStr("unable to get requested certificate chain", err)
+		return decoded.Chain{}, serrors.WrapStr("unable to get requested certificate chain", err,
+			"ia", id.IA, "version", id.Version)
 	}
 	if opts.AllowInactive {
 		return chain, nil
@@ -265,7 +268,8 @@ func (p Provider) getCheckedChain(parentCtx context.Context, id ChainID,
 		}
 		if err := p.issuerActive(ctx, fetched, opts.TrustStoreOpts); err != nil {
 			return decoded.Chain{},
-				serrors.WrapStr("latest certificate chain from network not active", err)
+				serrors.WrapStr("latest certificate chain from network not active", err,
+					"chain", fetched)
 		}
 		return fetched, nil
 	}
@@ -357,8 +361,8 @@ func (p Provider) fetchChain(ctx context.Context, id ChainID,
 	}
 	chain, err := p.Resolver.Chain(ctx, req, server)
 	if err != nil {
-		return decoded.Chain{}, serrors.WrapStr("unable to resolve signed certificate chain"+
-			"from network", err)
+		return decoded.Chain{}, serrors.WrapStr("unable to fetch signed certificate chain "+
+			"from network", err, "addr", server)
 	}
 	return chain, nil
 }

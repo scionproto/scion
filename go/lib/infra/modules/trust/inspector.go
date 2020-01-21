@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Inspector gives insights into the primary ASes of a given ISD.
@@ -56,7 +55,7 @@ func (i DefaultInspector) ByAttributes(parentCtx context.Context, isd addr.ISD,
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	t, err := i.Provider.GetTRC(ctx, TRCID{ISD: isd, Version: scrypto.LatestVer}, trcOpts)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to get latest TRC", err, "isd", isd)
+		return nil, err
 	}
 	ases := make([]addr.IA, 0, len(t.PrimaryASes))
 	for as, entry := range t.PrimaryASes {
@@ -81,7 +80,7 @@ func (i DefaultInspector) HasAttributes(ctx context.Context, ia addr.IA,
 	trcOpts := infra.TRCOpts{TrustStoreOpts: opts.TrustStoreOpts}
 	trc, err := i.Provider.GetTRC(ctx, TRCID{ISD: ia.I, Version: scrypto.LatestVer}, trcOpts)
 	if err != nil {
-		return false, serrors.WrapStr("unable to get latest TRC", err, "isd", ia.I)
+		return false, err
 	}
 	entry, ok := trc.PrimaryASes[ia.A]
 	if !ok {
