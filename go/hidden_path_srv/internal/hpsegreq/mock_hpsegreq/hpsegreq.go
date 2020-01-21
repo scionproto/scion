@@ -36,7 +36,7 @@ func (m *MockFetcher) EXPECT() *MockFetcherMockRecorder {
 }
 
 // Fetch mocks base method
-func (m *MockFetcher) Fetch(arg0 context.Context, arg1 *path_mgmt.HPSegReq, arg2 *snet.Addr) ([]*path_mgmt.HPSegRecs, error) {
+func (m *MockFetcher) Fetch(arg0 context.Context, arg1 *path_mgmt.HPSegReq, arg2 *snet.UDPAddr) ([]*path_mgmt.HPSegRecs, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Fetch", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*path_mgmt.HPSegRecs)

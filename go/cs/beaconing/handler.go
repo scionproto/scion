@@ -137,9 +137,9 @@ func (h *handler) buildBeacon(ifid common.IFIDType) (beacon.Beacon, *infra.Handl
 
 func (h *handler) getIFID() (common.IFIDType, addr.IA, error) {
 	var ia addr.IA
-	peer, ok := h.request.Peer.(*snet.Addr)
+	peer, ok := h.request.Peer.(*snet.UDPAddr)
 	if !ok {
-		return 0, ia, common.NewBasicError("Invalid peer address type, expected *snet.Addr", nil,
+		return 0, ia, common.NewBasicError("Invalid peer address type, expected *snet.UDPAddr", nil,
 			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 	}
 	hopF, err := peer.Path.GetHopField(peer.Path.HopOff)
@@ -194,7 +194,7 @@ func (h *handler) validateASEntry(b beacon.Beacon) error {
 }
 
 func (h *handler) verifySegment(segment *seg.PathSegment) error {
-	snetPeer := h.request.Peer.(*snet.Addr)
+	snetPeer := h.request.Peer.(*snet.UDPAddr)
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
 		return common.NewBasicError("path error", err)

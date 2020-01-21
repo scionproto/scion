@@ -120,10 +120,10 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 }
 
 func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Interface, error) {
-	peer, ok := h.request.Peer.(*snet.Addr)
+	peer, ok := h.request.Peer.(*snet.UDPAddr)
 	if !ok {
-		return 0, nil, common.NewBasicError("Invalid peer address type, expected *snet.Addr", nil,
-			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
+		return 0, nil, common.NewBasicError("Invalid peer address type, expected *snet.UDPAddr",
+			nil, "peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 	}
 	hopF, err := peer.Path.GetHopField(peer.Path.HopOff)
 	if err != nil {

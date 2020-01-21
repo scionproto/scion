@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	Local    snet.Addr
+	Local    snet.UDPAddr
 	Mode     string
 	sdSocket string
 	Attempts int
@@ -51,7 +51,7 @@ func Setup() {
 }
 
 func addFlags() {
-	flag.Var((*snet.Addr)(&Local), "local", "(Mandatory) address to listen on")
+	flag.Var((*snet.UDPAddr)(&Local), "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&sdSocket, "sciond", "", "Path to sciond socket")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")

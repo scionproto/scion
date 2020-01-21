@@ -66,7 +66,7 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 		metrics.Registrations.ResultsTotal(labels).Inc()
 		return infra.MetricsErrInternal
 	}
-	snetPeer := h.request.Peer.(*snet.Addr)
+	snetPeer := h.request.Peer.(*snet.UDPAddr)
 	labels.Type = classifySegs(logger, segReg)
 	labels.Src = snetPeer.IA
 	rw, ok := infra.ResponseWriterFromContext(ctx)

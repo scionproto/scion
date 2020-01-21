@@ -53,9 +53,7 @@ func TestSegReg(t *testing.T) {
 					Recs:    []*seg.Meta{seg110_133},
 				},
 			}
-			peer := &snet.Addr{
-				Host: addr.NewSVCUDPAppAddr(addr.SvcBS),
-			}
+			peer := snet.NewUDPAddr(addr.IA{}, nil, nil, nil)
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			ack := ack.Ack{
 				Err:     proto.Ack_ErrCode_ok,
@@ -124,26 +122,6 @@ func TestSegReg(t *testing.T) {
 			res := handler.Handle(req)
 			assert.Equal(t, infra.MetricsErrInvalid, res)
 		},
-		"invalid peer hop field": func(t *testing.T, ctx context.Context,
-			handler infra.Handler, m *mocks) {
-
-			msg := &path_mgmt.HPSegReg{
-				HPSegRecs: &path_mgmt.HPSegRecs{
-					Recs: []*seg.Meta{seg110_133},
-				},
-			}
-			peer := &snet.Addr{
-				Path: &spath.Path{},
-			}
-			req := infra.NewRequest(ctx, msg, nil, peer, 0)
-			ack := ack.Ack{
-				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: messenger.AckRejectFailedToParse,
-			}
-			m.rw.EXPECT().SendAckReply(gomock.Any(), &matchers.AckMsg{Ack: ack})
-			res := handler.Handle(req)
-			assert.Equal(t, infra.MetricsErrInvalid, res)
-		},
 		"group validation fails": func(t *testing.T, ctx context.Context,
 			handler infra.Handler, m *mocks) {
 
@@ -153,9 +131,7 @@ func TestSegReg(t *testing.T) {
 					Recs:    []*seg.Meta{seg110_133},
 				},
 			}
-			peer := &snet.Addr{
-				Host: addr.NewSVCUDPAppAddr(addr.SvcBS),
-			}
+			peer := snet.NewUDPAddr(addr.IA{}, &spath.Path{}, nil, nil)
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			ack := ack.Ack{
 				Err:     proto.Ack_ErrCode_reject,
