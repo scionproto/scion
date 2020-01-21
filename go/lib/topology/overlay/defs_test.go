@@ -18,9 +18,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/topology/overlay"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
 func TestTypeUnmarshalJSON(t *testing.T) {
