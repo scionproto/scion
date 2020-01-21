@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/decoded"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -38,11 +39,12 @@ type Store struct {
 // peer, backed by the trust store. The configured recurser defines whether the
 // trust store is allowed to issue new TRC requests over the network.  This
 // method should only be used when servicing requests coming from remote nodes.
-func (s Store) NewTRCReqHandler() infra.Handler {
+func (s Store) NewTRCReqHandler(ia addr.IA) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &trcReqHandler{
 			request:  r,
 			provider: s.CryptoProvider,
+			ia:       ia,
 		}
 		return handler.Handle()
 	}
@@ -54,11 +56,12 @@ func (s Store) NewTRCReqHandler() infra.Handler {
 // defines whether the trust store is allowed to issue new TRC and certificate
 // chain requests over the network. This method should only be used when
 // servicing requests coming from remote nodes.
-func (s Store) NewChainReqHandler() infra.Handler {
+func (s Store) NewChainReqHandler(ia addr.IA) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := chainReqHandler{
 			request:  r,
 			provider: s.CryptoProvider,
+			ia:       ia,
 		}
 		return handler.Handle()
 	}
@@ -68,12 +71,13 @@ func (s Store) NewChainReqHandler() infra.Handler {
 // NewTRCPushHandler returns an infra.Handler for TRC pushes coming from a peer,
 // backed by the trust store. TRCs are pushed by local BSes and PSes. Pushes are
 // allowed from all local AS sources.
-func (s Store) NewTRCPushHandler() infra.Handler {
+func (s Store) NewTRCPushHandler(ia addr.IA) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := trcPushHandler{
 			request:  r,
 			provider: s.CryptoProvider,
 			inserter: s.Inserter,
+			ia:       ia,
 		}
 		return handler.Handle()
 	}
@@ -84,12 +88,13 @@ func (s Store) NewTRCPushHandler() infra.Handler {
 // coming from a peer, backed by the trust store. Certificate chains are pushed
 // by other ASes during core registration, or the local BSes and PSes. Pushes
 // are allowed from all local ISD sources.
-func (s Store) NewChainPushHandler() infra.Handler {
+func (s Store) NewChainPushHandler(ia addr.IA) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := chainPushHandler{
 			request:  r,
 			provider: s.CryptoProvider,
 			inserter: s.Inserter,
+			ia:       ia,
 		}
 		return handler.Handle()
 	}

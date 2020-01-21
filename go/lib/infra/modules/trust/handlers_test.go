@@ -50,7 +50,7 @@ func TestChainReqHandler(t *testing.T) {
 		},
 		"wrong message type": {
 			Request: func(ctrl *gomock.Controller) *infra.Request {
-				return &infra.Request{Message: &cert_mgmt.Chain{}}
+				return infra.NewRequest(context.Background(), nil, &cert_mgmt.Chain{}, nil, 0)
 			},
 			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
 				return mock_trust.NewMockCryptoProvider(ctrl)
@@ -59,7 +59,7 @@ func TestChainReqHandler(t *testing.T) {
 		},
 		"no messenger": {
 			Request: func(ctrl *gomock.Controller) *infra.Request {
-				return &infra.Request{Message: &cert_mgmt.ChainReq{}}
+				return infra.NewRequest(context.Background(), nil, &cert_mgmt.ChainReq{}, nil, 0)
 			},
 			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
 				return mock_trust.NewMockCryptoProvider(ctrl)
@@ -153,7 +153,7 @@ func TestChainReqHandler(t *testing.T) {
 			store := trust.Store{
 				CryptoProvider: test.Provider(ctrl),
 			}
-			result := store.NewChainReqHandler().Handle(test.Request(ctrl))
+			result := store.NewChainReqHandler(ia110).Handle(test.Request(ctrl))
 			assert.Equal(t, test.ExpectedResult, result)
 		})
 	}
@@ -176,7 +176,7 @@ func TestTRCReqHandler(t *testing.T) {
 		},
 		"wrong message type": {
 			Request: func(ctrl *gomock.Controller) *infra.Request {
-				return &infra.Request{Message: &cert_mgmt.TRC{}}
+				return infra.NewRequest(context.Background(), nil, &cert_mgmt.TRC{}, nil, 0)
 			},
 			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
 				return mock_trust.NewMockCryptoProvider(ctrl)
@@ -185,7 +185,7 @@ func TestTRCReqHandler(t *testing.T) {
 		},
 		"no messenger": {
 			Request: func(ctrl *gomock.Controller) *infra.Request {
-				return &infra.Request{Message: &cert_mgmt.TRCReq{}}
+				return infra.NewRequest(context.Background(), nil, &cert_mgmt.TRCReq{}, nil, 0)
 			},
 			Provider: func(ctrl *gomock.Controller) trust.CryptoProvider {
 				return mock_trust.NewMockCryptoProvider(ctrl)
@@ -279,7 +279,7 @@ func TestTRCReqHandler(t *testing.T) {
 			store := trust.Store{
 				CryptoProvider: test.Provider(ctrl),
 			}
-			result := store.NewTRCReqHandler().Handle(test.Request(ctrl))
+			result := store.NewTRCReqHandler(ia110).Handle(test.Request(ctrl))
 			assert.Equal(t, test.ExpectedResult, result)
 		})
 	}
@@ -459,7 +459,7 @@ func TestChainPushHandler(t *testing.T) {
 			store := trust.Store{
 				Inserter: test.Inserter(ctrl),
 			}
-			result := store.NewChainPushHandler().Handle(test.Request(ctrl))
+			result := store.NewChainPushHandler(ia110).Handle(test.Request(ctrl))
 			assert.Equal(t, test.ExpectedResult, result)
 		})
 	}
@@ -639,7 +639,7 @@ func TestTRCPushHandler(t *testing.T) {
 			store := trust.Store{
 				Inserter: test.Inserter(ctrl),
 			}
-			result := store.NewTRCPushHandler().Handle(test.Request(ctrl))
+			result := store.NewTRCPushHandler(ia110).Handle(test.Request(ctrl))
 			assert.Equal(t, test.ExpectedResult, result)
 		})
 	}

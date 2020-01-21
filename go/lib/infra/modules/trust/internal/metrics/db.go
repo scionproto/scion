@@ -24,22 +24,16 @@ type operation string
 
 // Database operations.
 const (
-	GetIssCert     = "get_iss_cert"
-	GetIssCertMax  = "get_iss_cert_max"
-	GetAllIssCerts = "get_all_iss_certs"
-	GetChain       = "get_chain"
-	GetChainMax    = "get_chain_max"
-	GetAllChains   = "get_all_chains"
-	GetTRC         = "get_trc"
-	GetTRCMax      = "get_trc_max"
-	GetAllTRCs     = "get_all_trcs"
-	GetCustKey     = "get_cust_key"
-	GetAllCustKeys = "get_all_cust_keys"
+	GetTRC            = "get_trc"
+	GetRawTRC         = "get_raw_trc"
+	GetTRCInfo        = "get_trc_info"
+	GetIssuingKeyInfo = "get_issuing_key_info"
+	InsertTRC         = "insert_trc"
+	TRCExists         = "trc_exists"
 
-	InsertIssCert = "insert_iss_cert"
-	InsertChain   = "insert_chain"
-	InsertTRC     = "insert_trc"
-	InsertCustKey = "insert_cust_key"
+	GetRawChain = "get_raw_chain"
+	ChainExists = "chain_exists"
+	InsertChain = "insert_chain"
 
 	BeginTx    = "tx_begin"
 	CommitTx   = "tx_commit"
