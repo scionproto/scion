@@ -70,6 +70,8 @@ docker_status() {
 #######################################
 test_teardown() {
     docker_status
+    mkdir -p logs/docker
+    ./tools/dc collect_logs logs/docker
     ./tools/dc down
 }
 

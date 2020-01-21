@@ -66,7 +66,11 @@ class TestRun(Base):
         else:
             dcFile = load_yaml_file('gen/scion-dc.yml')
             networks = dcFile['services']['scion_disp_1-ff00_0_112']['networks']
-            local_disp = next(iter(networks.items()))[1]['ipv4_address']
+            disp_net = next(iter(networks.items()))[1]
+            if 'ipv4_address' in disp_net:
+                local_disp = disp_net['ipv4_address']
+            else:
+                local_disp = disp_net['ipv6_address']
             out = self.tools_dc('exec_tester', '1-ff00_0_112', './bin/showpaths',
                                 '-srcIA', '1-ff00:0:112', '-sciondFromIA',
                                 '-dstIA', '1-ff00:0:110', '-p', '-local',
