@@ -52,10 +52,6 @@ cmd_run() {
         echo "Compiling..."
         make -s || exit 1
         if is_docker_be; then
-            echo "Build scion_base image"
-            ./tools/quiet ./docker.sh base
-            echo "Build scion image"
-            ./tools/quiet ./docker.sh build
             echo "Build perapp images"
             ./tools/quiet make -C docker/perapp
             echo "Build scion tester"
