@@ -21,36 +21,45 @@ import (
 // Namespace is the prometheus namespace.
 const Namespace = "truststore"
 
-// Request type strings.
+// Trust material
 const (
-	TRCReq          = "trc_req"
-	TRCPush         = "trc_push"
-	ChainReq        = "chain_req"
-	ChainPush       = "chain_push"
-	SigVerification = "sig_verification"
-	ASInspector     = "as_inspector"
-	Load            = "load"
+	Chain = "chain"
+	TRC   = "trc"
+	ASKey = "as_key"
+)
+
+// Request types
+const (
+	TRCReq    = "trc_request"
+	TRCPush   = "trc_push"
+	ChainReq  = "chain_request"
+	ChainPush = "chain_push"
+	LatestTRC = "latest_trc_number"
+)
+
+// Triggers
+const (
+	SigVerification = "signature_verification"
+	ASInspector     = "trc_inspection"
 	App             = "application"
 )
 
-// Result type strings.
+// Result types
 const (
-	Success     = prom.Success
-	OkCached    = "ok_cached"
-	OkRequested = "ok_requested"
-	OkExists    = "ok_exists"
-	OkInserted  = "ok_inserted"
+	Success    = prom.Success
+	OkExists   = "ok_exists"
+	OkInserted = "ok_inserted"
 
-	ErrDB           = prom.ErrDB
-	ErrDenied       = "err_denied"
-	ErrInternal     = prom.ErrInternal
-	ErrTransmit     = "err_transmit"
-	ErrTimeout      = prom.ErrTimeout
-	ErrValidate     = prom.ErrValidate
-	ErrVerify       = prom.ErrVerify
-	ErrTRC          = "err_trc"
-	ErrNotFound     = "err_not_found"
-	ErrNotFoundAuth = "err_not_found_auth"
+	ErrMismatch = "err_content_mismatch"
+	ErrDB       = prom.ErrDB
+	ErrInactive = "err_inactive"
+	ErrInternal = prom.ErrInternal
+	ErrKey      = "err_key"
+	ErrNotFound = "err_not_found"
+	ErrParse    = prom.ErrParse
+	ErrTransmit = "err_transmit"
+	ErrValidate = prom.ErrValidate
+	ErrVerify   = prom.ErrVerify
 )
 
 var (
@@ -58,6 +67,16 @@ var (
 	DB = newDB()
 	// Handler exposes the handler metrics.
 	Handler = newHandler()
-	// Store exposes the store metrics.
-	Store = newStore()
+	// Inserter exposes the inserter metrics.
+	Inserter = newInserter()
+	// Inspector exposes the inspector metrics.
+	Inspector = newInspector()
+	// Provider exposes the provider metrics.
+	Provider = newProvider()
+	// Resolver exposes the resolver metrics.
+	Resolver = newResolver()
+	// Signer exposes the signer metrics.
+	Signer = newSigner()
+	// Verifier exposes the verifier metrics.
+	Verifier = newVerifier()
 )

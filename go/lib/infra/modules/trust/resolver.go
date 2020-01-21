@@ -22,7 +22,9 @@ import (
 	"github.com/opentracing/opentracing-go"
 	opentracingext "github.com/opentracing/opentracing-go/ext"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/decoded"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -53,6 +55,7 @@ type DefaultResolver struct {
 	DB       DBRead
 	Inserter Inserter
 	RPC      RPC
+	IA       addr.IA
 }
 
 // TRC resolves the decoded signed TRC. Missing links in the TRC
@@ -101,16 +104,23 @@ func (r DefaultResolver) TRC(parentCtx context.Context, req TRCReq,
 	var decTRC decoded.TRC
 	var w prevWrap
 	w.SetTRC(prev)
-	for _, resC := range results {
+	for i, resC := range results {
+		l := metrics.ResolverLabels{Type: metrics.TRCReq, Trigger: metrics.FromCtx(ctx),
+			Peer: peerToLabel(server, r.IA)}
 		res := <-resC
 		if res.Err != nil {
+			// Ensure metrics are set even with short-circuit.
+			metrics.Resolver.Fetch(l.WithResult(errToLabel(err))).Add(float64(len(results) - i))
 			return decoded.TRC{}, serrors.WrapStr("unable to fetch TRC chain link", err)
 		}
 		decTRC = res.Decoded
 		if err = r.Inserter.InsertTRC(ctx, decTRC, w.TRC); err != nil {
+			// Ensure metrics are set even with short-circuit.
+			metrics.Resolver.Fetch(l.WithResult(errToLabel(err))).Add(float64(len(results) - i))
 			return decoded.TRC{}, serrors.WrapStr("unable to insert TRC chain link", err,
 				"trc", decTRC)
 		}
+		metrics.Resolver.Fetch(l.WithResult(metrics.Success)).Inc()
 		logger.Debug("[TrustStore:Resolver] Inserted resolved TRC", "isd", decTRC.TRC.ISD,
 			"version", decTRC.TRC.Version)
 		w.SetTRC(decTRC.TRC)
@@ -123,17 +133,23 @@ func (r DefaultResolver) TRC(parentCtx context.Context, req TRCReq,
 func (r DefaultResolver) resolveLatestVersion(ctx context.Context, req TRCReq,
 	server net.Addr) (scrypto.Version, error) {
 
+	l := metrics.ResolverLabels{Type: metrics.LatestTRC, Trigger: metrics.FromCtx(ctx),
+		Peer: peerToLabel(server, r.IA)}
 	rawTRC, err := r.RPC.GetTRC(ctx, req, server)
 	if err != nil {
+		metrics.Resolver.Fetch(l.WithResult(metrics.ErrTransmit)).Inc()
 		return 0, err
 	}
 	decTRC, err := decoded.DecodeTRC(rawTRC)
 	if err != nil {
+		metrics.Resolver.Fetch(l.WithResult(metrics.ErrParse)).Inc()
 		return 0, err
 	}
 	if err := r.trcCheck(req, decTRC.TRC); err != nil {
+		metrics.Resolver.Fetch(l.WithResult(errToLabel(err))).Inc()
 		return 0, serrors.Wrap(ErrInvalidResponse, err)
 	}
+	metrics.Resolver.Fetch(l.WithResult(metrics.Success)).Inc()
 	return decTRC.TRC.Version, nil
 }
 
@@ -174,9 +190,11 @@ func (r DefaultResolver) startFetchTRC(parentCtx context.Context, res chan<- res
 func (r DefaultResolver) trcCheck(req TRCReq, t *trc.TRC) error {
 	switch {
 	case req.ISD != t.ISD:
-		return serrors.New("wrong isd", "expected", req.ISD, "actual", t.ISD)
+		return serrors.WithCtx(ErrValidation, "msg", "wrong isd",
+			"expected", req.ISD, "actual", t.ISD)
 	case !req.Version.IsLatest() && req.Version != t.Version:
-		return serrors.New("wrong version", "expected", req.Version, "actual", t.Version)
+		return serrors.WithCtx(ErrValidation, "msg", "wrong version",
+			"expected", req.Version, "actual", t.Version)
 	}
 	return nil
 }
@@ -186,6 +204,8 @@ func (r DefaultResolver) trcCheck(req TRCReq, t *trc.TRC) error {
 func (r DefaultResolver) Chain(parentCtx context.Context, req ChainReq,
 	server net.Addr) (decoded.Chain, error) {
 
+	l := metrics.ResolverLabels{Type: metrics.ChainReq, Trigger: metrics.FromCtx(parentCtx),
+		Peer: peerToLabel(server, r.IA)}
 	span, ctx := opentracing.StartSpanFromContext(parentCtx, "resolve_chain")
 	defer span.Finish()
 	opentracingext.Component.Set(span, "trust")
@@ -197,15 +217,18 @@ func (r DefaultResolver) Chain(parentCtx context.Context, req ChainReq,
 		"version", req.Version, "server", server)
 	msg, err := r.RPC.GetCertChain(ctx, req, server)
 	if err != nil {
+		metrics.Resolver.Fetch(l.WithResult(metrics.ErrTransmit)).Inc()
 		return decoded.Chain{}, err
 	}
 	logger.Debug("[TrustStore:Resolver] Received certificate chain from remote", "ia", req.IA,
 		"version", req.Version)
 	dec, err := decoded.DecodeChain(msg)
 	if err != nil {
+		metrics.Resolver.Fetch(l.WithResult(metrics.ErrParse)).Inc()
 		return decoded.Chain{}, err
 	}
 	if err := r.chainCheck(req, dec.AS); err != nil {
+		metrics.Resolver.Fetch(l.WithResult(metrics.ErrTransmit)).Inc()
 		return decoded.Chain{}, serrors.Wrap(ErrInvalidResponse, err)
 	}
 	w := resolveWrap{
@@ -213,18 +236,22 @@ func (r DefaultResolver) Chain(parentCtx context.Context, req ChainReq,
 		server:   server,
 	}
 	if err := r.Inserter.InsertChain(ctx, dec, w.TRC); err != nil {
+		metrics.Resolver.Fetch(l.WithResult(errToLabel(err))).Inc()
 		return decoded.Chain{}, serrors.WrapStr("unable to insert certificate chain", err,
 			"chain", dec)
 	}
+	metrics.Resolver.Fetch(l.WithResult(metrics.Success)).Inc()
 	return dec, nil
 }
 
 func (r DefaultResolver) chainCheck(req ChainReq, as *cert.AS) error {
 	switch {
 	case !req.IA.Equal(as.Subject):
-		return serrors.New("wrong subject", "expected", req.IA, "actual", as.Subject)
+		return serrors.WithCtx(ErrValidation, "msg", "wrong subject",
+			"expected", req.IA, "actual", as.Subject)
 	case !req.Version.IsLatest() && req.Version != as.Version:
-		return serrors.New("wrong version", "expected", req.Version, "actual", as.Version)
+		return serrors.WithCtx(ErrValidation, "msg", "wrong version",
+			"expected", req.Version, "actual", as.Version)
 	}
 	return nil
 }

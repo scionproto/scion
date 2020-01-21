@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdbmetrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
@@ -136,6 +137,7 @@ func realMain() int {
 		log.Crit("Error initializing trust database", "err", err)
 		return 1
 	}
+	trustDB = trustdbmetrics.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
 	defer trustDB.Close()
 	inserter := trust.ForwardingInserter{
 		BaseInserter: trust.BaseInserter{DB: trustDB},
@@ -149,6 +151,7 @@ func realMain() int {
 			DB:       trustDB,
 			Inserter: inserter,
 			RPC:      trust.DefaultRPC{Msgr: msger},
+			IA:       topo.IA(),
 		},
 		Router: trust.LocalRouter{IA: topo.IA()},
 	}
@@ -164,10 +167,10 @@ func realMain() int {
 		return 1
 	}
 
-	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler())
+	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(topo.IA()))
 	// TODO(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.
-	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler())
+	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(topo.IA()))
 	args := handlers.HandlerArgs{
 		PathDB:          pathDB,
 		RevCache:        revCache,

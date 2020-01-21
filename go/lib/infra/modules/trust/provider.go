@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/decoded"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -84,13 +85,17 @@ type Provider struct {
 // Otherwise, the default server is queried. How the default server is
 // determined differs between implementations.
 func (p Provider) GetTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) (*trc.TRC, error) {
+	l := metrics.ProviderLabels{Type: metrics.TRC, Trigger: metrics.FromCtx(ctx)}
 	t, _, err := p.getCheckedTRC(ctx, id, opts)
+	metrics.Provider.Request(l.WithResult(errToLabel(err))).Inc()
 	return t, err
 }
 
 // GetRawTRC behaves the same as GetTRC, except returning the raw signed TRC.
 func (p Provider) GetRawTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) ([]byte, error) {
+	l := metrics.ProviderLabels{Type: metrics.TRC, Trigger: metrics.FromCtx(ctx)}
 	_, raw, err := p.getCheckedTRC(ctx, id, opts)
+	metrics.Provider.Request(l.WithResult(errToLabel(err))).Inc()
 	return raw, err
 }
 
@@ -212,7 +217,9 @@ func (p Provider) fetchTRC(ctx context.Context, id TRCID,
 func (p Provider) GetRawChain(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) ([]byte, error) {
 
+	l := metrics.ProviderLabels{Type: metrics.Chain, Trigger: metrics.FromCtx(ctx)}
 	chain, err := p.getCheckedChain(ctx, id, opts)
+	metrics.Provider.Request(l.WithResult(errToLabel(err))).Inc()
 	return chain.Raw, err
 }
 
@@ -221,7 +228,9 @@ func (p Provider) GetRawChain(ctx context.Context, id ChainID,
 func (p Provider) GetASKey(ctx context.Context, id ChainID,
 	opts infra.ChainOpts) (scrypto.KeyMeta, error) {
 
+	l := metrics.ProviderLabels{Type: metrics.ASKey, Trigger: metrics.FromCtx(ctx)}
 	chain, err := p.getCheckedChain(ctx, id, opts)
+	metrics.Provider.Request(l.WithResult(errToLabel(err))).Inc()
 	if err != nil {
 		return scrypto.KeyMeta{}, err
 	}
