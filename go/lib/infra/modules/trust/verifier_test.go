@@ -102,6 +102,7 @@ func TestVerify(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		p := mock_trust.NewMockCryptoProvider(ctrl)
+		p.EXPECT().GetTRC(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 		p.EXPECT().GetASKey(gomock.Any(), gomock.Any(),
 			gomock.Any()).Return(scrypto.KeyMeta{Key: public, Algorithm: scrypto.Ed25519}, nil)
 
