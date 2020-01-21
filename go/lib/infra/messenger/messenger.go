@@ -664,7 +664,6 @@ func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error {
 	logger := log.FromCtx(ctx)
 	switch a.(type) {
-	case *snet.Addr:
 	case *snet.UDPAddr:
 	case *snet.SVCAddr:
 		return common.NewBasicError("[Messenger] Cannot send to SVC address on QUIC-only RPC", nil,
@@ -787,8 +786,6 @@ func (m *Messenger) listenAndServeUDP() {
 			// functionality in the main ctrl libraries is still missing.
 			var ia addr.IA
 			switch v := address.(type) {
-			case *snet.Addr:
-				ia = v.IA
 			case *snet.UDPAddr:
 				ia = v.IA
 			default:

@@ -55,12 +55,12 @@ var (
 	connectErrorFromDispatcher = serrors.New("Port unavailable")
 )
 
-func MustParseSnet(str string) *snet.Addr {
-	address, err := snet.AddrFromString(str)
-	if err != nil {
+func MustParseSnet(str string) *snet.UDPAddr {
+	var a snet.UDPAddr
+	if err := a.Set(str); err != nil {
 		panic(fmt.Sprintf("bad snet string %v, err=%v", str, err))
 	}
-	return address
+	return &a
 }
 
 // tickerMultiplier computes durations relative to the default reconnect

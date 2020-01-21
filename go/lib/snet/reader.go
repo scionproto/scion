@@ -45,7 +45,7 @@ func newScionConnReader(base *scionConnBase, conn PacketConn) *scionConnReader {
 // address of the sender.
 func (c *scionConnReader) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, a, err := c.read(b)
-	return n, a.ToAddr(), err
+	return n, a, err
 }
 
 // Read reads data into b from a connection with a fixed remote address. If the

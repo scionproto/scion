@@ -53,7 +53,7 @@ func (rt RegType) String() string {
 type RegPld struct {
 	Id   mgmt.MsgIdType
 	P    interface{}
-	Addr *snet.Addr
+	Addr *snet.UDPAddr
 }
 
 type RegPldChan chan *RegPld
@@ -100,7 +100,7 @@ func (dm *dispRegistry) Unregister(regType RegType, key RegPollKey) error {
 	return nil
 }
 
-func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
+func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.UDPAddr) {
 	dm.Lock()
 	defer dm.Unlock()
 	u, err := pld.Union()
@@ -131,10 +131,15 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 
 func dispFunc(dp *pktdisp.DispPkt) {
 	scpld, err := ctrl.NewSignedPldFromRaw(dp.Raw)
-	var src *snet.Addr
+	var src *snet.UDPAddr
 	switch v := dp.Addr.(type) {
-	case *snet.Addr:
-		src = v.Copy()
+	case *snet.UDPAddr:
+		src = snet.NewUDPAddr(
+			v.IA,
+			v.Path.Copy(),
+			snet.CopyUDPAddr(v.NextHop),
+			snet.CopyUDPAddr(v.Host),
+		)
 	default:
 		log.Error("Not valid snet address")
 		return

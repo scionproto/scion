@@ -188,7 +188,7 @@ func TestPacketConnReadWrite(t *testing.T) {
 		Convey("Reads on packet conn must call the same function on the underlying conn", func() {
 			buffer := make([]byte, 3)
 			readData := []byte{4, 5}
-			mockReadFunc := func(b []byte) (int, *snet.Addr, error) {
+			mockReadFunc := func(b []byte) (int, *snet.UDPAddr, error) {
 				copy(b, readData)
 				return len(readData), remoteAddr, nil
 			}

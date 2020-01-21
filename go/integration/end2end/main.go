@@ -46,7 +46,7 @@ const (
 )
 
 var (
-	remote  snet.Addr
+	remote  snet.UDPAddr
 	timeout = &util.DurWrap{Duration: 2 * time.Second}
 )
 
@@ -75,7 +75,7 @@ func realMain() int {
 }
 
 func addFlags() {
-	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 }
 
@@ -84,8 +84,8 @@ func validateFlags() {
 		if remote.Host == nil {
 			integration.LogFatal("Missing remote address")
 		}
-		if remote.Host.L4 == 0 {
-			integration.LogFatal("Invalid remote port", "remote port", remote.Host.L4)
+		if remote.Host.Port == 0 {
+			integration.LogFatal("Invalid remote port", "remote port", remote.Host.Port)
 		}
 		if timeout.Duration == 0 {
 			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
@@ -104,7 +104,7 @@ func (s server) run() {
 		),
 	}
 	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
-		integration.Local.ToNetUDPAddr(), addr.SvcNone)
+		integration.Local.Host, addr.SvcNone)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
@@ -161,12 +161,12 @@ func (c client) run() int {
 
 	var err error
 	c.conn, c.port, err = connFactory.Register(context.Background(), integration.Local.IA,
-		integration.Local.ToNetUDPAddr(), addr.SvcNone)
+		integration.Local.Host, addr.SvcNone)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
 	log.Debug("Send on", "local",
-		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.L3, c.port))
+		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, c.port))
 	c.sdConn = integration.SDConn()
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
@@ -202,7 +202,7 @@ func (c client) ping(ctx context.Context, n int) error {
 	c.conn.SetWriteDeadline(getDeadline(ctx))
 	if remote.NextHop == nil {
 		remote.NextHop = &net.UDPAddr{
-			IP:   remote.Host.L3.IP(),
+			IP:   remote.Host.IP,
 			Port: topology.EndhostPort,
 		}
 	}
@@ -214,11 +214,11 @@ func (c client) ping(ctx context.Context, n int) error {
 			SCIONPacketInfo: snet.SCIONPacketInfo{
 				Destination: snet.SCIONAddress{
 					IA:   remote.IA,
-					Host: remote.Host.L3,
+					Host: addr.HostFromIP(remote.Host.IP),
 				},
 				Source: snet.SCIONAddress{
 					IA:   integration.Local.IA,
-					Host: integration.Local.Host.L3,
+					Host: addr.HostFromIP(integration.Local.Host.IP),
 				},
 				Path: remote.Path,
 				Extensions: []common.Extension{
@@ -228,7 +228,7 @@ func (c client) ping(ctx context.Context, n int) error {
 				},
 				L4Header: &l4.UDP{
 					SrcPort: c.port,
-					DstPort: remote.Host.L4,
+					DstPort: uint16(remote.Host.Port),
 				},
 				Payload: common.RawBytes(
 					pingMessage(remote.IA),

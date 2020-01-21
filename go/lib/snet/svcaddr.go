@@ -31,17 +31,3 @@ func (a *SVCAddr) Network() string {
 func (a *SVCAddr) String() string {
 	return fmt.Sprintf("%v,%v", a.IA, a.SVC)
 }
-
-// ToAddr returns a legacy snet.Addr.
-func (a *SVCAddr) ToAddr() *Addr {
-	ret := &Addr{
-		IA:      a.IA,
-		NextHop: CopyUDPAddr(a.NextHop),
-		Host:    &addr.AppAddr{L3: a.SVC},
-	}
-	if a.Path != nil {
-		ret.Path = a.Path.Copy()
-	}
-	return ret
-
-}

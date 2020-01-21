@@ -48,12 +48,6 @@ func (r ASLocalRecurser) AllowRecursion(peer net.Addr) error {
 	if peer == nil {
 		return nil
 	}
-
-	// TODO(roosd): Remove when snet.Addr is removed.
-	if a, ok := peer.(*snet.Addr); ok {
-		peer = a.ToXAddr()
-	}
-
 	a, ok := peer.(*snet.UDPAddr)
 	if !ok {
 		return serrors.WrapStr("unable to determine AS of peer", ErrRecursionNotAllowed,

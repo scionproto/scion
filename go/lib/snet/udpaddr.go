@@ -29,25 +29,25 @@ func (a *UDPAddr) Network() string {
 
 // String implements net.Addr interface.
 func (a *UDPAddr) String() string {
-	return fmt.Sprintf("%v,[%v]:%v", a.IA, a.Host.IP, a.Host.Port)
+	var ip net.IP
+	var port int
+	if a.Host == nil {
+		ip = nil
+		port = 0
+	} else {
+		ip = a.Host.IP
+		port = a.Host.Port
+	}
+	return fmt.Sprintf("%v,[%v]:%v", a.IA, ip, port)
 }
 
-// ToAddr returns a legacy snet.Addr.
-func (a *UDPAddr) ToAddr() *Addr {
-	if a == nil {
-		return nil
+// Set implements the flag.Value interface
+func (a *UDPAddr) Set(s string) error {
+	fmt.Println("Parsing ", s)
+	other, err := AddrFromString(s)
+	if err != nil {
+		return err
 	}
-	ret := &Addr{
-		IA:      a.IA,
-		NextHop: CopyUDPAddr(a.NextHop),
-		Host: &addr.AppAddr{
-			L3: addr.HostFromIP(a.Host.IP),
-			L4: uint16(a.Host.Port),
-		},
-	}
-	if a.Path != nil {
-		ret.Path = a.Path.Copy()
-	}
-	return ret
-
+	*a = *other.ToXAddr().(*UDPAddr)
+	return nil
 }

@@ -84,7 +84,7 @@ func (d *Dispatcher) read() error {
 				frame.Release()
 			} else {
 				switch v := src.(type) {
-				case *snet.Addr:
+				case *snet.UDPAddr:
 					frame.frameLen = read
 					frame.sessId = mgmt.SessionType((frame.raw[0]))
 					d.updateMetrics(v.IA.IAInt(), frame.sessId, read)
@@ -105,7 +105,7 @@ func (d *Dispatcher) read() error {
 
 // dispatch dispatches a frame to the corresponding worker, spawning one if none
 // exist yet. Dispatching is done based on source ISD-AS -> source host Addr -> Sess Id.
-func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
+func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.UDPAddr) {
 	dispatchStr := fmt.Sprintf("%s/%s/%s", src.IA, src.Host, frame.sessId)
 	// Check if we already have a worker running and start one if not.
 	worker, ok := d.workers[dispatchStr]

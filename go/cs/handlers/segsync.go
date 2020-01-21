@@ -66,7 +66,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		metrics.Sync.Registrations(labels).Inc()
 		return infra.MetricsErrInternal
 	}
-	snetPeer := h.request.Peer.(*snet.Addr)
+	snetPeer := h.request.Peer.(*snet.UDPAddr)
 	labels.Src = snetPeer.IA
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {

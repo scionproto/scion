@@ -47,11 +47,11 @@ var (
 var (
 	dstIA addr.IA
 	srcIA addr.IA
-	local snet.Addr
+	local snet.UDPAddr
 )
 
 func init() {
-	flag.Var((*snet.Addr)(&local), "local", "Local address to use for health checks")
+	flag.Var((*snet.UDPAddr)(&local), "local", "Local address to use for health checks")
 	flag.Usage = flagUsage
 }
 

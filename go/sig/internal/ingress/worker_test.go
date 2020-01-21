@@ -15,12 +15,14 @@
 package ingress
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 type MockTun struct {
@@ -61,8 +63,15 @@ func SendFrame(t *testing.T, w *Worker, data []byte) {
 }
 
 func TestParsing(t *testing.T) {
-	addr, err := snet.AddrFromString("1-ff00:0:300,[192.168.1.1]:80")
-	assert.NoError(t, err)
+	addr := snet.NewUDPAddr(
+		xtest.MustParseIA("1-ff00:0:300"),
+		nil,
+		nil,
+		&net.UDPAddr{
+			IP:   net.IP{192, 168, 1, 1},
+			Port: 80,
+		},
+	)
 	mt := &MockTun{}
 	w := NewWorker(addr, 1, mt)
 

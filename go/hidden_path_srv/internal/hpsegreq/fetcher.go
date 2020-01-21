@@ -40,7 +40,7 @@ type Fetcher interface {
 	// In case of local HPS the segments are fetched from the database,
 	// otherwise segments are requested from a remote HPS
 	Fetch(ctx context.Context,
-		req *path_mgmt.HPSegReq, peer *snet.Addr) ([]*path_mgmt.HPSegRecs, error)
+		req *path_mgmt.HPSegReq, peer *snet.UDPAddr) ([]*path_mgmt.HPSegRecs, error)
 }
 
 var _ Fetcher = (*DefaultFetcher)(nil)
@@ -65,7 +65,7 @@ func NewDefaultFetcher(groupInfo *GroupInfo, msger infra.Messenger,
 
 // Fetch fetches the hidden path segments either from DB or from a remote HPS
 func (f *DefaultFetcher) Fetch(ctx context.Context,
-	req *path_mgmt.HPSegReq, peer *snet.Addr) ([]*path_mgmt.HPSegRecs, error) {
+	req *path_mgmt.HPSegReq, peer *snet.UDPAddr) ([]*path_mgmt.HPSegRecs, error) {
 
 	ids := make([]hiddenpath.GroupId, 0, len(req.GroupIds))
 	for _, rawId := range req.GroupIds {
@@ -138,7 +138,7 @@ func (f *DefaultFetcher) fetchRemote(ctx context.Context, ids []hiddenpath.Group
 		RawDstIA: endsAt.IAInt(),
 		GroupIds: rawIds,
 	}
-	addr := &snet.Addr{IA: remote, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
+	addr := snet.NewSVCAddr(remote, nil, nil, addr.SvcHPS)
 	reply, err := f.msger.GetHPSegs(ctx, req, addr, messenger.NextId())
 	if err != nil {
 		var recs = make([]*path_mgmt.HPSegRecs, 0, len(ids))

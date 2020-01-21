@@ -67,9 +67,9 @@ func (h *hpSegReqHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 	sendAck := messenger.SendAckHelper(ctx, rw)
 	logger.Debug("[hpSegReqHandler] Received HPSegReq", "src", h.request.Peer, "req", hpSegReq)
 
-	snetPeer, ok := h.request.Peer.(*snet.Addr)
+	snetPeer, ok := h.request.Peer.(*snet.UDPAddr)
 	if !ok {
-		logger.Error("[hpSegReqHandler] Invalid peer address type, expected *snet.Addr", nil,
+		logger.Error("[hpSegReqHandler] Invalid peer address type, expected *snet.UDPAddr", nil,
 			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid, nil

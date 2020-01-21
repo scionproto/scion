@@ -199,7 +199,7 @@ func parseAddr(s string) (map[string]string, error) {
 	return result, nil
 }
 
-// This method implements flag.Value interface
+// Set implements the flag.Value interface
 func (a *Addr) Set(s string) error {
 	other, err := AddrFromString(s)
 	if err != nil {

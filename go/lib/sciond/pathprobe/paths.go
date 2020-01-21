@@ -88,7 +88,7 @@ func FilterEmptyPaths(paths []snet.Path) []snet.Path {
 // Prober can be used to get the status of a path.
 type Prober struct {
 	DstIA    addr.IA
-	Local    snet.Addr
+	Local    snet.UDPAddr
 	DispPath string
 }
 
@@ -114,7 +114,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 			SCMPHandler: scmpH,
 		},
 	)
-	snetConn, err := network.Listen(ctx, "udp", p.Local.ToNetUDPAddr(), addr.SvcNone)
+	snetConn, err := network.Listen(ctx, "udp", p.Local.Host, addr.SvcNone)
 	if err != nil {
 		return nil, common.NewBasicError("listening failed", err)
 	}

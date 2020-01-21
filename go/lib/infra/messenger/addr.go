@@ -84,11 +84,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 	switch a := address.(type) {
 	case *snet.UDPAddr:
 		return a, false, nil
-	case *snet.Addr:
-		logger.Trace("Legacy snet.Addr is still being used", "addr", fmt.Sprintf("%v(%T)", a, a))
-		return r.RedirectToQUIC(ctx, a.ToXAddr())
 	case *snet.SVCAddr:
-
 		fa, err := r.buildFullAddress(ctx, a)
 		if err != nil {
 			return nil, false, err

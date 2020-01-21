@@ -20,6 +20,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/layers"
@@ -148,7 +149,9 @@ func prettyPrint(pkt *spkt.ScnPkt, info *scmp.InfoTraceRoute, rtt time.Duration)
 
 // hopPktOff returns HopF offset relative to the packet
 func hopPktOff(offset int) uint8 {
-	off := spkt.CmnHdrLen + spkt.AddrHdrLen(cmn.Local.Host.L3, cmn.Remote.Host.L3) + offset
+	off := spkt.CmnHdrLen +
+		spkt.AddrHdrLen(addr.HostFromIP(cmn.Local.Host.IP), addr.HostFromIP(cmn.Remote.Host.IP)) +
+		offset
 	return uint8(off / common.LineLen)
 }
 
