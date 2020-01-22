@@ -42,7 +42,7 @@ type sender interface {
 // Worker handles decapsulation of SIG frames.
 type Worker struct {
 	log.Logger
-	Remote           *snet.Addr
+	Remote           *snet.UDPAddr
 	SessId           mgmt.SessionType
 	Ring             *ringbuf.Ring
 	rlists           map[int]*ReassemblyList
@@ -51,7 +51,7 @@ type Worker struct {
 	tunIO            io.ReadWriteCloser
 }
 
-func NewWorker(remote *snet.Addr, sessId mgmt.SessionType, tunIO io.ReadWriteCloser) *Worker {
+func NewWorker(remote *snet.UDPAddr, sessId mgmt.SessionType, tunIO io.ReadWriteCloser) *Worker {
 	worker := &Worker{
 		Logger: log.New("ingress", remote.String(), "sessId", sessId),
 		Remote: remote,

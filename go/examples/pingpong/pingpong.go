@@ -56,7 +56,7 @@ const (
 )
 
 var (
-	local, remote snet.Addr
+	local, remote snet.UDPAddr
 	fileData      []byte
 
 	count = flag.Int("count", 0,
@@ -75,8 +75,8 @@ var (
 )
 
 func init() {
-	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var(&local, "local", "(Mandatory) address to listen on")
+	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 }
 
 func main() {
@@ -109,8 +109,8 @@ func validateFlags() {
 		if remote.Host == nil {
 			LogFatal("Missing remote address")
 		}
-		if remote.Host.L4 == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.Host.L4)
+		if remote.Host.Port == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.Host.Port)
 		}
 	}
 	if local.Host == nil {
@@ -240,8 +240,8 @@ func (c *client) run() {
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, Dial will assign a random free local port.
 
-	remoteUDP := snet.NewUDPAddr(remote.IA, remote.Path, remote.NextHop, remote.ToNetUDPAddr())
-	c.qsess, err = squic.Dial(network, local.ToNetUDPAddr(), remoteUDP, addr.SvcNone, nil)
+	remoteUDP := snet.NewUDPAddr(remote.IA, remote.Path, remote.NextHop, remote.Host)
+	c.qsess, err = squic.Dial(network, local.Host, remoteUDP, addr.SvcNone, nil)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
@@ -361,7 +361,7 @@ func (s server) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	qsock, err := squic.Listen(network, local.ToNetUDPAddr(), addr.SvcNone, nil)
+	qsock, err := squic.Listen(network, local.Host, addr.SvcNone, nil)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}

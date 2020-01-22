@@ -128,7 +128,7 @@ func TestFetcher(t *testing.T) {
 	newTestGraph(t, gomock.NewController(t))
 	tests := map[string]struct {
 		req   *path_mgmt.HPSegReq
-		peer  *snet.Addr
+		peer  *snet.UDPAddr
 		err   error
 		res   []*path_mgmt.HPSegRecs
 		setup func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger)
@@ -138,7 +138,7 @@ func TestFetcher(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group1.Id.ToMsg()},
 			},
-			peer: &snet.Addr{IA: ia113},
+			peer: snet.NewUDPAddr(ia113, nil, nil, nil),
 			res: []*path_mgmt.HPSegRecs{
 				{
 					GroupId: group1.Id.ToMsg(),
@@ -159,7 +159,7 @@ func TestFetcher(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group2.Id.ToMsg()},
 			},
-			peer: &snet.Addr{IA: ia113},
+			peer: snet.NewUDPAddr(ia113, nil, nil, nil),
 			res: []*path_mgmt.HPSegRecs{
 				{
 					GroupId: group2.Id.ToMsg(),
@@ -179,7 +179,7 @@ func TestFetcher(t *testing.T) {
 						},
 					},
 				}
-				addr := &snet.Addr{IA: ia115, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
+				addr := snet.NewSVCAddr(ia115, nil, nil, addr.SvcHPS)
 				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(),
 					addr, gomock.Any()).Return(reply, nil)
 			},
@@ -189,7 +189,7 @@ func TestFetcher(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group1.Id.ToMsg(), group2.Id.ToMsg()},
 			},
-			peer: &snet.Addr{IA: ia113},
+			peer: snet.NewUDPAddr(ia113, nil, nil, nil),
 			res: []*path_mgmt.HPSegRecs{
 				{
 					GroupId: group1.Id.ToMsg(),
@@ -218,7 +218,7 @@ func TestFetcher(t *testing.T) {
 						},
 					},
 				}
-				addr := &snet.Addr{IA: ia115, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
+				addr := snet.NewSVCAddr(ia115, nil, nil, addr.SvcHPS)
 				mockDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return(res, nil)
 				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr,
 					gomock.Any()).Return(reply, nil)
@@ -229,7 +229,7 @@ func TestFetcher(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group2.Id.ToMsg(), group3.Id.ToMsg()},
 			},
-			peer: &snet.Addr{IA: ia113},
+			peer: snet.NewUDPAddr(ia113, nil, nil, nil),
 			res: []*path_mgmt.HPSegRecs{
 				{
 					GroupId: group2.Id.ToMsg(),
@@ -265,10 +265,10 @@ func TestFetcher(t *testing.T) {
 						},
 					},
 				}
-				addr2 := &snet.Addr{IA: ia115, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
+				addr2 := snet.NewSVCAddr(ia115, nil, nil, addr.SvcHPS)
 				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr2,
 					gomock.Any()).Return(reply2, nil)
-				addr3 := &snet.Addr{IA: ia114, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
+				addr3 := snet.NewSVCAddr(ia114, nil, nil, addr.SvcHPS)
 				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr3,
 					gomock.Any()).Return(reply3, nil)
 			},
@@ -278,7 +278,7 @@ func TestFetcher(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group1.Id.ToMsg()},
 			},
-			peer: &snet.Addr{IA: ia113},
+			peer: snet.NewUDPAddr(ia113, nil, nil, nil),
 			res: []*path_mgmt.HPSegRecs{
 				{
 					GroupId: group1.Id.ToMsg(),
@@ -294,7 +294,7 @@ func TestFetcher(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group2.Id.ToMsg()},
 			},
-			peer: &snet.Addr{IA: ia113},
+			peer: snet.NewUDPAddr(ia113, nil, nil, nil),
 			res: []*path_mgmt.HPSegRecs{
 				{
 					GroupId: group2.Id.ToMsg(),
@@ -302,7 +302,7 @@ func TestFetcher(t *testing.T) {
 				},
 			},
 			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
-				addr := &snet.Addr{IA: ia115, Host: addr.NewSVCUDPAppAddr(addr.SvcHPS)}
+				addr := snet.NewSVCAddr(ia115, nil, nil, addr.SvcHPS)
 				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(),
 					addr, gomock.Any()).Return(nil, errors.New("dummy"))
 			},
@@ -312,7 +312,7 @@ func TestFetcher(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{wrongId.ToMsg()},
 			},
-			peer:  &snet.Addr{IA: ia114},
+			peer:  snet.NewUDPAddr(ia114, nil, nil, nil),
 			err:   hpsegreq.ErrUnknownGroup,
 			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {},
 		},
@@ -321,7 +321,7 @@ func TestFetcher(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group1.Id.ToMsg()},
 			},
-			peer:  &snet.Addr{IA: ia114},
+			peer:  snet.NewUDPAddr(ia114, nil, nil, nil),
 			err:   hpsegreq.ErrNotReader,
 			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {},
 		},

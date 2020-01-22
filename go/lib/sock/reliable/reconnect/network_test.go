@@ -33,20 +33,19 @@ import (
 )
 
 func TestReconnect(t *testing.T) {
-	Convey("Reconnections must conserve local and bind addresses", t, func() {
+	Convey("Reconnections must conserve local address", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		mockDispatcher := mock_reliable.NewMockDispatcher(ctrl)
-		Convey("Given a mocked underlying connection with local and bind", func() {
+		Convey("Given a mocked underlying connection with local", func() {
 			mockConn := mock_net.NewMockPacketConn(ctrl)
 			Convey("Allocated ports are reused on subsequent attempts", func() {
 				mockDispatcher.EXPECT().
-					Register(context.Background(), localAddr.IA,
-						localNoPortAddr.ToNetUDPAddr(), svc).
+					Register(context.Background(), localAddr.IA, localNoPortAddr.Host, svc).
 					Return(mockConn, uint16(80), nil)
 
 				want := &net.UDPAddr{
-					IP:   localNoPortAddr.Host.Copy().L3.IP(),
+					IP:   append(localNoPortAddr.Host.IP[:0:0], localNoPortAddr.Host.IP...),
 					Port: 80,
 				}
 
@@ -56,7 +55,7 @@ func TestReconnect(t *testing.T) {
 
 				network := reconnect.NewDispatcherService(mockDispatcher)
 				packetConn, _, _ := network.Register(context.Background(), localAddr.IA,
-					localNoPortAddr.ToNetUDPAddr(), svc)
+					localNoPortAddr.Host, svc)
 				packetConn.(*reconnect.PacketConn).Reconnect()
 			})
 		})

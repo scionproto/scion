@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
@@ -56,9 +57,8 @@ var (
 	Interactive bool
 	Interval    time.Duration
 	Timeout     time.Duration
-	Local       snet.Addr
-	Remote      snet.Addr
-	Bind        snet.Addr
+	Local       snet.UDPAddr
+	Remote      snet.UDPAddr
 )
 
 var (
@@ -75,9 +75,8 @@ func init() {
 	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets (echo only)")
 	flag.DurationVar(&Timeout, "timeout", DefaultTimeout, "timeout per packet")
 	flag.UintVar(&Count, "c", 0, "Total number of packet to send (echo only). Maximum value 65535")
-	flag.Var((*snet.Addr)(&Local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
-	flag.Var((*snet.Addr)(&Bind), "bind", "address to bind to, if running behind NAT")
+	flag.Var(&Local, "local", "(Mandatory) address to listen on")
+	flag.Var(&Remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Usage = scmpUsage
 	Stats = &ScmpStats{}
 	Start = time.Now()
@@ -153,8 +152,8 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 	pkt := &spkt.ScnPkt{
 		DstIA:   Remote.IA,
 		SrcIA:   Local.IA,
-		DstHost: Remote.Host.L3,
-		SrcHost: Local.Host.L3,
+		DstHost: addr.HostFromIP(Remote.Host.IP),
+		SrcHost: addr.HostFromIP(Local.Host.IP),
 		Path:    Remote.Path,
 		HBHExt:  exts,
 		L4:      scmpHdr,
@@ -167,7 +166,7 @@ func NextHopAddr() net.Addr {
 	var nhAddr *net.UDPAddr
 	if Remote.NextHop == nil {
 		nhAddr = &net.UDPAddr{
-			IP:   Remote.Host.L3.IP(),
+			IP:   Remote.Host.IP,
 			Port: topology.EndhostPort,
 		}
 	} else {

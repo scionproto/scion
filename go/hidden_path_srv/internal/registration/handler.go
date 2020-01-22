@@ -83,27 +83,14 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 	logger.Debug("[hpSegRegHandler] Received HPSegRecs", "src",
 		h.request.Peer, "data", hpSegReg.HPSegRecs)
 
-	snetPeer, ok := h.request.Peer.(*snet.Addr)
+	snetPeer, ok := h.request.Peer.(*snet.UDPAddr)
 	if !ok {
-		logger.Error("[hpSegRegHandler] Invalid peer address type, expected *snet.Addr", nil,
+		logger.Error("[hpSegRegHandler] Invalid peer address type, expected *snet.UDPAddr", nil,
 			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid, nil
 	}
-	peerPath, err := snetPeer.GetPath()
-	if err != nil {
-		logger.Error("[hpSegRegHandler] Failed to initialize path", "err", err)
-		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
-		return infra.MetricsErrInvalid, nil
-	}
-	svcToQuery := &snet.Addr{
-		IA:      snetPeer.IA,
-		Path:    peerPath.Path(),
-		NextHop: peerPath.OverlayNextHop(),
-		Host:    addr.NewSVCUDPAppAddr(addr.SvcBS),
-	}
-	err = h.validator.Validate(hpSegReg, snetPeer.IA)
-	if err != nil {
+	if err := h.validator.Validate(hpSegReg, snetPeer.IA); err != nil {
 		sendAck(proto.Ack_ErrCode_reject, err.Error())
 		return infra.MetricsErrInvalid, nil
 	}
@@ -111,7 +98,7 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 		Segs:      hpSegReg.Recs,
 		HPGroupID: hiddenpath.IdFromMsg(hpSegReg.GroupId),
 	}
-	res := h.segHandler.Handle(ctx, segRecs, svcToQuery, nil)
+	res := h.segHandler.Handle(ctx, segRecs, snetPeer, nil)
 	// wait until processing is done.
 	<-res.FullReplyProcessed()
 	if err := res.Err(); err != nil {
