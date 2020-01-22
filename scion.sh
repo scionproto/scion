@@ -291,7 +291,7 @@ go_lint() {
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
     # Find go files to lint, excluding generated code. For linelen and misspell.
-    find go -type f -iname '*.go' \
+    find go acceptance -type f -iname '*.go' \
       -a '!' -ipath 'go/proto/structs.gen.go' \
       -a '!' -ipath 'go/proto/*.capnp.go' \
       -a '!' -ipath '*mock_*' \
@@ -304,12 +304,13 @@ go_lint() {
     lint_step "impi"
     # Skip CGO (https://github.com/pavius/impi/issues/5) files.
     $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' --skip 'mock_' --skip 'go/proto/.*\.capnp\.go' --skip 'go/proto/structs.gen.go' ./go/... || ret=1
+    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal ./acceptance/... || ret=1
     lint_step "gofmt"
     # TODO(sustrik): At the moment there are no bazel rules for gofmt.
     # See: https://github.com/bazelbuild/rules_go/issues/511
     # Instead we'll just run the commands from Go SDK directly.
     GOSDK=$(bazel info output_base)/external/go_sdk/bin
-    out=$($GOSDK/gofmt -d -s $LOCAL_DIRS);
+    out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "linelen (lll)"
     out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:' < $TMPDIR/gofiles.list);
@@ -317,7 +318,7 @@ go_lint() {
     lint_step "misspell"
     xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error || ret=1
     lint_step "ineffassign"
-    $TMPDIR/ineffassign -exclude ineffassign.json go || ret=1
+    $TMPDIR/ineffassign -exclude ineffassign.json go acceptance || ret=1
     lint_step "bazel"
     make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries

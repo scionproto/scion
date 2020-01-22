@@ -41,7 +41,7 @@ func TestTypeOf(t *testing.T) {
 	}
 }
 
-func TestJSONUnmarshalIFIDType(t *testing.T) {
+func TestIFIDTypeUnmarshalJSON(t *testing.T) {
 	t.Run("Simple Value", func(t *testing.T) {
 		type exampleStruct struct {
 			IfID common.IFIDType `json:"if_id"`
@@ -60,4 +60,10 @@ func TestJSONUnmarshalIFIDType(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(j), &f))
 		assert.Equal(t, exampleStruct{IfMap: map[common.IFIDType]string{5: "foo"}}, f)
 	})
+}
+
+func TestIFIDTypeUnmarshalText(t *testing.T) {
+	var id common.IFIDType
+	assert.NoError(t, id.UnmarshalText([]byte("1")))
+	assert.Equal(t, common.IFIDType(1), id)
 }

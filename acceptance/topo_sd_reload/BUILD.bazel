@@ -2,21 +2,19 @@ load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 load("@io_bazel_rules_go//go:def.bzl", "go_test")
 
 go_test(
-    name = "topo_sd_reload_test",
-    srcs = [
-        "reload_test.go",
-    ],
-    deps = [
-        "//go/lib/topology:go_default_library",
-        "@com_github_stretchr_testify//assert:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
-    ],
-        data = [
+    name = "go_default_test",
+    srcs = ["reload_test.go"],
+    data = [
         ":dispatcher",
         ":sciond",
         ":docker-compose.yml",
         ":testdata/topology.json",
         ":testdata/topology_reload.json",
+    ],
+    deps = [
+        "//go/lib/topology:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )
 
@@ -24,7 +22,11 @@ container_image(
     name = "dispatcher",
     base = "//docker/perapp:dispatcher_go_debug",
     files = ["testdata/disp.toml"],
-    entrypoint = ["/app/godispatcher", "-config", "/disp.toml"],
+    entrypoint = [
+        "/app/godispatcher",
+        "-config",
+        "/disp.toml",
+    ],
     stamp = True,
 )
 
@@ -36,6 +38,10 @@ container_image(
         "testdata/topology.json",
         "testdata/topology_reload.json",
     ],
-    entrypoint = ["/app/sciond", "-config", "/sd.toml"],
+    entrypoint = [
+        "/app/sciond",
+        "-config",
+        "/sd.toml",
+    ],
     stamp = True,
 )

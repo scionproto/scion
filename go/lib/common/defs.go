@@ -50,10 +50,12 @@ func (ifid IFIDType) String() string {
 	return strconv.FormatUint(uint64(ifid), 10)
 }
 
-func (ifid *IFIDType) UnmarshalJSON(text []byte) error {
-	return ifid.UnmarshalText(text)
+// UnmarshalJSON unmarshals the JSON data into the IfID.
+func (ifid *IFIDType) UnmarshalJSON(data []byte) error {
+	return ifid.UnmarshalText(data)
 }
 
+// UnmarshalText unmarshals the text into the IfID.
 func (ifid *IFIDType) UnmarshalText(text []byte) error {
 	i, err := strconv.ParseUint(strings.ReplaceAll(string(text), "\"", ""), 10, 64)
 	if err != nil {

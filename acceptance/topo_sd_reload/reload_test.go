@@ -33,7 +33,7 @@ import (
 func TestSDTopoReload(t *testing.T) {
 	setupTest(t)
 	defer teardownTest(t)
-	// use a subtest to make sure that teardown is always executed.
+
 	origTopo, err := topology.RWTopologyFromJSONFile("testdata/topology.json")
 	assert.NoError(t, err, "Loading origTopo failed")
 	reloadTopo, err := topology.RWTopologyFromJSONFile("testdata/topology_reload.json")
@@ -55,7 +55,7 @@ func setupTest(t *testing.T) {
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up",
 		"-d", "topo_sd_reload_dispatcher", "topo_sd_reload_sciond")
 	// wait a bit to make sure the containers are ready.
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 }
 
 func teardownTest(t *testing.T) {
@@ -81,6 +81,8 @@ func teardownTest(t *testing.T) {
 }
 
 func mustExec(t *testing.T, name string, arg ...string) {
+	t.Helper()
+
 	cmd := exec.Command(name, arg...)
 	output, err := cmd.Output()
 	fmt.Println(string(output))
@@ -88,6 +90,8 @@ func mustExec(t *testing.T, name string, arg ...string) {
 }
 
 func checkTopology(t *testing.T, expectedTopo *topology.RWTopology) {
+	t.Helper()
+
 	eJSON, err := json.Marshal(expectedTopo)
 	require.NoError(t, err)
 	actualTopo := fetchTopologyFromEndpoint(t, "http://242.254.100.2:30455/topology")
@@ -97,6 +101,8 @@ func checkTopology(t *testing.T, expectedTopo *topology.RWTopology) {
 }
 
 func fetchTopologyFromEndpoint(t *testing.T, url string) *topology.RWTopology {
+	t.Helper()
+
 	resp, err := http.Get(url)
 	require.NoError(t, err)
 	defer resp.Body.Close()
