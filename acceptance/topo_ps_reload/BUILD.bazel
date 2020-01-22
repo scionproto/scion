@@ -7,9 +7,12 @@ go_test(
     data = [
         ":dispatcher",
         ":path_srv",
-        ":docker-compose.yml",
-        ":testdata/topology.json",
-        ":testdata/topology_reload.json",
+        "docker-compose.yml",
+        "//acceptance/topo_common:topology",
+        "//acceptance/topo_common:invalid_reloads",
+        "testdata/topology_reload.json",
+        ":invalid_changed_ip",
+        ":invalid_changed_port",
     ],
     deps = [
         "//go/lib/topology:go_default_library",
@@ -35,8 +38,11 @@ container_image(
     base = "//docker/perapp:path_srv_debug",
     files = [
         "testdata/ps.toml",
-        "testdata/topology.json",
+        "//acceptance/topo_common:topology",
+        "//acceptance/topo_common:invalid_reloads",
         "testdata/topology_reload.json",
+        ":invalid_changed_ip",
+        ":invalid_changed_port",
     ],
     entrypoint = [
         "/app/path_srv",
@@ -44,4 +50,18 @@ container_image(
         "/ps.toml",
     ],
     stamp = True,
+)
+
+genrule(
+    name = "invalid_changed_ip",
+    srcs = ["//acceptance/topo_common:topology"],
+    outs = ["topology_invalid_changed_ip.json"],
+    cmd = "jq '.PathService[].Addrs.IPv4.Public.Addr = \"242.42.42.2\"' $(location //acceptance/topo_common:topology) > $@",
+)
+
+genrule(
+    name = "invalid_changed_port",
+    srcs = ["//acceptance/topo_common:topology"],
+    outs = ["topology_invalid_changed_port.json"],
+    cmd = "jq '.PathService[].Addrs.IPv4.Public.L4Port = 42424' $(location //acceptance/topo_common:topology) > $@",
 )

@@ -34,15 +34,31 @@ func TestPSTopoReload(t *testing.T) {
 	setupTest(t)
 	defer teardownTest(t)
 
-	origTopo, err := topology.RWTopologyFromJSONFile("testdata/topology.json")
+	// first load the topo files to memory for comparison.
+	origTopo, err := topology.RWTopologyFromJSONFile("../topo_common/topology.json")
 	assert.NoError(t, err, "Loading origTopo failed")
 	reloadTopo, err := topology.RWTopologyFromJSONFile("testdata/topology_reload.json")
 	assert.NoError(t, err, "Loading reloadTopo failed")
+
+	// check initial topo matches expected.
 	checkTopology(t, origTopo)
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "exec", "-T",
-		"topo_ps_reload_path_srv", "mv", "/topology_reload.json", "/topology.json")
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",
-		"topo_ps_reload_path_srv")
+
+	// try invalid topos first.
+	invalidFiles := []string{
+		"/topology_invalid_ia.json",
+		"/topology_invalid_attributes.json",
+		"/topology_invalid_mtu.json",
+		"/topology_invalid_changed_ip.json",
+		"/topology_invalid_changed_port.json",
+	}
+	for _, invalidFile := range invalidFiles {
+		t.Logf("loading %s", invalidFile)
+		loadTopo(t, invalidFile)
+		checkTopology(t, origTopo)
+	}
+
+	// now try to load a valid one.
+	loadTopo(t, "/topology_reload.json")
 	checkTopology(t, reloadTopo)
 }
 
@@ -78,6 +94,13 @@ func teardownTest(t *testing.T) {
 			fmt.Fprintf(os.Stderr, "Failed to write log file %s: %v\n", file, err)
 		}
 	}
+}
+
+func loadTopo(t *testing.T, name string) {
+	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "exec", "-T",
+		"topo_ps_reload_path_srv", "mv", name, "/topology.json")
+	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",
+		"topo_ps_reload_path_srv")
 }
 
 func mustExec(t *testing.T, name string, arg ...string) {

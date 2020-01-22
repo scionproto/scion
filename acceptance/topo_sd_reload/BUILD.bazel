@@ -8,8 +8,9 @@ go_test(
         ":dispatcher",
         ":sciond",
         ":docker-compose.yml",
-        ":testdata/topology.json",
-        ":testdata/topology_reload.json",
+        "//acceptance/topo_common:topology",
+        "//acceptance/topo_common:invalid_reloads",
+        "testdata/topology_reload.json",
     ],
     deps = [
         "//go/lib/topology:go_default_library",
@@ -35,7 +36,8 @@ container_image(
     base = "//docker/perapp:sciond_debug",
     files = [
         "testdata/sd.toml",
-        "testdata/topology.json",
+        "//acceptance/topo_common:topology",
+        "//acceptance/topo_common:invalid_reloads",
         "testdata/topology_reload.json",
     ],
     entrypoint = [

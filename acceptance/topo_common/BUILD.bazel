@@ -1,0 +1,36 @@
+filegroup(
+    name = "topology",
+    srcs = ["topology.json"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "invalid_reloads",
+    srcs = [
+        ":topology_invalid_ia",
+        ":topology_invalid_attributes",
+        ":topology_invalid_mtu",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "topology_invalid_ia",
+    srcs = ["topology.json"],
+    outs = ["topology_invalid_ia.json"],
+    cmd = "jq '.ISD_AS = \"1-ff00:0:111\"' $(location :topology.json) > $@",
+)
+
+genrule(
+    name = "topology_invalid_attributes",
+    srcs = ["topology.json"],
+    outs = ["topology_invalid_attributes.json"],
+    cmd = "jq '.Attributes = [\"core\"]' $(location :topology.json) > $@",
+)
+
+genrule(
+    name = "topology_invalid_mtu",
+    srcs = ["topology.json"],
+    outs = ["topology_invalid_mtu.json"],
+    cmd = "jq '.MTU = 42' $(location :topology.json) > $@",
+)
