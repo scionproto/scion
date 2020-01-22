@@ -70,6 +70,7 @@ func setupTest(t *testing.T) {
 		"-d", "topo_sd_reload_dispatcher", "topo_sd_reload_sciond")
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
+	t.Log("Test setup done")
 }
 
 func teardownTest(t *testing.T) {
@@ -79,12 +80,15 @@ func teardownTest(t *testing.T) {
 	require.True(t, exists, "TEST_UNDECLARED_OUTPUTS_DIR must be defined")
 	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
 	// collect logs
-	for _, file := range []string{"disp_1-ff00_0_110.log", "sd1-ff00_0_110.log"} {
-		cmd := exec.Command("docker-compose", "-f", "docker-compose.yml", "run", "-T",
-			"topo_sd_reload_log_exporter", "cat", fmt.Sprintf("/share/logs/%s", file))
+	for service, file := range map[string]string{
+		"topo_sd_reload_dispatcher": "disp.log",
+		"topo_sd_reload_sciond":     "sciond.log",
+	} {
+		cmd := exec.Command("docker-compose", "-f", "docker-compose.yml", "logs", "--no-color",
+			service)
 		output, err := cmd.Output()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to collect log file %s: %v\n", file, err)
+			fmt.Fprintf(os.Stderr, "Failed to read log for service %s: %v\n", service, err)
 		}
 		fmt.Printf("Writing file: %s", fmt.Sprintf("%s/logs/%s\n", outdir, file))
 		err = ioutil.WriteFile(fmt.Sprintf("%s/logs/%s", outdir, file), output, os.ModePerm)
@@ -95,6 +99,8 @@ func teardownTest(t *testing.T) {
 }
 
 func loadTopo(t *testing.T, name string) {
+	t.Helper()
+
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "exec", "-T",
 		"topo_sd_reload_sciond", "mv", name, "/topology.json")
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",

@@ -7,8 +7,7 @@ ID = "sd1-ff00_0_110"
 Connection = "sd1-ff00_0_110.trust.db"
 Backend = "sqlite"
 
-[logging.file]
-Path = "/share/logs/sd1-ff00_0_110.log"
+[logging.console]
 Level = "trace"
 
 [sd]

@@ -14,21 +14,13 @@ services:
       bridge1:
         ipv4_address: 242.253.100.2
     volumes:
-    - vol_logs:/share/logs:rw
-    - vol_scion_disp1-ff00_0_110:/run/shm/dispatcher:rw
+    - vol_topo_ps_reload_disp:/run/shm/dispatcher:rw
   topo_ps_reload_path_srv:
     container_name: topo_ps_reload_path_srv
     image: bazel/acceptance/topo_ps_reload:path_srv
     volumes:
-    - vol_logs:/share/logs:rw
-    - vol_scion_disp1-ff00_0_110:/run/shm/dispatcher:ro
+    - vol_topo_ps_reload_disp:/run/shm/dispatcher:ro
     network_mode: service:topo_ps_reload_dispatcher
-  topo_ps_reload_log_exporter:
-    container_name: topo_ps_reload_log_exporter
-    image: alpine
-    volumes:
-    - vol_logs:/share/logs:ro
 version: '2.4'
 volumes:
-  vol_logs: null
-  vol_scion_disp1-ff00_0_110: null
+  vol_topo_ps_reload_disp: null

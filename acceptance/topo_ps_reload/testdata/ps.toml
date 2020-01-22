@@ -7,8 +7,7 @@ ID = "ps1-ff00_0_110-1"
 Connection = "ps1-ff00_0_110-1.trust.db"
 Backend = "sqlite"
 
-[logging.file]
-Path = "/share/logs/ps1-ff00_0_110-1.log"
+[logging.console]
 Level = "trace"
 
 [ps.pathDB]
