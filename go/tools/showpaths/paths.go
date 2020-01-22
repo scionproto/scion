@@ -51,7 +51,7 @@ var (
 )
 
 func init() {
-	flag.Var(&local), "local", "Local address to use for health checks")
+	flag.Var(&local, "local", "Local address to use for health checks")
 	flag.Usage = flagUsage
 }
 
