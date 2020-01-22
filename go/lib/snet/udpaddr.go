@@ -43,7 +43,6 @@ func (a *UDPAddr) String() string {
 
 // Set implements the flag.Value interface
 func (a *UDPAddr) Set(s string) error {
-	fmt.Println("Parsing ", s)
 	other, err := AddrFromString(s)
 	if err != nil {
 		return err
