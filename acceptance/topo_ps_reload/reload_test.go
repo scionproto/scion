@@ -73,6 +73,7 @@ func setupTest(t *testing.T) {
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
 	t.Log("Test setup done")
+	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "ps")
 }
 
 func teardownTest(t *testing.T) {
@@ -88,14 +89,15 @@ func teardownTest(t *testing.T) {
 	} {
 		cmd := exec.Command("docker-compose", "-f", "docker-compose.yml", "logs", "--no-color",
 			service)
-		output, err := cmd.Output()
+		logFileName := fmt.Sprintf("%s/logs/%s", outdir, file)
+		logFile, err := os.Create(logFileName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read log for service %s: %v\n", service, err)
+			t.Logf("Failed to create logfile %s for %s", logFileName, service)
+			continue
 		}
-		fmt.Printf("Writing file: %s", fmt.Sprintf("%s/logs/%s\n", outdir, file))
-		err = ioutil.WriteFile(fmt.Sprintf("%s/logs/%s", outdir, file), output, os.ModePerm)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write log file %s: %v\n", file, err)
+		cmd.Stdout = logFile
+		if err = cmd.Run(); err != nil {
+			t.Logf("Failed to read log for service %s: %v\n", service, err)
 		}
 	}
 }
@@ -114,7 +116,7 @@ func mustExec(t *testing.T, name string, arg ...string) {
 
 	cmd := exec.Command(name, arg...)
 	output, err := cmd.Output()
-	fmt.Println(string(output))
+	t.Logf("%s %v\n%s\n", name, arg, string(output))
 	require.NoError(t, err, "Failed to run %s %v: %v\n%s", name, arg, err, string(output))
 }
 

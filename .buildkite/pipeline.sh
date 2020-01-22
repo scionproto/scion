@@ -30,7 +30,12 @@ gen_bazel_acceptance() {
         name=${name#'//acceptance/'}
         echo "  - label: \":bazel: Acceptance: $name\""
         echo "    command:"
-        echo "      - bazel test $test"
+        if [[ "$test" =~ "go" ]]; then
+            # for go tests add verbose flag.
+            echo "      - bazel test $test --test_arg=-test.v"
+        else
+            echo "      - bazel test $test"
+        fi
         echo "    key: ${name}_acceptance"
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""
