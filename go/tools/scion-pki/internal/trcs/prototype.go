@@ -168,7 +168,7 @@ func (g protoGen) insertVotingKeys(dst pubKeys, ia addr.IA, primary conf.Primary
 func (g protoGen) loadPubKey(id keyconf.ID) (keyconf.Key, error) {
 	key, fromPriv, err := keys.LoadPublicKey(g.Dirs.Out, id)
 	if err != nil {
-		return keyconf.Key{}, nil
+		return keyconf.Key{}, err
 	}
 	if fromPriv {
 		pkicmn.QuietPrint("Using private %s key for %s\n", id.Usage, id.IA)
