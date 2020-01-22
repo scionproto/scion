@@ -88,7 +88,7 @@ class SIGGenerator(object):
         net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
         ipv = 'ipv4'
         if ipv not in net:
-            ipv = 'ipv6' 
+            ipv = 'ipv6'
         entry['networks'][self.args.bridges[net['net']]] = {'%s_address' % ipv: str(net[ipv])}
         self.dc_conf['services']['scion_disp_sig_%s' % topo_id.file_fmt()] = entry
         vol_name = 'vol_scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt())
