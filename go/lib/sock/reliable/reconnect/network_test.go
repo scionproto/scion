@@ -17,7 +17,6 @@ package reconnect_test
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"syscall"
@@ -49,7 +48,6 @@ func TestReconnect(t *testing.T) {
 					IP:   append(localNoPortAddr.Host.IP[:0:0], localNoPortAddr.Host.IP...),
 					Port: 80,
 				}
-				fmt.Println("xxx", want)
 
 				mockDispatcher.EXPECT().
 					Register(context.Background(), localAddr.IA, want, svc).
