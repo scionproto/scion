@@ -75,8 +75,8 @@ func init() {
 	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets (echo only)")
 	flag.DurationVar(&Timeout, "timeout", DefaultTimeout, "timeout per packet")
 	flag.UintVar(&Count, "c", 0, "Total number of packet to send (echo only). Maximum value 65535")
-	flag.Var((*snet.UDPAddr)(&Local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.UDPAddr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var(&Local, "local", "(Mandatory) address to listen on")
+	flag.Var(&Remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Usage = scmpUsage
 	Stats = &ScmpStats{}
 	Start = time.Now()
