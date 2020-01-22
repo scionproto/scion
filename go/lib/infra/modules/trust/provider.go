@@ -315,12 +315,13 @@ func (p Provider) issuerActive(ctx context.Context, chain decoded.Chain,
 	if err != nil {
 		return serrors.WrapStr("unable to preload latest TRC", err)
 	}
-	iss, err := p.DB.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, chain.Issuer.Issuer.TRCVersion)
+	iss, err := p.DB.GetIssuingGrantKeyInfo(ctx, chain.Issuer.Subject,
+		chain.Issuer.Issuer.TRCVersion)
 	if err != nil {
 		return serrors.WrapStr("unable to get issuing key info for issuing TRC", err,
 			"version", chain.Issuer.Issuer.TRCVersion)
 	}
-	latest, err := p.DB.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, scrypto.LatestVer)
+	latest, err := p.DB.GetIssuingGrantKeyInfo(ctx, chain.Issuer.Subject, scrypto.LatestVer)
 	if err != nil {
 		return serrors.WrapStr("unable to get issuing key info for latest TRC", err)
 	}
@@ -332,7 +333,7 @@ func (p Provider) issuerActive(ctx context.Context, chain decoded.Chain,
 			"latest_trc_version", latest.TRC.Version,
 			"expected", iss.Version, "actual", latest.Version)
 	}
-	inGrace, err := p.DB.GetIssuingKeyInfo(ctx, chain.Issuer.Subject, latest.TRC.Version-1)
+	inGrace, err := p.DB.GetIssuingGrantKeyInfo(ctx, chain.Issuer.Subject, latest.TRC.Version-1)
 	if err != nil {
 		return serrors.WrapStr("unable to get issuing key info for TRC in grace period", err,
 			"version", latest.TRC.Version-1)

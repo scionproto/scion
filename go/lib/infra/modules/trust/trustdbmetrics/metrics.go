@@ -184,13 +184,13 @@ func (e *executor) GetTRCInfo(ctx context.Context, id trust.TRCID) (trust.TRCInf
 	return info, err
 }
 
-func (e *executor) GetIssuingKeyInfo(ctx context.Context, ia addr.IA,
+func (e *executor) GetIssuingGrantKeyInfo(ctx context.Context, ia addr.IA,
 	version scrypto.Version) (trust.KeyInfo, error) {
 
 	var info trust.KeyInfo
 	var err error
-	e.metrics.Observe(ctx, metrics.GetIssuingKeyInfo, func(ctx context.Context) error {
-		info, err = e.rw.GetIssuingKeyInfo(ctx, ia, version)
+	e.metrics.Observe(ctx, metrics.GetIssuingGrantKeyInfo, func(ctx context.Context) error {
+		info, err = e.rw.GetIssuingGrantKeyInfo(ctx, ia, version)
 		return err
 	})
 	return info, err

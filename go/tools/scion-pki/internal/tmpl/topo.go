@@ -148,15 +148,15 @@ func (g topoGen) genASKeys(as addr.AS, cfg conf.TRC) conf.Keys {
 	primary, ok := cfg.PrimaryASes[as]
 	_ = ok
 	if primary.Attributes.Contains(trc.Voting) {
-		keys.Primary[trc.OnlineKey] = map[scrypto.KeyVersion]conf.KeyMeta{
+		keys.Primary[trc.VotingOnlineKey] = map[scrypto.KeyVersion]conf.KeyMeta{
 			1: {Algorithm: scrypto.Ed25519, Validity: g.Validity},
 		}
-		keys.Primary[trc.OfflineKey] = map[scrypto.KeyVersion]conf.KeyMeta{
+		keys.Primary[trc.VotingOfflineKey] = map[scrypto.KeyVersion]conf.KeyMeta{
 			1: {Algorithm: scrypto.Ed25519, Validity: g.Validity},
 		}
 	}
 	if primary.Attributes.Contains(trc.Issuing) {
-		keys.Primary[trc.IssuingKey] = map[scrypto.KeyVersion]conf.KeyMeta{
+		keys.Primary[trc.IssuingGrantKey] = map[scrypto.KeyVersion]conf.KeyMeta{
 			1: {Algorithm: scrypto.Ed25519, Validity: g.Validity},
 		}
 		keys.Issuer[cert.IssuingKey] = map[scrypto.KeyVersion]conf.KeyMeta{
@@ -197,13 +197,13 @@ func (g topoGen) genIssuerCerts(topo topoFile) error {
 func (g topoGen) genIssuerCert(ia addr.IA) conf.Issuer {
 	issKey := scrypto.KeyVersion(1)
 	cfg := conf.Issuer{
-		Description:          fmt.Sprintf("Issuer certificate %s", ia),
-		Version:              1,
-		IssuingKeyVersion:    &issKey,
-		RevocationKeyVersion: nil,
-		TRCVersion:           1,
-		OptDistPoints:        []addr.IA{},
-		Validity:             g.Validity,
+		Description:            fmt.Sprintf("Issuer certificate %s", ia),
+		Version:                1,
+		IssuingGrantKeyVersion: &issKey,
+		RevocationKeyVersion:   nil,
+		TRCVersion:             1,
+		OptDistPoints:          []addr.IA{},
+		Validity:               g.Validity,
 	}
 	return cfg
 }
@@ -294,7 +294,7 @@ func (p primaryAS) ToConf() conf.Primary {
 	if p.Issuing {
 		iss := scrypto.KeyVersion(1)
 		cp.Attributes = append(cp.Attributes, trc.Issuing)
-		cp.IssuingKeyVersion = &iss
+		cp.IssuingGrantKeyVersion = &iss
 	}
 	if p.Voting {
 		on, off := scrypto.KeyVersion(1), scrypto.KeyVersion(1)

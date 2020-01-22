@@ -64,7 +64,7 @@ const (
 	IssCertSigningKey Usage = "issuer-cert-signing"
 	IssRevocationKey  Usage = "issuer-revocation"
 
-	TRCIssuingKey       Usage = "trc-issuing"
+	TRCIssuingGrantKey  Usage = "trc-issuing-grant"
 	TRCVotingOfflineKey Usage = "trc-voting-offline"
 	TRCVotingOnlineKey  Usage = "trc-voting-online"
 )
@@ -80,7 +80,7 @@ var usages = map[Usage]struct{}{
 	IssRevocationKey:    {},
 	TRCVotingOnlineKey:  {},
 	TRCVotingOfflineKey: {},
-	TRCIssuingKey:       {},
+	TRCIssuingGrantKey:  {},
 }
 
 // UnmarshalText assigns the key usage if it is known. Otherwise ErrUnsupportedUsage.

@@ -71,6 +71,11 @@ func TestSignatureGen(t *testing.T) {
 			require.NoError(t, os.MkdirAll(PartsDir(tmpDir, 1, test.Version), 0777))
 			err = exec.Command("cp", ProtoFile("./testdata", 1, test.Version), partsDir).Run()
 			require.NoError(t, err)
+			if test.Version != 1 {
+				err = exec.Command("cp", SignedFile("./testdata", 1, test.Version-1),
+					Dir(tmpDir, 1)).Run()
+				require.NoError(t, err)
+			}
 
 			// Run signatureGen generator and compare golden files.
 			g := signatureGen{

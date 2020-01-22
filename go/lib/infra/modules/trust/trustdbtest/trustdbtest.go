@@ -186,7 +186,7 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		_, err = db.GetTRCInfo(ctx, trust.TRCID{ISD: 42, Version: scrypto.LatestVer})
 		xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 	})
-	t.Run("GetIssuingKeyInfo", func(t *testing.T) {
+	t.Run("GetIssuingGrantKeyInfo", func(t *testing.T) {
 		ia110 := xtest.MustParseIA("1-ff00:0:110")
 		ia120 := xtest.MustParseIA("1-ff00:0:120")
 		ia130 := xtest.MustParseIA("1-ff00:0:130")
@@ -216,7 +216,7 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		for ver, expectedKeyInfos := range okTests {
 			for ia, expected := range expectedKeyInfos {
 				t.Run(fmt.Sprintf("fetch existing %s-v%d", ia, ver), func(t *testing.T) {
-					actual, err := db.GetIssuingKeyInfo(context.Background(), ia, ver)
+					actual, err := db.GetIssuingGrantKeyInfo(context.Background(), ia, ver)
 					assert.NoError(t, err)
 					assert.Equal(t, expected, actual)
 				})
@@ -224,17 +224,17 @@ func testTRC(t *testing.T, db trust.ReadWrite, cfg Config) {
 		}
 		t.Run("fetch non-existent ia", func(t *testing.T) {
 			ia140 := xtest.MustParseIA("1-ff00:0:140")
-			actual, err := db.GetIssuingKeyInfo(context.Background(), ia140, 1)
+			actual, err := db.GetIssuingGrantKeyInfo(context.Background(), ia140, 1)
 			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 			assert.Equal(t, trust.KeyInfo{}, actual)
 		})
 		t.Run("fetch non-existent version", func(t *testing.T) {
-			actual, err := db.GetIssuingKeyInfo(context.Background(), ia110, 42)
+			actual, err := db.GetIssuingGrantKeyInfo(context.Background(), ia110, 42)
 			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 			assert.Equal(t, trust.KeyInfo{}, actual)
 		})
 		t.Run("fetch non-issuing ia", func(t *testing.T) {
-			actual, err := db.GetIssuingKeyInfo(context.Background(), ia130, 2)
+			actual, err := db.GetIssuingGrantKeyInfo(context.Background(), ia130, 2)
 			xtest.AssertErrorsIs(t, err, trust.ErrNotFound)
 			assert.Equal(t, trust.KeyInfo{}, actual)
 		})

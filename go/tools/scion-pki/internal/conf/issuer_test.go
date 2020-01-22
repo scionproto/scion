@@ -63,12 +63,12 @@ func TestUpdateGoldenIssuer(t *testing.T) {
 func Issuer() conf.Issuer {
 	i, r := scrypto.KeyVersion(1), scrypto.KeyVersion(1)
 	return conf.Issuer{
-		Description:          "Testing Issuer",
-		Version:              1,
-		IssuingKeyVersion:    &i,
-		RevocationKeyVersion: &r,
-		TRCVersion:           1,
-		OptDistPoints:        []addr.IA{xtest.MustParseIA("2-ff00:0:210")},
+		Description:            "Testing Issuer",
+		Version:                1,
+		IssuingGrantKeyVersion: &i,
+		RevocationKeyVersion:   &r,
+		TRCVersion:             1,
+		OptDistPoints:          []addr.IA{xtest.MustParseIA("2-ff00:0:210")},
 		Validity: conf.Validity{
 			NotBefore: 42424242,
 			Validity:  util.DurWrap{Duration: 3 * 24 * time.Hour},

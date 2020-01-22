@@ -38,7 +38,7 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 			{
 				"attributes": ["issuing", "core"],
 				"keys": {
-					"issuing": {
+					"issuing_grant": {
 						"key_version": 1,
     					"algorithm": "ed25519",
     					"key": "YW5hcGF5YSDinaQgIHNjaW9u"
@@ -48,7 +48,7 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 			Primary: trc.PrimaryAS{
 				Attributes: trc.Attributes{"issuing", "core"},
 				Keys: map[trc.KeyType]scrypto.KeyMeta{
-					trc.IssuingKey: {
+					trc.IssuingGrantKey: {
 						KeyVersion: 1,
 						Algorithm:  scrypto.Ed25519,
 						Key: xtest.MustParseHexString("616e617061796120e2" +
@@ -61,7 +61,7 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 			Input: `
 			{
 				"keys": {
-					"issuing": {
+					"issuing_grant": {
 						"key_version": 1,
 						"algorithm": "ed25519",
 						"key": "YW5hcGF5YSDinaQgIHNjaW9u"
@@ -82,7 +82,7 @@ func TestPrimaryASUnmarshalJSON(t *testing.T) {
 			{
 				"attributes": ["issuing", "core"],
 				"keys": {
-					"issuing": {
+					"issuing_grant": {
 						"algorithm": "ed25519",
 						"key": "YW5hcGF5YSDinaQgIHNjaW9u"
 					}
@@ -259,23 +259,23 @@ func TestKeyTypeUnmarshalJSON(t *testing.T) {
 			Assertion: assert.Error,
 		},
 		"Wrong case": {
-			Input:     `"Offline"`,
+			Input:     `"Voting_offline"`,
 			Assertion: assert.Error,
 		},
 		"OfflineKey": {
-			Input:     `"offline"`,
+			Input:     `"voting_offline"`,
 			Assertion: assert.NoError,
-			Expected:  trc.OfflineKey,
+			Expected:  trc.VotingOfflineKey,
 		},
 		"OnlineKey": {
-			Input:     `"online"`,
+			Input:     `"voting_online"`,
 			Assertion: assert.NoError,
-			Expected:  trc.OnlineKey,
+			Expected:  trc.VotingOnlineKey,
 		},
 		"IssuingKey": {
-			Input:     `"issuing"`,
+			Input:     `"issuing_grant"`,
 			Assertion: assert.NoError,
-			Expected:  trc.IssuingKey,
+			Expected:  trc.IssuingGrantKey,
 		},
 	}
 	for name, test := range tests {
@@ -302,7 +302,7 @@ func TestKeyTypeUnmarshalJSONMapKey(t *testing.T) {
 		"Valid": {
 			Input: `
 			{
-				"issuing": "key"
+				"issuing_grant": "key"
 			}`,
 			Assertion: assert.NoError,
 		},
@@ -321,16 +321,16 @@ func TestKeyTypeMarshal(t *testing.T) {
 		Expected string
 	}{
 		"OfflineKey": {
-			KeyType:  trc.OfflineKey,
-			Expected: trc.OfflineKeyJSON,
+			KeyType:  trc.VotingOfflineKey,
+			Expected: trc.VotingOfflineKeyJSON,
 		},
 		"OnlineKey": {
-			KeyType:  trc.OnlineKey,
-			Expected: trc.OnlineKeyJSON,
+			KeyType:  trc.VotingOnlineKey,
+			Expected: trc.VotingOnlineKeyJSON,
 		},
 		"IssuingKey": {
-			KeyType:  trc.IssuingKey,
-			Expected: trc.IssuingKeyJSON,
+			KeyType:  trc.IssuingGrantKey,
+			Expected: trc.IssuingGrantKeyJSON,
 		},
 	}
 	for name, test := range tests {

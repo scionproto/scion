@@ -84,7 +84,7 @@ func TestTopoGen(t *testing.T) {
 			ia110.A: {
 				Attributes: trc.Attributes{trc.Authoritative, trc.Core, trc.Issuing,
 					trc.Voting},
-				IssuingKeyVersion:       &iss,
+				IssuingGrantKeyVersion:  &iss,
 				VotingOfflineKeyVersion: &off,
 				VotingOnlineKeyVersion:  &on,
 			},
@@ -94,8 +94,8 @@ func TestTopoGen(t *testing.T) {
 				VotingOnlineKeyVersion:  &on,
 			},
 			ia130.A: {
-				Attributes:        trc.Attributes{trc.Issuing},
-				IssuingKeyVersion: &iss,
+				Attributes:             trc.Attributes{trc.Issuing},
+				IssuingGrantKeyVersion: &iss,
 			},
 		}
 		assert.Equal(t, exp, cfg.PrimaryASes)
@@ -117,11 +117,11 @@ func TestTopoGen(t *testing.T) {
 			checkMeta(t, cfg.AS[cert.EncryptionKey][1], scrypto.Curve25519xSalsa20Poly1305)
 			if entry.Issuing {
 				checkMeta(t, cfg.Issuer[cert.IssuingKey][1], scrypto.Ed25519)
-				checkMeta(t, cfg.Primary[trc.IssuingKey][1], scrypto.Ed25519)
+				checkMeta(t, cfg.Primary[trc.IssuingGrantKey][1], scrypto.Ed25519)
 			}
 			if entry.Voting {
-				checkMeta(t, cfg.Primary[trc.OnlineKey][1], scrypto.Ed25519)
-				checkMeta(t, cfg.Primary[trc.OfflineKey][1], scrypto.Ed25519)
+				checkMeta(t, cfg.Primary[trc.VotingOnlineKey][1], scrypto.Ed25519)
+				checkMeta(t, cfg.Primary[trc.VotingOfflineKey][1], scrypto.Ed25519)
 			}
 		})
 	}
@@ -136,7 +136,7 @@ func TestTopoGen(t *testing.T) {
 
 			assert.Contains(t, cfg.Description, "Issuer certificate")
 			assert.Equal(t, scrypto.Version(1), cfg.Version)
-			assert.Equal(t, scrypto.KeyVersion(1), *cfg.IssuingKeyVersion)
+			assert.Equal(t, scrypto.KeyVersion(1), *cfg.IssuingGrantKeyVersion)
 			assert.Nil(t, cfg.RevocationKeyVersion)
 			assert.Equal(t, scrypto.Version(1), cfg.TRCVersion)
 			assert.Empty(t, cfg.OptDistPoints)

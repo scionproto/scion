@@ -115,7 +115,7 @@ func (v IssuerVerifier) Verify() error {
 	}
 	input := v.SignedIssuer.SigInput()
 	sig := v.SignedIssuer.Signature
-	meta := v.TRC.PrimaryASes[v.Issuer.Subject.A].Keys[trc.IssuingKey]
+	meta := v.TRC.PrimaryASes[v.Issuer.Subject.A].Keys[trc.IssuingGrantKey]
 	if err := scrypto.Verify(input, sig, meta.Key, meta.Algorithm); err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (v IssuerVerifier) checkIssuer(p ProtectedIssuer) error {
 			"trc", v.TRC.Validity, "issuer", v.Issuer.Validity)
 	}
 	expected := ProtectedIssuer{
-		Algorithm:  meta.Keys[trc.IssuingKey].Algorithm,
+		Algorithm:  meta.Keys[trc.IssuingGrantKey].Algorithm,
 		TRCVersion: v.TRC.Version,
 	}
 	if p != expected {

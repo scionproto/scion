@@ -39,7 +39,7 @@ type genTRC struct {
 	TrustResetAllowed *bool                      `json:"trust_reset_allowed,omitempty"`
 	Validity          *scrypto.Validity          `json:"validity,omitempty"`
 	PrimaryASes       *trc.PrimaryASes           `json:"primary_ases,omitempty"`
-	Votes             *map[addr.AS]trc.Vote      `json:"votes,omitempty"`
+	Votes             *map[addr.AS]trc.KeyType   `json:"votes,omitempty"`
 	ProofOfPossession *map[addr.AS][]trc.KeyType `json:"proof_of_possession,omitempty"`
 	UnknownField      string                     `json:"unknown_field,omitempty"`
 }
@@ -150,67 +150,6 @@ func TestTRCUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestVoteUnmarshalJSON(t *testing.T) {
-	tests := map[string]struct {
-		Input          string
-		Vote           trc.Vote
-		ExpectedErrMsg string
-	}{
-		"Valid": {
-			Input: `
-			{
-				"key_type": "online",
-				"key_version": 0
-			}`,
-			Vote: trc.Vote{
-				KeyType:    trc.OnlineKey,
-				KeyVersion: 0,
-			},
-		},
-		"key_type not set": {
-			Input: `
-			{
-				"key_version": 0
-			}`,
-			ExpectedErrMsg: trc.ErrKeyTypeNotSet.Error(),
-		},
-		"key_version not set": {
-			Input: `
-			{
-				"key_type": "online"
-			}`,
-			ExpectedErrMsg: trc.ErrKeyVersionNotSet.Error(),
-		},
-		"Unknown field": {
-			Input: `
-			{
-				"unknown_field": "Hi! My name is!"
-			}`,
-			ExpectedErrMsg: `json: unknown field "unknown_field"`,
-		},
-		"invalid json": {
-			Input: `
-			{
-				"key_type": "online"
-			`,
-			ExpectedErrMsg: "unexpected end of JSON input",
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			var vote trc.Vote
-			err := json.Unmarshal([]byte(test.Input), &vote)
-			if test.ExpectedErrMsg == "" {
-				require.NoError(t, err)
-				assert.Equal(t, test.Vote, vote)
-			} else {
-				require.Error(t, err)
-				assert.Equal(t, err.Error(), test.ExpectedErrMsg)
-			}
-		})
-	}
-}
-
 func TestFormatVersionUnmarshalJSON(t *testing.T) {
 	tests := map[string]struct {
 		Input     []byte
@@ -240,7 +179,6 @@ func TestFormatVersionUnmarshalJSON(t *testing.T) {
 			var v trc.FormatVersion
 			test.Assertion(t, json.Unmarshal(test.Input, &v))
 			assert.Equal(t, test.Expected, v)
-
 		})
 	}
 }

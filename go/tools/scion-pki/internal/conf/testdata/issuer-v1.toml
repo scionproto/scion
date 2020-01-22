@@ -1,6 +1,6 @@
 description = "Testing Issuer"
 version = 1
-issuing_key_version = 1
+issuing_grant_key_version = 1
 revocation_key_version = 1
 trc_version = 1
 optional_distribution_points = ["2-ff00:0:210"]

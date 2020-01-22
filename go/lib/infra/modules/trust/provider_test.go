@@ -555,7 +555,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				info := trust.TRCInfo{Validity: *dec.TRC.Validity, Version: 1}
 				db.EXPECT().GetTRCInfo(gomock.Any(),
 					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}).Return(info, nil)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -565,7 +565,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 						Version: 1,
 					}, nil,
 				)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -605,7 +605,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				info := trust.TRCInfo{Validity: *dec.TRC.Validity, Version: 1}
 				db.EXPECT().GetTRCInfo(gomock.Any(),
 					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}).Return(info, nil)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -615,7 +615,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 						Version: 1,
 					}, nil,
 				)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -667,7 +667,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				info := trust.TRCInfo{Validity: *dec.TRC.Validity, Version: 1}
 				db.EXPECT().GetTRCInfo(gomock.Any(),
 					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}).Return(info, nil)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -681,7 +681,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					NotBefore: util.UnixTime{Time: time.Now()},
 					NotAfter:  util.UnixTime{Time: time.Now().Add(24 * time.Hour)},
 				}
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    val,
@@ -691,7 +691,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 						Version: 2,
 					}, nil,
 				)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(2)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(2)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    val,
@@ -731,7 +731,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				info := trust.TRCInfo{Validity: *dec.TRC.Validity, Version: 1}
 				db.EXPECT().GetTRCInfo(gomock.Any(),
 					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}).Return(info, nil)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -745,7 +745,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					NotBefore: util.UnixTime{Time: time.Now().Add(-time.Hour)},
 					NotAfter:  util.UnixTime{Time: time.Now().Add(24 * time.Hour)},
 				}
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    val,
@@ -786,7 +786,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				info := trust.TRCInfo{Validity: *dec.TRC.Validity, Version: 1}
 				db.EXPECT().GetTRCInfo(gomock.Any(),
 					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}).Return(info, nil)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -800,7 +800,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					NotBefore: util.UnixTime{Time: time.Now()},
 					NotAfter:  util.UnixTime{Time: time.Now().Add(24 * time.Hour)},
 				}
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    val,
@@ -810,7 +810,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 						Version: 2,
 					}, nil,
 				)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(2)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(2)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    val,
@@ -948,7 +948,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				info := trust.TRCInfo{Validity: *dec.TRC.Validity, Version: 1}
 				db.EXPECT().GetTRCInfo(gomock.Any(),
 					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}).Return(info, nil)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
 					trust.KeyInfo{}, internal,
 				)
 				return db
@@ -982,7 +982,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				info := trust.TRCInfo{Validity: *dec.TRC.Validity, Version: 1}
 				db.EXPECT().GetTRCInfo(gomock.Any(),
 					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}).Return(info, nil)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -992,7 +992,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 						Version: 1,
 					}, nil,
 				)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
 					trust.KeyInfo{}, internal,
 				)
 				return db
@@ -1027,7 +1027,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 				info := trust.TRCInfo{Validity: *dec.TRC.Validity, Version: 1}
 				db.EXPECT().GetTRCInfo(gomock.Any(),
 					trust.TRCID{ISD: ia110.I, Version: scrypto.LatestVer}).Return(info, nil)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(1)).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    info.Validity,
@@ -1041,7 +1041,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 					NotBefore: util.UnixTime{Time: time.Now()},
 					NotAfter:  util.UnixTime{Time: time.Now().Add(24 * time.Hour)},
 				}
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.LatestVer).Return(
 					trust.KeyInfo{
 						TRC: trust.TRCInfo{
 							Validity:    val,
@@ -1051,7 +1051,7 @@ func TestCryptoProviderGetRawChain(t *testing.T) {
 						Version: 2,
 					}, nil,
 				)
-				db.EXPECT().GetIssuingKeyInfo(gomock.Any(), ia110, scrypto.Version(2)).Return(
+				db.EXPECT().GetIssuingGrantKeyInfo(gomock.Any(), ia110, scrypto.Version(2)).Return(
 					trust.KeyInfo{}, internal,
 				)
 				return db

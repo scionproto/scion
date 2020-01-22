@@ -187,7 +187,7 @@ func (e *executor) GetTRCInfo(ctx context.Context, id trust.TRCID) (trust.TRCInf
 	return info, nil
 }
 
-func (e *executor) GetIssuingKeyInfo(ctx context.Context, ia addr.IA,
+func (e *executor) GetIssuingGrantKeyInfo(ctx context.Context, ia addr.IA,
 	version scrypto.Version) (trust.KeyInfo, error) {
 
 	// we chose the simple way to implement this, if this ever becomes a
@@ -201,7 +201,7 @@ func (e *executor) GetIssuingKeyInfo(ctx context.Context, ia addr.IA,
 	if !ok {
 		return trust.KeyInfo{}, trust.ErrNotFound
 	}
-	km, ok := prim.Keys[trc.IssuingKey]
+	km, ok := prim.Keys[trc.IssuingGrantKey]
 	if !ok {
 		return trust.KeyInfo{}, trust.ErrNotFound
 	}

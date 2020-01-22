@@ -171,11 +171,11 @@ func (g chainGen) sign(cfg conf.AS, chain cert.Chain) (cert.Chain, error) {
 		return cert.Chain{}, serrors.WrapStr("unable to load issuer config", err, "file", file)
 	}
 	file = filepath.Join(keys.PrivateDir(g.Dirs.Out, cfg.IssuerIA),
-		keyconf.PrivateKeyFile(keyconf.IssCertSigningKey, *issCfg.IssuingKeyVersion))
+		keyconf.PrivateKeyFile(keyconf.IssCertSigningKey, *issCfg.IssuingGrantKeyVersion))
 	id := keyconf.ID{
 		IA:      cfg.IssuerIA,
 		Usage:   keyconf.IssCertSigningKey,
-		Version: *issCfg.IssuingKeyVersion,
+		Version: *issCfg.IssuingGrantKeyVersion,
 	}
 	key, err := keyconf.LoadKeyFromFile(file, keyconf.PrivateKey, id)
 	if err != nil {
