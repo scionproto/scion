@@ -18,6 +18,7 @@ package common
 import (
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -42,15 +43,21 @@ const (
 	CPService = "Control Plane Service"
 )
 
-// Interface ID
+// IFIDType is the type for interface IDs.
 type IFIDType uint64
 
 func (ifid IFIDType) String() string {
 	return strconv.FormatUint(uint64(ifid), 10)
 }
 
+// UnmarshalJSON unmarshals the JSON data into the IfID.
+func (ifid *IFIDType) UnmarshalJSON(data []byte) error {
+	return ifid.UnmarshalText(data)
+}
+
+// UnmarshalText unmarshals the text into the IfID.
 func (ifid *IFIDType) UnmarshalText(text []byte) error {
-	i, err := strconv.ParseUint(string(text), 10, 64)
+	i, err := strconv.ParseUint(strings.ReplaceAll(string(text), "\"", ""), 10, 64)
 	if err != nil {
 		return err
 	}

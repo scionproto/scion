@@ -1,0 +1,67 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "go_default_test",
+    srcs = ["reload_test.go"],
+    data = [
+        ":dispatcher",
+        ":path_srv",
+        "docker-compose.yml",
+        "//acceptance/topo_common:topology",
+        "//acceptance/topo_common:invalid_reloads",
+        "testdata/topology_reload.json",
+        ":invalid_changed_ip",
+        ":invalid_changed_port",
+    ],
+    deps = [
+        "//go/lib/topology:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
+
+container_image(
+    name = "dispatcher",
+    base = "//docker/perapp:dispatcher_go_debug",
+    files = ["testdata/disp.toml"],
+    entrypoint = [
+        "/app/godispatcher",
+        "-config",
+        "/disp.toml",
+    ],
+    stamp = True,
+)
+
+container_image(
+    name = "path_srv",
+    base = "//docker/perapp:path_srv_debug",
+    files = [
+        "testdata/ps.toml",
+        "//acceptance/topo_common:topology",
+        "//acceptance/topo_common:invalid_reloads",
+        "testdata/topology_reload.json",
+        ":invalid_changed_ip",
+        ":invalid_changed_port",
+    ],
+    entrypoint = [
+        "/app/path_srv",
+        "-config",
+        "/ps.toml",
+    ],
+    stamp = True,
+)
+
+genrule(
+    name = "invalid_changed_ip",
+    srcs = ["//acceptance/topo_common:topology"],
+    outs = ["topology_invalid_changed_ip.json"],
+    cmd = "jq '.PathService[].Addrs.IPv4.Public.Addr = \"242.42.42.2\"' $(location //acceptance/topo_common:topology) > $@",
+)
+
+genrule(
+    name = "invalid_changed_port",
+    srcs = ["//acceptance/topo_common:topology"],
+    outs = ["topology_invalid_changed_port.json"],
+    cmd = "jq '.PathService[].Addrs.IPv4.Public.L4Port = 42424' $(location //acceptance/topo_common:topology) > $@",
+)

@@ -18,7 +18,11 @@ container_image(
     name = "dispatcher1",
     base = "//docker/perapp:dispatcher_go_debug",
     files = ["testdata/1-ff00_0_110/dispatcher/disp.toml"],
-    entrypoint = ["/app/godispatcher", "-config", "/disp.toml"],
+    entrypoint = [
+        "/app/godispatcher",
+        "-config",
+        "/disp.toml",
+    ],
     stamp = True,
 )
 
@@ -26,7 +30,11 @@ container_image(
     name = "dispatcher2",
     base = "//docker/perapp:dispatcher_go_debug",
     files = ["testdata/1-ff00_0_111/dispatcher/disp.toml"],
-    entrypoint = ["/app/godispatcher", "-config", "/disp.toml"],
+    entrypoint = [
+        "/app/godispatcher",
+        "-config",
+        "/disp.toml",
+    ],
     stamp = True,
 )
 
@@ -38,7 +46,11 @@ container_image(
         "testdata/1-ff00_0_110/sig/sig.toml",
         "testdata/1-ff00_0_110/sig/fake_sciond.json",
     ],
-    entrypoint = ["/app/sig", "-config", "/sig.toml"],
+    entrypoint = [
+        "/app/sig",
+        "-config",
+        "/sig.toml",
+    ],
     stamp = True,
 )
 
@@ -50,6 +62,10 @@ container_image(
         "testdata/1-ff00_0_111/sig/sig.toml",
         "testdata/1-ff00_0_111/sig/fake_sciond.json",
     ],
-    entrypoint = ["/app/sig", "-config", "/sig.toml"],
+    entrypoint = [
+        "/app/sig",
+        "-config",
+        "/sig.toml",
+    ],
     stamp = True,
 )

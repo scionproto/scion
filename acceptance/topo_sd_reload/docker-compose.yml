@@ -1,0 +1,26 @@
+networks:
+  bridge1:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: bridge1
+    ipam:
+      config:
+      - subnet: 242.254.100.0/24
+services:
+  topo_sd_reload_dispatcher:
+    container_name: topo_sd_reload_dispatcher
+    image: bazel/acceptance/topo_sd_reload:dispatcher
+    networks:
+      bridge1:
+        ipv4_address: 242.254.100.2
+    volumes:
+    - vol_topo_sd_reload_disp:/run/shm/dispatcher:rw
+  topo_sd_reload_sciond:
+    container_name: topo_sd_reload_sciond
+    image: bazel/acceptance/topo_sd_reload:sciond
+    volumes:
+    - vol_topo_sd_reload_disp:/run/shm/dispatcher:ro
+    network_mode: service:topo_sd_reload_dispatcher
+version: '2.4'
+volumes:
+  vol_topo_sd_reload_disp: null

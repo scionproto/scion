@@ -1,0 +1,49 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "go_default_test",
+    srcs = ["reload_test.go"],
+    data = [
+        ":dispatcher",
+        ":sciond",
+        ":docker-compose.yml",
+        "//acceptance/topo_common:topology",
+        "//acceptance/topo_common:invalid_reloads",
+        "testdata/topology_reload.json",
+    ],
+    deps = [
+        "//go/lib/topology:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
+
+container_image(
+    name = "dispatcher",
+    base = "//docker/perapp:dispatcher_go_debug",
+    files = ["testdata/disp.toml"],
+    entrypoint = [
+        "/app/godispatcher",
+        "-config",
+        "/disp.toml",
+    ],
+    stamp = True,
+)
+
+container_image(
+    name = "sciond",
+    base = "//docker/perapp:sciond_debug",
+    files = [
+        "testdata/sd.toml",
+        "//acceptance/topo_common:topology",
+        "//acceptance/topo_common:invalid_reloads",
+        "testdata/topology_reload.json",
+    ],
+    entrypoint = [
+        "/app/sciond",
+        "-config",
+        "/sd.toml",
+    ],
+    stamp = True,
+)

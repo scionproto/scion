@@ -1,0 +1,21 @@
+[general]
+ReconnectToDispatcher = true
+ConfigDir = "/"
+ID = "sd1-ff00_0_110"
+
+[trustDB]
+Connection = "sd1-ff00_0_110.trust.db"
+Backend = "sqlite"
+
+[logging.console]
+Level = "trace"
+
+[sd]
+Public = "[242.254.100.2]:0"
+
+[sd.pathDB]
+Connection = "sd1-ff00_0_110.path.db"
+Backend = "sqlite"
+
+[metrics]
+Prometheus = "242.254.100.2:30455"
