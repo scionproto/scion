@@ -2,6 +2,11 @@
 
 ./scion.sh topo_clean
 
+cache_ctr=$(docker ps -aq -f "name=bazel-remote-cache")
+if [ ! -z "$cache_ctr" ]; then
+    docker logs bazel-remote-cache
+fi
+
 cntrs="$(docker ps -aq)"
 [ -n "$cntrs" ] && { echo "Remove leftover containers..."; docker rm -f $cntrs; }
 

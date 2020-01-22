@@ -1,1 +1,1 @@
-build --remote_cache=http://localhost:8080
+build --workspace_status_command= --remote_cache=http://localhost:8080 --nostamp
