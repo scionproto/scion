@@ -98,15 +98,22 @@ class DockerUtilsGenerator(object):
             sig_net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
             net = self.args.networks[name][0]
             bridge = self.args.bridges[net['net']]
-            entry['networks'][bridge] = {'ipv4_address': str(net['ipv4'])}
-            entry['environment']['SIG_IP'] = str(sig_net['ipv4'])
+            ipv = 'ipv4'
+            if ipv not in net:
+                ipv = 'ipv6'
+            entry['networks'][bridge] = {'%s_address' % ipv: str(net[ipv])}
+            entry['environment']['SIG_IP'] = str(sig_net[ipv])
             entry['environment']['REMOTE_NETS'] = remote_nets(self.args.networks, topo_id)
         self.dc_conf['services'][name] = entry
 
     def _sig_testing_conf(self):
         text = ''
         for topo_id in self.args.topo_dicts:
-            ip = self.args.networks['tester_%s' % topo_id.file_fmt()][0]['ipv4']
+            net = self.args.networks['tester_%s' % topo_id.file_fmt()][0]
+            ipv = 'ipv4'
+            if ipv not in net:
+                ipv = 'ipv6'
+            ip = net[ipv]
             text += str(topo_id) + ' ' + str(ip) + '\n'
             conf_path = os.path.join(self.args.output_dir, 'sig-testing.conf')
             write_file(conf_path, text)

@@ -86,7 +86,10 @@ class SIGGenerator(object):
         }
 
         net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
-        entry['networks'][self.args.bridges[net['net']]] = {'ipv4_address': str(net['ipv4'])}
+        ipv = 'ipv4'
+        if ipv not in net:
+            ipv = 'ipv6'
+        entry['networks'][self.args.bridges[net['net']]] = {'%s_address' % ipv: str(net[ipv])}
         self.dc_conf['services']['scion_disp_sig_%s' % topo_id.file_fmt()] = entry
         vol_name = 'vol_scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt())
         self.dc_conf['volumes'][vol_name] = None
@@ -134,12 +137,15 @@ class SIGGenerator(object):
         name = 'sig%s' % topo_id.file_fmt()
         net = self.args.networks[name][0]
         log_level = 'trace' if self.args.trace else 'debug'
+        ipv = 'ipv4'
+        if ipv not in net:
+            ipv = 'ipv6'
         sig_conf = {
             'sig': {
                 'ID': name,
                 'SIGConfig': 'conf/cfg.json',
                 'IA': str(topo_id),
-                'IP': str(net['ipv4']),
+                'IP': str(net[ipv]),
             },
             'sd_client': {
                 'Path': get_default_sciond_path(ISD_AS(topo["ISD_AS"]))
