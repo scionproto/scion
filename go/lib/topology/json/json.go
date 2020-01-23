@@ -41,14 +41,12 @@ type Topology struct {
 	// We use the []trc.Attribute type so that we don't validate according to
 	// trc.Attributes, because that contains a length 0 check which is not
 	// suitable for topology.
-	Attributes         []trc.Attribute        `json:"Attributes"`
-	BorderRouters      map[string]*BRInfo     `json:"BorderRouters,omitempty"`
-	ZookeeperService   map[int]*Address       `json:"ZookeeperService,omitempty"`
-	BeaconService      map[string]*ServerInfo `json:"BeaconService,omitempty"`
-	CertificateService map[string]*ServerInfo `json:"CertificateService,omitempty"`
-	PathService        map[string]*ServerInfo `json:"PathService,omitempty"`
-	SIG                map[string]*ServerInfo `json:"SIG,omitempty"`
-	DiscoveryService   map[string]*ServerInfo `json:"DiscoveryService,omitempty"`
+	Attributes       []trc.Attribute        `json:"Attributes"`
+	BorderRouters    map[string]*BRInfo     `json:"BorderRouters,omitempty"`
+	ZookeeperService map[int]*Address       `json:"ZookeeperService,omitempty"`
+	ControlService   map[string]*ServerInfo `json:"ControlService,omitempty"`
+	SIG              map[string]*ServerInfo `json:"SIG,omitempty"`
+	DiscoveryService map[string]*ServerInfo `json:"DiscoveryService,omitempty"`
 }
 
 // ServerInfo contains the information for a SCION application running in the local AS.

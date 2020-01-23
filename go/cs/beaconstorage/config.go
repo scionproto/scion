@@ -108,6 +108,13 @@ func (cfg *BeaconDBConf) validateBackend() error {
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }
 
+func (cfg *BeaconDBConf) validateConnection() error {
+	if cfg.Connection() == "" {
+		return serrors.New("empty connection not allowed")
+	}
+	return nil
+}
+
 // Sample writes a config sample to the writer.
 func (cfg *BeaconDBConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, fmt.Sprintf(beaconDbSample, ctx[config.ID]))

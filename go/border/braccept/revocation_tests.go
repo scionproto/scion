@@ -75,7 +75,7 @@ func revocation_core_to_local_isd() int {
 	pkt2 := AllocatePacket()
 	pkt2.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
-		IP4: Src=192.168.0.11 Dst=192.168.0.51 NextHdr=UDP Flags=DF Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 NextHdr=UDP Flags=DF Checksum=0
 		UDP: Src=30041 Dst=30041
 		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=PS
@@ -87,7 +87,7 @@ func revocation_core_to_local_isd() int {
 	pkt2.SetChecksum("UDP_1", "SCION")
 
 	pkt3 := pkt2.CloneAndUpdate(`
-		IP4: Dst=192.168.0.61
+		IP4: Dst=192.168.0.71
 		SCION:
 			ADDR: Dst=BS
 	`)
@@ -153,7 +153,7 @@ func revocation_child_to_internal_host() int {
 	pkt2 := AllocatePacket()
 	pkt2.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
-		IP4: Src=192.168.0.11 Dst=192.168.0.51 NextHdr=UDP Flags=DF Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 NextHdr=UDP Flags=DF Checksum=0
 		UDP: Src=30041 Dst=30041
 		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=PS
@@ -223,7 +223,7 @@ func revocation_parent_to_child() int {
 	pkt2 := AllocatePacket()
 	pkt2.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
-		IP4: Src=192.168.0.11 Dst=192.168.0.51 NextHdr=UDP Flags=DF Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 NextHdr=UDP Flags=DF Checksum=0
 		UDP: Src=30041 Dst=30041
 		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=PS
@@ -235,7 +235,7 @@ func revocation_parent_to_child() int {
 	pkt2.SetChecksum("UDP_1", "SCION")
 
 	pkt3 := pkt2.CloneAndUpdate(`
-		IP4: Dst=192.168.0.61
+		IP4: Dst=192.168.0.71
 		SCION:
 			ADDR: Dst=BS
 	`)

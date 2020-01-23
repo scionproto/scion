@@ -58,8 +58,6 @@ type FetcherConfig struct {
 	LocalIA addr.IA
 	// VerificationFactory is the verification factory to use.
 	VerificationFactory infra.VerificationFactory
-	// ASInspector is the as inspector to use.
-	ASInspector infra.ASInspector
 	// PathDB is the path db to use.
 	PathDB pathdb.PathDB
 	// RevCache is the revocation cache to use.

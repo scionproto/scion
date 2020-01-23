@@ -24,10 +24,8 @@ from topology.net import AddressProxy
 COMMON_DIR = 'endhost'
 
 SCION_SERVICE_NAMES = (
-    "BeaconService",
-    "CertificateService",
+    "ControlService",
     "BorderRouters",
-    "PathService",
     "ColibriService",
     "DiscoveryService",
 )
@@ -42,6 +40,8 @@ DISP_CONFIG_NAME = 'disp.toml'
 SIG_CONFIG_NAME = 'sig.toml'
 
 DOCKER_USR_VOL = ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
+
+SD_API_PORT = 30255
 
 
 class ArgsBase:
@@ -61,15 +61,13 @@ class ArgsTopoConfig(ArgsBase):
 
 
 class ArgsTopoDicts(ArgsBase):
-    def __init__(self, args, topo_dicts, port_gen=None):
+    def __init__(self, args, topo_dicts):
         """
         :param object args: Contains the passed command line arguments as named attributes.
         :param dict topo_dicts: The generated topo dicts from TopoGenerator.
-        :param PortGenerator port_gen: The port generator
         """
         super().__init__(args)
         self.topo_dicts = topo_dicts
-        self.port_gen = port_gen
 
 
 class TopoID(ISD_AS):
@@ -104,9 +102,6 @@ def prom_addr_br(br_id, br_ele, port):
 def prom_addr_infra(docker, infra_id, infra_ele, port):
     """Get the prometheus address for an infrastructure element."""
     pub = get_pub(infra_ele['Addrs'])
-    # For dockerized infra use scion port since multiple instances can be on the same IP,
-    # so we can't use the default port.
-    port = pub['Public']['L4Port'] if docker else port
     return "[%s]:%s" % (pub['Public']['Addr'].ip, port)
 
 
@@ -213,11 +208,3 @@ def json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
     raise TypeError
-
-
-def trust_db_conf_entry(args, name):
-    db_dir = '/share/cache' if args.docker else 'gen-cache'
-    return {
-        'Backend': 'sqlite',
-        'Connection': os.path.join(db_dir, '%s.trust.db' % name),
-    }

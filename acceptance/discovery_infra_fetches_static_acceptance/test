@@ -13,7 +13,7 @@ test_setup() {
     set -e
     base_setup
 
-    for elem in gen/ISD1/AS$AS_FILE/{bs,cs,ps,endhost}*; do
+    for elem in gen/ISD1/AS$AS_FILE/{cs,endhost}*; do
         for cfg in $elem/*.toml; do
             set_log_lvl "$cfg"
             set_interval "$cfg" "static"
@@ -36,14 +36,10 @@ test_run() {
     check_file "static"
 
     sleep 3
-    check_logs "bs$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
-    check_logs "ps$IA_FILE-1"
     check_logs "sd$IA_FILE"
 
-    check_diff "bs$IA_FILE-1"
     check_diff "cs$IA_FILE-1"
-    check_diff "ps$IA_FILE-1"
     check_diff "sd$IA_FILE"
 
     log "Checking fail action."

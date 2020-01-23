@@ -25,9 +25,9 @@ var _ LimitSetter = (*sql.DB)(nil)
 
 const (
 	// MaxOpenConnsKey is the configuration key for max open connections.
-	MaxOpenConnsKey = "maxopenconns"
+	MaxOpenConnsKey = "max_open_conns"
 	// MaxIdleConnsKey is the configuration key for max idle connections.
-	MaxIdleConnsKey = "maxidleconns"
+	MaxIdleConnsKey = "max_idle_conns"
 )
 
 // LimitSetter allows setting the database connection limits.

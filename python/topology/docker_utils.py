@@ -83,25 +83,24 @@ class DockerUtilsGenerator(object):
             'entrypoint': './tester.sh',
             'environment': {},
             'volumes': [
-                'vol_scion_%sdisp_%s:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),
-                'vol_scion_%ssciond_%s:/run/shm/sciond:rw' % (docker, topo_id.file_fmt()),
+                'vol_scion_%sdisp_cs%s-1:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
             'networks': {}
         }
+        net = self.args.networks[name][0]
+        bridge = self.args.bridges[net['net']]
+        ipv = 'ipv4'
+        if ipv not in net:
+            ipv = 'ipv6'
+        entry['networks'][bridge] = {'%s_address' % ipv: str(net[ipv])}
         if self.args.sig:
             # If the tester container needs to communicate to the SIG, it needs the SIG_IP and
             # REMOTE_NETS which are the remote subnets that need to be routed through the SIG.
             # net information for the connected SIG
             sig_net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
-            net = self.args.networks[name][0]
-            bridge = self.args.bridges[net['net']]
-            ipv = 'ipv4'
-            if ipv not in net:
-                ipv = 'ipv6'
-            entry['networks'][bridge] = {'%s_address' % ipv: str(net[ipv])}
             entry['environment']['SIG_IP'] = str(sig_net[ipv])
             entry['environment']['REMOTE_NETS'] = remote_nets(self.args.networks, topo_id)
         self.dc_conf['services'][name] = entry

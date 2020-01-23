@@ -38,6 +38,21 @@ func (m *MockTopology) EXPECT() *MockTopologyMockRecorder {
 	return m.recorder
 }
 
+// Anycast mocks base method
+func (m *MockTopology) Anycast(arg0 addr.HostSVC) (*net.TCPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Anycast", arg0)
+	ret0, _ := ret[0].(*net.TCPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Anycast indicates an expected call of Anycast
+func (mr *MockTopologyMockRecorder) Anycast(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Anycast", reflect.TypeOf((*MockTopology)(nil).Anycast), arg0)
+}
+
 // BR mocks base method
 func (m *MockTopology) BR(arg0 string) (topology.BRInfo, bool) {
 	m.ctrl.T.Helper()

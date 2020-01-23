@@ -59,6 +59,9 @@ type Topology interface {
 	// SBRAddress returns the internal public address of the BR with the specified name.
 	SBRAddress(name string) *snet.UDPAddr
 
+	// Anycast returns the address for an arbitrary server of the requested type.
+	Anycast(svc addr.HostSVC) (*net.TCPAddr, error)
+
 	// OverlayAnycast returns the overlay address for an arbitrary server of the requested type.
 	OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error)
 	// OverlayMulticast returns all overlay addresses for the requested type.
@@ -232,12 +235,8 @@ func (t *topologyS) Exists(svc addr.HostSVC, name string) bool {
 func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *TopoAddr {
 	var addresses IDAddrMap
 	switch svc.Base() {
-	case addr.SvcBS:
-		addresses = t.Topology.BS
-	case addr.SvcCS:
+	case addr.SvcBS, addr.SvcCS, addr.SvcPS:
 		addresses = t.Topology.CS
-	case addr.SvcPS:
-		addresses = t.Topology.PS
 	case addr.SvcSIG:
 		addresses = t.Topology.SIG
 	}
@@ -245,6 +244,27 @@ func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *TopoAddr {
 		return nil
 	}
 	return addresses.GetByID(name)
+}
+
+func (t *topologyS) Anycast(svc addr.HostSVC) (*net.TCPAddr, error) {
+	names := t.SVCNames(svc)
+	name, err := names.GetRandom()
+	if err != nil {
+		return nil, err
+	}
+	st, err := toProtoServiceType(svc)
+	if err != nil {
+		return nil, err
+	}
+	topoAddr, err := t.Topology.GetTopoAddr(name, st)
+	if err != nil {
+		return nil, serrors.WrapStr("SVC not supported", err, "svc", svc)
+	}
+	return &net.TCPAddr{
+		IP:   topoAddr.SCIONAddress.IP,
+		Port: topoAddr.SCIONAddress.Port,
+		Zone: topoAddr.SCIONAddress.Zone,
+	}, nil
 }
 
 func (t *topologyS) OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
@@ -329,12 +349,8 @@ func (t *topologyS) OverlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, 
 
 func toProtoServiceType(svc addr.HostSVC) (proto.ServiceType, error) {
 	switch svc.Base() {
-	case addr.SvcBS:
-		return proto.ServiceType_bs, nil
-	case addr.SvcCS:
+	case addr.SvcBS, addr.SvcCS, addr.SvcPS:
 		return proto.ServiceType_cs, nil
-	case addr.SvcPS:
-		return proto.ServiceType_ps, nil
 	case addr.SvcSIG:
 		return proto.ServiceType_sig, nil
 	default:
@@ -368,12 +384,8 @@ func (t *topologyS) SBRAddress(name string) *snet.UDPAddr {
 func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {
 	var m IDAddrMap
 	switch svc.Base() {
-	case addr.SvcBS:
-		m = t.Topology.BS
-	case addr.SvcCS:
+	case addr.SvcBS, addr.SvcCS, addr.SvcPS:
 		m = t.Topology.CS
-	case addr.SvcPS:
-		m = t.Topology.PS
 	case addr.SvcSIG:
 		m = t.Topology.SIG
 	}

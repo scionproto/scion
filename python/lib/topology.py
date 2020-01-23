@@ -195,9 +195,7 @@ class Topology(object):
     information for further use.
 
     :ivar ISD_AS isd_is: the ISD-AS identifier.
-    :ivar list beacon_servers: beacons servers in the AS.
-    :ivar list certificate_servers: certificate servers in the AS.
-    :ivar list path_servers: path servers in the AS.
+    :ivar list control_servers: control servers in the AS.
     :ivar list sigs: SIGs in the as.
     :ivar list discovery_servers: discovery servers in the AS.
     :ivar list border_routers: border routers in the AS.
@@ -209,9 +207,7 @@ class Topology(object):
     def __init__(self):  # pragma: no cover
         self.isd_as = None
         self.mtu = None
-        self.beacon_servers = []
-        self.certificate_servers = []
-        self.path_servers = []
+        self.control_servers = []
         self.sigs = []
         self.discovery_servers = []
         self.border_routers = []
@@ -256,9 +252,7 @@ class Topology(object):
 
     def _parse_srv_dicts(self, topology):
         for type_, list_ in (
-            ("BeaconService", self.beacon_servers),
-            ("CertificateService", self.certificate_servers),
-            ("PathService", self.path_servers),
+            ("ControlService", self.control_servers),
             ("SIG", self.sigs),
             ("DiscoveryService", self.discovery_servers),
         ):
@@ -294,9 +288,7 @@ class Topology(object):
 
     def get_own_config(self, server_type, server_id):
         type_map = {
-            ServiceType.BS: self.beacon_servers,
-            ServiceType.CS: self.certificate_servers,
-            ServiceType.PS: self.path_servers,
+            ServiceType.CS: self.control_servers,
             ServiceType.SIG: self.sigs,
             ServiceType.DS: self.discovery_servers,
         }

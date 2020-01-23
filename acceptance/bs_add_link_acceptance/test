@@ -36,17 +36,17 @@ logger = logging.getLogger(__name__)
 
 class Test(TestBase):
     """
-    Test that an interface can be added to the topology and the
-    beacon server starts beaconing on that interface.
+    Test that an interface can be added to the topology and the beacon server
+    starts beaconing on that interface.
 
     In the setup phase, the tiny topology is started with the link between
     1-ff00:0:110 and 1-ff00:0:111 missing from the topology of the beacon
     servers.
 
     In the run phase, we first check that the end2end connectivity is broken.
-    Then we set the topology containing the link and send a reload signal
-    to the BSes. After some time that allows for beacon propagation, the test
-    checks that end2end connectivity is established.
+    Then we set the topology containing the link and send a reload signal to the
+    control services. After some time that allows for beacon propagation, the
+    test checks that end2end connectivity is established.
     """
 
 
@@ -55,7 +55,7 @@ def topology_files() -> LocalPath:
     Return the paths to all topology files for beacon servers in
     AS 1-ff00:0:110 and 1-ff00:0:111.
     """
-    return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/bs*/topology.json'
+    return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/cs*/topology.json'
 
 
 @Test.subcommand('setup')
@@ -69,7 +69,7 @@ class TestSetup(CmdBase):
         self.scion.set_configs({
             'logging.file.FlushInterval': 1,
             'logging.file.Level': 'debug',
-        }, local.path('gen/ISD1') // '*/bs*/bs.toml')
+        }, local.path('gen/ISD1') // '*/cs*/cs.toml')
         self.scion.run()
         if not self.no_docker:
             self.tools_dc('start', 'tester*')

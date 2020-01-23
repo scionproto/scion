@@ -42,8 +42,13 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
-		"-local", integration.SrcAddrPattern, "-remoteIA", integration.DstIAReplace}
+	clientArgs := []string{
+		"-log.console", "debug",
+		"-attempts", strconv.Itoa(*attempts),
+		"-sciond", integration.SCIOND,
+		"-local", integration.SrcAddrPattern,
+		"-remoteIA", integration.DstIAReplace,
+	}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
 	timeout := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
 	if err := integration.RunUnaryTests(in, integration.IAPairs(integration.DispAddr),

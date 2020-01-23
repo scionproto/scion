@@ -34,8 +34,8 @@ const featuresSample = `
 `
 
 const sciondClientSample = `
-# The Sciond path. (default sciond.DefaultSCIONDPath)
-Path = "/run/shm/sciond/default.sock"
+# Address of the SCIOND server the client should connect to.
+Address = "127.0.0.1:30255"
 
 # Maximum time spent attempting to connect to sciond on start. (default 20s)
 InitialConnectPeriod = "20s"

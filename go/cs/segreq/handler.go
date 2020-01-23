@@ -37,18 +37,17 @@ type handler struct {
 
 func NewHandler(args handlers.HandlerArgs) infra.Handler {
 	core := args.TopoProvider.Get().Core()
-	localInfo := createLocalInfo(args, core)
+	localInfo := CreateLocalInfo(args, core)
 	args.PathDB = createPathDB(args.PathDB, localInfo)
 	return &handler{
 		fetcher: segfetcher.FetcherConfig{
 			QueryInterval:       args.QueryInterval,
 			LocalIA:             args.IA,
-			ASInspector:         args.ASInspector,
 			VerificationFactory: args.VerifierFactory,
 			PathDB:              args.PathDB,
 			RevCache:            args.RevCache,
 			RequestAPI:          args.SegRequestAPI,
-			DstProvider:         createDstProvider(args, core),
+			DstProvider:         CreateDstProvider(args, core),
 			Splitter:            &Splitter{ASInspector: args.ASInspector},
 			MetricsNamespace:    metrics.PSNamespace,
 			LocalInfo:           localInfo,
@@ -127,7 +126,8 @@ func createValidator(args handlers.HandlerArgs, core bool) segfetcher.Validator 
 	return &CoreValidator{BaseValidator: base}
 }
 
-func createLocalInfo(args handlers.HandlerArgs, core bool) LocalInfo {
+// CreateLocalInfo creates the local info oracle.
+func CreateLocalInfo(args handlers.HandlerArgs, core bool) LocalInfo {
 	if core {
 		return &CoreLocalInfo{
 			CoreChecker: CoreChecker{Inspector: args.ASInspector},
@@ -147,7 +147,8 @@ func createPathDB(db pathdb.PathDB, localInfo LocalInfo) pathdb.PathDB {
 	}
 }
 
-func createDstProvider(args handlers.HandlerArgs, core bool) segfetcher.DstProvider {
+// CreateDstProvider creates the destination provider.
+func CreateDstProvider(args handlers.HandlerArgs, core bool) segfetcher.DstProvider {
 	selector := SegSelector{
 		PathDB:   args.PathDB,
 		RevCache: args.RevCache,

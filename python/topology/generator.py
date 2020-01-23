@@ -50,9 +50,6 @@ def add_arguments(parser):
     parser.add_argument('-f', '--svcfrac', type=float, default=0.4,
                         help='Attempt SVC resolution in RPC calls for a fraction of\
                         available timeout')
-    parser.add_argument('--monolith', action='store_true',
-                        help='Generate the same address for BS/CS/PS and run the monolithic\
-                        Control Service on it')
     parser.add_argument('--random-ifids', action='store_true',
                         help='Generate random IFIDs')
     parser.add_argument('--in-docker', action='store_true',

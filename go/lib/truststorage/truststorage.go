@@ -104,6 +104,13 @@ func (cfg *TrustDBConf) validateBackend() error {
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 }
 
+func (cfg *TrustDBConf) validateConnection() error {
+	if cfg.Connection() == "" {
+		return serrors.New("empty connection not allowed")
+	}
+	return nil
+}
+
 // New creates a trust database from the config.
 func (cfg *TrustDBConf) New() (trust.DB, error) {
 	log.Info("Connecting TrustDB", "backend", cfg.Backend(), "connection", cfg.Connection())

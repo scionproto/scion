@@ -5,14 +5,11 @@ go_library(
     srcs = [
         "fetcher.go",
         "filter.go",
-        "splitter.go",
     ],
     importpath = "github.com/scionproto/scion/go/sciond/internal/fetcher",
     visibility = ["//go/sciond:__subpackages__"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/common:go_default_library",
-        "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/hostinfo:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/combinator:go_default_library",
@@ -34,19 +31,12 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "filter_test.go",
-        "splitter_test.go",
-    ],
+    srcs = ["filter_test.go"],
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
-        "//go/lib/infra:go_default_library",
-        "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/infra/modules/combinator:go_default_library",
-        "//go/lib/infra/modules/segfetcher:go_default_library",
         "//go/lib/pathpol:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/lib/xtest/graph:go_default_library",

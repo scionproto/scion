@@ -166,7 +166,7 @@ func ohp_parent_to_internal_bs() int {
 
 	pkt1 := pkt0.CloneAndUpdate(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
-		IP4: Src=192.168.0.11 Dst=192.168.0.61 Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 Checksum=0
 		UDP: Src=30001 Dst=30041
 		SCION:
 			HF_2: ConsIngress=131 ConsEgress=0 ExpTime=63
@@ -202,7 +202,7 @@ func ohp_udp_parent_to_internal_bs() int {
 
 	pkt1 := pkt0.CloneAndUpdate(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
-		IP4: Src=192.168.0.11 Dst=192.168.0.61 Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 Checksum=0
 		UDP: Src=30001 Dst=30041
 		SCION:
 			HF_2: ConsIngress=131 ConsEgress=0 ExpTime=63
@@ -224,7 +224,7 @@ func ohp_udp_internal_bs_to_parent() int {
 		IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
 		UDP: Src=30041 Dst=30001
 		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=SVC
-			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.61 DstIA=1-ff00:0:3 Dst=BS
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.71 DstIA=1-ff00:0:3 Dst=BS
 			IF_1: ISD=1 Hops=2
 				HF_1: ConsIngress=131 ConsEgress=0
 				HF_2: ConsIngress=0   ConsEgress=0 Mac=000000
@@ -256,7 +256,7 @@ func ohp_internal_bs_to_parent() int {
 		IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
 		UDP: Src=30041 Dst=30001
 		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=SVC
-			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.61 DstIA=1-ff00:0:3 Dst=BS
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.71 DstIA=1-ff00:0:3 Dst=BS
 			IF_1: ISD=1 Hops=2 Flags=ConsDir
 				HF_1: ConsIngress=0 ConsEgress=131
 				HF_2: ConsIngress=0 ConsEgress=0 Mac=000000

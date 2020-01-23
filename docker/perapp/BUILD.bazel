@@ -11,20 +11,13 @@ scion_app_images(
     entrypoint = ["/app/border", "-config", "/share/conf/br.toml"],
 )
 
-scion_app_images(
-    name = "beacon_srv",
-    binary = "//go/beacon_srv:beacon_srv",
-    appdir = "/app",
-    workdir = "/share",
-    entrypoint = ["/app/beacon_srv", "-config", "/share/conf/bs.toml"],
-)
 
 scion_app_images(
-    name = "cert_srv",
-    binary = "//go/cert_srv:cert_srv",
+    name = "cs",
+    binary = "//go/cs:cs",
     appdir = "/app",
     workdir = "/share",
-    entrypoint = ["/app/cert_srv", "-config", "/share/conf/cs.toml"],
+    entrypoint = ["/app/cs", "-config", "/share/conf/cs.toml"],
 )
 
 scion_app_images(
@@ -33,14 +26,6 @@ scion_app_images(
     appdir = "/app",
     workdir = "/share",
     entrypoint = ["/app/godispatcher", "-config", "/share/conf/disp.toml"],
-)
-
-scion_app_images(
-    name = "path_srv",
-    binary = "//go/path_srv:path_srv",
-    appdir = "/app",
-    workdir = "/share",
-    entrypoint = ["/app/path_srv", "-config", "/share/conf/ps.toml"],
 )
 
 scion_app_images(
@@ -64,10 +49,8 @@ container_bundle(
     name = "prod",
     images = {
         "scion_border:latest":        ":border_prod",
-        "scion_beacon:latest":        ":beacon_srv_prod",
-        "scion_cert:latest":          ":cert_srv_prod",
+        "scion_cs:latest":            ":cs_prod",
         "scion_dispatcher_go:latest": ":dispatcher_go_prod",
-        "scion_path:latest":          ":path_srv_prod",
         "scion_sciond:latest":        ":sciond_prod",
         "scion_sig_nocap:latest":     ":sig_prod",
     },
@@ -77,10 +60,8 @@ container_bundle(
     name = "debug",
     images = {
         "scion_border_debug:latest":        ":border_debug",
-        "scion_beacon_debug:latest":        ":beacon_srv_debug",
-        "scion_cert_debug:latest":          ":cert_srv_debug",
+        "scion_cs_debug:latest":            ":cs_debug",
         "scion_dispatcher_go_debug:latest": ":dispatcher_go_debug",
-        "scion_path_debug:latest":          ":path_srv_debug",
         "scion_sciond_debug:latest":        ":sciond_debug",
         "scion_sig_nocap_debug:latest":     ":sig_debug",
     },

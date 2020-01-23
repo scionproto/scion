@@ -34,7 +34,7 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 
-	cmnArgs := []string{"-sciondFromIA", "-timeout", "4s", "-local", integration.SrcAddrPattern,
+	cmnArgs := []string{"-timeout", "4s", "-local", integration.SrcAddrPattern,
 		"-remote", integration.DstAddrPattern}
 
 	testCases := []struct {

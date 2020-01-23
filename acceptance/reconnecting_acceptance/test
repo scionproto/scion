@@ -36,7 +36,7 @@ print_help() {
 	        execute only the setup phase.
 	    $PROGRAM run
 	        execute only the run phase.
-	    $PROGRAM teardown 
+	    $PROGRAM teardown
 	        execute only the teardown phase.
 	_EOF
 }

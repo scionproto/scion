@@ -23,7 +23,7 @@ CORE_IA_FILE="$(ia_file $CORE_IA)"
 
 test_setup() {
     set -e
-    ./scion.sh topology -c $TEST_TOPOLOGY -d -t
+    ./scion.sh topology -c $TEST_TOPOLOGY -d -t --database=sqlite
     sed -i -e 's/Level = .*$/Level = "trace"/g' \
         -e '/\[logging\.file\]/a FlushInterval = 1' \
         -e '/\[cs\]/a AutomaticRenewal = true' \

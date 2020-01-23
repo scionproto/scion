@@ -17,9 +17,11 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
@@ -30,6 +32,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -44,6 +47,9 @@ const (
 	CtxTimeout = 2 * time.Second
 	// RetryTimeout is the timeout between different attempts
 	RetryTimeout = time.Second / 2
+	// SCIONDAddressesFile is the default file for SCIOND addresses in a topology created
+	// with the topology generator.
+	SCIONDAddressesFile = "gen/sciond_addresses.json"
 )
 
 type iaArgs []addr.IA
@@ -370,4 +376,26 @@ func errFromChan(errors chan error) error {
 	default:
 		return nil
 	}
+}
+
+func GetSCIONDAddresses(networksFile string) (map[string]string, error) {
+	b, err := ioutil.ReadFile(networksFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var networks map[string]string
+	err = json.Unmarshal(b, &networks)
+	if err != nil {
+		return nil, err
+	}
+	return networks, nil
+}
+
+func GetSCIONDAddress(networksFile string, ia addr.IA) (string, error) {
+	addresses, err := GetSCIONDAddresses(networksFile)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], sciond.DefaultSCIONDPort), nil
 }

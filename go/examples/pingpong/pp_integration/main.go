@@ -39,7 +39,7 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	cmnArgs := []string{"-sciondFromIA", "-log.console", "debug"}
+	cmnArgs := []string{"-log.console", "debug", "-sciond", integration.SCIOND}
 	clientArgs := []string{"-mode", "client", "-count", "1",
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace}

@@ -1,0 +1,18 @@
+[general]
+ReconnectToDispatcher = true
+ConfigDir = "/"
+ID = "sd1-ff00_0_110"
+
+[trustDB]
+Connection = "sd1-ff00_0_110.trust.db"
+Backend = "sqlite"
+
+[logging.console]
+Level = "trace"
+
+[sd]
+Address = "242.253.100.3:30255"
+
+[sd.pathDB]
+Connection = "sd1-ff00_0_110.path.db"
+Backend = "sqlite"

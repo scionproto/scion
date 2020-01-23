@@ -6,7 +6,6 @@ ASes:
     authoritative: true
     issuing: true
     underlay: UDP/IPv6
-    path_servers: 3
   "1-ff00:0:120": # old 1-12
     core: true
     voting: true
@@ -17,7 +16,6 @@ ASes:
     voting: true
     authoritative: true
     issuing: true
-    beacon_servers: 2
     underlay: UDP/IPv6
   "1-ff00:0:111": # old 1-14
     cert_issuer: 1-ff00:0:110
@@ -32,10 +30,8 @@ ASes:
     underlay: UDP/IPv6
   "1-ff00:0:131": # old 1-16
     cert_issuer: 1-ff00:0:130
-    beacon_servers: 3
   "1-ff00:0:132": # old 1-19
     cert_issuer: 1-ff00:0:130
-    path_servers: 2
     underlay: UDP/IPv6
   "1-ff00:0:133": # old 1-10
     cert_issuer: 1-ff00:0:130

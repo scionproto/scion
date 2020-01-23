@@ -36,6 +36,16 @@ import (
 
 var _ rpc.Handler = (*QUICHandler)(nil)
 
+// NewStreamHandler creates a RPC handler for Messenger messages. Infra handlers
+// can be registered for various message types by calling Handle.
+func NewStreamHandler(parentCtx context.Context, timeout time.Duration) *QUICHandler {
+	return &QUICHandler{
+		handlers:  make(map[infra.MessageType]infra.Handler),
+		timeout:   timeout,
+		parentCtx: parentCtx,
+	}
+}
+
 // QUICHandler is a QUIC RPC handler for Messenger messages. Infra handlers can
 // be registered for various message types by calling Handle.
 type QUICHandler struct {
@@ -47,7 +57,7 @@ type QUICHandler struct {
 }
 
 func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
-	signedPld, err := msgToSignedPld(request.Message)
+	signedPld, err := MsgToSignedPld(request.Message)
 	if err != nil {
 		log.Error("Unable to extract SignedPld from capnp", "from", request.Address, "err", err)
 		return
@@ -62,7 +72,7 @@ func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 		return
 	}
 
-	messageType, messageContent, err := validate(pld)
+	messageType, messageContent, err := Validate(pld)
 	if err != nil {
 		// TODO(scrye): Right now we only log this because the UDP code behaved
 		// this way.  However, in the future we can also inform the remote end
@@ -123,7 +133,7 @@ func (h *QUICHandler) prepareServeCtx(pld *ctrl.Pld, messageType infra.MessageTy
 	return ctx, serveCancelF, span
 }
 
-func msgToSignedPld(msg *capnp.Message) (*ctrl.SignedPld, error) {
+func MsgToSignedPld(msg *capnp.Message) (*ctrl.SignedPld, error) {
 	root, err := msg.RootPtr()
 	if err != nil {
 		return nil, err
@@ -135,7 +145,7 @@ func msgToSignedPld(msg *capnp.Message) (*ctrl.SignedPld, error) {
 	return signedPld, nil
 }
 
-func signedPldToMsg(signedPld *ctrl.SignedPld) (*capnp.Message, error) {
+func SignedPldToMsg(signedPld *ctrl.SignedPld) (*capnp.Message, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		return nil, err

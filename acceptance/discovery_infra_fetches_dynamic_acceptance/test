@@ -13,7 +13,7 @@ test_setup() {
     set -e
     base_setup
 
-    for cfg in gen/ISD1/AS$AS_FILE/*/{bs,cs,ps,sd}.toml; do
+    for cfg in gen/ISD1/AS$AS_FILE/*/{cs,sd}.toml; do
         set_log_lvl "$cfg"
         set_interval "$cfg" "dynamic"
     done
@@ -31,9 +31,7 @@ test_run() {
     check_file "dynamic"
 
     sleep 7
-    check_logs "bs$IA_FILE-1"
     check_logs "cs$IA_FILE-1"
-    check_logs "ps$IA_FILE-1"
     check_logs "sd$IA_FILE"
 
     log "Checking fail action."

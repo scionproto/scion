@@ -167,3 +167,9 @@ class PortGenerator(object):
         # reserve a quic port
         self._ports[id_+"quic"]
         return p
+
+
+def socket_address_str(ip, port):
+    if ip.version == 4:
+        return "%s:%d" % (ip, port)
+    return "[%s]:%d" % (ip, port)

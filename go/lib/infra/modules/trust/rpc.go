@@ -20,7 +20,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
@@ -50,9 +49,19 @@ type ChainReq struct {
 	Version scrypto.Version
 }
 
+// Messenger is the part of the infra messenger the trust rpc layer uses.
+type Messenger interface {
+	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,
+		id uint64) (*cert_mgmt.TRC, error)
+	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
+		id uint64) (*cert_mgmt.Chain, error)
+	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error
+	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
+}
+
 // DefaultRPC implements the RPC interface using the given messenger.
 type DefaultRPC struct {
-	Msgr infra.Messenger
+	Msgr Messenger
 }
 
 func (r DefaultRPC) GetTRC(ctx context.Context, req TRCReq, a net.Addr) ([]byte, error) {

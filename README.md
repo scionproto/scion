@@ -115,7 +115,7 @@ Notes about `topology/Default.topo`:
 
 * `core` (optional): specify if this is a core AS or not (defaults to 'false').
 
-* `beacon_servers`, `certificate_servers`, `path_servers`, (all optional):
+* `control_servers` (optional):
   number of such servers in a specific AS (override the default value 1).
 
 * `links`: keys are `ISD_ID-AS_ID` (format also used for the keys of the JSON

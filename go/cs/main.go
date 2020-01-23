@@ -45,6 +45,7 @@ import (
 	"github.com/scionproto/scion/go/cs/revocation"
 	"github.com/scionproto/scion/go/cs/segreq"
 	"github.com/scionproto/scion/go/cs/segsyncer"
+	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
@@ -53,8 +54,11 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
+	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdbmetrics"
 	"github.com/scionproto/scion/go/lib/keyconf"
@@ -112,27 +116,20 @@ func realMain() int {
 	}
 	metrics.InitBSMetrics()
 	metrics.InitPSMetrics()
+
 	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PS.PathDB, cfg.PS.RevCache)
 	if err != nil {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
 	defer revCache.Close()
-	pathDB = pathdb.WithMetrics("std", pathDB)
+	pathDB = pathdb.WithMetrics(string(cfg.PS.PathDB.Backend()), pathDB)
 	defer pathDB.Close()
 
 	topo := itopo.Get()
-	// Check that this process ID is present for all services it implements
-	if !topo.Exists(addr.SvcBS, cfg.General.ID) {
-		log.Crit("Unable to find topo address for BS module")
-		return 1
-	}
+	// Check that this process ID is present.
 	if !topo.Exists(addr.SvcCS, cfg.General.ID) {
 		log.Crit("Unable to find topo address for CS module")
-		return 1
-	}
-	if !topo.Exists(addr.SvcCS, cfg.General.ID) {
-		log.Crit("Unable to find topo address for PS module")
 		return 1
 	}
 
@@ -143,14 +140,6 @@ func realMain() int {
 	}
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
-
-	// TODO(scrye): This needs to be replaced with what the PS is using to eliminate
-	// the need for SCIOND.
-	router, err := infraenv.NewRouter(topo.IA(), cfg.Sciond)
-	if err != nil {
-		log.Crit("Unable to initialize path router", "err", err)
-		return 1
-	}
 
 	nc := infraenv.NetworkConfig{
 		IA: topo.IA(),
@@ -165,7 +154,6 @@ func realMain() int {
 			KeyFile:  cfg.QUIC.KeyFile,
 		},
 		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
-		Router:                router,
 		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
 	}
 	msgr, err := nc.Messenger()
@@ -175,6 +163,13 @@ func realMain() int {
 	}
 	defer msgr.CloseServer()
 
+	tcpMsgr := tcp.NewServerMessenger(&net.TCPAddr{
+		IP:   nc.Public.IP,
+		Port: nc.Public.Port,
+		Zone: nc.Public.Zone,
+	})
+	defer tcpMsgr.CloseServer()
+
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
 		log.Crit("Error initializing trust database", "err", err)
@@ -182,9 +177,15 @@ func realMain() int {
 	}
 	trustDB = trustdbmetrics.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
 	defer trustDB.Close()
-	inserter := trust.DefaultInserter{
-		BaseInserter: trust.BaseInserter{DB: trustDB},
+	trustRouter := &segutil.Router{
+		Pather: segfetcher.Pather{
+			PathDB:       pathDB,
+			RevCache:     revCache,
+			TopoProvider: itopo.Provider(),
+			// Fetcher needs to be initialized with a provider.
+		},
 	}
+	inserter := trust.DefaultInserter{BaseInserter: trust.BaseInserter{DB: trustDB}}
 	provider := trust.Provider{
 		DB:       trustDB,
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
@@ -196,12 +197,40 @@ func realMain() int {
 		},
 		Router: trust.AuthRouter{
 			ISD:    topo.IA().I,
-			Router: router,
+			Router: trustRouter,
 			DB:     trustDB,
 		},
 	}
+	inspector := trust.DefaultInspector{Provider: provider}
+
+	args := handlers.HandlerArgs{
+		PathDB:          pathDB,
+		RevCache:        revCache,
+		ASInspector:     inspector,
+		VerifierFactory: verificationFactory{Provider: provider},
+		QueryInterval:   cfg.PS.QueryInterval.Duration,
+		IA:              topo.IA(),
+		TopoProvider:    itopo.Provider(),
+		SegRequestAPI:   msgr,
+	}
+	trustRouter.Pather.Fetcher = segfetcher.FetcherConfig{
+		QueryInterval:       cfg.PS.QueryInterval.Duration,
+		LocalIA:             topo.IA(),
+		VerificationFactory: verificationFactory{Provider: provider},
+		PathDB:              pathDB,
+		RevCache:            revCache,
+		RequestAPI:          msgr,
+		DstProvider:         segreq.CreateDstProvider(args, topo.Core()),
+		Splitter: &segfetcher.MultiSegmentSplitter{
+			Local:     topo.IA(),
+			Inspector: inspector,
+		},
+		MetricsNamespace: metrics.PSNamespace,
+		LocalInfo:        segreq.CreateLocalInfo(args, topo.Core()),
+	}.New()
+
 	trustStore := trust.Store{
-		Inspector:      trust.DefaultInspector{Provider: provider},
+		Inspector:      inspector,
 		CryptoProvider: provider,
 		Inserter:       inserter,
 		DB:             trustDB,
@@ -233,8 +262,10 @@ func realMain() int {
 	defer beaconStore.Close()
 	intfs = ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	prometheus.MustRegister(ifstate.NewCollector(intfs))
-	msgr.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(topo.IA()))
-	msgr.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(topo.IA()))
+	chainReqHandler := trustStore.NewChainReqHandler(topo.IA())
+	trcReqHandler := trustStore.NewTRCReqHandler(topo.IA())
+	msgr.AddHandler(infra.ChainRequest, chainReqHandler)
+	msgr.AddHandler(infra.TRCRequest, trcReqHandler)
 	msgr.AddHandler(infra.Chain, trustStore.NewChainPushHandler(topo.IA()))
 	msgr.AddHandler(infra.TRC, trustStore.NewTRCPushHandler(topo.IA()))
 	msgr.AddHandler(infra.IfStateReq, ifstate.NewHandler(intfs))
@@ -248,19 +279,11 @@ func realMain() int {
 				Msgr:         msgr,
 				TopoProvider: itopo.Provider(),
 			}.New(),
-		}),
-	)
-	args := handlers.HandlerArgs{
-		PathDB:          pathDB,
-		RevCache:        revCache,
-		ASInspector:     trustStore,
-		VerifierFactory: verificationFactory{Provider: trustStore},
-		QueryInterval:   cfg.PS.QueryInterval.Duration,
-		IA:              topo.IA(),
-		TopoProvider:    itopo.Provider(),
-		SegRequestAPI:   msgr,
-	}
-	msgr.AddHandler(infra.SegRequest, segreq.NewHandler(args))
+		},
+	))
+
+	segReqHandler := segreq.NewHandler(args)
+	msgr.AddHandler(infra.SegRequest, segReqHandler)
 	msgr.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
 	if cfg.PS.SegSync && topo.Core() {
 		// Old down segment sync mechanism
@@ -273,13 +296,22 @@ func realMain() int {
 		},
 	})
 
+	tcpMsgr.AddHandler(infra.ChainRequest, chainReqHandler)
+	tcpMsgr.AddHandler(infra.TRCRequest, trcReqHandler)
+	tcpMsgr.AddHandler(infra.SegRequest, segReqHandler)
+
 	// Setup metrics and status pages
 	http.HandleFunc("/config", configHandler)
 	http.HandleFunc("/info", env.InfoHandler)
+	http.HandleFunc("/topology", itopo.TopologyHandler)
 	cfg.Metrics.StartPrometheus()
 	go func() {
 		defer log.LogPanicAndExit()
 		msgr.ListenAndServe()
+	}()
+	go func() {
+		defer log.LogPanicAndExit()
+		tcpMsgr.ListenAndServe()
 	}()
 
 	dispatcherService := reliable.NewDispatcher("")
@@ -307,6 +339,7 @@ func realMain() int {
 		trustStore:   trustStore,
 		trustDB:      trustDB,
 		store:        beaconStore,
+		pathDB:       pathDB,
 		msgr:         msgr,
 		topoProvider: itopo.Provider(),
 		addressRewriter: nc.AddressRewriter(
@@ -334,10 +367,11 @@ func realMain() int {
 	defer discoRunners.Kill()
 
 	if err := tasks.Start(); err != nil {
-		log.Crit("Unable to start leader tasks", "err", err)
+		log.Crit("Unable to start tasks", "err", err)
 		return 1
 	}
 	defer tasks.Kill()
+
 	select {
 	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
@@ -368,6 +402,7 @@ type periodicTasks struct {
 	trustStore      trust.Store
 	trustDB         trust.DB
 	store           beaconstorage.Store
+	pathDB          pathdb.PathDB
 	msgr            infra.Messenger
 	topoProvider    topology.Provider
 	allowIsdLoop    bool
@@ -595,6 +630,7 @@ func (t *periodicTasks) startRegistrar(topo topology.Topology, segType proto.Pat
 	r, err := beaconing.RegistrarConf{
 		Msgr:         t.msgr,
 		SegProvider:  t.store,
+		SegStore:     &seghandler.DefaultStorage{PathDB: t.pathDB},
 		SegType:      segType,
 		TopoProvider: t.topoProvider,
 		Period:       cfg.BS.RegistrationInterval.Duration,
@@ -695,11 +731,7 @@ func setup() error {
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
-	if _, _, err := itopo.SetStatic(topo, false); err != nil {
-		return common.NewBasicError("Unable to set initial static topology", err)
-	}
-	infraenv.InitInfraEnvironment(cfg.General.Topology)
-	return nil
+	return initTopo(topo)
 }
 
 func handleTopoUpdate() {
@@ -707,6 +739,14 @@ func handleTopoUpdate() {
 		return
 	}
 	intfs.Update(itopo.Get().IFInfoMap())
+}
+
+func initTopo(topo topology.Topology) error {
+	if _, _, err := itopo.SetStatic(topo, false); err != nil {
+		return serrors.WrapStr("Unable to set initial static topology", err)
+	}
+	infraenv.InitInfraEnvironment(cfg.General.Topology)
+	return nil
 }
 
 func loadStore(core bool, ia addr.IA, cfg config.Config) (beaconstorage.Store, error) {

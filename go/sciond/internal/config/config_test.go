@@ -48,7 +48,6 @@ func InitTestConfig(cfg *Config) {
 }
 
 func InitTestSDConfig(cfg *SDConfig) {
-	cfg.DeleteSocket = true
 	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
 	pathstoragetest.InitTestRevCacheConf(&cfg.RevCache)
 }
@@ -63,10 +62,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 func CheckTestSDConfig(t *testing.T, cfg *SDConfig, id string) {
 	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
 	pathstoragetest.CheckTestRevCacheConf(t, &cfg.RevCache)
-	assert.Equal(t, sciond.DefaultSCIONDPath, cfg.Reliable)
-	assert.Equal(t, "/run/shm/sciond/default-unix.sock", cfg.Unix)
-	assert.Equal(t, sciond.DefaultSocketFileMode, int(cfg.SocketFileMode))
-	assert.Equal(t, "127.0.0.1:0", cfg.Public)
+	assert.Equal(t, sciond.DefaultSCIONDAddress, cfg.Address)
 	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
-	assert.False(t, cfg.DeleteSocket)
 }
