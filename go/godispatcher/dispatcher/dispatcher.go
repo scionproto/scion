@@ -150,6 +150,7 @@ func (ac *Conn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 		return 0, nil, serrors.New("Connection closed")
 	}
 	n = pkt.CopyTo(p)
+	addr = pkt.OverlayRemote
 	pkt.Free()
 	return
 }
