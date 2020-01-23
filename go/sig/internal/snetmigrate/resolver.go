@@ -17,8 +17,8 @@ package snetmigrate
 import (
 	"context"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/sig/internal/pathmgr"
 )
 
@@ -28,7 +28,7 @@ func ResolverFromSD(sciondPath string, pathCount uint16) (pathmgr.Resolver, erro
 		sciondConn, err := sciond.NewService(sciondPath).Connect(
 			context.Background())
 		if err != nil {
-			return nil, common.NewBasicError("Unable to initialize SCIOND service", err)
+			return nil, serrors.WrapStr("Unable to initialize SCIOND service", err)
 		}
 		pathResolver = pathmgr.New(sciondConn, pathmgr.Timers{}, pathCount)
 	}

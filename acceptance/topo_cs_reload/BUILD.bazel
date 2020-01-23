@@ -6,7 +6,7 @@ go_test(
     srcs = ["reload_test.go"],
     data = [
         ":dispatcher",
-        ":path_srv",
+        ":cs",
         "docker-compose.yml",
         "//acceptance/topo_common:topology",
         "//acceptance/topo_common:invalid_reloads",
@@ -34,20 +34,21 @@ container_image(
 )
 
 container_image(
-    name = "path_srv",
-    base = "//docker/perapp:path_srv_debug",
+    name = "cs",
+    base = "//docker/perapp:cs_debug",
     files = [
-        "testdata/ps.toml",
+        "testdata/cs.toml",
         "//acceptance/topo_common:topology",
         "//acceptance/topo_common:invalid_reloads",
         "testdata/topology_reload.json",
         ":invalid_changed_ip",
         ":invalid_changed_port",
     ],
+    tars = [":gen_crypto_tar"],
     entrypoint = [
-        "/app/path_srv",
+        "/app/cs",
         "-config",
-        "/ps.toml",
+        "/cs.toml",
     ],
     stamp = True,
 )
@@ -56,12 +57,29 @@ genrule(
     name = "invalid_changed_ip",
     srcs = ["//acceptance/topo_common:topology"],
     outs = ["topology_invalid_changed_ip.json"],
-    cmd = "jq '.PathService[].Addrs.IPv4.Public.Addr = \"242.42.42.2\"' $(location //acceptance/topo_common:topology) > $@",
+    cmd = "jq '.ControlService[].Addrs.IPv4.Public.Addr = \"242.42.42.2\"' $(location //acceptance/topo_common:topology) > $@",
 )
 
 genrule(
     name = "invalid_changed_port",
     srcs = ["//acceptance/topo_common:topology"],
     outs = ["topology_invalid_changed_port.json"],
-    cmd = "jq '.PathService[].Addrs.IPv4.Public.L4Port = 42424' $(location //acceptance/topo_common:topology) > $@",
+    cmd = "jq '.ControlService[].Addrs.IPv4.Public.L4Port = 42424' $(location //acceptance/topo_common:topology) > $@",
+)
+
+# Unfortunately this can't be directly used in the cs docker container above,
+# since bazel will destroy the directory structure. Instead it can be used to
+# regenerate the files that are in the testdata/ISD1 folder, run;
+# bazel build //acceptance/topo_cs_reload:gen_crypto; cp -r bazel-bin/acceptance/topo_cs_reload/ISD1 acceptance/topo_cs_reload/testdata
+genrule(
+    name = "gen_crypto_tar",
+    srcs = ["testdata/test.topo"],
+    outs = [
+        "crypto.tar",
+    ],
+    cmd = "$(location :testdata/gen_crypto.sh) $(location //go/tools/scion-pki:scion-pki) $@ $(location testdata/test.topo)",
+    tools = [
+        "//go/tools/scion-pki:scion-pki",
+        ":testdata/gen_crypto.sh",
+    ],
 )

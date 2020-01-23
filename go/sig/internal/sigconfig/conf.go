@@ -38,7 +38,7 @@ type Config struct {
 	Features env.Features
 	Logging  env.Logging
 	Metrics  env.Metrics
-	Sciond   env.SciondClient `toml:"sd_client"`
+	Sciond   env.SCIONDClient `toml:"sd_client"`
 	Sig      SigConf
 }
 

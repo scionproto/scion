@@ -159,9 +159,7 @@ class TestTopologyParseSrvDicts(object):
     @patch("lib.topology.ServerElement", autospec=True)
     def test(self, server):
         topo_dict = {
-            'BeaconService': {"bs1": "bs1 val"},
-            'CertificateService': {"cs1": "cs1 val"},
-            'PathService': {"ps1": "ps1 val", "ps2": "ps2 val"},
+            'ControlService': {"cs1": "cs1 val"},
             'SIG': {"sig1": "sig1 val"},
             'DiscoveryService': {"ds1": "ds1 val"},
         }
@@ -171,17 +169,11 @@ class TestTopologyParseSrvDicts(object):
         inst._parse_srv_dicts(topo_dict)
         # Tests
         assert_these_calls(server, [
-            call("bs1 val", "bs1"),
             call("cs1 val", "cs1"),
-            call("ps1 val", "ps1"),
-            call("ps2 val", "ps2"),
             call("sig1 val", "sig1"),
             call("ds1 val", "ds1"),
         ], any_order=True)
-        ntools.eq_(inst.beacon_servers, ["bs1-bs1 val"])
-        ntools.eq_(inst.certificate_servers, ["cs1-cs1 val"])
-        ntools.eq_(sorted(inst.path_servers),
-                   sorted(["ps1-ps1 val", "ps2-ps2 val"]))
+        ntools.eq_(inst.control_servers, ["cs1-cs1 val"])
         ntools.eq_(inst.discovery_servers, ["ds1-ds1 val"])
 
 
@@ -228,11 +220,11 @@ class TestTopologyGetOwnConfig(object):
         inst = Topology()
         for i in range(4):
             bs = create_mock(["name"])
-            bs.name = "bs%d" % i
-            inst.beacon_servers.append(bs)
+            bs.name = "cs%d" % i
+            inst.control_servers.append(bs)
         # Call
-        ntools.eq_(inst.get_own_config("bs", "bs3"),
-                   inst.beacon_servers[3])
+        ntools.eq_(inst.get_own_config("cs", "cs3"),
+                   inst.control_servers[3])
 
     def test_unknown_type(self):
         inst = Topology()

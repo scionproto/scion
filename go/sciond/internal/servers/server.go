@@ -16,16 +16,13 @@ package servers
 
 import (
 	"context"
-	"io"
 	"net"
-	"os"
 	"strings"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -37,7 +34,6 @@ type HandlerMap map[proto.SCIONDMsg_Which]Handler
 type Server struct {
 	network  string
 	address  string
-	filemode os.FileMode
 	handlers map[proto.SCIONDMsg_Which]Handler
 
 	mu          sync.Mutex
@@ -50,12 +46,10 @@ type Server struct {
 // HandlerMap. To start listening on the address, call ListenAndServe.
 //
 // Network must be "unixpacket" or "rsock".
-func NewServer(network string, address string, filemode os.FileMode, handlers HandlerMap) *Server {
-
+func NewServer(network string, address string, handlers HandlerMap) *Server {
 	return &Server{
 		network:  network,
 		address:  address,
-		filemode: filemode,
 		handlers: handlers,
 	}
 }
@@ -70,7 +64,7 @@ func (srv *Server) ListenAndServe() error {
 		srv.mu.Unlock()
 		return serrors.New("attempted to listen on server that was shut down")
 	}
-	listener, err := srv.listen()
+	listener, err := net.Listen(srv.network, srv.address)
 	if err != nil {
 		srv.mu.Unlock()
 		return common.NewBasicError("unable to listen on socket", nil,
@@ -78,6 +72,7 @@ func (srv *Server) ListenAndServe() error {
 	}
 	srv.listener = listener
 	srv.mu.Unlock()
+	log.Info("Host API Server started listening", "address", listener.Addr())
 
 	for {
 		conn, err := srv.listener.Accept()
@@ -89,41 +84,15 @@ func (srv *Server) ListenAndServe() error {
 			continue
 		}
 
-		// Launch transport handler for SCIONDMsg messages on the accepted conn
 		go func() {
 			defer log.LogPanicAndExit()
-			pconn := conn.(net.PacketConn)
-			hdl := NewConnHandler(pconn, srv.handlers)
-			if err := hdl.Serve(); err != nil && err != io.EOF {
-				log.Error("Transport handler error", "err", err)
+			hdl := &ConnHandler{
+				Conn:     conn,
+				Handlers: srv.handlers,
 			}
+			hdl.Serve(conn.RemoteAddr())
 		}()
 	}
-}
-
-func (srv *Server) listen() (net.Listener, error) {
-	var listener net.Listener
-	var err error
-	switch srv.network {
-	case "unixpacket":
-		var laddr *net.UnixAddr
-		laddr, err = net.ResolveUnixAddr("unixpacket", srv.address)
-		if err != nil {
-			return nil, err
-		}
-		listener, err = net.ListenUnix("unixpacket", laddr)
-	case "rsock":
-		listener, err = reliable.Listen(srv.address)
-	default:
-		return nil, common.NewBasicError("unknown network", nil, "net", srv.network)
-	}
-	if err != nil {
-		return nil, err
-	}
-	if err := os.Chmod(srv.address, srv.filemode); err != nil {
-		return nil, common.NewBasicError("chmod failed", err, "address", srv.address)
-	}
-	return listener, nil
 }
 
 // Close makes the Server stop listening for new connections, and immediately

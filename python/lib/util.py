@@ -22,6 +22,7 @@ import os
 from datetime import datetime, timezone
 
 # External packages
+import json
 import yaml
 
 # SCION
@@ -107,6 +108,15 @@ def load_yaml_file(file_path):
     except (yaml.scanner.ScannerError) as e:
         raise SCIONYAMLError("Error parsing '%s': %s" %
                              (file_path, e)) from None
+
+
+def load_sciond_file(file_path):
+    """
+    Read a SCIOND addresses file.
+
+    """
+    with open(file_path) as f:
+        return json.load(f)
 
 
 def iso_timestamp(ts):  # pragma: no cover

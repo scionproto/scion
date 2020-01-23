@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -64,14 +65,13 @@ var (
 	dispatcher = flag.String("dispatcher", "", "Path to dispatcher socket")
 	file       = flag.String("file", "",
 		"File containing the data to send, optional to test larger data (only client)")
-	id           = flag.String("id", "pingpong", "Element ID")
-	interactive  = flag.Bool("i", false, "Interactive mode")
-	interval     = flag.Duration("interval", DefaultInterval, "time between pings")
-	mode         = flag.String("mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
-	sciond       = flag.String("sciond", "", "Path to sciond socket")
-	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
-	timeout      = flag.Duration("timeout", DefaultTimeout, "Timeout for the ping response")
-	verbose      = flag.Bool("v", false, "sets verbose output")
+	id          = flag.String("id", "pingpong", "Element ID")
+	interactive = flag.Bool("i", false, "Interactive mode")
+	interval    = flag.Duration("interval", DefaultInterval, "time between pings")
+	mode        = flag.String("mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
+	sciondAddr  = flag.String("sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
+	timeout     = flag.Duration("timeout", DefaultTimeout, "Timeout for the ping response")
+	verbose     = flag.Bool("v", false, "sets verbose output")
 )
 
 func init() {
@@ -115,17 +115,6 @@ func validateFlags() {
 	}
 	if local.Host == nil {
 		LogFatal("Missing local address")
-	}
-	if *sciondFromIA {
-		if *sciond != "" {
-			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		if local.IA.IsZero() {
-			LogFatal("-local flag is missing")
-		}
-		*sciond = sd.GetDefaultSCIONDPath(&local.IA)
-	} else if *sciond == "" {
-		*sciond = sd.GetDefaultSCIONDPath(nil)
 	}
 	if *count < 0 || *count > MaxPings {
 		LogFatal("Invalid count", "min", 0, "max", MaxPings, "actual", *count)
@@ -226,7 +215,7 @@ func (c *client) run() {
 	defer c.Close()
 
 	ds := reliable.NewDispatcher(*dispatcher)
-	sciondConn, err := sd.NewService(*sciond).Connect(context.Background())
+	sciondConn, err := sd.NewService(*sciondAddr).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
@@ -349,7 +338,7 @@ type server struct {
 // On any error, the server exits.
 func (s server) run() {
 	ds := reliable.NewDispatcher(*dispatcher)
-	sciondConn, err := sd.NewService(*sciond).Connect(context.Background())
+	sciondConn, err := sd.NewService(*sciondAddr).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
@@ -416,7 +405,7 @@ func (s server) handleClient(qsess quic.Session) {
 func choosePath(interactive bool) snet.Path {
 	var pathIndex uint64
 
-	sdConn, err := sd.NewService(*sciond).Connect(context.Background())
+	sdConn, err := sd.NewService(*sciondAddr).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
