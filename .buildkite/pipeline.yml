@@ -98,7 +98,7 @@ steps:
     - bazel run //docker/perapp:prod
     - ./scion.sh topology -t -d -c topology/Tiny.topo -n 172.21.0.0/16
     - ./scion.sh run
-    - docker-compose -f gen/scion-dc.yml up -d
+    - docker-compose -f gen/scion-dc.yml -p scion up -d
     - sleep 5
     - ./bin/cert_req_integration -d -log.console warn
     - ./bin/pp_integration -d -log.console warn
