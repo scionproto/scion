@@ -96,7 +96,7 @@ steps:
   - label: ":docker: Integration: end2end_integration"
     command:
     - bazel run //docker/perapp:prod
-    - ./scion.sh topology -t -d -c topology/Tiny.topo
+    - ./scion.sh topology -t -d -c topology/Tiny.topo -n 172.21.0.0/16
     - ./scion.sh run
     - docker-compose -f gen/scion-dc.yml up -d
     - sleep 5
