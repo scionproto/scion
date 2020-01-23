@@ -2,5 +2,6 @@
 # precedence over the worksapce rc file.
 # We explicitly override --disk_cache to empty so that --remote_cache gets
 # picked up. This is not documented but by testing we found that without
-# overriding the --disk_cache the --remote_cache is ignored. 
-build --disk_cache= --remote_cache=grpc://localhost:9092
+# overriding the --disk_cache the --remote_cache is ignored.
+# --nostamp is required for better caching.
+build --disk_cache= --remote_cache=grpc://localhost:9092 --nostamp
