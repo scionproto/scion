@@ -141,7 +141,6 @@ func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMo
 		}
 	}
 	dispatcher := &network.Dispatcher{
-		RoutingTable:      network.NewIATable(1024, 65535),
 		OverlaySocket:     fmt.Sprintf(":%d", overlayPort),
 		ApplicationSocket: applicationSocket,
 		SocketFileMode:    socketFileMode,
