@@ -80,6 +80,14 @@ func (pkt *Packet) Dup() {
 	pkt.mtx.Unlock()
 }
 
+// CopyTo copies the buffer into the provided bytearray. Returns number of bytes copied.
+func (pkt *Packet) CopyTo(p []byte) int {
+	n := len(pkt.buffer)
+	p = p[:n]
+	copy(p, pkt.buffer)
+	return n
+}
+
 // Free releases a reference to the packet. Free is safe to use from concurrent
 // goroutines.
 func (pkt *Packet) Free() {

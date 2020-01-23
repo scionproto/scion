@@ -15,54 +15,32 @@
 package network
 
 import (
-	"net"
 	"os"
-	"sync"
-	"time"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
+	"github.com/scionproto/scion/go/godispatcher/dispatcher"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-// OverflowLoggingInterval is the minimum amount of time that needs to
-// pass before another overflow logging message is printed (if needed).
-const OverflowLoggingInterval = 10 * time.Second
-
-// ReceiveBufferSize is the size of receive buffers used by the dispatcher.
-const ReceiveBufferSize = 1 << 20
-
 type Dispatcher struct {
-	RoutingTable      *IATable
 	OverlaySocket     string
 	ApplicationSocket string
 	SocketFileMode    os.FileMode
 }
 
 func (d *Dispatcher) ListenAndServe() error {
-	metaLogger := &throttledMetaLogger{
-		Logger:      log.Root(),
-		MinInterval: OverflowLoggingInterval,
-	}
-	ipv4Conn, err := openConn("udp4", d.OverlaySocket, metaLogger)
+	dispServer, err := dispatcher.NewServer(d.OverlaySocket)
 	if err != nil {
 		return err
 	}
-	defer ipv4Conn.Close()
+	defer dispServer.Close()
 
-	ipv6Conn, err := openConn("udp6", d.OverlaySocket, metaLogger)
+	dispServerConn, err := reliable.Listen(d.ApplicationSocket)
 	if err != nil {
 		return err
 	}
-	defer ipv6Conn.Close()
-
-	appServerConn, err := reliable.Listen(d.ApplicationSocket)
-	if err != nil {
-		return err
-	}
-	defer appServerConn.Close()
+	defer dispServerConn.Close()
 	if err := os.Chmod(d.ApplicationSocket, d.SocketFileMode); err != nil {
 		return common.NewBasicError("chmod failed", err, "socket file", d.ApplicationSocket)
 	}
@@ -70,147 +48,17 @@ func (d *Dispatcher) ListenAndServe() error {
 	errChan := make(chan error)
 	go func() {
 		defer log.LogPanicAndExit()
-		netToRingDataplane := &NetToRingDataplane{
-			OverlayConn:  ipv4Conn,
-			RoutingTable: d.RoutingTable,
-		}
-		errChan <- netToRingDataplane.Run()
-	}()
-	go func() {
-		defer log.LogPanicAndExit()
-		netToRingDataplane := &NetToRingDataplane{
-			OverlayConn:  ipv6Conn,
-			RoutingTable: d.RoutingTable,
-		}
-		errChan <- netToRingDataplane.Run()
+		errChan <- dispServer.Serve()
 	}()
 
 	go func() {
 		defer log.LogPanicAndExit()
-		appServer := &AppSocketServer{
-			Listener: appServerConn,
-			ConnManager: &AppConnManager{
-				RoutingTable:    d.RoutingTable,
-				IPv4OverlayConn: ipv4Conn,
-				IPv6OverlayConn: ipv6Conn,
-			},
+		dispServer := &AppSocketServer{
+			Listener:   dispServerConn,
+			DispServer: dispServer,
 		}
-		errChan <- appServer.Serve()
+		errChan <- dispServer.Serve()
 	}()
 
 	return <-errChan
-}
-
-// openConn opens an overlay socket that tracks additional socket information
-// such as packets dropped due to buffer full.
-//
-// Note that Go-style dual-stacked IPv4/IPv6 connections are not supported. If
-// network is udp, it will be treated as udp4.
-func openConn(network, address string, p SocketMetaHandler) (net.PacketConn, error) {
-	// We cannot allow the Go standard library to open both types of sockets
-	// because the socket options are specific to only one socket type, so we
-	// degrade udp to only udp4.
-	if network == "udp" {
-		network = "udp4"
-	}
-	listeningAddress, err := net.ResolveUDPAddr(network, address)
-	if err != nil {
-		return nil, common.NewBasicError("unable to construct UDP addr", err)
-	}
-	if network == "udp4" && listeningAddress.IP == nil {
-		listeningAddress.IP = net.IPv4zero
-	}
-	if network == "udp6" && listeningAddress.IP == nil {
-		listeningAddress.IP = net.IPv6zero
-	}
-
-	c, err := conn.New(listeningAddress, nil, &conn.Config{ReceiveBufferSize: ReceiveBufferSize})
-	if err != nil {
-		return nil, common.NewBasicError("unable to open conn", err)
-	}
-
-	return &overlayConnWrapper{Conn: c, Handler: p}, nil
-}
-
-// SocketMetaHandler processes OS socket metadata during reads.
-type SocketMetaHandler interface {
-	Handle(*conn.ReadMeta)
-}
-
-// throttledMetaLogger logs packets dropped due to full receive buffers,
-// with a configurable threshold on how often logging messages are printed.
-type throttledMetaLogger struct {
-	// Logger is used to print the logging messages.
-	Logger log.Logger
-	// MinInterval is the minimum duration of time that has passed since the
-	MinInterval time.Duration
-
-	mu sync.Mutex
-	// lastPrintTimestamp is the time when the previous logging message was
-	// printed.
-	lastPrintTimestamp time.Time
-	// lastPrintValue is the overflow value printed in the last logging message.
-	lastPrintValue uint32
-}
-
-func (p *throttledMetaLogger) Handle(m *conn.ReadMeta) {
-	p.mu.Lock()
-	if m.RcvOvfl != p.lastPrintValue && time.Since(p.lastPrintTimestamp) > p.MinInterval {
-		if m.RcvOvfl > p.lastPrintValue {
-			metrics.M.NetReadOverflows().Add(float64(m.RcvOvfl - p.lastPrintValue))
-		} else {
-			metrics.M.NetReadOverflows().Add(float64(m.RcvOvfl))
-		}
-		p.Logger.Debug("Detected socket overflow", "total_cnt", m.RcvOvfl)
-		p.lastPrintTimestamp = time.Now()
-		p.lastPrintValue = m.RcvOvfl
-	}
-	p.mu.Unlock()
-}
-
-// overlayConnWrapper wraps a specialized overlay conn into a net.PacketConn
-// implementation. Only *net.UDPAddr addressing is supported.
-type overlayConnWrapper struct {
-	// Conn is the wrapped overlay connection object.
-	conn.Conn
-	// Handler is used to customize how the connection treats socket
-	// metadata.
-	Handler SocketMetaHandler
-}
-
-func (o *overlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
-	n, meta, err := o.Conn.Read(common.RawBytes(p))
-	if meta == nil {
-		return n, nil, err
-	}
-	o.Handler.Handle(meta)
-	return n, meta.Src, err
-}
-
-func (o *overlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
-	udpAddr, ok := a.(*net.UDPAddr)
-	if !ok {
-		return 0, common.NewBasicError("address is not UDP", nil, "addr", a)
-	}
-	return o.Conn.WriteTo(common.RawBytes(p), udpAddr)
-}
-
-func (o *overlayConnWrapper) Close() error {
-	return o.Conn.Close()
-}
-
-func (o *overlayConnWrapper) LocalAddr() net.Addr {
-	return o.Conn.LocalAddr()
-}
-
-func (o *overlayConnWrapper) SetDeadline(t time.Time) error {
-	return o.Conn.SetDeadline(t)
-}
-
-func (o *overlayConnWrapper) SetReadDeadline(t time.Time) error {
-	return o.Conn.SetReadDeadline(t)
-}
-
-func (o *overlayConnWrapper) SetWriteDeadline(t time.Time) error {
-	return o.Conn.SetWriteDeadline(t)
 }

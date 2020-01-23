@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package network
+package dispatcher
 
 import (
 	"net"
@@ -32,13 +32,6 @@ func newTableEntry() *TableEntry {
 	return &TableEntry{
 		appIngressRing: appIngressRing,
 	}
-}
-
-func getBindIP(address *net.UDPAddr) net.IP {
-	if address == nil {
-		return nil
-	}
-	return address.IP
 }
 
 // IATable is a type-safe convenience wrapper around a generic routing table.
