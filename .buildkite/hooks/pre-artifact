@@ -28,6 +28,13 @@ function save {
     fi
 }
 
+# Also store remote cache logs
+cache_ctr=$(docker ps -aq -f "name=bazel-remote-cache")
+if [ ! -z "$cache_ctr" ]; then
+    mkdir -p logs/docker
+    docker logs bazel-remote-cache > logs/docker/bazel-remote-cache.log
+fi
+
 save "bazel-testlogs"
 save "logs"
 save "traces"
