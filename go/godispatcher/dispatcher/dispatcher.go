@@ -91,9 +91,14 @@ func (as *Server) Register(ctx context.Context, ia addr.IA, address *net.UDPAddr
 	if err != nil {
 		return nil, 0, err
 	}
+	var ovConn net.PacketConn
+	if address.IP.To4() == nil {
+		ovConn = as.ipv6Conn
+	} else {
+		ovConn = as.ipv4Conn
+	}
 	conn := &Conn{
-		ipv4Conn:     as.ipv4Conn,
-		ipv6Conn:     as.ipv6Conn,
+		conn:         ovConn,
 		ring:         tableEntry.appIngressRing,
 		regReference: ref,
 	}
@@ -107,10 +112,8 @@ func (as *Server) Close() {
 
 // Conn represents a connection bound to a specific SCION port/SVC.
 type Conn struct {
-	// ipv4Conn is used to send IPv4 packets.
-	ipv4Conn net.PacketConn
-	// ipv6Conn is used to send IPv6 packets.
-	ipv6Conn net.PacketConn
+	// conn is used to send packets.
+	conn net.PacketConn
 	// ring is used to retrieve incoming packets.
 	ring *ringbuf.Ring
 	// regReference is the reference to the registration in the routing table.
@@ -123,12 +126,7 @@ func (ac *Conn) WriteTo(p []byte, addr net.Addr) (int, error) {
 	if err := registerIfSCMPRequest(ac.regReference, &info); err != nil {
 		log.Warn("SCMP Request ID error, packet still sent", "err", err)
 	}
-	isIPv6 := addr.(*net.UDPAddr).IP.To4() == nil
-	if isIPv6 {
-		return ac.ipv6Conn.WriteTo(p, addr)
-	} else {
-		return ac.ipv4Conn.WriteTo(p, addr)
-	}
+	return ac.conn.WriteTo(p, addr)
 }
 
 // Write is optimized for the use by ConnHandler (avoids reparsing the packet).
@@ -136,12 +134,7 @@ func (ac *Conn) Write(pkt *respool.Packet) (int, error) {
 	if err := registerIfSCMPRequest(ac.regReference, &pkt.Info); err != nil {
 		log.Warn("SCMP Request ID error, packet still sent", "err", err)
 	}
-	isIPv6 := pkt.OverlayRemote.IP.To4() == nil
-	if isIPv6 {
-		return pkt.SendOnConn(ac.ipv6Conn, pkt.OverlayRemote)
-	} else {
-		return pkt.SendOnConn(ac.ipv4Conn, pkt.OverlayRemote)
-	}
+	return pkt.SendOnConn(ac.conn, pkt.OverlayRemote)
 }
 
 func (ac *Conn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
