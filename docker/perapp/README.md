@@ -46,18 +46,20 @@ There are several constraints in how the images work:
    build time, because it depends on the host environment it is deployed on top of.
 
 The simple approach would be to do something like this:
+
 ```bash
-docker run -v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -u $LOGNAME <image> 
+docker run -v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -u $LOGNAME <image>
 ```
+
 Unfortunately the `-u` flag takes effect before the volumes get mounted, causing
 the user change to fail.
 
 This is solved by using [su-exec](https://github.com/anapaya/su-exec) as the entrypoint.
 `su-exec` runs as `root`, after docker has finished creating the container. This means
 the volumes are already mounted. `su-exec` reads from the `SU_EXEC_USERSPEC` environment
-variable (in the form `user[:group]`), changes to the specified user/group, and then 
+variable (in the form `user[:group]`), changes to the specified user/group, and then
 exec's its cmdline arguments (in this case the image's service binary).
 
 ```bash
-docker run -v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -e SU_EXEC_USERSPEC=$LOGNAME <image> 
+docker run -v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -e SU_EXEC_USERSPEC=$LOGNAME <image>
 ```
