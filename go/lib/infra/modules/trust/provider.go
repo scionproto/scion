@@ -39,6 +39,10 @@ var ErrInactive = serrors.New("inactive")
 // CryptoProvider provides crypto material. A crypto provider can spawn network
 // requests if necessary and permitted.
 type CryptoProvider interface {
+	// AnnounceTRC announces the existence of a TRC, it must be called before
+	// verifying a signature based on a certificate chain to ensure the TRC in
+	// the signature source is available to the CryptoProvider.
+	AnnounceTRC(context.Context, TRCID, infra.TRCOpts) error
 	// GetTRC asks the trust store to return a valid and active TRC for isd,
 	// unless inactive TRCs are specifically allowed. The optionally configured
 	// server is queried over the network if the TRC is not available locally.
@@ -77,6 +81,17 @@ type Provider struct {
 	Recurser Recurser
 	Resolver Resolver
 	Router   Router
+}
+
+// AnnounceTRC announces the existence of a TRC, it must be called before
+// verifying a signature based on a certificate chain to ensure the TRC in
+// the signature source is available to the CryptoProvider.
+func (p Provider) AnnounceTRC(ctx context.Context, id TRCID, opts infra.TRCOpts) error {
+	// This could be implemented more efficiently, but comes with additional
+	// complexity in the code.
+	opts.AllowInactive = true
+	_, _, err := p.getCheckedTRC(ctx, id, opts)
+	return err
 }
 
 // GetTRC asks the trust store to return a valid and active TRC for isd,

@@ -112,13 +112,11 @@ func (v *verifier) Verify(ctx context.Context, msg []byte, sign *proto.SignS) er
 			"expected", v.BoundSrc, "actual", src)
 	}
 
-	// Ensure that the TRC announced in source is available locally. Thus, not
-	// missing TRC updates.
-	tOpts := infra.TRCOpts{
-		TrustStoreOpts: infra.TrustStoreOpts{Server: v.Server},
-		AllowInactive:  true,
-	}
-	if _, err := v.Store.GetTRC(ctx, TRCID{ISD: src.IA.I, Version: src.TRCVer}, tOpts); err != nil {
+	// Announce TRC version to the provider, to ensure the TRC referenced in the
+	// signature source is available locally.
+	id := TRCID{ISD: src.IA.I, Version: src.TRCVer}
+	tOpts := infra.TRCOpts{TrustStoreOpts: infra.TrustStoreOpts{Server: v.Server}}
+	if err := v.Store.AnnounceTRC(ctx, id, tOpts); err != nil {
 		return err
 	}
 

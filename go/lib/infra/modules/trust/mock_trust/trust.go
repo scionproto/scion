@@ -42,6 +42,20 @@ func (m *MockCryptoProvider) EXPECT() *MockCryptoProviderMockRecorder {
 	return m.recorder
 }
 
+// AnnounceTRC mocks base method
+func (m *MockCryptoProvider) AnnounceTRC(arg0 context.Context, arg1 trust.TRCID, arg2 infra.TRCOpts) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AnnounceTRC", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AnnounceTRC indicates an expected call of AnnounceTRC
+func (mr *MockCryptoProviderMockRecorder) AnnounceTRC(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AnnounceTRC", reflect.TypeOf((*MockCryptoProvider)(nil).AnnounceTRC), arg0, arg1, arg2)
+}
+
 // GetASKey mocks base method
 func (m *MockCryptoProvider) GetASKey(arg0 context.Context, arg1 trust.ChainID, arg2 infra.ChainOpts) (scrypto.KeyMeta, error) {
 	m.ctrl.T.Helper()
