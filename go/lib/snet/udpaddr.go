@@ -110,6 +110,20 @@ func (a *UDPAddr) Set(s string) error {
 	return nil
 }
 
+// Copy creates a deep copy of the address.
+func (a *UDPAddr) Copy() *UDPAddr {
+	if a == nil {
+		return nil
+	}
+	return &UDPAddr{
+		IA:      a.IA,
+		Path:    a.Path.Copy(),
+		NextHop: CopyUDPAddr(a.NextHop),
+		Host:    CopyUDPAddr(a.Host),
+	}
+}
+
+// CopyUDPAddr creates a deep copy of the net.UDPAddr.
 func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	if a == nil {
 		return nil
@@ -117,6 +131,7 @@ func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	return &net.UDPAddr{
 		IP:   append(a.IP[:0:0], a.IP...),
 		Port: a.Port,
+		Zone: a.Zone,
 	}
 }
 

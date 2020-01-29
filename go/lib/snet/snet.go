@@ -113,12 +113,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 		return nil, err
 	}
 	snetConn := conn.(*SCIONConn)
-	snetConn.remote = &UDPAddr{
-		IA:      remote.IA,
-		Path:    remote.Path.Copy(),
-		NextHop: remote.NextHop,
-		Host:    remote.Host,
-	}
+	snetConn.remote = remote.Copy()
 	return conn, nil
 }
 
@@ -158,11 +153,7 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		net:      network,
 		scionNet: n,
 		svc:      svc,
-		listen: &net.UDPAddr{
-			IP:   append(listen.IP[:0:0], listen.IP...),
-			Port: listen.Port,
-			Zone: listen.Zone,
-		},
+		listen:   CopyUDPAddr(listen),
 	}
 	packetConn, port, err := conn.scionNet.dispatcher.Register(ctx, n.localIA, listen, svc)
 	if err != nil {

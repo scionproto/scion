@@ -56,3 +56,16 @@ func (a *SVCAddr) GetPath() (Path, error) {
 		destination: a.IA,
 	}, nil
 }
+
+// Copy creates a deep copy of the address.
+func (a *SVCAddr) Copy() *SVCAddr {
+	if a == nil {
+		return nil
+	}
+	return &SVCAddr{
+		IA:      a.IA,
+		Path:    a.Path.Copy(),
+		NextHop: CopyUDPAddr(a.NextHop),
+		SVC:     a.SVC,
+	}
+}
