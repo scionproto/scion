@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
@@ -41,16 +41,15 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
 )
 
 func TestRegistrarRun(t *testing.T) {
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name          string
@@ -92,7 +91,7 @@ func TestRegistrarRun(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		Convey("Run registers a verifiable "+test.name+" to the correct path server", t, func() {
+		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			topoProvider := itopotest.TopoProviderFromFile(t, test.fn)
@@ -114,7 +113,7 @@ func TestRegistrarRun(t *testing.T) {
 				SegType:      test.segType,
 			}
 			r, err := cfg.New()
-			SoMsg("err", err, ShouldBeNil)
+			require.NoError(t, err)
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
 				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -151,40 +150,36 @@ func TestRegistrarRun(t *testing.T) {
 				intf.Activate(42)
 			}
 			r.Run(context.Background())
-			SoMsg("Sent", len(sent), ShouldEqual, len(test.beacons))
+			require.Len(t, sent, len(test.beacons))
 			for segIdx, s := range sent {
-				SoMsg("Len", len(s.Reg.Recs), ShouldEqual, 1)
-				pseg := s.Reg.Recs[0].Segment
-				Convey(fmt.Sprintf("Segment %d can be validated", segIdx), func() {
-					err := pseg.Validate(seg.ValidateSegment)
-					SoMsg("err", err, ShouldBeNil)
-				})
-				Convey(fmt.Sprintf("Segment %d is verifiable", segIdx), func() {
-					err := pseg.VerifyASEntry(context.Background(),
-						segVerifier(pub), pseg.MaxAEIdx())
-					SoMsg("err", err, ShouldBeNil)
-				})
-				Convey(fmt.Sprintf("Segment %d is sent to the PS", segIdx), func() {
+				t.Run(fmt.Sprintf("seg idx %d", segIdx), func(t *testing.T) {
+					require.Len(t, s.Reg.Recs, 1)
+					pseg := s.Reg.Recs[0].Segment
+
+					assert.NoError(t, pseg.Validate(seg.ValidateSegment))
+					assert.NoError(t, pseg.VerifyASEntry(context.Background(),
+						segVerifier(pub), pseg.MaxAEIdx()))
+
 					if !test.remotePS {
-						SoMsg("IA", s.Addr.IA, ShouldResemble, topoProvider.Get().IA())
-						SoMsg("Host", s.Addr.SVC, ShouldResemble, addr.SvcPS)
+						assert.Equal(t, topoProvider.Get().IA(), s.Addr.IA)
+						assert.Equal(t, addr.SvcPS, s.Addr.SVC)
 						return
 					}
-					SoMsg("IA", s.Addr.IA, ShouldResemble, pseg.FirstIA())
-					SoMsg("Host", s.Addr.SVC, ShouldResemble, addr.SvcPS)
+					assert.Equal(t, pseg.FirstIA(), s.Addr.IA)
+					assert.Equal(t, addr.SvcPS, s.Addr.SVC)
 					hopF, err := s.Addr.Path.GetHopField(s.Addr.Path.HopOff)
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("HopField", []uint8(hopF.Pack()), ShouldResemble,
+					require.NoError(t, err)
+					assert.Equal(t, []uint8(hopF.Pack()),
 						pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField)
 					a := topoProvider.Get().IFInfoMap()[hopF.ConsIngress].InternalAddr
-					SoMsg("Next", s.Addr.NextHop, ShouldResemble, a)
+					assert.Equal(t, a, s.Addr.NextHop)
 				})
 			}
 			// The second run should not do anything, since the period has not passed.
 			r.Run(context.Background())
 		})
 	}
-	Convey("Run drains the channel", t, func() {
+	t.Run("Run drains the channel", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
@@ -205,7 +200,7 @@ func TestRegistrarRun(t *testing.T) {
 			SegType:      proto.PathSegType_core,
 		}
 		r, err := cfg.New()
-		SoMsg("err", err, ShouldBeNil)
+		require.NoError(t, err)
 		res := make(chan beacon.BeaconOrErr, 3)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
 			func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -218,12 +213,12 @@ func TestRegistrarRun(t *testing.T) {
 		r.Run(context.Background())
 		select {
 		case b := <-res:
-			SoMsg("Err", b, ShouldBeZeroValue)
+			assert.Zero(t, b)
 		default:
-			SoMsg("Must not block", true, ShouldBeFalse)
+			t.Fatal("Must not block")
 		}
 	})
-	Convey("Faulty beacons are not sent", t, func() {
+	t.Run("Faulty beacons are not sent", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
@@ -244,22 +239,20 @@ func TestRegistrarRun(t *testing.T) {
 			SegType:      proto.PathSegType_core,
 		}
 		r, err := cfg.New()
-		SoMsg("err", err, ShouldBeNil)
+		require.NoError(t, err)
 		g := graph.NewDefaultGraph(mctrl)
-		SoMsg("err", err, ShouldBeNil)
-		Convey("Unknown Ingress IFID", func() {
-			segProvider.EXPECT().SegmentsToRegister(gomock.Any(),
-				proto.PathSegType_core).DoAndReturn(
-				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, 1)
-					b := testBeaconOrErr(g, []common.IFIDType{graph.If_120_X_111_B})
-					b.Beacon.InIfId = 10
-					res <- b
-					close(res)
-					return res, nil
-				})
-			r.Run(context.Background())
-		})
+		require.NoError(t, err)
+		segProvider.EXPECT().SegmentsToRegister(gomock.Any(),
+			proto.PathSegType_core).DoAndReturn(
+			func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
+				res := make(chan beacon.BeaconOrErr, 1)
+				b := testBeaconOrErr(g, []common.IFIDType{graph.If_120_X_111_B})
+				b.Beacon.InIfId = 10
+				res <- b
+				close(res)
+				return res, nil
+			})
+		r.Run(context.Background())
 	})
 }
 

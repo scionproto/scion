@@ -19,21 +19,20 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beaconstorage"
 	"github.com/scionproto/scion/go/lib/config"
 )
 
 func TestBeaconDBConfSample(t *testing.T) {
-	Convey("Sample correct", t, func() {
-		var sample bytes.Buffer
-		var cfg beaconstorage.BeaconDBConf
-		cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
-		InitTestBeaconDBConf(&cfg)
-		meta, err := toml.Decode(sample.String(), &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("unparsed", meta.Undecoded(), ShouldBeEmpty)
-		CheckTestBeaconDBConf(t, &cfg, "test")
-	})
+	var sample bytes.Buffer
+	var cfg beaconstorage.BeaconDBConf
+	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
+	InitTestBeaconDBConf(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	require.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckTestBeaconDBConf(t, &cfg, "test")
 }

@@ -22,7 +22,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
@@ -36,17 +37,16 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
 )
 
 func TestExtenderExtend(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
-	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
-	xtest.FailOnErr(t, err)
+	mac, err := scrypto.InitMac(make([]byte, 16))
+	require.NoError(t, err)
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 
 	segDesc := []common.IFIDType{graph.If_120_X_111_B}
 	peer := graph.If_111_C_121_X
@@ -56,48 +56,51 @@ func TestExtenderExtend(t *testing.T) {
 		inIfid        common.IFIDType
 		egIfid        common.IFIDType
 		inactivePeers []common.IFIDType
-		err           bool
+		errAssertion  assert.ErrorAssertionFunc
 	}{
 		{
-			name:   "First hop, InIfid 0",
-			egIfid: graph.If_111_A_112_X,
+			name:         "First hop, InIfid 0",
+			egIfid:       graph.If_111_A_112_X,
+			errAssertion: assert.NoError,
 		},
 		{
-			name:   "First hop, EgIfid 0",
-			inIfid: graph.If_111_B_120_X,
-			err:    true,
+			name:         "First hop, EgIfid 0",
+			inIfid:       graph.If_111_B_120_X,
+			errAssertion: assert.Error,
 		},
 		{
-			name: "First hop, InIfid 0, EgIfid 0",
-			err:  true,
+			name:         "First hop, InIfid 0, EgIfid 0",
+			errAssertion: assert.Error,
 		},
 		{
-			name:   "First hop, both set",
-			inIfid: graph.If_111_B_120_X,
-			egIfid: graph.If_111_A_112_X,
-			err:    true,
+			name:         "First hop, both set",
+			inIfid:       graph.If_111_B_120_X,
+			egIfid:       graph.If_111_A_112_X,
+			errAssertion: assert.Error,
 		},
 		{
-			name:   "Second hop, InIfid 0",
-			seg:    segDesc,
-			egIfid: graph.If_111_A_112_X,
-			err:    true,
+			name:         "Second hop, InIfid 0",
+			seg:          segDesc,
+			egIfid:       graph.If_111_A_112_X,
+			errAssertion: assert.Error,
 		},
 		{
-			name:   "Second hop, EgIfid 0",
-			seg:    segDesc,
-			inIfid: graph.If_111_B_120_X,
+			name:         "Second hop, EgIfid 0",
+			seg:          segDesc,
+			inIfid:       graph.If_111_B_120_X,
+			errAssertion: assert.NoError,
 		},
 		{
-			name: "Second hop, InIfid 0, EgIfid 0",
-			seg:  segDesc,
-			err:  true,
+			name:         "Second hop, InIfid 0, EgIfid 0",
+			seg:          segDesc,
+			errAssertion: assert.Error,
 		},
 		{
-			name:   "Second hop, both set",
-			seg:    segDesc,
-			inIfid: graph.If_111_B_120_X,
-			egIfid: graph.If_111_A_112_X,
+			name:         "Second hop, both set",
+			seg:          segDesc,
+			inIfid:       graph.If_111_B_120_X,
+			egIfid:       graph.If_111_A_112_X,
+			errAssertion: assert.NoError,
 		},
 		{
 			name:          "Ignore provided, but inactive peer",
@@ -105,10 +108,11 @@ func TestExtenderExtend(t *testing.T) {
 			inIfid:        graph.If_111_B_120_X,
 			egIfid:        graph.If_111_A_112_X,
 			inactivePeers: []common.IFIDType{graph.If_111_B_211_A},
+			errAssertion:  assert.NoError,
 		},
 	}
 	for _, test := range tests {
-		Convey("Extend handles "+test.name+" correctly", t, func() {
+		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			g := graph.NewDefaultGraph(mctrl)
@@ -124,69 +128,66 @@ func TestExtenderExtend(t *testing.T) {
 				Intfs:         intfs,
 				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 			}.new()
-			SoMsg("err", err, ShouldBeNil)
+			require.NoError(t, err)
 			// Create path segment from description, if available.
 			pseg, err := seg.NewSeg(&spath.InfoField{ISD: 1, TsInt: util.TimeToSecs(time.Now())})
 			if len(test.seg) > 0 {
 				pseg = testBeacon(g, test.seg).Segment
 			}
-			xtest.FailOnErr(t, err)
+			require.NoError(t, err)
 			// Extend the segment.
 			err = ext.extend(pseg, test.inIfid, test.egIfid, append(test.inactivePeers, peer))
-			xtest.SoMsgError("err", err, test.err)
+			test.errAssertion(t, err)
 			if err != nil {
 				return
 			}
-			Convey("Segment can be validated", func() {
-				err := pseg.Validate(seg.ValidateBeacon)
-				if test.egIfid == 0 {
-					err = pseg.Validate(seg.ValidateSegment)
-				}
-				SoMsg("err", err, ShouldBeNil)
-			})
 
-			Convey("Segment is verifiable", func() {
-				err := pseg.VerifyASEntry(context.Background(),
-					segVerifier(pub), pseg.MaxAEIdx())
-				SoMsg("err", err, ShouldBeNil)
-			})
+			if test.egIfid == 0 {
+				assert.NoError(t, pseg.Validate(seg.ValidateSegment))
+			} else {
+				assert.NoError(t, pseg.Validate(seg.ValidateBeacon))
+			}
+
+			err = pseg.VerifyASEntry(context.Background(), segVerifier(pub), pseg.MaxAEIdx())
+			require.NoError(t, err)
+
 			entry := pseg.ASEntries[pseg.MaxAEIdx()]
-			Convey("AS entry is correct", func() {
-				SoMsg("ChainVer", entry.CertVer, ShouldEqual, 42)
-				SoMsg("TRCVer", entry.TrcVer, ShouldEqual, 84)
-				SoMsg("IfIDSize", entry.IfIDSize, ShouldEqual, DefaultIfidSize)
-				SoMsg("MTU", entry.MTU, ShouldEqual, 1337)
-				SoMsg("IA", entry.IA(), ShouldResemble, topoProvider.Get().IA())
+			t.Run("AS entry", func(t *testing.T) {
+				assert.Equal(t, scrypto.Version(42), entry.CertVer)
+				assert.Equal(t, scrypto.Version(84), entry.TrcVer)
+				assert.Equal(t, uint8(DefaultIfidSize), entry.IfIDSize)
+				assert.Equal(t, uint16(1337), entry.MTU)
+				assert.Equal(t, topoProvider.Get().IA(), entry.IA())
 				// Checks that inactive peers are ignored, even when provided.
-				SoMsg("HopEntries length", len(entry.HopEntries), ShouldEqual, 2)
+				assert.Len(t, entry.HopEntries, 2)
 			})
 			infoF, err := pseg.InfoF()
-			SoMsg("infoF err", err, ShouldBeNil)
+			require.NoError(t, err)
 
-			Convey("Hop entry is correct", func() {
-				var prev common.RawBytes
+			t.Run("hop entry check", func(t *testing.T) {
+				var prev []byte
 				// The extended hop entry is not the first one.
 				if pseg.MaxAEIdx() > 0 {
 					prev = pseg.ASEntries[pseg.MaxAEIdx()-1].HopEntries[0].RawHopField
 				}
-				testHopEntry(entry.HopEntries[0], intfs, test.inIfid, test.egIfid)
+				testHopEntry(t, entry.HopEntries[0], intfs, test.inIfid, test.egIfid)
 				testHopF(t, entry.HopEntries[0], mac, infoF.TsInt, ext.cfg.Signer.Meta().ExpTime,
 					test.inIfid, test.egIfid, prev)
 			})
 
-			Convey("Peer entry is correct", func() {
-				testHopEntry(entry.HopEntries[1], intfs, peer, test.egIfid)
+			t.Run("peer entry is correct", func(t *testing.T) {
+				testHopEntry(t, entry.HopEntries[1], intfs, peer, test.egIfid)
 				testHopF(t, entry.HopEntries[1], mac, infoF.TsInt, ext.cfg.Signer.Meta().ExpTime,
 					peer, test.egIfid, entry.HopEntries[0].RawHopField)
 			})
 		})
 	}
-	Convey("The maximum expiration time is respected", t, func() {
+	t.Run("the maximum expiration time is respected", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 		intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 		ext, err := ExtenderConf{
 			MTU:           1337,
@@ -195,85 +196,119 @@ func TestExtenderExtend(t *testing.T) {
 			GetMaxExpTime: maxExpTimeFactory(1),
 			Intfs:         intfs,
 		}.new()
-		SoMsg("err", err, ShouldBeNil)
+		require.NoError(t, err)
 		pseg := testBeacon(g, segDesc).Segment
 		err = ext.extend(pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
-		SoMsg("err", err, ShouldBeNil)
+		require.NoError(t, err)
 		hopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("exp", hopF.ExpTime, ShouldEqual, 1)
+		require.NoError(t, err)
+		assert.Equal(t, spath.ExpTimeType(1), hopF.ExpTime)
 
 	})
-	Convey("Segment is not extended on error", t, func() {
-		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
-		g := graph.NewDefaultGraph(mctrl)
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-		xtest.FailOnErr(t, err)
-		ext, err := ExtenderConf{
-			MTU:           1337,
-			Signer:        testSigner(t, priv, topoProvider.Get().IA()),
-			Mac:           mac,
-			Intfs:         intfs,
-			GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
-		}.new()
-		SoMsg("err", err, ShouldBeNil)
-		pseg := testBeacon(g, segDesc).Segment
-		Convey("Unknown Ingress IFID", func() {
-			err := ext.extend(pseg, 10, 0, []common.IFIDType{})
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("Inactive Ingress IFID", func() {
-			err := ext.extend(pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("Invalid Ingress Remote IFID", func() {
-			intfs.Get(graph.If_111_B_120_X).Activate(0)
-			err := ext.extend(pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("Unknown Egress IFID", func() {
-			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-			err := ext.extend(pseg, graph.If_111_B_120_X, 10, []common.IFIDType{})
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("Inactive Egress IFID", func() {
-			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-			err := ext.extend(pseg, graph.If_111_B_120_X, graph.If_111_A_112_X, []common.IFIDType{})
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("Invalid Egress Remote IFID", func() {
-			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-			intfs.Get(graph.If_111_A_112_X).Activate(0)
-			err := ext.extend(pseg, graph.If_111_B_120_X, graph.If_111_A_112_X, []common.IFIDType{})
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("Signer expiration is to small", func() {
-			signer, err := trust.NewSigner(
-				trust.SignerConf{
-					ChainVer: 42,
-					TRCVer:   84,
-					Validity: scrypto.Validity{NotAfter: util.UnixTime{Time: time.Now()}},
-					Key: keyconf.Key{
-						Type:      keyconf.PrivateKey,
-						Algorithm: scrypto.Ed25519,
-						Bytes:     priv,
-						ID:        keyconf.ID{IA: topoProvider.Get().IA()},
-					},
+	t.Run("segment is not extended on error", func(t *testing.T) {
+		defaultSigner := func(t *testing.T) infra.Signer {
+			return testSigner(t, priv, topoProvider.Get().IA())
+		}
+		tests := map[string]struct {
+			Signer         func(t *testing.T) infra.Signer
+			InIfID, EgIfID common.IFIDType
+			Activate       func(intfs *ifstate.Interfaces)
+		}{
+			"Unknown Ingress IFID": {
+				Signer:   defaultSigner,
+				InIfID:   10,
+				Activate: func(intfs *ifstate.Interfaces) {},
+			},
+			"Inactive Ingress IFID": {
+				Signer:   defaultSigner,
+				InIfID:   graph.If_111_B_120_X,
+				Activate: func(intfs *ifstate.Interfaces) {},
+			},
+			"Invalid Ingress Remote IFID": {
+				Signer: defaultSigner,
+				InIfID: graph.If_111_B_120_X,
+				Activate: func(intfs *ifstate.Interfaces) {
+					intfs.Get(graph.If_111_B_120_X).Activate(0)
 				},
-			)
-			SoMsg("err", err, ShouldBeNil)
-			ext.cfg.Signer = signer
-			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-			err = ext.extend(pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("Signer fails", func() {
-			ext.cfg.Signer = &failSigner{ext.cfg.Signer}
-			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-			err = ext.extend(pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
-			SoMsg("err", err, ShouldNotBeNil)
-		})
+			},
+			"Unknown Egress IFID": {
+				Signer: defaultSigner,
+				InIfID: graph.If_111_B_120_X,
+				EgIfID: 10,
+				Activate: func(intfs *ifstate.Interfaces) {
+					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
+				},
+			},
+			"Inactive Egress IFID": {
+				Signer: defaultSigner,
+				InIfID: graph.If_111_B_120_X,
+				EgIfID: graph.If_111_A_112_X,
+				Activate: func(intfs *ifstate.Interfaces) {
+					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
+				},
+			},
+			"Invalid Egress Remote IFID": {
+				Signer: defaultSigner,
+				InIfID: graph.If_111_B_120_X,
+				EgIfID: graph.If_111_A_112_X,
+				Activate: func(intfs *ifstate.Interfaces) {
+					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
+					intfs.Get(graph.If_111_A_112_X).Activate(0)
+				},
+			},
+			"Signer expiration is to small": {
+				Signer: func(t *testing.T) infra.Signer {
+					signer, err := trust.NewSigner(
+						trust.SignerConf{
+							ChainVer: 42,
+							TRCVer:   84,
+							Validity: scrypto.Validity{NotAfter: util.UnixTime{Time: time.Now()}},
+							Key: keyconf.Key{
+								Type:      keyconf.PrivateKey,
+								Algorithm: scrypto.Ed25519,
+								Bytes:     priv,
+								ID:        keyconf.ID{IA: topoProvider.Get().IA()},
+							},
+						},
+					)
+					require.NoError(t, err)
+					return signer
+				},
+				InIfID: graph.If_111_B_120_X,
+				Activate: func(intfs *ifstate.Interfaces) {
+					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
+				},
+			},
+			"Signer fails": {
+				Signer: func(t *testing.T) infra.Signer { return &failSigner{defaultSigner(t)} },
+				InIfID: graph.If_111_B_120_X,
+				Activate: func(intfs *ifstate.Interfaces) {
+					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
+				},
+			},
+		}
+		for name, test := range tests {
+			t.Run(name, func(t *testing.T) {
+				mctrl := gomock.NewController(t)
+				defer mctrl.Finish()
+				g := graph.NewDefaultGraph(mctrl)
+				intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+				require.NoError(t, err)
+				test.Activate(intfs)
+
+				ext, err := ExtenderConf{
+					MTU:           1337,
+					Signer:        test.Signer(t),
+					Mac:           mac,
+					Intfs:         intfs,
+					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				}.new()
+				require.NoError(t, err)
+				pseg := testBeacon(g, segDesc).Segment
+				err = ext.extend(pseg, test.InIfID, test.EgIfID, []common.IFIDType{})
+				assert.Error(t, err)
+			})
+		}
 	})
 }
 
@@ -281,37 +316,40 @@ func TestExtenderExtend(t *testing.T) {
 // values. The inIfid and prev are different between that cons and peer hop
 // field.
 func testHopF(t *testing.T, hop *seg.HopEntry, mac hash.Hash, ts uint32, signerExpTime time.Time,
-	inIfid, egIfid common.IFIDType, prev common.RawBytes) {
+	inIfid, egIfid common.IFIDType, prev []byte) {
 
 	if prev != nil {
 		prev = prev[1:]
 	}
 	hopF, err := spath.HopFFromRaw(hop.RawHopField)
-	SoMsg("err", err, ShouldBeNil)
-	SoMsg("hopF.ConsIngress", hopF.ConsIngress, ShouldEqual, inIfid)
-	SoMsg("hopF.ConsEgress", hopF.ConsEgress, ShouldEqual, egIfid)
-	SoMsg("hopF.Mac", hopF.Verify(mac, ts, prev), ShouldBeNil)
+	require.NoError(t, err)
+	assert.Equal(t, inIfid, hopF.ConsIngress)
+	assert.Equal(t, egIfid, hopF.ConsEgress)
+	assert.NoError(t, hopF.Verify(mac, ts, prev))
 	expiry, err := spath.ExpTimeFromDuration(signerExpTime.Sub(util.SecsToTime(ts)), false)
-	xtest.FailOnErr(t, err)
-	SoMsg("hopF.ExpTime", hopF.ExpTime, ShouldEqual, expiry)
+	require.NoError(t, err)
+	assert.Equal(t, expiry, hopF.ExpTime)
 }
 
 // testHopEntry checks whether the hop entry contains the expected values. The
 // inIfid is different between cons and peer hop entries.
-func testHopEntry(hop *seg.HopEntry, intfs *ifstate.Interfaces, inIfid, egIfid common.IFIDType) {
+func testHopEntry(t *testing.T, hop *seg.HopEntry, intfs *ifstate.Interfaces,
+	inIfid, egIfid common.IFIDType) {
+
 	ia, ifid, mtu := addr.IA{}, common.IFIDType(0), uint16(0)
 	// Hop entries that are not first on the segment, must not
 	// contain zero values.
 	if inIfid != 0 {
 		intf := intfs.Get(inIfid)
-		SoMsg("Intf", intf, ShouldNotBeNil)
-		ia = intf.TopoInfo().IA
-		ifid = intf.TopoInfo().RemoteIFID
-		mtu = uint16(intf.TopoInfo().MTU)
+		if assert.NotNil(t, intf) {
+			ia = intf.TopoInfo().IA
+			ifid = intf.TopoInfo().RemoteIFID
+			mtu = uint16(intf.TopoInfo().MTU)
+		}
 	}
-	SoMsg("Hop.InIA", hop.InIA(), ShouldResemble, ia)
-	SoMsg("Hop.InIf", hop.RemoteInIF, ShouldEqual, ifid)
-	SoMsg("hop.InMTU", hop.InMTU, ShouldEqual, mtu)
+	assert.Equal(t, ia, hop.InIA())
+	assert.Equal(t, ifid, hop.RemoteInIF)
+	assert.Equal(t, mtu, hop.InMTU)
 	ia, ifid = addr.IA{}, common.IFIDType(0)
 	// Hop entries that are not last on the segment, must not
 	// contain zero values.
@@ -320,8 +358,8 @@ func testHopEntry(hop *seg.HopEntry, intfs *ifstate.Interfaces, inIfid, egIfid c
 		ia = intf.TopoInfo().IA
 		ifid = intf.TopoInfo().RemoteIFID
 	}
-	SoMsg("Hop.OutIA", hop.OutIA(), ShouldResemble, ia)
-	SoMsg("Hop.OutIf", hop.RemoteOutIF, ShouldResemble, ifid)
+	assert.Equal(t, ia, hop.OutIA())
+	assert.Equal(t, ifid, hop.RemoteOutIF)
 }
 
 type failSigner struct {

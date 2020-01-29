@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
@@ -34,17 +34,16 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
 func TestPropagatorRun(t *testing.T) {
 	macProp, err := scrypto.InitMac(make(common.RawBytes, 16))
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	macSender, err := scrypto.InitMac(make(common.RawBytes, 16))
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 
 	type test struct {
 		name     string
@@ -138,7 +137,7 @@ func TestPropagatorRun(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		Convey(test.name, t, func() {
+		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			topoProvider := itopotest.TopoProviderFromFile(t, topoFile[test.core])
@@ -169,7 +168,7 @@ func TestPropagatorRun(t *testing.T) {
 				},
 			}
 			p, err := cfg.New()
-			SoMsg("err", err, ShouldBeNil)
+			require.NoError(t, err)
 			for ifid, remote := range allIntfs[test.core] {
 				if test.inactive[ifid] {
 					continue
@@ -202,7 +201,7 @@ func TestPropagatorRun(t *testing.T) {
 			)
 			p.Run(nil)
 			for i, msg := range msgs {
-				Convey(fmt.Sprintf("Packet %d is correct", i), func() {
+				t.Run(fmt.Sprintf("Packet %d is correct", i), func(t *testing.T) {
 					checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap())
 				})
 			}
@@ -210,7 +209,7 @@ func TestPropagatorRun(t *testing.T) {
 			p.Run(nil)
 		})
 	}
-	Convey("Fast recovery", t, func() {
+	t.Run("Fast recovery", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
@@ -241,7 +240,7 @@ func TestPropagatorRun(t *testing.T) {
 			},
 		}
 		p, err := cfg.New()
-		SoMsg("err", err, ShouldBeNil)
+		require.NoError(t, err)
 		for ifid, remote := range allIntfs[true] {
 			cfg.Config.Intfs.Get(ifid).Activate(remote)
 		}
