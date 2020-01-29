@@ -266,23 +266,10 @@ func matches(path snet.Path, predicatePI sciond.PathInterface) bool {
 	return false
 }
 
-type pathWrap struct {
-	snet.Path
-}
-
-func (p pathWrap) Key() snet.PathFingerprint { return p.Fingerprint() }
-func (p pathWrap) Interfaces() []pathpol.PathInterface {
-	intfs := make([]pathpol.PathInterface, 0, len(p.Path.Interfaces()))
-	for _, intf := range p.Path.Interfaces() {
-		intfs = append(intfs, intf)
-	}
-	return intfs
-}
-
 func apsToPs(aps spathmeta.AppPathSet) pathpol.PathSet {
 	ps := make(pathpol.PathSet, len(aps))
 	for key, path := range aps {
-		ps[key] = pathWrap{Path: path}
+		ps[key] = path
 	}
 	return ps
 }
@@ -290,8 +277,7 @@ func apsToPs(aps spathmeta.AppPathSet) pathpol.PathSet {
 func psToAps(ps pathpol.PathSet) spathmeta.AppPathSet {
 	aps := make(spathmeta.AppPathSet)
 	for _, path := range ps {
-		ap := path.(pathWrap).Path
-		aps[ap.Fingerprint()] = ap
+		aps[path.Fingerprint()] = path.(snet.Path)
 	}
 	return aps
 }

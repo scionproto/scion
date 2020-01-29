@@ -38,7 +38,7 @@ func pathsToPs(paths []*combinator.Path) pathpol.PathSet {
 	ps := make(pathpol.PathSet, len(paths))
 	for _, path := range paths {
 		wp := newPathWrap(path)
-		ps[wp.Key()] = wp
+		ps[wp.Fingerprint()] = wp
 	}
 	return ps
 }
@@ -53,12 +53,12 @@ func psToPaths(ps pathpol.PathSet) []*combinator.Path {
 
 type pathWrap struct {
 	key      snet.PathFingerprint
-	intfs    []pathpol.PathInterface
+	intfs    []snet.PathInterface
 	origPath *combinator.Path
 }
 
 func newPathWrap(p *combinator.Path) pathWrap {
-	intfs := make([]pathpol.PathInterface, 0, len(p.Interfaces))
+	intfs := make([]snet.PathInterface, 0, len(p.Interfaces))
 	keyParts := make([]string, 0, len(p.Interfaces))
 	for _, intf := range p.Interfaces {
 		intfs = append(intfs, intf)
@@ -71,5 +71,5 @@ func newPathWrap(p *combinator.Path) pathWrap {
 	}
 }
 
-func (p pathWrap) Interfaces() []pathpol.PathInterface { return p.intfs }
-func (p pathWrap) Key() snet.PathFingerprint           { return p.key }
+func (p pathWrap) Interfaces() []snet.PathInterface  { return p.intfs }
+func (p pathWrap) Fingerprint() snet.PathFingerprint { return p.key }

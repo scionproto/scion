@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var (
@@ -72,7 +73,7 @@ func (a *ACL) evalPath(path Path) ACLAction {
 	return Allow
 }
 
-func (a *ACL) evalInterface(iface PathInterface, ingress bool) ACLAction {
+func (a *ACL) evalInterface(iface snet.PathInterface, ingress bool) ACLAction {
 	for _, aclEntry := range a.Entries {
 		if aclEntry.Rule == nil || aclEntry.Rule.pathIFMatch(iface, ingress) {
 			return aclEntry.Action

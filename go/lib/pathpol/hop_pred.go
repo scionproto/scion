@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // A HopPredicate specifies a hop in the ACL or Sequence of the path policy,
@@ -86,7 +87,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 
 // pathIFMatch takes a PathInterface and a bool indicating if the ingress
 // interface needs to be matching. It returns true if the HopPredicate matches the PathInterface
-func (hp *HopPredicate) pathIFMatch(pi PathInterface, in bool) bool {
+func (hp *HopPredicate) pathIFMatch(pi snet.PathInterface, in bool) bool {
 	if hp.ISD != 0 && pi.IA().I != hp.ISD {
 		return false
 	}

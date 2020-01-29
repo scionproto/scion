@@ -58,7 +58,7 @@ func segsToPs(segs seg.Segments, dir Direction) pathpol.PathSet {
 	ps := make(pathpol.PathSet, len(segs))
 	for _, seg := range segs {
 		sw := wrap(seg, dir)
-		ps[sw.Key()] = sw
+		ps[sw.Fingerprint()] = sw
 	}
 	return ps
 }
@@ -73,13 +73,13 @@ func psToSegs(ps pathpol.PathSet) seg.Segments {
 }
 
 type segWrap struct {
-	intfs   []pathpol.PathInterface
+	intfs   []snet.PathInterface
 	key     snet.PathFingerprint
 	origSeg *seg.PathSegment
 }
 
 func wrap(seg *seg.PathSegment, dir Direction) segWrap {
-	intfs := make([]pathpol.PathInterface, 0, len(seg.ASEntries))
+	intfs := make([]snet.PathInterface, 0, len(seg.ASEntries))
 	keyParts := make([]string, 0, len(seg.ASEntries))
 	for _, asEntry := range seg.ASEntries {
 		for _, hopEntry := range asEntry.HopEntries {
@@ -109,8 +109,8 @@ func wrap(seg *seg.PathSegment, dir Direction) segWrap {
 	}
 }
 
-func (s segWrap) Interfaces() []pathpol.PathInterface { return s.intfs }
-func (s segWrap) Key() snet.PathFingerprint           { return s.key }
+func (s segWrap) Interfaces() []snet.PathInterface  { return s.intfs }
+func (s segWrap) Fingerprint() snet.PathFingerprint { return s.key }
 
 type pathInterface struct {
 	ia   addr.IA
