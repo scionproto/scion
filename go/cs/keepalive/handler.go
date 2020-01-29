@@ -144,7 +144,7 @@ func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Interface, error) {
 
 func (h *handler) startPush(ifid common.IFIDType) {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		ctx, cancelF := context.WithTimeout(context.Background(), IfStatePushTimeout)
 		defer cancelF()
 		h.tasks.IfStatePusher.Push(ctx, ifid)

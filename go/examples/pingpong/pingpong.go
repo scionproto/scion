@@ -88,7 +88,7 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	initNetwork()
 	switch *mode {
 	case ModeClient:
@@ -241,7 +241,7 @@ func (c *client) run() {
 	c.quicStream = newQuicStream(qstream)
 	log.Debug("Quic stream opened", "local", &local, "remote", &remote)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		c.send()
 	}()
 	c.read()
@@ -368,7 +368,7 @@ func (s server) run() {
 		}
 		log.Info("Quic session accepted", "src", qsess.RemoteAddr())
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			s.handleClient(qsess)
 		}()
 	}
@@ -440,7 +440,7 @@ func setSignalHandler(closer io.Closer) {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-c
 		closer.Close()
 		os.Exit(1)

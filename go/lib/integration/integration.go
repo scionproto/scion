@@ -354,7 +354,7 @@ func workInParallel(workChan chan workFunc, errors chan error, maxGoRoutines int
 	for i := 1; i <= maxGoRoutines; i++ {
 		wg.Add(1)
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			defer wg.Done()
 			for work := range workChan {
 				err := work()

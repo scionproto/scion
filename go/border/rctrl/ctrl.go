@@ -65,11 +65,11 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 		fatal.Fatal(common.NewBasicError("Listening on address", err, "addr", ctrlAddr))
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		ifStateUpdate()
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		revInfoFwd(sRevInfoQ)
 	}()
 	processCtrl()

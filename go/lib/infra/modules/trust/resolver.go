@@ -164,7 +164,7 @@ func (r DefaultResolver) startFetchTRC(parentCtx context.Context, res chan<- res
 		span.SetTag("version", req.Version)
 		logger := log.FromCtx(ctx)
 
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		logger.Debug("[TrustStore:Resolver] Fetch TRC from remote", "isd", req.ISD,
 			"version", req.Version, "server", server)
 		rawTRC, err := r.RPC.GetTRC(ctx, req, server)

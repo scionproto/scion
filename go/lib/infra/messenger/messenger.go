@@ -733,7 +733,7 @@ func (m *Messenger) ListenAndServe() {
 	done := make(chan struct{})
 	if m.config.QUIC != nil {
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			m.listenAndServeQUIC()
 			close(done)
 		}()
@@ -871,7 +871,7 @@ func (m *Messenger) serve(parentCtx context.Context, cancelF context.CancelFunc,
 	metrics.Dispatcher.ReadSizes().Observe(float64(size))
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer cancelF()
 		defer span.Finish()
 		handler.Handle(infra.NewRequest(ctx, msg, signedPld, address, pld.ReqId))

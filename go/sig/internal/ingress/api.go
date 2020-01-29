@@ -35,7 +35,7 @@ func Init(tunIO io.ReadWriteCloser) {
 	}
 	d := NewDispatcher(tunIO, conn)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		if err := d.Run(); err != nil {
 			log.Crit("Ingress dispatcher error", "err", err)
 			fatal.Fatal(err)
