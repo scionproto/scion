@@ -237,7 +237,7 @@ func TestFwdInserterInsertChain(t *testing.T) {
 				m.DB.EXPECT().ChainExists(gomock.Any(), dec).Return(
 					false, nil,
 				)
-				a := snet.NewSVCAddr(addr.IA{}, nil, nil, addr.SvcCS)
+				a := &snet.SVCAddr{IA: addr.IA{}, SVC: addr.SvcCS}
 				m.RPC.EXPECT().SendCertChain(gomock.Any(), dec.Raw, a).Return(nil)
 				m.DB.EXPECT().InsertChain(gomock.Any(), dec).Return(
 					true, true, nil,
@@ -264,7 +264,7 @@ func TestFwdInserterInsertChain(t *testing.T) {
 				m.DB.EXPECT().ChainExists(gomock.Any(), dec).Return(
 					false, nil,
 				)
-				a := snet.NewSVCAddr(addr.IA{}, nil, nil, addr.SvcCS)
+				a := &snet.SVCAddr{IA: addr.IA{}, SVC: addr.SvcCS}
 				m.RPC.EXPECT().SendCertChain(gomock.Any(), dec.Raw, a).Return(internal)
 			},
 			ExpectedErr: internal,
@@ -274,7 +274,7 @@ func TestFwdInserterInsertChain(t *testing.T) {
 				m.DB.EXPECT().ChainExists(gomock.Any(), dec).Return(
 					false, nil,
 				)
-				a := snet.NewSVCAddr(addr.IA{}, nil, nil, addr.SvcCS)
+				a := &snet.SVCAddr{IA: addr.IA{}, SVC: addr.SvcCS}
 				m.RPC.EXPECT().SendCertChain(gomock.Any(), dec.Raw, a).Return(nil)
 				m.DB.EXPECT().InsertChain(gomock.Any(), dec).Return(
 					false, false, trust.ErrContentMismatch,

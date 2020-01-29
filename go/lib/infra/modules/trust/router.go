@@ -45,7 +45,7 @@ func (r LocalRouter) ChooseServer(_ context.Context, _ addr.ISD) (net.Addr, erro
 }
 
 func (r LocalRouter) chooseServer() net.Addr {
-	return snet.NewSVCAddr(r.IA, nil, nil, addr.SvcCS)
+	return &snet.SVCAddr{IA: r.IA, SVC: addr.SvcCS}
 }
 
 // AuthRouter routes requests for missing crypto material to the authoritative
@@ -73,7 +73,12 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 	if err != nil {
 		return nil, serrors.WrapStr("unable to find path to any core AS", err, "isd", dstISD)
 	}
-	ret := snet.NewSVCAddr(path.Destination(), path.Path(), path.OverlayNextHop(), addr.SvcCS)
+	ret := &snet.SVCAddr{
+		IA:      path.Destination(),
+		Path:    path.Path(),
+		NextHop: path.OverlayNextHop(),
+		SVC:     addr.SvcCS,
+	}
 	return ret, nil
 }
 

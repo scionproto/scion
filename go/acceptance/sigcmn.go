@@ -31,7 +31,7 @@ var (
 )
 
 var SigAddr integration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
-	return snet.NewUDPAddr(ia, nil, nil, &net.UDPAddr{IP: net.IP(IAIPMap[ia])})
+	return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: net.IP(IAIPMap[ia])}}
 }
 
 func ReadTestingConf() error {

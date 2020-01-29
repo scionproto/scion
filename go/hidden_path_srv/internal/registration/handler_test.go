@@ -53,7 +53,7 @@ func TestSegReg(t *testing.T) {
 					Recs:    []*seg.Meta{seg110_133},
 				},
 			}
-			peer := snet.NewUDPAddr(addr.IA{}, nil, nil, nil)
+			peer := &snet.UDPAddr{IA: addr.IA{}}
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			ack := ack.Ack{
 				Err:     proto.Ack_ErrCode_ok,
@@ -131,7 +131,7 @@ func TestSegReg(t *testing.T) {
 					Recs:    []*seg.Meta{seg110_133},
 				},
 			}
-			peer := snet.NewUDPAddr(addr.IA{}, &spath.Path{}, nil, nil)
+			peer := &snet.UDPAddr{IA: addr.IA{}, Path: &spath.Path{}}
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			ack := ack.Ack{
 				Err:     proto.Ack_ErrCode_reject,

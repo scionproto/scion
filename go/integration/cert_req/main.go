@@ -224,7 +224,7 @@ func getRemote() error {
 	if svcHost, err = getSVCAddress(); err != nil {
 		return err
 	}
-	svc = snet.NewUDPAddr(integration.Local.IA, nil, nil, svcHost)
+	svc = &snet.UDPAddr{IA: integration.Local.IA, Host: svcHost}
 	return nil
 }
 

@@ -79,7 +79,7 @@ func TestNewHandler(t *testing.T) {
 			RevDropper:    dropper,
 		})
 		req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-			snet.NewUDPAddr(originIA, testPath(localIF), nil, nil), 0)
+			&snet.UDPAddr{IA: originIA, Path: testPath(localIF)}, 0)
 		res := handler.Handle(req)
 		waitTimeout(t, wg)
 		assert.Equal(t, res, infra.MetricsResultOk)
@@ -91,7 +91,7 @@ func TestNewHandler(t *testing.T) {
 		intfs.Get(localIF).Activate(42)
 		handler := NewHandler(localIA, intfs, zeroCallTasks(mctrl))
 		req := infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-			snet.NewUDPAddr(originIA, testPath(localIF), nil, nil), 0)
+			&snet.UDPAddr{IA: originIA, Path: testPath(localIF)}, 0)
 		res := handler.Handle(req)
 		assert.Equal(t, res, infra.MetricsResultOk)
 	})
@@ -107,7 +107,7 @@ func TestNewHandler(t *testing.T) {
 			{
 				msg: "Wrong payload type",
 				req: infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
-					snet.NewUDPAddr(originIA, testPath(localIF), nil, nil), 0),
+					&snet.UDPAddr{IA: originIA, Path: testPath(localIF)}, 0),
 				exp: infra.MetricsErrInternal,
 			},
 			{
@@ -119,19 +119,19 @@ func TestNewHandler(t *testing.T) {
 			{
 				msg: "Invalid path",
 				req: infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-					snet.NewUDPAddr(originIA, &spath.Path{}, nil, nil), 0),
+					&snet.UDPAddr{IA: originIA, Path: &spath.Path{}}, 0),
 				exp: infra.MetricsErrInvalid,
 			},
 			{
 				msg: "Invalid ConsIngress ifid",
 				req: infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-					snet.NewUDPAddr(originIA, testPath(originIF), nil, nil), 0),
+					&snet.UDPAddr{IA: originIA, Path: testPath(originIF)}, 0),
 				exp: infra.MetricsErrInvalid,
 			},
 			{
 				msg: "Invalid IA",
 				req: infra.NewRequest(context.Background(), &ifid.IFID{OrigIfID: originIF}, nil,
-					snet.NewUDPAddr(localIA, testPath(localIF), nil, nil), 0),
+					&snet.UDPAddr{IA: localIA, Path: testPath(localIF)}, 0),
 				exp: infra.MetricsErrInvalid,
 			},
 		}

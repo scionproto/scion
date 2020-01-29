@@ -76,7 +76,7 @@ type PathInterface interface {
 
 // partialPath is a path object with incomplete metadata. It is used as a
 // temporary solution where a full path cannot be reconstituted from other
-// objects, notably snet.Addr.
+// objects, notably snet.UDPAddr and snet.SVCAddr.
 type partialPath struct {
 	spath       *spath.Path
 	overlay     *net.UDPAddr

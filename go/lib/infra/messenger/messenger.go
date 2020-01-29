@@ -667,7 +667,7 @@ func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
 	case *snet.UDPAddr:
 	case *snet.SVCAddr:
 		return common.NewBasicError("[Messenger] Cannot send to SVC address on QUIC-only RPC", nil,
-			"svc", a.(*snet.SVCAddr).Host)
+			"svc", a.(*snet.SVCAddr))
 	default:
 		return common.NewBasicError("[Messenger] Cannot send to unknown address", nil)
 	}

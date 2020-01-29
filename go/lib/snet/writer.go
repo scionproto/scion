@@ -58,8 +58,6 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	switch a := raddr.(type) {
 	case nil:
 		return 0, common.NewBasicError("Missing remote address", nil)
-	case *Addr:
-		return c.WriteTo(b, a.ToXAddr())
 	case *UDPAddr:
 		dst, port, path = SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)},
 			a.Host.Port, a.Path

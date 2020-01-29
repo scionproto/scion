@@ -321,10 +321,8 @@ func peerToLabel(peer net.Addr, local addr.IA) string {
 	var ia addr.IA
 	switch v := peer.(type) {
 	case *snet.SVCAddr:
-		ia = v.Addr.IA
-	case *snet.UDPAddr:
 		ia = v.IA
-	case *snet.Addr:
+	case *snet.UDPAddr:
 		ia = v.IA
 	default:
 		return infra.PromSrcUnknown

@@ -108,7 +108,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 			return a, false, err
 		}
 
-		ret := snet.NewUDPAddr(fa.IA, p.Path(), fa.NextHop, u)
+		ret := &snet.UDPAddr{IA: fa.IA, Path: p.Path(), NextHop: fa.NextHop, Host: u}
 		return ret, quicRedirect, err
 	}
 
@@ -124,12 +124,17 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	s *snet.SVCAddr) (*snet.SVCAddr, error) {
 
 	if s.Path != nil {
-		ret := snet.NewSVCAddr(s.IA, s.Path.Copy(), snet.CopyUDPAddr(s.NextHop), s.SVC)
+		ret := &snet.SVCAddr{
+			IA:      s.IA,
+			Path:    s.Path.Copy(),
+			NextHop: snet.CopyUDPAddr(s.NextHop),
+			SVC:     s.SVC,
+		}
 		log.Trace("[Acceptance]", "overlay", ret.NextHop)
 		return ret, nil
 	}
 
-	ret := snet.NewSVCAddr(s.IA, nil, nil, s.SVC)
+	ret := &snet.SVCAddr{IA: s.IA, SVC: s.SVC}
 	p, err := r.Router.Route(ctx, s.IA)
 	if err != nil {
 		return nil, err

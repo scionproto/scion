@@ -38,8 +38,8 @@ type addrIAMatcher struct {
 	ia addr.IA
 }
 
-// IsSnetAddrWithIA returns a matcher for a snet.Addr with the given IA.
-func IsSnetAddrWithIA(ia addr.IA) gomock.Matcher {
+// IsSnetSVCAddrWithIA returns a matcher for a snet.SVCAddr with the given IA.
+func IsSnetSVCAddrWithIA(ia addr.IA) gomock.Matcher {
 	return &addrIAMatcher{ia: ia}
 }
 

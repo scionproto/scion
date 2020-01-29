@@ -92,7 +92,7 @@ func TestCfgReq(t *testing.T) {
 			msg := &path_mgmt.HPCfgReq{
 				ChangedSince: 0,
 			}
-			peer := snet.NewUDPAddr(ia110, nil, nil, nil)
+			peer := &snet.UDPAddr{IA: ia110}
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			reply := &path_mgmt.HPCfgReply{
 				Cfgs: []*path_mgmt.HPCfg{group1.ToMsg(), group2.ToMsg(), group3.ToMsg()},
@@ -137,7 +137,7 @@ func TestCfgReq(t *testing.T) {
 			msg := &path_mgmt.HPCfgReq{
 				ChangedSince: 0,
 			}
-			peer := snet.NewUDPAddr(ia111, nil, nil, nil)
+			peer := &snet.UDPAddr{IA: ia111}
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			ack := ack.Ack{
 				Err:     proto.Ack_ErrCode_reject,

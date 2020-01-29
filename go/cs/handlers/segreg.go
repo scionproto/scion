@@ -92,8 +92,12 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
-	svcToQuery := snet.NewSVCAddr(snetPeer.IA, peerPath.Path(),
-		peerPath.OverlayNextHop(), addr.SvcBS)
+	svcToQuery := &snet.SVCAddr{
+		IA:      snetPeer.IA,
+		Path:    peerPath.Path(),
+		NextHop: peerPath.OverlayNextHop(),
+		SVC:     addr.SvcBS,
+	}
 	segs := seghandler.Segments{
 		Segs:      segReg.Recs,
 		SRevInfos: segReg.SRevInfos,

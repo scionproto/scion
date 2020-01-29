@@ -90,7 +90,7 @@ func TestNewHandler(t *testing.T) {
 	handler := NewHandler(localIA, intfs, inserter, verifier)
 	t.Run("Wrong payload type", func(t *testing.T) {
 		req := infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
-			snet.NewUDPAddr(addr.IA{}, testPath(localIF), nil, nil), 0)
+			&snet.UDPAddr{IA: addr.IA{}, Path: testPath(localIF)}, 0)
 		res := handler.Handle(req)
 		assert.Equal(t, res, infra.MetricsErrInternal)
 	})
@@ -114,14 +114,14 @@ func TestNewHandler(t *testing.T) {
 	t.Run("Invalid hop field", func(t *testing.T) {
 		req := infra.NewRequest(
 			infra.NewContextWithResponseWriter(context.Background(), rw),
-			pseg, nil, snet.NewUDPAddr(addr.IA{}, &spath.Path{}, nil, nil), 0)
+			pseg, nil, &snet.UDPAddr{IA: addr.IA{}, Path: &spath.Path{}}, 0)
 		res := handler.Handle(req)
 		assert.Equal(t, res, infra.MetricsErrInvalid)
 	})
 	t.Run("Invalid unknown interface", func(t *testing.T) {
 		req := infra.NewRequest(
 			infra.NewContextWithResponseWriter(context.Background(), rw),
-			pseg, nil, snet.NewUDPAddr(addr.IA{}, testPath(12), nil, nil), 0)
+			pseg, nil, &snet.UDPAddr{IA: addr.IA{}, Path: testPath(12)}, 0)
 		res := handler.Handle(req)
 		assert.Equal(t, res, infra.MetricsErrInvalid)
 	})
@@ -130,7 +130,7 @@ func TestNewHandler(t *testing.T) {
 	t.Run("Invalid link type", func(t *testing.T) {
 		req := infra.NewRequest(
 			infra.NewContextWithResponseWriter(context.Background(), rw),
-			pseg, nil, snet.NewUDPAddr(addr.IA{}, testPath(42), nil, nil), 0)
+			pseg, nil, &snet.UDPAddr{IA: addr.IA{}, Path: testPath(42)}, 0)
 		res := handler.Handle(req)
 		assert.Equal(t, res, infra.MetricsErrInvalid)
 	})
@@ -202,7 +202,7 @@ func defaultTestReq(rw infra.ResponseWriter, pseg *seg.PathSegment) *infra.Reque
 		infra.NewContextWithResponseWriter(context.Background(), rw),
 		pseg,
 		nil,
-		snet.NewUDPAddr(addr.IA{}, testPath(localIF), nil, nil),
+		&snet.UDPAddr{IA: addr.IA{}, Path: testPath(localIF)},
 		0,
 	)
 }

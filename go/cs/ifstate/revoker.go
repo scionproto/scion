@@ -171,7 +171,7 @@ func (r *Revoker) pushRevocationsToPS(ctx context.Context,
 	topo := r.cfg.TopoProvider.Get()
 	labels := metrics.SentLabels{Dst: metrics.DstPS}
 
-	a := snet.NewSVCAddr(topo.IA(), nil, nil, addr.SvcPS)
+	a := &snet.SVCAddr{IA: topo.IA(), SVC: addr.SvcPS}
 	for ifid, srev := range revs {
 		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
 			log.FromCtx(ctx).Error("[ifstate.Revoker] Failed to send revocation to PS",

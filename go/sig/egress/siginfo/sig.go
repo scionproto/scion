@@ -34,35 +34,33 @@ type Sig struct {
 func (s *Sig) CtrlSnetAddr(path *spath.Path, nextHop *net.UDPAddr) net.Addr {
 	switch s.Host.(type) {
 	case addr.HostSVC:
-		return snet.NewSVCAddr(
-			s.IA,
-			path,
-			nextHop,
-			addr.SvcSIG,
-		)
+		return &snet.SVCAddr{
+			IA:      s.IA,
+			Path:    path,
+			NextHop: nextHop,
+			SVC:     addr.SvcSIG,
+		}
 	default:
-		return snet.NewUDPAddr(
-			s.IA,
-			path,
-			nextHop,
-			&net.UDPAddr{
+		return &snet.UDPAddr{
+			IA:      s.IA,
+			Path:    path,
+			NextHop: nextHop,
+			Host: &net.UDPAddr{
 				IP:   s.Host.IP(),
 				Port: s.CtrlL4Port,
 			},
-		)
+		}
 	}
 }
 
 func (s *Sig) EncapSnetAddr() *snet.UDPAddr {
-	return snet.NewUDPAddr(
-		s.IA,
-		nil,
-		nil,
-		&net.UDPAddr{
+	return &snet.UDPAddr{
+		IA: s.IA,
+		Host: &net.UDPAddr{
 			IP:   s.Host.IP(),
 			Port: s.EncapL4Port,
 		},
-	)
+	}
 }
 
 func (s *Sig) Equal(x *Sig) bool {
