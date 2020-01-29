@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +18,7 @@ package addr
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -25,104 +26,101 @@ var (
 	ia    = IA{I: 0xF011, A: 0xF23344556677}
 )
 
-func Test_ISDFromString(t *testing.T) {
+func TestISDFromString(t *testing.T) {
 	var testCases = []struct {
-		src string
-		isd ISD
-		ok  bool
+		src       string
+		isd       ISD
+		assertErr assert.ErrorAssertionFunc
 	}{
-		{"", 0, false},
-		{"a", 0, false},
-		{"0", 0, true},
-		{"1", 1, true},
-		{"65535", MaxISD, true},
-		{"65536", 0, false},
+		{"", 0, assert.Error},
+		{"a", 0, assert.Error},
+		{"0", 0, assert.NoError},
+		{"1", 1, assert.NoError},
+		{"65535", MaxISD, assert.NoError},
+		{"65536", 0, assert.Error},
 	}
-	Convey("ISDFromString should parse strings correctly", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.src, func() {
-				isd, err := ISDFromString(tc.src)
-				if !tc.ok {
-					SoMsg("Must raise parse error", err, ShouldNotBeNil)
-					return
-				}
-				SoMsg("Must parse cleanly", err, ShouldBeNil)
-				SoMsg("Parsed ISD must be correct", isd, ShouldEqual, tc.isd)
-			})
-		}
-	})
+	t.Log("ISDFromString should parse strings correctly")
+	for _, tc := range testCases {
+		t.Run(tc.src, func(t *testing.T) {
+			isd, err := ISDFromString(tc.src)
+			tc.assertErr(t, err)
+			if err != nil {
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.isd, isd, "Parsed ISD must be correct")
+		})
+	}
 }
 
-func Test_ISDFromFileFmt(t *testing.T) {
+func TestISDFromFileFmt(t *testing.T) {
 	var testCases = []struct {
-		src string
-		isd ISD
-		ok  bool
+		src       string
+		isd       ISD
+		assertErr assert.ErrorAssertionFunc
 	}{
-		{"", 0, false},
-		{"ISD", 0, false},
-		{"ISD0", 0, true},
-		{"ISD65535", MaxISD, true},
+		{"", 0, assert.Error},
+		{"ISD", 0, assert.Error},
+		{"ISD0", 0, assert.NoError},
+		{"ISD65535", MaxISD, assert.NoError},
 	}
-	Convey("ISDFromFileFmt should parse strings correctly", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.src, func() {
-				isd, err := ISDFromFileFmt(tc.src, true)
-				if !tc.ok {
-					SoMsg("Must raise parse error", err, ShouldNotBeNil)
-					return
-				}
-				SoMsg("Must parse cleanly", err, ShouldBeNil)
-				SoMsg("Parsed ISD must be correct", isd, ShouldEqual, tc.isd)
-			})
-		}
-	})
+	t.Log("ISDFromFileFmt should parse strings correctly")
+	for _, tc := range testCases {
+		t.Run(tc.src, func(t *testing.T) {
+			isd, err := ISDFromFileFmt(tc.src, true)
+			tc.assertErr(t, err)
+			if err != nil {
+				return
+			}
+			assert.NoError(t, err, "Must parse cleanly")
+			assert.Equal(t, tc.isd, isd, "Parsed ISD must be correct")
+		})
+	}
 }
 
-func Test_ASFromString(t *testing.T) {
+func TestASFromString(t *testing.T) {
 	var testCases = []struct {
-		src string
-		as  AS
-		ok  bool
+		src       string
+		as        AS
+		assertErr assert.ErrorAssertionFunc
 	}{
 		// BGP AS parsing.
-		{"", 0, false},
-		{"0", 0, true},
-		{"0x0", 0, false},
-		{"ff", 0, false},
-		{"1", 1, true},
-		{"4294967295", MaxBGPAS, true},
-		{"4294967296", 0, false},
+		{"", 0, assert.Error},
+		{"0", 0, assert.NoError},
+		{"0x0", 0, assert.Error},
+		{"ff", 0, assert.Error},
+		{"1", 1, assert.NoError},
+		{"4294967295", MaxBGPAS, assert.NoError},
+		{"4294967296", 0, assert.Error},
 		// SCION AS parsing.
-		{":", 0, false},
-		{"0:0:0", 0, true},
-		{"0:0:0:", 0, false},
-		{":0:0:", 0, false},
-		{"0:0", 0, false},
-		{"0:0:1", 1, true},
-		{"1:0:0", 0x000100000000, true},
-		{"ffff:ffff:ffff", MaxAS, true},
-		{"10000:0:0", 0, false},
-		{"0:10000:0", 0, false},
-		{"0:0:10000", 0, false},
-		{"0:0x0:0", 0, false},
+		{":", 0, assert.Error},
+		{"0:0:0", 0, assert.NoError},
+		{"0:0:0:", 0, assert.Error},
+		{":0:0:", 0, assert.Error},
+		{"0:0", 0, assert.Error},
+		{"0:0:1", 1, assert.NoError},
+		{"1:0:0", 0x000100000000, assert.NoError},
+		{"ffff:ffff:ffff", MaxAS, assert.NoError},
+		{"10000:0:0", 0, assert.Error},
+		{"0:10000:0", 0, assert.Error},
+		{"0:0:10000", 0, assert.Error},
+		{"0:0x0:0", 0, assert.Error},
 	}
-	Convey("ASFromString should parse strings correctly", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.src, func() {
-				as, err := ASFromString(tc.src)
-				if !tc.ok {
-					SoMsg("Must raise parse error", err, ShouldNotBeNil)
-					return
-				}
-				SoMsg("Must parse cleanly", err, ShouldBeNil)
-				SoMsg("Parsed AS must be correct", as, ShouldEqual, tc.as)
-			})
-		}
-	})
+	t.Log("ASFromString should parse strings correctly")
+	for _, tc := range testCases {
+		t.Run(tc.src, func(t *testing.T) {
+			as, err := ASFromString(tc.src)
+			tc.assertErr(t, err)
+			if err != nil {
+				return
+			}
+			assert.NoError(t, err, "Must parse cleanly")
+			assert.Equal(t, tc.as, as, "Parsed AS must be correct")
+		})
+	}
 }
 
-func Test_ASFromFileFmt(t *testing.T) {
+func TestASFromFileFmt(t *testing.T) {
 	// Only test the differences from ASFromString.
 	var testCases = []struct {
 		src string
@@ -137,25 +135,22 @@ func Test_ASFromFileFmt(t *testing.T) {
 		{"1_0_0", 0x000100000000},
 		{"ffff_ffff_ffff", MaxAS},
 	}
-	Convey("ASFromFileFmt should parse file-formatted strings correctly", t, func() {
-		for _, tc := range testCases {
-			src := tc.src
-			Convey(src, func() {
-				as, err := ASFromFileFmt(src, false)
-				SoMsg("Must parse cleanly", err, ShouldBeNil)
-				SoMsg("Parsed AS must be correct", as, ShouldEqual, tc.as)
-			})
+	t.Log("ASFromFileFmt should parse file-formatted strings correctly")
+	for _, tc := range testCases {
+		src := tc.src
+		t.Run(src, func(t *testing.T) {
+			as, err := ASFromFileFmt(src, false)
+			assert.NoError(t, err, "Must parse cleanly")
+			assert.Equal(t, tc.as, as, "Parsed AS must be correct")
 			src = ASFmtPrefix + src
-			Convey(src, func() {
-				as, err := ASFromFileFmt(src, true)
-				SoMsg("Must parse cleanly", err, ShouldBeNil)
-				SoMsg("Parsed AS must be correct", as, ShouldEqual, tc.as)
-			})
-		}
-	})
+			as, err = ASFromFileFmt(src, true)
+			assert.NoError(t, err, "Must parse cleanly")
+			assert.Equal(t, tc.as, as, "Parsed AS must be correct")
+		})
+	}
 }
 
-func Test_AS_String(t *testing.T) {
+func TestASString(t *testing.T) {
 	var testCases = []struct {
 		as  AS
 		out string
@@ -169,17 +164,16 @@ func Test_AS_String(t *testing.T) {
 		{MaxAS, "ffff:ffff:ffff"},
 		{MaxAS + 1, "281474976710656 [Illegal AS: larger than 281474976710655]"},
 	}
-	Convey("AS.String() should format correctly", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.out, func() {
-				s := tc.as.String()
-				SoMsg("Format must match", s, ShouldEqual, tc.out)
-			})
-		}
-	})
+	t.Log("AS.String() should format correctly")
+	for _, tc := range testCases {
+		t.Run(tc.out, func(t *testing.T) {
+			s := tc.as.String()
+			assert.Equal(t, tc.out, s, "Format must match")
+		})
+	}
 }
 
-func Test_AS_FileFmt(t *testing.T) {
+func TestASFileFmt(t *testing.T) {
 	// Only test differences from AS.String()
 	var testCases = []struct {
 		as  AS
@@ -191,25 +185,23 @@ func Test_AS_FileFmt(t *testing.T) {
 		{0x0001fcd10001, "1_fcd1_1"},
 		{MaxAS, "ffff_ffff_ffff"},
 	}
-	Convey("AS.FileFmt() should format correctly", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.out, func() {
-				s := tc.as.FileFmt()
-				SoMsg("Format must match", s, ShouldEqual, tc.out)
-			})
-		}
-	})
+	t.Log("AS.FileFmt() should format correctly")
+	for _, tc := range testCases {
+		t.Run(tc.out, func(t *testing.T) {
+			s := tc.as.FileFmt()
+			assert.Equal(t, tc.out, s, "Format must match")
+		})
+	}
 }
 
-func Test_IAFromRaw(t *testing.T) {
-	Convey("IAFromRaw should parse bytes correctly", t, func() {
-		nia := IAFromRaw(rawIA)
-		So(nia.I, ShouldEqual, ia.I)
-		So(nia.A, ShouldEqual, ia.A)
-	})
+func TestIAFromRaw(t *testing.T) {
+	t.Log("IAFromRaw should parse bytes correctly")
+	nia := IAFromRaw(rawIA)
+	assert.Equal(t, ia.I, nia.I)
+	assert.Equal(t, ia.A, nia.A)
 }
 
-func Test_IAFromString(t *testing.T) {
+func TestIAFromString(t *testing.T) {
 	var testCases = []struct {
 		src string
 		ia  *IA
@@ -233,23 +225,22 @@ func Test_IAFromString(t *testing.T) {
 		{"1-ffff:ffff:10000", nil},
 		{"65535-ffff:ffff:ffff", &IA{MaxISD, MaxAS}},
 	}
-	Convey("IAFromString should parse strings correctly", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.src, func() {
-				ia, err := IAFromString(tc.src)
-				if tc.ia == nil {
-					SoMsg("Must raise parse error", err, ShouldNotBeNil)
-					return
-				}
-				SoMsg("Must parse cleanly", err, ShouldBeNil)
-				SoMsg("Parsed IA must be correct", ia, ShouldResemble, *tc.ia)
-			})
-		}
+	t.Log("IAFromString should parse strings correctly")
+	for _, tc := range testCases {
+		t.Run(tc.src, func(t *testing.T) {
+			ia, err := IAFromString(tc.src)
+			if tc.ia == nil {
+				assert.Error(t, err, "Must raise parse error", err)
+				return
+			}
+			assert.NoError(t, err, "Must parse cleanly", err)
+			assert.Equal(t, *tc.ia, ia, "Parsed IA must be correct")
+		})
+	}
 
-	})
 }
 
-func Test_IAFromFileFmt(t *testing.T) {
+func TestIAFromFileFmt(t *testing.T) {
 	var testCases = []struct {
 		src string
 		ia  *IA
@@ -273,31 +264,30 @@ func Test_IAFromFileFmt(t *testing.T) {
 		{"1-ffff:ffff:10000", nil},
 		{"65535-ffff:ffff:ffff", &IA{MaxISD, MaxAS}},
 	}
-	Convey("IAFromString should parse strings correctly", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.src, func() {
-				ia, err := IAFromString(tc.src)
-				if tc.ia == nil {
-					SoMsg("Must raise parse error", err, ShouldNotBeNil)
-					return
-				}
-				SoMsg("Must parse cleanly", err, ShouldBeNil)
-				SoMsg("Parsed IA must be correct", ia, ShouldResemble, *tc.ia)
-			})
-		}
+	t.Log("IAFromString should parse strings correctly")
+	for _, tc := range testCases {
+		t.Run(tc.src, func(t *testing.T) {
+			ia, err := IAFromString(tc.src)
+			if tc.ia == nil {
+				assert.Error(t, err, "Must raise parse error", err)
+				return
+			}
 
-	})
+			assert.NoError(t, err, "Must parse cleanly", err)
+			assert.Equal(t, *tc.ia, ia, "Parsed IA must be correct")
+		})
+	}
+
 }
 
-func Test_IA_Write(t *testing.T) {
-	Convey("ISD_AS.Write() should output bytes correctly", t, func() {
-		output := make([]byte, IABytes)
-		ia.Write(output)
-		So(output, ShouldResemble, rawIA)
-	})
+func TestIAWrite(t *testing.T) {
+	t.Log("ISD_AS.Write() should output bytes correctly")
+	output := make([]byte, IABytes)
+	ia.Write(output)
+	assert.Equal(t, rawIA, output)
 }
 
-func Test_IA_String(t *testing.T) {
+func TestIAString(t *testing.T) {
 	var testCases = []struct {
 		ia  IA
 		out string
@@ -310,12 +300,11 @@ func Test_IA_String(t *testing.T) {
 		{IA{65535, MaxAS}, "65535-ffff:ffff:ffff"},
 		{IA{1, 281474976710656}, "1-281474976710656 [Illegal AS: larger than 281474976710655]"},
 	}
-	Convey("IA.String() should format correctly", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.out, func() {
-				s := tc.ia.String()
-				SoMsg("Format must match", s, ShouldEqual, tc.out)
-			})
-		}
-	})
+	t.Log("IA.String() should format correctly")
+	for _, tc := range testCases {
+		t.Run(tc.out, func(t *testing.T) {
+			s := tc.ia.String()
+			assert.Equal(t, tc.out, s, "Format must match")
+		})
+	}
 }
