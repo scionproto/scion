@@ -94,7 +94,7 @@ func (s *Store) getBeacons(ctx context.Context, policy *Policy) (<-chan BeaconOr
 	}
 	results := make(chan BeaconOrErr, min(maxResultChanSize, policy.BestSetSize))
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(results)
 		s.algo.SelectAndServe(beacons, results, policy.BestSetSize)
 	}()
@@ -181,13 +181,13 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 		}
 		wg.Add(1)
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			defer wg.Done()
 			s.algo.SelectAndServe(beacons, results, policy.BestSetSize)
 		}()
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(results)
 		wg.Wait()
 		if len(errs) > 0 {

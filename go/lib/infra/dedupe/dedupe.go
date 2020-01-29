@@ -147,7 +147,7 @@ func (dd *deduper) Request(parentCtx context.Context,
 	ctx, span := dd.notifications.Add(parentCtx, req, ch, dd.dedupeLifetime)
 	if ctx != nil {
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			dd.handler(ctx, req)
 		}()
 	} else {
@@ -174,7 +174,7 @@ func (dd *deduper) Request(parentCtx context.Context,
 func (dd *deduper) handler(ctx context.Context, req Request) {
 	ch := make(chan Response, 1)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		ch <- dd.requestFunc(ctx, req)
 	}()
 

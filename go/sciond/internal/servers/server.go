@@ -91,7 +91,7 @@ func (srv *Server) ListenAndServe() error {
 
 		// Launch transport handler for SCIONDMsg messages on the accepted conn
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			pconn := conn.(net.PacketConn)
 			hdl := NewConnHandler(pconn, srv.handlers)
 			if err := hdl.Serve(); err != nil && err != io.EOF {

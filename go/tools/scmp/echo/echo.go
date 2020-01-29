@@ -38,7 +38,7 @@ func Run() {
 	cmn.SetupSignals(summary)
 	wg.Add(1)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		sendPkts()
 	}()
 	recvPkts()

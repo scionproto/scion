@@ -78,14 +78,14 @@ func (r *DefaultRequester) fetchReqs(ctx context.Context, reqs Requests) <-chan 
 		}
 		wg.Add(1)
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			defer wg.Done()
 			reply, err := r.API.GetSegs(ctx, req.ToSegReq(), dst, messenger.NextId())
 			replies <- ReplyOrErr{Req: req, Reply: reply, Peer: dst, Err: err}
 		}()
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(replies)
 		wg.Wait()
 	}()

@@ -31,7 +31,7 @@ import (
 func Init(conn snet.Conn, useid bool) {
 	useID = useid
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		pktdisp.PktDispatcher(conn, dispFunc, nil)
 	}()
 }

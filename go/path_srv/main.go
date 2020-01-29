@@ -84,7 +84,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped(common.PS, cfg.General.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
@@ -194,7 +194,7 @@ func realMain() int {
 	cfg.Metrics.StartPrometheus()
 	// Start handling requests/messages
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		msger.ListenAndServe()
 	}()
 	discoRunners, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full,

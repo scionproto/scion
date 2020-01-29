@@ -68,7 +68,7 @@ func Start(task Task, period, timeout time.Duration) *Runner {
 	r.metric.Period(period)
 	r.metric.StartTimestamp(time.Now())
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		r.runLoop()
 	}()
 	return r

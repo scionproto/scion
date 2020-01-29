@@ -137,7 +137,7 @@ func (conn *PacketConn) spawnAsyncReconnecterOnce() {
 	case <-conn.dispatcherState.Up():
 		conn.dispatcherState.SetDown()
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			conn.asyncReconnectWrapper()
 		}()
 	default:

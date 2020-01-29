@@ -86,7 +86,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped("SD", cfg.General.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
@@ -282,7 +282,7 @@ func NewServer(network string, rsockPath string,
 
 func StartServer(name, sockPath string, server *servers.Server) {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		if cfg.SD.DeleteSocket {
 			if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
 				fatal.Fatal(common.NewBasicError("SocketRemoval error", err, "name", name))

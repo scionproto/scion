@@ -58,7 +58,7 @@ func (srv *ConnHandler) Serve() error {
 			return err
 		}
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			srv.Handle(b[:n], address)
 		}()
 	}

@@ -105,7 +105,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped(common.CPService, cfg.General.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
@@ -278,7 +278,7 @@ func realMain() int {
 	http.HandleFunc("/info", env.InfoHandler)
 	cfg.Metrics.StartPrometheus()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		msgr.ListenAndServe()
 	}()
 

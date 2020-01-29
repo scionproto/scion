@@ -140,7 +140,7 @@ func (w *Worker) cleanup() {
 			// back to the bufpool.
 			delete(w.rlists, epoch)
 			go func() {
-				defer log.LogPanicAndExit()
+				defer log.HandlePanic()
 				rlist.removeAll()
 			}()
 		} else {

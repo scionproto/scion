@@ -218,7 +218,7 @@ func (r *segmentRegistrar) setSegToRegister() error {
 func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer wg.Done()
 		if err := r.msgr.SendSegReg(ctx, r.reg, r.addr, messenger.NextId()); err != nil {
 			r.logger.Error("[beaconing.Registrar] Unable to register segment",

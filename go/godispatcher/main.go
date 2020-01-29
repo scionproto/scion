@@ -58,7 +58,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := cfg.Validate(); err != nil {
 		log.Crit("Unable to validate config", "err", err)
 		return 1
@@ -75,7 +75,7 @@ func realMain() int {
 	}
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		err := RunDispatcher(
 			cfg.Dispatcher.DeleteSocket,
 			cfg.Dispatcher.ApplicationSocket,
@@ -88,7 +88,7 @@ func realMain() int {
 	}()
 	if cfg.Dispatcher.PerfData != "" {
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			err := http.ListenAndServe(cfg.Dispatcher.PerfData, nil)
 			if err != nil {
 				fatal.Fatal(err)

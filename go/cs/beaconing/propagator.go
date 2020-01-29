@@ -198,7 +198,7 @@ type beaconPropagator struct {
 func (p *beaconPropagator) start(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer wg.Done()
 		if err := p.propagate(ctx); err != nil {
 			p.logger.Error("[beaconing.Propagator] Unable to propagate",
@@ -248,7 +248,7 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 
 	p.wg.Add(1)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer p.wg.Done()
 
 		labels := metrics.PropagatorLabels{

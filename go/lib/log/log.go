@@ -94,7 +94,7 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 
 	if logFlush > 0 {
 		go func() {
-			defer LogPanicAndExit()
+			defer HandlePanic()
 			for range time.Tick(time.Duration(logFlush) * time.Second) {
 				Flush()
 			}
@@ -145,8 +145,8 @@ func setHandlers() {
 	log15.Root().SetHandler(handler)
 }
 
-// LogPanicAndExit catches panics and logs them.
-func LogPanicAndExit() {
+// HandlePanic catches panics and logs them.
+func HandlePanic() {
 	if msg := recover(); msg != nil {
 		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
 		log15.Crit("=====================> Service panicked!")
