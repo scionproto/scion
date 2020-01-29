@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beacon/mock_beacon"
@@ -160,7 +161,7 @@ func testStoreSelection(t *testing.T,
 				DownReg: beacon.Policy{BestSetSize: test.bestSize},
 			}
 			store, err := beacon.NewBeaconStore(policies, db)
-			xtest.FailOnErr(t, err)
+			require.NoError(t, err)
 			db.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
 				addr.IA{}).DoAndReturn(
 				func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -326,7 +327,7 @@ func testCoreStoreSelection(t *testing.T,
 				CoreReg: beacon.Policy{BestSetSize: test.bestSize},
 			}
 			store, err := beacon.NewCoreBeaconStore(policies, db)
-			xtest.FailOnErr(t, err)
+			require.NoError(t, err)
 			// respFunc serves beacons on the returned channel.
 			type respFunc func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error)
 			// responder is a factory that generates a function serving the specified beacons.

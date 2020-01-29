@@ -102,7 +102,7 @@ func Test(t *testing.T, db Testable) {
 		return func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
+			prepareCtx, cancelF := context.WithTimeout(context.Background(), 2*timeout)
 			defer cancelF()
 			db.Prepare(t, prepareCtx)
 			test(t, ctrl, db)

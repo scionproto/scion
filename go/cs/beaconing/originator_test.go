@@ -24,7 +24,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
@@ -49,11 +50,11 @@ const (
 func TestOriginatorRun(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	signer := testSigner(t, priv, topoProvider.Get().IA())
-	Convey("Run originates ifid packets on all active core and child interfaces", t, func() {
+	t.Run("run originates ifid packets on all active interfaces", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
@@ -79,7 +80,7 @@ func TestOriginatorRun(t *testing.T) {
 				},
 			},
 		}.New()
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 		// Activate interfaces
 		intfs.Get(42).Activate(84)
 		intfs.Get(1129).Activate(82)
@@ -100,14 +101,14 @@ func TestOriginatorRun(t *testing.T) {
 		// Start beacon messages.
 		o.Run(nil)
 		for i, msg := range msgs {
-			Convey(fmt.Sprintf("Packet %d is correct", i), func() {
+			t.Run(fmt.Sprintf("Packet %d is correct", i), func(t *testing.T) {
 				checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap())
 			})
 		}
 		// The second run should not cause any beacons to originate.
 		o.Run(nil)
 	})
-	Convey("Fast recovery", t, func() {
+	t.Run("Fast recovery", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
@@ -133,7 +134,7 @@ func TestOriginatorRun(t *testing.T) {
 				},
 			},
 		}.New()
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 		// Activate interfaces
 		intfs.Get(42).Activate(84)
 		intfs.Get(1129).Activate(82)
@@ -166,29 +167,29 @@ type msg struct {
 func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoMap) {
 	// Extract segment from the payload
 	spld, err := ctrl.NewSignedPldFromRaw(msg.pkt.Payload.(common.RawBytes))
-	SoMsg("SPldErr", err, ShouldBeNil)
+	require.NoError(t, err)
 	pld, err := spld.UnsafePld()
-	SoMsg("PldErr", err, ShouldBeNil)
+	require.NoError(t, err)
 	err = pld.Beacon.Parse()
-	SoMsg("ParseErr", err, ShouldBeNil)
+	require.NoError(t, err)
+
+	// Check the beacon is valid and verifiable.
 	pseg := pld.Beacon.Segment
-	Convey("Segment can be validated", func() {
-		err = pseg.Validate(seg.ValidateBeacon)
-		SoMsg("err", err, ShouldBeNil)
-	})
-	Convey("Segment can be verified", func() {
-		err = pseg.VerifyASEntry(context.Background(), segVerifier(pub), pseg.MaxAEIdx())
-		SoMsg("err", err, ShouldBeNil)
-	})
-	Convey("Beacon on correct interface", func() {
-		hopF, err := msg.pkt.Path.GetHopField(msg.pkt.Path.HopOff)
-		xtest.FailOnErr(t, err)
-		bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
-		xtest.FailOnErr(t, err)
-		SoMsg("Egress", hopF.ConsEgress, ShouldEqual, bHopF.ConsEgress)
-		brAddr := infos[hopF.ConsEgress].InternalAddr
-		SoMsg("ov", msg.ov, ShouldResemble, brAddr)
-	})
+	assert.NoError(t, pseg.Validate(seg.ValidateBeacon))
+	assert.NoError(t, pseg.VerifyASEntry(context.Background(), segVerifier(pub), pseg.MaxAEIdx()))
+
+	// Extract the the first hop field from the constructed one hop path the
+	// beacon is sent on. We want to make sure that the beacon is sent on the
+	// correct egress interface.
+	hopF, err := msg.pkt.Path.GetHopField(msg.pkt.Path.HopOff)
+	require.NoError(t, err)
+	// Extract the hop field from the current AS entry to compare.
+	bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
+	require.NoError(t, err)
+	// Check the interface matches.
+	assert.Equal(t, bHopF.ConsEgress, hopF.ConsEgress)
+	// Check that the beacon is sent to the correct border router.
+	assert.Equal(t, infos[hopF.ConsEgress].InternalAddr, msg.ov)
 }
 
 type segVerifier []byte
