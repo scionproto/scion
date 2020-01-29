@@ -63,15 +63,13 @@ func SendFrame(t *testing.T, w *Worker, data []byte) {
 }
 
 func TestParsing(t *testing.T) {
-	addr := snet.NewUDPAddr(
-		xtest.MustParseIA("1-ff00:0:300"),
-		nil,
-		nil,
-		&net.UDPAddr{
+	addr := &snet.UDPAddr{
+		IA: xtest.MustParseIA("1-ff00:0:300"),
+		Host: &net.UDPAddr{
 			IP:   net.IP{192, 168, 1, 1},
 			Port: 80,
 		},
-	)
+	}
 	mt := &MockTun{}
 	w := NewWorker(addr, 1, mt)
 

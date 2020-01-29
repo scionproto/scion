@@ -358,7 +358,11 @@ func (t *topologyS) SBRAddress(name string) *snet.UDPAddr {
 	if !ok {
 		return nil
 	}
-	return snet.NewUDPAddr(t.IA(), nil, br.CtrlAddrs.UnderlayAddr(), br.CtrlAddrs.SCIONAddress)
+	return &snet.UDPAddr{
+		IA:      t.IA(),
+		NextHop: br.CtrlAddrs.UnderlayAddr(),
+		Host:    br.CtrlAddrs.SCIONAddress,
+	}
 }
 
 func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {

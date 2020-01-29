@@ -113,7 +113,12 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 		return nil, err
 	}
 	snetConn := conn.(*SCIONConn)
-	snetConn.remote = NewUDPAddr(remote.IA, remote.Path.Copy(), remote.NextHop, remote.Host)
+	snetConn.remote = &UDPAddr{
+		IA:      remote.IA,
+		Path:    remote.Path.Copy(),
+		NextHop: remote.NextHop,
+		Host:    remote.Host,
+	}
 	return conn, nil
 }
 

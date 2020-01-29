@@ -48,7 +48,7 @@ func TestSegReq(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group1.Id.ToMsg()},
 			}
-			peer := snet.NewUDPAddr(addr.IA{}, nil, nil, nil)
+			peer := &snet.UDPAddr{IA: addr.IA{}}
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			recs := []*path_mgmt.HPSegRecs{
 				{
@@ -99,7 +99,7 @@ func TestSegReq(t *testing.T) {
 				RawDstIA: ia111.IAInt(),
 				GroupIds: []*path_mgmt.HPGroupId{group1.Id.ToMsg()},
 			}
-			peer := snet.NewUDPAddr(addr.IA{}, nil, nil, nil)
+			peer := &snet.UDPAddr{IA: addr.IA{}}
 			req := infra.NewRequest(ctx, msg, nil, peer, 0)
 			m.fetcher.EXPECT().Fetch(gomock.Any(), gomock.Any(),
 				gomock.Any()).Return(nil, errors.New("dummy"))

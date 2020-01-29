@@ -247,7 +247,7 @@ func (r *segmentRegistrar) onSuccess() {
 func (r *segmentRegistrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
 	if r.segType != proto.PathSegType_down {
 		topo := r.topoProvider.Get()
-		return snet.NewSVCAddr(topo.IA(), nil, nil, addr.SvcPS), nil
+		return &snet.SVCAddr{IA: topo.IA(), SVC: addr.SvcPS}, nil
 	}
 	return addrutil.GetPath(addr.SvcPS, pseg, r.topoProvider)
 }

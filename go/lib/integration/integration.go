@@ -193,7 +193,7 @@ var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 		os.Exit(1)
 	}
 	cs := topo.CS["cs"+ia.FileFmt(false)+"-1"]
-	return snet.NewUDPAddr(ia, nil, nil, cs.SCIONAddress)
+	return &snet.UDPAddr{IA: ia, Host: cs.SCIONAddress}
 }
 
 // interface kept similar to go 1.10

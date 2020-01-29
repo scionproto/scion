@@ -172,7 +172,7 @@ func (s *BeaconSender) attemptQUIC(ctx context.Context, ia addr.IA, path *spath.
 		return false, nil
 	}
 
-	t := snet.NewSVCAddr(ia, path, nextHop, addr.SvcBS)
+	t := &snet.SVCAddr{IA: ia, Path: path, NextHop: nextHop, SVC: addr.SvcBS}
 	newAddr, redirect, err := s.AddressRewriter.RedirectToQUIC(ctx, t)
 
 	if err != nil || !redirect {

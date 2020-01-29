@@ -323,7 +323,7 @@ type dstProvider struct {
 }
 
 func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, error) {
-	return snet.NewSVCAddr(r.IA, nil, nil, addr.SvcPS), nil
+	return &snet.SVCAddr{IA: r.IA, SVC: addr.SvcPS}, nil
 }
 
 type neverLocal struct{}

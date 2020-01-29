@@ -134,12 +134,12 @@ func dispFunc(dp *pktdisp.DispPkt) {
 	var src *snet.UDPAddr
 	switch v := dp.Addr.(type) {
 	case *snet.UDPAddr:
-		src = snet.NewUDPAddr(
-			v.IA,
-			v.Path.Copy(),
-			snet.CopyUDPAddr(v.NextHop),
-			snet.CopyUDPAddr(v.Host),
-		)
+		src = &snet.UDPAddr{
+			IA:      v.IA,
+			Path:    v.Path.Copy(),
+			NextHop: snet.CopyUDPAddr(v.NextHop),
+			Host:    snet.CopyUDPAddr(v.Host),
+		}
 	default:
 		log.Error("Not valid snet address")
 		return
