@@ -227,7 +227,7 @@ func SetupSignals(f func()) {
 	signal.Notify(sig, os.Interrupt)
 	signal.Notify(sig, syscall.SIGTERM)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.PanicAndExit()
 		<-sig
 		if f != nil {
 			f()

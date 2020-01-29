@@ -142,7 +142,7 @@ func (c *conn) ctxAwareConnect(ctx context.Context) (*disp.Dispatcher, error) {
 	}
 	barrier := make(chan returnValue, 1)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.PanicAndExit()
 		dispatcher, err := dial(ctx, c.path)
 		barrier <- returnValue{dispatcher: dispatcher, err: err}
 	}()

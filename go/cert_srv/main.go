@@ -79,7 +79,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped(common.CS, cfg.General.ID)
-	defer log.LogPanicAndExit()
+	defer log.PanicAndExit()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
@@ -190,7 +190,7 @@ func realMain() int {
 
 	// Start the messenger.
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.PanicAndExit()
 		msgr.ListenAndServe()
 	}()
 

@@ -113,7 +113,7 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.UDPAddr) {
 		worker = NewWorker(src, frame.sessId, d.tunIO)
 		d.workers[dispatchStr] = worker
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.PanicAndExit()
 			worker.Run()
 		}()
 	}
@@ -128,7 +128,7 @@ func (d *Dispatcher) cleanup() {
 		if worker.markedForCleanup {
 			delete(d.workers, key)
 			go func() {
-				defer log.LogPanicAndExit()
+				defer log.PanicAndExit()
 				worker.Stop()
 			}()
 		} else {

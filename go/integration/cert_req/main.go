@@ -47,7 +47,7 @@ func main() {
 }
 
 func realMain() int {
-	defer log.LogPanicAndExit()
+	defer log.PanicAndExit()
 	defer log.Flush()
 	addFlags()
 	integration.Setup()

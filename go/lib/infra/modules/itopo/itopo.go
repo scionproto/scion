@@ -363,7 +363,7 @@ func expiresLater(newTopo, oldTopo *topology.RWTopology) bool {
 func call(clbk func()) {
 	if clbk != nil {
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.PanicAndExit()
 			clbk()
 		}()
 	}

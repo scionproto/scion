@@ -215,7 +215,7 @@ func startPeriodicFetcher(cfg FetchConfig, handler TopoHandler, params discovery
 // or until the a topology has been fetched successfully.
 func (r *Runner) startInitialPeriod(fetcher *task, cfg FetchConfig) {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.PanicAndExit()
 		ticker := time.NewTicker(time.Second)
 		initialPeriod := time.NewTimer(cfg.Connect.InitialPeriod.Duration)
 		defer ticker.Stop()
@@ -264,7 +264,7 @@ func (r *Runner) startRegularFetcher(fetcher *task, cfg FetchConfig) {
 // startFetch starts a go routine that executes the fetch task.
 func (r *Runner) startFetch(fetcher *task, timeout time.Duration) {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.PanicAndExit()
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		fetcher.Run(ctx)

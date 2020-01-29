@@ -63,7 +63,7 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	defer log.LogPanicAndExit()
+	defer log.PanicAndExit()
 
 	ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 	defer cancelF()

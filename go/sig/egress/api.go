@@ -31,7 +31,7 @@ func Init(tunIO io.ReadWriteCloser) {
 	iface.Init()
 	// Spawn egress reader
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.PanicAndExit()
 		reader.NewReader(tunIO).Run()
 	}()
 }

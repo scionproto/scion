@@ -37,7 +37,7 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer log.PanicAndExit()
 	defer log.Flush()
 	cmnArgs := []string{"-sciondFromIA", "-log.console", "debug"}
 	clientArgs := []string{"-mode", "client", "-count", "1",

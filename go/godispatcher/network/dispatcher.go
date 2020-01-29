@@ -47,12 +47,12 @@ func (d *Dispatcher) ListenAndServe() error {
 
 	errChan := make(chan error)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.PanicAndExit()
 		errChan <- dispServer.Serve()
 	}()
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.PanicAndExit()
 		dispServer := &AppSocketServer{
 			Listener:   dispServerConn,
 			DispServer: dispServer,

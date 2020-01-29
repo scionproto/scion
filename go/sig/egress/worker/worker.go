@@ -98,7 +98,7 @@ func NewWorker(sess iface.Session, writer SCIONWriter, ignoreAddress bool,
 }
 
 func (w *worker) Run() {
-	defer log.LogPanicAndExit()
+	defer log.PanicAndExit()
 	w.Info("EgressWorker: starting")
 	f := newFrame()
 

@@ -23,11 +23,11 @@ import (
 )
 
 // Analyzer contains an analyzer that makes sure that go target is always a
-// func literal that calls defer log.LogPanicAndExit as first statement.
+// func literal that calls defer log.PanicAndExit as first statement.
 var Analyzer = &analysis.Analyzer{
 	Name: "gocall",
 	Doc: "go target is a func that calls" +
-		" defer log.LogPanicAndExit as first statement",
+		" defer log.PanicAndExit as first statement",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

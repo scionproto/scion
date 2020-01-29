@@ -59,7 +59,7 @@ func realMain() int {
 		flag.Usage()
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer log.PanicAndExit()
 	if err := validateFlags(); err != nil {
 		log.Crit("Unable to validate flags", "err", err)
 		return 1
