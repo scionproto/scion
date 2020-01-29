@@ -264,7 +264,7 @@ func (r *remoteRegistrar) startSendSegReg(ctx context.Context, bseg beacon.Beaco
 
 	r.wg.Add(1)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer r.wg.Done()
 		logger := log.FromCtx(ctx)
 		if err := r.msgr.SendSegReg(ctx, reg, addr, messenger.NextId()); err != nil {

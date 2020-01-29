@@ -66,7 +66,7 @@ func (h *Handler) Handle(ctx context.Context, recs Segments, server net.Addr,
 	}
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		h.verifyAndStore(ctx, earlyTrigger, result, verifiedCh,
 			units, recs.HPGroupID)
 	}()

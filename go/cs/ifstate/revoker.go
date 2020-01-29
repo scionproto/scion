@@ -200,7 +200,7 @@ func (p *brPusher) sendIfStateToBr(ctx context.Context, msg *path_mgmt.IFStateIn
 
 	wg.Add(1)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer wg.Done()
 		if err := p.msgr.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
 			log.FromCtx(ctx).Error("Failed to send interface state to BR",

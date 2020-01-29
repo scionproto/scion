@@ -68,7 +68,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped(common.BR, cfg.General.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	http.HandleFunc("/config", configHandler)
 	http.HandleFunc("/info", env.InfoHandler)
 	http.HandleFunc("/topology", itopo.TopologyHandler)

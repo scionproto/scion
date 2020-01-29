@@ -179,14 +179,14 @@ func setupSignals(reloadF func()) {
 	signal.Notify(sig, os.Interrupt)
 	signal.Notify(sig, syscall.SIGTERM)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
 		fatal.Shutdown(ShutdownGraceInterval)
 	}()
 	if reloadF != nil {
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			for range sighupC {
 				log.Info("Received config reload signal")
 				reloadF()
@@ -232,7 +232,7 @@ func (cfg *Metrics) StartPrometheus() {
 		http.Handle("/metrics", promhttp.Handler())
 		log.Info("Exporting prometheus metrics", "addr", cfg.Prometheus)
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			if err := http.ListenAndServe(cfg.Prometheus, nil); err != nil {
 				fatal.Fatal(common.NewBasicError("HTTP ListenAndServe error", err))
 			}

@@ -142,7 +142,7 @@ func newDispatcher(cfg sigconfig.SigConf) (reliable.Dispatcher, error) {
 		return nil, serrors.WrapStr("unable to initialize bypass dispatcher", err)
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		err := dispServer.Serve()
 		if err != nil {
 			log.Error("Bypass dispatcher failed", "err", err)

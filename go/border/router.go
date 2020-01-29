@@ -63,11 +63,11 @@ func NewRouter(id, confDir string) (*Router, error) {
 // processing as well as various other router functions.
 func (r *Router) Start() {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		r.PacketError()
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		rctrl.Control(r.sRevInfoQ, cfg.General.ReconnectToDispatcher)
 	}()
 }
@@ -86,7 +86,7 @@ func (r *Router) ReloadConfig() error {
 }
 
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer close(stopped)
 	pkts := make(ringbuf.EntryList, processBufCnt)
 	dst := s.Conn.LocalAddr()

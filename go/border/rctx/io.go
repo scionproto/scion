@@ -98,13 +98,13 @@ func (s *Sock) Start() {
 		}
 		if s.Reader != nil {
 			go func() {
-				defer log.LogPanicAndExit()
+				defer log.HandlePanic()
 				s.Reader(s, s.stop, s.readerStopped)
 			}()
 		}
 		if s.Writer != nil {
 			go func() {
-				defer log.LogPanicAndExit()
+				defer log.HandlePanic()
 				s.Writer(s, s.stop, s.writerStopped)
 			}()
 		}

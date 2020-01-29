@@ -82,7 +82,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped("SD", cfg.General.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
@@ -245,7 +245,7 @@ func NewServer(network string, rsockPath string,
 
 func StartServer(address string, server *servers.Server) {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		if err := server.ListenAndServe(); err != nil {
 			fatal.Fatal(common.NewBasicError("ListenAndServe error", err, "address", address))
 		}

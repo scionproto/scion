@@ -23,11 +23,11 @@ import (
 )
 
 // Analyzer contains an analyzer that makes sure that go target is always a
-// func literal that calls defer log.LogPanicAndExit as first statement.
+// func literal that calls defer log.HandlePanic as first statement.
 var Analyzer = &analysis.Analyzer{
 	Name: "gocall",
 	Doc: "go target is a func that calls" +
-		" defer log.LogPanicAndExit as first statement",
+		" defer log.HandlePanic as first statement",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -44,7 +44,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		switch f := call.Fun.(type) {
 		case *ast.FuncLit:
 			if !checkFuncLit(pass, f) {
-				pass.Reportf(f.Pos(), "First statement should be 'defer LogPanicAndExit()")
+				pass.Reportf(f.Pos(), "First statement should be 'defer HandlePanic()")
 			}
 		default:
 			pass.Reportf(f.Pos(), "go statement should always call a func lit.")
@@ -64,12 +64,12 @@ func checkFuncLit(pass *analysis.Pass, fl *ast.FuncLit) bool {
 	}
 	if pkgNameSave(pass) == "log" {
 		ident, ok := deferStmt.Call.Fun.(*ast.Ident)
-		if !ok || ident.Name != "LogPanicAndExit" {
+		if !ok || ident.Name != "HandlePanic" {
 			return false
 		}
 	} else {
 		callSel, ok := deferStmt.Call.Fun.(*ast.SelectorExpr)
-		if !ok || callSel.Sel.Name != "LogPanicAndExit" {
+		if !ok || callSel.Sel.Name != "HandlePanic" {
 			return false
 		}
 	}

@@ -85,7 +85,7 @@ func (srv *Server) ListenAndServe() error {
 		}
 
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			hdl := &ConnHandler{
 				Conn:     conn,
 				Handlers: srv.handlers,

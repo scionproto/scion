@@ -72,7 +72,7 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := shared.Init(keysDirPath); err != nil {
 		log.Crit("Initialization failed", "err", err)
 		return 1

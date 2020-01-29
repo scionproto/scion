@@ -224,7 +224,7 @@ func (m *Messenger) handleConn(conn net.Conn) error {
 		Address: conn.RemoteAddr(),
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		m.Handler.ServeRPC(rw, request)
 	}()
 	return nil
