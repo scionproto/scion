@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2017 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -630,7 +630,7 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 	result := make(PathSet)
 	paths := p.g.GetPaths(src.String(), dst.String())
 	for _, ifids := range paths {
-		pathIntfs := make([]PathInterface, 0, len(ifids))
+		pathIntfs := make([]snet.PathInterface, 0, len(ifids))
 		var key strings.Builder
 		for _, ifid := range ifids {
 			ia := p.g.GetParent(ifid)
@@ -646,15 +646,15 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 }
 
 type testPath struct {
-	interfaces []PathInterface
+	interfaces []snet.PathInterface
 	key        snet.PathFingerprint
 }
 
-func (p *testPath) Interfaces() []PathInterface {
+func (p *testPath) Interfaces() []snet.PathInterface {
 	return p.interfaces
 }
 
-func (p *testPath) Key() snet.PathFingerprint { return p.key }
+func (p *testPath) Fingerprint() snet.PathFingerprint { return p.key }
 
 type testPathIntf struct {
 	ia   addr.IA

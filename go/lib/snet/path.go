@@ -68,7 +68,9 @@ type Path interface {
 // that packages which can not depend on snet can still implement the snet.Path
 // interface.
 type PathInterface interface {
+	// ID is the ID of the interface.
 	ID() common.IFIDType
+	// IA is the ISD AS identifier of the interface.
 	IA() addr.IA
 }
 

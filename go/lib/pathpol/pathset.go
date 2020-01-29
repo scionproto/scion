@@ -15,8 +15,6 @@
 package pathpol
 
 import (
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -26,15 +24,7 @@ type PathSet map[snet.PathFingerprint]Path
 // Path describes a path or a partial path, e.g. a segment.
 type Path interface {
 	// Interfaces returns all the interfaces of this path.
-	Interfaces() []PathInterface
+	Interfaces() []snet.PathInterface
 	// Returns a string that uniquely identifies this path.
-	Key() snet.PathFingerprint
-}
-
-// PathInterface is an interface on the path.
-type PathInterface interface {
-	// ID is the ID of the interface.
-	ID() common.IFIDType
-	// IA is the ISD AS identifier of the interface.
-	IA() addr.IA
+	Fingerprint() snet.PathFingerprint
 }
