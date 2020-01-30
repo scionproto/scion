@@ -20,6 +20,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/scionproto/scion/go/godispatcher/dispatcher"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
@@ -48,11 +49,12 @@ var (
 	IA   addr.IA
 	Host addr.HostAddr
 
-	PathMgr   pathmgr.Resolver
-	Network   *snet.SCIONNetwork
-	CtrlConn  snet.Conn
-	MgmtAddr  *mgmt.Addr
-	encapPort uint16
+	PathMgr    pathmgr.Resolver
+	Dispatcher reliable.Dispatcher
+	Network    *snet.SCIONNetwork
+	CtrlConn   snet.Conn
+	MgmtAddr   *mgmt.Addr
+	encapPort  uint16
 )
 
 func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
@@ -81,6 +83,11 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 func initNetwork(cfg sigconfig.SigConf,
 	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
+	var err error
+	Dispatcher, err = newDispatcher(cfg)
+	if err != nil {
+		return nil, nil, serrors.WrapStr("unable to initialize SCION dispatcher", err)
+	}
 	if sdCfg.FakeData != "" {
 		return initNetworkWithFakeSCIOND(cfg, sdCfg)
 	}
@@ -90,13 +97,12 @@ func initNetwork(cfg sigconfig.SigConf,
 func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
 	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
-	ds := reliable.NewDispatcher(cfg.Dispatcher)
 	sciondConn, err := fake.NewFromFile(sdCfg.FakeData)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("unable to initialize fake SCIOND service", err)
 	}
 	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{})
-	network := snet.NewNetworkWithPR(cfg.IA, ds, &snetmigrate.PathQuerier{
+	network := snet.NewNetworkWithPR(cfg.IA, Dispatcher, &snetmigrate.PathQuerier{
 		Resolver: pathResolver,
 		IA:       cfg.IA,
 	}, pathResolver)
@@ -106,14 +112,13 @@ func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
 func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
 	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
-	ds := reliable.NewDispatcher(cfg.Dispatcher)
 	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
 	deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
 	var retErr error
 	for tries := 0; time.Now().Before(deadline); tries++ {
 		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Path)
 		if err == nil {
-			return snet.NewNetworkWithPR(cfg.IA, ds, &snetmigrate.PathQuerier{
+			return snet.NewNetworkWithPR(cfg.IA, Dispatcher, &snetmigrate.PathQuerier{
 				Resolver: resolver,
 				IA:       cfg.IA,
 			}, resolver), resolver, nil
@@ -123,6 +128,27 @@ func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
 		time.Sleep(time.Second)
 	}
 	return nil, nil, retErr
+}
+
+func newDispatcher(cfg sigconfig.SigConf) (reliable.Dispatcher, error) {
+	if cfg.DispatcherBypass == "" {
+		log.Info("Regular SCION dispatcher", "addr", cfg.DispatcherBypass)
+		return reliable.NewDispatcher(cfg.Dispatcher), nil
+	}
+	// Initialize dispatcher bypass.
+	log.Info("Bypassing SCION dispatcher", "addr", cfg.DispatcherBypass)
+	dispServer, err := dispatcher.NewServer(cfg.DispatcherBypass)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to initialize bypass dispatcher", err)
+	}
+	go func() {
+		defer log.LogPanicAndExit()
+		err := dispServer.Serve()
+		if err != nil {
+			log.Error("Bypass dispatcher failed", "err", err)
+		}
+	}()
+	return dispServer, nil
 }
 
 func EncapSnetAddr() *snet.UDPAddr {

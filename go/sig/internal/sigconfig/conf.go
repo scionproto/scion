@@ -102,6 +102,10 @@ type SigConf struct {
 	SrcIP4 net.IP
 	// IPv6 source address hint to put into routing table.
 	SrcIP6 net.IP
+	// DispatcherBypass is the overlay address (e.g. ":30041") to use when bypassing SCION
+	// dispatcher. If the field is empty bypass is not done and SCION dispatcher is used
+	// instead.
+	DispatcherBypass string
 }
 
 // InitDefaults sets the default values to unset values.
