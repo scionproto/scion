@@ -240,8 +240,7 @@ func (c *client) run() {
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, Dial will assign a random free local port.
 
-	remoteUDP := snet.NewUDPAddr(remote.IA, remote.Path, remote.NextHop, remote.Host)
-	c.qsess, err = squic.Dial(network, local.Host, remoteUDP, addr.SvcNone, nil)
+	c.qsess, err = squic.Dial(network, local.Host, &remote, addr.SvcNone, nil)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}

@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// GetPath creates a path from the given segment and then creates a snet.Addr.
+// GetPath creates a path from the given segment and then creates a snet.SVCAddr.
 func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
 	x := &bytes.Buffer{}
 	if _, err := ps.RawWriteTo(x); err != nil {
@@ -49,5 +49,5 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) 
 	if !ok {
 		return nil, common.NewBasicError("unable to find first-hop BR for path", nil, "ifID", ifID)
 	}
-	return snet.NewSVCAddr(ps.FirstIA(), p, overlayNextHop, svc), nil
+	return &snet.SVCAddr{IA: ps.FirstIA(), Path: p, NextHop: overlayNextHop, SVC: svc}, nil
 }

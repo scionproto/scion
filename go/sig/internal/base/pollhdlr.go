@@ -57,12 +57,12 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error packing signed Ctrl payload", "err", err)
 			break
 		}
-		sigCtrlAddr := snet.NewUDPAddr(
-			rpld.Addr.IA,
-			rpld.Addr.Path,
-			snet.CopyUDPAddr(rpld.Addr.NextHop),
-			req.Addr.Ctrl.UDP(),
-		)
+		sigCtrlAddr := &snet.UDPAddr{
+			IA:      rpld.Addr.IA,
+			Path:    rpld.Addr.Path,
+			NextHop: snet.CopyUDPAddr(rpld.Addr.NextHop),
+			Host:    req.Addr.Ctrl.UDP(),
+		}
 		_, err = sigcmn.CtrlConn.WriteTo(raw, sigCtrlAddr)
 		if err != nil {
 			log.Error("PollReqHdlr: Error sending Ctrl payload", "dest", rpld.Addr, "err", err)

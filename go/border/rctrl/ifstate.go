@@ -81,7 +81,7 @@ func genIFStateReq() error {
 
 	var errors common.MultiError
 	for _, a := range bsAddrs {
-		dst := snet.NewSVCAddr(ia, nil, a, addr.SvcBS.Multicast())
+		dst := &snet.SVCAddr{IA: ia, NextHop: a, SVC: addr.SvcBS.Multicast()}
 		if _, err := snetConn.WriteTo(pld, dst); err != nil {
 			cl.Result = metrics.ErrWrite
 			metrics.Control.SentIFStateReq(cl).Inc()

@@ -138,7 +138,7 @@ func (f *DefaultFetcher) fetchRemote(ctx context.Context, ids []hiddenpath.Group
 		RawDstIA: endsAt.IAInt(),
 		GroupIds: rawIds,
 	}
-	addr := snet.NewSVCAddr(remote, nil, nil, addr.SvcHPS)
+	addr := &snet.SVCAddr{IA: remote, SVC: addr.SvcHPS}
 	reply, err := f.msger.GetHPSegs(ctx, req, addr, messenger.NextId())
 	if err != nil {
 		var recs = make([]*path_mgmt.HPSegRecs, 0, len(ids))
