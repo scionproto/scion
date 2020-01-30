@@ -131,7 +131,7 @@ func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
 }
 
 func newDispatcher(cfg sigconfig.SigConf) (reliable.Dispatcher, error) {
-	if len(cfg.DispatcherBypass) == 0 {
+	if cfg.DispatcherBypass == "" {
 		log.Info("Regular SCION dispatcher", "addr", cfg.DispatcherBypass)
 		return reliable.NewDispatcher(cfg.Dispatcher), nil
 	}

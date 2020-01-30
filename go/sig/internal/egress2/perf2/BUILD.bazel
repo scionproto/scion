@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["perf2.go"],
+    importpath = "github.com/scionproto/scion/go/sig/internal/egress2/perf2",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "perf2",
+    embed = [":go_default_library"],
+    visibility = ["//go/sig:__subpackages__"],
+)
