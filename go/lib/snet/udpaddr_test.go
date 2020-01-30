@@ -38,18 +38,18 @@ func TestUDPAddrString(t *testing.T) {
 	}{
 		"empty": {
 			input: &snet.UDPAddr{},
-			want:  "0-0,[<nil>]:0",
+			want:  "0-0,<nil>",
 		},
 		"empty host": {
 			input: &snet.UDPAddr{Host: &net.UDPAddr{}},
-			want:  "0-0,[<nil>]:0",
+			want:  "0-0,:0",
 		},
 		"ipv4": {
 			input: &snet.UDPAddr{
 				IA:   xtest.MustParseIA("1-ff00:0:320"),
 				Host: &net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 10000},
 			},
-			want: "1-ff00:0:320,[1.2.3.4]:10000",
+			want: "1-ff00:0:320,1.2.3.4:10000",
 		},
 		"ipv6": {
 			input: &snet.UDPAddr{
@@ -78,23 +78,23 @@ func TestUDPAddrSet(t *testing.T) {
 			Error: assert.Error,
 		},
 		"malformed IA": {
-			Input: "1-ff000:0:0,[192.168.1.1]:80",
+			Input: "1-ff000:0:0,192.168.1.1:80",
 			Error: assert.Error,
 		},
 		"malformed IP": {
-			Input: "1-ff00:0:1,[192.1688.1.1]:80",
+			Input: "1-ff00:0:1,192.1688.1.1:80",
 			Error: assert.Error,
 		},
 		"malformed port": {
-			Input: "1-ff00:0:1,[192.168.1.1]:123456",
+			Input: "1-ff00:0:1,192.168.1.1:123456",
 			Error: assert.Error,
 		},
 		"bad symbol": {
-			Input: "1-ff00:0:1x[192.168.1.1]:80",
+			Input: "1-ff00:0:1x192.168.1.1:80",
 			Error: assert.Error,
 		},
 		"good input": {
-			Input: "1-ff00:0:1,[192.168.1.1]:80",
+			Input: "1-ff00:0:1,192.168.1.1:80",
 			Error: assert.NoError,
 			Want: &snet.UDPAddr{
 				IA: xtest.MustParseIA("1-ff00:0:1"),
@@ -135,16 +135,22 @@ func TestUDPAddrFromString(t *testing.T) {
 		{address: "1-ff00:0:300]:14,[1.2.3.4]", isError: true},
 		{address: "1-ff00:0:300,[1.2.3.4]:70000", isError: true},
 		{address: "", isError: true},
+		{address: "1-ff00:0:301,1.2.3.4", isError: true},
 		{address: "1-ff00:0:300,[1.2.3.4]:80",
 			ia:   "1-ff00:0:300",
 			host: "1.2.3.4",
 			port: 80,
 		},
-		{address: "1-ff00:0:301,[1.2.3.4]",
-			ia:   "1-ff00:0:301",
+		{address: "1-ff00:0:300,1.2.3.4:80",
+			ia:   "1-ff00:0:300",
+			host: "1.2.3.4",
+			port: 80,
+		},
+		{address: "1-ff00:0:300,1.2.3.4:0",
+			ia:   "1-ff00:0:300",
 			host: "1.2.3.4",
 		},
-		{address: "50-ff00:0:350,[1.1.1.1]:5",
+		{address: "50-ff00:0:350,1.1.1.1:5",
 			ia:   "50-ff00:0:350",
 			host: "1.1.1.1",
 			port: 5,

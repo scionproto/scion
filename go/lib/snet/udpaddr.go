@@ -26,8 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-var addrRegexp = regexp.MustCompile(
-	`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\](?P<port>:\d+)?$`)
+var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
 
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
@@ -38,7 +37,7 @@ type UDPAddr struct {
 }
 
 // UDPAddrFromString converts an address string of format isd-as,[ipaddr]:port
-// (e.g., 1-ff00:0:300,[192.168.1.1]:80) to a SCION address.
+// (e.g., 1-ff00:0:300,192.168.1.1:80) to a SCION address.
 func UDPAddrFromString(s string) (*UDPAddr, error) {
 	parts, err := parseAddr(s)
 	if err != nil {
@@ -48,20 +47,21 @@ func UDPAddrFromString(s string) (*UDPAddr, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("invalid IA string", err, "ia", ia)
 	}
-	ip := net.ParseIP(parts["host"])
+
+	hostPortPart := parts["host"]
+	host, portS, err := net.SplitHostPort(hostPortPart)
+	if err != nil {
+		return nil, err
+	}
+	ip := net.ParseIP(host)
 	if ip == nil {
-		return nil, serrors.New("invalid IP address string", "ip", parts["host"])
+		return nil, serrors.New("invalid IP address string", "ip", host)
 	}
-	var port int
-	if parts["port"] != "" {
-		// skip the : (first character) from the port string
-		p, err := strconv.ParseUint(parts["port"][1:], 10, 16)
-		if err != nil {
-			return nil, serrors.WrapStr("invalid port string", err, "port", parts["port"][1:])
-		}
-		port = int(p)
+	port, err := strconv.ParseUint(portS, 10, 16)
+	if err != nil {
+		return nil, serrors.WrapStr("invalid port in address", err, "host:port", hostPortPart)
 	}
-	return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: port}}, nil
+	return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: int(port)}}, nil
 }
 
 // Network implements net.Addr interface.
@@ -71,16 +71,7 @@ func (a *UDPAddr) Network() string {
 
 // String implements net.Addr interface.
 func (a *UDPAddr) String() string {
-	var ip net.IP
-	var port int
-	if a.Host == nil {
-		ip = nil
-		port = 0
-	} else {
-		ip = a.Host.IP
-		port = a.Host.Port
-	}
-	return fmt.Sprintf("%v,[%v]:%v", a.IA, ip, port)
+	return fmt.Sprintf("%v,%s", a.IA, a.Host.String())
 }
 
 // GetPath returns a path with attached metadata.
