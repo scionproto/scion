@@ -77,7 +77,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 	// FIXME(scrye): This is not legitimate use. It's only included for
 	// compatibility with older unit tests. See
 	// https://github.com/scionproto/scion/issues/2611.
-	if address == nil || r.SVCResolutionFraction <= 0.0 {
+	if address == nil {
 		return address, false, nil
 	}
 
@@ -88,6 +88,9 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 		fa, err := r.buildFullAddress(ctx, a)
 		if err != nil {
 			return nil, false, err
+		}
+		if r.SVCResolutionFraction <= 0.0 {
+			return fa, false, nil
 		}
 
 		path, err := fa.GetPath()
