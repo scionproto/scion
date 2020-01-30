@@ -142,8 +142,8 @@ func getPaths(ctx context.Context) ([]snet.Path, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("failed to connect to SCIOND", err)
 	}
-	paths, err := sdConn.Paths(ctx, dstIA, srcIA, uint16(*maxPaths),
-		sciond.PathReqFlags{Refresh: *refresh})
+	paths, err := sdConn.Paths(ctx, dstIA, srcIA,
+		sciond.PathReqFlags{Refresh: *refresh, PathCount: uint16(*maxPaths)})
 	if err != nil {
 		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
 	}

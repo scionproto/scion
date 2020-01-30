@@ -83,8 +83,7 @@ func (s *service) Connect(ctx context.Context) (Connector, error) {
 // an error occurs, or the method successfully returns.
 type Connector interface {
 	// Paths requests from SCIOND a set of end to end paths between src and
-	// dst. max specifies the maximum number of paths returned.
-	Paths(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) ([]snet.Path, error)
+	Paths(ctx context.Context, dst, src addr.IA, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
 	// IFInfo requests from SCIOND addresses and ports of interfaces. Slice
@@ -161,7 +160,7 @@ func (c *conn) ctxAwareConnect(ctx context.Context) (*disp.Dispatcher, error) {
 	}
 }
 
-func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
+func (c *conn) Paths(ctx context.Context, dst, src addr.IA,
 	f PathReqFlags) ([]snet.Path, error) {
 
 	roundTripper, err := c.ctxAwareConnect(ctx)
@@ -176,10 +175,9 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 			TraceId: tracing.IDFromCtx(ctx),
 			Which:   proto.SCIONDMsg_Which_pathReq,
 			PathReq: &PathReq{
-				Dst:      dst.IAInt(),
-				Src:      src.IAInt(),
-				MaxPaths: max,
-				Flags:    f,
+				Dst:   dst.IAInt(),
+				Src:   src.IAInt(),
+				Flags: f,
 			},
 		},
 		nil,

@@ -244,8 +244,8 @@ func (c client) getRemote(ctx context.Context, n int) error {
 		return nil
 	}
 	// Get paths from sciond
-	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA, 1,
-		sciond.PathReqFlags{Refresh: n != 0})
+	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
+		sciond.PathReqFlags{Refresh: n != 0, PathCount: 1})
 	if err != nil {
 		return common.NewBasicError("Error requesting paths", err)
 	}

@@ -39,6 +39,10 @@ Path = "/run/shm/sciond/default.sock"
 
 # Maximum time spent attempting to connect to sciond on start. (default 20s)
 InitialConnectPeriod = "20s"
+
+# Maximum numer of paths provided by SCIOND.
+# Zero means that all the paths should be provided. (default 0)
+PathCount = 0
 `
 
 const loggingFileSample = `

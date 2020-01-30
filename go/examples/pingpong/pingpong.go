@@ -420,7 +420,7 @@ func choosePath(interactive bool) snet.Path {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	paths, err := sdConn.Paths(context.Background(), remote.IA, local.IA, 0, sd.PathReqFlags{})
+	paths, err := sdConn.Paths(context.Background(), remote.IA, local.IA, sd.PathReqFlags{})
 	if err != nil {
 		LogFatal("Failed to lookup paths", "err", err)
 	}

@@ -39,7 +39,7 @@ type Querier struct {
 }
 
 func (q Querier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
-	return q.Connector.Paths(ctx, dst, q.IA, q.MaxPaths, PathReqFlags{})
+	return q.Connector.Paths(ctx, dst, q.IA, PathReqFlags{PathCount: q.MaxPaths})
 }
 
 // RevHandler is an adapter for sciond connector to implement snet.RevocationHandler.

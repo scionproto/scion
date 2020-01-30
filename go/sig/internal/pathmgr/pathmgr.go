@@ -76,6 +76,8 @@ const (
 	DefaultErrorRefire = time.Second
 	// DefaultQueryTimeout is the time allocated for a query to SCIOND
 	DefaultQueryTimeout = 5 * time.Second
+	// DefaultPathCount is the maximum number of paths returned to the user.
+	DefaultPathCount = 5
 )
 
 // Policy is used to filter paths
@@ -123,6 +125,7 @@ type resolver struct {
 	sciondConn   sciond.Connector
 	timers       Timers
 	watchFactory *WatchFactory
+	pathCount    uint16
 }
 
 // New creates a new path management context.
@@ -132,12 +135,16 @@ type resolver struct {
 // (see package constants). When a query for a path older than maxAge reaches
 // the resolver, SCIOND is used to refresh the path. New returns with an error
 // if a connection to SCIOND could not be established.
-func New(conn sciond.Connector, timers Timers) Resolver {
+func New(conn sciond.Connector, timers Timers, pathCount uint16) Resolver {
 	timers.initDefaults()
+	if pathCount == 0 {
+		pathCount = DefaultPathCount
+	}
 	r := &resolver{
 		sciondConn:   conn,
 		timers:       timers,
 		watchFactory: NewWatchFactory(timers),
+		pathCount:    pathCount,
 	}
 	return r
 }
@@ -145,7 +152,10 @@ func New(conn sciond.Connector, timers Timers) Resolver {
 func (r *resolver) Query(ctx context.Context, src, dst addr.IA,
 	flags sciond.PathReqFlags) spathmeta.AppPathSet {
 
-	paths, err := r.sciondConn.Paths(ctx, dst, src, numReqPaths, flags)
+	if flags.PathCount == 0 {
+		flags.PathCount = r.pathCount
+	}
+	paths, err := r.sciondConn.Paths(ctx, dst, src, flags)
 	if err != nil {
 		r.logger(ctx).Error("SCIOND network error", "err", err)
 		return make(spathmeta.AppPathSet)

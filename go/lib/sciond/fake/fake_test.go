@@ -101,8 +101,7 @@ func TestPaths(t *testing.T) {
 		context.Background(),
 		xtest.MustParseIA("1-ff00:0:1"),
 		xtest.MustParseIA("1-ff00:0:2"),
-		5,
-		sciond.PathReqFlags{},
+		sciond.PathReqFlags{PathCount: 5},
 	)
 	require.NoError(t, err)
 
@@ -123,8 +122,7 @@ func TestPaths(t *testing.T) {
 		context.Background(),
 		xtest.MustParseIA("1-ff00:0:1"),
 		xtest.MustParseIA("1-ff00:0:2"),
-		5,
-		sciond.PathReqFlags{},
+		sciond.PathReqFlags{PathCount: 5},
 	)
 	require.NoError(t, err)
 

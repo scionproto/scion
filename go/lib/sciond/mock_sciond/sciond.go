@@ -123,18 +123,18 @@ func (mr *MockConnectorMockRecorder) IFInfo(arg0, arg1 interface{}) *gomock.Call
 }
 
 // Paths mocks base method
-func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 uint16, arg4 sciond.PathReqFlags) ([]snet.Path, error) {
+func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 sciond.PathReqFlags) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Paths", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "Paths", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]snet.Path)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Paths indicates an expected call of Paths
-func (mr *MockConnectorMockRecorder) Paths(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockConnectorMockRecorder) Paths(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Paths", reflect.TypeOf((*MockConnector)(nil).Paths), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Paths", reflect.TypeOf((*MockConnector)(nil).Paths), arg0, arg1, arg2, arg3)
 }
 
 // RevNotification mocks base method
