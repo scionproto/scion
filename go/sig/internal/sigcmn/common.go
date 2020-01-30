@@ -101,7 +101,7 @@ func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
 	if err != nil {
 		return nil, nil, serrors.WrapStr("unable to initialize fake SCIOND service", err)
 	}
-	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{})
+	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{}, sdCfg.PathCount)
 	network := snet.NewNetworkWithPR(cfg.IA, Dispatcher, &snetmigrate.PathQuerier{
 		Resolver: pathResolver,
 		IA:       cfg.IA,
@@ -116,7 +116,7 @@ func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
 	deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
 	var retErr error
 	for tries := 0; time.Now().Before(deadline); tries++ {
-		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Path)
+		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Path, sdCfg.PathCount)
 		if err == nil {
 			return snet.NewNetworkWithPR(cfg.IA, Dispatcher, &snetmigrate.PathQuerier{
 				Resolver: resolver,

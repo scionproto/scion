@@ -135,6 +135,8 @@ type SciondClient struct {
 	// FakeData can be used to replace the local SCIOND with a fake data source.
 	// It must point to a fake SCIOND configuration file.
 	FakeData string
+	// PathCount is the maximum number of paths returned to the user.
+	PathCount uint16
 }
 
 func (cfg *SciondClient) InitDefaults() {

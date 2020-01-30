@@ -22,14 +22,15 @@ import (
 	"github.com/scionproto/scion/go/sig/internal/pathmgr"
 )
 
-func ResolverFromSD(sciondPath string) (pathmgr.Resolver, error) {
+func ResolverFromSD(sciondPath string, pathCount uint16) (pathmgr.Resolver, error) {
 	var pathResolver pathmgr.Resolver
 	if sciondPath != "" {
-		sciondConn, err := sciond.NewService(sciondPath).Connect(context.Background())
+		sciondConn, err := sciond.NewService(sciondPath).Connect(
+			context.Background())
 		if err != nil {
 			return nil, common.NewBasicError("Unable to initialize SCIOND service", err)
 		}
-		pathResolver = pathmgr.New(sciondConn, pathmgr.Timers{})
+		pathResolver = pathmgr.New(sciondConn, pathmgr.Timers{}, pathCount)
 	}
 	return pathResolver, nil
 }

@@ -110,7 +110,7 @@ func doCommand(cmd string) int {
 }
 
 func choosePath() snet.Path {
-	paths, err := sdConn.Paths(context.Background(), cmn.Remote.IA, cmn.Local.IA, 0,
+	paths, err := sdConn.Paths(context.Background(), cmn.Remote.IA, cmn.Local.IA,
 		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
 		cmn.Fatal("Failed to retrieve paths from SCIOND: %v\n", err)

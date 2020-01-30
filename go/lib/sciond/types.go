@@ -123,11 +123,10 @@ func (p *Pld) union() (interface{}, error) {
 }
 
 type PathReq struct {
-	Dst      addr.IAInt
-	Src      addr.IAInt
-	MaxPaths uint16
-	HPCfgs   []*path_mgmt.HPGroupId `capnp:"hpCfgs"`
-	Flags    PathReqFlags
+	Dst    addr.IAInt
+	Src    addr.IAInt
+	HPCfgs []*path_mgmt.HPGroupId `capnp:"hpCfgs"`
+	Flags  PathReqFlags
 }
 
 func (pathReq *PathReq) Copy() *PathReq {
@@ -135,21 +134,21 @@ func (pathReq *PathReq) Copy() *PathReq {
 		return nil
 	}
 	return &PathReq{
-		Dst:      pathReq.Dst,
-		Src:      pathReq.Src,
-		MaxPaths: pathReq.MaxPaths,
-		Flags:    pathReq.Flags,
+		Dst:   pathReq.Dst,
+		Src:   pathReq.Src,
+		Flags: pathReq.Flags,
 	}
 }
 
 func (pathReq *PathReq) String() string {
-	return fmt.Sprintf("%v -> %v, maxPaths=%d, flags=%v",
-		pathReq.Src, pathReq.Dst, pathReq.MaxPaths, pathReq.Flags)
+	return fmt.Sprintf("%v -> %v, flags=%v",
+		pathReq.Src, pathReq.Dst, pathReq.Flags)
 }
 
 type PathReqFlags struct {
-	Refresh bool
-	Hidden  bool
+	PathCount uint16 `capnp:"-"`
+	Refresh   bool
+	Hidden    bool
 }
 
 type PathReply struct {

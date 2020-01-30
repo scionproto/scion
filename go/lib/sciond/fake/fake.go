@@ -164,11 +164,11 @@ type connector struct {
 	script *Script
 }
 
-func (c connector) Paths(_ context.Context, _, _ addr.IA, max uint16,
-	_ sciond.PathReqFlags) ([]snet.Path, error) {
+func (c connector) Paths(_ context.Context, _, _ addr.IA,
+	flags sciond.PathReqFlags) ([]snet.Path, error) {
 
 	secondsElapsed := int(time.Since(c.creationTime).Seconds())
-	intMax := int(max)
+	intMax := int(flags.PathCount)
 
 	var entry *Entry
 	for i := 0; i < len(c.script.Entries); i++ {

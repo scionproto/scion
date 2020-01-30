@@ -158,9 +158,9 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
 	}
 	if len(paths) == 0 {
-		return f.buildSCIONDReply(nil, req.MaxPaths, sciond.ErrorNoPaths), nil
+		return f.buildSCIONDReply(nil, req.Flags.PathCount, sciond.ErrorNoPaths), nil
 	}
-	return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
+	return f.buildSCIONDReply(paths, req.Flags.PathCount, sciond.ErrorOk), nil
 }
 
 // buildSCIONDReply constructs a fresh SCIOND PathReply from the information
