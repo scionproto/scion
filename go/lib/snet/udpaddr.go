@@ -19,9 +19,9 @@ import (
 	"net"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -36,8 +36,23 @@ type UDPAddr struct {
 	Host    *net.UDPAddr
 }
 
-// UDPAddrFromString converts an address string of format isd-as,[ipaddr]:port
-// (e.g., 1-ff00:0:300,192.168.1.1:80) to a SCION address.
+// UDPAddrFromString converts an address string to a SCION address.
+// The supported formats are:
+//
+// Recommended:
+//  - isd-as,ipv4:port   (e.g., 1-ff00:0:300,192.168.1.1:8080)
+//  - isd-as,[ipv6]:port (e.g., 1-ff00:0:300,[f00d::1337]:808)
+//
+// Others:
+//  - isd-as,[ipv4]:port (e.g., 1-ff00:0:300,[192.168.1.1]:80)
+//  - isd-as,[ipv4]      (e.g., 1-ff00:0:300,[192.168.1.1])
+//  - isd-as,[ipv6]      (e.g., 1-ff00:0:300,[f00d::1337])
+//  - isd-as,ipv4        (e.g., 1-ff00:0:300,192.168.1.1)
+//  - isd-as,ipv6        (e.g., 1-ff00:0:300,f00d::1337)
+//
+// Not supported:
+//  - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
+//                         it will successfully parse as ipv6 without error)
 func UDPAddrFromString(s string) (*UDPAddr, error) {
 	parts, err := parseAddr(s)
 	if err != nil {
@@ -47,7 +62,10 @@ func UDPAddrFromString(s string) (*UDPAddr, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("invalid IA string", err, "ia", ia)
 	}
-
+	// First check if host is an IP without a port.
+	if ip := hostOnly(parts["host"]); ip != nil {
+		return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: 0}}, nil
+	}
 	hostPortPart := parts["host"]
 	host, portS, err := net.SplitHostPort(hostPortPart)
 	if err != nil {
@@ -130,7 +148,7 @@ func parseAddr(s string) (map[string]string, error) {
 	result := make(map[string]string)
 	match := addrRegexp.FindStringSubmatch(s)
 	if len(match) == 0 {
-		return nil, common.NewBasicError("Invalid address: regex match failed", nil, "addr", s)
+		return nil, serrors.New("Invalid address: regex match failed", "addr", s)
 	}
 	for i, name := range addrRegexp.SubexpNames() {
 		if i == 0 {
@@ -139,4 +157,17 @@ func parseAddr(s string) (map[string]string, error) {
 		result[name] = match[i]
 	}
 	return result, nil
+}
+
+// hostOnly parses the input in the case it only contains a host.
+// If the input is invalid, or also contains a port, nil is returned.
+func hostOnly(s string) net.IP {
+	left, right := strings.Count(s, "["), strings.Count(s, "]")
+	if left != right {
+		return nil
+	}
+	if left > 1 {
+		return nil
+	}
+	return net.ParseIP(strings.Trim(s, "[]"))
 }
