@@ -49,12 +49,6 @@ func TestRedirectQUIC(t *testing.T) {
 			wantAddr:  nil,
 			assertErr: assert.NoError,
 		},
-		"disabling SVC resolution, ": {
-			input:                 &snet.SVCAddr{},
-			wantAddr:              &snet.SVCAddr{},
-			SVCResolutionFraction: 0.0,
-			assertErr:             assert.NoError,
-		},
 		"not nil invalid addr, error": {
 			input:                 &net.TCPAddr{},
 			wantAddr:              nil,
@@ -157,6 +151,38 @@ func TestRedirectQUIC(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, want, a)
 		assert.True(t, r)
+	})
+
+	t.Run("valid SVCAddr, no resolution, resolves path", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		router := mock_snet.NewMockRouter(ctrl)
+
+		path := mock_snet.NewMockPath(ctrl)
+		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
+		path.EXPECT().Path().Return(nil)
+		path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
+		path.EXPECT().Fingerprint().Return(snet.PathFingerprint(""))
+		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(
+			&net.UDPAddr{IP: net.ParseIP("10.1.1.1")}, nil,
+		)
+
+		aw := messenger.AddressRewriter{
+			Router:                router,
+			SVCRouter:             svcRouter,
+			SVCResolutionFraction: 0.0,
+		}
+
+		input := &snet.SVCAddr{SVC: addr.SvcBS}
+		want := &snet.SVCAddr{
+			SVC:     addr.SvcBS,
+			NextHop: &net.UDPAddr{IP: net.ParseIP("10.1.1.1")},
+		}
+		a, r, err := aw.RedirectToQUIC(context.Background(), input)
+		assert.NoError(t, err)
+		assert.Equal(t, want, a)
+		assert.False(t, r)
 	})
 }
 
