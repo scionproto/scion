@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -54,32 +53,26 @@ type UDPAddr struct {
 //  - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
 //                         it will successfully parse as ipv6 without error)
 func UDPAddrFromString(s string) (*UDPAddr, error) {
-	parts, err := parseAddr(s)
+	rawIA, rawHost, err := parseAddr(s)
 	if err != nil {
 		return nil, err
 	}
-	ia, err := addr.IAFromString(parts["ia"])
+	ia, err := addr.IAFromString(rawIA)
 	if err != nil {
-		return nil, serrors.WrapStr("invalid IA string", err, "ia", ia)
+		return nil, serrors.WrapStr("invalid address: IA not parsable", err, "ia", ia)
 	}
 	// First check if host is an IP without a port.
-	if ip := hostOnly(parts["host"]); ip != nil {
+	if ip := net.ParseIP(strings.Trim(rawHost, "[]")); ip != nil {
 		return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: 0}}, nil
 	}
-	hostPortPart := parts["host"]
-	host, portS, err := net.SplitHostPort(hostPortPart)
+	udpAddr, err := net.ResolveUDPAddr("udp", rawHost)
 	if err != nil {
 		return nil, err
 	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return nil, serrors.New("invalid IP address string", "ip", host)
+	if udpAddr.IP == nil {
+		return nil, serrors.New("invalid address: no IP specified", "host", rawHost)
 	}
-	port, err := strconv.ParseUint(portS, 10, 16)
-	if err != nil {
-		return nil, serrors.WrapStr("invalid port in address", err, "host:port", hostPortPart)
-	}
-	return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: int(port)}}, nil
+	return &UDPAddr{IA: ia, Host: udpAddr}, nil
 }
 
 // Network implements net.Addr interface.
@@ -144,19 +137,19 @@ func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	}
 }
 
-func parseAddr(s string) (map[string]string, error) {
-	result := make(map[string]string)
+func parseAddr(s string) (string, string, error) {
 	match := addrRegexp.FindStringSubmatch(s)
-	if len(match) == 0 {
-		return nil, serrors.New("Invalid address: regex match failed", "addr", s)
+	if len(match) != 3 {
+		return "", "", serrors.New("invalid address: regex match failed", "addr", s)
 	}
-	for i, name := range addrRegexp.SubexpNames() {
-		if i == 0 {
-			continue
-		}
-		result[name] = match[i]
+	left, right := strings.Count(s, "["), strings.Count(s, "]")
+	if left != right {
+		return "", "", serrors.New("invalid address: bracket count mismatch", "addr", s)
 	}
-	return result, nil
+	if strings.HasSuffix(match[2], ":") {
+		return "", "", serrors.New("invalid address: tailing ':'", "addr", s)
+	}
+	return match[1], match[2], nil
 }
 
 // hostOnly parses the input in the case it only contains a host.

@@ -129,6 +129,7 @@ func TestUDPAddrFromString(t *testing.T) {
 		{address: "5-", isError: true},
 		{address: "2-ff00:0:300,[", isError: true},
 		{address: "5-ff00:0:300,[]:", isError: true},
+		{address: "5-ff00:0:300,[127.0.0.1]:", isError: true},
 		{address: "40-ff00:0:300,[]:19", isError: true},
 		{address: "1-ff00:0:300,[]:13,[f", isError: true},
 		{address: "1-ff00:0:300,[abc]:12", isError: true},
