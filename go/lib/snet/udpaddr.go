@@ -147,7 +147,7 @@ func parseAddr(s string) (string, string, error) {
 		return "", "", serrors.New("invalid address: bracket count mismatch", "addr", s)
 	}
 	if strings.HasSuffix(match[2], ":") {
-		return "", "", serrors.New("invalid address: tailing ':'", "addr", s)
+		return "", "", serrors.New("invalid address: trailing ':'", "addr", s)
 	}
 	return match[1], match[2], nil
 }
