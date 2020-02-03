@@ -151,16 +151,3 @@ func parseAddr(s string) (string, string, error) {
 	}
 	return match[1], match[2], nil
 }
-
-// hostOnly parses the input in the case it only contains a host.
-// If the input is invalid, or also contains a port, nil is returned.
-func hostOnly(s string) net.IP {
-	left, right := strings.Count(s, "["), strings.Count(s, "]")
-	if left != right {
-		return nil
-	}
-	if left > 1 {
-		return nil
-	}
-	return net.ParseIP(strings.Trim(s, "[]"))
-}
