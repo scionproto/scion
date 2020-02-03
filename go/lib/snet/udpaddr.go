@@ -18,16 +18,14 @@ import (
 	"fmt"
 	"net"
 	"regexp"
-	"strconv"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-var addrRegexp = regexp.MustCompile(
-	`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\](?P<port>:\d+)?$`)
+var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
 
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
@@ -37,31 +35,44 @@ type UDPAddr struct {
 	Host    *net.UDPAddr
 }
 
-// UDPAddrFromString converts an address string of format isd-as,[ipaddr]:port
-// (e.g., 1-ff00:0:300,[192.168.1.1]:80) to a SCION address.
+// UDPAddrFromString converts an address string to a SCION address.
+// The supported formats are:
+//
+// Recommended:
+//  - isd-as,ipv4:port   (e.g., 1-ff00:0:300,192.168.1.1:8080)
+//  - isd-as,[ipv6]:port (e.g., 1-ff00:0:300,[f00d::1337]:808)
+//
+// Others:
+//  - isd-as,[ipv4]:port (e.g., 1-ff00:0:300,[192.168.1.1]:80)
+//  - isd-as,[ipv4]      (e.g., 1-ff00:0:300,[192.168.1.1])
+//  - isd-as,[ipv6]      (e.g., 1-ff00:0:300,[f00d::1337])
+//  - isd-as,ipv4        (e.g., 1-ff00:0:300,192.168.1.1)
+//  - isd-as,ipv6        (e.g., 1-ff00:0:300,f00d::1337)
+//
+// Not supported:
+//  - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
+//                         it will successfully parse as ipv6 without error)
 func UDPAddrFromString(s string) (*UDPAddr, error) {
-	parts, err := parseAddr(s)
+	rawIA, rawHost, err := parseAddr(s)
 	if err != nil {
 		return nil, err
 	}
-	ia, err := addr.IAFromString(parts["ia"])
+	ia, err := addr.IAFromString(rawIA)
 	if err != nil {
-		return nil, serrors.WrapStr("invalid IA string", err, "ia", ia)
+		return nil, serrors.WrapStr("invalid address: IA not parsable", err, "ia", ia)
 	}
-	ip := net.ParseIP(parts["host"])
-	if ip == nil {
-		return nil, serrors.New("invalid IP address string", "ip", parts["host"])
+	// First check if host is an IP without a port.
+	if ip := net.ParseIP(strings.Trim(rawHost, "[]")); ip != nil {
+		return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: 0}}, nil
 	}
-	var port int
-	if parts["port"] != "" {
-		// skip the : (first character) from the port string
-		p, err := strconv.ParseUint(parts["port"][1:], 10, 16)
-		if err != nil {
-			return nil, serrors.WrapStr("invalid port string", err, "port", parts["port"][1:])
-		}
-		port = int(p)
+	udpAddr, err := net.ResolveUDPAddr("udp", rawHost)
+	if err != nil {
+		return nil, err
 	}
-	return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: port}}, nil
+	if udpAddr.IP == nil {
+		return nil, serrors.New("invalid address: no IP specified", "host", rawHost)
+	}
+	return &UDPAddr{IA: ia, Host: udpAddr}, nil
 }
 
 // Network implements net.Addr interface.
@@ -71,16 +82,7 @@ func (a *UDPAddr) Network() string {
 
 // String implements net.Addr interface.
 func (a *UDPAddr) String() string {
-	var ip net.IP
-	var port int
-	if a.Host == nil {
-		ip = nil
-		port = 0
-	} else {
-		ip = a.Host.IP
-		port = a.Host.Port
-	}
-	return fmt.Sprintf("%v,[%v]:%v", a.IA, ip, port)
+	return fmt.Sprintf("%v,%s", a.IA, a.Host.String())
 }
 
 // GetPath returns a path with attached metadata.
@@ -135,17 +137,17 @@ func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	}
 }
 
-func parseAddr(s string) (map[string]string, error) {
-	result := make(map[string]string)
+func parseAddr(s string) (string, string, error) {
 	match := addrRegexp.FindStringSubmatch(s)
-	if len(match) == 0 {
-		return nil, common.NewBasicError("Invalid address: regex match failed", nil, "addr", s)
+	if len(match) != 3 {
+		return "", "", serrors.New("invalid address: regex match failed", "addr", s)
 	}
-	for i, name := range addrRegexp.SubexpNames() {
-		if i == 0 {
-			continue
-		}
-		result[name] = match[i]
+	left, right := strings.Count(s, "["), strings.Count(s, "]")
+	if left != right {
+		return "", "", serrors.New("invalid address: bracket count mismatch", "addr", s)
 	}
-	return result, nil
+	if strings.HasSuffix(match[2], ":") {
+		return "", "", serrors.New("invalid address: trailing ':'", "addr", s)
+	}
+	return match[1], match[2], nil
 }
