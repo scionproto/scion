@@ -92,6 +92,9 @@ func (cfg *PathDBConf) Validate() error {
 	if err := cfg.validateBackend(); err != nil {
 		return err
 	}
+	if err := cfg.validateConnection(); err != nil {
+		return err
+	}
 	return nil
 }
 

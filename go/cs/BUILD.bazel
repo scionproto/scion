@@ -64,6 +64,5 @@ go_binary(
 
 filegroup(
     name = "schema",
-    srcs = ["schema.sql"],
     visibility = ["//visibility:public"],
 )

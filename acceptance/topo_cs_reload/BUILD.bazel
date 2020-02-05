@@ -67,10 +67,6 @@ genrule(
     cmd = "jq '.ControlService[].Addrs.IPv4.Public.L4Port = 42424' $(location //acceptance/topo_common:topology) > $@",
 )
 
-# Unfortunately this can't be directly used in the cs docker container above,
-# since bazel will destroy the directory structure. Instead it can be used to
-# regenerate the files that are in the testdata/ISD1 folder, run;
-# bazel build //acceptance/topo_cs_reload:gen_crypto; cp -r bazel-bin/acceptance/topo_cs_reload/ISD1 acceptance/topo_cs_reload/testdata
 genrule(
     name = "gen_crypto_tar",
     srcs = ["testdata/test.topo"],
