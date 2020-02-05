@@ -11,7 +11,6 @@ go_library(
     deps = [
         "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
-        "//go/lib/infra/modules/idiscovery:go_default_library",
         "//go/lib/pathstorage:go_default_library",
         "//go/lib/sciond:go_default_library",
         "//go/lib/serrors:go_default_library",
@@ -26,7 +25,6 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/env/envtest:go_default_library",
-        "//go/lib/infra/modules/idiscovery/idiscoverytest:go_default_library",
         "//go/lib/pathstorage/pathstoragetest:go_default_library",
         "//go/lib/sciond:go_default_library",
         "//go/lib/truststorage/truststoragetest:go_default_library",

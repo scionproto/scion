@@ -30,13 +30,11 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -60,8 +58,7 @@ const (
 )
 
 var (
-	cfg         config.Config
-	discRunners idiscovery.Runners
+	cfg config.Config
 )
 
 func init() {
@@ -88,10 +85,6 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
-		return 1
-	}
-	if err := startDiscovery(cfg.Discovery); err != nil {
-		log.Crit("Unable to start topology fetcher", "err", err)
 		return 1
 	}
 	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.SD.PathDB, cfg.SD.RevCache)
@@ -231,18 +224,11 @@ func setup() error {
 	if err != nil {
 		return common.NewBasicError("unable to load topology", err)
 	}
-	if _, _, err := itopo.SetStatic(topo, false); err != nil {
+	if _, _, err := itopo.SetStatic(topo); err != nil {
 		return common.NewBasicError("unable to set initial static topology", err)
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)
 	return nil
-}
-
-func startDiscovery(file idiscovery.Config) error {
-	var err error
-	discRunners, err = idiscovery.StartRunners(file, discovery.Default,
-		idiscovery.TopoHandlers{}, nil, "sd")
-	return err
 }
 
 func NewServer(network string, rsockPath string,

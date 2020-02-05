@@ -54,7 +54,6 @@ DEFAULT_BEACON_SERVERS = 1
 DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CONTROL_SERVERS = 1
 DEFAULT_COLIBRI_SERVERS = 1
-DEFAULT_DISCOVERY_SERVERS = 1
 
 UNDERLAY_4 = 'UDP/IPv4'
 UNDERLAY_6 = 'UDP/IPv6'
@@ -210,9 +209,6 @@ class TopoGenerator(object):
             srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService"))
         for conf_key, def_num, nick, topo_key in srvs:
             self._gen_srv_entry(topo_id, as_conf, conf_key, def_num, nick, topo_key)
-        # The discovery service does not run on top of the dispatcher.
-        self._gen_srv_entry(topo_id, as_conf, "discovery_servers", DEFAULT_DISCOVERY_SERVERS,
-                            "ds", "DiscoveryService", False)
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
                        topo_key, uses_dispatcher=True):
@@ -242,8 +238,6 @@ class TopoGenerator(object):
     def _default_ctrl_port(self, nick):
         if nick == "cs":
             return 30252
-        if nick == "ds":
-            return 8041
         if nick == "co":
             return 30257
         print('Invalid nick: %s' % nick)
@@ -253,8 +247,6 @@ class TopoGenerator(object):
         count = as_conf.get(conf_key, def_num)
         if conf_key == "control_servers":
             count = 1
-        if conf_key == "discovery_servers" and not self.args.discovery:
-            count = 0
         return count
 
     def _gen_br_entries(self, topo_id, as_conf):

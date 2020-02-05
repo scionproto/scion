@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/truststorage"
@@ -90,7 +89,6 @@ type Config struct {
 	SCIOND         env.SCIONDClient `toml:"sd_client"`
 	TrustDB        truststorage.TrustDBConf
 	BeaconDB       beaconstorage.BeaconDBConf
-	Discovery      idiscovery.Config
 	BS             BSConfig
 	CS             CSConfig
 	PS             PSConfig
@@ -108,7 +106,6 @@ func (cfg *Config) InitDefaults() {
 		&cfg.SCIOND,
 		&cfg.TrustDB,
 		&cfg.BeaconDB,
-		&cfg.Discovery,
 		&cfg.BS,
 		&cfg.CS,
 		&cfg.PS,
@@ -125,7 +122,6 @@ func (cfg *Config) Validate() error {
 		&cfg.SCIOND,
 		&cfg.TrustDB,
 		&cfg.BeaconDB,
-		&cfg.Discovery,
 		&cfg.BS,
 		&cfg.CS,
 		&cfg.PS,
@@ -144,7 +140,6 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.SCIOND,
 		&cfg.TrustDB,
 		&cfg.BeaconDB,
-		&cfg.Discovery,
 		&cfg.BS,
 		&cfg.CS,
 		&cfg.PS,

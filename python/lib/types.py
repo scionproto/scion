@@ -54,14 +54,8 @@ class ServiceType(TypeBase):
     # these values must be kept in sync with the common.capnp ServiceType enum
     #: Unset
     UNSET = "unset"
-    #: Beacon service
-    BS = "bs"
-    #: Path service
-    PS = "ps"
     #: Certificate service
     CS = "cs"
-    #: Discovery service
-    DS = "ds"
     #: Border router
     BR = "br"
     #: SCION-IP gateway

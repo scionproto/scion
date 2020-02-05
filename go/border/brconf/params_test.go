@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -39,12 +38,7 @@ func TestConfigSample(t *testing.T) {
 
 func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, nil)
-	InitTestDiscoveryConfig(&cfg.Discovery)
 	InitTestBRConfig(&cfg.BR)
-}
-func InitTestDiscoveryConfig(cfg *Discovery) {
-	cfg.AllowSemiMutable = true
-	idiscoverytest.InitTestConfig(&cfg.Config)
 }
 
 func InitTestBRConfig(cfg *BR) {
@@ -53,13 +47,7 @@ func InitTestBRConfig(cfg *BR) {
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, nil, nil, id)
-	CheckTestDiscoveryConfig(t, &cfg.Discovery)
 	CheckTestBRConfig(t, &cfg.BR)
-}
-
-func CheckTestDiscoveryConfig(t *testing.T, cfg *Discovery) {
-	assert.False(t, cfg.AllowSemiMutable)
-	idiscoverytest.CheckTestConfig(t, &cfg.Config)
 }
 
 func CheckTestBRConfig(t *testing.T, cfg *BR) {

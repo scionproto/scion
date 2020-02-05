@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beaconstorage/beaconstoragetest"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env/envtest"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 	"github.com/scionproto/scion/go/lib/pathstorage/pathstoragetest"
 	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
 	"github.com/scionproto/scion/go/lib/util"
@@ -61,7 +60,6 @@ func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil)
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
 	beaconstoragetest.InitTestBeaconDBConf(&cfg.BeaconDB)
-	idiscoverytest.InitTestConfig(&cfg.Discovery)
 	InitTestBSConfig(&cfg.BS)
 }
 
@@ -80,7 +78,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
 	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
 	beaconstoragetest.CheckTestBeaconDBConf(t, &cfg.BeaconDB, id)
-	idiscoverytest.CheckTestConfig(t, &cfg.Discovery)
 	CheckTestBSConfig(t, &cfg.BS)
 	CheckTestCSConfig(t, &cfg.CS)
 	CheckTestPSConfig(t, &cfg.PS, id)

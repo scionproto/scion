@@ -119,7 +119,6 @@ func TestServiceCount(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/basic.json")
 	assert.Len(t, c.CS, 2, "CS")
 	assert.Len(t, c.SIG, 2, "SIG")
-	assert.Len(t, c.DS, 2, "DS")
 }
 
 func TestIFInfoMap(t *testing.T) {

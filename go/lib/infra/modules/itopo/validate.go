@@ -17,26 +17,16 @@ package itopo
 import (
 	"reflect"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
-type dynDropper interface {
-	// MustDropDynamic indicates whether the dynamic topology shall be dropped.
-	MustDropDynamic(topo, oldTopo *topology.RWTopology) bool
-}
-
 // validator is used to validate that the topology update is permissible.
 type validator interface {
-	dynDropper
-	// Validate checks that the topology update is valid according to the mutability rules.
-	// The validation rules differ between service types. However, at the very least, it
-	// is checked that topo is not nil and the immutable parts do not change.
-	Validate(topo, oldTopo *topology.RWTopology, allowed bool) error
+	// Validate checks that the topology update is valid.
+	Validate(topo, oldTopo *topology.RWTopology) error
 }
 
 func validatorFactory(id string, svc proto.ServiceType) validator {
@@ -58,29 +48,23 @@ type validatorWrap struct {
 }
 
 // Validate checks that the topology update is valid.
-func (v *validatorWrap) Validate(topo, oldTopo *topology.RWTopology, allowed bool) error {
+func (v *validatorWrap) Validate(topo, oldTopo *topology.RWTopology) error {
 	if err := v.General(topo); err != nil {
 		return err
 	}
 	if err := v.Immutable(topo, oldTopo); err != nil {
 		return err
 	}
-	if err := v.SemiMutable(topo, oldTopo, allowed); err != nil {
-		return err
-	}
 	return nil
 }
 
 type internalValidator interface {
-	dynDropper
 	// General checks that the topology is generally valid. The exact check is implementation
 	// specific to the validator. However, at the very least, this check ensures that the
 	// provided topology is non-nil.
 	General(topo *topology.RWTopology) error
 	// Immutable checks that the immutable parts of the topology do not change.
 	Immutable(topo, oldTopo *topology.RWTopology) error
-	// SemiMutable checks that the semi-mutable parts of the topology update are valid.
-	SemiMutable(topo, oldTopo *topology.RWTopology, allowed bool) error
 }
 
 var _ internalValidator = (*generalValidator)(nil)
@@ -114,14 +98,6 @@ func (v *generalValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 			"expected", oldTopo.MTU, "actual", topo.MTU)
 	}
 	return nil
-}
-
-func (*generalValidator) SemiMutable(_, _ *topology.RWTopology, _ bool) error {
-	return nil
-}
-
-func (*generalValidator) MustDropDynamic(_, _ *topology.RWTopology) bool {
-	return false
 }
 
 var _ internalValidator = (*svcValidator)(nil)
@@ -200,47 +176,4 @@ func (v *brValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 			oldTopo.BR[v.id].CtrlAddrs, "actual", topo.BR[v.id].CtrlAddrs)
 	}
 	return nil
-}
-
-func (v *brValidator) SemiMutable(topo, oldTopo *topology.RWTopology, allowed bool) error {
-	if oldTopo == nil {
-		return nil
-	}
-	if !allowed && v.interfacesChanged(topo, oldTopo) {
-		return common.NewBasicError("IFID set changed", nil, "expected",
-			oldTopo.BR[v.id].IFIDs, "actual", topo.BR[v.id].IFIDs)
-	}
-	return nil
-}
-
-func (v *brValidator) MustDropDynamic(topo, oldTopo *topology.RWTopology) bool {
-	if oldTopo == nil {
-		return false
-	}
-	return v.interfacesChanged(topo, oldTopo)
-}
-
-func (v *brValidator) interfacesChanged(topo, oldTopo *topology.RWTopology) bool {
-	if v.interfaceSetChanged(topo, oldTopo) {
-		return true
-	}
-	for _, ifid := range topo.BR[v.id].IFIDs {
-		if !cmp.Equal(topo.IFInfoMap[ifid], oldTopo.IFInfoMap[ifid]) {
-			return true
-		}
-	}
-	return false
-}
-
-func (v *brValidator) interfaceSetChanged(topo, oldTopo *topology.RWTopology) bool {
-	if len(topo.BR[v.id].IFIDs) != len(oldTopo.BR[v.id].IFIDs) {
-		return true
-	}
-	// The interfaces are sorted.
-	for i, ifid := range topo.BR[v.id].IFIDs {
-		if ifid != oldTopo.BR[v.id].IFIDs[i] {
-			return true
-		}
-	}
-	return false
 }
