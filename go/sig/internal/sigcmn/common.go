@@ -57,7 +57,7 @@ var (
 	encapPort  uint16
 )
 
-func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
+func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient) error {
 	IA = cfg.IA
 	Host = addr.HostFromIP(cfg.IP)
 	MgmtAddr = mgmt.NewAddr(Host, cfg.CtrlPort, cfg.EncapPort)
@@ -81,7 +81,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SciondClient) error {
 }
 
 func initNetwork(cfg sigconfig.SigConf,
-	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+	sdCfg env.SCIONDClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
 	var err error
 	Dispatcher, err = newDispatcher(cfg)
@@ -95,7 +95,7 @@ func initNetwork(cfg sigconfig.SigConf,
 }
 
 func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
-	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+	sdCfg env.SCIONDClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
 	sciondConn, err := fake.NewFromFile(sdCfg.FakeData)
 	if err != nil {
@@ -110,20 +110,20 @@ func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
 }
 
 func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
-	sdCfg env.SciondClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+	sdCfg env.SCIONDClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
 	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
 	deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
 	var retErr error
 	for tries := 0; time.Now().Before(deadline); tries++ {
-		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Path, sdCfg.PathCount)
+		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Address, sdCfg.PathCount)
 		if err == nil {
 			return snet.NewNetworkWithPR(cfg.IA, Dispatcher, &snetmigrate.PathQuerier{
 				Resolver: resolver,
 				IA:       cfg.IA,
 			}, resolver), resolver, nil
 		}
-		log.Debug("SIG is retrying to get NewNetwork", err)
+		log.Debug("SIG is retrying to get NewNetwork", "err", err)
 		retErr = err
 		time.Sleep(time.Second)
 	}

@@ -35,33 +35,21 @@ import (
 )
 
 var (
-	sciondPath   = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher   = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
-	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
-	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
-	sdConn       sciond.Connector
-	version      = flag.Bool("version", false, "Output version information and exit.")
+	sciondAddr = flag.String("sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
+	dispatcher = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
+	refresh    = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
+	sdConn     sciond.Connector
+	version    = flag.Bool("version", false, "Output version information and exit.")
 )
 
 func main() {
 	var err error
 	cmd := cmn.ParseFlags(version)
 	cmn.ValidateFlags()
-	if *sciondFromIA {
-		if *sciondPath != "" {
-			cmn.Fatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		if cmn.Local.IA.IsZero() {
-			cmn.Fatal("-local flag is missing")
-		}
-		*sciondPath = sciond.GetDefaultSCIONDPath(&cmn.Local.IA)
-	} else if *sciondPath == "" {
-		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
-	}
 	// Connect to sciond
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	sd := sciond.NewService(*sciondPath)
+	sd := sciond.NewService(*sciondAddr)
 	sdConn, err = sd.Connect(ctx)
 	if err != nil {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)

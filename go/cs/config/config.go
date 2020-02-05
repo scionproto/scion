@@ -87,7 +87,7 @@ type Config struct {
 	Metrics        env.Metrics
 	Tracing        env.Tracing
 	QUIC           env.QUIC         `toml:"quic"`
-	Sciond         env.SciondClient `toml:"sd_client"`
+	SCIOND         env.SCIONDClient `toml:"sd_client"`
 	TrustDB        truststorage.TrustDBConf
 	BeaconDB       beaconstorage.BeaconDBConf
 	Discovery      idiscovery.Config
@@ -105,7 +105,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Tracing,
-		&cfg.Sciond,
+		&cfg.SCIOND,
 		&cfg.TrustDB,
 		&cfg.BeaconDB,
 		&cfg.Discovery,
@@ -122,7 +122,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
-		&cfg.Sciond,
+		&cfg.SCIOND,
 		&cfg.TrustDB,
 		&cfg.BeaconDB,
 		&cfg.Discovery,
@@ -141,7 +141,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Metrics,
 		&cfg.Tracing,
 		&cfg.QUIC,
-		&cfg.Sciond,
+		&cfg.SCIOND,
 		&cfg.TrustDB,
 		&cfg.BeaconDB,
 		&cfg.Discovery,

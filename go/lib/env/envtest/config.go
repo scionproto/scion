@@ -28,7 +28,7 @@ import (
 )
 
 func InitTest(general *env.General, logging *env.Logging,
-	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SciondClient) {
+	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SCIONDClient) {
 	if general != nil {
 		InitTestGeneral(general)
 	}
@@ -42,7 +42,7 @@ func InitTest(general *env.General, logging *env.Logging,
 		InitTestTracing(tracing)
 	}
 	if sciond != nil {
-		InitTestSciond(sciond)
+		InitTestSCIOND(sciond)
 	}
 }
 
@@ -59,10 +59,10 @@ func InitTestTracing(cfg *env.Tracing) {
 	cfg.Debug = true
 }
 
-func InitTestSciond(cfg *env.SciondClient) {}
+func InitTestSCIOND(cfg *env.SCIONDClient) {}
 
 func CheckTest(t *testing.T, general *env.General, logging *env.Logging,
-	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SciondClient, id string) {
+	metrics *env.Metrics, tracing *env.Tracing, sciond *env.SCIONDClient, id string) {
 	if general != nil {
 		CheckTestGeneral(t, general, id)
 	}
@@ -111,7 +111,7 @@ func CheckTestTracing(t *testing.T, cfg *env.Tracing) {
 	)
 }
 
-func CheckTestSciond(t *testing.T, cfg *env.SciondClient, id string) {
-	assert.Equal(t, sciond.DefaultSCIONDPath, cfg.Path)
+func CheckTestSciond(t *testing.T, cfg *env.SCIONDClient, id string) {
+	assert.Equal(t, sciond.DefaultSCIONDAddress, cfg.Address)
 	assert.Equal(t, env.SciondInitConnectPeriod, cfg.InitialConnectPeriod.Duration)
 }

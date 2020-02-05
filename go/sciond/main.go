@@ -29,14 +29,13 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
@@ -110,30 +109,13 @@ func realMain() int {
 	defer trCloser.Close()
 	opentracing.SetGlobalTracer(tracer)
 
-	publicIP, err := net.ResolveUDPAddr("udp", cfg.SD.Public)
+	publicIP, err := net.ResolveUDPAddr("udp", cfg.SD.Address)
 	if err != nil {
 		log.Crit("Unable to resolve listening address", "err", err, "addr", publicIP)
 		return 1
 	}
 
-	nc := infraenv.NetworkConfig{
-		IA:                    itopo.Get().IA(),
-		Public:                publicIP,
-		SVC:                   addr.SvcNone,
-		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
-		QUIC: infraenv.QUIC{
-			Address:  cfg.QUIC.Address,
-			CertFile: cfg.QUIC.CertFile,
-			KeyFile:  cfg.QUIC.KeyFile,
-		},
-		SVCResolutionFraction: cfg.QUIC.ResolutionFraction,
-		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
-	}
-	msger, err := nc.Messenger()
-	if err != nil {
-		log.Crit(infraenv.ErrAppUnableToInitMessenger.Error(), "err", err)
-		return 1
-	}
+	msger := tcp.NewClientMessenger(tcp.Client{TopologyProvider: itopo.Provider()})
 	defer msger.CloseServer()
 
 	trustDB, err := cfg.TrustDB.New()
@@ -170,7 +152,6 @@ func realMain() int {
 		return 1
 	}
 
-	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
 			Fetcher: fetcher.NewFetcher(
@@ -200,13 +181,9 @@ func realMain() int {
 	rcCleaner := periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
-	// Start servers
-	rsockServer, shutdownF := NewServer("rsock", cfg.SD.Reliable, handlers)
+	apiServer, shutdownF := NewServer("tcp", cfg.SD.Address, handlers)
 	defer shutdownF()
-	StartServer("ReliableSockServer", cfg.SD.Reliable, rsockServer)
-	unixpacketServer, shutdownF := NewServer("unixpacket", cfg.SD.Unix, handlers)
-	defer shutdownF()
-	StartServer("UnixServer", cfg.SD.Unix, unixpacketServer)
+	StartServer(cfg.SD.Address, apiServer)
 	http.HandleFunc("/config", configHandler)
 	http.HandleFunc("/info", env.InfoHandler)
 	http.HandleFunc("/topology", itopo.TopologyHandler)
@@ -258,7 +235,7 @@ func setup() error {
 		return common.NewBasicError("unable to set initial static topology", err)
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)
-	return cfg.SD.CreateSocketDirs()
+	return nil
 }
 
 func startDiscovery(file idiscovery.Config) error {
@@ -271,7 +248,7 @@ func startDiscovery(file idiscovery.Config) error {
 func NewServer(network string, rsockPath string,
 	handlers servers.HandlerMap) (*servers.Server, func()) {
 
-	server := servers.NewServer(network, rsockPath, os.FileMode(cfg.SD.SocketFileMode), handlers)
+	server := servers.NewServer(network, rsockPath, handlers)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
 		server.Shutdown(ctx)
@@ -280,16 +257,11 @@ func NewServer(network string, rsockPath string,
 	return server, shutdownF
 }
 
-func StartServer(name, sockPath string, server *servers.Server) {
+func StartServer(address string, server *servers.Server) {
 	go func() {
 		defer log.LogPanicAndExit()
-		if cfg.SD.DeleteSocket {
-			if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
-				fatal.Fatal(common.NewBasicError("SocketRemoval error", err, "name", name))
-			}
-		}
 		if err := server.ListenAndServe(); err != nil {
-			fatal.Fatal(common.NewBasicError("ListenAndServe error", err, "name", name))
+			fatal.Fatal(common.NewBasicError("ListenAndServe error", err, "address", address))
 		}
 	}()
 }

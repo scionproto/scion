@@ -16,16 +16,16 @@ package beaconstorage
 
 const beaconDbSample = `
 # The type of trustdb backend. (default sqlite)
-Backend = "sqlite"
+backend = "sqlite"
 
 # Connection for the trust database.
-Connection = "/var/lib/scion/beacondb/%s.beacon.db"
+connection = "/var/lib/scion/beacondb/%s.beacon.db"
 
 # The maximum number of open connections to the database. In case of the
 # empty string, the limit is not set and uses the go default. (default "")
-MaxOpenConns = ""
+max_open_conns = ""
 
 # The maximum number of idle connections to the database. In case of the
 # empty string, the limit is not set and uses the go default. (default "")
-MaxIdleConns = ""
+max_idle_conns = ""
 `

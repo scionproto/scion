@@ -48,26 +48,27 @@ const (
 )
 
 type Handler interface {
-	Handle(ctx context.Context, conn net.PacketConn, src net.Addr, pld *sciond.Pld)
+	Handle(ctx context.Context, conn net.Conn, src net.Addr, pld *sciond.Pld)
 }
 
 // PathRequestHandler represents the shared global state for the handling of all
 // PathRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each PathRequest it receives.
 type PathRequestHandler struct {
-	Fetcher *fetcher.Fetcher
+	Fetcher fetcher.Fetcher
 }
 
-func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
+func (h *PathRequestHandler) Handle(ctx context.Context, conn net.Conn, src net.Addr,
 	pld *sciond.Pld) {
 
+	defer conn.Close()
 	metricsDone := metrics.PathRequests.Start()
 	labels := metrics.PathRequestLabels{Dst: pld.PathReq.Dst.IA().I, Result: metrics.OkSuccess}
 	logger := log.FromCtx(ctx)
 	logger.Debug("[PathRequestHandler] Received request", "req", pld.PathReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
-	getPathsReply, err := h.Fetcher.GetPaths(workCtx, pld.PathReq, DefaultEarlyReply, logger)
+	getPathsReply, err := h.Fetcher.GetPaths(workCtx, pld.PathReq, DefaultEarlyReply)
 	if err != nil {
 		logger.Error("Unable to get paths", "err", err)
 		labels.Result = segfetcher.ErrToMetricsLabel(err)
@@ -78,16 +79,17 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.PacketConn, sr
 		Which:     proto.SCIONDMsg_Which_pathReply,
 		PathReply: getPathsReply,
 	}
-	if err := sendReply(reply, conn, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if err := sciond.Send(reply, conn); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		metricsDone(labels.WithResult(metrics.ErrNetwork))
-	} else {
-		logger.Debug("Replied with paths",
-			"num_paths", len(getPathsReply.Entries),
-			"err_code", getPathsReply.ErrorCode)
-		logger.Trace("Full reply", "paths", getPathsReply)
-		metricsDone(labels)
+		return
 	}
+	logger.Debug("Replied with paths",
+		"num_paths", len(getPathsReply.Entries),
+		"err_code", getPathsReply.ErrorCode)
+	logger.Trace("Full reply", "paths", getPathsReply)
+	metricsDone(labels)
 }
 
 // ASInfoRequestHandler represents the shared global state for the handling of all
@@ -97,9 +99,10 @@ type ASInfoRequestHandler struct {
 	ASInspector infra.ASInspector
 }
 
-func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
+func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src net.Addr,
 	pld *sciond.Pld) {
 
+	defer conn.Close()
 	metricsDone := metrics.ASInfos.Start()
 	logger := log.FromCtx(ctx)
 	logger.Debug("[ASInfoRequestHandler] Received request", "req", pld.AsInfoReq)
@@ -139,13 +142,14 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 			Entries: entries,
 		},
 	}
-	if err := sendReply(reply, conn, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if err := sciond.Send(reply, conn); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		metricsDone(metrics.ErrNetwork)
-	} else {
-		logger.Trace("Sent reply", "asInfo", reply.AsInfoReply)
-		metricsDone(metrics.OkSuccess)
+		return
 	}
+	logger.Trace("Sent reply", "asInfo", reply.AsInfoReply)
+	metricsDone(metrics.OkSuccess)
 }
 
 // IFInfoRequestHandler represents the shared global state for the handling of all
@@ -153,9 +157,10 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 // for each IFInfoRequest it receives.
 type IFInfoRequestHandler struct{}
 
-func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, src net.Addr,
+func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src net.Addr,
 	pld *sciond.Pld) {
 
+	defer conn.Close()
 	metricsDone := metrics.IFInfos.Start()
 	logger := log.FromCtx(ctx)
 	logger.Debug("[IFInfoRequestHandler] Received request", "req", pld.IfInfoRequest)
@@ -194,13 +199,14 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 		Which:       proto.SCIONDMsg_Which_ifInfoReply,
 		IfInfoReply: ifInfoReply,
 	}
-	if err := sendReply(reply, conn, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if err := sciond.Send(reply, conn); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		metricsDone(metrics.ErrNetwork)
-	} else {
-		logger.Trace("Sent reply", "ifInfo", ifInfoReply)
-		metricsDone(metrics.OkSuccess)
+		return
 	}
+	logger.Trace("Sent reply", "ifInfo", ifInfoReply)
+	metricsDone(metrics.OkSuccess)
 }
 
 // SVCInfoRequestHandler represents the shared global state for the handling of all
@@ -208,9 +214,10 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn, 
 // for each SVCInfoRequest it receives.
 type SVCInfoRequestHandler struct{}
 
-func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
+func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.Conn,
 	src net.Addr, pld *sciond.Pld) {
 
+	defer conn.Close()
 	metricsDone := metrics.SVCInfos.Start()
 	logger := log.FromCtx(ctx)
 	logger.Debug("[SVCInfoRequestHandler] Received request", "req", pld.ServiceInfoRequest)
@@ -235,13 +242,14 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 		Which:            proto.SCIONDMsg_Which_serviceInfoReply,
 		ServiceInfoReply: svcInfoReply,
 	}
-	if err := sendReply(reply, conn, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if err := sciond.Send(reply, conn); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		metricsDone(metrics.ErrNetwork)
-	} else {
-		logger.Trace("Sent reply", "svcInfo", svcInfoReply)
-		metricsDone(metrics.OkSuccess)
+		return
 	}
+	logger.Trace("Sent reply", "svcInfo", svcInfoReply)
+	metricsDone(metrics.OkSuccess)
 }
 
 // RevNotificationHandler represents the shared global state for the handling of all
@@ -253,9 +261,10 @@ type RevNotificationHandler struct {
 	NextQueryCleaner segfetcher.NextQueryCleaner
 }
 
-func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn,
+func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.Conn,
 	src net.Addr, pld *sciond.Pld) {
 
+	defer conn.Close()
 	metricsDone := metrics.Revocations.Start()
 	labels := metrics.RevocationLabels{
 		Src:    metrics.RevSrcNotification,
@@ -292,13 +301,14 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn
 		Which:    proto.SCIONDMsg_Which_revReply,
 		RevReply: revReply,
 	}
-	if err := sendReply(reply, conn, src); err != nil {
+	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
+	if err := sciond.Send(reply, conn); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		metricsDone(labels.WithResult(metrics.ErrNetwork))
-	} else {
-		logger.Trace("Sent reply", "revInfo", revInfo)
-		metricsDone(labels.WithResult(metrics.OkSuccess))
+		return
 	}
+	logger.Trace("Sent reply", "revInfo", revInfo)
+	metricsDone(labels.WithResult(metrics.OkSuccess))
 }
 
 // verifySRevInfo first checks if the RevInfo can be extracted from sRevInfo,
@@ -340,14 +350,4 @@ func isInvalid(err error) bool {
 // verification ended with an outcome of unknown.
 func isUnknown(err error) bool {
 	return err != nil
-}
-
-func sendReply(pld *sciond.Pld, conn net.PacketConn, src net.Addr) error {
-	b, err := proto.PackRoot(pld)
-	if err != nil {
-		panic(err)
-	}
-	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
-	_, err = conn.WriteTo(b, src)
-	return err
 }

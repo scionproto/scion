@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fetcher_test
+package segfetcher_test
 
 import (
 	"context"
@@ -25,23 +25,9 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 )
 
 var (
-	isd1 = xtest.MustParseIA("1-0")
-	isd2 = xtest.MustParseIA("2-0")
-
-	core_110 = xtest.MustParseIA("1-ff00:0:110")
-	core_120 = xtest.MustParseIA("1-ff00:0:120")
-	core_130 = xtest.MustParseIA("1-ff00:0:130")
-	core_210 = xtest.MustParseIA("2-ff00:0:210")
-
-	non_core_111 = xtest.MustParseIA("1-ff00:0:111")
-	non_core_112 = xtest.MustParseIA("1-ff00:0:112")
-	non_core_211 = xtest.MustParseIA("2-ff00:0:211")
-
 	cores = map[addr.IA]struct{}{
 		core_110: {},
 		core_120: {},
@@ -173,7 +159,10 @@ func TestRequestSplitter(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			splitter := fetcher.NewRequestSplitter(test.LocalIA, inspector)
+			splitter := segfetcher.MultiSegmentSplitter{
+				Local:     test.LocalIA,
+				Inspector: inspector,
+			}
 			requests, err := splitter.Split(context.Background(), test.Request)
 			if test.ExpectedErrMsg != "" {
 				assert.Error(t, err)

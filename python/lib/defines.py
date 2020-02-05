@@ -54,10 +54,6 @@ SCION_ROUTER_PORT = 50000
 DISPATCHER_DIR = "/run/shm/dispatcher"
 #: Default SCION dispatcher ID
 DEFAULT_DISPATCHER_ID = "default"
-#: Default SCION daemon UNIX socket directory
-SCIOND_API_SOCKDIR = "/run/shm/sciond/"
-#: Default SCION daemon API UNIX socket
-SCIOND_API_DEFAULT_SOCK = "default.sock"
 
 #: Dispatcher registration timeout
 DISPATCHER_TIMEOUT = 60.0

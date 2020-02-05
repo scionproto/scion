@@ -34,9 +34,7 @@ collect_metrics() {
 
     collect_elem_metrics 'BorderRouters' '30442' 'InternalAddrs.IPv4.PublicOverlay.Addr'
     collect_elem_metrics 'SIG' '30456'
-    collect_elem_metrics 'BeaconService'
-    collect_elem_metrics 'CertificateService'
-    collect_elem_metrics 'PathService'
+    collect_elem_metrics 'ControlService'
 }
 
 #######################################

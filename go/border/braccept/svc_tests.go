@@ -34,7 +34,7 @@ func svc_anycast_parent_to_internal_host() int {
 
 	pkt1 := pkt0.CloneAndUpdate(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
-		IP4: Src=192.168.0.11 Dst=192.168.0.61 Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 Checksum=0
 		UDP: Src=30001 Dst=30041
 	`)
 	pkt1.SetDev("veth_int")
@@ -52,7 +52,7 @@ func svc_multicast_parent_to_internal_host() int {
 		IP4: Src=192.168.13.3 Dst=192.168.13.2 NextHdr=UDP Flags=DF
 		UDP: Src=40000 Dst=50000
 		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=SVC
-			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=CS_M
+			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=SIG_M
 			IF_1: ISD=1 Hops=2 Flags=ConsDir
 				HF_1: ConsIngress=0   ConsEgress=311
 				HF_2: ConsIngress=131 ConsEgress=0
@@ -65,14 +65,14 @@ func svc_multicast_parent_to_internal_host() int {
 
 	pkt1 := pkt0.CloneAndUpdate(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
-		IP4: Src=192.168.0.11 Dst=192.168.0.71 Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.51 Checksum=0
 		UDP: Src=30001 Dst=30041
 	`)
 	pkt1.SetDev("veth_int")
 	pkt1.SetChecksum("UDP", "IP4")
 
 	pkt2 := pkt1.CloneAndUpdate(`
-		IP4: Src=192.168.0.11 Dst=192.168.0.72 Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.61 Checksum=0
 	`)
 	pkt2.SetDev("veth_int")
 	pkt2.SetChecksum("UDP", "IP4")
@@ -102,7 +102,7 @@ func svc_multicast_same_host_parent_to_internal_host() int {
 
 	pkt1 := pkt0.CloneAndUpdate(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
-		IP4: Src=192.168.0.11 Dst=192.168.0.51 Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 Checksum=0
 		UDP: Src=30001 Dst=30041
 	`)
 	pkt1.SetDev("veth_int")
