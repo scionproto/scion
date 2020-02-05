@@ -115,9 +115,12 @@ connections. To summarize, the space required by the Latency Information
 extension in bytes is calculated as the sum of the amount of space consumed by
 the ST field, the InIntf field, the Len field and the Len Br_i fields.
 The size of each BR_i field can be bounded from above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[BR_i]&space;=&space;Size[TotMs]&space;&plus;&space;Size[NrIntfs]&space;\\&space;&plus;&space;(NrIntfs&space;\times&space;(Size[IntfID_i]&space;&plus;&space;Size[IntfMs_i]))&space;\\&space;\leq&space;2&space;&plus;&space;2&space;&plus;&space;(NrIntfs&space;\times&space;(1&plus;2))&space;\\$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[BR_i]&space;=&space;Size[TotMs]&space;&plus;&space;Size[NrIntfs]&space;\\&space;&plus;&space;(NrIntfs&space;\times&space;(Size[IntfID_i]&space;&plus;&space;Size[IntfMs_i]))&space;\\&space;\leq&space;2&space;&plus;&space;2&space;&plus;&space;(NrIntfs&space;\times&space;(1&plus;2))&space;\\$$" title="$$ Size[BR_i] = Size[TotMs] + Size[NrIntfs] \\ + (NrIntfs \times (Size[IntfID_i] + Size[IntfMs_i])) \\ \leq 2 + 2 + (NrIntfs \times (1+2)) \\$$" /></a>
+
 bytes. Thus the total size of the extension field in bytes is bounded from above
 by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(Len&space;\times&space;4)&space;&plus;&space;\sum_1^{Len}&space;(&space;NrIntfs_i&space;\times&space;(1&plus;2))&space;\\&space;=&space;3&space;&plus;&space;(4&space;\times&space;Len)&space;&plus;&space;((1&plus;2)&space;\times&space;TotIntfs)\\" target="_blank"><img src="https://latex.codecogs.com/svg.latex?Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(Len&space;\times&space;4)&space;&plus;&space;\sum_1^{Len}&space;(&space;NrIntfs_i&space;\times&space;(1&plus;2))&space;\\&space;=&space;3&space;&plus;&space;(4&space;\times&space;Len)&space;&plus;&space;((1&plus;2)&space;\times&space;TotIntfs)\\" title="Size[Ext] = Size[ST] + Size[Len] + Size[BR_1] + ... + Size[BR_n] \\ \leq 1 + 2 + (Len \times 4) + \sum_1^{Len} ( NrIntfs_i \times (1+2)) \\ = 3 + (4 \times Len) + ((1+2) \times TotIntfs)\\" /></a>
 
 Where Len is equivalent to the number of BRs deployed by the AS and TotIntfs
@@ -174,10 +177,14 @@ summarize, the space required by the Geographic Information extension in bytes
 is calculated as the sum of the amount of space consumed by the ST, the Len
 field, and then the Len BR_i fields. The size of each BR_i field can be
 bounded from above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[BR_i]&space;=&space;Size[C1]&space;&plus;&space;Size[C2]&space;&plus;&space;Size[Addrlen]&plus;&space;Size[Address]\\&space;&plus;&space;Size[NrIntfs]&space;&plus;&space;\sum_1^{NrIntfs}&space;Size[IntfID_i]\\&space;\leq&space;4&space;&plus;&space;4&space;&plus;&space;1&space;&plus;&space;100&space;&plus;&space;2&space;&plus;&space;NrIntfs&space;\\&space;=&space;109&space;&plus;&space;NrIntfs&space;\\$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[BR_i]&space;=&space;Size[C1]&space;&plus;&space;Size[C2]&space;&plus;&space;Size[Addrlen]&plus;&space;Size[Address]\\&space;&plus;&space;Size[NrIntfs]&space;&plus;&space;\sum_1^{NrIntfs}&space;Size[IntfID_i]\\&space;\leq&space;4&space;&plus;&space;4&space;&plus;&space;1&space;&plus;&space;100&space;&plus;&space;2&space;&plus;&space;NrIntfs&space;\\&space;=&space;109&space;&plus;&space;NrIntfs&space;\\$$" title="$$ Size[BR_i] = Size[C1] + Size[C2] + Size[Addrlen]+ Size[Address]\\ + Size[NrIntfs] + \sum_1^{NrIntfs} Size[IntfID_i]\\ \leq 4 + 4 + 1 + 100 + 2 + NrIntfs \\ = 109 + NrIntfs \\$$" /></a>
+
 bytes. Thus the total
 size of the extension field in bytes is bounded from above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(Len&space;\times&space;109)&space;&plus;&space;TotIntfs&space;\\$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(Len&space;\times&space;109)&space;&plus;&space;TotIntfs&space;\\$$" title="$$ Size[Ext] = Size[ST] + Size[Len] + Size[BR_1] + ... + Size[BR_n] \\ \leq 1 + 2 + (Len \times 109) + TotIntfs \\$$" /></a>
+
 Where Len is equivalent
 to the number of BRs deployed by the AS, and TotIntfs is the sum of the number
 of all Interfaces attached to each BR.
@@ -223,10 +230,14 @@ enum, which refers to the Link Type of the link attached to this interface. To
 summarize, the space required by the Link Type extension in bytes is calculated
 as the sum of the amount of space consumed by the ST, the Len field and  the
 Len BR_i fields. The size of each BR_i field can be bounded from above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[BR_i]&space;=&space;Size[BRLT]&space;&plus;&space;Size[NrIntfs]&space;&plus;&space;Size[IntfID_1]&space;&plus;&space;...&space;&plus;&space;Size[IntfLT_n]&space;\\&space;\leq&space;1&space;&plus;&space;1&space;&plus;&space;X&space;&plus;&space;1&space;&plus;&space;...&space;&plus;&space;X&space;&plus;&space;1&space;=&space;2&space;&plus;&space;(NrIntfs&space;\times&space;(1&space;&plus;&space;X))\\&space;$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[BR_i]&space;=&space;Size[BRLT]&space;&plus;&space;Size[NrIntfs]&space;&plus;&space;Size[IntfID_1]&space;&plus;&space;...&space;&plus;&space;Size[IntfLT_n]&space;\\&space;\leq&space;1&space;&plus;&space;1&space;&plus;&space;X&space;&plus;&space;1&space;&plus;&space;...&space;&plus;&space;X&space;&plus;&space;1&space;=&space;2&space;&plus;&space;(NrIntfs&space;\times&space;(1&space;&plus;&space;X))\\&space;$$" title="$$ Size[BR_i] = Size[BRLT] + Size[NrIntfs] + Size[IntfID_1] + ... + Size[IntfLT_n] \\ \leq 1 + 1 + X + 1 + ... + X + 1 = 2 + (NrIntfs \times (1 + X))\\ $$" /></a>
+
 bytes. Thus the total size of the extension field in
 bytes is bounded from above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(Len&space;\times&space;2)&space;&plus;&space;(&space;(\sum_1^{Len}&space;NrIntfs_i)&space;\times&space;(1&space;&plus;&space;1))&space;\\&space;=&space;3&space;&plus;&space;(2&space;\times&space;Len)&space;&plus;&space;(&space;(1&space;&plus;&space;1)&space;\times&space;TotIntfs)&space;\\&space;$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(Len&space;\times&space;2)&space;&plus;&space;(&space;(\sum_1^{Len}&space;NrIntfs_i)&space;\times&space;(1&space;&plus;&space;1))&space;\\&space;=&space;3&space;&plus;&space;(2&space;\times&space;Len)&space;&plus;&space;(&space;(1&space;&plus;&space;1)&space;\times&space;TotIntfs)&space;\\&space;$$" title="$$ Size[Ext] = Size[ST] + Size[Len] + Size[BR_1] + ... + Size[BR_n] \\ \leq 1 + 2 + (Len \times 2) + ( (\sum_1^{Len} NrIntfs_i) \times (1 + 1)) \\ = 3 + (2 \times Len) + ( (1 + 1) \times TotIntfs) \\ $$" /></a>
+
 Where Len is equivalent to the number of BRs deployed by the AS and TotIntfs
 is the total number of all interfaces attached to any of the BRs.
 
@@ -271,10 +282,14 @@ summarize, the space required by the Maximum Bandwidth Information extension in
 bytes is calculated as the sum of the amount of space consumed by the ST, the
 Len field and  the Len BR_i fields. The size of each BR_i field can be
 bounded from above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[BR_i]&space;=&space;Size[MaxBW]&space;&plus;&space;Size[NrIntfs]&space;&plus;&space;Size[Intf_1]&space;&plus;&space;...&space;&plus;&space;Size[Intf_n]&space;\\&space;\leq&space;4&space;&plus;&space;1&space;&plus;&space;4&space;&plus;&space;1&space;&plus;&space;...&space;&plus;&space;4&space;&plus;&space;1&space;=&space;5&space;&plus;&space;(NrIntfs&space;\times&space;(4&space;&plus;1))&space;\\&space;$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[BR_i]&space;=&space;Size[MaxBW]&space;&plus;&space;Size[NrIntfs]&space;&plus;&space;Size[Intf_1]&space;&plus;&space;...&space;&plus;&space;Size[Intf_n]&space;\\&space;\leq&space;4&space;&plus;&space;1&space;&plus;&space;4&space;&plus;&space;1&space;&plus;&space;...&space;&plus;&space;4&space;&plus;&space;1&space;=&space;5&space;&plus;&space;(NrIntfs&space;\times&space;(4&space;&plus;1))&space;\\&space;$$" title="$$ Size[BR_i] = Size[MaxBW] + Size[NrIntfs] + Size[Intf_1] + ... + Size[Intf_n] \\ \leq 4 + 1 + 4 + 1 + ... + 4 + 1 = 5 + (NrIntfs \times (4 +1)) \\ $$" /></a>
+
 bytes. Thus the total size of the extension field in bytes is bounded from
 above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(Len&space;\times&space;5)&space;&plus;&space;(&space;(\sum_1^{Len}&space;NrIntfs_i)&space;\times&space;(4&space;&plus;&space;1))&space;\\&space;=&space;3&space;&plus;&space;(5&space;\times&space;Len)&space;&plus;&space;(&space;(4&space;&plus;&space;1)&space;\times&space;TotIntfs)&space;\\&space;$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(Len&space;\times&space;5)&space;&plus;&space;(&space;(\sum_1^{Len}&space;NrIntfs_i)&space;\times&space;(4&space;&plus;&space;1))&space;\\&space;=&space;3&space;&plus;&space;(5&space;\times&space;Len)&space;&plus;&space;(&space;(4&space;&plus;&space;1)&space;\times&space;TotIntfs)&space;\\&space;$$" title="$$ Size[Ext] = Size[ST] + Size[Len] + Size[BR_1] + ... + Size[BR_n] \\ \leq 1 + 2 + (Len \times 5) + ( (\sum_1^{Len} NrIntfs_i) \times (4 + 1)) \\ = 3 + (5 \times Len) + ( (4 + 1) \times TotIntfs) \\ $$" /></a>
+
 Where Len is equivalent to the number of BRs deployed by the AS and TotIntfs
 is the total number of all interfaces attached to any of the BRs.
 
@@ -311,7 +326,9 @@ Number of Internal Hops extension in bytes is calculated as the sum of the
 amount of space consumed by the ST, the Len field and the Len BR_i
 fields. Thus the total size of the extension field in bytes is bounded from
 above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(2&space;\times&space;Len)&space;&plus;&space;(X&space;\times&space;TotIntfs)&space;\\&space;$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[BR_1]&space;&plus;&space;...&space;&plus;&space;Size[BR_n]&space;\\&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;(2&space;\times&space;Len)&space;&plus;&space;(X&space;\times&space;TotIntfs)&space;\\&space;$$" title="$$ Size[Ext] = Size[ST] + Size[Len] + Size[BR_1] + ... + Size[BR_n] \\ \leq 1 + 2 + (2 \times Len) + (X \times TotIntfs) \\ $$" /></a>
+
 Where Len is equivalent to the number of BRs deployed by the AS, and TotIntfs
 is the total number of interfaces attached to any of the BRs.
 
@@ -339,6 +356,7 @@ of characters is set to 997. To summarize, the space required by the Notes
 extension in bytes is calculated as the sum of the amount of space consumed by
 the ST field, the Len field and the Notes field. Thus the total size of
 the extension field in bytes is bounded from above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[Notes]&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;997&space;=&space;1000&space;\\&space;$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[Notes]&space;\leq&space;1&space;&plus;&space;2&space;&plus;&space;997&space;=&space;1000&space;\\&space;$$" title="$$ Size[Ext] = Size[ST] + Size[Len] + Size[Notes] \leq 1 + 2 + 997 = 1000 \\ $$" /></a>
 
 ### Metadata Endpoint
@@ -369,6 +387,7 @@ of characters is set to 98. To summarize, the space required by the Notes
 extension in bytes is calculated as the sum of the amount of space consumed by
 the ST field, the Len field and the URL field. Thus the total size of the
 extension field in bytes is bounded from above by
+
 <a href="https://www.codecogs.com/eqnedit.php?latex=$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[URL]&space;\leq&space;1&space;&plus;&space;1&space;&plus;&space;98&space;=&space;100&space;\\&space;$$" target="_blank"><img src="https://latex.codecogs.com/svg.latex?$$&space;Size[Ext]&space;=&space;Size[ST]&space;&plus;&space;Size[Len]&space;&plus;&space;Size[URL]&space;\leq&space;1&space;&plus;&space;1&space;&plus;&space;98&space;=&space;100&space;\\&space;$$" title="$$ Size[Ext] = Size[ST] + Size[Len] + Size[URL] \leq 1 + 1 + 98 = 100 \\ $$" /></a>
 
 ## Concrete Implementation
