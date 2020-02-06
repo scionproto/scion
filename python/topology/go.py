@@ -93,7 +93,6 @@ class GoGenerator(object):
             'metrics': {
                 'Prometheus': prom_addr_br(name, v, DEFAULT_BR_PROM_PORT),
             },
-            'discovery': self._discovery_entry(),
             'br': {
                 'Profile': False,
             },
@@ -130,7 +129,6 @@ class GoGenerator(object):
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.beacon.db' % name),
             },
-            'discovery': self._discovery_entry(),
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
             'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
@@ -183,7 +181,6 @@ class GoGenerator(object):
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
-            'discovery': self._discovery_entry(),
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, CO_PROM_PORT),
             'quic': self._quic_conf_entry(CO_QUIC_PORT, self.args.svcfrac, infra_elem),
@@ -266,7 +263,6 @@ class GoGenerator(object):
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
-            'discovery': self._discovery_entry(),
             'sd': {
                 'address': socket_address_str(ip, SD_API_PORT),
                 'pathDB': {
@@ -314,17 +310,6 @@ class GoGenerator(object):
                 'Prometheus': prometheus_addr,
             },
         }
-
-    def _discovery_entry(self):
-        entry = {
-            'static': {
-                'Enable': self.args.discovery,
-            },
-            'dynamic': {
-                'Enable': self.args.discovery,
-            }
-        }
-        return entry
 
     def _tracing_entry(self):
         docker_ip = docker_host(self.args.in_docker, self.args.docker)

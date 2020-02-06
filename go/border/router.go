@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
@@ -48,9 +47,7 @@ type Router struct {
 	// pktErrorQ is a channel for handling packet errors
 	pktErrorQ chan pktErrorArgs
 	// setCtxMtx serializes modifications to the router context. Topology updates
-	// can either be caused by a sighup reload, receiving an updated dynamic or
-	// static topology from the discovery service, or from dropping an expired
-	// dynamic topology.
+	// can be caused by a SIGHUP reload.
 	setCtxMtx sync.Mutex
 }
 
@@ -73,9 +70,6 @@ func (r *Router) Start() {
 		defer log.LogPanicAndExit()
 		rctrl.Control(r.sRevInfoQ, cfg.General.ReconnectToDispatcher)
 	}()
-	if err := r.startDiscovery(); err != nil {
-		fatal.Fatal(common.NewBasicError("Unable to start discovery", err))
-	}
 }
 
 // ReloadConfig handles reloading the configuration when SIGHUP is received.

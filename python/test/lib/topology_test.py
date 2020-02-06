@@ -161,7 +161,6 @@ class TestTopologyParseSrvDicts(object):
         topo_dict = {
             'ControlService': {"cs1": "cs1 val"},
             'SIG': {"sig1": "sig1 val"},
-            'DiscoveryService': {"ds1": "ds1 val"},
         }
         inst = Topology()
         server.side_effect = lambda v, k: "%s-%s" % (k, v)
@@ -171,10 +170,8 @@ class TestTopologyParseSrvDicts(object):
         assert_these_calls(server, [
             call("cs1 val", "cs1"),
             call("sig1 val", "sig1"),
-            call("ds1 val", "ds1"),
         ], any_order=True)
         ntools.eq_(inst.control_servers, ["cs1-cs1 val"])
-        ntools.eq_(inst.discovery_servers, ["ds1-ds1 val"])
 
 
 class TestTopologyParseRouterDicts(object):

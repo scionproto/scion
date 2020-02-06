@@ -68,7 +68,6 @@ type (
 		IFInfoMap IfInfoMap
 
 		CS  IDAddrMap
-		DS  IDAddrMap
 		SIG IDAddrMap
 	}
 
@@ -127,7 +126,6 @@ func NewRWTopology() *RWTopology {
 		BR:        make(map[string]BRInfo),
 		CS:        make(IDAddrMap),
 		SIG:       make(IDAddrMap),
-		DS:        make(IDAddrMap),
 		IFInfoMap: make(IfInfoMap),
 	}
 }
@@ -277,10 +275,6 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	if err != nil {
 		return serrors.WrapStr("unable to extract SIG address", err)
 	}
-	t.DS, err = svcMapFromRaw(raw.DiscoveryService)
-	if err != nil {
-		return serrors.WrapStr("unable to extract DS address", err)
-	}
 	return nil
 }
 
@@ -334,8 +328,6 @@ func (t *RWTopology) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 		return &svcInfo{idTopoAddrMap: t.CS}, nil
 	case proto.ServiceType_sig:
 		return &svcInfo{idTopoAddrMap: t.SIG}, nil
-	case proto.ServiceType_ds:
-		return &svcInfo{idTopoAddrMap: t.DS}, nil
 	default:
 		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
 	}

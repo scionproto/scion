@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -36,14 +35,13 @@ var (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	General   env.General
-	Features  env.Features
-	Logging   env.Logging
-	Metrics   env.Metrics
-	Tracing   env.Tracing
-	TrustDB   truststorage.TrustDBConf
-	Discovery idiscovery.Config
-	SD        SDConfig
+	General  env.General
+	Features env.Features
+	Logging  env.Logging
+	Metrics  env.Metrics
+	Tracing  env.Tracing
+	TrustDB  truststorage.TrustDBConf
+	SD       SDConfig
 }
 
 func (cfg *Config) InitDefaults() {
@@ -54,7 +52,6 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Metrics,
 		&cfg.Tracing,
 		&cfg.TrustDB,
-		&cfg.Discovery,
 		&cfg.SD,
 	)
 }
@@ -66,7 +63,6 @@ func (cfg *Config) Validate() error {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.TrustDB,
-		&cfg.Discovery,
 		&cfg.SD,
 	)
 }
@@ -79,7 +75,6 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Metrics,
 		&cfg.Tracing,
 		&cfg.TrustDB,
-		&cfg.Discovery,
 		&cfg.SD,
 	)
 }

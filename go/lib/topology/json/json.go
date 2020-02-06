@@ -46,7 +46,6 @@ type Topology struct {
 	ZookeeperService map[int]*Address       `json:"ZookeeperService,omitempty"`
 	ControlService   map[string]*ServerInfo `json:"ControlService,omitempty"`
 	SIG              map[string]*ServerInfo `json:"SIG,omitempty"`
-	DiscoveryService map[string]*ServerInfo `json:"DiscoveryService,omitempty"`
 }
 
 // ServerInfo contains the information for a SCION application running in the local AS.

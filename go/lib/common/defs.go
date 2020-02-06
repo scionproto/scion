@@ -32,13 +32,10 @@ const (
 
 const (
 	BR  = "BR"
-	BS  = "BS"
-	PS  = "PS"
 	CS  = "CS"
 	SB  = "SB"
 	RS  = "RS"
 	SIG = "SIG"
-	DS  = "DS"
 
 	CPService = "Control Plane Service"
 )

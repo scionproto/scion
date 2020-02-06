@@ -45,8 +45,6 @@ def add_arguments(parser):
                         help='Enable TRACE level file logging in Go services')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
                         help='Path segment TTL (in seconds)')
-    parser.add_argument('-ds', '--discovery', action='store_true',
-                        help='Generate discovery service')
     parser.add_argument('-f', '--svcfrac', type=float, default=0.4,
                         help='Attempt SVC resolution in RPC calls for a fraction of\
                         available timeout')

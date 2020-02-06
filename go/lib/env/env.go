@@ -201,7 +201,7 @@ func ReloadTopology(topologyPath string) {
 		log.Error("Unable to reload topology", "err", err)
 		return
 	}
-	if _, _, err := itopo.SetStatic(topo, true); err != nil {
+	if _, _, err := itopo.SetStatic(topo); err != nil {
 		log.Error("Unable to set topology", "err", err)
 		return
 	}

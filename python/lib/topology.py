@@ -290,7 +290,6 @@ class Topology(object):
         type_map = {
             ServiceType.CS: self.control_servers,
             ServiceType.SIG: self.sigs,
-            ServiceType.DS: self.discovery_servers,
         }
         try:
             target = type_map[server_type]

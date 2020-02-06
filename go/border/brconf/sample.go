@@ -24,9 +24,3 @@ Profile = false
 # (Fatal | Continue) (default Fatal)
 RollbackFailAction = "Fatal"
 `
-
-const discoverySample = `
-# Allow changes to the semi-mutable section during updates to the static
-# topology fetched from the discovery service. (default false)
-AllowSemiMutable = false
-`

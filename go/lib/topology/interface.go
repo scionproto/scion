@@ -120,13 +120,6 @@ type Topology interface {
 	//
 	// XXX(scrye): Return value is a shallow copy.
 	Writable() *RWTopology
-
-	// DS returns the discovery servers in the topology.
-	//
-	// FIXME(scrye): Simplify return type and make it topology format agnostic.
-	//
-	// XXX(scrye): Return value is a shallow copy.
-	DS() IDAddrMap
 }
 
 // NewTopology creates a new empty topology.
@@ -157,10 +150,6 @@ func FromJSONFile(path string) (Topology, error) {
 
 type topologyS struct {
 	Topology *RWTopology
-}
-
-func (t *topologyS) DS() IDAddrMap {
-	return t.Topology.DS
 }
 
 func (t *topologyS) IA() addr.IA {

@@ -48,14 +48,12 @@ import (
 	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
@@ -358,13 +356,6 @@ func realMain() int {
 		log.Crit("Unable to initialize MAC generator", "err", err)
 		return 1
 	}
-	discoRunners, err := idiscovery.StartRunners(cfg.Discovery, discovery.Full,
-		idiscovery.TopoHandlers{}, nil, "cs")
-	if err != nil {
-		log.Crit("Unable to start topology fetcher", "err", err)
-		return 1
-	}
-	defer discoRunners.Kill()
 
 	if err := tasks.Start(); err != nil {
 		log.Crit("Unable to start tasks", "err", err)
@@ -742,7 +733,7 @@ func handleTopoUpdate() {
 }
 
 func initTopo(topo topology.Topology) error {
-	if _, _, err := itopo.SetStatic(topo, false); err != nil {
+	if _, _, err := itopo.SetStatic(topo); err != nil {
 		return serrors.WrapStr("Unable to set initial static topology", err)
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)
