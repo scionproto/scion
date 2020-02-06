@@ -111,7 +111,7 @@ func (p Path) Destination() addr.IA {
 }
 
 func (p Path) MTU() uint16 {
-	return 1500
+	return 1472
 }
 
 func (p Path) Expiry() time.Time {

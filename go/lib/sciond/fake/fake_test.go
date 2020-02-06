@@ -111,7 +111,7 @@ func TestPaths(t *testing.T) {
 	assert.Equal(t, fake.DummyPath(), paths[0].Path())
 	assert.Equal(t, []snet.PathInterface{}, paths[0].Interfaces())
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
-	assert.Equal(t, uint16(1500), paths[0].MTU())
+	assert.Equal(t, uint16(1472), paths[0].MTU())
 	// path valid for more than an hour, but less than three
 	assert.True(t, paths[0].Expiry().After(time.Now().Add(time.Hour)))
 	assert.True(t, paths[0].Expiry().Before(time.Now().Add(3*time.Hour)))
@@ -132,7 +132,7 @@ func TestPaths(t *testing.T) {
 	assert.Equal(t, fake.DummyPath(), paths[0].Path())
 	assert.Equal(t, []snet.PathInterface{}, paths[0].Interfaces())
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())
-	assert.Equal(t, uint16(1500), paths[0].MTU())
+	assert.Equal(t, uint16(1472), paths[0].MTU())
 	// path valid for more than two hours, but less than four
 	assert.True(t, paths[0].Expiry().After(time.Now().Add(2*time.Hour)))
 	assert.True(t, paths[0].Expiry().Before(time.Now().Add(4*time.Hour)))
