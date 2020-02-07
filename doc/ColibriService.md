@@ -21,7 +21,7 @@ The border router is also modified so it understands COLIBRI type packets in the
 There are three main components that need to be modified or created: the colibri service itself,
 the border router and `sciond` in the endhost:
 
-* ***COS*** Enables the COLIBRI control plane. Used to negotiate both segment and end to
+* **COS** Enables the COLIBRI control plane. Used to negotiate both segment and end to
   end reservations.
 * **Border Router** Needs to forward the COLIBRI traffic with higher priority than best effort.
   Needs to monitor COLIBRI traffic.
