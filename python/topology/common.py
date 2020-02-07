@@ -27,7 +27,6 @@ SCION_SERVICE_NAMES = (
     "ControlService",
     "BorderRouters",
     "ColibriService",
-    "DiscoveryService",
 )
 
 BR_CONFIG_NAME = 'br.toml'

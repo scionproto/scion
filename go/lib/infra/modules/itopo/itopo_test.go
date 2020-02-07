@@ -38,17 +38,19 @@ func setStaticTestFunc(s *state) updateTestFunc {
 
 func TestInit(t *testing.T) {
 	Convey("Initializing itopo twice should panic", t, func() {
-		SoMsg("first", func() { Init("", 0, Callbacks{}) }, ShouldNotPanic)
-		SoMsg("second", func() { Init("", 0, Callbacks{}) }, ShouldPanic)
+		SoMsg("first", func() { Init(&Config{}) }, ShouldNotPanic)
+		SoMsg("second", func() { Init(&Config{}) }, ShouldPanic)
 	})
 }
 
-func TestStateSetStatic(t *testing.T) {
+func TestStateUpdate(t *testing.T) {
 	mctrl := gomock.NewController(&xtest.PanickingReporter{T: t})
 	defer mctrl.Finish()
 	Convey("When state is initialized with no specific element", t, func() {
 		clbks := newMockClbks(mctrl)
-		s := newState("", proto.ServiceType_unset, clbks.Clbks())
+		s := newState(&Config{
+			Callbacks: clbks.Clbks(),
+		})
 		s.topo.static = loadTopo(fn, t)
 		topo := loadTopo(fn, t)
 		Convey("Calling with modified topo should succeed", func() {
@@ -57,7 +59,7 @@ func TestStateSetStatic(t *testing.T) {
 			ifinfo := topo.IFInfoMap[1]
 			ifinfo.MTU = 42
 			topo.IFInfoMap[1] = ifinfo
-			clbks.update.EXPECT().Call().Do(wg.Done)
+			clbks.onUpdate.EXPECT().Call().Do(wg.Done)
 			_, updated, err := s.setStatic(topo)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
@@ -70,7 +72,12 @@ func TestStateSetStatic(t *testing.T) {
 	Convey("When itopo is initialized with a service element", t, func() {
 		clbks := newMockClbks(mctrl)
 		id := "cs1-ff00:0:311-1"
-		s := newState(id, proto.ServiceType_cs, clbks.Clbks())
+		config := &Config{
+			ID:        id,
+			Svc:       proto.ServiceType_cs,
+			Callbacks: clbks.Clbks(),
+		}
+		s := newState(config)
 		s.topo.static = loadTopo(fn, t)
 		topo := loadTopo(fn, t)
 		Convey("Modification without touching the element's entry should be allowed", func() {
@@ -84,7 +91,7 @@ func TestStateSetStatic(t *testing.T) {
 			cs := topo.CS["cs1-ff00:0:311-2"]
 			cs.UnderlayAddress = &net.UDPAddr{Port: 42}
 			topo.CS["cs1-ff00:0:311-2"] = cs
-			clbks.update.EXPECT().Call().Do(wg.Done)
+			clbks.onUpdate.EXPECT().Call().Do(wg.Done)
 			_, updated, err := s.setStatic(topo)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
@@ -106,7 +113,13 @@ func TestStateSetStatic(t *testing.T) {
 	Convey("When itopo is initialized with a border router", t, func() {
 		clbks := newMockClbks(mctrl)
 		id := "br1-ff00:0:311-1"
-		s := newState(id, proto.ServiceType_br, clbks.Clbks())
+		s := newState(
+			&Config{
+				ID:        id,
+				Svc:       proto.ServiceType_br,
+				Callbacks: clbks.Clbks(),
+			},
+		)
 		s.topo.static = loadTopo(fn, t)
 		topo := loadTopo(fn, t)
 		Convey("Modification without touching the br's entry should be allowed", func() {
@@ -121,7 +134,7 @@ func TestStateSetStatic(t *testing.T) {
 			cs.UnderlayAddress = &net.UDPAddr{Port: 42}
 			topo.CS["cs1-ff00:0:311-2"] = cs
 			Convey("If semi-mutation is allowed", func() {
-				clbks.update.EXPECT().Call().Do(wg.Done)
+				clbks.onUpdate.EXPECT().Call().Do(wg.Done)
 				_, updated, err := s.setStatic(topo)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("updated", updated, ShouldBeTrue)
@@ -129,7 +142,7 @@ func TestStateSetStatic(t *testing.T) {
 				wg.WaitWithTimeout(time.Second)
 			})
 			Convey("If semi-mutation is not allowed", func() {
-				clbks.update.EXPECT().Call().Do(wg.Done)
+				clbks.onUpdate.EXPECT().Call().Do(wg.Done)
 				_, updated, err := s.setStatic(topo)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("updated", updated, ShouldBeTrue)
@@ -151,7 +164,7 @@ func TestStateSetStatic(t *testing.T) {
 
 			var wg xtest.Waiter
 			wg.Add(2)
-			clbks.update.EXPECT().Call().Do(wg.Done)
+			clbks.onUpdate.EXPECT().Call().Do(wg.Done)
 			newTopo, updated, err := s.setStatic(topo)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeTrue)
@@ -194,7 +207,7 @@ func testNoModified(update updateTestFunc, prevTopo *topology.RWTopology,
 			topo.TTL += 2 * time.Second
 			if updateCalled {
 				wg.Add(1)
-				clbks.update.EXPECT().Call().Do(wg.Done)
+				clbks.onUpdate.EXPECT().Call().Do(wg.Done)
 			}
 			_, updated, err := update(topo)
 			SoMsg("err", err, ShouldBeNil)
@@ -205,17 +218,17 @@ func testNoModified(update updateTestFunc, prevTopo *topology.RWTopology,
 }
 
 type mockClbks struct {
-	update *mock_xtest.MockCallback
+	onUpdate *mock_xtest.MockCallback
 }
 
 func newMockClbks(mctrl *gomock.Controller) *mockClbks {
 	return &mockClbks{
-		update: mock_xtest.NewMockCallback(mctrl),
+		onUpdate: mock_xtest.NewMockCallback(mctrl),
 	}
 }
 
 func (clbks *mockClbks) Clbks() Callbacks {
 	return Callbacks{
-		UpdateStatic: clbks.update.Call,
+		OnUpdate: clbks.onUpdate.Call,
 	}
 }
