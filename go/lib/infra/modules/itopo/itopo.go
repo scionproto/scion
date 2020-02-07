@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -36,8 +35,8 @@ var st *state
 
 // Callbacks are callbacks to respond to specific topology update events.
 type Callbacks struct {
-	// UpdateStatic is called whenever the pointer to static topology is updated.
-	UpdateStatic func()
+	// OnUpdate is called whenever the pointer to static topology is updated.
+	OnUpdate func()
 }
 
 // providerFunc wraps the Get call as a topology provider.
@@ -57,31 +56,39 @@ func (f providerFunc) Get() topology.Topology {
 	return f()
 }
 
-// Init initializes itopo with the particular validator. A topology must be
-// initialized by calling SetStatic.
-func Init(id string, svc proto.ServiceType, clbks Callbacks) {
+// Config is used to initialize the package.
+type Config struct {
+	// ID is the application identifier.
+	ID string
+	// Svc is the service type of the application. Updated are treated differently depending
+	// on it.
+	Svc proto.ServiceType
+	// Callbacks can be used to run custom code on specific events.
+	Callbacks Callbacks
+	// TopologyFactory is used to build Topology facades for the underlying topology object.
+	// If nil, topology.FromRWTopology is used.
+	TopologyFactory func(*topology.RWTopology) topology.Topology
+}
+
+// Init initializes the itopo package. A topology must be initialized by calling Update.
+func Init(cfg *Config) {
 	if st != nil {
 		panic("Must not re-initialize itopo")
 	}
-	st = newState(id, svc, clbks)
+	st = newState(cfg)
 }
 
 // Get atomically gets the pointer to the current topology.
 func Get() topology.Topology {
 	st.RLock()
 	defer st.RUnlock()
-	return topology.FromRWTopology(st.topo.Get())
+	return runFactory(st.topo.Get())
 }
 
-// SetStatic atomically sets the static topology. Whether semi-mutable fields are
-// allowed to change can be specified using semiMutAllowed. The returned
-// topology is a pointer to the currently active topology at the end of the function call.
-// It might differ from the input topology (same contents as existing static,
-// or dynamic set and still valid). The second return value indicates whether the in-memory
-// copy of the static topology has been updated.
-func SetStatic(static topology.Topology) (topology.Topology, bool, error) {
+// Update atomically sets the topology.
+func Update(static topology.Topology) error {
 	l := metrics.UpdateLabels{Type: metrics.Static}
-	topo, updated, err := st.setStatic(static.Writable())
+	_, updated, err := st.setStatic(static.Writable())
 	switch {
 	case err != nil:
 		l.Result = metrics.ErrValidate
@@ -91,13 +98,13 @@ func SetStatic(static topology.Topology) (topology.Topology, bool, error) {
 		l.Result = metrics.OkIgnored
 	}
 	incUpdateMetric(l)
-	return topology.FromRWTopology(topo), updated, err
+	return err
 }
 
-// BeginSetStatic checks whether setting the static topology is permissible. The returned
+// BeginUpdate checks whether setting the static topology is permissible. The returned
 // transaction provides a view on which topology would be active, if committed.
-func BeginSetStatic(static *topology.RWTopology) (Transaction, error) {
-	tx, err := st.beginSetStatic(static)
+func BeginUpdate(static *topology.RWTopology) (Transaction, error) {
+	tx, err := st.beginUpdate(static)
 	if err != nil {
 		incUpdateMetric(metrics.UpdateLabels{Type: metrics.Static, Result: metrics.ErrValidate})
 	}
@@ -107,16 +114,14 @@ func BeginSetStatic(static *topology.RWTopology) (Transaction, error) {
 // Transaction allows to get a view on which topology will be active without committing
 // to the topology update yet.
 type Transaction struct {
-	// candidateTopo contains the view of what the static and dynamic topologies
-	// will be when the transaction is successfully committed.
+	// candidateTopo contains the view of what the topology will be when the transaction is
+	// successfully committed.
 	candidateTopo topo
 	// staticAtTxStart stores a snapshot of the currently active static
 	// topology at transaction start.
 	staticAtTxStart *topology.RWTopology
 	// inputStatic stores the provided static topology.
 	inputStatic *topology.RWTopology
-	// inputDynamic stores the provided dynamic topology.
-	inputDynamic *topology.RWTopology
 }
 
 // Commit commits the change. An error is returned, if the static topology changed in the meantime.
@@ -146,30 +151,23 @@ func (tx *Transaction) Commit() error {
 }
 
 // Get returns the topology that will be active if the transaction is committed.
-func (tx *Transaction) Get() *topology.RWTopology {
-	return tx.candidateTopo.Get()
+func (tx *Transaction) Get() topology.Topology {
+	return runFactory(tx.candidateTopo.Get())
 }
 
 // IsUpdate indicates whether the transaction will cause an update.
 func (tx *Transaction) IsUpdate() bool {
-	if tx.inputStatic != nil {
-		return tx.candidateTopo.static == tx.inputStatic
-	}
-	return tx.candidateTopo.dynamic == tx.inputDynamic
+	return tx.candidateTopo.static == tx.inputStatic
 }
 
 // topo stores the currently active static and dynamic topologies.
 type topo struct {
-	static  *topology.RWTopology
-	dynamic *topology.RWTopology
+	static *topology.RWTopology
 }
 
 // Get returns the dynamic topology if it is set and has not expired. Otherwise,
 // the static topology is returned.
 func (t *topo) Get() *topology.RWTopology {
-	if t.dynamic != nil && t.dynamic.Active(time.Now()) {
-		return t.dynamic
-	}
 	return t.static
 }
 
@@ -178,15 +176,14 @@ type state struct {
 	sync.RWMutex
 	topo      topo
 	validator validator
-	clbks     Callbacks
+	config    *Config
 }
 
-func newState(id string, svc proto.ServiceType, clbks Callbacks) *state {
-	s := &state{
-		validator: validatorFactory(id, svc),
-		clbks:     clbks,
+func newState(cfg *Config) *state {
+	return &state{
+		validator: validatorFactory(cfg.ID, cfg.Svc),
+		config:    cfg,
 	}
-	return s
 }
 
 // setStatic atomically sets the static topology.
@@ -204,7 +201,7 @@ func (s *state) setStatic(static *topology.RWTopology) (*topology.RWTopology, bo
 	return s.topo.Get(), true, nil
 }
 
-func (s *state) beginSetStatic(static *topology.RWTopology) (Transaction, error) {
+func (s *state) beginUpdate(static *topology.RWTopology) (Transaction, error) {
 	s.Lock()
 	defer s.Unlock()
 	if err := s.validator.Validate(static, s.topo.static); err != nil {
@@ -225,7 +222,7 @@ func (s *state) beginSetStatic(static *topology.RWTopology) (Transaction, error)
 // updateStatic updates the static topology, if necessary, and calls the corresponding callbacks.
 func (s *state) updateStatic(static *topology.RWTopology) {
 	s.topo.static = static
-	call(s.clbks.UpdateStatic)
+	call(s.config.Callbacks.OnUpdate)
 	cl := metrics.CurrentLabels{Type: metrics.Static}
 	metrics.Current.Timestamp(cl).Set(metrics.Timestamp(static.Timestamp))
 	metrics.Current.Expiry(cl).Set(metrics.Expiry(static.Expiry()))
@@ -271,4 +268,11 @@ func TopologyHandler(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		fmt.Fprint(w, string(bytes)+"\n")
 	}
+}
+
+func runFactory(topo *topology.RWTopology) topology.Topology {
+	if st.config.TopologyFactory != nil {
+		return st.config.TopologyFactory(topo)
+	}
+	return topology.FromRWTopology(topo)
 }

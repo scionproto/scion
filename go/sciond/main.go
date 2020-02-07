@@ -219,12 +219,12 @@ func setup() error {
 	if err := cfg.Validate(); err != nil {
 		return common.NewBasicError("unable to validate config", err)
 	}
-	itopo.Init("", proto.ServiceType_unset, itopo.Callbacks{})
 	topo, err := topology.FromJSONFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("unable to load topology", err)
 	}
-	if _, _, err := itopo.SetStatic(topo); err != nil {
+	itopo.Init(&itopo.Config{})
+	if err := itopo.Update(topo); err != nil {
 		return common.NewBasicError("unable to set initial static topology", err)
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)

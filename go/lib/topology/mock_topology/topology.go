@@ -96,20 +96,6 @@ func (mr *MockTopologyMockRecorder) Core() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Core", reflect.TypeOf((*MockTopology)(nil).Core))
 }
 
-// DS mocks base method
-func (m *MockTopology) DS() topology.IDAddrMap {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DS")
-	ret0, _ := ret[0].(topology.IDAddrMap)
-	return ret0
-}
-
-// DS indicates an expected call of DS
-func (mr *MockTopologyMockRecorder) DS() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DS", reflect.TypeOf((*MockTopology)(nil).DS))
-}
-
 // Exists mocks base method
 func (m *MockTopology) Exists(arg0 addr.HostSVC, arg1 string) bool {
 	m.ctrl.T.Helper()

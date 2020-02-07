@@ -715,13 +715,18 @@ func setup() error {
 	if err := cfg.Validate(); err != nil {
 		return common.NewBasicError("Unable to validate config", err)
 	}
-	clbks := itopo.Callbacks{UpdateStatic: handleTopoUpdate}
-	// Use CS for monolith for now
-	itopo.Init(cfg.General.ID, proto.ServiceType_cs, clbks)
 	topo, err := topology.FromJSONFile(cfg.General.Topology)
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
+	// Use CS for monolith for now
+	itopo.Init(
+		&itopo.Config{
+			ID:        cfg.General.ID,
+			Svc:       proto.ServiceType_cs,
+			Callbacks: itopo.Callbacks{OnUpdate: handleTopoUpdate},
+		},
+	)
 	return initTopo(topo)
 }
 
@@ -733,7 +738,7 @@ func handleTopoUpdate() {
 }
 
 func initTopo(topo topology.Topology) error {
-	if _, _, err := itopo.SetStatic(topo); err != nil {
+	if err := itopo.Update(topo); err != nil {
 		return serrors.WrapStr("Unable to set initial static topology", err)
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology)
