@@ -20,33 +20,33 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// SegmentReservationID identifies a COLIBRI segment reservation. The suffix differentiates
+// SegmentID identifies a COLIBRI segment reservation. The suffix differentiates
 // reservations for the same AS.
-type SegmentReservationID struct {
+type SegmentID struct {
 	ASID   addr.AS
 	Suffix [4]byte
 }
 
-const SegmentReservationIDLen = 10
+const SegmentIDLen = 10
 
-// SegmentReservationIDFromRaw constructs a SegmentReservationID parsing a raw buffer.
-func SegmentReservationIDFromRaw(raw common.RawBytes) (
-	*SegmentReservationID, error) {
+// SegmentIDFromRaw constructs a SegmentID parsing a raw buffer.
+func SegmentIDFromRaw(raw []byte) (
+	*SegmentID, error) {
 
-	if len(raw) < SegmentReservationIDLen {
+	if len(raw) < SegmentIDLen {
 		return nil, serrors.New("Buffer too small", "actual", len(raw),
-			"min", SegmentReservationIDLen)
+			"min", SegmentIDLen)
 	}
-	id := SegmentReservationID{
+	id := SegmentID{
 		ASID: addr.AS(common.Order.Uint64(append([]byte{0, 0}, raw[0:6]...))),
 	}
 	copy(id.Suffix[:], raw[6:10])
 	return &id, nil
 }
 
-func (id *SegmentReservationID) Write(raw common.RawBytes) error {
-	if len(raw) < SegmentReservationIDLen {
-		return serrors.New("Buffer too small", "actual", len(raw), "min", SegmentReservationIDLen)
+func (id *SegmentID) Write(raw []byte) error {
+	if len(raw) < SegmentIDLen {
+		return serrors.New("Buffer too small", "actual", len(raw), "min", SegmentIDLen)
 	}
 	auxBuff := make([]byte, 8)
 	common.Order.PutUint64(auxBuff, uint64(id.ASID))
@@ -55,30 +55,30 @@ func (id *SegmentReservationID) Write(raw common.RawBytes) error {
 	return nil
 }
 
-// E2EReservationID identifies a COLIBRI E2E reservation. The suffix is different for each
+// E2EID identifies a COLIBRI E2E reservation. The suffix is different for each
 // reservation for any given AS.
-type E2EReservationID struct {
+type E2EID struct {
 	ASID   addr.AS
 	Suffix [10]byte
 }
 
-const E2EReservationIDLen = 16
+const E2EIDLen = 16
 
-// E2EReservationIDFromRaw constructs an E2EReservationID parsing a buffer.
-func E2EReservationIDFromRaw(raw common.RawBytes) (*E2EReservationID, error) {
-	if len(raw) < E2EReservationIDLen {
-		return nil, serrors.New("Buffer too small", "actual", len(raw), "min", E2EReservationIDLen)
+// E2EIDFromRaw constructs an E2EID parsing a buffer.
+func E2EIDFromRaw(raw []byte) (*E2EID, error) {
+	if len(raw) < E2EIDLen {
+		return nil, serrors.New("Buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
-	id := E2EReservationID{
+	id := E2EID{
 		ASID: addr.AS(common.Order.Uint64(append([]byte{0, 0}, raw[0:6]...))),
 	}
 	copy(id.Suffix[:], raw[6:16])
 	return &id, nil
 }
 
-func (id *E2EReservationID) Write(raw common.RawBytes) error {
-	if len(raw) < E2EReservationIDLen {
-		return serrors.New("Buffer too small", "actual", len(raw), "min", E2EReservationIDLen)
+func (id *E2EID) Write(raw []byte) error {
+	if len(raw) < E2EIDLen {
+		return serrors.New("Buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
 	auxBuff := make([]byte, 8)
 	common.Order.PutUint64(auxBuff, uint64(id.ASID))
@@ -132,7 +132,8 @@ type PathType uint8
 
 // the different COLIBRI path types.
 const (
-	DownPath PathType = iota
+	UnknownPath PathType = iota
+	DownPath
 	UpPath
 	PeeringDownPath
 	PeeringUpPath
@@ -142,7 +143,7 @@ const (
 
 // Validate will return an error for invalid values.
 func (pt PathType) Validate() error {
-	if pt > CorePath {
+	if pt == UnknownPath || pt > CorePath {
 		return serrors.New("Invalid path type", "PathType", pt)
 	}
 	return nil
@@ -196,13 +197,8 @@ func (f *InfoField) Validate() error {
 	return nil
 }
 
-// Len returns the length in bytes when serialized.
-func (f InfoField) Len() int {
-	return InfoFieldLen
-}
-
 // InfoFieldFromRaw builds an InfoField from the InfoFieldLen bytes buffer.
-func InfoFieldFromRaw(raw common.RawBytes) (*InfoField, error) {
+func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 	if len(raw) < InfoFieldLen {
 		return nil, serrors.New("Buffer too small", "min size", InfoFieldLen,
 			"current size", len(raw))
@@ -221,7 +217,7 @@ func InfoFieldFromRaw(raw common.RawBytes) (*InfoField, error) {
 }
 
 // Write serializes this InfoField into an array of InfoFieldLen bytes.
-func (f *InfoField) Write(b common.RawBytes) error {
+func (f *InfoField) Write(b []byte) error {
 	if len(b) < InfoFieldLen {
 		return serrors.New("Buffer too short", "size", len(b))
 	}
