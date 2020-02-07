@@ -16,7 +16,6 @@
 package ingress
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"time"
@@ -28,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
-	"github.com/scionproto/scion/go/sig/internal/sigcmn"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
@@ -43,28 +41,22 @@ const (
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
 type Dispatcher struct {
-	laddr              *snet.UDPAddr
 	workers            map[string]*Worker
 	extConn            snet.Conn
 	tunIO              io.ReadWriteCloser
 	framesRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
-func NewDispatcher(tio io.ReadWriteCloser) *Dispatcher {
+func NewDispatcher(tio io.ReadWriteCloser, conn snet.Conn) *Dispatcher {
 	return &Dispatcher{
 		tunIO:              tio,
+		extConn:            conn,
 		framesRecvCounters: make(map[metrics.CtrPairKey]metrics.CtrPair),
-		laddr:              sigcmn.EncapSnetAddr(),
 		workers:            make(map[string]*Worker),
 	}
 }
 
 func (d *Dispatcher) Run() error {
-	var err error
-	d.extConn, err = sigcmn.Network.Listen(context.Background(), "udp", d.laddr.Host, addr.SvcNone)
-	if err != nil {
-		return common.NewBasicError("Unable to initialize extConn", err)
-	}
 	return d.read()
 }
 

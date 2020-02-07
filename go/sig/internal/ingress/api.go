@@ -16,15 +16,24 @@
 package ingress
 
 import (
+	"context"
 	"io"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/sig/internal/sigcmn"
 )
 
 func Init(tunIO io.ReadWriteCloser) {
 	fatal.Check()
-	d := NewDispatcher(tunIO)
+	conn, err := sigcmn.Network.Listen(context.Background(), "udp",
+		sigcmn.EncapSnetAddr().Host, addr.SvcNone)
+	if err != nil {
+		log.Crit("Unable to initialize ingress connection", err)
+		fatal.Fatal(err)
+	}
+	d := NewDispatcher(tunIO, conn)
 	go func() {
 		defer log.LogPanicAndExit()
 		if err := d.Run(); err != nil {
