@@ -69,10 +69,16 @@ func (r *Router) setup() error {
 		return err
 	}
 	// Initialize itopo.
-	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{})
-	if _, _, err := itopo.SetStatic(conf.Topo); err != nil {
+	itopo.Init(
+		&itopo.Config{
+			ID:  r.Id,
+			Svc: proto.ServiceType_br,
+		},
+	)
+	if err := itopo.Update(conf.Topo); err != nil {
 		return err
 	}
+	conf.Topo = itopo.Get()
 	// Setup new context.
 	if err = r.setupCtxFromConfig(conf); err != nil {
 		return err
@@ -120,13 +126,13 @@ func (r *Router) setupCtxFromConfig(config *brconf.BRConf) error {
 	// We want to keep in sync itopo and the context that is set.
 	// We attempt to set the context with the topology that will be current
 	// after setting itopo. If setting itopo fails in the end, we rollback the context.
-	tx, err := itopo.BeginSetStatic(config.Topo.Writable())
+	tx, err := itopo.BeginUpdate(config.Topo.Writable())
 	if err != nil {
 		return err
 	}
 	// Set config to use the appropriate topology. The returned topology is
 	// not necessarily the same as config.Topo. It can be another static topology.
-	newConf, err := brconf.WithNewTopo(r.Id, topology.FromRWTopology(tx.Get()), config)
+	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), config)
 	if err != nil {
 		return err
 	}
@@ -138,7 +144,7 @@ func (r *Router) setupCtxFromConfig(config *brconf.BRConf) error {
 func (r *Router) setupCtxFromStatic(topo *topology.RWTopology) (bool, error) {
 	r.setCtxMtx.Lock()
 	defer r.setCtxMtx.Unlock()
-	tx, err := itopo.BeginSetStatic(topo)
+	tx, err := itopo.BeginUpdate(topo)
 	return r.setupCtxFromTopoUpdate(tx, err)
 }
 
@@ -151,7 +157,7 @@ func (r *Router) setupCtxFromTopoUpdate(tx itopo.Transaction, err error) (bool, 
 		return false, nil
 	}
 	log.Trace("====> Setting up new context from topology update")
-	newConf, err := brconf.WithNewTopo(r.Id, topology.FromRWTopology(tx.Get()), rctx.Get().Conf)
+	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), rctx.Get().Conf)
 	if err != nil {
 		return false, err
 	}
