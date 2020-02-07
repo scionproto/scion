@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -85,6 +86,18 @@ func TestE2EIDWrite(t *testing.T) {
 	if bytes.Compare(raw, rawReference) != 0 {
 		t.Fatalf("Serialized E2EID is different: %s expected %s",
 			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
+	}
+}
+
+func TestTickFromTime(t *testing.T) {
+	if tick := TickFromTime(time.Unix(0, 0)); tick != 0 {
+		t.Fatalf("Wrong tick %v, expected 0", tick)
+	}
+	if tick := TickFromTime(time.Unix(3, 999999)); tick != 0 {
+		t.Fatalf("Wrong tick %v, expected 0", tick)
+	}
+	if tick := TickFromTime(time.Unix(4, 0)); tick != 1 {
+		t.Fatalf("Wrong tick %v, expected 0", tick)
 	}
 }
 
