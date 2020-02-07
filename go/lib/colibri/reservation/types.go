@@ -15,9 +15,12 @@
 package reservation
 
 import (
+	"time"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // SegmentID identifies a COLIBRI segment reservation. The suffix differentiates
@@ -89,6 +92,11 @@ func (id *E2EID) Write(raw []byte) error {
 
 // Tick represents a slice of time of 4 seconds.
 type Tick uint32
+
+// TickFromTime returns the tick for a given time.
+func TickFromTime(t time.Time) Tick {
+	return Tick(util.TimeToSecs(t) / 4)
+}
 
 // BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 .
 type BWCls uint8
