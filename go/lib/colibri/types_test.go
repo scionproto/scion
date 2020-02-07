@@ -19,13 +19,12 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestSegmentReservationIDFromRaw(t *testing.T) {
+func TestSegmentIDFromRaw(t *testing.T) {
 	raw := xtest.MustParseHexString("ffaa00001101facecafe")
-	id, err := SegmentReservationIDFromRaw(raw)
+	id, err := SegmentIDFromRaw(raw)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -40,25 +39,25 @@ func TestSegmentReservationIDFromRaw(t *testing.T) {
 	}
 }
 
-func TestSegmentReservationIDWrite(t *testing.T) {
-	reference := SegmentReservationID{
+func TestSegmentIDWrite(t *testing.T) {
+	reference := SegmentID{
 		ASID: xtest.MustParseAS("ffaa:0:1101"),
 	}
 	copy(reference.Suffix[:], xtest.MustParseHexString("facecafe"))
-	raw := make(common.RawBytes, 10)
+	raw := make([]byte, 10)
 	if err := reference.Write(raw); err != nil {
 		t.Fatalf("Unexpect error: %v", err)
 	}
 	rawReference := xtest.MustParseHexString("ffaa00001101facecafe")
 	if bytes.Compare(raw, rawReference) != 0 {
-		t.Fatalf("Serialized SegmentReservationID is different: %s expected %s",
+		t.Fatalf("Serialized SegmentID is different: %s expected %s",
 			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
 	}
 }
 
-func TestE2EReservationIDFromRaw(t *testing.T) {
+func TestE2EIDFromRaw(t *testing.T) {
 	raw := xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00d")
-	id, err := E2EReservationIDFromRaw(raw)
+	id, err := E2EIDFromRaw(raw)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -73,18 +72,18 @@ func TestE2EReservationIDFromRaw(t *testing.T) {
 	}
 }
 
-func TestE2EReservationIDWrite(t *testing.T) {
-	reference := E2EReservationID{
+func TestE2EIDWrite(t *testing.T) {
+	reference := E2EID{
 		ASID: xtest.MustParseAS("ffaa:0:1101"),
 	}
 	copy(reference.Suffix[:], xtest.MustParseHexString("facecafedeadbeeff00d"))
-	raw := make(common.RawBytes, 16)
+	raw := make([]byte, 16)
 	if err := reference.Write(raw); err != nil {
 		t.Fatalf("Unexpect error: %v", err)
 	}
 	rawReference := xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00d")
 	if bytes.Compare(raw, rawReference) != 0 {
-		t.Fatalf("Serialized E2EReservationID is different: %s expected %s",
+		t.Fatalf("Serialized E2EID is different: %s expected %s",
 			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
 	}
 }
@@ -143,7 +142,11 @@ func TestValidatePathType(t *testing.T) {
 			t.Fatalf("Unexpected error with type %v: %v", vt, err)
 		}
 	}
-	pt := PathType(CorePath + 1)
+	pt := PathType(UnknownPath)
+	if err := pt.Validate(); err == nil {
+		t.Fatalf("Expected validation error but did not get one")
+	}
+	pt = PathType(CorePath + 1)
 	if err := pt.Validate(); err == nil {
 		t.Fatalf("Expected validation error but did not get one")
 	}
@@ -155,7 +158,7 @@ func TestValidateInfoField(t *testing.T) {
 		BWCls:          0,
 		RLC:            0,
 		Idx:            0,
-		PathType:       0,
+		PathType:       CorePath,
 	}
 	if err := infoField.Validate(); err != nil {
 		t.Fatalf("Unexpected error %v", err)
@@ -182,7 +185,7 @@ func TestValidateInfoField(t *testing.T) {
 	}
 }
 
-var rawReference = xtest.MustParseHexString("16ebdb4f0d042400")
+var rawReference = xtest.MustParseHexString("16ebdb4f0d042500")
 var reference = InfoField{
 	ExpirationTick: 384555855,
 	BWCls:          13,
@@ -214,7 +217,7 @@ func TestInfoFieldFromRaw(t *testing.T) {
 }
 
 func TestInfoFieldWrite(t *testing.T) {
-	raw := make(common.RawBytes, InfoFieldLen)
+	raw := make([]byte, InfoFieldLen)
 	err := reference.Write(raw)
 	if err != nil {
 		t.Fatal(err)
