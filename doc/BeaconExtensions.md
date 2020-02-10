@@ -75,7 +75,16 @@ Information about the inter-AS latency, as well as the intra-AS latency between
 the egress interface and every other interface is required to deal with
 shortcut/peering paths (see diagram).
 
-[diagram goes here]
+![Normal Path](fig/normal_path.png)
+
+Here, the interfaces where traffic enters and leaves correspond to the ingress
+and egress interfaces respectively saved in the AS Entry of the PCB. However,
+in the situation where either a shortcut or a peering path is used, that will
+change, and therefore, it is necessary that latencies (resp. other metrics) be
+known for the paths from the egress interface to such an other interface also.
+
+![Shortcut Path](fig/shortcut_path.png)
+![Peering Path](fig/peering_path.png)
 
 ### Geographic Information
 
