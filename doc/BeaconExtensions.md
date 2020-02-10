@@ -411,118 +411,82 @@ Name               | Type | Length |
 ### Config File Format
 
 In order for the extension to work, a config file needs to be provided to a
-specific location [tbd]. The config file comes in the form of a txt file
-and needs to have the format illustrated below. First of all, we have the
-following two values:
+specific location [tbd]. The config file comes in the form of a JSON file
+and needs to have the format shown below. First of all, we have the
+following value:
 
 Name               | Type  | Description |
 -------------------|-------|-------------|
 `N`                |Integer|Number of interfaces in the AS|
-`IntfIDs`          |List of Integers|Interface IDs of
-every interface in the AS, ordered in ascending order|
 
-Then, for every interface listed above, in the same order as in the `IntfIDs`
-list, follow, for every interface `i` the following values:
+Then, for every interface `i` the following values can be provided:
 
-Name               | Type  | Description |
--------------------|-------|-------------|
-`IntfStart`| String (Special flag) | Signifies beginning of new interface, to be written exactly as in the name field|
-`Lat`      |String (Special flag) |Signifies beginning of latency section, to be written exactly as in the name field|
-`IntraLatency`     |List of N Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
-`InterLatency`     |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
-`Geo`     |String (Special flag) |Signifies beginning of geographic information section, to be written exactly as in the name field|
-`C1_i`             |Decimal value|Longitude gps coordinates of interface `i`|
-`C2_i`             |Decimal value|Latitude gps coordinate of interface `i`|
-`CivAddrStart`     |String (Special flag)| string that specifies beginning of civil address of interface `i`|
-`CivAddr_i`        |Data|Civic address of interface `i`|
-`CivAddrStop`      |String (Special flag)| string that specifies end of civil address of interface `i`|
-`Link`     |String (Special flag) |Signifies beginning of link type section, to be written exactly as in the name field|
-`IntraLink_i`      |List of Enums |Possible values of a list entry : `Multi`, `Direct`, `OpenNet`; Describes link type between interface `i` and any other interface, including itself (this entry is set to `direct`)|
-`InterLink_i`      |Enum  |Possible values of a list entry : `Multi`, `Direct`, `OpenNet`; Describes link type between interface `i` and the AS at the other end of the link|
-`BW`     |String (Special flag) |Signifies beginning of bandwidth section, to be written exactly as in the name field|
-`IntraBW_i`        |List of Integers|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
-`InterBW_i` |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
-`Hop` |String (Special flag) |Signifies beginning of number of internal hops section, to be written exactly as in the name field|
-`Hops_i` |List of Integers|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`IntfID`         |Integer|Interface ID of the interface described by the data that follows|
+`IntraLatency`   |List of N Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
+`InterLatency`   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
+`C1`             |Decimal value|Longitude gps coordinates of interface `i`|
+`C2`             |Decimal value|Latitude gps coordinate of interface `i`|
+`CivAddr`        |Data|Civic address of interface `i`|
+`IntraLink`      |List of Integers |Describes link type between interface `i` and any other interface, including itself (this entry is set to 0), where 0 means direct link, 1 means multihop link and every other number means link that uses the open internet|
+`InterLink`      |Integer  |Possible values of a list entry : `Multi`, `Direct`, `OpenNet`; Describes link type between interface `i` and the AS at the other end of the link|
+`IntraBW`        |List of Integers|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
+`InterBW`        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
+`Hops`           |List of Integers|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
 
 Then, after every interface has been listed, follow a few final fields:
 
 Name               | Type  | Description |
 -------------------|-------|-------------|
-`IntfsEND`          |String|Special flag string that specifies end of the interface section|
-`NoteStart`|String|Special flag string that specifies beginning of Note contents|
-`Note` |String|Note|
-`NoteStop`         |String|Special flag string that specifies end of Note contents|
-`URL`     |String (Special flag) |Signifies beginning of metadata endpoint section, to be written exactly as in the name field|
-`URLContents`      |String|URL for metadata endpoint|
-
-The special flag strings have to be written exactly as shown in the name field.
-Values are separated by whitespaces.
+`Note`             |String |Note|
+`URLContents`      |String |URL for metadata endpoint|
 
 Below is a simple example of how such a config file could look like (actual
-values are abitrary) for an AS with three interfaces with IDs 1, 2 and 3:
+values are abitrary, "asdf" is used as a placeholder for longer strings)
+for an AS with three interfaces with IDs 1, 2 and 3:
 
-````Java
-3
-1 2 3
-IntfStart
-Lat
-0 10 20
-30
-Geo
-45.7
-46.9
-CivAddrStart
-//civil address goes here
-CivAddrStop
-Link
-Direct Multi Direct
-OpenNet
-BW
-0 200000000 100000000
-150000000
-Hop
-0 2 4
-IntfStart
-Lat
-10 0 20
-30
-Geo
-84.3
-32.9
-CivAddrStart
-//civil address goes here
-CivAddrStop
-Link
-Multi Direct Direct
-OpenNet
-BW
-200000000 0 300000000
-250000000
-Hop
-1 0 5
-IntfStart
-Lat
-10 10 0
-40
-Geo
-54.3
-62.9
-CivAddrStart
-//civil address goes here
-CivAddrStop
-Link
-Multi Direct Direct
-Direct
-BW
-200000000 300000000 0
-50000000
-Hop
-1 2 0
-IntfsEND
-NoteStart
-//note goes here (should not contain the word "NoteStop")
-NoteStop
-URL
-//url goes here
+````JSON
+{
+  "N": 3,
+  "Interfaces": [{
+    "IntfID": 1,
+    "IntraLatency": [0, 10, 20],
+    "InterLatency": 30,
+    "C1": 45.7,
+    "C2": 25.9,
+    "CivAddr": "asdf",
+    "IntraLink": [0,1,0],
+    "InterLink": 2,
+    "IntraBW": [0, 200000000, 100000000],
+    "InterBW": 150000000,
+    "Hops": [0, 2, 4]
+  },{
+    "IntfID": 2,
+    "IntraLatency": [10, 0, 20],
+    "InterLatency": 40,
+    "C1": 34.7,
+    "C2": 27.2,
+    "CivAddr": "asdf",
+    "IntraLink": [1,0,2],
+    "InterLink": 2,
+    "IntraBW": [200000000, 0, 100000000],
+    "InterBW": 450000000,
+    "Hops": [1, 0, 4]
+  },{
+    "IntfID": 3,
+    "IntraLatency": [10, 40, 0],
+    "InterLatency": 10,
+    "C1": 66.2,
+    "C2": 37.0,
+    "CivAddr": "asdf",
+    "IntraLink": [1,1,0],
+    "InterLink": 1,
+    "IntraBW": [200000000, 300000000, 0],
+    "InterBW": 50000000,
+    "Hops": [1, 0, 0]
+  }],
+  "Note": "asdf",
+  "URL": "asdf"
+}
 ````
