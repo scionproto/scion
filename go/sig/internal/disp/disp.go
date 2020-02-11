@@ -125,7 +125,7 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.UDPAddr) {
 		}
 		entry <- regPld
 	default:
-		log.Error("Unsupported ctrl payload type", common.TypeOf(pld), "src", addr)
+		log.Error("Unsupported ctrl payload type", "type", common.TypeOf(pld), "src", addr)
 	}
 }
 

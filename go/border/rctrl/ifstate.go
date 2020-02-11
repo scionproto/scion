@@ -42,11 +42,11 @@ const (
 // startup.
 func ifStateUpdate() {
 	if err := genIFStateReq(); err != nil {
-		logger.Error(err.Error(), nil)
+		logger.Error(err.Error())
 	}
 	for range time.Tick(ifStateFreq) {
 		if err := genIFStateReq(); err != nil {
-			logger.Error(err.Error(), nil)
+			logger.Error(err.Error())
 		}
 	}
 }

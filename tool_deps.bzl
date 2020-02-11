@@ -33,7 +33,7 @@ def tool_deps():
 
     go_repository(
         name = "com_github_oncilla_gochecks",
-        commit = "8931c0e330384f8cfbff5ea8d260350ec4de893b",
+        commit = "954a3ef2d56471a40cc0c6fcb86e1e9a3b21949e",
         importpath = "github.com/oncilla/gochecks",  # serrorscheck
         build_file_generation = "off",
     )
