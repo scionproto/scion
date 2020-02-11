@@ -141,6 +141,7 @@ Use cases of such information include:
 ### Conceptual Implementation Maximum Bandwidth
 
 The maximum bandwidth information will be comprised of 2 main parts:
+
 - The subtype field, which identifies it
 - A variable number of maximum bandwidth clusters
 
@@ -171,6 +172,7 @@ Use cases of such information include:
 ### Conceptual Implementation Geographic Information
 
 The geographic information will be comprised of 2 main parts:
+
 - The subtype field, which identifies it
 - A variable number of location clusters
 
@@ -222,7 +224,7 @@ elements:
 ## Number of Internal Hops
 
 The Number of Internal Hops describes how many hops are on the Intra-AS path.
-Use cases of such information include: 
+Use cases of such information include:
 
 - Can be used to exclude undesireable paths from the selection
 - Obtain a selection of efficient, low latency paths (especially when combined
