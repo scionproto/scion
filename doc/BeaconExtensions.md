@@ -2,7 +2,7 @@
 
 In order to estimate certain properties of a SCION path segment, static
 information about that path can be embedded inside the path construction beacons
-in the form of an extension. 
+in the form of an extension.
 
 ## Table of Contents
 
@@ -313,7 +313,6 @@ The following chart illustrates the overall format of the extension:
 -------|-----------|-----------|------|-------|-------|--------|------|
 
 Except for `Type` at the beginning, all of these fields are optional.
-
 
 ### Latency Format
 
