@@ -75,11 +75,11 @@ func UDPAddrFromString(s string) (*UDPAddr, error) {
 	if ip == nil {
 		return nil, serrors.New("invalid address: no IP specified", "host", rawHost)
 	}
-	port, err := strconv.Atoi(rawPort)
-	if err != nil || 0 > port || port > 65535 {
+	port, err := strconv.ParseUint(rawPort, 10, 16)
+	if err != nil {
 		return nil, serrors.New("invalid port", "host", rawHost)
 	}
-	return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: port}}, nil
+	return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: int(port)}}, nil
 }
 
 // Network implements net.Addr interface.
