@@ -473,7 +473,7 @@ Name             | Type  | Description |
 `InterLatency`   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
 `C1`             |Decimal value|Longitude gps coordinates of interface `i`|
 `C2`             |Decimal value|Latitude gps coordinate of interface `i`|
-`CivAddr`        |Data|Civic address of interface `i`|
+`CivAddr`        |String|Civic address of interface `i`|
 `IntraLink`      |List of Integers |Describes link type between interface `i` and any other interface, including itself (this entry is set to 0), where 0 means direct link, 1 means multihop link and every other number means link that uses the open internet|
 `InterLink`      |Integer  |Possible values of a list entry : `Multi`, `Direct`, `OpenNet`; Describes link type between interface `i` and the AS at the other end of the link|
 `IntraBW`        |List of Integers|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
