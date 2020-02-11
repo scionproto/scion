@@ -8,33 +8,12 @@ in the form of an extension.
 
 - [Static Properties](#static-properties)
 - [Latency Information](#latency-information)
-    - [Definition Latency](#definition-latency)
-    - [Use Cases Latency](#use-cases-latency)
-    - [Conceptual Implementation Latency](#conceptual-implementation-geographic-information)
 - [Geographic Information](#latency-information)
-    - [Definition Geographic Information](#definition-geographic-information)
-    - [Use Cases Geographic Information](#use-cases-geographic-information)
-    - [Conceptual Implementation Geographic Information](#conceptual-implementation-geographic-information)
 - [Link Type](#link-type)
-    - [Definition Link Type](#definition-link-type)
-    - [Use Cases Link Type](#use-cases-link-type)
-    - [Conceptual Implementation Link Type](#conceptual-implementation-link-type)
 - [Maximum Bandwidth](#maximum-bandwidth)
-    - [Definition Maximum Bandwidth](#definition-maximum-bandwidth)
-    - [Use Cases Maximum Bandwidth](#use-cases-maximum-bandwidth)
-    - [Conceptual Implementation Maximum Bandwidth](#conceptual-implementation-maximum-bandwidth)
 - [Number of Internal Hops](#number-of-internal-hops)
-    - [Definition Number of Internal Hops](#definition-number-of-internal-hops)
-    - [Use Cases Number of Internal Hops](#use-cases-number-of-internal-hops)
-    - [Conceptual Implementation Number of Internal Hops](#conceptual-implementation-number-of-internal-hops)
 - [Note](#note)
-    - [Definition Note](#definition-note)
-    - [Use Cases Note](#use-cases-note)
-    - [Conceptual Implementation Note](#conceptual-implementation-note)
 - [Metadata Enbpoint](#metadata-endpoint)
-    - [Definition Metadata Enbpoint](#definition-metadata-endpoint)
-    - [Use Cases Metadata Enbpoint](#use-cases-metadata-endpoint)
-    - [Conceptual Implementation Metadata Enbpoint](#conceptual-implementation-metadata-endpoint)
 - [Concrete Implementation](#concrete-implementation)
     - [Wire Format Overall](#wire-format-overall)
     - [Latency Format](#latency-format)
@@ -48,43 +27,52 @@ in the form of an extension.
 
 ## Static Properties
 
-For the purpose of this document, we will adhere to the following definition of
-a static property:
+For the purpose of this document, we will adhere to the following definition:
+A static property is any quantifiable piece of information describing a
+property of a SCION path segment that remains unchanged over the entire
+duration of the lifetime of that path segment.
 
->A static property is any quantifiable piece of information describing a
->property of a SCION path segment that remains unchanged over the entire
->duration of the lifetime of that path segment.
+The following assumptions are made:
 
-Before proceeding, it shall be explicitly stated here that for the purpose of
-this work, the following assumptions are made:
-
-- SCION has reliable information about its own infrastructure
+- The SCION has reliable information about the infrastructure of the beacon
+  service (such as the border routers and the interfaces attached to them)
 - SCION has access to a blackbox (which could be the AS itself, a dedicated
   SCION service or any other entity), which provides information that
   characterizes the AS topology and the routing processes within the AS
 - The AS topology remains stable throughout the lifetime of a path segment
 
-For the purpose of embedding static information in the SCION beacons, the
-extension field in the AS Entry of the PCB will be used. Every extension field
-starts with its type encoded in 1 byte. After that comes the payload, i.e. the
-actual contents of the extension. In order to keep things simple while at the
-same time retaining as much versatility as possible, we will introduce the new
-extension-type "Static Property". Inside the payload of a Static Property
-extension a special "subtype" field will be used, which denotes which property
-in particular is encoded in the rest of the payload. We will now discuss the
-structure of the payload for each type of property.
+When discussing static properties, we always need to distinguish between
+inter-AS and intra-AS elements. Most properties will be comprised of both.
+Using the diagram below, the concept of this difference between intra-AS
+and inter-AS elements will be illustrated with the example of propagation
+delay.
+
+![Inter VS Intra Metrics](fig/inter_vs_intra_metrics.png)
+
+The PCB originates in AS 3, and is then propagated to AS 1, and then to
+AS 2. In the AS Entry of AS 1, interface 1 is the ingress and inteface 2
+the egress interface. In order to be able to calculate the end-to-end
+propagation delay of a path starting in AS 2 and ending in AS 3, we need
+both the delay inside each AS (intra-AS), as well as the delay on the
+connections between ASes (inter-AS). As the figure shows, interface 1 is
+attached to both an intra-AS conncetion as well as an inter-AS connection.
+We therefore need to store both the intra- and the inter-AS metrics.
+In order to not store redundant information, we will only do this for
+the non-egress interfaces. As can be seen when looking at the diagram,
+this means that for every AS we then have the delay inside the AS, and the
+delay from this AS to the AS from which it received the PCB that we are
+extending. Using this method, we can then calculate the end-to-end delay
+by simply combining intra- and inter-AS delays. This concept applies
+similarly to many other properties.
+We will now discuss the properties we will embed and the information that
+needs to be provided for each of them.
 
 ## Latency Information
 
-### Definition Latency
-
-Latency Information is defined as follows:
-
-> Latency Information refers to the total propagation delay on an end to end
-> path, comprised of intra- and inter-AS delays and measured on the scale of
-> milliseconds.
-
-### Use Cases Latency
+Latency Information refers to the total propagation delay on an end to end
+path, comprised of intra- and inter-AS delays and measured on the scale of
+milliseconds.
+Use cases of such information include:
 
 - Allows to augment path selection policy in order to obtain low latency paths
 - Shortening the duration it takes to fetch data and thus decreasing wait times
@@ -96,10 +84,10 @@ Latency Information is defined as follows:
 The latency information will be comprised of 2 parts:
 
 - The subtype field, which identifies it
-- A variable number of latency clusters A latency cluster serves to pool all
-  interfaces which are attached to an intra-AS link (i.e. going "inside the AS)
-  and have the same propagation delay (within a +-0.5 ms range) between them and
-  the egress interface.
+- A variable number of latency clusters. A latency cluster serves to pool all
+  interfaces which have the same propagation delay (within a +-0.5 ms range)
+  between them and the egress interface (i.e. the interface the PCB was sent
+  out on).
 
 Each latency cluster is itself comprised of 3 types of elements:
 
@@ -116,25 +104,62 @@ shortcut/peering paths (see diagram).
 ![Normal Path](fig/normal_path.png)
 
 Here, the interfaces where traffic enters and leaves correspond to the ingress
-and egress interfaces respectively saved in the AS Entry of the PCB. However,
-in the situation where either a shortcut or a peering path is used, that will
-change, and therefore, it is necessary that latencies (resp. other metrics) be
-known for the paths from the egress interface to such an other interface also.
+and egress interfaces respectively saved in the AS Entry of the PCB. The terms
+ingress and egress interfaces refer to the way these interfaces would be encoded
+in the PCB during the beaconing process, therefore the lower interface is always
+labelled as the egress interface, even when it is in the up segment and would
+thus technically be the interface on which traffic enters the AS. However,
+in the situation where either a shortcut or a peering path is used, merely
+storing the latency from the ingress to the egress interface will be insufficient.
+This is because the interface on which traffic will leave the AS as it travels
+along the path will no longer be the ingress interface encoded in the PCB that
+was used to construct the up segment, but rather either the egress interface
+stored in a different PCB (in the case of a shortcut connection) or a peering
+interface (in the case of a peering conncetion). Therefore, it is necessary
+that latencies (resp. other metrics) be known for the paths from the egress
+interface to such a non-ingress interface also (see figures below).
 
 ![Shortcut Path](fig/shortcut_path.png)
 ![Peering Path](fig/peering_path.png)
 
+## Maximum Bandwidth
+
+Maximum Bandwidth Information consists of 2 parts, Inter- and Intra-AS:
+
+- Inter-AS Maximum Bandwidth Information describes the maximum bandwidth
+  available on the inter-AS connections between each AS.
+- Intra-AS Maximum Bandwidth Information describes the smallest maximum
+  bandwidth available on any link that lies on the intra-AS routing path.
+
+Use cases of such information include:
+
+- Allows to augment path selection policy, such that unsuitable paths can be
+  excluded a priori
+- Avoid connections that are prone to congestion due to a low-bandwidth
+  bottleneck somewhere
+
+### Conceptual Implementation Maximum Bandwidth
+
+The maximum bandwidth information will be comprised of 2 main parts:
+- The subtype field, which identifies it
+- A variable number of maximum bandwidth clusters
+
+A maximum bandwidth cluster serves to pool all interfaces which have the
+same maximum bandwidth between them and the egress interface. Each cluster
+is itself formed of 3 types of elements:
+
+- The minimum across all maximum bandwidths of all connections on the path from
+  the cluster to the current interface (1 value per cluster)
+- The interface ID of the interface
+- The maximum bandwidth of the inter-AS link attached to the interface (1 value
+  per interface)
+
 ## Geographic Information
 
-### Definition Geographic Information
-
-Geographic Information is defined as follows:
-
-> Geographic Information is the full set of GPS coordinates identifying the
-> location of every SCION border router deployed by an AS, as well as a real
-> life address associated with the location of each such SCION border router.
-
-### Use Cases Geographic Information
+Geographic Information is the full set of GPS coordinates identifying the
+location of every SCION border router deployed by an AS, as well as a real
+life address associated with the location of each such SCION border router.
+Use cases of such information include:
 
 - Can be used to augment path selection policies in order to ensure paths do not
   leave a particular area, or alternatively ascertain that they never cross
@@ -145,8 +170,9 @@ Geographic Information is defined as follows:
 
 ### Conceptual Implementation Geographic Information
 
-The geographic information will be comprised of 2 main parts: - The subtype
-field, which identifies it - A variable number of location clusters
+The geographic information will be comprised of 2 main parts:
+- The subtype field, which identifies it
+- A variable number of location clusters
 
 A location cluster serves to pool all interfaces which are located in the same
 geographic location (i.e. same address). Each location cluster is itself formed
@@ -163,18 +189,15 @@ of 2 main types of elements:
 
 ### Definition Link Type
 
-The Link Type is defined as follows:
-
-> Link Type information gives a broad classification of the different protocols
-> being used on the links between two entities.
-
+Link Type information gives a broad classification of the different protocols
+being used on the links between two entities.
 For now it distinguishes three different types of links:
 
 - Links that go over the open internet
 - Direct links
 - Multihop links
 
-### Use Cases Link Type
+Use cases of such information include:
 
 - Mitigating security concerns
 - Allowing users to select paths that e.g. avoid the open internet
@@ -196,46 +219,10 @@ elements:
 - The inter-AS link type for the connection attached to the interface (1 value
   per interface)
 
-## Maximum Bandwidth
-
-### Definition Maximum Bandwidth
-
-Maximum Bandwidth Information consists of 2 parts, Inter- and Intra-AS and is
-defined as follows:
-
-> Inter-AS Maximum Bandwidth Information describes the maximum bandwidth
-> available on the inter-AS connections between each AS on an end-to-end path.
-> Intra-AS Maximum Bandwidth Information describes the smallest maximum
-> bandwidth available on any link that lies on the intra-AS routing path.
-
-### Use Cases Maximum Bandwidth
-
-- Allows to augment path selection policy, such that unsuitable paths can be
-  excluded a priori
-- Avoid connections that are prone to congestion due to a low-bandwidth
-  bottleneck somewhere
-
-### Conceptual Implementation Maximum Bandwidth
-
-The maximum bandwidth information will be comprised of 2 main parts: - The
-subtype field, which identifies it - A variable number of maximum bandwidth
-clusters
-
-Each cluster is itself formed of 3 types of elements:
-
-- The minimum across all maximum bandwidths of all connections on the path from
-  the cluster to the current interface (1 value per cluster)
-- The interface ID of the interface
-- The maximum bandwidth of the inter-AS link attached to the interface
-
 ## Number of Internal Hops
 
-### Definition Number of Internal Hops
-
-The Number of Internal Hops is defined as follows: > The Number of Internal Hops
-describes how many hops are on the Intra-AS path.
-
-### Use Cases
+The Number of Internal Hops describes how many hops are on the Intra-AS path.
+Use cases of such information include: 
 
 - Can be used to exclude undesireable paths from the selection
 - Obtain a selection of efficient, low latency paths (especially when combined
@@ -258,13 +245,8 @@ cluster is itself formed of 2 main elements:
 
 ## Note
 
-### Definition Note
-
-The Note is defined as follows:
-
-> A bit of plaintext.
-
-### Use Cases Note
+A Note is simply a bit of plaintext.
+Use cases of such information include:
 
 - Tool for network engineers to communicate interesting/important information to
   their peers as well as users
@@ -278,15 +260,10 @@ The Note subtype is comprised of 2 elements:
 
 ## Metadata Endpoint
 
-### Definition Metadata Endpoint
-
-Metadate Endpoint Information is defined as follows:
-
-> A URL which can be used to fetch additional metadata (i.e. the aforementioned
-> as well as additional (non-)static properties describing the (topology of the)
-> AS whose AS Entry it extends.
-
-### Use Cases Metadata Endpoint
+The Metadata Endpoint is a URL which can be used to fetch additional metadata
+(i.e. the aforementioned as well as additional (non-)static properties describing
+the (topology of the) AS whose AS Entry it extends.
+Use cases of such information include:
 
 - Decreases size of PCB
 - Supply additional data that might not have its own extension yet
@@ -307,7 +284,16 @@ of each property in detail.
 
 ### Wire Format Overall
 
-The following chart illustrates the overall format of the extension:
+For the purpose of embedding static information in the SCION beacons, the
+extension field in the AS Entry of the PCB will be used. Every extension
+field starts with its type, encoded in 1 byte. After that comes the payload,
+i.e. the actual contents of the extension. In order to keep things simple
+while at the same time retaining as much versatility as possible,
+we will introduce the new extension-type "Static Property". Inside the
+payload of a Static Property extension a special "subtype" field will be
+used, which denotes which property in particular is encoded in the rest
+of the payload. The following chart illustrates the overall format of the
+extension:
 
 `Type` | `Latency` | `GeoInfo` | `LT` | `MBW` | `NIH` | `Note` | `ME` |
 -------|-----------|-----------|------|-------|-------|--------|------|
