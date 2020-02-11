@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -65,14 +66,20 @@ func UDPAddrFromString(s string) (*UDPAddr, error) {
 	if ip := net.ParseIP(strings.Trim(rawHost, "[]")); ip != nil {
 		return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: 0}}, nil
 	}
-	udpAddr, err := net.ResolveUDPAddr("udp", rawHost)
+
+	rawIP, rawPort, err := net.SplitHostPort(rawHost)
 	if err != nil {
 		return nil, err
 	}
-	if udpAddr.IP == nil {
+	ip := net.ParseIP(rawIP)
+	if ip == nil {
 		return nil, serrors.New("invalid address: no IP specified", "host", rawHost)
 	}
-	return &UDPAddr{IA: ia, Host: udpAddr}, nil
+	port, err := strconv.ParseUint(rawPort, 10, 16)
+	if err != nil {
+		return nil, serrors.New("invalid port", "host", rawHost)
+	}
+	return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: int(port)}}, nil
 }
 
 // Network implements net.Addr interface.
