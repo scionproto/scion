@@ -2,11 +2,49 @@
 
 In order to estimate certain properties of a SCION path segment, static
 information about that path can be embedded inside the path construction beacons
-in the form of an extension. The following document will explore ways to embed
-static information into SCION PCBs. It will first give a definition of what is
-considered to be "static information" in this context, before exploring 7
-particular static properties, how to define them and how to implement them as
-part of the SCION infrastructure.
+in the form of an extension. 
+
+## Table of Contents
+
+- [Static Properties](#static-properties)
+- [Latency Information](#latency-information)
+    - [Definition Latency](#definition-latency)
+    - [Use Cases Latency](#use-cases-latency)
+    - [Conceptual Implementation Latency](#conceptual-implementation-geographic-information)
+- [Geographic Information](#latency-information)
+    - [Definition Geographic Information](#definition-geographic-information)
+    - [Use Cases Geographic Information](#use-cases-geographic-information)
+    - [Conceptual Implementation Geographic Information](#conceptual-implementation-geographic-information)
+- [Link Type](#link-type)
+    - [Definition Link Type](#definition-link-type)
+    - [Use Cases Link Type](#use-cases-link-type)
+    - [Conceptual Implementation Link Type](#conceptual-implementation-link-type)
+- [Maximum Bandwidth](#maximum-bandwidth)
+    - [Definition Maximum Bandwidth](#definition-maximum-bandwidth)
+    - [Use Cases Maximum Bandwidth](#use-cases-maximum-bandwidth)
+    - [Conceptual Implementation Maximum Bandwidth](#conceptual-implementation-maximum-bandwidth)
+- [Number of Internal Hops](#number-of-internal-hops)
+    - [Definition Number of Internal Hops](#definition-number-of-internal-hops)
+    - [Use Cases Number of Internal Hops](#use-cases-number-of-internal-hops)
+    - [Conceptual Implementation Number of Internal Hops](#conceptual-implementation-number-of-internal-hops)
+- [Note](#note)
+    - [Definition Note](#definition-note)
+    - [Use Cases Note](#use-cases-note)
+    - [Conceptual Implementation Note](#conceptual-implementation-note)
+- [Metadata Enbpoint](#metadata-endpoint)
+    - [Definition Metadata Enbpoint](#definition-metadata-endpoint)
+    - [Use Cases Metadata Enbpoint](#use-cases-metadata-endpoint)
+    - [Conceptual Implementation Metadata Enbpoint](#conceptual-implementation-metadata-endpoint)
+- [Concrete Implementation](#concrete-implementation)
+    - [Wire Format Overall](#wire-format-overall)
+    - [Latency Format](#latency-format)
+    - [Geographic Information Format](#geographic-information-format)
+    - [Link Type Format](#link-type-format)
+    - [Maximum Bandwidth Format](#maximum-bandwidth-format)
+    - [Number of Internal Hops Format](#number-of-internal-hops-format)
+    - [Note Format](#note-format)
+    - [Metadata Endpoint Format](#metadata-endpoint-format)
+- [Config File Format](#config-file-format)
 
 ## Static Properties
 
@@ -36,9 +74,9 @@ extension a special "subtype" field will be used, which denotes which property
 in particular is encoded in the rest of the payload. We will now discuss the
 structure of the payload for each type of property.
 
-### Latency Information
+## Latency Information
 
-#### Definition Latency
+### Definition Latency
 
 Latency Information is defined as follows:
 
@@ -46,14 +84,14 @@ Latency Information is defined as follows:
 > path, comprised of intra- and inter-AS delays and measured on the scale of
 > milliseconds.
 
-#### Use Cases Latency
+### Use Cases Latency
 
 - Allows to augment path selection policy in order to obtain low latency paths
 - Shortening the duration it takes to fetch data and thus decreasing wait times
   for the user
 - Time critical applications
 
-#### Conceptual Implementation Latency
+### Conceptual Implementation Latency
 
 The latency information will be comprised of 2 parts:
 
@@ -86,9 +124,9 @@ known for the paths from the egress interface to such an other interface also.
 ![Shortcut Path](fig/shortcut_path.png)
 ![Peering Path](fig/peering_path.png)
 
-### Geographic Information
+## Geographic Information
 
-#### Definition Geographic Information
+### Definition Geographic Information
 
 Geographic Information is defined as follows:
 
@@ -96,7 +134,7 @@ Geographic Information is defined as follows:
 > location of every SCION border router deployed by an AS, as well as a real
 > life address associated with the location of each such SCION border router.
 
-#### Use Cases Geographic Information
+### Use Cases Geographic Information
 
 - Can be used to augment path selection policies in order to ensure paths do not
   leave a particular area, or alternatively ascertain that they never cross
@@ -105,7 +143,7 @@ Geographic Information is defined as follows:
   they are communicating with (i.e. the endpoint on the other side of the path)
 - Informing network admins about router locations
 
-#### Conceptual Implementation Geographic Information
+### Conceptual Implementation Geographic Information
 
 The geographic information will be comprised of 2 main parts: - The subtype
 field, which identifies it - A variable number of location clusters
@@ -121,9 +159,9 @@ of 2 main types of elements:
   (1 value in total)
 - The interface ID for every interface in the cluster (1 value per interface)
 
-### Link Type
+## Link Type
 
-#### Definition Link Type
+### Definition Link Type
 
 The Link Type is defined as follows:
 
@@ -136,12 +174,12 @@ For now it distinguishes three different types of links:
 - Direct links
 - Multihop links
 
-#### Use Cases Link Type
+### Use Cases Link Type
 
 - Mitigating security concerns
 - Allowing users to select paths that e.g. avoid the open internet
 
-#### Conceptual Implementation Link Type
+### Conceptual Implementation Link Type
 
 The Link type will be comprised of 2 parts:
 
@@ -158,9 +196,9 @@ elements:
 - The inter-AS link type for the connection attached to the interface (1 value
   per interface)
 
-### Maximum Bandwidth
+## Maximum Bandwidth
 
-#### Definition Maximum Bandwidth
+### Definition Maximum Bandwidth
 
 Maximum Bandwidth Information consists of 2 parts, Inter- and Intra-AS and is
 defined as follows:
@@ -170,14 +208,14 @@ defined as follows:
 > Intra-AS Maximum Bandwidth Information describes the smallest maximum
 > bandwidth available on any link that lies on the intra-AS routing path.
 
-#### Use Cases Maximum Bandwidth
+### Use Cases Maximum Bandwidth
 
 - Allows to augment path selection policy, such that unsuitable paths can be
   excluded a priori
 - Avoid connections that are prone to congestion due to a low-bandwidth
   bottleneck somewhere
 
-#### Conceptual Implementation Maximum Bandwidth
+### Conceptual Implementation Maximum Bandwidth
 
 The maximum bandwidth information will be comprised of 2 main parts: - The
 subtype field, which identifies it - A variable number of maximum bandwidth
@@ -190,20 +228,20 @@ Each cluster is itself formed of 3 types of elements:
 - The interface ID of the interface
 - The maximum bandwidth of the inter-AS link attached to the interface
 
-### Number of Internal Hops
+## Number of Internal Hops
 
-#### Definition Number of Internal Hops
+### Definition Number of Internal Hops
 
 The Number of Internal Hops is defined as follows: > The Number of Internal Hops
 describes how many hops are on the Intra-AS path.
 
-#### Use Cases
+### Use Cases
 
 - Can be used to exclude undesireable paths from the selection
 - Obtain a selection of efficient, low latency paths (especially when combined
   with Latency Information)
 
-#### Conceptual Implementation
+### Conceptual Implementation
 
 The number of internal hops will be comprised of 2 main parts:
 
@@ -218,29 +256,29 @@ cluster is itself formed of 2 main elements:
   cluster)
 - The interface ID for every interface in the class (1 value per interface)
 
-### Note
+## Note
 
-#### Definition Note
+### Definition Note
 
 The Note is defined as follows:
 
 > A bit of plaintext.
 
-#### Use Cases Note
+### Use Cases Note
 
 - Tool for network engineers to communicate interesting/important information to
   their peers as well as users
 
-#### Conceptual Implementation Note
+### Conceptual Implementation Note
 
 The Note subtype is comprised of 2 elements:
 
 - The subtype field, which identifies it
 - The text field, which contains the contents of the note
 
-### Metadata Endpoint
+## Metadata Endpoint
 
-#### Definition Metadata Endpoint
+### Definition Metadata Endpoint
 
 Metadate Endpoint Information is defined as follows:
 
@@ -248,13 +286,13 @@ Metadate Endpoint Information is defined as follows:
 > as well as additional (non-)static properties describing the (topology of the)
 > AS whose AS Entry it extends.
 
-#### Use Cases Metadata Endpoint
+### Use Cases Metadata Endpoint
 
 - Decreases size of PCB
 - Supply additional data that might not have its own extension yet
 - Less Information needs to be included in the PCB itself
 
-#### Conceptual Implementation Metadata Endpoint
+### Conceptual Implementation Metadata Endpoint
 
 The metadata endpoint subtype is comprised of 2 elements:
 
@@ -276,9 +314,8 @@ The following chart illustrates the overall format of the extension:
 
 Except for `Type` at the beginning, all of these fields are optional.
 
-### Wire Formats Subtypes
 
-#### Latency Format
+### Latency Format
 
 The wire format for latency information looks like this:
 
@@ -299,7 +336,7 @@ Name               | Type | Length |
 `ID_i_j`           |UInt8 |1       |
 `Interdelay_i_j`   |UInt16|2       |
 
-#### Geographic Information Format
+### Geographic Information Format
 
 The wire format for geographic information looks like this:
 
@@ -326,7 +363,7 @@ Name               | Type  | Length |
 `CivAdd`           |Data   |100     |
 `ID_i_j`           |UInt8  |1       |
 
-#### Link Type Format
+### Link Type Format
 
 The wire format for the link type looks like this:
 
@@ -347,7 +384,7 @@ Name                | Type | Length |
 `ID_i_j`            |UInt8 |1       |
 `InterLink_i_j`     |UInt8 |1       |
 
-#### Maximum Bandwidth Format
+### Maximum Bandwidth Format
 
 The wire format for maximum bandwidth information looks like this:
 
@@ -368,7 +405,7 @@ Name               | Type | Length |
 `ID_i_j`           |UInt8 |1       |
 `InterBW_i_j`      |UInt32|4       |
 
-#### Number of Internal Hops Format
+### Number of Internal Hops Format
 
 The wire format for the number of internal hops looks like this:
 
@@ -389,7 +426,7 @@ Name               | Type | Length |
 `ClusterHops_i`    |UInt8 |1       |
 `ID_i_j`           |UInt8 |1       |
 
-#### Note Format
+### Note Format
 
 The wire format for the note looks like this:
 
@@ -403,7 +440,7 @@ Name               | Type | Length |
 `SubType`          |UInt8 |1       |
 `Words`            |Text  |100     |
 
-#### Metadata Endpoint Format
+### Metadata Endpoint Format
 
 The wire format for the metadata endpoint looks like this:
 
@@ -417,7 +454,7 @@ Name               | Type | Length |
 `SubType`          |UInt8 |1       |
 `URL`              |Text  |100     |
 
-### Config File Format
+## Config File Format
 
 In order for the extension to work, a config file needs to be provided to a
 specific location [tbd]. The config file comes in the form of a JSON file
