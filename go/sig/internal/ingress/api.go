@@ -30,7 +30,7 @@ func Init(tunIO io.ReadWriteCloser) {
 	conn, err := sigcmn.Network.Listen(context.Background(), "udp",
 		sigcmn.EncapSnetAddr().Host, addr.SvcNone)
 	if err != nil {
-		log.Crit("Unable to initialize ingress connection", err)
+		log.Crit("Unable to initialize ingress connection", "err", err)
 		fatal.Fatal(err)
 	}
 	d := NewDispatcher(tunIO, conn)
