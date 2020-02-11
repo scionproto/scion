@@ -108,7 +108,7 @@ func realMain() int {
 	// up the sockets and let the application close.
 	errDelete := deleteSocket(cfg.Dispatcher.ApplicationSocket)
 	if errDelete != nil {
-		log.Warn("Unable to delete socket when shutting down", errDelete)
+		log.Warn("Unable to delete socket when shutting down", "err", errDelete)
 	}
 	switch {
 	case returnCode != 0:
