@@ -34,11 +34,12 @@ duration of the lifetime of that path segment.
 
 The following assumptions are made:
 
-- The SCION has reliable information about the infrastructure of the beacon
-  service (such as the border routers and the interfaces attached to them)
-- SCION has access to a blackbox (which could be the AS itself, a dedicated
-  SCION service or any other entity), which provides information that
-  characterizes the AS topology and the routing processes within the AS
+- The beacon service, which is responsible for adding all this metadata, has
+  reliable information about the infrastructure (such as the border routers
+  and the interfaces attached to them)
+- The Beacon Service has access to a blackbox (which could be the AS itself,
+  a dedicated SCION service or any other entity), which provides information
+  that characterizes the AS topology and the routing processes within the AS
 - The AS topology remains stable throughout the lifetime of a path segment
 
 When discussing static properties, we always need to distinguish between
@@ -55,7 +56,7 @@ the egress interface. In order to be able to calculate the end-to-end
 propagation delay of a path starting in AS 2 and ending in AS 3, we need
 both the delay inside each AS (intra-AS), as well as the delay on the
 connections between ASes (inter-AS). As the figure shows, interface 1 is
-attached to both an intra-AS conncetion as well as an inter-AS connection.
+attached to both an intra-AS connection as well as an inter-AS connection.
 We therefore need to store both the intra- and the inter-AS metrics.
 In order to not store redundant information, we will only do this for
 the non-egress interfaces. As can be seen when looking at the diagram,
@@ -108,16 +109,18 @@ and egress interfaces respectively saved in the AS Entry of the PCB. The terms
 ingress and egress interfaces refer to the way these interfaces would be encoded
 in the PCB during the beaconing process, therefore the lower interface is always
 labelled as the egress interface, even when it is in the up segment and would
-thus technically be the interface on which traffic enters the AS. However,
-in the situation where either a shortcut or a peering path is used, merely
+thus technically be the interface on which traffic enters the AS.
+
+In the situation where either a shortcut or a peering path is used, merely
 storing the latency from the ingress to the egress interface will be insufficient.
 This is because the interface on which traffic will leave the AS as it travels
 along the path will no longer be the ingress interface encoded in the PCB that
 was used to construct the up segment, but rather either the egress interface
 stored in a different PCB (in the case of a shortcut connection) or a peering
 interface (in the case of a peering conncetion). Therefore, it is necessary
-that latencies (resp. other metrics) be known for the paths from the egress
-interface to such a non-ingress interface also (see figures below).
+that latencies (or other metrics when looking at a different property) be known
+for the paths from the egress interface to such a non-ingress interface also
+(see figures below).
 
 ![Shortcut Path](fig/shortcut_path.png)
 ![Peering Path](fig/peering_path.png)
@@ -186,6 +189,9 @@ of 2 main types of elements:
   <a href = "https://tools.ietf.org/html/rfc4776#section-3.3"> here </a>)
   (1 value in total)
 - The interface ID for every interface in the cluster (1 value per interface)
+
+It is possible to use only latititude and longitude, or civic address by simply
+omitting one of these two parts.
 
 ## Link Type
 
