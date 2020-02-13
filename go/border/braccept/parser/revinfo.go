@@ -17,7 +17,6 @@ package parser
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/gopacket"
 
@@ -120,11 +119,7 @@ func (i *RevInfo) updateFields(kvs propMap) {
 			i.RawIsdas = ia.IAInt()
 		case "TS":
 			if v != "now" {
-				t, err := time.Parse(common.TimeFmt, v)
-				if err != nil {
-					panic(err)
-				}
-				i.RawTimestamp = uint32(t.Unix())
+				i.RawTimestamp = uint32(StrToInt(v))
 			} else {
 				i.RawTimestamp = shared.TsNow32
 			}
