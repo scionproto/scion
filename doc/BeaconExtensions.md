@@ -34,7 +34,7 @@ duration of the lifetime of that path segment.
 
 The following assumptions are made:
 
-- The beacon service, which is responsible for adding all this metadata, has
+- The Beacon Service, which is responsible for adding all this metadata, has
   reliable information about the infrastructure (such as the border routers
   and the interfaces attached to them)
 - The Beacon Service has access to a blackbox (which could be the AS itself,
@@ -55,7 +55,10 @@ AS 2. In the AS Entry of AS 1, interface 1 is the ingress and inteface 2
 the egress interface. In order to be able to calculate the end-to-end
 propagation delay of a path starting in AS 2 and ending in AS 3, we need
 both the delay inside each AS (intra-AS), as well as the delay on the
-connections between ASes (inter-AS). As the figure shows, interface 1 is
+connections between ASes (inter-AS). Recall that in this scenario intra-AS
+latency refers to the delays between an interface and the egress interface
+(i.e. the egress interface is the "target" interface to which latency is
+measured from any other interface). As the figure shows, interface 1 is
 attached to both an intra-AS connection as well as an inter-AS connection.
 We therefore need to store both the intra- and the inter-AS metrics.
 In order to not store redundant information, we will only do this for
@@ -85,22 +88,29 @@ Use cases of such information include:
 The latency information will be comprised of 2 parts:
 
 - The subtype field, which identifies it
-- A variable number of latency clusters. A latency cluster serves to pool all
-  interfaces which have the same propagation delay (within a +-0.5 ms range)
-  between them and the egress interface (i.e. the interface the PCB was sent
-  out on).
+- A variable number of latency clusters. 
+
+A latency cluster serves to pool all interfaces which have the same propagation
+delay (within a 1 ms range) between them and the egress interface (i.e. the
+interface the PCB was sent out on). The clustering process is straightforward.
+When doing clustering, it will simply pick the first value it comes across that
+can't be assigned to an already existing cluster and, if it is not an integer,
+round it down to the nearest integer. This value will then serve as the
+baseline for the newly created cluster, which will include all interfaces with
+delay values in the interval (baseline, baseline+1(.
+
 
 Each latency cluster is itself comprised of 3 types of elements:
 
 - The intra-AS propagation delay for every interface in the cluster, in ms (1
   value per cluster)
-- The interface ID for every interface in the class (1 value per interface)
-- The inter-AS propagation delay for the connection attached to the interface,
-  in ms
+- The interface ID for every interface in the cluster (1 value per interface)
+- The inter-AS propagation delay for the connections attached to these
+  interfaces, in ms
 
-Information about the inter-AS latency, as well as the intra-AS latency between
-the egress interface and every other interface is required to deal with
-shortcut/peering paths (see diagram).
+Information about the inter-AS latency, as well as the intra-AS latency from
+every interface to the egress interface is required to deal with shortcut/peering
+paths (see diagram).
 
 ![Normal Path](fig/normal_path.png)
 
@@ -132,8 +142,10 @@ Maximum Bandwidth Information consists of 2 parts, Inter- and Intra-AS:
 - Inter-AS Maximum Bandwidth Information describes the maximum bandwidth
   available on the inter-AS connections between each AS.
 - Intra-AS Maximum Bandwidth Information describes the smallest maximum
-  bandwidth available on any link that lies on the intra-AS routing path.
-
+  bandwidth available on any link that lies on the intra-AS routing path,
+  i.e. the path from an interface to the egress interface.
+  
+Bandwidth is measured at the granularity of Kb/s.
 Use cases of such information include:
 
 - Allows to augment path selection policy, such that unsuitable paths can be
@@ -149,14 +161,19 @@ The maximum bandwidth information will be comprised of 2 main parts:
 - A variable number of maximum bandwidth clusters
 
 A maximum bandwidth cluster serves to pool all interfaces which have the
-same maximum bandwidth between them and the egress interface. Each cluster
-is itself formed of 3 types of elements:
+same maximum bandwidth between them and the egress interface. When
+doing clustering, the system will simply pick the first value it comes across
+that can't be assigned to an already existing cluster and, if it is not an integer,
+round it down to the nearest integer. This value will then serve as the
+baseline for the newly created cluster, which will include all interfaces with
+delay values in the interval (baseline, baseline+10(.
+Each cluster is itself formed of 3 types of elements:
 
-- The minimum across all maximum bandwidths of all connections on the path from
-  the cluster to the current interface (1 value per cluster)
-- The interface ID of the interface
-- The maximum bandwidth of the inter-AS link attached to the interface (1 value
-  per interface)
+- The intra-AS maximum bandwidth for all interfaces in the cluster (1 value per
+  cluster)
+- The interface IDs of all the interfaces in the cluster
+- The maximum bandwidth of the inter-AS links attached to each of these interfaces
+  (1 value per interface)
 
 ## Geographic Information
 
@@ -190,8 +207,8 @@ of 2 main types of elements:
   (1 value in total)
 - The interface ID for every interface in the cluster (1 value per interface)
 
-It is possible to use only latititude and longitude, or civic address by simply
-omitting one of these two parts.
+It is possible to use only the latititude and longitude pair, or the civic
+address by simply omitting one of the two.
 
 ## Link Type
 
@@ -199,13 +216,16 @@ omitting one of these two parts.
 
 Link Type information gives a broad classification of the different protocols
 being used on the links between two entities.
-For now it distinguishes three different types of links:
+For now it distinguishes four different types of links:
 
 - Links that go over the open internet
 - Direct links
 - Multihop links
+- Undisclosed
 
-Use cases of such information include:
+The option to have undisclosed link types allows ASes to withhold such
+information should they deem it undesirable to make it available to the
+public. Use cases of such information include:
 
 - Mitigating security concerns
 - Allowing users to select paths that e.g. avoid the open internet
@@ -217,15 +237,14 @@ The Link type will be comprised of 2 parts:
 - The subtype field, which identifies it
 - A variable number of link type clusters
 
-A link type cluster serves to pool all interfaces which are attached to an
-intra-AS link and have a connection of the same link type between them and the
-egress interface. Each link type cluster is itself comprised of 3 types of
-elements:
+A link type cluster serves to pool all interfaces which are attached to the
+same type of intra-AS link between them and the egress interface. Each link
+type cluster is itself comprised of 3 types of elements:
 
-- The link type for every interface in the cluster (1 value per cluster)
+- The intra-AS link type for all interfaces in the cluster (1 value per cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
-- The inter-AS link type for the connection attached to the interface (1 value
-  per interface)
+- The link type for each of the inter-AS connections attached to the interfaces
+  in the cluster (1 value per interface)
 
 ## Number of Internal Hops
 
@@ -236,7 +255,7 @@ Use cases of such information include:
 - Obtain a selection of efficient, low latency paths (especially when combined
   with Latency Information)
 
-### Conceptual Implementation
+### Conceptual Implementation Number of Internal Hops
 
 The number of internal hops will be comprised of 2 main parts:
 
@@ -244,12 +263,12 @@ The number of internal hops will be comprised of 2 main parts:
 - A variable number of hoplength clusters
 
 A hoplength cluster serves to pool all interfaces which have the same number of
-internal hops on the path between them and the egress interface. Each hoplength
-cluster is itself formed of 2 main elements:
+internal hops on the intra-AS path between them and the egress interface. Each
+hoplength cluster is itself formed of 2 main elements:
 
-- The number of internal hops for every interface in the cluster (1 value per
+- The number of internal hops for all interfaces in the cluster (1 value per
   cluster)
-- The interface ID for every interface in the class (1 value per interface)
+- The interface ID for every interface in the cluster (1 value per interface)
 
 ## Note
 
