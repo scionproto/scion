@@ -106,7 +106,7 @@ Each latency cluster is itself comprised of 3 types of elements:
   value per cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
 - The inter-AS propagation delay for the connections attached to these
-  interfaces, in ms
+  interfaces, in ms (1 value per interface)
 
 Information about the inter-AS latency, as well as the intra-AS latency from
 every interface to the egress interface is required to deal with shortcut/peering
@@ -171,7 +171,7 @@ Each cluster is itself formed of 3 types of elements:
 
 - The intra-AS maximum bandwidth for all interfaces in the cluster (1 value per
   cluster)
-- The interface IDs of all the interfaces in the cluster
+- The interface IDs of all the interfaces in the cluster (1 value per interface)
 - The maximum bandwidth of the inter-AS links attached to each of these interfaces
   (1 value per interface)
 
@@ -280,10 +280,20 @@ Use cases of such information include:
 
 ### Conceptual Implementation Note
 
-The Note subtype is comprised of 2 elements:
+The Note subtype is comprised of 4 elements:
 
 - The subtype field, which identifies it
-- The text field, which contains the contents of the note
+- The "default" field, which contains a default note, which is always included for
+  every PCB that is propagated by this AS.
+- The "specific" field, which contains the contents of a note that is meant to only
+  be attached when sending out a PCB over the particular interface mentioned in the
+  egress interface field of the AS Entry that we are extending.
+  
+When constructing the extension from the config file (see below) the BS will check
+the egress interface field in the AS Entry and attach the "specific" note accordingly.
+If no such note is specified in the config file, then the contents of the "specific"
+field will be set to null (it is also possible to do this for the "default" note as
+well.
 
 ## Metadata Endpoint
 
@@ -345,7 +355,7 @@ Name               | Type | Length |
 -------------------|------|--------|
 `SubType`          |UInt8 |1       |
 `ClusterDelay_i`   |UInt16|2       |
-`ID_i_j`           |UInt8 |1       |
+`ID_i_j`           |UInt64|8       |
 `Interdelay_i_j`   |UInt16|2       |
 
 ### Geographic Information Format
@@ -373,7 +383,7 @@ Name               | Type  | Length |
 `GPS_i_0`          |Float32|4       |
 `GPS_i_0`          |Float32|4       |
 `CivAdd`           |Data   |100     |
-`ID_i_j`           |UInt8  |1       |
+`ID_i_j`           |UInt64 |8       |
 
 ### Link Type Format
 
@@ -393,7 +403,7 @@ Name                | Type | Length |
 --------------------|------|--------|
 `SubType`           |UInt8 |1       |
 `ClusterLinkType_i` |Uint8 |1       |
-`ID_i_j`            |UInt8 |1       |
+`ID_i_j`            |UInt64|8       |
 `InterLink_i_j`     |UInt8 |1       |
 
 ### Maximum Bandwidth Format
@@ -414,7 +424,7 @@ Name               | Type | Length |
 -------------------|------|--------|
 `SubType`          |UInt8 |1       |
 `ClusterBW_i`      |UInt32|4       |
-`ID_i_j`           |UInt8 |1       |
+`ID_i_j`           |UInt64|8       |
 `InterBW_i_j`      |UInt32|4       |
 
 ### Number of Internal Hops Format
@@ -436,20 +446,21 @@ Name               | Type | Length |
 -------------------|------|--------|
 `SubType`          |UInt8 |1       |
 `ClusterHops_i`    |UInt8 |1       |
-`ID_i_j`           |UInt8 |1       |
+`ID_i_j`           |UInt64|8       |
 
 ### Note Format
 
 The wire format for the note looks like this:
 
-`SubType` | `Words` |
-----------|---------|
+`SubType` | `Default` | `Interface` | `Words` |
+----------|-----------|-------------|---------|
 
 The table below shows names, types and lengths (in bytes) of each value:
 
 Name               | Type | Length |
 -------------------|------|--------|
 `SubType`          |UInt8 |1       |
+`Default`          |Text  |100     |
 `Words`            |Text  |100     |
 
 ### Metadata Endpoint Format
@@ -491,13 +502,14 @@ Name             | Type  | Description |
 `InterLink`      |Integer  |Possible values of a list entry : `Multi`, `Direct`, `OpenNet`; Describes link type between interface `i` and the AS at the other end of the link|
 `IntraBW`        |List of Integers|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
 `InterBW`        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
+`SpecificNote`   |String |Note that should be used when this interface is the egress interface in the AS Entry that is being extended|
 `Hops`           |List of Integers|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
 
 Then, after every interface has been listed, follow a few final fields:
 
 Name               | Type  | Description |
 -------------------|-------|-------------|
-`Note`             |String |Note|
+`DefaultNote`      |String |Default Note|
 `URLContents`      |String |URL for metadata endpoint|
 
 Below is a simple example of how such a config file could look like (actual
@@ -518,6 +530,7 @@ for an AS with three interfaces with IDs 1, 2 and 3:
     "InterLink": 2,
     "IntraBW": [0, 200000000, 100000000],
     "InterBW": 150000000,
+    "SpecificNote": "asdf",
     "Hops": [0, 2, 4]
   },{
     "IntfID": 2,
@@ -542,6 +555,7 @@ for an AS with three interfaces with IDs 1, 2 and 3:
     "InterLink": 1,
     "IntraBW": [200000000, 300000000, 0],
     "InterBW": 50000000,
+    "SpecificNote": "asdf",
     "Hops": [1, 0, 0]
   }],
   "Note": "asdf",
