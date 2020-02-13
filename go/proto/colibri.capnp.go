@@ -173,67 +173,6 @@ func (p E2EReservationID_Promise) Struct() (E2EReservationID, error) {
 	return E2EReservationID{s}, err
 }
 
-type ReservationIndex struct{ capnp.Struct }
-
-// ReservationIndex_TypeID is the unique identifier for the type ReservationIndex.
-const ReservationIndex_TypeID = 0xdc45fc3f4aa6a558
-
-func NewReservationIndex(s *capnp.Segment) (ReservationIndex, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return ReservationIndex{st}, err
-}
-
-func NewRootReservationIndex(s *capnp.Segment) (ReservationIndex, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return ReservationIndex{st}, err
-}
-
-func ReadRootReservationIndex(msg *capnp.Message) (ReservationIndex, error) {
-	root, err := msg.RootPtr()
-	return ReservationIndex{root.Struct()}, err
-}
-
-func (s ReservationIndex) String() string {
-	str, _ := text.Marshal(0xdc45fc3f4aa6a558, s.Struct)
-	return str
-}
-
-func (s ReservationIndex) Index() uint8 {
-	return s.Struct.Uint8(0)
-}
-
-func (s ReservationIndex) SetIndex(v uint8) {
-	s.Struct.SetUint8(0, v)
-}
-
-// ReservationIndex_List is a list of ReservationIndex.
-type ReservationIndex_List struct{ capnp.List }
-
-// NewReservationIndex creates a new list of ReservationIndex.
-func NewReservationIndex_List(s *capnp.Segment, sz int32) (ReservationIndex_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return ReservationIndex_List{l}, err
-}
-
-func (s ReservationIndex_List) At(i int) ReservationIndex { return ReservationIndex{s.List.Struct(i)} }
-
-func (s ReservationIndex_List) Set(i int, v ReservationIndex) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s ReservationIndex_List) String() string {
-	str, _ := text.MarshalList(0xdc45fc3f4aa6a558, s.List)
-	return str
-}
-
-// ReservationIndex_Promise is a wrapper for a ReservationIndex promised by a client call.
-type ReservationIndex_Promise struct{ *capnp.Pipeline }
-
-func (p ReservationIndex_Promise) Struct() (ReservationIndex, error) {
-	s, err := p.Pipeline.Struct()
-	return ReservationIndex{s}, err
-}
-
 type ReservationIndexState uint16
 
 // ReservationIndexState_TypeID is the unique identifier for the type ReservationIndexState.
@@ -466,20 +405,12 @@ func (s SegmentSetupReqData) SetMaxBW(v uint8) {
 	s.Struct.SetUint8(1, v)
 }
 
-func (s SegmentSetupReqData) AccBW() uint8 {
+func (s SegmentSetupReqData) SplitCls() uint8 {
 	return s.Struct.Uint8(2)
 }
 
-func (s SegmentSetupReqData) SetAccBW(v uint8) {
-	s.Struct.SetUint8(2, v)
-}
-
-func (s SegmentSetupReqData) SplitCls() uint8 {
-	return s.Struct.Uint8(3)
-}
-
 func (s SegmentSetupReqData) SetSplitCls(v uint8) {
-	s.Struct.SetUint8(3, v)
+	s.Struct.SetUint8(2, v)
 }
 
 func (s SegmentSetupReqData) StartProps() (PathEndProps, error) {
@@ -596,17 +527,35 @@ func (p SegmentSetupReqData_Promise) EndProps() PathEndProps_Promise {
 }
 
 type SegmentSetupResData struct{ capnp.Struct }
+type SegmentSetupResData_Which uint16
+
+const (
+	SegmentSetupResData_Which_failure SegmentSetupResData_Which = 0
+	SegmentSetupResData_Which_token   SegmentSetupResData_Which = 1
+)
+
+func (w SegmentSetupResData_Which) String() string {
+	const s = "failuretoken"
+	switch w {
+	case SegmentSetupResData_Which_failure:
+		return s[0:7]
+	case SegmentSetupResData_Which_token:
+		return s[7:12]
+
+	}
+	return "SegmentSetupResData_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 // SegmentSetupResData_TypeID is the unique identifier for the type SegmentSetupResData.
 const SegmentSetupResData_TypeID = 0xaa345154c72e2fa5
 
 func NewSegmentSetupResData(s *capnp.Segment) (SegmentSetupResData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentSetupResData{st}, err
 }
 
 func NewRootSegmentSetupResData(s *capnp.Segment) (SegmentSetupResData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentSetupResData{st}, err
 }
 
@@ -620,23 +569,34 @@ func (s SegmentSetupResData) String() string {
 	return str
 }
 
-func (s SegmentSetupResData) Setup() (SegmentSetupReqData, error) {
+func (s SegmentSetupResData) Which() SegmentSetupResData_Which {
+	return SegmentSetupResData_Which(s.Struct.Uint16(0))
+}
+func (s SegmentSetupResData) Failure() (SegmentSetupReqData, error) {
+	if s.Struct.Uint16(0) != 0 {
+		panic("Which() != failure")
+	}
 	p, err := s.Struct.Ptr(0)
 	return SegmentSetupReqData{Struct: p.Struct()}, err
 }
 
-func (s SegmentSetupResData) HasSetup() bool {
+func (s SegmentSetupResData) HasFailure() bool {
+	if s.Struct.Uint16(0) != 0 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s SegmentSetupResData) SetSetup(v SegmentSetupReqData) error {
+func (s SegmentSetupResData) SetFailure(v SegmentSetupReqData) error {
+	s.Struct.SetUint16(0, 0)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
-// NewSetup sets the setup field to a newly
+// NewFailure sets the failure field to a newly
 // allocated SegmentSetupReqData struct, preferring placement in s's segment.
-func (s SegmentSetupResData) NewSetup() (SegmentSetupReqData, error) {
+func (s SegmentSetupResData) NewFailure() (SegmentSetupReqData, error) {
+	s.Struct.SetUint16(0, 0)
 	ss, err := NewSegmentSetupReqData(s.Struct.Segment())
 	if err != nil {
 		return SegmentSetupReqData{}, err
@@ -646,17 +606,24 @@ func (s SegmentSetupResData) NewSetup() (SegmentSetupReqData, error) {
 }
 
 func (s SegmentSetupResData) Token() ([]byte, error) {
-	p, err := s.Struct.Ptr(1)
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != token")
+	}
+	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
 }
 
 func (s SegmentSetupResData) HasToken() bool {
-	p, err := s.Struct.Ptr(1)
+	if s.Struct.Uint16(0) != 1 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
 func (s SegmentSetupResData) SetToken(v []byte) error {
-	return s.Struct.SetData(1, v)
+	s.Struct.SetUint16(0, 1)
+	return s.Struct.SetData(0, v)
 }
 
 // SegmentSetupResData_List is a list of SegmentSetupResData.
@@ -664,7 +631,7 @@ type SegmentSetupResData_List struct{ capnp.List }
 
 // NewSegmentSetupResData creates a new list of SegmentSetupResData.
 func NewSegmentSetupResData_List(s *capnp.Segment, sz int32) (SegmentSetupResData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	return SegmentSetupResData_List{l}, err
 }
 
@@ -689,7 +656,7 @@ func (p SegmentSetupResData_Promise) Struct() (SegmentSetupResData, error) {
 	return SegmentSetupResData{s}, err
 }
 
-func (p SegmentSetupResData_Promise) Setup() SegmentSetupReqData_Promise {
+func (p SegmentSetupResData_Promise) Failure() SegmentSetupReqData_Promise {
 	return SegmentSetupReqData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -699,12 +666,12 @@ type SegmentRenewalData struct{ capnp.Struct }
 const SegmentRenewalData_TypeID = 0xc2c742206e731f29
 
 func NewSegmentRenewalData(s *capnp.Segment) (SegmentRenewalData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentRenewalData{st}, err
 }
 
 func NewRootSegmentRenewalData(s *capnp.Segment) (SegmentRenewalData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentRenewalData{st}, err
 }
 
@@ -718,18 +685,45 @@ func (s SegmentRenewalData) String() string {
 	return str
 }
 
-func (s SegmentRenewalData) Token() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
-	return []byte(p.Data()), err
+func (s SegmentRenewalData) MinBW() uint8 {
+	return s.Struct.Uint8(0)
 }
 
-func (s SegmentRenewalData) HasToken() bool {
+func (s SegmentRenewalData) SetMinBW(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+func (s SegmentRenewalData) MaxBW() uint8 {
+	return s.Struct.Uint8(1)
+}
+
+func (s SegmentRenewalData) SetMaxBW(v uint8) {
+	s.Struct.SetUint8(1, v)
+}
+
+func (s SegmentRenewalData) AllocationTrail() (AllocationBeads_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return AllocationBeads_List{List: p.List()}, err
+}
+
+func (s SegmentRenewalData) HasAllocationTrail() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s SegmentRenewalData) SetToken(v []byte) error {
-	return s.Struct.SetData(0, v)
+func (s SegmentRenewalData) SetAllocationTrail(v AllocationBeads_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewAllocationTrail sets the allocationTrail field to a newly
+// allocated AllocationBeads_List, preferring placement in s's segment.
+func (s SegmentRenewalData) NewAllocationTrail(n int32) (AllocationBeads_List, error) {
+	l, err := NewAllocationBeads_List(s.Struct.Segment(), n)
+	if err != nil {
+		return AllocationBeads_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // SegmentRenewalData_List is a list of SegmentRenewalData.
@@ -737,7 +731,7 @@ type SegmentRenewalData_List struct{ capnp.List }
 
 // NewSegmentRenewalData creates a new list of SegmentRenewalData.
 func NewSegmentRenewalData_List(s *capnp.Segment, sz int32) (SegmentRenewalData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	return SegmentRenewalData_List{l}, err
 }
 
@@ -875,114 +869,122 @@ func (p SegmentTelesSetupData_Promise) BaseID() SegmentReservationID_Promise {
 	return SegmentReservationID_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
-type SegmentTelesRenewalData struct{ capnp.Struct }
+type SegmentTeardownReqData struct{ capnp.Struct }
 
-// SegmentTelesRenewalData_TypeID is the unique identifier for the type SegmentTelesRenewalData.
-const SegmentTelesRenewalData_TypeID = 0xef9d063f751d8467
+// SegmentTeardownReqData_TypeID is the unique identifier for the type SegmentTeardownReqData.
+const SegmentTeardownReqData_TypeID = 0xa53b4bed5b0bc568
 
-func NewSegmentTelesRenewalData(s *capnp.Segment) (SegmentTelesRenewalData, error) {
+func NewSegmentTeardownReqData(s *capnp.Segment) (SegmentTeardownReqData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return SegmentTelesRenewalData{st}, err
+	return SegmentTeardownReqData{st}, err
 }
 
-func NewRootSegmentTelesRenewalData(s *capnp.Segment) (SegmentTelesRenewalData, error) {
+func NewRootSegmentTeardownReqData(s *capnp.Segment) (SegmentTeardownReqData, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return SegmentTelesRenewalData{st}, err
+	return SegmentTeardownReqData{st}, err
 }
 
-func ReadRootSegmentTelesRenewalData(msg *capnp.Message) (SegmentTelesRenewalData, error) {
+func ReadRootSegmentTeardownReqData(msg *capnp.Message) (SegmentTeardownReqData, error) {
 	root, err := msg.RootPtr()
-	return SegmentTelesRenewalData{root.Struct()}, err
+	return SegmentTeardownReqData{root.Struct()}, err
 }
 
-func (s SegmentTelesRenewalData) String() string {
-	str, _ := text.Marshal(0xef9d063f751d8467, s.Struct)
+func (s SegmentTeardownReqData) String() string {
+	str, _ := text.Marshal(0xa53b4bed5b0bc568, s.Struct)
 	return str
 }
 
-// SegmentTelesRenewalData_List is a list of SegmentTelesRenewalData.
-type SegmentTelesRenewalData_List struct{ capnp.List }
+// SegmentTeardownReqData_List is a list of SegmentTeardownReqData.
+type SegmentTeardownReqData_List struct{ capnp.List }
 
-// NewSegmentTelesRenewalData creates a new list of SegmentTelesRenewalData.
-func NewSegmentTelesRenewalData_List(s *capnp.Segment, sz int32) (SegmentTelesRenewalData_List, error) {
+// NewSegmentTeardownReqData creates a new list of SegmentTeardownReqData.
+func NewSegmentTeardownReqData_List(s *capnp.Segment, sz int32) (SegmentTeardownReqData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return SegmentTelesRenewalData_List{l}, err
+	return SegmentTeardownReqData_List{l}, err
 }
 
-func (s SegmentTelesRenewalData_List) At(i int) SegmentTelesRenewalData {
-	return SegmentTelesRenewalData{s.List.Struct(i)}
+func (s SegmentTeardownReqData_List) At(i int) SegmentTeardownReqData {
+	return SegmentTeardownReqData{s.List.Struct(i)}
 }
 
-func (s SegmentTelesRenewalData_List) Set(i int, v SegmentTelesRenewalData) error {
+func (s SegmentTeardownReqData_List) Set(i int, v SegmentTeardownReqData) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s SegmentTelesRenewalData_List) String() string {
-	str, _ := text.MarshalList(0xef9d063f751d8467, s.List)
+func (s SegmentTeardownReqData_List) String() string {
+	str, _ := text.MarshalList(0xa53b4bed5b0bc568, s.List)
 	return str
 }
 
-// SegmentTelesRenewalData_Promise is a wrapper for a SegmentTelesRenewalData promised by a client call.
-type SegmentTelesRenewalData_Promise struct{ *capnp.Pipeline }
+// SegmentTeardownReqData_Promise is a wrapper for a SegmentTeardownReqData promised by a client call.
+type SegmentTeardownReqData_Promise struct{ *capnp.Pipeline }
 
-func (p SegmentTelesRenewalData_Promise) Struct() (SegmentTelesRenewalData, error) {
+func (p SegmentTeardownReqData_Promise) Struct() (SegmentTeardownReqData, error) {
 	s, err := p.Pipeline.Struct()
-	return SegmentTelesRenewalData{s}, err
+	return SegmentTeardownReqData{s}, err
 }
 
-type SegmentTeardownData struct{ capnp.Struct }
+type SegmentTeardownResData struct{ capnp.Struct }
 
-// SegmentTeardownData_TypeID is the unique identifier for the type SegmentTeardownData.
-const SegmentTeardownData_TypeID = 0x8e0fe484c840a00d
+// SegmentTeardownResData_TypeID is the unique identifier for the type SegmentTeardownResData.
+const SegmentTeardownResData_TypeID = 0x8bd6c2ab5c4cf984
 
-func NewSegmentTeardownData(s *capnp.Segment) (SegmentTeardownData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return SegmentTeardownData{st}, err
+func NewSegmentTeardownResData(s *capnp.Segment) (SegmentTeardownResData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return SegmentTeardownResData{st}, err
 }
 
-func NewRootSegmentTeardownData(s *capnp.Segment) (SegmentTeardownData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return SegmentTeardownData{st}, err
+func NewRootSegmentTeardownResData(s *capnp.Segment) (SegmentTeardownResData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return SegmentTeardownResData{st}, err
 }
 
-func ReadRootSegmentTeardownData(msg *capnp.Message) (SegmentTeardownData, error) {
+func ReadRootSegmentTeardownResData(msg *capnp.Message) (SegmentTeardownResData, error) {
 	root, err := msg.RootPtr()
-	return SegmentTeardownData{root.Struct()}, err
+	return SegmentTeardownResData{root.Struct()}, err
 }
 
-func (s SegmentTeardownData) String() string {
-	str, _ := text.Marshal(0x8e0fe484c840a00d, s.Struct)
+func (s SegmentTeardownResData) String() string {
+	str, _ := text.Marshal(0x8bd6c2ab5c4cf984, s.Struct)
 	return str
 }
 
-// SegmentTeardownData_List is a list of SegmentTeardownData.
-type SegmentTeardownData_List struct{ capnp.List }
-
-// NewSegmentTeardownData creates a new list of SegmentTeardownData.
-func NewSegmentTeardownData_List(s *capnp.Segment, sz int32) (SegmentTeardownData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return SegmentTeardownData_List{l}, err
+func (s SegmentTeardownResData) ErrorCode() uint8 {
+	return s.Struct.Uint8(0)
 }
 
-func (s SegmentTeardownData_List) At(i int) SegmentTeardownData {
-	return SegmentTeardownData{s.List.Struct(i)}
+func (s SegmentTeardownResData) SetErrorCode(v uint8) {
+	s.Struct.SetUint8(0, v)
 }
 
-func (s SegmentTeardownData_List) Set(i int, v SegmentTeardownData) error {
+// SegmentTeardownResData_List is a list of SegmentTeardownResData.
+type SegmentTeardownResData_List struct{ capnp.List }
+
+// NewSegmentTeardownResData creates a new list of SegmentTeardownResData.
+func NewSegmentTeardownResData_List(s *capnp.Segment, sz int32) (SegmentTeardownResData_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return SegmentTeardownResData_List{l}, err
+}
+
+func (s SegmentTeardownResData_List) At(i int) SegmentTeardownResData {
+	return SegmentTeardownResData{s.List.Struct(i)}
+}
+
+func (s SegmentTeardownResData_List) Set(i int, v SegmentTeardownResData) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s SegmentTeardownData_List) String() string {
-	str, _ := text.MarshalList(0x8e0fe484c840a00d, s.List)
+func (s SegmentTeardownResData_List) String() string {
+	str, _ := text.MarshalList(0x8bd6c2ab5c4cf984, s.List)
 	return str
 }
 
-// SegmentTeardownData_Promise is a wrapper for a SegmentTeardownData promised by a client call.
-type SegmentTeardownData_Promise struct{ *capnp.Pipeline }
+// SegmentTeardownResData_Promise is a wrapper for a SegmentTeardownResData promised by a client call.
+type SegmentTeardownResData_Promise struct{ *capnp.Pipeline }
 
-func (p SegmentTeardownData_Promise) Struct() (SegmentTeardownData, error) {
+func (p SegmentTeardownResData_Promise) Struct() (SegmentTeardownResData, error) {
 	s, err := p.Pipeline.Struct()
-	return SegmentTeardownData{s}, err
+	return SegmentTeardownResData{s}, err
 }
 
 type SegmentIndexConfirmationData struct{ capnp.Struct }
@@ -1010,12 +1012,20 @@ func (s SegmentIndexConfirmationData) String() string {
 	return str
 }
 
+func (s SegmentIndexConfirmationData) Index() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s SegmentIndexConfirmationData) SetIndex(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
 func (s SegmentIndexConfirmationData) State() ReservationIndexState {
-	return ReservationIndexState(s.Struct.Uint16(0))
+	return ReservationIndexState(s.Struct.Uint16(2))
 }
 
 func (s SegmentIndexConfirmationData) SetState(v ReservationIndexState) {
-	s.Struct.SetUint16(0, uint16(v))
+	s.Struct.SetUint16(2, uint16(v))
 }
 
 // SegmentIndexConfirmationData_List is a list of SegmentIndexConfirmationData.
@@ -1054,12 +1064,12 @@ type SegmentCleanupData struct{ capnp.Struct }
 const SegmentCleanupData_TypeID = 0xd3e56d3f1e39ca3c
 
 func NewSegmentCleanupData(s *capnp.Segment) (SegmentCleanupData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentCleanupData{st}, err
 }
 
 func NewRootSegmentCleanupData(s *capnp.Segment) (SegmentCleanupData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentCleanupData{st}, err
 }
 
@@ -1073,12 +1083,45 @@ func (s SegmentCleanupData) String() string {
 	return str
 }
 
+func (s SegmentCleanupData) Id() (SegmentReservationID, error) {
+	p, err := s.Struct.Ptr(0)
+	return SegmentReservationID{Struct: p.Struct()}, err
+}
+
+func (s SegmentCleanupData) HasId() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentCleanupData) SetId(v SegmentReservationID) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewId sets the id field to a newly
+// allocated SegmentReservationID struct, preferring placement in s's segment.
+func (s SegmentCleanupData) NewId() (SegmentReservationID, error) {
+	ss, err := NewSegmentReservationID(s.Struct.Segment())
+	if err != nil {
+		return SegmentReservationID{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s SegmentCleanupData) Index() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s SegmentCleanupData) SetIndex(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
 // SegmentCleanupData_List is a list of SegmentCleanupData.
 type SegmentCleanupData_List struct{ capnp.List }
 
 // NewSegmentCleanupData creates a new list of SegmentCleanupData.
 func NewSegmentCleanupData_List(s *capnp.Segment, sz int32) (SegmentCleanupData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	return SegmentCleanupData_List{l}, err
 }
 
@@ -1101,6 +1144,10 @@ type SegmentCleanupData_Promise struct{ *capnp.Pipeline }
 func (p SegmentCleanupData_Promise) Struct() (SegmentCleanupData, error) {
 	s, err := p.Pipeline.Struct()
 	return SegmentCleanupData{s}, err
+}
+
+func (p SegmentCleanupData_Promise) Id() SegmentReservationID_Promise {
+	return SegmentReservationID_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 type E2ESetupReqData struct{ capnp.Struct }
@@ -1651,12 +1698,12 @@ func (s Request) NewSegmentTelesSetup() (SegmentTelesSetupData, error) {
 	return ss, err
 }
 
-func (s Request) SegmentTelesRenewal() (SegmentTelesRenewalData, error) {
+func (s Request) SegmentTelesRenewal() (SegmentRenewalData, error) {
 	if s.Struct.Uint16(0) != 4 {
 		panic("Which() != segmentTelesRenewal")
 	}
 	p, err := s.Struct.Ptr(0)
-	return SegmentTelesRenewalData{Struct: p.Struct()}, err
+	return SegmentRenewalData{Struct: p.Struct()}, err
 }
 
 func (s Request) HasSegmentTelesRenewal() bool {
@@ -1667,29 +1714,29 @@ func (s Request) HasSegmentTelesRenewal() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Request) SetSegmentTelesRenewal(v SegmentTelesRenewalData) error {
+func (s Request) SetSegmentTelesRenewal(v SegmentRenewalData) error {
 	s.Struct.SetUint16(0, 4)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegmentTelesRenewal sets the segmentTelesRenewal field to a newly
-// allocated SegmentTelesRenewalData struct, preferring placement in s's segment.
-func (s Request) NewSegmentTelesRenewal() (SegmentTelesRenewalData, error) {
+// allocated SegmentRenewalData struct, preferring placement in s's segment.
+func (s Request) NewSegmentTelesRenewal() (SegmentRenewalData, error) {
 	s.Struct.SetUint16(0, 4)
-	ss, err := NewSegmentTelesRenewalData(s.Struct.Segment())
+	ss, err := NewSegmentRenewalData(s.Struct.Segment())
 	if err != nil {
-		return SegmentTelesRenewalData{}, err
+		return SegmentRenewalData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Request) SegmentTeardown() (SegmentTeardownData, error) {
+func (s Request) SegmentTeardown() (SegmentTeardownReqData, error) {
 	if s.Struct.Uint16(0) != 5 {
 		panic("Which() != segmentTeardown")
 	}
 	p, err := s.Struct.Ptr(0)
-	return SegmentTeardownData{Struct: p.Struct()}, err
+	return SegmentTeardownReqData{Struct: p.Struct()}, err
 }
 
 func (s Request) HasSegmentTeardown() bool {
@@ -1700,18 +1747,18 @@ func (s Request) HasSegmentTeardown() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Request) SetSegmentTeardown(v SegmentTeardownData) error {
+func (s Request) SetSegmentTeardown(v SegmentTeardownReqData) error {
 	s.Struct.SetUint16(0, 5)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegmentTeardown sets the segmentTeardown field to a newly
-// allocated SegmentTeardownData struct, preferring placement in s's segment.
-func (s Request) NewSegmentTeardown() (SegmentTeardownData, error) {
+// allocated SegmentTeardownReqData struct, preferring placement in s's segment.
+func (s Request) NewSegmentTeardown() (SegmentTeardownReqData, error) {
 	s.Struct.SetUint16(0, 5)
-	ss, err := NewSegmentTeardownData(s.Struct.Segment())
+	ss, err := NewSegmentTeardownReqData(s.Struct.Segment())
 	if err != nil {
-		return SegmentTeardownData{}, err
+		return SegmentTeardownReqData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -1920,12 +1967,12 @@ func (p Request_Promise) SegmentTelesSetup() SegmentTelesSetupData_Promise {
 	return SegmentTelesSetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Request_Promise) SegmentTelesRenewal() SegmentTelesRenewalData_Promise {
-	return SegmentTelesRenewalData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Request_Promise) SegmentTelesRenewal() SegmentRenewalData_Promise {
+	return SegmentRenewalData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Request_Promise) SegmentTeardown() SegmentTeardownData_Promise {
-	return SegmentTeardownData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Request_Promise) SegmentTeardown() SegmentTeardownReqData_Promise {
+	return SegmentTeardownReqData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 func (p Request_Promise) SegmentIndexConfirmation() SegmentIndexConfirmationData_Promise {
@@ -2059,12 +2106,12 @@ func (s Response) NewSegmentSetup() (SegmentSetupResData, error) {
 	return ss, err
 }
 
-func (s Response) SegmentRenewal() (SegmentRenewalData, error) {
+func (s Response) SegmentRenewal() (SegmentSetupResData, error) {
 	if s.Struct.Uint16(0) != 2 {
 		panic("Which() != segmentRenewal")
 	}
 	p, err := s.Struct.Ptr(0)
-	return SegmentRenewalData{Struct: p.Struct()}, err
+	return SegmentSetupResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasSegmentRenewal() bool {
@@ -2075,18 +2122,18 @@ func (s Response) HasSegmentRenewal() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetSegmentRenewal(v SegmentRenewalData) error {
+func (s Response) SetSegmentRenewal(v SegmentSetupResData) error {
 	s.Struct.SetUint16(0, 2)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegmentRenewal sets the segmentRenewal field to a newly
-// allocated SegmentRenewalData struct, preferring placement in s's segment.
-func (s Response) NewSegmentRenewal() (SegmentRenewalData, error) {
+// allocated SegmentSetupResData struct, preferring placement in s's segment.
+func (s Response) NewSegmentRenewal() (SegmentSetupResData, error) {
 	s.Struct.SetUint16(0, 2)
-	ss, err := NewSegmentRenewalData(s.Struct.Segment())
+	ss, err := NewSegmentSetupResData(s.Struct.Segment())
 	if err != nil {
-		return SegmentRenewalData{}, err
+		return SegmentSetupResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -2125,12 +2172,12 @@ func (s Response) NewSegmentTelesSetup() (SegmentSetupResData, error) {
 	return ss, err
 }
 
-func (s Response) SegmentTelesRenewal() (SegmentTelesRenewalData, error) {
+func (s Response) SegmentTelesRenewal() (SegmentSetupResData, error) {
 	if s.Struct.Uint16(0) != 4 {
 		panic("Which() != segmentTelesRenewal")
 	}
 	p, err := s.Struct.Ptr(0)
-	return SegmentTelesRenewalData{Struct: p.Struct()}, err
+	return SegmentSetupResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasSegmentTelesRenewal() bool {
@@ -2141,29 +2188,29 @@ func (s Response) HasSegmentTelesRenewal() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetSegmentTelesRenewal(v SegmentTelesRenewalData) error {
+func (s Response) SetSegmentTelesRenewal(v SegmentSetupResData) error {
 	s.Struct.SetUint16(0, 4)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegmentTelesRenewal sets the segmentTelesRenewal field to a newly
-// allocated SegmentTelesRenewalData struct, preferring placement in s's segment.
-func (s Response) NewSegmentTelesRenewal() (SegmentTelesRenewalData, error) {
+// allocated SegmentSetupResData struct, preferring placement in s's segment.
+func (s Response) NewSegmentTelesRenewal() (SegmentSetupResData, error) {
 	s.Struct.SetUint16(0, 4)
-	ss, err := NewSegmentTelesRenewalData(s.Struct.Segment())
+	ss, err := NewSegmentSetupResData(s.Struct.Segment())
 	if err != nil {
-		return SegmentTelesRenewalData{}, err
+		return SegmentSetupResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Response) SegmentTeardown() (SegmentTeardownData, error) {
+func (s Response) SegmentTeardown() (SegmentTeardownResData, error) {
 	if s.Struct.Uint16(0) != 5 {
 		panic("Which() != segmentTeardown")
 	}
 	p, err := s.Struct.Ptr(0)
-	return SegmentTeardownData{Struct: p.Struct()}, err
+	return SegmentTeardownResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasSegmentTeardown() bool {
@@ -2174,18 +2221,18 @@ func (s Response) HasSegmentTeardown() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetSegmentTeardown(v SegmentTeardownData) error {
+func (s Response) SetSegmentTeardown(v SegmentTeardownResData) error {
 	s.Struct.SetUint16(0, 5)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegmentTeardown sets the segmentTeardown field to a newly
-// allocated SegmentTeardownData struct, preferring placement in s's segment.
-func (s Response) NewSegmentTeardown() (SegmentTeardownData, error) {
+// allocated SegmentTeardownResData struct, preferring placement in s's segment.
+func (s Response) NewSegmentTeardown() (SegmentTeardownResData, error) {
 	s.Struct.SetUint16(0, 5)
-	ss, err := NewSegmentTeardownData(s.Struct.Segment())
+	ss, err := NewSegmentTeardownResData(s.Struct.Segment())
 	if err != nil {
-		return SegmentTeardownData{}, err
+		return SegmentTeardownResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -2402,20 +2449,20 @@ func (p Response_Promise) SegmentSetup() SegmentSetupResData_Promise {
 	return SegmentSetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) SegmentRenewal() SegmentRenewalData_Promise {
-	return SegmentRenewalData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) SegmentRenewal() SegmentSetupResData_Promise {
+	return SegmentSetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 func (p Response_Promise) SegmentTelesSetup() SegmentSetupResData_Promise {
 	return SegmentSetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) SegmentTelesRenewal() SegmentTelesRenewalData_Promise {
-	return SegmentTelesRenewalData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) SegmentTelesRenewal() SegmentSetupResData_Promise {
+	return SegmentSetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) SegmentTeardown() SegmentTeardownData_Promise {
-	return SegmentTeardownData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) SegmentTeardown() SegmentTeardownResData_Promise {
+	return SegmentTeardownResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 func (p Response_Promise) SegmentIndexConfirmation() SegmentIndexConfirmationData_Promise {
@@ -2604,132 +2651,134 @@ func (p ColibriRequestPayload_Promise) Response() Response_Promise {
 	return Response_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_a3bf9fed859570f0 = "x\xda\xd4Wo\x8c\x14g\x19\x7f\x9ey\xf7/\xbd\xbb" +
-	"\xdd\xe1]\xd2\xdaX\x17\x884\x87\xa1\xa5\xeca\xb5\x04" +
-	"\xb3\xed\xdd^\xe4\x88\xd5}o\xcf\x88\xa4\x8dLw\xe7" +
-	"`twvwf\xae\x80\xe9I!Tm0\xd26" +
-	"b\xfcR-\xb5\xa8\x18\x92\xd6\xa6hi\xa8R\x03\xe1" +
-	"\xa8|\xb0Z\xd2bh\x94XR\xad\xa2\x95\xd8V\xfe" +
-	"\x8ey\xde\xd9\x9d\xb9\xdd\xdb\xe5\x88\x89\x1f\xfam\xe7\xfd" +
-	"\xfd\xf6y\x9fy\x9e\xdf\xf3g\xe6\x87\xefT\x96\x85\xb3" +
-	"Q\x001\x16\x8e\xb8\xbdO\xdc9\xb5\xfd\xcd\xc4\xb7A" +
-	"\xedC\xf7\x9d\xda\xae\x87\xce\xfe\xe0W?\x84P\x14`" +
-	"\xe0!6\x17\xf9.\x16\x05\xe6\xee\xbf\xf2\xd6\xeb\xe7\xa6" +
-	"\xfe\xd1\xc6\x0a+D\xab\xb3\x1b\x91oeQ\x00>\xc9" +
-	"6\x02\xba\xaf\x8d\xbf\xf8Yk\xdd\xdf\xbf\xdbFFb" +
-	"\x9cdo\xf33\x92{\x9ae\x01\xdd\xaf\xf5\xff\xed\xa9" +
-	"_:\x95'A\xf4\xe1t2Q\x06\xc2\xa1\xb9\xc8\xe7" +
-	"I_\xd4\xd0N\x04t_\xe8\x7fs\xc7\xa7\x9e.\xec" +
-	"\xed\xe4\xc7\x81\xf0B\xe4\xc7\xc2d\xfbH\x98\xfc\xd8\xb3" +
-	"\xf4\xd6\xa3cb\xf9O;\x91\x17D\xe6\"_\x16!" +
-	"\xf2-\x11\"?\xfb\xf5\xe2_p\xe3\xda\x9f\xb7;B" +
-	"l\xfep\xe4\x1c\xdf%\xc9\x8fF\x9e\x06to~\xe3" +
-	"\xde\x9ds\xdd}\x07\xdb\xc8\xe4)\xbf+\xfa\x07~w" +
-	"\x94~\x8dD\xc9\xf0\xe2\xb4m\xce\x1f<\xfa\xeb\x0e\xd1" +
-	"\x18\xd8\x1b\x9d\x83\xfc\x80$\xef\x8fR8\xf6\x9d\xef\x7f" +
-	"\xff\x9e\xcf\xdd|\xb8\x83\xe1\x81\x13\xd1\xb5\xc8\xff*\xc9" +
-	"g\x88|9\xf1\xd8\x8f?}\xbc~\xa4\x95:\x8cQ" +
-	"\x86\xca@8\xb6\x10\xf9\xbc\x18\x91\xd5\xd8[\x80\xee\x8e" +
-	"G~s\xf8\xcc\xefN\x1c\xe9\x94\x94\xb3\xb1\xb7\xf9y" +
-	"\xc9}7F^\xec>?\xf6\xce\xce\xeb\x1f9\x0aj" +
-	"\x9f\x12p\x01\x07\xe6\xc5\x17\"_\x14'\xe6\x82\xf8'" +
-	"\x00\xdd\x95/\xdf\xf1\x91l\xe5\xcc\xef;\xa8gQ|" +
-	"\x0e\xf2\x8f\xc7\xa3\xc0.\x0e\xfe+s\xfb\xc5\x1d':" +
-	"\x04K\x8d\x9f\xe37I{\x1f\x8aS\xb0\xd6\xec\xf9\xd1" +
-	"\xea\xec\xa5\xe1S\x9d\x02;\x11\xbf\xc0\xb7J\xeed\x9c" +
-	"\xbc\x9c\\s\xf6\xe4\xd2\xa5G\xff\x043\x02p\x1d\x00" +
-	"\x7f<\xfe\x02\xdfC\xec\x81\xdd\xf1?*\x80n\xce\x9a" +
-	":\xb5\xefK\x95\xd3\x9d\xe9\xaf\xf4<\xcbO\xf6\xc80" +
-	"\xf7T\x89\xbe~\xfbM\x13\xd9\xc8\xe3\xff\xecT\x17\x89" +
-	"\x0c\xf2]\x09\xaa\x8b\xed7\\\xff\xfdm\xaf-x\xaf" +
-	"\x83\xc4x=q\x81O&\xe8\xd7\xe6\x04\xbd[\xf2\xcf" +
-	"\xbfXw\xfb7n\xbc\xd8\x89{\"q\x8e\x9f\x96\xdc" +
-	"7$\xb7X-\x1b\xf7Y\xc6\xad\xac\xa8\xd5\xcc\xda\x8a" +
-	"\x82\xbe\xbe\xa2\x9b\xce\x98\xaeY\xa5\xeaF3\xa79\xa8" +
-	"\xe5\xb1\x1bmT\xb7u\xeb~\xcd1\xaa&\x1b\xc9\xe5" +
-	"\x11E\x8c\x85\x00B\x08\xa0.\xfe\x18\x80\xf8(Cq" +
-	"\x9b\x82*b\x0a\xe9\xf0\x96\x15\x00\xa2\x9f\xa1X\xae`" +
-	"B\xb3\x8d\x12\xf6\x82\x82\xbd\x80Y{b|\xdc\xd8\xd4" +
-	"|\xf4\xefS\xbc\xfb\x863\xc3Ce]3'j\x89" +
-	"\x9c\xe6\x90G\"\xe4\xdf\xd4k\x01\x88\x1e\x86\xe2\x06\x05" +
-	"]\xab\xe1\x12\xa4\x8d\xaa9\x92\xc3d\x109@Lv" +
-	"}\xe3\x82\xeeL\xd4F\xf5z\xf3\x8d\xc5\x87}\xfb\xfb" +
-	"3\x00\xe2\x19\x86\xe2\xe0\xb479@\x87\xcf1\x14\x87" +
-	"\x14T\x15%\x85\x0a\x80\xfa\"\x1d>\xcfP\x1cVP" +
-	"e,\x85\x0c@}i5\x808\xc4P\x1cW\x10C" +
-	")\x0c\x01\xa8\xc7\xd6\x02\x88)\x86\xe2U\x05\xd50\xa6" +
-	"0\x0c\xa0\xbeB\xc4\xdf2\x14\xa7\x14T#J\x0a#" +
-	"\x00\xea\xc9m\x00\xe2u\x86\xe2\xdf\x0a\xa6+\x869\xf8" +
-	"\x05\x8c\x80\x82\x11\xc0tE\xdb4\xedI+\x16\x83'" +
-	"\xd7\xae\x95\x0dg\xa8l\x03@p\xe6h\x96\x93\xb7\xaa" +
-	"\xc0j6&\x83\xd6\xd2\x88\x8bn\x96\xf2V\xb5&\xff" +
-	"2\x13\xd5\xca\xe5jQs\x0c\xac\x9ac\x96f\x94\x01" +
-	"\xfb\x00\xf3\x0c1\xd9,:@:\xea*\xa8\xb2n\xcb" +
-	"\x18\xe7\xa2\x8d\x04N\x93Jf\x16\xa9\xa4m\xfa'&" +
-	"\x83&\xeey\x95\xbdO\xb3u\x99d\x7fl\\K\x92" +
-	"m?\xc9\xb3\xf9\x90\x99\xdd\x87\xb4S\xfd\x8an^E" +
-	"\xb8\x8dK\xd3vS\xb9=\xfe\xa5\xc3\xa4\xdc\x1cC\x91" +
-	"W\xb0y\xe7\xdd\xa3\x00\xe23\x0c\xc5\x1a\x12\x16z\xc2" +
-	"\xfa<\x05#\xcfP\x94\xafI\xe2\xbaeU\xad\xa1j" +
-	"\x09Pof?+\xd5b7\xb3F\xa7}3\xdd\xcd" +
-	"k\xce\x86a\xa9\x03V\xb3\xaf%@$\xd9%\x0c\xc5" +
-	"'\x15L\x93@\xca\x88\xa0 \x0dP\xc7\xd2L{\\" +
-	"\xb7HN\xcd\xb3n]\xc4\xd47je\x0a\x0f@[" +
-	"i\xd3\xa51\x86\"\xa5t\x0bt\xa8\xc5\xd6\x88Y\xd2" +
-	"7\x0dU\xcdq\xc3\xaa\xc8\xbe\x94\xd3\xd8\x8c~1\xdd" +
-	"\xa8\xedh\x8e\x8e\x89`\x12\x01bb\xa6\xabC\xde\xe3" +
-	"\xa8^\x9f\xd0m'\xafm.G\xabZ\x89\xec&}" +
-	"\xbb\x1aen\x9d\x97\xa4^t]/D\x06\xddVb" +
-	"(j\x0a\xf6*W\\/\xa1\x95A\x00\xb1\x81\xa1p" +
-	"\x14\xece\x97]\xafU\xd4)\x9c5\x86\xe2\x01\x05]" +
-	"\xc7\xa8\xe8\xb6\xa3U\x00k\x18\x03\x05c\x80\xe9\x09\xd3" +
-	"\xd6\x1d\x88l\xb1<?0\x19\x0c\x9bF\xea-\xdd\xae" +
-	"UM[\xf7\xaa\xd8\x9f\\me\x11\xa8\xb3\x11\xfcN" +
-	"m\xb5%L\x0d\xf1\xfb\xa3\xa5s\x9dM\x1b\x082\x13" +
-	"\x05'\xaa9\xba\x14\x92|mu\x90\xfe\xa8\xc6W\x00" +
-	"l\xa9\xe9f\xc90\xd7g\xb5\xa2c\xdc\xafw\xd1F" +
-	"\xa3\xeb\xfb\xdah\x7f\x83\xbb\x1am\xa9j\xa6\x07u\xad" +
-	"\xd4\xae\xd9\xc1Y\x8az\x8blk\xddzj\xfbe\xc1" +
-	"\xdbe\xbd\xd7\xbbJ\xc0\x0c\xc2g\x18\xc2\xa6\xa1\xac\x97" +
-	"%2\xb0\x9c\x85z\\\x97,\xf0{1\x03PX\x83" +
-	"\x0c\x0b%$\x11]\xf1D\xc45\xfc2@a\x1d\x01" +
-	"e\x02\x94\xcb\x9e\x8e\xb8\x81_\x05(l \xc0!\x80" +
-	"]\xf2\xa4\xc4\xeb\xf8\x18@\xc1!\xe0A\x02B\x17]" +
-	"9z\xf8$>\x09Px\x90\x80o\x11\x10\xbe\xe0\xca" +
-	"\xf1\xc3\x1f\xc6m\x00\x85o\x12\xf0\x1d\x02\"\xe7]9" +
-	"\x82\xf8\xa3\xf82@\xe1{\x04<E@\xf4?nJ" +
-	"ns\xbb\xe5\xe5O\x10\xb0\x8f\x80\xd8\xfbn\x0ac\x00" +
-	"|/\xae\x06(\xfc\x84\x80\xe7\x08\x88\xbf\xe7\xa60\x0e" +
-	"\xc0\x7f\x86k\x01\x0a\xcf\x10p\x90\x809\xef\xba)\x9c" +
-	"\x03\xc0\x0fH\xe0y\x02\x0e\xa3\x82\xeau\xc9\x14\xd2\xb6" +
-	"\xf4\x92\xb4t\x88\xce\x8f\xd3y\x0fKa\x0f\x00?\x86" +
-	"\xa3\x00\x85):\x7f\x15\x15\xbf0\\\xbb\xd1\xe8!\xd1" +
-	"\x10\xac\xbf\x9a7\x04\xdb \x8cB\xd6\x13>&\x83\xbd" +
-	"\xb9\x952\x86\xcd\x99\x85W1\xe4\xb1\xa8\x8a\xa2\x9e5" +
-	"\x7f\x9d\x9b\xc1\xf3V**K\xffS\xa8\x953\xa2\xb4" +
-	"w/Y\xc4\xfe\xaa\xde\xca\x1e\x82\xacW\x1c\x98\x0c\xb6" +
-	"\xe3\xe6\x00\xc8\xe8r\xecx]\xc0\xff\xe2\x08PY\xf6" +
-	"\xc0\xa4\xc7\x1d`Yv\xc0\xa4m\xff#\xab\xb9\x09\x14" +
-	"\x8bz\xcd\xd1K\xd3\x1b\xfb\xb8f\x94\xf5\xd2\xaa*\xf5" +
-	"\xaa\xae\x9aO{\xbd\x13Q,\x09$\xbfHJ~>" +
-	"%rI\x8b\xe4\x17K\xc9\xf7\x13\xb0\xbcE\xf2\xcb\xa4" +
-	"\xean#`e\x8b\xe4\xef\x90\x92_I\xc0\xaa\x16\xc9" +
-	"\x0fK\xc9\xaf\"`\xacE\xf2BJ>O\xc0=-" +
-	"\x92\xff\xa2\x94|Po\xbe\xe4\xdb\xeb\xcd\x97|]\x0a" +
-	"\xb5F\xc0\x03-\x92\xdf,\x95\xbd\x89\x80\xed-\x92\xdf" +
-	"*\x01\xbf\x10\xbbK\xb8m\xe1\xf8\xdf%\xec\x7f\xd3~" +
-	"\xf0$\xdc>w\xda$\xec\x7fs^\x9b\x84\xaf\xb2\xa3" +
-	"z\xf30]n\xcc\xc3\x8e\x13SN\x81\xac\x1cr\xff" +
-	"\xe7\x8f\x9e\xe6\xeeX\xcf\xcd\\\x9a\xad\xc0\xaa\x7f\xd5\xb2" +
-	"L\xb0\x8f\xcd\xbe'\xb6nT\xff\x0d\x00\x00\xff\xff>" +
-	"\xbe\xcc:"
+const schema_a3bf9fed859570f0 = "x\xda\xbc\x97\x7f\x8cTW\x15\xc7\xcfyw~.;" +
+	"\xbb3\xdc1%$u*\xb1\xcd.\xa1\x05fI\x15" +
+	"\xa4\x99\xba;\x1b\xd9Ju\xde\xce\x9a\x02B\xe4u\xe7" +
+	"n\xf7\xe9\xcc\x9b\x99\xf7\xdev\xa9)R\x08\xa8\x04\xb5" +
+	"?RL\xfb\x87\x0a\x95\x8dE7\xe9\x8f\x14-\x0dU" +
+	"\xdb@\xc0Z\xff\xd1b\xad\xd1\xa8\xd1\x06\xadbZ\x92" +
+	"\xb6n\x91>s\xee\xcc\xbc73\xfb\x86]\xff\xd0\xff" +
+	"\xde\xdc\xef\x99s\xcf\xbd\xe7s\xee\xb9w\xcd@\xf0V" +
+	"em\xf0B\x08@\xcd\x05C\xce\xfe\xb9\xcd\xdb\x7f\xf0" +
+	"\xe2\xaf\x0f\x81\xda\x83\xe8\xbcY9|\xe0\xe2w~\xf2" +
+	"]\x08\x84\x01\x06\xb6\xb2\x95\xc8u\x16\x06\xe0\x82e\x00" +
+	"\x9d\x13\xef_\xf8\xcd\xa5s\xff\xfc\x06$z\x9al\x83" +
+	"\x0a\x19\x1fd\xcb\x91?*\x8d\x0f\xb3i@\xe7\xd5\x89" +
+	"\xe7?e\xee\xfc\xc77\xdb\x8c\x91,\xdebo\xf0+" +
+	"\xd2vN:\xfeR\xdf\xdf\x8f\xfd\xd8.=\xd6\x16E" +
+	"\x90L\x06\xae\x0d,E~\xa3\x8c\xa8?p\x07\x02:" +
+	"\x93g\x96|\xf6\xe2'?6\xd3\xeaZZ\x1c\x0e\xae" +
+	"D>\x13\x0c\x03s\x9e\xeb\xfb\xcb\xa1[\x9e\xc8\x1f\xf7" +
+	"\x8bvop\x05\xf2\x07\x83\x14\xc1\xd7\x83\x14\xed\xcc\xea" +
+	"\x9b\xce\x8e\xa9\xeb\xbe\xdf\x16\xc10\x86\x15\x80\x81\xbf\x05" +
+	"\x97\"\x9f\x93\xe6oK\xf3\xa7\xbf<\xfeW\x9c\xde\xf6" +
+	"\xc3\xf6\x80\xc99WC\x97\xf8\x8e\x10}m\x0d=\x01" +
+	"\xe8\xdc\xf0\xfb\x1d\xf7/ufO\xf9\xec1\x8f\x86\x7f" +
+	"\xcb?\x10\xa6\xafD\x98\x1c\xf7\xa7,\xe3\xba\xc1\xb3/" +
+	"\xb6;\xa6m\x1b\xa8\x86\xbb\x90\xef\x95\xd6\xbb\xc3\xe4y" +
+	"v\xae\xef\xdd\xed\x9f\xbe\xe1\xb4_\xf6\xfa#\xdb\x90\xdf" +
+	"\x12!\xe3\xf5\x91i\xc0+\xbd\x0f}\xef\x13/W\xcf" +
+	"\xcc[ Ce\xe0pd\x05\xf2\x19i|4r\x01" +
+	"\xd09\xf4\xc0\xcfO\xbf\xfe\xcb\xf3g\xfc\xb2\xb7;\xfa" +
+	"\x06?\x18\xa5\xaf\x03Q\xca\xde\xd1\xb9\xb17\xef\xbf\xe6" +
+	"\x81\xb3\x90\xe8Q<[\xc0\x81\x99\xe8\x0a\xe4'\xa4\xe5" +
+	"S\xd1\x8f\x00:\x1b_Z\xff\xc1L\xe9\xf5_\xf9\xae" +
+	"\xeeD\xb4\x0b\xf9\x19i\xfdBt\x1a\xf0\xf2\xe0[\xe9" +
+	"\x9b/\x1f:\xef\xb3k\xd7v]\xe2\xfd]\xf4u}" +
+	"\x17\xed\xda\xee-\x17_[\xbd\xfa\xec\x1f\xe7go\x09" +
+	"\x00\xdf\xdb\xf5\x1c?H\xd6\x03\x07\xba\xfe\xa0\x00:Y" +
+	"\xf3\xdc\xeff?W\xfa\x93\xbf\xf9\x89\xd8\xd3\xfc\xf9\x18" +
+	"\x99\x9f\x8c\x95\xc9|\xff\xb2k\xbe\xbd\xef\xd5\x0f\xbd\xe3" +
+	"\x03\x12\xd7\xe3\xef\xf1\xa98}U\xe3\x14I\xfc\xcf?" +
+	"\xday\xf3W\x96_\xf6\xb3\xfdE\xfc\x12\x7fM\xda\x9e" +
+	"\x97\xb6\xe3\xe5\xa2~\xa7\xa9\xdf\xc4\xc6\xb5\x8aQ\xd9\x90" +
+	"\x17w\x95\x84a\x8f\x09\xcd,\x94\xa7\x8dQa\xf5f" +
+	"5[\xcb!\xaa\x01\x16\x00\x08 @\"6\x0a\xa0v" +
+	"3T\x97)\xe8\x08\xd3,\x9bC\xe5\x02\xa0\xc0\x10(" +
+	"\x18\xea\xe8tTX\xc2\xbc[\xb3\xf5\xb2\xc1F\xb2\xe4" +
+	"2\xe2\xba\xec_\x09\xa0~\x98\xa1\xbaF\xc1\x04b\x12" +
+	"i\xf0\xc6\x0d\x00j\x1fCu\x9d\x82\xbd\x9a\xa5\x170" +
+	"\x06\x0a\xc6\x003\xd6\xd4\xc4\x84\xbe\xab\xf1\xd3\x9dO\xa9" +
+	"\xcd7\x9c\x1e\x1e*\x0a\xcd\x98\xaa\xf8\x05o6\x05o" +
+	"\xd6C\x82\x94^6F\xb2\x18\xf7\xf6\x19\x10\xe3\x1d\x97" +
+	"\x92\x17\xf6TeTT\xb3\x9a\x8d\xd2\xff2\xd7\xff\xa3" +
+	"i\x00\xf5a\x86\xea\x91\xa6\x95|\x8b\x06\x1fa\xa8\x1e" +
+	"S0\xa1(IT\x00\x12Go\x03P\x8f0Tg" +
+	"\x15D\x96D\x06\x908\xbe\x0d@}\x9c\xa1\xfa\x8c\x82" +
+	"\x89\x00&1\x00\x90x\x8a\x0c\x9fd\xa8\x9eR0\x11" +
+	"T\x92\x18\x04H\x9c\xdc\x07\xa0>\xcbP}E\xc1T" +
+	"I7\x06\xefhl\x7f\xaa\xa4\xed\xf2~9V\xa5\xa8" +
+	"\xdbCE\x0b\x00\xbc1[3\xed\x9cY\x06V\xb10" +
+	"\xee\x1d\x0e\xf5E\x0b\xa3\x903\xcb\x15\xf9\x97\xf9\xaaV" +
+	",\x96\xc75[\xc7\xb21fjz\x11\xb0\x070\xc7" +
+	"\x10\xe3\x8dj\x01\xa4\xa1\x05\xd9\xaa6\xd2\xd3\xd1\xb2(" +
+	",\xb9\xd5\xd9p=\x8fM\xc4\xa4\x17 &e\xd1?" +
+	"1\xee\x1d\xec\xb5\xf83wj\x96\x90\xb9v[\xc9b" +
+	"rm\xb9\xb9\x8e\xb0@\xb7\xe3\xd4\x82\x18\xf4\x82\x88\xe1" +
+	"\xfbN=\x8a\xb4\x17\xc5\x9e\x09M/N\x99b~\x1c" +
+	")\xbb\xfc\x05a\\\x85\xe1\xfa\xc4)\xab\x01q\xb7\xbb" +
+	"\xf8a\x828\xcbP\xcd)\xd8X\xfb\xedT\x95\x9b\x19" +
+	"\xaa[\x881\xac1\xf6\x19\xda\x90\x1cC\xb5\xb8(\xda" +
+	"}\x8a9#i\xb2\x1a9\xa6\xd1\x9e\xf9\xe1\xe64{" +
+	"rXR\xc3*\xd6b\x12EH\xafb\xa8~T\xc1" +
+	"\x14\xe1TD\x04\x05\xa9\xb1\xda\xa6fX\x13\xc2$\xf8" +
+	"\x1ac\x9d\x0e\x14CLkE\xda\x1e\x80\xb6\x0d\xa2I" +
+	"oe\xa8nn\x9at$\xdd\xb4k\xf5\"\xbc}_" +
+	"}\xd7&\x17(\xa3\xff\x9a\xfa@K\xac#FA\xec" +
+	"\x1a*\x1b\x13\xbaY\x92G`Vc\x8bC\xba\x09\xa6" +
+	"\x94N^\xdc\x00-[\xb3\x05\xf6z\xbd\x0f\x10{\xe7" +
+	"\xef\xd6P\xed\xe7\xa8\xa8N\x09\xcb\xcei\xf7\x14\xc3e" +
+	"\xad@S\xc7\xdd\xa95\x82gg\x8d\x93\x18:u\x90" +
+	"u\x9a\xbb\xc0P\xad(\x18S\x08o\xda\xb2\x12A?" +
+	"\xc9P\xb5\x15\x8c\xb1+N\xed\xe4\xaaRF+\x0c\xd5" +
+	"{\x15tl\xbd$,[+\x01V0\x02\x0aF\x00" +
+	"SS\x86%l\x08\xed1kq`\xdck\x81u\xfa" +
+	"LaU\xca\x86%j\xc7\x8e\xdbO\xdb\xaa\xd3+\x90" +
+	"z\xfe\xfd\x0ey\x0a<\xc2PM6\x9d\x03n[\xf4" +
+	"/\xf7\xa6\xf6$\x93\x95\xb7\xc3\x9a-d\x86\xe4\xb2\x13" +
+	"\x83\xf4\xc7Dt\x03\xc0\x9e\x8a0\x0a\xbaqWF\x1b" +
+	"\xb7\xf5\xbbE\x07<\xeb=\xc8\xc3\xb3)\xd3\xcb\xbdL" +
+	"\xfb%\x9a\xe9\x85\xf9\xe7Sk\xf6\xdb\xf7\xe3\xe3u>" +
+	"\xcbFjPh\x85\xf6\"\x1c\\\x00\xad=\x92\xef\x8e" +
+	"\xf47&\xc3\xc6^ej\xa9\xa2Y\xd6\xb9\xe7!\xdf" +
+	"\x81i\x80\xfc\x16d\x98/`\xd3\x91\xc85\xfc<@" +
+	"~'\x09E\x12\x94+5\x98\xb8\x8e_\x04\xc8O\x92" +
+	"`\x93\xc0\xfe]\xe3\x89W\xf1!\x80\xbcM\xc2}$" +
+	"\x04.;\xb2\x1b\xf2\xdd\xf8\x18@\xfe>\x12\xbeFB" +
+	"\xf0=GvD~\x10\xf7\x01\xe4\xbfJ\xc2\xc3$\x84" +
+	"\xe6\x9c$\x86\x00\xf8\x83\xf8\x12@\xfe\x11\x12\x8e\x91\x10" +
+	"\xfe\x97\x93\x94\x97\xc8\xa3r\xf2#$\xcc\x92\x10y\xd7" +
+	"Ib\x04\x80\x1f\xc7\xdb\x00\xf2\x8f\x93\xf0\x0c\x09\xd1w" +
+	"\x9c$F\xe9\x0a\x89\xdb\x00\xf2O\x92p\x8a\x84\xae\xb7" +
+	"\x9d$v\x01\xf0\x93Rx\x96\x84\xd3\xa8`bI<" +
+	"\x89t\x91{Az\xfa)\x8d\xbfL\xe3\xdd,\x89\xdd" +
+	"\x00\xfcg8\x0a\x90?G\xe3\xaf\xa0\xe2V\x87c\xd5" +
+	"\x9b\x0e\xf4\xd6\xa9u\x1f\x05uj\xeb\x06\xa3\x90\xa9\xd1" +
+	"\xdf\xd9d\x0c\x1b\xfd\x13+\x0bYQ)\x85\x17\xf2V" +
+	"\xeb\xdbT\x9b\xee\x8b\xad\xd5fDi?\xe5d%\xbb" +
+	"/\x84V\xeb!\xc8\xd4*\x04\xe3\xde\xa5\xbc\xd1\x88\xd2" +
+	"B\xb6\xbf\xdaQ\xe0\xbet<U\xd6>0\x19\xb1\x8f" +
+	",k\x0f\x98\xf4\xed>\x02\x1b\xf7\x97\xf1qQ\xb1E" +
+	"\xa1\xb9\xc1P\x97\x16\x85Me:\xb0:2\x9f\xaa\x1d" +
+	"\xa0\x88\xea*\x0f\xf9\xeb%\xf2\xd7Q\"W\xb5 \xdf" +
+	"/\x91\xef#a]\x0b\xf2k%ukH\xd8\xd8\x82" +
+	"\xfcz\x89\xfcF\x126\xb5 ?,\x91\xdfD\xc2X" +
+	"\x0b\xf2\xaaD>G\xc2\xf6\x16\xe4\xb7J\xe4\xbdzs" +
+	"\x91o\xaf7\x17\xf9\xaa\x04\xb5B\xc2\xbd-\xc8\xdf#" +
+	"\xc9\xdeE\xc2\xfe\x16\xe4\xf7J\xc1-\xc4\xce\x08\xb7]" +
+	"|\xfc\x10v\x9f\x9cWE\xd8}M/\x80pgo" +
+	"\x1e\xc2\xee\xfb\xfd\xff\x83p{\xf3iC\xd8}\xea." +
+	"\x0ea\xbf^(\xbbWF\xb6\xaf\xff\xf1\xe3\xaaq1" +
+	"\xadf\xe7\xdf\xcaM\xcf\xab;\xd5\xda\xb4w\xd9[\xf8" +
+	"\x12\xdaz/\xfeO\x00\x00\x00\xff\xff\xfc\x88\xde\xa3"
 
 func init() {
 	schemas.Register(schema_a3bf9fed859570f0,
-		0x8e0fe484c840a00d,
+		0x8bd6c2ab5c4cf984,
 		0x8eeec8f2d8e7feb5,
 		0x96ec60724ebd66d7,
 		0xa26d74bea4eb287e,
+		0xa53b4bed5b0bc568,
 		0xa953af3d8be428ba,
 		0xaa345154c72e2fa5,
 		0xb65a7701e86386b2,
@@ -2741,10 +2790,8 @@ func init() {
 		0xc790178ff054f9a1,
 		0xd3e56d3f1e39ca3c,
 		0xd58bfb363200f142,
-		0xdc45fc3f4aa6a558,
 		0xe0c72f2fd9ed587d,
 		0xe16d5facdcc87244,
-		0xef9d063f751d8467,
 		0xf621d7829e171884,
 		0xfb1a873660b7e310)
 }
