@@ -558,7 +558,7 @@ for an AS with three interfaces with IDs 1, 2 and 3:
     "SpecificNote": "asdf",
     "Hops": [1, 0, 0]
   }],
-  "Note": "asdf",
+  "DefaultNote": "asdf",
   "URL": "asdf"
 }
 ````
