@@ -14,10 +14,6 @@ struct E2EReservationID {
     suffix @1 :Data;    # 16 bytes long
 }
 
-struct ReservationIndex {
-    index @0 :UInt8;    # only the first 4 bits are considered
-}
-
 enum ReservationIndexState {
     pending @0;
     active @1;
@@ -38,24 +34,27 @@ struct AllocationBeads {
 struct SegmentSetupReqData {
     minBW @0 :UInt8;
     maxBW @1 :UInt8;
-    accBW @2 :UInt8;
-    splitCls @3 :UInt8;
-    startProps @4 :PathEndProps;
-    endProps @5 :PathEndProps;
-    allocationTrail @6 :List(AllocationBeads);  # updated on each AS along the path
+    splitCls @2 :UInt8;
+    startProps @3 :PathEndProps;
+    endProps @4 :PathEndProps;
+    allocationTrail @5 :List(AllocationBeads);  # updated on each AS along the path
 }
 
 # Response to a segment setup request.
-# Travel inside a hop by hop colibri extension.
+# They travel inside a hop by hop colibri extension.
 struct SegmentSetupResData {
-    setup @0 :SegmentSetupReqData; # the response is sent along the path in the opposite direction as the request
-    token @1 :Data;
+    union{
+        failure @0 :SegmentSetupReqData; # sent along the path in the opposite direction in case of failure
+        token   @1 :Data;                # if successful
+    }
 }
 
 # Request to renew an existing segment reservation.
-# Travel inside a hop by hop colibri extension (SegmentReservationID and index available externally).
+# They travel inside a hop by hop colibri extension (SegmentReservationID and index available externally).
 struct SegmentRenewalData {
-    token @0 :Data;
+    minBW @0 :UInt8;
+    maxBW @1 :UInt8;
+    allocationTrail @2 :List(AllocationBeads);
 }
 
 # Telescoped segment reservations. Their response is identical to a non telescoped setup.
@@ -65,20 +64,27 @@ struct SegmentTelesSetupData {
     baseID @1 :SegmentReservationID;
 }
 
-# Telescoped segment reservation newewal. They travel inside a hop by hop extension.
-struct SegmentTelesRenewalData {}   # empty (SegmentReservationID and index from hop by hop extension)
+# Request to tear down a segment reservation.
+struct SegmentTeardownReqData {}   # empty (SegmentReservationID and index from hop by hop extension)
 
-# tear down a segment reservation.
-struct SegmentTeardownData {}   # empty (SegmentReservationID and index from hop by hop extension)
+# Response to a tear down request.
+struct SegmentTeardownResData {
+    errorCode @0 :UInt8;    # only relevant if the response indicates failure
+}
 
 # Segment reservation index confirmation request.
 # They travel inside hop by hop colibri extension.
 struct SegmentIndexConfirmationData {
-    state @0 :ReservationIndexState;
+    index @0 :UInt8;
+    state @1 :ReservationIndexState;
 }
 
-# removes a pending segment reservation.
-struct SegmentCleanupData {}    # empty (SegmentReservationID and index from hop by hop extension)
+# Removes a pending segment reservation.
+# These messages travel as payload of a hop by hop colibri extension packet.
+struct SegmentCleanupData {
+    id @0 :SegmentReservationID;
+    index @1 :UInt8;
+}
 
 # Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
 struct E2ESetupReqData {
@@ -110,8 +116,8 @@ struct Request {
         segmentSetup @1 :SegmentSetupReqData;
         segmentRenewal @2 :SegmentRenewalData;
         segmentTelesSetup @3 :SegmentTelesSetupData;
-        segmentTelesRenewal @4 :SegmentTelesRenewalData;
-        segmentTeardown @5 :SegmentTeardownData;
+        segmentTelesRenewal @4 :SegmentRenewalData;
+        segmentTeardown @5 :SegmentTeardownReqData;
         segmentIndexConfirmation @6 :SegmentIndexConfirmationData;
         segmentCleanup @7 :SegmentCleanupData;
         e2eSetup @8 :E2ESetupReqData;
@@ -124,10 +130,10 @@ struct Response {
     union {
         unset @0 :Void;
         segmentSetup @1 :SegmentSetupResData;
-        segmentRenewal @2 :SegmentRenewalData;
+        segmentRenewal @2 :SegmentSetupResData;
         segmentTelesSetup @3 :SegmentSetupResData;  # same response type as a normal setup
-        segmentTelesRenewal @4 :SegmentTelesRenewalData;
-        segmentTeardown @5 :SegmentTeardownData;
+        segmentTelesRenewal @4 :SegmentSetupResData;
+        segmentTeardown @5 :SegmentTeardownResData;
         segmentIndexConfirmation @6 :SegmentIndexConfirmationData;
         segmentCleanup @7 :SegmentCleanupData;
         e2eSetup @8 :E2ESetupResData;
