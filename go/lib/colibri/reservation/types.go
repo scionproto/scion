@@ -47,15 +47,15 @@ func SegmentIDFromRaw(raw []byte) (
 	return &id, nil
 }
 
-func (id *SegmentID) Write(raw []byte) error {
+func (id *SegmentID) Read(raw []byte) (int, error) {
 	if len(raw) < SegmentIDLen {
-		return serrors.New("Buffer too small", "actual", len(raw), "min", SegmentIDLen)
+		return 0, serrors.New("Buffer too small", "actual", len(raw), "min", SegmentIDLen)
 	}
 	auxBuff := make([]byte, 8)
 	common.Order.PutUint64(auxBuff, uint64(id.ASID))
 	copy(raw, auxBuff[2:8])
 	copy(raw[6:], id.Suffix[:])
-	return nil
+	return SegmentIDLen, nil
 }
 
 // E2EID identifies a COLIBRI E2E reservation. The suffix is different for each
@@ -79,15 +79,15 @@ func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 	return &id, nil
 }
 
-func (id *E2EID) Write(raw []byte) error {
+func (id *E2EID) Read(raw []byte) (int, error) {
 	if len(raw) < E2EIDLen {
-		return serrors.New("Buffer too small", "actual", len(raw), "min", E2EIDLen)
+		return 0, serrors.New("Buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
 	auxBuff := make([]byte, 8)
 	common.Order.PutUint64(auxBuff, uint64(id.ASID))
 	copy(raw, auxBuff[2:8])
 	copy(raw[6:], id.Suffix[:])
-	return nil
+	return E2EIDLen, nil
 }
 
 // Tick represents a slice of time of 4 seconds.
@@ -224,14 +224,15 @@ func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 	return &info, nil
 }
 
-// Write serializes this InfoField into an array of InfoFieldLen bytes.
-func (f *InfoField) Write(b []byte) error {
+// Read serializes this InfoField into an array of InfoFieldLen bytes.
+func (f *InfoField) Read(b []byte) (int, error) {
 	if len(b) < InfoFieldLen {
-		return serrors.New("Buffer too short", "size", len(b))
+		return 0, serrors.New("Buffer too short", "size", len(b))
 	}
 	common.Order.PutUint32(b[:4], uint32(f.ExpirationTick))
 	b[4] = byte(f.BWCls)
 	b[5] = byte(f.RLC)
 	b[6] = byte(f.Idx<<4) | uint8(f.PathType)
-	return nil
+	// b[7] is padding
+	return 8, nil
 }
