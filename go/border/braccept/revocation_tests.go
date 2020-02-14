@@ -521,7 +521,7 @@ func revocation_expired_not_owned_child_link() int {
 		UDP_1: Src=20006 Dst=20001
 		IFStateInfo: IfID=181 Active=false
 			SignedRevInfo: IfID=181 IA=1-ff00:0:1 Link=child TS=%d TTL=10
-	`, time.Now().Add(-12*time.Second).Unix()))
+	`, time.Now().Add(-9*time.Second).Unix()))
 	ifStateDown.SetDev("veth_int")
 	ifStateDown.SetChecksum("UDP", "IP4")
 	ifStateDown.SetChecksum("UDP_1", "SCION")
@@ -554,7 +554,7 @@ func revocation_expired_not_owned_child_link() int {
 
 	// Send/Expect packets
 	SendPackets(ifStateDown)
-	Sleep("250ms")
+	Sleep("1000ms")
 
 	SendPackets(pkt0)
 
