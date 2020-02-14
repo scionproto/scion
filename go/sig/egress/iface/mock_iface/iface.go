@@ -7,11 +7,11 @@ package mock_iface
 import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
+	sig_mgmt "github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	log "github.com/scionproto/scion/go/lib/log"
 	ringbuf "github.com/scionproto/scion/go/lib/ringbuf"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	iface "github.com/scionproto/scion/go/sig/egress/iface"
-	mgmt "github.com/scionproto/scion/go/sig/mgmt"
 	reflect "reflect"
 )
 
@@ -172,10 +172,10 @@ func (mr *MockSessionMockRecorder) IA() *gomock.Call {
 }
 
 // ID mocks base method
-func (m *MockSession) ID() mgmt.SessionType {
+func (m *MockSession) ID() sig_mgmt.SessionType {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ID")
-	ret0, _ := ret[0].(mgmt.SessionType)
+	ret0, _ := ret[0].(sig_mgmt.SessionType)
 	return ret0
 }
 

@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/sig/egress/iface"
@@ -28,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/sig/internal/disp"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -56,7 +56,7 @@ type sessMonitor struct {
 	// when sessMonitor is trying to switch SIGs/paths, this is the id of the
 	// last PollReq sent, so that sessMonitor can correlate replies to the
 	// remoteInfo used for the request.
-	updateMsgId mgmt.MsgIdType
+	updateMsgId sig_mgmt.MsgIdType
 	// the last time a PollRep was received.
 	lastReply time.Time
 }
@@ -256,8 +256,9 @@ func (sm *sessMonitor) sendReq() {
 	if sm.smRemote == nil || sm.smRemote.SessPath == nil {
 		return
 	}
-	sm.updateMsgId = mgmt.MsgIdType(time.Now().UnixNano())
-	spld, err := mgmt.NewPld(sm.updateMsgId, mgmt.NewPollReq(sigcmn.MgmtAddr, sm.sess.SessId))
+	sm.updateMsgId = sig_mgmt.MsgIdType(time.Now().UnixNano())
+	spld, err := sig_mgmt.NewPld(sm.updateMsgId, sig_mgmt.NewPollReq(sigcmn.MgmtAddr,
+		sm.sess.SessId))
 	if err != nil {
 		sm.Error("sessMonitor: Error creating SIGCtrl payload", "err", err)
 		return
@@ -292,7 +293,7 @@ func (sm *sessMonitor) sendReq() {
 }
 
 func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
-	pollRep, ok := rpld.P.(*mgmt.PollRep)
+	pollRep, ok := rpld.P.(*sig_mgmt.PollRep)
 	if !ok {
 		sm.Error("sessMonitor: non-SIGPollRep payload received",
 			"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)

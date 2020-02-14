@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/godispatcher/dispatcher"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond/fake"
@@ -32,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/sig/internal/pathmgr"
 	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/internal/snetmigrate"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -53,14 +53,14 @@ var (
 	Dispatcher reliable.Dispatcher
 	Network    *snet.SCIONNetwork
 	CtrlConn   snet.Conn
-	MgmtAddr   *mgmt.Addr
+	MgmtAddr   *sig_mgmt.Addr
 	encapPort  uint16
 )
 
 func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient) error {
 	IA = cfg.IA
 	Host = addr.HostFromIP(cfg.IP)
-	MgmtAddr = mgmt.NewAddr(Host, cfg.CtrlPort, cfg.EncapPort)
+	MgmtAddr = sig_mgmt.NewAddr(Host, cfg.CtrlPort, cfg.EncapPort)
 	encapPort = cfg.EncapPort
 
 	network, resolver, err := initNetwork(cfg, sdCfg)

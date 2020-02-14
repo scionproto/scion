@@ -22,12 +22,12 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -78,7 +78,7 @@ func (d *Dispatcher) read() error {
 				switch v := src.(type) {
 				case *snet.UDPAddr:
 					frame.frameLen = read
-					frame.sessId = mgmt.SessionType((frame.raw[0]))
+					frame.sessId = sig_mgmt.SessionType((frame.raw[0]))
 					d.updateMetrics(v.IA.IAInt(), frame.sessId, read)
 					d.dispatch(frame, v)
 				default:
@@ -129,7 +129,7 @@ func (d *Dispatcher) cleanup() {
 	}
 }
 
-func (d *Dispatcher) updateMetrics(remoteIA addr.IAInt, sessId mgmt.SessionType, read int) {
+func (d *Dispatcher) updateMetrics(remoteIA addr.IAInt, sessId sig_mgmt.SessionType, read int) {
 	key := metrics.CtrPairKey{RemoteIA: remoteIA, SessId: sessId}
 	counters, ok := d.framesRecvCounters[key]
 	if !ok {

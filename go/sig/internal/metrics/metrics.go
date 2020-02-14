@@ -25,8 +25,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 // Namespace is the metrics namespace for the SIG.
@@ -131,5 +131,5 @@ type CtrPair struct {
 
 type CtrPairKey struct {
 	RemoteIA addr.IAInt
-	SessId   mgmt.SessionType
+	SessId   sig_mgmt.SessionType
 }

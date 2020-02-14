@@ -22,12 +22,12 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/sig/egress/siginfo"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 func Init() {
@@ -53,7 +53,7 @@ type Session interface {
 	// IA returns the session's remote IA
 	IA() addr.IA
 	// ID returns the session's ID.
-	ID() mgmt.SessionType
+	ID() sig_mgmt.SessionType
 	// Conn returns the session's outbound snet Conn.
 	// The returned value must be the same for the entire lifetime of the object.
 	Conn() snet.Conn
