@@ -40,14 +40,18 @@ func TestSegmentIDFromRaw(t *testing.T) {
 	}
 }
 
-func TestSegmentIDWrite(t *testing.T) {
+func TestSegmentIDRead(t *testing.T) {
 	reference := SegmentID{
 		ASID: xtest.MustParseAS("ffaa:0:1101"),
 	}
 	copy(reference.Suffix[:], xtest.MustParseHexString("facecafe"))
-	raw := make([]byte, 10)
-	if err := reference.Write(raw); err != nil {
+	raw := make([]byte, SegmentIDLen)
+	n, err := reference.Read(raw)
+	if err != nil {
 		t.Fatalf("Unexpect error: %v", err)
+	}
+	if n != SegmentIDLen {
+		t.Fatalf("Unexpected read size %d. Expected %d", n, SegmentIDLen)
 	}
 	rawReference := xtest.MustParseHexString("ffaa00001101facecafe")
 	if bytes.Compare(raw, rawReference) != 0 {
@@ -73,14 +77,18 @@ func TestE2EIDFromRaw(t *testing.T) {
 	}
 }
 
-func TestE2EIDWrite(t *testing.T) {
+func TestE2EIDRead(t *testing.T) {
 	reference := E2EID{
 		ASID: xtest.MustParseAS("ffaa:0:1101"),
 	}
 	copy(reference.Suffix[:], xtest.MustParseHexString("facecafedeadbeeff00d"))
-	raw := make([]byte, 16)
-	if err := reference.Write(raw); err != nil {
+	raw := make([]byte, E2EIDLen)
+	n, err := reference.Read(raw)
+	if err != nil {
 		t.Fatalf("Unexpect error: %v", err)
+	}
+	if n != E2EIDLen {
+		t.Fatalf("Unexpected read size %d. Expected %d", n, E2EIDLen)
 	}
 	rawReference := xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00d")
 	if bytes.Compare(raw, rawReference) != 0 {
@@ -229,12 +237,16 @@ func TestInfoFieldFromRaw(t *testing.T) {
 	}
 }
 
-func TestInfoFieldWrite(t *testing.T) {
+func TestInfoFieldRead(t *testing.T) {
 	raw := make([]byte, InfoFieldLen)
-	err := reference.Write(raw)
+	n, err := reference.Read(raw)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Unexpect error: %v", err)
 	}
+	if n != InfoFieldLen {
+		t.Fatalf("Unexpected read size %d. Expected %d", n, InfoFieldLen)
+	}
+
 	if bytes.Compare(raw, rawReference) != 0 {
 		t.Fatalf("Fail to serialize InfoField. %v != %v",
 			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
