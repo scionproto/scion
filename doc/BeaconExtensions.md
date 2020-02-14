@@ -7,23 +7,30 @@ in the form of an extension.
 ## Table of Contents
 
 - [Static Properties](#static-properties)
+- [Format Overall](#format-overall)
 - [Latency Information](#latency-information)
+    - [Conceptual Implementation Latency](#conceptual-implementation-latency)
+    - [Concrete Format Latency](#concrete-format-latency)
 - [Geographic Information](#latency-information)
+    - [Conceptual Implementation Geographic Information](#conceptual-implementation-geographic-information)
+    - [Concrete Format Geographic Information](#concrete-format-geographic-information)
 - [Link Type](#link-type)
+    - [Conceptual Implementation Link Type](#conceptual-implementation-link-type)
+    - [Concrete Format Link Type](#concrete-format-link-type)
 - [Maximum Bandwidth](#maximum-bandwidth)
+    - [Conceptual Implementation Maximum Bandwidth](#conceptual-implementation-maximum-bandwidth)
+    - [Concrete Format Maximum Bandwidth](#concrete-format-maximum-bandwidth)
 - [Number of Internal Hops](#number-of-internal-hops)
+    - [Conceptual Implementation Number of Internal Hops](#conceptual-implementation-number-of-internal-hops)
+    - [Concrete Format Number of Internal Hops](#concrete-format-number-of-internal-hops)
 - [Note](#note)
+    - [Conceptual Implementation Note](#conceptual-implementation-note)
+    - [Concrete Format Note](#concrete-format-note)
 - [Metadata Enbpoint](#metadata-endpoint)
-- [Concrete Implementation](#concrete-implementation)
-    - [Wire Format Overall](#wire-format-overall)
-    - [Latency Format](#latency-format)
-    - [Geographic Information Format](#geographic-information-format)
-    - [Link Type Format](#link-type-format)
-    - [Maximum Bandwidth Format](#maximum-bandwidth-format)
-    - [Number of Internal Hops Format](#number-of-internal-hops-format)
-    - [Note Format](#note-format)
-    - [Metadata Endpoint Format](#metadata-endpoint-format)
+    - [Conceptual Implementation Metadata Endpoint](#conceptual-implementation-metadata-endpoint)
+    - [Concrete Format Metadata Endpoint](#concrete-format-metadata-endpoint)
 - [Config File Format](#config-file-format)
+- [Concrete Implementation](#concrete-implementation)
 
 ## Static Properties
 
@@ -70,6 +77,25 @@ by simply combining intra- and inter-AS delays. This concept applies
 similarly to many other properties.
 We will now discuss the properties we will embed and the information that
 needs to be provided for each of them.
+
+## Format Overall
+
+For the purpose of embedding static information in the SCION beacons, the
+extension field in the AS Entry of the PCB will be used. Every extension
+field starts with its type, encoded in 1 byte. After that comes the payload,
+i.e. the actual contents of the extension. In order to keep things simple
+while at the same time retaining as much versatility as possible,
+we will introduce the new extension-type "Static Property". Inside the
+payload of a Static Property extension a special "subtype" field will be
+used, which denotes which property in particular is encoded in the rest
+of the payload. The following chart illustrates the overall format of the
+extension:
+
+`Type` | `Latency` | `GeoInfo` | `LT` | `MBW` | `NIH` | `Note` | `ME` |
+-------|-----------|-----------|------|-------|-------|--------|------|
+
+Except for `Type` at the beginning, all of these fields are optional.
+
 
 ## Latency Information
 
@@ -173,6 +199,32 @@ for the paths from the egress interface to such a non-ingress interface also
 All these considerations also apply to other properties, such as maximum bandwidth
 (see below).
 
+### Concrete Format Latency
+
+The format for latency information looks like this:
+
+`SubType` | `NPLC_1` | ... | `NPLC_n` | `PLC_1`| ... | `PLC_n`|
+----------|----------|-----|----------|--------|-----|--------|
+
+Each `NPLC_i` field looks as follows:
+
+`ClusterDelay_i` | `ID_i_0` | ... | `ID_i_m` | 
+-----------------|----------|-----|----------|
+
+Each `PLC_i` field looks as follows:
+
+`ClusterDelay_i` | `ID_i_0` | `InterDelay_i_0` | ... | `ID_i_m` | `InterDelay_i_m` |
+-----------------|----------|------------------|-----|----------|------------------|
+
+The table below shows names, types and lengths (in bytes) of each value:
+
+Name               | Type | Length |
+-------------------|------|--------|
+`SubType`          |UInt8 |1       |
+`ClusterDelay_i`   |UInt16|2       |
+`ID_i_j`           |UInt64|8       |
+`Interdelay_i_j`   |UInt16|2       |
+
 ## Maximum Bandwidth
 
 Maximum Bandwidth Information consists of 2 parts, Inter- and Intra-AS:
@@ -227,6 +279,32 @@ Each non-peering cluster is formed of 2 types of elements:
 
 Here the inter-AS bandwidths are omitted. 
 
+### Concrete Format Maximum Bandwidth
+
+The format for maximum bandwidth information looks like this:
+
+`SubType` | `NPMBC_1` | ... | `NPMBC_n` | `PMBC_1` | ... | `PMBC_n` |
+----------|-----------|-----|-----------|----------|-----|----------|
+
+Each `NPMBC_i` field looks as follows:
+
+`ClusterBW_i` | `ID_i_0` | ... | `ID_i_m` |
+--------------|----------|-----|----------|
+
+Each `PMBC_i` field looks as follows:
+
+`ClusterBW_i` | `ID_i_0` | `InterBW_i_0` | ... | `ID_i_m` | `InterBw_i_m` |
+--------------|----------|---------------|-----|----------|---------------|
+
+The table below shows names, types and lengths (in bytes) of each value:
+
+Name               | Type | Length |
+-------------------|------|--------|
+`SubType`          |UInt8 |1       |
+`ClusterBW_i`      |UInt32|4       |
+`ID_i_j`           |UInt64|8       |
+`InterBW_i_j`      |UInt32|4       |
+
 ## Geographic Information
 
 Geographic Information is the full set of GPS coordinates identifying the
@@ -261,6 +339,35 @@ of 2 main types of elements:
 
 It is possible to use only the latititude and longitude pair, or the civic
 address by simply omitting one of the two.
+
+
+### Concrete Format Geographic Information
+
+The format for geographic information looks like this:
+
+`SubType` | `GC_1` | `GC_2` | ... | `GC_n` |
+----------|--------|--------|-----|--------|
+
+Each `GC_i` field looks as follows:
+
+`ClusterLocation_i` | `ID_i_0` | ... | `ID_i_m` |
+--------------------|----------|-----|----------|
+
+A `ClusterLocation_i` field looks like this:
+
+`GPS_i_0` | `GPS_i_1` | `CivAdd` |
+----------|-----------|----------|
+
+The table below shows names, types and lengths (in bytes) of each value:
+
+Name               | Type  | Length |
+-------------------|-------|--------|
+`SubType`          |UInt8  |1       |
+`GPS_i_0`          |Float32|4       |
+`GPS_i_0`          |Float32|4       |
+`CivAdd`           |Data   |Variable, max 500|
+`ID_i_j`           |UInt64 |8       |
+
 
 ## Link Type
 
@@ -308,6 +415,32 @@ Each non-peering link type cluster is itself comprised of 2 types of elements:
 - The intra-AS link type for all interfaces in the cluster (1 value per cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
 
+### Concrete Format Link Type
+
+The format for the link type looks like this:
+
+`SubType` | `NPLT_1` | ... | `NPLT_n` | `PLT_1` | ... | `PLT_n` |
+----------|----------|-----|----------|---------|-----|---------|
+
+Each `NPLT_i` field looks as follows:
+
+`ClusterLinkType_i` | `ID_i_0` | ... | `ID_i_m` |
+--------------------|----------|-----|----------|
+
+Each `PLT_i` field looks as follows:
+
+`ClusterLinkType_i` | `ID_i_0` | `InterLink_i_0` | ... | `ID_i_m` | `InterLink_i_m` |
+--------------------|----------|-----------------|-----|----------|-----------------|
+
+The table below shows names, types and lengths (in bytes) of each value:
+
+Name                | Type | Length |
+--------------------|------|--------|
+`SubType`           |UInt8 |1       |
+`ClusterLinkType_i` |Uint8 |1       |
+`ID_i_j`            |UInt64|8       |
+`InterLink_i_j`     |UInt8 |1       |
+
 ## Number of Internal Hops
 
 The Number of Internal Hops describes how many hops are on the Intra-AS path.
@@ -331,6 +464,27 @@ hoplength cluster is itself formed of 2 main elements:
 - The number of internal hops for all interfaces in the cluster (1 value per
   cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
+
+### Concrete Format Number of Internal Hops
+
+The format for the number of internal hops looks like this:
+
+`SubType` | `HC_1` | `HC_2` | ... | `HC_n` |
+----------|--------|--------|-----|--------|
+
+Each `HC_i` field looks as follows:
+
+`ClusterHops_i` | `ID_i_0` | ... | `ID_i_m` |
+----------------|----------|-----|----------|
+
+The table below shows names, types
+and lengths (in bytes) of each value:
+
+Name               | Type | Length |
+-------------------|------|--------|
+`SubType`          |UInt8 |1       |
+`ClusterHops_i`    |UInt8 |1       |
+`ID_i_j`           |UInt64|8       |
 
 ## Note
 
@@ -357,6 +511,21 @@ If no such note is specified in the config file, then the contents of the "speci
 field will be set to null (it is also possible to do this for the "default" note as
 well.
 
+### Concrete Format Note
+
+The format for the note looks like this:
+
+`SubType` | `Default` | `Interface` | `Words` |
+----------|-----------|-------------|---------|
+
+The table below shows names, types and lengths (in bytes) of each value:
+
+Name               | Type | Length |
+-------------------|------|--------|
+`SubType`          |UInt8 |1       |
+`Default`          |Text  |Variable, max 2000     |
+`Words`            |Text  |Variable, max 2000     |
+
 ## Metadata Endpoint
 
 The Metadata Endpoint is a URL which can be used to fetch additional metadata
@@ -375,174 +544,9 @@ The metadata endpoint subtype is comprised of 2 elements:
 - The subtype field, which identifies it
 - The url field, which contains the url
 
-## Concrete Implementation
+### Concrete Format Metadata Endpoint
 
-Cap'nProto will be used for the wire formats of the extension[??? Ask in slack
-about this]. The following section is devoted to looking at the implementation
-of each property in detail.
-
-### Wire Format Overall
-
-For the purpose of embedding static information in the SCION beacons, the
-extension field in the AS Entry of the PCB will be used. Every extension
-field starts with its type, encoded in 1 byte. After that comes the payload,
-i.e. the actual contents of the extension. In order to keep things simple
-while at the same time retaining as much versatility as possible,
-we will introduce the new extension-type "Static Property". Inside the
-payload of a Static Property extension a special "subtype" field will be
-used, which denotes which property in particular is encoded in the rest
-of the payload. The following chart illustrates the overall format of the
-extension:
-
-`Type` | `Latency` | `GeoInfo` | `LT` | `MBW` | `NIH` | `Note` | `ME` |
--------|-----------|-----------|------|-------|-------|--------|------|
-
-Except for `Type` at the beginning, all of these fields are optional.
-
-### Latency Format
-
-The wire format for latency information looks like this:
-
-`SubType` | `NPLC_1` | ... | `NPLC_n` | `PLC_1`| ... | `PLC_n`|
-----------|----------|-----|----------|--------|-----|--------|
-
-Each `NPLC_i` field looks as follows:
-
-`ClusterDelay_i` | `ID_i_0` | ... | `ID_i_m` | 
------------------|----------|-----|----------|
-
-Each `PLC_i` field looks as follows:
-
-`ClusterDelay_i` | `ID_i_0` | `InterDelay_i_0` | ... | `ID_i_m` | `InterDelay_i_m` |
------------------|----------|------------------|-----|----------|------------------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`ClusterDelay_i`   |UInt16|2       |
-`ID_i_j`           |UInt64|8       |
-`Interdelay_i_j`   |UInt16|2       |
-
-### Geographic Information Format
-
-The wire format for geographic information looks like this:
-
-`SubType` | `GC_1` | `GC_2` | ... | `GC_n` |
-----------|--------|--------|-----|--------|
-
-Each `GC_i` field looks as follows:
-
-`ClusterLocation_i` | `ID_i_0` | ... | `ID_i_m` |
---------------------|----------|-----|----------|
-
-A `ClusterLocation_i` field looks like this:
-
-`GPS_i_0` | `GPS_i_1` | `CivAdd` |
-----------|-----------|----------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type  | Length |
--------------------|-------|--------|
-`SubType`          |UInt8  |1       |
-`GPS_i_0`          |Float32|4       |
-`GPS_i_0`          |Float32|4       |
-`CivAdd`           |Data   |100     |
-`ID_i_j`           |UInt64 |8       |
-
-### Link Type Format
-
-The wire format for the link type looks like this:
-
-`SubType` | `NPLT_1` | ... | `NPLT_n` | `PLT_1` | ... | `PLT_n` |
-----------|----------|-----|----------|---------|-----|---------|
-
-Each `NPLT_i` field looks as follows:
-
-`ClusterLinkType_i` | `ID_i_0` | ... | `ID_i_m` |
---------------------|----------|-----|----------|
-
-Each `PLT_i` field looks as follows:
-
-`ClusterLinkType_i` | `ID_i_0` | `InterLink_i_0` | ... | `ID_i_m` | `InterLink_i_m` |
---------------------|----------|-----------------|-----|----------|-----------------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name                | Type | Length |
---------------------|------|--------|
-`SubType`           |UInt8 |1       |
-`ClusterLinkType_i` |Uint8 |1       |
-`ID_i_j`            |UInt64|8       |
-`InterLink_i_j`     |UInt8 |1       |
-
-### Maximum Bandwidth Format
-
-The wire format for maximum bandwidth information looks like this:
-
-`SubType` | `NPMBC_1` | ... | `NPMBC_n` | `PMBC_1` | ... | `PMBC_n` |
-----------|-----------------|-----------|----------|-----|----------|
-
-Each `NPMBC_i` field looks as follows:
-
-`ClusterBW_i` | `ID_i_0` | ... | `ID_i_m` |
---------------|----------|-----|----------|
-
-Each `PMBC_i` field looks as follows:
-
-`ClusterBW_i` | `ID_i_0` | `InterBW_i_0` | ... | `ID_i_m` | `InterBw_i_m` |
---------------|----------|---------------|-----|----------|---------------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`ClusterBW_i`      |UInt32|4       |
-`ID_i_j`           |UInt64|8       |
-`InterBW_i_j`      |UInt32|4       |
-
-### Number of Internal Hops Format
-
-The wire format for the number of internal hops looks like this:
-
-`SubType` | `HC_1` | `HC_2` | ... | `HC_n` |
-----------|--------|--------|-----|--------|
-
-Each `HC_i` field looks as follows:
-
-`ClusterHops_i` | `ID_i_0` | ... | `ID_i_m` |
-----------------|----------|-----|----------|
-
-The table below shows names, types
-and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`ClusterHops_i`    |UInt8 |1       |
-`ID_i_j`           |UInt64|8       |
-
-### Note Format
-
-The wire format for the note looks like this:
-
-`SubType` | `Default` | `Interface` | `Words` |
-----------|-----------|-------------|---------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`Default`          |Text  |100     |
-`Words`            |Text  |100     |
-
-### Metadata Endpoint Format
-
-The wire format for the metadata endpoint looks like this:
+The format for the metadata endpoint looks like this:
 
 `SubType` | `URL` |
 ----------|-------|
@@ -552,7 +556,7 @@ The table below shows names, types and lengths (in bytes) of each value:
 Name               | Type | Length |
 -------------------|------|--------|
 `SubType`          |UInt8 |1       |
-`URL`              |Text  |100     |
+`URL`              |Text  |Variable, max 200     |
 
 ## Config File Format
 
@@ -639,3 +643,11 @@ for an AS with three interfaces with IDs 1, 2 and 3:
   "URL": "asdf"
 }
 ````
+
+## Concrete Implementation
+
+Cap'nProto will be used for the wire formats of the extension[??? Ask in slack
+about this]. The following section is devoted to looking at the implementation
+of each property in detail.
+
+
