@@ -85,22 +85,28 @@ Use cases of such information include:
 
 ### Conceptual Implementation Latency
 
-The latency information will be comprised of 2 parts:
+The latency information will be comprised of  main parts:
 
 - The subtype field, which identifies it
-- A variable number of latency clusters. 
+- The inter-AS latency between the egress interface and the ingress interface of
+  the AS the PCB will be propagated to
+- A variable number of non-peering latency clusters
+- A variable number of peering latency clusters
 
-A latency cluster serves to pool all interfaces which have the same propagation
-delay (within a 1 ms range) between them and the egress interface (i.e. the
-interface the PCB was sent out on). The clustering process is straightforward.
-When doing clustering, it will simply pick the first value it comes across that
-can't be assigned to an already existing cluster and, if it is not an integer,
-round it down to the nearest integer. This value will then serve as the
-baseline for the newly created cluster, which will include all interfaces with
-delay values in the interval (baseline, baseline+1(.
-
-
-Each latency cluster is itself comprised of 3 types of elements:
+In general, a latency cluster serves to pool all interfaces which have the same
+propagation delay (within a 1 ms range) between them and the egress interface (i.e.
+the interface the PCB will be sent out on). 
+The difference between peering and non-peering latency clusters is that in peering
+latency clusters, the latency of the link attached to the peering interface is also
+included in the cluster for every such peering interface. In non-peering clusters
+this information is omitted.
+The clustering process is straightforward. When doing clustering, it will simply
+pick the first value it comes across that can't be assigned to an already
+existing cluster and, if it is not an integer, round it down to the nearest integer.
+This value will then serve as the baseline for the newly created cluster, which will
+include all interfaces with intra-AS delay values in the interval
+(baseline, baseline+1(.
+Each peering latency cluster is itself comprised of 3 types of elements:
 
 - The intra-AS propagation delay for every interface in the cluster, in ms (1
   value per cluster)
@@ -108,20 +114,49 @@ Each latency cluster is itself comprised of 3 types of elements:
 - The inter-AS propagation delay for the connections attached to these
   interfaces, in ms (1 value per interface)
 
+Non-peering latency clusters look almost exactly the same, with the one difference
+being that the inter-AS propagation delays are omitted:
+
+- The intra-AS propagation delay for every interface in the cluster, in ms (1
+  value per cluster)
+- The interface ID for every interface in the cluster (1 value per interface)
+
 Information about the inter-AS latency, as well as the intra-AS latency from
-every interface to the egress interface is required to deal with shortcut/peering
+every interface to the egress interface is required to deal with peering
 paths (see diagram).
 
 ![Normal Path](fig/normal_path.png)
 
-Here, the interfaces where traffic enters and leaves correspond to the ingress
-and egress interfaces respectively saved in the AS Entry of the PCB. The terms
-ingress and egress interfaces refer to the way these interfaces would be encoded
-in the PCB during the beaconing process, therefore the lower interface is always
-labelled as the egress interface, even when it is in the up segment and would
-thus technically be the interface on which traffic enters the AS.
+In the case of a "normal", the interfaces where traffic enters
+and leaves correspond to the ingress and egress interfaces respectively, that are
+saved in the AS Entry of the PCB. The terms ingress and egress interfaces refer to
+the way these interfaces would be encoded in the PCB during the beaconing process,
+therefore the lower interface is always labelled as the egress interface, even when it is in
+the up segment and would thus technically be the interface on which traffic enters the AS.
+Calculating end-to-end latencies can therefore be done by simply adding up the intra-AS
+latency (from ingress to egress interface) as well as the inter-AS latency (from egress
+interface to the next AS on the path) for every AS on the end to end path.
 
-In the situation where either a shortcut or a peering path is used, merely
+Knowing merely the inter-AS latency for the egress interface is also sufficient
+in the case of shortcut paths. The interface where traffic will enter AS 2
+is the egress interface saved in the AS Entry for AS 2 in the PCB which was directly
+received by AS 3. The interface where traffic will leave AS 2 is the interface that
+was saved in AS Entry of the PCB that was sent to AS 4 and was fetched by AS 3 in
+the form of a path segment during the path lookup process. Thus AS 3 now has information
+about both the inter-AS connection between AS 3 and AS 2, and the inter-AS connection
+between AS 2 and AS 4. In the presence of information about intra-AS latencies, 
+this information is sufficient to calculate the end-to-end latency betwen AS 3 and AS 4
+(see figure below). Thus, for non-peering interfaces, we will only encode the inter-AS
+latency for the egress interface in the latency information.
+
+Peering connections need to be dealt with separately. A peering link may differ
+from the egress interface encoded in any of the AS Entries of any of the path segments that
+were received or fetched by AS 3. Therefore we need to make sure that the inter-AS latency
+for every connection attached to a peering interface of the AS is also stored in the PCB
+(this is done in the peering latency clusters) (see figure below).
+
+Intra-AS delays present a problem in the presence of both shortcut-, or peering
+paths. In those situations, merely 
 storing the latency from the ingress to the egress interface will be insufficient.
 This is because the interface on which traffic will leave the AS as it travels
 along the path will no longer be the ingress interface encoded in the PCB that
@@ -130,10 +165,13 @@ stored in a different PCB (in the case of a shortcut connection) or a peering
 interface (in the case of a peering conncetion). Therefore, it is necessary
 that latencies (or other metrics when looking at a different property) be known
 for the paths from the egress interface to such a non-ingress interface also
-(see figures below).
+(see figure below).
 
 ![Shortcut Path](fig/shortcut_path.png)
 ![Peering Path](fig/peering_path.png)
+
+All these considerations also apply to other properties, such as maximum bandwidth
+(see below).
 
 ## Maximum Bandwidth
 
@@ -155,25 +193,39 @@ Use cases of such information include:
 
 ### Conceptual Implementation Maximum Bandwidth
 
-The maximum bandwidth information will be comprised of 2 main parts:
+The maximum bandwidth information will be comprised of 3 main parts:
 
 - The subtype field, which identifies it
-- A variable number of maximum bandwidth clusters
+- The inter-AS maximum bandwidth between the egress interface and the next
+  AS the PCB will be propagated to
+- A variable number of non-peering maximum bandwidth clusters
+- A variable number of peering maximum bandwidth clusters
 
 A maximum bandwidth cluster serves to pool all interfaces which have the
-same maximum bandwidth between them and the egress interface. When
-doing clustering, the system will simply pick the first value it comes across
+same maximum bandwidth between them and the egress interface. 
+The difference between peering- and non-peering maximum bandwidth clusters is that
+non-peering clusters do not include the inter-AS maximum bandwidth for every
+interface in the cluster (see below).
+When doing clustering, the system will simply pick the first value it comes across
 that can't be assigned to an already existing cluster and, if it is not an integer,
 round it down to the nearest integer. This value will then serve as the
 baseline for the newly created cluster, which will include all interfaces with
 delay values in the interval (baseline, baseline+10(.
-Each cluster is itself formed of 3 types of elements:
+Each peering cluster is itself formed of 3 types of elements:
 
 - The intra-AS maximum bandwidth for all interfaces in the cluster (1 value per
   cluster)
 - The interface IDs of all the interfaces in the cluster (1 value per interface)
 - The maximum bandwidth of the inter-AS links attached to each of these interfaces
   (1 value per interface)
+  
+Each non-peering cluster is formed of 2 types of elements:
+
+- The intra-AS maximum bandwidth for all interfaces in the cluster (1 value per
+  cluster)
+- The interface IDs of all the interfaces in the cluster (1 value per interface)
+
+Here the inter-AS bandwidths are omitted. 
 
 ## Geographic Information
 
@@ -235,16 +287,26 @@ public. Use cases of such information include:
 The Link type will be comprised of 2 parts:
 
 - The subtype field, which identifies it
-- A variable number of link type clusters
+- The link type for the link attached to the egress interface
+- A variable number of non-peering link type clusters
+- A variable number of peering link type clusters
 
 A link type cluster serves to pool all interfaces which are attached to the
-same type of intra-AS link between them and the egress interface. Each link
-type cluster is itself comprised of 3 types of elements:
+same type of intra-AS link between them and the egress interface. 
+The difference betwen peering- and non-peering link type clusters is that non-peering
+link type clusters do not include the link type for the connections attached to the
+interfaces in the cluster (see below).
+Each peering link type cluster is itself comprised of 3 types of elements:
 
 - The intra-AS link type for all interfaces in the cluster (1 value per cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
 - The link type for each of the inter-AS connections attached to the interfaces
   in the cluster (1 value per interface)
+  
+Each non-peering link type cluster is itself comprised of 2 types of elements:
+
+- The intra-AS link type for all interfaces in the cluster (1 value per cluster)
+- The interface ID for every interface in the cluster (1 value per interface)
 
 ## Number of Internal Hops
 
@@ -341,10 +403,15 @@ Except for `Type` at the beginning, all of these fields are optional.
 
 The wire format for latency information looks like this:
 
-`SubType` | `LC_1` | `LC_2` | ... | `LC_n` |
-----------|--------|--------|-----|--------|
+`SubType` | `NPLC_1` | ... | `NPLC_n` | `PLC_1`| ... | `PLC_n`|
+----------|----------|-----|----------|--------|-----|--------|
 
-Each `LC_i` field looks as follows:
+Each `NPLC_i` field looks as follows:
+
+`ClusterDelay_i` | `ID_i_0` | ... | `ID_i_m` | 
+-----------------|----------|-----|----------|
+
+Each `PLC_i` field looks as follows:
 
 `ClusterDelay_i` | `ID_i_0` | `InterDelay_i_0` | ... | `ID_i_m` | `InterDelay_i_m` |
 -----------------|----------|------------------|-----|----------|------------------|
@@ -389,10 +456,15 @@ Name               | Type  | Length |
 
 The wire format for the link type looks like this:
 
-`SubType` | `LT_1` | ... | `LT_n` |
-----------|--------|-----|--------|
+`SubType` | `NPLT_1` | ... | `NPLT_n` | `PLT_1` | ... | `PLT_n` |
+----------|----------|-----|----------|---------|-----|---------|
 
-Each `LT_i` field looks as follows:
+Each `NPLT_i` field looks as follows:
+
+`ClusterLinkType_i` | `ID_i_0` | ... | `ID_i_m` |
+--------------------|----------|-----|----------|
+
+Each `PLT_i` field looks as follows:
 
 `ClusterLinkType_i` | `ID_i_0` | `InterLink_i_0` | ... | `ID_i_m` | `InterLink_i_m` |
 --------------------|----------|-----------------|-----|----------|-----------------|
@@ -410,10 +482,15 @@ Name                | Type | Length |
 
 The wire format for maximum bandwidth information looks like this:
 
-`SubType` | `MBC_1` | `MBC_2` | ... | `MBC_n` |
-----------|---------|---------|-----|---------|
+`SubType` | `NPMBC_1` | ... | `NPMBC_n` | `PMBC_1` | ... | `PMBC_n` |
+----------|-----------------|-----------|----------|-----|----------|
 
-Each `MBC_i` field looks as follows:
+Each `NPMBC_i` field looks as follows:
+
+`ClusterBW_i` | `ID_i_0` | ... | `ID_i_m` |
+--------------|----------|-----|----------|
+
+Each `PMBC_i` field looks as follows:
 
 `ClusterBW_i` | `ID_i_0` | `InterBW_i_0` | ... | `ID_i_m` | `InterBw_i_m` |
 --------------|----------|---------------|-----|----------|---------------|
