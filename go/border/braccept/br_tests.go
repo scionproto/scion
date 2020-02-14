@@ -110,6 +110,7 @@ func br_parent() int {
 
 	failures += revocation_owned_parent()
 	failures += revocation_not_owned_child_link()
+	failures += revocation_expired_not_owned_child_link()
 
 	failures += ohp_parent_to_internal_bs()
 	failures += ohp_udp_parent_to_internal_bs()
