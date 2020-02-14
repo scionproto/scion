@@ -24,13 +24,13 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/iface/mock_iface"
 	"github.com/scionproto/scion/go/sig/egress/worker/mock_worker"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 func TestMain(m *testing.M) {
@@ -109,7 +109,7 @@ func (wt *WorkerTester) Run() {
 	ia, _ := addr.IAFromString("1-ff00:0:300")
 	s := mock_iface.NewMockSession(wt.mockCtrl)
 	s.EXPECT().IA().AnyTimes().Return(ia)
-	s.EXPECT().ID().AnyTimes().Return(mgmt.SessionType(0))
+	s.EXPECT().ID().AnyTimes().Return(sig_mgmt.SessionType(0))
 	s.EXPECT().Conn().AnyTimes().Return(nil)
 	s.EXPECT().Ring().AnyTimes().Return(wt.ring)
 	s.EXPECT().Remote().AnyTimes().Return(nil)
